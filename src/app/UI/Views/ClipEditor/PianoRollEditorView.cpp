@@ -62,4 +62,9 @@ ParamEditorView *PianoRollEditorView::paramEditorView() const {
 void PianoRollEditorView::setDataContext(SingingClip *clip) const {
     m_pianoRollView->setDataContext(clip);
     m_paramEditorView->setDataContext(clip);
+
+    const auto pianoGraphicsView = m_pianoRollView->graphicsView();
+    const auto paramGraphicsView = m_paramEditorView->graphicsView();
+    paramGraphicsView->setScaleX(pianoGraphicsView->scaleX());
+    paramGraphicsView->setHorizontalBarValue(pianoGraphicsView->horizontalBarValue());
 }
