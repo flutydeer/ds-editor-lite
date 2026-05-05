@@ -105,6 +105,31 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
             [this] { emit timeRangeChanged(startTick(), endTick()); });
     connect(this, &TimeGraphicsView::visibleRectChanged, this,
             [this] { emit timeRangeChanged(startTick(), endTick()); });
+
+    m_positionThrottle.setSingleShot(true);
+    m_positionThrottle.setInterval(33);
+    connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
+        double tick = m_pendingPosition;
+        m_playbackPosition = tick;
+        if (m_scenePlayPosIndicator != nullptr)
+            m_scenePlayPosIndicator->setPosition(tick);
+
+        if (!m_autoTurnPage || appStatus->currentEditObject != AppStatus::EditObjectType::None)
+            return;
+
+        auto viewWidth = viewport()->width();
+        auto hBarValue = horizontalBarValue();
+        auto targetEndTick = sceneXToTick(hBarValue + viewWidth) + m_offset;
+        auto tickRange = targetEndTick - sceneXToTick(hBarValue) - m_offset;
+
+        if (m_playbackPosition > targetEndTick) {
+            if (m_playbackPosition > targetEndTick + tickRange)
+                setViewportStartTick(m_playbackPosition);
+            else
+                pageAdd();
+        } else if (m_playbackPosition < startTick())
+            setViewportStartTick(m_playbackPosition);
+    });
 }
 
 TimeGraphicsScene *TimeGraphicsView::scene() {
@@ -696,27 +721,9 @@ void TimeGraphicsView::setSceneLength(int tick) const {
 }
 
 void TimeGraphicsView::setPlaybackPosition(double tick) {
-    m_playbackPosition = tick;
-    if (m_scenePlayPosIndicator != nullptr)
-        m_scenePlayPosIndicator->setPosition(tick);
-
-    if (!m_autoTurnPage || appStatus->currentEditObject != AppStatus::EditObjectType::None)
-        return;
-
-    auto targetHBarValue = m_hBarAnimation.state() == QAbstractAnimation::Running
-                               ? m_hBarAnimation.endValue().toInt()
-                               : horizontalBarValue();
-    auto viewWidth = viewport()->width();
-    auto targetEndTick = sceneXToTick(targetHBarValue + viewWidth) + m_offset;
-    auto tickRange = targetEndTick - sceneXToTick(targetHBarValue) - m_offset;
-
-    if (m_playbackPosition > targetEndTick) {
-        if (m_playbackPosition > targetEndTick + tickRange)
-            setViewportStartTick(m_playbackPosition);
-        else
-            pageAdd();
-    } else if (m_playbackPosition < startTick())
-        setViewportStartTick(m_playbackPosition);
+    m_pendingPosition = tick;
+    if (!m_positionThrottle.isActive())
+        m_positionThrottle.start();
 }
 
 void TimeGraphicsView::setLastPlaybackPosition(double tick) {
@@ -727,8 +734,7 @@ void TimeGraphicsView::setLastPlaybackPosition(double tick) {
 
 void TimeGraphicsView::setViewportStartTick(double tick) {
     auto sceneX = qRound(tickToSceneX(tick - m_offset));
-    // horizontalScrollBar()->setValue(sceneX);
-    horizontalBarAnimateTo(sceneX);
+    setHorizontalBarValue(sceneX);
 }
 
 void TimeGraphicsView::setViewportCenterAtTick(double tick) {
@@ -739,10 +745,9 @@ void TimeGraphicsView::setViewportCenterAtTick(double tick) {
 }
 
 void TimeGraphicsView::pageAdd() {
-    // horizontalScrollBar()->triggerAction(QAbstractSlider::SliderPageStepAdd);
     auto start = horizontalScrollBar()->value();
     auto end = start + horizontalScrollBar()->pageStep();
-    horizontalBarAnimateTo(end);
+    setHorizontalBarValue(end);
 }
 
 double TimeGraphicsView::sceneXToTick(double pos) const {

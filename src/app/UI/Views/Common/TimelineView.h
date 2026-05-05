@@ -80,6 +80,8 @@ private:
     int m_loopRegionHeight = 10;
     int m_loopHandleWidth = 8;
     QTimer m_pieceUpdateThrottle;
+    QTimer m_positionThrottle;
+    double m_pendingPosition = 0;
 };
 
 

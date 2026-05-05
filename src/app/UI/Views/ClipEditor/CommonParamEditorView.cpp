@@ -314,8 +314,9 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
             for (auto curve : overlappedCurves) {
                 if (curve->localStart() >= startTick && curve->localEndTick() <= endTick) {
                     // 区间覆盖整条曲线，直接移除该曲线
-                    m_drawCurvesEdited.removeOne(curve);
                     qDebug() << "Erase: Remove curve #" << curve->id();
+                    m_drawCurvesEdited.removeOne(curve);
+                    delete curve;
                 } else if (curve->localStart() < startTick && curve->localEndTick() > endTick) {
                     // 区间在曲线内，将曲线切成两段
                     const auto newCurve = new DrawCurve;
@@ -349,7 +350,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 
                 m_editingCurve->mergeWithCurrentPriority(*curve);
                 m_drawCurvesEdited.removeOne(curve);
-                // delete curve;
+                delete curve;
             }
         }
     }

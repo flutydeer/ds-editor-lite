@@ -9,6 +9,8 @@
 
 #include <QVector>
 #include <QString>
+#include <QPixmap>
+#include <QSize>
 
 class QPainter;
 class QRectF;
@@ -34,6 +36,9 @@ private:
     bool ensureIO();
     void resetIO();
 
+    void doPaint(QPainter *painter, const QRectF &rect, const QColor &color,
+                 double rectStartTick, double rectEndTick);
+
     void drawPeakMode(QPainter *painter, const QRectF &rect, const QColor &color,
                       double rectStartTick, double ticksPerPixel, double samplesPerTick);
     void drawSubChunkPeakMode(QPainter *painter, const QRectF &rect, const QColor &color,
@@ -46,6 +51,10 @@ private:
     QString m_path;
     talcs::AbstractAudioFormatIO *m_io = nullptr;
     QVector<float> m_ioBuffer;
+
+    QPixmap m_cache;
+    QSize m_cacheSize;
+    qreal m_cacheDpr = 0;
 };
 
 #endif // WAVEFORMPAINTER_H
