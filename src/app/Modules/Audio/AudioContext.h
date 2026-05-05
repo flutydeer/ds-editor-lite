@@ -7,6 +7,7 @@
 
 #define audioContext AudioContext::instance()
 
+#include <QElapsedTimer>
 #include <QTimer>
 
 #include <TalcsCore/PositionableMixerAudioSource.h>
@@ -69,6 +70,8 @@ private:
     QHash<Track *, TrackInferenceHandler *> m_trackInferDict;
 
     QTimer *m_levelMeterTimer;
+    bool m_levelMeterActive = false;
+    QElapsedTimer m_levelMeterTickTime;
     QHash<const Track *,
           QPair<std::shared_ptr<talcs::SmoothedFloat>, std::shared_ptr<talcs::SmoothedFloat>>>
         m_trackLevelMeterValue;
@@ -80,6 +83,7 @@ private:
 
     void handlePlaybackStatusChanged(PlaybackStatus status);
     void handlePlaybackPositionChanged(double positionTick) const;
+    void tickLevelMeters();
 
     void handleModelChanged();
     void handleTrackInserted(int index, Track *track);
