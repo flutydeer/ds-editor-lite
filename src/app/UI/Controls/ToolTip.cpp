@@ -66,8 +66,10 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     m_opacityAnimation = new QPropertyAnimation(this, "windowOpacity");
     m_opacityAnimation->setDuration(150);
     connect(m_opacityAnimation, &QPropertyAnimation::finished, this, [this] {
-        if (windowOpacity() == 0)
+        if (windowOpacity() == 0) {
             hide();
+            emit hideAnimationFinished();
+        }
     });
 }
 
