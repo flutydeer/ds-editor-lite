@@ -204,10 +204,10 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
 }
 
 void InferDurationTask::terminate() {
-    if (m_inferenceDuration) {
+    IInferTask::terminate();
+    if (m_inferenceDuration && !inferEngine->isAboutToQuit()) {
         m_inferenceDuration->stop();
     }
-    IInferTask::terminate();
 }
 
 void InferDurationTask::abort() {

@@ -214,10 +214,10 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
 }
 
 void InferVarianceTask::terminate() {
-    if (m_inferenceVariance) {
+    IInferTask::terminate();
+    if (m_inferenceVariance && !inferEngine->isAboutToQuit()) {
         m_inferenceVariance->stop();
     }
-    IInferTask::terminate();
 }
 
 void InferVarianceTask::abort() {

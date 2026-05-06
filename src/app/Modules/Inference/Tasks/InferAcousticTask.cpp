@@ -257,13 +257,15 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
 }
 
 void InferAcousticTask::terminate() {
-    if (m_inferenceAcoustic) {
-        m_inferenceAcoustic->stop();
-    }
-    if (m_inferenceVocoder) {
-        m_inferenceVocoder->stop();
-    }
     IInferTask::terminate();
+    if (!inferEngine->isAboutToQuit()) {
+        if (m_inferenceAcoustic) {
+            m_inferenceAcoustic->stop();
+        }
+        if (m_inferenceVocoder) {
+            m_inferenceVocoder->stop();
+        }
+    }
 }
 
 void InferAcousticTask::abort() {
