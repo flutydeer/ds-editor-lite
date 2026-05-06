@@ -100,11 +100,19 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 - 规则引擎通用化，支持 Trie + 通配符 + 贪心匹配，将来可自定义
 - "+" 分配逻辑是语言无关的，在 onset 标记之后统一处理
 
+### 阶段 5：按语言提供默认歌词（53ba03d2）
+
+将单一 `defaultLyric` 设置改为按语言的映射表 `defaultLyrics`，新建音符时根据语言查找对应默认歌词。
+
+**改动**：
+- `GeneralOption.h/.cpp` — `QString defaultLyric` → `QMap<QString, QString> defaultLyrics`（cmn→啦, eng→la, jpn→ら, yue→啦）；新增 `defaultLyricForLanguage()`；JSON key 改为 `"defaultLyrics"`（对象类型）
+- `GeneralPage.h/.cpp` — 切换语言时动态保存/加载对应语言的默认歌词文本框内容
+- `PianoRollGraphicsViewHelper.cpp`、`DrawNoteHandler.cpp`、`MidiExtractController.cpp`、`MidiConverter.cpp` — 所有 `defaultLyric` 调用改为 `defaultLyricForLanguage(language)`
+
 ## 待做
 
 ### 编辑器英语适配
 
-- 按语言提供默认歌词和默认发音（如有），新建音符时使用对应语言的默认值
 - 英语音符的 pronunciation view 隐藏（音素序列对用户无参考价值，已在音符下方 phoneme view 展示）
 - `+` 音素组溢出时，UI 上应有可视化的错误提示
 
