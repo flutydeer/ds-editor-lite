@@ -10,8 +10,11 @@ void GeneralOption::load(const QJsonObject &object) {
     if (object.contains(defaultSingingLanguageKey))
         defaultSingingLanguage = object[defaultSingingLanguageKey].toString();
 
-    if (object.contains(defaultLyricKey))
-        defaultLyric = object[defaultLyricKey].toString();
+    if (object.contains(defaultLyricsKey)) {
+        const auto obj = object[defaultLyricsKey].toObject();
+        for (auto it = obj.constBegin(); it != obj.constEnd(); ++it)
+            defaultLyrics[it.key()] = it.value().toString();
+    }
 
     if (const auto it = object.constFind(packageSearchPathsKey); it != object.constEnd()) {
         QStringList paths;
@@ -49,9 +52,13 @@ void GeneralOption::load(const QJsonObject &object) {
 }
 
 void GeneralOption::save(QJsonObject &object) {
+    QJsonObject lyricsObj;
+    for (auto it = defaultLyrics.constBegin(); it != defaultLyrics.constEnd(); ++it)
+        lyricsObj[it.key()] = it.value();
+
     object = {
         {defaultSingingLanguageKey, defaultSingingLanguage                        },
-        {defaultLyricKey,           defaultLyric                                  },
+        {defaultLyricsKey,          lyricsObj                                     },
         {packageSearchPathsKey,     QJsonArray::fromStringList(packageSearchPaths)},
 #if false
         serialize_defaultPackage(),
@@ -68,4 +75,10 @@ void GeneralOption::save(QJsonObject &object) {
 void GeneralOption::setPackageSearchPathsAndNotify(QStringList paths) {
     packageSearchPaths = std::move(paths);
     // Q_EMIT packageSearchPathsChanged();
+}
+
+QString GeneralOption::defaultLyricForLanguage(const QString &language) const {
+    if (auto it = defaultLyrics.find(language); it != defaultLyrics.end())
+        return it.value();
+    return "la";
 }

@@ -29,6 +29,7 @@ private:
     Button *m_btnOpenConfigFolder;
     LanguageComboBox *m_cbDefaultSingingLanguage;
     LineEdit *m_leDefaultLyric;
+    QString m_previousLanguage;
 #if false
     DirSelector *m_fsDefaultPackage;
     LineEdit *m_leDefaultSingerId;
