@@ -71,8 +71,7 @@ TrackControlView>QPushButton#btnSolo:checked {
 }
 
 TrackControlView>ComboBox,
-TrackControlView>TwoLevelComboBox
- {
+TrackControlView>TwoLevelComboBox {
     height: 24;
     border: none;
     padding-left: 8px;

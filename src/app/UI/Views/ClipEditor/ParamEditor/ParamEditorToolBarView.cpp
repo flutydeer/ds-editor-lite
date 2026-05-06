@@ -17,28 +17,39 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     setAttribute(Qt::WA_StyledBackground);
 
     lbForegroundParam = new QLabel(tr("Foreground:"));
+    lbForegroundParam->setObjectName("lbForegroundParam");
+
     cbForegroundParam = new ComboBox(true);
+    cbForegroundParam->setObjectName("cbForegroundParam");
     cbForegroundParam->addItems(paramUtils->names());
     cbForegroundParam->removeItem(0); // Remove pitch
     cbForegroundParam->addItem(tr("Speaker Mix"));
 
     const auto btnSwap = new Button(tr("Swap"));
+    btnSwap->setObjectName("btnSwap");
 
     lbBackgroundParam = new QLabel(tr("Background:"));
+    lbBackgroundParam->setObjectName("lbBackgroundParam");
+
     cbBackgroundParam = new ComboBox(true);
+    cbBackgroundParam->setObjectName("cbBackgroundParam");
     cbBackgroundParam->addItems(paramUtils->names());
     cbBackgroundParam->removeItem(0); // Remove pitch
 
     // Speaker mix section (hidden by default)
     m_speakerMixSection = new QWidget;
+    m_speakerMixSection->setObjectName("speakerMixSection");
+    m_speakerMixSection->setAttribute(Qt::WA_StyledBackground);
+    
     auto *mixLayout = new QHBoxLayout;
     mixLayout->setContentsMargins(0, 0, 0, 0);
     mixLayout->setSpacing(4);
 
     auto *btnPrev = new Button(QStringLiteral("◀"));
-    btnPrev->setFixedWidth(28);
+    btnPrev->setObjectName("btnPrevKeyframe");
+    
     auto *btnNext = new Button(QStringLiteral("▶"));
-    btnNext->setFixedWidth(28);
+    btnNext->setObjectName("btnNextKeyframe");
     mixLayout->addWidget(btnPrev);
     mixLayout->addWidget(btnNext);
     mixLayout->addSpacing(8);
@@ -57,6 +68,7 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     connect(btnNext, &Button::clicked, this, &ParamEditorToolBarView::nextKeyframe);
 
     const auto layout = new QHBoxLayout();
+    layout->addSpacing(64);
     layout->addWidget(lbForegroundParam);
     layout->addWidget(cbForegroundParam);
     layout->addWidget(btnSwap);
@@ -68,7 +80,7 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     layout->setContentsMargins(8, 4, 4, 4);
 
     setLayout(layout);
-    setFixedHeight(36);
+    // setFixedHeight(32);
 
     connect(cbForegroundParam, &ComboBox::currentIndexChanged, this,
             &ParamEditorToolBarView::onForegroundSelectionChanged);

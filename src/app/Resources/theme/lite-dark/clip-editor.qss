@@ -144,10 +144,46 @@ PianoRollEditorView::handle:vertical {
 }
 
 ParamEditorToolBarView {
+    height: 32px;
     /* background: #232425; */
     background: #272A33;
     border-top: 1px solid #1C1D1E;
     /* border-bottom: 1px solid #1C1D1E; */
+}
+
+ParamEditorToolBarView>QLabel#lbForegroundParam,
+ParamEditorToolBarView>QLabel#lbBackgroundParam {
+    max-height: 24;
+    color: #80F0F0F0;
+}
+
+ParamEditorToolBarView>ComboBox#cbForegroundParam,
+ParamEditorToolBarView>ComboBox#cbBackgroundParam {
+    height: 24;
+    border: none;
+    padding-left: 8px;
+    background: transparent;
+    color: #C8C9CC;
+}
+
+ParamEditorToolBarView>ComboBox#cbForegroundParam:hover,
+ParamEditorToolBarView>ComboBox#cbBackgroundParam:hover {
+    color: #FFFFFF;
+}
+
+ParamEditorToolBarView>Button#btnSwap {
+    height: 24;
+    border: none;
+    background: transparent;
+}
+
+ParamEditorToolBarView Button#btnPrevKeyframe,
+ParamEditorToolBarView Button#btnNextKeyframe {
+    width: 24;
+    height: 24;
+    padding: 0px;
+    border: none;
+    background: transparent;
 }
 
 ParamEditorInfoArea {
