@@ -5,11 +5,10 @@
 #ifndef CHORUSKIT_LEVELMETER_H
 #define CHORUSKIT_LEVELMETER_H
 
+#include <QPointer>
 #include <QWidget>
 
-class QTimer;
-class QVariantAnimation;
-class ToolTipFilter;
+class LevelMeterViewModel;
 
 class LevelMeter : public QWidget {
     Q_OBJECT
@@ -29,25 +28,15 @@ public:
 
     explicit LevelMeter(QWidget *parent = nullptr);
 
-    void setClipped(bool onL, bool onR);
-    void clearClipped();
-    void setValue(double valueL, double valueR);
+    void bindTo(LevelMeterViewModel *viewModel);
+    LevelMeterViewModel *viewModel() const;
     [[nodiscard]] double peakValue() const;
 
 signals:
+    void clipResetRequested();
     void peakValueChanged(double value);
 
 private:
-    struct ChannelData {
-        double currentLevel = 0;
-        double peak = 0;
-        double displayedPeak = 0; // Clipped to 0
-        QTimer *peakHoldTimer = nullptr;
-        QVariantAnimation *decayAnimation = nullptr;
-        bool isDecaying = false;
-        bool clipped = false;
-    };
-
     void resizeEvent(QResizeEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
@@ -58,21 +47,12 @@ private:
     void handleHoverOnBar();
     void handleHoverOnClipIndicator() const;
 
-    void drawSegmentedBar(QPainter &painter, const QRectF &rect, const double &level) const;
-    void drawGradientBar(QPainter &painter, const QRectF &rect, const double &level) const;
+    void drawSegmentedBar(QPainter &painter, const QRectF &rect, double level) const;
+    void drawGradientBar(QPainter &painter, const QRectF &rect, double level) const;
     void drawPeakHold(QPainter &painter, const QRectF &rect, double level) const;
-
-    static void startDecayAnimation(ChannelData &channel);
-    void updatePeakValue(ChannelData &channel, double clippedValue);
-    static void cancelDecayAnimation(ChannelData &channel);
-    void handleAnimationUpdate(const QVariant &value, ChannelData &channel);
-
-    void notifyDisplayedPeakChange();
-    double getPeakValueForTextDisplaying() const;
 
     static QString gainValueToString(double gain);
 
-    // Properties getters and setters
     double padding() const;
     void setPadding(double padding);
     double spacing() const;
@@ -94,10 +74,9 @@ private:
     QColor currentValueColor() const;
     void setCurrentValueColor(const QColor &color);
 
-    // Properties private fields
     double m_padding = 8;
     double m_spacing = 1;
-    double m_clipIndicatorLength = 6; // px
+    double m_clipIndicatorLength = 6;
     bool m_showValueWhenHover = true;
     QColor m_colorDimmed = {41, 44, 54};
     QColor m_colorClipped = {255, 155, 157};
@@ -107,17 +86,13 @@ private:
     QColor m_colorCurrentValue = {211, 214, 224};
     QColor m_colorPeakHold = {211, 214, 224};
     double m_peakHoldWidth = 1.2;
-    double m_lastPeakValue = 0.0;
 
-    // For drawing
     MeterStyle m_style = MeterStyle::Gradient;
-    const double m_safeThreshold = 0.707946;    //-3 dB
-    const double m_warnThreshold = 0.891251;    //-1 dB
-    const double m_safeThresholdAlt = 0.501187; //-6 dB
-    ChannelData m_leftChannel;
-    ChannelData m_rightChannel;
-    int m_peakHoldTime = 2500;
-    int m_decayTime = 1000;
+    const double m_safeThreshold = 0.707946;
+    const double m_warnThreshold = 0.891251;
+    const double m_safeThresholdAlt = 0.501187;
+
+    QPointer<LevelMeterViewModel> m_viewModel;
 
     QRectF paddedRect;
     double channelWidth = 0;
@@ -126,8 +101,6 @@ private:
     double mouseY = 0;
     bool m_mouseOnBar = false;
     QString m_currentValueText;
-
 };
-
 
 #endif // CHORUSKIT_LEVELMETER_H

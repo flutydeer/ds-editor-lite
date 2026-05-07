@@ -30,7 +30,7 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
 void GeneralPage::modifyOption() {
     const auto option = appOptions->general();
     option->defaultSingingLanguage = m_cbDefaultSingingLanguage->currentText();
-    option->defaultLyric = m_leDefaultLyric->text();
+    option->defaultLyrics[option->defaultSingingLanguage] = m_leDefaultLyric->text();
 #if false
     option->defaultPackage = m_fsDefaultPackage->path();
     option->defaultSingerId = m_leDefaultSingerId->text();
@@ -66,12 +66,19 @@ QWidget *GeneralPage::createContentWidget() {
 
     const auto langKey = option->defaultSingingLanguage;
     m_cbDefaultSingingLanguage = new LanguageComboBox(langKey);
-    connect(m_cbDefaultSingingLanguage, &ComboBox::currentIndexChanged, this,
-            &GeneralPage::modifyOption);
+    m_previousLanguage = langKey;
+    connect(m_cbDefaultSingingLanguage, &ComboBox::currentIndexChanged, this, [this]() {
+        const auto option = appOptions->general();
+        option->defaultLyrics[m_previousLanguage] = m_leDefaultLyric->text();
+        const auto newLang = m_cbDefaultSingingLanguage->currentText();
+        m_leDefaultLyric->setText(option->defaultLyricForLanguage(newLang));
+        m_previousLanguage = newLang;
+        modifyOption();
+    });
 
     m_leDefaultLyric = new LineEdit;
     m_leDefaultLyric->setFixedWidth(80);
-    m_leDefaultLyric->setText(option->defaultLyric);
+    m_leDefaultLyric->setText(option->defaultLyricForLanguage(langKey));
     connect(m_leDefaultLyric, &LineEdit::editingFinished, this, &GeneralPage::modifyOption);
     // m_leDefaultLyric->setPlaceholderText(option->defaultLyric);
 

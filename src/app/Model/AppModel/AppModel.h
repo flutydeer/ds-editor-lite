@@ -16,11 +16,12 @@
 class Track;
 class WorkspaceEditor;
 class AppModelPrivate;
+class LevelMeterViewModel;
 
 class AppModel final : public QObject, public ISerializable {
     Q_OBJECT
 
-public: // TODO: make it private
+public:
     explicit AppModel(QObject *parent = nullptr);
     ~AppModel() override;
 
@@ -44,10 +45,12 @@ public:
     void removeTrack(Track *track);
     void clearTracks();
 
-    //  QJsonObject globalWorkspace() const;
-    //  bool isWorkspaceExist(const QString &id) const;
-    //  QJsonObject getPrivateWorkspaceById(const QString &id) const;
-    // std::unique_ptr<WorkspaceEditor> workspaceEditor(const QString &id);
+    LevelMeterViewModel *levelMeterViewModelForTrack(const Track *track) const;
+    LevelMeterViewModel *levelMeterViewModelAt(qsizetype index) const;
+    LevelMeterViewModel *masterLevelMeterViewModel() const;
+
+public slots:
+    void clearAllClipStates();
 
     void newProject();
     bool importMidiFile(const QString &filename);
@@ -70,17 +73,6 @@ public:
     QString getBarBeatTickTime(int ticks) const;
     int projectLengthInTicks() const;
 
-    class LevelMetersUpdatedArgs {
-    public:
-        class State {
-        public:
-            double valueL = 0;
-            double valueR = 0;
-        };
-
-        QList<State> trackMeterStates;
-    };
-
 signals:
     void modelChanged();
     void tempoChanged(double tempo);
@@ -92,7 +84,5 @@ private:
     Q_DECLARE_PRIVATE(AppModel);
     AppModelPrivate *d_ptr;
 };
-
-
 
 #endif // DSPXMODEL_H

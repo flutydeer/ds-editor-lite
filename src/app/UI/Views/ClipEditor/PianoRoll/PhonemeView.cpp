@@ -33,6 +33,13 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     connect(appModel, &AppModel::tempoChanged, this, &PhonemeView::onTempoChanged);
     connect(playbackController, &PlaybackController::positionChanged, this,
             &PhonemeView::setPosition);
+
+    m_positionThrottle.setSingleShot(true);
+    m_positionThrottle.setInterval(33);
+    connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
+        m_position = m_pendingPosition;
+        update();
+    });
 }
 
 void PhonemeView::setDataContext(SingingClip *clip) {
@@ -62,8 +69,9 @@ void PhonemeView::setTimeRange(const double startTick, const double endTick) {
 }
 
 void PhonemeView::setPosition(const double tick) {
-    m_position = tick;
-    update();
+    m_pendingPosition = tick;
+    if (!m_positionThrottle.isActive())
+        m_positionThrottle.start();
 }
 
 void PhonemeView::onTempoChanged() {

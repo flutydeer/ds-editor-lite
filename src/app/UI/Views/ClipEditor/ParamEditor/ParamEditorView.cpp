@@ -8,10 +8,12 @@
 #include "ParamEditorGraphicsView.h"
 #include "ParamEditorInfoArea.h"
 #include "ParamEditorToolBarView.h"
+#include "SpeakerMixEditorView.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Controller/PlaybackController.h"
 #include "Utils/ParamUtils.h"
 
 #include <QVBoxLayout>
@@ -36,23 +38,26 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     const auto layout = new QHBoxLayout;
     layout->addWidget(m_infoArea);
     layout->addWidget(m_graphicsView);
-    // layout->setContentsMargins(0, 0, 0, 6);
     layout->setContentsMargins(0, 0, 0, 0);
 
-    const auto toolBar = new ParamEditorToolBarView;
+    m_toolBar = new ParamEditorToolBarView;
 
     const auto mainLayout = new QVBoxLayout();
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->addWidget(toolBar);
+    mainLayout->addWidget(m_toolBar);
     mainLayout->addLayout(layout);
     setLayout(mainLayout);
     setMinimumHeight(128);
 
-    connect(toolBar, &ParamEditorToolBarView::foregroundChanged, this,
+    connect(m_toolBar, &ParamEditorToolBarView::foregroundChanged, this,
             &ParamEditorView::onForegroundChanged);
-    connect(toolBar, &ParamEditorToolBarView::backgroundChanged, this,
+    connect(m_toolBar, &ParamEditorToolBarView::backgroundChanged, this,
             &ParamEditorView::onBackgroundChanged);
+    connect(m_toolBar, &ParamEditorToolBarView::previousKeyframe, this,
+            &ParamEditorView::onPreviousKeyframe);
+    connect(m_toolBar, &ParamEditorToolBarView::nextKeyframe, this,
+            &ParamEditorView::onNextKeyframe);
 }
 
 void ParamEditorView::setDataContext(SingingClip *clip) const {
@@ -68,14 +73,53 @@ void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) const {
         qDebug() << "foreground changed to Speaker Mix";
         m_infoArea->clearParamProperties();
         m_graphicsView->setForeground(name, *paramUtils->getPropertiesByName(name));
+
+        auto *mixView = m_graphicsView->speakerMixView();
+        if (mixView) {
+            QStringList names;
+            QList<QColor> colors;
+            for (const auto &speaker : mixView->speakers()) {
+                names.append(speaker.name);
+                colors.append(speaker.color);
+            }
+            m_toolBar->setSpeakers(names, colors);
+        }
+        m_toolBar->setSpeakerMixMode(true);
         return;
     }
     qDebug() << "foreground changed" << paramUtils->nameFromType(name);
     m_infoArea->setParamProperties(*paramUtils->getPropertiesByName(name));
     m_graphicsView->setForeground(name, *paramUtils->getPropertiesByName(name));
+    m_toolBar->setSpeakerMixMode(false);
 }
 
 void ParamEditorView::onBackgroundChanged(const ParamInfo::Name name) const {
     qDebug() << "background changed" << paramUtils->nameFromType(name);
     m_graphicsView->setBackground(name, *paramUtils->getPropertiesByName(name));
+}
+
+void ParamEditorView::onPreviousKeyframe() const {
+    auto *mixView = m_graphicsView->speakerMixView();
+    if (!mixView)
+        return;
+
+    const double currentTick = playbackController->position();
+    const double prevTick = mixView->previousKeyframeTick(currentTick);
+    if (prevTick >= 0) {
+        m_graphicsView->setViewportCenterAtTick(prevTick);
+        playbackController->setPosition(prevTick);
+    }
+}
+
+void ParamEditorView::onNextKeyframe() const {
+    auto *mixView = m_graphicsView->speakerMixView();
+    if (!mixView)
+        return;
+
+    const double currentTick = playbackController->position();
+    const double nextTick = mixView->nextKeyframeTick(currentTick);
+    if (nextTick >= 0) {
+        m_graphicsView->setViewportCenterAtTick(nextTick);
+        playbackController->setPosition(nextTick);
+    }
 }

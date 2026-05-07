@@ -22,6 +22,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/LevelMeter.h"
+#include "UI/Controls/LevelMeterViewModel.h"
 #include "UI/Views/Common/TimelineView.h"
 
 #include <QFileDialog>
@@ -127,8 +128,6 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
             &TrackEditorView::onPositionChanged);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &TrackEditorView::onLastPositionChanged);
-    connect(AudioContext::instance(), &AudioContext::levelMeterUpdated, this,
-            &TrackEditorView::onLevelMetersUpdated);
     connect(appModel, &AppModel::modelChanged, this, &TrackEditorView::onModelChanged);
     connect(appModel, &AppModel::trackChanged, this, &TrackEditorView::onTrackChanged);
 
@@ -179,15 +178,6 @@ void TrackEditorView::onPositionChanged(const double tick) const {
 
 void TrackEditorView::onLastPositionChanged(const double tick) const {
     m_graphicsView->setLastPlaybackPosition(tick);
-}
-
-void TrackEditorView::onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const {
-    const auto states = args.trackMeterStates;
-    for (int i = 0; i < qMin(states.size(), m_viewModel.tracks.size()); i++) {
-        const auto [valueL, valueR] = states.at(i);
-        const auto meter = m_viewModel.tracks.at(i)->controlView->levelMeter();
-        meter->setValue(valueL, valueR);
-    }
 }
 
 void TrackEditorView::onViewScaleChanged(const qreal sx, const qreal sy) const {
@@ -266,6 +256,11 @@ void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex
     m_trackListView->insertItem(trackIndex, newTrackItem);
     m_trackListView->setItemWidget(newTrackItem, controlView);
     track->controlView = controlView;
+
+    auto meter = controlView->levelMeter();
+    auto vm = appModel->levelMeterViewModelAt(trackIndex);
+    meter->bindTo(vm);
+    connect(meter, &LevelMeter::clipResetRequested, vm, &LevelMeterViewModel::resetClip);
 
     connect(controlView, &TrackControlView::insertNewTrackTriggered, this, [newTrackItem, this] {
         const auto i = m_trackListView->row(newTrackItem);

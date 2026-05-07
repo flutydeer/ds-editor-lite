@@ -10,6 +10,7 @@
 #include <QWidget>
 
 class ComboBox;
+class Button;
 class QLabel;
 class SingingClip;
 
@@ -19,9 +20,14 @@ class ParamEditorToolBarView final : public QWidget {
 public:
     explicit ParamEditorToolBarView(QWidget *parent = nullptr);
 
+    void setSpeakerMixMode(bool on);
+    void setSpeakers(const QStringList &names, const QList<QColor> &colors);
+
 signals:
     void foregroundChanged(ParamInfo::Name name);
     void backgroundChanged(ParamInfo::Name name);
+    void previousKeyframe();
+    void nextKeyframe();
 
 private slots:
     void onForegroundSelectionChanged(int index);
@@ -34,6 +40,8 @@ private:
     ComboBox *cbForegroundParam;
     QLabel *lbBackgroundParam;
     ComboBox *cbBackgroundParam;
+    QWidget *m_speakerMixSection = nullptr;
+    QWidget *m_speakerContainer = nullptr;
 };
 
 

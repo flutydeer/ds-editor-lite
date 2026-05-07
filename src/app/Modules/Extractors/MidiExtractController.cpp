@@ -63,7 +63,7 @@ void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
 
     // TODO: Fix start
     QList<Note *> notes;
-    const auto defaultLyric = appOptions->general()->defaultLyric;
+    const auto defaultLyric = appOptions->general()->defaultLyricForLanguage(language);
     const auto audioClipStart = audioClip->start();
     const auto singClipStart = audioClip->start();
     for (const auto &[key, start, duration] : task->result) {

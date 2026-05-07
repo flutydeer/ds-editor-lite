@@ -7,6 +7,8 @@
 
 // #include <QVersionNumber>
 
+#include <QMap>
+
 #include "Global/AppGlobal.h"
 #include "Model/AppModel/Params.h"
 #include "Model/AppOptions/IOption.h"
@@ -19,9 +21,15 @@ public:
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
     void setPackageSearchPathsAndNotify(QStringList paths);
+    QString defaultLyricForLanguage(const QString &language) const;
 
     QString defaultSingingLanguage = "cmn";
-    QString defaultLyric = "啦";
+    QMap<QString, QString> defaultLyrics{
+        {"cmn", "啦"},
+        {"eng", "la"},
+        {"jpn", "ら"},
+        {"yue", "啦"}
+    };
     QStringList packageSearchPaths;
 #if false
     QVersionNumber defaultPackageVersion;
@@ -40,7 +48,7 @@ public:
 
 private:
     const QString defaultSingingLanguageKey = "defaultSingLanguage";
-    const QString defaultLyricKey = "defaultLyric";
+    const QString defaultLyricsKey = "defaultLyrics";
     const QString packageSearchPathsKey = "packageSearchPaths";
     // const QString defaultPackageVersionKey = "defaultPackageVersion";
 };

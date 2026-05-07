@@ -42,6 +42,13 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     m_pieceUpdateThrottle.setInterval(16);
     connect(&m_pieceUpdateThrottle, &QTimer::timeout, this, qOverload<>(&QWidget::update));
 
+    m_positionThrottle.setSingleShot(true);
+    m_positionThrottle.setInterval(33);
+    connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
+        m_position = m_pendingPosition;
+        update();
+    });
+
     connect(this, &TimelineView::setLastPositionTriggered, playbackController, [=](double tick) {
         playbackController->setLastPosition(tick);
         playbackController->setPosition(tick);
@@ -73,8 +80,9 @@ void TimelineView::setTimeSignature(int numerator, int denominator) {
 }
 
 void TimelineView::setPosition(double tick) {
-    m_position = tick;
-    update();
+    m_pendingPosition = tick;
+    if (!m_positionThrottle.isActive())
+        m_positionThrottle.start();
 }
 
 void TimelineView::setQuantize(int quantize) {

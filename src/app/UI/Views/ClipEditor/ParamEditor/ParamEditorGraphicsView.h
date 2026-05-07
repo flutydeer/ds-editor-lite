@@ -24,6 +24,7 @@ public:
                                      const ParamProperties &backgroundProperties,
                                      QWidget *parent = nullptr);
     void setDataContext(SingingClip *clip);
+    [[nodiscard]] SpeakerMixEditorView *speakerMixView() const;
 
 public slots:
     void setForeground(ParamInfo::Name name, const ParamProperties &properties);

@@ -50,7 +50,7 @@ static QList<Note *> convertNotes(const std::vector<opendspx::Note> &arrNotes, c
         note->setLocalStart(dsNote.pos - offset);
         note->setLength(dsNote.length);
         note->setKeyIndex(dsNote.keyNum);
-        note->setLyric(dsNote.lyric.empty() ? appOptions->general()->defaultLyric : QString::fromStdString(dsNote.lyric));
+        note->setLyric(dsNote.lyric.empty() ? appOptions->general()->defaultLyricForLanguage(language) : QString::fromStdString(dsNote.lyric));
         note->setLanguage(language);
         notes.push_back(note);
     }

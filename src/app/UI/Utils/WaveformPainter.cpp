@@ -24,14 +24,17 @@ void WaveformPainter::setAudioPath(const QString &path) {
     if (m_path != path)
         resetIO();
     m_path = path;
+    m_cache = QPixmap();
 }
 
 void WaveformPainter::setAudioInfo(const AudioInfoModel &info) {
     m_audioInfo = info;
+    m_cache = QPixmap();
 }
 
 void WaveformPainter::setTempo(const double tempo) {
     m_tempo = tempo;
+    m_cache = QPixmap();
 }
 
 void WaveformPainter::paint(QPainter *painter, const QRectF &rect, const QColor &color,
@@ -40,6 +43,29 @@ void WaveformPainter::paint(QPainter *painter, const QRectF &rect, const QColor 
         return;
     if (rect.width() <= 0 || rect.height() <= 0)
         return;
+
+    const qreal dpr = painter->device()->devicePixelRatio();
+    const auto pixSize = (rect.size() * dpr).toSize();
+
+    if (m_cacheDpr != dpr || m_cacheSize != pixSize) {
+        m_cacheDpr = dpr;
+        m_cacheSize = pixSize;
+        m_cache = QPixmap(pixSize);
+        m_cache.setDevicePixelRatio(dpr);
+        m_cache.fill(Qt::transparent);
+
+        QPainter cachePainter(&m_cache);
+        doPaint(&cachePainter, rect.translated(-rect.topLeft()), color, rectStartTick, rectEndTick);
+    }
+
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing, false);
+    painter->drawPixmap(rect.topLeft(), m_cache);
+    painter->restore();
+}
+
+void WaveformPainter::doPaint(QPainter *painter, const QRectF &rect, const QColor &color,
+                               const double rectStartTick, const double rectEndTick) {
 
     const double ticksPerPixel = (rectEndTick - rectStartTick) / rect.width();
     const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 /

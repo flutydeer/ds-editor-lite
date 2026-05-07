@@ -31,15 +31,11 @@ void CommonParamEditorView::setParamProperties(const ParamProperties &properties
 }
 
 void CommonParamEditorView::loadOriginal(const QList<DrawCurve *> &curves) {
-    for (const auto curve : m_drawCurvesOriginal)
-        delete curve;
     AppModelUtils::copyCurves(curves, m_drawCurvesOriginal);
     update();
 }
 
 void CommonParamEditorView::loadEdited(const QList<DrawCurve *> &curves) {
-    for (const auto curve : m_drawCurvesEdited)
-        delete curve;
     AppModelUtils::copyCurves(curves, m_drawCurvesEdited);
     update();
 }
@@ -70,7 +66,10 @@ void CommonParamEditorView::discardAction() {
         // qWarning() << "Discard action called, but current edit type is None";
         return;
     }
+    for (const auto curve : m_drawCurvesEdited)
+        delete curve;
     m_drawCurvesEdited = m_drawCurvesEditedBak;
+    m_drawCurvesEditedBak.clear();
     m_mouseMoved = false;
     m_newCurveCreated = false;
     cancelRequested = true;
@@ -92,6 +91,8 @@ void CommonParamEditorView::commitAction() {
     m_mouseMoved = false;
     m_newCurveCreated = false;
     cancelRequested = false;
+    for (const auto curve : m_drawCurvesEditedBak)
+        delete curve;
     m_drawCurvesEditedBak.clear();
     m_mouseDown = false;
     m_mouseDownButton = Qt::NoButton;
@@ -226,6 +227,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
             painter->setPen(pen);
             drawCurveBorder(painter, m_drawCurvesEdited);
         }
+        delete baseCurve;
     }
 
     // const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
@@ -312,8 +314,9 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
             for (auto curve : overlappedCurves) {
                 if (curve->localStart() >= startTick && curve->localEndTick() <= endTick) {
                     // 区间覆盖整条曲线，直接移除该曲线
-                    m_drawCurvesEdited.removeOne(curve);
                     qDebug() << "Erase: Remove curve #" << curve->id();
+                    m_drawCurvesEdited.removeOne(curve);
+                    delete curve;
                 } else if (curve->localStart() < startTick && curve->localEndTick() > endTick) {
                     // 区间在曲线内，将曲线切成两段
                     const auto newCurve = new DrawCurve;
@@ -347,7 +350,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 
                 m_editingCurve->mergeWithCurrentPriority(*curve);
                 m_drawCurvesEdited.removeOne(curve);
-                // delete curve;
+                delete curve;
             }
         }
     }

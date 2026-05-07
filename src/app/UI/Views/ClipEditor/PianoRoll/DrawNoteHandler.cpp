@@ -6,6 +6,8 @@
 #include "PianoRollGraphicsView_p.h"
 #include "PianoRollGraphicsViewHelper.h"
 #include "PronunciationView.h"
+#include "Controller/ClipController.h"
+#include "Model/AppModel/SingingClip.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Utils/TimelineSnapUtils.h"
@@ -114,7 +116,9 @@ void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,
     }
 
     m_currentDrawingNote->fontPixelSize = q->property("noteFontPixelSize").toInt();
-    m_currentDrawingNote->setLyric(appOptions->general()->defaultLyric);
+    const auto singingClip = dynamic_cast<SingingClip *>(clipController->clip());
+    const auto language = singingClip ? singingClip->defaultLanguage() : appOptions->general()->defaultSingingLanguage;
+    m_currentDrawingNote->setLyric(appOptions->general()->defaultLyricForLanguage(language));
     m_currentDrawingNote->setRStart(snappedTick - d->m_offset);
     const int length =
         initialLength >= 0 ? initialLength : TimelineSnapUtils::quantizeToTicks(appStatus->quantize);

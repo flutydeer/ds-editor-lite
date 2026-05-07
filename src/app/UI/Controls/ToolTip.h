@@ -33,6 +33,9 @@ public:
     void moveTo(const QPoint &screenPos);
     void hideWithAnimation();
 
+signals:
+    void hideAnimationFinished();
+
 protected:
     QString m_title;
     QString m_shortcutKey;

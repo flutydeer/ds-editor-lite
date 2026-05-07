@@ -32,6 +32,8 @@ void AppModelUtils::copyNotes(const NoteList &source, NoteList &target) {
 }
 
 void AppModelUtils::copyCurves(const QList<Curve *> &source, QList<Curve *> &target) {
+    for (const auto curve : target)
+        delete curve;
     target.clear();
     for (const auto curve : source) {
         if (curve->type() == Curve::Draw)
@@ -42,6 +44,8 @@ void AppModelUtils::copyCurves(const QList<Curve *> &source, QList<Curve *> &tar
 }
 
 void AppModelUtils::copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target) {
+    for (const auto curve : target)
+        delete curve;
     target.clear();
     for (const auto curve : source)
         target.append(new DrawCurve(*curve));

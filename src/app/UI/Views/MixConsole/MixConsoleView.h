@@ -33,7 +33,6 @@ public slots:
     void onModelChanged();
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
     void onMasterControlChanged(const TrackControl &control);
-    void onLevelMetersUpdated(const AppModel::LevelMetersUpdatedArgs &args) const;
 
 private slots:
     void onTrackInserted(Track *dsTrack, qsizetype trackIndex);

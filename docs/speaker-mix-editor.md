@@ -143,7 +143,14 @@ struct SpeakerMixKeyframe {
 
 #### 插值模式
 
-支持 **Linear**（线性）和 **Hermite**（平滑）两种插值模式，挂在关键帧上，表示从该帧到下一帧的插值方式。通过**右键菜单**切换，参考 `AnchorNode` 的设计。
+当前仅支持 **线性插值**。
+
+Speaker mix 的权重满足 w_i >= 0 且 Σw_i = 1，构成 N 维概率单纯形（probability simplex）约束。Hermite / Catmull-Rom 等曲线插值在此约束下会因 overshoot 破坏约束（权重变负或总和不等于 1），且独立权重插值与累积值插值均存在交叉影响问题。
+
+**未来平滑插值方案**（待后续实现）：
+- **Softmax 插值**：在无约束空间（logit 空间）做 Hermite 插值，再 softmax 映射回概率空间
+- **Log-ratio 插值**：对权重做对数比变换，在变换空间中平滑插值
+- **Stick-breaking 插值**：将权重分解为条件概率序列，逐维独立插值
 
 #### 边界行为
 
@@ -290,11 +297,32 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 删除关键帧：Delete 键 + 右键菜单两种方式
 - [x] 选中机制：单击选中分割点（关键帧视为已选中）；区间框选多个关键帧（y 值忽略）
 - [x] 初始关键帧：clip 开头放置不可移动/删除的关键帧，值为默认比例（均分）
-- [x] 插值模式：支持 Linear / Hermite，挂在关键帧上，右键切换
+- [x] 插值模式：当前仅线性插值（Hermite 在概率单纯形约束下不可行，未来考虑 Softmax/Log-ratio/Stick-breaking）
 - [x] 边界行为：初始关键帧覆盖前方；最后关键帧之后保持不变，填充到视口右边缘
 - [x] 关键帧导航：滚动视口 centerAt(tick) + 移动播放头
 
 ## 待讨论事项
+
+（暂无）
+
+---
+
+## 已修复问题
+
+- [x] 指针失效：交互状态中的 `SpeakerMixKeyframe*` 改为 int index，避免 QList 插入/删除后悬空指针
+- [x] 拖拽无响应：`startDrag` 设 `dragging=false` 但 `mouseMoveEvent` 只在 `dragging==true` 时调用 `updateDrag`，形成死锁。修复：条件改为 `dragging || selectedKeyframeIndex >= 0`
+- [x] 工具栏覆盖：独立的 `SpeakerMixToolBarView` 替换了参数选择工具栏，导致无法切回其他参数。修复：将 speaker mix 控件（导航+speaker列表）嵌入 `ParamEditorToolBarView` 内部作为可显隐区段，不再使用独立的 `SpeakerMixToolBarView`
+- [x] 初始关键帧右键菜单：之前对 tick==0 直接 return 不显示菜单。修复：显示插值模式切换，仅隐藏删除选项
+- [x] Hermite 插值交叉影响：独立权重和累积值两种 Hermite 插值均因概率单纯形约束导致交叉影响。决定：移除 Hermite，当前只支持线性插值
+- [x] 区间选择检查了 y 范围：改为只按 x 范围选，选择框高度 = 视口高度（beam 模式）
+- [x] Delete 键无响应：QGraphicsItem 未设 `ItemIsFocusable`，添加后在 mousePressEvent 中 setFocus
+- [x] 区间选中样式：选中的关键帧竖线变蓝，圆点变蓝；选择框为 beam 模式（只有左右边线）
+- [x] 区间选中实时更新：拖拽过程中实时更新 selectedKeyframeIndices，不等松手
+- [x] 批量删除：Delete 键可删除区间选中的所有关键帧（跳过初始帧）
+- [x] 圆点半径调整：kDotRadius 从 4px 改为 2px
+- [x] 右键菜单：`QMenu` 改为项目 `Menu` 类，`popup()` 改为 `exec()` + `deleteLater()`，初始关键帧显示菜单但禁用删除
+
+## 待修复问题
 
 （暂无）
 
@@ -306,7 +334,7 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 确定 speaker mix 与现有参数的差异
 - [x] 确定集成方式：共存叠加（非互斥切换）
 - [x] 确定 `SpeakerMixEditorView` 独立于 `CommonParamEditorView`
-- [x] 确定工具栏方案：独立 `SpeakerMixToolBarView`
+- [x] 确定工具栏方案：speaker mix 控件嵌入 `ParamEditorToolBarView` 内部（不再使用独立 `SpeakerMixToolBarView`）
 - [x] 确定拖拽策略：分割点直接拖 / Alt 等比拖
 - [x] 确定数据来源：第一阶段硬编码 3 条 speaker，颜色从 TrackColorPalette 取
 - [x] 确定详细操作逻辑（添加/删除/选中/拖拽/插值/边界/导航）
@@ -315,8 +343,20 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 修改 `ParamEditorToolBarView` 添加 Speaker Mix 选项（index 映射到 ParamInfo::Unknown）
 - [x] 修改 `ParamEditorInfoArea` 添加 clearParamProperties()
 - [x] 修改 `ParamEditorView` 处理 speaker mix 模式下的 info area
-- [ ] 实现交互逻辑（命中检测 + 选中 + 拖拽 + 双击添加 + 删除 + 右键菜单 + 区间选择 + hover）
-- [ ] 实现 `SpeakerMixToolBarView`（关键帧导航 + speaker 列表）
+- [x] 实现交互逻辑（命中检测 + 选中 + 拖拽 + 双击添加 + 删除 + 右键菜单 + 区间选择 + hover）
+- [x] 实现 speaker mix 工具栏控件（关键帧导航 + speaker 列表，嵌入 ParamEditorToolBarView）
+- [x] 修复指针失效：交互状态改用 index
+- [x] 修复拖拽状态机死锁
+- [x] 修复工具栏覆盖：嵌入式集成
+- [x] 修复初始关键帧右键菜单
+- [x] 简化为线性插值（移除 Hermite）
+- [x] 修复区间选择忽略 y 范围 + beam 模式选择框
+- [x] 修复 Delete 键无响应（ItemIsFocusable）
+- [x] 区间选中样式 + 实时更新 + 批量删除
+- [x] 圆点半径调整（4px → 2px）
+- [x] 右键菜单改用项目 Menu 类（exec + deleteLater，初始帧禁用删除而非不显示菜单）
+- [x] 关键帧水平移动：点击竖线（非分割点）可左右拖拽移动关键帧位置，初始帧不可移动，不可越过相邻帧
+- [ ] 进一步优化编辑体验
 
 ### 当前实现细节备忘
 
@@ -326,3 +366,13 @@ HitResult hitTest(const QPointF &itemPos) const;
 - Speaker mix 在前景 ComboBox 中使用 `ParamInfo::Unknown` 作为标识值（index + 1 自然映射到 Unknown=10）
 - Swap 按钮在 speaker mix 模式下禁用（不允许交换到背景）
 - 数据结构：`SpeakerMixSpeaker`（避免与 `PackageManager/Models/SpeakerInfo` 同名冲突）
+- 交互状态全部使用 int index 引用关键帧，不使用指针（避免 QList 操作后失效）
+- Speaker mix 工具栏控件嵌入 `ParamEditorToolBarView`，通过 `setSpeakerMixMode(bool)` 控制显隐
+- 拖拽状态机：`startDrag` 设 `dragging=false`（待定），`mouseMoveEvent` 中 `selectedKeyframeIndex >= 0` 时也调用 `updateDrag`，超过阈值后 `dragging=true`
+- 插值：仅线性插值，`SpeakerMixKeyframe` 不含 interpMode 字段，右键菜单只有删除
+- 键盘事件：构造函数设 `ItemIsFocusable`，mousePressEvent 中 `setFocus()`
+- 命中检测：统一矩形判断（|dx| ≤ r 且 |dy| ≤ r），分割点优先；竖线命中排除分割点附近 y 区域
+- 拖拽模式：dragSplitIndex >= 0 时上下拖改权重，dragSplitIndex == -1 时左右拖移动关键帧
+- 光标：分割点 SizeVerCursor，竖线 SizeHorCursor，无命中 ArrowCursor
+- 选择框：beam 模式（全高，只有左右边线），实时更新选中状态
+- 选中样式：区间选中的关键帧竖线和圆点都变蓝 `(155, 186, 255)`

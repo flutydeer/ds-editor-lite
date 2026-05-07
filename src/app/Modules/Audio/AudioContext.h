@@ -7,6 +7,7 @@
 
 #define audioContext AudioContext::instance()
 
+#include <QElapsedTimer>
 #include <QTimer>
 
 #include <TalcsCore/PositionableMixerAudioSource.h>
@@ -50,7 +51,6 @@ public:
     static void handleInferPieceFailed();
 
 signals:
-    void levelMeterUpdated(const AppModel::LevelMetersUpdatedArgs &args);
     void exporterCausedTimeChanged();
 
 private:
@@ -68,11 +68,14 @@ private:
     QHash<Track *, TrackSynthesizer *> m_trackSynthDict;
     QHash<Track *, TrackInferenceHandler *> m_trackInferDict;
 
-    QTimer *m_levelMeterTimer;
+    QTimer *m_levelMeterTimer = nullptr;
+    bool m_levelMeterActive = false;
+    QElapsedTimer m_levelMeterTickTime;
     QHash<const Track *,
           QPair<std::shared_ptr<talcs::SmoothedFloat>, std::shared_ptr<talcs::SmoothedFloat>>>
         m_trackLevelMeterValue;
-    Track *masterChannel;
+    std::shared_ptr<talcs::SmoothedFloat> m_masterLevelMeterValueL;
+    std::shared_ptr<talcs::SmoothedFloat> m_masterLevelMeterValueR;
 
     int m_levelMeterRampLength = 128;
 
@@ -80,6 +83,7 @@ private:
 
     void handlePlaybackStatusChanged(PlaybackStatus status);
     void handlePlaybackPositionChanged(double positionTick) const;
+    void tickLevelMeters();
 
     void handleModelChanged();
     void handleTrackInserted(int index, Track *track);
@@ -97,7 +101,7 @@ private:
     bool willStartCallback(AudioExporter *exporter) override;
     void willFinishCallback(AudioExporter *exporter) override;
 
-    void updateTrackLevelMeterValue(const Track *track, QList<float> values);
+    static void updateSmoothedValue(std::shared_ptr<talcs::SmoothedFloat> &sm, float dBL);
 };
 
 #endif // AUDIOCONTEXT_H

@@ -37,10 +37,11 @@ protected:
     QWidget *m_parent;
     int m_showDelay;
     bool m_followCursor;
+    bool m_animationEnabled;
     bool mouseInParent = false;
 
-    void showToolTip() const;
-    void hideToolTip() const;
+    void showToolTip();
+    void hideToolTip();
 
     bool eventFilter(QObject *object, QEvent *event) override;
 };

@@ -12,6 +12,7 @@
 #include "UI/Utils/TextPixmapCache.h"
 
 #include <QWidget>
+#include <QTimer>
 #include <QMap>
 
 class Note;
@@ -107,6 +108,9 @@ private:
 
     SingingClip *m_clip = nullptr;
     ToolTip *m_tooltip = nullptr;
+
+    QTimer m_positionThrottle;
+    double m_pendingPosition = 0;
 
     PhonemeViewModel *phonemeAtTick(double tick);
     QList<PhonemeViewModel *> findPhonemesByNoteId(int noteId);

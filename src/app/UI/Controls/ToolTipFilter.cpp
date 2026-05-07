@@ -16,6 +16,7 @@ ToolTipFilter::ToolTipFilter(QWidget *parent, const int showDelay, const bool fo
     parent->setAttribute(Qt::WA_Hover, true);
     m_showDelay = showDelay;
     m_followCursor = followCursor;
+    m_animationEnabled = animation;
 
     m_tooltip = new ToolTip(m_parent->toolTip(), parent);
     m_tooltip->setAnimationEnabled(animation);
@@ -24,6 +25,10 @@ ToolTipFilter::ToolTipFilter(QWidget *parent, const int showDelay, const bool fo
         if (!shortcut.isEmpty())
             m_tooltip->setShortcutKey(shortcut.toString());
     }
+    connect(m_tooltip, &ToolTip::hideAnimationFinished, this, [this] {
+        m_tooltip->deleteLater();
+        m_tooltip = nullptr;
+    });
 
     m_timer.setInterval(m_showDelay);
     m_timer.setSingleShot(true);
@@ -47,7 +52,7 @@ bool ToolTipFilter::eventFilter(QObject *object, QEvent *event) {
     } else if (type == QEvent::MouseButtonPress) {
         hideToolTip();
     } else if (type == QEvent::HoverMove) {
-        if (m_followCursor)
+        if (m_followCursor && m_tooltip)
             m_tooltip->moveTo(QCursor::pos());
     }
 
@@ -58,13 +63,22 @@ ToolTipFilter::~ToolTipFilter() {
     delete m_tooltip;
 }
 
-void ToolTipFilter::showToolTip() const {
+void ToolTipFilter::showToolTip() {
+    if (!m_tooltip) {
+        m_tooltip = new ToolTip(m_parent->toolTip(), m_parent);
+        m_tooltip->setAnimationEnabled(m_animationEnabled);
+        connect(m_tooltip, &ToolTip::hideAnimationFinished, this, [this] {
+            m_tooltip->deleteLater();
+            m_tooltip = nullptr;
+        });
+    }
     m_tooltip->setTitle(m_parent->toolTip());
     m_tooltip->showAt(QCursor::pos());
 }
 
-void ToolTipFilter::hideToolTip() const {
-    m_tooltip->hideWithAnimation();
+void ToolTipFilter::hideToolTip() {
+    if (m_tooltip)
+        m_tooltip->hideWithAnimation();
 }
 
 int ToolTipFilter::showDelay() const {
@@ -85,11 +99,13 @@ void ToolTipFilter::setFollowCursor(const bool on) {
 }
 
 bool ToolTipFilter::animation() const {
-    return m_tooltip->animationEnabled();
+    return m_animationEnabled;
 }
 
 void ToolTipFilter::setAnimation(const bool on) {
-    m_tooltip->setAnimationEnabled(on);
+    m_animationEnabled = on;
+    if (m_tooltip)
+        m_tooltip->setAnimationEnabled(on);
 }
 
 QString ToolTipFilter::title() const {

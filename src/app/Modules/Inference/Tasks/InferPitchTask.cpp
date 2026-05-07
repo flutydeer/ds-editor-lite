@@ -202,10 +202,10 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
 }
 
 void InferPitchTask::terminate() {
-    if (m_inferencePitch) {
+    IInferTask::terminate();
+    if (m_inferencePitch && !inferEngine->isAboutToQuit()) {
         m_inferencePitch->stop();
     }
-    IInferTask::terminate();
 }
 
 void InferPitchTask::abort() {

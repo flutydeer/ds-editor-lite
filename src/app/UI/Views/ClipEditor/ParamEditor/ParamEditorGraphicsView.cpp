@@ -54,6 +54,10 @@ void ParamEditorGraphicsView::setDataContext(SingingClip *clip) {
     clip == nullptr ? moveToNullClipState() : moveToSingingClipState(clip);
 }
 
+SpeakerMixEditorView *ParamEditorGraphicsView::speakerMixView() const {
+    return m_speakerMixView;
+}
+
 void ParamEditorGraphicsView::setForeground(const ParamInfo::Name name,
                                             const ParamProperties &properties) {
     if (name == ParamInfo::Unknown) {
