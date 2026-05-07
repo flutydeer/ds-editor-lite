@@ -26,14 +26,9 @@ PackageDetailsHeader::PackageDetailsHeader(QWidget *parent) : QWidget(parent) {
     lbVersion->setObjectName("lbVersion");
     // lbVersion->setText("v1.0");
 
-    lbCopyright = new QLabel;
-    lbCopyright->setObjectName("lbCopyright");
-    // lbCopyright->setText("Copyright (C) 2025 FlutyDeer. All rights reserved.");
-
     auto detailsSecondaryLayout = new QHBoxLayout;
     detailsSecondaryLayout->addWidget(lbVendor);
     detailsSecondaryLayout->addWidget(lbVersion);
-    detailsSecondaryLayout->addWidget(lbCopyright);
     detailsSecondaryLayout->setContentsMargins({});
     detailsSecondaryLayout->setSpacing(16);
 
@@ -92,7 +87,6 @@ void PackageDetailsHeader::moveToNullPackageState() const {
     lbPackageId->setText(tr("No Package Selected"));
     lbVendor->setText({});
     lbVersion->setText({});
-    lbCopyright->setText({});
 
     btnOpenWebsite->setEnabled(false);
     btnOpenWebsite->setVisible(false);
@@ -108,7 +102,6 @@ void PackageDetailsHeader::moveToPackageState(const PackageInfo &package) const 
     lbPackageId->setText(package.id());
     lbVendor->setText(package.vendor());
     lbVersion->setText("v" + package.version().toString());
-    lbCopyright->setText(package.license());
 
     if (package.url().isEmpty()) {
         btnOpenWebsite->setEnabled(false);

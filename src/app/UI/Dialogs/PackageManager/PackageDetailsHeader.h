@@ -30,7 +30,6 @@ private:
     QLabel *lbPackageId = nullptr;
     QLabel *lbVendor = nullptr;
     QLabel *lbVersion = nullptr;
-    QLabel *lbCopyright = nullptr;
 
     Button *btnOpenWebsite = nullptr;
     Button *btnVerify = nullptr;
