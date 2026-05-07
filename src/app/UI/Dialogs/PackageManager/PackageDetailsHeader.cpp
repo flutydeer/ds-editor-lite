@@ -108,7 +108,7 @@ void PackageDetailsHeader::moveToPackageState(const PackageInfo &package) const 
     lbPackageId->setText(package.id());
     lbVendor->setText(package.vendor());
     lbVersion->setText("v" + package.version().toString());
-    lbCopyright->setText(package.copyright());
+    lbCopyright->setText(package.license());
 
     if (package.url().isEmpty()) {
         btnOpenWebsite->setEnabled(false);

@@ -249,7 +249,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             auto packageVersion = VersionUtils::stdc_to_qt(pkg.version());
             auto vendor = QString::fromUtf8(pkg.vendor().text(locale));
             auto description = QString::fromUtf8(pkg.description().text(locale));
-            auto copyright = QString::fromUtf8(pkg.license().path(locale).u8string().c_str());
+            auto license = QString::fromUtf8(pkg.license().path(locale).u8string().c_str());
             auto readme = joinPath(pkg.readme().path(locale), pkg.path());
             auto url = QString::fromUtf8(pkg.url());
             auto path = StringUtils::native_to_qstr(pkg.path());
@@ -291,7 +291,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                                      std::move(defaultDict));
             }
             result.successfulPackages.emplace_back(packageId, packageVersion, vendor, description,
-                                                   copyright, readme, url, path, singers);
+                                                   license, readme, url, path, singers);
         }
     };
 

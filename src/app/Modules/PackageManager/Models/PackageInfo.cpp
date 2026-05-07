@@ -3,17 +3,17 @@
 #include <utility>
 
 PackageInfoData::PackageInfoData(QString id, QVersionNumber version, QString vendor,
-                                 QString description, QString copyright, QString readme,
+                                 QString description, QString license, QString readme,
                                  QString url, QString path, QList<SingerInfo> singers)
     : id(std::move(id)), version(std::move(version)), vendor(std::move(vendor)),
-      description(std::move(description)), copyright(std::move(copyright)),
+      description(std::move(description)), license(std::move(license)),
       readme(std::move(readme)), url(std::move(url)), path(std::move(path)),
       singers(std::move(singers)) {
 }
 
 PackageInfoData::PackageInfoData(const PackageInfoData &other)
     : QSharedData(other), id(other.id), version(other.version), vendor(other.vendor),
-      description(other.description), copyright(other.copyright),
+      description(other.description), license(other.license),
       readme(other.readme), url(other.url), path(other.path),
       singers(other.singers) {
 }
@@ -22,7 +22,7 @@ PackageInfoData::~PackageInfoData() = default;
 
 bool PackageInfoData::operator==(const PackageInfoData &other) const {
     return id == other.id && version == other.version && vendor == other.vendor &&
-           description == other.description && copyright == other.copyright &&
+           description == other.description && license == other.license &&
            readme == other.readme && url == other.url && path == other.path &&
            singers == other.singers;
 }
@@ -33,7 +33,7 @@ bool PackageInfoData::operator!=(const PackageInfoData &other) const {
 
 bool PackageInfoData::isEmpty() const {
     return id.isEmpty() && version.isNull() && vendor.isEmpty() && description.isEmpty() &&
-           copyright.isEmpty() && readme.isEmpty() && url.isEmpty() && path.isEmpty() &&
+           license.isEmpty() && readme.isEmpty() && url.isEmpty() && path.isEmpty() &&
            singers.isEmpty();
 }
 
@@ -41,10 +41,10 @@ PackageInfo::PackageInfo() : d(new PackageInfoData()) {
 }
 
 PackageInfo::PackageInfo(QString id, QVersionNumber version, QString vendor, QString description,
-                         QString copyright, QString readme, QString url, QString path,
+                         QString license, QString readme, QString url, QString path,
                          QList<SingerInfo> singers)
     : d(new PackageInfoData(std::move(id), std::move(version), std::move(vendor),
-                            std::move(description), std::move(copyright), std::move(readme),
+                            std::move(description), std::move(license), std::move(readme),
                             std::move(url), std::move(path), std::move(singers))) {
 }
 
@@ -78,8 +78,8 @@ QString PackageInfo::description() const {
     return d->description;
 }
 
-QString PackageInfo::copyright() const {
-    return d->copyright;
+QString PackageInfo::license() const {
+    return d->license;
 }
 
 QString PackageInfo::readme() const {
@@ -114,8 +114,8 @@ void PackageInfo::setDescription(const QString &description) {
     d->description = description;
 }
 
-void PackageInfo::setCopyright(const QString &copyright) {
-    d->copyright = copyright;
+void PackageInfo::setLicense(const QString &license) {
+    d->license = license;
 }
 
 void PackageInfo::setPath(const QString &path) {

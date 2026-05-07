@@ -18,7 +18,7 @@ class PackageInfo {
 public:
     PackageInfo();
     PackageInfo(QString id, QVersionNumber version = {}, QString vendor = {},
-                QString description = {}, QString copyright = {}, QString readme = {},
+                QString description = {}, QString license = {}, QString readme = {},
                 QString url = {}, QString path = {}, QList<SingerInfo> singers = {});
     PackageInfo(const PackageInfo &other);
     PackageInfo(PackageInfo &&other) noexcept;
@@ -29,7 +29,7 @@ public:
     QVersionNumber version() const;
     QString vendor() const;
     QString description() const;
-    QString copyright() const;
+    QString license() const;
     QString readme() const;
     QString url() const;
     QString path() const;
@@ -39,7 +39,7 @@ public:
     void setVersion(const QVersionNumber &version);
     void setVendor(const QString &vendor);
     void setDescription(const QString &description);
-    void setCopyright(const QString &copyright);
+    void setLicense(const QString &license);
     void setPath(const QString &path);
     void setSingers(const QList<SingerInfo> &singers);
 
@@ -63,7 +63,7 @@ private:
 class PackageInfoData : public QSharedData {
 public:
     explicit PackageInfoData(QString id = {}, QVersionNumber version = {}, QString vendor = {},
-                             QString description = {}, QString copyright = {}, QString readme = {},
+                             QString description = {}, QString license = {}, QString readme = {},
                              QString url = {}, QString path = {},
                              QList<SingerInfo> singers = {});
     PackageInfoData(const PackageInfoData &other);
@@ -73,7 +73,7 @@ public:
     QVersionNumber version;
     QString vendor;
     QString description;
-    QString copyright;
+    QString license;
     QString readme;
     QString url;
     QString path;
