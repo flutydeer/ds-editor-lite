@@ -127,4 +127,85 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 
 **问题**：如果 `+` 音符被移远（但中间没有其他音符），列表中它仍然紧跟在 word 后面，会被配对分走音素。只有间隙大到 slicer 分成不同 segment 时，`+` 才会变成 segment 开头被丢弃。
 
-**完整方案**：`distributePhonemes` 应检查 word 和 `+` 之间的时间间隙，与 slicer 的分片阈值对齐。具体来说，slicer 将两个音符放在同一 segment 的条件是 `nextHeaderStartInMs <= curTailEndInMs`（取决于 `padBaseLength`、`headerPhonemeCount`、`padUnitAdditionalLength`）。`distributePhonemes` 应使用相同的阈值：间隙小于阈值时允许配对，大于阈值时断开。这需要在 `distributePhonemes` 中获取 Timeline 来做 tick→ms 转换。
+**方案**：在收集 `+`/`-` 音符的内循环中加入时间间隙检查，与 slicer 使用相同的分片阈值，间隙超过阈值时断开配对。
+
+#### 阈值推导
+
+Slicer 分片条件（`SingingClipSlicer.cpp:108`）：
+
+```
+nextHeaderStartInMs > curTailEndInMs
+→ nextStartMs - headerMinLength > curEndMs + tailLength
+→ gap > headerMinLength + tailLength
+```
+
+Slicer 的阈值实际上不是固定值：`headerMinLength = padBaseLength + headerPhonemeCount * padUnitAdditionalLength`，会随下一个音符的 pre-onset 音素数量变化。但对于 `+` 音符，`distributePhonemes` 分配的音素组来自 `splitSyllables`（按 onset 切分），每组总是以 onset 开头，因此 `headerPhonemeCount` 恒为 0。所以这里可以简化为固定阈值：
+
+- `tailLength`（当前音符）= `padBaseLength` = 100ms
+- `headerMinLength`（`+` 音符，headerPhonemeCount = 0）= `padBaseLength` = 100ms
+- 阈值 = `2 * padBaseLength` = **200ms**
+
+将 ms 阈值转为 tick 便于直接整数比较（避免循环内浮点转换）：
+
+```
+gapThresholdTicks = round(200ms * ticksPerQuarterNote * tempo / 60000)
+```
+
+#### 改动范围
+
+仅修改 `GetPhonemeNameTask.cpp` 1 个文件。
+
+**改动 1**：增加 include（`AppGlobal.h`、`SingingClipSlicerGlobal.h`、`AppModel.h`）
+
+**改动 2**：在 `distributePhonemes()` 开头计算 tick 域阈值
+
+```cpp
+const double tempo = appModel->tempo();
+const double gapThresholdMs = 2.0 * SingingClipSlicerGlobal::padBaseLength;
+const int gapThresholdTicks = static_cast<int>(
+    std::round(gapThresholdMs * AppGlobal::ticksPerQuarterNote * tempo / 60000.0));
+```
+
+**改动 3**：增加 gap 计算 lambda，通过 `notesRef` 获取音符位置
+
+```cpp
+auto tickGap = [this](int a, int b) -> int {
+    const auto *noteA = notesRef[a];
+    const auto *noteB = notesRef[b];
+    return noteB->globalStart() - (noteA->globalStart() + noteA->length());
+};
+```
+
+**改动 4**：修改收集 `+`/`-` 音符的内循环，增加 `prevIdx` 跟踪链中上一个音符，gap 检查在类型判断之前执行
+
+```cpp
+QList<int> plusIndices;
+int j = i + 1;
+int prevIdx = i;
+while (j < count) {
+    const auto &nextLyric = m_inputs[j].lyric;
+    const auto &nextPron = m_inputs[j].pronunciation;
+
+    if (tickGap(prevIdx, j) > gapThresholdTicks)
+        break;
+
+    if (isPlusNote(nextLyric)) {
+        plusIndices.append(j);
+        prevIdx = j;
+        j++;
+    } else if (nextPron == "-") {
+        prevIdx = j;
+        j++;
+    } else {
+        break;
+    }
+}
+```
+
+#### 边界情况
+
+- `+` 紧邻 word（无间隙）：gap=0 ≤ threshold，正常配对
+- `+` 远离 word，中间无其他音符：gap > threshold，`+` 变成孤立，被清空
+- `word → - → +`，word-to-`-` 间隙大：在 `-` 处断开，`+` 后续作为孤立处理
+- `word → - → +`，`-`-to-`+` 间隙大：`-` 通过检查，`+` 未通过，变孤立
+- 多个 `+`，中间某个间隙大：前面的 `+` 正常收集，断开处之后的 `+` 变孤立

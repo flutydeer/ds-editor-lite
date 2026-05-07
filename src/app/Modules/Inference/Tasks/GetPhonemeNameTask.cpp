@@ -4,6 +4,9 @@
 
 #include "GetPhonemeNameTask.h"
 
+#include "Global/AppGlobal.h"
+#include "Global/SingingClipSlicerGlobal.h"
+#include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Language/OnsetMarker/OnsetMarkerMgr.h"
 #include "Modules/Language/S2pMgr.h"
@@ -157,6 +160,18 @@ const QList<GetPhonemeNameTask::Syllable>
 void GetPhonemeNameTask::distributePhonemes() {
     const int count = m_inputs.size();
     int i = 0;
+
+    const double tempo = appModel->tempo();
+    const double gapThresholdMs = 2.0 * SingingClipSlicerGlobal::padBaseLength;
+    const int gapThresholdTicks = static_cast<int>(
+        std::round(gapThresholdMs * AppGlobal::ticksPerQuarterNote * tempo / 60000.0));
+
+    auto tickGap = [this](int a, int b) -> int {
+        const auto *noteA = notesRef[a];
+        const auto *noteB = notesRef[b];
+        return noteB->globalStart() - (noteA->globalStart() + noteA->length());
+    };
+
     while (i < count) {
         const auto &lyric = m_inputs[i].lyric;
         const auto &pron = m_inputs[i].pronunciation;
@@ -176,13 +191,20 @@ void GetPhonemeNameTask::distributePhonemes() {
         // Find trailing "+" and "-" notes
         QList<int> plusIndices;
         int j = i + 1;
+        int prevIdx = i;
         while (j < count) {
             const auto &nextLyric = m_inputs[j].lyric;
             const auto &nextPron = m_inputs[j].pronunciation;
+
+            if (tickGap(prevIdx, j) > gapThresholdTicks)
+                break;
+
             if (isPlusNote(nextLyric)) {
                 plusIndices.append(j);
+                prevIdx = j;
                 j++;
             } else if (nextPron == "-") {
+                prevIdx = j;
                 j++;
             } else {
                 break;
