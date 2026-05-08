@@ -285,7 +285,12 @@ MainWindow::MainWindow() {
     Toast::setGlobalContext(this);
     appController->setMainWindow(this);
 
-    qApp->installEventFilter(new EventDiagFilter(this));
+    connect(appOptions, &AppOptions::optionsChanged, this,
+            [this](const AppOptionsGlobal::Option option) {
+                if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
+                    updateDiagnosticFilter();
+            });
+    updateDiagnosticFilter();
 
     connect(taskManager, &TaskManager::allDone, this, &MainWindow::onAllDone);
     connect(taskManager, &TaskManager::taskChanged, this, &MainWindow::onTaskChanged);
@@ -371,6 +376,18 @@ MainWindow::MainWindow() {
 
 MainWindow::~MainWindow() {
     ThemeManager::instance()->removeWindow(this);
+}
+
+void MainWindow::updateDiagnosticFilter() {
+    const bool enabled = appOptions->developer()->enableDiagnostics;
+    if (enabled && !m_eventDiagFilter) {
+        m_eventDiagFilter = new EventDiagFilter(this);
+        qApp->installEventFilter(m_eventDiagFilter);
+    } else if (!enabled && m_eventDiagFilter) {
+        qApp->removeEventFilter(m_eventDiagFilter);
+        delete m_eventDiagFilter;
+        m_eventDiagFilter = nullptr;
+    }
 }
 
 void MainWindow::updateWindowTitle() {

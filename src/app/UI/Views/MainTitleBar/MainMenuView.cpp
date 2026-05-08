@@ -492,6 +492,11 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
         AppOptionsDialog dialog(AppOptionsGlobal::Option::Inference);
         dialog.exec();
     });
+    const auto actionDeveloperOptions = new QAction(tr("&Developer Options..."), this);
+    connect(actionDeveloperOptions, &QAction::triggered, this, [] {
+        AppOptionsDialog dialog(AppOptionsGlobal::Option::DeveloperOptions);
+        dialog.exec();
+    });
 
     auto menuOptions = new Menu(tr("&Options"), q);
     menuOptions->addAction(actionGeneralOptions);
@@ -500,6 +505,8 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
     menuOptions->addAction(actionAppearanceOptions);
     // menuOptions->addAction(actionLanguageOptions);
     menuOptions->addAction(actionInferenceOptions);
+    menuOptions->addSeparator();
+    menuOptions->addAction(actionDeveloperOptions);
     return menuOptions;
 }
 

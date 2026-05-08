@@ -16,6 +16,7 @@ class AppearancePage;
 // class G2pPage;
 class GeneralPage;
 class InferencePage;
+class DeveloperPage;
 class IOptionPage;
 class QListWidget;
 class Button;
@@ -34,7 +35,7 @@ private slots:
 private:
     QStringList pageNames = {tr("General"),    tr("Audio"), tr("MIDI"),
                                tr("Appearance"), /* tr("Language"), */  tr("Inference"),
-                               /* tr("Preview Functions"), tr("Developer Options")*/};
+                               tr("Developer Options") /* tr("Preview Functions") */};
 
     QListWidget *tabList;
     QStackedWidget *pageContent;
@@ -46,6 +47,7 @@ private:
     AppearancePage *appearancePage;
     // G2pPage *g2pPage;
     InferencePage *inferencePage;
+    DeveloperPage *developerPage;
     QList<IOptionPage *> pages;
 };
 

@@ -33,6 +33,7 @@ AppOptions::AppOptions(QObject *parent) : QObject(parent) {
             m_languageOption.load(obj.value(m_languageOption.key()).toObject());
             m_fillLyricOption.load(obj.value(m_fillLyricOption.key()).toObject());
             m_inferenceOption.load(obj.value(m_inferenceOption.key()).toObject());
+            m_developerOption.load(obj.value(m_developerOption.key()).toObject());
         }
     saveAndNotify(AppOptionsGlobal::All);
 }
@@ -52,7 +53,8 @@ bool AppOptions::saveAndNotify(const AppOptionsGlobal::Option option) {
         {m_appearanceOption.key(), m_appearanceOption.value()},
         {m_languageOption.key(),   m_languageOption.value()  },
         {m_fillLyricOption.key(),  m_fillLyricOption.value() },
-        {m_inferenceOption.key(),  m_inferenceOption.value() }
+        {m_inferenceOption.key(),  m_inferenceOption.value() },
+        {m_developerOption.key(), m_developerOption.value()}
     };
 
     const auto success = JsonUtils::save(m_configPath, obj);
@@ -86,4 +88,8 @@ FillLyricOption *AppOptions::fillLyric() {
 
 InferenceOption *AppOptions::inference() {
     return &m_inferenceOption;
+}
+
+DeveloperOption *AppOptions::developer() {
+    return &m_developerOption;
 }

@@ -10,6 +10,7 @@
 #include "Utils/Singleton.h"
 #include "Options/AppearanceOption.h"
 #include "Options/AudioOption.h"
+#include "Options/DeveloperOption.h"
 #include "Options/LanguageOption.h"
 #include "Options/FillLyricOption.h"
 #include "Options/GeneralOption.h"
@@ -40,6 +41,7 @@ public:
     LanguageOption *language();
     FillLyricOption *fillLyric();
     InferenceOption *inference();
+    DeveloperOption *developer();
 
 signals:
     void optionsChanged(AppOptionsGlobal::Option option);
@@ -51,6 +53,7 @@ private:
     LanguageOption m_languageOption;
     FillLyricOption m_fillLyricOption;
     InferenceOption m_inferenceOption;
+    DeveloperOption m_developerOption;
 
     QString fileName = "appConfig.json";
     QString m_configPath;

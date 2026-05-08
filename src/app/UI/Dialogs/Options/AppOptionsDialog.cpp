@@ -15,6 +15,7 @@
 #include "Pages/AudioPage.h"
 #include "Pages/MidiPage.h"
 #include "Pages/InferencePage.h"
+#include "Pages/DeveloperPage.h"
 
 AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidget *parent)
     : Dialog(parent) {
@@ -36,6 +37,7 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     appearancePage = new AppearancePage;
     // g2pPage = new G2pPage;
     inferencePage = new InferencePage;
+    developerPage = new DeveloperPage;
 
     pageContent = new QStackedWidget;
     pageContent->addWidget(generalPage);
@@ -45,6 +47,7 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     pageContent->addWidget(appearancePage);
     // pageContent->addWidget(g2pPage);
     pageContent->addWidget(inferencePage);
+    pageContent->addWidget(developerPage);
     pageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
     pageContent->setMinimumWidth(600);
 
@@ -55,6 +58,7 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     pages.append(appearancePage);
     // pages.append(g2pPage);
     pages.append(inferencePage);
+    pages.append(developerPage);
 
     const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(tabList);

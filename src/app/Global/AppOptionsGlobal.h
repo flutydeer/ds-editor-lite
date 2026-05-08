@@ -13,12 +13,12 @@ namespace AppOptionsGlobal {
         Midi,
         Appearance,
         Inference,
+        DeveloperOptions,
 
         // Hidden options
         Language,
         FillLyric,
         // PreviewFunctions,
-        // DeveloperOptions
     };
 };
 

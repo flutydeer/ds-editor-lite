@@ -38,6 +38,7 @@ public:
     void quit() override;
     void restart() override;
     void setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) override;
+    void updateDiagnosticFilter();
 #if defined(WITH_DIRECT_MANIPULATION)
     void registerDirectManipulation();
     void unregisterDirectManipulation();
@@ -90,6 +91,7 @@ private:
     QByteArray m_detachSplitterState;
     QRect m_detachedWindowGeometry;
     QWK::WidgetWindowAgent *m_detachedAgent = nullptr;
+    QObject *m_eventDiagFilter = nullptr;
 
     // int m_noteIndex = 0;
 };
