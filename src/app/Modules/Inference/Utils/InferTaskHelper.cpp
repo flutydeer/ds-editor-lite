@@ -27,9 +27,18 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
     if (firstNote.isSlur)
         qFatal() << "First note of a segment cannot be a slur.";
 
-    // 如果第一个音符不是休止符，则填充 SP 音符，长度为 paddingStartMs
+    // 如果第一个音符不是休止符，则填充 SP 音符
     if (!firstNote.isRest) {
         auto firstWordLen = input.paddingStartMs / 1000.0;
+
+        // 如果首个 header 音素在音符起始前（Duration 引擎已调整偏移），
+        // 则扩展 SP 时长以确保音素 start 不为负值
+        if (useOffsetInfo && !firstNote.phonemeOffsets.isEmpty()) {
+            auto firstOffsetSec = firstNote.phonemeOffsets.first() / 1000.0;
+            if (firstOffsetSec < 0)
+                firstWordLen += -firstOffsetSec;
+        }
+
         noteBuffer.append({0, 0, firstWordLen, true});
         phoneBuffer.append({"SP", firstNote.languageDictId, true, 0});
 

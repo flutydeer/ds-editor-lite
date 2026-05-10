@@ -8,6 +8,8 @@
 #include "SingingClip.h"
 #include "Note.h"
 
+#include <algorithm>
+
 InferPiece::InferPiece(SingingClip *clip) : QObject(clip), clip(clip) {
     acousticInferStatus.onChanged(qSignalCallback(statusChanged));
     state.onChanged(qSignalCallback(stateChanged));
@@ -19,7 +21,16 @@ int InferPiece::clipId() const {
 
 int InferPiece::localStartTick() const {
     // TODO: 传入时间轴
-    const int paddingTicks = qRound(appModel->msToTick(paddingStartMs));
+    int extraPaddingMs = 0;
+    if (!notes.isEmpty()) {
+        const auto &offsets = notes.first()->phonemeOffsetSeq().result();
+        if (!offsets.isEmpty()) {
+            auto minOffset = *std::min_element(offsets.begin(), offsets.end());
+            if (minOffset < 0)
+                extraPaddingMs = -minOffset;
+        }
+    }
+    const int paddingTicks = qRound(appModel->msToTick(paddingStartMs + extraPaddingMs));
     return notes.first()->localStart() - paddingTicks;
 }
 
