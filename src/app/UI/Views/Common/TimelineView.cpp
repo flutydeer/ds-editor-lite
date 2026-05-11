@@ -14,6 +14,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppModel/Note.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/TextPixmapCache.h"
 #include "Utils/TimelineSnapUtils.h"
 
@@ -62,6 +63,11 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     connect(appModel, &AppModel::timeSignatureChanged, this, &TimelineView::setTimeSignature);
     connect(appStatus, &AppStatus::quantizeChanged, this, &TimelineView::setQuantize);
     connect(appStatus, &AppStatus::loopSettingsChanged, this, &TimelineView::onLoopSettingsChanged);
+    connect(appOptions, &AppOptions::optionsChanged, this,
+            [this](AppOptionsGlobal::Option option) {
+                if (option == AppOptionsGlobal::DeveloperOptions)
+                    update();
+            });
 }
 
 void TimelineView::setCanEditLoop(bool canEdit) {
@@ -363,54 +369,63 @@ void TimelineView::drawPieces(QPainter *painter) const {
         auto pieceStartX = tickToX(piece->localStartTick() + m_clip->start());
         auto pieceEndX = tickToX(piece->localEndTick() + m_clip->start());
         painter->drawLine(pieceStartX, y, pieceEndX, y);
-        auto stateText = "#" + QString::number(piece->id()) + " " + piece->state.get();
-        painter->drawText(QPointF(pieceStartX, y - 4), stateText);
 
-        // For debugging
-        auto firstNoteStartTick = piece->notes.first()->localStart() + m_clip->start();
-        auto firstNoteStartX = tickToX(firstNoteStartTick);
-
-        // TODO: handle multiple tempo changes
-        auto headX = tickToX(firstNoteStartTick - appModel->msToTick(piece->headAvailableLengthMs));
-
-        auto lastNoteEndTick =
-            piece->notes.last()->localStart() + piece->notes.last()->length() + m_clip->start();
-        auto lastNoteEndX = tickToX(lastNoteEndTick);
-
-        // Draw head available range
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(92, 206, 219, 64));
-        painter->drawRect(QRectF(headX, 0, pieceStartX - headX, rect().height()));
-
-        painter->setPen(QColor(92, 206, 219));
-        painter->drawLine(headX, 0, headX, rect().height());
-
-        // Draw padding start range
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(222, 164, 224, 64));
-        painter->drawRect(QRectF(pieceStartX, 0, firstNoteStartX - pieceStartX, rect().height()));
-
-        painter->setPen(QColor(222, 164, 224));
-        painter->drawLine(pieceStartX, 0, pieceStartX, rect().height());
-
-        // Draw notes range
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(155, 186, 255, 64));
-        painter->drawRect(
-            QRectF(firstNoteStartX, 0, lastNoteEndX - firstNoteStartX, rect().height()));
-
-        painter->setPen(QColor(155, 186, 255));
-        painter->drawLine(firstNoteStartX, 0, firstNoteStartX, rect().height());
-        painter->drawLine(lastNoteEndX, 0, lastNoteEndX, rect().height());
-
-        // Draw padding end range
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(184, 196, 116, 64));
-        painter->drawRect(QRectF(lastNoteEndX, 0, pieceEndX - lastNoteEndX, rect().height()));
-
-        painter->setPen(QColor(184, 196, 116));
-        painter->drawLine(pieceEndX, 0, pieceEndX, rect().height());
+        if (appOptions->developer()->showTimelineDebugInfo)
+            drawPieceDebugOverlay(painter, piece);
     }
+}
+
+void TimelineView::drawPieceDebugOverlay(QPainter *painter, const InferPiece *piece) const {
+    auto y = rect().height() - 1;
+    auto pieceStartX = tickToX(piece->localStartTick() + m_clip->start());
+    auto pieceEndX = tickToX(piece->localEndTick() + m_clip->start());
+
+    auto stateText = "#" + QString::number(piece->id()) + " " + piece->state.get();
+    painter->drawText(QPointF(pieceStartX, y - 4), stateText);
+
+    // For debugging
+    auto firstNoteStartTick = piece->notes.first()->localStart() + m_clip->start();
+    auto firstNoteStartX = tickToX(firstNoteStartTick);
+
+    // TODO: handle multiple tempo changes
+    auto headX = tickToX(firstNoteStartTick - appModel->msToTick(piece->headAvailableLengthMs));
+
+    auto lastNoteEndTick =
+        piece->notes.last()->localStart() + piece->notes.last()->length() + m_clip->start();
+    auto lastNoteEndX = tickToX(lastNoteEndTick);
+
+    // Draw head available range
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(92, 206, 219, 64));
+    painter->drawRect(QRectF(headX, 0, pieceStartX - headX, rect().height()));
+
+    painter->setPen(QColor(92, 206, 219));
+    painter->drawLine(headX, 0, headX, rect().height());
+
+    // Draw padding start range
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(222, 164, 224, 64));
+    painter->drawRect(QRectF(pieceStartX, 0, firstNoteStartX - pieceStartX, rect().height()));
+
+    painter->setPen(QColor(222, 164, 224));
+    painter->drawLine(pieceStartX, 0, pieceStartX, rect().height());
+
+    // Draw notes range
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(155, 186, 255, 64));
+    painter->drawRect(QRectF(firstNoteStartX, 0, lastNoteEndX - firstNoteStartX, rect().height()));
+
+    painter->setPen(QColor(155, 186, 255));
+    painter->drawLine(firstNoteStartX, 0, firstNoteStartX, rect().height());
+    painter->drawLine(lastNoteEndX, 0, lastNoteEndX, rect().height());
+
+    // Draw padding end range
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(184, 196, 116, 64));
+    painter->drawRect(QRectF(lastNoteEndX, 0, pieceEndX - lastNoteEndX, rect().height()));
+
+    painter->setPen(QColor(184, 196, 116));
+    painter->drawLine(pieceEndX, 0, pieceEndX, rect().height());
 }
 
 double TimelineView::tickToX(double tick) const {

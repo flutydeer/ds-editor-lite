@@ -7,10 +7,13 @@
 void DeveloperOption::load(const QJsonObject &object) {
     if (object.contains(enableDiagnosticsKey))
         enableDiagnostics = object[enableDiagnosticsKey].toBool();
+    if (object.contains(showTimelineDebugInfoKey))
+        showTimelineDebugInfo = object[showTimelineDebugInfoKey].toBool();
 }
 
 void DeveloperOption::save(QJsonObject &object) {
     object = {
         serialize_enableDiagnostics(),
+        serialize_showTimelineDebugInfo(),
     };
 }

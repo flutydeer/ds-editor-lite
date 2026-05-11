@@ -51,6 +51,7 @@ private slots:
 
 private:
     void drawPieces(QPainter *painter) const;
+    void drawPieceDebugOverlay(QPainter *painter, const InferPiece *piece) const;
     void drawLoopRegion(QPainter *painter) const;
     void drawLoopBackground(QPainter *painter) const;
     void drawLoopMarkers(QPainter *painter) const;

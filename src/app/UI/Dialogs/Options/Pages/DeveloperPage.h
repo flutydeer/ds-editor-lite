@@ -21,6 +21,7 @@ protected:
 
 private:
     SwitchButton *m_swEnableDiagnostics;
+    SwitchButton *m_swShowTimelineDebugInfo;
 };
 
 
