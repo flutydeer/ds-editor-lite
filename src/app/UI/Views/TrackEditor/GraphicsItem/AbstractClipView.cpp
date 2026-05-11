@@ -6,6 +6,7 @@
 
 #include "Global/AppGlobal.h"
 #include "Global/TracksEditorGlobal.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Utils/TrackColorPalette.h"
 
@@ -20,6 +21,11 @@ AbstractClipView::AbstractClipView(const int itemId, QGraphicsItem *parent)
     : AbstractGraphicsRectItem(parent), IClip(itemId), d_ptr(new AbstractClipViewPrivate(this)) {
     setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
+    connect(appOptions, &AppOptions::optionsChanged, this,
+            [this](AppOptionsGlobal::Option option) {
+                if (option == AppOptionsGlobal::DeveloperOptions)
+                    update();
+            });
 }
 
 AbstractClipView::~AbstractClipView() {
@@ -178,9 +184,9 @@ QRectF AbstractClipViewPrivate::previewRect() const {
 }
 
 QString AbstractClipView::text() const {
-    Q_D(const AbstractClipView);
+    const auto showDebug = appOptions->developer()->showClipDebugInfo;
     const auto controlStr =
-        (d->m_showDebugInfo ? QString("id: %1 ").arg(id()) : "") +
+        (showDebug ? QString("id: %1 ").arg(id()) : "") +
         QString("%1 %2dB %3 ").arg(name()).arg(QString::number(gain())).arg(mute() ? "M" : "");
     const auto timeStr = QString("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
                              .arg(start())
@@ -189,7 +195,7 @@ QString AbstractClipView::text() const {
                              .arg(clipLen())
                              .arg(scaleX())
                              .arg(scaleY());
-    return controlStr + (d->m_showDebugInfo ? timeStr : "");
+    return controlStr + (showDebug ? timeStr : "");
 }
 
 void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,

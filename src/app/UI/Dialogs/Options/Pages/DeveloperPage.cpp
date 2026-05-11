@@ -19,6 +19,7 @@ void DeveloperPage::modifyOption() {
     const auto option = appOptions->developer();
     option->enableDiagnostics = m_swEnableDiagnostics->value();
     option->showTimelineDebugInfo = m_swShowTimelineDebugInfo->value();
+    option->showClipDebugInfo = m_swShowClipDebugInfo->value();
     appOptions->saveAndNotify(AppOptionsGlobal::DeveloperOptions);
 }
 
@@ -32,6 +33,9 @@ QWidget *DeveloperPage::createContentWidget() {
     m_swShowTimelineDebugInfo = new SwitchButton(option->showTimelineDebugInfo);
     connect(m_swShowTimelineDebugInfo, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
 
+    m_swShowClipDebugInfo = new SwitchButton(option->showClipDebugInfo);
+    connect(m_swShowClipDebugInfo, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
+
     const auto diagnosticsCard = new OptionListCard(tr("Diagnostics"));
     diagnosticsCard->addItem(tr("Enable diagnostic output"),
                              tr("Print event loop performance statistics to debug output"),
@@ -39,6 +43,9 @@ QWidget *DeveloperPage::createContentWidget() {
     diagnosticsCard->addItem(tr("Show timeline debug overlay"),
                              tr("Display piece boundaries and range overlays on the timeline"),
                              m_swShowTimelineDebugInfo);
+    diagnosticsCard->addItem(tr("Show clip debug info"),
+                             tr("Display clip ID and detailed time info on track clips"),
+                             m_swShowClipDebugInfo);
 
     const auto mainLayout = new QVBoxLayout();
     mainLayout->addWidget(diagnosticsCard, 0, Qt::AlignTop);
