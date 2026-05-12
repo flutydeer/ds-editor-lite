@@ -11,9 +11,13 @@ public:                                                                         
                                                                                                    \
 private:                                                                                           \
     const QString FieldName##Key = #FieldName;                                                     \
-    [[nodiscard]] std::pair<QString, QJsonValue> serialize_##FieldName() const {                       \
+    void load_##FieldName(const QJsonObject &obj) {                                                \
+        if (obj.contains(FieldName##Key))                                                          \
+            FieldName = obj[FieldName##Key].toVariant().value<FieldType>();                        \
+    }                                                                                              \
+    [[nodiscard]] std::pair<QString, QJsonValue> serialize_##FieldName() const {                   \
         return {FieldName##Key, FieldName};                                                        \
-    }\
+    }
 
 #include <QJsonObject>
 #include <utility>

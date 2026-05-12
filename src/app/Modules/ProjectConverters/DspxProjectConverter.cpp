@@ -21,7 +21,7 @@
 #include <QFile>
 
 namespace {
-    class JsonUtils {
+    class JsonNlohmann {
     public:
         static nlohmann::json fromQJsonValue(const QJsonValue &v) {
             if(v.isString())
@@ -35,7 +35,7 @@ namespace {
 
             if(v.isArray()) {
                 nlohmann::json ret = nlohmann::json::array();
-                std::ranges::transform(v.toArray(), std::back_inserter(ret), &JsonUtils::fromQJsonValue);
+                std::ranges::transform(v.toArray(), std::back_inserter(ret), &JsonNlohmann::fromQJsonValue);
                 return ret;
             }
 
@@ -63,7 +63,7 @@ namespace {
 
             if(v.is_array()) {
                 QJsonArray ret;
-                std::ranges::transform(v, std::back_inserter(ret), &JsonUtils::toQJsonValue);
+                std::ranges::transform(v, std::back_inserter(ret), &JsonNlohmann::toQJsonValue);
                 return ret;
             }
 
@@ -166,7 +166,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 Pronunciation(QString::fromStdString(dspxNote.pronunciation.original), QString::fromStdString(dspxNote.pronunciation.edited)));
             QMap<QString, QJsonObject> workspace;
             for (const auto &[key, value] : dspxNote.workspace) {
-                workspace[QString::fromStdString(key)] = JsonUtils::toQJsonValue(value).toObject();
+                workspace[QString::fromStdString(key)] = JsonNlohmann::toQJsonValue(value).toObject();
             }
             note->setWorkspace(workspace);
             // note->setPhonemeInfo(Note::Original, decodePhonemes(dspxNote.phonemes.org));
@@ -197,7 +197,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                     std::move(decodeSingingParams(castClip->params, start, clip));
                 QMap<QString, QJsonObject> workspace;
                 for (const auto &[key, value] : castClip->workspace) {
-                    workspace[QString::fromStdString(key)] = JsonUtils::toQJsonValue(value).toObject();
+                    workspace[QString::fromStdString(key)] = JsonNlohmann::toQJsonValue(value).toObject();
                 }
                 clip->workspace() = workspace;
                 track->insertClip(clip);
@@ -215,7 +215,25 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 clip->setPath(QString::fromStdString(castClip->path));
                 QMap<QString, QJsonObject> workspace;
                 for (const auto &[key, value] : castClip->workspace) {
-                    workspace[QString::fromStdString(key)] = JsonUtils::toQJsonValue(value).toObject();
+                    workspace[QString::fromStdString(key)] = JsonNlohmann::toQJsonValue(value).toObject();
+                }
+                clip->workspace() = workspace;
+                track->insertClip(clip);
+            } else if (dspxClip->type == opendspx::Clip::Type::Audio) {
+                const auto castClip = std::static_pointer_cast<opendspx::AudioClip>(dspxClip);
+                const auto clip = new AudioClip;
+                clip->setName(QString::fromStdString(castClip->name));
+                auto start = castClip->time.pos - castClip->time.clipStart;
+                clip->setStart(start);
+                clip->setClipStart(castClip->time.clipStart);
+                clip->setLength(castClip->time.length);
+                clip->setClipLen(castClip->time.clipLen);
+                clip->setGain(castClip->control.gain);
+                clip->setMute(castClip->control.mute);
+                clip->setPath(QString::fromStdString(castClip->path));
+                QMap<QString, QJsonObject> workspace;
+                for (const auto &[key, value] : castClip->workspace) {
+                    workspace[QString::fromStdString(key)] = JsonNlohmann::toQJsonValue(value).toObject();
                 }
                 clip->workspace() = workspace;
                 track->insertClip(clip);
@@ -283,7 +301,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         auto workspace = dspxModel.content.workspace;
         if (workspace.contains("loop")) {
             LoopSettings loopSettings;
-            loopSettings.deserialize(JsonUtils::toQJsonValue(workspace["loop"]).toObject());
+            loopSettings.deserialize(JsonNlohmann::toQJsonValue(workspace["loop"]).toObject());
             appStatus->loopSettings.set(loopSettings);
         } else {
             appStatus->loopSettings.set(LoopSettings());
@@ -387,7 +405,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             // encodePhonemes(dsNote->phonemeInfo().original, note.phonemes.org);
             // encodePhonemes(dsNote->phonemeInfo().edited, note.phonemes.edited);
             for (const auto &[key, value] : dsNote->workspace().asKeyValueRange()) {
-                note.workspace[key.toStdString()] = JsonUtils::fromQJsonValue(value);
+                note.workspace[key.toStdString()] = JsonNlohmann::fromQJsonValue(value);
             }
             notes.push_back(note);
         }
@@ -408,7 +426,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 singClip->control.gain = clip->gain();
                 singClip->control.mute = clip->mute();
                 for (const auto &[key, value] : clip->workspace().asKeyValueRange()) {
-                    singClip->workspace[key.toStdString()] = JsonUtils::fromQJsonValue(value);
+                    singClip->workspace[key.toStdString()] = JsonNlohmann::fromQJsonValue(value);
                 }
                 encodeNotes(singingClip->notes(), singClip->notes);
                 encodeSingingParams(singingClip->params, singClip->params);
@@ -425,7 +443,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 audioClipRef->control.mute = clip->mute();
                 audioClipRef->path = audioClip->path().toStdString();
                 for (const auto &[key, value] : clip->workspace().asKeyValueRange()) {
-                    audioClipRef->workspace[key.toStdString()] = JsonUtils::fromQJsonValue(value);
+                    audioClipRef->workspace[key.toStdString()] = JsonNlohmann::fromQJsonValue(value);
                 }
                 track.clips.push_back(audioClipRef);
             }
@@ -458,7 +476,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     encodeTracks(model, dspxModel);
 
     const auto loopSettings = appStatus->loopSettings.get();
-    dspxModel.content.workspace["loop"] = JsonUtils::fromQJsonValue(loopSettings.serialize());
+    dspxModel.content.workspace["loop"] = JsonNlohmann::fromQJsonValue(loopSettings.serialize());
 
     auto saveModelToFile = [](const opendspx::Model &model_, const QString &filePath,
                               QString &msg) -> bool {

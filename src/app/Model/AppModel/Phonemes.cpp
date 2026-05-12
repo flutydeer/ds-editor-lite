@@ -4,6 +4,8 @@
 
 #include "Phonemes.h"
 
+#include "Utils/JsonUtils.h"
+
 #include <QJsonArray>
 
 QJsonObject PhonemeName::serialize() const {
@@ -44,23 +46,17 @@ const QList<PhonemeName> &PhonemeNameSeq::result() const {
 }
 
 QJsonObject PhonemeNameSeq::serialize() const {
-    QJsonArray arrOriginal;
-    for (const auto &str : original)
-        arrOriginal.append(str.serialize());
-    QJsonArray arrEdited;
-    for (const auto &str : edited)
-        arrEdited.append(str.serialize());
     return QJsonObject{
-        {"original", arrOriginal},
-        {"edited",   arrEdited  }
+        {"original", JsonUtils::serializeList(original)},
+        {"edited",   JsonUtils::serializeList(edited)  }
     };
 }
 
 bool PhonemeNameSeq::deserialize(const QJsonObject &obj) {
     original.clear();
     edited.clear();
-    deserializeJArray(obj.value("original").toArray(), original);
-    deserializeJArray(obj.value("edited").toArray(), edited);
+    JsonUtils::deserializeList(obj.value("original").toArray(), original);
+    JsonUtils::deserializeList(obj.value("edited").toArray(), edited);
     return true;
 }
 
@@ -78,25 +74,15 @@ const QList<int> &PhonemeOffsetSeq::result() const {
 }
 
 QJsonObject PhonemeOffsetSeq::serialize() const {
-    QJsonArray arrOriginal;
-    for (const auto &value : original)
-        arrOriginal.append(value);
-    QJsonArray arrEdited;
-    for (const auto &value : edited)
-        arrEdited.append(value);
     return QJsonObject{
-        {"original", arrOriginal},
-        {"edited",   arrEdited  }
+        {"original", JsonUtils::serializePrimitiveList(original)},
+        {"edited",   JsonUtils::serializePrimitiveList(edited)  }
     };
 }
 
 bool PhonemeOffsetSeq::deserialize(const QJsonObject &obj) {
-    original.clear();
-    for (const auto &value : obj.value("original").toArray())
-        original.append(value.toInt());
-    edited.clear();
-    for (const auto &value : obj.value("edited").toArray())
-        edited.append(value.toInt());
+    original = JsonUtils::deserializePrimitiveList<int>(obj.value("original").toArray());
+    edited = JsonUtils::deserializePrimitiveList<int>(obj.value("edited").toArray());
     return true;
 }
 

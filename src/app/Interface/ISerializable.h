@@ -5,10 +5,12 @@
 #ifndef ISERIALIZABLE_H
 #define ISERIALIZABLE_H
 
+#include "Utils/JsonUtils.h"
 #include "Utils/Macros.h"
 
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QList>
 
 LITE_INTERFACE ISerializable {
     I_DECL(ISerializable)
@@ -16,21 +18,15 @@ LITE_INTERFACE ISerializable {
     I_METHOD(bool deserialize(const QJsonObject &obj));
 
     template <typename T>
+    [[deprecated("Use JsonUtils::deserializeList instead")]]
     void deserializeJArray(const QJsonArray &jsonArray, QList<T> &list) {
-        list.clear();
-        for (const auto &item : jsonArray) {
-            T obj;
-            obj.deserialize(item.toObject());
-            list.append(obj);
-        }
+        JsonUtils::deserializeList(jsonArray, list);
     }
 
     template <typename T>
+    [[deprecated("Use JsonUtils::serializeList instead")]]
     QJsonArray serializeJArray(const QList<T> &list) const {
-        QJsonArray jsonArray;
-        for (const auto &item : list)
-            jsonArray.append(item.serialize());
-        return jsonArray;
+        return JsonUtils::serializeList(list);
     }
 };
 

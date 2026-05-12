@@ -4,6 +4,8 @@
 
 #include "GenericInferModel.h"
 
+#include "Utils/JsonUtils.h"
+
 #include <QCryptographicHash>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -58,14 +60,14 @@ InferWord::InferWord(QList<InferPhoneme> phones, QList<InferNote> notes)
 
 QJsonObject InferWord::serialize() const {
     return QJsonObject{
-        {"phones", serializeJArray(phones)},
-        {"notes",  serializeJArray(notes) }
+        {"phones", JsonUtils::serializeList(phones)},
+        {"notes",  JsonUtils::serializeList(notes) }
     };
 }
 
 bool InferWord::deserialize(const QJsonObject &obj) {
-    deserializeJArray(obj["phones"].toArray(), phones);
-    deserializeJArray(obj["notes"].toArray(), notes);
+    JsonUtils::deserializeList(obj["phones"].toArray(), phones);
+    JsonUtils::deserializeList(obj["notes"].toArray(), notes);
     return true;
 }
 
@@ -90,16 +92,12 @@ bool InferRetake::deserialize(const QJsonObject &obj) {
 }
 
 QJsonObject InferParam::serialize() const {
-    QJsonArray arrValues;
-    for (const auto &value : values)
-        arrValues.append(value);
-
     return QJsonObject{
-        {"tag",      tag               },
-        {"dynamic",  dynamic           },
-        {"interval", interval          },
-        {"values",   arrValues         },
-        {"retake",   retake.serialize()}
+        {"tag",      tag                               },
+        {"dynamic",  dynamic                           },
+        {"interval", interval                          },
+        {"values",   JsonUtils::serializePrimitiveList(values)},
+        {"retake",   retake.serialize()                }
     };
 }
 
@@ -107,22 +105,19 @@ bool InferParam::deserialize(const QJsonObject &obj) {
     tag = obj["tag"].toString();
     dynamic = obj["dynamic"].toBool();
     interval = obj["interval"].toDouble();
-    QList<double> newValues;
-    for (const auto &value : obj["values"].toArray())
-        newValues.append(value.toDouble());
-    values = newValues;
+    values = JsonUtils::deserializePrimitiveList<double>(obj["values"].toArray());
     retake.deserialize(obj["retake"].toObject());
     return true;
 }
 
 QJsonObject GenericInferModel::serialize() const {
     return QJsonObject{
-        {"offset",     offset                 },
-        {"steps",      steps                  },
-        {"depth",      depth                  },
-        {"singer",     identifier.singerId    },
-        {"words",      serializeJArray(words) },
-        {"parameters", serializeJArray(params)}
+        {"offset",     offset                     },
+        {"steps",      steps                      },
+        {"depth",      depth                      },
+        {"singer",     identifier.singerId        },
+        {"words",      JsonUtils::serializeList(words) },
+        {"parameters", JsonUtils::serializeList(params)}
     };
 }
 
@@ -131,8 +126,8 @@ bool GenericInferModel::deserialize(const QJsonObject &obj) {
     steps = obj["steps"].toInt();
     depth = static_cast<float>(obj["depth"].toDouble());
 
-    deserializeJArray(obj["words"].toArray(), words);
-    deserializeJArray(obj["parameters"].toArray(), params);
+    JsonUtils::deserializeList(obj["words"].toArray(), words);
+    JsonUtils::deserializeList(obj["parameters"].toArray(), params);
 
     identifier.packageId = obj["packageId"].toString();
     identifier.packageVersion = QVersionNumber::fromString(obj["packageVersion"].toString());

@@ -9,8 +9,7 @@
 #include <QDir>
 
 void InferenceOption::load(const QJsonObject &object) {
-    if (object.contains(cacheDirectoryKey))
-        cacheDirectory = object[cacheDirectoryKey].toString();
+    load_cacheDirectory(object);
     const QDir configDir(cacheDirectory);
     if (!configDir.exists()) {
         if (configDir.mkpath("."))
@@ -20,22 +19,14 @@ void InferenceOption::load(const QJsonObject &object) {
     } else
         qDebug() << "Cache directory already exists";
 
-    if (object.contains(executionProviderKey))
-        executionProvider = object[executionProviderKey].toString();
-    if (object.contains(selectedGpuIndexKey))
-        selectedGpuIndex = object[selectedGpuIndexKey].toInt();
-    if (object.contains(selectedGpuIdKey))
-        selectedGpuId = object[selectedGpuIdKey].toString();
-    if (object.contains(samplingStepsKey))
-        samplingSteps = object[samplingStepsKey].toInt();
-    if (object.contains(depthKey))
-        depth = object[depthKey].toDouble();
-    if (object.contains(runVocoderOnCpuKey))
-        runVocoderOnCpu = object[runVocoderOnCpuKey].toBool();
-    if (object.contains(autoStartInferKey))
-        autoStartInfer = object[autoStartInferKey].toBool();
-    if (object.contains(pitch_smooth_kernel_sizeKey))
-        pitch_smooth_kernel_size = object[pitch_smooth_kernel_sizeKey].toInt();
+    load_executionProvider(object);
+    load_selectedGpuIndex(object);
+    load_selectedGpuId(object);
+    load_samplingSteps(object);
+    load_depth(object);
+    load_runVocoderOnCpu(object);
+    load_autoStartInfer(object);
+    load_pitch_smooth_kernel_size(object);
 }
 
 void InferenceOption::save(QJsonObject &object) {

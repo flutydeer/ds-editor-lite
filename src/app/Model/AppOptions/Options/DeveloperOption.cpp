@@ -5,12 +5,9 @@
 #include "DeveloperOption.h"
 
 void DeveloperOption::load(const QJsonObject &object) {
-    if (object.contains(enableDiagnosticsKey))
-        enableDiagnostics = object[enableDiagnosticsKey].toBool();
-    if (object.contains(showTimelineDebugInfoKey))
-        showTimelineDebugInfo = object[showTimelineDebugInfoKey].toBool();
-    if (object.contains(showClipDebugInfoKey))
-        showClipDebugInfo = object[showClipDebugInfoKey].toBool();
+    load_enableDiagnostics(object);
+    load_showTimelineDebugInfo(object);
+    load_showClipDebugInfo(object);
 }
 
 void DeveloperOption::save(QJsonObject &object) {

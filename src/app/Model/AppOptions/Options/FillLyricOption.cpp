@@ -1,5 +1,7 @@
 #include "FillLyricOption.h"
 
+#include "Utils/JsonUtils.h"
+
 #include <QJsonArray>
 
 // CustomSplitterRule serialization
@@ -18,12 +20,7 @@ CustomSplitterRule CustomSplitterRule::fromJson(const QJsonObject &obj) {
     rule.name = obj["name"].toString();
     rule.enabled = obj.value("enabled").toBool(true);
     rule.order = obj.value("order").toInt(0);
-    if (obj.contains("regexes") && obj["regexes"].isArray()) {
-        for (const auto &v : obj["regexes"].toArray()) {
-            if (v.isString())
-                rule.regexes.append(v.toString());
-        }
-    }
+    rule.regexes = JsonUtils::deserializeStringList(obj["regexes"].toArray());
     return rule;
 }
 
@@ -44,38 +41,25 @@ CustomTaggerEntry CustomTaggerEntry::fromJson(const QJsonObject &obj) {
     entry.type = obj["type"].toString();
     entry.tag = obj["tag"].toString();
     entry.discard = obj.value("discard").toBool(false);
-    if (obj.contains("value") && obj["value"].isArray()) {
-        for (const auto &v : obj["value"].toArray()) {
-            if (v.isString())
-                entry.value.append(v.toString());
-        }
-    }
+    entry.value = JsonUtils::deserializeStringList(obj["value"].toArray());
     return entry;
 }
 
 // CustomTaggerRule serialization
 
 QJsonObject CustomTaggerRule::toJson() const {
-    QJsonObject obj;
-    obj["language"] = language;
-    obj["enabled"] = enabled;
-    QJsonArray arr;
-    for (const auto &e : entries)
-        arr.append(e.toJson());
-    obj["tagger"] = arr;
-    return obj;
+    return QJsonObject{
+        {"language", language},
+        {"enabled",  enabled },
+        {"tagger",   JsonUtils::serializeListToJson(entries)}
+    };
 }
 
 CustomTaggerRule CustomTaggerRule::fromJson(const QJsonObject &obj) {
     CustomTaggerRule rule;
     rule.language = obj["language"].toString();
     rule.enabled = obj.value("enabled").toBool(true);
-    if (obj.contains("tagger") && obj["tagger"].isArray()) {
-        for (const auto &v : obj["tagger"].toArray()) {
-            if (v.isObject())
-                rule.entries.append(CustomTaggerEntry::fromJson(v.toObject()));
-        }
-    }
+    rule.entries = JsonUtils::deserializeListFromJson<CustomTaggerEntry>(obj["tagger"].toArray());
     return rule;
 }
 
@@ -119,37 +103,19 @@ void FillLyricOption::load(const QJsonObject &object) {
     if (object.contains("builtinTaggerEnabled"))
         builtinTaggerEnabled = jsonToMap(object["builtinTaggerEnabled"].toObject());
 
-    if (object.contains("customSplitterRules") && object["customSplitterRules"].isArray()) {
-        customSplitterRules.clear();
-        for (const auto &v : object["customSplitterRules"].toArray()) {
-            if (v.isObject())
-                customSplitterRules.append(CustomSplitterRule::fromJson(v.toObject()));
-        }
-    }
+    if (object.contains("customSplitterRules"))
+        customSplitterRules = JsonUtils::deserializeListFromJson<CustomSplitterRule>(
+            object["customSplitterRules"].toArray());
 
-    if (object.contains("customTaggerRules") && object["customTaggerRules"].isArray()) {
-        customTaggerRules.clear();
-        for (const auto &v : object["customTaggerRules"].toArray()) {
-            if (v.isObject())
-                customTaggerRules.append(CustomTaggerRule::fromJson(v.toObject()));
-        }
-    }
+    if (object.contains("customTaggerRules"))
+        customTaggerRules = JsonUtils::deserializeListFromJson<CustomTaggerRule>(
+            object["customTaggerRules"].toArray());
 
-    if (object.contains("splitterOrder") && object["splitterOrder"].isArray()) {
-        splitterOrder.clear();
-        for (const auto &v : object["splitterOrder"].toArray()) {
-            if (v.isString())
-                splitterOrder.append(v.toString());
-        }
-    }
+    if (object.contains("splitterOrder"))
+        splitterOrder = JsonUtils::deserializeStringList(object["splitterOrder"].toArray());
 
-    if (object.contains("taggerOrder") && object["taggerOrder"].isArray()) {
-        taggerOrder.clear();
-        for (const auto &v : object["taggerOrder"].toArray()) {
-            if (v.isString())
-                taggerOrder.append(v.toString());
-        }
-    }
+    if (object.contains("taggerOrder"))
+        taggerOrder = JsonUtils::deserializeStringList(object["taggerOrder"].toArray());
 }
 
 void FillLyricOption::save(QJsonObject &object) {
@@ -167,16 +133,9 @@ void FillLyricOption::save(QJsonObject &object) {
     object["builtinSplitterEnabled"] = mapToJson(builtinSplitterEnabled);
     object["builtinTaggerEnabled"] = mapToJson(builtinTaggerEnabled);
 
-    QJsonArray splitterArr;
-    for (const auto &r : customSplitterRules)
-        splitterArr.append(r.toJson());
-    object["customSplitterRules"] = splitterArr;
+    object["customSplitterRules"] = JsonUtils::serializeListToJson(customSplitterRules);
+    object["customTaggerRules"] = JsonUtils::serializeListToJson(customTaggerRules);
 
-    QJsonArray taggerArr;
-    for (const auto &r : customTaggerRules)
-        taggerArr.append(r.toJson());
-    object["customTaggerRules"] = taggerArr;
-
-    object["splitterOrder"] = QJsonArray::fromStringList(splitterOrder);
-    object["taggerOrder"] = QJsonArray::fromStringList(taggerOrder);
+    object["splitterOrder"] = JsonUtils::serializeStringList(splitterOrder);
+    object["taggerOrder"] = JsonUtils::serializeStringList(taggerOrder);
 }
