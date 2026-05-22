@@ -1,0 +1,58 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "description": "Configure a Debug build with tests enabled.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install",
+        "LITE_BUILD_TESTS": "ON",
+        "QT_NO_PRIVATE_MODULE_WARNING": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "description": "Configure a Release build.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install",
+        "LITE_BUILD_TESTS": "OFF",
+        "QT_NO_PRIVATE_MODULE_WARNING": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "displayName": "Build Debug",
+      "description": "Build the Debug application target.",
+      "configurePreset": "debug",
+      "targets": [
+        "DsEditorLite"
+      ]
+    },
+    {
+      "name": "release",
+      "displayName": "Build Release",
+      "description": "Build the Release application target.",
+      "configurePreset": "release",
+      "targets": [
+        "DsEditorLite"
+      ]
+    }
+  ]
+}
