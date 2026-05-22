@@ -23,6 +23,7 @@ private:
     SwitchButton *m_swEnableDiagnostics;
     SwitchButton *m_swShowTimelineDebugInfo;
     SwitchButton *m_swShowClipDebugInfo;
+    SwitchButton *m_swEnablePanelDetach;
 };
 
 

@@ -84,6 +84,11 @@ Button *TabPanelTitleBar::closeButton() const {
     return m_btnClose;
 }
 
+void TabPanelTitleBar::setDetachButtonVisible(bool visible) {
+    if (m_btnDetach)
+        m_btnDetach->setVisible(visible);
+}
+
 void TabPanelTitleBar::setDetached(bool detached, bool useNativeFrame) {
     if (m_detached && window())
         window()->removeEventFilter(this);

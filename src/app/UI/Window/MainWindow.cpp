@@ -289,6 +289,8 @@ MainWindow::MainWindow() {
             [this](const AppOptionsGlobal::Option option) {
                 if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
                     updateDiagnosticFilter();
+                if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
+                    updatePanelDetachEnabled();
             });
     updateDiagnosticFilter();
 
@@ -302,6 +304,7 @@ MainWindow::MainWindow() {
     m_bottomPanelView = new BottomPanelView(this);
     connect(m_bottomPanelView, &BottomPanelView::detachRequested, this,
             &MainWindow::detachBottomPanel);
+    updatePanelDetachEnabled();
 
     m_splitter = new SilentSplitter;
     m_splitter->setOrientation(Qt::Vertical);
@@ -388,6 +391,13 @@ void MainWindow::updateDiagnosticFilter() {
         delete m_eventDiagFilter;
         m_eventDiagFilter = nullptr;
     }
+}
+
+void MainWindow::updatePanelDetachEnabled() {
+    const bool enabled = appOptions->developer()->enablePanelDetach;
+    if (!enabled && m_bottomPanelDetached)
+        attachBottomPanel();
+    m_bottomPanelView->titleBar()->setDetachButtonVisible(enabled);
 }
 
 void MainWindow::updateWindowTitle() {

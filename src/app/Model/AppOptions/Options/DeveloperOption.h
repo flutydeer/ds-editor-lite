@@ -18,6 +18,7 @@ public:
     LITE_OPTION_ITEM(bool, enableDiagnostics, false)
     LITE_OPTION_ITEM(bool, showTimelineDebugInfo, false)
     LITE_OPTION_ITEM(bool, showClipDebugInfo, false)
+    LITE_OPTION_ITEM(bool, enablePanelDetach, false)
 };
 
 

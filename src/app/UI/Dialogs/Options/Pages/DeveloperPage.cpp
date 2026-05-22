@@ -20,6 +20,7 @@ void DeveloperPage::modifyOption() {
     option->enableDiagnostics = m_swEnableDiagnostics->value();
     option->showTimelineDebugInfo = m_swShowTimelineDebugInfo->value();
     option->showClipDebugInfo = m_swShowClipDebugInfo->value();
+    option->enablePanelDetach = m_swEnablePanelDetach->value();
     appOptions->saveAndNotify(AppOptionsGlobal::DeveloperOptions);
 }
 
@@ -36,6 +37,9 @@ QWidget *DeveloperPage::createContentWidget() {
     m_swShowClipDebugInfo = new SwitchButton(option->showClipDebugInfo);
     connect(m_swShowClipDebugInfo, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
 
+    m_swEnablePanelDetach = new SwitchButton(option->enablePanelDetach);
+    connect(m_swEnablePanelDetach, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
+
     const auto diagnosticsCard = new OptionListCard(tr("Diagnostics"));
     diagnosticsCard->addItem(tr("Enable diagnostic output"),
                              tr("Print event loop performance statistics to debug output"),
@@ -47,8 +51,14 @@ QWidget *DeveloperPage::createContentWidget() {
                              tr("Display clip ID and detailed time info on track clips"),
                              m_swShowClipDebugInfo);
 
+    const auto experimentalCard = new OptionListCard(tr("Experimental"));
+    experimentalCard->addItem(tr("Enable panel detach"),
+                              tr("Show the detach button on panel title bars to separate panels into standalone windows"),
+                              m_swEnablePanelDetach);
+
     const auto mainLayout = new QVBoxLayout();
     mainLayout->addWidget(diagnosticsCard, 0, Qt::AlignTop);
+    mainLayout->addWidget(experimentalCard, 0, Qt::AlignTop);
     mainLayout->addStretch();
     mainLayout->setContentsMargins({});
 

@@ -28,6 +28,7 @@ public:
     [[nodiscard]] Button *closeButton() const;
 
     void setDetached(bool detached, bool useNativeFrame);
+    void setDetachButtonVisible(bool visible);
 
 signals:
     void detachRequested();

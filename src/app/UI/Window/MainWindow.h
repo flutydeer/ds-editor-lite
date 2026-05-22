@@ -39,6 +39,7 @@ public:
     void restart() override;
     void setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) override;
     void updateDiagnosticFilter();
+    void updatePanelDetachEnabled();
 #if defined(WITH_DIRECT_MANIPULATION)
     void registerDirectManipulation();
     void unregisterDirectManipulation();
