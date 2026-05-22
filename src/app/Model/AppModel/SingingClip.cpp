@@ -219,8 +219,7 @@ void SingingClip::setTrackSingerInfo(const SingerInfo &singerInfo) {
 }
 
 SpeakerInfo SingingClip::speakerInfo() const {
-    // 空值表示跟随父级
-    if (m_speakerInfo.get().isEmpty()) {
+    if (useTrackSpeakerInfo) {
         return m_trackSpeakerInfo.get();
     }
     return m_speakerInfo.get();

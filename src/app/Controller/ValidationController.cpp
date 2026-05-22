@@ -36,8 +36,9 @@ void ValidationController::onModelChanged() {
         onTrackChanged(AppModel::Remove, -1, track);
 
     for (const auto track : appModel->tracks()) {
-        // Set track default language
-        track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
+        // Only set track default language if not already loaded from file
+        if (track->defaultLanguage().isEmpty() || track->defaultLanguage() == "unknown")
+            track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
         onTrackChanged(AppModel::Insert, -1, track);
         connect(track, &Track::clipChanged, this, &ValidationController::onClipChanged);
         for (const auto clip : track->clips()) {
@@ -45,7 +46,10 @@ void ValidationController::onModelChanged() {
             handleClipInserted(clip);
             if (clip->clipType() == Clip::Singing) {
                 const auto singingClip = static_cast<SingingClip *>(clip);
-                singingClip->setDefaultLanguage(track->defaultLanguage());
+                // Only set clip default language if not already loaded from file
+                if (singingClip->defaultLanguage().isEmpty() ||
+                    singingClip->defaultLanguage() == "unknown")
+                    singingClip->setDefaultLanguage(track->defaultLanguage());
                 singingClip->setTrackSingerInfo(track->singerInfo());
                 singingClip->setTrackSpeakerInfo(track->speakerInfo());
             }

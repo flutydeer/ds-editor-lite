@@ -9,6 +9,8 @@
 #include "Model/AppStatus/AppStatus.h"
 
 #include <opendspx/model.h>
+#include <opendspx/singlesinger.h>
+#include <opendspx/mixedsinger.h>
 #include <opendspxserializer/serializer.h>
 
 #include "Model/AppModel/Track.h"
@@ -17,6 +19,7 @@
 #include "Model/AppModel/Curve.h"
 #include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/SingingClip.h"
+#include "Modules/PackageManager/PackageManager.h"
 
 #include <QFile>
 
@@ -78,6 +81,177 @@ namespace {
             return {};
         }
     };
+
+    // ========== DS Editor Lite workspace helpers ==========
+
+    constexpr const char *kDsWorkspaceKey = "ds-editor-lite";
+    constexpr int kDsWorkspaceSchemaVersion = 1;
+
+    // Read the "ds-editor-lite" key from an opendspx Workspace as QJsonObject
+    QJsonObject dsWorkspaceFrom(const opendspx::Workspace &workspace) {
+        auto it = workspace.find(kDsWorkspaceKey);
+        if (it == workspace.end())
+            return {};
+        return JsonNlohmann::toQJsonValue(it->second).toObject();
+    }
+
+    // Write a QJsonObject into the "ds-editor-lite" key of an opendspx Workspace, preserving other keys
+    void writeDsWorkspace(opendspx::Workspace &workspace, const QJsonObject &obj) {
+        if (obj.isEmpty())
+            return;
+        workspace[kDsWorkspaceKey] = JsonNlohmann::fromQJsonValue(obj);
+    }
+
+    // ---- Identifier helpers ----
+
+    QJsonObject encodeSingerIdentifier(const SingerIdentifier &identifier, bool includeSingerId) {
+        QJsonObject obj;
+        if (includeSingerId && !identifier.singerId.isEmpty())
+            obj["singerId"] = identifier.singerId;
+        if (!identifier.packageId.isEmpty())
+            obj["packageId"] = identifier.packageId;
+        if (!identifier.packageVersion.isNull())
+            obj["packageVersion"] = identifier.packageVersion.toString();
+        return obj;
+    }
+
+    SingerIdentifier decodeSingerIdentifier(const QJsonObject &obj,
+                                            const QString &officialSingerId = {}) {
+        SingerIdentifier id;
+        id.singerId = officialSingerId.isEmpty() ? obj["singerId"].toString() : officialSingerId;
+        id.packageId = obj["packageId"].toString();
+        id.packageVersion = QVersionNumber::fromString(obj["packageVersion"].toString());
+        return id;
+    }
+
+    // ---- SingerInfo helpers ----
+
+    QJsonObject encodeSingerInfoForWorkspace(const SingerInfo &singerInfo, bool includeSingerId) {
+        if (singerInfo.isEmpty())
+            return {};
+        QJsonObject obj;
+        obj["schemaVersion"] = kDsWorkspaceSchemaVersion;
+        auto identifierObj = encodeSingerIdentifier(singerInfo.identifier(), includeSingerId);
+        if (!identifierObj.isEmpty())
+            obj["identifier"] = identifierObj;
+        if (!singerInfo.name().isEmpty())
+            obj["name"] = singerInfo.name();
+        if (!singerInfo.defaultLanguage().isEmpty())
+            obj["defaultLanguage"] = singerInfo.defaultLanguage();
+        if (!singerInfo.defaultDict().isEmpty())
+            obj["defaultDict"] = singerInfo.defaultDict();
+        return obj;
+    }
+
+    SingerInfo decodeSingerInfoFromWorkspace(const QJsonObject &obj,
+                                             const QString &officialSingerId = {}) {
+        if (obj.isEmpty() && officialSingerId.isEmpty())
+            return {};
+
+        auto identifierObj = obj["identifier"].toObject();
+        auto identifier = decodeSingerIdentifier(identifierObj, officialSingerId);
+
+        if (identifier.isEmpty())
+            return {};
+
+        // Try to resolve from package manager
+        auto resolved = packageManager->findSingerByIdentifier(identifier);
+        if (!resolved.isEmpty())
+            return resolved;
+
+        // Construct fallback SingerInfo
+        auto name = obj["name"].toString();
+        auto defaultLanguage = obj["defaultLanguage"].toString();
+        auto defaultDict = obj["defaultDict"].toString();
+        return SingerInfo(identifier, name, {}, {}, defaultLanguage, defaultDict);
+    }
+
+    // ---- SpeakerInfo helpers ----
+
+    QJsonObject encodeSpeakerInfoForWorkspace(const SpeakerInfo &speakerInfo) {
+        if (speakerInfo.isEmpty())
+            return {};
+        QJsonObject obj;
+        if (!speakerInfo.id().isEmpty())
+            obj["id"] = speakerInfo.id();
+        if (!speakerInfo.name().isEmpty())
+            obj["name"] = speakerInfo.name();
+        if (!speakerInfo.toneMin().isEmpty())
+            obj["toneMin"] = speakerInfo.toneMin();
+        if (!speakerInfo.toneMax().isEmpty())
+            obj["toneMax"] = speakerInfo.toneMax();
+        return obj;
+    }
+
+    SpeakerInfo decodeSpeakerInfoFromWorkspace(const QJsonObject &obj) {
+        if (obj.isEmpty())
+            return {};
+        auto id = obj["id"].toString();
+        auto name = obj["name"].toString();
+        auto toneMin = obj["toneMin"].toString();
+        auto toneMax = obj["toneMax"].toString();
+        if (id.isEmpty())
+            return {};
+        return SpeakerInfo(id, name, toneMin, toneMax);
+    }
+
+    SpeakerInfo resolveSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &fallback) {
+        if (fallback.isEmpty())
+            return {};
+        // Try to find the speaker by id in the singer's speaker list
+        for (const auto &speaker : singerInfo.speakers()) {
+            if (speaker.id() == fallback.id())
+                return speaker;
+        }
+        return fallback;
+    }
+
+    // ---- opendspx Singer helpers ----
+
+    opendspx::SingerRef encodeSingleSingerRef(const SingerInfo &singerInfo) {
+        auto singer = std::make_shared<opendspx::SingleSinger>();
+        singer->id = singerInfo.identifier().singerId.toStdString();
+
+        // Write extended info into singer workspace
+        QJsonObject dsObj;
+        dsObj["schemaVersion"] = kDsWorkspaceSchemaVersion;
+        // Don't include singerId in workspace (it's already in the official id field)
+        auto identifierObj = encodeSingerIdentifier(singerInfo.identifier(), false);
+        if (!identifierObj.isEmpty())
+            dsObj["identifier"] = identifierObj;
+        if (!singerInfo.name().isEmpty())
+            dsObj["name"] = singerInfo.name();
+        if (!singerInfo.defaultLanguage().isEmpty())
+            dsObj["defaultLanguage"] = singerInfo.defaultLanguage();
+        if (!singerInfo.defaultDict().isEmpty())
+            dsObj["defaultDict"] = singerInfo.defaultDict();
+
+        if (!dsObj.isEmpty())
+            singer->workspace[kDsWorkspaceKey] = JsonNlohmann::fromQJsonValue(dsObj);
+
+        return singer;
+    }
+
+    std::optional<SingerInfo> decodePrimarySingerInfo(
+        const std::vector<opendspx::SingerRef> &singers) {
+        for (const auto &singerRef : singers) {
+            if (singerRef->type == opendspx::Singer::Type::Single) {
+                auto single = std::static_pointer_cast<opendspx::SingleSinger>(singerRef);
+                auto officialId = QString::fromStdString(single->id);
+                if (officialId.isEmpty())
+                    continue;
+                auto dsObj = dsWorkspaceFrom(single->workspace);
+                return decodeSingerInfoFromWorkspace(dsObj, officialId);
+            } else if (singerRef->type == opendspx::Singer::Type::Mixed) {
+                // For mixed singer, try to extract the first single singer
+                auto mixed = std::static_pointer_cast<opendspx::MixedSinger>(singerRef);
+                auto result = decodePrimarySingerInfo(mixed->singers);
+                if (result.has_value())
+                    return result;
+            }
+        }
+        return std::nullopt;
+    }
 }
 
 bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &errMsg,
@@ -181,8 +355,6 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 const auto castClip = std::static_pointer_cast<opendspx::SingingClip>(dspxClip);
                 const auto clip = new SingingClip;
                 clip->setName(QString::fromStdString(castClip->name));
-                // TODO: language
-                // clip->setDefaultLanguage(castClip->language);
                 auto start = castClip->time.pos - castClip->time.clipStart;
                 clip->setStart(start);
                 clip->setClipStart(castClip->time.clipStart);
@@ -200,24 +372,55 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                     workspace[QString::fromStdString(key)] = JsonNlohmann::toQJsonValue(value).toObject();
                 }
                 clip->workspace() = workspace;
-                track->insertClip(clip);
-            } else if (dspxClip->type == opendspx::Clip::Type::Audio) {
-                const auto castClip = std::static_pointer_cast<opendspx::AudioClip>(dspxClip);
-                const auto clip = new AudioClip;
-                clip->setName(QString::fromStdString(castClip->name));
-                auto start = castClip->time.pos - castClip->time.clipStart;
-                clip->setStart(start);
-                clip->setClipStart(castClip->time.clipStart);
-                clip->setLength(castClip->time.length);
-                clip->setClipLen(castClip->time.clipLen);
-                clip->setGain(castClip->control.gain);
-                clip->setMute(castClip->control.mute);
-                clip->setPath(QString::fromStdString(castClip->path));
-                QMap<QString, QJsonObject> workspace;
-                for (const auto &[key, value] : castClip->workspace) {
-                    workspace[QString::fromStdString(key)] = JsonNlohmann::toQJsonValue(value).toObject();
+
+                // Inject track singer/speaker info for inheritance
+                clip->setTrackSingerAndSpeakerInfo(track->singerInfo(), track->speakerInfo());
+
+                // Read official sources.singers[] for clip singer
+                bool hasOfficialSinger = false;
+                if (castClip->sources.has_value()) {
+                    auto primarySinger =
+                        decodePrimarySingerInfo(castClip->sources->singers);
+                    if (primarySinger.has_value()) {
+                        clip->setSingerInfo(primarySinger.value());
+                        hasOfficialSinger = true;
+                    }
                 }
-                clip->workspace() = workspace;
+
+                // Read DS workspace for clip flags/speaker/language
+                auto clipDsWs = dsWorkspaceFrom(castClip->workspace);
+
+                // Determine useTrackSingerInfo
+                if (clipDsWs.contains("useTrackSingerInfo")) {
+                    clip->useTrackSingerInfo = clipDsWs["useTrackSingerInfo"].toBool();
+                } else if (hasOfficialSinger) {
+                    // Third-party file with official singer but no DS workspace flag
+                    clip->useTrackSingerInfo = false;
+                } else {
+                    // Old DS file or no singer info at all
+                    clip->useTrackSingerInfo = true;
+                }
+
+                // Determine useTrackSpeakerInfo
+                if (clipDsWs.contains("useTrackSpeakerInfo")) {
+                    clip->useTrackSpeakerInfo = clipDsWs["useTrackSpeakerInfo"].toBool();
+                } else {
+                    clip->useTrackSpeakerInfo = true;
+                }
+
+                // Read clip speaker
+                auto speakerObj = clipDsWs["speaker"].toObject();
+                if (!speakerObj.isEmpty()) {
+                    auto clipSpeaker = resolveSpeakerInfo(clip->singerInfo(),
+                                                         decodeSpeakerInfoFromWorkspace(speakerObj));
+                    clip->setSpeakerInfo(clipSpeaker);
+                }
+
+                // Read clip defaultLanguage
+                auto clipLang = clipDsWs["defaultLanguage"].toString();
+                if (!clipLang.isEmpty())
+                    clip->setDefaultLanguage(clipLang);
+
                 track->insertClip(clip);
             } else if (dspxClip->type == opendspx::Clip::Type::Audio) {
                 const auto castClip = std::static_pointer_cast<opendspx::AudioClip>(dspxClip);
@@ -251,9 +454,24 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             trackControl.setMute(dspxTrack.control.mute);
             trackControl.setSolo(dspxTrack.control.solo);
             track->setName(QString::fromStdString(dspxTrack.name));
-            // TODO: lanauge
-            // track->setDefaultLanguage(dspxTrack.language);
             track->setControl(trackControl);
+
+            // Read track singer/speaker/language from DS workspace
+            auto trackDsWs = dsWorkspaceFrom(dspxTrack.workspace);
+            if (!trackDsWs.isEmpty()) {
+                auto singerObj = trackDsWs["singer"].toObject();
+                auto singerInfo = decodeSingerInfoFromWorkspace(singerObj);
+                auto speakerObj = trackDsWs["speaker"].toObject();
+                auto speakerInfo = resolveSpeakerInfo(singerInfo,
+                                                     decodeSpeakerInfoFromWorkspace(speakerObj));
+                if (!singerInfo.isEmpty() || !speakerInfo.isEmpty())
+                    track->setSingerAndSpeakerInfo(singerInfo, speakerInfo);
+
+                auto defaultLang = trackDsWs["defaultLanguage"].toString();
+                if (!defaultLang.isEmpty())
+                    track->setDefaultLanguage(defaultLang);
+            }
+
             decodeClips(dspxTrack.clips, track);
             model_->insertTrack(track, i);
             i++;
@@ -417,17 +635,49 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 const auto singingClip = dynamic_cast<SingingClip *>(clip);
                 auto singClip = std::make_shared<opendspx::SingingClip>();
                 singClip->name = clip->name().toStdString();
-                // TODO: language
-                // singClip->language = singingClip->defaultLanguage();
                 singClip->time.pos = clip->start() + clip->clipStart();
                 singClip->time.clipStart = clip->clipStart();
                 singClip->time.length = clip->length();
                 singClip->time.clipLen = clip->clipLen();
                 singClip->control.gain = clip->gain();
                 singClip->control.mute = clip->mute();
+
+                // Preserve existing workspace keys
                 for (const auto &[key, value] : clip->workspace().asKeyValueRange()) {
                     singClip->workspace[key.toStdString()] = JsonNlohmann::fromQJsonValue(value);
                 }
+
+                // Write clip DS workspace (flags/speaker/language)
+                QJsonObject clipDsWs;
+                clipDsWs["schemaVersion"] = kDsWorkspaceSchemaVersion;
+                clipDsWs["useTrackSingerInfo"] = singingClip->useTrackSingerInfo.get();
+                clipDsWs["useTrackSpeakerInfo"] = singingClip->useTrackSpeakerInfo.get();
+
+                auto clipSpeakerObj = encodeSpeakerInfoForWorkspace(
+                    singingClip->useTrackSpeakerInfo.get() ? SpeakerInfo()
+                                                          : singingClip->speakerInfo());
+                if (!clipSpeakerObj.isEmpty())
+                    clipDsWs["speaker"] = clipSpeakerObj;
+
+                auto clipLang = singingClip->defaultLanguage();
+                if (!clipLang.isEmpty() && clipLang != "unknown")
+                    clipDsWs["defaultLanguage"] = clipLang;
+
+                auto clipG2p = singingClip->defaultG2pId();
+                if (!clipG2p.isEmpty() && clipG2p != "unknown")
+                    clipDsWs["defaultG2pId"] = clipG2p;
+
+                writeDsWorkspace(singClip->workspace, clipDsWs);
+
+                // Write official sources.singers[]
+                const auto effectiveSinger = singingClip->singerInfo();
+                if (!effectiveSinger.identifier().singerId.isEmpty()) {
+                    opendspx::Sources sources;
+                    sources.category = "singing";
+                    sources.singers.push_back(encodeSingleSingerRef(effectiveSinger));
+                    singClip->sources = sources;
+                }
+
                 encodeNotes(singingClip->notes(), singClip->notes);
                 encodeSingingParams(singingClip->params, singClip->params);
                 track.clips.push_back(singClip);
@@ -454,13 +704,33 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         for (const auto dsTrack : model_->tracks()) {
             opendspx::Track track;
             track.name = dsTrack->name().toStdString();
-            // TODO: language
-            // track.language = dsTrack->defaultLanguage();
-            // track.g2pId = dsTrack->defaultG2pId();
             track.control.gain = dsTrack->control().gain();
             track.control.pan = dsTrack->control().pan();
             track.control.mute = dsTrack->control().mute();
             track.control.solo = dsTrack->control().solo();
+
+            // Write track DS workspace (singer/speaker/language)
+            QJsonObject trackDsWs;
+            trackDsWs["schemaVersion"] = kDsWorkspaceSchemaVersion;
+
+            auto singerObj = encodeSingerInfoForWorkspace(dsTrack->singerInfo(), true);
+            if (!singerObj.isEmpty())
+                trackDsWs["singer"] = singerObj;
+
+            auto speakerObj = encodeSpeakerInfoForWorkspace(dsTrack->speakerInfo());
+            if (!speakerObj.isEmpty())
+                trackDsWs["speaker"] = speakerObj;
+
+            auto trackLang = dsTrack->defaultLanguage();
+            if (!trackLang.isEmpty() && trackLang != "unknown")
+                trackDsWs["defaultLanguage"] = trackLang;
+
+            auto trackG2p = dsTrack->defaultG2pId();
+            if (!trackG2p.isEmpty() && trackG2p != "unknown")
+                trackDsWs["defaultG2pId"] = trackG2p;
+
+            writeDsWorkspace(track.workspace, trackDsWs);
+
             encodeClips(dsTrack, track);
             dspx.content.tracks.push_back(track);
         }

@@ -207,6 +207,12 @@ void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
         if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
             createAndRunGetPronTask(*clip);
     });
+
+    // Trigger inference if language module is already ready and clip has a valid singer
+    if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready &&
+        !clip->singerInfo().isEmpty()) {
+        createAndRunGetPronTask(*clip);
+    }
 }
 
 void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {

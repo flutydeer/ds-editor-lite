@@ -115,8 +115,13 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 
     setName(track->name());
     setControl(track->control());
+    cbSinger->setCurrentData(track->singerInfo(), track->speakerInfo());
     setLanguage(track->defaultLanguage());
     updateTrackColor();
+
+    connect(track, &Track::singerOrSpeakerChanged, this, [this] {
+        cbSinger->setCurrentData(m_track->singerInfo(), m_track->speakerInfo());
+    });
 }
 
 int TrackControlView::trackIndex() const {
