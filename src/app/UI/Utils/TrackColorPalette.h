@@ -46,8 +46,6 @@ public:
 
     QColor trackHeaderColor(int index) const;
 
-    int nextColorIndex();
-
 private:
     TrackColorPalette();
     ~TrackColorPalette() = default;
@@ -56,7 +54,6 @@ private:
     int normalizedIndex(int index) const;
 
     QList<QColor> m_palette;
-    int m_nextIndex = 0;
 };
 
 #endif // TRACKCOLORPALETTE_H

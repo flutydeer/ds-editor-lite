@@ -69,8 +69,15 @@ const QList<Track *> &AppModel::tracks() const {
 
 void AppModel::insertTrack(Track *track, const qsizetype index) {
     Q_D(AppModel);
-    if (track->colorIndex() == 0 && !track->color().isValid())
-        track->setColorIndex(TrackColorPalette::instance()->nextColorIndex());
+    if (track->colorIndex() == 0 && !track->color().isValid()) {
+        int prev = -1;
+        if (index > 0 && index - 1 < d->m_tracks.size())
+            prev = d->m_tracks[index - 1]->colorIndex();
+        else if (index >= d->m_tracks.size() && !d->m_tracks.isEmpty())
+            prev = d->m_tracks.last()->colorIndex();
+        const int newIdx = (prev < 0) ? 0 : (prev + 1) % TrackColorPalette::colorCount;
+        track->setColorIndex(newIdx);
+    }
     d->m_tracks.insert(index, track);
 
     auto vm = new LevelMeterViewModel(this);
@@ -153,6 +160,7 @@ void AppModel::newProject() {
     const auto newTrack = new Track;
     newTrack->setName(tr("New Track"));
     newTrack->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
+    newTrack->setColorIndex(0);
 
     newTrack->insertClip(singingClip);
     d->m_tracks.append(newTrack);

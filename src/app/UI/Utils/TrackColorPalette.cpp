@@ -145,9 +145,3 @@ QColor TrackColorPalette::keyHighlight(int index) const {
 QColor TrackColorPalette::trackHeaderColor(int index) const {
     return baseColor(index);
 }
-
-int TrackColorPalette::nextColorIndex() {
-    int idx = m_nextIndex;
-    m_nextIndex = (m_nextIndex + 1) % colorCount;
-    return idx;
-}
