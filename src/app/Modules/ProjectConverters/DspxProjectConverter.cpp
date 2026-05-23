@@ -470,6 +470,9 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 auto defaultLang = trackDsWs["defaultLanguage"].toString();
                 if (!defaultLang.isEmpty())
                     track->setDefaultLanguage(defaultLang);
+
+                if (trackDsWs.contains("colorIndex"))
+                    track->setColorIndex(trackDsWs["colorIndex"].toInt());
             }
 
             decodeClips(dspxTrack.clips, track);
@@ -728,6 +731,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             auto trackG2p = dsTrack->defaultG2pId();
             if (!trackG2p.isEmpty() && trackG2p != "unknown")
                 trackDsWs["defaultG2pId"] = trackG2p;
+
+            trackDsWs["colorIndex"] = dsTrack->colorIndex();
 
             writeDsWorkspace(track.workspace, trackDsWs);
 
