@@ -44,6 +44,10 @@ LineEdit#leClipName {
     border-bottom-left-radius: 4px;
 }
 
+LineEdit#leClipName[groupPos="only"] {
+    border-radius: 4px;
+}
+
 LineEdit#leClipName:focus {
     background: #1A1C22;
     border-bottom: 1px solid #9BBAFF;

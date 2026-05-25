@@ -11,6 +11,7 @@
 #include "Modules/Inference/Models/SingerIdentifier.h"
 #include "Modules/PackageManager/PackageManager.h"
 #include "UI/Controls/Button.h"
+#include "UI/Controls/ControlGroup.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/ToolTipFilter.h"
@@ -124,14 +125,18 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     // auto btnParamView = d->buildToolButton("btnParamView", tr("Toggle param editor"));
     // btnParamView->setChecked(true);
 
+    auto clipInfoLayout = new QHBoxLayout;
+    clipInfoLayout->addWidget(d->m_leClipName);
+    clipInfoLayout->addWidget(d->m_cbSinger);
+    clipInfoLayout->addWidget(d->m_cbClipLanguage);
+    clipInfoLayout->setSpacing(1);
+    clipInfoLayout->setContentsMargins({});
+
+    auto clipInfoGroup = new ControlGroup;
+    clipInfoGroup->setLayout(clipInfoLayout);
+
     const auto mainLayout = new QHBoxLayout;
-    mainLayout->addWidget(d->m_leClipName);
-    // mainLayout->addWidget(btnMute);
-    // mainLayout->addWidget(sbGain);
-    // mainLayout->addWidget(leGain);
-    // mainLayout->addWidget(new DividerLine(Qt::Vertical));
-    mainLayout->addWidget(d->m_cbSinger);
-    mainLayout->addWidget(d->m_cbClipLanguage);
+    mainLayout->addWidget(clipInfoGroup);
     mainLayout->addSpacing(16);
     mainLayout->addWidget(d->m_btnArrow);
     mainLayout->addWidget(d->m_btnBeam);
