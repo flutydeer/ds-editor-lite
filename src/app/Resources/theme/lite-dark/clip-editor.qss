@@ -116,14 +116,14 @@ PianoRollView>QLabel#lbNullClipTip {
 
 ParamEditorGraphicsView {
     /* background: rgb(28, 29, 30); */
-    background: #1F2228;
+    background: #1D1F26;
     border-radius: 0px;
     border-bottom-right-radius: 6px;
 }
 
 PhonemeView {
     /* background: rgb(28, 29, 30); */
-    background: #1F2228;
+    background: #1D1F26;
     /* border-bottom-right-radius: 6px; */
 }
 
