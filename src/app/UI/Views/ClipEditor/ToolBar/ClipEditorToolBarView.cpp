@@ -135,18 +135,26 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     auto clipInfoGroup = new ControlGroup;
     clipInfoGroup->setLayout(clipInfoLayout);
 
+    auto toolButtonLayout = new QHBoxLayout;
+    toolButtonLayout->addWidget(d->m_btnArrow);
+    toolButtonLayout->addWidget(d->m_btnBeam);
+    toolButtonLayout->addWidget(d->m_btnNotePencil);
+    toolButtonLayout->addWidget(d->m_btnNoteEraser);
+    toolButtonLayout->addWidget(d->m_btnNoteSplit);
+    toolButtonLayout->addWidget(d->m_btnPitchAnchor);
+    toolButtonLayout->addWidget(d->m_btnPitchPencil);
+    toolButtonLayout->addWidget(d->m_btnPitchEraser);
+    // toolButtonLayout->addWidget(d->m_btnFreezePitch);
+    toolButtonLayout->setSpacing(1);
+    toolButtonLayout->setContentsMargins({});
+
+    auto toolButtonGroup = new ControlGroup;
+    toolButtonGroup->setLayout(toolButtonLayout);
+
     const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(clipInfoGroup);
     mainLayout->addSpacing(16);
-    mainLayout->addWidget(d->m_btnArrow);
-    mainLayout->addWidget(d->m_btnBeam);
-    mainLayout->addWidget(d->m_btnNotePencil);
-    mainLayout->addWidget(d->m_btnNoteEraser);
-    mainLayout->addWidget(d->m_btnNoteSplit);
-    mainLayout->addWidget(d->m_btnPitchAnchor);
-    mainLayout->addWidget(d->m_btnPitchPencil);
-    mainLayout->addWidget(d->m_btnPitchEraser);
-    // mainLayout->addWidget(d->m_btnFreezePitch);
+    mainLayout->addWidget(toolButtonGroup);
     mainLayout->addStretch();
 
     mainLayout->setContentsMargins({});
@@ -272,7 +280,7 @@ Button *ClipEditorToolBarViewPrivate::buildCommonButton(const QString &objName,
                                                         const QString &tipDesc) const {
     const auto btn = new Button;
     btn->setObjectName(objName);
-    btn->setFixedSize(m_contentHeight, m_contentHeight);
+    btn->setFixedSize(36, m_contentHeight);
     btn->setShortcut(shortcut);
 
     const QSize iconSize(16, 16);
