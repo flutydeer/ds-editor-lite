@@ -7,9 +7,12 @@
 
 #include "Global/AppGlobal.h"
 
+#include <QObject>
 #include <QStandardPaths>
 
+class AppController;
 class IMainWindow;
+class IPanel;
 class LaunchLanguageEngineTask;
 
 class AppControllerPrivate : public QObject {
@@ -32,6 +35,7 @@ public:
     static bool isPowerOf2(int num);
     static void onRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task);
     void updateProjectPathAndName(const QString &path);
+    void addRecentProjectFile(const QString &path);
 
     bool openDspxFile(const QString &path, QString &errorMessage);
     bool openMidiFile(const QString &path, QString &errorMessage);

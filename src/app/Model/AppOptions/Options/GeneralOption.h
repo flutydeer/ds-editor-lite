@@ -31,6 +31,7 @@ public:
         {"yue", "啦"}
     };
     QStringList packageSearchPaths;
+    QStringList recentProjectFiles;
 #if false
     QVersionNumber defaultPackageVersion;
     LITE_OPTION_ITEM(QString, defaultPackage, QString())
@@ -50,6 +51,7 @@ private:
     const QString defaultSingingLanguageKey = "defaultSingLanguage";
     const QString defaultLyricsKey = "defaultLyrics";
     const QString packageSearchPathsKey = "packageSearchPaths";
+    const QString recentProjectFilesKey = "recentProjectFiles";
     // const QString defaultPackageVersionKey = "defaultPackageVersion";
 };
 

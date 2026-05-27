@@ -6,6 +6,19 @@
 
 #include "GeneralOption.h"
 
+namespace {
+    constexpr int maxRecentProjectFiles = 10;
+
+    bool recentProjectPathsEqual(const QString &lhs, const QString &rhs) {
+#ifdef Q_OS_WIN
+        return QString::compare(lhs, rhs, Qt::CaseInsensitive) == 0;
+#else
+        return lhs == rhs;
+#endif
+    }
+}
+
+
 void GeneralOption::load(const QJsonObject &object) {
     if (object.contains(defaultSingingLanguageKey))
         defaultSingingLanguage = object[defaultSingingLanguageKey].toString();
@@ -33,6 +46,30 @@ void GeneralOption::load(const QJsonObject &object) {
         packageSearchPaths = {};
     }
 
+    recentProjectFiles.clear();
+    if (const auto it = object.constFind(recentProjectFilesKey); it != object.constEnd() && it->isArray()) {
+        const auto arr = it->toArray();
+        for (auto item : arr) {
+            if (!item.isString())
+                continue;
+            const auto path = item.toString();
+            if (path.isEmpty())
+                continue;
+            bool duplicated = false;
+            for (const auto &file : std::as_const(recentProjectFiles)) {
+                if (recentProjectPathsEqual(file, path)) {
+                    duplicated = true;
+                    break;
+                }
+            }
+            if (duplicated)
+                continue;
+            recentProjectFiles.append(path);
+            if (recentProjectFiles.size() >= maxRecentProjectFiles)
+                break;
+        }
+    }
+
 #if false
     if (object.contains(defaultPackageKey))
         defaultPackage = object[defaultPackageKey].toString();
@@ -57,9 +94,10 @@ void GeneralOption::save(QJsonObject &object) {
         lyricsObj[it.key()] = it.value();
 
     object = {
-        {defaultSingingLanguageKey, defaultSingingLanguage                        },
-        {defaultLyricsKey,          lyricsObj                                     },
-        {packageSearchPathsKey,     QJsonArray::fromStringList(packageSearchPaths)},
+        {defaultSingingLanguageKey, defaultSingingLanguage                         },
+        {defaultLyricsKey,          lyricsObj                                      },
+        {packageSearchPathsKey,     QJsonArray::fromStringList(packageSearchPaths) },
+        {recentProjectFilesKey,     QJsonArray::fromStringList(recentProjectFiles)},
 #if false
         serialize_defaultPackage(),
         serialize_defaultPackageId(),

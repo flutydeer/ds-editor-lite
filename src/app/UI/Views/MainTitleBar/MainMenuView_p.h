@@ -11,6 +11,7 @@
 
 class QAction;
 class Menu;
+class MainMenuView;
 class MainWindow;
 
 class MainMenuViewPrivate : QObject {
@@ -25,6 +26,7 @@ public:
 
     QAction *actionNew = nullptr;
     QAction *actionOpen = nullptr;
+    QAction *actionClearRecentProjects = nullptr;
     QAction *actionImportMidi = nullptr;
     QAction *actionExportAudio = nullptr;
     QAction *actionExportMidi = nullptr;
@@ -47,10 +49,16 @@ public:
     // QAction *actionGetMidiFromAudioClip = nullptr;
     QAction *actionExtractPitchParam = nullptr;
 
+    Menu *menuRecentProjects = nullptr;
+
     AppGlobal::PanelType m_panelType = AppGlobal::Generic;
 
     void onNew() const;
     void onOpen();
+    void onOpenRecentProject(const QString &filePath);
+    void onClearRecentProjects();
+    void refreshRecentProjectsMenu();
+    void openFileWithSavePrompt(const QString &filePath);
     // void onOpenAProject();
     void onImportMidiFile();
     void onExportMidiFile();

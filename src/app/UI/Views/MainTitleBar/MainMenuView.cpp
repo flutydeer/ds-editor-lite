@@ -23,7 +23,12 @@
 #include "Global/AppOptionsGlobal.h"
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 
+#include <QFile>
 #include <QFileDialog>
+#include <QFileInfo>
+
+#include <algorithm>
+
 #include "UI/Controls/Menu.h"
 
 MainMenuView::MainMenuView(MainWindow *mainWindow)
@@ -65,18 +70,67 @@ void MainMenuViewPrivate::onNew() const {
 
 void MainMenuViewPrivate::onOpen() {
     Q_Q(MainMenuView);
+    const auto lastDir = appController->lastProjectFolder();
+    const auto fileName = QFileDialog::getOpenFileName(
+        q, tr("Open"), lastDir,
+        MainMenuView::tr("All Supported Files (*.dspx *.mid *.midi);;DiffScope Project File "
+                         "(*.dspx);;MIDI File (*.mid *.midi)"));
+    if (fileName.isNull()) {
+        qDebug() << "User cancelled open";
+        return;
+    }
+    openFileWithSavePrompt(fileName);
+}
+
+void MainMenuViewPrivate::onOpenRecentProject(const QString &filePath) {
+    if (!QFile::exists(filePath)) {
+        appController->removeRecentProjectFile(filePath);
+        Toast::show(tr("File does not exist: %1").arg(filePath));
+        return;
+    }
+    openFileWithSavePrompt(filePath);
+}
+
+void MainMenuViewPrivate::onClearRecentProjects() {
+    appController->clearRecentProjectFiles();
+}
+
+void MainMenuViewPrivate::refreshRecentProjectsMenu() {
+    if (!menuRecentProjects)
+        return;
+
+    menuRecentProjects->clear();
+    const auto files = appController->recentProjectFiles();
+    if (files.isEmpty()) {
+        const auto actionEmpty = menuRecentProjects->addAction(tr("(No Recent Projects)"));
+        actionEmpty->setEnabled(false);
+        menuRecentProjects->addSeparator();
+        actionClearRecentProjects->setEnabled(false);
+        menuRecentProjects->addAction(actionClearRecentProjects);
+        return;
+    }
+
+    const auto count = std::min(files.size(), qsizetype{10});
+    for (qsizetype i = 0; i < count; ++i) {
+        const auto filePath = files.at(i);
+        const auto text = tr("&%1 %2").arg(static_cast<int>(i + 1)).arg(QFileInfo(filePath).fileName());
+        const auto action = menuRecentProjects->addAction(text);
+        action->setData(filePath);
+        action->setToolTip(filePath);
+        action->setStatusTip(filePath);
+        connect(action, &QAction::triggered, this, [this, filePath] {
+            onOpenRecentProject(filePath);
+        });
+    }
+    menuRecentProjects->addSeparator();
+    actionClearRecentProjects->setEnabled(true);
+    menuRecentProjects->addAction(actionClearRecentProjects);
+}
+
+void MainMenuViewPrivate::openFileWithSavePrompt(const QString &filePath) {
     auto openFile = [=] {
-        const auto lastDir = appController->lastProjectFolder();
-        const auto fileName = QFileDialog::getOpenFileName(
-            q, tr("Open"), lastDir,
-            MainMenuView::tr("All Supported Files (*.dspx *.mid *.midi);;DiffScope Project File "
-                             "(*.dspx);;MIDI File (*.mid *.midi)"));
-        if (fileName.isNull()) {
-            qDebug() << "User cancelled open";
-            return;
-        }
         QString errorMessage;
-        appController->openFile(fileName, errorMessage);
+        appController->openFile(filePath, errorMessage);
     };
     if (!historyManager->isOnSavePoint()) {
         if (m_mainWindow->askSaveChanges())
@@ -300,6 +354,10 @@ void MainMenuViewPrivate::initFileActions() {
     actionOpen->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionOpen, &QAction::triggered, this, [this] { onOpen(); });
 
+    actionClearRecentProjects = new QAction(tr("Clear Recent Projects"), this);
+    connect(actionClearRecentProjects, &QAction::triggered, this,
+            [this] { onClearRecentProjects(); });
+
     actionSave = new QAction(tr("&Save"), this);
     actionSave->setShortcut(QKeySequence("Ctrl+S"));
     actionSave->setShortcutContext(Qt::ApplicationShortcut);
@@ -404,6 +462,15 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
     auto menuFile = new Menu(tr("&File"), q);
     menuFile->addAction(actionNew);
     menuFile->addAction(actionOpen);
+
+    menuRecentProjects = new Menu(tr("Recent Projects"), q);
+    connect(menuRecentProjects, &Menu::aboutToShow, this,
+            [this] { refreshRecentProjectsMenu(); });
+    connect(appController, &AppController::recentProjectFilesChanged, this,
+            [this] { refreshRecentProjectsMenu(); });
+    refreshRecentProjectsMenu();
+    menuFile->addMenu(menuRecentProjects);
+
     menuFile->addAction(actionSave);
     menuFile->addAction(actionSaveAs);
 

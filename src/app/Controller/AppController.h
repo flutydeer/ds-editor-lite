@@ -11,6 +11,7 @@
 #include "Utils/Singleton.h"
 
 #include <QObject>
+#include <QStringList>
 #include <mutex>
 
 class AppControllerPrivate;
@@ -39,7 +40,10 @@ public:
     [[nodiscard]] QString lastProjectFolder() const;
     [[nodiscard]] QString projectPath() const;
     [[nodiscard]] QString projectName() const;
+    [[nodiscard]] QStringList recentProjectFiles() const;
     void setProjectName(const QString &name);
+    void clearRecentProjectFiles();
+    void removeRecentProjectFile(const QString &filePath);
     void registerPanel(IPanel *panel);
 
 public slots:
@@ -66,6 +70,7 @@ public slots:
 
 signals:
     void activePanelChanged(AppGlobal::PanelType panel);
+    void recentProjectFilesChanged(const QStringList &filePaths);
 
 private:
     Q_DECLARE_PRIVATE(AppController)

@@ -32,7 +32,26 @@
 #include <QDir>
 #include <QFileInfo>
 
+#include <algorithm>
+
 #include "Actions/AppModel/MasterControl/MasterControlActions.h"
+
+namespace {
+    constexpr int maxRecentProjectFiles = 10;
+
+    QString normalizedProjectPath(const QString &path) {
+        return QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+    }
+
+    bool projectPathsEqual(const QString &lhs, const QString &rhs) {
+#ifdef Q_OS_WIN
+        return QString::compare(lhs, rhs, Qt::CaseInsensitive) == 0;
+#else
+        return lhs == rhs;
+#endif
+    }
+}
+
 
 AppController::AppController(QObject *parent)
     : QObject(parent), d_ptr(new AppControllerPrivate(this)) {
@@ -80,6 +99,7 @@ bool AppController::saveProject(const QString &filePath, QString &errorMessage) 
 
     historyManager->setSavePoint();
     d->updateProjectPathAndName(filePath);
+    d->addRecentProjectFile(filePath);
     return true;
 }
 
@@ -197,6 +217,34 @@ QString AppController::projectName() const {
     return d->m_projectName;
 }
 
+QStringList AppController::recentProjectFiles() const {
+    return appOptions->general()->recentProjectFiles;
+}
+
+void AppController::clearRecentProjectFiles() {
+    auto files = appOptions->general()->recentProjectFiles;
+    if (files.isEmpty())
+        return;
+    files.clear();
+    appOptions->general()->recentProjectFiles = files;
+    appOptions->saveAndNotify(AppOptionsGlobal::General);
+    emit recentProjectFilesChanged(files);
+}
+
+void AppController::removeRecentProjectFile(const QString &filePath) {
+    auto files = appOptions->general()->recentProjectFiles;
+    const auto normalizedPath = normalizedProjectPath(filePath);
+    const auto oldSize = files.size();
+    files.erase(std::remove_if(files.begin(), files.end(), [&](const QString &path) {
+        return projectPathsEqual(normalizedProjectPath(path), normalizedPath);
+    }), files.end());
+    if (files.size() == oldSize)
+        return;
+    appOptions->general()->recentProjectFiles = files;
+    appOptions->saveAndNotify(AppOptionsGlobal::General);
+    emit recentProjectFilesChanged(files);
+}
+
 void AppController::setProjectName(const QString &name) {
     Q_D(AppController);
     d->m_projectName = name;
@@ -248,6 +296,26 @@ void AppControllerPrivate::updateProjectPathAndName(const QString &path) {
                                               : QFileInfo(m_projectPath).fileName());
 }
 
+void AppControllerPrivate::addRecentProjectFile(const QString &path) {
+    Q_Q(AppController);
+    const QFileInfo fileInfo(path);
+    if (fileInfo.suffix().compare("dspx", Qt::CaseInsensitive) != 0)
+        return;
+
+    auto files = appOptions->general()->recentProjectFiles;
+    const auto normalizedPath = normalizedProjectPath(path);
+    files.erase(std::remove_if(files.begin(), files.end(), [&](const QString &file) {
+        return projectPathsEqual(normalizedProjectPath(file), normalizedPath);
+    }), files.end());
+    files.prepend(normalizedPath);
+    while (files.size() > maxRecentProjectFiles)
+        files.removeLast();
+
+    appOptions->general()->recentProjectFiles = files;
+    appOptions->saveAndNotify(AppOptionsGlobal::General);
+    emit q->recentProjectFilesChanged(files);
+}
+
 bool AppControllerPrivate::openDspxFile(const QString &path, QString &errorMessage) {
     if (!appModel->loadProject(path, errorMessage)) {
         qCritical() << errorMessage;
@@ -258,6 +326,7 @@ bool AppControllerPrivate::openDspxFile(const QString &path, QString &errorMessa
     historyManager->setSavePoint();
     updateProjectPathAndName(path);
     m_lastProjectFolder = QFileInfo(path).dir().path();
+    addRecentProjectFile(path);
     return true;
 }
 
