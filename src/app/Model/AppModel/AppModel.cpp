@@ -218,6 +218,7 @@ void AppModel::loadFromAppModel(const AppModel &model) {
     d->reset();
     d->m_tempo = model.tempo();
     d->m_timeSignature = model.timeSignature();
+    d->m_masterControl = model.masterControl();
     d->m_tracks = model.tracks();
 
     for (int i = 0; i < d->m_tracks.size(); i++) {

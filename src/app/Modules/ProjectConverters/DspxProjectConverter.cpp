@@ -543,6 +543,11 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         model->setTimeSignature(TimeSignature(timeline.timeSignatures[0].numerator,
                                               timeline.timeSignatures[0].denominator));
         model->setTempo(timeline.tempos[0].value);
+        auto masterControl = TrackControl();
+        masterControl.setGain(dspxModel.content.master.control.gain);
+        masterControl.setPan(dspxModel.content.master.control.pan);
+        masterControl.setMute(dspxModel.content.master.control.mute);
+        model->setMasterControl(masterControl);
         decodeTracks(dspxModel.content.tracks, model);
 
         // Load loop settings from workspace
@@ -770,6 +775,10 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
 
     opendspx::Model dspxModel;
     dspxModel.content.global.centShift = 0; // TODO: where should I use centShift in the editor?
+    const auto masterControl = model->masterControl();
+    dspxModel.content.master.control.gain = masterControl.gain();
+    dspxModel.content.master.control.pan = masterControl.pan();
+    dspxModel.content.master.control.mute = masterControl.mute();
     auto &timeline = dspxModel.content.timeline;
     timeline.tempos.push_back(opendspx::Tempo(0, model->tempo()));
     timeline.timeSignatures.push_back(opendspx::TimeSignature(0, model->timeSignature().numerator,
