@@ -5,6 +5,7 @@
 #ifndef PARAMEDITORGRAPHICSVIEW_H
 #define PARAMEDITORGRAPHICSVIEW_H
 
+#include "Interface/IAtomicAction.h"
 #include "Model/AppModel/Params.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
@@ -15,7 +16,7 @@ class CommonParamEditorView;
 class ParamEditorGraphicsScene;
 class SpeakerMixEditorView;
 
-class ParamEditorGraphicsView final : public TimeGraphicsView {
+class ParamEditorGraphicsView final : public TimeGraphicsView, public IAtomicAction {
     Q_OBJECT
 
 public:
@@ -25,6 +26,8 @@ public:
                                      QWidget *parent = nullptr);
     void setDataContext(SingingClip *clip);
     [[nodiscard]] SpeakerMixEditorView *speakerMixView() const;
+    void discardAction() override;
+    void commitAction() override;
 
 public slots:
     void setForeground(ParamInfo::Name name, const ParamProperties &properties);
@@ -42,6 +45,7 @@ private slots:
     void onEditCompleted(const QList<DrawCurve *> &curves) const;
 
 private:
+    bool event(QEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void moveToNullClipState();
     void moveToSingingClipState(SingingClip *clip);

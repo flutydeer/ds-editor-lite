@@ -9,11 +9,13 @@
 #include "Controller/ClipController.h"
 
 #include "Model/AppModel/SingingClip.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/ClipEditor/CommonParamEditorView.h"
 #include "UI/Views/Common/TimeGridView.h"
 #include "Utils/MathUtils.h"
 
+#include <QKeyEvent>
 #include <QWheelEvent>
 
 ParamEditorGraphicsView::ParamEditorGraphicsView(ParamEditorGraphicsScene *scene,
@@ -56,6 +58,20 @@ void ParamEditorGraphicsView::setDataContext(SingingClip *clip) {
 
 SpeakerMixEditorView *ParamEditorGraphicsView::speakerMixView() const {
     return m_speakerMixView;
+}
+
+void ParamEditorGraphicsView::discardAction() {
+    if (m_speakerMixMode || appStatus->currentEditObject != AppStatus::EditObjectType::Param)
+        return;
+    if (m_foreground)
+        m_foreground->discardAction();
+}
+
+void ParamEditorGraphicsView::commitAction() {
+    if (m_speakerMixMode || appStatus->currentEditObject != AppStatus::EditObjectType::Param)
+        return;
+    if (m_foreground)
+        m_foreground->commitAction();
 }
 
 void ParamEditorGraphicsView::setForeground(const ParamInfo::Name name,
@@ -127,6 +143,17 @@ void ParamEditorGraphicsView::onEditCompleted(const QList<DrawCurve *> &curves) 
     for (const auto curve : curves)
         list.append(curve);
     clipController->onParamEdited(m_foregroundParam, list);
+}
+
+bool ParamEditorGraphicsView::event(QEvent *event) {
+    if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
+        const auto key = dynamic_cast<QKeyEvent *>(event)->key();
+        if (key == Qt::Key_Escape)
+            discardAction();
+    } else if (event->type() == QEvent::WindowDeactivate) {
+        discardAction();
+    }
+    return TimeGraphicsView::event(event);
 }
 
 void ParamEditorGraphicsView::wheelEvent(QWheelEvent *event) {
