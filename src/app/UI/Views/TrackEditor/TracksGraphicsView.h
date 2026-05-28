@@ -10,6 +10,7 @@
 
 class Menu;
 class AbstractClipView;
+class TrackEditorBackgroundView;
 class TracksGraphicsScene;
 
 class TracksGraphicsView final : public TimeGraphicsView, public IAtomicAction {
@@ -17,7 +18,7 @@ class TracksGraphicsView final : public TimeGraphicsView, public IAtomicAction {
 
 public:
     explicit TracksGraphicsView(TracksGraphicsScene *scene, const QWidget *parent = nullptr);
-    void setQuantize(int quantize);
+    void setSnapGrid(TrackEditorBackgroundView *grid);
     [[nodiscard]] QList<int> selectedClipsId() const;
 
     void discardAction() override;
@@ -43,6 +44,7 @@ private:
     void clearSelections() const;
     void resetActiveClips() const;
     void resetEditState();
+    [[nodiscard]] int snapStep(bool snapOff) const;
     [[nodiscard]] QList<AbstractClipView *> selectedClipItems() const;
 
     TracksGraphicsScene *m_scene;
@@ -51,7 +53,7 @@ private:
     QAction *m_actionAddAudioClip;
     int m_trackIndex = -1;
     int m_tick = 0;
-    int m_quantize = 16;
+    TrackEditorBackgroundView *m_snapGrid = nullptr;
 
     MouseMoveBehavior m_mouseMoveBehavior = None;
     QPointF m_mouseDownPos;

@@ -5,7 +5,6 @@
 #include "TimeGridView.h"
 
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppStatus/AppStatus.h"
 #include "Global/AppGlobal.h"
 
 #include <QPainter>
@@ -27,15 +26,12 @@ QColor blendColor(const QColor &from, const QColor &to, double ratio) {
 
 TimeGridView::TimeGridView(QGraphicsItem *parent) : AbstractGraphicsRectItem(parent) {
     setTimeSignature(appModel->timeSignature().numerator, appModel->timeSignature().denominator);
-    setQuantize(appStatus->quantize);
 
     connect(appModel, &AppModel::modelChanged, this, [this] {
         this->setTimeSignature(appModel->timeSignature().numerator,
                                appModel->timeSignature().denominator);
-        this->setQuantize(appStatus->quantize);
     });
     connect(appModel, &AppModel::timeSignatureChanged, this, &TimeGridView::setTimeSignature);
-    connect(appStatus, &AppStatus::quantizeChanged, this, &TimeGridView::setQuantize);
 }
 
 double TimeGridView::startTick() const {
@@ -44,6 +40,13 @@ double TimeGridView::startTick() const {
 
 double TimeGridView::endTick() const {
     return sceneXToTick(visibleRect().right()) + m_offset;
+}
+
+int TimeGridView::logicalGridStepForCurrentScale() const {
+    const auto width = visibleRect().width();
+    if (width <= 0)
+        return logicalGridStepForScale(0);
+    return logicalGridStepForScale((endTick() - startTick()) / width);
 }
 
 void TimeGridView::setTimeSignature(int numerator, int denominator) {

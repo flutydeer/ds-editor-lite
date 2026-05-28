@@ -8,6 +8,7 @@
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
 #include "PhonemeView.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 #include "UI/Views/Common/TimelineView.h"
 
@@ -25,6 +26,9 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     m_timelineView->setObjectName("pianoRollTimelineView");
     m_timelineView->setTimeRange(m_graphicsView->startTick(), m_graphicsView->endTick());
     m_timelineView->setPixelsPerQuarterNote(pixelsPerQuarterNote);
+    m_timelineView->setQuantize(appStatus->pianoRollQuantize);
+    connect(appStatus, &AppStatus::pianoRollQuantizeChanged, m_timelineView,
+            &TimelineView::setQuantize);
     m_timelineView->setFixedHeight(timelineViewHeight);
 
     m_keyboardView = new PianoKeyboardView;

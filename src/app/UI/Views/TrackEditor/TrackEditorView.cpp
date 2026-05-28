@@ -46,19 +46,18 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     m_graphicsView->setSceneLength(appStatus->projectEditableLength);
     m_gridItem = new TrackEditorBackgroundView;
     m_gridItem->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
+    m_gridItem->setQuantize(128);
     m_tracksScene->addTimeGrid(m_gridItem);
+    m_graphicsView->setSnapGrid(m_gridItem);
     m_trackListView->setGraphicsView(m_graphicsView);
 
     m_timeline = new TimelineView;
     m_timeline->setObjectName("tracksTimelineView");
     m_timeline->setTimeRange(m_graphicsView->startTick(), m_graphicsView->endTick());
     m_timeline->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
+    m_timeline->setQuantize(128);
     m_timeline->setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
     m_timeline->setCanEditLoop(true);  // Enable loop editing in track editor
-
-    m_graphicsView->setQuantize(appStatus->quantize);
-    m_gridItem->setQuantize(appStatus->quantize);
-    m_timeline->setQuantize(appStatus->quantize);
 
     const auto gBar = m_graphicsView->verticalScrollBar();
     const auto lBar = m_trackListView->verticalScrollBar();
@@ -133,8 +132,6 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
 
     connect(appStatus, &AppStatus::projectEditableLengthChanged, m_graphicsView,
             &TracksGraphicsView::setSceneLength);
-    connect(appStatus, &AppStatus::quantizeChanged, m_graphicsView,
-            &TracksGraphicsView::setQuantize);
 }
 
 void TrackEditorView::onModelChanged() {
@@ -317,8 +314,6 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     connect(clip, &SingingClip::defaultLanguageChanged, clipView,
             &SingingClipView::setDefaultLanguage);
     connect(clip, &SingingClip::noteChanged, clipView, &SingingClipView::onNoteListChanged);
-    connect(appStatus, &AppStatus::quantizeChanged, clipView, &AbstractClipView::setQuantize);
-    clipView->setQuantize(appStatus->quantize);
     track->clips[clip] = clipView;
 }
 
@@ -334,8 +329,6 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track,
     m_tracksScene->addCommonItem(clipView);
     qDebug() << "Audio clip graphics item added to scene" << clipView->id() << clipView->name();
     connect(appModel, &AppModel::tempoChanged, clipView, &AudioClipView::onTempoChange);
-    connect(appStatus, &AppStatus::quantizeChanged, clipView, &AbstractClipView::setQuantize);
-    clipView->setQuantize(appStatus->quantize);
     track->clips[clip] = clipView;
 }
 

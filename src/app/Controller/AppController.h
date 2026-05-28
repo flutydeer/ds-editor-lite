@@ -62,7 +62,6 @@ public slots:
 
     static void onSetTempo(double tempo);
     void onSetTimeSignature(int numerator, int denominator);
-    static void onSetQuantize(int quantize);
     static void editMasterControl(const TrackControl &control);
     void setActivePanel(AppGlobal::PanelType panel);
     void onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,

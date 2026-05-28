@@ -165,11 +165,6 @@ void AbstractClipView::loadCommonProperties(const Clip::ClipCommonProperties &ar
     updateRectAndPos();
 }
 
-void AbstractClipView::setQuantize(const int quantize) {
-    Q_D(AbstractClipView);
-    d->m_quantize = quantize;
-}
-
 QRectF AbstractClipViewPrivate::previewRect() const {
     Q_Q(const AbstractClipView);
     constexpr auto penWidth = 1.2f;

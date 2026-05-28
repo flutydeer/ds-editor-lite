@@ -37,7 +37,6 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     setObjectName("TimelineView");
     setMouseTracking(true);
     setTimeSignature(appModel->timeSignature().numerator, appModel->timeSignature().denominator);
-    setQuantize(appStatus->quantize);
 
     m_pieceUpdateThrottle.setSingleShot(true);
     m_pieceUpdateThrottle.setInterval(16);
@@ -61,7 +60,6 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
                          appModel->timeSignature().denominator);
     });
     connect(appModel, &AppModel::timeSignatureChanged, this, &TimelineView::setTimeSignature);
-    connect(appStatus, &AppStatus::quantizeChanged, this, &TimelineView::setQuantize);
     connect(appStatus, &AppStatus::loopSettingsChanged, this, &TimelineView::onLoopSettingsChanged);
     connect(appOptions, &AppOptions::optionsChanged, this,
             [this](AppOptionsGlobal::Option option) {
@@ -279,7 +277,8 @@ void TimelineView::mouseMoveEvent(QMouseEvent *event) {
     if (m_loopDragMode != None && m_canEditLoop) {
         auto loopSettings = appStatus->loopSettings.get();
         const bool noSnap = event->modifiers() & Qt::AltModifier;
-        const int quantizeInterval = TimelineSnapUtils::quantizeStep(appStatus->quantize, noSnap);
+        const int quantizeInterval = noSnap ? 1 : logicalGridStepForScale(
+            rect().width() > 0 ? (m_endTick - m_startTick) / rect().width() : 0);
         const int currentTick = TimelineSnapUtils::snapNearest(
             static_cast<int>(xToTick(event->pos().x())), quantizeInterval);
         const int deltaTick = currentTick - m_loopDragStartPos;

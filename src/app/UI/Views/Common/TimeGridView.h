@@ -21,6 +21,7 @@ public:
 
     explicit TimeGridView(QGraphicsItem *parent = nullptr);
     ~TimeGridView() override = default;
+    [[nodiscard]] int logicalGridStepForCurrentScale() const;
 
 public slots:
     void setTimeSignature(int numerator, int denominator) override;

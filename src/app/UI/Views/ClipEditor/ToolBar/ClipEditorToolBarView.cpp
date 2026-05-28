@@ -8,9 +8,11 @@
 #include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/Models/SingerIdentifier.h"
 #include "Modules/PackageManager/PackageManager.h"
 #include "UI/Controls/Button.h"
+#include "UI/Controls/ComboBox.h"
 #include "UI/Controls/ControlGroup.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/SvsSeekbar.h"
@@ -22,6 +24,19 @@
 #include <QButtonGroup>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QSignalBlocker>
+
+namespace {
+
+const QStringList quantizeStrings = {"1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/128"};
+const QList<int> quantizeValues = {2, 4, 8, 16, 32, 64, 128};
+
+int quantizeIndex(int quantize) {
+    const int index = quantizeValues.indexOf(quantize);
+    return index >= 0 ? index : quantizeValues.indexOf(16);
+}
+
+} // namespace
 
 ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     : QWidget(parent), d_ptr(new ClipEditorToolBarViewPrivate(this)) {
@@ -57,6 +72,21 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_cbClipLanguage->setObjectName("cbClipLanguage");
     d->m_cbClipLanguage->installEventFilter(new ToolTipFilter(d->m_cbClipLanguage, 500));
     d->m_cbClipLanguage->setToolTip(tr("Clip Default Language"));
+
+    d->m_cbPianoRollQuantize = new ComboBox(true);
+    d->m_cbPianoRollQuantize->setObjectName("cbPianoRollQuantize");
+    d->m_cbPianoRollQuantize->addItems(quantizeStrings);
+    d->m_cbPianoRollQuantize->setCurrentIndex(quantizeIndex(appStatus->pianoRollQuantize));
+    d->m_cbPianoRollQuantize->setFixedHeight(d->m_contentHeight);
+    d->m_cbPianoRollQuantize->setToolTip(tr("Piano Roll Quantize"));
+    connect(d->m_cbPianoRollQuantize, &QComboBox::currentIndexChanged, this, [](int index) {
+        appStatus->pianoRollQuantize = quantizeValues.at(index);
+    });
+    connect(appStatus, &AppStatus::pianoRollQuantizeChanged, d->m_cbPianoRollQuantize,
+            [combo = d->m_cbPianoRollQuantize](int quantize) {
+                const QSignalBlocker blocker(combo);
+                combo->setCurrentIndex(quantizeIndex(quantize));
+            });
 
     d->m_btnArrow = d->buildToolButton("btnArrow", ":svg/icons/cursor_24_filled.svg",
                                         tr("Select"), Qt::Key_V);
@@ -151,10 +181,20 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     auto toolButtonGroup = new ControlGroup;
     toolButtonGroup->setLayout(toolButtonLayout);
 
+    auto quantizeLayout = new QHBoxLayout;
+    quantizeLayout->addWidget(d->m_cbPianoRollQuantize);
+    quantizeLayout->setSpacing(1);
+    quantizeLayout->setContentsMargins({});
+
+    auto quantizeGroup = new ControlGroup;
+    quantizeGroup->setLayout(quantizeLayout);
+
     const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(clipInfoGroup);
     mainLayout->addSpacing(16);
     mainLayout->addWidget(toolButtonGroup);
+    mainLayout->addSpacing(16);
+    mainLayout->addWidget(quantizeGroup);
     mainLayout->addStretch();
 
     mainLayout->setContentsMargins({});
@@ -310,6 +350,8 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
     m_cbSinger->setEnabled(on);
     m_cbClipLanguage->setVisible(on);
     m_cbClipLanguage->setEnabled(on);
+    m_cbPianoRollQuantize->setVisible(on);
+    m_cbPianoRollQuantize->setEnabled(on);
 
     if (on) {
         m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo());

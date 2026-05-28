@@ -146,10 +146,6 @@ void AppController::onSetTimeSignature(const int numerator, const int denominato
     historyManager->record(actions);
 }
 
-void AppController::onSetQuantize(const int quantize) {
-    appStatus->quantize = quantize;
-}
-
 void AppController::editMasterControl(const TrackControl &control) {
     const auto actions = new MasterControlActions;
     actions->editMasterControl(control, appModel);

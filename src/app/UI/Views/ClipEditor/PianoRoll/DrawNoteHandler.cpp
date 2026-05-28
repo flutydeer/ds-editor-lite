@@ -60,7 +60,7 @@ bool DrawNoteHandler::mouseMoveEvent(QMouseEvent *event) {
 
     const auto scenePos = q->mapToScene(event->pos());
     const auto tick = q->sceneXToTick(scenePos.x()) + d->m_offset;
-    const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
+    const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
     const auto snappedTick = TimelineSnapUtils::snapDown(tick, quantizedTickLength);
     const auto targetLength = snappedTick - d->m_offset - m_currentDrawingNote->rStart();
     if (targetLength >= quantizedTickLength)
@@ -106,7 +106,7 @@ void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,
     }
 
     appStatus->currentEditObject = AppStatus::EditObjectType::Note;
-    const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
+    const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
     const auto snappedTick = TimelineSnapUtils::snapDown(tick, quantizedTickLength);
     qDebug() << "Draw note at:" << snappedTick;
 
@@ -121,7 +121,7 @@ void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,
     m_currentDrawingNote->setLyric(appOptions->general()->defaultLyricForLanguage(language));
     m_currentDrawingNote->setRStart(snappedTick - d->m_offset);
     const int length =
-        initialLength >= 0 ? initialLength : TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
+        initialLength >= 0 ? initialLength : TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
     m_currentDrawingNote->setLength(length);
     m_currentDrawingNote->setKeyIndex(keyIndex);
     q->scene()->addCommonItem(m_currentDrawingNote);

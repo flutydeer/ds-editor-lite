@@ -19,6 +19,7 @@ class SeekBar;
 class LineEdit;
 class Button;
 class ClipEditorToolBarView;
+class ComboBox;
 
 class ClipEditorToolBarViewPrivate : public QObject {
     Q_OBJECT
@@ -64,6 +65,7 @@ public:
 
     TwoLevelComboBox *m_cbSinger = nullptr;
     LanguageComboBox *m_cbClipLanguage = nullptr;
+    ComboBox *m_cbPianoRollQuantize = nullptr;
 
 public slots:
     void onPianoRollToolButtonToggled(const QAbstractButton *button, bool checked);

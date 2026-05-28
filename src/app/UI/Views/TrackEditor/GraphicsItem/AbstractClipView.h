@@ -52,9 +52,6 @@ public:
 
     void loadCommonProperties(const Clip::ClipCommonProperties &args);
 
-public slots:
-    void setQuantize(int quantize);
-
 signals:
     void removeTriggered(int id);
 

@@ -17,6 +17,7 @@ namespace {
 constexpr double kFadeInStartRatio = 0.6;
 constexpr double kFadeInEndRatio = 1.0;
 constexpr double kVisibilityEpsilon = 0.001;
+constexpr double kSnapVisibilityThreshold = 0.5;
 
 double clamp01(double value) {
     if (value < 0.0)
@@ -132,6 +133,38 @@ std::vector<StepLevel> buildSubdivisionLevels(const std::vector<int> &candidates
 }
 
 } // namespace
+
+int ITimelinePainter::logicalGridStepForScale(double ticksPerPixel) const {
+    const int minSubdivisionTicks = TimelineSnapUtils::quantizeToTicks(m_quantize);
+    if (ticksPerPixel <= 0)
+        return minSubdivisionTicks;
+
+    const int denominator = std::max(1, m_denominator);
+    const int beatTicks = TimelineSnapUtils::ticksPerBeat(denominator);
+    const int barTicks = std::max(
+        beatTicks, TimelineSnapUtils::ticksPerWholeNote() * std::max(1, m_numerator) / denominator);
+
+    const auto subdivisionCandidates = buildSubdivisionCandidates(beatTicks, minSubdivisionTicks);
+    for (auto it = subdivisionCandidates.rbegin(); it != subdivisionCandidates.rend(); ++it) {
+        if (spacingVisibility(*it / ticksPerPixel, m_minimumSpacing) >= kSnapVisibilityThreshold)
+            return *it;
+    }
+
+    if (spacingVisibility(beatTicks / ticksPerPixel, m_minimumSpacing) >= kSnapVisibilityThreshold)
+        return beatTicks;
+
+    const auto barSpacing = barTicks / ticksPerPixel;
+    const auto barLevels = buildBarLevels(barSpacing, barTicks, m_minimumSpacing);
+    for (auto it = barLevels.rbegin(); it != barLevels.rend(); ++it) {
+        if (it->opacity >= kSnapVisibilityThreshold)
+            return it->step;
+    }
+
+    if (!barLevels.empty())
+        return barLevels.front().step;
+
+    return barTicks;
+}
 
 void ITimelinePainter::drawTimeline(QPainter *painter, double startTick, double endTick,
                                     double rectWidth) {

@@ -44,7 +44,7 @@ void PianoRollGraphicsViewHelper::splitNote(const int noteId, const int tick) {
     if (!note)
         return;
 
-    const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
+    const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
     const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
     const auto splitPos = snappedTick - singingClip->start();
     const auto noteLocalStart = note->localStart();

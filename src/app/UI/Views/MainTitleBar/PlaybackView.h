@@ -12,7 +12,6 @@
 
 class EditLabel;
 class QPushButton;
-class ComboBox;
 
 using namespace PlaybackGlobal;
 
@@ -28,7 +27,6 @@ signals:
     void pauseTriggered();
     void stopTriggered();
     void setPositionTriggered(double tick);
-    void setQuantizeTriggered(int value);
 
 public slots:
     void updateView();
@@ -46,7 +44,6 @@ private:
     QPushButton *m_btnPlayPause;
     QPushButton *m_btnLoop;
     EditLabel *m_elTime;
-    ComboBox *m_cbQuantize;
 
     double m_tempo = 120;
     int m_numerator = 4;
@@ -59,9 +56,6 @@ private:
 
     QString toFormattedTickTime(int ticks) const;
     int fromTickTimeString(const QStringList &splitStr) const;
-
-    const QStringList quantizeStrings = {"1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/128"};
-    const QList<int> quantizeValues = {2, 4, 8, 16, 32, 64, 128};
 
     void updateTempoView();
     void updateTimeSignatureView();

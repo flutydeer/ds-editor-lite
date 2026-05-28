@@ -10,7 +10,6 @@
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "UI/Controls/ComboBox.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Utils/IconUtils.h"
@@ -197,16 +196,6 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         updatePlaybackControlView();
     });
 
-    m_cbQuantize = new ComboBox(true);
-    m_cbQuantize->addItems(quantizeStrings);
-    m_cbQuantize->setCurrentIndex(3);
-    m_cbQuantize->setFont(musicFont);
-
-    connect(m_cbQuantize, &QComboBox::currentIndexChanged, this, [this](int index) {
-        auto value = quantizeValues.at(index);
-        emit setQuantizeTriggered(value);
-    });
-
     auto transportLayout = new QHBoxLayout;
     transportLayout->addWidget(m_btnStop);
     transportLayout->addWidget(m_btnPlay);
@@ -229,7 +218,6 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     scoreGlobalWidget->setLayout(scoreGlobalLayout);
 
     auto mainLayout = new QHBoxLayout;
-    mainLayout->addWidget(m_cbQuantize);
     mainLayout->addWidget(transportWidget);
     mainLayout->addWidget(scoreGlobalWidget);
     mainLayout->setContentsMargins({});
@@ -248,8 +236,6 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         playbackController->setLastPosition(tick);
         playbackController->setPosition(tick);
     });
-    connect(this, &PlaybackView::setQuantizeTriggered, appController,
-            &AppController::onSetQuantize);
     connect(playbackController, &PlaybackController::playbackStatusChanged, this,
             &PlaybackView::onPlaybackStatusChanged);
     connect(playbackController, &PlaybackController::positionChanged, this,

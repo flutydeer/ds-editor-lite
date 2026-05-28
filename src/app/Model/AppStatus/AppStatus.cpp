@@ -16,7 +16,7 @@ AppStatus::AppStatus(QObject *parent) : QObject(parent) {
     clipPanelCollapsed.onChanged([this](auto value) { emit clipPanelCollapseStateChanged(value); });
 
     // Project
-    quantize.onChanged([this](auto value) { emit quantizeChanged(value); });
+    pianoRollQuantize.onChanged([this](auto value) { emit pianoRollQuantizeChanged(value); });
     projectEditableLength.onChanged([this](auto value) { emit projectEditableLengthChanged(value); });
     selectedTrackIndex.onChanged([this](auto value) { emit selectedTrackIndexChanged(value); });
     activeClipId.onChanged([this](auto value) { emit activeClipIdChanged(value); });

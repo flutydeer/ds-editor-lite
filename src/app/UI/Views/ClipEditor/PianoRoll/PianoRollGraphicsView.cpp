@@ -64,7 +64,10 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
 
     d->m_gridItem = new PianoRollBackground;
     d->m_gridItem->setPixelsPerQuarterNote(pixelsPerQuarterNote);
+    d->m_gridItem->setQuantize(appStatus->pianoRollQuantize);
     setGridItem(d->m_gridItem);
+    connect(appStatus, &AppStatus::pianoRollQuantizeChanged, d->m_gridItem,
+            &PianoRollBackground::setQuantize);
 
     d->m_pitchEditor = new PitchEditorView;
     d->m_pitchEditor->setZValue(2);
@@ -311,7 +314,7 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     const auto scenePos = mapToScene(event->position().toPoint());
     const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
     const auto quantizedTickLength =
-        TimelineSnapUtils::quantizeStep(appStatus->quantize, d->m_tempQuantizeOff);
+        TimelineSnapUtils::quantizeStep(appStatus->pianoRollQuantize, d->m_tempQuantizeOff);
     const auto snappedTick = TimelineSnapUtils::snapDown(tick, quantizedTickLength);
     const auto snappedTickNearest = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
     const auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
@@ -420,7 +423,7 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
         const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
         const auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
 
-        const int noteLength = TimelineSnapUtils::quantizeToTicks(appStatus->quantize);
+        const int noteLength = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
 
         d->m_mouseDown = true;
         d->m_mouseDownButton = Qt::LeftButton;

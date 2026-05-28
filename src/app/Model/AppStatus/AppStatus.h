@@ -39,7 +39,7 @@ public:
     Property<bool> clipPanelCollapsed = false;
 
     // Project
-    Property<int> quantize = 16;
+    Property<int> pianoRollQuantize = 16;
     Property<int> projectEditableLength = AppGlobal::ticksPerWholeNote * 100;
     Property<int> selectedTrackIndex = -1;
     Property<int> activeClipId = -1;
@@ -58,7 +58,7 @@ signals:
     void clipPanelCollapseStateChanged(bool collapsed);
 
     // Project
-    void quantizeChanged(int quantize);
+    void pianoRollQuantizeChanged(int quantize);
     void projectEditableLengthChanged(int newLength);
     void selectedTrackIndexChanged(int trackIndex);
     void activeClipIdChanged(int newId);
