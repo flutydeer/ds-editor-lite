@@ -8,6 +8,8 @@
 #include <QWidget>
 
 class ControlGroup : public QWidget {
+    Q_OBJECT
+
 public:
     explicit ControlGroup(QWidget *parent = nullptr);
 

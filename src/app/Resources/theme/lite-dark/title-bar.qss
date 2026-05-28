@@ -37,73 +37,81 @@ Button#MaximizeButton:pressed {
     background: #0FC7D8FF;
 }
 
-/* TitleControlGroup */
+/* ControlGroup */
 
-TitleControlGroup>QPushButton {
+PlaybackView ControlGroup>QPushButton {
     width: 40px;
     height: 28px;
     padding: 0px;
     border: none;
-    background: #0FC7D8FF;
-    border-radius: 1px;
+    background: #2B2F37;
+    border-radius: 0px;
 }
 
-TitleControlGroup>QPushButton#btnStop {
+PlaybackView ControlGroup>QPushButton[groupPos="first"] {
     border-top-left-radius: 4px;
     border-bottom-left-radius: 4px;
 }
 
-TitleControlGroup>QPushButton:hover {
+PlaybackView ControlGroup>QPushButton[groupPos="last"] {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+PlaybackView ControlGroup>QPushButton[groupPos="only"] {
+    border-radius: 4px;
+}
+
+PlaybackView ControlGroup>QPushButton:hover {
     background: #12C7D8FF
 }
 
-TitleControlGroup>QPushButton:pressed {
+PlaybackView ControlGroup>QPushButton:pressed {
     background: #0CFFFFFF
 }
 
-TitleControlGroup>QPushButton#btnPlay:checked {
+PlaybackView ControlGroup>QPushButton#btnPlay:checked {
     /* background-color: #9BBAFF; */
     background-color: #409BBAFF;
 }
 
-TitleControlGroup>QPushButton#btnPause:checked {
+PlaybackView ControlGroup>QPushButton#btnPause:checked {
     /* background-color: #FFCD9B; */
     background-color: #40FFCD9B;
 }
 
-TitleControlGroup>QPushButton#btnLoop:checked {
+PlaybackView ControlGroup>QPushButton#btnLoop:checked {
     background-color: #409BBAFF;
 }
 
-TitleControlGroup>EditLabel {
+PlaybackView ControlGroup>EditLabel {
     height: 28px;
     padding: 0px 12px;
     border: none;
-    background: #0FC7D8FF;
-    border-radius: 1px;
+    background: #2B2F37;
+    border-radius: 0px;
 }
 
-TitleControlGroup>EditLabel>QLabel {
+PlaybackView ControlGroup>EditLabel>QLabel {
     font-size: 14px;
     font-weight: bold;
 }
 
-TitleControlGroup>EditLabel#elTime {
-    border-top-right-radius: 4px;
-    border-bottom-right-radius: 4px;
-}
-
-TitleControlGroup>EditLabel#elTempo {
+PlaybackView ControlGroup>EditLabel[groupPos="first"] {
     border-top-left-radius: 4px;
     border-bottom-left-radius: 4px;
 }
 
-TitleControlGroup>EditLabel#elTimeSignature {
+PlaybackView ControlGroup>EditLabel[groupPos="last"] {
     border-top-right-radius: 4px;
     border-bottom-right-radius: 4px;
 }
 
-TitleControlGroup {
+PlaybackView ControlGroup>EditLabel[groupPos="only"] {
+    border-radius: 4px;
+}
+
+PlaybackView ControlGroup {
     border-radius: 4px;
 }
 

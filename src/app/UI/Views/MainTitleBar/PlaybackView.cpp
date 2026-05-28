@@ -5,7 +5,7 @@
 #include "PlaybackView.h"
 
 #include "MainTitleBarIconPalette.h"
-#include "TitleControlGroup.h"
+#include "UI/Controls/ControlGroup.h"
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
@@ -216,7 +216,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     transportLayout->setSpacing(1);
     transportLayout->setContentsMargins({});
 
-    auto transportWidget = new TitleControlGroup;
+    auto transportWidget = new ControlGroup;
     transportWidget->setLayout(transportLayout);
 
     auto scoreGlobalLayout = new QHBoxLayout;
@@ -225,7 +225,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     scoreGlobalLayout->setSpacing(1);
     scoreGlobalLayout->setContentsMargins({});
 
-    auto scoreGlobalWidget = new TitleControlGroup;
+    auto scoreGlobalWidget = new ControlGroup;
     scoreGlobalWidget->setLayout(scoreGlobalLayout);
 
     auto mainLayout = new QHBoxLayout;
