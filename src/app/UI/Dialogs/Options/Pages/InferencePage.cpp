@@ -395,6 +395,7 @@ QWidget *InferencePage::createContentWidget() {
     }
     m_treeView->setModel(debugModel);
     m_treeView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_treeView->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_treeView->setIndentation(10);
     m_treeView->expandAll();
     m_treeView->resizeColumnToContents(0);
