@@ -97,6 +97,30 @@ When a SingingClip view is reused (cross-track move), the type-specific signals 
 | `src/app/UI/Views/TrackEditor/TrackEditorView.cpp` | Cache/reuse clip views + signal reconnection |
 | `src/app/UI/Views/ClipEditor/ClipEditorView.cpp` | Handle `activeClipTrackChanged` for note color update |
 
+## Signal Design: Three-Signal Approach
+
+`MoveClipToTrackAction` emits three signals, each serving a distinct set of consumers:
+
+| Signal | PianoRoll / ParamEditor | TrackEditorView | TrackSynthesizer |
+|--------|------------------------|-----------------|-----------------|
+| `clip→notifyPropertyChanged()` | Updates offset, scene length, notes | `updateClipOnView` (position sync) | — |
+| `oldTrack→notifyClipChanged(Removed)` | — | Caches clip view, disconnects signals | Tears down singing context |
+| `newTrack→notifyClipChanged(Inserted)` | — | Reuses cached view, reconnects signals | Creates new singing context |
+
+This mirrors the pattern in `EditClipCommonPropertiesAction` (same-track), which emits only `notifyPropertyChanged()`. Cross-track moves add the two track signals to communicate track membership changes.
+
+### Signal ordering
+
+`notifyPropertyChanged()` fires before the track signals. PianoRoll/ParamEditor connections to `clip→propertyChanged` survive the entire sequence (they are not affected by `TrackEditorView::disconnect(clip, nullptr, this, nullptr)`). TrackEditorView's connection is torn down during `Removed` and rebuilt during `Inserted`, so `notifyPropertyChanged` reaches it through the old-track connection — redundant but harmless since all signals fire synchronously within one call stack.
+
+### Fix: Piano roll position after cross-track move
+
+`MoveClipToTrackAction` was missing the `m_clip->notifyPropertyChanged()` call. After setting new properties (start, clipStart, length, clipLen), the piano roll views (`PianoRollGraphicsViewPrivate`, `ParamEditorGraphicsView`) caches were not updated — they still held the old `m_offset` and scene length. Clicking away and back triggered a full re-init via `setDataContext`, masking the bug.
+
+Added `m_clip->notifyPropertyChanged()` to both `execute()` and `undo()`.
+
+**File:** `src/app/Controller/Actions/AppModel/Clip/MoveClipToTrackAction.cpp`
+
 ## Known Issues (Next Steps)
 
 1. **Inference state machine not transitioning:** After cross-track movement, the acoustic model inference state machine does not properly transition to the new track context. The `TrackSynthesizer` handles `clipChanged(Removed)` by tearing down the singing clip context, and `clipChanged(Inserted)` by creating a new one. The teardown/recreation may not properly restart the inference pipeline.

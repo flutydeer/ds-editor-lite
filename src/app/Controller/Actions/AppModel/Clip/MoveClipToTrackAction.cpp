@@ -27,6 +27,7 @@ void MoveClipToTrackAction::execute() {
     m_clip->setLength(m_newArgs.length);
     m_clip->setClipLen(m_newArgs.clipLen);
     m_newTrack->insertClip(m_clip);
+    m_clip->notifyPropertyChanged();
     m_oldTrack->notifyClipChanged(Track::Removed, m_clip);
     m_newTrack->notifyClipChanged(Track::Inserted, m_clip);
 }
@@ -39,6 +40,7 @@ void MoveClipToTrackAction::undo() {
     m_clip->setLength(m_oldArgs.length);
     m_clip->setClipLen(m_oldArgs.clipLen);
     m_oldTrack->insertClip(m_clip);
+    m_clip->notifyPropertyChanged();
     m_newTrack->notifyClipChanged(Track::Removed, m_clip);
     m_oldTrack->notifyClipChanged(Track::Inserted, m_clip);
 }
