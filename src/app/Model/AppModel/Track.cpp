@@ -92,6 +92,7 @@ void Track::insertClips(const QList<Clip *> &clips) {
 }
 
 void Track::removeClip(Clip *clip) {
+    disconnect(this, &Track::singerOrSpeakerChanged, clip, nullptr);
     m_clips.remove(clip);
 }
 

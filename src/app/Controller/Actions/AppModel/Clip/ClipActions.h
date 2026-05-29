@@ -25,6 +25,9 @@ public:
     void editAudioClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
                                  const QList<Clip::ClipCommonProperties> &newArgs,
                                  const QList<AudioClip *> &clips, const QList<Track *> &tracks);
+    void moveClipToTrack(const Clip::ClipCommonProperties &oldArgs,
+                         const Clip::ClipCommonProperties &newArgs,
+                         Clip *clip, Track *oldTrack, Track *newTrack);
 };
 
 

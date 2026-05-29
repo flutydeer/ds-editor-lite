@@ -71,6 +71,24 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
 
     connect(appModel, &AppModel::modelChanged, this, &ClipEditorView::onModelChanged);
     connect(appStatus, &AppStatus::activeClipIdChanged, this, &ClipEditorView::onActiveClipChanged);
+    connect(clipController, &ClipController::activeClipTrackChanged, this, [this] {
+        Track *trackRef = nullptr;
+        appModel->findClipById(appStatus->activeClipId, trackRef);
+        if (!trackRef)
+            return;
+        disconnect(m_trackColorConnection);
+        NoteView::setTrackColorIndex(trackRef->colorIndex());
+        m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
+        m_pianoRollEditorView->pianoRollView()->update();
+        m_pianoRollEditorView->paramEditorView()->update();
+        m_trackColorConnection =
+            connect(trackRef, &Track::propertyChanged, this, [this, trackRef] {
+                NoteView::setTrackColorIndex(trackRef->colorIndex());
+                m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
+                m_pianoRollEditorView->pianoRollView()->update();
+                m_pianoRollEditorView->paramEditorView()->update();
+            });
+    });
 }
 
 void ClipEditorView::centerAt(const double tick, const double keyIndex) {

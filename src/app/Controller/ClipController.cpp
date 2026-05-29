@@ -46,6 +46,10 @@ void ClipController::setClip(Clip *clip) {
     emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
+void ClipController::notifyActiveClipTrackChanged() {
+    emit activeClipTrackChanged();
+}
+
 void ClipController::copySelectedNotesWithParams() const {
     Q_D(const ClipController);
     qDebug() << "ClipController::copySelectedNotesWithParams";

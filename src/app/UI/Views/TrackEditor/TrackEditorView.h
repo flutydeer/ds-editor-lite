@@ -64,6 +64,7 @@ private:
     };
 
     ViewModel m_viewModel;
+    QMap<int, AbstractClipView *> m_pendingRemoveClipViews;
 
     void onTrackInserted(Track *dsTrack, qsizetype trackIndex);
     void onClipInserted(Clip *clip, TrackViewModel *track, int trackIndex);

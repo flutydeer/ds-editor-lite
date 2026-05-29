@@ -5,6 +5,7 @@
 #include "TrackController.h"
 
 #include "Actions/AppModel/Clip/ClipActions.h"
+#include "ClipController.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/AudioClip.h"
@@ -143,15 +144,32 @@ void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFo
 }
 
 void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
+    onClipPropertyChanged(args, -1);
+}
+
+void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &args,
+                                            const int newTrackIndex) {
     qDebug() << "TrackController::onClipPropertyChanged";
-    int trackIndex = -1;
-    const auto clip = appModel->findClipById(args.id, trackIndex);
-    const auto track = appModel->tracks().at(trackIndex);
+    int currentTrackIndex = -1;
+    const auto clip = appModel->findClipById(args.id, currentTrackIndex);
+    const auto oldTrack = appModel->tracks().at(currentTrackIndex);
+
+    const Clip::ClipCommonProperties oldArgs(*clip);
+
+    if (newTrackIndex >= 0 && newTrackIndex != currentTrackIndex) {
+        const auto newTrack = appModel->tracks().at(newTrackIndex);
+        const auto a = new ClipActions;
+        a->moveClipToTrack(oldArgs, args, clip, oldTrack, newTrack);
+        a->execute();
+        historyManager->record(a);
+        if (appStatus->activeClipId == args.id)
+            clipController->notifyActiveClipTrackChanged();
+        return;
+    }
 
     if (clip->clipType() == Clip::Audio) {
         const auto audioClip = dynamic_cast<AudioClip *>(clip);
 
-        const Clip::ClipCommonProperties oldArgs(*audioClip);
         QList<Clip::ClipCommonProperties> oldArgsList;
         oldArgsList.append(oldArgs);
         QList<Clip::ClipCommonProperties> newArgsList;
@@ -159,7 +177,7 @@ void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &ar
         QList<AudioClip *> clips;
         clips.append(audioClip);
         QList<Track *> tracks;
-        tracks.append(track);
+        tracks.append(oldTrack);
 
         const auto a = new ClipActions;
         a->editAudioClipProperties(oldArgsList, newArgsList, clips, tracks);
@@ -168,8 +186,6 @@ void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &ar
     } else if (clip->clipType() == Clip::Singing) {
         const auto singingClip = dynamic_cast<SingingClip *>(clip);
 
-        Clip::ClipCommonProperties oldArgs(*singingClip);
-        // TODO: update singer info?
         QList<Clip::ClipCommonProperties> oldArgsList;
         oldArgsList.append(oldArgs);
         QList<Clip::ClipCommonProperties> newArgsList;
@@ -177,7 +193,7 @@ void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &ar
         QList<SingingClip *> clips;
         clips.append(singingClip);
         QList<Track *> tracks;
-        tracks.append(track);
+        tracks.append(oldTrack);
 
         const auto a = new ClipActions;
         a->editSingingClipProperties(oldArgsList, newArgsList, clips, tracks);

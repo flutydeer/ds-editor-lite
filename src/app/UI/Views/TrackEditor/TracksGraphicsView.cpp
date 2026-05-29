@@ -210,6 +210,12 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
                                               quantize);
         start = left - m_mouseDownClipStart;
         m_currentEditingClip->setStart(start);
+        const auto targetTrackIndex = m_scene->trackIndexAt(curPos.y());
+        if (targetTrackIndex >= 0) {
+            m_currentEditingClip->setTrackIndex(targetTrackIndex);
+            m_currentEditingClip->setColorIndex(
+                appModel->tracks().at(targetTrackIndex)->colorIndex());
+        }
     } else if (m_mouseMoveBehavior == ResizeLeft) {
         m_movedBeforeMouseUp = true;
         left = TimelineSnapUtils::snapNearest(m_mouseDownStart + m_mouseDownClipStart + delta,
@@ -337,6 +343,8 @@ void TracksGraphicsView::discardAction() {
         m_currentEditingClip->setClipStart(m_mouseDownClipStart);
         m_currentEditingClip->setLength(m_mouseDownLength);
         m_currentEditingClip->setClipLen(m_mouseDownClipLen);
+        m_currentEditingClip->setTrackIndex(m_mouseDownTrackIndex);
+        m_currentEditingClip->setColorIndex(m_mouseDownColorIndex);
     }
     resetEditState();
 }
@@ -344,7 +352,8 @@ void TracksGraphicsView::discardAction() {
 void TracksGraphicsView::commitAction() {
     if (m_currentEditingClip && m_movedBeforeMouseUp) {
         const Clip::ClipCommonProperties args(*m_currentEditingClip);
-        trackController->onClipPropertyChanged(args);
+        const int newTrackIndex = m_currentEditingClip->trackIndex();
+        trackController->onClipPropertyChanged(args, newTrackIndex);
     }
     resetEditState();
 }
@@ -397,6 +406,8 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
     m_mouseDownClipStart = m_currentEditingClip->clipStart();
     m_mouseDownLength = m_currentEditingClip->length();
     m_mouseDownClipLen = m_currentEditingClip->clipLen();
+    m_mouseDownTrackIndex = m_currentEditingClip->trackIndex();
+    m_mouseDownColorIndex = m_currentEditingClip->colorIndex();
     m_movedBeforeMouseUp = false;
 }
 

@@ -32,6 +32,7 @@
 #include "UI/Controls/OverlaySplitter.h"
 
 #include <QSplitter>
+#include <QTimer>
 #include <QVBoxLayout>
 
 TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksEditor, parent) {
@@ -309,6 +310,35 @@ void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex
 }
 
 void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, const int trackIndex) {
+    if (const auto cachedView = m_pendingRemoveClipViews.take(clip->id())) {
+        // Cross-track move: reuse the cached clip view preserving its state
+        cachedView->setTrackIndex(trackIndex);
+        cachedView->setColorIndex(track->dsTrack->colorIndex());
+        m_tracksScene->addCommonItem(cachedView);
+        track->clips[clip] = cachedView;
+        connect(clip, &Clip::propertyChanged, this, [clip, this] { updateClipOnView(clip); });
+        // Reconnect type-specific signals that were disconnected by onClipRemoved
+        if (clip->clipType() == Clip::Singing) {
+            const auto singingClip = static_cast<SingingClip *>(clip);
+            const auto singingView = static_cast<SingingClipView *>(cachedView);
+            connect(singingClip, &SingingClip::singerChanged, this,
+                    [singingView](const SingerInfo &newSingerInfo) {
+                        singingView->setSingerName(newSingerInfo.name());
+                    });
+            connect(singingClip, &SingingClip::speakerChanged, this,
+                    [singingView](const SpeakerInfo &newSpeakerInfo) {
+                        singingView->setSpeakerName(newSpeakerInfo.name());
+                    });
+            connect(singingClip, &SingingClip::defaultLanguageChanged, singingView,
+                    &SingingClipView::setDefaultLanguage);
+            connect(singingClip, &SingingClip::noteChanged, singingView,
+                    &SingingClipView::onNoteListChanged);
+        } else if (clip->clipType() == Clip::Audio) {
+            connect(appModel, &AppModel::tempoChanged, static_cast<AudioClipView *>(cachedView),
+                    &AudioClipView::onTempoChange);
+        }
+        return;
+    }
     if (clip->clipType() == Clip::Audio) {
         const auto audioClip = static_cast<AudioClip *>(clip);
         insertAudioClip(audioClip, track, trackIndex);
@@ -366,7 +396,12 @@ void TrackEditorView::onClipRemoved(Clip *clip, TrackViewModel *track) {
     const auto clipView = findClipItemById(clip->id());
     m_tracksScene->removeCommonItem(clipView);
     track->clips.remove(clip);
-    delete clipView;
+    m_pendingRemoveClipViews.insert(clip->id(), clipView);
+    // Clean up if the view is not reused by a subsequent onClipInserted
+    QTimer::singleShot(0, this, [this, clipId = clip->id()] {
+        if (const auto cachedView = m_pendingRemoveClipViews.take(clipId))
+            delete cachedView;
+    });
 }
 
 AbstractClipView *TrackEditorView::findClipItemById(const int id) {

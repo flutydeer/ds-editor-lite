@@ -47,10 +47,13 @@ public:
     void centerAt(double tick, double keyIndex);
     void centerAt(const Note &note);
 
+    void notifyActiveClipTrackChanged();
+
 signals:
     // TODO: 连接到 AppStatus 模型监听更改
     void canSelectAllChanged(bool canSelectAll);
     void hasSelectedNotesChanged(bool has);
+    void activeClipTrackChanged();
 
 public slots:
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
