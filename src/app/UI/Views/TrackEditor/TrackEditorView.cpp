@@ -28,6 +28,7 @@
 #include <QFileDialog>
 #include <QMouseEvent>
 #include <QScrollBar>
+#include <QSignalBlocker>
 #include "UI/Controls/OverlaySplitter.h"
 
 #include <QSplitter>
@@ -102,10 +103,10 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     appController->registerPanel(this);
     installEventFilter(this);
 
-    // connect(m_trackListView, &QListWidget::currentRowChanged, this,
-    //         [](int trackIndex) { appStatus->selectedTrackIndex = trackIndex; });
-    // connect(m_trackListView, &QListWidget::itemChanged, this,
-    //         [this] { appStatus->selectedTrackIndex = m_trackListView->currentRow(); });
+    connect(m_trackListView, &QListWidget::currentRowChanged, this,
+            &TrackEditorView::setSelectedTrackIndex);
+    connect(appStatus, &AppStatus::selectedTrackIndexChanged, this,
+            &TrackEditorView::syncSelectedTrackToList);
     connect(m_graphicsView, &TracksGraphicsView::scaleChanged, this,
             &TrackEditorView::onViewScaleChanged);
     connect(m_graphicsView, &TracksGraphicsView::sizeChanged, m_tracksScene,
@@ -194,6 +195,23 @@ void TrackEditorView::onViewScaleChanged(const qreal sx, const qreal sy) const {
     }
 }
 
+void TrackEditorView::setSelectedTrackIndex(const int trackIndex) const {
+    if (appStatus->selectedTrackIndex != trackIndex)
+        appStatus->selectedTrackIndex = trackIndex;
+    else
+        syncSelectedTrackToList(trackIndex);
+}
+
+void TrackEditorView::syncSelectedTrackToList(const int trackIndex) const {
+    const QSignalBlocker blocker(m_trackListView);
+    if (trackIndex >= 0 && trackIndex < m_trackListView->count()) {
+        m_trackListView->setCurrentRow(trackIndex);
+    } else {
+        m_trackListView->setCurrentItem(nullptr);
+        m_trackListView->clearSelection();
+    }
+}
+
 void TrackEditorView::onRemoveTrackTriggered(const int id) {
     trackController->onRemoveTrack(id);
     // auto track = appModel->findTrackById(id);
@@ -233,6 +251,10 @@ TrackViewModel *TrackEditorView::ViewModel::findTrack(const Track *dsTrack) {
 }
 
 void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex) {
+    // Preserve selection by logical track while row indexes shift.
+    const auto previousSelectedTrackIndex = static_cast<int>(appStatus->selectedTrackIndex);
+    const QSignalBlocker listBlocker(m_trackListView);
+
     connect(dsTrack, &Track::propertyChanged, this, [this] { onTrackPropertyChanged(); });
     connect(dsTrack, &Track::clipChanged, this,
             [dsTrack, this](const Track::ClipChangeType type, Clip *clip) {
@@ -278,6 +300,12 @@ void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex
                 clipItem->setTrackIndex(i);
             }
         }
+
+    // An insertion before the selected row moves the same logical track down by one row.
+    if (previousSelectedTrackIndex >= 0 && static_cast<int>(trackIndex) <= previousSelectedTrackIndex)
+        setSelectedTrackIndex(previousSelectedTrackIndex + 1);
+    else
+        syncSelectedTrackToList(previousSelectedTrackIndex);
 }
 
 void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, const int trackIndex) {
@@ -385,6 +413,10 @@ void TrackEditorView::updateClipOnView(Clip *clip) {
 }
 
 void TrackEditorView::onTrackRemoved(const Track *dsTrack, const qsizetype index) {
+    // Ignore QListWidget's transient current-row changes while rows are being removed.
+    const auto previousSelectedTrackIndex = static_cast<int>(appStatus->selectedTrackIndex);
+    const QSignalBlocker listBlocker(m_trackListView);
+
     disconnect(dsTrack, nullptr, this, nullptr);
     // disconnect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
     //            &TrackEditorView::onSceneSelectionChanged);
@@ -414,4 +446,14 @@ void TrackEditorView::onTrackRemoved(const Track *dsTrack, const qsizetype index
         }
     // connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
     //         &TrackEditorView::onSceneSelectionChanged);
+
+    // Removing a row before the selection shifts it up; removing the selected row selects its neighbor.
+    const auto removedTrackIndex = static_cast<int>(index);
+    auto selectedTrackIndex = previousSelectedTrackIndex;
+    if (previousSelectedTrackIndex > removedTrackIndex)
+        selectedTrackIndex = previousSelectedTrackIndex - 1;
+    else if (previousSelectedTrackIndex == removedTrackIndex)
+        selectedTrackIndex = m_viewModel.tracks.isEmpty() ? -1 : qMin(removedTrackIndex, m_viewModel.tracks.count() - 1);
+
+    setSelectedTrackIndex(selectedTrackIndex);
 }

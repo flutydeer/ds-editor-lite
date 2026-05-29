@@ -105,6 +105,8 @@ void TrackListView::dropEvent(QDropEvent *event) {
 
     // Save current scroll position before the move operation
     const int currentScrollPos = verticalScrollBar()->value();
+    // Moving downward removes the source row first, so the destination index shifts up by one.
+    const auto finalRow = dropRow > dragRow ? dropRow - 1 : dropRow;
 
     event->setDropAction(Qt::IgnoreAction);
     event->accept();
@@ -112,7 +114,8 @@ void TrackListView::dropEvent(QDropEvent *event) {
     TrackController::onMoveTrack(dragRow, dropRow);
 
     // Restore scroll position after the model update
-    QTimer::singleShot(0, this, [this, currentScrollPos]() {
+    QTimer::singleShot(0, this, [this, currentScrollPos, finalRow]() {
+        setCurrentRow(finalRow);
         verticalScrollBar()->setValue(currentScrollPos);
     });
 }

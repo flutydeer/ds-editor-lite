@@ -35,8 +35,8 @@ void TrackEditorBackgroundView::paint(QPainter *painter, const QStyleOptionGraph
     // painter->drawRect(boundingRect());
 
     // Draw selected track background
-    constexpr auto selectionBackgroundColor = QColor(55, 56, 57);
-    if (m_trackIndex != -1) {
+    constexpr auto selectionBackgroundColor = QColor(0x31, 0x35, 0x3F);
+    if (m_trackIndex >= 0 && m_trackIndex < m_trackCount) {
         painter->setPen(Qt::NoPen);
         painter->setBrush(selectionBackgroundColor);
         const auto y = sceneYToItemY(trackIndexToSceneY(m_trackIndex));
