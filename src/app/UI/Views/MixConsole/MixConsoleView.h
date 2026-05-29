@@ -14,7 +14,7 @@ class Track;
 class QListWidget;
 class QScrollBar;
 class ChannelView;
-class QResizeEvent;
+class QShowEvent;
 
 class MixConsoleView : public TabPanelPage {
     Q_OBJECT
@@ -40,6 +40,7 @@ private slots:
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
+    void showEvent(QShowEvent *event) override;
 
 private:
     void updateItemSizeHints() const;

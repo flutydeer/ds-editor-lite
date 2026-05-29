@@ -16,7 +16,7 @@
 
 #include <QHBoxLayout>
 #include <QListWidget>
-#include <QResizeEvent>
+#include <QShowEvent>
 #include <QScrollBar>
 #include <QVBoxLayout>
 
@@ -224,6 +224,11 @@ void MixConsoleView::onTrackPropertyChanged() const {
 
 void MixConsoleView::resizeEvent(QResizeEvent *event) {
     TabPanelPage::resizeEvent(event);
+    updateItemSizeHints();
+}
+
+void MixConsoleView::showEvent(QShowEvent *event) {
+    TabPanelPage::showEvent(event);
     updateItemSizeHints();
 }
 
