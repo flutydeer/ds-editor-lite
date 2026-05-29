@@ -20,6 +20,7 @@
 #include <QElapsedTimer>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPointer>
 #include <QThreadPool>
 #include <TalcsFormat/FormatManager.h>
 #include <TalcsFormat/AbstractAudioFormatIO.h>
@@ -682,7 +683,8 @@ void PhonemeView::loadWaveformAsync(InferPiece *piece) {
     if (audioPath.isEmpty())
         return;
 
-    QThreadPool::globalInstance()->start([this, piece, audioPath]() {
+    const QPointer<PhonemeView> self(this);
+    QThreadPool::globalInstance()->start([self, piece, audioPath]() {
         auto *fm = AudioContext::instance()->formatManager();
         if (!fm)
             return;
@@ -750,8 +752,11 @@ void PhonemeView::loadWaveformAsync(InferPiece *piece) {
         io->close();
         delete io;
 
-        QMetaObject::invokeMethod(this, [this, piece, info]() {
-            onWaveformReady(piece, info);
+        if (!self)
+            return;
+        QMetaObject::invokeMethod(self, [self, piece, info]() {
+            if (self)
+                self->onWaveformReady(piece, info);
         });
     });
 }

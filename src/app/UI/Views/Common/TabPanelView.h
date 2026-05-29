@@ -17,6 +17,7 @@ class TabPanelView : public PanelView {
 public:
     explicit TabPanelView(AppGlobal::PanelType type = AppGlobal::Generic,
                           QWidget *parent = nullptr);
+    ~TabPanelView() override;
 
     void registerPage(TabPanelPage *page);
 

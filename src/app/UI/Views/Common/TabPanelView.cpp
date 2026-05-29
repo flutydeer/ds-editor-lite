@@ -33,6 +33,10 @@ TabPanelView::TabPanelView(AppGlobal::PanelType type, QWidget *parent): PanelVie
             &TabPanelView::detachRequested);
 }
 
+TabPanelView::~TabPanelView() {
+    disconnect(m_tabPanelTitleBar->tabBar(), nullptr, this, nullptr);
+}
+
 TabPanelTitleBar *TabPanelView::titleBar() const {
     return m_tabPanelTitleBar;
 }
@@ -53,6 +57,11 @@ void TabPanelView::registerPage(TabPanelPage *page) {
 }
 
 void TabPanelView::onSelectionChanged(int index) {
+    if (index < 0 || index >= m_pages.size()) {
+        m_currentIndex = -1;
+        return;
+    }
+
     m_currentIndex = index;
     auto *page = m_pages.at(index);
     m_tabPanelTitleBar->toolBar()->setCurrentWidget(page->toolBar());
