@@ -161,6 +161,7 @@ void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
         return;
     }
 
+    cancelRequested = false;
 
     if (const auto item = itemAt(event->pos())) {
         if (const auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
