@@ -213,8 +213,9 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         const auto targetTrackIndex = m_scene->trackIndexAt(curPos.y());
         if (targetTrackIndex >= 0) {
             m_currentEditingClip->setTrackIndex(targetTrackIndex);
-            m_currentEditingClip->setColorIndex(
-                appModel->tracks().at(targetTrackIndex)->colorIndex());
+            const auto colorIndex = appModel->tracks().at(targetTrackIndex)->colorIndex();
+            m_currentEditingClip->setColorIndex(colorIndex);
+            clipController->notifyLiveTrackColorChanged(colorIndex);
         }
     } else if (m_mouseMoveBehavior == ResizeLeft) {
         m_movedBeforeMouseUp = true;
@@ -345,6 +346,7 @@ void TracksGraphicsView::discardAction() {
         m_currentEditingClip->setClipLen(m_mouseDownClipLen);
         m_currentEditingClip->setTrackIndex(m_mouseDownTrackIndex);
         m_currentEditingClip->setColorIndex(m_mouseDownColorIndex);
+        clipController->notifyLiveTrackColorChanged(m_mouseDownColorIndex);
     }
     resetEditState();
 }

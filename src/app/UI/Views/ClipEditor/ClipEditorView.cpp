@@ -89,6 +89,12 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
                 m_pianoRollEditorView->paramEditorView()->update();
             });
     });
+    connect(clipController, &ClipController::liveTrackColorChanged, this, [this](int colorIndex) {
+        NoteView::setTrackColorIndex(colorIndex);
+        m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(colorIndex);
+        m_pianoRollEditorView->pianoRollView()->update();
+        m_pianoRollEditorView->paramEditorView()->update();
+    });
 }
 
 void ClipEditorView::centerAt(const double tick, const double keyIndex) {

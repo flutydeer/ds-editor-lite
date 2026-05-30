@@ -48,12 +48,14 @@ public:
     void centerAt(const Note &note);
 
     void notifyActiveClipTrackChanged();
+    void notifyLiveTrackColorChanged(int colorIndex);
 
 signals:
     // TODO: 连接到 AppStatus 模型监听更改
     void canSelectAllChanged(bool canSelectAll);
     void hasSelectedNotesChanged(bool has);
     void activeClipTrackChanged();
+    void liveTrackColorChanged(int colorIndex);
 
 public slots:
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);

@@ -50,6 +50,10 @@ void ClipController::notifyActiveClipTrackChanged() {
     emit activeClipTrackChanged();
 }
 
+void ClipController::notifyLiveTrackColorChanged(const int colorIndex) {
+    emit liveTrackColorChanged(colorIndex);
+}
+
 void ClipController::copySelectedNotesWithParams() const {
     Q_D(const ClipController);
     qDebug() << "ClipController::copySelectedNotesWithParams";
