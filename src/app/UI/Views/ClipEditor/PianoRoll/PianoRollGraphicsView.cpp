@@ -22,9 +22,11 @@
 #include "SelectNoteHandler.h"
 #include "SplitNoteHandler.h"
 #include "Controller/ClipController.h"
+#include "Controller/ClipboardController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/Actions/AppModel/Note/NoteActions.h"
 #include "Global/AppGlobal.h"
+#include "Global/ControllerGlobal.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/Note.h"
@@ -41,11 +43,14 @@
 #include <cmath>
 
 #include <QApplication>
+#include <QClipboard>
 #include <QGraphicsLineItem>
+#include <QMimeData>
 #include <QGraphicsPathItem>
 #include <QPainterPath>
 #include <QMouseEvent>
 #include <QKeyEvent>
+#include <QGuiApplication>
 #include <QScrollBar>
 #include "UI/Controls/Menu.h"
 
@@ -170,11 +175,17 @@ bool PianoRollGraphicsView::event(QEvent *event) {
 
 void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     Q_D(PianoRollGraphicsView);
-    if (d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote) {
+    if (d->m_editMode == Select || d->m_editMode == IntervalSelect ||
+        d->m_editMode == DrawNote || d->m_editMode == EraseNote ||
+        d->m_editMode == SplitNote) {
         if (const auto noteView = d->noteViewAt(event->pos())) {
             const auto menu = d->buildNoteContextMenu(noteView, event->pos());
             menu->exec(event->globalPos());
+        } else {
+            const auto menu = d->buildBackgroundContextMenu();
+            menu->exec(event->globalPos());
         }
+        return;
     } else if (d->m_editMode == EditPitchAnchor) {
         if (d->m_currentHandler)
             d->m_currentHandler->contextMenuEvent(event);
@@ -835,7 +846,13 @@ Menu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView,
 
     menu->addSeparator();
 
-    const auto actionRemove = menu->addAction(tr("Delete"));
+    const auto actionCut = menu->addAction(tr("Cu&t"));
+    connect(actionCut, &QAction::triggered, clipboardController, &ClipboardController::cut);
+
+    const auto actionCopy = menu->addAction(tr("&Copy"));
+    connect(actionCopy, &QAction::triggered, clipboardController, &ClipboardController::copy);
+
+    const auto actionRemove = menu->addAction(tr("&Delete"));
     connect(actionRemove, &QAction::triggered, this,
             &PianoRollGraphicsViewPrivate::onDeleteSelectedNotes);
 
@@ -844,6 +861,21 @@ Menu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView,
     const auto actionProperties = menu->addAction(tr("Properties..."));
     connect(actionProperties, &QAction::triggered, this,
             [noteView, this] { onOpenNotePropertyDialog(noteView->id(), AppGlobal::Lyric); });
+    return menu;
+}
+
+Menu *PianoRollGraphicsViewPrivate::buildBackgroundContextMenu() {
+    Q_Q(PianoRollGraphicsView);
+    const auto menu = new Menu(q);
+
+    const auto actionPaste = menu->addAction(tr("&Paste"));
+    connect(actionPaste, &QAction::triggered, clipboardController, &ClipboardController::paste);
+
+    const auto mimeData = QGuiApplication::clipboard()->mimeData();
+    const auto hasPasteData =
+        mimeData && mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
+    actionPaste->setEnabled(hasPasteData);
+
     return menu;
 }
 
