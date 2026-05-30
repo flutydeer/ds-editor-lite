@@ -89,13 +89,13 @@ When a SingingClip view is reused (cross-track move), the type-specific signals 
 | `src/app/Controller/TrackController.h` | Added `onClipPropertyChanged(args, newTrackIndex)` overload |
 | `src/app/Controller/TrackController.cpp` | Cross-track dispatch + notify clipController |
 | `src/app/Controller/ProjectStatusController.cpp` | Don't clear activeClipId on cross-track move |
-| `src/app/Controller/ClipController.h` | Added `notifyActiveClipTrackChanged` + signal |
-| `src/app/Controller/ClipController.cpp` | Implement `notifyActiveClipTrackChanged` |
+| `src/app/Controller/ClipController.h` | Added `notifyActiveClipTrackChanged` + `notifyLiveTrackColorChanged` + signals |
+| `src/app/Controller/ClipController.cpp` | Implement `notifyActiveClipTrackChanged` + `notifyLiveTrackColorChanged` |
 | `src/app/UI/Views/TrackEditor/TracksGraphicsView.h` | Uncommented `m_mouseDownTrackIndex`, added `m_mouseDownColorIndex` |
-| `src/app/UI/Views/TrackEditor/TracksGraphicsView.cpp` | Vertical drag + color sync |
+| `src/app/UI/Views/TrackEditor/TracksGraphicsView.cpp` | Vertical drag + color sync, live color preview, discard restore |
 | `src/app/UI/Views/TrackEditor/TrackEditorView.h` | Added `m_pendingRemoveClipViews` |
 | `src/app/UI/Views/TrackEditor/TrackEditorView.cpp` | Cache/reuse clip views + signal reconnection |
-| `src/app/UI/Views/ClipEditor/ClipEditorView.cpp` | Handle `activeClipTrackChanged` for note color update |
+| `src/app/UI/Views/ClipEditor/ClipEditorView.cpp` | Handle `activeClipTrackChanged` + `liveTrackColorChanged` |
 | `src/app/Modules/Inference/InferController.cpp` | Don't tear down inference pipelines on move |
 
 ## Signal Design: Three-Signal Approach
@@ -141,6 +141,30 @@ handleSingingClipInserted:
 This is the same "distinguish move from delete" pattern already used by `ProjectStatusController` and `TrackEditorView`.
 
 **File:** `src/app/Modules/Inference/InferController.cpp`
+
+### Live piano roll color preview during drag
+
+During cross-track drag in `TracksGraphicsView::mouseMoveEvent`, the clip view color follows the target track immediately. A new `ClipController::liveTrackColorChanged` signal extends this to the piano roll, so note colors and background reflect the target track in real time:
+
+```
+mouseMoveEvent (target track changes):
+  → clipController->notifyLiveTrackColorChanged(targetColorIndex)
+  → ClipEditorView: updates NoteView color, PianoRollView color, ParamEditorView color + repaint
+
+discardAction (Esc / release outside):
+  → clipController->notifyLiveTrackColorChanged(m_mouseDownColorIndex)  // restore original
+
+commitAction (mouse release):
+  → clipController->notifyActiveClipTrackChanged()  // final color from model
+```
+
+The `liveTrackColorChanged` handler only updates colors and repaints — it does not touch signal connections (unlike `activeClipTrackChanged` which reconnects `m_trackColorConnection` to the new track). This makes the live preview side-effect-free and safe to fire at high frequency during drag.
+
+**Files:**
+- `src/app/Controller/ClipController.h` — Added signal + method
+- `src/app/Controller/ClipController.cpp` — Implementation
+- `src/app/UI/Views/ClipEditor/ClipEditorView.cpp` — Connect signal
+- `src/app/UI/Views/TrackEditor/TracksGraphicsView.cpp` — Emit during drag + restore on discard
 
 ## Known Issues (Next Steps)
 
