@@ -35,6 +35,7 @@ public:
     explicit InferPipeline(InferPiece &piece);
     ~InferPipeline() override;
     [[nodiscard]] int pieceId() const;
+    [[nodiscard]] int clipId() const;
     void run();
     [[nodiscard]] InferPiece &piece() const;
 

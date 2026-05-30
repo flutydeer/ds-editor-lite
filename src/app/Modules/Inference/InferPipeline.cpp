@@ -35,6 +35,10 @@ int InferPipeline::pieceId() const {
     return m_piece.id();
 }
 
+int InferPipeline::clipId() const {
+    return m_piece.clipId();
+}
+
 void InferPipeline::run() {
     stateMachine.start();
 }

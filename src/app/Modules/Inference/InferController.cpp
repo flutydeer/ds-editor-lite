@@ -174,22 +174,7 @@ void InferControllerPrivate::onPlaybackStatusChanged(const PlaybackGlobal::Playb
         });
 
         std::sort(awaitingPipelines.begin(), awaitingPipelines.end(),
-                  [](const InferPipeline *a, const InferPipeline *b) {
-                      const auto pos = static_cast<int>(playbackController->position());
-                      const auto startA =
-                          pieceGlobalStartTick(a->piece().clipId(), a->piece().id());
-                      const auto startB =
-                          pieceGlobalStartTick(b->piece().clipId(), b->piece().id());
-                      const auto diffA = startA - pos;
-                      const auto diffB = startB - pos;
-                      const bool aAhead = diffA >= 0;
-                      const bool bAhead = diffB >= 0;
-                      if (aAhead != bAhead)
-                          return aAhead;
-                      if (aAhead)
-                          return diffA < diffB;
-                      return diffA > diffB;
-                  });
+                  makePlaybackPriorityComparator<InferPipeline>());
 
         notifyNextPipeline(awaitingPipelines, 0);
     }
