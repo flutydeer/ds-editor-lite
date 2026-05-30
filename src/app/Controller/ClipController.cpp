@@ -8,6 +8,7 @@
 #include "TrackController.h"
 #include "Actions/AppModel/Note/NoteActions.h"
 #include "Actions/AppModel/Param/ParamsActions.h"
+#include "Global/ControllerGlobal.h"
 #include "Interface/IClipEditorView.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -15,8 +16,11 @@
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/FillLyric/LyricDialog.h"
 #include "UI/Dialogs/Search/SearchDialog.h"
+#include "Utils/TimelineSnapUtils.h"
 
 #include <QClipboard>
+#include <QGuiApplication>
+#include <QJsonDocument>
 #include <QMimeData>
 
 ClipController::ClipController(QObject *parent)
@@ -56,20 +60,18 @@ void ClipController::notifyLiveTrackColorChanged(const int colorIndex) {
 
 void ClipController::copySelectedNotesWithParams() const {
     Q_D(const ClipController);
-    qDebug() << "ClipController::copySelectedNotesWithParams";
-    const auto [selectedNotes] = d->buildNoteParamsInfo();
-    if (selectedNotes.count() < 0)
+    const auto info = d->buildNoteParamsInfo();
+    if (info.selectedNotes.isEmpty())
         return;
 
-    // auto array = NotesParamsInfo::serializeToBinary(info);
-    // auto jObj = NotesParamsInfo::serializeToJson(info);
-    // QJsonDocument jDoc;
-    // jDoc.setObject(jObj);
-    // auto array = jDoc.toJson();
+    const auto jObj = NotesParamsInfo::serializeToJson(info);
+    QJsonDocument jDoc(jObj);
+    const auto array = jDoc.toJson(QJsonDocument::Compact);
+
     const auto data = new QMimeData;
-    // data->setData(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams), array);
+    data->setData(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams), array);
     QGuiApplication::clipboard()->setMimeData(data);
-    // qDebug() << QString("Copied %1 notes").arg(info.selectedNotes.count());
+    qDebug() << QString("Copied %1 notes").arg(info.selectedNotes.count());
 }
 
 void ClipController::cutSelectedNotesWithParams() {
@@ -79,32 +81,51 @@ void ClipController::cutSelectedNotesWithParams() {
 
 void ClipController::pasteNotesWithParams(const NotesParamsInfo &info, int tick) {
     Q_D(ClipController);
-    // TODO: pasteNotesWithParams
-    // qDebug() << "ClipController::pasteNotesWithParams";
-    // auto notes = info.selectedNotes;
-    // qDebug() << "info.selectedNotes count" << notes.count();
-    // if (notes.count() == 0)
-    //     return;
-    // auto start = notes.first()->start();
-    // auto offset = tick - start;
-    // QList<Note *> notesPtr;
-    // for (auto &note : notes) {
-    //     note->setStart(note->start() + offset);
-    //
-    //     auto notePtr = new Note;
-    //     notePtr->setStart(note->start());
-    //     notePtr->setLength(note->length());
-    //     notePtr->setKeyIndex(note->keyIndex());
-    //     notePtr->setLyric(note->lyric());
-    //     notePtr->setPronunciation(note->pronunciation());
-    //     notePtr->setPhonemes(Phonemes::Original, note->phonemes().original);
-    //     notePtr->setPhonemes(Phonemes::Edited, note->phonemes().edited);
-    //     notesPtr.append(notePtr);
-    // }
-    // auto a = new NoteActions;
-    // a->insertNotes(notesPtr, d->m_clip);
-    // a->execute();
-    // historyManager->record(a);
+    if (!d->m_clip || d->m_clip->clipType() != Clip::Singing)
+        return;
+
+    const auto &srcNotes = info.selectedNotes;
+    if (srcNotes.isEmpty())
+        return;
+
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
+
+    const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+    const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantize);
+
+    const auto clipStart = singingClip->start();
+    const auto localTick = snappedTick - clipStart;
+
+    int minStart = srcNotes.first()->localStart();
+    for (const auto note : srcNotes)
+        minStart = qMin(minStart, note->localStart());
+    const auto offset = localTick - minStart;
+
+    QList<Note *> newNotes;
+    for (const auto srcNote : srcNotes) {
+        auto note = new Note(singingClip);
+        note->setLocalStart(srcNote->localStart() + offset);
+        note->setLength(srcNote->length());
+        note->setKeyIndex(srcNote->keyIndex());
+        note->setCentShift(srcNote->centShift());
+        note->setLyric(srcNote->lyric());
+        note->setLanguage(srcNote->language());
+        note->setPronunciation(srcNote->pronunciation());
+        note->setPronCandidates(srcNote->pronCandidates());
+        note->setLineFeed(srcNote->lineFeed());
+
+        Phonemes ph;
+        ph.nameSeq.edited = srcNote->phonemeNameSeq().edited;
+        note->setPhonemes(ph);
+
+        newNotes.append(note);
+    }
+
+    const auto a = new NoteActions;
+    a->insertNotes(newNotes, singingClip);
+    a->execute();
+    historyManager->record(a);
+    emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
 bool ClipController::canSelectAll() const {

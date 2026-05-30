@@ -6,6 +6,9 @@
 
 #include "Clip.h"
 #include "SingingClip.h"
+#include "Utils/JsonUtils.h"
+
+#include <QJsonArray>
 
 Note::Note(SingingClip *context, QObject *parent) : QObject(parent), m_clip(context) {
 }
@@ -228,11 +231,55 @@ std::tuple<qsizetype, qsizetype> Note::interval() const {
 }
 
 QJsonObject Note::serialize() const {
-    return {};
+    QJsonObject obj;
+    obj["localStart"] = m_rStart;
+    obj["length"] = m_length;
+    obj["keyIndex"] = m_keyIndex;
+    obj["centShift"] = m_centShift;
+    obj["lyric"] = m_lyric;
+    obj["language"] = m_language;
+    obj["pronunciation"] = Pronunciation::serialize(
+        Pronunciation({}, m_pronunciation.edited));
+    obj["lineFeed"] = m_lineFeed;
+
+    if (!m_pronCandidates.isEmpty()) {
+        QJsonArray arr;
+        for (const auto &c : m_pronCandidates)
+            arr.append(c);
+        obj["pronCandidates"] = arr;
+    }
+
+    if (m_phonemeInfo.nameSeq.isEdited())
+        obj["editedPhonemeNames"] = JsonUtils::serializeList(m_phonemeInfo.nameSeq.edited);
+
+    return obj;
 }
 
 bool Note::deserialize(const QJsonObject &obj) {
-    return false;
+    m_rStart = obj["localStart"].toInt();
+    m_length = obj["length"].toInt();
+    m_keyIndex = obj["keyIndex"].toInt();
+    m_centShift = obj["centShift"].toInt();
+    m_lyric = obj["lyric"].toString();
+    m_language = obj["language"].toString("unknown");
+    m_lineFeed = obj["lineFeed"].toBool();
+
+    const auto pronObj = obj["pronunciation"].toObject();
+    m_pronunciation = Pronunciation({}, pronObj["edited"].toString());
+
+    if (obj.contains("pronCandidates")) {
+        m_pronCandidates.clear();
+        for (const auto &v : obj["pronCandidates"].toArray())
+            m_pronCandidates.append(v.toString());
+    }
+
+    if (obj.contains("editedPhonemeNames")) {
+        m_phonemeInfo.nameSeq.edited.clear();
+        JsonUtils::deserializeList(obj["editedPhonemeNames"].toArray(),
+                                   m_phonemeInfo.nameSeq.edited);
+    }
+
+    return true;
 }
 
 Note::WordProperties Note::WordProperties::fromNote(const Note &note) {

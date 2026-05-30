@@ -6,6 +6,7 @@
 
 #include "MainMenuView_p.h"
 #include "Controller/AppController.h"
+#include "Controller/ClipboardController.h"
 #include "Controller/ClipController.h"
 #include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
@@ -216,15 +217,18 @@ void MainMenuViewPrivate::onDelete() {
 }
 
 void MainMenuViewPrivate::onCut() {
-    qDebug() << "MainMenuView::onCut";
+    if (m_panelType == AppGlobal::ClipEditor)
+        clipboardController->cut();
 }
 
 void MainMenuViewPrivate::onCopy() {
-    qDebug() << "MainMenuView::onCopy";
+    if (m_panelType == AppGlobal::ClipEditor)
+        clipboardController->copy();
 }
 
 void MainMenuViewPrivate::onPaste() {
-    qDebug() << "MainMenuView::onPaste";
+    if (m_panelType == AppGlobal::ClipEditor)
+        clipboardController->paste();
 }
 
 // void MainMenuViewPrivate::onGetMidiFromAudioClip() {
@@ -301,6 +305,16 @@ void MainMenuViewPrivate::enterClipEditorState() {
     QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionDelete,
                      &QAction::setEnabled);
 
+    actionCut->setEnabled(hasSelectedNotes);
+    QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionCut,
+                     &QAction::setEnabled);
+
+    actionCopy->setEnabled(hasSelectedNotes);
+    QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionCopy,
+                     &QAction::setEnabled);
+
+    actionPaste->setEnabled(true);
+
     actionOctaveUp->setEnabled(hasSelectedNotes);
     QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionOctaveUp,
                      &QAction::setEnabled);
@@ -322,6 +336,16 @@ void MainMenuViewPrivate::exitClipEditorState() {
     QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionDelete,
                         &QAction::setEnabled);
     actionDelete->setEnabled(false);
+
+    QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionCut,
+                        &QAction::setEnabled);
+    actionCut->setEnabled(false);
+
+    QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionCopy,
+                        &QAction::setEnabled);
+    actionCopy->setEnabled(false);
+
+    actionPaste->setEnabled(false);
 
     QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionOctaveUp,
                         &QAction::setEnabled);

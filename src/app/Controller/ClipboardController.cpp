@@ -21,10 +21,8 @@ ClipboardController::~ClipboardController() = default;
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(ClipboardController)
 
-// TODO: 要求传入类型
 void ClipboardController::copy() {
     Q_D(ClipboardController);
-    qDebug() << "ClipboardController::copy";
     d->copyCutSelectedItems(ControllerGlobal::NoteWithParams, false);
 }
 
@@ -34,17 +32,14 @@ void ClipboardController::cut() {
 }
 
 void ClipboardController::paste() {
-    qDebug() << "ClipboardController::paste";
     const auto mimeData = QGuiApplication::clipboard()->mimeData();
     if (mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams))) {
-        qDebug() << "Mime data has NoteWithParams";
-        auto array =
+        const auto array =
             mimeData->data(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
-        // auto info = NotesParamsInfo::deserializeFromBinary(array);
-        // auto json = QJsonDocument::fromJson(array);
-        // auto info = NotesParamsInfo::deserializeFromJson(json.object());
-        auto tick = playbackController->position();
-        // clipController->pasteNotesWithParams(info, static_cast<int>(tick));
+        const auto json = QJsonDocument::fromJson(array);
+        const auto info = NotesParamsInfo::deserializeFromJson(json.object());
+        const auto tick = static_cast<int>(playbackController->position());
+        clipController->pasteNotesWithParams(info, tick);
     }
 }
 

@@ -7,15 +7,15 @@
 
 #include "Model/AppModel/Note.h"
 
+#include <QJsonArray>
+#include <QJsonObject>
+
 class NotesParamsInfo {
 public:
     QList<Note *> selectedNotes{};
-    // TODO: add params
 
-    // static QJsonObject serializeToJson(const NotesParamsInfo &info);
-    // static NotesParamsInfo deserializeFromJson(const QJsonObject &obj);
+    static QJsonObject serializeToJson(const NotesParamsInfo &info);
+    static NotesParamsInfo deserializeFromJson(const QJsonObject &obj);
 };
-
-
 
 #endif // NOTESPARAMSINFO_H
