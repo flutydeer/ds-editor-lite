@@ -80,7 +80,7 @@ public:
     MouseMoveBehavior m_mouseMoveBehavior = None;
 
     Menu *buildNoteContextMenu(NoteView *noteView, const QPoint &mousePos);
-    Menu *buildBackgroundContextMenu();
+    Menu *buildBackgroundContextMenu(const QPoint &pos);
     void splitNoteAtMousePosition(NoteView *noteView, const QPoint &mousePos);
 
     void moveToNullClipState();

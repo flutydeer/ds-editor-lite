@@ -30,6 +30,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/Note.h"
+#include "Model/ClipboardDataModel/NotesParamsInfo.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -51,6 +52,7 @@
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QGuiApplication>
+#include <QJsonDocument>
 #include <QScrollBar>
 #include "UI/Controls/Menu.h"
 
@@ -182,7 +184,7 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             const auto menu = d->buildNoteContextMenu(noteView, event->pos());
             menu->exec(event->globalPos());
         } else {
-            const auto menu = d->buildBackgroundContextMenu();
+            const auto menu = d->buildBackgroundContextMenu(event->pos());
             menu->exec(event->globalPos());
         }
         return;
@@ -864,17 +866,29 @@ Menu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView,
     return menu;
 }
 
-Menu *PianoRollGraphicsViewPrivate::buildBackgroundContextMenu() {
+Menu *PianoRollGraphicsViewPrivate::buildBackgroundContextMenu(const QPoint &pos) {
     Q_Q(PianoRollGraphicsView);
     const auto menu = new Menu(q);
-
-    const auto actionPaste = menu->addAction(tr("&Paste"));
-    connect(actionPaste, &QAction::triggered, clipboardController, &ClipboardController::paste);
 
     const auto mimeData = QGuiApplication::clipboard()->mimeData();
     const auto hasPasteData =
         mimeData && mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
+
+    const auto actionPaste = menu->addAction(tr("&Paste"));
     actionPaste->setEnabled(hasPasteData);
+
+    if (hasPasteData) {
+        const auto array =
+            mimeData->data(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
+        const auto json = QJsonDocument::fromJson(array);
+        NotesParamsInfo info = NotesParamsInfo::deserializeFromJson(json.object());
+        const auto scenePos = q->mapToScene(pos);
+        const auto tick = qRound(q->sceneXToTick(scenePos.x())) + m_offset;
+
+        connect(actionPaste, &QAction::triggered, q, [this, info, tick] {
+            clipController->pasteNotesWithParams(info, tick);
+        });
+    }
 
     return menu;
 }
