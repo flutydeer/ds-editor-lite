@@ -49,7 +49,6 @@ private:
     [[nodiscard]] QList<AbstractClipView *> selectedClipItems() const;
 
     TracksGraphicsScene *m_scene;
-    Menu *m_backgroundMenu = nullptr;
     QAction *m_actionNewSingingClip;
     QAction *m_actionAddAudioClip;
     int m_trackIndex = -1;

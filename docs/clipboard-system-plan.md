@@ -205,7 +205,10 @@ ClipboardController::copyNotes / copyClips / pasteNotes / pasteClips
 ### Phase 4: Polish
 - 边界情况处理（无活动剪辑/轨道时粘贴、粘贴到项目边界外等）
 - 连接 `QClipboard::dataChanged` 更新 Paste 按钮
-- 编排视图右键菜单添加 Cut/Copy/Paste 项
+- ✅ 编排视图右键菜单添加 Cut/Copy/Paste 项
+  - 空白处：Paste（使用右键位置作为目标轨道和 tick，量化对齐网格）
+  - 剪辑上：Cut / Copy（操作当前选区）
+  - 同时清理了不再使用的 `m_backgroundMenu` 成员
 - **粘贴预览**：右键菜单 Paste 获得焦点（鼠标悬停/键盘导航）时，在钢琴卷帘上显示半透明"幽灵音符"预览粘贴位置和内容。通过 `QAction::hovered` 信号驱动，临时创建低 opacity 的 NoteView，菜单关闭时清理。预估 ~30-50 行代码，不涉及架构改动
 
 ## Critical Files

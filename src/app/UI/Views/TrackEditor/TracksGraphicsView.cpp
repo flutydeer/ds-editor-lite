@@ -9,11 +9,13 @@
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
+#include "Global/ControllerGlobal.h"
 #include "Global/TracksEditorGlobal.h"
 #include "GraphicsItem/AbstractClipView.h"
 #include "GraphicsItem/TrackEditorBackgroundView.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Model/ClipboardDataModel/ClipsInfo.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Extractors/MidiExtractController.h"
 #include "UI/Controls/AccentButton.h"
@@ -21,8 +23,12 @@
 #include "UI/Views/Common/ScrollBarView.h"
 #include "Utils/TimelineSnapUtils.h"
 
+#include <QClipboard>
 #include <QFileDialog>
+#include <QGuiApplication>
+#include <QJsonDocument>
 #include <QKeyEvent>
+#include <QMimeData>
 #include <QMouseEvent>
 #include "UI/Controls/Menu.h"
 
@@ -46,10 +52,6 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, const QWidget
 
     m_actionAddAudioClip = new QAction(tr("Insert audio clip..."), this);
     connect(m_actionAddAudioClip, &QAction::triggered, this, &TracksGraphicsView::onAddAudioClip);
-
-    m_backgroundMenu = new Menu(this);
-    m_backgroundMenu->addAction(m_actionNewSingingClip);
-    m_backgroundMenu->addAction(m_actionAddAudioClip);
 
     connect(appStatus, &AppStatus::activeClipIdChanged, this, [this](const int clipId) {
         if (clipId == -1) {
@@ -315,9 +317,31 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             m_trackIndex = trackIndex;
             m_tick = TimelineSnapUtils::snapDown(
                 tick, snapStep(false));
-            m_backgroundMenu->exec(event->globalPos());
+
+            CMenu menu(this);
+            menu.addAction(m_actionNewSingingClip);
+            menu.addAction(m_actionAddAudioClip);
+            menu.addSeparator();
+
+            const auto mimeData = QGuiApplication::clipboard()->mimeData();
+            const auto hasClipData =
+                mimeData && mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip));
+            const auto actionPaste = menu.addAction(tr("&Paste"));
+            actionPaste->setEnabled(hasClipData);
+            if (hasClipData) {
+                const auto array =
+                    mimeData->data(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip));
+                const auto json = QJsonDocument::fromJson(array);
+                ClipsInfo info = ClipsInfo::deserializeFromJson(json.object());
+                const auto pasteTick = m_tick;
+                const auto pasteTrack = trackIndex;
+                connect(actionPaste, &QAction::triggered, this, [info, pasteTick, pasteTrack] {
+                    trackController->pasteClips(info, pasteTick, pasteTrack);
+                });
+            }
+
+            menu.exec(event->globalPos());
         } else if (auto clip = dynamic_cast<AbstractClipView *>(item)) {
-            qDebug() << "context menu on clip" << clip->id();
             CMenu menu(this);
 
             if (clip->clipType() == IClip::Audio) {
@@ -328,10 +352,12 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
                 menu.addSeparator();
             }
 
-            const auto actionDelete = new QAction(tr("&Delete"), this);
+            menu.addAction(tr("Cu&t"), [] { trackController->cutSelectedClips(); });
+            menu.addAction(tr("&Copy"), [] { trackController->copySelectedClips(); });
+
+            const auto actionDelete = menu.addAction(tr("&Delete"));
             connect(actionDelete, &QAction::triggered, this,
                     &TracksGraphicsView::onDeleteTriggered);
-            menu.addAction(actionDelete);
 
             menu.exec(event->globalPos());
         } else {
