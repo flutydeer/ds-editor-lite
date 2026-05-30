@@ -196,9 +196,14 @@ void MainMenuViewPrivate::onActivatedPanelChanged(AppGlobal::PanelType panel) {
     Q_Q(MainMenuView);
     m_panelType = panel;
     if (panel == AppGlobal::ClipEditor) {
+        exitTracksEditorState();
         enterClipEditorState();
+    } else if (panel == AppGlobal::TracksEditor) {
+        exitClipEditorState();
+        enterTracksEditorState();
     } else {
         exitClipEditorState();
+        exitTracksEditorState();
     }
 }
 
@@ -207,6 +212,8 @@ void MainMenuViewPrivate::onSelectAll() {
     qDebug() << "MainMenuView::onSelectAll";
     if (m_panelType == AppGlobal::ClipEditor)
         clipController->onSelectAllNotes();
+    else if (m_panelType == AppGlobal::TracksEditor)
+        qDebug() << "MainMenuView::onSelectAll: not implemented for TracksEditor";
 }
 
 void MainMenuViewPrivate::onDelete() {
@@ -214,20 +221,28 @@ void MainMenuViewPrivate::onDelete() {
     qDebug() << "MainMenuView::onDelete";
     if (m_panelType == AppGlobal::ClipEditor)
         clipController->onDeleteSelectedNotes();
+    else if (m_panelType == AppGlobal::TracksEditor)
+        trackController->onRemoveClips(appStatus->selectedClips.get());
 }
 
 void MainMenuViewPrivate::onCut() {
     if (m_panelType == AppGlobal::ClipEditor)
         clipboardController->cut();
+    else if (m_panelType == AppGlobal::TracksEditor)
+        trackController->cutSelectedClips();
 }
 
 void MainMenuViewPrivate::onCopy() {
     if (m_panelType == AppGlobal::ClipEditor)
         clipboardController->copy();
+    else if (m_panelType == AppGlobal::TracksEditor)
+        trackController->copySelectedClips();
 }
 
 void MainMenuViewPrivate::onPaste() {
     if (m_panelType == AppGlobal::ClipEditor)
+        clipboardController->paste();
+    else if (m_panelType == AppGlobal::TracksEditor)
         clipboardController->paste();
 }
 
@@ -358,6 +373,38 @@ void MainMenuViewPrivate::exitClipEditorState() {
     QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionFillLyrics,
                         &QAction::setEnabled);
     actionFillLyrics->setEnabled(false);
+}
+
+void MainMenuViewPrivate::enterTracksEditorState() {
+    Q_Q(MainMenuView);
+
+    const auto hasSelectedClips = !appStatus->selectedClips.get().isEmpty();
+    actionCut->setEnabled(hasSelectedClips);
+    actionCopy->setEnabled(hasSelectedClips);
+    actionDelete->setEnabled(hasSelectedClips);
+    actionPaste->setEnabled(true);
+    actionSelectAll->setEnabled(true);
+
+    connect(appStatus, &AppStatus::clipSelectionChanged, q, [this](const QList<int> &clips) {
+        const auto hasSelection = !clips.isEmpty();
+        actionCut->setEnabled(hasSelection);
+        actionCopy->setEnabled(hasSelection);
+        actionDelete->setEnabled(hasSelection);
+    });
+
+    actionOctaveUp->setEnabled(false);
+    actionOctaveDown->setEnabled(false);
+    actionFillLyrics->setEnabled(false);
+}
+
+void MainMenuViewPrivate::exitTracksEditorState() {
+    disconnect(appStatus, &AppStatus::clipSelectionChanged, nullptr, nullptr);
+
+    actionCut->setEnabled(false);
+    actionCopy->setEnabled(false);
+    actionDelete->setEnabled(false);
+    actionPaste->setEnabled(false);
+    actionSelectAll->setEnabled(false);
 }
 
 void MainMenuViewPrivate::initActions() {

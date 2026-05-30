@@ -18,6 +18,7 @@ class ClipActions : public ActionSequence {
 
 public:
     void insertClips(const QList<Clip *> &clips, Track *track);
+    void insertClips(const QList<Clip *> &clips, const QList<Track *> &tracks);
     void removeClips(const QList<Clip *> &clips, const QList<Track *> &tracks);
     void editSingingClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
                                    const QList<Clip::ClipCommonProperties> &newArgs,

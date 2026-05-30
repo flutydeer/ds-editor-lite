@@ -44,6 +44,7 @@ private:
     void clearSelections() const;
     void resetActiveClips() const;
     void resetEditState();
+    void syncClipSelectionToAppStatus() const;
     [[nodiscard]] int snapStep(bool snapOff) const;
     [[nodiscard]] QList<AbstractClipView *> selectedClipItems() const;
 

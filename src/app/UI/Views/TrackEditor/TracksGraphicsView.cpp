@@ -182,6 +182,7 @@ void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
             TimeGraphicsView::mousePressEvent(event);
         }
     }
+    syncClipSelectionToAppStatus();
     event->ignore();
 }
 
@@ -274,6 +275,7 @@ void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     else
         resetEditState();
     cancelRequested = false;
+    syncClipSelectionToAppStatus();
     TimeGraphicsView::mouseReleaseEvent(event);
 }
 
@@ -368,6 +370,18 @@ void TracksGraphicsView::resetEditState() {
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
+void TracksGraphicsView::syncClipSelectionToAppStatus() const {
+    const auto ids = selectedClipsId();
+    appStatus->selectedClips = ids;
+    if (!ids.isEmpty()) {
+        Track *track;
+        appModel->findClipById(ids.first(), track);
+        const auto trackIndex = appModel->tracks().indexOf(track);
+        if (trackIndex >= 0)
+            appStatus->selectedTrackIndex = trackIndex;
+    }
+}
+
 void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event,
                                                         AbstractClipView *clipItem) {
     appStatus->currentEditObject = AppStatus::EditObjectType::Clip;
@@ -426,6 +440,7 @@ void TracksGraphicsView::clearSelections() const {
     for (const auto item : m_scene->items())
         if (item->isSelected())
             item->setSelected(false);
+    syncClipSelectionToAppStatus();
 }
 
 void TracksGraphicsView::resetActiveClips() const {

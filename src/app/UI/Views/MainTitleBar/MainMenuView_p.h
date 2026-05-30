@@ -80,7 +80,9 @@ public:
     void exitApp();
 
     void enterClipEditorState();
-    void exitClipEditorState(); // TODO: 需要重构以支持轨道编辑器
+    void exitClipEditorState();
+    void enterTracksEditorState();
+    void exitTracksEditorState();
 
     void initActions();
     void initFileActions();

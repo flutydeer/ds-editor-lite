@@ -7,6 +7,10 @@
 
 #include "ClipController.h"
 #include "PlaybackController.h"
+#include "TrackController.h"
+#include "Model/AppStatus/AppStatus.h"
+#include "Model/ClipboardDataModel/ClipsInfo.h"
+#include "Utils/TimelineSnapUtils.h"
 
 #include <QClipboard>
 #include <QGuiApplication>
@@ -40,6 +44,16 @@ void ClipboardController::paste() {
         const auto info = NotesParamsInfo::deserializeFromJson(json.object());
         const auto tick = static_cast<int>(playbackController->position());
         clipController->pasteNotesWithParams(info, tick);
+    } else if (mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip))) {
+        const auto array =
+            mimeData->data(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip));
+        const auto json = QJsonDocument::fromJson(array);
+        const auto info = ClipsInfo::deserializeFromJson(json.object());
+        const auto tick = static_cast<int>(playbackController->position());
+        auto targetTrackIndex = appStatus->selectedTrackIndex.get();
+        if (targetTrackIndex < 0)
+            targetTrackIndex = 0;
+        trackController->pasteClips(info, tick, targetTrackIndex);
     }
 }
 
@@ -56,6 +70,7 @@ void ClipboardControllerPrivate::copyCutSelectedItems(const ControllerGlobal::El
         case ControllerGlobal::Track:
             break;
         case ControllerGlobal::Clip:
+            copyCutClips(isCut);
             break;
         case ControllerGlobal::NoteWithParams:
             copyCutNoteWithParams(isCut);
@@ -71,4 +86,12 @@ void ClipboardControllerPrivate::copyCutNoteWithParams(const bool isCut) {
         clipController->cutSelectedNotesWithParams();
     else
         clipController->copySelectedNotesWithParams();
+}
+
+void ClipboardControllerPrivate::copyCutClips(const bool isCut) {
+    qDebug() << "ClipboardController::copyCutClips isCut:" << isCut;
+    if (isCut)
+        trackController->cutSelectedClips();
+    else
+        trackController->copySelectedClips();
 }

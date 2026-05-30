@@ -21,8 +21,14 @@
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/TrackEditor/GraphicsItem/AudioClipView.h"
 #include "Global/AppGlobal.h"
+#include "Global/ControllerGlobal.h"
+#include "Utils/TimelineSnapUtils.h"
 
+#include <QClipboard>
 #include <QFileInfo>
+#include <QGuiApplication>
+#include <QJsonDocument>
+#include <QMimeData>
 
 TrackController::TrackController(QObject *parent) : QObject(parent) {
 }
@@ -248,6 +254,127 @@ SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int t
 
     setActiveClip(singingClip->id());
     return singingClip;
+}
+
+void TrackController::copySelectedClips() {
+    const auto clipIds = appStatus->selectedClips.get();
+    if (clipIds.isEmpty())
+        return;
+
+    QList<Clip *> clips;
+    QList<int> trackIndexOffsets;
+    int baseTrackIndex = -1;
+    for (const auto id : clipIds) {
+        Track *track;
+        const auto clip = appModel->findClipById(id, track);
+        if (!clip)
+            continue;
+        const auto trackIndex = appModel->tracks().indexOf(track);
+        if (baseTrackIndex < 0)
+            baseTrackIndex = trackIndex;
+        clips.append(clip);
+        trackIndexOffsets.append(trackIndex - baseTrackIndex);
+    }
+
+    if (clips.isEmpty())
+        return;
+
+    ClipsInfo info;
+    info.clips = clips;
+    info.trackIndexOffsets = trackIndexOffsets;
+
+    const auto json = ClipsInfo::serializeToJson(info);
+    const auto array = QJsonDocument(json).toJson(QJsonDocument::Compact);
+    const auto data = new QMimeData;
+    data->setData(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip), array);
+    QGuiApplication::clipboard()->setMimeData(data);
+}
+
+void TrackController::cutSelectedClips() {
+    copySelectedClips();
+    onRemoveClips(appStatus->selectedClips.get());
+}
+
+void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex) {
+    const auto &srcClips = info.clips;
+    if (srcClips.isEmpty())
+        return;
+
+    if (trackIndex < 0 || trackIndex >= appModel->tracks().count())
+        return;
+
+    const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+    const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantize);
+
+    int minStart = srcClips.first()->start();
+    for (const auto clip : srcClips)
+        minStart = qMin(minStart, clip->start());
+    const auto offset = snappedTick - minStart;
+
+    QList<Clip *> newClips;
+    QList<Track *> targetTracks;
+
+    for (int i = 0; i < srcClips.count(); i++) {
+        const auto srcClip = srcClips.at(i);
+        int targetTrackIndex = trackIndex + info.trackIndexOffsets.value(i, 0);
+        targetTrackIndex = qBound(0, targetTrackIndex, appModel->tracks().count() - 1);
+
+        Clip *newClip = nullptr;
+        if (srcClip->clipType() == IClip::Singing) {
+            const auto srcSinging = static_cast<SingingClip *>(srcClip);
+            auto singingClip = new SingingClip;
+            singingClip->setDefaultLanguage(srcSinging->defaultLanguage());
+
+            const auto srcNotes = srcSinging->notes().toList();
+            for (const auto srcNote : srcNotes) {
+                auto note = new Note;
+                note->setLocalStart(srcNote->localStart());
+                note->setLength(srcNote->length());
+                note->setKeyIndex(srcNote->keyIndex());
+                note->setCentShift(srcNote->centShift());
+                note->setLyric(srcNote->lyric());
+                note->setLanguage(srcNote->language());
+                note->setPronunciation(srcNote->pronunciation());
+                note->setPronCandidates(srcNote->pronCandidates());
+                note->setLineFeed(srcNote->lineFeed());
+                Phonemes ph;
+                ph.nameSeq.edited = srcNote->phonemeNameSeq().edited;
+                note->setPhonemes(ph);
+                singingClip->insertNote(note);
+            }
+            const auto targetTrack = appModel->tracks().at(targetTrackIndex);
+            singingClip->setTrackSingerInfo(targetTrack->singerInfo());
+            singingClip->setTrackSpeakerInfo(targetTrack->speakerInfo());
+            newClip = singingClip;
+
+        } else if (srcClip->clipType() == IClip::Audio) {
+            const auto srcAudio = static_cast<AudioClip *>(srcClip);
+            auto audioClip = new AudioClip;
+            audioClip->setPath(srcAudio->path());
+            newClip = audioClip;
+        }
+
+        if (newClip) {
+            newClip->setName(srcClip->name());
+            newClip->setStart(srcClip->start() + offset);
+            newClip->setLength(srcClip->length());
+            newClip->setClipStart(srcClip->clipStart());
+            newClip->setClipLen(srcClip->clipLen());
+            newClip->setGain(srcClip->gain());
+            newClip->setMute(srcClip->mute());
+            newClip->workspace() = srcClip->workspace();
+            newClips.append(newClip);
+            targetTracks.append(appModel->tracks().at(targetTrackIndex));
+        }
+    }
+
+    if (newClips.isEmpty())
+        return;
+
+    const auto a = new ClipActions;
+    a->insertClips(newClips, targetTracks);
+    a->execute();
+    historyManager->record(a);
 }
 
 void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {

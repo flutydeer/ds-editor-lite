@@ -44,6 +44,7 @@ public:
     Property<int> selectedTrackIndex = -1;
     Property<int> activeClipId = -1;
     Property<QList<int>> selectedNotes;
+    Property<QList<int>> selectedClips;
     Property<EditObjectType> currentEditObject = EditObjectType::None;
 
     // Loop
@@ -63,6 +64,7 @@ signals:
     void selectedTrackIndexChanged(int trackIndex);
     void activeClipIdChanged(int newId);
     void noteSelectionChanged(const QList<int> &selectedNotes);
+    void clipSelectionChanged(const QList<int> &selectedClips);
     void editingChanged(AppStatus::EditObjectType type);
 
     // Loop

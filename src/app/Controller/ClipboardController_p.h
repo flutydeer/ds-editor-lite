@@ -18,6 +18,7 @@ public:
 
     static void copyCutSelectedItems(ControllerGlobal::ElemType type, bool isCut);
     static void copyCutNoteWithParams(bool isCut);
+    static void copyCutClips(bool isCut);
 
 private:
     ClipboardController *q_ptr;

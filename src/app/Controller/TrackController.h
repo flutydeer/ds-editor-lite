@@ -7,6 +7,7 @@
 
 #define trackController TrackController::instance()
 
+#include "Model/ClipboardDataModel/ClipsInfo.h"
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Track.h"
 #include "Tasks/DecodeAudioTask.h"
@@ -50,6 +51,9 @@ public slots:
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args, int newTrackIndex);
     static void onRemoveClips(const QList<int> &clipsId);
     static SingingClip *onNewSingingClip(int trackIndex, int tick);
+    static void copySelectedClips();
+    static void cutSelectedClips();
+    static void pasteClips(const ClipsInfo &info, int tick, int trackIndex);
 
 private:
     void handleDecodeAudioTaskFinished(DecodeAudioTask *task);

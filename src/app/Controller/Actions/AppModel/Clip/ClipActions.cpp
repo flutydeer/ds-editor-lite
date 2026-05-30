@@ -17,6 +17,12 @@ void ClipActions::insertClips(const QList<Clip *> &clips, Track *track) {
         addAction(InsertClipAction::build(clip, track));
 }
 
+void ClipActions::insertClips(const QList<Clip *> &clips, const QList<Track *> &tracks) {
+    setName(tr("Insert clip(s)"));
+    for (int i = 0; i < clips.count(); i++)
+        addAction(InsertClipAction::build(clips[i], tracks[i]));
+}
+
 void ClipActions::removeClips(const QList<Clip *> &clips, const QList<Track *> &tracks) {
     setName(tr("Remove clip(s)"));
     int i = 0;
