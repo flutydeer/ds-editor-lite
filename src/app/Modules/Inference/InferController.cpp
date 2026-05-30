@@ -208,6 +208,12 @@ void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
             createAndRunGetPronTask(*clip);
     });
 
+    if (!clip->pieces().isEmpty()) {
+        // Cross-track move: pipelines are already running or completed,
+        // don't restart inference
+        return;
+    }
+
     // Trigger inference if language module is already ready and clip has a valid singer
     if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready &&
         !clip->singerInfo().isEmpty()) {
@@ -217,6 +223,13 @@ void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
 
 void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipRemoved(clip);
+
+    if (appModel->findClipById(clip->id())) {
+        // Cross-track move: inference pipelines continue running,
+        // don't cancel tasks or delete pipelines
+        return;
+    }
+
     cancelClipRelatedTasks(clip);
     // Remove related pipelines
     auto pipelines = Linq::where(m_inferPipelines, [clip](const InferPipeline *p) {

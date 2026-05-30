@@ -96,16 +96,17 @@ When a SingingClip view is reused (cross-track move), the type-specific signals 
 | `src/app/UI/Views/TrackEditor/TrackEditorView.h` | Added `m_pendingRemoveClipViews` |
 | `src/app/UI/Views/TrackEditor/TrackEditorView.cpp` | Cache/reuse clip views + signal reconnection |
 | `src/app/UI/Views/ClipEditor/ClipEditorView.cpp` | Handle `activeClipTrackChanged` for note color update |
+| `src/app/Modules/Inference/InferController.cpp` | Don't tear down inference pipelines on move |
 
 ## Signal Design: Three-Signal Approach
 
 `MoveClipToTrackAction` emits three signals, each serving a distinct set of consumers:
 
-| Signal | PianoRoll / ParamEditor | TrackEditorView | TrackSynthesizer |
+| Signal | PianoRoll / ParamEditor | TrackEditorView | InferController |
 |--------|------------------------|-----------------|-----------------|
 | `clip→notifyPropertyChanged()` | Updates offset, scene length, notes | `updateClipOnView` (position sync) | — |
-| `oldTrack→notifyClipChanged(Removed)` | — | Caches clip view, disconnects signals | Tears down singing context |
-| `newTrack→notifyClipChanged(Inserted)` | — | Reuses cached view, reconnects signals | Creates new singing context |
+| `oldTrack→notifyClipChanged(Removed)` | — | Caches clip view, disconnects signals | **Move:** keep pipelines alive; **Delete:** full teardown |
+| `newTrack→notifyClipChanged(Inserted)` | — | Reuses cached view, reconnects signals | **Move:** skip restart; **New clip:** start inference |
 
 This mirrors the pattern in `EditClipCommonPropertiesAction` (same-track), which emits only `notifyPropertyChanged()`. Cross-track moves add the two track signals to communicate track membership changes.
 
@@ -121,8 +122,26 @@ Added `m_clip->notifyPropertyChanged()` to both `execute()` and `undo()`.
 
 **File:** `src/app/Controller/Actions/AppModel/Clip/MoveClipToTrackAction.cpp`
 
+### Fix: Inference pipeline teardown on cross-track move
+
+**Root cause:** `InferControllerPrivate::handleSingingClipRemoved` unconditionally cancelled all inference tasks and deleted pipelines for the removed clip. For a cross-track move (where the clip still exists on a new track), this destroyed the inference pipeline unnecessarily. Subsequent `handleSingingClipInserted` started a new `GetPronunciationTask` chain, which eventually called `reSegment()`. Since notes hadn't changed and existing pieces were not dirty (their inference was complete), `reSegment` reused old pieces without creating new ones, so `createPipeline` was never called — the inference state machine never restarted.
+
+**Fix:** Both `handleSingingClipRemoved` and `handleSingingClipInserted` now distinguish between "move" and "delete/insert" using `appModel->findClipById(clip->id())` and `clip->pieces().isEmpty()`:
+
+```
+handleSingingClipRemoved:
+  if findClipById(clip->id()) → 移动: 只断信号连接，不动任务/管线
+  else                         → 删除: 完整拆除推理状态
+
+handleSingingClipInserted:
+  if !pieces().isEmpty()       → 移动: 只重连信号，不启动推理
+  else                         → 新clip: 启动获取发音→音素→reSegment→管线
+```
+
+This is the same "distinguish move from delete" pattern already used by `ProjectStatusController` and `TrackEditorView`.
+
+**File:** `src/app/Modules/Inference/InferController.cpp`
+
 ## Known Issues (Next Steps)
 
 1. **Inference state machine not transitioning:** After cross-track movement, the acoustic model inference state machine does not properly transition to the new track context. The `TrackSynthesizer` handles `clipChanged(Removed)` by tearing down the singing clip context, and `clipChanged(Inserted)` by creating a new one. The teardown/recreation may not properly restart the inference pipeline.
-
-2. **InferPiece misalignment:** When both time position and track change during a drag (clip moved horizontally AND vertically), the `InferPiece` positions may become misaligned. The clip's time properties are set on the model before the `notifyClipChanged` signals fire, but the inference subsystem may not properly recalculate piece positions after the combined time+track change.
