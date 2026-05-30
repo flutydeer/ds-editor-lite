@@ -204,7 +204,9 @@ ClipboardController::copyNotes / copyClips / pasteNotes / pasteClips
 
 ### Phase 4: Polish
 - 边界情况处理（无活动剪辑/轨道时粘贴、粘贴到项目边界外等）
-- 连接 `QClipboard::dataChanged` 更新 Paste 按钮
+- ✅ `QClipboard::dataChanged` 动态更新 Paste 按钮状态
+  - `MainMenuView` 构造函数中连接 `QClipboard::dataChanged`
+  - `updatePasteActionState()` 根据当前面板类型检查对应 MIME 类型是否可用
 - ✅ 编排视图右键菜单添加 Cut/Copy/Paste 项
   - 空白处：Paste（使用右键位置作为目标轨道和 tick，量化对齐网格）
   - 剪辑上：Cut / Copy（操作当前选区）

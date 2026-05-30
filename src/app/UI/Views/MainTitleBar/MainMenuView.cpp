@@ -9,10 +9,15 @@
 #include "Controller/ClipboardController.h"
 #include "Controller/ClipController.h"
 #include "Controller/TrackController.h"
+#include "Global/ControllerGlobal.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/AudioClip.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
+
+#include <QClipboard>
+#include <QGuiApplication>
+#include <QMimeData>
 #include "Modules/Extractors/MidiExtractController.h"
 #include "Modules/Extractors/PitchExtractController.h"
 #include "Modules/History/HistoryManager.h"
@@ -41,6 +46,9 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
 
     connect(appController, &AppController::activePanelChanged, this,
             [=](AppGlobal::PanelType panel) { d->onActivatedPanelChanged(panel); });
+
+    connect(QGuiApplication::clipboard(), &QClipboard::dataChanged, this,
+            [this] { d_ptr->updatePasteActionState(); });
 
     d->initActions();
     addMenu(d->buildFileMenu());
@@ -328,7 +336,7 @@ void MainMenuViewPrivate::enterClipEditorState() {
     QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionCopy,
                      &QAction::setEnabled);
 
-    actionPaste->setEnabled(true);
+    updatePasteActionState();
 
     actionOctaveUp->setEnabled(hasSelectedNotes);
     QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionOctaveUp,
@@ -382,7 +390,7 @@ void MainMenuViewPrivate::enterTracksEditorState() {
     actionCut->setEnabled(hasSelectedClips);
     actionCopy->setEnabled(hasSelectedClips);
     actionDelete->setEnabled(hasSelectedClips);
-    actionPaste->setEnabled(true);
+    updatePasteActionState();
     actionSelectAll->setEnabled(true);
 
     connect(appStatus, &AppStatus::clipSelectionChanged, q, [this](const QList<int> &clips) {
@@ -405,6 +413,22 @@ void MainMenuViewPrivate::exitTracksEditorState() {
     actionDelete->setEnabled(false);
     actionPaste->setEnabled(false);
     actionSelectAll->setEnabled(false);
+}
+
+void MainMenuViewPrivate::updatePasteActionState() {
+    const auto mimeData = QGuiApplication::clipboard()->mimeData();
+    if (!mimeData) {
+        actionPaste->setEnabled(false);
+        return;
+    }
+    if (m_panelType == AppGlobal::ClipEditor)
+        actionPaste->setEnabled(
+            mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams)));
+    else if (m_panelType == AppGlobal::TracksEditor)
+        actionPaste->setEnabled(
+            mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip)));
+    else
+        actionPaste->setEnabled(false);
 }
 
 void MainMenuViewPrivate::initActions() {

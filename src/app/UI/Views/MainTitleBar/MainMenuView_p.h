@@ -83,6 +83,7 @@ public:
     void exitClipEditorState();
     void enterTracksEditorState();
     void exitTracksEditorState();
+    void updatePasteActionState();
 
     void initActions();
     void initFileActions();
