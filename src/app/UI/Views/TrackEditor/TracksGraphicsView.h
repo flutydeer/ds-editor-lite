@@ -34,6 +34,7 @@ private:
     enum MouseMoveBehavior { Move, ResizeRight, ResizeLeft, None };
 
     bool event(QEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -66,6 +67,8 @@ private:
     int m_mouseDownColorIndex = 0;
     bool m_tempQuantizeOff = false;
     AbstractClipView *m_currentEditingClip = nullptr;
+    QList<AbstractClipView *> m_pastePreviewClipViews;
+    void clearPastePreviewClipViews();
 };
 
 #endif // DATASET_TOOLS_TRACKSGRAPHICSVIEW_H

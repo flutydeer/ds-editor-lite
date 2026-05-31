@@ -193,7 +193,6 @@ void SingingClipView::removeNote(const int id) {
 }
 
 void SingingClipView::dispose() {
-    qDebug() << "dispose()";
     for (const auto note : m_notes)
         delete note;
     m_notes.clear();

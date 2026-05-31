@@ -211,7 +211,11 @@ ClipboardController::copyNotes / copyClips / pasteNotes / pasteClips
   - 空白处：Paste（使用右键位置作为目标轨道和 tick，量化对齐网格）
   - 剪辑上：Cut / Copy（操作当前选区）
   - 同时清理了不再使用的 `m_backgroundMenu` 成员
-- **粘贴预览**：右键菜单 Paste 获得焦点（鼠标悬停/键盘导航）时，在钢琴卷帘上显示半透明"幽灵音符"预览粘贴位置和内容。通过 `QAction::hovered` 信号驱动，临时创建低 opacity 的 NoteView，菜单关闭时清理。预估 ~30-50 行代码，不涉及架构改动
+- ✅ **粘贴预览**：右键菜单 Paste 获得焦点（鼠标悬停/键盘导航）时显示半透明幽灵预览
+  - 钢琴卷帘：Paste action 的 `QAction::hovered` 创建 ghost NoteView（opacity 0.35，不可交互）
+  - 编排视图：Paste action 的 `QAction::hovered` 创建 ghost SingingClipView/AudioClipView
+  - 清理路径：其他 action 的 `hovered`、菜单 `QEvent::Leave`、`QMenu::aboutToHide`
+  - 轻量优化：预览已存在时不重复创建；移除 `SingingClipView::dispose()` 的调试日志
 
 ## Critical Files
 

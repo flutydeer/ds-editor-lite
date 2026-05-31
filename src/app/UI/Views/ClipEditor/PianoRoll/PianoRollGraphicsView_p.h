@@ -36,6 +36,7 @@ class PianoRollGraphicsViewPrivate : public QObject {
 
 public:
     explicit PianoRollGraphicsViewPrivate(PianoRollGraphicsView *p) : q_ptr(p) {};
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
     SingingClip *m_clip = nullptr;
     int m_offset = 0; // Clip 's "start" property
@@ -82,6 +83,8 @@ public:
     Menu *buildNoteContextMenu(NoteView *noteView, const QPoint &mousePos);
     Menu *buildBackgroundContextMenu(const QPoint &pos);
     void splitNoteAtMousePosition(NoteView *noteView, const QPoint &mousePos);
+    void clearPastePreviewViews();
+    QList<NoteView *> m_pastePreviewViews;
 
     void moveToNullClipState();
     void moveToSingingClipState(SingingClip *clip);

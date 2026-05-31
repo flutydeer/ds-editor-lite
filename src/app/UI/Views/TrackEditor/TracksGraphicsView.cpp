@@ -12,8 +12,12 @@
 #include "Global/ControllerGlobal.h"
 #include "Global/TracksEditorGlobal.h"
 #include "GraphicsItem/AbstractClipView.h"
+#include "GraphicsItem/AudioClipView.h"
+#include "GraphicsItem/SingingClipView.h"
 #include "GraphicsItem/TrackEditorBackgroundView.h"
 #include "Model/AppModel/AppModel.h"
+#include "Model/AppModel/AudioClip.h"
+#include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/ClipboardDataModel/ClipsInfo.h"
 #include "Modules/Audio/AudioContext.h"
@@ -25,6 +29,7 @@
 
 #include <QClipboard>
 #include <QFileDialog>
+#include <climits>
 #include <QGuiApplication>
 #include <QJsonDocument>
 #include <QKeyEvent>
@@ -153,6 +158,12 @@ bool TracksGraphicsView::event(QEvent *event) {
         discardAction();
     }
     return TimeGraphicsView::event(event);
+}
+
+bool TracksGraphicsView::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QEvent::Leave)
+        clearPastePreviewClipViews();
+    return TimeGraphicsView::eventFilter(watched, event);
 }
 
 void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
@@ -319,6 +330,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
                 tick, snapStep(false));
 
             CMenu menu(this);
+            menu.installEventFilter(this);
             menu.addAction(m_actionNewSingingClip);
             menu.addAction(m_actionAddAudioClip);
             menu.addSeparator();
@@ -334,9 +346,72 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
                 const auto json = QJsonDocument::fromJson(array);
                 ClipsInfo info = ClipsInfo::deserializeFromJson(json.object());
                 const auto pasteTick = m_tick;
+                const auto previewTick = TimelineSnapUtils::snapNearest(
+                    pasteTick, TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize));
                 const auto pasteTrack = trackIndex;
                 connect(actionPaste, &QAction::triggered, this, [info, pasteTick, pasteTrack] {
                     trackController->pasteClips(info, pasteTick, pasteTrack);
+                });
+
+                int firstClipStart = INT_MAX;
+                for (const auto clip : info.clips)
+                    firstClipStart = qMin(firstClipStart, clip->start());
+
+                connect(actionPaste, &QAction::hovered, this,
+                        [this, info, previewTick, pasteTrack, firstClipStart] {
+                    if (!m_pastePreviewClipViews.isEmpty())
+                        return;
+                    for (int i = 0; i < info.clips.count(); i++) {
+                        const auto clip = info.clips.at(i);
+                        int targetTrack =
+                            pasteTrack + info.trackIndexOffsets.value(i, 0);
+                        targetTrack = qBound(0, targetTrack, appModel->tracks().count() - 1);
+                        const int targetStart =
+                            previewTick + (clip->start() - firstClipStart);
+
+                        AbstractClipView *clipView = nullptr;
+                        if (clip->clipType() == IClip::Singing) {
+                            const auto sc = static_cast<SingingClip *>(clip);
+                            auto view = new SingingClipView(-1);
+                            view->loadCommonProperties(Clip::ClipCommonProperties(*clip));
+                            view->setTrackIndex(targetTrack);
+                            view->setStart(targetStart);
+                            view->loadNotes(sc->notes());
+                            view->setSingerName(sc->singerInfo().name());
+                            view->setSpeakerName(sc->speakerInfo().name());
+                            view->setDefaultLanguage(sc->defaultLanguage());
+                            clipView = view;
+                        } else if (clip->clipType() == IClip::Audio) {
+                            const auto ac = static_cast<AudioClip *>(clip);
+                            auto view = new AudioClipView(-1);
+                            view->loadCommonProperties(Clip::ClipCommonProperties(*clip));
+                            view->setTrackIndex(targetTrack);
+                            view->setStart(targetStart);
+                            view->setPath(ac->path());
+                            view->setTempo(appModel->tempo());
+                            view->setAudioInfo(ac->audioInfo());
+                            clipView = view;
+                        }
+
+                        if (clipView) {
+                            clipView->setOpacity(0.35);
+                            clipView->setAcceptedMouseButtons(Qt::NoButton);
+                            clipView->setAcceptHoverEvents(false);
+                            clipView->setFlag(QGraphicsItem::ItemIsSelectable, false);
+                            m_scene->addCommonItem(clipView);
+                            m_pastePreviewClipViews.append(clipView);
+                        }
+                    }
+                });
+
+                for (auto a : menu.actions()) {
+                    if (a != actionPaste && !a->isSeparator())
+                        connect(a, &QAction::hovered, this,
+                                [this] { clearPastePreviewClipViews(); });
+                }
+
+                connect(&menu, &QMenu::aboutToHide, this, [this] {
+                    clearPastePreviewClipViews();
                 });
             }
 
@@ -394,6 +469,14 @@ void TracksGraphicsView::resetEditState() {
     m_movedBeforeMouseUp = false;
     m_currentEditingClip = nullptr;
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
+}
+
+void TracksGraphicsView::clearPastePreviewClipViews() {
+    for (auto view : m_pastePreviewClipViews) {
+        m_scene->removeCommonItem(view);
+        delete view;
+    }
+    m_pastePreviewClipViews.clear();
 }
 
 void TracksGraphicsView::syncClipSelectionToAppStatus() const {

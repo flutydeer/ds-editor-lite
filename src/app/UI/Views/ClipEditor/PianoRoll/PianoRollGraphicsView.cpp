@@ -157,6 +157,12 @@ void PianoRollGraphicsView::notifyKeyRangeChanged() {
     emit keyRangeChanged(topKeyIndex(), bottomKeyIndex());
 }
 
+bool PianoRollGraphicsViewPrivate::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QEvent::Leave)
+        clearPastePreviewViews();
+    return QObject::eventFilter(watched, event);
+}
+
 bool PianoRollGraphicsView::event(QEvent *event) {
     Q_D(PianoRollGraphicsView);
     if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
@@ -869,6 +875,7 @@ Menu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView,
 Menu *PianoRollGraphicsViewPrivate::buildBackgroundContextMenu(const QPoint &pos) {
     Q_Q(PianoRollGraphicsView);
     const auto menu = new Menu(q);
+    menu->installEventFilter(this);
 
     const auto mimeData = QGuiApplication::clipboard()->mimeData();
     const auto hasPasteData =
@@ -884,10 +891,51 @@ Menu *PianoRollGraphicsViewPrivate::buildBackgroundContextMenu(const QPoint &pos
         NotesParamsInfo info = NotesParamsInfo::deserializeFromJson(json.object());
         const auto scenePos = q->mapToScene(pos);
         const auto tick = qRound(q->sceneXToTick(scenePos.x())) + m_offset;
+        const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+        const auto previewTick = TimelineSnapUtils::snapNearest(tick, quantize);
 
         connect(actionPaste, &QAction::triggered, q, [this, info, tick] {
             clipController->pasteNotesWithParams(info, tick);
         });
+
+        int minLocalStart = INT_MAX;
+        for (const auto note : info.selectedNotes)
+            minLocalStart = qMin(minLocalStart, note->localStart());
+
+        connect(actionPaste, &QAction::hovered, q, [this, q, info, previewTick, minLocalStart] {
+            if (!m_pastePreviewViews.isEmpty())
+                return;
+            for (const auto note : info.selectedNotes) {
+                const auto noteView = new NoteView(-1);
+                noteView->setPronunciationView(new PronunciationView(-1));
+                noteView->setRStart(note->localStart() - minLocalStart + previewTick - m_offset);
+                noteView->setLength(note->length());
+                noteView->setKeyIndex(note->keyIndex());
+                noteView->setLyric(note->lyric());
+                const auto pron = note->pronunciation();
+                noteView->setPronunciation(pron.isEdited() ? pron.edited : pron.original,
+                                           pron.isEdited());
+                noteView->setOverlapped(note->overlapped());
+                noteView->setOpacity(0.35);
+                noteView->setAcceptedMouseButtons(Qt::NoButton);
+                noteView->setAcceptHoverEvents(false);
+                noteView->setFlag(QGraphicsItem::ItemIsSelectable, false);
+                if (noteView->pronunciationView())
+                    noteView->pronunciationView()->setOpacity(0.35);
+
+                q->scene()->addCommonItem(noteView);
+                if (noteView->pronunciationView())
+                    q->scene()->addCommonItem(noteView->pronunciationView());
+                m_pastePreviewViews.append(noteView);
+            }
+        });
+
+        for (auto a : menu->actions()) {
+            if (a != actionPaste && !a->isSeparator())
+                connect(a, &QAction::hovered, q, [this] { clearPastePreviewViews(); });
+        }
+
+        connect(menu, &QMenu::aboutToHide, q, [this] { clearPastePreviewViews(); });
     }
 
     return menu;
@@ -1184,6 +1232,19 @@ void PianoRollGraphicsViewPrivate::removeNoteViewFromScene(NoteView *view) {
     }
     noteViews.removeOne(view);
     noteViewIndex.remove(view->id());
+}
+
+void PianoRollGraphicsViewPrivate::clearPastePreviewViews() {
+    Q_Q(PianoRollGraphicsView);
+    for (auto view : m_pastePreviewViews) {
+        if (view->scene() == q->scene()) {
+            q->scene()->removeCommonItem(view);
+            if (view->pronunciationView())
+                q->scene()->removeCommonItem(view->pronunciationView());
+        }
+        delete view;
+    }
+    m_pastePreviewViews.clear();
 }
 
 void PianoRollGraphicsViewPrivate::onHoverEnter(QHoverEvent *event) {
