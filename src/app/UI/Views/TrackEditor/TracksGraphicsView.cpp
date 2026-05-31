@@ -366,6 +366,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
                         int targetTrack =
                             pasteTrack + info.trackIndexOffsets.value(i, 0);
                         targetTrack = qBound(0, targetTrack, appModel->tracks().count() - 1);
+                        const auto track = appModel->tracks().at(targetTrack);
                         const int targetStart =
                             previewTick + (clip->start() - firstClipStart);
 
@@ -377,8 +378,8 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
                             view->setTrackIndex(targetTrack);
                             view->setStart(targetStart);
                             view->loadNotes(sc->notes());
-                            view->setSingerName(sc->singerInfo().name());
-                            view->setSpeakerName(sc->speakerInfo().name());
+                            view->setSingerName(track->singerInfo().name());
+                            view->setSpeakerName(track->speakerInfo().name());
                             view->setDefaultLanguage(sc->defaultLanguage());
                             clipView = view;
                         } else if (clip->clipType() == IClip::Audio) {
@@ -394,6 +395,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
                         }
 
                         if (clipView) {
+                            clipView->setColorIndex(track->colorIndex());
                             clipView->setOpacity(0.35);
                             clipView->setAcceptedMouseButtons(Qt::NoButton);
                             clipView->setAcceptHoverEvents(false);
