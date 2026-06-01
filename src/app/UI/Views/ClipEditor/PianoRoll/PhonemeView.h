@@ -50,6 +50,11 @@ public:
         bool offsetEdited = false;
         bool offsetReady = false;
         bool hoverOnControlBar = false;
+        bool isFirstOfNote = false;
+        bool isLastOfNote = false;
+        bool isFirstOfPiece = false;
+        double pieceHeadAvailableLengthMs = 0;
+        double piecePaddingStartMs = 0;
         int startOffset = 0;
 
         PhonemeViewModel *prior = nullptr;

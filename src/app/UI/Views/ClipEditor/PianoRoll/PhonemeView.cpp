@@ -17,6 +17,8 @@
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 
+#include <algorithm>
+
 #include <QElapsedTimer>
 #include <QMouseEvent>
 #include <QPainter>
@@ -322,12 +324,48 @@ void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
         const auto cur = m_curPhoneme;
         const auto prior = cur->prior;
         const auto curTargetStart = cur->start + deltaTick;
-        if (curTargetStart <= prior->start)
-            deltaTick = prior->start - cur->start;
+
+        double leftBoundary = prior->start;
+        if (cur->isFirstOfNote) {
+            if (cur->isFirstOfPiece) {
+                const auto extraHeadMs = cur->pieceHeadAvailableLengthMs - cur->piecePaddingStartMs;
+                if (extraHeadMs > 0) {
+                    const auto extraHeadTicks = qRound(appModel->msToTick(extraHeadMs));
+                    leftBoundary = cur->noteStart - extraHeadTicks;
+                } else {
+                    leftBoundary = cur->noteStart;
+                }
+            } else if (prior->type != PhonemeViewModel::Sil) {
+                leftBoundary = std::max<double>(prior->noteStart, prior->start);
+            }
+        }
+        if (curTargetStart <= leftBoundary) {
+            if (cur->start > leftBoundary)
+                deltaTick = leftBoundary - cur->start;
+            else if (deltaTick < 0)
+                deltaTick = 0;
+        }
+
         if (const auto next = cur->next) {
-            const auto nextStart = next->start;
-            if (curTargetStart > nextStart)
-                deltaTick = nextStart - cur->start;
+            double rightBoundary = next->start;
+            if (cur->isLastOfNote) {
+                const auto noteRight = cur->noteStart + cur->noteLength;
+                rightBoundary = std::min(next->start, noteRight);
+            }
+            if (curTargetStart > rightBoundary) {
+                if (cur->start < rightBoundary)
+                    deltaTick = rightBoundary - cur->start;
+                else if (deltaTick > 0)
+                    deltaTick = 0;
+            }
+        } else if (cur->isLastOfNote) {
+            const auto noteRight = cur->noteStart + cur->noteLength;
+            if (curTargetStart > noteRight) {
+                if (cur->start < noteRight)
+                    deltaTick = noteRight - cur->start;
+                else if (deltaTick > 0)
+                    deltaTick = 0;
+            }
         }
 
         cur->startOffset = deltaTick;
@@ -509,6 +547,13 @@ void PhonemeView::buildPhonemeList() {
         prior = sil;
     };
 
+    QHash<const Note *, const InferPiece *> noteToPiece;
+    const auto &pieces = m_clip->pieces();
+    for (const auto &piece : pieces) {
+        if (!piece->notes.isEmpty())
+            noteToPiece[piece->notes.first()] = piece;
+    }
+
     for (int i = 0; i < m_notes.count(); ++i) {
         const auto note = m_notes.at(i);
         if (note->isSlur())
@@ -542,7 +587,9 @@ void PhonemeView::buildPhonemeList() {
         {
             auto names = note->phonemeNameSeq();
             auto offsets = note->phonemeOffsetSeq();
-            for (int k = 0; k < names.result().count(); k++) {
+            const auto phoneCount = names.result().count();
+            const auto piece = noteToPiece.value(note);
+            for (int k = 0; k < phoneCount; k++) {
                 const auto model = new PhonemeViewModel;
                 model->type = PhonemeViewModel::Normal;
                 model->noteId = note->id();
@@ -554,6 +601,13 @@ void PhonemeView::buildPhonemeList() {
                 model->language = names.result().at(k).language;
                 model->name = names.result().at(k).name;
                 model->isOnset = names.result().at(k).isOnset;
+                model->isFirstOfNote = (k == 0);
+                model->isLastOfNote = (k == phoneCount - 1);
+                if (piece && k == 0) {
+                    model->isFirstOfPiece = true;
+                    model->pieceHeadAvailableLengthMs = piece->headAvailableLengthMs;
+                    model->piecePaddingStartMs = piece->paddingStartMs;
+                }
                 if (!offsets.result().isEmpty() && k < offsets.result().count()) {
                     model->offsetReady = true;
                     const auto phoneStartMs = noteStartMs + offsets.result().at(k);
