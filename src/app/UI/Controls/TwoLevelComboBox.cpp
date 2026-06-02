@@ -167,13 +167,18 @@ void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
 QString TwoLevelComboBox::currentText() const {
     const QString singerName = m_currentItem.singer.name();
     const QString speakerName = m_currentItem.speaker.name();
+    QString effectiveText;
     if (singerName.isEmpty()) {
-        return m_currentItem.text;
+        effectiveText = m_currentItem.text;
+    } else if (speakerName.isEmpty()) {
+        effectiveText = singerName;
+    } else {
+        effectiveText = singerName + " / " + speakerName;
     }
-    if (speakerName.isEmpty()) {
-        return singerName;
+    if (m_currentItem.isInheritItem && effectiveText != m_currentItem.text) {
+        return tr("Follow Track") + " (" + effectiveText + ")";
     }
-    return singerName + " / " + speakerName;
+    return effectiveText;
 }
 
 SingerInfo TwoLevelComboBox::currentSinger() const {

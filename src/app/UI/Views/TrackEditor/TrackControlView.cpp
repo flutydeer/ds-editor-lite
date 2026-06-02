@@ -284,11 +284,11 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
         if (ok) {
             if (const auto it = speakerInfoMapping.find(currentSpeakerLabel);
                 it != speakerInfoMapping.end()) {
-                m_track->setSpeakerInfo(it.value());
+                m_track->setSingerAndSpeakerInfo(m_track->singerInfo(), it.value());
                 qDebug() << "Speaker for track" << m_track->id() << "set to" << it.value().name()
                          << " (" << it.value().id() << ")";
             } else {
-                m_track->setSpeakerInfo({});
+                m_track->setSingerAndSpeakerInfo(m_track->singerInfo(), {});
                 qDebug() << "Speaker for track" << m_track->id() << "cleared";
             }
         }

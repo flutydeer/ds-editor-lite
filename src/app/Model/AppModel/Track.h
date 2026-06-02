@@ -47,12 +47,10 @@ public:
     QString defaultG2pId() const;
 
     SingerInfo singerInfo() const;
-    void setSingerInfo(const SingerInfo &singerInfo);
     SingerIdentifier singerIdentifier() const;
 
     QString speakerId() const;
     SpeakerInfo speakerInfo() const;
-    void setSpeakerInfo(const SpeakerInfo &speakerInfo);
 
     void setSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
 
@@ -78,8 +76,6 @@ public:
 signals:
     void propertyChanged();
     void clipChanged(Track::ClipChangeType type, Clip *clip);
-    void singerChanged(const SingerInfo &singerInfo);
-    void speakerChanged(const SpeakerInfo &speaker);
     void singerOrSpeakerChanged();
 
 private:

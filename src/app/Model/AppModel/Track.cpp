@@ -45,28 +45,6 @@ OverlappableSerialList<Clip> Track::clips() const {
     return m_clips;
 }
 
-static void setTrackSingerForClip(Clip *clip, const SingerInfo &singerInfo) {
-    if (!clip) {
-        return;
-    }
-    if (clip->clipType() == IClip::Singing) {
-        // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
-        const auto singingClip = static_cast<SingingClip *>(clip);
-        singingClip->setTrackSingerInfo(singerInfo);
-    }
-}
-
-static void setTrackSpeakerForClip(Clip *clip, const SpeakerInfo &speakerInfo) {
-    if (!clip) {
-        return;
-    }
-    if (clip->clipType() == IClip::Singing) {
-        // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
-        const auto singingClip = static_cast<SingingClip *>(clip);
-        singingClip->setTrackSpeakerInfo(speakerInfo);
-    }
-}
-
 static void setTrackSingerAndSpeakerForClip(Clip *clip, const SingerInfo &singerInfo,
                                              const SpeakerInfo &speakerInfo) {
     if (!clip) {
@@ -139,29 +117,12 @@ SingerInfo Track::singerInfo() const {
     return m_singerInfo;
 }
 
-void Track::setSingerInfo(const SingerInfo &singerInfo) {
-    if (m_singerInfo == singerInfo) {
-        return;
-    }
-    m_singerInfo = singerInfo;
-    this->updateDefaultG2pId(m_defaultLanguage);
-    emit singerChanged(m_singerInfo);
-}
-
 QString Track::speakerId() const {
     return speakerInfo().id();
 }
 
 SpeakerInfo Track::speakerInfo() const {
     return m_speakerInfo;
-}
-
-void Track::setSpeakerInfo(const SpeakerInfo &speakerInfo) {
-    if (m_speakerInfo == speakerInfo) {
-        return;
-    }
-    m_speakerInfo = speakerInfo;
-    emit speakerChanged(m_speakerInfo);
 }
 
 void Track::setSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo) {
@@ -176,12 +137,6 @@ void Track::setSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerI
     m_speakerInfo = speakerInfo;
     this->updateDefaultG2pId(m_defaultLanguage);
 
-    if (singerInfoChanged) {
-        emit singerChanged(m_singerInfo);
-    }
-    if (speakerInfoChanged) {
-        emit speakerChanged(m_speakerInfo);
-    }
     emit singerOrSpeakerChanged();
 }
 

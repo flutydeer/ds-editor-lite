@@ -74,6 +74,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
                 d->m_cbSinger->setCurrentData(d->m_singingClip->singerInfo(),
                                               d->m_singingClip->speakerInfo(), false);
             }
+            d->m_cbSinger->setToolTip(d->m_cbSinger->currentText());
         }
     });
     connect(d->m_cbSinger, &TwoLevelComboBox::currentDataChanged, d,
@@ -368,6 +369,7 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
         const bool inherit = m_singingClip->useTrackSingerInfo.get();
         m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(),
                                    inherit);
+        m_cbSinger->setToolTip(m_cbSinger->currentText());
         connect(m_cbSinger, &TwoLevelComboBox::currentDataChanged, this,
                 &ClipEditorToolBarViewPrivate::onSingerEdited);
         connect(m_singingClip, &SingingClip::singerOrSpeakerChanged, this,
@@ -397,17 +399,19 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
 void ClipEditorToolBarViewPrivate::onClipSingerChanged() const {
     const bool inherit = m_singingClip->useTrackSingerInfo.get();
     m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(), inherit);
+    m_cbSinger->setToolTip(m_cbSinger->currentText());
 }
 
 void ClipEditorToolBarViewPrivate::onSingerEdited() const {
     if (m_singingClip) {
         if (m_cbSinger->isInheritSelected()) {
-            m_singingClip->useTrackSinger();
-            m_singingClip->useTrackSpeaker();
+            m_singingClip->useTrackSingerAndSpeaker();
+            m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(), true);
         } else {
             const auto singerInfo = m_cbSinger->currentSinger();
             const auto speakerInfo = m_cbSinger->currentSpeaker();
             m_singingClip->setOwnSingerAndSpeaker(singerInfo, speakerInfo);
         }
+        m_cbSinger->setToolTip(m_cbSinger->currentText());
     }
 }

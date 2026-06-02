@@ -50,8 +50,7 @@ void ValidationController::onModelChanged() {
                 if (singingClip->defaultLanguage().isEmpty() ||
                     singingClip->defaultLanguage() == "unknown")
                     singingClip->setDefaultLanguage(track->defaultLanguage());
-                singingClip->setTrackSingerInfo(track->singerInfo());
-                singingClip->setTrackSpeakerInfo(track->speakerInfo());
+                singingClip->setTrackSingerAndSpeakerInfo(track->singerInfo(), track->speakerInfo());
             }
         }
     }

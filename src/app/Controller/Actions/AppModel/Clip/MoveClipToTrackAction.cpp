@@ -4,6 +4,7 @@
 
 #include "MoveClipToTrackAction.h"
 
+#include "Model/AppModel/SingingClip.h"
 #include "Model/AppModel/Track.h"
 
 MoveClipToTrackAction *MoveClipToTrackAction::build(const Clip::ClipCommonProperties &oldArgs,
@@ -27,6 +28,10 @@ void MoveClipToTrackAction::execute() {
     m_clip->setLength(m_newArgs.length);
     m_clip->setClipLen(m_newArgs.clipLen);
     m_newTrack->insertClip(m_clip);
+    if (m_clip->clipType() == IClip::Singing) {
+        const auto singingClip = static_cast<SingingClip *>(m_clip);
+        singingClip->setTrackSingerAndSpeakerInfo(m_newTrack->singerInfo(), m_newTrack->speakerInfo());
+    }
     m_clip->notifyPropertyChanged();
     m_oldTrack->notifyClipChanged(Track::Removed, m_clip);
     m_newTrack->notifyClipChanged(Track::Inserted, m_clip);
@@ -40,6 +45,10 @@ void MoveClipToTrackAction::undo() {
     m_clip->setLength(m_oldArgs.length);
     m_clip->setClipLen(m_oldArgs.clipLen);
     m_oldTrack->insertClip(m_clip);
+    if (m_clip->clipType() == IClip::Singing) {
+        const auto singingClip = static_cast<SingingClip *>(m_clip);
+        singingClip->setTrackSingerAndSpeakerInfo(m_oldTrack->singerInfo(), m_oldTrack->speakerInfo());
+    }
     m_clip->notifyPropertyChanged();
     m_newTrack->notifyClipChanged(Track::Removed, m_clip);
     m_oldTrack->notifyClipChanged(Track::Inserted, m_clip);

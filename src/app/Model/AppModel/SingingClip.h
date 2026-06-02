@@ -61,18 +61,10 @@ public:
     QString defaultG2pId() const;
 
     SingerInfo singerInfo() const;
-    void setSingerInfo(const SingerInfo &singerInfo);
-    void setTrackSingerInfo(const SingerInfo &singerInfo);
-    void useTrackSinger();
-
     SpeakerInfo speakerInfo() const;
-    void setSpeakerInfo(const SpeakerInfo &speakerInfo);
-    void setTrackSpeakerInfo(const SpeakerInfo &speakerInfo);
-    void useTrackSpeaker();
-
     void setTrackSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
-
     void setOwnSingerAndSpeaker(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
+    void useTrackSingerAndSpeaker();
 
     QString speakerId() const;
     SingerIdentifier singerIdentifier() const;
@@ -83,8 +75,6 @@ public:
     Property<bool> useTrackSpeakerInfo{true};
 
 signals:
-    void singerChanged(const SingerInfo &identifier);
-    void speakerChanged(const SpeakerInfo &speaker);
     void singerOrSpeakerChanged();
     void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void paramChanged(ParamInfo::Name name, Param::Type type);

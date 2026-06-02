@@ -401,12 +401,13 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
 
                 // Read official sources.singers[] for clip singer
                 bool hasOfficialSinger = false;
+                SingerInfo officialSinger;
                 SpeakerInfo officialSpeaker;
                 if (castClip->sources.has_value()) {
                     auto primarySinger =
                         decodePrimarySingerSource(castClip->sources->singers);
                     if (primarySinger.has_value()) {
-                        clip->setSingerInfo(primarySinger->singerInfo);
+                        officialSinger = primarySinger->singerInfo;
                         officialSpeaker = primarySinger->speakerInfo;
                         hasOfficialSinger = true;
                     }
@@ -416,31 +417,41 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 auto clipDsWs = dsWorkspaceFrom(castClip->workspace);
 
                 // Determine useTrackSingerInfo
+                bool useTrackSingerInfo = true;
                 if (clipDsWs.contains("useTrackSingerInfo")) {
-                    clip->useTrackSingerInfo = clipDsWs["useTrackSingerInfo"].toBool();
+                    useTrackSingerInfo = clipDsWs["useTrackSingerInfo"].toBool();
                 } else if (hasOfficialSinger) {
                     // Third-party file with official singer but no DS workspace flag
-                    clip->useTrackSingerInfo = false;
-                } else {
-                    // Old DS file or no singer info at all
-                    clip->useTrackSingerInfo = true;
+                    useTrackSingerInfo = false;
                 }
 
                 // Determine useTrackSpeakerInfo
-                if (clipDsWs.contains("useTrackSpeakerInfo")) {
-                    clip->useTrackSpeakerInfo = clipDsWs["useTrackSpeakerInfo"].toBool();
-                } else {
-                    clip->useTrackSpeakerInfo = true;
+                const bool hasUseTrackSpeakerInfo = clipDsWs.contains("useTrackSpeakerInfo");
+                bool useTrackSpeakerInfo = true;
+                if (hasUseTrackSpeakerInfo) {
+                    useTrackSpeakerInfo = clipDsWs["useTrackSpeakerInfo"].toBool();
+                } else if (!officialSpeaker.isEmpty()) {
+                    useTrackSpeakerInfo = false;
                 }
 
                 // Read clip speaker
                 auto speakerObj = clipDsWs["speaker"].toObject();
+                const auto effectiveSingerForSpeaker = useTrackSingerInfo ? track->singerInfo()
+                                                                          : officialSinger;
+                SpeakerInfo ownSpeaker;
                 if (!speakerObj.isEmpty()) {
-                    auto clipSpeaker = resolveSpeakerInfo(clip->singerInfo(),
-                                                         decodeSpeakerInfoFromWorkspace(speakerObj));
-                    clip->setSpeakerInfo(clipSpeaker);
-                } else if (!officialSpeaker.isEmpty()) {
-                    clip->setSpeakerInfo(resolveSpeakerInfo(clip->singerInfo(), officialSpeaker));
+                    ownSpeaker = resolveSpeakerInfo(effectiveSingerForSpeaker,
+                                                    decodeSpeakerInfoFromWorkspace(speakerObj));
+                } else if (!officialSpeaker.isEmpty() && (!hasUseTrackSpeakerInfo || !useTrackSpeakerInfo)) {
+                    ownSpeaker = resolveSpeakerInfo(effectiveSingerForSpeaker, officialSpeaker);
+                }
+
+                if (useTrackSingerInfo && useTrackSpeakerInfo) {
+                    clip->useTrackSingerAndSpeaker();
+                } else {
+                    const auto ownSinger = useTrackSingerInfo ? track->singerInfo() : officialSinger;
+                    const auto ownSpeakerInfo = useTrackSpeakerInfo ? track->speakerInfo() : ownSpeaker;
+                    clip->setOwnSingerAndSpeaker(ownSinger, ownSpeakerInfo);
                 }
 
                 // Read clip defaultLanguage

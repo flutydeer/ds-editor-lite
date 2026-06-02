@@ -321,13 +321,10 @@ void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, const in
         if (clip->clipType() == Clip::Singing) {
             const auto singingClip = static_cast<SingingClip *>(clip);
             const auto singingView = static_cast<SingingClipView *>(cachedView);
-            connect(singingClip, &SingingClip::singerChanged, this,
-                    [singingView](const SingerInfo &newSingerInfo) {
-                        singingView->setSingerName(newSingerInfo.name());
-                    });
-            connect(singingClip, &SingingClip::speakerChanged, this,
-                    [singingView](const SpeakerInfo &newSpeakerInfo) {
-                        singingView->setSpeakerName(newSpeakerInfo.name());
+            connect(singingClip, &SingingClip::singerOrSpeakerChanged, this,
+                    [singingClip, singingView] {
+                        singingView->setSingerName(singingClip->singerInfo().name());
+                        singingView->setSpeakerName(singingClip->speakerInfo().name());
                     });
             connect(singingClip, &SingingClip::defaultLanguageChanged, singingView,
                     &SingingClipView::setDefaultLanguage);
@@ -362,13 +359,10 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     clipView->setDefaultLanguage(clip->defaultLanguage());
     m_tracksScene->addCommonItem(clipView);
     qDebug() << "Singing clip graphics item added to scene" << clipView->id() << clipView->name();
-    connect(clip, &SingingClip::singerChanged, this, [clipView](const SingerInfo &newSingerInfo) {
-        clipView->setSingerName(newSingerInfo.name());
+    connect(clip, &SingingClip::singerOrSpeakerChanged, this, [clip, clipView] {
+        clipView->setSingerName(clip->singerInfo().name());
+        clipView->setSpeakerName(clip->speakerInfo().name());
     });
-    connect(clip, &SingingClip::speakerChanged, this,
-            [clipView](const SpeakerInfo &newSpeakerInfo) {
-                clipView->setSpeakerName(newSpeakerInfo.name());
-            });
     connect(clip, &SingingClip::defaultLanguageChanged, clipView,
             &SingingClipView::setDefaultLanguage);
     connect(clip, &SingingClip::noteChanged, clipView, &SingingClipView::onNoteListChanged);

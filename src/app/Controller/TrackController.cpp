@@ -243,8 +243,7 @@ SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int t
 
     const auto track = appModel->tracks().at(trackIndex);
     singingClip->setDefaultLanguage(track->defaultLanguage());
-    singingClip->setTrackSingerInfo(track->singerInfo());
-    singingClip->setTrackSpeakerInfo(track->speakerInfo());
+    singingClip->setTrackSingerAndSpeakerInfo(track->singerInfo(), track->speakerInfo());
     const auto a = new ClipActions;
     QList<Clip *> clips;
     clips.append(singingClip);
@@ -343,8 +342,10 @@ void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex
                 singingClip->insertNote(note);
             }
             const auto targetTrack = appModel->tracks().at(targetTrackIndex);
-            singingClip->setTrackSingerInfo(targetTrack->singerInfo());
-            singingClip->setTrackSpeakerInfo(targetTrack->speakerInfo());
+            singingClip->setTrackSingerAndSpeakerInfo(targetTrack->singerInfo(), targetTrack->speakerInfo());
+            if (!srcSinging->useTrackSingerInfo.get() || !srcSinging->useTrackSpeakerInfo.get()) {
+                singingClip->setOwnSingerAndSpeaker(srcSinging->singerInfo(), srcSinging->speakerInfo());
+            }
             newClip = singingClip;
 
         } else if (srcClip->clipType() == IClip::Audio) {
