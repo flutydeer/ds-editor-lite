@@ -63,12 +63,16 @@ public:
     SingerInfo singerInfo() const;
     void setSingerInfo(const SingerInfo &singerInfo);
     void setTrackSingerInfo(const SingerInfo &singerInfo);
+    void useTrackSinger();
 
     SpeakerInfo speakerInfo() const;
     void setSpeakerInfo(const SpeakerInfo &speakerInfo);
     void setTrackSpeakerInfo(const SpeakerInfo &speakerInfo);
+    void useTrackSpeaker();
 
     void setTrackSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
+
+    void setOwnSingerAndSpeaker(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
 
     QString speakerId() const;
     SingerIdentifier singerIdentifier() const;
@@ -104,6 +108,7 @@ private:
 
     Property<SpeakerInfo> m_speakerInfo;
     Property<SpeakerInfo> m_trackSpeakerInfo;
+    bool m_singerSpeakerBatching = false;
 };
 
 #endif // SINGINGCLIP_H

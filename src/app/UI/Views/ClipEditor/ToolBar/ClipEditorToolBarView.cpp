@@ -62,9 +62,20 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_cbSinger->installEventFilter(new ToolTipFilter(d->m_cbSinger, 500));
     d->m_cbSinger->setToolTip(tr("Clip Singer"));
 
+    d->m_cbSinger->setShowInheritItem(true);
     d->m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
-    connect(packageManager, &PackageManager::packagesRefreshed, d->m_cbSinger,
-            &TwoLevelComboBox::setItems);
+    connect(packageManager, &PackageManager::packagesRefreshed, d, [d] {
+        d->m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
+        if (d->m_singingClip) {
+            if (d->m_singingClip->useTrackSingerInfo.get()) {
+                d->m_cbSinger->setCurrentData(d->m_singingClip->singerInfo(),
+                                              d->m_singingClip->speakerInfo(), true);
+            } else {
+                d->m_cbSinger->setCurrentData(d->m_singingClip->singerInfo(),
+                                              d->m_singingClip->speakerInfo(), false);
+            }
+        }
+    });
     connect(d->m_cbSinger, &TwoLevelComboBox::currentDataChanged, d,
             &ClipEditorToolBarViewPrivate::onSingerEdited);
 
@@ -354,7 +365,9 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
     m_cbPianoRollQuantize->setEnabled(on);
 
     if (on) {
-        m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo());
+        const bool inherit = m_singingClip->useTrackSingerInfo.get();
+        m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(),
+                                   inherit);
         connect(m_cbSinger, &TwoLevelComboBox::currentDataChanged, this,
                 &ClipEditorToolBarViewPrivate::onSingerEdited);
         connect(m_singingClip, &SingingClip::singerOrSpeakerChanged, this,
@@ -382,13 +395,19 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
 }
 
 void ClipEditorToolBarViewPrivate::onClipSingerChanged() const {
-    m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo());
+    const bool inherit = m_singingClip->useTrackSingerInfo.get();
+    m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(), inherit);
 }
 
 void ClipEditorToolBarViewPrivate::onSingerEdited() const {
     if (m_singingClip) {
-        const auto singerInfo = m_cbSinger->currentSinger();
-        const auto speakerInfo = m_cbSinger->currentSpeaker();
-        m_singingClip->setTrackSingerAndSpeakerInfo(singerInfo, speakerInfo);
+        if (m_cbSinger->isInheritSelected()) {
+            m_singingClip->useTrackSinger();
+            m_singingClip->useTrackSpeaker();
+        } else {
+            const auto singerInfo = m_cbSinger->currentSinger();
+            const auto speakerInfo = m_cbSinger->currentSpeaker();
+            m_singingClip->setOwnSingerAndSpeaker(singerInfo, speakerInfo);
+        }
     }
 }

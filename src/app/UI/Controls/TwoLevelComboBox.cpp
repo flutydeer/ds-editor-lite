@@ -100,7 +100,29 @@ void TwoLevelComboBox::clear() {
 }
 
 void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
+    const bool inheritWasSelected = m_inheritWasSelected;
+    const SingerInfo prevSinger = inheritWasSelected ? SingerInfo() : m_currentItem.singer;
+    const SpeakerInfo prevSpeaker = inheritWasSelected ? SpeakerInfo() : m_currentItem.speaker;
+
     clear();
+
+    if (m_showInheritItem) {
+        // "Follow Track" inherit item — singer/speaker populated later via setCurrentData
+        const auto action = new QAction(tr("Follow Track"), this);
+        ComboBoxItemData inheritData;
+        inheritData.text = tr("Follow Track");
+        inheritData.isInheritItem = true;
+        inheritData.action = action;
+
+        const QVariant variant = QVariant::fromValue(inheritData);
+        action->setProperty(m_propertyName.toUtf8(), variant);
+        m_mainMenu->addAction(action);
+        m_itemDataList.append(inheritData);
+        connect(action, &QAction::triggered, this, [this, action] { onActionTriggered(action); });
+
+        m_mainMenu->addSeparator();
+    }
+
     addItem(tr("(No singer)"), {}, {});
     for (const auto &package : std::as_const(packages)) {
         const auto singers = package.singers();
@@ -120,13 +142,36 @@ void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
                 addItemToGroup(singerText, spk.name(), singer, spk);
         }
     }
+
+    // Restore previous selection
+    if (inheritWasSelected && m_showInheritItem) {
+        // Re-select inhert item — caller will update singer/speaker via setCurrentData(preferInherit=true)
+        if (!m_itemDataList.isEmpty() && m_itemDataList.first().isInheritItem) {
+            m_currentItem = m_itemDataList.first();
+        }
+        m_inheritWasSelected = true;
+    } else if (!prevSinger.isEmpty() || !prevSpeaker.isEmpty()) {
+        setCurrentData(prevSinger, prevSpeaker);
+    }
+    // else: stays on "(No singer)" (already set by addItem in clear+rebuild)
+
+    // If nothing was selected, default to first item
+    if (m_currentItem.text.isEmpty() && m_currentItem.singer.isEmpty() && !m_currentItem.isInheritItem) {
+        if (!m_itemDataList.isEmpty()) {
+            m_currentItem = m_itemDataList.first();
+        }
+    }
+    updateDisplayText();
 }
 
 QString TwoLevelComboBox::currentText() const {
     const QString singerName = m_currentItem.singer.name();
     const QString speakerName = m_currentItem.speaker.name();
-    if (singerName.isEmpty() || speakerName.isEmpty()) {
+    if (singerName.isEmpty()) {
         return m_currentItem.text;
+    }
+    if (speakerName.isEmpty()) {
+        return singerName;
     }
     return singerName + " / " + speakerName;
 }
@@ -139,7 +184,22 @@ SpeakerInfo TwoLevelComboBox::currentSpeaker() const {
     return m_currentItem.speaker;
 }
 
-void TwoLevelComboBox::setCurrentData(const SingerInfo &singer, const SpeakerInfo &speaker) {
+void TwoLevelComboBox::setCurrentData(const SingerInfo &singer, const SpeakerInfo &speaker,
+                                    const bool preferInherit) {
+    if (preferInherit && m_showInheritItem) {
+        // Find the inherit item and update its display singer/speaker
+        for (auto &itemData : m_itemDataList) {
+            if (itemData.isInheritItem) {
+                itemData.singer = singer;
+                itemData.speaker = speaker;
+                m_currentItem = itemData;
+                m_inheritWasSelected = true;
+                updateDisplayText();
+                return;
+            }
+        }
+    }
+    m_inheritWasSelected = false;
     for (const auto &itemData : m_itemDataList) {
         if (itemData.singer == singer && itemData.speaker == speaker) {
             m_currentItem = itemData;
@@ -149,11 +209,23 @@ void TwoLevelComboBox::setCurrentData(const SingerInfo &singer, const SpeakerInf
     }
 }
 
+bool TwoLevelComboBox::isInheritSelected() const {
+    return m_currentItem.isInheritItem;
+}
+
+void TwoLevelComboBox::setShowInheritItem(const bool show) {
+    m_showInheritItem = show;
+}
+
 void TwoLevelComboBox::onActionTriggered(const QAction *action) {
     const QVariant variant = action->property(m_propertyName.toUtf8());
     if (variant.canConvert<ComboBoxItemData>()) {
         const auto itemData = variant.value<ComboBoxItemData>();
 
+        if (!itemData.isInheritItem) {
+            // When selecting a concrete singer, emit with the selected singer/speaker data
+            m_inheritWasSelected = false;
+        }
         m_currentItem = itemData;
         updateDisplayText();
 

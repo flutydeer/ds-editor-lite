@@ -14,6 +14,7 @@ struct ComboBoxItemData {
     SingerInfo singer;
     SpeakerInfo speaker;
     QAction *action = nullptr;
+    bool isInheritItem = false;
 };
 Q_DECLARE_METATYPE(ComboBoxItemData)
 
@@ -28,7 +29,10 @@ public:
     SingerInfo currentSinger() const;
     SpeakerInfo currentSpeaker() const;
 
-    void setCurrentData(const SingerInfo &singer, const SpeakerInfo &speaker);
+    void setCurrentData(const SingerInfo &singer, const SpeakerInfo &speaker,
+                        bool preferInherit = false);
+    bool isInheritSelected() const;
+    void setShowInheritItem(bool show);
 
     void addItem(const QString &itemText, const SingerInfo &singer, const SpeakerInfo &spk);
 
@@ -64,6 +68,10 @@ private:
     QList<ComboBoxItemData> m_itemDataList;
     ComboBoxItemData m_currentItem;
     QString m_propertyName = "itemData";
+    bool m_showInheritItem = false;
+    bool m_inheritWasSelected = false;
+    SingerInfo m_prevSinger;
+    SpeakerInfo m_prevSpeaker;
 };
 
 #endif // TWOLEVELCOMBOBOX_H

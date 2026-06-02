@@ -70,8 +70,11 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     cbSinger->setObjectName("cbSinger");
     cbSinger->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     cbSinger->setItems(packageManager->installedPackages().successfulPackages);
-    connect(packageManager, &PackageManager::packagesRefreshed, cbSinger,
-            &TwoLevelComboBox::setItems);
+    connect(packageManager, &PackageManager::packagesRefreshed, this, [this] {
+        cbSinger->setItems(packageManager->installedPackages().successfulPackages);
+        if (m_track)
+            cbSinger->setCurrentData(m_track->singerInfo(), m_track->speakerInfo());
+    });
 
     connect(cbSinger, &TwoLevelComboBox::currentTextChanged, this, [this] {
         const auto currentText = cbSinger->currentText();
