@@ -76,7 +76,6 @@ private:
     friend class InferAcousticTask;
     friend class ExtractMidiTask;
     friend class ExtractPitchTask;
-    friend class PackageManager;
 
     struct InferenceSet {
         srt::NO<srt::Inference> duration, pitch, variance, acoustic, vocoder;

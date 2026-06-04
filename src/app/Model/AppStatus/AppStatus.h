@@ -26,13 +26,14 @@ public:
     Q_DISABLE_COPY_MOVE(AppStatus)
 
 public:
-    enum class ModuleType { Audio, Language, Inference };
+    enum class ModuleType { Audio, Language, Inference, Package };
     enum class ModuleStatus { Ready, Loading, Error, Unknown };
     enum class EditObjectType { None, Clip, Note, Phoneme, Param };
 
     // Modules
     Property<ModuleStatus> languageModuleStatus = ModuleStatus::Unknown;
     Property<ModuleStatus> inferEngineEnvStatus = ModuleStatus::Unknown;
+    Property<ModuleStatus> packageModuleStatus = ModuleStatus::Unknown;
 
     // Main Window
     Property<bool> trackPanelCollapsed = false;

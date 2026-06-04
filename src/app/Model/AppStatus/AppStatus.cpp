@@ -10,6 +10,8 @@ AppStatus::AppStatus(QObject *parent) : QObject(parent) {
         [this](auto value) { emit moduleStatusChanged(ModuleType::Language, value); });
     inferEngineEnvStatus.onChanged(
         [this](auto value) { emit moduleStatusChanged(ModuleType::Inference, value); });
+    packageModuleStatus.onChanged(
+        [this](auto value) { emit moduleStatusChanged(ModuleType::Package, value); });
 
     // Main Window
     trackPanelCollapsed.onChanged([this](auto value) { emit trackPanelCollapseStateChanged(value); });

@@ -4,8 +4,8 @@
 
 #include "PackageManager.h"
 
+#include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/Inference/InferEngine.h"
 #include "Utils/StringUtils.h"
 #include "Utils/VersionUtils.h"
 #include "Models/PackageInfo.h"
@@ -13,7 +13,12 @@
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/GetInstalledPackagesTask.h"
 
+#include <filesystem>
+#include <thread>
+#include <vector>
+
 #include <stdcorelib/path.h>
+#include <stdcorelib/system.h>
 
 #include <synthrt/Core/SynthUnit.h>
 #include <synthrt/Core/PackageRef.h>
@@ -23,6 +28,11 @@
 #include <QDebug>
 #include <QElapsedTimer>
 #include <QLocale>
+#include <QMutexLocker>
+
+#if defined(Q_OS_MAC)
+#  include "Utils/MacOSUtils.h"
+#endif
 
 namespace fs = std::filesystem;
 
@@ -181,8 +191,6 @@ namespace {
 }
 
 PackageManager::PackageManager(QObject *parent) : QObject(parent) {
-    connect(appStatus, &AppStatus::moduleStatusChanged, this,
-            &PackageManager::onModuleStatusChanged);
 }
 
 PackageManager::~PackageManager() = default;
@@ -191,22 +199,72 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(PackageManager)
 
 void PackageManager::initialize() {
     std::call_once(m_initialized, [this]() {
+        appStatus->packageModuleStatus = AppStatus::ModuleStatus::Loading;
         auto task = new GetInstalledPackagesTask;
         connect(task, &GetInstalledPackagesTask::finished, this, [task]() {
             taskManager->removeTask(task);
+            if (task->result) {
+                appStatus->packageModuleStatus = AppStatus::ModuleStatus::Ready;
+            } else {
+                qCritical() << "Package scan failed:" << task->result.getError().message;
+                appStatus->packageModuleStatus = AppStatus::ModuleStatus::Error;
+            }
             delete task;
         });
         taskManager->addAndStartTask(task);
     });
 }
 
+bool PackageManager::initializeMetadataBackend(QString &error) {
+    QMutexLocker locker(&m_metadataSynthUnitMutex);
+    if (m_metadataSynthUnitInitialized) {
+        return true;
+    }
+
+    auto pluginRootDir =
+#if defined(Q_OS_MAC)
+        MacOSUtils::getMainBundlePath() / _TSTR("Contents/PlugIns");
+#elif defined(Q_OS_WIN)
+        stdc::system::application_directory() / _TSTR("plugins");
+#else
+        stdc::system::application_directory().parent_path() / _TSTR("lib/plugins");
+#endif
+    auto singerProviderDir = pluginRootDir / _TSTR("dsinfer") / _TSTR("singerproviders");
+    if (!fs::exists(singerProviderDir)) {
+        error = tr("Singer provider plugin path does not exist: %1")
+                    .arg(StringUtils::path_to_qstr(singerProviderDir));
+        return false;
+    }
+    if (!fs::is_directory(singerProviderDir)) {
+        error = tr("Singer provider plugin path is not a directory: %1")
+                    .arg(StringUtils::path_to_qstr(singerProviderDir));
+        return false;
+    }
+
+    const auto packagePathsQt = appOptions->general()->packageSearchPaths;
+    std::vector<std::filesystem::path> packagePaths;
+    packagePaths.reserve(packagePathsQt.size());
+    for (const auto &path : std::as_const(packagePathsQt)) {
+        packagePaths.emplace_back(StringUtils::qstr_to_path(path));
+    }
+
+    qDebug().noquote().nospace()
+        << "Package metadata singer provider plugin path: "
+        << StringUtils::path_to_qstr(singerProviderDir);
+    m_metadataSynthUnit.addPluginPath("org.openvpi.SingerProvider", singerProviderDir);
+    m_metadataSynthUnit.setPackagePaths(packagePaths);
+    m_metadataSynthUnitInitialized = true;
+    return true;
+}
+
 Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     PackageManager::refreshInstalledPackages() {
 
-    if (!inferEngine->initialized()) {
+    QString backendError;
+    if (!initializeMetadataBackend(backendError)) {
         return GetInstalledPackagesError{
-            GetInstalledPackagesErrorType::InferEngineNotInitialized,
-            tr("Inference engine is not initialized"),
+            GetInstalledPackagesErrorType::MetadataBackendNotInitialized,
+            backendError,
         };
     }
 
@@ -233,7 +291,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     QElapsedTimer timer;
     timer.start();
     GetInstalledPackagesResult result;
-    srt::SynthUnit &su = inferEngine->synthUnit();
+    srt::SynthUnit &su = m_metadataSynthUnit;
     const auto locale = QLocale::system().name().toStdString();
 
     auto processPackage = [&](const std::filesystem::path &packagePath) {
@@ -315,6 +373,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     }
 
     qDebug() << "Package scan completed in" << timer.elapsed() << "ms";
+    QList<PackageInfo> refreshedPackages;
     {
         QWriteLocker writeLocker(&m_resultRwLock);
         m_result = result;
@@ -328,9 +387,10 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 m_singerLocator[identifier] = singerInfo;
             }
         }
-        Q_EMIT packagesRefreshed(m_result.successfulPackages);
+        refreshedPackages = m_result.successfulPackages;
     }
     m_refreshState.store(RefreshState::Idle, std::memory_order_release);
+    Q_EMIT packagesRefreshed(refreshedPackages);
     return result;
 }
 
@@ -355,12 +415,6 @@ SingerInfo PackageManager::findSingerByIdentifier(const SingerIdentifier &identi
         return {};
     }
     return it.value();
-}
-
-void PackageManager::onModuleStatusChanged(AppStatus::ModuleType module,
-                                           AppStatus::ModuleStatus status) {
-    if (module != AppStatus::ModuleType::Inference || status != AppStatus::ModuleStatus::Ready)
-        return;
 }
 
 QString PackageManager::srtErrorToString(const srt::Error &error) {

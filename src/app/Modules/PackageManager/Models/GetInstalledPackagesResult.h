@@ -11,7 +11,7 @@
 #include <QString>
 
 enum class GetInstalledPackagesErrorType {
-    InferEngineNotInitialized,
+    MetadataBackendNotInitialized,
     Unknown
 };
 

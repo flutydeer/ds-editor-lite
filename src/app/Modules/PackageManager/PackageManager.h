@@ -7,6 +7,7 @@
 
 #define packageManager PackageManager::instance()
 
+#include <atomic>
 #include <cstdint>
 #include <mutex>
 
@@ -16,7 +17,10 @@
 #include "Utils/Singleton.h"
 
 #include <QObject>
+#include <QMutex>
 #include <QReadWriteLock>
+
+#include <synthrt/Core/SynthUnit.h>
 
 namespace srt {
     class PackageRef;
@@ -47,11 +51,9 @@ public:
 Q_SIGNALS:
     void packagesRefreshed(QList<PackageInfo> packages);
 
-private Q_SLOTS:
-    void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
-
 private:
     static QString srtErrorToString(const srt::Error &error);
+    bool initializeMetadataBackend(QString &error);
 
     enum class RefreshState: uint8_t {
         Idle = 0,
@@ -59,6 +61,9 @@ private:
     };
     std::once_flag m_initialized{};
     std::atomic<RefreshState> m_refreshState{RefreshState::Idle};
+    QMutex m_metadataSynthUnitMutex;
+    bool m_metadataSynthUnitInitialized = false;
+    srt::SynthUnit m_metadataSynthUnit;
     mutable QReadWriteLock m_resultRwLock;
     GetInstalledPackagesResult m_result;
     QHash<SingerIdentifier, PackageInfo> m_packageLocator;
