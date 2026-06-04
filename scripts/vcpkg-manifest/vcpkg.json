@@ -43,7 +43,8 @@
     {
       "name": "qt-win32-direct-manipulate-helper",
       "platform": "windows"
-    }
+    },
+    "phoneme-converter"
   ],
   "features": {
     "cuda11": {

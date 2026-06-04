@@ -11,7 +11,9 @@ class LanguageInfoData;
 class LanguageInfo {
 public:
     LanguageInfo();
-    explicit LanguageInfo(QString id, QString name = {}, QString g2p = {}, QString dict = {});
+    explicit LanguageInfo(QString id, QString name = {}, QString g2p = {}, QString dict = {},
+                          QString s2pMode = {}, QString onsetMode = {}, QString s2pFile = {},
+                          QString onsetFile = {});
 
     LanguageInfo(const LanguageInfo &other);
     LanguageInfo(LanguageInfo &&other) noexcept;
@@ -25,11 +27,19 @@ public:
     QString name() const;
     QString g2p() const;
     QString dict() const;
+    QString s2pMode() const;
+    QString onsetMode() const;
+    QString s2pFile() const;
+    QString onsetFile() const;
 
     void setId(const QString &id);
     void setName(const QString &name);
     void setG2p(const QString &g2p);
     void setDict(const QString &dict);
+    void setS2pMode(const QString &s2pMode);
+    void setOnsetMode(const QString &onsetMode);
+    void setS2pFile(const QString &s2pFile);
+    void setOnsetFile(const QString &onsetFile);
 
     bool isEmpty() const;
 
@@ -46,7 +56,9 @@ private:
 class LanguageInfoData : public QSharedData {
 public:
     LanguageInfoData();
-    explicit LanguageInfoData(QString id, QString name = {}, QString g2p = {}, QString dict = {});
+    explicit LanguageInfoData(QString id, QString name = {}, QString g2p = {}, QString dict = {},
+                              QString s2pMode = {}, QString onsetMode = {},
+                              QString s2pFile = {}, QString onsetFile = {});
     LanguageInfoData(const LanguageInfoData &other);
     ~LanguageInfoData();
 
@@ -59,6 +71,10 @@ public:
     QString name;
     QString g2p;
     QString dict;
+    QString s2pMode;
+    QString onsetMode;
+    QString s2pFile;
+    QString onsetFile;
 };
 
 void swap(LanguageInfo &first, LanguageInfo &second) noexcept;

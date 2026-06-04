@@ -166,8 +166,26 @@ namespace {
             if (const auto it = language.find("dict"); it != language.end()) {
                 languageDict = joinPath(it->second.toString(), singerPath);
             }
+            QString s2pMode;
+            if (const auto it = language.find("s2pMode"); it != language.end()) {
+                s2pMode.assign(it->second.toString());
+            }
+            QString onsetMode;
+            if (const auto it = language.find("onsetMode"); it != language.end()) {
+                onsetMode.assign(it->second.toString());
+            }
+            QString s2pFile;
+            if (const auto it = language.find("s2pFile"); it != language.end()) {
+                s2pFile = joinPath(it->second.toString(), singerPath);
+            }
+            QString onsetFile;
+            if (const auto it = language.find("onsetFile"); it != language.end()) {
+                onsetFile = joinPath(it->second.toString(), singerPath);
+            }
             result.emplace_back(std::move(languageId), std::move(languageName),
-                                std::move(languageG2p), std::move(languageDict));
+                                std::move(languageG2p), std::move(languageDict),
+                                std::move(s2pMode), std::move(onsetMode), std::move(s2pFile),
+                                std::move(onsetFile));
         }
         return result;
     }
@@ -182,7 +200,10 @@ namespace {
 
     QString parseDefaultDict(const srt::JsonObject &manifestConfiguration,
                              const std::filesystem::path &singerPath) {
-        const auto it = manifestConfiguration.find("defaultDict");
+        auto it = manifestConfiguration.find("defaultDict");
+        if (it == manifestConfiguration.end()) {
+            it = manifestConfiguration.find("dict");
+        }
         if (it == manifestConfiguration.end()) {
             return {};
         }

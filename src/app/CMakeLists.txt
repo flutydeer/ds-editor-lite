@@ -54,6 +54,7 @@ find_package(re2 CONFIG REQUIRED)
 find_package(talcs REQUIRED)
 find_package(unofficial-tinyexpr CONFIG REQUIRED)
 find_package(dsinfer CONFIG REQUIRED)
+find_package(PhonemeConverter CONFIG REQUIRED)
 
 find_package(Qt6 COMPONENTS CorePrivate GuiPrivate)
 if (WIN32)
@@ -92,6 +93,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         dsinfer::dsinfer
         re2::re2
         ${_links_icu}
+        PhonemeConverter::PhonemeConverter
 )
 
 if (APPLICATION_ENABLE_BREAKPAD)
