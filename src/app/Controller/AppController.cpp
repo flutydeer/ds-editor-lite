@@ -27,12 +27,15 @@
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
 #include "UI/Controls/Toast.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
+#include "UI/Dialogs/Base/ProgressDialog.h"
 #include "Utils/Log.h"
 
 #include <QDir>
 #include <QFileInfo>
 
 #include <algorithm>
+#include <utility>
 
 #include "Actions/AppModel/MasterControl/MasterControlActions.h"
 
@@ -52,6 +55,10 @@ namespace {
     }
 }
 
+
+AppControllerPrivate::~AppControllerPrivate() {
+    clearPendingOpenDialog(true);
+}
 
 AppController::AppController(QObject *parent)
     : QObject(parent), d_ptr(new AppControllerPrivate(this)) {
@@ -90,6 +97,39 @@ bool AppController::openFile(const QString &filePath, QString &errorMessage) {
     }
     Toast::show(tr("File does not exist: %1").arg(filePath));
     return false;
+}
+
+void AppController::requestOpenFile(const QString &filePath) {
+    Q_D(AppController);
+    if (!QFile(filePath).exists()) {
+        Toast::show(tr("File does not exist: %1").arg(filePath));
+        return;
+    }
+
+    const QFileInfo info(filePath);
+    const auto suffix = info.suffix().toLower();
+    if (suffix == "mid" || suffix == "midi") {
+        d->openFileAndActivateFirstClip(filePath);
+        return;
+    }
+    if (suffix != "dspx") {
+        Toast::show(tr("Unrecognized file format: %1").arg(suffix));
+        return;
+    }
+
+    switch (appStatus->packageModuleStatus) {
+        case AppStatus::ModuleStatus::Ready:
+            d->openFileAndActivateFirstClip(filePath);
+            break;
+        case AppStatus::ModuleStatus::Error:
+            if (d->confirmOpenWithoutPackageMetadata())
+                d->openFileAndActivateFirstClip(filePath);
+            break;
+        case AppStatus::ModuleStatus::Unknown:
+        case AppStatus::ModuleStatus::Loading:
+            d->waitAndOpenDspxFile(filePath);
+            break;
+    }
 }
 
 bool AppController::saveProject(const QString &filePath, QString &errorMessage) {
@@ -342,4 +382,95 @@ bool AppControllerPrivate::openMidiFile(const QString &path, QString &errorMessa
     m_lastProjectFolder = QFileInfo(path).dir().path();
     appStatus->loopSettings.set(LoopSettings());
     return true;
+}
+
+bool AppControllerPrivate::openFileAndActivateFirstClip(const QString &filePath) {
+    Q_Q(AppController);
+    QString errorMessage;
+    if (!q->openFile(filePath, errorMessage))
+        return false;
+
+    const auto tracks = appModel->tracks();
+    if (tracks.isEmpty())
+        return true;
+
+    const auto clips = tracks.first()->clips();
+    if (clips.count() == 0)
+        return true;
+
+    trackController->setActiveClip(clips.toList().first()->id());
+    q->setActivePanel(AppGlobal::ClipEditor);
+    return true;
+}
+
+void AppControllerPrivate::waitAndOpenDspxFile(const QString &filePath) {
+    clearPendingOpenDialog();
+
+    m_pendingOpenFilePath = filePath;
+    m_pendingOpenDialog = new ProgressDialog(true, false);
+    m_pendingOpenDialog->setTitle(tr("Opening Project"));
+    m_pendingOpenDialog->setMessage(tr("Scanning singer packages..."));
+    connect(m_pendingOpenDialog, &ProgressDialog::canceled, this,
+            &AppControllerPrivate::cancelPendingOpen);
+    m_pendingOpenDialog->show();
+
+    m_pendingOpenConnection = connect(appStatus, &AppStatus::moduleStatusChanged, this,
+                                      [this](const AppStatus::ModuleType module,
+                                             const AppStatus::ModuleStatus status) {
+                                          if (module != AppStatus::ModuleType::Package)
+                                              return;
+                                          handlePendingOpenPackageStatus(status);
+                                      });
+    handlePendingOpenPackageStatus(appStatus->packageModuleStatus);
+}
+
+void AppControllerPrivate::cancelPendingOpen() {
+    m_pendingOpenFilePath.clear();
+    clearPendingOpenDialog(true);
+}
+
+void AppControllerPrivate::handlePendingOpenPackageStatus(
+    const AppStatus::ModuleStatus status) {
+    if (m_pendingOpenFilePath.isEmpty())
+        return;
+
+    if (status == AppStatus::ModuleStatus::Ready) {
+        const auto filePath = takePendingOpenFilePath();
+        clearPendingOpenDialog();
+        openFileAndActivateFirstClip(filePath);
+    } else if (status == AppStatus::ModuleStatus::Error) {
+        const auto filePath = takePendingOpenFilePath();
+        clearPendingOpenDialog();
+        if (confirmOpenWithoutPackageMetadata())
+            openFileAndActivateFirstClip(filePath);
+    }
+}
+
+QString AppControllerPrivate::takePendingOpenFilePath() {
+    return std::exchange(m_pendingOpenFilePath, {});
+}
+
+void AppControllerPrivate::clearPendingOpenDialog(const bool deleteImmediately) {
+    if (m_pendingOpenConnection) {
+        disconnect(m_pendingOpenConnection);
+        m_pendingOpenConnection = {};
+    }
+    if (m_pendingOpenDialog) {
+        const auto dialog = m_pendingOpenDialog;
+        m_pendingOpenDialog = nullptr;
+        dialog->forceClose();
+        if (deleteImmediately)
+            delete dialog;
+        else
+            dialog->deleteLater();
+    }
+}
+
+bool AppControllerPrivate::confirmOpenWithoutPackageMetadata() {
+    MessageDialog dialog(tr("Package scan failed"),
+                         tr("Singer package metadata is not available. Open the project anyway?"));
+    dialog.setTitle(tr("Package scan failed"));
+    dialog.addAccentButton(tr("Open Anyway"), 1);
+    dialog.addButton(tr("Cancel"), 0);
+    return dialog.exec() == 1;
 }

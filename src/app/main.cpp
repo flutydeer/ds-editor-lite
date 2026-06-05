@@ -32,6 +32,7 @@
 #include <QScreen>
 #include <QStyleHints>
 #include <QStyleFactory>
+#include <QTimer>
 #include <QTranslator>
 
 #include <QtCore/QProcess>
@@ -193,17 +194,9 @@ int main(int argc, char *argv[]) {
     if (args.count() == 2) {
         auto filePath = QApplication::arguments().at(1);
         if (!filePath.isEmpty()) {
-            QString errorMsg;
-            if (appController->openFile(filePath, errorMsg)) {
-                auto tracks = appModel->tracks();
-                if (!tracks.isEmpty()) {
-                    auto clips = tracks.first()->clips();
-                    if (clips.count() > 0) {
-                        trackController->setActiveClip(clips.toList().first()->id());
-                        appController->setActivePanel(AppGlobal::ClipEditor);
-                    }
-                }
-            }
+            QTimer::singleShot(0, appController, [filePath] {
+                appController->requestOpenFile(filePath);
+            });
         }
     }
 

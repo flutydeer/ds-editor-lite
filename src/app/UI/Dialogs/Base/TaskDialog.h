@@ -5,36 +5,26 @@
 #ifndef TASKDIALOG_H
 #define TASKDIALOG_H
 
-#include "Dialog.h"
+#include "ProgressDialog.h"
 
 class TaskStatus;
 class Task;
-class ProgressIndicator;
-class Button;
 
-class TaskDialog : public Dialog {
+class TaskDialog : public ProgressDialog {
     Q_OBJECT
 
 public:
     explicit TaskDialog(Task *task = nullptr, bool cancellable = true, bool canHide = true,
                         QWidget *parent = nullptr);
-    void forceClose();
 
-protected:
-    void closeEvent(QCloseEvent *event) override;
+private:
+    void onCanceled() override;
 
 private slots:
-    void onTerminateButtonClicked() const;
     void onStatusUpdated(const TaskStatus &status) const;
 
 private:
     Task *m_task;
-    bool m_canHide;
-    Button *m_btnHide;
-    Button *m_btnCancel;
-    ProgressIndicator *m_progressBar;
 };
-
-
 
 #endif // TASKDIALOG_H

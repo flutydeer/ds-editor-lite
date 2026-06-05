@@ -47,7 +47,28 @@
 
 ### 阶段 2：DSPX 打开等待 Package Ready
 
-目标是修复命令行带 `.dspx` 路径启动时的生命周期缺口。新增 `requestOpenFile(...)`，让 `.dspx` 在 Package `Unknown / Loading` 时显示 TaskDialog 并等待 Package Ready；Package Error 时允许用户降级打开。
+目标是修复命令行带 `.dspx` 路径启动时的生命周期缺口。阶段 2 拆成两个小步骤，先解耦进度对话框 UI，再接入工程打开等待逻辑。
+
+#### 阶段 2A：抽出通用 ProgressDialog
+
+`TaskDialog` 当前同时承担进度 UI 和 `Task` 状态绑定。新增一个更通用的 `ProgressDialog`，只负责标题、消息、进度条、取消按钮、隐藏/关闭控制等 UI 能力，不依赖 `Task` / `TaskManager`。`TaskDialog` 改为继承 `ProgressDialog`，只保留把 `TaskStatus` 映射到通用进度 UI、取消时终止任务的适配逻辑。
+
+这样 `.dspx` 等待 Package Ready 可以使用 `ProgressDialog`，语义上不再伪装成一个 task；现有 TaskDialog 调用点也能保持行为基本不变。
+
+#### 阶段 2B：DSPX 请求打开等待 Package Ready
+
+新增 `requestOpenFile(...)`，让 `.dspx` 在 Package `Unknown / Loading` 时显示 `ProgressDialog` 并等待 Package Ready；Package Error 时允许用户降级打开。
+
+当前进度（2026-06-06）：
+
+- 已新增 `ProgressDialog`，并让 `TaskDialog` 继承它，仅保留 Task 状态适配与取消终止任务逻辑。
+- 已新增 `AppController::requestOpenFile(...)`，命令行启动路径已改为事件循环开始后 deferred request。
+- 已修复 pending open 的两个紧急问题：等待连接建立后会立即复查当前 Package 状态，避免错过 Ready/Error；pending dialog 在完成、替换请求、控制器析构时会集中关闭并删除，避免泄漏。
+- 已修复主窗口阻塞问题：根因是测试用的 `QThread::sleep(10)` 误放在 `PackageManager::initialize()` 的主线程路径中，阻塞了 `MainWindow` 创建和事件循环。改为在后台 `GetInstalledPackagesTask::runTask()` 中模拟慢速扫描，确保主窗口正常显示。
+- `ProgressDialog` 新增取消能力：标题栏关闭按钮在 `cancellable && !canHide` 时可用，点击后通过 `closeEvent` → `onCanceled()` → `canceled()` 信号通知调用方。`AppController` 新增 `cancelPendingOpen()`，清空 pending 路径和 dialog，确保取消后不会在 Package Ready 时误打开工程。`TaskDialog::onCanceled()` 调用基类 `ProgressDialog::onCanceled()` 保持信号链路完整。
+- 已运行 debug configure/build：`cmake --preset debug` 和 `cmake --build --preset debug` 通过。
+
+阶段 2 已完成。
 
 ### 阶段 3：UI 表达 Package Loading
 
@@ -152,9 +173,9 @@ LanguageEngine init          ┘
 
 `.dspx` 打开只等待 `Package Ready`；推理调度才同时等待 `Package Ready + Inference Ready + Language Ready`。
 
-### 2. DSPX 工程打开必须等待包 metadata 就绪，并用 TaskDialog 呈现等待状态
+### 2. DSPX 工程打开必须等待包 metadata 就绪，并用 ProgressDialog 呈现等待状态
 
-修改 `src/app/Controller/AppController.h/.cpp`、`src/app/Controller/AppController_p.h`，并复用 `src/app/UI/Dialogs/Base/TaskDialog.h/.cpp`。
+修改 `src/app/Controller/AppController.h/.cpp`、`src/app/Controller/AppController_p.h`，并新增/复用 `src/app/UI/Dialogs/Base/ProgressDialog.h/.cpp`。`TaskDialog` 继承 `ProgressDialog`，继续只服务 Task 状态适配。
 
 保留现有同步接口：
 
@@ -172,21 +193,21 @@ void requestOpenFile(const QString &filePath);
 
 - `.mid` / `.midi`：不依赖歌手包，立即走现有打开流程。
 - `.dspx` 且 `appStatus->packageModuleStatus == Ready`：立即调用现有 `openFile(...)`。
-- `.dspx` 且包正在 `Unknown` / `Loading`：显示不可隐藏或可取消的 `TaskDialog`，提示正在扫描歌手包/初始化包管理器；包 ready 后关闭 dialog 并继续打开工程。
+- `.dspx` 且包正在 `Unknown` / `Loading`：显示不可隐藏或可取消的 `ProgressDialog`，提示正在扫描歌手包/初始化包管理器；包 ready 后关闭 dialog 并继续打开工程。
 - 包扫描进入 `Error`：关闭/更新 dialog，提示初始化失败，但允许用户继续打开工程。此时进入降级打开模式，保留 fallback singer identity，而不是阻塞用户。
 
 `.dspx` 工程打开不等待 `InferEngine Ready`。如果 `Package Ready` 早于 `Inference Ready`，工程也可以先完整恢复 singer/speaker；后续由 `InferController` 在推理条件满足后触发推理。
 
-`TaskDialog` 当前支持 `Task *task = nullptr` 的手动标题/消息/不确定进度条用法，`MainWindow::closeEvent()` 已经这样使用过，所以这里可以直接复用：
+`ProgressDialog` 第一版只展示 indeterminate progress，不绑定具体 `Task`：
 
-- 创建 `TaskDialog(nullptr, false, false, parent)` 或根据体验决定是否 cancellable。
+- 创建 `ProgressDialog(false, false, parent)` 或根据体验决定是否 cancellable。
 - `setTitle(tr("Opening Project"))`
 - `setMessage(tr("Scanning singer packages..."))`
 - 等待 `AppStatus::moduleStatusChanged(ModuleType::Package, ...)`。
 - Ready 后 `forceClose()` 并继续打开。
 - Error 后提示用户可继续降级打开。
 
-如果希望 TaskDialog 展示真实进度，后续可以把包扫描改成正式 `Task` 并持续更新 `TaskStatus`；第一版用 indeterminate progress 即可。
+如果希望等待过程展示真实进度，后续可以把包扫描改成正式 `Task` 并持续更新 `TaskStatus`，再由 `TaskDialog` 复用同一个 `ProgressDialog` UI；第一版用 indeterminate progress 即可。
 
 修改 `src/app/main.cpp`：命令行工程路径不再直接调用 `openFile(...)`，而是用 `QTimer::singleShot(0, ...)` 在事件循环开始后调用 `appController->requestOpenFile(filePath)`。
 
@@ -332,9 +353,10 @@ bool canStartClipInference(const SingingClip &clip) {
 
 - `src/app/Model/AppStatus/AppStatus.h/.cpp`：新增 Package module 状态。
 - `src/app/main.cpp`：PackageManager 启动即初始化；命令行工程路径改为事件循环后的 deferred open。
-- `src/app/Controller/AppController.h/.cpp`：新增异步打开请求接口、等待包扫描、TaskDialog 呈现。
+- `src/app/Controller/AppController.h/.cpp`：新增异步打开请求接口、等待包扫描、ProgressDialog 呈现。
 - `src/app/Controller/AppController_p.h`：保存 pending open 路径/状态，增加打开成功后的 helper。
-- `src/app/UI/Dialogs/Base/TaskDialog.h/.cpp`：复用现有无任务 indeterminate progress dialog；必要时补充接口。
+- `src/app/UI/Dialogs/Base/ProgressDialog.h/.cpp`：提供不依赖 Task 的通用进度对话框。
+- `src/app/UI/Dialogs/Base/TaskDialog.h/.cpp`：继承 ProgressDialog，仅适配 Task 状态和取消行为。
 - `src/app/UI/Controls/TwoLevelComboBox.h/.cpp`：增加 scanning placeholder/disabled action 能力。
 - `src/app/UI/Views/TrackEditor/TrackControlView.cpp`：包扫描中显示歌手列表 loading 状态，ready 后恢复 selection。
 - `src/app/UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp`：同上，但保留 Follow Track effective text。
@@ -352,7 +374,7 @@ bool canStartClipInference(const SingingClip &clip) {
 1. `AppStatus` 增加 Package module 状态。
 2. `PackageManager` 自建 metadata `SynthUnit`，不再等待 `InferEngine::engineInitialized`。
 3. `PackageManager` 启动即异步扫描包，并正确维护 Package 状态。
-4. `.dspx` 打开等待 Package Ready，并用 `TaskDialog` 显示扫描等待。
+4. `.dspx` 打开等待 Package Ready，并用 `ProgressDialog` 显示扫描等待。
 5. `main.cpp` 启动参数打开改成 deferred request。
 6. 歌手组合框在包扫描中显示 disabled 的“正在扫描...”项。
 7. `InferController` 推理调度等待 Package Ready、Inference Ready、Language Ready。
@@ -370,6 +392,10 @@ bool canStartClipInference(const SingingClip &clip) {
 - 缺包 UI 显示 packageId/packageVersion/singerId，而不是笼统 `No singer`。
 - 包搜索路径变更后自动刷新并重解析当前工程。
 - 打开工程时显示更详细的多阶段进度：扫描包、加载工程、校验资源、初始化推理引擎。
+- 后续将菜单、最近文件、拖放等所有 UI 打开入口统一迁移到 `requestOpenFile(...)`，让运行中打开 `.dspx` 也复用 Package Ready 等待逻辑。
+- 将 `ProgressDialog` 中仍暴露的 `TaskGlobal::Status` 替换为更通用的进度状态类型，进一步减少 Task 语义泄漏。
+- 视需要清理 `requestOpenFile(...)` / `openFile(...)` 的重复文件检查和后缀判断。
+- 视需要优化打开成功后激活首个 clip 的容器访问，避免不必要的列表拷贝。
 - 为 fallback → resolved 的模型恢复过程增加自动测试。
 - 将 package metadata backend 初始化和 inference runtime 初始化的共享路径配置抽成专门 helper，避免两个 `SynthUnit` 配置漂移。
 
@@ -416,7 +442,7 @@ bool canStartClipInference(const SingingClip &clip) {
    - 保存工程。
    - 关闭程序。
    - 带工程路径参数启动。
-   - 等待包扫描 TaskDialog 自动结束。
+   - 等待包扫描 ProgressDialog 自动结束。
    - 轨道歌手应正确恢复，不再是 `No singer`。
    - Clip toolbar / ClipView 应显示正确 inherited 或 independent singer/speaker。
    - 推理应在 Package、Inference、Language 都 ready 后正常触发。
@@ -425,6 +451,7 @@ bool canStartClipInference(const SingingClip &clip) {
    - 临时放慢包扫描或加日志。
    - 带 dspx 参数启动。
    - 确认工程打开等待 Package Ready，converter 解析时 locator 已填充。
+   - 当前结果（2026-06-05）：强制制造 Package 慢于工程打开时，主窗口被持续阻塞且未弹出 ProgressDialog；此项未通过，需要下一轮优先调查。
 
 3. Package / Inference 解耦验证：
    - 临时放慢 `InferEngine` 初始化或模拟 GPU/ONNX 初始化耗时。

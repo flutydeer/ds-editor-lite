@@ -51,6 +51,7 @@ public slots:
     void restart();
     void newProject();
     bool openFile(const QString &filePath, QString &errorMessage);
+    void requestOpenFile(const QString &filePath);
     bool saveProject(const QString &filePath, QString &errorMessage);
 
     void setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed);
