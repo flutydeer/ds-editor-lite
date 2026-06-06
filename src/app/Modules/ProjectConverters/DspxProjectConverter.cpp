@@ -21,9 +21,18 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Modules/PackageManager/PackageManager.h"
 
+#include <QDebug>
 #include <QFile>
 
 namespace {
+    void warnIfPackageMetadataNotReady(const SingerIdentifier &identifier) {
+        if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready)
+            return;
+
+        qWarning() << "DspxProjectConverter is resolving singer before package metadata is ready:"
+                   << identifier;
+    }
+
     class JsonNlohmann {
     public:
         static nlohmann::json fromQJsonValue(const QJsonValue &v) {
@@ -153,6 +162,7 @@ namespace {
             return {};
 
         // Try to resolve from package manager
+        warnIfPackageMetadataNotReady(identifier);
         auto resolved = packageManager->findSingerByIdentifier(identifier);
         if (!resolved.isEmpty())
             return resolved;
@@ -231,6 +241,7 @@ namespace {
         if (identifier.isEmpty())
             return {};
 
+        warnIfPackageMetadataNotReady(identifier);
         auto resolved = packageManager->findSingerByIdentifier(identifier);
         if (!resolved.isEmpty())
             return resolved;

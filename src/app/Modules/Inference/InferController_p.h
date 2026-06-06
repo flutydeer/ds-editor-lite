@@ -50,6 +50,11 @@ public:
     void handleGetPronTaskFinished(GetPronunciationTask &task);
     void handleGetPhoneTaskFinished(GetPhonemeNameTask &task);
 
+    bool allRequiredModulesReady() const;
+    bool canStartClipInference(const SingingClip &clip) const;
+    void scheduleRetryAllSingingClips();
+    void retryAllSingingClips();
+
     static void recreateAllInferTasks();
 
     void createAndRunGetPronTask(const SingingClip &clip);
@@ -78,6 +83,7 @@ public:
     QList<InferPipeline *> m_inferPipelines;
 
     bool m_autoStartAcousticInfer = true;
+    bool m_retryAllScheduled = false;
 
 private:
     InferController *q_ptr = nullptr;

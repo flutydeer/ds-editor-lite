@@ -139,6 +139,11 @@ void InferControllerPrivate::onModuleStatusChanged(const AppStatus::ModuleType m
                                                    const AppStatus::ModuleStatus status) {
     if (module == AppStatus::ModuleType::Language)
         handleLanguageModuleStatusChanged(status);
+
+    if ((module == AppStatus::ModuleType::Language || module == AppStatus::ModuleType::Inference ||
+         module == AppStatus::ModuleType::Package) &&
+        status == AppStatus::ModuleStatus::Ready)
+        scheduleRetryAllSingingClips();
 }
 
 void InferControllerPrivate::onEditingChanged(const AppStatus::EditObjectType type) {
@@ -189,7 +194,7 @@ void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipInserted(clip);
     connect(clip, &SingingClip::singerOrSpeakerChanged, this, [clip, this] {
         clip->removeAllPieces();
-        if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
+        if (canStartClipInference(*clip))
             createAndRunGetPronTask(*clip);
     });
 
@@ -200,8 +205,7 @@ void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
     }
 
     // Trigger inference if language module is already ready and clip has a valid singer
-    if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready &&
-        !clip->singerInfo().isEmpty()) {
+    if (canStartClipInference(*clip)) {
         createAndRunGetPronTask(*clip);
     }
 }
@@ -258,7 +262,7 @@ void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType
                 clip->removeAllPieces();
                 return;
             }
-            if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
+            if (canStartClipInference(*clip))
                 createAndRunGetPronTask(*clip);
             break;
         case SingingClip::Insert:
@@ -269,7 +273,7 @@ void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType
                 piece->dirty = true;
             }
             // TODO 重跑获取发音->音素，跑之前先判断发音序列？
-            if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
+            if (canStartClipInference(*clip))
                 createAndRunGetPronTask(*clip);
             break;
         default:
@@ -339,13 +343,6 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(
     const AppStatus::ModuleStatus status) {
     if (status == AppStatus::ModuleStatus::Ready) {
         qDebug() << "Language module is ready. Tasks will be started.";
-
-        for (const auto track : appModel->tracks()) {
-            for (const auto clip : track->clips()) {
-                if (clip->clipType() == IClip::Singing)
-                    createAndRunGetPronTask(*dynamic_cast<SingingClip *>(clip));
-            }
-        }
     } else if (status == AppStatus::ModuleStatus::Error) {
         m_getPronTasks.disposePendingTasks();
         appOptions->language()->langOrder.clear();
@@ -353,6 +350,41 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(
         appOptions->saveAndNotify(AppOptionsGlobal::Language);
         qCritical() << "Failed to start the language module; tasks have been canceled. "
                        "Restart app to restore default language settings.";
+    }
+}
+
+bool InferControllerPrivate::allRequiredModulesReady() const {
+    return appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready &&
+           appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready &&
+           appStatus->inferEngineEnvStatus == AppStatus::ModuleStatus::Ready;
+}
+
+bool InferControllerPrivate::canStartClipInference(const SingingClip &clip) const {
+    return allRequiredModulesReady() && !clip.singerInfo().isEmpty() &&
+           !clip.singerIdentifier().isEmpty();
+}
+
+void InferControllerPrivate::scheduleRetryAllSingingClips() {
+    if (m_retryAllScheduled)
+        return;
+
+    m_retryAllScheduled = true;
+    QTimer::singleShot(0, this, [this] {
+        m_retryAllScheduled = false;
+        retryAllSingingClips();
+    });
+}
+
+void InferControllerPrivate::retryAllSingingClips() {
+    if (!allRequiredModulesReady())
+        return;
+
+    qDebug() << "Inference dependencies are ready. Retrying singing clips.";
+    for (const auto track : appModel->tracks()) {
+        for (const auto clip : track->clips()) {
+            if (clip->clipType() == IClip::Singing)
+                createAndRunGetPronTask(*static_cast<SingingClip *>(clip));
+        }
     }
 }
 
@@ -409,17 +441,31 @@ void InferControllerPrivate::recreateAllInferTasks() {
 }
 
 void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
+    if (!canStartClipInference(clip))
+        return;
+
     if (clip.notes().count() <= 0) {
         qDebug() << "createAndRunGetPhoneTask:"
                  << "Note list is empty";
         return;
     }
+    const auto clipId = clip.id();
+    auto pred = [clipId](const auto t) { return t->clipId() == clipId; };
+    m_getPronTasks.cancelIf(pred);
+    m_getPhoneTasks.cancelIf(pred);
+
     auto task = new GetPronunciationTask(clip.id(), clip.notes().toList());
     connect(task, &Task::finished, this, [task, this] { handleGetPronTaskFinished(*task); });
     m_getPronTasks.add(task);
 }
 
 void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
+    if (!canStartClipInference(clip))
+        return;
+
+    const auto clipId = clip.id();
+    m_getPhoneTasks.cancelIf([clipId](const auto t) { return t->clipId() == clipId; });
+
     QList<PhonemeNameInput> inputs;
     for (const auto note : clip.notes())
         inputs.append({note->lyric(), note->language(), note->pronunciation().result()});
@@ -430,6 +476,9 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
 }
 
 void InferControllerPrivate::createPipeline(InferPiece &piece) {
+    if (!piece.clip || !canStartClipInference(*piece.clip))
+        return;
+
     auto pipeline = new InferPipeline(piece);
     m_inferPipelines.append(pipeline);
     pipeline->run();

@@ -119,6 +119,30 @@
 
 目标是包刷新或降级打开后重解析当前工程的 singer/speaker，并让 `InferController` 显式等待 Package Ready、Inference Ready、Language Ready 后再调度推理。
 
+#### 当前进度（2026-06-06）
+
+阶段 4 采用收缩版范围，聚焦完成生命周期闭环，暂不处理运行期间卸载包后的反向失效和 runtime 资源清理。
+
+已完成的代码改动：
+
+- 新增 `ProjectPackageResolver`，监听 `AppModel::modelChanged`、`PackageManager::packagesRefreshed` 和 `AppStatus::moduleStatusChanged(ModuleType::Package, Ready)`，在 Package metadata Ready 后用当前 locator 重新解析工程内 track / singing clip 的 singer 和 speaker。
+- `ProjectPackageResolver` 只做 fallback → resolved 恢复：identifier 能解析到完整 `SingerInfo` 时更新模型；解析不到时暂时保持现有信息，不在本阶段处理“包被卸载后降级当前工程”的路径。
+- `ProjectPackageResolver` 通过现有 pair-level API 更新模型：`Track::setSingerAndSpeakerInfo(...)`、`SingingClip::setTrackSingerAndSpeakerInfo(...)`、`SingingClip::setOwnSingerAndSpeaker(...)`。
+- `AppControllerPrivate::initializeModules()` 中在 `InferController` 前初始化 `ProjectPackageResolver`，让 Package Ready 后的 queued 推理重试尽量发生在模型重解析之后。
+- `InferController` 新增统一 readiness gate：只有 `Package Ready + Inference Ready + Language Ready` 且 clip 有有效 singer identifier 时，才启动 pronunciation / phoneme / inference pipeline。
+- `InferController` 在 Package / Inference / Language 任一模块进入 Ready 后通过 queued call 重试当前 singing clips。
+- `InferEngine::loadInferencesForSinger()` 增加诊断：Inference runtime 未 Ready 时报告 `inference runtime is not ready`，Package 未 Ready 时报告 `package manager is not ready`，避免误报为缺包。
+- `DspxProjectConverter` 增加诊断：Package metadata 未 Ready 时解析 singer 会输出 warning，保留同步 converter 和 fallback 行为不变。
+
+已验证：
+
+- `cmake --preset debug` 通过。
+- `cmake --build --preset debug` 通过。
+
+尚未验证：
+
+- Phase 4 的手动功能用例尚未执行，包括 fallback → resolved 恢复、readiness 顺序和诊断日志验证。
+
 ### 1. 将 PackageManager 接入 AppStatus 模块状态体系，并与 InferEngine 解耦
 
 修改 `src/app/Model/AppStatus/AppStatus.h/.cpp` 和 `src/app/Modules/PackageManager/PackageManager.h/.cpp`。
@@ -492,7 +516,7 @@ bool canStartClipInference(const SingingClip &clip) {
    - 临时放慢包扫描或加日志。
    - 带 dspx 参数启动。
    - 确认工程打开等待 Package Ready，converter 解析时 locator 已填充。
-   - 当前结果（2026-06-05）：强制制造 Package 慢于工程打开时，主窗口被持续阻塞且未弹出 ProgressDialog；此项未通过，需要下一轮优先调查。
+   - 当前结果（2026-06-06）：阶段 2 已修复主窗口阻塞和 ProgressDialog 取消/清理问题；仍建议按本流程做回归验证。
 
 3. Package / Inference 解耦验证：
    - 临时放慢 `InferEngine` 初始化或模拟 GPU/ONNX 初始化耗时。
@@ -526,5 +550,10 @@ bool canStartClipInference(const SingingClip &clip) {
    - 确认模型重解析执行。
    - 确认受影响 clips 可以重试推理。
 
-9. 构建：
-   - 按项目要求使用 CMake build skill/workflow 构建 debug preset。
+9. Phase 4 快速验证：
+   - Rehydrate：模拟 Package Error 后降级打开带 singer 的 dspx，再恢复 Package Ready / 触发包刷新；确认日志出现 `Resolved project singer/speaker pairs from package metadata`，track / clip 的 fallback singer/speaker 恢复为完整信息，并能继续推理。
+   - 推理 gate：分别放慢 Package、Inference、Language 任一模块；确认三者未全部 Ready 前不启动推理 pipeline，不出现过早的 `loadInferencesForSinger` 失败；三者全部 Ready 后自动 retry singing clips。
+   - 诊断：临时绕过 `requestOpenFile(...)` 或人为制造 Package / Inference 未 Ready 的直接调用；确认 converter 输出 `DspxProjectConverter is resolving singer before package metadata is ready`，InferEngine 分别输出 `inference runtime is not ready` 或 `package manager is not ready`。
+
+10. 构建：
+    - 按项目要求使用 CMake build skill/workflow 构建 debug preset。

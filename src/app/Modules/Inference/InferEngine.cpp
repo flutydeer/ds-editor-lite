@@ -457,6 +457,11 @@ bool InferEngine::loadInferences(const QString &path) {
 #endif
 
 bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
+    if (appStatus->inferEngineEnvStatus != AppStatus::ModuleStatus::Ready || !initialized()) {
+        qCritical() << "loadInferencesForSinger: inference runtime is not ready" << identifier;
+        return false;
+    }
+
     const auto packageId = identifier.packageId.toStdString();
 
     auto loader = findLoaderForSinger(identifier);
@@ -465,6 +470,11 @@ bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
     if (!loader) {
         qDebug() << "loadInferencesForSinger: "
                     "singer" << identifier << "not loaded, try loading now";
+        if (appStatus->packageModuleStatus != AppStatus::ModuleStatus::Ready) {
+            qCritical() << "loadInferencesForSinger: package manager is not ready" << identifier;
+            return false;
+        }
+
         const auto packageInfo = packageManager->findPackageByIdentifier(identifier);
         if (packageInfo.isEmpty()) {
             qCritical() << "loadInferencesForSinger: "
