@@ -72,7 +72,48 @@
 
 ### 阶段 3：UI 表达 Package Loading
 
-目标是默认空工程启动期间不阻塞主窗口，但歌手选择器不要呈现误导性的空列表。`TwoLevelComboBox` 增加 loading/placeholder 能力，Track/Clip 歌手下拉框在扫描期间显示 disabled 的“正在扫描...”项。
+目标是默认空工程启动期间不阻塞主窗口，但歌手选择器不要呈现误导性的空列表。采用最简方案：Package 未 Ready 时禁用组合框，按钮文本显示 “(Scanning...)”，不修改下拉菜单内容。
+
+#### 具体改动
+
+**TwoLevelComboBox** 新增 `setLoadingText(const QString &text)`：
+- 非空字符串时覆盖按钮显示文本（`currentText()` 优先返回 loadingText）
+- `setItems()` 末尾清除 loadingText
+- 不需要菜单 disabled action、不需要 pending 缓存逻辑
+
+**TrackControlView** 构造时：
+- Package 未 Ready：`cbSinger->setEnabled(false)` + `cbSinger->setLoadingText(tr(“(Scanning...)”))`
+- Package 已 Ready：直接 `setItems(...)` 走现有路径
+- 新增 `moduleStatusChanged(ModuleType::Package, Ready)` 监听：`setEnabled(true)`、清除 loadingText、`setItems(...)` + `setCurrentData(...)`
+
+**ClipEditorToolBarView** 同理：
+- 构造时同 TrackControlView 逻辑
+- Ready 后恢复菜单并设置正确的选中项（考虑 Follow Track / independent singer 状态）
+
+#### 不改动范围
+
+- 不修改菜单结构
+- 不引入 pending packages 缓存
+- 不在 TwoLevelComboBox 中引入 AppStatus 依赖
+- Package Error 的处理保留到阶段 4
+
+#### 当前进度（2026-06-06）
+
+已完成的功能改动：
+- `TwoLevelComboBox` 新增 `setLoadingText()` 和 `m_loadingText` 成员；`currentText()` 优先返回 loadingText；`setItems()` 末尾自动清除 loadingText。
+- `TwoLevelComboBox::paintEvent` 中 `drawText` 改为从 `opt.palette` 取 `QPalette::ButtonText` 颜色，使 QSS `color` 属性能影响自绘文本。
+- `TwoLevelComboBox::paintEvent` 中箭头改为使用 `IconUtils::createTintedSvgIcon()` 绘制 `chevron_down_16_filled.svg`，并用 `QRectF` 计算箭头区域，避免高 DPI 下整数坐标带来的轻微偏移。
+- `TrackControlView` 构造时检查 `packageModuleStatus`：未 Ready 则 `setEnabled(false)` + `setLoadingText(tr("(Scanning...)"))`；新增 `moduleStatusChanged` 监听，Ready 后恢复。
+- `ClipEditorToolBarView` 同理，保留 Follow Track 语义。
+- `track-editor.qss` 新增 `TrackControlView>TwoLevelComboBox:disabled` 样式：透明背景、无边框、半透明前景色。
+- `clip-editor.qss` 新增 `TwoLevelComboBox#cbClipSinger:disabled` 样式：同上。
+- debug build 通过；UI 样式已验收通过。
+
+已修复的样式问题：
+- `TwoLevelComboBox#cbClipSinger:disabled` 的 QSS `color` 未生效，根因不是选择器匹配失败，而是 `ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(true)` 在切到 SingingClip 状态时无条件重新启用了 `m_cbSinger`，导致控件不再处于 `:disabled` 状态。现已改为只有 Package Ready 时才启用 clip singer selector。
+- 两处的下拉箭头颜色原本由 Qt style 绘制，不跟随 `QPalette::ButtonText`。现已改为 `TwoLevelComboBox::paintEvent()` 使用当前 palette 通过 `IconUtils` 自绘 SVG 箭头，使 QSS `color` 能同时影响文字和箭头。
+- 箭头区域从整数 `QRect` 计算调整为 `QRectF` 计算，避免高 DPI 下视觉偏移；调试红框已移除。
+- 阶段 3 已完成并验收通过。
 
 ### 阶段 4：模型 rehydrate 与推理 gate 完整化
 

@@ -69,12 +69,28 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     cbSinger = new TwoLevelComboBox;
     cbSinger->setObjectName("cbSinger");
     cbSinger->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    cbSinger->setItems(packageManager->installedPackages().successfulPackages);
+    if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready) {
+        cbSinger->setItems(packageManager->installedPackages().successfulPackages);
+    } else {
+        cbSinger->setEnabled(false);
+        cbSinger->setLoadingText(tr("(Scanning packages...)"));
+    }
     connect(packageManager, &PackageManager::packagesRefreshed, this, [this] {
         cbSinger->setItems(packageManager->installedPackages().successfulPackages);
         if (m_track)
             cbSinger->setCurrentData(m_track->singerInfo(), m_track->speakerInfo());
     });
+    connect(appStatus, &AppStatus::moduleStatusChanged, this,
+            [this](AppStatus::ModuleType module, AppStatus::ModuleStatus status) {
+                if (module == AppStatus::ModuleType::Package
+                    && status == AppStatus::ModuleStatus::Ready) {
+                    cbSinger->setEnabled(true);
+                    cbSinger->setLoadingText({});
+                    cbSinger->setItems(packageManager->installedPackages().successfulPackages);
+                    if (m_track)
+                        cbSinger->setCurrentData(m_track->singerInfo(), m_track->speakerInfo());
+                }
+            });
 
     connect(cbSinger, &TwoLevelComboBox::currentTextChanged, this, [this] {
         const auto currentText = cbSinger->currentText();

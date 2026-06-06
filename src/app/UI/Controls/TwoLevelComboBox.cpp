@@ -1,5 +1,9 @@
 #include "TwoLevelComboBox.h"
+
+#include "UI/Utils/IconUtils.h"
+
 #include <QDebug>
+#include <QIcon>
 #include <QPainter>
 #include <QStyleOptionComboBox>
 #include <QStyleOptionToolButton>
@@ -19,13 +23,34 @@ void TwoLevelComboBox::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     QStyleOptionToolButton opt;
     opt.initFrom(this);
-    opt.features = QStyleOptionToolButton::MenuButtonPopup;
+    // 只让 Qt style 绘制按钮背景；文本和箭头由控件自绘，确保 QSS color 能统一生效。
+    opt.features = QStyleOptionToolButton::None;
     opt.toolButtonStyle = Qt::ToolButtonTextOnly;
     style()->drawComplexControl(QStyle::CC_ToolButton, &opt, &painter, this);
-    
+
+    const QColor textColor =
+        opt.palette.color(isEnabled() ? QPalette::Active : QPalette::Disabled,
+                          QPalette::ButtonText);
     QRect textRect = opt.rect;
     textRect.adjust(8, 0, -28, 0);
-    painter.drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, currentText().isEmpty() ? tr("Please select") : currentText());
+    painter.setPen(textColor);
+    painter.drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
+                     currentText().isEmpty() ? tr("Please select") : currentText());
+
+    constexpr int menuButtonWidth = 28;
+    // 箭头沿用项目的 SVG 染色工具，并用 QRectF 计算位置，避免高 DPI 缩放下整数坐标
+    // 造成轻微偏移。ComboBox 如需自绘箭头，应复用同样的 IconUtils + QRectF 方式。
+    const QRectF controlRect(QPointF(opt.rect.topLeft()), QSizeF(opt.rect.size()));
+    const QSizeF arrowSize(16, 16);
+    const QRectF arrowRect(controlRect.left() + controlRect.width() - menuButtonWidth +
+                               (menuButtonWidth - arrowSize.width()) / 2.0,
+                           controlRect.top() + (controlRect.height() - arrowSize.height()) / 2.0,
+                           arrowSize.width(), arrowSize.height());
+    const auto arrowIcon = IconUtils::createTintedSvgIcon(
+        ":svg/icons/chevron_down_16_filled.svg", arrowSize.toSize(), textColor, textColor);
+    const auto arrowPixmap =
+        arrowIcon.pixmap(arrowSize.toSize(), isEnabled() ? QIcon::Normal : QIcon::Disabled);
+    painter.drawPixmap(arrowRect.topLeft(), arrowPixmap);
 }
 
 QSize TwoLevelComboBox::sizeHint() const {
@@ -161,10 +186,13 @@ void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
             m_currentItem = m_itemDataList.first();
         }
     }
+    m_loadingText.clear();
     updateDisplayText();
 }
 
 QString TwoLevelComboBox::currentText() const {
+    if (!m_loadingText.isEmpty())
+        return m_loadingText;
     const QString singerName = m_currentItem.singer.name();
     const QString speakerName = m_currentItem.speaker.name();
     QString effectiveText;
@@ -240,6 +268,11 @@ void TwoLevelComboBox::onActionTriggered(const QAction *action) {
 }
 
 void TwoLevelComboBox::updateDisplayText() {
+    update();
+}
+
+void TwoLevelComboBox::setLoadingText(const QString &text) {
+    m_loadingText = text;
     update();
 }
 

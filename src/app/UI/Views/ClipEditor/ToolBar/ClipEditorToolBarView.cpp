@@ -63,7 +63,12 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_cbSinger->setToolTip(tr("Clip Singer"));
 
     d->m_cbSinger->setShowInheritItem(true);
-    d->m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
+    if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready) {
+        d->m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
+    } else {
+        d->m_cbSinger->setEnabled(false);
+        d->m_cbSinger->setLoadingText(tr("(Scanning packages...)"));
+    }
     connect(packageManager, &PackageManager::packagesRefreshed, d, [d] {
         d->m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
         if (d->m_singingClip) {
@@ -77,6 +82,25 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
             d->m_cbSinger->setToolTip(d->m_cbSinger->currentText());
         }
     });
+    connect(appStatus, &AppStatus::moduleStatusChanged, d,
+            [d](AppStatus::ModuleType module, AppStatus::ModuleStatus status) {
+                if (module == AppStatus::ModuleType::Package
+                    && status == AppStatus::ModuleStatus::Ready) {
+                    d->m_cbSinger->setEnabled(true);
+                    d->m_cbSinger->setLoadingText({});
+                    d->m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
+                    if (d->m_singingClip) {
+                        if (d->m_singingClip->useTrackSingerInfo.get()) {
+                            d->m_cbSinger->setCurrentData(d->m_singingClip->singerInfo(),
+                                                          d->m_singingClip->speakerInfo(), true);
+                        } else {
+                            d->m_cbSinger->setCurrentData(d->m_singingClip->singerInfo(),
+                                                          d->m_singingClip->speakerInfo(), false);
+                        }
+                        d->m_cbSinger->setToolTip(d->m_cbSinger->currentText());
+                    }
+                }
+            });
     connect(d->m_cbSinger, &TwoLevelComboBox::currentDataChanged, d,
             &ClipEditorToolBarViewPrivate::onSingerEdited);
 
@@ -359,7 +383,7 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
     }
 
     m_cbSinger->setVisible(on);
-    m_cbSinger->setEnabled(on);
+    m_cbSinger->setEnabled(on && appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready);
     m_cbClipLanguage->setVisible(on);
     m_cbClipLanguage->setEnabled(on);
     m_cbPianoRollQuantize->setVisible(on);

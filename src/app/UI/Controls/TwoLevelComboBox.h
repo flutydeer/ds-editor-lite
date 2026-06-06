@@ -42,6 +42,8 @@ public:
 
     void clear();
 
+    void setLoadingText(const QString &text);
+
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
 
@@ -72,6 +74,7 @@ private:
     bool m_inheritWasSelected = false;
     SingerInfo m_prevSinger;
     SpeakerInfo m_prevSpeaker;
+    QString m_loadingText;
 };
 
 #endif // TWOLEVELCOMBOBOX_H
