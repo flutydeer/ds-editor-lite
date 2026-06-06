@@ -49,6 +49,16 @@ std::function<bool(T *, T *)> makePlaybackPriorityComparator() {
         return diffA > diffB;
     };
 }
+
+bool clipPiecesMatchCurrentSingerAndSpeaker(const SingingClip &clip) {
+    const auto identifier = clip.singerIdentifier();
+    const auto speaker = clip.speakerId();
+    for (const auto piece : clip.pieces()) {
+        if (piece->identifier != identifier || piece->speaker != speaker)
+            return false;
+    }
+    return true;
+}
 } // namespace
 
 InferController::InferController(QObject *parent)
@@ -199,8 +209,14 @@ void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
     });
 
     if (!clip->pieces().isEmpty()) {
-        // Cross-track move: pipelines are already running or completed,
-        // don't restart inference
+        // Cross-track move: keep existing pipelines only when their singer/speaker context is
+        // still valid. Follow Track clips can inherit a different singer/speaker on the target
+        // track and must be re-inferred.
+        if (!clipPiecesMatchCurrentSingerAndSpeaker(*clip)) {
+            clip->removeAllPieces();
+            if (canStartClipInference(*clip))
+                createAndRunGetPronTask(*clip);
+        }
         return;
     }
 
@@ -389,7 +405,9 @@ void InferControllerPrivate::retryAllSingingClips() {
 }
 
 void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &task) {
-    m_getPronTasks.onCurrentFinished();
+    if (!m_getPronTasks.onCurrentFinished(&task))
+        return;
+
     const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {
         delete &task;
@@ -409,7 +427,9 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &tas
 // TODO 对于以-开头的连续多个音符，同样被忽略
 // TODO 分段结果确保为多个有效片段
 void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task) {
-    m_getPhoneTasks.onCurrentFinished();
+    if (!m_getPhoneTasks.onCurrentFinished(&task))
+        return;
+
     const auto clip = appModel->findClipById(task.clipId());
     if (task.terminated() || !clip) {
         delete &task;

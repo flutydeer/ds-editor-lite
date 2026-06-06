@@ -125,9 +125,8 @@ private:
                                                     std::memory_order_acquire));
 
         runTask();
-        emit finished();
-
         setFlag(TaskStopped);
+        emit finished();
     }
 
     TaskStatus m_status;
