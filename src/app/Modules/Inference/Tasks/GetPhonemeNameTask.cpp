@@ -81,24 +81,30 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
             result.phonemeNames.append(restPhoneme);
             result.success = true;
         } else {
-            QStringList phonemes;
-            if (input.language == "eng") {
-                phonemes = input.pronunciation.split(' ', Qt::SkipEmptyParts);
-            } else {
-                phonemes = s2pMgr->syllableToPhoneme(
-                    m_clipSingerInfo.identifier(), m_clipSingerInfo.g2pId(input.language),
-                    input.pronunciation);
-            }
+            const auto g2pId = m_clipSingerInfo.g2pId(input.language);
+            const auto phonemes = s2pMgr->syllableToPhoneme(
+                m_clipSingerInfo.identifier(), g2pId, input.pronunciation);
 
             if (!phonemes.empty()) {
-                const auto onsetMarker = OnsetMarkerMgr::instance()->marker(input.language);
-                result.phonemeNames = onsetMarker->mark(phonemes, input.language);
-                result.success = true;
+                const auto onsetMarker =
+                    OnsetMarkerMgr::instance()->marker(m_clipSingerInfo.identifier(),
+                                                       input.language);
+                if (onsetMarker) {
+                    result.phonemeNames = onsetMarker->mark(phonemes, input.language);
+                    result.success = !result.phonemeNames.isEmpty();
+                }
+                if (!result.success) {
+                    qCritical() << "Failed to mark onset of phonemes:" << "language:"
+                                << input.language << "g2pId:" << g2pId
+                                << "pronunciation:" << input.pronunciation
+                                << "phonemes:" << phonemes;
+                    allSuccess = false;
+                }
             } else if (input.pronunciation == "-") {
                 result.success = true;
             } else {
                 qCritical() << "Failed to get phoneme names of pronunciation: " << "language:"
-                            << input.language << "g2pId:" << m_clipSingerInfo.g2pId(input.language)
+                            << input.language << "g2pId:" << g2pId
                             << "pronunciation:" << input.pronunciation;
                 allSuccess = false;
             }

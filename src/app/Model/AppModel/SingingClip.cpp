@@ -13,6 +13,7 @@
 #include "InferPiece.h"
 #include "Timeline.h"
 #include "Track.h"
+#include "Modules/Language/OnsetMarker/OnsetMarkerMgr.h"
 #include "Modules/Language/S2pMgr.h"
 #include "Modules/SingingClipSlicer/SingingClipSlicer.h"
 #include "Utils/AppModelUtils.h"
@@ -298,11 +299,14 @@ void SingingClip::init() {
         //     reSegment();
         // }
 
-        // TODO: use dspkg dict
         const auto s2pMgr = S2pMgr::instance();
-        const auto languages = currentSingerInfo;
-        for (const auto &lang : languages.languages())
-            s2pMgr->addS2p(currentSingerInfo.identifier(), lang.g2p(), lang.dict());
+        const auto onsetMarkerMgr = OnsetMarkerMgr::instance();
+        for (const auto &lang : currentSingerInfo.languages()) {
+            s2pMgr->addS2p(currentSingerInfo.identifier(), lang.g2p(), lang.s2pMode(),
+                           lang.s2pFile());
+            onsetMarkerMgr->addOnsetMarker(currentSingerInfo.identifier(), lang.id(),
+                                           lang.onsetMode(), lang.onsetFile());
+        }
     });
     m_speakerInfo.onChanged([this](const SpeakerInfo &) {
         if (m_singerSpeakerBatching) return;
