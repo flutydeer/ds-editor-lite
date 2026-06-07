@@ -38,6 +38,12 @@ int InferDurationTask::pieceId() const {
     return m_input.pieceId;
 }
 
+InferenceTaskContext InferDurationTask::inferenceContext() const {
+    auto context = m_input.toInferenceTaskContext("duration");
+    context.taskId = id();
+    return context;
+}
+
 bool InferDurationTask::success() const {
     return m_success.load(std::memory_order_acquire);
 }

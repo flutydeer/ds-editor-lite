@@ -19,6 +19,8 @@ public:
     explicit BaseInferState(InferPipeline &pipeline, QState *parent = nullptr);
     virtual ~BaseInferState() = default;
 
+    Q_SIGNAL void dropped();
+
 protected:
     void onEntry(QEvent *event) override;
     void onExit(QEvent *event) override;

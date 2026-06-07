@@ -48,6 +48,12 @@ double AppModel::tempo() const {
 void AppModel::setTempo(const double tempo) {
     Q_D(AppModel);
     d->m_tempo = tempo;
+    for (const auto track : d->m_tracks) {
+        for (const auto clip : track->clips()) {
+            if (clip->clipType() == IClip::Singing)
+                static_cast<SingingClip *>(clip)->bumpInferenceRevision();
+        }
+    }
     emit tempoChanged(d->m_tempo);
 }
 

@@ -24,6 +24,7 @@ public:
     void cancelAll();
     void cancelIf(std::function<bool(T *task)> pred);
     void disposePendingTasks();
+    bool isCurrent(T *task) const;
     bool onCurrentFinished(T *task = nullptr);
 
 private:
@@ -92,18 +93,24 @@ void TaskQueue<T>::cancelIf(std::function<bool(T *task)> pred) {
 
         if (taskToCancel->stopped()) {
             QPointer<T> taskPtr(taskToCancel);
-            QMetaObject::invokeMethod(taskToCancel, [this, taskPtr] {
-                if (taskPtr)
-                    cleanupCancelledCurrent(taskPtr);
-            }, Qt::QueuedConnection);
+            QMetaObject::invokeMethod(
+                taskToCancel,
+                [this, taskPtr] {
+                    if (taskPtr)
+                        cleanupCancelledCurrent(taskPtr);
+                },
+                Qt::QueuedConnection);
         } else {
             QPointer<T> taskPtr(taskToCancel);
             // Wait for the task to actually finish before running the next one,
             // to avoid concurrent access to shared inference resources.
-            QObject::connect(taskToCancel, &Task::finished, taskToCancel, [this, taskPtr]() {
-                if (taskPtr)
-                    cleanupCancelledCurrent(taskPtr);
-            }, Qt::QueuedConnection);
+            QObject::connect(
+                taskToCancel, &Task::finished, taskToCancel,
+                [this, taskPtr]() {
+                    if (taskPtr)
+                        cleanupCancelledCurrent(taskPtr);
+                },
+                Qt::QueuedConnection);
         }
 
         taskManager->terminateTask(taskToCancel);
@@ -116,6 +123,11 @@ void TaskQueue<T>::disposePendingTasks() {
     const auto pendingTasks = pending.toList();
     for (const auto task : pendingTasks)
         disposePendingTask(task);
+}
+
+template <typename T>
+bool TaskQueue<T>::isCurrent(T *task) const {
+    return current && current == task;
 }
 
 template <typename T>
@@ -139,6 +151,7 @@ bool TaskQueue<T>::onCurrentFinished(T *task) {
         taskManager->removeTask(finishedTask);
         current = nullptr;
         m_currentCancellationPending = false;
+        finishedTask->deleteLater();
         runNext();
         return true;
     }
@@ -147,6 +160,7 @@ bool TaskQueue<T>::onCurrentFinished(T *task) {
     finishedTask->disconnect();
     taskManager->removeTask(finishedTask);
     current = nullptr;
+    finishedTask->deleteLater();
 
     // Automatically run the next task in the queue
     runNext();

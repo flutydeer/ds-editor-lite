@@ -6,23 +6,19 @@
 
 #include "Global/AppGlobal.h"
 #include "Global/SingingClipSlicerGlobal.h"
-#include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Language/OnsetMarker/OnsetMarkerMgr.h"
 #include "Modules/Language/S2pMgr.h"
 
 #include <QDebug>
-#include <QMutexLocker>
-#include <QThread>
 
-GetPhonemeNameTask::GetPhonemeNameTask(const SingingClip &clip,
-                                       const QList<PhonemeNameInput> &inputs)
-    : m_clipSingerInfo(clip.singerInfo()), m_clipId(clip.id()), m_inputs(inputs) {
-    const auto singerInfo = clip.singerInfo();
-    m_clipSingerId = singerInfo.name();
-
-    for (int i = 0; i < inputs.count(); i++) {
-        const auto &note = inputs.at(i);
+GetPhonemeNameTask::GetPhonemeNameTask(const int clipId, const quint64 clipRevision,
+                                       const QList<NoteInferenceSnapshot> &notes,
+                                       const SingerInfo &singerInfo, const double tempo)
+    : m_clipSingerInfo(singerInfo), m_clipId(clipId), m_clipRevision(clipRevision), m_inputs(notes),
+      m_tempo(tempo) {
+    for (int i = 0; i < notes.count(); i++) {
+        const auto &note = notes.at(i);
         m_previewText.append(note.lyric);
         if (i == 20) {
             m_previewText.append("...");
@@ -35,11 +31,24 @@ GetPhonemeNameTask::GetPhonemeNameTask(const SingingClip &clip,
     status.isIndetermine = true;
     setStatus(status);
     qInfo() << "Task created"
-            << " clipId:" << m_clipId << "taskId:" << id() << "noteCount:" << m_inputs.count();
+            << " clipId:" << m_clipId << "taskId:" << id() << "taskRevision:" << m_clipRevision
+            << "noteCount:" << m_inputs.count();
 }
 
 int GetPhonemeNameTask::clipId() const {
     return m_clipId;
+}
+
+quint64 GetPhonemeNameTask::clipRevision() const {
+    return m_clipRevision;
+}
+
+QList<int> GetPhonemeNameTask::noteIds() const {
+    QList<int> ids;
+    ids.reserve(m_inputs.size());
+    for (const auto &note : m_inputs)
+        ids.append(note.noteId);
+    return ids;
 }
 
 bool GetPhonemeNameTask::success() const {
@@ -82,13 +91,12 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
             result.success = true;
         } else {
             const auto g2pId = m_clipSingerInfo.g2pId(input.language);
-            const auto phonemes = s2pMgr->syllableToPhoneme(
-                m_clipSingerInfo.identifier(), g2pId, input.pronunciation);
+            const auto phonemes = s2pMgr->syllableToPhoneme(m_clipSingerInfo.identifier(), g2pId,
+                                                            input.pronunciation);
 
             if (!phonemes.empty()) {
-                const auto onsetMarker =
-                    OnsetMarkerMgr::instance()->marker(m_clipSingerInfo.identifier(),
-                                                       input.language);
+                const auto onsetMarker = OnsetMarkerMgr::instance()->marker(
+                    m_clipSingerInfo.identifier(), input.language);
                 if (onsetMarker) {
                     result.phonemeNames = onsetMarker->mark(phonemes, input.language);
                     result.success = !result.phonemeNames.isEmpty();
@@ -126,6 +134,7 @@ bool GetPhonemeNameTask::isPlusNote(const QString &lyric) {
     }
     return true;
 }
+
 std::pair<bool, int> GetPhonemeNameTask::checkTrailingPlus(const QString &lyric) {
     if (!lyric.endsWith('+')) {
         return {false, 0};
@@ -167,15 +176,14 @@ void GetPhonemeNameTask::distributePhonemes() {
     const int count = m_inputs.size();
     int i = 0;
 
-    const double tempo = appModel->tempo();
     const double gapThresholdMs = 2.0 * SingingClipSlicerGlobal::padBaseLength;
     const int gapThresholdTicks = static_cast<int>(
-        std::round(gapThresholdMs * AppGlobal::ticksPerQuarterNote * tempo / 60000.0));
+        std::round(gapThresholdMs * AppGlobal::ticksPerQuarterNote * m_tempo / 60000.0));
 
     auto tickGap = [this](int a, int b) -> int {
-        const auto *noteA = notesRef[a];
-        const auto *noteB = notesRef[b];
-        return noteB->globalStart() - (noteA->globalStart() + noteA->length());
+        const auto &noteA = m_inputs[a];
+        const auto &noteB = m_inputs[b];
+        return noteB.globalStart - (noteA.globalStart + noteA.length);
     };
 
     while (i < count) {

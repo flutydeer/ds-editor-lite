@@ -5,15 +5,12 @@
 #include "BaseInferState.h"
 #include "Modules/Inference/InferPipeline.h"
 #include "Modules/Inference/InferControllerHelper.h"
-#include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Modules/Inference/Tasks/IInferTask.h"
 
-#include <QCoreApplication>
 #include <QTimer>
 #include <QDebug>
 #include <QFinalState>
-#include <QtConcurrent/QtConcurrent>
 
 BaseInferState::BaseInferState(InferPipeline &pipeline, QState *parent)
     : QState(parent), m_pipeline(pipeline) {
@@ -66,22 +63,12 @@ void BaseInferState::onRunningInferenceStateEntered() {
 
     resetState();
 
-    int epoch = ++m_preparationEpoch;
-    auto future = QtConcurrent::run([this, epoch] {
-        buildTaskInput();
-        auto *task = createTask();
-        task->moveToThread(QCoreApplication::instance()->thread());
-        QMetaObject::invokeMethod(this, [this, task, epoch] {
-            if (m_preparationEpoch != epoch) {
-                delete task;
-                return;
-            }
-            connect(task, &IInferTask::finished, this,
-                    [this, task] { handleTaskFinished(*task); });
-            addTaskToController(task);
-            currentTask = task;
-        }, Qt::QueuedConnection);
-    });
+    ++m_preparationEpoch;
+    buildTaskInput();
+    auto *task = createTask();
+    connect(task, &IInferTask::finished, this, [this, task] { handleTaskFinished(*task); });
+    addTaskToController(task);
+    currentTask = task;
 }
 
 void BaseInferState::onRunningInferenceStateExited() {
@@ -112,39 +99,38 @@ void BaseInferState::handleTaskFinished(IInferTask &task) {
         return;
     }
 
-    finishTaskInController();
-
-    const auto clip = appModel->findClipById(task.clipId());
-    if (task.terminated() || !clip) {
-        qDebug() << "Task terminated or clip not found, cleaning up";
-        delete currentTask;
+    const auto finishCurrentTask = [this] {
+        finishTaskInController();
         currentTask = nullptr;
+    };
+
+    if (task.terminated()) {
+        qDebug() << "Task terminated, cleaning up";
+        finishCurrentTask();
         return;
     }
 
-    const auto singingClip = dynamic_cast<SingingClip *>(appModel->findClipById(task.clipId()));
-    const auto piece = singingClip->findPieceById(task.pieceId());
-    if (!piece) {
-        qDebug() << "Piece not found, cleaning up";
-        delete currentTask;
-        currentTask = nullptr;
-        return;
-    }
-
-    if (task.success()) {
-        if (!validateTaskResult(&task, singingClip)) {
-            delete currentTask;
-            currentTask = nullptr;
-            QTimer::singleShot(0, this, [this] { emit failed(); });
-        } else {
-            setTaskResultToPipeline(&task);
-            delete currentTask;
-            currentTask = nullptr;
-            QTimer::singleShot(0, this, [this] { emit ready(); });
-        }
-    } else {
-        delete currentTask;
-        currentTask = nullptr;
+    if (!task.success()) {
+        finishCurrentTask();
         QTimer::singleShot(0, this, [this] { emit failed(); });
+        return;
     }
+
+    m_pipeline.setApplyContext(task.inferenceContext());
+    InferenceTaskResolution resolution;
+    if (!m_pipeline.resolveApplyContext(resolution)) {
+        finishCurrentTask();
+        QTimer::singleShot(0, this, [this] { emit dropped(); });
+        return;
+    }
+
+    if (!validateTaskResult(&task, resolution.clip)) {
+        finishCurrentTask();
+        QTimer::singleShot(0, this, [this] { emit dropped(); });
+        return;
+    }
+
+    setTaskResultToPipeline(&task);
+    finishCurrentTask();
+    QTimer::singleShot(0, this, [this] { emit ready(); });
 }

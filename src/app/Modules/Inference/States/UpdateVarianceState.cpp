@@ -21,12 +21,18 @@ void UpdateVarianceState::onEntry(QEvent *event) {
     qDebug() << "UpdateVarianceState::onEntry";
     QState::onEntry(event);
 
-    auto &piece = m_pipeline.piece();
+    InferenceTaskResolution resolution;
+    if (!m_pipeline.resolveApplyContext(resolution)) {
+        QTimer::singleShot(0, this, [this] { emit pieceNotFound(); });
+        return;
+    }
+
+    auto &piece = *resolution.piece;
     piece.state = QString("Variance.Update");
     Helper::updateVariance(m_pipeline.varianceResult(), piece);
 
     auto isLazy = !appOptions->inference()->autoStartInfer &&
-                   playbackController->playbackStatus() != PlaybackStatus::Playing;
+                  playbackController->playbackStatus() != PlaybackStatus::Playing;
     if (isLazy)
         QTimer::singleShot(0, this, [this] { emit updateSuccessWithLazyInference(); });
     else

@@ -18,8 +18,14 @@ UpdatePitchState::UpdatePitchState(InferPipeline &pipeline, QState *parent)
 void UpdatePitchState::onEntry(QEvent *event) {
     qDebug() << "UpdatePitchState::onEntry";
     QState::onEntry(event);
-    
-    auto &piece = m_pipeline.piece();
+
+    InferenceTaskResolution resolution;
+    if (!m_pipeline.resolveApplyContext(resolution)) {
+        QTimer::singleShot(0, this, [this] { emit pieceNotFound(); });
+        return;
+    }
+
+    auto &piece = *resolution.piece;
     piece.state = QString("Pitch.Update");
     Helper::updatePitch(m_pipeline.pitchResult(), piece);
     QTimer::singleShot(0, this, [this] { emit updateSuccess(); });

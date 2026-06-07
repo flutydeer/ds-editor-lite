@@ -6,6 +6,7 @@
 #define DS_EDITOR_LITE_INFERPIPELINE_H
 
 #include "Model/AppModel/InferPiece.h"
+#include "Models/InferenceTaskContext.h"
 #include "Models/InferInputNote.h"
 #include "Models/InferParamCurve.h"
 #include "Tasks/InferVarianceTask.h"
@@ -38,6 +39,12 @@ public:
     [[nodiscard]] int clipId() const;
     void run();
     [[nodiscard]] InferPiece &piece() const;
+
+    [[nodiscard]] const InferenceTaskContext &applyContext() const;
+    void setApplyContext(const InferenceTaskContext &context);
+    void clearApplyContext();
+    [[nodiscard]] bool resolveApplyContext(InferenceTaskResolution &resolution,
+                                           qsizetype expectedNoteCount = -1) const;
 
     [[nodiscard]] const QList<InferInputNote> &durationResult() const;
     void setDurationResult(const QList<InferInputNote> &result);
@@ -111,6 +118,7 @@ private:
     InferParamCurve m_pitchResult;
     InferVarianceTask::InferVarianceResult m_varianceResult;
     QString m_acousticResult;
+    InferenceTaskContext m_applyContext;
 };
 
 #endif // DS_EDITOR_LITE_INFERPIPELINE_H

@@ -35,6 +35,12 @@ int InferVarianceTask::pieceId() const {
     return m_input.pieceId;
 }
 
+InferenceTaskContext InferVarianceTask::inferenceContext() const {
+    auto context = m_input.toInferenceTaskContext("variance");
+    context.taskId = id();
+    return context;
+}
+
 bool InferVarianceTask::success() const {
     return m_success.load(std::memory_order_acquire);
 }

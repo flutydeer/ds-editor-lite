@@ -16,7 +16,9 @@
 #include "States/PlaybackReadyState.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Utils/ConditionalTransition.h"
+#include "Utils/InferenceApplyGate.h"
 
+#include <QDebug>
 #include <QFinalState>
 
 InferPipeline::InferPipeline(InferPiece &piece) : QObject(&piece), m_piece(piece) {
@@ -45,6 +47,28 @@ void InferPipeline::run() {
 
 InferPiece &InferPipeline::piece() const {
     return m_piece;
+}
+
+const InferenceTaskContext &InferPipeline::applyContext() const {
+    return m_applyContext;
+}
+
+void InferPipeline::setApplyContext(const InferenceTaskContext &context) {
+    m_applyContext = context;
+}
+
+void InferPipeline::clearApplyContext() {
+    m_applyContext = {};
+}
+
+bool InferPipeline::resolveApplyContext(InferenceTaskResolution &resolution,
+                                        const qsizetype expectedNoteCount) const {
+    InferenceApplyGate::Options options;
+    options.phase = "pipeline";
+    options.expectedNoteCount = expectedNoteCount;
+    options.checkActiveEditSession = true;
+    return InferenceApplyGate::resolve(m_applyContext, resolution, options) ==
+           InferenceApplyGate::Decision::Apply;
 }
 
 const QList<InferInputNote> &InferPipeline::durationResult() const {
@@ -143,6 +167,7 @@ void InferPipeline::initTransitions() {
 void InferPipeline::initDurationTransitions() {
     inferDurationState->addTransition(inferDurationState, &InferDurationState::finished,
                                       updateDurationState);
+    inferDurationState->addTransition(inferDurationState, &InferDurationState::dropped, finalState);
     inferDurationState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
 
     updateDurationState->addTransition(updateDurationState, &UpdateDurationState::updateSuccess,
@@ -153,6 +178,7 @@ void InferPipeline::initDurationTransitions() {
 
 void InferPipeline::initPitchTransitions() {
     inferPitchState->addTransition(inferPitchState, &InferPitchState::finished, updatePitchState);
+    inferPitchState->addTransition(inferPitchState, &InferPitchState::dropped, finalState);
     inferPitchState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
     inferPitchState->addTransition(this, &InferPipeline::expressivenessChanged, inferPitchState);
 
@@ -165,6 +191,7 @@ void InferPipeline::initPitchTransitions() {
 void InferPipeline::initVarianceTransitions() {
     inferVarianceState->addTransition(inferVarianceState, &InferVarianceState::finished,
                                       updateVarianceState);
+    inferVarianceState->addTransition(inferVarianceState, &InferVarianceState::dropped, finalState);
     inferVarianceState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
     inferVarianceState->addTransition(this, &InferPipeline::expressivenessChanged, inferPitchState);
     inferVarianceState->addTransition(this, &InferPipeline::pitchChanged, inferVarianceState);
@@ -199,6 +226,7 @@ void InferPipeline::initAwaitingInferAcousticTransitions() {
 void InferPipeline::initAcousticTransitions() {
     inferAcousticState->addTransition(inferAcousticState, &InferAcousticState::finished,
                                       updateAcousticState);
+    inferAcousticState->addTransition(inferAcousticState, &InferAcousticState::dropped, finalState);
     inferAcousticState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
     inferAcousticState->addTransition(this, &InferPipeline::expressivenessChanged, inferPitchState);
     inferAcousticState->addTransition(this, &InferPipeline::pitchChanged, inferVarianceState);

@@ -71,7 +71,15 @@ public:
 
     void notifyNextPipeline(const QList<InferPipeline *> &pipelines, int index);
 
+    struct EditSession {
+        AppStatus::EditObjectType domain = AppStatus::EditObjectType::None;
+        int clipId = -1;
+        QList<int> noteIds;
+        quint64 baseRevision = 0;
+    };
+
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
+    EditSession m_activeEditSession;
 
     TaskQueue<GetPronunciationTask> m_getPronTasks;
     TaskQueue<GetPhonemeNameTask> m_getPhoneTasks;

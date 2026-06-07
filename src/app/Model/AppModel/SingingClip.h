@@ -55,6 +55,8 @@ public:
     void updateOriginalParam(ParamInfo::Name name);
     InferPiece *findPieceById(int id) const;
     PieceList findPiecesByNotes(const QList<Note *> &notes) const;
+    quint64 inferenceRevision() const;
+    quint64 bumpInferenceRevision();
 
     void setDefaultLanguage(const QString &language);
     QString defaultLanguage() const;
@@ -89,6 +91,7 @@ private:
 
     OverlappableSerialList<Note> m_notes;
     PieceList m_pieces;
+    quint64 m_inferenceRevision = 0;
 
     Property<QString> m_defaultLanguage{"unknown"};
     Property<QString> m_defaultG2pId{"unknown"};

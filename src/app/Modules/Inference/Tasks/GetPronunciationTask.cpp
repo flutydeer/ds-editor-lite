@@ -4,9 +4,6 @@
 
 #include "GetPronunciationTask.h"
 
-#include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/Note.h"
-#include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 
 #include <QDebug>
@@ -14,11 +11,12 @@
 #include <LangCore/Base/LangCommon.h>
 #include <LangCore/Core/Manager.h>
 
-GetPronunciationTask::GetPronunciationTask(const int clipId, const QList<Note *> &notes)
-    : m_clipId(clipId), m_notes(notes) {
-    notesRef = notes;
+GetPronunciationTask::GetPronunciationTask(const int clipId, const quint64 clipRevision,
+                                           const QList<NoteInferenceSnapshot> &notes,
+                                           const SingerInfo &singerInfo)
+    : m_clipId(clipId), m_clipRevision(clipRevision), m_singerInfo(singerInfo), m_notes(notes) {
     for (int i = 0; i < notes.count(); i++) {
-        m_previewText.append(notes.at(i)->lyric());
+        m_previewText.append(notes.at(i).lyric);
         if (i == 20) {
             m_previewText.append("...");
             break;
@@ -30,11 +28,23 @@ GetPronunciationTask::GetPronunciationTask(const int clipId, const QList<Note *>
     status.isIndetermine = true;
     setStatus(status);
     qInfo() << "创建获取发音任务"
-            << "clipId:" << clipId << "taskId:" << id();
+            << "clipId:" << clipId << "taskId:" << id() << "taskRevision:" << m_clipRevision;
 }
 
 int GetPronunciationTask::clipId() const {
     return m_clipId;
+}
+
+quint64 GetPronunciationTask::clipRevision() const {
+    return m_clipRevision;
+}
+
+QList<int> GetPronunciationTask::noteIds() const {
+    QList<int> ids;
+    ids.reserve(m_notes.size());
+    for (const auto &note : m_notes)
+        ids.append(note.noteId);
+    return ids;
 }
 
 void GetPronunciationTask::runTask() {
@@ -44,19 +54,17 @@ void GetPronunciationTask::runTask() {
     qInfo() << "获取发音任务完成 taskId:" << id() << "terminate:" << terminated();
 }
 
-QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &notes) const {
+QStringList GetPronunciationTask::getPronunciations(
+    const QList<NoteInferenceSnapshot> &notes) const {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
         qFatal() << "Language module not ready yet";
         return {};
     }
 
-    const auto singingClip = static_cast<SingingClip *>(appModel->findClipById(m_clipId));
-    Q_ASSERT(singingClip);
-    const auto singerInfo = singingClip->singerInfo();
     const auto langMgr = LangCore::Manager::instance();
 
-    auto isSkippedNote = [](const Note *note) {
-        const auto lyric = note->lyric().trimmed();
+    auto isSkippedNote = [](const NoteInferenceSnapshot &note) {
+        const auto lyric = note.lyric.trimmed();
         if (lyric == "SP" || lyric == "AP" || lyric == "-")
             return true;
         return lyric.count('+') == lyric.length();
@@ -70,29 +78,29 @@ QList<QString> GetPronunciationTask::getPronunciations(const QList<Note *> &note
             continue;
         }
         nonRestIndices.append(i);
-        auto lyric = note->lyric();
+        auto lyric = note.lyric;
         while (lyric.endsWith('+'))
             lyric.chop(1);
-        const auto g2pId = ("g2p-" + note->language() + "-official").toStdString();
+        const auto g2pId = ("g2p-" + note.language + "-official").toStdString();
         g2pInput.push_back(new LangCore::G2pInput(lyric.toStdString(), g2pId));
     }
 
     std::vector<std::string> priorityG2pIds = {};
-    if (!singerInfo.isEmpty()) {
-        priorityG2pIds.push_back(singerInfo.defaultG2pId().toStdString());
-        const auto languages = singerInfo.languages();
+    if (!m_singerInfo.isEmpty()) {
+        priorityG2pIds.push_back(m_singerInfo.defaultG2pId().toStdString());
+        const auto languages = m_singerInfo.languages();
         for (const auto &lang : languages)
             priorityG2pIds.push_back(lang.g2p().toStdString());
     }
 
     const auto g2pResult = langMgr->convert(g2pInput);
 
-    QList<QString> pronResult;
+    QStringList pronResult;
     pronResult.resize(notes.count());
 
     for (int i = 0; i < notes.count(); i++) {
         if (isSkippedNote(notes.at(i))) {
-            pronResult[i] = notes.at(i)->lyric().trimmed();
+            pronResult[i] = notes.at(i).lyric.trimmed();
         }
     }
 

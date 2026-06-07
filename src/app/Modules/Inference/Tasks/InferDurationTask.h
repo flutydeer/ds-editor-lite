@@ -29,6 +29,7 @@ public:
 
     int clipId() const override;
     int pieceId() const override;
+    [[nodiscard]] InferenceTaskContext inferenceContext() const override;
     [[nodiscard]] bool success() const override;
 
     explicit InferDurationTask(InferDurInput input);

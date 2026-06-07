@@ -35,6 +35,12 @@ int InferPitchTask::pieceId() const {
     return m_input.pieceId;
 }
 
+InferenceTaskContext InferPitchTask::inferenceContext() const {
+    auto context = m_input.toInferenceTaskContext("pitch");
+    context.taskId = id();
+    return context;
+}
+
 bool InferPitchTask::success() const {
     return m_success.load(std::memory_order_acquire);
 }
@@ -127,7 +133,7 @@ void InferPitchTask::runTask() {
 }
 
 bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &outPitch,
-                             QString &error) {
+                                  QString &error) {
     if (!inferEngine->initialized()) {
         qCritical().noquote() << "inferPitch: Environment is not initialized";
         return false;

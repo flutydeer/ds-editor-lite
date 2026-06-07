@@ -45,7 +45,7 @@ public:
         QString language;
         QString name;
         bool isOnset = false;
-        
+
         bool nameEdited = false;
         bool offsetEdited = false;
         bool offsetReady = false;
@@ -76,7 +76,8 @@ private slots:
     void onPiecesChanged(const PieceList &pieces, const PieceList &newPieces,
                          const PieceList &discardedPieces);
     void onPieceStatusChanged(InferPiece *piece, InferStatus status);
-    void onWaveformReady(InferPiece *piece, const AudioInfoModel &info);
+    void onWaveformReady(int clipId, int pieceId, quint64 clipRevision, const QString &audioPath,
+                         const AudioInfoModel &info);
 
 private:
     enum MouseMoveBehavior { Move, None };
@@ -130,6 +131,7 @@ private:
         int globalStartTick = 0;
         int globalEndTick = 0;
     };
+
     QMap<InferPiece *, PieceWaveform> m_pieceWaveforms;
     void clearPieceWaveforms();
     void drawWaveforms(QPainter *painter);

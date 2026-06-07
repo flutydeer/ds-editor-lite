@@ -28,19 +28,19 @@ private:
     talcs::DspxTrackContext *m_trackContext;
 
     QHash<SingingClip *, talcs::DspxSingingClipInferenceContext *> m_singingClipModelDict;
-    QHash<InferPiece *, talcs::DspxInferencePieceContext *> m_inferPieceModelDict;
+    QHash<int, talcs::DspxInferencePieceContext *> m_inferPieceModelDict;
     QHash<SingingClip *, QList<InferPiece *>> m_singingClipInferPieces;
 
     void handleSingingClipInserted(SingingClip *clip);
     void handleSingingClipRemoved(SingingClip *clip);
 
     void handleSingingClipPropertyChanged(SingingClip *clip) const;
-    void handlePieceChanged(SingingClip *clip, const QList <InferPiece *> &pieces);
+    void handlePieceChanged(SingingClip *clip, const QList<InferPiece *> &pieces);
 
     void handlePieceInserted(SingingClip *clip, InferPiece *inferPiece);
     void handlePieceRemoved(SingingClip *clip, InferPiece *inferPiece);
 
-    void handleInferPieceStatusChange(InferPiece *piece, InferStatus status) const;
+    void handleInferPieceStatusChange(int clipId, int pieceId, InferStatus status) const;
 
     void handleTimeChanged() const;
 };
@@ -48,4 +48,4 @@ private:
 
 
 
-#endif //TRACKINFERENCEHANDLER_H
+#endif // TRACKINFERENCEHANDLER_H

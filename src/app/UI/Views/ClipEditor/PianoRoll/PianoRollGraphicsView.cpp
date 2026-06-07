@@ -45,6 +45,7 @@
 
 #include <QApplication>
 #include <QClipboard>
+#include <QDebug>
 #include <QGraphicsLineItem>
 #include <QMimeData>
 #include <QGraphicsPathItem>
@@ -57,6 +58,13 @@
 #include "UI/Controls/Menu.h"
 
 namespace Helper = PianoRollGraphicsViewHelper;
+
+namespace {
+    void logMissingNoteView(const char *context, const int noteId) {
+        qWarning() << "Ignore note update because note view is missing"
+                   << "context:" << context << "noteId:" << noteId;
+    }
+}
 
 PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, const QWidget *parent)
     : TimeGraphicsView(scene, parent), d_ptr(new PianoRollGraphicsViewPrivate(this)) {
@@ -1062,7 +1070,10 @@ void PianoRollGraphicsViewPrivate::updateSceneSelectionState() {
 
     for (const auto id : appStatus->selectedNotes.get()) {
         const auto noteItem = findNoteViewById(id);
-        Q_ASSERT(noteItem);
+        if (!noteItem) {
+            logMissingNoteView("selection", id);
+            continue;
+        }
         noteItem->setSelected(true);
     }
     m_selectionChangeBarrier = false;
@@ -1072,7 +1083,10 @@ void PianoRollGraphicsViewPrivate::updateOverlappedState() {
     Q_Q(PianoRollGraphicsView);
     for (const auto note : m_notes) {
         const auto noteView = findNoteViewById(note->id());
-        Q_ASSERT(noteView);
+        if (!noteView) {
+            logMissingNoteView("overlap", note->id());
+            continue;
+        }
         noteView->setOverlapped(note->overlapped());
     }
     q->update();
@@ -1080,13 +1094,19 @@ void PianoRollGraphicsViewPrivate::updateOverlappedState() {
 
 void PianoRollGraphicsViewPrivate::updateNoteTimeAndKey(const Note *note) const {
     const auto noteView = findNoteViewById(note->id());
-    Q_ASSERT(noteView);
+    if (!noteView) {
+        logMissingNoteView("time-key", note->id());
+        return;
+    }
     Helper::updateNoteTimeAndKey(*noteView, *note);
 }
 
 void PianoRollGraphicsViewPrivate::updateNoteWord(const Note *note) const {
     const auto noteView = findNoteViewById(note->id());
-    Q_ASSERT(noteView);
+    if (!noteView) {
+        logMissingNoteView("word", note->id());
+        return;
+    }
     Helper::updateNoteWord(*noteView, *note);
 }
 
@@ -1208,7 +1228,13 @@ void PianoRollGraphicsViewPrivate::handleNoteRemoved(Note *note) {
     m_selectionChangeBarrier = true;
     // qDebug() << "PianoRollGraphicsView::removeNote" << note->id() << note->lyric();
     const auto noteView = findNoteViewById(note->id());
-    Q_ASSERT(noteView);
+    if (!noteView) {
+        logMissingNoteView("remove", note->id());
+        m_notes.removeOne(note);
+        disconnect(note, nullptr, this, nullptr);
+        m_selectionChangeBarrier = false;
+        return;
+    }
     removeNoteViewFromScene(noteView);
     delete noteView;
     m_notes.removeOne(note);

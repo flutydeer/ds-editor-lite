@@ -39,6 +39,7 @@ public:
 
     [[nodiscard]] int clipId() const override;
     [[nodiscard]] int pieceId() const override;
+    [[nodiscard]] InferenceTaskContext inferenceContext() const override;
     [[nodiscard]] bool success() const override;
 
     explicit InferVarianceTask(InferVarianceInput input);

@@ -129,26 +129,37 @@ void TrackInferenceHandler::handlePieceChanged(SingingClip *clip,
 
 void TrackInferenceHandler::handlePieceInserted(SingingClip *clip, InferPiece *inferPiece) {
     const auto singingClipInferenceContext = m_singingClipModelDict.value(clip);
-    const auto inferencePieceContext = singingClipInferenceContext->addInferencePiece(inferPiece->id());
-    m_inferPieceModelDict.insert(inferPiece, inferencePieceContext);
+    const auto inferencePieceContext =
+        singingClipInferenceContext->addInferencePiece(inferPiece->id());
+    m_inferPieceModelDict.insert(inferPiece->id(), inferencePieceContext);
     inferencePieceContext->setPos(inferPiece->localStartTick());
     inferencePieceContext->setLength(inferPiece->localEndTick() - inferPiece->localStartTick());
-    handleInferPieceStatusChange(inferPiece, inferPiece->acousticInferStatus);
-    connect(inferPiece, &InferPiece::statusChanged, this, [inferPiece, this](auto status) {
-        handleInferPieceStatusChange(inferPiece, status);
-    });
+    handleInferPieceStatusChange(clip->id(), inferPiece->id(), inferPiece->acousticInferStatus);
+    connect(inferPiece, &InferPiece::statusChanged, this,
+            [clipId = clip->id(), pieceId = inferPiece->id(), this](auto status) {
+                handleInferPieceStatusChange(clipId, pieceId, status);
+            });
 }
 
 void TrackInferenceHandler::handlePieceRemoved(SingingClip *clip, InferPiece *inferPiece) {
     disconnect(inferPiece, nullptr, this, nullptr);
     const auto singingClipInferenceContext = m_singingClipModelDict.value(clip);
     singingClipInferenceContext->removeInferencePiece(inferPiece->id());
-    m_inferPieceModelDict.remove(inferPiece);
+    m_inferPieceModelDict.remove(inferPiece->id());
 }
 
-void TrackInferenceHandler::handleInferPieceStatusChange(InferPiece *piece,
+void TrackInferenceHandler::handleInferPieceStatusChange(const int clipId, const int pieceId,
                                                          const InferStatus status) const {
-    const auto inferencePieceContext = m_inferPieceModelDict.value(piece);
+    const auto clip = dynamic_cast<SingingClip *>(appModel->findClipById(clipId));
+    if (!clip)
+        return;
+    const auto piece = clip->findPieceById(pieceId);
+    if (!piece)
+        return;
+    const auto inferencePieceContext = m_inferPieceModelDict.value(pieceId);
+    if (!inferencePieceContext)
+        return;
+
     switch (status) {
         case Success: {
             auto *io =
@@ -158,8 +169,7 @@ void TrackInferenceHandler::handleInferPieceStatusChange(InferPiece *piece,
                 contentSrc = std::make_unique<talcs::AudioFormatInputSource>(io, true);
             else
                 contentSrc = std::make_unique<talcs::AudioSourceClipSeries>();
-            auto *bufSrc =
-                AudioContext::instance()->makeBufferable(contentSrc.get(), 2);
+            auto *bufSrc = AudioContext::instance()->makeBufferable(contentSrc.get(), 2);
             {
                 DEVICE_LOCKER;
                 inferencePieceContext->determineWithSources(std::move(contentSrc), bufSrc);

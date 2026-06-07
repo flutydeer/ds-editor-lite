@@ -5,26 +5,31 @@
 #ifndef GETPRONUNCIATIONTASK_H
 #define GETPRONUNCIATIONTASK_H
 
-#include "Model/AppModel/SingingClip.h"
+#include "Modules/Inference/Models/NoteInferenceSnapshot.h"
+#include "Modules/PackageManager/Models/SingerInfo.h"
 #include "Modules/Task/Task.h"
 
-
-class Note;
+#include <QStringList>
 
 class GetPronunciationTask : public Task {
     Q_OBJECT
 
 public:
-    explicit GetPronunciationTask(int clipId, const QList<Note *> &notes);
+    explicit GetPronunciationTask(int clipId, quint64 clipRevision,
+                                  const QList<NoteInferenceSnapshot> &notes,
+                                  const SingerInfo &singerInfo);
     int clipId() const;
-    QList<Note *> notesRef;
+    quint64 clipRevision() const;
+    QList<int> noteIds() const;
     QStringList result;
 
 private:
     void runTask() override;
-    QList<QString> getPronunciations(const QList<Note *> &notes) const;
+    QStringList getPronunciations(const QList<NoteInferenceSnapshot> &notes) const;
     int m_clipId = -1;
-    QList<Note *> m_notes;
+    quint64 m_clipRevision = 0;
+    SingerInfo m_singerInfo;
+    QList<NoteInferenceSnapshot> m_notes;
     QString m_previewText;
 };
 

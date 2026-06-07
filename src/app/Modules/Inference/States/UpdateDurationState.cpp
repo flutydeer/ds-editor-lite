@@ -6,7 +6,6 @@
 
 #include <QTimer>
 
-#include "Model/AppModel/AppModel.h"
 #include "Modules/Inference/InferControllerHelper.h"
 #include "Modules/Inference/InferPipeline.h"
 
@@ -18,17 +17,21 @@ UpdateDurationState::UpdateDurationState(InferPipeline &pipeline, QState *parent
 
 void UpdateDurationState::onEntry(QEvent *event) {
     qDebug() << "UpdateDurationState::onEntry";
-    const auto singingClip =
-        dynamic_cast<SingingClip *>(appModel->findClipById(m_pipeline.piece().clipId()));
-    const auto &piece = m_pipeline.piece();
-    InferControllerHelper::updatePhoneOffset(piece.notes, m_pipeline.durationResult(),
-                                             *singingClip);
+    QState::onEntry(event);
+
+    InferenceTaskResolution resolution;
+    if (!m_pipeline.resolveApplyContext(resolution, m_pipeline.durationResult().count())) {
+        QTimer::singleShot(0, this, [this] { emit pieceNotFound(); });
+        return;
+    }
+
+    InferControllerHelper::updatePhoneOffset(resolution.notes, m_pipeline.durationResult(),
+                                             *resolution.clip);
 
     // TODO: 可能需要将更新相对参数的方法提取出来
-    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Expressiveness, *singingClip);
-    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Gender, *singingClip);
-    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Velocity, *singingClip);
-    QState::onEntry(event);
+    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Expressiveness, *resolution.clip);
+    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Gender, *resolution.clip);
+    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Velocity, *resolution.clip);
     QTimer::singleShot(0, this, [this] { emit updateSuccess(); });
 }
 

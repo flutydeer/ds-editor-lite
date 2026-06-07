@@ -24,7 +24,7 @@
 namespace InferControllerHelper {
 
     DrawCurveList getEditedCurvesIncludingAnchor(const Param *param,
-                                                  QList<DrawCurve *> &ownedCurves) {
+                                                 QList<DrawCurve *> &ownedCurves) {
         auto curves = AppModelUtils::getDrawCurves(param->curves(Param::Edited));
         for (auto *curve : param->curves(Param::Edited)) {
             if (curve->type() == Curve::Anchor) {
@@ -37,6 +37,7 @@ namespace InferControllerHelper {
         }
         return curves;
     }
+
     QList<InferInputNote> buildInferInputNotes(const QList<Note *> &notes) {
         QList<InferInputNote> list;
         for (const auto note : notes)
@@ -48,6 +49,7 @@ namespace InferControllerHelper {
         DurInput input;
         input.clipId = piece.clip->id();
         input.pieceId = piece.id();
+        input.clipRevision = piece.clip->inferenceRevision();
 
         input.headAvailableLengthMs = piece.headAvailableLengthMs;
         input.paddingStartMs = piece.paddingStartMs;
@@ -70,6 +72,7 @@ namespace InferControllerHelper {
         PitchInput input;
         input.clipId = piece.clipId();
         input.pieceId = piece.id();
+        input.clipRevision = piece.clip->inferenceRevision();
 
         input.headAvailableLengthMs = piece.headAvailableLengthMs;
         input.paddingStartMs = piece.paddingStartMs;
@@ -94,6 +97,7 @@ namespace InferControllerHelper {
         VarianceInput input;
         input.clipId = piece.clipId();
         input.pieceId = piece.id();
+        input.clipRevision = piece.clip->inferenceRevision();
 
         input.headAvailableLengthMs = piece.headAvailableLengthMs;
         input.paddingStartMs = piece.paddingStartMs;
@@ -148,6 +152,7 @@ namespace InferControllerHelper {
         AcousticInput input;
         input.clipId = piece.clipId();
         input.pieceId = piece.id();
+        input.clipRevision = piece.clip->inferenceRevision();
 
         input.headAvailableLengthMs = piece.headAvailableLengthMs;
         input.paddingStartMs = piece.paddingStartMs;

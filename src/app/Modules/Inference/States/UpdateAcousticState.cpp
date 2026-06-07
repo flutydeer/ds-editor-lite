@@ -19,10 +19,16 @@ void UpdateAcousticState::onEntry(QEvent *event) {
     qDebug() << "UpdateAcousticState::onEntry";
     QState::onEntry(event);
 
-    auto &piece = m_pipeline.piece();
+    InferenceTaskResolution resolution;
+    if (!m_pipeline.resolveApplyContext(resolution)) {
+        QTimer::singleShot(0, this, [this] { emit pieceNotFound(); });
+        return;
+    }
+
+    auto &piece = *resolution.piece;
     piece.state = QString("Acoustic.Update");
     Helper::updateAcoustic(m_pipeline.acousticResult(), piece);
-    
+
     QTimer::singleShot(0, this, [this] { emit updateSuccess(); });
 }
 

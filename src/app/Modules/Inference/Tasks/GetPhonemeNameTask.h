@@ -5,11 +5,9 @@
 #ifndef GETPHONEMENAMETASK_H
 #define GETPHONEMENAMETASK_H
 
-#include "Model/AppModel/Note.h"
-#include "Model/AppModel/SingingClip.h"
-
-#include "Modules/Inference/Models/PhonemeNameInput.h"
+#include "Modules/Inference/Models/NoteInferenceSnapshot.h"
 #include "Modules/Inference/Models/PhonemeNameResult.h"
+#include "Modules/PackageManager/Models/SingerInfo.h"
 #include "Modules/Task/Task.h"
 
 #include <utility>
@@ -17,10 +15,13 @@
 class GetPhonemeNameTask final : public Task {
     Q_OBJECT
 public:
-    explicit GetPhonemeNameTask(const SingingClip &clip, const QList<PhonemeNameInput> &inputs);
+    explicit GetPhonemeNameTask(int clipId, quint64 clipRevision,
+                                const QList<NoteInferenceSnapshot> &notes,
+                                const SingerInfo &singerInfo, double tempo);
     int clipId() const;
+    quint64 clipRevision() const;
+    QList<int> noteIds() const;
     bool success() const;
-    QList<Note *> notesRef;
 
     QList<PhonemeNameResult> result;
 
@@ -38,12 +39,13 @@ private:
     std::pair<bool, int> checkTrailingPlus(const QString &lyric);
     const QList<Syllable> splitSyllables(const QList<PhonemeName> &phonemes);
 
-    QString m_clipSingerId;
     SingerInfo m_clipSingerInfo;
 
     int m_clipId = -1;
+    quint64 m_clipRevision = 0;
     std::atomic<bool> m_success{false};
-    QList<PhonemeNameInput> m_inputs;
+    QList<NoteInferenceSnapshot> m_inputs;
+    double m_tempo = 120.0;
     QString m_previewText;
 };
 

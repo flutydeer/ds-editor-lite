@@ -65,6 +65,7 @@ Note *SingingClip::findNoteById(const int id) const {
 }
 
 void SingingClip::notifyNoteChanged(const NoteChangeType type, const QList<Note *> &notes) {
+    bumpInferenceRevision();
     emit noteChanged(type, notes);
 }
 
@@ -79,6 +80,7 @@ const PieceList &SingingClip::pieces() const {
 void SingingClip::removeAllPieces() {
     PieceList temp = m_pieces;
     m_pieces.clear();
+    bumpInferenceRevision();
     emit piecesChanged(m_pieces, {}, temp);
     for (const auto piece : temp)
         delete piece;
@@ -145,6 +147,7 @@ ReSegmentResult SingingClip::reSegment() {
     m_pieces = newPieces;
     for (const auto piece : temp)
         result.removedPieceIds.append(piece->id());
+    bumpInferenceRevision();
     emit piecesChanged(m_pieces, newPieces, temp);
     qInfo() << "piecesChanged";
     for (const auto piece : temp)
@@ -182,9 +185,21 @@ PieceList SingingClip::findPiecesByNotes(const QList<Note *> &notes) const {
     return {result.begin(), result.end()}; // 将 QSet 转换为 QList 返回
 }
 
+quint64 SingingClip::inferenceRevision() const {
+    return m_inferenceRevision;
+}
+
+quint64 SingingClip::bumpInferenceRevision() {
+    return ++m_inferenceRevision;
+}
+
 void SingingClip::setDefaultLanguage(const QString &language) {
+    const auto oldLanguage = defaultLanguage();
+    const auto oldG2pId = defaultG2pId();
     m_defaultLanguage = language;
     this->updateDefaultG2pId(language);
+    if (oldLanguage != defaultLanguage() || oldG2pId != defaultG2pId())
+        bumpInferenceRevision();
 }
 
 QString SingingClip::defaultLanguage() const {
@@ -284,6 +299,7 @@ void SingingClip::init() {
         Q_EMIT singerOrSpeakerChanged();
     });
     connect(this, &SingingClip::singerOrSpeakerChanged, this, [this] {
+        bumpInferenceRevision();
         const auto currentSingerInfo = singerInfo();
         // bool needsResegment = false;
         // for (const auto piece : std::as_const(m_pieces)) {

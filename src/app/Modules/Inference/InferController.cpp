@@ -7,10 +7,12 @@
 
 #include "InferControllerHelper.h"
 #include "Model/AppModel/InferPiece.h"
+#include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "Models/PhonemeNameInput.h"
+#include "Models/NoteInferenceSnapshot.h"
 #include "Tasks/GetPhonemeNameTask.h"
 #include "Tasks/GetPronunciationTask.h"
+#include "Utils/InferenceApplyGate.h"
 #include "Utils/Linq.h"
 #include "Utils/ValidationUtils.h"
 #include "Controller/PlaybackController.h"
@@ -22,43 +24,71 @@
 namespace Helper = InferControllerHelper;
 
 namespace {
-int pieceGlobalStartTick(int clipId, int pieceId) {
-    const auto clip = dynamic_cast<SingingClip *>(appModel->findClipById(clipId));
-    if (!clip)
-        return INT_MAX;
-    const auto piece = clip->findPieceById(pieceId);
-    if (!piece)
-        return INT_MAX;
-    return piece->localStartTick() + clip->start();
-}
-
-template <typename T>
-std::function<bool(T *, T *)> makePlaybackPriorityComparator() {
-    return [](T *a, T *b) {
-        const auto pos = static_cast<int>(playbackController->position());
-        const auto startA = pieceGlobalStartTick(a->clipId(), a->pieceId());
-        const auto startB = pieceGlobalStartTick(b->clipId(), b->pieceId());
-        const auto diffA = startA - pos;
-        const auto diffB = startB - pos;
-        const bool aAhead = diffA >= 0;
-        const bool bAhead = diffB >= 0;
-        if (aAhead != bAhead)
-            return aAhead;
-        if (aAhead)
-            return diffA < diffB;
-        return diffA > diffB;
-    };
-}
-
-bool clipPiecesMatchCurrentSingerAndSpeaker(const SingingClip &clip) {
-    const auto identifier = clip.singerIdentifier();
-    const auto speaker = clip.speakerId();
-    for (const auto piece : clip.pieces()) {
-        if (piece->identifier != identifier || piece->speaker != speaker)
-            return false;
+    int pieceGlobalStartTick(int clipId, int pieceId) {
+        const auto clip = dynamic_cast<SingingClip *>(appModel->findClipById(clipId));
+        if (!clip)
+            return INT_MAX;
+        const auto piece = clip->findPieceById(pieceId);
+        if (!piece)
+            return INT_MAX;
+        return piece->localStartTick() + clip->start();
     }
-    return true;
-}
+
+    QList<NoteInferenceSnapshot> buildNoteInferenceSnapshots(const SingingClip &clip) {
+        QList<NoteInferenceSnapshot> result;
+        result.reserve(clip.notes().count());
+        for (const auto note : clip.notes()) {
+            NoteInferenceSnapshot snapshot;
+            snapshot.noteId = note->id();
+            snapshot.lyric = note->lyric();
+            snapshot.language = note->language();
+            snapshot.pronunciation = note->pronunciation().result();
+            snapshot.globalStart = note->globalStart();
+            snapshot.length = note->length();
+            snapshot.keyIndex = note->keyIndex();
+            result.append(snapshot);
+        }
+        return result;
+    }
+
+    template <typename T>
+    std::function<bool(T *, T *)> makePlaybackPriorityComparator() {
+        return [](T *a, T *b) {
+            const auto pos = static_cast<int>(playbackController->position());
+            const auto startA = pieceGlobalStartTick(a->clipId(), a->pieceId());
+            const auto startB = pieceGlobalStartTick(b->clipId(), b->pieceId());
+            const auto diffA = startA - pos;
+            const auto diffB = startB - pos;
+            const bool aAhead = diffA >= 0;
+            const bool bAhead = diffB >= 0;
+            if (aAhead != bAhead)
+                return aAhead;
+            if (aAhead)
+                return diffA < diffB;
+            return diffA > diffB;
+        };
+    }
+
+    bool clipPiecesMatchCurrentSingerAndSpeaker(const SingingClip &clip) {
+        const auto identifier = clip.singerIdentifier();
+        const auto speaker = clip.speakerId();
+        for (const auto piece : clip.pieces()) {
+            if (piece->identifier != identifier || piece->speaker != speaker)
+                return false;
+        }
+        return true;
+    }
+
+    template <typename T>
+    InferenceTaskContext buildClipTaskContext(const QString &taskType, const T &task) {
+        InferenceTaskContext context;
+        context.taskType = taskType;
+        context.taskId = task.id();
+        context.clipId = task.clipId();
+        context.clipRevision = task.clipRevision();
+        context.noteIds = task.noteIds();
+        return context;
+    }
 } // namespace
 
 InferController::InferController(QObject *parent)
@@ -75,6 +105,7 @@ InferController::InferController(QObject *parent)
 
     connect(appStatus, &AppStatus::moduleStatusChanged, d,
             &InferControllerPrivate::onModuleStatusChanged);
+    connect(appStatus, &AppStatus::editingChanged, d, &InferControllerPrivate::onEditingChanged);
     connect(appOptions, &AppOptions::optionsChanged, d,
             &InferControllerPrivate::onInferOptionChanged);
     connect(playbackController, &PlaybackController::playbackStatusChanged, d,
@@ -157,19 +188,29 @@ void InferControllerPrivate::onModuleStatusChanged(const AppStatus::ModuleType m
 }
 
 void InferControllerPrivate::onEditingChanged(const AppStatus::EditObjectType type) {
-    // TODO：需要处理编辑被取消的情况
-    // 方案：为文档模型相关对象增加版本号。即使用户正在编辑，也不取消相关任务。
-    // 任务在执行完成后，如果相关对象（如音符）仍未完成编辑，则进入挂起状态，不直接更新相关对象，等待用户完成操作。
-    // 当用户完成编辑，则从挂起状态恢复，分情况处理：
-    // 1.
-    // 用户提交更改：版本号更新，推理任务的版本号与当前版本号不一致，丢弃任务结果。此时，文档模型的更改会触发重新推理。
-    // 2. 用户丢弃更改：版本号不变，应用推理结果
-    if (type == AppStatus::EditObjectType::Note) {
-        qWarning() << "Editing project. Cancelling related tasks.";
-        const auto clip = appModel->findClipById(appStatus->activeClipId);
-        if (clip->clipType() == IClip::Singing)
-            cancelClipRelatedTasks(static_cast<SingingClip *>(clip));
-    } else if (type == AppStatus::EditObjectType::None) {
+    // 第一版编辑会话策略：编辑中取消相关任务；迟到结果由 apply gate 丢弃。
+    m_activeEditSession = {};
+    if (type != AppStatus::EditObjectType::None) {
+        m_activeEditSession.domain = type;
+        m_activeEditSession.clipId = appStatus->activeClipId;
+        m_activeEditSession.noteIds = appStatus->selectedNotes;
+
+        qWarning() << "Editing project. Cancelling related tasks."
+                   << "editObject:" << static_cast<int>(type)
+                   << "clipId:" << m_activeEditSession.clipId;
+        const auto clip = appModel->findClipById(m_activeEditSession.clipId);
+        if (!clip) {
+            m_lastEditObjectType = type;
+            return;
+        }
+        if (clip->clipType() == IClip::Singing) {
+            const auto singingClip = static_cast<SingingClip *>(clip);
+            m_activeEditSession.baseRevision = singingClip->inferenceRevision();
+            cancelClipRelatedTasks(singingClip);
+        }
+    } else {
+        qDebug() << "Editing project finished"
+                 << "lastEditObject:" << static_cast<int>(m_lastEditObjectType);
     }
     m_lastEditObjectType = type;
 }
@@ -405,46 +446,77 @@ void InferControllerPrivate::retryAllSingingClips() {
 }
 
 void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &task) {
-    if (!m_getPronTasks.onCurrentFinished(&task))
+    if (!m_getPronTasks.isCurrent(&task))
         return;
 
-    const auto clip = appModel->findClipById(task.clipId());
-    if (task.terminated() || !clip) {
-        delete &task;
+    const auto context = buildClipTaskContext("pronunciation", task);
+    if (task.terminated()) {
+        InferenceApplyGate::logDrop(context, "clip-task", "task-terminated");
+        m_getPronTasks.onCurrentFinished(&task);
         return;
     }
 
-    const auto singingClip = dynamic_cast<SingingClip *>(clip);
-    Helper::updatePronunciation(task.notesRef, task.result, *singingClip);
+    InferenceApplyGate::Options options;
+    options.phase = "clip-task";
+    options.expectedNoteCount = task.result.count();
+    options.requirePiece = false;
+    options.requireNotesInPiece = false;
+    options.checkSingerSpeaker = false;
+    options.checkActiveEditSession = true;
 
-    if (!singingClip->singerInfo().isEmpty())
-        createAndRunGetPhoneTask(*singingClip);
-    delete &task;
+    InferenceTaskResolution resolution;
+    if (InferenceApplyGate::resolve(context, resolution, options) !=
+        InferenceApplyGate::Decision::Apply) {
+        m_getPronTasks.onCurrentFinished(&task);
+        return;
+    }
+
+    Helper::updatePronunciation(resolution.notes, task.result, *resolution.clip);
+
+    if (!resolution.clip->singerInfo().isEmpty())
+        createAndRunGetPhoneTask(*resolution.clip);
+    m_getPronTasks.onCurrentFinished(&task);
 }
 
 // TODO 任何音符改动，都会触发获取剪辑所有音符发音->获取剪辑所有音符音素名称
-// TODO 对于连续的多个音符，如果其中有音符缺少音素名称信息（发音有误等原因导致），则整句将在划分时忽略
+// TODO
+// 对于连续的多个音符，如果其中有音符缺少音素名称信息（发音有误等原因导致），则整句将在划分时忽略
 // TODO 对于以-开头的连续多个音符，同样被忽略
 // TODO 分段结果确保为多个有效片段
 void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task) {
-    if (!m_getPhoneTasks.onCurrentFinished(&task))
+    if (!m_getPhoneTasks.isCurrent(&task))
         return;
 
-    const auto clip = appModel->findClipById(task.clipId());
-    if (task.terminated() || !clip) {
-        delete &task;
+    const auto context = buildClipTaskContext("phoneme-name", task);
+    if (task.terminated()) {
+        InferenceApplyGate::logDrop(context, "clip-task", "task-terminated");
+        m_getPhoneTasks.onCurrentFinished(&task);
         return;
     }
 
-    const auto singingClip = dynamic_cast<SingingClip *>(clip);
-    Helper::updatePhoneName(task.notesRef, task.result, *singingClip);
+    InferenceApplyGate::Options options;
+    options.phase = "clip-task";
+    options.expectedNoteCount = task.result.count();
+    options.requirePiece = false;
+    options.requireNotesInPiece = false;
+    options.checkSingerSpeaker = false;
+    options.checkActiveEditSession = true;
 
-    if (!singingClip->singerInfo().isEmpty()) {
-        auto result = singingClip->reSegment();
+    InferenceTaskResolution resolution;
+    if (InferenceApplyGate::resolve(context, resolution, options) !=
+        InferenceApplyGate::Decision::Apply) {
+        m_getPhoneTasks.onCurrentFinished(&task);
+        return;
+    }
+
+    Helper::updatePhoneName(resolution.notes, task.result, *resolution.clip);
+
+    if (!resolution.clip->singerInfo().isEmpty()) {
+        auto result = resolution.clip->reSegment();
         for (const auto piece : result.addedPieces)
             createPipeline(*piece);
     }
-    delete &task;
+    m_getPhoneTasks.onCurrentFinished(&task);
 }
 
 void InferControllerPrivate::recreateAllInferTasks() {
@@ -474,7 +546,8 @@ void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
     m_getPronTasks.cancelIf(pred);
     m_getPhoneTasks.cancelIf(pred);
 
-    auto task = new GetPronunciationTask(clip.id(), clip.notes().toList());
+    auto task = new GetPronunciationTask(clip.id(), clip.inferenceRevision(),
+                                         buildNoteInferenceSnapshots(clip), clip.singerInfo());
     connect(task, &Task::finished, this, [task, this] { handleGetPronTaskFinished(*task); });
     m_getPronTasks.add(task);
 }
@@ -486,11 +559,9 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
     const auto clipId = clip.id();
     m_getPhoneTasks.cancelIf([clipId](const auto t) { return t->clipId() == clipId; });
 
-    QList<PhonemeNameInput> inputs;
-    for (const auto note : clip.notes())
-        inputs.append({note->lyric(), note->language(), note->pronunciation().result()});
-    auto task = new GetPhonemeNameTask(clip, inputs);
-    task->notesRef = clip.notes().toList();
+    auto task = new GetPhonemeNameTask(clip.id(), clip.inferenceRevision(),
+                                       buildNoteInferenceSnapshots(clip), clip.singerInfo(),
+                                       appModel->tempo());
     connect(task, &Task::finished, this, [task, this] { handleGetPhoneTaskFinished(*task); });
     m_getPhoneTasks.add(task);
 }
@@ -542,7 +613,7 @@ void InferControllerPrivate::cancelPieceRelatedTasks(int pieceId) {
 }
 
 void InferControllerPrivate::notifyNextPipeline(const QList<InferPipeline *> &pipelines,
-                                                 int index) {
+                                                int index) {
     if (index >= pipelines.size())
         return;
 
@@ -550,7 +621,6 @@ void InferControllerPrivate::notifyNextPipeline(const QList<InferPipeline *> &pi
     if (m_inferPipelines.contains(pipeline) && pipeline->piece().acousticInferStatus == Pending)
         pipeline->notifyPlaybackStarted();
 
-    QTimer::singleShot(0, this, [this, pipelines, index] {
-        notifyNextPipeline(pipelines, index + 1);
-    });
+    QTimer::singleShot(0, this,
+                       [this, pipelines, index] { notifyNextPipeline(pipelines, index + 1); });
 }

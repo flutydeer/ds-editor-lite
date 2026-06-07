@@ -11,6 +11,7 @@
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"
+#include "Modules/Inference/Utils/InferenceApplyGate.h"
 #include "UI/Utils/TrackColorPalette.h"
 #include "UI/Utils/WaveformPainter.h"
 #include "UI/Controls/ToolTip.h"
@@ -709,10 +710,32 @@ void PhonemeView::onPieceStatusChanged(InferPiece *piece, InferStatus status) {
     }
 }
 
-void PhonemeView::onWaveformReady(InferPiece *piece, const AudioInfoModel &info) {
+void PhonemeView::onWaveformReady(const int clipId, const int pieceId, const quint64 clipRevision,
+                                  const QString &audioPath, const AudioInfoModel &info) {
     if (!m_clip)
         return;
-    if (!m_clip->pieces().contains(piece))
+    if (m_clip->id() != clipId)
+        return;
+
+    InferenceTaskContext context;
+    context.taskType = "waveform";
+    context.clipId = clipId;
+    context.pieceId = pieceId;
+    context.clipRevision = clipRevision;
+
+    InferenceApplyGate::Options options;
+    options.phase = "phoneme-view";
+    options.requireNotesInPiece = false;
+    options.checkSingerSpeaker = false;
+
+    InferenceTaskResolution resolution;
+    if (InferenceApplyGate::resolve(context, resolution, options) !=
+        InferenceApplyGate::Decision::Apply) {
+        return;
+    }
+
+    const auto piece = resolution.piece;
+    if (piece->audioPath != audioPath)
         return;
 
     const int clipOffset = m_clip->start();
@@ -733,12 +756,15 @@ void PhonemeView::onWaveformReady(InferPiece *piece, const AudioInfoModel &info)
 }
 
 void PhonemeView::loadWaveformAsync(InferPiece *piece) {
+    const int clipId = piece->clipId();
+    const int pieceId = piece->id();
+    const quint64 clipRevision = piece->clip->inferenceRevision();
     const QString audioPath = piece->audioPath;
     if (audioPath.isEmpty())
         return;
 
     const QPointer<PhonemeView> self(this);
-    QThreadPool::globalInstance()->start([self, piece, audioPath]() {
+    QThreadPool::globalInstance()->start([self, clipId, pieceId, clipRevision, audioPath]() {
         auto *fm = AudioContext::instance()->formatManager();
         if (!fm)
             return;
@@ -781,8 +807,10 @@ void PhonemeView::loadWaveformAsync(InferPiece *piece) {
             }
 
             auto toShort = [](double d) -> short {
-                if (d < -1) d = -1;
-                else if (d > 1) d = 1;
+                if (d < -1)
+                    d = -1;
+                else if (d > 1)
+                    d = 1;
                 return static_cast<short>(d * 32767);
             };
 
@@ -794,8 +822,10 @@ void PhonemeView::loadWaveformAsync(InferPiece *piece) {
                 max = 0;
                 hasTail = false;
             } else {
-                if (toShort(sampleMin) < min) min = toShort(sampleMin);
-                if (toShort(sampleMax) > max) max = toShort(sampleMax);
+                if (toShort(sampleMin) < min)
+                    min = toShort(sampleMin);
+                if (toShort(sampleMax) > max)
+                    max = toShort(sampleMax);
                 hasTail = true;
             }
             chunkIndex++;
@@ -808,9 +838,9 @@ void PhonemeView::loadWaveformAsync(InferPiece *piece) {
 
         if (!self)
             return;
-        QMetaObject::invokeMethod(self, [self, piece, info]() {
+        QMetaObject::invokeMethod(self, [self, clipId, pieceId, clipRevision, audioPath, info]() {
             if (self)
-                self->onWaveformReady(piece, info);
+                self->onWaveformReady(clipId, pieceId, clipRevision, audioPath, info);
         });
     });
 }
@@ -833,8 +863,7 @@ void PhonemeView::drawWaveforms(QPainter *painter) {
         const double x2 = tickToX(wf.globalEndTick);
         const QRectF wfRect(x1, 0, x2 - x1, rect().height());
 
-        wf.painter->paint(painter, wfRect, waveformColor,
-                          static_cast<double>(wf.globalStartTick),
+        wf.painter->paint(painter, wfRect, waveformColor, static_cast<double>(wf.globalStartTick),
                           static_cast<double>(wf.globalEndTick));
     }
 }
