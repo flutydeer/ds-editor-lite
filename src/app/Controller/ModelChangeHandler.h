@@ -18,6 +18,7 @@ class ModelChangeHandler : public QObject {
 protected:
     explicit ModelChangeHandler(QObject *parent = nullptr);
 
+    virtual void handleModelChanged();
     virtual void handleTempoChanged(double tempo);
     virtual void handleTrackInserted(Track *track);
     virtual void handleTrackRemoved(Track *track);
@@ -29,7 +30,8 @@ protected:
     virtual void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes,
                                    SingingClip *clip);
     virtual void handleParamChanged(ParamInfo::Name name, Param::Type type, SingingClip *clip);
-    virtual void handlePiecesChanged(const PieceList &pieces, const PieceList &discardedPieces, SingingClip *clip);
+    virtual void handlePiecesChanged(const PieceList &pieces, const PieceList &discardedPieces,
+                                     SingingClip *clip);
 
 private slots:
     void onModelChanged();

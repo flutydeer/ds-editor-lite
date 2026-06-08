@@ -16,6 +16,7 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Inference/EditSessionManager.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 #include "Utils/TimelineSnapUtils.h"
@@ -44,7 +45,8 @@ void PianoRollGraphicsViewHelper::splitNote(const int noteId, const int tick) {
     if (!note)
         return;
 
-    const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+    const auto quantizedTickLength =
+        TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
     const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
     const auto splitPos = snappedTick - singingClip->start();
     const auto noteLocalStart = note->localStart();
@@ -53,6 +55,8 @@ void PianoRollGraphicsViewHelper::splitNote(const int noteId, const int tick) {
     if (splitPos <= noteLocalStart || splitPos >= noteLocalEnd)
         return;
 
+    editSessionManager->beginTransaction(AppStatus::EditObjectType::Note, singingClip->id(), {},
+                                         {noteId}, {}, {}, true);
     appStatus->currentEditObject = AppStatus::EditObjectType::Note;
 
     const auto firstPartLength = splitPos - noteLocalStart;
@@ -70,6 +74,7 @@ void PianoRollGraphicsViewHelper::splitNote(const int noteId, const int tick) {
     clipController->onSplitNote(note->id(), newNote, firstPartLength);
     clipController->selectNotes(QList({newNote->id()}), true);
 
+    editSessionManager->endActiveTransaction(EditSessionEndReason::Commit);
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
@@ -80,8 +85,7 @@ void PianoRollGraphicsViewHelper::editPitch(const QList<DrawCurve *> &curves) {
 
     auto *clip = dynamic_cast<SingingClip *>(clipController->clip());
     if (clip) {
-        const auto &existing =
-            clip->params.getParamByName(ParamInfo::Pitch)->curves(Param::Edited);
+        const auto &existing = clip->params.getParamByName(ParamInfo::Pitch)->curves(Param::Edited);
         for (auto *curve : existing) {
             if (curve->type() == Curve::Anchor)
                 list.append(new AnchorCurve(*dynamic_cast<AnchorCurve *>(curve)));
@@ -138,7 +142,7 @@ void PianoRollGraphicsViewHelper::updatePitch(const Param::Type paramType, const
 }
 
 void PianoRollGraphicsViewHelper::updateAnchorPitch(const Param &param,
-                                                     EditPitchAnchorHandler &handler) {
+                                                    EditPitchAnchorHandler &handler) {
     QList<AnchorCurve *> anchorCurves;
     for (const auto curve : param.curves(Param::Edited)) {
         if (curve->type() == Curve::Anchor)

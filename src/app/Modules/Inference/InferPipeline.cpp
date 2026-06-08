@@ -6,6 +6,7 @@
 
 #include "States/InferDurationState.h"
 #include "States/UpdateDurationState.h"
+#include "States/AwaitingEditSessionApplyState.h"
 #include "States/InferPitchState.h"
 #include "States/UpdatePitchState.h"
 #include "States/InferVarianceState.h"
@@ -61,14 +62,18 @@ void InferPipeline::clearApplyContext() {
     m_applyContext = {};
 }
 
-bool InferPipeline::resolveApplyContext(InferenceTaskResolution &resolution,
-                                        const qsizetype expectedNoteCount) const {
+InferPipeline::ApplyGateResult
+    InferPipeline::resolveApplyContext(const qsizetype expectedNoteCount,
+                                       const bool checkEditSession) const {
     InferenceApplyGate::Options options;
-    options.phase = "pipeline";
+    options.phase = checkEditSession ? "pipeline-update" : "pipeline-task-finished";
     options.expectedNoteCount = expectedNoteCount;
-    options.checkActiveEditSession = true;
-    return InferenceApplyGate::resolve(m_applyContext, resolution, options) ==
-           InferenceApplyGate::Decision::Apply;
+    options.checkEditSession = checkEditSession;
+
+    ApplyGateResult result;
+    result.decision = InferenceApplyGate::resolve(m_applyContext, result.resolution, options);
+    result.reason = result.resolution.dropReason;
+    return result;
 }
 
 const QList<InferInputNote> &InferPipeline::durationResult() const {
@@ -131,25 +136,37 @@ void InferPipeline::initStates() {
     finalState = new QFinalState();
     inferDurationState = new InferDurationState(*this);
     updateDurationState = new UpdateDurationState(*this);
+    awaitingDurationApplyState =
+        new AwaitingEditSessionApplyState(*this, AwaitingEditSessionApplyState::Stage::Duration);
     inferPitchState = new InferPitchState(*this);
     updatePitchState = new UpdatePitchState(*this);
+    awaitingPitchApplyState =
+        new AwaitingEditSessionApplyState(*this, AwaitingEditSessionApplyState::Stage::Pitch);
     inferVarianceState = new InferVarianceState(*this);
     updateVarianceState = new UpdateVarianceState(*this);
+    awaitingVarianceApplyState =
+        new AwaitingEditSessionApplyState(*this, AwaitingEditSessionApplyState::Stage::Variance);
     awaitingInferAcousticState = new AwaitingInferAcousticState(*this);
     inferAcousticState = new InferAcousticState(*this);
     updateAcousticState = new UpdateAcousticState(*this);
+    awaitingAcousticApplyState =
+        new AwaitingEditSessionApplyState(*this, AwaitingEditSessionApplyState::Stage::Acoustic);
     playbackReadyState = new PlaybackReadyState(*this);
 
     stateMachine.addState(finalState);
     stateMachine.addState(inferDurationState);
     stateMachine.addState(updateDurationState);
+    stateMachine.addState(awaitingDurationApplyState);
     stateMachine.addState(inferPitchState);
     stateMachine.addState(updatePitchState);
+    stateMachine.addState(awaitingPitchApplyState);
     stateMachine.addState(inferVarianceState);
     stateMachine.addState(updateVarianceState);
+    stateMachine.addState(awaitingVarianceApplyState);
     stateMachine.addState(awaitingInferAcousticState);
     stateMachine.addState(inferAcousticState);
     stateMachine.addState(updateAcousticState);
+    stateMachine.addState(awaitingAcousticApplyState);
     stateMachine.addState(playbackReadyState);
 
     stateMachine.setInitialState(inferDurationState);
@@ -174,6 +191,13 @@ void InferPipeline::initDurationTransitions() {
                                        inferPitchState);
     updateDurationState->addTransition(updateDurationState, &UpdateDurationState::pieceNotFound,
                                        finalState);
+    updateDurationState->addTransition(updateDurationState, &UpdateDurationState::deferred,
+                                       awaitingDurationApplyState);
+
+    awaitingDurationApplyState->addTransition(awaitingDurationApplyState,
+                                              &AwaitingEditSessionApplyState::resumeRequested,
+                                              updateDurationState);
+    awaitingDurationApplyState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
 }
 
 void InferPipeline::initPitchTransitions() {
@@ -185,6 +209,13 @@ void InferPipeline::initPitchTransitions() {
     updatePitchState->addTransition(updatePitchState, &UpdatePitchState::updateSuccess,
                                     inferVarianceState);
     updatePitchState->addTransition(updatePitchState, &UpdatePitchState::pieceNotFound, finalState);
+    updatePitchState->addTransition(updatePitchState, &UpdatePitchState::deferred,
+                                    awaitingPitchApplyState);
+    awaitingPitchApplyState->addTransition(
+        awaitingPitchApplyState, &AwaitingEditSessionApplyState::resumeRequested, updatePitchState);
+    awaitingPitchApplyState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
+    awaitingPitchApplyState->addTransition(this, &InferPipeline::expressivenessChanged,
+                                           inferPitchState);
     // TODO 音高步数更改
 }
 
@@ -204,6 +235,16 @@ void InferPipeline::initVarianceTransitions() {
                                        inferAcousticState);
     updateVarianceState->addTransition(updateVarianceState, &UpdateVarianceState::pieceNotFound,
                                        finalState);
+    updateVarianceState->addTransition(updateVarianceState, &UpdateVarianceState::deferred,
+                                       awaitingVarianceApplyState);
+    awaitingVarianceApplyState->addTransition(awaitingVarianceApplyState,
+                                              &AwaitingEditSessionApplyState::resumeRequested,
+                                              updateVarianceState);
+    awaitingVarianceApplyState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
+    awaitingVarianceApplyState->addTransition(this, &InferPipeline::expressivenessChanged,
+                                              inferPitchState);
+    awaitingVarianceApplyState->addTransition(this, &InferPipeline::pitchChanged,
+                                              inferVarianceState);
 }
 
 void InferPipeline::initAwaitingInferAcousticTransitions() {
@@ -236,6 +277,18 @@ void InferPipeline::initAcousticTransitions() {
                                        playbackReadyState);
     updateAcousticState->addTransition(updateAcousticState, &UpdateAcousticState::pieceNotFound,
                                        finalState);
+    updateAcousticState->addTransition(updateAcousticState, &UpdateAcousticState::deferred,
+                                       awaitingAcousticApplyState);
+    awaitingAcousticApplyState->addTransition(awaitingAcousticApplyState,
+                                              &AwaitingEditSessionApplyState::resumeRequested,
+                                              updateAcousticState);
+    awaitingAcousticApplyState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
+    awaitingAcousticApplyState->addTransition(this, &InferPipeline::expressivenessChanged,
+                                              inferPitchState);
+    awaitingAcousticApplyState->addTransition(this, &InferPipeline::pitchChanged,
+                                              inferVarianceState);
+    awaitingAcousticApplyState->addTransition(this, &InferPipeline::varianceChanged,
+                                              inferAcousticState);
 }
 
 void InferPipeline::initPlaybackReadyTransitions() {

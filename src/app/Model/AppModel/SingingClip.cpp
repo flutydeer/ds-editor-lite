@@ -70,6 +70,8 @@ void SingingClip::notifyNoteChanged(const NoteChangeType type, const QList<Note 
 }
 
 void SingingClip::notifyParamChanged(const ParamInfo::Name name, const Param::Type type) {
+    if (type == Param::Edited)
+        bumpInferenceRevision();
     emit paramChanged(name, type);
 }
 
@@ -90,7 +92,9 @@ ReSegmentResult SingingClip::reSegment() {
     ReSegmentResult result;
     // TODO: Refactor AppModel to support multiple tempos
     Timeline timeline;
-    timeline.tempos = {{0, appModel->tempo()}};
+    timeline.tempos = {
+        {0, appModel->tempo()}
+    };
 
     auto [segments] = SingingClipSlicer::slice(timeline, m_notes.toList());
 
@@ -120,10 +124,12 @@ ReSegmentResult SingingClip::reSegment() {
         bool exists = false;
         for (int i = 0; i < m_pieces.count(); i++) {
             const auto piece = m_pieces[i];
-            // Ignore dirty segments, keep segments that are not marked as dirty and are the same as before
+            // Ignore dirty segments, keep segments that are not marked as dirty and are the same as
+            // before
             if (!piece->dirty && isSamePiece(*piece, segment)) {
                 exists = true;
-                // Although it's still the same segment, the head available space may have changed and needs to be updated
+                // Although it's still the same segment, the head available space may have changed
+                // and needs to be updated
                 piece->headAvailableLengthMs = segment.headAvailableLengthMs;
                 newPieces.append(piece);
                 m_pieces.removeAt(i);
@@ -236,7 +242,7 @@ QString SingingClip::speakerId() const {
 }
 
 void SingingClip::setTrackSingerAndSpeakerInfo(const SingerInfo &singerInfo,
-                                                const SpeakerInfo &speakerInfo) {
+                                               const SpeakerInfo &speakerInfo) {
     const auto oldSingerInfo = this->singerInfo();
     const auto oldSpeakerInfo = this->speakerInfo();
     m_singerSpeakerBatching = true;
@@ -250,7 +256,7 @@ void SingingClip::setTrackSingerAndSpeakerInfo(const SingerInfo &singerInfo,
 }
 
 void SingingClip::setOwnSingerAndSpeaker(const SingerInfo &singerInfo,
-                                          const SpeakerInfo &speakerInfo) {
+                                         const SpeakerInfo &speakerInfo) {
     const auto oldSingerInfo = this->singerInfo();
     const auto oldSpeakerInfo = this->speakerInfo();
     m_singerSpeakerBatching = true;
@@ -285,17 +291,20 @@ SingerIdentifier SingingClip::singerIdentifier() const {
 void SingingClip::init() {
     m_defaultLanguage.onChanged(qSignalCallback(defaultLanguageChanged));
     m_singerInfo.onChanged([this](const SingerInfo &) {
-        if (m_singerSpeakerBatching) return;
+        if (m_singerSpeakerBatching)
+            return;
         if (!useTrackSingerInfo)
             Q_EMIT singerOrSpeakerChanged();
     });
     m_trackSingerInfo.onChanged([this](const SingerInfo &) {
-        if (m_singerSpeakerBatching) return;
+        if (m_singerSpeakerBatching)
+            return;
         if (useTrackSingerInfo)
             Q_EMIT singerOrSpeakerChanged();
     });
     useTrackSingerInfo.onChanged([this](bool) {
-        if (m_singerSpeakerBatching) return;
+        if (m_singerSpeakerBatching)
+            return;
         Q_EMIT singerOrSpeakerChanged();
     });
     connect(this, &SingingClip::singerOrSpeakerChanged, this, [this] {
@@ -310,7 +319,8 @@ void SingingClip::init() {
         //         needsResegment = true;
         //     }
         // }
-        // TODO 现在是在音素信息未获取时分段，会导致segment.paddingStartMs计算错误，应该等待音素信息获取完成后再分段
+        // TODO
+        // 现在是在音素信息未获取时分段，会导致segment.paddingStartMs计算错误，应该等待音素信息获取完成后再分段
         // if (needsResegment) {
         //     reSegment();
         // }
@@ -325,17 +335,20 @@ void SingingClip::init() {
         }
     });
     m_speakerInfo.onChanged([this](const SpeakerInfo &) {
-        if (m_singerSpeakerBatching) return;
+        if (m_singerSpeakerBatching)
+            return;
         if (!useTrackSpeakerInfo)
             Q_EMIT singerOrSpeakerChanged();
     });
     m_trackSpeakerInfo.onChanged([this](const SpeakerInfo &) {
-        if (m_singerSpeakerBatching) return;
+        if (m_singerSpeakerBatching)
+            return;
         if (useTrackSpeakerInfo)
             Q_EMIT singerOrSpeakerChanged();
     });
     useTrackSpeakerInfo.onChanged([this](bool) {
-        if (m_singerSpeakerBatching) return;
+        if (m_singerSpeakerBatching)
+            return;
         Q_EMIT singerOrSpeakerChanged();
     });
 }

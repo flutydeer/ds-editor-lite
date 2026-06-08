@@ -7,7 +7,6 @@
 #include "ClipEditorGlobal.h"
 #include "Model/AppModel/ParamProperties.h"
 #include "Model/AppModel/SingingClip.h"
-#include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/Common/TimeGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
 #include "UI/Utils/TrackColorPalette.h"
@@ -50,6 +49,11 @@ void CommonParamEditorView::clearParams() {
     update();
 }
 
+void CommonParamEditorView::cancelEdit() {
+    if (cancelEditState())
+        update();
+}
+
 void CommonParamEditorView::setEraseMode(const bool on) {
     // qDebug() << "setEraseMode:" << on;
     m_eraseMode = on;
@@ -62,20 +66,11 @@ const QList<DrawCurve *> &CommonParamEditorView::editedCurves() const {
 
 void CommonParamEditorView::discardAction() {
     // qDebug() << "discardAction";
-    if (m_editType == None) {
+    if (!cancelEditState()) {
         // qWarning() << "Discard action called, but current edit type is None";
         return;
     }
-    for (const auto curve : m_drawCurvesEdited)
-        delete curve;
-    m_drawCurvesEdited = m_drawCurvesEditedBak;
-    m_drawCurvesEditedBak.clear();
-    m_mouseMoved = false;
-    m_newCurveCreated = false;
-    cancelRequested = true;
-    m_mouseDown = false;
-    m_mouseDownButton = Qt::NoButton;
-    appStatus->currentEditObject = AppStatus::EditObjectType::None;
+    emit editDiscarded();
     update();
 }
 
@@ -97,7 +92,7 @@ void CommonParamEditorView::commitAction() {
     m_mouseDown = false;
     m_mouseDownButton = Qt::NoButton;
     update();
-    appStatus->currentEditObject = AppStatus::EditObjectType::None;
+    emit editCommitted();
 }
 
 double CommonParamEditorView::valueToSceneY(const double value) const {
@@ -186,7 +181,8 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
                 gradient.setColorAt(1, TrackColorPalette::instance()->paramFillBottom(ci));
                 painter->setBrush(gradient);
             } else if (m_properties->displayMode == ParamProperties::DisplayMode::FillFromDefault) {
-                painter->setBrush(TrackColorPalette::instance()->paramFillFlat(NoteView::trackColorIndex()));
+                painter->setBrush(
+                    TrackColorPalette::instance()->paramFillFlat(NoteView::trackColorIndex()));
             }
         } else {
             painter->setBrush(QColor(41, 44, 54));
@@ -215,7 +211,9 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
 
         if (baseCurve && m_properties->showDefaultValue) {
             painter->setBrush(Qt::NoBrush);
-            pen.setColor(foreground ? TrackColorPalette::instance()->paramLine(NoteView::trackColorIndex()) : QColor(41, 44, 54));
+            pen.setColor(foreground
+                             ? TrackColorPalette::instance()->paramLine(NoteView::trackColorIndex())
+                             : QColor(41, 44, 54));
             painter->setPen(pen);
             drawCurveBorder(painter, base);
         }
@@ -248,7 +246,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     m_mouseDown = true;
     m_mouseDownButton = event->button();
     cancelRequested = false;
-    appStatus->currentEditObject = AppStatus::EditObjectType::Param;
+    emit editStarted();
     AppModelUtils::copyCurves(m_drawCurvesEdited, m_drawCurvesEditedBak);
     const auto scenePos = event->scenePos().toPoint();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
@@ -368,6 +366,31 @@ void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
     m_mouseDownButton = Qt::NoButton;
     if (!cancelRequested)
         commitAction();
+}
+
+bool CommonParamEditorView::cancelEditState() {
+    const bool hadEdit = m_mouseDown || m_editType != None || m_mouseMoved || m_newCurveCreated ||
+                         !m_drawCurvesEditedBak.isEmpty();
+    if (!hadEdit)
+        return false;
+
+    const bool shouldRestoreBackup =
+        m_editType != None || m_mouseMoved || m_newCurveCreated || !m_drawCurvesEditedBak.isEmpty();
+    if (shouldRestoreBackup) {
+        for (const auto curve : m_drawCurvesEdited)
+            delete curve;
+        m_drawCurvesEdited = m_drawCurvesEditedBak;
+        m_drawCurvesEditedBak.clear();
+    }
+
+    m_editingCurve = nullptr;
+    m_editType = None;
+    m_mouseMoved = false;
+    m_newCurveCreated = false;
+    cancelRequested = true;
+    m_mouseDown = false;
+    m_mouseDownButton = Qt::NoButton;
+    return true;
 }
 
 void CommonParamEditorView::updateRectAndPos() {

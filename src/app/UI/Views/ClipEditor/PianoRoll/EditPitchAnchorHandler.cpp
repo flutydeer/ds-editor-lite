@@ -11,7 +11,9 @@
 #include "Model/AppModel/AnchorCurve.h"
 #include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/SingingClip.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "Controller/ClipController.h"
+#include "Modules/Inference/EditSessionManager.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
@@ -20,6 +22,19 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QSet>
+
+namespace {
+    void beginPitchEditSession() {
+        if (editSessionManager->hasActiveTransaction())
+            return;
+        const auto clip = dynamic_cast<SingingClip *>(clipController->clip());
+        if (!clip)
+            return;
+        editSessionManager->beginTransaction(AppStatus::EditObjectType::Param, clip->id(), {}, {},
+                                             {}, {ParamInfo::Pitch});
+        appStatus->currentEditObject = AppStatus::EditObjectType::Param;
+    }
+}
 
 void EditPitchAnchorHandler::activate() {
     m_state.anchorEditActive = true;
@@ -35,6 +50,8 @@ void EditPitchAnchorHandler::deactivate() {
     m_state.hoveredNode = nullptr;
     m_state.selecting = false;
     m_state.dragging = false;
+    editSessionManager->endActiveTransaction(EditSessionEndReason::Cancel);
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
     triggerRepaint();
 }
 
@@ -43,6 +60,7 @@ bool EditPitchAnchorHandler::mousePressEvent(QMouseEvent *event) {
     const auto node = anchorNodeAt(scenePos);
 
     if (event->button() == Qt::LeftButton) {
+        beginPitchEditSession();
         if (m_state.editing) {
             if (node) {
                 if (m_state.showMergePreview && node == m_state.mergeEndpointNode) {
@@ -97,11 +115,11 @@ bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
                     }
                 }
 
-                const auto deltaTick = static_cast<int>(
-                    q->sceneXToTick(scenePos.x()) - q->sceneXToTick(m_state.dragStartPos.x()));
-                const auto deltaValue = static_cast<int>(
-                    d->m_anchorEditor->sceneYToValue(scenePos.y()) -
-                    d->m_anchorEditor->sceneYToValue(m_state.dragStartPos.y()));
+                const auto deltaTick = static_cast<int>(q->sceneXToTick(scenePos.x()) -
+                                                        q->sceneXToTick(m_state.dragStartPos.x()));
+                const auto deltaValue =
+                    static_cast<int>(d->m_anchorEditor->sceneYToValue(scenePos.y()) -
+                                     d->m_anchorEditor->sceneYToValue(m_state.dragStartPos.y()));
 
                 for (auto &info : m_state.dragNodeInfos) {
                     info.sourceCurve->removeNode(info.node);
@@ -194,9 +212,13 @@ bool EditPitchAnchorHandler::mouseReleaseEvent(QMouseEvent *event) {
             }
             m_state.selectionRect = QRectF();
             triggerRepaint();
+            editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
+            appStatus->currentEditObject = AppStatus::EditObjectType::None;
             return true;
         }
     }
+    editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
     return true;
 }
 
@@ -235,8 +257,9 @@ void EditPitchAnchorHandler::contextMenuEvent(QContextMenuEvent *event) {
     auto *lastCurveNode = curveNodes.isEmpty() ? nullptr : curveNodes.last();
 
     auto currentMode = m_state.selectedNodes.first()->interpMode();
-    bool allSame = std::all_of(m_state.selectedNodes.begin(), m_state.selectedNodes.end(),
-                               [currentMode](AnchorNode *n) { return n->interpMode() == currentMode; });
+    bool allSame =
+        std::all_of(m_state.selectedNodes.begin(), m_state.selectedNodes.end(),
+                    [currentMode](AnchorNode *n) { return n->interpMode() == currentMode; });
 
     auto *linearAction = menu->addAction(QObject::tr("Linear"));
     linearAction->setCheckable(true);
@@ -283,9 +306,7 @@ void EditPitchAnchorHandler::contextMenuEvent(QContextMenuEvent *event) {
     menu->addSeparator();
 
     auto *deleteAction = menu->addAction(QObject::tr("Delete"));
-    QObject::connect(deleteAction, &QAction::triggered, q, [this] {
-        deleteSelectedNodes();
-    });
+    QObject::connect(deleteAction, &QAction::triggered, q, [this] { deleteSelectedNodes(); });
     menu->exec(event->globalPos());
     menu->deleteLater();
 }
@@ -293,6 +314,8 @@ void EditPitchAnchorHandler::contextMenuEvent(QContextMenuEvent *event) {
 bool EditPitchAnchorHandler::keyPressEvent(QKeyEvent *event) {
     if (event->key() == Qt::Key_Escape && m_state.editing) {
         exitEditingState();
+        editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
+        appStatus->currentEditObject = AppStatus::EditObjectType::None;
         triggerRepaint();
         return true;
     }
@@ -307,6 +330,7 @@ void EditPitchAnchorHandler::commit() {
     auto *clip = dynamic_cast<SingingClip *>(clipController->clip());
     if (!clip)
         return;
+    beginPitchEditSession();
 
     QList<Curve *> combined;
     const auto &existing = clip->params.getParamByName(ParamInfo::Pitch)->curves(Param::Edited);
@@ -320,11 +344,15 @@ void EditPitchAnchorHandler::commit() {
     m_committing = true;
     clipController->onParamEdited(ParamInfo::Pitch, combined);
     m_committing = false;
+    editSessionManager->endActiveTransaction(EditSessionEndReason::Commit);
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
 void EditPitchAnchorHandler::discard() {
     m_state.dragging = false;
     m_state.selecting = false;
+    editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
     triggerRepaint();
 }
 
@@ -433,7 +461,7 @@ AnchorCurve *EditPitchAnchorHandler::findOwnerCurve(AnchorNode *node) const {
 }
 
 AnchorNode *EditPitchAnchorHandler::findNodeAtTick(AnchorCurve *curve, int tick,
-                                                    AnchorNode *exclude) {
+                                                   AnchorNode *exclude) {
     if (!curve)
         return nullptr;
     for (auto *node : curve->nodes().toList()) {
@@ -461,7 +489,7 @@ void EditPitchAnchorHandler::removeOverlappingNodes(AnchorCurve *curve, AnchorNo
 }
 
 void EditPitchAnchorHandler::transferNodeToCurve(AnchorNode *node, AnchorCurve *from,
-                                                  AnchorCurve *to) {
+                                                 AnchorCurve *to) {
     from->removeNode(node);
     to->insertNode(node);
     m_state.currentCurve = to;

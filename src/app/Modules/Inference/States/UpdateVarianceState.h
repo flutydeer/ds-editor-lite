@@ -19,6 +19,7 @@ signals:
     void updateSuccessWithLazyInference();
     void updateSuccessWithImmediateInference();
     void pieceNotFound();
+    void deferred();
 
 private:
     void onEntry(QEvent *event) override;

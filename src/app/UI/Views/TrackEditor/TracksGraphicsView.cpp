@@ -19,6 +19,7 @@
 #include "Model/AppModel/AudioClip.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Inference/EditSessionManager.h"
 #include "Model/ClipboardDataModel/ClipsInfo.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Extractors/MidiExtractController.h"
@@ -285,8 +286,10 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
 void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     if (m_mouseMoveBehavior != None && m_movedBeforeMouseUp && !cancelRequested)
         commitAction();
-    else
+    else {
+        editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
         resetEditState();
+    }
     cancelRequested = false;
     syncClipSelectionToAppStatus();
     TimeGraphicsView::mouseReleaseEvent(event);
@@ -307,8 +310,7 @@ void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
                 clipController->centerAt(playbackController->position(), 60);
             }
         } else if (dynamic_cast<TrackEditorBackgroundView *>(item)) {
-            m_tick = TimelineSnapUtils::snapDown(
-                tick, snapStep(false));
+            m_tick = TimelineSnapUtils::snapDown(tick, snapStep(false));
             onNewSingingClip();
         }
     }
@@ -326,8 +328,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     if (const auto item = itemAt(event->pos())) {
         if (dynamic_cast<TrackEditorBackgroundView *>(item)) {
             m_trackIndex = trackIndex;
-            m_tick = TimelineSnapUtils::snapDown(
-                tick, snapStep(false));
+            m_tick = TimelineSnapUtils::snapDown(tick, snapStep(false));
 
             CMenu menu(this);
             menu.installEventFilter(this);
@@ -337,7 +338,8 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
 
             const auto mimeData = QGuiApplication::clipboard()->mimeData();
             const auto hasClipData =
-                mimeData && mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip));
+                mimeData &&
+                mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip));
             const auto actionPaste = menu.addAction(tr("&Paste"));
             actionPaste->setEnabled(hasClipData);
             if (hasClipData) {
@@ -359,52 +361,52 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
 
                 connect(actionPaste, &QAction::hovered, this,
                         [this, info, previewTick, pasteTrack, firstClipStart] {
-                    if (!m_pastePreviewClipViews.isEmpty())
-                        return;
-                    for (int i = 0; i < info.clips.count(); i++) {
-                        const auto clip = info.clips.at(i);
-                        int targetTrack =
-                            pasteTrack + info.trackIndexOffsets.value(i, 0);
-                        targetTrack = qBound(0, targetTrack, appModel->tracks().count() - 1);
-                        const auto track = appModel->tracks().at(targetTrack);
-                        const int targetStart =
-                            previewTick + (clip->start() - firstClipStart);
+                            if (!m_pastePreviewClipViews.isEmpty())
+                                return;
+                            for (int i = 0; i < info.clips.count(); i++) {
+                                const auto clip = info.clips.at(i);
+                                int targetTrack = pasteTrack + info.trackIndexOffsets.value(i, 0);
+                                targetTrack =
+                                    qBound(0, targetTrack, appModel->tracks().count() - 1);
+                                const auto track = appModel->tracks().at(targetTrack);
+                                const int targetStart =
+                                    previewTick + (clip->start() - firstClipStart);
 
-                        AbstractClipView *clipView = nullptr;
-                        if (clip->clipType() == IClip::Singing) {
-                            const auto sc = static_cast<SingingClip *>(clip);
-                            auto view = new SingingClipView(-1);
-                            view->loadCommonProperties(Clip::ClipCommonProperties(*clip));
-                            view->setTrackIndex(targetTrack);
-                            view->setStart(targetStart);
-                            view->loadNotes(sc->notes());
-                            view->setSingerName(track->singerInfo().name());
-                            view->setSpeakerName(track->speakerInfo().name());
-                            view->setDefaultLanguage(sc->defaultLanguage());
-                            clipView = view;
-                        } else if (clip->clipType() == IClip::Audio) {
-                            const auto ac = static_cast<AudioClip *>(clip);
-                            auto view = new AudioClipView(-1);
-                            view->loadCommonProperties(Clip::ClipCommonProperties(*clip));
-                            view->setTrackIndex(targetTrack);
-                            view->setStart(targetStart);
-                            view->setPath(ac->path());
-                            view->setTempo(appModel->tempo());
-                            view->setAudioInfo(ac->audioInfo());
-                            clipView = view;
-                        }
+                                AbstractClipView *clipView = nullptr;
+                                if (clip->clipType() == IClip::Singing) {
+                                    const auto sc = static_cast<SingingClip *>(clip);
+                                    auto view = new SingingClipView(-1);
+                                    view->loadCommonProperties(Clip::ClipCommonProperties(*clip));
+                                    view->setTrackIndex(targetTrack);
+                                    view->setStart(targetStart);
+                                    view->loadNotes(sc->notes());
+                                    view->setSingerName(track->singerInfo().name());
+                                    view->setSpeakerName(track->speakerInfo().name());
+                                    view->setDefaultLanguage(sc->defaultLanguage());
+                                    clipView = view;
+                                } else if (clip->clipType() == IClip::Audio) {
+                                    const auto ac = static_cast<AudioClip *>(clip);
+                                    auto view = new AudioClipView(-1);
+                                    view->loadCommonProperties(Clip::ClipCommonProperties(*clip));
+                                    view->setTrackIndex(targetTrack);
+                                    view->setStart(targetStart);
+                                    view->setPath(ac->path());
+                                    view->setTempo(appModel->tempo());
+                                    view->setAudioInfo(ac->audioInfo());
+                                    clipView = view;
+                                }
 
-                        if (clipView) {
-                            clipView->setColorIndex(track->colorIndex());
-                            clipView->setOpacity(0.35);
-                            clipView->setAcceptedMouseButtons(Qt::NoButton);
-                            clipView->setAcceptHoverEvents(false);
-                            clipView->setFlag(QGraphicsItem::ItemIsSelectable, false);
-                            m_scene->addCommonItem(clipView);
-                            m_pastePreviewClipViews.append(clipView);
-                        }
-                    }
-                });
+                                if (clipView) {
+                                    clipView->setColorIndex(track->colorIndex());
+                                    clipView->setOpacity(0.35);
+                                    clipView->setAcceptedMouseButtons(Qt::NoButton);
+                                    clipView->setAcceptHoverEvents(false);
+                                    clipView->setFlag(QGraphicsItem::ItemIsSelectable, false);
+                                    m_scene->addCommonItem(clipView);
+                                    m_pastePreviewClipViews.append(clipView);
+                                }
+                            }
+                        });
 
                 for (auto a : menu.actions()) {
                     if (a != actionPaste && !a->isSeparator())
@@ -412,9 +414,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
                                 [this] { clearPastePreviewClipViews(); });
                 }
 
-                connect(&menu, &QMenu::aboutToHide, this, [this] {
-                    clearPastePreviewClipViews();
-                });
+                connect(&menu, &QMenu::aboutToHide, this, [this] { clearPastePreviewClipViews(); });
             }
 
             menu.exec(event->globalPos());
@@ -454,6 +454,7 @@ void TracksGraphicsView::discardAction() {
         m_currentEditingClip->setColorIndex(m_mouseDownColorIndex);
         clipController->notifyLiveTrackColorChanged(m_mouseDownColorIndex);
     }
+    editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
     resetEditState();
 }
 
@@ -463,6 +464,7 @@ void TracksGraphicsView::commitAction() {
         const int newTrackIndex = m_currentEditingClip->trackIndex();
         trackController->onClipPropertyChanged(args, newTrackIndex);
     }
+    editSessionManager->endActiveTransaction(EditSessionEndReason::Commit);
     resetEditState();
 }
 
@@ -495,7 +497,6 @@ void TracksGraphicsView::syncClipSelectionToAppStatus() const {
 
 void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event,
                                                         AbstractClipView *clipItem) {
-    appStatus->currentEditObject = AppStatus::EditObjectType::Clip;
     const auto scenePos = mapToScene(event->pos());
     // qDebug() << "prepareForMovingOrResizingClip";
 
@@ -537,6 +538,14 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
     m_mouseDownTrackIndex = m_currentEditingClip->trackIndex();
     m_mouseDownColorIndex = m_currentEditingClip->colorIndex();
     m_movedBeforeMouseUp = false;
+
+    QList<int> clipIds;
+    for (const auto clip : selectedClipItems())
+        clipIds.append(clip->id());
+    if (clipIds.isEmpty())
+        clipIds.append(clipItem->id());
+    editSessionManager->beginTransaction(AppStatus::EditObjectType::Clip, clipItem->id(), clipIds);
+    appStatus->currentEditObject = AppStatus::EditObjectType::Clip;
 }
 
 AbstractClipView *TracksGraphicsView::findClipById(const int id) const {

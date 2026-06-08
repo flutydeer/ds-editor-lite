@@ -13,6 +13,9 @@ ModelChangeHandler::ModelChangeHandler(QObject *parent) : QObject(parent) {
 void ModelChangeHandler::handleTempoChanged(double tempo) {
 }
 
+void ModelChangeHandler::handleModelChanged() {
+}
+
 void ModelChangeHandler::handleTrackInserted(Track *track) {
     m_tracks.append(track);
     for (const auto clip : track->clips())
@@ -76,6 +79,8 @@ void ModelChangeHandler::handlePiecesChanged(const QList<InferPiece *> &pieces,
 }
 
 void ModelChangeHandler::onModelChanged() {
+    handleModelChanged();
+
     for (const auto track : m_tracks)
         onTrackChanged(AppModel::Remove, -1, track);
 

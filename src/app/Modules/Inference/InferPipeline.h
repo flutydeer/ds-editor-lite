@@ -10,6 +10,7 @@
 #include "Models/InferInputNote.h"
 #include "Models/InferParamCurve.h"
 #include "Tasks/InferVarianceTask.h"
+#include "Utils/InferenceApplyGate.h"
 
 #include "Global/AppOptionsGlobal.h"
 
@@ -24,6 +25,7 @@ class UpdatePitchState;
 class InferVarianceState;
 class UpdateVarianceState;
 class AwaitingInferAcousticState;
+class AwaitingEditSessionApplyState;
 class InferAcousticState;
 class UpdateAcousticState;
 class PlaybackReadyState;
@@ -43,8 +45,15 @@ public:
     [[nodiscard]] const InferenceTaskContext &applyContext() const;
     void setApplyContext(const InferenceTaskContext &context);
     void clearApplyContext();
-    [[nodiscard]] bool resolveApplyContext(InferenceTaskResolution &resolution,
-                                           qsizetype expectedNoteCount = -1) const;
+
+    struct ApplyGateResult {
+        InferenceApplyGate::Decision decision = InferenceApplyGate::Decision::Drop;
+        InferenceTaskResolution resolution;
+        QString reason;
+    };
+
+    [[nodiscard]] ApplyGateResult resolveApplyContext(qsizetype expectedNoteCount = -1,
+                                                      bool checkEditSession = true) const;
 
     [[nodiscard]] const QList<InferInputNote> &durationResult() const;
     void setDurationResult(const QList<InferInputNote> &result);
@@ -105,13 +114,17 @@ private:
     QFinalState *finalState{};
     InferDurationState *inferDurationState{};
     UpdateDurationState *updateDurationState{};
+    AwaitingEditSessionApplyState *awaitingDurationApplyState{};
     InferPitchState *inferPitchState{};
     UpdatePitchState *updatePitchState{};
+    AwaitingEditSessionApplyState *awaitingPitchApplyState{};
     InferVarianceState *inferVarianceState{};
     UpdateVarianceState *updateVarianceState{};
+    AwaitingEditSessionApplyState *awaitingVarianceApplyState{};
     AwaitingInferAcousticState *awaitingInferAcousticState{};
     InferAcousticState *inferAcousticState{};
     UpdateAcousticState *updateAcousticState{};
+    AwaitingEditSessionApplyState *awaitingAcousticApplyState{};
     PlaybackReadyState *playbackReadyState{};
 
     QList<InferInputNote> m_durationResult;

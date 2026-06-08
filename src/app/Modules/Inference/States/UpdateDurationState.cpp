@@ -19,19 +19,25 @@ void UpdateDurationState::onEntry(QEvent *event) {
     qDebug() << "UpdateDurationState::onEntry";
     QState::onEntry(event);
 
-    InferenceTaskResolution resolution;
-    if (!m_pipeline.resolveApplyContext(resolution, m_pipeline.durationResult().count())) {
-        QTimer::singleShot(0, this, [this] { emit pieceNotFound(); });
-        return;
+    const auto gate = m_pipeline.resolveApplyContext(m_pipeline.durationResult().count());
+    switch (gate.decision) {
+        case InferenceApplyGate::Decision::Apply:
+            break;
+        case InferenceApplyGate::Decision::Defer:
+            QTimer::singleShot(0, this, [this] { emit deferred(); });
+            return;
+        case InferenceApplyGate::Decision::Drop:
+            QTimer::singleShot(0, this, [this] { emit pieceNotFound(); });
+            return;
     }
 
-    InferControllerHelper::updatePhoneOffset(resolution.notes, m_pipeline.durationResult(),
-                                             *resolution.clip);
+    InferControllerHelper::updatePhoneOffset(gate.resolution.notes, m_pipeline.durationResult(),
+                                             *gate.resolution.clip);
 
     // TODO: 可能需要将更新相对参数的方法提取出来
-    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Expressiveness, *resolution.clip);
-    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Gender, *resolution.clip);
-    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Velocity, *resolution.clip);
+    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Expressiveness, *gate.resolution.clip);
+    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Gender, *gate.resolution.clip);
+    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Velocity, *gate.resolution.clip);
     QTimer::singleShot(0, this, [this] { emit updateSuccess(); });
 }
 

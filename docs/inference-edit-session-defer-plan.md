@@ -720,6 +720,23 @@ Drop pending inference result ... reason=edit-session-flush-drop-revision-mismat
 2. 多个同类型任务结果完成。
 3. 预期：同 key pending 只保留最新结果。
 
+## 本轮验证记录
+
+| 项目 | 结果 | 备注 |
+| --- | --- | --- |
+| IDE 诊断 | 通过 | 新增 `AwaitingEditSessionApplyState` 及本轮修改文件无错误；剩余提示为既有 include/static/const 类建议。 |
+| CMake Configure | 通过 | 使用 `CMake Configure` skill，`cmake --preset debug` 成功；`xsimd_DIR` 为可选未找到提示。 |
+| CMake Build | 通过 | 使用 `CMake Build` skill，`cmake --build --preset debug` 成功生成 `bin/DsEditorLite.exe`；MSVC 输出既有 `/Zi` 被 `/ZI` 覆盖 warning。 |
+
+| 手动场景 | 覆盖点 | 预期日志 / 行为 |
+| --- | --- | --- |
+| 长按音符后取消 | note scope + pending flush | 编辑期间出现 `edit-session-conflict` / `pending-added`，取消后 revision 未变则 `edit-session-flush-apply`。 |
+| 拖动音符并提交 | note scope + commit 失效 | 冲突结果先 Defer，提交后旧 revision 结果以 `edit-session-flush-drop-revision-mismatch` 丢弃，新推理重新调度。 |
+| 编辑 A clip 时 B clip 完成推理 | clip scope 隔离 | B clip 不进入 pending，直接 Apply。 |
+| 拆分 / 绘制 / 擦除音符 | dynamic whole clip scope | 同 clip 旧结果 Defer 或因提交后 revision 变化 Drop，不依赖未知新 note id。 |
+| 参数曲线 / Pitch anchor 编辑 | param scope | Pitch / Expressiveness 等相关 pipeline 写回 Defer；等待期间前置参数变化记录 `pipeline-awaiting-invalidated`。 |
+| 长时间拖动产生多次结果 | pending 上限 | 同 clip / task type 仅保留最新 pending，旧结果记录 `pending-replaced`。 |
+
 ## 风险点
 
 - 如果 `EditSessionManager` 不是唯一权威来源，gate、controller 和 UI 容易维护多套 session 状态。
@@ -770,6 +787,17 @@ Drop pending inference result ... reason=edit-session-flush-drop-revision-mismat
 | Pending 生命周期清理 | 已确认：pending 让 task result 在 task 清理后继续存活，因此 reset、clip/piece 删除、工程切换、模块错误、同 key 新结果等入口都要同步清理 |
 | UI/cache 异步结果 | 已确认：waveform、audio context cache 等非模型写回只做 Apply / Drop stale guard，不进入 Defer / pending |
 | 日志 reason | 已确认：需要统一记录 Apply / Drop / Defer / Clear，并覆盖 pending-added、flush apply/drop/defer、commit drop 和 pending clear 等路径 |
+
+## 实施进度记录
+
+| 阶段 | 状态 | 本轮实现要点 |
+| --- | --- | --- |
+| 阶段 0：建立编辑事务基础设施 | 已完成 | 新增 `EditSessionManager` 作为唯一 active transaction 来源；音符移动/绘制/擦除、音素拖动、参数曲线、Pitch anchor 与 clip 移动/缩放入口显式 begin/end transaction；`Param::Edited` 提交时 bump `inferenceRevision`。 |
+| 阶段 1：停止全局丢弃 | 已完成 | 移除编辑开始即取消相关任务的逻辑；`InferenceApplyGate` 不再读取 `currentEditObject` 全局 drop，而是在 stale 校验通过后按 `EditSessionManager` scope 对冲突结果返回 `Defer`，无关 clip / note / param 继续 `Apply`。 |
+| 阶段 2：clip 级 pending | 已完成 | 为 pronunciation / phoneme-name 写回增加 clip 级 pending store；Defer 时复制 context/result 并让 task 正常收尾；`editSessionEnded` 后重新 gate 并按 Apply / Drop / Defer flush；reset、clip 删除、模块错误和新任务调度会清理相关 pending。 |
+| 阶段 3：pipeline 级 defer state | 已完成 | `InferPipeline::resolveApplyContext()` 返回 Apply / Drop / Defer 三态；task finished 只做 stale gate，Duration / Pitch / Variance / Acoustic 写回阶段遇到编辑冲突进入 `AwaitingEditSessionApplyState`，事务结束后重新 gate；awaiting state 补齐 pieceRemoved 和前置参数变化转移，并在事务已结束时立即重试。 |
+| 阶段 4：明确 edit session outcome | 已完成 | UI 正常路径保持显式 Commit / Discard，Pitch anchor 停用使用 Cancel；新事务覆盖旧事务时旧事务以 Cancel 结束；split note 这类会新增 note / 改变 piece membership 的动态操作改为 `wholeClipScope`，保守阻止同 clip 旧结果写回。 |
+| 阶段 5：清理日志与测试 | 已完成 | pending store / flush / clear 已统一走 `InferenceApplyGate::logDecision()`；awaiting state 因 pieceRemoved 或前置参数变化离开时记录 `pipeline-awaiting-invalidated`；补齐手动测试矩阵，并按项目 skill 完成 `cmake --preset debug` 与 `cmake --build --preset debug`。 |
 
 ## 推荐结论
 

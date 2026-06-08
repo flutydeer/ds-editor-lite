@@ -23,18 +23,23 @@ public:
     void loadOriginal(const QList<DrawCurve *> &curves);
     void loadEdited(const QList<DrawCurve *> &curves);
     void clearParams();
+    void cancelEdit();
     void setEraseMode(bool on);
     [[nodiscard]] const QList<DrawCurve *> &editedCurves() const;
     void discardAction() override;
     void commitAction() override;
 
 signals:
+    void editStarted();
+    void editCommitted();
+    void editDiscarded();
     void editCompleted(const QList<DrawCurve *> &curves);
 
 protected:
     [[nodiscard]] virtual double valueToSceneY(double value) const;
     [[nodiscard]] virtual double sceneYToValue(double y) const;
-    virtual void drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget);
+    virtual void drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                               QWidget *widget);
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -42,6 +47,7 @@ private:
     void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void updateRectAndPos() override;
+    bool cancelEditState();
     void drawCurveBorder(QPainter *painter, const QList<DrawCurve *> &curves) const;
     void drawCurvePolygon(QPainter *painter, const QList<DrawCurve *> &curves) const;
     static void drawLine(const QPoint &p1, const QPoint &p2, DrawCurve &curve);

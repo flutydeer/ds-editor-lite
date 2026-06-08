@@ -20,12 +20,14 @@ namespace InferenceApplyGate {
         bool requirePiece = true;
         bool requireNotesInPiece = true;
         bool checkSingerSpeaker = true;
-        bool checkActiveEditSession = false;
+        bool checkEditSession = false;
     };
 
     [[nodiscard]] Decision resolve(const InferenceTaskContext &context,
                                    InferenceTaskResolution &resolution,
                                    const Options &options = {});
+    void logDecision(const InferenceTaskContext &context, const QString &phase, Decision decision,
+                     const QString &reason, quint64 currentRevision = 0);
     void logDrop(const InferenceTaskContext &context, const QString &phase, const QString &reason,
                  quint64 currentRevision = 0);
 }

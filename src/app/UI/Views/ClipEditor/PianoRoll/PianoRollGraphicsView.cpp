@@ -34,6 +34,7 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Inference/EditSessionManager.h"
 #include "UI/Dialogs/Note/NotePropertyDialog.h"
 #include "Model/NoteDialog/NoteDialogResult.h"
 #include "UI/Views/Common/ScrollBarView.h"
@@ -88,6 +89,18 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
     d->m_pitchEditor->setZValue(2);
     connect(d->m_pitchEditor, &CommonParamEditorView::editCompleted, this,
             [](const QList<DrawCurve *> &curves) { Helper::editPitch(curves); });
+    connect(d->m_pitchEditor, &CommonParamEditorView::editStarted, this, [d] {
+        if (!d->m_clip || d->m_pitchEditSessionActive)
+            return;
+        d->m_pitchEditSessionId = editSessionManager->beginTransaction(
+            AppStatus::EditObjectType::Param, d->m_clip->id(), {}, {}, {}, {ParamInfo::Pitch});
+        d->m_pitchEditSessionActive = true;
+        appStatus->currentEditObject = AppStatus::EditObjectType::Param;
+    });
+    connect(d->m_pitchEditor, &CommonParamEditorView::editCommitted, this,
+            [d] { d->endPitchEditSession(EditSessionEndReason::Commit); });
+    connect(d->m_pitchEditor, &CommonParamEditorView::editDiscarded, this,
+            [d] { d->endPitchEditSession(EditSessionEndReason::Discard); });
     scene->addCommonItem(d->m_pitchEditor);
     d->m_pitchEditor->setTransparentMouseEvents(true);
 
@@ -153,6 +166,22 @@ void PianoRollGraphicsView::setDataContext(SingingClip *clip) {
         d->moveToSingingClipState(clip);
 }
 
+void PianoRollGraphicsViewPrivate::endPitchEditSession(const EditSessionEndReason reason) {
+    if (!m_pitchEditSessionActive)
+        return;
+
+    const auto sessionId = m_pitchEditSessionId;
+    m_pitchEditSessionActive = false;
+    m_pitchEditSessionId = 0;
+
+    if (sessionId != 0 && editSessionManager->hasActiveTransaction() &&
+        editSessionManager->activeSession().sessionId == sessionId) {
+        editSessionManager->endTransaction(sessionId, reason);
+    }
+    if (!editSessionManager->hasActiveTransaction())
+        appStatus->currentEditObject = AppStatus::EditObjectType::None;
+}
+
 void PianoRollGraphicsView::onSceneSelectionChanged() const {
     Q_D(const PianoRollGraphicsView);
     if (!d->m_selectionChangeBarrier) {
@@ -191,9 +220,8 @@ bool PianoRollGraphicsView::event(QEvent *event) {
 
 void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     Q_D(PianoRollGraphicsView);
-    if (d->m_editMode == Select || d->m_editMode == IntervalSelect ||
-        d->m_editMode == DrawNote || d->m_editMode == EraseNote ||
-        d->m_editMode == SplitNote) {
+    if (d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote ||
+        d->m_editMode == EraseNote || d->m_editMode == SplitNote) {
         if (const auto noteView = d->noteViewAt(event->pos())) {
             const auto menu = d->buildNoteContextMenu(noteView, event->pos());
             menu->exec(event->globalPos());
@@ -232,9 +260,8 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     d->m_selecting = true;
     d->m_selectionChangeBarrier = true;
     if (event->button() != Qt::LeftButton &&
-        (d->m_editMode == Select || d->m_editMode == IntervalSelect ||
-         d->m_editMode == DrawNote || d->m_editMode == EraseNote ||
-         d->m_editMode == SplitNote)) {
+        (d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote ||
+         d->m_editMode == EraseNote || d->m_editMode == SplitNote)) {
         d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
         if (const auto noteView = d->noteViewAt(event->pos())) {
             if (d->selectedNoteItems().count() <= 1 || !d->selectedNoteItems().contains(noteView))
@@ -417,8 +444,8 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     // Disable double-click event to prevent deselecting notes when double-clicking on scrollbar
     // TimeGraphicsView::mouseDoubleClickEvent(event);
     Q_D(PianoRollGraphicsView);
-    if (!(d->m_editMode == Select || d->m_editMode == IntervalSelect ||
-          d->m_editMode == DrawNote || d->m_editMode == EditPitchAnchor))
+    if (!(d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote ||
+          d->m_editMode == EditPitchAnchor))
         return;
     if (event->button() != Qt::LeftButton)
         return;
@@ -565,6 +592,7 @@ void PianoRollGraphicsView::discardAction() {
     const auto notes = selectedNotesId();
     clipController->selectNotes(notes, true);
 
+    editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
@@ -599,6 +627,7 @@ void PianoRollGraphicsView::commitAction() {
     const auto notes = selectedNotesId();
     clipController->selectNotes(notes, true);
 
+    editSessionManager->endActiveTransaction(EditSessionEndReason::Commit);
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
@@ -816,15 +845,16 @@ void PianoRollGraphicsViewPrivate::onStartEditingPronunciation(PronunciationView
         }
     }
 
-    connect(
-        pronView, &PronunciationView::pronunciationEditingFinished, this,
-        [this, pronView](const QString &pronunciation) { onPronunciationEditingFinished(pronView, pronunciation); });
+    connect(pronView, &PronunciationView::pronunciationEditingFinished, this,
+            [this, pronView](const QString &pronunciation) {
+                onPronunciationEditingFinished(pronView, pronunciation);
+            });
 
     pronView->startEditingPronunciation();
 }
 
 void PianoRollGraphicsViewPrivate::onPronunciationEditingFinished(PronunciationView *pronView,
-                                                                   const QString &pronunciation) {
+                                                                  const QString &pronunciation) {
     disconnect(pronView, &PronunciationView::pronunciationEditingFinished, this, nullptr);
 
     const int noteId = pronView->id();
@@ -842,7 +872,7 @@ void PianoRollGraphicsViewPrivate::onPronunciationEditingFinished(PronunciationV
 }
 
 Menu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView,
-                                                          const QPoint &mousePos) {
+                                                         const QPoint &mousePos) {
     Q_Q(PianoRollGraphicsView);
     const auto menu = new Menu(q);
 
@@ -887,7 +917,8 @@ Menu *PianoRollGraphicsViewPrivate::buildBackgroundContextMenu(const QPoint &pos
 
     const auto mimeData = QGuiApplication::clipboard()->mimeData();
     const auto hasPasteData =
-        mimeData && mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
+        mimeData &&
+        mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
 
     const auto actionPaste = menu->addAction(tr("&Paste"));
     actionPaste->setEnabled(hasPasteData);
@@ -902,9 +933,8 @@ Menu *PianoRollGraphicsViewPrivate::buildBackgroundContextMenu(const QPoint &pos
         const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
         const auto previewTick = TimelineSnapUtils::snapNearest(tick, quantize);
 
-        connect(actionPaste, &QAction::triggered, q, [this, info, tick] {
-            clipController->pasteNotesWithParams(info, tick);
-        });
+        connect(actionPaste, &QAction::triggered, q,
+                [this, info, tick] { clipController->pasteNotesWithParams(info, tick); });
 
         int minLocalStart = INT_MAX;
         for (const auto note : info.selectedNotes)
@@ -951,6 +981,8 @@ Menu *PianoRollGraphicsViewPrivate::buildBackgroundContextMenu(const QPoint &pos
 
 void PianoRollGraphicsViewPrivate::moveToNullClipState() {
     Q_Q(PianoRollGraphicsView);
+    m_pitchEditor->cancelEdit();
+    endPitchEditSession(EditSessionEndReason::Cancel);
     q->setSceneVisibility(false);
     q->setEnabled(false);
     m_pitchEditor->clearParams();
@@ -964,6 +996,8 @@ void PianoRollGraphicsViewPrivate::moveToNullClipState() {
 
 void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     Q_Q(PianoRollGraphicsView);
+    m_pitchEditor->cancelEdit();
+    endPitchEditSession(EditSessionEndReason::Cancel);
     m_selectionChangeBarrier = true;
     while (m_notes.count() > 0)
         handleNoteRemoved(m_notes.first());
@@ -1008,7 +1042,6 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(const QMouseEvent *eve
         return;
     }
 
-    appStatus->currentEditObject = AppStatus::EditObjectType::Note;
     const bool ctrlDown = event->modifiers() == Qt::ControlModifier;
     if (!ctrlDown) {
         if (selectedNoteItems().count() <= 1 || !selectedNoteItems().contains(noteItem))
@@ -1041,6 +1074,13 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(const QMouseEvent *eve
     m_mouseDownLength = m_currentEditingNote->length();
     m_mouseDownKeyIndex = keyIndex;
     updateMoveDeltaKeyRange();
+
+    auto noteIds = q->selectedNotesId();
+    if (noteIds.isEmpty())
+        noteIds.append(noteItem->id());
+    editSessionManager->beginTransaction(AppStatus::EditObjectType::Note,
+                                         m_clip ? m_clip->id() : -1, {}, noteIds);
+    appStatus->currentEditObject = AppStatus::EditObjectType::Note;
 }
 
 void PianoRollGraphicsViewPrivate::handleNotesMoved(const int deltaTick, const int deltaKey) const {
@@ -1336,8 +1376,7 @@ void PianoRollGraphicsViewPrivate::updatePitch(const Param::Type paramType,
                                                const Param &param) const {
     Helper::updatePitch(paramType, param, *m_pitchEditor);
     if (paramType == Param::Edited) {
-        auto *handler =
-            dynamic_cast<EditPitchAnchorHandler *>(m_handlers.value(EditPitchAnchor));
+        auto *handler = dynamic_cast<EditPitchAnchorHandler *>(m_handlers.value(EditPitchAnchor));
         if (handler)
             Helper::updateAnchorPitch(param, *handler);
     }

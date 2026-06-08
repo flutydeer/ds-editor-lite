@@ -5,6 +5,7 @@
 #include "PianoRollGraphicsView_p.h"
 #include "Controller/ClipController.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Inference/EditSessionManager.h"
 
 #include <QMouseEvent>
 
@@ -45,6 +46,7 @@ void EraseNoteHandler::commit() {
     m_notesToErase.clear();
     d->noteViewsToErase.clear();
     m_erasing = false;
+    editSessionManager->endActiveTransaction(EditSessionEndReason::Commit);
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
@@ -54,6 +56,7 @@ void EraseNoteHandler::discard() {
     m_notesToErase.clear();
     d->noteViewsToErase.clear();
     m_erasing = false;
+    editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
@@ -61,8 +64,14 @@ void EraseNoteHandler::eraseNoteUnderPos(const QPoint &pos) {
     const auto noteView = d->noteViewAt(pos);
     if (!noteView)
         return;
+    if (!editSessionManager->hasActiveTransaction())
+        editSessionManager->beginTransaction(AppStatus::EditObjectType::Note,
+                                             d->m_clip ? d->m_clip->id() : -1, {}, {}, {}, {},
+                                             true);
     appStatus->currentEditObject = AppStatus::EditObjectType::Note;
-    m_notesToErase.append(noteView->id());
+    if (!m_notesToErase.contains(noteView->id()))
+        m_notesToErase.append(noteView->id());
+    editSessionManager->addNoteIds({noteView->id()});
     d->noteViewsToErase.append(noteView);
     d->removeNoteViewFromScene(noteView);
 }

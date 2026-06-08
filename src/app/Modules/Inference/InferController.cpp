@@ -18,8 +18,11 @@
 #include "Controller/PlaybackController.h"
 #include "InferPipeline.h"
 #include "Model/AppModel/AppModel.h"
+#include "Modules/Inference/EditSessionManager.h"
 
 #include <QTimer>
+
+#include <utility>
 
 namespace Helper = InferControllerHelper;
 
@@ -106,6 +109,8 @@ InferController::InferController(QObject *parent)
     connect(appStatus, &AppStatus::moduleStatusChanged, d,
             &InferControllerPrivate::onModuleStatusChanged);
     connect(appStatus, &AppStatus::editingChanged, d, &InferControllerPrivate::onEditingChanged);
+    connect(editSessionManager, &EditSessionManager::editSessionEnded, d,
+            &InferControllerPrivate::onEditSessionEnded);
     connect(appOptions, &AppOptions::optionsChanged, d,
             &InferControllerPrivate::onInferOptionChanged);
     connect(playbackController, &PlaybackController::playbackStatusChanged, d,
@@ -188,31 +193,20 @@ void InferControllerPrivate::onModuleStatusChanged(const AppStatus::ModuleType m
 }
 
 void InferControllerPrivate::onEditingChanged(const AppStatus::EditObjectType type) {
-    // 第一版编辑会话策略：编辑中取消相关任务；迟到结果由 apply gate 丢弃。
-    m_activeEditSession = {};
     if (type != AppStatus::EditObjectType::None) {
-        m_activeEditSession.domain = type;
-        m_activeEditSession.clipId = appStatus->activeClipId;
-        m_activeEditSession.noteIds = appStatus->selectedNotes;
-
-        qWarning() << "Editing project. Cancelling related tasks."
-                   << "editObject:" << static_cast<int>(type)
-                   << "clipId:" << m_activeEditSession.clipId;
-        const auto clip = appModel->findClipById(m_activeEditSession.clipId);
-        if (!clip) {
-            m_lastEditObjectType = type;
-            return;
-        }
-        if (clip->clipType() == IClip::Singing) {
-            const auto singingClip = static_cast<SingingClip *>(clip);
-            m_activeEditSession.baseRevision = singingClip->inferenceRevision();
-            cancelClipRelatedTasks(singingClip);
-        }
+        qDebug() << "Editing project began" << "editObject:" << static_cast<int>(type)
+                 << "hasEditSession:" << editSessionManager->hasActiveTransaction();
     } else {
         qDebug() << "Editing project finished"
                  << "lastEditObject:" << static_cast<int>(m_lastEditObjectType);
+        editSessionManager->endActiveTransaction(EditSessionEndReason::Unknown);
     }
     m_lastEditObjectType = type;
+}
+
+void InferControllerPrivate::onEditSessionEnded(const EditSession &session,
+                                                const EditSessionEndReason reason) {
+    QTimer::singleShot(0, this, [this, session, reason] { flushPendingApplies(session, reason); });
 }
 
 void InferControllerPrivate::onInferOptionChanged(const AppOptionsGlobal::Option option) {
@@ -234,6 +228,23 @@ void InferControllerPrivate::onPlaybackStatusChanged(const PlaybackGlobal::Playb
 
         notifyNextPipeline(awaitingPipelines, 0);
     }
+}
+
+void InferControllerPrivate::handleModelChanged() {
+    qInfo() << "Reset inference state for model change";
+    editSessionManager->clear();
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
+    clearAllPendingApplies("pending-cleared-model-changed");
+    m_getPronTasks.cancelAll();
+    m_getPhoneTasks.cancelAll();
+    m_inferDurTasks.cancelAll();
+    m_inferPitchTasks.cancelAll();
+    m_inferVarianceTasks.cancelAll();
+    m_inferAcousticTasks.cancelAll();
+    for (const auto pipeline : std::as_const(m_inferPipelines))
+        delete pipeline;
+    m_inferPipelines.clear();
+    m_retryAllScheduled = false;
 }
 
 void InferControllerPrivate::handleTempoChanged(double tempo) {
@@ -401,6 +412,7 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(
     if (status == AppStatus::ModuleStatus::Ready) {
         qDebug() << "Language module is ready. Tasks will be started.";
     } else if (status == AppStatus::ModuleStatus::Error) {
+        clearAllPendingApplies("pending-cleared-module-error");
         m_getPronTasks.disposePendingTasks();
         appOptions->language()->langOrder.clear();
         appOptions->language()->g2pConfigs = QJsonObject();
@@ -462,19 +474,21 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &tas
     options.requirePiece = false;
     options.requireNotesInPiece = false;
     options.checkSingerSpeaker = false;
-    options.checkActiveEditSession = true;
+    options.checkEditSession = true;
 
     InferenceTaskResolution resolution;
-    if (InferenceApplyGate::resolve(context, resolution, options) !=
-        InferenceApplyGate::Decision::Apply) {
-        m_getPronTasks.onCurrentFinished(&task);
-        return;
+    switch (InferenceApplyGate::resolve(context, resolution, options)) {
+        case InferenceApplyGate::Decision::Apply:
+            Helper::updatePronunciation(resolution.notes, task.result, *resolution.clip);
+            if (!resolution.clip->singerInfo().isEmpty())
+                createAndRunGetPhoneTask(*resolution.clip);
+            break;
+        case InferenceApplyGate::Decision::Defer:
+            storePendingPronunciationApply(context, task.result);
+            break;
+        case InferenceApplyGate::Decision::Drop:
+            break;
     }
-
-    Helper::updatePronunciation(resolution.notes, task.result, *resolution.clip);
-
-    if (!resolution.clip->singerInfo().isEmpty())
-        createAndRunGetPhoneTask(*resolution.clip);
     m_getPronTasks.onCurrentFinished(&task);
 }
 
@@ -500,23 +514,182 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
     options.requirePiece = false;
     options.requireNotesInPiece = false;
     options.checkSingerSpeaker = false;
-    options.checkActiveEditSession = true;
+    options.checkEditSession = true;
 
     InferenceTaskResolution resolution;
-    if (InferenceApplyGate::resolve(context, resolution, options) !=
-        InferenceApplyGate::Decision::Apply) {
-        m_getPhoneTasks.onCurrentFinished(&task);
-        return;
-    }
-
-    Helper::updatePhoneName(resolution.notes, task.result, *resolution.clip);
-
-    if (!resolution.clip->singerInfo().isEmpty()) {
-        auto result = resolution.clip->reSegment();
-        for (const auto piece : result.addedPieces)
-            createPipeline(*piece);
+    switch (InferenceApplyGate::resolve(context, resolution, options)) {
+        case InferenceApplyGate::Decision::Apply:
+            Helper::updatePhoneName(resolution.notes, task.result, *resolution.clip);
+            if (!resolution.clip->singerInfo().isEmpty()) {
+                auto result = resolution.clip->reSegment();
+                for (const auto piece : result.addedPieces)
+                    createPipeline(*piece);
+            }
+            break;
+        case InferenceApplyGate::Decision::Defer:
+            storePendingPhonemeNameApply(context, task.result);
+            break;
+        case InferenceApplyGate::Decision::Drop:
+            break;
     }
     m_getPhoneTasks.onCurrentFinished(&task);
+}
+
+InferControllerPrivate::PendingApplyResult InferControllerPrivate::tryApplyPronunciation(
+    const InferenceTaskContext &context, const QStringList &pronunciations, const QString &phase) {
+    InferenceApplyGate::Options options;
+    options.phase = phase;
+    options.expectedNoteCount = pronunciations.count();
+    options.requirePiece = false;
+    options.requireNotesInPiece = false;
+    options.checkSingerSpeaker = false;
+    options.checkEditSession = true;
+
+    InferenceTaskResolution resolution;
+    switch (InferenceApplyGate::resolve(context, resolution, options)) {
+        case InferenceApplyGate::Decision::Apply:
+            Helper::updatePronunciation(resolution.notes, pronunciations, *resolution.clip);
+            InferenceApplyGate::logDecision(context, phase, InferenceApplyGate::Decision::Apply,
+                                            phase == "pending-flush" ? "edit-session-flush-apply"
+                                                                     : "clip-task-apply",
+                                            resolution.clip->inferenceRevision());
+            if (!resolution.clip->singerInfo().isEmpty())
+                createAndRunGetPhoneTask(*resolution.clip);
+            return PendingApplyResult::Applied;
+        case InferenceApplyGate::Decision::Drop:
+            if (phase == "pending-flush") {
+                const auto reason =
+                    resolution.dropReason == "revision-mismatch"
+                        ? "edit-session-flush-drop-revision-mismatch"
+                        : QString("edit-session-flush-drop-%1").arg(resolution.dropReason);
+                InferenceApplyGate::logDecision(context, phase, InferenceApplyGate::Decision::Drop,
+                                                reason);
+            }
+            return PendingApplyResult::Dropped;
+        case InferenceApplyGate::Decision::Defer:
+            if (phase == "pending-flush")
+                InferenceApplyGate::logDecision(context, phase, InferenceApplyGate::Decision::Defer,
+                                                "edit-session-flush-defer");
+            return PendingApplyResult::Deferred;
+    }
+    return PendingApplyResult::Dropped;
+}
+
+InferControllerPrivate::PendingApplyResult
+    InferControllerPrivate::tryApplyPhonemeName(const InferenceTaskContext &context,
+                                                const QList<PhonemeNameResult> &phonemeNames,
+                                                const QString &phase) {
+    InferenceApplyGate::Options options;
+    options.phase = phase;
+    options.expectedNoteCount = phonemeNames.count();
+    options.requirePiece = false;
+    options.requireNotesInPiece = false;
+    options.checkSingerSpeaker = false;
+    options.checkEditSession = true;
+
+    InferenceTaskResolution resolution;
+    switch (InferenceApplyGate::resolve(context, resolution, options)) {
+        case InferenceApplyGate::Decision::Apply:
+            Helper::updatePhoneName(resolution.notes, phonemeNames, *resolution.clip);
+            InferenceApplyGate::logDecision(context, phase, InferenceApplyGate::Decision::Apply,
+                                            phase == "pending-flush" ? "edit-session-flush-apply"
+                                                                     : "clip-task-apply",
+                                            resolution.clip->inferenceRevision());
+            if (!resolution.clip->singerInfo().isEmpty()) {
+                const auto result = resolution.clip->reSegment();
+                for (const auto piece : result.addedPieces)
+                    createPipeline(*piece);
+            }
+            return PendingApplyResult::Applied;
+        case InferenceApplyGate::Decision::Drop:
+            if (phase == "pending-flush") {
+                const auto reason =
+                    resolution.dropReason == "revision-mismatch"
+                        ? "edit-session-flush-drop-revision-mismatch"
+                        : QString("edit-session-flush-drop-%1").arg(resolution.dropReason);
+                InferenceApplyGate::logDecision(context, phase, InferenceApplyGate::Decision::Drop,
+                                                reason);
+            }
+            return PendingApplyResult::Dropped;
+        case InferenceApplyGate::Decision::Defer:
+            if (phase == "pending-flush")
+                InferenceApplyGate::logDecision(context, phase, InferenceApplyGate::Decision::Defer,
+                                                "edit-session-flush-defer");
+            return PendingApplyResult::Deferred;
+    }
+    return PendingApplyResult::Dropped;
+}
+
+void InferControllerPrivate::storePendingPronunciationApply(const InferenceTaskContext &context,
+                                                            const QStringList &pronunciations) {
+    const bool replaced = m_pendingPronunciationApplies.contains(context.clipId);
+    m_pendingPronunciationApplies.insert(context.clipId, {context, pronunciations});
+    InferenceApplyGate::logDecision(context, "pending-store", InferenceApplyGate::Decision::Defer,
+                                    replaced ? "pending-replaced" : "pending-added");
+}
+
+void InferControllerPrivate::storePendingPhonemeNameApply(
+    const InferenceTaskContext &context, const QList<PhonemeNameResult> &phonemeNames) {
+    const bool replaced = m_pendingPhonemeNameApplies.contains(context.clipId);
+    m_pendingPhonemeNameApplies.insert(context.clipId, {context, phonemeNames});
+    InferenceApplyGate::logDecision(context, "pending-store", InferenceApplyGate::Decision::Defer,
+                                    replaced ? "pending-replaced" : "pending-added");
+}
+
+void InferControllerPrivate::flushPendingApplies(const EditSession &session,
+                                                 const EditSessionEndReason reason) {
+    Q_UNUSED(session)
+    Q_UNUSED(reason)
+
+    const auto pronunciationKeys = m_pendingPronunciationApplies.keys();
+    for (const auto clipId : pronunciationKeys) {
+        if (!m_pendingPronunciationApplies.contains(clipId))
+            continue;
+        const auto pending = m_pendingPronunciationApplies.value(clipId);
+        const auto result =
+            tryApplyPronunciation(pending.context, pending.pronunciations, "pending-flush");
+        if (result != PendingApplyResult::Deferred)
+            m_pendingPronunciationApplies.remove(clipId);
+    }
+
+    const auto phonemeNameKeys = m_pendingPhonemeNameApplies.keys();
+    for (const auto clipId : phonemeNameKeys) {
+        if (!m_pendingPhonemeNameApplies.contains(clipId))
+            continue;
+        const auto pending = m_pendingPhonemeNameApplies.value(clipId);
+        const auto result =
+            tryApplyPhonemeName(pending.context, pending.phonemeNames, "pending-flush");
+        if (result != PendingApplyResult::Deferred)
+            m_pendingPhonemeNameApplies.remove(clipId);
+    }
+}
+
+void InferControllerPrivate::clearAllPendingApplies(const QString &reason) {
+    for (const auto &pending : std::as_const(m_pendingPronunciationApplies)) {
+        InferenceApplyGate::logDecision(pending.context, "pending-clear",
+                                        InferenceApplyGate::Decision::Drop, reason);
+    }
+    for (const auto &pending : std::as_const(m_pendingPhonemeNameApplies)) {
+        InferenceApplyGate::logDecision(pending.context, "pending-clear",
+                                        InferenceApplyGate::Decision::Drop, reason);
+    }
+    m_pendingPronunciationApplies.clear();
+    m_pendingPhonemeNameApplies.clear();
+}
+
+void InferControllerPrivate::clearPendingForClip(const int clipId, const QString &reason) {
+    if (m_pendingPronunciationApplies.contains(clipId)) {
+        InferenceApplyGate::logDecision(m_pendingPronunciationApplies.value(clipId).context,
+                                        "pending-clear", InferenceApplyGate::Decision::Drop,
+                                        reason);
+        m_pendingPronunciationApplies.remove(clipId);
+    }
+    if (m_pendingPhonemeNameApplies.contains(clipId)) {
+        InferenceApplyGate::logDecision(m_pendingPhonemeNameApplies.value(clipId).context,
+                                        "pending-clear", InferenceApplyGate::Decision::Drop,
+                                        reason);
+        m_pendingPhonemeNameApplies.remove(clipId);
+    }
 }
 
 void InferControllerPrivate::recreateAllInferTasks() {
@@ -542,6 +715,7 @@ void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
         return;
     }
     const auto clipId = clip.id();
+    clearPendingForClip(clipId, "pending-cleared-new-task");
     auto pred = [clipId](const auto t) { return t->clipId() == clipId; };
     m_getPronTasks.cancelIf(pred);
     m_getPhoneTasks.cancelIf(pred);
@@ -557,6 +731,12 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
         return;
 
     const auto clipId = clip.id();
+    if (m_pendingPhonemeNameApplies.contains(clipId)) {
+        InferenceApplyGate::logDecision(m_pendingPhonemeNameApplies.value(clipId).context,
+                                        "pending-clear", InferenceApplyGate::Decision::Drop,
+                                        "pending-cleared-new-task");
+        m_pendingPhonemeNameApplies.remove(clipId);
+    }
     m_getPhoneTasks.cancelIf([clipId](const auto t) { return t->clipId() == clipId; });
 
     auto task = new GetPhonemeNameTask(clip.id(), clip.inferenceRevision(),
@@ -576,6 +756,7 @@ void InferControllerPrivate::createPipeline(InferPiece &piece) {
 }
 
 void InferControllerPrivate::reset() {
+    clearAllPendingApplies("pending-cleared-reset");
     m_getPronTasks.cancelAll();
     m_getPhoneTasks.cancelAll();
     m_inferDurTasks.cancelAll();
@@ -596,6 +777,7 @@ void InferControllerPrivate::cancelAllInferTasks() {
 
 void InferControllerPrivate::cancelClipRelatedTasks(const SingingClip *clip) {
     qInfo() << "Cancel singing-clip related tasks" << "clipId:" << clip->id();
+    clearPendingForClip(clip->id(), "pending-cleared-clip-removed");
     auto pred = L_PRED(t, t->clipId() == clip->id());
     m_getPronTasks.cancelIf(pred);
     m_getPhoneTasks.cancelIf(pred);

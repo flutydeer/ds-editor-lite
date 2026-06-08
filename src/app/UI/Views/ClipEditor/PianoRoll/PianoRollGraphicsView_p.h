@@ -27,6 +27,7 @@ class PianoRollGraphicsView;
 class PronunciationView;
 class PianoRollBackground;
 class PianoRollEditHandler;
+enum class EditSessionEndReason;
 
 using namespace ClipEditorGlobal;
 
@@ -50,6 +51,8 @@ public:
     QHash<int, NoteView *> noteViewIndex;
 
     PitchEditorView *m_pitchEditor = nullptr;
+    bool m_pitchEditSessionActive = false;
+    quint64 m_pitchEditSessionId = 0;
     PitchAnchorEditorView *m_anchorEditor = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
 
@@ -88,6 +91,7 @@ public:
 
     void moveToNullClipState();
     void moveToSingingClipState(SingingClip *clip);
+    void endPitchEditSession(EditSessionEndReason reason);
 
     void prepareForEditingNotes(const QMouseEvent *event, QPointF scenePos, int keyIndex,
                                 NoteView *noteItem);

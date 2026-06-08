@@ -21,13 +21,19 @@ void UpdateVarianceState::onEntry(QEvent *event) {
     qDebug() << "UpdateVarianceState::onEntry";
     QState::onEntry(event);
 
-    InferenceTaskResolution resolution;
-    if (!m_pipeline.resolveApplyContext(resolution)) {
-        QTimer::singleShot(0, this, [this] { emit pieceNotFound(); });
-        return;
+    const auto gate = m_pipeline.resolveApplyContext();
+    switch (gate.decision) {
+        case InferenceApplyGate::Decision::Apply:
+            break;
+        case InferenceApplyGate::Decision::Defer:
+            QTimer::singleShot(0, this, [this] { emit deferred(); });
+            return;
+        case InferenceApplyGate::Decision::Drop:
+            QTimer::singleShot(0, this, [this] { emit pieceNotFound(); });
+            return;
     }
 
-    auto &piece = *resolution.piece;
+    auto &piece = *gate.resolution.piece;
     piece.state = QString("Variance.Update");
     Helper::updateVariance(m_pipeline.varianceResult(), piece);
 

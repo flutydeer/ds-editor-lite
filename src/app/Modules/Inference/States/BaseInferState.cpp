@@ -117,14 +117,14 @@ void BaseInferState::handleTaskFinished(IInferTask &task) {
     }
 
     m_pipeline.setApplyContext(task.inferenceContext());
-    InferenceTaskResolution resolution;
-    if (!m_pipeline.resolveApplyContext(resolution)) {
+    const auto gate = m_pipeline.resolveApplyContext(-1, false);
+    if (gate.decision != InferenceApplyGate::Decision::Apply) {
         finishCurrentTask();
         QTimer::singleShot(0, this, [this] { emit dropped(); });
         return;
     }
 
-    if (!validateTaskResult(&task, resolution.clip)) {
+    if (!validateTaskResult(&task, gate.resolution.clip)) {
         finishCurrentTask();
         QTimer::singleShot(0, this, [this] { emit dropped(); });
         return;

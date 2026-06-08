@@ -18,6 +18,7 @@ public:
 signals:
     void updateSuccess();
     void pieceNotFound();
+    void deferred();
 
 private:
     void onEntry(QEvent *event) override;

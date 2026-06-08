@@ -11,6 +11,7 @@
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"
+#include "Modules/Inference/EditSessionManager.h"
 #include "Modules/Inference/Utils/InferenceApplyGate.h"
 #include "UI/Utils/TrackColorPalette.h"
 #include "UI/Utils/WaveformPainter.h"
@@ -287,12 +288,19 @@ void PhonemeView::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
         return;
 
-
-    appStatus->currentEditObject = AppStatus::EditObjectType::Phoneme;
     m_mouseMoved = false;
     m_mouseDownX = event->pos().x();
     const auto tick = xToTick(event->pos().x());
     if (const auto phoneme = phonemeAtTick(tick)) {
+        QList<int> pieceIds;
+        if (const auto note = m_clip ? m_clip->findNoteById(phoneme->noteId) : nullptr) {
+            for (const auto piece : m_clip->findPiecesByNotes({note}))
+                pieceIds.append(piece->id());
+        }
+        editSessionManager->beginTransaction(AppStatus::EditObjectType::Phoneme,
+                                             m_clip ? m_clip->id() : -1, {}, {phoneme->noteId},
+                                             pieceIds);
+        appStatus->currentEditObject = AppStatus::EditObjectType::Phoneme;
         m_freezeHoverEffects = true;
         m_curPhoneme = phoneme;
         m_mouseMoveBehavior = Move;
@@ -384,8 +392,11 @@ void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
 }
 
 void PhonemeView::mouseReleaseEvent(QMouseEvent *event) {
-    if (m_mouseMoveBehavior == Move && m_mouseMoved)
+    bool committed = false;
+    if (m_mouseMoveBehavior == Move && m_mouseMoved) {
         handleAdjustCompleted(m_curPhoneme);
+        committed = true;
+    }
 
     if (m_tooltip) {
         m_tooltip->setWindowOpacity(0);
@@ -397,6 +408,8 @@ void PhonemeView::mouseReleaseEvent(QMouseEvent *event) {
     m_mouseMoveBehavior = None;
     m_freezeHoverEffects = false;
     updateHoverEffects();
+    editSessionManager->endActiveTransaction(committed ? EditSessionEndReason::Commit
+                                                       : EditSessionEndReason::Discard);
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
     QWidget::mouseReleaseEvent(event);
 }

@@ -9,6 +9,9 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Task/TaskQueue.h"
+#include "Modules/Inference/EditSessionManager.h"
+#include "Modules/Inference/Models/InferenceTaskContext.h"
+#include "Modules/Inference/Models/PhonemeNameResult.h"
 #include "Tasks/InferAcousticTask.h"
 #include "Tasks/InferDurationTask.h"
 #include "Tasks/InferPitchTask.h"
@@ -17,6 +20,8 @@
 #include "Global/AppOptionsGlobal.h"
 
 #include <QList>
+#include <QHash>
+#include <QStringList>
 
 class GetPronunciationTask;
 class GetPhonemeNameTask;
@@ -33,10 +38,12 @@ public:
 public slots:
     void onModuleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
     void onEditingChanged(AppStatus::EditObjectType type);
+    void onEditSessionEnded(const EditSession &session, EditSessionEndReason reason);
     void onInferOptionChanged(AppOptionsGlobal::Option option);
     void onPlaybackStatusChanged(PlaybackGlobal::PlaybackStatus status);
 
-public:
+protected:
+    void handleModelChanged() override;
     void handleTempoChanged(double tempo) override;
     void handleSingingClipInserted(SingingClip *clip) override;
     void handleSingingClipRemoved(SingingClip *clip) override;
@@ -46,6 +53,7 @@ public:
                            SingingClip *clip) override;
     void handleParamChanged(ParamInfo::Name name, Param::Type type, SingingClip *clip) override;
 
+public:
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
     void handleGetPronTaskFinished(GetPronunciationTask &task);
     void handleGetPhoneTaskFinished(GetPhonemeNameTask &task);
@@ -69,17 +77,35 @@ public:
     void cancelClipRelatedTasks(const SingingClip *clip);
     void cancelPieceRelatedTasks(int pieceId);
 
-    void notifyNextPipeline(const QList<InferPipeline *> &pipelines, int index);
+    enum class PendingApplyResult { Applied, Dropped, Deferred };
 
-    struct EditSession {
-        AppStatus::EditObjectType domain = AppStatus::EditObjectType::None;
-        int clipId = -1;
-        QList<int> noteIds;
-        quint64 baseRevision = 0;
+    struct PendingPronunciationApply {
+        InferenceTaskContext context;
+        QStringList pronunciations;
     };
 
+    struct PendingPhonemeNameApply {
+        InferenceTaskContext context;
+        QList<PhonemeNameResult> phonemeNames;
+    };
+
+    PendingApplyResult tryApplyPronunciation(const InferenceTaskContext &context,
+                                             const QStringList &pronunciations,
+                                             const QString &phase);
+    PendingApplyResult tryApplyPhonemeName(const InferenceTaskContext &context,
+                                           const QList<PhonemeNameResult> &phonemeNames,
+                                           const QString &phase);
+    void storePendingPronunciationApply(const InferenceTaskContext &context,
+                                        const QStringList &pronunciations);
+    void storePendingPhonemeNameApply(const InferenceTaskContext &context,
+                                      const QList<PhonemeNameResult> &phonemeNames);
+    void flushPendingApplies(const EditSession &session, EditSessionEndReason reason);
+    void clearAllPendingApplies(const QString &reason);
+    void clearPendingForClip(int clipId, const QString &reason);
+
+    void notifyNextPipeline(const QList<InferPipeline *> &pipelines, int index);
+
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
-    EditSession m_activeEditSession;
 
     TaskQueue<GetPronunciationTask> m_getPronTasks;
     TaskQueue<GetPhonemeNameTask> m_getPhoneTasks;
@@ -87,6 +113,9 @@ public:
     TaskQueue<InferPitchTask> m_inferPitchTasks;
     TaskQueue<InferVarianceTask> m_inferVarianceTasks;
     TaskQueue<InferAcousticTask> m_inferAcousticTasks;
+
+    QHash<int, PendingPronunciationApply> m_pendingPronunciationApplies;
+    QHash<int, PendingPhonemeNameApply> m_pendingPhonemeNameApplies;
 
     QList<InferPipeline *> m_inferPipelines;
 

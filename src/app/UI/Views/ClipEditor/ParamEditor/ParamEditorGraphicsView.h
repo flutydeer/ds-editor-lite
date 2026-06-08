@@ -42,6 +42,9 @@ signals:
 private slots:
     void onClipPropertyChanged();
     void onParamChanged(ParamInfo::Name name, Param::Type type) const;
+    void onEditStarted() const;
+    void onEditCommitted() const;
+    void onEditDiscarded() const;
     void onEditCompleted(const QList<DrawCurve *> &curves) const;
 
 private:

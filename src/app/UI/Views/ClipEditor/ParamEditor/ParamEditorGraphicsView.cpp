@@ -10,6 +10,7 @@
 
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/ClipEditor/CommonParamEditorView.h"
 #include "UI/Views/Common/TimeGridView.h"
@@ -50,6 +51,12 @@ ParamEditorGraphicsView::ParamEditorGraphicsView(ParamEditorGraphicsScene *scene
 
     connect(m_foreground, &CommonParamEditorView::editCompleted, this,
             &ParamEditorGraphicsView::onEditCompleted);
+    connect(m_foreground, &CommonParamEditorView::editStarted, this,
+            &ParamEditorGraphicsView::onEditStarted);
+    connect(m_foreground, &CommonParamEditorView::editCommitted, this,
+            &ParamEditorGraphicsView::onEditCommitted);
+    connect(m_foreground, &CommonParamEditorView::editDiscarded, this,
+            &ParamEditorGraphicsView::onEditDiscarded);
 }
 
 void ParamEditorGraphicsView::setDataContext(SingingClip *clip) {
@@ -143,6 +150,24 @@ void ParamEditorGraphicsView::onEditCompleted(const QList<DrawCurve *> &curves) 
     for (const auto curve : curves)
         list.append(curve);
     clipController->onParamEdited(m_foregroundParam, list);
+}
+
+void ParamEditorGraphicsView::onEditStarted() const {
+    if (!m_clip || m_speakerMixMode)
+        return;
+    editSessionManager->beginTransaction(AppStatus::EditObjectType::Param, m_clip->id(), {}, {}, {},
+                                         {m_foregroundParam});
+    appStatus->currentEditObject = AppStatus::EditObjectType::Param;
+}
+
+void ParamEditorGraphicsView::onEditCommitted() const {
+    editSessionManager->endActiveTransaction(EditSessionEndReason::Commit);
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
+}
+
+void ParamEditorGraphicsView::onEditDiscarded() const {
+    editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
+    appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
 bool ParamEditorGraphicsView::event(QEvent *event) {
