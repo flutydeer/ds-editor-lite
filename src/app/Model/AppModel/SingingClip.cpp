@@ -65,7 +65,17 @@ Note *SingingClip::findNoteById(const int id) const {
 }
 
 void SingingClip::notifyNoteChanged(const NoteChangeType type, const QList<Note *> &notes) {
-    bumpInferenceRevision();
+    switch (type) {
+        case Insert:
+        case Remove:
+        case TimeKeyPropertyChange:
+        case EditedWordPropertyChange:
+        case EditedPhonemeOffsetChange:
+            bumpInferenceRevision();
+            break;
+        case OriginalWordPropertyChange:
+            break;
+    }
     emit noteChanged(type, notes);
 }
 

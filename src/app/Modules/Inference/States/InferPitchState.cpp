@@ -39,8 +39,8 @@ void InferPitchState::cancelTaskInController(int taskId) {
     inferController->cancelInferPitchTask(taskId);
 }
 
-void InferPitchState::finishTaskInController() {
-    inferController->finishCurrentInferPitchTask();
+bool InferPitchState::finishTaskInController(IInferTask *task) {
+    return inferController->finishCurrentInferPitchTask(static_cast<InferPitchTask *>(task));
 }
 
 void InferPitchState::setTaskResultToPipeline(IInferTask *task) {

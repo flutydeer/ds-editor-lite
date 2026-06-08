@@ -27,19 +27,19 @@ public:
 
     void addInferDurationTask(InferDurationTask &task);
     void cancelInferDurationTask(int taskId);
-    void finishCurrentInferDurationTask();
+    bool finishCurrentInferDurationTask(InferDurationTask *task = nullptr);
 
     void addInferPitchTask(InferPitchTask &task);
     void cancelInferPitchTask(int taskId);
-    void finishCurrentInferPitchTask();
+    bool finishCurrentInferPitchTask(InferPitchTask *task = nullptr);
 
     void addInferVarianceTask(InferVarianceTask &task);
     void cancelInferVarianceTask(int taskId);
-    void finishCurrentInferVarianceTask();
+    bool finishCurrentInferVarianceTask(InferVarianceTask *task = nullptr);
 
     void addInferAcousticTask(InferAcousticTask &task);
     void cancelInferAcousticTask(int taskId);
-    void finishCurrentInferAcousticTask();
+    bool finishCurrentInferAcousticTask(InferAcousticTask *task = nullptr);
 
 private:
     explicit InferController(QObject *parent = nullptr);

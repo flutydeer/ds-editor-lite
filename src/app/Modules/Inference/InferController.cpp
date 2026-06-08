@@ -131,9 +131,9 @@ void InferController::cancelInferDurationTask(int taskId) {
     d->m_inferDurTasks.cancelIf(L_PRED(t, t->id() == taskId));
 }
 
-void InferController::finishCurrentInferDurationTask() {
+bool InferController::finishCurrentInferDurationTask(InferDurationTask *task) {
     Q_D(InferController);
-    d->m_inferDurTasks.onCurrentFinished();
+    return d->m_inferDurTasks.onCurrentFinished(task);
 }
 
 void InferController::addInferPitchTask(InferPitchTask &task) {
@@ -146,9 +146,9 @@ void InferController::cancelInferPitchTask(int taskId) {
     d->m_inferPitchTasks.cancelIf(L_PRED(t, t->id() == taskId));
 }
 
-void InferController::finishCurrentInferPitchTask() {
+bool InferController::finishCurrentInferPitchTask(InferPitchTask *task) {
     Q_D(InferController);
-    d->m_inferPitchTasks.onCurrentFinished();
+    return d->m_inferPitchTasks.onCurrentFinished(task);
 }
 
 void InferController::addInferVarianceTask(InferVarianceTask &task) {
@@ -161,9 +161,9 @@ void InferController::cancelInferVarianceTask(int taskId) {
     d->m_inferVarianceTasks.cancelIf(L_PRED(t, t->id() == taskId));
 }
 
-void InferController::finishCurrentInferVarianceTask() {
+bool InferController::finishCurrentInferVarianceTask(InferVarianceTask *task) {
     Q_D(InferController);
-    d->m_inferVarianceTasks.onCurrentFinished();
+    return d->m_inferVarianceTasks.onCurrentFinished(task);
 }
 
 void InferController::addInferAcousticTask(InferAcousticTask &task) {
@@ -176,9 +176,9 @@ void InferController::cancelInferAcousticTask(int taskId) {
     d->m_inferAcousticTasks.cancelIf(L_PRED(t, t->id() == taskId));
 }
 
-void InferController::finishCurrentInferAcousticTask() {
+bool InferController::finishCurrentInferAcousticTask(InferAcousticTask *task) {
     Q_D(InferController);
-    d->m_inferAcousticTasks.onCurrentFinished();
+    return d->m_inferAcousticTasks.onCurrentFinished(task);
 }
 
 void InferControllerPrivate::onModuleStatusChanged(const AppStatus::ModuleType module,

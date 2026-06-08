@@ -40,7 +40,7 @@ protected:
     virtual IInferTask *createTask() = 0;
     virtual void addTaskToController(IInferTask *task) = 0;
     virtual void cancelTaskInController(int taskId) = 0;
-    virtual void finishTaskInController() = 0;
+    virtual bool finishTaskInController(IInferTask *task) = 0;
     virtual void setTaskResultToPipeline(IInferTask *task) = 0;
     virtual QString getStateNamePrefix() const = 0;
     virtual bool validateTaskResult(IInferTask *task, SingingClip *clip) = 0;

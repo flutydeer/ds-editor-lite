@@ -99,8 +99,10 @@ void BaseInferState::handleTaskFinished(IInferTask &task) {
         return;
     }
 
-    const auto finishCurrentTask = [this] {
-        finishTaskInController();
+    const auto finishCurrentTask = [this, &task] {
+        if (!finishTaskInController(&task))
+            qWarning() << "Failed to finish task because it is not controller queue current"
+                       << "taskId:" << task.id();
         currentTask = nullptr;
     };
 

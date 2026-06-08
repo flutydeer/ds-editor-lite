@@ -21,7 +21,7 @@ private:
     IInferTask *createTask() override;
     void addTaskToController(IInferTask *task) override;
     void cancelTaskInController(int taskId) override;
-    void finishTaskInController() override;
+    bool finishTaskInController(IInferTask *task) override;
     void setTaskResultToPipeline(IInferTask *task) override;
     QString getStateNamePrefix() const override;
     bool validateTaskResult(IInferTask *task, SingingClip *clip) override;

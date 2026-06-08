@@ -39,8 +39,9 @@ void InferVarianceState::cancelTaskInController(int taskId) {
     inferController->cancelInferVarianceTask(taskId);
 }
 
-void InferVarianceState::finishTaskInController() {
-    inferController->finishCurrentInferVarianceTask();
+bool InferVarianceState::finishTaskInController(IInferTask *task) {
+    return inferController->finishCurrentInferVarianceTask(
+        static_cast<InferVarianceTask *>(task));
 }
 
 void InferVarianceState::setTaskResultToPipeline(IInferTask *task) {
