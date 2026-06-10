@@ -17,6 +17,7 @@ struct SpeakerMixSpeaker {
     QString name;
     QColor color;
     QColor fillColor;
+    QColor dotFillColor;
 };
 
 struct SpeakerMixKeyframe {
@@ -99,8 +100,7 @@ private:
         QList<int> selectedKeyframeIndices;
     } m_state;
 
-    static constexpr double kDotRadius = 2.0;
-    static constexpr double kHoverRadius = 6.0;
+    static constexpr double kDotRadius = 6.0;
     static constexpr double kHitRadius = 6.0;
     static constexpr double kDragThreshold = 3.0;
     static constexpr double kPadding = 2.0;

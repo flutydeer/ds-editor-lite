@@ -138,6 +138,20 @@ QColor TrackColorPalette::paramLine(int index) const {
     return baseColor(index);
 }
 
+QColor TrackColorPalette::speakerMixParamFill(int index) const {
+    auto lch = ColorUtils::srgbToOkLCH(baseColor(index));
+    lch.L = 0.4;
+    lch.C = 0.05;
+    return ColorUtils::oklchToSRGB(lch);
+}
+
+QColor TrackColorPalette::speakerMixDotFill(int index) const {
+    auto lch = ColorUtils::srgbToOkLCH(baseColor(index));
+    lch.L = 0.55;
+    lch.C = 0.05;
+    return ColorUtils::oklchToSRGB(lch);
+}
+
 QColor TrackColorPalette::keyHighlight(int index) const {
     return baseColor(index);
 }

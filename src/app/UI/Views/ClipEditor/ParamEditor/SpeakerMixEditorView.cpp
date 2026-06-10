@@ -28,9 +28,12 @@ SpeakerMixEditorView::SpeakerMixEditorView() {
 
     auto *palette = TrackColorPalette::instance();
     m_speakers = {
-        {QStringLiteral("spk1"), palette->baseColor(0), palette->clipBackgroundTransparent(0)},
-        {QStringLiteral("spk2"), palette->baseColor(1), palette->clipBackgroundTransparent(1)},
-        {QStringLiteral("spk3"), palette->baseColor(2), palette->clipBackgroundTransparent(2)},
+        {QStringLiteral("spk1"), palette->baseColor(0), palette->speakerMixParamFill(0),
+         palette->speakerMixDotFill(0)},
+        {QStringLiteral("spk2"), palette->baseColor(1), palette->speakerMixParamFill(1),
+         palette->speakerMixDotFill(1)},
+        {QStringLiteral("spk3"), palette->baseColor(2), palette->speakerMixParamFill(2),
+         palette->speakerMixDotFill(2)},
     };
 
     m_keyframes = {
@@ -271,16 +274,17 @@ void SpeakerMixEditorView::drawStackedArea(QPainter *painter) const {
 
     QList<QPainterPath> fillPaths;
     QList<QPainterPath> borderPaths;
-    QList<QList<double>> topEdges;
+    QList<QList<double>> splitEdges;
     fillPaths.reserve(n);
-    borderPaths.reserve(n - 1);
-    topEdges.reserve(n);
-    for (int i = 0; i < n; i++) {
+    borderPaths.reserve(n);
+    splitEdges.reserve(n - 1);
+    for (int i = 0; i < n; i++)
         fillPaths.append(QPainterPath());
-        topEdges.append(QList<double>());
-    }
-    for (int i = 0; i < n - 1; i++)
+    for (int i = 0; i < n; i++)
         borderPaths.append(QPainterPath());
+    for (int i = 0; i < n - 1; i++) {
+        splitEdges.append(QList<double>());
+    }
 
     const double step = 1.0;
     const int sampleCount = static_cast<int>(viewWidth / step) + 1;
@@ -292,41 +296,46 @@ void SpeakerMixEditorView::drawStackedArea(QPainter *painter) const {
         const auto weights = interpolateWeights(tick);
 
         double cumulative = 0;
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < n - 1; i++) {
             cumulative += weights[i];
-            const double y = areaTop + areaHeight * (1.0 - cumulative);
-            topEdges[i].append(y);
+            splitEdges[i].append(areaTop + areaHeight * cumulative);
         }
     }
 
     for (int i = 0; i < n; i++) {
         QPainterPath &path = fillPaths[i];
 
-        const double bottomY0 =
-            (i == 0) ? (areaTop + areaHeight) : topEdges[i - 1].first();
-        path.moveTo(0, bottomY0);
+        const auto topYAt = [&](int sample) {
+            return (i == 0) ? areaTop : splitEdges[i - 1][sample];
+        };
+        const auto bottomYAt = [&](int sample) {
+            return (i == n - 1) ? (areaTop + areaHeight) : splitEdges[i][sample];
+        };
 
+        path.moveTo(0, topYAt(0));
         for (int s = 0; s <= sampleCount; s++) {
             const double localX = s * step;
-            const double bottomY =
-                (i == 0) ? (areaTop + areaHeight) : topEdges[i - 1][s];
-            path.lineTo(localX, bottomY);
+            path.lineTo(localX, topYAt(s));
         }
 
         for (int s = sampleCount; s >= 0; s--) {
             const double localX = s * step;
-            path.lineTo(localX, topEdges[i][s]);
+            path.lineTo(localX, bottomYAt(s));
         }
 
         path.closeSubpath();
     }
 
-    for (int i = 0; i < n - 1; i++) {
+    for (int i = 0; i < n; i++) {
         QPainterPath &border = borderPaths[i];
-        border.moveTo(0, topEdges[i].first());
+        const auto borderYAt = [&](int sample) {
+            return (i == 0) ? areaTop : splitEdges[i - 1][sample];
+        };
+
+        border.moveTo(0, borderYAt(0));
         for (int s = 1; s <= sampleCount; s++) {
             const double localX = s * step;
-            border.lineTo(localX, topEdges[i][s]);
+            border.lineTo(localX, borderYAt(s));
         }
     }
 
@@ -336,11 +345,13 @@ void SpeakerMixEditorView::drawStackedArea(QPainter *painter) const {
         painter->drawPath(fillPaths[i]);
     }
 
-    const QPen borderPen(QColor(220, 220, 220, 200), 1.0);
     painter->setBrush(Qt::NoBrush);
-    painter->setPen(borderPen);
-    for (int i = 0; i < n - 1; i++)
+    for (int i = 0; i < n; i++) {
+        QColor borderColor = m_speakers[i].color;
+        borderColor.setAlpha(220);
+        painter->setPen(QPen(borderColor, 1.5));
         painter->drawPath(borderPaths[i]);
+    }
 }
 
 void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
@@ -360,9 +371,12 @@ void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
                                   m_state.selectedKeyframeIndices.contains(kfIndex);
 
         if (kf.tick != 0) {
-            const QColor lineColor = isKfSelected ? QColor(155, 186, 255, 200)
-                                                  : QColor(220, 220, 220, 160);
-            painter->setPen(QPen(lineColor, 1.0));
+            QColor keyFrameColor;
+            if (kfIndex == m_state.hoveredKeyframeIndex)
+                keyFrameColor = QColor(220, 220, 220, 160);
+            else
+                keyFrameColor = QColor(220, 220, 220, 80);
+            painter->setPen(QPen(keyFrameColor, 1.5));
             painter->drawLine(QPointF(localX, areaTop), QPointF(localX, areaTop + areaHeight));
         }
 
@@ -371,28 +385,19 @@ void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
         double cumulative = 0;
         for (int i = 0; i < n - 1; i++) {
             cumulative += weights[i];
-            const double y = areaTop + areaHeight * (1.0 - cumulative);
+            const double y = areaTop + areaHeight * cumulative;
 
-            bool isHovered = (kfIndex == m_state.hoveredKeyframeIndex && i == m_state.hoveredSplitIndex);
-            bool isSelected = (kfIndex == m_state.selectedKeyframeIndex && i == m_state.selectedSplitIndex);
+            const bool isSelected =
+                isKfSelected || (kfIndex == m_state.selectedKeyframeIndex &&
+                                 i == m_state.selectedSplitIndex);
+            const int speakerIndex = i + 1;
 
-            QColor dotColor = isKfSelected ? QColor(155, 186, 255) : QColor(255, 255, 255);
-
-            if (isSelected)
-                dotColor = QColor(155, 186, 255);
-            else if (isHovered)
-                dotColor = QColor(200, 200, 255);
-
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(dotColor);
+            QColor strokeColor = isSelected ? QColor(255, 255, 255) : m_speakers[speakerIndex].color;
+            strokeColor.setAlpha(isSelected ? 255 : 220);
+            QColor fillColor = m_speakers[speakerIndex].dotFillColor;
+            painter->setPen(QPen(strokeColor, 1.5));
+            painter->setBrush(fillColor);
             painter->drawEllipse(QPointF(localX, y), kDotRadius, kDotRadius);
-
-            if (isHovered || isSelected) {
-                QPen ringPen(dotColor, 1.5);
-                painter->setPen(ringPen);
-                painter->setBrush(Qt::NoBrush);
-                painter->drawEllipse(QPointF(localX, y), kHoverRadius, kHoverRadius);
-            }
         }
     }
 }
@@ -433,7 +438,7 @@ SpeakerMixHitResult SpeakerMixEditorView::hitTest(const QPointF &itemPos) const 
         bool nearSplitPoint = false;
         for (int i = 0; i < n - 1; i++) {
             cumulative += weights[i];
-            const double y = areaTop + areaHeight * (1.0 - cumulative);
+            const double y = areaTop + areaHeight * cumulative;
             const double dy = itemPos.y() - y;
             if (std::abs(dy) <= kHitRadius) {
                 nearSplitPoint = true;
@@ -458,13 +463,13 @@ double SpeakerMixEditorView::cumWeightAtSplit(const SpeakerMixKeyframe &kf, int 
 double SpeakerMixEditorView::cumWeightFromItemY(double itemY) const {
     const double viewHeight = visibleRect().height();
     const double areaHeight = viewHeight - 2 * kPadding;
-    return 1.0 - (itemY - kPadding) / areaHeight;
+    return (itemY - kPadding) / areaHeight;
 }
 
 double SpeakerMixEditorView::cumWeightToItemY(double cumWeight) const {
     const double viewHeight = visibleRect().height();
     const double areaHeight = viewHeight - 2 * kPadding;
-    return kPadding + areaHeight * (1.0 - cumWeight);
+    return kPadding + areaHeight * cumWeight;
 }
 
 void SpeakerMixEditorView::updateHover(const QPointF &itemPos) {
