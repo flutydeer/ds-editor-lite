@@ -43,7 +43,7 @@ endif ()
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 target_compile_definitions(${PROJECT_NAME} PRIVATE QT_MESSAGELOGCONTEXT)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Core5Compat Concurrent StateMachine)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Concurrent StateMachine)
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
 find_package(LangCore CONFIG REQUIRED)
@@ -78,7 +78,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 target_link_libraries(${PROJECT_NAME} PUBLIC
         Qt6::Core
         Qt6::Widgets
-        Qt6::Core5Compat
         Qt6::Concurrent
         Qt6::StateMachine
         ${PLATFORM_LIB}
