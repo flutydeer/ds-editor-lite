@@ -397,8 +397,8 @@ void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
             //                                 kInnerDotRadius * 2, kInnerDotRadius));
             // }
             painter->drawEllipse(center, kInnerDotRadius, kInnerDotRadius);
-            if (clipInnerBottom)
-                painter->restore();
+            // if (clipInnerBottom)
+            //     painter->restore();
         };
 
         drawDot(0, QPointF(localX, areaTop), isKfSelected, true);
