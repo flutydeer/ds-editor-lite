@@ -381,6 +381,27 @@ void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
         }
 
         const auto weights = interpolateWeights(kf.tick);
+        const auto drawDot = [&](const int speakerIndex, const QPointF &center, const bool selected,
+                                 const bool clipInnerBottom = false) {
+            QColor centerColor = selected ? QColor(255, 255, 255) : m_speakers[speakerIndex].color;
+            centerColor.setAlpha(selected ? 255 : 220);
+
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(m_speakers[speakerIndex].fillColor);
+            painter->drawEllipse(center, kDotRadius, kDotRadius);
+
+            painter->setBrush(centerColor);
+            // if (clipInnerBottom) {
+            //     painter->save();
+            //     painter->setClipRect(QRectF(center.x() - kInnerDotRadius, center.y(),
+            //                                 kInnerDotRadius * 2, kInnerDotRadius));
+            // }
+            painter->drawEllipse(center, kInnerDotRadius, kInnerDotRadius);
+            if (clipInnerBottom)
+                painter->restore();
+        };
+
+        drawDot(0, QPointF(localX, areaTop), isKfSelected, true);
 
         double cumulative = 0;
         for (int i = 0; i < n - 1; i++) {
@@ -392,12 +413,7 @@ void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
                                  i == m_state.selectedSplitIndex);
             const int speakerIndex = i + 1;
 
-            QColor strokeColor = isSelected ? QColor(255, 255, 255) : m_speakers[speakerIndex].color;
-            strokeColor.setAlpha(isSelected ? 255 : 220);
-            QColor fillColor = m_speakers[speakerIndex].dotFillColor;
-            painter->setPen(QPen(strokeColor, 1.5));
-            painter->setBrush(fillColor);
-            painter->drawEllipse(QPointF(localX, y), kDotRadius, kDotRadius);
+            drawDot(speakerIndex, QPointF(localX, y), isSelected);
         }
     }
 }
@@ -432,6 +448,9 @@ SpeakerMixHitResult SpeakerMixEditorView::hitTest(const QPointF &itemPos) const 
 
         if (std::abs(dx) > kHitRadius)
             continue;
+
+        if (std::abs(itemPos.y() - areaTop) <= kHitRadius)
+            return {};
 
         const auto weights = interpolateWeights(kf.tick);
         double cumulative = 0;

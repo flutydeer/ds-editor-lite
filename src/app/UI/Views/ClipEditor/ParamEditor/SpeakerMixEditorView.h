@@ -101,9 +101,10 @@ private:
     } m_state;
 
     static constexpr double kDotRadius = 6.0;
+    static constexpr double kInnerDotRadius = 4.0;
     static constexpr double kHitRadius = 6.0;
     static constexpr double kDragThreshold = 3.0;
-    static constexpr double kPadding = 2.0;
+    static constexpr double kPadding = 1.0;
 };
 
 #endif // SPEAKERMIXEDITORVIEW_H
