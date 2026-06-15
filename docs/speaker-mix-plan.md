@@ -1,0 +1,164 @@
+# 声线混合支持分阶段计划
+
+## Summary
+
+目标是把当前 Speaker Mix 从"视图 demo"推进到完整支持三种 clip 声源模式：
+
+- `Single`：当前单歌手/单 speaker 行为，保持兼容。
+- `Fixed Mix`：同一歌手模型内多个 speaker 的固定比例混合，可保存为本地用户预设。
+- `Dynamic Mix`：同一组 speaker 的比例随时间变化，使用当前 Speaker Mix 关键帧编辑器。
+
+第一版范围锁定为：模型、UI、撤销重做、DSPX 读写和工程恢复；推理链路先保持单 speaker 兼容，不在本轮完成动态混合合成。
+
+## Key Changes
+
+- 在 `SingingClip` 增加独立的声源混合模型，不塞进 `ParamInfo`：
+    - `SingerSourceMode { Single, FixedMix, DynamicMix }`
+    - `SpeakerMixSource { SingerInfo singer, SpeakerInfo speaker, QColor/displayName }`
+    - `SpeakerMixKeyframe { int tick, QList<double> weights }`，weights 存 N-1 项（最后一个 speaker 的权重隐式 = 1 - sum），UI 始终显示 N 个比例。
+    - `SpeakerMixData { mode, sources, fixedWeights, dynamicKeyframes, dynamicEnabled }`。`sources`（speaker 列表）在 Fixed Mix 和 Dynamic Mix 之间共享，weights 各自独立。
+    - 发出独立 `speakerMixChanged()` 信号，并 bump inference/project revision。
+
+- DSPX 序列化策略：
+    - `Single`：沿用当前一个 `SingleSinger`。
+    - `Fixed Mix`：写为一个 `MixedSinger`，其 `singers` 是同一 singerId、不同 `speakerId` extra 的 `SingleSinger`，`ratio` 保存固定比例的前 N-1 项。
+    - `Dynamic Mix`：写 `Sources::singers` 为平铺 speaker sources，写 `Sources::mix` 为动态 anchors。
+    - DS workspace 同步保存完整 `SpeakerMixData`，用于恢复 speakerId、显示名、预设引用、动态开关状态，以及兼容 opendspx 对 speaker 语义表达不足的问题。
+    - 读取时优先恢复 DS workspace；无 DS workspace 时按 opendspx 官方结构尽力转换：单 `SingleSinger` → `Single`，单 `MixedSinger` → `Fixed Mix`，`sources.mix` 非空 → `Dynamic Mix`。
+
+- UI 分阶段落地：
+    - 阶段 1：把 `TestSpeakerMix` 抽象成正式比例控件，用于 Fixed Mix 配置和"当前关键帧比例编辑"。固定模式允许增删、换 speaker、排序；关键帧模式禁用增删改 speaker 和排序，只保留比例条拖拽。
+    - 阶段 2：把 `SpeakerMixEditorView` 从硬编码数据改为绑定 `SingingClip::SpeakerMixData`，关键帧编辑通过 action 提交。
+    - 阶段 3：增加声源模式入口：`Single / Fixed Mix / Dynamic Mix`，并提供固定混合预设下拉、保存、另存、删除。
+    - 阶段 4：整理 `ParamInfo::Unknown` 临时方案，保留 UI 上的 "Speaker Mix" 入口，但内部用明确的 speaker mix mode/state 分支，不让它被当成普通 Param。
+
+- 本地预设：
+    - 新增用户级 preset store，保存同一 singer 下的 speaker 列表和固定比例（不含动态关键帧）。
+    - 预设集成到现有 speaker 选择二级菜单：单个 speaker 列表下方加分隔线和预设列表，选预设 = 进入 Fixed Mix 模式。
+    - 预设全局可用，track 和 clip 均可通过二级菜单选择。
+    - 工程文件保存的是展开后的实际 sources/ratio，预设名/ID 只作为 DS workspace 辅助信息。
+    - 预设应用时复制为 clip 当前配置，之后 clip 修改不自动反写预设，除非用户选择覆盖保存。
+
+## Design Decisions
+
+> 本节记录讨论过程中确认的设计决策和待讨论项。每项标注状态：✅ 已决定 / 🔲 待讨论。
+
+### 1. 权重存储维度与增删逻辑 ✅
+
+**存储 N-1，UI 显示 N。** 与 opendspx `ratio` 字段对齐，避免冗余。
+
+#### 新增 speaker ✅
+- 按比例压缩现有权重：新 speaker 获得默认比例 p%，原有 speaker 各自按 `(1-p)` 等比缩放，保持相对比例不变。
+- 在 N-1 存储下，新 speaker 不插在末尾（保持原最后一位 speaker 的隐式权重位置不变），UI 显示顺序通过 index mapping 与存储顺序解耦。
+
+#### 删除 speaker ✅
+- 按比例分摊：被删 speaker 的权重按剩余 speaker 的当前比例分摊给所有人。
+- 删除最后一个 speaker 时：原倒数第二位变为新的隐式末位，其 stored weight 被移除。
+
+#### 排序 speaker ✅
+- Fixed Mix 下支持排序。
+- 排序时同步重排 `sources` 列表和 `weights` 数组（保持对应关系）。
+- 若存在 Dynamic Mix keyframe，所有 keyframe 的 weights 也同步重排。
+
+#### Dynamic Mix 限制 ✅
+- Dynamic Mix 下**不允许增删、换 speaker、排序**。所有 keyframe 的 weights 数组长度必须一致。
+- speaker 列表的构成（哪些 speaker、什么顺序）由 Fixed Mix 阶段决定，进入 Dynamic Mix 后锁定。
+
+### 2. UI "位置"字段 ✅
+
+SpeakerMixList 上每行的"位置"是**纯展示的计算值**，基于各 speaker 占的比例换算（累积比例），不提供文本框编辑。
+
+- 删除 spinbox 输入，仅保留比例条拖拽作为编辑方式。
+- 理由：对话框宽度 400px+，比例条精度足够声线混合场景使用。
+
+### 3. Fixed Mix ↔ Dynamic Mix 模式切换 ✅
+
+- **Fixed → Dynamic：** 自动以当前 Fixed Mix 比例创建第一个关键帧（类比 DAW 自动化：以当前推子位置创建第一个自动化点）。
+- **Dynamic → Fixed：** Fixed Mix 比例保持不变（不从 Dynamic keyframe 反写）。若之前设过 Fixed Mix 则用原值，若从未设过则取 Dynamic 第一个关键帧的值。
+- **Dynamic 关闭不删除 keyframe：** 关闭后再开启，keyframe 数据恢复。
+
+### 4. Dynamic Mix 第一个关键帧 ✅
+
+第一个关键帧**时间锁定**（不可水平拖动），但**分界点可编辑**（权重可调）。
+
+- 与 Fixed Mix 脱钩：编辑第一个关键帧不反写 Fixed Mix 比例。
+- Fixed Mix 始终是"安全退路"，Dynamic Mix 是自由编辑区。
+
+### 5. Action 粒度 ✅
+
+采用粗粒度方案：**一个 `ReplaceSpeakerMixAction`，存 old/new 两个 `SpeakerMixData` 快照，全量替换。**
+
+- Undo 粒度由 View 层控制：拖拽开始时记快照，拖拽结束时提交一次 action，不会产生逐帧 undo。
+- 整体替换天然保证原子性（增删 speaker 同时改 sources + weights + keyframe 不会出现中间状态不一致）。
+- `SpeakerMixData` 数据量小（几个 speaker + 几十个 keyframe），快照无性能压力。
+
+### 6. Track 级继承与预设入口 ✅
+
+不做独立的 track→clip 继承标志位。通过**预设集成到现有 speaker 选择二级菜单**来实现等效体验：
+
+- 现有的多 speaker 二级菜单（选具体 speaker）扩展为：
+  - 单个 speaker 列表（不变，选择 = Single 模式）
+  - 分隔线
+  - 用户自定义混合预设列表（选择 = Fixed Mix 模式，复制预设的 speaker 列表和固定比例到 clip）
+- 预设全局可用，不依赖 track 继承标志位。
+- 选了预设后 clip 进入 Fixed Mix 模式，用户可后续手动切到 Dynamic Mix。
+- 预设只保存 speaker 列表 + 固定比例，**不含动态关键帧**（动态是 clip 级别的实时编辑）。
+- Track 级默认混合：track 也使用同一套预设选择机制，新 clip 创建时复制 track 当前配置。
+
+### 7. Fixed Mix / Dynamic Mix 共享 speaker 列表 ✅
+
+`SpeakerMixData` 中 `sources`（speaker 列表）在 Fixed Mix 和 Dynamic Mix 之间共享，weights 各自独立。
+
+- Fixed Mix 有自己的 `fixedWeights`。
+- Dynamic Mix 有自己的 `dynamicKeyframes`（每个 keyframe 含独立 weights）。
+- 切换模式时 speaker 列表不变，只是切换当前生效的 weights 来源。
+- 在 Fixed Mix 下增删/排序 speaker 时，所有 Dynamic keyframe 的 weights 同步调整。
+- opendspx 序列化时，`MixedSinger.singers[]` 和 `Sources.singers[]` 写入同一份 speaker 列表。
+
+## Phases
+
+- Phase 1：正式化比例控件
+    - 从 `TestSpeakerMix` 提炼 `SpeakerMixSourceListView` 和 `SpeakerMixRatioBar`。
+    - 完成固定模式与关键帧模式的权限切换。
+    - 接入主 UI 但先使用临时数据，验证外观、拖拽、排序、增删。
+
+- Phase 2：Clip 模型与撤销重做
+    - 在 `SingingClip` 增加 `SpeakerMixData`。
+    - 新增 speaker mix actions（粒度待定，见 Design Decisions #5）。
+    - 所有比例编辑、关键帧编辑、模式切换都走 history，不直接改 view 内数据。
+
+- Phase 3：DSPX 读写
+    - 实现 `Single / Fixed Mix / Dynamic Mix` 到 `opendspx::Sources` 的编码。
+    - 实现 DS workspace fallback。
+    - 加载旧工程时默认得到 `Single`，保持现有 singer/speaker 行为。
+
+- Phase 4：完整编辑体验
+    - Speaker Mix 参数页显示动态关键帧编辑器。
+    - 工具栏/面板支持模式切换、动态开关、固定比例编辑。
+    - 动态关闭时不删除关键帧；保存时官方结构表达当前有效模式，隐藏动态数据保存在 DS workspace。
+
+- Phase 5：推理接入预研
+    - 明确当前引擎是否能在同一 singer/model 内按 speaker embedding 做时间变化混合。
+    - 若支持，再设计 InferPiece 如何携带 speaker mix anchors；若不支持，UI 暂时标注为工程/编辑能力，合成仍使用当前主 speaker 或固定 fallback。
+
+## Test Plan
+
+- 单歌手旧工程打开、保存、再打开后 singer/speaker 不变。
+- Fixed Mix：创建 3 个 speaker、调整比例、保存 DSPX、重新打开后比例和顺序一致。
+- Dynamic Mix：创建关键帧、拖动比例、保存 DSPX、重新打开后 anchors 一致。
+- 动态关闭后保存再打开：固定比例生效，隐藏动态关键帧仍可恢复。
+- 添加 speaker：现有权重按比例压缩，总和始终 100%。
+- 删除 speaker：权重按比例分摊，总和始终 100%，无负数。
+- 排序 speaker（Fixed Mix 下）：顺序变更后 Dynamic Mix keyframe 同步重排。
+- Fixed → Dynamic 切换：第一个关键帧自动继承 Fixed Mix 比例。
+- Dynamic → Fixed 切换：Fixed Mix 比例保持不变。
+- Undo/redo 覆盖：模式切换、比例拖拽、添加/删除 keyframe、增删/排序 speaker、应用 preset。
+- 兼容读取：无 DS workspace 但有 `MixedSinger` 或 `Sources::mix` 的 opendspx 文件能尽力导入。
+
+## Assumptions
+
+- 第一版只支持同一歌手模型内的 speaker 混合；跨 singer/model 不支持编辑。
+- opendspx 的平铺 singer 表达会通过 DS workspace 补充 speaker 语义。
+- Dynamic Mix 下 speaker 列表锁定，不允许增删/排序。
+- 动态开关关闭不会删除动态关键帧。
+- 本轮不实现动态混合推理，只保证工程数据和编辑体验闭环。
