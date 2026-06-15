@@ -13,6 +13,7 @@ class ComboBox;
 class Button;
 class QLabel;
 class SingingClip;
+class SpeakerMixToolBarView;
 
 class ParamEditorToolBarView final : public QWidget {
     Q_OBJECT
@@ -40,8 +41,7 @@ private:
     ComboBox *cbForegroundParam;
     QLabel *lbBackgroundParam;
     ComboBox *cbBackgroundParam;
-    QWidget *m_speakerMixSection = nullptr;
-    QWidget *m_speakerContainer = nullptr;
+    SpeakerMixToolBarView *m_speakerMixToolBar = nullptr;
 };
 
 

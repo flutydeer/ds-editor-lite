@@ -5,13 +5,13 @@
 #include "ParamEditorToolBarView.h"
 
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Controls/AccentButton.h"
+#include "UI/Controls/Button.h"
 #include "UI/Controls/ComboBox.h"
 #include "Utils/ParamUtils.h"
+#include "SpeakerMixToolBarView.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QPainter>
 
 ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
@@ -36,36 +36,8 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     cbBackgroundParam->addItems(paramUtils->names());
     cbBackgroundParam->removeItem(0); // Remove pitch
 
-    // Speaker mix section (hidden by default)
-    m_speakerMixSection = new QWidget;
-    m_speakerMixSection->setObjectName("speakerMixSection");
-    m_speakerMixSection->setAttribute(Qt::WA_StyledBackground);
-    
-    auto *mixLayout = new QHBoxLayout;
-    mixLayout->setContentsMargins(0, 0, 0, 0);
-    mixLayout->setSpacing(4);
-
-    auto *btnPrev = new Button(QStringLiteral("◀"));
-    btnPrev->setObjectName("btnPrevKeyframe");
-    
-    auto *btnNext = new Button(QStringLiteral("▶"));
-    btnNext->setObjectName("btnNextKeyframe");
-    mixLayout->addWidget(btnPrev);
-    mixLayout->addWidget(btnNext);
-    mixLayout->addSpacing(8);
-
-    m_speakerContainer = new QWidget;
-    auto *speakerLayout = new QHBoxLayout;
-    speakerLayout->setContentsMargins(0, 0, 0, 0);
-    speakerLayout->setSpacing(8);
-    m_speakerContainer->setLayout(speakerLayout);
-    mixLayout->addWidget(m_speakerContainer);
-
-    m_speakerMixSection->setLayout(mixLayout);
-    m_speakerMixSection->setVisible(false);
-
-    connect(btnPrev, &Button::clicked, this, &ParamEditorToolBarView::previousKeyframe);
-    connect(btnNext, &Button::clicked, this, &ParamEditorToolBarView::nextKeyframe);
+    m_speakerMixToolBar = new SpeakerMixToolBarView;
+    m_speakerMixToolBar->setVisible(false);
 
     const auto layout = new QHBoxLayout();
     layout->addSpacing(64);
@@ -74,7 +46,7 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     layout->addWidget(btnSwap);
     layout->addWidget(lbBackgroundParam);
     layout->addWidget(cbBackgroundParam);
-    layout->addWidget(m_speakerMixSection);
+    layout->addWidget(m_speakerMixToolBar);
     layout->addStretch();
     layout->setSpacing(4);
     layout->setContentsMargins(8, 4, 4, 4);
@@ -87,49 +59,21 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     connect(cbBackgroundParam, &ComboBox::currentIndexChanged, this,
             &ParamEditorToolBarView::onBackgroundSelectionChanged);
     connect(btnSwap, &Button::clicked, this, &ParamEditorToolBarView::onSwap);
+    connect(m_speakerMixToolBar, &SpeakerMixToolBarView::previousKeyframe, this,
+            &ParamEditorToolBarView::previousKeyframe);
+    connect(m_speakerMixToolBar, &SpeakerMixToolBarView::nextKeyframe, this,
+            &ParamEditorToolBarView::nextKeyframe);
 
     cbForegroundParam->setCurrentIndex(appOptions->general()->defaultForegroundParam - 1);
     cbBackgroundParam->setCurrentIndex(appOptions->general()->defaultBackgroundParam - 1);
 }
 
 void ParamEditorToolBarView::setSpeakerMixMode(bool on) {
-    m_speakerMixSection->setVisible(on);
+    m_speakerMixToolBar->setVisible(on);
 }
 
 void ParamEditorToolBarView::setSpeakers(const QStringList &names, const QList<QColor> &colors) {
-    auto *speakerLayout = m_speakerContainer->layout();
-    QLayoutItem *item;
-    while ((item = speakerLayout->takeAt(0)) != nullptr) {
-        delete item->widget();
-        delete item;
-    }
-
-    for (int i = 0; i < names.size() && i < colors.size(); i++) {
-        auto *dot = new QLabel;
-        const int size = 10;
-        QPixmap pixmap(size, size);
-        pixmap.fill(Qt::transparent);
-        QPainter painter(&pixmap);
-        painter.setRenderHint(QPainter::Antialiasing);
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(colors[i]);
-        painter.drawEllipse(0, 0, size, size);
-        painter.end();
-        dot->setPixmap(pixmap);
-        dot->setFixedSize(size, size);
-
-        auto *nameLabel = new QLabel(names[i]);
-
-        auto *itemLayout = new QHBoxLayout;
-        itemLayout->setContentsMargins(0, 0, 0, 0);
-        itemLayout->setSpacing(4);
-        itemLayout->addWidget(dot);
-        itemLayout->addWidget(nameLabel);
-
-        auto *itemWidget = new QWidget;
-        itemWidget->setLayout(itemLayout);
-        speakerLayout->addWidget(itemWidget);
-    }
+    m_speakerMixToolBar->setSpeakers(names, colors);
 }
 
 void ParamEditorToolBarView::onForegroundSelectionChanged(const int index) {

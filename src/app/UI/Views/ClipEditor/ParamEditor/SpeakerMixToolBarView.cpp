@@ -4,18 +4,19 @@
 
 #include "SpeakerMixToolBarView.h"
 
+#include "UI/Controls/ColorDot.h"
+
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QPainter>
 
 SpeakerMixToolBarView::SpeakerMixToolBarView(QWidget *parent) : QWidget(parent) {
-    setAttribute(Qt::WA_StyledBackground);
-
     auto *layout = new QHBoxLayout;
 
     m_btnPrev = new Button(QStringLiteral("\u25C0"));
+    m_btnPrev->setObjectName("btnPrevKeyframe");
     m_btnPrev->setFixedWidth(28);
     m_btnNext = new Button(QStringLiteral("\u25B6"));
+    m_btnNext->setObjectName("btnNextKeyframe");
     m_btnNext->setFixedWidth(28);
 
     layout->addWidget(m_btnPrev);
@@ -29,12 +30,10 @@ SpeakerMixToolBarView::SpeakerMixToolBarView(QWidget *parent) : QWidget(parent) 
     m_speakerContainer->setLayout(speakerLayout);
     layout->addWidget(m_speakerContainer);
 
-    layout->addStretch();
     layout->setSpacing(4);
-    layout->setContentsMargins(8, 4, 4, 4);
+    layout->setContentsMargins(0, 0, 0, 0);
 
     setLayout(layout);
-    setFixedHeight(36);
 
     connect(m_btnPrev, &Button::clicked, this, &SpeakerMixToolBarView::previousKeyframe);
     connect(m_btnNext, &Button::clicked, this, &SpeakerMixToolBarView::nextKeyframe);
@@ -49,18 +48,7 @@ void SpeakerMixToolBarView::setSpeakers(const QStringList &names, const QList<QC
     }
 
     for (int i = 0; i < names.size() && i < colors.size(); i++) {
-        auto *dot = new QLabel;
-        const int size = 10;
-        QPixmap pixmap(size, size);
-        pixmap.fill(Qt::transparent);
-        QPainter painter(&pixmap);
-        painter.setRenderHint(QPainter::Antialiasing);
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(colors[i]);
-        painter.drawEllipse(0, 0, size, size);
-        painter.end();
-        dot->setPixmap(pixmap);
-        dot->setFixedSize(size, size);
+        auto *dot = new ColorDot(colors[i]);
 
         auto *nameLabel = new QLabel(names[i]);
 
