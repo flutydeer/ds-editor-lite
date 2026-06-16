@@ -368,13 +368,11 @@ QListWidget::item {
 }
 
 QListWidget::item:hover {
-    background-color: #10FFFFFF;
+    background-color: #05FFFFFF;
 }
 
 QListWidget::item:selected {
-    /* background-color: #1AFFFFFF; */
-    background-color: #9BBAFF;
-    color: #000;
+    background-color: #10FFFFFF;
 }
 
 PathListWidget {
