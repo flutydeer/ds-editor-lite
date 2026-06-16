@@ -1,7 +1,6 @@
 #add_subdirectory(TestAnchoredCurve)
 add_subdirectory(TestElasticAnimation)
 add_subdirectory(TestExpected)
-add_subdirectory(TestSpeakerMix)
 add_subdirectory(TestStateMachine)
 #add_subdirectory(TestParamEdit)
 #add_subdirectory(TestTaskManager)

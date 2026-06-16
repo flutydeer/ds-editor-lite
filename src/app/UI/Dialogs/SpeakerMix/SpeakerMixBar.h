@@ -14,6 +14,8 @@ public:
     void setValues(const QVector<int> &values);
     void setLabels(const QVector<QString> &labels);
     QVector<int> getValues() const;
+    void setReadOnly(bool readOnly);
+    bool isReadOnly() const;
 
     static int getTotal() {
         return 100;
@@ -35,7 +37,7 @@ public:
     }
 
 signals:
-    void valuesChanged();
+    void valuesChanged(const QVector<int> &values);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -57,12 +59,12 @@ private:
     QVector<QColor> m_segmentColors;
     int m_draggingIndex;
     bool m_isDragging;
+    bool m_readOnly;
 
-    const int m_trackHeight = 35;
-    const int m_handleWidth = 8;
-    const int m_margin = 15;
-    const int m_handleTouchMargin = 4;
-    const int m_labelHeight = 20;
+    const int m_trackHeight = 40;
+    const int m_handleWidth = 10;
+    const int m_margin = 0;
+    const int m_handleTouchMargin = 5;
 };
 
 #endif

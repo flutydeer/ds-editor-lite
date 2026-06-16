@@ -1,10 +1,11 @@
 #include "SpeakerMixBar.h"
 #include <QPainter>
 #include <QMouseEvent>
+#include <algorithm>
 
 SpeakerMixBar::SpeakerMixBar(QWidget *parent)
-    : QWidget(parent), m_draggingIndex(-1), m_isDragging(false) {
-    setMinimumHeight(100);
+    : QWidget(parent), m_draggingIndex(-1), m_isDragging(false), m_readOnly(false) {
+    setFixedHeight(40);
     setMinimumWidth(300);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
@@ -33,20 +34,35 @@ QVector<int> SpeakerMixBar::getValues() const {
     return m_values;
 }
 
+void SpeakerMixBar::setReadOnly(const bool readOnly) {
+    if (m_readOnly == readOnly)
+        return;
+
+    m_readOnly = readOnly;
+    if (m_readOnly) {
+        m_isDragging = false;
+        m_draggingIndex = -1;
+        unsetCursor();
+    }
+    update();
+}
+
+bool SpeakerMixBar::isReadOnly() const {
+    return m_readOnly;
+}
+
 void SpeakerMixBar::paintEvent(QPaintEvent *event) {
     Q_UNUSED(event);
 
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-    painter.fillRect(rect(), palette().window());
 
-    constexpr int labelAreaTop = 5;
-    const int trackTop = labelAreaTop + m_labelHeight + 5;
+    const int trackTop = 0;
     const QRect trackRect(m_margin, trackTop, width() - 2 * m_margin, m_trackHeight);
 
     painter.setPen(Qt::NoPen);
-    painter.setBrush(palette().shadow());
-    painter.drawRoundedRect(trackRect, 6, 6);
+    painter.setBrush(QColor("#2A2E38"));
+    painter.drawRoundedRect(trackRect, 4, 4);
 
     int currentPosition = 0;
     for (int i = 0; i < m_values.size(); ++i) {
@@ -58,29 +74,33 @@ void SpeakerMixBar::paintEvent(QPaintEvent *event) {
         QColor segmentColor = m_segmentColors[i % m_segmentColors.size()];
 
         painter.setBrush(segmentColor);
-        painter.setPen(QPen(segmentColor.darker(120), 1.5));
-        painter.drawRoundedRect(segmentRect, 4, 4);
+        painter.setPen(Qt::NoPen);
+        painter.drawRoundedRect(segmentRect.adjusted(0, 0, -1, 0), 3, 3);
+
+        if (segmentRect.width() > 0 && segmentRect.width() < 24) {
+            currentPosition = segmentEnd;
+            continue;
+        }
 
         if (segmentRect.width() > 40 && i < m_labels.size()) {
             QRect nameRect = segmentRect;
-            nameRect.setBottom(nameRect.top() + nameRect.height() / 2 - 2);
+            nameRect.setTop(nameRect.top() + 4);
+            nameRect.setBottom(nameRect.top() + 15);
 
-            painter.setPen(Qt::white);
+            painter.setPen(QColor("#111318"));
             QFont nameFont = painter.font();
-            nameFont.setPointSize(8);
-            nameFont.setBold(true);
+            nameFont.setPointSizeF(9.0);
             painter.setFont(nameFont);
-            painter.drawText(nameRect, Qt::AlignCenter | Qt::TextWordWrap, m_labels[i]);
+            painter.drawText(nameRect, Qt::AlignCenter, m_labels[i]);
         }
 
         if (segmentRect.width() > 25) {
             QRect valueRect = segmentRect;
-            valueRect.setTop(valueRect.top() + valueRect.height() / 2 + 2);
+            valueRect.setTop(valueRect.top() + 20);
 
-            painter.setPen(Qt::white);
+            painter.setPen(QColor("#111318"));
             QFont valueFont = painter.font();
-            valueFont.setPointSize(9);
-            valueFont.setBold(true);
+            valueFont.setPointSizeF(8.5);
             painter.setFont(valueFont);
             painter.drawText(valueRect, Qt::AlignCenter, QString::number(m_values[i]) + "%");
         }
@@ -90,15 +110,15 @@ void SpeakerMixBar::paintEvent(QPaintEvent *event) {
 
     for (int i = 1; i < m_dividers.size() - 1; ++i) {
         const int lineX = valueToPixel(m_dividers[i]);
-        const QColor lineColor = i == m_draggingIndex ? Qt::yellow : Qt::white;
+        const QColor lineColor = i == m_draggingIndex ? QColor("#FFFFFF") : QColor("#21242B");
 
-        painter.setPen(QPen(lineColor, 2));
+        painter.setPen(QPen(lineColor, 4));
         painter.drawLine(lineX, trackTop, lineX, trackTop + m_trackHeight);
     }
 }
 
 QRect SpeakerMixBar::getHandleRect(const int dividerIndex) const {
-    const int trackTop = 5 + m_labelHeight + 5;
+    const int trackTop = 0;
     const int handleX = valueToPixel(m_dividers[dividerIndex]);
     return QRect(handleX - m_handleWidth / 2, trackTop, m_handleWidth, m_trackHeight);
 }
@@ -116,6 +136,9 @@ int SpeakerMixBar::findHandleAtPosition(const QPoint &position) const {
 }
 
 void SpeakerMixBar::mousePressEvent(QMouseEvent *event) {
+    if (m_readOnly)
+        return;
+
     if (event->button() == Qt::LeftButton) {
         m_draggingIndex = findHandleAtPosition(event->pos());
         if (m_draggingIndex != -1) {
@@ -127,10 +150,15 @@ void SpeakerMixBar::mousePressEvent(QMouseEvent *event) {
 }
 
 void SpeakerMixBar::mouseMoveEvent(QMouseEvent *event) {
+    if (m_readOnly) {
+        unsetCursor();
+        return;
+    }
+
     if (m_isDragging && m_draggingIndex >= 1 && m_draggingIndex < m_dividers.size() - 1) {
         const int newValue = pixelToValue(event->pos().x());
 
-        constexpr int minSpacing = 2;
+        constexpr int minSpacing = 0;
         const int minAllowed = m_dividers[m_draggingIndex - 1] + minSpacing;
         const int maxAllowed = m_dividers[m_draggingIndex + 1] - minSpacing;
 
@@ -142,7 +170,7 @@ void SpeakerMixBar::mouseMoveEvent(QMouseEvent *event) {
                 m_dividers[m_draggingIndex + 1] - m_dividers[m_draggingIndex];
 
             update();
-            emit valuesChanged();
+            emit valuesChanged(m_values);
         }
     } else {
         const bool handleHovered = findHandleAtPosition(event->pos()) != -1;
@@ -172,6 +200,10 @@ void SpeakerMixBar::updateDividers() {
 }
 
 void SpeakerMixBar::adjustValuesToSum100() {
+    for (int &value : m_values) {
+        value = std::clamp(value, 0, 100);
+    }
+
     int total = 0;
     for (const int value : m_values) {
         total += value;
@@ -190,5 +222,9 @@ int SpeakerMixBar::valueToPixel(const int value) const {
 }
 
 int SpeakerMixBar::pixelToValue(const int pixel) const {
-    return (pixel - m_margin) * 100 / (width() - 2 * m_margin);
+    const int trackWidth = width() - 2 * m_margin;
+    if (trackWidth <= 0)
+        return 0;
+
+    return std::clamp((pixel - m_margin) * 100 / trackWidth, 0, 100);
 }
