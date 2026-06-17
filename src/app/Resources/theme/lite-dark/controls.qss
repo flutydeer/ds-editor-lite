@@ -89,6 +89,31 @@ AccentButton:disabled {
     background-color: rgba(255, 255, 255, 32)
 }
 
+/* TagButton */
+TagButton {
+    background: transparent;
+    border: 1px solid #363B46;
+    border-radius: 4px;
+    padding: 0px 12px;
+    min-height: 28px;
+}
+
+TagButton:hover {
+    background: #2E3444;
+}
+
+TagButton:checked {
+    color: #9BBAFF;
+    background: transparent;
+    border: 1px solid #9BBAFF;
+}
+
+TagButton:checked:hover {
+    color: #9BBAFF;
+    background-color: rgba(155, 186, 255, 12%);
+    border: 1px solid #9BBAFF;
+}
+
 
 /* ComboBox */
 QComboBox {

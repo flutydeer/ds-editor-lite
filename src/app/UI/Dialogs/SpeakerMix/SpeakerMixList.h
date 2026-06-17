@@ -6,8 +6,7 @@
 #include <QString>
 
 class QHBoxLayout;
-class QComboBox;
-class QPushButton;
+class ComboBox;
 class QLabel;
 class SpeakerMixBar;
 
@@ -22,17 +21,23 @@ public:
     QVector<int> getValues() const;
     QVector<QString> getLabels() const;
 
+    void addSpeaker(const QString &speakerName);
+    void removeSpeaker(const QString &speakerName);
+
     SpeakerMixBar *getMixBar() const {
         return m_mixBar;
     }
 
-public slots:
-    void addRow();
+signals:
+    void speakerChanged(const QString &oldName, const QString &newName);
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private slots:
-    void removeRow();
     void onItemOrderChanged();
-    void onSpeakerTypeChanged();
+    void onSpeakerTypeChanged(int index);
     void syncRowsFromBar(const QVector<int> &values);
 
 private:
@@ -41,21 +46,26 @@ private:
         QHBoxLayout *layout;
         QLabel *dragHandle;
         QWidget *colorDot;
-        QComboBox *speakerComboBox;
+        ComboBox *speakerComboBox;
         QLabel *positionLabel;
-        QPushButton *deleteButton;
         QColor color;
+        QString speakerName;
     };
 
     void createRow(const QString &speakerType = "default");
     QWidget *createRowWidget(const QString &speakerType);
     void setRowsValues(const QVector<int> &values);
+    void redistributeValues();
     void syncRowsWithListItems();
     int findRowIndexBySender(const QObject *object) const;
+    int findRowIndexBySpeaker(const QString &speakerName) const;
     void updateRowColor(RowComponents &row);
     void updateBarLabelsAndColors();
     QVector<QColor> getColors() const;
+public:
     static QVector<QColor> defaultColors();
+
+private:
 
     QString m_packageName;
     QStringList m_speakerTypes;

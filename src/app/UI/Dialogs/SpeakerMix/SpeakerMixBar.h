@@ -58,13 +58,14 @@ private:
     QVector<int> m_dividers;
     QVector<QColor> m_segmentColors;
     int m_draggingIndex;
+    int m_dragOffset;
     bool m_isDragging;
     bool m_readOnly;
 
     const int m_trackHeight = 40;
-    const int m_handleWidth = 10;
-    const int m_margin = 0;
-    const int m_handleTouchMargin = 5;
+    const int m_handleWidth = 6;
+    const int m_margin = 1;
+    const int m_handleTouchMargin = 3;
 };
 
 #endif

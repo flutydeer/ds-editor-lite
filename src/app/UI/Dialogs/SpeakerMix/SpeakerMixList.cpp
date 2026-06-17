@@ -1,15 +1,17 @@
 #include "SpeakerMixList.h"
 #include "SpeakerMixBar.h"
 #include "UI/Controls/ColorDot.h"
+#include "UI/Controls/ComboBox.h"
 
 #include <QAbstractItemView>
-#include <QComboBox>
+#include <QCoreApplication>
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QPushButton>
+#include <QMouseEvent>
+#include <QResizeEvent>
 #include <QSignalBlocker>
 #include <QStyle>
-#include <utility>
 
 namespace {
     void setWidgetEnabledStyle(QWidget *widget, const bool enabled) {
@@ -26,34 +28,21 @@ SpeakerMixList::SpeakerMixList(const QString &packageName, const QStringList &sp
       m_mixBar(new SpeakerMixBar(this)), m_sourceEditingEnabled(true) {
     m_speakerTypes = speakerTypes.empty() ? QStringList({"no singer"}) : speakerTypes;
 
+    setDragEnabled(true);
     setDragDropMode(QAbstractItemView::InternalMove);
+    viewport()->setAcceptDrops(true);
+    setDropIndicatorShown(true);
     setDefaultDropAction(Qt::MoveAction);
-    setSelectionMode(QAbstractItemView::NoSelection);
+    setSelectionMode(QAbstractItemView::SingleSelection);
     setFocusPolicy(Qt::NoFocus);
     setFrameShape(QFrame::NoFrame);
-    setSpacing(8);
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setSpacing(0);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
 
     connect(model(), &QAbstractItemModel::rowsMoved, this, &SpeakerMixList::onItemOrderChanged);
     connect(m_mixBar, &SpeakerMixBar::valuesChanged, this, &SpeakerMixList::syncRowsFromBar);
-
-    for (const QString &speakerType : std::as_const(m_speakerTypes)) {
-        createRow(speakerType);
-    }
-
-    if (m_rows.isEmpty()) {
-        createRow();
-    }
-
-    const int baseValue = 100 / m_rows.size();
-    const int remainder = 100 % m_rows.size();
-    QVector<int> values;
-    for (int i = 0; i < m_rows.size(); ++i) {
-        values.append(baseValue + (i < remainder ? 1 : 0));
-    }
-    setRowsValues(values);
-    updateBarLabelsAndColors();
 }
 
 void SpeakerMixList::setSpeakerTypes(const QStringList &speakerTypes) {
@@ -66,6 +55,7 @@ void SpeakerMixList::setSpeakerTypes(const QStringList &speakerTypes) {
         if (!m_speakerTypes.contains(row.speakerComboBox->currentText())) {
             row.speakerComboBox->setCurrentText(m_speakerTypes.first());
         }
+        row.speakerName = row.speakerComboBox->currentText();
         updateRowColor(row);
     }
 
@@ -77,127 +67,51 @@ void SpeakerMixList::setSourceEditingEnabled(const bool enabled) {
         return;
 
     m_sourceEditingEnabled = enabled;
+    setDragEnabled(enabled);
     setDragDropMode(enabled ? QAbstractItemView::InternalMove : QAbstractItemView::NoDragDrop);
 
     for (auto &row : m_rows) {
         row.dragHandle->setEnabled(enabled);
         row.dragHandle->setCursor(enabled ? Qt::SizeAllCursor : Qt::ArrowCursor);
         setWidgetEnabledStyle(row.speakerComboBox, enabled);
-        setWidgetEnabledStyle(row.deleteButton, enabled && m_rows.size() > 1);
     }
 }
 
-QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
-    const auto widget = new QWidget(this);
-    widget->setFixedHeight(28);
-
-    const auto layout = new QHBoxLayout(widget);
-    layout->setSpacing(8);
-    layout->setContentsMargins(0, 0, 0, 0);
-
-    const auto dragHandle = new QLabel("=", widget);
-    dragHandle->setFixedSize(28, 28);
-    dragHandle->setCursor(Qt::SizeAllCursor);
-    dragHandle->setAlignment(Qt::AlignCenter);
-
-    const auto colorDot = new ColorDot(defaultColors()[m_rows.size() % defaultColors().size()],
-                                       widget);
-    colorDot->setFixedSize(10, 10);
-
-    const auto typeLabel = new QLabel("声线", widget);
-    typeLabel->setFixedHeight(28);
-
-    const auto speakerComboBox = new QComboBox(widget);
-    speakerComboBox->addItems(m_speakerTypes);
-    speakerComboBox->setCurrentText(speakerType);
-    speakerComboBox->setFixedWidth(80);
-    connect(speakerComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-            &SpeakerMixList::onSpeakerTypeChanged);
-
-    const auto positionLabel = new QLabel("位置", widget);
-    positionLabel->setFixedHeight(28);
-    positionLabel->setAlignment(Qt::AlignCenter);
-    positionLabel->setFixedWidth(84);
-    positionLabel->setStyleSheet(
-        "color: #777B84; background: #252932; border: 1px solid #363B46;"
-        "border-radius: 3px; padding: 0 8px;");
-
-    const auto deleteButton = new QPushButton("-", widget);
-    deleteButton->setFixedSize(28, 28);
-    connect(deleteButton, &QPushButton::clicked, this, &SpeakerMixList::removeRow);
-
-    layout->addWidget(dragHandle);
-    layout->addWidget(colorDot);
-    layout->addWidget(typeLabel);
-    layout->addWidget(speakerComboBox);
-    layout->addStretch();
-    layout->addWidget(positionLabel);
-    layout->addStretch();
-    layout->addWidget(deleteButton);
-
-    RowComponents row;
-    row.container = widget;
-    row.layout = layout;
-    row.dragHandle = dragHandle;
-    row.colorDot = colorDot;
-    row.speakerComboBox = speakerComboBox;
-    row.positionLabel = positionLabel;
-    row.deleteButton = deleteButton;
-    row.color = defaultColors()[m_rows.size() % defaultColors().size()];
-    updateRowColor(row);
-    m_rows.append(row);
-
-    return widget;
-}
-
-void SpeakerMixList::createRow(const QString &speakerType) {
-    const auto item = new QListWidgetItem(this);
-    QWidget *widget = createRowWidget(speakerType);
-    item->setSizeHint(QSize(0, 28));
-    setItemWidget(item, widget);
-}
-
-void SpeakerMixList::addRow() {
-    if (!m_sourceEditingEnabled)
+void SpeakerMixList::addSpeaker(const QString &speakerName) {
+    if (findRowIndexBySpeaker(speakerName) != -1)
         return;
 
-    const int nextIndex = m_rows.size() % m_speakerTypes.size();
-    createRow(m_speakerTypes.value(nextIndex, m_speakerTypes.first()));
-    syncRowsWithListItems();
-
-    QVector<int> values = m_mixBar->getValues();
-    values.append(0);
-    setRowsValues(values);
-    setSourceEditingEnabled(m_sourceEditingEnabled);
+    createRow(speakerName);
+    redistributeValues();
+    updateBarLabelsAndColors();
 }
 
-void SpeakerMixList::removeRow() {
-    if (!m_sourceEditingEnabled || m_rows.size() <= 1)
+void SpeakerMixList::removeSpeaker(const QString &speakerName) {
+    if (m_rows.size() <= 1)
         return;
 
-    const auto deleteButton = qobject_cast<QPushButton *>(sender());
-    const int rowIndexToRemove = findRowIndexBySender(deleteButton);
-    if (rowIndexToRemove == -1)
+    const int rowIndex = findRowIndexBySpeaker(speakerName);
+    if (rowIndex == -1)
         return;
 
     const QVector<int> previousValues = m_mixBar->getValues();
-    const int removedValue = previousValues.value(rowIndexToRemove);
+    const int removedValue = previousValues.value(rowIndex);
 
     for (int i = 0; i < count(); ++i) {
         QListWidgetItem *listItem = item(i);
-        if (listItem && itemWidget(listItem) == m_rows[rowIndexToRemove].container) {
+        if (listItem && itemWidget(listItem) == m_rows[rowIndex].container) {
             delete takeItem(i);
             break;
         }
     }
-    m_rows.removeAt(rowIndexToRemove);
+    m_rows.removeAt(rowIndex);
 
     QVector<int> values;
     const int remainingTotal = 100 - removedValue;
     if (remainingTotal > 0) {
         int allocated = 0;
         for (int i = 0; i < previousValues.size(); ++i) {
-            if (i == rowIndexToRemove)
+            if (i == rowIndex)
                 continue;
             const int value = previousValues[i] + previousValues[i] * removedValue / remainingTotal;
             values.append(value);
@@ -212,7 +126,89 @@ void SpeakerMixList::removeRow() {
     }
 
     setRowsValues(values);
-    setSourceEditingEnabled(m_sourceEditingEnabled);
+    updateBarLabelsAndColors();
+}
+
+QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
+    const auto widget = new QWidget(this);
+    widget->setFixedHeight(28);
+
+    const auto layout = new QHBoxLayout(widget);
+    layout->setSpacing(8);
+    layout->setContentsMargins(0, 0, 0, 0);
+
+    const auto dragHandle = new QLabel("=", widget);
+    dragHandle->setFixedSize(28, 28);
+    dragHandle->setCursor(Qt::SizeAllCursor);
+    dragHandle->setAlignment(Qt::AlignCenter);
+    dragHandle->installEventFilter(this);
+
+    const auto colorDot = new ColorDot(defaultColors()[m_rows.size() % defaultColors().size()],
+                                       widget);
+    colorDot->setFixedSize(10, 10);
+
+    const auto typeLabel = new QLabel("声线: ", widget);
+    typeLabel->setFixedHeight(28);
+
+    const auto speakerComboBox = new ComboBox(widget);
+    speakerComboBox->addItems(m_speakerTypes);
+    speakerComboBox->setCurrentText(speakerType);
+    speakerComboBox->setFixedWidth(80);
+    connect(speakerComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &SpeakerMixList::onSpeakerTypeChanged);
+
+    const auto positionPrefixLabel = new QLabel("位置: ", widget);
+    positionPrefixLabel->setFixedHeight(28);
+
+    const auto positionLabel = new QLabel("0%", widget);
+    positionLabel->setFixedHeight(28);
+    positionLabel->setAlignment(Qt::AlignCenter);
+    positionLabel->setFixedWidth(84);
+    positionLabel->setStyleSheet(
+        "color: #777B84; background: #252932; border: 1px solid #363B46;"
+        "border-radius: 3px; padding: 0 8px;");
+
+    layout->addWidget(dragHandle);
+    layout->addWidget(colorDot);
+    layout->addWidget(typeLabel);
+    layout->addWidget(speakerComboBox);
+    layout->addWidget(positionPrefixLabel);
+    layout->addWidget(positionLabel);
+    layout->addStretch();
+
+    RowComponents row;
+    row.container = widget;
+    row.layout = layout;
+    row.dragHandle = dragHandle;
+    row.colorDot = colorDot;
+    row.speakerComboBox = speakerComboBox;
+    row.positionLabel = positionLabel;
+    row.color = defaultColors()[m_rows.size() % defaultColors().size()];
+    row.speakerName = speakerType;
+    updateRowColor(row);
+    m_rows.append(row);
+
+    return widget;
+}
+
+void SpeakerMixList::createRow(const QString &speakerType) {
+    const auto item = new QListWidgetItem(this);
+    QWidget *widget = createRowWidget(speakerType);
+    item->setSizeHint(QSize(0, 36));
+    setItemWidget(item, widget);
+}
+
+void SpeakerMixList::redistributeValues() {
+    const int n = m_rows.size();
+    if (n == 0)
+        return;
+    const int baseValue = 100 / n;
+    const int remainder = 100 % n;
+    QVector<int> values;
+    for (int i = 0; i < n; ++i) {
+        values.append(baseValue + (i < remainder ? 1 : 0));
+    }
+    setRowsValues(values);
 }
 
 void SpeakerMixList::onItemOrderChanged() {
@@ -220,12 +216,19 @@ void SpeakerMixList::onItemOrderChanged() {
     syncRowsFromBar(m_mixBar->getValues());
 }
 
-void SpeakerMixList::onSpeakerTypeChanged() {
+void SpeakerMixList::onSpeakerTypeChanged(int /*index*/) {
     const int rowIndex = findRowIndexBySender(sender());
-    if (rowIndex != -1) {
-        updateRowColor(m_rows[rowIndex]);
-    }
+    if (rowIndex == -1)
+        return;
+
+    const QString oldName = m_rows[rowIndex].speakerName;
+    const QString newName = m_rows[rowIndex].speakerComboBox->currentText();
+    m_rows[rowIndex].speakerName = newName;
+
+    updateRowColor(m_rows[rowIndex]);
     updateBarLabelsAndColors();
+
+    emit speakerChanged(oldName, newName);
 }
 
 void SpeakerMixList::syncRowsFromBar(const QVector<int> &values) {
@@ -272,9 +275,17 @@ int SpeakerMixList::findRowIndexBySender(const QObject *object) const {
         return -1;
 
     for (int i = 0; i < m_rows.size(); ++i) {
-        if (m_rows[i].speakerComboBox == object || m_rows[i].deleteButton == object) {
+        if (m_rows[i].speakerComboBox == object) {
             return i;
         }
+    }
+    return -1;
+}
+
+int SpeakerMixList::findRowIndexBySpeaker(const QString &speakerName) const {
+    for (int i = 0; i < m_rows.size(); ++i) {
+        if (m_rows[i].speakerName == speakerName)
+            return i;
     }
     return -1;
 }
@@ -318,4 +329,29 @@ QVector<QString> SpeakerMixList::getLabels() const {
         labels.append(row.speakerComboBox->currentText());
     }
     return labels;
+}
+
+bool SpeakerMixList::eventFilter(QObject *watched, QEvent *event) {
+    if (!m_sourceEditingEnabled)
+        return QListWidget::eventFilter(watched, event);
+
+    if (auto *handle = qobject_cast<QLabel *>(watched); handle && handle->cursor().shape() == Qt::SizeAllCursor) {
+        if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonRelease
+            || event->type() == QEvent::MouseMove) {
+            auto *me = static_cast<QMouseEvent *>(event);
+            auto *viewportEvent = new QMouseEvent(
+                event->type(), viewport()->mapFromGlobal(me->globalPosition()),
+                me->globalPosition(), me->button(), me->buttons(), me->modifiers());
+            QCoreApplication::sendEvent(viewport(), viewportEvent);
+            delete viewportEvent;
+            return true;
+        }
+    }
+
+    return QListWidget::eventFilter(watched, event);
+}
+
+void SpeakerMixList::resizeEvent(QResizeEvent *event) {
+    QListWidget::resizeEvent(event);
+    doItemsLayout();
 }

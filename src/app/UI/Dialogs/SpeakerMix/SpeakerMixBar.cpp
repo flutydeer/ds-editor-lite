@@ -1,11 +1,12 @@
 #include "SpeakerMixBar.h"
 #include <QPainter>
+#include <QPainterPath>
 #include <QMouseEvent>
 #include <algorithm>
 
 SpeakerMixBar::SpeakerMixBar(QWidget *parent)
-    : QWidget(parent), m_draggingIndex(-1), m_isDragging(false), m_readOnly(false) {
-    setFixedHeight(40);
+    : QWidget(parent), m_draggingIndex(-1), m_dragOffset(0), m_isDragging(false), m_readOnly(false) {
+    setFixedHeight(m_trackHeight + 2 * m_margin);
     setMinimumWidth(300);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
@@ -57,7 +58,7 @@ void SpeakerMixBar::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    const int trackTop = 0;
+    const int trackTop = m_margin;
     const QRect trackRect(m_margin, trackTop, width() - 2 * m_margin, m_trackHeight);
 
     painter.setPen(Qt::NoPen);
@@ -65,7 +66,8 @@ void SpeakerMixBar::paintEvent(QPaintEvent *event) {
     painter.drawRoundedRect(trackRect, 4, 4);
 
     int currentPosition = 0;
-    for (int i = 0; i < m_values.size(); ++i) {
+    const int segmentCount = m_values.size();
+    for (int i = 0; i < segmentCount; ++i) {
         const int segmentEnd = currentPosition + m_values[i];
         const int segmentStartX = valueToPixel(currentPosition);
         const int segmentEndX = valueToPixel(segmentEnd);
@@ -75,7 +77,15 @@ void SpeakerMixBar::paintEvent(QPaintEvent *event) {
 
         painter.setBrush(segmentColor);
         painter.setPen(Qt::NoPen);
-        painter.drawRoundedRect(segmentRect.adjusted(0, 0, -1, 0), 3, 3);
+        if (segmentCount == 1) {
+            painter.drawRoundedRect(segmentRect, 3, 3);
+        } else if (i == 0) {
+            painter.drawRoundedRect(segmentRect.adjusted(0, 0, -1, 0), 3, 3);
+        } else if (i == segmentCount - 1) {
+            painter.drawRoundedRect(segmentRect.adjusted(1, 0, 0, 0), 3, 3);
+        } else {
+            painter.drawRoundedRect(segmentRect.adjusted(1, 0, -1, 0), 3, 3);
+        }
 
         if (segmentRect.width() > 0 && segmentRect.width() < 24) {
             currentPosition = segmentEnd;
@@ -118,9 +128,8 @@ void SpeakerMixBar::paintEvent(QPaintEvent *event) {
 }
 
 QRect SpeakerMixBar::getHandleRect(const int dividerIndex) const {
-    const int trackTop = 0;
     const int handleX = valueToPixel(m_dividers[dividerIndex]);
-    return QRect(handleX - m_handleWidth / 2, trackTop, m_handleWidth, m_trackHeight);
+    return QRect(handleX - m_handleWidth / 2, m_margin, m_handleWidth, m_trackHeight);
 }
 
 int SpeakerMixBar::findHandleAtPosition(const QPoint &position) const {
@@ -143,6 +152,10 @@ void SpeakerMixBar::mousePressEvent(QMouseEvent *event) {
         m_draggingIndex = findHandleAtPosition(event->pos());
         if (m_draggingIndex != -1) {
             m_isDragging = true;
+            // Record the offset between click position and handle center
+            // so the handle doesn't jump to cursor on drag start.
+            const int handleCenterX = valueToPixel(m_dividers[m_draggingIndex]);
+            m_dragOffset = event->pos().x() - handleCenterX;
             setCursor(Qt::SizeHorCursor);
             update();
         }
@@ -156,7 +169,10 @@ void SpeakerMixBar::mouseMoveEvent(QMouseEvent *event) {
     }
 
     if (m_isDragging && m_draggingIndex >= 1 && m_draggingIndex < m_dividers.size() - 1) {
-        const int newValue = pixelToValue(event->pos().x());
+        // Compensate for the initial click offset so the handle stays
+        // where the user grabbed it rather than jumping to cursor center.
+        const int adjustedX = event->pos().x() - m_dragOffset;
+        const int newValue = pixelToValue(adjustedX);
 
         constexpr int minSpacing = 0;
         const int minAllowed = m_dividers[m_draggingIndex - 1] + minSpacing;
