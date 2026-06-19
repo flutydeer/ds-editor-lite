@@ -13,6 +13,8 @@
 #include <QSignalBlocker>
 #include <QStyle>
 
+#include <utility>
+
 namespace {
     void setWidgetEnabledStyle(QWidget *widget, const bool enabled) {
         widget->setEnabled(enabled);
@@ -81,8 +83,35 @@ void SpeakerMixList::addSpeaker(const QString &speakerName) {
     if (findRowIndexBySpeaker(speakerName) != -1)
         return;
 
+    const QVector<double> previousValues = m_mixBar->getDoubleValues();
+    const int previousCount = m_rows.size();
+
     createRow(speakerName);
-    redistributeValues();
+
+    if (previousCount == 0) {
+        setRowsValues({100.0});
+    } else {
+        const double newValue = 100.0 / m_rows.size();
+        const double remainingTotal = 100.0 - newValue;
+
+        double previousTotal = 0;
+        for (const double value : previousValues)
+            previousTotal += value;
+
+        QVector<double> values;
+        values.reserve(m_rows.size());
+        if (qFuzzyIsNull(previousTotal)) {
+            const double baseValue = remainingTotal / previousCount;
+            for (int i = 0; i < previousCount; ++i)
+                values.append(baseValue);
+        } else {
+            for (const double value : previousValues)
+                values.append(value * remainingTotal / previousTotal);
+        }
+        values.append(newValue);
+        setRowsValues(values);
+    }
+
     updateBarLabelsAndColors();
 }
 
@@ -94,8 +123,8 @@ void SpeakerMixList::removeSpeaker(const QString &speakerName) {
     if (rowIndex == -1)
         return;
 
-    const QVector<int> previousValues = m_mixBar->getValues();
-    const int removedValue = previousValues.value(rowIndex);
+    const QVector<double> previousValues = m_mixBar->getDoubleValues();
+    const double removedValue = previousValues.value(rowIndex);
 
     for (int i = 0; i < count(); ++i) {
         QListWidgetItem *listItem = item(i);
@@ -106,22 +135,16 @@ void SpeakerMixList::removeSpeaker(const QString &speakerName) {
     }
     m_rows.removeAt(rowIndex);
 
-    QVector<int> values;
-    const int remainingTotal = 100 - removedValue;
+    QVector<double> values;
+    const double remainingTotal = 100.0 - removedValue;
     if (remainingTotal > 0) {
-        int allocated = 0;
         for (int i = 0; i < previousValues.size(); ++i) {
             if (i == rowIndex)
                 continue;
-            const int value = previousValues[i] + previousValues[i] * removedValue / remainingTotal;
-            values.append(value);
-            allocated += value;
-        }
-        if (!values.isEmpty()) {
-            values[0] += 100 - allocated;
+            values.append(previousValues[i] + previousValues[i] * removedValue / remainingTotal);
         }
     } else if (!m_rows.isEmpty()) {
-        values = QVector<int>(m_rows.size(), 0);
+        values = QVector<double>(m_rows.size(), 0);
         values[0] = 100;
     }
 
@@ -204,7 +227,7 @@ void SpeakerMixList::redistributeValues() {
         return;
     const int baseValue = 100 / n;
     const int remainder = 100 % n;
-    QVector<int> values;
+    QVector<double> values;
     for (int i = 0; i < n; ++i) {
         values.append(baseValue + (i < remainder ? 1 : 0));
     }
@@ -212,8 +235,29 @@ void SpeakerMixList::redistributeValues() {
 }
 
 void SpeakerMixList::onItemOrderChanged() {
+    const QVector<double> previousValues = m_mixBar->getDoubleValues();
+    QVector<QPair<QWidget *, double>> valueByRow;
+    valueByRow.reserve(m_rows.size());
+    for (int i = 0; i < m_rows.size(); ++i)
+        valueByRow.append({m_rows[i].container, previousValues.value(i)});
+
     syncRowsWithListItems();
-    syncRowsFromBar(m_mixBar->getValues());
+
+    QVector<double> reorderedValues;
+    reorderedValues.reserve(m_rows.size());
+    for (const auto &row : std::as_const(m_rows)) {
+        double value = 0;
+        for (const auto &[container, rowValue] : valueByRow) {
+            if (container == row.container) {
+                value = rowValue;
+                break;
+            }
+        }
+        reorderedValues.append(value);
+    }
+
+    setRowsValues(reorderedValues);
+    updateBarLabelsAndColors();
 }
 
 void SpeakerMixList::onSpeakerTypeChanged(int /*index*/) {
@@ -231,21 +275,21 @@ void SpeakerMixList::onSpeakerTypeChanged(int /*index*/) {
     emit speakerChanged(oldName, newName);
 }
 
-void SpeakerMixList::syncRowsFromBar(const QVector<int> &values) {
-    int cumulative = 0;
+void SpeakerMixList::syncRowsFromBar(const QVector<double> &values) {
+    double cumulative = 0;
     for (int i = 0; i < m_rows.size() && i < values.size(); ++i) {
-        m_rows[i].positionLabel->setText(QString::number(cumulative) + "%");
+        m_rows[i].positionLabel->setText(QString::number(qRound(cumulative)) + "%");
         cumulative += values[i];
     }
     updateBarLabelsAndColors();
 }
 
-void SpeakerMixList::setRowsValues(const QVector<int> &values) {
-    m_mixBar->setValues(values);
+void SpeakerMixList::setRowsValues(const QVector<double> &values) {
+    m_mixBar->setDoubleValues(values);
 
-    int cumulative = 0;
+    double cumulative = 0;
     for (int i = 0; i < m_rows.size() && i < values.size(); ++i) {
-        m_rows[i].positionLabel->setText(QString::number(cumulative) + "%");
+        m_rows[i].positionLabel->setText(QString::number(qRound(cumulative)) + "%");
         cumulative += values[i];
     }
 }

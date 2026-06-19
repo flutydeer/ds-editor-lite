@@ -12,8 +12,10 @@ class SpeakerMixBar : public QWidget {
 public:
     explicit SpeakerMixBar(QWidget *parent = nullptr);
     void setValues(const QVector<int> &values);
+    void setDoubleValues(const QVector<double> &values);
     void setLabels(const QVector<QString> &labels);
     QVector<int> getValues() const;
+    QVector<double> getDoubleValues() const;
     void setReadOnly(bool readOnly);
     bool isReadOnly() const;
 
@@ -37,7 +39,7 @@ public:
     }
 
 signals:
-    void valuesChanged(const QVector<int> &values);
+    void valuesChanged(const QVector<double> &values);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -48,14 +50,21 @@ protected:
 private:
     void updateDividers();
     void adjustValuesToSum100();
+    void setInternalValues(const QVector<double> &values);
+    QVector<int> roundedValues() const;
+    QVector<double> adjacentDragValues(int dividerIndex, double newValue) const;
+    QVector<double> proportionalDragValues(int dividerIndex, double newValue) const;
+    static QVector<double> scaleGroup(const QVector<double> &values, double newTotal);
     QRect getHandleRect(int dividerIndex) const;
     int findHandleAtPosition(const QPoint &position) const;
-    int valueToPixel(int value) const;
-    int pixelToValue(int pixel) const;
+    int valueToPixel(double value) const;
+    double pixelToSnappedValue(int pixel) const;
 
-    QVector<int> m_values;
+    QVector<double> m_values;
     QVector<QString> m_labels;
-    QVector<int> m_dividers;
+    QVector<double> m_dividers;
+    QVector<double> m_dragStartValues;
+    QVector<double> m_dragStartDividers;
     QVector<QColor> m_segmentColors;
     int m_draggingIndex;
     int m_dragOffset;

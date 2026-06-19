@@ -38,7 +38,7 @@ protected:
 private slots:
     void onItemOrderChanged();
     void onSpeakerTypeChanged(int index);
-    void syncRowsFromBar(const QVector<int> &values);
+    void syncRowsFromBar(const QVector<double> &values);
 
 private:
     struct RowComponents {
@@ -54,7 +54,7 @@ private:
 
     void createRow(const QString &speakerType = "default");
     QWidget *createRowWidget(const QString &speakerType);
-    void setRowsValues(const QVector<int> &values);
+    void setRowsValues(const QVector<double> &values);
     void redistributeValues();
     void syncRowsWithListItems();
     int findRowIndexBySender(const QObject *object) const;
