@@ -71,6 +71,8 @@ private:
     double cumWeightToItemY(double cumWeight) const;
 
     void updateHover(const QPointF &itemPos);
+    void showSplitHoverToolTip();
+    void hideSplitHoverToolTip();
     void startIntervalSelection(const QPointF &itemPos);
     void updateIntervalSelection(const QPointF &itemPos);
     void endIntervalSelection();
@@ -81,6 +83,8 @@ private:
     void showSplitDragToolTip();
     void updateSplitDragToolTip();
     void hideSplitDragToolTip();
+    ToolTip *ensureToolTip();
+    void updateSplitToolTipContent(int keyframeIndex);
 
     void addKeyframeAt(int tick);
     void deleteSelectedKeyframe();

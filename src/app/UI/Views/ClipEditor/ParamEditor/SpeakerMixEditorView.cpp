@@ -517,23 +517,43 @@ void SpeakerMixEditorView::updateHover(const QPointF &itemPos) {
         m_state.hoveredSplitIndex = hit.splitIndex;
 
         if (hit.keyframeIndex >= 0) {
-            if (hit.splitIndex >= 0)
+            if (hit.splitIndex >= 0) {
                 setCursor(Qt::SizeVerCursor);
-            else
+                showSplitHoverToolTip();
+            } else {
                 setCursor(Qt::SizeHorCursor);
-
-            const auto weights = interpolateWeights(m_keyframes[hit.keyframeIndex].tick);
-            const auto displayValues = SpeakerMixUtils::fullWeightsToPercentages(toVector(weights));
-            QStringList parts;
-            for (int i = 0; i < m_speakers.size(); i++)
-                parts.append(
-                    QString("%1: %2%").arg(m_speakers[i].name).arg(displayValues.value(i)));
-            setToolTip(parts.join("\n"));
+                hideSplitHoverToolTip();
+            }
         } else {
             setCursor(Qt::ArrowCursor);
-            setToolTip(QString());
+            hideSplitHoverToolTip();
         }
+    } else if (hit.keyframeIndex >= 0 && hit.splitIndex >= 0 && m_state.dragSplitIndex < 0 &&
+               m_tooltip) {
+        const auto cursorPos = QCursor::pos();
+        m_tooltip->move(cursorPos.x(), cursorPos.y());
     }
+}
+
+void SpeakerMixEditorView::showSplitHoverToolTip() {
+    if (m_state.dragSplitIndex >= 0 || m_state.hoveredKeyframeIndex < 0 ||
+        m_state.hoveredSplitIndex < 0)
+        return;
+
+    updateSplitToolTipContent(m_state.hoveredKeyframeIndex);
+    auto *tooltip = ensureToolTip();
+    tooltip->setWindowOpacity(1);
+    const auto cursorPos = QCursor::pos();
+    tooltip->move(cursorPos.x(), cursorPos.y());
+    tooltip->show();
+}
+
+void SpeakerMixEditorView::hideSplitHoverToolTip() {
+    if (!m_tooltip || m_state.dragSplitIndex >= 0)
+        return;
+
+    m_tooltip->setWindowOpacity(0);
+    m_tooltip->hide();
 }
 
 void SpeakerMixEditorView::startIntervalSelection(const QPointF &itemPos) {
@@ -641,39 +661,20 @@ void SpeakerMixEditorView::endDrag() {
 }
 
 void SpeakerMixEditorView::showSplitDragToolTip() {
-    if (!m_tooltip) {
-        QWidget *parent = nullptr;
-        if (scene() && !scene()->views().isEmpty())
-            parent = scene()->views().first();
-        if (!parent)
-            parent = QApplication::activeWindow();
-        m_tooltip = new ToolTip(QString(), parent);
-    }
-
     updateSplitDragToolTip();
-    m_tooltip->setWindowOpacity(1);
+    auto *tooltip = ensureToolTip();
+    tooltip->setWindowOpacity(1);
     const auto cursorPos = QCursor::pos();
-    m_tooltip->move(cursorPos.x(), cursorPos.y());
-    m_tooltip->show();
+    tooltip->move(cursorPos.x(), cursorPos.y());
+    tooltip->show();
 }
 
 void SpeakerMixEditorView::updateSplitDragToolTip() {
-    if (!m_tooltip || m_state.selectedKeyframeIndex < 0 || m_state.dragSplitIndex < 0 ||
+    if (m_state.selectedKeyframeIndex < 0 || m_state.dragSplitIndex < 0 ||
         m_state.selectedKeyframeIndex >= m_keyframes.size())
         return;
 
-    const auto fullWeights = SpeakerMixUtils::storedWeightsToFull(
-        toVector(m_keyframes[m_state.selectedKeyframeIndex].weights), m_speakers.size());
-    const auto displayValues = SpeakerMixUtils::fullWeightsToPercentages(fullWeights);
-
-    QStringList titleParts;
-    for (int i = 0; i < m_speakers.size(); ++i) {
-        const int value = displayValues.value(i);
-        titleParts.append(QString("%1: %2%").arg(m_speakers[i].name).arg(value));
-    }
-
-    m_tooltip->setTitle(titleParts.join("\n"));
-    m_tooltip->setMessage({});
+    updateSplitToolTipContent(m_state.selectedKeyframeIndex);
     const auto cursorPos = QCursor::pos();
     m_tooltip->move(cursorPos.x(), cursorPos.y());
 }
@@ -686,6 +687,35 @@ void SpeakerMixEditorView::hideSplitDragToolTip() {
     m_tooltip->hide();
     m_tooltip->deleteLater();
     m_tooltip = nullptr;
+}
+
+ToolTip *SpeakerMixEditorView::ensureToolTip() {
+    if (!m_tooltip) {
+        QWidget *parent = nullptr;
+        if (scene() && !scene()->views().isEmpty())
+            parent = scene()->views().first();
+        if (!parent)
+            parent = QApplication::activeWindow();
+        m_tooltip = new ToolTip(QString(), parent);
+    }
+    return m_tooltip;
+}
+
+void SpeakerMixEditorView::updateSplitToolTipContent(const int keyframeIndex) {
+    if (keyframeIndex < 0 || keyframeIndex >= m_keyframes.size())
+        return;
+
+    const auto fullWeights = SpeakerMixUtils::storedWeightsToFull(toVector(m_keyframes[keyframeIndex].weights),
+                                                                  m_speakers.size());
+    const auto displayValues = SpeakerMixUtils::fullWeightsToPercentages(fullWeights);
+
+    QStringList titleParts;
+    for (int i = 0; i < m_speakers.size(); ++i)
+        titleParts.append(QString("%1: %2%").arg(m_speakers[i].name).arg(displayValues.value(i)));
+
+    auto *tooltip = ensureToolTip();
+    tooltip->setTitle(titleParts.join("\n"));
+    tooltip->setMessage({});
 }
 
 void SpeakerMixEditorView::addKeyframeAt(int tick) {
