@@ -11,30 +11,88 @@ DS Editor Lite is a C++20 / Qt 6 Widgets desktop application (singing voice edit
 - vcpkg manifest lives at `scripts/vcpkg-manifest/vcpkg.json`, not the repo root.
 - Toolchain file: `vcpkg/scripts/buildsystems/vcpkg.cmake`.
 
-### Configure and build (Windows)
+### 前置条件
 
-```sh
-# 1. Install vcpkg deps (set QT_DIR first)
-set QT_DIR=C:\Qt\6.10.1\msvc2022_64
+- **Visual Studio 2026**：安装"使用 C++ 的桌面开发"工作负荷，包含 MSVC v145 生成工具和 Windows 11 SDK。
+- **Qt 6**：安装 Qt 6.11.1+，选择 MSVC 2022 64-bit 组件和 Qt State Machines。
+- **vcpkg**：克隆到项目同级目录或全局安装，详见下方 vcpkg 安装步骤。
+
+### 配置和构建（Windows presets 主线）
+
+本项目使用 CMake presets 作为标准构建入口。以下步骤在**同一个**命令行会话中执行：
+
+#### 1. 初始化 VS 2026 x64 开发者环境
+
+**PowerShell**：
+```powershell
+Import-Module "C:\Program Files\Microsoft Visual Studio\18\*\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
+Enter-VsDevShell -VsInstallPath "C:\Program Files\Microsoft Visual Studio\18\*" -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64"
+```
+（`*` 根据实际 VS 版本替换为 `Community` / `Professional` / `Enterprise`）
+
+**cmd**：
+```cmd
+call "C:\Program Files\Microsoft Visual Studio\18\*\VC\Auxiliary\Build\vcvarsall.bat" x64
+```
+
+#### 2. 设置 Qt 环境变量（每次新会话都需要）
+
+```cmd
+set QT_DIR=C:\Qt\6.11.1\msvc2022_64
 set Qt6_DIR=%QT_DIR%
 set CMAKE_PREFIX_PATH=%QT_DIR%
 set VCPKG_KEEP_ENV_VARS=QT_DIR;Qt6_DIR;Qt6GuiTools_DIR;CMAKE_PREFIX_PATH
+```
 
+#### 3. 安装/更新 vcpkg 依赖
+
+```cmd
 cd vcpkg
 vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./installed --triplet=x64-windows
+cd ..
+```
 
-# 2. CMake configure
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_INSTALL_PREFIX=build/install
+可选 CUDA 支持：在 vcpkg install 后追加 `--x-feature=cuda12` 或 `--x-feature=cuda11`。
 
-# 3. Build
+#### 4. CMake 配置
+
+```cmd
+cmake --preset debug
+```
+
+#### 5. 构建
+
+```cmd
+cmake --build --preset debug
+```
+
+也可以使用 release preset：
+```cmd
+cmake --preset release && cmake --build --preset release
+```
+
+#### 备选：手动 CMake 命令
+
+如果 presets 不可用，可以用等价的命令行：
+```cmd
+cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_INSTALL_PREFIX=build/install -G Ninja
 cmake --build build --target DsEditorLite
 ```
 
-Optional CUDA support: add `--x-feature=cuda12` or `--x-feature=cuda11` to vcpkg install.
+#### 更新 vcpkg 依赖
+
+当 `scripts/vcpkg-manifest/vcpkg.json` 发生变更（如新增依赖或版本升级）时，需要重新安装以使本地的 `vcpkg/installed` 与 manifest 同步。重新运行 vcpkg install 命令即可，vcpkg 会自动对比差异并增量更新：
+
+```cmd
+cd vcpkg
+vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./installed --triplet=x64-windows
+```
+
+也可使用 `docs/dev-scripts/` 下的辅助脚本（复制到项目根目录并修改 Qt 路径后使用）。
 
 ### Tests
 
-Tests are gated behind `-DLITE_BUILD_TESTS=ON`. They live in `src/tests/`.
+Tests are gated behind `-DLITE_BUILD_TESTS=ON` (enabled by default in the `debug` preset). They live in `src/tests/`.
 
 ## Repository structure
 
