@@ -2,6 +2,7 @@
 #define DS_EDITOR_LITE_SPEAKERMIXLIST_H
 
 #include <QListWidget>
+#include <QMap>
 #include <QVector>
 #include <QString>
 
@@ -17,6 +18,7 @@ public:
     explicit SpeakerMixList(const QString &packageName, const QStringList &speakerTypes,
                             QWidget *parent = nullptr);
     void setSpeakerTypes(const QStringList &speakerTypes);
+    void setSpeakerDisplayNames(const QMap<QString, QString> &displayNames);
     void setSourceEditingEnabled(bool enabled);
     void setDoubleValues(const QVector<double> &values);
     QVector<int> getValues() const;
@@ -63,6 +65,7 @@ private:
     void refreshComboBoxItems();
     void updateRowColor(RowComponents &row);
     void updateBarLabelsAndColors();
+    QString speakerDisplayName(const QString &speakerName) const;
     QVector<QColor> getColors() const;
 
 public:
@@ -71,6 +74,7 @@ public:
 private:
     QString m_packageName;
     QStringList m_speakerTypes;
+    QMap<QString, QString> m_speakerDisplayNames;
 
     QVector<RowComponents> m_rows;
     SpeakerMixBar *m_mixBar;

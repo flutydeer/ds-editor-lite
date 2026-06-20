@@ -20,10 +20,15 @@ SpeakerMixDialog::SpeakerMixDialog(const SingerInfo &singerInfo, const SpeakerMi
     setMinimumHeight(312);
 
     QStringList speakerTypes;
-    for (const auto &speaker : m_singerInfo.speakers())
+    QMap<QString, QString> speakerDisplayNames;
+    for (const auto &speaker : m_singerInfo.speakers()) {
         speakerTypes.append(speaker.id());
+        speakerDisplayNames.insert(speaker.id(),
+                                   speaker.name().isEmpty() ? speaker.id() : speaker.name());
+    }
 
     m_mixList = new SpeakerMixList(m_singerInfo.name(), speakerTypes, this);
+    m_mixList->setSpeakerDisplayNames(speakerDisplayNames);
 
     const auto tagContainer = new QWidget(this);
     tagContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -32,7 +37,7 @@ SpeakerMixDialog::SpeakerMixDialog(const SingerInfo &singerInfo, const SpeakerMi
     for (int i = 0; i < speakerTypes.size(); ++i) {
         const QString &name = speakerTypes[i];
 
-        const auto btn = new TagButton(name, tagContainer);
+        const auto btn = new TagButton(speakerDisplayNames.value(name, name), tagContainer);
         btn->setChecked(true);
 
         btn->setProperty("speakerName", name);

@@ -63,6 +63,12 @@ void SpeakerMixList::setSpeakerTypes(const QStringList &speakerTypes) {
     updateBarLabelsAndColors();
 }
 
+void SpeakerMixList::setSpeakerDisplayNames(const QMap<QString, QString> &displayNames) {
+    m_speakerDisplayNames = displayNames;
+    refreshComboBoxItems();
+    updateBarLabelsAndColors();
+}
+
 void SpeakerMixList::setSourceEditingEnabled(const bool enabled) {
     if (m_sourceEditingEnabled == enabled)
         return;
@@ -180,8 +186,11 @@ QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
 
     const auto speakerComboBox = new ComboBox(widget);
     speakerComboBox->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    speakerComboBox->addItems(m_speakerTypes);
-    speakerComboBox->setCurrentText(speakerType);
+    for (const auto &speakerName : std::as_const(m_speakerTypes))
+        speakerComboBox->addItem(speakerDisplayName(speakerName), speakerName);
+    const int currentIndex = speakerComboBox->findData(speakerType, Qt::UserRole);
+    if (currentIndex >= 0)
+        speakerComboBox->setCurrentIndex(currentIndex);
     speakerComboBox->setFixedWidth(120);
     connect(speakerComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             &SpeakerMixList::onSpeakerTypeChanged);
@@ -365,11 +374,12 @@ void SpeakerMixList::refreshComboBoxItems() {
 
         for (int i = 0; i < m_speakerTypes.size(); ++i) {
             const QString &name = m_speakerTypes[i];
+            const QString displayName = speakerDisplayName(name);
             const bool isCurrentRow = (name == row.speakerName);
             const bool isUsedByOther = (!isCurrentRow && usedNames.contains(name));
 
             const QString displayText =
-                isUsedByOther ? name + QString::fromUtf8("（已使用）") : name;
+                isUsedByOther ? displayName + QString::fromUtf8("（已使用）") : displayName;
 
             row.speakerComboBox->addItem(displayText);
             row.speakerComboBox->setItemData(i, name, Qt::UserRole);
@@ -401,8 +411,17 @@ void SpeakerMixList::updateRowColor(RowComponents &row) {
 }
 
 void SpeakerMixList::updateBarLabelsAndColors() {
-    m_mixBar->setLabels(getLabels());
+    QVector<QString> labels;
+    labels.reserve(m_rows.size());
+    for (const auto &row : std::as_const(m_rows))
+        labels.append(speakerDisplayName(row.speakerName));
+    m_mixBar->setLabels(labels);
     m_mixBar->setSegmentColors(getColors());
+}
+
+QString SpeakerMixList::speakerDisplayName(const QString &speakerName) const {
+    const auto displayName = m_speakerDisplayNames.value(speakerName);
+    return displayName.isEmpty() ? speakerName : displayName;
 }
 
 QVector<QColor> SpeakerMixList::getColors() const {
