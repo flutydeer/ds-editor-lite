@@ -59,6 +59,7 @@ private:
     void syncRowsWithListItems();
     int findRowIndexBySender(const QObject *object) const;
     int findRowIndexBySpeaker(const QString &speakerName) const;
+    void refreshComboBoxItems();
     void updateRowColor(RowComponents &row);
     void updateBarLabelsAndColors();
     QVector<QColor> getColors() const;

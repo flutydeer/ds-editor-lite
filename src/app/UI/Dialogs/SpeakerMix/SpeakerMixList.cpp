@@ -10,7 +10,10 @@
 #include <QLabel>
 #include <QMouseEvent>
 #include <QResizeEvent>
+#include <QSet>
 #include <QSignalBlocker>
+#include <QFontMetrics>
+#include <QStandardItemModel>
 #include <QStyle>
 
 #include <utility>
@@ -51,16 +54,12 @@ void SpeakerMixList::setSpeakerTypes(const QStringList &speakerTypes) {
     m_speakerTypes = speakerTypes.empty() ? QStringList({"no singer"}) : speakerTypes;
 
     for (auto &row : m_rows) {
-        const QSignalBlocker blocker(row.speakerComboBox);
-        row.speakerComboBox->clear();
-        row.speakerComboBox->addItems(m_speakerTypes);
-        if (!m_speakerTypes.contains(row.speakerComboBox->currentText())) {
-            row.speakerComboBox->setCurrentText(m_speakerTypes.first());
-        }
-        row.speakerName = row.speakerComboBox->currentText();
+        if (!m_speakerTypes.contains(row.speakerName))
+            row.speakerName = m_speakerTypes.first();
         updateRowColor(row);
     }
 
+    refreshComboBoxItems();
     updateBarLabelsAndColors();
 }
 
@@ -112,6 +111,7 @@ void SpeakerMixList::addSpeaker(const QString &speakerName) {
         setRowsValues(values);
     }
 
+    refreshComboBoxItems();
     updateBarLabelsAndColors();
 }
 
@@ -149,6 +149,7 @@ void SpeakerMixList::removeSpeaker(const QString &speakerName) {
     }
 
     setRowsValues(values);
+    refreshComboBoxItems();
     updateBarLabelsAndColors();
 }
 
@@ -174,9 +175,10 @@ QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
     typeLabel->setFixedHeight(28);
 
     const auto speakerComboBox = new ComboBox(widget);
+    speakerComboBox->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     speakerComboBox->addItems(m_speakerTypes);
     speakerComboBox->setCurrentText(speakerType);
-    speakerComboBox->setFixedWidth(80);
+    speakerComboBox->setFixedWidth(120);
     connect(speakerComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             &SpeakerMixList::onSpeakerTypeChanged);
 
@@ -257,20 +259,31 @@ void SpeakerMixList::onItemOrderChanged() {
     }
 
     setRowsValues(reorderedValues);
+    refreshComboBoxItems();
     updateBarLabelsAndColors();
 }
 
-void SpeakerMixList::onSpeakerTypeChanged(int /*index*/) {
+void SpeakerMixList::onSpeakerTypeChanged(int index) {
     const int rowIndex = findRowIndexBySender(sender());
     if (rowIndex == -1)
         return;
 
+    const QString newName =
+        m_rows[rowIndex].speakerComboBox->itemData(index, Qt::UserRole).toString();
     const QString oldName = m_rows[rowIndex].speakerName;
-    const QString newName = m_rows[rowIndex].speakerComboBox->currentText();
-    m_rows[rowIndex].speakerName = newName;
 
+    if (newName.isEmpty() || newName == oldName)
+        return;
+    const int existingRowIndex = findRowIndexBySpeaker(newName);
+    if (existingRowIndex != -1 && existingRowIndex != rowIndex) {
+        refreshComboBoxItems();
+        return;
+    }
+
+    m_rows[rowIndex].speakerName = newName;
     updateRowColor(m_rows[rowIndex]);
     updateBarLabelsAndColors();
+    refreshComboBoxItems();
 
     emit speakerChanged(oldName, newName);
 }
@@ -334,8 +347,53 @@ int SpeakerMixList::findRowIndexBySpeaker(const QString &speakerName) const {
     return -1;
 }
 
+void SpeakerMixList::refreshComboBoxItems() {
+    QSet<QString> usedNames;
+    for (const auto &row : std::as_const(m_rows))
+        usedNames.insert(row.speakerName);
+
+    for (auto &row : m_rows) {
+        const QSignalBlocker blocker(row.speakerComboBox);
+        row.speakerComboBox->clear();
+
+        int selectIndex = -1;
+        int popupWidth = row.speakerComboBox->width();
+        const QFontMetrics fontMetrics(row.speakerComboBox->view()->font());
+
+        for (int i = 0; i < m_speakerTypes.size(); ++i) {
+            const QString &name = m_speakerTypes[i];
+            const bool isCurrentRow = (name == row.speakerName);
+            const bool isUsedByOther = (!isCurrentRow && usedNames.contains(name));
+
+            const QString displayText =
+                isUsedByOther ? name + QString::fromUtf8("（已使用）") : name;
+
+            row.speakerComboBox->addItem(displayText);
+            row.speakerComboBox->setItemData(i, name, Qt::UserRole);
+            popupWidth = std::max(popupWidth, fontMetrics.horizontalAdvance(displayText) + 36);
+
+            if (isUsedByOther) {
+                row.speakerComboBox->setItemData(i, QColor(255, 255, 255, 96),
+                                                 Qt::ForegroundRole);
+                if (auto *model =
+                        qobject_cast<QStandardItemModel *>(row.speakerComboBox->model())) {
+                    if (auto *item = model->item(i))
+                        item->setEnabled(false);
+                }
+            }
+
+            if (isCurrentRow)
+                selectIndex = i;
+        }
+
+        if (selectIndex >= 0)
+            row.speakerComboBox->setCurrentIndex(selectIndex);
+        row.speakerComboBox->view()->setMinimumWidth(popupWidth);
+    }
+}
+
 void SpeakerMixList::updateRowColor(RowComponents &row) {
-    const int colorIndex = m_speakerTypes.indexOf(row.speakerComboBox->currentText());
+    const int colorIndex = m_speakerTypes.indexOf(row.speakerName);
     row.color = defaultColors().value(colorIndex, defaultColors().first());
     static_cast<ColorDot *>(row.colorDot)->setColor(row.color);
 }
@@ -370,7 +428,7 @@ QVector<QString> SpeakerMixList::getLabels() const {
     QVector<QString> labels;
     labels.reserve(m_rows.size());
     for (const auto &row : m_rows) {
-        labels.append(row.speakerComboBox->currentText());
+        labels.append(row.speakerName);
     }
     return labels;
 }
