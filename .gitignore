@@ -51,8 +51,12 @@ CMakeSettings.json
 /vcpkg
 /data
 /*.natvis
+
+# AI Agents
 .trae
 .claude
+.codex
+.codegraph
 
 *.sublime-*
 setup-vcpkg.json
