@@ -1,12 +1,13 @@
 #include "SpeakerMixBar.h"
+#include "UI/Utils/SpeakerMixUtils.h"
 #include <QPainter>
 #include <QPainterPath>
 #include <QMouseEvent>
-#include <algorithm>
 #include <cmath>
 
 SpeakerMixBar::SpeakerMixBar(QWidget *parent)
-    : QWidget(parent), m_draggingIndex(-1), m_dragOffset(0), m_isDragging(false), m_readOnly(false) {
+    : QWidget(parent), m_draggingIndex(-1), m_dragOffset(0), m_isDragging(false),
+      m_readOnly(false) {
     setFixedHeight(m_trackHeight + 2 * m_margin);
     setMinimumWidth(300);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -169,7 +170,6 @@ void SpeakerMixBar::mousePressEvent(QMouseEvent *event) {
             const int handleCenterX = valueToPixel(m_dividers[m_draggingIndex]);
             m_dragOffset = event->pos().x() - handleCenterX;
             m_dragStartValues = m_values;
-            m_dragStartDividers = m_dividers;
             setCursor(Qt::SizeHorCursor);
             update();
         }
@@ -189,18 +189,15 @@ void SpeakerMixBar::mouseMoveEvent(QMouseEvent *event) {
         const double newValue = pixelToSnappedValue(adjustedX);
 
         const bool proportional = event->modifiers().testFlag(Qt::AltModifier);
-        const double minAllowed = proportional ? 0.0 : m_dragStartDividers[m_draggingIndex - 1];
-        const double maxAllowed = proportional ? 100.0 : m_dragStartDividers[m_draggingIndex + 1];
+        const int splitIndex = m_draggingIndex - 1;
+        m_values = proportional ? SpeakerMixUtils::proportionalDragWeights(
+                                      m_dragStartValues, splitIndex, newValue, 100.0)
+                                : SpeakerMixUtils::adjacentDragWeights(m_dragStartValues,
+                                                                       splitIndex, newValue, 100.0);
+        updateDividers();
 
-        if (newValue >= minAllowed && newValue <= maxAllowed) {
-            m_values = proportional ? proportionalDragValues(m_draggingIndex, newValue)
-                                    : adjacentDragValues(m_draggingIndex, newValue);
-            adjustValuesToSum100();
-            updateDividers();
-
-            update();
-            emit valuesChanged(m_values);
-        }
+        update();
+        emit valuesChanged(m_values);
     } else {
         const bool handleHovered = findHandleAtPosition(event->pos()) != -1;
         setCursor(handleHovered ? Qt::SizeHorCursor : Qt::ArrowCursor);
@@ -228,116 +225,14 @@ void SpeakerMixBar::updateDividers() {
     }
 }
 
-void SpeakerMixBar::adjustValuesToSum100() {
-    for (double &value : m_values) {
-        value = std::clamp(value, 0.0, 100.0);
-    }
-
-    double total = 0;
-    for (const double value : m_values) {
-        total += value;
-    }
-
-    if (!qFuzzyCompare(total, 100.0) && !m_values.isEmpty()) {
-        m_values.last() += 100 - total;
-        if (m_values.last() < 0) {
-            m_values.last() = 0;
-        }
-    }
-}
-
 void SpeakerMixBar::setInternalValues(const QVector<double> &values) {
-    m_values = values;
-    adjustValuesToSum100();
+    m_values = SpeakerMixUtils::normalizeFullWeights(values, 100.0);
     updateDividers();
     update();
 }
 
 QVector<int> SpeakerMixBar::roundedValues() const {
-    QVector<int> values;
-    values.reserve(m_values.size());
-
-    QVector<double> fractions;
-    fractions.reserve(m_values.size());
-
-    int allocated = 0;
-    for (const double value : m_values) {
-        const int floorValue = static_cast<int>(std::floor(value));
-        values.append(floorValue);
-        fractions.append(value - floorValue);
-        allocated += floorValue;
-    }
-
-    int remaining = 100 - allocated;
-    while (remaining > 0 && !values.isEmpty()) {
-        int bestIndex = 0;
-        for (int i = 1; i < fractions.size(); ++i) {
-            if (fractions[i] > fractions[bestIndex])
-                bestIndex = i;
-        }
-        values[bestIndex]++;
-        fractions[bestIndex] = -1.0;
-        remaining--;
-    }
-
-    return values;
-}
-
-QVector<double> SpeakerMixBar::adjacentDragValues(const int dividerIndex,
-                                                  const double newValue) const {
-    QVector<double> values = m_dragStartValues;
-    values[dividerIndex - 1] = newValue - m_dragStartDividers[dividerIndex - 1];
-    values[dividerIndex] = m_dragStartDividers[dividerIndex + 1] - newValue;
-    return values;
-}
-
-QVector<double> SpeakerMixBar::proportionalDragValues(const int dividerIndex,
-                                                      const double newValue) const {
-    QVector<double> left;
-    QVector<double> right;
-    left.reserve(dividerIndex);
-    right.reserve(m_dragStartValues.size() - dividerIndex);
-
-    for (int i = 0; i < m_dragStartValues.size(); ++i) {
-        if (i < dividerIndex)
-            left.append(m_dragStartValues[i]);
-        else
-            right.append(m_dragStartValues[i]);
-    }
-
-    QVector<double> values = scaleGroup(left, newValue);
-    values += scaleGroup(right, 100.0 - newValue);
-    return values;
-}
-
-QVector<double> SpeakerMixBar::scaleGroup(const QVector<double> &values, const double newTotal) {
-    if (values.isEmpty())
-        return {};
-
-    double oldTotal = 0;
-    for (const double value : values)
-        oldTotal += value;
-
-    QVector<double> scaled;
-    scaled.reserve(values.size());
-
-    if (qFuzzyIsNull(oldTotal)) {
-        const double baseValue = newTotal / values.size();
-        for (int i = 0; i < values.size(); ++i)
-            scaled.append(baseValue);
-    } else {
-        const double scale = newTotal / oldTotal;
-        for (const double value : values)
-            scaled.append(value * scale);
-    }
-
-    double allocated = 0;
-    for (const double value : scaled)
-        allocated += value;
-    if (!scaled.isEmpty())
-        scaled.last() += newTotal - allocated;
-
-    return scaled;
+    return SpeakerMixUtils::fullWeightsToPercentages(m_values, 100.0);
 }
 
 int SpeakerMixBar::valueToPixel(const double value) const {
@@ -350,5 +245,5 @@ double SpeakerMixBar::pixelToSnappedValue(const int pixel) const {
         return 0;
 
     const double value = (pixel - m_margin) * 100.0 / trackWidth;
-    return std::clamp(static_cast<double>(std::lround(value)), 0.0, 100.0);
+    return SpeakerMixUtils::snapCumulativeToPercent(value, 100.0);
 }

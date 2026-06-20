@@ -4,11 +4,14 @@
 
 #include "SpeakerMixEditorView.h"
 
+#include "UI/Controls/ToolTip.h"
 #include "UI/Utils/TrackColorPalette.h"
+#include "UI/Utils/SpeakerMixUtils.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include <QApplication>
+#include <QCursor>
 #include <QGraphicsScene>
 #include <QGraphicsSceneContextMenuEvent>
 #include <QGraphicsSceneHoverEvent>
@@ -16,10 +19,29 @@
 #include <QGraphicsView>
 #include <QKeyEvent>
 #include <QPainter>
+#include <QWidget>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+
+namespace {
+    QVector<double> toVector(const QList<double> &values) {
+        QVector<double> result;
+        result.reserve(values.size());
+        for (const double value : values)
+            result.append(value);
+        return result;
+    }
+
+    QList<double> toList(const QVector<double> &values) {
+        QList<double> result;
+        result.reserve(values.size());
+        for (const double value : values)
+            result.append(value);
+        return result;
+    }
+}
 
 SpeakerMixEditorView::SpeakerMixEditorView() {
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
@@ -42,6 +64,10 @@ SpeakerMixEditorView::SpeakerMixEditorView() {
         {960,  {0.10, 0.40}},
         {1440, {0.33, 0.33}},
     };
+}
+
+SpeakerMixEditorView::~SpeakerMixEditorView() {
+    delete m_tooltip.data();
 }
 
 const QList<SpeakerMixSpeaker> &SpeakerMixEditorView::speakers() const {
@@ -143,7 +169,7 @@ void SpeakerMixEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 
 void SpeakerMixEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
-        if (m_state.dragging) {
+        if (m_state.dragging || m_state.dragSplitIndex >= 0) {
             endDrag();
         } else if (m_state.selecting) {
             endIntervalSelection();
@@ -222,12 +248,7 @@ QList<double> SpeakerMixEditorView::interpolateWeights(const double tick) const 
     const int n = m_speakers.size();
 
     auto expandWeights = [&](const SpeakerMixKeyframe &kf) {
-        QList<double> result = kf.weights;
-        double sum = 0;
-        for (auto w : result)
-            sum += w;
-        result.append(1.0 - sum);
-        return result;
+        return toList(SpeakerMixUtils::storedWeightsToFull(toVector(kf.weights), n));
     };
 
     if (tick <= m_keyframes.first().tick)
@@ -253,12 +274,12 @@ QList<double> SpeakerMixEditorView::interpolateWeights(const double tick) const 
     result.reserve(n);
     double sum = 0;
     for (int i = 0; i < n - 1; i++) {
-        const double w = kf0.weights[i] + t * (kf1.weights[i] - kf0.weights[i]);
+        const double w = kf0.weights.value(i) + t * (kf1.weights.value(i) - kf0.weights.value(i));
         result.append(w);
         sum += w;
     }
     result.append(1.0 - sum);
-    return result;
+    return toList(SpeakerMixUtils::normalizeFullWeights(toVector(result)));
 }
 
 void SpeakerMixEditorView::drawStackedArea(QPainter *painter) const {
@@ -408,9 +429,8 @@ void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
             cumulative += weights[i];
             const double y = areaTop + areaHeight * cumulative;
 
-            const bool isSelected =
-                isKfSelected || (kfIndex == m_state.selectedKeyframeIndex &&
-                                 i == m_state.selectedSplitIndex);
+            const bool isSelected = isKfSelected || (kfIndex == m_state.selectedKeyframeIndex &&
+                                                     i == m_state.selectedSplitIndex);
             const int speakerIndex = i + 1;
 
             drawDot(speakerIndex, QPointF(localX, y), isSelected);
@@ -473,10 +493,8 @@ SpeakerMixHitResult SpeakerMixEditorView::hitTest(const QPointF &itemPos) const 
 }
 
 double SpeakerMixEditorView::cumWeightAtSplit(const SpeakerMixKeyframe &kf, int splitIndex) const {
-    double cum = 0;
-    for (int i = 0; i <= splitIndex; i++)
-        cum += kf.weights[i];
-    return cum;
+    return SpeakerMixUtils::cumulativeWeightAtSplit(
+        SpeakerMixUtils::storedWeightsToFull(toVector(kf.weights), m_speakers.size()), splitIndex);
 }
 
 double SpeakerMixEditorView::cumWeightFromItemY(double itemY) const {
@@ -493,7 +511,8 @@ double SpeakerMixEditorView::cumWeightToItemY(double cumWeight) const {
 
 void SpeakerMixEditorView::updateHover(const QPointF &itemPos) {
     const auto hit = hitTest(itemPos);
-    if (hit.keyframeIndex != m_state.hoveredKeyframeIndex || hit.splitIndex != m_state.hoveredSplitIndex) {
+    if (hit.keyframeIndex != m_state.hoveredKeyframeIndex ||
+        hit.splitIndex != m_state.hoveredSplitIndex) {
         m_state.hoveredKeyframeIndex = hit.keyframeIndex;
         m_state.hoveredSplitIndex = hit.splitIndex;
 
@@ -504,11 +523,11 @@ void SpeakerMixEditorView::updateHover(const QPointF &itemPos) {
                 setCursor(Qt::SizeHorCursor);
 
             const auto weights = interpolateWeights(m_keyframes[hit.keyframeIndex].tick);
+            const auto displayValues = SpeakerMixUtils::fullWeightsToPercentages(toVector(weights));
             QStringList parts;
             for (int i = 0; i < m_speakers.size(); i++)
-                parts.append(QString("%1: %2%")
-                                 .arg(m_speakers[i].name)
-                                 .arg(weights[i] * 100, 0, 'f', 1));
+                parts.append(
+                    QString("%1: %2%").arg(m_speakers[i].name).arg(displayValues.value(i)));
             setToolTip(parts.join("\n"));
         } else {
             setCursor(Qt::ArrowCursor);
@@ -552,6 +571,8 @@ void SpeakerMixEditorView::startDrag(const QPointF &scenePos) {
         m_state.dragStartWeights = m_keyframes[m_state.selectedKeyframeIndex];
         m_state.dragStartTick = m_keyframes[m_state.selectedKeyframeIndex].tick;
         m_state.dragSplitIndex = m_state.selectedSplitIndex;
+        if (m_state.dragSplitIndex >= 0)
+            showSplitDragToolTip();
     }
 }
 
@@ -563,8 +584,10 @@ void SpeakerMixEditorView::updateDrag(const QPointF &scenePos) {
     if (!m_state.dragging) {
         if (std::abs(delta.x()) > kDragThreshold || std::abs(delta.y()) > kDragThreshold)
             m_state.dragging = true;
-        else
+        else {
+            updateSplitDragToolTip();
             return;
+        }
     }
 
     const int ki = m_state.selectedKeyframeIndex;
@@ -590,44 +613,79 @@ void SpeakerMixEditorView::updateDrag(const QPointF &scenePos) {
     const bool altHeld = view ? (QApplication::keyboardModifiers() & Qt::AltModifier) : false;
     m_state.altDrag = altHeld;
 
-    const int n = m_speakers.size();
     const double deltaItemY = delta.y();
+    const QVector<double> dragStartFullWeights = SpeakerMixUtils::storedWeightsToFull(
+        toVector(m_state.dragStartWeights.weights), m_speakers.size());
 
     if (altHeld) {
-        const double oldCum = cumWeightAtSplit(m_state.dragStartWeights, si);
-        const double newCum = cumWeightFromItemY(cumWeightToItemY(oldCum) + deltaItemY);
-        const double clampedCum = std::clamp(newCum, 0.0, 1.0);
-
-        if (oldCum > 0 && oldCum < 1.0) {
-            const double scaleLeft = (oldCum > 0) ? clampedCum / oldCum : 1.0;
-            const double scaleRight =
-                (1.0 - oldCum > 0) ? (1.0 - clampedCum) / (1.0 - oldCum) : 1.0;
-
-            for (int i = 0; i <= si; i++)
-                kf.weights[i] = m_state.dragStartWeights.weights[i] * scaleLeft;
-            for (int i = si + 1; i < n - 1; i++)
-                kf.weights[i] = m_state.dragStartWeights.weights[i] * scaleRight;
-        }
+        const double oldCum = SpeakerMixUtils::cumulativeWeightAtSplit(dragStartFullWeights, si);
+        const double newCum = SpeakerMixUtils::snapCumulativeToPercent(
+            cumWeightFromItemY(cumWeightToItemY(oldCum) + deltaItemY));
+        kf.weights = toList(SpeakerMixUtils::fullWeightsToStored(
+            SpeakerMixUtils::proportionalDragWeights(dragStartFullWeights, si, newCum)));
     } else {
-        const double oldCum = cumWeightAtSplit(m_state.dragStartWeights, si);
-        const double newCum = cumWeightFromItemY(cumWeightToItemY(oldCum) + deltaItemY);
-
-        double prevCumBound = (si > 0) ? cumWeightAtSplit(m_state.dragStartWeights, si - 1) : 0.0;
-        double nextCumBound = (si < n - 2) ? cumWeightAtSplit(m_state.dragStartWeights, si + 1)
-                                           : 1.0;
-
-        double clampedCum = std::clamp(newCum, prevCumBound + 0.01, nextCumBound - 0.01);
-
-        double deltaCum = clampedCum - oldCum;
-        kf.weights[si] = m_state.dragStartWeights.weights[si] + deltaCum;
-        if (si + 1 < n - 1)
-            kf.weights[si + 1] = m_state.dragStartWeights.weights[si + 1] - deltaCum;
+        const double oldCum = SpeakerMixUtils::cumulativeWeightAtSplit(dragStartFullWeights, si);
+        const double newCum = SpeakerMixUtils::snapCumulativeToPercent(
+            cumWeightFromItemY(cumWeightToItemY(oldCum) + deltaItemY));
+        kf.weights = toList(SpeakerMixUtils::fullWeightsToStored(
+            SpeakerMixUtils::adjacentDragWeights(dragStartFullWeights, si, newCum)));
     }
+
+    updateSplitDragToolTip();
 }
 
 void SpeakerMixEditorView::endDrag() {
     m_state.dragging = false;
     m_state.dragSplitIndex = -1;
+    hideSplitDragToolTip();
+}
+
+void SpeakerMixEditorView::showSplitDragToolTip() {
+    if (!m_tooltip) {
+        QWidget *parent = nullptr;
+        if (scene() && !scene()->views().isEmpty())
+            parent = scene()->views().first();
+        if (!parent)
+            parent = QApplication::activeWindow();
+        m_tooltip = new ToolTip(QString(), parent);
+    }
+
+    updateSplitDragToolTip();
+    m_tooltip->setWindowOpacity(1);
+    const auto cursorPos = QCursor::pos();
+    m_tooltip->move(cursorPos.x(), cursorPos.y());
+    m_tooltip->show();
+}
+
+void SpeakerMixEditorView::updateSplitDragToolTip() {
+    if (!m_tooltip || m_state.selectedKeyframeIndex < 0 || m_state.dragSplitIndex < 0 ||
+        m_state.selectedKeyframeIndex >= m_keyframes.size())
+        return;
+
+    const auto fullWeights = SpeakerMixUtils::storedWeightsToFull(
+        toVector(m_keyframes[m_state.selectedKeyframeIndex].weights), m_speakers.size());
+    const auto displayValues = SpeakerMixUtils::fullWeightsToPercentages(fullWeights);
+
+    QStringList titleParts;
+    for (int i = 0; i < m_speakers.size(); ++i) {
+        const int value = displayValues.value(i);
+        titleParts.append(QString("%1: %2%").arg(m_speakers[i].name).arg(value));
+    }
+
+    m_tooltip->setTitle(titleParts.join("\n"));
+    m_tooltip->setMessage({});
+    const auto cursorPos = QCursor::pos();
+    m_tooltip->move(cursorPos.x(), cursorPos.y());
+}
+
+void SpeakerMixEditorView::hideSplitDragToolTip() {
+    if (!m_tooltip)
+        return;
+
+    m_tooltip->setWindowOpacity(0);
+    m_tooltip->hide();
+    m_tooltip->deleteLater();
+    m_tooltip = nullptr;
 }
 
 void SpeakerMixEditorView::addKeyframeAt(int tick) {
@@ -637,8 +695,7 @@ void SpeakerMixEditorView::addKeyframeAt(int tick) {
     const auto weights = interpolateWeights(tick);
     SpeakerMixKeyframe kf;
     kf.tick = tick;
-    for (int i = 0; i < m_speakers.size() - 1; i++)
-        kf.weights.append(weights[i]);
+    kf.weights = toList(SpeakerMixUtils::fullWeightsToStored(toVector(weights)));
 
     auto it = std::lower_bound(m_keyframes.begin(), m_keyframes.end(), tick,
                                [](const SpeakerMixKeyframe &kf, int t) { return kf.tick < t; });

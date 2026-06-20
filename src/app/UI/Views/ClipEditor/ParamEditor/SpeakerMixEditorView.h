@@ -9,6 +9,7 @@
 
 #include <QColor>
 #include <QPointF>
+#include <QPointer>
 #include <QRectF>
 #include <QString>
 #include <QList>
@@ -30,10 +31,13 @@ struct SpeakerMixHitResult {
     int splitIndex = -1;
 };
 
+class ToolTip;
+
 class SpeakerMixEditorView : public TimeOverlayView {
 
 public:
     SpeakerMixEditorView();
+    ~SpeakerMixEditorView() override;
 
     const QList<SpeakerMixSpeaker> &speakers() const;
     const QList<SpeakerMixKeyframe> &keyframes() const;
@@ -74,12 +78,16 @@ private:
     void startDrag(const QPointF &scenePos);
     void updateDrag(const QPointF &scenePos);
     void endDrag();
+    void showSplitDragToolTip();
+    void updateSplitDragToolTip();
+    void hideSplitDragToolTip();
 
     void addKeyframeAt(int tick);
     void deleteSelectedKeyframe();
 
     QList<SpeakerMixSpeaker> m_speakers;
     QList<SpeakerMixKeyframe> m_keyframes;
+    QPointer<ToolTip> m_tooltip;
 
     struct InteractionState {
         int hoveredKeyframeIndex = -1;

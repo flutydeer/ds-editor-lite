@@ -49,12 +49,8 @@ protected:
 
 private:
     void updateDividers();
-    void adjustValuesToSum100();
     void setInternalValues(const QVector<double> &values);
     QVector<int> roundedValues() const;
-    QVector<double> adjacentDragValues(int dividerIndex, double newValue) const;
-    QVector<double> proportionalDragValues(int dividerIndex, double newValue) const;
-    static QVector<double> scaleGroup(const QVector<double> &values, double newTotal);
     QRect getHandleRect(int dividerIndex) const;
     int findHandleAtPosition(const QPoint &position) const;
     int valueToPixel(double value) const;
@@ -64,7 +60,6 @@ private:
     QVector<QString> m_labels;
     QVector<double> m_dividers;
     QVector<double> m_dragStartValues;
-    QVector<double> m_dragStartDividers;
     QVector<QColor> m_segmentColors;
     int m_draggingIndex;
     int m_dragOffset;
