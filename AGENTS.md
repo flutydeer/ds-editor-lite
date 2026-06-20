@@ -63,6 +63,36 @@ docs/           # Chinese-language dev docs
 - C++20 standard, MSVC on Windows.
 - `SortIncludes: Never` - do not reorder `#include` directives.
 
+## CodeGraph MCP
+
+在 Agent 的 MCP 配置中添加以下内容：
+
+```json
+{
+  "mcpServers": {
+    "codegraph": {
+      "type": "stdio",
+      "command": "codegraph",
+      "args": ["serve", "--mcp"]
+    }
+  }
+}
+```
+
+需指定项目路径时：
+
+```json
+{
+  "mcpServers": {
+    "codegraph": {
+      "type": "stdio",
+      "command": "codegraph",
+      "args": ["serve", "--mcp", "--path", "path/to/ds-editor-lite"]
+    }
+  }
+}
+```
+
 ## Key dependencies
 
 Qt 6 (Widgets, Core5Compat, Concurrent, StateMachine, OpenGLWidgets), talcs (audio), opendspx (file format), QWindowKit (frameless window), dsinfer (DNN inference), SDL2, libsndfile, yaml-cpp, language-manager/LangCore (G2p/linguistics).
