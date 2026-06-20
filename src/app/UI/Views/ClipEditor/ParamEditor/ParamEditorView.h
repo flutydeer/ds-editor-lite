@@ -7,6 +7,7 @@
 
 #include "Model/AppModel/ParamProperties.h"
 #include "Model/AppModel/Params.h"
+#include "Model/AppModel/SpeakerMixData.h"
 
 #include <QWidget>
 
@@ -20,7 +21,7 @@ class ParamEditorView final : public QWidget {
 
 public:
     explicit ParamEditorView(QWidget *parent = nullptr);
-    void setDataContext(SingingClip *clip) const;
+    void setDataContext(SingingClip *clip);
     [[nodiscard]] ParamEditorGraphicsView *graphicsView() const;
 
 public slots:
@@ -30,6 +31,9 @@ public slots:
 private slots:
     void onPreviousKeyframe() const;
     void onNextKeyframe() const;
+    void onSpeakerMixEdited(const SpeakerMixModel::SpeakerMixData &data) const;
+    void onDynamicMixToggled(bool checked) const;
+    void refreshSpeakerMixToolBar() const;
 
 private:
     SingingClip *m_clip = nullptr;

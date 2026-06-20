@@ -11,12 +11,16 @@
 #include "SpeakerMixEditorView.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
+#include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Controller/PlaybackController.h"
+#include "Modules/History/HistoryManager.h"
 #include "Utils/ParamUtils.h"
 
 #include <QVBoxLayout>
+
+using namespace SpeakerMixModel;
 
 ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     const auto option = appOptions->general();
@@ -58,10 +62,24 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
             &ParamEditorView::onPreviousKeyframe);
     connect(m_toolBar, &ParamEditorToolBarView::nextKeyframe, this,
             &ParamEditorView::onNextKeyframe);
+    connect(m_toolBar, &ParamEditorToolBarView::dynamicMixToggled, this,
+            &ParamEditorView::onDynamicMixToggled);
+
+    auto *mixView = m_graphicsView->speakerMixView();
+    connect(mixView, &SpeakerMixEditorView::speakerMixEdited, this,
+            &ParamEditorView::onSpeakerMixEdited);
 }
 
-void ParamEditorView::setDataContext(SingingClip *clip) const {
+void ParamEditorView::setDataContext(SingingClip *clip) {
+    if (m_clip)
+        disconnect(m_clip, &SingingClip::speakerMixChanged, this,
+                   &ParamEditorView::refreshSpeakerMixToolBar);
+    m_clip = clip;
     m_graphicsView->setDataContext(clip);
+    if (m_clip)
+        connect(m_clip, &SingingClip::speakerMixChanged, this,
+                &ParamEditorView::refreshSpeakerMixToolBar);
+    refreshSpeakerMixToolBar();
 }
 
 ParamEditorGraphicsView *ParamEditorView::graphicsView() const {
@@ -75,15 +93,9 @@ void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) const {
         m_graphicsView->setForeground(name, *paramUtils->getPropertiesByName(name));
 
         auto *mixView = m_graphicsView->speakerMixView();
-        if (mixView) {
-            QStringList names;
-            QList<QColor> colors;
-            for (const auto &speaker : mixView->speakers()) {
-                names.append(speaker.name);
-                colors.append(speaker.color);
-            }
-            m_toolBar->setSpeakers(names, colors);
-        }
+        if (mixView && m_clip)
+            mixView->setSpeakerMixData(m_clip->speakerMixData());
+        refreshSpeakerMixToolBar();
         m_toolBar->setSpeakerMixMode(true);
         return;
     }
@@ -122,4 +134,71 @@ void ParamEditorView::onNextKeyframe() const {
         m_graphicsView->setViewportCenterAtTick(nextTick);
         playbackController->setPosition(nextTick);
     }
+}
+
+void ParamEditorView::onSpeakerMixEdited(const SpeakerMixData &data) const {
+    if (!m_clip)
+        return;
+
+    const auto normalized = normalizeSpeakerMixData(data);
+    if (normalized == m_clip->speakerMixData())
+        return;
+
+    const auto actions = new SpeakerMixActions;
+    actions->replaceSpeakerMix(normalized, m_clip);
+    actions->execute();
+    historyManager->record(actions);
+}
+
+void ParamEditorView::onDynamicMixToggled(const bool checked) const {
+    if (!m_clip)
+        return;
+
+    auto data = m_clip->speakerMixData();
+    if (data.sources.size() < 2)
+        return;
+
+    const int explicitWeightCount = data.sources.size() - 1;
+    if (checked) {
+        data.mode = SingerSourceMode::DynamicMix;
+        if (data.dynamicKeyframes.isEmpty()) {
+            if (data.fixedWeights.size() != explicitWeightCount)
+                return;
+            data.dynamicKeyframes.append({0, data.fixedWeights});
+        }
+    } else {
+        data.mode = SingerSourceMode::FixedMix;
+        if (data.fixedWeights.size() != explicitWeightCount) {
+            if (data.dynamicKeyframes.isEmpty())
+                return;
+            data.fixedWeights = data.dynamicKeyframes.first().weights;
+        }
+    }
+
+    onSpeakerMixEdited(data);
+}
+
+void ParamEditorView::refreshSpeakerMixToolBar() const {
+    auto *mixView = m_graphicsView->speakerMixView();
+    if (mixView && m_clip)
+        mixView->setSpeakerMixData(m_clip->speakerMixData());
+
+    QStringList names;
+    QList<QColor> colors;
+    if (mixView) {
+        for (const auto &speaker : mixView->speakers()) {
+            names.append(speaker.name);
+            colors.append(speaker.color);
+        }
+    }
+    m_toolBar->setSpeakers(names, colors);
+
+    const auto data = m_clip ? normalizeSpeakerMixData(m_clip->speakerMixData()) : SpeakerMixData();
+    const bool canUseFixed = !data.fixedWeights.isEmpty();
+    const bool canUseDynamic = !data.dynamicKeyframes.isEmpty();
+    const bool enabled =
+        data.sources.size() >= 2 && data.mode != SingerSourceMode::Single &&
+        (canUseFixed || canUseDynamic);
+    m_toolBar->setDynamicMixEnabled(enabled);
+    m_toolBar->setDynamicMixChecked(data.mode == SingerSourceMode::DynamicMix);
 }

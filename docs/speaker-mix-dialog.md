@@ -15,6 +15,10 @@ debug/demo 对话框推进到固定混合持久化小闭环：
 后续它会继续聚焦 **Fixed Mix**：作为固定混合配置和用户混合预设管理界面；Dynamic Mix
 关键帧权重只在 `SpeakerMixEditorView` 中编辑，不再通过对话框编辑。
 
+当前 Dynamic Mix 模型接入已完成。对话框仍是 `ClipEditorToolBarView` 上临时
+`Speaker Mix` 按钮打开的 Fixed Mix 入口，短期保留用于验证 fixedWeights 和 Dynamic Mix
+开关之间的切换关系。
+
 对话框位于 `src/app/UI/Dialogs/SpeakerMix/`：
 
 - `SpeakerMixDialog.h/.cpp` — 继承 `OKCancelDialog`，组合 tag 选择区 + 列表 + 比例条
@@ -126,6 +130,7 @@ struct SpeakerMixData {
 - `sources.size() >= 2`
 - 权重采用 N-1 存储，最后一个 speaker 权重为 `1 - sum(weights)`
 - 权重 clamp 到 `[0, 1]`
+- `fixedWeights` 与 `dynamicKeyframes` 可以同时存在；`mode` 只表示当前生效模式
 - 无效数据（speaker 缺失、长度不匹配、speaker 不属于当前 singer）降级为 Single
 - effective singer 改变时，已有 Fixed/Dynamic mix 重置为 Single
 
@@ -153,7 +158,7 @@ struct SpeakerMixData {
 | `setDoubleValues(values)` | 用 double 百分比恢复比例条与行位置 |
 | `getMixBar()` | 返回 `SpeakerMixBar` 指针 |
 | `getValues() / getLabels()` | 获取当前整数显示比例与 speaker id 列表 |
-| `defaultColors()` | public static，Dialog/tag/bar 共用颜色 |
+| `defaultColors()` | public static，当前 Dialog/tag/bar 共用颜色；后续需要迁移到统一的 speaker mix 颜色 resolver |
 
 ## SpeakerMixBar 实现要点
 
@@ -187,7 +192,8 @@ struct SpeakerMixData {
 
 - `mode == Single` 时省略 `speakerMix`
 - Fixed Mix 使用 `fixedWeights`
-- Dynamic Mix 使用 `dynamicKeyframes`，但为了支持 Dynamic Mix 开关，`fixedWeights` 与 `dynamicKeyframes` 后续需要允许同时保留
+- Dynamic Mix 使用 `dynamicKeyframes`
+- 为了支持 Dynamic Mix 开关，`fixedWeights` 与 `dynamicKeyframes` 现在允许同时写入与恢复
 - 读取时使用当前 effective singer 的 `speakers()` 严格解析 source
 - 官方 opendspx `sources` 仍写当前单 effective singer/speaker，作为推理和第三方兼容 fallback
 
@@ -212,26 +218,24 @@ struct SpeakerMixData {
 ## 临时状态
 
 - `ClipEditorToolBarView` 中的 `Speaker Mix` 按钮是临时测试入口
-- `GeneralOption.h` / `ParamEditorView.cpp` 中有用于默认进入 Speaker Mix 页的本地改动；动态混合尚未接入模型前，这个入口先保留，方便继续验证编辑器
+- 用于默认进入 Speaker Mix 页的本地测试改动已移除；现在仍可通过参数前景下拉框手动切到 Speaker Mix 页验证 Dynamic Mix
 - 本轮不实现动态混合推理；推理仍使用当前单 speaker fallback
 - 本轮不写 opendspx 官方 mix 结构
+- 当前 Fixed Mix 对话框与 Dynamic Mix 编辑视图的声线颜色规则尚未统一。speaker 本身不带颜色，后续需要在 UI 层集中管理颜色派生规则。
+- 当前对话框在 `mode == DynamicMix` 时仍主要作为 Fixed Mix 临时入口使用；如何从 DynamicMix 数据初始化当前 sources / fixedWeights 需要后续整理。
 
 ## 下一步
 
-结合 `speaker-mix-plan.md`，下一步建议从宏观上转向 **Dynamic Mix 模型接入**，而不是先清理 Speaker Mix 编辑器入口。
-推荐顺序如下：
+结合 `speaker-mix-plan.md`，Dynamic Mix 模型接入已完成，下一步建议按下面顺序推进：
 
-1. 接入 Dynamic Mix 编辑器
-   - `SpeakerMixEditorView` 从硬编码 `spk1/spk2/spk3` 改为绑定 `SingingClip::SpeakerMixData`
-   - Dynamic Mix 下锁定 speaker 列表，只允许编辑 keyframe 权重
-   - 关键帧编辑通过 `ReplaceSpeakerMixAction` 提交
-   - 现有默认跳转到 Speaker Mix 页的本地改动先保留，作为动态混合验证入口
+1. 整理 speaker mix 颜色管理
+   - Fixed Mix 对话框、Dynamic Mix 编辑视图、参数页工具栏使用统一颜色派生规则
+   - 颜色保持 UI 派生状态，不写入 `SpeakerMixData`
+   - 优先考虑基于 `SingingClip::singerInfo().speakers()` 的稳定顺序派生
 
-2. 补齐 Fixed Mix / Dynamic Mix 的模式切换语义
-   - Fixed → Dynamic：用当前 Fixed Mix 比例创建第一个 dynamic keyframe
-   - Dynamic → Fixed：保留原 Fixed Mix 比例，不从 dynamic keyframe 强制反写
-   - 关闭 Dynamic 不删除 keyframes，后续重新开启可恢复
-   - 调整 `SpeakerMixData` normalize 策略，避免切换模式时清掉 inactive 数据
+2. 整理 Fixed Mix 对话框在 DynamicMix 状态下的初始化语义
+   - 当前 `mode == DynamicMix` 但仍保留 `fixedWeights` 和 `sources`
+   - 打开 Fixed Mix 临时入口时，应显示可回退/可编辑的 Fixed Mix 底座，而不是退回全部 speaker
 
 3. 再整理正式入口
    - `ClipEditorToolBarView` 的 `Speaker Mix` 按钮短期继续作为固定混合对话框入口

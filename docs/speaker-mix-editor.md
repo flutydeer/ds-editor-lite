@@ -4,8 +4,8 @@
 
 在钢琴卷帘底部的参数编辑器（ParamEditorView）中新增 speaker mix（声线混合）编辑功能。Speaker mix 控制不同 speaker（说话人/声线）混合比例随时间的变化，所有 speaker 权重之和始终为 100%，通过关键帧插值实现平滑过渡。
 
-后续模型接入后，`SpeakerMixEditorView` 只负责 Dynamic Mix 关键帧编辑；Fixed Mix 的 speaker
-组合和固定比例由 `SpeakerMixDialog` / preset 管理入口负责。
+当前模型接入已完成，`SpeakerMixEditorView` 只负责 Dynamic Mix 关键帧编辑；Fixed Mix 的
+speaker 组合和固定比例由 `SpeakerMixDialog` / preset 管理入口负责。
 
 ## 与现有参数的差异
 
@@ -18,20 +18,21 @@
 
 ## 分阶段计划
 
-### 第一阶段：视图层功能（当前）
+### 第一阶段：视图层功能（完成）
 
 目标：实现 speaker mix 的渲染和交互，数据临时存放在视图内部，不涉及文档模型。
 
-### 第二阶段：模型集成（后续）
+### 第二阶段：模型集成（完成）
 
 目标：将 speaker mix 数据纳入文档模型，支持序列化/反序列化、撤销/重做。
 
-模型接入时需要提供 Dynamic Mix 开关：
+当前已提供 Dynamic Mix 开关：
 
 - 关：`mode = FixedMix`，使用 `fixedWeights`，编辑器可显示固定比例但禁用关键帧编辑
 - 开：`mode = DynamicMix`，使用 `dynamicKeyframes`，允许编辑关键帧
 - 首次开启时，如果没有 keyframe，则用 `fixedWeights` 创建第一个关键帧
 - 关闭时不删除 keyframes，再次开启时恢复
+- `fixedWeights` 与 `dynamicKeyframes` 可以同时保留；`mode` 只表示当前生效模式
 
 ---
 
@@ -80,12 +81,12 @@ ParamEditorGraphicsView
 - 选择 speaker mix 作为前景 → 隐藏 `m_foreground`，显示 `m_speakerMixView`
 - `m_background` 始终可用，不受 speaker mix 模式影响
 
-### 数据模型（第一阶段，视图内部临时存储）
+### 数据模型（当前实现）
 
 ```cpp
 struct SpeakerInfo {
     QString name;    // e.g. "Opencpop", "夏叶子", "绮萱"
-    QColor color;    // 从 TrackColorPalette::baseColor(index) 按序号获取
+    QColor color;    // UI 派生颜色，不进入 SpeakerMixData
 };
 
 struct SpeakerMixKeyframe {
@@ -94,7 +95,16 @@ struct SpeakerMixKeyframe {
 };
 ```
 
-**Speaker 数据来源：** 第一阶段硬编码 3 条测试 speaker。颜色从 `TrackColorPalette`（12 色循环池）按序号取 `baseColor(index)`。
+**Speaker 数据来源：** 当前来自 `SingingClip::SpeakerMixData::sources`。显示名优先使用
+`SpeakerInfo::name()`，为空时回退 `speaker.id()`。
+
+**Keyframe 数据来源：**
+
+- Dynamic Mix 开启：显示并编辑 `dynamicKeyframes`
+- Dynamic Mix 关闭：显示由 `fixedWeights` 构造的只读平直关键帧
+
+**颜色来源：** 当前从 `TrackColorPalette` 按 `sources` 下标派生。Fixed Mix 对话框仍有另一套
+基于 singer speaker 列表顺序的颜色规则，后续需要统一到 UI 层 resolver。
 
 ### 新增/修改组件
 
@@ -123,7 +133,9 @@ struct SpeakerMixKeyframe {
 
 #### 初始关键帧
 
-歌声剪辑（SingingClip）的时间轴开头自动放置一个**不可移动、不可删除**的关键帧，作为初始锚点。其权重为默认比例（第一阶段硬编码均分：33% / 33% / 34%）。第一阶段通过判断 `kf.tick == 0` 识别初始关键帧。
+开启 Dynamic Mix 时，时间轴开头会有一个 **tick 0 关键帧**作为初始锚点。首次开启且没有
+`dynamicKeyframes` 时，它由当前 `fixedWeights` 创建。该关键帧不可水平移动、不可删除，但分界点可编辑。
+当前通过判断 `kf.tick == 0` 识别初始关键帧。
 
 #### 添加关键帧
 
@@ -293,7 +305,7 @@ HitResult hitTest(const QPointF &itemPos) const;
 - 关键帧导航：上一个关键帧 / 下一个关键帧按钮
 - Speaker 列表：彩色圆点 + 名称（每个 speaker 一项）
 
-Dynamic Mix 开关建议行为：
+Dynamic Mix 开关行为：
 
 - 仅在当前 clip 具备 Fixed Mix sources（至少 2 个 speaker）时可用
 - 关闭时，视图可以显示一条基于 `fixedWeights` 的平直混合背景，但不允许添加/删除/拖动关键帧
@@ -316,7 +328,7 @@ Dynamic Mix 开关建议行为：
 
 - [x] 工具栏：需要独立的 `SpeakerMixToolBarView`，仅在前景参数为 speaker mix 时显示，包含关键帧导航和 speaker 列表
 - [x] 拖拽策略：直接拖动分割点仅改变相邻两个 speaker 比例；Alt+拖动等比压缩/拉伸两侧
-- [x] Speaker 列表来源：第一阶段硬编码 3 条测试数据，颜色从 `TrackColorPalette` 按序号取
+- [x] Speaker 列表来源：当前 clip 的 `SpeakerMixData::sources`，颜色暂从 `TrackColorPalette` 按 source 下标取
 - [x] 添加关键帧：双击空白区域添加，权重取插值值
 - [x] 删除关键帧：Delete 键 + 右键菜单两种方式
 - [x] 选中机制：单击选中分割点（关键帧视为已选中）；区间框选多个关键帧（y 值忽略）
@@ -326,10 +338,14 @@ Dynamic Mix 开关建议行为：
 - [x] 关键帧导航：滚动视口 centerAt(tick) + 移动播放头
 - [x] 不再为 Dynamic Mix 关键帧提供单独属性对话框；权重编辑只在 `SpeakerMixEditorView` 内完成
 - [x] Dynamic Mix 需要开关控制是否生效；关闭时回退 Fixed Mix，且不删除 keyframes
+- [x] `SpeakerMixEditorView` 绑定 `SingingClip::SpeakerMixData`，移除硬编码 speaker/keyframes
+- [x] Dynamic Mix 关键帧编辑通过 `ReplaceSpeakerMixAction` 提交
+- [x] `fixedWeights` 和 `dynamicKeyframes` 可同时保留，`mode` 只表示当前生效模式
 
 ## 待讨论事项
 
-（暂无）
+- Speaker mix 颜色管理：speaker 本身无颜色，Fixed Mix 对话框和 Dynamic Mix 编辑视图需要使用统一的 UI 派生规则。初步倾向基于 `SingingClip::singerInfo().speakers()` 的稳定顺序派生；找不到 singer 上下文时的 fallback 颜色策略待讨论。
+- Fixed Mix 对话框在当前 `mode == DynamicMix` 时的初始化语义：应如何显示当前 sources / fixedWeights 底座，待后续整理。
 
 ---
 
@@ -345,8 +361,9 @@ Dynamic Mix 开关建议行为：
 - [x] 区间选中样式：选中的关键帧竖线变蓝，圆点变蓝；选择框为 beam 模式（只有左右边线）
 - [x] 区间选中实时更新：拖拽过程中实时更新 selectedKeyframeIndices，不等松手
 - [x] 批量删除：Delete 键可删除区间选中的所有关键帧（跳过初始帧）
-- [x] 圆点半径调整：kDotRadius 从 4px 改为 2px
+- [x] 圆点半径调整：当前外圈半径 `kDotRadius = 6px`，内圈半径 `kInnerDotRadius = 4px`
 - [x] 右键菜单：`QMenu` 改为项目 `Menu` 类，`popup()` 改为 `exec()` + `deleteLater()`，初始关键帧显示菜单但禁用删除
+- [x] Speaker Mix 工具栏闪烁：关键帧编辑提交后会刷新 toolbar speaker chips。修复：`setSpeakers()`、Dynamic 开关 enabled/checked 更新增加幂等判断，数据未变化时不重建控件
 
 ## 待修复问题
 
@@ -362,7 +379,7 @@ Dynamic Mix 开关建议行为：
 - [x] 确定 `SpeakerMixEditorView` 独立于 `CommonParamEditorView`
 - [x] 确定工具栏方案：speaker mix 控件嵌入 `ParamEditorToolBarView` 内部（不再使用独立 `SpeakerMixToolBarView`）
 - [x] 确定拖拽策略：分割点直接拖 / Alt 等比拖
-- [x] 确定数据来源：第一阶段硬编码 3 条 speaker，颜色从 TrackColorPalette 取
+- [x] 确定数据来源：当前 clip 的 `SpeakerMixData::sources` / `dynamicKeyframes`
 - [x] 确定详细操作逻辑（添加/删除/选中/拖拽/插值/边界/导航）
 - [x] 实现 `SpeakerMixEditorView`（数据模型 + 堆叠面积图渲染 + 关键帧竖线/圆点）
 - [x] 修改 `ParamEditorGraphicsView` 集成 speaker mix（m_speakerMixView，前景切换）
@@ -379,21 +396,31 @@ Dynamic Mix 开关建议行为：
 - [x] 修复区间选择忽略 y 范围 + beam 模式选择框
 - [x] 修复 Delete 键无响应（ItemIsFocusable）
 - [x] 区间选中样式 + 实时更新 + 批量删除
-- [x] 圆点半径调整（4px → 2px）
+- [x] 圆点半径调整（当前外圈 6px，内圈 4px）
 - [x] 右键菜单改用项目 Menu 类（exec + deleteLater，初始帧禁用删除而非不显示菜单）
 - [x] 关键帧水平移动：点击竖线（非分割点）可左右拖拽移动关键帧位置，初始帧不可移动，不可越过相邻帧
+- [x] 接入真实模型：`SpeakerMixEditorView` 绑定 `SingingClip::SpeakerMixData`
+- [x] 移除硬编码 speaker/keyframes
+- [x] Dynamic Mix 开关接入参数页工具栏
+- [x] 开启 Dynamic：无 keyframe 时由 fixedWeights 创建 tick 0 首帧；已有 keyframes 时仅切换 mode
+- [x] 关闭 Dynamic：回到 fixedWeights，不删除 dynamicKeyframes；fixedWeights 无效时用首个 dynamic keyframe 补齐
+- [x] 编辑权重、添加/删除/移动 keyframe 后通过 `ReplaceSpeakerMixAction` 提交，支持 undo/redo
+- [x] workspace 同时读写 `fixedWeights` 与 `dynamicKeyframes`
+- [x] 修复关键帧编辑后工具栏 speaker 指示器闪烁
 - [ ] 进一步优化编辑体验
+- [ ] 统一 Fixed Mix 对话框与 Dynamic Mix 编辑视图的 speaker 颜色规则
+- [ ] 整理 Fixed Mix 对话框在 DynamicMix 状态下的初始化语义
 
 ### 当前实现细节备忘
 
-- `SpeakerMixEditorView` 继承 `TimeOverlayView`，不使用 `Q_OBJECT`（基类已有）
-- 填充色使用 `TrackColorPalette::clipBackgroundTransparent(index)`
+- `SpeakerMixEditorView` 继承 `TimeOverlayView`，当前带 `Q_OBJECT`，用于发出 `speakerMixEdited`
+- 填充色使用 `TrackColorPalette::speakerMixParamFill(index)`
 - 分割线白色 `(220, 220, 220, 200)`，关键帧竖线 `(220, 220, 220, 160)`
 - Speaker mix 在前景 ComboBox 中使用 `ParamInfo::Unknown` 作为标识值（index + 1 自然映射到 Unknown=10）
 - Swap 按钮在 speaker mix 模式下禁用（不允许交换到背景）
 - 数据结构：`SpeakerMixSpeaker`（避免与 `PackageManager/Models/SpeakerInfo` 同名冲突）
 - 交互状态全部使用 int index 引用关键帧，不使用指针（避免 QList 操作后失效）
-- Speaker mix 工具栏控件嵌入 `ParamEditorToolBarView`，通过 `setSpeakerMixMode(bool)` 控制显隐
+- Speaker mix 工具栏控件嵌入 `ParamEditorToolBarView`，通过 `setSpeakerMixMode(bool)` 控制显隐，包含 Dynamic Mix 开关、关键帧导航和 speaker 指示器
 - 拖拽状态机：`startDrag` 设 `dragging=false`（待定），`mouseMoveEvent` 中 `selectedKeyframeIndex >= 0` 时也调用 `updateDrag`，超过阈值后 `dragging=true`
 - 插值：仅线性插值，`SpeakerMixKeyframe` 不含 interpMode 字段，右键菜单只有删除
 - 键盘事件：构造函数设 `ItemIsFocusable`，mousePressEvent 中 `setFocus()`
@@ -402,3 +429,4 @@ Dynamic Mix 开关建议行为：
 - 光标：分割点 SizeVerCursor，竖线 SizeHorCursor，无命中 ArrowCursor
 - 选择框：beam 模式（全高，只有左右边线），实时更新选中状态
 - 选中样式：区间选中的关键帧竖线和圆点都变蓝 `(155, 186, 255)`
+- 当前颜色：Dynamic Mix 编辑视图按 `sources` 下标从 `TrackColorPalette` 派生；Fixed Mix 对话框按 singer speaker 列表顺序使用本地 defaultColors，二者需要后续统一

@@ -5,12 +5,17 @@
 #include "SpeakerMixToolBarView.h"
 
 #include "UI/Controls/ColorDot.h"
+#include "UI/Controls/SwitchButton.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QSignalBlocker>
 
 SpeakerMixToolBarView::SpeakerMixToolBarView(QWidget *parent) : QWidget(parent) {
     auto *layout = new QHBoxLayout;
+
+    m_dynamicLabel = new QLabel(tr("Dynamic"));
+    m_dynamicSwitch = new SwitchButton;
 
     m_btnPrev = new Button(QStringLiteral("\u25C0"));
     m_btnPrev->setObjectName("btnPrevKeyframe");
@@ -19,6 +24,9 @@ SpeakerMixToolBarView::SpeakerMixToolBarView(QWidget *parent) : QWidget(parent) 
     m_btnNext->setObjectName("btnNextKeyframe");
     m_btnNext->setFixedWidth(28);
 
+    layout->addWidget(m_dynamicLabel);
+    layout->addWidget(m_dynamicSwitch);
+    layout->addSpacing(8);
     layout->addWidget(m_btnPrev);
     layout->addWidget(m_btnNext);
     layout->addSpacing(8);
@@ -37,9 +45,17 @@ SpeakerMixToolBarView::SpeakerMixToolBarView(QWidget *parent) : QWidget(parent) 
 
     connect(m_btnPrev, &Button::clicked, this, &SpeakerMixToolBarView::previousKeyframe);
     connect(m_btnNext, &Button::clicked, this, &SpeakerMixToolBarView::nextKeyframe);
+    connect(m_dynamicSwitch, &SwitchButton::clicked, this,
+            &SpeakerMixToolBarView::dynamicMixToggled);
 }
 
 void SpeakerMixToolBarView::setSpeakers(const QStringList &names, const QList<QColor> &colors) {
+    if (m_speakerNames == names && m_speakerColors == colors)
+        return;
+
+    m_speakerNames = names;
+    m_speakerColors = colors;
+
     auto *speakerLayout = m_speakerContainer->layout();
     QLayoutItem *item;
     while ((item = speakerLayout->takeAt(0)) != nullptr) {
@@ -62,4 +78,24 @@ void SpeakerMixToolBarView::setSpeakers(const QStringList &names, const QList<QC
         itemWidget->setLayout(itemLayout);
         speakerLayout->addWidget(itemWidget);
     }
+}
+
+void SpeakerMixToolBarView::setDynamicMixEnabled(const bool enabled) {
+    if (m_dynamicMixEnabled == enabled)
+        return;
+
+    m_dynamicMixEnabled = enabled;
+    m_dynamicLabel->setEnabled(enabled);
+    m_dynamicSwitch->setEnabled(enabled);
+    m_btnPrev->setEnabled(enabled);
+    m_btnNext->setEnabled(enabled);
+}
+
+void SpeakerMixToolBarView::setDynamicMixChecked(const bool checked) {
+    if (m_dynamicMixChecked == checked)
+        return;
+
+    m_dynamicMixChecked = checked;
+    const QSignalBlocker blocker(m_dynamicSwitch);
+    m_dynamicSwitch->setValue(checked);
 }

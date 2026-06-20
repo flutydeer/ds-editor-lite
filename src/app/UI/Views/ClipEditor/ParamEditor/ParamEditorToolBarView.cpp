@@ -63,6 +63,8 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
             &ParamEditorToolBarView::previousKeyframe);
     connect(m_speakerMixToolBar, &SpeakerMixToolBarView::nextKeyframe, this,
             &ParamEditorToolBarView::nextKeyframe);
+    connect(m_speakerMixToolBar, &SpeakerMixToolBarView::dynamicMixToggled, this,
+            &ParamEditorToolBarView::dynamicMixToggled);
 
     cbForegroundParam->setCurrentIndex(appOptions->general()->defaultForegroundParam - 1);
     cbBackgroundParam->setCurrentIndex(appOptions->general()->defaultBackgroundParam - 1);
@@ -74,6 +76,14 @@ void ParamEditorToolBarView::setSpeakerMixMode(bool on) {
 
 void ParamEditorToolBarView::setSpeakers(const QStringList &names, const QList<QColor> &colors) {
     m_speakerMixToolBar->setSpeakers(names, colors);
+}
+
+void ParamEditorToolBarView::setDynamicMixEnabled(const bool enabled) {
+    m_speakerMixToolBar->setDynamicMixEnabled(enabled);
+}
+
+void ParamEditorToolBarView::setDynamicMixChecked(const bool checked) {
+    m_speakerMixToolBar->setDynamicMixChecked(checked);
 }
 
 void ParamEditorToolBarView::onForegroundSelectionChanged(const int index) {

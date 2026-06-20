@@ -23,12 +23,15 @@ public:
 
     void setSpeakerMixMode(bool on);
     void setSpeakers(const QStringList &names, const QList<QColor> &colors);
+    void setDynamicMixEnabled(bool enabled);
+    void setDynamicMixChecked(bool checked);
 
 signals:
     void foregroundChanged(ParamInfo::Name name);
     void backgroundChanged(ParamInfo::Name name);
     void previousKeyframe();
     void nextKeyframe();
+    void dynamicMixToggled(bool checked);
 
 private slots:
     void onForegroundSelectionChanged(int index);

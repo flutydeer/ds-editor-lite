@@ -255,9 +255,10 @@ namespace {
             sources.append(encodeSpeakerInfoForWorkspace(source.speaker));
         obj["sources"] = sources;
 
-        if (normalized.mode == SingerSourceMode::FixedMix) {
+        if (!normalized.fixedWeights.isEmpty())
             obj["fixedWeights"] = encodeWeights(normalized.fixedWeights);
-        } else {
+
+        if (!normalized.dynamicKeyframes.isEmpty()) {
             QJsonArray keyframes;
             for (const auto &keyframe : normalized.dynamicKeyframes) {
                 QJsonObject keyframeObj;
@@ -297,22 +298,16 @@ namespace {
             data.sources.append({speaker});
         }
 
-        const int explicitWeightCount = data.sources.size() - 1;
-        if (data.mode == SingerSourceMode::FixedMix) {
+        if (obj.contains("fixedWeights"))
             data.fixedWeights = decodeWeights(obj["fixedWeights"].toArray());
-            if (data.fixedWeights.size() != explicitWeightCount)
-                return {};
-        } else {
-            const auto keyframesArray = obj["dynamicKeyframes"].toArray();
-            if (keyframesArray.isEmpty())
-                return {};
+
+        const auto keyframesArray = obj["dynamicKeyframes"].toArray();
+        if (!keyframesArray.isEmpty()) {
             for (const auto &keyframeValue : keyframesArray) {
                 const auto keyframeObj = keyframeValue.toObject();
                 SpeakerMixKeyframe keyframe;
                 keyframe.tick = keyframeObj["tick"].toInt();
                 keyframe.weights = decodeWeights(keyframeObj["weights"].toArray());
-                if (keyframe.weights.size() != explicitWeightCount)
-                    return {};
                 data.dynamicKeyframes.append(keyframe);
             }
         }

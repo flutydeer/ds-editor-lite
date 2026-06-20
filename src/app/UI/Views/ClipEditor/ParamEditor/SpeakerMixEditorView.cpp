@@ -25,6 +25,10 @@
 #include <cmath>
 #include <limits>
 
+using SpeakerMixModel::SingerSourceMode;
+using SpeakerMixModel::SpeakerMixData;
+using SpeakerMixModel::normalizeSpeakerMixData;
+
 namespace {
     QVector<double> toVector(const QList<double> &values) {
         QVector<double> result;
@@ -47,27 +51,33 @@ SpeakerMixEditorView::SpeakerMixEditorView() {
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     setTransparentMouseEvents(false);
     setFlag(ItemIsFocusable);
-
-    auto *palette = TrackColorPalette::instance();
-    m_speakers = {
-        {QStringLiteral("spk1"), palette->baseColor(0), palette->speakerMixParamFill(0),
-         palette->speakerMixDotFill(0)},
-        {QStringLiteral("spk2"), palette->baseColor(1), palette->speakerMixParamFill(1),
-         palette->speakerMixDotFill(1)},
-        {QStringLiteral("spk3"), palette->baseColor(2), palette->speakerMixParamFill(2),
-         palette->speakerMixDotFill(2)},
-    };
-
-    m_keyframes = {
-        {0,    {0.33, 0.33}},
-        {480,  {0.60, 0.20}},
-        {960,  {0.10, 0.40}},
-        {1440, {0.33, 0.33}},
-    };
 }
 
 SpeakerMixEditorView::~SpeakerMixEditorView() {
     delete m_tooltip.data();
+}
+
+void SpeakerMixEditorView::setSpeakerMixData(const SpeakerMixData &data) {
+    m_data = normalizeSpeakerMixData(data);
+    syncFromData();
+}
+
+SpeakerMixData SpeakerMixEditorView::speakerMixData() const {
+    SpeakerMixData result = m_data;
+    if (m_editable) {
+        result.dynamicKeyframes.clear();
+        for (const auto &keyframe : m_keyframes) {
+            SpeakerMixModel::SpeakerMixKeyframe modelKeyframe;
+            modelKeyframe.tick = keyframe.tick;
+            modelKeyframe.weights = toVector(keyframe.weights);
+            result.dynamicKeyframes.append(modelKeyframe);
+        }
+    }
+    return normalizeSpeakerMixData(result);
+}
+
+bool SpeakerMixEditorView::isEditable() const {
+    return m_editable;
 }
 
 const QList<SpeakerMixSpeaker> &SpeakerMixEditorView::speakers() const {
@@ -127,6 +137,11 @@ void SpeakerMixEditorView::updateRectAndPos() {
 }
 
 void SpeakerMixEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+    if (!m_editable) {
+        event->ignore();
+        return;
+    }
+
     if (event->button() != Qt::LeftButton) {
         event->ignore();
         return;
@@ -154,6 +169,11 @@ void SpeakerMixEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void SpeakerMixEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
+    if (!m_editable) {
+        event->ignore();
+        return;
+    }
+
     if (event->buttons() & Qt::LeftButton) {
         if (m_state.dragging || m_state.selectedKeyframeIndex >= 0) {
             updateDrag(event->scenePos());
@@ -168,6 +188,11 @@ void SpeakerMixEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void SpeakerMixEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+    if (!m_editable) {
+        event->ignore();
+        return;
+    }
+
     if (event->button() == Qt::LeftButton) {
         if (m_state.dragging || m_state.dragSplitIndex >= 0) {
             endDrag();
@@ -180,6 +205,11 @@ void SpeakerMixEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void SpeakerMixEditorView::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
+    if (!m_editable) {
+        event->ignore();
+        return;
+    }
+
     if (event->button() != Qt::LeftButton)
         return;
 
@@ -189,6 +219,7 @@ void SpeakerMixEditorView::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event
         const double sceneX = itemPos.x() + pos().x();
         const int tick = static_cast<int>(sceneXToTick(sceneX));
         addKeyframeAt(tick);
+        emitEditedData();
     }
     update();
     event->accept();
@@ -201,8 +232,16 @@ void SpeakerMixEditorView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 }
 
 void SpeakerMixEditorView::keyPressEvent(QKeyEvent *event) {
+    if (!m_editable) {
+        event->ignore();
+        return;
+    }
+
     if (event->key() == Qt::Key_Delete) {
+        const auto before = speakerMixData();
         deleteSelectedKeyframe();
+        if (speakerMixData() != before)
+            emitEditedData();
         update();
         event->accept();
         return;
@@ -211,6 +250,9 @@ void SpeakerMixEditorView::keyPressEvent(QKeyEvent *event) {
 }
 
 void SpeakerMixEditorView::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
+    if (!m_editable)
+        return;
+
     const auto itemPos = event->pos();
     const auto hit = hitTest(itemPos);
 
@@ -233,7 +275,10 @@ void SpeakerMixEditorView::contextMenuEvent(QGraphicsSceneContextMenuEvent *even
     auto *deleteAction = menu->addAction(tr("Delete"));
     deleteAction->setEnabled(!isInitial);
     connect(deleteAction, &QAction::triggered, this, [this] {
+        const auto before = speakerMixData();
         deleteSelectedKeyframe();
+        if (speakerMixData() != before)
+            emitEditedData();
         update();
     });
 
@@ -655,9 +700,18 @@ void SpeakerMixEditorView::updateDrag(const QPointF &scenePos) {
 }
 
 void SpeakerMixEditorView::endDrag() {
+    bool changed = false;
+    if (m_state.selectedKeyframeIndex >= 0 &&
+        m_state.selectedKeyframeIndex < m_keyframes.size()) {
+        const auto &keyframe = m_keyframes[m_state.selectedKeyframeIndex];
+        changed = keyframe.tick != m_state.dragStartWeights.tick ||
+                  keyframe.weights != m_state.dragStartWeights.weights;
+    }
     m_state.dragging = false;
     m_state.dragSplitIndex = -1;
     hideSplitDragToolTip();
+    if (changed)
+        emitEditedData();
 }
 
 void SpeakerMixEditorView::showSplitDragToolTip() {
@@ -761,4 +815,49 @@ void SpeakerMixEditorView::deleteSelectedKeyframe() {
 
     m_state.selectedKeyframeIndex = -1;
     m_state.selectedSplitIndex = -1;
+}
+
+void SpeakerMixEditorView::syncFromData() {
+    m_speakers.clear();
+    m_keyframes.clear();
+    clearInteractionState();
+    hideSplitHoverToolTip();
+    hideSplitDragToolTip();
+
+    auto *palette = TrackColorPalette::instance();
+    for (int i = 0; i < m_data.sources.size(); ++i) {
+        const auto &speaker = m_data.sources[i].speaker;
+        QString name = speaker.name();
+        if (name.isEmpty())
+            name = speaker.id();
+        m_speakers.append({name, palette->baseColor(i), palette->speakerMixParamFill(i),
+                           palette->speakerMixDotFill(i)});
+    }
+
+    m_editable = m_data.mode == SingerSourceMode::DynamicMix && m_data.sources.size() >= 2 &&
+                 !m_data.dynamicKeyframes.isEmpty();
+
+    const auto appendKeyframe = [this](const SpeakerMixModel::SpeakerMixKeyframe &keyframe) {
+        m_keyframes.append({keyframe.tick, toList(keyframe.weights)});
+    };
+
+    if (m_editable) {
+        for (const auto &keyframe : m_data.dynamicKeyframes)
+            appendKeyframe(keyframe);
+    } else if (m_data.sources.size() >= 2 && !m_data.fixedWeights.isEmpty()) {
+        m_keyframes.append({0, toList(m_data.fixedWeights)});
+    }
+
+    setTransparentMouseEvents(!m_editable);
+    update();
+}
+
+void SpeakerMixEditorView::emitEditedData() {
+    if (!m_editable)
+        return;
+    Q_EMIT speakerMixEdited(speakerMixData());
+}
+
+void SpeakerMixEditorView::clearInteractionState() {
+    m_state = {};
 }

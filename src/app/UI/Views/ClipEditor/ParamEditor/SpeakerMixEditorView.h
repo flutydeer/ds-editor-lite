@@ -5,6 +5,7 @@
 #ifndef SPEAKERMIXEDITORVIEW_H
 #define SPEAKERMIXEDITORVIEW_H
 
+#include "Model/AppModel/SpeakerMixData.h"
 #include "UI/Views/Common/TimeOverlayView.h"
 
 #include <QColor>
@@ -34,10 +35,15 @@ struct SpeakerMixHitResult {
 class ToolTip;
 
 class SpeakerMixEditorView : public TimeOverlayView {
+    Q_OBJECT
 
 public:
     SpeakerMixEditorView();
     ~SpeakerMixEditorView() override;
+
+    void setSpeakerMixData(const SpeakerMixModel::SpeakerMixData &data);
+    [[nodiscard]] SpeakerMixModel::SpeakerMixData speakerMixData() const;
+    [[nodiscard]] bool isEditable() const;
 
     const QList<SpeakerMixSpeaker> &speakers() const;
     const QList<SpeakerMixKeyframe> &keyframes() const;
@@ -46,6 +52,9 @@ public:
 
     double previousKeyframeTick(double currentTick) const;
     double nextKeyframeTick(double currentTick) const;
+
+signals:
+    void speakerMixEdited(const SpeakerMixModel::SpeakerMixData &data);
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -88,9 +97,14 @@ private:
 
     void addKeyframeAt(int tick);
     void deleteSelectedKeyframe();
+    void syncFromData();
+    void emitEditedData();
+    void clearInteractionState();
 
     QList<SpeakerMixSpeaker> m_speakers;
     QList<SpeakerMixKeyframe> m_keyframes;
+    SpeakerMixModel::SpeakerMixData m_data;
+    bool m_editable = false;
     QPointer<ToolTip> m_tooltip;
 
     struct InteractionState {

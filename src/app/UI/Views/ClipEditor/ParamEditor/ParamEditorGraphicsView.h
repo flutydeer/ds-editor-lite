@@ -42,6 +42,7 @@ signals:
 private slots:
     void onClipPropertyChanged();
     void onParamChanged(ParamInfo::Name name, Param::Type type) const;
+    void onSpeakerMixChanged() const;
     void onEditStarted() const;
     void onEditCommitted() const;
     void onEditDiscarded() const;

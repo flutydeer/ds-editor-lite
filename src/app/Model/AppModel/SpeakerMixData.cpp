@@ -6,6 +6,8 @@
 
 #include <QtGlobal>
 
+#include <algorithm>
+
 namespace SpeakerMixModel {
 
     namespace {
@@ -28,6 +30,36 @@ namespace SpeakerMixModel {
                     weight /= sum;
             }
             return result;
+        }
+
+        bool normalizeInactiveExplicitWeights(QVector<double> &weights,
+                                              const int explicitWeightCount) {
+            if (weights.isEmpty())
+                return true;
+            if (weights.size() != explicitWeightCount) {
+                weights.clear();
+                return false;
+            }
+            weights = normalizeExplicitWeights(weights);
+            return true;
+        }
+
+        bool normalizeInactiveKeyframes(QList<SpeakerMixKeyframe> &keyframes,
+                                        const int explicitWeightCount) {
+            if (keyframes.isEmpty())
+                return true;
+            for (auto &keyframe : keyframes) {
+                if (keyframe.weights.size() != explicitWeightCount) {
+                    keyframes.clear();
+                    return false;
+                }
+                keyframe.weights = normalizeExplicitWeights(keyframe.weights);
+            }
+            std::sort(keyframes.begin(), keyframes.end(),
+                      [](const SpeakerMixKeyframe &a, const SpeakerMixKeyframe &b) {
+                          return a.tick < b.tick;
+                      });
+            return true;
         }
 
         bool hasEmptySource(const QList<SpeakerMixSource> &sources) {
@@ -79,17 +111,21 @@ namespace SpeakerMixModel {
                 if (result.fixedWeights.size() != explicitWeightCount)
                     return {};
                 result.fixedWeights = normalizeExplicitWeights(result.fixedWeights);
-                result.dynamicKeyframes.clear();
+                normalizeInactiveKeyframes(result.dynamicKeyframes, explicitWeightCount);
                 return result;
             case SingerSourceMode::DynamicMix:
                 if (result.dynamicKeyframes.isEmpty())
                     return {};
-                result.fixedWeights.clear();
                 for (auto &keyframe : result.dynamicKeyframes) {
                     if (keyframe.weights.size() != explicitWeightCount)
                         return {};
                     keyframe.weights = normalizeExplicitWeights(keyframe.weights);
                 }
+                std::sort(result.dynamicKeyframes.begin(), result.dynamicKeyframes.end(),
+                          [](const SpeakerMixKeyframe &a, const SpeakerMixKeyframe &b) {
+                              return a.tick < b.tick;
+                          });
+                normalizeInactiveExplicitWeights(result.fixedWeights, explicitWeightCount);
                 return result;
             case SingerSourceMode::Single:
                 break;
