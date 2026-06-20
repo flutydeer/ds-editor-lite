@@ -25,7 +25,7 @@ ClipEditorToolBarView QPushButton:checked {
 }
 
 ClipEditorToolBarView QPushButton:checked:hover {
-    background-color: #50A9C4FF;
+    background-color: #509BBAFF;
 }
 
 ClipEditorToolBarView QPushButton:hover {
