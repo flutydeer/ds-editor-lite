@@ -117,10 +117,13 @@ SpeakerMixList 上每行的"位置"是**纯展示的计算值**，基于各 spea
 
 ## Phases
 
-- Phase 1：正式化比例控件
-    - 从 `TestSpeakerMix` 提炼 `SpeakerMixSourceListView` 和 `SpeakerMixRatioBar`。
-    - 完成固定模式与关键帧模式的权限切换。
-    - 接入主 UI 但先使用临时数据，验证外观、拖拽、排序、增删。
+- Phase 1：正式化比例控件 — **进行中**
+    - ✅ 从 `TestSpeakerMix` 提炼为 `SpeakerMixList`（列表）和 `SpeakerMixBar`（比例条）。
+    - ✅ 新增 `SpeakerMixDialog`，组合 Tag 选择区 + 列表 + 比例条。
+    - ✅ 新增 `TagButton` 控件和 `FlowLayout`，实现 speaker 成员选择。
+    - ✅ 接入主 UI 使用临时数据（硬编码 {"朱","樱","琪","梨","珏"}），验证外观、拖拽、排序、增删。
+    - 🔲 完成固定模式与关键帧模式的权限切换。
+    - 🔲 继续 UI 打磨（当前进行中）。
 
 - Phase 2：Clip 模型与撤销重做
     - 在 `SingingClip` 增加 `SpeakerMixData`。
