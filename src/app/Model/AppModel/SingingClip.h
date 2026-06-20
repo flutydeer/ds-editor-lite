@@ -7,6 +7,7 @@
 
 #include "Clip.h"
 #include "Params.h"
+#include "SpeakerMixData.h"
 #include "Global/AppGlobal.h"
 #include "Utils/Property.h"
 #include "Modules/Inference/Models/SingerIdentifier.h"
@@ -18,6 +19,7 @@ class InferPiece;
 class Note;
 
 using PieceList = QList<InferPiece *>;
+using SpeakerMixModel::SpeakerMixData;
 
 struct ReSegmentResult {
     PieceList addedPieces;
@@ -64,6 +66,9 @@ public:
 
     SingerInfo singerInfo() const;
     SpeakerInfo speakerInfo() const;
+    SpeakerMixData speakerMixData() const;
+    void setSpeakerMixData(const SpeakerMixData &data);
+    void resetSpeakerMixToSingle();
     void setTrackSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
     void setOwnSingerAndSpeaker(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
     void useTrackSingerAndSpeaker();
@@ -78,6 +83,7 @@ public:
 
 signals:
     void singerOrSpeakerChanged();
+    void speakerMixChanged(const SpeakerMixData &data);
     void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void paramChanged(ParamInfo::Name name, Param::Type type);
     void defaultLanguageChanged(QString language);
@@ -88,6 +94,7 @@ signals:
 private:
     void init();
     void updateDefaultG2pId(const QString &language);
+    void resetSpeakerMixIfSingerChanged(const SingerInfo &oldSingerInfo);
 
     OverlappableSerialList<Note> m_notes;
     PieceList m_pieces;
@@ -101,6 +108,7 @@ private:
 
     Property<SpeakerInfo> m_speakerInfo;
     Property<SpeakerInfo> m_trackSpeakerInfo;
+    SpeakerMixData m_speakerMixData;
     bool m_singerSpeakerBatching = false;
 };
 

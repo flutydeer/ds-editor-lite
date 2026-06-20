@@ -21,6 +21,8 @@
 
 #include <QTimer>
 
+using namespace SpeakerMixModel;
+
 SingingClip::SingingClip() : Clip(), params(this) {
     init();
 }
@@ -247,6 +249,24 @@ SpeakerInfo SingingClip::speakerInfo() const {
     return m_speakerInfo.get();
 }
 
+SpeakerMixData SingingClip::speakerMixData() const {
+    return m_speakerMixData;
+}
+
+void SingingClip::setSpeakerMixData(const SpeakerMixData &data) {
+    const auto normalized = normalizeSpeakerMixData(data);
+    if (m_speakerMixData == normalized)
+        return;
+
+    m_speakerMixData = normalized;
+    bumpInferenceRevision();
+    Q_EMIT speakerMixChanged(m_speakerMixData);
+}
+
+void SingingClip::resetSpeakerMixToSingle() {
+    setSpeakerMixData({});
+}
+
 QString SingingClip::speakerId() const {
     return speakerInfo().id();
 }
@@ -261,6 +281,7 @@ void SingingClip::setTrackSingerAndSpeakerInfo(const SingerInfo &singerInfo,
     m_singerSpeakerBatching = false;
     updateDefaultG2pId(m_defaultLanguage);
     if (oldSingerInfo != this->singerInfo() || oldSpeakerInfo != this->speakerInfo()) {
+        resetSpeakerMixIfSingerChanged(oldSingerInfo);
         Q_EMIT singerOrSpeakerChanged();
     }
 }
@@ -277,6 +298,7 @@ void SingingClip::setOwnSingerAndSpeaker(const SingerInfo &singerInfo,
     m_singerSpeakerBatching = false;
     updateDefaultG2pId(m_defaultLanguage);
     if (oldSingerInfo != this->singerInfo() || oldSpeakerInfo != this->speakerInfo()) {
+        resetSpeakerMixIfSingerChanged(oldSingerInfo);
         Q_EMIT singerOrSpeakerChanged();
     }
 }
@@ -290,6 +312,7 @@ void SingingClip::useTrackSingerAndSpeaker() {
     m_singerSpeakerBatching = false;
     updateDefaultG2pId(m_defaultLanguage);
     if (oldSingerInfo != this->singerInfo() || oldSpeakerInfo != this->speakerInfo()) {
+        resetSpeakerMixIfSingerChanged(oldSingerInfo);
         Q_EMIT singerOrSpeakerChanged();
     }
 }
@@ -371,4 +394,11 @@ void SingingClip::updateDefaultG2pId(const QString &language) {
             break;
         }
     }
+}
+
+void SingingClip::resetSpeakerMixIfSingerChanged(const SingerInfo &oldSingerInfo) {
+    if (oldSingerInfo == singerInfo() || m_speakerMixData.mode == SingerSourceMode::Single)
+        return;
+
+    resetSpeakerMixToSingle();
 }

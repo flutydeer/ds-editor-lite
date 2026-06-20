@@ -19,12 +19,15 @@
 #include "Model/AppModel/Curve.h"
 #include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/SingingClip.h"
+#include "Model/AppModel/SpeakerMixData.h"
 #include "Modules/PackageManager/PackageManager.h"
 
 #include <QDebug>
 #include <QFile>
 
 namespace {
+    using namespace SpeakerMixModel;
+
     void warnIfPackageMetadataNotReady(const SingerIdentifier &identifier) {
         if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready)
             return;
@@ -211,6 +214,110 @@ namespace {
                 return speaker;
         }
         return fallback;
+    }
+
+    SpeakerInfo resolveSpeakerInfoStrict(const SingerInfo &singerInfo,
+                                         const SpeakerInfo &fallback) {
+        if (fallback.isEmpty())
+            return {};
+        for (const auto &speaker : singerInfo.speakers()) {
+            if (speaker.id() == fallback.id())
+                return speaker;
+        }
+        return {};
+    }
+
+    QJsonArray encodeWeights(const QVector<double> &weights) {
+        QJsonArray array;
+        for (const double weight : weights)
+            array.append(weight);
+        return array;
+    }
+
+    QVector<double> decodeWeights(const QJsonArray &array) {
+        QVector<double> weights;
+        weights.reserve(array.size());
+        for (const auto &value : array)
+            weights.append(value.toDouble());
+        return weights;
+    }
+
+    QJsonObject encodeSpeakerMixDataForWorkspace(const SpeakerMixData &data) {
+        const auto normalized = normalizeSpeakerMixData(data);
+        if (normalized.mode == SingerSourceMode::Single)
+            return {};
+
+        QJsonObject obj;
+        obj["mode"] = normalized.mode == SingerSourceMode::FixedMix ? "fixed" : "dynamic";
+
+        QJsonArray sources;
+        for (const auto &source : normalized.sources)
+            sources.append(encodeSpeakerInfoForWorkspace(source.speaker));
+        obj["sources"] = sources;
+
+        if (normalized.mode == SingerSourceMode::FixedMix) {
+            obj["fixedWeights"] = encodeWeights(normalized.fixedWeights);
+        } else {
+            QJsonArray keyframes;
+            for (const auto &keyframe : normalized.dynamicKeyframes) {
+                QJsonObject keyframeObj;
+                keyframeObj["tick"] = keyframe.tick;
+                keyframeObj["weights"] = encodeWeights(keyframe.weights);
+                keyframes.append(keyframeObj);
+            }
+            obj["dynamicKeyframes"] = keyframes;
+        }
+        return obj;
+    }
+
+    SpeakerMixData decodeSpeakerMixDataFromWorkspace(const QJsonObject &obj,
+                                                     const SingerInfo &effectiveSinger) {
+        if (obj.isEmpty())
+            return {};
+
+        const auto modeText = obj["mode"].toString();
+        SpeakerMixData data;
+        if (modeText == "fixed") {
+            data.mode = SingerSourceMode::FixedMix;
+        } else if (modeText == "dynamic") {
+            data.mode = SingerSourceMode::DynamicMix;
+        } else {
+            return {};
+        }
+
+        const auto sourcesArray = obj["sources"].toArray();
+        if (sourcesArray.size() < 2)
+            return {};
+
+        for (const auto &sourceValue : sourcesArray) {
+            const auto speaker = resolveSpeakerInfoStrict(
+                effectiveSinger, decodeSpeakerInfoFromWorkspace(sourceValue.toObject()));
+            if (speaker.isEmpty())
+                return {};
+            data.sources.append({speaker});
+        }
+
+        const int explicitWeightCount = data.sources.size() - 1;
+        if (data.mode == SingerSourceMode::FixedMix) {
+            data.fixedWeights = decodeWeights(obj["fixedWeights"].toArray());
+            if (data.fixedWeights.size() != explicitWeightCount)
+                return {};
+        } else {
+            const auto keyframesArray = obj["dynamicKeyframes"].toArray();
+            if (keyframesArray.isEmpty())
+                return {};
+            for (const auto &keyframeValue : keyframesArray) {
+                const auto keyframeObj = keyframeValue.toObject();
+                SpeakerMixKeyframe keyframe;
+                keyframe.tick = keyframeObj["tick"].toInt();
+                keyframe.weights = decodeWeights(keyframeObj["weights"].toArray());
+                if (keyframe.weights.size() != explicitWeightCount)
+                    return {};
+                data.dynamicKeyframes.append(keyframe);
+            }
+        }
+
+        return normalizeSpeakerMixData(data);
     }
 
     // ---- opendspx Singer helpers ----
@@ -470,6 +577,9 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 if (!clipLang.isEmpty())
                     clip->setDefaultLanguage(clipLang);
 
+                clip->setSpeakerMixData(decodeSpeakerMixDataFromWorkspace(
+                    clipDsWs["speakerMix"].toObject(), clip->singerInfo()));
+
                 track->insertClip(clip);
             } else if (dspxClip->type == opendspx::Clip::Type::Audio) {
                 const auto castClip = std::static_pointer_cast<opendspx::AudioClip>(dspxClip);
@@ -723,6 +833,11 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 auto clipG2p = singingClip->defaultG2pId();
                 if (!clipG2p.isEmpty() && clipG2p != "unknown")
                     clipDsWs["defaultG2pId"] = clipG2p;
+
+                auto speakerMixObj =
+                    encodeSpeakerMixDataForWorkspace(singingClip->speakerMixData());
+                if (!speakerMixObj.isEmpty())
+                    clipDsWs["speakerMix"] = speakerMixObj;
 
                 writeDsWorkspace(singClip->workspace, clipDsWs);
 

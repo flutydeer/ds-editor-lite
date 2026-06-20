@@ -18,6 +18,7 @@ public:
                             QWidget *parent = nullptr);
     void setSpeakerTypes(const QStringList &speakerTypes);
     void setSourceEditingEnabled(bool enabled);
+    void setDoubleValues(const QVector<double> &values);
     QVector<int> getValues() const;
     QVector<QString> getLabels() const;
 
@@ -63,11 +64,11 @@ private:
     void updateRowColor(RowComponents &row);
     void updateBarLabelsAndColors();
     QVector<QColor> getColors() const;
+
 public:
     static QVector<QColor> defaultColors();
 
 private:
-
     QString m_packageName;
     QStringList m_speakerTypes;
 

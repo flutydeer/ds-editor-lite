@@ -31,6 +31,7 @@ public:
     void moveToNullClipState() const;
     void moveToSingingClipState() const;
     void moveToAudioClipState() const;
+    void updateSpeakerMixButtonState() const;
 
     [[nodiscard]] Button *buildToolButton(const QString &objName, const QString &svgPath,
                                           const QString &tipTitle,
@@ -61,6 +62,7 @@ public:
     Button *m_btnPitchPencil = nullptr;
     Button *m_btnPitchAnchor = nullptr;
     Button *m_btnPitchEraser = nullptr;
+    Button *m_btnSpeakerMix = nullptr;
     // Button *m_btnFreezePitch = nullptr;
 
     TwoLevelComboBox *m_cbSinger = nullptr;
@@ -75,6 +77,7 @@ public slots:
     void onLanguageEdited(const QString &language) const;
     void onClipSingerChanged() const;
     void onSingerEdited() const;
+    void onSpeakerMixClicked() const;
 
 private:
     ClipEditorToolBarView *q_ptr;

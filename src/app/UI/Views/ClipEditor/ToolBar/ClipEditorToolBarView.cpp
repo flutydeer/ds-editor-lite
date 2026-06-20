@@ -5,10 +5,12 @@
 #include "ClipEditorToolBarView.h"
 #include "ClipEditorToolBarView_p.h"
 
+#include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
 #include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/History/HistoryManager.h"
 #include "Modules/Inference/Models/SingerIdentifier.h"
 #include "Modules/PackageManager/PackageManager.h"
 #include "UI/Controls/Button.h"
@@ -18,23 +20,25 @@
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/ToolTipFilter.h"
 #include "UI/Controls/TwoLevelComboBox.h"
+#include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Utils/IconUtils.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 
 #include <QButtonGroup>
+#include <QDialog>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QSignalBlocker>
 
 namespace {
 
-const QStringList quantizeStrings = {"1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/128"};
-const QList<int> quantizeValues = {2, 4, 8, 16, 32, 64, 128};
+    const QStringList quantizeStrings = {"1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/128"};
+    const QList<int> quantizeValues = {2, 4, 8, 16, 32, 64, 128};
 
-int quantizeIndex(int quantize) {
-    const int index = quantizeValues.indexOf(quantize);
-    return index >= 0 ? index : quantizeValues.indexOf(16);
-}
+    int quantizeIndex(int quantize) {
+        const int index = quantizeValues.indexOf(quantize);
+        return index >= 0 ? index : quantizeValues.indexOf(16);
+    }
 
 } // namespace
 
@@ -84,8 +88,8 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     });
     connect(appStatus, &AppStatus::moduleStatusChanged, d,
             [d](AppStatus::ModuleType module, AppStatus::ModuleStatus status) {
-                if (module == AppStatus::ModuleType::Package
-                    && status == AppStatus::ModuleStatus::Ready) {
+                if (module == AppStatus::ModuleType::Package &&
+                    status == AppStatus::ModuleStatus::Ready) {
                     d->m_cbSinger->setEnabled(true);
                     d->m_cbSinger->setLoadingText({});
                     d->m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
@@ -115,36 +119,40 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_cbPianoRollQuantize->setCurrentIndex(quantizeIndex(appStatus->pianoRollQuantize));
     d->m_cbPianoRollQuantize->setFixedHeight(d->m_contentHeight);
     d->m_cbPianoRollQuantize->setToolTip(tr("Piano Roll Quantize"));
-    connect(d->m_cbPianoRollQuantize, &QComboBox::currentIndexChanged, this, [](int index) {
-        appStatus->pianoRollQuantize = quantizeValues.at(index);
-    });
+    connect(d->m_cbPianoRollQuantize, &QComboBox::currentIndexChanged, this,
+            [](int index) { appStatus->pianoRollQuantize = quantizeValues.at(index); });
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, d->m_cbPianoRollQuantize,
             [combo = d->m_cbPianoRollQuantize](int quantize) {
                 const QSignalBlocker blocker(combo);
                 combo->setCurrentIndex(quantizeIndex(quantize));
             });
 
-    d->m_btnArrow = d->buildToolButton("btnArrow", ":svg/icons/cursor_24_filled.svg",
-                                        tr("Select"), Qt::Key_V);
+    d->m_btnArrow =
+        d->buildToolButton("btnArrow", ":svg/icons/cursor_24_filled.svg", tr("Select"), Qt::Key_V);
     d->m_btnArrow->setChecked(true);
     d->m_btnBeam = d->buildToolButton("btnBeam", ":svg/icons/beam_24_filled.svg",
-                                       tr("Interval Select"), Qt::Key_B);
+                                      tr("Interval Select"), Qt::Key_B);
     const auto notePencilDesc =
         tr("Drag in the blank: Draw a new note\nDrag on a note: Edit the note");
     d->m_btnNotePencil = d->buildToolButton("btnNotePencil", ":svg/icons/edit_24_filled.svg",
-                                             tr("Draw Note"), Qt::Key_N, notePencilDesc);
+                                            tr("Draw Note"), Qt::Key_N, notePencilDesc);
     d->m_btnNoteEraser = d->buildToolButton("btnNoteEraser", ":svg/icons/eraser_24_filled.svg",
-                                             tr("Erase Note"), Qt::Key_M);
-    d->m_btnNoteSplit = d->buildToolButton("btnNoteSplit", ":svg/icons/cut_20_filled.svg",
-                                            tr("Split Note"), QKeySequence(),
-                                            tr("Split note at quantize line"));
+                                            tr("Erase Note"), Qt::Key_M);
+    d->m_btnNoteSplit =
+        d->buildToolButton("btnNoteSplit", ":svg/icons/cut_20_filled.svg", tr("Split Note"),
+                           QKeySequence(), tr("Split note at quantize line"));
     d->m_btnPitchAnchor = d->buildToolButton(
         "btnPitchAnchor", ":svg/icons/pitch_anchor_24_filled.svg", tr("Pitch Anchor"), Qt::Key_F);
     const auto pitchPencilDesc = tr("Left drag: Draw\nRight drag: Erase");
-    d->m_btnPitchPencil = d->buildToolButton("btnPitchPencil", ":svg/icons/pitch_edit_24_filled.svg",
-                                              tr("Draw Pitch"), Qt::Key_G, pitchPencilDesc);
-    d->m_btnPitchEraser = d->buildToolButton("btnPitchEraser", ":svg/icons/pitch_erase_24_filled.svg",
-                                              tr("Erase Pitch"), Qt::Key_H);
+    d->m_btnPitchPencil =
+        d->buildToolButton("btnPitchPencil", ":svg/icons/pitch_edit_24_filled.svg",
+                           tr("Draw Pitch"), Qt::Key_G, pitchPencilDesc);
+    d->m_btnPitchEraser = d->buildToolButton(
+        "btnPitchEraser", ":svg/icons/pitch_erase_24_filled.svg", tr("Erase Pitch"), Qt::Key_H);
+    d->m_btnSpeakerMix =
+        d->buildCommonButton("btnSpeakerMix", ":svg/icons/layer_20_filled.svg", tr("Speaker Mix"));
+    connect(d->m_btnSpeakerMix, &Button::clicked, d,
+            &ClipEditorToolBarViewPrivate::onSpeakerMixClicked);
     auto freezePitchDesc = tr("Copy automatic pitch inference results to edited pitch");
     // d->m_btnFreezePitch =
     //     d->buildToolButton("btnFreezePitch", tr("Freeze Pitch"), Qt::Key_J, freezePitchDesc);
@@ -210,6 +218,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     toolButtonLayout->addWidget(d->m_btnPitchAnchor);
     toolButtonLayout->addWidget(d->m_btnPitchPencil);
     toolButtonLayout->addWidget(d->m_btnPitchEraser);
+    toolButtonLayout->addWidget(d->m_btnSpeakerMix);
     // toolButtonLayout->addWidget(d->m_btnFreezePitch);
     toolButtonLayout->setSpacing(1);
     toolButtonLayout->setContentsMargins({});
@@ -248,6 +257,7 @@ void ClipEditorToolBarView::setDataContext(Clip *clip) {
 
     d->m_clip = clip;
     if (clip == nullptr) {
+        d->m_singingClip = nullptr;
         d->moveToNullClipState();
         return;
     }
@@ -323,6 +333,7 @@ void ClipEditorToolBarViewPrivate::moveToNullClipState() const {
     m_leClipName->setText(QString());
 
     setPianoRollToolsEnabled(false);
+    updateSpeakerMixButtonState();
 }
 
 void ClipEditorToolBarViewPrivate::moveToSingingClipState() const {
@@ -330,6 +341,7 @@ void ClipEditorToolBarViewPrivate::moveToSingingClipState() const {
     m_leClipName->setText(m_clip->name());
 
     setPianoRollToolsEnabled(true);
+    updateSpeakerMixButtonState();
 }
 
 void ClipEditorToolBarViewPrivate::moveToAudioClipState() const {
@@ -337,6 +349,7 @@ void ClipEditorToolBarViewPrivate::moveToAudioClipState() const {
     m_leClipName->setText(m_clip->name());
 
     setPianoRollToolsEnabled(false);
+    updateSpeakerMixButtonState();
 }
 
 Button *ClipEditorToolBarViewPrivate::buildToolButton(const QString &objName,
@@ -388,6 +401,7 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
     m_cbClipLanguage->setEnabled(on);
     m_cbPianoRollQuantize->setVisible(on);
     m_cbPianoRollQuantize->setEnabled(on);
+    updateSpeakerMixButtonState();
 
     if (on) {
         const bool inherit = m_singingClip->useTrackSingerInfo.get();
@@ -424,18 +438,53 @@ void ClipEditorToolBarViewPrivate::onClipSingerChanged() const {
     const bool inherit = m_singingClip->useTrackSingerInfo.get();
     m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(), inherit);
     m_cbSinger->setToolTip(m_cbSinger->currentText());
+    updateSpeakerMixButtonState();
 }
 
 void ClipEditorToolBarViewPrivate::onSingerEdited() const {
     if (m_singingClip) {
         if (m_cbSinger->isInheritSelected()) {
             m_singingClip->useTrackSingerAndSpeaker();
-            m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(), true);
+            m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(),
+                                       true);
         } else {
             const auto singerInfo = m_cbSinger->currentSinger();
             const auto speakerInfo = m_cbSinger->currentSpeaker();
             m_singingClip->setOwnSingerAndSpeaker(singerInfo, speakerInfo);
         }
         m_cbSinger->setToolTip(m_cbSinger->currentText());
+        updateSpeakerMixButtonState();
     }
+}
+
+void ClipEditorToolBarViewPrivate::updateSpeakerMixButtonState() const {
+    if (!m_btnSpeakerMix)
+        return;
+
+    const bool enabled =
+        m_clip && m_singingClip && m_singingClip->singerInfo().speakers().size() >= 2;
+    m_btnSpeakerMix->setVisible(enabled);
+    m_btnSpeakerMix->setEnabled(enabled);
+}
+
+void ClipEditorToolBarViewPrivate::onSpeakerMixClicked() const {
+    if (!m_singingClip)
+        return;
+
+    const auto singerInfo = m_singingClip->singerInfo();
+    if (singerInfo.speakers().size() < 2)
+        return;
+
+    Q_Q(const ClipEditorToolBarView);
+    auto *parent = Dialog::globalParent();
+    if (!parent)
+        parent = const_cast<ClipEditorToolBarView *>(q);
+    SpeakerMixDialog dialog(singerInfo, m_singingClip->speakerMixData(), parent);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    const auto actions = new SpeakerMixActions;
+    actions->replaceSpeakerMix(dialog.speakerMixData(), m_singingClip);
+    actions->execute();
+    historyManager->record(actions);
 }

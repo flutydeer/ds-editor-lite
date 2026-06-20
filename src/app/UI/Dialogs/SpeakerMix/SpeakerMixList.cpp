@@ -78,6 +78,10 @@ void SpeakerMixList::setSourceEditingEnabled(const bool enabled) {
     }
 }
 
+void SpeakerMixList::setDoubleValues(const QVector<double> &values) {
+    setRowsValues(values);
+}
+
 void SpeakerMixList::addSpeaker(const QString &speakerName) {
     if (findRowIndexBySpeaker(speakerName) != -1)
         return;
@@ -167,8 +171,8 @@ QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
     dragHandle->setAlignment(Qt::AlignCenter);
     dragHandle->installEventFilter(this);
 
-    const auto colorDot = new ColorDot(defaultColors()[m_rows.size() % defaultColors().size()],
-                                       widget);
+    const auto colorDot =
+        new ColorDot(defaultColors()[m_rows.size() % defaultColors().size()], widget);
     colorDot->setFixedSize(10, 10);
 
     const auto typeLabel = new QLabel("声线: ", widget);
@@ -189,9 +193,8 @@ QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
     positionLabel->setFixedHeight(28);
     positionLabel->setAlignment(Qt::AlignCenter);
     positionLabel->setFixedWidth(84);
-    positionLabel->setStyleSheet(
-        "color: #777B84; background: #252932; border: 1px solid #363B46;"
-        "border-radius: 3px; padding: 0 8px;");
+    positionLabel->setStyleSheet("color: #777B84; background: #252932; border: 1px solid #363B46;"
+                                 "border-radius: 3px; padding: 0 8px;");
 
     layout->addWidget(dragHandle);
     layout->addWidget(colorDot);
@@ -373,8 +376,7 @@ void SpeakerMixList::refreshComboBoxItems() {
             popupWidth = std::max(popupWidth, fontMetrics.horizontalAdvance(displayText) + 36);
 
             if (isUsedByOther) {
-                row.speakerComboBox->setItemData(i, QColor(255, 255, 255, 96),
-                                                 Qt::ForegroundRole);
+                row.speakerComboBox->setItemData(i, QColor(255, 255, 255, 96), Qt::ForegroundRole);
                 if (auto *model =
                         qobject_cast<QStandardItemModel *>(row.speakerComboBox->model())) {
                     if (auto *item = model->item(i))
@@ -437,13 +439,14 @@ bool SpeakerMixList::eventFilter(QObject *watched, QEvent *event) {
     if (!m_sourceEditingEnabled)
         return QListWidget::eventFilter(watched, event);
 
-    if (auto *handle = qobject_cast<QLabel *>(watched); handle && handle->cursor().shape() == Qt::SizeAllCursor) {
-        if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonRelease
-            || event->type() == QEvent::MouseMove) {
+    if (auto *handle = qobject_cast<QLabel *>(watched);
+        handle && handle->cursor().shape() == Qt::SizeAllCursor) {
+        if (event->type() == QEvent::MouseButtonPress ||
+            event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::MouseMove) {
             auto *me = static_cast<QMouseEvent *>(event);
-            auto *viewportEvent = new QMouseEvent(
-                event->type(), viewport()->mapFromGlobal(me->globalPosition()),
-                me->globalPosition(), me->button(), me->buttons(), me->modifiers());
+            auto *viewportEvent =
+                new QMouseEvent(event->type(), viewport()->mapFromGlobal(me->globalPosition()),
+                                me->globalPosition(), me->button(), me->buttons(), me->modifiers());
             QCoreApplication::sendEvent(viewport(), viewportEvent);
             delete viewportEvent;
             return true;
