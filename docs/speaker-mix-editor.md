@@ -4,6 +4,9 @@
 
 在钢琴卷帘底部的参数编辑器（ParamEditorView）中新增 speaker mix（声线混合）编辑功能。Speaker mix 控制不同 speaker（说话人/声线）混合比例随时间的变化，所有 speaker 权重之和始终为 100%，通过关键帧插值实现平滑过渡。
 
+后续模型接入后，`SpeakerMixEditorView` 只负责 Dynamic Mix 关键帧编辑；Fixed Mix 的 speaker
+组合和固定比例由 `SpeakerMixDialog` / preset 管理入口负责。
+
 ## 与现有参数的差异
 
 | 维度 | 现有参数 | Speaker mix |
@@ -22,6 +25,13 @@
 ### 第二阶段：模型集成（后续）
 
 目标：将 speaker mix 数据纳入文档模型，支持序列化/反序列化、撤销/重做。
+
+模型接入时需要提供 Dynamic Mix 开关：
+
+- 关：`mode = FixedMix`，使用 `fixedWeights`，编辑器可显示固定比例但禁用关键帧编辑
+- 开：`mode = DynamicMix`，使用 `dynamicKeyframes`，允许编辑关键帧
+- 首次开启时，如果没有 keyframe，则用 `fixedWeights` 创建第一个关键帧
+- 关闭时不删除 keyframes，再次开启时恢复
 
 ---
 
@@ -226,7 +236,7 @@ HitResult hitTest(const QPointF &itemPos) const;
 | `mouseDoubleClickEvent` | 任意位置 | 在该 tick 插入新关键帧，权重取插值值 |
 | `hoverMoveEvent` | — | 更新 hoveredKeyframe / hoveredSplitIndex，触发 update() |
 | `keyPressEvent` Delete | 有选中 | 删除选中的关键帧（初始帧除外） |
-| `contextMenuEvent` | 命中分割点 | 弹出菜单：Linear / Hermite 切换 + 属性 + 删除 |
+| `contextMenuEvent` | 命中分割点 | 弹出菜单：删除等轻量操作 |
 
 ##### 拖拽权重计算
 
@@ -244,13 +254,19 @@ HitResult hitTest(const QPointF &itemPos) const;
 ##### 右键菜单
 
 参考 `EditPitchAnchorHandler::contextMenuEvent` 实现：
-- 创建 `Menu`（CMenu 子类），添加 Linear / Hermite 勾选项（QActionGroup 互斥） + 属性 + 删除
+- 创建 `Menu`（CMenu 子类），添加删除等轻量操作
 - `menu->exec(event->globalPos())` 同步显示
 - `menu->deleteLater()` 清理
 
-##### 属性对话框
+##### 精确编辑策略
 
-右键菜单中的"属性"选项打开关键帧属性对话框，可在对话框中精确编辑各 speaker 的比例。对话框内使用专用控件，类似音素编辑器的机制：通过拖动分割线或手动输入比例来调整权重。（第一阶段可先用简单输入框实现，专用控件后续迭代）
+动态声线混合不再规划单独的关键帧属性对话框。
+
+原因：
+
+- 经过实际测试，`SpeakerMixEditorView` 本身的分割点拖拽精度已经足够。
+- 再把当前关键帧接到 `SpeakerMixDialog` 会形成第二套比例编辑入口，增加状态同步和 undo 粒度复杂度。
+- `SpeakerMixDialog` 后续聚焦 Fixed Mix 的 speaker 列表和固定比例配置；Dynamic Mix 的 keyframe 权重编辑只在参数编辑器内完成。
 
 ##### 参考的交互模式
 
@@ -273,8 +289,16 @@ HitResult hitTest(const QPointF &itemPos) const;
 | 前景为 speaker mix | `SpeakerMixToolBarView`（新增） |
 
 `SpeakerMixToolBarView` 包含：
+- Dynamic Mix 开关：控制当前 clip 是否使用 dynamic keyframes
 - 关键帧导航：上一个关键帧 / 下一个关键帧按钮
 - Speaker 列表：彩色圆点 + 名称（每个 speaker 一项）
+
+Dynamic Mix 开关建议行为：
+
+- 仅在当前 clip 具备 Fixed Mix sources（至少 2 个 speaker）时可用
+- 关闭时，视图可以显示一条基于 `fixedWeights` 的平直混合背景，但不允许添加/删除/拖动关键帧
+- 开启时，如果 `dynamicKeyframes` 为空，用 `fixedWeights` 初始化第一个关键帧
+- 切换开关通过 `ReplaceSpeakerMixAction` 提交，保证 undo/redo 可恢复
 
 ---
 
@@ -300,6 +324,8 @@ HitResult hitTest(const QPointF &itemPos) const;
 - [x] 插值模式：当前仅线性插值（Hermite 在概率单纯形约束下不可行，未来考虑 Softmax/Log-ratio/Stick-breaking）
 - [x] 边界行为：初始关键帧覆盖前方；最后关键帧之后保持不变，填充到视口右边缘
 - [x] 关键帧导航：滚动视口 centerAt(tick) + 移动播放头
+- [x] 不再为 Dynamic Mix 关键帧提供单独属性对话框；权重编辑只在 `SpeakerMixEditorView` 内完成
+- [x] Dynamic Mix 需要开关控制是否生效；关闭时回退 Fixed Mix，且不删除 keyframes
 
 ## 待讨论事项
 

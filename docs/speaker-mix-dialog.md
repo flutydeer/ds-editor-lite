@@ -2,105 +2,203 @@
 
 ## 概述
 
-SpeakerMixDialog 用于配置同一歌手模型内多个 speaker 的固定混合比例。对话框位于 `src/app/UI/Dialogs/SpeakerMix/`，包含 3 个文件：
+`SpeakerMixDialog` 用于配置同一歌手模型内多个 speaker 的固定混合比例。当前已从
+debug/demo 对话框推进到固定混合持久化小闭环：
 
-- `SpeakerMixDialog.h/.cpp` — 继承 `Dialog`，组合 tag 选择区 + 列表 + 比例条
-- `SpeakerMixList.h/.cpp` — QListWidget，管理 speaker 行（拖拽排序、ComboBox、位置标签）
+- 从当前 `SingingClip` 的 effective singer 读取 speaker 列表
+- 在剪辑编辑器工具栏通过临时 `Speaker Mix` 按钮打开对话框
+- OK 后写入 `SingingClip::SpeakerMixData`
+- 通过 `ReplaceSpeakerMixAction` 支持 undo/redo
+- 保存到 `workspace["ds-editor-lite"]["speakerMix"]`，重新打开工程可恢复
+- 暂不写 opendspx 官方 mix 结构；官方 `sources` 仍保持当前单声线 fallback
+
+后续它会继续聚焦 **Fixed Mix**：作为固定混合配置和用户混合预设管理界面；Dynamic Mix
+关键帧权重只在 `SpeakerMixEditorView` 中编辑，不再通过对话框编辑。
+
+对话框位于 `src/app/UI/Dialogs/SpeakerMix/`：
+
+- `SpeakerMixDialog.h/.cpp` — 继承 `OKCancelDialog`，组合 tag 选择区 + 列表 + 比例条
+- `SpeakerMixList.h/.cpp` — `QListWidget`，管理 speaker 行（拖拽排序、ComboBox、位置标签）
 - `SpeakerMixBar.h/.cpp` — 自绘比例条（拖拽分割点调比例、彩色 segment、标签）
 
-新增通用控件：
+样式注意：
 
-- `UI/Controls/FlowLayout.h/.cpp` — 来自 Qt 官方 example，自动换行布局
-- `UI/Controls/TagButton.h/.cpp` — 可选中的 tag 按钮（继承 QPushButton，QSS 在 controls.qss）
+- 对话框应使用 `Dialog::globalParent()` 作为 parent 打开，避免沿用工具栏父级后丢失全局对话框样式。
+- 顶部声线 tag 与 OK/Cancel 按钮依赖全局 dialog / controls QSS，不应在局部重新覆盖基础样式。
 
-## 对话框布局（从上到下）
+相关模型与动作：
 
-1. **Tag 选择区** — FlowLayout + TagButton，每个 speaker 一个 tag；checked = 参与混合
-2. **SpeakerMixList** — 仅显示已勾选的 speaker
-3. **SpeakerMixBar** — 比例条，拖拽分割点调整比例
+- `Model/AppModel/SpeakerMixData.h/.cpp` — speaker mix 数据结构与权重规范化
+- `SingingClip` — 持有 `SpeakerMixData`，提供 `speakerMixData()` / `setSpeakerMixData()`
+- `Controller/Actions/AppModel/SpeakerMix/` — `ReplaceSpeakerMixAction` / `SpeakerMixActions`
+- `DspxProjectConverter` — DS workspace 中读写 `speakerMix`
+
+## 对话框布局
+
+1. **Preset bar（后续）** — 预设 ComboBox + 新建 / 保存 / 另存为 / 删除 / 重置
+2. **Tag 选择区** — `FlowLayout + TagButton`，每个 speaker 一个 tag；checked = 参与混合
+3. **SpeakerMixList** — 仅显示已勾选的 speaker
+4. **SpeakerMixBar** — 比例条，拖拽分割点调整比例
+5. **OK / Cancel** — OK 写出 FixedMix 数据，Cancel 不修改模型
 
 ```
 ┌───────────────────────────────────────┐
-│  [朱] [樱] [琪] [梨] [珏]            │  ← Tag 选择区（FlowLayout 自动换行）
+│  预设: [Bright Blend ▼] [+] [S] [...]  │
 ├───────────────────────────────────────┤
-│  = ● 声线: [朱 ▼]  位置: 0%          │  ← 列表行（可拖拽排序）
-│  = ● 声线: [樱 ▼]  位置: 20%         │
-│  = ● 声线: [琪 ▼]  位置: 40%         │
-│  = ● 声线: [梨 ▼]  位置: 60%         │
-│  = ● 声线: [珏 ▼]  位置: 80%         │
+│  [Luna] [Azure] [Umbra]               │  ← Tag 选择区（显示 speaker name）
 ├───────────────────────────────────────┤
-│  ██朱██  ██樱██  ██琪██  ██梨██ ██珏██│  ← 比例条
+│  = ● 声线: [Luna ▼]   位置: 0%        │  ← 列表行（内部仍使用 speaker id）
+│  = ● 声线: [Azure ▼]  位置: 33%       │
+│  = ● 声线: [Umbra ▼]  位置: 67%       │
+├───────────────────────────────────────┤
+│  █Luna 33%█  █Azure 33%█  █Umbra 34%█ │
 └───────────────────────────────────────┘
 ```
 
-## 关键设计决策
+## 当前数据流
 
-- Speaker 集合由歌手包决定（固定），不允许添加不存在的或重复的 speaker
-- Tag 选择区控制成员资格，取代了原有的 +/- 按钮
-- 所有 speaker 默认全选
-- 最少保留 1 个 speaker（最后一个 tag 不可取消）
-- Tag ↔ 列表双向同步：tag toggle → addSpeaker/removeSpeaker；行内 ComboBox 切换 → emit `speakerChanged` → Dialog 更新 tag 状态
-- 行内 ComboBox 用于替换当前槽位 speaker：当前 speaker 和未使用 speaker 可选；其它已使用 speaker 禁用并显示 `（已使用）`
-- 行内替换只改变 speaker 身份，保留该行当前比例，不做自动交换
+1. 用户选中歌声剪辑。
+2. `ClipEditorToolBarView` 的 `Speaker Mix` 按钮判断当前 effective singer 至少有 2 个 speakers。
+3. 点击按钮后打开 `SpeakerMixDialog(singerInfo, clip->speakerMixData(), Dialog::globalParent())`。
+4. Dialog 从 `SingerInfo::speakers()` 构造可选 speaker 列表。
+5. OK 时生成 `SpeakerMixData { mode = FixedMix, sources, fixedWeights }`。
+6. `SpeakerMixActions::replaceSpeakerMix()` 创建 old/new 快照 action。
+7. `SingingClip::setSpeakerMixData()` 规范化数据，触发 `speakerMixChanged` 并 bump inference revision。
+8. 保存工程时写入 DS workspace；打开工程时在 singer/speaker 恢复后解析 `speakerMix`。
 
-## SpeakerMixList 公开接口
+## 预设入口（后续）
+
+固定混合预设会集成到现有 singer/speaker 二级菜单中：
+
+```text
+Luna
+Azure
+Umbra
+────────────
+Luna + Azure 50/50
+Bright Blend
+Soft Verse Mix
+────────────
+新建混合预设...
+管理混合预设...
+```
+
+- 选择单 speaker：当前 clip 进入 `Single`
+- 选择混合预设：复制 preset 的 `sources + fixedWeights` 到当前 clip，进入 `FixedMix`
+- 新建 / 管理混合预设：打开 `SpeakerMixDialog`
+- 预设入口闭环后，`ClipEditorToolBarView` 上临时打开本对话框的 `Speaker Mix` 按钮可以移除
+
+预设语义：
+
+- 预设只保存 Fixed Mix，不保存 Dynamic Mix keyframes
+- 应用预设是复制，不是引用；clip 后续修改不会自动反写 preset
+- 工程可在 DS workspace 辅助记录 presetId/name，但实际恢复仍以展开后的 `SpeakerMixData` 为准
+- 如果用户基于某 preset 修改比例，Dialog 可显示 `Custom` 或 `PresetName *` 状态；只有显式保存才覆盖 preset
+
+## 数据结构
+
+当前 AppModel 内部表达的是“一个 effective singer 下的多个 speaker embedding 混合”，不按
+opendspx 的平铺 singer source 建模。
+
+```cpp
+enum class SingerSourceMode { Single, FixedMix, DynamicMix };
+
+struct SpeakerMixSource {
+    SpeakerInfo speaker;
+};
+
+struct SpeakerMixKeyframe {
+    int tick = 0;
+    QVector<double> weights; // N-1，最后一个 source 隐式补足
+};
+
+struct SpeakerMixData {
+    SingerSourceMode mode = SingerSourceMode::Single;
+    QList<SpeakerMixSource> sources;
+    QVector<double> fixedWeights;
+    QList<SpeakerMixKeyframe> dynamicKeyframes;
+};
+```
+
+约束：
+
+- 当前固定混合使用 `mode = FixedMix`
+- `sources.size() >= 2`
+- 权重采用 N-1 存储，最后一个 speaker 权重为 `1 - sum(weights)`
+- 权重 clamp 到 `[0, 1]`
+- 无效数据（speaker 缺失、长度不匹配、speaker 不属于当前 singer）降级为 Single
+- effective singer 改变时，已有 Fixed/Dynamic mix 重置为 Single
+
+## 显示名与业务值
+
+当前 UI 已改为显示 speaker name，但业务逻辑仍使用 speaker id：
+
+- `SpeakerMixDialog` 从 `SingerInfo::speakers()` 构造 `speaker.id() -> speaker.name()` 映射
+- `TagButton` 文本显示 name，`speakerName` property 保存 id
+- `SpeakerMixList` 行内 ComboBox 文本显示 name，`Qt::UserRole` 保存 id
+- `SpeakerMixList::getLabels()` 仍返回 id，用于保存与查找
+- `SpeakerMixBar` segment label 显示 name
+- name 为空时回退显示 id
+
+这样可以保持持久化、去重、替换 speaker 的逻辑都按 id 走，同时 UI 对用户更友好。
+
+## SpeakerMixList 接口要点
 
 | 方法 / 信号 | 说明 |
 |------------|------|
-| `addSpeaker(const QString &name)` | 添加行，保留原有 speaker 比例，新 speaker 从当前比例中分配份额 |
-| `removeSpeaker(const QString &name)` | 移除行，被移除 speaker 的比例按剩余项原比例重新分配 |
-| `speakerChanged(oldName, newName)` 信号 | 行内 ComboBox 切换时发射 |
-| `defaultColors()` | public static，Dialog 也用于 tag 颜色 |
-| `getMixBar()` | 返回 SpeakerMixBar 指针 |
-| `getValues() / getDoubleValues() / getLabels()` | 获取当前整数显示比例、内部 double 比例和标签 |
+| `setSpeakerDisplayNames(idToName)` | 设置显示名映射；内部业务值仍为 id |
+| `addSpeaker(const QString &id)` | 添加行，保留原有 speaker 比例，新 speaker 从当前比例中分配份额 |
+| `removeSpeaker(const QString &id)` | 移除行，被移除 speaker 的比例按剩余项原比例重新分配 |
+| `speakerChanged(oldId, newId)` | 行内 ComboBox 切换时发射 |
+| `setDoubleValues(values)` | 用 double 百分比恢复比例条与行位置 |
+| `getMixBar()` | 返回 `SpeakerMixBar` 指针 |
+| `getValues() / getLabels()` | 获取当前整数显示比例与 speaker id 列表 |
+| `defaultColors()` | public static，Dialog/tag/bar 共用颜色 |
 
 ## SpeakerMixBar 实现要点
 
-- 内部使用 double 比例，避免反复增删、拖动时整数误差累积；public `getValues()` 仍返回总和为 100 的整数百分比
-- 显示与拖动吸附到整数百分比：拖动分割线时按 1% 粒度吸附，segment 文本显示整数百分比
+- 内部使用 double 比例，避免反复增删、拖动时整数误差累积
+- public `getValues()` 返回总和为 100 的整数百分比
+- 显示与拖动吸附到整数百分比：拖动分割线时按 1% 粒度吸附
 - 默认拖动分割线只调整相邻两个 speaker 的边界，其余 speaker 比例不变
 - 按住 `Alt` 拖动时，分割线左侧组与右侧组按组内原比例等比例压缩/扩展
-- 拖动计算基于按下时的比例快照，拖动过程中切换 `Alt` 不会基于中间结果继续累计误差
-- 允许相邻块压缩到 0%，但整体比例始终 clamp 到非负并保持总和为 100
-- `m_dragOffset` 模式：按下时记录光标到分割点中心的偏移，拖动时补偿（无抖动）
-- `m_margin = 1`：四周 1px 留白，防止抗锯齿圆角裁切
-- `m_handleWidth = 6`，`m_handleTouchMargin = 3`：热区匹配视觉分割线宽度
-- 所有 segment 统一 3px 圆角；首段右缩 1px，末段左缩 1px，中间段两侧各缩 1px
+- 拖动计算基于按下时的比例快照，避免累计误差
+- 允许相邻块压缩到 0%，整体比例始终 clamp 到非负并保持总和为 100
 
-## SpeakerMixList 架构要点
+## 持久化
 
-- QListWidget + `setItemWidget()` 方案：嵌入控件吞噬鼠标事件，需 eventFilter 转发拖拽手柄事件到 viewport
-- 拖放排序时按 speaker 名称携带原比例，重排后比例跟随 speaker，而不是按新行号重新等分
-- 行内 ComboBox 切换 speaker 时保留该行当前比例，只更新标签与可选项
-- ComboBox 的业务值以 `row.speakerName` / `Qt::UserRole` 原始 speaker 名为准，不依赖带 `（已使用）` 后缀的展示文本
-- 行内 ComboBox 固定宽度 120px；下拉弹窗按最长选项设置最小宽度，避免 `（已使用）` 被截断；禁用项使用半透明文字
-- `resizeEvent` 中调用 `doItemsLayout()` 强制同步布局（QListWidget 的 `scheduleDelayedItemsLayout` 在快速 resize 时延迟）
-- 全局 QSS `QListWidget::item { padding: 4px 8px }` 增加 8px 垂直间距 → sizeHint 必须为 36px（28 内容 + 8 padding）
-- FlowLayout 容器需要 `setSizePolicy(Expanding, Preferred)` 才能在 QVBoxLayout 中正确计算 heightForWidth
+`DspxProjectConverter` 在 clip 的 DS workspace 中写入：
 
-## 共享比例计算
+```json
+{
+  "speakerMix": {
+    "mode": "fixed",
+    "sources": [
+      { "id": "luna", "name": "Luna" },
+      { "id": "azure", "name": "Azure" },
+      { "id": "umbra", "name": "Umbra" }
+    ],
+    "fixedWeights": [0.33, 0.33]
+  }
+}
+```
 
-- 新增 `UI/Utils/SpeakerMixUtils.h/.cpp`，供 `SpeakerMixBar` 和 `SpeakerMixEditorView` 共用
-- 负责 N-1 stored weights ↔ N full weights 转换、full weights 归一化、整数百分比显示、1% 吸附
-- 负责默认相邻拖动和 `Alt` 左右两组等比例拖动，避免比例条和关键帧编辑器行为分叉
+说明：
 
-## SpeakerMixEditorView 对齐情况
+- `mode == Single` 时省略 `speakerMix`
+- Fixed Mix 使用 `fixedWeights`
+- Dynamic Mix 使用 `dynamicKeyframes`，但为了支持 Dynamic Mix 开关，`fixedWeights` 与 `dynamicKeyframes` 后续需要允许同时保留
+- 读取时使用当前 effective singer 的 `speakers()` 严格解析 source
+- 官方 opendspx `sources` 仍写当前单 effective singer/speaker，作为推理和第三方兼容 fallback
 
-- 关键帧分割点已对齐 `SpeakerMixBar`：整数百分比显示/吸附、默认相邻调整、`Alt` 等比例压缩/扩展
-- 拖动计算基于 drag-start 快照，允许相邻块压缩到 0%，不再保留 1% 最小宽度
-- hover 和 drag 分割点 tooltip 都使用自定义 `ToolTip`，不再混用原生 `QToolTip`
-- 第一个关键帧仍只锁水平位置，不锁权重编辑
+## 已完成提交
 
-## TagButton QSS（controls.qss）
+- `1535ee3a` — Add fixed speaker mix persistence
+- `0f837b8b` — Show speaker names in mix dialog
 
-| 状态 | 样式 |
-|------|------|
-| 默认 | transparent 背景，`#363B46` 描边，4px 圆角，28px 高，12px 水平 padding |
-| hover | `#2E3444` 背景 |
-| checked | `#9BBAFF` 文字 + 描边，transparent 背景 |
-| checked:hover | 12% 透明度 `#9BBAFF` 背景 |
+当前已用 debug preset 构建通过。构建方式应遵循 `.agents/skills/cmake-build/SKILL.md`。
 
-## Commits
+更早的 UI / 交互基础提交：
 
 - `c45ae64b` — Add speaker tag selection area with TagButton control
 - `324168da` — Add FlowLayout from Qt official example
@@ -111,15 +209,36 @@ SpeakerMixDialog 用于配置同一歌手模型内多个 speaker 的固定混合
 - `d63c0b81` — Use custom tooltip for speaker mix hover
 - `fc377933` — Disable used speaker mix options
 
-## 未提交的本地改动
+## 临时状态
 
-- `main.cpp` — 启动时弹出对话框的调试代码（不提交）
-- `docs/speaker-mix-dialog.md` — 当前文档仍是未跟踪文件，需在合适时机加入版本控制
+- `ClipEditorToolBarView` 中的 `Speaker Mix` 按钮是临时测试入口
+- `GeneralOption.h` / `ParamEditorView.cpp` 中有用于默认进入 Speaker Mix 页的本地改动；动态混合尚未接入模型前，这个入口先保留，方便继续验证编辑器
+- 本轮不实现动态混合推理；推理仍使用当前单 speaker fallback
+- 本轮不写 opendspx 官方 mix 结构
 
 ## 下一步
 
-- 把 `SpeakerMixDialog` 从 debug/demo 收口成正式组件接口：设置初始 sources/weights，确认后返回当前配置
-- 接入真实歌手包 speaker 列表，替换当前硬编码 `{"朱","樱","琪","梨","珏"}` 和 `test_package`
-- 明确 OK/Cancel 或即时应用语义，以及后续如何接 `ReplaceSpeakerMixAction`
-- 完成固定模式与关键帧模式的权限切换：Fixed Mix 允许增删/替换/排序，关键帧模式锁定 speaker 列表，只允许拖比例
-- 后续再做 Fixed Mix / Dynamic Mix 模式切换和固定混合预设
+结合 `speaker-mix-plan.md`，下一步建议从宏观上转向 **Dynamic Mix 模型接入**，而不是先清理 Speaker Mix 编辑器入口。
+推荐顺序如下：
+
+1. 接入 Dynamic Mix 编辑器
+   - `SpeakerMixEditorView` 从硬编码 `spk1/spk2/spk3` 改为绑定 `SingingClip::SpeakerMixData`
+   - Dynamic Mix 下锁定 speaker 列表，只允许编辑 keyframe 权重
+   - 关键帧编辑通过 `ReplaceSpeakerMixAction` 提交
+   - 现有默认跳转到 Speaker Mix 页的本地改动先保留，作为动态混合验证入口
+
+2. 补齐 Fixed Mix / Dynamic Mix 的模式切换语义
+   - Fixed → Dynamic：用当前 Fixed Mix 比例创建第一个 dynamic keyframe
+   - Dynamic → Fixed：保留原 Fixed Mix 比例，不从 dynamic keyframe 强制反写
+   - 关闭 Dynamic 不删除 keyframes，后续重新开启可恢复
+   - 调整 `SpeakerMixData` normalize 策略，避免切换模式时清掉 inactive 数据
+
+3. 再整理正式入口
+   - `ClipEditorToolBarView` 的 `Speaker Mix` 按钮短期继续作为固定混合对话框入口
+   - 参数编辑器中的 Speaker Mix 页继续作为动态混合编辑入口
+   - 等 preset 菜单入口闭环后，移除剪辑工具栏上的临时按钮
+   - 固定混合配置从 singer/speaker 菜单中的 preset 新建/管理入口进入
+
+4. 后续再评估 opendspx 官方 mix 结构
+   - 当前 AppModel 坚持“一个 singer 下多个 speaker”语义
+   - 等确认 opendspx 对 speaker/mix 的官方表达后，只调整 converter，不反向污染 AppModel
