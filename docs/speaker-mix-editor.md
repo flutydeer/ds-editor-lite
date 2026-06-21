@@ -7,6 +7,9 @@
 当前模型接入已完成，`SpeakerMixEditorView` 只负责 Dynamic Mix 关键帧编辑；Fixed Mix 的
 speaker 组合和固定比例由 `SpeakerMixDialog` / preset 管理入口负责。
 
+Phase 6 后，Fixed Mix 的正式入口已迁移到 track/clip 的 singer/speaker 二级菜单；剪辑工具栏上的临时
+`Speaker Mix` 按钮已移除。Dynamic Mix 仍通过参数编辑器中的 Speaker Mix 页进入。
+
 ## 与现有参数的差异
 
 | 维度 | 现有参数 | Speaker mix |
@@ -366,7 +369,8 @@ Dynamic Mix 开关行为：
 
 ## 待修复问题
 
-（暂无）
+- [ ] 初步验收发现：开启 Dynamic Mix 后，双击空白区域存在无法创建关键帧的情况。需要后续联调 `SpeakerMixEditorView` 的双击事件、命中检测、focus 和当前编辑模式状态。
+- [ ] Fixed Mix preset 管理功能当前完整但偏复杂，需要后续讨论是否压缩为更轻量的“保存/另存/删除”流程，减少用户在 dialog 内的状态判断成本。
 
 ---
 
@@ -406,6 +410,9 @@ Dynamic Mix 开关行为：
 - [x] 编辑权重、添加/删除/移动 keyframe 后通过 `ReplaceSpeakerMixAction` 提交，支持 undo/redo
 - [x] workspace 同时读写 `fixedWeights` 与 `dynamicKeyframes`
 - [x] 修复关键帧编辑后工具栏 speaker 指示器闪烁
+- [x] Fixed Mix preset 正式入口接入 track/clip singer 二级菜单
+- [x] Track 新增 `SpeakerMixData`，Follow Track 统一跟随 singer/speaker/speaker mix
+- [x] 剪辑工具栏临时 `Speaker Mix` 按钮移除
 - [ ] 进一步优化编辑体验
 - [x] 统一 Fixed Mix 对话框与 Dynamic Mix 编辑视图的 speaker 颜色规则
 - [x] 整理 Fixed Mix 对话框在 DynamicMix 状态下的初始化语义

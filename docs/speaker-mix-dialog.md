@@ -3,21 +3,22 @@
 ## 概述
 
 `SpeakerMixDialog` 用于配置同一歌手模型内多个 speaker 的固定混合比例。当前已从
-debug/demo 对话框推进到固定混合持久化小闭环：
+debug/demo 对话框推进到 Fixed Mix preset 管理界面：
 
 - 从当前 `SingingClip` 的 effective singer 读取 speaker 列表
-- 在剪辑编辑器工具栏通过临时 `Speaker Mix` 按钮打开对话框
-- OK 后写入 `SingingClip::SpeakerMixData`
-- 通过 `ReplaceSpeakerMixAction` 支持 undo/redo
-- 保存到 `workspace["ds-editor-lite"]["speakerMix"]`，重新打开工程可恢复
+- 从 track/clip 的 singer/speaker 二级菜单中新建或管理 Fixed Mix preset
+- 顶部 preset bar 支持选择、新建、保存、另存为、删除、重置
+- OK 后把当前 Fixed Mix 数据应用到目标 track/clip
+- track/clip 应用 preset 均通过 action 支持 undo/redo
+- track/clip 的实际 `SpeakerMixData` 保存到 `workspace["ds-editor-lite"]["speakerMix"]`，重新打开工程可恢复
+- preset 自身保存到应用常规设置 `GeneralOption::speakerMixPresets`，不进入工程文件
 - 暂不写 opendspx 官方 mix 结构；官方 `sources` 仍保持当前单声线 fallback
 
 后续它会继续聚焦 **Fixed Mix**：作为固定混合配置和用户混合预设管理界面；Dynamic Mix
 关键帧权重只在 `SpeakerMixEditorView` 中编辑，不再通过对话框编辑。
 
-当前 Dynamic Mix 模型接入已完成。对话框仍是 `ClipEditorToolBarView` 上临时
-`Speaker Mix` 按钮打开的 Fixed Mix 入口，短期保留用于验证 fixedWeights 和 Dynamic Mix
-开关之间的切换关系。
+当前 Dynamic Mix 模型接入已完成。对话框只编辑 Fixed Mix 底座；Dynamic Mix keyframes
+不进入 preset，也不在对话框内编辑。
 
 对话框位于 `src/app/UI/Dialogs/SpeakerMix/`：
 
@@ -33,13 +34,15 @@ debug/demo 对话框推进到固定混合持久化小闭环：
 相关模型与动作：
 
 - `Model/AppModel/SpeakerMixData.h/.cpp` — speaker mix 数据结构与权重规范化
-- `SingingClip` — 持有 `SpeakerMixData`，提供 `speakerMixData()` / `setSpeakerMixData()`
-- `Controller/Actions/AppModel/SpeakerMix/` — `ReplaceSpeakerMixAction` / `SpeakerMixActions`
-- `DspxProjectConverter` — DS workspace 中读写 `speakerMix`
+- `Track` — 持有 track 级 `SpeakerMixData`，通过 `speakerMixChanged` 同步跟随中的 clips
+- `SingingClip` — 自有/track 缓存两份 speaker mix；`useTrackSingerInfo` 统一表示 singer/speaker/speaker mix 全部跟随 track
+- `Model/SpeakerMixPreset/` — 用户级 Fixed Mix preset 数据结构与 store
+- `Controller/Actions/AppModel/SpeakerMix/` — clip/track speaker mix preset 应用 action 与替换 action
+- `DspxProjectConverter` — DS workspace 中读写 track/clip `speakerMix`
 
 ## 对话框布局
 
-1. **Preset bar（后续）** — 预设 ComboBox + 新建 / 保存 / 另存为 / 删除 / 重置
+1. **Preset bar** — 预设 ComboBox + 新建 / 保存 / 另存为 / 删除 / 重置
 2. **Tag 选择区** — `FlowLayout + TagButton`，每个 speaker 一个 tag；checked = 参与混合
 3. **SpeakerMixList** — 仅显示已勾选的 speaker
 4. **SpeakerMixBar** — 比例条，拖拽分割点调整比例
@@ -61,18 +64,18 @@ debug/demo 对话框推进到固定混合持久化小闭环：
 
 ## 当前数据流
 
-1. 用户选中歌声剪辑。
-2. `ClipEditorToolBarView` 的 `Speaker Mix` 按钮判断当前 effective singer 至少有 2 个 speakers。
-3. 点击按钮后打开 `SpeakerMixDialog(singerInfo, clip->speakerMixData(), Dialog::globalParent())`。
-4. Dialog 从 `SingerInfo::speakers()` 构造可选 speaker 列表。
-5. OK 时生成 `SpeakerMixData { mode = FixedMix, sources, fixedWeights }`。
-6. `SpeakerMixActions::replaceSpeakerMix()` 创建 old/new 快照 action。
-7. `SingingClip::setSpeakerMixData()` 规范化数据，触发 `speakerMixChanged` 并 bump inference revision。
-8. 保存工程时写入 DS workspace；打开工程时在 singer/speaker 恢复后解析 `speakerMix`。
+1. 用户在 track 或 clip 的 singer/speaker 二级菜单中展开 multi-speaker singer。
+2. 菜单显示该 singer 当前 `packageId + singerId + packageVersion` 精确匹配的 Fixed Mix presets。
+3. 点击 preset：复制 preset 的 `sources + fixedWeights` 到目标 track/clip，进入 `FixedMix`。
+4. 点击“新建混合预设...”或“管理混合预设...”：打开 `SpeakerMixDialog(singerInfo, initialMix, Dialog::globalParent())`。
+5. Dialog 从 `SingerInfo::speakers()` 构造可选 speaker 列表；preset 下拉只显示当前 singer 版本的 presets。
+6. Save/Save As 只保存 Fixed Mix 的 `sources + fixedWeights`，不保存 Dynamic Mix keyframes。
+7. OK 时生成 `SpeakerMixData { mode = FixedMix, sources, fixedWeights }` 并应用到目标 track/clip。
+8. 保存工程时写入展开后的 track/clip DS workspace；preset 列表保存在应用常规设置中。
 
-## 预设入口（后续）
+## 预设入口
 
-固定混合预设会集成到现有 singer/speaker 二级菜单中：
+固定混合预设已集成到现有 singer/speaker 二级菜单中：
 
 ```text
 Luna
@@ -87,17 +90,19 @@ Soft Verse Mix
 管理混合预设...
 ```
 
-- 选择单 speaker：当前 clip 进入 `Single`
-- 选择混合预设：复制 preset 的 `sources + fixedWeights` 到当前 clip，进入 `FixedMix`
+- 选择单 speaker：当前 track/clip 进入 `Single`
+- 选择混合预设：复制 preset 的 `sources + fixedWeights` 到当前 track/clip，进入 `FixedMix`
 - 新建 / 管理混合预设：打开 `SpeakerMixDialog`
-- 预设入口闭环后，`ClipEditorToolBarView` 上临时打开本对话框的 `Speaker Mix` 按钮可以移除
+- `ClipEditorToolBarView` 上临时打开本对话框的 `Speaker Mix` 按钮已移除
 
 预设语义：
 
 - 预设只保存 Fixed Mix，不保存 Dynamic Mix keyframes
-- 应用预设是复制，不是引用；clip 后续修改不会自动反写 preset
-- 工程可在 DS workspace 辅助记录 presetId/name，但实际恢复仍以展开后的 `SpeakerMixData` 为准
-- 如果用户基于某 preset 修改比例，Dialog 可显示 `Custom` 或 `PresetName *` 状态；只有显式保存才覆盖 preset
+- 预设按 `packageId + singerId + packageVersion` 精确匹配
+- 应用预设是复制，不是引用；track/clip 后续修改不会自动反写 preset
+- 工程恢复以展开后的 `SpeakerMixData` 为准；preset 自身不进入工程文件
+- 如果 package 更新导致 `packageVersion` 变化，旧版本 preset 不显示、不自动迁移、不删除
+- 当前 preset 管理能力完整但偏重，后续需要讨论是否简化交互
 
 ## 数据结构
 
@@ -180,7 +185,7 @@ struct SpeakerMixData {
 
 ## 持久化
 
-`DspxProjectConverter` 在 clip 的 DS workspace 中写入：
+`DspxProjectConverter` 在 track/clip 的 DS workspace 中写入：
 
 ```json
 {
@@ -203,10 +208,39 @@ struct SpeakerMixData {
 - Dynamic Mix 使用 `dynamicKeyframes`
 - 为了支持 Dynamic Mix 开关，`fixedWeights` 与 `dynamicKeyframes` 现在允许同时写入与恢复
 - 读取时使用当前 effective singer 的 `speakers()` 严格解析 source
+- clip 处于 Follow Track 时不写自有 `speakerMix`；打开工程后从 track 缓存继承
+- 旧工程的 `useTrackSpeakerInfo` 兼容读取；新语义用 `useTrackSingerInfo` 表示 singer/speaker/speaker mix 统一跟随
 - 官方 opendspx `sources` 仍写当前单 effective singer/speaker，作为推理和第三方兼容 fallback
+
+Preset store 存在应用常规设置中：
+
+```json
+{
+  "speakerMixPresets": {
+    "schemaVersion": 1,
+    "presets": [
+      {
+        "id": "uuid",
+        "name": "Bright Blend",
+        "packageId": "package",
+        "singerId": "singer",
+        "packageVersion": "1.2.0",
+        "sources": [
+          { "id": "luna", "name": "Luna" },
+          { "id": "azure", "name": "Azure" }
+        ],
+        "fixedWeights": [0.5],
+        "createdAt": "2026-06-21T10:00:00.000Z",
+        "updatedAt": "2026-06-21T10:00:00.000Z"
+      }
+    ]
+  }
+}
+```
 
 ## 已完成提交
 
+- 当前提交 — Add fixed speaker mix presets
 - `1535ee3a` — Add fixed speaker mix persistence
 - `0f837b8b` — Show speaker names in mix dialog
 
@@ -223,29 +257,28 @@ struct SpeakerMixData {
 - `d63c0b81` — Use custom tooltip for speaker mix hover
 - `fc377933` — Disable used speaker mix options
 
-## 临时状态
+## 当前限制与观察
 
-- `ClipEditorToolBarView` 中的 `Speaker Mix` 按钮是临时测试入口
+- `ClipEditorToolBarView` 中的临时 `Speaker Mix` 按钮已移除
 - 用于默认进入 Speaker Mix 页的本地测试改动已移除；现在仍可通过参数前景下拉框手动切到 Speaker Mix 页验证 Dynamic Mix
 - 本轮不实现动态混合推理；推理仍使用当前单 speaker fallback
 - 本轮不写 opendspx 官方 mix 结构
 - 当前 Fixed Mix 对话框、Dynamic Mix 编辑视图和参数页 toolbar 已统一使用 `SpeakerMixColorResolver` 派生颜色。
-- 当前对话框在 `mode == DynamicMix` 时仍主要作为 Fixed Mix 临时入口使用；打开时恢复 `sources + fixedWeights` 这份固定底座。
+- 当前对话框在 `mode == DynamicMix` 时作为 Fixed Mix 底座入口使用；打开时恢复 `sources + fixedWeights`，不会保存 dynamic keyframes 到 preset。
+- 初步验收发现：开启 Dynamic Mix 后双击可能无法创建关键帧，需要后续联调参数编辑器事件路径。
+- preset 管理交互偏复杂，后续需要讨论是否简化。
 
 ## 下一步
 
 结合 `speaker-mix-plan.md`，Dynamic Mix 模型接入已完成，下一步建议按下面顺序推进：
 
-1. 整理正式入口
-   - `ClipEditorToolBarView` 的 `Speaker Mix` 按钮短期继续作为固定混合对话框入口
-   - 参数编辑器中的 Speaker Mix 页继续作为动态混合编辑入口
-   - 等 preset 菜单入口闭环后，移除剪辑工具栏上的临时按钮
-   - 固定混合配置从 singer/speaker 菜单中的 preset 新建/管理入口进入
+1. 联调 Dynamic Mix 编辑体验
+   - 优先排查开启 Dynamic Mix 后双击无法创建关键帧的问题
+   - 回归关键帧添加、删除、拖拽、undo/redo 与保存恢复
 
-2. 增加 Fixed Mix preset
-   - 新增用户级 fixed mix preset store
-   - 对话框顶部增加 preset ComboBox 和新建、保存、另存为、删除、重置按钮
-   - 选择 preset 时复制为当前 clip 的 Fixed Mix 配置，不引用 preset
+2. 简化 Fixed Mix preset 管理
+   - 讨论是否保留当前完整 preset bar
+   - 评估更轻量的保存/覆盖/删除流程
 
 3. 后续再评估 opendspx 官方 mix 结构
    - 当前 AppModel 坚持“一个 singer 下多个 speaker”语义

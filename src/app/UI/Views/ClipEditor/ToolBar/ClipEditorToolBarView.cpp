@@ -9,6 +9,7 @@
 #include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"
+#include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Inference/Models/SingerIdentifier.h"
@@ -19,6 +20,7 @@
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/ToolTipFilter.h"
+#include "UI/Controls/Toast.h"
 #include "UI/Controls/TwoLevelComboBox.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Utils/IconUtils.h"
@@ -38,6 +40,27 @@ namespace {
     int quantizeIndex(int quantize) {
         const int index = quantizeValues.indexOf(quantize);
         return index >= 0 ? index : quantizeValues.indexOf(16);
+    }
+
+    SpeakerInfo speakerById(const SingerInfo &singerInfo, const QString &id) {
+        for (const auto &speaker : singerInfo.speakers()) {
+            if (speaker.id() == id)
+                return speaker;
+        }
+        return {};
+    }
+
+    SpeakerMixData speakerMixDataFromPreset(const SpeakerMixPreset &preset,
+                                            const SingerInfo &singerInfo) {
+        SpeakerMixData data;
+        data.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
+        for (const auto &source : preset.sources) {
+            const auto speaker = speakerById(singerInfo, source.speaker.id());
+            if (!speaker.isEmpty())
+                data.sources.append({speaker});
+        }
+        data.fixedWeights = preset.fixedWeights;
+        return SpeakerMixModel::normalizeSpeakerMixData(data);
     }
 
 } // namespace
@@ -107,6 +130,8 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
             });
     connect(d->m_cbSinger, &TwoLevelComboBox::currentDataChanged, d,
             &ClipEditorToolBarViewPrivate::onSingerEdited);
+    connect(d->m_cbSinger, &TwoLevelComboBox::itemsPopulated, d,
+            &ClipEditorToolBarViewPrivate::populatePresetMenus);
 
     d->m_cbClipLanguage = new LanguageComboBox("unknown", true);
     d->m_cbClipLanguage->setObjectName("cbClipLanguage");
@@ -149,10 +174,6 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
                            tr("Draw Pitch"), Qt::Key_G, pitchPencilDesc);
     d->m_btnPitchEraser = d->buildToolButton(
         "btnPitchEraser", ":svg/icons/pitch_erase_24_filled.svg", tr("Erase Pitch"), Qt::Key_H);
-    d->m_btnSpeakerMix =
-        d->buildCommonButton("btnSpeakerMix", ":svg/icons/layer_20_filled.svg", tr("Speaker Mix"));
-    connect(d->m_btnSpeakerMix, &Button::clicked, d,
-            &ClipEditorToolBarViewPrivate::onSpeakerMixClicked);
     auto freezePitchDesc = tr("Copy automatic pitch inference results to edited pitch");
     // d->m_btnFreezePitch =
     //     d->buildToolButton("btnFreezePitch", tr("Freeze Pitch"), Qt::Key_J, freezePitchDesc);
@@ -218,7 +239,6 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     toolButtonLayout->addWidget(d->m_btnPitchAnchor);
     toolButtonLayout->addWidget(d->m_btnPitchPencil);
     toolButtonLayout->addWidget(d->m_btnPitchEraser);
-    toolButtonLayout->addWidget(d->m_btnSpeakerMix);
     // toolButtonLayout->addWidget(d->m_btnFreezePitch);
     toolButtonLayout->setSpacing(1);
     toolButtonLayout->setContentsMargins({});
@@ -333,7 +353,6 @@ void ClipEditorToolBarViewPrivate::moveToNullClipState() const {
     m_leClipName->setText(QString());
 
     setPianoRollToolsEnabled(false);
-    updateSpeakerMixButtonState();
 }
 
 void ClipEditorToolBarViewPrivate::moveToSingingClipState() const {
@@ -341,7 +360,6 @@ void ClipEditorToolBarViewPrivate::moveToSingingClipState() const {
     m_leClipName->setText(m_clip->name());
 
     setPianoRollToolsEnabled(true);
-    updateSpeakerMixButtonState();
 }
 
 void ClipEditorToolBarViewPrivate::moveToAudioClipState() const {
@@ -349,7 +367,6 @@ void ClipEditorToolBarViewPrivate::moveToAudioClipState() const {
     m_leClipName->setText(m_clip->name());
 
     setPianoRollToolsEnabled(false);
-    updateSpeakerMixButtonState();
 }
 
 Button *ClipEditorToolBarViewPrivate::buildToolButton(const QString &objName,
@@ -401,7 +418,6 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
     m_cbClipLanguage->setEnabled(on);
     m_cbPianoRollQuantize->setVisible(on);
     m_cbPianoRollQuantize->setEnabled(on);
-    updateSpeakerMixButtonState();
 
     if (on) {
         const bool inherit = m_singingClip->useTrackSingerInfo.get();
@@ -438,7 +454,6 @@ void ClipEditorToolBarViewPrivate::onClipSingerChanged() const {
     const bool inherit = m_singingClip->useTrackSingerInfo.get();
     m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(), inherit);
     m_cbSinger->setToolTip(m_cbSinger->currentText());
-    updateSpeakerMixButtonState();
 }
 
 void ClipEditorToolBarViewPrivate::onSingerEdited() const {
@@ -453,25 +468,73 @@ void ClipEditorToolBarViewPrivate::onSingerEdited() const {
             m_singingClip->setOwnSingerAndSpeaker(singerInfo, speakerInfo);
         }
         m_cbSinger->setToolTip(m_cbSinger->currentText());
-        updateSpeakerMixButtonState();
     }
 }
 
-void ClipEditorToolBarViewPrivate::updateSpeakerMixButtonState() const {
-    if (!m_btnSpeakerMix)
+void ClipEditorToolBarViewPrivate::populatePresetMenus() const {
+    if (!m_cbSinger)
         return;
 
-    const bool enabled =
-        m_clip && m_singingClip && m_singingClip->singerInfo().speakers().size() >= 2;
-    m_btnSpeakerMix->setVisible(enabled);
-    m_btnSpeakerMix->setEnabled(enabled);
+    m_cbSinger->clearInjectedActions();
+    const auto packages = packageManager->installedPackages().successfulPackages;
+    for (const auto &package : packages) {
+        for (const auto &singerInfo : package.singers()) {
+            if (singerInfo.speakers().size() < 2 || !m_cbSinger->groupMenuForSinger(singerInfo))
+                continue;
+
+            m_cbSinger->addInjectedSeparatorToSinger(singerInfo);
+            const auto presets = SpeakerMixPresetStore::presetsForSinger(singerInfo);
+            for (const auto &preset : presets) {
+                const auto action = m_cbSinger->addInjectedActionToSinger(singerInfo, preset.name);
+                if (!action)
+                    continue;
+                connect(action, &QAction::triggered, this,
+                        [this, presetId = preset.id] { onPresetApplied(presetId); });
+            }
+
+            m_cbSinger->addInjectedSeparatorToSinger(singerInfo);
+            if (const auto action =
+                    m_cbSinger->addInjectedActionToSinger(singerInfo, tr("New mix preset..."))) {
+                connect(action, &QAction::triggered, this,
+                        [this, singerInfo] { onNewPresetAction(singerInfo); });
+            }
+            if (const auto action = m_cbSinger->addInjectedActionToSinger(
+                    singerInfo, tr("Manage mix presets..."))) {
+                connect(action, &QAction::triggered, this,
+                        [this, singerInfo] { onManagePresetsAction(singerInfo); });
+            }
+        }
+    }
 }
 
-void ClipEditorToolBarViewPrivate::onSpeakerMixClicked() const {
+void ClipEditorToolBarViewPrivate::onPresetApplied(const QString &presetId) const {
     if (!m_singingClip)
         return;
 
-    const auto singerInfo = m_singingClip->singerInfo();
+    const auto preset = SpeakerMixPresetStore::findPreset(presetId);
+    if (!preset)
+        return;
+    const auto singerInfo = packageManager->findSingerByIdentifier(preset->singerIdentifier());
+    if (singerInfo.isEmpty())
+        return;
+
+    const auto data = speakerMixDataFromPreset(*preset, singerInfo);
+    if (SpeakerMixModel::isSpeakerMixDataSingle(data)) {
+        Toast::show(tr("Preset speakers are unavailable"));
+        return;
+    }
+
+    const auto speakerInfo = data.sources.first().speaker;
+    const auto actions = new SpeakerMixActions;
+    actions->applyClipSpeakerMixPreset(singerInfo, speakerInfo, data, m_singingClip);
+    actions->execute();
+    historyManager->record(actions);
+
+    m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(), false);
+    m_cbSinger->setToolTip(m_cbSinger->currentText());
+}
+
+void ClipEditorToolBarViewPrivate::onNewPresetAction(const SingerInfo &singerInfo) const {
     if (singerInfo.speakers().size() < 2)
         return;
 
@@ -479,12 +542,44 @@ void ClipEditorToolBarViewPrivate::onSpeakerMixClicked() const {
     auto *parent = Dialog::globalParent();
     if (!parent)
         parent = const_cast<ClipEditorToolBarView *>(q);
-    SpeakerMixDialog dialog(singerInfo, m_singingClip->speakerMixData(), parent);
-    if (dialog.exec() != QDialog::Accepted)
+
+    SpeakerMixDialog dialog(singerInfo, {}, parent);
+    if (dialog.exec() == QDialog::Accepted && m_singingClip) {
+        const auto data = dialog.speakerMixData();
+        if (!SpeakerMixModel::isSpeakerMixDataSingle(data)) {
+            const auto actions = new SpeakerMixActions;
+            actions->applyClipSpeakerMixPreset(singerInfo, data.sources.first().speaker, data,
+                                               m_singingClip);
+            actions->execute();
+            historyManager->record(actions);
+        }
+    }
+    populatePresetMenus();
+}
+
+void ClipEditorToolBarViewPrivate::onManagePresetsAction(const SingerInfo &singerInfo) const {
+    if (singerInfo.speakers().size() < 2)
         return;
 
-    const auto actions = new SpeakerMixActions;
-    actions->replaceSpeakerMix(dialog.speakerMixData(), m_singingClip);
-    actions->execute();
-    historyManager->record(actions);
+    Q_Q(const ClipEditorToolBarView);
+    auto *parent = Dialog::globalParent();
+    if (!parent)
+        parent = const_cast<ClipEditorToolBarView *>(q);
+
+    const auto initialData =
+        m_singingClip && m_singingClip->singerInfo().identifier() == singerInfo.identifier()
+            ? m_singingClip->speakerMixData()
+            : SpeakerMixData();
+    SpeakerMixDialog dialog(singerInfo, initialData, parent);
+    if (dialog.exec() == QDialog::Accepted && m_singingClip) {
+        const auto data = dialog.speakerMixData();
+        if (!SpeakerMixModel::isSpeakerMixDataSingle(data)) {
+            const auto actions = new SpeakerMixActions;
+            actions->applyClipSpeakerMixPreset(singerInfo, data.sources.first().speaker, data,
+                                               m_singingClip);
+            actions->execute();
+            historyManager->record(actions);
+        }
+    }
+    populatePresetMenus();
 }

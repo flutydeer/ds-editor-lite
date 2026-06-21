@@ -39,22 +39,23 @@ namespace {
     class JsonNlohmann {
     public:
         static nlohmann::json fromQJsonValue(const QJsonValue &v) {
-            if(v.isString())
+            if (v.isString())
                 return v.toString().toStdString();
 
-            if(v.isBool())
+            if (v.isBool())
                 return v.toBool();
 
-            if(v.isDouble())
+            if (v.isDouble())
                 return v.toDouble();
 
-            if(v.isArray()) {
+            if (v.isArray()) {
                 nlohmann::json ret = nlohmann::json::array();
-                std::ranges::transform(v.toArray(), std::back_inserter(ret), &JsonNlohmann::fromQJsonValue);
+                std::ranges::transform(v.toArray(), std::back_inserter(ret),
+                                       &JsonNlohmann::fromQJsonValue);
                 return ret;
             }
 
-            if(v.isObject()) {
+            if (v.isObject()) {
                 nlohmann::json ret = nlohmann::json::object();
                 for (auto [key, value] : v.toObject().asKeyValueRange()) {
                     ret[key.toString().toStdString()] = fromQJsonValue(value);
@@ -65,24 +66,23 @@ namespace {
             return {};
         }
 
-
         static QJsonValue toQJsonValue(const nlohmann::json &v) {
-            if(v.is_string())
+            if (v.is_string())
                 return QString::fromStdString(v.get<std::string>());
 
-            if(v.is_boolean())
+            if (v.is_boolean())
                 return v.get<bool>();
 
-            if(v.is_number())
+            if (v.is_number())
                 return v.get<double>();
 
-            if(v.is_array()) {
+            if (v.is_array()) {
                 QJsonArray ret;
                 std::ranges::transform(v, std::back_inserter(ret), &JsonNlohmann::toQJsonValue);
                 return ret;
             }
 
-            if(v.is_object()) {
+            if (v.is_object()) {
                 QJsonObject ret;
                 for (auto it = v.begin(); it != v.end(); ++it) {
                     ret[it.key().c_str()] = toQJsonValue(it.value());
@@ -107,7 +107,8 @@ namespace {
         return JsonNlohmann::toQJsonValue(it->second).toObject();
     }
 
-    // Write a QJsonObject into the "ds-editor-lite" key of an opendspx Workspace, preserving other keys
+    // Write a QJsonObject into the "ds-editor-lite" key of an opendspx Workspace, preserving other
+    // keys
     void writeDsWorkspace(opendspx::Workspace &workspace, const QJsonObject &obj) {
         if (obj.isEmpty())
             return;
@@ -359,8 +360,8 @@ namespace {
         return singer;
     }
 
-    std::optional<DecodedSingerSource> decodePrimarySingerSource(
-        const std::vector<opendspx::SingerRef> &singers) {
+    std::optional<DecodedSingerSource>
+        decodePrimarySingerSource(const std::vector<opendspx::SingerRef> &singers) {
         for (const auto &singerRef : singers) {
             if (singerRef->type == opendspx::Singer::Type::Single) {
                 auto single = std::static_pointer_cast<opendspx::SingleSinger>(singerRef);
@@ -392,18 +393,21 @@ namespace {
 
 bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &errMsg,
                                 ImportMode mode) {
-    auto decodeCurves = [&](const std::vector<opendspx::ParamCurveRef> &dspxCurveRefs, const int offset) {
+    auto decodeCurves = [&](const std::vector<opendspx::ParamCurveRef> &dspxCurveRefs,
+                            const int offset) {
         QVector<Curve *> curves;
         for (const opendspx::ParamCurveRef &dspxCurveRef : dspxCurveRefs) {
             if (dspxCurveRef->type == opendspx::ParamCurve::Type::Free) {
-                const auto castCurveRef = std::static_pointer_cast<opendspx::ParamCurveFree>(dspxCurveRef);
+                const auto castCurveRef =
+                    std::static_pointer_cast<opendspx::ParamCurveFree>(dspxCurveRef);
                 const auto curve = new DrawCurve;
                 curve->setLocalStart(castCurveRef->start - offset);
                 curve->step = castCurveRef->step;
                 curve->setValues(QList(castCurveRef->values.begin(), castCurveRef->values.end()));
                 curves.append(curve);
             } else if (dspxCurveRef->type == opendspx::ParamCurve::Type::Anchor) {
-                const auto castCurveRef = std::static_pointer_cast<opendspx::ParamCurveAnchor>(dspxCurveRef);
+                const auto castCurveRef =
+                    std::static_pointer_cast<opendspx::ParamCurveAnchor>(dspxCurveRef);
                 const auto curve = new AnchorCurve;
                 curve->setLocalStart(castCurveRef->start - offset);
                 for (const auto &[interp, x, y] : castCurveRef->nodes) {
@@ -441,7 +445,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         params.expressiveness =
             std::move(decodeSingingParam(dspxParams_["expressiveness"], offset, clip));
         params.energy = std::move(decodeSingingParam(dspxParams_["energy"], offset, clip));
-        params.breathiness = std::move(decodeSingingParam(dspxParams_["breathiness"], offset, clip));
+        params.breathiness =
+            std::move(decodeSingingParam(dspxParams_["breathiness"], offset, clip));
         params.voicing = std::move(decodeSingingParam(dspxParams_["voicing"], offset, clip));
         params.tension = std::move(decodeSingingParam(dspxParams_["tension"], offset, clip));
         params.gender = std::move(decodeSingingParam(dspxParams_["gender"], offset, clip));
@@ -473,10 +478,12 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
             note->setLyric(QString::fromStdString(dspxNote.lyric));
             note->setLanguage(QString::fromStdString(dspxNote.language));
             note->setPronunciation(
-                Pronunciation(QString::fromStdString(dspxNote.pronunciation.original), QString::fromStdString(dspxNote.pronunciation.edited)));
+                Pronunciation(QString::fromStdString(dspxNote.pronunciation.original),
+                              QString::fromStdString(dspxNote.pronunciation.edited)));
             QMap<QString, QJsonObject> workspace;
             for (const auto &[key, value] : dspxNote.workspace) {
-                workspace[QString::fromStdString(key)] = JsonNlohmann::toQJsonValue(value).toObject();
+                workspace[QString::fromStdString(key)] =
+                    JsonNlohmann::toQJsonValue(value).toObject();
             }
             note->setWorkspace(workspace);
             // note->setPhonemeInfo(Note::Original, decodePhonemes(dspxNote.phonemes.org));
@@ -501,24 +508,24 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 auto notes = decodeNotes(castClip->notes, start);
                 for (const auto &note : notes)
                     clip->insertNote(note);
-                clip->params =
-                    std::move(decodeSingingParams(castClip->params, start, clip));
+                clip->params = std::move(decodeSingingParams(castClip->params, start, clip));
                 QMap<QString, QJsonObject> workspace;
                 for (const auto &[key, value] : castClip->workspace) {
-                    workspace[QString::fromStdString(key)] = JsonNlohmann::toQJsonValue(value).toObject();
+                    workspace[QString::fromStdString(key)] =
+                        JsonNlohmann::toQJsonValue(value).toObject();
                 }
                 clip->workspace() = workspace;
 
                 // Inject track singer/speaker info for inheritance
                 clip->setTrackSingerAndSpeakerInfo(track->singerInfo(), track->speakerInfo());
+                clip->setTrackSpeakerMixData(track->speakerMixData());
 
                 // Read official sources.singers[] for clip singer
                 bool hasOfficialSinger = false;
                 SingerInfo officialSinger;
                 SpeakerInfo officialSpeaker;
                 if (castClip->sources.has_value()) {
-                    auto primarySinger =
-                        decodePrimarySingerSource(castClip->sources->singers);
+                    auto primarySinger = decodePrimarySingerSource(castClip->sources->singers);
                     if (primarySinger.has_value()) {
                         officialSinger = primarySinger->singerInfo;
                         officialSpeaker = primarySinger->speakerInfo;
@@ -549,21 +556,26 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
 
                 // Read clip speaker
                 auto speakerObj = clipDsWs["speaker"].toObject();
-                const auto effectiveSingerForSpeaker = useTrackSingerInfo ? track->singerInfo()
-                                                                          : officialSinger;
+                const auto effectiveSingerForSpeaker =
+                    useTrackSingerInfo ? track->singerInfo() : officialSinger;
                 SpeakerInfo ownSpeaker;
                 if (!speakerObj.isEmpty()) {
                     ownSpeaker = resolveSpeakerInfo(effectiveSingerForSpeaker,
                                                     decodeSpeakerInfoFromWorkspace(speakerObj));
-                } else if (!officialSpeaker.isEmpty() && (!hasUseTrackSpeakerInfo || !useTrackSpeakerInfo)) {
+                } else if (!officialSpeaker.isEmpty() &&
+                           (!hasUseTrackSpeakerInfo || !useTrackSpeakerInfo)) {
                     ownSpeaker = resolveSpeakerInfo(effectiveSingerForSpeaker, officialSpeaker);
                 }
 
-                if (useTrackSingerInfo && useTrackSpeakerInfo) {
+                const bool useTrackInfo = useTrackSingerInfo && useTrackSpeakerInfo;
+
+                if (useTrackInfo) {
                     clip->useTrackSingerAndSpeaker();
                 } else {
-                    const auto ownSinger = useTrackSingerInfo ? track->singerInfo() : officialSinger;
-                    const auto ownSpeakerInfo = useTrackSpeakerInfo ? track->speakerInfo() : ownSpeaker;
+                    const auto ownSinger =
+                        useTrackSingerInfo ? track->singerInfo() : officialSinger;
+                    const auto ownSpeakerInfo =
+                        useTrackSpeakerInfo ? track->speakerInfo() : ownSpeaker;
                     clip->setOwnSingerAndSpeaker(ownSinger, ownSpeakerInfo);
                 }
 
@@ -572,8 +584,10 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 if (!clipLang.isEmpty())
                     clip->setDefaultLanguage(clipLang);
 
-                clip->setSpeakerMixData(decodeSpeakerMixDataFromWorkspace(
-                    clipDsWs["speakerMix"].toObject(), clip->singerInfo()));
+                if (!useTrackInfo) {
+                    clip->setOwnSpeakerMixData(decodeSpeakerMixDataFromWorkspace(
+                        clipDsWs["speakerMix"].toObject(), clip->singerInfo()));
+                }
 
                 track->insertClip(clip);
             } else if (dspxClip->type == opendspx::Clip::Type::Audio) {
@@ -590,7 +604,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 clip->setPath(QString::fromStdString(castClip->path));
                 QMap<QString, QJsonObject> workspace;
                 for (const auto &[key, value] : castClip->workspace) {
-                    workspace[QString::fromStdString(key)] = JsonNlohmann::toQJsonValue(value).toObject();
+                    workspace[QString::fromStdString(key)] =
+                        JsonNlohmann::toQJsonValue(value).toObject();
                 }
                 clip->workspace() = workspace;
                 track->insertClip(clip);
@@ -616,8 +631,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 auto singerObj = trackDsWs["singer"].toObject();
                 auto singerInfo = decodeSingerInfoFromWorkspace(singerObj);
                 auto speakerObj = trackDsWs["speaker"].toObject();
-                auto speakerInfo = resolveSpeakerInfo(singerInfo,
-                                                     decodeSpeakerInfoFromWorkspace(speakerObj));
+                auto speakerInfo =
+                    resolveSpeakerInfo(singerInfo, decodeSpeakerInfoFromWorkspace(speakerObj));
                 if (!singerInfo.isEmpty() || !speakerInfo.isEmpty())
                     track->setSingerAndSpeakerInfo(singerInfo, speakerInfo);
 
@@ -627,6 +642,9 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
 
                 if (trackDsWs.contains("colorIndex"))
                     track->setColorIndex(trackDsWs["colorIndex"].toInt());
+
+                track->setSpeakerMixData(decodeSpeakerMixDataFromWorkspace(
+                    trackDsWs["speakerMix"].toObject(), track->singerInfo()));
             }
 
             decodeClips(dspxTrack.clips, track);
@@ -702,7 +720,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
 
 bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &errMsg) {
 
-    auto encodeCurves = [&](const QList<Curve *> &dsCurves, std::vector<opendspx::ParamCurveRef> &curves) {
+    auto encodeCurves = [&](const QList<Curve *> &dsCurves,
+                            std::vector<opendspx::ParamCurveRef> &curves) {
         for (const auto &dsCurve : dsCurves) {
             if (dsCurve->type() == Curve::CurveType::Draw) {
                 const auto castCurve = dynamic_cast<DrawCurve *>(dsCurve);
@@ -754,7 +773,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         encodeSingingParam(dsParams.velocity, params["velocity"]);
     };
 
-    // auto encodePhonemes = [&](const QList<Phoneme> &dsPhonemes, QList<opendspx::Phoneme> &phonemes)
+    // auto encodePhonemes = [&](const QList<Phoneme> &dsPhonemes, QList<opendspx::Phoneme>
+    // &phonemes)
     // {
     //     for (const auto &dsPhoneme : dsPhonemes) {
     //         opendspx::Phoneme phoneme;
@@ -771,7 +791,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     //     }
     // };
 
-    auto encodeNotes = [&](const OverlappableSerialList<Note> &dsNotes, std::vector<opendspx::Note> &notes) {
+    auto encodeNotes = [&](const OverlappableSerialList<Note> &dsNotes,
+                           std::vector<opendspx::Note> &notes) {
         for (const auto dsNote : dsNotes) {
             opendspx::Note note;
             note.pos = dsNote->globalStart();
@@ -812,12 +833,12 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 // Write clip DS workspace (flags/speaker/language)
                 QJsonObject clipDsWs;
                 clipDsWs["schemaVersion"] = kDsWorkspaceSchemaVersion;
-                clipDsWs["useTrackSingerInfo"] = singingClip->useTrackSingerInfo.get();
-                clipDsWs["useTrackSpeakerInfo"] = singingClip->useTrackSpeakerInfo.get();
+                const bool useTrackInfo = singingClip->useTrackSingerInfo.get();
+                clipDsWs["useTrackSingerInfo"] = useTrackInfo;
+                clipDsWs["useTrackSpeakerInfo"] = useTrackInfo;
 
                 auto clipSpeakerObj = encodeSpeakerInfoForWorkspace(
-                    singingClip->useTrackSpeakerInfo.get() ? SpeakerInfo()
-                                                          : singingClip->speakerInfo());
+                    useTrackInfo ? SpeakerInfo() : singingClip->ownSpeakerInfo());
                 if (!clipSpeakerObj.isEmpty())
                     clipDsWs["speaker"] = clipSpeakerObj;
 
@@ -829,10 +850,12 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 if (!clipG2p.isEmpty() && clipG2p != "unknown")
                     clipDsWs["defaultG2pId"] = clipG2p;
 
-                auto speakerMixObj =
-                    encodeSpeakerMixDataForWorkspace(singingClip->speakerMixData());
-                if (!speakerMixObj.isEmpty())
-                    clipDsWs["speakerMix"] = speakerMixObj;
+                if (!useTrackInfo) {
+                    auto speakerMixObj =
+                        encodeSpeakerMixDataForWorkspace(singingClip->ownSpeakerMixData());
+                    if (!speakerMixObj.isEmpty())
+                        clipDsWs["speakerMix"] = speakerMixObj;
+                }
 
                 writeDsWorkspace(singClip->workspace, clipDsWs);
 
@@ -841,7 +864,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 if (!effectiveSinger.identifier().singerId.isEmpty()) {
                     opendspx::Sources sources;
                     sources.category = "singing";
-                    sources.singers.push_back(encodeSingleSingerRef(effectiveSinger, singingClip->speakerInfo()));
+                    sources.singers.push_back(
+                        encodeSingleSingerRef(effectiveSinger, singingClip->speakerInfo()));
                     singClip->sources = sources;
                 }
 
@@ -860,7 +884,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 audioClipRef->control.mute = clip->mute();
                 audioClipRef->path = audioClip->path().toStdString();
                 for (const auto &[key, value] : clip->workspace().asKeyValueRange()) {
-                    audioClipRef->workspace[key.toStdString()] = JsonNlohmann::fromQJsonValue(value);
+                    audioClipRef->workspace[key.toStdString()] =
+                        JsonNlohmann::fromQJsonValue(value);
                 }
                 track.clips.push_back(audioClipRef);
             }
@@ -898,6 +923,10 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
 
             trackDsWs["colorIndex"] = dsTrack->colorIndex();
 
+            auto trackSpeakerMixObj = encodeSpeakerMixDataForWorkspace(dsTrack->speakerMixData());
+            if (!trackSpeakerMixObj.isEmpty())
+                trackDsWs["speakerMix"] = trackSpeakerMixObj;
+
             writeDsWorkspace(track.workspace, trackDsWs);
 
             encodeClips(dsTrack, track);
@@ -914,7 +943,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     auto &timeline = dspxModel.content.timeline;
     timeline.tempos.push_back(opendspx::Tempo(0, model->tempo()));
     timeline.timeSignatures.push_back(opendspx::TimeSignature(0, model->timeSignature().numerator,
-                                                        model->timeSignature().denominator));
+                                                              model->timeSignature().denominator));
 
     encodeTracks(model, dspxModel);
 
@@ -925,7 +954,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                               QString &msg) -> bool {
         opendspx::SerializationErrorList errors;
         std::stringstream ss(std::ios::out);
-        opendspx::Serializer::serialize(ss, model_, errors, opendspx::Serializer::FailFast | opendspx::Serializer::CheckError);
+        opendspx::Serializer::serialize(
+            ss, model_, errors, opendspx::Serializer::FailFast | opendspx::Serializer::CheckError);
 
         if (!errors.empty()) {
             msg += "Serialization errors occurred:";

@@ -7,6 +7,7 @@
 
 // #include <QVersionNumber>
 
+#include <QJsonValue>
 #include <QMap>
 
 #include "Global/AppGlobal.h"
@@ -32,6 +33,7 @@ public:
     };
     QStringList packageSearchPaths;
     QStringList recentProjectFiles;
+    QJsonValue speakerMixPresets;
 #if false
     QVersionNumber defaultPackageVersion;
     LITE_OPTION_ITEM(QString, defaultPackage, QString())
@@ -52,6 +54,7 @@ private:
     const QString defaultLyricsKey = "defaultLyrics";
     const QString packageSearchPathsKey = "packageSearchPaths";
     const QString recentProjectFilesKey = "recentProjectFiles";
+    const QString speakerMixPresetsKey = "speakerMixPresets";
     // const QString defaultPackageVersionKey = "defaultPackageVersion";
 };
 

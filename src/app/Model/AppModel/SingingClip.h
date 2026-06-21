@@ -65,9 +65,15 @@ public:
     QString defaultG2pId() const;
 
     SingerInfo singerInfo() const;
+    SingerInfo ownSingerInfo() const;
     SpeakerInfo speakerInfo() const;
+    SpeakerInfo ownSpeakerInfo() const;
     SpeakerMixData speakerMixData() const;
+    SpeakerMixData ownSpeakerMixData() const;
+    SpeakerMixData trackSpeakerMixData() const;
     void setSpeakerMixData(const SpeakerMixData &data);
+    void setOwnSpeakerMixData(const SpeakerMixData &data);
+    void setTrackSpeakerMixData(const SpeakerMixData &data);
     void resetSpeakerMixToSingle();
     void setTrackSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
     void setOwnSingerAndSpeaker(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
@@ -108,7 +114,8 @@ private:
 
     Property<SpeakerInfo> m_speakerInfo;
     Property<SpeakerInfo> m_trackSpeakerInfo;
-    SpeakerMixData m_speakerMixData;
+    SpeakerMixData m_ownSpeakerMixData;
+    SpeakerMixData m_trackSpeakerMixData;
     bool m_singerSpeakerBatching = false;
 };
 

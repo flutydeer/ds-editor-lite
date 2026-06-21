@@ -18,7 +18,6 @@ namespace {
     }
 }
 
-
 void GeneralOption::load(const QJsonObject &object) {
     if (object.contains(defaultSingingLanguageKey))
         defaultSingingLanguage = object[defaultSingingLanguageKey].toString();
@@ -47,7 +46,8 @@ void GeneralOption::load(const QJsonObject &object) {
     }
 
     recentProjectFiles.clear();
-    if (const auto it = object.constFind(recentProjectFilesKey); it != object.constEnd() && it->isArray()) {
+    if (const auto it = object.constFind(recentProjectFilesKey);
+        it != object.constEnd() && it->isArray()) {
         const auto arr = it->toArray();
         for (auto item : arr) {
             if (!item.isString())
@@ -69,6 +69,9 @@ void GeneralOption::load(const QJsonObject &object) {
                 break;
         }
     }
+
+    if (object.contains(speakerMixPresetsKey))
+        speakerMixPresets = object[speakerMixPresetsKey];
 
 #if false
     if (object.contains(defaultPackageKey))
@@ -94,10 +97,11 @@ void GeneralOption::save(QJsonObject &object) {
         lyricsObj[it.key()] = it.value();
 
     object = {
-        {defaultSingingLanguageKey, defaultSingingLanguage                         },
-        {defaultLyricsKey,          lyricsObj                                      },
-        {packageSearchPathsKey,     QJsonArray::fromStringList(packageSearchPaths) },
+        {defaultSingingLanguageKey, defaultSingingLanguage                        },
+        {defaultLyricsKey,          lyricsObj                                     },
+        {packageSearchPathsKey,     QJsonArray::fromStringList(packageSearchPaths)},
         {recentProjectFilesKey,     QJsonArray::fromStringList(recentProjectFiles)},
+        {speakerMixPresetsKey,      speakerMixPresets                             },
 #if false
         serialize_defaultPackage(),
         serialize_defaultPackageId(),

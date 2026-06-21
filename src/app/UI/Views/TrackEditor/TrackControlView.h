@@ -63,6 +63,10 @@ signals:
 private:
     void contextMenuEvent(QContextMenuEvent *event) override;
     void changeTrackProperty() const;
+    void populatePresetMenus() const;
+    void onPresetApplied(const QString &presetId) const;
+    void onNewPresetAction(const SingerInfo &singerInfo) const;
+    void onManagePresetsAction(const SingerInfo &singerInfo) const;
 
 public:
     void updateTrackColor();

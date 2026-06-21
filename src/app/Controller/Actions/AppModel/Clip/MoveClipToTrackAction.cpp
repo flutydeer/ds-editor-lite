@@ -8,9 +8,8 @@
 #include "Model/AppModel/Track.h"
 
 MoveClipToTrackAction *MoveClipToTrackAction::build(const Clip::ClipCommonProperties &oldArgs,
-                                                     const Clip::ClipCommonProperties &newArgs,
-                                                     Clip *clip, Track *oldTrack,
-                                                     Track *newTrack) {
+                                                    const Clip::ClipCommonProperties &newArgs,
+                                                    Clip *clip, Track *oldTrack, Track *newTrack) {
     const auto a = new MoveClipToTrackAction;
     a->m_oldArgs = oldArgs;
     a->m_newArgs = newArgs;
@@ -30,7 +29,9 @@ void MoveClipToTrackAction::execute() {
     m_newTrack->insertClip(m_clip);
     if (m_clip->clipType() == IClip::Singing) {
         const auto singingClip = static_cast<SingingClip *>(m_clip);
-        singingClip->setTrackSingerAndSpeakerInfo(m_newTrack->singerInfo(), m_newTrack->speakerInfo());
+        singingClip->setTrackSingerAndSpeakerInfo(m_newTrack->singerInfo(),
+                                                  m_newTrack->speakerInfo());
+        singingClip->setTrackSpeakerMixData(m_newTrack->speakerMixData());
     }
     m_clip->notifyPropertyChanged();
     m_oldTrack->notifyClipChanged(Track::Removed, m_clip);
@@ -47,7 +48,9 @@ void MoveClipToTrackAction::undo() {
     m_oldTrack->insertClip(m_clip);
     if (m_clip->clipType() == IClip::Singing) {
         const auto singingClip = static_cast<SingingClip *>(m_clip);
-        singingClip->setTrackSingerAndSpeakerInfo(m_oldTrack->singerInfo(), m_oldTrack->speakerInfo());
+        singingClip->setTrackSingerAndSpeakerInfo(m_oldTrack->singerInfo(),
+                                                  m_oldTrack->speakerInfo());
+        singingClip->setTrackSpeakerMixData(m_oldTrack->speakerMixData());
     }
     m_clip->notifyPropertyChanged();
     m_newTrack->notifyClipChanged(Track::Removed, m_clip);

@@ -8,89 +8,166 @@
 #include "Model/AppModel/Clip.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
+#include "Model/AppModel/SpeakerMixData.h"
 #include "Modules/PackageManager/PackageManager.h"
 
 namespace {
 
-QJsonObject serializeSingerInfo(const SingerInfo &singerInfo) {
-    if (singerInfo.isEmpty())
-        return {};
+    QJsonObject serializeSingerInfo(const SingerInfo &singerInfo) {
+        if (singerInfo.isEmpty())
+            return {};
 
-    QJsonObject obj;
-    QJsonObject identifierObj;
-    const auto identifier = singerInfo.identifier();
-    if (!identifier.singerId.isEmpty())
-        identifierObj["singerId"] = identifier.singerId;
-    if (!identifier.packageId.isEmpty())
-        identifierObj["packageId"] = identifier.packageId;
-    if (!identifier.packageVersion.isNull())
-        identifierObj["packageVersion"] = identifier.packageVersion.toString();
-    if (!identifierObj.isEmpty())
-        obj["identifier"] = identifierObj;
-    if (!singerInfo.name().isEmpty())
-        obj["name"] = singerInfo.name();
-    if (!singerInfo.defaultLanguage().isEmpty())
-        obj["defaultLanguage"] = singerInfo.defaultLanguage();
-    return obj;
-}
-
-SingerInfo deserializeSingerInfo(const QJsonObject &obj) {
-    if (obj.isEmpty())
-        return {};
-
-    const auto identifierObj = obj["identifier"].toObject();
-    SingerIdentifier identifier;
-    identifier.singerId = identifierObj["singerId"].toString();
-    identifier.packageId = identifierObj["packageId"].toString();
-    identifier.packageVersion = QVersionNumber::fromString(identifierObj["packageVersion"].toString());
-    if (identifier.isEmpty())
-        return {};
-
-    const auto resolved = packageManager->findSingerByIdentifier(identifier);
-    if (!resolved.isEmpty())
-        return resolved;
-
-    return SingerInfo(identifier, obj["name"].toString(), {}, {}, obj["defaultLanguage"].toString(), {});
-}
-
-QJsonObject serializeSpeakerInfo(const SpeakerInfo &speakerInfo) {
-    if (speakerInfo.isEmpty())
-        return {};
-
-    QJsonObject obj;
-    if (!speakerInfo.id().isEmpty())
-        obj["id"] = speakerInfo.id();
-    if (!speakerInfo.name().isEmpty())
-        obj["name"] = speakerInfo.name();
-    if (!speakerInfo.toneMin().isEmpty())
-        obj["toneMin"] = speakerInfo.toneMin();
-    if (!speakerInfo.toneMax().isEmpty())
-        obj["toneMax"] = speakerInfo.toneMax();
-    return obj;
-}
-
-SpeakerInfo deserializeSpeakerInfo(const QJsonObject &obj) {
-    if (obj.isEmpty())
-        return {};
-
-    const auto id = obj["id"].toString();
-    if (id.isEmpty())
-        return {};
-
-    return SpeakerInfo(id, obj["name"].toString(), obj["toneMin"].toString(),
-                       obj["toneMax"].toString());
-}
-
-SpeakerInfo resolveSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &fallback) {
-    if (fallback.isEmpty())
-        return {};
-
-    for (const auto &speaker : singerInfo.speakers()) {
-        if (speaker.id() == fallback.id())
-            return speaker;
+        QJsonObject obj;
+        QJsonObject identifierObj;
+        const auto identifier = singerInfo.identifier();
+        if (!identifier.singerId.isEmpty())
+            identifierObj["singerId"] = identifier.singerId;
+        if (!identifier.packageId.isEmpty())
+            identifierObj["packageId"] = identifier.packageId;
+        if (!identifier.packageVersion.isNull())
+            identifierObj["packageVersion"] = identifier.packageVersion.toString();
+        if (!identifierObj.isEmpty())
+            obj["identifier"] = identifierObj;
+        if (!singerInfo.name().isEmpty())
+            obj["name"] = singerInfo.name();
+        if (!singerInfo.defaultLanguage().isEmpty())
+            obj["defaultLanguage"] = singerInfo.defaultLanguage();
+        return obj;
     }
-    return fallback;
-}
+
+    SingerInfo deserializeSingerInfo(const QJsonObject &obj) {
+        if (obj.isEmpty())
+            return {};
+
+        const auto identifierObj = obj["identifier"].toObject();
+        SingerIdentifier identifier;
+        identifier.singerId = identifierObj["singerId"].toString();
+        identifier.packageId = identifierObj["packageId"].toString();
+        identifier.packageVersion =
+            QVersionNumber::fromString(identifierObj["packageVersion"].toString());
+        if (identifier.isEmpty())
+            return {};
+
+        const auto resolved = packageManager->findSingerByIdentifier(identifier);
+        if (!resolved.isEmpty())
+            return resolved;
+
+        return SingerInfo(identifier, obj["name"].toString(), {}, {},
+                          obj["defaultLanguage"].toString(), {});
+    }
+
+    QJsonObject serializeSpeakerInfo(const SpeakerInfo &speakerInfo) {
+        if (speakerInfo.isEmpty())
+            return {};
+
+        QJsonObject obj;
+        if (!speakerInfo.id().isEmpty())
+            obj["id"] = speakerInfo.id();
+        if (!speakerInfo.name().isEmpty())
+            obj["name"] = speakerInfo.name();
+        if (!speakerInfo.toneMin().isEmpty())
+            obj["toneMin"] = speakerInfo.toneMin();
+        if (!speakerInfo.toneMax().isEmpty())
+            obj["toneMax"] = speakerInfo.toneMax();
+        return obj;
+    }
+
+    SpeakerInfo deserializeSpeakerInfo(const QJsonObject &obj) {
+        if (obj.isEmpty())
+            return {};
+
+        const auto id = obj["id"].toString();
+        if (id.isEmpty())
+            return {};
+
+        return SpeakerInfo(id, obj["name"].toString(), obj["toneMin"].toString(),
+                           obj["toneMax"].toString());
+    }
+
+    SpeakerInfo resolveSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &fallback) {
+        if (fallback.isEmpty())
+            return {};
+
+        for (const auto &speaker : singerInfo.speakers()) {
+            if (speaker.id() == fallback.id())
+                return speaker;
+        }
+        return fallback;
+    }
+
+    QJsonArray encodeWeights(const QVector<double> &weights) {
+        QJsonArray array;
+        for (const double weight : weights)
+            array.append(weight);
+        return array;
+    }
+
+    QVector<double> decodeWeights(const QJsonArray &array) {
+        QVector<double> weights;
+        weights.reserve(array.size());
+        for (const auto &value : array)
+            weights.append(value.toDouble());
+        return weights;
+    }
+
+    QJsonObject serializeSpeakerMixData(const SpeakerMixModel::SpeakerMixData &data) {
+        const auto normalized = SpeakerMixModel::normalizeSpeakerMixData(data);
+        if (normalized.mode == SpeakerMixModel::SingerSourceMode::Single)
+            return {};
+
+        QJsonObject obj;
+        obj["mode"] =
+            normalized.mode == SpeakerMixModel::SingerSourceMode::FixedMix ? "fixed" : "dynamic";
+
+        QJsonArray sources;
+        for (const auto &source : normalized.sources)
+            sources.append(serializeSpeakerInfo(source.speaker));
+        obj["sources"] = sources;
+        if (!normalized.fixedWeights.isEmpty())
+            obj["fixedWeights"] = encodeWeights(normalized.fixedWeights);
+        if (!normalized.dynamicKeyframes.isEmpty()) {
+            QJsonArray keyframes;
+            for (const auto &keyframe : normalized.dynamicKeyframes) {
+                QJsonObject keyframeObj;
+                keyframeObj["tick"] = keyframe.tick;
+                keyframeObj["weights"] = encodeWeights(keyframe.weights);
+                keyframes.append(keyframeObj);
+            }
+            obj["dynamicKeyframes"] = keyframes;
+        }
+        return obj;
+    }
+
+    SpeakerMixModel::SpeakerMixData deserializeSpeakerMixData(const QJsonObject &obj,
+                                                              const SingerInfo &singerInfo) {
+        if (obj.isEmpty())
+            return {};
+
+        SpeakerMixModel::SpeakerMixData data;
+        const auto mode = obj["mode"].toString();
+        if (mode == "fixed")
+            data.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
+        else if (mode == "dynamic")
+            data.mode = SpeakerMixModel::SingerSourceMode::DynamicMix;
+        else
+            return {};
+
+        for (const auto &sourceValue : obj["sources"].toArray()) {
+            const auto speaker =
+                resolveSpeakerInfo(singerInfo, deserializeSpeakerInfo(sourceValue.toObject()));
+            if (!speaker.isEmpty())
+                data.sources.append({speaker});
+        }
+        data.fixedWeights = decodeWeights(obj["fixedWeights"].toArray());
+        for (const auto &keyframeValue : obj["dynamicKeyframes"].toArray()) {
+            const auto keyframeObj = keyframeValue.toObject();
+            SpeakerMixModel::SpeakerMixKeyframe keyframe;
+            keyframe.tick = keyframeObj["tick"].toInt();
+            keyframe.weights = decodeWeights(keyframeObj["weights"].toArray());
+            data.dynamicKeyframes.append(keyframe);
+        }
+        return SpeakerMixModel::normalizeSpeakerMixData(data);
+    }
 
 }
 
@@ -136,10 +213,13 @@ QJsonObject ClipsInfo::serializeToJson(const ClipsInfo &info) {
             const auto singingClip = static_cast<SingingClip *>(clip);
             obj["type"] = "singing";
             obj["defaultLanguage"] = singingClip->defaultLanguage();
-            obj["useTrackSingerInfo"] = singingClip->useTrackSingerInfo.get();
-            obj["useTrackSpeakerInfo"] = singingClip->useTrackSpeakerInfo.get();
-            obj["singer"] = serializeSingerInfo(singingClip->singerInfo());
-            obj["speaker"] = serializeSpeakerInfo(singingClip->speakerInfo());
+            const bool useTrackInfo = singingClip->useTrackSingerInfo.get();
+            obj["useTrackSingerInfo"] = useTrackInfo;
+            obj["useTrackSpeakerInfo"] = useTrackInfo;
+            obj["singer"] = serializeSingerInfo(singingClip->ownSingerInfo());
+            obj["speaker"] = serializeSpeakerInfo(singingClip->ownSpeakerInfo());
+            if (!useTrackInfo)
+                obj["speakerMix"] = serializeSpeakerMixData(singingClip->ownSpeakerMixData());
 
             QJsonArray notesArr;
             const auto notes = singingClip->notes().toList();
@@ -185,12 +265,15 @@ ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
                 note->deserialize(noteVal.toObject());
                 singingClip->insertNote(note);
             }
-            if (!obj["useTrackSingerInfo"].toBool(true) ||
-                !obj["useTrackSpeakerInfo"].toBool(true)) {
+            const bool useTrackInfo =
+                obj["useTrackSingerInfo"].toBool(true) && obj["useTrackSpeakerInfo"].toBool(true);
+            if (!useTrackInfo) {
                 const auto singerInfo = deserializeSingerInfo(obj["singer"].toObject());
                 const auto speakerInfo = resolveSpeakerInfo(
                     singerInfo, deserializeSpeakerInfo(obj["speaker"].toObject()));
                 singingClip->setOwnSingerAndSpeaker(singerInfo, speakerInfo);
+                singingClip->setOwnSpeakerMixData(
+                    deserializeSpeakerMixData(obj["speakerMix"].toObject(), singerInfo));
             }
             clip = singingClip;
 

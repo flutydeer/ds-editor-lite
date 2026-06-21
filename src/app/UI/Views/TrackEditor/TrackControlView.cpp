@@ -4,17 +4,24 @@
 
 #include "TrackControlView.h"
 
+#include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
 #include "Controller/TrackController.h"
 #include "Model/AppModel/Track.h"
+#include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Modules/Audio/AudioContext.h"
+#include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Controls/Menu.h"
+#include "UI/Controls/Toast.h"
 #include "UI/Controls/TrackColorSwatchWidget.h"
+#include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Utils/AppColorPalette.h"
 
 #include <QContextMenuEvent>
+#include <QDialog>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
@@ -28,6 +35,31 @@
 #include "Modules/Inference/Models/SingerIdentifier.h"
 
 using namespace SVS;
+
+namespace {
+
+    SpeakerInfo speakerById(const SingerInfo &singerInfo, const QString &id) {
+        for (const auto &speaker : singerInfo.speakers()) {
+            if (speaker.id() == id)
+                return speaker;
+        }
+        return {};
+    }
+
+    SpeakerMixData speakerMixDataFromPreset(const SpeakerMixPreset &preset,
+                                            const SingerInfo &singerInfo) {
+        SpeakerMixData data;
+        data.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
+        for (const auto &source : preset.sources) {
+            const auto speaker = speakerById(singerInfo, source.speaker.id());
+            if (!speaker.isEmpty())
+                data.sources.append({speaker});
+        }
+        data.fixedWeights = preset.fixedWeights;
+        return SpeakerMixModel::normalizeSpeakerMixData(data);
+    }
+
+} // namespace
 
 TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget *parent)
     : QWidget(parent), ITrack(track->id()), m_track(track) {
@@ -82,8 +114,8 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     });
     connect(appStatus, &AppStatus::moduleStatusChanged, this,
             [this](AppStatus::ModuleType module, AppStatus::ModuleStatus status) {
-                if (module == AppStatus::ModuleType::Package
-                    && status == AppStatus::ModuleStatus::Ready) {
+                if (module == AppStatus::ModuleType::Package &&
+                    status == AppStatus::ModuleStatus::Ready) {
                     cbSinger->setEnabled(true);
                     cbSinger->setLoadingText({});
                     cbSinger->setItems(packageManager->installedPackages().successfulPackages);
@@ -102,6 +134,8 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
         }
         m_track->setSingerAndSpeakerInfo(singerInfo, speakerInfo);
     });
+    connect(cbSinger, &TwoLevelComboBox::itemsPopulated, this,
+            &TrackControlView::populatePresetMenus);
 
     cbLanguage = new LanguageComboBox("unknown");
     cbLanguage->setObjectName("cbLanguage");
@@ -135,12 +169,12 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     setName(track->name());
     setControl(track->control());
     cbSinger->setCurrentData(track->singerInfo(), track->speakerInfo());
+    populatePresetMenus();
     setLanguage(track->defaultLanguage());
     updateTrackColor();
 
-    connect(track, &Track::singerOrSpeakerChanged, this, [this] {
-        cbSinger->setCurrentData(m_track->singerInfo(), m_track->speakerInfo());
-    });
+    connect(track, &Track::singerOrSpeakerChanged, this,
+            [this] { cbSinger->setCurrentData(m_track->singerInfo(), m_track->speakerInfo()); });
 }
 
 int TrackControlView::trackIndex() const {
@@ -324,6 +358,110 @@ void TrackControlView::changeTrackProperty() const {
     // qDebug() << "TrackControlWidget::changeTrackProperty";
     const Track::TrackProperties args(*this);
     trackController->changeTrackProperty(args);
+}
+
+void TrackControlView::populatePresetMenus() const {
+    if (!cbSinger)
+        return;
+
+    cbSinger->clearInjectedActions();
+    const auto packages = packageManager->installedPackages().successfulPackages;
+    for (const auto &package : packages) {
+        for (const auto &singerInfo : package.singers()) {
+            if (singerInfo.speakers().size() < 2 || !cbSinger->groupMenuForSinger(singerInfo))
+                continue;
+
+            cbSinger->addInjectedSeparatorToSinger(singerInfo);
+            const auto presets = SpeakerMixPresetStore::presetsForSinger(singerInfo);
+            for (const auto &preset : presets) {
+                const auto action = cbSinger->addInjectedActionToSinger(singerInfo, preset.name);
+                if (!action)
+                    continue;
+                connect(action, &QAction::triggered, this,
+                        [this, presetId = preset.id] { onPresetApplied(presetId); });
+            }
+
+            cbSinger->addInjectedSeparatorToSinger(singerInfo);
+            if (const auto action =
+                    cbSinger->addInjectedActionToSinger(singerInfo, tr("New mix preset..."))) {
+                connect(action, &QAction::triggered, this,
+                        [this, singerInfo] { onNewPresetAction(singerInfo); });
+            }
+            if (const auto action =
+                    cbSinger->addInjectedActionToSinger(singerInfo, tr("Manage mix presets..."))) {
+                connect(action, &QAction::triggered, this,
+                        [this, singerInfo] { onManagePresetsAction(singerInfo); });
+            }
+        }
+    }
+}
+
+void TrackControlView::onPresetApplied(const QString &presetId) const {
+    if (!m_track)
+        return;
+
+    const auto preset = SpeakerMixPresetStore::findPreset(presetId);
+    if (!preset)
+        return;
+    const auto singerInfo = packageManager->findSingerByIdentifier(preset->singerIdentifier());
+    if (singerInfo.isEmpty())
+        return;
+
+    const auto data = speakerMixDataFromPreset(*preset, singerInfo);
+    if (SpeakerMixModel::isSpeakerMixDataSingle(data)) {
+        Toast::show(tr("Preset speakers are unavailable"));
+        return;
+    }
+
+    const auto actions = new SpeakerMixActions;
+    actions->applyTrackSpeakerMixPreset(singerInfo, data.sources.first().speaker, data, m_track);
+    actions->execute();
+    historyManager->record(actions);
+    cbSinger->setCurrentData(m_track->singerInfo(), m_track->speakerInfo());
+}
+
+void TrackControlView::onNewPresetAction(const SingerInfo &singerInfo) const {
+    if (singerInfo.speakers().size() < 2)
+        return;
+
+    SpeakerMixDialog dialog(singerInfo, {},
+                            Dialog::globalParent() ? Dialog::globalParent()
+                                                   : const_cast<TrackControlView *>(this));
+    if (dialog.exec() == QDialog::Accepted && m_track) {
+        const auto data = dialog.speakerMixData();
+        if (!SpeakerMixModel::isSpeakerMixDataSingle(data)) {
+            const auto actions = new SpeakerMixActions;
+            actions->applyTrackSpeakerMixPreset(singerInfo, data.sources.first().speaker, data,
+                                                m_track);
+            actions->execute();
+            historyManager->record(actions);
+        }
+    }
+    populatePresetMenus();
+}
+
+void TrackControlView::onManagePresetsAction(const SingerInfo &singerInfo) const {
+    if (singerInfo.speakers().size() < 2)
+        return;
+
+    const auto initialData =
+        m_track && m_track->singerInfo().identifier() == singerInfo.identifier()
+            ? m_track->speakerMixData()
+            : SpeakerMixData();
+    SpeakerMixDialog dialog(singerInfo, initialData,
+                            Dialog::globalParent() ? Dialog::globalParent()
+                                                   : const_cast<TrackControlView *>(this));
+    if (dialog.exec() == QDialog::Accepted && m_track) {
+        const auto data = dialog.speakerMixData();
+        if (!SpeakerMixModel::isSpeakerMixDataSingle(data)) {
+            const auto actions = new SpeakerMixActions;
+            actions->applyTrackSpeakerMixPreset(singerInfo, data.sources.first().speaker, data,
+                                                m_track);
+            actions->execute();
+            historyManager->record(actions);
+        }
+    }
+    populatePresetMenus();
 }
 
 QString TrackControlView::panValueToString(const double value) {

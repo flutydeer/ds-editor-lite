@@ -46,7 +46,7 @@ OverlappableSerialList<Clip> Track::clips() const {
 }
 
 static void setTrackSingerAndSpeakerForClip(Clip *clip, const SingerInfo &singerInfo,
-                                             const SpeakerInfo &speakerInfo) {
+                                            const SpeakerInfo &speakerInfo) {
     if (!clip) {
         return;
     }
@@ -57,10 +57,27 @@ static void setTrackSingerAndSpeakerForClip(Clip *clip, const SingerInfo &singer
     }
 }
 
+static void setTrackSpeakerMixForClip(Clip *clip, const SpeakerMixModel::SpeakerMixData &data) {
+    if (!clip) {
+        return;
+    }
+    if (clip->clipType() == IClip::Singing) {
+        // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
+        const auto singingClip = static_cast<SingingClip *>(clip);
+        singingClip->setTrackSpeakerMixData(data);
+    }
+}
+
 void Track::insertClip(Clip *clip) {
     m_clips.add(clip);
+    setTrackSingerAndSpeakerForClip(clip, m_singerInfo, m_speakerInfo);
+    setTrackSpeakerMixForClip(clip, m_speakerMixData);
     connect(this, &Track::singerOrSpeakerChanged, clip,
             [clip, this] { setTrackSingerAndSpeakerForClip(clip, m_singerInfo, m_speakerInfo); });
+    connect(this, &Track::speakerMixChanged, clip,
+            [clip](const SpeakerMixModel::SpeakerMixData &data) {
+                setTrackSpeakerMixForClip(clip, data);
+            });
 }
 
 void Track::insertClips(const QList<Clip *> &clips) {
@@ -71,6 +88,7 @@ void Track::insertClips(const QList<Clip *> &clips) {
 
 void Track::removeClip(Clip *clip) {
     disconnect(this, &Track::singerOrSpeakerChanged, clip, nullptr);
+    disconnect(this, &Track::speakerMixChanged, clip, nullptr);
     m_clips.remove(clip);
 }
 
@@ -125,6 +143,10 @@ SpeakerInfo Track::speakerInfo() const {
     return m_speakerInfo;
 }
 
+SpeakerMixModel::SpeakerMixData Track::speakerMixData() const {
+    return m_speakerMixData;
+}
+
 void Track::setSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo) {
     bool singerInfoChanged = (m_singerInfo != singerInfo);
     bool speakerInfoChanged = (m_speakerInfo != speakerInfo);
@@ -138,6 +160,20 @@ void Track::setSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerI
     this->updateDefaultG2pId(m_defaultLanguage);
 
     emit singerOrSpeakerChanged();
+    resetSpeakerMixToSingle();
+}
+
+void Track::setSpeakerMixData(const SpeakerMixModel::SpeakerMixData &data) {
+    const auto normalized = SpeakerMixModel::normalizeSpeakerMixData(data);
+    if (m_speakerMixData == normalized)
+        return;
+
+    m_speakerMixData = normalized;
+    emit speakerMixChanged(m_speakerMixData);
+}
+
+void Track::resetSpeakerMixToSingle() {
+    setSpeakerMixData({});
 }
 
 void Track::notifyClipChanged(const ClipChangeType type, Clip *clip) {

@@ -18,8 +18,7 @@ class SpeakerMixList : public QListWidget {
 
 public:
     explicit SpeakerMixList(const QString &packageName, const QStringList &speakerTypes,
-                            const QList<SpeakerInfo> &referenceSpeakers,
-                            QWidget *parent = nullptr);
+                            const QList<SpeakerInfo> &referenceSpeakers, QWidget *parent = nullptr);
     void setSpeakerTypes(const QStringList &speakerTypes);
     void setSpeakerDisplayNames(const QMap<QString, QString> &displayNames);
     void setSourceEditingEnabled(bool enabled);
@@ -29,6 +28,7 @@ public:
 
     void addSpeaker(const QString &speakerName);
     void removeSpeaker(const QString &speakerName);
+    void setSpeakers(const QVector<QString> &speakerNames);
 
     SpeakerMixBar *getMixBar() const {
         return m_mixBar;

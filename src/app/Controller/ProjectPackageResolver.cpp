@@ -59,16 +59,13 @@ void ProjectPackageResolver::resolveProject() {
 
             const auto singingClip = static_cast<SingingClip *>(clip);
             singingClip->setTrackSingerAndSpeakerInfo(track->singerInfo(), track->speakerInfo());
+            singingClip->setTrackSpeakerMixData(track->speakerMixData());
 
-            if (!singingClip->useTrackSingerInfo.get() || !singingClip->useTrackSpeakerInfo.get()) {
-                const auto ownSinger = singingClip->useTrackSingerInfo.get()
-                                           ? track->singerInfo()
-                                           : resolveSinger(singingClip->singerInfo());
-                const auto ownSpeaker = singingClip->useTrackSpeakerInfo.get()
-                                            ? track->speakerInfo()
-                                            : resolveSpeaker(ownSinger, singingClip->speakerInfo());
-                if (ownSinger != singingClip->singerInfo() ||
-                    ownSpeaker != singingClip->speakerInfo()) {
+            if (!singingClip->useTrackSingerInfo.get()) {
+                const auto ownSinger = resolveSinger(singingClip->ownSingerInfo());
+                const auto ownSpeaker = resolveSpeaker(ownSinger, singingClip->ownSpeakerInfo());
+                if (ownSinger != singingClip->ownSingerInfo() ||
+                    ownSpeaker != singingClip->ownSpeakerInfo()) {
                     singingClip->setOwnSingerAndSpeaker(ownSinger, ownSpeaker);
                     resolvedPairs++;
                 }

@@ -40,6 +40,12 @@ public:
     void addItemToGroup(const QString &groupName, const QString &itemText, const SingerInfo &singer,
                         const SpeakerInfo &spk);
 
+    Menu *mainMenu() const;
+    Menu *groupMenuForSinger(const SingerInfo &singer) const;
+    void clearInjectedActions() const;
+    QAction *addInjectedActionToSinger(const SingerInfo &singer, const QString &text) const;
+    QAction *addInjectedSeparatorToSinger(const SingerInfo &singer) const;
+
     void clear();
 
     void setLoadingText(const QString &text);
@@ -53,6 +59,7 @@ public slots:
 signals:
     void currentDataChanged();
     void currentTextChanged(const QString &text);
+    void itemsPopulated();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -63,6 +70,7 @@ private slots:
 private:
     void updateDisplayText();
     Menu *createGroupMenu(const QString &groupName) const;
+    Menu *createGroupMenu(const QString &groupName, const SingerIdentifier &identifier) const;
     void addItemInternal(const QString &itemText, const SingerInfo &singer, const SpeakerInfo &spk,
                          QMenu *parentMenu);
 
@@ -70,6 +78,8 @@ private:
     QList<ComboBoxItemData> m_itemDataList;
     ComboBoxItemData m_currentItem;
     QString m_propertyName = "itemData";
+    QString m_singerIdentifierPropertyName = "singerIdentifier";
+    QString m_injectedPropertyName = "speakerMixInjected";
     bool m_showInheritItem = false;
     bool m_inheritWasSelected = false;
     SingerInfo m_prevSinger;

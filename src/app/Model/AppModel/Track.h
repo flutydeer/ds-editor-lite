@@ -7,6 +7,7 @@
 
 #include <QString>
 
+#include "Model/AppModel/SpeakerMixData.h"
 #include "Utils/OverlappableSerialList.h"
 #include "TrackControl.h"
 #include "Interface/ISerializable.h"
@@ -51,8 +52,11 @@ public:
 
     QString speakerId() const;
     SpeakerInfo speakerInfo() const;
+    SpeakerMixModel::SpeakerMixData speakerMixData() const;
 
     void setSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
+    void setSpeakerMixData(const SpeakerMixModel::SpeakerMixData &data);
+    void resetSpeakerMixToSingle();
 
     void notifyClipChanged(ClipChangeType type, Clip *clip);
     Clip *findClipById(int id) const;
@@ -77,6 +81,7 @@ signals:
     void propertyChanged();
     void clipChanged(Track::ClipChangeType type, Clip *clip);
     void singerOrSpeakerChanged();
+    void speakerMixChanged(const SpeakerMixModel::SpeakerMixData &data);
 
 private:
     void updateDefaultG2pId(const QString &language);
@@ -92,6 +97,7 @@ private:
 
     SingerInfo m_singerInfo;
     SpeakerInfo m_speakerInfo;
+    SpeakerMixModel::SpeakerMixData m_speakerMixData;
 };
 
 

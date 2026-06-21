@@ -29,8 +29,7 @@ namespace {
 }
 
 SpeakerMixList::SpeakerMixList(const QString &packageName, const QStringList &speakerTypes,
-                               const QList<SpeakerInfo> &referenceSpeakers,
-                               QWidget *parent)
+                               const QList<SpeakerInfo> &referenceSpeakers, QWidget *parent)
     : QListWidget(parent), m_packageName(packageName), m_speakerTypes(speakerTypes),
       m_referenceSpeakers(referenceSpeakers), m_mixBar(new SpeakerMixBar(this)),
       m_sourceEditingEnabled(true) {
@@ -162,6 +161,21 @@ void SpeakerMixList::removeSpeaker(const QString &speakerName) {
     }
 
     setRowsValues(values);
+    refreshComboBoxItems();
+    updateBarLabelsAndColors();
+}
+
+void SpeakerMixList::setSpeakers(const QVector<QString> &speakerNames) {
+    clear();
+    m_rows.clear();
+
+    for (const auto &speakerName : speakerNames)
+        createRow(speakerName);
+
+    if (m_rows.isEmpty())
+        createRow(m_speakerTypes.value(0));
+
+    redistributeValues();
     refreshComboBoxItems();
     updateBarLabelsAndColors();
 }
@@ -413,8 +427,8 @@ void SpeakerMixList::refreshComboBoxItems() {
 
 void SpeakerMixList::updateRowColor(RowComponents &row) {
     const int fallbackIndex = m_speakerTypes.indexOf(row.speakerName);
-    row.color = SpeakerMixColorResolver::colorsForSpeaker(
-                    row.speakerName, m_referenceSpeakers, fallbackIndex >= 0 ? fallbackIndex : 0)
+    row.color = SpeakerMixColorResolver::colorsForSpeaker(row.speakerName, m_referenceSpeakers,
+                                                          fallbackIndex >= 0 ? fallbackIndex : 0)
                     .accent;
     static_cast<ColorDot *>(row.colorDot)->setColor(row.color);
 }

@@ -28,9 +28,8 @@ void TwoLevelComboBox::paintEvent(QPaintEvent *event) {
     opt.toolButtonStyle = Qt::ToolButtonTextOnly;
     style()->drawComplexControl(QStyle::CC_ToolButton, &opt, &painter, this);
 
-    const QColor textColor =
-        opt.palette.color(isEnabled() ? QPalette::Active : QPalette::Disabled,
-                          QPalette::ButtonText);
+    const QColor textColor = opt.palette.color(isEnabled() ? QPalette::Active : QPalette::Disabled,
+                                               QPalette::ButtonText);
     QRect textRect = opt.rect;
     textRect.adjust(8, 0, -28, 0);
     painter.setPen(textColor);
@@ -46,8 +45,8 @@ void TwoLevelComboBox::paintEvent(QPaintEvent *event) {
                                (menuButtonWidth - arrowSize.width()) / 2.0,
                            controlRect.top() + (controlRect.height() - arrowSize.height()) / 2.0,
                            arrowSize.width(), arrowSize.height());
-    const auto arrowIcon = IconUtils::createTintedSvgIcon(
-        ":svg/icons/chevron_down_16_filled.svg", arrowSize.toSize(), textColor, textColor);
+    const auto arrowIcon = IconUtils::createTintedSvgIcon(":svg/icons/chevron_down_16_filled.svg",
+                                                          arrowSize.toSize(), textColor, textColor);
     const auto arrowPixmap =
         arrowIcon.pixmap(arrowSize.toSize(), isEnabled() ? QIcon::Normal : QIcon::Disabled);
     painter.drawPixmap(arrowRect.topLeft(), arrowPixmap);
@@ -62,10 +61,10 @@ QSize TwoLevelComboBox::sizeHint() const {
     QString text = currentText().isEmpty() ? tr("Please select") : currentText();
     QSize textSize = fm.size(Qt::TextSingleLine, text);
     textSize.setWidth(textSize.width() + 36);
-    
+
     // Use default height, will be overridden by stylesheet or explicit size setting
     textSize.setHeight(QToolButton::sizeHint().height());
-    
+
     return style()->sizeFromContents(QStyle::CT_ToolButton, &opt, textSize, this);
 }
 
@@ -89,6 +88,9 @@ void TwoLevelComboBox::addItemToGroup(const QString &groupName, const QString &i
     if (!targetMenu)
         return;
 
+    if (targetMenu->menuAction()->property(m_singerIdentifierPropertyName.toUtf8()).isNull())
+        targetMenu->menuAction()->setProperty(m_singerIdentifierPropertyName.toUtf8(),
+                                              QVariant::fromValue(singer.identifier()));
     addItemInternal(itemText, singer, spk, targetMenu);
 }
 
@@ -162,15 +164,16 @@ void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
                 addItem(singerText, singer, {});
                 continue;
             }
-            addGroup(singerText);
+            const auto groupMenu = createGroupMenu(singerText, singer.identifier());
             for (const auto &spk : singer.speakers())
-                addItemToGroup(singerText, spk.name(), singer, spk);
+                addItemInternal(spk.name(), singer, spk, groupMenu);
         }
     }
 
     // Restore previous selection
     if (inheritWasSelected && m_showInheritItem) {
-        // Re-select inhert item — caller will update singer/speaker via setCurrentData(preferInherit=true)
+        // Re-select inhert item — caller will update singer/speaker via
+        // setCurrentData(preferInherit=true)
         if (!m_itemDataList.isEmpty() && m_itemDataList.first().isInheritItem) {
             m_currentItem = m_itemDataList.first();
         }
@@ -181,13 +184,15 @@ void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
     // else: stays on "(No singer)" (already set by addItem in clear+rebuild)
 
     // If nothing was selected, default to first item
-    if (m_currentItem.text.isEmpty() && m_currentItem.singer.isEmpty() && !m_currentItem.isInheritItem) {
+    if (m_currentItem.text.isEmpty() && m_currentItem.singer.isEmpty() &&
+        !m_currentItem.isInheritItem) {
         if (!m_itemDataList.isEmpty()) {
             m_currentItem = m_itemDataList.first();
         }
     }
     m_loadingText.clear();
     updateDisplayText();
+    emit itemsPopulated();
 }
 
 QString TwoLevelComboBox::currentText() const {
@@ -218,7 +223,7 @@ SpeakerInfo TwoLevelComboBox::currentSpeaker() const {
 }
 
 void TwoLevelComboBox::setCurrentData(const SingerInfo &singer, const SpeakerInfo &speaker,
-                                    const bool preferInherit) {
+                                      const bool preferInherit) {
     if (preferInherit && m_showInheritItem) {
         // Find the inherit item and update its display singer/speaker
         for (auto &itemData : m_itemDataList) {
@@ -276,14 +281,84 @@ void TwoLevelComboBox::setLoadingText(const QString &text) {
     update();
 }
 
+Menu *TwoLevelComboBox::mainMenu() const {
+    return m_mainMenu;
+}
+
+Menu *TwoLevelComboBox::groupMenuForSinger(const SingerInfo &singer) const {
+    const auto identifier = singer.identifier();
+    for (const auto action : m_mainMenu->actions()) {
+        if (!action->menu())
+            continue;
+        const auto variant = action->property(m_singerIdentifierPropertyName.toUtf8());
+        if (variant.canConvert<SingerIdentifier>() &&
+            variant.value<SingerIdentifier>() == identifier) {
+            return qobject_cast<Menu *>(action->menu());
+        }
+    }
+    return nullptr;
+}
+
+void TwoLevelComboBox::clearInjectedActions() const {
+    const auto actions = m_mainMenu->actions();
+    for (const auto action : actions) {
+        if (!action->menu())
+            continue;
+        const auto menuActions = action->menu()->actions();
+        for (const auto menuAction : menuActions) {
+            if (menuAction->property(m_injectedPropertyName.toUtf8()).toBool()) {
+                action->menu()->removeAction(menuAction);
+                menuAction->deleteLater();
+            }
+        }
+    }
+}
+
+QAction *TwoLevelComboBox::addInjectedActionToSinger(const SingerInfo &singer,
+                                                     const QString &text) const {
+    const auto groupMenu = groupMenuForSinger(singer);
+    if (!groupMenu)
+        return nullptr;
+
+    const auto action = new QAction(text, const_cast<TwoLevelComboBox *>(this));
+    action->setProperty(m_injectedPropertyName.toUtf8(), true);
+    groupMenu->addAction(action);
+    return action;
+}
+
+QAction *TwoLevelComboBox::addInjectedSeparatorToSinger(const SingerInfo &singer) const {
+    const auto groupMenu = groupMenuForSinger(singer);
+    if (!groupMenu)
+        return nullptr;
+
+    const auto action = groupMenu->addSeparator();
+    action->setProperty(m_injectedPropertyName.toUtf8(), true);
+    return action;
+}
+
 Menu *TwoLevelComboBox::createGroupMenu(const QString &groupName) const {
+    return createGroupMenu(groupName, {});
+}
+
+Menu *TwoLevelComboBox::createGroupMenu(const QString &groupName,
+                                        const SingerIdentifier &identifier) const {
     QList<QAction *> actions = m_mainMenu->actions();
     for (const QAction *action : actions) {
-        if (action->menu() && action->text() == groupName) {
+        if (!action->menu())
+            continue;
+        const auto variant = action->property(m_singerIdentifierPropertyName.toUtf8());
+        if (!identifier.isEmpty() && variant.canConvert<SingerIdentifier>() &&
+            variant.value<SingerIdentifier>() == identifier) {
+            return qobject_cast<Menu *>(action->menu());
+        }
+        if (identifier.isEmpty() && action->text() == groupName) {
             return qobject_cast<Menu *>(action->menu());
         }
     }
     const auto groupMenu = new Menu(groupName, m_mainMenu);
     m_mainMenu->addMenu(groupMenu);
+    if (!identifier.isEmpty())
+        groupMenu->menuAction()->setProperty(m_singerIdentifierPropertyName.toUtf8(),
+                                             QVariant::fromValue(identifier));
     return groupMenu;
 }
