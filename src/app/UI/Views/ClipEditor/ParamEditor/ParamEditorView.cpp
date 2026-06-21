@@ -93,8 +93,10 @@ void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) const {
         m_graphicsView->setForeground(name, *paramUtils->getPropertiesByName(name));
 
         auto *mixView = m_graphicsView->speakerMixView();
-        if (mixView && m_clip)
+        if (mixView && m_clip) {
+            mixView->setReferenceSpeakers(m_clip->singerInfo().speakers());
             mixView->setSpeakerMixData(m_clip->speakerMixData());
+        }
         refreshSpeakerMixToolBar();
         m_toolBar->setSpeakerMixMode(true);
         return;
@@ -180,8 +182,10 @@ void ParamEditorView::onDynamicMixToggled(const bool checked) const {
 
 void ParamEditorView::refreshSpeakerMixToolBar() const {
     auto *mixView = m_graphicsView->speakerMixView();
-    if (mixView && m_clip)
+    if (mixView && m_clip) {
+        mixView->setReferenceSpeakers(m_clip->singerInfo().speakers());
         mixView->setSpeakerMixData(m_clip->speakerMixData());
+    }
 
     QStringList names;
     QList<QColor> colors;

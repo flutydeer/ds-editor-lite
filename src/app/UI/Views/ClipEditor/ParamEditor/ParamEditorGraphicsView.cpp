@@ -86,8 +86,7 @@ void ParamEditorGraphicsView::setForeground(const ParamInfo::Name name,
     if (name == ParamInfo::Unknown) {
         m_speakerMixMode = true;
         m_foreground->setVisible(false);
-        if (m_clip)
-            m_speakerMixView->setSpeakerMixData(m_clip->speakerMixData());
+        updateSpeakerMixViewData();
         m_speakerMixView->setVisible(true);
         return;
     }
@@ -148,8 +147,7 @@ void ParamEditorGraphicsView::onParamChanged(const ParamInfo::Name name,
 }
 
 void ParamEditorGraphicsView::onSpeakerMixChanged() const {
-    if (m_clip && m_speakerMixView)
-        m_speakerMixView->setSpeakerMixData(m_clip->speakerMixData());
+    updateSpeakerMixViewData();
 }
 
 void ParamEditorGraphicsView::onEditCompleted(const QList<DrawCurve *> &curves) const {
@@ -201,13 +199,13 @@ void ParamEditorGraphicsView::moveToNullClipState() {
     setOffset(0);
     m_background->clearParams();
     m_foreground->clearParams();
-    m_speakerMixView->setSpeakerMixData({});
     // while (m_notes.count() > 0)
     //     handleNoteRemoved(m_notes.first());
     if (m_clip) {
         disconnect(m_clip, nullptr, this, nullptr);
     }
     m_clip = nullptr;
+    updateSpeakerMixViewData();
 }
 
 void ParamEditorGraphicsView::moveToSingingClipState(SingingClip *clip) {
@@ -221,7 +219,7 @@ void ParamEditorGraphicsView::moveToSingingClipState(SingingClip *clip) {
     setEnabled(true);
     setSceneLength(m_clip->length());
     setOffset(clip->start());
-    m_speakerMixView->setSpeakerMixData(m_clip->speakerMixData());
+    updateSpeakerMixViewData();
 
     // if (clip->notes().count() > 0) {
     //     for (const auto note : clip->notes())
@@ -242,6 +240,20 @@ void ParamEditorGraphicsView::moveToSingingClipState(SingingClip *clip) {
     connect(clip, &SingingClip::paramChanged, this, &ParamEditorGraphicsView::onParamChanged);
     connect(clip, &SingingClip::speakerMixChanged, this,
             &ParamEditorGraphicsView::onSpeakerMixChanged);
+}
+
+void ParamEditorGraphicsView::updateSpeakerMixViewData() const {
+    if (!m_speakerMixView)
+        return;
+
+    if (!m_clip) {
+        m_speakerMixView->setReferenceSpeakers({});
+        m_speakerMixView->setSpeakerMixData({});
+        return;
+    }
+
+    m_speakerMixView->setReferenceSpeakers(m_clip->singerInfo().speakers());
+    m_speakerMixView->setSpeakerMixData(m_clip->speakerMixData());
 }
 
 QList<DrawCurve *> ParamEditorGraphicsView::getDrawCurves(const QList<Curve *> &curves) {

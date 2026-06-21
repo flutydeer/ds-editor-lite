@@ -8,7 +8,7 @@
 #include "Global/AppGlobal.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
-#include "UI/Utils/TrackColorPalette.h"
+#include "UI/Utils/AppColorPalette.h"
 
 #include <QGraphicsSceneContextMenuEvent>
 #include <QPainter>
@@ -145,7 +145,7 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     QElapsedTimer timer;
     timer.start();
 
-    const auto &p = *TrackColorPalette::instance();
+    const auto &p = *AppColorPalette::instance();
     const int ci = s_trackColorIndex;
     const auto backgroundColorNormal = p.noteBackground(ci);
     const auto backgroundColorSelected = p.noteBackgroundSelected(ci);

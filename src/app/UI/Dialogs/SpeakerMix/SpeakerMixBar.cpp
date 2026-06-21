@@ -1,4 +1,5 @@
 #include "SpeakerMixBar.h"
+#include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/SpeakerMixUtils.h"
 #include <QPainter>
 #include <QPainterPath>
@@ -14,7 +15,7 @@ SpeakerMixBar::SpeakerMixBar(QWidget *parent)
 
     m_values = {100};
     m_labels = {"default"};
-    m_segmentColors = getDefaultColors();
+    m_segmentColors = {AppColorPalette::instance()->baseColor(0)};
     updateDividers();
 
     setMouseTracking(true);
@@ -35,6 +36,12 @@ void SpeakerMixBar::setDoubleValues(const QVector<double> &values) {
 
 void SpeakerMixBar::setLabels(const QVector<QString> &labels) {
     m_labels = labels;
+    update();
+}
+
+void SpeakerMixBar::setSegmentColors(const QVector<QColor> &colors) {
+    m_segmentColors = colors.isEmpty() ? QVector<QColor>{AppColorPalette::instance()->baseColor(0)}
+                                       : colors;
     update();
 }
 

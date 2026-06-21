@@ -1,4 +1,4 @@
-#include "TrackColorPalette.h"
+#include "AppColorPalette.h"
 #include "ColorUtils.h"
 
 #include <QFile>
@@ -6,13 +6,13 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-LITE_SINGLETON_IMPLEMENT_INSTANCE(TrackColorPalette)
+LITE_SINGLETON_IMPLEMENT_INSTANCE(AppColorPalette)
 
-TrackColorPalette::TrackColorPalette() {
+AppColorPalette::AppColorPalette() {
     m_palette.fill(QColor(155, 186, 255), colorCount);
 }
 
-bool TrackColorPalette::load(const QString &jsonFilePath) {
+bool AppColorPalette::load(const QString &jsonFilePath) {
     QFile file(jsonFilePath);
     if (!file.open(QIODevice::ReadOnly))
         return false;
@@ -21,7 +21,7 @@ bool TrackColorPalette::load(const QString &jsonFilePath) {
     if (!doc.isObject())
         return false;
 
-    const auto arr = doc.object().value("trackColors").toArray();
+    const auto arr = doc.object().value("baseColors").toArray();
     if (arr.size() != colorCount)
         return false;
 
@@ -36,126 +36,126 @@ bool TrackColorPalette::load(const QString &jsonFilePath) {
     return true;
 }
 
-int TrackColorPalette::normalizedIndex(int index) const {
+int AppColorPalette::normalizedIndex(int index) const {
     return ((index % colorCount) + colorCount) % colorCount;
 }
 
-QColor TrackColorPalette::baseColor(int index) const {
+QColor AppColorPalette::baseColor(int index) const {
     return m_palette[normalizedIndex(index)];
 }
 
-QColor TrackColorPalette::clipBackground(int index) const {
+QColor AppColorPalette::clipBackground(int index) const {
     return baseColor(index);
 }
 
-QColor TrackColorPalette::clipBackgroundSelected(int index) const {
+QColor AppColorPalette::clipBackgroundSelected(int index) const {
     return ColorUtils::adjustLightness(baseColor(index), 0.15);
 }
 
-QColor TrackColorPalette::clipBackgroundTransparent(int index) const {
+QColor AppColorPalette::clipBackgroundTransparent(int index) const {
     return ColorUtils::adjustAlpha(baseColor(index), 64);
 }
 
-QColor TrackColorPalette::clipBorder(int index) const {
+QColor AppColorPalette::clipBorder(int index) const {
     return ColorUtils::adjustLightness(baseColor(index), -0.1);
 }
 
-QColor TrackColorPalette::clipForeground(int index) const {
+QColor AppColorPalette::clipForeground(int index) const {
     auto lch = ColorUtils::srgbToOkLCH(baseColor(index));
     return lch.L > 0.7 ? QColor(0, 0, 0) : QColor(255, 255, 255);
 }
 
-QColor TrackColorPalette::noteBackground(int index) const {
+QColor AppColorPalette::noteBackground(int index) const {
     return baseColor(index);
 }
 
-QColor TrackColorPalette::noteBackgroundSelected(int index) const {
+QColor AppColorPalette::noteBackgroundSelected(int index) const {
     return ColorUtils::adjustLightness(baseColor(index), 0.15);
 }
 
-QColor TrackColorPalette::noteBackgroundOverlapped(int index) const {
+QColor AppColorPalette::noteBackgroundOverlapped(int index) const {
     return ColorUtils::adjustLightness(baseColor(index), -0.15);
 }
 
-QColor TrackColorPalette::noteBorder(int index) const {
+QColor AppColorPalette::noteBorder(int index) const {
     return ColorUtils::adjustLightness(baseColor(index), -0.1);
 }
 
-QColor TrackColorPalette::noteBorderOverlapped(int index) const {
+QColor AppColorPalette::noteBorderOverlapped(int index) const {
     return ColorUtils::adjustLightness(baseColor(index), -0.15);
 }
 
-QColor TrackColorPalette::noteForeground(int index) const {
+QColor AppColorPalette::noteForeground(int index) const {
     auto lch = ColorUtils::srgbToOkLCH(baseColor(index));
     return lch.L > 0.7 ? QColor(0, 0, 0) : QColor(255, 255, 255);
 }
 
-QColor TrackColorPalette::noteForegroundOverlapped(int index) const {
+QColor AppColorPalette::noteForegroundOverlapped(int index) const {
     auto fg = noteForeground(index);
     fg.setAlpha(127);
     return fg;
 }
 
-QColor TrackColorPalette::noteBackgroundEditingPitch(int index) const {
+QColor AppColorPalette::noteBackgroundEditingPitch(int index) const {
     auto lch = ColorUtils::srgbToOkLCH(baseColor(index));
     lch.L = 0.32;
     lch.C *= 0.25;
     return ColorUtils::oklchToSRGB(lch);
 }
 
-QColor TrackColorPalette::noteBorderEditingPitch(int index) const {
+QColor AppColorPalette::noteBorderEditingPitch(int index) const {
     auto lch = ColorUtils::srgbToOkLCH(baseColor(index));
     lch.L = 0.55;
     lch.C *= 0.5;
     return ColorUtils::oklchToSRGB(lch);
 }
 
-QColor TrackColorPalette::noteForegroundEditingPitch(int index) const {
+QColor AppColorPalette::noteForegroundEditingPitch(int index) const {
     return noteBorderEditingPitch(index);
 }
 
-QColor TrackColorPalette::phonemeEdited(int index) const {
+QColor AppColorPalette::phonemeEdited(int index) const {
     return baseColor(index);
 }
 
-QColor TrackColorPalette::phonemeFill(int index) const {
+QColor AppColorPalette::phonemeFill(int index) const {
     return ColorUtils::adjustAlpha(baseColor(index), 50);
 }
 
-QColor TrackColorPalette::paramFillTop(int index) const {
+QColor AppColorPalette::paramFillTop(int index) const {
     return ColorUtils::adjustAlpha(baseColor(index), 200);
 }
 
-QColor TrackColorPalette::paramFillBottom(int index) const {
+QColor AppColorPalette::paramFillBottom(int index) const {
     return ColorUtils::adjustAlpha(baseColor(index), 10);
 }
 
-QColor TrackColorPalette::paramFillFlat(int index) const {
+QColor AppColorPalette::paramFillFlat(int index) const {
     return ColorUtils::adjustAlpha(baseColor(index), 120);
 }
 
-QColor TrackColorPalette::paramLine(int index) const {
+QColor AppColorPalette::paramLine(int index) const {
     return baseColor(index);
 }
 
-QColor TrackColorPalette::speakerMixParamFill(int index) const {
+QColor AppColorPalette::speakerMixParamFill(int index) const {
     auto lch = ColorUtils::srgbToOkLCH(baseColor(index));
     lch.L = 0.4;
     lch.C = 0.05;
     return ColorUtils::oklchToSRGB(lch);
 }
 
-QColor TrackColorPalette::speakerMixDotFill(int index) const {
+QColor AppColorPalette::speakerMixDotFill(int index) const {
     auto lch = ColorUtils::srgbToOkLCH(baseColor(index));
     lch.L = 0.55;
     lch.C = 0.05;
     return ColorUtils::oklchToSRGB(lch);
 }
 
-QColor TrackColorPalette::keyHighlight(int index) const {
+QColor AppColorPalette::keyHighlight(int index) const {
     return baseColor(index);
 }
 
-QColor TrackColorPalette::trackHeaderColor(int index) const {
+QColor AppColorPalette::trackHeaderColor(int index) const {
     return baseColor(index);
 }

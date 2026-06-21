@@ -53,6 +53,7 @@ private:
     void wheelEvent(QWheelEvent *event) override;
     void moveToNullClipState();
     void moveToSingingClipState(SingingClip *clip);
+    void updateSpeakerMixViewData() const;
 
     static QList<DrawCurve *> getDrawCurves(const QList<Curve *> &curves);
 

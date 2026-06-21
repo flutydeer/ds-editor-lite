@@ -158,7 +158,15 @@ struct SpeakerMixData {
 | `setDoubleValues(values)` | 用 double 百分比恢复比例条与行位置 |
 | `getMixBar()` | 返回 `SpeakerMixBar` 指针 |
 | `getValues() / getLabels()` | 获取当前整数显示比例与 speaker id 列表 |
-| `defaultColors()` | public static，当前 Dialog/tag/bar 共用颜色；后续需要迁移到统一的 speaker mix 颜色 resolver |
+| `SpeakerMixColorResolver` | 根据 singer speaker 稳定顺序派生 Dialog/tag/bar 共用颜色 |
+
+## DynamicMix 状态下的打开语义
+
+`SpeakerMixDialog` 是 Fixed Mix 底座入口。即使当前 clip 的 `mode == DynamicMix`，打开对话框时也按
+`SpeakerMixData::sources` 的保存顺序恢复列表，并优先使用 `fixedWeights` 恢复固定比例。
+
+若当前数据没有有效的 `fixedWeights`，但存在 `dynamicKeyframes`，对话框使用第一帧 keyframe weights
+作为兜底显示。只有没有可恢复的有效 sources 时，才回退到当前 singer 的全部 speakers 默认顺序。
 
 ## SpeakerMixBar 实现要点
 
@@ -221,28 +229,24 @@ struct SpeakerMixData {
 - 用于默认进入 Speaker Mix 页的本地测试改动已移除；现在仍可通过参数前景下拉框手动切到 Speaker Mix 页验证 Dynamic Mix
 - 本轮不实现动态混合推理；推理仍使用当前单 speaker fallback
 - 本轮不写 opendspx 官方 mix 结构
-- 当前 Fixed Mix 对话框与 Dynamic Mix 编辑视图的声线颜色规则尚未统一。speaker 本身不带颜色，后续需要在 UI 层集中管理颜色派生规则。
-- 当前对话框在 `mode == DynamicMix` 时仍主要作为 Fixed Mix 临时入口使用；如何从 DynamicMix 数据初始化当前 sources / fixedWeights 需要后续整理。
+- 当前 Fixed Mix 对话框、Dynamic Mix 编辑视图和参数页 toolbar 已统一使用 `SpeakerMixColorResolver` 派生颜色。
+- 当前对话框在 `mode == DynamicMix` 时仍主要作为 Fixed Mix 临时入口使用；打开时恢复 `sources + fixedWeights` 这份固定底座。
 
 ## 下一步
 
 结合 `speaker-mix-plan.md`，Dynamic Mix 模型接入已完成，下一步建议按下面顺序推进：
 
-1. 整理 speaker mix 颜色管理
-   - Fixed Mix 对话框、Dynamic Mix 编辑视图、参数页工具栏使用统一颜色派生规则
-   - 颜色保持 UI 派生状态，不写入 `SpeakerMixData`
-   - 优先考虑基于 `SingingClip::singerInfo().speakers()` 的稳定顺序派生
-
-2. 整理 Fixed Mix 对话框在 DynamicMix 状态下的初始化语义
-   - 当前 `mode == DynamicMix` 但仍保留 `fixedWeights` 和 `sources`
-   - 打开 Fixed Mix 临时入口时，应显示可回退/可编辑的 Fixed Mix 底座，而不是退回全部 speaker
-
-3. 再整理正式入口
+1. 整理正式入口
    - `ClipEditorToolBarView` 的 `Speaker Mix` 按钮短期继续作为固定混合对话框入口
    - 参数编辑器中的 Speaker Mix 页继续作为动态混合编辑入口
    - 等 preset 菜单入口闭环后，移除剪辑工具栏上的临时按钮
    - 固定混合配置从 singer/speaker 菜单中的 preset 新建/管理入口进入
 
-4. 后续再评估 opendspx 官方 mix 结构
+2. 增加 Fixed Mix preset
+   - 新增用户级 fixed mix preset store
+   - 对话框顶部增加 preset ComboBox 和新建、保存、另存为、删除、重置按钮
+   - 选择 preset 时复制为当前 clip 的 Fixed Mix 配置，不引用 preset
+
+3. 后续再评估 opendspx 官方 mix 结构
    - 当前 AppModel 坚持“一个 singer 下多个 speaker”语义
    - 等确认 opendspx 对 speaker/mix 的官方表达后，只调整 converter，不反向污染 AppModel

@@ -12,7 +12,7 @@
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Controls/TrackColorSwatchWidget.h"
-#include "UI/Utils/TrackColorPalette.h"
+#include "UI/Utils/AppColorPalette.h"
 
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
@@ -370,7 +370,7 @@ void TrackControlView::setColorIndex(int colorIndex) {
 
 void TrackControlView::updateTrackColor() {
     int ci = m_track ? m_track->colorIndex() : 0;
-    auto &palette = *TrackColorPalette::instance();
+    auto &palette = *AppColorPalette::instance();
     auto bg = palette.trackHeaderColor(ci);
     auto fg = palette.clipForeground(ci);
     auto css = QStringLiteral("background-color: %1; color: %2;").arg(bg.name(), fg.name());

@@ -6,7 +6,7 @@
 
 #include "PianoPaintUtils.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include "UI/Utils/TrackColorPalette.h"
+#include "UI/Utils/AppColorPalette.h"
 #include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
 
@@ -26,7 +26,7 @@ PianoKeyboardView::PianoKeyboardView(QWidget *parent) : QWidget(parent) {
 
 void PianoKeyboardView::setTrackColorIndex(int index) {
     m_trackColorIndex = index;
-    m_primaryColor = TrackColorPalette::instance()->keyHighlight(index);
+    m_primaryColor = AppColorPalette::instance()->keyHighlight(index);
     update();
 }
 

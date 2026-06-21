@@ -6,6 +6,7 @@
 #define SPEAKERMIXEDITORVIEW_H
 
 #include "Model/AppModel/SpeakerMixData.h"
+#include "Modules/PackageManager/Models/SpeakerInfo.h"
 #include "UI/Views/Common/TimeOverlayView.h"
 
 #include <QColor>
@@ -42,6 +43,7 @@ public:
     ~SpeakerMixEditorView() override;
 
     void setSpeakerMixData(const SpeakerMixModel::SpeakerMixData &data);
+    void setReferenceSpeakers(const QList<SpeakerInfo> &speakers);
     [[nodiscard]] SpeakerMixModel::SpeakerMixData speakerMixData() const;
     [[nodiscard]] bool isEditable() const;
 
@@ -103,6 +105,7 @@ private:
 
     QList<SpeakerMixSpeaker> m_speakers;
     QList<SpeakerMixKeyframe> m_keyframes;
+    QList<SpeakerInfo> m_referenceSpeakers;
     SpeakerMixModel::SpeakerMixData m_data;
     bool m_editable = false;
     QPointer<ToolTip> m_tooltip;

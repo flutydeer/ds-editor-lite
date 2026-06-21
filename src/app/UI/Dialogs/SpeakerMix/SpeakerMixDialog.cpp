@@ -27,7 +27,7 @@ SpeakerMixDialog::SpeakerMixDialog(const SingerInfo &singerInfo, const SpeakerMi
                                    speaker.name().isEmpty() ? speaker.id() : speaker.name());
     }
 
-    m_mixList = new SpeakerMixList(m_singerInfo.name(), speakerTypes, this);
+    m_mixList = new SpeakerMixList(m_singerInfo.name(), speakerTypes, m_singerInfo.speakers(), this);
     m_mixList->setSpeakerDisplayNames(speakerDisplayNames);
 
     const auto tagContainer = new QWidget(this);
@@ -78,17 +78,41 @@ SpeakerMixData SpeakerMixDialog::speakerMixData() const {
 }
 
 void SpeakerMixDialog::setupInitialSources(const SpeakerMixData &mixData) {
-    const auto normalizedMix = normalizeSpeakerMixData(mixData);
     QVector<double> fullWeights;
 
-    if (normalizedMix.mode == SingerSourceMode::FixedMix) {
-        for (const auto &source : normalizedMix.sources) {
-            const auto id = source.speaker.id();
-            if (!m_tagButtons.contains(id))
+    if (mixData.mode != SingerSourceMode::Single && mixData.sources.size() >= 2) {
+        QVector<QString> sourceIds;
+        QVector<int> sourceIndexes;
+        sourceIds.reserve(mixData.sources.size());
+        sourceIndexes.reserve(mixData.sources.size());
+
+        for (int i = 0; i < mixData.sources.size(); ++i) {
+            const auto id = mixData.sources[i].speaker.id();
+            if (!m_tagButtons.contains(id) || sourceIds.contains(id))
                 continue;
-            m_mixList->addSpeaker(id);
+            sourceIds.append(id);
+            sourceIndexes.append(i);
         }
-        fullWeights = fullWeightsFromExplicitWeights(normalizedMix.fixedWeights);
+
+        if (sourceIds.size() >= 2) {
+            for (const auto &id : std::as_const(sourceIds))
+                m_mixList->addSpeaker(id);
+
+            QVector<double> explicitWeights = mixData.fixedWeights;
+            if (explicitWeights.size() != mixData.sources.size() - 1 &&
+                !mixData.dynamicKeyframes.isEmpty()) {
+                explicitWeights = mixData.dynamicKeyframes.first().weights;
+            }
+            if (explicitWeights.size() == mixData.sources.size() - 1) {
+                const auto sourceWeights = fullWeightsFromExplicitWeights(explicitWeights);
+                if (sourceWeights.size() == mixData.sources.size()) {
+                    fullWeights.reserve(sourceIndexes.size());
+                    for (const int sourceIndex : std::as_const(sourceIndexes))
+                        fullWeights.append(sourceWeights[sourceIndex]);
+                    fullWeights = normalizeSpeakerMixFullWeights(fullWeights, fullWeights.size());
+                }
+            }
+        }
     }
 
     if (m_mixList->getLabels().isEmpty()) {

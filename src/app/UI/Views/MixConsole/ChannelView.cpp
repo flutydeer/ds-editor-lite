@@ -11,7 +11,7 @@
 #include "UI/Controls/EditLabel.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/PanSlider.h"
-#include "UI/Utils/TrackColorPalette.h"
+#include "UI/Utils/AppColorPalette.h"
 
 #include <QVBoxLayout>
 #include <QLabel>
@@ -100,7 +100,7 @@ void ChannelView::setChannelIndex(int index) {
 
 void ChannelView::updateChannelColor() {
     int ci = m_context ? m_context->colorIndex() : 0;
-    auto &palette = *TrackColorPalette::instance();
+    auto &palette = *AppColorPalette::instance();
     auto bg = palette.trackHeaderColor(ci);
     auto fg = palette.clipForeground(ci);
     m_lbIndex->setStyleSheet(

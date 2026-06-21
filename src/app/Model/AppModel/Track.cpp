@@ -8,7 +8,7 @@
 #include "Clip.h"
 #include "SingingClip.h"
 #include "Utils/MathUtils.h"
-#include "UI/Utils/TrackColorPalette.h"
+#include "UI/Utils/AppColorPalette.h"
 
 #include <QJsonArray>
 
@@ -89,7 +89,7 @@ int Track::colorIndex() const {
 
 void Track::setColorIndex(int colorIndex) {
     m_colorIndex = colorIndex;
-    m_color = TrackColorPalette::instance()->baseColor(colorIndex);
+    m_color = AppColorPalette::instance()->baseColor(colorIndex);
     emit propertyChanged();
 }
 

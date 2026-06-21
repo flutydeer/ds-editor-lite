@@ -9,7 +9,7 @@
 #include "Track.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/LevelMeterViewModel.h"
-#include "UI/Utils/TrackColorPalette.h"
+#include "UI/Utils/AppColorPalette.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/ProjectConverters/AProjectConverter.h"
 #include "Modules/ProjectConverters/DspxProjectConverter.h"
@@ -81,7 +81,7 @@ void AppModel::insertTrack(Track *track, const qsizetype index) {
             prev = d->m_tracks[index - 1]->colorIndex();
         else if (index >= d->m_tracks.size() && !d->m_tracks.isEmpty())
             prev = d->m_tracks.last()->colorIndex();
-        const int newIdx = (prev < 0) ? 0 : (prev + 1) % TrackColorPalette::colorCount;
+        const int newIdx = (prev < 0) ? 0 : (prev + 1) % AppColorPalette::colorCount;
         track->setColorIndex(newIdx);
     }
     d->m_tracks.insert(index, track);

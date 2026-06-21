@@ -8,7 +8,7 @@
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/Menu.h"
-#include "UI/Utils/TrackColorPalette.h"
+#include "UI/Utils/AppColorPalette.h"
 
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
@@ -196,7 +196,7 @@ QString AbstractClipView::text() const {
 void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                              QWidget *widget) {
     Q_D(const AbstractClipView);
-    const auto &palette = *TrackColorPalette::instance();
+    const auto &palette = *AppColorPalette::instance();
     const auto ci = d->m_colorIndex;
     const auto colorPrimary = palette.clipBackground(ci);
     const auto colorPrimaryTransparent = palette.clipBackgroundTransparent(ci);

@@ -23,16 +23,7 @@ public:
         return 100;
     }
 
-    static QVector<QColor> getDefaultColors() {
-        return {QColor(65, 105, 225), QColor(60, 179, 113), QColor(220, 20, 60),
-                QColor(255, 215, 0),  QColor(186, 85, 211), QColor(0, 191, 255),
-                QColor(255, 140, 0),  QColor(46, 139, 87)};
-    }
-
-    void setSegmentColors(const QVector<QColor> &colors) {
-        m_segmentColors = colors;
-        update();
-    }
+    void setSegmentColors(const QVector<QColor> &colors);
 
     QVector<QColor> getSegmentColors() const {
         return m_segmentColors;

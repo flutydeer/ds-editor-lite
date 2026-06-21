@@ -6,6 +6,8 @@
 #include <QVector>
 #include <QString>
 
+#include "Modules/PackageManager/Models/SpeakerInfo.h"
+
 class QHBoxLayout;
 class ComboBox;
 class QLabel;
@@ -16,6 +18,7 @@ class SpeakerMixList : public QListWidget {
 
 public:
     explicit SpeakerMixList(const QString &packageName, const QStringList &speakerTypes,
+                            const QList<SpeakerInfo> &referenceSpeakers,
                             QWidget *parent = nullptr);
     void setSpeakerTypes(const QStringList &speakerTypes);
     void setSpeakerDisplayNames(const QMap<QString, QString> &displayNames);
@@ -68,12 +71,10 @@ private:
     QString speakerDisplayName(const QString &speakerName) const;
     QVector<QColor> getColors() const;
 
-public:
-    static QVector<QColor> defaultColors();
-
 private:
     QString m_packageName;
     QStringList m_speakerTypes;
+    QList<SpeakerInfo> m_referenceSpeakers;
     QMap<QString, QString> m_speakerDisplayNames;
 
     QVector<RowComponents> m_rows;

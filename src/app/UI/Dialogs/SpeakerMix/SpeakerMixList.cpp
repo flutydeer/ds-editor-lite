@@ -2,6 +2,7 @@
 #include "SpeakerMixBar.h"
 #include "UI/Controls/ColorDot.h"
 #include "UI/Controls/ComboBox.h"
+#include "UI/Utils/SpeakerMixColorResolver.h"
 
 #include <QAbstractItemView>
 #include <QCoreApplication>
@@ -28,9 +29,11 @@ namespace {
 }
 
 SpeakerMixList::SpeakerMixList(const QString &packageName, const QStringList &speakerTypes,
+                               const QList<SpeakerInfo> &referenceSpeakers,
                                QWidget *parent)
     : QListWidget(parent), m_packageName(packageName), m_speakerTypes(speakerTypes),
-      m_mixBar(new SpeakerMixBar(this)), m_sourceEditingEnabled(true) {
+      m_referenceSpeakers(referenceSpeakers), m_mixBar(new SpeakerMixBar(this)),
+      m_sourceEditingEnabled(true) {
     m_speakerTypes = speakerTypes.empty() ? QStringList({"no singer"}) : speakerTypes;
 
     setDragEnabled(true);
@@ -177,8 +180,10 @@ QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
     dragHandle->setAlignment(Qt::AlignCenter);
     dragHandle->installEventFilter(this);
 
-    const auto colorDot =
-        new ColorDot(defaultColors()[m_rows.size() % defaultColors().size()], widget);
+    const auto colorDot = new ColorDot(
+        SpeakerMixColorResolver::colorsForSpeaker(speakerType, m_referenceSpeakers, m_rows.size())
+            .accent,
+        widget);
     colorDot->setFixedSize(10, 10);
 
     const auto typeLabel = new QLabel("声线: ", widget);
@@ -220,7 +225,9 @@ QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
     row.colorDot = colorDot;
     row.speakerComboBox = speakerComboBox;
     row.positionLabel = positionLabel;
-    row.color = defaultColors()[m_rows.size() % defaultColors().size()];
+    row.color =
+        SpeakerMixColorResolver::colorsForSpeaker(speakerType, m_referenceSpeakers, m_rows.size())
+            .accent;
     row.speakerName = speakerType;
     updateRowColor(row);
     m_rows.append(row);
@@ -405,8 +412,10 @@ void SpeakerMixList::refreshComboBoxItems() {
 }
 
 void SpeakerMixList::updateRowColor(RowComponents &row) {
-    const int colorIndex = m_speakerTypes.indexOf(row.speakerName);
-    row.color = defaultColors().value(colorIndex, defaultColors().first());
+    const int fallbackIndex = m_speakerTypes.indexOf(row.speakerName);
+    row.color = SpeakerMixColorResolver::colorsForSpeaker(
+                    row.speakerName, m_referenceSpeakers, fallbackIndex >= 0 ? fallbackIndex : 0)
+                    .accent;
     static_cast<ColorDot *>(row.colorDot)->setColor(row.color);
 }
 
@@ -431,11 +440,6 @@ QVector<QColor> SpeakerMixList::getColors() const {
         colors.append(row.color);
     }
     return colors;
-}
-
-QVector<QColor> SpeakerMixList::defaultColors() {
-    return {QColor("#9BBAFF"), QColor("#DEA4E0"), QColor("#F7A199"), QColor("#DAB669"),
-            QColor("#90CD92"), QColor("#8CC8FF"), QColor("#E9A86A"), QColor("#83C8B3")};
 }
 
 QVector<int> SpeakerMixList::getValues() const {

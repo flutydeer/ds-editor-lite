@@ -5,7 +5,7 @@
 #include "SpeakerMixEditorView.h"
 
 #include "UI/Controls/ToolTip.h"
-#include "UI/Utils/TrackColorPalette.h"
+#include "UI/Utils/SpeakerMixColorResolver.h"
 #include "UI/Utils/SpeakerMixUtils.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
@@ -59,6 +59,14 @@ SpeakerMixEditorView::~SpeakerMixEditorView() {
 
 void SpeakerMixEditorView::setSpeakerMixData(const SpeakerMixData &data) {
     m_data = normalizeSpeakerMixData(data);
+    syncFromData();
+}
+
+void SpeakerMixEditorView::setReferenceSpeakers(const QList<SpeakerInfo> &speakers) {
+    if (m_referenceSpeakers == speakers)
+        return;
+
+    m_referenceSpeakers = speakers;
     syncFromData();
 }
 
@@ -824,14 +832,14 @@ void SpeakerMixEditorView::syncFromData() {
     hideSplitHoverToolTip();
     hideSplitDragToolTip();
 
-    auto *palette = TrackColorPalette::instance();
     for (int i = 0; i < m_data.sources.size(); ++i) {
         const auto &speaker = m_data.sources[i].speaker;
         QString name = speaker.name();
         if (name.isEmpty())
             name = speaker.id();
-        m_speakers.append({name, palette->baseColor(i), palette->speakerMixParamFill(i),
-                           palette->speakerMixDotFill(i)});
+        const auto colors =
+            SpeakerMixColorResolver::colorsForSpeaker(speaker.id(), m_referenceSpeakers, i);
+        m_speakers.append({name, colors.accent, colors.areaFill, colors.dotFill});
     }
 
     m_editable = m_data.mode == SingerSourceMode::DynamicMix && m_data.sources.size() >= 2 &&

@@ -1,16 +1,16 @@
-#ifndef TRACKCOLORPALETTE_H
-#define TRACKCOLORPALETTE_H
+#ifndef APPCOLORPALETTE_H
+#define APPCOLORPALETTE_H
 
 #include <QColor>
 #include <QList>
 
 #include "Utils/Singleton.h"
 
-class TrackColorPalette {
+class AppColorPalette {
 public:
     static constexpr int colorCount = 12;
 
-    LITE_SINGLETON_DECLARE_INSTANCE(TrackColorPalette)
+    LITE_SINGLETON_DECLARE_INSTANCE(AppColorPalette)
 
     bool load(const QString &jsonFilePath);
 
@@ -49,13 +49,13 @@ public:
     QColor trackHeaderColor(int index) const;
 
 private:
-    TrackColorPalette();
-    ~TrackColorPalette() = default;
-    Q_DISABLE_COPY_MOVE(TrackColorPalette)
+    AppColorPalette();
+    ~AppColorPalette() = default;
+    Q_DISABLE_COPY_MOVE(AppColorPalette)
 
     int normalizedIndex(int index) const;
 
     QList<QColor> m_palette;
 };
 
-#endif // TRACKCOLORPALETTE_H
+#endif // APPCOLORPALETTE_H

@@ -13,7 +13,7 @@
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "Modules/Inference/Utils/InferenceApplyGate.h"
-#include "UI/Utils/TrackColorPalette.h"
+#include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/WaveformPainter.h"
 #include "UI/Controls/ToolTip.h"
 #include "Utils/Linq.h"
@@ -145,8 +145,8 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     }
 
     auto originalColor = QColor(180, 180, 180);
-    auto editedColor = TrackColorPalette::instance()->phonemeEdited(NoteView::trackColorIndex());
-    auto fillColor = TrackColorPalette::instance()->phonemeFill(NoteView::trackColorIndex());
+    auto editedColor = AppColorPalette::instance()->phonemeEdited(NoteView::trackColorIndex());
+    auto fillColor = AppColorPalette::instance()->phonemeFill(NoteView::trackColorIndex());
     auto positionLineColor = QColor(200, 200, 200);
     auto noteBoundaryColor = QColor(49, 53, 63);
 

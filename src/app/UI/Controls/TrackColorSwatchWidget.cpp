@@ -4,7 +4,7 @@
 
 #include "TrackColorSwatchWidget.h"
 
-#include "UI/Utils/TrackColorPalette.h"
+#include "UI/Utils/AppColorPalette.h"
 
 #include <QMouseEvent>
 #include <QPainter>
@@ -41,7 +41,7 @@ void TrackColorSwatchWidget::paintEvent(QPaintEvent *event) {
     Q_UNUSED(event)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-    auto &palette = *TrackColorPalette::instance();
+    auto &palette = *AppColorPalette::instance();
 
     for (int i = 0; i < rows * columns; i++) {
         auto rect = swatchRect(i);
