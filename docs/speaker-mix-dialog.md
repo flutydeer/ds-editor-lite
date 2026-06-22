@@ -15,7 +15,8 @@ debug/demo 对话框推进到 Fixed Mix preset 管理界面：
 - 暂不写 opendspx 官方 mix 结构；官方 `sources` 仍保持当前单声线 fallback
 
 后续它会继续聚焦 **Fixed Mix**：作为固定混合配置和用户混合预设管理界面；Dynamic Mix
-关键帧权重只在 `SpeakerMixEditorView` 中编辑，不再通过对话框编辑。
+关键帧权重只在 `SpeakerMixEditorView` 中编辑，不再通过对话框编辑。Dynamic Mix 是 clip
+自定义自动化；Follow Track clip 需要通过参数页显式启用并复制当前轨道配置后才能编辑。
 
 当前 Dynamic Mix 模型接入已完成。对话框只编辑 Fixed Mix 底座；Dynamic Mix keyframes
 不进入 preset，也不在对话框内编辑。
@@ -103,6 +104,7 @@ Soft Verse Mix
 - 工程恢复以展开后的 `SpeakerMixData` 为准；preset 自身不进入工程文件
 - 如果 package 更新导致 `packageVersion` 变化，旧版本 preset 不显示、不自动迁移、不删除
 - 当前 preset 管理能力完整但偏重，后续需要讨论是否简化交互
+- Dynamic Mix keyframes 不进入 preset；Dynamic Mix 的 bypass 状态保存在工程的展开后 `SpeakerMixData` 中。
 
 ## 数据结构
 
@@ -206,7 +208,7 @@ struct SpeakerMixData {
 - `mode == Single` 时省略 `speakerMix`
 - Fixed Mix 使用 `fixedWeights`
 - Dynamic Mix 使用 `dynamicKeyframes`
-- 为了支持 Dynamic Mix 开关，`fixedWeights` 与 `dynamicKeyframes` 现在允许同时写入与恢复
+- 为了支持 Dynamic Mix Bypass，`fixedWeights` 与 `dynamicKeyframes` 现在允许同时写入与恢复
 - 读取时使用当前 effective singer 的 `speakers()` 严格解析 source
 - clip 处于 Follow Track 时不写自有 `speakerMix`；打开工程后从 track 缓存继承
 - 旧工程的 `useTrackSpeakerInfo` 兼容读取；新语义用 `useTrackSingerInfo` 表示 singer/speaker/speaker mix 统一跟随
@@ -265,21 +267,26 @@ Preset store 存在应用常规设置中：
 - 本轮不写 opendspx 官方 mix 结构
 - 当前 Fixed Mix 对话框、Dynamic Mix 编辑视图和参数页 toolbar 已统一使用 `SpeakerMixColorResolver` 派生颜色。
 - 当前对话框在 `mode == DynamicMix` 时作为 Fixed Mix 底座入口使用；打开时恢复 `sources + fixedWeights`，不会保存 dynamic keyframes 到 preset。
-- 初步验收发现：开启 Dynamic Mix 后双击可能无法创建关键帧，需要后续联调参数编辑器事件路径。
+- Dynamic Mix 已改为显式启用；Follow Track clip 启用时会复制当前 effective singer/speaker/mix 到 clip 自有状态，再进入关键帧编辑。
 - preset 管理交互偏复杂，后续需要讨论是否简化。
+- preset 应用后的外部 UI 状态仍不完整：track/clip 的 singer/speaker 组合框与 clip 标签当前会显示第一个 speaker，而不是 preset 名称或混合状态；多级 speaker 菜单也缺少选中态样式。下一轮需要先讨论 preset 当前值的显示语义，再实现菜单选中态。
 
 ## 下一步
 
 结合 `speaker-mix-plan.md`，Dynamic Mix 模型接入已完成，下一步建议按下面顺序推进：
 
-1. 联调 Dynamic Mix 编辑体验
-   - 优先排查开启 Dynamic Mix 后双击无法创建关键帧的问题
+1. 回归 Dynamic Mix 显式启用与 Bypass
+   - 覆盖 Follow Track + track preset、clip 自定义 FixedMix、Bypass/Resume、Stop Dynamic
    - 回归关键帧添加、删除、拖拽、undo/redo 与保存恢复
 
 2. 简化 Fixed Mix preset 管理
    - 讨论是否保留当前完整 preset bar
    - 评估更轻量的保存/覆盖/删除流程
 
-3. 后续再评估 opendspx 官方 mix 结构
+3. 讨论 Fixed Mix preset 的当前状态 UI
+   - 组合框和 clip 标签需要表达 preset / Fixed Mix，而不是退化成第一个 speaker
+   - speaker 二级菜单需要补充选中态样式，与 ComboBox 的当前项反馈保持一致
+
+4. 后续再评估 opendspx 官方 mix 结构
    - 当前 AppModel 坚持“一个 singer 下多个 speaker”语义
    - 等确认 opendspx 对 speaker/mix 的官方表达后，只调整 converter，不反向污染 AppModel

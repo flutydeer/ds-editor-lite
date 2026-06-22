@@ -135,6 +135,11 @@ void SpeakerMixEditorView::paint(QPainter *painter, const QStyleOptionGraphicsIt
     drawStackedArea(painter);
     drawKeyframeDots(painter);
     drawSelectionRect(painter);
+    if (m_dynamicBypassed) {
+        painter->setPen(QColor(220, 220, 220, 180));
+        painter->drawText(QRectF(8, 4, rect().width() - 16, 20), Qt::AlignRight | Qt::AlignTop,
+                          tr("Bypassed"));
+    }
 }
 
 void SpeakerMixEditorView::updateRectAndPos() {
@@ -842,14 +847,15 @@ void SpeakerMixEditorView::syncFromData() {
         m_speakers.append({name, colors.accent, colors.areaFill, colors.dotFill});
     }
 
-    m_editable = m_data.mode == SingerSourceMode::DynamicMix && m_data.sources.size() >= 2 &&
-                 !m_data.dynamicKeyframes.isEmpty();
+    m_dynamicBypassed = m_data.mode == SingerSourceMode::FixedMix &&
+                        !m_data.dynamicKeyframes.isEmpty();
+    m_editable = m_data.sources.size() >= 2 && !m_data.dynamicKeyframes.isEmpty();
 
     const auto appendKeyframe = [this](const SpeakerMixModel::SpeakerMixKeyframe &keyframe) {
         m_keyframes.append({keyframe.tick, toList(keyframe.weights)});
     };
 
-    if (m_editable) {
+    if (!m_data.dynamicKeyframes.isEmpty()) {
         for (const auto &keyframe : m_data.dynamicKeyframes)
             appendKeyframe(keyframe);
     } else if (m_data.sources.size() >= 2 && !m_data.fixedWeights.isEmpty()) {

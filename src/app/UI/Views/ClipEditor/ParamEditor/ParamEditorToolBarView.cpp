@@ -63,8 +63,12 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
             &ParamEditorToolBarView::previousKeyframe);
     connect(m_speakerMixToolBar, &SpeakerMixToolBarView::nextKeyframe, this,
             &ParamEditorToolBarView::nextKeyframe);
-    connect(m_speakerMixToolBar, &SpeakerMixToolBarView::dynamicMixToggled, this,
-            &ParamEditorToolBarView::dynamicMixToggled);
+    connect(m_speakerMixToolBar, &SpeakerMixToolBarView::bypassDynamicMix, this,
+            &ParamEditorToolBarView::bypassDynamicMix);
+    connect(m_speakerMixToolBar, &SpeakerMixToolBarView::resumeDynamicMix, this,
+            &ParamEditorToolBarView::resumeDynamicMix);
+    connect(m_speakerMixToolBar, &SpeakerMixToolBarView::stopDynamicMix, this,
+            &ParamEditorToolBarView::stopDynamicMix);
 
     cbForegroundParam->setCurrentIndex(appOptions->general()->defaultForegroundParam - 1);
     cbBackgroundParam->setCurrentIndex(appOptions->general()->defaultBackgroundParam - 1);
@@ -78,12 +82,8 @@ void ParamEditorToolBarView::setSpeakers(const QStringList &names, const QList<Q
     m_speakerMixToolBar->setSpeakers(names, colors);
 }
 
-void ParamEditorToolBarView::setDynamicMixEnabled(const bool enabled) {
-    m_speakerMixToolBar->setDynamicMixEnabled(enabled);
-}
-
-void ParamEditorToolBarView::setDynamicMixChecked(const bool checked) {
-    m_speakerMixToolBar->setDynamicMixChecked(checked);
+void ParamEditorToolBarView::setSpeakerMixDynamicState(const SpeakerMixDynamicUiState state) {
+    m_speakerMixToolBar->setDynamicState(state);
 }
 
 void ParamEditorToolBarView::onForegroundSelectionChanged(const int index) {

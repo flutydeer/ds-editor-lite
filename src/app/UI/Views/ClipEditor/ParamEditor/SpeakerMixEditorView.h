@@ -108,6 +108,7 @@ private:
     QList<SpeakerInfo> m_referenceSpeakers;
     SpeakerMixModel::SpeakerMixData m_data;
     bool m_editable = false;
+    bool m_dynamicBypassed = false;
     QPointer<ToolTip> m_tooltip;
 
     struct InteractionState {

@@ -5,17 +5,19 @@
 #include "SpeakerMixToolBarView.h"
 
 #include "UI/Controls/ColorDot.h"
-#include "UI/Controls/SwitchButton.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QSignalBlocker>
 
 SpeakerMixToolBarView::SpeakerMixToolBarView(QWidget *parent) : QWidget(parent) {
     auto *layout = new QHBoxLayout;
 
-    m_dynamicLabel = new QLabel(tr("Dynamic"));
-    m_dynamicSwitch = new SwitchButton;
+    m_btnBypass = new Button(tr("Bypass"));
+    m_btnBypass->setObjectName("btnBypassDynamicMix");
+    m_btnResume = new Button(tr("Resume"));
+    m_btnResume->setObjectName("btnResumeDynamicMix");
+    m_btnStop = new Button(tr("Stop Dynamic..."));
+    m_btnStop->setObjectName("btnStopDynamicMix");
 
     m_btnPrev = new Button(QStringLiteral("\u25C0"));
     m_btnPrev->setObjectName("btnPrevKeyframe");
@@ -24,8 +26,9 @@ SpeakerMixToolBarView::SpeakerMixToolBarView(QWidget *parent) : QWidget(parent) 
     m_btnNext->setObjectName("btnNextKeyframe");
     m_btnNext->setFixedWidth(28);
 
-    layout->addWidget(m_dynamicLabel);
-    layout->addWidget(m_dynamicSwitch);
+    layout->addWidget(m_btnBypass);
+    layout->addWidget(m_btnResume);
+    layout->addWidget(m_btnStop);
     layout->addSpacing(8);
     layout->addWidget(m_btnPrev);
     layout->addWidget(m_btnNext);
@@ -43,10 +46,13 @@ SpeakerMixToolBarView::SpeakerMixToolBarView(QWidget *parent) : QWidget(parent) 
 
     setLayout(layout);
 
+    connect(m_btnBypass, &Button::clicked, this, &SpeakerMixToolBarView::bypassDynamicMix);
+    connect(m_btnResume, &Button::clicked, this, &SpeakerMixToolBarView::resumeDynamicMix);
+    connect(m_btnStop, &Button::clicked, this, &SpeakerMixToolBarView::stopDynamicMix);
     connect(m_btnPrev, &Button::clicked, this, &SpeakerMixToolBarView::previousKeyframe);
     connect(m_btnNext, &Button::clicked, this, &SpeakerMixToolBarView::nextKeyframe);
-    connect(m_dynamicSwitch, &SwitchButton::clicked, this,
-            &SpeakerMixToolBarView::dynamicMixToggled);
+
+    setDynamicState(SpeakerMixDynamicUiState::Unavailable);
 }
 
 void SpeakerMixToolBarView::setSpeakers(const QStringList &names, const QList<QColor> &colors) {
@@ -80,22 +86,20 @@ void SpeakerMixToolBarView::setSpeakers(const QStringList &names, const QList<QC
     }
 }
 
-void SpeakerMixToolBarView::setDynamicMixEnabled(const bool enabled) {
-    if (m_dynamicMixEnabled == enabled)
+void SpeakerMixToolBarView::setDynamicState(const SpeakerMixDynamicUiState state) {
+    if (m_dynamicState == state)
         return;
 
-    m_dynamicMixEnabled = enabled;
-    m_dynamicLabel->setEnabled(enabled);
-    m_dynamicSwitch->setEnabled(enabled);
-    m_btnPrev->setEnabled(enabled);
-    m_btnNext->setEnabled(enabled);
-}
+    m_dynamicState = state;
+    const bool active = state == SpeakerMixDynamicUiState::Active;
+    const bool bypassed = state == SpeakerMixDynamicUiState::Bypassed;
+    const bool hasDynamic = active || bypassed;
 
-void SpeakerMixToolBarView::setDynamicMixChecked(const bool checked) {
-    if (m_dynamicMixChecked == checked)
-        return;
-
-    m_dynamicMixChecked = checked;
-    const QSignalBlocker blocker(m_dynamicSwitch);
-    m_dynamicSwitch->setValue(checked);
+    m_btnBypass->setVisible(active);
+    m_btnResume->setVisible(bypassed);
+    m_btnStop->setVisible(hasDynamic);
+    m_btnPrev->setVisible(hasDynamic);
+    m_btnNext->setVisible(hasDynamic);
+    m_btnPrev->setEnabled(hasDynamic);
+    m_btnNext->setEnabled(hasDynamic);
 }

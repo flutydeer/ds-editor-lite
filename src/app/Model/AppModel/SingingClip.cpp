@@ -327,6 +327,8 @@ void SingingClip::setOwnSingerAndSpeaker(const SingerInfo &singerInfo,
                                          const SpeakerInfo &speakerInfo) {
     const auto oldSingerInfo = this->singerInfo();
     const auto oldSpeakerInfo = this->speakerInfo();
+    const bool oldUseTrackSingerInfo = useTrackSingerInfo.get();
+    const bool oldUseTrackSpeakerInfo = useTrackSpeakerInfo.get();
     m_singerSpeakerBatching = true;
     m_speakerInfo = speakerInfo;
     m_singerInfo = singerInfo;
@@ -334,7 +336,10 @@ void SingingClip::setOwnSingerAndSpeaker(const SingerInfo &singerInfo,
     useTrackSingerInfo = false;
     m_singerSpeakerBatching = false;
     updateDefaultG2pId(m_defaultLanguage);
-    if (oldSingerInfo != this->singerInfo() || oldSpeakerInfo != this->speakerInfo()) {
+    const bool followStateChanged = oldUseTrackSingerInfo != useTrackSingerInfo.get() ||
+                                    oldUseTrackSpeakerInfo != useTrackSpeakerInfo.get();
+    if (oldSingerInfo != this->singerInfo() || oldSpeakerInfo != this->speakerInfo() ||
+        followStateChanged) {
         resetSpeakerMixIfSingerChanged(oldSingerInfo);
         Q_EMIT singerOrSpeakerChanged();
     }

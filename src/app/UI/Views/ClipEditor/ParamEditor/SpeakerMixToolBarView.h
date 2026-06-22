@@ -9,8 +9,7 @@
 
 #include <QWidget>
 
-class QLabel;
-class SwitchButton;
+enum class SpeakerMixDynamicUiState { Unavailable, NotEnabled, Active, Bypassed };
 
 class SpeakerMixToolBarView final : public QWidget {
     Q_OBJECT
@@ -19,24 +18,25 @@ public:
     explicit SpeakerMixToolBarView(QWidget *parent = nullptr);
 
     void setSpeakers(const QStringList &names, const QList<QColor> &colors);
-    void setDynamicMixEnabled(bool enabled);
-    void setDynamicMixChecked(bool checked);
+    void setDynamicState(SpeakerMixDynamicUiState state);
 
 signals:
     void previousKeyframe();
     void nextKeyframe();
-    void dynamicMixToggled(bool checked);
+    void bypassDynamicMix();
+    void resumeDynamicMix();
+    void stopDynamicMix();
 
 private:
-    QLabel *m_dynamicLabel = nullptr;
-    SwitchButton *m_dynamicSwitch = nullptr;
-    Button *m_btnPrev;
-    Button *m_btnNext;
-    QWidget *m_speakerContainer;
+    Button *m_btnBypass = nullptr;
+    Button *m_btnResume = nullptr;
+    Button *m_btnStop = nullptr;
+    Button *m_btnPrev = nullptr;
+    Button *m_btnNext = nullptr;
+    QWidget *m_speakerContainer = nullptr;
     QStringList m_speakerNames;
     QList<QColor> m_speakerColors;
-    bool m_dynamicMixEnabled = false;
-    bool m_dynamicMixChecked = false;
+    SpeakerMixDynamicUiState m_dynamicState = SpeakerMixDynamicUiState::Unavailable;
 };
 
 #endif // SPEAKERMIXTOOLBARVIEW_H

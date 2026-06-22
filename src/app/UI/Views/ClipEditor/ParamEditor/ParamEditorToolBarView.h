@@ -6,6 +6,7 @@
 #define PARAMEDITORTOOLBARVIEW_H
 
 #include "Model/AppModel/Params.h"
+#include "SpeakerMixToolBarView.h"
 
 #include <QWidget>
 
@@ -13,7 +14,6 @@ class ComboBox;
 class Button;
 class QLabel;
 class SingingClip;
-class SpeakerMixToolBarView;
 
 class ParamEditorToolBarView final : public QWidget {
     Q_OBJECT
@@ -23,15 +23,16 @@ public:
 
     void setSpeakerMixMode(bool on);
     void setSpeakers(const QStringList &names, const QList<QColor> &colors);
-    void setDynamicMixEnabled(bool enabled);
-    void setDynamicMixChecked(bool checked);
+    void setSpeakerMixDynamicState(SpeakerMixDynamicUiState state);
 
 signals:
     void foregroundChanged(ParamInfo::Name name);
     void backgroundChanged(ParamInfo::Name name);
     void previousKeyframe();
     void nextKeyframe();
-    void dynamicMixToggled(bool checked);
+    void bypassDynamicMix();
+    void resumeDynamicMix();
+    void stopDynamicMix();
 
 private slots:
     void onForegroundSelectionChanged(int index);

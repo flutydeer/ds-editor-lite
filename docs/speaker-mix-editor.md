@@ -29,13 +29,13 @@ Phase 6 后，Fixed Mix 的正式入口已迁移到 track/clip 的 singer/speake
 
 目标：将 speaker mix 数据纳入文档模型，支持序列化/反序列化、撤销/重做。
 
-当前已提供 Dynamic Mix 开关：
+当前 Dynamic Mix 已改为显式启用流程：
 
-- 关：`mode = FixedMix`，使用 `fixedWeights`，编辑器可显示固定比例但禁用关键帧编辑
-- 开：`mode = DynamicMix`，使用 `dynamicKeyframes`，允许编辑关键帧
-- 首次开启时，如果没有 keyframe，则用 `fixedWeights` 创建第一个关键帧
-- 关闭时不删除 keyframes，再次开启时恢复
-- `fixedWeights` 与 `dynamicKeyframes` 可以同时保留；`mode` 只表示当前生效模式
+- 未启用：`mode = FixedMix` 且 `dynamicKeyframes` 为空，参数页显示说明和启用按钮
+- 启用：`mode = DynamicMix`，使用 `dynamicKeyframes`，允许编辑关键帧
+- Bypassed：`mode = FixedMix` 且 `dynamicKeyframes` 非空，显示并允许编辑关键帧，但实际生效使用 `fixedWeights`
+- Stop Dynamic：清空 `dynamicKeyframes`，回到 clip 自定义 Fixed Mix
+- `fixedWeights` 与 `dynamicKeyframes` 可以同时保留；`mode` 表示当前是否旁路动态自动化
 
 ---
 
@@ -103,8 +103,8 @@ struct SpeakerMixKeyframe {
 
 **Keyframe 数据来源：**
 
-- Dynamic Mix 开启：显示并编辑 `dynamicKeyframes`
-- Dynamic Mix 关闭：显示由 `fixedWeights` 构造的只读平直关键帧
+- Dynamic Mix 启用或 Bypassed：显示并编辑 `dynamicKeyframes`
+- Dynamic Mix 未启用：显示参数页空状态；背景可显示由 `fixedWeights` 构造的只读平直比例
 
 **颜色来源：** 当前通过 `SpeakerMixColorResolver` 基于 `SingingClip::singerInfo().speakers()`
 的稳定顺序派生；找不到 singer 上下文或 speaker id 时按当前 sources 下标回退。
@@ -304,16 +304,17 @@ HitResult hitTest(const QPointF &itemPos) const;
 | 前景为 speaker mix | `SpeakerMixToolBarView`（新增） |
 
 `SpeakerMixToolBarView` 包含：
-- Dynamic Mix 开关：控制当前 clip 是否使用 dynamic keyframes
-- 关键帧导航：上一个关键帧 / 下一个关键帧按钮
-- Speaker 列表：彩色圆点 + 名称（每个 speaker 一项）
+- Active 状态：Bypass、停止使用动态混合、关键帧导航、Speaker 列表
+- Bypassed 状态：恢复、停止使用动态混合、关键帧导航、Speaker 列表
+- 未启用状态：仅显示 Speaker 列表，启用入口在参数页空状态中
 
-Dynamic Mix 开关行为：
+Dynamic Mix 显式启用行为：
 
-- 仅在当前 clip 具备 Fixed Mix sources（至少 2 个 speaker）时可用
-- 关闭时，视图可以显示一条基于 `fixedWeights` 的平直混合背景，但不允许添加/删除/拖动关键帧
-- 开启时，如果 `dynamicKeyframes` 为空，用 `fixedWeights` 初始化第一个关键帧
-- 切换开关通过 `ReplaceSpeakerMixAction` 提交，保证 undo/redo 可恢复
+- 仅在当前 clip 具备 Fixed Mix sources（至少 2 个 speaker）时可启用
+- Follow Track clip 启用时，显式复制当前轨道配置到 clip 并停止跟随
+- 首次启用时，如果 `dynamicKeyframes` 为空，用 `fixedWeights` 初始化第一个关键帧
+- Bypass 只切换 `mode = FixedMix`，保留 keyframes；Resume 切回 `mode = DynamicMix`
+- Stop Dynamic 清空 keyframes 并回到 FixedMix
 
 ---
 
@@ -340,7 +341,7 @@ Dynamic Mix 开关行为：
 - [x] 边界行为：初始关键帧覆盖前方；最后关键帧之后保持不变，填充到视口右边缘
 - [x] 关键帧导航：滚动视口 centerAt(tick) + 移动播放头
 - [x] 不再为 Dynamic Mix 关键帧提供单独属性对话框；权重编辑只在 `SpeakerMixEditorView` 内完成
-- [x] Dynamic Mix 需要开关控制是否生效；关闭时回退 Fixed Mix，且不删除 keyframes
+- [x] Dynamic Mix 需要显式启用；Bypass 时回退 Fixed Mix 且不删除 keyframes
 - [x] `SpeakerMixEditorView` 绑定 `SingingClip::SpeakerMixData`，移除硬编码 speaker/keyframes
 - [x] Dynamic Mix 关键帧编辑通过 `ReplaceSpeakerMixAction` 提交
 - [x] `fixedWeights` 和 `dynamicKeyframes` 可同时保留，`mode` 只表示当前生效模式
@@ -369,8 +370,9 @@ Dynamic Mix 开关行为：
 
 ## 待修复问题
 
-- [ ] 初步验收发现：开启 Dynamic Mix 后，双击空白区域存在无法创建关键帧的情况。需要后续联调 `SpeakerMixEditorView` 的双击事件、命中检测、focus 和当前编辑模式状态。
+- [x] 初步验收发现：开启 Dynamic Mix 后，双击空白区域存在无法创建关键帧的情况。已改为显式启用 Dynamic Mix；Follow Track clip 通过启用按钮复制为 clip 自定义状态后再编辑。
 - [ ] Fixed Mix preset 管理功能当前完整但偏复杂，需要后续讨论是否压缩为更轻量的“保存/另存/删除”流程，减少用户在 dialog 内的状态判断成本。
+- [ ] Fixed Mix preset 应用后的 UI 表达需要重新设计：组合框和 clip 标签不应显示第一个 speaker 造成误导；speaker 二级菜单需要补充当前选中 preset 的状态样式，避免用户无法确认当前 preset。
 
 ---
 
@@ -404,9 +406,10 @@ Dynamic Mix 开关行为：
 - [x] 关键帧水平移动：点击竖线（非分割点）可左右拖拽移动关键帧位置，初始帧不可移动，不可越过相邻帧
 - [x] 接入真实模型：`SpeakerMixEditorView` 绑定 `SingingClip::SpeakerMixData`
 - [x] 移除硬编码 speaker/keyframes
-- [x] Dynamic Mix 开关接入参数页工具栏
-- [x] 开启 Dynamic：无 keyframe 时由 fixedWeights 创建 tick 0 首帧；已有 keyframes 时仅切换 mode
-- [x] 关闭 Dynamic：回到 fixedWeights，不删除 dynamicKeyframes；fixedWeights 无效时用首个 dynamic keyframe 补齐
+- [x] Dynamic Mix 显式启用入口接入参数页空状态
+- [x] 启用 Dynamic：无 keyframe 时由 fixedWeights 创建 tick 0 首帧；已有 keyframes 时切回 active
+- [x] Bypass Dynamic：回到 fixedWeights，不删除 dynamicKeyframes
+- [x] Stop Dynamic：清空 dynamicKeyframes；fixedWeights 无效时用首个 dynamic keyframe 补齐
 - [x] 编辑权重、添加/删除/移动 keyframe 后通过 `ReplaceSpeakerMixAction` 提交，支持 undo/redo
 - [x] workspace 同时读写 `fixedWeights` 与 `dynamicKeyframes`
 - [x] 修复关键帧编辑后工具栏 speaker 指示器闪烁
@@ -426,7 +429,7 @@ Dynamic Mix 开关行为：
 - Swap 按钮在 speaker mix 模式下禁用（不允许交换到背景）
 - 数据结构：`SpeakerMixSpeaker`（避免与 `PackageManager/Models/SpeakerInfo` 同名冲突）
 - 交互状态全部使用 int index 引用关键帧，不使用指针（避免 QList 操作后失效）
-- Speaker mix 工具栏控件嵌入 `ParamEditorToolBarView`，通过 `setSpeakerMixMode(bool)` 控制显隐，包含 Dynamic Mix 开关、关键帧导航和 speaker 指示器
+- Speaker mix 工具栏控件嵌入 `ParamEditorToolBarView`，通过 `setSpeakerMixMode(bool)` 控制显隐，包含 Bypass/Resume/Stop Dynamic、关键帧导航和 speaker 指示器
 - 拖拽状态机：`startDrag` 设 `dragging=false`（待定），`mouseMoveEvent` 中 `selectedKeyframeIndex >= 0` 时也调用 `updateDrag`，超过阈值后 `dragging=true`
 - 插值：仅线性插值，`SpeakerMixKeyframe` 不含 interpMode 字段，右键菜单只有删除
 - 键盘事件：构造函数设 `ItemIsFocusable`，mousePressEvent 中 `setFocus()`

@@ -6,12 +6,20 @@
 
 #include "ApplyClipSpeakerMixPresetAction.h"
 #include "ApplyTrackSpeakerMixPresetAction.h"
+#include "EnableClipDynamicSpeakerMixAction.h"
 #include "ReplaceSpeakerMixAction.h"
 #include "ReplaceTrackSpeakerMixAction.h"
 
 void SpeakerMixActions::replaceSpeakerMix(const SpeakerMixData &data, SingingClip *clip) {
     setName(tr("Edit speaker mix"));
     addAction(new ReplaceSpeakerMixAction(data, clip));
+}
+
+void SpeakerMixActions::enableClipDynamicSpeakerMix(const SingerInfo &singerInfo,
+                                                    const SpeakerInfo &speakerInfo,
+                                                    const SpeakerMixData &data, SingingClip *clip) {
+    setName(tr("Enable dynamic speaker mix"));
+    addAction(new EnableClipDynamicSpeakerMixAction(singerInfo, speakerInfo, data, clip));
 }
 
 void SpeakerMixActions::applyClipSpeakerMixPreset(const SingerInfo &singerInfo,

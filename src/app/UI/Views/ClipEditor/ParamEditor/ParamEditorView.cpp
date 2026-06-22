@@ -9,6 +9,7 @@
 #include "ParamEditorInfoArea.h"
 #include "ParamEditorToolBarView.h"
 #include "SpeakerMixEditorView.h"
+#include "UI/Controls/Button.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
@@ -17,7 +18,12 @@
 #include "Controller/PlaybackController.h"
 #include "Modules/History/HistoryManager.h"
 #include "Utils/ParamUtils.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
 
+#include <algorithm>
+#include <QFontMetrics>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QVBoxLayout>
 
 using namespace SpeakerMixModel;
@@ -38,11 +44,47 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
         new ParamEditorGraphicsView(scene, *foregroundProperties, *backgroundProperties, this);
     connect(m_graphicsView, &ParamEditorGraphicsView::sizeChanged, scene,
             &ParamEditorGraphicsScene::onViewResized);
+    connect(m_graphicsView, &ParamEditorGraphicsView::sizeChanged, this,
+            &ParamEditorView::updateSpeakerMixEmptyStateGeometry);
 
     const auto layout = new QHBoxLayout;
     layout->addWidget(m_infoArea);
     layout->addWidget(m_graphicsView);
     layout->setContentsMargins(0, 0, 0, 0);
+
+    m_speakerMixEmptyState = new QWidget(m_graphicsView->viewport());
+    m_speakerMixEmptyState->setObjectName("speakerMixEmptyState");
+    m_speakerMixEmptyState->setAttribute(Qt::WA_StyledBackground);
+    const QColor overlayBase(29, 31, 38);
+    const QColor overlayText(220, 222, 230);
+    m_speakerMixEmptyState->setStyleSheet(
+        QString("#speakerMixEmptyState { background-color: rgba(%1, %2, %3, 218); }"
+                "#speakerMixEmptyState QLabel { color: rgba(%4, %5, %6, 220); }")
+            .arg(overlayBase.red())
+            .arg(overlayBase.green())
+            .arg(overlayBase.blue())
+            .arg(overlayText.red())
+            .arg(overlayText.green())
+            .arg(overlayText.blue()));
+    m_speakerMixEmptyState->setVisible(false);
+
+    m_speakerMixEmptyTitle = new QLabel;
+    m_speakerMixEmptyTitle->setAlignment(Qt::AlignCenter);
+    m_speakerMixEmptyMessage = new QLabel;
+    m_speakerMixEmptyMessage->setAlignment(Qt::AlignCenter);
+    m_speakerMixEmptyMessage->setWordWrap(true);
+    m_enableDynamicMixButton = new Button(tr("Enable Dynamic Mix"));
+    m_enableDynamicMixButton->setObjectName("btnEnableDynamicMix");
+
+    m_speakerMixEmptyLayout = new QVBoxLayout;
+    m_speakerMixEmptyLayout->addStretch();
+    m_speakerMixEmptyLayout->addWidget(m_speakerMixEmptyTitle, 0, Qt::AlignCenter);
+    m_speakerMixEmptyLayout->addWidget(m_speakerMixEmptyMessage, 0, Qt::AlignCenter);
+    m_speakerMixEmptyLayout->addWidget(m_enableDynamicMixButton, 0, Qt::AlignCenter);
+    m_speakerMixEmptyLayout->addStretch();
+    m_speakerMixEmptyLayout->setContentsMargins(48, 12, 48, 12);
+    m_speakerMixEmptyLayout->setSpacing(8);
+    m_speakerMixEmptyState->setLayout(m_speakerMixEmptyLayout);
 
     m_toolBar = new ParamEditorToolBarView;
 
@@ -62,8 +104,13 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
             &ParamEditorView::onPreviousKeyframe);
     connect(m_toolBar, &ParamEditorToolBarView::nextKeyframe, this,
             &ParamEditorView::onNextKeyframe);
-    connect(m_toolBar, &ParamEditorToolBarView::dynamicMixToggled, this,
-            &ParamEditorView::onDynamicMixToggled);
+    connect(m_toolBar, &ParamEditorToolBarView::bypassDynamicMix, this,
+            &ParamEditorView::onBypassDynamicMix);
+    connect(m_toolBar, &ParamEditorToolBarView::resumeDynamicMix, this,
+            &ParamEditorView::onResumeDynamicMix);
+    connect(m_toolBar, &ParamEditorToolBarView::stopDynamicMix, this,
+            &ParamEditorView::onStopDynamicMix);
+    connect(m_enableDynamicMixButton, &Button::clicked, this, &ParamEditorView::onEnableDynamicMix);
 
     auto *mixView = m_graphicsView->speakerMixView();
     connect(mixView, &SpeakerMixEditorView::speakerMixEdited, this,
@@ -86,7 +133,7 @@ ParamEditorGraphicsView *ParamEditorView::graphicsView() const {
     return m_graphicsView;
 }
 
-void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) const {
+void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) {
     if (name == ParamInfo::Unknown) {
         qDebug() << "foreground changed to Speaker Mix";
         m_infoArea->clearParamProperties();
@@ -105,6 +152,7 @@ void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) const {
     m_infoArea->setParamProperties(*paramUtils->getPropertiesByName(name));
     m_graphicsView->setForeground(name, *paramUtils->getPropertiesByName(name));
     m_toolBar->setSpeakerMixMode(false);
+    hideSpeakerMixEmptyState();
 }
 
 void ParamEditorView::onBackgroundChanged(const ParamInfo::Name name) const {
@@ -141,6 +189,8 @@ void ParamEditorView::onNextKeyframe() const {
 void ParamEditorView::onSpeakerMixEdited(const SpeakerMixData &data) const {
     if (!m_clip)
         return;
+    if (m_clip->useTrackSingerInfo.get())
+        return;
 
     const auto normalized = normalizeSpeakerMixData(data);
     if (normalized == m_clip->speakerMixData())
@@ -152,35 +202,69 @@ void ParamEditorView::onSpeakerMixEdited(const SpeakerMixData &data) const {
     historyManager->record(actions);
 }
 
-void ParamEditorView::onDynamicMixToggled(const bool checked) const {
+void ParamEditorView::onEnableDynamicMix() {
     if (!m_clip)
         return;
 
-    auto data = m_clip->speakerMixData();
-    if (data.sources.size() < 2)
+    const auto data = dataWithDynamicEnabled(m_clip->speakerMixData());
+    if (data.mode != SingerSourceMode::DynamicMix)
         return;
 
-    const int explicitWeightCount = data.sources.size() - 1;
-    if (checked) {
-        data.mode = SingerSourceMode::DynamicMix;
-        if (data.dynamicKeyframes.isEmpty()) {
-            if (data.fixedWeights.size() != explicitWeightCount)
-                return;
-            data.dynamicKeyframes.append({0, data.fixedWeights});
-        }
-    } else {
-        data.mode = SingerSourceMode::FixedMix;
-        if (data.fixedWeights.size() != explicitWeightCount) {
-            if (data.dynamicKeyframes.isEmpty())
-                return;
-            data.fixedWeights = data.dynamicKeyframes.first().weights;
-        }
-    }
+    const auto actions = new SpeakerMixActions;
+    actions->enableClipDynamicSpeakerMix(m_clip->singerInfo(), m_clip->speakerInfo(), data, m_clip);
+    actions->execute();
+    historyManager->record(actions);
+}
 
+void ParamEditorView::onBypassDynamicMix() const {
+    if (!m_clip || m_clip->useTrackSingerInfo.get())
+        return;
+
+    auto data = m_clip->speakerMixData();
+    if (data.mode != SingerSourceMode::DynamicMix || data.dynamicKeyframes.isEmpty())
+        return;
+
+    data.mode = SingerSourceMode::FixedMix;
     onSpeakerMixEdited(data);
 }
 
-void ParamEditorView::refreshSpeakerMixToolBar() const {
+void ParamEditorView::onResumeDynamicMix() const {
+    if (!m_clip || m_clip->useTrackSingerInfo.get())
+        return;
+
+    auto data = m_clip->speakerMixData();
+    if (data.mode != SingerSourceMode::FixedMix || data.dynamicKeyframes.isEmpty())
+        return;
+
+    data.mode = SingerSourceMode::DynamicMix;
+    onSpeakerMixEdited(data);
+}
+
+void ParamEditorView::onStopDynamicMix() {
+    if (!m_clip || m_clip->useTrackSingerInfo.get())
+        return;
+
+    auto data = m_clip->speakerMixData();
+    if (data.dynamicKeyframes.isEmpty())
+        return;
+
+    constexpr int keepDynamicMixButtonId = 0;
+    constexpr int stopDynamicMixButtonId = 1;
+    MessageDialog dialog(
+        tr("Stop using dynamic speaker mix?"),
+        tr("This will delete all dynamic mix keyframes and return this clip to fixed mix."), this);
+    dialog.setTitle(tr("Stop using dynamic speaker mix?"));
+    dialog.addAccentButton(tr("停止使用动态混合"), stopDynamicMixButtonId);
+    dialog.addButton(tr("取消"), keepDynamicMixButtonId);
+    if (dialog.exec() != stopDynamicMixButtonId) {
+        return;
+    }
+
+    data = dataWithDynamicStopped(data);
+    onSpeakerMixEdited(data);
+}
+
+void ParamEditorView::refreshSpeakerMixToolBar() {
     auto *mixView = m_graphicsView->speakerMixView();
     if (mixView && m_clip) {
         mixView->setReferenceSpeakers(m_clip->singerInfo().speakers());
@@ -198,11 +282,133 @@ void ParamEditorView::refreshSpeakerMixToolBar() const {
     m_toolBar->setSpeakers(names, colors);
 
     const auto data = m_clip ? normalizeSpeakerMixData(m_clip->speakerMixData()) : SpeakerMixData();
-    const bool canUseFixed = !data.fixedWeights.isEmpty();
-    const bool canUseDynamic = !data.dynamicKeyframes.isEmpty();
-    const bool enabled =
-        data.sources.size() >= 2 && data.mode != SingerSourceMode::Single &&
-        (canUseFixed || canUseDynamic);
-    m_toolBar->setDynamicMixEnabled(enabled);
-    m_toolBar->setDynamicMixChecked(data.mode == SingerSourceMode::DynamicMix);
+    SpeakerMixDynamicUiState state = SpeakerMixDynamicUiState::Unavailable;
+    if (data.mode == SingerSourceMode::DynamicMix && !data.dynamicKeyframes.isEmpty()) {
+        state = SpeakerMixDynamicUiState::Active;
+    } else if (data.mode == SingerSourceMode::FixedMix && !data.dynamicKeyframes.isEmpty()) {
+        state = SpeakerMixDynamicUiState::Bypassed;
+    } else if (hasFixedMixBase(data)) {
+        state = SpeakerMixDynamicUiState::NotEnabled;
+    }
+    m_toolBar->setSpeakerMixDynamicState(state);
+    refreshSpeakerMixEmptyState(data);
+}
+
+void ParamEditorView::refreshSpeakerMixEmptyState(const SpeakerMixData &data) {
+    const auto *mixView = m_graphicsView->speakerMixView();
+    if (!mixView || !mixView->isVisible()) {
+        hideSpeakerMixEmptyState();
+        return;
+    }
+
+    if (!data.dynamicKeyframes.isEmpty()) {
+        hideSpeakerMixEmptyState();
+        return;
+    }
+
+    if (!hasFixedMixBase(data)) {
+        setSpeakerMixEmptyState(tr("Dynamic mix is unavailable"),
+                                tr("Choose a fixed speaker mix preset with at least two speakers "
+                                   "before enabling dynamic mix."),
+                                tr("Enable Dynamic Mix"), false);
+        return;
+    }
+
+    if (m_clip && m_clip->useTrackSingerInfo.get()) {
+        setSpeakerMixEmptyState(tr("Enable clip dynamic mix?"),
+                                tr("This clip is following the track. Enabling dynamic mix will "
+                                   "copy the current track speaker mix to this clip and stop "
+                                   "following the track."),
+                                tr("Copy and Enable Dynamic Mix"), true);
+        return;
+    }
+
+    setSpeakerMixEmptyState(tr("Enable Dynamic Mix"),
+                            tr("Create the first keyframe from the current fixed speaker mix."),
+                            tr("Enable Dynamic Mix"), true);
+}
+
+void ParamEditorView::setSpeakerMixEmptyState(const QString &title, const QString &message,
+                                              const QString &buttonText,
+                                              const bool buttonEnabled) {
+    m_speakerMixEmptyTitle->setText(title);
+    m_speakerMixEmptyMessageText = message;
+    m_speakerMixEmptyMessage->setText(message);
+    m_enableDynamicMixButton->setText(buttonText);
+    m_enableDynamicMixButton->setEnabled(buttonEnabled);
+    m_speakerMixEmptyMessage->setToolTip({});
+    m_enableDynamicMixButton->setToolTip({});
+    m_speakerMixEmptyState->setToolTip({});
+    updateSpeakerMixEmptyStateGeometry();
+    m_speakerMixEmptyState->show();
+    m_speakerMixEmptyState->raise();
+}
+
+void ParamEditorView::hideSpeakerMixEmptyState() {
+    if (m_speakerMixEmptyState)
+        m_speakerMixEmptyState->hide();
+}
+
+void ParamEditorView::updateSpeakerMixEmptyStateGeometry() {
+    if (!m_speakerMixEmptyState)
+        return;
+
+    const auto viewportRect = m_graphicsView->viewport()->rect();
+    m_speakerMixEmptyState->setGeometry(viewportRect);
+
+    const int height = viewportRect.height();
+    const bool compact = height < 180;
+    const bool minimal = height < 120;
+    const int horizontalMargin = minimal ? 12 : compact ? 24 : 48;
+    const int verticalMargin = minimal ? 4 : compact ? 8 : 12;
+    const int contentWidth = std::max(1, std::min(840, viewportRect.width() - horizontalMargin * 2));
+
+    m_speakerMixEmptyTitle->setFixedWidth(contentWidth);
+    m_speakerMixEmptyMessage->setFixedWidth(contentWidth);
+    m_speakerMixEmptyMessage->setVisible(true);
+
+    if (compact) {
+        m_speakerMixEmptyMessage->setWordWrap(false);
+        m_speakerMixEmptyMessage->setText(
+            m_speakerMixEmptyMessage->fontMetrics().elidedText(m_speakerMixEmptyMessageText,
+                                                               Qt::ElideRight, contentWidth));
+    } else {
+        m_speakerMixEmptyMessage->setWordWrap(true);
+        m_speakerMixEmptyMessage->setText(m_speakerMixEmptyMessageText);
+    }
+
+    if (m_speakerMixEmptyLayout) {
+        m_speakerMixEmptyLayout->setContentsMargins(horizontalMargin, verticalMargin,
+                                                    horizontalMargin, verticalMargin);
+        m_speakerMixEmptyLayout->setSpacing(minimal ? 4 : compact ? 6 : 8);
+    }
+}
+
+bool ParamEditorView::hasFixedMixBase(const SpeakerMixData &data) {
+    return data.mode == SingerSourceMode::FixedMix && data.sources.size() >= 2 &&
+           data.fixedWeights.size() == data.sources.size() - 1;
+}
+
+SpeakerMixData ParamEditorView::dataWithDynamicEnabled(const SpeakerMixData &data) {
+    auto result = normalizeSpeakerMixData(data);
+    if (!hasFixedMixBase(result) && result.dynamicKeyframes.isEmpty())
+        return {};
+
+    result.mode = SingerSourceMode::DynamicMix;
+    if (result.dynamicKeyframes.isEmpty())
+        result.dynamicKeyframes.append({0, result.fixedWeights});
+    return normalizeSpeakerMixData(result);
+}
+
+SpeakerMixData ParamEditorView::dataWithDynamicStopped(const SpeakerMixData &data) {
+    auto result = normalizeSpeakerMixData(data);
+    if (result.dynamicKeyframes.isEmpty())
+        return result;
+
+    const int explicitWeightCount = result.sources.size() - 1;
+    if (result.fixedWeights.size() != explicitWeightCount)
+        result.fixedWeights = result.dynamicKeyframes.first().weights;
+    result.dynamicKeyframes.clear();
+    result.mode = SingerSourceMode::FixedMix;
+    return normalizeSpeakerMixData(result);
 }
