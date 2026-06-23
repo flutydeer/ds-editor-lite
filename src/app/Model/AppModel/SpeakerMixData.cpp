@@ -89,7 +89,10 @@ namespace SpeakerMixModel {
 
     bool SpeakerMixData::operator==(const SpeakerMixData &other) const {
         return mode == other.mode && sources == other.sources &&
-               fixedWeights == other.fixedWeights && dynamicKeyframes == other.dynamicKeyframes;
+               fixedWeights == other.fixedWeights && dynamicKeyframes == other.dynamicKeyframes &&
+               sourcePresetId == other.sourcePresetId &&
+               sourcePresetName == other.sourcePresetName &&
+               sourcePresetDirty == other.sourcePresetDirty;
     }
 
     bool SpeakerMixData::operator!=(const SpeakerMixData &other) const {
@@ -98,6 +101,12 @@ namespace SpeakerMixModel {
 
     SpeakerMixData normalizeSpeakerMixData(const SpeakerMixData &data) {
         SpeakerMixData result = data;
+        result.sourcePresetId = result.sourcePresetId.trimmed();
+        result.sourcePresetName = result.sourcePresetName.trimmed();
+        if (result.sourcePresetId.isEmpty()) {
+            result.sourcePresetName.clear();
+            result.sourcePresetDirty = false;
+        }
         const int sourceCount = result.sources.size();
         const int explicitWeightCount = sourceCount - 1;
 

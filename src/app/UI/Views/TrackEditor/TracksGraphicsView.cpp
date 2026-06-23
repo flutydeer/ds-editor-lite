@@ -25,6 +25,7 @@
 #include "Modules/Extractors/MidiExtractController.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/ScrollBarView.h"
 #include "Utils/TimelineSnapUtils.h"
 
@@ -381,7 +382,9 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
                                     view->setStart(targetStart);
                                     view->loadNotes(sc->notes());
                                     view->setSingerName(track->singerInfo().name());
-                                    view->setSpeakerName(track->speakerInfo().name());
+                                    view->setSpeakerName(SpeakerMixDisplayUtils::speakerDisplayName(
+                                        track->singerInfo(), track->speakerInfo(),
+                                        track->speakerMixData()));
                                     view->setDefaultLanguage(sc->defaultLanguage());
                                     clipView = view;
                                 } else if (clip->clipType() == IClip::Audio) {

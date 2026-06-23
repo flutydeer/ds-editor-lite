@@ -32,6 +32,7 @@ public:
     void moveToNullClipState() const;
     void moveToSingingClipState() const;
     void moveToAudioClipState() const;
+    void refreshSingerComboPresentation() const;
     void populatePresetMenus() const;
     void onPresetApplied(const QString &presetId) const;
     void onNewPresetAction(const SingerInfo &singerInfo) const;

@@ -19,6 +19,7 @@
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Utils/AppColorPalette.h"
+#include "UI/Utils/SpeakerMixDisplayUtils.h"
 
 #include <QContextMenuEvent>
 #include <QDialog>
@@ -28,6 +29,8 @@
 #include <QMWidgets/cmenu.h>
 #include <QWidgetAction>
 
+#include <optional>
+
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 
@@ -35,31 +38,7 @@
 #include "Modules/Inference/Models/SingerIdentifier.h"
 
 using namespace SVS;
-
-namespace {
-
-    SpeakerInfo speakerById(const SingerInfo &singerInfo, const QString &id) {
-        for (const auto &speaker : singerInfo.speakers()) {
-            if (speaker.id() == id)
-                return speaker;
-        }
-        return {};
-    }
-
-    SpeakerMixData speakerMixDataFromPreset(const SpeakerMixPreset &preset,
-                                            const SingerInfo &singerInfo) {
-        SpeakerMixData data;
-        data.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
-        for (const auto &source : preset.sources) {
-            const auto speaker = speakerById(singerInfo, source.speaker.id());
-            if (!speaker.isEmpty())
-                data.sources.append({speaker});
-        }
-        data.fixedWeights = preset.fixedWeights;
-        return SpeakerMixModel::normalizeSpeakerMixData(data);
-    }
-
-} // namespace
+using SpeakerMixModel::SpeakerMixData;
 
 TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget *parent)
     : QWidget(parent), ITrack(track->id()), m_track(track) {
@@ -109,8 +88,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     }
     connect(packageManager, &PackageManager::packagesRefreshed, this, [this] {
         cbSinger->setItems(packageManager->installedPackages().successfulPackages);
-        if (m_track)
-            cbSinger->setCurrentData(m_track->singerInfo(), m_track->speakerInfo());
+        refreshSingerComboPresentation();
     });
     connect(appStatus, &AppStatus::moduleStatusChanged, this,
             [this](AppStatus::ModuleType module, AppStatus::ModuleStatus status) {
@@ -119,8 +97,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
                     cbSinger->setEnabled(true);
                     cbSinger->setLoadingText({});
                     cbSinger->setItems(packageManager->installedPackages().successfulPackages);
-                    if (m_track)
-                        cbSinger->setCurrentData(m_track->singerInfo(), m_track->speakerInfo());
+                    refreshSingerComboPresentation();
                 }
             });
 
@@ -135,7 +112,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
         m_track->setSingerAndSpeakerInfo(singerInfo, speakerInfo);
     });
     connect(cbSinger, &TwoLevelComboBox::itemsPopulated, this,
-            &TrackControlView::populatePresetMenus);
+            &TrackControlView::refreshSingerComboPresentation);
 
     cbLanguage = new LanguageComboBox("unknown");
     cbLanguage->setObjectName("cbLanguage");
@@ -168,13 +145,14 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 
     setName(track->name());
     setControl(track->control());
-    cbSinger->setCurrentData(track->singerInfo(), track->speakerInfo());
-    populatePresetMenus();
+    refreshSingerComboPresentation();
     setLanguage(track->defaultLanguage());
     updateTrackColor();
 
     connect(track, &Track::singerOrSpeakerChanged, this,
-            [this] { cbSinger->setCurrentData(m_track->singerInfo(), m_track->speakerInfo()); });
+            &TrackControlView::refreshSingerComboPresentation);
+    connect(track, &Track::speakerMixChanged, this,
+            [this](const SpeakerMixData &) { refreshSingerComboPresentation(); });
 }
 
 int TrackControlView::trackIndex() const {
@@ -360,11 +338,32 @@ void TrackControlView::changeTrackProperty() const {
     trackController->changeTrackProperty(args);
 }
 
+void TrackControlView::refreshSingerComboPresentation() const {
+    if (!m_track || !cbSinger)
+        return;
+
+    cbSinger->setCurrentData(m_track->singerInfo(), m_track->speakerInfo());
+    if (const auto text =
+            SpeakerMixDisplayUtils::comboDisplayText(m_track->singerInfo(), m_track->speakerMixData());
+        !text.isEmpty()) {
+        cbSinger->setDisplayTextOverride(text);
+    } else {
+        cbSinger->clearDisplayTextOverride();
+    }
+    cbSinger->setToolTip(cbSinger->currentText());
+    populatePresetMenus();
+}
+
 void TrackControlView::populatePresetMenus() const {
     if (!cbSinger)
         return;
 
     cbSinger->clearInjectedActions();
+    const auto sourcePreset =
+        m_track ? SpeakerMixPresetStore::sourcePresetForData(m_track->singerInfo(),
+                                                             m_track->speakerMixData())
+                : std::optional<SpeakerMixPreset>();
+    QAction *checkedPresetAction = nullptr;
     const auto packages = packageManager->installedPackages().successfulPackages;
     for (const auto &package : packages) {
         for (const auto &singerInfo : package.singers()) {
@@ -377,6 +376,8 @@ void TrackControlView::populatePresetMenus() const {
                 const auto action = cbSinger->addInjectedActionToSinger(singerInfo, preset.name);
                 if (!action)
                     continue;
+                if (sourcePreset && preset.id == sourcePreset->id)
+                    checkedPresetAction = action;
                 connect(action, &QAction::triggered, this,
                         [this, presetId = preset.id] { onPresetApplied(presetId); });
             }
@@ -394,6 +395,7 @@ void TrackControlView::populatePresetMenus() const {
             }
         }
     }
+    cbSinger->setCheckedInjectedAction(checkedPresetAction);
 }
 
 void TrackControlView::onPresetApplied(const QString &presetId) const {
@@ -407,7 +409,7 @@ void TrackControlView::onPresetApplied(const QString &presetId) const {
     if (singerInfo.isEmpty())
         return;
 
-    const auto data = speakerMixDataFromPreset(*preset, singerInfo);
+    const auto data = SpeakerMixPresetStore::speakerMixDataFromPreset(*preset, singerInfo);
     if (SpeakerMixModel::isSpeakerMixDataSingle(data)) {
         Toast::show(tr("Preset speakers are unavailable"));
         return;
@@ -417,7 +419,7 @@ void TrackControlView::onPresetApplied(const QString &presetId) const {
     actions->applyTrackSpeakerMixPreset(singerInfo, data.sources.first().speaker, data, m_track);
     actions->execute();
     historyManager->record(actions);
-    cbSinger->setCurrentData(m_track->singerInfo(), m_track->speakerInfo());
+    refreshSingerComboPresentation();
 }
 
 void TrackControlView::onNewPresetAction(const SingerInfo &singerInfo) const {
@@ -437,7 +439,7 @@ void TrackControlView::onNewPresetAction(const SingerInfo &singerInfo) const {
             historyManager->record(actions);
         }
     }
-    populatePresetMenus();
+    refreshSingerComboPresentation();
 }
 
 void TrackControlView::onManagePresetsAction(const SingerInfo &singerInfo) const {
@@ -461,7 +463,7 @@ void TrackControlView::onManagePresetsAction(const SingerInfo &singerInfo) const
             historyManager->record(actions);
         }
     }
-    populatePresetMenus();
+    refreshSingerComboPresentation();
 }
 
 QString TrackControlView::panValueToString(const double value) {

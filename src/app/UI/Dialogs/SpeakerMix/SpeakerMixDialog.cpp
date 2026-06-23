@@ -257,7 +257,17 @@ SpeakerMixData SpeakerMixDialog::buildCurrentSpeakerMixData() const {
             data.sources.append({speaker});
     }
     data.fixedWeights = explicitWeightsFromFullWeights(currentFullWeights());
-    return normalizeSpeakerMixData(data);
+    data = normalizeSpeakerMixData(data);
+    if (!m_currentPresetId.isEmpty()) {
+        if (const auto preset = SpeakerMixPresetStore::findPreset(m_currentPresetId)) {
+            data.sourcePresetId = preset->id;
+            data.sourcePresetName = preset->name;
+            data.sourcePresetDirty =
+                !SpeakerMixPresetStore::speakerMixDataMatchesPreset(*preset, m_singerInfo, data);
+            data = normalizeSpeakerMixData(data);
+        }
+    }
+    return data;
 }
 
 SpeakerMixData SpeakerMixDialog::equalWeightMixData() const {

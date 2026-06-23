@@ -8,9 +8,24 @@
 
 using namespace SpeakerMixModel;
 
+namespace {
+
+    SpeakerMixData preservePresetSourceAsDirty(const SpeakerMixData &oldData,
+                                               SpeakerMixData newData) {
+        if (!newData.sourcePresetId.isEmpty() || oldData.sourcePresetId.isEmpty())
+            return newData;
+        newData.sourcePresetId = oldData.sourcePresetId;
+        newData.sourcePresetName = oldData.sourcePresetName;
+        newData.sourcePresetDirty = true;
+        return normalizeSpeakerMixData(newData);
+    }
+
+} // namespace
+
 ReplaceSpeakerMixAction::ReplaceSpeakerMixAction(const SpeakerMixData &data, SingingClip *clip)
     : m_oldData(clip ? clip->speakerMixData() : SpeakerMixData()),
-      m_newData(normalizeSpeakerMixData(data)), m_clip(clip) {
+      m_newData(preservePresetSourceAsDirty(m_oldData, normalizeSpeakerMixData(data))),
+      m_clip(clip) {
 }
 
 void ReplaceSpeakerMixAction::execute() {

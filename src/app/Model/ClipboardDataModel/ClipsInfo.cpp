@@ -125,6 +125,13 @@ namespace {
         obj["sources"] = sources;
         if (!normalized.fixedWeights.isEmpty())
             obj["fixedWeights"] = encodeWeights(normalized.fixedWeights);
+        if (!normalized.sourcePresetId.isEmpty()) {
+            QJsonObject presetObj;
+            presetObj["id"] = normalized.sourcePresetId;
+            presetObj["name"] = normalized.sourcePresetName;
+            presetObj["dirty"] = normalized.sourcePresetDirty;
+            obj["sourcePreset"] = presetObj;
+        }
         if (!normalized.dynamicKeyframes.isEmpty()) {
             QJsonArray keyframes;
             for (const auto &keyframe : normalized.dynamicKeyframes) {
@@ -159,6 +166,10 @@ namespace {
                 data.sources.append({speaker});
         }
         data.fixedWeights = decodeWeights(obj["fixedWeights"].toArray());
+        const auto presetObj = obj["sourcePreset"].toObject();
+        data.sourcePresetId = presetObj["id"].toString();
+        data.sourcePresetName = presetObj["name"].toString();
+        data.sourcePresetDirty = presetObj["dirty"].toBool();
         for (const auto &keyframeValue : obj["dynamicKeyframes"].toArray()) {
             const auto keyframeObj = keyframeValue.toObject();
             SpeakerMixModel::SpeakerMixKeyframe keyframe;

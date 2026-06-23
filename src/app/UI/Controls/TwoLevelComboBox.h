@@ -31,6 +31,9 @@ public:
 
     void setCurrentData(const SingerInfo &singer, const SpeakerInfo &speaker,
                         bool preferInherit = false);
+    void setDisplayTextOverride(const QString &text);
+    void clearDisplayTextOverride();
+    void setCheckedInjectedAction(QAction *action);
     bool isInheritSelected() const;
     void setShowInheritItem(bool show);
 
@@ -69,6 +72,7 @@ private slots:
 
 private:
     void updateDisplayText();
+    void updateActionCheckStates() const;
     Menu *createGroupMenu(const QString &groupName) const;
     Menu *createGroupMenu(const QString &groupName, const SingerIdentifier &identifier) const;
     void addItemInternal(const QString &itemText, const SingerInfo &singer, const SpeakerInfo &spk,
@@ -82,9 +86,12 @@ private:
     QString m_injectedPropertyName = "speakerMixInjected";
     bool m_showInheritItem = false;
     bool m_inheritWasSelected = false;
+    QAction *m_checkedInjectedAction = nullptr;
+    bool m_suppressCurrentActionCheck = false;
     SingerInfo m_prevSinger;
     SpeakerInfo m_prevSpeaker;
     QString m_loadingText;
+    QString m_displayTextOverride;
 };
 
 #endif // TWOLEVELCOMBOBOX_H

@@ -23,6 +23,7 @@
 #include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Controls/LevelMeterViewModel.h"
+#include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/TimelineView.h"
 
 #include <QFileDialog>
@@ -34,6 +35,16 @@
 #include <QSplitter>
 #include <QTimer>
 #include <QVBoxLayout>
+
+namespace {
+
+    void updateSingingClipDisplay(SingingClip *clip, SingingClipView *view) {
+        view->setSingerName(clip->singerInfo().name());
+        view->setSpeakerName(SpeakerMixDisplayUtils::speakerDisplayName(
+            clip->singerInfo(), clip->speakerInfo(), clip->speakerMixData()));
+    }
+
+} // namespace
 
 TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksEditor, parent) {
     trackController->setParentWidget(this);
@@ -322,9 +333,10 @@ void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, const in
             const auto singingClip = static_cast<SingingClip *>(clip);
             const auto singingView = static_cast<SingingClipView *>(cachedView);
             connect(singingClip, &SingingClip::singerOrSpeakerChanged, this,
-                    [singingClip, singingView] {
-                        singingView->setSingerName(singingClip->singerInfo().name());
-                        singingView->setSpeakerName(singingClip->speakerInfo().name());
+                    [singingClip, singingView] { updateSingingClipDisplay(singingClip, singingView); });
+            connect(singingClip, &SingingClip::speakerMixChanged, this,
+                    [singingClip, singingView](const SpeakerMixModel::SpeakerMixData &) {
+                        updateSingingClipDisplay(singingClip, singingView);
                     });
             connect(singingClip, &SingingClip::defaultLanguageChanged, singingView,
                     &SingingClipView::setDefaultLanguage);
@@ -354,15 +366,16 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     clipView->setColorIndex(track->dsTrack->colorIndex());
     const auto &notesRef = clip->notes();
     clipView->loadNotes(notesRef);
-    clipView->setSingerName(clip->singerInfo().name());
-    clipView->setSpeakerName(clip->speakerInfo().name());
+    updateSingingClipDisplay(clip, clipView);
     clipView->setDefaultLanguage(clip->defaultLanguage());
     m_tracksScene->addCommonItem(clipView);
     qDebug() << "Singing clip graphics item added to scene" << clipView->id() << clipView->name();
-    connect(clip, &SingingClip::singerOrSpeakerChanged, this, [clip, clipView] {
-        clipView->setSingerName(clip->singerInfo().name());
-        clipView->setSpeakerName(clip->speakerInfo().name());
-    });
+    connect(clip, &SingingClip::singerOrSpeakerChanged, this,
+            [clip, clipView] { updateSingingClipDisplay(clip, clipView); });
+    connect(clip, &SingingClip::speakerMixChanged, this,
+            [clip, clipView](const SpeakerMixModel::SpeakerMixData &) {
+                updateSingingClipDisplay(clip, clipView);
+            });
     connect(clip, &SingingClip::defaultLanguageChanged, clipView,
             &SingingClipView::setDefaultLanguage);
     connect(clip, &SingingClip::noteChanged, clipView, &SingingClipView::onNoteListChanged);

@@ -97,6 +97,7 @@ void TwoLevelComboBox::addItemToGroup(const QString &groupName, const QString &i
 void TwoLevelComboBox::addItemInternal(const QString &itemText, const SingerInfo &singer,
                                        const SpeakerInfo &spk, QMenu *parentMenu) {
     auto action = new QAction(itemText, this);
+    action->setCheckable(true);
 
     ComboBoxItemData itemData;
     itemData.text = itemText;
@@ -117,12 +118,16 @@ void TwoLevelComboBox::addItemInternal(const QString &itemText, const SingerInfo
         m_currentItem = itemData;
         updateDisplayText();
     }
+    updateActionCheckStates();
 }
 
 void TwoLevelComboBox::clear() {
     m_mainMenu->clear();
     m_itemDataList.clear();
     m_currentItem = ComboBoxItemData();
+    m_checkedInjectedAction = nullptr;
+    m_suppressCurrentActionCheck = false;
+    m_displayTextOverride.clear();
     update();
 }
 
@@ -192,12 +197,18 @@ void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
     }
     m_loadingText.clear();
     updateDisplayText();
+    updateActionCheckStates();
     emit itemsPopulated();
 }
 
 QString TwoLevelComboBox::currentText() const {
     if (!m_loadingText.isEmpty())
         return m_loadingText;
+    if (!m_displayTextOverride.isEmpty()) {
+        if (m_currentItem.isInheritItem)
+            return tr("Follow Track") + " (" + m_displayTextOverride + ")";
+        return m_displayTextOverride;
+    }
     const QString singerName = m_currentItem.singer.name();
     const QString speakerName = m_currentItem.speaker.name();
     QString effectiveText;
@@ -224,6 +235,9 @@ SpeakerInfo TwoLevelComboBox::currentSpeaker() const {
 
 void TwoLevelComboBox::setCurrentData(const SingerInfo &singer, const SpeakerInfo &speaker,
                                       const bool preferInherit) {
+    m_displayTextOverride.clear();
+    m_checkedInjectedAction = nullptr;
+    m_suppressCurrentActionCheck = false;
     if (preferInherit && m_showInheritItem) {
         // Find the inherit item and update its display singer/speaker
         for (auto &itemData : m_itemDataList) {
@@ -233,6 +247,7 @@ void TwoLevelComboBox::setCurrentData(const SingerInfo &singer, const SpeakerInf
                 m_currentItem = itemData;
                 m_inheritWasSelected = true;
                 updateDisplayText();
+                updateActionCheckStates();
                 return;
             }
         }
@@ -242,9 +257,29 @@ void TwoLevelComboBox::setCurrentData(const SingerInfo &singer, const SpeakerInf
         if (itemData.singer == singer && itemData.speaker == speaker) {
             m_currentItem = itemData;
             updateDisplayText();
+            updateActionCheckStates();
             return;
         }
     }
+}
+
+void TwoLevelComboBox::setDisplayTextOverride(const QString &text) {
+    m_displayTextOverride = text;
+    m_suppressCurrentActionCheck = !text.isEmpty();
+    updateDisplayText();
+    updateActionCheckStates();
+}
+
+void TwoLevelComboBox::clearDisplayTextOverride() {
+    m_displayTextOverride.clear();
+    m_suppressCurrentActionCheck = false;
+    updateDisplayText();
+    updateActionCheckStates();
+}
+
+void TwoLevelComboBox::setCheckedInjectedAction(QAction *action) {
+    m_checkedInjectedAction = action;
+    updateActionCheckStates();
 }
 
 bool TwoLevelComboBox::isInheritSelected() const {
@@ -265,7 +300,11 @@ void TwoLevelComboBox::onActionTriggered(const QAction *action) {
             m_inheritWasSelected = false;
         }
         m_currentItem = itemData;
+        m_displayTextOverride.clear();
+        m_checkedInjectedAction = nullptr;
+        m_suppressCurrentActionCheck = false;
         updateDisplayText();
+        updateActionCheckStates();
 
         emit currentDataChanged();
         emit currentTextChanged(m_currentItem.text);
@@ -274,6 +313,27 @@ void TwoLevelComboBox::onActionTriggered(const QAction *action) {
 
 void TwoLevelComboBox::updateDisplayText() {
     update();
+}
+
+void TwoLevelComboBox::updateActionCheckStates() const {
+    for (const auto &itemData : m_itemDataList) {
+        if (!itemData.action)
+            continue;
+        itemData.action->setCheckable(true);
+        itemData.action->setChecked(!m_suppressCurrentActionCheck && !m_checkedInjectedAction &&
+                                    itemData.action == m_currentItem.action);
+    }
+
+    for (const auto action : m_mainMenu->actions()) {
+        if (!action->menu())
+            continue;
+        for (const auto menuAction : action->menu()->actions()) {
+            if (!menuAction->property(m_injectedPropertyName.toUtf8()).toBool())
+                continue;
+            menuAction->setCheckable(true);
+            menuAction->setChecked(menuAction == m_checkedInjectedAction);
+        }
+    }
 }
 
 void TwoLevelComboBox::setLoadingText(const QString &text) {
@@ -300,6 +360,7 @@ Menu *TwoLevelComboBox::groupMenuForSinger(const SingerInfo &singer) const {
 }
 
 void TwoLevelComboBox::clearInjectedActions() const {
+    const_cast<TwoLevelComboBox *>(this)->m_checkedInjectedAction = nullptr;
     const auto actions = m_mainMenu->actions();
     for (const auto action : actions) {
         if (!action->menu())
@@ -321,8 +382,10 @@ QAction *TwoLevelComboBox::addInjectedActionToSinger(const SingerInfo &singer,
         return nullptr;
 
     const auto action = new QAction(text, const_cast<TwoLevelComboBox *>(this));
+    action->setCheckable(true);
     action->setProperty(m_injectedPropertyName.toUtf8(), true);
     groupMenu->addAction(action);
+    updateActionCheckStates();
     return action;
 }
 

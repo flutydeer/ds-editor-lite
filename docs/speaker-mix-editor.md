@@ -372,7 +372,7 @@ Dynamic Mix 显式启用行为：
 
 - [x] 初步验收发现：开启 Dynamic Mix 后，双击空白区域存在无法创建关键帧的情况。已改为显式启用 Dynamic Mix；Follow Track clip 通过启用按钮复制为 clip 自定义状态后再编辑。
 - [ ] Fixed Mix preset 管理功能当前完整但偏复杂，需要后续讨论是否压缩为更轻量的“保存/另存/删除”流程，减少用户在 dialog 内的状态判断成本。
-- [ ] Fixed Mix preset 应用后的 UI 表达需要重新设计：组合框和 clip 标签不应显示第一个 speaker 造成误导；speaker 二级菜单需要补充当前选中 preset 的状态样式，避免用户无法确认当前 preset。
+- [x] Fixed Mix preset 应用后的 UI 表达已改为 DAW/VSTi 风格：组合框和 clip 标签显示 source preset 名称，编辑后显示 dirty 状态；speaker 二级菜单用白色 16x16 对勾标记当前 source preset。
 
 ---
 

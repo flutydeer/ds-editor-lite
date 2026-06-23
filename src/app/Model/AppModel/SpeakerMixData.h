@@ -8,6 +8,7 @@
 #include "Modules/PackageManager/Models/SpeakerInfo.h"
 
 #include <QList>
+#include <QString>
 #include <QVector>
 
 namespace SpeakerMixModel {
@@ -34,6 +35,9 @@ namespace SpeakerMixModel {
         QList<SpeakerMixSource> sources;
         QVector<double> fixedWeights;
         QList<SpeakerMixKeyframe> dynamicKeyframes;
+        QString sourcePresetId;
+        QString sourcePresetName;
+        bool sourcePresetDirty = false;
 
         bool operator==(const SpeakerMixData &other) const;
         bool operator!=(const SpeakerMixData &other) const;

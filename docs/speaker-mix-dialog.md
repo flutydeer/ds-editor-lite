@@ -11,7 +11,7 @@ debug/demo 对话框推进到 Fixed Mix preset 管理界面：
 - OK 后把当前 Fixed Mix 数据应用到目标 track/clip
 - track/clip 应用 preset 均通过 action 支持 undo/redo
 - track/clip 的实际 `SpeakerMixData` 保存到 `workspace["ds-editor-lite"]["speakerMix"]`，重新打开工程可恢复
-- preset 自身保存到应用常规设置 `GeneralOption::speakerMixPresets`，不进入工程文件
+- preset 库保存到应用常规设置 `GeneralOption::speakerMixPresets`，不随工程复制；工程只保存 source preset id/name/dirty 元数据用于当前状态显示
 - 暂不写 opendspx 官方 mix 结构；官方 `sources` 仍保持当前单声线 fallback
 
 后续它会继续聚焦 **Fixed Mix**：作为固定混合配置和用户混合预设管理界面；Dynamic Mix
@@ -100,8 +100,8 @@ Soft Verse Mix
 
 - 预设只保存 Fixed Mix，不保存 Dynamic Mix keyframes
 - 预设按 `packageId + singerId + packageVersion` 精确匹配
-- 应用预设是复制，不是引用；track/clip 后续修改不会自动反写 preset
-- 工程恢复以展开后的 `SpeakerMixData` 为准；preset 自身不进入工程文件
+- 应用预设是复制，不是引用；track/clip 后续修改不会自动反写 preset，而是显示为 dirty preset
+- 工程恢复以展开后的 `SpeakerMixData` 为准；preset 库不随工程复制，但保留 source preset id/name/dirty UI 元数据
 - 如果 package 更新导致 `packageVersion` 变化，旧版本 preset 不显示、不自动迁移、不删除
 - 当前 preset 管理能力完整但偏重，后续需要讨论是否简化交互
 - Dynamic Mix keyframes 不进入 preset；Dynamic Mix 的 bypass 状态保存在工程的展开后 `SpeakerMixData` 中。
@@ -269,7 +269,7 @@ Preset store 存在应用常规设置中：
 - 当前对话框在 `mode == DynamicMix` 时作为 Fixed Mix 底座入口使用；打开时恢复 `sources + fixedWeights`，不会保存 dynamic keyframes 到 preset。
 - Dynamic Mix 已改为显式启用；Follow Track clip 启用时会复制当前 effective singer/speaker/mix 到 clip 自有状态，再进入关键帧编辑。
 - preset 管理交互偏复杂，后续需要讨论是否简化。
-- preset 应用后的外部 UI 状态仍不完整：track/clip 的 singer/speaker 组合框与 clip 标签当前会显示第一个 speaker，而不是 preset 名称或混合状态；多级 speaker 菜单也缺少选中态样式。下一轮需要先讨论 preset 当前值的显示语义，再实现菜单选中态。
+- preset 应用后的外部 UI 状态已改为 DAW/VSTi 风格：track/clip 的 singer/speaker 组合框与 clip 标签显示 source preset 名称，编辑后追加 dirty 状态；多级 speaker 菜单对 source preset 显示选中态。
 
 ## 下一步
 
@@ -283,9 +283,9 @@ Preset store 存在应用常规设置中：
    - 讨论是否保留当前完整 preset bar
    - 评估更轻量的保存/覆盖/删除流程
 
-3. 讨论 Fixed Mix preset 的当前状态 UI
-   - 组合框和 clip 标签需要表达 preset / Fixed Mix，而不是退化成第一个 speaker
-   - speaker 二级菜单需要补充选中态样式，与 ComboBox 的当前项反馈保持一致
+3. 回归 Fixed Mix preset 当前状态 UI
+   - 覆盖 track/clip 应用 preset、编辑后 dirty、undo/redo、保存恢复
+   - 覆盖 preset 重命名/删除后的显示 fallback 与菜单选中态
 
 4. 后续再评估 opendspx 官方 mix 结构
    - 当前 AppModel 坚持“一个 singer 下多个 speaker”语义

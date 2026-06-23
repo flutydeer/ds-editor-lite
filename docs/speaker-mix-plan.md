@@ -49,7 +49,7 @@
     - speaker 菜单底部提供“新建混合预设...”和“管理混合预设...”入口，打开 `SpeakerMixDialog` 管理固定混合预设。
     - `SpeakerMixDialog` 顶部增加 preset bar：预设 ComboBox，以及新建、保存、另存为、删除、重置等操作。
     - 预设全局可用，track 和 clip 均可通过二级菜单选择。
-    - 工程文件保存的是展开后的实际 `SpeakerMixData`；预设保存在应用常规设置中，不进入工程文件。
+    - 工程文件保存展开后的实际 `SpeakerMixData`；预设库保存在应用常规设置中，不随工程复制，但会保存 `sourcePresetId/sourcePresetName/sourcePresetDirty` 用于 DAW 风格当前 preset 显示。
     - 预设应用时复制到 track/clip，之后修改不自动反写预设，除非用户选择覆盖保存。
     - 预设菜单入口完成后，剪辑工具栏上的临时 `Speaker Mix` 按钮已移除。
 
@@ -159,7 +159,7 @@ Dynamic Mix 不是普通显示开关，而是 clip 自定义自动化状态。
 - 选择混合预设：复制预设的 `sources + fixedWeights` 到当前 clip，进入 `FixedMix`。
 - `SpeakerMixDialog` 作为固定混合预设编辑/管理界面，顶部提供 preset ComboBox 和新建、保存、另存为、删除、重置等操作。
 - 应用预设是复制，不是引用。track/clip 后续修改不自动反写 preset。
-- preset 自身保存在应用常规设置中，不进入工程文件；工程恢复以展开后的 `SpeakerMixData` 为准。
+- preset 库保存在应用常规设置中，不随工程复制；工程恢复以展开后的 `SpeakerMixData` 为准，并保留 source preset id/name/dirty 作为 UI 元数据。
 
 ## Phases
 
@@ -244,7 +244,7 @@ Dynamic Mix 不是普通显示开关，而是 clip 自定义自动化状态。
 - 初步验收发现的“开启 Dynamic Mix 后双击添加关键帧可能无效”已定位为 Follow Track clip 的旧开关路径会尝试写入跟随数据；现改为显式启用并在启用时复制为 clip 自定义动态混合。
 - Bypass 当前先采用文字按钮和轻量状态提示；后续可参考 DAW 的 automation/plugin bypass 样式，设计更明确的旁路视觉语言。
 - 当前 preset 管理功能完整但操作偏重，后续需要讨论是否简化为更轻量的保存/覆盖/删除流程。
-- Fixed Mix preset 的当前状态显示仍需重做：应用 preset 后，track/clip 组合框和 clip 视图标签当前显示的是第一个 speaker，而不是 preset 名称或可识别的混合状态；speaker 二级菜单也缺少类似 ComboBox 的选中态样式，用户难以确认当前使用了哪个 preset。
+- Fixed Mix preset 当前状态显示改为 DAW/VSTi 风格：应用 preset 后保存 source preset id/name，编辑后显示 dirty 状态，不再按内容反推 preset；speaker 二级菜单使用选中态标记 source preset。
 
 ## Assumptions
 

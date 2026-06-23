@@ -442,8 +442,12 @@ QMenu[dwmBorder="true"] {
 
 QMenu::indicator {
     left: 6px;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
+}
+
+QMenu::indicator:checked {
+    image: url(:/svg/icons/checkmark_16_white.svg);
 }
 
 QMenu::right-arrow {
