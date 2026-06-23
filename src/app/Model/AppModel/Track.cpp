@@ -152,6 +152,8 @@ void Track::setSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerI
     bool speakerInfoChanged = (m_speakerInfo != speakerInfo);
 
     if (!singerInfoChanged && !speakerInfoChanged) {
+        if (!SpeakerMixModel::isSpeakerMixDataSingle(m_speakerMixData))
+            resetSpeakerMixToSingle();
         return;
     }
 
@@ -159,8 +161,8 @@ void Track::setSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerI
     m_speakerInfo = speakerInfo;
     this->updateDefaultG2pId(m_defaultLanguage);
 
-    emit singerOrSpeakerChanged();
     resetSpeakerMixToSingle();
+    emit singerOrSpeakerChanged();
 }
 
 void Track::setSpeakerMixData(const SpeakerMixModel::SpeakerMixData &data) {

@@ -329,6 +329,7 @@ void SingingClip::setOwnSingerAndSpeaker(const SingerInfo &singerInfo,
                                          const SpeakerInfo &speakerInfo) {
     const auto oldSingerInfo = this->singerInfo();
     const auto oldSpeakerInfo = this->speakerInfo();
+    const auto oldSpeakerMix = this->speakerMixData();
     const bool oldUseTrackSingerInfo = useTrackSingerInfo.get();
     const bool oldUseTrackSpeakerInfo = useTrackSpeakerInfo.get();
     m_singerSpeakerBatching = true;
@@ -342,8 +343,14 @@ void SingingClip::setOwnSingerAndSpeaker(const SingerInfo &singerInfo,
                                     oldUseTrackSpeakerInfo != useTrackSpeakerInfo.get();
     if (oldSingerInfo != this->singerInfo() || oldSpeakerInfo != this->speakerInfo() ||
         followStateChanged) {
-        resetSpeakerMixIfSingerChanged(oldSingerInfo);
+        m_ownSpeakerMixData = normalizeSpeakerMixData({});
+        if (oldSpeakerMix != this->speakerMixData()) {
+            bumpInferenceRevision();
+            Q_EMIT speakerMixChanged(this->speakerMixData());
+        }
         Q_EMIT singerOrSpeakerChanged();
+    } else if (!SpeakerMixModel::isSpeakerMixDataSingle(m_ownSpeakerMixData)) {
+        resetSpeakerMixToSingle();
     }
 }
 
