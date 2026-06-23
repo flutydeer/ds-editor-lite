@@ -10,6 +10,7 @@
 #include "Params.h"
 #include "Interface/IInferPiece.h"
 #include "Utils/Property.h"
+#include "Modules/Inference/Models/InferSpeakerMix.h"
 #include "Modules/Inference/Models/SingerIdentifier.h"
 
 #include <QObject>
@@ -29,7 +30,8 @@ public:
     double paddingEndMs = 0;
 
     SingerIdentifier identifier;
-    QString speaker; // TODO: use dynamic mix
+    QString speaker; // Static fallback used by duration and legacy checks.
+    InferSpeakerMix speakerMix;
     QList<Note *> notes;
 
     // Infer result

@@ -1,7 +1,28 @@
 #include "InferTaskCommon.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
+#include "Modules/Inference/Models/InferSpeakerMix.h"
+
+#include <utility>
 
 namespace Co = ds::Api::Common::L1;
+
+namespace {
+    bool mapSpeakerName(const std::string &speakerName,
+                        const std::map<std::string, std::string> &speakerMapping,
+                        std::string &mappedSpeakerName) {
+        if (speakerMapping.empty()) {
+            mappedSpeakerName = speakerName;
+            return true;
+        }
+
+        if (const auto it = speakerMapping.find(speakerName); it != speakerMapping.end()) {
+            mappedSpeakerName = it->second;
+            qDebug() << "mapped speaker" << speakerName << "to" << mappedSpeakerName;
+            return true;
+        }
+        return false;
+    }
+}
 
 auto createParamInfo(const std::string_view tag) -> Co::InputParameterInfo {
     if (tag == Co::Tags::Pitch.name()) {
@@ -30,7 +51,8 @@ auto createParamInfo(const std::string_view tag) -> Co::InputParameterInfo {
     return Co::InputParameterInfo{};
 }
 
-auto convertInputWords(const QList<InferWord> &words, const std::string &speakerName, const std::map<std::string, std::string> &speakerMapping)
+auto convertInputWords(const QList<InferWord> &words, const std::string &speakerName,
+                       const std::map<std::string, std::string> &speakerMapping)
     -> std::vector<Co::InputWordInfo> {
 
     std::vector<Co::InputWordInfo> inputWords;
@@ -40,25 +62,21 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
         std::vector<Co::InputNoteInfo> inputNotes;
         inputNotes.reserve(word.notes.size());
         for (const auto &note : std::as_const(word.notes)) {
-            inputNotes.emplace_back(Co::InputNoteInfo{
-                /* key */ note.key,
-                /* cents */ note.cents,
-                /* duration */ note.duration,
-                /* glide */ note.glide == "up" ? Co::GlideType::GT_Up
-                : note.glide == "down"         ? Co::GlideType::GT_Down
-                                               : Co::GlideType::GT_None,
-                /* is_rest */ note.is_rest
-            });
+            inputNotes.emplace_back(
+                Co::InputNoteInfo{/* key */ note.key,
+                                  /* cents */ note.cents,
+                                  /* duration */ note.duration,
+                                  /* glide */ note.glide == "up" ? Co::GlideType::GT_Up
+                                  : note.glide == "down"         ? Co::GlideType::GT_Down
+                                                                 : Co::GlideType::GT_None,
+                                  /* is_rest */ note.is_rest});
         }
 
         std::vector<Co::InputPhonemeInfo> inputPhones;
         inputPhones.reserve(word.phones.size());
         for (const auto &phone : std::as_const(word.phones)) {
             std::string speakerIdForModel;
-            if (const auto it_spk = speakerMapping.find(speakerName); it_spk != speakerMapping.end()) {
-                speakerIdForModel = it_spk->second;
-                qDebug() << "mapped speaker" << speakerName << "to" << speakerIdForModel;
-            } else if (!speakerMapping.empty()) {
+            if (!mapSpeakerName(speakerName, speakerMapping, speakerIdForModel)) {
                 qCritical() << "could not find speaker mapping for" << speakerName;
             }
             inputPhones.emplace_back(Co::InputPhonemeInfo{
@@ -67,15 +85,9 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
                 /* tone */ 0,
                 /* start */ phone.start,
                 /* speakers */
-                std::vector{
-                    Co::InputPhonemeInfo::Speaker{std::move(speakerIdForModel), 1}
-                }
-            });
+                std::vector{Co::InputPhonemeInfo::Speaker{std::move(speakerIdForModel), 1}}});
         }
-        inputWords.emplace_back(Co::InputWordInfo{
-            std::move(inputPhones),
-            std::move(inputNotes)
-        });
+        inputWords.emplace_back(Co::InputWordInfo{std::move(inputPhones), std::move(inputNotes)});
     }
 
     return inputWords;
@@ -102,4 +114,33 @@ auto createStaticSpeaker(const std::string &speaker) -> Co::InputSpeakerInfo {
     inputSpeaker.proportions = {1.0};
     inputSpeaker.interval = 0;
     return inputSpeaker;
+}
+
+auto convertInputSpeakers(const InferSpeakerMix &speakerMix,
+                          const std::map<std::string, std::string> &speakerMapping, QString &error)
+    -> std::vector<Co::InputSpeakerInfo> {
+    std::vector<Co::InputSpeakerInfo> inputSpeakers;
+    inputSpeakers.reserve(speakerMix.sources.size());
+
+    for (const auto &source : speakerMix.sources) {
+        if (!source.isValid()) {
+            error = QStringLiteral("Invalid speaker mix source");
+            return {};
+        }
+
+        std::string mappedSpeakerName;
+        const auto speakerName = source.speaker.toStdString();
+        if (!mapSpeakerName(speakerName, speakerMapping, mappedSpeakerName)) {
+            error = QStringLiteral("Speaker mapping not found for speaker %1").arg(source.speaker);
+            return {};
+        }
+
+        Co::InputSpeakerInfo inputSpeaker;
+        inputSpeaker.name = std::move(mappedSpeakerName);
+        inputSpeaker.interval = source.interval;
+        inputSpeaker.proportions.assign(source.proportions.begin(), source.proportions.end());
+        inputSpeakers.emplace_back(std::move(inputSpeaker));
+    }
+
+    return inputSpeakers;
 }

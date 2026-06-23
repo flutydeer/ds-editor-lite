@@ -9,6 +9,7 @@
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
+#include "Modules/Inference/Models/InferSpeakerMix.h"
 
 #include <QDebug>
 
@@ -122,6 +123,16 @@ namespace {
         }
         return false;
     }
+
+    bool shouldCheckSpeakerMixSignature(const InferenceTaskContext &context) {
+        return !context.speakerMixSignature.isEmpty() && context.taskType != "duration";
+    }
+
+    InferSpeakerMix effectiveSpeakerMixForPiece(const InferPiece &piece) {
+        if (!piece.speakerMix.isEmpty())
+            return piece.speakerMix;
+        return InferSpeakerMixModel::staticSpeakerMix(piece.speaker);
+    }
 }
 
 namespace InferenceApplyGate {
@@ -196,11 +207,22 @@ namespace InferenceApplyGate {
                 (piece->identifier != context.singer || piece->speaker != context.speaker)) {
                 return drop("piece-singer-speaker-mismatch", currentRevision);
             }
+            if (options.checkSingerSpeaker && shouldCheckSpeakerMixSignature(context) &&
+                effectiveSpeakerMixForPiece(*piece).signature() != context.speakerMixSignature) {
+                return drop("piece-speaker-mix-mismatch", currentRevision);
+            }
         }
 
-        if (options.checkSingerSpeaker &&
-            (clip->singerIdentifier() != context.singer || clip->speakerId() != context.speaker)) {
-            return drop("clip-singer-speaker-mismatch", currentRevision);
+        if (options.checkSingerSpeaker) {
+            const auto currentMix = InferSpeakerMixModel::fixedSpeakerMixFromData(
+                clip->speakerMixData(), clip->speakerId());
+            if (clip->singerIdentifier() != context.singer ||
+                currentMix.fallbackSpeaker != context.speaker) {
+                return drop("clip-singer-speaker-mismatch", currentRevision);
+            }
+            if (shouldCheckSpeakerMixSignature(context) &&
+                currentMix.signature() != context.speakerMixSignature)
+                return drop("clip-speaker-mix-mismatch", currentRevision);
         }
 
         if (options.expectedNoteCount >= 0 && context.noteIds.count() != options.expectedNoteCount)

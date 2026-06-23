@@ -24,7 +24,8 @@ namespace Var = ds::Api::Variance::L1;
 
 bool InferVarianceTask::InferVarianceInput::operator==(const InferVarianceInput &other) const {
     return clipId == other.clipId /*&& pieceId == other.pieceId*/ && notes == other.notes &&
-           identifier == other.identifier && timeline == other.timeline && pitch == other.pitch;
+           identifier == other.identifier && timeline == other.timeline &&
+           speaker == other.speaker && speakerMix == other.speakerMix && pitch == other.pitch;
 }
 
 int InferVarianceTask::clipId() const {
@@ -167,14 +168,10 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
     }
     const auto &speakerMapping = importOptions->speakerMapping;
     input->words = convertInputWords(model.words, speakerName, speakerMapping);
-    if (const auto it = speakerMapping.find(speakerName); it == speakerMapping.end()) {
-        if (!speakerMapping.empty()) {
-            qCritical() << "inferVariance: Speaker mapping not found for speaker" << speakerName;
-            return false;
-        }
-    } else {
-        input->speakers = std::vector{createStaticSpeaker(it->second)};
-        qDebug() << "mapped speaker" << speakerName << "to" << it->second;
+    input->speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
+    if (!error.isEmpty()) {
+        qCritical() << "inferVariance:" << error;
+        return false;
     }
 
     // Create inference
@@ -282,6 +279,9 @@ GenericInferModel InferVarianceTask::buildInputJson() const {
 
     GenericInferModel model;
     model.speaker = m_input.speaker;
+    model.speakerMix = m_input.speakerMix.isEmpty()
+                           ? InferSpeakerMixModel::staticSpeakerMix(m_input.speaker)
+                           : m_input.speakerMix;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, mouthOpening};
     model.steps = appOptions->inference()->samplingSteps;

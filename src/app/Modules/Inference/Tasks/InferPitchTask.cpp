@@ -24,6 +24,7 @@ namespace Pit = ds::Api::Pitch::L1;
 bool InferPitchTask::InferPitchInput::operator==(const InferPitchInput &other) const {
     return clipId == other.clipId /*&& pieceId == other.pieceId*/ && notes == other.notes &&
            identifier == other.identifier && timeline == other.timeline &&
+           speaker == other.speaker && speakerMix == other.speakerMix &&
            expressiveness == other.expressiveness;
 }
 
@@ -159,14 +160,10 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
     }
     const auto &speakerMapping = importOptions->speakerMapping;
     input->words = convertInputWords(model.words, speakerName, speakerMapping);
-    if (const auto it = speakerMapping.find(speakerName); it == speakerMapping.end()) {
-        if (!speakerMapping.empty()) {
-            qCritical() << "inferPitch: Speaker mapping not found for speaker" << speakerName;
-            return false;
-        }
-    } else {
-        input->speakers = std::vector{createStaticSpeaker(it->second)};
-        qDebug() << "mapped speaker" << speakerName << "to" << it->second;
+    input->speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
+    if (!error.isEmpty()) {
+        qCritical() << "inferPitch:" << error;
+        return false;
     }
 
     // Create inference
@@ -258,6 +255,9 @@ GenericInferModel InferPitchTask::buildInputJson() const {
 
     GenericInferModel model;
     model.speaker = m_input.speaker;
+    model.speakerMix = m_input.speakerMix.isEmpty()
+                           ? InferSpeakerMixModel::staticSpeakerMix(m_input.speaker)
+                           : m_input.speakerMix;
     model.words = words;
     model.params = {pitch, expr};
     model.steps = appOptions->inference()->samplingSteps;

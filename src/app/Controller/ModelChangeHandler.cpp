@@ -59,6 +59,9 @@ void ModelChangeHandler::handleSingingClipInserted(SingingClip *clip) {
             [clip, this](const ParamInfo::Name name, const Param::Type type) {
                 handleParamChanged(name, type, clip);
             });
+    connect(
+        clip, &SingingClip::speakerMixChanged, this,
+        [clip, this](const SpeakerMixModel::SpeakerMixData &) { handleSpeakerMixChanged(clip); });
 }
 
 void ModelChangeHandler::handleSingingClipRemoved(SingingClip *clip) {
@@ -71,6 +74,9 @@ void ModelChangeHandler::handleNoteChanged(SingingClip::NoteChangeType type,
 
 void ModelChangeHandler::handleParamChanged(ParamInfo::Name name, Param::Type type,
                                             SingingClip *clip) {
+}
+
+void ModelChangeHandler::handleSpeakerMixChanged(SingingClip *clip) {
 }
 
 void ModelChangeHandler::handlePiecesChanged(const QList<InferPiece *> &pieces,

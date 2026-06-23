@@ -151,7 +151,9 @@ ReSegmentResult SingingClip::reSegment() {
         if (!exists) {
             const auto newPiece = new InferPiece(this);
             newPiece->identifier = singerIdentifier();
-            newPiece->speaker = speakerId();
+            newPiece->speakerMix =
+                InferSpeakerMixModel::fixedSpeakerMixFromData(speakerMixData(), speakerId());
+            newPiece->speaker = newPiece->speakerMix.fallbackSpeaker;
             newPiece->notes = segment.notes;
             newPiece->headAvailableLengthMs = segment.headAvailableLengthMs;
             newPiece->paddingStartMs = segment.paddingStartMs;

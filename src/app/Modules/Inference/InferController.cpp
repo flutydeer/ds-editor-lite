@@ -9,6 +9,7 @@
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Models/InferSpeakerMix.h"
 #include "Models/NoteInferenceSnapshot.h"
 #include "Tasks/GetPhonemeNameTask.h"
 #include "Tasks/GetPronunciationTask.h"
@@ -74,9 +75,10 @@ namespace {
 
     bool clipPiecesMatchCurrentSingerAndSpeaker(const SingingClip &clip) {
         const auto identifier = clip.singerIdentifier();
-        const auto speaker = clip.speakerId();
+        const auto speakerMix =
+            InferSpeakerMixModel::fixedSpeakerMixFromData(clip.speakerMixData(), clip.speakerId());
         for (const auto piece : clip.pieces()) {
-            if (piece->identifier != identifier || piece->speaker != speaker)
+            if (piece->identifier != identifier || piece->speakerMix != speakerMix)
                 return false;
         }
         return true;
@@ -404,6 +406,41 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
         case ParamInfo::Unknown:
             qFatal() << "Unknown param";
             break;
+    }
+}
+
+void InferControllerPrivate::handleSpeakerMixChanged(SingingClip *clip) {
+    if (!clip)
+        return;
+
+    if (clip->pieces().isEmpty()) {
+        if (canStartClipInference(*clip))
+            createAndRunGetPronTask(*clip);
+        return;
+    }
+
+    const auto speakerMix =
+        InferSpeakerMixModel::fixedSpeakerMixFromData(clip->speakerMixData(), clip->speakerId());
+    for (const auto piece : clip->pieces()) {
+        piece->speakerMix = speakerMix;
+        piece->speaker = speakerMix.fallbackSpeaker;
+        Helper::resetPitch(*piece);
+        piece->acousticInferStatus = Pending;
+
+        auto pred = L_PRED(t, t->pieceId() == piece->id());
+        m_inferPitchTasks.cancelIf(pred);
+        m_inferVarianceTasks.cancelIf(pred);
+        m_inferAcousticTasks.cancelIf(pred);
+
+        auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
+            return p->pieceId() == piece->id();
+        });
+        if (pipelines.isEmpty()) {
+            createPipeline(*piece);
+            continue;
+        }
+        for (const auto pipeline : pipelines)
+            pipeline->onExpressivenessChanged();
     }
 }
 

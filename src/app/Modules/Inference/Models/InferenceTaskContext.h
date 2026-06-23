@@ -24,6 +24,7 @@ struct InferenceTaskContext {
     QList<int> noteIds;
     SingerIdentifier singer;
     QString speaker;
+    QString speakerMixSignature;
 };
 
 struct InferenceTaskResolution {

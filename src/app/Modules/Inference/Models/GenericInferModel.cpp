@@ -9,6 +9,51 @@
 #include <QCryptographicHash>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <utility>
+
+namespace {
+    QJsonArray serializeSpeakerMixSources(const InferSpeakerMix &mix) {
+        QJsonArray sources;
+        for (const auto &source : mix.sources) {
+            QJsonArray proportions;
+            for (const auto proportion : source.proportions)
+                proportions.append(proportion);
+            sources.append(QJsonObject{
+                {"speaker",     source.speaker },
+                {"interval",    source.interval},
+                {"proportions", proportions    }
+            });
+        }
+        return sources;
+    }
+
+    QJsonObject serializeSpeakerMix(const InferSpeakerMix &mix) {
+        return QJsonObject{
+            {"fallbackSpeaker", mix.fallbackSpeaker            },
+            {"sources",         serializeSpeakerMixSources(mix)}
+        };
+    }
+
+    InferSpeakerMix deserializeSpeakerMix(const QJsonObject &obj) {
+        InferSpeakerMix mix;
+        mix.fallbackSpeaker = obj["fallbackSpeaker"].toString();
+        const auto sources = obj["sources"].toArray();
+        mix.sources.reserve(sources.size());
+        for (const auto &sourceValue : sources) {
+            const auto sourceObj = sourceValue.toObject();
+            InferSpeakerMixSource source;
+            source.speaker = sourceObj["speaker"].toString();
+            source.interval = sourceObj["interval"].toDouble();
+            const auto proportions = sourceObj["proportions"].toArray();
+            source.proportions.reserve(proportions.size());
+            for (const auto &proportionValue : proportions)
+                source.proportions.append(proportionValue.toDouble());
+            if (source.isValid())
+                mix.sources.append(std::move(source));
+        }
+        return mix;
+    }
+}
 
 InferPhoneme::InferPhoneme(QString token, const QString &languageDictId, const bool is_onset,
                            const double start)
@@ -93,11 +138,11 @@ bool InferRetake::deserialize(const QJsonObject &obj) {
 
 QJsonObject InferParam::serialize() const {
     return QJsonObject{
-        {"tag",      tag                               },
-        {"dynamic",  dynamic                           },
-        {"interval", interval                          },
+        {"tag",      tag                                      },
+        {"dynamic",  dynamic                                  },
+        {"interval", interval                                 },
         {"values",   JsonUtils::serializePrimitiveList(values)},
-        {"retake",   retake.serialize()                }
+        {"retake",   retake.serialize()                       }
     };
 }
 
@@ -112,10 +157,11 @@ bool InferParam::deserialize(const QJsonObject &obj) {
 
 QJsonObject GenericInferModel::serialize() const {
     return QJsonObject{
-        {"offset",     offset                     },
-        {"steps",      steps                      },
-        {"depth",      depth                      },
-        {"singer",     identifier.singerId        },
+        {"offset",     offset                          },
+        {"steps",      steps                           },
+        {"depth",      depth                           },
+        {"singer",     identifier.singerId             },
+        {"speakerMix", serializeSpeakerMix(speakerMix) },
         {"words",      JsonUtils::serializeList(words) },
         {"parameters", JsonUtils::serializeList(params)}
     };
@@ -132,6 +178,10 @@ bool GenericInferModel::deserialize(const QJsonObject &obj) {
     identifier.packageId = obj["packageId"].toString();
     identifier.packageVersion = QVersionNumber::fromString(obj["packageVersion"].toString());
     identifier.singerId = obj["singer"].toString();
+    speaker = obj["speaker"].toString();
+    speakerMix = deserializeSpeakerMix(obj["speakerMix"].toObject());
+    if (speakerMix.isEmpty() && !speaker.isEmpty())
+        speakerMix = InferSpeakerMixModel::staticSpeakerMix(speaker);
     return true;
 }
 

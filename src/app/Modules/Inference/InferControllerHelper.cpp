@@ -11,6 +11,7 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppModel/InferPiece.h"
 #include "Models/InferInputNote.h"
+#include "Models/InferSpeakerMix.h"
 #include "Utils/AppModelUtils.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
@@ -45,6 +46,12 @@ namespace InferControllerHelper {
         return list;
     }
 
+    InferSpeakerMix effectiveSpeakerMixForPiece(const InferPiece &piece) {
+        if (!piece.speakerMix.isEmpty())
+            return piece.speakerMix;
+        return InferSpeakerMixModel::staticSpeakerMix(piece.speaker);
+    }
+
     DurInput buildInferDurInput(const InferPiece &piece, const SingerIdentifier &identifier) {
         DurInput input;
         input.clipId = piece.clip->id();
@@ -59,6 +66,7 @@ namespace InferControllerHelper {
         input.notes = buildInferInputNotes(piece.notes);
 
         input.speaker = piece.speaker;
+        input.speakerMix = InferSpeakerMixModel::staticSpeakerMix(piece.speaker);
         input.identifier = identifier;
         input.steps = appOptions->inference()->samplingSteps;
         return input;
@@ -83,6 +91,7 @@ namespace InferControllerHelper {
         input.expressiveness = expr;
 
         input.speaker = piece.speaker;
+        input.speakerMix = effectiveSpeakerMixForPiece(piece);
         input.identifier = identifier;
         input.steps = appOptions->inference()->samplingSteps;
         return input;
@@ -108,6 +117,7 @@ namespace InferControllerHelper {
         input.pitch = pitch;
 
         input.speaker = piece.speaker;
+        input.speakerMix = effectiveSpeakerMixForPiece(piece);
         input.identifier = identifier;
         input.steps = appOptions->inference()->samplingSteps;
         return input;
@@ -171,6 +181,7 @@ namespace InferControllerHelper {
         input.toneShift = toneShift;
 
         input.speaker = piece.speaker;
+        input.speakerMix = effectiveSpeakerMixForPiece(piece);
         input.identifier = identifier;
         input.steps = appOptions->inference()->samplingSteps;
         return input;

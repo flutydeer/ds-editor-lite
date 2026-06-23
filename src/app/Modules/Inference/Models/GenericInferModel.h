@@ -7,12 +7,14 @@
 
 #include "Interface/IHashProvider.h"
 #include "Interface/ISerializable.h"
+#include "Modules/Inference/Models/InferSpeakerMix.h"
 #include "Modules/Inference/Models/SingerIdentifier.h"
 
 class InferPhoneme final : public ISerializable {
 public:
     InferPhoneme() = default;
-    InferPhoneme(QString token, const QString &languageDictId, bool is_onset = true, double start = 0);
+    InferPhoneme(QString token, const QString &languageDictId, bool is_onset = true,
+                 double start = 0);
 
     QString token;
     QString languageDictId;
@@ -83,6 +85,7 @@ public:
     // 元数据
     SingerIdentifier identifier;
     QString speaker;
+    InferSpeakerMix speakerMix;
     int steps = -1;
     float depth = 1.0;
 

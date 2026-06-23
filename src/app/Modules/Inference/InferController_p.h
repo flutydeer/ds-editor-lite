@@ -52,6 +52,7 @@ protected:
     void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes,
                            SingingClip *clip) override;
     void handleParamChanged(ParamInfo::Name name, Param::Type type, SingingClip *clip) override;
+    void handleSpeakerMixChanged(SingingClip *clip) override;
 
 public:
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);

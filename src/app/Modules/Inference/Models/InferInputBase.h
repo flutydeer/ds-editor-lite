@@ -7,6 +7,7 @@
 
 #include "Model/AppModel/Timeline.h"
 #include "InferenceTaskContext.h"
+#include "InferSpeakerMix.h"
 #include "InferInputNote.h"
 #include "SingerIdentifier.h"
 
@@ -27,6 +28,7 @@ public:
     QList<InferInputNote> notes;
 
     QString speaker;
+    InferSpeakerMix speakerMix;
     SingerIdentifier identifier;
     int steps = -1;
 
@@ -38,6 +40,7 @@ public:
         context.clipRevision = clipRevision;
         context.singer = identifier;
         context.speaker = speaker;
+        context.speakerMixSignature = speakerMix.signature();
         context.noteIds.reserve(notes.count());
         for (const auto &note : notes)
             context.noteIds.append(note.id);

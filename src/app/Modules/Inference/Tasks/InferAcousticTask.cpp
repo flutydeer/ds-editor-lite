@@ -32,7 +32,8 @@ bool InferAcousticTask::InferAcousticInput::operator==(const InferAcousticInput 
            timeline == other.timeline && pitch == other.pitch && breathiness == other.breathiness &&
            tension == other.tension && voicing == other.voicing && energy == other.energy &&
            mouthOpening == other.mouthOpening && gender == other.gender &&
-           velocity == other.velocity && toneShift == other.toneShift;
+           velocity == other.velocity && toneShift == other.toneShift && speaker == other.speaker &&
+           speakerMix == other.speakerMix;
 }
 
 int InferAcousticTask::clipId() const {
@@ -156,14 +157,10 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
     }
     const auto &speakerMapping = importOptions->speakerMapping;
     input->words = convertInputWords(model.words, speakerName, speakerMapping);
-    if (const auto it = speakerMapping.find(speakerName); it == speakerMapping.end()) {
-        if (!speakerMapping.empty()) {
-            qCritical() << "inferAcoustic: Speaker mapping not found for speaker" << speakerName;
-            return false;
-        }
-    } else {
-        input->speakers = std::vector{createStaticSpeaker(it->second)};
-        qDebug() << "mapped speaker" << speakerName << "to" << it->second;
+    input->speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
+    if (!error.isEmpty()) {
+        qCritical() << "inferAcoustic:" << error;
+        return false;
     }
 
     // Create inference
@@ -349,6 +346,9 @@ GenericInferModel InferAcousticTask::buildInputJson() const {
 
     GenericInferModel model;
     model.speaker = m_input.speaker;
+    model.speakerMix = m_input.speakerMix.isEmpty()
+                           ? InferSpeakerMixModel::staticSpeakerMix(m_input.speaker)
+                           : m_input.speakerMix;
     model.words = words;
     model.params = {pitch,        breathiness, tension,  voicing,  energy,
                     mouthOpening, gender,      velocity, toneShift};

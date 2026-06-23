@@ -27,7 +27,9 @@ bool InferDurationTask::InferDurInput::operator==(const InferDurInput &other) co
     const bool notesEqual = notes == other.notes;
     const bool identifierEqual = identifier == other.identifier;
     const bool timelineEqual = timeline == other.timeline;
-    return clipIdEqual && pieceIdEqual && notesEqual && identifierEqual && timelineEqual;
+    const bool speakerEqual = speaker == other.speaker;
+    return clipIdEqual && pieceIdEqual && notesEqual && identifierEqual && timelineEqual &&
+           speakerEqual;
 }
 
 int InferDurationTask::clipId() const {
@@ -235,6 +237,7 @@ void InferDurationTask::buildPreviewText() {
 GenericInferModel InferDurationTask::buildInputJson() const {
     GenericInferModel model;
     model.speaker = m_input.speaker;
+    model.speakerMix = InferSpeakerMixModel::staticSpeakerMix(m_input.speaker);
     model.words = InferTaskHelper::buildWords(m_input);
     model.identifier = m_input.identifier;
     model.steps = appOptions->inference()->samplingSteps;
