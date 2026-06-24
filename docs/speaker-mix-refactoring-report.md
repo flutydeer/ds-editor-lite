@@ -254,20 +254,24 @@ void SingingClip::selectOwnSingleSpeaker(const SingerInfo &singerInfo,
 
 3. 选择 single speaker 的路径必须把 speaker mix 重置为 `Single`，并根据 old/new effective voice context
 统一发出变更事件。
-4. Phase 2 前建议进一步收敛为 `EffectiveVoiceContext` mutation，避免继续依赖
-`singerOrSpeakerChanged` / `speakerMixChanged` 的发射顺序。
+4. 已按上述方向落地 `EffectiveVoiceContext` mutation：Track / SingingClip 都提供语义明确的
+voice context 查询和设置入口，单 speaker 选择会 reset speaker mix 到 `Single`，track 到 clip
+的同步也使用一次性 voice context 更新。
 
 ---
 
-### 7. `fixedSpeakerMixFromData` 对 DynamicMix 的处理不透明
+### 7. DynamicMix 推理已接入，但仍需测试固化
 
-`fixedSpeakerMixFromData()` 在 `DynamicMix` 模式下用 `fixedWeights` 或第一帧 keyframe 权重作为静态快照传给推理。时间维度的关键帧变化信息完全丢失。
+`fixedSpeakerMixFromData()` 仍保留为 Fixed / fallback 路径；Dynamic Active 已改由
+`effectiveSpeakerMixFromData()` / `dynamicSpeakerMixFromData()` 按 piece tick 范围采样
+keyframes，并把带 `proportions` 的 `InferSpeakerMix` 传给 Pitch / Variance / Acoustic。
 
-这不是一个需要立即修复的问题，但需要**文档化**：
+当前边界：
 
-- `InferControllerPrivate::handleSpeakerMixChanged()` 中标注当前限制
-- 当 DynamicMix 被底层引擎支持后，`fixedSpeakerMixFromData` 应改为 `dynamicSpeakerMixFromData`
-- Duration 任务当前完全忽略 speaker mix（`staticSpeakerMix(piece.speaker)`），这是正确的（时长不受声线影响）
+- Duration 仍使用静态基座，因为 duration 前无法知道实际音素/片段范围。
+- Dynamic Bypassed / Stop Dynamic 回到 Fixed Mix 推理。
+- timing 不足或动态数据无效时降级到 Fixed Mix / Single fallback。
+- 仍需要补 `InferSpeakerMixModel` 的数据层单元测试，覆盖 keyframe 插值、fallback speaker、signature 等行为。
 
 ---
 
@@ -317,8 +321,8 @@ pipeline->onExpressivenessChanged();      // 3. 从 pitch 阶段重推
 | **P1** | `useTrackSingerInfo` 清理 + `useTrackSpeakerInfo` 删除 | 小 (~5 files) | SingingClip/Actions/Controller | `SingingClip.h/.cpp` |
 | **P1** | Action 合并消重 | 中 (~10 files) | Undo 系统 | `SpeakerMixActions.cpp`, 所有 Action 文件 |
 | **P2** | `normalizeSpeakerMixData` 拆分 | 中 (~8 files) | 所有调用方 | `SpeakerMixData.cpp` |
-| **P2** | Track/Clip 单 speaker 选择语义收敛 | 小-中（建议与 voice context 一起做） | Track/SingingClip/Actions | `Track.cpp`, `SingingClip.cpp` |
-| **P2** | DynamicMix 推理路径文档化 | 仅文档 | — | `InferSpeakerMix.cpp`, `InferController.cpp` |
+| **已完成** | Track/Clip 单 speaker 选择语义收敛 | 已完成 | Track/SingingClip/Actions | `Track.cpp`, `SingingClip.cpp` |
+| **已完成** | DynamicMix 推理路径接入与文档化 | 已完成初版 | Inference | `InferSpeakerMix.cpp`, `InferController.cpp` |
 | **P3** | 单元测试 | 取决于选型 | — | `src/tests/` |
 
 ---

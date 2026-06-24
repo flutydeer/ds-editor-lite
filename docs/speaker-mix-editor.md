@@ -388,7 +388,7 @@ Dynamic Mix 显式启用行为：
 - [x] 确定详细操作逻辑（添加/删除/选中/拖拽/插值/边界/导航）
 - [x] 实现 `SpeakerMixEditorView`（数据模型 + 堆叠面积图渲染 + 关键帧竖线/圆点）
 - [x] 修改 `ParamEditorGraphicsView` 集成 speaker mix（m_speakerMixView，前景切换）
-- [x] 修改 `ParamEditorToolBarView` 添加 Speaker Mix 选项（index 映射到 ParamInfo::Unknown）
+- [x] 修改 `ParamEditorToolBarView` 添加 Speaker Mix 选项（使用 `ParamInfo::SpeakerMix`）
 - [x] 修改 `ParamEditorInfoArea` 添加 clearParamProperties()
 - [x] 修改 `ParamEditorView` 处理 speaker mix 模式下的 info area
 - [x] 实现交互逻辑（命中检测 + 选中 + 拖拽 + 双击添加 + 删除 + 右键菜单 + 区间选择 + hover）
@@ -425,7 +425,7 @@ Dynamic Mix 显式启用行为：
 - `SpeakerMixEditorView` 继承 `TimeOverlayView`，当前带 `Q_OBJECT`，用于发出 `speakerMixEdited`
 - 填充色使用 `AppColorPalette::speakerMixParamFill(index)`，颜色下标由 `SpeakerMixColorResolver` 解析
 - 分割线白色 `(220, 220, 220, 200)`，关键帧竖线 `(220, 220, 220, 160)`
-- Speaker mix 在前景 ComboBox 中使用 `ParamInfo::Unknown` 作为标识值（index + 1 自然映射到 Unknown=10）
+- Speaker mix 在前景 ComboBox 中使用 `ParamInfo::SpeakerMix` 作为明确标识值，不再借用 `ParamInfo::Unknown`
 - Swap 按钮在 speaker mix 模式下禁用（不允许交换到背景）
 - 数据结构：`SpeakerMixSpeaker`（避免与 `PackageManager/Models/SpeakerInfo` 同名冲突）
 - 交互状态全部使用 int index 引用关键帧，不使用指针（避免 QList 操作后失效）
