@@ -4,6 +4,10 @@ project(ds-editor-lite LANGUAGES CXX)
 
 option(APPLICATION_ENABLE_BREAKPAD "Enable breakpad for crash reporting" OFF)
 
+if (LITE_BUILD_TESTS)
+    enable_testing()
+endif ()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
