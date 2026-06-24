@@ -519,7 +519,7 @@ SpeakerMixHitResult SpeakerMixEditorView::hitTest(const QPointF &itemPos) const 
     const double areaTop = kPadding;
     const double areaHeight = viewHeight - 2 * kPadding;
 
-    for (int ki = 0; ki < m_keyframes.size(); ki++) {
+    for (int ki = m_keyframes.size() - 1; ki >= 0; --ki) {
         const auto &kf = m_keyframes[ki];
         const double localX = tickToItemX(kf.tick);
         const double dx = itemPos.x() - localX;
@@ -529,22 +529,24 @@ SpeakerMixHitResult SpeakerMixEditorView::hitTest(const QPointF &itemPos) const 
 
         const auto weights = interpolateWeights(kf.tick);
         double cumulative = 0;
-        bool nearSplitPoint = false;
+        QVector<double> splitYs;
+        splitYs.reserve(n - 1);
         for (int i = 0; i < n - 1; i++) {
             cumulative += weights[i];
-            const double y = areaTop + areaHeight * cumulative;
+            splitYs.append(areaTop + areaHeight * cumulative);
+        }
+
+        for (int i = splitYs.size() - 1; i >= 0; --i) {
+            const double y = splitYs[i];
             const double dy = itemPos.y() - y;
-            if (std::abs(dy) <= kHitRadius) {
-                nearSplitPoint = true;
+            if (std::abs(dy) <= kHitRadius)
                 return {ki, i};
-            }
         }
 
         if (std::abs(itemPos.y() - areaTop) <= kHitRadius)
             return {};
 
-        if (!nearSplitPoint)
-            return {ki, -1};
+        return {ki, -1};
     }
 
     return {};
