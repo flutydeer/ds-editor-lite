@@ -527,9 +527,6 @@ SpeakerMixHitResult SpeakerMixEditorView::hitTest(const QPointF &itemPos) const 
         if (std::abs(dx) > kHitRadius)
             continue;
 
-        if (std::abs(itemPos.y() - areaTop) <= kHitRadius)
-            return {};
-
         const auto weights = interpolateWeights(kf.tick);
         double cumulative = 0;
         bool nearSplitPoint = false;
@@ -542,6 +539,9 @@ SpeakerMixHitResult SpeakerMixEditorView::hitTest(const QPointF &itemPos) const 
                 return {ki, i};
             }
         }
+
+        if (std::abs(itemPos.y() - areaTop) <= kHitRadius)
+            return {};
 
         if (!nearSplitPoint)
             return {ki, -1};
