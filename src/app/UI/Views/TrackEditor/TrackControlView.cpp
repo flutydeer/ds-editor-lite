@@ -109,7 +109,16 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
         if (!m_track) {
             return;
         }
-        m_track->setSingerAndSpeakerInfo(singerInfo, speakerInfo);
+        if (m_track->singerInfo() == singerInfo && m_track->speakerInfo() == speakerInfo &&
+            SpeakerMixModel::isSpeakerMixDataSingle(m_track->speakerMixData())) {
+            return;
+        }
+
+        const auto actions = new SpeakerMixActions;
+        actions->selectTrackSingleSpeaker(singerInfo, speakerInfo, m_track);
+        actions->execute();
+        historyManager->record(actions);
+        refreshSingerComboPresentation();
     });
     connect(cbSinger, &TwoLevelComboBox::itemsPopulated, this,
             &TrackControlView::refreshSingerComboPresentation);
@@ -343,8 +352,8 @@ void TrackControlView::refreshSingerComboPresentation() const {
         return;
 
     cbSinger->setCurrentData(m_track->singerInfo(), m_track->speakerInfo());
-    if (const auto text =
-            SpeakerMixDisplayUtils::comboDisplayText(m_track->singerInfo(), m_track->speakerMixData());
+    if (const auto text = SpeakerMixDisplayUtils::comboDisplayText(m_track->singerInfo(),
+                                                                   m_track->speakerMixData());
         !text.isEmpty()) {
         cbSinger->setDisplayTextOverride(text);
     } else {
@@ -359,10 +368,9 @@ void TrackControlView::populatePresetMenus() const {
         return;
 
     cbSinger->clearInjectedActions();
-    const auto sourcePreset =
-        m_track ? SpeakerMixPresetStore::sourcePresetForData(m_track->singerInfo(),
-                                                             m_track->speakerMixData())
-                : std::optional<SpeakerMixPreset>();
+    const auto sourcePreset = m_track ? SpeakerMixPresetStore::sourcePresetForData(
+                                            m_track->singerInfo(), m_track->speakerMixData())
+                                      : std::optional<SpeakerMixPreset>();
     QAction *checkedPresetAction = nullptr;
     const auto packages = packageManager->installedPackages().successfulPackages;
     for (const auto &package : packages) {
