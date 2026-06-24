@@ -55,6 +55,7 @@ public:
         Gender,
         Velocity,
         ToneShift,
+        SpeakerMix,
         Unknown
     };
 

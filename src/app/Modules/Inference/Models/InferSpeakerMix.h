@@ -2,6 +2,7 @@
 #define INFERSPEAKERMIX_H
 
 #include "Model/AppModel/SpeakerMixData.h"
+#include "Model/AppModel/Timeline.h"
 
 #include <QList>
 #include <QString>
@@ -31,6 +32,17 @@ namespace InferSpeakerMixModel {
     InferSpeakerMix staticSpeakerMix(const QString &speaker);
     InferSpeakerMix fixedSpeakerMixFromData(const SpeakerMixModel::SpeakerMixData &data,
                                             const QString &fallbackSpeaker);
+    InferSpeakerMix
+        effectiveSpeakerMixForFixedInference(const SpeakerMixModel::SpeakerMixData &data,
+                                             const QString &fallbackSpeaker);
+    InferSpeakerMix dynamicSpeakerMixFromData(const SpeakerMixModel::SpeakerMixData &data,
+                                              const QString &fallbackSpeaker, int startTick,
+                                              int endTick, const Timeline &timeline,
+                                              double intervalSeconds = 0.01);
+    InferSpeakerMix effectiveSpeakerMixFromData(const SpeakerMixModel::SpeakerMixData &data,
+                                                const QString &fallbackSpeaker, int startTick,
+                                                int endTick, const Timeline &timeline,
+                                                double intervalSeconds = 0.01);
 }
 
 #endif // INFERSPEAKERMIX_H

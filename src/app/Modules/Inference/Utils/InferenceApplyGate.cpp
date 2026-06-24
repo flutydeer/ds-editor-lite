@@ -90,6 +90,7 @@ namespace {
             case ParamInfo::Velocity:
             case ParamInfo::ToneShift:
                 return isAcoustic;
+            case ParamInfo::SpeakerMix:
             case ParamInfo::Unknown:
                 return false;
         }
@@ -214,8 +215,10 @@ namespace InferenceApplyGate {
         }
 
         if (options.checkSingerSpeaker) {
-            const auto currentMix = InferSpeakerMixModel::fixedSpeakerMixFromData(
-                clip->speakerMixData(), clip->speakerId());
+            const auto currentMix =
+                piece ? effectiveSpeakerMixForPiece(*piece)
+                      : InferSpeakerMixModel::effectiveSpeakerMixForFixedInference(
+                            clip->speakerMixData(), clip->speakerId());
             if (clip->singerIdentifier() != context.singer ||
                 currentMix.fallbackSpeaker != context.speaker) {
                 return drop("clip-singer-speaker-mismatch", currentRevision);

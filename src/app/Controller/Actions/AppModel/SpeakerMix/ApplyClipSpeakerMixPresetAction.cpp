@@ -20,16 +20,14 @@ void ApplyClipSpeakerMixPresetAction::execute() {
     if (!m_clip)
         return;
 
-    m_clip->setOwnSingerAndSpeaker(m_newSingerInfo, m_newSpeakerInfo);
-    m_clip->setOwnSpeakerMixData(m_newSpeakerMixData);
+    m_clip->setOwnVoiceContext(m_newSingerInfo, m_newSpeakerInfo, m_newSpeakerMixData);
 }
 
 void ApplyClipSpeakerMixPresetAction::undo() {
     if (!m_clip)
         return;
 
-    m_clip->setOwnSingerAndSpeaker(m_oldOwnSingerInfo, m_oldOwnSpeakerInfo);
-    m_clip->setOwnSpeakerMixData(m_oldOwnSpeakerMixData);
+    m_clip->setOwnVoiceContext(m_oldOwnSingerInfo, m_oldOwnSpeakerInfo, m_oldOwnSpeakerMixData);
     if (m_oldUseTrack)
-        m_clip->useTrackSingerAndSpeaker();
+        m_clip->useTrackVoiceContext();
 }

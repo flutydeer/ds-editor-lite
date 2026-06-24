@@ -151,13 +151,15 @@ ReSegmentResult SingingClip::reSegment() {
         if (!exists) {
             const auto newPiece = new InferPiece(this);
             newPiece->identifier = singerIdentifier();
-            newPiece->speakerMix =
-                InferSpeakerMixModel::fixedSpeakerMixFromData(speakerMixData(), speakerId());
-            newPiece->speaker = newPiece->speakerMix.fallbackSpeaker;
             newPiece->notes = segment.notes;
             newPiece->headAvailableLengthMs = segment.headAvailableLengthMs;
             newPiece->paddingStartMs = segment.paddingStartMs;
             newPiece->paddingEndMs = segment.paddingEndMs;
+            const Timeline timeline{{{0, appModel->tempo()}}};
+            newPiece->speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
+                speakerMixData(), speakerId(), newPiece->localStartTick(), newPiece->localEndTick(),
+                timeline);
+            newPiece->speaker = newPiece->speakerMix.fallbackSpeaker;
             newPieces.append(newPiece);
             result.addedPieces.append(newPiece);
         }
@@ -271,6 +273,10 @@ SpeakerMixData SingingClip::trackSpeakerMixData() const {
     return m_trackSpeakerMixData;
 }
 
+EffectiveVoiceContext SingingClip::effectiveVoiceContext() const {
+    return {singerInfo(), speakerInfo(), speakerMixData(), useTrackSingerInfo.get()};
+}
+
 void SingingClip::setSpeakerMixData(const SpeakerMixData &data) {
     if (useTrackSingerInfo)
         return;
@@ -283,24 +289,13 @@ void SingingClip::setOwnSpeakerMixData(const SpeakerMixData &data) {
     if (m_ownSpeakerMixData == normalized)
         return;
 
-    const auto oldEffective = speakerMixData();
+    const auto oldContext = effectiveVoiceContext();
     m_ownSpeakerMixData = normalized;
-    bumpInferenceRevision();
-    if (oldEffective != speakerMixData())
-        Q_EMIT speakerMixChanged(speakerMixData());
+    notifyEffectiveVoiceContextChanged(oldContext);
 }
 
 void SingingClip::setTrackSpeakerMixData(const SpeakerMixData &data) {
-    const auto normalized = normalizeSpeakerMixData(data);
-    if (m_trackSpeakerMixData == normalized)
-        return;
-
-    const auto oldEffective = speakerMixData();
-    m_trackSpeakerMixData = normalized;
-    if (oldEffective != speakerMixData()) {
-        bumpInferenceRevision();
-        Q_EMIT speakerMixChanged(speakerMixData());
-    }
+    setTrackVoiceContext(m_trackSingerInfo, m_trackSpeakerInfo, data);
 }
 
 void SingingClip::resetSpeakerMixToSingle() {
@@ -313,64 +308,62 @@ QString SingingClip::speakerId() const {
 
 void SingingClip::setTrackSingerAndSpeakerInfo(const SingerInfo &singerInfo,
                                                const SpeakerInfo &speakerInfo) {
-    const auto oldSingerInfo = this->singerInfo();
-    const auto oldSpeakerInfo = this->speakerInfo();
+    setTrackVoiceContext(singerInfo, speakerInfo, m_trackSpeakerMixData);
+}
+
+void SingingClip::setTrackVoiceContext(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
+                                       const SpeakerMixData &speakerMixData) {
+    const auto oldContext = effectiveVoiceContext();
+    const auto normalizedSpeakerMixData = normalizeSpeakerMixData(speakerMixData);
+    if (m_trackSingerInfo.get() == singerInfo && m_trackSpeakerInfo.get() == speakerInfo &&
+        m_trackSpeakerMixData == normalizedSpeakerMixData)
+        return;
+
     m_singerSpeakerBatching = true;
     m_trackSingerInfo = singerInfo;
     m_trackSpeakerInfo = speakerInfo;
     m_singerSpeakerBatching = false;
+    m_trackSpeakerMixData = normalizedSpeakerMixData;
     updateDefaultG2pId(m_defaultLanguage);
-    if (oldSingerInfo != this->singerInfo() || oldSpeakerInfo != this->speakerInfo()) {
-        Q_EMIT singerOrSpeakerChanged();
-    }
+    notifyEffectiveVoiceContextChanged(oldContext);
 }
 
-void SingingClip::setOwnSingerAndSpeaker(const SingerInfo &singerInfo,
-                                         const SpeakerInfo &speakerInfo) {
-    const auto oldSingerInfo = this->singerInfo();
-    const auto oldSpeakerInfo = this->speakerInfo();
-    const auto oldSpeakerMix = this->speakerMixData();
-    const bool oldUseTrackSingerInfo = useTrackSingerInfo.get();
-    const bool oldUseTrackSpeakerInfo = useTrackSpeakerInfo.get();
+void SingingClip::setOwnVoiceContext(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
+                                     const SpeakerMixData &speakerMixData) {
+    const auto oldContext = effectiveVoiceContext();
     m_singerSpeakerBatching = true;
     m_speakerInfo = speakerInfo;
     m_singerInfo = singerInfo;
     useTrackSpeakerInfo = false;
     useTrackSingerInfo = false;
     m_singerSpeakerBatching = false;
+    m_ownSpeakerMixData = normalizeSpeakerMixData(speakerMixData);
     updateDefaultG2pId(m_defaultLanguage);
-    const bool followStateChanged = oldUseTrackSingerInfo != useTrackSingerInfo.get() ||
-                                    oldUseTrackSpeakerInfo != useTrackSpeakerInfo.get();
-    if (oldSingerInfo != this->singerInfo() || oldSpeakerInfo != this->speakerInfo() ||
-        followStateChanged) {
-        m_ownSpeakerMixData = normalizeSpeakerMixData({});
-        if (oldSpeakerMix != this->speakerMixData()) {
-            bumpInferenceRevision();
-            Q_EMIT speakerMixChanged(this->speakerMixData());
-        }
-        Q_EMIT singerOrSpeakerChanged();
-    } else if (!SpeakerMixModel::isSpeakerMixDataSingle(m_ownSpeakerMixData)) {
-        resetSpeakerMixToSingle();
-    }
+    notifyEffectiveVoiceContextChanged(oldContext);
 }
 
-void SingingClip::useTrackSingerAndSpeaker() {
-    const auto oldSingerInfo = this->singerInfo();
-    const auto oldSpeakerInfo = this->speakerInfo();
-    const auto oldSpeakerMix = this->speakerMixData();
+void SingingClip::selectOwnSingleSpeaker(const SingerInfo &singerInfo,
+                                         const SpeakerInfo &speakerInfo) {
+    setOwnVoiceContext(singerInfo, speakerInfo, {});
+}
+
+void SingingClip::setOwnSingerAndSpeaker(const SingerInfo &singerInfo,
+                                         const SpeakerInfo &speakerInfo) {
+    selectOwnSingleSpeaker(singerInfo, speakerInfo);
+}
+
+void SingingClip::useTrackVoiceContext() {
+    const auto oldContext = effectiveVoiceContext();
     m_singerSpeakerBatching = true;
     useTrackSpeakerInfo = true;
     useTrackSingerInfo = true;
     m_singerSpeakerBatching = false;
     updateDefaultG2pId(m_defaultLanguage);
-    if (oldSingerInfo != this->singerInfo() || oldSpeakerInfo != this->speakerInfo()) {
-        resetSpeakerMixIfSingerChanged(oldSingerInfo);
-        Q_EMIT singerOrSpeakerChanged();
-    }
-    if (oldSpeakerMix != this->speakerMixData()) {
-        bumpInferenceRevision();
-        Q_EMIT speakerMixChanged(this->speakerMixData());
-    }
+    notifyEffectiveVoiceContextChanged(oldContext);
+}
+
+void SingingClip::useTrackSingerAndSpeaker() {
+    useTrackVoiceContext();
 }
 
 SingerIdentifier SingingClip::singerIdentifier() const {
@@ -453,9 +446,14 @@ void SingingClip::updateDefaultG2pId(const QString &language) {
     }
 }
 
-void SingingClip::resetSpeakerMixIfSingerChanged(const SingerInfo &oldSingerInfo) {
-    if (oldSingerInfo == singerInfo() || m_ownSpeakerMixData.mode == SingerSourceMode::Single)
-        return;
-
-    resetSpeakerMixToSingle();
+void SingingClip::notifyEffectiveVoiceContextChanged(const EffectiveVoiceContext &oldContext) {
+    const auto newContext = effectiveVoiceContext();
+    if (oldContext.speakerMix != newContext.speakerMix) {
+        bumpInferenceRevision();
+        Q_EMIT speakerMixChanged(newContext.speakerMix);
+    }
+    if (oldContext.singer != newContext.singer || oldContext.speaker != newContext.speaker ||
+        oldContext.followsTrack != newContext.followsTrack) {
+        Q_EMIT singerOrSpeakerChanged();
+    }
 }

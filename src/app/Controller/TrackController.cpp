@@ -244,8 +244,8 @@ SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int t
 
     const auto track = appModel->tracks().at(trackIndex);
     singingClip->setDefaultLanguage(track->defaultLanguage());
-    singingClip->setTrackSingerAndSpeakerInfo(track->singerInfo(), track->speakerInfo());
-    singingClip->setTrackSpeakerMixData(track->speakerMixData());
+    singingClip->setTrackVoiceContext(track->singerInfo(), track->speakerInfo(),
+                                      track->speakerMixData());
     const auto a = new ClipActions;
     QList<Clip *> clips;
     clips.append(singingClip);
@@ -344,9 +344,9 @@ void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex
                 singingClip->insertNote(note);
             }
             const auto targetTrack = appModel->tracks().at(targetTrackIndex);
-            singingClip->setTrackSingerAndSpeakerInfo(targetTrack->singerInfo(),
-                                                      targetTrack->speakerInfo());
-            singingClip->setTrackSpeakerMixData(targetTrack->speakerMixData());
+            singingClip->setTrackVoiceContext(targetTrack->singerInfo(),
+                                              targetTrack->speakerInfo(),
+                                              targetTrack->speakerMixData());
             if (!srcSinging->useTrackSingerInfo.get()) {
                 singingClip->setOwnSingerAndSpeaker(srcSinging->ownSingerInfo(),
                                                     srcSinging->ownSpeakerInfo());

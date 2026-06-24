@@ -45,38 +45,29 @@ OverlappableSerialList<Clip> Track::clips() const {
     return m_clips;
 }
 
-static void setTrackSingerAndSpeakerForClip(Clip *clip, const SingerInfo &singerInfo,
-                                            const SpeakerInfo &speakerInfo) {
+static void setTrackVoiceContextForClip(Clip *clip, const SingerInfo &singerInfo,
+                                        const SpeakerInfo &speakerInfo,
+                                        const SpeakerMixModel::SpeakerMixData &data) {
     if (!clip) {
         return;
     }
     if (clip->clipType() == IClip::Singing) {
         // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
         const auto singingClip = static_cast<SingingClip *>(clip);
-        singingClip->setTrackSingerAndSpeakerInfo(singerInfo, speakerInfo);
-    }
-}
-
-static void setTrackSpeakerMixForClip(Clip *clip, const SpeakerMixModel::SpeakerMixData &data) {
-    if (!clip) {
-        return;
-    }
-    if (clip->clipType() == IClip::Singing) {
-        // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
-        const auto singingClip = static_cast<SingingClip *>(clip);
-        singingClip->setTrackSpeakerMixData(data);
+        singingClip->setTrackVoiceContext(singerInfo, speakerInfo, data);
     }
 }
 
 void Track::insertClip(Clip *clip) {
     m_clips.add(clip);
-    setTrackSingerAndSpeakerForClip(clip, m_singerInfo, m_speakerInfo);
-    setTrackSpeakerMixForClip(clip, m_speakerMixData);
+    setTrackVoiceContextForClip(clip, m_singerInfo, m_speakerInfo, m_speakerMixData);
     connect(this, &Track::singerOrSpeakerChanged, clip,
-            [clip, this] { setTrackSingerAndSpeakerForClip(clip, m_singerInfo, m_speakerInfo); });
+            [clip, this] {
+                setTrackVoiceContextForClip(clip, m_singerInfo, m_speakerInfo, m_speakerMixData);
+            });
     connect(this, &Track::speakerMixChanged, clip,
-            [clip](const SpeakerMixModel::SpeakerMixData &data) {
-                setTrackSpeakerMixForClip(clip, data);
+            [clip, this](const SpeakerMixModel::SpeakerMixData &) {
+                setTrackVoiceContextForClip(clip, m_singerInfo, m_speakerInfo, m_speakerMixData);
             });
 }
 
@@ -147,31 +138,40 @@ SpeakerMixModel::SpeakerMixData Track::speakerMixData() const {
     return m_speakerMixData;
 }
 
-void Track::setSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo) {
-    bool singerInfoChanged = (m_singerInfo != singerInfo);
-    bool speakerInfoChanged = (m_speakerInfo != speakerInfo);
+EffectiveVoiceContext Track::voiceContext() const {
+    return {m_singerInfo, m_speakerInfo, m_speakerMixData, false};
+}
 
-    if (!singerInfoChanged && !speakerInfoChanged) {
-        if (!SpeakerMixModel::isSpeakerMixDataSingle(m_speakerMixData))
-            resetSpeakerMixToSingle();
+void Track::setVoiceContext(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
+                            const SpeakerMixModel::SpeakerMixData &speakerMixData) {
+    const auto oldContext = voiceContext();
+    const auto normalizedSpeakerMixData = SpeakerMixModel::normalizeSpeakerMixData(speakerMixData);
+    if (oldContext.singer == singerInfo && oldContext.speaker == speakerInfo &&
+        oldContext.speakerMix == normalizedSpeakerMixData)
         return;
-    }
 
     m_singerInfo = singerInfo;
     m_speakerInfo = speakerInfo;
+    m_speakerMixData = normalizedSpeakerMixData;
     this->updateDefaultG2pId(m_defaultLanguage);
 
-    resetSpeakerMixToSingle();
-    emit singerOrSpeakerChanged();
+    const auto newContext = voiceContext();
+    if (oldContext.speakerMix != newContext.speakerMix)
+        emit speakerMixChanged(m_speakerMixData);
+    if (oldContext.singer != newContext.singer || oldContext.speaker != newContext.speaker)
+        emit singerOrSpeakerChanged();
+}
+
+void Track::selectSingleSpeaker(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo) {
+    setVoiceContext(singerInfo, speakerInfo, {});
+}
+
+void Track::setSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo) {
+    selectSingleSpeaker(singerInfo, speakerInfo);
 }
 
 void Track::setSpeakerMixData(const SpeakerMixModel::SpeakerMixData &data) {
-    const auto normalized = SpeakerMixModel::normalizeSpeakerMixData(data);
-    if (m_speakerMixData == normalized)
-        return;
-
-    m_speakerMixData = normalized;
-    emit speakerMixChanged(m_speakerMixData);
+    setVoiceContext(m_singerInfo, m_speakerInfo, data);
 }
 
 void Track::resetSpeakerMixToSingle() {

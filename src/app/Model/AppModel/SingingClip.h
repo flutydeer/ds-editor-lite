@@ -6,6 +6,7 @@
 #define SINGINGCLIP_H
 
 #include "Clip.h"
+#include "EffectiveVoiceContext.h"
 #include "Params.h"
 #include "SpeakerMixData.h"
 #include "Global/AppGlobal.h"
@@ -71,10 +72,17 @@ public:
     SpeakerMixData speakerMixData() const;
     SpeakerMixData ownSpeakerMixData() const;
     SpeakerMixData trackSpeakerMixData() const;
+    EffectiveVoiceContext effectiveVoiceContext() const;
     void setSpeakerMixData(const SpeakerMixData &data);
     void setOwnSpeakerMixData(const SpeakerMixData &data);
     void setTrackSpeakerMixData(const SpeakerMixData &data);
     void resetSpeakerMixToSingle();
+    void setTrackVoiceContext(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
+                              const SpeakerMixData &speakerMixData);
+    void setOwnVoiceContext(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
+                            const SpeakerMixData &speakerMixData);
+    void selectOwnSingleSpeaker(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
+    void useTrackVoiceContext();
     void setTrackSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
     void setOwnSingerAndSpeaker(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
     void useTrackSingerAndSpeaker();
@@ -100,7 +108,7 @@ signals:
 private:
     void init();
     void updateDefaultG2pId(const QString &language);
-    void resetSpeakerMixIfSingerChanged(const SingerInfo &oldSingerInfo);
+    void notifyEffectiveVoiceContextChanged(const EffectiveVoiceContext &oldContext);
 
     OverlappableSerialList<Note> m_notes;
     PieceList m_pieces;

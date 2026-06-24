@@ -7,6 +7,7 @@
 
 #include <QString>
 
+#include "Model/AppModel/EffectiveVoiceContext.h"
 #include "Model/AppModel/SpeakerMixData.h"
 #include "Utils/OverlappableSerialList.h"
 #include "TrackControl.h"
@@ -53,7 +54,11 @@ public:
     QString speakerId() const;
     SpeakerInfo speakerInfo() const;
     SpeakerMixModel::SpeakerMixData speakerMixData() const;
+    EffectiveVoiceContext voiceContext() const;
 
+    void setVoiceContext(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
+                         const SpeakerMixModel::SpeakerMixData &speakerMixData);
+    void selectSingleSpeaker(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
     void setSingerAndSpeakerInfo(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
     void setSpeakerMixData(const SpeakerMixModel::SpeakerMixData &data);
     void resetSpeakerMixToSingle();

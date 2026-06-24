@@ -146,6 +146,22 @@ namespace SpeakerMixModel {
         return normalizeSpeakerMixData(data).mode == SingerSourceMode::Single;
     }
 
+    bool hasDynamicMixAutomation(const SpeakerMixData &data) {
+        return !normalizeSpeakerMixData(data).dynamicKeyframes.isEmpty();
+    }
+
+    bool isDynamicMixActive(const SpeakerMixData &data) {
+        const auto normalized = normalizeSpeakerMixData(data);
+        return normalized.mode == SingerSourceMode::DynamicMix &&
+               !normalized.dynamicKeyframes.isEmpty();
+    }
+
+    bool isDynamicMixBypassed(const SpeakerMixData &data) {
+        const auto normalized = normalizeSpeakerMixData(data);
+        return normalized.mode == SingerSourceMode::FixedMix &&
+               !normalized.dynamicKeyframes.isEmpty();
+    }
+
     QVector<double> normalizeSpeakerMixFullWeights(const QVector<double> &weights,
                                                    const int sourceCount) {
         if (sourceCount <= 0)

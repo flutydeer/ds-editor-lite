@@ -29,9 +29,8 @@ void MoveClipToTrackAction::execute() {
     m_newTrack->insertClip(m_clip);
     if (m_clip->clipType() == IClip::Singing) {
         const auto singingClip = static_cast<SingingClip *>(m_clip);
-        singingClip->setTrackSingerAndSpeakerInfo(m_newTrack->singerInfo(),
-                                                  m_newTrack->speakerInfo());
-        singingClip->setTrackSpeakerMixData(m_newTrack->speakerMixData());
+        singingClip->setTrackVoiceContext(m_newTrack->singerInfo(), m_newTrack->speakerInfo(),
+                                          m_newTrack->speakerMixData());
     }
     m_clip->notifyPropertyChanged();
     m_oldTrack->notifyClipChanged(Track::Removed, m_clip);
@@ -48,9 +47,8 @@ void MoveClipToTrackAction::undo() {
     m_oldTrack->insertClip(m_clip);
     if (m_clip->clipType() == IClip::Singing) {
         const auto singingClip = static_cast<SingingClip *>(m_clip);
-        singingClip->setTrackSingerAndSpeakerInfo(m_oldTrack->singerInfo(),
-                                                  m_oldTrack->speakerInfo());
-        singingClip->setTrackSpeakerMixData(m_oldTrack->speakerMixData());
+        singingClip->setTrackVoiceContext(m_oldTrack->singerInfo(), m_oldTrack->speakerInfo(),
+                                          m_oldTrack->speakerMixData());
     }
     m_clip->notifyPropertyChanged();
     m_newTrack->notifyClipChanged(Track::Removed, m_clip);

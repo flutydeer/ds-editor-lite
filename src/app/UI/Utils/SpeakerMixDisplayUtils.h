@@ -17,12 +17,10 @@ namespace SpeakerMixDisplayUtils {
     inline QString mixDisplayName(const SingerInfo &singerInfo,
                                   const SpeakerMixModel::SpeakerMixData &data) {
         const auto normalized = SpeakerMixModel::normalizeSpeakerMixData(data);
-        if (normalized.mode == SpeakerMixModel::SingerSourceMode::DynamicMix &&
-            !normalized.dynamicKeyframes.isEmpty()) {
+        if (SpeakerMixModel::isDynamicMixActive(normalized)) {
             return translate("Dynamic Mix");
         }
-        if (normalized.mode == SpeakerMixModel::SingerSourceMode::FixedMix &&
-            !normalized.dynamicKeyframes.isEmpty()) {
+        if (SpeakerMixModel::isDynamicMixBypassed(normalized)) {
             return translate("Dynamic Mix (Bypassed)");
         }
         if (normalized.mode != SpeakerMixModel::SingerSourceMode::FixedMix ||

@@ -134,7 +134,7 @@ ParamEditorGraphicsView *ParamEditorView::graphicsView() const {
 }
 
 void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) {
-    if (name == ParamInfo::Unknown) {
+    if (name == ParamInfo::SpeakerMix) {
         qDebug() << "foreground changed to Speaker Mix";
         m_infoArea->clearParamProperties();
         m_graphicsView->setForeground(name, *paramUtils->getPropertiesByName(name));
@@ -221,7 +221,7 @@ void ParamEditorView::onBypassDynamicMix() const {
         return;
 
     auto data = m_clip->speakerMixData();
-    if (data.mode != SingerSourceMode::DynamicMix || data.dynamicKeyframes.isEmpty())
+    if (!isDynamicMixActive(data))
         return;
 
     data.mode = SingerSourceMode::FixedMix;
@@ -233,7 +233,7 @@ void ParamEditorView::onResumeDynamicMix() const {
         return;
 
     auto data = m_clip->speakerMixData();
-    if (data.mode != SingerSourceMode::FixedMix || data.dynamicKeyframes.isEmpty())
+    if (!isDynamicMixBypassed(data))
         return;
 
     data.mode = SingerSourceMode::DynamicMix;
@@ -283,9 +283,9 @@ void ParamEditorView::refreshSpeakerMixToolBar() {
 
     const auto data = m_clip ? normalizeSpeakerMixData(m_clip->speakerMixData()) : SpeakerMixData();
     SpeakerMixDynamicUiState state = SpeakerMixDynamicUiState::Unavailable;
-    if (data.mode == SingerSourceMode::DynamicMix && !data.dynamicKeyframes.isEmpty()) {
+    if (isDynamicMixActive(data)) {
         state = SpeakerMixDynamicUiState::Active;
-    } else if (data.mode == SingerSourceMode::FixedMix && !data.dynamicKeyframes.isEmpty()) {
+    } else if (isDynamicMixBypassed(data)) {
         state = SpeakerMixDynamicUiState::Bypassed;
     } else if (hasFixedMixBase(data)) {
         state = SpeakerMixDynamicUiState::NotEnabled;
@@ -329,8 +329,7 @@ void ParamEditorView::refreshSpeakerMixEmptyState(const SpeakerMixData &data) {
 }
 
 void ParamEditorView::setSpeakerMixEmptyState(const QString &title, const QString &message,
-                                              const QString &buttonText,
-                                              const bool buttonEnabled) {
+                                              const QString &buttonText, const bool buttonEnabled) {
     m_speakerMixEmptyTitle->setText(title);
     m_speakerMixEmptyMessageText = message;
     m_speakerMixEmptyMessage->setText(message);
@@ -361,7 +360,8 @@ void ParamEditorView::updateSpeakerMixEmptyStateGeometry() {
     const bool minimal = height < 120;
     const int horizontalMargin = minimal ? 12 : compact ? 24 : 48;
     const int verticalMargin = minimal ? 4 : compact ? 8 : 12;
-    const int contentWidth = std::max(1, std::min(840, viewportRect.width() - horizontalMargin * 2));
+    const int contentWidth =
+        std::max(1, std::min(840, viewportRect.width() - horizontalMargin * 2));
 
     m_speakerMixEmptyTitle->setFixedWidth(contentWidth);
     m_speakerMixEmptyMessage->setFixedWidth(contentWidth);
@@ -369,9 +369,8 @@ void ParamEditorView::updateSpeakerMixEmptyStateGeometry() {
 
     if (compact) {
         m_speakerMixEmptyMessage->setWordWrap(false);
-        m_speakerMixEmptyMessage->setText(
-            m_speakerMixEmptyMessage->fontMetrics().elidedText(m_speakerMixEmptyMessageText,
-                                                               Qt::ElideRight, contentWidth));
+        m_speakerMixEmptyMessage->setText(m_speakerMixEmptyMessage->fontMetrics().elidedText(
+            m_speakerMixEmptyMessageText, Qt::ElideRight, contentWidth));
     } else {
         m_speakerMixEmptyMessage->setWordWrap(true);
         m_speakerMixEmptyMessage->setText(m_speakerMixEmptyMessageText);

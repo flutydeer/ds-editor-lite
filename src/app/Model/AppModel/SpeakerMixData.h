@@ -45,6 +45,9 @@ namespace SpeakerMixModel {
 
     SpeakerMixData normalizeSpeakerMixData(const SpeakerMixData &data);
     bool isSpeakerMixDataSingle(const SpeakerMixData &data);
+    bool hasDynamicMixAutomation(const SpeakerMixData &data);
+    bool isDynamicMixActive(const SpeakerMixData &data);
+    bool isDynamicMixBypassed(const SpeakerMixData &data);
     QVector<double> normalizeSpeakerMixFullWeights(const QVector<double> &weights, int sourceCount);
     QVector<double> explicitWeightsFromFullWeights(const QVector<double> &weights);
     QVector<double> fullWeightsFromExplicitWeights(const QVector<double> &weights);

@@ -58,8 +58,8 @@ void ProjectPackageResolver::resolveProject() {
                 continue;
 
             const auto singingClip = static_cast<SingingClip *>(clip);
-            singingClip->setTrackSingerAndSpeakerInfo(track->singerInfo(), track->speakerInfo());
-            singingClip->setTrackSpeakerMixData(track->speakerMixData());
+            singingClip->setTrackVoiceContext(track->singerInfo(), track->speakerInfo(),
+                                              track->speakerMixData());
 
             if (!singingClip->useTrackSingerInfo.get()) {
                 const auto ownSinger = resolveSinger(singingClip->ownSingerInfo());

@@ -23,7 +23,6 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     cbForegroundParam->setObjectName("cbForegroundParam");
     cbForegroundParam->addItems(paramUtils->names());
     cbForegroundParam->removeItem(0); // Remove pitch
-    cbForegroundParam->addItem(tr("Speaker Mix"));
 
     const auto btnSwap = new Button(tr("Swap"));
     btnSwap->setObjectName("btnSwap");
@@ -34,7 +33,8 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     cbBackgroundParam = new ComboBox(true);
     cbBackgroundParam->setObjectName("cbBackgroundParam");
     cbBackgroundParam->addItems(paramUtils->names());
-    cbBackgroundParam->removeItem(0); // Remove pitch
+    cbBackgroundParam->removeItem(0);                              // Remove pitch
+    cbBackgroundParam->removeItem(cbBackgroundParam->count() - 1); // Remove speaker mix
 
     m_speakerMixToolBar = new SpeakerMixToolBarView;
     m_speakerMixToolBar->setVisible(false);

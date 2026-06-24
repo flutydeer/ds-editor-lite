@@ -75,9 +75,11 @@ namespace {
 
     bool clipPiecesMatchCurrentSingerAndSpeaker(const SingingClip &clip) {
         const auto identifier = clip.singerIdentifier();
-        const auto speakerMix =
-            InferSpeakerMixModel::fixedSpeakerMixFromData(clip.speakerMixData(), clip.speakerId());
+        const Timeline timeline{{{0, appModel->tempo()}}};
         for (const auto piece : clip.pieces()) {
+            const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
+                clip.speakerMixData(), clip.speakerId(), piece->localStartTick(),
+                piece->localEndTick(), timeline);
             if (piece->identifier != identifier || piece->speakerMix != speakerMix)
                 return false;
         }
@@ -403,6 +405,9 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 pipelines.first()->onVarianceChanged();
             }
             break;
+        case ParamInfo::SpeakerMix:
+            qFatal() << "Speaker mix is not a regular param";
+            break;
         case ParamInfo::Unknown:
             qFatal() << "Unknown param";
             break;
@@ -419,9 +424,11 @@ void InferControllerPrivate::handleSpeakerMixChanged(SingingClip *clip) {
         return;
     }
 
-    const auto speakerMix =
-        InferSpeakerMixModel::fixedSpeakerMixFromData(clip->speakerMixData(), clip->speakerId());
+    const Timeline timeline{{{0, appModel->tempo()}}};
     for (const auto piece : clip->pieces()) {
+        const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
+            clip->speakerMixData(), clip->speakerId(), piece->localStartTick(),
+            piece->localEndTick(), timeline);
         piece->speakerMix = speakerMix;
         piece->speaker = speakerMix.fallbackSpeaker;
         Helper::resetPitch(*piece);

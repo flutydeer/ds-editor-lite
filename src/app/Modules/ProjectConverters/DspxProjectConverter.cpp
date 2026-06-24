@@ -529,9 +529,9 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 }
                 clip->workspace() = workspace;
 
-                // Inject track singer/speaker info for inheritance
-                clip->setTrackSingerAndSpeakerInfo(track->singerInfo(), track->speakerInfo());
-                clip->setTrackSpeakerMixData(track->speakerMixData());
+                // Inject track voice context for inheritance
+                clip->setTrackVoiceContext(track->singerInfo(), track->speakerInfo(),
+                                           track->speakerMixData());
 
                 // Read official sources.singers[] for clip singer
                 bool hasOfficialSinger = false;

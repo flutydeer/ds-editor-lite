@@ -19,14 +19,12 @@ void ApplyTrackSpeakerMixPresetAction::execute() {
     if (!m_track)
         return;
 
-    m_track->setSingerAndSpeakerInfo(m_newSingerInfo, m_newSpeakerInfo);
-    m_track->setSpeakerMixData(m_newSpeakerMixData);
+    m_track->setVoiceContext(m_newSingerInfo, m_newSpeakerInfo, m_newSpeakerMixData);
 }
 
 void ApplyTrackSpeakerMixPresetAction::undo() {
     if (!m_track)
         return;
 
-    m_track->setSingerAndSpeakerInfo(m_oldSingerInfo, m_oldSpeakerInfo);
-    m_track->setSpeakerMixData(m_oldSpeakerMixData);
+    m_track->setVoiceContext(m_oldSingerInfo, m_oldSpeakerInfo, m_oldSpeakerMixData);
 }

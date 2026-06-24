@@ -16,7 +16,10 @@ const QStringList &ParamUtils::names() const {
 }
 
 QString ParamUtils::nameFromType(const ParamInfo::Name name) const {
-    return m_names[name];
+    const auto index = static_cast<int>(name);
+    if (index < 0 || index >= m_names.size())
+        return {};
+    return m_names[index];
 }
 
 const ParamProperties *ParamUtils::getPropertiesByName(const ParamInfo::Name name) const {
@@ -39,6 +42,7 @@ const ParamProperties *ParamUtils::getPropertiesByName(const ParamInfo::Name nam
             return &velocityProperties;
         case ParamInfo::ToneShift:
             return &toneShiftProperties;
+        case ParamInfo::SpeakerMix:
         case ParamInfo::Unknown:
             return &defaultProperties;
     }

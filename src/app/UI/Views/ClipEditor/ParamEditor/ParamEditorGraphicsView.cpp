@@ -83,7 +83,7 @@ void ParamEditorGraphicsView::commitAction() {
 
 void ParamEditorGraphicsView::setForeground(const ParamInfo::Name name,
                                             const ParamProperties &properties) {
-    if (name == ParamInfo::Unknown) {
+    if (name == ParamInfo::SpeakerMix) {
         m_speakerMixMode = true;
         m_foreground->setVisible(false);
         updateSpeakerMixViewData();
