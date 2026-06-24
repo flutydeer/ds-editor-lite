@@ -1,6 +1,6 @@
 ---
 name: CMake Configure
-description: 需要为 C++/CMake 项目运行 CMake Configure 时使用
+description: 需要在 ds-editor-lite 中运行 CMake configure、刷新 CMake preset 或验证 Qt/vcpkg 配置时使用。默认使用项目提供的 VS DevShell + CMake preset 脚本；不要使用 CLion MCP run configuration。
 ---
 
 # CMake Configure
@@ -11,34 +11,26 @@ description: 需要为 C++/CMake 项目运行 CMake Configure 时使用
 
 - CMake configure（`cmake --preset debug`）比较轻量，用于验证 Qt/vcpkg 等依赖是否安装正确、检测新增/移除的源文件。
 - 如果只需要快速验证依赖，跑 configure 就够了。
-- 如需完整构建（包含 configure），使用 `cmake-build` skill（支持 CLion MCP 或手动 presets）。
+- 不要使用 CLion MCP run configuration 做 configure。run configuration 会启动 `DsEditorLite`，GUI 程序不退出时会持续阻塞 Agent。
+- 不要手写 Visual Studio 安装路径，也不要使用带 `*` 的 VS DevShell 示例路径。
+- 如需完整构建（包含 configure），使用 `cmake-build` skill。
 
-## 手动流程
-
-在**同一个** PowerShell 会话中执行：
-
-### 1. 初始化 VS 2026 x64 开发者命令行环境
-
-方式一（PowerShell）：
-```powershell
-Import-Module "C:\Program Files\Microsoft Visual Studio\18\*\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
-Enter-VsDevShell -VsInstallPath "C:\Program Files\Microsoft Visual Studio\18\*" -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64"
-```
-`*` 根据实际安装的 VS 版本（Community / Professional / Enterprise / Insiders）替换。
-
-方式二（cmd）：
-```cmd
-call "C:\Program Files\Microsoft Visual Studio\18\*\VC\Auxiliary\Build\vcvarsall.bat" x64
-```
-
-### 2. 运行 configure
+## 推荐命令
 
 ```powershell
-cmake --preset debug
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Configure -Preset debug
 ```
 
-如果项目尚未安装 vcpkg 依赖和配置 Qt 环境变量，需要先参考 AGENTS.md 中的"配置和构建（Windows presets 主线）"完成前置步骤。
+## 脚本行为
 
-## 关于 CLion MCP
+- 通过 `vswhere.exe` 优先查找 Visual Studio 2026 / 18.x 的 C++ 工具链。
+- 如果 `vswhere` 找不到 VS 18.x，会先回退到安装了 C++ 工具链的最新 VS，再枚举 `C:\Program Files\Microsoft Visual Studio\18|17\*\VC\Auxiliary\Build\vcvarsall.bat`。
+- 使用 `vcvarsall.bat x64` 初始化编译环境。
+- 若 `QT_DIR` 未设置，会尝试自动选择 `C:\Qt\*\msvc2022_64` 中版本号最高的目录。
+- 在同一个 `cmd.exe` 命令链里执行环境初始化和 CMake，避免 VS DevShell 环境丢失。
 
-`clion_execute_run_configuration("DsEditorLite")` 会自动包含 configure 步骤，无需单独运行 configure。如果正在使用 CLion MCP 构建，直接使用 `cmake-build` skill 即可。
+## 失败处理
+
+- 找不到 VS、Qt 或 preset 失败时，直接报告脚本输出中的具体错误。
+- 不要改用 CLion run configuration 兜底。
+- 不要改用硬编码的个人路径兜底。
