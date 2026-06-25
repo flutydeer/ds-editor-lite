@@ -222,7 +222,7 @@ void ParamEditorView::onBypassDynamicMix() const {
     if (!isDynamicMixActive(data))
         return;
 
-    data.mode = SingerSourceMode::FixedMix;
+    data.dynamicBypassed = true;
     onSpeakerMixEdited(data);
 }
 
@@ -234,7 +234,7 @@ void ParamEditorView::onResumeDynamicMix() const {
     if (!isDynamicMixBypassed(data))
         return;
 
-    data.mode = SingerSourceMode::DynamicMix;
+    data.dynamicBypassed = false;
     onSpeakerMixEdited(data);
 }
 
@@ -382,8 +382,9 @@ void ParamEditorView::updateSpeakerMixEmptyStateGeometry() {
 }
 
 bool ParamEditorView::hasFixedMixBase(const SpeakerMixData &data) {
-    return data.mode == SingerSourceMode::FixedMix && data.sources.size() >= 2 &&
-           data.fixedWeights.size() == data.sources.size() - 1;
+    const auto normalized = normalizeSpeakerMixData(data);
+    return normalized.mode == SingerSourceMode::FixedMix && normalized.sources.size() >= 2 &&
+           normalized.fixedWeights.size() == normalized.sources.size() - 1;
 }
 
 SpeakerMixData ParamEditorView::dataWithDynamicEnabled(const SpeakerMixData &data) {
@@ -392,6 +393,7 @@ SpeakerMixData ParamEditorView::dataWithDynamicEnabled(const SpeakerMixData &dat
         return {};
 
     result.mode = SingerSourceMode::DynamicMix;
+    result.dynamicBypassed = false;
     if (result.dynamicKeyframes.isEmpty())
         result.dynamicKeyframes.append({0, result.fixedWeights});
     return normalizeSpeakerMixData(result);
@@ -407,5 +409,6 @@ SpeakerMixData ParamEditorView::dataWithDynamicStopped(const SpeakerMixData &dat
         result.fixedWeights = result.dynamicKeyframes.first().weights;
     result.dynamicKeyframes.clear();
     result.mode = SingerSourceMode::FixedMix;
+    result.dynamicBypassed = false;
     return normalizeSpeakerMixData(result);
 }

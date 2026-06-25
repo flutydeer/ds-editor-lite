@@ -104,8 +104,8 @@ namespace {
         ok &= expect(normalizedFixed.mode == SingerSourceMode::FixedMix,
                      "valid fixed mix remains fixed");
         ok &= expectVectorNear(normalizedFixed.fixedWeights, {0.5, 0.5}, "fixed weights normalize");
-        ok &= expectVectorNear(normalizedFixed.dynamicKeyframes.first().weights, {0.5, 0.5},
-                               "inactive dynamic keyframes normalize in fixed mix");
+        ok &= expect(normalizedFixed.dynamicKeyframes.isEmpty(),
+                     "fixed mix does not carry dynamic automation");
         ok &= expect(normalizedFixed.sourcePresetId == "preset" &&
                          normalizedFixed.sourcePresetName == "name",
                      "preset metadata is trimmed");
@@ -154,13 +154,27 @@ namespace {
         ok &= expect(isDynamicMixActive(dynamic), "dynamic mix reports active");
         ok &= expect(!isDynamicMixBypassed(dynamic), "dynamic mix is not bypassed");
 
-        auto bypassed = fixedMixData();
-        bypassed.dynamicKeyframes = {
+        auto bypassed = dynamicMixData();
+        bypassed.dynamicBypassed = true;
+        bypassed.fixedWeights = {0.1};
+        ok &= expect(hasDynamicMixAutomation(bypassed), "bypassed dynamic mix reports automation");
+        ok &= expect(!isDynamicMixActive(bypassed), "bypassed dynamic mix is not active");
+        ok &= expect(isDynamicMixBypassed(bypassed), "bypassed dynamic mix reports bypassed");
+
+        auto bypassedWithoutFixedWeights = dynamicMixData();
+        bypassedWithoutFixedWeights.dynamicBypassed = true;
+        ok &= expectVectorNear(normalizeSpeakerMixData(bypassedWithoutFixedWeights).fixedWeights,
+                               {0.0},
+                               "bypassed dynamic mix gets fixed weights from first keyframe");
+
+        auto legacyBypass = fixedMixData();
+        legacyBypass.dynamicKeyframes = {
             {0, {0.1, 0.2}}
         };
-        ok &= expect(hasDynamicMixAutomation(bypassed), "fixed mix preserves automation");
-        ok &= expect(!isDynamicMixActive(bypassed), "fixed mix with keyframes is not active");
-        ok &= expect(isDynamicMixBypassed(bypassed), "fixed mix with keyframes is bypassed");
+        ok &= expect(!hasDynamicMixAutomation(legacyBypass),
+                     "fixed mix with keyframes no longer means bypassed dynamic mix");
+        ok &= expect(!isDynamicMixBypassed(legacyBypass),
+                     "legacy fixed keyframe combination is not bypassed");
 
         auto invalid = fixedMixData();
         invalid.dynamicKeyframes = {
@@ -253,10 +267,9 @@ namespace {
         ok &= expect(effectiveSpeakerMixFromData(dynamic, "fallback", 0, 960, timeline, 0.5) == mix,
                      "effective inference uses dynamic mix when active");
 
-        auto bypassed = fixedMixData();
-        bypassed.dynamicKeyframes = {
-            {0, {0.1, 0.2}}
-        };
+        auto bypassed = dynamicMixData();
+        bypassed.dynamicBypassed = true;
+        bypassed.fixedWeights = {0.1};
         ok &= expect(effectiveSpeakerMixFromData(bypassed, "fallback", 0, 960, timeline, 0.5) ==
                          fixedSpeakerMixFromData(bypassed, "fallback"),
                      "effective inference uses fixed mix when dynamic is bypassed");

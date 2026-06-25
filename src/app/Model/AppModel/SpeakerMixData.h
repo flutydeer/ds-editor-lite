@@ -32,6 +32,7 @@ namespace SpeakerMixModel {
 
     struct SpeakerMixData {
         SingerSourceMode mode = SingerSourceMode::Single;
+        bool dynamicBypassed = false;
         QList<SpeakerMixSource> sources;
         QVector<double> fixedWeights;
         QList<SpeakerMixKeyframe> dynamicKeyframes;

@@ -849,8 +849,7 @@ void SpeakerMixEditorView::syncFromData() {
         m_speakers.append({name, colors.accent, colors.areaFill, colors.dotFill});
     }
 
-    m_dynamicBypassed = m_data.mode == SingerSourceMode::FixedMix &&
-                        !m_data.dynamicKeyframes.isEmpty();
+    m_dynamicBypassed = SpeakerMixModel::isDynamicMixBypassed(m_data);
     m_editable = m_data.sources.size() >= 2 && !m_data.dynamicKeyframes.isEmpty();
 
     const auto appendKeyframe = [this](const SpeakerMixModel::SpeakerMixKeyframe &keyframe) {

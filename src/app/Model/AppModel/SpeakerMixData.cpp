@@ -67,24 +67,6 @@ namespace SpeakerMixModel {
             return true;
         }
 
-        bool normalizeInactiveKeyframes(QList<SpeakerMixKeyframe> &keyframes,
-                                        const int explicitWeightCount) {
-            if (keyframes.isEmpty())
-                return true;
-            for (auto &keyframe : keyframes) {
-                if (keyframe.weights.size() != explicitWeightCount) {
-                    keyframes.clear();
-                    return false;
-                }
-                keyframe.weights = normalizeExplicitWeights(keyframe.weights);
-            }
-            std::sort(keyframes.begin(), keyframes.end(),
-                      [](const SpeakerMixKeyframe &a, const SpeakerMixKeyframe &b) {
-                          return a.tick < b.tick;
-                      });
-            return true;
-        }
-
         bool hasEmptySource(const QList<SpeakerMixSource> &sources) {
             for (const auto &source : sources) {
                 if (source.speaker.isEmpty())
@@ -141,7 +123,8 @@ namespace SpeakerMixModel {
     }
 
     bool SpeakerMixData::operator==(const SpeakerMixData &other) const {
-        return mode == other.mode && sources == other.sources &&
+        return mode == other.mode && dynamicBypassed == other.dynamicBypassed &&
+               sources == other.sources &&
                fixedWeights == other.fixedWeights && dynamicKeyframes == other.dynamicKeyframes &&
                sourcePresetId == other.sourcePresetId &&
                sourcePresetName == other.sourcePresetName &&
@@ -163,8 +146,9 @@ namespace SpeakerMixModel {
         const int explicitWeightCount = result.sources.size() - 1;
         switch (result.mode) {
             case SingerSourceMode::FixedMix:
+                result.dynamicBypassed = false;
                 result.fixedWeights = normalizeExplicitWeights(result.fixedWeights);
-                normalizeInactiveKeyframes(result.dynamicKeyframes, explicitWeightCount);
+                result.dynamicKeyframes.clear();
                 return result;
             case SingerSourceMode::DynamicMix:
                 for (auto &keyframe : result.dynamicKeyframes) {
@@ -175,6 +159,8 @@ namespace SpeakerMixModel {
                               return a.tick < b.tick;
                           });
                 normalizeInactiveExplicitWeights(result.fixedWeights, explicitWeightCount);
+                if (result.dynamicBypassed && result.fixedWeights.isEmpty())
+                    result.fixedWeights = result.dynamicKeyframes.first().weights;
                 return result;
             case SingerSourceMode::Single:
                 break;
@@ -187,18 +173,20 @@ namespace SpeakerMixModel {
     }
 
     bool hasDynamicMixAutomation(const SpeakerMixData &data) {
-        return !normalizeSpeakerMixData(data).dynamicKeyframes.isEmpty();
-    }
-
-    bool isDynamicMixActive(const SpeakerMixData &data) {
         const auto normalized = normalizeSpeakerMixData(data);
         return normalized.mode == SingerSourceMode::DynamicMix &&
                !normalized.dynamicKeyframes.isEmpty();
     }
 
+    bool isDynamicMixActive(const SpeakerMixData &data) {
+        const auto normalized = normalizeSpeakerMixData(data);
+        return normalized.mode == SingerSourceMode::DynamicMix && !normalized.dynamicBypassed &&
+               !normalized.dynamicKeyframes.isEmpty();
+    }
+
     bool isDynamicMixBypassed(const SpeakerMixData &data) {
         const auto normalized = normalizeSpeakerMixData(data);
-        return normalized.mode == SingerSourceMode::FixedMix &&
+        return normalized.mode == SingerSourceMode::DynamicMix && normalized.dynamicBypassed &&
                !normalized.dynamicKeyframes.isEmpty();
     }
 

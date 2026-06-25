@@ -54,6 +54,11 @@
    - Clip 编辑 speaker mix 会通过 own voice context 快照退出 Follow Track，并支持 undo 恢复。
    - Track 单 speaker 选择也已进入 history，避免绕过 undo 栈造成非法状态。
 
+7. **bypass 已正交化**
+   - `SpeakerMixData` 已新增 `dynamicBypassed`。
+   - Dynamic Bypassed 不再由 `mode == FixedMix && dynamicKeyframes 非空` 表示。
+   - Bypass / Resume / Stop Dynamic 的 UI 入口语义保持不变。
+
 ### 仍需保持的设计约束
 
 1. **Duration 不做动态混合**
@@ -63,7 +68,8 @@
    - 数据层保存 N-1 权重，最后一个 speaker 权重由 `1 - sum(explicitWeights)` 得到。
 
 3. **Fixed weights 与 dynamic keyframes 可以共存**
-   - 这是 Dynamic Bypassed 的基础。Bypass 时保留 keyframes，但推理使用 fixedWeights。
+   - 这是 Dynamic Bypassed 的基础。`mode == DynamicMix && dynamicBypassed` 时保留
+     keyframes，但推理使用 fixedWeights。
 
 4. **预设只保存 fixed mix**
    - Speaker Mix preset 不保存 dynamic keyframes。
@@ -87,7 +93,8 @@
 2. 已拆分 speaker mix 数据验证和规范化。
 3. 已删除 Follow Track 冗余字段和静默失败路径。
 4. 已处理 Follow Track 相关 UI 显示一致性。
-5. 下一步视风险决定是否立即做 bypass 正交化与 editor commit/discard。
+5. 已完成 bypass 正交化。
+6. 下一步建议做 SpeakerMixEditorView commit/discard。
 
 ---
 
@@ -279,11 +286,11 @@ Property<bool> useTrackSpeakerInfo{true};
 
 ---
 
-## P2：SingerSourceMode 与 bypass 正交化
+## P2：SingerSourceMode 与 bypass 正交化（已完成）
 
-### 当前状态
+### 原状态
 
-当前 `SpeakerMixData` 只有：
+重构前 `SpeakerMixData` 只有：
 
 ```cpp
 SingerSourceMode mode; // Single / FixedMix / DynamicMix
@@ -334,9 +341,18 @@ struct SpeakerMixData {
   `mode = DynamicMix; dynamicBypassed = true`。
 - UI 入口不变：Bypass / Resume Dynamic / Stop Dynamic 行为保持。
 
+### 完成情况
+
+- `SpeakerMixData` 已新增 `dynamicBypassed`，比较、normalize、状态 helper 均纳入该字段。
+- `FixedMix + dynamicKeyframes` 不再表示 bypass，normalize 会清除 Fixed Mix 上的动态 keyframes。
+- `Bypass` 仅设置 `dynamicBypassed = true`；`Resume` 清回 false；`Stop Dynamic` 清空 keyframes
+  并回到 Fixed Mix。
+- Clipboard 和 DSPX workspace schema 已写入/读取 `dynamicBypassed`。
+- `TestSpeakerMix` 已覆盖 active、bypassed、旧组合状态移除，以及 bypass 推理 fallback。
+
 ---
 
-## P2：SpeakerMixEditorView commit/discard
+## P3：SpeakerMixEditorView commit/discard
 
 ### 当前状态
 
@@ -379,7 +395,7 @@ private:
 
 ---
 
-## P3：测试补齐
+## P4：测试补齐
 
 这是当前最缺的一块。建议优先补纯数据测试，成本低，收益高。
 
@@ -444,11 +460,12 @@ private:
    - 不需要旧工程读写兼容。
    - 新代码只走 effective voice context。
 
-5. **决定是否做 bypass 正交化**
-   - 如果 Dynamic Bypassed 相关 bug 继续出现，优先做。
-   - 如果当前行为稳定，可后置。
+5. **bypass 正交化（已完成）**
+   - `dynamicBypassed` 已成为显式字段。
+   - 旧的 `FixedMix + dynamicKeyframes` bypass 组合语义已移除。
+   - 序列化与测试已同步。
 
-6. **最后做 EditorView commit/discard**
+6. **最后做 EditorView commit/discard（下一步）**
    - 这是交互状态机重构，建议不要和数据模型迁移混在一个提交里。
 
 ---

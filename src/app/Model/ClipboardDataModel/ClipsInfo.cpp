@@ -118,6 +118,7 @@ namespace {
         QJsonObject obj;
         obj["mode"] =
             normalized.mode == SpeakerMixModel::SingerSourceMode::FixedMix ? "fixed" : "dynamic";
+        obj["dynamicBypassed"] = normalized.dynamicBypassed;
 
         QJsonArray sources;
         for (const auto &source : normalized.sources)
@@ -158,6 +159,7 @@ namespace {
             data.mode = SpeakerMixModel::SingerSourceMode::DynamicMix;
         else
             return {};
+        data.dynamicBypassed = obj["dynamicBypassed"].toBool();
 
         for (const auto &sourceValue : obj["sources"].toArray()) {
             const auto speaker =
