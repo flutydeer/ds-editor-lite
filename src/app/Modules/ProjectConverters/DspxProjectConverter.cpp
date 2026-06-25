@@ -558,38 +558,20 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                     useTrackSingerInfo = false;
                 }
 
-                // Determine useTrackSpeakerInfo
-                const bool hasUseTrackSpeakerInfo = clipDsWs.contains("useTrackSpeakerInfo");
-                bool useTrackSpeakerInfo = true;
-                if (hasUseTrackSpeakerInfo) {
-                    useTrackSpeakerInfo = clipDsWs["useTrackSpeakerInfo"].toBool();
-                } else if (!officialSpeaker.isEmpty()) {
-                    useTrackSpeakerInfo = false;
-                }
-
                 // Read clip speaker
                 auto speakerObj = clipDsWs["speaker"].toObject();
-                const auto effectiveSingerForSpeaker =
-                    useTrackSingerInfo ? track->singerInfo() : officialSinger;
                 SpeakerInfo ownSpeaker;
-                if (!speakerObj.isEmpty()) {
-                    ownSpeaker = resolveSpeakerInfo(effectiveSingerForSpeaker,
+                if (!useTrackSingerInfo && !speakerObj.isEmpty()) {
+                    ownSpeaker = resolveSpeakerInfo(officialSinger,
                                                     decodeSpeakerInfoFromWorkspace(speakerObj));
-                } else if (!officialSpeaker.isEmpty() &&
-                           (!hasUseTrackSpeakerInfo || !useTrackSpeakerInfo)) {
-                    ownSpeaker = resolveSpeakerInfo(effectiveSingerForSpeaker, officialSpeaker);
+                } else if (!useTrackSingerInfo && !officialSpeaker.isEmpty()) {
+                    ownSpeaker = resolveSpeakerInfo(officialSinger, officialSpeaker);
                 }
 
-                const bool useTrackInfo = useTrackSingerInfo && useTrackSpeakerInfo;
-
-                if (useTrackInfo) {
+                if (useTrackSingerInfo) {
                     clip->useTrackSingerAndSpeaker();
                 } else {
-                    const auto ownSinger =
-                        useTrackSingerInfo ? track->singerInfo() : officialSinger;
-                    const auto ownSpeakerInfo =
-                        useTrackSpeakerInfo ? track->speakerInfo() : ownSpeaker;
-                    clip->setOwnSingerAndSpeaker(ownSinger, ownSpeakerInfo);
+                    clip->setOwnSingerAndSpeaker(officialSinger, ownSpeaker);
                 }
 
                 // Read clip defaultLanguage
@@ -597,7 +579,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 if (!clipLang.isEmpty())
                     clip->setDefaultLanguage(clipLang);
 
-                if (!useTrackInfo) {
+                if (!useTrackSingerInfo) {
                     clip->setOwnSpeakerMixData(decodeSpeakerMixDataFromWorkspace(
                         clipDsWs["speakerMix"].toObject(), clip->singerInfo()));
                 }
@@ -848,7 +830,6 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 clipDsWs["schemaVersion"] = kDsWorkspaceSchemaVersion;
                 const bool useTrackInfo = singingClip->useTrackSingerInfo.get();
                 clipDsWs["useTrackSingerInfo"] = useTrackInfo;
-                clipDsWs["useTrackSpeakerInfo"] = useTrackInfo;
 
                 auto clipSpeakerObj = encodeSpeakerInfoForWorkspace(
                     useTrackInfo ? SpeakerInfo() : singingClip->ownSpeakerInfo());

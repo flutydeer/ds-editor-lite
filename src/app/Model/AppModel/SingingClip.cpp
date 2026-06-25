@@ -278,8 +278,11 @@ EffectiveVoiceContext SingingClip::effectiveVoiceContext() const {
 }
 
 void SingingClip::setSpeakerMixData(const SpeakerMixData &data) {
-    if (useTrackSingerInfo)
+    if (useTrackSingerInfo) {
+        const auto context = effectiveVoiceContext();
+        setOwnVoiceContext(context.singer, context.speaker, data);
         return;
+    }
 
     setOwnSpeakerMixData(data);
 }
@@ -334,7 +337,6 @@ void SingingClip::setOwnVoiceContext(const SingerInfo &singerInfo, const Speaker
     m_singerSpeakerBatching = true;
     m_speakerInfo = speakerInfo;
     m_singerInfo = singerInfo;
-    useTrackSpeakerInfo = false;
     useTrackSingerInfo = false;
     m_singerSpeakerBatching = false;
     m_ownSpeakerMixData = normalizeSpeakerMixData(speakerMixData);
@@ -355,7 +357,6 @@ void SingingClip::setOwnSingerAndSpeaker(const SingerInfo &singerInfo,
 void SingingClip::useTrackVoiceContext() {
     const auto oldContext = effectiveVoiceContext();
     m_singerSpeakerBatching = true;
-    useTrackSpeakerInfo = true;
     useTrackSingerInfo = true;
     m_singerSpeakerBatching = false;
     updateDefaultG2pId(m_defaultLanguage);
@@ -387,7 +388,6 @@ void SingingClip::init() {
     useTrackSingerInfo.onChanged([this](bool) {
         if (m_singerSpeakerBatching)
             return;
-        useTrackSpeakerInfo = useTrackSingerInfo.get();
         Q_EMIT singerOrSpeakerChanged();
     });
     connect(this, &SingingClip::singerOrSpeakerChanged, this, [this] {
@@ -428,11 +428,6 @@ void SingingClip::init() {
             return;
         if (useTrackSingerInfo)
             Q_EMIT singerOrSpeakerChanged();
-    });
-    useTrackSpeakerInfo.onChanged([this](bool) {
-        if (m_singerSpeakerBatching)
-            return;
-        useTrackSpeakerInfo = useTrackSingerInfo.get();
     });
 }
 

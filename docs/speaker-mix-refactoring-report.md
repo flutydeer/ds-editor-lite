@@ -41,7 +41,7 @@
    - `Track` 已提供 `voiceContext()`、`setVoiceContext()`、`selectSingleSpeaker()`。
    - `SingingClip` 已提供 `effectiveVoiceContext()`、`setOwnVoiceContext()`、
      `setTrackVoiceContext()`、`selectOwnSingleSpeaker()`、`useTrackVoiceContext()`。
-   - `useTrackSpeakerInfo` 仍留在代码里，但已不需要为了旧版工程兼容继续保留。
+   - `useTrackSpeakerInfo` 已删除，Follow Track 只保留三合一 voice context 语义。
 
 5. **临时 Unknown 语义已清理**
    - `ParamInfo::SpeakerMix` 已存在。
@@ -83,11 +83,11 @@
 
 推荐目标：
 
-1. 补 SpeakerMix 纯数据测试和推理转换测试。
-2. 拆分 speaker mix 数据验证和规范化。
-3. 删除 Follow Track 冗余字段和静默失败路径。
-4. 处理 Follow Track 相关 UI 显示一致性。
-5. 视风险决定是否立即做 bypass 正交化与 editor commit/discard。
+1. 已补 SpeakerMix 纯数据测试和推理转换测试。
+2. 已拆分 speaker mix 数据验证和规范化。
+3. 已删除 Follow Track 冗余字段和静默失败路径。
+4. 已处理 Follow Track 相关 UI 显示一致性。
+5. 下一步视风险决定是否立即做 bypass 正交化与 editor commit/discard。
 
 ---
 
@@ -177,13 +177,12 @@ SpeakerMixData newMix;
 - 不要删除工厂方法名称，UI 代码可以继续表达“应用预设”“启用动态混合”等业务语义。
 - 消重的是底层 undo 快照和 execute/undo 逻辑，不是 UI 层语义。
 - `preservePresetSourceAsDirty` 逻辑应集中，不要在 clip/track action 内复制。
-- Clip 进入 Dynamic Mix 后，工具栏歌手下拉框仍可能显示 Follow Track 语义，属于
-  Follow Track UI 表现一致性问题，建议在删除 `useTrackSpeakerInfo` / 统一
-  `followTrackVoiceContext` 时一起处理。
+- Clip 进入 Dynamic Mix / 编辑 own speaker mix 会通过 voice context action 退出
+  Follow Track；工具栏歌手下拉框不再继续按 Follow Track 语义显示。
 
 ---
 
-## P1：拆分 `normalizeSpeakerMixData`
+## P1：拆分 `normalizeSpeakerMixData`（已完成）
 
 ### 问题
 
@@ -221,6 +220,12 @@ SpeakerMixData fallbackToSingleSpeakerMix();
 - 降级到 Single 的逻辑集中在一个显式 helper 中。
 - 推理路径遇到无效 dynamic 数据时明确 fallback 到 fixed/static，并保留注释。
 
+### 完成情况
+
+- 已引入内部 `SpeakerMixValidationError` 和 `validateSpeakerMixData(...)`。
+- 已集中 `fallbackToSingleSpeakerMix()`，避免各分支分散返回 `{}`。
+- `normalizeSpeakerMixData(...)` 外部行为保持不变，仍由 `TestSpeakerMix` 覆盖。
+
 ### 不要做
 
 - 不要在每个 UI / Action 调用方手写合法性判断。
@@ -228,7 +233,7 @@ SpeakerMixData fallbackToSingleSpeakerMix();
 
 ---
 
-## P1：Follow Track 冗余字段清理
+## P1：Follow Track 冗余字段清理（已完成）
 
 ### 问题
 
@@ -255,6 +260,15 @@ Property<bool> useTrackSpeakerInfo{true};
    - `setOwnVoiceContext(...)`
    - `useTrackVoiceContext()`
    - `selectOwnSingleSpeaker(...)`
+
+### 完成情况
+
+- 已删除 `SingingClip::useTrackSpeakerInfo` 和同步逻辑。
+- Clipboard / DSPX workspace 序列化不再写入 `useTrackSpeakerInfo`。
+- `SingingClip::setSpeakerMixData()` 在 Follow Track 下会复制当前 effective singer/speaker
+  并退出跟随，不再静默失败。
+- `ParamEditorView::onSpeakerMixEdited(...)` 不再在 Follow Track 下提前返回，而是走
+  `SpeakerMixActions::replaceSpeakerMix(...)` 保持 undo 语义。
 
 ### 验收场景
 
@@ -419,14 +433,14 @@ private:
    - UI 入口仍保留业务语义，底层 action 已统一为 voice context 快照。
    - Track 单 speaker 选择已进入 history。
 
-2. **补最小测试集**
+2. **补最小测试集（已完成）**
    - 先补 `SpeakerMixData` 和 `InferSpeakerMix` 的纯函数测试。
    - 这一步能保护后续 normalize / bypass 重构。
 
-3. **拆分 normalize / validate**
+3. **拆分 normalize / validate（已完成）**
    - 在测试保护下拆，避免隐式降级行为改变后无人发现。
 
-4. **删除 Follow Track 冗余字段**
+4. **删除 Follow Track 冗余字段（已完成）**
    - 不需要旧工程读写兼容。
    - 新代码只走 effective voice context。
 

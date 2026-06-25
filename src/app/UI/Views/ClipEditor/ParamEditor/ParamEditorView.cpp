@@ -189,8 +189,6 @@ void ParamEditorView::onNextKeyframe() const {
 void ParamEditorView::onSpeakerMixEdited(const SpeakerMixData &data) const {
     if (!m_clip)
         return;
-    if (m_clip->useTrackSingerInfo.get())
-        return;
 
     const auto normalized = normalizeSpeakerMixData(data);
     if (normalized == m_clip->speakerMixData())

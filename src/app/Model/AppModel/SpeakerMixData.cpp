@@ -14,6 +14,29 @@ namespace SpeakerMixModel {
         constexpr double kWeightMin = 0.0;
         constexpr double kWeightMax = 1.0;
 
+        enum class SpeakerMixValidationError {
+            None,
+            SingleMode,
+            TooFewSources,
+            EmptySource,
+            InvalidFixedWeights,
+            InvalidDynamicKeyframes,
+            UnsupportedMode,
+        };
+
+        SpeakerMixData fallbackToSingleSpeakerMix() {
+            return {};
+        }
+
+        void normalizePresetMetadata(SpeakerMixData &data) {
+            data.sourcePresetId = data.sourcePresetId.trimmed();
+            data.sourcePresetName = data.sourcePresetName.trimmed();
+            if (data.sourcePresetId.isEmpty()) {
+                data.sourcePresetName.clear();
+                data.sourcePresetDirty = false;
+            }
+        }
+
         QVector<double> normalizeExplicitWeights(const QVector<double> &weights) {
             QVector<double> result;
             result.reserve(weights.size());
@@ -69,6 +92,36 @@ namespace SpeakerMixModel {
             }
             return false;
         }
+
+        SpeakerMixValidationError validateSpeakerMixData(const SpeakerMixData &data) {
+            if (data.mode == SingerSourceMode::Single)
+                return SpeakerMixValidationError::SingleMode;
+
+            const int sourceCount = data.sources.size();
+            if (sourceCount < 2)
+                return SpeakerMixValidationError::TooFewSources;
+            if (hasEmptySource(data.sources))
+                return SpeakerMixValidationError::EmptySource;
+
+            const int explicitWeightCount = sourceCount - 1;
+            switch (data.mode) {
+                case SingerSourceMode::FixedMix:
+                    if (data.fixedWeights.size() != explicitWeightCount)
+                        return SpeakerMixValidationError::InvalidFixedWeights;
+                    return SpeakerMixValidationError::None;
+                case SingerSourceMode::DynamicMix:
+                    if (data.dynamicKeyframes.isEmpty())
+                        return SpeakerMixValidationError::InvalidDynamicKeyframes;
+                    for (const auto &keyframe : data.dynamicKeyframes) {
+                        if (keyframe.weights.size() != explicitWeightCount)
+                            return SpeakerMixValidationError::InvalidDynamicKeyframes;
+                    }
+                    return SpeakerMixValidationError::None;
+                case SingerSourceMode::Single:
+                    break;
+            }
+            return SpeakerMixValidationError::UnsupportedMode;
+        }
     }
 
     bool SpeakerMixSource::operator==(const SpeakerMixSource &other) const {
@@ -101,33 +154,20 @@ namespace SpeakerMixModel {
 
     SpeakerMixData normalizeSpeakerMixData(const SpeakerMixData &data) {
         SpeakerMixData result = data;
-        result.sourcePresetId = result.sourcePresetId.trimmed();
-        result.sourcePresetName = result.sourcePresetName.trimmed();
-        if (result.sourcePresetId.isEmpty()) {
-            result.sourcePresetName.clear();
-            result.sourcePresetDirty = false;
-        }
-        const int sourceCount = result.sources.size();
-        const int explicitWeightCount = sourceCount - 1;
+        normalizePresetMetadata(result);
 
-        if (result.mode == SingerSourceMode::Single || sourceCount < 2 ||
-            hasEmptySource(result.sources)) {
-            return {};
-        }
+        const auto validationError = validateSpeakerMixData(result);
+        if (validationError != SpeakerMixValidationError::None)
+            return fallbackToSingleSpeakerMix();
 
+        const int explicitWeightCount = result.sources.size() - 1;
         switch (result.mode) {
             case SingerSourceMode::FixedMix:
-                if (result.fixedWeights.size() != explicitWeightCount)
-                    return {};
                 result.fixedWeights = normalizeExplicitWeights(result.fixedWeights);
                 normalizeInactiveKeyframes(result.dynamicKeyframes, explicitWeightCount);
                 return result;
             case SingerSourceMode::DynamicMix:
-                if (result.dynamicKeyframes.isEmpty())
-                    return {};
                 for (auto &keyframe : result.dynamicKeyframes) {
-                    if (keyframe.weights.size() != explicitWeightCount)
-                        return {};
                     keyframe.weights = normalizeExplicitWeights(keyframe.weights);
                 }
                 std::sort(result.dynamicKeyframes.begin(), result.dynamicKeyframes.end(),

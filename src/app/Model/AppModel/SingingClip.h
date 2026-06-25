@@ -93,7 +93,6 @@ public:
     ParamInfo params;
 
     Property<bool> useTrackSingerInfo{true};
-    Property<bool> useTrackSpeakerInfo{true};
 
 signals:
     void singerOrSpeakerChanged();

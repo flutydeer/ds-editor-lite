@@ -226,7 +226,6 @@ QJsonObject ClipsInfo::serializeToJson(const ClipsInfo &info) {
             obj["defaultLanguage"] = singingClip->defaultLanguage();
             const bool useTrackInfo = singingClip->useTrackSingerInfo.get();
             obj["useTrackSingerInfo"] = useTrackInfo;
-            obj["useTrackSpeakerInfo"] = useTrackInfo;
             obj["singer"] = serializeSingerInfo(singingClip->ownSingerInfo());
             obj["speaker"] = serializeSpeakerInfo(singingClip->ownSpeakerInfo());
             if (!useTrackInfo)
@@ -276,8 +275,7 @@ ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
                 note->deserialize(noteVal.toObject());
                 singingClip->insertNote(note);
             }
-            const bool useTrackInfo =
-                obj["useTrackSingerInfo"].toBool(true) && obj["useTrackSpeakerInfo"].toBool(true);
+            const bool useTrackInfo = obj["useTrackSingerInfo"].toBool(true);
             if (!useTrackInfo) {
                 const auto singerInfo = deserializeSingerInfo(obj["singer"].toObject());
                 const auto speakerInfo = resolveSpeakerInfo(
