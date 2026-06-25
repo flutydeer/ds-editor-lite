@@ -94,7 +94,7 @@
 3. 已删除 Follow Track 冗余字段和静默失败路径。
 4. 已处理 Follow Track 相关 UI 显示一致性。
 5. 已完成 bypass 正交化。
-6. 下一步建议做 SpeakerMixEditorView commit/discard。
+6. 已完成 SpeakerMixEditorView commit/discard 收敛。
 
 ---
 
@@ -352,9 +352,9 @@ struct SpeakerMixData {
 
 ---
 
-## P3：SpeakerMixEditorView commit/discard
+## P3：SpeakerMixEditorView commit/discard（已完成）
 
-### 当前状态
+### 原状态
 
 `SpeakerMixEditorView` 内部仍是：
 
@@ -392,6 +392,27 @@ private:
 ```
 
 建议先完成 Action/数据层重构，再做这项。否则两套状态机同时变化，回归成本会偏高。
+
+### 已完成方案
+
+`SpeakerMixEditorView` 已显式拆分 committed snapshot 和 working edit state：
+
+```cpp
+SpeakerMixData committedMixData() const;
+SpeakerMixData workingMixData() const;
+void commit();
+void discard();
+```
+
+当前 `m_committedData` 保存模型侧已确认快照，`m_keyframes` 保存画布工作态。
+原有 `speakerMixData()` 保留为 `workingMixData()` 的兼容入口，避免 UI 业务调用侧扩散改名。
+
+交互语义保持不变：
+
+- 双击新增关键帧、删除关键帧、拖拽释放仍然即时 `commit()`，由
+  `ParamEditorView::onSpeakerMixEdited()` 进入原有 action/history 路径。
+- Escape 已有明确 `discard()` 语义，会丢弃当前工作态并恢复到 committed snapshot。
+- `setSpeakerMixData()` 和 reference speaker 更新会重建 working state，行为与原先刷新模型数据一致。
 
 ---
 
@@ -465,8 +486,9 @@ private:
    - 旧的 `FixedMix + dynamicKeyframes` bypass 组合语义已移除。
    - 序列化与测试已同步。
 
-6. **最后做 EditorView commit/discard（下一步）**
-   - 这是交互状态机重构，建议不要和数据模型迁移混在一个提交里。
+6. **最后做 EditorView commit/discard（已完成）**
+   - 已拆分 committed snapshot 与 working edit state。
+   - 现有 UI 操作仍保持操作完成即进入 action/history。
 
 ---
 

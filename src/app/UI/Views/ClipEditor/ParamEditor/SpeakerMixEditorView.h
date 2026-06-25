@@ -45,7 +45,12 @@ public:
     void setSpeakerMixData(const SpeakerMixModel::SpeakerMixData &data);
     void setReferenceSpeakers(const QList<SpeakerInfo> &speakers);
     [[nodiscard]] SpeakerMixModel::SpeakerMixData speakerMixData() const;
+    [[nodiscard]] SpeakerMixModel::SpeakerMixData committedMixData() const;
+    [[nodiscard]] SpeakerMixModel::SpeakerMixData workingMixData() const;
     [[nodiscard]] bool isEditable() const;
+
+    void commit();
+    void discard();
 
     const QList<SpeakerMixSpeaker> &speakers() const;
     const QList<SpeakerMixKeyframe> &keyframes() const;
@@ -99,14 +104,13 @@ private:
 
     void addKeyframeAt(int tick);
     void deleteSelectedKeyframe();
-    void syncFromData();
-    void emitEditedData();
+    void syncWorkingFromCommitted();
     void clearInteractionState();
 
     QList<SpeakerMixSpeaker> m_speakers;
     QList<SpeakerMixKeyframe> m_keyframes;
     QList<SpeakerInfo> m_referenceSpeakers;
-    SpeakerMixModel::SpeakerMixData m_data;
+    SpeakerMixModel::SpeakerMixData m_committedData;
     bool m_editable = false;
     bool m_dynamicBypassed = false;
     QPointer<ToolTip> m_tooltip;
