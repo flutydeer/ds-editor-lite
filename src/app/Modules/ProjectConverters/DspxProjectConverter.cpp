@@ -951,14 +951,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         opendspx::SerializationErrorList errors;
         std::stringstream ss(std::ios::out);
         opendspx::Serializer::serialize(
-            ss, model_, errors, opendspx::Serializer::FailFast | opendspx::Serializer::CheckError);
-
-        if (!errors.empty()) {
-            msg += "Serialization errors occurred:";
-            for (const auto &err : errors)
-                msg += "  Error type:" + std::to_string(err->type());
-            return false;
-        }
+            ss, model_, errors, opendspx::Serializer::CheckError);
 
         QFile file(filePath);
         if (!file.open(QIODevice::WriteOnly)) {
@@ -973,6 +966,29 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
 
         if (written != jsonData.size()) {
             msg += "Failed to write all data to file:" + filePath;
+            return false;
+        }
+
+        if (!errors.empty()) {
+            QTextStream stream(&msg, QIODeviceBase::WriteOnly | QIODeviceBase::Text);
+            stream << "Serialization errors occurred:\n";
+            for (const auto &err : errors) {
+                stream << "0x" << Qt::hex << err->type();
+                QString jsonPath;
+                if (err->type() == opendspx::SerializationError::RangeConstraintViolation) {
+                    jsonPath = QString::fromStdString(std::static_pointer_cast<opendspx::RangeConstraintViolationError>(err)->path());
+                } else if (err->type() == opendspx::SerializationError::InvalidRatioPartition) {
+                    jsonPath = QString::fromStdString(std::static_pointer_cast<opendspx::InvalidRatioPartitionError>(err)->path());
+                } else if (err->type() == opendspx::SerializationError::PartCountNotMatch) {
+                    jsonPath = QString::fromStdString(std::static_pointer_cast<opendspx::PartCountNotMatchError>(err)->path());
+                } else if (err->type() == opendspx::SerializationError::EmptySingerMixing) {
+                    jsonPath = QString::fromStdString(std::static_pointer_cast<opendspx::EmptySingerMixingError>(err)->path());
+                }
+                if (!jsonPath.isEmpty()) {
+                    stream << " at " << jsonPath;
+                }
+                stream << "\n";
+            }
             return false;
         }
 
