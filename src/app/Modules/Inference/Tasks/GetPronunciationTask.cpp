@@ -54,8 +54,8 @@ void GetPronunciationTask::runTask() {
     qInfo() << "获取发音任务完成 taskId:" << id() << "terminate:" << terminated();
 }
 
-QStringList GetPronunciationTask::getPronunciations(
-    const QList<NoteInferenceSnapshot> &notes) const {
+QStringList
+    GetPronunciationTask::getPronunciations(const QList<NoteInferenceSnapshot> &notes) const {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
         qFatal() << "Language module not ready yet";
         return {};
@@ -70,7 +70,7 @@ QStringList GetPronunciationTask::getPronunciations(
         return lyric.count('+') == lyric.length();
     };
 
-    std::vector<LangCore::G2pInput *> g2pInput;
+    std::vector<LangCore::G2pInput> g2pInput;
     QList<int> nonRestIndices;
     for (int i = 0; i < notes.count(); i++) {
         const auto &note = notes.at(i);
@@ -82,7 +82,7 @@ QStringList GetPronunciationTask::getPronunciations(
         while (lyric.endsWith('+'))
             lyric.chop(1);
         const auto g2pId = ("g2p-" + note.language + "-official").toStdString();
-        g2pInput.push_back(new LangCore::G2pInput(lyric.toStdString(), g2pId));
+        g2pInput.push_back(LangCore::G2pInput(lyric.toStdString(), g2pId));
     }
 
     std::vector<std::string> priorityG2pIds = {};

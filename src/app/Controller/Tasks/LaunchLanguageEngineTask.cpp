@@ -135,20 +135,25 @@ void LaunchLanguageEngineTask::runTask() {
 
     const std::filesystem::path packagesRootDir =
         stdc::system::application_directory() / _TSTR("G2pPackages");
-    langMgr->addPackagePath(packagesRootDir);
+    langMgr->addPackagePath("", packagesRootDir);
 
     if (const auto onnxDriverInitialized = initializeOnnxDriver(langMgr, "cpu", 0, true);
         !onnxDriverInitialized)
         std::cerr << "Failed to initializeOnnxDriver" << std::endl;
 
-    std::string msg;
-    langMgr->initialize(msg);
-
-    if (langMgr->initialized()) {
-        qInfo() << "Successfully launched language module";
-    } else {
+    const auto initResult = langMgr->initialize();
+    if (!initResult) {
+        errorMessage = "Failed to initialize langMgr: " + initResult.error().message();
         success = false;
-        errorMessage = msg;
+        return;
     }
+
+    if (!langMgr->initialized()) {
+        errorMessage = "Failed to initialize langMgr";
+        success = false;
+        return;
+    }
+
+    qInfo() << "Successfully launched language module";
     success = true;
 }

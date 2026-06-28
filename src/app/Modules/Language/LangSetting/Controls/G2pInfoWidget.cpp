@@ -52,7 +52,7 @@ namespace LangSetting {
 
     void G2pInfoWidget::setInfo(const QString &g2pId) const {
         const auto g2pSetFactory = LangSetting::ILangSetManager::instance()->g2pSet(g2pId);
-        const auto g2pFactory = LangCore::Manager::instance()->task("g2p", g2pId.toStdString());
+        const auto g2pFactory = LangCore::Manager::instance()->task("g2p", "", g2pId.toStdString());
 
         // m_languageLabel->setText(tr("Language: ") + g2pFactory->displayName());
         // m_authorLabel->setText(tr("Author: ") + g2pFactory->author());
