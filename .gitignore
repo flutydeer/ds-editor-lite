@@ -57,6 +57,7 @@ CMakeSettings.json
 .claude
 .codex
 .codegraph
+.hermes
 
 *.sublime-*
 setup-vcpkg.json
