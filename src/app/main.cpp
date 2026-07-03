@@ -2,6 +2,7 @@
 // Created by fluty on 2023/8/27.
 //
 
+#include "AppContext.h"
 #include "Controller/AppController.h"
 #include "Controller/ClipController.h"
 #include "Controller/ProjectStatusController.h"
@@ -9,10 +10,6 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Audio/AudioContext.h"
-#include "Modules/Audio/AudioSystem.h"
-#include "Modules/Audio/subsystem/MidiSystem.h"
-#include "Modules/Audio/subsystem/OutputSystem.h"
-#include "Modules/Audio/utils/DeviceTester.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/PackageManager/PackageManager.h"
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
@@ -44,25 +41,6 @@
 #if defined(WITH_DIRECT_MANIPULATION)
 #  include <QWDMHCore/DirectManipulationSystem.h>
 #endif
-
-struct AudioSystemContext {
-    AudioSystemContext() {
-        AudioSystem::outputSystem()->initialize();
-        AudioSystem::midiSystem()->initialize();
-        // Managed by Qt Object System. No need for manual memory management.
-        new DeviceTester(&audioSystem);
-        new AudioContext(&audioSystem);
-    }
-
-    AudioSystem audioSystem;
-};
-
-struct AppContext {
-#if defined(WITH_DIRECT_MANIPULATION)
-    QWDMH::DirectManipulationSystem directManipSystem;
-#endif
-    AudioSystemContext audio;
-};
 
 class Restarter {
 public:
@@ -134,18 +112,17 @@ int main(int argc, char *argv[]) {
     f.setPixelSize(13);
     QApplication::setFont(f);
 
-    // Initialize FontManager to load custom fonts early
+    // Initialize FontManager to load custom fonts early (stays Meyers static)
     FontManager::instance();
 
     QTranslator translator;
     if (translator.load(":translate/translation_zh_CN.qm"))
         QApplication::installTranslator(&translator);
 
+    // Construct AppContext — creates ALL business singletons in dependency order
     AppContext appContext;
 
-    AppController::instance();
-    InferEngine::instance();
-    PackageManager::instance();
+    // Infrastructure singletons (stays Meyers static)
     AppColorPalette::instance()->load(":/theme/lite-dark/app-color-palette.json");
 
     QObject::connect(inferEngine, &InferEngine::engineInitialized, appController,

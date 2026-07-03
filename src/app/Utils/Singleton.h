@@ -6,16 +6,22 @@
 #ifndef SINGLETON_H
 #define SINGLETON_H
 
+#include "../AppContext.h"
 
 // Put this in the class definition (.h)
 #define LITE_SINGLETON_DECLARE_INSTANCE(ClassName)                                                 \
+    friend class AppContext;                                                                        \
     static ClassName *instance();
 
 // Put this in the source file (.cpp)
+// Delegates to AppContext::instance<ClassName>() when AppContext is active.
+// Falls back to Meyers static when AppContext is not constructed (e.g. in tests).
 #define LITE_SINGLETON_IMPLEMENT_INSTANCE(ClassName)                                               \
     ClassName *ClassName::instance() {                                                             \
-        static ClassName obj;                                                                      \
-        return &obj;                                                                               \
+        if (auto *p = AppContext::instance<ClassName>())                                           \
+            return p;                                                                               \
+        static ClassName obj;                                                                       \
+        return &obj;                                                                                \
     }
 
 
