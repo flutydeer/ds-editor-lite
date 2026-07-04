@@ -37,7 +37,6 @@ class DialogButtonBar : public QWidget {
 public:
     explicit DialogButtonBar(QWidget *parent = nullptr);
     ~DialogButtonBar() override;
-    // void addButtonToStart(Button *button);
     void addButton(Button *button) const;
     void reset() const;
 

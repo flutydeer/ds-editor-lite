@@ -10,7 +10,6 @@
 class InferParamCurve {
 
 public:
-    // const int step = 5;
     QList<double> values;
 
     friend bool operator==(const InferParamCurve &lhs, const InferParamCurve &rhs) {

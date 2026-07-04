@@ -7,7 +7,6 @@
 
 #include "Utils/Macros.h"
 
-// DECL_INTERFACE(IMainWindow)
 LITE_INTERFACE IMainWindow {
     I_DECL(IMainWindow)
     I_METHOD(void updateWindowTitle());

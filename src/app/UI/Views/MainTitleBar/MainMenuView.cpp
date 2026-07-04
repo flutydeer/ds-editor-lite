@@ -148,23 +148,6 @@ void MainMenuViewPrivate::openFileWithSavePrompt(const QString &filePath) {
         openFile();
 }
 
-// void MainMenuViewPrivate::onOpenAProject() {
-//     Q_Q(MainMenuView);
-//     auto openAProject = [=] {
-//         auto lastDir = appController->lastProjectFolder();
-//         auto fileName = QFileDialog::getOpenFileName(q, tr("Select an A Project File"), lastDir,
-//                                                      tr("Project File (*.json)"));
-//         if (fileName.isNull())
-//             return;
-//         appController->importAceProject(fileName);
-//     };
-//     if (!historyManager->isOnSavePoint()) {
-//         if (m_mainWindow->askSaveChanges())
-//             openAProject();
-//     } else
-//         openAProject();
-// }
-
 void MainMenuViewPrivate::onImportMidiFile() {
     Q_Q(MainMenuView);
     const auto lastDir = appController->lastProjectFolder();
@@ -253,12 +236,6 @@ void MainMenuViewPrivate::onPaste() {
     else if (m_panelType == AppGlobal::TracksEditor)
         clipboardController->paste();
 }
-
-// void MainMenuViewPrivate::onGetMidiFromAudioClip() {
-//     const auto audioClip = dynamic_cast<AudioClip
-//     *>(appModel->findClipById(dialog.selectedClipId)); Q_ASSERT(audioClip);
-//     midiExtractController->runExtractMidi(audioClip);
-// }
 
 void MainMenuViewPrivate::onExtractPitchParam() {
     const auto singingClip =
@@ -434,8 +411,6 @@ void MainMenuViewPrivate::updatePasteActionState() {
 void MainMenuViewPrivate::initActions() {
     initFileActions();
     initEditActions();
-    // initOptionsActions();
-    // initHelpActions();
 }
 
 void MainMenuViewPrivate::initFileActions() {
@@ -685,9 +660,3 @@ Menu *MainMenuViewPrivate::buildHelpMenu() {
     menuHelp->addAction(actionAbout);
     return menuHelp;
 }
-
-// void MainMenuViewPrivate::initOptionsActions() {
-// }
-
-// void MainMenuViewPrivate::initHelpActions() {
-// }

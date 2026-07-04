@@ -29,10 +29,6 @@ void TrackEditorBackgroundView::paint(QPainter *painter, const QStyleOptionGraph
     auto endTrackIndex = sceneYToTrackIndex(visibleRect().bottom());
 
     // Draw background
-    // auto backgroundColor = QColor(42, 43, 44);
-    // painter->setPen(Qt::NoPen);
-    // painter->setBrush(backgroundColor);
-    // painter->drawRect(boundingRect());
 
     // Draw selected track background
     constexpr auto selectionBackgroundColor = QColor(0x31, 0x35, 0x3F);
@@ -53,7 +49,6 @@ void TrackEditorBackgroundView::paint(QPainter *painter, const QStyleOptionGraph
     pen.setWidthF(penWidth);
     pen.setColor(commonLineColor());
     painter->setPen(pen);
-    // painter->setRenderHint(QPainter::Antialiasing);
 
     if (m_trackCount < endTrackIndex)
         endTrackIndex = m_trackCount + 1;

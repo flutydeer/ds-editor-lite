@@ -55,9 +55,6 @@ public:
 
 double PanSliderPrivate::boundAndRound(double value_) const {
     value_ = qBound(panMinimum, value_, panMaximum);
-    // if (!qFuzzyIsNull(interval)) {
-    //     value_ = linearMinimum + interval * std::round((value_ - linearMinimum) / interval);
-    // }
     return value_;
 }
 
@@ -119,11 +116,6 @@ PanSlider::PanSlider(QWidget *parent) : PanSlider(parent, *new PanSliderPrivate)
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     setFocusPolicy(Qt::StrongFocus);
     installEventFilter(this);
-
-    // d->thumbHoverAnimation.setDuration(d->animationDuration);
-    // d->thumbHoverAnimation.setEasingCurve(QEasingCurve::OutCubic);
-    // connect(&d->thumbHoverAnimation, &QVariantAnimation::valueChanged, d,
-    //         &PanSliderPrivate::setThumbBorderRatio);
 }
 
 PanSlider::~PanSlider() = default;
@@ -165,17 +157,6 @@ void PanSlider::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     QPen pen;
-
-    // auto drawZeroGraduate = [&] {
-    //     pen.setColor(d->centerGraduateColor);
-    //     pen.setWidthF(d->trackGraduatePenWidth);
-    //     painter.setPen(pen);
-    //
-    //     auto x = rect().width() / 2.0;
-    //     auto y1 = rect().top() + d->paddingH;
-    //     auto y2 = rect().height() - d->paddingH;
-    //     painter.drawLine(QPointF(x, y1), QPointF(x, y2));
-    // };
 
     auto drawSliderTrackActive = [&] {
         painter.setPen(Qt::NoPen);
@@ -230,9 +211,6 @@ void PanSlider::mouseMoveEvent(QMouseEvent *event) {
 
 void PanSlider::mouseDoubleClickEvent(QMouseEvent *event) {
     Q_D(PanSlider);
-    // auto pos = event->pos();
-    // if (d->resetOnDoubleClick && d->mouseOnThumb(pos))
-    //     resetValue();
     QWidget::mouseDoubleClickEvent(event);
 }
 

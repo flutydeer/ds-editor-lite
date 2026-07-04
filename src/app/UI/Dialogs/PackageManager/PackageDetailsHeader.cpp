@@ -16,15 +16,12 @@ PackageDetailsHeader::PackageDetailsHeader(QWidget *parent) : QWidget(parent) {
 
     lbPackageId = new QLabel;
     lbPackageId->setObjectName("lbPackageId");
-    // lbPackageId->setText("packageId");
 
     lbVendor = new QLabel;
     lbVendor->setObjectName("lbVendor");
-    // lbVendor->setText("Example Vendor");
 
     lbVersion = new QLabel;
     lbVersion->setObjectName("lbVersion");
-    // lbVersion->setText("v1.0");
 
     auto detailsSecondaryLayout = new QHBoxLayout;
     detailsSecondaryLayout->addWidget(lbVendor);

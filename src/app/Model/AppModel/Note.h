@@ -8,7 +8,6 @@
 #include "Global/AppGlobal.h"
 #include "Utils/Overlappable.h"
 #include "Utils/UniqueObject.h"
-// #include "PhonemeInfo.h"
 #include "Phonemes.h"
 #include "Pronunciation.h"
 
@@ -23,7 +22,6 @@ public:
     enum WordPropertyType { Original, Edited };
 
     explicit Note(SingingClip *context = nullptr, QObject *parent = nullptr);
-    ~Note() override;
     SingingClip *clip() const;
     void setClip(SingingClip *clip);
 
@@ -48,11 +46,6 @@ public:
 
     QStringList pronCandidates() const;
     void setPronCandidates(const QStringList &pronCandidates);
-
-    //  PhonemeInfo phonemeInfo() const;
-    // void setPhonemeInfo(WordPropertyType type, const QList<Phoneme> &phonemes);
-    // void setPhonemeInfo(const QList<Phoneme> &original, const QList<Phoneme> &edited);
-    // void setPhonemeInfo(const PhonemeInfo &info);
 
     const Phonemes &phonemes() const;
     void setPhonemes(const Phonemes &phonemes);
@@ -94,7 +87,6 @@ public:
 
 private:
     QPointer<SingingClip> m_clip;
-    // int m_start = 0;
     int m_rStart = 0;
     int m_length = AppGlobal::ticksPerQuarterNote;
     int m_keyIndex = 60;

@@ -46,10 +46,6 @@ public:
         setAutoDelete(false);
     }
 
-    // ~Task() override {
-    //     terminate();
-    // };
-
     virtual void terminate() {
         setFlag(TaskAbortRequested);
     }

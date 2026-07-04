@@ -63,8 +63,6 @@ void SeekBar::calculateParams() {
 void SeekBar::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-    // Fill background
-    //     painter.fillRect(rect(), QColor("#d0d0d0"));
 
     // Draw slider track inactive(background)
     QPen pen;
@@ -87,7 +85,6 @@ void SeekBar::paintEvent(QPaintEvent *event) {
 
     // Calculate handle
     m_handlePenWidth = m_halfHeight * m_thumbBorderRatio / 255.0;
-    //    qDebug() << m_thumbBorderRatio;
     m_handleRadius = m_halfHeight - m_handlePenWidth;
     pen.setColor(m_thumbBorderColor);
     pen.setWidthF(m_handlePenWidth);
@@ -135,7 +132,6 @@ void SeekBar::mouseMoveEvent(QMouseEvent *event) {
         setValue(m_min);
         emit valueChanged(m_value);
     } else if (pos.x() < m_actualEnd) {
-        //        auto valuePos = m_actualLength * (m_value - m_min) / (m_max - m_min) + 16;
         const auto posValue = (pos.x() - m_padding) * (m_max - m_min) / m_actualLength + m_min;
         setValue(posValue);
         emit valueChanged(m_value);
@@ -147,7 +143,6 @@ void SeekBar::mouseMoveEvent(QMouseEvent *event) {
 }
 
 void SeekBar::mouseDoubleClickEvent(QMouseEvent *event) {
-    //    qDebug() << "double click";
     const auto pos = event->pos();
     if (mouseOnHandle(pos))
         reset();
@@ -155,7 +150,6 @@ void SeekBar::mouseDoubleClickEvent(QMouseEvent *event) {
 }
 
 void SeekBar::mousePressEvent(QMouseEvent *event) {
-    //    qDebug() << "press";
     timer->start();
     m_thumbHoverAnimation->stop();
     m_thumbHoverAnimation->setStartValue(m_thumbBorderRatio);
@@ -167,7 +161,6 @@ void SeekBar::mousePressEvent(QMouseEvent *event) {
         if (x < m_actualStart) {
             setValue(m_min);
         } else if (x < m_actualEnd) {
-            //        auto valuePos = m_actualLength * (m_value - m_min) / (m_max - m_min) + 16;
             const auto posValue = (pos.x() - m_padding) * (m_max - m_min) / m_actualLength + m_min;
             setValue(posValue);
         } else {
@@ -184,7 +177,6 @@ void SeekBar::mouseReleaseEvent(QMouseEvent *event) {
         setValue(m_cachedValue);
         m_hasAsyncSetValueTask = false;
     }
-    //    qDebug() << "release";
     m_thumbHoverAnimation->stop();
     m_thumbHoverAnimation->setStartValue(m_thumbBorderRatio);
     m_thumbHoverAnimation->setEndValue(77);
@@ -244,13 +236,11 @@ void SeekBar::setThumbBorderColor(const QColor &color) {
 
 bool SeekBar::eventFilter(QObject *object, QEvent *event) {
     if (event->type() == QEvent::HoverEnter) {
-        //        qDebug() << "Hover Enter";
         m_thumbHoverAnimation->stop();
         m_thumbHoverAnimation->setStartValue(m_thumbBorderRatio);
         m_thumbHoverAnimation->setEndValue(77);
         m_thumbHoverAnimation->start();
     } else if (event->type() == QEvent::HoverLeave) {
-        //        qDebug() << "Hover Leave";
         m_thumbHoverAnimation->stop();
         m_thumbHoverAnimation->setStartValue(m_thumbBorderRatio);
         m_thumbHoverAnimation->setEndValue(102);

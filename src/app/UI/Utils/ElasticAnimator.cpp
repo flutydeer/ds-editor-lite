@@ -12,7 +12,6 @@ ElasticAnimator::ElasticAnimator(QObject *parent)
     m_timer = new QTimer(this);
     m_timer->setInterval(8);
     connect(m_timer, &QTimer::timeout, this, &ElasticAnimator::updatePosition);
-    // m_timer->start(8);
 }
 
 void ElasticAnimator::setSmoothness(const qreal value) {

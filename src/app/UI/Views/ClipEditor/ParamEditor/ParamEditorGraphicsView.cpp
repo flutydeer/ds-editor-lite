@@ -30,10 +30,6 @@ ParamEditorGraphicsView::ParamEditorGraphicsView(ParamEditorGraphicsScene *scene
     setScrollBarVisibility(Qt::Horizontal, false);
     setScrollBarVisibility(Qt::Vertical, false);
 
-    // auto grid = new TimeGridGraphicsItem;
-    // grid->setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
-    // setGridItem(grid);
-
     m_background = new CommonParamEditorView(backgroundProperties);
     m_background->setZValue(1);
     m_background->setTransparentMouseEvents(true);
@@ -199,8 +195,6 @@ void ParamEditorGraphicsView::moveToNullClipState() {
     setOffset(0);
     m_background->clearParams();
     m_foreground->clearParams();
-    // while (m_notes.count() > 0)
-    //     handleNoteRemoved(m_notes.first());
     if (m_clip) {
         disconnect(m_clip, nullptr, this, nullptr);
     }
@@ -209,8 +203,6 @@ void ParamEditorGraphicsView::moveToNullClipState() {
 }
 
 void ParamEditorGraphicsView::moveToSingingClipState(SingingClip *clip) {
-    // while (m_notes.count() > 0)
-    //     handleNoteRemoved(m_notes.first());
     if (m_clip) {
         disconnect(m_clip, nullptr, this, nullptr);
     }
@@ -220,11 +212,6 @@ void ParamEditorGraphicsView::moveToSingingClipState(SingingClip *clip) {
     setSceneLength(m_clip->length());
     setOffset(clip->start());
     updateSpeakerMixViewData();
-
-    // if (clip->notes().count() > 0) {
-    //     for (const auto note : clip->notes())
-    //         handleNoteInserted(note);
-    // }
 
     updateForeground(Param::Original, *m_clip->params.getParamByName(m_foregroundParam));
     updateForeground(Param::Edited, *m_clip->params.getParamByName(
@@ -236,7 +223,6 @@ void ParamEditorGraphicsView::moveToSingingClipState(SingingClip *clip) {
 
     connect(clip, &SingingClip::propertyChanged, this,
             &ParamEditorGraphicsView::onClipPropertyChanged);
-    // connect(clip, &SingingClip::noteChanged, this, &PianoRollGraphicsViewPrivate::onNoteChanged);
     connect(clip, &SingingClip::paramChanged, this, &ParamEditorGraphicsView::onParamChanged);
     connect(clip, &SingingClip::speakerMixChanged, this,
             &ParamEditorGraphicsView::onSpeakerMixChanged);

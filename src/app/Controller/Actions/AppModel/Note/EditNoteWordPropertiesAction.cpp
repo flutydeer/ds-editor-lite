@@ -25,8 +25,6 @@ void EditNoteWordPropertiesAction::execute() {
         auto [lyric, language, pronunciation, pronCandidates, phonemes] = m_newArgs.at(i);
         note->setLyric(lyric);
         note->setLanguage(language);
-        // note->setPhonemeInfo(Note::Original, arg.phonemes.original);
-        // note->setPhonemeInfo(Note::Edited, arg.phonemes.edited);
         note->setPhonemes(phonemes);
         note->setPronunciation(Note::Edited, pronunciation.edited);
         note->setPronCandidates(pronCandidates);
@@ -41,7 +39,6 @@ void EditNoteWordPropertiesAction::undo() {
         const auto note = m_notes.at(i);
         note->setLyric(lyric);
         note->setLanguage(language);
-        // note->setPhonemeInfo(Note::Original, arg.phonemes.original);
         note->setPhonemes(phonemes);
         note->setPronunciation(Note::Edited, pronunciation.edited);
         note->setPronCandidates(pronCandidates);

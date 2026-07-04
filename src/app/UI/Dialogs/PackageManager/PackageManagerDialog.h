@@ -36,12 +36,6 @@ private slots:
     void onSelectionChanged(const QModelIndex &current, const QModelIndex &previous) const;
 
 private:
-    // enum State {
-    //     Loading,
-    //     Success,
-    //     Failed
-    // };
-
     enum DetailsPanelState {
         PackageUnselected,
         PackageSelected
@@ -66,7 +60,6 @@ private:
     PackageDetailsHeader *detailsHeader = nullptr;
     PackageDetailsContent *detailsContent = nullptr;
 
-    // QList<PackageInfo> successfulPackages;
 
     PackageListModel *listModel = nullptr;
     PackageFilterProxyModel *proxyModel = nullptr;

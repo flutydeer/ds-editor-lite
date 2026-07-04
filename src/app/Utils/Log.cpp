@@ -58,7 +58,6 @@ void Log::handler(const QtMsgType type, const QMessageLogContext &context, const
     message.time = timeStr();
     message.tag = QFileInfo(context.file).baseName();
     message.text = msg;
-    // auto methodName = QString("[%1]").arg(prettyMethodName(context.function));
     if (type == QtDebugMsg) {
         message.level = Debug;
         instance()->log(message);
@@ -88,7 +87,6 @@ void Log::logSystemInfo() {
     i(tag, "Product Version: " + QSysInfo::productVersion());
     i(tag, "Kernel Type: " + QSysInfo::kernelType());
     i(tag, "Kernel Version: " + QSysInfo::kernelVersion());
-    // i(tag, "Host Name: " + QSysInfo::machineHostName());
     i(tag, "--------- System Info End ---------");
 }
 

@@ -123,7 +123,6 @@ void Toast::showNextToast() {
     m_posAnimation.setTargetObject(m_toastWidget);
 
     const auto toastWidth = m_toastWidget->geometry().width();
-    // qDebug() << toastWidth;
     if (m_globalContext) {
         const auto targetPos =
             m_globalContext->geometry().center() -

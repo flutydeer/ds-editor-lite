@@ -218,7 +218,6 @@ void InferControllerPrivate::onInferOptionChanged(const AppOptionsGlobal::Option
         return;
 
     m_autoStartAcousticInfer = appOptions->inference()->autoStartInfer;
-    // runInferAcousticIfNeeded();
 }
 
 void InferControllerPrivate::onPlaybackStatusChanged(const PlaybackGlobal::PlaybackStatus status) {
@@ -305,8 +304,6 @@ void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {
 void InferControllerPrivate::handlePiecesChanged(const PieceList &newPieces,
                                                  const PieceList &discardedPieces,
                                                  SingingClip *clip) {
-    // m_getPronTasks.cancelIf(L_PRED(t, t->clipId() == clip->id()));
-    // m_getPhoneTasks.cancelIf(L_PRED(t, t->clipId() == clip->id()));
     for (const auto &piece : discardedPieces) {
         cancelPieceRelatedTasks(piece->id());
         auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
@@ -318,8 +315,6 @@ void InferControllerPrivate::handlePiecesChanged(const PieceList &newPieces,
         }
     }
     Helper::updateAllOriginalParam(*clip);
-    // if (appStatus->languageModuleStatus == AppStatus::ModuleStatus::Ready)
-    //     createAndRunGetPronTask(*clip);
 }
 
 void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType type,

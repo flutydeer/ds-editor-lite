@@ -105,7 +105,6 @@ void PlaybackController::onModelChanged() {
 
 void PlaybackControllerPrivate::onValidationFinished(const bool passed) {
     Q_Q(PlaybackController);
-    // qDebug() << "PlaybackController::onValidationFinished"
     //          << "passed" << passed;
     if (m_playRequested) {
         m_playRequested = false;

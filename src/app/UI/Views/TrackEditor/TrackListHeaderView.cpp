@@ -21,7 +21,6 @@ TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     btnNewTrack->setFixedSize(24, 24);
     btnNewTrack->setToolTip(tr("New Track"));
     btnNewTrack->installEventFilter(new ToolTipFilter(btnNewTrack));
-    // btnNewTrack->setText(tr("New Track"));
     connect(btnNewTrack, &QPushButton::clicked, trackController, &TrackController::onNewTrack);
     const auto mainLayout = new QHBoxLayout;
     mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
@@ -32,8 +31,5 @@ TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
 }
 
 void TrackListHeaderView::paintEvent(QPaintEvent *event) {
-    // QPainter painter(this);
-    // painter.setPen(Qt::NoPen);
-    // painter.fillRect(rect(), QColor(42, 43, 44));
     QWidget::paintEvent(event);
 }

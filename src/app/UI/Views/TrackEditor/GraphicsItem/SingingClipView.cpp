@@ -34,7 +34,6 @@ std::tuple<qsizetype, qsizetype> SingingClipView::NoteViewModel::interval() cons
 SingingClipView::SingingClipView(const int itemId, QGraphicsItem *parent)
     : AbstractClipView(itemId, parent) {
     setCanResizeLength(true);
-    // setName("New Pattern");
 }
 
 SingingClipView::~SingingClipView() {
@@ -108,9 +107,6 @@ QString SingingClipView::text() const {
 
 void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
                                       const QColor color) {
-    // painter->setPen(Qt::red);
-    // painter->drawRect(previewRect);
-    // painter->setPen(Qt::NoPen);
     painter->setRenderHint(QPainter::Antialiasing);
 
     const auto rectTop = previewRect.top();
@@ -156,7 +152,6 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
         if (start() + note->rStart < clipLeft) {
             left = sceneXToItemX(tickToSceneX(clipLeft));
             width = sceneXToItemX(tickToSceneX(start() + note->rStart + note->length)) - left;
-            // qDebug() << left << width << note->lyric;
         } else if (start() + note->rStart + note->length >= clipRight)
             width = tickToSceneX(clipRight - start() - note->rStart);
         const auto top = -(note->keyIndex - highestKeyIndex) * noteHeight + rectTop;

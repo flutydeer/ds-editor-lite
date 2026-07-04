@@ -55,7 +55,6 @@ public:
     bool initialized() const;
     bool isAboutToQuit() const noexcept;
     void setAboutToQuit(bool aboutToQuit) noexcept;
-    // void loadConfig(const QString &path);
     QString configPath() const;
     QString singerProviderPath() const;
     QString inferenceDriverPath() const;
@@ -89,9 +88,6 @@ private:
     static srt::SingerSpec *findSingerForPackage(const srt::PackageRef &package, const QString &singerId);
     static srt::SingerSpec *findSingerForPackage(const srt::PackageRef &package, std::string_view singerId);
     std::shared_ptr<InferenceLoader> findLoaderForSinger(const SingerIdentifier &identifier) const;
-#if false
-    bool loadInferences(const QString &path);
-#endif
     bool loadInferencesForSinger(const SingerIdentifier &identifier);
     void terminateInferDurationAll() const;
     void terminateInferPitchAll() const;

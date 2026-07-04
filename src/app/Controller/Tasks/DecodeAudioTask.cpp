@@ -56,8 +56,6 @@ void DecodeAudioTask::runTask() {
     m_sampleRate = io->sampleRate();
     m_channels = io->channelCount();
     m_frames = io->length();
-    // auto totalSize = frames * channels;
-    // qDebug() << frames;
 
     std::vector<float> buffer(m_chunkSize * m_channels);
     const auto totalBufferCount = m_frames / m_chunkSize;
@@ -70,7 +68,6 @@ void DecodeAudioTask::runTask() {
             status.isIndetermine = true;
             status.runningStatus = TaskGlobal::Error;
             setStatus(status);
-            // QThread::sleep(3);
             return;
         }
         samplesRead = io->read(buffer.data(), m_chunkSize);
@@ -112,11 +109,9 @@ void DecodeAudioTask::runTask() {
             setStatus(status);
         } else if (buffersRead % (totalBufferCount / 200) == 0) {
             const auto progress = 100 * buffersRead / totalBufferCount;
-            // qDebug() << progress;
             status.progress = static_cast<int>(progress);
             setStatus(status);
         }
-        // QThread::msleep(1);
     }
 
     // Create mipmap from peak cache
@@ -130,7 +125,6 @@ void DecodeAudioTask::runTask() {
             status.isIndetermine = true;
             status.runningStatus = TaskGlobal::Error;
             setStatus(status);
-            // QThread::sleep(3);
             return;
         }
         if ((i + 1) % m_mipmapScale == 0) {
@@ -152,6 +146,5 @@ void DecodeAudioTask::runTask() {
     if (hasTail)
         m_peakCacheMipmap.append(std::make_pair(min, max));
 
-    // QThread::msleep(3000);
     success = true;
 }

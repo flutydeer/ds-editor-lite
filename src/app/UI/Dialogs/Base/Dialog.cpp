@@ -82,8 +82,6 @@ Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
     : QDialog(parent ? parent : m_globalParent, f) {
     m_header = new DialogHeader;
     m_header->setVisible(false);
-    // setTitle("要删除此乐器吗？");
-    // setMessage("由于遇到严重的错误，应用程序需要重新启动。请联系开发者并提供应用程序的日志。");
 
     m_body = new QWidget;
     m_body->setContentsMargins(12, 12, 12, 0);

@@ -149,9 +149,6 @@ void MainTitleBar::setTitle(const QString &title) const {
     if (!m_lbTitle)
         return;
     m_lbTitle->setText(title);
-    // QFontMetrics fontWidth(m_lbTitle->font());
-    // auto elidedText = fontWidth.elidedText(title, Qt::ElideRight, m_lbTitle->width());
-    // m_lbTitle->setText(elidedText);
 }
 
 bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
@@ -174,8 +171,6 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
         setActiveStyle(true);
     else if (event->type() == QEvent::WindowDeactivate)
         setActiveStyle(false);
-    // else if (event->type() == QEvent::Resize)
-    //     setTitle(m_window->windowTitle());
 
     return QWidget::eventFilter(watched, event);
 }
@@ -191,8 +186,4 @@ void MainTitleBar::setActiveStyle(bool active) const {
         m_animation->setDuration(300);
     }
     m_animation->start();
-    // m_opacityEffect->setOpacity(active ? 1.0 : 0.5);
-    // setProperty("windowActive", active);
-    // style()->unpolish(this);
-    // style()->polish(this);
 }

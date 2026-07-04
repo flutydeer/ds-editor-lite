@@ -21,7 +21,6 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     : Dialog(parent) {
     setModal(true);
     setFocusPolicy(Qt::ClickFocus);
-    // setAttribute(Qt::WA_DeleteOnClose, true);
     setWindowTitle(tr("Options"));
 
     tabList = new QListWidget;
@@ -33,9 +32,7 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     generalPage = new GeneralPage;
     audioPage = new AudioPage;
     midiPage = new MidiPage;
-    // m_pseudoSingerPage = new PseudoSingerPage;
     appearancePage = new AppearancePage;
-    // g2pPage = new G2pPage;
     inferencePage = new InferencePage;
     developerPage = new DeveloperPage;
 
@@ -43,9 +40,7 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     pageContent->addWidget(generalPage);
     pageContent->addWidget(audioPage);
     pageContent->addWidget(midiPage);
-    // m_PageContent->addWidget(m_pseudoSingerPage);
     pageContent->addWidget(appearancePage);
-    // pageContent->addWidget(g2pPage);
     pageContent->addWidget(inferencePage);
     pageContent->addWidget(developerPage);
     pageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
@@ -54,9 +49,7 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     pages.append(generalPage);
     pages.append(audioPage);
     pages.append(midiPage);
-    // m_pages.append(m_pseudoSingerPage);
     pages.append(appearancePage);
-    // pages.append(g2pPage);
     pages.append(inferencePage);
     pages.append(developerPage);
 

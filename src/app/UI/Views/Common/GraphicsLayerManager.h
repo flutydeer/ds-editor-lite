@@ -15,7 +15,6 @@ class GraphicsLayerManager {
 public:
     explicit GraphicsLayerManager(TimeGraphicsScene *scene);
 
-    // void insertLayer(qsizetype zValue, CommonGraphicsLayer *layer);
     void addLayer(CommonGraphicsLayer *layer);
     void removeLayer(CommonGraphicsLayer *layer);
 
@@ -25,7 +24,6 @@ public:
     [[nodiscard]] QList<AbstractGraphicsRectItem *> allItems(CommonGraphicsLayer *layer) const;
     void addBackgroundItem(AbstractGraphicsRectItem *item, CommonGraphicsLayer *layer);
     void addItem(AbstractGraphicsRectItem *item, CommonGraphicsLayer *layer);
-    // void removeBackgroundItem(CommonGraphicsRectItem *item);
     void removeItem(AbstractGraphicsRectItem *item, CommonGraphicsLayer *layer);
     void clearItems(CommonGraphicsLayer *layer);
     void destroyItems(CommonGraphicsLayer *layer);

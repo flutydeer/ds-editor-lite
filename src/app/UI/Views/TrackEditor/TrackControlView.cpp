@@ -73,7 +73,6 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     muteSoloTrackNameLayout->addWidget(leTrackName);
     muteSoloTrackNameLayout->addWidget(btnMute);
     muteSoloTrackNameLayout->addWidget(btnSolo);
-    // m_muteSoloTrackNameLayout->addWidget(m_cbLanguage);
     muteSoloTrackNameLayout->setSpacing(4);
     muteSoloTrackNameLayout->setContentsMargins(12, 8, 8, 4);
 
@@ -178,7 +177,6 @@ QString TrackControlView::name() const {
 
 void TrackControlView::setName(const QString &name) {
     leTrackName->setText(name);
-    // changeTrackProperty();
 }
 
 TrackControl TrackControlView::control() const {
@@ -284,11 +282,6 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
                 if (!m_track) {
                     return;
                 }
-                // auto comboBoxIndex = cbSinger->findData(QVariant::fromValue(singer.identifier()),
-                //                                         SingerIdentifierRole);
-                // if (comboBoxIndex != -1) {
-                //     cbSinger->setCurrentIndex(comboBoxIndex);
-                // }
             });
         }
     }
@@ -342,7 +335,6 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
 }
 
 void TrackControlView::changeTrackProperty() const {
-    // qDebug() << "TrackControlWidget::changeTrackProperty";
     const Track::TrackProperties args(*this);
     trackController->changeTrackProperty(args);
 }

@@ -233,7 +233,6 @@ void ProgressIndicator::setValue(const double value) {
     m_valueAnimation.setStartValue(m_apparentValue);
     m_valueAnimation.setEndValue(m_value);
     m_valueAnimation.start();
-    //    update();
 }
 
 double ProgressIndicator::minimum() const {
@@ -312,7 +311,6 @@ int ProgressIndicator::thumbProgress() const {
 
 void ProgressIndicator::setThumbProgress(const int x) {
     m_thumbProgress = x;
-    //    qDebug() << x;
     update();
 }
 

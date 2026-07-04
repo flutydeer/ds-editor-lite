@@ -49,7 +49,6 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
 
     auto decodeNotes = [&](const QJsonArray &arrNotes) {
         QList<Note *> notes;
-        // QList<Phoneme> phonemes;
         // Phoneme phoneme;
         for (const auto valNote : arrNotes) {
             auto objNote = valNote.toObject();
@@ -61,26 +60,15 @@ bool AProjectConverter::load(const QString &path, AppModel *model, QString &errM
             note->setLanguage(langMapping(objNote.value("language").toString()));
             note->setPronunciation(Pronunciation("", ""));
 
-            // const auto headPhonemes = objNote.value("headConsonants").toArray();
-            // if (headPhonemes.count() == 0) {
             //     phoneme.type = Phoneme::Normal;
             //     phoneme.start = 0;
-            //     phonemes.append(phoneme);
-            // } else if (headPhonemes.count() == 1) {
             //     phoneme.type = Phoneme::Ahead;
-            //     const auto startTick = headPhonemes.first().toInt();
-            //     const auto startMs = startTick * 60000 / m_tempo / 480;
             //     phoneme.start = qRound(startMs);
-            //     phonemes.append(phoneme);
             //
             //     phoneme.type = Phoneme::Normal;
             //     phoneme.start = 0;
-            //     phonemes.append(phoneme);
-            // }
             //
-            // note->setPhonemeInfo(Note::Edited, phonemes);
             notes.append(note);
-            // phonemes.clear();
         }
         return notes;
     };

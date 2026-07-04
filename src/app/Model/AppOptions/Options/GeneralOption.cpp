@@ -73,18 +73,6 @@ void GeneralOption::load(const QJsonObject &object) {
     if (object.contains(speakerMixPresetsKey))
         speakerMixPresets = object[speakerMixPresetsKey];
 
-#if false
-    if (object.contains(defaultPackageKey))
-        defaultPackage = object[defaultPackageKey].toString();
-    if (object.contains(defaultPackageIdKey))
-        defaultPackageId = object[defaultPackageIdKey].toString();
-    if (object.contains(defaultPackageVersionKey))
-        defaultPackageVersion = QVersionNumber::fromString(object[defaultPackageVersionKey].toString());
-    if (object.contains(defaultSingerIdKey))
-        defaultSingerId = object[defaultSingerIdKey].toString();
-    if (object.contains(defaultSpeakerIdKey))
-        defaultSpeakerId = object[defaultSpeakerIdKey].toString();
-#endif
     if (object.contains(gameDirKey))
         gameDir = object[gameDirKey].toString();
     if (object.contains(rmvpePathKey))
@@ -102,13 +90,6 @@ void GeneralOption::save(QJsonObject &object) {
         {packageSearchPathsKey,     QJsonArray::fromStringList(packageSearchPaths)},
         {recentProjectFilesKey,     QJsonArray::fromStringList(recentProjectFiles)},
         {speakerMixPresetsKey,      speakerMixPresets                             },
-#if false
-        serialize_defaultPackage(),
-        serialize_defaultPackageId(),
-        {defaultPackageVersionKey, defaultPackageVersion.toString()},
-        serialize_defaultSingerId(),
-        serialize_defaultSpeakerId(),
-#endif
         serialize_gameDir(),
         serialize_rmvpePath()
     };

@@ -51,7 +51,6 @@ static void setTrackVoiceContextForClip(Clip *clip, const SingerInfo &singerInfo
         return;
     }
     if (clip->clipType() == IClip::Singing) {
-        // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
         const auto singingClip = static_cast<SingingClip *>(clip);
         singingClip->setTrackVoiceContext(singerInfo, speakerInfo, data);
     }
@@ -97,8 +96,6 @@ QString Track::defaultLanguage() const {
 
 void Track::setDefaultLanguage(const QString &language) {
     // TODO: validate
-    // if (!AppGlobal::languageNames.contains(language))
-    //     qFatal() << "Track::Language Name Error";
     m_defaultLanguage = language;
     this->updateDefaultG2pId(language);
 }

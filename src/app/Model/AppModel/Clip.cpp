@@ -12,7 +12,6 @@ QString Clip::name() const {
 
 void Clip::setName(const QString &text) {
     m_name = text;
-    // emit propertyChanged();
 }
 
 int Clip::start() const {
@@ -21,7 +20,6 @@ int Clip::start() const {
 
 void Clip::setStart(const int start) {
     m_start = start;
-    // emit propertyChanged();
 }
 
 int Clip::length() const {
@@ -30,7 +28,6 @@ int Clip::length() const {
 
 void Clip::setLength(const int length) {
     m_length = length;
-    // emit propertyChanged();
 }
 
 int Clip::clipStart() const {
@@ -39,7 +36,6 @@ int Clip::clipStart() const {
 
 void Clip::setClipStart(const int clipStart) {
     m_clipStart = clipStart;
-    // emit propertyChanged();
 }
 
 int Clip::clipLen() const {
@@ -48,7 +44,6 @@ int Clip::clipLen() const {
 
 void Clip::setClipLen(const int clipLen) {
     m_clipLen = clipLen;
-    // emit propertyChanged();
 }
 
 double Clip::gain() const {
@@ -57,7 +52,6 @@ double Clip::gain() const {
 
 void Clip::setGain(const double gain) {
     m_gain = gain;
-    // emit propertyChanged();
 }
 
 bool Clip::mute() const {
@@ -66,7 +60,6 @@ bool Clip::mute() const {
 
 void Clip::setMute(const bool mute) {
     m_mute = mute;
-    // emit propertyChanged();
 }
 
 void Clip::notifyPropertyChanged() {

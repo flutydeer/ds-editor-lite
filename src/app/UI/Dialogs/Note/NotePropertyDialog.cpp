@@ -84,8 +84,6 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
     const auto mainLayout = new QFormLayout;
     mainLayout->setLabelAlignment(Qt::AlignmentFlag::AlignRight | Qt::AlignmentFlag::AlignTrailing |
                                   Qt::AlignmentFlag::AlignVCenter);
-    // mainLayout->addRow(tr("Start:"), sbStart);
-    // mainLayout->addRow(tr("Length:"), sbLength);
     mainLayout->addRow(tr("Language:"), m_cbLanguage);
     mainLayout->addRow(tr("Lyric:"), m_leLyric);
     mainLayout->addRow(tr("Pronunciation:"), m_lePron);
@@ -106,7 +104,6 @@ NotePropertyDialog::NotePropertyDialog(const Note *note,
             m_lePron->setFocus(Qt::TabFocusReason);
             break;
         case AppGlobal::Phonemes:
-            // m_lePhonemeAhead->setFocus(Qt::TabFocusReason);
             break;
     }
     connect(okButton(), &AccentButton::clicked, this, [this] {

@@ -499,14 +499,7 @@ void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
             painter->drawEllipse(center, kDotRadius, kDotRadius);
 
             painter->setBrush(centerColor);
-            // if (clipInnerBottom) {
-            //     painter->save();
-            //     painter->setClipRect(QRectF(center.x() - kInnerDotRadius, center.y(),
-            //                                 kInnerDotRadius * 2, kInnerDotRadius));
-            // }
             painter->drawEllipse(center, kInnerDotRadius, kInnerDotRadius);
-            // if (clipInnerBottom)
-            //     painter->restore();
         };
 
         drawDot(0, QPointF(localX, areaTop), isKfSelected, true);

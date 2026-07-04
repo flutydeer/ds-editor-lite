@@ -30,7 +30,6 @@ void PronunciationView::setPronunciation(const QString &pronunciation, const boo
 
 void PronunciationView::setTextVisible(const bool visible) {
     if (m_textVisible != visible) {
-        // qDebug() << "setTextVisible:" << visible;
         m_textVisible = visible;
         update();
     }
@@ -65,12 +64,9 @@ void PronunciationView::paint(QPainter *painter, const QStyleOptionGraphicsItem 
     painter->setPen(pen);
     painter->drawText(textRect, m_pronunciation);
 
-    // const auto time = static_cast<double>(timer.nsecsElapsed()) / 1000000.0;
-    // qDebug() << "PronunciationView painted in" << time << "ms";
 }
 
 void PronunciationView::updateRectAndPos() {
-    // update();
 }
 
 void PronunciationView::startEditingPronunciation() {

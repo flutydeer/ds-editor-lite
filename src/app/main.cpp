@@ -74,13 +74,11 @@ int main(int argc, char *argv[]) {
     if (QSysInfo::productType() == "windows")
         QGuiApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
     QApplication a(argc, argv);
-    // QApplication::setAttribute(Qt::AA_SynthesizeTouchForUnhandledMouseEvents);
     QApplication::setEffectEnabled(Qt::UI_AnimateTooltip, false);
     QApplication::setOrganizationName("OpenVPI");
     QApplication::setApplicationName("DS Editor Lite");
     QApplication::setApplicationDisplayName("Lite");
     QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
-    // QApplication::setEffectEnabled(Qt::UI_AnimateMenu, false);
     if (QSysInfo::productType() != "windows")
         QApplication::setStyle(QStyleFactory::create("windows"));
     else
@@ -129,22 +127,6 @@ int main(int argc, char *argv[]) {
                      &AppController::initializeLanguageEngine, Qt::SingleShotConnection);
     packageManager->initialize();
 
-    // 需要存储自定义的信息时，根据唯一名称获取到 editor 对象
-    // auto editor = appModel->workspaceEditor("flutydeer.filllyrics");
-    // auto workspace = editor->privateWorkspace();
-    // workspace->insert("version_code", 1);
-    // workspace->insert("isFirstRun", false);
-    // workspace->insert("recent_model_path", "D:/Model/test.onnx");
-    // editor->commit();
-
-    // auto globalWorkspace = appModel->globalWorkspace();
-    // for (const auto &key : globalWorkspace.keys())
-    //     qDebug() << "AppModel workspace contains key:" << key;
-
-    // 可根据唯一名称取出存在全局 workspace 中的数据（只读）
-    // auto privateWorkspace = appModel->getPrivateWorkspaceById("flutydeer.testplugin");
-    // qDebug() << privateWorkspace.value("recent_model_path").toString();
-
     MainWindow w;
     trackController->setParentWidget(&w);
     auto scr = QApplication::screenAt(QCursor::pos());
@@ -162,11 +144,6 @@ int main(int argc, char *argv[]) {
     w.registerDirectManipulation();
 #endif
 
-    // auto taskWindow = new TaskWindow(&w);
-    // taskWindow->move(availableRect.width() - taskWindow->width() - 8,
-    //                  availableRect.height() - taskWindow->height() - 8);
-    // taskWindow->show();
-
     auto args = QApplication::arguments();
     if (args.count() == 2) {
         auto filePath = QApplication::arguments().at(1);
@@ -176,18 +153,6 @@ int main(int argc, char *argv[]) {
             });
         }
     }
-
-    // trackController->onNewTrack();
-    // auto clip = trackController->onNewSingingClip(1, 3840);
-    // clipController->setClip(clip);
-    // for (int i = 0; i < 10; i++) {
-    //     auto note = new Note;
-    //     note->setRStart(i * 240);
-    //     note->setLength(240);
-    //     note->setLyric("啦");
-    //     note->setDefaultLanguage("cmn");
-    //     clipController->onInsertNote(note);
-    // }
 
     const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
     qInfo() << "App launched in" << time << "ms";

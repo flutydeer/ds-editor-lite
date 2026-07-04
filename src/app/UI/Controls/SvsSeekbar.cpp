@@ -336,8 +336,6 @@ namespace SVS {
         Q_D(SeekBar);
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
-        // Fill background
-        //     painter.fillRect(rect(), QColor("#d0d0d0"));
 
         // Draw slider track inactive(background)
         QPen pen;
@@ -362,7 +360,6 @@ namespace SVS {
 
         // Calculate handle
         d->handlePenWidth = d->halfHeight * d->thumbBorderRatio / 255.0;
-        //    qDebug() << d->thumbBorderRatio;
         d->handleRadius = d->halfHeight - d->handlePenWidth;
         pen.setColor(d->thumbBorderColor);
         pen.setWidthF(d->handlePenWidth);

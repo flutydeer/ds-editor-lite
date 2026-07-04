@@ -88,7 +88,6 @@ void PhonemeView::onTempoChanged() {
 }
 
 void PhonemeView::onClipPropertyChanged() {
-    // qDebug() << "PhonemeView::onClipPropertyChanged";
     moveToSingingClipState(m_clip);
     update();
 }
@@ -151,10 +150,6 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     auto noteBoundaryColor = QColor(49, 53, 63);
 
     drawWaveforms(&painter);
-    // painter.setPen(Qt::NoPen);
-    // painter.setBrush(QColor(28, 29, 30));
-    // painter.drawRect(rect());
-    // painter.setBrush(Qt::NoBrush);
 
     auto drawSolidRect = [&](const double startTick, const double endTick, const QColor &color) {
         const auto start = tickToX(startTick);
@@ -261,7 +256,6 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
             if (phoneme->offsetReady) {
                 drawSolidLine(start, phonemePenWidth,
                               phoneme->offsetEdited ? editedColor : originalColor);
-                // drawSolidLine(start, phonemePenWidth, originalColor);
                 drawPhoneName(phoneme);
             }
         }
@@ -276,8 +270,6 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     auto x = tickToX(m_position);
     painter.drawLine(QLineF(x, 0, x, rect().height()));
 
-    // const auto time = static_cast<double>(timer.nsecsElapsed()) / 1000000.0;
-    // qDebug() << "PhonemeView painted in" << time << "ms";
 }
 
 void PhonemeView::mousePressEvent(QMouseEvent *event) {
@@ -324,8 +316,6 @@ void PhonemeView::mousePressEvent(QMouseEvent *event) {
 void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
     if (!canEdit())
         return;
-    // if (event->button() != Qt::LeftButton)
-    //     return;
 
     m_mouseMoved = true;
     auto deltaTick = qRound(xToTick(event->pos().x()) - xToTick(m_mouseDownX));
@@ -527,7 +517,6 @@ QList<PhonemeView::PhonemeViewModel *> PhonemeView::findPhonemesByNoteId(int not
 
 // TODO: 只处理有效片段
 void PhonemeView::buildPhonemeList() {
-    // qDebug() << "build phoneme list";
     if (m_notes.count() == 0)
         return;
 

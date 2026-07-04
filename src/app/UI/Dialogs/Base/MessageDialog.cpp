@@ -8,17 +8,9 @@ MessageDialog::MessageDialog(const QString &title, const QString &message, QWidg
     setModal(true);
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    // mainlayout = new QVBoxLayout();
 
     setMessage(message);
-    // messageLabel = new QLabel(message, this);
-    // mainlayout->addWidget(messageLabel);
-    // this->body()->setLayout(mainlayout);
 }
-
-// QVBoxLayout *MessageDialog::mainLayout() const {
-//     return mainlayout;
-// }
 
 void MessageDialog::addButton(const QString &text, int buttonId) {
     auto *button = new Button(text, this);

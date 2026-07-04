@@ -24,7 +24,6 @@ public:
     int m_clipStart = 0;
     int m_clipLen = 0;
     double m_gain = 0;
-    // double m_pan = 0;
     bool m_mute = false;
     bool m_activeClip = false;
     bool m_canResizeLength = false;

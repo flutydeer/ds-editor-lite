@@ -8,11 +8,9 @@
 #include "UI/Controls/Menu.h"
 
 LineEdit::LineEdit(QWidget *parent) : QLineEdit(parent) {
-    // installEventFilter(new ToolTipFilter(this));
 }
 
 LineEdit::LineEdit(const QString &text, QWidget *parent) : QLineEdit(text, parent) {
-    // installEventFilter(new ToolTipFilter(this));
 }
 
 void LineEdit::mousePressEvent(QMouseEvent *event) {
@@ -21,7 +19,6 @@ void LineEdit::mousePressEvent(QMouseEvent *event) {
 }
 
 void LineEdit::contextMenuEvent(QContextMenuEvent *event) {
-    // QLineEdit::contextMenuEvent(event);
     if (const auto qMenu = createStandardContextMenu()) {
         const auto menu = new Menu(this);
         for (const auto action : qMenu->actions()) {

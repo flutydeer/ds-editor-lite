@@ -31,8 +31,6 @@ public:
 public:
     [[nodiscard]] QString configPath() const;
 
-    // void load(const QJsonObject &object);
-    // void save(const QString &path);
     bool saveAndNotify(AppOptionsGlobal::Option option);
 
     GeneralOption *general();

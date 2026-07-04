@@ -53,7 +53,6 @@ private:
     void abort();
     void buildPreviewText();
     GenericInferModel buildInputJson() const;
-    // bool processOutput(const GenericInferModel &model);
 
     srt::NO<srt::Inference> m_inferenceAcoustic, m_inferenceVocoder;
     QString m_previewText;

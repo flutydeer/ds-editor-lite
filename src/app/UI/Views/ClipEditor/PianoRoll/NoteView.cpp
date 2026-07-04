@@ -164,8 +164,6 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
 
     constexpr auto penWidth = 1.5f;
     constexpr int padding = 2;
-    // const auto radius = 4.0;
-    // const auto radiusAdjustThreshold = 12;
 
     QPen pen;
 
@@ -224,15 +222,6 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         pen.setWidthF(penWidth);
         painter->setPen(pen);
         painter->setBrush(backgroundColor);
-        // auto straightX = paddedRect.width() - radius * 2;
-        // auto straightY = paddedRect.height() - radius * 2;
-        // auto xRadius = radius;
-        // auto yRadius = radius;
-        // if (straightX < radiusAdjustThreshold)
-        //     xRadius = radius * (straightX - radius) / (radiusAdjustThreshold - radius);
-        // if (straightY < radiusAdjustThreshold)
-        //     yRadius = radius * (straightY - radius) / (radiusAdjustThreshold - radius);
-        // painter->drawRoundedRect(paddedRect, xRadius, yRadius);
         painter->drawRoundedRect(paddedRect, 2, 2);
 
         pen.setColor(foregroundColor);
@@ -241,10 +230,8 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         font.setPixelSize(fontPixelSize);
         painter->setFont(font);
         auto textRectLeft = paddedRect.left() + padding;
-        // auto textRectTop = paddedRect.top() + padding;
         auto textRectTop = paddedRect.top();
         auto textRectWidth = paddedRect.width() - 2 * padding;
-        // auto textRectHeight = paddedRect.height() - 2 * padding;
         auto textRectHeight = paddedRect.height();
         auto textRect = QRectF(textRectLeft, textRectTop, textRectWidth, textRectHeight);
 
@@ -255,13 +242,10 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         QTextOption textOption(Qt::AlignVCenter);
         textOption.setWrapMode(QTextOption::NoWrap);
 
-        if (!m_editingLyric && qMax(lyricTextWidth, pronTextWidth) < textRectWidth && textHeight < textRectHeight) {
-            // auto time1 = static_cast<double>(timer.nsecsElapsed()) / 1000000.0;
+        if (!m_editingLyric && qMax(lyricTextWidth, pronTextWidth) < textRectWidth &&
+            textHeight < textRectHeight) {
             painter->drawText(textRect, m_lyric, textOption);
-            // auto time2 = static_cast<double>(timer.nsecsElapsed()) / 1000000.0;
-            // qDebug() << "Lyric painted in" << time2 - time1 << "ms";
             if (m_pronView) {
-                // adjustPronView();
                 m_pronView->setTextVisible(true);
             }
         } else {
@@ -274,39 +258,20 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         drawRectOnly();
     else
         drawFullNote();
-
-    // const auto time = static_cast<double>(timer.nsecsElapsed()) / 1000000.0;
-    // qDebug() << "NoteView painted in" << time << "ms";
 }
 
-// void NoteView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
-//     // qDebug() << "NoteGraphicsItem::hoverMoveEvent" << event->pos().rx();
-//     if (!m_editingPitch) {
-//         const auto rx = event->pos().rx();
-//         const auto ry = event->pos().ry();
-//         const bool xInFilledRect =
-//             rx >= 0 && rx <= AppGlobal::resizeTolerance ||
-//             rx >= rect().width() - AppGlobal::resizeTolerance && rx <= rect().width();
-//         const bool yInFilledRect = ry >= 0 && ry <= rect().height() - pronunciationTextHeight();
-//         if (yInFilledRect && xInFilledRect)
-//             setCursor(Qt::SizeHorCursor);
-//         else
-//             setCursor(Qt::ArrowCursor);
-//     }
-//     QGraphicsRectItem::hoverMoveEvent(event);
-// }
-
 void NoteView::updateRectAndPos() {
-    // qDebug() << "updateRectAndPos";
-    const auto x = (m_rStart + m_startOffset) * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
+    const auto x = (m_rStart + m_startOffset) * scaleX() * pixelsPerQuarterNote /
+                   AppGlobal::ticksPerQuarterNote;
     const auto y = -(m_keyIndex + m_keyOffset - 127) * noteHeight * scaleY();
-    const auto w = (m_length + m_lengthOffset) * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
+    const auto w = (m_length + m_lengthOffset) * scaleX() * pixelsPerQuarterNote /
+                   AppGlobal::ticksPerQuarterNote;
     const auto h = noteHeight * scaleY();
     setPos(x, y);
     setRect(QRectF(0, 0, w, h));
     if (m_pronView)
         adjustPronView();
-    
+
     if (m_editingLyric)
         updateLineEditGeometry();
 
@@ -314,13 +279,11 @@ void NoteView::updateRectAndPos() {
 }
 
 void NoteView::adjustPronView() const {
-    // qDebug() << "adjustPronView";
     m_pronView->setPos(pos().x(), pos().y() + boundingRect().height());
     m_pronView->setRect(QRectF(0, 0, boundingRect().width(), m_pronView->textHeight));
 }
 
 void NoteView::initUi() {
-    // setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
     fontPixelSize.onChanged([this](int) { update(); });
 }
@@ -328,20 +291,21 @@ void NoteView::initUi() {
 void NoteView::startEditingLyric() {
     if (m_editingLyric)
         return;
-    
+
     m_editingLyric = true;
-    
+
     if (!m_lineEditProxy) {
         m_lineEdit = new QLineEdit();
         m_lineEdit->setFrame(false);
         m_lineEdit->installEventFilter(this);
         m_lineEditProxy = new QGraphicsProxyWidget(this);
         m_lineEditProxy->setWidget(m_lineEdit);
-        
-        // Note: editingFinished signal is also emitted when losing focus, but we handle Tab key through eventFilter
+
+        // Note: editingFinished signal is also emitted when losing focus, but we handle Tab key
+        // through eventFilter
         connect(m_lineEdit, &QLineEdit::editingFinished, this, &NoteView::finishEditingLyric);
     }
-    
+
     m_lineEdit->setText(m_lyric);
     updateLineEditGeometry();
     m_lineEditProxy->show();
@@ -381,20 +345,20 @@ bool NoteView::isEditingLyric() const {
 void NoteView::updateLineEditGeometry() {
     if (!m_lineEditProxy || !m_lineEdit)
         return;
-    
+
     constexpr auto penWidth = 1.5f;
     constexpr int padding = 2;
-    
+
     auto rect = boundingRect();
     auto left = rect.left() + penWidth + padding;
     auto top = rect.top() + penWidth;
     auto width = rect.width() - penWidth * 2 - 2 * padding;
     auto height = rect.height() - penWidth * 2;
-    
+
     auto font = QFont();
     font.setPixelSize(fontPixelSize);
     m_lineEdit->setFont(font);
-    
+
     m_lineEditProxy->setPos(left, top);
     m_lineEdit->setFixedSize(static_cast<int>(width), static_cast<int>(height));
 }

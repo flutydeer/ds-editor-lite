@@ -14,7 +14,6 @@ public:
     int tickAt(double sceneX) const;
 
 public slots:
-    // void onProjectLengthChanged(int length); // tick
     void onViewResized(QSize size);
     void onTrackCountChanged(int count);
 

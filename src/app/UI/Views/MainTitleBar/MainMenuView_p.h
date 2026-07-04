@@ -46,7 +46,6 @@ public:
     QAction *actionOctaveDown = nullptr;
     QAction *actionFillLyrics = nullptr;
     QAction *actionSearchLyrics = nullptr;
-    // QAction *actionGetMidiFromAudioClip = nullptr;
     QAction *actionExtractPitchParam = nullptr;
 
     Menu *menuRecentProjects = nullptr;
@@ -59,7 +58,6 @@ public:
     void onClearRecentProjects();
     void refreshRecentProjectsMenu();
     void openFileWithSavePrompt(const QString &filePath);
-    // void onOpenAProject();
     void onImportMidiFile();
     void onExportMidiFile();
     void onExportAudioFile();
@@ -72,11 +70,9 @@ public:
     void onCut();
     void onCopy();
     void onPaste();
-    // void onGetMidiFromAudioClip();
     void onExtractPitchParam();
     void onOctaveUp();
     void onOctaveDown();
-    // void onTranspose();
     void exitApp();
 
     void enterClipEditorState();
@@ -88,8 +84,6 @@ public:
     void initActions();
     void initFileActions();
     void initEditActions();
-    // void initOptionsActions();
-    // void initHelpActions();
 
     Menu *buildFileMenu();
     Menu *buildEditMenu();

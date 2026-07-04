@@ -271,12 +271,10 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
             clearNoteSelections();
             TimeGraphicsView::mousePressEvent(event);
         }
-        // TimeGraphicsView::mousePressEvent(event);
         event->ignore();
         return;
     }
 
-    // event->accept();
     const auto scenePos = mapToScene(event->position().toPoint());
     const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
     const auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
@@ -442,7 +440,6 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
 
 void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     // Disable double-click event to prevent deselecting notes when double-clicking on scrollbar
-    // TimeGraphicsView::mouseDoubleClickEvent(event);
     Q_D(PianoRollGraphicsView);
     if (!(d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote ||
           d->m_editMode == EditPitchAnchor))
@@ -651,7 +648,6 @@ void PianoRollGraphicsView::setViewportCenterAtKeyIndex(const double keyIndex) {
     const auto keyIndexRange = topKeyIndex() - bottomKeyIndex();
     const auto keyIndexStart = keyIndex + keyIndexRange / 2 + 0.5;
     const auto vBarValue = qRound(d->keyIndexToSceneY(keyIndexStart));
-    // verticalScrollBar()->setValue(vBarValue);
     verticalBarAnimateTo(vBarValue);
 }
 
@@ -721,9 +717,7 @@ void PianoRollGraphicsViewPrivate::onNoteChanged(const SingingClip::NoteChangeTy
 }
 
 void PianoRollGraphicsViewPrivate::onNoteSelectionChanged() {
-    // qDebug() << "on note selection changed" << appStatus->selectedNotes.get();
     Q_Q(PianoRollGraphicsView);
-    // if (!m_selecting)
     if (m_clip)
         updateSceneSelectionState();
 }
@@ -1053,18 +1047,15 @@ void PianoRollGraphicsViewPrivate::prepareForEditingNotes(const QMouseEvent *eve
     const auto rPos = noteItem->mapFromScene(scenePos);
     const auto rx = rPos.x();
     if (rx >= 0 && rx <= AppGlobal::resizeTolerance) {
-        // setCursor(Qt::SizeHorCursor);
         m_mouseMoveBehavior = ResizeLeft;
         q->clearNoteSelections();
         noteItem->setSelected(true);
     } else if (rx >= noteItem->rect().width() - AppGlobal::resizeTolerance &&
                rx <= noteItem->rect().width()) {
-        // setCursor(Qt::SizeHorCursor);
         m_mouseMoveBehavior = ResizeRight;
         q->clearNoteSelections();
         noteItem->setSelected(true);
     } else {
-        // setCursor(Qt::ArrowCursor);
         m_mouseMoveBehavior = Move;
     }
 
@@ -1266,7 +1257,6 @@ void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
 
 void PianoRollGraphicsViewPrivate::handleNoteRemoved(Note *note) {
     m_selectionChangeBarrier = true;
-    // qDebug() << "PianoRollGraphicsView::removeNote" << note->id() << note->lyric();
     const auto noteView = findNoteViewById(note->id());
     if (!noteView) {
         logMissingNoteView("remove", note->id());

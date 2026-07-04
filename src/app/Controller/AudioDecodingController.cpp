@@ -21,7 +21,6 @@ AudioDecodingController::~AudioDecodingController() = default;
 LITE_SINGLETON_IMPLEMENT_INSTANCE(AudioDecodingController)
 
 void AudioDecodingController::onModelChanged() {
-    // qDebug() << "AudioDecodingController::onModelChanged";
     // Terminate all decoding tasks
     for (const auto task : m_tasks) {
         taskManager->terminateTask(task);
@@ -39,7 +38,6 @@ void AudioDecodingController::onModelChanged() {
 void AudioDecodingController::onTrackChanged(const AppModel::TrackChangeType type, const qsizetype index,
                                              const Track *track) {
     Q_UNUSED(index);
-    // qDebug() << "AudioDecodingController::onTrackChanged";
     if (type == AppModel::Insert)
         connect(track, &Track::clipChanged, this, &AudioDecodingController::onClipChanged);
     else if (type == AppModel::Remove) {
@@ -49,7 +47,6 @@ void AudioDecodingController::onTrackChanged(const AppModel::TrackChangeType typ
 }
 
 void AudioDecodingController::onClipChanged(const Track::ClipChangeType type, Clip *clip) {
-    // qDebug() << "AudioDecodingController::onClipChanged";
     if (type == Track::Inserted) {
         if (clip->clipType() == Clip::Audio) {
             const auto audioClip = static_cast<AudioClip *>(clip);

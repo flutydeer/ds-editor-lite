@@ -13,18 +13,12 @@
 DescriptionCard::DescriptionCard(QWidget *parent) : OptionsCard(parent) {
     setAttribute(Qt::WA_StyledBackground);
 
-    // plainTextEdit = new QPlainTextEdit;
-    // plainTextEdit->setObjectName("DescriptionCardPlainTextEdit");
-    // plainTextEdit->setReadOnly(true);
-    // plainTextEdit->setLineWrapMode(QPlainTextEdit::WidgetWidth);
-    // plainTextEdit->setStyleSheet("background: transparent; ");
 
     lbDescription = new QLabel;
     lbDescription->setObjectName("lbDescription");
     lbDescription->setWordWrap(true);
 
     auto layout = new QHBoxLayout;
-    // layout->addWidget(plainTextEdit);
     layout->addWidget(lbDescription);
     layout->setContentsMargins({16, 16, 16, 16});
     layout->setSpacing(0);
@@ -35,7 +29,6 @@ DescriptionCard::DescriptionCard(QWidget *parent) : OptionsCard(parent) {
 }
 
 void DescriptionCard::onDataContextChanged(const QString &dataContext) {
-    // plainTextEdit->setPlainText(dataContext);
     if (dataContext.isEmpty()) {
         lbDescription->setText(tr("No description."));
     } else {

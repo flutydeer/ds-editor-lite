@@ -144,7 +144,6 @@ void OverlappableSerialList<T>::remove(T *item) {
         }
         return true;
     });
-    // qDebug() << "erase" << item;
     m_intervalTree.erase(itToErase);
     m_items.erase(item);
     m_itemHash.erase(item);

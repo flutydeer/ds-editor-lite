@@ -62,10 +62,8 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     const auto pianoKeyboardLayout = new QVBoxLayout;
     pianoKeyboardLayout->setContentsMargins(0, 0, 0, 0);
     pianoKeyboardLayout->setSpacing(0);
-    // pianoKeyboardLayout->addSpacing(timelineViewHeight);
     pianoKeyboardLayout->addWidget(topLeftSpacing);
     pianoKeyboardLayout->addWidget(m_keyboardView);
-    // pianoKeyboardLayout->addSpacing(m_phonemeView->height());
     pianoKeyboardLayout->addWidget(bottomLeftSpacing);
 
     const auto rightLayout = new QVBoxLayout;

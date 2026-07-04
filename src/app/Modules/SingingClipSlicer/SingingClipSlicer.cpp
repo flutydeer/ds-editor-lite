@@ -167,34 +167,3 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
     }
     return {segments};
 }
-
-// SliceResult SingingClipSlicer::simpleSlice(const NoteList &source, double threshold) {
-//     QList<NoteList> target;
-//     if (source.isEmpty()) {
-//         qWarning() << "simpleSlice: source is empty";
-//         return {};
-//     }
-//
-//     if (!target.isEmpty()) {
-//         target.clear();
-//         qWarning() << "simpleSlice: target is not empty, cleared";
-//     }
-//
-//     NoteList buffer;
-//     for (int i = 0; i < source.count(); i++) {
-//         const auto note = source.at(i);
-//         buffer.append(note);
-//         bool commitFlag = false;
-//         if (i < source.count() - 1) {
-//             const auto nextStartInMs = appModel->tickToMs(source.at(i + 1)->globalStart());
-//             const auto curEndInMs = appModel->tickToMs(note->globalStart() + note->length());
-//             commitFlag = nextStartInMs - curEndInMs > threshold;
-//         } else if (i == source.count() - 1)
-//             commitFlag = true;
-//         if (commitFlag) {
-//             target.append(buffer);
-//             buffer.clear();
-//         }
-//     }
-//     return target;
-// }

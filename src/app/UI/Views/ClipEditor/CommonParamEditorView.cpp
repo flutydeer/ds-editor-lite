@@ -55,7 +55,6 @@ void CommonParamEditorView::cancelEdit() {
 }
 
 void CommonParamEditorView::setEraseMode(const bool on) {
-    // qDebug() << "setEraseMode:" << on;
     m_eraseMode = on;
     update();
 }
@@ -65,9 +64,7 @@ const QList<DrawCurve *> &CommonParamEditorView::editedCurves() const {
 }
 
 void CommonParamEditorView::discardAction() {
-    // qDebug() << "discardAction";
     if (!cancelEditState()) {
-        // qWarning() << "Discard action called, but current edit type is None";
         return;
     }
     emit editDiscarded();
@@ -75,7 +72,6 @@ void CommonParamEditorView::discardAction() {
 }
 
 void CommonParamEditorView::commitAction() {
-    // qDebug() << "commitAction";
     if (m_mouseMoved) {
         qDebug() << "Edit completed";
         emit editCompleted(editedCurves());
@@ -102,7 +98,6 @@ double CommonParamEditorView::valueToSceneY(const double value) const {
     const auto normalizedValue = m_properties->valueToNormalized(value);
     const auto y = (1 - normalizedValue) * availableHeight + yMin;
     const auto clippedY = MathUtils::clip(y, yMin, yMax);
-    // Logger::d(CLASS_NAME, QString("valueToSceneY value:%1 y:%2").arg(value).arg(clippedY));
     return clippedY;
 }
 
@@ -113,8 +108,6 @@ double CommonParamEditorView::sceneYToValue(const double y) const {
     const auto value = 1 - (y - yMin) / availableHeight;
     const auto clippedValue = MathUtils::clip(value, 0, 1);
     const auto scaledValue = m_properties->valueFromNormalized(clippedValue);
-    // qDebug() << "clipped" << clippedValue << "scaled" << scaledValue;
-    // Logger::d(CLASS_NAME, QString("sceneYToValue y:%1 value:%2").arg(y).arg(clippedValue));
     return scaledValue;
 }
 
@@ -128,9 +121,7 @@ void CommonParamEditorView::drawGraduates(QPainter *painter, const QStyleOptionG
     QPen pen;
     pen.setWidthF(1);
     pen.setColor(QColor(72, 75, 78));
-    // pen.setColor(QColor(57, 59, 61));
     painter->setPen(pen);
-    // int lineLength = visibleRect().width();
     const int step = m_properties->divisionValue;
     const auto min = m_properties->minimum;
     const auto max = m_properties->maximum;
@@ -147,12 +138,6 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
     mstimer.start();
     drawGraduates(painter, option, widget);
     painter->setBrush(Qt::NoBrush);
-
-    // auto dpr = painter->device()->devicePixelRatio();
-    // if ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) < 1)
-    //     painter->setRenderHint(QPainter::Antialiasing, true);
-    // else
-    //     painter->setRenderHint(QPainter::Antialiasing, false);
 
     const bool foreground = !transparentMouseEvents();
     constexpr auto penWidth = 1.5;
@@ -228,8 +213,6 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         delete baseCurve;
     }
 
-    // const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
-    // Logger::d(className, "Render time: " + QString::number(time));
 }
 
 void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
@@ -415,7 +398,6 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
                                             const QList<DrawCurve *> &curves) const {
     auto drawCurve = [painter, this](const DrawCurve &curve) {
         const auto dpr = painter->device()->devicePixelRatio();
-        // bool peakMode = ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) > 1);
 
         const int start = curve.localStart();
         const int startIndex =
@@ -481,7 +463,6 @@ void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
                                              const QList<DrawCurve *> &curves) const {
     auto drawCurve = [painter, this](const DrawCurve &curve) {
         const auto dpr = painter->device()->devicePixelRatio();
-        // bool peakMode = ((endTick() - startTick()) / 5 / (visibleRect().width() * dpr) > 1);
 
         const int start = curve.localStart();
         const int startIndex =

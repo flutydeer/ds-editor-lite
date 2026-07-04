@@ -21,12 +21,10 @@ SwitchButton::SwitchButton(const bool on, QWidget *parent) : QAbstractButton(par
 SwitchButton::~SwitchButton() = default;
 
 bool SwitchButton::value() const {
-    // return m_value;
     return isChecked();
 }
 
 void SwitchButton::setValue(const bool value) {
-    // m_value = value;
     setChecked(value);
     m_valueAnimation.stop();
     m_valueAnimation.setStartValue(m_apparentValue);
@@ -47,8 +45,6 @@ void SwitchButton::initUi() {
     m_thumbHoverAnimation.setPropertyName("thumbScaleRatio");
     m_thumbHoverAnimation.setEasingCurve(QEasingCurve::OutCubic);
 
-    //    setMinimumSize(32, 16);
-    //    setMaximumSize(32, 16);
     setMinimumSize(40, 28);
     setMaximumSize(40, 28);
     connect(this, &QAbstractButton::clicked, this, &SwitchButton::setValue);
@@ -61,7 +57,6 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
     painter.setRenderHint(QPainter::Antialiasing);
     QPen pen;
 
-    // painter.fillRect(rect(), QColor(255, 0, 0, 30));
 
     // Calculate params
     const auto m_halfRectHeight = rect().height() / 2;
@@ -93,7 +88,6 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
 
     // Draw thumb
     const auto left = m_apparentValue * trackLength / 255.0 + m_trackStart.x();
-    //    qDebug() << m_apparentValue;
     const auto handlePos = QPointF(left, m_halfRectHeight);
     const auto thumbRadius = m_thumbRadius * m_thumbScaleRatio / 100.0;
 
@@ -145,13 +139,11 @@ void SwitchButton::updateAnimationDuration() {
 bool SwitchButton::eventFilter(QObject *object, QEvent *event) {
     const auto type = event->type();
     if (type == QEvent::HoverEnter || type == QEvent::MouseButtonRelease) {
-        //        qDebug() << "Hover Enter";
         m_thumbHoverAnimation.stop();
         m_thumbHoverAnimation.setStartValue(m_thumbScaleRatio);
         m_thumbHoverAnimation.setEndValue(125);
         m_thumbHoverAnimation.start();
     } else if (type == QEvent::HoverLeave) {
-        //        qDebug() << "Hover Leave";
         m_thumbHoverAnimation.stop();
         m_thumbHoverAnimation.setStartValue(m_thumbScaleRatio);
         m_thumbHoverAnimation.setEndValue(100);

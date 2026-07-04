@@ -36,7 +36,6 @@ inline size_t qHash(const SingerG2pIdentifier &key, size_t seed = 0) noexcept {
     return ::qHashMulti(seed, key.singerIdentifier, key.g2pId);
 }
 
-// std::hash for STL containers like std::unordered_map, std::unordered_set
 namespace std {
     template <>
     struct hash<SingerG2pIdentifier> {

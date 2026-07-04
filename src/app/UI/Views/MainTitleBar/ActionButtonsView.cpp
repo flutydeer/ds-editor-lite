@@ -40,7 +40,6 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     m_btnUndo->setIconSize(m_iconSize);
     m_btnUndo->setIcon(buildActionIcon(":svg/icons/arrow_undo_16_filled.svg", m_iconSize));
     m_btnUndo->setEnabled(false);
-    // m_btnUndo->setShortcut(QKeyCombination(Qt::CTRL, Qt::Key_Z));
     m_btnUndo->setToolTip(tr("Undo"));
     m_btnUndo->installEventFilter(new ToolTipFilter(m_btnUndo));
     connect(m_btnUndo, &QPushButton::clicked, this, [this] { emit undoTriggered(); });
@@ -51,7 +50,6 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     m_btnRedo->setIconSize(m_iconSize);
     m_btnRedo->setIcon(buildActionIcon(":svg/icons/arrow_redo_16_filled.svg", m_iconSize));
     m_btnRedo->setEnabled(false);
-    // m_btnRedo->setShortcut(QKeyCombination(Qt::CTRL, Qt::Key_Y));
     m_btnRedo->setToolTip(tr("Redo"));
     m_btnRedo->installEventFilter(new ToolTipFilter(m_btnRedo));
     connect(m_btnRedo, &QPushButton::clicked, this, [this] { emit redoTriggered(); });

@@ -26,11 +26,6 @@ class ChannelView : public QWidget, public ITrack {
     Q_PROPERTY(bool isMasterChannel READ isMasterChannel)
 
 public:
-    // enum ChannelType {
-    //     Track,
-    //     Master
-    // };
-
     explicit ChannelView(QWidget *parent = nullptr);
     explicit ChannelView(Track &track, QWidget *parent = nullptr);
 

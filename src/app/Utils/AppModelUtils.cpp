@@ -18,7 +18,6 @@ void AppModelUtils::copyNotes(const NoteList &source, NoteList &target) {
         const auto newNote = new Note;
         newNote->setClip(note->clip());
         newNote->setLocalStart(note->localStart());
-        // newNote->setStart(note->start());
         newNote->setLength(note->length());
         newNote->setKeyIndex(note->keyIndex());
         newNote->setLyric(note->lyric());

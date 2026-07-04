@@ -141,8 +141,6 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_btnPitchEraser = d->buildToolButton(
         "btnPitchEraser", ":svg/icons/pitch_erase_24_filled.svg", tr("Erase Pitch"), Qt::Key_H);
     auto freezePitchDesc = tr("Copy automatic pitch inference results to edited pitch");
-    // d->m_btnFreezePitch =
-    //     d->buildToolButton("btnFreezePitch", tr("Freeze Pitch"), Qt::Key_J, freezePitchDesc);
 
     d->m_toolButtonGroup = new QButtonGroup;
     d->m_toolButtonGroup->setExclusive(true);
@@ -154,37 +152,8 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_toolButtonGroup->addButton(d->m_btnPitchAnchor);
     d->m_toolButtonGroup->addButton(d->m_btnPitchPencil);
     d->m_toolButtonGroup->addButton(d->m_btnPitchEraser);
-    // d->m_toolButtonGroup->addButton(d->m_btnFreezePitch);
     connect(d->m_toolButtonGroup, &QButtonGroup::buttonToggled, d,
             &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
-
-
-    // auto sbGain = new SVS::SeekBar;
-    // // sbGain->setObjectName("m_sbarGain");
-    // sbGain->setMaximum(100); // +6dB
-    // sbGain->setMinimum(0);   // -inf
-    // sbGain->setDefaultValue(79.4328234724);
-    // sbGain->setValue(79.4328234724);
-    // sbGain->setTracking(false);
-    // sbGain->setFixedWidth(d->m_contentHeight * 4);
-
-    // auto leGain = new EditLabel();
-    // leGain->setText("0.0dB");
-    // leGain->setObjectName("leGain");
-    // leGain->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-    // leGain->label->setAlignment(Qt::AlignCenter);
-    // leGain->setFixedWidth(d->m_contentHeight * 2);
-    // leGain->setFixedHeight(d->m_contentHeight);
-    // leGain->setEnabled(false);
-
-    // auto btnMute = d->buildToolButton("btnMute", tr("Mute or unmute clip"));
-    // btnMute->setText("M");
-
-    // auto btnPhonemeView = d->buildToolButton("btnPhonemeView", tr("Toggle phoneme editor"));
-    // btnPhonemeView->setChecked(true);
-
-    // auto btnParamView = d->buildToolButton("btnParamView", tr("Toggle param editor"));
-    // btnParamView->setChecked(true);
 
     auto clipInfoLayout = new QHBoxLayout;
     clipInfoLayout->addWidget(d->m_leClipName);
@@ -205,7 +174,6 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     toolButtonLayout->addWidget(d->m_btnPitchAnchor);
     toolButtonLayout->addWidget(d->m_btnPitchPencil);
     toolButtonLayout->addWidget(d->m_btnPitchEraser);
-    // toolButtonLayout->addWidget(d->m_btnFreezePitch);
     toolButtonLayout->setSpacing(1);
     toolButtonLayout->setContentsMargins({});
 

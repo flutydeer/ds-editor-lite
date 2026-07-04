@@ -13,10 +13,6 @@
 Note::Note(SingingClip *context, QObject *parent) : QObject(parent), m_clip(context) {
 }
 
-Note::~Note() {
-    // qDebug() << "~Note()" << id() << m_lyric;
-}
-
 SingingClip *Note::clip() const {
     return m_clip;
 }
@@ -111,26 +107,6 @@ QStringList Note::pronCandidates() const {
 void Note::setPronCandidates(const QStringList &pronCandidates) {
     m_pronCandidates = pronCandidates;
 }
-
-// PhonemeInfo Note::phonemeInfo() const {
-//     return m_phonemes;
-// }
-//
-// void Note::setPhonemeInfo(WordPropertyType type, const QList<Phoneme> &phonemes) {
-//     if (type == Original)
-//         m_phonemes.original = phonemes;
-//     else if (type == Edited)
-//         m_phonemes.edited = phonemes;
-// }
-//
-// void Note::setPhonemeInfo(const QList<Phoneme> &original, const QList<Phoneme> &edited) {
-//     m_phonemes.original = original;
-//     m_phonemes.edited = edited;
-// }
-//
-// void Note::setPhonemeInfo(const PhonemeInfo &info) {
-//     qCritical() << "Deprecated method setPhonemeInfo() called";
-// }
 
 const Phonemes &Note::phonemes() const {
     return m_phonemeInfo;

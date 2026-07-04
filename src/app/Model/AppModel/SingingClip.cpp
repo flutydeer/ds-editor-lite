@@ -393,21 +393,6 @@ void SingingClip::init() {
     connect(this, &SingingClip::singerOrSpeakerChanged, this, [this] {
         bumpInferenceRevision();
         const auto currentSingerInfo = singerInfo();
-        // bool needsResegment = false;
-        // for (const auto piece : std::as_const(m_pieces)) {
-        //     auto currentIdentifier = currentSingerInfo.identifier();
-        //     if (piece->identifier != currentIdentifier) {
-        //         piece->identifier = std::move(currentIdentifier);
-        //         piece->dirty = true;
-        //         needsResegment = true;
-        //     }
-        // }
-        // TODO
-        // 现在是在音素信息未获取时分段，会导致segment.paddingStartMs计算错误，应该等待音素信息获取完成后再分段
-        // if (needsResegment) {
-        //     reSegment();
-        // }
-
         const auto s2pMgr = S2pMgr::instance();
         const auto onsetMarkerMgr = OnsetMarkerMgr::instance();
         for (const auto &lang : currentSingerInfo.languages()) {

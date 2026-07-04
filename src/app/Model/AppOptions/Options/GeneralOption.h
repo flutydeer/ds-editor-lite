@@ -34,13 +34,6 @@ public:
     QStringList packageSearchPaths;
     QStringList recentProjectFiles;
     QJsonValue speakerMixPresets;
-#if false
-    QVersionNumber defaultPackageVersion;
-    LITE_OPTION_ITEM(QString, defaultPackage, QString())
-    LITE_OPTION_ITEM(QString, defaultPackageId, QString())
-    LITE_OPTION_ITEM(QString, defaultSingerId, QString())
-    LITE_OPTION_ITEM(QString, defaultSpeakerId, QString())
-#endif
     LITE_OPTION_ITEM(QString, gameDir, QString())
     LITE_OPTION_ITEM(QString, rmvpePath, QString())
 
@@ -55,7 +48,6 @@ private:
     const QString packageSearchPathsKey = "packageSearchPaths";
     const QString recentProjectFilesKey = "recentProjectFiles";
     const QString speakerMixPresetsKey = "speakerMixPresets";
-    // const QString defaultPackageVersionKey = "defaultPackageVersion";
 };
 
 

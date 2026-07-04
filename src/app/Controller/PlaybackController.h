@@ -36,7 +36,6 @@ public:
 
     [[nodiscard]] double tempo() const;
 
-    // bool isPlaying() const;
     // long position() const;
     // long lastPlayPosition() const;
 

@@ -18,10 +18,6 @@ bool ValidationUtils::canInferDuration(const SingingClip &clip) {
             return false;
         }
         // TODO: 校验音素名称序列
-        // if (note->phonemeNameInfo().isEmpty()) {
-        //     qCritical() << "Invalid note phonemeNameInfo" << "note" << note->lyric() <<
-        //     note->pronunciation().result(); return false;
-        // }
     }
     return true;
 }

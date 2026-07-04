@@ -32,11 +32,4 @@ public:                                                                         
 protected:                                                                                         \
     Member
 
-
-// #define DECL_INTERFACE(InterfaceName)                                                              \
-//     class InterfaceName {                                                                          \
-//     public:                                                                                        \
-//         virtual ~##InterfaceName() = default;
-// #define END_INTERFACE };
-
 #endif // MACROS_H

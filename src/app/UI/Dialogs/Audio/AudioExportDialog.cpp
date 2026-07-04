@@ -37,7 +37,6 @@ namespace Audio::Internal {
     AudioExportDialog::AudioExportDialog(Core::IProjectWindow *windowHandle, QWidget *parent)
         : Dialog(parent), m_audioExporter(new AudioExporter(windowHandle, this)) {
         setWindowTitle(tr("Export Audio"));
-        // setTitle(tr("Export Audio"));
         auto mainLayout = new QVBoxLayout(body());
 
         auto presetLayout = new QFormLayout;
@@ -260,7 +259,6 @@ namespace Audio::Internal {
         m_warningButton->setToolTip(tr("Warning"));
         buttonLayout->addWidget(m_warningButton);
         auto exportButton = new QPushButton(tr("Export"));
-        // exportButton->setPrimary(true);
         exportButton->setDefault(true);
         buttonLayout->addWidget(exportButton);
         auto cancelButton = new QPushButton(tr("Cancel"));

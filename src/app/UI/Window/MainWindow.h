@@ -94,7 +94,6 @@ private:
     QWK::WidgetWindowAgent *m_detachedAgent = nullptr;
     QObject *m_eventDiagFilter = nullptr;
 
-    // int m_noteIndex = 0;
 };
 
 

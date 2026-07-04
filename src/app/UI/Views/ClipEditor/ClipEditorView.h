@@ -52,7 +52,6 @@ private:
     QMetaObject::Connection m_trackColorConnection;
 
     void reset();
-    // void printParts();
 };
 
 

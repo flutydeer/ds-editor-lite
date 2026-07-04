@@ -415,7 +415,6 @@ void AudioContext::handleTrackInserted(const int index, Track *track) {
                 updateSmoothedValue(m_trackLevelMeterValue[track].second, dBR);
             });
 
-    // m_trackSynthDict.insert(track, new TrackSynthesizer(trackContext, track));
     m_trackInferDict.insert(track, new TrackInferenceHandler(trackContext, track));
 }
 
@@ -426,7 +425,6 @@ void AudioContext::handleTrackRemoved(const int index, Track *track) {
         handleClipRemoved(track, clip->id(), static_cast<AudioClip *>(clip));
     }
     disconnect(track, nullptr, this, nullptr);
-    // delete m_trackSynthDict.take(track);
     removeTrack(index);
     m_trackInferDict.remove(track);
     m_trackModelDict.remove(track);

@@ -789,19 +789,6 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         return params;
     };
 
-    // auto decodePhonemes = [&](const QList<opendspx::Phoneme> &dspxPhonemes) {
-    //     QList<Phoneme> phonemes;
-    //     for (const opendspx::Phoneme &dspxPhoneme : dspxPhonemes) {
-    //         Phoneme phoneme(Phoneme::PhonemeType::Normal, dspxPhoneme.token, dspxPhoneme.start);
-    //         if (dspxPhoneme.type == opendspx::Phoneme::Type::Ahead) {
-    //             phoneme.type = Phoneme::PhonemeType::Ahead;
-    //         } else if (dspxPhoneme.type == opendspx::Phoneme::Type::Final) {
-    //             phoneme.type = Phoneme::PhonemeType::Final;
-    //         }
-    //         phonemes.append(phoneme);
-    //     }
-    //     return phonemes;
-    // };
     auto decodeNotes = [&](const std::vector<opendspx::Note> &dspxNotes, const int offset) {
         QList<Note *> notes;
         for (const opendspx::Note &dspxNote : dspxNotes) {
@@ -1075,23 +1062,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         encodeSingingParam(dsParams.velocity, params["velocity"]);
     };
 
-    // auto encodePhonemes = [&](const QList<Phoneme> &dsPhonemes, QList<opendspx::Phoneme>
-    // &phonemes)
-    // {
-    //     for (const auto &dsPhoneme : dsPhonemes) {
-    //         opendspx::Phoneme phoneme;
-    //         phoneme.start = dsPhoneme.start;
-    //         phoneme.token = dsPhoneme.name;
-    //         if (dsPhoneme.type == Phoneme::PhonemeType::Ahead) {
-    //             phoneme.type = opendspx::Phoneme::Type::Ahead;
-    //         } else if (dsPhoneme.type == Phoneme::PhonemeType::Final) {
-    //             phoneme.type = opendspx::Phoneme::Type::Final;
-    //         } else {
-    //             phoneme.type = opendspx::Phoneme::Type::Normal;
-    //         }
-    //         phonemes.append(phoneme);
-    //     }
-    // };
+
 
     auto encodeNotes = [&](const OverlappableSerialList<Note> &dsNotes,
                            std::vector<opendspx::Note> &notes) {

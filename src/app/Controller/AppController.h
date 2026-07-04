@@ -59,7 +59,6 @@ public slots:
     static void importMidiFile(const QString &filePath);
     static void exportMidiFile(const QString &filePath);
 
-    // void importAceProject(const QString &filePath);
 
     static void onSetTempo(double tempo);
     void onSetTimeSignature(int numerator, int denominator);

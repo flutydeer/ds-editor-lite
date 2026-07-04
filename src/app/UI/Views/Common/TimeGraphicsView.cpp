@@ -33,8 +33,6 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     setRenderHint(QPainter::Antialiasing);
     setAttribute(Qt::WA_AcceptTouchEvents);
     setAttribute(Qt::WA_Hover);
-    // setCacheMode(QGraphicsView::CacheNone);
-    // setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
     setMinimumHeight(150);
     setAcceptDrops(true);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -69,7 +67,6 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     m_timer.setSingleShot(true);
     connect(&m_timer, &QTimer::timeout, this, [this]() {
         m_touchPadLock = false;
-        // qDebug() << "touchpad lock off";
     });
 #endif
 
@@ -253,7 +250,6 @@ void TimeGraphicsView::onWheelHorScale(QWheelEvent *event) {
     auto cursorPos = event->position().toPoint();
     auto scenePos = mapToScene(cursorPos);
 
-    // auto deltaX = event->angleDelta().x();
     auto deltaY = event->angleDelta().y();
 
     auto targetScaleX = scaleX();
@@ -426,10 +422,6 @@ bool TimeGraphicsView::event(QEvent *event) {
         handleHoverLeaveEvent(dynamic_cast<QHoverEvent *>(event));
     else if (event->type() == QEvent::HoverMove)
         handleHoverMoveEvent(dynamic_cast<QHoverEvent *>(event));
-    // else if (event->type() == QEvent::WindowActivate)
-    //     qDebug() << "Window activated";
-    // else if (event->type() == QEvent::WindowDeactivate)
-    //     qDebug() << "Window deactivated";
     return QGraphicsView::event(event);
 }
 
@@ -463,8 +455,6 @@ void TimeGraphicsView::resizeEvent(QResizeEvent *event) {
 void TimeGraphicsView::mousePressEvent(QMouseEvent *event) {
     if (scene()) {
         if (auto scrollBar = scrollBarAt(event->position().toPoint())) {
-            // auto oriStr = scrollBar->orientation() == Qt::Horizontal ? "horizontal" : "vertical";
-            // qDebug() << "mouse down on" << oriStr << "scrollbar";
             m_isDraggingScrollBar = true;
             m_draggingScrollbarType = scrollBar->orientation();
             m_mouseDownPos = event->position().toPoint();
@@ -500,8 +490,6 @@ void TimeGraphicsView::mousePressEvent(QMouseEvent *event) {
 }
 
 void TimeGraphicsView::mouseMoveEvent(QMouseEvent *event) {
-    // qDebug() << "m_isDraggingScrollBar" << m_isDraggingScrollBar << "m_mouseOnScrollBarHandle"
-    //          << m_mouseOnScrollBarHandle << "m_isDraggingContent" << m_isDraggingContent;
     if (m_isDraggingScrollBar && m_mouseOnScrollBarHandle) {
         int barWidth = 14;
         auto value0 = m_mouseDownBarValue;
@@ -521,7 +509,6 @@ void TimeGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             auto handleStart = ratio * scrollingLength;
             auto value = (handleStart + dx) / scrollingLength * max;
             setHorizontalBarValue(qRound(value));
-            // qDebug() << "Move horizontal bar: " << horizontalScrollBar()->value();
         } else {
             auto step = verticalScrollBar()->pageStep();
             auto y = event->position().y();
@@ -609,7 +596,6 @@ void TimeGraphicsView::handleHoverEnterEvent(QHoverEvent *event) {
         return;
 
     auto pos = event->position().toPoint();
-    // qDebug() << pos;
     if (auto scrollBar = scrollBarAt(pos)) {
         m_prevHoveredItem = scrollBar->orientation() == Qt::Horizontal ? ItemType::HorizontalBar
                                                                        : ItemType::VerticalBar;
@@ -645,14 +631,11 @@ void TimeGraphicsView::handleHoverMoveEvent(QHoverEvent *event) {
 
     auto pos = event->position().toPoint();
     if (auto scrollBar = scrollBarAt(pos)) {
-        // qDebug() << scrollBar->orientation();
         auto orientation = scrollBar->orientation();
 
         if (scrollBar->mouseOnHandle(pos)) {
-            // qDebug() << "mouseOnHandle true";
             scrollBar->moveToHoverState();
         } else {
-            // qDebug() << "mouseOnHandle false";
             scene()->horizontalBar()->moveToNormalState();
             scene()->verticalBar()->moveToNormalState();
         }
@@ -740,7 +723,6 @@ void TimeGraphicsView::setViewportStartTick(double tick) {
 void TimeGraphicsView::setViewportCenterAtTick(double tick) {
     auto tickRange = endTick() - startTick();
     auto targetStart = tick - tickRange / 2;
-    // qDebug() << "tickRange" << tickRange << "tick" << tick << "targetStart" << targetStart;
     setViewportStartTick(targetStart);
 }
 

@@ -43,7 +43,6 @@ signals:
     void setPositionTriggered(double tick);
 
 private slots:
-    // void onSceneSelectionChanged() const;
     void onViewScaleChanged(qreal sx, qreal sy) const;
     static void onRemoveTrackTriggered(int id);
 

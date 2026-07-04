@@ -32,10 +32,6 @@ InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
     initializePage();
 }
 
-// InferencePage::~InferencePage() {
-//     InferencePage::modifyOption();
-// }
-
 void InferencePage::modifyOption() {
     const auto option = appOptions->inference();
 
@@ -75,7 +71,6 @@ QWidget *InferencePage::createContentWidget() {
     connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this,
             &InferencePage::modifyOption);
     connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this, [this] {
-        // modifyOption();
         const auto message = tr(
             "The settings will take effect after restarting the app. Do you want to restart now?");
         const auto dlg = new RestartDialog(message, true, this);
@@ -145,7 +140,6 @@ QWidget *InferencePage::createContentWidget() {
     m_cbSamplingSteps = new ComboBox();
     m_cbSamplingSteps->setEditable(true);
     m_cbSamplingSteps->setFixedWidth(100);
-    // m_cbSamplingSteps->setStyleSheet("padding-left:0;margin-left:0"); // avoid leading spacing
     m_cbSamplingSteps->setValidator(new QIntValidator(1, 1000));
     m_cbSamplingSteps->addItems({"1", "5", "10", "20", "50", "100"});
     m_cbSamplingSteps->setCurrentText(QString::number(option->samplingSteps));
@@ -413,7 +407,6 @@ QWidget *InferencePage::createContentWidget() {
     mainLayout->addWidget(deviceCard, 0, Qt::AlignTop);
     mainLayout->addWidget(renderCard, 0, Qt::AlignTop);
     mainLayout->addWidget(debugCard, 1, Qt::AlignTop);
-    // mainLayout->addStretch();
     mainLayout->setContentsMargins({});
 
     widget->setLayout(mainLayout);

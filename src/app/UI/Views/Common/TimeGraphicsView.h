@@ -30,7 +30,6 @@ class TimeGraphicsView : public QGraphicsView, public IScalable, public IAnimata
 
 public:
     enum class DragBehavior { None, HandScroll, RectSelect, IntervalSelect };
-    // enum class ScrollBarVisibility { AlwaysVisible, AutoHide, AlwaysHide };
 
     explicit TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlaybackPosition = true,
                               QWidget *parent = nullptr);
@@ -80,7 +79,6 @@ public slots:
     void setPlaybackPosition(double tick);
     void setLastPlaybackPosition(double tick);
     void pageAdd();
-    // void setTimeRange(double startTick, double endTick);
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -123,7 +121,6 @@ private:
 
     double m_hZoomingStep = 0.4;
     double m_vZoomingStep = 0.3;
-    // double m_scaleXMin = 0.1;
     double m_scaleXMax = 3; // 3x
     double m_scaleYMin = 0.5;
     double m_scaleYMax = 8;

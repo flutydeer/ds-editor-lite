@@ -15,7 +15,6 @@ namespace LangSetting {
         Q_D(const ILangSetManager);
         const auto it = d->g2pSets.find(id);
         if (it == d->g2pSets.end()) {
-            // qWarning() << "LangSet::ILangSetManager::g2pSet(): factory does not exist:" << id;
             return d->g2pSets.find("unknown").value();
         }
         return it.value();

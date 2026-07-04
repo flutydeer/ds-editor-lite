@@ -41,9 +41,6 @@ public:
         return m_key;
     }
 
-    // signals:
-    //     void settingsChanged();
-
     virtual void save(QJsonObject &object) = 0;
 
 private:

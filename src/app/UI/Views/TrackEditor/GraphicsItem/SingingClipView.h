@@ -45,7 +45,6 @@ public slots:
     void setDefaultLanguage(const QString &language);
 
 private:
-    // void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
     // override;
     [[nodiscard]] QString text() const override;
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) override;
@@ -59,7 +58,6 @@ private:
 
     void addNote(const Note *note);
     void removeNote(int id);
-    // void updateNote(Note *note);
     void dispose();
 };
 

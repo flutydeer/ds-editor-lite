@@ -189,7 +189,6 @@ void ClipController::onInsertNote(Note *note) {
     a->execute();
     historyManager->record(a);
     emit hasSelectedNotesChanged(hasSelectedNotes());
-    // updateAndNotifyCanSelectAll();
 }
 
 void ClipController::onSplitNote(const int noteId, Note *newNote, const int newLength) const {
@@ -256,17 +255,7 @@ void ClipController::onAdjustPhonemeOffset(const int noteId, const QList<int> &o
     historyManager->record(a);
 }
 
-// void ClipController::onAdjustPhoneme(int noteId, const QList<Phoneme> &phonemes) const
-// {
-//     Q_D(const ClipController);
-//     auto singingClip = static_cast<SingingClip *>(d->m_clip);
-//     auto note = singingClip->findNoteById(noteId);
 //
-//     auto a = new NoteActions;
-//     a->editNotesPhoneme(note, phonemes, singingClip);
-//     a->execute();
-//     historyManager->record(a);
-// }
 
 void ClipController::selectNotes(const QList<int> &notesId, const bool unselectOther) {
     Q_D(ClipController);
@@ -276,7 +265,6 @@ void ClipController::selectNotes(const QList<int> &notesId, const bool unselectO
 
     selectedNotes.append(notesId);
     appStatus->selectedNotes = selectedNotes;
-    // qDebug() << "select notes:" << selectedNotes;
     emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
@@ -285,7 +273,6 @@ void ClipController::unselectNotes(const QList<int> &notesId) {
     for (const auto id : notesId)
         selectedNotes.removeIf([=](const int note) { return note == id; });
     appStatus->selectedNotes = selectedNotes;
-    // qDebug() << "unselect notes:" << notesId;
     emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
@@ -387,9 +374,7 @@ void ClipController::onFillLyric(QWidget *parent) {
     if (!lyricRes.skipSlur)
         slurCount = 0;
     if (noteRes.count() + slurCount > selectedNotes.count()) {
-        // Toast::show("输出音符数大于输入，多余的歌词将被忽略");
     } else if (noteRes.count() + slurCount < selectedNotes.count()) {
-        // Toast::show("输出音符数小于输入");
         auto i = noteRes.count() + slurCount;
         auto n = selectedNotes.count() - noteRes.count() - slurCount;
         notesToEdit.remove(i, n);
@@ -436,7 +421,6 @@ void ClipControllerPrivate::removeNotes(const QList<Note *> &notes) const {
     a->removeNotes(notes, singingClip);
     a->execute();
     historyManager->record(a);
-    // updateAndNotifyCanSelectAll();
 }
 
 NotesParamsInfo ClipControllerPrivate::buildNoteParamsInfo() const {

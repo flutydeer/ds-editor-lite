@@ -178,7 +178,6 @@ void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
     // Restore previous selection
     if (inheritWasSelected && m_showInheritItem) {
         // Re-select inhert item — caller will update singer/speaker via
-        // setCurrentData(preferInherit=true)
         if (!m_itemDataList.isEmpty() && m_itemDataList.first().isInheritItem) {
             m_currentItem = m_itemDataList.first();
         }
@@ -186,7 +185,6 @@ void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
     } else if (!prevSinger.isEmpty() || !prevSpeaker.isEmpty()) {
         setCurrentData(prevSinger, prevSpeaker);
     }
-    // else: stays on "(No singer)" (already set by addItem in clear+rebuild)
 
     // If nothing was selected, default to first item
     if (m_currentItem.text.isEmpty() && m_currentItem.singer.isEmpty() &&

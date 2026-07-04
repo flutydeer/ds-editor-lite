@@ -24,7 +24,6 @@ void PianoRollBackground::paint(QPainter *painter, const QStyleOptionGraphicsIte
     pen.setWidthF(penWidth);
     pen.setColor(m_octaveDividerColor);
     painter->setPen(pen);
-    // painter->setRenderHint(QPainter::Antialiasing);
 
     auto sceneYToKeyIndex = [&](const double y) { return 127 - y / scaleY() / noteHeight; };
 
@@ -45,9 +44,6 @@ void PianoRollBackground::paint(QPainter *painter, const QStyleOptionGraphicsIte
         painter->setPen(Qt::NoPen);
         painter->drawRect(gridRect);
 
-        // pen.setColor(keyIndexTextColor);
-        // painter->setPen(pen);
-        // painter->drawText(gridRect, PianoPaintUtils::noteName(i), QTextOption(Qt::AlignVCenter));
 
         if ((i + 1) % 12 == 0) {
             pen.setColor(m_octaveDividerColor);

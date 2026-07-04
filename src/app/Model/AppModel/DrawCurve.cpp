@@ -6,10 +6,6 @@
 
 #include <QDebug>
 
-// DrawCurve::DrawCurve(const DrawCurve &other)
-//     : Curve(other), step(other.step), m_values(other.m_values) {
-//     // qDebug() << "DrawCurve() copy from: #id" << other.id() << "start:" << other.start;
-// }
 
 void DrawCurve::setLocalStart(const int start) {
     if (start % 5 == 0)

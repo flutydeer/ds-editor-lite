@@ -21,7 +21,6 @@ Button::Button(const QIcon &icon, const QString &text, QWidget *parent)
 
 void Button::initUi() {
     setAttribute(Qt::WA_StyledBackground);
-    // setMinimumWidth(80);
 }
 
 void Button::mousePressEvent(QMouseEvent *event) {

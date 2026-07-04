@@ -72,9 +72,6 @@ bool FaderPrivate::mouseOnThumb(const QPoint &mousePos) const {
 
 double FaderPrivate::boundAndRound(double value_) const {
     value_ = qBound(decibelMinimum, value_, decibelMaximum);
-    // if (!qFuzzyIsNull(interval)) {
-    //     value_ = linearMinimum + interval * std::round((value_ - linearMinimum) / interval);
-    // }
     return value_;
 }
 
@@ -155,11 +152,6 @@ Fader::Fader(QWidget *parent) : Fader(parent, *new FaderPrivate) {
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     setFocusPolicy(Qt::StrongFocus);
     installEventFilter(this);
-
-    // d->thumbHoverAnimation.setDuration(d->animationDuration);
-    // d->thumbHoverAnimation.setEasingCurve(QEasingCurve::OutCubic);
-    // connect(&d->thumbHoverAnimation, &QVariantAnimation::valueChanged, d,
-    //         &FaderPrivate::setThumbBorderRatio);
 }
 
 Fader::~Fader() = default;
@@ -286,9 +278,6 @@ void Fader::mouseMoveEvent(QMouseEvent *event) {
 
 void Fader::mouseDoubleClickEvent(QMouseEvent *event) {
     Q_D(Fader);
-    // auto pos = event->pos();
-    // if (d->resetOnDoubleClick && d->mouseOnThumb(pos))
-    //     resetValue();
     QWidget::mouseDoubleClickEvent(event);
 }
 
@@ -318,16 +307,6 @@ void Fader::mousePressEvent(QMouseEvent *event) {
         }
     } else
         d->canMoveThumb = false;
-
-    // Ignore if mouse not on thumb
-    // else if (!d->doubleClickLocked) {
-    //     auto posValue =
-    //             ((d->actualLength + d->paddingVertical - pos.y()) * (d->maximum - d->minimum) /
-    //             d->actualLength) + d-> minimum;
-    //     d->setValue(posValue);
-    // }
-    // setSliderDown(true);
-    // d->doubleClickLocked = true;
 }
 
 void Fader::mouseReleaseEvent(QMouseEvent *event) {
@@ -387,7 +366,6 @@ int Fader::animationDuration() const {
 void Fader::setAnimationDuration(const int dur) {
     Q_D(Fader);
     d->animationDuration = dur;
-    // d->thumbHoverAnimation.setDuration(d->animationDuration);
 }
 
 double FaderPrivate::gainToSliderValue(const double gain) const {

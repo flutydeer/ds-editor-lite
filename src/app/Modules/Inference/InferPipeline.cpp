@@ -258,10 +258,6 @@ void InferPipeline::initAwaitingInferAcousticTransitions() {
     awaitingInferAcousticState->addTransition(this, &InferPipeline::pitchChanged,
                                               inferVarianceState);
 
-    // auto transition = new ConditionalTransition(this, SIGNAL(varianceChanged()));
-    // transition->setGuardCondition([]() { return appOptions->inference()->autoStartInfer; });
-    // transition->setTargetState(inferAcousticState);
-    // awaitingInferAcousticState->addTransition(transition);
 }
 
 void InferPipeline::initAcousticTransitions() {

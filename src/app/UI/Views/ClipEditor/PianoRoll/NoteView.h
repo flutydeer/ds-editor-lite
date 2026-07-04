@@ -40,7 +40,6 @@ public:
     [[nodiscard]] PronunciationView *pronunciationView() const;
     void setPronunciationView(PronunciationView *view);
 
-    // for handle move and resize
     [[nodiscard]] int startOffset() const;
     void setStartOffset(int tick);
     [[nodiscard]] int lengthOffset() const;
@@ -63,7 +62,6 @@ signals:
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
-    // void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     void adjustPronView() const;
     void initUi();
@@ -74,7 +72,6 @@ private:
     QGraphicsProxyWidget *m_lineEditProxy = nullptr;
     QLineEdit *m_lineEdit = nullptr;
     bool m_editingLyric = false;
-    // int m_start = 0;
     int m_rStart = 0;
     int m_length = AppGlobal::ticksPerQuarterNote;
     int m_keyIndex = 60;

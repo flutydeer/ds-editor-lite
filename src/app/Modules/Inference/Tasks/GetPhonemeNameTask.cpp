@@ -64,7 +64,6 @@ void GetPhonemeNameTask::runTask() {
 }
 
 void GetPhonemeNameTask::processNotes() {
-    // qDebug() << "Language module ready, start to process notes";
     auto newStatus = status();
     newStatus.message = "正在处理: " + m_previewText;
     setStatus(newStatus);

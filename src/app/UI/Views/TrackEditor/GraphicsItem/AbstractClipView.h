@@ -37,8 +37,6 @@ public:
 
     [[nodiscard]] double gain() const override;
     void setGain(double gain) override;
-    // double pan() const;
-    // void setPan(double gain);
     [[nodiscard]] bool mute() const override;
     void setMute(bool mute) override;
 

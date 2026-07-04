@@ -56,14 +56,12 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
     m_pianoRollEditorView = new PianoRollEditorView;
 
     const auto mainLayout = new QVBoxLayout;
-    // mainLayout->addWidget(m_toolbarView);
     mainLayout->addWidget(m_pianoRollEditorView);
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins({1, 0, 1, 1});
     setLayout(mainLayout);
 
     clipController->setView(this);
-    // appController->registerPanel(this);
     installEventFilter(this);
 
     connect(m_toolbarView, &ClipEditorToolBarView::editModeChanged,

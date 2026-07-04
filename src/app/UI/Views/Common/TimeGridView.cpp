@@ -73,7 +73,6 @@ void TimeGridView::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
     painter->setBrush(Qt::NoBrush);
     pen.setColor(m_commonLineColor);
     painter->setPen(pen);
-    // painter->setRenderHint(QPainter::Antialiasing);
     drawTimeline(painter, startTick(), endTick(), visibleRect().width());
 }
 
@@ -87,9 +86,6 @@ void TimeGridView::updateRectAndPos() {
 void TimeGridView::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
     auto x = sceneXToItemX(tickToSceneX(tick - m_offset));
-    // pen.setColor(barTextColor);
-    // painter->setPen(pen);
-    // painter->drawText(QPointF(x, 10), QString::number(bar));
     pen.setColor(m_barLineColor);
     painter->setPen(pen);
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));
@@ -98,9 +94,6 @@ void TimeGridView::drawBar(QPainter *painter, int tick, int bar) {
 void TimeGridView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     QPen pen;
     auto x = sceneXToItemX(tickToSceneX(tick - m_offset));
-    // pen.setColor(beatTextColor);
-    // painter->setPen(pen);
-    // painter->drawText(QPointF(x, 10), QString::number(bar) + "." + QString::number(beat));
     pen.setColor(m_beatLineColor);
     painter->setPen(pen);
     painter->drawLine(QLineF(x, 0, x, visibleRect().height()));

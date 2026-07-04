@@ -67,7 +67,6 @@ QImage AcrylicBrush::textureImage() const {
     QPainter painter(&texture);
     painter.fillRect(texture.rect(), m_tintColor);
     painter.setOpacity(m_noiseOpacity);
-    // painter.drawImage(texture.rect(), noiseImage);
 
     return texture;
 }
@@ -83,5 +82,4 @@ void AcrylicBrush::paint() const {
     const QPixmap scaledImage = m_image.scaled(
         m_device->size() * 1.25, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
     painter.drawPixmap(0, 0, scaledImage);
-    // painter.fillRect(device->rect(), QBrush(textureImage()));
 }

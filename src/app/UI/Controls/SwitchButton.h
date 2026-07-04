@@ -40,7 +40,6 @@ protected:
 private:
     using QAbstractButton::isChecked;
     using QAbstractButton::setChecked;
-    // bool m_value = false;
 
     QPropertyAnimation m_valueAnimation;
     QPropertyAnimation m_thumbHoverAnimation;

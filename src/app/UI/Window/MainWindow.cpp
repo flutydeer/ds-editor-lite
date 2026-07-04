@@ -324,9 +324,6 @@ MainWindow::MainWindow() {
     m_statusProgressBar->setVisible(false);
 
     auto statusBar = new QStatusBar(this);
-    // statusBar->addWidget(new QLabel("Scroll: Wheel/Shift + Wheel; Zoom: Ctrl + Wheel/Alt + Wheel;
-    // "
-    //                                 "Double click to create a singing clip"));
     statusBar->addPermanentWidget(m_lbTaskTitle);
     statusBar->addPermanentWidget(m_statusProgressBar);
     statusBar->setFixedHeight(28);
@@ -478,7 +475,6 @@ void MainWindow::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCol
     } else {
         // TODO: 恢复到折叠前的大小
         m_splitter->setSizes({240, 100}); // 临时解决方案
-        // m_splitter->restoreState(m_splitterState);
         appStatus->trackPanelCollapsed = false;
         appStatus->clipPanelCollapsed = false;
     }
@@ -563,9 +559,6 @@ bool MainWindow::onSaveAs() {
         messageDialog.addAccentButton(tr("OK"), 1);
         messageDialog.exec();
     }
-    // while (!saved) {
-    //     saved = appController->saveProject(getFileName(), errorMessage);
-    // }
     return saved;
 }
 
@@ -575,11 +568,9 @@ void MainWindow::onSplitterMoved(int pos, int index) const {
     if (m_splitter->sizes().at(0) == 0) {
         appStatus->trackPanelCollapsed = true;
         appStatus->clipPanelCollapsed = false;
-        // qDebug() << "Track editor collapsed";
     } else if (m_splitter->sizes().at(1) == 0) {
         appStatus->trackPanelCollapsed = false;
         appStatus->clipPanelCollapsed = true;
-        // qDebug() << "Clip editor collapsed";
     } else {
         appStatus->trackPanelCollapsed = false;
         appStatus->clipPanelCollapsed = false;
@@ -735,8 +726,6 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         thread->start();
         event->accept();
     }
-    // taskManager->wait();
-    // QMainWindow::closeEvent(event);
 }
 
 #if defined(WITH_DIRECT_MANIPULATION)
@@ -796,9 +785,6 @@ void MainWindow::emulateLeaveEvent(QWidget *widget) {
 }
 
 void MainWindow::restartApp() {
-    // auto program = QCoreApplication::applicationFilePath();
-    // qDebug() << "Restarting app..." << program;
-    // QProcess::startDetached(program);
     qApp->setProperty("restart", true);
 }
 

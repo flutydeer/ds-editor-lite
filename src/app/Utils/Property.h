@@ -27,9 +27,6 @@ public:
     virtual void set(const T &newValue);
     void onChanged(std::function<void(const T &newValue)> callback);
 
-    // signals:
-    //     void valueChanged(const T &newValue);
-
 protected:
     T value;
 

@@ -36,16 +36,13 @@ void TracksGraphicsScene::onTrackCountChanged(const int count) {
 }
 
 void TracksGraphicsScene::updateSceneRect() {
-    // CommonGraphicsScene::updateSceneRect();
     const auto targetSceneWidth = sceneBaseSize().width() * scaleX();
-    // auto targetSceneHeight = sceneSize().height() * scaleY();
     const auto totalTrackHeight = m_trackCount * TracksEditorGlobal::trackHeight * scaleY();
     const auto viewHeight = m_graphicsViewSize.height();
 
     auto targetSceneHeight = totalTrackHeight;
     // Adjust scene height to match view when track count or scaleY is too small
     if (totalTrackHeight < viewHeight) {
-        // auto paddingBottom = viewHeight - totalTrackHeight;
         targetSceneHeight = viewHeight;
     }
     setSceneRect(0, 0, targetSceneWidth, targetSceneHeight);

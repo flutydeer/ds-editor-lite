@@ -29,8 +29,6 @@ AnimationGlobal::AnimationLevels AppearanceOption::animationLevelFromString(cons
     if (name == "none")
         return AnimationGlobal::None;
 
-    // if (name == "full")
-    //     return AnimationGlobal::Full;
     return AnimationGlobal::Full;
 }
 

@@ -192,19 +192,6 @@ void InferEngine::setAboutToQuit(bool aboutToQuit) noexcept {
     m_aboutToQuit.store(aboutToQuit, std::memory_order_release);
 }
 
-// void InferenceEngine::loadConfig(const QString &path) {
-//     m_configLoaded = false;
-//     auto task = new LoadInferConfigTask(path);
-//     connect(task, &Task::finished, this, [=] {
-//         taskManager->removeTask(task);
-//         if (task->success) {
-//             m_configLoaded = true;
-//             m_paths.config = path;
-//         }
-//         delete task;
-//     });
-//     taskManager->addAndStartTask(task);
-// }
 
 bool InferEngine::initialize(QString &error) {
     QWriteLocker lock(&m_engineRwLock);
@@ -281,10 +268,7 @@ bool InferEngine::initialize(QString &error) {
     }
 
 
-    //const auto homeDir = StringUtils::qstr_to_path(QDir::toNativeSeparators(
-    //    QStandardPaths::writableLocation(QStandardPaths::HomeLocation)));
 
-    //const std::filesystem::path paths = {homeDir / ".diffsinger/packages"};
     const auto packagePathsQt = appOptions->general()->packageSearchPaths;
     std::vector<std::filesystem::path> packagePaths;
     packagePaths.reserve(packagePathsQt.size());
@@ -332,7 +316,6 @@ void InferEngine::loadAllSingersFromPackage(const srt::PackageRef &package) {
     loaders.reserve(singers.size());
 
     for (const auto singer : singers) {
-        // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
         const auto singerSpec = static_cast<srt::SingerSpec *>(singer);
         auto loader = std::make_shared<InferenceLoader>(singerSpec);
         loader->loadInferenceSpecs();
@@ -365,7 +348,6 @@ srt::SingerSpec *InferEngine::findSingerForPackage(const srt::PackageRef &packag
     srt::SingerSpec *singerSpec = nullptr;
     for (const auto singer : singers) {
         if (singer->id() == singerId) {
-            // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
             singerSpec = static_cast<srt::SingerSpec *>(singer);
             break;
         }
@@ -418,43 +400,6 @@ bool InferEngine::loadPackage(const std::filesystem::path &packagePath, const bo
     outPackage = pkg;
     return true;
 }
-
-#if false
-bool InferEngine::loadInferences(const QString &path) {
-    if (path.isNull() || path.isEmpty()) {
-        qWarning() << "Package path is null or empty";
-        return false;
-    }
-    QWriteLocker lock(&m_engineRwLock);
-    if (path == m_paths.config) {
-        qInfo() << "Already loaded config";
-    }
-
-    if (!m_initialized) {
-        qCritical() << "loadInferences: SynthUnit is not initialized!";
-        return false;
-    }
-
-    // Load models
-    const auto packagePath = StringUtils::qstr_to_path(path);
-
-    srt::PackageRef pkg;
-    // Load package
-    if (!loadPackage(packagePath, false, pkg)) {
-        qCritical() << "Failed to load package" << path;
-        return false;
-    }
-
-    loadAllSingersFromPackage(pkg);
-
-    SingerIdentifier identifier;
-    identifier.packageId = QString::fromUtf8(pkg.id());
-    identifier.packageVersion = VersionUtils::stdc_to_qt(pkg.version());
-    identifier.singerId = appOptions->general()->defaultSingerId;
-
-    return loadInferencesForSinger(identifier);
-}
-#endif
 
 bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
     if (appStatus->inferEngineEnvStatus != AppStatus::ModuleStatus::Ready || !initialized()) {
@@ -605,7 +550,6 @@ bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
         m_inferences[identifier] = std::move(inference);
     }
 
-    //m_paths.config = StringUtils::path_to_qstr(singerSpec->parent().path());
     qInfo() << "loadInferences success";
 
     return true;

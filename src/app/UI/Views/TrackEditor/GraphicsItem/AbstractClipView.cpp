@@ -31,7 +31,6 @@ AbstractClipView::AbstractClipView(const int itemId, QGraphicsItem *parent)
 AbstractClipView::~AbstractClipView() {
     disconnect();
     delete d_ptr;
-    // qDebug() << "~AbstractClipView()";
 }
 
 QString AbstractClipView::name() const {
@@ -213,7 +212,6 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     auto paddedRect = QRectF(left, top, width, height);
     auto radius = 4;
 
-    // double iconWidth = 16;
     double iconWidth = 4;
     double textPadding = 0;
     auto rectLeft = mapToScene(rect().topLeft()).x();
@@ -260,7 +258,6 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
         titleBackgroundPath.lineTo(paddedRect.left(), d->titleHeight);
         painter->setPen(Qt::NoPen);
         painter->setBrush(isSelected() ? colorPrimaryLighter : colorPrimary);
-        // painter->setBrush(colorPrimary);
         painter->drawPath(titleBackgroundPath);
     }
 
@@ -283,24 +280,15 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     pen.setColor(colorForeground);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
-    // QRectF iconRect;
     if (textWidth + iconWidth <= titleRectWidth && textHeight <= d->titleHeight) {
         if (d->previewRect().height() < 32) {
             painter->drawText(textRect, text(), QTextOption(Qt::AlignVCenter));
-            // iconRect = QRectF(titleRectLeft, titleRectTop, iconWidth, titleRectHeight);
         } else {
             painter->drawText(textRect, text());
-            // iconRect = QRectF(titleRectLeft, titleRectTop, iconWidth, textHeight);
         }
-        // QSvgRenderer renderer(iconPath());
-        // renderer.setAspectRatioMode(Qt::KeepAspectRatio);
-        // renderer.render(painter, iconRect);
     }
 
     if (previewRectHeight >= 32) {
-        // auto colorAlpha = previewRectHeight <= 48
-        //                       ? static_cast<int>(255 * (previewRectHeight - 32) / (48 - 32))
-        //                       : 255;
         painter->setClipRect(d->previewRect());
         drawPreviewArea(painter, d->previewRect(),
                         isSelected() ? colorPrimaryLighter : colorPrimary);

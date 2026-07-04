@@ -22,8 +22,6 @@ signals:
     void redoTriggered();
 
 public slots:
-    // void updateView();
-    // void onCanSaveChanged(bool b);
     void onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
                            const QString &redoActionName);
 

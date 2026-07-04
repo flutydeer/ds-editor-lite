@@ -43,7 +43,6 @@ void TaskWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsi
 }
 
 void TaskWindow::addTaskToView(Task *task) {
-    // qDebug() << "TaskWindow::addTaskToView";
     auto item = new QListWidgetItem;
     auto taskView = new TaskView(task->status(), this);
     item->setSizeHint(QSize(m_taskList->width() - 4, 72));
@@ -54,7 +53,6 @@ void TaskWindow::addTaskToView(Task *task) {
 }
 
 void TaskWindow::removeTaskFromView(qsizetype index) {
-    // qDebug() << "TaskWindow::removeTaskFromView";
     auto item = m_taskList->takeItem(index);
     auto widget = m_taskList->itemWidget(item);
     m_taskList->removeItemWidget(item);

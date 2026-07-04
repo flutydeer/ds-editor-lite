@@ -392,9 +392,6 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
         return;
     }
     if (!task->success) {
-        // auto clipItem = m_view.findClipItemById(task->id());
-        // auto audioClipItem = dynamic_cast<AudioClipGraphicsItem *>(clipItem);
-        // audioClipItem->setStatus(AppGlobal::Error);
         const auto dlg = new Dialog(m_parentWidget);
         dlg->setWindowTitle(tr("Error"));
         dlg->setTitle(tr("Failed to open audio file:"));

@@ -12,13 +12,6 @@ class TimeGridView : public AbstractGraphicsRectItem, public ITimelinePainter {
     Q_OBJECT
 
 public:
-    // class TimeSignature {
-    // public:
-    //     int position = 0;
-    //     int numerator = 4;
-    //     int denominator = 4;
-    // };
-
     explicit TimeGridView(QGraphicsItem *parent = nullptr);
     ~TimeGridView() override = default;
     [[nodiscard]] int logicalGridStepForCurrentScale() const;
@@ -27,7 +20,6 @@ public slots:
     void setTimeSignature(int numerator, int denominator) override;
     void setQuantize(int quantize) override;
     void setOffset(int tick);
-    //     void onTimelineChanged();
 
 protected:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;

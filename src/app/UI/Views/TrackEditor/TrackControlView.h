@@ -49,9 +49,6 @@ public:
 signals:
     void insertNewTrackTriggered();
     void removeTrackTriggered(int id);
-    // void moveUpTrack();
-    // void modeDownTrack();
-    // void addAudioClipTriggered();
 
 private:
     void contextMenuEvent(QContextMenuEvent *event) override;

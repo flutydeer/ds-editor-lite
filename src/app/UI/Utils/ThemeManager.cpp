@@ -24,7 +24,6 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(ThemeManager)
 void ThemeManager::addAnimationObserver(IAnimatable *object) {
     m_subscribers += object;
     applyAnimationSettings(object);
-    // qDebug() << "ThemeManager::addAnimationObserver" << object;
 }
 
 void ThemeManager::removeAnimationObserver(IAnimatable *object) {
@@ -42,7 +41,6 @@ void ThemeManager::removeWindow(QWidget *window) {
 }
 
 void ThemeManager::onAppOptionsChanged(const AppOptionsGlobal::Option option) {
-    // qDebug() << "ThemeManager::onAppOptionsChanged";
     if (option != AppOptionsGlobal::All && option != AppOptionsGlobal::Appearance)
         return;
 
@@ -79,13 +77,6 @@ bool ThemeManager::eventFilter(QObject *watched, QEvent *event) {
                     }
 
                     WindowFrameUtils::applyFrameEffects(wp);
-                    // if (SystemUtils::isWindows()) {
-                    //     if (QSysInfo::productVersion() == "11")
-                    //         wp->setProperty("transparentWindow", true);
-                    //     else
-                    //         wp->setProperty("transparentWindow", false);
-                    // } else
-                    //     wp->setProperty("transparentWindow", false);
                     wp->setProperty("transparentWindow", false);
 
                     // Only re-polish after the current event loop iteration to avoid

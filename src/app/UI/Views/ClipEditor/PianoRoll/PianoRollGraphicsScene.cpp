@@ -15,9 +15,5 @@ PianoRollGraphicsScene::PianoRollGraphicsScene() {
 }
 
 void PianoRollGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-    // if (event->button() != Qt::LeftButton) {
-    //     event->accept();
-    //     return;
-    // }
     QGraphicsScene::mousePressEvent(event);
 }

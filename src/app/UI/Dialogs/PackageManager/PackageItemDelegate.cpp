@@ -30,8 +30,6 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     QRectF contentRect = option.rect.adjusted(m_paddingLeft, m_paddingTop, -m_paddingRight,
                                               -m_paddingBottom);
     painter->setRenderHint(QPainter::Antialiasing);
-    // painter->setPen(Qt::red);
-    // painter->drawRect(contentRect);
 
     // Calculate title text rect
     auto titleFont = option.font;
@@ -88,7 +86,6 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
 
 QSize PackageItemDelegate::sizeHint(const QStyleOptionViewItem &option,
                                     const QModelIndex &index) const {
-    // return QStyledItemDelegate::sizeHint(option, index);
 
     // Calculate title text height
     auto titleFont = option.font;

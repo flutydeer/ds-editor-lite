@@ -20,7 +20,6 @@ TaskView::TaskView(const TaskStatus &initialStatus, QWidget *parent)
     mainLayout->addWidget(m_progressBar);
     mainLayout->addWidget(m_lbMsg);
     setLayout(mainLayout);
-    // setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 
     updateUi(initialStatus);
 }

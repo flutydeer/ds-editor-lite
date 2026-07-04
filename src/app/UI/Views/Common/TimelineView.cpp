@@ -108,10 +108,6 @@ void TimelineView::setDataContext(SingingClip *clip) {
     update();
 }
 
-// void TimelineView::setPieces(const QList<InferPiece *> &pieces) {
-//     m_pieces = pieces;
-//     update();
-// }
 
 void TimelineView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
@@ -119,10 +115,6 @@ void TimelineView::paintEvent(QPaintEvent *event) {
     painter.setRenderHint(QPainter::Antialiasing);
 
     // Draw background
-    // painter.setPen(Qt::NoPen);
-    // painter.setBrush(QColor(28, 29, 30));
-    // painter.drawRect(rect());
-    // painter.setBrush(Qt::NoBrush);
 
     // Draw loop background first (under everything)
     drawLoopBackground(&painter);

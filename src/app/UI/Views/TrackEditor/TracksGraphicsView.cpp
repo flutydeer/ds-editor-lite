@@ -46,7 +46,6 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, const QWidget
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TracksGraphicsView");
     setScaleYMin(0.575);
-    // QScroller::grabGesture(m_graphicsView, QScroller::TouchGesture);
     setEnsureSceneFillViewY(false);
     setScaleXMax(10000);
     setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
@@ -120,28 +119,6 @@ void TracksGraphicsView::onAddAudioClip() {
 
 void TracksGraphicsView::onDeleteTriggered() const {
     trackController->onRemoveClips(selectedClipsId());
-    // auto selectedClips = selectedClipItems();
-    // auto dlg = new Dialog(this);
-    // dlg->setWindowTitle(tr("Warning"));
-    // dlg->setTitle(tr("Do you want to delete these clips?"));
-    // QString msg;
-    // for (const auto clipItem : selectedClips)
-    //     msg.append(clipItem->name() + "\n");
-    // dlg->setMessage(msg);
-    // dlg->setModal(true);
-    //
-    // auto btnDelete = new Button(tr("Delete"));
-    // connect(btnDelete, &Button::clicked, dlg, &Dialog::accept);
-    // dlg->setNegativeButton(btnDelete);
-    //
-    // auto btnCancel = new AccentButton(tr("Cancel"));
-    // connect(btnCancel, &Button::clicked, dlg, &Dialog::reject);
-    // dlg->setPositiveButton(btnCancel);
-    //
-    // connect(dlg, &Dialog::accepted, this,
-    //         [=] { trackController->onRemoveClips(selectedClipsId()); });
-    //
-    // dlg->show();
 }
 
 void TracksGraphicsView::onExtractMidiTriggered(const int clipId) {
@@ -193,7 +170,6 @@ void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
             }
         } else {
             clearSelections();
-            // trackController->setActiveClip(-1);
             TimeGraphicsView::mousePressEvent(event);
         }
     }
@@ -501,7 +477,6 @@ void TracksGraphicsView::syncClipSelectionToAppStatus() const {
 void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event,
                                                         AbstractClipView *clipItem) {
     const auto scenePos = mapToScene(event->pos());
-    // qDebug() << "prepareForMovingOrResizingClip";
 
     const bool ctrlDown = event->modifiers() == Qt::ControlModifier;
     if (!ctrlDown) {
@@ -514,22 +489,16 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
     const auto rPos = clipItem->mapFromScene(scenePos);
     const auto rx = rPos.x();
     if (rx >= 0 && rx <= AppGlobal::resizeTolerance) {
-        // setCursor(Qt::SizeHorCursor);
         m_mouseMoveBehavior = ResizeLeft;
-        // qDebug() << "ResizeLeft";
         clearSelections();
         clipItem->setSelected(true);
     } else if (rx >= clipItem->rect().width() - AppGlobal::resizeTolerance &&
                rx <= clipItem->rect().width()) {
-        // setCursor(Qt::SizeHorCursor);
         m_mouseMoveBehavior = ResizeRight;
-        // qDebug() << "ResizeRight";
         clearSelections();
         clipItem->setSelected(true);
     } else {
-        // setCursor(Qt::ArrowCursor);
         m_mouseMoveBehavior = Move;
-        // qDebug() << "Move";
     }
 
     m_currentEditingClip = clipItem;

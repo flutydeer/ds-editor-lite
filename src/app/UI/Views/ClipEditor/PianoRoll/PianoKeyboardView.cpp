@@ -88,8 +88,6 @@ void PianoKeyboardView::paintEvent(QPaintEvent *event) {
         }
     }
 
-    // const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
-    // Logger::d("PianoKeyboardView", "paint time: " + QString::number(time));
 }
 
 void PianoKeyboardView::wheelEvent(QWheelEvent *e) {
@@ -98,7 +96,6 @@ void PianoKeyboardView::wheelEvent(QWheelEvent *e) {
         new QWheelEvent(e->position(), e->globalPosition(), e->pixelDelta(), angleDelta,
                         e->buttons(), e->modifiers(), e->phase(), e->inverted());
     emit wheelScroll(event);
-    // QWidget::wheelEvent(event);
 }
 
 void PianoKeyboardView::enterEvent(QEnterEvent *event) {
@@ -484,7 +481,6 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) {
     auto closestBKeyY = [=](const int key) {
         const int remain = key % 12;
         const int bIndex = key + 12 - remain - 1;
-        // qDebug() << "bIndex" << bIndex << "Note name: " << PianoPaintUtils::noteName(bIndex);
         return blackKeyToY(bIndex);
     };
 
@@ -507,7 +503,6 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) {
             index = 6;
 
         const auto y = closestBKeyY(key) + (6 - index) * pixelsPerWhiteKey;
-        // qDebug() << "closestBKeyY: " << y;
         return y;
     };
 
@@ -563,15 +558,6 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) {
             painter.setPen(Qt::NoPen);
             painter.drawRoundedRect(keyRect, radius, radius);
 
-            // auto textRect = QRectF(6, y, width(), pixelsPerBlackKey);
-            // auto fontMetrics = painter.fontMetrics();
-            // auto textHeight = fontMetrics.height();
-            // if (textRect.height() > textHeight) {
-            //     pen.setColor(m_whiteKeyColor);
-            //     painter.setPen(pen);
-            //     painter.drawText(textRect, PianoPaintUtils::noteName(i),
-            //                      QTextOption(Qt::AlignVCenter));
-            // }
         }
     };
 

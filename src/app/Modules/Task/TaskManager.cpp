@@ -48,7 +48,6 @@ Task *TaskManager::findTaskById(const int id) {
 void TaskManager::wait() {
     Q_D(TaskManager);
     d->m_worker.wait();
-    // threadPool->waitForDone();
 }
 
 void TaskManager::addTask(Task *task) {

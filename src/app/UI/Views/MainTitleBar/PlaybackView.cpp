@@ -70,7 +70,6 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnPlay->setObjectName("btnPlay");
     m_btnPlay->setIconSize(m_iconSize);
     m_btnPlay->setIcon(buildToggleIcon(":svg/icons/play_16_filled.svg", m_iconSize, playAccentColor()));
-    // m_btnPlay->setText("Play");
     m_btnPlay->setCheckable(true);
 
     m_btnPlayPause = new QPushButton(this);
@@ -125,7 +124,6 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnPause->setIconSize(m_iconSize);
     m_btnPause->setIcon(buildToggleIcon(":svg/icons/pause_16_filled.svg", m_iconSize,
                                         pauseAccentColor()));
-    // m_btnPause->setText("Pause");
     m_btnPause->setCheckable(true);
 
     m_elTime = new EditLabel;

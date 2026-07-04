@@ -30,11 +30,6 @@ private:
     LanguageComboBox *m_cbDefaultSingingLanguage;
     LineEdit *m_leDefaultLyric;
     QString m_previousLanguage;
-#if false
-    DirSelector *m_fsDefaultPackage;
-    LineEdit *m_leDefaultSingerId;
-    LineEdit *m_leDefaultSpeakerId;
-#endif
 
     PathEditor *m_packageSearchPaths;
 

@@ -47,7 +47,6 @@ public:
     friend bool operator!=(const DrawCurve &lhs, const DrawCurve &rhs);
 
 private:
-    // int m_step = 5;
     QList<int> m_values;
 };
 

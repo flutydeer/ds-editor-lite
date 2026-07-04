@@ -152,15 +152,6 @@ void AppController::exportMidiFile(const QString &filePath) {
     appModel->exportMidiFile(filePath);
 }
 
-// void AppController::importAceProject(const QString &filePath) {
-//     Q_D(AppController);
-//     appModel->importAceProject(filePath);
-//     historyManager->reset();
-//     historyManager->setSavePoint();
-//     d->updateProjectPathAndName("");
-//     setProjectName(QFileInfo(filePath).baseName());
-//     d->m_lastProjectFolder = QFileInfo(filePath).dir().path();
-// }
 
 void AppController::onSetTempo(const double tempo) {
     const auto model = appModel;

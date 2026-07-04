@@ -226,29 +226,10 @@ void TrackEditorView::syncSelectedTrackToList(const int trackIndex) const {
 
 void TrackEditorView::onRemoveTrackTriggered(const int id) {
     trackController->onRemoveTrack(id);
-    // auto track = appModel->findTrackById(id);
-    // auto dlg = new Dialog(this);
-    // dlg->setWindowTitle(tr("Warning"));
-    // dlg->setTitle(tr("Do you want to delete this track?"));
-    // dlg->setMessage(track->name());
-    // dlg->setModal(true);
-    //
-    // auto btnDelete = new Button(tr("Delete"));
-    // connect(btnDelete, &Button::clicked, dlg, &Dialog::accept);
-    // dlg->setNegativeButton(btnDelete);
-    //
-    // auto btnCancel = new AccentButton(tr("Cancel"));
-    // connect(btnCancel, &Button::clicked, dlg, &Dialog::reject);
-    // dlg->setPositiveButton(btnCancel);
-    //
-    // connect(dlg, &Dialog::accepted, this, [=] { trackController->onRemoveTrack(id); });
-    //
-    // dlg->show();
 }
 
 bool TrackEditorView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QMouseEvent::MouseButtonPress) {
-        // qDebug() << "TracksView MouseButtonPress";
         appController->setActivePanel(AppGlobal::TracksEditor);
     }
 
@@ -434,7 +415,6 @@ void TrackEditorView::onTrackPropertyChanged() const {
 }
 
 void TrackEditorView::updateClipOnView(Clip *clip) {
-    // qDebug() << "TracksView::updateClipOnView" << clipId;
     const auto item = findClipItemById(clip->id());
     item->setName(clip->name());
     item->setStart(clip->start());
@@ -460,8 +440,6 @@ void TrackEditorView::onTrackRemoved(const Track *dsTrack, const qsizetype index
     const QSignalBlocker listBlocker(m_trackListView);
 
     disconnect(dsTrack, nullptr, this, nullptr);
-    // disconnect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
-    //            &TrackEditorView::onSceneSelectionChanged);
     // remove from view
     const auto trackVm = m_viewModel.tracks.at(index);
     auto keys = trackVm->clips.keys();
@@ -486,9 +464,6 @@ void TrackEditorView::onTrackRemoved(const Track *dsTrack, const qsizetype index
                 clipItem->setTrackIndex(i);
             }
         }
-    // connect(m_tracksScene, &TracksGraphicsScene::selectionChanged, this,
-    //         &TrackEditorView::onSceneSelectionChanged);
-
     // Removing a row before the selection shifts it up; removing the selected row selects its neighbor.
     const auto removedTrackIndex = static_cast<int>(index);
     auto selectedTrackIndex = previousSelectedTrackIndex;

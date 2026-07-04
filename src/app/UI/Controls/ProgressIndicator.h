@@ -22,7 +22,6 @@ class ProgressIndicator : public QWidget, public IAnimatable {
                    secondaryValueChanged)
     Q_PROPERTY(
         double currentTaskValue READ currentTaskValue WRITE setValue NOTIFY currentTaskValueChanged)
-    //    Q_PROPERTY(bool invertedAppearance READ invertedAppearance WRITE setInvertedAppearance)
     Q_PROPERTY(int thumbProgress READ thumbProgress WRITE setThumbProgress)
     Q_PROPERTY(double apparentValue READ apparentValue WRITE setApparentValue)
     Q_PROPERTY(
@@ -54,12 +53,7 @@ public:
     //
     //    Qt::Orientation orientation() const;
     //
-    //    void setInvertedAppearance(bool invert);
-    //    bool invertedAppearance() const;
     //
-    //    void setFormat(const QString &format);
-    //    void resetFormat();
-    //    QString format() const;
 
 public slots:
     void reset();
@@ -117,7 +111,6 @@ protected:
     QPoint m_trackEnd;
     int m_actualLength = 0;
     QRect m_ringRect;
-    //    bool m_invertedAppearance = false;
     QTimer m_timer;
     QPropertyAnimation m_valueAnimation;
     QPropertyAnimation m_SecondaryValueAnimation;

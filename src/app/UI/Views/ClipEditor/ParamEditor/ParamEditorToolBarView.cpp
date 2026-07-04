@@ -52,7 +52,6 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     layout->setContentsMargins(8, 4, 4, 4);
 
     setLayout(layout);
-    // setFixedHeight(32);
 
     connect(cbForegroundParam, &ComboBox::currentIndexChanged, this,
             &ParamEditorToolBarView::onForegroundSelectionChanged);

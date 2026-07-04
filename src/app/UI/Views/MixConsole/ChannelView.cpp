@@ -118,7 +118,6 @@ void ChannelView::setControl(const TrackControl &control) {
 }
 
 void ChannelView::onPanMoved(double pan) {
-    // qDebug() << "ChannelView::onPanMoved" << pan;
     m_elPan->setText(panValueToString(pan));
 }
 
@@ -384,7 +383,6 @@ QStackedWidget *ChannelView::buildIndexStack() {
     m_lbIndex->setObjectName("lbIndex");
     m_lbIndex->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     m_lbIndex->setAlignment(Qt::AlignCenter);
-    // m_lbIndex->setText("1");
 
     auto indexPlaceholder = new QWidget;
     indexPlaceholder->setObjectName("indexPlaceholder");

@@ -41,7 +41,6 @@ public slots:
     void startTask(Task *task);
     void addAndStartTask(Task *task);
     void removeTask(Task *task);
-    // void startTask(int taskId);
     void startAllTasks();
     static void terminateTask(Task *task);
     void terminateAllTasks();
