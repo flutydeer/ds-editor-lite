@@ -124,5 +124,8 @@ void AnchorCurve::removeNode(AnchorNode *node) {
 }
 
 int AnchorCurve::localEndTick() const {
-    return m_nodes.toList().last()->pos(); // TODO: fix
+    const auto list = m_nodes.toList();
+    if (list.isEmpty())
+        qFatal("AnchorCurve::localEndTick: nodes list is empty");
+    return list.last()->pos();
 }
