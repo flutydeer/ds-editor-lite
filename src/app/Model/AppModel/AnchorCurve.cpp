@@ -15,6 +15,10 @@ AnchorCurve::AnchorCurve(const AnchorCurve &other) : Curve() {
     }
 }
 
+AnchorCurve::~AnchorCurve() {
+    qDeleteAll(m_nodes.toList());
+}
+
 int AnchorNode::pos() const {
     return m_pos;
 }

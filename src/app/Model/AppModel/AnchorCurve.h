@@ -40,6 +40,7 @@ class AnchorCurve final : public Curve {
 public:
     AnchorCurve() = default;
     AnchorCurve(const AnchorCurve &other);
+    ~AnchorCurve();
 
     CurveType type() const override {
         return Anchor;
@@ -59,7 +60,6 @@ public:
 private:
     OverlappableSerialList<AnchorNode> m_nodes;
 };
-
 
 
 #endif // ANCHORCURVE_H
