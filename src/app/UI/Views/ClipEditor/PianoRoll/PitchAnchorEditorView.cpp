@@ -98,43 +98,6 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
         return sceneYToItemY(valueToSceneY(value));
     };
 
-    auto interpolateSegment = [&](AnchorNode *n1, AnchorNode *n2, AnchorNode *ref1,
-                                  AnchorNode *ref2) {
-        auto interp = AnchorCurve::createInterpolator(n1, n2, ref1, ref2);
-
-        QPainterPath path;
-        const double startX = tickToLocalX(n1->pos());
-        const double endX = tickToLocalX(n2->pos());
-        bool first = true;
-        double prevLy = 0;
-        double step = 2.0;
-        double px = startX;
-        while (px <= endX) {
-            const double tick = sceneXToTick(px + pos().x());
-            const double val = interp.evaluate(tick);
-            const double ly = valueToLocalY(static_cast<int>(val));
-            if (first) {
-                path.moveTo(px, ly);
-                first = false;
-            } else {
-                path.lineTo(px, ly);
-                double dy = std::abs(ly - prevLy);
-                step = (dy > 4.0) ? 0.5 : (dy > 2.0) ? 1.0 : 2.0;
-            }
-            prevLy = ly;
-            px += step;
-        }
-        if (!first) {
-            const double tick = sceneXToTick(endX + pos().x());
-            const double val = interp.evaluate(tick);
-            path.lineTo(endX, valueToLocalY(static_cast<int>(val)));
-        }
-        QPen pen(curveColor, 1.5);
-        painter->setPen(pen);
-        painter->setBrush(Qt::NoBrush);
-        painter->drawPath(path);
-    };
-
     auto drawCurve = [&](AnchorCurve *curve) {
         auto allNodes = curve->nodes().toList();
         if (allNodes.isEmpty())
@@ -160,12 +123,16 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
         if (nodes.isEmpty())
             return;
 
+        QPen pen(curveColor, 1.5);
+        painter->setPen(pen);
+        painter->setBrush(Qt::NoBrush);
+
         for (int i = 0; i < nodes.size() - 1; i++) {
             auto *n1 = nodes[i];
             auto *n2 = nodes[i + 1];
             auto *ref1 = (i > 0) ? nodes[i - 1] : nullptr;
             auto *ref2 = (i + 2 < nodes.size()) ? nodes[i + 2] : nullptr;
-            interpolateSegment(n1, n2, ref1, ref2);
+            interpolateSegment(painter, n1, n2, ref1, ref2);
         }
 
         for (auto *node : nodes) {
@@ -231,45 +198,6 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
         virtualNode.setInterpMode(mode);
     }
 
-    auto tickToLocalX = [this](int tick) { return tickToItemX(tick); };
-    auto valueToLocalY = [this](int value) { return sceneYToItemY(valueToSceneY(value)); };
-
-    auto interpolateSegment = [&](AnchorNode *n1, AnchorNode *n2, AnchorNode *ref1,
-                                  AnchorNode *ref2) {
-        auto interp = AnchorCurve::createInterpolator(n1, n2, ref1, ref2);
-
-        const double startX = tickToLocalX(n1->pos());
-        const double endX = tickToLocalX(n2->pos());
-
-        QPainterPath path;
-        bool first = true;
-        double prevLy = 0;
-        double step = 2.0;
-        const double dir = (endX < startX) ? -1.0 : 1.0;
-        double px = startX;
-        while ((dir > 0) ? (px <= endX) : (px >= endX)) {
-            const double tick = sceneXToTick(px + pos().x());
-            const double val = interp.evaluate(tick);
-            const double ly = valueToLocalY(static_cast<int>(val));
-            if (first) {
-                path.moveTo(px, ly);
-                first = false;
-            } else {
-                path.lineTo(px, ly);
-                double dy = std::abs(ly - prevLy);
-                step = (dy > 4.0) ? 0.5 : (dy > 2.0) ? 1.0 : 2.0;
-            }
-            prevLy = ly;
-            px += dir * step;
-        }
-        if (!first) {
-            const double tick = sceneXToTick(endX + pos().x());
-            const double val = interp.evaluate(tick);
-            path.lineTo(endX, valueToLocalY(static_cast<int>(val)));
-        }
-        painter->drawPath(path);
-    };
-
     QPen pen(QColor(155, 186, 255, 128), 1.5, Qt::DashLine);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
@@ -279,7 +207,7 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
         auto *n2 = allNodes[i + 1];
         auto *ref1 = (i > 0) ? allNodes[i - 1] : nullptr;
         auto *ref2 = (i + 2 < allNodes.size()) ? allNodes[i + 2] : nullptr;
-        interpolateSegment(n1, n2, ref1, ref2);
+        interpolateSegment(painter, n1, n2, ref1, ref2);
     }
 
     const double cx = tickToItemX(virtualNode.pos());
@@ -305,44 +233,6 @@ void PitchAnchorEditorView::drawMergePreviewCurve(QPainter *painter) const {
     if (allNodes.size() < 2)
         return;
 
-    auto tickToLocalX = [this](int tick) { return tickToItemX(tick); };
-    auto valueToLocalY = [this](int value) { return sceneYToItemY(valueToSceneY(value)); };
-
-    auto interpolateSegment = [&](AnchorNode *n1, AnchorNode *n2, AnchorNode *ref1,
-                                  AnchorNode *ref2) {
-        auto interp = AnchorCurve::createInterpolator(n1, n2, ref1, ref2);
-
-        const double startX = tickToLocalX(n1->pos());
-        const double endX = tickToLocalX(n2->pos());
-
-        QPainterPath path;
-        bool first = true;
-        double prevLy = 0;
-        double step = 2.0;
-        double px = startX;
-        while (px <= endX) {
-            const double tick = sceneXToTick(px + pos().x());
-            const double val = interp.evaluate(tick);
-            const double ly = valueToLocalY(static_cast<int>(val));
-            if (first) {
-                path.moveTo(px, ly);
-                first = false;
-            } else {
-                path.lineTo(px, ly);
-                double dy = std::abs(ly - prevLy);
-                step = (dy > 4.0) ? 0.5 : (dy > 2.0) ? 1.0 : 2.0;
-            }
-            prevLy = ly;
-            px += step;
-        }
-        if (!first) {
-            const double tick = sceneXToTick(endX + pos().x());
-            const double val = interp.evaluate(tick);
-            path.lineTo(endX, valueToLocalY(static_cast<int>(val)));
-        }
-        painter->drawPath(path);
-    };
-
     QPen pen(QColor(155, 186, 255, 160), 1.5, Qt::DashLine);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
@@ -352,7 +242,7 @@ void PitchAnchorEditorView::drawMergePreviewCurve(QPainter *painter) const {
         auto *n2 = allNodes[i + 1];
         auto *ref1 = (i > 0) ? allNodes[i - 1] : nullptr;
         auto *ref2 = (i + 2 < allNodes.size()) ? allNodes[i + 2] : nullptr;
-        interpolateSegment(n1, n2, ref1, ref2);
+        interpolateSegment(painter, n1, n2, ref1, ref2);
     }
 }
 
@@ -371,41 +261,6 @@ void PitchAnchorEditorView::drawDragPreviewCurve(QPainter *painter) const {
 
     auto tickToLocalX = [this](int tick) { return tickToItemX(tick); };
     auto valueToLocalY = [this](int value) { return sceneYToItemY(valueToSceneY(value)); };
-
-    auto interpolateSegment = [&](AnchorNode *n1, AnchorNode *n2, AnchorNode *ref1,
-                                  AnchorNode *ref2) {
-        auto interp = AnchorCurve::createInterpolator(n1, n2, ref1, ref2);
-
-        const double startX = tickToLocalX(n1->pos());
-        const double endX = tickToLocalX(n2->pos());
-
-        QPainterPath path;
-        bool first = true;
-        double prevLy = 0;
-        double step = 2.0;
-        double px = startX;
-        while (px <= endX) {
-            const double tick = sceneXToTick(px + pos().x());
-            const double val = interp.evaluate(tick);
-            const double ly = valueToLocalY(static_cast<int>(val));
-            if (first) {
-                path.moveTo(px, ly);
-                first = false;
-            } else {
-                path.lineTo(px, ly);
-                double dy = std::abs(ly - prevLy);
-                step = (dy > 4.0) ? 0.5 : (dy > 2.0) ? 1.0 : 2.0;
-            }
-            prevLy = ly;
-            px += step;
-        }
-        if (!first) {
-            const double tick = sceneXToTick(endX + pos().x());
-            const double val = interp.evaluate(tick);
-            path.lineTo(endX, valueToLocalY(static_cast<int>(val)));
-        }
-        painter->drawPath(path);
-    };
 
     QPen pen(QColor(155, 186, 255, 160), 1.5, Qt::DashLine);
     painter->setPen(pen);
@@ -432,7 +287,7 @@ void PitchAnchorEditorView::drawDragPreviewCurve(QPainter *painter) const {
             auto *n2 = allNodes[i + 1];
             auto *ref1 = (i > 0) ? allNodes[i - 1] : nullptr;
             auto *ref2 = (i + 2 < allNodes.size()) ? allNodes[i + 2] : nullptr;
-            interpolateSegment(n1, n2, ref1, ref2);
+            interpolateSegment(painter, n1, n2, ref1, ref2);
         }
 
         painter->setPen(Qt::NoPen);
@@ -462,4 +317,40 @@ void PitchAnchorEditorView::drawSelectionRect(QPainter *painter) const {
     painter->setPen(QPen(QColor(155, 186, 255, 200), 1.5));
     painter->setBrush(QColor(155, 186, 255, 64));
     painter->drawRoundedRect(localRect, radius, radius);
+}
+
+void PitchAnchorEditorView::interpolateSegment(QPainter *painter, AnchorNode *n1, AnchorNode *n2,
+                                               AnchorNode *ref1, AnchorNode *ref2) const {
+    auto interp = AnchorCurve::createInterpolator(n1, n2, ref1, ref2);
+
+    const double startX = tickToItemX(n1->pos());
+    const double endX = tickToItemX(n2->pos());
+
+    QPainterPath path;
+    bool first = true;
+    double prevLy = 0;
+    double step = 2.0;
+    const double dir = (endX < startX) ? -1.0 : 1.0;
+    double px = startX;
+    while ((dir > 0) ? (px <= endX) : (px >= endX)) {
+        const double tick = sceneXToTick(px + pos().x());
+        const double val = interp.evaluate(tick);
+        const double ly = sceneYToItemY(valueToSceneY(static_cast<int>(val)));
+        if (first) {
+            path.moveTo(px, ly);
+            first = false;
+        } else {
+            path.lineTo(px, ly);
+            double dy = std::abs(ly - prevLy);
+            step = (dy > 4.0) ? 0.5 : (dy > 2.0) ? 1.0 : 2.0;
+        }
+        prevLy = ly;
+        px += dir * step;
+    }
+    if (!first) {
+        const double tick = sceneXToTick(endX + pos().x());
+        const double val = interp.evaluate(tick);
+        path.lineTo(endX, sceneYToItemY(valueToSceneY(static_cast<int>(val))));
+    }
+    painter->drawPath(path);
 }

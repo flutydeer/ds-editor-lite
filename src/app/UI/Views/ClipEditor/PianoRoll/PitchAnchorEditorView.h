@@ -8,6 +8,7 @@
 #include "UI/Views/Common/TimeOverlayView.h"
 
 struct AnchorOverlayState;
+class AnchorNode;
 
 class PitchAnchorEditorView : public TimeOverlayView {
     Q_OBJECT
@@ -28,6 +29,9 @@ private:
     void drawMergePreviewCurve(QPainter *painter) const;
     void drawDragPreviewCurve(QPainter *painter) const;
     void drawSelectionRect(QPainter *painter) const;
+
+    void interpolateSegment(QPainter *painter, AnchorNode *n1, AnchorNode *n2,
+                            AnchorNode *ref1, AnchorNode *ref2) const;
 
     const AnchorOverlayState *m_state = nullptr;
 };
