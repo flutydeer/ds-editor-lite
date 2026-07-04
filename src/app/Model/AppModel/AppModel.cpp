@@ -5,11 +5,10 @@
 #include "AppModel.h"
 
 #include "AppModel_p.h"
+#include "LevelMeterViewModel.h"
 #include "SingingClip.h"
 #include "Track.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Controls/LevelMeterViewModel.h"
-#include "UI/Utils/AppColorPalette.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/ProjectConverters/AProjectConverter.h"
 #include "Modules/ProjectConverters/DspxProjectConverter.h"
@@ -75,13 +74,13 @@ const QList<Track *> &AppModel::tracks() const {
 
 void AppModel::insertTrack(Track *track, const qsizetype index) {
     Q_D(AppModel);
-    if (track->colorIndex() == 0 && !track->color().isValid()) {
+    if (track->colorIndex() == 0) {
         int prev = -1;
         if (index > 0 && index - 1 < d->m_tracks.size())
             prev = d->m_tracks[index - 1]->colorIndex();
         else if (index >= d->m_tracks.size() && !d->m_tracks.isEmpty())
             prev = d->m_tracks.last()->colorIndex();
-        const int newIdx = (prev < 0) ? 0 : (prev + 1) % AppColorPalette::colorCount;
+        const int newIdx = (prev < 0) ? 0 : (prev + 1) % AppGlobal::paletteColorCount;
         track->setColorIndex(newIdx);
     }
     d->m_tracks.insert(index, track);

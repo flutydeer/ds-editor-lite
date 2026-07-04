@@ -43,13 +43,6 @@ public:
     [[nodiscard]] LevelMeter *levelMeter() const;
     [[nodiscard]] bool isInDragArea(const QPoint &pos) const;
 
-    [[nodiscard]] QColor color() const override {
-        return {};
-    }
-
-    void setColor(const QColor &color) override {
-    }
-
     [[nodiscard]] int colorIndex() const override;
     void setColorIndex(int colorIndex) override;
 

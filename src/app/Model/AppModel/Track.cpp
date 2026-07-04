@@ -8,7 +8,6 @@
 #include "Clip.h"
 #include "SingingClip.h"
 #include "Utils/MathUtils.h"
-#include "UI/Utils/AppColorPalette.h"
 
 #include <QJsonArray>
 
@@ -83,22 +82,12 @@ void Track::removeClip(Clip *clip) {
     m_clips.remove(clip);
 }
 
-QColor Track::color() const {
-    return m_color;
-}
-
-void Track::setColor(const QColor &color) {
-    m_color = color;
-    emit propertyChanged();
-}
-
 int Track::colorIndex() const {
     return m_colorIndex;
 }
 
 void Track::setColorIndex(int colorIndex) {
     m_colorIndex = colorIndex;
-    m_color = AppColorPalette::instance()->baseColor(colorIndex);
     emit propertyChanged();
 }
 

@@ -10,7 +10,7 @@
 #include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/Fader.h"
 #include "UI/Controls/LevelMeter.h"
-#include "UI/Controls/LevelMeterViewModel.h"
+#include "Model/AppModel/LevelMeterViewModel.h"
 #include "UI/Controls/PanSlider.h"
 #include "UI/Views/MixConsole/ChannelView.h"
 

@@ -4,11 +4,12 @@
 #include <QColor>
 #include <QList>
 
+#include "Global/AppGlobal.h"
 #include "Utils/Singleton.h"
 
 class AppColorPalette {
 public:
-    static constexpr int colorCount = 12;
+    static constexpr int colorCount = AppGlobal::paletteColorCount;
 
     LITE_SINGLETON_DECLARE_INSTANCE(AppColorPalette)
 

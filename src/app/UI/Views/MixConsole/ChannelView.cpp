@@ -60,13 +60,6 @@ QString ChannelView::name() const {
     return m_lbTitle->text();
 }
 
-QColor ChannelView::color() const {
-    return {};
-}
-
-void ChannelView::setColor(const QColor &color) {
-}
-
 int ChannelView::colorIndex() const {
     if (m_context)
         return m_context->colorIndex();

@@ -30,9 +30,6 @@ public:
     QString name() const override;
     void setName(const QString &name) override;
 
-    QColor color() const override;
-    void setColor(const QColor &color) override;
-
     int colorIndex() const override;
     void setColorIndex(int colorIndex) override;
 
@@ -94,7 +91,6 @@ private:
     QString m_name;
     TrackControl m_control = TrackControl();
     OverlappableSerialList<Clip> m_clips;
-    QColor m_color;
     int m_colorIndex = 0;
 
     QString m_defaultLanguage = "unknown";

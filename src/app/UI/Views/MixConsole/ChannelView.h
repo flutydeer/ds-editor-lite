@@ -39,8 +39,6 @@ public:
     [[nodiscard]] bool isMasterChannel() const;
     [[nodiscard]] TrackControl control() const override;
     [[nodiscard]] QString name() const override;
-    [[nodiscard]] QColor color() const override;
-    void setColor(const QColor &color) override;
     [[nodiscard]] int colorIndex() const override;
     void setColorIndex(int colorIndex) override;
 

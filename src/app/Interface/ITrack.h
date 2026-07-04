@@ -9,7 +9,6 @@
 #include "Utils/UniqueObject.h"
 #include "Utils/Macros.h"
 
-#include <QColor>
 #include <QString>
 
 LITE_INTERFACE ITrack : public UniqueObject {
@@ -21,8 +20,6 @@ LITE_INTERFACE ITrack : public UniqueObject {
     I_METHOD(void setName(const QString &name));
     I_NODSCD(TrackControl control() const);
     I_METHOD(void setControl(const TrackControl &control));
-    I_NODSCD(QColor color() const);
-    I_METHOD(void setColor(const QColor &color));
     I_NODSCD(int colorIndex() const);
     I_METHOD(void setColorIndex(int colorIndex));
 };
