@@ -36,10 +36,7 @@ public:
 
     [[nodiscard]] double tempo() const;
 
-    // long position() const;
-    // long lastPlayPosition() const;
-
-signals:
+    signals:
     void positionChanged(double tick);
     void lastPositionChanged(double tick);
     void playbackStatusChanged(PlaybackStatus status);

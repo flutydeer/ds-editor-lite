@@ -76,7 +76,6 @@ private:
     static QString timeStr();
     static QString colorizeText(LogLevel level, const QString &text);
     static QString colorizeHighlightText(LogLevel level, const QString &text);
-    // static QString prettyMethodName(const char *function);
     bool canLogToConsole(const LogMessage &message) const;
     void log(const LogMessage &message);
 

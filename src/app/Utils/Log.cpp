@@ -194,10 +194,4 @@ void Log::log(const LogMessage &message) {
     }
 }
 
-// QString Logger::prettyMethodName(const char *function) {
-//     return QString(function)
-//         .remove(" __cdecl")
-//         .remove(" __stdcall")
-//         .remove(" __fastcall")
-//         .remove(" __thiscall");
-// }
+

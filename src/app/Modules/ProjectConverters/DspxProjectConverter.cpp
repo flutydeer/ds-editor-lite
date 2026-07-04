@@ -808,8 +808,6 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                     JsonNlohmann::toQJsonValue(value).toObject();
             }
             note->setWorkspace(workspace);
-            // note->setPhonemeInfo(Note::Original, decodePhonemes(dspxNote.phonemes.org));
-            // note->setPhonemeInfo(Note::Edited, decodePhonemes(dspxNote.phonemes.edited));
             notes.append(note);
         }
         return notes;

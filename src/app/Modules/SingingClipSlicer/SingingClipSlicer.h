@@ -14,7 +14,6 @@ namespace SingingClipSlicer {
     using NoteList = QList<Note *>;
 
     SliceResult slice(const Timeline &timeline, const NoteList &source);
-    // SliceResult simpleSlice(const NoteList &source, double threshold = 200);
 };
 
 
