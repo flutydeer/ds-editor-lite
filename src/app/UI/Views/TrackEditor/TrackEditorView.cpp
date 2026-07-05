@@ -23,6 +23,8 @@
 #include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Controls/LevelMeterViewModel.h"
+#include "UI/Controls/LevelMeterManager.h"
+#include "AppContext.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/TimelineView.h"
 
@@ -270,9 +272,11 @@ void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex
     track->controlView = controlView;
 
     auto meter = controlView->levelMeter();
-    auto vm = appModel->levelMeterViewModelAt(trackIndex);
+    auto mgr = AppContext::instance<LevelMeterManager>();
+    auto vm = mgr ? mgr->viewModelAt(trackIndex) : nullptr;
     meter->bindTo(vm);
-    connect(meter, &LevelMeter::clipResetRequested, vm, &LevelMeterViewModel::resetClip);
+    if (vm)
+        connect(meter, &LevelMeter::clipResetRequested, vm, &LevelMeterViewModel::resetClip);
 
     connect(controlView, &TrackControlView::insertNewTrackTriggered, this, [newTrackItem, this] {
         const auto i = m_trackListView->row(newTrackItem);

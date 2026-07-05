@@ -11,6 +11,8 @@
 #include "UI/Controls/Fader.h"
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Controls/LevelMeterViewModel.h"
+#include "UI/Controls/LevelMeterManager.h"
+#include "AppContext.h"
 #include "UI/Controls/PanSlider.h"
 #include "UI/Views/MixConsole/ChannelView.h"
 
@@ -72,7 +74,8 @@ MixConsoleView::MixConsoleView(QWidget *parent) : TabPanelPage(parent) {
     m_masterChannel->setName(tr("Master"));
     m_masterChannel->setIsMasterChannel(true);
 
-    if (auto masterVm = appModel->masterLevelMeterViewModel()) {
+    auto mgr = AppContext::instance<LevelMeterManager>();
+    if (auto masterVm = mgr ? mgr->masterViewModel() : nullptr) {
         auto masterMeter = m_masterChannel->levelMeter();
         masterMeter->bindTo(masterVm);
         connect(masterMeter, &LevelMeter::clipResetRequested, masterVm,
@@ -126,7 +129,8 @@ MixConsoleView::MixConsoleView(QWidget *parent) : TabPanelPage(parent) {
 void MixConsoleView::onModelChanged() {
     onMasterControlChanged(appModel->masterControl());
 
-    if (auto masterVm = appModel->masterLevelMeterViewModel()) {
+    auto mgr = AppContext::instance<LevelMeterManager>();
+    if (auto masterVm = mgr ? mgr->masterViewModel() : nullptr) {
         auto masterMeter = m_masterChannel->levelMeter();
         masterMeter->bindTo(masterVm);
         disconnect(masterMeter, &LevelMeter::clipResetRequested, nullptr, nullptr);
@@ -166,9 +170,11 @@ void MixConsoleView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {
     channelView->setChannelIndex(trackIndex + 1);
 
     auto meter = channelView->levelMeter();
-    auto vm = appModel->levelMeterViewModelAt(trackIndex);
+    auto mgr = AppContext::instance<LevelMeterManager>();
+    auto vm = mgr ? mgr->viewModelAt(trackIndex) : nullptr;
     meter->bindTo(vm);
-    connect(meter, &LevelMeter::clipResetRequested, vm, &LevelMeterViewModel::resetClip);
+    if (vm)
+        connect(meter, &LevelMeter::clipResetRequested, vm, &LevelMeterViewModel::resetClip);
 
     connect(channelView->fader(), &Fader::sliderMoved, this, [=](double gain) {
         audioContext->handleGainSliderMoved(&channelView->context(), gain);

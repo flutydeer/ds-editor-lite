@@ -39,6 +39,8 @@
 
 #include <Model/AppOptions/AppOptions.h>
 #include "Global/AppGlobal.h"
+#include "AppContext.h"
+#include "UI/Controls/LevelMeterManager.h"
 
 #define DEVICE_LOCKER                                                                              \
     talcs::AudioDeviceLocker locker(AudioSystem::outputSystem()->context()->device())
@@ -314,8 +316,9 @@ void AudioContext::tickLevelMeters() {
         }
         auto dBL = static_cast<double>(pair.first->nextValue());
         auto dBR = static_cast<double>(pair.second->nextValue());
-        if (auto vm = appModel->levelMeterViewModelForTrack(track))
-            vm->setLevels(dBL, dBR);
+        if (auto mgr = AppContext::instance<LevelMeterManager>())
+            if (auto vm = mgr->viewModelForTrack(track))
+                vm->setLevels(dBL, dBR);
     };
 
     for (const auto track : appModel->tracks())
@@ -329,8 +332,9 @@ void AudioContext::tickLevelMeters() {
     }
     auto masterDBL = static_cast<double>(m_masterLevelMeterValueL->nextValue());
     auto masterDBR = static_cast<double>(m_masterLevelMeterValueR->nextValue());
-    if (auto vm = appModel->masterLevelMeterViewModel())
-        vm->setLevels(masterDBL, masterDBR);
+    if (auto mgr = AppContext::instance<LevelMeterManager>())
+        if (auto vm = mgr->masterViewModel())
+            vm->setLevels(masterDBL, masterDBR);
 
     if (notPlaying) {
         bool allAtFloor = true;
