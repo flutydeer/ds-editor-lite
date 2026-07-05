@@ -16,7 +16,6 @@
 class Track;
 class WorkspaceEditor;
 class AppModelPrivate;
-class LevelMeterViewModel;
 
 class AppModel final : public QObject, public ISerializable {
     Q_OBJECT
@@ -45,13 +44,7 @@ public:
     void removeTrack(Track *track);
     void clearTracks();
 
-    LevelMeterViewModel *levelMeterViewModelForTrack(const Track *track) const;
-    LevelMeterViewModel *levelMeterViewModelAt(qsizetype index) const;
-    LevelMeterViewModel *masterLevelMeterViewModel() const;
-
 public slots:
-    void clearAllClipStates();
-
     void newProject();
     bool importMidiFile(const QString &filename);
     bool exportMidiFile(const QString &filename);

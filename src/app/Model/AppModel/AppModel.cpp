@@ -5,7 +5,6 @@
 #include "AppModel.h"
 
 #include "AppModel_p.h"
-#include "UI/Controls/LevelMeterViewModel.h"
 #include "SingingClip.h"
 #include "Track.h"
 #include "Model/AppOptions/AppOptions.h"
@@ -86,9 +85,6 @@ void AppModel::insertTrack(Track *track, const qsizetype index) {
     }
     d->m_tracks.insert(index, track);
 
-    auto vm = new LevelMeterViewModel(this);
-    d->m_levelMeterViewModels.insert(index, vm);
-
     emit trackChanged(Insert, index, track);
 }
 
@@ -101,11 +97,6 @@ void AppModel::removeTrackAt(const qsizetype index) {
     Q_D(AppModel);
     const auto track = d->m_tracks[index];
     d->m_tracks.removeAt(index);
-
-    if (index < d->m_levelMeterViewModels.size()) {
-        auto vm = d->m_levelMeterViewModels.takeAt(index);
-        delete vm;
-    }
 
     emit trackChanged(Remove, index, track);
 }
@@ -120,34 +111,6 @@ void AppModel::clearTracks() {
     Q_D(AppModel);
     while (d->m_tracks.count() > 0)
         removeTrackAt(0);
-}
-
-LevelMeterViewModel *AppModel::levelMeterViewModelForTrack(const Track *track) const {
-    Q_D(const AppModel);
-    const auto index = d->m_tracks.indexOf(const_cast<Track *>(track));
-    if (index < 0 || index >= d->m_levelMeterViewModels.size())
-        return nullptr;
-    return d->m_levelMeterViewModels.at(index);
-}
-
-LevelMeterViewModel *AppModel::levelMeterViewModelAt(qsizetype index) const {
-    Q_D(const AppModel);
-    if (index < 0 || index >= d->m_levelMeterViewModels.size())
-        return nullptr;
-    return d->m_levelMeterViewModels.at(index);
-}
-
-LevelMeterViewModel *AppModel::masterLevelMeterViewModel() const {
-    Q_D(const AppModel);
-    return d->m_masterLevelMeterViewModel;
-}
-
-void AppModel::clearAllClipStates() {
-    Q_D(AppModel);
-    for (auto vm : d->m_levelMeterViewModels)
-        vm->resetClip();
-    if (d->m_masterLevelMeterViewModel)
-        d->m_masterLevelMeterViewModel->resetClip();
 }
 
 void AppModel::newProject() {
@@ -170,11 +133,6 @@ void AppModel::newProject() {
 
     newTrack->insertClip(singingClip);
     d->m_tracks.append(newTrack);
-
-    auto vm = new LevelMeterViewModel(this);
-    d->m_levelMeterViewModels.append(vm);
-
-    d->m_masterLevelMeterViewModel = new LevelMeterViewModel(this);
 
     emit modelChanged();
     d->dispose();
@@ -226,13 +184,6 @@ void AppModel::loadFromAppModel(const AppModel &model) {
     d->m_timeSignature = model.timeSignature();
     d->m_masterControl = model.masterControl();
     d->m_tracks = model.tracks();
-
-    for (int i = 0; i < d->m_tracks.size(); i++) {
-        auto vm = new LevelMeterViewModel(this);
-        d->m_levelMeterViewModels.append(vm);
-    }
-
-    d->m_masterLevelMeterViewModel = new LevelMeterViewModel(this);
 
     emit modelChanged();
     d->dispose();
@@ -422,13 +373,6 @@ void AppModelPrivate::reset() {
     m_masterControl = TrackControl();
     m_previousTracks = m_tracks;
     m_tracks.clear();
-
-    for (auto vm : m_levelMeterViewModels)
-        delete vm;
-    m_levelMeterViewModels.clear();
-
-    delete m_masterLevelMeterViewModel;
-    m_masterLevelMeterViewModel = nullptr;
 }
 
 void AppModelPrivate::dispose() const {
