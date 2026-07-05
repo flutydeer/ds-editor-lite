@@ -3,7 +3,7 @@
 //
 
 #include "LevelMeter.h"
-#include "Model/AppModel/LevelMeterViewModel.h"
+#include "LevelMeterViewModel.h"
 
 #include <QMouseEvent>
 #include <QPainter>

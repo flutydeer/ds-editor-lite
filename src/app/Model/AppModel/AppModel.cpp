@@ -5,7 +5,7 @@
 #include "AppModel.h"
 
 #include "AppModel_p.h"
-#include "LevelMeterViewModel.h"
+#include "UI/Controls/LevelMeterViewModel.h"
 #include "SingingClip.h"
 #include "Track.h"
 #include "Model/AppOptions/AppOptions.h"

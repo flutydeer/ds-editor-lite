@@ -22,7 +22,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"
 #include "UI/Controls/LevelMeter.h"
-#include "Model/AppModel/LevelMeterViewModel.h"
+#include "UI/Controls/LevelMeterViewModel.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/TimelineView.h"
 
