@@ -35,6 +35,7 @@
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "Modules/Audio/utils/DeviceTester.h"
+#include "UI/Controls/LevelMeterManager.h"
 
 #if defined(WITH_DIRECT_MANIPULATION)
 #include <QWDMHCore/DirectManipulationSystem.h>
@@ -83,6 +84,9 @@ AppContext::AppContext() {
 
     // L3: Inference engine (lazy init, no deps at construction)
     m_inferEngine = new InferEngine;
+
+    // Level meter manager (depends on AppModel from L0)
+    m_levelMeterManager = new LevelMeterManager(m_appModel);
 
     // L4: Controllers (no construction-time cross-deps)
     m_audioDecodingController = new AudioDecodingController;
@@ -152,6 +156,9 @@ AppContext::~AppContext() {
     // L3
     delete m_inferEngine;
 
+    // Level meter manager (depends on AppModel, must die before L0)
+    delete m_levelMeterManager;
+
     // L2 (reverse)
     delete m_iLangSetManager;
     delete m_onsetMarkerMgr;
@@ -199,6 +206,7 @@ template <> ProjectStatusController *AppContext::instance() { return s_self ? s_
 template <> ProjectPackageResolver *AppContext::instance() { return s_self ? s_self->m_projectPackageResolver : nullptr; }
 template <> InferController *AppContext::instance() { return s_self ? s_self->m_inferController : nullptr; }
 template <> AppController *AppContext::instance() { return s_self ? s_self->m_appController : nullptr; }
+template <> LevelMeterManager *AppContext::instance() { return s_self ? s_self->m_levelMeterManager : nullptr; }
 
 // Infrastructure singletons — NOT managed by AppContext (stays Meyers static).
 // These specializations return nullptr so the LITE_SINGLETON_IMPLEMENT_INSTANCE fallback

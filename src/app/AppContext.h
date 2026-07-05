@@ -33,6 +33,7 @@ class ProjectStatusController;
 class ProjectPackageResolver;
 class InferController;
 class AppController;
+class LevelMeterManager;
 
 struct AudioSystemContext;
 
@@ -68,6 +69,9 @@ public:
 
     // L3: Inference engine
     InferEngine *m_inferEngine = nullptr;
+
+    // Level meter manager (depends on AppModel from L0)
+    LevelMeterManager *m_levelMeterManager = nullptr;
 
     // L4: Controllers (no construction-time cross-deps)
     AudioDecodingController *m_audioDecodingController = nullptr;
