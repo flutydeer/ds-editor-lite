@@ -9,10 +9,6 @@
 #include "Track.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/ProjectConverters/AProjectConverter.h"
-#include "Modules/ProjectConverters/DspxProjectConverter.h"
-#include "Modules/ProjectConverters/MidiConverter.h"
-#include "Utils/Log.h"
 #include "Utils/MathUtils.h"
 #include "Utils/MusicTimeConverter.h"
 #include "Global/AppGlobal.h"
@@ -120,7 +116,8 @@ void AppModel::newProject() {
     const auto singingClip = new SingingClip;
     constexpr int bars = 4;
     const auto timeSig = appModel->timeSignature();
-    const int length = AppGlobal::ticksPerWholeNote * timeSig.numerator / timeSig.denominator * bars;
+    const int length =
+        AppGlobal::ticksPerWholeNote * timeSig.numerator / timeSig.denominator * bars;
     singingClip->setName(tr("New Singing Clip"));
     singingClip->setStart(0);
     singingClip->setClipStart(0);
@@ -136,45 +133,6 @@ void AppModel::newProject() {
 
     emit modelChanged();
     d->dispose();
-}
-
-bool AppModel::loadProject(const QString &path, QString &errorMessage) {
-    Q_D(AppModel);
-    d->reset();
-    DspxProjectConverter converter;
-    AppModel resultModel;
-    const auto ok = converter.load(path, &resultModel, errorMessage, ImportMode::NewProject);
-    if (ok)
-        loadFromAppModel(resultModel);
-    return ok;
-}
-
-bool AppModel::saveProject(const QString &path, QString &errorMessage) {
-    Q_D(AppModel);
-    DspxProjectConverter converter;
-    const auto ok = converter.save(path, this, errorMessage);
-    return ok;
-}
-
-bool AppModel::importAceProject(const QString &filename) {
-    Q_D(AppModel);
-    AProjectConverter converter;
-    QString errMsg;
-    AppModel resultModel;
-    const auto ok = converter.load(filename, &resultModel, errMsg, ImportMode::NewProject);
-    if (ok) {
-        for (const auto track : resultModel.tracks()) {
-            track->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
-            for (const auto clip : track->clips()) {
-                if (clip->clipType() == Clip::Singing) {
-                    const auto singingClip = static_cast<SingingClip *>(clip);
-                    singingClip->setDefaultLanguage(track->defaultLanguage());
-                }
-            }
-        }
-        loadFromAppModel(resultModel);
-    }
-    return ok;
 }
 
 void AppModel::loadFromAppModel(const AppModel &model) {
@@ -245,45 +203,6 @@ bool AppModel::deserialize(const QJsonObject &obj) {
     return false;
 }
 
-bool AppModel::importMidiFile(const QString &filename) {
-    Q_D(AppModel);
-    QString errMsg;
-    int midiImport = MidiConverter::midiImportHandler();
-
-    if (midiImport == -1) {
-        errMsg = "User canceled the import.";
-        return false;
-    }
-
-    AppModel resultModel;
-    MidiConverter converter;
-    const auto ok = converter.load(filename, &resultModel, errMsg,
-                                   static_cast<IProjectConverter::ImportMode>(midiImport));
-    Log::i("Midi importer", errMsg);
-    if (ok) {
-        if (midiImport == ImportMode::NewProject) {
-            d->reset();
-            setTimeSignature(resultModel.timeSignature());
-            setTempo(resultModel.tempo());
-            loadFromAppModel(resultModel);
-        } else if (midiImport == ImportMode::AppendToProject) {
-            setTimeSignature(resultModel.timeSignature());
-            setTempo(resultModel.tempo());
-            for (const auto track : resultModel.tracks()) {
-                appendTrack(track);
-            }
-        }
-    }
-    return ok;
-}
-
-bool AppModel::exportMidiFile(const QString &filename) {
-    MidiConverter converter;
-    QString errMsg;
-    Log::i("Midi exporter", errMsg);
-    return converter.save(filename, this, errMsg);
-}
-
 Clip *AppModel::findClipById(const int clipId, Track *&trackRef) const {
     Q_D(const AppModel);
     for (const auto track : d->m_tracks) {
@@ -352,8 +271,8 @@ double AppModel::msToTick(const double ms) const {
 
 QString AppModel::getBarBeatTickTime(const int ticks) const {
     Q_D(const AppModel);
-    return MusicTimeConverter::getBarBeatTickTime(
-        ticks, d->m_timeSignature.numerator, d->m_timeSignature.denominator);
+    return MusicTimeConverter::getBarBeatTickTime(ticks, d->m_timeSignature.numerator,
+                                                  d->m_timeSignature.denominator);
 }
 
 int AppModel::projectLengthInTicks() const {
