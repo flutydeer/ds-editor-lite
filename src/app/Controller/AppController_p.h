@@ -7,6 +7,8 @@
 
 #include "Global/AppGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/ProjectConverters/DspxProjectConverter.h"
+#include "Modules/ProjectConverters/MidiConverter.h"
 
 #include <QObject>
 #include <QStandardPaths>
@@ -24,6 +26,7 @@ class AppControllerPrivate : public QObject {
 public:
     explicit AppControllerPrivate(AppController *q) : q_ptr(q) {
     }
+
     ~AppControllerPrivate() override;
 
     IMainWindow *m_mainWindow = nullptr;
@@ -45,6 +48,8 @@ public:
 
     bool openDspxFile(const QString &path, QString &errorMessage);
     bool openMidiFile(const QString &path, QString &errorMessage);
+    bool loadProject(const QString &path, QString &errorMessage);
+    bool saveProject(const QString &path, QString &errorMessage);
     bool openFileAndActivateFirstClip(const QString &filePath);
     void waitAndOpenDspxFile(const QString &filePath);
     void cancelPendingOpen();

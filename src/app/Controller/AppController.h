@@ -56,8 +56,8 @@ public slots:
 
     void setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed);
 
-    static void importMidiFile(const QString &filePath);
-    static void exportMidiFile(const QString &filePath);
+    bool importMidiFile(const QString &filePath);
+    bool exportMidiFile(const QString &filePath);
 
 
     static void onSetTempo(double tempo);

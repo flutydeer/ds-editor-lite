@@ -56,7 +56,6 @@ namespace {
     }
 }
 
-
 AppControllerPrivate::~AppControllerPrivate() {
     clearPendingOpenDialog(true);
 }
@@ -135,7 +134,8 @@ void AppController::requestOpenFile(const QString &filePath) {
 
 bool AppController::saveProject(const QString &filePath, QString &errorMessage) {
     Q_D(AppController);
-    if (!appModel->saveProject(filePath, errorMessage))
+    DspxProjectConverter converter;
+    if (!converter.save(filePath, appModel, errorMessage))
         return false;
 
     historyManager->setSavePoint();
@@ -144,14 +144,41 @@ bool AppController::saveProject(const QString &filePath, QString &errorMessage) 
     return true;
 }
 
-void AppController::importMidiFile(const QString &filePath) {
-    appModel->importMidiFile(filePath);
+bool AppController::importMidiFile(const QString &filePath) {
+    Q_D(AppController);
+    QString errMsg;
+    int midiImport = MidiConverter::midiImportHandler();
+
+    if (midiImport == -1) {
+        errMsg = "User canceled the import.";
+        return false;
+    }
+
+    AppModel resultModel;
+    MidiConverter converter;
+    const auto ok = converter.load(filePath, &resultModel, errMsg,
+                                   static_cast<IProjectConverter::ImportMode>(midiImport));
+    Log::i("Midi importer", errMsg);
+    if (ok) {
+        if (midiImport == IProjectConverter::ImportMode::NewProject) {
+            appModel->loadFromAppModel(resultModel);
+        } else if (midiImport == IProjectConverter::ImportMode::AppendToProject) {
+            appModel->setTimeSignature(resultModel.timeSignature());
+            appModel->setTempo(resultModel.tempo());
+            for (const auto track : resultModel.tracks()) {
+                appModel->appendTrack(track);
+            }
+        }
+    }
+    return ok;
 }
 
-void AppController::exportMidiFile(const QString &filePath) {
-    appModel->exportMidiFile(filePath);
+bool AppController::exportMidiFile(const QString &filePath) {
+    MidiConverter converter;
+    QString errMsg;
+    Log::i("Midi exporter", errMsg);
+    return converter.save(filePath, appModel, errMsg);
 }
-
 
 void AppController::onSetTempo(const double tempo) {
     const auto model = appModel;
@@ -263,9 +290,12 @@ void AppController::removeRecentProjectFile(const QString &filePath) {
     auto files = appOptions->general()->recentProjectFiles;
     const auto normalizedPath = normalizedProjectPath(filePath);
     const auto oldSize = files.size();
-    files.erase(std::remove_if(files.begin(), files.end(), [&](const QString &path) {
-        return projectPathsEqual(normalizedProjectPath(path), normalizedPath);
-    }), files.end());
+    files.erase(std::remove_if(files.begin(), files.end(),
+                               [&](const QString &path) {
+                                   return projectPathsEqual(normalizedProjectPath(path),
+                                                            normalizedPath);
+                               }),
+                files.end());
     if (files.size() == oldSize)
         return;
     appOptions->general()->recentProjectFiles = files;
@@ -333,9 +363,12 @@ void AppControllerPrivate::addRecentProjectFile(const QString &path) {
 
     auto files = appOptions->general()->recentProjectFiles;
     const auto normalizedPath = normalizedProjectPath(path);
-    files.erase(std::remove_if(files.begin(), files.end(), [&](const QString &file) {
-        return projectPathsEqual(normalizedProjectPath(file), normalizedPath);
-    }), files.end());
+    files.erase(std::remove_if(files.begin(), files.end(),
+                               [&](const QString &file) {
+                                   return projectPathsEqual(normalizedProjectPath(file),
+                                                            normalizedPath);
+                               }),
+                files.end());
     files.prepend(normalizedPath);
     while (files.size() > maxRecentProjectFiles)
         files.removeLast();
@@ -346,11 +379,16 @@ void AppControllerPrivate::addRecentProjectFile(const QString &path) {
 }
 
 bool AppControllerPrivate::openDspxFile(const QString &path, QString &errorMessage) {
-    if (!appModel->loadProject(path, errorMessage)) {
+    DspxProjectConverter converter;
+    AppModel resultModel;
+    const auto ok =
+        converter.load(path, &resultModel, errorMessage, IProjectConverter::ImportMode::NewProject);
+    if (!ok) {
         qCritical() << errorMessage;
         return false;
     }
 
+    appModel->loadFromAppModel(resultModel);
     historyManager->reset();
     historyManager->setSavePoint();
     updateProjectPathAndName(path);
@@ -407,13 +445,13 @@ void AppControllerPrivate::waitAndOpenDspxFile(const QString &filePath) {
             &AppControllerPrivate::cancelPendingOpen);
     m_pendingOpenDialog->show();
 
-    m_pendingOpenConnection = connect(appStatus, &AppStatus::moduleStatusChanged, this,
-                                      [this](const AppStatus::ModuleType module,
-                                             const AppStatus::ModuleStatus status) {
-                                          if (module != AppStatus::ModuleType::Package)
-                                              return;
-                                          handlePendingOpenPackageStatus(status);
-                                      });
+    m_pendingOpenConnection =
+        connect(appStatus, &AppStatus::moduleStatusChanged, this,
+                [this](const AppStatus::ModuleType module, const AppStatus::ModuleStatus status) {
+                    if (module != AppStatus::ModuleType::Package)
+                        return;
+                    handlePendingOpenPackageStatus(status);
+                });
     handlePendingOpenPackageStatus(appStatus->packageModuleStatus);
 }
 
@@ -422,8 +460,7 @@ void AppControllerPrivate::cancelPendingOpen() {
     clearPendingOpenDialog(true);
 }
 
-void AppControllerPrivate::handlePendingOpenPackageStatus(
-    const AppStatus::ModuleStatus status) {
+void AppControllerPrivate::handlePendingOpenPackageStatus(const AppStatus::ModuleStatus status) {
     if (m_pendingOpenFilePath.isEmpty())
         return;
 
