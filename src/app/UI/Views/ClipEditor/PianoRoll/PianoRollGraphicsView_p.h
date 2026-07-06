@@ -27,6 +27,7 @@ class PianoRollGraphicsView;
 class PronunciationView;
 class PianoRollBackground;
 class PianoRollEditHandler;
+class PianoRollSelectionModel;
 enum class EditSessionEndReason;
 
 using namespace ClipEditorGlobal;
@@ -58,12 +59,11 @@ public:
 
     PianoRollEditHandler *m_currentHandler = nullptr;
     QHash<PianoRollEditMode, PianoRollEditHandler *> m_handlers;
+    PianoRollSelectionModel *m_selectionModel = nullptr;
     void restoreHandler();
 
     bool m_mouseDown = false;
     Qt::MouseButton m_mouseDownButton = Qt::NoButton;
-    bool m_selecting = false;
-    bool m_selectionChangeBarrier = false;
     bool m_isEditPitchMode = false;
 
     // resize and move
@@ -78,16 +78,12 @@ public:
     int m_moveMaxDeltaKey = 127;
     int m_moveMinDeltaKey = 0;
 
-    QList<NoteView *> noteViewsToErase;
-
     PianoRollEditMode m_editMode = Select;
     MouseMoveBehavior m_mouseMoveBehavior = None;
 
     Menu *buildNoteContextMenu(NoteView *noteView, const QPoint &mousePos);
     Menu *buildBackgroundContextMenu(const QPoint &pos);
     void splitNoteAtMousePosition(NoteView *noteView, const QPoint &mousePos);
-    void clearPastePreviewViews();
-    QList<NoteView *> m_pastePreviewViews;
 
     void moveToNullClipState();
     void moveToSingingClipState(SingingClip *clip);
@@ -100,8 +96,6 @@ public:
     static void handleNoteLeftResized(int noteId, int deltaTick);
     static void handleNoteRightResized(int noteId, int deltaTick);
 
-    void updateSceneSelectionState();
-    void updateOverlappedState();
     void updateNoteTimeAndKey(const Note *note) const;
     void updateNoteWord(const Note *note) const;
     void moveSelectedNotes(int startOffset, int keyOffset) const;
@@ -113,8 +107,6 @@ public:
 
     void updatePitch(Param::Type paramType, const Param &param) const;
 
-
-    [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
     void setPitchEditMode(bool on, bool isErase);
     [[nodiscard]] NoteView *noteViewAt(const QPoint &pos);
     [[nodiscard]] PronunciationView *pronViewAt(const QPoint &pos);
