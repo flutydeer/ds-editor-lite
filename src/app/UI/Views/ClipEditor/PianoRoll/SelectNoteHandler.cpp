@@ -4,6 +4,7 @@
 #include "PianoRollGraphicsView.h"
 #include "PianoRollGraphicsView_p.h"
 #include "PianoRollCoord.h"
+#include "NoteInteractionController.h"
 #include "PronunciationView.h"
 
 #include <QMouseEvent>
@@ -21,7 +22,7 @@ bool SelectNoteHandler::mousePressEvent(QMouseEvent *event) {
     const auto noteView = d->noteViewAt(event->pos());
 
     if (noteView) {
-        d->prepareForEditingNotes(event, scenePos, keyIndex, noteView);
+        d->m_interactionController->prepareForEditingNotes(event, scenePos, keyIndex, noteView);
     } else {
         for (const auto view : d->noteViews) {
             if (view->isEditingLyric()) {

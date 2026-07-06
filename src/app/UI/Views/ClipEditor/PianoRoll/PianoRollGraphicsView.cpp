@@ -10,6 +10,7 @@
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsViewHelper.h"
 #include "PianoRollCoord.h"
+#include "NoteInteractionController.h"
 #include "PianoRollSelectionModel.h"
 #include "PianoRollGraphicsView_p.h"
 #include "PitchAnchorEditorView.h"
@@ -81,6 +82,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
     setMinimumHeight(0);
 
     d->m_selectionModel = new PianoRollSelectionModel(this, d->noteViews, d->noteViewIndex, d->m_notes, this);
+    d->m_interactionController = new NoteInteractionController(d->m_selectionModel, this, this);
 
     d->m_gridItem = new PianoRollBackground;
     d->m_gridItem->setPixelsPerQuarterNote(pixelsPerQuarterNote);
@@ -245,13 +247,12 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
 
 void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
-    if (d->m_mouseDown) {
+    if (d->m_interactionController->isMouseDown()) {
         qWarning() << "Ignored mousePressEvent" << event
                    << "because there is already one mouse button pressed";
         return;
     }
-    d->m_mouseDown = true;
-    d->m_mouseDownButton = event->button();
+    d->m_interactionController->setMouseDown(true, event->button());
 
     // When pressing on scrollbar, delegate to base class
     if (dynamic_cast<ScrollBarView *>(itemAt(event->pos()))) {
@@ -266,7 +267,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton &&
         (d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote ||
          d->m_editMode == EraseNote || d->m_editMode == SplitNote)) {
-        d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
+        d->m_interactionController->setMouseMoveBehavior(NoteInteractionController::None);
         if (const auto noteView = d->noteViewAt(event->pos())) {
             if (d->m_selectionModel->selectedNoteItems().count() <= 1 || !d->m_selectionModel->selectedNoteItems().contains(noteView))
                 clearNoteSelections();
@@ -334,7 +335,7 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             break;
         }
     }
-    if (hasEditingNote && !d->m_mouseDown) {
+    if (hasEditingNote && !d->m_interactionController->isMouseDown()) {
         // If a note is being edited and mouse is not down, return directly without handling mouse
         // move events
         return;
@@ -355,71 +356,70 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         if (d->m_currentHandler->mouseMoveEvent(event))
             return;
     }
-    if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::None) {
+    if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::None) {
         TimeGraphicsView::mouseMoveEvent(event);
         return;
     }
-    if (cancelRequested || d->m_mouseDown == false)
+    if (cancelRequested || d->m_interactionController->isMouseDown() == false)
         return;
 
     if (event->modifiers() == Qt::AltModifier)
-        d->m_tempQuantizeOff = true;
+        d->m_interactionController->setTempQuantizeOff(true);
     else
-        d->m_tempQuantizeOff = false;
+        d->m_interactionController->setTempQuantizeOff(false);
 
     const auto scenePos = mapToScene(event->position().toPoint());
     const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
     const auto quantizedTickLength =
-        TimelineSnapUtils::quantizeStep(appStatus->pianoRollQuantize, d->m_tempQuantizeOff);
+        TimelineSnapUtils::quantizeStep(appStatus->pianoRollQuantize, d->m_interactionController->tempQuantizeOff());
     const auto snappedTick = TimelineSnapUtils::snapDown(tick, quantizedTickLength);
     const auto snappedTickNearest = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
     const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), scaleY() * noteHeight);
-    const auto deltaX = static_cast<int>(sceneXToTick(scenePos.x() - d->m_mouseDownPos.x()));
+    const auto deltaX = static_cast<int>(sceneXToTick(scenePos.x() - d->m_interactionController->mouseDownPos().x()));
 
     const auto noteView = d->noteViewAt(event->pos());
 
     // TODO: Optimize note moving and resizing
-    if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::Move) {
+    if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::Move) {
         const auto startOffset = TimelineSnapUtils::snapNearest(deltaX, quantizedTickLength);
-        auto keyOffset = keyIndex - d->m_mouseDownKeyIndex;
-        if (keyOffset > d->m_moveMaxDeltaKey)
-            keyOffset = d->m_moveMaxDeltaKey;
-        if (keyOffset < d->m_moveMinDeltaKey)
-            keyOffset = d->m_moveMinDeltaKey;
-        d->m_deltaTick = startOffset;
-        d->m_deltaKey = keyOffset;
-        d->moveSelectedNotes(d->m_deltaTick, d->m_deltaKey);
-        d->m_movedBeforeMouseUp = true;
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeLeft) {
+        auto keyOffset = keyIndex - d->m_interactionController->mouseDownKeyIndex();
+        if (keyOffset > d->m_interactionController->moveMaxDeltaKey())
+            keyOffset = d->m_interactionController->moveMaxDeltaKey();
+        if (keyOffset < d->m_interactionController->moveMinDeltaKey())
+            keyOffset = d->m_interactionController->moveMinDeltaKey();
+        d->m_interactionController->setDeltaTick(startOffset);
+        d->m_interactionController->setDeltaKey(keyOffset);
+        d->m_interactionController->moveSelectedNotes(d->m_interactionController->deltaTick(), d->m_interactionController->deltaKey());
+        d->m_interactionController->setMovedBeforeMouseUp(true);
+    } else if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::ResizeLeft) {
         const auto rStart = snappedTick - d->m_offset;
-        auto deltaStart = rStart - d->m_mouseDownRStart;
-        const auto length = d->m_mouseDownLength - deltaStart;
+        auto deltaStart = rStart - d->m_interactionController->mouseDownRStart();
+        const auto length = d->m_interactionController->mouseDownLength() - deltaStart;
         if (length < quantizedTickLength)
-            deltaStart = d->m_mouseDownLength - quantizedTickLength;
-        d->m_deltaTick = deltaStart;
-        d->resizeLeftSelectedNote(d->m_deltaTick);
-        d->m_movedBeforeMouseUp = true;
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeRight) {
+            deltaStart = d->m_interactionController->mouseDownLength() - quantizedTickLength;
+        d->m_interactionController->setDeltaTick(deltaStart);
+        d->m_interactionController->resizeLeftSelectedNote(d->m_interactionController->deltaTick());
+        d->m_interactionController->setMovedBeforeMouseUp(true);
+    } else if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::ResizeRight) {
         const auto right = snappedTickNearest - d->m_offset;
-        const auto length = right - d->m_mouseDownRStart;
-        auto deltaLength = length - d->m_mouseDownLength;
+        const auto length = right - d->m_interactionController->mouseDownRStart();
+        auto deltaLength = length - d->m_interactionController->mouseDownLength();
         if (length < quantizedTickLength)
-            deltaLength = -(d->m_mouseDownLength - quantizedTickLength);
-        d->m_deltaTick = deltaLength;
-        d->resizeRightSelectedNote(d->m_deltaTick);
-        d->m_movedBeforeMouseUp = true;
+            deltaLength = -(d->m_interactionController->mouseDownLength() - quantizedTickLength);
+        d->m_interactionController->setDeltaTick(deltaLength);
+        d->m_interactionController->resizeRightSelectedNote(d->m_interactionController->deltaTick());
+        d->m_interactionController->setMovedBeforeMouseUp(true);
     } else
         TimeGraphicsView::mouseMoveEvent(event);
 }
 
 void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
-    if (event->button() != d->m_mouseDownButton) {
+    if (event->button() != d->m_interactionController->mouseDownButton()) {
         qWarning() << "Ignored mouseReleaseEvent" << event;
         return;
     }
-    d->m_mouseDown = false;
-    d->m_mouseDownButton = Qt::NoButton;
+    d->m_interactionController->setMouseDown(false);
     if (d->m_currentHandler) {
         if (!cancelRequested) {
             if (d->m_currentHandler->mouseReleaseEvent(event)) {
@@ -433,9 +433,9 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     if (!cancelRequested)
         commitAction();
     const bool ctrlDown = event->modifiers() == Qt::ControlModifier;
-    if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::Move) {
-        if (!d->m_movedBeforeMouseUp && !ctrlDown) {
-            clearNoteSelections(d->m_currentEditingNote);
+    if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::Move) {
+        if (!d->m_interactionController->movedBeforeMouseUp() && !ctrlDown) {
+            clearNoteSelections(d->m_interactionController->currentEditingNote());
         }
     }
     cancelRequested = false;
@@ -480,10 +480,9 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
 
         const int noteLength = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
 
-        d->m_mouseDown = true;
-        d->m_mouseDownButton = Qt::LeftButton;
-        d->m_mouseDownPos = scenePos;
-        d->m_mouseDownKeyIndex = keyIndex;
+        d->m_interactionController->setMouseDown(true, Qt::LeftButton);
+        d->m_interactionController->setMouseDownPos(scenePos);
+        d->m_interactionController->setMouseDownNoteParams(0, 0, keyIndex);
 
         if (auto *drawHandler =
                 dynamic_cast<DrawNoteHandler *>(d->m_handlers.value(DrawNote, nullptr))) {
@@ -574,20 +573,20 @@ void PianoRollGraphicsView::discardAction() {
     if (d->m_currentHandler) {
         d->m_currentHandler->discard();
     }
-    if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::Move) {
-        if (d->m_movedBeforeMouseUp) {
-            d->resetSelectedNotesOffset();
+    if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::Move) {
+        if (d->m_interactionController->movedBeforeMouseUp()) {
+            d->m_interactionController->resetSelectedNotesOffset();
         }
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeLeft) {
-        d->resetSelectedNotesOffset();
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeRight) {
-        d->resetSelectedNotesOffset();
+    } else if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::ResizeLeft) {
+        d->m_interactionController->resetSelectedNotesOffset();
+    } else if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::ResizeRight) {
+        d->m_interactionController->resetSelectedNotesOffset();
     }
-    d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
-    d->m_deltaTick = 0;
-    d->m_deltaKey = 0;
-    d->m_movedBeforeMouseUp = false;
-    d->m_currentEditingNote = nullptr;
+    d->m_interactionController->setMouseMoveBehavior(NoteInteractionController::None);
+    d->m_interactionController->setDeltaTick(0);
+    d->m_interactionController->setDeltaKey(0);
+    d->m_interactionController->setMovedBeforeMouseUp(false);
+    d->m_interactionController->setCurrentEditingNote(nullptr);
 
     d->m_selectionModel->setSelecting(false);
     const auto notes = selectedNotesId();
@@ -600,29 +599,29 @@ void PianoRollGraphicsView::discardAction() {
 void PianoRollGraphicsView::commitAction() {
     Q_D(PianoRollGraphicsView);
     d->m_pitchEditor->commitAction();
-    if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::Move) {
-        if (d->m_movedBeforeMouseUp) {
-            d->resetSelectedNotesOffset();
-            d->handleNotesMoved(d->m_deltaTick, d->m_deltaKey);
+    if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::Move) {
+        if (d->m_interactionController->movedBeforeMouseUp()) {
+            d->m_interactionController->resetSelectedNotesOffset();
+            d->m_interactionController->handleNotesMoved(d->m_interactionController->deltaTick(), d->m_interactionController->deltaKey());
         }
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeLeft) {
-        if (d->m_movedBeforeMouseUp && d->m_currentEditingNote) {
-            d->resetSelectedNotesOffset();
-            PianoRollGraphicsViewPrivate::handleNoteLeftResized(d->m_currentEditingNote->id(),
-                                                                d->m_deltaTick);
+    } else if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::ResizeLeft) {
+        if (d->m_interactionController->movedBeforeMouseUp() && d->m_interactionController->currentEditingNote()) {
+            d->m_interactionController->resetSelectedNotesOffset();
+            NoteInteractionController::handleNoteLeftResized(d->m_interactionController->currentEditingNote()->id(),
+                                                              d->m_interactionController->deltaTick());
         }
-    } else if (d->m_mouseMoveBehavior == PianoRollGraphicsViewPrivate::ResizeRight) {
-        if (d->m_movedBeforeMouseUp && d->m_currentEditingNote) {
-            d->resetSelectedNotesOffset();
-            PianoRollGraphicsViewPrivate::handleNoteRightResized(d->m_currentEditingNote->id(),
-                                                                 d->m_deltaTick);
+    } else if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::ResizeRight) {
+        if (d->m_interactionController->movedBeforeMouseUp() && d->m_interactionController->currentEditingNote()) {
+            d->m_interactionController->resetSelectedNotesOffset();
+            NoteInteractionController::handleNoteRightResized(d->m_interactionController->currentEditingNote()->id(),
+                                                               d->m_interactionController->deltaTick());
         }
     }
-    d->m_mouseMoveBehavior = PianoRollGraphicsViewPrivate::None;
-    d->m_deltaTick = 0;
-    d->m_deltaKey = 0;
-    d->m_movedBeforeMouseUp = false;
-    d->m_currentEditingNote = nullptr;
+    d->m_interactionController->setMouseMoveBehavior(NoteInteractionController::None);
+    d->m_interactionController->setDeltaTick(0);
+    d->m_interactionController->setDeltaKey(0);
+    d->m_interactionController->setMovedBeforeMouseUp(false);
+    d->m_interactionController->setCurrentEditingNote(nullptr);
 
     d->m_selectionModel->setSelecting(false);
     const auto notes = selectedNotesId();
@@ -1026,75 +1025,6 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     m_selectionModel->setSelectionChangeBarrier(false);
 }
 
-void PianoRollGraphicsViewPrivate::prepareForEditingNotes(const QMouseEvent *event,
-                                                          const QPointF scenePos,
-                                                          const int keyIndex, NoteView *noteItem) {
-    Q_Q(PianoRollGraphicsView);
-
-    // If note is editing lyric, don't allow moving or resizing
-    if (noteItem->isEditingLyric()) {
-        m_mouseMoveBehavior = None;
-        return;
-    }
-
-    const bool ctrlDown = event->modifiers() == Qt::ControlModifier;
-    if (!ctrlDown) {
-        if (m_selectionModel->selectedNoteItems().count() <= 1 || !m_selectionModel->selectedNoteItems().contains(noteItem))
-            q->clearNoteSelections();
-        noteItem->setSelected(true);
-    } else {
-        noteItem->setSelected(!noteItem->isSelected());
-    }
-    const auto rPos = noteItem->mapFromScene(scenePos);
-    const auto rx = rPos.x();
-    if (rx >= 0 && rx <= AppGlobal::resizeTolerance) {
-        m_mouseMoveBehavior = ResizeLeft;
-        q->clearNoteSelections();
-        noteItem->setSelected(true);
-    } else if (rx >= noteItem->rect().width() - AppGlobal::resizeTolerance &&
-               rx <= noteItem->rect().width()) {
-        m_mouseMoveBehavior = ResizeRight;
-        q->clearNoteSelections();
-        noteItem->setSelected(true);
-    } else {
-        m_mouseMoveBehavior = Move;
-    }
-
-    m_currentEditingNote = noteItem;
-    m_mouseDownPos = scenePos;
-    m_mouseDownRStart = m_currentEditingNote->rStart();
-    m_mouseDownLength = m_currentEditingNote->length();
-    m_mouseDownKeyIndex = keyIndex;
-    updateMoveDeltaKeyRange();
-
-    auto noteIds = q->selectedNotesId();
-    if (noteIds.isEmpty())
-        noteIds.append(noteItem->id());
-    editSessionManager->beginTransaction(AppStatus::EditObjectType::Note,
-                                         m_clip ? m_clip->id() : -1, {}, noteIds);
-    appStatus->currentEditObject = AppStatus::EditObjectType::Note;
-}
-
-void PianoRollGraphicsViewPrivate::handleNotesMoved(const int deltaTick, const int deltaKey) const {
-    Q_Q(const PianoRollGraphicsView);
-    qDebug() << "Notes moved dt:" << deltaTick << "dk:" << deltaKey;
-    clipController->onMoveNotes(q->selectedNotesId(), deltaTick, deltaKey);
-}
-
-void PianoRollGraphicsViewPrivate::handleNoteLeftResized(const int noteId, const int deltaTick) {
-    qDebug() << "Note left resized id:" << noteId << "dt:" << deltaTick;
-    QList<int> notes;
-    notes.append(noteId);
-    clipController->onResizeNotesLeft(notes, deltaTick);
-}
-
-void PianoRollGraphicsViewPrivate::handleNoteRightResized(const int noteId, const int deltaTick) {
-    qDebug() << "Note right resized id:" << noteId << "dt:" << deltaTick;
-    QList<int> notes;
-    notes.append(noteId);
-    clipController->onResizeNotesRight(notes, deltaTick);
-}
-
 void PianoRollGraphicsViewPrivate::updateNoteTimeAndKey(const Note *note) const {
     const auto noteView = findNoteViewById(note->id());
     if (!noteView) {
@@ -1111,49 +1041,6 @@ void PianoRollGraphicsViewPrivate::updateNoteWord(const Note *note) const {
         return;
     }
     Helper::updateNoteWord(*noteView, *note);
-}
-
-void PianoRollGraphicsViewPrivate::moveSelectedNotes(const int startOffset,
-                                                     const int keyOffset) const {
-    for (const auto note : m_selectionModel->selectedNoteItems()) {
-        note->setStartOffset(startOffset);
-        note->setKeyOffset(keyOffset);
-    }
-}
-
-void PianoRollGraphicsViewPrivate::resetSelectedNotesOffset() const {
-    for (const auto note : m_selectionModel->selectedNoteItems())
-        note->resetOffset();
-}
-
-void PianoRollGraphicsViewPrivate::updateMoveDeltaKeyRange() {
-    auto selectedNotes = m_selectionModel->selectedNoteItems();
-    int highestKey = 0;
-    int lowestKey = 127;
-    for (const auto note : selectedNotes) {
-        const auto key = note->keyIndex();
-        if (key > highestKey)
-            highestKey = key;
-        if (key < lowestKey)
-            lowestKey = key;
-    }
-    m_moveMaxDeltaKey = 127 - highestKey;
-    m_moveMinDeltaKey = -lowestKey;
-}
-
-void PianoRollGraphicsViewPrivate::resetMoveDeltaKeyRange() {
-    m_moveMaxDeltaKey = 127;
-    m_moveMinDeltaKey = 0;
-}
-
-void PianoRollGraphicsViewPrivate::resizeLeftSelectedNote(const int offset) const {
-    // TODO: resize all selected notes
-    m_currentEditingNote->setStartOffset(offset);
-    m_currentEditingNote->setLengthOffset(-offset);
-}
-
-void PianoRollGraphicsViewPrivate::resizeRightSelectedNote(const int offset) const {
-    m_currentEditingNote->setLengthOffset(offset);
 }
 
 void PianoRollGraphicsViewPrivate::setPitchEditMode(const bool on, const bool isErase) {

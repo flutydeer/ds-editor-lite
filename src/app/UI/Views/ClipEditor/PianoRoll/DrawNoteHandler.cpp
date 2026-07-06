@@ -5,6 +5,7 @@
 #include "PianoRollGraphicsView.h"
 #include "PianoRollGraphicsView_p.h"
 #include "PianoRollCoord.h"
+#include "NoteInteractionController.h"
 #include "PianoRollGraphicsViewHelper.h"
 #include "PronunciationView.h"
 #include "Controller/ClipController.h"
@@ -36,7 +37,7 @@ bool DrawNoteHandler::mousePressEvent(QMouseEvent *event) {
 
     q->clearNoteSelections();
     if (noteView) {
-        d->prepareForEditingNotes(event, scenePos, keyIndex, noteView);
+        d->m_interactionController->prepareForEditingNotes(event, scenePos, keyIndex, noteView);
         return false;
     } else if (pronView) {
         const auto currentNoteView = d->findNoteViewById(pronView->id());

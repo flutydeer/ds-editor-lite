@@ -28,6 +28,7 @@ class PronunciationView;
 class PianoRollBackground;
 class PianoRollEditHandler;
 class PianoRollSelectionModel;
+class NoteInteractionController;
 enum class EditSessionEndReason;
 
 using namespace ClipEditorGlobal;
@@ -44,9 +45,6 @@ public:
     int m_offset = 0; // Clip 's "start" property
     QList<Note *> m_notes;
 
-    enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, None };
-
-    NoteView *m_currentEditingNote = nullptr;
     PianoRollBackground *m_gridItem = nullptr;
     QList<NoteView *> noteViews;
     QHash<int, NoteView *> noteViewIndex;
@@ -60,28 +58,16 @@ public:
     PianoRollEditHandler *m_currentHandler = nullptr;
     QHash<PianoRollEditMode, PianoRollEditHandler *> m_handlers;
     PianoRollSelectionModel *m_selectionModel = nullptr;
+    NoteInteractionController *m_interactionController = nullptr;
     void restoreHandler();
 
-    bool m_mouseDown = false;
-    Qt::MouseButton m_mouseDownButton = Qt::NoButton;
-    bool m_isEditPitchMode = false;
-
-    // resize and move
-    bool m_tempQuantizeOff = false;
-    QPointF m_mouseDownPos;
-    int m_mouseDownRStart = 0;
-    int m_mouseDownLength = 0;
-    int m_mouseDownKeyIndex = 0;
-    int m_deltaTick = 0;
-    int m_deltaKey = 0;
-    bool m_movedBeforeMouseUp = false;
-    int m_moveMaxDeltaKey = 127;
-    int m_moveMinDeltaKey = 0;
-
     PianoRollEditMode m_editMode = Select;
-    MouseMoveBehavior m_mouseMoveBehavior = None;
 
-    Menu *buildNoteContextMenu(NoteView *noteView, const QPoint &mousePos);
+        bool m_mouseDown = false;
+        Qt::MouseButton m_mouseDownButton = Qt::NoButton;
+        bool m_isEditPitchMode = false;
+
+        Menu *buildNoteContextMenu(NoteView *noteView, const QPoint &mousePos);
     Menu *buildBackgroundContextMenu(const QPoint &pos);
     void splitNoteAtMousePosition(NoteView *noteView, const QPoint &mousePos);
 
@@ -89,21 +75,8 @@ public:
     void moveToSingingClipState(SingingClip *clip);
     void endPitchEditSession(EditSessionEndReason reason);
 
-    void prepareForEditingNotes(const QMouseEvent *event, QPointF scenePos, int keyIndex,
-                                NoteView *noteItem);
-
-    void handleNotesMoved(int deltaTick, int deltaKey) const;
-    static void handleNoteLeftResized(int noteId, int deltaTick);
-    static void handleNoteRightResized(int noteId, int deltaTick);
-
     void updateNoteTimeAndKey(const Note *note) const;
     void updateNoteWord(const Note *note) const;
-    void moveSelectedNotes(int startOffset, int keyOffset) const;
-    void resetSelectedNotesOffset() const;
-    void updateMoveDeltaKeyRange();
-    void resetMoveDeltaKeyRange();
-    void resizeLeftSelectedNote(int offset) const;
-    void resizeRightSelectedNote(int offset) const;
 
     void updatePitch(Param::Type paramType, const Param &param) const;
 
