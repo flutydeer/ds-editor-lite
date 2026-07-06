@@ -10,6 +10,7 @@
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsViewHelper.h"
 #include "PianoRollCoord.h"
+#include "PianoRollContextMenuBuilder.h"
 #include "NoteInteractionController.h"
 #include "PianoRollSelectionModel.h"
 #include "PianoRollGraphicsView_p.h"
@@ -229,10 +230,14 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     if (d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote ||
         d->m_editMode == EraseNote || d->m_editMode == SplitNote) {
         if (const auto noteView = d->noteViewAt(event->pos())) {
-            const auto menu = d->buildNoteContextMenu(noteView, event->pos());
+            const auto menu = PianoRollContextMenuBuilder::buildNoteContextMenu(
+                this, noteView,
+                [d] { d->onDeleteSelectedNotes(); },
+                [d](int noteId) { d->onOpenNotePropertyDialog(noteId, AppGlobal::Lyric); });
             menu->exec(event->globalPos());
         } else {
-            const auto menu = d->buildBackgroundContextMenu(event->pos());
+            const auto menu = PianoRollContextMenuBuilder::buildBackgroundContextMenu(
+                this, d->m_selectionModel, event->pos(), d->m_offset);
             menu->exec(event->globalPos());
         }
         return;
@@ -865,114 +870,6 @@ void PianoRollGraphicsViewPrivate::onPronunciationEditingFinished(PronunciationV
     clipController->onNotePropertiesEdited(noteId, result);
 }
 
-Menu *PianoRollGraphicsViewPrivate::buildNoteContextMenu(NoteView *noteView,
-                                                         const QPoint &mousePos) {
-    Q_Q(PianoRollGraphicsView);
-    const auto menu = new Menu(q);
-
-    const auto actionEditLyric = menu->addAction(tr("Fill lyrics..."));
-    connect(actionEditLyric, &QAction::triggered, clipController,
-            [=] { clipController->onFillLyric(q); });
-
-    const auto actionSearchLyric = menu->addAction(tr("Search lyrics..."));
-    connect(actionSearchLyric, &QAction::triggered, clipController,
-            [=] { clipController->onSearchLyric(q); });
-
-    menu->addSeparator();
-
-    const auto actionSplit = menu->addAction(tr("Split Note"));
-    connect(actionSplit, &QAction::triggered, this,
-            [noteView, mousePos, this] { splitNoteAtMousePosition(noteView, mousePos); });
-
-    menu->addSeparator();
-
-    const auto actionCut = menu->addAction(tr("Cu&t"));
-    connect(actionCut, &QAction::triggered, clipboardController, &ClipboardController::cut);
-
-    const auto actionCopy = menu->addAction(tr("&Copy"));
-    connect(actionCopy, &QAction::triggered, clipboardController, &ClipboardController::copy);
-
-    const auto actionRemove = menu->addAction(tr("&Delete"));
-    connect(actionRemove, &QAction::triggered, this,
-            &PianoRollGraphicsViewPrivate::onDeleteSelectedNotes);
-
-    menu->addSeparator();
-
-    const auto actionProperties = menu->addAction(tr("Properties..."));
-    connect(actionProperties, &QAction::triggered, this,
-            [noteView, this] { onOpenNotePropertyDialog(noteView->id(), AppGlobal::Lyric); });
-    return menu;
-}
-
-Menu *PianoRollGraphicsViewPrivate::buildBackgroundContextMenu(const QPoint &pos) {
-    Q_Q(PianoRollGraphicsView);
-    const auto menu = new Menu(q);
-    menu->installEventFilter(this);
-
-    const auto mimeData = QGuiApplication::clipboard()->mimeData();
-    const auto hasPasteData =
-        mimeData &&
-        mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
-
-    const auto actionPaste = menu->addAction(tr("&Paste"));
-    actionPaste->setEnabled(hasPasteData);
-
-    if (hasPasteData) {
-        const auto array =
-            mimeData->data(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
-        const auto json = QJsonDocument::fromJson(array);
-        NotesParamsInfo info = NotesParamsInfo::deserializeFromJson(json.object());
-        const auto scenePos = q->mapToScene(pos);
-        const auto tick = qRound(q->sceneXToTick(scenePos.x())) + m_offset;
-        const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-        const auto previewTick = TimelineSnapUtils::snapNearest(tick, quantize);
-
-        connect(actionPaste, &QAction::triggered, q,
-                [this, info, tick] { clipController->pasteNotesWithParams(info, tick); });
-
-        int minLocalStart = INT_MAX;
-        for (const auto note : info.selectedNotes)
-            minLocalStart = qMin(minLocalStart, note->localStart());
-
-        connect(actionPaste, &QAction::hovered, q, [this, q, info, previewTick, minLocalStart] {
-            if (!m_selectionModel->pastePreviewViews().isEmpty())
-                return;
-            for (const auto note : info.selectedNotes) {
-                const auto noteView = new NoteView(-1);
-                noteView->setPronunciationView(new PronunciationView(-1));
-                noteView->setRStart(note->localStart() - minLocalStart + previewTick - m_offset);
-                noteView->setLength(note->length());
-                noteView->setKeyIndex(note->keyIndex());
-                noteView->setLyric(note->lyric());
-                const auto pron = note->pronunciation();
-                noteView->setPronunciation(pron.isEdited() ? pron.edited : pron.original,
-                                           pron.isEdited());
-                noteView->setOverlapped(note->overlapped());
-                noteView->setOpacity(0.35);
-                noteView->setAcceptedMouseButtons(Qt::NoButton);
-                noteView->setAcceptHoverEvents(false);
-                noteView->setFlag(QGraphicsItem::ItemIsSelectable, false);
-                if (noteView->pronunciationView())
-                    noteView->pronunciationView()->setOpacity(0.35);
-
-                q->scene()->addCommonItem(noteView);
-                if (noteView->pronunciationView())
-                    q->scene()->addCommonItem(noteView->pronunciationView());
-                m_selectionModel->pastePreviewViews().append(noteView);
-            }
-        });
-
-        for (auto a : menu->actions()) {
-            if (a != actionPaste && !a->isSeparator())
-                connect(a, &QAction::hovered, q, [this] { m_selectionModel->clearPastePreviewViews(); });
-        }
-
-        connect(menu, &QMenu::aboutToHide, q, [this] { m_selectionModel->clearPastePreviewViews(); });
-    }
-
-    return menu;
-}
-
 void PianoRollGraphicsViewPrivate::moveToNullClipState() {
     Q_Q(PianoRollGraphicsView);
     m_pitchEditor->cancelEdit();
@@ -1194,16 +1091,4 @@ void PianoRollGraphicsViewPrivate::updatePitch(const Param::Type paramType,
         if (handler)
             Helper::updateAnchorPitch(param, *handler);
     }
-}
-
-void PianoRollGraphicsViewPrivate::splitNoteAtMousePosition(NoteView *noteView,
-                                                            const QPoint &mousePos) {
-    Q_Q(PianoRollGraphicsView);
-    if (!noteView)
-        return;
-
-    const auto scenePos = q->mapToScene(mousePos);
-    const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()) + m_offset);
-
-    Helper::splitNote(noteView->id(), tick);
 }

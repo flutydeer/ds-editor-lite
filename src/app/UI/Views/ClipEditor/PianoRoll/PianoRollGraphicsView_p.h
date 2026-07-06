@@ -67,11 +67,7 @@ public:
         Qt::MouseButton m_mouseDownButton = Qt::NoButton;
         bool m_isEditPitchMode = false;
 
-        Menu *buildNoteContextMenu(NoteView *noteView, const QPoint &mousePos);
-    Menu *buildBackgroundContextMenu(const QPoint &pos);
-    void splitNoteAtMousePosition(NoteView *noteView, const QPoint &mousePos);
-
-    void moveToNullClipState();
+        void moveToNullClipState();
     void moveToSingingClipState(SingingClip *clip);
     void endPitchEditSession(EditSessionEndReason reason);
 
