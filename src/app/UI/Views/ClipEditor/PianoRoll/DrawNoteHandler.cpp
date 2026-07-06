@@ -29,7 +29,8 @@ bool DrawNoteHandler::mousePressEvent(QMouseEvent *event) {
         return false;
 
     const auto scenePos = q->mapToScene(event->pos());
-    const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), q->scaleY() * noteHeight);
+    const auto keyIndex =
+        PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), q->scaleY() * noteHeight);
     const auto tick = q->sceneXToTick(scenePos.x()) + d->m_offset;
 
     const auto noteView = d->noteViewAt(event->pos());

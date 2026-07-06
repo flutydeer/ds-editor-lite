@@ -17,43 +17,109 @@ public:
     enum MouseMoveBehavior { ResizeLeft, Move, ResizeRight, None };
 
     explicit NoteInteractionController(PianoRollSelectionModel *selectionModel,
-                                       PianoRollGraphicsView *view,
-                                       QObject *parent = nullptr);
+                                       PianoRollGraphicsView *view, QObject *parent = nullptr);
 
     // State access
-    [[nodiscard]] bool isMouseDown() const { return m_mouseDown; }
-    [[nodiscard]] Qt::MouseButton mouseDownButton() const { return m_mouseDownButton; }
-    [[nodiscard]] MouseMoveBehavior mouseMoveBehavior() const { return m_mouseMoveBehavior; }
-    [[nodiscard]] bool isEditPitchMode() const { return m_isEditPitchMode; }
-    [[nodiscard]] bool movedBeforeMouseUp() const { return m_movedBeforeMouseUp; }
-    [[nodiscard]] NoteView *currentEditingNote() const { return m_currentEditingNote; }
+    [[nodiscard]] bool isMouseDown() const {
+        return m_mouseDown;
+    }
+
+    [[nodiscard]] Qt::MouseButton mouseDownButton() const {
+        return m_mouseDownButton;
+    }
+
+    [[nodiscard]] MouseMoveBehavior mouseMoveBehavior() const {
+        return m_mouseMoveBehavior;
+    }
+
+    [[nodiscard]] bool isEditPitchMode() const {
+        return m_isEditPitchMode;
+    }
+
+    [[nodiscard]] bool movedBeforeMouseUp() const {
+        return m_movedBeforeMouseUp;
+    }
+
+    [[nodiscard]] NoteView *currentEditingNote() const {
+        return m_currentEditingNote;
+    }
 
     // State setters
     void setMouseDown(bool down, Qt::MouseButton button = Qt::NoButton);
-    void setMouseDownPos(const QPointF &pos) { m_mouseDownPos = pos; }
+
+    void setMouseDownPos(const QPointF &pos) {
+        m_mouseDownPos = pos;
+    }
+
     void setMouseDownNoteParams(int rStart, int length, int keyIndex);
-    void setTempQuantizeOff(bool off) { m_tempQuantizeOff = off; }
-    [[nodiscard]] bool tempQuantizeOff() const { return m_tempQuantizeOff; }
-    void setMouseMoveBehavior(MouseMoveBehavior behavior) { m_mouseMoveBehavior = behavior; }
-    void setEditPitchMode(bool on) { m_isEditPitchMode = on; }
-    void setMovedBeforeMouseUp(bool moved) { m_movedBeforeMouseUp = moved; }
-    void setCurrentEditingNote(NoteView *view) { m_currentEditingNote = view; }
+
+    void setTempQuantizeOff(bool off) {
+        m_tempQuantizeOff = off;
+    }
+
+    [[nodiscard]] bool tempQuantizeOff() const {
+        return m_tempQuantizeOff;
+    }
+
+    void setMouseMoveBehavior(MouseMoveBehavior behavior) {
+        m_mouseMoveBehavior = behavior;
+    }
+
+    void setEditPitchMode(bool on) {
+        m_isEditPitchMode = on;
+    }
+
+    void setMovedBeforeMouseUp(bool moved) {
+        m_movedBeforeMouseUp = moved;
+    }
+
+    void setCurrentEditingNote(NoteView *view) {
+        m_currentEditingNote = view;
+    }
 
     // Down state
-    [[nodiscard]] int mouseDownRStart() const { return m_mouseDownRStart; }
-    [[nodiscard]] int mouseDownLength() const { return m_mouseDownLength; }
-    [[nodiscard]] int mouseDownKeyIndex() const { return m_mouseDownKeyIndex; }
-    [[nodiscard]] const QPointF &mouseDownPos() const { return m_mouseDownPos; }
+    [[nodiscard]] int mouseDownRStart() const {
+        return m_mouseDownRStart;
+    }
+
+    [[nodiscard]] int mouseDownLength() const {
+        return m_mouseDownLength;
+    }
+
+    [[nodiscard]] int mouseDownKeyIndex() const {
+        return m_mouseDownKeyIndex;
+    }
+
+    [[nodiscard]] const QPointF &mouseDownPos() const {
+        return m_mouseDownPos;
+    }
 
     // Delta state
-    [[nodiscard]] int deltaTick() const { return m_deltaTick; }
-    [[nodiscard]] int deltaKey() const { return m_deltaKey; }
-    void setDeltaTick(int tick) { m_deltaTick = tick; }
-    void setDeltaKey(int key) { m_deltaKey = key; }
+    [[nodiscard]] int deltaTick() const {
+        return m_deltaTick;
+    }
+
+    [[nodiscard]] int deltaKey() const {
+        return m_deltaKey;
+    }
+
+    void setDeltaTick(int tick) {
+        m_deltaTick = tick;
+    }
+
+    void setDeltaKey(int key) {
+        m_deltaKey = key;
+    }
 
     // Move constraints
-    [[nodiscard]] int moveMaxDeltaKey() const { return m_moveMaxDeltaKey; }
-    [[nodiscard]] int moveMinDeltaKey() const { return m_moveMinDeltaKey; }
+    [[nodiscard]] int moveMaxDeltaKey() const {
+        return m_moveMaxDeltaKey;
+    }
+
+    [[nodiscard]] int moveMinDeltaKey() const {
+        return m_moveMinDeltaKey;
+    }
+
     void setMoveDeltaKeyRange(int max, int min);
     void resetMoveDeltaKeyRange();
 

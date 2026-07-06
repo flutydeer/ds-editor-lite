@@ -18,7 +18,8 @@ bool SelectNoteHandler::mousePressEvent(QMouseEvent *event) {
         return false;
 
     const auto scenePos = q->mapToScene(event->pos());
-    const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), q->scaleY() * noteHeight);
+    const auto keyIndex =
+        PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), q->scaleY() * noteHeight);
     const auto noteView = d->noteViewAt(event->pos());
 
     if (noteView) {

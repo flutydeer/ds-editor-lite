@@ -13,11 +13,8 @@
 #include <QMouseEvent>
 
 NoteInteractionController::NoteInteractionController(PianoRollSelectionModel *selectionModel,
-                                                     PianoRollGraphicsView *view,
-                                                     QObject *parent)
-    : QObject(parent)
-    , m_selectionModel(selectionModel)
-    , m_view(view) {
+                                                     PianoRollGraphicsView *view, QObject *parent)
+    : QObject(parent), m_selectionModel(selectionModel), m_view(view) {
 }
 
 void NoteInteractionController::setMouseDown(bool down, Qt::MouseButton button) {
@@ -42,8 +39,8 @@ void NoteInteractionController::resetMoveDeltaKeyRange() {
 }
 
 void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
-                                                       const QPointF scenePos,
-                                                       const int keyIndex, NoteView *noteItem) {
+                                                       const QPointF scenePos, const int keyIndex,
+                                                       NoteView *noteItem) {
     const auto resizeTolerance = AppGlobal::resizeTolerance;
 
     // If note is editing lyric, don't allow moving or resizing
@@ -54,8 +51,8 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
 
     const bool ctrlDown = event->modifiers() == Qt::ControlModifier;
     if (!ctrlDown) {
-        if (m_selectionModel->selectedNoteItems().count() <= 1
-            || !m_selectionModel->selectedNoteItems().contains(noteItem))
+        if (m_selectionModel->selectedNoteItems().count() <= 1 ||
+            !m_selectionModel->selectedNoteItems().contains(noteItem))
             m_view->clearNoteSelections();
         noteItem->setSelected(true);
     } else {
@@ -67,8 +64,7 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
     if (rx >= 0 && rx <= resizeTolerance) {
         m_mouseMoveBehavior = ResizeLeft;
         noteItem->setSelected(true);
-    } else if (rx >= noteItem->rect().width() - resizeTolerance
-               && rx <= noteItem->rect().width()) {
+    } else if (rx >= noteItem->rect().width() - resizeTolerance && rx <= noteItem->rect().width()) {
         m_mouseMoveBehavior = ResizeRight;
         noteItem->setSelected(true);
     } else {
@@ -83,8 +79,7 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
     updateMoveDeltaKeyRange();
 }
 
-void NoteInteractionController::handleNotesMoved(const int deltaTick,
-                                                 const int deltaKey) const {
+void NoteInteractionController::handleNotesMoved(const int deltaTick, const int deltaKey) const {
     qDebug() << "Notes moved dt:" << deltaTick << "dk:" << deltaKey;
     QList<int> noteIds;
     for (const auto note : m_selectionModel->selectedNoteItems())
@@ -107,7 +102,7 @@ void NoteInteractionController::handleNoteRightResized(const int noteId, const i
 }
 
 void NoteInteractionController::moveSelectedNotes(const int startOffset,
-                                                   const int keyOffset) const {
+                                                  const int keyOffset) const {
     for (const auto note : m_selectionModel->selectedNoteItems()) {
         note->setStartOffset(startOffset);
         note->setKeyOffset(keyOffset);

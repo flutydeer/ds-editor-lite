@@ -15,13 +15,9 @@
 PianoRollSelectionModel::PianoRollSelectionModel(PianoRollGraphicsView *view,
                                                  QList<NoteView *> &noteViews,
                                                  QHash<int, NoteView *> &noteViewIndex,
-                                                 QList<Note *> &notes,
-                                                 QObject *parent)
-    : QObject(parent)
-    , m_noteViews(noteViews)
-    , m_noteViewIndex(noteViewIndex)
-    , m_notes(notes)
-    , m_view(view) {
+                                                 QList<Note *> &notes, QObject *parent)
+    : QObject(parent), m_noteViews(noteViews), m_noteViewIndex(noteViewIndex), m_notes(notes),
+      m_view(view) {
 }
 
 QList<NoteView *> PianoRollSelectionModel::selectedNoteItems() const {
