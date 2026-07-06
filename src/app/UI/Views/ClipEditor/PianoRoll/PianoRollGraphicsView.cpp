@@ -9,6 +9,7 @@
 #include "PianoRollBackground.h"
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsViewHelper.h"
+#include "PianoRollCoord.h"
 #include "PianoRollGraphicsView_p.h"
 #include "PitchAnchorEditorView.h"
 #include "PitchEditorView.h"
@@ -277,7 +278,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
 
     const auto scenePos = mapToScene(event->position().toPoint());
     const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
-    const auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
+    const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), scaleY() * noteHeight);
     const auto noteView = d->noteViewAt(event->pos());
     const auto pronView = d->pronViewAt(event->pos());
 
@@ -339,7 +340,7 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     // Update hover key index for piano keyboard when mouse is over the grid
     if (!d->m_mouseDown) {
         const auto scenePos = mapToScene(event->position().toPoint());
-        const auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
+        const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), scaleY() * noteHeight);
         // Check if mouse is within the view bounds
         const auto viewRect = rect();
         if (viewRect.contains(event->pos())) {
@@ -369,7 +370,7 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         TimelineSnapUtils::quantizeStep(appStatus->pianoRollQuantize, d->m_tempQuantizeOff);
     const auto snappedTick = TimelineSnapUtils::snapDown(tick, quantizedTickLength);
     const auto snappedTickNearest = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
-    const auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
+    const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), scaleY() * noteHeight);
     const auto deltaX = static_cast<int>(sceneXToTick(scenePos.x() - d->m_mouseDownPos.x()));
 
     const auto noteView = d->noteViewAt(event->pos());
@@ -472,7 +473,7 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     if (!handled && d->m_editMode == Select) {
         const auto scenePos = mapToScene(event->position().toPoint());
         const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
-        const auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
+        const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), scaleY() * noteHeight);
 
         const int noteLength = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
 
@@ -629,13 +630,11 @@ void PianoRollGraphicsView::commitAction() {
 }
 
 double PianoRollGraphicsView::topKeyIndex() const {
-    Q_D(const PianoRollGraphicsView);
-    return d->sceneYToKeyIndexDouble(visibleRect().top());
+    return PianoRollCoord::sceneYToKeyIndexDouble(visibleRect().top(), scaleY() * noteHeight);
 }
 
 double PianoRollGraphicsView::bottomKeyIndex() const {
-    Q_D(const PianoRollGraphicsView);
-    return d->sceneYToKeyIndexDouble(visibleRect().bottom());
+    return PianoRollCoord::sceneYToKeyIndexDouble(visibleRect().bottom(), scaleY() * noteHeight);
 }
 
 void PianoRollGraphicsView::setViewportCenterAt(const double tick, const double keyIndex) {
@@ -644,10 +643,9 @@ void PianoRollGraphicsView::setViewportCenterAt(const double tick, const double 
 }
 
 void PianoRollGraphicsView::setViewportCenterAtKeyIndex(const double keyIndex) {
-    Q_D(PianoRollGraphicsView);
     const auto keyIndexRange = topKeyIndex() - bottomKeyIndex();
     const auto keyIndexStart = keyIndex + keyIndexRange / 2 + 0.5;
-    const auto vBarValue = qRound(d->keyIndexToSceneY(keyIndexStart));
+    const auto vBarValue = qRound(PianoRollCoord::keyIndexToSceneY(keyIndexStart, scaleY() * noteHeight));
     verticalBarAnimateTo(vBarValue);
 }
 
@@ -1141,24 +1139,6 @@ void PianoRollGraphicsViewPrivate::updateNoteWord(const Note *note) const {
     Helper::updateNoteWord(*noteView, *note);
 }
 
-double PianoRollGraphicsViewPrivate::keyIndexToSceneY(const double index) const {
-    Q_Q(const PianoRollGraphicsView);
-    return (127 - index) * q->scaleY() * noteHeight;
-}
-
-double PianoRollGraphicsViewPrivate::sceneYToKeyIndexDouble(const double y) const {
-    Q_Q(const PianoRollGraphicsView);
-    return 127 - y / q->scaleY() / noteHeight;
-}
-
-int PianoRollGraphicsViewPrivate::sceneYToKeyIndexInt(const double y) const {
-    const auto keyIndexD = sceneYToKeyIndexDouble(y);
-    auto keyIndex = static_cast<int>(keyIndexD) + 1;
-    if (keyIndex > 127)
-        keyIndex = 127;
-    return keyIndex;
-}
-
 void PianoRollGraphicsViewPrivate::moveSelectedNotes(const int startOffset,
                                                      const int keyOffset) const {
     for (const auto note : selectedNoteItems()) {
@@ -1322,7 +1302,7 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
 
     // Update keyboard hover based on mouse position
     const auto scenePos = q->mapToScene(event->position().toPoint());
-    const auto keyIndex = sceneYToKeyIndexInt(scenePos.y());
+    const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), q->scaleY() * noteHeight);
     emit q->keyHovered(keyIndex);
 
     if (m_editMode == SplitNote) {

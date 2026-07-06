@@ -3,6 +3,7 @@
 #include "NoteView.h"
 #include "PianoRollGraphicsView.h"
 #include "PianoRollGraphicsView_p.h"
+#include "PianoRollCoord.h"
 #include "PronunciationView.h"
 
 #include <QMouseEvent>
@@ -16,7 +17,7 @@ bool SelectNoteHandler::mousePressEvent(QMouseEvent *event) {
         return false;
 
     const auto scenePos = q->mapToScene(event->pos());
-    const auto keyIndex = d->sceneYToKeyIndexInt(scenePos.y());
+    const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), q->scaleY() * noteHeight);
     const auto noteView = d->noteViewAt(event->pos());
 
     if (noteView) {

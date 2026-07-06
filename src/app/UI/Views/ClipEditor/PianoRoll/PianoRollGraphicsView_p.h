@@ -113,9 +113,7 @@ public:
 
     void updatePitch(Param::Type paramType, const Param &param) const;
 
-    [[nodiscard]] double keyIndexToSceneY(double index) const;
-    [[nodiscard]] double sceneYToKeyIndexDouble(double y) const;
-    [[nodiscard]] int sceneYToKeyIndexInt(double y) const;
+
     [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
     void setPitchEditMode(bool on, bool isErase);
     [[nodiscard]] NoteView *noteViewAt(const QPoint &pos);
