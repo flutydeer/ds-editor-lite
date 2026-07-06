@@ -42,7 +42,7 @@ public:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
     SingingClip *m_clip = nullptr;
-    int m_offset = 0; // Clip 's "start" property
+    int m_offset = 0;
     QList<Note *> m_notes;
 
     PianoRollBackground *m_gridItem = nullptr;
@@ -63,11 +63,11 @@ public:
 
     PianoRollEditMode m_editMode = Select;
 
-        bool m_mouseDown = false;
-        Qt::MouseButton m_mouseDownButton = Qt::NoButton;
-        bool m_isEditPitchMode = false;
+    bool m_mouseDown = false;
+    Qt::MouseButton m_mouseDownButton = Qt::NoButton;
+    bool m_isEditPitchMode = false;
 
-        void moveToNullClipState();
+    void moveToNullClipState();
     void moveToSingingClipState(SingingClip *clip);
     void endPitchEditSession(EditSessionEndReason reason);
 
