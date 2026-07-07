@@ -926,9 +926,12 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
         for (const auto note : clip->notes())
             handleNoteInserted(note);
         const auto firstNote = *clip->notes().begin();
-        q->setViewportCenterAt(firstNote->globalStart(), firstNote->keyIndex());
+        auto tickRange = q->endTick() - q->startTick();
+        auto targetStart = firstNote->globalStart() - tickRange * 0.3;
+        q->setViewportStartTick(targetStart);
+        q->setViewportCenterAtKeyIndex(firstNote->keyIndex());
     } else
-        q->setViewportCenterAt(clip->start(), 60);
+        q->setViewportStartTick(clip->start());
 
     updatePitch(Param::Original, *m_clip->params.getParamByName(ParamInfo::Pitch));
     updatePitch(Param::Edited, *m_clip->params.getParamByName(ParamInfo::Pitch));

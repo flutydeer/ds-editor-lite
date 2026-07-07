@@ -54,8 +54,17 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
     m_toolbarView->setVisible(false);
 
     m_pianoRollEditorView = new PianoRollEditorView;
+    m_pianoRollEditorView->setVisible(false);
+
+    m_placeholderLabel = new QLabel;
+    m_placeholderLabel->setText(QStringLiteral("请选中一个歌声剪辑以编辑"));
+    m_placeholderLabel->setAlignment(Qt::AlignCenter);
+    m_placeholderLabel->setStyleSheet(QStringLiteral("color: #80F0F0F0;"
+                                                     "font-size: 14px;"));
+    m_placeholderLabel->setVisible(true);
 
     const auto mainLayout = new QVBoxLayout;
+    mainLayout->addWidget(m_placeholderLabel);
     mainLayout->addWidget(m_pianoRollEditorView);
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins({1, 0, 1, 1});
@@ -79,13 +88,12 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
         m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
         m_pianoRollEditorView->pianoRollView()->update();
         m_pianoRollEditorView->paramEditorView()->update();
-        m_trackColorConnection =
-            connect(trackRef, &Track::propertyChanged, this, [this, trackRef] {
-                NoteView::setTrackColorIndex(trackRef->colorIndex());
-                m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
-                m_pianoRollEditorView->pianoRollView()->update();
-                m_pianoRollEditorView->paramEditorView()->update();
-            });
+        m_trackColorConnection = connect(trackRef, &Track::propertyChanged, this, [this, trackRef] {
+            NoteView::setTrackColorIndex(trackRef->colorIndex());
+            m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
+            m_pianoRollEditorView->pianoRollView()->update();
+            m_pianoRollEditorView->paramEditorView()->update();
+        });
     });
     connect(clipController, &ClipController::liveTrackColorChanged, this, [this](int colorIndex) {
         NoteView::setTrackColorIndex(colorIndex);
@@ -121,13 +129,12 @@ void ClipEditorView::onActiveClipChanged(const int clipId) {
     if (trackRef) {
         NoteView::setTrackColorIndex(trackRef->colorIndex());
         m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
-        m_trackColorConnection =
-            connect(trackRef, &Track::propertyChanged, this, [this, trackRef] {
-                NoteView::setTrackColorIndex(trackRef->colorIndex());
-                m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
-                m_pianoRollEditorView->pianoRollView()->update();
-                m_pianoRollEditorView->paramEditorView()->update();
-            });
+        m_trackColorConnection = connect(trackRef, &Track::propertyChanged, this, [this, trackRef] {
+            NoteView::setTrackColorIndex(trackRef->colorIndex());
+            m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
+            m_pianoRollEditorView->pianoRollView()->update();
+            m_pianoRollEditorView->paramEditorView()->update();
+        });
     }
 
     bool hadActiveClip = m_hasActiveClip;
@@ -152,8 +159,9 @@ bool ClipEditorView::eventFilter(QObject *watched, QEvent *event) {
 
 void ClipEditorView::moveToSingingClipState(SingingClip *clip) const {
     m_hasActiveClip = true;
-    m_pianoRollEditorView->setVisible(true);
+    m_placeholderLabel->setVisible(false);
     m_pianoRollEditorView->setDataContext(clip);
+    m_pianoRollEditorView->setVisible(true);
     m_pianoRollEditorView->pianoRollView()->onEditModeChanged(m_toolbarView->editMode());
 }
 
@@ -161,12 +169,14 @@ void ClipEditorView::moveToAudioClipState(const AudioClip *clip) const {
     Q_UNUSED(clip);
     m_hasActiveClip = true;
     m_pianoRollEditorView->setVisible(false);
+    m_placeholderLabel->setVisible(true);
     m_pianoRollEditorView->setDataContext(nullptr);
 }
 
 void ClipEditorView::moveToNullClipState() const {
     m_hasActiveClip = false;
     m_pianoRollEditorView->setVisible(false);
+    m_placeholderLabel->setVisible(true);
     m_pianoRollEditorView->setDataContext(nullptr);
 }
 

@@ -10,6 +10,7 @@
 #include "UI/Views/Common/TabPanelPage.h"
 #include "UI/Views/Common/PanelView.h"
 
+class QLabel;
 class QSplitter;
 class ParamEditorView;
 class PianoRollView;
@@ -48,6 +49,7 @@ private:
 
     ClipEditorToolBarView *m_toolbarView;
     PianoRollEditorView *m_pianoRollEditorView;
+    QLabel *m_placeholderLabel;
     mutable bool m_hasActiveClip = false;
     QMetaObject::Connection m_trackColorConnection;
 

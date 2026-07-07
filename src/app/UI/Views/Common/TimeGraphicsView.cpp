@@ -65,9 +65,7 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
 #ifndef SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
     m_timer.setInterval(400);
     m_timer.setSingleShot(true);
-    connect(&m_timer, &QTimer::timeout, this, [this]() {
-        m_touchPadLock = false;
-    });
+    connect(&m_timer, &QTimer::timeout, this, [this]() { m_touchPadLock = false; });
 #endif
 
     connect(this, &TimeGraphicsView::visibleRectChanged,
@@ -145,7 +143,7 @@ void TimeGraphicsView::setGridItem(TimeGridView *item) {
 }
 
 void TimeGraphicsView::setSceneVisibility(bool on) {
-    setScene(on ? m_scene : nullptr);
+    setVisible(on);
 }
 
 qreal TimeGraphicsView::scaleXMax() const {
