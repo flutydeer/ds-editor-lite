@@ -6,11 +6,12 @@
 #include "Modules/FillLyric/Utils/LrcTools/LrcDecoder.h"
 #include "Modules/FillLyric/Utils/SplitLyric.h"
 
-namespace FillLyric
-{
-    LyricBaseWidget::LyricBaseWidget(const LyricTabConfig &config, std::vector<std::string> priorityG2pIds,
-                                     QMap<std::string, std::string> langToG2pId, QWidget *parent) :
-        QWidget(parent), m_priorityG2pIds(std::move(priorityG2pIds)), m_langToG2pId(std::move(langToG2pId)) {
+namespace FillLyric {
+    LyricBaseWidget::LyricBaseWidget(const LyricTabConfig &config,
+                                     std::vector<std::string> priorityG2pIds,
+                                     QMap<std::string, std::string> langToG2pId, QWidget *parent)
+        : QWidget(parent), m_priorityG2pIds(std::move(priorityG2pIds)),
+          m_langToG2pId(std::move(langToG2pId)) {
         m_textTopLayout = new QHBoxLayout();
         m_btnImportLrc = new QPushButton(tr("Import Lrc"));
         m_btnReReadNote = new QPushButton(tr("Reread Note"));
@@ -45,7 +46,7 @@ namespace FillLyric
         m_optButton = new QPushButton();
         m_optLabel->setBuddy(m_optButton);
         m_optButton->setFixedSize(20, 20);
-        m_optButton->setIcon(QIcon(":/svg/icons/chevron_down_16_filled_white.svg"));
+        m_optButton->setIcon(QIcon(":/svg/icons/chevron_down_16_filled.svg"));
 
         m_optLabelLayout->addWidget(m_optLabel);
         m_optLabelLayout->addStretch(1);
@@ -89,13 +90,17 @@ namespace FillLyric
         m_splitComboBox->setCurrentIndex(config.splitMode);
         m_splitters->setVisible(config.splitMode == Custom);
 
-        connect(m_btnImportLrc, &QAbstractButton::clicked, this, &LyricBaseWidget::onBtnImportLrcClicked);
+        connect(m_btnImportLrc, &QAbstractButton::clicked, this,
+                &LyricBaseWidget::onBtnImportLrcClicked);
 
-        connect(m_btnReReadNote, &QAbstractButton::clicked, this, &LyricBaseWidget::reReadNoteRequested);
+        connect(m_btnReReadNote, &QAbstractButton::clicked, this,
+                &LyricBaseWidget::reReadNoteRequested);
         connect(m_btnToTable, &QAbstractButton::clicked, this, &LyricBaseWidget::toTableRequested);
-        connect(m_btnLyricPrev, &QAbstractButton::clicked, this, &LyricBaseWidget::lyricPrevRequested);
+        connect(m_btnLyricPrev, &QAbstractButton::clicked, this,
+                &LyricBaseWidget::lyricPrevRequested);
 
-        connect(m_textEdit, &PhonicTextEdit::textChanged, this, &LyricBaseWidget::onTextEditChanged);
+        connect(m_textEdit, &PhonicTextEdit::textChanged, this,
+                &LyricBaseWidget::onTextEditChanged);
 
         connect(m_textEdit, &PhonicTextEdit::fontChanged, this, &LyricBaseWidget::modifyOption);
 
@@ -113,23 +118,41 @@ namespace FillLyric
 
     LyricBaseWidget::~LyricBaseWidget() = default;
 
-    QString LyricBaseWidget::lyricText() const { return m_textEdit->toPlainText(); }
+    QString LyricBaseWidget::lyricText() const {
+        return m_textEdit->toPlainText();
+    }
 
-    void LyricBaseWidget::setLyricText(const QString &text) { m_textEdit->setPlainText(text); }
+    void LyricBaseWidget::setLyricText(const QString &text) {
+        m_textEdit->setPlainText(text);
+    }
 
-    bool LyricBaseWidget::skipSlur() const { return m_skipSlur->isChecked(); }
+    bool LyricBaseWidget::skipSlur() const {
+        return m_skipSlur->isChecked();
+    }
 
-    void LyricBaseWidget::setSkipSlur(bool skip) { m_skipSlur->setChecked(skip); }
+    void LyricBaseWidget::setSkipSlur(bool skip) {
+        m_skipSlur->setChecked(skip);
+    }
 
-    int LyricBaseWidget::splitMode() const { return m_splitComboBox->currentIndex(); }
+    int LyricBaseWidget::splitMode() const {
+        return m_splitComboBox->currentIndex();
+    }
 
-    QString LyricBaseWidget::splitters() const { return m_splitters->text(); }
+    QString LyricBaseWidget::splitters() const {
+        return m_splitters->text();
+    }
 
-    double LyricBaseWidget::fontSize() const { return m_textEdit->font().pointSizeF(); }
+    double LyricBaseWidget::fontSize() const {
+        return m_textEdit->font().pointSizeF();
+    }
 
-    void LyricBaseWidget::setToTableVisible(bool visible) { m_btnToTable->setVisible(visible); }
+    void LyricBaseWidget::setToTableVisible(bool visible) {
+        m_btnToTable->setVisible(visible);
+    }
 
-    void LyricBaseWidget::setLyricPrevText(const QString &text) { m_btnLyricPrev->setText(text); }
+    void LyricBaseWidget::setLyricPrevText(const QString &text) {
+        m_btnLyricPrev->setText(text);
+    }
 
     void LyricBaseWidget::onTextEditChanged() const {
         const QString text = this->m_textEdit->toPlainText();
@@ -142,7 +165,8 @@ namespace FillLyric
     }
 
     void LyricBaseWidget::onBtnImportLrcClicked() {
-        const QString fileName = QFileDialog::getOpenFileName(this, tr("Open Lrc File"), "", tr("Lrc Files (*.lrc)"));
+        const QString fileName =
+            QFileDialog::getOpenFileName(this, tr("Open Lrc File"), "", tr("Lrc Files (*.lrc)"));
         if (fileName.isEmpty()) {
             return;
         }

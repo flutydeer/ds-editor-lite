@@ -194,7 +194,7 @@ QComboBox::drop-down:editable:hover {
 }
 
 QComboBox::down-arrow {
-    image: url(:svg/icons/chevron_down_16_filled_white.svg)
+    image: url(:svg/icons/chevron_down_16_filled.svg)
 }
 
 QComboBox:editable {
@@ -265,7 +265,7 @@ QToolButton::menu-button:hover {
 }
 
 QToolButton::menu-arrow {
-    image: url(:svg/icons/chevron_down_16_filled_white.svg);
+    image: url(:svg/icons/chevron_down_16_filled.svg);
     width: 16px;
     height: 16px;
 }
@@ -447,14 +447,14 @@ QMenu::indicator {
 }
 
 QMenu::indicator:checked {
-    image: url(:/svg/icons/checkmark_16_white.svg);
+    image: url(:/svg/icons/checkmark_16_filled.svg);
 }
 
 QMenu::right-arrow {
     right: 6px;
     width: 14px;
     height: 14px;
-    image: url(:svg/icons/chevron_right_16_filled_white.svg)
+    image: url(:svg/icons/chevron_right_16_filled.svg)
 }
 
 QMenu::icon {
@@ -590,11 +590,11 @@ QAbstractSpinBox::down-arrow {
 }
 
 QAbstractSpinBox::up-arrow {
-    image: url(:svg/icons/chevron_right_16_filled_white.svg);
+    image: url(:svg/icons/chevron_right_16_filled.svg);
 }
 
 QAbstractSpinBox::down-arrow {
-    image: url(:svg/icons/chevron_left_16_filled_white.svg);
+    image: url(:svg/icons/chevron_left_16_filled.svg);
 }
 
 /* Label */
