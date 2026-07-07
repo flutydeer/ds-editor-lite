@@ -6,6 +6,7 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/FlowLayout.h"
+#include "UI/Controls/Menu.h"
 #include "UI/Controls/TagButton.h"
 #include "UI/Controls/Toast.h"
 
@@ -20,8 +21,7 @@ using namespace SpeakerMixModel;
 
 SpeakerMixDialog::SpeakerMixDialog(const SingerInfo &singerInfo, const SpeakerMixData &mixData,
                                    QWidget *parent)
-    : OKCancelDialog(parent), m_singerInfo(singerInfo),
-      m_initialData(normalizeSpeakerMixData(mixData)) {
+    : OKCancelDialog(parent), m_singerInfo(singerInfo) {
     setWindowTitle("Speaker Mix");
     setTitle("Speaker Mix");
     setMinimumWidth(480);
@@ -72,7 +72,11 @@ SpeakerMixDialog::SpeakerMixDialog(const SingerInfo &singerInfo, const SpeakerMi
     layout->addWidget(tagContainer);
     layout->addWidget(m_mixList);
     layout->addWidget(m_mixList->getMixBar());
-    reloadPresetCombo();
+    reloadPresetCombo(mixData.sourcePresetId);
+
+    // If combo shows Init Preset (no saved preset), align sliders to equal weight
+    if (m_currentPresetId.isEmpty())
+        applySpeakerMixDataToUi(equalWeightMixData());
 }
 
 SpeakerMixData SpeakerMixDialog::speakerMixData() const {
@@ -143,24 +147,21 @@ QWidget *SpeakerMixDialog::buildPresetBar() {
     connect(m_cbPresets, &QComboBox::currentIndexChanged, this,
             &SpeakerMixDialog::onPresetSelected);
 
-    m_btnNew = new Button(tr("New"), container);
-    m_btnSave = new Button(tr("Save"), container);
     m_btnSaveAs = new Button(tr("Save As"), container);
-    m_btnDelete = new Button(tr("Delete"), container);
-    m_btnReset = new Button(tr("Reset"), container);
-
-    connect(m_btnNew, &Button::clicked, this, &SpeakerMixDialog::onNewPreset);
-    connect(m_btnSave, &Button::clicked, this, &SpeakerMixDialog::onSavePreset);
     connect(m_btnSaveAs, &Button::clicked, this, &SpeakerMixDialog::onSaveAsPreset);
-    connect(m_btnDelete, &Button::clicked, this, &SpeakerMixDialog::onDeletePreset);
-    connect(m_btnReset, &Button::clicked, this, &SpeakerMixDialog::onResetPreset);
+
+    m_btnMenu = new Button(tr("More..."), container);
+    const auto menu = new Menu(m_btnMenu);
+    menu->addAction(tr("Initialize"), this, &SpeakerMixDialog::onInitializePreset);
+    m_deleteAction = menu->addAction(tr("Delete"), this, &SpeakerMixDialog::onDeletePreset);
+    connect(m_btnMenu, &Button::clicked, this, [this, menu] {
+        m_deleteAction->setEnabled(!m_currentPresetId.isEmpty());
+        menu->exec(m_btnMenu->mapToGlobal(QPoint(0, m_btnMenu->height())));
+    });
 
     layout->addWidget(m_cbPresets, 1);
-    layout->addWidget(m_btnNew);
-    layout->addWidget(m_btnSave);
     layout->addWidget(m_btnSaveAs);
-    layout->addWidget(m_btnDelete);
-    layout->addWidget(m_btnReset);
+    layout->addWidget(m_btnMenu);
     return container;
 }
 
@@ -209,7 +210,7 @@ void SpeakerMixDialog::reloadPresetCombo(const QString &selectedId) {
 
     const QSignalBlocker blocker(m_cbPresets);
     m_cbPresets->clear();
-    m_cbPresets->addItem(tr("No preset"), QString());
+    m_cbPresets->addItem(tr("Init Preset"), QString());
     const auto presets = SpeakerMixPresetStore::presetsForSinger(m_singerInfo);
     int selectedIndex = 0;
     for (const auto &preset : presets) {
@@ -219,8 +220,6 @@ void SpeakerMixDialog::reloadPresetCombo(const QString &selectedId) {
     }
     m_cbPresets->setCurrentIndex(selectedIndex);
     m_currentPresetId = m_cbPresets->currentData().toString();
-    m_isNewPreset = m_currentPresetId.isEmpty();
-    updatePresetButtons();
 }
 
 bool SpeakerMixDialog::applyPresetToUi(const QString &presetId, const bool showWarning) {
@@ -273,21 +272,22 @@ SpeakerMixData SpeakerMixDialog::buildCurrentSpeakerMixData() const {
 SpeakerMixData SpeakerMixDialog::equalWeightMixData() const {
     SpeakerMixData data;
     data.mode = SingerSourceMode::FixedMix;
-    QVector<double> weights;
-    for (const auto &speaker : m_singerInfo.speakers()) {
-        data.sources.append({speaker});
-        weights.append(1.0);
-    }
-    data.fixedWeights = explicitWeightsFromFullWeights(weights);
-    return normalizeSpeakerMixData(data);
-}
+    const auto speakers = m_singerInfo.speakers();
+    const int n = speakers.size();
+    if (n < 2)
+        return data;
 
-void SpeakerMixDialog::updatePresetButtons() const {
-    const bool hasPreset = !m_currentPresetId.isEmpty() && !m_isNewPreset;
-    if (m_btnSave)
-        m_btnSave->setEnabled(hasPreset);
-    if (m_btnDelete)
-        m_btnDelete->setEnabled(hasPreset);
+    // Match SpeakerMixList::redistributeValues() — integer 100/n + remainder
+    const int baseValue = 100 / n;
+    const int remainder = 100 % n;
+    QVector<double> fullWeights;
+    fullWeights.reserve(n);
+    for (int i = 0; i < n; ++i) {
+        data.sources.append({speakers[i]});
+        fullWeights.append((baseValue + (i < remainder ? 1 : 0)) / 100.0);
+    }
+    data.fixedWeights = explicitWeightsFromFullWeights(fullWeights);
+    return normalizeSpeakerMixData(data);
 }
 
 void SpeakerMixDialog::onPresetSelected(const int index) {
@@ -297,55 +297,27 @@ void SpeakerMixDialog::onPresetSelected(const int index) {
     const QString presetId = m_cbPresets->itemData(index).toString();
     if (presetId.isEmpty()) {
         m_currentPresetId.clear();
-        m_isNewPreset = true;
-        updatePresetButtons();
+        applySpeakerMixDataToUi(equalWeightMixData());
         return;
     }
 
-    if (applyPresetToUi(presetId, true)) {
+    if (applyPresetToUi(presetId, true))
         m_currentPresetId = presetId;
-        m_isNewPreset = false;
-    }
-    updatePresetButtons();
-}
-
-void SpeakerMixDialog::onNewPreset() {
-    m_currentPresetId.clear();
-    m_isNewPreset = true;
-    if (m_cbPresets)
-        m_cbPresets->setCurrentIndex(0);
-    applySpeakerMixDataToUi(equalWeightMixData());
-    updatePresetButtons();
-}
-
-void SpeakerMixDialog::onSavePreset() {
-    if (m_currentPresetId.isEmpty())
-        return;
-
-    auto preset = SpeakerMixPresetStore::findPreset(m_currentPresetId);
-    if (!preset)
-        return;
-
-    const auto data = buildCurrentSpeakerMixData();
-    if (isSpeakerMixDataSingle(data))
-        return;
-
-    preset->sources = data.sources;
-    preset->fixedWeights = data.fixedWeights;
-    if (SpeakerMixPresetStore::savePreset(*preset))
-        reloadPresetCombo(preset->id);
 }
 
 void SpeakerMixDialog::onSaveAsPreset() {
+    QString defaultName;
+    if (!m_currentPresetId.isEmpty()) {
+        if (const auto preset = SpeakerMixPresetStore::findPreset(m_currentPresetId))
+            defaultName = preset->name;
+    }
+
     bool ok = false;
     const QString name =
-        QInputDialog::getText(this, {}, tr("Preset name"), QLineEdit::Normal, {}, &ok).trimmed();
+        QInputDialog::getText(this, {}, tr("Preset name"), QLineEdit::Normal, defaultName, &ok)
+            .trimmed();
     if (!ok || name.isEmpty())
         return;
-    if (SpeakerMixPresetStore::presetNameExists(m_singerInfo, name)) {
-        Toast::show(tr("Preset name already exists"));
-        return;
-    }
 
     const auto data = buildCurrentSpeakerMixData();
     if (isSpeakerMixDataSingle(data))
@@ -358,6 +330,11 @@ void SpeakerMixDialog::onSaveAsPreset() {
     preset.packageVersion = m_singerInfo.packageVersion();
     preset.sources = data.sources;
     preset.fixedWeights = data.fixedWeights;
+
+    // If a preset with this name already exists, overwrite it (carry over its id)
+    if (const auto existing = SpeakerMixPresetStore::findPresetByName(m_singerInfo, name))
+        preset.id = existing->id;
+
     if (SpeakerMixPresetStore::savePreset(preset))
         reloadPresetCombo(SpeakerMixPresetStore::findPresetByName(m_singerInfo, name)->id);
 }
@@ -369,13 +346,18 @@ void SpeakerMixDialog::onDeletePreset() {
         return;
     SpeakerMixPresetStore::deletePreset(m_currentPresetId);
     reloadPresetCombo();
-    applySpeakerMixDataToUi(m_initialData);
+    applySpeakerMixDataToUi(equalWeightMixData());
 }
 
-void SpeakerMixDialog::onResetPreset() {
-    if (!m_currentPresetId.isEmpty() && applyPresetToUi(m_currentPresetId, true))
+void SpeakerMixDialog::onInitializePreset() {
+    if (QMessageBox::question(
+            this, {}, tr("Reset to init preset?\nAll current mix settings will be lost.")) !=
+        QMessageBox::Yes)
         return;
-    applySpeakerMixDataToUi(m_initialData);
+    m_currentPresetId.clear();
+    if (m_cbPresets)
+        m_cbPresets->setCurrentIndex(0);
+    applySpeakerMixDataToUi(equalWeightMixData());
 }
 
 void SpeakerMixDialog::onTagToggled(bool checked) {

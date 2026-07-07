@@ -384,11 +384,6 @@ void TrackControlView::populatePresetMenus() const {
 
             cbSinger->addInjectedSeparatorToSinger(singerInfo);
             if (const auto action =
-                    cbSinger->addInjectedActionToSinger(singerInfo, tr("New mix preset..."))) {
-                connect(action, &QAction::triggered, this,
-                        [this, singerInfo] { onNewPresetAction(singerInfo); });
-            }
-            if (const auto action =
                     cbSinger->addInjectedActionToSinger(singerInfo, tr("Manage mix presets..."))) {
                 connect(action, &QAction::triggered, this,
                         [this, singerInfo] { onManagePresetsAction(singerInfo); });
@@ -419,26 +414,6 @@ void TrackControlView::onPresetApplied(const QString &presetId) const {
     actions->applyTrackSpeakerMixPreset(singerInfo, data.sources.first().speaker, data, m_track);
     actions->execute();
     historyManager->record(actions);
-    refreshSingerComboPresentation();
-}
-
-void TrackControlView::onNewPresetAction(const SingerInfo &singerInfo) const {
-    if (singerInfo.speakers().size() < 2)
-        return;
-
-    SpeakerMixDialog dialog(singerInfo, {},
-                            Dialog::globalParent() ? Dialog::globalParent()
-                                                   : const_cast<TrackControlView *>(this));
-    if (dialog.exec() == QDialog::Accepted && m_track) {
-        const auto data = dialog.speakerMixData();
-        if (!SpeakerMixModel::isSpeakerMixDataSingle(data)) {
-            const auto actions = new SpeakerMixActions;
-            actions->applyTrackSpeakerMixPreset(singerInfo, data.sources.first().speaker, data,
-                                                m_track);
-            actions->execute();
-            historyManager->record(actions);
-        }
-    }
     refreshSingerComboPresentation();
 }
 

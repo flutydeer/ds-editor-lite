@@ -26,11 +26,9 @@ private slots:
     void onTagToggled(bool checked);
     void onSpeakerChangedInList(const QString &oldName, const QString &newName);
     void onPresetSelected(int index);
-    void onNewPreset();
-    void onSavePreset();
     void onSaveAsPreset();
     void onDeletePreset();
-    void onResetPreset();
+    void onInitializePreset();
 
 private:
     QWidget *buildPresetBar();
@@ -40,7 +38,6 @@ private:
     bool applyPresetToUi(const QString &presetId, bool showWarning);
     SpeakerMixData buildCurrentSpeakerMixData() const;
     SpeakerMixData equalWeightMixData() const;
-    void updatePresetButtons() const;
     void updateTagStates();
     QVector<double> currentFullWeights() const;
     SpeakerInfo speakerById(const QString &id) const;
@@ -48,16 +45,12 @@ private:
     SpeakerMixList *m_mixList = nullptr;
     QMap<QString, TagButton *> m_tagButtons;
     SingerInfo m_singerInfo;
-    SpeakerMixData m_initialData;
     SpeakerMixData m_result;
     ComboBox *m_cbPresets = nullptr;
-    Button *m_btnNew = nullptr;
-    Button *m_btnSave = nullptr;
     Button *m_btnSaveAs = nullptr;
-    Button *m_btnDelete = nullptr;
-    Button *m_btnReset = nullptr;
+    Button *m_btnMenu = nullptr;
+    QAction *m_deleteAction = nullptr;
     QString m_currentPresetId;
-    bool m_isNewPreset = false;
 };
 
 #endif

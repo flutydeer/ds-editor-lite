@@ -409,8 +409,8 @@ void ClipEditorToolBarViewPrivate::refreshSingerComboPresentation() const {
 
     const bool inherit = m_singingClip->useTrackSingerInfo.get();
     m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(), inherit);
-    if (const auto text = SpeakerMixDisplayUtils::comboDisplayText(
-            m_singingClip->singerInfo(), m_singingClip->speakerMixData());
+    if (const auto text = SpeakerMixDisplayUtils::comboDisplayText(m_singingClip->singerInfo(),
+                                                                   m_singingClip->speakerMixData());
         !text.isEmpty()) {
         m_cbSinger->setDisplayTextOverride(text);
     } else {
@@ -449,11 +449,6 @@ void ClipEditorToolBarViewPrivate::populatePresetMenus() const {
             }
 
             m_cbSinger->addInjectedSeparatorToSinger(singerInfo);
-            if (const auto action =
-                    m_cbSinger->addInjectedActionToSinger(singerInfo, tr("New mix preset..."))) {
-                connect(action, &QAction::triggered, this,
-                        [this, singerInfo] { onNewPresetAction(singerInfo); });
-            }
             if (const auto action = m_cbSinger->addInjectedActionToSinger(
                     singerInfo, tr("Manage mix presets..."))) {
                 connect(action, &QAction::triggered, this,
@@ -487,29 +482,6 @@ void ClipEditorToolBarViewPrivate::onPresetApplied(const QString &presetId) cons
     actions->execute();
     historyManager->record(actions);
 
-    refreshSingerComboPresentation();
-}
-
-void ClipEditorToolBarViewPrivate::onNewPresetAction(const SingerInfo &singerInfo) const {
-    if (singerInfo.speakers().size() < 2)
-        return;
-
-    Q_Q(const ClipEditorToolBarView);
-    auto *parent = Dialog::globalParent();
-    if (!parent)
-        parent = const_cast<ClipEditorToolBarView *>(q);
-
-    SpeakerMixDialog dialog(singerInfo, {}, parent);
-    if (dialog.exec() == QDialog::Accepted && m_singingClip) {
-        const auto data = dialog.speakerMixData();
-        if (!SpeakerMixModel::isSpeakerMixDataSingle(data)) {
-            const auto actions = new SpeakerMixActions;
-            actions->applyClipSpeakerMixPreset(singerInfo, data.sources.first().speaker, data,
-                                               m_singingClip);
-            actions->execute();
-            historyManager->record(actions);
-        }
-    }
     refreshSingerComboPresentation();
 }
 
