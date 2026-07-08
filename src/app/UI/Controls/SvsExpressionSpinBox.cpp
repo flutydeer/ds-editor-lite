@@ -24,6 +24,7 @@ namespace SVS {
         const QColor iconColor = option.palette.color(isEnabled() ? QPalette::Active
                                                                   : QPalette::Disabled,
                                                       QPalette::ButtonText);
+        const qreal dpr = devicePixelRatioF();
         auto drawArrow = [&](QStyle::SubControl control, const QString &iconPath) {
             const QRect buttonRect =
                 style()->subControlRect(QStyle::CC_SpinBox, &option, control, this);
@@ -32,10 +33,9 @@ namespace SVS {
             painter.fillRect(buttonRect, option.palette.brush(QPalette::Button));
             const QPoint iconPos(buttonRect.x() + (buttonRect.width() - iconSize.width()) / 2,
                                  buttonRect.y() + (buttonRect.height() - iconSize.height()) / 2);
-            const auto icon =
-                IconUtils::createTintedSvgIcon(iconPath, iconSize, iconColor, iconColor);
-            painter.drawPixmap(iconPos, icon.pixmap(iconSize, isEnabled() ? QIcon::Normal
-                                                                          : QIcon::Disabled));
+            const auto pixmap =
+                IconUtils::renderTintedSvgPixmap(iconPath, iconSize, iconColor, dpr);
+            painter.drawPixmap(iconPos, pixmap);
         };
 
         drawArrow(QStyle::SC_SpinBoxUp,

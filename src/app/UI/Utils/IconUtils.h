@@ -3,6 +3,7 @@
 
 #include <QColor>
 #include <QIcon>
+#include <QPixmap>
 #include <QSize>
 #include <QString>
 
@@ -28,6 +29,9 @@ namespace IconUtils {
     QIcon createTintedSvgIcon(const QString &svgPath, const QSize &iconSize,
                               const QColor &normalColor,
                               const QColor &disabledColor = QColor());
+
+    QPixmap renderTintedSvgPixmap(const QString &svgPath, const QSize &iconSize,
+                                  const QColor &color, qreal devicePixelRatio);
 
 }
 

@@ -3,6 +3,7 @@
 #include <QImage>
 #include <QPainter>
 #include <QPixmap>
+#include <QPixmapCache>
 #include <QSvgRenderer>
 #include <QtMath>
 #include <array>
@@ -17,8 +18,18 @@ namespace {
         QIcon::Selected,
     };
 
-    QPixmap renderSvg(const QString &svgPath, const QSize &iconSize, const QColor &color,
-                      qreal devicePixelRatio) {
+    QString pixmapCacheKey(const QString &svgPath, const QSize &iconSize, const QColor &color,
+                           qreal devicePixelRatio) {
+        return QStringLiteral("IconUtils:tinted-svg:%1:%2x%3:%4:%5")
+            .arg(svgPath)
+            .arg(iconSize.width())
+            .arg(iconSize.height())
+            .arg(QString::number(devicePixelRatio, 'f', 3))
+            .arg(color.isValid() ? color.name(QColor::HexArgb) : QStringLiteral("none"));
+    }
+
+    QPixmap renderSvgUncached(const QString &svgPath, const QSize &iconSize, const QColor &color,
+                              qreal devicePixelRatio) {
         QSvgRenderer renderer(svgPath);
         if (!renderer.isValid() || !iconSize.isValid()) {
             return {};
@@ -80,7 +91,7 @@ namespace {
     void addModePixmaps(QIcon &icon, const QString &svgPath, const QSize &iconSize,
                         QIcon::Mode mode, QIcon::State state, const QColor &color) {
         for (const auto dpr : kDevicePixelRatios) {
-            const auto pixmap = renderSvg(svgPath, iconSize, color, dpr);
+            const auto pixmap = IconUtils::renderTintedSvgPixmap(svgPath, iconSize, color, dpr);
             if (pixmap.isNull()) {
                 continue;
             }
@@ -100,6 +111,25 @@ namespace {
 }
 
 namespace IconUtils {
+
+    QPixmap renderTintedSvgPixmap(const QString &svgPath, const QSize &iconSize,
+                                  const QColor &color, const qreal devicePixelRatio) {
+        if (svgPath.isEmpty() || !iconSize.isValid() || devicePixelRatio <= 0) {
+            return {};
+        }
+
+        const auto key = pixmapCacheKey(svgPath, iconSize, color, devicePixelRatio);
+        QPixmap pixmap;
+        if (QPixmapCache::find(key, &pixmap)) {
+            return pixmap;
+        }
+
+        pixmap = renderSvgUncached(svgPath, iconSize, color, devicePixelRatio);
+        if (!pixmap.isNull()) {
+            QPixmapCache::insert(key, pixmap);
+        }
+        return pixmap;
+    }
 
     QIcon createTintedSvgIcon(const QString &svgPath, const QSize &iconSize,
                               const SvgIconColorPalette &palette) {

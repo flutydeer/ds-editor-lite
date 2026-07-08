@@ -424,7 +424,7 @@ PathListWidget QLineEdit:focus {
 
 /* Menu */
 QMenu {
-    padding: 4px;
+    padding: 6px;
     background-color: #191C21;
     border: 1px solid #505050;
     color: #e0e0e0;
@@ -449,12 +449,14 @@ QMenu::right-arrow {
 
 QMenu::icon {
     left: 6px;
+    width: 16px;
+    height: 16px;
 }
 
 QMenu::item {
     background: transparent;
     color: #e0e0e0;
-    padding: 5px 20px;
+    padding: 5px 6px 5px 12px;
     min-width: 96px
 }
 
@@ -477,7 +479,7 @@ QMenu::item:disabled {
 QMenu::separator {
     height: 1px;
     background-color: #404040;
-    margin: 2px 0;
+    margin: 2px 0 2px 34px;
 }
 
 

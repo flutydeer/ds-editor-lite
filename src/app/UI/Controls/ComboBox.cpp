@@ -45,10 +45,10 @@ void ComboBox::paintEvent(QPaintEvent *event) {
     const QColor iconColor = option.palette.color(isEnabled() ? QPalette::Active
                                                               : QPalette::Disabled,
                                                   QPalette::ButtonText);
-    const auto icon = IconUtils::createTintedSvgIcon(
-        QStringLiteral(":/svg/icons/chevron_down_16_filled.svg"), iconSize, iconColor, iconColor);
-    painter.drawPixmap(iconPos, icon.pixmap(iconSize, isEnabled() ? QIcon::Normal
-                                                                  : QIcon::Disabled));
+    const auto pixmap = IconUtils::renderTintedSvgPixmap(
+        QStringLiteral(":/svg/icons/chevron_down_16_filled.svg"), iconSize, iconColor,
+        devicePixelRatioF());
+    painter.drawPixmap(iconPos, pixmap);
 }
 
 void ComboBox::wheelEvent(QWheelEvent *event) {

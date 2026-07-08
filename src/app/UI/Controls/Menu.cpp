@@ -33,6 +33,7 @@ void Menu::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     const QSize indicatorSize(16, 16);
     const QSize arrowSize(14, 14);
+    const qreal dpr = devicePixelRatioF();
 
     for (const auto action : actions()) {
         if (!action || action->isSeparator() || !event->rect().intersects(actionGeometry(action)))
@@ -76,24 +77,23 @@ void Menu::paintEvent(QPaintEvent *event) {
             const QPoint iconPos(
                 indicatorRect.x() + (indicatorRect.width() - indicatorSize.width()) / 2,
                 indicatorRect.y() + (indicatorRect.height() - indicatorSize.height()) / 2);
-            const auto icon = IconUtils::createTintedSvgIcon(
-                QStringLiteral(":/svg/icons/checkmark_16_filled.svg"), indicatorSize, color,
-                color);
-            painter.drawPixmap(iconPos, icon.pixmap(indicatorSize));
+            const auto pixmap = IconUtils::renderTintedSvgPixmap(
+                QStringLiteral(":/svg/icons/checkmark_16_filled.svg"), indicatorSize, color, dpr);
+            painter.drawPixmap(iconPos, pixmap);
         }
 
         if (action->menu()) {
-            const QRect arrowSlot(option.rect.right() - 44, option.rect.top(), 45,
+            const QRect arrowSlot(option.rect.right() - 36, option.rect.top(), 37,
                                   option.rect.height());
             clearSlot(arrowSlot);
 
-            const QRect arrowRect(arrowSlot.left() + (arrowSlot.width() - arrowSize.width()) / 2,
-                                  arrowSlot.top() + (arrowSlot.height() - arrowSize.height()) / 2,
+            const QRect arrowRect(option.rect.right() - 6 - arrowSize.width(),
+                                  option.rect.top() +
+                                      (option.rect.height() - arrowSize.height()) / 2,
                                   arrowSize.width(), arrowSize.height());
-            const auto icon = IconUtils::createTintedSvgIcon(
-                QStringLiteral(":/svg/icons/chevron_right_16_filled.svg"), arrowSize, color,
-                color);
-            painter.drawPixmap(arrowRect.topLeft(), icon.pixmap(arrowSize));
+            const auto pixmap = IconUtils::renderTintedSvgPixmap(
+                QStringLiteral(":/svg/icons/chevron_right_16_filled.svg"), arrowSize, color, dpr);
+            painter.drawPixmap(arrowRect.topLeft(), pixmap);
         }
     }
 }
