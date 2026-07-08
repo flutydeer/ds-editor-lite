@@ -4,7 +4,12 @@
 
 #include "Menu.h"
 
+#include "UI/Utils/IconUtils.h"
 #include "Utils/SystemUtils.h"
+
+#include <QPainter>
+#include <QPaintEvent>
+#include <QStyleOptionMenuItem>
 
 Menu::Menu(QWidget *parent) : CMenu(parent) {
     initUi();
@@ -20,4 +25,75 @@ void Menu::initUi() {
         setProperty("dwmBorder", true);
     }
 #endif
+}
+
+void Menu::paintEvent(QPaintEvent *event) {
+    CMenu::paintEvent(event);
+
+    QPainter painter(this);
+    const QSize indicatorSize(16, 16);
+    const QSize arrowSize(14, 14);
+
+    for (const auto action : actions()) {
+        if (!action || action->isSeparator() || !event->rect().intersects(actionGeometry(action)))
+            continue;
+
+        QStyleOptionMenuItem option;
+        initStyleOption(&option, action);
+        option.rect = actionGeometry(action);
+
+        const QColor color = option.palette.color(
+            (option.state & QStyle::State_Enabled) ? QPalette::Active : QPalette::Disabled,
+            QPalette::Text);
+
+        auto clearSlot = [&](const QRect &slot) {
+            QStyleOption panelOption;
+            panelOption.initFrom(this);
+            panelOption.rect = rect();
+
+            auto cleanOption = option;
+            cleanOption.menuItemType = QStyleOptionMenuItem::Normal;
+            cleanOption.checkType = QStyleOptionMenuItem::NotCheckable;
+            cleanOption.checked = false;
+            cleanOption.icon = {};
+
+            painter.save();
+            painter.setClipRect(slot);
+            style()->drawPrimitive(QStyle::PE_PanelMenu, &panelOption, &painter, this);
+            style()->drawControl(QStyle::CE_MenuItem, &cleanOption, &painter, this);
+            painter.restore();
+        };
+
+        if (option.checked) {
+            const QRect indicatorSlot(option.rect.left(), option.rect.top(), 32,
+                                      option.rect.height());
+            clearSlot(indicatorSlot);
+
+            const QRect indicatorRect(indicatorSlot.left() + 6,
+                                      indicatorSlot.top() +
+                                          (indicatorSlot.height() - indicatorSize.height()) / 2,
+                                      indicatorSize.width(), indicatorSize.height());
+            const QPoint iconPos(
+                indicatorRect.x() + (indicatorRect.width() - indicatorSize.width()) / 2,
+                indicatorRect.y() + (indicatorRect.height() - indicatorSize.height()) / 2);
+            const auto icon = IconUtils::createTintedSvgIcon(
+                QStringLiteral(":/svg/icons/checkmark_16_filled.svg"), indicatorSize, color,
+                color);
+            painter.drawPixmap(iconPos, icon.pixmap(indicatorSize));
+        }
+
+        if (action->menu()) {
+            const QRect arrowSlot(option.rect.right() - 44, option.rect.top(), 45,
+                                  option.rect.height());
+            clearSlot(arrowSlot);
+
+            const QRect arrowRect(arrowSlot.left() + (arrowSlot.width() - arrowSize.width()) / 2,
+                                  arrowSlot.top() + (arrowSlot.height() - arrowSize.height()) / 2,
+                                  arrowSize.width(), arrowSize.height());
+            const auto icon = IconUtils::createTintedSvgIcon(
+                QStringLiteral(":/svg/icons/chevron_right_16_filled.svg"), arrowSize, color,
+                color);
+            painter.drawPixmap(arrowRect.topLeft(), icon.pixmap(arrowSize));
+        }
+    }
 }

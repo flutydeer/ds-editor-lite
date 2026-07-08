@@ -14,6 +14,7 @@ public:
     explicit Menu(const QString &title, QWidget *parent = nullptr);
 
 private:
+    void paintEvent(QPaintEvent *event) override;
     void initUi();
 };
 

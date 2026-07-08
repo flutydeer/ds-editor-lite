@@ -1,6 +1,5 @@
 /* Button */
 QPushButton#btnNewTrack {
-    image: url(:svg/icons/add_16_filled_white);
     padding: 6px;
     /* background-origin: content;
     background-position: left;

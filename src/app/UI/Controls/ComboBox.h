@@ -14,6 +14,7 @@ public:
     explicit ComboBox(bool scrollWheelChangeSelection, QWidget *parent = nullptr);
 
 private:
+    void paintEvent(QPaintEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     bool m_scrollWheelChangeSelection = false;
 

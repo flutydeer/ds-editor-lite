@@ -7,7 +7,7 @@
 #include "Modules/FillLyric/Utils/TextTagger.h"
 
 class QCheckBox;
-class QComboBox;
+class ComboBox;
 class QLabel;
 class QLineEdit;
 class QPlainTextEdit;
@@ -46,13 +46,13 @@ namespace FillLyric
         QPlainTextEdit *m_builtinEntriesView = nullptr;
 
         // Page 2: custom editable
-        QComboBox *m_langCombo = nullptr;
+        ComboBox *m_langCombo = nullptr;
         QVBoxLayout *m_entriesLayout = nullptr;
         QPushButton *m_addEntryBtn = nullptr;
 
         struct EntryRowUI {
             QWidget *widget = nullptr;
-            QComboBox *typeCombo = nullptr;
+            ComboBox *typeCombo = nullptr;
             QLineEdit *tagEdit = nullptr;
             QPlainTextEdit *valuesEdit = nullptr;
             QCheckBox *discardCheck = nullptr;

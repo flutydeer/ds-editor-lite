@@ -12,6 +12,7 @@
 #include <QCheckBox>
 
 #include "Utils/Decibellinearizer.h"
+#include "UI/Controls/ComboBox.h"
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/SvsExpressionSpinBox.h"
 #include "UI/Controls/SvsExpressionDoubleSpinBox.h"
@@ -33,7 +34,7 @@ public:
 
         const auto synthesizerHeaderLayout = new QFormLayout;
         const auto synthesizerSelectLayout = new QHBoxLayout;
-        const auto synthesizerSelectComboBox = new QComboBox;
+        const auto synthesizerSelectComboBox = new ComboBox;
         synthesizerSelectComboBox->addItems({"Synth 1", "Synth 2", "Synth 3", "Synth 4"});
         synthesizerSelectLayout->addWidget(synthesizerSelectComboBox, 1);
         const auto synthesizerTestButton = new QPushButton(tr("&Preview"));
@@ -47,7 +48,7 @@ public:
         const auto synthesizerBodyLayout = new QHBoxLayout;
         synthesizerBodyLayout->addSpacing(32);
         const auto synthesizerLayout = new QFormLayout;
-        const auto generatorComboBox = new QComboBox;
+        const auto generatorComboBox = new ComboBox;
         generatorComboBox->addItems(
             {tr("Sine wave"), tr("Square wave"), tr("Triangle Wave"), tr("Sawtooth wave")});
         synthesizerLayout->addRow(tr("&Generator"), generatorComboBox);

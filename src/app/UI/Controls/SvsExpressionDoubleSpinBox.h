@@ -20,6 +20,9 @@ namespace SVS {
 
         QValidator::State validate(QString &input, int &pos) const override;
         void fixup(QString &str) const override;
+
+    protected:
+        void paintEvent(QPaintEvent *event) override;
     };
 
 }

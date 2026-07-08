@@ -5,8 +5,11 @@
 #include <QWheelEvent>
 #include <QStyledItemDelegate>
 #include <QAbstractItemView>
+#include <QPainter>
+#include <QStyleOptionComboBox>
 
 #include "ComboBox.h"
+#include "UI/Utils/IconUtils.h"
 #include "Utils/SystemUtils.h"
 
 ComboBox::ComboBox(QWidget *parent) : CComboBox(parent) {
@@ -16,6 +19,36 @@ ComboBox::ComboBox(QWidget *parent) : CComboBox(parent) {
 ComboBox::ComboBox(const bool scrollWheelChangeSelection, QWidget *parent)
     : CComboBox(parent), m_scrollWheelChangeSelection(scrollWheelChangeSelection) {
     initUi();
+}
+
+void ComboBox::paintEvent(QPaintEvent *event) {
+    Q_UNUSED(event)
+
+    QStyleOptionComboBox option;
+    initStyleOption(&option);
+
+    QPainter painter(this);
+
+    auto frameOption = option;
+    frameOption.subControls &= ~QStyle::SC_ComboBoxArrow;
+    style()->drawComplexControl(QStyle::CC_ComboBox, &frameOption, &painter, this);
+    style()->drawControl(QStyle::CE_ComboBoxLabel, &option, &painter, this);
+
+    QRect arrowRect = style()->subControlRect(QStyle::CC_ComboBox, &option,
+                                              QStyle::SC_ComboBoxArrow, this);
+    if (arrowRect.isEmpty())
+        arrowRect = QRect(width() - 28, 0, 28, height());
+
+    const QSize iconSize(16, 16);
+    const QPoint iconPos(arrowRect.x() + (arrowRect.width() - iconSize.width()) / 2,
+                         arrowRect.y() + (arrowRect.height() - iconSize.height()) / 2);
+    const QColor iconColor = option.palette.color(isEnabled() ? QPalette::Active
+                                                              : QPalette::Disabled,
+                                                  QPalette::ButtonText);
+    const auto icon = IconUtils::createTintedSvgIcon(
+        QStringLiteral(":/svg/icons/chevron_down_16_filled.svg"), iconSize, iconColor, iconColor);
+    painter.drawPixmap(iconPos, icon.pixmap(iconSize, isEnabled() ? QIcon::Normal
+                                                                  : QIcon::Disabled));
 }
 
 void ComboBox::wheelEvent(QWheelEvent *event) {

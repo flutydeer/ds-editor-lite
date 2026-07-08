@@ -193,10 +193,6 @@ QComboBox::drop-down:editable:hover {
     background: #1AFFFFFF;
 }
 
-QComboBox::down-arrow {
-    image: url(:svg/icons/chevron_down_16_filled.svg)
-}
-
 QComboBox:editable {
     selection-color: #000;
     selection-background-color: #9BBAFF;
@@ -265,7 +261,6 @@ QToolButton::menu-button:hover {
 }
 
 QToolButton::menu-arrow {
-    image: url(:svg/icons/chevron_down_16_filled.svg);
     width: 16px;
     height: 16px;
 }
@@ -446,15 +441,10 @@ QMenu::indicator {
     height: 16px;
 }
 
-QMenu::indicator:checked {
-    image: url(:/svg/icons/checkmark_16_filled.svg);
-}
-
 QMenu::right-arrow {
     right: 6px;
     width: 14px;
     height: 14px;
-    image: url(:svg/icons/chevron_right_16_filled.svg)
 }
 
 QMenu::icon {
@@ -587,14 +577,6 @@ QAbstractSpinBox::up-arrow,
 QAbstractSpinBox::down-arrow {
     subcontrol-position: center;
     padding: 8px;
-}
-
-QAbstractSpinBox::up-arrow {
-    image: url(:svg/icons/chevron_right_16_filled.svg);
-}
-
-QAbstractSpinBox::down-arrow {
-    image: url(:svg/icons/chevron_left_16_filled.svg);
 }
 
 /* Label */

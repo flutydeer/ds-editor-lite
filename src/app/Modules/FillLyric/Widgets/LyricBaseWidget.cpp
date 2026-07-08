@@ -5,6 +5,7 @@
 
 #include "Modules/FillLyric/Utils/LrcTools/LrcDecoder.h"
 #include "Modules/FillLyric/Utils/SplitLyric.h"
+#include "UI/Utils/IconUtils.h"
 
 namespace FillLyric {
     LyricBaseWidget::LyricBaseWidget(const LyricTabConfig &config,
@@ -46,7 +47,12 @@ namespace FillLyric {
         m_optButton = new QPushButton();
         m_optLabel->setBuddy(m_optButton);
         m_optButton->setFixedSize(20, 20);
-        m_optButton->setIcon(QIcon(":/svg/icons/chevron_down_16_filled.svg"));
+        const QSize optButtonIconSize(16, 16);
+        const auto optButtonIconColor = m_optButton->palette().color(QPalette::ButtonText);
+        m_optButton->setIcon(IconUtils::createTintedSvgIcon(
+            QStringLiteral(":/svg/icons/chevron_down_16_filled.svg"), optButtonIconSize,
+            optButtonIconColor, optButtonIconColor));
+        m_optButton->setIconSize(optButtonIconSize);
 
         m_optLabelLayout->addWidget(m_optLabel);
         m_optLabelLayout->addStretch(1);
@@ -59,7 +65,7 @@ namespace FillLyric {
         m_splitLayout = new QHBoxLayout();
         m_splitLayout->setContentsMargins(0, 0, 0, 0);
         m_splitLabel = new QLabel(tr("Split Mode :"));
-        m_splitComboBox = new QComboBox();
+        m_splitComboBox = new ComboBox();
         m_splitLabel->setBuddy(m_splitComboBox);
         m_splitComboBox->addItems({tr("Auto"), tr("By Char"), tr("Custom")});
         m_splitters = new QLineEdit();

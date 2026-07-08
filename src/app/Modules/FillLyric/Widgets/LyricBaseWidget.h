@@ -2,7 +2,6 @@
 #define LYRIC_TAB_WIDGETS_LYRIC_BASE_WIDGET_H
 
 #include <QCheckBox>
-#include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -12,6 +11,7 @@
 #include "Modules/FillLyric/Controls/PhonicTextEdit.h"
 #include "Modules/FillLyric/LangCommon.h"
 #include "Modules/FillLyric/LyricTabConfig.h"
+#include "UI/Controls/ComboBox.h"
 
 namespace FillLyric
 {
@@ -73,7 +73,7 @@ namespace FillLyric
         QPushButton *m_optButton;
 
         QLabel *m_splitLabel;
-        QComboBox *m_splitComboBox;
+        ComboBox *m_splitComboBox;
         QLineEdit *m_splitters;
 
         QPushButton *m_btnToTable;

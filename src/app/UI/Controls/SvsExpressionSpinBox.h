@@ -22,6 +22,7 @@ namespace SVS {
         void setSuffix(const QString &) = delete;
 
     protected:
+        void paintEvent(QPaintEvent *event) override;
         QValidator::State validate(QString &input, int &pos) const override;
         void fixup(QString &str) const override;
     };

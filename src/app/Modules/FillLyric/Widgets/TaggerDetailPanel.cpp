@@ -1,7 +1,6 @@
 #include "TaggerDetailPanel.h"
 
 #include <QCheckBox>
-#include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -9,6 +8,8 @@
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QVBoxLayout>
+
+#include "UI/Controls/ComboBox.h"
 
 namespace FillLyric
 {
@@ -60,7 +61,7 @@ namespace FillLyric
 
         auto *langRow = new QHBoxLayout;
         langRow->addWidget(new QLabel(tr("Language:")));
-        m_langCombo = new QComboBox;
+        m_langCombo = new ComboBox;
         m_langCombo->setEditable(true);
         langRow->addWidget(m_langCombo);
         cLayout->addLayout(langRow);
@@ -164,7 +165,7 @@ namespace FillLyric
         eLayout->setContentsMargins(4, 4, 4, 4);
 
         auto *row1 = new QHBoxLayout;
-        auto *typeCombo = new QComboBox;
+        auto *typeCombo = new ComboBox;
         typeCombo->addItems({"regex", "array"});
         typeCombo->setCurrentText(entry.type);
         row1->addWidget(new QLabel(tr("Type:")));
