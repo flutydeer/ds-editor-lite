@@ -29,7 +29,7 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     m_btnSave->setObjectName("btnSave");
     m_btnSave->setFixedSize(m_contentHeight, m_contentHeight);
     m_btnSave->setIconSize(m_iconSize);
-    m_btnSave->setIcon(buildActionIcon(":svg/icons/save_16_filled.svg", m_iconSize));
+    m_btnSave->setIcon(buildActionIcon(":svg/icons/save_16_regular.svg", m_iconSize));
     m_btnSave->setToolTip(tr("Save Project"));
     m_btnSave->installEventFilter(new ToolTipFilter(m_btnSave));
     connect(m_btnSave, &QPushButton::clicked, this, [this] { emit saveTriggered(); });
@@ -38,7 +38,7 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     m_btnUndo->setObjectName("btnUndo");
     m_btnUndo->setFixedSize(m_contentHeight, m_contentHeight);
     m_btnUndo->setIconSize(m_iconSize);
-    m_btnUndo->setIcon(buildActionIcon(":svg/icons/arrow_undo_16_filled.svg", m_iconSize));
+    m_btnUndo->setIcon(buildActionIcon(":svg/icons/arrow_undo_16_regular.svg", m_iconSize));
     m_btnUndo->setEnabled(false);
     m_btnUndo->setToolTip(tr("Undo"));
     m_btnUndo->installEventFilter(new ToolTipFilter(m_btnUndo));
@@ -48,7 +48,7 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     m_btnRedo->setObjectName("btnRedo");
     m_btnRedo->setFixedSize(m_contentHeight, m_contentHeight);
     m_btnRedo->setIconSize(m_iconSize);
-    m_btnRedo->setIcon(buildActionIcon(":svg/icons/arrow_redo_16_filled.svg", m_iconSize));
+    m_btnRedo->setIcon(buildActionIcon(":svg/icons/arrow_redo_16_regular.svg", m_iconSize));
     m_btnRedo->setEnabled(false);
     m_btnRedo->setToolTip(tr("Redo"));
     m_btnRedo->installEventFilter(new ToolTipFilter(m_btnRedo));

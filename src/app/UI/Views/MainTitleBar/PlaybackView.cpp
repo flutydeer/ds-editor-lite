@@ -37,9 +37,10 @@ namespace {
                                               MainTitleBarIconPalette::actionPalette());
     }
 
-    QIcon buildToggleIcon(const QString &svgPath, const QSize &iconSize, const QColor &checkedColor) {
-        return IconUtils::createTintedSvgIcon(svgPath, iconSize,
-                                              MainTitleBarIconPalette::toggledPalette(checkedColor));
+    QIcon buildToggleIcon(const QString &svgPath, const QSize &iconSize,
+                          const QColor &checkedColor) {
+        return IconUtils::createTintedSvgIcon(
+            svgPath, iconSize, MainTitleBarIconPalette::toggledPalette(checkedColor));
     }
 }
 
@@ -64,12 +65,13 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnStop = new QPushButton;
     m_btnStop->setObjectName("btnStop");
     m_btnStop->setIconSize(m_iconSize);
-    m_btnStop->setIcon(buildActionIcon(":svg/icons/stop_16_filled.svg", m_iconSize));
+    m_btnStop->setIcon(buildActionIcon(":svg/icons/stop_16_regular.svg", m_iconSize));
 
     m_btnPlay = new QPushButton;
     m_btnPlay->setObjectName("btnPlay");
     m_btnPlay->setIconSize(m_iconSize);
-    m_btnPlay->setIcon(buildToggleIcon(":svg/icons/play_16_filled.svg", m_iconSize, playAccentColor()));
+    m_btnPlay->setIcon(
+        buildToggleIcon(":svg/icons/play_16_regular.svg", m_iconSize, playAccentColor()));
     m_btnPlay->setCheckable(true);
 
     m_btnPlayPause = new QPushButton(this);
@@ -93,7 +95,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnLoop = new QPushButton;
     m_btnLoop->setObjectName("btnLoop");
     m_btnLoop->setIconSize(m_iconSize);
-    m_btnLoop->setIcon(buildToggleIcon(":svg/icons/arrow_repeat_all_16_filled.svg", m_iconSize,
+    m_btnLoop->setIcon(buildToggleIcon(":svg/icons/arrow_repeat_all_16_regular.svg", m_iconSize,
                                        playAccentColor()));
     m_btnLoop->setCheckable(true);
     m_btnLoop->setToolTip(tr("Loop"));
@@ -112,7 +114,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
             // Snap to bar line
             int startBar = currentTick / barTicks;
             settings.start = startBar * barTicks;
-            settings.length = barTicks;  // One bar length
+            settings.length = barTicks; // One bar length
         }
 
         appStatus->loopSettings.set(settings);
@@ -122,8 +124,8 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnPause = new QPushButton;
     m_btnPause->setObjectName("btnPause");
     m_btnPause->setIconSize(m_iconSize);
-    m_btnPause->setIcon(buildToggleIcon(":svg/icons/pause_16_filled.svg", m_iconSize,
-                                        pauseAccentColor()));
+    m_btnPause->setIcon(
+        buildToggleIcon(":svg/icons/pause_16_regular.svg", m_iconSize, pauseAccentColor()));
     m_btnPause->setCheckable(true);
 
     m_elTime = new EditLabel;
@@ -295,8 +297,8 @@ int PlaybackView::fromTickTimeString(const QStringList &splitStr) const {
     auto bar = splitStr.at(0).toInt();
     auto beat = splitStr.at(1).toInt();
     auto tick = splitStr.at(2).toInt();
-    return (bar - 1) * AppGlobal::ticksPerWholeNote * m_numerator / m_denominator + (beat - 1) * AppGlobal::ticksPerWholeNote / m_denominator +
-           tick;
+    return (bar - 1) * AppGlobal::ticksPerWholeNote * m_numerator / m_denominator +
+           (beat - 1) * AppGlobal::ticksPerWholeNote / m_denominator + tick;
 }
 
 void PlaybackView::updateTempoView() {

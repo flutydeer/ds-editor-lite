@@ -45,13 +45,10 @@
         <file>svg/icons/rename_16_filled.svg</file>
 
         <!-- ======== Edit / Clipboard ======== -->
-        <file>svg/icons/save_16_filled.svg</file>
         <file>svg/icons/save_16_regular.svg</file>
         <file>svg/icons/save_edit_20_filled.svg</file>
         <file>svg/icons/save_edit_20_regular.svg</file>
-        <file>svg/icons/arrow_undo_16_filled.svg</file>
         <file>svg/icons/arrow_undo_16_regular.svg</file>
-        <file>svg/icons/arrow_redo_16_filled.svg</file>
         <file>svg/icons/arrow_redo_16_regular.svg</file>
         <file>svg/icons/cut_20_filled.svg</file>
         <file>svg/icons/cut_16_regular.svg</file>
@@ -68,12 +65,16 @@
 
         <!-- ======== Playback / Transport ======== -->
         <file>svg/icons/play_16_filled.svg</file>
+        <file>svg/icons/play_16_regular.svg</file>
         <file>svg/icons/pause_16_filled.svg</file>
+        <file>svg/icons/pause_16_regular.svg</file>
         <file>svg/icons/stop_16_filled.svg</file>
+        <file>svg/icons/stop_16_regular.svg</file>
         <file>svg/icons/previous_16_filled.svg</file>
         <file>svg/icons/next_16_filled.svg</file>
         <file>svg/icons/metronome-line.svg</file>
         <file>svg/icons/arrow_repeat_all_16_filled.svg</file>
+        <file>svg/icons/arrow_repeat_all_16_regular.svg</file>
         <file>svg/icons/arrow_repeat_all_off_16_filled.svg</file>
         <file>svg/icons/record_16_filled.svg</file>
         <file>svg/icons/record_24_filled.svg</file>
