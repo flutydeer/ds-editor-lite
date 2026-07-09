@@ -239,7 +239,7 @@ bool TrackControlView::isInDragArea(const QPoint &pos) const {
 
 void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
     const auto actionInsert = new QAction("Insert new track", this);
-    actionInsert->setIcon(menuIcon(QStringLiteral(":/svg/icons/document_add_16_regular.svg")));
+    actionInsert->setIcon(menuIcon(QStringLiteral(":/svg/icons/add_16_regular.svg")));
     connect(actionInsert, &QAction::triggered, this, [this] { emit insertNewTrackTriggered(); });
     const auto actionRemove = new QAction("Delete", this);
     actionRemove->setIcon(menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
@@ -250,7 +250,7 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
     menu.addAction(actionRemove);
 
     auto colorMenu = new Menu("Track color", &menu);
-    colorMenu->setIcon(menuIcon(QStringLiteral(":/svg/icons/color_16_filled.svg")));
+    colorMenu->setIcon(menuIcon(QStringLiteral(":/svg/icons/color_16_regular.svg")));
     menu.addMenu(colorMenu);
     int originalColorIndex = m_track ? m_track->colorIndex() : 0;
     auto colorSwatch = new TrackColorSwatchWidget(originalColorIndex);
@@ -280,66 +280,6 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
                 colorConfirmed = true;
                 menu.close();
             });
-
-    auto singerMenu = new Menu("Select track singer", &menu);
-    singerMenu->setIcon(menuIcon(QStringLiteral(":/svg/icons/music_note_2_16_filled.svg")));
-    menu.addMenu(singerMenu);
-    const auto packages = packageManager->installedPackages().successfulPackages;
-    for (const auto &package : std::as_const(packages)) {
-        const auto singers = package.singers();
-        for (const auto &singer : singers) {
-            QString singerText = singer.name() + " (" + singer.identifier().packageId + " v" +
-                                 singer.identifier().packageVersion.toString() + ')';
-            auto singerAction = singerMenu->addAction(singerText);
-            connect(singerAction, &QAction::triggered, this, [singerAction, this] {
-                qDebug().noquote().nospace() << "Singer clicked: " << singerAction->text();
-                // TODO: set singer for ComboBox
-                if (!m_track) {
-                    return;
-                }
-            });
-        }
-    }
-    const auto actionSetSpeaker = new QAction("Set speaker", this);
-    actionSetSpeaker->setIcon(menuIcon(QStringLiteral(":/svg/icons/music_note_2_16_filled.svg")));
-    connect(actionSetSpeaker, &QAction::triggered, this, [this] {
-        const auto singerInfo = m_track->singerInfo();
-        const auto speakers = singerInfo.speakers();
-        QStringList speakerLabels;
-        QHash<QString, SpeakerInfo> speakerInfoMapping;
-        speakerLabels.reserve(speakers.size() + 1);
-        speakerInfoMapping.reserve(speakers.size());
-        speakerLabels.emplace_back("(not specified)");
-        int listCurrentIndex = 0; // 0 as not specified
-        int currentIndex = 0;
-        for (const auto &speaker : speakers) {
-            const auto speakerId = speaker.id();
-            const auto speakerName = speaker.name();
-            const auto speakerLabel = speakerName + " (" + speakerId + ")";
-            speakerLabels.emplace_back(speakerLabel);
-            speakerInfoMapping[speakerLabel] = speaker;
-            ++currentIndex;
-            if (m_track->speakerInfo() == speaker) {
-                listCurrentIndex = currentIndex;
-            }
-        }
-        bool ok = false;
-        const auto currentSpeakerLabel = QInputDialog::getItem(
-            this, "Input select", "Please select speaker id for singer " + cbSinger->currentText(),
-            speakerLabels, listCurrentIndex, false, &ok);
-        if (ok) {
-            if (const auto it = speakerInfoMapping.find(currentSpeakerLabel);
-                it != speakerInfoMapping.end()) {
-                m_track->setSingerAndSpeakerInfo(m_track->singerInfo(), it.value());
-                qDebug() << "Speaker for track" << m_track->id() << "set to" << it.value().name()
-                         << " (" << it.value().id() << ")";
-            } else {
-                m_track->setSingerAndSpeakerInfo(m_track->singerInfo(), {});
-                qDebug() << "Speaker for track" << m_track->id() << "cleared";
-            }
-        }
-    });
-    menu.addAction(actionSetSpeaker);
 
     menu.exec(event->globalPos());
 
