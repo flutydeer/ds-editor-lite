@@ -16,9 +16,11 @@
 #include "UI/Controls/Menu.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Controls/TrackColorSwatchWidget.h"
+#include "UI/Controls/SvsSeekbar.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Utils/AppColorPalette.h"
+#include "UI/Utils/IconUtils.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 
 #include <QContextMenuEvent>
@@ -39,6 +41,15 @@
 
 using namespace SVS;
 using SpeakerMixModel::SpeakerMixData;
+
+namespace {
+    const QSize kMenuIconSize(16, 16);
+    const QColor kMenuIconColor(240, 240, 240);
+
+    QIcon menuIcon(const QString &path) {
+        return IconUtils::createTintedSvgIcon(path, kMenuIconSize, kMenuIconColor);
+    }
+}
 
 TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget *parent)
     : QWidget(parent), ITrack(track->id()), m_track(track) {
@@ -228,15 +239,18 @@ bool TrackControlView::isInDragArea(const QPoint &pos) const {
 
 void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
     const auto actionInsert = new QAction("Insert new track", this);
+    actionInsert->setIcon(menuIcon(QStringLiteral(":/svg/icons/document_add_16_regular.svg")));
     connect(actionInsert, &QAction::triggered, this, [this] { emit insertNewTrackTriggered(); });
     const auto actionRemove = new QAction("Delete", this);
+    actionRemove->setIcon(menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
     connect(actionRemove, &QAction::triggered, this, [this] { emit removeTrackTriggered(id()); });
 
-    CMenu menu(this);
+    Menu menu(this);
     menu.addAction(actionInsert);
     menu.addAction(actionRemove);
 
     auto colorMenu = new Menu("Track color", &menu);
+    colorMenu->setIcon(menuIcon(QStringLiteral(":/svg/icons/color_16_filled.svg")));
     menu.addMenu(colorMenu);
     int originalColorIndex = m_track ? m_track->colorIndex() : 0;
     auto colorSwatch = new TrackColorSwatchWidget(originalColorIndex);
@@ -268,6 +282,7 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
             });
 
     auto singerMenu = new Menu("Select track singer", &menu);
+    singerMenu->setIcon(menuIcon(QStringLiteral(":/svg/icons/music_note_2_16_filled.svg")));
     menu.addMenu(singerMenu);
     const auto packages = packageManager->installedPackages().successfulPackages;
     for (const auto &package : std::as_const(packages)) {
@@ -286,6 +301,7 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
         }
     }
     const auto actionSetSpeaker = new QAction("Set speaker", this);
+    actionSetSpeaker->setIcon(menuIcon(QStringLiteral(":/svg/icons/music_note_2_16_filled.svg")));
     connect(actionSetSpeaker, &QAction::triggered, this, [this] {
         const auto singerInfo = m_track->singerInfo();
         const auto speakers = singerInfo.speakers();

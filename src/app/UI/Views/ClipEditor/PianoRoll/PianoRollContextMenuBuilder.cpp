@@ -5,6 +5,7 @@
 #include "PronunciationView.h"
 #include "PianoRollGraphicsViewHelper.h"
 #include "UI/Controls/Menu.h"
+#include "UI/Utils/IconUtils.h"
 #include "UI/Views/Common/TimeGraphicsScene.h"
 #include "Controller/ClipController.h"
 #include "Controller/ClipboardController.h"
@@ -20,6 +21,15 @@
 #include <QCursor>
 #include <QMimeData>
 
+namespace {
+    const QSize kMenuIconSize(16, 16);
+    const QColor kMenuIconColor(240, 240, 240);
+
+    QIcon menuIcon(const QString &path) {
+        return IconUtils::createTintedSvgIcon(path, kMenuIconSize, kMenuIconColor);
+    }
+}
+
 namespace Helper = PianoRollGraphicsViewHelper;
 
 Menu *PianoRollContextMenuBuilder::buildNoteContextMenu(
@@ -28,16 +38,19 @@ Menu *PianoRollContextMenuBuilder::buildNoteContextMenu(
     const auto menu = new Menu(view);
 
     const auto actionEditLyric = menu->addAction(Menu::tr("Fill lyrics..."));
+    actionEditLyric->setIcon(menuIcon(QStringLiteral(":/svg/icons/document_16_filled.svg")));
     QObject::connect(actionEditLyric, &QAction::triggered, clipController,
                      [=] { clipController->onFillLyric(view); });
 
     const auto actionSearchLyric = menu->addAction(Menu::tr("Search lyrics..."));
+    actionSearchLyric->setIcon(menuIcon(QStringLiteral(":/svg/icons/search_16_regular.svg")));
     QObject::connect(actionSearchLyric, &QAction::triggered, clipController,
                      [=] { clipController->onSearchLyric(view); });
 
     menu->addSeparator();
 
     const auto actionSplit = menu->addAction(Menu::tr("Split Note"));
+    actionSplit->setIcon(menuIcon(QStringLiteral(":/svg/icons/arrow_split_16_filled.svg")));
     QObject::connect(actionSplit, &QAction::triggered, view, [noteView, view] {
         const auto scenePos = view->mapToScene(QCursor::pos());
         const auto tick = static_cast<int>(view->sceneXToTick(scenePos.x()));
@@ -47,19 +60,23 @@ Menu *PianoRollContextMenuBuilder::buildNoteContextMenu(
     menu->addSeparator();
 
     const auto actionCut = menu->addAction(Menu::tr("Cu&t"));
+    actionCut->setIcon(menuIcon(QStringLiteral(":/svg/icons/cut_16_regular.svg")));
     QObject::connect(actionCut, &QAction::triggered, clipboardController,
                      &ClipboardController::cut);
 
     const auto actionCopy = menu->addAction(Menu::tr("&Copy"));
+    actionCopy->setIcon(menuIcon(QStringLiteral(":/svg/icons/copy_16_regular.svg")));
     QObject::connect(actionCopy, &QAction::triggered, clipboardController,
                      &ClipboardController::copy);
 
     const auto actionRemove = menu->addAction(Menu::tr("&Delete"));
+    actionRemove->setIcon(menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
     QObject::connect(actionRemove, &QAction::triggered, view, onDeleteNotes);
 
     menu->addSeparator();
 
     const auto actionProperties = menu->addAction(Menu::tr("Properties..."));
+    actionProperties->setIcon(menuIcon(QStringLiteral(":/svg/icons/info_16_regular.svg")));
     QObject::connect(actionProperties, &QAction::triggered, view,
                      [noteView, onOpenProperties] { onOpenProperties(noteView->id()); });
 
@@ -79,6 +96,7 @@ Menu *
         mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
 
     const auto actionPaste = menu->addAction(Menu::tr("&Paste"));
+    actionPaste->setIcon(menuIcon(QStringLiteral(":/svg/icons/clipboard_paste_16_regular.svg")));
     actionPaste->setEnabled(hasPasteData);
 
     if (hasPasteData) {
