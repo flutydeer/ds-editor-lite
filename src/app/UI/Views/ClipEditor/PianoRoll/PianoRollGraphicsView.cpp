@@ -1091,14 +1091,13 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
         }
     }
 
-    // In DrawNote and EraseNote modes, don't show note edge resize cursor
-    if (m_editMode == DrawNote || m_editMode == EraseNote) {
+    if (m_editMode == EraseNote) {
         q->setCursor(Qt::ArrowCursor);
         return;
     }
 
     const auto noteView = noteViewAt(event->position().toPoint());
-    if (!noteView) {
+    if (!noteView || noteView->id() < 0) {
         q->setCursor(Qt::ArrowCursor);
         return;
     }
