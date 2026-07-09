@@ -1,12 +1,4 @@
-/* Button */
-QPushButton#btnNewTrack {
-    padding: 6px;
-    /* background-origin: content;
-    background-position: left;
-    background-repeat: no-repeat;
-    text-align: right;
-    padding-left: 22px; */
-}
+
 
 
 /* TimelineView */

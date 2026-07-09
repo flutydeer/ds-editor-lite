@@ -151,22 +151,3 @@ PlaybackView>QComboBox:pressed {
 }
 
 
-/* ActionButtonsView */
-ActionButtonsView>QPushButton {
-    padding: 0px;
-    border: none;
-    background: none;
-    border-radius: 6px
-}
-
-ActionButtonsView>QPushButton:hover {
-    background: #12C7D8FF;
-}
-
-ActionButtonsView>QPushButton:pressed {
-    background: #0FC7D8FF;
-}
-
-ActionButtonsView>QPushButton:disabled {
-    background: none;
-}

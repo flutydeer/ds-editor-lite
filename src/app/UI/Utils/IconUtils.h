@@ -27,11 +27,14 @@ namespace IconUtils {
                               const SvgIconToggleColorPalette &palette);
 
     QIcon createTintedSvgIcon(const QString &svgPath, const QSize &iconSize,
-                              const QColor &normalColor,
-                              const QColor &disabledColor = QColor());
+                              const QColor &normalColor, const QColor &disabledColor = QColor());
 
     QPixmap renderTintedSvgPixmap(const QString &svgPath, const QSize &iconSize,
                                   const QColor &color, qreal devicePixelRatio);
+
+    // Default palette helpers (previously in MainTitleBarIconPalette)
+    SvgIconColorPalette defaultActionPalette();
+    SvgIconToggleColorPalette defaultToggledPalette(const QColor &checkedColor);
 
 }
 

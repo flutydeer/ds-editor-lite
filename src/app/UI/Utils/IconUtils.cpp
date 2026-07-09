@@ -174,4 +174,23 @@ namespace IconUtils {
         return createTintedSvgIcon(svgPath, iconSize, palette);
     }
 
+    SvgIconColorPalette defaultActionPalette() {
+        SvgIconColorPalette palette;
+        palette.normal = QColor(240, 240, 240, 255);
+        palette.disabled = QColor(240, 240, 240, 102);
+        return palette;
+    }
+
+    SvgIconToggleColorPalette defaultToggledPalette(const QColor &checkedColor) {
+        SvgIconToggleColorPalette palette;
+        palette.off = defaultActionPalette();
+
+        QColor checkedDisabled = checkedColor;
+        checkedDisabled.setAlpha(102);
+
+        palette.on.normal = checkedColor;
+        palette.on.disabled = checkedDisabled;
+        return palette;
+    }
+
 }

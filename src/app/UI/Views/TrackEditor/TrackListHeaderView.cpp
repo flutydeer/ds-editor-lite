@@ -6,8 +6,8 @@
 
 #include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
+#include "UI/Controls/ToolButton.h"
 #include "UI/Controls/ToolTipFilter.h"
-#include "UI/Utils/IconUtils.h"
 
 #include <QHBoxLayout>
 #include <QPainter>
@@ -17,20 +17,17 @@ TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     setObjectName("trackListHeaderView");
     setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
 
-    const auto btnNewTrack = new QPushButton;
+    const auto btnNewTrack = new ToolButton;
     btnNewTrack->setObjectName("btnNewTrack");
-    btnNewTrack->setFixedSize(24, 24);
-    const auto iconColor = btnNewTrack->palette().color(QPalette::ButtonText);
-    btnNewTrack->setIcon(IconUtils::createTintedSvgIcon(
-        QStringLiteral(":/svg/icons/add_16_filled.svg"), QSize(16, 16), iconColor, iconColor));
-    btnNewTrack->setIconSize(QSize(16, 16));
+    btnNewTrack->setFixedSize(28, 28);
+    btnNewTrack->setActionIcon(QStringLiteral(":/svg/icons/add_16_regular.svg"));
     btnNewTrack->setToolTip(tr("New Track"));
     btnNewTrack->installEventFilter(new ToolTipFilter(btnNewTrack));
     connect(btnNewTrack, &QPushButton::clicked, trackController, &TrackController::onNewTrack);
     const auto mainLayout = new QHBoxLayout;
     mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
     mainLayout->addWidget(btnNewTrack);
-    mainLayout->setContentsMargins(6, 6, 6, 6);
+    mainLayout->setContentsMargins(4, 4, 4, 4);
 
     setLayout(mainLayout);
 }

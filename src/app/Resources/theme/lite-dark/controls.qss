@@ -86,10 +86,30 @@ AccentButton:pressed {
 
 AccentButton:disabled {
     color: rgba(255, 255, 255, 127);
-    background-color: rgba(255, 255, 255, 32)
-}
+        background-color: rgba(255, 255, 255, 32)
+    }
 
-/* TagButton */
+    /* ToolButton */
+    ToolButton {
+        padding: 0px;
+        border: none;
+        background: none;
+        border-radius: 6px;
+    }
+
+    ToolButton:hover {
+        background: #12C7D8FF;
+    }
+
+    ToolButton:pressed {
+        background: #0FC7D8FF;
+    }
+
+    ToolButton:disabled {
+        background: none;
+    }
+
+    /* TagButton */
 TagButton {
     background: transparent;
     border: 1px solid #363B46;
