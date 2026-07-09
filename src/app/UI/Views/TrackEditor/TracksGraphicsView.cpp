@@ -24,7 +24,9 @@
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Extractors/MidiExtractController.h"
 #include "UI/Controls/AccentButton.h"
+#include "UI/Controls/Menu.h"
 #include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Utils/IconUtils.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/ScrollBarView.h"
 #include "Utils/TimelineSnapUtils.h"
@@ -37,7 +39,6 @@
 #include <QKeyEvent>
 #include <QMimeData>
 #include <QMouseEvent>
-#include "UI/Controls/Menu.h"
 
 #include <TalcsWidgets/AudioFileDialog.h>
 
@@ -53,10 +54,14 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, const QWidget
     setMinimumHeight(0);
 
     m_actionNewSingingClip = new QAction(tr("New singing clip"), this);
+    m_actionNewSingingClip->setIcon(IconUtils::menuIcon(
+        QStringLiteral(":/svg/icons/midi_clip_16_filled.svg")));
     connect(m_actionNewSingingClip, &QAction::triggered, this,
             &TracksGraphicsView::onNewSingingClip);
 
     m_actionAddAudioClip = new QAction(tr("Insert audio clip..."), this);
+    m_actionAddAudioClip->setIcon(IconUtils::menuIcon(
+        QStringLiteral(":/svg/icons/audio_clip_16_filled.svg")));
     connect(m_actionAddAudioClip, &QAction::triggered, this, &TracksGraphicsView::onAddAudioClip);
 
     connect(appStatus, &AppStatus::activeClipIdChanged, this, [this](const int clipId) {
@@ -307,7 +312,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             m_trackIndex = trackIndex;
             m_tick = TimelineSnapUtils::snapDown(tick, snapStep(false));
 
-            CMenu menu(this);
+            Menu menu(this);
             menu.installEventFilter(this);
             menu.addAction(m_actionNewSingingClip);
             menu.addAction(m_actionAddAudioClip);
@@ -318,6 +323,8 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
                 mimeData &&
                 mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip));
             const auto actionPaste = menu.addAction(tr("&Paste"));
+            actionPaste->setIcon(IconUtils::menuIcon(
+                QStringLiteral(":/svg/icons/clipboard_paste_16_regular.svg")));
             actionPaste->setEnabled(hasClipData);
             if (hasClipData) {
                 const auto array =
@@ -398,20 +405,33 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
 
             menu.exec(event->globalPos());
         } else if (auto clip = dynamic_cast<AbstractClipView *>(item)) {
-            CMenu menu(this);
+            Menu menu(this);
 
             if (clip->clipType() == IClip::Audio) {
                 const auto actionExtractMidi = new QAction(tr("Extract MIDI Score"));
+                actionExtractMidi->setIcon(IconUtils::menuIcon(
+                    QStringLiteral(":/svg/icons/arrow_export_16_regular.svg")));
                 connect(actionExtractMidi, &QAction::triggered, this,
                         [clip, this] { onExtractMidiTriggered(clip->id()); });
                 menu.addAction(actionExtractMidi);
                 menu.addSeparator();
             }
 
-            menu.addAction(tr("Cu&t"), [] { trackController->cutSelectedClips(); });
-            menu.addAction(tr("&Copy"), [] { trackController->copySelectedClips(); });
+            const auto actionCut = menu.addAction(tr("Cu&t"));
+            actionCut->setIcon(IconUtils::menuIcon(
+                QStringLiteral(":/svg/icons/cut_16_regular.svg")));
+            connect(actionCut, &QAction::triggered, this,
+                    [] { trackController->cutSelectedClips(); });
+
+            const auto actionCopy = menu.addAction(tr("&Copy"));
+            actionCopy->setIcon(IconUtils::menuIcon(
+                QStringLiteral(":/svg/icons/copy_16_regular.svg")));
+            connect(actionCopy, &QAction::triggered, this,
+                    [] { trackController->copySelectedClips(); });
 
             const auto actionDelete = menu.addAction(tr("&Delete"));
+            actionDelete->setIcon(IconUtils::menuIcon(
+                QStringLiteral(":/svg/icons/delete_16_regular.svg")));
             connect(actionDelete, &QAction::triggered, this,
                     &TracksGraphicsView::onDeleteTriggered);
 
