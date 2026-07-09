@@ -38,7 +38,7 @@ Menu *PianoRollContextMenuBuilder::buildNoteContextMenu(
     const auto menu = new Menu(view);
 
     const auto actionEditLyric = menu->addAction(Menu::tr("Fill lyrics..."));
-    actionEditLyric->setIcon(menuIcon(QStringLiteral(":/svg/icons/document_16_filled.svg")));
+    // actionEditLyric->setIcon(menuIcon(QStringLiteral(":/svg/icons/document_16_filled.svg")));
     QObject::connect(actionEditLyric, &QAction::triggered, clipController,
                      [=] { clipController->onFillLyric(view); });
 

@@ -542,7 +542,7 @@ void MainMenuViewPrivate::initEditActions() {
     connect(actionOctaveDown, &QAction::triggered, this, [this] { onOctaveDown(); });
 
     actionFillLyrics = new QAction(tr("Fill lyrics..."), this);
-    actionFillLyrics->setIcon(menuIcon(QStringLiteral(":/svg/icons/document_16_regular.svg")));
+    // actionFillLyrics->setIcon(menuIcon(QStringLiteral(":/svg/icons/document_16_regular.svg")));
     actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
     actionFillLyrics->setShortcutContext(Qt::ApplicationShortcut);
     actionFillLyrics->setEnabled(false);
