@@ -56,12 +56,11 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
     m_pianoRollEditorView = new PianoRollEditorView;
     m_pianoRollEditorView->setVisible(false);
 
-    m_placeholderLabel = new QLabel;
+    m_placeholderLabel = new QLabel(this);
     m_placeholderLabel->setText(QStringLiteral("请选中一个歌声剪辑以编辑"));
     m_placeholderLabel->setAlignment(Qt::AlignCenter);
     m_placeholderLabel->setStyleSheet(QStringLiteral("color: #80F0F0F0;"
                                                      "font-size: 14px;"));
-    m_placeholderLabel->setVisible(true);
 
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_placeholderLabel);
