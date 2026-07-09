@@ -125,6 +125,8 @@ int main(int argc, char *argv[]) {
 
     QObject::connect(inferEngine, &InferEngine::engineInitialized, appController,
                      &AppController::initializeLanguageEngine, Qt::SingleShotConnection);
+    if (inferEngine->initialized())
+        appController->initializeLanguageEngine();
     packageManager->initialize();
 
     MainWindow w;
