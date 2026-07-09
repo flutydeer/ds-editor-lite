@@ -203,8 +203,14 @@ void PianoRollGraphicsView::notifyKeyRangeChanged() {
 }
 
 bool PianoRollGraphicsViewPrivate::eventFilter(QObject *watched, QEvent *event) {
-    if (event->type() == QEvent::Leave)
+    if (event->type() == QEvent::Leave) {
         m_selectionModel->clearPastePreviewViews();
+    } else if (event->type() == QEvent::HoverMove) {
+        if (auto *menu = qobject_cast<QMenu *>(watched)) {
+            if (menu->activeAction() != m_pasteAction)
+                m_selectionModel->clearPastePreviewViews();
+        }
+    }
     return QObject::eventFilter(watched, event);
 }
 
@@ -238,7 +244,17 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
         } else {
             const auto menu = PianoRollContextMenuBuilder::buildBackgroundContextMenu(
                 this, d->m_selectionModel, event->pos(), d->m_offset);
+            menu->installEventFilter(d);
+            d->m_pasteAction = nullptr;
+            for (auto action : menu->actions()) {
+                if (!action->isSeparator() && action->isEnabled()) {
+                    d->m_pasteAction = action;
+                    break;
+                }
+            }
             menu->exec(event->globalPos());
+            d->m_selectionModel->clearPastePreviewViews();
+            d->m_pasteAction = nullptr;
         }
         return;
     } else if (d->m_editMode == EditPitchAnchor) {

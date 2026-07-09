@@ -82,7 +82,6 @@ Menu *
                                                             PianoRollSelectionModel *selectionModel,
                                                             const QPoint &pos, int offset) {
     const auto menu = new Menu(view);
-    menu->installEventFilter(view);
 
     const auto mimeData = QGuiApplication::clipboard()->mimeData();
     const auto hasPasteData =
@@ -137,7 +136,7 @@ Menu *
                     view->scene()->addCommonItem(noteView);
                     if (noteView->pronunciationView())
                         view->scene()->addCommonItem(noteView->pronunciationView());
-                    selectionModel->pastePreviewViews().append(noteView);
+                    selectionModel->appendPastePreviewView(noteView);
                 }
             });
 

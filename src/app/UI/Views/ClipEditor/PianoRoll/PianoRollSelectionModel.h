@@ -40,12 +40,16 @@ public:
     void updateOverlappedState();
 
     // Paste preview
-    [[nodiscard]] QList<NoteView *> pastePreviewViews() const {
+    [[nodiscard]] const QList<NoteView *> &pastePreviewViews() const {
         return m_pastePreviewViews;
     }
 
     void setPastePreviewViews(const QList<NoteView *> &views) {
         m_pastePreviewViews = views;
+    }
+
+    void appendPastePreviewView(NoteView *view) {
+        m_pastePreviewViews.append(view);
     }
 
     void clearPastePreviewViews();

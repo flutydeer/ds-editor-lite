@@ -19,6 +19,7 @@ class PitchAnchorEditorView;
 class PitchEditorView;
 class QMouseEvent;
 class QHoverEvent;
+class QAction;
 class QPaintEvent;
 class Menu;
 class NoteView;
@@ -59,6 +60,7 @@ public:
     QHash<PianoRollEditMode, PianoRollEditHandler *> m_handlers;
     PianoRollSelectionModel *m_selectionModel = nullptr;
     NoteInteractionController *m_interactionController = nullptr;
+    QAction *m_pasteAction = nullptr;
     void restoreHandler();
 
     PianoRollEditMode m_editMode = Select;
