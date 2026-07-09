@@ -43,11 +43,9 @@ using namespace SVS;
 using SpeakerMixModel::SpeakerMixData;
 
 namespace {
-    const QSize kMenuIconSize(16, 16);
-    const QColor kMenuIconColor(240, 240, 240);
 
     QIcon menuIcon(const QString &path) {
-        return IconUtils::createTintedSvgIcon(path, kMenuIconSize, kMenuIconColor);
+        return IconUtils::menuIcon(path);
     }
 }
 

@@ -36,6 +36,11 @@ namespace IconUtils {
     SvgIconColorPalette defaultActionPalette();
     SvgIconToggleColorPalette defaultToggledPalette(const QColor &checkedColor);
 
+    // Convenience: 16x16 menu icon with default action palette (normal/disabled)
+    inline QIcon menuIcon(const QString &svgPath) {
+        return createTintedSvgIcon(svgPath, QSize(16, 16), defaultActionPalette());
+    }
+
 }
 
 #endif // ICONUTILS_H
