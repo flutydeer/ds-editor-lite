@@ -24,6 +24,7 @@
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
+#include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
@@ -160,6 +161,7 @@ bool AppController::importMidiFile(const QString &filePath) {
                                    static_cast<IProjectConverter::ImportMode>(midiImport));
     Log::i("Midi importer", errMsg);
     if (ok) {
+        SingingClipPhonemeNormalizer::normalizeEditedOffsets(resultModel);
         if (midiImport == IProjectConverter::ImportMode::NewProject) {
             appModel->loadFromAppModel(resultModel);
         } else if (midiImport == IProjectConverter::ImportMode::AppendToProject) {
@@ -388,6 +390,7 @@ bool AppControllerPrivate::openDspxFile(const QString &path, QString &errorMessa
         return false;
     }
 
+    SingingClipPhonemeNormalizer::normalizeEditedOffsets(resultModel);
     appModel->loadFromAppModel(resultModel);
     historyManager->reset();
     historyManager->setSavePoint();

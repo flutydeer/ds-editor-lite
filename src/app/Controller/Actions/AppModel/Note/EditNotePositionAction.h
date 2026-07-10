@@ -6,6 +6,7 @@
 #define EDITNOTEPOSITIONACTION_H
 
 #include "Modules/History/IAction.h"
+#include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 #include <QList>
 
@@ -15,14 +16,14 @@ class Note;
 class EditNotePositionAction final : public IAction {
 public:
     explicit EditNotePositionAction(const QList<Note *> &notes, const int deltaTick,
-                                    const int deltaKey,
-                                    SingingClip *clip)
-        : m_notes(notes), m_deltaTick(deltaTick), m_deltaKey(deltaKey), m_clip(clip){};
+                                    const int deltaKey, SingingClip *clip)
+        : m_notes(notes), m_deltaTick(deltaTick), m_deltaKey(deltaKey), m_clip(clip) {};
     void execute() override;
     void undo() override;
 
 private:
     QList<Note *> m_notes;
+    QList<SingingClipPhonemeNormalizer::ResetRecord> m_resetRecords;
     int m_deltaTick = 0;
     int m_deltaKey = 0;
     SingingClip *m_clip = nullptr;

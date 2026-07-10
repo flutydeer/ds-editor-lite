@@ -14,7 +14,12 @@ void EditNotePositionAction::execute() {
         note->setKeyIndex(note->keyIndex() + m_deltaKey);
         m_clip->insertNote(note);
     }
+    m_resetRecords = SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip);
     m_clip->notifyNoteChanged(SingingClip::TimeKeyPropertyChange, m_notes);
+    if (!m_resetRecords.isEmpty())
+        m_clip->notifyNoteChanged(
+            SingingClip::EditedPhonemeOffsetChange,
+            SingingClipPhonemeNormalizer::notesFromResetRecords(m_resetRecords));
 }
 
 void EditNotePositionAction::undo() {
@@ -24,5 +29,10 @@ void EditNotePositionAction::undo() {
         note->setKeyIndex(note->keyIndex() - m_deltaKey);
         m_clip->insertNote(note);
     }
+    SingingClipPhonemeNormalizer::restoreEditedOffsets(m_resetRecords);
     m_clip->notifyNoteChanged(SingingClip::TimeKeyPropertyChange, m_notes);
+    if (!m_resetRecords.isEmpty())
+        m_clip->notifyNoteChanged(
+            SingingClip::EditedPhonemeOffsetChange,
+            SingingClipPhonemeNormalizer::notesFromResetRecords(m_resetRecords));
 }

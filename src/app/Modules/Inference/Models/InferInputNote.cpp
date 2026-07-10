@@ -13,6 +13,7 @@ InferInputNote::InferInputNote(const Note &note) {
     key = note.keyIndex();
     isRest = note.lyric() == "SP" || note.lyric() == "AP";
     isSlur = note.isSlur();
+    isPlus = !note.lyric().isEmpty() && note.lyric().count('+') == note.lyric().length();
     // TODO: language dict id form singer info
     languageDictId = note.language();
     phonemeNames = note.phonemeNameSeq().result();
@@ -26,10 +27,11 @@ bool operator==(const InferInputNote &lhs, const InferInputNote &rhs) {
     const bool keyEqual = lhs.key == rhs.key;
     const bool isRestEqual = lhs.isRest == rhs.isRest;
     const bool isSlurEqual = lhs.isSlur == rhs.isSlur;
+    const bool isPlusEqual = lhs.isPlus == rhs.isPlus;
     const bool phonemeNamesEqual = lhs.phonemeNames == rhs.phonemeNames;
     const bool phonemeOffsetsEqual = lhs.phonemeOffsets == rhs.phonemeOffsets;
     return idEqual && startEqual && lengthEqual && keyEqual && isRestEqual && isSlurEqual &&
-           phonemeNamesEqual && phonemeOffsetsEqual;
+           isPlusEqual && phonemeNamesEqual && phonemeOffsetsEqual;
 }
 
 bool operator!=(const InferInputNote &lhs, const InferInputNote &rhs) {

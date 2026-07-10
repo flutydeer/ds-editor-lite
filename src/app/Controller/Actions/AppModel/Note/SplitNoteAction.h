@@ -6,6 +6,7 @@
 #define SPLITNOTEACTION_H
 
 #include "Modules/History/IAction.h"
+#include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 #include <QList>
 
@@ -21,10 +22,10 @@ public:
 private:
     Note *m_originalNote = nullptr;
     Note *m_newNote = nullptr;
+    QList<SingingClipPhonemeNormalizer::ResetRecord> m_resetRecords;
     int m_originalLength = 0;
     int m_newLength = 0;
     SingingClip *m_clip = nullptr;
 };
 
 #endif // SPLITNOTEACTION_H
-

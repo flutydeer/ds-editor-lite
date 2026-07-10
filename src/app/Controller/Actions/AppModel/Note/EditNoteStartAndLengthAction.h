@@ -6,6 +6,7 @@
 #define EDITNOTESTARTACTION_H
 
 #include "Modules/History/IAction.h"
+#include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 #include <QList>
 
@@ -16,13 +17,14 @@ class EditNoteStartAndLengthAction final : public IAction {
 public:
     explicit EditNoteStartAndLengthAction(const QList<Note *> &notes, const int deltaTick,
                                           SingingClip *clip)
-        : m_notes(notes), m_deltaTick(deltaTick), m_clip(clip){};
+        : m_notes(notes), m_deltaTick(deltaTick), m_clip(clip) {};
 
     void execute() override;
     void undo() override;
 
 private:
     QList<Note *> m_notes;
+    QList<SingingClipPhonemeNormalizer::ResetRecord> m_resetRecords;
     int m_deltaTick = 0;
     SingingClip *m_clip = nullptr;
 };

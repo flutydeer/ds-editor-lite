@@ -6,6 +6,7 @@
 #define EDITNOTESLENGTHACTION_H
 
 #include "Modules/History/IAction.h"
+#include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 #include <QList>
 
@@ -22,6 +23,7 @@ public:
 
 private:
     QList<Note *> m_notes;
+    QList<SingingClipPhonemeNormalizer::ResetRecord> m_resetRecords;
     int m_deltaTick = 0;
     SingingClip *m_clip = nullptr;
 };

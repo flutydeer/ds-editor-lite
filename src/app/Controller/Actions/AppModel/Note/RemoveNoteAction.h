@@ -6,6 +6,7 @@
 #define REMOVENOTEACTION_H
 
 #include "Modules/History/IAction.h"
+#include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 #include <QList>
 
@@ -15,12 +16,13 @@ class Note;
 class RemoveNoteAction final : public IAction {
 public:
     explicit RemoveNoteAction(const QList<Note *> &notes, SingingClip *clip)
-        : m_notes(notes), m_clip(clip){};
+        : m_notes(notes), m_clip(clip) {};
     void execute() override;
     void undo() override;
 
 private:
     QList<Note *> m_notes;
+    QList<SingingClipPhonemeNormalizer::ResetRecord> m_resetRecords;
     SingingClip *m_clip = nullptr;
 };
 
