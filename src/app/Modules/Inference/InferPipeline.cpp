@@ -69,6 +69,7 @@ InferPipeline::ApplyGateResult
     options.phase = checkEditSession ? "pipeline-update" : "pipeline-task-finished";
     options.expectedNoteCount = expectedNoteCount;
     options.checkEditSession = checkEditSession;
+    options.allowUnchangedPieceRevisionMismatch = true;
 
     ApplyGateResult result;
     result.decision = InferenceApplyGate::resolve(m_applyContext, result.resolution, options);

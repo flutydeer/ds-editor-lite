@@ -129,6 +129,30 @@ namespace {
         return !context.speakerMixSignature.isEmpty() && context.taskType != "duration";
     }
 
+    bool pieceNoteIdsMatchContext(const InferPiece &piece, const InferenceTaskContext &context) {
+        if (piece.notes.count() != context.noteIds.count())
+            return false;
+
+        for (int i = 0; i < piece.notes.count(); ++i) {
+            const auto note = piece.notes[i];
+            if (!note || note->id() != context.noteIds[i])
+                return false;
+        }
+        return true;
+    }
+
+    bool canApplyAcrossRevisionMismatch(const InferenceTaskContext &context,
+                                        const InferenceTaskResolution &resolution,
+                                        const InferenceApplyGate::Options &options) {
+        if (!options.allowUnchangedPieceRevisionMismatch || !options.requirePiece ||
+            !options.requireNotesInPiece || !resolution.piece) {
+            return false;
+        }
+        if (resolution.piece->dirty)
+            return false;
+        return pieceNoteIdsMatchContext(*resolution.piece, context);
+    }
+
     InferSpeakerMix effectiveSpeakerMixForPiece(const InferPiece &piece) {
         if (!piece.speakerMix.isEmpty())
             return piece.speakerMix;
@@ -192,9 +216,6 @@ namespace InferenceApplyGate {
             return drop("not-singing-clip");
 
         const auto currentRevision = clip->inferenceRevision();
-        if (currentRevision != context.clipRevision)
-            return drop("revision-mismatch", currentRevision);
-
         InferPiece *piece = nullptr;
         if (options.requirePiece) {
             if (context.pieceId < 0)
@@ -248,6 +269,12 @@ namespace InferenceApplyGate {
         }
 
         resolution = {clip, piece, notes, {}};
+        if (currentRevision != context.clipRevision) {
+            if (!canApplyAcrossRevisionMismatch(context, resolution, options))
+                return drop("revision-mismatch", currentRevision);
+            logDecision(context, options.phase, Decision::Apply,
+                        "revision-mismatch-piece-unchanged", currentRevision);
+        }
         if (options.checkEditSession && editSessionManager->hasActiveTransaction()) {
             const auto session = editSessionManager->activeSession();
             if (editSessionConflicts(session, context, resolution))
