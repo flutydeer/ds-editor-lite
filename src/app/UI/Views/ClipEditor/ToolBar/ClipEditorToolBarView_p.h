@@ -16,7 +16,7 @@ class LanguageComboBox;
 class Clip;
 class QAbstractButton;
 class SeekBar;
-class LineEdit;
+class InlineEditLabel;
 class Button;
 class ClipEditorToolBarView;
 class ComboBox;
@@ -50,10 +50,11 @@ public:
     int m_contentHeight = 28;
 
     Clip *m_clip = nullptr;
+    int m_editingClipId = -1;
     SingingClip *m_singingClip = nullptr;
     PianoRollEditMode m_editMode = Select;
 
-    LineEdit *m_leClipName = nullptr;
+    InlineEditLabel *m_leClipName = nullptr;
     // Button *m_btnMute;
     // SeekBar *m_sBarGain;
 
@@ -74,7 +75,7 @@ public:
 
 public slots:
     void onPianoRollToolButtonToggled(const QAbstractButton *button, bool checked);
-    void onClipNameEdited() const;
+    void onClipNameEdited(const QString &text);
     void onClipPropertyChanged() const;
     void onClipLanguageChanged(const QString &language) const;
     void onLanguageEdited(const QString &language) const;

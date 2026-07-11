@@ -17,7 +17,7 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/ControlGroup.h"
-#include "UI/Controls/LineEdit.h"
+#include "UI/Controls/InlineEditLabel.h"
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/ToolTipFilter.h"
 #include "UI/Controls/Toast.h"
@@ -55,17 +55,21 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     setObjectName("ClipEditorToolBarView");
     setFocusPolicy(Qt::ClickFocus);
 
-    // TODO: 换回 EditLabel 以保持一致性
-    d->m_leClipName = new LineEdit;
+    d->m_leClipName = new InlineEditLabel;
     d->m_leClipName->setObjectName("leClipName");
+    d->m_leClipName->setEditRole(InlineEditLabel::ClipName);
     d->m_leClipName->installEventFilter(new ToolTipFilter(d->m_leClipName, 500));
     d->m_leClipName->setToolTip(tr("Clip Name"));
     d->m_leClipName->setFixedWidth(128);
     d->m_leClipName->setFixedHeight(d->m_contentHeight);
     d->m_leClipName->setEnabled(false);
     d->m_leClipName->setText("");
-    connect(d->m_leClipName, &QLineEdit::editingFinished, d,
+    d->m_leClipName->setOverlayParent(this);
+    connect(d->m_leClipName, &InlineEditLabel::editCompleted, d,
             &ClipEditorToolBarViewPrivate::onClipNameEdited);
+    connect(d->m_leClipName, &InlineEditLabel::editingStarted, d, [d] {
+        d->m_editingClipId = d->m_clip ? d->m_clip->id() : -1;
+    });
 
     d->m_cbSinger = new TwoLevelComboBox;
     d->m_cbSinger->setObjectName("cbClipSinger");
@@ -206,6 +210,10 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
 void ClipEditorToolBarView::setDataContext(Clip *clip) {
     Q_D(ClipEditorToolBarView);
+    // Commit any in-progress edit before switching clips
+    d->m_leClipName->finishEditing();
+    d->m_editingClipId = -1;
+
     if (d->m_clip)
         disconnect(d->m_clip, nullptr, d, nullptr);
 
@@ -260,15 +268,20 @@ void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(const QAbstractB
     emit q->editModeChanged(m_editMode);
 }
 
-void ClipEditorToolBarViewPrivate::onClipNameEdited() const {
-    Clip::ClipCommonProperties args(*m_clip);
-    args.name = m_leClipName->text();
-    int trackIndex;
-    appModel->findClipById(m_clip->id(), trackIndex);
+void ClipEditorToolBarViewPrivate::onClipNameEdited(const QString &text) {
+    const auto clipId = m_editingClipId;
+    m_editingClipId = -1;
+    const auto clip = appModel->findClipById(clipId);
+    if (!clip || clip->name() == text)
+        return;
+
+    Clip::ClipCommonProperties args(*clip);
+    args.name = text;
     trackController->onClipPropertyChanged(args);
 }
 
 void ClipEditorToolBarViewPrivate::onClipPropertyChanged() const {
+    m_leClipName->finishEditing();
     m_leClipName->setText(m_clip->name());
 }
 

@@ -8,6 +8,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMetaEnum>
 #include <QResizeEvent>
 #include <QValidator>
 
@@ -15,7 +16,6 @@ InlineEditLabel::InlineEditLabel(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setAttribute(Qt::WA_Hover, true);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    setFocusPolicy(Qt::ClickFocus);
 
     m_label = new QLabel;
     m_label->setText(QStringLiteral(" "));
@@ -81,6 +81,8 @@ InlineEditLabel::EditRole InlineEditLabel::editRole() const {
 
 void InlineEditLabel::setEditRole(const EditRole role) {
     m_editRole = role;
+    const auto metaEnum = QMetaEnum::fromType<EditRole>();
+    setProperty("editRole", QString::fromLatin1(metaEnum.valueToKey(role)));
 }
 
 void InlineEditLabel::setOverlayParent(QWidget *parent) {
@@ -156,7 +158,12 @@ void InlineEditLabel::startEditing() {
 
     const auto displayFont = m_displayFont.family().isEmpty() ? font() : m_displayFont;
 
-    m_overlay->showAt(anchorRect, m_text, displayFont);
+    const auto metaEnum = QMetaEnum::fromType<EditRole>();
+    const QVariantMap editorProperties = {
+        {QStringLiteral("editRole"), QString::fromLatin1(metaEnum.valueToKey(m_editRole))},
+        {QStringLiteral("groupPos"), property("groupPos")},
+    };
+    m_overlay->showAt(anchorRect, m_text, displayFont, editorProperties);
 
     if (m_validator && m_overlay) {
         if (auto *lineEdit = m_overlay->findChild<QLineEdit *>())

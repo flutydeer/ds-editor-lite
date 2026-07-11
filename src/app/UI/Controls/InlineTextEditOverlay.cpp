@@ -6,10 +6,12 @@
 
 #include "Menu.h"
 
+#include <QApplication>
 #include <QFocusEvent>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLineEdit>
+#include <QMouseEvent>
 #include <QStyle>
 
 InlineTextEditOverlay::InlineTextEditOverlay(QWidget *parent) : QWidget(parent) {
@@ -19,7 +21,7 @@ InlineTextEditOverlay::InlineTextEditOverlay(QWidget *parent) : QWidget(parent) 
 }
 
 void InlineTextEditOverlay::showAt(const QRect &anchorRect, const QString &text,
-                                   const QFont &font) {
+                                   const QFont &font, const QVariantMap &editorProperties) {
     m_submitted = false;
     m_activeMenu.clear();
 
@@ -37,6 +39,10 @@ void InlineTextEditOverlay::showAt(const QRect &anchorRect, const QString &text,
     }
 
     m_lineEdit->setFont(font);
+    for (auto it = editorProperties.cbegin(); it != editorProperties.cend(); ++it)
+        m_lineEdit->setProperty(it.key().toUtf8().constData(), it.value());
+    m_lineEdit->style()->unpolish(m_lineEdit);
+    m_lineEdit->style()->polish(m_lineEdit);
     m_lineEdit->setText(text);
     m_lineEdit->selectAll();
 
@@ -44,9 +50,11 @@ void InlineTextEditOverlay::showAt(const QRect &anchorRect, const QString &text,
     show();
     raise();
     m_lineEdit->setFocus();
+    qApp->installEventFilter(this);
 }
 
 void InlineTextEditOverlay::dismiss(const bool cancel) {
+    qApp->removeEventFilter(this);
     hide();
     if (cancel && !m_submitted) {
         m_submitted = true;
@@ -59,6 +67,31 @@ bool InlineTextEditOverlay::isEditing() const {
 }
 
 bool InlineTextEditOverlay::eventFilter(QObject *obj, QEvent *event) {
+    if (isVisible() && !m_submitted && !m_activeMenu) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            if (auto *widget = qobject_cast<QWidget *>(obj)) {
+                if (widget != this && !isAncestorOf(widget)) {
+                    submit();
+                    return false;
+                }
+            }
+        } else if (event->type() == QEvent::Wheel ||
+                   event->type() == QEvent::ApplicationDeactivate) {
+            submit();
+            return false;
+        } else if (auto *widget = qobject_cast<QWidget *>(obj)) {
+            const auto type = event->type();
+            const bool hostGeometryChanged =
+                type == QEvent::Move || type == QEvent::Resize || type == QEvent::Hide ||
+                type == QEvent::ParentAboutToChange || type == QEvent::ParentChange ||
+                type == QEvent::WindowDeactivate || type == QEvent::WindowStateChange;
+            if (hostGeometryChanged && widget != this &&
+                (widget == parentWidget() || widget->isAncestorOf(this))) {
+                submit();
+                return false;
+            }
+        }
+    }
     if (obj == m_lineEdit) {
         switch (event->type()) {
             case QEvent::KeyPress: {
@@ -118,6 +151,7 @@ void InlineTextEditOverlay::submit() {
     if (m_submitted)
         return;
     m_submitted = true;
+    qApp->removeEventFilter(this);
     const auto text = m_lineEdit ? m_lineEdit->text() : QString();
     hide();
     emit textSubmitted(text);
@@ -127,6 +161,7 @@ void InlineTextEditOverlay::cancel() {
     if (m_submitted)
         return;
     m_submitted = true;
+    qApp->removeEventFilter(this);
     hide();
     emit editCancelled();
 }

@@ -6,6 +6,7 @@
 #define INLINETEXTEDITOVERLAY_H
 
 #include <QPointer>
+#include <QVariantMap>
 #include <QWidget>
 
 class QLineEdit;
@@ -18,7 +19,8 @@ public:
     explicit InlineTextEditOverlay(QWidget *parent = nullptr);
     ~InlineTextEditOverlay() override = default;
 
-    void showAt(const QRect &anchorRect, const QString &text, const QFont &font);
+    void showAt(const QRect &anchorRect, const QString &text, const QFont &font,
+                const QVariantMap &editorProperties = {});
     /// Force-submit the current text. No-op if not editing or already submitted.
     void submit();
     void dismiss(bool cancel = false);
