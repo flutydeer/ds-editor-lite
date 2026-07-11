@@ -69,6 +69,7 @@ namespace InferControllerHelper {
         input.speakerMix = InferSpeakerMixModel::staticSpeakerMix(piece.speaker);
         input.identifier = identifier;
         input.steps = appOptions->inference()->samplingSteps;
+        input.pitchSmoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
         return input;
     }
 
@@ -94,6 +95,7 @@ namespace InferControllerHelper {
         input.speakerMix = effectiveSpeakerMixForPiece(piece);
         input.identifier = identifier;
         input.steps = appOptions->inference()->samplingSteps;
+        input.pitchSmoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
         return input;
     }
 
@@ -120,6 +122,7 @@ namespace InferControllerHelper {
         input.speakerMix = effectiveSpeakerMixForPiece(piece);
         input.identifier = identifier;
         input.steps = appOptions->inference()->samplingSteps;
+        input.pitchSmoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
         return input;
     }
 
@@ -184,6 +187,8 @@ namespace InferControllerHelper {
         input.speakerMix = effectiveSpeakerMixForPiece(piece);
         input.identifier = identifier;
         input.steps = appOptions->inference()->samplingSteps;
+        input.depth = appOptions->inference()->depth;
+        input.pitchSmoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
         return input;
     }
 
@@ -266,15 +271,16 @@ namespace InferControllerHelper {
     }
 
     void updateParam(const ParamInfo::Name name, const InferParamCurve &taskResult,
-                     InferPiece &piece, int scale) {
+                     InferPiece &piece, int scale, int smoothKernelSize) {
         const auto &[alignTick, alignValues] = CurveUtil::alignCurve(
             piece.localStartTick(), 5, {taskResult.values.begin(), taskResult.values.end()}, 5);
 
-        const auto smooth_kernel_size = appOptions->inference()->pitch_smooth_kernel_size;
+        if (smoothKernelSize < 0)
+            smoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
         std::vector<double> paramValue;
-        if (name == ParamInfo::Pitch && smooth_kernel_size > 0) {
+        if (name == ParamInfo::Pitch && smoothKernelSize > 0) {
             const auto smoother =
-                std::make_unique<CurveUtil::SinusoidalSmoothingConv1d>(smooth_kernel_size);
+                std::make_unique<CurveUtil::SinusoidalSmoothingConv1d>(smoothKernelSize);
             paramValue = smoother->forward(alignValues);
         } else
             paramValue = alignValues;
@@ -293,8 +299,9 @@ namespace InferControllerHelper {
         piece.clip->updateOriginalParam(name);
     }
 
-    void updatePitch(const InferParamCurve &taskResult, InferPiece &piece) {
-        updateParam(ParamInfo::Pitch, taskResult, piece, 100);
+    void updatePitch(const InferParamCurve &taskResult, InferPiece &piece,
+                     const int smoothKernelSize) {
+        updateParam(ParamInfo::Pitch, taskResult, piece, 100, smoothKernelSize);
     }
 
     void updateVariance(const InferVarianceTask::InferVarianceResult &taskResult,

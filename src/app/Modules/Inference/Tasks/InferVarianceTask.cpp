@@ -10,6 +10,7 @@
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputNote.h"
+#include "Modules/Inference/Utils/InferenceInputSignature.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include "Utils/JsonUtils.h"
 #include "Utils/Linq.h"
@@ -39,6 +40,7 @@ int InferVarianceTask::pieceId() const {
 InferenceTaskContext InferVarianceTask::inferenceContext() const {
     auto context = m_input.toInferenceTaskContext("variance");
     context.taskId = id();
+    context.inputSignature = InferenceInputSignature::fromInput(m_input);
     return context;
 }
 
@@ -284,7 +286,7 @@ GenericInferModel InferVarianceTask::buildInputJson() const {
                            : m_input.speakerMix;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, mouthOpening};
-    model.steps = appOptions->inference()->samplingSteps;
+    model.steps = m_input.steps;
     model.identifier = m_input.identifier;
     return model;
 }

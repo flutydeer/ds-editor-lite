@@ -70,6 +70,7 @@ public:
     void createAndRunGetPhoneTask(const SingingClip &clip);
 
     void createPipeline(InferPiece &piece);
+    void handlePipelineDropped(InferPipeline *pipeline, const QString &reason);
 
     void reset();
 

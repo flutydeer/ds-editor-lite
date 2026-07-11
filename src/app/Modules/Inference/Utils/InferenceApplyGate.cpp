@@ -10,6 +10,7 @@
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Modules/Inference/Models/InferSpeakerMix.h"
+#include "Modules/Inference/Utils/InferenceInputSignature.h"
 
 #include <QDebug>
 
@@ -129,34 +130,15 @@ namespace {
         return !context.speakerMixSignature.isEmpty() && context.taskType != "duration";
     }
 
-    bool pieceNoteIdsMatchContext(const InferPiece &piece, const InferenceTaskContext &context) {
-        if (piece.notes.count() != context.noteIds.count())
-            return false;
-
-        for (int i = 0; i < piece.notes.count(); ++i) {
-            const auto note = piece.notes[i];
-            if (!note || note->id() != context.noteIds[i])
-                return false;
-        }
-        return true;
-    }
-
-    bool canApplyAcrossRevisionMismatch(const InferenceTaskContext &context,
-                                        const InferenceTaskResolution &resolution,
-                                        const InferenceApplyGate::Options &options) {
-        if (!options.allowUnchangedPieceRevisionMismatch || !options.requirePiece ||
-            !options.requireNotesInPiece || !resolution.piece) {
-            return false;
-        }
-        if (resolution.piece->dirty)
-            return false;
-        return pieceNoteIdsMatchContext(*resolution.piece, context);
-    }
-
     InferSpeakerMix effectiveSpeakerMixForPiece(const InferPiece &piece) {
         if (!piece.speakerMix.isEmpty())
             return piece.speakerMix;
         return InferSpeakerMixModel::staticSpeakerMix(piece.speaker);
+    }
+
+    bool hasPieceInputSignature(const InferenceTaskContext &context,
+                                const InferenceApplyGate::Options &options) {
+        return options.requirePiece && !context.inputSignature.isEmpty();
     }
 }
 
@@ -269,11 +251,21 @@ namespace InferenceApplyGate {
         }
 
         resolution = {clip, piece, notes, {}};
-        if (currentRevision != context.clipRevision) {
-            if (!canApplyAcrossRevisionMismatch(context, resolution, options))
-                return drop("revision-mismatch", currentRevision);
-            logDecision(context, options.phase, Decision::Apply,
-                        "revision-mismatch-piece-unchanged", currentRevision);
+        if (hasPieceInputSignature(context, options)) {
+            // Piece tasks are allowed to cross clip revision drift only when their full semantic
+            // input still matches the task snapshot. Clip-level tasks keep strict revision checks.
+            const auto currentSignature =
+                InferenceInputSignature::fromCurrentPiece(context.taskType, *piece, context.singer);
+            if (currentSignature.isEmpty())
+                return drop("input-signature-unavailable", currentRevision);
+            if (currentSignature != context.inputSignature)
+                return drop("input-signature-mismatch", currentRevision);
+            if (currentRevision != context.clipRevision) {
+                logDecision(context, options.phase, Decision::Apply,
+                            "revision-mismatch-input-signature-match", currentRevision);
+            }
+        } else if (currentRevision != context.clipRevision) {
+            return drop("revision-mismatch", currentRevision);
         }
         if (options.checkEditSession && editSessionManager->hasActiveTransaction()) {
             const auto session = editSessionManager->activeSession();

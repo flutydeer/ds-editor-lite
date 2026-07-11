@@ -121,12 +121,14 @@ void BaseInferState::handleTaskFinished(IInferTask &task) {
     m_pipeline.setApplyContext(task.inferenceContext());
     const auto gate = m_pipeline.resolveApplyContext(-1, false);
     if (gate.decision != InferenceApplyGate::Decision::Apply) {
+        m_pipeline.notifyDropped(gate.reason);
         finishCurrentTask();
         QTimer::singleShot(0, this, [this] { emit dropped(); });
         return;
     }
 
     if (!validateTaskResult(&task, gate.resolution.clip)) {
+        m_pipeline.notifyDropped("task-result-invalid");
         finishCurrentTask();
         QTimer::singleShot(0, this, [this] { emit dropped(); });
         return;

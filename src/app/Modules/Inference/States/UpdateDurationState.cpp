@@ -27,6 +27,7 @@ void UpdateDurationState::onEntry(QEvent *event) {
             QTimer::singleShot(0, this, [this] { emit deferred(); });
             return;
         case InferenceApplyGate::Decision::Drop:
+            m_pipeline.notifyDropped(gate.reason);
             QTimer::singleShot(0, this, [this] { emit pieceNotFound(); });
             return;
     }

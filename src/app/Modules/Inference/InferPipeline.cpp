@@ -50,6 +50,17 @@ InferPiece &InferPipeline::piece() const {
     return m_piece;
 }
 
+void InferPipeline::notifyDropped(const QString &reason) {
+    const auto taskType =
+        m_applyContext.taskType.isEmpty() ? QString("Pipeline") : m_applyContext.taskType;
+    // Make drops visible in timeline/debug UI and avoid leaving AwaitingEditSessionApply as the
+    // last state after the gate has made a final decision.
+    m_piece.state = QString("%1.Dropped").arg(taskType);
+    if (m_piece.acousticInferStatus == Running)
+        m_piece.acousticInferStatus = Pending;
+    emit dropped(reason, m_piece.id(), taskType);
+}
+
 const InferenceTaskContext &InferPipeline::applyContext() const {
     return m_applyContext;
 }
@@ -69,7 +80,6 @@ InferPipeline::ApplyGateResult
     options.phase = checkEditSession ? "pipeline-update" : "pipeline-task-finished";
     options.expectedNoteCount = expectedNoteCount;
     options.checkEditSession = checkEditSession;
-    options.allowUnchangedPieceRevisionMismatch = true;
 
     ApplyGateResult result;
     result.decision = InferenceApplyGate::resolve(m_applyContext, result.resolution, options);
@@ -127,6 +137,7 @@ void InferPipeline::onAppOptionsChanged(const AppOptionsGlobal::Option option) {
 
     if (appOptions->inference()->autoStartInfer)
         emit lazyInferAcousticTurnedOff();
+    emit inferenceOptionsChanged();
 }
 
 void InferPipeline::notifyPlaybackStarted() {
@@ -180,6 +191,20 @@ void InferPipeline::initTransitions() {
     initAwaitingInferAcousticTransitions();
     initAcousticTransitions();
     initPlaybackReadyTransitions();
+
+    const QList<QState *> restartableStates{
+        inferDurationState,         updateDurationState,
+        awaitingDurationApplyState, inferPitchState,
+        updatePitchState,           awaitingPitchApplyState,
+        inferVarianceState,         updateVarianceState,
+        awaitingVarianceApplyState, awaitingInferAcousticState,
+        inferAcousticState,         updateAcousticState,
+        awaitingAcousticApplyState, playbackReadyState,
+    };
+    // Inference options are part of the task snapshot, so active pipelines restart with a new
+    // snapshot instead of mixing old worker output with new apply-time options.
+    for (const auto state : restartableStates)
+        state->addTransition(this, &InferPipeline::inferenceOptionsChanged, inferDurationState);
 }
 
 void InferPipeline::initDurationTransitions() {
@@ -258,7 +283,6 @@ void InferPipeline::initAwaitingInferAcousticTransitions() {
                                               inferPitchState);
     awaitingInferAcousticState->addTransition(this, &InferPipeline::pitchChanged,
                                               inferVarianceState);
-
 }
 
 void InferPipeline::initAcousticTransitions() {

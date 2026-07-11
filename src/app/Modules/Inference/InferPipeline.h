@@ -41,6 +41,7 @@ public:
     [[nodiscard]] int clipId() const;
     void run();
     [[nodiscard]] InferPiece &piece() const;
+    void notifyDropped(const QString &reason);
 
     [[nodiscard]] const InferenceTaskContext &applyContext() const;
     void setApplyContext(const InferenceTaskContext &context);
@@ -75,6 +76,9 @@ public slots:
 
     void notifyPlaybackStarted();
 
+signals:
+    void dropped(const QString &reason, int pieceId, const QString &taskType);
+
 private slots:
     // Inference options changed
     void onAppOptionsChanged(const AppOptionsGlobal::Option option);
@@ -93,6 +97,7 @@ private:
     Q_SIGNAL void acousticStepsChanged();
     Q_SIGNAL void acousticDepthChanged();
     Q_SIGNAL void lazyInferAcousticTurnedOff();
+    Q_SIGNAL void inferenceOptionsChanged();
 
     // Events
     Q_SIGNAL void pieceRemoved();

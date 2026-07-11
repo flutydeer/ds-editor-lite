@@ -31,6 +31,8 @@ public:
     InferSpeakerMix speakerMix;
     SingerIdentifier identifier;
     int steps = -1;
+    double depth = 1.0;
+    int pitchSmoothKernelSize = -1;
 
     [[nodiscard]] InferenceTaskContext toInferenceTaskContext(const QString &taskType) const {
         InferenceTaskContext context;
@@ -41,6 +43,7 @@ public:
         context.singer = identifier;
         context.speaker = speaker;
         context.speakerMixSignature = speakerMix.signature();
+        context.pitchSmoothKernelSize = pitchSmoothKernelSize;
         context.noteIds.reserve(notes.count());
         for (const auto &note : notes)
             context.noteIds.append(note.id);

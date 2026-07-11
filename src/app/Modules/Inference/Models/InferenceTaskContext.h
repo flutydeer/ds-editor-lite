@@ -21,6 +21,8 @@ struct InferenceTaskContext {
     int clipId = -1;
     int pieceId = -1;
     quint64 clipRevision = 0;
+    QString inputSignature;
+    int pitchSmoothKernelSize = -1;
     QList<int> noteIds;
     SingerIdentifier singer;
     QString speaker;

@@ -47,8 +47,9 @@ namespace InferControllerHelper {
     void updatePhoneOffset(const QList<Note *> &notes, const QList<InferInputNote> &args,
                            SingingClip &clip);
     void updateParam(ParamInfo::Name name, const InferParamCurve &taskResult, InferPiece &piece,
-                     int scale = 1000);
-    void updatePitch(const InferParamCurve &taskResult, InferPiece &piece);
+                     int scale = 1000, int smoothKernelSize = -1);
+    void updatePitch(const InferParamCurve &taskResult, InferPiece &piece,
+                     int smoothKernelSize = -1);
     void updateVariance(const InferVarianceTask::InferVarianceResult &taskResult,
                         InferPiece &piece);
     void updateAcoustic(const QString &taskResult, InferPiece &piece);

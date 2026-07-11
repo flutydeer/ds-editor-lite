@@ -9,6 +9,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
+#include "Modules/Inference/Utils/InferenceInputSignature.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include "Utils/JsonUtils.h"
 #include "InferTaskCommon.h"
@@ -43,6 +44,7 @@ int InferDurationTask::pieceId() const {
 InferenceTaskContext InferDurationTask::inferenceContext() const {
     auto context = m_input.toInferenceTaskContext("duration");
     context.taskId = id();
+    context.inputSignature = InferenceInputSignature::fromInput(m_input);
     return context;
 }
 
@@ -240,7 +242,7 @@ GenericInferModel InferDurationTask::buildInputJson() const {
     model.speakerMix = InferSpeakerMixModel::staticSpeakerMix(m_input.speaker);
     model.words = InferTaskHelper::buildWords(m_input);
     model.identifier = m_input.identifier;
-    model.steps = appOptions->inference()->samplingSteps;
+    model.steps = m_input.steps;
     return model;
 }
 

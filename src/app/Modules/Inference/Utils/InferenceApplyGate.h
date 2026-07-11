@@ -21,7 +21,6 @@ namespace InferenceApplyGate {
         bool requireNotesInPiece = true;
         bool checkSingerSpeaker = true;
         bool checkEditSession = false;
-        bool allowUnchangedPieceRevisionMismatch = false;
     };
 
     [[nodiscard]] Decision resolve(const InferenceTaskContext &context,

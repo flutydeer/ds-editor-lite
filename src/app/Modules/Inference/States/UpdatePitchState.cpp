@@ -27,13 +27,15 @@ void UpdatePitchState::onEntry(QEvent *event) {
             QTimer::singleShot(0, this, [this] { emit deferred(); });
             return;
         case InferenceApplyGate::Decision::Drop:
+            m_pipeline.notifyDropped(gate.reason);
             QTimer::singleShot(0, this, [this] { emit pieceNotFound(); });
             return;
     }
 
     auto &piece = *gate.resolution.piece;
     piece.state = QString("Pitch.Update");
-    Helper::updatePitch(m_pipeline.pitchResult(), piece);
+    Helper::updatePitch(m_pipeline.pitchResult(), piece,
+                        m_pipeline.applyContext().pitchSmoothKernelSize);
     QTimer::singleShot(0, this, [this] { emit updateSuccess(); });
 }
 

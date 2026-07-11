@@ -13,6 +13,7 @@
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
+#include "Modules/Inference/Utils/InferenceInputSignature.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include "Utils/JsonUtils.h"
 #include "Utils/MathUtils.h"
@@ -47,6 +48,7 @@ int InferAcousticTask::pieceId() const {
 InferenceTaskContext InferAcousticTask::inferenceContext() const {
     auto context = m_input.toInferenceTaskContext("acoustic");
     context.taskId = id();
+    context.inputSignature = InferenceInputSignature::fromInput(m_input);
     return context;
 }
 
@@ -352,8 +354,8 @@ GenericInferModel InferAcousticTask::buildInputJson() const {
     model.words = words;
     model.params = {pitch,        breathiness, tension,  voicing,  energy,
                     mouthOpening, gender,      velocity, toneShift};
-    model.steps = appOptions->inference()->samplingSteps;
-    model.depth = appOptions->inference()->depth;
+    model.steps = m_input.steps;
+    model.depth = static_cast<float>(m_input.depth);
     model.identifier = m_input.identifier;
     return model;
 }

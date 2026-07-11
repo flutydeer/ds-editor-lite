@@ -22,6 +22,7 @@
 #include "Modules/Inference/EditSessionManager.h"
 
 #include <QTimer>
+#include <QPointer>
 
 #include <utility>
 
@@ -789,9 +790,52 @@ void InferControllerPrivate::createPipeline(InferPiece &piece) {
     if (!piece.clip || !canStartClipInference(*piece.clip))
         return;
 
+    // Keep one live state machine per piece. Dropped/final machines are removed before a fresh
+    // one is allowed to observe later model events.
+    const auto duplicatePipelines = Linq::where(
+        m_inferPipelines, [&piece](const InferPipeline *p) { return p->pieceId() == piece.id(); });
+    for (const auto pipeline : duplicatePipelines) {
+        m_inferPipelines.removeOne(pipeline);
+        pipeline->deleteLater();
+    }
+
     auto pipeline = new InferPipeline(piece);
     m_inferPipelines.append(pipeline);
+    connect(pipeline, &InferPipeline::dropped, this,
+            [this, pipeline](const QString &reason, int, const QString &) {
+                handlePipelineDropped(pipeline, reason);
+            });
     pipeline->run();
+}
+
+void InferControllerPrivate::handlePipelineDropped(InferPipeline *pipeline, const QString &reason) {
+    if (!pipeline)
+        return;
+
+    const QPointer<InferPipeline> guardedPipeline(pipeline);
+    const auto clipId = pipeline->clipId();
+    const auto pieceId = pipeline->pieceId();
+    QTimer::singleShot(0, this, [this, guardedPipeline, clipId, pieceId, reason] {
+        if (!guardedPipeline || !m_inferPipelines.contains(guardedPipeline.data()))
+            return;
+
+        m_inferPipelines.removeOne(guardedPipeline.data());
+        guardedPipeline->deleteLater();
+
+        // A signature mismatch means the old task was correctly rejected, but the piece may still
+        // need inference with its new inputs. Restart from duration instead of keeping a dead final
+        // pipeline around.
+        if (reason != "input-signature-mismatch")
+            return;
+
+        const auto clip = dynamic_cast<SingingClip *>(appModel->findClipById(clipId));
+        if (!clip || !canStartClipInference(*clip))
+            return;
+        const auto piece = clip->findPieceById(pieceId);
+        if (!piece)
+            return;
+        createPipeline(*piece);
+    });
 }
 
 void InferControllerPrivate::reset() {
