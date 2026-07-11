@@ -68,14 +68,14 @@
 
 阶段完成后 Debug 构建通过，独立提交。
 
-## 第四阶段：钢琴卷帘发音
+## 第四阶段：钢琴卷帘发音 ✅ 已完成
 
-- 将 `PronunciationView` 的 proxy 编辑器迁移到 `PianoRollGraphicsView` 的共享覆盖层。
-- 统一歌词和发音的当前编辑目标，以 `noteId + FieldType` 标识；开始新目标前提交旧目标。
-- 发音提交前执行 `trimmed()`；清空时清除 `pronunciation.edited`，恢复原始/自动发音。
-- 删除发音视图中的临时连接、独立编辑状态和 `QGraphicsProxyWidget`。
-- 应用与歌词一致的右键、外部事件、窗口失活和目标生命周期规则。
-- 若外部模型已经删除目标、无法通过 note id 定位，则安全取消，不访问悬空对象。
+- ✅ `PronunciationView` 迁移到 PianoRoll viewport 共享覆盖层。
+- ✅ 使用 `InlineEditField + noteId` 统一歌词和发音目标，开始新目标前提交旧目标。
+- ✅ 发音提交前执行 `trimmed()`；清空人工值时清除 `pronunciation.edited` 并恢复 original。
+- ✅ 删除发音视图的临时连接、独立 `QLineEdit` 和 `QGraphicsProxyWidget`。
+- ✅ 发音复用统一右键菜单、外部事件、窗口失活和目标失效保护。
+- ✅ 未编辑发音以 original 为显示基准，原样退出不会误创建人工发音覆盖。
 
 验收点：
 
@@ -85,7 +85,7 @@
 - 滚动、缩放、删除音符和切换剪辑时没有残留编辑器。
 - 重复进入和退出不会多次修改模型。
 
-阶段完成后完整构建并暂停，等待用户确认。
+阶段完成后 Debug 构建通过，独立提交。
 
 ## 第五阶段：剩余 EditLabel 数值入口
 

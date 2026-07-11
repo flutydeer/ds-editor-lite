@@ -27,7 +27,7 @@ DrawNoteHandler::~DrawNoteHandler() {
 bool DrawNoteHandler::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
         return false;
-    d->finishEditingLyric();
+    d->finishInlineEditing();
 
     const auto scenePos = q->mapToScene(event->pos());
     const auto keyIndex =
@@ -46,11 +46,6 @@ bool DrawNoteHandler::mousePressEvent(QMouseEvent *event) {
         currentNoteView->setSelected(true);
         return false;
     } else {
-        for (const auto view : d->noteViews) {
-            if (view->pronunciationView() && view->pronunciationView()->isEditingPronunciation()) {
-                view->pronunciationView()->finishEditingPronunciation();
-            }
-        }
         prepareForDrawingNote(tick, keyIndex);
         return true;
     }
@@ -105,7 +100,7 @@ void DrawNoteHandler::discard() {
 
 void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,
                                             const int initialLength) {
-    d->finishEditingLyric();
+    d->finishInlineEditing();
 
     const auto quantizedTickLength =
         TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);

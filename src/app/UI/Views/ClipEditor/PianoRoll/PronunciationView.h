@@ -8,9 +8,6 @@
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
 #include "Utils/UniqueObject.h"
 
-class QLineEdit;
-class QGraphicsProxyWidget;
-
 class PronunciationView final : public AbstractGraphicsRectItem, public UniqueObject {
     Q_OBJECT
 
@@ -20,12 +17,8 @@ public:
 
     const int textHeight = 20;
 
-    void startEditingPronunciation();
-    void finishEditingPronunciation();
-    bool isEditingPronunciation() const;
-
-signals:
-    void pronunciationEditingFinished(const QString &pronunciation);
+    void setEditingPronunciation(bool editing);
+    [[nodiscard]] bool isEditingPronunciation() const;
 
 private:
     friend class NoteView;
@@ -34,8 +27,6 @@ private:
 
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     void updateRectAndPos() override;
-    void updateLineEditGeometry();
-    bool eventFilter(QObject *obj, QEvent *event) override;
 
     QString m_pronunciation;
     bool m_pronunciationEdited = false;
@@ -43,8 +34,6 @@ private:
     QPointF m_pos;
     QSizeF m_size;
 
-    QGraphicsProxyWidget *m_lineEditProxy = nullptr;
-    QLineEdit *m_lineEdit = nullptr;
     bool m_editingPronunciation = false;
 };
 

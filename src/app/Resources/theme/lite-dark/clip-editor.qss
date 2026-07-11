@@ -85,6 +85,13 @@ QLineEdit#inlineEditLineEdit[editRole="Lyric"] {
     padding: 0px 2px;
 }
 
+QLineEdit#inlineEditLineEdit[editRole="Pronunciation"] {
+    background: #1A1C22;
+    border: 1px solid #9BBAFF;
+    border-radius: 2px;
+    padding: 0px 2px;
+}
+
 TwoLevelComboBox#cbClipSinger,
 ComboBox#cbClipLanguage,
 ComboBox#cbPianoRollQuantize {

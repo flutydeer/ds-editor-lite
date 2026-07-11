@@ -40,6 +40,8 @@ class PianoRollGraphicsViewPrivate : public QObject {
     Q_DECLARE_PUBLIC(PianoRollGraphicsView)
 
 public:
+    enum class InlineEditField { None, Lyric, Pronunciation };
+
     explicit PianoRollGraphicsViewPrivate(PianoRollGraphicsView *p) : q_ptr(p) {};
     bool eventFilter(QObject *watched, QEvent *event) override;
 
@@ -62,7 +64,8 @@ public:
     PianoRollSelectionModel *m_selectionModel = nullptr;
     NoteInteractionController *m_interactionController = nullptr;
     InlineTextEditOverlay *m_inlineEditor = nullptr;
-    int m_editingLyricNoteId = -1;
+    InlineEditField m_inlineEditField = InlineEditField::None;
+    int m_inlineEditingNoteId = -1;
     QAction *m_pasteAction = nullptr;
     void restoreHandler();
 
@@ -104,14 +107,15 @@ public slots:
     void onDeleteSelectedNotes() const;
     void onOpenNotePropertyDialog(int noteId, AppGlobal::NotePropertyType propertyType);
     void onStartEditingNoteLyric(NoteView *noteView);
-    void finishEditingLyric();
-    void onLyricTextSubmitted(const QString &text);
-    void onLyricNavigationRequested(const QString &text, bool backwards);
-    void onLyricEditCancelled();
+    void finishInlineEditing();
+    void onInlineTextSubmitted(const QString &text);
+    void onInlineNavigationRequested(const QString &text, bool backwards);
+    void onInlineEditCancelled();
+    void applyLyricEdit(int noteId, const QString &text);
+    void applyPronunciationEdit(int noteId, const QString &text);
     NoteView *findAdjacentNoteView(NoteView *currentNoteView, bool backwards) const;
 
     void onStartEditingPronunciation(PronunciationView *pronView);
-    void onPronunciationEditingFinished(PronunciationView *pronView, const QString &pronunciation);
 
 private:
     PianoRollGraphicsView *q_ptr;

@@ -86,11 +86,11 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
 
     d->m_inlineEditor = new InlineTextEditOverlay(viewport());
     connect(d->m_inlineEditor, &InlineTextEditOverlay::textSubmitted, d,
-            &PianoRollGraphicsViewPrivate::onLyricTextSubmitted);
+            &PianoRollGraphicsViewPrivate::onInlineTextSubmitted);
     connect(d->m_inlineEditor, &InlineTextEditOverlay::navigationRequested, d,
-            &PianoRollGraphicsViewPrivate::onLyricNavigationRequested);
+            &PianoRollGraphicsViewPrivate::onInlineNavigationRequested);
     connect(d->m_inlineEditor, &InlineTextEditOverlay::editCancelled, d,
-            &PianoRollGraphicsViewPrivate::onLyricEditCancelled);
+            &PianoRollGraphicsViewPrivate::onInlineEditCancelled);
 
     d->m_selectionModel =
         new PianoRollSelectionModel(this, d->noteViews, d->noteViewIndex, d->m_notes, this);
@@ -165,11 +165,11 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, cons
     connect(this, &TimeGraphicsView::visibleRectChanged, this,
             &PianoRollGraphicsView::notifyKeyRangeChanged);
     connect(this, &TimeGraphicsView::scaleChanged, d,
-            &PianoRollGraphicsViewPrivate::finishEditingLyric);
+            &PianoRollGraphicsViewPrivate::finishInlineEditing);
     connect(this, &TimeGraphicsView::visibleRectChanged, d,
-            &PianoRollGraphicsViewPrivate::finishEditingLyric);
+            &PianoRollGraphicsViewPrivate::finishInlineEditing);
     connect(this, &TimeGraphicsView::sizeChanged, d,
-            &PianoRollGraphicsViewPrivate::finishEditingLyric);
+            &PianoRollGraphicsViewPrivate::finishInlineEditing);
 
     connect(appStatus, &AppStatus::noteSelectionChanged, d,
             &PianoRollGraphicsViewPrivate::onNoteSelectionChanged);
@@ -709,7 +709,7 @@ void PianoRollGraphicsView::setViewportCenterAtKeyIndex(const double keyIndex) {
 void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     Q_D(PianoRollGraphicsView);
     if (d->m_editMode != mode) {
-        d->finishEditingLyric();
+        d->finishInlineEditing();
         commitAction();
     }
 
@@ -751,7 +751,7 @@ void PianoRollGraphicsViewPrivate::restoreHandler() {
 
 void PianoRollGraphicsViewPrivate::onNoteChanged(const SingingClip::NoteChangeType type,
                                                  const QList<Note *> &notes) {
-    finishEditingLyric();
+    finishInlineEditing();
     if (type == SingingClip::Insert)
         for (const auto &note : notes)
             handleNoteInserted(note);
@@ -776,7 +776,7 @@ void PianoRollGraphicsViewPrivate::onNoteChanged(const SingingClip::NoteChangeTy
 
 void PianoRollGraphicsViewPrivate::onNoteSelectionChanged() {
     Q_Q(PianoRollGraphicsView);
-    finishEditingLyric();
+    finishInlineEditing();
     if (m_clip)
         m_selectionModel->updateSceneSelectionState();
 }
@@ -810,16 +810,14 @@ void PianoRollGraphicsViewPrivate::onStartEditingNoteLyric(NoteView *noteView) {
     Q_Q(PianoRollGraphicsView);
     if (!noteView || noteView->id() < 0 || !m_clip)
         return;
-    if (m_editingLyricNoteId == noteView->id() && m_inlineEditor->isEditing())
+    if (m_inlineEditField == InlineEditField::Lyric &&
+        m_inlineEditingNoteId == noteView->id() && m_inlineEditor->isEditing())
         return;
 
-    finishEditingLyric();
-    for (const auto view : noteViews) {
-        if (view->pronunciationView() && view->pronunciationView()->isEditingPronunciation())
-            view->pronunciationView()->finishEditingPronunciation();
-    }
+    finishInlineEditing();
 
-    m_editingLyricNoteId = noteView->id();
+    m_inlineEditField = InlineEditField::Lyric;
+    m_inlineEditingNoteId = noteView->id();
     noteView->setEditingLyric(true);
 
     auto anchorRect = q->mapFromScene(noteView->sceneBoundingRect()).boundingRect();
@@ -840,17 +838,22 @@ void PianoRollGraphicsViewPrivate::onStartEditingNoteLyric(NoteView *noteView) {
     m_inlineEditor->showAt(anchorRect, noteView->lyric(), font, properties);
 }
 
-void PianoRollGraphicsViewPrivate::finishEditingLyric() {
+void PianoRollGraphicsViewPrivate::finishInlineEditing() {
     if (m_inlineEditor && m_inlineEditor->isEditing())
         m_inlineEditor->submit();
 }
 
-void PianoRollGraphicsViewPrivate::onLyricTextSubmitted(const QString &text) {
-    const int noteId = m_editingLyricNoteId;
-    m_editingLyricNoteId = -1;
-    if (const auto noteView = findNoteViewById(noteId))
-        noteView->setEditingLyric(false);
+void PianoRollGraphicsViewPrivate::onInlineTextSubmitted(const QString &text) {
+    const auto field = m_inlineEditField;
+    const int noteId = m_inlineEditingNoteId;
+    onInlineEditCancelled();
+    if (field == InlineEditField::Lyric)
+        applyLyricEdit(noteId, text);
+    else if (field == InlineEditField::Pronunciation)
+        applyPronunciationEdit(noteId, text);
+}
 
+void PianoRollGraphicsViewPrivate::applyLyricEdit(const int noteId, const QString &text) {
     if (!m_clip)
         return;
     const auto note = m_clip->findNoteById(noteId);
@@ -872,12 +875,12 @@ void PianoRollGraphicsViewPrivate::onLyricTextSubmitted(const QString &text) {
     clipController->onNotePropertiesEdited(noteId, result);
 }
 
-void PianoRollGraphicsViewPrivate::onLyricNavigationRequested(const QString &text,
-                                                              const bool backwards) {
+void PianoRollGraphicsViewPrivate::onInlineNavigationRequested(const QString &text,
+                                                               const bool backwards) {
     Q_Q(PianoRollGraphicsView);
-    const int noteId = m_editingLyricNoteId;
+    const int noteId = m_inlineEditingNoteId;
     auto *currentNoteView = findNoteViewById(noteId);
-    onLyricTextSubmitted(text);
+    onInlineTextSubmitted(text);
     const auto nextNoteView = findAdjacentNoteView(currentNoteView, backwards);
     if (nextNoteView) {
         q->clearNoteSelections();
@@ -888,11 +891,17 @@ void PianoRollGraphicsViewPrivate::onLyricNavigationRequested(const QString &tex
     }
 }
 
-void PianoRollGraphicsViewPrivate::onLyricEditCancelled() {
-    const int noteId = m_editingLyricNoteId;
-    m_editingLyricNoteId = -1;
-    if (const auto noteView = findNoteViewById(noteId))
-        noteView->setEditingLyric(false);
+void PianoRollGraphicsViewPrivate::onInlineEditCancelled() {
+    const auto field = m_inlineEditField;
+    const int noteId = m_inlineEditingNoteId;
+    m_inlineEditField = InlineEditField::None;
+    m_inlineEditingNoteId = -1;
+    if (const auto noteView = findNoteViewById(noteId)) {
+        if (field == InlineEditField::Lyric)
+            noteView->setEditingLyric(false);
+        else if (field == InlineEditField::Pronunciation && noteView->pronunciationView())
+            noteView->pronunciationView()->setEditingPronunciation(false);
+    }
 }
 
 NoteView *PianoRollGraphicsViewPrivate::findAdjacentNoteView(NoteView *currentNoteView,
@@ -912,34 +921,61 @@ NoteView *PianoRollGraphicsViewPrivate::findAdjacentNoteView(NoteView *currentNo
 }
 
 void PianoRollGraphicsViewPrivate::onStartEditingPronunciation(PronunciationView *pronView) {
-    finishEditingLyric();
-    for (const auto view : noteViews) {
-        if (view->pronunciationView() && view->pronunciationView()->isEditingPronunciation()) {
-            view->pronunciationView()->finishEditingPronunciation();
-        }
-    }
+    Q_Q(PianoRollGraphicsView);
+    if (!pronView || pronView->id() < 0 || !m_clip)
+        return;
+    if (m_inlineEditField == InlineEditField::Pronunciation &&
+        m_inlineEditingNoteId == pronView->id() && m_inlineEditor->isEditing())
+        return;
 
-    connect(pronView, &PronunciationView::pronunciationEditingFinished, this,
-            [this, pronView](const QString &pronunciation) {
-                onPronunciationEditingFinished(pronView, pronunciation);
-            });
+    finishInlineEditing();
+    const auto note = m_clip->findNoteById(pronView->id());
+    if (!note)
+        return;
 
-    pronView->startEditingPronunciation();
+    m_inlineEditField = InlineEditField::Pronunciation;
+    m_inlineEditingNoteId = pronView->id();
+    pronView->setEditingPronunciation(true);
+
+    auto anchorRect = q->mapFromScene(pronView->sceneBoundingRect()).boundingRect();
+    const auto viewportRect = q->viewport()->rect();
+    const int width = qMin(viewportRect.width(), qMax(40, anchorRect.width()));
+    const int height = qMin(viewportRect.height(), qMax(20, anchorRect.height()));
+    anchorRect.setSize({width, height});
+    anchorRect.moveLeft(qBound(0, anchorRect.left(), viewportRect.width() - width));
+    anchorRect.moveTop(qBound(0, anchorRect.top(), viewportRect.height() - height));
+
+    QFont font;
+    if (const auto noteView = findNoteViewById(pronView->id()))
+        font.setPixelSize(noteView->fontPixelSize);
+    const auto pronunciation = note->pronunciation();
+    const auto displayText = pronunciation.isEdited() ? pronunciation.edited
+                                                       : pronunciation.original;
+    const QVariantMap properties = {
+        {QStringLiteral("editRole"), QStringLiteral("Pronunciation")},
+    };
+    m_inlineEditor->showAt(anchorRect, displayText, font, properties);
 }
 
-void PianoRollGraphicsViewPrivate::onPronunciationEditingFinished(PronunciationView *pronView,
-                                                                  const QString &pronunciation) {
-    disconnect(pronView, &PronunciationView::pronunciationEditingFinished, this, nullptr);
-
-    const int noteId = pronView->id();
+void PianoRollGraphicsViewPrivate::applyPronunciationEdit(const int noteId,
+                                                          const QString &text) {
+    if (!m_clip)
+        return;
     const auto note = m_clip->findNoteById(noteId);
-    Q_ASSERT(note);
+    if (!note)
+        return;
+    const auto pronunciation = note->pronunciation();
+    const auto displayText = pronunciation.isEdited() ? pronunciation.edited
+                                                       : pronunciation.original;
+    const auto editedText = text.trimmed();
+    if (editedText == displayText || editedText == pronunciation.edited)
+        return;
 
     NoteDialogResult result;
     result.lyric = note->lyric();
     result.language = note->language();
-    result.pronunciation = note->pronunciation();
-    result.pronunciation.edited = pronunciation;
+    result.pronunciation = pronunciation;
+    result.pronunciation.edited = editedText;
     result.phonemeNameSeq = note->phonemeNameSeq();
 
     clipController->onNotePropertiesEdited(noteId, result);
@@ -947,7 +983,7 @@ void PianoRollGraphicsViewPrivate::onPronunciationEditingFinished(PronunciationV
 
 void PianoRollGraphicsViewPrivate::moveToNullClipState() {
     Q_Q(PianoRollGraphicsView);
-    finishEditingLyric();
+    finishInlineEditing();
     m_pitchEditor->cancelEdit();
     endPitchEditSession(EditSessionEndReason::Cancel);
     q->setSceneVisibility(false);
@@ -963,7 +999,7 @@ void PianoRollGraphicsViewPrivate::moveToNullClipState() {
 
 void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     Q_Q(PianoRollGraphicsView);
-    finishEditingLyric();
+    finishInlineEditing();
     m_pitchEditor->cancelEdit();
     endPitchEditSession(EditSessionEndReason::Cancel);
     m_selectionModel->setSelectionChangeBarrier(true);
@@ -1070,8 +1106,8 @@ void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteRemoved(Note *note) {
-    if (m_editingLyricNoteId == note->id())
-        finishEditingLyric();
+    if (m_inlineEditingNoteId == note->id())
+        finishInlineEditing();
     m_selectionModel->setSelectionChangeBarrier(true);
     const auto noteView = findNoteViewById(note->id());
     if (!noteView) {

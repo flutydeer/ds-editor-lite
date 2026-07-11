@@ -16,7 +16,7 @@ SelectNoteHandler::~SelectNoteHandler() = default;
 bool SelectNoteHandler::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
         return false;
-    d->finishEditingLyric();
+    d->finishInlineEditing();
 
     const auto scenePos = q->mapToScene(event->pos());
     const auto keyIndex =
@@ -25,12 +25,6 @@ bool SelectNoteHandler::mousePressEvent(QMouseEvent *event) {
 
     if (noteView) {
         d->m_interactionController->prepareForEditingNotes(event, scenePos, keyIndex, noteView);
-    } else {
-        for (const auto view : d->noteViews) {
-            if (view->pronunciationView() && view->pronunciationView()->isEditingPronunciation()) {
-                view->pronunciationView()->finishEditingPronunciation();
-            }
-        }
     }
     return false;
 }
