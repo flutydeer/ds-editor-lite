@@ -25,6 +25,8 @@ public:
         InferParamCurve expressiveness;
 
         bool operator==(const InferPitchInput &other) const;
+        [[nodiscard]] QString semanticSignature() const;
+        [[nodiscard]] GenericInferModel toEngineModel() const;
     };
 
     [[nodiscard]] int clipId() const override;
@@ -42,7 +44,6 @@ private:
     void terminate() override;
     void abort();
     void buildPreviewText();
-    GenericInferModel buildInputJson() const;
     bool processOutput(const GenericInferModel &model);
 
     srt::NO<srt::Inference> m_inferencePitch;

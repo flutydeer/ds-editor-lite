@@ -9,8 +9,8 @@
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
+#include "Modules/Inference/InferControllerHelper.h"
 #include "Modules/Inference/Models/InferSpeakerMix.h"
-#include "Modules/Inference/Utils/InferenceInputSignature.h"
 
 #include <QDebug>
 
@@ -254,8 +254,8 @@ namespace InferenceApplyGate {
         if (hasPieceInputSignature(context, options)) {
             // Piece tasks are allowed to cross clip revision drift only when their full semantic
             // input still matches the task snapshot. Clip-level tasks keep strict revision checks.
-            const auto currentSignature =
-                InferenceInputSignature::fromCurrentPiece(context.taskType, *piece, context.singer);
+            const auto currentSignature = InferControllerHelper::buildSemanticSignature(
+                context.taskType, *piece, context.singer);
             if (currentSignature.isEmpty())
                 return drop("input-signature-unavailable", currentRevision);
             if (currentSignature != context.inputSignature)

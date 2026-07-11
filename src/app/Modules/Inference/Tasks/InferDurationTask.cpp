@@ -9,7 +9,6 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
-#include "Modules/Inference/Utils/InferenceInputSignature.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include "Utils/JsonUtils.h"
 #include "InferTaskCommon.h"
@@ -44,7 +43,7 @@ int InferDurationTask::pieceId() const {
 InferenceTaskContext InferDurationTask::inferenceContext() const {
     auto context = m_input.toInferenceTaskContext("duration");
     context.taskId = id();
-    context.inputSignature = InferenceInputSignature::fromInput(m_input);
+    context.inputSignature = m_input.semanticSignature();
     return context;
 }
 
@@ -81,7 +80,7 @@ void InferDurationTask::runTask() {
     setStatus(newStatus);
 
     GenericInferModel model;
-    const auto input = buildInputJson();
+    const auto input = m_input.toEngineModel();
     m_inputHash = input.hashData();
     const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
     const auto inputCachePath =
@@ -236,13 +235,17 @@ void InferDurationTask::buildPreviewText() {
     }
 }
 
-GenericInferModel InferDurationTask::buildInputJson() const {
+QString InferDurationTask::InferDurInput::semanticSignature() const {
+    return InferInputBase::semanticSignature("duration");
+}
+
+GenericInferModel InferDurationTask::InferDurInput::toEngineModel() const {
     GenericInferModel model;
-    model.speaker = m_input.speaker;
-    model.speakerMix = InferSpeakerMixModel::staticSpeakerMix(m_input.speaker);
-    model.words = InferTaskHelper::buildWords(m_input);
-    model.identifier = m_input.identifier;
-    model.steps = m_input.steps;
+    model.speaker = speaker;
+    model.speakerMix = InferSpeakerMixModel::staticSpeakerMix(speaker);
+    model.words = InferTaskHelper::buildWords(*this);
+    model.identifier = identifier;
+    model.steps = steps;
     return model;
 }
 

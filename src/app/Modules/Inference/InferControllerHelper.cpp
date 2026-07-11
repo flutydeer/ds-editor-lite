@@ -192,6 +192,19 @@ namespace InferControllerHelper {
         return input;
     }
 
+    QString buildSemanticSignature(const QString &taskType, const InferPiece &piece,
+                                   const SingerIdentifier &identifier) {
+        if (taskType == "duration")
+            return buildInferDurInput(piece, identifier).semanticSignature();
+        if (taskType == "pitch")
+            return buildInferPitchInput(piece, identifier).semanticSignature();
+        if (taskType == "variance")
+            return buildInferVarianceInput(piece, identifier).semanticSignature();
+        if (taskType == "acoustic")
+            return buildInferAcousticInput(piece, identifier).semanticSignature();
+        return {};
+    }
+
     QList<InferPiece *> getParamDirtyPiecesAndUpdateInput(const ParamInfo::Name name,
                                                           SingingClip &clip) {
         QList<InferPiece *> result;

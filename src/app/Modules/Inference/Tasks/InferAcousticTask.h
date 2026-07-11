@@ -35,6 +35,8 @@ public:
         InferParamCurve toneShift;
 
         bool operator==(const InferAcousticInput &other) const;
+        [[nodiscard]] QString semanticSignature() const;
+        [[nodiscard]] GenericInferModel toEngineModel() const;
     };
 
     [[nodiscard]] int clipId() const override;
@@ -52,7 +54,6 @@ private:
     void terminate() override;
     void abort();
     void buildPreviewText();
-    GenericInferModel buildInputJson() const;
 
     srt::NO<srt::Inference> m_inferenceAcoustic, m_inferenceVocoder;
     QString m_previewText;

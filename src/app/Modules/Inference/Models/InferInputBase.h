@@ -12,6 +12,8 @@
 #include "SingerIdentifier.h"
 
 #include <QList>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QString>
 
 class InferInputBase {
@@ -34,6 +36,10 @@ public:
     double depth = 1.0;
     int pitchSmoothKernelSize = -1;
 
+    [[nodiscard]] QJsonObject semanticObject(const QString &taskType) const;
+    [[nodiscard]] QString semanticSignature(const QString &taskType,
+                                            const QJsonObject &extra = {}) const;
+
     [[nodiscard]] InferenceTaskContext toInferenceTaskContext(const QString &taskType) const {
         InferenceTaskContext context;
         context.taskType = taskType;
@@ -49,6 +55,9 @@ public:
             context.noteIds.append(note.id);
         return context;
     }
+
+protected:
+    [[nodiscard]] static QJsonArray doubleArray(const QList<double> &values);
 };
 
 #endif // INFERINPUTBASE_H

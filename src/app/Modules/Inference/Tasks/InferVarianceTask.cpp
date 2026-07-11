@@ -10,7 +10,6 @@
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputNote.h"
-#include "Modules/Inference/Utils/InferenceInputSignature.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include "Utils/JsonUtils.h"
 #include "Utils/Linq.h"
@@ -40,7 +39,7 @@ int InferVarianceTask::pieceId() const {
 InferenceTaskContext InferVarianceTask::inferenceContext() const {
     auto context = m_input.toInferenceTaskContext("variance");
     context.taskId = id();
-    context.inputSignature = InferenceInputSignature::fromInput(m_input);
+    context.inputSignature = m_input.semanticSignature();
     return context;
 }
 
@@ -76,7 +75,7 @@ void InferVarianceTask::runTask() {
     setStatus(newStatus);
 
     GenericInferModel model;
-    const auto input = buildInputJson();
+    const auto input = m_input.toEngineModel();
     m_inputHash = input.hashData();
     const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
     const auto inputCachePath =
@@ -241,8 +240,15 @@ void InferVarianceTask::buildPreviewText() {
     }
 }
 
-GenericInferModel InferVarianceTask::buildInputJson() const {
-    auto words = InferTaskHelper::buildWords(m_input, true);
+QString InferVarianceTask::InferVarianceInput::semanticSignature() const {
+    return InferInputBase::semanticSignature(
+        "variance", QJsonObject{
+                        {"pitch", InferInputBase::doubleArray(pitch.values)}
+    });
+}
+
+GenericInferModel InferVarianceTask::InferVarianceInput::toEngineModel() const {
+    auto words = InferTaskHelper::buildWords(*this, true);
     double totalLength = 0;
     auto interval = 0.01;
     for (const auto &word : words)
@@ -259,7 +265,7 @@ GenericInferModel InferVarianceTask::buildInputJson() const {
     InferParam pitch = param;
     pitch.tag = "pitch";
     pitch.values =
-        MathUtils::resample(m_input.pitch.values, 5 /*tick*/, m_input.timeline.secToTick(interval));
+        MathUtils::resample(this->pitch.values, 5 /*tick*/, timeline.secToTick(interval));
 
     InferParam breathiness = param;
     breathiness.tag = "breathiness";
@@ -280,14 +286,13 @@ GenericInferModel InferVarianceTask::buildInputJson() const {
     }
 
     GenericInferModel model;
-    model.speaker = m_input.speaker;
-    model.speakerMix = m_input.speakerMix.isEmpty()
-                           ? InferSpeakerMixModel::staticSpeakerMix(m_input.speaker)
-                           : m_input.speakerMix;
+    model.speaker = speaker;
+    model.speakerMix =
+        speakerMix.isEmpty() ? InferSpeakerMixModel::staticSpeakerMix(speaker) : speakerMix;
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, mouthOpening};
-    model.steps = m_input.steps;
-    model.identifier = m_input.identifier;
+    model.steps = steps;
+    model.identifier = identifier;
     return model;
 }
 

@@ -9,7 +9,6 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
-#include "Modules/Inference/Utils/InferenceInputSignature.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include "Utils/JsonUtils.h"
 #include "Utils/Linq.h"
@@ -40,7 +39,7 @@ int InferPitchTask::pieceId() const {
 InferenceTaskContext InferPitchTask::inferenceContext() const {
     auto context = m_input.toInferenceTaskContext("pitch");
     context.taskId = id();
-    context.inputSignature = InferenceInputSignature::fromInput(m_input);
+    context.inputSignature = m_input.semanticSignature();
     return context;
 }
 
@@ -76,7 +75,7 @@ void InferPitchTask::runTask() {
     setStatus(newStatus);
 
     GenericInferModel model;
-    const auto input = buildInputJson();
+    const auto input = m_input.toEngineModel();
     m_inputHash = input.hashData();
     const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
     const auto inputCachePath =
@@ -230,14 +229,21 @@ void InferPitchTask::buildPreviewText() {
     }
 }
 
-GenericInferModel InferPitchTask::buildInputJson() const {
-    auto words = InferTaskHelper::buildWords(m_input, true);
+QString InferPitchTask::InferPitchInput::semanticSignature() const {
+    return InferInputBase::semanticSignature(
+        "pitch", QJsonObject{
+                     {"expressiveness", InferInputBase::doubleArray(expressiveness.values)}
+    });
+}
+
+GenericInferModel InferPitchTask::InferPitchInput::toEngineModel() const {
+    auto words = InferTaskHelper::buildWords(*this, true);
     double totalLength = 0;
     constexpr auto interval = 0.01;
     for (const auto &word : words)
         totalLength += word.length();
 
-    const auto newInterval = m_input.timeline.secToTick(interval);
+    const auto newInterval = timeline.secToTick(interval);
     const int frames = qRound(totalLength / interval);
     InferRetake retake;
     retake.end = frames;
@@ -248,7 +254,7 @@ GenericInferModel InferPitchTask::buildInputJson() const {
 
     InferParam expr = param;
     expr.tag = "expr";
-    expr.values = MathUtils::resample(m_input.expressiveness.values, 5, newInterval);
+    expr.values = MathUtils::resample(expressiveness.values, 5, newInterval);
 
     InferParam pitch = param;
     pitch.tag = "pitch";
@@ -256,14 +262,13 @@ GenericInferModel InferPitchTask::buildInputJson() const {
         pitch.values.append(0);
 
     GenericInferModel model;
-    model.speaker = m_input.speaker;
-    model.speakerMix = m_input.speakerMix.isEmpty()
-                           ? InferSpeakerMixModel::staticSpeakerMix(m_input.speaker)
-                           : m_input.speakerMix;
+    model.speaker = speaker;
+    model.speakerMix =
+        speakerMix.isEmpty() ? InferSpeakerMixModel::staticSpeakerMix(speaker) : speakerMix;
     model.words = words;
     model.params = {pitch, expr};
-    model.steps = m_input.steps;
-    model.identifier = m_input.identifier;
+    model.steps = steps;
+    model.identifier = identifier;
     return model;
 }
 

@@ -25,6 +25,8 @@ public:
     class InferDurInput : public InferInputBase {
     public:
         bool operator==(const InferDurInput &other) const;
+        [[nodiscard]] QString semanticSignature() const;
+        [[nodiscard]] GenericInferModel toEngineModel() const;
     };
 
     int clipId() const override;
@@ -43,7 +45,6 @@ private:
     void terminate() override;
     void abort();
     void buildPreviewText();
-    GenericInferModel buildInputJson() const;
     bool processOutput(const GenericInferModel &model);
 
     mutable QReadWriteLock m_rwLock;

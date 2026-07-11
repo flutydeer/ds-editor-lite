@@ -26,6 +26,8 @@ public:
         InferParamCurve pitch;
 
         bool operator==(const InferVarianceInput &other) const;
+        [[nodiscard]] QString semanticSignature() const;
+        [[nodiscard]] GenericInferModel toEngineModel() const;
     };
 
     class InferVarianceResult {
@@ -52,7 +54,6 @@ private:
     void terminate() override;
     void abort();
     void buildPreviewText();
-    GenericInferModel buildInputJson() const;
     bool processOutput(const GenericInferModel &model);
 
     srt::NO<srt::Inference> m_inferenceVariance;
