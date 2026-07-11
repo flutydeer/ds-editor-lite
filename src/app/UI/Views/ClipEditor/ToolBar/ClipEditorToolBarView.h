@@ -9,7 +9,6 @@
 
 #include <QWidget>
 
-class EditLabel;
 class SeekBar;
 class QAbstractButton;
 class Clip;

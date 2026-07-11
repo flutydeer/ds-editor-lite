@@ -49,7 +49,6 @@ ClipEditorToolBarView QPushButton#btnMute:checked:hover {
     background-color: #FF9B9D;
 }
 
-LineEdit#leClipName,
 InlineEditLabel#leClipName {
     background: #31353F;
     border: none;
@@ -59,7 +58,6 @@ InlineEditLabel#leClipName {
     border-bottom-left-radius: 4px;
 }
 
-LineEdit#leClipName[groupPos="only"],
 InlineEditLabel#leClipName[groupPos="only"] {
     border-radius: 4px;
 }

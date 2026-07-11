@@ -107,13 +107,15 @@
 
 阶段完成后 Debug 构建通过，独立提交。
 
-## 第六阶段：清理与最终回归
+## 第六阶段：清理与最终回归 ✅ 已完成
 
-- 确认没有调用方后删除 UI Controls 中旧的 `EditLabel/EditDialog` popup 实现；不删除 FillLyric 模块自己的同名控件。
-- 清理旧 proxy 成员、临时信号连接、无效 include、TODO 和不再使用的 QSS 选择器。
-- 检查所有有效编辑只产生一次原有业务 action，撤销/重做结果正确。
-- 使用项目标准 Debug preset 完整构建。
-- 按用户选择不新增自动化测试目标，执行全部入口的交叉手工回归。
+- ✅ 全仓确认无调用方后删除 UI Controls 中旧的 `EditLabel/EditDialog` popup 实现；FillLyric 模块自己的同名控件仍保留。
+- ✅ 删除旧 `EditLabel/LineEdit` QSS 分支、无效前置声明，并确认钢琴卷帘没有残留 `QGraphicsProxyWidget` 或旧 proxy 成员。
+- ✅ 静态复核各入口的提交路径：无变化或非法输入不发送业务修改，有效输入沿用各入口原有 action/control 信号路径。
+- ✅ 使用项目标准 Debug preset 重新 configure 并完整构建通过。
+- ✅ 按约定不新增自动化测试目标；全部入口的交互和撤销/重做手工回归留待用户统一验收。
+
+至此六个实施阶段均已完成并分别通过对应的 Debug 构建验证。
 
 ## 固定行为约定
 

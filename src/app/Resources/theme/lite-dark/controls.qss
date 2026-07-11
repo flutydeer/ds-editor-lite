@@ -1150,12 +1150,10 @@ ChannelView>Fader {
     min-width: 32px
 }
 
-ChannelView>EditLabel,
 ChannelView>InlineEditLabel {
     min-width: 36px
 }
 
-ChannelView>EditLabel>QLabel,
 ChannelView>InlineEditLabel>QLabel {
     color: #8CD7D8DB;
 }
