@@ -37,7 +37,8 @@ TrackControlView>QLabel#lbTrackIndex {
     border-bottom-left-radius: 4px;
 }
 
-TrackControlView>EditLabel#leTrackName {
+TrackControlView>EditLabel#leTrackName,
+TrackControlView>InlineEditLabel#leTrackName {
     height: 24px;
     border: none;
 }

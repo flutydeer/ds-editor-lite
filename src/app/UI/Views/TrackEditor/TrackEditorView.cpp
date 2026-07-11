@@ -72,7 +72,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     m_timeline->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     m_timeline->setQuantize(128);
     m_timeline->setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
-    m_timeline->setCanEditLoop(true);  // Enable loop editing in track editor
+    m_timeline->setCanEditLoop(true); // Enable loop editing in track editor
 
     const auto gBar = m_graphicsView->verticalScrollBar();
     const auto lBar = m_trackListView->verticalScrollBar();
@@ -262,9 +262,17 @@ void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex
     }
     auto newTrackItem = new QListWidgetItem;
     const auto controlView = new TrackControlView(newTrackItem, dsTrack);
+    controlView->setTrackNameOverlayParent(m_trackListView->viewport());
+    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, controlView,
+            &TrackControlView::finishTrackNameEditing);
+    connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, controlView,
+            &TrackControlView::finishTrackNameEditing);
+    connect(m_graphicsView, &TracksGraphicsView::sizeChanged, controlView,
+            &TrackControlView::finishTrackNameEditing);
+    connect(m_trackListView->verticalScrollBar(), &QScrollBar::valueChanged, controlView,
+            &TrackControlView::finishTrackNameEditing);
     newTrackItem->setSizeHint(
-        QSize(0,
-              static_cast<int>(TracksEditorGlobal::trackHeight * m_graphicsView->scaleY())));
+        QSize(0, static_cast<int>(TracksEditorGlobal::trackHeight * m_graphicsView->scaleY())));
     controlView->setTrackIndex(trackIndex + 1);
     controlView->setNarrowMode(m_graphicsView->scaleY() < TracksEditorGlobal::narrowModeScaleY);
     m_trackListView->insertItem(trackIndex, newTrackItem);
@@ -299,7 +307,8 @@ void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex
         }
 
     // An insertion before the selected row moves the same logical track down by one row.
-    if (previousSelectedTrackIndex >= 0 && static_cast<int>(trackIndex) <= previousSelectedTrackIndex)
+    if (previousSelectedTrackIndex >= 0 &&
+        static_cast<int>(trackIndex) <= previousSelectedTrackIndex)
         setSelectedTrackIndex(previousSelectedTrackIndex + 1);
     else
         syncSelectedTrackToList(previousSelectedTrackIndex);
@@ -317,8 +326,9 @@ void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, const in
         if (clip->clipType() == Clip::Singing) {
             const auto singingClip = static_cast<SingingClip *>(clip);
             const auto singingView = static_cast<SingingClipView *>(cachedView);
-            connect(singingClip, &SingingClip::singerOrSpeakerChanged, this,
-                    [singingClip, singingView] { updateSingingClipDisplay(singingClip, singingView); });
+            connect(
+                singingClip, &SingingClip::singerOrSpeakerChanged, this,
+                [singingClip, singingView] { updateSingingClipDisplay(singingClip, singingView); });
             connect(singingClip, &SingingClip::speakerMixChanged, this,
                     [singingClip, singingView](const SpeakerMixModel::SpeakerMixData &) {
                         updateSingingClipDisplay(singingClip, singingView);
@@ -468,13 +478,16 @@ void TrackEditorView::onTrackRemoved(const Track *dsTrack, const qsizetype index
                 clipItem->setTrackIndex(i);
             }
         }
-    // Removing a row before the selection shifts it up; removing the selected row selects its neighbor.
+    // Removing a row before the selection shifts it up; removing the selected row selects its
+    // neighbor.
     const auto removedTrackIndex = static_cast<int>(index);
     auto selectedTrackIndex = previousSelectedTrackIndex;
     if (previousSelectedTrackIndex > removedTrackIndex)
         selectedTrackIndex = previousSelectedTrackIndex - 1;
     else if (previousSelectedTrackIndex == removedTrackIndex)
-        selectedTrackIndex = m_viewModel.tracks.isEmpty() ? -1 : qMin(removedTrackIndex, m_viewModel.tracks.count() - 1);
+        selectedTrackIndex = m_viewModel.tracks.isEmpty()
+                                 ? -1
+                                 : qMin(removedTrackIndex, m_viewModel.tracks.count() - 1);
 
     setSelectedTrackIndex(selectedTrackIndex);
 }

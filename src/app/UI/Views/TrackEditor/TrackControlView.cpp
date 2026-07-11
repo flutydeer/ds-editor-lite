@@ -11,7 +11,7 @@
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Button.h"
-#include "UI/Controls/EditLabel.h"
+#include "UI/Controls/InlineEditLabel.h"
 #include "UI/Controls/LevelMeter.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Controls/Toast.h"
@@ -63,6 +63,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     btnMute->setObjectName("btnMute");
     btnMute->setCheckable(true);
     btnMute->setChecked(false);
+    btnMute->setFixedSize(m_buttonSize, m_buttonSize);
     btnMute->setContentsMargins(0, 0, 0, 0);
     connect(btnMute, &QPushButton::clicked, this, [&] { changeTrackProperty(); });
 
@@ -70,20 +71,22 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     btnSolo->setObjectName("btnSolo");
     btnSolo->setCheckable(true);
     btnSolo->setChecked(false);
+    btnSolo->setFixedSize(m_buttonSize, m_buttonSize);
     connect(btnSolo, &QPushButton::clicked, this, [&] { changeTrackProperty(); });
 
-    leTrackName = new EditLabel();
+    leTrackName = new InlineEditLabel();
     leTrackName->setObjectName("leTrackName");
-    leTrackName->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-    connect(leTrackName, &EditLabel::editCompleted, this, [&] { changeTrackProperty(); });
+    leTrackName->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    leTrackName->setFixedHeight(m_buttonSize);
+    connect(leTrackName, &InlineEditLabel::editCompleted, this, [&] { changeTrackProperty(); });
 
     muteSoloTrackNameLayout = new QHBoxLayout;
     muteSoloTrackNameLayout->setObjectName("muteSoloTrackNameLayout");
-    muteSoloTrackNameLayout->addWidget(leTrackName);
+    muteSoloTrackNameLayout->addWidget(leTrackName, 1);
     muteSoloTrackNameLayout->addWidget(btnMute);
     muteSoloTrackNameLayout->addWidget(btnSolo);
     muteSoloTrackNameLayout->setSpacing(4);
-    muteSoloTrackNameLayout->setContentsMargins(12, 8, 8, 4);
+    muteSoloTrackNameLayout->setContentsMargins(4, 8, 8, 4);
 
     cbSinger = new TwoLevelComboBox;
     cbSinger->setObjectName("cbSinger");
@@ -201,6 +204,14 @@ void TrackControlView::setControl(const TrackControl &control) {
     btnMute->setChecked(control.mute());
     btnSolo->setChecked(control.solo());
     m_notifyBarrier = false;
+}
+
+void TrackControlView::setTrackNameOverlayParent(QWidget *parent) {
+    leTrackName->setOverlayParent(parent);
+}
+
+void TrackControlView::finishTrackNameEditing() {
+    leTrackName->finishEditing();
 }
 
 void TrackControlView::setNarrowMode(const bool on) const {

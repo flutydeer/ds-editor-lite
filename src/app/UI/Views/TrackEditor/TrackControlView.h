@@ -21,7 +21,7 @@ class LevelMeter;
 class Track;
 class Button;
 class QLabel;
-class EditLabel;
+class InlineEditLabel;
 class QSpacerItem;
 class QHBoxLayout;
 class QVBoxLayout;
@@ -45,6 +45,10 @@ public:
 
     [[nodiscard]] int colorIndex() const override;
     void setColorIndex(int colorIndex) override;
+
+    /// Set the parent widget for the inline track name editor overlay
+    void setTrackNameOverlayParent(QWidget *parent);
+    void finishTrackNameEditing();
 
 signals:
     void insertNewTrackTriggered();
@@ -70,7 +74,7 @@ private:
     QLabel *lbTrackIndex;
     Button *btnMute;
     Button *btnSolo;
-    EditLabel *leTrackName;
+    InlineEditLabel *leTrackName;
     TwoLevelComboBox *cbSinger;
     LanguageComboBox *cbLanguage;
     QSpacerItem *panVolumeSpacer;
