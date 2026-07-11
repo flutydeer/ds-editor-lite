@@ -12,8 +12,6 @@
 #include "Utils/UniqueObject.h"
 
 class PronunciationView;
-class QGraphicsProxyWidget;
-class QLineEdit;
 
 class NoteView final : public AbstractGraphicsRectItem,
                        public UniqueObject,
@@ -52,25 +50,16 @@ public:
     Property<int> fontPixelSize = 13;
 
     // Inline editing
-    void startEditingLyric();
-    void finishEditingLyric();
-    bool isEditingLyric() const;
-
-signals:
-    void lyricEditingFinished(const QString &lyric);
-    void tabKeyPressed();
+    void setEditingLyric(bool editing);
+    [[nodiscard]] bool isEditingLyric() const;
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     void updateRectAndPos() override;
     void adjustPronView() const;
     void initUi();
-    void updateLineEditGeometry();
-    bool eventFilter(QObject *obj, QEvent *event) override;
 
     PronunciationView *m_pronView = nullptr;
-    QGraphicsProxyWidget *m_lineEditProxy = nullptr;
-    QLineEdit *m_lineEdit = nullptr;
     bool m_editingLyric = false;
     int m_rStart = 0;
     int m_length = AppGlobal::ticksPerQuarterNote;

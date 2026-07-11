@@ -16,10 +16,6 @@
 #include <QMWidgets/cmenu.h>
 #include <QDebug>
 #include <QElapsedTimer>
-#include <QGraphicsProxyWidget>
-#include <QLineEdit>
-#include <QKeyEvent>
-#include <QFocusEvent>
 
 using namespace ClipEditorGlobal;
 
@@ -40,9 +36,6 @@ NoteView::NoteView(const int itemId, QGraphicsItem *parent)
 
 NoteView::~NoteView() {
     delete m_pronView;
-    if (m_lineEditProxy) {
-        delete m_lineEditProxy;
-    }
 }
 
 int NoteView::rStart() const {
@@ -272,9 +265,6 @@ void NoteView::updateRectAndPos() {
     if (m_pronView)
         adjustPronView();
 
-    if (m_editingLyric)
-        updateLineEditGeometry();
-
     update();
 }
 
@@ -288,105 +278,13 @@ void NoteView::initUi() {
     fontPixelSize.onChanged([this](int) { update(); });
 }
 
-void NoteView::startEditingLyric() {
-    if (m_editingLyric)
+void NoteView::setEditingLyric(const bool editing) {
+    if (m_editingLyric == editing)
         return;
-
-    m_editingLyric = true;
-
-    if (!m_lineEditProxy) {
-        m_lineEdit = new QLineEdit();
-        m_lineEdit->setFrame(false);
-        m_lineEdit->installEventFilter(this);
-        m_lineEditProxy = new QGraphicsProxyWidget(this);
-        m_lineEditProxy->setWidget(m_lineEdit);
-
-        // Note: editingFinished signal is also emitted when losing focus, but we handle Tab key
-        // through eventFilter
-        connect(m_lineEdit, &QLineEdit::editingFinished, this, &NoteView::finishEditingLyric);
-    }
-
-    m_lineEdit->setText(m_lyric);
-    updateLineEditGeometry();
-    m_lineEditProxy->show();
-    m_lineEdit->setFocus();
-    m_lineEdit->selectAll();
-    update();
-}
-
-void NoteView::finishEditingLyric() {
-    if (!m_editingLyric)
-        return;
-
-    m_editingLyric = false;
-
-    if (m_lineEditProxy) {
-        const QString newLyric = m_lineEdit->text().trimmed();
-        m_lineEditProxy->hide();
-
-        // Clear focus to allow keyboard shortcuts to work again
-        if (m_lineEdit) {
-            m_lineEdit->clearFocus();
-        }
-
-        // Only emit signal if lyric actually changed
-        if (newLyric != m_lyric && !newLyric.isEmpty()) {
-            emit lyricEditingFinished(newLyric);
-        }
-    }
-
+    m_editingLyric = editing;
     update();
 }
 
 bool NoteView::isEditingLyric() const {
     return m_editingLyric;
-}
-
-void NoteView::updateLineEditGeometry() {
-    if (!m_lineEditProxy || !m_lineEdit)
-        return;
-
-    constexpr auto penWidth = 1.5f;
-    constexpr int padding = 2;
-
-    auto rect = boundingRect();
-    auto left = rect.left() + penWidth + padding;
-    auto top = rect.top() + penWidth;
-    auto width = rect.width() - penWidth * 2 - 2 * padding;
-    auto height = rect.height() - penWidth * 2;
-
-    auto font = QFont();
-    font.setPixelSize(fontPixelSize);
-    m_lineEdit->setFont(font);
-
-    m_lineEditProxy->setPos(left, top);
-    m_lineEdit->setFixedSize(static_cast<int>(width), static_cast<int>(height));
-}
-
-bool NoteView::eventFilter(QObject *obj, QEvent *event) {
-    if (obj == m_lineEdit && event->type() == QEvent::KeyPress) {
-        auto keyEvent = static_cast<QKeyEvent *>(event);
-        if (keyEvent->key() == Qt::Key_Tab) {
-            // Block Tab key default behavior and emit our signal
-            // Note: we need to block editingFinished signal first
-            m_lineEdit->blockSignals(true);
-            emit tabKeyPressed();
-            m_lineEdit->blockSignals(false);
-            return true;
-        }
-        if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) {
-            // Enter key finishes editing
-            finishEditingLyric();
-            return true;
-        }
-        if (keyEvent->key() == Qt::Key_Escape) {
-            // Escape key cancels editing
-            if (m_lineEdit) {
-                m_lineEdit->setText(m_lyric); // Restore original text
-            }
-            finishEditingLyric();
-            return true;
-        }
-    }
-    return QObject::eventFilter(obj, event);
 }

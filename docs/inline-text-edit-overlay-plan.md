@@ -46,16 +46,16 @@
 
 阶段完成后 Debug 构建通过，独立提交。
 
-## 第三阶段：钢琴卷帘歌词
+## 第三阶段：钢琴卷帘歌词 ✅ 已完成
 
-- `PianoRollGraphicsView` 持有唯一歌词编辑会话，直接使用 `InlineTextEditOverlay`。
-- `NoteView` 移除歌词专用 `QGraphicsProxyWidget/QLineEdit`，只保留绘制、目标矩形和编辑请求。
-- 使用 `mapFromScene(sceneBoundingRect())` 转换到 viewport 像素坐标，并保证极短音符下的最小编辑宽度。
-- 编辑期间停止绘制底层歌词，避免透明 QSS 下文本重叠。
-- 歌词提交前执行 `trimmed()`；清空时使用音符语言在 `appOptions` 中配置的默认歌词。
-- Tab 提交并进入下一音符，Shift+Tab 提交并进入上一音符。
-- 滚动、缩放、viewport 尺寸变化、选择变化、工具切换、音符移动、剪辑切换和窗口失活立即提交并退出。
-- 移除每次开始编辑时建立临时连接的逻辑，改为固定连接，杜绝重复提交。
+- ✅ `PianoRollGraphicsView` 持有唯一 viewport 覆盖编辑器和稳定的目标 note id。
+- ✅ `NoteView` 移除歌词专用 `QGraphicsProxyWidget/QLineEdit`，只保留编辑绘制状态。
+- ✅ 使用 `mapFromScene(sceneBoundingRect())` 转换像素坐标，设置 40×20 最小编辑尺寸并约束在 viewport 内。
+- ✅ 编辑期间停止绘制底层歌词，覆盖输入框通过 `Lyric` 角色应用独立 QSS。
+- ✅ 歌词提交前执行 `trimmed()`；清空时使用音符自身语言对应的默认歌词。
+- ✅ Tab/Shift+Tab 按音符起始位置和 id 稳定导航到下一/上一音符。
+- ✅ 滚动缩放、viewport 尺寸、选择、工具、音符属性和剪辑上下文变化立即提交。
+- ✅ 使用固定的覆盖层信号连接，删除 NoteView 临时连接和重复提交路径。
 
 验收点：
 
@@ -66,7 +66,7 @@
 - 空歌词恢复对应语言默认歌词。
 - 连续编辑同一音符不会产生重复 action。
 
-阶段完成后完整构建并暂停，等待用户确认。
+阶段完成后 Debug 构建通过，独立提交。
 
 ## 第四阶段：钢琴卷帘发音
 

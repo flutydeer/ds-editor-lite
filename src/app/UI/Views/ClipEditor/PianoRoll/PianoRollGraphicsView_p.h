@@ -30,6 +30,7 @@ class PianoRollBackground;
 class PianoRollEditHandler;
 class PianoRollSelectionModel;
 class NoteInteractionController;
+class InlineTextEditOverlay;
 enum class EditSessionEndReason;
 
 using namespace ClipEditorGlobal;
@@ -60,6 +61,8 @@ public:
     QHash<PianoRollEditMode, PianoRollEditHandler *> m_handlers;
     PianoRollSelectionModel *m_selectionModel = nullptr;
     NoteInteractionController *m_interactionController = nullptr;
+    InlineTextEditOverlay *m_inlineEditor = nullptr;
+    int m_editingLyricNoteId = -1;
     QAction *m_pasteAction = nullptr;
     void restoreHandler();
 
@@ -101,9 +104,11 @@ public slots:
     void onDeleteSelectedNotes() const;
     void onOpenNotePropertyDialog(int noteId, AppGlobal::NotePropertyType propertyType);
     void onStartEditingNoteLyric(NoteView *noteView);
-    void onNoteLyricEditingFinished(NoteView *noteView, const QString &lyric);
-    void onNoteTabKeyPressed(NoteView *noteView);
-    NoteView *findNextNoteView(NoteView *currentNoteView) const;
+    void finishEditingLyric();
+    void onLyricTextSubmitted(const QString &text);
+    void onLyricNavigationRequested(const QString &text, bool backwards);
+    void onLyricEditCancelled();
+    NoteView *findAdjacentNoteView(NoteView *currentNoteView, bool backwards) const;
 
     void onStartEditingPronunciation(PronunciationView *pronView);
     void onPronunciationEditingFinished(PronunciationView *pronView, const QString &pronunciation);

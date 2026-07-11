@@ -24,6 +24,7 @@ void InlineTextEditOverlay::showAt(const QRect &anchorRect, const QString &text,
                                    const QFont &font, const QVariantMap &editorProperties) {
     m_submitted = false;
     m_activeMenu.clear();
+    m_navigationEnabled = editorProperties.value(QStringLiteral("navigationEnabled")).toBool();
 
     if (!m_lineEdit) {
         m_lineEdit = new QLineEdit(this);
@@ -100,6 +101,13 @@ bool InlineTextEditOverlay::eventFilter(QObject *obj, QEvent *event) {
                     cancel();
                     return true;
                 }
+                if (m_navigationEnabled &&
+                    (keyEvent->key() == Qt::Key_Tab || keyEvent->key() == Qt::Key_Backtab)) {
+                    const bool backwards = keyEvent->key() == Qt::Key_Backtab ||
+                                           keyEvent->modifiers().testFlag(Qt::ShiftModifier);
+                    navigate(backwards);
+                    return true;
+                }
                 if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) {
                     // Let QLineEdit handle the return press first, then submit via
                     // returnPressed signal
@@ -164,4 +172,14 @@ void InlineTextEditOverlay::cancel() {
     qApp->removeEventFilter(this);
     hide();
     emit editCancelled();
+}
+
+void InlineTextEditOverlay::navigate(const bool backwards) {
+    if (m_submitted)
+        return;
+    m_submitted = true;
+    qApp->removeEventFilter(this);
+    const auto text = m_lineEdit ? m_lineEdit->text() : QString();
+    hide();
+    emit navigationRequested(text, backwards);
 }

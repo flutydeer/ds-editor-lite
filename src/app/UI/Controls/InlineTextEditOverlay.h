@@ -28,6 +28,7 @@ public:
 
 signals:
     void textSubmitted(const QString &text);
+    void navigationRequested(const QString &text, bool backwards);
     void editCancelled();
 
 protected:
@@ -35,10 +36,12 @@ protected:
 
 private:
     void cancel();
+    void navigate(bool backwards);
 
     QLineEdit *m_lineEdit = nullptr;
     QPointer<Menu> m_activeMenu;
     bool m_submitted = false;
+    bool m_navigationEnabled = false;
 };
 
 #endif // INLINETEXTEDITOVERLAY_H
