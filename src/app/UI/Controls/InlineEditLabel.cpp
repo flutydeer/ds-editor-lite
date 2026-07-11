@@ -12,6 +12,8 @@
 #include <QResizeEvent>
 #include <QValidator>
 
+#include <utility>
+
 InlineEditLabel::InlineEditLabel(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setAttribute(Qt::WA_Hover, true);
@@ -67,12 +69,22 @@ void InlineEditLabel::setAlignment(const Qt::Alignment alignment) {
         m_label->setAlignment(alignment);
 }
 
+void InlineEditLabel::setTextMargins(const QMargins &margins) {
+    if (m_label)
+        m_label->setContentsMargins(margins);
+    updateGeometry();
+}
+
 QValidator *InlineEditLabel::validator() const {
     return m_validator;
 }
 
 void InlineEditLabel::setValidator(QValidator *validator) {
     m_validator = validator;
+}
+
+void InlineEditLabel::setCommitValidator(std::function<bool(const QString &)> validator) {
+    m_commitValidator = std::move(validator);
 }
 
 InlineEditLabel::EditRole InlineEditLabel::editRole() const {
@@ -165,9 +177,11 @@ void InlineEditLabel::startEditing() {
     };
     m_overlay->showAt(anchorRect, m_text, displayFont, editorProperties);
 
-    if (m_validator && m_overlay) {
-        if (auto *lineEdit = m_overlay->findChild<QLineEdit *>())
+    if (m_overlay) {
+        if (auto *lineEdit = m_overlay->findChild<QLineEdit *>()) {
+            lineEdit->setAlignment(m_alignment);
             lineEdit->setValidator(m_validator);
+        }
     }
 
     emit editingStarted();
@@ -177,6 +191,8 @@ void InlineEditLabel::onTextSubmitted(const QString &text) {
     if (m_overlay && m_overlay->parentWidget())
         m_overlay->parentWidget()->removeEventFilter(this);
     if (text == m_text)
+        return;
+    if (m_commitValidator && !m_commitValidator(text))
         return;
 
     m_text = text;

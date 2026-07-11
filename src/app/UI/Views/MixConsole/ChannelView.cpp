@@ -8,13 +8,16 @@
 #include "Model/AppModel/TrackControl.h"
 #include "UI/Controls/Fader.h"
 #include "UI/Controls/LevelMeter.h"
-#include "UI/Controls/EditLabel.h"
+#include "UI/Controls/InlineEditLabel.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/PanSlider.h"
 #include "UI/Utils/AppColorPalette.h"
 
 #include <QVBoxLayout>
 #include <QLabel>
+#include <QStackedWidget>
+
+#include <cmath>
 
 ChannelView::ChannelView(QWidget *parent) : QWidget(parent) {
     initUi();
@@ -127,7 +130,12 @@ void ChannelView::onPanReleased(double pan) {
 }
 
 void ChannelView::onPanEdited(const QString &text) {
-    m_panSlider->setValue(panValueFromString(text));
+    double pan = 0.0;
+    if (!tryParsePanValue(text, pan)) {
+        m_elPan->setText(panValueToString(m_panSlider->value()));
+        return;
+    }
+    m_panSlider->setValue(pan);
     m_elPan->setText(panValueToString(m_panSlider->value()));
 }
 
@@ -141,7 +149,13 @@ void ChannelView::onFaderReleased(double gain) {
 }
 
 void ChannelView::onGainEdited(const QString &text) {
-    m_fader->setValue(text.toDouble());
+    double gain = 0.0;
+    if (!tryParseGainValue(text, gain)) {
+        m_elGain->setText(gainValueToString(m_fader->value()));
+        return;
+    }
+    m_fader->setValue(gain);
+    m_elGain->setText(gainValueToString(m_fader->value()));
 }
 
 void ChannelView::onPeakChanged(double peak) {
@@ -163,12 +177,12 @@ void ChannelView::initUi() {
     onPanMoved(m_panSlider->value());
     connect(m_panSlider, &PanSlider::sliderMoved, this, &ChannelView::onPanMoved);
     connect(m_panSlider, &PanSlider::valueChanged, this, &ChannelView::onPanReleased);
-    connect(m_elPan, &EditLabel::editCompleted, this, &ChannelView::onPanEdited);
+    connect(m_elPan, &InlineEditLabel::editCompleted, this, &ChannelView::onPanEdited);
 
     onFaderMoved(m_fader->value());
     connect(m_fader, &Fader::sliderMoved, this, &ChannelView::onFaderMoved);
     connect(m_fader, &Fader::valueChanged, this, &ChannelView::onFaderReleased);
-    connect(m_elGain, &EditLabel::editCompleted, this, &ChannelView::onGainEdited);
+    connect(m_elGain, &InlineEditLabel::editCompleted, this, &ChannelView::onGainEdited);
 
     onPeakChanged(m_levelMeter->peakValue());
     connect(m_levelMeter, &LevelMeter::peakValueChanged, this, &ChannelView::onPeakChanged);
@@ -215,9 +229,24 @@ QString ChannelView::panValueToString(double pan) {
     return "R" + QString::number(qRound(pan * 100));
 }
 
-double ChannelView::panValueFromString(const QString &panStr) {
+bool ChannelView::tryParseGainValue(const QString &text, double &gain) {
+    const auto value = text.trimmed();
+    if (value == QStringLiteral("-∞")) {
+        gain = -54.0;
+        return true;
+    }
+    bool ok = false;
+    const auto parsed = value.toDouble(&ok);
+    if (!ok || !std::isfinite(parsed))
+        return false;
+    gain = parsed;
+    return true;
+}
+
+bool ChannelView::tryParsePanValue(const QString &text, double &pan) {
+    const auto panStr = text.trimmed();
     if (panStr.isEmpty()) {
-        return 0.0; // 默认居中
+        return false;
     }
 
     // 处理字母格式：Lxx / Rxx / C
@@ -226,17 +255,20 @@ double ChannelView::panValueFromString(const QString &panStr) {
         bool ok = false;
         const double value = numStr.toDouble(&ok);
         if (ok && value >= 0.0 && value <= 100.0) {
-            return -value / 100.0; // L50 → -0.5
+            pan = -value / 100.0;
+            return true;
         }
     } else if (panStr.startsWith('R', Qt::CaseInsensitive)) {
         const QString numStr = panStr.mid(1).trimmed();
         bool ok = false;
         const double value = numStr.toDouble(&ok);
         if (ok && value >= 0.0 && value <= 100.0) {
-            return value / 100.0; // R50 → +0.5
+            pan = value / 100.0;
+            return true;
         }
     } else if (panStr.compare("C", Qt::CaseInsensitive) == 0) {
-        return 0.0;
+        pan = 0.0;
+        return true;
     }
 
     // 处理数值格式：-xx / 0 / +xx
@@ -244,25 +276,32 @@ double ChannelView::panValueFromString(const QString &panStr) {
     const double value = panStr.toDouble(&ok);
     if (ok) {
         if (value < -100.0) {
-            return -1.0; // 限制最小 -100 → -1.0
+            pan = -1.0;
+        } else if (value > 100.0) {
+            pan = 1.0;
+        } else {
+            pan = value / 100.0;
         }
-        if (value > 100.0) {
-            return 1.0; // 限制最大 +100 → +1.0
-        }
-        return value / 100.0; // -50 → -0.5, +30 → +0.3
+        return true;
     }
 
-    return 0.0;
+    return false;
 }
 
 QVBoxLayout *ChannelView::buildPanSliderLayout() {
     m_panSlider = new PanSlider;
     m_panSlider->setObjectName("panSlider");
 
-    m_elPan = new EditLabel;
+    m_elPan = new InlineEditLabel;
     m_elPan->setObjectName("elPan");
+    m_elPan->setEditRole(InlineEditLabel::Pan);
     m_elPan->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    m_elPan->label->setAlignment(Qt::AlignCenter);
+    m_elPan->setAlignment(Qt::AlignCenter);
+    m_elPan->setTextMargins({});
+    m_elPan->setCommitValidator([](const QString &text) {
+        double value = 0.0;
+        return tryParsePanValue(text, value);
+    });
 
     auto layout = new QVBoxLayout;
     layout->addWidget(m_panSlider);
@@ -277,10 +316,16 @@ QHBoxLayout *ChannelView::buildFaderLevelMeterLayout() {
     m_fader->setObjectName("fader");
     m_fader->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::MinimumExpanding);
 
-    m_elGain = new EditLabel;
+    m_elGain = new InlineEditLabel;
     m_elGain->setObjectName("elGain");
+    m_elGain->setEditRole(InlineEditLabel::Gain);
     m_elGain->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    m_elGain->label->setAlignment(Qt::AlignCenter);
+    m_elGain->setAlignment(Qt::AlignCenter);
+    m_elGain->setTextMargins({});
+    m_elGain->setCommitValidator([](const QString &text) {
+        double value = 0.0;
+        return tryParseGainValue(text, value);
+    });
 
     auto faderLayout = new QHBoxLayout;
     faderLayout->addStretch();

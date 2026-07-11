@@ -1150,12 +1150,24 @@ ChannelView>Fader {
     min-width: 32px
 }
 
-ChannelView>EditLabel {
+ChannelView>EditLabel,
+ChannelView>InlineEditLabel {
     min-width: 36px
 }
 
-ChannelView>EditLabel>QLabel {
+ChannelView>EditLabel>QLabel,
+ChannelView>InlineEditLabel>QLabel {
     color: #8CD7D8DB;
+}
+
+QLineEdit#inlineEditLineEdit[editRole="Pan"],
+QLineEdit#inlineEditLineEdit[editRole="Gain"] {
+    color: #D7D8DB;
+    background: #1A1C22;
+    border: 1px solid #9BBAFF;
+    border-radius: 2px;
+    padding: 0px;
+    selection-background-color: #536B9E;
 }
 
 ChannelView>LevelMeter {

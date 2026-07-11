@@ -17,7 +17,7 @@ class QVBoxLayout;
 class QHBoxLayout;
 class QStackedWidget;
 class QLabel;
-class EditLabel;
+class InlineEditLabel;
 class Fader;
 class LevelMeter;
 
@@ -63,7 +63,8 @@ private:
     void initUi();
     static QString gainValueToString(double gain);
     static QString panValueToString(double pan);
-    double panValueFromString(const QString &panStr);
+    static bool tryParseGainValue(const QString &text, double &gain);
+    static bool tryParsePanValue(const QString &text, double &pan);
     QVBoxLayout *buildPanSliderLayout();
     QHBoxLayout *buildFaderLevelMeterLayout();
     QVBoxLayout *buildChannelContentLayout();
@@ -75,10 +76,10 @@ private:
     bool m_notifyBarrier = false;
 
     PanSlider *m_panSlider = nullptr;
-    EditLabel *m_elPan = nullptr;
+    InlineEditLabel *m_elPan = nullptr;
 
     Fader *m_fader = nullptr;
-    EditLabel *m_elGain = nullptr;
+    InlineEditLabel *m_elGain = nullptr;
 
     LevelMeter *m_levelMeter = nullptr;
     QLabel *m_lbPeakLevel = nullptr;

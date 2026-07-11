@@ -10,8 +10,7 @@
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "UI/Controls/EditLabel.h"
-#include "UI/Controls/LineEdit.h"
+#include "UI/Controls/InlineEditLabel.h"
 #include "UI/Utils/IconUtils.h"
 #include "Utils/FontManager.h"
 #include "Global/AppGlobal.h"
@@ -22,6 +21,8 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QShortcut>
+
+#include <cmath>
 
 namespace {
     QColor playAccentColor() {
@@ -50,17 +51,39 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     // Apply music font to time-related UI elements
     const QFont musicFont = FontManager::instance().musicUIFont(13);
 
-    m_elTempo = new EditLabel;
+    m_elTempo = new InlineEditLabel;
     m_elTempo->setObjectName("elTempo");
+    m_elTempo->setEditRole(InlineEditLabel::Tempo);
     m_elTempo->setText(QString::number(m_tempo));
-    m_elTempo->label->setAlignment(Qt::AlignCenter);
-    m_elTempo->label->setFont(musicFont);
+    m_elTempo->setAlignment(Qt::AlignCenter);
+    m_elTempo->setDisplayFont(musicFont);
+    m_elTempo->setTextMargins({12, 0, 12, 0});
+    m_elTempo->setFixedHeight(m_contentHeight);
+    m_elTempo->setCommitValidator([](const QString &text) {
+        bool ok = false;
+        const auto value = text.trimmed().toDouble(&ok);
+        return ok && std::isfinite(value) && value > 0.0;
+    });
 
-    m_elTimeSignature = new EditLabel;
+    m_elTimeSignature = new InlineEditLabel;
     m_elTimeSignature->setObjectName("elTimeSignature");
-    m_elTimeSignature->label->setAlignment(Qt::AlignCenter);
+    m_elTimeSignature->setEditRole(InlineEditLabel::TimeSignature);
+    m_elTimeSignature->setAlignment(Qt::AlignCenter);
     m_elTimeSignature->setText(QString::number(m_numerator) + "/" + QString::number(m_denominator));
-    m_elTimeSignature->label->setFont(musicFont);
+    m_elTimeSignature->setDisplayFont(musicFont);
+    m_elTimeSignature->setTextMargins({12, 0, 12, 0});
+    m_elTimeSignature->setFixedHeight(m_contentHeight);
+    m_elTimeSignature->setCommitValidator([](const QString &text) {
+        const auto parts = text.trimmed().split('/');
+        if (parts.size() != 2)
+            return false;
+        bool numeratorOk = false;
+        bool denominatorOk = false;
+        const auto numerator = parts.at(0).toInt(&numeratorOk);
+        const auto denominator = parts.at(1).toInt(&denominatorOk);
+        return numeratorOk && denominatorOk && numerator > 0 && denominator > 0 &&
+               (denominator & (denominator - 1)) == 0;
+    });
 
     m_btnStop = new QPushButton;
     m_btnStop->setObjectName("btnStop");
@@ -128,21 +151,39 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         buildToggleIcon(":svg/icons/pause_16_regular.svg", m_iconSize, pauseAccentColor()));
     m_btnPause->setCheckable(true);
 
-    m_elTime = new EditLabel;
+    m_elTime = new InlineEditLabel;
     m_elTime->setObjectName("elTime");
-    m_elTime->label->setAlignment(Qt::AlignCenter);
+    m_elTime->setEditRole(InlineEditLabel::PlaybackPosition);
+    m_elTime->setAlignment(Qt::AlignCenter);
     m_elTime->setText(toFormattedTickTime(m_tick));
-    m_elTime->label->setFont(musicFont);
+    m_elTime->setDisplayFont(musicFont);
+    m_elTime->setTextMargins({12, 0, 12, 0});
+    m_elTime->setFixedHeight(m_contentHeight);
+    m_elTime->setCommitValidator([this](const QString &text) {
+        const auto parts = text.trimmed().split(':');
+        if (parts.size() != 3)
+            return false;
+        bool barOk = false;
+        bool beatOk = false;
+        bool tickOk = false;
+        const auto bar = parts.at(0).toInt(&barOk);
+        const auto beat = parts.at(1).toInt(&beatOk);
+        const auto tick = parts.at(2).toInt(&tickOk);
+        const auto beatTicks = AppGlobal::ticksPerWholeNote / m_denominator;
+        return barOk && beatOk && tickOk && bar >= 1 && beat >= 1 && beat <= m_numerator &&
+               tick >= 0 && tick < beatTicks;
+    });
 
-    connect(m_elTempo, &EditLabel::editCompleted, this, [this](const QString &value) {
+    connect(m_elTempo, &InlineEditLabel::editCompleted, this, [this](const QString &value) {
         auto tempo = value.toDouble();
         if (m_tempo != tempo) {
             m_tempo = tempo;
             emit setTempoTriggered(tempo);
         }
+        updateTempoView();
     });
 
-    connect(m_elTimeSignature, &EditLabel::editCompleted, this, [this](const QString &value) {
+    connect(m_elTimeSignature, &InlineEditLabel::editCompleted, this, [this](const QString &value) {
         if (!value.contains('/'))
             return;
 
@@ -168,8 +209,9 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
             m_denominator = denominator;
             emit setTimeSignatureTriggered(numerator, denominator);
         }
+        updateTimeSignatureView();
     });
-    connect(m_elTime, &EditLabel::editCompleted, this, [this](const QString &value) {
+    connect(m_elTime, &InlineEditLabel::editCompleted, this, [this](const QString &value) {
         if (!value.contains(':'))
             return;
 
@@ -182,6 +224,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
             m_tick = tick;
             emit setPositionTriggered(tick);
         }
+        updateTimeView();
     });
     connect(m_btnPlay, &QPushButton::clicked, this, [this] {
         emit playTriggered();

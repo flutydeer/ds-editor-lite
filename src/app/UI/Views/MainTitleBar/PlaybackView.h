@@ -10,7 +10,7 @@
 
 #include "Global/PlaybackGlobal.h"
 
-class EditLabel;
+class InlineEditLabel;
 class QPushButton;
 
 using namespace PlaybackGlobal;
@@ -36,14 +36,14 @@ public slots:
     void onPlaybackStatusChanged(PlaybackStatus status);
 
 private:
-    EditLabel *m_elTempo;
-    EditLabel *m_elTimeSignature;
+    InlineEditLabel *m_elTempo;
+    InlineEditLabel *m_elTimeSignature;
     QPushButton *m_btnStop;
     QPushButton *m_btnPlay;
     QPushButton *m_btnPause;
     QPushButton *m_btnPlayPause;
     QPushButton *m_btnLoop;
-    EditLabel *m_elTime;
+    InlineEditLabel *m_elTime;
 
     double m_tempo = 120;
     int m_numerator = 4;

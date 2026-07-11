@@ -8,6 +8,8 @@
 #include <QPointer>
 #include <QWidget>
 
+#include <functional>
+
 class QLabel;
 class InlineTextEditOverlay;
 class QValidator;
@@ -41,9 +43,11 @@ public:
 
     Qt::Alignment alignment() const;
     void setAlignment(Qt::Alignment alignment);
+    void setTextMargins(const QMargins &margins);
 
     QValidator *validator() const;
     void setValidator(QValidator *validator);
+    void setCommitValidator(std::function<bool(const QString &)> validator);
 
     EditRole editRole() const;
     void setEditRole(EditRole role);
@@ -75,6 +79,7 @@ private:
     QFont m_displayFont;
     Qt::Alignment m_alignment = Qt::AlignLeft | Qt::AlignVCenter;
     QPointer<QValidator> m_validator;
+    std::function<bool(const QString &)> m_commitValidator;
     EditRole m_editRole = Default;
     QPointer<QWidget> m_overlayParent;
     QPointer<InlineTextEditOverlay> m_overlay;
