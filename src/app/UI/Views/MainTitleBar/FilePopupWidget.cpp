@@ -295,7 +295,6 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
     btnNew->setIcon(IconUtils::createTintedSvgIcon(
         QStringLiteral(":/svg/icons/document_add_16_regular.svg"), QSize(16, 16),
         IconUtils::defaultActionPalette()));
-    btnNew->setToolTip(tr("New"));
     connect(btnNew, &Button::clicked, this, [this] {
         close();
         emit newProjectClicked();
@@ -307,7 +306,6 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
     btnOpen->setIcon(IconUtils::createTintedSvgIcon(
         QStringLiteral(":/svg/icons/folder_open_16_regular.svg"), QSize(16, 16),
         IconUtils::defaultActionPalette()));
-    btnOpen->setToolTip(tr("Open..."));
     connect(btnOpen, &Button::clicked, this, [this] {
         close();
         emit openProjectClicked();
@@ -318,8 +316,8 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
     buttonSection->setLayout(btnLayout);
     containerLayout->addWidget(buttonSection);
 
-    auto *recentSection = new QFrame;
-    recentSection->setObjectName("filePopupRecentSection");
+    m_recentSection = new QFrame;
+    m_recentSection->setObjectName("filePopupRecentSection");
     auto *recentLayout = new QVBoxLayout;
     recentLayout->setContentsMargins(6, 0, 6, 6);
     recentLayout->setSpacing(0);
@@ -341,8 +339,8 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
     m_lbEmpty->setVisible(false);
     recentLayout->addWidget(m_lbEmpty);
 
-    recentSection->setLayout(recentLayout);
-    containerLayout->addWidget(recentSection);
+    m_recentSection->setLayout(recentLayout);
+    containerLayout->addWidget(m_recentSection);
 
     m_surface->setLayout(containerLayout);
     outerLayout->addWidget(m_surface);
@@ -440,16 +438,31 @@ void FilePopupWidget::clearRecentItemHoverState() {
 void FilePopupWidget::syncPopupGeometry() {
     ensurePolished();
     m_surface->ensurePolished();
-    if (m_surface->layout())
+
+    setMinimumHeight(0);
+    setMaximumHeight(QWIDGETSIZE_MAX);
+    m_surface->setMinimumHeight(0);
+    m_surface->setMaximumHeight(QWIDGETSIZE_MAX);
+
+    m_listLayout->invalidate();
+    if (m_recentSection->layout()) {
+        m_recentSection->layout()->invalidate();
+        m_recentSection->layout()->activate();
+    }
+    m_recentSection->updateGeometry();
+    if (m_surface->layout()) {
+        m_surface->layout()->invalidate();
         m_surface->layout()->activate();
-    if (layout())
+    }
+    if (layout()) {
+        layout()->invalidate();
         layout()->activate();
+    }
 
     const int height = m_surface->layout() ? m_surface->layout()->sizeHint().height()
                                            : m_surface->sizeHint().height();
     const QSize targetSize(kPopupWidth, height);
     setFixedSize(targetSize);
-    m_surface->setFixedSize(targetSize);
     m_surface->setGeometry(QRect(QPoint(0, 0), targetSize));
 }
 

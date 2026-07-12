@@ -37,6 +37,7 @@ private:
     void applyWindowEffects();
 
     QFrame *m_surface = nullptr;
+    QFrame *m_recentSection = nullptr;
     QVBoxLayout *m_listLayout = nullptr;
     QLabel *m_lbEmpty = nullptr;
     QList<QWidget *> m_recentItems;
