@@ -167,15 +167,15 @@ bool Note::isSlur() const {
 }
 
 QMap<QString, QJsonObject> Note::workspace() const {
-    QJsonObject objLite{
-        {"phoneme", m_phonemeInfo.serialize()}
-    };
-    return QMap<QString, QJsonObject>{
-        {"ds-editor-lite", objLite}
-    };
+    auto result = m_workspace;
+    auto objLite = result.value("ds-editor-lite");
+    objLite["phoneme"] = m_phonemeInfo.serialize();
+    result["ds-editor-lite"] = objLite;
+    return result;
 }
 
 void Note::setWorkspace(const QMap<QString, QJsonObject> &workspace) {
+    m_workspace = workspace;
     if (workspace.contains("ds-editor-lite")) {
         auto objLite = workspace["ds-editor-lite"];
         if (objLite.contains("phoneme")) {

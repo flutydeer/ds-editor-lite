@@ -3,6 +3,7 @@
 //
 
 #include "DspxProjectConverter.h"
+#include "DspxPhonemeCompat.h"
 
 #include "Model/AppModel/AnchorCurve.h"
 #include "Model/AppModel/AudioClip.h"
@@ -808,6 +809,11 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                     JsonNlohmann::toQJsonValue(value).toObject();
             }
             note->setWorkspace(workspace);
+            const auto dsWorkspace = dsWorkspaceFrom(dspxNote.workspace);
+            const auto phonemeValue = dsWorkspace.value("phoneme");
+            const auto workspacePhoneme = phonemeValue.toObject();
+            note->setPhonemes(DspxPhonemeCompat::decode(
+                dspxNote.phonemes, phonemeValue.isObject() ? &workspacePhoneme : nullptr));
             notes.append(note);
         }
         return notes;
@@ -1074,9 +1080,13 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             note.language = dsNote->language().toStdString();
             note.pronunciation.original = dsNote->pronunciation().original.toStdString();
             note.pronunciation.edited = dsNote->pronunciation().edited.toStdString();
-            // encodePhonemes(dsNote->phonemeInfo().original, note.phonemes.org);
-            // encodePhonemes(dsNote->phonemeInfo().edited, note.phonemes.edited);
-            for (const auto &[key, value] : dsNote->workspace().asKeyValueRange()) {
+            auto workspace = dsNote->workspace();
+            auto dsWorkspace = workspace.value(kDsWorkspaceKey);
+            auto workspacePhoneme = dsWorkspace.value("phoneme").toObject();
+            DspxPhonemeCompat::encode(dsNote->phonemes(), note.phonemes, workspacePhoneme);
+            dsWorkspace["phoneme"] = workspacePhoneme;
+            workspace[kDsWorkspaceKey] = dsWorkspace;
+            for (const auto &[key, value] : workspace.asKeyValueRange()) {
                 note.workspace[key.toStdString()] = JsonNlohmann::fromQJsonValue(value);
             }
             notes.push_back(note);

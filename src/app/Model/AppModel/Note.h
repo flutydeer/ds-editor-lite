@@ -86,6 +86,7 @@ public:
     };
 
 private:
+    QMap<QString, QJsonObject> m_workspace;
     QPointer<SingingClip> m_clip;
     int m_rStart = 0;
     int m_length = AppGlobal::ticksPerQuarterNote;
