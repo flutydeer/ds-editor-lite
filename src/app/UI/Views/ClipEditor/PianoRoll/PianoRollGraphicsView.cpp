@@ -39,9 +39,8 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
-#include "UI/Dialogs/Note/NotePropertyDialog.h"
+#include "UI/Dialogs/Note/PhonemeEditorDialog.h"
 #include "UI/Controls/InlineTextEditOverlay.h"
-#include "Model/NoteDialog/NoteDialogResult.h"
 #include "UI/Views/Common/ScrollBarView.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
@@ -253,9 +252,16 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     if (d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote ||
         d->m_editMode == EraseNote || d->m_editMode == SplitNote) {
         if (const auto noteView = d->noteViewAt(event->pos())) {
+            const auto note = d->m_clip->findNoteById(noteView->id());
+            Q_ASSERT(note);
+            const auto selectedNoteIds = selectedNotesId();
             const auto menu = PianoRollContextMenuBuilder::buildNoteContextMenu(
-                this, noteView, [d] { d->onDeleteSelectedNotes(); },
-                [d](int noteId) { d->onOpenNotePropertyDialog(noteId, AppGlobal::Lyric); });
+                this, noteView, [d] { d->onDeleteSelectedNotes(); }, note->language(),
+                selectedNoteIds.count() == 1,
+                [selectedNoteIds](const QString &language) {
+                    clipController->onNoteLanguagesEdited(selectedNoteIds, language);
+                },
+                [d](const int noteId) { d->onOpenPhonemeEditor(noteId); });
             menu->exec(event->globalPos());
         } else {
             const auto menu = PianoRollContextMenuBuilder::buildBackgroundContextMenu(
@@ -795,14 +801,13 @@ void PianoRollGraphicsViewPrivate::onDeleteSelectedNotes() const {
     clipController->onRemoveNotes(notes);
 }
 
-void PianoRollGraphicsViewPrivate::onOpenNotePropertyDialog(
-    const int noteId, const AppGlobal::NotePropertyType propertyType) {
+void PianoRollGraphicsViewPrivate::onOpenPhonemeEditor(const int noteId) {
     Q_Q(PianoRollGraphicsView);
     const auto note = m_clip->findNoteById(noteId);
     Q_ASSERT(note);
-    const auto dlg = new NotePropertyDialog(note, propertyType, q);
-    connect(dlg, &NotePropertyDialog::accepted, this,
-            [=] { clipController->onNotePropertiesEdited(noteId, dlg->result()); });
+    const auto dlg = new PhonemeEditorDialog(note, q);
+    connect(dlg, &PhonemeEditorDialog::accepted, this,
+            [=] { clipController->onNotePhonemesEdited(noteId, dlg->phonemeNames()); });
     dlg->show();
 }
 
@@ -810,8 +815,8 @@ void PianoRollGraphicsViewPrivate::onStartEditingNoteLyric(NoteView *noteView) {
     Q_Q(PianoRollGraphicsView);
     if (!noteView || noteView->id() < 0 || !m_clip)
         return;
-    if (m_inlineEditField == InlineEditField::Lyric &&
-        m_inlineEditingNoteId == noteView->id() && m_inlineEditor->isEditing())
+    if (m_inlineEditField == InlineEditField::Lyric && m_inlineEditingNoteId == noteView->id() &&
+        m_inlineEditor->isEditing())
         return;
 
     finishInlineEditing();
@@ -831,8 +836,8 @@ void PianoRollGraphicsViewPrivate::onStartEditingNoteLyric(NoteView *noteView) {
     QFont font;
     font.setPixelSize(noteView->fontPixelSize);
     const QVariantMap properties = {
-        {QStringLiteral("editRole"), QStringLiteral("Lyric")},
-        {QStringLiteral("navigationEnabled"), true},
+        {QStringLiteral("editRole"),          QStringLiteral("Lyric")},
+        {QStringLiteral("navigationEnabled"), true                   },
     };
     m_inlineEditor->showAt(anchorRect, noteView->lyric(), font, properties);
 }
@@ -865,13 +870,7 @@ void PianoRollGraphicsViewPrivate::applyLyricEdit(const int noteId, const QStrin
     if (lyric == note->lyric())
         return;
 
-    NoteDialogResult result;
-    result.lyric = lyric;
-    result.language = note->language();
-    result.pronunciation = note->pronunciation();
-    result.phonemeNameSeq = note->phonemeNameSeq();
-
-    clipController->onNotePropertiesEdited(noteId, result);
+    clipController->onNoteLyricEdited(noteId, lyric);
 }
 
 void PianoRollGraphicsViewPrivate::onInlineNavigationRequested(const QString &text,
@@ -908,11 +907,12 @@ NoteView *PianoRollGraphicsViewPrivate::findAdjacentNoteView(NoteView *currentNo
     if (!currentNoteView)
         return nullptr;
     auto orderedViews = noteViews;
-    std::sort(orderedViews.begin(), orderedViews.end(), [](const NoteView *lhs, const NoteView *rhs) {
-        if (lhs->rStart() != rhs->rStart())
-            return lhs->rStart() < rhs->rStart();
-        return lhs->id() < rhs->id();
-    });
+    std::sort(orderedViews.begin(), orderedViews.end(),
+              [](const NoteView *lhs, const NoteView *rhs) {
+                  if (lhs->rStart() != rhs->rStart())
+                      return lhs->rStart() < rhs->rStart();
+                  return lhs->id() < rhs->id();
+              });
     const auto index = orderedViews.indexOf(currentNoteView);
     const auto targetIndex = backwards ? index - 1 : index + 1;
     return targetIndex >= 0 && targetIndex < orderedViews.size() ? orderedViews.at(targetIndex)
@@ -948,36 +948,28 @@ void PianoRollGraphicsViewPrivate::onStartEditingPronunciation(PronunciationView
     if (const auto noteView = findNoteViewById(pronView->id()))
         font.setPixelSize(noteView->fontPixelSize);
     const auto pronunciation = note->pronunciation();
-    const auto displayText = pronunciation.isEdited() ? pronunciation.edited
-                                                       : pronunciation.original;
+    const auto displayText =
+        pronunciation.isEdited() ? pronunciation.edited : pronunciation.original;
     const QVariantMap properties = {
         {QStringLiteral("editRole"), QStringLiteral("Pronunciation")},
     };
     m_inlineEditor->showAt(anchorRect, displayText, font, properties);
 }
 
-void PianoRollGraphicsViewPrivate::applyPronunciationEdit(const int noteId,
-                                                          const QString &text) {
+void PianoRollGraphicsViewPrivate::applyPronunciationEdit(const int noteId, const QString &text) {
     if (!m_clip)
         return;
     const auto note = m_clip->findNoteById(noteId);
     if (!note)
         return;
     const auto pronunciation = note->pronunciation();
-    const auto displayText = pronunciation.isEdited() ? pronunciation.edited
-                                                       : pronunciation.original;
+    const auto displayText =
+        pronunciation.isEdited() ? pronunciation.edited : pronunciation.original;
     const auto editedText = text.trimmed();
     if (editedText == displayText || editedText == pronunciation.edited)
         return;
 
-    NoteDialogResult result;
-    result.lyric = note->lyric();
-    result.language = note->language();
-    result.pronunciation = pronunciation;
-    result.pronunciation.edited = editedText;
-    result.phonemeNameSeq = note->phonemeNameSeq();
-
-    clipController->onNotePropertiesEdited(noteId, result);
+    clipController->onNotePronunciationEdited(noteId, editedText);
 }
 
 void PianoRollGraphicsViewPrivate::moveToNullClipState() {

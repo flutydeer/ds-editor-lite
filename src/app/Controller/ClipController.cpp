@@ -285,27 +285,84 @@ void ClipController::onParamEdited(const ParamInfo::Name name, const QList<Curve
     historyManager->record(a);
 }
 
-void ClipController::onNotePropertiesEdited(int noteId, const NoteDialogResult &result) {
+void ClipController::onNoteLanguagesEdited(const QList<int> &noteIds, const QString &language) {
     Q_D(ClipController);
-    auto singingClip = static_cast<SingingClip *>(d->m_clip);
-    auto note = singingClip->findNoteById(noteId);
-    auto arg = Note::WordProperties::fromNote(*note);
-    arg.language = result.language;
-    arg.lyric = result.lyric;
-    arg.pronunciation = result.pronunciation;
+    if (!d->m_clip || d->m_clip->clipType() != Clip::Singing)
+        return;
 
-    // 检查音素名称是否经过编辑，如果已编辑，则需重置相应的音素时长
-    auto resultNameSeq = result.phonemeNameSeq;
-    if (result.isPhonemeNameEdited)
-        arg.phonemes.offsetSeq.clear();
-
-    arg.phonemes.nameSeq.edited = resultNameSeq.edited;
-
-    QList list = {note};
-    QList args = {arg};
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    QList<Note *> notes;
+    QList<Note::WordProperties> args;
+    for (const auto noteId : noteIds) {
+        auto *note = singingClip->findNoteById(noteId);
+        if (!note || note->language() == language)
+            continue;
+        auto arg = Note::WordProperties::fromNote(*note);
+        arg.language = language;
+        notes.append(note);
+        args.append(arg);
+    }
+    if (notes.isEmpty())
+        return;
 
     auto a = new NoteActions;
-    a->editNotesWordProperties(list, args, singingClip);
+    a->editNotesWordProperties(notes, args, singingClip);
+    a->execute();
+    historyManager->record(a);
+}
+
+void ClipController::onNoteLyricEdited(const int noteId, const QString &lyric) {
+    Q_D(ClipController);
+    if (!d->m_clip || d->m_clip->clipType() != Clip::Singing)
+        return;
+
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    auto *note = singingClip->findNoteById(noteId);
+    if (!note || note->lyric() == lyric)
+        return;
+
+    auto arg = Note::WordProperties::fromNote(*note);
+    arg.lyric = lyric;
+    auto a = new NoteActions;
+    a->editNotesWordProperties({note}, {arg}, singingClip);
+    a->execute();
+    historyManager->record(a);
+}
+
+void ClipController::onNotePronunciationEdited(const int noteId, const QString &pronunciation) {
+    Q_D(ClipController);
+    if (!d->m_clip || d->m_clip->clipType() != Clip::Singing)
+        return;
+
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    auto *note = singingClip->findNoteById(noteId);
+    if (!note || note->pronunciation().edited == pronunciation)
+        return;
+
+    auto arg = Note::WordProperties::fromNote(*note);
+    arg.pronunciation.edited = pronunciation;
+    auto a = new NoteActions;
+    a->editNotesWordProperties({note}, {arg}, singingClip);
+    a->execute();
+    historyManager->record(a);
+}
+
+void ClipController::onNotePhonemesEdited(const int noteId,
+                                          const QList<PhonemeName> &phonemeNames) {
+    Q_D(ClipController);
+    if (!d->m_clip || d->m_clip->clipType() != Clip::Singing)
+        return;
+
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    auto *note = singingClip->findNoteById(noteId);
+    if (!note || note->phonemeNameSeq().editedEqualsWith(phonemeNames))
+        return;
+
+    auto arg = Note::WordProperties::fromNote(*note);
+    arg.phonemes.nameSeq.edited = phonemeNames;
+    arg.phonemes.offsetSeq.clear();
+    auto a = new NoteActions;
+    a->editNotesWordProperties({note}, {arg}, singingClip);
     a->execute();
     historyManager->record(a);
 }

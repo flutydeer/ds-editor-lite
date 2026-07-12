@@ -105,7 +105,7 @@ public slots:
     void onParamChanged(ParamInfo::Name name, Param::Type type) const;
 
     void onDeleteSelectedNotes() const;
-    void onOpenNotePropertyDialog(int noteId, AppGlobal::NotePropertyType propertyType);
+    void onOpenPhonemeEditor(int noteId);
     void onStartEditingNoteLyric(NoteView *noteView);
     void finishInlineEditing();
     void onInlineTextSubmitted(const QString &text);

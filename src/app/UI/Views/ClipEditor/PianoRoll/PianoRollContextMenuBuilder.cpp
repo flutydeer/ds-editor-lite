@@ -18,6 +18,7 @@
 #include <QMenu>
 #include <QClipboard>
 #include <QAction>
+#include <QActionGroup>
 #include <QCursor>
 #include <QMimeData>
 
@@ -25,33 +26,37 @@ namespace Helper = PianoRollGraphicsViewHelper;
 
 Menu *PianoRollContextMenuBuilder::buildNoteContextMenu(
     PianoRollGraphicsView *view, NoteView *noteView, std::function<void()> onDeleteNotes,
-    std::function<void(int noteId)> onOpenProperties) {
+    const QString &noteLanguage, const bool phonemeEditorEnabled,
+    std::function<void(const QString &language)> onSelectLanguage,
+    std::function<void(int noteId)> onOpenPhonemeEditor) {
     const auto menu = new Menu(view);
 
+    // --- Group 1: Note vocal properties (high frequency) ---
+    const auto languageMenu = new Menu(Menu::tr("Language"), menu);
+    const auto languageGroup = new QActionGroup(languageMenu);
+    languageGroup->setExclusive(true);
+    for (const auto &language : AppGlobal::languageNames) {
+        const auto action = languageMenu->addAction(language);
+        action->setCheckable(true);
+        action->setChecked(language == noteLanguage);
+        languageGroup->addAction(action);
+        QObject::connect(action, &QAction::triggered, view,
+                         [language, onSelectLanguage] { onSelectLanguage(language); });
+    }
+    menu->addMenu(languageMenu);
+
     const auto actionEditLyric = menu->addAction(Menu::tr("Fill lyrics..."));
-    // actionEditLyric->setIcon(IconUtils::menuIcon(QStringLiteral(":/svg/icons/document_16_filled.svg")));
     QObject::connect(actionEditLyric, &QAction::triggered, clipController,
                      [=] { clipController->onFillLyric(view); });
 
-    const auto actionSearchLyric = menu->addAction(Menu::tr("Search lyrics..."));
-    actionSearchLyric->setIcon(
-        IconUtils::menuIcon(QStringLiteral(":/svg/icons/search_16_regular.svg")));
-    QObject::connect(actionSearchLyric, &QAction::triggered, clipController,
-                     [=] { clipController->onSearchLyric(view); });
+    const auto actionEditPhonemes = menu->addAction(Menu::tr("Edit Phonemes..."));
+    actionEditPhonemes->setEnabled(phonemeEditorEnabled);
+    QObject::connect(actionEditPhonemes, &QAction::triggered, view,
+                     [noteView, onOpenPhonemeEditor] { onOpenPhonemeEditor(noteView->id()); });
 
     menu->addSeparator();
 
-    const auto actionSplit = menu->addAction(Menu::tr("Split Note"));
-    actionSplit->setIcon(
-        IconUtils::menuIcon(QStringLiteral(":/svg/icons/arrow_split_16_filled.svg")));
-    QObject::connect(actionSplit, &QAction::triggered, view, [noteView, view] {
-        const auto scenePos = view->mapToScene(QCursor::pos());
-        const auto tick = static_cast<int>(view->sceneXToTick(scenePos.x()));
-        Helper::splitNote(noteView->id(), tick);
-    });
-
-    menu->addSeparator();
-
+    // --- Group 2: Basic editing operations ---
     const auto actionCut = menu->addAction(Menu::tr("Cu&t"));
     actionCut->setIcon(IconUtils::menuIcon(QStringLiteral(":/svg/icons/cut_16_regular.svg")));
     QObject::connect(actionCut, &QAction::triggered, clipboardController,
@@ -66,13 +71,25 @@ Menu *PianoRollContextMenuBuilder::buildNoteContextMenu(
     actionRemove->setIcon(IconUtils::menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
     QObject::connect(actionRemove, &QAction::triggered, view, onDeleteNotes);
 
+    const auto actionSplit = menu->addAction(Menu::tr("Split Note"));
+    actionSplit->setIcon(
+        IconUtils::menuIcon(QStringLiteral(":/svg/icons/arrow_split_16_filled.svg")));
+    QObject::connect(actionSplit, &QAction::triggered, view, [noteView, view] {
+        const auto scenePos = view->mapToScene(QCursor::pos());
+        const auto tick = static_cast<int>(view->sceneXToTick(scenePos.x()));
+        Helper::splitNote(noteView->id(), tick);
+    });
+
     menu->addSeparator();
 
-    const auto actionProperties = menu->addAction(Menu::tr("Properties..."));
-    actionProperties->setIcon(
-        IconUtils::menuIcon(QStringLiteral(":/svg/icons/info_16_regular.svg")));
-    QObject::connect(actionProperties, &QAction::triggered, view,
-                     [noteView, onOpenProperties] { onOpenProperties(noteView->id()); });
+    // --- Group 3: Infrequent operations ---
+    const auto actionSearchLyric = menu->addAction(Menu::tr("Search lyrics..."));
+    actionSearchLyric->setIcon(
+        IconUtils::menuIcon(QStringLiteral(":/svg/icons/search_16_regular.svg")));
+    QObject::connect(actionSearchLyric, &QAction::triggered, clipController,
+                     [=] { clipController->onSearchLyric(view); });
+
+    menu->addSeparator();
 
     return menu;
 }

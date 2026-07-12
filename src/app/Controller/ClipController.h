@@ -11,7 +11,6 @@
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/Params.h"
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
-#include "Model/NoteDialog/NoteDialogResult.h"
 #include "Utils/Singleton.h"
 
 #include <QObject>
@@ -69,7 +68,10 @@ public slots:
     void selectNotes(const QList<int> &notesId, bool unselectOther);
     void unselectNotes(const QList<int> &notesId);
     void onParamEdited(ParamInfo::Name name, const QList<Curve *> &curves) const;
-    void onNotePropertiesEdited(int noteId, const NoteDialogResult &result);
+    void onNoteLanguagesEdited(const QList<int> &noteIds, const QString &language);
+    void onNoteLyricEdited(int noteId, const QString &lyric);
+    void onNotePronunciationEdited(int noteId, const QString &pronunciation);
+    void onNotePhonemesEdited(int noteId, const QList<PhonemeName> &phonemeNames);
     void onDeleteSelectedNotes();
     void onSelectAllNotes();
     void onFillLyric(QWidget *parent);
