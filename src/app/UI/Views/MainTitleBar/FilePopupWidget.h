@@ -33,6 +33,7 @@ private:
     void clearRecentItemHoverState();
     void refreshRecentFiles();
     QWidget *createRecentFileItem(const QString &filePath, bool isCurrent);
+    void syncPopupGeometry();
     void applyWindowEffects();
 
     QFrame *m_surface = nullptr;

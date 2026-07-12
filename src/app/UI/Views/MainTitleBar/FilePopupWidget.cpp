@@ -10,6 +10,8 @@
 #include "UI/Utils/IconUtils.h"
 #include "Utils/SystemUtils.h"
 
+#include <QMCore/qmsystem.h>
+
 #ifdef Q_OS_WIN
 #  include <Windows.h>
 #  include <dwmapi.h>
@@ -19,6 +21,7 @@
 #include <QApplication>
 #include <QCursor>
 #include <QCoreApplication>
+#include <QDir>
 #include <QEnterEvent>
 #include <QFileInfo>
 #include <QFontMetrics>
@@ -29,6 +32,7 @@
 #include <QScreen>
 #include <QSizePolicy>
 #include <QStyle>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -49,6 +53,50 @@ namespace {
         return QFontMetrics(font).elidedText(path, Qt::ElideMiddle, width);
     }
 
+    QString normalizedProjectPath(const QString &path) {
+        return QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+    }
+
+    bool projectPathsEqual(const QString &lhs, const QString &rhs) {
+#ifdef Q_OS_WIN
+        return QString::compare(lhs, rhs, Qt::CaseInsensitive) == 0;
+#else
+        return lhs == rhs;
+#endif
+    }
+
+    class RecentFileMoreButton : public QToolButton {
+    public:
+        explicit RecentFileMoreButton(QWidget *parent = nullptr) : QToolButton(parent) {
+            setProperty("hovered", false);
+        }
+
+        void syncHoveredWithCursor() {
+            setHovered(isVisible() && rect().contains(mapFromGlobal(QCursor::pos())));
+        }
+
+    protected:
+        void enterEvent(QEnterEvent *event) override {
+            QToolButton::enterEvent(event);
+            setHovered(true);
+        }
+
+        void leaveEvent(QEvent *event) override {
+            QToolButton::leaveEvent(event);
+            setHovered(false);
+        }
+
+    private:
+        void setHovered(bool hovered) {
+            if (property("hovered").toBool() == hovered)
+                return;
+            setProperty("hovered", hovered);
+            style()->unpolish(this);
+            style()->polish(this);
+            update();
+        }
+    };
+
     class RecentFileItemWidget : public QFrame {
     public:
         RecentFileItemWidget(QString filePath, bool isCurrent, QWidget *parent = nullptr)
@@ -57,7 +105,6 @@ namespace {
             setProperty("current", m_isCurrent);
             setProperty("hovered", false);
             setAttribute(Qt::WA_StyledBackground);
-            setCursor(Qt::PointingHandCursor);
             setFixedHeight(kItemHeight);
 
             auto *itemLayout = new QHBoxLayout;
@@ -91,10 +138,9 @@ namespace {
             infoFrame->setLayout(infoLayout);
             itemLayout->addWidget(infoFrame, 1);
 
-            m_btnMore = new QToolButton;
+            m_btnMore = new RecentFileMoreButton;
             m_btnMore->setObjectName("filePopupMoreButton");
             m_btnMore->setFixedSize(28, 28);
-            m_btnMore->setCursor(Qt::PointingHandCursor);
             m_btnMore->setIcon(IconUtils::createTintedSvgIcon(
                 QStringLiteral(":/svg/icons/more_vertical_16_regular.svg"), QSize(16, 16),
                 normalColor()));
@@ -104,14 +150,25 @@ namespace {
             m_btnMore->setAttribute(Qt::WA_NoMousePropagation);
             connect(m_btnMore, &QToolButton::clicked, this, [this] {
                 auto *menu = new Menu(this);
+                auto *actionReveal = menu->addAction(
+                    IconUtils::menuIcon(QStringLiteral(":/svg/icons/folder_open_16_regular.svg")),
+                    QCoreApplication::translate("FilePopupWidget", "Show in Folder"));
+                connect(actionReveal, &QAction::triggered, this, [this] {
+                    QM::reveal(QFileInfo(m_filePath).absoluteFilePath());
+                });
+                menu->addSeparator();
                 auto *actionRemove = menu->addAction(
-                    IconUtils::menuIcon(QStringLiteral(":/svg/icons/dismiss_16_regular.svg")),
+                    IconUtils::menuIcon(QStringLiteral(":/svg/icons/subtract_16_regular.svg")),
                     QCoreApplication::translate("FilePopupWidget", "Remove"));
+                actionRemove->setEnabled(!m_isCurrent);
                 connect(actionRemove, &QAction::triggered, this,
                         [this] {
                             if (m_removeHandler)
                                 m_removeHandler(m_filePath);
                         });
+                connect(menu, &Menu::aboutToHide, this, [this] {
+                    QTimer::singleShot(0, this, [this] { syncHoveredWithCursor(); });
+                });
                 menu->setAttribute(Qt::WA_DeleteOnClose);
                 menu->popup(m_btnMore->mapToGlobal(QPoint(0, m_btnMore->height())));
             });
@@ -136,6 +193,11 @@ namespace {
 
         void setRemoveHandler(std::function<void(const QString &)> handler) {
             m_removeHandler = std::move(handler);
+        }
+
+        void syncHoveredWithCursor() {
+            setHovered(isVisible() && rect().contains(mapFromGlobal(QCursor::pos())));
+            m_btnMore->syncHoveredWithCursor();
         }
 
         void setHovered(bool hovered) {
@@ -186,7 +248,7 @@ namespace {
         bool m_isCurrent = false;
         QLabel *m_nameLabel = nullptr;
         QLabel *m_pathLabel = nullptr;
-        QToolButton *m_btnMore = nullptr;
+        RecentFileMoreButton *m_btnMore = nullptr;
         std::function<void()> m_openHandler;
         std::function<void(const QString &)> m_removeHandler;
     };
@@ -196,6 +258,7 @@ namespace {
 FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
     setObjectName("filePopupWidget");
     setWindowFlags(Qt::Popup | Qt::FramelessWindowHint);
+    setCursor(Qt::ArrowCursor);
     setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_StyledBackground);
     setAttribute(Qt::WA_WindowPropagation);
@@ -263,7 +326,7 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
 
     auto *lbRecentTitle = new QLabel(tr("Recent Projects"));
     lbRecentTitle->setObjectName("filePopupRecentTitle");
-    lbRecentTitle->setContentsMargins(6, 6, 6, 6);
+    lbRecentTitle->setContentsMargins(6, 0, 6, 6);
     recentLayout->addWidget(lbRecentTitle);
 
     m_listLayout = new QVBoxLayout;
@@ -293,7 +356,7 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
 void FilePopupWidget::showAt(const QPoint &globalPos) {
     refreshRecentFiles();
     clearRecentItemHoverState();
-    adjustSize();
+    syncPopupGeometry();
 
     QPoint topLeft = globalPos;
     if (const auto screen = QApplication::screenAt(globalPos)) {
@@ -309,7 +372,7 @@ void FilePopupWidget::showAt(const QPoint &globalPos) {
             topLeft.setY(screenRect.top());
     }
 
-    move(topLeft);
+    setGeometry(QRect(topLeft, size()));
     show();
     raise();
     applyWindowEffects();
@@ -334,19 +397,24 @@ void FilePopupWidget::refreshRecentFiles() {
 
     if (recentFiles.isEmpty()) {
         m_lbEmpty->setVisible(true);
-        return;
-    }
-    m_lbEmpty->setVisible(false);
+    } else {
+        m_lbEmpty->setVisible(false);
 
-    constexpr int maxItems = 5;
-    const auto count = std::min(recentFiles.size(), qsizetype{maxItems});
-    for (qsizetype i = 0; i < count; ++i) {
-        const auto &filePath = recentFiles.at(i);
-        const bool isCurrent = !currentPath.isEmpty() && filePath == currentPath;
-        auto *itemWidget = createRecentFileItem(filePath, isCurrent);
-        m_recentItems.append(itemWidget);
-        m_listLayout->addWidget(itemWidget);
+        constexpr int maxItems = 5;
+        const auto count = std::min(recentFiles.size(), qsizetype{maxItems});
+        for (qsizetype i = 0; i < count; ++i) {
+            const auto &filePath = recentFiles.at(i);
+            const bool isCurrent =
+                !currentPath.isEmpty() &&
+                projectPathsEqual(normalizedProjectPath(filePath),
+                                  normalizedProjectPath(currentPath));
+            auto *itemWidget = createRecentFileItem(filePath, isCurrent);
+            m_recentItems.append(itemWidget);
+            m_listLayout->addWidget(itemWidget);
+        }
     }
+
+    syncPopupGeometry();
 }
 
 QWidget *FilePopupWidget::createRecentFileItem(const QString &filePath, bool isCurrent) {
@@ -365,12 +433,24 @@ void FilePopupWidget::clearRecentItemHoverState() {
     for (auto *item : std::as_const(m_recentItems)) {
         if (!item)
             continue;
-        item->setAttribute(Qt::WA_UnderMouse, false);
-        item->setProperty("hovered", false);
-        item->style()->unpolish(item);
-        item->style()->polish(item);
-        item->update();
+        static_cast<RecentFileItemWidget *>(item)->setHovered(false);
     }
+}
+
+void FilePopupWidget::syncPopupGeometry() {
+    ensurePolished();
+    m_surface->ensurePolished();
+    if (m_surface->layout())
+        m_surface->layout()->activate();
+    if (layout())
+        layout()->activate();
+
+    const int height = m_surface->layout() ? m_surface->layout()->sizeHint().height()
+                                           : m_surface->sizeHint().height();
+    const QSize targetSize(kPopupWidth, height);
+    setFixedSize(targetSize);
+    m_surface->setFixedSize(targetSize);
+    m_surface->setGeometry(QRect(QPoint(0, 0), targetSize));
 }
 
 void FilePopupWidget::applyWindowEffects() {

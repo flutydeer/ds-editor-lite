@@ -28,7 +28,6 @@ namespace {
 
 TitleBarComboBox::TitleBarComboBox(QWidget *parent) : QToolButton(parent) {
     setObjectName("titleBarComboBox");
-    setCursor(Qt::PointingHandCursor);
     setFixedHeight(kComboHeight);
     setMinimumWidth(kMinComboWidth);
     setMaximumWidth(kMaxComboWidth);

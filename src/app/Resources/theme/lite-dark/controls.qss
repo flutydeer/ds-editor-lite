@@ -228,7 +228,7 @@ QToolButton#titleBarComboBox {
     background: transparent;
     border: 1px solid transparent;
     border-radius: 4px;
-    color: #C8C9CC;
+    color: #f0f0f0;
     padding: 0px 28px 0px 12px;
     height: 28px;
 }
@@ -529,7 +529,7 @@ QLabel#filePopupEmptyLabel {
 }
 
 QLabel#filePopupRecentName {
-    color: #C8C9CC;
+    color: #e0e0e0;
     background: transparent;
 }
 
@@ -539,7 +539,7 @@ QFrame#filePopupRecentItem[current="true"] QLabel#filePopupRecentName {
 }
 
 QLabel#filePopupRecentPath {
-    color: #73D7D8DB;
+    color: #A0A0A0;
     background: transparent;
 }
 
@@ -559,7 +559,7 @@ QToolButton#filePopupMoreButton {
     border-radius: 4px;
 }
 
-QToolButton#filePopupMoreButton:hover {
+QToolButton#filePopupMoreButton[hovered="true"] {
     background: #1AFFFFFF;
 }
 

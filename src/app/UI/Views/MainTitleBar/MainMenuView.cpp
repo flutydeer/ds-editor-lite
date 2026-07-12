@@ -450,7 +450,7 @@ void MainMenuViewPrivate::initFileActions() {
     connect(actionNew, &QAction::triggered, this, [this] { onNew(); });
 
     actionOpen = new QAction(tr("&Open..."));
-    actionOpen->setIcon(menuIcon(QStringLiteral(":/svg/icons/open_16_regular.svg")));
+    actionOpen->setIcon(menuIcon(QStringLiteral(":/svg/icons/folder_open_16_regular.svg")));
     actionOpen->setShortcut(QKeySequence("Ctrl+O"));
     actionOpen->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionOpen, &QAction::triggered, this, [this] { onOpen(); });
