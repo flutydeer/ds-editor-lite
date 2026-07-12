@@ -45,7 +45,7 @@ void TwoLevelComboBox::paintEvent(QPaintEvent *event) {
                                (menuButtonWidth - arrowSize.width()) / 2.0,
                            controlRect.top() + (controlRect.height() - arrowSize.height()) / 2.0,
                            arrowSize.width(), arrowSize.height());
-    const auto arrowIcon = IconUtils::createTintedSvgIcon(":svg/icons/chevron_down_16_filled.svg",
+    const auto arrowIcon = IconUtils::createTintedSvgIcon(":svg/icons/chevron_down_16_regular.svg",
                                                           arrowSize.toSize(), textColor, textColor);
     const auto arrowPixmap =
         arrowIcon.pixmap(arrowSize.toSize(), isEnabled() ? QIcon::Normal : QIcon::Disabled);

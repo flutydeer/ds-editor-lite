@@ -102,7 +102,7 @@
 已完成的功能改动：
 - `TwoLevelComboBox` 新增 `setLoadingText()` 和 `m_loadingText` 成员；`currentText()` 优先返回 loadingText；`setItems()` 末尾自动清除 loadingText。
 - `TwoLevelComboBox::paintEvent` 中 `drawText` 改为从 `opt.palette` 取 `QPalette::ButtonText` 颜色，使 QSS `color` 属性能影响自绘文本。
-- `TwoLevelComboBox::paintEvent` 中箭头改为使用 `IconUtils::createTintedSvgIcon()` 绘制 `chevron_down_16_filled.svg`，并用 `QRectF` 计算箭头区域，避免高 DPI 下整数坐标带来的轻微偏移。
+- `TwoLevelComboBox::paintEvent` 中箭头改为使用 `IconUtils::createTintedSvgIcon()` 绘制 `chevron_down_16_regular.svg`，并用 `QRectF` 计算箭头区域，避免高 DPI 下整数坐标带来的轻微偏移。
 - `TrackControlView` 构造时检查 `packageModuleStatus`：未 Ready 则 `setEnabled(false)` + `setLoadingText(tr("(Scanning...)"))`；新增 `moduleStatusChanged` 监听，Ready 后恢复。
 - `ClipEditorToolBarView` 同理，保留 Follow Track 语义。
 - `track-editor.qss` 新增 `TrackControlView>TwoLevelComboBox:disabled` 样式：透明背景、无边框、半透明前景色。

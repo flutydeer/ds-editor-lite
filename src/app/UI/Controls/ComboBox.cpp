@@ -34,20 +34,19 @@ void ComboBox::paintEvent(QPaintEvent *event) {
     style()->drawComplexControl(QStyle::CC_ComboBox, &frameOption, &painter, this);
     style()->drawControl(QStyle::CE_ComboBoxLabel, &option, &painter, this);
 
-    QRect arrowRect = style()->subControlRect(QStyle::CC_ComboBox, &option,
-                                              QStyle::SC_ComboBoxArrow, this);
+    QRect arrowRect =
+        style()->subControlRect(QStyle::CC_ComboBox, &option, QStyle::SC_ComboBoxArrow, this);
     if (arrowRect.isEmpty())
         arrowRect = QRect(width() - 28, 0, 28, height());
 
     const QSize iconSize(16, 16);
     const QPoint iconPos(arrowRect.x() + (arrowRect.width() - iconSize.width()) / 2,
                          arrowRect.y() + (arrowRect.height() - iconSize.height()) / 2);
-    const QColor iconColor = option.palette.color(isEnabled() ? QPalette::Active
-                                                              : QPalette::Disabled,
-                                                  QPalette::ButtonText);
-    const auto pixmap = IconUtils::renderTintedSvgPixmap(
-        QStringLiteral(":/svg/icons/chevron_down_16_filled.svg"), iconSize, iconColor,
-        devicePixelRatioF());
+    const QColor iconColor = option.palette.color(
+        isEnabled() ? QPalette::Active : QPalette::Disabled, QPalette::ButtonText);
+    const auto pixmap =
+        IconUtils::renderTintedSvgPixmap(QStringLiteral(":/svg/icons/chevron_down_16_regular.svg"),
+                                         iconSize, iconColor, devicePixelRatioF());
     painter.drawPixmap(iconPos, pixmap);
 }
 

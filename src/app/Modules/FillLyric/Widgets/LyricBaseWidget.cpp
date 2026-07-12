@@ -50,7 +50,7 @@ namespace FillLyric {
         const QSize optButtonIconSize(16, 16);
         const auto optButtonIconColor = m_optButton->palette().color(QPalette::ButtonText);
         m_optButton->setIcon(IconUtils::createTintedSvgIcon(
-            QStringLiteral(":/svg/icons/chevron_down_16_filled.svg"), optButtonIconSize,
+            QStringLiteral(":/svg/icons/chevron_down_16_regular.svg"), optButtonIconSize,
             optButtonIconColor, optButtonIconColor));
         m_optButton->setIconSize(optButtonIconSize);
 

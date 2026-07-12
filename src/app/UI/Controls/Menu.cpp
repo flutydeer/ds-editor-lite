@@ -92,7 +92,7 @@ void Menu::paintEvent(QPaintEvent *event) {
                                       (option.rect.height() - arrowSize.height()) / 2,
                                   arrowSize.width(), arrowSize.height());
             const auto pixmap = IconUtils::renderTintedSvgPixmap(
-                QStringLiteral(":/svg/icons/chevron_right_16_filled.svg"), arrowSize, color, dpr);
+                QStringLiteral(":/svg/icons/chevron_right_16_regular.svg"), arrowSize, color, dpr);
             painter.drawPixmap(arrowRect.topLeft(), pixmap);
         }
     }
