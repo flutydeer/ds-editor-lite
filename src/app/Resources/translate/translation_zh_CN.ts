@@ -803,7 +803,7 @@
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="126"/>
         <source>Retake</source>
-        <translation type="unfinished"></translation>
+        <translation>重录</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="136"/>
@@ -872,7 +872,7 @@ Right drag: Erase</source>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="160"/>
         <source>Vibrato</source>
-        <translation type="unfinished"></translation>
+        <translation>颤音</translation>
     </message>
     <message>
         <source>Maximize or restore</source>
@@ -1038,7 +1038,7 @@ Right drag: Erase</source>
             这两款编辑器完全兼容：工程文件和声库可在两者之间无缝共享。
         &lt;/p&gt;
         &lt;p style=&quot;color: #dadada;&quot;&gt;
-            DiffScope 目前仍处于开发阶段，各项功能也在持续完善中。与 %2 一样，DiffScope 是一款由社区贡献驱动的免费软件。我们欢迎您参与贡献，与我们共同不断优化这一工具生态。
+            DiffScope 目前仍处于开发阶段，各项功能也在持续完善中。与 %2 一样，DiffScope 是一款由社区贡献驱动自由软件。我们欢迎您参与贡献，与我们共同不断优化这一工具生态。
         &lt;/p&gt;
     </translation>
     </message>
