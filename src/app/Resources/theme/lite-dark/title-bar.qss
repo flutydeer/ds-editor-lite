@@ -119,7 +119,6 @@ QLineEdit#inlineEditLineEdit[editRole="PlaybackPosition"] {
     border-bottom: 1px solid #9BBAFF;
     border-radius: 0px;
     padding: 0px 12px;
-    selection-background-color: #536B9E;
 }
 
 QLineEdit#inlineEditLineEdit[editRole="Tempo"][groupPos="first"],

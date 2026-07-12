@@ -1165,7 +1165,6 @@ QLineEdit#inlineEditLineEdit[editRole="Gain"] {
     border: 1px solid #9BBAFF;
     border-radius: 2px;
     padding: 0px;
-    selection-background-color: #536B9E;
 }
 
 ChannelView>LevelMeter {
