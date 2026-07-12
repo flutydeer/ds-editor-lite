@@ -26,6 +26,8 @@
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
+#include "UI/Views/MainTitleBar/TitleBarComboBox.h"
+#include "UI/Views/MainTitleBar/FilePopupWidget.h"
 
 #include <QStackedWidget>
 #include <QTabBar>
@@ -37,6 +39,8 @@
 #include "Utils/WindowFrameUtils.h"
 
 #include <QApplication>
+#include <QFile>
+#include <QFileInfo>
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -94,36 +98,36 @@ protected:
         }
 
         switch (event->type()) {
-        case QEvent::MouseButtonPress:
-        case QEvent::MouseButtonRelease:
-        case QEvent::MouseButtonDblClick:
-        case QEvent::MouseMove:
-        case QEvent::Wheel:
-            m_inputCount++;
-            break;
-        case QEvent::KeyPress:
-        case QEvent::KeyRelease:
-            m_keyCount++;
-            break;
-        case QEvent::MetaCall:
-            m_metaCallCount++;
-            m_metaCallDepth++;
-            break;
-        case QEvent::Timer:
-            m_timerCount++;
-            break;
-        case QEvent::UpdateRequest:
-            m_updateReqCount++;
-            break;
-        case QEvent::Paint: {
-            m_paintCount++;
-            if (auto widget = qobject_cast<QWidget *>(obj))
-                m_paintByClass[QString::fromLatin1(widget->metaObject()->className())]++;
-            break;
-        }
-        default:
-            m_otherCount++;
-            break;
+            case QEvent::MouseButtonPress:
+            case QEvent::MouseButtonRelease:
+            case QEvent::MouseButtonDblClick:
+            case QEvent::MouseMove:
+            case QEvent::Wheel:
+                m_inputCount++;
+                break;
+            case QEvent::KeyPress:
+            case QEvent::KeyRelease:
+                m_keyCount++;
+                break;
+            case QEvent::MetaCall:
+                m_metaCallCount++;
+                m_metaCallDepth++;
+                break;
+            case QEvent::Timer:
+                m_timerCount++;
+                break;
+            case QEvent::UpdateRequest:
+                m_updateReqCount++;
+                break;
+            case QEvent::Paint: {
+                m_paintCount++;
+                if (auto widget = qobject_cast<QWidget *>(obj))
+                    m_paintByClass[QString::fromLatin1(widget->metaObject()->className())]++;
+                break;
+            }
+            default:
+                m_otherCount++;
+                break;
         }
         bool ret = QObject::eventFilter(obj, event);
         if (event->type() == QEvent::MetaCall)
@@ -134,10 +138,11 @@ protected:
 private:
     void printStats() {
         double elapsedSec = m_lastPrintTime.restart() / 1000.0;
-        if (elapsedSec <= 0) elapsedSec = 1.0;
+        if (elapsedSec <= 0)
+            elapsedSec = 1.0;
 
-        int total = m_metaCallCount + m_timerCount + m_updateReqCount
-                  + m_paintCount + m_inputCount + m_keyCount + m_otherCount;
+        int total = m_metaCallCount + m_timerCount + m_updateReqCount + m_paintCount +
+                    m_inputCount + m_keyCount + m_otherCount;
         double metaCallsPerSec = m_metaCallCount / elapsedSec;
         double timersPerSec = m_timerCount / elapsedSec;
         double updateReqsPerSec = m_updateReqCount / elapsedSec;
@@ -177,13 +182,17 @@ private:
         int shown = 0;
         qint64 accountedTime = 0;
         for (const auto &pair : sortedByTime) {
-            if (shown >= 12) break;
+            if (shown >= 12)
+                break;
             auto count = m_paintByClass.value(pair.first, 0);
             qDebug().noquote().nospace()
                 << "  " << qSetFieldWidth(35) << pair.first << qSetFieldWidth(0)
                 << "  count=" << qSetFieldWidth(3) << count << qSetFieldWidth(0)
-                << "  time=" << qSetFieldWidth(4) << QString::number(pair.second / 1000.0, 'f', 1) << qSetFieldWidth(0) << "ms"
-                << "  avg=" << qSetFieldWidth(4) << QString::number(count > 0 ? pair.second / 1000.0 / count : 0, 'f', 2) << qSetFieldWidth(0) << "ms";
+                << "  time=" << qSetFieldWidth(4) << QString::number(pair.second / 1000.0, 'f', 1)
+                << qSetFieldWidth(0) << "ms"
+                << "  avg=" << qSetFieldWidth(4)
+                << QString::number(count > 0 ? pair.second / 1000.0 / count : 0, 'f', 2)
+                << qSetFieldWidth(0) << "ms";
             accountedTime += pair.second;
             shown++;
         }
@@ -231,6 +240,7 @@ private:
     QHash<QString, int> m_paintByClass;
     QHash<QString, qint64> m_paintTimeByClass;
 };
+
 // ====== END DIAGNOSTIC EVENT FILTER ======
 
 MainWindow::MainWindow() {
@@ -251,6 +261,7 @@ MainWindow::MainWindow() {
         agent->setHitTestVisible(m_titleBar->menuView());
         agent->setHitTestVisible(m_titleBar->actionButtonsView());
         agent->setHitTestVisible(m_titleBar->playbackView());
+        agent->setHitTestVisible(m_titleBar->titleComboBox());
 
         connect(m_titleBar, &MainTitleBar::minimizeTriggered, this, &MainMenuView::showMinimized);
         connect(m_titleBar, &MainTitleBar::maximizeTriggered, this, [&](bool max) {
@@ -261,6 +272,15 @@ MainWindow::MainWindow() {
             emulateLeaveEvent(m_titleBar->maximizeButton());
         });
         connect(m_titleBar, &MainTitleBar::closeTriggered, this, &MainWindow::close);
+
+        // Connect file popup actions
+        auto *filePopup = m_titleBar->titleComboBox()->popupWidget();
+        connect(filePopup, &FilePopupWidget::newProjectClicked, m_mainMenu->actionNew(),
+                &QAction::trigger);
+        connect(filePopup, &FilePopupWidget::openProjectClicked, m_mainMenu->actionOpen(),
+                &QAction::trigger);
+        connect(filePopup, &FilePopupWidget::openRecentProject, m_mainMenu,
+                &MainMenuView::openRecentProject);
     }
     installEventFilter(m_titleBar);
 
@@ -405,11 +425,13 @@ void MainWindow::updateWindowTitle() {
         setWindowTitle(appName);
     else {
         auto projectPath = appController->projectPath();
+        auto displayName = projectPath.isEmpty() ? QFileInfo(projectName).completeBaseName()
+                                                 : QFileInfo(projectPath).completeBaseName();
         if (projectPath.isNull() || projectPath.isEmpty())
-            setWindowTitle(projectName + " - " + appName);
+            setWindowTitle(displayName);
         else {
             auto indicator = saved ? "" : "● ";
-            setWindowTitle(indicator + projectName + " - " + appName);
+            setWindowTitle(indicator + displayName);
         }
     }
 }

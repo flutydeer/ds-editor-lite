@@ -5,8 +5,10 @@
 #include "MainTitleBar.h"
 
 #include "ActionButtonsView.h"
+#include "UI/Controls/DividerLine.h"
 #include "MainMenuView.h"
 #include "PlaybackView.h"
+#include "TitleBarComboBox.h"
 #include "Controller/AppController.h"
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Button.h"
@@ -20,10 +22,10 @@
 #include <QStyle>
 #include <QVariantAnimation>
 
-#define ChromeMinimize  QStringLiteral(u"\ue921")
-#define ChromeMaximize  QStringLiteral(u"\ue922")
-#define ChromeRestore   QStringLiteral(u"\ue923")
-#define ChromeClose     QStringLiteral(u"\ue8bb")
+#define ChromeMinimize QStringLiteral(u"\ue921")
+#define ChromeMaximize QStringLiteral(u"\ue922")
+#define ChromeRestore  QStringLiteral(u"\ue923")
+#define ChromeClose    QStringLiteral(u"\ue8bb")
 
 MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNativeFrame)
     : QWidget(parent), m_window(parent), m_menuView(menuView) {
@@ -43,8 +45,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
             &AppController::onUndoRedoChanged);
 
     if (!useNativeFrame) {
-        m_lbTitle = new QLabel;
-        m_lbTitle->setMinimumWidth(8);
+        m_titleComboBox = new TitleBarComboBox;
 
         int systemButtonWidth = 48;
 
@@ -95,12 +96,17 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
         mainLayout->addSpacerItem(new QSpacerItem(32, 20, QSizePolicy::Fixed));
     }
     mainLayout->addLayout(menuBarContainer);
+    if (!useNativeFrame) {
+        auto dividerBeforeTitle = new DividerLine(Qt::Vertical);
+        dividerBeforeTitle->setFixedHeight(18);
+        mainLayout->addWidget(dividerBeforeTitle);
+        mainLayout->addWidget(m_titleComboBox);
+        auto dividerBeforeTools = new DividerLine(Qt::Vertical);
+        dividerBeforeTools->setFixedHeight(18);
+        mainLayout->addWidget(dividerBeforeTools);
+    }
     mainLayout->addWidget(m_actionButtonsView);
     mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
-    if (!useNativeFrame) {
-        mainLayout->addWidget(m_lbTitle);
-        mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
-    }
     mainLayout->addWidget(m_playbackView);
     mainLayout->addSpacing(6);
     if (!useNativeFrame) {
@@ -145,10 +151,14 @@ Button *MainTitleBar::closeButton() const {
     return m_btnClose;
 }
 
+TitleBarComboBox *MainTitleBar::titleComboBox() const {
+    return m_titleComboBox;
+}
+
 void MainTitleBar::setTitle(const QString &title) const {
-    if (!m_lbTitle)
+    if (!m_titleComboBox)
         return;
-    m_lbTitle->setText(title);
+    m_titleComboBox->setTitle(title);
 }
 
 bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {

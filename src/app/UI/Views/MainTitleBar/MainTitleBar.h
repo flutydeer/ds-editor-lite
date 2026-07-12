@@ -9,7 +9,7 @@
 
 class QVariantAnimation;
 class QGraphicsOpacityEffect;
-class QLabel;
+class TitleBarComboBox;
 class ActionButtonsView;
 class PlaybackView;
 class Button;
@@ -28,6 +28,7 @@ public:
     [[nodiscard]] Button *maximizeButton() const;
     [[nodiscard]] Button *closeButton() const;
 
+    [[nodiscard]] TitleBarComboBox *titleComboBox() const;
     void setTitle(const QString &title) const;
 
 signals:
@@ -46,7 +47,7 @@ private:
     Button *m_btnMin = nullptr;
     Button *m_btnMax = nullptr;
     Button *m_btnClose = nullptr;
-    QLabel *m_lbTitle = nullptr;
+    TitleBarComboBox *m_titleComboBox = nullptr;
     QGraphicsOpacityEffect *m_opacityEffect;
     QVariantAnimation *m_animation;
 };

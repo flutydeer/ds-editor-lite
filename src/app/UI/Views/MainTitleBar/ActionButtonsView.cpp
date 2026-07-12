@@ -5,7 +5,6 @@
 #include "ActionButtonsView.h"
 
 #include "Modules/History/HistoryManager.h"
-#include "UI/Controls/DividerLine.h"
 #include "UI/Controls/ToolButton.h"
 #include "UI/Controls/ToolTipFilter.h"
 
@@ -13,9 +12,6 @@
 #include <QPushButton>
 
 ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
-    auto dividerLine = new DividerLine(Qt::Vertical);
-    dividerLine->setFixedHeight(m_contentHeight - 6);
-
     m_btnSave = new ToolButton;
     m_btnSave->setObjectName("btnSave");
     m_btnSave->setFixedSize(m_contentHeight, m_contentHeight);
@@ -47,7 +43,6 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     mainLayout->setSpacing(4);
     setLayout(mainLayout);
     setContentsMargins({});
-    mainLayout->addWidget(dividerLine);
     mainLayout->addWidget(m_btnSave);
     mainLayout->addWidget(m_btnUndo);
     mainLayout->addWidget(m_btnRedo);

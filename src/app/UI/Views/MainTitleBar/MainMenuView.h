@@ -9,6 +9,7 @@
 
 class MainMenuViewPrivate;
 class MainWindow;
+class QString;
 
 class MainMenuView : public QMenuBar {
     Q_OBJECT
@@ -17,8 +18,11 @@ public:
     explicit MainMenuView(MainWindow *mainWindow);
     ~MainMenuView() override;
 
+    [[nodiscard]] QAction *actionNew();
+    [[nodiscard]] QAction *actionOpen();
     [[nodiscard]] QAction *actionSave();
     [[nodiscard]] QAction *actionSaveAs();
+    void openRecentProject(const QString &filePath);
 
 private:
     Q_DECLARE_PRIVATE(MainMenuView)

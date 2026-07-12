@@ -224,6 +224,33 @@ QComboBox:editable:focus {
     border-bottom: 1px solid #9BBAFF;
 }
 
+QToolButton#titleBarComboBox {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: #C8C9CC;
+    padding: 0px 28px 0px 12px;
+    height: 28px;
+}
+
+QToolButton#titleBarComboBox[popupVisible="true"],
+QToolButton#titleBarComboBox:hover {
+    background: #10FFFFFF;
+}
+
+QToolButton#titleBarComboBox:pressed {
+    background: #1AFFFFFF;
+}
+
+QToolButton#titleBarComboBox::drop-down {
+    width: 28px;
+    border: none;
+}
+
+QToolButton#titleBarComboBox::down-arrow {
+    image: none;
+}
+
 /* QToolButton */
 QToolButton {
     background: #10FFFFFF;
@@ -453,6 +480,91 @@ QMenu {
 /* Windows 11 DWM native border mode (no custom border needed) */
 QMenu[dwmBorder="true"] {
     border: none;
+}
+
+FilePopupWidget {
+    background: transparent;
+}
+
+FilePopupWidget[dwmBorder="true"] QFrame#filePopupSurface {
+    border: none;
+}
+
+FilePopupWidget QFrame#filePopupSurface {
+    background-color: #21242B;
+    border: 1px solid #1AFFFFFF;
+    border-radius: 4px;
+}
+
+QFrame#filePopupButtonSection,
+QFrame#filePopupRecentSection,
+QFrame#filePopupRecentItem {
+    background: transparent;
+}
+
+QFrame#filePopupRecentItem {
+    border-radius: 4px;
+}
+
+QFrame#filePopupRecentItem[hovered="true"] {
+    background: #10FFFFFF;
+}
+
+QFrame#filePopupRecentItem[current="true"] {
+    background: transparent;
+}
+
+QFrame#filePopupRecentItem[current="true"][hovered="true"] {
+    background: #18FFFFFF;
+}
+
+QLabel#filePopupRecentTitle {
+    color: #99C8C9CC;
+    background: transparent;
+}
+
+QLabel#filePopupEmptyLabel {
+    color: #73C8C9CC;
+    background: transparent;
+}
+
+QLabel#filePopupRecentName {
+    color: #C8C9CC;
+    background: transparent;
+}
+
+QFrame#filePopupRecentItem[current="true"] QLabel#filePopupRecentName {
+    color: #9BBAFF;
+    font-weight: bold;
+}
+
+QLabel#filePopupRecentPath {
+    color: #73D7D8DB;
+    background: transparent;
+}
+
+QFrame#filePopupRecentItem[current="true"] QLabel#filePopupRecentPath {
+    color: #9BBAFF;
+}
+
+Button#filePopupActionButton {
+    padding: 0px 12px;
+    min-height: 28px;
+}
+
+QToolButton#filePopupMoreButton {
+    padding: 0px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+}
+
+QToolButton#filePopupMoreButton:hover {
+    background: #1AFFFFFF;
+}
+
+QToolButton#filePopupMoreButton:pressed {
+    background: #10FFFFFF;
 }
 
 QMenu::indicator {

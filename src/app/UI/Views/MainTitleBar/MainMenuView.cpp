@@ -78,9 +78,24 @@ QAction *MainMenuView::actionSave() {
     return d->actionSave;
 }
 
+QAction *MainMenuView::actionNew() {
+    Q_D(MainMenuView);
+    return d->actionNew;
+}
+
+QAction *MainMenuView::actionOpen() {
+    Q_D(MainMenuView);
+    return d->actionOpen;
+}
+
 QAction *MainMenuView::actionSaveAs() {
     Q_D(MainMenuView);
     return d->actionSaveAs;
+}
+
+void MainMenuView::openRecentProject(const QString &filePath) {
+    Q_D(MainMenuView);
+    d->onOpenRecentProject(filePath);
 }
 
 void MainMenuViewPrivate::onNew() const {
@@ -136,14 +151,14 @@ void MainMenuViewPrivate::refreshRecentProjectsMenu() {
     const auto count = std::min(files.size(), qsizetype{10});
     for (qsizetype i = 0; i < count; ++i) {
         const auto filePath = files.at(i);
-        const auto text = tr("&%1 %2").arg(static_cast<int>(i + 1)).arg(QFileInfo(filePath).fileName());
+        const auto text =
+            tr("&%1 %2").arg(static_cast<int>(i + 1)).arg(QFileInfo(filePath).fileName());
         const auto action = menuRecentProjects->addAction(text);
         action->setData(filePath);
         action->setToolTip(filePath);
         action->setStatusTip(filePath);
-        connect(action, &QAction::triggered, this, [this, filePath] {
-            onOpenRecentProject(filePath);
-        });
+        connect(action, &QAction::triggered, this,
+                [this, filePath] { onOpenRecentProject(filePath); });
     }
     menuRecentProjects->addSeparator();
     actionClearRecentProjects->setEnabled(true);
@@ -413,8 +428,8 @@ void MainMenuViewPrivate::updatePasteActionState() {
         return;
     }
     if (m_panelType == AppGlobal::ClipEditor)
-        actionPaste->setEnabled(
-            mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams)));
+        actionPaste->setEnabled(mimeData->hasFormat(
+            ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams)));
     else if (m_panelType == AppGlobal::TracksEditor)
         actionPaste->setEnabled(
             mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip)));
@@ -441,7 +456,8 @@ void MainMenuViewPrivate::initFileActions() {
     connect(actionOpen, &QAction::triggered, this, [this] { onOpen(); });
 
     actionClearRecentProjects = new QAction(tr("Clear Recent Projects"), this);
-    actionClearRecentProjects->setIcon(menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
+    actionClearRecentProjects->setIcon(
+        menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
     connect(actionClearRecentProjects, &QAction::triggered, this,
             [this] { onClearRecentProjects(); });
 
@@ -469,7 +485,8 @@ void MainMenuViewPrivate::initFileActions() {
     connect(actionExportMidi, &QAction::triggered, this, [this] { onExportMidiFile(); });
 
     actionOpenPackageManager = new QAction(tr("Manage packages..."), this);
-    actionOpenPackageManager->setIcon(menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
+    actionOpenPackageManager->setIcon(
+        menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
     connect(actionOpenPackageManager, &QAction::triggered, this, [] {
         PackageManagerDialog dialog;
         dialog.exec();
@@ -543,7 +560,7 @@ void MainMenuViewPrivate::initEditActions() {
     connect(actionOctaveDown, &QAction::triggered, this, [this] { onOctaveDown(); });
 
     actionFillLyrics = new QAction(tr("Fill lyrics..."), this);
-    // actionFillLyrics->setIcon(menuIcon(QStringLiteral(":/svg/icons/document_16_regular.svg")));
+    // TODO: 恢复工程文件图标后再补回这里的菜单图标。
     actionFillLyrics->setShortcut(QKeySequence("Ctrl+L"));
     actionFillLyrics->setShortcutContext(Qt::ApplicationShortcut);
     actionFillLyrics->setEnabled(false);
@@ -570,8 +587,7 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
     menuRecentProjects = new Menu(tr("Recent Projects"), q);
     menuRecentProjects->menuAction()->setIcon(
         menuIcon(QStringLiteral(":/svg/icons/history_16_regular.svg")));
-    connect(menuRecentProjects, &Menu::aboutToShow, this,
-            [this] { refreshRecentProjectsMenu(); });
+    connect(menuRecentProjects, &Menu::aboutToShow, this, [this] { refreshRecentProjectsMenu(); });
     connect(appController, &AppController::recentProjectFilesChanged, this,
             [this] { refreshRecentProjectsMenu(); });
     refreshRecentProjectsMenu();
