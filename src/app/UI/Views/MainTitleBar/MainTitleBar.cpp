@@ -98,11 +98,9 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
     mainLayout->addLayout(menuBarContainer);
     if (!useNativeFrame) {
         auto dividerBeforeTitle = new DividerLine(Qt::Vertical);
-        dividerBeforeTitle->setFixedHeight(18);
         mainLayout->addWidget(dividerBeforeTitle);
         mainLayout->addWidget(m_titleComboBox);
         auto dividerBeforeTools = new DividerLine(Qt::Vertical);
-        dividerBeforeTools->setFixedHeight(18);
         mainLayout->addWidget(dividerBeforeTools);
     }
     mainLayout->addWidget(m_actionButtonsView);

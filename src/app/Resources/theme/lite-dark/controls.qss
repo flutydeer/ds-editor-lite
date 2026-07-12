@@ -1160,12 +1160,6 @@ OptionsCardItem>QLabel#desc {
 }
 
 
-/* DividerLine */
-DividerLine {
-    color: #1AFFFFFF;
-}
-
-
 /* ScrollArea */
 QScrollArea {
     background: transparent;

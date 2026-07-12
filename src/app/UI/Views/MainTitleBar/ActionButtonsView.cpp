@@ -39,7 +39,7 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     connect(m_btnRedo, &QPushButton::clicked, this, [this] { emit redoTriggered(); });
 
     auto mainLayout = new QHBoxLayout;
-    mainLayout->setContentsMargins(4, 0, 6, 0);
+    mainLayout->setContentsMargins(0, 0, 6, 0);
     mainLayout->setSpacing(4);
     setLayout(mainLayout);
     setContentsMargins({});
