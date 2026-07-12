@@ -29,6 +29,7 @@
 #include "Global/AppOptionsGlobal.h"
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include "UI/Utils/IconUtils.h"
+#include "UI/Dialogs/Help/DiscoverDiffScopeDialog.h"
 
 #include <QFile>
 #include <QFileDialog>
@@ -705,8 +706,15 @@ Menu *MainMenuViewPrivate::buildHelpMenu() {
     actionAbout->setIcon(menuIcon(QStringLiteral(":/svg/icons/info_16_regular.svg")));
     connect(actionAbout, &QAction::triggered, this, [] { Toast::show(tr("About")); });
 
+    auto actionDiscoverDiffScope = new QAction(tr("Discover DiffScope"), this);
+    connect(actionDiscoverDiffScope, &QAction::triggered, this, [] {
+        DiscoverDiffScopeDialog dlg;
+        dlg.exec();
+    });
+
     auto menuHelp = new Menu(tr("&Help"), q);
     menuHelp->addAction(actionCheckForUpdates);
     menuHelp->addAction(actionAbout);
+    menuHelp->addAction(actionDiscoverDiffScope);
     return menuHelp;
 }
