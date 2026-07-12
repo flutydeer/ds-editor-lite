@@ -4,6 +4,7 @@
 
 #include "InlineTextEditOverlay.h"
 
+#include "LineEdit.h"
 #include "Menu.h"
 
 #include <QApplication>
@@ -15,13 +16,13 @@
 #include <QStyle>
 
 namespace {
-    class InlineLineEdit final : public QLineEdit {
+    class InlineLineEdit final : public LineEdit {
     public:
-        using QLineEdit::QLineEdit;
+        using LineEdit::LineEdit;
 
     protected:
         void mousePressEvent(QMouseEvent *event) override {
-            QLineEdit::mousePressEvent(event);
+            LineEdit::mousePressEvent(event);
             event->accept();
         }
     };
@@ -179,14 +180,7 @@ void InlineTextEditOverlay::showContextMenu(const QPoint &globalPos) {
     if (!m_lineEdit || !isEditing() || m_submitted || m_activeMenu)
         return;
 
-    if (const auto standardMenu = m_lineEdit->createStandardContextMenu()) {
-        auto *menu = new Menu(this);
-        for (const auto action : standardMenu->actions()) {
-            action->setParent(menu);
-            menu->addAction(action);
-        }
-        delete standardMenu;
-
+    if (const auto menu = m_lineEdit->createContextMenu(this)) {
         menu->setAttribute(Qt::WA_DeleteOnClose);
         m_activeMenu = menu;
         connect(menu, &QObject::destroyed, this, [this] {

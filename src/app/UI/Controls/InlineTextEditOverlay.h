@@ -9,7 +9,7 @@
 #include <QVariantMap>
 #include <QWidget>
 
-class QLineEdit;
+class LineEdit;
 class Menu;
 
 class InlineTextEditOverlay : public QWidget {
@@ -39,7 +39,7 @@ private:
     void navigate(bool backwards);
     void showContextMenu(const QPoint &globalPos);
 
-    QLineEdit *m_lineEdit = nullptr;
+    LineEdit *m_lineEdit = nullptr;
     QPointer<Menu> m_activeMenu;
     bool m_submitted = false;
     bool m_navigationEnabled = false;
