@@ -1,10 +1,27 @@
 #include "SvsExpressionDoubleSpinBox.h"
 
+#include "UI/Controls/Menu.h"
 #include "UI/Utils/IconUtils.h"
 
+#include <QContextMenuEvent>
+#include <QLineEdit>
 #include <QPainter>
 #include <QStyleOptionSpinBox>
 #include <tinyexpr.h>
+
+#include <array>
+
+namespace {
+    constexpr std::array<const char *, 7> kStandardActionIcons = {
+        ":/svg/icons/arrow_undo_16_regular.svg",
+        ":/svg/icons/arrow_redo_16_regular.svg",
+        ":/svg/icons/cut_16_regular.svg",
+        ":/svg/icons/copy_16_regular.svg",
+        ":/svg/icons/clipboard_paste_16_regular.svg",
+        ":/svg/icons/delete_16_regular.svg",
+        ":/svg/icons/select_all_on_16_regular.svg",
+    };
+}
 
 namespace SVS {
 
@@ -21,16 +38,14 @@ namespace SVS {
 
         QPainter painter(this);
         const QSize iconSize(16, 16);
-        const QColor iconColor = option.palette.color(isEnabled() ? QPalette::Active
-                                                                  : QPalette::Disabled,
-                                                      QPalette::ButtonText);
+        const QColor iconColor = option.palette.color(
+            isEnabled() ? QPalette::Active : QPalette::Disabled, QPalette::ButtonText);
         const qreal dpr = devicePixelRatioF();
         auto drawArrow = [&](QStyle::SubControl control, const QString &iconPath) {
             const QRect buttonRect =
                 style()->subControlRect(QStyle::CC_SpinBox, &option, control, this);
             if (buttonRect.isEmpty())
                 return;
-            painter.fillRect(buttonRect, option.palette.brush(QPalette::Button));
             const QPoint iconPos(buttonRect.x() + (buttonRect.width() - iconSize.width()) / 2,
                                  buttonRect.y() + (buttonRect.height() - iconSize.height()) / 2);
             const auto pixmap =
@@ -38,10 +53,9 @@ namespace SVS {
             painter.drawPixmap(iconPos, pixmap);
         };
 
-        drawArrow(QStyle::SC_SpinBoxUp,
-                  QStringLiteral(":/svg/icons/chevron_right_16_filled.svg"));
+        drawArrow(QStyle::SC_SpinBoxUp, QStringLiteral(":/svg/icons/chevron_up_16_regular.svg"));
         drawArrow(QStyle::SC_SpinBoxDown,
-                  QStringLiteral(":/svg/icons/chevron_left_16_filled.svg"));
+                  QStringLiteral(":/svg/icons/chevron_down_16_regular.svg"));
     }
 
     QValidator::State ExpressionDoubleSpinBox::validate(QString &input, int &pos) const {
@@ -63,6 +77,55 @@ namespace SVS {
         if (err == 0) {
             str = textFromValue(ret);
         }
+    }
+
+    void ExpressionDoubleSpinBox::mousePressEvent(QMouseEvent *event) {
+        QDoubleSpinBox::mousePressEvent(event);
+        event->ignore();
+    }
+
+    Menu *ExpressionDoubleSpinBox::createContextMenu(QWidget *parent) {
+        if (!lineEdit())
+            return nullptr;
+
+        const auto standardMenu = lineEdit()->createStandardContextMenu();
+        if (!standardMenu)
+            return nullptr;
+
+        auto *menu = new Menu(parent ? parent : this);
+        qsizetype actionIndex = 0;
+        for (const auto action : standardMenu->actions()) {
+            action->setParent(menu);
+            if (!action->isSeparator() && actionIndex < kStandardActionIcons.size()) {
+                action->setIcon(
+                    IconUtils::menuIcon(QString::fromLatin1(kStandardActionIcons.at(actionIndex))));
+                ++actionIndex;
+            }
+            menu->addAction(action);
+        }
+        delete standardMenu;
+
+        menu->addSeparator();
+
+        auto *stepUpAction = menu->addAction(
+            IconUtils::menuIcon(QStringLiteral(":/svg/icons/chevron_up_16_regular.svg")),
+            tr("Step Up"));
+        connect(stepUpAction, &QAction::triggered, this, &ExpressionDoubleSpinBox::stepUp);
+
+        auto *stepDownAction = menu->addAction(
+            IconUtils::menuIcon(QStringLiteral(":/svg/icons/chevron_down_16_regular.svg")),
+            tr("Step Down"));
+        connect(stepDownAction, &QAction::triggered, this, &ExpressionDoubleSpinBox::stepDown);
+
+        return menu;
+    }
+
+    void ExpressionDoubleSpinBox::contextMenuEvent(QContextMenuEvent *event) {
+        if (const auto menu = createContextMenu(this)) {
+            menu->setAttribute(Qt::WA_DeleteOnClose);
+            menu->popup(event->globalPos());
+        }
+        event->accept();
     }
 
 }

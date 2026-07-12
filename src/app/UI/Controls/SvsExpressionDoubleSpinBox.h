@@ -3,6 +3,8 @@
 
 #include <QDoubleSpinBox>
 
+class Menu;
+
 namespace SVS {
 
     class ExpressionDoubleSpinBox : public QDoubleSpinBox {
@@ -18,11 +20,15 @@ namespace SVS {
         QString suffix() const = delete;
         void setSuffix(const QString &) = delete;
 
+        [[nodiscard]] Menu *createContextMenu(QWidget *parent = nullptr);
+
         QValidator::State validate(QString &input, int &pos) const override;
         void fixup(QString &str) const override;
 
     protected:
         void paintEvent(QPaintEvent *event) override;
+        void mousePressEvent(QMouseEvent *event) override;
+        void contextMenuEvent(QContextMenuEvent *event) override;
     };
 
 }

@@ -556,7 +556,7 @@ QAbstractSpinBox {
     color: #e0e0e0;
     selection-color: #000;
     selection-background-color: #9BBAFF;
-    padding: 0px;
+    padding: 0px 0px 0px 8px;
     height: 24px;
 }
 
@@ -579,10 +579,11 @@ QAbstractSpinBox::down-button {
 
 QAbstractSpinBox::up-button {
     subcontrol-position: right;
+    right: 28px;
 }
 
 QAbstractSpinBox::down-button {
-    subcontrol-position: left;
+    subcontrol-position: right;
 }
 
 QAbstractSpinBox::up-button:hover,
