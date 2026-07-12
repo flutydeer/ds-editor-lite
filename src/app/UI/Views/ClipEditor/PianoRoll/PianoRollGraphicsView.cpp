@@ -821,7 +821,6 @@ void PianoRollGraphicsViewPrivate::onStartEditingNoteLyric(NoteView *noteView) {
     noteView->setEditingLyric(true);
 
     auto anchorRect = q->mapFromScene(noteView->sceneBoundingRect()).boundingRect();
-    anchorRect.adjust(2, 2, -2, -2);
     const auto viewportRect = q->viewport()->rect();
     const int width = qMin(viewportRect.width(), qMax(40, anchorRect.width()));
     const int height = qMin(viewportRect.height(), qMax(20, anchorRect.height()));
