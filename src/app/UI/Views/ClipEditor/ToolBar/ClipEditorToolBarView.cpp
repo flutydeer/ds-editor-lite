@@ -22,6 +22,7 @@
 #include "UI/Controls/ToolTipFilter.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Controls/TwoLevelComboBox.h"
+#include "UI/Dialogs/Help/DiscoverDiffScopeDialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Utils/IconUtils.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
@@ -122,6 +123,15 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
                 combo->setCurrentIndex(quantizeIndex(quantize));
             });
 
+    d->m_btnRetake = new Button(tr("Retake"), this);
+    d->m_btnRetake->setObjectName("btnRetake");
+    d->m_btnRetake->setFixedHeight(d->m_contentHeight);
+    connect(d->m_btnRetake, &Button::clicked, this, [this] {
+        DiscoverDiffScopeDialog dialog(this);
+        dialog.setInfoType(DiscoverDiffScopeDialog::InfoType::FeatureIntroduction);
+        dialog.exec();
+    });
+
     d->m_btnArrow =
         d->buildToolButton("btnArrow", ":svg/icons/cursor_24_filled.svg", tr("Select"), Qt::Key_V);
     d->m_btnArrow->setChecked(true);
@@ -145,6 +155,14 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_btnPitchEraser = d->buildToolButton(
         "btnPitchEraser", ":svg/icons/pitch_erase_24_filled.svg", tr("Erase Pitch"), Qt::Key_H);
     auto freezePitchDesc = tr("Copy automatic pitch inference results to edited pitch");
+
+    d->m_btnVibrato = d->buildCommonButton("btnVibrato", ":svg/icons/pitch_vibrato_24_filled.svg",
+                                         tr("Vibrato"));
+    connect(d->m_btnVibrato, &Button::clicked, this, [this] {
+        DiscoverDiffScopeDialog dialog(this);
+        dialog.setInfoType(DiscoverDiffScopeDialog::InfoType::FeatureIntroduction);
+        dialog.exec();
+    });
 
     d->m_toolButtonGroup = new QButtonGroup;
     d->m_toolButtonGroup->setExclusive(true);
@@ -178,6 +196,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     toolButtonLayout->addWidget(d->m_btnPitchAnchor);
     toolButtonLayout->addWidget(d->m_btnPitchPencil);
     toolButtonLayout->addWidget(d->m_btnPitchEraser);
+    toolButtonLayout->addWidget(d->m_btnVibrato);
     toolButtonLayout->setSpacing(1);
     toolButtonLayout->setContentsMargins({});
 
@@ -192,12 +211,22 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     auto quantizeGroup = new ControlGroup;
     quantizeGroup->setLayout(quantizeLayout);
 
+    auto retakeLayout = new QHBoxLayout;
+    retakeLayout->addWidget(d->m_btnRetake);
+    retakeLayout->setSpacing(1);
+    retakeLayout->setContentsMargins({});
+
+    auto retakeGroup = new ControlGroup;
+    retakeGroup->setLayout(retakeLayout);
+
     const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(clipInfoGroup);
     mainLayout->addSpacing(16);
     mainLayout->addWidget(toolButtonGroup);
     mainLayout->addSpacing(16);
     mainLayout->addWidget(quantizeGroup);
+    mainLayout->addSpacing(16);
+    mainLayout->addWidget(retakeGroup);
     mainLayout->addStretch();
 
     mainLayout->setContentsMargins({});
@@ -365,6 +394,8 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
     m_cbClipLanguage->setEnabled(on);
     m_cbPianoRollQuantize->setVisible(on);
     m_cbPianoRollQuantize->setEnabled(on);
+    m_btnRetake->setVisible(on);
+    m_btnRetake->setEnabled(on);
 
     if (on) {
         refreshSingerComboPresentation();

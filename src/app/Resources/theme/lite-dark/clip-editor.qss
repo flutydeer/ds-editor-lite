@@ -20,6 +20,11 @@ ClipEditorToolBarView QPushButton[groupPos="only"] {
     border-radius: 4px;
 }
 
+ClipEditorToolBarView QPushButton#btnRetake {
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
 ClipEditorToolBarView QPushButton:checked {
     background-color: #409BBAFF;
 }

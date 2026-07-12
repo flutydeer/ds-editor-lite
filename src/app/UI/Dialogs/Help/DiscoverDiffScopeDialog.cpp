@@ -15,7 +15,10 @@
 #include "UI/Utils/ThemeManager.h"
 
 DiscoverDiffScopeDialog::DiscoverDiffScopeDialog(QWidget *parent)
-    : QDialog(parent), m_bannerLabel(new QLabel(this)), m_contentWidget(new QWidget(this)) {
+    : QDialog(parent),
+      m_bannerLabel(new QLabel(this)),
+      m_textLabel(new QLabel(this)),
+      m_contentWidget(new QWidget(this)) {
     setObjectName("discover-diffscope-dialog");
     setWindowTitle(tr("Discover DiffScope"));
     resize(480, 360);
@@ -59,41 +62,16 @@ DiscoverDiffScopeDialog::DiscoverDiffScopeDialog(QWidget *parent)
     m_bannerLabel->setScaledContents(true);
     m_bannerLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    const auto textLabel = new QLabel(this);
-    textLabel->setObjectName("discover-diffscope-text");
-    textLabel->setTextFormat(Qt::RichText);
-    textLabel->setWordWrap(true);
-    textLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
-    textLabel->setText(tr(R"(
-        <h2 style="color: #dadada; margin-top: 0;">
-            DiffScope – The Next-Generation Editor Under Development
-        </h2>
-        <p style="color: #dadada;">
-            DiffScope is an advanced DiffSinger editor designed for professional users, offering a
-            more comprehensive feature set, a cleaner architecture, and powerful extensibility.
-        </p>
-        <p style="color: #dadada;">
-            Compared to %1, DiffScope is better suited for complex projects and advanced
-            customization needs, featuring a plugin system, customizable workflows, and a more
-            refined editing experience.
-        </p>
-        <p style="color: #dadada;">
-            The two editors are fully compatible: project files and voice libraries can be shared
-            seamlessly between them.
-        </p>
-        <p style="color: #dadada;">
-            DiffScope is currently still under development, and its features are continuously being
-            refined. Like %1, DiffScope is free software driven by community
-            contributions. We welcome you to contribute and join us in continuously improving this
-            tool ecosystem.
-        </p>
-    )").arg(QApplication::applicationName()));
+    m_textLabel->setObjectName("discover-diffscope-text");
+    m_textLabel->setTextFormat(Qt::RichText);
+    m_textLabel->setWordWrap(true);
+    m_textLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
 
     const auto textWidget = new QWidget(this);
     const auto textLayout = new QVBoxLayout(textWidget);
     textLayout->setContentsMargins(0, 0, 0, 0);
     textLayout->setSpacing(0);
-    textLayout->addWidget(textLabel);
+    textLayout->addWidget(m_textLabel);
     textLayout->addStretch();
 
     m_contentWidget->setObjectName("discover-diffscope-content");
@@ -129,11 +107,24 @@ DiscoverDiffScopeDialog::DiscoverDiffScopeDialog(QWidget *parent)
     mainLayout->addWidget(buttonArea);
 
     updateBannerHeight();
+    updateTextTitle();
     ThemeManager::instance()->addWindow(this);
 }
 
 DiscoverDiffScopeDialog::~DiscoverDiffScopeDialog() {
     ThemeManager::instance()->removeWindow(this);
+}
+
+DiscoverDiffScopeDialog::InfoType DiscoverDiffScopeDialog::infoType() const {
+    return m_infoType;
+}
+
+void DiscoverDiffScopeDialog::setInfoType(InfoType infoType) {
+    if (m_infoType == infoType)
+        return;
+
+    m_infoType = infoType;
+    updateTextTitle();
 }
 
 void DiscoverDiffScopeDialog::resizeEvent(QResizeEvent *event) {
@@ -150,4 +141,32 @@ void DiscoverDiffScopeDialog::updateBannerHeight() {
     const auto bannerHeight = pixmap.height() * bannerWidth / qMax(1, pixmap.width());
     m_bannerLabel->setFixedWidth(bannerWidth);
     m_bannerLabel->setFixedHeight(bannerHeight);
+}
+
+void DiscoverDiffScopeDialog::updateTextTitle() {
+    const auto title = m_infoType == InfoType::FeatureIntroduction
+        ? tr("This Feature Is Planned for Introduction in DiffScope – The Next-Generation Editor Under Development")
+        : tr("DiffScope – The Next-Generation Editor Under Development");
+    m_textLabel->setText(tr(R"(
+        <h2 style="color: #dadada; margin-top: 0;">%1</h2>
+        <p style="color: #dadada;">
+            DiffScope is an advanced DiffSinger editor designed for professional users, offering a
+            more comprehensive feature set, a cleaner architecture, and powerful extensibility.
+        </p>
+        <p style="color: #dadada;">
+            Compared to %2, DiffScope is better suited for complex projects and advanced
+            customization needs, featuring a plugin system, customizable workflows, and a more
+            refined editing experience.
+        </p>
+        <p style="color: #dadada;">
+            The two editors are fully compatible: project files and voice libraries can be shared
+            seamlessly between them.
+        </p>
+        <p style="color: #dadada;">
+            DiffScope is currently still under development, and its features are continuously being
+            refined. Like %2, DiffScope is free software driven by community
+            contributions. We welcome you to contribute and join us in continuously improving this
+            tool ecosystem.
+        </p>
+    )").arg(title).arg(QApplication::applicationName()));
 }

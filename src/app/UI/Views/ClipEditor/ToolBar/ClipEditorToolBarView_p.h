@@ -67,11 +67,13 @@ public:
     Button *m_btnPitchPencil = nullptr;
     Button *m_btnPitchAnchor = nullptr;
     Button *m_btnPitchEraser = nullptr;
+    Button *m_btnVibrato = nullptr;
     // Button *m_btnFreezePitch = nullptr;
 
     TwoLevelComboBox *m_cbSinger = nullptr;
     LanguageComboBox *m_cbClipLanguage = nullptr;
     ComboBox *m_cbPianoRollQuantize = nullptr;
+    Button *m_btnRetake = nullptr;
 
 public slots:
     void onPianoRollToolButtonToggled(const QAbstractButton *button, bool checked);
