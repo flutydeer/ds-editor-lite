@@ -43,6 +43,7 @@ void InlineTextEditOverlay::showAt(const QRect &anchorRect, const QString &text,
         m_lineEdit = new InlineLineEdit(this);
         m_lineEdit->setObjectName("inlineEditLineEdit");
         m_lineEdit->setFrame(false);
+        m_lineEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Ignored);
         m_lineEdit->setContextMenuPolicy(Qt::CustomContextMenu);
         m_lineEdit->installEventFilter(this);
         connect(m_lineEdit, &QLineEdit::returnPressed, this, &InlineTextEditOverlay::submit);
