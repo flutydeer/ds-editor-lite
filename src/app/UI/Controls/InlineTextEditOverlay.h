@@ -37,6 +37,7 @@ protected:
 private:
     void cancel();
     void navigate(bool backwards);
+    void showContextMenu(const QPoint &globalPos);
 
     QLineEdit *m_lineEdit = nullptr;
     QPointer<Menu> m_activeMenu;

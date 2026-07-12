@@ -14,6 +14,19 @@
 #include <QMouseEvent>
 #include <QStyle>
 
+namespace {
+    class InlineLineEdit final : public QLineEdit {
+    public:
+        using QLineEdit::QLineEdit;
+
+    protected:
+        void mousePressEvent(QMouseEvent *event) override {
+            QLineEdit::mousePressEvent(event);
+            event->accept();
+        }
+    };
+}
+
 InlineTextEditOverlay::InlineTextEditOverlay(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("InlineTextEditOverlay");
@@ -27,11 +40,14 @@ void InlineTextEditOverlay::showAt(const QRect &anchorRect, const QString &text,
     m_navigationEnabled = editorProperties.value(QStringLiteral("navigationEnabled")).toBool();
 
     if (!m_lineEdit) {
-        m_lineEdit = new QLineEdit(this);
+        m_lineEdit = new InlineLineEdit(this);
         m_lineEdit->setObjectName("inlineEditLineEdit");
         m_lineEdit->setFrame(false);
+        m_lineEdit->setContextMenuPolicy(Qt::CustomContextMenu);
         m_lineEdit->installEventFilter(this);
         connect(m_lineEdit, &QLineEdit::returnPressed, this, &InlineTextEditOverlay::submit);
+        connect(m_lineEdit, &QLineEdit::customContextMenuRequested, this,
+                [this](const QPoint &pos) { showContextMenu(m_lineEdit->mapToGlobal(pos)); });
 
         auto *layout = new QHBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
@@ -121,33 +137,6 @@ bool InlineTextEditOverlay::eventFilter(QObject *obj, QEvent *event) {
                 }
                 break;
             }
-            case QEvent::ContextMenu: {
-                // Use QLineEdit's standard context menu, wrapped in project Menu
-                if (const auto qMenu = m_lineEdit->createStandardContextMenu()) {
-                    auto *menu = new Menu(this);
-                    for (const auto action : qMenu->actions()) {
-                        action->setParent(menu);
-                        menu->addAction(action);
-                    }
-                    delete qMenu;
-
-                    menu->setAttribute(Qt::WA_DeleteOnClose);
-                    m_activeMenu = menu;
-
-                    connect(menu, &QObject::destroyed, this, [this] {
-                        m_activeMenu.clear();
-                        if (m_lineEdit && isEditing() && !m_submitted) {
-                            m_lineEdit->setFocus();
-                        }
-                    });
-
-                    auto *ctxEvent = static_cast<QContextMenuEvent *>(event);
-                    menu->popup(ctxEvent->globalPos());
-                }
-
-                event->accept();
-                return true;
-            }
             default:
                 break;
         }
@@ -182,4 +171,27 @@ void InlineTextEditOverlay::navigate(const bool backwards) {
     const auto text = m_lineEdit ? m_lineEdit->text() : QString();
     hide();
     emit navigationRequested(text, backwards);
+}
+
+void InlineTextEditOverlay::showContextMenu(const QPoint &globalPos) {
+    if (!m_lineEdit || !isEditing() || m_submitted || m_activeMenu)
+        return;
+
+    if (const auto standardMenu = m_lineEdit->createStandardContextMenu()) {
+        auto *menu = new Menu(this);
+        for (const auto action : standardMenu->actions()) {
+            action->setParent(menu);
+            menu->addAction(action);
+        }
+        delete standardMenu;
+
+        menu->setAttribute(Qt::WA_DeleteOnClose);
+        m_activeMenu = menu;
+        connect(menu, &QObject::destroyed, this, [this] {
+            m_activeMenu.clear();
+            if (m_lineEdit && isEditing() && !m_submitted)
+                m_lineEdit->setFocus();
+        });
+        menu->popup(globalPos);
+    }
 }
