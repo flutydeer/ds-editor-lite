@@ -50,9 +50,7 @@ TimeSignaturePopupWidget::TimeSignaturePopupWidget(QWidget *parent) : QFrame(par
     m_spinNumerator->setObjectName("spinNumerator");
     m_spinNumerator->setRange(1, std::numeric_limits<int>::max());
     m_spinNumerator->setValue(m_numerator);
-    m_spinNumerator->setMinimumWidth(40);
-    m_spinNumerator->setFixedWidth(40);
-    m_spinNumerator->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    m_spinNumerator->setFixedWidth(80);
 
     auto *slashLabel = new QLabel(QStringLiteral("/"));
     slashLabel->setObjectName("slashLabel");

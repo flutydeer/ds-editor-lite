@@ -50,7 +50,6 @@ TempoPopupWidget::TempoPopupWidget(QWidget *parent) : QFrame(parent) {
     m_spinTempo->setDecimals(3);
     m_spinTempo->setRange(0.001, std::numeric_limits<double>::max());
     m_spinTempo->setSingleStep(1.0);
-    m_spinTempo->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
     m_btnTapTempo = new Button;
     m_btnTapTempo->setObjectName("btnTapTempo");

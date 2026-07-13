@@ -657,8 +657,8 @@ QLineEdit:focus {
 }
 
 /* SpinBox */
-QAbstractSpinBox {
-    min-width: 64;
+SVS--ExpressionSpinBox,
+SVS--ExpressionDoubleSpinBox {
     background: #10FFFFFF;
     border-left: 1px solid #10FFFFFF;
     border-top: 1px solid #10FFFFFF;
@@ -668,11 +668,12 @@ QAbstractSpinBox {
     color: #e0e0e0;
     selection-color: #000;
     selection-background-color: #9BBAFF;
-    padding: 0px 0px 0px 8px;
-    height: 24px;
+    /* QStyle 的编辑区域已自动避让一个 24px 步进按钮。 */
+    padding: 0px 40px 0px 8px;
 }
 
-QAbstractSpinBox:focus {
+SVS--ExpressionSpinBox:focus,
+SVS--ExpressionDoubleSpinBox:focus {
     background: #1A1C22;
     border-left: 1px solid #505050;
     border-top: 1px solid #505050;
@@ -680,38 +681,49 @@ QAbstractSpinBox:focus {
     border-bottom: 1px solid #9BBAFF;
 }
 
-QAbstractSpinBox::up-button,
-QAbstractSpinBox::down-button {
-    subcontrol-origin: content;
+SVS--ExpressionSpinBox::up-button,
+SVS--ExpressionSpinBox::down-button,
+SVS--ExpressionDoubleSpinBox::up-button,
+SVS--ExpressionDoubleSpinBox::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: center right;
     background-color: transparent;
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     border-radius: 4px;
 }
 
-QAbstractSpinBox::up-button {
-    subcontrol-position: right;
+SVS--ExpressionSpinBox::up-button,
+SVS--ExpressionDoubleSpinBox::up-button {
     right: 28px;
 }
 
-QAbstractSpinBox::down-button {
-    subcontrol-position: right;
+SVS--ExpressionSpinBox::down-button,
+SVS--ExpressionDoubleSpinBox::down-button {
+    right: 4px;
 }
 
-QAbstractSpinBox::up-button:hover,
-QAbstractSpinBox::down-button:hover {
+SVS--ExpressionSpinBox::up-button:hover,
+SVS--ExpressionSpinBox::down-button:hover,
+SVS--ExpressionDoubleSpinBox::up-button:hover,
+SVS--ExpressionDoubleSpinBox::down-button:hover {
     background-color: #1AFFFFFF;
 }
 
-QAbstractSpinBox::up-button:pressed,
-QAbstractSpinBox::down-button:pressed {
+SVS--ExpressionSpinBox::up-button:pressed,
+SVS--ExpressionSpinBox::down-button:pressed,
+SVS--ExpressionDoubleSpinBox::up-button:pressed,
+SVS--ExpressionDoubleSpinBox::down-button:pressed {
     background-color: #10FFFFFF;
 }
 
-QAbstractSpinBox::up-arrow,
-QAbstractSpinBox::down-arrow {
-    subcontrol-position: center;
-    padding: 8px;
+SVS--ExpressionSpinBox::up-arrow,
+SVS--ExpressionSpinBox::down-arrow,
+SVS--ExpressionDoubleSpinBox::up-arrow,
+SVS--ExpressionDoubleSpinBox::down-arrow {
+    image: none;
+    width: 0px;
+    height: 0px;
 }
 
 /* Label */

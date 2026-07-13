@@ -26,6 +26,8 @@ namespace {
 namespace SVS {
 
     ExpressionDoubleSpinBox::ExpressionDoubleSpinBox(QWidget *parent) : QDoubleSpinBox(parent) {
+        setFixedHeight(28);
+        setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     }
 
     ExpressionDoubleSpinBox::~ExpressionDoubleSpinBox() = default;
