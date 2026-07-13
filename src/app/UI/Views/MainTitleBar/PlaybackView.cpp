@@ -13,6 +13,7 @@
 #include "UI/Controls/InlineEditLabel.h"
 #include "UI/Utils/IconUtils.h"
 #include "Utils/FontManager.h"
+#include "TimeSignatureComboBox.h"
 #include "Global/AppGlobal.h"
 
 #include <QColor>
@@ -65,11 +66,11 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         return ok && std::isfinite(value) && value > 0.0;
     });
 
-    m_elTimeSignature = new InlineEditLabel;
+    m_elTimeSignature = new TimeSignatureComboBox;
     m_elTimeSignature->setObjectName("elTimeSignature");
     m_elTimeSignature->setEditRole(InlineEditLabel::TimeSignature);
     m_elTimeSignature->setAlignment(Qt::AlignCenter);
-    m_elTimeSignature->setText(QString::number(m_numerator) + "/" + QString::number(m_denominator));
+    m_elTimeSignature->setTimeSignature(m_numerator, m_denominator);
     m_elTimeSignature->setDisplayFont(musicFont);
     m_elTimeSignature->setTextMargins({12, 0, 12, 0});
     m_elTimeSignature->setFixedHeight(m_contentHeight);
@@ -183,34 +184,15 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         updateTempoView();
     });
 
-    connect(m_elTimeSignature, &InlineEditLabel::editCompleted, this, [this](const QString &value) {
-        if (!value.contains('/'))
-            return;
-
-        auto splitStr = value.split('/');
-
-        if (splitStr.size() != 2) {
-            return;
-        }
-
-        bool isValidNumerator = false;
-        bool isValidDenominator = false;
-
-        auto numerator = splitStr.first().toInt(&isValidNumerator);
-        auto denominator = splitStr.last().toInt(&isValidDenominator);
-
-        // If the numerator or denominator are not positive integers, ignore the change.
-        if (!(isValidNumerator && isValidDenominator && (numerator > 0) && (denominator > 0))) {
-            return;
-        }
-
-        if (m_numerator != numerator || m_denominator != denominator) {
-            m_numerator = numerator;
-            m_denominator = denominator;
-            emit setTimeSignatureTriggered(numerator, denominator);
-        }
-        updateTimeSignatureView();
-    });
+    connect(m_elTimeSignature, &TimeSignatureComboBox::timeSignatureChanged, this,
+            [this](int numerator, int denominator) {
+                if (m_numerator != numerator || m_denominator != denominator) {
+                    m_numerator = numerator;
+                    m_denominator = denominator;
+                    emit setTimeSignatureTriggered(numerator, denominator);
+                }
+                updateTimeSignatureView();
+            });
     connect(m_elTime, &InlineEditLabel::editCompleted, this, [this](const QString &value) {
         if (!value.contains(':'))
             return;
@@ -349,7 +331,7 @@ void PlaybackView::updateTempoView() {
 }
 
 void PlaybackView::updateTimeSignatureView() {
-    m_elTimeSignature->setText(QString::number(m_numerator) + "/" + QString::number(m_denominator));
+    m_elTimeSignature->setTimeSignature(m_numerator, m_denominator);
 }
 
 void PlaybackView::updateTimeView() {

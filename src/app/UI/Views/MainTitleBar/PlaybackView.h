@@ -10,8 +10,9 @@
 
 #include "Global/PlaybackGlobal.h"
 
-class InlineEditLabel;
 class QPushButton;
+class TimeSignatureComboBox;
+class InlineEditLabel;
 
 using namespace PlaybackGlobal;
 
@@ -37,8 +38,8 @@ public slots:
 
 private:
     InlineEditLabel *m_elTempo;
-    InlineEditLabel *m_elTimeSignature;
     QPushButton *m_btnStop;
+    TimeSignatureComboBox *m_elTimeSignature;
     QPushButton *m_btnPlay;
     QPushButton *m_btnPause;
     QPushButton *m_btnPlayPause;

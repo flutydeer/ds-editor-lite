@@ -179,5 +179,37 @@ PlaybackView>QComboBox:hover {
 PlaybackView>QComboBox:pressed {
     background: #0FC7D8FF;
 }
+/* Time Signature Popup */
+TimeSignaturePopupWidget {
+    background: transparent;
+}
 
+TimeSignaturePopupWidget[dwmBorder="true"] QFrame#timeSignaturePopupSurface {
+    border: none;
+}
 
+TimeSignaturePopupWidget QFrame#timeSignaturePopupSurface {
+    background: #21242B;
+    border: 1px solid #1AFFFFFF;
+    border-radius: 4px;
+}
+
+TimeSignaturePopupWidget QLabel#popupTitle {
+    color: #99C8C9CC;
+    font-size: 12px;
+}
+
+TimeSignaturePopupWidget QLabel#slashLabel {
+    color: #D7D8DB;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+TimeSignaturePopupWidget QAbstractSpinBox#spinNumerator {
+    padding: 0px 56px 0px 8px;
+}
+
+TimeSignaturePopupWidget QAbstractSpinBox#spinNumerator::up-button,
+TimeSignaturePopupWidget QAbstractSpinBox#spinNumerator::down-button {
+    subcontrol-origin: border;
+}
