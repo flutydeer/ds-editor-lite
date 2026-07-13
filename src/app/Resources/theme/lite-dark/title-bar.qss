@@ -213,3 +213,42 @@ TimeSignaturePopupWidget QAbstractSpinBox#spinNumerator::up-button,
 TimeSignaturePopupWidget QAbstractSpinBox#spinNumerator::down-button {
     subcontrol-origin: border;
 }
+
+/* Tempo Popup */
+TempoPopupWidget {
+    background: transparent;
+}
+
+TempoPopupWidget[dwmBorder="true"] QFrame#tempoPopupSurface {
+    border: none;
+}
+
+TempoPopupWidget QFrame#tempoPopupSurface {
+    background: #21242B;
+    border: 1px solid #1AFFFFFF;
+    border-radius: 4px;
+}
+
+TempoPopupWidget QLabel#popupTitle {
+    color: #99C8C9CC;
+    font-size: 12px;
+}
+
+TempoPopupWidget QDoubleSpinBox#spinTempo {
+    padding: 0px 0px 0px 8px;
+}
+
+TempoPopupWidget QDoubleSpinBox#spinTempo::up-button,
+TempoPopupWidget QDoubleSpinBox#spinTempo::down-button {
+    subcontrol-origin: border;
+    width: 24px;
+}
+
+TempoPopupWidget QDoubleSpinBox#spinTempo::up-button {
+    right: 24px;
+}
+
+TempoPopupWidget Button#btnTapTempo {
+    height: 28px;
+    padding: 0px 12px;
+}

@@ -13,6 +13,7 @@
 #include "UI/Controls/InlineEditLabel.h"
 #include "UI/Utils/IconUtils.h"
 #include "Utils/FontManager.h"
+#include "TempoComboBox.h"
 #include "TimeSignatureComboBox.h"
 #include "Global/AppGlobal.h"
 
@@ -52,10 +53,10 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     // Apply music font to time-related UI elements
     const QFont musicFont = FontManager::instance().musicUIFont(13);
 
-    m_elTempo = new InlineEditLabel;
+    m_elTempo = new TempoComboBox;
     m_elTempo->setObjectName("elTempo");
     m_elTempo->setEditRole(InlineEditLabel::Tempo);
-    m_elTempo->setText(QString::number(m_tempo));
+    m_elTempo->setTempo(m_tempo);
     m_elTempo->setAlignment(Qt::AlignCenter);
     m_elTempo->setDisplayFont(musicFont);
     m_elTempo->setTextMargins({12, 0, 12, 0});
@@ -175,8 +176,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
                tick >= 0 && tick < beatTicks;
     });
 
-    connect(m_elTempo, &InlineEditLabel::editCompleted, this, [this](const QString &value) {
-        auto tempo = value.toDouble();
+    connect(m_elTempo, &TempoComboBox::tempoChanged, this, [this](double tempo) {
         if (m_tempo != tempo) {
             m_tempo = tempo;
             emit setTempoTriggered(tempo);
@@ -327,7 +327,7 @@ int PlaybackView::fromTickTimeString(const QStringList &splitStr) const {
 }
 
 void PlaybackView::updateTempoView() {
-    m_elTempo->setText(QString::number(m_tempo));
+    m_elTempo->setTempo(m_tempo);
 }
 
 void PlaybackView::updateTimeSignatureView() {

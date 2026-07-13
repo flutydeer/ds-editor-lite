@@ -11,6 +11,7 @@
 #include "Global/PlaybackGlobal.h"
 
 class QPushButton;
+class TempoComboBox;
 class TimeSignatureComboBox;
 class InlineEditLabel;
 
@@ -37,7 +38,7 @@ public slots:
     void onPlaybackStatusChanged(PlaybackStatus status);
 
 private:
-    InlineEditLabel *m_elTempo;
+    TempoComboBox *m_elTempo;
     QPushButton *m_btnStop;
     TimeSignatureComboBox *m_elTimeSignature;
     QPushButton *m_btnPlay;
