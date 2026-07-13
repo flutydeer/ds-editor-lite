@@ -50,24 +50,31 @@ TimeSignaturePopupWidget::TimeSignaturePopupWidget(QWidget *parent) : QFrame(par
     m_spinNumerator->setObjectName("spinNumerator");
     m_spinNumerator->setRange(1, std::numeric_limits<int>::max());
     m_spinNumerator->setValue(m_numerator);
-    m_spinNumerator->setFixedWidth(80);
+    auto numeratorSizePolicy = m_spinNumerator->sizePolicy();
+    numeratorSizePolicy.setHorizontalPolicy(QSizePolicy::Ignored);
+    m_spinNumerator->setSizePolicy(numeratorSizePolicy);
 
     auto *slashLabel = new QLabel(QStringLiteral("/"));
     slashLabel->setObjectName("slashLabel");
     slashLabel->setAlignment(Qt::AlignCenter);
+    auto slashSizePolicy = slashLabel->sizePolicy();
+    slashSizePolicy.setHorizontalPolicy(QSizePolicy::Fixed);
+    slashLabel->setSizePolicy(slashSizePolicy);
 
     m_cbDenominator = new ComboBox;
     m_cbDenominator->setObjectName("cbDenominator");
-    m_cbDenominator->setFixedWidth(80);
+    auto denominatorSizePolicy = m_cbDenominator->sizePolicy();
+    denominatorSizePolicy.setHorizontalPolicy(QSizePolicy::Ignored);
+    m_cbDenominator->setSizePolicy(denominatorSizePolicy);
     for (const int denominator : kDenominators)
         m_cbDenominator->addItem(QString::number(denominator), denominator);
 
     auto *editorRow = new QHBoxLayout;
     editorRow->setContentsMargins(0, 0, 0, 0);
     editorRow->setSpacing(6);
-    editorRow->addWidget(m_spinNumerator);
+    editorRow->addWidget(m_spinNumerator, 1);
     editorRow->addWidget(slashLabel);
-    editorRow->addWidget(m_cbDenominator);
+    editorRow->addWidget(m_cbDenominator, 1);
 
     auto *presetsRow = new QHBoxLayout;
     presetsRow->setContentsMargins(0, 0, 0, 0);
