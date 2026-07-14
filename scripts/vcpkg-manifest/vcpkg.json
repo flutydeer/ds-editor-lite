@@ -2,7 +2,6 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "dependencies": [
     "sdl2",
-    "libsndfile",
     "qmsetup",
     {
       "name": "qwindowkit",
@@ -17,6 +16,7 @@
     "opendspx",
     "yaml-cpp",
     "wavpack",
+    "libsndfile",
     "tinyexpr",
     {
       "name": "synthrt",
@@ -37,14 +37,11 @@
         "widgets"
       ]
     },
-    "soxr",
     "wolf-midi",
-    "language-manager",
     {
       "name": "qt-win32-direct-manipulate-helper",
       "platform": "windows"
-    },
-    "phoneme-converter"
+    }
   ],
   "features": {
     "cuda11": {
