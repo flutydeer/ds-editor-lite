@@ -11,7 +11,6 @@ public:
     void load(const QJsonObject &object) override;
 
     QStringList langOrder;
-    QJsonObject g2pConfigs;
 
 protected:
     void save(QJsonObject &object) override;

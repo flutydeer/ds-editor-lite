@@ -9,7 +9,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-#include <LangCore/Core/Manager.h>
+#include <synthrt/G2P/Core/Manager.h>
 
 namespace LangSetting {
     static QPair<QString, QString> extractConfig(const QString &g2pId) {
@@ -33,7 +33,7 @@ namespace LangSetting {
     }
 
     GListWidget::GListWidget(QWidget *parent) : QListWidget(parent) {
-        const auto g2pMgr = LangCore::Manager::instance();
+        const auto g2pMgr = srt::g2p::Manager::instance();
 
         this->setDragDropMode(InternalMove);
         this->setDropIndicatorShown(true);
@@ -83,7 +83,13 @@ namespace LangSetting {
     G2pListWidget::~G2pListWidget() = default;
 
     QString G2pListWidget::currentG2pId() const {
-        return extractConfig(m_gListWidget->currentItem()->data(Qt::UserRole).toString()).first;
+        // R2/TD-2: 列表为空时 currentItem() 返回 nullptr，直接解引用会崩溃
+        // （G2pPage::update() 与 shown 信号槽会调用本函数）。空时返回空 QString，
+        // 由 G2pInfoWidget::setInfo 显示占位文案。
+        const auto *item = m_gListWidget->currentItem();
+        if (!item)
+            return {};
+        return extractConfig(item->data(Qt::UserRole).toString()).first;
     }
 
     void GListWidget::updateDeleteButtonState() {

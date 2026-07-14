@@ -3,6 +3,7 @@
 
 #include <QVBoxLayout>
 #include <QLabel>
+#include <QVersionNumber>
 
 #include <QGroupBox>
 
@@ -14,11 +15,14 @@ namespace LangSetting {
         explicit G2pInfoWidget(QWidget *parent = nullptr);
         ~G2pInfoWidget() override;
 
-    Q_SIGNALS:
-        void g2pConfigChanged() const;
-
     public Q_SLOTS:
+        // 保持原签名，等价于走默认（官方）context
+        // G2pPage 等全局设置页继续调用此重载，行为与改造前一致
         void setInfo(const QString &g2pId) const;
+        // 带声库路由信息，供未来声库详情/调试页使用
+        // context 为空串 + version 为 null 时与单参版本等价
+        void setInfo(const QString &g2pId, const QString &context,
+                     const QVersionNumber &contextVersion) const;
 
     private:
         void removeWidget() const;
