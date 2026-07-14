@@ -20,6 +20,7 @@ class NoteView;
 using namespace ClipEditorGlobal;
 
 class PianoRollGraphicsViewPrivate;
+class QShowEvent;
 
 class PianoRollGraphicsView final : public TimeGraphicsView, public IAtomicAction {
     Q_OBJECT
@@ -60,6 +61,7 @@ private slots:
     void notifyKeyRangeChanged();
 
 protected:
+    void showEvent(QShowEvent *event) override;
     bool event(QEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;

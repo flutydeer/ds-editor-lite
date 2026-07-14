@@ -74,9 +74,11 @@ public:
     bool m_mouseDown = false;
     Qt::MouseButton m_mouseDownButton = Qt::NoButton;
     bool m_isEditPitchMode = false;
+    bool m_initialViewportPositionPending = false;
 
     void moveToNullClipState();
     void moveToSingingClipState(SingingClip *clip);
+    void positionViewportAtClipContent();
     void endPitchEditSession(EditSessionEndReason reason);
 
     void updateNoteTimeAndKey(const Note *note) const;

@@ -61,6 +61,7 @@
 #include <QGuiApplication>
 #include <QJsonDocument>
 #include <QScrollBar>
+#include <QShowEvent>
 #include "UI/Controls/Menu.h"
 
 namespace Helper = PianoRollGraphicsViewHelper;
@@ -550,6 +551,16 @@ void PianoRollGraphicsView::keyPressEvent(QKeyEvent *event) {
     TimeGraphicsView::keyPressEvent(event);
 }
 
+void PianoRollGraphicsView::showEvent(QShowEvent *event) {
+    Q_D(PianoRollGraphicsView);
+    TimeGraphicsView::showEvent(event);
+    if (!d->m_initialViewportPositionPending)
+        return;
+
+    d->positionViewportAtClipContent();
+    d->m_initialViewportPositionPending = false;
+}
+
 int PianoRollGraphicsView::noteFontPixelSize() const {
     return m_noteFontPixelSize;
 }
@@ -986,6 +997,7 @@ void PianoRollGraphicsViewPrivate::moveToNullClipState() {
         disconnect(m_clip, nullptr, this, nullptr);
     }
     m_clip = nullptr;
+    m_initialViewportPositionPending = false;
 }
 
 void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
@@ -1008,16 +1020,10 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     q->setSceneLength(m_clip->length());
     m_clipRangeOverlay->setClipRange(clip->clipStart(), clip->clipLen());
 
-    if (clip->notes().count() > 0) {
-        for (const auto note : clip->notes())
-            handleNoteInserted(note);
-        const auto firstNote = *clip->notes().begin();
-        auto tickRange = q->endTick() - q->startTick();
-        auto targetStart = firstNote->globalStart() - tickRange * 0.3;
-        q->setViewportStartTick(targetStart);
-        q->setViewportCenterAtKeyIndex(firstNote->keyIndex());
-    } else
-        q->setViewportStartTick(clip->start());
+    for (const auto note : clip->notes())
+        handleNoteInserted(note);
+    positionViewportAtClipContent();
+    m_initialViewportPositionPending = !q->isVisible();
 
     updatePitch(Param::Original, *m_clip->params.getParamByName(ParamInfo::Pitch));
     updatePitch(Param::Edited, *m_clip->params.getParamByName(ParamInfo::Pitch));
@@ -1027,6 +1033,21 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     connect(clip, &SingingClip::noteChanged, this, &PianoRollGraphicsViewPrivate::onNoteChanged);
     connect(clip, &SingingClip::paramChanged, this, &PianoRollGraphicsViewPrivate::onParamChanged);
     m_selectionModel->setSelectionChangeBarrier(false);
+}
+
+void PianoRollGraphicsViewPrivate::positionViewportAtClipContent() {
+    Q_Q(PianoRollGraphicsView);
+    if (!m_clip)
+        return;
+
+    if (m_clip->notes().count() > 0) {
+        const auto firstNote = *m_clip->notes().begin();
+        auto tickRange = q->endTick() - q->startTick();
+        auto targetStart = firstNote->globalStart() - tickRange * 0.3;
+        q->setViewportStartTick(targetStart);
+        q->setViewportCenterAtKeyIndex(firstNote->keyIndex());
+    } else
+        q->setViewportStartTick(m_clip->start());
 }
 
 void PianoRollGraphicsViewPrivate::updateNoteTimeAndKey(const Note *note) const {
