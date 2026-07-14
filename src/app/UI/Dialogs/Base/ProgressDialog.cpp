@@ -55,6 +55,12 @@ void ProgressDialog::setProgressStatus(const TaskGlobal::Status status) const {
     m_progressBar->setTaskStatus(status);
 }
 
+void ProgressDialog::setCancellationEnabled(const bool enabled) {
+    m_cancellable = enabled;
+    if (m_btnCancel)
+        m_btnCancel->setEnabled(enabled);
+}
+
 void ProgressDialog::closeEvent(QCloseEvent *event) {
     if (m_canHide) {
         Dialog::closeEvent(event);

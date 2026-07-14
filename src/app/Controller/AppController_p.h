@@ -11,19 +11,24 @@
 #include "Modules/ProjectConverters/MidiConverter.h"
 
 #include <QObject>
+#include <QElapsedTimer>
 #include <QStandardPaths>
 
 class AppController;
 class IMainWindow;
 class IPanel;
 class LaunchLanguageEngineTask;
+class OpenDspxProjectTask;
 class ProgressDialog;
+class TaskStatus;
 
 class AppControllerPrivate : public QObject {
     Q_OBJECT
     Q_DECLARE_PUBLIC(AppController)
 
 public:
+    enum class ProjectOpenState { Idle, WaitingPackages, Loading, Committing };
+
     explicit AppControllerPrivate(AppController *q) : q_ptr(q) {
     }
 
@@ -39,6 +44,10 @@ public:
     QString m_pendingOpenFilePath;
     ProgressDialog *m_pendingOpenDialog = nullptr;
     QMetaObject::Connection m_pendingOpenConnection;
+    OpenDspxProjectTask *m_openProjectTask = nullptr;
+    ProjectOpenState m_projectOpenState = ProjectOpenState::Idle;
+    quint64 m_openRequestId = 0;
+    QElapsedTimer m_projectOpenTimer;
 
     static void initializeModules();
     static bool isPowerOf2(int num);
@@ -48,13 +57,17 @@ public:
 
     bool openDspxFile(const QString &path, QString &errorMessage);
     bool openMidiFile(const QString &path, QString &errorMessage);
-    bool loadProject(const QString &path, QString &errorMessage);
-    bool saveProject(const QString &path, QString &errorMessage);
     bool openFileAndActivateFirstClip(const QString &filePath);
-    void waitAndOpenDspxFile(const QString &filePath);
+    void requestOpenDspxFile(const QString &filePath);
+    void waitAndOpenDspxFile();
+    void startOpenDspxTask();
+    void handleOpenDspxTaskFinished(OpenDspxProjectTask *task);
+    void updateOpenProjectDialog(const TaskStatus &status) const;
+    void showOpenProjectError(const QString &errorMessage) const;
+    void activateFirstClip();
     void cancelPendingOpen();
     void handlePendingOpenPackageStatus(AppStatus::ModuleStatus status);
-    QString takePendingOpenFilePath();
+    void createPendingOpenDialog();
     void clearPendingOpenDialog(bool deleteImmediately = false);
     bool confirmOpenWithoutPackageMetadata();
 

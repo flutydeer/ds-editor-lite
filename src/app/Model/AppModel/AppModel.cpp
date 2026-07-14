@@ -143,6 +143,20 @@ void AppModel::loadFromAppModel(const AppModel &model) {
     d->m_masterControl = model.masterControl();
     d->m_tracks = model.tracks();
 
+    const auto defaultLanguage = appOptions->general()->defaultSingingLanguage;
+    for (const auto track : d->m_tracks) {
+        if (track->defaultLanguage().isEmpty() || track->defaultLanguage() == "unknown")
+            track->setDefaultLanguage(defaultLanguage);
+        for (const auto clip : track->clips()) {
+            if (clip->clipType() != IClip::Singing)
+                continue;
+            const auto singingClip = static_cast<SingingClip *>(clip);
+            if (singingClip->defaultLanguage().isEmpty() ||
+                singingClip->defaultLanguage() == "unknown")
+                singingClip->setDefaultLanguage(track->defaultLanguage());
+        }
+    }
+
     emit modelChanged();
     d->dispose();
 }

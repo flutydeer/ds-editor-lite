@@ -3,6 +3,7 @@
 //
 
 #include "DspxProjectConverter.h"
+#include "DspxProjectParser.h"
 #include "DspxPhonemeCompat.h"
 
 #include "Model/AppModel/AnchorCurve.h"
@@ -497,8 +498,9 @@ namespace {
         data = normalizeSpeakerMixData(data);
     }
 
-    std::optional<WeightedSingerSource> decodeSingleSingerSource(
-        const std::shared_ptr<opendspx::SingleSinger> &single, const double weight) {
+    std::optional<WeightedSingerSource>
+        decodeSingleSingerSource(const std::shared_ptr<opendspx::SingleSinger> &single,
+                                 const double weight) {
         const auto identifier = decodeDspxSingerId(QString::fromStdString(single->id));
         if (identifier.isEmpty())
             return std::nullopt;
@@ -550,8 +552,9 @@ namespace {
         return result;
     }
 
-    QVector<WeightedSingerSource> flattenSingerSources(
-        const std::vector<opendspx::SingerRef> &singers, const QVector<double> &weights) {
+    QVector<WeightedSingerSource>
+        flattenSingerSources(const std::vector<opendspx::SingerRef> &singers,
+                             const QVector<double> &weights) {
         QVector<WeightedSingerSource> result;
         for (int i = 0; i < static_cast<int>(singers.size()); ++i)
             result.append(flattenSingerSource(singers[i], weights.value(i)));
@@ -581,9 +584,8 @@ namespace {
     bool canUseSpeakerMixSources(const QVector<SpeakerWeight> &speakerWeights) {
         if (speakerWeights.size() < 2)
             return false;
-        return std::ranges::none_of(speakerWeights, [](const auto &source) {
-            return source.speaker.isEmpty();
-        });
+        return std::ranges::none_of(speakerWeights,
+                                    [](const auto &source) { return source.speaker.isEmpty(); });
     }
 
     SpeakerMixData fixedSpeakerMixFromWeights(const QVector<SpeakerWeight> &speakerWeights,
@@ -604,8 +606,8 @@ namespace {
         return normalizeSpeakerMixData(data);
     }
 
-    DecodedSingerSource decodedSingleSourceFromFlattened(
-        const QVector<WeightedSingerSource> &flattenedSources) {
+    DecodedSingerSource
+        decodedSingleSourceFromFlattened(const QVector<WeightedSingerSource> &flattenedSources) {
         DecodedSingerSource result;
         if (flattenedSources.isEmpty())
             return result;
@@ -650,8 +652,8 @@ namespace {
         for (const auto &anchor : sources.mix) {
             const auto topLevelWeights =
                 fullWeightsFromSourceRatio(anchor.ratio, static_cast<int>(sources.singers.size()));
-            const auto flattenedAnchorSources = flattenSingerSources(sources.singers,
-                                                                     topLevelWeights);
+            const auto flattenedAnchorSources =
+                flattenSingerSources(sources.singers, topLevelWeights);
             const auto mergedWeights = mergeSpeakerWeights(flattenedAnchorSources, identifier);
 
             QVector<double> fullWeights;
@@ -727,8 +729,10 @@ namespace {
     }
 }
 
-bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &errMsg,
-                                ImportMode mode) {
+bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, AppModel *model,
+                                             LoopSettings &loopSettings, QString &errMsg,
+                                             ImportMode mode) {
+    Q_UNUSED(mode);
     auto decodeCurves = [&](const std::vector<opendspx::ParamCurveRef> &dspxCurveRefs,
                             const int offset) {
         QVector<Curve *> curves;
@@ -850,8 +854,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                 DecodedSingerSource officialSource;
                 auto clipDsWs = dsWorkspaceFrom(castClip->workspace);
                 if (castClip->sources.has_value()) {
-                    officialSource = decodeDspxSingerSources(
-                        *castClip->sources, clipDsWs["sourceMixState"].toObject());
+                    officialSource = decodeDspxSingerSources(*castClip->sources,
+                                                             clipDsWs["sourceMixState"].toObject());
                 }
 
                 // Read DS workspace for clip flags/language
@@ -946,69 +950,57 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
         }
     };
 
-    struct LoadResult {
-        enum Type { Success, Failure } type;
-
-        opendspx::SerializationErrorList errors;
-    };
-
-    auto loadModel = [](const QString &filePath, opendspx::Model &outModel) -> LoadResult {
-        QFile file(filePath);
-        if (!file.open(QIODevice::ReadOnly))
-            return LoadResult{LoadResult::Failure, {}};
-
-        const QByteArray data = file.readAll();
-        opendspx::SerializationErrorList errors;
-        std::stringstream ss(data.toStdString(), std::ios::in);
-        outModel = opendspx::Serializer::deserialize(ss, errors, opendspx::Serializer::CheckError);
-
-        LoadResult result;
-        if (errors.containsFatal()) {
-            result.type = LoadResult::Failure;
-        } else {
-            result.type = LoadResult::Success;
-        }
-        result.errors = errors;
-        return result;
-    };
-
-    opendspx::Model dspxModel;
-    auto [type, errors] = loadModel(path, dspxModel);
-    if (type == LoadResult::Success) {
-        // dspxModel.content.global.centShift
-        // TODO: where should I use centShift in the editor?
-        const auto timeline = dspxModel.content.timeline;
-        model->setTimeSignature(TimeSignature(timeline.timeSignatures[0].numerator,
-                                              timeline.timeSignatures[0].denominator));
-        model->setTempo(timeline.tempos[0].value);
-        auto masterControl = TrackControl();
-        masterControl.setGain(dspxModel.content.master.control.gain);
-        masterControl.setPan(dspxModel.content.master.control.pan);
-        masterControl.setMute(dspxModel.content.master.control.mute);
-        model->setMasterControl(masterControl);
-        decodeTracks(dspxModel.content.tracks, model);
-
-        // Load loop settings from workspace
-        auto workspace = dspxModel.content.workspace;
-        if (workspace.contains("loop")) {
-            LoopSettings loopSettings;
-            loopSettings.deserialize(JsonNlohmann::toQJsonValue(workspace["loop"]).toObject());
-            appStatus->loopSettings.set(loopSettings);
-        } else {
-            appStatus->loopSettings.set(LoopSettings());
-        }
-
-        return true;
+    const auto &timeline = dspxModel.content.timeline;
+    if (timeline.timeSignatures.empty() || timeline.tempos.empty()) {
+        errMsg = QStringLiteral("Failed to load project file: timeline is incomplete.");
+        return false;
     }
 
-    QString errorDetails;
-    for (const auto &err : errors)
-        errorDetails += QString("Error type: %1\n").arg(err->type());
+    const auto &timeSignature = timeline.timeSignatures.front();
+    const auto &tempo = timeline.tempos.front();
+    if (timeSignature.numerator <= 0 || timeSignature.denominator <= 0 || tempo.value <= 0) {
+        errMsg = QStringLiteral("Failed to load project file: timeline values are invalid.");
+        return false;
+    }
 
-    errMsg = QString("Failed to load project file.\r\npath: %1\r\nerrors: %2")
-                 .arg(path)
-                 .arg(errorDetails);
-    return false;
+    model->setTimeSignature(TimeSignature(timeSignature.numerator, timeSignature.denominator));
+    model->setTempo(tempo.value);
+    auto masterControl = TrackControl();
+    masterControl.setGain(dspxModel.content.master.control.gain);
+    masterControl.setPan(dspxModel.content.master.control.pan);
+    masterControl.setMute(dspxModel.content.master.control.mute);
+    model->setMasterControl(masterControl);
+    decodeTracks(dspxModel.content.tracks, model);
+
+    const auto &workspace = dspxModel.content.workspace;
+    if (workspace.contains("loop"))
+        loopSettings.deserialize(JsonNlohmann::toQJsonValue(workspace.at("loop")).toObject());
+    else
+        loopSettings = LoopSettings();
+
+    return true;
+}
+
+bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &errMsg,
+                                ImportMode mode) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        errMsg = QString("Failed to open project file: %1").arg(path);
+        return false;
+    }
+
+    auto parseResult = DspxProjectParser::parse(file.readAll());
+    if (!parseResult.success()) {
+        errMsg = QString("Failed to load project file.\npath: %1\n%2")
+                     .arg(path, parseResult.errorMessage);
+        return false;
+    }
+
+    LoopSettings loopSettings;
+    if (!loadParsedProject(*parseResult.model, model, loopSettings, errMsg, mode))
+        return false;
+    appStatus->loopSettings.set(loopSettings);
+    return true;
 }
 
 bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &errMsg) {
@@ -1226,8 +1218,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                               QString &msg) -> bool {
         opendspx::SerializationErrorList errors;
         std::stringstream ss(std::ios::out);
-        opendspx::Serializer::serialize(
-            ss, model_, errors, opendspx::Serializer::CheckError);
+        opendspx::Serializer::serialize(ss, model_, errors, opendspx::Serializer::CheckError);
 
         QFile file(filePath);
         if (!file.open(QIODevice::WriteOnly)) {
@@ -1252,13 +1243,19 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 stream << "0x" << Qt::hex << err->type();
                 QString jsonPath;
                 if (err->type() == opendspx::SerializationError::RangeConstraintViolation) {
-                    jsonPath = QString::fromStdString(std::static_pointer_cast<opendspx::RangeConstraintViolationError>(err)->path());
+                    jsonPath = QString::fromStdString(
+                        std::static_pointer_cast<opendspx::RangeConstraintViolationError>(err)
+                            ->path());
                 } else if (err->type() == opendspx::SerializationError::InvalidRatioPartition) {
-                    jsonPath = QString::fromStdString(std::static_pointer_cast<opendspx::InvalidRatioPartitionError>(err)->path());
+                    jsonPath = QString::fromStdString(
+                        std::static_pointer_cast<opendspx::InvalidRatioPartitionError>(err)
+                            ->path());
                 } else if (err->type() == opendspx::SerializationError::PartCountNotMatch) {
-                    jsonPath = QString::fromStdString(std::static_pointer_cast<opendspx::PartCountNotMatchError>(err)->path());
+                    jsonPath = QString::fromStdString(
+                        std::static_pointer_cast<opendspx::PartCountNotMatchError>(err)->path());
                 } else if (err->type() == opendspx::SerializationError::EmptySingerMixing) {
-                    jsonPath = QString::fromStdString(std::static_pointer_cast<opendspx::EmptySingerMixingError>(err)->path());
+                    jsonPath = QString::fromStdString(
+                        std::static_pointer_cast<opendspx::EmptySingerMixingError>(err)->path());
                 }
                 if (!jsonPath.isEmpty()) {
                     stream << " at " << jsonPath;

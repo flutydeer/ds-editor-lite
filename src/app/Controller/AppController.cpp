@@ -10,7 +10,6 @@
 #include "ProjectPackageResolver.h"
 #include "ProjectStatusController.h"
 #include "TrackController.h"
-#include "ValidationController.h"
 #include "Actions/AppModel/Tempo/TempoActions.h"
 #include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
 #include "Interface/IMainWindow.h"
@@ -25,19 +24,22 @@
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
+#include "Model/AppModel/DrawCurve.h"
+#include "Model/AppModel/Params.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
+#include "Tasks/OpenDspxProjectTask.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Base/ProgressDialog.h"
 #include "Utils/Log.h"
 
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFileInfo>
 
 #include <algorithm>
-#include <utility>
 
 #include "Actions/AppModel/MasterControl/MasterControlActions.h"
 
@@ -54,6 +56,44 @@ namespace {
 #else
         return lhs == rhs;
 #endif
+    }
+
+    struct ProjectModelStats {
+        qsizetype trackCount = 0;
+        qsizetype clipCount = 0;
+        qsizetype noteCount = 0;
+        qint64 curveSampleCount = 0;
+    };
+
+    ProjectModelStats projectModelStats(const AppModel &model) {
+        ProjectModelStats stats;
+        stats.trackCount = model.tracks().count();
+        for (const auto track : model.tracks()) {
+            stats.clipCount += track->clips().count();
+            for (const auto clip : track->clips()) {
+                if (clip->clipType() != IClip::Singing)
+                    continue;
+                const auto singingClip = static_cast<SingingClip *>(clip);
+                stats.noteCount += singingClip->notes().count();
+                const QList<Param *> params = {
+                    &singingClip->params.pitch,        &singingClip->params.expressiveness,
+                    &singingClip->params.energy,       &singingClip->params.breathiness,
+                    &singingClip->params.voicing,      &singingClip->params.tension,
+                    &singingClip->params.mouthOpening, &singingClip->params.gender,
+                    &singingClip->params.velocity,     &singingClip->params.toneShift,
+                };
+                for (const auto param : params) {
+                    for (const auto type : {Param::Original, Param::Edited, Param::Envelope}) {
+                        for (const auto curve : param->curves(type)) {
+                            if (curve->type() == Curve::Draw)
+                                stats.curveSampleCount +=
+                                    static_cast<DrawCurve *>(curve)->values().count();
+                        }
+                    }
+                }
+            }
+        }
+        return stats;
     }
 }
 
@@ -118,19 +158,7 @@ void AppController::requestOpenFile(const QString &filePath) {
         return;
     }
 
-    switch (appStatus->packageModuleStatus) {
-        case AppStatus::ModuleStatus::Ready:
-            d->openFileAndActivateFirstClip(filePath);
-            break;
-        case AppStatus::ModuleStatus::Error:
-            if (d->confirmOpenWithoutPackageMetadata())
-                d->openFileAndActivateFirstClip(filePath);
-            break;
-        case AppStatus::ModuleStatus::Unknown:
-        case AppStatus::ModuleStatus::Loading:
-            d->waitAndOpenDspxFile(filePath);
-            break;
-    }
+    d->requestOpenDspxFile(filePath);
 }
 
 bool AppController::saveProject(const QString &filePath, QString &errorMessage) {
@@ -328,7 +356,6 @@ void AppControllerPrivate::initializeModules() {
     ProjectPackageResolver::instance();
     InferController::instance();
     ProjectStatusController::instance();
-    ValidationController::instance();
 
     connect(appOptions, &AppOptions::optionsChanged, ThemeManager::instance(),
             &ThemeManager::onAppOptionsChanged);
@@ -424,29 +451,51 @@ bool AppControllerPrivate::openFileAndActivateFirstClip(const QString &filePath)
     if (!q->openFile(filePath, errorMessage))
         return false;
 
-    const auto tracks = appModel->tracks();
-    if (tracks.isEmpty())
-        return true;
-
-    const auto clips = tracks.first()->clips();
-    if (clips.count() == 0)
-        return true;
-
-    trackController->setActiveClip(clips.toList().first()->id());
-    q->setActivePanel(AppGlobal::ClipEditor);
+    activateFirstClip();
     return true;
 }
 
-void AppControllerPrivate::waitAndOpenDspxFile(const QString &filePath) {
-    clearPendingOpenDialog();
-
+void AppControllerPrivate::requestOpenDspxFile(const QString &filePath) {
+    cancelPendingOpen();
+    ++m_openRequestId;
     m_pendingOpenFilePath = filePath;
-    m_pendingOpenDialog = new ProgressDialog(true, false);
+    m_projectOpenTimer.start();
+    createPendingOpenDialog();
+
+    switch (appStatus->packageModuleStatus) {
+        case AppStatus::ModuleStatus::Ready:
+            startOpenDspxTask();
+            break;
+        case AppStatus::ModuleStatus::Error:
+            clearPendingOpenDialog();
+            if (confirmOpenWithoutPackageMetadata()) {
+                createPendingOpenDialog();
+                startOpenDspxTask();
+            } else {
+                cancelPendingOpen();
+            }
+            break;
+        case AppStatus::ModuleStatus::Unknown:
+        case AppStatus::ModuleStatus::Loading:
+            waitAndOpenDspxFile();
+            break;
+    }
+}
+
+void AppControllerPrivate::createPendingOpenDialog() {
+    if (m_pendingOpenDialog)
+        return;
+    m_pendingOpenDialog =
+        new ProgressDialog(true, false, dynamic_cast<QWidget *>(m_mainWindow));
     m_pendingOpenDialog->setTitle(tr("Opening Project"));
-    m_pendingOpenDialog->setMessage(tr("Scanning singer packages..."));
     connect(m_pendingOpenDialog, &ProgressDialog::canceled, this,
             &AppControllerPrivate::cancelPendingOpen);
     m_pendingOpenDialog->show();
+}
+
+void AppControllerPrivate::waitAndOpenDspxFile() {
+    m_projectOpenState = ProjectOpenState::WaitingPackages;
+    m_pendingOpenDialog->setMessage(tr("Scanning singer packages..."));
 
     m_pendingOpenConnection =
         connect(appStatus, &AppStatus::moduleStatusChanged, this,
@@ -458,9 +507,160 @@ void AppControllerPrivate::waitAndOpenDspxFile(const QString &filePath) {
     handlePendingOpenPackageStatus(appStatus->packageModuleStatus);
 }
 
-void AppControllerPrivate::cancelPendingOpen() {
+void AppControllerPrivate::startOpenDspxTask() {
+    if (m_pendingOpenFilePath.isEmpty() || m_openProjectTask)
+        return;
+
+    if (m_pendingOpenConnection) {
+        disconnect(m_pendingOpenConnection);
+        m_pendingOpenConnection = {};
+    }
+
+    m_projectOpenState = ProjectOpenState::Loading;
+    createPendingOpenDialog();
+    const auto task = new OpenDspxProjectTask(m_pendingOpenFilePath, m_openRequestId);
+    m_openProjectTask = task;
+    updateOpenProjectDialog(task->status());
+    connect(task, &Task::statusUpdated, this, [this, task](const TaskStatus &status) {
+        if (task == m_openProjectTask && task->requestId() == m_openRequestId)
+            updateOpenProjectDialog(status);
+    });
+    connect(task, &Task::finished, this, [this, task] { handleOpenDspxTaskFinished(task); });
+    taskManager->addAndStartTask(task);
+}
+
+void AppControllerPrivate::handleOpenDspxTaskFinished(OpenDspxProjectTask *task) {
+    const bool isCurrent = task == m_openProjectTask && task->requestId() == m_openRequestId;
+    if (taskManager->tasks().contains(task))
+        taskManager->removeTask(task);
+
+    if (!isCurrent || task->terminated()) {
+        delete task;
+        return;
+    }
+
+    m_openProjectTask = nullptr;
+    auto parseResult = task->takeResult();
+    if (!parseResult.success()) {
+        const auto errorMessage = parseResult.errorMessage;
+        m_pendingOpenFilePath.clear();
+        m_projectOpenState = ProjectOpenState::Idle;
+        clearPendingOpenDialog();
+        showOpenProjectError(errorMessage);
+        delete task;
+        return;
+    }
+
+    m_projectOpenState = ProjectOpenState::Committing;
+    m_pendingOpenDialog->setCancellationEnabled(false);
+    m_pendingOpenDialog->setMessage(tr("Applying project..."));
+    m_pendingOpenDialog->setProgressIndeterminate(true);
+
+    QElapsedTimer stageTimer;
+    stageTimer.start();
+    AppModel resultModel;
+    LoopSettings loopSettings;
+    QString errorMessage;
+    DspxProjectConverter converter;
+    if (!converter.loadParsedProject(*parseResult.model, &resultModel, loopSettings, errorMessage,
+                                     IProjectConverter::ImportMode::NewProject)) {
+        m_pendingOpenFilePath.clear();
+        m_projectOpenState = ProjectOpenState::Idle;
+        clearPendingOpenDialog();
+        showOpenProjectError(errorMessage);
+        delete task;
+        return;
+    }
+    const auto materializeMs = stageTimer.elapsed();
+
+    stageTimer.restart();
+    SingingClipPhonemeNormalizer::normalizeEditedOffsets(resultModel);
+    const auto normalizeMs = stageTimer.elapsed();
+    const auto stats = projectModelStats(resultModel);
+
+    appStatus->loopSettings.set(loopSettings);
+    stageTimer.restart();
+    appModel->loadFromAppModel(resultModel);
+    const auto modelChangedMs = stageTimer.elapsed();
+
+    historyManager->reset();
+    historyManager->setSavePoint();
+    updateProjectPathAndName(m_pendingOpenFilePath);
+    m_lastProjectFolder = QFileInfo(m_pendingOpenFilePath).dir().path();
+    addRecentProjectFile(m_pendingOpenFilePath);
+
+    stageTimer.restart();
+    activateFirstClip();
+    const auto activateClipMs = stageTimer.elapsed();
+
+    qInfo().noquote() << QString(
+                             "Project open timings: file=%1 bytes, read=%2 ms, parse=%3 ms, "
+                             "materialize=%4 ms, normalize=%5 ms, modelChanged=%6 ms, "
+                             "activateClip=%7 ms, total=%8 ms, tracks=%9, clips=%10, notes=%11, "
+                             "curveSamples=%12")
+                             .arg(task->fileSize())
+                             .arg(task->readElapsedMs())
+                             .arg(task->parseElapsedMs())
+                             .arg(materializeMs)
+                             .arg(normalizeMs)
+                             .arg(modelChangedMs)
+                             .arg(activateClipMs)
+                             .arg(m_projectOpenTimer.elapsed())
+                             .arg(stats.trackCount)
+                             .arg(stats.clipCount)
+                             .arg(stats.noteCount)
+                             .arg(stats.curveSampleCount);
+
     m_pendingOpenFilePath.clear();
-    clearPendingOpenDialog(true);
+    m_projectOpenState = ProjectOpenState::Idle;
+    clearPendingOpenDialog();
+    delete task;
+}
+
+void AppControllerPrivate::updateOpenProjectDialog(const TaskStatus &status) const {
+    if (!m_pendingOpenDialog)
+        return;
+    m_pendingOpenDialog->setTitle(status.title);
+    m_pendingOpenDialog->setMessage(status.message);
+    m_pendingOpenDialog->setProgressRange(status.minimum, status.maximum);
+    m_pendingOpenDialog->setProgressValue(status.progress);
+    m_pendingOpenDialog->setProgressIndeterminate(status.isIndetermine);
+    m_pendingOpenDialog->setProgressStatus(status.runningStatus);
+}
+
+void AppControllerPrivate::showOpenProjectError(const QString &errorMessage) const {
+    MessageDialog dialog;
+    dialog.setWindowTitle(tr("Error"));
+    dialog.setTitle(tr("Failed to open project"));
+    dialog.setMessage(errorMessage);
+    dialog.addAccentButton(tr("OK"), 1);
+    dialog.exec();
+}
+
+void AppControllerPrivate::activateFirstClip() {
+    Q_Q(AppController);
+    const auto tracks = appModel->tracks();
+    if (tracks.isEmpty())
+        return;
+    const auto clips = tracks.first()->clips();
+    if (clips.count() == 0)
+        return;
+    trackController->setActiveClip(clips.toList().first()->id());
+    q->setActivePanel(AppGlobal::ClipEditor);
+}
+
+void AppControllerPrivate::cancelPendingOpen() {
+    ++m_openRequestId;
+    m_pendingOpenFilePath.clear();
+    m_projectOpenState = ProjectOpenState::Idle;
+    if (m_openProjectTask) {
+        const auto task = m_openProjectTask;
+        m_openProjectTask = nullptr;
+        taskManager->terminateTask(task);
+        if (taskManager->tasks().contains(task))
+            taskManager->removeTask(task);
+    }
+    clearPendingOpenDialog();
 }
 
 void AppControllerPrivate::handlePendingOpenPackageStatus(const AppStatus::ModuleStatus status) {
@@ -468,19 +668,16 @@ void AppControllerPrivate::handlePendingOpenPackageStatus(const AppStatus::Modul
         return;
 
     if (status == AppStatus::ModuleStatus::Ready) {
-        const auto filePath = takePendingOpenFilePath();
-        clearPendingOpenDialog();
-        openFileAndActivateFirstClip(filePath);
+        startOpenDspxTask();
     } else if (status == AppStatus::ModuleStatus::Error) {
-        const auto filePath = takePendingOpenFilePath();
         clearPendingOpenDialog();
-        if (confirmOpenWithoutPackageMetadata())
-            openFileAndActivateFirstClip(filePath);
+        if (confirmOpenWithoutPackageMetadata()) {
+            createPendingOpenDialog();
+            startOpenDspxTask();
+        } else {
+            cancelPendingOpen();
+        }
     }
-}
-
-QString AppControllerPrivate::takePendingOpenFilePath() {
-    return std::exchange(m_pendingOpenFilePath, {});
 }
 
 void AppControllerPrivate::clearPendingOpenDialog(const bool deleteImmediately) {

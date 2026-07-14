@@ -27,7 +27,6 @@
 #include "Controller/TrackController.h"
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
-#include "Controller/ValidationController.h"
 #include "Controller/ProjectStatusController.h"
 #include "Controller/ProjectPackageResolver.h"
 #include "Modules/Audio/AudioSystem.h"
@@ -98,9 +97,6 @@ AppContext::AppContext() {
     m_editSessionManager = new EditSessionManager;
 
     // L5: Controllers with construction-time deps
-    // ValidationController connects to AppModel + HistoryManager (both L0/L1, already up)
-    // PlaybackController connects to AppModel + ValidationController (need VC first)
-    m_validationController = new ValidationController;
     m_playbackController = new PlaybackController;
     m_projectStatusController = new ProjectStatusController;
     // ProjectPackageResolver connects to AppModel + PackageManager + AppStatus
@@ -142,7 +138,6 @@ AppContext::~AppContext() {
     delete m_projectPackageResolver;
     delete m_projectStatusController;
     delete m_playbackController;
-    delete m_validationController;
 
     // L4 (reverse)
     delete m_editSessionManager;
@@ -200,7 +195,6 @@ template <> ClipController *AppContext::instance() { return s_self ? s_self->m_c
 template <> PitchExtractController *AppContext::instance() { return s_self ? s_self->m_pitchExtractController : nullptr; }
 template <> MidiExtractController *AppContext::instance() { return s_self ? s_self->m_midiExtractController : nullptr; }
 template <> EditSessionManager *AppContext::instance() { return s_self ? s_self->m_editSessionManager : nullptr; }
-template <> ValidationController *AppContext::instance() { return s_self ? s_self->m_validationController : nullptr; }
 template <> PlaybackController *AppContext::instance() { return s_self ? s_self->m_playbackController : nullptr; }
 template <> ProjectStatusController *AppContext::instance() { return s_self ? s_self->m_projectStatusController : nullptr; }
 template <> ProjectPackageResolver *AppContext::instance() { return s_self ? s_self->m_projectPackageResolver : nullptr; }

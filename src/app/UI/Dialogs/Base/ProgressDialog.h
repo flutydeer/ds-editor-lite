@@ -20,6 +20,7 @@ public:
     void setProgressValue(double value) const;
     void setProgressIndeterminate(bool indeterminate) const;
     void setProgressStatus(TaskGlobal::Status status) const;
+    void setCancellationEnabled(bool enabled);
 
 signals:
     void canceled();

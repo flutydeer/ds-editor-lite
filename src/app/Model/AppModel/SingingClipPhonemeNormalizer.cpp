@@ -8,6 +8,7 @@
 #include "Timeline.h"
 #include "Track.h"
 #include "Modules/SingingClipSlicer/SingingClipSlicer.h"
+#include "Utils/MusicTimeConverter.h"
 
 #include <algorithm>
 
@@ -70,7 +71,8 @@ namespace {
         return result;
     }
 
-    bool editedOffsetExceedsLeftBoundary(const EffectiveNote &effective, double leftBoundary) {
+    bool editedOffsetExceedsLeftBoundary(const EffectiveNote &effective, double leftBoundary,
+                                         const double tempo) {
         const auto note = effective.note;
         if (!note || isRestNote(*note) || !note->phonemeOffsetSeq().isEdited())
             return false;
@@ -78,63 +80,74 @@ namespace {
         if (offsets.isEmpty())
             return false;
 
-        const auto earliestStart = effective.start + appModel->msToTick(minimumEditedOffset(*note));
+        const auto earliestStart =
+            effective.start + MusicTimeConverter::msToTick(minimumEditedOffset(*note), tempo);
         return earliestStart < leftBoundary;
+    }
+
+    QList<Note *> collectInvalidEditedOffsetNotes(SingingClip &clip, const double tempo) {
+        QList<Note *> result;
+        QSet<Note *> resultSet;
+
+        for (const auto note : clip.notes()) {
+            if (hasInvalidOffsetCount(note))
+                appendUnique(result, resultSet, note);
+        }
+
+        const Timeline timeline{{{0, tempo}}};
+        const auto sliceResult = SingingClipSlicer::slice(timeline, clip.notes().toList());
+        for (const auto &segment : sliceResult.segments) {
+            const auto effectiveNotes = buildEffectiveNotes(segment.notes);
+            for (int i = 0; i < effectiveNotes.count(); ++i) {
+                const auto &effective = effectiveNotes.at(i);
+                const auto note = effective.note;
+                if (!note || resultSet.contains(note) || !note->phonemeOffsetSeq().isEdited())
+                    continue;
+
+                double leftBoundary = effective.start;
+                if (i == 0) {
+                    const auto availableExtraHeadMs =
+                        std::max(0.0, segment.headAvailableLengthMs - segment.paddingStartMs);
+                    leftBoundary =
+                        effective.start - MusicTimeConverter::msToTick(availableExtraHeadMs, tempo);
+                } else {
+                    const auto &previous = effectiveNotes.at(i - 1);
+                    leftBoundary = previous.end < effective.start ? previous.end : previous.start;
+                }
+
+                if (editedOffsetExceedsLeftBoundary(effective, leftBoundary, tempo))
+                    appendUnique(result, resultSet, note);
+            }
+        }
+
+        return result;
+    }
+
+    QList<SingingClipPhonemeNormalizer::ResetRecord>
+        normalizeEditedOffsetsWithTempo(SingingClip &clip, const double tempo) {
+        QList<SingingClipPhonemeNormalizer::ResetRecord> records;
+        const auto notes = collectInvalidEditedOffsetNotes(clip, tempo);
+        for (const auto note : notes) {
+            if (!note || !note->phonemeOffsetSeq().isEdited())
+                continue;
+
+            SingingClipPhonemeNormalizer::ResetRecord record;
+            record.note = note;
+            record.editedOffsets = note->phonemeOffsetSeq().edited;
+            records.append(record);
+            note->setPhonemeOffsetSeq(Note::Edited, {});
+        }
+        return records;
     }
 }
 
 QList<Note *> SingingClipPhonemeNormalizer::collectInvalidEditedOffsetNotes(SingingClip &clip) {
-    QList<Note *> result;
-    QSet<Note *> resultSet;
-
-    for (const auto note : clip.notes()) {
-        if (hasInvalidOffsetCount(note))
-            appendUnique(result, resultSet, note);
-    }
-
-    const Timeline timeline{{{0, appModel->tempo()}}};
-    const auto sliceResult = SingingClipSlicer::slice(timeline, clip.notes().toList());
-    for (const auto &segment : sliceResult.segments) {
-        const auto effectiveNotes = buildEffectiveNotes(segment.notes);
-        for (int i = 0; i < effectiveNotes.count(); ++i) {
-            const auto &effective = effectiveNotes.at(i);
-            const auto note = effective.note;
-            if (!note || resultSet.contains(note) || !note->phonemeOffsetSeq().isEdited())
-                continue;
-
-            double leftBoundary = effective.start;
-            if (i == 0) {
-                const auto availableExtraHeadMs =
-                    std::max(0.0, segment.headAvailableLengthMs - segment.paddingStartMs);
-                leftBoundary = effective.start - appModel->msToTick(availableExtraHeadMs);
-            } else {
-                const auto &previous = effectiveNotes.at(i - 1);
-                leftBoundary = previous.end < effective.start ? previous.end : previous.start;
-            }
-
-            if (editedOffsetExceedsLeftBoundary(effective, leftBoundary))
-                appendUnique(result, resultSet, note);
-        }
-    }
-
-    return result;
+    return ::collectInvalidEditedOffsetNotes(clip, appModel->tempo());
 }
 
 QList<SingingClipPhonemeNormalizer::ResetRecord>
     SingingClipPhonemeNormalizer::normalizeEditedOffsets(SingingClip &clip) {
-    QList<ResetRecord> records;
-    const auto notes = collectInvalidEditedOffsetNotes(clip);
-    for (const auto note : notes) {
-        if (!note || !note->phonemeOffsetSeq().isEdited())
-            continue;
-
-        ResetRecord record;
-        record.note = note;
-        record.editedOffsets = note->phonemeOffsetSeq().edited;
-        records.append(record);
-        note->setPhonemeOffsetSeq(Note::Edited, {});
-    }
-    return records;
+    return normalizeEditedOffsetsWithTempo(clip, appModel->tempo());
 }
 
 void SingingClipPhonemeNormalizer::restoreEditedOffsets(const QList<ResetRecord> &records) {
@@ -156,10 +169,11 @@ QList<Note *>
 }
 
 void SingingClipPhonemeNormalizer::normalizeEditedOffsets(AppModel &model) {
+    const auto tempo = model.tempo();
     for (const auto track : model.tracks()) {
         for (const auto clip : track->clips()) {
             if (clip->clipType() == IClip::Singing)
-                normalizeEditedOffsets(*static_cast<SingingClip *>(clip));
+                normalizeEditedOffsetsWithTempo(*static_cast<SingingClip *>(clip), tempo);
         }
     }
 }

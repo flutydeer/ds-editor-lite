@@ -11,7 +11,6 @@
 
 #include "Controller/AppController.h"
 #include "Controller/TrackController.h"
-#include "Controller/ValidationController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
@@ -839,8 +838,7 @@ void MainWindow::dropEvent(QDropEvent *event) {
                 const auto fileName = fileInfo.absoluteFilePath();
                 if (fileName.isNull())
                     return;
-                QString errorMessage;
-                appController->openFile(fileName, errorMessage);
+                appController->requestOpenFile(fileName);
             };
             if (!historyManager->isOnSavePoint()) {
                 if (this->askSaveChanges())

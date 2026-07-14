@@ -18,11 +18,9 @@ public:
     double m_sampleRate = 48000;
     double m_tempo = 120;
     PlaybackStatus m_playbackStatus = Stopped;
-    bool m_playRequested = false;
 
     [[nodiscard]] double samplePosToTick(int sample) const;
     [[nodiscard]] int tickToSamplePos(double tick) const;
-    void onValidationFinished(bool passed);
 
 private:
     PlaybackController *q_ptr;

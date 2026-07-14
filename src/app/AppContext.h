@@ -28,7 +28,6 @@ class PitchExtractController;
 class MidiExtractController;
 class EditSessionManager;
 class PlaybackController;
-class ValidationController;
 class ProjectStatusController;
 class ProjectPackageResolver;
 class InferController;
@@ -83,7 +82,6 @@ public:
     EditSessionManager *m_editSessionManager = nullptr;
 
     // L5: Controllers with construction-time deps
-    ValidationController *m_validationController = nullptr;
     PlaybackController *m_playbackController = nullptr;
     ProjectStatusController *m_projectStatusController = nullptr;
     ProjectPackageResolver *m_projectPackageResolver = nullptr;

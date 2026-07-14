@@ -166,10 +166,7 @@ void MainMenuViewPrivate::refreshRecentProjectsMenu() {
 }
 
 void MainMenuViewPrivate::openFileWithSavePrompt(const QString &filePath) {
-    auto openFile = [=] {
-        QString errorMessage;
-        appController->openFile(filePath, errorMessage);
-    };
+    auto openFile = [=] { appController->requestOpenFile(filePath); };
     if (!historyManager->isOnSavePoint()) {
         if (m_mainWindow->askSaveChanges())
             openFile();

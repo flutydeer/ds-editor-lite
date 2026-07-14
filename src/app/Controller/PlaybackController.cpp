@@ -5,7 +5,6 @@
 #include "PlaybackController.h"
 #include "PlaybackController_p.h"
 
-#include "ValidationController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Controls/Toast.h"
@@ -14,8 +13,6 @@
 PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(this)) {
     Q_D(PlaybackController);
     connect(appModel, &AppModel::tempoChanged, this, &PlaybackController::onTempoChanged);
-    connect(ValidationController::instance(), &ValidationController::validationFinished, this,
-            [d](const bool passed) { d->onValidationFinished(passed); });
     connect(appModel, &AppModel::modelChanged, this, [d, this] {
         if (d->m_playbackStatus != Stopped) {
             stop();
@@ -58,20 +55,18 @@ void PlaybackController::play() {
         Toast::show(tr("Please release mouse button before playing"));
         return;
     }
-    d->m_playRequested = true;
-    ValidationController::instance()->runValidation();
+    d->m_playbackStatus = Playing;
+    emit playbackStatusChanged(Playing);
 }
 
 void PlaybackController::pause() {
     Q_D(PlaybackController);
-    d->m_playRequested = false;
     d->m_playbackStatus = Paused;
     emit playbackStatusChanged(Paused);
 }
 
 void PlaybackController::stop() {
     Q_D(PlaybackController);
-    d->m_playRequested = false;
     d->m_playbackStatus = Stopped;
     emit playbackStatusChanged(Stopped);
 }
@@ -101,20 +96,6 @@ void PlaybackController::onTempoChanged(const double tempo) {
 void PlaybackController::onModelChanged() {
     const auto tempo = appModel->tempo();
     onTempoChanged(tempo);
-}
-
-void PlaybackControllerPrivate::onValidationFinished(const bool passed) {
-    Q_Q(PlaybackController);
-    //          << "passed" << passed;
-    if (m_playRequested) {
-        m_playRequested = false;
-        if (passed) {
-            m_playbackStatus = Playing;
-            emit q->playbackStatusChanged(Playing);
-        } else {
-            Toast::show(tr("Please fix project errors before playing"));
-        }
-    }
 }
 
 double PlaybackControllerPrivate::samplePosToTick(const int sample) const {
