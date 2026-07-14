@@ -9,14 +9,15 @@
 #include "Modules/FillLyric/Widgets/RuleTestTab.h"
 #include "Modules/FillLyric/Utils/TextSplitter.h"
 #include "Modules/FillLyric/Utils/TextTagger.h"
+#include "Modules/SynthrtEngine/SynthrtEngine.h"
 #include "UI/Controls/AccentButton.h"
 // #include "UI/Dialogs/Options/Pages/G2pPage.h"
 
 #include <QKeyEvent>
 #include <QScreen>
 
-LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, const QStringList &priorityG2pIds,
-                         const QMap<QString, QString> &langToG2pId, QWidget *parent)
+LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier singer,
+                         const QStringList &priorityLanguages, QWidget *parent)
     : Dialog(parent), m_clip(clip), m_notes(std::move(note)) {
     setModal(true);
     setMinimumSize(720, 450);
@@ -32,7 +33,8 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, const QStringLis
     m_tabWidget = new QTabWidget();
 
     m_lyricWidget = new FillLyric::LyricTab(
-        m_langNotes, priorityG2pIds, langToG2pId,
+        m_langNotes, std::move(singer), SynthrtEngine::instance().languageService(),
+        priorityLanguages,
         {appOptions->fillLyric()->baseVisible, appOptions->fillLyric()->extVisible,
          appOptions->fillLyric()->textEditFontSize, appOptions->fillLyric()->skipSlur,
          appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,
@@ -92,29 +94,26 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, const QStringLis
     connect(m_lyricWidget, &FillLyric::LyricTab::modifyOptionSignal, this,
             &LyricDialog::_on_modifyOption);
 
-    connect(m_tabWidget, &QTabWidget::currentChanged, this, &LyricDialog::switchTab);
-
-    connect(m_splitterConfigTab, &FillLyric::SplitterConfigTab::configChanged,
-            m_lyricWidget, [this]() {
+    connect(m_splitterConfigTab, &FillLyric::SplitterConfigTab::configChanged, m_lyricWidget,
+            [this]() {
                 // Re-split when splitter config changes
                 m_lyricWidget->setLangNotes(false);
             });
 
-    connect(m_taggerConfigTab, &FillLyric::TaggerConfigTab::configChanged,
-            m_lyricWidget, [this]() {
-                // Re-split when tagger config changes
-                m_lyricWidget->setLangNotes(false);
-            });
+    connect(m_taggerConfigTab, &FillLyric::TaggerConfigTab::configChanged, m_lyricWidget, [this]() {
+        // Re-split when tagger config changes
+        m_lyricWidget->setLangNotes(false);
+    });
 
     // Jump between config tabs and test tab
-    connect(m_splitterConfigTab, &FillLyric::SplitterConfigTab::jumpToTestRequested,
-            this, [this]() { m_tabWidget->setCurrentWidget(m_ruleTestTab); });
-    connect(m_taggerConfigTab, &FillLyric::TaggerConfigTab::jumpToTestRequested,
-            this, [this]() { m_tabWidget->setCurrentWidget(m_ruleTestTab); });
-    connect(m_ruleTestTab, &FillLyric::RuleTestTab::jumpToSplitterRequested,
-            this, [this]() { m_tabWidget->setCurrentWidget(m_splitterConfigTab); });
-    connect(m_ruleTestTab, &FillLyric::RuleTestTab::jumpToTaggerRequested,
-            this, [this]() { m_tabWidget->setCurrentWidget(m_taggerConfigTab); });
+    connect(m_splitterConfigTab, &FillLyric::SplitterConfigTab::jumpToTestRequested, this,
+            [this]() { m_tabWidget->setCurrentWidget(m_ruleTestTab); });
+    connect(m_taggerConfigTab, &FillLyric::TaggerConfigTab::jumpToTestRequested, this,
+            [this]() { m_tabWidget->setCurrentWidget(m_ruleTestTab); });
+    connect(m_ruleTestTab, &FillLyric::RuleTestTab::jumpToSplitterRequested, this,
+            [this]() { m_tabWidget->setCurrentWidget(m_splitterConfigTab); });
+    connect(m_ruleTestTab, &FillLyric::RuleTestTab::jumpToTaggerRequested, this,
+            [this]() { m_tabWidget->setCurrentWidget(m_taggerConfigTab); });
 }
 
 LyricDialog::~LyricDialog() = default;
@@ -145,7 +144,7 @@ void LyricDialog::noteToPhonic() {
         langNote.g2pId = singerInfo.g2pId(note->language());
 
         if (note->isSlur())
-            langNote.g2pId = "slur";
+            langNote.g2pId = kSlurLyric;
 
         m_langNotes.append(langNote);
     }
@@ -178,18 +177,6 @@ LyricResult LyricDialog::exportLangNotes() const {
         }
     }
     return {result, skipSlurRes};
-}
-
-void LyricDialog::switchTab(const int &index) {
-    // if (index == 0) {
-    //     if (!m_lyricWidget->m_lyricExtWidget->isVisible()) {
-    //         this->shrinkWindowRight(300);
-    //     }
-    // } else {
-    //     if (!m_lyricWidget->m_lyricExtWidget->isVisible()) {
-    //         this->expandWindowRight();
-    //     }
-    // }
 }
 
 void LyricDialog::_on_modifyOption(const FillLyric::LyricTabConfig &config) {

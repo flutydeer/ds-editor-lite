@@ -6,6 +6,9 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QStringList>
+#include <string>
+#include <vector>
 #include <QWidget>
 
 #include "Modules/FillLyric/Controls/PhonicTextEdit.h"
@@ -13,16 +16,16 @@
 #include "Modules/FillLyric/LyricTabConfig.h"
 #include "UI/Controls/ComboBox.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     enum SplitType { Auto, ByChar, Custom };
 
     class LyricBaseWidget final : public QWidget {
         Q_OBJECT
 
     public:
-        explicit LyricBaseWidget(const LyricTabConfig &config, std::vector<std::string> priorityG2pIds,
-                                 QMap<std::string, std::string> langToG2pId, QWidget *parent = nullptr);
+        explicit LyricBaseWidget(const LyricTabConfig &config,
+                                 std::vector<std::string> priorityG2pIds,
+                                 QWidget *parent = nullptr);
         ~LyricBaseWidget() override;
 
         QString lyricText() const;
@@ -79,7 +82,6 @@ namespace FillLyric
         QPushButton *m_btnToTable;
 
         std::vector<std::string> m_priorityG2pIds;
-        QMap<std::string, std::string> m_langToG2pId;
     };
 
 

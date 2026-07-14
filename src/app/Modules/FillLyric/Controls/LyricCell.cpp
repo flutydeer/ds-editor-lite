@@ -52,6 +52,9 @@ namespace FillLyric
     LangNote *LyricCell::note() const { return m_note; }
 
     void LyricCell::setNote(LangNote *note) {
+        // R17/TD-4: 自我赋值保护，避免 delete m_note 后 use-after-free
+        if (m_note == note)
+            return;
         delete m_note;
         m_note = note;
     }

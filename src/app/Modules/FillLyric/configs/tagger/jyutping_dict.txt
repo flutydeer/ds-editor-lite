@@ -1,0 +1,93 @@
+# 粤拼词典（lite 版）
+# 格式：词<TAB>粤拼
+# DictTaggerRule 只读取首列（词），命中后标记 tag=pinyin
+# 后续可按需扩充词条
+你好	nei5 hou2
+我	ngo5
+佢	keoi5
+我哋	ngo5 dei6
+你哋	nei5 dei6
+佢哋	keoi5 dei6
+乜嘢	mat1 je5
+點解	dim2 gaai2
+咁	gam3
+唔	m4
+係	hai6
+唔係	m4 hai6
+係唔係	hai6 m4 hai6
+多謝	do1 ze6
+唔該	m4 goi1
+早晨	zou2 san4
+晚安	maan5 on1
+再見	zoi3 gin3
+拜拜	baai1 baai3
+食	sik6
+飲	jam2
+瞓	fan3
+行	haang4
+走	zau2
+嚟	lai4
+去	heoi3
+買	maai5
+賣	maai6
+睇	tai2
+聽	ting1/3
+講	gong2
+話	waa6/2
+知	zi1
+識	sik1
+唔知	m4 zi1
+識得	sik1 dak1
+鍾意	zung1 ji3
+唔鍾意	m4 zung1 ji3
+中意	zung1 ji3
+喜歡	hei2 fun1
+廣東話	gwong2 dung1 waa6/2
+粵語	jyut6 jyu5
+中文	zung1 man4/2
+香港	hoeng1 gong2
+澳門	ou3 mun4/2
+廣州	gwong2 zau1
+深圳	sam1 zan3
+北京	bak1 ging1
+上海	soeng5 hoi2
+點	dim2
+咩	me1
+邊	bin1
+邊度	bin1 dou6
+邊個	bin1 go3
+幾時	gei2 si4
+幾多	gei2 do1
+點樣	dim2 joeng6/2
+乜	mat1
+嘢	je5
+嘞	laak3
+喇	laa3
+㗎	gaa3
+呢	ni1/le1
+嗰	go2
+啲	di1
+咗	zo2
+緊	gan2
+完	jyun4
+到	dou3
+走	zau2
+返	faan1
+出	ceot1
+入	jap6
+上	soeng5/6
+下	haa5/6
+開	hoi1
+埋	maai4
+同	tung4
+同埋	tung4 maai4
+或者	waak6 ze2
+仲	zung6
+就	zau6
+先	sin1
+之後	zi1 hau6
+之前	zi1 cin4
+而家	ji4 gaa1
+尋日	cam4 jat6
+聽日	ting1 jat6
+今日	gam1 jat6

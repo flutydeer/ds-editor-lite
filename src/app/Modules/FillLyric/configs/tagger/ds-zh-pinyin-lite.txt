@@ -1,0 +1,51 @@
+# 拼音多音字词典（lite 版）
+# 格式：词<TAB>拼音
+# DictTaggerRule 只读取首列（词），命中后标记 tag=pinyin
+# 后续可按需扩充词条
+重庆	chong qing
+长城	chang cheng
+长江	chang jiang
+音乐	yin yue
+银行	yin hang
+了解	liao jie
+行李	xing li
+行动	xing dong
+自行车	zi xing che
+高兴	gao xing
+参考	can kao
+参加	can jia
+身边	shen bian
+生日	sheng ri
+同学	tong xue
+朋友	peng you
+老师	lao shi
+时候	shi hou
+知道	zhi dao
+什么	shen me
+怎么	zen me
+我们	wo men
+你们	ni men
+他们	ta men
+这个	zhe ge
+那个	na ge
+正在	zheng zai
+现在	xian zai
+今天	jin tian
+明天	ming tian
+昨天	zuo tian
+已经	yi jing
+可以	ke yi
+应该	ying gai
+非常	fei chang
+觉得	jue de
+需要	xu yao
+喜欢	xi huan
+希望	xi wang
+工作	gong zuo
+学习	xue xi
+生活	sheng huo
+世界	shi jie
+中国	zhong guo
+汉语	han yu
+拼音	pin yin
+汉字	han zi

@@ -9,16 +9,14 @@
 #include "Modules/FillLyric/Utils/G2pService.h"
 #include "Modules/FillLyric/Utils/QssParser.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     class LyricWrapView;
 
-    CellList::CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList, QGraphicsScene *scene,
-                       QGraphicsView *view, QList<CellList *> *cellLists,
-                       const QStringList &priorityG2pIds,
-                       const QMap<std::string, std::string> &langToG2pId) :
-        m_view(view), m_scene(scene), m_cellQss(new CellQss()), m_cellLists(cellLists),
-        m_priorityG2pIds(priorityG2pIds), m_langToG2pId(langToG2pId) {
+    CellList::CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList,
+                       QGraphicsScene *scene, QGraphicsView *view, QList<CellList *> *cellLists,
+                       const QStringList &priorityLanguages, G2pService *g2pService)
+        : m_view(view), m_scene(scene), m_cellQss(new CellQss()), m_cellLists(cellLists),
+          m_priorityLanguages(priorityLanguages), m_g2pService(g2pService) {
         this->setPos(x, y);
         m_scene->addItem(this);
         setFlag(ItemIsSelectable);
@@ -35,7 +33,8 @@ namespace FillLyric
         m_handle->setPos(0, m_splitter->margin());
 
         for (const auto &note : noteList) {
-            const auto lyricCell = new LyricCell(deltaX(), this->y() + deltaY(), note, m_view, m_cellQss, &m_cells);
+            const auto lyricCell =
+                new LyricCell(deltaX(), this->y() + deltaY(), note, m_view, m_cellQss, &m_cells);
             m_cells.append(lyricCell);
             m_scene->addItem(lyricCell);
             this->connectCell(lyricCell);
@@ -47,9 +46,12 @@ namespace FillLyric
         connect(m_handle, &HandleItem::selectAll, this, &CellList::selectList);
     }
 
-    QRectF CellList::boundingRect() const { return {0, deltaY(), m_curWidth, m_height}; }
+    QRectF CellList::boundingRect() const {
+        return {0, deltaY(), m_curWidth, m_height};
+    }
 
-    void CellList::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
+    void CellList::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                         QWidget *widget) {
         painter->setPen(Qt::NoPen);
         if (option->state & QStyle::State_Selected) {
             painter->setBrush(QColor(255, 255, 255, 10));
@@ -63,7 +65,8 @@ namespace FillLyric
         if (!m_scene->selectedItems().empty())
             return;
         for (const auto &cell : m_cells) {
-            if (cell->y() <= event->scenePos().y() && cell->y() + cell->height() >= event->scenePos().y() &&
+            if (cell->y() <= event->scenePos().y() &&
+                cell->y() + cell->height() >= event->scenePos().y() &&
                 cell->x() + cell->width() >= event->scenePos().x()) {
                 return;
             }
@@ -92,9 +95,13 @@ namespace FillLyric
         m_cells.clear();
     }
 
-    qreal CellList::deltaX() const { return m_handle->width() + 3; }
+    qreal CellList::deltaX() const {
+        return m_handle->width() + 3;
+    }
 
-    qreal CellList::deltaY() const { return m_splitter->deltaY(); }
+    qreal CellList::deltaY() const {
+        return m_splitter->deltaY();
+    }
 
     void CellList::setBaseY(const qreal &y) {
         if (y <= 0)
@@ -106,13 +113,21 @@ namespace FillLyric
         this->setPos(x(), y);
     }
 
-    qreal CellList::height() const { return m_height; }
+    qreal CellList::height() const {
+        return m_height;
+    }
 
-    qreal CellList::cellWidth() const { return m_curWidth; }
+    qreal CellList::cellWidth() const {
+        return m_curWidth;
+    }
 
-    QGraphicsView *CellList::view() const { return m_view; }
+    QGraphicsView *CellList::view() const {
+        return m_view;
+    }
 
-    void CellList::highlight() { this->setSelected(true); }
+    void CellList::highlight() {
+        this->setSelected(true);
+    }
 
     void CellList::selectCells(const QPointF &startPos, const QPointF &endPos) {
         qreal x = this->x() + deltaX();
@@ -154,7 +169,8 @@ namespace FillLyric
     }
 
     LyricCell *CellList::createNewCell() {
-        const auto lyricCell = new LyricCell(0, this->y() + deltaY(), new LangNote(), m_view, m_cellQss, &m_cells);
+        const auto lyricCell =
+            new LyricCell(0, this->y() + deltaY(), new LangNote(), m_view, m_cellQss, &m_cells);
         this->updateRect(lyricCell);
         this->connectCell(lyricCell);
         return lyricCell;
@@ -334,22 +350,25 @@ namespace FillLyric
         }
         tempNotes[cellIndex].lyric = lyric;
 
-        std::vector<std::string> priorityG2pIds;
-        priorityG2pIds.reserve(m_priorityG2pIds.size());
-        for (const auto &id : m_priorityG2pIds)
-            priorityG2pIds.push_back(id.toStdString());
+        std::vector<std::string> priorityLanguages;
+        priorityLanguages.reserve(m_priorityLanguages.size());
+        for (const auto &id : m_priorityLanguages) {
+            const auto bytes = id.toUtf8();
+            priorityLanguages.emplace_back(bytes.constData(), static_cast<size_t>(bytes.size()));
+        }
 
-        const auto g2pResults = G2pService::convert(tempNotes, priorityG2pIds, m_langToG2pId);
+        const auto g2pResults = m_g2pService->convert(tempNotes, priorityLanguages);
         for (int i = 0; i < m_cells.size(); i++) {
             auto *note = m_cells[i]->note();
             const auto &res = g2pResults[i];
             const bool changed = (note->language != res.language) || (note->g2pId != res.g2pId) ||
-                                 (note->syllable != res.syllable) || (note->lyric != tempNotes[i].lyric);
+                                 (note->syllable != res.pronunciation) ||
+                                 (note->lyric != tempNotes[i].lyric);
             if (changed) {
                 note->lyric = tempNotes[i].lyric;
                 note->language = res.language;
                 note->g2pId = res.g2pId;
-                note->syllable = res.syllable;
+                note->syllable = res.pronunciation;
                 note->candidates = res.candidates;
             }
         }
@@ -363,7 +382,9 @@ namespace FillLyric
         this->updateRect(cell);
     }
 
-    void CellList::clearCell(LyricCell *cell) { cell->clear(); }
+    void CellList::clearCell(LyricCell *cell) {
+        cell->clear();
+    }
 
     void CellList::deleteCell(LyricCell *cell) {
         this->removeCell(cell);
@@ -385,10 +406,12 @@ namespace FillLyric
     void CellList::showContextMenu(const QPointF &pos) {
         QMenu menu(m_view);
         menu.setAttribute(Qt::WA_TranslucentBackground);
-        menu.setWindowFlags(menu.windowFlags() | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
+        menu.setWindowFlags(menu.windowFlags() | Qt::FramelessWindowHint |
+                            Qt::NoDropShadowWindowHint);
 
         this->highlight();
-        menu.addAction(tr("append cell"), this, [this] { this->appendCell(this->createNewCell()); });
+        menu.addAction(tr("append cell"), this,
+                       [this] { this->appendCell(this->createNewCell()); });
         menu.addSeparator();
         menu.addAction(tr("delete line"), this, [this] { Q_EMIT requestDeleteLine(this); });
         menu.addAction(tr("add prev line"), this, [this] { Q_EMIT requestAddPrevLine(this); });
@@ -409,15 +432,19 @@ namespace FillLyric
                 m_cellQss->cellBackgroundBrush[i] = brushes[i];
         }
 
-        const auto lyricPen = QssParser::parsePens(QssParser::propertyValue(m_view, "cellLyricPen"), 4);
+        const auto lyricPen =
+            QssParser::parsePens(QssParser::propertyValue(m_view, "cellLyricPen"), 4);
         if (lyricPen.size() == 4)
             m_cellQss->cellLyricPen = {lyricPen[0], lyricPen[1], lyricPen[2], lyricPen[3]};
 
-        const auto syllablePen = QssParser::parsePens(QssParser::propertyValue(m_view, "cellSyllablePen"), 4);
+        const auto syllablePen =
+            QssParser::parsePens(QssParser::propertyValue(m_view, "cellSyllablePen"), 4);
         if (syllablePen.size() == 4)
-            m_cellQss->cellSyllablePen = {syllablePen[0], syllablePen[1], syllablePen[2], syllablePen[3]};
+            m_cellQss->cellSyllablePen = {syllablePen[0], syllablePen[1], syllablePen[2],
+                                          syllablePen[3]};
 
-        const auto borderPen = QssParser::parsePens(QssParser::propertyValue(m_view, "cellBorderPen"), 3);
+        const auto borderPen =
+            QssParser::parsePens(QssParser::propertyValue(m_view, "cellBorderPen"), 3);
         if (borderPen.size() == 3)
             m_cellQss->cellBorderPen = {borderPen[0], borderPen[1], borderPen[2]};
     }

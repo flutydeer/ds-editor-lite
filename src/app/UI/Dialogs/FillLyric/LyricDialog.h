@@ -5,8 +5,10 @@
 
 #include "Modules/FillLyric/LyricTab.h"
 #include "Modules/FillLyric/LangCommon.h"
+#include "Modules/Inference/Models/SingerIdentifier.h"
 
 #include "UI/Dialogs/Base/Dialog.h"
+
 // #include "UI/Dialogs/Options/Pages/G2pPage.h"
 
 namespace FillLyric {
@@ -22,16 +24,14 @@ class AccentButton;
 struct LyricResult {
     QList<LangNote> langNotes;
     bool skipSlur = false;
-    bool exportLang = false;
 };
 
 class LyricDialog final : public Dialog {
     Q_OBJECT
 
 public:
-    explicit LyricDialog(SingingClip *clip, QList<Note *> note,
-                         const QStringList &priorityG2pIds = {},
-                         const QMap<QString, QString> &langToG2pId = {}, QWidget *parent = nullptr);
+    explicit LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier singer,
+                         const QStringList &priorityLanguages = {}, QWidget *parent = nullptr);
     ~LyricDialog() override;
 
     void setLangNotes() const;
@@ -48,8 +48,6 @@ private:
 
     void shrinkWindowRight(const int &newWidth);
     void expandWindowRight();
-
-    void switchTab(const int &index);
 
     static void _on_modifyOption(const FillLyric::LyricTabConfig &config);
 

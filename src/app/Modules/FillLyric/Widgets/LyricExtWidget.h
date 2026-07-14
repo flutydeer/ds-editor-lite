@@ -9,15 +9,14 @@
 #include "Modules/FillLyric/Controls/LyricWrapView.h"
 #include "Modules/FillLyric/LyricTabConfig.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     class LyricExtWidget final : public QWidget {
         Q_OBJECT
 
     public:
         explicit LyricExtWidget(int *notesCount, const LyricTabConfig &config,
-                                const std::vector<std::string> &priorityG2pIds,
-                                QMap<std::string, std::string> langToG2pId, QWidget *parent = nullptr);
+                                const QStringList &priorityLanguages, G2pService *g2pService,
+                                QWidget *parent = nullptr);
         ~LyricExtWidget() override;
 
         LyricWrapView *wrapView() const;
@@ -47,8 +46,7 @@ namespace FillLyric
         QPushButton *m_btnFoldLeft;
         QPushButton *m_btnInsertText;
 
-        std::vector<std::string> m_priorityG2pIds;
-        QMap<std::string, std::string> m_langToG2pId;
+        QStringList m_priorityLanguages;
     };
 
 } // namespace FillLyric

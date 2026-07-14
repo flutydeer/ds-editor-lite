@@ -1,0 +1,6 @@
+{
+  "language": "kor",
+  "tagger": [
+    { "type": "regex", "value": ["([\\p{Hangul}]+)"], "tag": "hangul" }
+  ]
+}

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -122,17 +123,25 @@ namespace FillLyric
 
     static std::vector<TaggerConfig> g_taggers;
     static bool g_taggerInitialized = false;
+    static std::filesystem::path g_dictRootDir; // R7/TD-9: 供 setCustomRules() 解析 dict 文件名
+    static std::once_flag g_taggerInitOnce;     // R11/TD-7: 保护 lazy init 的线程安全
 
     static void ensureTaggerInitialized() {
-        if (g_taggerInitialized)
-            return;
-        const auto basePath = std::filesystem::path(QCoreApplication::applicationDirPath().toStdString()) / "configs";
-        TextTagger::init(basePath / "tagger", basePath / "tagger");
-        g_taggerInitialized = true;
+        std::call_once(g_taggerInitOnce, [] {
+            if (g_taggerInitialized) // 允许 init() 被直接调用（如测试）后跳过重复初始化
+                return;
+            const auto basePath = std::filesystem::path(QCoreApplication::applicationDirPath().toStdString()) / "configs";
+            TextTagger::init(basePath / "tagger", basePath / "tagger");
+        });
     }
 
     static std::string findDictFile(const std::filesystem::path &dictRootDir, const std::string &filename) {
-        for (const auto &entry : std::filesystem::recursive_directory_iterator(dictRootDir)) {
+        std::error_code ec;
+        if (!std::filesystem::exists(dictRootDir, ec))
+            return {};
+        for (const auto &entry : std::filesystem::recursive_directory_iterator(dictRootDir, ec)) {
+            if (ec)
+                break;
             if (entry.is_regular_file() && entry.path().filename().string() == filename) {
                 return entry.path().string();
             }
@@ -143,6 +152,7 @@ namespace FillLyric
     bool TextTagger::init(const std::filesystem::path &configDir, const std::filesystem::path &dictRootDir) {
         g_taggers.clear();
         g_taggerInitialized = true;
+        g_dictRootDir = dictRootDir; // R7/TD-9: 记录字典根目录供 setCustomRules() 使用
 
         std::vector<std::filesystem::path> entries;
         for (const auto &entry : std::filesystem::directory_iterator(configDir)) {
@@ -211,6 +221,17 @@ namespace FillLyric
                     cfg.rules.push_back(std::make_unique<RegexTaggerRule>(cfg.language, te));
                 } else if (te.type == "array") {
                     cfg.rules.push_back(std::make_unique<ArrayTaggerRule>(cfg.language, te));
+                } else if (te.type == "dict") {
+                    // R7/TD-9: 实例化 DictTaggerRule，从 dictRootDir 解析 value 中每个字典文件名
+                    std::vector<std::string> resolvedPaths;
+                    resolvedPaths.reserve(te.value.size());
+                    for (const auto &filename : te.value) {
+                        auto path = findDictFile(dictRootDir, filename);
+                        if (!path.empty())
+                            resolvedPaths.push_back(path);
+                    }
+                    if (!resolvedPaths.empty())
+                        cfg.rules.push_back(std::make_unique<DictTaggerRule>(cfg.language, te, resolvedPaths));
                 }
 
                 // Store entry info for ruleInfoList()
@@ -312,6 +333,17 @@ namespace FillLyric
                     cfg.rules.push_back(std::make_unique<RegexTaggerRule>(cfg.language, te));
                 } else if (te.type == "array") {
                     cfg.rules.push_back(std::make_unique<ArrayTaggerRule>(cfg.language, te));
+                } else if (te.type == "dict") {
+                    // R7/TD-9: 自定义 dict 规则复用 init() 记录的 g_dictRootDir 解析字典文件
+                    std::vector<std::string> resolvedPaths;
+                    resolvedPaths.reserve(te.value.size());
+                    for (const auto &filename : te.value) {
+                        auto path = findDictFile(g_dictRootDir, filename);
+                        if (!path.empty())
+                            resolvedPaths.push_back(path);
+                    }
+                    if (!resolvedPaths.empty())
+                        cfg.rules.push_back(std::make_unique<DictTaggerRule>(cfg.language, te, resolvedPaths));
                 }
             }
 

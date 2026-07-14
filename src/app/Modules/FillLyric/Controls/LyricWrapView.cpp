@@ -12,12 +12,11 @@
 
 #include <QFile>
 
-namespace FillLyric
-{
-    LyricWrapView::LyricWrapView(QString qssPath, QStringList priorityG2pIds,
-                                 QMap<std::string, std::string> langToG2pId, QWidget *parent) :
-        QGraphicsView(parent), m_qssPath(std::move(qssPath)), m_priorityG2pIds(std::move(priorityG2pIds)),
-        m_langToG2pId(std::move(langToG2pId)) {
+namespace FillLyric {
+    LyricWrapView::LyricWrapView(QString qssPath, QStringList priorityLanguages,
+                                 G2pService *g2pService, QWidget *parent)
+        : QGraphicsView(parent), m_qssPath(std::move(qssPath)),
+          m_priorityLanguages(std::move(priorityLanguages)), m_g2pService(g2pService) {
         setAttribute(Qt::WA_StyledBackground, true);
         auto qssFile = QFile(m_qssPath);
         if (qssFile.open(QIODevice::ReadOnly)) {
@@ -42,14 +41,12 @@ namespace FillLyric
         auto *noteCountTimer = new QTimer(this);
         noteCountTimer->setSingleShot(true);
         noteCountTimer->setInterval(0);
-        connect(noteCountTimer, &QTimer::timeout, this,
-                [this]
-                {
-                    int count = 0;
-                    for (const auto &cellList : m_cellLists)
-                        count += static_cast<int>(cellList->m_cells.size());
-                    Q_EMIT noteCountChanged(count);
-                });
+        connect(noteCountTimer, &QTimer::timeout, this, [this] {
+            int count = 0;
+            for (const auto &cellList : m_cellLists)
+                count += static_cast<int>(cellList->m_cells.size());
+            Q_EMIT noteCountChanged(count);
+        });
         connect(m_scene, &QGraphicsScene::changed, noteCountTimer,
                 static_cast<void (QTimer::*)()>(&QTimer::start));
     }
@@ -199,7 +196,8 @@ namespace FillLyric
     void LyricWrapView::contextMenuEvent(QContextMenuEvent *event) {
         QMenu menu(this);
         menu.setAttribute(Qt::WA_TranslucentBackground);
-        menu.setWindowFlags(menu.windowFlags() | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
+        menu.setWindowFlags(menu.windowFlags() | Qt::FramelessWindowHint |
+                            Qt::NoDropShadowWindowHint);
 
         const auto clickPos = event->pos();
         const auto scenePos = mapToScene(clickPos).toPoint();
@@ -221,19 +219,19 @@ namespace FillLyric
             }
 
             if (enableMenu && !m_selectedCells.isEmpty()) {
-                menu.addAction(tr("clear cells"),
-                               [this]
-                               {
-                                   for (const auto cell : m_selectedCells)
-                                       cell->clear();
-                               });
+                menu.addAction(tr("clear cells"), [this] {
+                    for (const auto cell : m_selectedCells)
+                        cell->clear();
+                });
 
                 if (m_selectedCells.size() > 1) {
                     const auto cellList = this->mapToList(m_selectedCells.first()->scenePos());
                     if (this->cellEqualLine(m_selectedCells)) {
-                        menu.addAction(tr("delete line"), [this, cellList] { this->removeList(cellList); });
+                        menu.addAction(tr("delete line"),
+                                       [this, cellList] { this->removeList(cellList); });
                     } else
-                        menu.addAction(tr("delete cells"), [this] { this->deleteCells(m_selectedCells); });
+                        menu.addAction(tr("delete cells"),
+                                       [this] { this->deleteCells(m_selectedCells); });
                 }
 
                 menu.exec(mapToGlobal(clickPos));
@@ -255,21 +253,22 @@ namespace FillLyric
                 }
             }
             menu.addSeparator();
-            menu.addAction(tr("delete lines"),
-                           [this, selectedSet]
-                           {
-                               QMap<int, CellList *> m_listMap;
-                               for (const auto &list : QList(selectedSet.values())) {
-                                   m_listMap[static_cast<int>(m_cellLists.indexOf(list))] = list;
-                               }
-                               for (auto it = m_listMap.end(); it != m_listMap.begin();) {
-                                   --it;
-                                   this->removeList(it.value());
-                               }
-                               this->repaintCellLists();
-                           });
-            menu.addAction(tr("move up"), [this, selectedSet] { this->moveUpLists(QList(selectedSet.values())); });
-            menu.addAction(tr("move down"), [this, selectedSet] { this->moveDownLists(QList(selectedSet.values())); });
+            menu.addAction(tr("delete lines"), [this, selectedSet] {
+                QMap<int, CellList *> m_listMap;
+                for (const auto &list : QList(selectedSet.values())) {
+                    m_listMap[static_cast<int>(m_cellLists.indexOf(list))] = list;
+                }
+                for (auto it = m_listMap.end(); it != m_listMap.begin();) {
+                    --it;
+                    this->removeList(it.value());
+                }
+                this->repaintCellLists();
+            });
+            menu.addAction(tr("move up"),
+                           [this, selectedSet] { this->moveUpLists(QList(selectedSet.values())); });
+            menu.addAction(tr("move down"), [this, selectedSet] {
+                this->moveDownLists(QList(selectedSet.values()));
+            });
             if (selectedSet.contains(m_cellLists.first()))
                 menu.actions().at(2)->setEnabled(false);
             if (selectedSet.contains(m_cellLists.last()))
@@ -283,7 +282,8 @@ namespace FillLyric
 
     CellList *LyricWrapView::createNewList() {
         const auto width = this->width() - this->verticalScrollBar()->width();
-        const auto cellList = new CellList(0, 0, {}, m_scene, this, &m_cellLists, m_priorityG2pIds, m_langToG2pId);
+        const auto cellList =
+            new CellList(0, 0, {}, m_scene, this, &m_cellLists, m_priorityLanguages, m_g2pService);
         cellList->setFont(this->font());
         cellList->setWidth(width);
         this->connectCellList(cellList);
@@ -324,8 +324,8 @@ namespace FillLyric
     void LyricWrapView::appendList(const QList<LangNote *> &noteList) {
         const auto width = this->width() - this->verticalScrollBar()->width();
         const auto cellList =
-            new CellList(0, cellBaseY(static_cast<int>(m_cellLists.size())), noteList, m_scene, this, &m_cellLists,
-                         m_priorityG2pIds, m_langToG2pId);
+            new CellList(0, cellBaseY(static_cast<int>(m_cellLists.size())), noteList, m_scene,
+                         this, &m_cellLists, m_priorityLanguages, m_g2pService);
         cellList->setFont(this->font());
         cellList->setWidth(width);
         m_cellLists.append(cellList);
@@ -354,8 +354,13 @@ namespace FillLyric
             qSwap(m_cellLists[i], m_cellLists[i + 1]);
     }
 
-    QList<CellList *> LyricWrapView::cellLists() const { return m_cellLists; }
-    QStringList LyricWrapView::priorityG2pIds() const { return m_priorityG2pIds; }
+    QList<CellList *> LyricWrapView::cellLists() const {
+        return m_cellLists;
+    }
+
+    QStringList LyricWrapView::priorityLanguages() const {
+        return m_priorityLanguages;
+    }
 
     void LyricWrapView::clear() {
         for (auto &m_cellList : m_cellLists) {
@@ -370,17 +375,23 @@ namespace FillLyric
     void LyricWrapView::init(const QList<QList<LangNote>> &noteLists) {
         this->clear();
 
-        std::vector<std::string> priorityG2pIds;
-        for (const auto &id : m_priorityG2pIds)
-            priorityG2pIds.push_back(id.toStdString());
+        std::vector<std::string> priorityLanguages;
+        for (const auto &id : m_priorityLanguages) {
+            const auto bytes = id.toUtf8();
+            priorityLanguages.emplace_back(bytes.constData(), static_cast<size_t>(bytes.size()));
+        }
 
         for (auto notes : noteLists) {
-            const auto g2pResults = G2pService::convert(notes, priorityG2pIds, m_langToG2pId);
+            const auto g2pResults = m_g2pService->convert(notes, priorityLanguages);
             QList<LangNote *> tempNotes;
             for (int i = 0; i < notes.size(); i++) {
-                notes[i].language = g2pResults[i].language;
-                notes[i].g2pId = g2pResults[i].g2pId;
-                notes[i].syllable = g2pResults[i].syllable;
+                // R15/TD-22: 仅 unknown/empty 时覆盖 language/g2pId，与 LyricTab 构造路径一致
+                // 避免 reReadNote 路径（LyricTab.cpp:132）传入用户已编辑的 g2pId 被覆盖
+                if (notes[i].language == QStringLiteral("unknown"))
+                    notes[i].language = g2pResults[i].language;
+                if (notes[i].g2pId == kUnknownG2pId || notes[i].g2pId.isEmpty())
+                    notes[i].g2pId = g2pResults[i].g2pId;
+                notes[i].syllable = g2pResults[i].pronunciation;
                 notes[i].candidates = g2pResults[i].candidates;
                 tempNotes.append(new LangNote(notes[i]));
             }
@@ -453,23 +464,20 @@ namespace FillLyric
         connect(cellList, &CellList::linebreakSignal,
                 [this, cellList](const int cellIndex) { this->lineBreak(cellList, cellIndex); });
 
-        connect(cellList, &CellList::requestDeleteLine, [this](CellList *list) { this->removeList(list); });
+        connect(cellList, &CellList::requestDeleteLine,
+                [this](CellList *list) { this->removeList(list); });
         connect(cellList, &CellList::requestAddPrevLine,
                 [this](CellList *list) { this->insertNewLineAt(m_cellLists.indexOf(list)); });
         connect(cellList, &CellList::requestAddNextLine,
                 [this](CellList *list) { this->insertNewLineAt(m_cellLists.indexOf(list) + 1); });
-        connect(cellList, &CellList::requestMoveUpLine,
-                [this](CellList *list)
-                {
-                    this->moveUpLists({list});
-                    this->repaintCellLists();
-                });
-        connect(cellList, &CellList::requestMoveDownLine,
-                [this](CellList *list)
-                {
-                    this->moveDownLists({list});
-                    this->repaintCellLists();
-                });
+        connect(cellList, &CellList::requestMoveUpLine, [this](CellList *list) {
+            this->moveUpLists({list});
+            this->repaintCellLists();
+        });
+        connect(cellList, &CellList::requestMoveDownLine, [this](CellList *list) {
+            this->moveDownLists({list});
+            this->repaintCellLists();
+        });
     }
 
     void LyricWrapView::insertNewLineAt(qlonglong index) {
@@ -504,6 +512,7 @@ namespace FillLyric
         }
         return deleteLine;
     }
+
     void LyricWrapView::lineBreak(CellList *cellList, const int &index) {
         const auto cells = cellList->m_cells.mid(index);
         const auto newList = this->createNewList();
@@ -515,6 +524,7 @@ namespace FillLyric
         }
         this->repaintCellLists();
     }
+
     void LyricWrapView::deleteCells(const QList<LyricCell *> &selectedCells) {
         QMap<CellList *, QMap<int, LyricCell *>> cellsMap;
         QList<QPair<int, CellList *>> temp_cellLists;
@@ -598,32 +608,52 @@ namespace FillLyric
         this->update();
     }
 
-    QStringList LyricWrapView::cellBackgroundBrush() const { return m_cellBackgroundBrush; }
+    QStringList LyricWrapView::cellBackgroundBrush() const {
+        return m_cellBackgroundBrush;
+    }
 
     void LyricWrapView::setCellBackgroundBrush(const QStringList &cellBackgroundBrush) {
         m_cellBackgroundBrush = cellBackgroundBrush;
     }
 
-    QStringList LyricWrapView::cellBorderPen() const { return m_cellBorderPen; }
+    QStringList LyricWrapView::cellBorderPen() const {
+        return m_cellBorderPen;
+    }
 
-    void LyricWrapView::setCellBorderPen(const QStringList &cellBorderPen) { m_cellBorderPen = cellBorderPen; }
+    void LyricWrapView::setCellBorderPen(const QStringList &cellBorderPen) {
+        m_cellBorderPen = cellBorderPen;
+    }
 
-    QStringList LyricWrapView::cellLyricPen() const { return m_cellLyricPen; }
+    QStringList LyricWrapView::cellLyricPen() const {
+        return m_cellLyricPen;
+    }
 
-    void LyricWrapView::setCellLyricPen(const QStringList &cellLyricPen) { m_cellLyricPen = cellLyricPen; }
+    void LyricWrapView::setCellLyricPen(const QStringList &cellLyricPen) {
+        m_cellLyricPen = cellLyricPen;
+    }
 
-    QStringList LyricWrapView::cellSyllablePen() const { return m_cellSyllablePen; }
+    QStringList LyricWrapView::cellSyllablePen() const {
+        return m_cellSyllablePen;
+    }
 
-    void LyricWrapView::setCellSyllablePen(const QStringList &cellSyllablePen) { m_cellSyllablePen = cellSyllablePen; }
+    void LyricWrapView::setCellSyllablePen(const QStringList &cellSyllablePen) {
+        m_cellSyllablePen = cellSyllablePen;
+    }
 
-    QStringList LyricWrapView::handleBackgroundBrush() const { return m_handleBackgroundBrush; }
+    QStringList LyricWrapView::handleBackgroundBrush() const {
+        return m_handleBackgroundBrush;
+    }
 
     void LyricWrapView::setHandleBackgroundBrush(const QStringList &handleBackgroundBrush) {
         m_handleBackgroundBrush = handleBackgroundBrush;
     }
 
-    QStringList LyricWrapView::splitterPen() const { return m_splitterPen; }
+    QStringList LyricWrapView::splitterPen() const {
+        return m_splitterPen;
+    }
 
-    void LyricWrapView::setSplitterPen(const QStringList &splitterPen) { m_splitterPen = splitterPen; }
+    void LyricWrapView::setSplitterPen(const QStringList &splitterPen) {
+        m_splitterPen = splitterPen;
+    }
 
 } // namespace FillLyric

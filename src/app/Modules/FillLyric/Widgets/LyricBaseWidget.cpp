@@ -8,11 +8,20 @@
 #include "UI/Utils/IconUtils.h"
 
 namespace FillLyric {
+    // R16: UI 层统一 QStringList，调用 LyricSplitter 时转 std::vector<std::string>
+    static std::vector<std::string> toStdVector(const QStringList &qsl) {
+        std::vector<std::string> v;
+        v.reserve(static_cast<size_t>(qsl.size()));
+        for (const auto &s : qsl) {
+            const auto bytes = s.toUtf8();
+            v.emplace_back(bytes.constData(), static_cast<size_t>(bytes.size()));
+        }
+        return v;
+    }
+
     LyricBaseWidget::LyricBaseWidget(const LyricTabConfig &config,
-                                     std::vector<std::string> priorityG2pIds,
-                                     QMap<std::string, std::string> langToG2pId, QWidget *parent)
-        : QWidget(parent), m_priorityG2pIds(std::move(priorityG2pIds)),
-          m_langToG2pId(std::move(langToG2pId)) {
+                                     std::vector<std::string> priorityG2pIds, QWidget *parent)
+        : QWidget(parent), m_priorityG2pIds(std::move(priorityG2pIds)) {
         m_textTopLayout = new QHBoxLayout();
         m_btnImportLrc = new QPushButton(tr("Import Lrc"));
         m_btnReReadNote = new QPushButton(tr("Reread Note"));
@@ -196,9 +205,10 @@ namespace FillLyric {
         if (splitType == Auto) {
             splitNotes = LyricSplitter::splitAuto(lyric, m_priorityG2pIds);
         } else if (splitType == ByChar) {
-            splitNotes = LyricSplitter::splitByChar(lyric);
+            splitNotes = LyricSplitter::splitByChar(lyric, m_priorityG2pIds);
         } else if (splitType == Custom) {
-            splitNotes = LyricSplitter::splitCustom(lyric, this->m_splitters->text().split(' '));
+            splitNotes = LyricSplitter::splitCustom(lyric, this->m_splitters->text().split(' '),
+                                                    m_priorityG2pIds);
         }
 
         return splitNotes;

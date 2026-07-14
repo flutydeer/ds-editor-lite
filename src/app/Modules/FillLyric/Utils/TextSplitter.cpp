@@ -2,6 +2,8 @@
 
 #include "Model/AppOptions/Options/FillLyricOption.h"
 
+#include <mutex>
+
 #include <QCoreApplication>
 #include <QFile>
 #include <QJsonArray>
@@ -22,13 +24,15 @@ namespace FillLyric
 
     static std::vector<SplitterConfig> g_splitters;
     static bool g_splitterInitialized = false;
+    static std::once_flag g_splitterInitOnce; // R11/TD-7: 保护 lazy init 的线程安全
 
     static void ensureSplitterInitialized() {
-        if (g_splitterInitialized)
-            return;
-        const auto basePath = std::filesystem::path(QCoreApplication::applicationDirPath().toStdString()) / "configs";
-        TextSplitter::init(basePath / "splitter");
-        g_splitterInitialized = true;
+        std::call_once(g_splitterInitOnce, [] {
+            if (g_splitterInitialized) // 允许 init() 被直接调用（如测试）后跳过重复初始化
+                return;
+            const auto basePath = std::filesystem::path(QCoreApplication::applicationDirPath().toStdString()) / "configs";
+            TextSplitter::init(basePath / "splitter");
+        });
     }
 
     static std::vector<std::string> splitWithPattern(const std::string &text, const RE2 &regex) {

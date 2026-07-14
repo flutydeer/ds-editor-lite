@@ -6,16 +6,17 @@
 
 #include "Modules/FillLyric/Widgets/LyricBaseWidget.h"
 #include "Modules/FillLyric/Widgets/LyricExtWidget.h"
+#include "Modules/FillLyric/Utils/G2pService.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     class LyricTab final : public QWidget {
         Q_OBJECT
 
     public:
-        explicit LyricTab(const QList<LangNote> &langNotes, const QStringList &priorityG2pIds = {},
-                          QMap<QString, QString> langToG2pId = {}, const LyricTabConfig &config = {},
-                          QWidget *parent = nullptr);
+        explicit LyricTab(const QList<LangNote> &langNotes, SingerIdentifier singer,
+                          const srt::g2p::LanguageService &languageService,
+                          const QStringList &priorityLanguages = {},
+                          const LyricTabConfig &config = {}, QWidget *parent = nullptr);
         ~LyricTab() override;
 
         void setLangNotes(bool warn = true);
@@ -37,8 +38,8 @@ namespace FillLyric
     private:
         void modifyOption();
 
-        std::vector<std::string> m_priorityG2pIds;
-        QMap<std::string, std::string> m_langToG2pId;
+        QStringList m_priorityLanguages;
+        G2pService m_g2pService;
 
         QList<LangNote *> m_langNotes;
 

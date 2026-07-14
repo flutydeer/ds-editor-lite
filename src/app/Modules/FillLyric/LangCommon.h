@@ -1,8 +1,13 @@
 #ifndef LYRIC_TAB_LANG_COMMON_H
 #define LYRIC_TAB_LANG_COMMON_H
 
+#include <QVersionNumber>
 #include <QString>
 #include <QStringList>
+
+// G2P 相关常量（项目内集中定义）
+inline constexpr auto kUnknownG2pId = "unknown";
+inline constexpr auto kSlurLyric = "slur";
 
 struct LangNote {
     QString lyric;
@@ -10,7 +15,7 @@ struct LangNote {
     QString syllableRevised;
     QStringList candidates;
     QString language = "unknown";
-    QString g2pId = "unknown";
+    QString g2pId = kUnknownG2pId;
     bool revised = false;
 
     LangNote() = default;
