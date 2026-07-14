@@ -225,7 +225,20 @@ TempoPopupWidget QLabel#popupTitle {
     font-size: 12px;
 }
 
-TempoPopupWidget Button#btnTapTempo {
-    height: 28px;
+TempoPopupWidget TapTempoButton#btnTapTempo {
+    height: 48px;
     padding: 0px 12px;
+    qproperty-progressColor: rgba(155, 186, 255, 80);
+}
+
+TempoPopupWidget TapTempoButton#btnTapTempo:hover,
+TempoPopupWidget TapTempoButton#btnTapTempo:pressed {
+    color: #f2f2f2;
+    background: #10FFFFFF;
+}
+
+TempoPopupWidget TapTempoButton#btnTapTempo[stable="true"] {
+    color: #9BBAFF;
+    font-size: 18px;
+    font-weight: bold;
 }

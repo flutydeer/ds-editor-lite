@@ -4,9 +4,10 @@
 #include <QElapsedTimer>
 #include <QFrame>
 #include <QList>
+#include <QTimer>
 
-class Button;
 class QEvent;
+class TapTempoButton;
 
 namespace SVS {
     class ExpressionDoubleSpinBox;
@@ -31,11 +32,16 @@ private:
     void applyEditorGeometry();
     void applyWindowEffects();
     void recordTap();
+    void resetTapTempo();
+    void expireTapTempo();
 
     SVS::ExpressionDoubleSpinBox *m_spinTempo = nullptr;
-    Button *m_btnTapTempo = nullptr;
+    TapTempoButton *m_btnTapTempo = nullptr;
     QElapsedTimer m_tapTimer;
-    QList<qint64> m_tapTimes;
+    QList<qint64> m_tapIntervals;
+    QTimer m_tapResetTimer;
+    int m_displayedTapBpm = 0;
+    bool m_hasDisplayedTapBpm = false;
 };
 
 #endif // TEMPOPOPUPWIDGET_H

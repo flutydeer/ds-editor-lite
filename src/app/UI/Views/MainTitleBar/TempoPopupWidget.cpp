@@ -1,7 +1,7 @@
 #include "TempoPopupWidget.h"
 
-#include "UI/Controls/Button.h"
 #include "UI/Controls/SvsExpressionDoubleSpinBox.h"
+#include "UI/Controls/TapTempoButton.h"
 #include "Utils/SystemUtils.h"
 
 #ifdef Q_OS_WIN
@@ -11,21 +11,25 @@
 
 #include <QApplication>
 #include <QEvent>
-#include <QHBoxLayout>
 #include <QLabel>
 #include <QScreen>
 #include <QSignalBlocker>
 #include <QSizePolicy>
 #include <QVBoxLayout>
 
+#include <cmath>
 #include <limits>
+#include <numeric>
 
 namespace {
-    constexpr int kEditorWidth = 120;
+    constexpr int kPopupWidth = 160;
+    constexpr int kPopupMargin = 12;
+    constexpr int kEditorWidth = kPopupWidth - kPopupMargin * 2;
+    constexpr int kTapButtonHeight = 48;
     constexpr int kTapResetTimeoutMs = 3000;
-    constexpr qsizetype kMinimumTapCount = 4;
-    constexpr qsizetype kMaxTapCount = 16;
-
+    constexpr qsizetype kReadyTapIntervalCount = 16;
+    constexpr qsizetype kMaxTapIntervalCount = 32;
+    constexpr double kStableBpmHysteresis = 0.75;
 }
 
 TempoPopupWidget::TempoPopupWidget(QWidget *parent) : QFrame(parent) {
@@ -51,25 +55,25 @@ TempoPopupWidget::TempoPopupWidget(QWidget *parent) : QFrame(parent) {
     m_spinTempo->setRange(0.001, std::numeric_limits<double>::max());
     m_spinTempo->setSingleStep(1.0);
 
-    m_btnTapTempo = new Button;
+    m_btnTapTempo = new TapTempoButton;
     m_btnTapTempo->setObjectName("btnTapTempo");
     m_btnTapTempo->setText(tr("Tap Tempo"));
-    m_btnTapTempo->setFixedHeight(28);
+    m_btnTapTempo->setFixedHeight(kTapButtonHeight);
 
-    auto *editorRow = new QHBoxLayout;
-    editorRow->setContentsMargins(0, 0, 0, 0);
-    editorRow->setSpacing(6);
-    editorRow->addWidget(m_spinTempo);
-    editorRow->addWidget(m_btnTapTempo);
+    auto *editorLayout = new QVBoxLayout;
+    editorLayout->setContentsMargins(0, 0, 0, 0);
+    editorLayout->setSpacing(6);
+    editorLayout->addWidget(m_spinTempo);
+    editorLayout->addWidget(m_btnTapTempo);
 
     auto *surface = new QFrame;
     surface->setObjectName("tempoPopupSurface");
     surface->setAttribute(Qt::WA_StyledBackground);
     auto *surfaceLayout = new QVBoxLayout(surface);
-    surfaceLayout->setContentsMargins(12, 12, 12, 12);
+    surfaceLayout->setContentsMargins(kPopupMargin, kPopupMargin, kPopupMargin, kPopupMargin);
     surfaceLayout->setSpacing(8);
     surfaceLayout->addWidget(titleLabel);
-    surfaceLayout->addLayout(editorRow);
+    surfaceLayout->addLayout(editorLayout);
 
     auto *outerLayout = new QVBoxLayout(this);
     outerLayout->setContentsMargins(0, 0, 0, 0);
@@ -81,7 +85,11 @@ TempoPopupWidget::TempoPopupWidget(QWidget *parent) : QFrame(parent) {
 
     connect(m_spinTempo, &SVS::ExpressionDoubleSpinBox::valueChanged, this,
             &TempoPopupWidget::tempoSelected);
-    connect(m_btnTapTempo, &Button::clicked, this, &TempoPopupWidget::recordTap);
+    connect(m_btnTapTempo, &Button::pressed, this, &TempoPopupWidget::recordTap);
+
+    m_tapResetTimer.setSingleShot(true);
+    m_tapResetTimer.setInterval(kTapResetTimeoutMs);
+    connect(&m_tapResetTimer, &QTimer::timeout, this, &TempoPopupWidget::expireTapTempo);
 }
 
 void TempoPopupWidget::setTempo(double tempo) {
@@ -90,9 +98,7 @@ void TempoPopupWidget::setTempo(double tempo) {
 }
 
 void TempoPopupWidget::showAt(const QPoint &globalPos) {
-    m_tapTimer.invalidate();
-    m_tapTimes.clear();
-    m_btnTapTempo->setText(tr("Tap Tempo"));
+    resetTapTempo();
 
     ensurePolished();
     applyEditorGeometry();
@@ -152,36 +158,66 @@ void TempoPopupWidget::applyWindowEffects() {
 
 void TempoPopupWidget::recordTap() {
     if (!m_tapTimer.isValid()) {
-        m_tapTimes.clear();
+        m_tapIntervals.clear();
+        m_hasDisplayedTapBpm = false;
         m_tapTimer.start();
-        m_tapTimes.append(0);
+        m_btnTapTempo->setProgress(0.0);
+        m_btnTapTempo->setStable(false);
         m_btnTapTempo->setText(tr("Keep Tapping"));
+        m_tapResetTimer.start();
         return;
     }
 
-    const qint64 tapTime = m_tapTimer.elapsed();
-    if (tapTime - m_tapTimes.constLast() > kTapResetTimeoutMs) {
-        m_tapTimer.restart();
-        m_tapTimes = {0};
+    const qint64 interval = m_tapTimer.restart();
+    if (interval >= kTapResetTimeoutMs) {
+        m_tapIntervals.clear();
+        m_hasDisplayedTapBpm = false;
+        m_btnTapTempo->setProgress(0.0);
+        m_btnTapTempo->setStable(false);
         m_btnTapTempo->setText(tr("Keep Tapping"));
+        m_tapResetTimer.start();
         return;
     }
 
-    m_tapTimes.append(tapTime);
-    while (m_tapTimes.size() > kMaxTapCount)
-        m_tapTimes.removeFirst();
-
-    if (m_tapTimes.size() < kMinimumTapCount) {
-        m_btnTapTempo->setText(tr("Keep Tapping"));
+    if (interval <= 0) {
+        m_tapResetTimer.start();
         return;
     }
 
-    const qint64 duration = m_tapTimes.constLast() - m_tapTimes.constFirst();
-    if (duration <= 0) {
-        m_btnTapTempo->setText(tr("Keep Tapping"));
-        return;
-    }
-    const double averageInterval = static_cast<double>(duration) / (m_tapTimes.size() - 1);
+    m_tapIntervals.append(interval);
+    while (m_tapIntervals.size() > kMaxTapIntervalCount)
+        m_tapIntervals.removeFirst();
+
+    const qint64 totalInterval =
+        std::accumulate(m_tapIntervals.cbegin(), m_tapIntervals.cend(), qint64(0));
+    const double averageInterval =
+        static_cast<double>(totalInterval) / m_tapIntervals.size();
     const double bpm = 60000.0 / averageInterval;
-    m_btnTapTempo->setText(QStringLiteral("%1 BPM").arg(qRound(bpm)));
+
+    if (!m_hasDisplayedTapBpm || m_tapIntervals.size() < kReadyTapIntervalCount ||
+        std::abs(bpm - m_displayedTapBpm) > kStableBpmHysteresis) {
+        m_displayedTapBpm = qRound(bpm);
+        m_hasDisplayedTapBpm = true;
+    }
+
+    m_btnTapTempo->setText(QStringLiteral("%1 BPM").arg(m_displayedTapBpm));
+    const auto readyIntervalCount = qMin(m_tapIntervals.size(), kReadyTapIntervalCount);
+    m_btnTapTempo->setProgress(static_cast<double>(readyIntervalCount) /
+                               kReadyTapIntervalCount);
+    m_btnTapTempo->setStable(m_tapIntervals.size() >= kReadyTapIntervalCount);
+    m_tapResetTimer.start();
+}
+
+void TempoPopupWidget::resetTapTempo() {
+    expireTapTempo();
+    m_hasDisplayedTapBpm = false;
+    m_btnTapTempo->setProgressImmediately(0.0);
+    m_btnTapTempo->setStable(false);
+    m_btnTapTempo->setText(tr("Tap Tempo"));
+}
+
+void TempoPopupWidget::expireTapTempo() {
+    m_tapResetTimer.stop();
+    m_tapTimer.invalidate();
+    m_tapIntervals.clear();
 }
