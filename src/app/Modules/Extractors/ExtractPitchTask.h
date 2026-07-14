@@ -6,7 +6,10 @@
 #define EXTRACTPITCHTASK_H
 
 #include "ExtractTask.h"
-#include <rmvpe-infer/Rmvpe.h>
+
+#include <synthrt/Extract/PitchExtractor.h>
+
+#include <QMutex>
 
 class ExtractPitchTask final : public ExtractTask {
     Q_OBJECT
@@ -23,6 +26,7 @@ private:
     static std::vector<float> freqToMidi(const std::vector<float> &frequencies);
     QList<double> processOutput(const QList<double> &values) const;
 
-    std::unique_ptr<Rmvpe::Rmvpe> m_rmvpe;
+    mutable QMutex m_extractorMutex;
+    srt::core::NO<srt::extract::PitchExtractor> m_extractor;
 };
 #endif // EXTRACTPITCHTASK_H

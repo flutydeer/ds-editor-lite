@@ -4,14 +4,21 @@
 
 #include "ExtractPitchTask.h"
 
+#include "ExtractorUtils.h"
+
+#include "AppContext.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "Modules/Inference/InferEngine.h"
+#include "Modules/SynthrtEngine/SynthrtEngine.h"
+#include "Utils/StringUtils.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 
-#include <rmvpe-infer/Rmvpe.h>
+#include <synthrt/Core/Plugin/PluginFactory.h>
+#include <synthrt/Extract/PitchExtractorPlugin.h>
+
 #include <QDebug>
-#include <QThread>
+#include <QMutexLocker>
+#include <QScopeGuard>
 #include <utility>
 #include "Global/AppGlobal.h"
 
@@ -20,21 +27,36 @@ ExtractPitchTask::ExtractPitchTask(Input input) : ExtractTask(std::move(input)) 
     status.title = tr("Extract Pitch");
     status.message = tr("Pending infer: %1").arg(m_input.audioPath);
     setStatus(status);
+}
 
-    if (!inferEngine || !inferEngine->initialized()) {
+void ExtractPitchTask::runTask() {
+    const auto terminateTask = [this] {
+        m_errorCode = ErrorCode::Terminated;
+        m_errorMessage = tr("Task terminated.");
+    };
+
+    // 1. Load model in background thread (avoid blocking UI)
+    auto newStatus = status();
+    newStatus.message = tr("Loading model, please wait...");
+    newStatus.isIndetermine = true;
+    setStatus(newStatus);
+
+    auto *synthrtEngine = AppContext::instance<SynthrtEngine>();
+    auto runtimeLease = synthrtEngine ? synthrtEngine->acquirePitchExtractionOperation()
+                                      : SynthrtEngine::RuntimeOperationLease{};
+    if (!runtimeLease) {
         m_errorCode = ErrorCode::InferEngineNotLoaded;
-        m_errorMessage = tr("Inference engine is not loaded");
+        m_errorMessage = tr("Pitch extraction is not available");
         qCritical().noquote() << errorMessage();
         return;
     }
+    if (isTerminateRequested()) {
+        terminateTask();
+        return;
+    }
 
-    auto rmvpePath = appOptions->general()->rmvpePath;
-    const std::filesystem::path modelPath = rmvpePath
-#ifdef _WIN32
-        .toStdWString();
-#else
-        .toStdString();
-#endif
+    const auto rmvpePath = appOptions->general()->rmvpePath;
+    const auto modelPath = StringUtils::qstr_to_path(rmvpePath);
 
     if (modelPath.empty() || !exists(modelPath) || is_directory(modelPath)) {
         m_errorCode = ErrorCode::ModelNotLoaded;
@@ -43,69 +65,142 @@ ExtractPitchTask::ExtractPitchTask(Input input) : ExtractTask(std::move(input)) 
         return;
     }
 
-    // TODO:: forced on cpu
-    m_rmvpe = std::make_unique<Rmvpe::Rmvpe>(&inferEngine->synthUnit());
-    if (auto exp = m_rmvpe->open(modelPath); !exp) {
+    // Obtain the rmvpe PitchExtractor plugin and create an extractor instance.
+    auto &runtime = runtimeLease.runtime();
+    auto *plugins = runtime.services().get<srt::core::PluginFactory>();
+    if (!plugins) {
+        m_errorCode = ErrorCode::InferEngineNotLoaded;
+        m_errorMessage = tr("PluginFactory is not available");
+        qCritical().noquote() << errorMessage();
+        return;
+    }
+
+    auto *rmvpePlugin = plugins->plugin<srt::extract::PitchExtractorPlugin>("rmvpe");
+    if (!rmvpePlugin) {
+        m_errorCode = ErrorCode::ModelNotLoaded;
+        m_errorMessage = tr("rmvpe PitchExtractor plugin not found");
+        qCritical().noquote() << errorMessage();
+        return;
+    }
+
+    auto extractorExp = rmvpePlugin->createExtractor(&runtime);
+    if (!extractorExp) {
+        m_errorCode = ErrorCode::ModelNotLoaded;
+        const auto reason = QString::fromUtf8(extractorExp.error().message());
+        m_errorMessage = tr("Failed to create RMVPE extractor: ") + reason;
+        qCritical().noquote() << errorMessage();
+        return;
+    }
+    auto extractor = extractorExp.take();
+    {
+        QMutexLocker locker(&m_extractorMutex);
+        m_extractor = extractor;
+    }
+    const auto clearExtractor = qScopeGuard([this] {
+        QMutexLocker locker(&m_extractorMutex);
+        m_extractor.reset();
+    });
+
+    if (isTerminateRequested()) {
+        terminateTask();
+        return;
+    }
+
+    if (auto exp = extractor->open(modelPath); !exp) {
+        if (isTerminateRequested()) {
+            terminateTask();
+            return;
+        }
         m_errorCode = ErrorCode::ModelNotLoaded;
         const auto reason = QString::fromUtf8(exp.error().message());
         m_errorMessage = tr("Failed to create RMVPE session: ") + reason;
         qCritical().noquote() << errorMessage();
+        QMutexLocker locker(&m_extractorMutex);
+        m_extractor.reset();
         return;
     }
-}
 
-void ExtractPitchTask::runTask() {
-    auto newStatus = status();
+    if (isTerminateRequested()) {
+        terminateTask();
+        return;
+    }
+
+    // 2. Run inference
+    newStatus = status();
     newStatus.message = tr("Running inference: %1").arg(m_input.audioPath);
+    newStatus.isIndetermine = false;
+    newStatus.maximum = 100;
+    newStatus.progress = 0;
     setStatus(newStatus);
 
-    if (!m_rmvpe || !m_rmvpe->is_open()) {
-        qCritical().noquote() << errorMessage();
+    QString decodeError;
+    auto audio = ExtractorUtils::decodeAudio(
+        m_input.audioPath, [this] { return isTerminateRequested(); }, decodeError);
+    if (!audio) {
+        if (isTerminateRequested()) {
+            terminateTask();
+            return;
+        }
+        m_errorCode = ErrorCode::ModelRunFailed;
+        m_errorMessage = decodeError;
+        qCritical().noquote() << "Error:" << errorMessage();
         return;
     }
 
-    constexpr float threshold = 0.03f;
+    // Extract pitch (the extractor resamples internally to the model's required format).
+    auto resultExp =
+        extractor->extract(audio->buffer, audio->sampleRate, [this](const int progress) {
+            auto progressStatus = status();
+            progressStatus.progress = progress;
+            setStatus(progressStatus);
+        });
 
-    std::vector<Rmvpe::RmvpeRes> rmvpe_res;
-    std::string msg;
+    if (isTerminateRequested()) {
+        terminateTask();
+        return;
+    }
 
-#ifdef Q_OS_WIN
-    const std::filesystem::path wavPath = m_input.audioPath.toStdWString();
-#else
-    const std::filesystem::path wavPath = m_input.audioPath.toStdString();
-#endif
-
-    const bool runSuccess = m_rmvpe->get_f0(wavPath, threshold, rmvpe_res, msg, [this](const int progress) {
-        auto progressStatus = status();
-        progressStatus.progress = progress;
-        setStatus(progressStatus);
-    });
-
-    if (runSuccess) {
+    if (resultExp) {
         m_errorCode = ErrorCode::Success;
         m_errorMessage = tr("Successfully extracted pitch.");
-        qDebug() << "midi output:";
-        for (const auto &[offset, f0, uv] : rmvpe_res) {
-            const auto midi = freqToMidi(f0);
+        auto pitchResult = resultExp.take();
+        for (const auto &frame : pitchResult.frames) {
+            if (isTerminateRequested()) {
+                terminateTask();
+                result.clear();
+                return;
+            }
+            const auto midi = freqToMidi(frame.f0);
             QList<double> values;
             for (const auto &value : midi)
                 values.append(value);
-            result.append({offset, processOutput(values)});
+            auto processed = processOutput(values);
+            if (isTerminateRequested()) {
+                terminateTask();
+                result.clear();
+                return;
+            }
+            result.append({frame.offset, std::move(processed)});
         }
     } else {
         m_errorCode = ErrorCode::ModelRunFailed;
-        m_errorMessage = tr("RMVPE model run failed. Reason: ") + QString::fromStdString(msg);
+        m_errorMessage =
+            tr("RMVPE model run failed. Reason: ") + QString::fromUtf8(resultExp.error().message());
         qCritical().noquote() << "Error:" << errorMessage();
     }
 }
 
 void ExtractPitchTask::terminate() {
-    if (!m_rmvpe) {
-        return;
+    ExtractTask::terminate();
+
+    srt::core::NO<srt::extract::PitchExtractor> extractor;
+    {
+        QMutexLocker locker(&m_extractorMutex);
+        extractor = m_extractor;
     }
-    m_rmvpe->terminate();
-    m_errorCode = ErrorCode::Terminated;
-    m_errorMessage = tr("Task terminated.");
+    if (extractor) {
+        extractor->terminate();
+    }
 }
 
 std::vector<float> ExtractPitchTask::freqToMidi(const std::vector<float> &frequencies) {
@@ -124,7 +219,9 @@ std::vector<float> ExtractPitchTask::freqToMidi(const std::vector<float> &freque
 }
 
 QList<double> ExtractPitchTask::processOutput(const QList<double> &values) const {
-    auto tickToSec = [&](const double &tick) { return tick * 60 / m_input.tempo / AppGlobal::ticksPerQuarterNote; };
+    auto tickToSec = [&](const double &tick) {
+        return tick * 60 / m_input.tempo / AppGlobal::ticksPerQuarterNote;
+    };
     constexpr auto interval = 0.01;
     const auto newInterval = tickToSec(5);
     return MathUtils::resample(values, interval, newInterval);

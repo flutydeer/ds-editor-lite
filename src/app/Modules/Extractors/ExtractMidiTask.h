@@ -6,7 +6,19 @@
 #define EXTRACTMIDITASK_H
 
 #include "ExtractTask.h"
-#include <game-infer/Game.h>
+
+#include <synthrt/Extract/MidiExtractor.h>
+
+#include <QMutex>
+
+/// Local MIDI note struct, decoupled from synthrt types.
+/// Field order (note, start, duration) preserves structured-binding compatibility
+/// with MidiExtractController.
+struct ExtractMidiNote {
+    int note = 0;
+    int start = 0;
+    int duration = 0;
+};
 
 class ExtractMidiTask final : public ExtractTask {
     Q_OBJECT
@@ -16,11 +28,12 @@ public:
 
     void terminate() override;
 
-    std::vector<Game::GameMidi> result;
+    std::vector<ExtractMidiNote> result;
 
 private:
     void runTask() override;
 
-    std::unique_ptr<Game::Game> m_game;
+    mutable QMutex m_extractorMutex;
+    srt::core::NO<srt::extract::MidiExtractor> m_extractor;
 };
 #endif // EXTRACTMIDITASK_H
