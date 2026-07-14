@@ -10,6 +10,7 @@
 #include <synthrt/SVS/Inference.h>
 
 #include "IInferTask.h"
+#include "InferTaskCommon.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferParamCurve.h"
@@ -56,12 +57,12 @@ private:
     void buildPreviewText();
     bool processOutput(const GenericInferModel &model);
 
-    srt::NO<srt::Inference> m_inferenceVariance;
     QString m_previewText;
     InferVarianceInput m_input;
     InferVarianceResult m_result;
     QString m_inputHash;
     std::atomic<bool> m_success{false};
+    ActiveInference m_activeInference;
 };
 
 #endif // INFERVARIANCETASK_H

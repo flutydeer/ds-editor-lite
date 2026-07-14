@@ -10,6 +10,7 @@
 #include <synthrt/SVS/Inference.h>
 
 #include "IInferTask.h"
+#include "InferTaskCommon.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferInputNote.h"
@@ -46,12 +47,12 @@ private:
     void buildPreviewText();
     bool processOutput(const GenericInferModel &model);
 
-    srt::NO<srt::Inference> m_inferencePitch;
     QString m_previewText;
     InferPitchInput m_input;
     InferParamCurve m_result;
     QString m_inputHash;
     std::atomic<bool> m_success{false};
+    ActiveInference m_activeInference;
 };
 
 

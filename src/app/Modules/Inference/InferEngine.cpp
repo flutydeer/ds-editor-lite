@@ -8,23 +8,10 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Task/TaskManager.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
-#include "Modules/PackageManager/PackageManager.h"
+#include "Modules/SynthrtEngine/SynthrtEngine.h"
 #include "Tasks/InitInferEngineTask.h"
 
-#include <stdcorelib/str.h>
-#include <stdcorelib/system.h>
-#include <stdcorelib/path.h>
-
-#include <synthrt/Core/PackageRef.h>
-#include <synthrt/Support/Logging.h>
-#include <synthrt/SVS/SingerContrib.h>
-#include <synthrt/SVS/InferenceContrib.h>
-#include <synthrt/SVS/Inference.h>
-
-#include <dsinfer/Inference/InferenceDriver.h>
-#include <dsinfer/Inference/InferenceDriverPlugin.h>
-#include <dsinfer/Api/Drivers/Onnx/OnnxDriverApi.h>
-#include <dsinfer/Support/PackageListConfig.h>
+#include <synthrt/Core/Support/Logging.h>
 
 #include "Utils/DmlGpuUtils.h"
 #include "Utils/Log.h"
@@ -40,133 +27,33 @@
 
 #include "Tasks/InferTaskCommon.h"
 #include "Utils/CudaGpuUtils.h"
-#if defined(Q_OS_MAC)
-#  include "Utils/MacOSUtils.h"
-#endif
 
-static void log_report_callback(const int level, const srt::LogContext &ctx,
+static void log_report_callback(const int level, const srt::core::LogContext &ctx,
                                 const std::string_view &msg) {
     const QString message_qstr = QString::fromUtf8(msg.data(), msg.size());
     switch (level) {
-        case srt::Logger::Fatal:
+        case srt::core::Logger::Fatal:
             Log::f(ctx.category, message_qstr);
             break;
-        case srt::Logger::Critical:
+        case srt::core::Logger::Critical:
             Log::e(ctx.category, message_qstr);
             break;
-        case srt::Logger::Warning:
+        case srt::core::Logger::Warning:
             Log::w(ctx.category, message_qstr);
             break;
-        case srt::Logger::Information:
-        case srt::Logger::Success:
+        case srt::core::Logger::Information:
+        case srt::core::Logger::Success:
             Log::i(ctx.category, message_qstr);
             break;
-        case srt::Logger::Debug:
+        case srt::core::Logger::Debug:
         default:
             Log::d(ctx.category, message_qstr);
             break;
     }
 }
 
-static srt::Expected<void> checkPath(const std::filesystem::path &path) {
-    if (!std::filesystem::exists(path)) {
-        return srt::Error(srt::Error::FileNotFound,
-                          "Path does not exist: " + stdc::path::to_utf8(path));
-    }
-    if (!std::filesystem::is_directory(path)) {
-        return srt::Error(srt::Error::InvalidArgument,
-                          "Path is not a directory: " + stdc::path::to_utf8(path));
-    }
-    return srt::Expected<void>();
-}
-
-static srt::Expected<void> initializeSU(srt::SynthUnit &su, ds::Api::Onnx::ExecutionProvider ep,
-                                        int deviceIndex, InferEnginePaths &outPaths) {
-    // Get basic directories
-    auto pluginRootDir =
-#if defined(Q_OS_MAC)
-        MacOSUtils::getMainBundlePath() / _TSTR("Contents/PlugIns");
-#elif defined(Q_OS_WIN)
-        stdc::system::application_directory() / _TSTR("plugins");
-#else
-        stdc::system::application_directory().parent_path() / _TSTR("lib/plugins");
-#endif
-    auto defaultPluginDir = pluginRootDir / _TSTR("dsinfer");
-
-    // Set default plugin directories
-    auto singerProviderDir = defaultPluginDir / _TSTR("singerproviders");
-    auto inferenceDriverDir = defaultPluginDir / _TSTR("inferencedrivers");
-    auto inferenceInterpreterDir = defaultPluginDir / _TSTR("inferenceinterpreters");
-
-    auto singerProviderDirString = StringUtils::path_to_qstr(singerProviderDir);
-    auto inferenceDriverDirString = StringUtils::path_to_qstr(inferenceDriverDir);
-    auto inferenceInterpreterDirString = StringUtils::path_to_qstr(inferenceInterpreterDir);
-    qDebug().noquote().nospace() << "Singer provider plugin path: " << singerProviderDirString;
-    qDebug().noquote().nospace() << "Inference driver plugin path: " << inferenceDriverDirString;
-    qDebug().noquote().nospace() << "Inference interpreter plugin path: "
-                                 << inferenceInterpreterDirString;
-    if (auto exp = checkPath(singerProviderDir); !exp) {
-        return exp.takeError();
-    }
-    if (auto exp = checkPath(inferenceDriverDir); !exp) {
-        return exp.takeError();
-    }
-    if (auto exp = checkPath(inferenceInterpreterDir); !exp) {
-        return exp.takeError();
-    }
-    su.addPluginPath("org.openvpi.SingerProvider", singerProviderDir);
-    su.addPluginPath("org.openvpi.InferenceDriver", inferenceDriverDir);
-    su.addPluginPath("org.openvpi.InferenceInterpreter", inferenceInterpreterDir);
-
-    // Load driver
-    auto plugin = su.plugin<ds::InferenceDriverPlugin>("onnx");
-    if (!plugin) {
-        return srt::Error(srt::Error::FileNotOpen, "failed to load inference driver");
-    }
-
-    auto onnxDriver = plugin->create();
-    auto onnxArgs = srt::NO<ds::Api::Onnx::DriverInitArgs>::create();
-
-    onnxArgs->ep = ep;
-    auto ortParentPath = plugin->path().parent_path() / _TSTR("runtimes") / _TSTR("onnx");
-    if (ep == ds::Api::Onnx::CUDAExecutionProvider) {
-        onnxArgs->runtimePath = ortParentPath / _TSTR("cuda");
-    } else {
-        onnxArgs->runtimePath = ortParentPath / _TSTR("default");
-    }
-    onnxArgs->deviceIndex = deviceIndex;
-
-    if (auto exp = onnxDriver->initialize(onnxArgs); !exp) {
-        return srt::Error(srt::Error::FileNotOpen,
-                          "failed to initialize onnx driver: " + exp.error().message());
-    }
-
-    // Add driver
-    auto &ic = *su.category("inference");
-    ic.addObject("dsdriver", onnxDriver);
-
-    outPaths.singerProvider = singerProviderDirString;
-    outPaths.inferenceDriver = inferenceDriverDirString;
-    outPaths.inferenceRuntime = StringUtils::path_to_qstr(onnxArgs->runtimePath);
-    outPaths.inferenceInterpreter = inferenceInterpreterDirString;
-
-    return srt::Expected<void>();
-}
-
 InferEngine::InferEngine(QObject *parent) : QObject(parent) {
-    srt::Logger::setLogCallback(log_report_callback);
-
-    const auto initTask = new InitInferEngineTask;
-    connect(initTask, &Task::finished, this, [=] {
-        taskManager->removeTask(initTask);
-        if (initTask->success)
-            appStatus->inferEngineEnvStatus = AppStatus::ModuleStatus::Ready;
-        else
-            appStatus->inferEngineEnvStatus = AppStatus::ModuleStatus::Error;
-        delete initTask;
-    });
-    taskManager->addAndStartTask(initTask);
-    appStatus->inferEngineEnvStatus = AppStatus::ModuleStatus::Loading;
+    srt::core::Logger::setLogCallback(log_report_callback);
 
     // Prevent crash on app exit
     connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this,
@@ -179,105 +66,128 @@ InferEngine::~InferEngine() {
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(InferEngine)
 
+void InferEngine::startInitialization() {
+    std::call_once(m_initFlag, [this] {
+        const auto initTask = new InitInferEngineTask;
+        connect(initTask, &Task::finished, this, [=] {
+            taskManager->removeTask(initTask);
+            QWriteLocker lock(&m_engineRwLock);
+            if (m_disposed || SynthrtEngine::instance().isAboutToQuit()) {
+                delete initTask;
+                return;
+            }
+
+            const bool languageReady = initTask->success.load(std::memory_order_acquire);
+            const bool runtimeReady = SynthrtEngine::instance().runtimeInitialized();
+            appStatus->inferEngineEnvStatus =
+                runtimeReady ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
+            if (languageReady) {
+                appStatus->languageModuleError = QString();
+                appStatus->languageModuleStatus = AppStatus::ModuleStatus::Ready;
+            } else {
+                appStatus->languageModuleError = initTask->errorMessage;
+                appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
+            }
+            delete initTask;
+        });
+        appStatus->inferEngineEnvStatus = AppStatus::ModuleStatus::Loading;
+        appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
+        appStatus->languageModuleError = QString();
+        taskManager->addAndStartTask(initTask);
+    });
+}
+
 bool InferEngine::initialized() const {
     QReadLocker lock(&m_engineRwLock);
     return m_initialized;
 }
 
 bool InferEngine::isAboutToQuit() const noexcept {
-    return m_aboutToQuit.load(std::memory_order_acquire);
+    return SynthrtEngine::instance().isAboutToQuit();
 }
-
-void InferEngine::setAboutToQuit(bool aboutToQuit) noexcept {
-    m_aboutToQuit.store(aboutToQuit, std::memory_order_release);
-}
-
 
 bool InferEngine::initialize(QString &error) {
     QWriteLocker lock(&m_engineRwLock);
+    if (m_disposed) {
+        error = "Application is about to quit.";
+        return false;
+    }
     if (m_initialized) {
         qDebug() << "InferEngine already initialized";
         return true;
     }
 
-    using EP = ds::Api::Onnx::ExecutionProvider;
-    auto ep = EP::CPUExecutionProvider;
-    if (appOptions->inference()->executionProvider == "DirectML") {
-        ep = EP::DMLExecutionProvider;
-    } else if (appOptions->inference()->executionProvider == "CUDA") {
-        ep = EP::CUDAExecutionProvider;
-    } else if (appOptions->inference()->executionProvider == "CoreML") {
-        ep = EP::CoreMLExecutionProvider;
-    }
-
-    const auto gpuDeviceList = [](const EP ep_) -> QList<GpuInfo> {
-        switch (ep_) {
-            case EP::DMLExecutionProvider:
-                return DmlGpuUtils::getGpuList();
-            case EP::CUDAExecutionProvider:
-                return CudaGpuUtils::getGpuList();
-            default:
-                return {};
+    const auto ep = appOptions->inference()->executionProvider;
+    const auto gpuDeviceList = [&ep]() -> QList<GpuInfo> {
+        if (ep == QStringLiteral("DirectML")) {
+            return DmlGpuUtils::getGpuList();
         }
-    }(ep);
+        if (ep == QStringLiteral("CUDA")) {
+            return CudaGpuUtils::getGpuList();
+        }
+        return {};
+    }();
 
-    if (ep != EP::CPUExecutionProvider && gpuDeviceList.empty()) {
+    if ((ep == QStringLiteral("DirectML") || ep == QStringLiteral("CUDA")) &&
+        gpuDeviceList.empty()) {
         qCritical() << "InferEngine: Unable to find GPU device.";
         error = "No available GPU device found.";
         return false;
     }
 
-    const auto [index, description, deviceId, memory] = [](const EP ep_) -> GpuInfo {
-        switch (ep_) {
-            case EP::DMLExecutionProvider: {
-                auto selectedGpu_ = DmlGpuUtils::getGpuByPciDeviceVendorIdString(
-                    appOptions->inference()->selectedGpuId);
-                if (selectedGpu_.index < 0) {
-                    qInfo() << "Auto selecting GPU";
-                    selectedGpu_ = DmlGpuUtils::getRecommendedGpu();
-                } else {
-                    qInfo() << "Selecting GPU";
-                }
-                return selectedGpu_;
+    const auto [index, description, deviceId, memory] = [&ep]() -> GpuInfo {
+        if (ep == QStringLiteral("DirectML")) {
+            auto selectedGpu_ = DmlGpuUtils::getGpuByPciDeviceVendorIdString(
+                appOptions->inference()->selectedGpuId);
+            if (selectedGpu_.index < 0) {
+                qInfo() << "Auto selecting GPU";
+                selectedGpu_ = DmlGpuUtils::getRecommendedGpu();
+            } else {
+                qInfo() << "Selecting GPU";
             }
-            case EP::CUDAExecutionProvider: {
-                auto selectedGpu_ =
-                    CudaGpuUtils::getGpuByUuid(appOptions->inference()->selectedGpuId);
-                if (selectedGpu_.index < 0) {
-                    qInfo() << "Auto selecting GPU";
-                    selectedGpu_ = CudaGpuUtils::getRecommendedGpu();
-                } else {
-                    qInfo() << "Selecting GPU";
-                }
-                return selectedGpu_;
-            }
-            default:
-                return {};
+            return selectedGpu_;
         }
-    }(ep);
+        if (ep == QStringLiteral("CUDA")) {
+            auto selectedGpu_ = CudaGpuUtils::getGpuByUuid(appOptions->inference()->selectedGpuId);
+            if (selectedGpu_.index < 0) {
+                qInfo() << "Auto selecting GPU";
+                selectedGpu_ = CudaGpuUtils::getRecommendedGpu();
+            } else {
+                qInfo() << "Selecting GPU";
+            }
+            return selectedGpu_;
+        }
+        return {};
+    }();
 
     if (isAboutToQuit()) {
         error = "Application is about to quit.";
         return false;
     }
 
-    // Initialize SynthUnit (must do this before inference)
-    if (auto exp = initializeSU(m_su, ep, index, m_paths); !exp) {
-        error = QString::fromUtf8(exp.error().message());
+    const auto pluginRootDir = SynthrtEngine::pluginRoot();
+    const auto diffsingerPluginDir = pluginRootDir / _TSTR("diffsinger");
+    const auto singerProviderDir = diffsingerPluginDir / _TSTR("singerproviders");
+    const auto inferenceDriverDir = pluginRootDir / _TSTR("srt-driver") / _TSTR("inferencedrivers");
+    const auto inferenceInterpreterDir = diffsingerPluginDir / _TSTR("inferenceinterpreters");
+
+    const auto packagePathsQt = appOptions->general()->packageSearchPaths;
+    const auto g2pPackageDir = pluginRootDir / _TSTR("srt-g2p") / _TSTR("G2pPackages");
+    const QStringList g2pPackagePaths{StringUtils::path_to_qstr(g2pPackageDir)};
+    if (!SynthrtEngine::instance().initialize(packagePathsQt, g2pPackagePaths, ep, index)) {
+        error = QStringLiteral("Failed to initialize SynthrtEngine");
         return false;
     }
 
+    m_paths.singerProvider = StringUtils::path_to_qstr(singerProviderDir);
+    m_paths.inferenceDriver = StringUtils::path_to_qstr(inferenceDriverDir);
+    m_paths.inferenceInterpreter = StringUtils::path_to_qstr(inferenceInterpreterDir);
+    const auto runtimeDir = inferenceDriverDir / _TSTR("srt-onnxdriver") / _TSTR("runtimes") /
+                            _TSTR("onnx") /
+                            (ep == QStringLiteral("CUDA") ? _TSTR("cuda") : _TSTR("default"));
+    m_paths.inferenceRuntime = StringUtils::path_to_qstr(runtimeDir);
 
-
-    const auto packagePathsQt = appOptions->general()->packageSearchPaths;
-    std::vector<std::filesystem::path> packagePaths;
-    packagePaths.reserve(packagePathsQt.size());
-    for (const auto &path : std::as_const(packagePathsQt)) {
-        packagePaths.emplace_back(StringUtils::qstr_to_path(path));
-    }
-    m_su.setPackagePaths(packagePaths);
-
-    if (ep != EP::CPUExecutionProvider) {
+    if (ep == QStringLiteral("DirectML") || ep == QStringLiteral("CUDA")) {
         qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
                                  .arg(description)
                                  .arg(deviceId)
@@ -285,345 +195,32 @@ bool InferEngine::initialize(QString &error) {
     }
 
     m_initialized = true;
-    Q_EMIT engineInitialized();
-    qInfo().noquote() << "Successfully initialized InferEngine. Execution provider:"
-                      << appOptions->inference()->executionProvider;
+    qInfo().noquote() << "Successfully initialized InferEngine. Execution provider:" << ep;
     return true;
 }
 
-bool InferEngine::loadPackage(const QString &packagePath, const bool noLoad,
-                              srt::PackageRef &outPackage) {
-    return loadPackage(StringUtils::qstr_to_path(packagePath), noLoad, outPackage);
-}
-
-bool InferEngine::loadPackageAndAllSingers(const QString &packagePath,
-                                           srt::PackageRef &outPackage) {
-    if (isAboutToQuit()) {
-        return false;
-    }
-    srt::PackageRef pkg;
-    if (!loadPackage(packagePath, false, pkg)) {
-        return false;
-    }
-    loadAllSingersFromPackage(pkg);
-    outPackage = pkg;
-    return true;
-}
-
-void InferEngine::loadAllSingersFromPackage(const srt::PackageRef &package) {
-    const auto singers = package.contributes("singer");
-    std::vector<std::shared_ptr<InferenceLoader>> loaders;
-    loaders.reserve(singers.size());
-
-    for (const auto singer : singers) {
-        const auto singerSpec = static_cast<srt::SingerSpec *>(singer);
-        auto loader = std::make_shared<InferenceLoader>(singerSpec);
-        loader->loadInferenceSpecs();
-        loaders.push_back(std::move(loader));
-    }
-
-    if (isAboutToQuit()) {
-        return;
-    }
-
-    {
-        QWriteLocker wrLock(&m_loaderRwLock);
-        for (auto &loader : loaders) {
-            m_loaders[loader->singerIdentifier()] = std::move(loader);
-        }
-    }
-    qDebug() << "Successfully loaded all singers from inference package";
-}
-
-srt::SingerSpec *InferEngine::findSingerForPackage(const srt::PackageRef &package,
-                                                   const QString &singerId) {
-    const auto singerIdString = singerId.toStdString();
-    return findSingerForPackage(package, singerIdString);
-}
-
-srt::SingerSpec *InferEngine::findSingerForPackage(const srt::PackageRef &package,
-                                                   const std::string_view singerId) {
-    // Find singer
-    const auto singers = package.contributes("singer");
-    srt::SingerSpec *singerSpec = nullptr;
-    for (const auto singer : singers) {
-        if (singer->id() == singerId) {
-            singerSpec = static_cast<srt::SingerSpec *>(singer);
-            break;
-        }
-    }
-    if (!singerSpec) {
-        qCritical().noquote().nospace() << "singer \"" << singerId << "\" not found in package";
-        return nullptr;
-    }
-    return singerSpec;
-}
-
-std::shared_ptr<InferenceLoader>
-    InferEngine::findLoaderForSinger(const SingerIdentifier &identifier) const {
-
-    std::shared_ptr<InferenceLoader> loader;
-    // Looking for the inference loader
-    {
-        QReadLocker rdLock(&m_loaderRwLock);
-        const auto it = m_loaders.constFind(identifier);
-        if (it != m_loaders.constEnd()) {
-            loader = *it;
-        }
-    }
-    return loader;
-}
-
-bool InferEngine::loadPackage(const std::filesystem::path &packagePath, const bool noLoad,
-                              srt::PackageRef &outPackage) {
-    if (!m_initialized) {
-        qCritical() << "loadPackage: SynthUnit is not initialized!";
-        return false;
-    }
-
-    srt::PackageRef pkg;
-
-    const auto packagePathString = StringUtils::path_to_qstr(packagePath);
-    // Load package
-    if (auto exp = m_su.open(packagePath, noLoad); !exp) {
-        qCritical().noquote().nospace() << "loadPackage: failed to open package \""
-                                        << packagePathString << "\": " << exp.error().message();
-        return false;
-    } else {
-        pkg = exp.take();
-    }
-    if (!noLoad && !pkg.isLoaded()) {
-        qCritical().noquote().nospace() << "loadPackage: failed to load package \""
-                                        << packagePathString << "\": " << pkg.error().message();
-        return false;
-    }
-    outPackage = pkg;
-    return true;
-}
-
-bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
+std::shared_ptr<SingerModelSession>
+    InferEngine::acquireSingerSession(const SingerIdentifier &identifier) const {
     if (appStatus->inferEngineEnvStatus != AppStatus::ModuleStatus::Ready || !initialized()) {
-        qCritical() << "loadInferencesForSinger: inference runtime is not ready" << identifier;
-        return false;
+        qCritical() << "acquireSingerSession: inference runtime is not ready" << identifier;
+        return {};
     }
-
-    const auto packageId = identifier.packageId.toStdString();
-
-    auto loader = findLoaderForSinger(identifier);
-
-    // If not found, try loading the package
-    if (!loader) {
-        qDebug() << "loadInferencesForSinger: "
-                    "singer" << identifier << "not loaded, try loading now";
-        if (appStatus->packageModuleStatus != AppStatus::ModuleStatus::Ready) {
-            qCritical() << "loadInferencesForSinger: package manager is not ready" << identifier;
-            return false;
-        }
-
-        const auto packageInfo = packageManager->findPackageByIdentifier(identifier);
-        if (packageInfo.isEmpty()) {
-            qCritical() << "loadInferencesForSinger: "
-                           "package for singer" << identifier << "not found";
-            return false;
-        }
-        srt::PackageRef pkg;
-        if (!loadPackageAndAllSingers(packageInfo.path(), pkg)) {
-            qCritical() << "loadInferencesForSinger: "
-                           "failed to load package and singers" << identifier;
-            return false;
-        }
-        Q_UNUSED(pkg)
-        // Looking for the inference loader again
-        {
-            QReadLocker rdLock(&m_loaderRwLock);
-            const auto it = m_loaders.constFind(identifier);
-            if (it != m_loaders.constEnd()) {
-                loader = *it;
-            }
-        }
-        if (!loader) {
-            qCritical() << "loadInferencesForSinger: "
-                           "loader still not found after loading package"
-                        << identifier;
-            return false;
-        }
-    }
-    {
-        QReadLocker rdLock(&m_inferenceRwLock);
-        const auto it = m_inferences.constFind(identifier);
-        if (it != m_inferences.constEnd()) {
-            qDebug() << "loadInferencesForSinger: "
-                        "inferences already loaded for" << identifier;
-            return true;
-        }
-    }
-
-    InferenceSet inference;
-    bool allLoaded = true;
-    if (auto exp = loader->loadInferenceSpecs(); !exp) {
-        qCritical().noquote().nospace() << "Failed to load inference specs: " << exp.getError();
-        return false;
-    } else {
-        auto flags = exp.get();
-        if (flags.has(InferenceFlag::Duration)) {
-            if (isAboutToQuit()) {
-                return false;
-            }
-            if (auto exp2 = loader->createDuration(); !exp2) {
-                allLoaded = false;
-                qCritical().noquote().nospace()
-                    << "Failed to create duration inference: " << exp2.getError();
-            } else {
-                inference.duration = std::move(exp2.get());
-            }
-        } else {
-            allLoaded = false;
-            qCritical().noquote().nospace() << "Missing duration inference";
-        }
-        if (flags.has(InferenceFlag::Pitch)) {
-            if (isAboutToQuit()) {
-                return false;
-            }
-            if (auto exp2 = loader->createPitch(); !exp2) {
-                allLoaded = false;
-                qCritical().noquote().nospace()
-                    << "Failed to create pitch inference: " << exp2.getError();
-            } else {
-                inference.pitch = std::move(exp2.get());
-            }
-        } else {
-            allLoaded = false;
-            qCritical().noquote().nospace() << "Missing pitch inference";
-        }
-        if (flags.has(InferenceFlag::Variance)) {
-            if (isAboutToQuit()) {
-                return false;
-            }
-            if (auto exp2 = loader->createVariance(); !exp2) {
-                allLoaded = false;
-                qCritical().noquote().nospace()
-                    << "Failed to create variance inference: " << exp2.getError();
-            } else {
-                inference.variance = std::move(exp2.get());
-            }
-        } else {
-            allLoaded = false;
-            qCritical().noquote().nospace() << "Missing variance inference";
-        }
-        if (flags.has(InferenceFlag::Acoustic)) {
-            if (isAboutToQuit()) {
-                return false;
-            }
-            if (auto exp2 = loader->createAcoustic(); !exp2) {
-                allLoaded = false;
-                qCritical().noquote().nospace()
-                    << "Failed to create acoustic inference: " << exp2.getError();
-            } else {
-                inference.acoustic = std::move(exp2.get());
-            }
-        } else {
-            allLoaded = false;
-            qCritical().noquote().nospace() << "Missing acoustic inference";
-        }
-        if (flags.has(InferenceFlag::Vocoder)) {
-            if (isAboutToQuit()) {
-                return false;
-            }
-            if (auto exp2 = loader->createVocoder(); !exp2) {
-                allLoaded = false;
-                qCritical().noquote().nospace()
-                    << "Failed to create vocoder inference: " << exp2.getError();
-            } else {
-                inference.vocoder = std::move(exp2.get());
-            }
-        } else {
-            allLoaded = false;
-            qCritical().noquote().nospace() << "Missing vocoder inference";
-        }
-    }
-
-    if (!allLoaded) {
-        return false;
-    }
-    {
-        QWriteLocker wrLock(&m_inferenceRwLock);
-        m_inferences[identifier] = std::move(inference);
-    }
-
-    qInfo() << "loadInferences success";
-
-    return true;
-}
-
-void InferEngine::terminateInferDurationAll() const {
-    qInfo() << "terminateInferDurationAsync";
-    QWriteLocker wrLock(&m_inferenceRwLock);
-    for (const auto &inference : std::as_const(m_inferences)) {
-        if (inference.duration) {
-            inference.duration->stop();
-        }
-    }
-}
-
-void InferEngine::terminateInferPitchAll() const {
-    qInfo() << "terminateInferPitchAsync";
-    QWriteLocker wrLock(&m_inferenceRwLock);
-    for (const auto &inference : std::as_const(m_inferences)) {
-        if (inference.pitch) {
-            inference.pitch->stop();
-        }
-    }
-}
-
-void InferEngine::terminateInferVarianceAll() const {
-    qInfo() << "terminateInferVarianceAsync";
-    QWriteLocker wrLock(&m_inferenceRwLock);
-    for (const auto &inference : std::as_const(m_inferences)) {
-        if (inference.variance) {
-            inference.variance->stop();
-        }
-    }
-}
-
-void InferEngine::terminateInferAcousticAll() const {
-    qInfo() << "terminateInferAcousticAsync";
-    QWriteLocker wrLock(&m_inferenceRwLock);
-    for (const auto &inference : std::as_const(m_inferences)) {
-        if (inference.acoustic) {
-            inference.acoustic->stop();
-        }
-        if (inference.vocoder) {
-            inference.vocoder->stop();
-        }
-    }
+    return SynthrtEngine::instance().acquireSingerSession(identifier);
 }
 
 void InferEngine::dispose() {
+    QWriteLocker lock(&m_engineRwLock);
+    if (m_disposed) {
+        return;
+    }
+    m_disposed = true;
+    m_initialized = false;
     qDebug() << "dispose InferEngine inference sessions";
-    setAboutToQuit(true);
-
-    terminateInferDurationAll();
-    terminateInferPitchAll();
-    terminateInferVarianceAll();
-    terminateInferAcousticAll();
-    {
-        QWriteLocker wrLock(&m_inferenceRwLock);
-        m_inferences.clear();
-    }
-    auto packages = m_su.packages();
-    for (auto &package : packages) {
-        while (package.isLoaded()) {
-            package.close();
-        }
-    }
+    SynthrtEngine::instance().shutdown();
 }
 
-srt::SynthUnit &InferEngine::synthUnit() {
-    return m_su;
-}
-
-const srt::SynthUnit &InferEngine::constSynthUnit() const {
-    return m_su;
+const srt::core::Runtime &InferEngine::constRuntime() const {
+    return SynthrtEngine::instance().runtime();
 }
 
 QString InferEngine::configPath() const {

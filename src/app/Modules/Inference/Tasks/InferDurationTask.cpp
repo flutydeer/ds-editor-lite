@@ -4,7 +4,7 @@
 
 #include "InferDurationTask.h"
 
-#include <dsinfer/Api/Inferences/Duration/1/DurationApiL1.h>
+#include <diffsinger/Infer/dsinfer/Api/Inferences/Duration/1/DurationApiL1.h>
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
@@ -19,7 +19,7 @@
 #include <QJsonDocument>
 #include <utility>
 
-namespace Dur = ds::Api::Duration::L1;
+namespace Dur = srt::svs::Api::Duration::L1;
 
 bool InferDurationTask::InferDurInput::operator==(const InferDurInput &other) const {
     const bool clipIdEqual = clipId == other.clipId;
@@ -104,15 +104,6 @@ void InferDurationTask::runTask() {
             abort();
             return;
         }
-        if (!inferEngine->loadInferencesForSinger(m_input.identifier)) {
-            qCritical() << "Task failed" << m_input.identifier << "clipId:" << clipId()
-                        << "pieceId:" << pieceId() << "taskId:" << id();
-            return;
-        }
-        if (isTerminateRequested()) {
-            abort();
-            return;
-        }
         if (std::vector<double> durations; runInference(input, durations, errorMessage)) {
             auto updatePhonemeStarts = [](QList<InferWord> &words,
                                           const std::vector<double> &phonemeDurations) {
@@ -144,7 +135,11 @@ void InferDurationTask::runTask() {
         return;
     }
 
-    processOutput(model);
+    if (!processOutput(model)) {
+        qCritical() << "Duration inference output is invalid. clipId:" << clipId()
+                    << "pieceId:" << pieceId() << "taskId:" << id();
+        return;
+    }
     m_success.store(true, std::memory_order_release);
     qInfo() << "Success:"
             << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
@@ -159,51 +154,82 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
 
     const auto &identifier = model.identifier;
     std::string speakerName = model.speaker.toStdString();
-    const auto input = srt::NO<Dur::DurationStartInput>::create();
+    const auto input = srt::core::NO<Dur::DurationStartInput>::create();
 
-    srt::NO<srt::Inference> inferenceDuration;
-    auto loader = inferEngine->findLoaderForSinger(identifier);
-    if (!loader) {
-        qCritical() << "inferAcoustic: Inference loader not found for" << identifier;
+    const auto session = inferEngine->acquireSingerSession(identifier);
+    if (!session) {
+        qCritical() << "inferDuration: failed to acquire singer session for" << identifier;
+        return false;
+    }
+    auto modelExp = m_activeInference.acquire(session, ds::infer::StageKind::Duration);
+    if (!modelExp) {
+        qCritical().noquote().nospace()
+            << "inferDuration: failed to load duration model for " << identifier << ": "
+            << QString::fromUtf8(modelExp.error().message());
+        return false;
+    }
+    auto activeInference = modelExp.take();
+    auto &acquiredModel = activeInference.model();
+    auto inferenceDuration = acquiredModel.inference;
+    if (!inferenceDuration) {
+        qCritical() << "inferDuration: Duration inference not found for" << identifier;
         return false;
     }
 
     // Convert singer speaker id to inference speaker id
-    const auto importOptions = loader->importOptions().duration.as<Dur::DurationImportOptions>();
+    if (!acquiredModel.importOptions) {
+        qCritical() << "inferDuration: Import options not found";
+        return false;
+    }
+    const auto importOptions = acquiredModel.importOptions.as<Dur::DurationImportOptions>();
     if (!importOptions) {
         qCritical() << "inferDuration: Import options not found";
+        return false;
     }
     const auto &speakerMapping = importOptions->speakerMapping;
     input->words = convertInputWords(model.words, speakerName, speakerMapping);
 
-    // Create inference
-    if (auto exp = loader->createDuration(); !exp) {
-        qCritical().noquote().nospace() << "inferDuration: Failed to create duration inference for "
-                                        << identifier << ": " << exp.getError();
-        return false;
-    } else {
-        inferenceDuration = exp.get();
-    }
-    m_inferenceDuration = inferenceDuration;
-
     // Run duration
-    srt::NO<Dur::DurationResult> result;
+    srt::core::NO<Dur::DurationResult> result;
     // Start inference
     if (isTerminateRequested()) {
         abort();
         return false;
     }
-    if (auto exp = inferenceDuration->start(input); !exp) {
+    auto exp = inferenceDuration->start(input);
+    if (!exp) {
         qCritical().noquote().nospace() << "inferDuration: Failed to start duration inference for "
                                         << identifier << ": " << exp.error().message();
         return false;
     } else {
         result = exp.take().as<Dur::DurationResult>();
+        if (!result) {
+            qCritical() << "inferDuration: result type mismatch or null result for" << identifier;
+            return false;
+        }
     }
 
-    if (inferenceDuration->state() == srt::ITask::Failed) {
+    if (!result->error.ok()) {
         qCritical().noquote().nospace() << "inferDuration: Failed to run duration inference for "
                                         << identifier << ": " << result->error.message();
+        return false;
+    }
+
+    if (inferenceDuration->state() == srt::core::ITask::Failed) {
+        qCritical().noquote().nospace() << "inferDuration: Failed to run duration inference for "
+                                        << identifier << ": " << result->error.message();
+        return false;
+    }
+
+    size_t phonemeCount = 0;
+    for (const auto &word : model.words) {
+        phonemeCount += static_cast<size_t>(word.phones.size());
+    }
+    if (result->durations.size() != phonemeCount) {
+        error = QStringLiteral("Duration result size mismatch: expected %1 phonemes, got %2")
+                    .arg(static_cast<qulonglong>(phonemeCount))
+                    .arg(static_cast<qulonglong>(result->durations.size()));
+        qCritical().noquote() << "inferDuration:" << error;
         return false;
     }
 
@@ -214,9 +240,7 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
 
 void InferDurationTask::terminate() {
     IInferTask::terminate();
-    if (m_inferenceDuration && !inferEngine->isAboutToQuit()) {
-        m_inferenceDuration->stop();
-    }
+    m_activeInference.stop();
 }
 
 void InferDurationTask::abort() {
@@ -268,8 +292,11 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
             continue;
 
         // 跳过连续的 SP 和 AP 音素
-        while (isRestPhones.at(phoneIndex) == true) {
+        while (phoneIndex < isRestPhones.size() && isRestPhones.at(phoneIndex) == true) {
             phoneIndex++;
+        }
+        if (phoneIndex >= offsets.size()) {
+            return false;
         }
 
         qsizetype headerPhonemeCount = 0;
@@ -289,6 +316,9 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
 
         QList<int> aheadOffsets;
         for (int aheadIndex = 0; aheadIndex < headerPhonemeCount; aheadIndex++) {
+            if (phoneIndex >= offsets.size()) {
+                return false;
+            }
             aheadOffsets.append(
                 qRound((offsets[phoneIndex].second - offsets[phoneIndex].first) * 1000));
             phoneIndex++;
@@ -296,6 +326,9 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
 
         QList<int> normalOffsets;
         for (int normalIndex = 0; normalIndex < normalPhonemeCount; normalIndex++) {
+            if (phoneIndex >= offsets.size()) {
+                return false;
+            }
             normalOffsets.append(qRound(offsets[phoneIndex].second * 1000));
             phoneIndex++;
         }

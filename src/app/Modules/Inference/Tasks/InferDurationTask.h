@@ -12,6 +12,7 @@
 #include <synthrt/SVS/Inference.h>
 
 #include "IInferTask.h"
+#include "InferTaskCommon.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferInputNote.h"
@@ -48,12 +49,12 @@ private:
     bool processOutput(const GenericInferModel &model);
 
     mutable QReadWriteLock m_rwLock;
-    srt::NO<srt::Inference> m_inferenceDuration;
     QString m_previewText;
     InferDurInput m_input;
     InferDurInput m_result;
     QString m_inputHash;
     std::atomic<bool> m_success{false};
+    ActiveInference m_activeInference;
 };
 
 

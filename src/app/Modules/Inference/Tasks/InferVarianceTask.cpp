@@ -4,7 +4,7 @@
 
 #include "InferVarianceTask.h"
 
-#include <dsinfer/Api/Inferences/Variance/1/VarianceApiL1.h>
+#include <diffsinger/Infer/dsinfer/Api/Inferences/Variance/1/VarianceApiL1.h>
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
@@ -20,7 +20,7 @@
 #include <QDir>
 #include <utility>
 
-namespace Var = ds::Api::Variance::L1;
+namespace Var = srt::svs::Api::Variance::L1;
 
 bool InferVarianceTask::InferVarianceInput::operator==(const InferVarianceInput &other) const {
     return clipId == other.clipId /*&& pieceId == other.pieceId*/ && notes == other.notes &&
@@ -99,15 +99,6 @@ void InferVarianceTask::runTask() {
             abort();
             return;
         }
-        if (!inferEngine->loadInferencesForSinger(m_input.identifier)) {
-            qCritical() << "Task failed" << m_input.identifier << "clipId:" << clipId()
-                        << "pieceId:" << pieceId() << "taskId:" << id();
-            return;
-        }
-        if (isTerminateRequested()) {
-            abort();
-            return;
-        }
         if (QList<InferParam> outParams; runInference(input, outParams, errorMessage)) {
             model = input;
             for (auto &param : model.params) {
@@ -145,7 +136,7 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
 
     const auto &identifier = model.identifier;
     std::string speakerName = model.speaker.toStdString();
-    const auto input = srt::NO<Var::VarianceStartInput>::create();
+    const auto input = srt::core::NO<Var::VarianceStartInput>::create();
     input->parameters = convertInputParams(model.params);
     input->steps = model.steps;
 
@@ -154,15 +145,32 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
         return false;
     }
 
-    srt::NO<srt::Inference> inferenceVariance;
-    auto loader = inferEngine->findLoaderForSinger(identifier);
-    if (!loader) {
-        qCritical() << "inferVariance: Inference loader not found for" << identifier;
+    const auto session = inferEngine->acquireSingerSession(identifier);
+    if (!session) {
+        qCritical() << "inferVariance: failed to acquire singer session for" << identifier;
+        return false;
+    }
+    auto modelExp = m_activeInference.acquire(session, ds::infer::StageKind::Variance);
+    if (!modelExp) {
+        qCritical().noquote().nospace()
+            << "inferVariance: failed to load variance model for " << identifier << ": "
+            << QString::fromUtf8(modelExp.error().message());
+        return false;
+    }
+    auto activeInference = modelExp.take();
+    auto &acquiredModel = activeInference.model();
+    auto inferenceVariance = acquiredModel.inference;
+    if (!inferenceVariance) {
+        qCritical() << "inferVariance: Variance inference not found for" << identifier;
         return false;
     }
 
     // Convert singer speaker id to inference speaker id
-    const auto importOptions = loader->importOptions().variance.as<Var::VarianceImportOptions>();
+    if (!acquiredModel.importOptions) {
+        qCritical() << "inferVariance: Import options not found";
+        return false;
+    }
+    const auto importOptions = acquiredModel.importOptions.as<Var::VarianceImportOptions>();
     if (!importOptions) {
         qCritical() << "inferVariance: Import options not found";
         return false;
@@ -175,32 +183,33 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
         return false;
     }
 
-    // Create inference
-    if (auto exp = loader->createVariance(); !exp) {
-        qCritical().noquote().nospace() << "inferVariance: Failed to create variance inference for "
-                                        << identifier << ": " << exp.getError();
-        return false;
-    } else {
-        inferenceVariance = exp.get();
-    }
-    m_inferenceVariance = inferenceVariance;
-
     // Run variance
-    srt::NO<Var::VarianceResult> result;
+    srt::core::NO<Var::VarianceResult> result;
     // Start inference
     if (isTerminateRequested()) {
         abort();
         return false;
     }
-    if (auto exp = inferenceVariance->start(input); !exp) {
+    auto exp = inferenceVariance->start(input);
+    if (!exp) {
         qCritical().noquote().nospace() << "inferVariance: Failed to start variance inference for "
                                         << identifier << ": " << exp.error().message();
         return false;
     } else {
         result = exp.take().as<Var::VarianceResult>();
+        if (!result) {
+            qCritical() << "inferVariance: result type mismatch or null result for" << identifier;
+            return false;
+        }
     }
 
-    if (inferenceVariance->state() == srt::ITask::Failed) {
+    if (!result->error.ok()) {
+        qCritical().noquote().nospace() << "inferVariance: Failed to run variance inference for "
+                                        << identifier << ": " << result->error.message();
+        return false;
+    }
+
+    if (inferenceVariance->state() == srt::core::ITask::Failed) {
         qCritical().noquote().nospace() << "inferVariance: Failed to run variance inference for "
                                         << identifier << ": " << result->error.message();
         return false;
@@ -219,9 +228,7 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
 
 void InferVarianceTask::terminate() {
     IInferTask::terminate();
-    if (m_inferenceVariance && !inferEngine->isAboutToQuit()) {
-        m_inferenceVariance->stop();
-    }
+    m_activeInference.stop();
 }
 
 void InferVarianceTask::abort() {

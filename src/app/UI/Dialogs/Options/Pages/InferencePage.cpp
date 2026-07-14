@@ -15,7 +15,7 @@
 #include "UI/Dialogs/Base/RestartDialog.h"
 #include "Utils/StringUtils.h"
 
-#include <synthrt/Core/SynthUnit.h>
+#include <synthrt/Core/Core/Runtime.h>
 #include <synthrt/SVS/SingerContrib.h>
 
 #include <QDir>
@@ -210,11 +210,16 @@ QWidget *InferencePage::createContentWidget() {
             }
             return str_;
         };
-        const auto &su = inferEngine->constSynthUnit();
-        const auto packagePaths = su.packagePaths();
-        const auto packages = su.packages();
-        const auto &singerCategory = *su.category("singer")->as<srt::SingerCategory>();
-        const auto &singers = singerCategory.singers();
+        const auto &su = inferEngine->constRuntime();
+        // TODO(Task 7): Runtime no longer exposes packagePaths()/packages().
+        // Use appOptions directly; singer list will come from SynthrtEngine.
+        const auto &packagePaths = appOptions->general()->packageSearchPaths;
+        const auto singerCat = su.moduleCategory("singer");
+        // TODO(Task 6/7): singer category may be null until packages are opened;
+        // SynthrtEngine::singers() will provide singer snapshots instead.
+        const auto &singers = singerCat
+            ? singerCat->as<srt::svs::SingerCategory>()->singers()
+            : std::vector<srt::svs::SingerSpec *>{};
 
         const auto locale = QLocale::system();
         const auto localeName = locale.name().toStdString();
@@ -271,7 +276,7 @@ QWidget *InferencePage::createContentWidget() {
         int packagePathIndex = 0;
         for (const auto &path : std::as_const(packagePaths)) {
             auto itemKey = new QStandardItem('[' + QString::number(packagePathIndex) + ']');
-            auto itemValue = new QStandardItem(StringUtils::path_to_qstr(path));
+            auto itemValue = new QStandardItem(path);
             packagePathRoot->appendRow({itemKey, itemValue});
             ++packagePathIndex;
         }
@@ -279,30 +284,8 @@ QWidget *InferencePage::createContentWidget() {
 
         // Loaded packages
         auto packageLoadedRoot = new QStandardItem(tr("loaded packages"));
-        for (const auto &pkg : std::as_const(packages)) {
-            const auto pkgId = QString::fromUtf8(pkg.id());
-            const auto pkgVersion = QString::fromUtf8(pkg.version().toString());
-            const auto pkgVendor = QString::fromUtf8(pkg.vendor().text(localeName));
-            const auto pkgPath = StringUtils::path_to_qstr(pkg.path());
-            auto currentPackageRoot = new QStandardItem(pkgId + " (" + pkgVersion + ')');
-            currentPackageRoot->appendRow({
-                new QStandardItem(tr("id")),
-                new QStandardItem(pkgId),
-            });
-            currentPackageRoot->appendRow({
-                new QStandardItem(tr("version")),
-                new QStandardItem(pkgVersion),
-            });
-            currentPackageRoot->appendRow({
-                new QStandardItem(tr("vendor")),
-                new QStandardItem(pkgVendor),
-            });
-            currentPackageRoot->appendRow({
-                new QStandardItem(tr("path")),
-                new QStandardItem(pkgPath)
-            });
-            packageLoadedRoot->appendRow(currentPackageRoot);
-        }
+        // TODO(Task 7): Runtime no longer exposes packages(). Loaded package
+        // info will come from SynthrtEngine::singers() snapshots.
         packageRoot->appendRow(packageLoadedRoot);
 
         // Loaded singers
@@ -349,8 +332,6 @@ QWidget *InferencePage::createContentWidget() {
                 const auto inferenceClassName = QString::fromUtf8(inference->className());
                 const auto inferenceLevel = QString::number(inference->apiLevel());
                 const auto inferencePath = StringUtils::path_to_qstr(inference->path());
-                const auto inferenceLocator = singerImport.inferenceLocator();
-                const auto inferenceLocatorStr = QString::fromUtf8(inferenceLocator.toString());
                 auto currentInferenceRoot = new QStandardItem(inferenceName);
                 currentInferenceRoot->appendRow({
                     new QStandardItem(tr("name")),
@@ -367,10 +348,6 @@ QWidget *InferencePage::createContentWidget() {
                 currentInferenceRoot->appendRow({
                     new QStandardItem(tr("path")),
                     new QStandardItem(inferencePath),
-                });
-                currentInferenceRoot->appendRow({
-                    new QStandardItem(tr("locator")),
-                    new QStandardItem(inferenceLocatorStr),
                 });
                 inferenceRoot->appendRow(currentInferenceRoot);
             }

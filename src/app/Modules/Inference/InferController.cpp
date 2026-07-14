@@ -344,6 +344,15 @@ void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType
             if (canStartClipInference(*clip))
                 createAndRunGetPronTask(*clip);
             break;
+        case SingingClip::EditedPronunciationOnly:
+            // User edited pronunciation after G2P has already run.
+            // Skip G2P and only re-run S2P to get the new phoneme sequence.
+            for (const auto &piece : clip->findPiecesByNotes(notes)) {
+                piece->dirty = true;
+            }
+            if (canStartClipInference(*clip))
+                createAndRunGetPhoneTask(*clip);
+            break;
         default:
             break;
     } // Ignore original word property change
@@ -455,10 +464,8 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(
         clearAllPendingApplies("pending-cleared-module-error");
         m_getPronTasks.disposePendingTasks();
         appOptions->language()->langOrder.clear();
-        appOptions->language()->g2pConfigs = QJsonObject();
         appOptions->saveAndNotify(AppOptionsGlobal::Language);
-        qCritical() << "Failed to start the language module; tasks have been canceled. "
-                       "Restart app to restore default language settings.";
+        qCritical() << "Failed to start the language module; tasks have been canceled.";
     }
 }
 

@@ -10,8 +10,6 @@
 #include "Modules/PackageManager/Models/SingerInfo.h"
 #include "Modules/Task/Task.h"
 
-#include <utility>
-
 class GetPhonemeNameTask final : public Task {
     Q_OBJECT
 public:
@@ -26,19 +24,10 @@ public:
     QList<PhonemeNameResult> result;
 
 private:
-    class Syllable {
-    public:
-        QList<PhonemeName> phonemes;
-    };
-
     void runTask() override;
     void processNotes();
     QList<PhonemeNameResult> getPhonemeNames();
     void distributePhonemes();
-    static bool isPlusNote(const QString &lyric);
-    std::pair<bool, int> checkTrailingPlus(const QString &lyric);
-    const QList<Syllable> splitSyllables(const QList<PhonemeName> &phonemes);
-
     SingerInfo m_clipSingerInfo;
 
     int m_clipId = -1;

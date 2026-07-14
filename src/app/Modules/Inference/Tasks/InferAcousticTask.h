@@ -10,6 +10,7 @@
 #include <synthrt/SVS/Inference.h>
 
 #include "IInferTask.h"
+#include "InferTaskCommon.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferParamCurve.h"
@@ -55,12 +56,12 @@ private:
     void abort();
     void buildPreviewText();
 
-    srt::NO<srt::Inference> m_inferenceAcoustic, m_inferenceVocoder;
     QString m_previewText;
     InferAcousticInput m_input;
     QString m_result;
     QString m_inputHash;
     std::atomic<bool> m_success{false};
+    ActiveInference m_activeInference;
 };
 
 

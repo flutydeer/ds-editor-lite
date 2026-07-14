@@ -4,7 +4,7 @@
 
 #include <utility>
 
-namespace Co = ds::Api::Common::L1;
+namespace Co = srt::svs::Api::Common::L1;
 
 namespace {
     bool mapSpeakerName(const std::string &speakerName,
@@ -22,6 +22,64 @@ namespace {
         }
         return false;
     }
+}
+
+ActiveInference::Handle::Handle(ActiveInference &owner, SingerModelSession::Model model,
+                                std::uint64_t generation)
+    : m_owner(&owner), m_model(std::move(model)), m_generation(generation) {
+}
+
+ActiveInference::Handle::~Handle() {
+    if (m_owner)
+        m_owner->clear(m_generation);
+}
+
+ActiveInference::Handle::Handle(Handle &&other) noexcept
+    : m_owner(std::exchange(other.m_owner, nullptr)), m_model(std::move(other.m_model)),
+      m_generation(other.m_generation) {
+}
+
+SingerModelSession::Model &ActiveInference::Handle::model() noexcept {
+    return m_model;
+}
+
+srt::core::Expected<ActiveInference::Handle>
+    ActiveInference::acquire(const std::shared_ptr<SingerModelSession> &session,
+                             ds::infer::StageKind kind) {
+    auto result = session->acquire(kind);
+    if (!result)
+        return result.takeError();
+
+    auto model = result.take();
+    srt::core::NO<srt::svs::Inference> inferenceToStop;
+    std::uint64_t generation;
+    {
+        std::lock_guard lock(m_mutex);
+        m_inference = model.inference;
+        generation = ++m_generation;
+        if (m_stopRequested)
+            inferenceToStop = m_inference;
+    }
+    if (inferenceToStop)
+        inferenceToStop->stop();
+    return Handle(*this, std::move(model), generation);
+}
+
+void ActiveInference::clear(std::uint64_t generation) {
+    std::lock_guard lock(m_mutex);
+    if (m_generation == generation)
+        m_inference.reset();
+}
+
+void ActiveInference::stop() {
+    srt::core::NO<srt::svs::Inference> inference;
+    {
+        std::lock_guard lock(m_mutex);
+        m_stopRequested = true;
+        inference = m_inference;
+    }
+    if (inference)
+        inference->stop();
 }
 
 auto createParamInfo(const std::string_view tag) -> Co::InputParameterInfo {
