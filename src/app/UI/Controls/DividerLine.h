@@ -39,8 +39,8 @@ protected:
 private:
     Qt::Orientation m_orientation = Qt::Horizontal;
     int m_lineWidth = 1;
-    int m_lineMargin = 12;
-    QColor m_lineColor{22, 22, 22}; // #161616
+    int m_lineMargin = 0;
+    QColor m_lineColor{29, 31, 38}; // #1D1F26
 
     void initSizePolicy();
 };
