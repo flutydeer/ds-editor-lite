@@ -4,8 +4,6 @@
 
 #include "PackageListModel.h"
 
-#include "synthrt/Core/PackageRef.h"
-
 const PackageInfo &PackageListModel::getPackage(const QModelIndex &index) const {
     return m_packages.at(index.row());
 }

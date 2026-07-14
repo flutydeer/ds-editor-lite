@@ -20,8 +20,12 @@ public:
 public slots:
     void onPackageChanged(const PackageInfo *package);
 
+Q_SIGNALS:
+    void verifyRequested(PackageInfo package);
+
 private slots:
     void onOpenWebsiteClicked() const;
+    void onVerifyClicked();
 
 private:
     void moveToNullPackageState() const;

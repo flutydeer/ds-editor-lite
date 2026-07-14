@@ -2,6 +2,7 @@
 #define LANGUAGEINFO_H
 
 #include <QString>
+#include <QStringList>
 #include <QSharedData>
 #include <QSharedDataPointer>
 #include <QMetaType>
@@ -32,6 +33,11 @@ public:
     QString s2pFile() const;
     QString onsetFile() const;
 
+    // g2pPackageVersion：用 bool hasG2pPackageVersion + QString 组合实现 std::optional<QString> 语义
+    bool hasG2pPackageVersion() const;
+    QString g2pPackageVersion() const;
+    QStringList g2pPackagePaths() const;
+
     void setId(const QString &id);
     void setName(const QString &name);
     void setG2p(const QString &g2p);
@@ -40,6 +46,10 @@ public:
     void setOnsetMode(const QString &onsetMode);
     void setS2pFile(const QString &s2pFile);
     void setOnsetFile(const QString &onsetFile);
+
+    void setG2pPackageVersion(const QString &v);
+    void clearG2pPackageVersion();
+    void setG2pPackagePaths(const QStringList &paths);
 
     bool isEmpty() const;
 
@@ -75,6 +85,10 @@ public:
     QString onsetMode;
     QString s2pFile;
     QString onsetFile;
+
+    bool hasG2pPackageVersion = false;
+    QString g2pPackageVersion;
+    QStringList g2pPackagePaths;
 };
 
 void swap(LanguageInfo &first, LanguageInfo &second) noexcept;

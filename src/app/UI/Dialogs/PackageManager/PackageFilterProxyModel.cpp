@@ -4,7 +4,6 @@
 
 #include "PackageFilterProxyModel.h"
 
-#include "synthrt/Core/PackageRef.h"
 #include "UI/Dialogs/PackageManager/PackageListModel.h"
 
 PackageFilterProxyModel::PackageFilterProxyModel(QObject *parent): QSortFilterProxyModel(parent) {

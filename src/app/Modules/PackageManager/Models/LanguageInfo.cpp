@@ -15,7 +15,8 @@ LanguageInfoData::LanguageInfoData(QString id, QString name, QString g2p, QStrin
 LanguageInfoData::LanguageInfoData(const LanguageInfoData &other)
     : QSharedData(other), id(other.id), name(other.name), g2p(other.g2p), dict(other.dict),
       s2pMode(other.s2pMode), onsetMode(other.onsetMode), s2pFile(other.s2pFile),
-      onsetFile(other.onsetFile) {
+      onsetFile(other.onsetFile), hasG2pPackageVersion(other.hasG2pPackageVersion),
+      g2pPackageVersion(other.g2pPackageVersion), g2pPackagePaths(other.g2pPackagePaths) {
 }
 
 LanguageInfoData::~LanguageInfoData() = default;
@@ -23,7 +24,10 @@ LanguageInfoData::~LanguageInfoData() = default;
 bool LanguageInfoData::operator==(const LanguageInfoData &other) const {
     return id == other.id && name == other.name && g2p == other.g2p && dict == other.dict &&
            s2pMode == other.s2pMode && onsetMode == other.onsetMode &&
-           s2pFile == other.s2pFile && onsetFile == other.onsetFile;
+           s2pFile == other.s2pFile && onsetFile == other.onsetFile &&
+           hasG2pPackageVersion == other.hasG2pPackageVersion &&
+           g2pPackageVersion == other.g2pPackageVersion &&
+           g2pPackagePaths == other.g2pPackagePaths;
 }
 
 bool LanguageInfoData::operator!=(const LanguageInfoData &other) const {
@@ -133,6 +137,32 @@ void LanguageInfo::setOnsetFile(const QString &onsetFile) {
     d->onsetFile = onsetFile;
 }
 
+bool LanguageInfo::hasG2pPackageVersion() const {
+    return d->hasG2pPackageVersion;
+}
+
+QString LanguageInfo::g2pPackageVersion() const {
+    return d->g2pPackageVersion;
+}
+
+QStringList LanguageInfo::g2pPackagePaths() const {
+    return d->g2pPackagePaths;
+}
+
+void LanguageInfo::setG2pPackageVersion(const QString &v) {
+    d->hasG2pPackageVersion = true;
+    d->g2pPackageVersion = v;
+}
+
+void LanguageInfo::clearG2pPackageVersion() {
+    d->hasG2pPackageVersion = false;
+    d->g2pPackageVersion.clear();
+}
+
+void LanguageInfo::setG2pPackagePaths(const QStringList &paths) {
+    d->g2pPackagePaths = paths;
+}
+
 bool LanguageInfo::isEmpty() const {
     return d->isEmpty();
 }
@@ -146,10 +176,12 @@ void LanguageInfo::swap(LanguageInfo &other) noexcept {
 }
 
 QString LanguageInfo::toString() const {
+    auto verField = d->hasG2pPackageVersion ? d->g2pPackageVersion : QStringLiteral("(unset)");
     return QString("LanguageInfo(id=%1, name=%2, g2p=%3, dict=%4, s2pMode=%5, "
-                   "onsetMode=%6, s2pFile=%7, onsetFile=%8)")
-        .arg(d->id, d->name, d->g2p, d->dict, d->s2pMode, d->onsetMode, d->s2pFile,
-             d->onsetFile);
+                   "onsetMode=%6, s2pFile=%7, onsetFile=%8, g2pPackageVersion=%9, "
+                   "g2pPackagePaths=%10)")
+        .arg(d->id, d->name, d->g2p, d->dict, d->s2pMode, d->onsetMode, d->s2pFile, d->onsetFile,
+             verField, d->g2pPackagePaths.join(QStringLiteral("; ")));
 }
 
 void swap(LanguageInfo &first, LanguageInfo &second) noexcept {

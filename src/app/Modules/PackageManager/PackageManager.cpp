@@ -12,18 +12,15 @@
 #include "Models/SingerInfo.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/GetInstalledPackagesTask.h"
+#include "Modules/SynthrtEngine/SynthrtEngine.h"
 
 #include <filesystem>
-#include <thread>
-#include <vector>
 
 #include <stdcorelib/path.h>
 #include <stdcorelib/system.h>
 
-#include <synthrt/Core/SynthUnit.h>
-#include <synthrt/Core/PackageRef.h>
-#include <synthrt/SVS/SingerContrib.h>
-#include <synthrt/Support/JSON.h>
+#include <diffsinger/Bank/PackageManifest.h>
+#include <diffsinger/Bank/SingerManifest.h>
 
 #include <QDebug>
 #include <QElapsedTimer>
@@ -35,181 +32,6 @@
 #endif
 
 namespace fs = std::filesystem;
-
-namespace {
-    QString parseDisplayText(const srt::JsonValue &textValue, const std::string &currentLocale) {
-        if (textValue.isString()) {
-            return QString::fromUtf8(textValue.toString());
-        }
-        if (!textValue.isObject()) {
-            return {};
-        }
-        const auto &textObject = textValue.toObject();
-
-        // First, look for the exact current locale
-        if (const auto it = textObject.find(currentLocale); it != textObject.end()) {
-            return QString::fromUtf8(it->second.toString());
-        }
-
-        // If not found, fall back to the default key "_"
-        if (const auto it = textObject.find("_"); it != textObject.end()) {
-            return QString::fromUtf8(it->second.toString());
-        }
-
-        return {};
-    }
-
-    QString joinPath(const std::string &originalPath, const std::filesystem::path &parentPath) {
-        if (originalPath.empty()) {
-            return {};
-        }
-        auto path = stdc::path::from_utf8(originalPath);
-        if (path.is_relative() && !parentPath.empty()) {
-            path = stdc::clean_path(parentPath / path);
-        }
-        return StringUtils::path_to_qstr(path);
-    }
-
-    QString joinPath(const std::filesystem::path &originalPath,
-                     const std::filesystem::path &parentPath) {
-        if (originalPath.empty()) {
-            return {};
-        }
-        if (originalPath.is_relative() && !parentPath.empty()) {
-            return StringUtils::path_to_qstr(stdc::clean_path(parentPath / originalPath));
-        }
-        return StringUtils::path_to_qstr(originalPath);
-    }
-
-    QList<SpeakerInfo> parseSpeakerInfo(const srt::JsonObject &manifestConfiguration,
-                                        const std::string &currentLocale) {
-        QList<SpeakerInfo> result;
-        const auto it_speakers = manifestConfiguration.find("speakers");
-        if (it_speakers == manifestConfiguration.end()) {
-            return result;
-        }
-        const auto &speakersValue = it_speakers->second;
-        if (!speakersValue.isArray()) {
-            return result;
-        }
-        const auto &speakers = speakersValue.toArray();
-        result.reserve(static_cast<QList<SpeakerInfo>::size_type>(speakers.size()));
-        for (const auto &speakerValue : speakers) {
-            if (!speakerValue.isObject()) {
-                continue;
-            }
-            const auto &speaker = speakerValue.toObject();
-            QString speakerId;
-            if (const auto it = speaker.find("id"); it != speaker.end()) {
-                speakerId.assign(it->second.toString());
-            }
-
-            QString speakerName;
-            if (const auto it = speaker.find("name"); it != speaker.end()) {
-                if (auto val = parseDisplayText(it->second, currentLocale); !val.isEmpty()) {
-                    speakerName = std::move(val);
-                }
-            }
-
-            QString speakerToneMin, speakerToneMax;
-            if (const auto it = speaker.find("toneRanges"); it != speaker.end()) {
-                if (it->second.isObject()) {
-                    const auto &toneRanges = it->second.toObject();
-                    if (const auto it_min = toneRanges.find("min"); it_min != toneRanges.end()) {
-                        speakerToneMin = QString::fromUtf8(it->second.toString());
-                    }
-                    if (const auto it_max = toneRanges.find("max"); it_max != toneRanges.end()) {
-                        speakerToneMax = QString::fromUtf8(it->second.toString());
-                    }
-                }
-            }
-            result.emplace_back(std::move(speakerId), std::move(speakerName),
-                                std::move(speakerToneMin), std::move(speakerToneMax));
-        }
-        return result;
-    }
-
-    QList<LanguageInfo> parseLanguageInfo(const srt::JsonObject &manifestConfiguration,
-                                          const std::string &currentLocale,
-                                          const std::filesystem::path &singerPath) {
-        QList<LanguageInfo> result;
-        const auto it_languages = manifestConfiguration.find("languages");
-        if (it_languages == manifestConfiguration.end()) {
-            return result;
-        }
-        const auto &languagesValue = it_languages->second;
-        if (!languagesValue.isArray()) {
-            return result;
-        }
-        const auto &languages = languagesValue.toArray();
-        result.reserve(static_cast<QList<LanguageInfo>::size_type>(languages.size()));
-        for (const auto &languageValue : languages) {
-            if (!languageValue.isObject()) {
-                continue;
-            }
-            const auto &language = languageValue.toObject();
-            QString languageId;
-            if (const auto it = language.find("id"); it != language.end()) {
-                languageId.assign(it->second.toString());
-            }
-            QString languageName;
-            if (const auto it = language.find("name"); it != language.end()) {
-                if (auto val = parseDisplayText(it->second, currentLocale); !val.isEmpty()) {
-                    languageName = std::move(val);
-                }
-            }
-            QString languageG2p;
-            if (const auto it = language.find("g2p"); it != language.end()) {
-                languageG2p.assign(it->second.toString());
-            }
-            QString languageDict;
-            if (const auto it = language.find("dict"); it != language.end()) {
-                languageDict = joinPath(it->second.toString(), singerPath);
-            }
-            QString s2pMode;
-            if (const auto it = language.find("s2pMode"); it != language.end()) {
-                s2pMode.assign(it->second.toString());
-            }
-            QString onsetMode;
-            if (const auto it = language.find("onsetMode"); it != language.end()) {
-                onsetMode.assign(it->second.toString());
-            }
-            QString s2pFile;
-            if (const auto it = language.find("s2pFile"); it != language.end()) {
-                s2pFile = joinPath(it->second.toString(), singerPath);
-            }
-            QString onsetFile;
-            if (const auto it = language.find("onsetFile"); it != language.end()) {
-                onsetFile = joinPath(it->second.toString(), singerPath);
-            }
-            result.emplace_back(std::move(languageId), std::move(languageName),
-                                std::move(languageG2p), std::move(languageDict),
-                                std::move(s2pMode), std::move(onsetMode), std::move(s2pFile),
-                                std::move(onsetFile));
-        }
-        return result;
-    }
-
-    QString parseDefaultLanguage(const srt::JsonObject &manifestConfiguration) {
-        const auto it = manifestConfiguration.find("defaultLanguage");
-        if (it == manifestConfiguration.end()) {
-            return {};
-        }
-        return QString::fromUtf8(it->second.toString());
-    }
-
-    QString parseDefaultDict(const srt::JsonObject &manifestConfiguration,
-                             const std::filesystem::path &singerPath) {
-        auto it = manifestConfiguration.find("defaultDict");
-        if (it == manifestConfiguration.end()) {
-            it = manifestConfiguration.find("dict");
-        }
-        if (it == manifestConfiguration.end()) {
-            return {};
-        }
-        return joinPath(it->second.toString(), singerPath);
-    }
-}
 
 PackageManager::PackageManager(QObject *parent) : QObject(parent) {
 }
@@ -236,183 +58,168 @@ void PackageManager::initialize() {
     });
 }
 
-bool PackageManager::initializeMetadataBackend(QString &error) {
-    QMutexLocker locker(&m_metadataSynthUnitMutex);
-    if (m_metadataSynthUnitInitialized) {
-        return true;
-    }
-
-    auto pluginRootDir =
-#if defined(Q_OS_MAC)
-        MacOSUtils::getMainBundlePath() / _TSTR("Contents/PlugIns");
-#elif defined(Q_OS_WIN)
-        stdc::system::application_directory() / _TSTR("plugins");
-#else
-        stdc::system::application_directory().parent_path() / _TSTR("lib/plugins");
-#endif
-    auto singerProviderDir = pluginRootDir / _TSTR("dsinfer") / _TSTR("singerproviders");
-    if (!fs::exists(singerProviderDir)) {
-        error = tr("Singer provider plugin path does not exist: %1")
-                    .arg(StringUtils::path_to_qstr(singerProviderDir));
-        return false;
-    }
-    if (!fs::is_directory(singerProviderDir)) {
-        error = tr("Singer provider plugin path is not a directory: %1")
-                    .arg(StringUtils::path_to_qstr(singerProviderDir));
-        return false;
-    }
-
-    const auto packagePathsQt = appOptions->general()->packageSearchPaths;
-    std::vector<std::filesystem::path> packagePaths;
-    packagePaths.reserve(packagePathsQt.size());
-    for (const auto &path : std::as_const(packagePathsQt)) {
-        packagePaths.emplace_back(StringUtils::qstr_to_path(path));
-    }
-
-    qDebug().noquote().nospace()
-        << "Package metadata singer provider plugin path: "
-        << StringUtils::path_to_qstr(singerProviderDir);
-    m_metadataSynthUnit.addPluginPath("org.openvpi.SingerProvider", singerProviderDir);
-    m_metadataSynthUnit.setPackagePaths(packagePaths);
-    m_metadataSynthUnitInitialized = true;
-    return true;
-}
-
 Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     PackageManager::refreshInstalledPackages() {
-
-    QString backendError;
-    if (!initializeMetadataBackend(backendError)) {
-        return GetInstalledPackagesError{
-            GetInstalledPackagesErrorType::MetadataBackendNotInitialized,
-            backendError,
-        };
+    {
+        std::unique_lock lock(m_refreshMutex);
+        if (m_refreshing) {
+            qDebug() << "Already refreshing, wait for completion";
+            m_refreshCompleted.wait(lock, [this] { return !m_refreshing; });
+            return m_lastRefreshResult;
+        }
+        m_refreshing = true;
     }
 
-    auto expected = RefreshState::Idle;
-    // Attempt to become the refreshing thread
-    if (!m_refreshState.compare_exchange_strong(
-            expected, RefreshState::Refreshing,
-            std::memory_order_acq_rel, std::memory_order_acquire)) {
+    auto completed = [this]() -> Expected<GetInstalledPackagesResult, GetInstalledPackagesError> {
+        QElapsedTimer timer;
+        timer.start();
+        GetInstalledPackagesResult result;
 
-        qDebug() << "Already refreshing, wait for another thread to complete";
-        // Already refreshing: spin-wait for completion
-        while (m_refreshState.load(std::memory_order_acquire) == RefreshState::Refreshing) {
-            std::this_thread::yield();
+        std::vector<fs::path> searchPaths;
+        for (const auto &pathQt : std::as_const(appOptions->general()->packageSearchPaths)) {
+            const auto path = StringUtils::qstr_to_path(pathQt);
+            if (!fs::exists(path) || !fs::is_directory(path)) {
+                result.failedPackages.emplace_back(pathQt, tr("Path is not a valid directory"));
+                continue;
+            }
+            searchPaths.push_back(path);
         }
 
-        // Return result of completed refresh
-        {
-            QReadLocker readLocker(&m_resultRwLock);
-            return m_result;
+        const bool allowReuse = m_catalogGeneration == 0;
+        auto catalogExp = SynthrtEngine::instance().refreshVoicebanks(searchPaths, allowReuse);
+        if (!catalogExp) {
+            return GetInstalledPackagesError{
+                GetInstalledPackagesErrorType::MetadataBackendNotInitialized,
+                QString::fromUtf8(catalogExp.error().message()),
+            };
         }
-    }
+        const auto catalog = *catalogExp;
 
-    // We are the thread performing the refresh
-    QElapsedTimer timer;
-    timer.start();
-    GetInstalledPackagesResult result;
-    srt::SynthUnit &su = m_metadataSynthUnit;
-    const auto locale = QLocale::system().name().toStdString();
+        for (const auto &record : catalog->packages) {
+            const auto &status = record.status;
+            if (!status.valid) {
+                result.failedPackages.emplace_back(StringUtils::path_to_qstr(status.rootPath),
+                                                   QString::fromStdString(status.error.message));
+                continue;
+            }
+            if (record.parseError) {
+                result.failedPackages.emplace_back(
+                    StringUtils::path_to_qstr(status.rootPath),
+                    QString::fromStdString(record.parseError->message()));
+                continue;
+            }
 
-    auto processPackage = [&](const std::filesystem::path &packagePath) {
-        if (auto exp = su.open(packagePath, true); !exp) {
-            result.failedPackages.emplace_back(
-                StringUtils::path_to_qstr(packagePath),
-                srtErrorToString(exp.error())
-            );
-        } else {
-            const srt::ScopedPackageRef pkg(exp.take());
+            const auto &manifest = *record.manifest;
+            const auto packageId = QString::fromStdString(status.packageId);
+            const auto packageVersion = VersionUtils::stdc_to_qt(status.version);
+            PackageInfo packageInfo(packageId, packageVersion,
+                                    QString::fromStdString(manifest.author()),
+                                    QString::fromStdString(manifest.description()),
+                                    QString::fromStdString(manifest.license()), {}, {},
+                                    StringUtils::path_to_qstr(status.rootPath));
 
-            auto packageId = QString::fromUtf8(pkg.id());
-            auto packageVersion = VersionUtils::stdc_to_qt(pkg.version());
-            auto vendor = QString::fromUtf8(pkg.vendor().text(locale));
-            auto description = QString::fromUtf8(pkg.description().text(locale));
-            auto license = QString::fromUtf8(pkg.license().path(locale).u8string().c_str());
-            auto readme = joinPath(pkg.readme().path(locale), pkg.path());
-            auto url = QString::fromUtf8(pkg.url());
-            auto path = StringUtils::native_to_qstr(pkg.path());
-
-            const auto contribSpecs = pkg.contributes("singer");
-            QList<SingerInfo> singers;
-            singers.reserve(static_cast<QList<SingerInfo>::size_type>(contribSpecs.size()));
-
-            for (const auto contribSpec : contribSpecs) {
-                // NOLINTNEXTLINE(*-pro-type-static-cast-downcast)
-                const auto singerSpec = static_cast<const srt::SingerSpec *>(contribSpec);
-                if (!singerSpec) {
-                    continue;
-                }
-                auto singerId = QString::fromUtf8(singerSpec->id());
-                auto singerName = QString::fromUtf8(singerSpec->name().text(locale));
-                const auto &singerPath = singerSpec->path();
-                const auto &manifestConfiguration = singerSpec->manifestConfiguration();
-                auto languageInfos = parseLanguageInfo(manifestConfiguration, locale, singerPath);
-                auto defaultLanguage = parseDefaultLanguage(manifestConfiguration);
-                auto defaultDict = parseDefaultDict(manifestConfiguration, singerPath);
-                // If defaultDict is not specified, use the dict of defaultLanguage
-                if (defaultDict.isEmpty()) {
-                    if (!defaultLanguage.isEmpty()) {
-                        for (const auto &languageInfo : std::as_const(languageInfos)) {
-                            if (languageInfo.id() != defaultLanguage) {
-                                continue;
-                            }
-                            if (const auto &dict = languageInfo.dict(); !dict.isEmpty()) {
-                                defaultDict = dict;
-                            }
-                            break;
+            for (const auto &snapshot : record.singers) {
+                QList<LanguageInfo> languageInfos;
+                QList<SpeakerInfo> speakerInfos;
+                for (const auto &singer : manifest.singers()) {
+                    if (singer.singerId() != snapshot.ref.singerId) {
+                        continue;
+                    }
+                    for (const auto &lang : singer.languages()) {
+                        LanguageInfo langInfo(QString::fromStdString(lang.languageId()),
+                                              QString::fromStdString(lang.name()),
+                                              QString::fromStdString(lang.g2pId()),
+                                              StringUtils::path_to_qstr(lang.dict()),
+                                              QString::fromStdString(lang.s2pMode()),
+                                              QString::fromStdString(lang.onsetMode()),
+                                              StringUtils::path_to_qstr(lang.s2pFile()),
+                                              StringUtils::path_to_qstr(lang.onsetFile()));
+                        if (lang.hasG2pPackageVersion()) {
+                            langInfo.setG2pPackageVersion(
+                                QString::fromStdString(lang.g2pPackageVersion().toString()));
                         }
+                        QStringList g2pPaths;
+                        g2pPaths.reserve(
+                            static_cast<QStringList::size_type>(lang.g2pPackages().size()));
+                        for (const auto &p : lang.g2pPackages()) {
+                            g2pPaths << StringUtils::path_to_qstr(p);
+                        }
+                        langInfo.setG2pPackagePaths(g2pPaths);
+                        languageInfos.append(std::move(langInfo));
+                    }
+                    for (const auto &spk : singer.speakers()) {
+                        speakerInfos.emplace_back(QString::fromStdString(spk.speakerId()),
+                                                  QString::fromStdString(spk.name()));
+                    }
+                    break;
+                }
+
+                if (languageInfos.isEmpty()) {
+                    for (const auto &languageId : snapshot.languages) {
+                        const auto id = QString::fromStdString(languageId);
+                        languageInfos.emplace_back(id, id);
                     }
                 }
-                singers.emplace_back(SingerIdentifier{singerId, packageId, packageVersion},
-                                     singerName, parseSpeakerInfo(manifestConfiguration, locale),
-                                     std::move(languageInfos), std::move(defaultLanguage),
-                                     std::move(defaultDict));
+                if (speakerInfos.isEmpty()) {
+                    for (const auto &speakerId : snapshot.speakerIds) {
+                        const auto id = QString::fromStdString(speakerId);
+                        speakerInfos.emplace_back(id, id);
+                    }
+                }
+
+                SingerInfo singerInfo(
+                    SingerIdentifier{QString::fromStdString(snapshot.ref.singerId), packageId,
+                                     packageVersion},
+                    QString::fromStdString(snapshot.name), std::move(speakerInfos),
+                    std::move(languageInfos), QString::fromStdString(snapshot.defaultLanguage));
+                switch (snapshot.resolutionState) {
+                    case ds::bank::ResolutionState::Resolved:
+                        singerInfo.setResolutionState(ResolutionState::Resolved);
+                        break;
+                    case ds::bank::ResolutionState::Missing:
+                        singerInfo.setResolutionState(ResolutionState::Missing);
+                        break;
+                    case ds::bank::ResolutionState::Pending:
+                    default:
+                        singerInfo.setResolutionState(ResolutionState::Pending);
+                        break;
+                }
+                packageInfo.addSinger(singerInfo);
             }
-            result.successfulPackages.emplace_back(packageId, packageVersion, vendor, description,
-                                                   license, readme, url, path, singers);
+            result.successfulPackages.append(std::move(packageInfo));
         }
-    };
 
-    auto processAllPackages = [&](const std::filesystem::path &dir) {
-        for (const auto &entry : fs::directory_iterator(dir)) {
-            if (entry.is_directory()) {
-                processPackage(entry.path());
+        qDebug() << "Package scan completed in" << timer.elapsed() << "ms";
+        {
+            QWriteLocker writeLocker(&m_resultRwLock);
+            m_result = result;
+            m_catalogGeneration = catalog->generation;
+            m_packageLocator.clear();
+            m_singerLocator.clear();
+            for (const auto &packageInfo : std::as_const(m_result.successfulPackages)) {
+                for (const auto &singerInfo : packageInfo.singers()) {
+                    m_packageLocator.insert(singerInfo.identifier(), packageInfo);
+                    m_singerLocator.insert(singerInfo.identifier(), singerInfo);
+                }
             }
         }
-    };
+        return result;
+    }();
 
-    for (const auto &path : su.packagePaths()) {
-        if (!fs::exists(path) || !fs::is_directory(path)) {
-            result.failedPackages.emplace_back(
-                StringUtils::path_to_qstr(path),
-                tr("Path is not a valid directory")
-            );
-            continue;
-        }
-        processAllPackages(path);
-    }
-
-    qDebug() << "Package scan completed in" << timer.elapsed() << "ms";
     QList<PackageInfo> refreshedPackages;
     {
-        QWriteLocker writeLocker(&m_resultRwLock);
-        m_result = result;
-        m_packageLocator.clear();
-        m_singerLocator.clear();
-        for (const auto &packageInfo : std::as_const(m_result.successfulPackages)) {
-            const auto singers = packageInfo.singers();
-            for (const auto &singerInfo : singers) {
-                const auto identifier = singerInfo.identifier();
-                m_packageLocator[identifier] = packageInfo;
-                m_singerLocator[identifier] = singerInfo;
-            }
+        std::lock_guard lock(m_refreshMutex);
+        m_lastRefreshResult = completed;
+        m_refreshing = false;
+        if (completed) {
+            refreshedPackages = completed.get().successfulPackages;
         }
-        refreshedPackages = m_result.successfulPackages;
     }
-    m_refreshState.store(RefreshState::Idle, std::memory_order_release);
-    Q_EMIT packagesRefreshed(refreshedPackages);
-    return result;
+    m_refreshCompleted.notify_all();
+    if (completed) {
+        Q_EMIT packagesRefreshed(refreshedPackages);
+    }
+    return completed;
 }
 
 GetInstalledPackagesResult PackageManager::installedPackages() const {
@@ -438,30 +245,15 @@ SingerInfo PackageManager::findSingerByIdentifier(const SingerIdentifier &identi
     return it.value();
 }
 
-QString PackageManager::srtErrorToString(const srt::Error &error) {
+QString PackageManager::srtErrorToString(const srt::core::Error &error) {
+    // v4: use ErrorCode system (error.codeString() returns e.g.
+    // "Package::ManifestInvalid", "Inference::ModelLoadFailed") instead of
+    // the deprecated Error::Type enum which only had 10 generic values and
+    // lost all Package/Inference/G2P/Driver/S2P/SVS categorization.
+    const QString code = QString::fromLatin1(error.codeString());
     const QString message = QString::fromStdString(error.message());
-    switch (error.type()) {
-        case srt::Error::NoError:
-            return tr("No error: ") + message;
-        case srt::Error::InvalidFormat:
-            return tr("Invalid format: ") + message;
-        case srt::Error::FileNotFound:
-            return tr("File not found: ") + message;
-        case srt::Error::FileNotOpen:
-            return tr("File not open: ") + message;
-        case srt::Error::FileDuplicated:
-            return tr("File duplicated: ") + message;
-        case srt::Error::RecursiveDependency:
-            return tr("Recursive dependency: ") + message;
-        case srt::Error::FeatureNotSupported:
-            return tr("Feature not supported: ") + message;
-        case srt::Error::InvalidArgument:
-            return tr("Invalid argument: ") + message;
-        case srt::Error::NotImplemented:
-            return tr("Not implemented: ") + message;
-        case srt::Error::SessionError:
-            return tr("Session error: ") + message;
-        default:
-            return tr("Unknown error: ") + message;
+    if (error.ok()) {
+        return tr("No error: ") + message;
     }
+    return QStringLiteral("[%1] %2").arg(code, message);
 }

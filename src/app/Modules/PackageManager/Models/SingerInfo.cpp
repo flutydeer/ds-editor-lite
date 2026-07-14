@@ -13,7 +13,7 @@ SingerInfoData::SingerInfoData(SingerIdentifier identifier, QString name,
 SingerInfoData::SingerInfoData(const SingerInfoData &other)
     : QSharedData(other), identifier(other.identifier), name(other.name), speakers(other.speakers),
       languages(other.languages), defaultLanguage(other.defaultLanguage),
-      defaultDict(other.defaultDict) {
+      defaultDict(other.defaultDict), resolutionState(other.resolutionState) {
 }
 
 SingerInfoData::~SingerInfoData() = default;
@@ -21,7 +21,7 @@ SingerInfoData::~SingerInfoData() = default;
 bool SingerInfoData::operator==(const SingerInfoData &other) const {
     return identifier == other.identifier && name == other.name && speakers == other.speakers &&
            languages == other.languages && defaultLanguage == other.defaultLanguage &&
-           defaultDict == other.defaultDict;
+           defaultDict == other.defaultDict && resolutionState == other.resolutionState;
 }
 
 bool SingerInfoData::operator!=(const SingerInfoData &other) const {
@@ -105,6 +105,10 @@ QString SingerInfo::defaultDict() const {
     return d->defaultDict;
 }
 
+ResolutionState SingerInfo::resolutionState() const {
+    return d->resolutionState;
+}
+
 void SingerInfo::setIdentifier(const SingerIdentifier &identifier) {
     d->identifier = identifier;
 }
@@ -127,6 +131,10 @@ void SingerInfo::setDefaultLanguage(const QString &defaultLanguage) {
 
 void SingerInfo::setDefaultDict(const QString &defaultDict) {
     d->defaultDict = defaultDict;
+}
+
+void SingerInfo::setResolutionState(ResolutionState state) {
+    d->resolutionState = state;
 }
 
 void SingerInfo::addSpeaker(const SpeakerInfo &speaker) {
@@ -169,14 +177,20 @@ QString SingerInfo::toString() const {
         languages.append(language.toString());
     }
 
+    static const char *stateStr[] = {"Resolved", "Pending", "Missing"};
+    const auto stateIdx = static_cast<int>(d->resolutionState);
+    const auto stateName =
+        (stateIdx >= 0 && stateIdx <= 2) ? QString::fromLatin1(stateStr[stateIdx]) : QStringLiteral("Unknown");
+
     return QString("SingerInfo(name=%1, identifier=%2, speakers=[%3], "
-                   "languages=[%4], defaultLanguage=%5, defaultDict=%6)")
+                   "languages=[%4], defaultLanguage=%5, defaultDict=%6, resolutionState=%7)")
         .arg(d->name)
         .arg(d->identifier.singerId)
         .arg(speakers.join(", "))
         .arg(languages.join(", "))
         .arg(d->defaultLanguage)
-        .arg(d->defaultDict);
+        .arg(d->defaultDict)
+        .arg(stateName);
 }
 
 void swap(SingerInfo &first, SingerInfo &second) noexcept {

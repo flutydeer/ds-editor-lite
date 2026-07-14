@@ -18,10 +18,6 @@ class PackageDetailsHeader;
 class LineEdit;
 class QListView;
 
-namespace srt {
-    class PackageRef;
-}
-
 class PackageManagerDialog : public Dialog {
     Q_OBJECT
 
@@ -34,6 +30,7 @@ private slots:
     void updatePackageCount(int count);
     void updatePackageList(QList<PackageInfo> packages);
     void onSelectionChanged(const QModelIndex &current, const QModelIndex &previous) const;
+    void onVerifyPackageRequested(const PackageInfo &package);
 
 private:
     enum DetailsPanelState {

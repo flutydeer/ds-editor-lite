@@ -65,6 +65,7 @@ PackageDetailsHeader::PackageDetailsHeader(QWidget *parent) : QWidget(parent) {
     moveToNullPackageState();
 
     connect(btnOpenWebsite, &Button::clicked, this, &PackageDetailsHeader::onOpenWebsiteClicked);
+    connect(btnVerify, &Button::clicked, this, &PackageDetailsHeader::onVerifyClicked);
 }
 
 void PackageDetailsHeader::onPackageChanged(const PackageInfo *package) {
@@ -78,6 +79,12 @@ void PackageDetailsHeader::onPackageChanged(const PackageInfo *package) {
 void PackageDetailsHeader::onOpenWebsiteClicked() const {
     if (currentPackage && !currentPackage->url().isEmpty())
         QDesktopServices::openUrl(currentPackage->url());
+}
+
+void PackageDetailsHeader::onVerifyClicked() {
+    if (currentPackage && !currentPackage->isEmpty()) {
+        Q_EMIT verifyRequested(*currentPackage);
+    }
 }
 
 void PackageDetailsHeader::moveToNullPackageState() const {
@@ -108,7 +115,6 @@ void PackageDetailsHeader::moveToPackageState(const PackageInfo &package) const 
         btnOpenWebsite->setVisible(true);
     }
 
-    // TODO: 实现按钮逻辑
     btnVerify->setEnabled(true);
     btnVerify->setVisible(true);
 

@@ -7,7 +7,6 @@
 #include "Modules/PackageManager/PackageManager.h"
 #include "Modules/PackageManager/Tasks/GetInstalledPackagesTask.h"
 #include "Modules/Task/TaskManager.h"
-#include "synthrt/Core/PackageRef.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Dialogs/PackageManager/PackageDetailsContent.h"
@@ -15,10 +14,14 @@
 #include "UI/Dialogs/PackageManager/PackageFilterProxyModel.h"
 #include "UI/Dialogs/PackageManager/PackageItemDelegate.h"
 #include "UI/Dialogs/PackageManager/PackageListModel.h"
+#include "Utils/StringUtils.h"
+
+#include <diffsinger/Bank/PackageValidator.h>
 
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListView>
+#include <QMessageBox>
 #include <QScrollArea>
 #include <QSplitter>
 #include <QStackedWidget>
@@ -62,6 +65,56 @@ void PackageManagerDialog::onSelectionChanged(const QModelIndex &current,
 
     detailsHeader->onPackageChanged(&listModel->getPackage(sourceIndex));
     detailsContent->onPackageChanged(&listModel->getPackage(sourceIndex));
+}
+
+void PackageManagerDialog::onVerifyPackageRequested(const PackageInfo &package) {
+    ds::bank::PackageValidator validator;
+    const auto report = validator.validatePackage(StringUtils::qstr_to_path(package.path()),
+                                                  ds::bank::PackageValidator::SchemaVersion::V10);
+
+    if (report.items().empty()) {
+        QMessageBox::information(this, tr("Verify Package"),
+                                 tr("No issues found in package:\n%1").arg(package.path()));
+        return;
+    }
+
+    QStringList lines;
+    for (const auto &item : report.items()) {
+        QString severity;
+        switch (item.severity) {
+            case ds::bank::ValidationItem::Error:
+                severity = tr("Error");
+                break;
+            case ds::bank::ValidationItem::Warning:
+                severity = tr("Warning");
+                break;
+            case ds::bank::ValidationItem::Info:
+            default:
+                severity = tr("Info");
+                break;
+        }
+        QString line = QStringLiteral("[%1] ").arg(severity);
+        if (!item.path.empty()) {
+            line += QString::fromStdString(item.path) + QStringLiteral(": ");
+        }
+        line += QString::fromStdString(item.message);
+        if (!item.actualValue.empty()) {
+            line += tr("\n  Actual: %1").arg(QString::fromStdString(item.actualValue));
+        }
+        if (!item.recommendation.empty()) {
+            line += tr("\n  Recommendation: %1")
+                        .arg(QString::fromStdString(item.recommendation));
+        }
+        lines.append(line);
+    }
+
+    QMessageBox messageBox(report.hasErrors() ? QMessageBox::Critical : QMessageBox::Warning,
+                           tr("Verify Package"),
+                           report.hasErrors() ? tr("Package verification failed.")
+                                              : tr("Package verification completed with warnings."),
+                           QMessageBox::Ok, this);
+    messageBox.setDetailedText(lines.join(QStringLiteral("\n\n")));
+    messageBox.exec();
 }
 
 void PackageManagerDialog::initUi() {
@@ -158,6 +211,8 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
 QWidget *PackageManagerDialog::buildDetailsPanel() {
     detailsHeader = new PackageDetailsHeader;
     detailsContent = new PackageDetailsContent;
+    connect(detailsHeader, &PackageDetailsHeader::verifyRequested, this,
+            &PackageManagerDialog::onVerifyPackageRequested);
 
     auto contentLayout = new QVBoxLayout;
     contentLayout->addWidget(detailsContent);

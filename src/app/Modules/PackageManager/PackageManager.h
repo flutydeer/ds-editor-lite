@@ -7,7 +7,7 @@
 
 #define packageManager PackageManager::instance()
 
-#include <atomic>
+#include <condition_variable>
 #include <cstdint>
 #include <mutex>
 
@@ -20,10 +20,7 @@
 #include <QMutex>
 #include <QReadWriteLock>
 
-#include <synthrt/Core/SynthUnit.h>
-
-namespace srt {
-    class PackageRef;
+namespace srt::core {
     class Error;
 }
 
@@ -52,22 +49,18 @@ Q_SIGNALS:
     void packagesRefreshed(QList<PackageInfo> packages);
 
 private:
-    static QString srtErrorToString(const srt::Error &error);
-    bool initializeMetadataBackend(QString &error);
+    static QString srtErrorToString(const srt::core::Error &error);
 
-    enum class RefreshState: uint8_t {
-        Idle = 0,
-        Refreshing = 1,
-    };
     std::once_flag m_initialized{};
-    std::atomic<RefreshState> m_refreshState{RefreshState::Idle};
-    QMutex m_metadataSynthUnitMutex;
-    bool m_metadataSynthUnitInitialized = false;
-    srt::SynthUnit m_metadataSynthUnit;
+    mutable std::mutex m_refreshMutex;
+    std::condition_variable m_refreshCompleted;
+    bool m_refreshing = false;
+    Expected<GetInstalledPackagesResult, GetInstalledPackagesError> m_lastRefreshResult;
     mutable QReadWriteLock m_resultRwLock;
     GetInstalledPackagesResult m_result;
+    uint64_t m_catalogGeneration = 0;
     QHash<SingerIdentifier, PackageInfo> m_packageLocator;
     QHash<SingerIdentifier, SingerInfo> m_singerLocator;
 };
 
-#endif //PACKAGEMANAGER_H
+#endif // PACKAGEMANAGER_H

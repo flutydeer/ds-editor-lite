@@ -83,9 +83,17 @@ SingerInfo ProjectPackageResolver::resolveSinger(const SingerInfo &singerInfo) {
         return singerInfo;
 
     const auto resolved = packageManager->findSingerByIdentifier(identifier);
-    if (resolved.isEmpty())
-        return singerInfo;
-    return resolved;
+    if (!resolved.isEmpty())
+        return resolved; // 命中 → Resolved（PM 构造默认状态）
+
+    // PM 已就绪（resolveProject 仅在 packageModuleStatus==Ready 时调用）但未命中 → Missing
+    // 显式标记 Missing，区分"待补全"与"声库未安装"
+    if (singerInfo.resolutionState() != ResolutionState::Missing) {
+        SingerInfo missing = singerInfo;
+        missing.setResolutionState(ResolutionState::Missing);
+        return missing;
+    }
+    return singerInfo;
 }
 
 SpeakerInfo ProjectPackageResolver::resolveSpeaker(const SingerInfo &singerInfo,
