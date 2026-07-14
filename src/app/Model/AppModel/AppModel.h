@@ -12,6 +12,7 @@
 #include "TimeSignature.h"
 #include "Interface/ISerializable.h"
 #include "TrackControl.h"
+#include "ProjectModelData.h"
 
 class Track;
 class WorkspaceEditor;
@@ -42,12 +43,14 @@ public:
     void appendTrack(Track *track);
     void removeTrackAt(qsizetype index);
     void removeTrack(Track *track);
+    Track *takeTrackAt(qsizetype index);
+    Track *takeTrack(Track *track);
     void clearTracks();
+    ProjectModelData takeProjectData();
+    void replaceProject(ProjectModelData &&data);
 
 public slots:
     void newProject();
-    void loadFromAppModel(const AppModel &model);
-
     QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;
 

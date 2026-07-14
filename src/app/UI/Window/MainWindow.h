@@ -9,6 +9,7 @@
 #include <QTimer>
 
 #include "Interface/IMainWindow.h"
+#include "Controller/DocumentWorkflow/IDocumentWorkflowUi.h"
 #include "Modules/Task/TaskManager.h"
 #include "Modules/Task/Task.h"
 #include "UI/Views/BottomPanelView.h"
@@ -24,22 +25,27 @@ class TrackEditorView;
 class ClipEditorView;
 
 namespace QWK {
-class WidgetWindowAgent;
+    class WidgetWindowAgent;
 }
 
-class MainWindow final : public QMainWindow, public IMainWindow {
+class MainWindow final : public QMainWindow, public IMainWindow, public IDocumentWorkflowUi {
     Q_OBJECT
 
 public:
     explicit MainWindow();
     ~MainWindow() override;
     void updateWindowTitle() override;
-    bool askSaveChanges() override;
     void quit() override;
     void restart() override;
     void setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) override;
     void updateDiagnosticFilter();
     void updatePanelDetachEnabled();
+    QWidget *documentWorkflowParentWidget() override;
+    SaveDecision askDocumentSaveDecision() override;
+    QString chooseDocumentSavePath(const QString &suggestedPath) override;
+    bool confirmOpenWithoutPackageMetadata() override;
+    void showDocumentWorkflowError(const ProjectOperationError &error) override;
+    void showDocumentWorkflowBusy() override;
 #if defined(WITH_DIRECT_MANIPULATION)
     void registerDirectManipulation();
     void unregisterDirectManipulation();
@@ -55,8 +61,6 @@ protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
 
 private slots:
-    bool onSave();
-    bool onSaveAs();
     void onSplitterMoved(int pos, int index) const;
     void detachBottomPanel();
     void attachBottomPanel();
@@ -72,7 +76,7 @@ private:
     bool m_isCloseRequested = false;
     bool m_isAllDone = false;
     bool m_isDirectManipulationRegistered = false;
-    bool m_isSaveChangesHandled = false;
+    bool m_documentCloseApproved = false;
 
     MainTitleBar *m_titleBar;
     MainMenuView *m_mainMenu = nullptr;
@@ -93,7 +97,6 @@ private:
     QRect m_detachedWindowGeometry;
     QWK::WidgetWindowAgent *m_detachedAgent = nullptr;
     QObject *m_eventDiagFilter = nullptr;
-
 };
 
 

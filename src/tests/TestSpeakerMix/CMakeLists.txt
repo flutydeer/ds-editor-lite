@@ -12,6 +12,7 @@ add_executable(${PROJECT_NAME}
         ../../app/Model/AppModel/Tempo.cpp
         ../../app/Model/AppModel/TimeSignature.cpp
         ../../app/Modules/PackageManager/Models/SpeakerInfo.cpp
+        ../../app/Utils/MusicTimeConverter.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

@@ -3,6 +3,7 @@
 #include "AudioContext.h"
 #include "AudioExporter_p.h"
 #include "Controller/AppController.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Model/AppModel/Track.h"
 
 #include <QApplication>
@@ -208,12 +209,13 @@ namespace Audio {
 
     QString AudioExporterPrivate::projectName() {
         // project file's base name
-        auto s = QFileInfo(appController->projectPath()).baseName();
+        auto s = QFileInfo(documentWorkflowController->projectPath()).baseName();
         return s.isEmpty() ? QStringLiteral("Untitled") : s;
     }
 
     auto AudioExporterPrivate::projectDirectory() -> QString {
-        if (const auto dir = QFileInfo(appController->projectPath()).dir(); dir.isRelative()) {
+        if (const auto dir = QFileInfo(documentWorkflowController->projectPath()).dir();
+            dir.isRelative()) {
             return QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation).first();
         } else {
             return dir.path();
@@ -671,10 +673,11 @@ namespace Audio {
             }
 
             // start exporting
-            connect(&exporter, &talcs::DspxProjectAudioExporter::progressChanged, this,
-                    [sourceIndexMap, this](const double progressRatio, talcs::DspxTrackContext *track) {
-                        emit progressChanged(progressRatio, sourceIndexMap.value(track));
-                    });
+            connect(
+                &exporter, &talcs::DspxProjectAudioExporter::progressChanged, this,
+                [sourceIndexMap, this](const double progressRatio, talcs::DspxTrackContext *track) {
+                    emit progressChanged(progressRatio, sourceIndexMap.value(track));
+                });
             connect(&exporter, &talcs::DspxProjectAudioExporter::clippingDetected, this,
                     [sourceIndexMap, this](talcs::DspxTrackContext *track) {
                         emit clippingDetected(sourceIndexMap.value(track));

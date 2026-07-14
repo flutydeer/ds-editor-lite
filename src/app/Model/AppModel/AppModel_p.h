@@ -15,7 +15,7 @@ public:
     }
 
     void reset();
-    void dispose() const;
+    void dispose();
 
     TimeSignature m_timeSignature;
     double m_tempo = 120;

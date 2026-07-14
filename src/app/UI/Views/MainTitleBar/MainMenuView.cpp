@@ -6,6 +6,7 @@
 
 #include "MainMenuView_p.h"
 #include "Controller/AppController.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/ClipboardController.h"
 #include "Controller/ClipController.h"
 #include "Controller/TrackController.h"
@@ -65,6 +66,14 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
             [this] { d_ptr->updatePasteActionState(); });
 
     d->initActions();
+    connect(documentWorkflowController, &DocumentWorkflowController::busyChanged, this,
+            [d](const bool busy) {
+                d->actionNew->setEnabled(!busy);
+                d->actionOpen->setEnabled(!busy);
+                d->actionSave->setEnabled(!busy);
+                d->actionSaveAs->setEnabled(!busy);
+                d->actionImportMidi->setEnabled(!busy);
+            });
     addMenu(d->buildFileMenu());
     addMenu(d->buildEditMenu());
     addMenu(d->buildOptionsMenu());
@@ -99,16 +108,12 @@ void MainMenuView::openRecentProject(const QString &filePath) {
 }
 
 void MainMenuViewPrivate::onNew() const {
-    if (!historyManager->isOnSavePoint()) {
-        if (m_mainWindow->askSaveChanges())
-            appController->newProject();
-    } else
-        appController->newProject();
+    documentWorkflowController->requestNew();
 }
 
 void MainMenuViewPrivate::onOpen() {
     Q_Q(MainMenuView);
-    const auto lastDir = appController->lastProjectFolder();
+    const auto lastDir = documentWorkflowController->lastProjectFolder();
     const auto fileName = QFileDialog::getOpenFileName(
         q, tr("Open"), lastDir,
         MainMenuView::tr("All Supported Files (*.dspx *.mid *.midi);;DiffScope Project File "
@@ -117,20 +122,20 @@ void MainMenuViewPrivate::onOpen() {
         qDebug() << "User cancelled open";
         return;
     }
-    openFileWithSavePrompt(fileName);
+    documentWorkflowController->requestOpen(fileName);
 }
 
 void MainMenuViewPrivate::onOpenRecentProject(const QString &filePath) {
     if (!QFile::exists(filePath)) {
-        appController->removeRecentProjectFile(filePath);
+        documentWorkflowController->removeRecentProjectFile(filePath);
         Toast::show(tr("File does not exist: %1").arg(filePath));
         return;
     }
-    openFileWithSavePrompt(filePath);
+    documentWorkflowController->requestOpen(filePath);
 }
 
 void MainMenuViewPrivate::onClearRecentProjects() {
-    appController->clearRecentProjectFiles();
+    documentWorkflowController->clearRecentProjectFiles();
 }
 
 void MainMenuViewPrivate::refreshRecentProjectsMenu() {
@@ -138,7 +143,7 @@ void MainMenuViewPrivate::refreshRecentProjectsMenu() {
         return;
 
     menuRecentProjects->clear();
-    const auto files = appController->recentProjectFiles();
+    const auto files = documentWorkflowController->recentProjectFiles();
     if (files.isEmpty()) {
         const auto actionEmpty = menuRecentProjects->addAction(tr("(No Recent Projects)"));
         actionEmpty->setEnabled(false);
@@ -166,27 +171,22 @@ void MainMenuViewPrivate::refreshRecentProjectsMenu() {
 }
 
 void MainMenuViewPrivate::openFileWithSavePrompt(const QString &filePath) {
-    auto openFile = [=] { appController->requestOpenFile(filePath); };
-    if (!historyManager->isOnSavePoint()) {
-        if (m_mainWindow->askSaveChanges())
-            openFile();
-    } else
-        openFile();
+    documentWorkflowController->requestOpen(filePath);
 }
 
 void MainMenuViewPrivate::onImportMidiFile() {
     Q_Q(MainMenuView);
-    const auto lastDir = appController->lastProjectFolder();
+    const auto lastDir = documentWorkflowController->lastProjectFolder();
     auto fileName = QFileDialog::getOpenFileName(q, tr("Select a MIDI File"), lastDir,
                                                  tr("MIDI File (*.mid *.midi)"));
     if (fileName.isNull())
         return;
-    appController->importMidiFile(fileName);
+    documentWorkflowController->requestImport(fileName);
 }
 
 void MainMenuViewPrivate::onExportMidiFile() {
     Q_Q(MainMenuView);
-    const auto lastDir = appController->lastProjectFolder();
+    const auto lastDir = documentWorkflowController->lastProjectFolder();
     auto fileName = QFileDialog::getSaveFileName(q, tr("Save as MIDI File"), lastDir,
                                                  tr("MIDI File (*.mid *.midi)"));
     if (fileName.isNull())
@@ -585,8 +585,8 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
     menuRecentProjects->menuAction()->setIcon(
         menuIcon(QStringLiteral(":/svg/icons/history_16_regular.svg")));
     connect(menuRecentProjects, &Menu::aboutToShow, this, [this] { refreshRecentProjectsMenu(); });
-    connect(appController, &AppController::recentProjectFilesChanged, this,
-            [this] { refreshRecentProjectsMenu(); });
+    connect(documentWorkflowController, &DocumentWorkflowController::recentProjectFilesChanged,
+            this, [this] { refreshRecentProjectsMenu(); });
     refreshRecentProjectsMenu();
     menuFile->addMenu(menuRecentProjects);
 

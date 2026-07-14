@@ -4,6 +4,7 @@
 
 #include "AppContext.h"
 #include "Controller/AppController.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/ClipController.h"
 #include "Controller/ProjectStatusController.h"
 #include "Controller/TrackController.h"
@@ -150,9 +151,8 @@ int main(int argc, char *argv[]) {
     if (args.count() == 2) {
         auto filePath = QApplication::arguments().at(1);
         if (!filePath.isEmpty()) {
-            QTimer::singleShot(0, appController, [filePath] {
-                appController->requestOpenFile(filePath);
-            });
+            QTimer::singleShot(0, documentWorkflowController,
+                               [filePath] { documentWorkflowController->requestOpen(filePath); });
         }
     }
 

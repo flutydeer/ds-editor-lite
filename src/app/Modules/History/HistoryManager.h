@@ -26,10 +26,12 @@ public:
     Q_DISABLE_COPY_MOVE(HistoryManager)
 
 public:
+    enum class ResetState { Saved, Unsaved };
+
     void undo();
     void redo();
     void record(ActionSequence *actions);
-    void reset();
+    void reset(ResetState state = ResetState::Saved);
 
     [[nodiscard]] bool isOnSavePoint() const;
     void setSavePoint();

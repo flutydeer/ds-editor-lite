@@ -18,6 +18,7 @@ public:
     QStack<ActionSequence *> m_redoStack;
     ActionSequence *m_savePoint = nullptr;
     bool m_isSavePointSet = false;
+    bool m_unsavedBaseline = false;
 
 private:
     HistoryManager *q_ptr = nullptr;

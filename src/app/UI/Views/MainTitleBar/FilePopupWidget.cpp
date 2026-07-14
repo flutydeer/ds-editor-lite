@@ -5,6 +5,7 @@
 #include "FilePopupWidget.h"
 
 #include "Controller/AppController.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Utils/IconUtils.h"
@@ -153,19 +154,17 @@ namespace {
                 auto *actionReveal = menu->addAction(
                     IconUtils::menuIcon(QStringLiteral(":/svg/icons/folder_open_16_regular.svg")),
                     QCoreApplication::translate("FilePopupWidget", "Show in Folder"));
-                connect(actionReveal, &QAction::triggered, this, [this] {
-                    QM::reveal(QFileInfo(m_filePath).absoluteFilePath());
-                });
+                connect(actionReveal, &QAction::triggered, this,
+                        [this] { QM::reveal(QFileInfo(m_filePath).absoluteFilePath()); });
                 menu->addSeparator();
                 auto *actionRemove = menu->addAction(
                     IconUtils::menuIcon(QStringLiteral(":/svg/icons/subtract_16_regular.svg")),
                     QCoreApplication::translate("FilePopupWidget", "Remove"));
                 actionRemove->setEnabled(!m_isCurrent);
-                connect(actionRemove, &QAction::triggered, this,
-                        [this] {
-                            if (m_removeHandler)
-                                m_removeHandler(m_filePath);
-                        });
+                connect(actionRemove, &QAction::triggered, this, [this] {
+                    if (m_removeHandler)
+                        m_removeHandler(m_filePath);
+                });
                 connect(menu, &Menu::aboutToHide, this, [this] {
                     QTimer::singleShot(0, this, [this] { syncHoveredWithCursor(); });
                 });
@@ -292,9 +291,9 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
     auto *btnNew = new Button(tr("New"));
     btnNew->setObjectName("filePopupActionButton");
     btnNew->setProperty("filePopupAction", true);
-    btnNew->setIcon(IconUtils::createTintedSvgIcon(
-        QStringLiteral(":/svg/icons/document_add_16_regular.svg"), QSize(16, 16),
-        IconUtils::defaultActionPalette()));
+    btnNew->setIcon(
+        IconUtils::createTintedSvgIcon(QStringLiteral(":/svg/icons/document_add_16_regular.svg"),
+                                       QSize(16, 16), IconUtils::defaultActionPalette()));
     connect(btnNew, &Button::clicked, this, [this] {
         close();
         emit newProjectClicked();
@@ -303,9 +302,9 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
     auto *btnOpen = new Button(tr("Open..."));
     btnOpen->setObjectName("filePopupActionButton");
     btnOpen->setProperty("filePopupAction", true);
-    btnOpen->setIcon(IconUtils::createTintedSvgIcon(
-        QStringLiteral(":/svg/icons/folder_open_16_regular.svg"), QSize(16, 16),
-        IconUtils::defaultActionPalette()));
+    btnOpen->setIcon(
+        IconUtils::createTintedSvgIcon(QStringLiteral(":/svg/icons/folder_open_16_regular.svg"),
+                                       QSize(16, 16), IconUtils::defaultActionPalette()));
     connect(btnOpen, &Button::clicked, this, [this] {
         close();
         emit openProjectClicked();
@@ -347,8 +346,8 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
     setLayout(outerLayout);
 
     refreshRecentFiles();
-    connect(appController, &AppController::recentProjectFilesChanged, this,
-            &FilePopupWidget::refreshRecentFiles);
+    connect(documentWorkflowController, &DocumentWorkflowController::recentProjectFilesChanged,
+            this, &FilePopupWidget::refreshRecentFiles);
 }
 
 void FilePopupWidget::showAt(const QPoint &globalPos) {
@@ -390,8 +389,8 @@ void FilePopupWidget::refreshRecentFiles() {
     }
     m_recentItems.clear();
 
-    const auto recentFiles = appController->recentProjectFiles();
-    const auto currentPath = appController->projectPath();
+    const auto recentFiles = documentWorkflowController->recentProjectFiles();
+    const auto currentPath = documentWorkflowController->projectPath();
 
     if (recentFiles.isEmpty()) {
         m_lbEmpty->setVisible(true);
@@ -403,9 +402,8 @@ void FilePopupWidget::refreshRecentFiles() {
         for (qsizetype i = 0; i < count; ++i) {
             const auto &filePath = recentFiles.at(i);
             const bool isCurrent =
-                !currentPath.isEmpty() &&
-                projectPathsEqual(normalizedProjectPath(filePath),
-                                  normalizedProjectPath(currentPath));
+                !currentPath.isEmpty() && projectPathsEqual(normalizedProjectPath(filePath),
+                                                            normalizedProjectPath(currentPath));
             auto *itemWidget = createRecentFileItem(filePath, isCurrent);
             m_recentItems.append(itemWidget);
             m_listLayout->addWidget(itemWidget);
@@ -422,7 +420,7 @@ QWidget *FilePopupWidget::createRecentFileItem(const QString &filePath, bool isC
         emit openRecentProject(filePath);
     });
     itemWidget->setRemoveHandler([this](const QString &filePath) {
-        appController->removeRecentProjectFile(filePath);
+        documentWorkflowController->removeRecentProjectFile(filePath);
     });
     return itemWidget;
 }
