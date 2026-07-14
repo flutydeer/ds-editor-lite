@@ -13,9 +13,7 @@
 #include "Modules/Task/TaskManager.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/PackageManager/PackageManager.h"
-#include "Modules/Language/S2pMgr.h"
-#include "Modules/Language/OnsetMarker/OnsetMarkerMgr.h"
-#include "Modules/Language/LangSetting/ILangSetManager.h"
+#include "Modules/SynthrtEngine/SynthrtEngine.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/EditSessionManager.h"
@@ -35,6 +33,10 @@
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "Modules/Audio/utils/DeviceTester.h"
 #include "UI/Controls/LevelMeterManager.h"
+
+#include <QCoreApplication>
+#include <QMetaObject>
+#include <QThread>
 
 #if defined(WITH_DIRECT_MANIPULATION)
 #include <QWDMHCore/DirectManipulationSystem.h>
@@ -76,13 +78,10 @@ AppContext::AppContext() {
     m_historyManager = new HistoryManager;
     m_packageManager = new PackageManager;
 
-    // L2: Language modules
-    m_s2pMgr = new S2pMgr;
-    m_onsetMarkerMgr = new OnsetMarkerMgr;
-    m_iLangSetManager = new LangSetting::ILangSetManager;
-
-    // L3: Inference engine (lazy init, no deps at construction)
+    // L3: Runtime host must outlive the inference facade.
+    m_synthrtEngine = new SynthrtEngine;
     m_inferEngine = new InferEngine;
+    m_inferEngine->startInitialization();
 
     // Level meter manager (depends on AppModel from L0)
     m_levelMeterManager = new LevelMeterManager(m_appModel);
@@ -124,6 +123,22 @@ AppContext::~AppContext() {
     // L7: AppController first — dies while MainWindow is still on the stack.
     delete m_appController;
 
+    // Runtime users must finish before controllers and the runtime host are destroyed.
+    const auto appThread = QCoreApplication::instance()->thread();
+    const auto drainTasks = [this, appThread] {
+        m_taskManager->terminateAllTasks();
+        m_taskManager->wait();
+        if (m_taskManager->thread() != appThread) {
+            m_taskManager->moveToThread(appThread);
+        }
+    };
+    const auto taskThread = m_taskManager->thread();
+    if (taskThread == QThread::currentThread() || !taskThread->isRunning()) {
+        drainTasks();
+    } else {
+        QMetaObject::invokeMethod(m_taskManager, drainTasks, Qt::BlockingQueuedConnection);
+    }
+
     // Audio system
     m_audio.reset();
 
@@ -150,14 +165,10 @@ AppContext::~AppContext() {
 
     // L3
     delete m_inferEngine;
+    delete m_synthrtEngine;
 
     // Level meter manager (depends on AppModel, must die before L0)
     delete m_levelMeterManager;
-
-    // L2 (reverse)
-    delete m_iLangSetManager;
-    delete m_onsetMarkerMgr;
-    delete m_s2pMgr;
 
     // L1 (reverse)
     delete m_packageManager;
@@ -184,9 +195,8 @@ template <> IdGenerator *AppContext::instance() { return s_self ? s_self->m_idGe
 template <> TaskManager *AppContext::instance() { return s_self ? s_self->m_taskManager : nullptr; }
 template <> HistoryManager *AppContext::instance() { return s_self ? s_self->m_historyManager : nullptr; }
 template <> PackageManager *AppContext::instance() { return s_self ? s_self->m_packageManager : nullptr; }
-template <> S2pMgr *AppContext::instance() { return s_self ? s_self->m_s2pMgr : nullptr; }
-template <> OnsetMarkerMgr *AppContext::instance() { return s_self ? s_self->m_onsetMarkerMgr : nullptr; }
 template <> LangSetting::ILangSetManager *AppContext::instance() { return s_self ? s_self->m_iLangSetManager : nullptr; }
+template <> SynthrtEngine *AppContext::instance() { return s_self ? s_self->m_synthrtEngine : nullptr; }
 template <> InferEngine *AppContext::instance() { return s_self ? s_self->m_inferEngine : nullptr; }
 template <> AudioDecodingController *AppContext::instance() { return s_self ? s_self->m_audioDecodingController : nullptr; }
 template <> ClipboardController *AppContext::instance() { return s_self ? s_self->m_clipboardController : nullptr; }
@@ -210,6 +220,7 @@ class AppColorPalette;
 class TextPixmapCache;
 class ThemeManager;
 class Log;
+
 template <> Toast *AppContext::instance() { return nullptr; }
 template <> AppColorPalette *AppContext::instance() { return nullptr; }
 template <> TextPixmapCache *AppContext::instance() { return nullptr; }

@@ -16,10 +16,9 @@ class TaskManager;
 class HistoryManager;
 class PackageManager;
 class IdGenerator;
-class S2pMgr;
-class OnsetMarkerMgr;
 namespace LangSetting { class ILangSetManager; }
 class InferEngine;
+class SynthrtEngine;
 class AudioDecodingController;
 class ClipboardController;
 class TrackController;
@@ -62,11 +61,10 @@ public:
     PackageManager *m_packageManager = nullptr;
 
     // L2: Language modules
-    S2pMgr *m_s2pMgr = nullptr;
-    OnsetMarkerMgr *m_onsetMarkerMgr = nullptr;
     LangSetting::ILangSetManager *m_iLangSetManager = nullptr;
 
-    // L3: Inference engine
+    // L3: Runtime host and inference engine
+    SynthrtEngine *m_synthrtEngine = nullptr;
     InferEngine *m_inferEngine = nullptr;
 
     // Level meter manager (depends on AppModel from L0)

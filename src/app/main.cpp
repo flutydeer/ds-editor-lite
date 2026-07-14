@@ -10,7 +10,6 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Audio/AudioContext.h"
-#include "Modules/Inference/InferEngine.h"
 #include "Modules/PackageManager/PackageManager.h"
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include "UI/Window/MainWindow.h"
@@ -123,10 +122,6 @@ int main(int argc, char *argv[]) {
     // Infrastructure singletons (stays Meyers static)
     AppColorPalette::instance()->load(":/theme/lite-dark/app-color-palette.json");
 
-    QObject::connect(inferEngine, &InferEngine::engineInitialized, appController,
-                     &AppController::initializeLanguageEngine, Qt::SingleShotConnection);
-    if (inferEngine->initialized())
-        appController->initializeLanguageEngine();
     packageManager->initialize();
 
     MainWindow w;

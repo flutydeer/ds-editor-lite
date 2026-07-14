@@ -12,7 +12,6 @@
 
 #include <QObject>
 #include <QStringList>
-#include <mutex>
 
 class AppControllerPrivate;
 class IMainWindow;
@@ -35,7 +34,6 @@ public:
 
 public:
     void setMainWindow(IMainWindow *window);
-    void initializeLanguageEngine();
 
     [[nodiscard]] QString lastProjectFolder() const;
     [[nodiscard]] QString projectPath() const;
@@ -75,7 +73,6 @@ private:
     Q_DECLARE_PRIVATE(AppController)
     // QScopedPointer<AppControllerPrivate> d_ptr;
     AppControllerPrivate *d_ptr;
-    std::once_flag m_languageEngineInitialized{};
 };
 
 #endif // APPCONTROLLER_H

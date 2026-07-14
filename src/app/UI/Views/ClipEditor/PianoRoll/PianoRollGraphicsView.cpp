@@ -783,7 +783,8 @@ void PianoRollGraphicsViewPrivate::onNoteChanged(const SingingClip::NoteChangeTy
         for (const auto &note : notes)
             updateNoteTimeAndKey(note);
     } else if (type == SingingClip::OriginalWordPropertyChange ||
-               type == SingingClip::EditedWordPropertyChange) {
+               type == SingingClip::EditedWordPropertyChange ||
+               type == SingingClip::EditedPronunciationOnly) {
         for (const auto &note : notes)
             updateNoteWord(note);
     }

@@ -14,6 +14,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
+#include "Modules/PackageManager/PackageManager.h"
 #include "Modules/Task/TaskManager.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/Button.h"

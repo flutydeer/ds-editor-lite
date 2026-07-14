@@ -17,7 +17,6 @@
 class AppController;
 class IMainWindow;
 class IPanel;
-class LaunchLanguageEngineTask;
 class OpenDspxProjectTask;
 class ProgressDialog;
 class TaskStatus;
@@ -51,7 +50,6 @@ public:
 
     static void initializeModules();
     static bool isPowerOf2(int num);
-    static void onRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task);
     void updateProjectPathAndName(const QString &path);
     void addRecentProjectFile(const QString &path);
 

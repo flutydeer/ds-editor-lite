@@ -46,15 +46,18 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE QT_MESSAGELOGCONTEXT)
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Concurrent StateMachine)
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
-find_package(LangCore CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(zstd CONFIG REQUIRED)
 find_package(opendspx CONFIG REQUIRED)
 find_package(re2 CONFIG REQUIRED)
+find_package(cpp-pinyin CONFIG REQUIRED)
 find_package(talcs REQUIRED)
 find_package(unofficial-tinyexpr CONFIG REQUIRED)
 find_package(dsinfer CONFIG REQUIRED)
-find_package(PhonemeConverter CONFIG REQUIRED)
+find_package(synthrt CONFIG REQUIRED)
+find_package(srt-audio CONFIG REQUIRED)
+find_package(srt-extract CONFIG REQUIRED)
+find_package(SndFile CONFIG REQUIRED)
 
 find_package(Qt6 COMPONENTS CorePrivate GuiPrivate)
 if (WIN32)
@@ -83,16 +86,18 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         ${PLATFORM_LIB}
         talcs::Core talcs::Device talcs::Format talcs::Midi talcs::Dspx talcs::Widgets
         opendspx::opendspxconverter opendspx::opendspxserializer
-        LangCore::LangCore
         QWindowKit::Widgets
         qtmediate::Widgets
-        rmvpe-infer::rmvpe-infer game-infer::game-infer
         curve-util::curve-util
         unofficial::tinyexpr::tinyexpr
+        srt::synthrt
+        srt::diffsinger
+        srt::audio
+        srt::extract
+        SndFile::sndfile
         dsinfer::dsinfer
         re2::re2
         ${_links_icu}
-        PhonemeConverter::PhonemeConverter
 )
 
 if (APPLICATION_ENABLE_BREAKPAD)
@@ -185,31 +190,61 @@ if (APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             # copy dsinfer plugins
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
-            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
+            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins"
             "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/PlugIns"
     )
 
     install(DIRECTORY
-            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
+            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins"
             DESTINATION "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/PlugIns"
+    )
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            # copy g2p packages
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory
+            "${CMAKE_SOURCE_DIR}/vcpkg/installed/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages"
+            "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/PlugIns/srt-g2p/G2pPackages"
+    )
+    install(DIRECTORY
+            "${CMAKE_SOURCE_DIR}/vcpkg/installed/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages"
+            DESTINATION "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/PlugIns/srt-g2p"
     )
 elseif (WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "$<TARGET_FILE:cpp-pinyin::cpp-pinyin>"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+            COMMENT "Deploy G2P plugin runtime dependencies"
+    )
+    install(FILES "$<TARGET_FILE:cpp-pinyin::cpp-pinyin>"
+            DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    )
+
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             # copy dsinfer plugins
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
-            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
+            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>/plugins"
     )
 
     install(DIRECTORY
-            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
+            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins"
             DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    )
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            # copy g2p packages
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory
+            "${CMAKE_SOURCE_DIR}/vcpkg/installed/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/plugins/srt-g2p/G2pPackages"
+    )
+    install(DIRECTORY
+            "${CMAKE_SOURCE_DIR}/vcpkg/installed/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages"
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/plugins/srt-g2p"
     )
 elseif (UNIX AND NOT APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             # copy dsinfer plugins
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
-            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
+            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../lib/plugins"
 
             # fix RPATH of each plugin .so file
@@ -220,12 +255,22 @@ elseif (UNIX AND NOT APPLE)
             "--pattern=lib*.so"
             "--except=libonnxruntime*.so"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../lib/plugins"
-            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib"
+            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib"
     )
 
     install(DIRECTORY
-            "$<TARGET_FILE_DIR:dsinfer::dsinfer>/../lib/plugins"
+            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins"
             DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
+    )
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            # copy g2p packages
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory
+            "${CMAKE_SOURCE_DIR}/vcpkg/installed/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../lib/plugins/srt-g2p/G2pPackages"
+    )
+    install(DIRECTORY
+            "${CMAKE_SOURCE_DIR}/vcpkg/installed/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages"
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/plugins/srt-g2p"
     )
 endif ()
 
@@ -255,7 +300,6 @@ else ()
     )
 endif ()
 
-# copy g2p packages
 # copy FillLyric configs
 if (APPLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
@@ -271,11 +315,4 @@ else ()
     )
 endif ()
 
-if (APPLE)
-else ()
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory
-            "${LangCore_DIR}/G2pPackages"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/G2pPackages"
-    )
-endif ()
+

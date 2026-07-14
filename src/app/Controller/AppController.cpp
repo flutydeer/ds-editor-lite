@@ -265,17 +265,6 @@ void AppController::setMainWindow(IMainWindow *window) {
     d->m_mainWindow = window;
 }
 
-void AppController::initializeLanguageEngine() {
-    Q_D(AppController);
-    std::call_once(m_languageEngineInitialized, [this, d]() {
-        const auto task = new LaunchLanguageEngineTask;
-        connect(task, &LaunchLanguageEngineTask::finished, this,
-                [=] { d->onRunLanguageEngineTaskFinished(task); });
-        taskManager->addAndStartTask(task);
-        appStatus->languageModuleStatus = AppStatus::ModuleStatus::Loading;
-    });
-}
-
 void AppController::quit() {
     Q_D(AppController);
     d->m_mainWindow->quit();
@@ -367,14 +356,6 @@ void AppControllerPrivate::initializeModules() {
 
 bool AppControllerPrivate::isPowerOf2(const int num) {
     return num > 0 && (num & num - 1) == 0;
-}
-
-void AppControllerPrivate::onRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task) {
-    taskManager->removeTask(task);
-    const auto status =
-        task->success ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
-    appStatus->languageModuleStatus = status;
-    delete task;
 }
 
 void AppControllerPrivate::updateProjectPathAndName(const QString &path) {

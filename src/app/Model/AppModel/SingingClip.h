@@ -36,6 +36,7 @@ public:
         TimeKeyPropertyChange,
         OriginalWordPropertyChange,
         EditedWordPropertyChange,
+        EditedPronunciationOnly,
         EditedPhonemeOffsetChange
     };
 

@@ -32,6 +32,7 @@ public:
 
     // Modules
     Property<ModuleStatus> languageModuleStatus = ModuleStatus::Unknown;
+    Property<QString> languageModuleError; // R6/TD-8: 语言引擎启动失败的具体原因，运行期状态不持久化
     Property<ModuleStatus> inferEngineEnvStatus = ModuleStatus::Unknown;
     Property<ModuleStatus> packageModuleStatus = ModuleStatus::Unknown;
 
@@ -54,6 +55,7 @@ public:
 signals:
     // Modules
     void moduleStatusChanged(AppStatus::ModuleType module, AppStatus::ModuleStatus status);
+    void languageModuleErrorChanged(const QString &error);
 
     // Main Window
     void trackPanelCollapseStateChanged(bool collapsed);

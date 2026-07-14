@@ -4,7 +4,9 @@ namespace VersionUtils {
     stdc::VersionNumber qt_to_stdc(const QVersionNumber &version) {
         const auto count = version.segmentCount();
         int segments[4] = {0, 0, 0, 0};
-        for (qsizetype i = 0; i < count; ++i) {
+        // 防御段数 > 4 的版本字符串导致栈越界（QVersionNumber 不限段数）
+        const auto n = qMin<qsizetype>(count, 4);
+        for (qsizetype i = 0; i < n; ++i) {
             segments[i] = version.segmentAt(i);
         }
         return stdc::VersionNumber(segments[0], segments[1], segments[2], segments[3]);

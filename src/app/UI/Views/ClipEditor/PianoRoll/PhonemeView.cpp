@@ -111,6 +111,7 @@ void PhonemeView::onNoteChanged(const SingingClip::NoteChangeType type,
             break;
         case SingingClip::OriginalWordPropertyChange:
         case SingingClip::EditedWordPropertyChange:
+        case SingingClip::EditedPronunciationOnly:
         case SingingClip::EditedPhonemeOffsetChange:
             break;
     }

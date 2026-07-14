@@ -17,6 +17,17 @@ EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(const QList<Note *> &
         auto properties = Note::WordProperties::fromNote(*note);
         m_oldArgs.append(properties);
     }
+    // Determine if this is a pronunciation-only edit (lyric and language unchanged).
+    // If so, execute()/undo() emit EditedPronunciationOnly so InferController
+    // skips G2P and only re-runs S2P.
+    m_pronunciationOnly = true;
+    for (int i = 0; i < m_oldArgs.count(); i++) {
+        if (m_oldArgs.at(i).lyric != m_newArgs.at(i).lyric ||
+            m_oldArgs.at(i).language != m_newArgs.at(i).language) {
+            m_pronunciationOnly = false;
+            break;
+        }
+    }
 }
 
 void EditNoteWordPropertiesAction::execute() {
@@ -30,7 +41,10 @@ void EditNoteWordPropertiesAction::execute() {
         note->setPronCandidates(pronCandidates);
         i++;
     }
-    m_clip->notifyNoteChanged(SingingClip::EditedWordPropertyChange, m_notes);
+    m_clip->notifyNoteChanged(
+        m_pronunciationOnly ? SingingClip::EditedPronunciationOnly
+                            : SingingClip::EditedWordPropertyChange,
+        m_notes);
 }
 
 void EditNoteWordPropertiesAction::undo() {
@@ -43,5 +57,8 @@ void EditNoteWordPropertiesAction::undo() {
         note->setPronunciation(Note::Edited, pronunciation.edited);
         note->setPronCandidates(pronCandidates);
     }
-    m_clip->notifyNoteChanged(SingingClip::EditedWordPropertyChange, m_notes);
+    m_clip->notifyNoteChanged(
+        m_pronunciationOnly ? SingingClip::EditedPronunciationOnly
+                            : SingingClip::EditedWordPropertyChange,
+        m_notes);
 }

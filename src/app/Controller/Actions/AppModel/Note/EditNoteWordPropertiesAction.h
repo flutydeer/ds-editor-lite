@@ -23,6 +23,7 @@ private:
     QList<Note::WordProperties> m_oldArgs;
     QList<Note::WordProperties> m_newArgs;
     SingingClip *m_clip = nullptr;
+    bool m_pronunciationOnly = false;
 };
 
 

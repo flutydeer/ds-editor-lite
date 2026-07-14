@@ -8,6 +8,7 @@ AppStatus::AppStatus(QObject *parent) : QObject(parent) {
     // Modules
     languageModuleStatus.onChanged(
         [this](auto value) { emit moduleStatusChanged(ModuleType::Language, value); });
+    languageModuleError.onChanged([this](const auto &value) { emit languageModuleErrorChanged(value); });
     inferEngineEnvStatus.onChanged(
         [this](auto value) { emit moduleStatusChanged(ModuleType::Inference, value); });
     packageModuleStatus.onChanged(

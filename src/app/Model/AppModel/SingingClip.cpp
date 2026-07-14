@@ -13,8 +13,6 @@
 #include "InferPiece.h"
 #include "Timeline.h"
 #include "Track.h"
-#include "Modules/Language/OnsetMarker/OnsetMarkerMgr.h"
-#include "Modules/Language/S2pMgr.h"
 #include "Modules/SingingClipSlicer/SingingClipSlicer.h"
 #include "Utils/AppModelUtils.h"
 #include "Utils/MathUtils.h"
@@ -72,6 +70,7 @@ void SingingClip::notifyNoteChanged(const NoteChangeType type, const QList<Note 
         case Remove:
         case TimeKeyPropertyChange:
         case EditedWordPropertyChange:
+        case EditedPronunciationOnly:
         case EditedPhonemeOffsetChange:
             bumpInferenceRevision();
             break;
@@ -392,15 +391,7 @@ void SingingClip::init() {
     });
     connect(this, &SingingClip::singerOrSpeakerChanged, this, [this] {
         bumpInferenceRevision();
-        const auto currentSingerInfo = singerInfo();
-        const auto s2pMgr = S2pMgr::instance();
-        const auto onsetMarkerMgr = OnsetMarkerMgr::instance();
-        for (const auto &lang : currentSingerInfo.languages()) {
-            s2pMgr->addS2p(currentSingerInfo.identifier(), lang.g2p(), lang.s2pMode(),
-                           lang.s2pFile());
-            onsetMarkerMgr->addOnsetMarker(currentSingerInfo.identifier(), lang.id(),
-                                           lang.onsetMode(), lang.onsetFile());
-        }
+        // TODO(R16): LanguageService::resolveLanguageRoute() 替代遗留 S2pMgr/OnsetMarkerMgr
     });
     m_speakerInfo.onChanged([this](const SpeakerInfo &) {
         if (m_singerSpeakerBatching)

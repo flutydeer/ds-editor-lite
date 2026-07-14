@@ -175,10 +175,12 @@ namespace {
         if (!resolved.isEmpty())
             return resolved;
 
-        // Construct fallback SingerInfo
+        // Construct fallback SingerInfo (标记 Pending，PackageManager 未就绪)
         auto name = obj["name"].toString();
         auto defaultLanguage = obj["defaultLanguage"].toString();
-        return SingerInfo(identifier, name, {}, {}, defaultLanguage, {});
+        SingerInfo fallback(identifier, name, {}, {}, defaultLanguage, {});
+        fallback.setResolutionState(ResolutionState::Pending);
+        return fallback;
     }
 
     // ---- SpeakerInfo helpers ----
@@ -394,8 +396,10 @@ namespace {
         if (!resolved.isEmpty())
             return resolved;
 
-        return SingerInfo(identifier, fallback["singerName"].toString(), {}, {},
-                          fallback["defaultLanguage"].toString(), {});
+        SingerInfo fallbackInfo(identifier, fallback["singerName"].toString(), {}, {},
+                                fallback["defaultLanguage"].toString(), {});
+        fallbackInfo.setResolutionState(ResolutionState::Pending);
+        return fallbackInfo;
     }
 
     QJsonObject encodeSingerSourceWorkspace(const SingerInfo &singerInfo,
