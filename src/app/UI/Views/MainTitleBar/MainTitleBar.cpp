@@ -104,7 +104,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
         mainLayout->addWidget(dividerBeforeTools);
     }
     mainLayout->addWidget(m_actionButtonsView);
-    mainLayout->addSpacerItem(new QSpacerItem(20, 20, QSizePolicy::Expanding));
+    mainLayout->addStretch();
     mainLayout->addWidget(m_playbackView);
     mainLayout->addSpacing(6);
     if (!useNativeFrame) {
