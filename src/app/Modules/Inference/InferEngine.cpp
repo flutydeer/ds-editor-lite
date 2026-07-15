@@ -192,7 +192,6 @@ void InferEngine::setAboutToQuit(bool aboutToQuit) noexcept {
     m_aboutToQuit.store(aboutToQuit, std::memory_order_release);
 }
 
-
 bool InferEngine::initialize(QString &error) {
     QWriteLocker lock(&m_engineRwLock);
     if (m_initialized) {
@@ -223,7 +222,7 @@ bool InferEngine::initialize(QString &error) {
 
     if (ep != EP::CPUExecutionProvider && gpuDeviceList.empty()) {
         qCritical() << "InferEngine: Unable to find GPU device.";
-        error = "No available GPU device found.";
+        error = tr("No available GPU device found.");
         return false;
     }
 
@@ -257,7 +256,7 @@ bool InferEngine::initialize(QString &error) {
     }(ep);
 
     if (isAboutToQuit()) {
-        error = "Application is about to quit.";
+        error = tr("Application is about to quit.");
         return false;
     }
 
@@ -414,7 +413,8 @@ bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
     // If not found, try loading the package
     if (!loader) {
         qDebug() << "loadInferencesForSinger: "
-                    "singer" << identifier << "not loaded, try loading now";
+                    "singer"
+                 << identifier << "not loaded, try loading now";
         if (appStatus->packageModuleStatus != AppStatus::ModuleStatus::Ready) {
             qCritical() << "loadInferencesForSinger: package manager is not ready" << identifier;
             return false;
@@ -423,13 +423,15 @@ bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
         const auto packageInfo = packageManager->findPackageByIdentifier(identifier);
         if (packageInfo.isEmpty()) {
             qCritical() << "loadInferencesForSinger: "
-                           "package for singer" << identifier << "not found";
+                           "package for singer"
+                        << identifier << "not found";
             return false;
         }
         srt::PackageRef pkg;
         if (!loadPackageAndAllSingers(packageInfo.path(), pkg)) {
             qCritical() << "loadInferencesForSinger: "
-                           "failed to load package and singers" << identifier;
+                           "failed to load package and singers"
+                        << identifier;
             return false;
         }
         Q_UNUSED(pkg)
@@ -453,7 +455,8 @@ bool InferEngine::loadInferencesForSinger(const SingerIdentifier &identifier) {
         const auto it = m_inferences.constFind(identifier);
         if (it != m_inferences.constEnd()) {
             qDebug() << "loadInferencesForSinger: "
-                        "inferences already loaded for" << identifier;
+                        "inferences already loaded for"
+                     << identifier;
             return true;
         }
     }

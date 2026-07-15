@@ -10,8 +10,7 @@
 #include "Modules/FillLyric/Controls/SplitterItem.h"
 #include "Modules/FillLyric/LangCommon.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     class CellQss;
     class LyricCell;
 
@@ -19,8 +18,8 @@ namespace FillLyric
         Q_OBJECT
 
     public:
-        explicit CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList, QGraphicsScene *scene,
-                          QGraphicsView *view, QList<CellList *> *cellLists,
+        explicit CellList(const qreal &x, const qreal &y, const QList<LangNote *> &noteList,
+                          QGraphicsScene *scene, QGraphicsView *view, QList<CellList *> *cellLists,
                           const QStringList &priorityG2pIds = {},
                           const QMap<std::string, std::string> &langToG2pId = {});
         ~CellList() override;
@@ -80,7 +79,8 @@ namespace FillLyric
 
     protected:
         QRectF boundingRect() const override;
-        void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+        void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                   QWidget *widget) override;
 
         void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
 

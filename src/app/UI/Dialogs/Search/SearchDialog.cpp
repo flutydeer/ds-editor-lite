@@ -15,21 +15,21 @@
 SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     : Dialog(parent), m_clip(singingClip), m_notes(m_clip->notes().toList()) {
     setModal(true);
-    setWindowTitle("搜索歌词");
+    setWindowTitle(tr("Search Lyrics"));
     resize(150, 300);
 
     lineEditSearch = new QLineEdit();
 
     resultListWidget = new QListWidget();
     resultListWidget->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    labelInfo = new QLabel("找到了 0 个匹配项");
+    labelInfo = new QLabel(tr("Found 0 matches"));
 
-    startWithRadioButton = new QRadioButton("起始匹配");
-    startWithRadioButton->setToolTip("以输入文本起始搜索");
-    fullSearchRadioButton = new QRadioButton("完全匹配");
-    startWithRadioButton->setToolTip("完全匹配");
-    fuzzySearchRadioButton = new QRadioButton("包含搜索");
-    fuzzySearchRadioButton->setToolTip("包含文本");
+    startWithRadioButton = new QRadioButton(tr("Starts With"));
+    startWithRadioButton->setToolTip(tr("Search from the beginning of the input text"));
+    fullSearchRadioButton = new QRadioButton(tr("Exact Match"));
+    fullSearchRadioButton->setToolTip(tr("Exact match"));
+    fuzzySearchRadioButton = new QRadioButton(tr("Contains"));
+    fuzzySearchRadioButton->setToolTip(tr("Contains the text"));
 
     startWithRadioButton->setChecked(true);
 
@@ -39,9 +39,9 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     searchModeGroup->addButton(fuzzySearchRadioButton);
 
     caseSensitiveCheckBox = new QCheckBox("Cc");
-    caseSensitiveCheckBox->setToolTip("区分大小写");
+    caseSensitiveCheckBox->setToolTip(tr("Case sensitive"));
     regexCheckBox = new QCheckBox(".*");
-    regexCheckBox->setToolTip("正则表达式");
+    regexCheckBox->setToolTip(tr("Regular expression"));
 
     auto *searchTypeLayout = new QHBoxLayout();
     searchTypeLayout->addWidget(startWithRadioButton);
@@ -54,15 +54,15 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     checkBoxLayout->addWidget(regexCheckBox);
 
     auto *resultLayout = new QHBoxLayout();
-    btnPrev = new QPushButton("上一个");
-    btnNext = new QPushButton("下一个");
+    btnPrev = new QPushButton(tr("Previous"));
+    btnNext = new QPushButton(tr("Next"));
 
     resultLayout->addWidget(labelInfo);
     resultLayout->addStretch();
     resultLayout->addWidget(btnPrev);
     resultLayout->addWidget(btnNext);
 
-    // 修改布局，将单选按钮布局和复选框布局添加到主布局中
+    // Build layout: radio buttons + checkboxes + results + list
     auto *layout = new QVBoxLayout();
     layout->addLayout(checkBoxLayout);
     layout->addLayout(searchTypeLayout);
@@ -71,7 +71,7 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
 
     body()->setLayout(layout);
 
-    searchText = "请输入搜索内容";
+    searchText = tr("Please enter search content");
 
     connect(lineEditSearch, &QLineEdit::textChanged, this, &SearchDialog::onSearchTextChanged);
     connect(startWithRadioButton, &QRadioButton::toggled, this, &SearchDialog::onSearchTextChanged);
@@ -153,7 +153,7 @@ void SearchDialog::onSearchTextChanged() {
         }
     }
 
-    labelInfo->setText(QString("找到了 %1 个匹配项").arg(resultListWidget->count()));
+    labelInfo->setText(tr("Found %1 matches").arg(resultListWidget->count()));
     if (resultListWidget->count() > 0)
         resultListWidget->setCurrentRow(0);
     updateButtonState();

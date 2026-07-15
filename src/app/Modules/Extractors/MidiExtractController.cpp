@@ -38,7 +38,7 @@ void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
     taskManager->removeTask(task);
     if (!task->success()) {
         Dialog dialog;
-        dialog.setTitle("Task Failed");
+        dialog.setTitle(tr("Task Failed"));
         dialog.setMessage(tr("Failed to extract Midi from audio:\n %1\n\n%2")
                               .arg(task->input().audioPath)
                               .arg(task->errorMessage()));

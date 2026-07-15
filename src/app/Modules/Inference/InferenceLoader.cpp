@@ -30,10 +30,13 @@ static inline QString getSingerDisplayString(const QString &singerName, const QS
 InferenceLoader::InferenceLoader(const srt::SingerSpec *spec, QObject *parent)
     : QObject(parent), m_singerSpec(spec), m_aboutToQuit(false) {
 
-    connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
-        // Cleanup if needed
-        setAboutToQuit(true);
-    }, Qt::DirectConnection);
+    connect(
+        qApp, &QCoreApplication::aboutToQuit, this,
+        [this]() {
+            // Cleanup if needed
+            setAboutToQuit(true);
+        },
+        Qt::DirectConnection);
 }
 
 bool InferenceLoader::isAboutToQuit() const noexcept {
@@ -46,17 +49,17 @@ void InferenceLoader::setAboutToQuit(bool aboutToQuit) noexcept {
 
 auto InferenceLoader::loadInferenceSpecs() -> Result<InferenceFlag::Type> {
     if (isAboutToQuit()) {
-        QString errMsg = QStringLiteral("Application is about to quit");
+        QString errMsg = tr("Application is about to quit");
         qWarning().noquote().nospace() << errMsg;
         return errMsg;
     }
     if (!m_singerSpec) {
-        QString errMsg = "SingerSpec is nullptr";
+        QString errMsg = tr("SingerSpec is nullptr");
         qCritical().noquote().nospace() << errMsg;
         return errMsg;
     }
     if (const auto &category = m_singerSpec->category(); category != "singer") {
-        QString errMsg = "SingerSpec invalid category: " + QString::fromUtf8(category);
+        QString errMsg = tr("SingerSpec invalid category: %1").arg(QString::fromUtf8(category));
         return errMsg;
     }
 
@@ -185,7 +188,7 @@ auto InferenceLoader::createDuration() const -> Result<srt::NO<srt::Inference>> 
     const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
     if (isAboutToQuit()) {
-        QString errMsg = QStringLiteral("Application is about to quit");
+        QString errMsg = tr("Application is about to quit");
         qWarning().noquote().nospace() << errMsg;
         return errMsg;
     }
@@ -194,8 +197,8 @@ auto InferenceLoader::createDuration() const -> Result<srt::NO<srt::Inference>> 
     const auto runtimeOptions = srt::NO<Dur::DurationRuntimeOptions>::create();
     if (auto exp = m_specs.duration->createInference(m_importOptions.duration, runtimeOptions);
         !exp) {
-        QString errMsg = "Failed to create duration inference for singer " + singerDisplay + ": " +
-                         QString::fromUtf8(exp.error().message());
+        QString errMsg = tr("Failed to create duration inference for singer %1: %2")
+                             .arg(singerDisplay, QString::fromUtf8(exp.error().message()));
         qCritical().noquote().nospace() << errMsg;
         return errMsg;
     } else {
@@ -203,8 +206,8 @@ auto InferenceLoader::createDuration() const -> Result<srt::NO<srt::Inference>> 
     }
     const auto initArgs = srt::NO<Dur::DurationInitArgs>::create();
     if (auto exp = inferenceDuration->initialize(initArgs); !exp) {
-        QString errMsg = "Failed to initialize duration inference for singer " + singerDisplay +
-                         QString::fromUtf8(exp.error().message());
+        QString errMsg = tr("Failed to initialize duration inference for singer %1: %2")
+                             .arg(singerDisplay, QString::fromUtf8(exp.error().message()));
         qCritical().noquote().nospace() << errMsg;
         return errMsg;
     }
@@ -215,7 +218,7 @@ auto InferenceLoader::createPitch() const -> Result<srt::NO<srt::Inference>> {
     const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
     if (isAboutToQuit()) {
-        QString errMsg = QStringLiteral("Application is about to quit");
+        QString errMsg = tr("Application is about to quit");
         qWarning().noquote().nospace() << errMsg;
         return errMsg;
     }
@@ -223,8 +226,8 @@ auto InferenceLoader::createPitch() const -> Result<srt::NO<srt::Inference>> {
     srt::NO<srt::Inference> inferencePitch;
     const auto runtimeOptions = srt::NO<Pit::PitchRuntimeOptions>::create();
     if (auto exp = m_specs.pitch->createInference(m_importOptions.pitch, runtimeOptions); !exp) {
-        QString errMsg = "Failed to create pitch inference for singer " + singerDisplay + ": " +
-                         QString::fromUtf8(exp.error().message());
+        QString errMsg = tr("Failed to create pitch inference for singer %1: %2")
+                             .arg(singerDisplay, QString::fromUtf8(exp.error().message()));
         qCritical().noquote().nospace() << errMsg;
         return errMsg;
     } else {
@@ -232,8 +235,8 @@ auto InferenceLoader::createPitch() const -> Result<srt::NO<srt::Inference>> {
     }
     const auto initArgs = srt::NO<Pit::PitchInitArgs>::create();
     if (auto exp = inferencePitch->initialize(initArgs); !exp) {
-        QString errMsg = "Failed to initialize pitch inference for singer " + singerDisplay +
-                         QString::fromUtf8(exp.error().message());
+        QString errMsg = tr("Failed to initialize pitch inference for singer %1: %2")
+                             .arg(singerDisplay, QString::fromUtf8(exp.error().message()));
         qCritical().noquote().nospace() << errMsg;
         return errMsg;
     }
@@ -244,16 +247,17 @@ auto InferenceLoader::createVariance() const -> Result<srt::NO<srt::Inference>> 
     const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
     if (isAboutToQuit()) {
-        QString errMsg = QStringLiteral("Application is about to quit");
+        QString errMsg = tr("Application is about to quit");
         qWarning().noquote().nospace() << errMsg;
         return errMsg;
     }
 
     srt::NO<srt::Inference> inferenceVariance;
     const auto runtimeOptions = srt::NO<Var::VarianceRuntimeOptions>::create();
-    if (auto exp = m_specs.variance->createInference(m_importOptions.variance, runtimeOptions); !exp) {
-        QString errMsg = "Failed to create variance inference for singer " + singerDisplay + ": " +
-                         QString::fromUtf8(exp.error().message());
+    if (auto exp = m_specs.variance->createInference(m_importOptions.variance, runtimeOptions);
+        !exp) {
+        QString errMsg = tr("Failed to create variance inference for singer %1: %2")
+                             .arg(singerDisplay, QString::fromUtf8(exp.error().message()));
         qCritical().noquote().nospace() << errMsg;
         return errMsg;
     } else {
@@ -261,8 +265,8 @@ auto InferenceLoader::createVariance() const -> Result<srt::NO<srt::Inference>> 
     }
     const auto initArgs = srt::NO<Var::VarianceInitArgs>::create();
     if (auto exp = inferenceVariance->initialize(initArgs); !exp) {
-        QString errMsg = "Failed to initialize variance inference for singer " + singerDisplay +
-                         QString::fromUtf8(exp.error().message());
+        QString errMsg = tr("Failed to initialize variance inference for singer %1: %2")
+                             .arg(singerDisplay, QString::fromUtf8(exp.error().message()));
         qCritical().noquote().nospace() << errMsg;
         return errMsg;
     }
@@ -273,16 +277,17 @@ auto InferenceLoader::createAcoustic() const -> Result<srt::NO<srt::Inference>> 
     const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
     if (isAboutToQuit()) {
-        QString errMsg = QStringLiteral("Application is about to quit");
+        QString errMsg = tr("Application is about to quit");
         qWarning().noquote().nospace() << errMsg;
         return errMsg;
     }
 
     srt::NO<srt::Inference> inferenceAcoustic;
     const auto runtimeOptions = srt::NO<Ac::AcousticRuntimeOptions>::create();
-    if (auto exp = m_specs.acoustic->createInference(m_importOptions.acoustic, runtimeOptions); !exp) {
-        QString errMsg = "Failed to create acoustic inference for singer " + singerDisplay + ": " +
-                         QString::fromUtf8(exp.error().message());
+    if (auto exp = m_specs.acoustic->createInference(m_importOptions.acoustic, runtimeOptions);
+        !exp) {
+        QString errMsg = tr("Failed to create acoustic inference for singer %1: %2")
+                             .arg(singerDisplay, QString::fromUtf8(exp.error().message()));
         qCritical().noquote().nospace() << errMsg;
         return errMsg;
     } else {
@@ -290,8 +295,8 @@ auto InferenceLoader::createAcoustic() const -> Result<srt::NO<srt::Inference>> 
     }
     const auto initArgs = srt::NO<Ac::AcousticInitArgs>::create();
     if (auto exp = inferenceAcoustic->initialize(initArgs); !exp) {
-        QString errMsg = "Failed to initialize acoustic inference for singer " + singerDisplay +
-                         QString::fromUtf8(exp.error().message());
+        QString errMsg = tr("Failed to initialize acoustic inference for singer %1: %2")
+                             .arg(singerDisplay, QString::fromUtf8(exp.error().message()));
         qCritical().noquote().nospace() << errMsg;
         return errMsg;
     }
@@ -302,16 +307,17 @@ auto InferenceLoader::createVocoder() const -> Result<srt::NO<srt::Inference>> {
     const auto singerDisplay = getSingerDisplayString(m_singerName, m_identifier.singerId);
 
     if (isAboutToQuit()) {
-        QString errMsg = QStringLiteral("Application is about to quit");
+        QString errMsg = tr("Application is about to quit");
         qWarning().noquote().nospace() << errMsg;
         return errMsg;
     }
 
     srt::NO<srt::Inference> inferenceVocoder;
     const auto runtimeOptions = srt::NO<Vo::VocoderRuntimeOptions>::create();
-    if (auto exp = m_specs.vocoder->createInference(m_importOptions.vocoder, runtimeOptions); !exp) {
-        QString errMsg = "Failed to create vocoder inference for singer " + singerDisplay + ": " +
-                         QString::fromUtf8(exp.error().message());
+    if (auto exp = m_specs.vocoder->createInference(m_importOptions.vocoder, runtimeOptions);
+        !exp) {
+        QString errMsg = tr("Failed to create vocoder inference for singer %1: %2")
+                             .arg(singerDisplay, QString::fromUtf8(exp.error().message()));
         qCritical().noquote().nospace() << errMsg;
         return errMsg;
     } else {
@@ -319,8 +325,8 @@ auto InferenceLoader::createVocoder() const -> Result<srt::NO<srt::Inference>> {
     }
     const auto initArgs = srt::NO<Vo::VocoderInitArgs>::create();
     if (auto exp = inferenceVocoder->initialize(initArgs); !exp) {
-        QString errMsg = "Failed to initialize vocoder inference for singer " + singerDisplay +
-                         QString::fromUtf8(exp.error().message());
+        QString errMsg = tr("Failed to initialize vocoder inference for singer %1: %2")
+                             .arg(singerDisplay, QString::fromUtf8(exp.error().message()));
         qCritical().noquote().nospace() << errMsg;
         return errMsg;
     }

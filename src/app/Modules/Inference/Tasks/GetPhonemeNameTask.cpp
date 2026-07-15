@@ -65,7 +65,7 @@ void GetPhonemeNameTask::runTask() {
 
 void GetPhonemeNameTask::processNotes() {
     auto newStatus = status();
-    newStatus.message = "正在处理: " + m_previewText;
+    newStatus.message = tr("Processing: %1").arg(m_previewText);
     setStatus(newStatus);
     result = getPhonemeNames();
     distributePhonemes();

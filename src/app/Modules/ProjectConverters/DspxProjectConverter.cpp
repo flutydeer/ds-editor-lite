@@ -25,6 +25,7 @@
 #include "Modules/PackageManager/PackageManager.h"
 
 #include <QDebug>
+#include <QCoreApplication>
 #include <QFile>
 
 #include <algorithm>
@@ -952,14 +953,16 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
 
     const auto &timeline = dspxModel.content.timeline;
     if (timeline.timeSignatures.empty() || timeline.tempos.empty()) {
-        errMsg = QStringLiteral("Failed to load project file: timeline is incomplete.");
+        errMsg = QCoreApplication::translate(
+            "DspxProjectConverter", "Failed to load project file: timeline is incomplete.");
         return false;
     }
 
     const auto &timeSignature = timeline.timeSignatures.front();
     const auto &tempo = timeline.tempos.front();
     if (timeSignature.numerator <= 0 || timeSignature.denominator <= 0 || tempo.value <= 0) {
-        errMsg = QStringLiteral("Failed to load project file: timeline values are invalid.");
+        errMsg = QCoreApplication::translate(
+            "DspxProjectConverter", "Failed to load project file: timeline values are invalid.");
         return false;
     }
 
@@ -985,13 +988,16 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
                                 ImportMode mode) {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
-        errMsg = QString("Failed to open project file: %1").arg(path);
+        errMsg =
+            QCoreApplication::translate("DspxProjectConverter", "Failed to open project file: %1")
+                .arg(path);
         return false;
     }
 
     auto parseResult = DspxProjectParser::parse(file.readAll());
     if (!parseResult.success()) {
-        errMsg = QString("Failed to load project file.\npath: %1\n%2")
+        errMsg = QCoreApplication::translate("DspxProjectConverter",
+                                             "Failed to load project file.\npath: %1\n%2")
                      .arg(path, parseResult.errorMessage);
         return false;
     }
@@ -1222,7 +1228,9 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
 
         QFile file(filePath);
         if (!file.open(QIODevice::WriteOnly)) {
-            msg += "Failed to open file for writing:" + filePath;
+            msg += QCoreApplication::translate("DspxProjectConverter",
+                                               "Failed to open file for writing: %1")
+                       .arg(filePath);
             return false;
         }
 
@@ -1232,13 +1240,17 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         file.close();
 
         if (written != jsonData.size()) {
-            msg += "Failed to write all data to file:" + filePath;
+            msg += QCoreApplication::translate("DspxProjectConverter",
+                                               "Failed to write all data to file: %1")
+                       .arg(filePath);
             return false;
         }
 
         if (!errors.empty()) {
             QTextStream stream(&msg, QIODeviceBase::WriteOnly | QIODeviceBase::Text);
-            stream << "Serialization errors occurred:\n";
+            stream << QCoreApplication::translate("DspxProjectConverter",
+                                                  "Serialization errors occurred:")
+                   << '\n';
             for (const auto &err : errors) {
                 stream << "0x" << Qt::hex << err->type();
                 QString jsonPath;
@@ -1258,7 +1270,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                         std::static_pointer_cast<opendspx::EmptySingerMixingError>(err)->path());
                 }
                 if (!jsonPath.isEmpty()) {
-                    stream << " at " << jsonPath;
+                    stream << QCoreApplication::translate("DspxProjectConverter", " at %1")
+                                  .arg(jsonPath);
                 }
                 stream << "\n";
             }

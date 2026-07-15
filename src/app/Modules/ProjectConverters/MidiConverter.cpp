@@ -19,6 +19,7 @@
 
 #include <QDialog>
 #include <QFile>
+#include <QCoreApplication>
 
 #include <algorithm>
 #include <sstream>
@@ -144,7 +145,7 @@ static QString toneNumToToneName(const int num) {
     }
 
     if (octave < -1 || step < 0 || step >= 12)
-        return QStringLiteral("Invalid tone or octave");
+        return QCoreApplication::translate("MidiConverter", "Invalid tone or octave");
 
     return tones[step] + QString::number(octave);
 }
@@ -189,7 +190,8 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
 
     QFile midiFile(path);
     if (!midiFile.open(QIODevice::ReadOnly)) {
-        errMsg = QString("Failed to read midi file.\npath: %1").arg(path);
+        errMsg = QCoreApplication::translate("MidiConverter", "Failed to read MIDI file.\npath: %1")
+                     .arg(path);
         return LoadStatus::Failed;
     }
 
@@ -198,7 +200,8 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
     std::stringstream ss(midiData.toStdString(), std::ios::in);
     auto midiMediate = midiConverter->convertMidiToIntermediate(ss, midiError, {true});
     if (midiError != opendspx::MidiConverter::Error::NoError) {
-        errMsg = QString("Failed to load midi file.\npath: %1\ntype: %2")
+        errMsg = QCoreApplication::translate("MidiConverter",
+                                             "Failed to load MIDI file.\npath: %1\ntype: %2")
                      .arg(path)
                      .arg(static_cast<int>(midiError));
         return LoadStatus::Failed;
@@ -270,15 +273,17 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
         const auto &ts = timeline.timeSignatures.front();
         if (ts.denominator != 2 && ts.denominator != 4 && ts.denominator != 8 &&
             ts.denominator != 16) {
-            errMsg = QString("Failed to load midi file.\ntimeSignatures denominator "
-                             "must be: 2, 4, 8, 16\ncurrent denominator: %1")
+            errMsg = QCoreApplication::translate(
+                         "MidiConverter",
+                         "Failed to load MIDI file.\ntimeSignatures denominator must be: 2, 4, "
+                         "8, 16\ncurrent denominator: %1")
                          .arg(ts.denominator);
             return LoadStatus::Failed;
         }
     }
 
     if (mode != NewProject && mode != AppendToProject) {
-        errMsg = QStringLiteral("Unsupported MIDI import mode.");
+        errMsg = QCoreApplication::translate("MidiConverter", "Unsupported MIDI import mode.");
         return LoadStatus::Failed;
     }
 
@@ -302,7 +307,8 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
         options.importTimeSignature = dlg.importTimeSignature() && hasTimeSignature;
         return LoadStatus::Success;
     }
-    errMsg = QStringLiteral("No MIDI tracks were selected for import.");
+    errMsg =
+        QCoreApplication::translate("MidiConverter", "No MIDI tracks were selected for import.");
     return LoadStatus::Failed;
 }
 
@@ -324,7 +330,9 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
                              QString &msg) -> bool {
         QFile file(filePath);
         if (!file.open(QIODevice::WriteOnly)) {
-            msg += "Failed to open file for writing:" + filePath;
+            msg +=
+                QCoreApplication::translate("MidiConverter", "Failed to open file for writing: %1")
+                    .arg(filePath);
             return false;
         }
 
@@ -332,7 +340,9 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
         file.close();
 
         if (written != midi.size()) {
-            msg += "Failed to write all data to file:" + filePath;
+            msg +=
+                QCoreApplication::translate("MidiConverter", "Failed to write all data to file: %1")
+                    .arg(filePath);
             return false;
         }
 
@@ -342,7 +352,9 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
     QString msg;
     const auto result = saveMidiToFile(QByteArray::fromStdString(ss.str()), path, msg);
     if (!result) {
-        errMsg = QString("Failed to save midi file.\npath: %1\nerror: %2").arg(path, msg);
+        errMsg = QCoreApplication::translate("MidiConverter",
+                                             "Failed to save MIDI file.\npath: %1\nerror: %2")
+                     .arg(path, msg);
         return false;
     }
     return true;

@@ -59,9 +59,9 @@ QWidget *InferencePage::createContentWidget() {
     constexpr int epIndexDirectML = 1;
     constexpr int epIndexCuda = 2;
     m_cbExecutionProvider = new ComboBox();
-    m_cbExecutionProvider->insertItem(epIndexCpu, "CPU");
-    m_cbExecutionProvider->insertItem(epIndexDirectML, "DirectML");
-    m_cbExecutionProvider->insertItem(epIndexCuda, "CUDA");
+    m_cbExecutionProvider->insertItem(epIndexCpu, QStringLiteral("CPU"));
+    m_cbExecutionProvider->insertItem(epIndexDirectML, QStringLiteral("DirectML"));
+    m_cbExecutionProvider->insertItem(epIndexCuda, QStringLiteral("CUDA"));
     if (option->executionProvider == "CPU")
         m_cbExecutionProvider->setCurrentIndex(epIndexCpu);
     else if (option->executionProvider == "DirectML")
@@ -101,8 +101,8 @@ QWidget *InferencePage::createContentWidget() {
         const int currentIndex = m_cbDeviceList->count();
         auto displayText =
             QStringLiteral("%1 (%2 GiB)")
-            .arg(device.description)
-            .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
+                .arg(device.description)
+                .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
         m_cbDeviceList->insertItem(currentIndex, displayText);
         m_cbDeviceList->setItemData(currentIndex, QVariant::fromValue<GpuInfo>(device),
                                     GpuInfoRole);
@@ -126,10 +126,11 @@ QWidget *InferencePage::createContentWidget() {
     deviceCard->addItem(tr("Execution Provider"), tr("App needs a restart to take effect"),
                         m_cbExecutionProvider);
     if (hasAvailableGpu) {
-        deviceCard->addItem(tr("GPU"),
-                            tr("GPUs with less than %1 GiB VRAM are hidden")
-                                .arg(static_cast<double>(kMinGpuVramBytes) / (1024 * 1024 * 1024), 0, 'f', 0),
-                            m_cbDeviceList);
+        deviceCard->addItem(
+            tr("GPU"),
+            tr("GPUs with less than %1 GiB VRAM are hidden")
+                .arg(static_cast<double>(kMinGpuVramBytes) / (1024 * 1024 * 1024), 0, 'f', 0),
+            m_cbDeviceList);
     } else {
         deviceCard->addItem(
             tr("GPU"),
@@ -150,13 +151,11 @@ QWidget *InferencePage::createContentWidget() {
     constexpr double kDsDepthMax = 1.0;
     constexpr double kDsDepthSingleStep = 0.01;
 
-    m_dsDepthSlider = new DoubleSeekBarSpinboxGroup(kDsDepthMin, kDsDepthMax, kDsDepthSingleStep,
-                                                    option->depth);
+    m_dsDepthSlider =
+        new DoubleSeekBarSpinboxGroup(kDsDepthMin, kDsDepthMax, kDsDepthSingleStep, option->depth);
     m_dsDepthSlider->seekbar->setFixedWidth(256);
     connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::valueChanged, this,
-            [&](const double value) {
-                appOptions->inference()->depth = value;
-            });
+            [&](const double value) { appOptions->inference()->depth = value; });
     connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::editFinished, this,
             &InferencePage::modifyOption);
 
@@ -179,9 +178,8 @@ QWidget *InferencePage::createContentWidget() {
     m_smoothSlider = new SeekBarSpinboxGroup(0, 50, 1, option->pitch_smooth_kernel_size);
     m_smoothSlider->seekbar->setFixedWidth(256);
 
-    connect(m_smoothSlider, &SeekBarSpinboxGroup::valueChanged, this, [&](const double value) {
-        appOptions->inference()->pitch_smooth_kernel_size = value;
-    });
+    connect(m_smoothSlider, &SeekBarSpinboxGroup::valueChanged, this,
+            [&](const double value) { appOptions->inference()->pitch_smooth_kernel_size = value; });
     connect(m_smoothSlider, &SeekBarSpinboxGroup::editFinished, this, &InferencePage::modifyOption);
 
 
@@ -241,22 +239,22 @@ QWidget *InferencePage::createContentWidget() {
         auto enginePathRoot = new QStandardItem(tr("plugins"));
 
         // Inference driver path
-        auto driverItem = new QStandardItem("inference driver");
+        auto driverItem = new QStandardItem(tr("inference driver"));
         auto driverValue = new QStandardItem(driverPath);
         enginePathRoot->appendRow({driverItem, driverValue});
 
         // Inference interpreter path
-        auto interpreterItem = new QStandardItem("inference interpreter");
+        auto interpreterItem = new QStandardItem(tr("inference interpreter"));
         auto interpreterValue = new QStandardItem(interpreterPath);
         enginePathRoot->appendRow({interpreterItem, interpreterValue});
 
         // Inference runtime path
-        auto runtimeItem = new QStandardItem("inference runtime");
+        auto runtimeItem = new QStandardItem(tr("inference runtime"));
         auto runtimeValue = new QStandardItem(runtimePath);
         enginePathRoot->appendRow({runtimeItem, runtimeValue});
 
         // Singer provider path
-        auto singerItem = new QStandardItem("singer provider");
+        auto singerItem = new QStandardItem(tr("singer provider"));
         auto singerValue = new QStandardItem(singerProviderPath);
         enginePathRoot->appendRow({singerItem, singerValue});
 
@@ -297,10 +295,8 @@ QWidget *InferencePage::createContentWidget() {
                 new QStandardItem(tr("vendor")),
                 new QStandardItem(pkgVendor),
             });
-            currentPackageRoot->appendRow({
-                new QStandardItem(tr("path")),
-                new QStandardItem(pkgPath)
-            });
+            currentPackageRoot->appendRow(
+                {new QStandardItem(tr("path")), new QStandardItem(pkgPath)});
             packageLoadedRoot->appendRow(currentPackageRoot);
         }
         packageRoot->appendRow(packageLoadedRoot);

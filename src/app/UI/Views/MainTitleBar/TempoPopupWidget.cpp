@@ -190,8 +190,7 @@ void TempoPopupWidget::recordTap() {
 
     const qint64 totalInterval =
         std::accumulate(m_tapIntervals.cbegin(), m_tapIntervals.cend(), qint64(0));
-    const double averageInterval =
-        static_cast<double>(totalInterval) / m_tapIntervals.size();
+    const double averageInterval = static_cast<double>(totalInterval) / m_tapIntervals.size();
     const double bpm = 60000.0 / averageInterval;
 
     if (!m_hasDisplayedTapBpm || m_tapIntervals.size() < kReadyTapIntervalCount ||
@@ -202,8 +201,7 @@ void TempoPopupWidget::recordTap() {
 
     m_btnTapTempo->setText(QStringLiteral("%1 BPM").arg(m_displayedTapBpm));
     const auto readyIntervalCount = qMin(m_tapIntervals.size(), kReadyTapIntervalCount);
-    m_btnTapTempo->setProgress(static_cast<double>(readyIntervalCount) /
-                               kReadyTapIntervalCount);
+    m_btnTapTempo->setProgress(static_cast<double>(readyIntervalCount) / kReadyTapIntervalCount);
     m_btnTapTempo->setStable(m_tapIntervals.size() >= kReadyTapIntervalCount);
     m_tapResetTimer.start();
 }

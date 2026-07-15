@@ -200,7 +200,7 @@ QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
         widget);
     colorDot->setFixedSize(10, 10);
 
-    const auto typeLabel = new QLabel("声线: ", widget);
+    const auto typeLabel = new QLabel(tr("Speaker: "), widget);
     typeLabel->setFixedHeight(28);
 
     const auto speakerComboBox = new ComboBox(widget);
@@ -214,7 +214,7 @@ QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
     connect(speakerComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             &SpeakerMixList::onSpeakerTypeChanged);
 
-    const auto positionPrefixLabel = new QLabel("位置: ", widget);
+    const auto positionPrefixLabel = new QLabel(tr("Position: "), widget);
     positionPrefixLabel->setFixedHeight(28);
 
     const auto positionLabel = new QLabel("0%", widget);
@@ -399,8 +399,7 @@ void SpeakerMixList::refreshComboBoxItems() {
             const bool isCurrentRow = (name == row.speakerName);
             const bool isUsedByOther = (!isCurrentRow && usedNames.contains(name));
 
-            const QString displayText =
-                isUsedByOther ? displayName + QString::fromUtf8("（已使用）") : displayName;
+            const QString displayText = isUsedByOther ? displayName + tr(" (used)") : displayName;
 
             row.speakerComboBox->addItem(displayText);
             row.speakerComboBox->setItemData(i, name, Qt::UserRole);
@@ -443,6 +442,9 @@ void SpeakerMixList::updateBarLabelsAndColors() {
 }
 
 QString SpeakerMixList::speakerDisplayName(const QString &speakerName) const {
+    if (speakerName == QStringLiteral("no singer"))
+        return tr("(No Singer)");
+
     const auto displayName = m_speakerDisplayNames.value(speakerName);
     return displayName.isEmpty() ? speakerName : displayName;
 }

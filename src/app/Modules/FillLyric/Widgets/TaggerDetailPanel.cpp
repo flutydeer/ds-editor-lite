@@ -11,8 +11,7 @@
 
 #include "UI/Controls/ComboBox.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     TaggerDetailPanel::TaggerDetailPanel(QWidget *parent) : QWidget(parent) {
         setAttribute(Qt::WA_StyledBackground);
         setObjectName("TaggerDetailPanel");
@@ -76,9 +75,9 @@ namespace FillLyric
         m_entriesLayout = new QVBoxLayout;
         cLayout->addLayout(m_entriesLayout);
 
-        auto *infoLabel = new QLabel(tr(
-            "Language must be a G2p-registered code (e.g. cmn, eng, jpn, yue).\n"
-            "Regex values are merged with | for FullMatch. Array values are exact match."));
+        auto *infoLabel = new QLabel(
+            tr("Language must be a G2p-registered code (e.g. cmn, eng, jpn, yue).\n"
+               "Regex values are merged with | for FullMatch. Array values are exact match."));
         infoLabel->setObjectName("ruleInfoLabel");
         infoLabel->setWordWrap(true);
         cLayout->addWidget(infoLabel);
@@ -102,14 +101,14 @@ namespace FillLyric
     }
 
     void TaggerDetailPanel::showBuiltinRule(const TaggerRuleInfo &info) {
-        m_builtinNameLabel->setText(info.language + "  (built-in)");
+        m_builtinNameLabel->setText(tr("%1  (built-in)").arg(info.language));
 
         QString text;
         for (int i = 0; i < info.entries.size(); i++) {
             const auto &e = info.entries[i];
             text += QStringLiteral("#%1  type=%2  tag=%3").arg(i + 1).arg(e.type, e.tag);
             if (e.discard)
-                text += QStringLiteral("  (discard)");
+                text += QStringLiteral("  ") + tr("(discard)");
             text += '\n';
             for (const auto &v : e.values)
                 text += QStringLiteral("    %1\n").arg(v);
@@ -119,7 +118,7 @@ namespace FillLyric
     }
 
     void TaggerDetailPanel::showCustomRule(const CustomTaggerRule &rule,
-                                            const QStringList &knownLanguages) {
+                                           const QStringList &knownLanguages) {
         m_knownLanguages = knownLanguages;
         m_langCombo->clear();
         for (const auto &lang : knownLanguages)
@@ -166,7 +165,7 @@ namespace FillLyric
 
         auto *row1 = new QHBoxLayout;
         auto *typeCombo = new ComboBox;
-        typeCombo->addItems({"regex", "array"});
+        typeCombo->addItems({QStringLiteral("regex"), QStringLiteral("array")});
         typeCombo->setCurrentText(entry.type);
         row1->addWidget(new QLabel(tr("Type:")));
         row1->addWidget(typeCombo);

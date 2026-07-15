@@ -4,6 +4,7 @@
 
 #include "AudioClipView.h"
 
+#include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QPainter>
 #include <QPainterPath>
@@ -149,8 +150,8 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
 
     const double ticksPerScenePixel =
         AppGlobal::ticksPerQuarterNote / (scaleX() * pixelsPerQuarterNote);
-    const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 /
-                                  m_tempo / AppGlobal::ticksPerQuarterNote;
+    const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 / m_tempo /
+                                  AppGlobal::ticksPerQuarterNote;
     const double scaleXDev = painter->deviceTransform().m11();
     const double samplesPerDevPixel = ticksPerScenePixel * samplesPerTick / scaleXDev;
     const double chunkSize = static_cast<double>(m_audioInfo.chunkSize);
@@ -300,8 +301,8 @@ void AudioClipView::drawSubChunkPeakMode(QPainter *painter, const QRectF &previe
 
     const double ticksPerScenePixel =
         AppGlobal::ticksPerQuarterNote / (scaleX() * pixelsPerQuarterNote);
-    const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 /
-                                  m_tempo / AppGlobal::ticksPerQuarterNote;
+    const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 / m_tempo /
+                                  AppGlobal::ticksPerQuarterNote;
     const double samplesPerScenePixel = ticksPerScenePixel * samplesPerTick;
     const int channels = m_audioInfo.channels;
     const qint64 totalFrames = m_audioInfo.frames;
@@ -321,10 +322,13 @@ void AudioClipView::drawSubChunkPeakMode(QPainter *painter, const QRectF &previe
 
     const double firstLocalX = devStart / scaleXDev;
     const double lastLocalX = devEnd / scaleXDev;
-    const double firstAudioTick = (rectLeftScene + firstLocalX) * ticksPerScenePixel - startTickOffset;
-    const double lastAudioTick = (rectLeftScene + lastLocalX) * ticksPerScenePixel - startTickOffset;
+    const double firstAudioTick =
+        (rectLeftScene + firstLocalX) * ticksPerScenePixel - startTickOffset;
+    const double lastAudioTick =
+        (rectLeftScene + lastLocalX) * ticksPerScenePixel - startTickOffset;
     qint64 sampleStart = static_cast<qint64>(std::floor(firstAudioTick * samplesPerTick));
-    qint64 sampleEnd = static_cast<qint64>(std::ceil(lastAudioTick * samplesPerTick + samplesPerDevPixel));
+    qint64 sampleEnd =
+        static_cast<qint64>(std::ceil(lastAudioTick * samplesPerTick + samplesPerDevPixel));
     sampleStart = std::max(sampleStart, qint64(0));
     sampleEnd = std::min(sampleEnd, totalFrames);
 
@@ -366,8 +370,10 @@ void AudioClipView::drawSubChunkPeakMode(QPainter *painter, const QRectF &previe
             for (int ch = 0; ch < channels; ch++)
                 mono += m_ioBuffer[bufOffset + ch];
             mono /= channels;
-            if (mono < min) min = mono;
-            if (mono > max) max = mono;
+            if (mono < min)
+                min = mono;
+            if (mono > max)
+                max = mono;
         }
 
         const double x = rectLeft + localX;
@@ -413,8 +419,8 @@ void AudioClipView::drawWaveformCurve(QPainter *painter, const QRectF &previewRe
 
     const double ticksPerScenePixel =
         AppGlobal::ticksPerQuarterNote / (scaleX() * pixelsPerQuarterNote);
-    const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 /
-                                  m_tempo / AppGlobal::ticksPerQuarterNote;
+    const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 / m_tempo /
+                                  AppGlobal::ticksPerQuarterNote;
     const int channels = m_audioInfo.channels;
     const qint64 totalFrames = m_audioInfo.frames;
 
@@ -430,10 +436,14 @@ void AudioClipView::drawWaveformCurve(QPainter *painter, const QRectF &previewRe
 
     const double firstLocalX = devStart / scaleXDev;
     const double lastLocalX = devEnd / scaleXDev;
-    const double firstAudioTick = (rectLeftScene + firstLocalX) * ticksPerScenePixel - startTickOffset;
-    const double lastAudioTick = (rectLeftScene + lastLocalX) * ticksPerScenePixel - startTickOffset;
-    qint64 sampleStart = static_cast<qint64>(std::floor(firstAudioTick * samplesPerTick)) - kSincHalfKernel;
-    qint64 sampleEnd = static_cast<qint64>(std::ceil(lastAudioTick * samplesPerTick)) + kSincHalfKernel;
+    const double firstAudioTick =
+        (rectLeftScene + firstLocalX) * ticksPerScenePixel - startTickOffset;
+    const double lastAudioTick =
+        (rectLeftScene + lastLocalX) * ticksPerScenePixel - startTickOffset;
+    qint64 sampleStart =
+        static_cast<qint64>(std::floor(firstAudioTick * samplesPerTick)) - kSincHalfKernel;
+    qint64 sampleEnd =
+        static_cast<qint64>(std::ceil(lastAudioTick * samplesPerTick)) + kSincHalfKernel;
     sampleStart = std::max(sampleStart, qint64(0));
     sampleEnd = std::min(sampleEnd, totalFrames);
 
@@ -473,8 +483,8 @@ void AudioClipView::drawWaveformCurve(QPainter *painter, const QRectF &previewRe
         const double audioTick = sceneX * ticksPerScenePixel - startTickOffset;
         const double samplePos = audioTick * samplesPerTick;
 
-        const double value = sincInterpolate(monoSamples, sampleStart, totalFrames,
-                                             samplePos, kSincHalfKernel);
+        const double value =
+            sincInterpolate(monoSamples, sampleStart, totalFrames, samplePos, kSincHalfKernel);
 
         const double x = rectLeft + localX;
         const double y = -value * halfRectHeight + halfRectHeight + rectTop;
@@ -491,14 +501,16 @@ void AudioClipView::drawWaveformCurve(QPainter *painter, const QRectF &previewRe
 
     const double samplesPerLogicalPixel = ticksPerScenePixel * samplesPerTick;
     if (samplesPerLogicalPixel < 1.0 / 6.0) {
-        const double dotRadius = std::min(3.0, samplesPerLogicalPixel > 0 ? 1.0 / samplesPerLogicalPixel * 0.3 : 3.0);
+        const double dotRadius =
+            std::min(3.0, samplesPerLogicalPixel > 0 ? 1.0 / samplesPerLogicalPixel * 0.3 : 3.0);
         painter->setBrush(color);
         painter->setPen(Qt::NoPen);
 
         const qint64 firstSample = static_cast<qint64>(std::floor(firstAudioTick * samplesPerTick));
         const qint64 lastSample = static_cast<qint64>(std::ceil(lastAudioTick * samplesPerTick));
 
-        for (qint64 s = std::max(firstSample, qint64(0)); s < std::min(lastSample, totalFrames); s++) {
+        for (qint64 s = std::max(firstSample, qint64(0)); s < std::min(lastSample, totalFrames);
+             s++) {
             const int bufIdx = static_cast<int>(s - sampleStart);
             if (bufIdx < 0 || bufIdx >= monoSamples.size())
                 continue;
@@ -517,7 +529,7 @@ void AudioClipView::drawWaveformCurve(QPainter *painter, const QRectF &previewRe
 }
 
 QString AudioClipView::clipTypeName() const {
-    return tr("[Audio] ");
+    return QCoreApplication::translate("AudioClipView", "[Audio] ");
 }
 
 QString AudioClipView::iconPath() const {

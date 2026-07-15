@@ -9,23 +9,25 @@
 
 #include "Modules/FillLyric/LangCommon.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     class CellList;
     class LyricCell;
 
     class LyricWrapView final : public QGraphicsView {
         Q_OBJECT
-        Q_PROPERTY(QStringList cellBackgroundBrush READ cellBackgroundBrush WRITE setCellBackgroundBrush)
+        Q_PROPERTY(
+            QStringList cellBackgroundBrush READ cellBackgroundBrush WRITE setCellBackgroundBrush)
         Q_PROPERTY(QStringList cellBorderPen READ cellBorderPen WRITE setCellBorderPen)
         Q_PROPERTY(QStringList cellLyricPen READ cellLyricPen WRITE setCellLyricPen)
         Q_PROPERTY(QStringList cellSyllablePen READ cellSyllablePen WRITE setCellSyllablePen)
-        Q_PROPERTY(QStringList handleBackgroundBrush READ handleBackgroundBrush WRITE setHandleBackgroundBrush)
+        Q_PROPERTY(QStringList handleBackgroundBrush READ handleBackgroundBrush WRITE
+                       setHandleBackgroundBrush)
         Q_PROPERTY(QStringList splitterPen READ splitterPen WRITE setSplitterPen)
 
     public:
         explicit LyricWrapView(QString qssPath = "", QStringList priorityG2pIds = {},
-                               QMap<std::string, std::string> langToG2pId = {}, QWidget *parent = nullptr);
+                               QMap<std::string, std::string> langToG2pId = {},
+                               QWidget *parent = nullptr);
         ~LyricWrapView() override;
 
         void clear();
@@ -101,7 +103,7 @@ namespace FillLyric
         QList<CellList *> sortedByIndex(const QSet<CellList *> &listSet) const;
         void insertNewLineAt(qlonglong index);
         void lineBreak(CellList *cellList, const int &index);
-        void deleteCells(const QList<LyricCell *>& selectedCells);
+        void deleteCells(const QList<LyricCell *> &selectedCells);
 
         QFont m_font;
         QGraphicsScene *m_scene;

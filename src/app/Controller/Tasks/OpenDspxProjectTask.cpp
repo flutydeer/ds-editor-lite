@@ -1,5 +1,6 @@
 #include "OpenDspxProjectTask.h"
 
+#include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QFile>
 
@@ -12,8 +13,8 @@ namespace {
 OpenDspxProjectTask::OpenDspxProjectTask(QString filePath, const quint64 requestId)
     : m_filePath(std::move(filePath)), m_requestId(requestId) {
     TaskStatus status;
-    status.title = tr("Opening Project");
-    status.message = tr("Reading project file...");
+    status.title = QCoreApplication::translate("OpenDspxProjectTask", "Opening Project");
+    status.message = QCoreApplication::translate("OpenDspxProjectTask", "Reading project file...");
     status.isIndetermine = false;
     setStatus(status);
 }
@@ -45,7 +46,9 @@ DspxParseResult OpenDspxProjectTask::takeResult() {
 void OpenDspxProjectTask::runTask() {
     QFile file(m_filePath);
     if (!file.open(QIODevice::ReadOnly)) {
-        m_result.errorMessage = tr("Failed to open project file: %1").arg(m_filePath);
+        m_result.errorMessage =
+            QCoreApplication::translate("OpenDspxProjectTask", "Failed to open project file: %1")
+                .arg(m_filePath);
         return;
     }
 
@@ -62,15 +65,18 @@ void OpenDspxProjectTask::runTask() {
 
         const auto chunk = file.read(readChunkSize);
         if (chunk.isEmpty() && file.error() != QFileDevice::NoError) {
-            m_result.errorMessage = tr("Failed to read project file: %1").arg(file.errorString());
+            m_result.errorMessage = QCoreApplication::translate("OpenDspxProjectTask",
+                                                                "Failed to read project file: %1")
+                                        .arg(file.errorString());
             return;
         }
         data.append(chunk);
         bytesRead += chunk.size();
 
         TaskStatus status;
-        status.title = tr("Opening Project");
-        status.message = tr("Reading project file...");
+        status.title = QCoreApplication::translate("OpenDspxProjectTask", "Opening Project");
+        status.message =
+            QCoreApplication::translate("OpenDspxProjectTask", "Reading project file...");
         status.isIndetermine = m_fileSize <= 0;
         status.progress = m_fileSize > 0 ? static_cast<int>(bytesRead * 100 / m_fileSize) : 0;
         setStatus(status);
@@ -81,8 +87,8 @@ void OpenDspxProjectTask::runTask() {
         return;
 
     TaskStatus status;
-    status.title = tr("Opening Project");
-    status.message = tr("Parsing project file...");
+    status.title = QCoreApplication::translate("OpenDspxProjectTask", "Opening Project");
+    status.message = QCoreApplication::translate("OpenDspxProjectTask", "Parsing project file...");
     status.isIndetermine = true;
     setStatus(status);
 

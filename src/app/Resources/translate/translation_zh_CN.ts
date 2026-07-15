@@ -4,19 +4,19 @@
 <context>
     <name>ActionButtonsView</name>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="23"/>
+        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="19"/>
         <source>Save Project</source>
         <translation>保存工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="32"/>
-        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="64"/>
+        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="28"/>
+        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="59"/>
         <source>Undo</source>
         <translation>撤销</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="41"/>
-        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="66"/>
+        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="37"/>
+        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="61"/>
         <source>Redo</source>
         <translation>重做</translation>
     </message>
@@ -24,66 +24,54 @@
 <context>
     <name>AppController</name>
     <message>
-        <location filename="../../Controller/AppController.cpp" line="96"/>
-        <location filename="../../Controller/AppController.cpp" line="117"/>
         <source>Unrecognized file format: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">无法识别的文件格式：%1</translation>
     </message>
     <message>
-        <location filename="../../Controller/AppController.cpp" line="99"/>
-        <location filename="../../Controller/AppController.cpp" line="106"/>
         <source>File does not exist: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">文件不存在：%1</translation>
     </message>
 </context>
 <context>
     <name>AppControllerPrivate</name>
     <message>
-        <location filename="../../Controller/AppController.cpp" line="356"/>
         <source>New Project</source>
-        <translation>新工程</translation>
+        <translation type="vanished">新工程</translation>
     </message>
     <message>
-        <location filename="../../Controller/AppController.cpp" line="445"/>
         <source>Opening Project</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">正在打开工程</translation>
     </message>
     <message>
-        <location filename="../../Controller/AppController.cpp" line="446"/>
         <source>Scanning singer packages...</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">正在扫描歌手包...</translation>
     </message>
     <message>
-        <location filename="../../Controller/AppController.cpp" line="503"/>
-        <location filename="../../Controller/AppController.cpp" line="505"/>
         <source>Package scan failed</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">包扫描失败</translation>
     </message>
     <message>
-        <location filename="../../Controller/AppController.cpp" line="504"/>
         <source>Singer package metadata is not available. Open the project anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">歌手包元数据不可用。是否仍然打开工程？</translation>
     </message>
     <message>
-        <location filename="../../Controller/AppController.cpp" line="506"/>
         <source>Open Anyway</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">仍然打开</translation>
     </message>
     <message>
-        <location filename="../../Controller/AppController.cpp" line="507"/>
         <source>Cancel</source>
-        <translation type="unfinished">取消</translation>
+        <translation type="vanished">取消</translation>
     </message>
 </context>
 <context>
     <name>AppModel</name>
     <message>
-        <location filename="../../Model/AppModel/AppModel.cpp" line="121"/>
+        <location filename="../../Model/AppModel/AppModel.cpp" line="173"/>
         <source>New Singing Clip</source>
         <translation>新歌声剪辑</translation>
     </message>
     <message>
-        <location filename="../../Model/AppModel/AppModel.cpp" line="127"/>
+        <location filename="../../Model/AppModel/AppModel.cpp" line="179"/>
         <source>New Track</source>
         <translation>新轨道</translation>
     </message>
@@ -108,7 +96,7 @@
     <message>
         <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="37"/>
         <source>Inference</source>
-        <translation type="unfinished"></translation>
+        <translation>推理</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="37"/>
@@ -118,7 +106,7 @@
     <message>
         <location filename="../../UI/Dialogs/Options/AppOptionsDialog.h" line="38"/>
         <source>Developer Options</source>
-        <translation type="unfinished"></translation>
+        <translation>开发者选项</translation>
     </message>
     <message>
         <source>Language</source>
@@ -127,7 +115,7 @@
     <message>
         <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="24"/>
         <source>Options</source>
-        <translation type="unfinished"></translation>
+        <translation>选项</translation>
     </message>
 </context>
 <context>
@@ -165,7 +153,7 @@
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="66"/>
         <source>Duration scale</source>
-        <translation type="unfinished"></translation>
+        <translation>时长缩放</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="40"/>
@@ -196,124 +184,132 @@
 <context>
     <name>Audio::AudioExporter</name>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="475"/>
-        <source>WAV - Mixed</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="476"/>
-        <source>WAV - Separated</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="477"/>
-        <source>FLAC - Mixed</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location filename="../../Modules/Audio/AudioExporter.cpp" line="478"/>
-        <source>FLAC - Separated</source>
-        <translation type="unfinished"></translation>
+        <source>WAV - Mixed</source>
+        <translation>WAV - 混合</translation>
     </message>
     <message>
         <location filename="../../Modules/Audio/AudioExporter.cpp" line="479"/>
-        <source>Ogg/Vorbis - Mixed</source>
-        <translation type="unfinished"></translation>
+        <source>WAV - Separated</source>
+        <translation>WAV - 分离</translation>
     </message>
     <message>
         <location filename="../../Modules/Audio/AudioExporter.cpp" line="480"/>
-        <source>Ogg/Vorbis - Separated</source>
-        <translation type="unfinished"></translation>
+        <source>FLAC - Mixed</source>
+        <translation>FLAC - 混合</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="529"/>
-        <source>No file will be exported. Please check if any source is selected.</source>
-        <translation type="unfinished"></translation>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="481"/>
+        <source>FLAC - Separated</source>
+        <translation>FLAC - 分离</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="482"/>
+        <source>Ogg/Vorbis - Mixed</source>
+        <translation>Ogg/Vorbis - 混合</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="483"/>
+        <source>Ogg/Vorbis - Separated</source>
+        <translation>Ogg/Vorbis - 分离</translation>
     </message>
     <message>
         <location filename="../../Modules/Audio/AudioExporter.cpp" line="532"/>
+        <source>No file will be exported. Please check if any source is selected.</source>
+        <translation>没有文件将被导出。请检查是否已选择任何源。</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="535"/>
         <source>The files to be exported contain files with duplicate names. Please check if the file name template is unique for each source.</source>
-        <translation type="unfinished"></translation>
+        <translation>待导出的文件包含重名文件。请检查文件名模板是否对每个源都是唯一的。</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="536"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="539"/>
         <source>The files to be exported contain files with the same name as existing files. If continue, the existing files will be overwritten.</source>
-        <translation type="unfinished"></translation>
+        <translation>待导出的文件与现有文件重名。如果继续，现有文件将被覆盖。</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="540"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="543"/>
         <source>Unrecognized file name template. Please check the syntax of the file name template.</source>
-        <translation type="unfinished"></translation>
+        <translation>无法识别的文件名模板。请检查文件名模板的语法。</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="544"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="547"/>
         <source>The currently selected file type is a lossy format. To avoid loss of sound quality, please use WAV or FLAC format.</source>
-        <translation type="unfinished"></translation>
+        <translation>当前选择的文件类型为有损格式。为避免音质损失，请使用 WAV 或 FLAC 格式。</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="587"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="590"/>
         <source>Cannot open file for writing: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>无法打开文件写入：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="596"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="599"/>
         <source>Format not supported: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>不支持的格式：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="646"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="649"/>
         <source>Cannot reopen audio after exported</source>
-        <translation type="unfinished"></translation>
+        <translation>导出后无法重新打开音频</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="652"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="655"/>
         <source>Cannot start audio exporting</source>
-        <translation type="unfinished"></translation>
+        <translation>无法开始音频导出</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="685"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="689"/>
         <source>Internal Error</source>
-        <translation type="unfinished"></translation>
+        <translation>内部错误</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="696"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="700"/>
         <source>Cannot rename temporary files to target files</source>
-        <translation type="unfinished"></translation>
+        <translation>无法将临时文件重命名为目标文件</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="727"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="731"/>
         <source>Unknown error</source>
-        <translation type="unfinished"></translation>
+        <translation>未知错误</translation>
     </message>
 </context>
 <context>
     <name>Audio::AudioExporterConfig</name>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="69"/>
-        <source>32-bit float (IEEE 754)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location filename="../../Modules/Audio/AudioExporter.cpp" line="71"/>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="77"/>
-        <source>24-bit PCM</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="72"/>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="78"/>
-        <source>16-bit PCM</source>
-        <translation type="unfinished"></translation>
+        <source>32-bit float (IEEE 754)</source>
+        <translation>32 位浮点 (IEEE 754)</translation>
     </message>
     <message>
         <location filename="../../Modules/Audio/AudioExporter.cpp" line="73"/>
-        <source>Unsigned 8-bit PCM</source>
-        <translation type="unfinished"></translation>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="79"/>
+        <source>24-bit PCM</source>
+        <translation>24 位 PCM</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="79"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="74"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="80"/>
+        <source>16-bit PCM</source>
+        <translation>16 位 PCM</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="75"/>
+        <source>Unsigned 8-bit PCM</source>
+        <translation>无符号 8 位 PCM</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="81"/>
         <source>8-bit PCM</source>
-        <translation type="unfinished"></translation>
+        <translation>8 位 PCM</translation>
+    </message>
+</context>
+<context>
+    <name>Audio::AudioExporterPrivate</name>
+    <message>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="214"/>
+        <source>Untitled</source>
+        <translation>未命名</translation>
     </message>
 </context>
 <context>
@@ -321,346 +317,356 @@
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="39"/>
         <source>Export Audio</source>
-        <translation type="unfinished">导出音频</translation>
+        <translation>导出音频</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="54"/>
         <source>&amp;Delete</source>
-        <translation type="unfinished">删除(&amp;D)</translation>
+        <translation>删除(&amp;D)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="56"/>
         <source>&amp;Preset</source>
-        <translation type="unfinished"></translation>
+        <translation>预设(&amp;P)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="66"/>
         <source>File Path</source>
-        <translation type="unfinished">文件路径</translation>
+        <translation>文件路径</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="52"/>
         <source>Save &amp;As...</source>
-        <translation type="unfinished">另存为(&amp;A)...</translation>
+        <translation>另存为(&amp;A)...</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="68"/>
         <source>&amp;Browse...</source>
-        <translation type="unfinished"></translation>
+        <translation>浏览(&amp;B)...</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="75"/>
         <source>Template</source>
-        <translation type="unfinished"></translation>
+        <translation>模板</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="108"/>
         <source>&lt;p&gt;You can specify the name (including extension name) of exported files.&lt;/p&gt;&lt;p&gt;Template tags in the file name will be replaced with the corresponding text. The following are the available template tags:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;b&gt;${projectName}&lt;/b&gt;: the base name of the project file (excluding extension name)&lt;/li&gt;&lt;li&gt;&lt;b&gt;${sampleRate}&lt;/b&gt;: the sample rate specified in export configuration&lt;/li&gt;&lt;li&gt;&lt;b&gt;${today}&lt;/b&gt;: today&apos;s date in &quot;yyyyMMdd&quot; format (e. g. &quot;19260817&quot; for August 17, 1926)&lt;/li&gt;&lt;li&gt;&lt;b&gt;${$}&lt;/b&gt;: a single &quot;$&quot; character&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;In particular, the following template tags are available only when the mixing option is not &quot;mixed&quot;:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;b&gt;${trackName}&lt;/b&gt;: the name of track&lt;/li&gt;&lt;li&gt;&lt;b&gt;${trackIndex}&lt;/b&gt;: the index of track (starting from 1)&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;You can select the template tag in the pop-up menu. The selected template tag will be appended to the end of the file name.&lt;/p&gt;</source>
-        <translation type="unfinished"></translation>
+        <translation>您可以指定导出文件的名称（包括扩展名）。文件名中的模板标签将被替换为相应的文本。以下是可用的模板标签：
+• ${projectName}：工程文件的基本名称（不含扩展名）
+• ${sampleRate}：导出配置中指定的采样率
+• ${today}：以 &quot;yyyyMMdd&quot; 格式表示的今天日期（例如 &quot;19260817&quot; 表示 1926 年 8 月 17 日）
+• ${$}：一个 &quot;$&quot; 字符
+当混合选项不为 &quot;mixed&quot; 时，还支持以下模板标签：
+• ${trackName}：轨道名称
+• ${trackIndex}：轨道索引（从 1 开始）
+您可以在弹出菜单中选择模板标签。选中的模板标签将追加到文件名的末尾。</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="130"/>
         <source>&amp;Name</source>
-        <translation type="unfinished"></translation>
+        <translation>名称(&amp;N)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="136"/>
         <source>(Project directory)</source>
-        <translation type="unfinished"></translation>
+        <translation>（项目目录）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="137"/>
         <source>Dire&amp;ctory</source>
-        <translation type="unfinished"></translation>
+        <translation>目录(&amp;c)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="139"/>
         <source>WAV</source>
-        <translation type="unfinished"></translation>
+        <translation>WAV</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="139"/>
         <source>FLAC</source>
-        <translation type="unfinished"></translation>
+        <translation>FLAC</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="139"/>
         <source>Ogg Vorbis</source>
-        <translation type="unfinished"></translation>
+        <translation>Ogg Vorbis</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="139"/>
         <source>MP3</source>
-        <translation type="unfinished"></translation>
+        <translation>MP3</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="140"/>
         <source>&amp;Type</source>
-        <translation type="unfinished"></translation>
+        <translation>类型(&amp;T)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="144"/>
         <source>Format</source>
-        <translation type="unfinished"></translation>
+        <translation>格式</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="148"/>
         <source>Mono</source>
-        <translation type="unfinished"></translation>
+        <translation>单声道</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="148"/>
         <source>Stereo</source>
-        <translation type="unfinished"></translation>
+        <translation>立体声</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="149"/>
         <source>C&amp;hannel</source>
-        <translation type="unfinished"></translation>
+        <translation>声道(&amp;h)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="151"/>
         <source>&amp;Option</source>
-        <translation type="unfinished"></translation>
+        <translation>选项(&amp;O)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="162"/>
         <source>&amp;Quality</source>
-        <translation type="unfinished"></translation>
+        <translation>质量(&amp;Q)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="178"/>
         <source>&amp;Sample rate</source>
-        <translation type="unfinished">采样率(&amp;S)</translation>
+        <translation>采样率(&amp;S)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="182"/>
         <source>Mixer</source>
-        <translation type="unfinished"></translation>
+        <translation>混音器</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="186"/>
         <source>Mixed</source>
-        <translation type="unfinished"></translation>
+        <translation>混合</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="187"/>
         <source>Separated</source>
-        <translation type="unfinished"></translation>
+        <translation>分离</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="188"/>
         <source>Separated (through master track)</source>
-        <translation type="unfinished"></translation>
+        <translation>分离（通过主轨）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="194"/>
         <source>&amp;Mixing option</source>
-        <translation type="unfinished"></translation>
+        <translation>混音选项(&amp;M)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="195"/>
         <source>Enable m&amp;ute/solo</source>
-        <translation type="unfinished"></translation>
+        <translation>启用静音/独奏(&amp;u)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="200"/>
         <source>All tracks</source>
-        <translation type="unfinished"></translation>
+        <translation>所有轨道</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="201"/>
         <source>Selected tracks</source>
-        <translation type="unfinished"></translation>
+        <translation>选中轨道</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="202"/>
         <source>Custom</source>
-        <translation type="unfinished">自定义</translation>
+        <translation>自定义</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="204"/>
         <source>&amp;Source</source>
-        <translation type="unfinished"></translation>
+        <translation>源(&amp;S)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="227"/>
         <source>Time Range</source>
-        <translation type="unfinished"></translation>
+        <translation>时间范围</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="230"/>
         <source>A&amp;ll</source>
-        <translation type="unfinished"></translation>
+        <translation>全部(&amp;l)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="233"/>
         <source>Loop s&amp;ection</source>
-        <translation type="unfinished"></translation>
+        <translation>循环选区(&amp;e)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="245"/>
         <source>&amp;Keep this dialog open after successful export</source>
-        <translation type="unfinished"></translation>
+        <translation>导出成功后保持此对话框打开(&amp;K)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="249"/>
         <source>Dry &amp;Run</source>
-        <translation type="unfinished"></translation>
+        <translation>预演(&amp;R)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="253"/>
         <source>&quot;Dry Run&quot; shows the paths of files to export. No files will actually be exported.</source>
-        <translation type="unfinished"></translation>
+        <translation>「预演」显示将要导出的文件路径。实际上不会导出任何文件。</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="259"/>
         <source>Warning</source>
-        <translation type="unfinished">警告</translation>
+        <translation>警告</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="261"/>
         <source>Export</source>
-        <translation type="unfinished">导出</translation>
+        <translation>导出</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="264"/>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="647"/>
         <source>Cancel</source>
-        <translation type="unfinished">取消</translation>
+        <translation>取消</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="380"/>
         <source>Preset name</source>
-        <translation type="unfinished"></translation>
+        <translation>预设名称</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="386"/>
         <source>Preset &quot;%1&quot; already exists. Overwrite it?</source>
-        <translation type="unfinished"></translation>
+        <translation>预设「%1」已存在。是否覆盖？</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="450"/>
         <source>WAV (*.wav)</source>
-        <translation type="unfinished"></translation>
+        <translation>WAV (*.wav)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="451"/>
         <source>FLAC (*.flac)</source>
-        <translation type="unfinished"></translation>
+        <translation>FLAC (*.flac)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="452"/>
         <source>Ogg Vorbis (*.ogg)</source>
-        <translation type="unfinished"></translation>
+        <translation>Ogg Vorbis (*.ogg)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="453"/>
         <source>MP3 (*.mp3)</source>
-        <translation type="unfinished"></translation>
+        <translation>MP3 (*.mp3)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="482"/>
         <source>File List</source>
-        <translation type="unfinished"></translation>
+        <translation>文件列表</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="511"/>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="690"/>
         <source>Warnings</source>
-        <translation type="unfinished"></translation>
+        <translation>警告</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="527"/>
         <source>OK</source>
-        <translation type="unfinished">确定</translation>
+        <translation>确定</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="533"/>
         <source>Dry Run</source>
-        <translation type="unfinished"></translation>
+        <translation>预演</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="628"/>
         <source>Preparing...</source>
-        <translation type="unfinished"></translation>
+        <translation>准备中...</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="639"/>
         <source>&amp;Keep partial files</source>
-        <translation type="unfinished"></translation>
+        <translation>保留部分文件(&amp;K)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="661"/>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="672"/>
         <source>Exporting...</source>
-        <translation type="unfinished"></translation>
+        <translation>导出中...</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="695"/>
         <source>Clipping is detected</source>
-        <translation type="unfinished"></translation>
+        <translation>检测到削波</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="697"/>
         <source>Clipping is detected in track %1 &quot;%2&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation>轨道 %1「%2」中检测到削波</translation>
     </message>
     <message numerus="yes">
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="705"/>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="718"/>
         <source>%n warning(s)</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>%n 个警告</numerusform>
         </translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="766"/>
         <source>Close</source>
-        <translation type="unfinished">关闭</translation>
+        <translation>关闭</translation>
     </message>
     <message numerus="yes">
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="770"/>
         <source>Export finished with %n warning(s)</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>导出完成，共 %n 个警告</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="776"/>
         <source>Export aborted with %n warning(s)</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>导出中止，共 %n 个警告</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="781"/>
         <source>Export failed with %n warning(s)
 %1</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>导出失败，共 %n 个警告
+%1</numerusform>
         </translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="795"/>
         <source>Export aborted</source>
-        <translation type="unfinished"></translation>
+        <translation>导出已中止</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="801"/>
         <source>Export failed
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>导出失败
+%1</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="829"/>
         <source>Continue to export?</source>
-        <translation type="unfinished"></translation>
+        <translation>继续导出？</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="834"/>
         <source>Don&apos;t ask again</source>
-        <translation type="unfinished"></translation>
+        <translation>不再询问</translation>
     </message>
 </context>
 <context>
@@ -668,18 +674,18 @@
     <message>
         <location filename="../../Modules/Audio/utils/SettingPagesSynthHelper.cpp" line="111"/>
         <source>Why did you play ...?!</source>
-        <translation type="unfinished"></translation>
+        <translation>你为什么播放了……？！</translation>
     </message>
     <message>
         <location filename="../../Modules/Audio/utils/SettingPagesSynthHelper.cpp" line="113"/>
         <source>I&apos;ll put an end to it.</source>
-        <translation type="unfinished"></translation>
+        <translation>我来终结它。</translation>
     </message>
 </context>
 <context>
     <name>AudioClipView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="520"/>
+        <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="532"/>
         <source>[Audio] </source>
         <translation>[音频] </translation>
     </message>
@@ -690,7 +696,7 @@
         <location filename="../../Modules/Audio/AudioContext.cpp" line="257"/>
         <location filename="../../Modules/Audio/AudioContext.cpp" line="530"/>
         <source>Inference failed</source>
-        <translation type="unfinished"></translation>
+        <translation>推理失败</translation>
     </message>
     <message>
         <location filename="../../Modules/Audio/AudioContext.cpp" line="273"/>
@@ -719,34 +725,34 @@
 <context>
     <name>CellList</name>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="391"/>
+        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="413"/>
         <source>append cell</source>
-        <translation type="unfinished"></translation>
+        <translation>追加单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="393"/>
+        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="416"/>
         <source>delete line</source>
-        <translation type="unfinished"></translation>
+        <translation>删除行</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="394"/>
+        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="418"/>
         <source>add prev line</source>
-        <translation type="unfinished"></translation>
+        <translation>添加上一行</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="395"/>
+        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="420"/>
         <source>add next line</source>
-        <translation type="unfinished"></translation>
+        <translation>添加下一行</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="398"/>
+        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="424"/>
         <source>move up</source>
-        <translation type="unfinished"></translation>
+        <translation>上移</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="400"/>
+        <location filename="../../Modules/FillLyric/Controls/CellList.cpp" line="427"/>
         <source>move down</source>
-        <translation type="unfinished"></translation>
+        <translation>下移</translation>
     </message>
 </context>
 <context>
@@ -775,104 +781,102 @@
     <message>
         <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="63"/>
         <source>Move clip to track</source>
-        <translation type="unfinished"></translation>
+        <translation>移动剪辑到轨道</translation>
     </message>
 </context>
 <context>
     <name>ClipEditorToolBarView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="63"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="62"/>
         <source>Clip Name</source>
         <translation>剪辑名称</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="79"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="77"/>
         <source>Clip Singer</source>
-        <translation type="unfinished"></translation>
+        <translation>剪辑歌手</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="86"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="84"/>
         <source>(Scanning packages...)</source>
-        <translation type="unfinished"></translation>
+        <translation>（正在扫描包...）</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="117"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="115"/>
         <source>Piano Roll Quantize</source>
-        <translation type="unfinished"></translation>
+        <translation>钢琴卷帘量化</translation>
+    </message>
+    <message>
+        <source>Retake</source>
+        <translation type="vanished">重录</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="126"/>
-        <source>Retake</source>
-        <translation>重录</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="136"/>
         <source>Select</source>
         <translation>选择</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="139"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="129"/>
         <source>Interval Select</source>
         <translation>区间选择</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="141"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="131"/>
         <source>Drag in the blank: Draw a new note
 Drag on a note: Edit the note</source>
         <translation>在空白处拖动：绘制新音符
 在音符上拖动：编辑音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="143"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="133"/>
         <source>Draw Note</source>
         <translation>绘制音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="145"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="135"/>
         <source>Erase Note</source>
         <translation>擦除音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="147"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="137"/>
         <source>Split Note</source>
-        <translation type="unfinished"></translation>
+        <translation>分割音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="148"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="138"/>
         <source>Split note at quantize line</source>
-        <translation type="unfinished"></translation>
+        <translation>在量化线处分割音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="150"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="140"/>
         <source>Pitch Anchor</source>
-        <translation type="unfinished"></translation>
+        <translation>音高锚点</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="151"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="141"/>
         <source>Left drag: Draw
 Right drag: Erase</source>
         <translation>左键拖动：绘制
 右键拖动：擦除</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="154"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="144"/>
         <source>Draw Pitch</source>
         <translation>绘制音高</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="156"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="146"/>
         <source>Erase Pitch</source>
         <translation>擦除音高</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="157"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="147"/>
         <source>Copy automatic pitch inference results to edited pitch</source>
         <translation>复制自动音高推理结果到已编辑音高</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="160"/>
         <source>Vibrato</source>
-        <translation>颤音</translation>
+        <translation type="vanished">颤音</translation>
     </message>
     <message>
         <source>Maximize or restore</source>
@@ -883,7 +887,7 @@ Right drag: Erase</source>
         <translation type="vanished">隐藏</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="110"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="108"/>
         <source>Clip Default Language</source>
         <translation>剪辑默认语种</translation>
     </message>
@@ -891,14 +895,47 @@ Right drag: Erase</source>
 <context>
     <name>ClipEditorToolBarViewPrivate</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="497"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="468"/>
         <source>Manage mix presets...</source>
-        <translation type="unfinished"></translation>
+        <translation>管理混音预设...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="519"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="490"/>
         <source>Preset speakers are unavailable</source>
-        <translation type="unfinished"></translation>
+        <translation>预设歌手不可用</translation>
+    </message>
+</context>
+<context>
+    <name>ClipEditorView</name>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorView.cpp" line="30"/>
+        <source>Edit</source>
+        <translation>编辑</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ClipEditorView.cpp" line="60"/>
+        <source>Please select a singing clip to edit</source>
+        <translation>请选择一个歌声剪辑来编辑</translation>
+    </message>
+</context>
+<context>
+    <name>DecodeAudioTask</name>
+    <message>
+        <location filename="../../Controller/Tasks/DecodeAudioTask.cpp" line="15"/>
+        <location filename="../../Controller/Tasks/DecodeAudioTask.cpp" line="34"/>
+        <source>Decoding audio...</source>
+        <translation>正在解码音频...</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Tasks/DecodeAudioTask.cpp" line="48"/>
+        <source>No audio IO</source>
+        <translation>无音频 IO</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Tasks/DecodeAudioTask.cpp" line="68"/>
+        <location filename="../../Controller/Tasks/DecodeAudioTask.cpp" line="125"/>
+        <source>Canceling decoding...</source>
+        <translation>正在取消解码...</translation>
     </message>
 </context>
 <context>
@@ -906,12 +943,12 @@ Right drag: Erase</source>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/Cards/DescriptionCard.cpp" line="28"/>
         <source>Description</source>
-        <translation type="unfinished"></translation>
+        <translation>描述</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/Cards/DescriptionCard.cpp" line="33"/>
         <source>No description.</source>
-        <translation type="unfinished"></translation>
+        <translation>无描述。</translation>
     </message>
 </context>
 <context>
@@ -919,52 +956,52 @@ Right drag: Erase</source>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="43"/>
         <source>Diagnostics</source>
-        <translation type="unfinished"></translation>
+        <translation>诊断</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="44"/>
         <source>Enable diagnostic output</source>
-        <translation type="unfinished"></translation>
+        <translation>启用诊断输出</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="45"/>
         <source>Print event loop performance statistics to debug output</source>
-        <translation type="unfinished"></translation>
+        <translation>将事件循环性能统计信息打印到调试输出</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="47"/>
         <source>Show timeline debug overlay</source>
-        <translation type="unfinished"></translation>
+        <translation>显示时间线调试覆盖层</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="48"/>
         <source>Display piece boundaries and range overlays on the timeline</source>
-        <translation type="unfinished"></translation>
+        <translation>在时间线上显示分段边界和范围覆盖层</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="50"/>
         <source>Show clip debug info</source>
-        <translation type="unfinished"></translation>
+        <translation>显示剪辑调试信息</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="51"/>
         <source>Display clip ID and detailed time info on track clips</source>
-        <translation type="unfinished"></translation>
+        <translation>在轨道剪辑上显示剪辑 ID 和详细时间信息</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="54"/>
         <source>Experimental</source>
-        <translation type="unfinished"></translation>
+        <translation>实验性</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="55"/>
         <source>Enable panel detach</source>
-        <translation type="unfinished"></translation>
+        <translation>启用面板分离</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="56"/>
         <source>Show the detach button on panel title bars to separate panels into standalone windows</source>
-        <translation type="unfinished"></translation>
+        <translation>在面板标题栏上显示分离按钮，将面板分离为独立窗口</translation>
     </message>
 </context>
 <context>
@@ -972,12 +1009,12 @@ Right drag: Erase</source>
     <message>
         <location filename="../../UI/Controls/DirSelector.cpp" line="15"/>
         <source>Browse</source>
-        <translation type="unfinished"></translation>
+        <translation>浏览</translation>
     </message>
     <message>
         <location filename="../../UI/Controls/DirSelector.cpp" line="76"/>
         <source>Select a Directory</source>
-        <translation type="unfinished"></translation>
+        <translation>选择目录</translation>
     </message>
 </context>
 <context>
@@ -1044,51 +1081,207 @@ Right drag: Erase</source>
     </message>
 </context>
 <context>
+    <name>DocumentWorkflowController</name>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="55"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="76"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="569"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="623"/>
+        <source>New Project</source>
+        <translation>新工程</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="304"/>
+        <source>File not found</source>
+        <translation>文件未找到</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="304"/>
+        <source>File does not exist: %1</source>
+        <translation>文件不存在：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="314"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="429"/>
+        <source>Unsupported file</source>
+        <translation>不支持的文件</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="314"/>
+        <source>Unrecognized file format: %1</source>
+        <translation>无法识别的文件格式：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="407"/>
+        <source>Failed to save project</source>
+        <translation>保存工程失败</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="429"/>
+        <source>This operation is not supported.</source>
+        <translation>不支持此操作。</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="462"/>
+        <source>Applying project...</source>
+        <translation>正在应用工程...</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="471"/>
+        <source>Failed to apply project</source>
+        <translation>应用工程失败</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="471"/>
+        <source>The prepared project is empty.</source>
+        <translation>准备好的工程为空。</translation>
+    </message>
+</context>
+<context>
+    <name>DspxLoadSession</name>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DspxLoadSession.cpp" line="47"/>
+        <location filename="../../Controller/DocumentWorkflow/DspxLoadSession.cpp" line="135"/>
+        <source>Opening Project</source>
+        <translation>正在打开工程</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DspxLoadSession.cpp" line="47"/>
+        <source>Scanning singer packages...</source>
+        <translation>正在扫描歌手包...</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DspxLoadSession.cpp" line="131"/>
+        <location filename="../../Controller/DocumentWorkflow/DspxLoadSession.cpp" line="143"/>
+        <source>Failed to open project</source>
+        <translation>打开工程失败</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/DspxLoadSession.cpp" line="135"/>
+        <source>Applying project...</source>
+        <translation>正在应用工程...</translation>
+    </message>
+</context>
+<context>
+    <name>DspxProjectConverter</name>
+    <message>
+        <location filename="../../Modules/ProjectConverters/DspxProjectConverter.cpp" line="956"/>
+        <source>Failed to load project file: timeline is incomplete.</source>
+        <translation>加载工程文件失败：时间线不完整。</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/DspxProjectConverter.cpp" line="964"/>
+        <source>Failed to load project file: timeline values are invalid.</source>
+        <translation>加载工程文件失败：时间线数值无效。</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/DspxProjectConverter.cpp" line="992"/>
+        <source>Failed to open project file: %1</source>
+        <translation>打开工程文件失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/DspxProjectConverter.cpp" line="999"/>
+        <source>Failed to load project file.
+path: %1
+%2</source>
+        <translation>加载工程文件失败。
+路径：%1
+%2</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/DspxProjectConverter.cpp" line="1231"/>
+        <source>Failed to open file for writing: %1</source>
+        <translation>打开文件写入失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/DspxProjectConverter.cpp" line="1243"/>
+        <source>Failed to write all data to file: %1</source>
+        <translation>未能将全部数据写入文件：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/DspxProjectConverter.cpp" line="1251"/>
+        <source>Serialization errors occurred:</source>
+        <translation>发生序列化错误：</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/DspxProjectConverter.cpp" line="1273"/>
+        <source> at %1</source>
+        <translation> 于 %1</translation>
+    </message>
+</context>
+<context>
+    <name>DspxProjectParser</name>
+    <message>
+        <location filename="../../Modules/ProjectConverters/DspxProjectParser.cpp" line="22"/>
+        <source>Error type: %1
+</source>
+        <translation>错误类型：%1
+</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/DspxProjectParser.cpp" line="24"/>
+        <source>Failed to parse project file.
+errors: %1</source>
+        <translation>解析工程文件失败。
+错误：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/DspxProjectParser.cpp" line="29"/>
+        <source>Failed to parse project file: %1</source>
+        <translation>解析工程文件失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/DspxProjectParser.cpp" line="32"/>
+        <source>Failed to parse project file: unknown error</source>
+        <translation>解析工程文件失败：未知错误</translation>
+    </message>
+</context>
+<context>
     <name>ExtractMidiTask</name>
     <message>
         <location filename="../../Modules/Extractors/ExtractMidiTask.cpp" line="18"/>
         <source>Extract Midi</source>
-        <translation type="unfinished"></translation>
+        <translation>提取 MIDI</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractMidiTask.cpp" line="19"/>
         <source>Pending infer: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>待推理：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractMidiTask.cpp" line="24"/>
         <source>Inference engine is not loaded</source>
-        <translation type="unfinished"></translation>
+        <translation>推理引擎未加载</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractMidiTask.cpp" line="39"/>
         <source>Invalid game model dir: </source>
-        <translation type="unfinished"></translation>
+        <translation>无效的游戏模型目录：</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractMidiTask.cpp" line="50"/>
         <source>Failed to create game session: </source>
-        <translation type="unfinished"></translation>
+        <translation>创建游戏会话失败：</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractMidiTask.cpp" line="89"/>
         <source>game model run failed. Reason: </source>
-        <translation type="unfinished"></translation>
+        <translation>游戏模型运行失败。原因：</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractMidiTask.cpp" line="58"/>
         <source>Running inference: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>正在运行推理：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractMidiTask.cpp" line="84"/>
         <source>Successfully extracted midi.</source>
-        <translation type="unfinished"></translation>
+        <translation>成功提取 MIDI。</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractMidiTask.cpp" line="100"/>
         <source>Task terminated.</source>
-        <translation type="unfinished"></translation>
+        <translation>任务已终止。</translation>
     </message>
 </context>
 <context>
@@ -1096,12 +1289,12 @@ Right drag: Erase</source>
     <message>
         <location filename="../../UI/Dialogs/Extractor/ExtractPitchParamDialog.cpp" line="16"/>
         <source>Extract Pitch Parameter</source>
-        <translation type="unfinished"></translation>
+        <translation>提取音高参数</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Extractor/ExtractPitchParamDialog.cpp" line="17"/>
         <source>Select an audio clip</source>
-        <translation type="unfinished"></translation>
+        <translation>选择一个音频剪辑</translation>
     </message>
 </context>
 <context>
@@ -1109,47 +1302,80 @@ Right drag: Erase</source>
     <message>
         <location filename="../../Modules/Extractors/ExtractPitchTask.cpp" line="20"/>
         <source>Extract Pitch</source>
-        <translation type="unfinished"></translation>
+        <translation>提取音高</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractPitchTask.cpp" line="21"/>
         <source>Pending infer: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>待推理：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractPitchTask.cpp" line="26"/>
         <source>Inference engine is not loaded</source>
-        <translation type="unfinished"></translation>
+        <translation>推理引擎未加载</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractPitchTask.cpp" line="41"/>
         <source>Invalid RMVPE model path: </source>
-        <translation type="unfinished"></translation>
+        <translation>无效的 RMVPE 模型路径：</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractPitchTask.cpp" line="51"/>
         <source>Failed to create RMVPE session: </source>
-        <translation type="unfinished"></translation>
+        <translation>创建 RMVPE 会话失败：</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractPitchTask.cpp" line="59"/>
         <source>Running inference: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>正在运行推理：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractPitchTask.cpp" line="86"/>
         <source>Successfully extracted pitch.</source>
-        <translation type="unfinished"></translation>
+        <translation>成功提取音高。</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractPitchTask.cpp" line="97"/>
         <source>RMVPE model run failed. Reason: </source>
-        <translation type="unfinished"></translation>
+        <translation>RMVPE 模型运行失败。原因：</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/ExtractPitchTask.cpp" line="108"/>
         <source>Task terminated.</source>
-        <translation type="unfinished"></translation>
+        <translation>任务已终止。</translation>
+    </message>
+</context>
+<context>
+    <name>FilePopupWidget</name>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/FilePopupWidget.cpp" line="156"/>
+        <source>Show in Folder</source>
+        <translation>在文件夹中显示</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/FilePopupWidget.cpp" line="162"/>
+        <source>Remove</source>
+        <translation>移除</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/FilePopupWidget.cpp" line="291"/>
+        <source>New</source>
+        <translation>新建</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/FilePopupWidget.cpp" line="302"/>
+        <source>Open...</source>
+        <translation>打开...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/FilePopupWidget.cpp" line="324"/>
+        <source>Recent Projects</source>
+        <translation>最近工程</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/FilePopupWidget.cpp" line="334"/>
+        <source>(No Recent Projects)</source>
+        <translation>（无最近工程）</translation>
     </message>
 </context>
 <context>
@@ -1157,17 +1383,17 @@ Right drag: Erase</source>
     <message>
         <location filename="../../UI/Controls/FileSelector.cpp" line="16"/>
         <source>Browse</source>
-        <translation type="unfinished"></translation>
+        <translation>浏览</translation>
     </message>
     <message>
         <location filename="../../UI/Controls/FileSelector.cpp" line="102"/>
         <source>Select a Folder</source>
-        <translation type="unfinished"></translation>
+        <translation>选择文件夹</translation>
     </message>
     <message>
         <location filename="../../UI/Controls/FileSelector.cpp" line="105"/>
         <source>Select a File</source>
-        <translation type="unfinished"></translation>
+        <translation>选择文件</translation>
     </message>
 </context>
 <context>
@@ -1176,36 +1402,36 @@ Right drag: Erase</source>
         <location filename="../../Modules/FillLyric/LyricTab.cpp" line="65"/>
         <location filename="../../Modules/FillLyric/LyricTab.cpp" line="96"/>
         <source>Fold Preview</source>
-        <translation type="unfinished"></translation>
+        <translation>折叠预览</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/LyricTab.cpp" line="65"/>
         <location filename="../../Modules/FillLyric/LyricTab.cpp" line="94"/>
         <source>Lyric Prev</source>
-        <translation type="unfinished"></translation>
+        <translation>歌词预览</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/LyricTab.cpp" line="79"/>
         <source>Fold Left</source>
-        <translation type="unfinished"></translation>
+        <translation>折叠左侧</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/LyricTab.cpp" line="79"/>
         <location filename="../../Modules/FillLyric/LyricTab.cpp" line="88"/>
         <source>Expand Left</source>
-        <translation type="unfinished"></translation>
+        <translation>展开左侧</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/LyricTab.cpp" line="115"/>
         <location filename="../../Modules/FillLyric/LyricTab.cpp" line="190"/>
         <source>Preview Lyric</source>
-        <translation type="unfinished"></translation>
+        <translation>预览歌词</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/LyricTab.cpp" line="115"/>
         <location filename="../../Modules/FillLyric/LyricTab.cpp" line="190"/>
         <source>Split the lyric into Preview window?</source>
-        <translation type="unfinished"></translation>
+        <translation>将歌词拆分到预览窗口？</translation>
     </message>
 </context>
 <context>
@@ -1213,7 +1439,7 @@ Right drag: Erase</source>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/RuleListItemWidget.cpp" line="38"/>
         <source>Built-in rule (read-only)</source>
-        <translation type="unfinished"></translation>
+        <translation>内置规则（只读）</translation>
     </message>
 </context>
 <context>
@@ -1221,76 +1447,82 @@ Right drag: Erase</source>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/RuleListPanel.cpp" line="23"/>
         <source>Add rule</source>
-        <translation type="unfinished"></translation>
+        <translation>添加规则</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/RuleListPanel.cpp" line="29"/>
         <source>Remove rule</source>
-        <translation type="unfinished"></translation>
+        <translation>移除规则</translation>
     </message>
 </context>
 <context>
     <name>FillLyric::RuleTestTab</name>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="24"/>
+        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="23"/>
         <source>Input Text</source>
-        <translation type="unfinished"></translation>
+        <translation>输入文本</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="31"/>
+        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="30"/>
         <source>Enter text here, e.g.: &quot;小酒窝长睫毛是你最美的记号&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation>在此输入文本，例如：「小酒窝长睫毛是你最美的记号」</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="42"/>
+        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="41"/>
         <source>Run Test</source>
-        <translation type="unfinished"></translation>
+        <translation>运行测试</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="49"/>
+        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="48"/>
         <source>Step 1 - Split Result</source>
-        <translation type="unfinished"></translation>
+        <translation>步骤 1 - 分割结果</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="55"/>
+        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="54"/>
         <source>Text is split into tokens by splitter rules (applied in order).</source>
-        <translation type="unfinished"></translation>
+        <translation>文本按分割器规则（按顺序应用）分割为标记。</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="59"/>
+        <source>Edit Splitter &gt;&gt;</source>
+        <translation>编辑分割器 &gt;&gt;</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="60"/>
-        <source>Edit Splitter &gt;&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="61"/>
         <source>Jump to Splitter config tab</source>
-        <translation type="unfinished"></translation>
+        <translation>跳转到分割器配置选项卡</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="74"/>
+        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="73"/>
         <source>Step 2 - Tag Result</source>
-        <translation type="unfinished"></translation>
+        <translation>步骤 2 - 标注结果</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="80"/>
+        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="78"/>
         <source>Each token from step 1 is tagged with language/tag by tagger rules (first match wins).</source>
-        <translation type="unfinished"></translation>
+        <translation>步骤 1 中的每个标记由标注器规则标注语种/标签（首个匹配优先）。</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="84"/>
+        <source>Edit Tagger &gt;&gt;</source>
+        <translation>编辑标注器 &gt;&gt;</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="85"/>
-        <source>Edit Tagger &gt;&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="86"/>
         <source>Jump to Tagger config tab</source>
-        <translation type="unfinished"></translation>
+        <translation>跳转到标注器配置选项卡</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="125"/>
+        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="123"/>
         <source>Token count: %1
 </source>
-        <translation type="unfinished"></translation>
+        <translation>标记数量：%1
+</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="135"/>
+        <source>, discard</source>
+        <translation>（丢弃）</translation>
     </message>
 </context>
 <context>
@@ -1298,47 +1530,47 @@ Right drag: Erase</source>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterConfigTab.cpp" line="59"/>
         <source>Splitter rules only affect Auto split mode. Regexes are applied in list order from top to bottom.</source>
-        <translation type="unfinished"></translation>
+        <translation>分割器规则仅影响自动分割模式。正则表达式按列表顺序从上到下应用。</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterConfigTab.cpp" line="66"/>
         <source>Apply</source>
-        <translation type="unfinished">应用</translation>
+        <translation>应用</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterConfigTab.cpp" line="69"/>
         <source>Test &gt;&gt;</source>
-        <translation type="unfinished"></translation>
+        <translation>测试 &gt;&gt;</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterConfigTab.cpp" line="70"/>
         <source>Jump to Test tab to preview split/tag results</source>
-        <translation type="unfinished"></translation>
+        <translation>跳转到测试选项卡以预览分割/标注结果</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterConfigTab.cpp" line="240"/>
         <source>new-rule</source>
-        <translation type="unfinished"></translation>
+        <translation>新规则</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterConfigTab.cpp" line="296"/>
         <source>Error</source>
-        <translation type="unfinished">错误</translation>
+        <translation>错误</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterConfigTab.cpp" line="297"/>
         <source>Custom rule #%1 has an empty name.</source>
-        <translation type="unfinished"></translation>
+        <translation>自定义规则 #%1 名称为空。</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterConfigTab.cpp" line="304"/>
         <source>Invalid Regex</source>
-        <translation type="unfinished"></translation>
+        <translation>无效的正则表达式</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterConfigTab.cpp" line="305"/>
         <source>Rule &quot;%1&quot;: regex error in &quot;%2&quot;: %3</source>
-        <translation type="unfinished"></translation>
+        <translation>规则「%1」：正则表达式「%2」错误：%3</translation>
     </message>
 </context>
 <context>
@@ -1346,35 +1578,38 @@ Right drag: Erase</source>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterDetailPanel.cpp" line="24"/>
         <source>Select a rule from the list to view or edit details.</source>
-        <translation type="unfinished"></translation>
+        <translation>从列表中选择一个规则来查看或编辑详情。</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterDetailPanel.cpp" line="40"/>
         <source>Regexes:</source>
-        <translation type="unfinished"></translation>
+        <translation>正则表达式：</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterDetailPanel.cpp" line="45"/>
         <source>Built-in rules cannot be edited.
 Create a custom rule and reorder via drag-and-drop if needed.</source>
-        <translation type="unfinished"></translation>
+        <translation>内置规则无法编辑。
+如需调整，可创建自定义规则并通过拖放重新排序。</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterDetailPanel.cpp" line="61"/>
         <source>Name:</source>
-        <translation type="unfinished"></translation>
+        <translation>名称：</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterDetailPanel.cpp" line="66"/>
         <source>Regexes (one RE2 pattern per line):</source>
-        <translation type="unfinished"></translation>
+        <translation>正则表达式（每行一个 RE2 模式）：</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterDetailPanel.cpp" line="71"/>
         <source>Each regex must contain one capture group ().
 Matched and unmatched parts are kept as separate tokens.
 Uses RE2 syntax (no backreferences or lookahead).</source>
-        <translation type="unfinished"></translation>
+        <translation>每个正则表达式必须包含一个捕获组 ()。
+匹配和未匹配的部分将作为单独的标记保留。
+使用 RE2 语法（不支持反向引用或前瞻）。</translation>
     </message>
 </context>
 <context>
@@ -1382,97 +1617,116 @@ Uses RE2 syntax (no backreferences or lookahead).</source>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="57"/>
         <source>Tagger rules affect all split modes. Rules only match tokens with language=&quot;unknown&quot;; first match wins.</source>
-        <translation type="unfinished"></translation>
+        <translation>标注器规则影响所有分割模式。规则仅匹配 language=&quot;unknown&quot; 的标记；首个匹配优先。</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="64"/>
         <source>Apply</source>
-        <translation type="unfinished">应用</translation>
+        <translation>应用</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="67"/>
         <source>Test &gt;&gt;</source>
-        <translation type="unfinished"></translation>
+        <translation>测试 &gt;&gt;</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="68"/>
         <source>Jump to Test tab to preview split/tag results</source>
-        <translation type="unfinished"></translation>
+        <translation>跳转到测试选项卡以预览分割/标注结果</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="278"/>
         <source>Error</source>
-        <translation type="unfinished">错误</translation>
+        <translation>错误</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="279"/>
         <source>Custom rule #%1 has an empty language.</source>
-        <translation type="unfinished"></translation>
+        <translation>自定义规则 #%1 语种为空。</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="288"/>
         <source>Invalid Regex</source>
-        <translation type="unfinished"></translation>
+        <translation>无效的正则表达式</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="289"/>
         <source>Rule &quot;%1&quot;: regex error in &quot;%2&quot;: %3</source>
-        <translation type="unfinished"></translation>
+        <translation>规则「%1」：正则表达式「%2」错误：%3</translation>
     </message>
 </context>
 <context>
     <name>FillLyric::TaggerDetailPanel</name>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="28"/>
+        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="27"/>
         <source>Select a rule from the list to view or edit details.</source>
-        <translation type="unfinished"></translation>
+        <translation>从列表中选择一个规则来查看或编辑详情。</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="44"/>
-        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="70"/>
+        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="43"/>
+        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="69"/>
         <source>Entries:</source>
-        <translation type="unfinished"></translation>
+        <translation>条目：</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="49"/>
+        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="48"/>
         <source>Built-in rules cannot be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation>内置规则无法编辑。</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="63"/>
+        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="62"/>
         <source>Language:</source>
-        <translation type="unfinished">语种：</translation>
+        <translation>语种：</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="72"/>
+        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="71"/>
         <source>+ Add Entry</source>
-        <translation type="unfinished"></translation>
+        <translation>+ 添加条目</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="79"/>
         <source>Language must be a G2p-registered code (e.g. cmn, eng, jpn, yue).
 Regex values are merged with | for FullMatch. Array values are exact match.</source>
-        <translation type="unfinished"></translation>
+        <translation>语种必须是 G2p 注册的代码（例如 cmn, eng, jpn, yue）。
+正则值使用 | 合并进行 FullMatch。数组值为精确匹配。</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="171"/>
+        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="104"/>
+        <source>%1  (built-in)</source>
+        <translation>%1  （内置）</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="111"/>
+        <source>(discard)</source>
+        <translation>（丢弃）</translation>
+    </message>
+    <message>
+        <source>regex</source>
+        <translation type="vanished">正则</translation>
+    </message>
+    <message>
+        <source>array</source>
+        <translation type="vanished">数组</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="170"/>
         <source>Type:</source>
-        <translation type="unfinished"></translation>
+        <translation>类型：</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="175"/>
+        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="174"/>
         <source>Tag:</source>
-        <translation type="unfinished"></translation>
+        <translation>标签：</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="178"/>
+        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="177"/>
         <source>Discard</source>
-        <translation type="unfinished"></translation>
+        <translation>放弃</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="182"/>
+        <location filename="../../Modules/FillLyric/Widgets/TaggerDetailPanel.cpp" line="181"/>
         <source>Remove</source>
-        <translation type="unfinished"></translation>
+        <translation>移除</translation>
     </message>
 </context>
 <context>
@@ -1480,7 +1734,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/G2pPage.cpp" line="36"/>
         <source>G2p</source>
-        <translation type="unfinished"></translation>
+        <translation>G2p</translation>
     </message>
 </context>
 <context>
@@ -1498,12 +1752,12 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="86"/>
         <source>Package Search Paths (needs restart)</source>
-        <translation type="unfinished"></translation>
+        <translation>包搜索路径（需要重启）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="105"/>
         <source>Game Model Dir</source>
-        <translation type="unfinished"></translation>
+        <translation>游戏模型目录</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="48"/>
@@ -1524,22 +1778,22 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="89"/>
         <source>ONNX Files (*.onnx);;All Files (*)</source>
-        <translation type="unfinished"></translation>
+        <translation>ONNX 文件 (*.onnx);;所有文件 (*)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="93"/>
         <source>Directories</source>
-        <translation type="unfinished"></translation>
+        <translation>目录</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="104"/>
         <source>Model</source>
-        <translation type="unfinished"></translation>
+        <translation>模型</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="106"/>
         <source>Rmvpe Model Path</source>
-        <translation type="unfinished"></translation>
+        <translation>RMVPE 模型路径</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="69"/>
@@ -1552,7 +1806,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Modules/PackageManager/Tasks/GetInstalledPackagesTask.cpp" line="12"/>
         <source>Get Installed Packages</source>
-        <translation type="unfinished"></translation>
+        <translation>获取已安装的包</translation>
     </message>
 </context>
 <context>
@@ -1560,7 +1814,12 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Modules/Inference/Tasks/GetPhonemeNameTask.cpp" line="29"/>
         <source>Fetch Phoneme Name</source>
-        <translation type="unfinished"></translation>
+        <translation>获取音素名称</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/Tasks/GetPhonemeNameTask.cpp" line="68"/>
+        <source>Processing: %1</source>
+        <translation>处理中：%1</translation>
     </message>
 </context>
 <context>
@@ -1568,7 +1827,15 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Modules/Inference/Tasks/GetPronunciationTask.cpp" line="26"/>
         <source>Fetch Pronunciation</source>
-        <translation type="unfinished"></translation>
+        <translation>获取发音</translation>
+    </message>
+</context>
+<context>
+    <name>ImportProjectActions</name>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/ImportProjectActions.cpp" line="12"/>
+        <source>Import MIDI</source>
+        <translation>导入 MIDI</translation>
     </message>
 </context>
 <context>
@@ -1576,22 +1843,22 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Modules/Inference/Tasks/InferAcousticTask.cpp" line="62"/>
         <source>Infer Acoustic</source>
-        <translation type="unfinished"></translation>
+        <translation>声学推理</translation>
     </message>
     <message>
         <location filename="../../Modules/Inference/Tasks/InferAcousticTask.cpp" line="63"/>
         <source>Pending infer: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>待推理：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Inference/Tasks/InferAcousticTask.cpp" line="82"/>
         <source>Running inference: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>正在运行推理：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Inference/Tasks/InferAcousticTask.cpp" line="282"/>
         <source>Terminating: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>正在终止：%1</translation>
     </message>
 </context>
 <context>
@@ -1599,22 +1866,39 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Modules/Inference/Tasks/InferDurationTask.cpp" line="57"/>
         <source>Infer Duration</source>
-        <translation type="unfinished"></translation>
+        <translation>时长推理</translation>
     </message>
     <message>
         <location filename="../../Modules/Inference/Tasks/InferDurationTask.cpp" line="58"/>
         <source>Pending infer: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>待推理：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Inference/Tasks/InferDurationTask.cpp" line="78"/>
         <source>Running inference: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>正在运行推理：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Inference/Tasks/InferDurationTask.cpp" line="224"/>
         <source>Terminating: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>正在终止：%1</translation>
+    </message>
+</context>
+<context>
+    <name>InferEngine</name>
+    <message>
+        <source>GPU: %1, Device ID: %2, Memory: %3</source>
+        <translation type="vanished">GPU：%1，设备 ID：%2，内存：%3</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferEngine.cpp" line="225"/>
+        <source>No available GPU device found.</source>
+        <translation>未找到可用的 GPU 设备。</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferEngine.cpp" line="259"/>
+        <source>Application is about to quit.</source>
+        <translation>应用即将退出。</translation>
     </message>
 </context>
 <context>
@@ -1622,22 +1906,35 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Modules/Inference/Tasks/InferPitchTask.cpp" line="53"/>
         <source>Infer Pitch</source>
-        <translation type="unfinished"></translation>
+        <translation>音高推理</translation>
     </message>
     <message>
         <location filename="../../Modules/Inference/Tasks/InferPitchTask.cpp" line="54"/>
         <source>Pending infer: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>待推理：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Inference/Tasks/InferPitchTask.cpp" line="73"/>
         <source>Running inference: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>正在运行推理：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Inference/Tasks/InferPitchTask.cpp" line="217"/>
         <source>Terminating: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>正在终止：%1</translation>
+    </message>
+</context>
+<context>
+    <name>InferTaskCommon</name>
+    <message>
+        <location filename="../../Modules/Inference/Tasks/InferTaskCommon.cpp" line="128"/>
+        <source>Invalid speaker mix source</source>
+        <translation>无效的声线混合源</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/Tasks/InferTaskCommon.cpp" line="135"/>
+        <source>Speaker mapping not found for speaker %1</source>
+        <translation>未找到歌手 %1 的映射</translation>
     </message>
 </context>
 <context>
@@ -1645,229 +1942,334 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Modules/Inference/Tasks/InferVarianceTask.cpp" line="53"/>
         <source>Infer Variance</source>
-        <translation type="unfinished"></translation>
+        <translation>唱法推理</translation>
     </message>
     <message>
         <location filename="../../Modules/Inference/Tasks/InferVarianceTask.cpp" line="54"/>
         <source>Pending infer: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>待推理：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Inference/Tasks/InferVarianceTask.cpp" line="73"/>
         <source>Running inference: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>正在运行推理：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Inference/Tasks/InferVarianceTask.cpp" line="229"/>
         <source>Terminating: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>正在终止：%1</translation>
+    </message>
+</context>
+<context>
+    <name>InferenceLoader</name>
+    <message>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="52"/>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="191"/>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="221"/>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="250"/>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="280"/>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="310"/>
+        <source>Application is about to quit</source>
+        <translation>应用即将退出</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="57"/>
+        <source>SingerSpec is nullptr</source>
+        <translation>SingerSpec 为空指针</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="62"/>
+        <source>SingerSpec invalid category: %1</source>
+        <translation>SingerSpec 类别无效：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="200"/>
+        <source>Failed to create duration inference for singer %1: %2</source>
+        <translation>为歌手 %1 创建时长推理失败：%2</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="209"/>
+        <source>Failed to initialize duration inference for singer %1: %2</source>
+        <translation>为歌手 %1 初始化时长推理失败：%2</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="229"/>
+        <source>Failed to create pitch inference for singer %1: %2</source>
+        <translation>为歌手 %1 创建音高推理失败：%2</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="238"/>
+        <source>Failed to initialize pitch inference for singer %1: %2</source>
+        <translation>为歌手 %1 初始化音高推理失败：%2</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="259"/>
+        <source>Failed to create variance inference for singer %1: %2</source>
+        <translation>为歌手 %1 创建方差推理失败：%2</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="268"/>
+        <source>Failed to initialize variance inference for singer %1: %2</source>
+        <translation>为歌手 %1 初始化方差推理失败：%2</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="289"/>
+        <source>Failed to create acoustic inference for singer %1: %2</source>
+        <translation>为歌手 %1 创建声学推理失败：%2</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="298"/>
+        <source>Failed to initialize acoustic inference for singer %1: %2</source>
+        <translation>为歌手 %1 初始化声学推理失败：%2</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="319"/>
+        <source>Failed to create vocoder inference for singer %1: %2</source>
+        <translation>为歌手 %1 创建声码器推理失败：%2</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/Inference/InferenceLoader.cpp" line="328"/>
+        <source>Failed to initialize vocoder inference for singer %1: %2</source>
+        <translation>为歌手 %1 初始化声码器推理失败：%2</translation>
     </message>
 </context>
 <context>
     <name>InferencePage</name>
     <message>
+        <source>CPU</source>
+        <translation type="vanished">CPU</translation>
+    </message>
+    <message>
+        <source>DirectML</source>
+        <translation type="vanished">DirectML</translation>
+    </message>
+    <message>
+        <source>CUDA</source>
+        <translation type="vanished">CUDA</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="74"/>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="166"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="165"/>
         <source>The settings will take effect after restarting the app. Do you want to restart now?</source>
-        <translation type="unfinished">重启应用后设置会生效。要现在重启吗？</translation>
+        <translation>重启应用后设置会生效。要现在重启吗？</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="92"/>
         <source>Default</source>
-        <translation type="unfinished"></translation>
+        <translation>默认</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="125"/>
         <source>Device</source>
-        <translation type="unfinished"></translation>
+        <translation>设备</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="126"/>
         <source>Execution Provider</source>
-        <translation type="unfinished"></translation>
+        <translation>执行提供程序</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="126"/>
         <source>App needs a restart to take effect</source>
-        <translation type="unfinished">需要重启以生效</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="129"/>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="135"/>
-        <source>GPU</source>
-        <translation type="unfinished"></translation>
+        <translation>需要重启以生效</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="130"/>
-        <source>GPUs with less than %1 GiB VRAM are hidden</source>
-        <translation type="unfinished"></translation>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="136"/>
+        <source>GPU</source>
+        <translation>GPU</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="136"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="131"/>
+        <source>GPUs with less than %1 GiB VRAM are hidden</source>
+        <translation>显存小于 %1 GiB 的 GPU 已隐藏</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="137"/>
         <source>No available GPU found. Please switch the Execution Provider above to CPU.</source>
-        <translation type="unfinished"></translation>
+        <translation>未找到可用的 GPU。请将上方的执行提供程序切换为 CPU。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="186"/>
+        <source>Render</source>
+        <translation>渲染</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="187"/>
+        <source>Sampling Steps</source>
+        <translation>采样步数</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="188"/>
-        <source>Render</source>
-        <translation type="unfinished"></translation>
+        <source>Depth</source>
+        <translation>深度</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="189"/>
-        <source>Sampling Steps</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="190"/>
-        <source>Depth</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="191"/>
         <source>Run Vocoder on CPU</source>
-        <translation type="unfinished"></translation>
+        <translation>在 CPU 上运行声码器</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="189"/>
+        <source>For compatibility with legacy vocoders</source>
+        <translation>为了与旧版声码器兼容</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="191"/>
-        <source>For compatibility with legacy vocoders</source>
-        <translation type="unfinished"></translation>
+        <source>Auto Start Infer</source>
+        <translation>自动启动推理</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="192"/>
+        <source>Pitch Smooth Kernel Size</source>
+        <translation>音高平滑核大小</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="193"/>
-        <source>Auto Start Infer</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="194"/>
-        <source>Pitch Smooth Kernel Size</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="195"/>
         <source>Smooth the pitch curve with a sinusoidal kernel</source>
-        <translation type="unfinished"></translation>
+        <translation>使用正弦核平滑音高曲线</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="201"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="199"/>
         <source>Key</source>
-        <translation type="unfinished"></translation>
+        <translation>键</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="201"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="199"/>
         <source>Value</source>
-        <translation type="unfinished"></translation>
+        <translation>值</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="229"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="227"/>
         <source>Yes</source>
-        <translation type="unfinished"></translation>
+        <translation>是</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="230"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="228"/>
         <source>No</source>
-        <translation type="unfinished"></translation>
+        <translation>否</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="233"/>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="383"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="231"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="379"/>
         <source>engine</source>
-        <translation type="unfinished"></translation>
+        <translation>引擎</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="237"/>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="386"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="235"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="382"/>
         <source>initialized</source>
-        <translation type="unfinished"></translation>
+        <translation>已初始化</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="241"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="239"/>
         <source>plugins</source>
-        <translation type="unfinished"></translation>
+        <translation>插件</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="266"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="242"/>
+        <source>inference driver</source>
+        <translation>推理驱动</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="247"/>
+        <source>inference interpreter</source>
+        <translation>推理解释器</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="252"/>
+        <source>inference runtime</source>
+        <translation>推理运行时</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="257"/>
+        <source>singer provider</source>
+        <translation>歌手提供程序</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="264"/>
         <source>package</source>
-        <translation type="unfinished"></translation>
+        <translation>包</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="270"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="268"/>
         <source>search paths</source>
-        <translation type="unfinished"></translation>
+        <translation>搜索路径</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="281"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="279"/>
         <source>loaded packages</source>
-        <translation type="unfinished"></translation>
+        <translation>已加载的包</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="289"/>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="323"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="287"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="319"/>
         <source>id</source>
-        <translation type="unfinished"></translation>
+        <translation>ID</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="293"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="291"/>
         <source>version</source>
-        <translation type="unfinished"></translation>
+        <translation>版本</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="297"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="295"/>
         <source>vendor</source>
-        <translation type="unfinished"></translation>
+        <translation>供应商</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="301"/>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="339"/>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="368"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="299"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="335"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="364"/>
         <source>path</source>
-        <translation type="unfinished"></translation>
+        <translation>路径</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="309"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="305"/>
         <source>loaded singers</source>
-        <translation type="unfinished"></translation>
+        <translation>已加载的歌手</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="323"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="352"/>
+        <source>name</source>
+        <translation>名称</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="327"/>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="356"/>
-        <source>name</source>
-        <translation type="unfinished"></translation>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="360"/>
+        <source>api level</source>
+        <translation>API 级别</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="331"/>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="364"/>
-        <source>api level</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="335"/>
         <source>architecture</source>
-        <translation type="unfinished"></translation>
+        <translation>架构</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="342"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="338"/>
         <source>inferences</source>
-        <translation type="unfinished"></translation>
+        <translation>推理</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="360"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="356"/>
         <source>class name</source>
-        <translation type="unfinished"></translation>
+        <translation>类名</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="372"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="368"/>
         <source>locator</source>
-        <translation type="unfinished"></translation>
+        <translation>定位器</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="387"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="383"/>
         <source>InferEngine is not created (null pointer)</source>
-        <translation type="unfinished"></translation>
+        <translation>推理引擎未创建（空指针）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="401"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="397"/>
         <source>Debug</source>
-        <translation type="unfinished"></translation>
+        <translation>调试</translation>
     </message>
 </context>
 <context>
@@ -1875,7 +2277,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Modules/Inference/Tasks/InitInferEngineTask.cpp" line="13"/>
         <source>Initialize inference engine</source>
-        <translation type="unfinished"></translation>
+        <translation>初始化推理引擎</translation>
     </message>
 </context>
 <context>
@@ -1920,7 +2322,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Modules/Language/LangSetting/Controls/G2pListWidget.cpp" line="62"/>
         <source>G2p Presets</source>
-        <translation type="unfinished"></translation>
+        <translation>G2p 预设</translation>
     </message>
 </context>
 <context>
@@ -1928,12 +2330,12 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Modules/Language/LangSetting/IG2pSetFactory.cpp" line="88"/>
         <source>enabled</source>
-        <translation type="unfinished"></translation>
+        <translation>已启用</translation>
     </message>
     <message>
         <location filename="../../Modules/Language/LangSetting/IG2pSetFactory.cpp" line="95"/>
         <source>discardResult</source>
-        <translation type="unfinished"></translation>
+        <translation>丢弃结果</translation>
     </message>
 </context>
 <context>
@@ -1952,135 +2354,143 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
 </context>
 <context>
+    <name>LegacyMidiLoadSession</name>
+    <message>
+        <location filename="../../Controller/DocumentWorkflow/LegacyMidiLoadSession.cpp" line="39"/>
+        <source>Failed to load MIDI</source>
+        <translation>加载 MIDI 失败</translation>
+    </message>
+</context>
+<context>
     <name>LyricBaseWidget</name>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="17"/>
-        <source>Import Lrc</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="18"/>
-        <source>Reread Note</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="19"/>
+        <source>Import Lrc</source>
+        <translation>导入 LRC</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="21"/>
+        <source>Reread Note</source>
+        <translation>重新读取音符</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="23"/>
         <source>Lyric Prev</source>
-        <translation type="unfinished"></translation>
+        <translation>歌词预览</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="26"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="31"/>
         <source>Please input lyric here.</source>
-        <translation type="unfinished"></translation>
+        <translation>请在此处输入歌词。</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="29"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="35"/>
         <source>Note Count: 0</source>
-        <translation type="unfinished"></translation>
+        <translation>音符数量：0</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="32"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="39"/>
         <source>split lyric to preview dialog</source>
-        <translation type="unfinished"></translation>
+        <translation>拆分歌词到预览对话框</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="46"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="53"/>
         <source>Fill-in Options:</source>
-        <translation type="unfinished"></translation>
+        <translation>填词选项：</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="67"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="74"/>
         <source>Split Mode :</source>
-        <translation type="unfinished"></translation>
+        <translation>分割模式：</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="70"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="78"/>
         <source>Auto</source>
-        <translation type="unfinished"></translation>
+        <translation>自动</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="70"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="79"/>
         <source>By Char</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="70"/>
-        <source>Custom</source>
-        <translation type="unfinished">自定义</translation>
+        <translation>按字符</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="80"/>
+        <source>Custom</source>
+        <translation>自定义</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="92"/>
         <source>Skip Slur Note</source>
-        <translation type="unfinished"></translation>
+        <translation>跳过连音音符</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="170"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="183"/>
         <source>Note Count: </source>
-        <translation type="unfinished"></translation>
+        <translation>音符数量：</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="175"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="189"/>
         <source>Open Lrc File</source>
-        <translation type="unfinished"></translation>
+        <translation>打开 LRC 文件</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="175"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="190"/>
         <source>Lrc Files (*.lrc)</source>
-        <translation type="unfinished"></translation>
+        <translation>LRC 文件 (*.lrc)</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="182"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="198"/>
         <source>Error</source>
-        <translation type="unfinished">错误</translation>
+        <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="182"/>
+        <location filename="../../Modules/FillLyric/Widgets/LyricBaseWidget.cpp" line="199"/>
         <source>Failed to decode lrc file.</source>
-        <translation type="unfinished"></translation>
+        <translation>解码 LRC 文件失败。</translation>
     </message>
 </context>
 <context>
     <name>LyricCell</name>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="141"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="173"/>
         <source>clear cell</source>
-        <translation type="unfinished"></translation>
+        <translation>清除单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="143"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="176"/>
         <source>delete line</source>
-        <translation type="unfinished"></translation>
+        <translation>删除行</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="145"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="179"/>
         <source>delete cell</source>
-        <translation type="unfinished"></translation>
+        <translation>删除单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="146"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="181"/>
         <source>add prev cell</source>
-        <translation type="unfinished"></translation>
+        <translation>添加前一个单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="147"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="183"/>
         <source>add next cell</source>
-        <translation type="unfinished"></translation>
+        <translation>添加后一个单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="149"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="186"/>
         <source>linebreak</source>
-        <translation type="unfinished"></translation>
+        <translation>换行</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="226"/>
-        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="233"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="277"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="282"/>
         <source>Custom Syllables</source>
-        <translation type="unfinished"></translation>
+        <translation>自定义音节</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="233"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricCell.cpp" line="283"/>
         <source>Please input syllables</source>
-        <translation type="unfinished"></translation>
+        <translation>请输入音节</translation>
     </message>
 </context>
 <context>
@@ -2108,17 +2518,17 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="74"/>
         <source>Splitter</source>
-        <translation type="unfinished"></translation>
+        <translation>分割器</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="75"/>
         <source>Tagger</source>
-        <translation type="unfinished"></translation>
+        <translation>标注器</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="76"/>
         <source>Test</source>
-        <translation type="unfinished"></translation>
+        <translation>测试</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/FillLyric/LyricDialog.cpp" line="78"/>
@@ -2131,45 +2541,45 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Modules/FillLyric/Widgets/LyricExtWidget.cpp" line="25"/>
         <source>Fold Left</source>
-        <translation type="unfinished"></translation>
+        <translation>折叠左侧</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/LyricExtWidget.cpp" line="27"/>
         <source>Test</source>
-        <translation type="unfinished"></translation>
+        <translation>测试</translation>
     </message>
 </context>
 <context>
     <name>LyricWrapView</name>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="224"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="223"/>
         <source>clear cells</source>
-        <translation type="unfinished"></translation>
+        <translation>清除单元格</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="231"/>
+        <source>delete line</source>
+        <translation>删除行</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="234"/>
-        <source>delete line</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="236"/>
         <source>delete cells</source>
-        <translation type="unfinished"></translation>
+        <translation>删除单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="258"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="257"/>
         <source>delete lines</source>
-        <translation type="unfinished"></translation>
+        <translation>删除行</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="271"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="269"/>
         <source>move up</source>
-        <translation type="unfinished"></translation>
+        <translation>上移</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="272"/>
         <source>move down</source>
-        <translation type="unfinished"></translation>
+        <translation>下移</translation>
     </message>
 </context>
 <context>
@@ -2182,7 +2592,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="42"/>
         <source>&amp;Device</source>
-        <translation type="unfinished"></translation>
+        <translation>设备(&amp;D)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="101"/>
@@ -2212,7 +2622,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="102"/>
         <source>&amp;Generator</source>
-        <translation type="unfinished"></translation>
+        <translation>生成器(&amp;G)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="103"/>
@@ -2227,12 +2637,12 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="106"/>
         <source>D&amp;ecay (ms)</source>
-        <translation type="unfinished"></translation>
+        <translation>衰减(&amp;e)（毫秒）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="107"/>
         <source>Decay rati&amp;o</source>
-        <translation type="unfinished"></translation>
+        <translation>衰减比(&amp;o)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="108"/>
@@ -2266,7 +2676,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="110"/>
         <source>Adjust by project cent shift</source>
-        <translation type="unfinished"></translation>
+        <translation>按工程音分偏移调整</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/MidiPage.cpp" line="111"/>
@@ -2287,199 +2697,209 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>MainMenuView</name>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="99"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="119"/>
         <source>All Supported Files (*.dspx *.mid *.midi);;DiffScope Project File (*.dspx);;MIDI File (*.mid *.midi)</source>
-        <translation type="unfinished"></translation>
+        <translation>所有支持的文件 (*.dspx *.mid *.midi);;DiffScope 工程文件 (*.dspx);;MIDI 文件 (*.mid *.midi)</translation>
     </message>
 </context>
 <context>
     <name>MainMenuViewPrivate</name>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="98"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="118"/>
         <source>Open</source>
         <translation>打开</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="168"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="180"/>
         <source>Select a MIDI File</source>
         <translation>选择 MIDI 文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="169"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="179"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="181"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="191"/>
         <source>MIDI File (*.mid *.midi)</source>
         <translation>MIDI 文件 (*.mid *.midi)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="178"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="190"/>
         <source>Save as MIDI File</source>
         <translation>另存为 MIDI 文件</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="195"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="485"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="207"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="499"/>
         <source>&amp;Undo</source>
         <translation>撤销(&amp;U)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="197"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="492"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="209"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="506"/>
         <source>&amp;Redo</source>
         <translation>重做(&amp;R)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="431"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="443"/>
         <source>&amp;New</source>
         <translation>新建(&amp;N)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="437"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="449"/>
         <source>&amp;Open...</source>
         <translation>打开(&amp;O)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="448"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="461"/>
         <source>&amp;Save</source>
         <translation>保存(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="510"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="524"/>
         <source>&amp;Delete</source>
         <translation>删除(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="517"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="531"/>
         <source>Cu&amp;t</source>
         <translation>剪切(&amp;T)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="523"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="537"/>
         <source>&amp;Copy</source>
         <translation>复制(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="529"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="543"/>
         <source>&amp;Paste</source>
         <translation>粘贴(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="535"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="549"/>
         <source>Move an octave up</source>
         <translation>上移八度</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="540"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="554"/>
         <source>Move an octave down</source>
         <translation>下移八度</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="453"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="466"/>
         <source>Save &amp;as...</source>
         <translation>另存为(&amp;A)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="111"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="131"/>
         <source>File does not exist: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>文件不存在：%1</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="128"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="148"/>
         <source>(No Recent Projects)</source>
-        <translation type="unfinished"></translation>
+        <translation>（无最近工程）</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="139"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="160"/>
         <source>&amp;%1 %2</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;%1 %2</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="443"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="272"/>
+        <source>Please select a singing clip first</source>
+        <translation>请先选择一个歌声剪辑</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="285"/>
+        <source>Please add an audio file first</source>
+        <translation>请先添加一个音频文件</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="455"/>
         <source>Clear Recent Projects</source>
-        <translation type="unfinished"></translation>
+        <translation>清除最近工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="459"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="467"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="472"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="480"/>
         <source>MIDI file...</source>
         <translation>MIDI 文件...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="463"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="476"/>
         <source>Audio file...</source>
         <translation>音频文件...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="471"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="484"/>
         <source>Manage packages...</source>
-        <translation type="unfinished"></translation>
+        <translation>管理包...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="478"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="492"/>
         <source>E&amp;xit</source>
         <translation>退出(&amp;X)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="503"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="517"/>
         <source>Select &amp;all</source>
         <translation>全选(&amp;A)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="545"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="559"/>
         <source>Fill lyrics...</source>
         <translation>填入歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="553"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="567"/>
         <source>Search lyrics...</source>
         <translation>搜索歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="560"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="574"/>
         <source>Extract pitch parameter...</source>
         <translation>提取音高参数...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="566"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="580"/>
         <source>&amp;File</source>
         <translation>文件(&amp;F)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="570"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="584"/>
         <source>Recent Projects</source>
-        <translation type="unfinished"></translation>
+        <translation>最近工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="585"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="598"/>
         <source>Import</source>
         <translation>导入</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="591"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="604"/>
         <source>Export</source>
         <translation>导出</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="609"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="622"/>
         <source>&amp;Edit</source>
         <translation>编辑(&amp;E)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="642"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="655"/>
         <source>&amp;General...</source>
         <translation>常规(&amp;G)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="648"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="661"/>
         <source>&amp;Audio...</source>
         <translation>音频(&amp;A)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="654"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="667"/>
         <source>&amp;MIDI...</source>
         <translation>&amp;MIDI...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="660"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="673"/>
         <source>A&amp;ppearance...</source>
         <translation>外观(&amp;P)...</translation>
     </message>
@@ -2488,47 +2908,47 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <translation type="vanished">语言(&amp;L)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="672"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="685"/>
         <source>&amp;Inference...</source>
         <translation>推理(&amp;I)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="679"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="692"/>
         <source>&amp;Developer Options...</source>
-        <translation type="unfinished"></translation>
+        <translation>开发者选项(&amp;D)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="687"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="700"/>
         <source>&amp;Options</source>
         <translation>选项(&amp;O)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="701"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="714"/>
         <source>Check for updates</source>
         <translation>检查更新</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="704"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="717"/>
         <source>You are already up to date</source>
         <translation>已是最新版本</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="705"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="718"/>
         <source>About...</source>
         <translation>关于...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="707"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="720"/>
         <source>About</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="709"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="722"/>
         <source>Discover DiffScope</source>
-        <translation type="unfinished"></translation>
+        <translation>探索 DiffScope</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="715"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="728"/>
         <source>&amp;Help</source>
         <translation>帮助(&amp;H)</translation>
     </message>
@@ -2536,75 +2956,91 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="544"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="492"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="420"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="462"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="421"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="463"/>
         <source>Do you want to save changes?</source>
         <translation>要保存更改吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="424"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="466"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="432"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="473"/>
         <source>Don&apos;t save</source>
         <translation>不保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="439"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="480"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="500"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="525"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="553"/>
         <source>Saved</source>
-        <translation>已保存</translation>
+        <translation type="vanished">已保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="528"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="556"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="506"/>
         <source>Error</source>
-        <translation type="unfinished">错误</translation>
+        <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="529"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="557"/>
         <source>Failed to save project</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">保存工程失败</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="531"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="559"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="509"/>
         <source>OK</source>
-        <translation type="unfinished">确定</translation>
+        <translation>确定</translation>
     </message>
     <message>
         <source>Failed to save project: %1</source>
         <translation type="vanished">保存工程文件失败: %1</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="543"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="491"/>
         <source>Save project</source>
         <translation>保存工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="711"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="496"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="498"/>
+        <source>Package scan failed</source>
+        <translation>包扫描失败</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="497"/>
+        <source>Singer package metadata is not available. Open the project anyway?</source>
+        <translation>歌手包元数据不可用。是否仍然打开工程？</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="499"/>
+        <source>Open Anyway</source>
+        <translation>仍然打开</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="514"/>
+        <source>Another document operation is already in progress</source>
+        <translation>另一个文档操作正在进行中</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="721"/>
         <source>%1 is exiting...</source>
         <translation>%1 正在退出...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="712"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="722"/>
         <source>Terminating background tasks...</source>
         <translation>正在停止后台任务...</translation>
     </message>
@@ -2612,44 +3048,115 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>Menu</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="31"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="48"/>
         <source>Fill lyrics...</source>
-        <translation type="unfinished">填入歌词...</translation>
+        <translation>填入歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="36"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="86"/>
         <source>Search lyrics...</source>
-        <translation type="unfinished">搜索歌词...</translation>
+        <translation>搜索歌词...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="44"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="74"/>
         <source>Split Note</source>
-        <translation type="unfinished"></translation>
+        <translation>分割音符</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="55"/>
-        <source>Cu&amp;t</source>
-        <translation type="unfinished">剪切(&amp;T)</translation>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="35"/>
+        <source>Language</source>
+        <translation>语种</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="52"/>
+        <source>Edit Phonemes...</source>
+        <translation>编辑音素...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="60"/>
-        <source>&amp;Copy</source>
-        <translation type="unfinished">复制(&amp;C)</translation>
+        <source>Cu&amp;t</source>
+        <translation>剪切(&amp;T)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="65"/>
+        <source>&amp;Copy</source>
+        <translation>复制(&amp;C)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="70"/>
         <source>&amp;Delete</source>
-        <translation type="unfinished">删除(&amp;D)</translation>
+        <translation>删除(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="71"/>
         <source>Properties...</source>
-        <translation type="unfinished">属性...</translation>
+        <translation type="vanished">属性...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="91"/>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuBuilder.cpp" line="108"/>
         <source>&amp;Paste</source>
-        <translation type="unfinished">粘贴(&amp;P)</translation>
+        <translation>粘贴(&amp;P)</translation>
+    </message>
+</context>
+<context>
+    <name>MidiConverter</name>
+    <message>
+        <location filename="../../Modules/ProjectConverters/MidiConverter.cpp" line="148"/>
+        <source>Invalid tone or octave</source>
+        <translation>无效的音名或八度</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/MidiConverter.cpp" line="193"/>
+        <source>Failed to read MIDI file.
+path: %1</source>
+        <translation>读取 MIDI 文件失败。
+路径：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/MidiConverter.cpp" line="203"/>
+        <source>Failed to load MIDI file.
+path: %1
+type: %2</source>
+        <translation>加载 MIDI 文件失败。
+路径：%1
+类型：%2</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/MidiConverter.cpp" line="276"/>
+        <source>Failed to load MIDI file.
+timeSignatures denominator must be: 2, 4, 8, 16
+current denominator: %1</source>
+        <translation>加载 MIDI 文件失败。
+拍号分母必须为：2、4、8、16
+当前分母：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/MidiConverter.cpp" line="286"/>
+        <source>Unsupported MIDI import mode.</source>
+        <translation>不支持的 MIDI 导入模式。</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/MidiConverter.cpp" line="311"/>
+        <source>No MIDI tracks were selected for import.</source>
+        <translation>未选择要导入的 MIDI 轨道。</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/MidiConverter.cpp" line="334"/>
+        <source>Failed to open file for writing: %1</source>
+        <translation>打开文件写入失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/MidiConverter.cpp" line="344"/>
+        <source>Failed to write all data to file: %1</source>
+        <translation>未能将全部数据写入文件：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Modules/ProjectConverters/MidiConverter.cpp" line="355"/>
+        <source>Failed to save MIDI file.
+path: %1
+error: %2</source>
+        <translation>保存 MIDI 文件失败。
+路径：%1
+错误：%2</translation>
     </message>
 </context>
 <context>
@@ -2657,111 +3164,124 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="394"/>
         <source>Configure MIDI Import</source>
-        <translation type="unfinished"></translation>
+        <translation>配置 MIDI 导入</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="68"/>
         <source>Track Selector</source>
-        <translation type="unfinished"></translation>
+        <translation>轨道选择器</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="49"/>
         <source>Encoding:</source>
-        <translation type="unfinished"></translation>
+        <translation>编码：</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="87"/>
         <source>Lyrics Preview</source>
-        <translation type="unfinished"></translation>
+        <translation>歌词预览</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="115"/>
         <source>OK</source>
-        <translation type="unfinished">确定</translation>
+        <translation>确定</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="117"/>
         <source>Cancel</source>
-        <translation type="unfinished">取消</translation>
+        <translation>取消</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="72"/>
         <source>Select All</source>
-        <translation type="unfinished"></translation>
+        <translation>全选</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="95"/>
         <source>Options</source>
-        <translation type="unfinished"></translation>
+        <translation>选项</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="99"/>
         <source>Separate MIDI channels</source>
-        <translation type="unfinished"></translation>
+        <translation>分离 MIDI 通道</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="104"/>
         <source>Import tempo</source>
-        <translation type="unfinished"></translation>
+        <translation>导入速度</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="109"/>
         <source>Import time signature</source>
-        <translation type="unfinished"></translation>
+        <translation>导入拍号</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="173"/>
         <source>%1 (auto detected)</source>
-        <translation type="unfinished"></translation>
+        <translation>%1（自动检测）</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="185"/>
         <source>Name</source>
-        <translation type="unfinished"></translation>
+        <translation>名称</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="185"/>
         <source>Range</source>
-        <translation type="unfinished"></translation>
+        <translation>范围</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="186"/>
         <source>Note Count</source>
-        <translation type="unfinished"></translation>
+        <translation>音符数量</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="268"/>
         <source>Select a track to preview its lyrics</source>
-        <translation type="unfinished"></translation>
+        <translation>选择轨道以预览其歌词</translation>
     </message>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="275"/>
         <source>No lyrics in current track</source>
-        <translation type="unfinished"></translation>
+        <translation>当前轨道无歌词</translation>
     </message>
 </context>
 <context>
     <name>MidiExtractController</name>
+    <message>
+        <location filename="../../Modules/Extractors/MidiExtractController.cpp" line="41"/>
+        <source>Task Failed</source>
+        <translation>任务失败</translation>
+    </message>
     <message>
         <location filename="../../Modules/Extractors/MidiExtractController.cpp" line="42"/>
         <source>Failed to extract Midi from audio:
  %1
 
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation>从音频提取 MIDI 失败：
+%1
+
+%2</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/MidiExtractController.cpp" line="47"/>
         <source>Close</source>
-        <translation type="unfinished">关闭</translation>
+        <translation>关闭</translation>
     </message>
 </context>
 <context>
     <name>MixConsoleView</name>
     <message>
+        <location filename="../../UI/Views/MixConsole/MixConsoleView.cpp" line="30"/>
+        <source>Mix</source>
+        <translation>混音</translation>
+    </message>
+    <message>
         <location filename="../../UI/Views/MixConsole/MixConsoleView.cpp" line="74"/>
         <source>Master</source>
-        <translation type="unfinished"></translation>
+        <translation>主控</translation>
     </message>
 </context>
 <context>
@@ -2804,60 +3324,50 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="56"/>
         <source>Split note</source>
-        <translation type="unfinished"></translation>
+        <translation>分割音符</translation>
     </message>
 </context>
 <context>
     <name>NotePropertyDialog</name>
     <message>
-        <location filename="../../UI/Dialogs/Note/NotePropertyDialog.cpp" line="25"/>
         <source>Note Properties - %1</source>
-        <translation>音符属性 - %1</translation>
+        <translation type="vanished">音符属性 - %1</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Note/NotePropertyDialog.cpp" line="64"/>
         <source>Add Phone</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">添加音素</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Note/NotePropertyDialog.cpp" line="74"/>
         <source>Reset Phones</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">重置音素</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Note/NotePropertyDialog.cpp" line="87"/>
         <source>Language:</source>
-        <translation>语种：</translation>
+        <translation type="vanished">语种：</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Note/NotePropertyDialog.cpp" line="88"/>
         <source>Lyric:</source>
-        <translation>歌词：</translation>
+        <translation type="vanished">歌词：</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Note/NotePropertyDialog.cpp" line="89"/>
         <source>Pronunciation:</source>
-        <translation>发音：</translation>
+        <translation type="vanished">发音：</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Note/NotePropertyDialog.cpp" line="90"/>
         <source>Phones:</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">音素：</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Note/NotePropertyDialog.cpp" line="173"/>
         <source>Please add phonemes</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">请添加音素</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Note/NotePropertyDialog.cpp" line="179"/>
         <source>Please fill in name for all phonemes</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">请为所有音素填写名称</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Note/NotePropertyDialog.cpp" line="192"/>
         <source>At least one phoneme must be set as onset</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">至少需要一个音素设置为起音</translation>
     </message>
     <message>
         <source>Ahead Phonemes:</source>
@@ -2879,6 +3389,37 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <location filename="../../UI/Dialogs/Base/OKCancelDialog.cpp" line="12"/>
         <source>&amp;Cancel</source>
         <translation>取消(&amp;C)</translation>
+    </message>
+</context>
+<context>
+    <name>OpenDspxProjectTask</name>
+    <message>
+        <location filename="../../Controller/Tasks/OpenDspxProjectTask.cpp" line="16"/>
+        <location filename="../../Controller/Tasks/OpenDspxProjectTask.cpp" line="77"/>
+        <location filename="../../Controller/Tasks/OpenDspxProjectTask.cpp" line="90"/>
+        <source>Opening Project</source>
+        <translation>正在打开工程</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Tasks/OpenDspxProjectTask.cpp" line="17"/>
+        <location filename="../../Controller/Tasks/OpenDspxProjectTask.cpp" line="79"/>
+        <source>Reading project file...</source>
+        <translation>正在读取工程文件...</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Tasks/OpenDspxProjectTask.cpp" line="50"/>
+        <source>Failed to open project file: %1</source>
+        <translation>打开工程文件失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Tasks/OpenDspxProjectTask.cpp" line="68"/>
+        <source>Failed to read project file: %1</source>
+        <translation>读取工程文件失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Tasks/OpenDspxProjectTask.cpp" line="91"/>
+        <source>Parsing project file...</source>
+        <translation>正在解析工程文件...</translation>
     </message>
 </context>
 <context>
@@ -2956,22 +3497,22 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="103"/>
         <source>Return to the start position after stopped</source>
-        <translation type="unfinished"></translation>
+        <translation>停止后返回起始位置</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="104"/>
         <source>Keep at current position after stopped, and play from current position next time</source>
-        <translation type="unfinished"></translation>
+        <translation>停止后保持在当前位置，下次从当前位置播放</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="105"/>
         <source>Keep at current position after stopped, but play from the start position next time</source>
-        <translation type="unfinished"></translation>
+        <translation>停止后保持在当前位置，但下次从起始位置播放</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="109"/>
         <source>Playhead behavior</source>
-        <translation type="unfinished"></translation>
+        <translation>播放头行为</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="114"/>
@@ -3010,7 +3551,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="281"/>
         <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="330"/>
         <source>Default device</source>
-        <translation type="unfinished"></translation>
+        <translation>默认设备</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AudioPage.cpp" line="329"/>
@@ -3023,22 +3564,22 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/PackageManager/PackageDetailsHeader.cpp" line="39"/>
         <source>Open Website...</source>
-        <translation type="unfinished"></translation>
+        <translation>打开网站...</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/PackageDetailsHeader.cpp" line="42"/>
         <source>Verify</source>
-        <translation type="unfinished"></translation>
+        <translation>验证</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/PackageDetailsHeader.cpp" line="45"/>
         <source>Uninstall</source>
-        <translation type="unfinished"></translation>
+        <translation>卸载</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/PackageDetailsHeader.cpp" line="84"/>
         <source>No Package Selected</source>
-        <translation type="unfinished"></translation>
+        <translation>未选择包</translation>
     </message>
 </context>
 <context>
@@ -3046,72 +3587,72 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="255"/>
         <source>Singer provider plugin path does not exist: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>歌手提供程序插件路径不存在：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="260"/>
         <source>Singer provider plugin path is not a directory: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>歌手提供程序插件路径不是目录：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="389"/>
         <source>Path is not a valid directory</source>
-        <translation type="unfinished"></translation>
+        <translation>路径不是有效目录</translation>
     </message>
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="445"/>
         <source>No error: </source>
-        <translation type="unfinished"></translation>
+        <translation>无错误：</translation>
     </message>
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="447"/>
         <source>Invalid format: </source>
-        <translation type="unfinished"></translation>
+        <translation>无效格式：</translation>
     </message>
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="449"/>
         <source>File not found: </source>
-        <translation type="unfinished"></translation>
+        <translation>文件未找到：</translation>
     </message>
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="451"/>
         <source>File not open: </source>
-        <translation type="unfinished"></translation>
+        <translation>文件未打开：</translation>
     </message>
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="453"/>
         <source>File duplicated: </source>
-        <translation type="unfinished"></translation>
+        <translation>文件重复：</translation>
     </message>
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="455"/>
         <source>Recursive dependency: </source>
-        <translation type="unfinished"></translation>
+        <translation>递归依赖：</translation>
     </message>
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="457"/>
         <source>Feature not supported: </source>
-        <translation type="unfinished"></translation>
+        <translation>不支持的功能：</translation>
     </message>
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="459"/>
         <source>Invalid argument: </source>
-        <translation type="unfinished"></translation>
+        <translation>无效参数：</translation>
     </message>
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="461"/>
         <source>Not implemented: </source>
-        <translation type="unfinished"></translation>
+        <translation>未实现：</translation>
     </message>
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="463"/>
         <source>Session error: </source>
-        <translation type="unfinished"></translation>
+        <translation>会话错误：</translation>
     </message>
     <message>
         <location filename="../../Modules/PackageManager/PackageManager.cpp" line="465"/>
         <source>Unknown error: </source>
-        <translation type="unfinished"></translation>
+        <translation>未知错误：</translation>
     </message>
 </context>
 <context>
@@ -3119,32 +3660,32 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="39"/>
         <source>Installed (%1)</source>
-        <translation type="unfinished"></translation>
+        <translation>已安装（%1）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="96"/>
         <source>Package Manager</source>
-        <translation type="unfinished"></translation>
+        <translation>包管理器</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="108"/>
         <source>Installed (0)</source>
-        <translation type="unfinished"></translation>
+        <translation>已安装（0）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="115"/>
         <source>&amp;Install...</source>
-        <translation type="unfinished"></translation>
+        <translation>安装(&amp;I)...</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="120"/>
         <source>Search...</source>
-        <translation type="unfinished"></translation>
+        <translation>搜索...</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/PackageManagerDialog.cpp" line="215"/>
         <source>Select a package to view details</source>
-        <translation type="unfinished"></translation>
+        <translation>选择一个包以查看详情</translation>
     </message>
 </context>
 <context>
@@ -3157,7 +3698,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="27"/>
         <source>Swap</source>
-        <translation type="unfinished"></translation>
+        <translation>交换</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="30"/>
@@ -3173,58 +3714,58 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="324"/>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="326"/>
         <source>Enable Dynamic Mix</source>
-        <translation type="unfinished"></translation>
+        <translation>启用动态混合</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="252"/>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="254"/>
         <source>Stop using dynamic speaker mix?</source>
-        <translation type="unfinished"></translation>
+        <translation>停止使用动态声线混合？</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="253"/>
         <source>This will delete all dynamic mix keyframes and return this clip to fixed mix.</source>
-        <translation type="unfinished"></translation>
+        <translation>这将删除所有动态混合关键帧，并将此剪辑恢复为固定混合。</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="255"/>
         <source>停止使用动态混合</source>
-        <translation type="unfinished"></translation>
+        <translation>停止使用动态混合</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="256"/>
         <source>取消</source>
-        <translation type="unfinished"></translation>
+        <translation>取消</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="308"/>
         <source>Dynamic mix is unavailable</source>
-        <translation type="unfinished"></translation>
+        <translation>动态混合不可用</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="309"/>
         <source>Choose a fixed speaker mix preset with at least two speakers before enabling dynamic mix.</source>
-        <translation type="unfinished"></translation>
+        <translation>在启用动态混合前，请选择一个至少包含两个歌手的固定声线混合预设。</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="316"/>
         <source>Enable clip dynamic mix?</source>
-        <translation type="unfinished"></translation>
+        <translation>启用剪辑动态混合？</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="317"/>
         <source>This clip is following the track. Enabling dynamic mix will copy the current track speaker mix to this clip and stop following the track.</source>
-        <translation type="unfinished"></translation>
+        <translation>此剪辑正在跟随轨道。启用动态混合将把当前轨道声线混合复制到此剪辑，并停止跟随轨道。</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="320"/>
         <source>Copy and Enable Dynamic Mix</source>
-        <translation type="unfinished"></translation>
+        <translation>复制并启用动态混合</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="325"/>
         <source>Create the first keyframe from the current fixed speaker mix.</source>
-        <translation type="unfinished"></translation>
+        <translation>从当前固定声线混合创建第一个关键帧。</translation>
     </message>
 </context>
 <context>
@@ -3282,7 +3823,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../Utils/ParamUtils.h" line="37"/>
         <source>Speaker Mix</source>
-        <translation type="unfinished"></translation>
+        <translation>声线混合</translation>
     </message>
 </context>
 <context>
@@ -3290,27 +3831,60 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Controls/PathEditor.cpp" line="87"/>
         <source>&amp;Add</source>
-        <translation type="unfinished"></translation>
+        <translation>添加(&amp;A)</translation>
     </message>
     <message>
         <location filename="../../UI/Controls/PathEditor.cpp" line="87"/>
         <source>&amp;Delete</source>
-        <translation type="unfinished">删除(&amp;D)</translation>
+        <translation>删除(&amp;D)</translation>
     </message>
     <message>
         <location filename="../../UI/Controls/PathEditor.cpp" line="88"/>
         <source>Move &amp;Up</source>
-        <translation type="unfinished"></translation>
+        <translation>上移(&amp;U)</translation>
     </message>
     <message>
         <location filename="../../UI/Controls/PathEditor.cpp" line="88"/>
         <source>Move D&amp;own</source>
-        <translation type="unfinished"></translation>
+        <translation>下移(&amp;o)</translation>
     </message>
     <message>
         <location filename="../../UI/Controls/PathEditor.cpp" line="189"/>
         <source>Browse directory</source>
-        <translation type="unfinished"></translation>
+        <translation>浏览目录</translation>
+    </message>
+</context>
+<context>
+    <name>PhonemeEditorDialog</name>
+    <message>
+        <location filename="../../UI/Dialogs/Note/PhonemeEditorDialog.cpp" line="20"/>
+        <source>Edit Phonemes - %1</source>
+        <translation>编辑音素 - %1</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Note/PhonemeEditorDialog.cpp" line="50"/>
+        <source>Add Phone</source>
+        <translation>添加音素</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Note/PhonemeEditorDialog.cpp" line="60"/>
+        <source>Reset Phones</source>
+        <translation>重置音素</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Note/PhonemeEditorDialog.cpp" line="136"/>
+        <source>Please add phonemes</source>
+        <translation>请添加音素</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Note/PhonemeEditorDialog.cpp" line="142"/>
+        <source>Please fill in name for all phonemes</source>
+        <translation>请为所有音素填写名称</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Note/PhonemeEditorDialog.cpp" line="155"/>
+        <source>At least one phoneme must be set as onset</source>
+        <translation>至少需要一个音素设置为起音</translation>
     </message>
 </context>
 <context>
@@ -3318,17 +3892,17 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/Note/PhonemeNameItemView.cpp" line="18"/>
         <source>Onset</source>
-        <translation type="unfinished"></translation>
+        <translation>起音</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Note/PhonemeNameItemView.cpp" line="21"/>
         <source>Insert</source>
-        <translation type="unfinished"></translation>
+        <translation>插入</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Note/PhonemeNameItemView.cpp" line="25"/>
         <source>Delete</source>
-        <translation type="unfinished">删除</translation>
+        <translation>删除</translation>
     </message>
 </context>
 <context>
@@ -3369,23 +3943,31 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>PitchExtractController</name>
     <message>
+        <location filename="../../Modules/Extractors/PitchExtractController.cpp" line="43"/>
+        <source>Task Failed</source>
+        <translation>任务失败</translation>
+    </message>
+    <message>
         <location filename="../../Modules/Extractors/PitchExtractController.cpp" line="44"/>
         <source>Failed to extract pitch from audio:
  %1
 
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation>从音频提取音高失败：
+%1
+
+%2</translation>
     </message>
     <message>
         <location filename="../../Modules/Extractors/PitchExtractController.cpp" line="49"/>
         <source>Close</source>
-        <translation type="unfinished">关闭</translation>
+        <translation>关闭</translation>
     </message>
 </context>
 <context>
     <name>PlaybackController</name>
     <message>
-        <location filename="../../Controller/PlaybackController.cpp" line="58"/>
+        <location filename="../../Controller/PlaybackController.cpp" line="55"/>
         <source>Please release mouse button before playing</source>
         <translation>请先松开鼠标按钮再播放</translation>
     </message>
@@ -3393,17 +3975,16 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>PlaybackControllerPrivate</name>
     <message>
-        <location filename="../../Controller/PlaybackController.cpp" line="115"/>
         <source>Please fix project errors before playing</source>
-        <translation>请先修复工程错误再播放</translation>
+        <translation type="vanished">请先修复工程错误再播放</translation>
     </message>
 </context>
 <context>
     <name>PlaybackView</name>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="124"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="126"/>
         <source>Loop</source>
-        <translation type="unfinished"></translation>
+        <translation>循环</translation>
     </message>
 </context>
 <context>
@@ -3411,12 +3992,12 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/Base/ProgressDialog.cpp" line="18"/>
         <source>Cancel</source>
-        <translation type="unfinished">取消</translation>
+        <translation>取消</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Base/ProgressDialog.cpp" line="23"/>
         <source>Hide</source>
-        <translation type="unfinished">隐藏</translation>
+        <translation>隐藏</translation>
     </message>
 </context>
 <context>
@@ -3434,7 +4015,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/PseudoSingerPage.cpp" line="43"/>
         <source>&amp;Synth No.</source>
-        <translation type="unfinished"></translation>
+        <translation>合成器编号(&amp;S)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/PseudoSingerPage.cpp" line="53"/>
@@ -3459,47 +4040,47 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/PseudoSingerPage.cpp" line="54"/>
         <source>&amp;Generator</source>
-        <translation type="unfinished"></translation>
+        <translation>生成器(&amp;G)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/PseudoSingerPage.cpp" line="67"/>
         <source>&amp;Amplitude (dB)</source>
-        <translation type="unfinished">振幅 (dB)(&amp;A)</translation>
+        <translation>振幅(&amp;A)（dB）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/PseudoSingerPage.cpp" line="80"/>
         <source>A&amp;ttack (ms)</source>
-        <translation type="unfinished">起音 (ms)(&amp;A)</translation>
+        <translation>起音(&amp;t)（ms）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/PseudoSingerPage.cpp" line="93"/>
         <source>D&amp;ecay (ms)</source>
-        <translation type="unfinished"></translation>
+        <translation>衰减(&amp;e)（毫秒）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/PseudoSingerPage.cpp" line="105"/>
         <source>Decay rati&amp;o</source>
-        <translation type="unfinished"></translation>
+        <translation>衰减比(&amp;o)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/PseudoSingerPage.cpp" line="118"/>
         <source>&amp;Release (ms)</source>
-        <translation type="unfinished">释音 (ms)(&amp;R)</translation>
+        <translation>释音(&amp;R)（ms）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/PseudoSingerPage.cpp" line="127"/>
         <source>Parameter</source>
-        <translation type="unfinished"></translation>
+        <translation>参数</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/PseudoSingerPage.cpp" line="129"/>
         <source>Read pitc&amp;h</source>
-        <translation type="unfinished"></translation>
+        <translation>读取音高(&amp;h)</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/PseudoSingerPage.cpp" line="131"/>
         <source>Read energ&amp;y</source>
-        <translation type="unfinished"></translation>
+        <translation>读取能量(&amp;y)</translation>
     </message>
 </context>
 <context>
@@ -3507,27 +4088,27 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="53"/>
         <source>File is too large to read.</source>
-        <translation type="unfinished"></translation>
+        <translation>文件过大无法读取。</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="61"/>
         <source>Failed to open file.</source>
-        <translation type="unfinished"></translation>
+        <translation>打开文件失败。</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/PianoRoll/EditPitchAnchorHandler.cpp" line="264"/>
         <source>Linear</source>
-        <translation type="unfinished"></translation>
+        <translation>线性</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/PianoRoll/EditPitchAnchorHandler.cpp" line="277"/>
         <source>Hermite</source>
-        <translation type="unfinished"></translation>
+        <translation>埃尔米特</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/PianoRoll/EditPitchAnchorHandler.cpp" line="308"/>
         <source>Delete</source>
-        <translation type="unfinished">删除</translation>
+        <translation>删除</translation>
     </message>
 </context>
 <context>
@@ -3535,17 +4116,17 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="32"/>
         <source>ReadMe</source>
-        <translation type="unfinished"></translation>
+        <translation>自述文件</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="37"/>
         <source>No readme file.</source>
-        <translation type="unfinished"></translation>
+        <translation>无自述文件。</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/PackageManager/Cards/ReadMeCard.cpp" line="41"/>
         <source>Loading...</source>
-        <translation type="unfinished"></translation>
+        <translation>加载中...</translation>
     </message>
 </context>
 <context>
@@ -3587,6 +4168,32 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
 </context>
 <context>
+    <name>SVS::ExpressionDoubleSpinBox</name>
+    <message>
+        <location filename="../../UI/Controls/SvsExpressionDoubleSpinBox.cpp" line="114"/>
+        <source>Step Up</source>
+        <translation>增加</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Controls/SvsExpressionDoubleSpinBox.cpp" line="119"/>
+        <source>Step Down</source>
+        <translation>减少</translation>
+    </message>
+</context>
+<context>
+    <name>SVS::ExpressionSpinBox</name>
+    <message>
+        <location filename="../../UI/Controls/SvsExpressionSpinBox.cpp" line="114"/>
+        <source>Step Up</source>
+        <translation>增加</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Controls/SvsExpressionSpinBox.cpp" line="119"/>
+        <source>Step Down</source>
+        <translation>减少</translation>
+    </message>
+</context>
+<context>
     <name>SVS::WorkflowPage</name>
     <message>
         <source>Cancel</source>
@@ -3598,11 +4205,84 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
 </context>
 <context>
+    <name>SearchDialog</name>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="18"/>
+        <source>Search Lyrics</source>
+        <translation>搜索歌词</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="25"/>
+        <source>Found 0 matches</source>
+        <translation>找到 0 个匹配项</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="27"/>
+        <source>Starts With</source>
+        <translation>起始匹配</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="28"/>
+        <source>Search from the beginning of the input text</source>
+        <translation>从输入文本的开头开始搜索</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="29"/>
+        <source>Exact Match</source>
+        <translation>完全匹配</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="30"/>
+        <source>Exact match</source>
+        <translation>完全匹配</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="31"/>
+        <source>Contains</source>
+        <translation>包含搜索</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="32"/>
+        <source>Contains the text</source>
+        <translation>包含文本</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="42"/>
+        <source>Case sensitive</source>
+        <translation>区分大小写</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="44"/>
+        <source>Regular expression</source>
+        <translation>正则表达式</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="57"/>
+        <source>Previous</source>
+        <translation>上一个</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="58"/>
+        <source>Next</source>
+        <translation>下一个</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="74"/>
+        <source>Please enter search content</source>
+        <translation>请输入搜索内容</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Search/SearchDialog.cpp" line="156"/>
+        <source>Found %1 matches</source>
+        <translation>找到 %1 个匹配项</translation>
+    </message>
+</context>
+<context>
     <name>SingingClipView</name>
     <message>
         <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="104"/>
         <source>(No singer)</source>
-        <translation type="unfinished"></translation>
+        <translation>（无歌手）</translation>
     </message>
     <message>
         <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="163"/>
@@ -3613,30 +4293,30 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>SpeakerMixActions</name>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="30"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="31"/>
         <source>Edit speaker mix</source>
-        <translation type="unfinished"></translation>
+        <translation>编辑声线混合</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="41"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="42"/>
         <source>Enable dynamic speaker mix</source>
-        <translation type="unfinished"></translation>
+        <translation>启用动态声线混合</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="49"/>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="63"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="50"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="64"/>
         <source>Apply speaker mix preset</source>
-        <translation type="unfinished"></translation>
+        <translation>应用声线混合预设</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="56"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="57"/>
         <source>Select speaker</source>
-        <translation type="unfinished"></translation>
+        <translation>选择歌手</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="69"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="70"/>
         <source>Edit track speaker mix</source>
-        <translation type="unfinished"></translation>
+        <translation>编辑轨道声线混合</translation>
     </message>
 </context>
 <context>
@@ -3644,48 +4324,49 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixDialog.cpp" line="150"/>
         <source>Save As</source>
-        <translation type="unfinished"></translation>
+        <translation>另存为</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixDialog.cpp" line="153"/>
         <source>More...</source>
-        <translation type="unfinished"></translation>
+        <translation>更多...</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixDialog.cpp" line="155"/>
         <source>Initialize</source>
-        <translation type="unfinished"></translation>
+        <translation>初始化</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixDialog.cpp" line="156"/>
         <source>Delete</source>
-        <translation type="unfinished">删除</translation>
+        <translation>删除</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixDialog.cpp" line="213"/>
         <source>Init Preset</source>
-        <translation type="unfinished"></translation>
+        <translation>初始预设</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixDialog.cpp" line="241"/>
         <source>Preset speakers are unavailable</source>
-        <translation type="unfinished"></translation>
+        <translation>预设歌手不可用</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixDialog.cpp" line="317"/>
         <source>Preset name</source>
-        <translation type="unfinished"></translation>
+        <translation>预设名称</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixDialog.cpp" line="345"/>
         <source>Delete this preset?</source>
-        <translation type="unfinished"></translation>
+        <translation>删除此预设？</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixDialog.cpp" line="354"/>
         <source>Reset to init preset?
 All current mix settings will be lost.</source>
-        <translation type="unfinished"></translation>
+        <translation>重置为初始预设？
+所有当前混合设置将丢失。</translation>
     </message>
 </context>
 <context>
@@ -3693,12 +4374,35 @@ All current mix settings will be lost.</source>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixEditorView.cpp" line="165"/>
         <source>Bypassed</source>
-        <translation type="unfinished"></translation>
+        <translation>已旁通</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixEditorView.cpp" line="317"/>
         <source>Delete</source>
-        <translation type="unfinished">删除</translation>
+        <translation>删除</translation>
+    </message>
+</context>
+<context>
+    <name>SpeakerMixList</name>
+    <message>
+        <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixList.cpp" line="203"/>
+        <source>Speaker: </source>
+        <translation>声线：</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixList.cpp" line="217"/>
+        <source>Position: </source>
+        <translation>位置：</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixList.cpp" line="402"/>
+        <source> (used)</source>
+        <translation>（已使用）</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixList.cpp" line="446"/>
+        <source>(No Singer)</source>
+        <translation>（无歌手）</translation>
     </message>
 </context>
 <context>
@@ -3706,17 +4410,17 @@ All current mix settings will be lost.</source>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixToolBarView.cpp" line="15"/>
         <source>Bypass</source>
-        <translation type="unfinished"></translation>
+        <translation>旁通</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixToolBarView.cpp" line="17"/>
         <source>Resume</source>
-        <translation type="unfinished"></translation>
+        <translation>恢复</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixToolBarView.cpp" line="19"/>
         <source>Stop Dynamic...</source>
-        <translation type="unfinished"></translation>
+        <translation>停止动态...</translation>
     </message>
 </context>
 <context>
@@ -3724,17 +4428,17 @@ All current mix settings will be lost.</source>
     <message>
         <location filename="../../UI/Views/Common/TabPanelTitleBar.cpp" line="148"/>
         <source>Detach to window</source>
-        <translation type="unfinished"></translation>
+        <translation>分离到窗口</translation>
     </message>
     <message>
         <location filename="../../UI/Views/Common/TabPanelTitleBar.cpp" line="160"/>
         <source>Maximize or restore</source>
-        <translation type="unfinished">最大化或还原</translation>
+        <translation>最大化或还原</translation>
     </message>
     <message>
         <location filename="../../UI/Views/Common/TabPanelTitleBar.cpp" line="178"/>
         <source>Hide</source>
-        <translation type="unfinished">隐藏</translation>
+        <translation>隐藏</translation>
     </message>
 </context>
 <context>
@@ -3757,21 +4461,68 @@ All current mix settings will be lost.</source>
     </message>
 </context>
 <context>
+    <name>TempoPopupWidget</name>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/TempoPopupWidget.cpp" line="48"/>
+        <source>Tempo</source>
+        <translation>速度</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/TempoPopupWidget.cpp" line="60"/>
+        <location filename="../../UI/Views/MainTitleBar/TempoPopupWidget.cpp" line="214"/>
+        <source>Tap Tempo</source>
+        <translation>拍击速度</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/TempoPopupWidget.cpp" line="166"/>
+        <location filename="../../UI/Views/MainTitleBar/TempoPopupWidget.cpp" line="177"/>
+        <source>Keep Tapping</source>
+        <translation>继续拍击</translation>
+    </message>
+    <message>
+        <source>%1 BPM</source>
+        <translation type="vanished">%1 BPM</translation>
+    </message>
+</context>
+<context>
+    <name>TimeSignaturePopupWidget</name>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/TimeSignaturePopupWidget.cpp" line="46"/>
+        <source>Time Signature</source>
+        <translation>拍号</translation>
+    </message>
+</context>
+<context>
     <name>TrackControlView</name>
     <message>
         <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="98"/>
         <source>(Scanning packages...)</source>
-        <translation type="unfinished"></translation>
+        <translation>（正在扫描包...）</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="250"/>
+        <source>Insert new track</source>
+        <translation>插入新轨道</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="253"/>
+        <source>Delete</source>
+        <translation>删除</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="261"/>
+        <source>Track color</source>
+        <translation>轨道颜色</translation>
     </message>
     <message>
         <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="352"/>
         <source>Manage mix presets...</source>
-        <translation type="unfinished"></translation>
+        <translation>管理混音预设...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/TrackEditor/TrackControlView.cpp" line="374"/>
         <source>Preset speakers are unavailable</source>
-        <translation type="unfinished"></translation>
+        <translation>预设歌手不可用</translation>
     </message>
 </context>
 <context>
@@ -3830,22 +4581,22 @@ All current mix settings will be lost.</source>
     <message>
         <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="325"/>
         <source>&amp;Paste</source>
-        <translation type="unfinished">粘贴(&amp;P)</translation>
+        <translation>粘贴(&amp;P)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="411"/>
         <source>Extract MIDI Score</source>
-        <translation type="unfinished"></translation>
+        <translation>提取 MIDI 乐谱</translation>
     </message>
     <message>
         <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="420"/>
         <source>Cu&amp;t</source>
-        <translation type="unfinished">剪切(&amp;T)</translation>
+        <translation>剪切(&amp;T)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="426"/>
         <source>&amp;Copy</source>
-        <translation type="unfinished">复制(&amp;C)</translation>
+        <translation>复制(&amp;C)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/TrackEditor/TracksGraphicsView.cpp" line="432"/>
@@ -3859,7 +4610,7 @@ All current mix settings will be lost.</source>
         <location filename="../../UI/Controls/TwoLevelComboBox.cpp" line="37"/>
         <location filename="../../UI/Controls/TwoLevelComboBox.cpp" line="61"/>
         <source>Please select</source>
-        <translation type="unfinished"></translation>
+        <translation>请选择</translation>
     </message>
     <message>
         <location filename="../../UI/Controls/TwoLevelComboBox.cpp" line="143"/>
@@ -3867,12 +4618,12 @@ All current mix settings will be lost.</source>
         <location filename="../../UI/Controls/TwoLevelComboBox.cpp" line="207"/>
         <location filename="../../UI/Controls/TwoLevelComboBox.cpp" line="221"/>
         <source>Follow Track</source>
-        <translation type="unfinished"></translation>
+        <translation>跟随轨道</translation>
     </message>
     <message>
         <location filename="../../UI/Controls/TwoLevelComboBox.cpp" line="158"/>
         <source>(No singer)</source>
-        <translation type="unfinished"></translation>
+        <translation>（无歌手）</translation>
     </message>
 </context>
 <context>

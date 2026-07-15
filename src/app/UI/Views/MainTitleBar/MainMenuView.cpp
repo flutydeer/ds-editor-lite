@@ -268,8 +268,8 @@ void MainMenuViewPrivate::onExtractPitchParam() {
         dynamic_cast<SingingClip *>(appModel->findClipById(appStatus->activeClipId));
 
     if (!singingClip or singingClip->clipType() != IClip::Singing) {
-        // TODO: 在选中非歌声剪辑时禁用此操作
-        Toast::show("请先选中一个歌声剪辑");
+        // TODO: disable when non-singing clip is selected
+        Toast::show(tr("Please select a singing clip first"));
         return;
     }
 
@@ -282,7 +282,7 @@ void MainMenuViewPrivate::onExtractPitchParam() {
                 clips.append(audioClip);
             }
     if (clips.isEmpty()) {
-        Toast::show("请先添加一个音频文件");
+        Toast::show(tr("Please add an audio file first"));
         return;
     }
 

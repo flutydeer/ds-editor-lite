@@ -3,6 +3,7 @@
 #include "Modules/Inference/Models/InferSpeakerMix.h"
 
 #include <utility>
+#include <QCoreApplication>
 
 namespace Co = ds::Api::Common::L1;
 
@@ -124,14 +125,14 @@ auto convertInputSpeakers(const InferSpeakerMix &speakerMix,
 
     for (const auto &source : speakerMix.sources) {
         if (!source.isValid()) {
-            error = QStringLiteral("Invalid speaker mix source");
+            error = QCoreApplication::translate("InferTaskCommon", "Invalid speaker mix source");
             return {};
         }
 
         std::string mappedSpeakerName;
         const auto speakerName = source.speaker.toStdString();
         if (!mapSpeakerName(speakerName, speakerMapping, mappedSpeakerName)) {
-            error = QStringLiteral("Speaker mapping not found for speaker %1").arg(source.speaker);
+            error = QCoreApplication::translate("InferTaskCommon", "Speaker mapping not found for speaker %1").arg(source.speaker);
             return {};
         }
 

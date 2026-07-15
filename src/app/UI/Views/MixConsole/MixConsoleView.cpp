@@ -27,7 +27,7 @@ QString MixConsoleView::tabId() const {
 }
 
 QString MixConsoleView::tabName() const {
-    return "混音";
+    return tr("Mix");
 }
 
 AppGlobal::PanelType MixConsoleView::panelType() const {
@@ -115,15 +115,12 @@ MixConsoleView::MixConsoleView(QWidget *parent) : TabPanelPage(parent) {
     connect(appModel, &AppModel::masterControlChanged, this,
             &MixConsoleView::onMasterControlChanged);
 
-    connect(m_masterChannel->fader(), &Fader::sliderMoved, this, [=](double gain) {
-        audioContext->handleMasterGainSliderMoved(gain);
-    });
-    connect(m_masterChannel->panSlider(), &PanSlider::sliderMoved, this, [=](double pan) {
-        audioContext->handleMasterPanSliderMoved(pan);
-    });
-    connect(m_masterChannel, &ChannelView::controlChanged, this, [&](const TrackControl &control) {
-        appController->editMasterControl(control);
-    });
+    connect(m_masterChannel->fader(), &Fader::sliderMoved, this,
+            [=](double gain) { audioContext->handleMasterGainSliderMoved(gain); });
+    connect(m_masterChannel->panSlider(), &PanSlider::sliderMoved, this,
+            [=](double pan) { audioContext->handleMasterPanSliderMoved(pan); });
+    connect(m_masterChannel, &ChannelView::controlChanged, this,
+            [&](const TrackControl &control) { appController->editMasterControl(control); });
 }
 
 void MixConsoleView::onModelChanged() {
@@ -160,9 +157,7 @@ void MixConsoleView::onMasterControlChanged(const TrackControl &control) {
 }
 
 void MixConsoleView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {
-    connect(dsTrack, &Track::propertyChanged, this, [this] {
-        onTrackPropertyChanged();
-    });
+    connect(dsTrack, &Track::propertyChanged, this, [this] { onTrackPropertyChanged(); });
 
     auto newTrackItem = new QListWidgetItem;
     newTrackItem->setSizeHint({97, m_channelListView->viewport()->height()});
@@ -179,9 +174,8 @@ void MixConsoleView::onTrackInserted(Track *dsTrack, qsizetype trackIndex) {
     connect(channelView->fader(), &Fader::sliderMoved, this, [=](double gain) {
         audioContext->handleGainSliderMoved(&channelView->context(), gain);
     });
-    connect(channelView->panSlider(), &PanSlider::sliderMoved, this, [=](double pan) {
-        audioContext->handlePanSliderMoved(&channelView->context(), pan);
-    });
+    connect(channelView->panSlider(), &PanSlider::sliderMoved, this,
+            [=](double pan) { audioContext->handlePanSliderMoved(&channelView->context(), pan); });
     connect(channelView, &ChannelView::controlChanged, this, [=](const TrackControl &control) {
         const Track::TrackProperties args(*channelView);
         trackController->changeTrackProperty(args);

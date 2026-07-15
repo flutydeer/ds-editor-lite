@@ -1,5 +1,6 @@
 #include "Modules/FillLyric/Widgets/LyricBaseWidget.h"
 
+#include <QCoreApplication>
 #include <QFileDialog>
 #include <QMessageBox>
 
@@ -14,22 +15,28 @@ namespace FillLyric {
         : QWidget(parent), m_priorityG2pIds(std::move(priorityG2pIds)),
           m_langToG2pId(std::move(langToG2pId)) {
         m_textTopLayout = new QHBoxLayout();
-        m_btnImportLrc = new QPushButton(tr("Import Lrc"));
-        m_btnReReadNote = new QPushButton(tr("Reread Note"));
-        m_btnLyricPrev = new QPushButton(tr("Lyric Prev"));
+        m_btnImportLrc =
+            new QPushButton(QCoreApplication::translate("LyricBaseWidget", "Import Lrc"));
+        m_btnReReadNote =
+            new QPushButton(QCoreApplication::translate("LyricBaseWidget", "Reread Note"));
+        m_btnLyricPrev =
+            new QPushButton(QCoreApplication::translate("LyricBaseWidget", "Lyric Prev"));
         m_textTopLayout->addWidget(m_btnImportLrc);
         m_textTopLayout->addWidget(m_btnReReadNote);
         m_textTopLayout->addStretch(1);
         m_textTopLayout->addWidget(m_btnLyricPrev);
 
         m_textEdit = new PhonicTextEdit();
-        m_textEdit->setPlaceholderText(tr("Please input lyric here."));
+        m_textEdit->setPlaceholderText(
+            QCoreApplication::translate("LyricBaseWidget", "Please input lyric here."));
 
         m_textBottomLayout = new QHBoxLayout();
-        m_textCountLabel = new QLabel(tr("Note Count: 0"));
+        m_textCountLabel =
+            new QLabel(QCoreApplication::translate("LyricBaseWidget", "Note Count: 0"));
 
         m_btnToTable = new QPushButton(">>");
-        m_btnToTable->setToolTip(tr("split lyric to preview dialog"));
+        m_btnToTable->setToolTip(
+            QCoreApplication::translate("LyricBaseWidget", "split lyric to preview dialog"));
         m_btnToTable->setFixedSize(40, 20);
 
         m_textBottomLayout->addWidget(m_textCountLabel);
@@ -43,7 +50,7 @@ namespace FillLyric {
         m_mainLayout->addLayout(m_textBottomLayout);
 
         m_optLabelLayout = new QHBoxLayout();
-        m_optLabel = new QLabel(tr("Fill-in Options:"));
+        m_optLabel = new QLabel(QCoreApplication::translate("LyricBaseWidget", "Fill-in Options:"));
         m_optButton = new QPushButton();
         m_optLabel->setBuddy(m_optButton);
         m_optButton->setFixedSize(20, 20);
@@ -64,10 +71,14 @@ namespace FillLyric {
 
         m_splitLayout = new QHBoxLayout();
         m_splitLayout->setContentsMargins(0, 0, 0, 0);
-        m_splitLabel = new QLabel(tr("Split Mode :"));
+        m_splitLabel = new QLabel(QCoreApplication::translate("LyricBaseWidget", "Split Mode :"));
         m_splitComboBox = new ComboBox();
         m_splitLabel->setBuddy(m_splitComboBox);
-        m_splitComboBox->addItems({tr("Auto"), tr("By Char"), tr("Custom")});
+        m_splitComboBox->addItems({
+            QCoreApplication::translate("LyricBaseWidget", "Auto"),
+            QCoreApplication::translate("LyricBaseWidget", "By Char"),
+            QCoreApplication::translate("LyricBaseWidget", "Custom"),
+        });
         m_splitters = new QLineEdit();
         m_splitters->setToolTipDuration(0);
         m_splitters->setVisible(false);
@@ -77,7 +88,8 @@ namespace FillLyric {
         m_splitLayout->addWidget(m_splitters);
         m_splitLayout->addStretch(1);
 
-        m_skipSlur = new QCheckBox(tr("Skip Slur Note"));
+        m_skipSlur =
+            new QCheckBox(QCoreApplication::translate("LyricBaseWidget", "Skip Slur Note"));
         m_skipSlurLayout = new QHBoxLayout();
         m_skipSlurLayout->addWidget(m_skipSlur);
         m_skipSlurLayout->addStretch(1);
@@ -167,19 +179,24 @@ namespace FillLyric {
         for (const auto &notes : splitRes) {
             count += static_cast<int>(notes.size());
         }
-        this->m_textCountLabel->setText(tr("Note Count: ") + QString::number(count));
+        this->m_textCountLabel->setText(
+            QCoreApplication::translate("LyricBaseWidget", "Note Count: ") +
+            QString::number(count));
     }
 
     void LyricBaseWidget::onBtnImportLrcClicked() {
-        const QString fileName =
-            QFileDialog::getOpenFileName(this, tr("Open Lrc File"), "", tr("Lrc Files (*.lrc)"));
+        const QString fileName = QFileDialog::getOpenFileName(
+            this, QCoreApplication::translate("LyricBaseWidget", "Open Lrc File"), "",
+            QCoreApplication::translate("LyricBaseWidget", "Lrc Files (*.lrc)"));
         if (fileName.isEmpty()) {
             return;
         }
 
         LrcTools::LrcDecoder decoder;
         if (!decoder.decode(fileName)) {
-            QMessageBox::warning(this, tr("Error"), tr("Failed to decode lrc file."));
+            QMessageBox::warning(
+                this, QCoreApplication::translate("LyricBaseWidget", "Error"),
+                QCoreApplication::translate("LyricBaseWidget", "Failed to decode lrc file."));
             return;
         }
 

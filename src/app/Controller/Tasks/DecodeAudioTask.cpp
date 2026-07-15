@@ -4,14 +4,15 @@
 
 #include "DecodeAudioTask.h"
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QThread>
 
 #include <TalcsFormat/AbstractAudioFormatIO.h>
 
-DecodeAudioTask::DecodeAudioTask(/*int id*/) /*: ITask(id)*/ {
+DecodeAudioTask::DecodeAudioTask() {
     TaskStatus status;
-    status.title = "Decoding audio...";
+    status.title = QCoreApplication::translate("DecodeAudioTask", "Decoding audio...");
     status.message = "";
     setStatus(status);
 }
@@ -30,7 +31,7 @@ AudioInfoModel DecodeAudioTask::result() const {
 
 void DecodeAudioTask::runTask() {
     TaskStatus status;
-    status.title = "Decoding audio...";
+    status.title = QCoreApplication::translate("DecodeAudioTask", "Decoding audio...");
     status.message = path;
     setStatus(status);
 
@@ -44,7 +45,7 @@ void DecodeAudioTask::runTask() {
 
     if (!io || !io->open(talcs::AbstractAudioFormatIO::Read)) {
         success = false;
-        errorMessage = "No io"; // TODO talcs::FormatEntry should provide error message
+        errorMessage = QCoreApplication::translate("DecodeAudioTask", "No audio IO");
         return;
     }
 
@@ -64,7 +65,7 @@ void DecodeAudioTask::runTask() {
     while (samplesRead < m_frames * m_channels) {
         if (isTerminateRequested()) {
             qDebug() << "Decode audio task abort:" << path;
-            status.title = "Canceling decoding...";
+            status.title = QCoreApplication::translate("DecodeAudioTask", "Canceling decoding...");
             status.isIndetermine = true;
             status.runningStatus = TaskGlobal::Error;
             setStatus(status);
@@ -121,7 +122,7 @@ void DecodeAudioTask::runTask() {
     for (int i = 0; i < m_peakCache.count(); i++) {
         if (isTerminateRequested()) {
             qDebug() << "Decode audio task abort:" << path;
-            status.title = "Canceling decoding...";
+            status.title = QCoreApplication::translate("DecodeAudioTask", "Canceling decoding...");
             status.isIndetermine = true;
             status.runningStatus = TaskGlobal::Error;
             setStatus(status);
