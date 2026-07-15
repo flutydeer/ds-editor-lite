@@ -170,6 +170,13 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     setLanguage(track->defaultLanguage());
     updateTrackColor();
 
+    // Nullify m_track when the Track is destroyed (e.g. during
+    // AppModel::dispose()). Without this, a queued signal from the background
+    // PackageManager thread (packagesRefreshed) may arrive after the Track has
+    // been deleted, causing refreshSingerComboPresentation() to dereference a
+    // dangling pointer and crash in QSharedDataPointer's fetch_add.
+    connect(track, &QObject::destroyed, this, [this](QObject *) { m_track = nullptr; });
+
     connect(track, &Track::singerOrSpeakerChanged, this,
             &TrackControlView::refreshSingerComboPresentation);
     connect(track, &Track::speakerMixChanged, this,

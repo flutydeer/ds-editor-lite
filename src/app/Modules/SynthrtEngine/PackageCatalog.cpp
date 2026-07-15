@@ -242,7 +242,7 @@ const ds::bank::SingerSnapshot *
 }
 
 srt::core::Expected<void> PackageCatalog::validate(const Snapshot &snapshot) {
-    std::unordered_set<std::string> packageIds;
+    std::set<std::pair<std::string, std::string>> packageVersions;
     std::unordered_set<std::string> roots;
     std::set<std::tuple<std::string, std::string, std::string>> singerIdentifiers;
     for (const auto &record : snapshot.packages) {
@@ -255,9 +255,11 @@ srt::core::Expected<void> PackageCatalog::validate(const Snapshot &snapshot) {
         if (!status.valid) {
             continue;
         }
-        if (!packageIds.insert(status.packageId).second) {
+        const auto packageVersionKey = status.version.toString();
+        if (!packageVersions.insert({status.packageId, packageVersionKey}).second) {
             return srt::core::Error(srt::core::ErrorCode::PackageVersionConflict,
-                                    "Duplicate package ID: " + status.packageId);
+                                    "Duplicate package identity: " + status.packageId +
+                                        "[" + packageVersionKey + "]");
         }
         if (record.manifest && (record.manifest->packageId() != status.packageId ||
                                 record.manifest->version() != status.version ||
