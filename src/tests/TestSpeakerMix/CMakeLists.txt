@@ -11,6 +11,7 @@ add_executable(${PROJECT_NAME}
         ../../app/Model/AppModel/Timeline.cpp
         ../../app/Model/AppModel/Tempo.cpp
         ../../app/Model/AppModel/TimeSignature.cpp
+        ../../app/Utils/MusicTimeConverter.cpp
         ../../app/Modules/PackageManager/Models/SpeakerInfo.cpp
 )
 

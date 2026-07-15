@@ -151,7 +151,8 @@ std::optional<SpeakerMixPreset>
     return preset;
 }
 
-bool SpeakerMixPresetStore::savePreset(SpeakerMixPreset preset) {
+std::optional<SpeakerMixPreset>
+    SpeakerMixPresetStore::savePreset(SpeakerMixPreset preset) {
     const auto now = QDateTime::currentDateTimeUtc();
     if (preset.id.isEmpty())
         preset.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -160,26 +161,30 @@ bool SpeakerMixPresetStore::savePreset(SpeakerMixPreset preset) {
     preset.updatedAt = now;
 
     if (preset.name.trimmed().isEmpty() || preset.singerId.isEmpty() || preset.packageId.isEmpty())
-        return false;
+        return std::nullopt;
 
     auto presets = allPresets();
     for (const auto &existing : std::as_const(presets)) {
         if (existing.id != preset.id && matchesSinger(existing, preset.singerIdentifier()) &&
             existing.name == preset.name)
-            return false;
+            return std::nullopt;
     }
 
     for (auto &existing : presets) {
         if (existing.id == preset.id) {
             if (existing.createdAt.isValid())
                 preset.createdAt = existing.createdAt;
-            existing = std::move(preset);
-            return writePresets(presets);
+            existing = preset;
+            if (writePresets(presets))
+                return preset;
+            return std::nullopt;
         }
     }
 
-    presets.append(std::move(preset));
-    return writePresets(presets);
+    presets.append(preset);
+    if (writePresets(presets))
+        return preset;
+    return std::nullopt;
 }
 
 bool SpeakerMixPresetStore::deletePreset(const QString &id) {

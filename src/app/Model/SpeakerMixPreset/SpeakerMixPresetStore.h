@@ -21,7 +21,7 @@ public:
                                             const SpeakerMixModel::SpeakerMixData &data);
     static std::optional<SpeakerMixPreset> sourcePresetForData(
         const SingerInfo &singerInfo, const SpeakerMixModel::SpeakerMixData &data);
-    static bool savePreset(SpeakerMixPreset preset);
+    static std::optional<SpeakerMixPreset> savePreset(SpeakerMixPreset preset);
     static bool deletePreset(const QString &id);
     static bool presetNameExists(const SingerInfo &singerInfo, const QString &name,
                                  const QString &excludingId = {});

@@ -335,8 +335,8 @@ void SpeakerMixDialog::onSaveAsPreset() {
     if (const auto existing = SpeakerMixPresetStore::findPresetByName(m_singerInfo, name))
         preset.id = existing->id;
 
-    if (SpeakerMixPresetStore::savePreset(preset))
-        reloadPresetCombo(SpeakerMixPresetStore::findPresetByName(m_singerInfo, name)->id);
+    if (const auto saved = SpeakerMixPresetStore::savePreset(preset))
+        reloadPresetCombo(saved->id);
 }
 
 void SpeakerMixDialog::onDeletePreset() {
