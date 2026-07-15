@@ -9,6 +9,7 @@
 #include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
@@ -101,6 +102,14 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
             &ClipEditorToolBarViewPrivate::onSingerEdited);
     connect(d->m_cbSinger, &TwoLevelComboBox::itemsPopulated, d,
             &ClipEditorToolBarViewPrivate::refreshSingerComboPresentation);
+
+    // 预设变化时刷新下拉框（如其他轨道保存/删除了同名预设）
+    connect(appOptions, &AppOptions::optionsChanged, d,
+            [d](AppOptionsGlobal::Option option) {
+                if (option == AppOptionsGlobal::Option::General ||
+                    option == AppOptionsGlobal::Option::All)
+                    d->refreshSingerComboPresentation();
+            });
 
     d->m_cbClipLanguage = new LanguageComboBox("unknown", true);
     d->m_cbClipLanguage->setObjectName("cbClipLanguage");

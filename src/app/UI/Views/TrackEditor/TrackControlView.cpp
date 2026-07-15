@@ -7,6 +7,7 @@
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
 #include "Controller/TrackController.h"
 #include "Model/AppModel/Track.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/History/HistoryManager.h"
@@ -173,6 +174,14 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
             &TrackControlView::refreshSingerComboPresentation);
     connect(track, &Track::speakerMixChanged, this,
             [this](const SpeakerMixData &) { refreshSingerComboPresentation(); });
+
+    // 预设变化时刷新下拉框（如其他轨道保存/删除了同名预设）
+    connect(appOptions, &AppOptions::optionsChanged, this,
+            [this](AppOptionsGlobal::Option option) {
+                if (option == AppOptionsGlobal::Option::General ||
+                    option == AppOptionsGlobal::Option::All)
+                    refreshSingerComboPresentation();
+            });
 }
 
 int TrackControlView::trackIndex() const {
