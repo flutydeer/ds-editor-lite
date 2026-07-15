@@ -18,6 +18,7 @@
 #include "Utils/FontManager.h"
 #include "Utils/Log.h"
 #include "Utils/SystemUtils.h"
+#include "Utils/UiLanguageManager.h"
 #include "UI/Utils/AppColorPalette.h"
 
 #include <QMWidgets/ccombobox.h>
@@ -26,13 +27,10 @@
 #include <QApplication>
 #include <QDir>
 #include <QElapsedTimer>
-#include <QLibraryInfo>
-#include <QLocale>
 #include <QScreen>
 #include <QStyleHints>
 #include <QStyleFactory>
 #include <QTimer>
-#include <QTranslator>
 
 #include <QtCore/QProcess>
 
@@ -115,24 +113,12 @@ int main(int argc, char *argv[]) {
     // Initialize FontManager to load custom fonts early (stays Meyers static)
     FontManager::instance();
 
-    const QLocale appLocale(QLocale::Chinese, QLocale::China);
-    const auto qtTranslationsPath = QLibraryInfo::path(QLibraryInfo::TranslationsPath);
-
-    QTranslator qtBaseTranslator;
-    if (qtBaseTranslator.load(appLocale, QStringLiteral("qtbase"), QStringLiteral("_"),
-                              qtTranslationsPath))
-        QApplication::installTranslator(&qtBaseTranslator);
-
-    QTranslator qtTranslator;
-    if (qtTranslator.load(appLocale, QStringLiteral("qt"), QStringLiteral("_"), qtTranslationsPath))
-        QApplication::installTranslator(&qtTranslator);
-
-    QTranslator translator;
-    if (translator.load(":translate/translation_zh_CN.qm"))
-        QApplication::installTranslator(&translator);
+    auto options = std::make_unique<AppOptions>();
+    UiLanguageManager uiLanguageManager;
+    uiLanguageManager.setPreference(options->general()->uiLanguage);
 
     // Construct AppContext — creates ALL business singletons in dependency order
-    AppContext appContext;
+    AppContext appContext(std::move(options));
 
     // Infrastructure singletons (stays Meyers static)
     AppColorPalette::instance()->load(":/theme/lite-dark/app-color-palette.json");

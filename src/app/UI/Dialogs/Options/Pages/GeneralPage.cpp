@@ -7,13 +7,16 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/CardView.h"
+#include "UI/Controls/ComboBox.h"
 #include "UI/Controls/DirSelector.h"
 #include "UI/Controls/FileSelector.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/OptionListCard.h"
 #include "UI/Controls/PathEditor.h"
 #include "UI/Views/Common/LanguageComboBox.h"
+#include "UI/Dialogs/Base/RestartDialog.h"
 #include "Global/AppOptionsGlobal.h"
+#include "Utils/UiLanguageManager.h"
 
 #include <QLabel>
 #include <QListView>
@@ -29,6 +32,7 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
 
 void GeneralPage::modifyOption() {
     const auto option = appOptions->general();
+    option->uiLanguage = m_cbUiLanguage->currentData().toString();
     option->defaultSingingLanguage = m_cbDefaultSingingLanguage->currentText();
     option->defaultLyrics[option->defaultSingingLanguage] = m_leDefaultLyric->text();
 
@@ -40,6 +44,27 @@ void GeneralPage::modifyOption() {
 QWidget *GeneralPage::createContentWidget() {
     const auto widget = new QWidget;
     const auto option = appOptions->general();
+
+    m_cbUiLanguage = new ComboBox;
+    m_cbUiLanguage->addItem(tr("Auto Detect"), UiLanguageManager::System);
+    m_cbUiLanguage->addItem(QStringLiteral("English"), UiLanguageManager::English);
+    m_cbUiLanguage->addItem(QStringLiteral("简体中文"), UiLanguageManager::SimplifiedChinese);
+    const auto uiLanguageIndex = m_cbUiLanguage->findData(option->uiLanguage);
+    m_cbUiLanguage->setCurrentIndex(uiLanguageIndex < 0 ? 0 : uiLanguageIndex);
+    connect(m_cbUiLanguage, &ComboBox::currentIndexChanged, this, [this, option] {
+        const auto previousLanguage = option->uiLanguage;
+        modifyOption();
+        if (previousLanguage == option->uiLanguage)
+            return;
+        const auto message =
+            tr("The interface language will change after restarting the app. Restart now?");
+        const auto dialog = new RestartDialog(message, true, this);
+        dialog->show();
+    });
+
+    const auto applicationCard = new OptionListCard(tr("Application"));
+    applicationCard->addItem(tr("UI Language"), tr("Language used by the application interface"),
+                             m_cbUiLanguage);
 
     m_btnOpenConfigFolder = new Button(tr("Open Folder..."), this);
     connect(m_btnOpenConfigFolder, &Button::clicked, this,
@@ -106,6 +131,7 @@ QWidget *GeneralPage::createContentWidget() {
     modelCard->addItem(tr("Rmvpe Model Path"), m_fsRmvpePath);
 
     const auto mainLayout = new QVBoxLayout;
+    mainLayout->addWidget(applicationCard);
     mainLayout->addWidget(configFileCard);
     mainLayout->addWidget(singingCard);
     mainLayout->addWidget(packagePathsCard);

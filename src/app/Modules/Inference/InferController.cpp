@@ -463,8 +463,8 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(
     } else if (status == AppStatus::ModuleStatus::Error) {
         clearAllPendingApplies("pending-cleared-module-error");
         m_getPronTasks.disposePendingTasks();
-        appOptions->language()->langOrder.clear();
-        appOptions->saveAndNotify(AppOptionsGlobal::Language);
+        appOptions->g2pLanguage()->langOrder.clear();
+        appOptions->saveAndNotify(AppOptionsGlobal::G2pLanguage);
         qCritical() << "Failed to start the language module; tasks have been canceled.";
     }
 }

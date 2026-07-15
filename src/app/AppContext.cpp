@@ -64,12 +64,12 @@ struct DirectManipulationHolder {
 
 AppContext *AppContext::s_self = nullptr;
 
-AppContext::AppContext() {
+AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     s_self = this;
 
     // L0: Basic data models (no dependencies)
     m_appStatus = new AppStatus;
-    m_appOptions = new AppOptions;
+    m_appOptions = options.release();
     m_appModel = new AppModel;
     m_paramUtils = new ParamUtils;
 

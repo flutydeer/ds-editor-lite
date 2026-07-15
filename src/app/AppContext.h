@@ -46,7 +46,7 @@ public:
 
     // Public so main() can construct, but conceptually private to the app entry point.
     // Making it a friend of main() is not possible (main is a C runtime symbol).
-    AppContext();
+    explicit AppContext(std::unique_ptr<AppOptions> options);
     ~AppContext();
 
     // L0: Basic data models

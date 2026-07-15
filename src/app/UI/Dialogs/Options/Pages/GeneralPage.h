@@ -26,6 +26,7 @@ protected:
     QWidget *createContentWidget() override;
 
 private:
+    ComboBox *m_cbUiLanguage;
     Button *m_btnOpenConfigFolder;
     LanguageComboBox *m_cbDefaultSingingLanguage;
     LineEdit *m_leDefaultLyric;

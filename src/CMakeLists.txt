@@ -52,7 +52,7 @@ if(WIN32)
                 COMMAND \"${QT_DEPLOY_EXECUTABLE}\"
                 --libdir \"${_install_dir}\"
                 --plugindir \"${_install_dir}/plugins\"
-                --no-translations
+                --translations zh_CN
                 --no-system-d3d-compiler
                 --no-compiler-runtime
                 --no-opengl-sw

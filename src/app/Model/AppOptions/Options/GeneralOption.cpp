@@ -19,6 +19,13 @@ namespace {
 }
 
 void GeneralOption::load(const QJsonObject &object) {
+    if (object.contains(uiLanguageKey)) {
+        const auto value = object.value(uiLanguageKey).toString();
+        if (value == "en_US" || value == "zh_CN")
+            uiLanguage = value;
+        else
+            uiLanguage = "system";
+    }
     if (object.contains(defaultSingingLanguageKey))
         defaultSingingLanguage = object[defaultSingingLanguageKey].toString();
 
@@ -85,6 +92,7 @@ void GeneralOption::save(QJsonObject &object) {
         lyricsObj[it.key()] = it.value();
 
     object = {
+        {uiLanguageKey,             uiLanguage                                    },
         {defaultSingingLanguageKey, defaultSingingLanguage                        },
         {defaultLyricsKey,          lyricsObj                                     },
         {packageSearchPathsKey,     QJsonArray::fromStringList(packageSearchPaths)},

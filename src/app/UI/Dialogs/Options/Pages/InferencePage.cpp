@@ -13,6 +13,7 @@
 #include "UI/Controls/SvsSeekbar.h"
 #include "UI/Controls/SwitchButton.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
+#include "Utils/UiLanguageManager.h"
 #include "Utils/StringUtils.h"
 
 #include <synthrt/Core/Core/Runtime.h>
@@ -221,7 +222,9 @@ QWidget *InferencePage::createContentWidget() {
             ? singerCat->as<srt::svs::SingerCategory>()->singers()
             : std::vector<srt::svs::SingerSpec *>{};
 
-        const auto locale = QLocale::system();
+        const auto languageManager = UiLanguageManager::instance();
+        const auto locale =
+            languageManager ? languageManager->effectiveLocale() : QLocale::system();
         const auto localeName = locale.name().toStdString();
 
         const auto engineInitialized = inferEngine->initialized();

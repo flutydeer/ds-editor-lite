@@ -43,7 +43,8 @@ endif ()
 target_include_directories(${PROJECT_NAME} PUBLIC .)
 target_compile_definitions(${PROJECT_NAME} PRIVATE QT_MESSAGELOGCONTEXT)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Concurrent StateMachine)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Concurrent StateMachine
+        LinguistTools)
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
@@ -121,6 +122,13 @@ endif ()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
 
+qt_add_translations(
+        TARGETS ${PROJECT_NAME}
+        TS_FILES Resources/translate/translation_zh_CN.ts
+        RESOURCE_PREFIX "/i18n"
+        LUPDATE_OPTIONS -no-obsolete
+)
+
 #if (ONNXRUNTIME_ENABLE_CUDA)
 target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_CUDA)
 #endif()
@@ -154,6 +162,7 @@ if (WIN32)
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                 COMMAND "${WINDEPLOYQT_EXE}"
                 --verbose 0
+                --translations zh_CN
                 \"$<TARGET_FILE:${PROJECT_NAME}>\"
                 COMMENT "Deploy Qt"
         )

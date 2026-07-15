@@ -29,7 +29,7 @@ AppOptions::AppOptions(QObject *parent) : QObject(parent) {
             m_generalOption.load(obj.value(m_generalOption.key()).toObject());
             m_audioOption.load(obj.value(m_audioOption.key()).toObject());
             m_appearanceOption.load(obj.value(m_appearanceOption.key()).toObject());
-            m_languageOption.load(obj.value(m_languageOption.key()).toObject());
+            m_g2pLanguageOption.load(obj.value(m_g2pLanguageOption.key()).toObject());
             m_fillLyricOption.load(obj.value(m_fillLyricOption.key()).toObject());
             m_inferenceOption.load(obj.value(m_inferenceOption.key()).toObject());
             m_developerOption.load(obj.value(m_developerOption.key()).toObject());
@@ -50,7 +50,7 @@ bool AppOptions::saveAndNotify(const AppOptionsGlobal::Option option) {
         {m_generalOption.key(),    m_generalOption.value()   },
         {m_audioOption.key(),      m_audioOption.value()     },
         {m_appearanceOption.key(), m_appearanceOption.value()},
-        {m_languageOption.key(),   m_languageOption.value()  },
+        {m_g2pLanguageOption.key(), m_g2pLanguageOption.value()},
         {m_fillLyricOption.key(),  m_fillLyricOption.value() },
         {m_inferenceOption.key(),  m_inferenceOption.value() },
         {m_developerOption.key(), m_developerOption.value()}
@@ -77,8 +77,8 @@ AppearanceOption *AppOptions::appearance() {
     return &m_appearanceOption;
 }
 
-LanguageOption *AppOptions::language() {
-    return &m_languageOption;
+G2pLanguageOption *AppOptions::g2pLanguage() {
+    return &m_g2pLanguageOption;
 }
 
 FillLyricOption *AppOptions::fillLyric() {

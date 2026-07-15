@@ -45,7 +45,7 @@ namespace LangSetting {
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
         // TODO g2pMgr->g2ps() bug
-        const auto langOrder = appOptions->language()->langOrder;
+        const auto langOrder = appOptions->g2pLanguage()->langOrder;
         // for (const auto &g2pId : langOrder) {
         //     const auto &g2p = g2pMgr->g2p(g2pId);
         //     this->addItem(g2p->displayName());

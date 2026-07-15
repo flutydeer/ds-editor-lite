@@ -25,6 +25,7 @@ public:
     QString defaultLyricForLanguage(const QString &language) const;
 
     QString defaultSingingLanguage = "cmn";
+    QString uiLanguage = "system";
     QMap<QString, QString> defaultLyrics{
         {"cmn", "啦"},
         {"eng", "la"},
@@ -44,6 +45,7 @@ public:
 
 private:
     const QString defaultSingingLanguageKey = "defaultSingLanguage";
+    const QString uiLanguageKey = "uiLanguage";
     const QString defaultLyricsKey = "defaultLyrics";
     const QString packageSearchPathsKey = "packageSearchPaths";
     const QString recentProjectFilesKey = "recentProjectFiles";

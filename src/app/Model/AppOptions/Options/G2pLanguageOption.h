@@ -1,11 +1,11 @@
-#ifndef LANGUAGEOPTION_H
-#define LANGUAGEOPTION_H
+#ifndef G2PLANGUAGEOPTION_H
+#define G2PLANGUAGEOPTION_H
 
 #include "Model/AppOptions/IOption.h"
 
-class LanguageOption final : public IOption {
+class G2pLanguageOption final : public IOption {
 public:
-    explicit LanguageOption() : IOption("language") {
+    explicit G2pLanguageOption() : IOption("language") {
     }
 
     void load(const QJsonObject &object) override;
@@ -16,6 +16,4 @@ protected:
     void save(QJsonObject &object) override;
 };
 
-
-
-#endif // LANGUAGEOPTION_H
+#endif // G2PLANGUAGEOPTION_H

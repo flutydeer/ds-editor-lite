@@ -18,7 +18,7 @@ void G2pPage::update() const {
 }
 
 void G2pPage::modifyOption() {
-    appOptions->saveAndNotify(AppOptionsGlobal::Language);
+    appOptions->saveAndNotify(AppOptionsGlobal::G2pLanguage);
 }
 
 QWidget *G2pPage::createContentWidget() {

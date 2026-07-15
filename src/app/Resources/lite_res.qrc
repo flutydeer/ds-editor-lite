@@ -159,9 +159,6 @@
 
         <file>theme/lyricwarpview-dark.qss</file>
 
-        <!-- ======== Translations ======== -->
-        <file>translate/translation_zh_CN.qm</file>
-
         <!-- ======== Fonts ======== -->
         <file>fonts/Sarasa-UI-Music-Regular.ttf</file>
 

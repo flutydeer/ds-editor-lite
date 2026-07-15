@@ -11,7 +11,7 @@
 #include "Options/AppearanceOption.h"
 #include "Options/AudioOption.h"
 #include "Options/DeveloperOption.h"
-#include "Options/LanguageOption.h"
+#include "Options/G2pLanguageOption.h"
 #include "Options/FillLyricOption.h"
 #include "Options/GeneralOption.h"
 #include "Options/InferenceOption.h"
@@ -20,11 +20,10 @@
 class AppOptions : public QObject {
     Q_OBJECT
 
-private:
-    explicit AppOptions(QObject *parent = nullptr);
-    ~AppOptions();
-
 public:
+    explicit AppOptions(QObject *parent = nullptr);
+    ~AppOptions() override;
+
     LITE_SINGLETON_DECLARE_INSTANCE(AppOptions)
     Q_DISABLE_COPY_MOVE(AppOptions)
 
@@ -36,7 +35,7 @@ public:
     GeneralOption *general();
     AudioOption *audio();
     AppearanceOption *appearance();
-    LanguageOption *language();
+    G2pLanguageOption *g2pLanguage();
     FillLyricOption *fillLyric();
     InferenceOption *inference();
     DeveloperOption *developer();
@@ -48,7 +47,7 @@ private:
     GeneralOption m_generalOption;
     AudioOption m_audioOption;
     AppearanceOption m_appearanceOption;
-    LanguageOption m_languageOption;
+    G2pLanguageOption m_g2pLanguageOption;
     FillLyricOption m_fillLyricOption;
     InferenceOption m_inferenceOption;
     DeveloperOption m_developerOption;
