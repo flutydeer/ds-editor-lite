@@ -1,5 +1,6 @@
 #include "Modules/FillLyric/Controls/LyricCell.h"
 
+#include <QCoreApplication>
 #include <QMenu>
 
 #include <QGraphicsSceneMouseEvent>
@@ -9,11 +10,10 @@
 
 #include "Modules/FillLyric/Controls/EditDialog.h"
 
-namespace FillLyric
-{
-    LyricCell::LyricCell(const qreal &x, const qreal &y, LangNote *note, QGraphicsView *view, CellQss *qss,
-                         QList<LyricCell *> *cells, QGraphicsItem *parent) :
-        QGraphicsObject(parent), m_qss(qss), m_cells(cells), m_note(note), m_view(view) {
+namespace FillLyric {
+    LyricCell::LyricCell(const qreal &x, const qreal &y, LangNote *note, QGraphicsView *view,
+                         CellQss *qss, QList<LyricCell *> *cells, QGraphicsItem *parent)
+        : QGraphicsObject(parent), m_qss(qss), m_cells(cells), m_note(note), m_view(view) {
         this->setX(x);
         this->setY(y);
         setFlag(ItemIsSelectable);
@@ -23,7 +23,9 @@ namespace FillLyric
         this->updateLyricRect();
     }
 
-    LyricCell::~LyricCell() { delete m_note; }
+    LyricCell::~LyricCell() {
+        delete m_note;
+    }
 
     void LyricCell::clear() {
         delete m_note;
@@ -34,22 +36,30 @@ namespace FillLyric
 
     QPainterPath LyricCell::shape() const {
         QPainterPath path;
-        path.addRect({syllablePos().x(), syllablePos().y(), syllableWidth(), static_cast<qreal>(m_sRect.height())});
-        path.addRect({rectPos().x(), rectPos().y(), width() - m_padding * 2, m_lRect.height() + m_rectPadding * 2});
+        path.addRect({syllablePos().x(), syllablePos().y(), syllableWidth(),
+                      static_cast<qreal>(m_sRect.height())});
+        path.addRect({rectPos().x(), rectPos().y(), width() - m_padding * 2,
+                      m_lRect.height() + m_rectPadding * 2});
         return path;
     }
 
-    QRectF LyricCell::boundingRect() const { return {0, 0, width(), height()}; }
+    QRectF LyricCell::boundingRect() const {
+        return {0, 0, width(), height()};
+    }
 
     qreal LyricCell::width() const {
-        return std::max(lyricWidth(), syllableWidth()) + m_padding * 2 + m_rectBorder * 2 + m_rectPadding * 2;
+        return std::max(lyricWidth(), syllableWidth()) + m_padding * 2 + m_rectBorder * 2 +
+               m_rectPadding * 2;
     }
 
     qreal LyricCell::height() const {
-        return m_padding + m_sRect.height() + m_lsPadding + m_lRect.height() + m_rectBorder * 2 + m_rectPadding * 2;
+        return m_padding + m_sRect.height() + m_lsPadding + m_lRect.height() + m_rectBorder * 2 +
+               m_rectPadding * 2;
     }
 
-    LangNote *LyricCell::note() const { return m_note; }
+    LangNote *LyricCell::note() const {
+        return m_note;
+    }
 
     void LyricCell::setNote(LangNote *note) {
         // R17/TD-4: 自我赋值保护，避免 delete m_note 后 use-after-free
@@ -59,17 +69,29 @@ namespace FillLyric
         m_note = note;
     }
 
-    QString LyricCell::lyric() const { return m_note->lyric; }
+    QString LyricCell::lyric() const {
+        return m_note->lyric;
+    }
 
-    void LyricCell::setLyric(const QString &lyric) { Q_EMIT this->updateLyric(this, lyric); }
+    void LyricCell::setLyric(const QString &lyric) {
+        Q_EMIT this->updateLyric(this, lyric);
+    }
 
-    QString LyricCell::syllable() const { return m_note->syllable; }
+    QString LyricCell::syllable() const {
+        return m_note->syllable;
+    }
 
-    void LyricCell::setSyllable(const QString &syllable) { Q_EMIT this->changeSyllable(this, syllable); }
+    void LyricCell::setSyllable(const QString &syllable) {
+        Q_EMIT this->changeSyllable(this, syllable);
+    }
 
-    qreal LyricCell::margin() const { return m_rectPadding; }
+    qreal LyricCell::margin() const {
+        return m_rectPadding;
+    }
 
-    void LyricCell::setMargin(const qreal &margin) { m_rectPadding = margin; }
+    void LyricCell::setMargin(const qreal &margin) {
+        m_rectPadding = margin;
+    }
 
     void LyricCell::setFont(const QFont &font) {
         m_font = font;
@@ -80,12 +102,17 @@ namespace FillLyric
         m_syllableFontBold.setWeight(QFont::Bold);
     }
 
-    void LyricCell::setLyricRect(const QRect &rect) { m_lRect = rect; }
+    void LyricCell::setLyricRect(const QRect &rect) {
+        m_lRect = rect;
+    }
 
-    void LyricCell::setSyllableRect(const QRect &rect) { m_sRect = rect; }
+    void LyricCell::setSyllableRect(const QRect &rect) {
+        m_sRect = rect;
+    }
 
     void LyricCell::handleMouseSelection(QGraphicsSceneMouseEvent *event) {
-        if (event->button() == Qt::RightButton && scene()->selectedItems().size() > 1 && this->isSelected()) {
+        if (event->button() == Qt::RightButton && scene()->selectedItems().size() > 1 &&
+            this->isSelected()) {
             event->accept();
             return;
         }
@@ -103,17 +130,21 @@ namespace FillLyric
         this->setSelected(true);
     }
 
-    void LyricCell::mousePressEvent(QGraphicsSceneMouseEvent *event) { handleMouseSelection(event); }
+    void LyricCell::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+        handleMouseSelection(event);
+    }
 
-    void LyricCell::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) { handleMouseSelection(event); }
+    void LyricCell::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+        handleMouseSelection(event);
+    }
 
     void LyricCell::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
         if (event->button() == Qt::LeftButton && lyricRect().contains(event->scenePos())) {
             const auto lRect = lyricRect();
             const int horizontalOffset = m_view->horizontalScrollBar()->value();
             const int verticalOffset = m_view->verticalScrollBar()->value();
-            const auto editRect =
-                QRectF(lRect.x() - horizontalOffset, lRect.y() - verticalOffset, lRect.width(), lRect.height());
+            const auto editRect = QRectF(lRect.x() - horizontalOffset, lRect.y() - verticalOffset,
+                                         lRect.width(), lRect.height());
             EditDialog dlg(lyric(), editRect, m_font, m_view);
             dlg.show();
             dlg.activateWindow();
@@ -132,7 +163,8 @@ namespace FillLyric
     void LyricCell::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
         auto *menu = new QMenu(m_view);
         menu->setAttribute(Qt::WA_TranslucentBackground);
-        menu->setWindowFlags(menu->windowFlags() | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
+        menu->setWindowFlags(menu->windowFlags() | Qt::FramelessWindowHint |
+                             Qt::NoDropShadowWindowHint);
         this->changeSyllableMenu(menu);
         this->changePhonicMenu(menu);
 
@@ -141,15 +173,21 @@ namespace FillLyric
 
         if (lRect.contains(event->scenePos())) {
             menu->addSeparator();
-            menu->addAction(tr("clear cell"), this, [this] { this->clear(); });
+            menu->addAction(QCoreApplication::translate("LyricCell", "clear cell"), this,
+                            [this] { this->clear(); });
             if (m_cells->size() == 1)
-                menu->addAction(tr("delete line"), this, [this] { Q_EMIT this->deleteLine(this); });
+                menu->addAction(QCoreApplication::translate("LyricCell", "delete line"), this,
+                                [this] { Q_EMIT this->deleteLine(this); });
             else
-                menu->addAction(tr("delete cell"), this, [this] { Q_EMIT this->deleteCell(this); });
-            menu->addAction(tr("add prev cell"), this, [this] { Q_EMIT this->addPrevCell(this); });
-            menu->addAction(tr("add next cell"), this, [this] { Q_EMIT this->addNextCell(this); });
+                menu->addAction(QCoreApplication::translate("LyricCell", "delete cell"), this,
+                                [this] { Q_EMIT this->deleteCell(this); });
+            menu->addAction(QCoreApplication::translate("LyricCell", "add prev cell"), this,
+                            [this] { Q_EMIT this->addPrevCell(this); });
+            menu->addAction(QCoreApplication::translate("LyricCell", "add next cell"), this,
+                            [this] { Q_EMIT this->addNextCell(this); });
             if (m_cells->indexOf(this) != 0)
-                menu->addAction(tr("linebreak"), this, [this] { Q_EMIT this->linebreak(this); });
+                menu->addAction(QCoreApplication::translate("LyricCell", "linebreak"), this,
+                                [this] { Q_EMIT this->linebreak(this); });
         }
 
         menu->exec(event->screenPos());
@@ -166,18 +204,26 @@ namespace FillLyric
         m_sRect = QFontMetrics(m_syllableFont).boundingRect(syllable);
     }
 
-    qreal LyricCell::lyricWidth() const { return m_lRect.width() + 10; }
+    qreal LyricCell::lyricWidth() const {
+        return m_lRect.width() + 10;
+    }
 
-    qreal LyricCell::syllableWidth() const { return m_sRect.width() + 10; }
+    qreal LyricCell::syllableWidth() const {
+        return m_sRect.width() + 10;
+    }
 
     QPointF LyricCell::lyricPos() const {
         const auto rPos = rectPos();
         return {width() / 2 - lyricWidth() / 2, rPos.y() + m_rectPadding};
     }
 
-    QPointF LyricCell::rectPos() const { return {m_padding, m_padding + m_sRect.height() + m_lsPadding}; }
+    QPointF LyricCell::rectPos() const {
+        return {m_padding, m_padding + m_sRect.height() + m_lsPadding};
+    }
 
-    QPointF LyricCell::syllablePos() const { return {width() / 2 - syllableWidth() / 2, m_padding}; }
+    QPointF LyricCell::syllablePos() const {
+        return {width() / 2 - syllableWidth() / 2, m_padding};
+    }
 
     QRectF LyricCell::lyricRect() const {
         return {x() + rectPos().x(), y() + rectPos().y(), width() - m_padding * 2,
@@ -185,11 +231,12 @@ namespace FillLyric
     }
 
     QRectF LyricCell::syllableRect() const {
-        return {x() + syllablePos().x(), y() + syllablePos().y(), static_cast<qreal>(m_sRect.width()),
-                static_cast<qreal>(m_sRect.height())};
+        return {x() + syllablePos().x(), y() + syllablePos().y(),
+                static_cast<qreal>(m_sRect.width()), static_cast<qreal>(m_sRect.height())};
     }
 
-    void LyricCell::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
+    void LyricCell::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                          QWidget *widget) {
         int flag = 0;
         if (option->state & QStyle::State_MouseOver)
             flag = Hovered;
@@ -209,10 +256,12 @@ namespace FillLyric
         const auto sPos = syllablePos();
         painter->setFont(syllableFont);
         painter->setPen(m_syllablePen[lyricFlag]);
-        painter->drawText(QRectF(sPos.x() + 5, sPos.y(), syllableWidth(), m_sRect.height() + 0.5), syllable);
+        painter->drawText(QRectF(sPos.x() + 5, sPos.y(), syllableWidth(), m_sRect.height() + 0.5),
+                          syllable);
 
         const auto rPos = rectPos();
-        const auto boxRect = QRectF(rPos.x(), rPos.y(), width() - m_padding * 2, m_lRect.height() + m_rectPadding * 2);
+        const auto boxRect = QRectF(rPos.x(), rPos.y(), width() - m_padding * 2,
+                                    m_lRect.height() + m_rectPadding * 2);
 
         painter->setBrush(m_backgroundBrush[flag]);
         painter->setPen(m_borderPen[flag]);
@@ -222,22 +271,24 @@ namespace FillLyric
         painter->setPen(m_lyricPen[lyricFlag]);
 
         const auto lPos = lyricPos();
-        painter->drawText(QRectF(lPos.x() + 5, lPos.y(), lyricWidth(), m_lRect.height() + 0.5), m_note->lyric);
+        painter->drawText(QRectF(lPos.x() + 5, lPos.y(), lyricWidth(), m_lRect.height() + 0.5),
+                          m_note->lyric);
     }
 
     void LyricCell::changePhonicMenu(QMenu *menu) {
-        auto *inputAction = new QAction(tr("Custom Syllables"), this);
+        auto *inputAction =
+            new QAction(QCoreApplication::translate("LyricCell", "Custom Syllables"), this);
         menu->addAction(inputAction);
-        connect(inputAction, &QAction::triggered, this,
-                [this]
-                {
-                    bool ok;
-                    const QString syllable = QInputDialog::getText(
-                        m_view, tr("Custom Syllables"), tr("Please input syllables"), QLineEdit::Normal, "", &ok);
-                    if (ok && !syllable.isEmpty()) {
-                        this->setSyllable(syllable);
-                    }
-                });
+        connect(inputAction, &QAction::triggered, this, [this] {
+            bool ok;
+            const QString syllable = QInputDialog::getText(
+                m_view, QCoreApplication::translate("LyricCell", "Custom Syllables"),
+                QCoreApplication::translate("LyricCell", "Please input syllables"),
+                QLineEdit::Normal, "", &ok);
+            if (ok && !syllable.isEmpty()) {
+                this->setSyllable(syllable);
+            }
+        });
     }
 
     void LyricCell::changeSyllableMenu(QMenu *menu) {

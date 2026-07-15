@@ -5,9 +5,11 @@
 #include "Controller/Actions/AppModel/Track/InsertTrackAction.h"
 #include "Model/AppModel/AppModel.h"
 
+#include <QCoreApplication>
+
 ImportProjectActions::ImportProjectActions(ProjectModelData &&data, const bool importTempo,
                                            const bool importTimeSignature, AppModel *model) {
-    setName(tr("Import MIDI"));
+    setName(QCoreApplication::translate("ImportProjectActions", "Import MIDI"));
 
     if (importTempo && qAbs(model->tempo() - data.tempo) > 0.001) {
         const auto actions = new TempoActions;

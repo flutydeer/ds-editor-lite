@@ -10,8 +10,7 @@
 #include "Modules/FillLyric/Utils/TextSplitter.h"
 #include "Modules/FillLyric/Utils/TextTagger.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     RuleTestTab::RuleTestTab(QWidget *parent) : QWidget(parent) {
         setAttribute(Qt::WA_StyledBackground);
         setObjectName("RuleTestTab");
@@ -51,8 +50,8 @@ namespace FillLyric
         splitLayout->setContentsMargins(8, 8, 8, 8);
 
         auto *splitHeaderRow = new QHBoxLayout;
-        auto *splitDesc = new QLabel(
-            tr("Text is split into tokens by splitter rules (applied in order)."));
+        auto *splitDesc =
+            new QLabel(tr("Text is split into tokens by splitter rules (applied in order)."));
         splitDesc->setObjectName("ruleInfoLabel");
         splitDesc->setWordWrap(true);
         splitHeaderRow->addWidget(splitDesc, 1);
@@ -76,8 +75,8 @@ namespace FillLyric
         tagLayout->setContentsMargins(8, 8, 8, 8);
 
         auto *tagHeaderRow = new QHBoxLayout;
-        auto *tagDesc = new QLabel(
-            tr("Each token from step 1 is tagged with language/tag by tagger rules (first match wins)."));
+        auto *tagDesc = new QLabel(tr("Each token from step 1 is tagged with language/tag by "
+                                      "tagger rules (first match wins)."));
         tagDesc->setObjectName("ruleInfoLabel");
         tagDesc->setWordWrap(true);
         tagHeaderRow->addWidget(tagDesc, 1);
@@ -121,9 +120,8 @@ namespace FillLyric
         for (const auto &token : splitResult)
             splitTokens.append(QString::fromStdString(token));
 
-        m_splitOutput->setPlainText(
-            tr("Token count: %1\n").arg(splitResult.size()) +
-            splitTokens.join(QStringLiteral(" | ")));
+        m_splitOutput->setPlainText(tr("Token count: %1\n").arg(splitResult.size()) +
+                                    splitTokens.join(QStringLiteral(" | ")));
 
         // ── Step 2: Tag (uses split result as input) ────────────────────────
         const auto tagResult = TextTagger::tag(splitResult);
@@ -131,11 +129,10 @@ namespace FillLyric
         QStringList tagLines;
         tagLines.reserve(static_cast<int>(tagResult.size()));
         for (const auto &r : tagResult) {
-            tagLines.append(QStringLiteral("%1  [lang=%2, tag=%3%4]")
-                                .arg(QString::fromStdString(r.lyric),
-                                     QString::fromStdString(r.language),
-                                     QString::fromStdString(r.tag),
-                                     r.discard ? QStringLiteral(", discard") : QString()));
+            tagLines.append(
+                QStringLiteral("%1  [lang=%2, tag=%3%4]")
+                    .arg(QString::fromStdString(r.lyric), QString::fromStdString(r.language),
+                         QString::fromStdString(r.tag), r.discard ? tr(", discard") : QString()));
         }
 
         m_tagOutput->setPlainText(tagLines.join('\n'));

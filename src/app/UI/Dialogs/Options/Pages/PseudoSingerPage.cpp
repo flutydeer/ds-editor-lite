@@ -259,7 +259,7 @@ void PseudoSingerPage::modifyOption() {
     m_widget->accept();
 }
 
-QWidget * PseudoSingerPage::createContentWidget() {
+QWidget *PseudoSingerPage::createContentWidget() {
     m_widget = new PseudoSingerPageWidget;
     m_widget->setContentsMargins({});
     return m_widget;

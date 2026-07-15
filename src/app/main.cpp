@@ -26,6 +26,8 @@
 #include <QApplication>
 #include <QDir>
 #include <QElapsedTimer>
+#include <QLibraryInfo>
+#include <QLocale>
 #include <QScreen>
 #include <QStyleHints>
 #include <QStyleFactory>
@@ -112,6 +114,18 @@ int main(int argc, char *argv[]) {
 
     // Initialize FontManager to load custom fonts early (stays Meyers static)
     FontManager::instance();
+
+    const QLocale appLocale(QLocale::Chinese, QLocale::China);
+    const auto qtTranslationsPath = QLibraryInfo::path(QLibraryInfo::TranslationsPath);
+
+    QTranslator qtBaseTranslator;
+    if (qtBaseTranslator.load(appLocale, QStringLiteral("qtbase"), QStringLiteral("_"),
+                              qtTranslationsPath))
+        QApplication::installTranslator(&qtBaseTranslator);
+
+    QTranslator qtTranslator;
+    if (qtTranslator.load(appLocale, QStringLiteral("qt"), QStringLiteral("_"), qtTranslationsPath))
+        QApplication::installTranslator(&qtTranslator);
 
     QTranslator translator;
     if (translator.load(":translate/translation_zh_CN.qm"))

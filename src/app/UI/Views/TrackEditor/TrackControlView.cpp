@@ -263,10 +263,10 @@ bool TrackControlView::isInDragArea(const QPoint &pos) const {
 }
 
 void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
-    const auto actionInsert = new QAction("Insert new track", this);
+    const auto actionInsert = new QAction(tr("Insert new track"), this);
     actionInsert->setIcon(menuIcon(QStringLiteral(":/svg/icons/add_16_regular.svg")));
     connect(actionInsert, &QAction::triggered, this, [this] { emit insertNewTrackTriggered(); });
-    const auto actionRemove = new QAction("Delete", this);
+    const auto actionRemove = new QAction(tr("Delete"), this);
     actionRemove->setIcon(menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
     connect(actionRemove, &QAction::triggered, this, [this] { emit removeTrackTriggered(id()); });
 
@@ -274,7 +274,7 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
     menu.addAction(actionInsert);
     menu.addAction(actionRemove);
 
-    auto colorMenu = new Menu("Track color", &menu);
+    auto colorMenu = new Menu(tr("Track color"), &menu);
     colorMenu->setIcon(menuIcon(QStringLiteral(":/svg/icons/color_16_regular.svg")));
     menu.addMenu(colorMenu);
     int originalColorIndex = m_track ? m_track->colorIndex() : 0;

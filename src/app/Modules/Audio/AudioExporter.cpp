@@ -7,6 +7,7 @@
 #include "Model/AppModel/Track.h"
 
 #include <QApplication>
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QVariant>
@@ -210,7 +211,7 @@ namespace Audio {
     QString AudioExporterPrivate::projectName() {
         // project file's base name
         auto s = QFileInfo(documentWorkflowController->projectPath()).baseName();
-        return s.isEmpty() ? QStringLiteral("Untitled") : s;
+        return s.isEmpty() ? QCoreApplication::translate("Audio::AudioExporterPrivate", "Untitled") : s;
     }
 
     auto AudioExporterPrivate::projectDirectory() -> QString {

@@ -27,7 +27,7 @@ QString ClipEditorView::tabId() const {
 }
 
 QString ClipEditorView::tabName() const {
-    return "编辑";
+    return tr("Edit");
 }
 
 AppGlobal::PanelType ClipEditorView::panelType() const {
@@ -57,7 +57,7 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
     m_pianoRollEditorView->setVisible(false);
 
     m_placeholderLabel = new QLabel(this);
-    m_placeholderLabel->setText(QStringLiteral("请选中一个歌声剪辑以编辑"));
+    m_placeholderLabel->setText(tr("Please select a singing clip to edit"));
     m_placeholderLabel->setAlignment(Qt::AlignCenter);
     m_placeholderLabel->setStyleSheet(QStringLiteral("color: #80F0F0F0;"
                                                      "font-size: 14px;"));

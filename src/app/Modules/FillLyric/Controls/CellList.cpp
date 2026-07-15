@@ -1,6 +1,7 @@
 #include "Modules/FillLyric/Controls/CellList.h"
 #include "Modules/FillLyric/Controls/LyricCell.h"
 
+#include <QCoreApplication>
 #include <QMenu>
 #include <QStyleOptionGraphicsItem>
 #include <qgraphicssceneevent.h>

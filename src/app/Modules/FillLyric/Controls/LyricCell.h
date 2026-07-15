@@ -9,25 +9,26 @@
 
 #include "Modules/FillLyric/LangCommon.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     struct CellQss {
-        QVector<QBrush> cellBackgroundBrush = {Qt::NoBrush, QColor(255, 255, 255, 15), QColor(255, 255, 255, 30)};
+        QVector<QBrush> cellBackgroundBrush = {Qt::NoBrush, QColor(255, 255, 255, 15),
+                                               QColor(255, 255, 255, 30)};
         QVector<QPen> cellBorderPen = {QPen(QColor(83, 83, 85), 2), QPen(QColor(137, 137, 139), 2),
                                        QPen(QColor(155, 186, 255), 2)};
 
-        QVector<QPen> cellLyricPen = {QColor(240, 240, 240), QColor(240, 240, 240), QColor(240, 240, 240),
-                                      QColor(240, 240, 240)};
-        QVector<QPen> cellSyllablePen = {QColor(240, 240, 240), QColor(155, 186, 255), QColor(255, 204, 153),
-                                         QColor(255, 155, 157)};
+        QVector<QPen> cellLyricPen = {QColor(240, 240, 240), QColor(240, 240, 240),
+                                      QColor(240, 240, 240), QColor(240, 240, 240)};
+        QVector<QPen> cellSyllablePen = {QColor(240, 240, 240), QColor(155, 186, 255),
+                                         QColor(255, 204, 153), QColor(255, 155, 157)};
     };
 
     class LyricCell final : public QGraphicsObject {
         Q_OBJECT
 
     public:
-        explicit LyricCell(const qreal &x, const qreal &y, LangNote *note, QGraphicsView *view, CellQss *qss,
-                           QList<LyricCell *> *cells, QGraphicsItem *parent = nullptr);
+        explicit LyricCell(const qreal &x, const qreal &y, LangNote *note, QGraphicsView *view,
+                           CellQss *qss, QList<LyricCell *> *cells,
+                           QGraphicsItem *parent = nullptr);
         ~LyricCell() override;
 
         void clear();
@@ -75,7 +76,8 @@ namespace FillLyric
         void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
         void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
 
-        void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+        void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                   QWidget *widget) override;
 
     private:
         void updateLyricRect();
@@ -115,16 +117,17 @@ namespace FillLyric
             Selected = 2,
         };
 
-        QVector<QBrush> m_backgroundBrush = {Qt::NoBrush, QColor(255, 255, 255, 15), QColor(255, 255, 255, 30)};
+        QVector<QBrush> m_backgroundBrush = {Qt::NoBrush, QColor(255, 255, 255, 15),
+                                             QColor(255, 255, 255, 30)};
         QVector<QPen> m_borderPen = {QPen(QColor(83, 83, 85), 2), QPen(QColor(137, 137, 139), 2),
                                      QPen(QColor(155, 186, 255), 2)};
 
         enum PenType { MultiTone = 1, Revised };
 
-        QVector<QPen> m_lyricPen = {QColor(240, 240, 240), QColor(240, 240, 240), QColor(240, 240, 240),
-                                    QColor(240, 240, 240)};
-        QVector<QPen> m_syllablePen = {QColor(240, 240, 240), QColor(155, 186, 255), QColor(255, 204, 153),
-                                       QColor(255, 155, 157)};
+        QVector<QPen> m_lyricPen = {QColor(240, 240, 240), QColor(240, 240, 240),
+                                    QColor(240, 240, 240), QColor(240, 240, 240)};
+        QVector<QPen> m_syllablePen = {QColor(240, 240, 240), QColor(155, 186, 255),
+                                       QColor(255, 204, 153), QColor(255, 155, 157)};
     };
 } // namespace FillLyric
 
