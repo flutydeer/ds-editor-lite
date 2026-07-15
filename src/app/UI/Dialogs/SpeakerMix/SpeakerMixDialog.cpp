@@ -43,6 +43,33 @@ SpeakerMixDialog::SpeakerMixDialog(const SingerInfo &singerInfo, const SpeakerMi
     tagContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     const auto tagLayout = new FlowLayout(tagContainer, 0, 6, 6);
 
+    // 全选按钮
+    const auto btnSelectAll = new Button(tr("All"), tagContainer);
+    btnSelectAll->setCursor(Qt::PointingHandCursor);
+    connect(btnSelectAll, &Button::clicked, this, [this] {
+        for (auto it = m_tagButtons.begin(); it != m_tagButtons.end(); ++it) {
+            if (!it.value()->isChecked())
+                it.value()->setChecked(true);
+        }
+    });
+    tagLayout->addWidget(btnSelectAll);
+
+    // 反选按钮
+    const auto btnInvert = new Button(tr("Invert"), tagContainer);
+    btnInvert->setCursor(Qt::PointingHandCursor);
+    connect(btnInvert, &Button::clicked, this, [this] {
+        QVector<QString> targetIds;
+        for (auto it = m_tagButtons.begin(); it != m_tagButtons.end(); ++it) {
+            if (!it.value()->isChecked())
+                targetIds.append(it.key());
+        }
+        if (targetIds.isEmpty())
+            targetIds.append(m_tagButtons.firstKey());
+        m_mixList->setSpeakers(targetIds);
+        updateTagStates();
+    });
+    tagLayout->addWidget(btnInvert);
+
     for (int i = 0; i < speakerTypes.size(); ++i) {
         const QString &name = speakerTypes[i];
 
