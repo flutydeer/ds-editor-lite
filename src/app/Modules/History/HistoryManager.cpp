@@ -56,15 +56,19 @@ void HistoryManager::redo() {
 
 void HistoryManager::record(ActionSequence *actions) {
     Q_D(HistoryManager);
-    if (actions->count() <= 0)
+    if (actions->count() <= 0) {
+        delete actions;
         return;
+    }
 
     d->m_undoStack.push(actions);
+    for (const auto sequence : d->m_redoStack)
+        delete sequence;
     d->m_redoStack.clear();
     emit undoRedoChanged(canUndo(), undoActionName(), canRedo(), redoActionName());
 }
 
-void HistoryManager::reset() {
+void HistoryManager::reset(const ResetState state) {
     Q_D(HistoryManager);
     qDebug() << "HistoryManager::reset()";
     for (const auto seq : d->m_undoStack)
@@ -75,11 +79,14 @@ void HistoryManager::reset() {
     d->m_redoStack.clear();
     d->m_savePoint = nullptr;
     d->m_isSavePointSet = false;
+    d->m_unsavedBaseline = state == ResetState::Unsaved;
     emit undoRedoChanged(canUndo(), "", canRedo(), "");
 }
 
 bool HistoryManager::isOnSavePoint() const {
     Q_D(const HistoryManager);
+    if (d->m_unsavedBaseline)
+        return false;
     auto flag = false;
     if (d->m_undoStack.isEmpty() && d->m_redoStack.isEmpty())
         return true;
@@ -98,6 +105,7 @@ bool HistoryManager::isOnSavePoint() const {
 
 void HistoryManager::setSavePoint() {
     Q_D(HistoryManager);
+    d->m_unsavedBaseline = false;
     d->m_isSavePointSet = true;
     if (d->m_undoStack.isEmpty()) {
         d->m_savePoint = nullptr;

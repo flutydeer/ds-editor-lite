@@ -10,6 +10,7 @@
 #endif
 
 #include "Controller/AppController.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/TrackController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -31,6 +32,7 @@
 
 #include <QStackedWidget>
 #include <QTabBar>
+#include <QTimer>
 #include "UI/Views/MainTitleBar/ActionButtonsView.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "UI/Views/MainTitleBar/MainTitleBar.h"
@@ -304,6 +306,15 @@ MainWindow::MainWindow() {
     Dialog::setGlobalContext(this);
     Toast::setGlobalContext(this);
     appController->setMainWindow(this);
+    documentWorkflowController->setUi(this);
+    connect(documentWorkflowController, &DocumentWorkflowController::documentIdentityChanged, this,
+            &MainWindow::updateWindowTitle);
+    connect(documentWorkflowController, &DocumentWorkflowController::terminationApproved, this,
+            [this](const TerminationMode mode) {
+                m_restartRequested = mode == TerminationMode::Restart;
+                m_documentCloseApproved = true;
+                QTimer::singleShot(0, this, [this] { close(); });
+            });
 
     connect(appOptions, &AppOptions::optionsChanged, this,
             [this](const AppOptionsGlobal::Option option) {
@@ -317,8 +328,10 @@ MainWindow::MainWindow() {
     connect(taskManager, &TaskManager::allDone, this, &MainWindow::onAllDone);
     connect(taskManager, &TaskManager::taskChanged, this, &MainWindow::onTaskChanged);
 
-    connect(m_mainMenu->actionSave(), &QAction::triggered, this, &MainWindow::onSave);
-    connect(m_mainMenu->actionSaveAs(), &QAction::triggered, this, &MainWindow::onSaveAs);
+    connect(m_mainMenu->actionSave(), &QAction::triggered, documentWorkflowController,
+            &DocumentWorkflowController::requestSave);
+    connect(m_mainMenu->actionSaveAs(), &QAction::triggered, documentWorkflowController,
+            &DocumentWorkflowController::requestSaveAs);
 
     m_trackEditorView = new TrackEditorView;
     m_bottomPanelView = new BottomPanelView(this);
@@ -391,7 +404,7 @@ MainWindow::MainWindow() {
         }
     });
 #endif
-    appController->newProject();
+    documentWorkflowController->initializeNewDocument();
 }
 
 MainWindow::~MainWindow() {
@@ -418,64 +431,88 @@ void MainWindow::updatePanelDetachEnabled() {
 }
 
 void MainWindow::updateWindowTitle() {
-    auto projectName = appController->projectName();
+    auto projectName = documentWorkflowController->projectName();
     auto saved = historyManager->isOnSavePoint();
     auto appName = qApp->applicationDisplayName();
     if (projectName.isNull() || projectName.isEmpty())
         setWindowTitle(appName);
     else {
-        auto projectPath = appController->projectPath();
+        auto projectPath = documentWorkflowController->projectPath();
         auto displayName = projectPath.isEmpty() ? QFileInfo(projectName).completeBaseName()
                                                  : QFileInfo(projectPath).completeBaseName();
-        if (projectPath.isNull() || projectPath.isEmpty())
-            setWindowTitle(displayName);
-        else {
-            auto indicator = saved ? "" : "● ";
-            setWindowTitle(indicator + displayName);
-        }
+        auto indicator = saved ? "" : "● ";
+        setWindowTitle(indicator + displayName);
     }
 }
 
-bool MainWindow::askSaveChanges() {
-    m_isSaveChangesHandled = false;
-    auto dlg = new Dialog(this);
-    dlg->setWindowTitle(tr("Warning"));
-    dlg->setTitle(tr("Do you want to save changes?"));
-    dlg->setModal(true);
-
-    auto btnSave = new AccentButton(tr("Save"));
-    connect(btnSave, &AccentButton::clicked, this, [dlg, this] {
-        onSave();
-        m_isSaveChangesHandled = true;
-        dlg->accept();
-    });
-    dlg->setPositiveButton(btnSave);
-
-    auto btnDoNotSave = new Button(tr("Don't save"));
-    connect(btnDoNotSave, &Button::clicked, this, [dlg, this] {
-        m_isSaveChangesHandled = true;
-        dlg->accept();
-    });
-    dlg->setNegativeButton(btnDoNotSave);
-
-    auto btnCancel = new Button(tr("Cancel"));
-    connect(btnCancel, &Button::clicked, this, [dlg, this] {
-        m_isSaveChangesHandled = false;
-        dlg->accept();
-    });
-    dlg->setNeutralButton(btnCancel);
-
-    dlg->exec();
-    return m_isSaveChangesHandled;
-}
-
 void MainWindow::quit() {
-    close();
+    documentWorkflowController->requestTermination(TerminationMode::Exit);
 }
 
 void MainWindow::restart() {
-    m_restartRequested = true;
-    close();
+    documentWorkflowController->requestTermination(TerminationMode::Restart);
+}
+
+QWidget *MainWindow::documentWorkflowParentWidget() {
+    return this;
+}
+
+SaveDecision MainWindow::askDocumentSaveDecision() {
+    SaveDecision decision = SaveDecision::Cancel;
+    Dialog dialog(this);
+    dialog.setWindowTitle(tr("Warning"));
+    dialog.setTitle(tr("Do you want to save changes?"));
+    dialog.setModal(true);
+
+    auto btnSave = new AccentButton(tr("Save"));
+    connect(btnSave, &AccentButton::clicked, &dialog, [&] {
+        decision = SaveDecision::Save;
+        dialog.accept();
+    });
+    dialog.setPositiveButton(btnSave);
+
+    auto btnDoNotSave = new Button(tr("Don't save"));
+    connect(btnDoNotSave, &Button::clicked, &dialog, [&] {
+        decision = SaveDecision::Discard;
+        dialog.accept();
+    });
+    dialog.setNegativeButton(btnDoNotSave);
+
+    auto btnCancel = new Button(tr("Cancel"));
+    connect(btnCancel, &Button::clicked, &dialog, [&] {
+        decision = SaveDecision::Cancel;
+        dialog.reject();
+    });
+    dialog.setNeutralButton(btnCancel);
+    dialog.exec();
+    return decision;
+}
+
+QString MainWindow::chooseDocumentSavePath(const QString &suggestedPath) {
+    return QFileDialog::getSaveFileName(this, tr("Save project"), suggestedPath,
+                                        tr("DiffScope Project File (*.dspx)"));
+}
+
+bool MainWindow::confirmOpenWithoutPackageMetadata() {
+    MessageDialog dialog(tr("Package scan failed"),
+                         tr("Singer package metadata is not available. Open the project anyway?"));
+    dialog.setTitle(tr("Package scan failed"));
+    dialog.addAccentButton(tr("Open Anyway"), 1);
+    dialog.addButton(tr("Cancel"), 0);
+    return dialog.exec() == 1;
+}
+
+void MainWindow::showDocumentWorkflowError(const ProjectOperationError &error) {
+    MessageDialog dialog;
+    dialog.setWindowTitle(tr("Error"));
+    dialog.setTitle(error.title);
+    dialog.setMessage(error.message);
+    dialog.addAccentButton(tr("OK"), 1);
+    dialog.exec();
+}
+
+void MainWindow::showDocumentWorkflowBusy() {
+    Toast::show(tr("Another document operation is already in progress"));
 }
 
 void MainWindow::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) {
@@ -536,52 +573,6 @@ void MainWindow::onTaskStatusChanged(const TaskStatus &status) {
     m_statusProgressBar->setValue(status.progress);
     m_statusProgressBar->setTaskStatus(status.runningStatus);
     m_statusProgressBar->setIndeterminate(status.isIndetermine);
-}
-
-bool MainWindow::onSave() {
-    if (appController->projectPath().isEmpty()) {
-        onSaveAs();
-    } else {
-        if (QString errorMessage;
-            appController->saveProject(appController->projectPath(), errorMessage))
-            Toast::show(tr("Saved"));
-        else {
-            MessageDialog messageDialog;
-            messageDialog.setWindowTitle(tr("Error"));
-            messageDialog.setTitle(tr("Failed to save project"));
-            messageDialog.setMessage(errorMessage);
-            messageDialog.addAccentButton(tr("OK"), 1);
-            messageDialog.exec();
-        }
-    }
-    return true;
-}
-
-bool MainWindow::onSaveAs() {
-    auto lastDir = appController->projectPath().isEmpty()
-                       ? appController->lastProjectFolder() + "/" + appController->projectName()
-                       : appController->projectPath();
-    auto getFileName = [&, this] {
-        return QFileDialog::getSaveFileName(this, tr("Save project"), lastDir,
-                                            tr("DiffScope Project File (*.dspx)"));
-    };
-    auto fileName = getFileName();
-    if (fileName.isNull()) // Canceled
-        return false;
-
-    QString errorMessage;
-    bool saved = appController->saveProject(fileName, errorMessage);
-    if (saved)
-        Toast::show(tr("Saved"));
-    else {
-        MessageDialog messageDialog;
-        messageDialog.setWindowTitle(tr("Error"));
-        messageDialog.setTitle(tr("Failed to save project"));
-        messageDialog.setMessage(errorMessage);
-        messageDialog.addAccentButton(tr("OK"), 1);
-        messageDialog.exec();
-    }
-    return saved;
 }
 
 void MainWindow::onSplitterMoved(int pos, int index) const {
@@ -710,12 +701,10 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     if (m_bottomPanelDetached)
         attachBottomPanel();
 
-    auto saved = historyManager->isOnSavePoint();
-    if (!saved) {
-        if (!askSaveChanges()) {
-            event->ignore();
-            return;
-        }
+    if (!m_documentCloseApproved) {
+        event->ignore();
+        documentWorkflowController->requestTermination(TerminationMode::Exit);
+        return;
     }
     if (m_isAllDone) {
         if (m_waitDoneDialog)
@@ -839,13 +828,9 @@ void MainWindow::dropEvent(QDropEvent *event) {
                 const auto fileName = fileInfo.absoluteFilePath();
                 if (fileName.isNull())
                     return;
-                appController->requestOpenFile(fileName);
+                documentWorkflowController->requestOpen(fileName);
             };
-            if (!historyManager->isOnSavePoint()) {
-                if (this->askSaveChanges())
-                    openProject();
-            } else
-                openProject();
+            openProject();
         }
     }
 }

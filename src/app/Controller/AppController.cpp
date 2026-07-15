@@ -23,83 +23,13 @@
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
-#include "Model/AppModel/SingingClipPhonemeNormalizer.h"
-#include "Model/AppModel/DrawCurve.h"
-#include "Model/AppModel/Params.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/LaunchLanguageEngineTask.h"
-#include "Tasks/OpenDspxProjectTask.h"
-#include "UI/Controls/Toast.h"
-#include "UI/Dialogs/Base/MessageDialog.h"
-#include "UI/Dialogs/Base/ProgressDialog.h"
+#include "UI/Utils/ThemeManager.h"
 #include "Utils/Log.h"
 
-#include <QDir>
-#include <QElapsedTimer>
-#include <QFileInfo>
-
-#include <algorithm>
-
 #include "Actions/AppModel/MasterControl/MasterControlActions.h"
-
-namespace {
-    constexpr int maxRecentProjectFiles = 10;
-
-    QString normalizedProjectPath(const QString &path) {
-        return QDir::cleanPath(QFileInfo(path).absoluteFilePath());
-    }
-
-    bool projectPathsEqual(const QString &lhs, const QString &rhs) {
-#ifdef Q_OS_WIN
-        return QString::compare(lhs, rhs, Qt::CaseInsensitive) == 0;
-#else
-        return lhs == rhs;
-#endif
-    }
-
-    struct ProjectModelStats {
-        qsizetype trackCount = 0;
-        qsizetype clipCount = 0;
-        qsizetype noteCount = 0;
-        qint64 curveSampleCount = 0;
-    };
-
-    ProjectModelStats projectModelStats(const AppModel &model) {
-        ProjectModelStats stats;
-        stats.trackCount = model.tracks().count();
-        for (const auto track : model.tracks()) {
-            stats.clipCount += track->clips().count();
-            for (const auto clip : track->clips()) {
-                if (clip->clipType() != IClip::Singing)
-                    continue;
-                const auto singingClip = static_cast<SingingClip *>(clip);
-                stats.noteCount += singingClip->notes().count();
-                const QList<Param *> params = {
-                    &singingClip->params.pitch,        &singingClip->params.expressiveness,
-                    &singingClip->params.energy,       &singingClip->params.breathiness,
-                    &singingClip->params.voicing,      &singingClip->params.tension,
-                    &singingClip->params.mouthOpening, &singingClip->params.gender,
-                    &singingClip->params.velocity,     &singingClip->params.toneShift,
-                };
-                for (const auto param : params) {
-                    for (const auto type : {Param::Original, Param::Edited, Param::Envelope}) {
-                        for (const auto curve : param->curves(type)) {
-                            if (curve->type() == Curve::Draw)
-                                stats.curveSampleCount +=
-                                    static_cast<DrawCurve *>(curve)->values().count();
-                        }
-                    }
-                }
-            }
-        }
-        return stats;
-    }
-}
-
-AppControllerPrivate::~AppControllerPrivate() {
-    clearPendingOpenDialog(true);
-}
 
 AppController::AppController(QObject *parent)
     : QObject(parent), d_ptr(new AppControllerPrivate(this)) {
@@ -112,96 +42,6 @@ AppController::~AppController() {
 }
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(AppController)
-
-void AppController::newProject() {
-    Q_D(AppController);
-    appModel->newProject();
-    historyManager->reset();
-    d->updateProjectPathAndName("");
-    trackController->setActiveClip(appModel->tracks().first()->clips().toList().first()->id());
-    appController->setActivePanel(AppGlobal::ClipEditor);
-    // Reset loop settings for new project
-    appStatus->loopSettings.set(LoopSettings());
-}
-
-bool AppController::openFile(const QString &filePath, QString &errorMessage) {
-    Q_D(AppController);
-    if (QFile(filePath).exists()) {
-        const QFileInfo info(filePath);
-        const auto suffix = info.suffix().toLower();
-        if (suffix == "dspx")
-            return d->openDspxFile(filePath, errorMessage);
-        if (suffix == "mid" || suffix == "midi")
-            return d->openMidiFile(filePath, errorMessage);
-        Toast::show(tr("Unrecognized file format: %1").arg(suffix));
-        return false;
-    }
-    Toast::show(tr("File does not exist: %1").arg(filePath));
-    return false;
-}
-
-void AppController::requestOpenFile(const QString &filePath) {
-    Q_D(AppController);
-    if (!QFile(filePath).exists()) {
-        Toast::show(tr("File does not exist: %1").arg(filePath));
-        return;
-    }
-
-    const QFileInfo info(filePath);
-    const auto suffix = info.suffix().toLower();
-    if (suffix == "mid" || suffix == "midi") {
-        d->openFileAndActivateFirstClip(filePath);
-        return;
-    }
-    if (suffix != "dspx") {
-        Toast::show(tr("Unrecognized file format: %1").arg(suffix));
-        return;
-    }
-
-    d->requestOpenDspxFile(filePath);
-}
-
-bool AppController::saveProject(const QString &filePath, QString &errorMessage) {
-    Q_D(AppController);
-    DspxProjectConverter converter;
-    if (!converter.save(filePath, appModel, errorMessage))
-        return false;
-
-    historyManager->setSavePoint();
-    d->updateProjectPathAndName(filePath);
-    d->addRecentProjectFile(filePath);
-    return true;
-}
-
-bool AppController::importMidiFile(const QString &filePath) {
-    Q_D(AppController);
-    QString errMsg;
-    int midiImport = MidiConverter::midiImportHandler();
-
-    if (midiImport == -1) {
-        errMsg = "User canceled the import.";
-        return false;
-    }
-
-    AppModel resultModel;
-    MidiConverter converter;
-    const auto ok = converter.load(filePath, &resultModel, errMsg,
-                                   static_cast<IProjectConverter::ImportMode>(midiImport));
-    Log::i("Midi importer", errMsg);
-    if (ok) {
-        SingingClipPhonemeNormalizer::normalizeEditedOffsets(resultModel);
-        if (midiImport == IProjectConverter::ImportMode::NewProject) {
-            appModel->loadFromAppModel(resultModel);
-        } else if (midiImport == IProjectConverter::ImportMode::AppendToProject) {
-            appModel->setTimeSignature(resultModel.timeSignature());
-            appModel->setTempo(resultModel.tempo());
-            for (const auto track : resultModel.tracks()) {
-                appModel->appendTrack(track);
-            }
-        }
-    }
-    return ok;
-}
 
 bool AppController::exportMidiFile(const QString &filePath) {
     MidiConverter converter;
@@ -276,59 +116,6 @@ void AppController::restart() {
     d->m_mainWindow->restart();
 }
 
-QString AppController::lastProjectFolder() const {
-    Q_D(const AppController);
-    return d->m_lastProjectFolder;
-}
-
-QString AppController::projectPath() const {
-    Q_D(const AppController);
-    return d->m_projectPath;
-}
-
-QString AppController::projectName() const {
-    Q_D(const AppController);
-    return d->m_projectName;
-}
-
-QStringList AppController::recentProjectFiles() const {
-    return appOptions->general()->recentProjectFiles;
-}
-
-void AppController::clearRecentProjectFiles() {
-    auto files = appOptions->general()->recentProjectFiles;
-    if (files.isEmpty())
-        return;
-    files.clear();
-    appOptions->general()->recentProjectFiles = files;
-    appOptions->saveAndNotify(AppOptionsGlobal::General);
-    emit recentProjectFilesChanged(files);
-}
-
-void AppController::removeRecentProjectFile(const QString &filePath) {
-    auto files = appOptions->general()->recentProjectFiles;
-    const auto normalizedPath = normalizedProjectPath(filePath);
-    const auto oldSize = files.size();
-    files.erase(std::remove_if(files.begin(), files.end(),
-                               [&](const QString &path) {
-                                   return projectPathsEqual(normalizedProjectPath(path),
-                                                            normalizedPath);
-                               }),
-                files.end());
-    if (files.size() == oldSize)
-        return;
-    appOptions->general()->recentProjectFiles = files;
-    appOptions->saveAndNotify(AppOptionsGlobal::General);
-    emit recentProjectFilesChanged(files);
-}
-
-void AppController::setProjectName(const QString &name) {
-    Q_D(AppController);
-    d->m_projectName = name;
-    if (d->m_mainWindow)
-        d->m_mainWindow->updateWindowTitle();
-}
-
 void AppController::registerPanel(IPanel *panel) {
     Q_D(AppController);
     d->m_panels.append(panel);
@@ -356,6 +143,14 @@ void AppControllerPrivate::initializeModules() {
 
 bool AppControllerPrivate::isPowerOf2(const int num) {
     return num > 0 && (num & num - 1) == 0;
+}
+
+void AppControllerPrivate::onRunLanguageEngineTaskFinished(LaunchLanguageEngineTask *task) {
+    taskManager->removeTask(task);
+    const auto status =
+        task->success ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
+    appStatus->languageModuleStatus = status;
+    delete task;
 }
 
 void AppControllerPrivate::updateProjectPathAndName(const QString &path) {

@@ -19,6 +19,9 @@ AppModel::AppModel(QObject *parent) : QObject(parent), d_ptr(new AppModelPrivate
 }
 
 AppModel::~AppModel() {
+    Q_D(AppModel);
+    d->reset();
+    d->dispose();
     delete d_ptr;
 }
 
@@ -90,23 +93,72 @@ void AppModel::appendTrack(Track *track) {
 }
 
 void AppModel::removeTrackAt(const qsizetype index) {
-    Q_D(AppModel);
-    const auto track = d->m_tracks[index];
-    d->m_tracks.removeAt(index);
-
-    emit trackChanged(Remove, index, track);
+    takeTrackAt(index);
 }
 
 void AppModel::removeTrack(Track *track) {
+    takeTrack(track);
+}
+
+Track *AppModel::takeTrackAt(const qsizetype index) {
     Q_D(AppModel);
-    const auto index = d->m_tracks.indexOf(track);
-    removeTrackAt(index);
+    if (index < 0 || index >= d->m_tracks.count())
+        return nullptr;
+    const auto track = d->m_tracks.takeAt(index);
+    emit trackChanged(Remove, index, track);
+    return track;
+}
+
+Track *AppModel::takeTrack(Track *track) {
+    Q_D(AppModel);
+    return takeTrackAt(d->m_tracks.indexOf(track));
 }
 
 void AppModel::clearTracks() {
     Q_D(AppModel);
     while (d->m_tracks.count() > 0)
-        removeTrackAt(0);
+        delete takeTrackAt(0);
+}
+
+ProjectModelData AppModel::takeProjectData() {
+    Q_D(AppModel);
+    ProjectModelData data;
+    data.tempo = d->m_tempo;
+    data.timeSignature = d->m_timeSignature;
+    data.masterControl = d->m_masterControl;
+    data.tracks.reserve(static_cast<size_t>(d->m_tracks.size()));
+    for (const auto track : std::as_const(d->m_tracks))
+        data.tracks.emplace_back(track);
+    d->m_tracks.clear();
+    return data;
+}
+
+void AppModel::replaceProject(ProjectModelData &&data) {
+    Q_D(AppModel);
+    d->reset();
+    d->m_tempo = data.tempo;
+    d->m_timeSignature = data.timeSignature;
+    d->m_masterControl = data.masterControl;
+    d->m_tracks.reserve(static_cast<qsizetype>(data.tracks.size()));
+    for (auto &track : data.tracks)
+        d->m_tracks.append(track.release());
+
+    const auto defaultLanguage = appOptions->general()->defaultSingingLanguage;
+    for (const auto track : std::as_const(d->m_tracks)) {
+        if (track->defaultLanguage().isEmpty() || track->defaultLanguage() == "unknown")
+            track->setDefaultLanguage(defaultLanguage);
+        for (const auto clip : track->clips()) {
+            if (clip->clipType() != IClip::Singing)
+                continue;
+            const auto singingClip = static_cast<SingingClip *>(clip);
+            if (singingClip->defaultLanguage().isEmpty() ||
+                singingClip->defaultLanguage() == "unknown")
+                singingClip->setDefaultLanguage(track->defaultLanguage());
+        }
+    }
+
+    emit modelChanged();
+    d->dispose();
 }
 
 void AppModel::newProject() {
@@ -115,7 +167,7 @@ void AppModel::newProject() {
 
     const auto singingClip = new SingingClip;
     constexpr int bars = 4;
-    const auto timeSig = appModel->timeSignature();
+    const auto timeSig = timeSignature();
     const int length =
         AppGlobal::ticksPerWholeNote * timeSig.numerator / timeSig.denominator * bars;
     singingClip->setName(tr("New Singing Clip"));
@@ -130,32 +182,6 @@ void AppModel::newProject() {
 
     newTrack->insertClip(singingClip);
     d->m_tracks.append(newTrack);
-
-    emit modelChanged();
-    d->dispose();
-}
-
-void AppModel::loadFromAppModel(const AppModel &model) {
-    Q_D(AppModel);
-    d->reset();
-    d->m_tempo = model.tempo();
-    d->m_timeSignature = model.timeSignature();
-    d->m_masterControl = model.masterControl();
-    d->m_tracks = model.tracks();
-
-    const auto defaultLanguage = appOptions->general()->defaultSingingLanguage;
-    for (const auto track : d->m_tracks) {
-        if (track->defaultLanguage().isEmpty() || track->defaultLanguage() == "unknown")
-            track->setDefaultLanguage(defaultLanguage);
-        for (const auto clip : track->clips()) {
-            if (clip->clipType() != IClip::Singing)
-                continue;
-            const auto singingClip = static_cast<SingingClip *>(clip);
-            if (singingClip->defaultLanguage().isEmpty() ||
-                singingClip->defaultLanguage() == "unknown")
-                singingClip->setDefaultLanguage(track->defaultLanguage());
-        }
-    }
 
     emit modelChanged();
     d->dispose();
@@ -308,10 +334,11 @@ void AppModelPrivate::reset() {
     m_tracks.clear();
 }
 
-void AppModelPrivate::dispose() const {
+void AppModelPrivate::dispose() {
     qDebug() << "dispose";
     for (int i = 0; i < m_previousTracks.count(); i++) {
         const auto track = m_previousTracks.at(i);
         delete track;
     }
+    m_previousTracks.clear();
 }

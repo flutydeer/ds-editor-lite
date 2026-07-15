@@ -1141,7 +1141,7 @@ TimeGraphicsView {
 /* CardView */
 CardView {
     border-radius: 8px;
-    background-color: #1BC7D8FF;
+    background-color: #272A33;
 }
 
 OptionsCard {
@@ -1389,4 +1389,13 @@ TabPanelTitleBar>QPushButton#btnPanelDetach:pressed,
 TabPanelTitleBar>QPushButton#btnPanelMaximize:pressed,
 TabPanelTitleBar>QPushButton#btnPanelHide:pressed {
     background: #10FFFFFF;
+}
+
+DividerLine {
+    qproperty-lineMargin: 12px;
+    qproperty-lineColor: #1D1F26;
+}
+
+OptionsCardItem>DividerLine {
+    qproperty-lineMargin: 0px;
 }

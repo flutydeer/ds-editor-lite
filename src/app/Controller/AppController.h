@@ -35,26 +35,13 @@ public:
 public:
     void setMainWindow(IMainWindow *window);
 
-    [[nodiscard]] QString lastProjectFolder() const;
-    [[nodiscard]] QString projectPath() const;
-    [[nodiscard]] QString projectName() const;
-    [[nodiscard]] QStringList recentProjectFiles() const;
-    void setProjectName(const QString &name);
-    void clearRecentProjectFiles();
-    void removeRecentProjectFile(const QString &filePath);
     void registerPanel(IPanel *panel);
 
 public slots:
     void quit();
     void restart();
-    void newProject();
-    bool openFile(const QString &filePath, QString &errorMessage);
-    void requestOpenFile(const QString &filePath);
-    bool saveProject(const QString &filePath, QString &errorMessage);
-
     void setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed);
 
-    bool importMidiFile(const QString &filePath);
     bool exportMidiFile(const QString &filePath);
 
 
@@ -67,7 +54,6 @@ public slots:
 
 signals:
     void activePanelChanged(AppGlobal::PanelType panel);
-    void recentProjectFilesChanged(const QStringList &filePaths);
 
 private:
     Q_DECLARE_PRIVATE(AppController)

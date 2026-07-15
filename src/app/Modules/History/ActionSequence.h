@@ -10,13 +10,13 @@
 
 #include "IAction.h"
 
-class ActionSequence : public QObject {
+class ActionSequence : public QObject, public IAction {
     Q_OBJECT
 
 public:
     ~ActionSequence() override;
-    void execute();
-    void undo();
+    void execute() override;
+    void undo() override;
     qsizetype count() const;
     QString name();
 

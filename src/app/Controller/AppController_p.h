@@ -6,17 +6,12 @@
 #define APPCONTROLLER_P_H
 
 #include "Global/AppGlobal.h"
-#include "Model/AppStatus/AppStatus.h"
-#include "Modules/ProjectConverters/DspxProjectConverter.h"
-#include "Modules/ProjectConverters/MidiConverter.h"
-
 #include <QObject>
-#include <QElapsedTimer>
-#include <QStandardPaths>
 
 class AppController;
 class IMainWindow;
 class IPanel;
+class LaunchLanguageEngineTask;
 class OpenDspxProjectTask;
 class ProgressDialog;
 class TaskStatus;
@@ -26,27 +21,14 @@ class AppControllerPrivate : public QObject {
     Q_DECLARE_PUBLIC(AppController)
 
 public:
-    enum class ProjectOpenState { Idle, WaitingPackages, Loading, Committing };
-
     explicit AppControllerPrivate(AppController *q) : q_ptr(q) {
     }
 
-    ~AppControllerPrivate() override;
+    ~AppControllerPrivate() override = default;
 
     IMainWindow *m_mainWindow = nullptr;
-    QString m_lastProjectFolder =
-        QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-    QString m_projectPath;
-    QString m_projectName;
     QList<IPanel *> m_panels{};
     AppGlobal::PanelType m_activePanel = AppGlobal::TracksEditor;
-    QString m_pendingOpenFilePath;
-    ProgressDialog *m_pendingOpenDialog = nullptr;
-    QMetaObject::Connection m_pendingOpenConnection;
-    OpenDspxProjectTask *m_openProjectTask = nullptr;
-    ProjectOpenState m_projectOpenState = ProjectOpenState::Idle;
-    quint64 m_openRequestId = 0;
-    QElapsedTimer m_projectOpenTimer;
 
     static void initializeModules();
     static bool isPowerOf2(int num);

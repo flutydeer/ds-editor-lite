@@ -20,6 +20,7 @@
 #include "Modules/Extractors/PitchExtractController.h"
 #include "Modules/Extractors/MidiExtractController.h"
 #include "Controller/AppController.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/AudioDecodingController.h"
 #include "Controller/ClipboardController.h"
 #include "Controller/TrackController.h"
@@ -116,11 +117,14 @@ AppContext::AppContext() {
     // to InferEngine, ProjectPackageResolver, InferController, etc.
     // — all already constructed above, so instance() will return valid pointers.
     m_appController = new AppController;
+    m_documentWorkflowController = new DocumentWorkflowController;
 }
 
 AppContext::~AppContext() {
     // Reverse order of construction.
-    // L7: AppController first — dies while MainWindow is still on the stack.
+    delete m_documentWorkflowController;
+
+    // L7: AppController dies while MainWindow is still on the stack.
     delete m_appController;
 
     // Runtime users must finish before controllers and the runtime host are destroyed.
@@ -210,6 +214,7 @@ template <> ProjectStatusController *AppContext::instance() { return s_self ? s_
 template <> ProjectPackageResolver *AppContext::instance() { return s_self ? s_self->m_projectPackageResolver : nullptr; }
 template <> InferController *AppContext::instance() { return s_self ? s_self->m_inferController : nullptr; }
 template <> AppController *AppContext::instance() { return s_self ? s_self->m_appController : nullptr; }
+template <> DocumentWorkflowController *AppContext::instance() { return s_self ? s_self->m_documentWorkflowController : nullptr; }
 template <> LevelMeterManager *AppContext::instance() { return s_self ? s_self->m_levelMeterManager : nullptr; }
 
 // Infrastructure singletons — NOT managed by AppContext (stays Meyers static).

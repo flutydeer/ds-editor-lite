@@ -7,7 +7,8 @@
 
 #include "Modules/History/IAction.h"
 
-#include <QList>
+#include <memory>
+#include <QtTypes>
 
 class Track;
 class AppModel;
@@ -21,8 +22,9 @@ public:
 
 private:
     Track *m_track = nullptr;
+    std::unique_ptr<Track> m_ownedTrack;
     AppModel *m_model = nullptr;
-    QList<Track *> m_originalTracks;
+    qsizetype m_index = -1;
 };
 
 #endif // REMOVETRACKSACTION_H

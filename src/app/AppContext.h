@@ -31,6 +31,7 @@ class ProjectStatusController;
 class ProjectPackageResolver;
 class InferController;
 class AppController;
+class DocumentWorkflowController;
 class LevelMeterManager;
 
 struct AudioSystemContext;
@@ -96,6 +97,9 @@ public:
 
     // L7: Top-level controller (last constructed, first destructed)
     AppController *m_appController = nullptr;
+
+    // L8: Document workflow depends on the top-level controller.
+    DocumentWorkflowController *m_documentWorkflowController = nullptr;
 
     static AppContext *s_self;
 };

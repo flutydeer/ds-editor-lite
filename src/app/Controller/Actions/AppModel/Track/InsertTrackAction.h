@@ -8,6 +8,7 @@
 #include "Modules/History/IAction.h"
 
 #include <QtTypes>
+#include <memory>
 
 class Track;
 class AppModel;
@@ -15,11 +16,13 @@ class AppModel;
 class InsertTrackAction final : public IAction {
 public:
     static InsertTrackAction *build(Track *track, qsizetype index, AppModel *model);
+    ~InsertTrackAction() override;
     void execute() override;
     void undo() override;
 
 private:
     Track *m_track = nullptr;
+    std::unique_ptr<Track> m_ownedTrack;
     qsizetype m_index = -1;
     AppModel *m_model = nullptr;
 };
