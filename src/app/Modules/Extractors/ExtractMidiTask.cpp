@@ -59,7 +59,7 @@ void ExtractMidiTask::runTask() {
 
     if (modelPath.empty() || !exists(modelPath) || !is_directory(modelPath)) {
         m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage = tr("Invalid game model dir: ") +
+        m_errorMessage = tr("Invalid GAME model dir: ") +
                          (gameDir.isEmpty() ? QString("Dir is Empty.") : gameDir);
         qCritical().noquote() << "Error:" << errorMessage();
         return;
@@ -78,7 +78,7 @@ void ExtractMidiTask::runTask() {
     auto *gamePlugin = plugins->plugin<srt::extract::MidiExtractorPlugin>("game");
     if (!gamePlugin) {
         m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage = tr("game MidiExtractor plugin not found");
+        m_errorMessage = tr("GAME MidiExtractor plugin not found");
         qCritical().noquote() << "Error:" << errorMessage();
         return;
     }
@@ -87,7 +87,7 @@ void ExtractMidiTask::runTask() {
     if (!extractorExp) {
         m_errorCode = ErrorCode::ModelNotLoaded;
         const auto reason = QString::fromUtf8(extractorExp.error().message());
-        m_errorMessage = tr("Failed to create game extractor: ") + reason;
+        m_errorMessage = tr("Failed to create GAME extractor: ") + reason;
         qCritical().noquote() << "Error:" << errorMessage();
         return;
     }
@@ -113,7 +113,7 @@ void ExtractMidiTask::runTask() {
         }
         m_errorCode = ErrorCode::ModelNotLoaded;
         const auto reason = QString::fromUtf8(exp.error().message());
-        m_errorMessage = tr("Failed to create game session: ") + reason;
+        m_errorMessage = tr("Failed to create GAME session: ") + reason;
         qCritical().noquote() << "Error:" << errorMessage();
         QMutexLocker locker(&m_extractorMutex);
         m_extractor.reset();
@@ -180,7 +180,7 @@ void ExtractMidiTask::runTask() {
     } else {
         m_errorCode = ErrorCode::ModelRunFailed;
         m_errorMessage =
-            tr("game model run failed. Reason: ") + QString::fromUtf8(resultExp.error().message());
+            tr("GAME model run failed. Reason: ") + QString::fromUtf8(resultExp.error().message());
         qCritical().noquote() << "Error:" << errorMessage();
     }
 }

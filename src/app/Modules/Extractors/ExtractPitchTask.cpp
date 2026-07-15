@@ -78,7 +78,7 @@ void ExtractPitchTask::runTask() {
     auto *rmvpePlugin = plugins->plugin<srt::extract::PitchExtractorPlugin>("rmvpe");
     if (!rmvpePlugin) {
         m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage = tr("rmvpe PitchExtractor plugin not found");
+        m_errorMessage = tr("RMVPE PitchExtractor plugin not found");
         qCritical().noquote() << errorMessage();
         return;
     }
