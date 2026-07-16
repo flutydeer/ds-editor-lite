@@ -10,8 +10,9 @@
 #include <QTabBar>
 #include <QStackedWidget>
 #include <QVBoxLayout>
+#include <QEvent>
 
-TabPanelView::TabPanelView(AppGlobal::PanelType type, QWidget *parent): PanelView(type, parent) {
+TabPanelView::TabPanelView(AppGlobal::PanelType type, QWidget *parent) : PanelView(type, parent) {
     setAttribute(Qt::WA_StyledBackground);
 
     m_tabPanelTitleBar = new TabPanelTitleBar;
@@ -49,8 +50,8 @@ void TabPanelView::registerPage(TabPanelPage *page) {
     m_tabPanelTitleBar->toolBar()->addWidget(page->toolBar());
     m_pageContent->addWidget(page->content());
 
-    connect(page, &TabPanelPage::toolBarVisibilityChanged,
-            this, &TabPanelView::onToolBarVisibilityChanged);
+    connect(page, &TabPanelPage::toolBarVisibilityChanged, this,
+            &TabPanelView::onToolBarVisibilityChanged);
 
     if (m_pages.size() == 1)
         onSelectionChanged(0);
@@ -82,4 +83,15 @@ void TabPanelView::onToolBarVisibilityChanged() {
 
 void TabPanelView::updateToolBarVisibility(TabPanelPage *page) {
     page->toolBar()->setVisible(page->isToolBarVisible());
+}
+
+void TabPanelView::changeEvent(QEvent *event) {
+    PanelView::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        retranslateUi();
+}
+
+void TabPanelView::retranslateUi() {
+    for (int i = 0; i < m_pages.size(); ++i)
+        m_tabPanelTitleBar->tabBar()->setTabText(i, m_pages.at(i)->tabName());
 }

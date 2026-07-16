@@ -22,8 +22,10 @@ ToolTipFilter::ToolTipFilter(QWidget *parent, const int showDelay, const bool fo
     m_tooltip->setAnimationEnabled(animation);
     if (const auto button = dynamic_cast<QAbstractButton *>(parent)) {
         const auto shortcut = button->shortcut();
-        if (!shortcut.isEmpty())
+        if (!shortcut.isEmpty()) {
+            m_shortcutKey = shortcut.toString();
             m_tooltip->setShortcutKey(shortcut.toString());
+        }
     }
     connect(m_tooltip, &ToolTip::hideAnimationFinished, this, [this] {
         m_tooltip->deleteLater();
@@ -67,6 +69,9 @@ void ToolTipFilter::showToolTip() {
     if (!m_tooltip) {
         m_tooltip = new ToolTip(m_parent->toolTip(), m_parent);
         m_tooltip->setAnimationEnabled(m_animationEnabled);
+        if (!m_shortcutKey.isEmpty())
+            m_tooltip->setShortcutKey(m_shortcutKey);
+        m_tooltip->setMessage(m_message);
         connect(m_tooltip, &ToolTip::hideAnimationFinished, this, [this] {
             m_tooltip->deleteLater();
             m_tooltip = nullptr;
@@ -109,33 +114,43 @@ void ToolTipFilter::setAnimation(const bool on) {
 }
 
 QString ToolTipFilter::title() const {
-    return m_tooltip->title();
+    return m_parent->toolTip();
 }
 
 void ToolTipFilter::setTitle(const QString &text) const {
-    m_tooltip->setTitle(text);
+    m_parent->setToolTip(text);
+    if (m_tooltip)
+        m_tooltip->setTitle(text);
 }
 
 QString ToolTipFilter::shortcutKey() const {
-    return m_tooltip->shortcutKey();
+    return m_shortcutKey;
 }
 
-void ToolTipFilter::setShortcutKey(const QString &text) const {
-    m_tooltip->setShortcutKey(text);
+void ToolTipFilter::setShortcutKey(const QString &text) {
+    m_shortcutKey = text;
+    if (m_tooltip)
+        m_tooltip->setShortcutKey(text);
 }
 
 QList<QString> ToolTipFilter::message() const {
-    return m_tooltip->message();
+    return m_message;
 }
 
-void ToolTipFilter::setMessage(const QList<QString> &text) const {
-    m_tooltip->setMessage(text);
+void ToolTipFilter::setMessage(const QList<QString> &text) {
+    m_message = text;
+    if (m_tooltip)
+        m_tooltip->setMessage(text);
 }
 
-void ToolTipFilter::appendMessage(const QString &text) const {
-    m_tooltip->appendMessage(text);
+void ToolTipFilter::appendMessage(const QString &text) {
+    m_message.append(text);
+    if (m_tooltip)
+        m_tooltip->appendMessage(text);
 }
 
-void ToolTipFilter::clearMessage() const {
-    m_tooltip->clearMessage();
+void ToolTipFilter::clearMessage() {
+    m_message.clear();
+    if (m_tooltip)
+        m_tooltip->clearMessage();
 }

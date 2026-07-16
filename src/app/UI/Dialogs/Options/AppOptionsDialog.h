@@ -29,13 +29,14 @@ public:
     explicit AppOptionsDialog(AppOptionsGlobal::Option option, QWidget *parent = nullptr);
     ~AppOptionsDialog() override;
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private slots:
     void onSelectionChanged(int index) const;
 
 private:
-    QStringList pageNames = {tr("General"),    tr("Audio"), tr("MIDI"),
-                               tr("Appearance"), /* tr("Language"), */  tr("Inference"),
-                               tr("Developer Options") /* tr("Preview Functions") */};
+    void retranslateUi();
 
     QListWidget *tabList;
     QStackedWidget *pageContent;

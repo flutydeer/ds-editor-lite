@@ -20,8 +20,8 @@
 
 static const auto ChromeMinimize = QStringLiteral(u"\ue921");
 static const auto ChromeMaximize = QStringLiteral(u"\ue922");
-static const auto ChromeRestore  = QStringLiteral(u"\ue923");
-static const auto ChromeClose    = QStringLiteral(u"\ue8bb");
+static const auto ChromeRestore = QStringLiteral(u"\ue923");
+static const auto ChromeClose = QStringLiteral(u"\ue8bb");
 
 TabPanelTitleBar::TabPanelTitleBar(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
@@ -102,10 +102,9 @@ void TabPanelTitleBar::setDetached(bool detached, bool useNativeFrame) {
             m_opacityEffect = new QGraphicsOpacityEffect(this);
             m_opacityEffect->setOpacity(1.0);
             setGraphicsEffect(m_opacityEffect);
-            connect(m_animation, &QVariantAnimation::valueChanged, this,
-                    [this](const QVariant &value) {
-                        m_opacityEffect->setOpacity(value.toDouble());
-                    });
+            connect(
+                m_animation, &QVariantAnimation::valueChanged, this,
+                [this](const QVariant &value) { m_opacityEffect->setOpacity(value.toDouble()); });
         }
     } else {
         buildDockedButtons();
@@ -118,10 +117,13 @@ void TabPanelTitleBar::setDetached(bool detached, bool useNativeFrame) {
     }
 
     if (m_detached) {
-        QMetaObject::invokeMethod(this, [this] {
-            if (window())
-                window()->installEventFilter(this);
-        }, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            this,
+            [this] {
+                if (window())
+                    window()->installEventFilter(this);
+            },
+            Qt::QueuedConnection);
     }
 }
 
@@ -142,9 +144,8 @@ void TabPanelTitleBar::buildDockedButtons() {
     m_btnDetach->setObjectName("btnPanelDetach");
     m_btnDetach->setFixedSize(btnSize, btnSize);
     m_btnDetach->setIconSize(iconSize);
-    m_btnDetach->setIcon(
-        IconUtils::createTintedSvgIcon(":svg/icons/panel_separate_window_20_filled.svg", iconSize,
-                                       actionPalette));
+    m_btnDetach->setIcon(IconUtils::createTintedSvgIcon(
+        ":svg/icons/panel_separate_window_20_filled.svg", iconSize, actionPalette));
     m_btnDetach->setToolTip(tr("Detach to window"));
     m_btnDetach->installEventFilter(new ToolTipFilter(m_btnDetach, 500, false, true));
     connect(m_btnDetach, &Button::clicked, this, &TabPanelTitleBar::detachRequested);
@@ -154,9 +155,8 @@ void TabPanelTitleBar::buildDockedButtons() {
     m_btnMaximize->setFixedSize(btnSize, btnSize);
     m_btnMaximize->setCheckable(true);
     m_btnMaximize->setIconSize(iconSize);
-    m_btnMaximize->setIcon(
-        IconUtils::createTintedSvgIcon(":svg/icons/panel_maximize_24_filled.svg", iconSize,
-                                       togglePalette));
+    m_btnMaximize->setIcon(IconUtils::createTintedSvgIcon(":svg/icons/panel_maximize_24_filled.svg",
+                                                          iconSize, togglePalette));
     m_btnMaximize->setToolTip(tr("Maximize or restore"));
     m_btnMaximize->installEventFilter(new ToolTipFilter(m_btnMaximize, 500, false, true));
     connect(m_btnMaximize, &Button::clicked, this, [=] {
@@ -172,9 +172,8 @@ void TabPanelTitleBar::buildDockedButtons() {
     m_btnHide->setObjectName("btnPanelHide");
     m_btnHide->setFixedSize(btnSize, btnSize);
     m_btnHide->setIconSize(iconSize);
-    m_btnHide->setIcon(
-        IconUtils::createTintedSvgIcon(":svg/icons/panel_hide_24_filled.svg", iconSize,
-                                       actionPalette));
+    m_btnHide->setIcon(IconUtils::createTintedSvgIcon(":svg/icons/panel_hide_24_filled.svg",
+                                                      iconSize, actionPalette));
     m_btnHide->setToolTip(tr("Hide"));
     m_btnHide->installEventFilter(new ToolTipFilter(m_btnHide, 500, false, true));
     connect(m_btnHide, &Button::clicked, this,
@@ -261,12 +260,26 @@ bool TabPanelTitleBar::eventFilter(QObject *watched, QEvent *event) {
             if (SystemUtils::isWindows())
                 m_btnMax->setText(checked ? ChromeRestore : ChromeMaximize);
             else
-                m_btnMax->setIcon(checked
-                                      ? QIcon(":svg/title-bar/restore_16_filled_white.svg")
-                                      : QIcon(":svg/title-bar/maximize_16_filled_white.svg"));
+                m_btnMax->setIcon(checked ? QIcon(":svg/title-bar/restore_16_filled_white.svg")
+                                          : QIcon(":svg/title-bar/maximize_16_filled_white.svg"));
         }
     }
     return QWidget::eventFilter(watched, event);
+}
+
+void TabPanelTitleBar::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        retranslateUi();
+}
+
+void TabPanelTitleBar::retranslateUi() {
+    if (m_btnDetach)
+        m_btnDetach->setToolTip(tr("Detach to window"));
+    if (m_btnMaximize)
+        m_btnMaximize->setToolTip(tr("Maximize or restore"));
+    if (m_btnHide)
+        m_btnHide->setToolTip(tr("Hide"));
 }
 
 void TabPanelTitleBar::setActiveStyle(bool active) const {

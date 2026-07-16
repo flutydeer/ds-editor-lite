@@ -30,6 +30,7 @@
 
 #include <QButtonGroup>
 #include <QDialog>
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QSignalBlocker>
@@ -104,12 +105,10 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
             &ClipEditorToolBarViewPrivate::refreshSingerComboPresentation);
 
     // 预设变化时刷新下拉框（如其他轨道保存/删除了同名预设）
-    connect(appOptions, &AppOptions::optionsChanged, d,
-            [d](AppOptionsGlobal::Option option) {
-                if (option == AppOptionsGlobal::Option::General ||
-                    option == AppOptionsGlobal::Option::All)
-                    d->refreshSingerComboPresentation();
-            });
+    connect(appOptions, &AppOptions::optionsChanged, d, [d](AppOptionsGlobal::Option option) {
+        if (option == AppOptionsGlobal::Option::General || option == AppOptionsGlobal::Option::All)
+            d->refreshSingerComboPresentation();
+    });
 
     d->m_cbClipLanguage = new LanguageComboBox("unknown", true);
     d->m_cbClipLanguage->setObjectName("cbClipLanguage");
@@ -533,5 +532,47 @@ void ClipEditorToolBarViewPrivate::onManagePresetsAction(const SingerInfo &singe
             historyManager->record(actions);
         }
     }
+    refreshSingerComboPresentation();
+}
+
+void ClipEditorToolBarView::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        d_ptr->retranslateUi();
+}
+
+void ClipEditorToolBarViewPrivate::retranslateUi() const {
+    m_leClipName->setToolTip(ClipEditorToolBarView::tr("Clip Name"));
+    m_cbSinger->setToolTip(ClipEditorToolBarView::tr("Clip Singer"));
+    if (appStatus->packageModuleStatus != AppStatus::ModuleStatus::Ready)
+        m_cbSinger->setLoadingText(ClipEditorToolBarView::tr("(Scanning packages...)"));
+    else
+        m_cbSinger->setItems(packageManager->installedPackages().successfulPackages);
+    m_cbClipLanguage->setToolTip(ClipEditorToolBarView::tr("Clip Default Language"));
+    m_cbPianoRollQuantize->setToolTip(ClipEditorToolBarView::tr("Piano Roll Quantize"));
+
+    const auto setToolTip = [](Button *button, const QString &title,
+                               const QString &description = {}) {
+        button->setToolTip(title);
+        for (auto *object : button->children()) {
+            if (auto *filter = dynamic_cast<ToolTipFilter *>(object)) {
+                filter->clearMessage();
+                if (!description.isEmpty())
+                    filter->appendMessage(description);
+            }
+        }
+    };
+    setToolTip(m_btnArrow, ClipEditorToolBarView::tr("Select"));
+    setToolTip(m_btnBeam, ClipEditorToolBarView::tr("Interval Select"));
+    setToolTip(m_btnNotePencil, ClipEditorToolBarView::tr("Draw Note"),
+               ClipEditorToolBarView::tr(
+                   "Drag in the blank: Draw a new note\nDrag on a note: Edit the note"));
+    setToolTip(m_btnNoteEraser, ClipEditorToolBarView::tr("Erase Note"));
+    setToolTip(m_btnNoteSplit, ClipEditorToolBarView::tr("Split Note"),
+               ClipEditorToolBarView::tr("Split note at quantize line"));
+    setToolTip(m_btnPitchAnchor, ClipEditorToolBarView::tr("Pitch Anchor"));
+    setToolTip(m_btnPitchPencil, ClipEditorToolBarView::tr("Draw Pitch"),
+               ClipEditorToolBarView::tr("Left drag: Draw\nRight drag: Erase"));
+    setToolTip(m_btnPitchEraser, ClipEditorToolBarView::tr("Erase Pitch"));
     refreshSingerComboPresentation();
 }

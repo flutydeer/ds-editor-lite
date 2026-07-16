@@ -26,6 +26,7 @@
 
 #include <QContextMenuEvent>
 #include <QDialog>
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
@@ -183,12 +184,10 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
             [this](const SpeakerMixData &) { refreshSingerComboPresentation(); });
 
     // 预设变化时刷新下拉框（如其他轨道保存/删除了同名预设）
-    connect(appOptions, &AppOptions::optionsChanged, this,
-            [this](AppOptionsGlobal::Option option) {
-                if (option == AppOptionsGlobal::Option::General ||
-                    option == AppOptionsGlobal::Option::All)
-                    refreshSingerComboPresentation();
-            });
+    connect(appOptions, &AppOptions::optionsChanged, this, [this](AppOptionsGlobal::Option option) {
+        if (option == AppOptionsGlobal::Option::General || option == AppOptionsGlobal::Option::All)
+            refreshSingerComboPresentation();
+    });
 }
 
 int TrackControlView::trackIndex() const {
@@ -313,6 +312,20 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
         emit m_track->propertyChanged();
     }
     event->accept();
+}
+
+void TrackControlView::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        retranslateUi();
+}
+
+void TrackControlView::retranslateUi() {
+    if (appStatus->packageModuleStatus != AppStatus::ModuleStatus::Ready)
+        cbSinger->setLoadingText(tr("(Scanning packages...)"));
+    else
+        cbSinger->setItems(packageManager->installedPackages().successfulPackages);
+    refreshSingerComboPresentation();
 }
 
 void TrackControlView::changeTrackProperty() const {

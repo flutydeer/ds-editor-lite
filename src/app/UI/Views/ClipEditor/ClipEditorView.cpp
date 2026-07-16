@@ -19,6 +19,7 @@
 #include "ToolBar/ClipEditorToolBarView.h"
 
 #include <QLabel>
+#include <QEvent>
 #include <QMouseEvent>
 #include <QVBoxLayout>
 
@@ -181,4 +182,10 @@ void ClipEditorView::moveToNullClipState() const {
 
 void ClipEditorView::reset() {
     onActiveClipChanged(-1);
+}
+
+void ClipEditorView::changeEvent(QEvent *event) {
+    TabPanelPage::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        m_placeholderLabel->setText(tr("Please select a singing clip to edit"));
 }

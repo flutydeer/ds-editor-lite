@@ -39,6 +39,7 @@ private slots:
     void onTrackRemoved(qsizetype index);
 
 protected:
+    void changeEvent(QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;
 
@@ -53,4 +54,4 @@ private:
 };
 
 
-#endif //MIXCONSOLEVIEW_H
+#endif // MIXCONSOLEVIEW_H

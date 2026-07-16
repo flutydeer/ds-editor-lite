@@ -54,8 +54,12 @@ signals:
     void insertNewTrackTriggered();
     void removeTrackTriggered(int id);
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private:
     void contextMenuEvent(QContextMenuEvent *event) override;
+    void retranslateUi();
     void changeTrackProperty() const;
     void refreshSingerComboPresentation() const;
     void populatePresetMenus() const;

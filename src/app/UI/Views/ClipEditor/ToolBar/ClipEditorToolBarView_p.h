@@ -34,6 +34,7 @@ public:
     void moveToAudioClipState() const;
     void refreshSingerComboPresentation() const;
     void populatePresetMenus() const;
+    void retranslateUi() const;
     void onPresetApplied(const QString &presetId) const;
     void onManagePresetsAction(const SingerInfo &singerInfo) const;
 

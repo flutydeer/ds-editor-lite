@@ -20,51 +20,53 @@ OptionListCard::OptionListCard(QString title, QWidget *parent)
     initUi();
 }
 
-void OptionListCard::addItem(OptionsCardItem *item) {
+OptionsCardItem *OptionListCard::addItem(OptionsCardItem *item) {
     if (m_itemCount > 0)
         m_cardLayout->addWidget(new DividerLine(Qt::Horizontal));
     m_cardLayout->addWidget(item);
     m_itemCount++;
+    return item;
 }
 
-void OptionListCard::addItem(const QString &title, QWidget *control) {
+OptionsCardItem *OptionListCard::addItem(const QString &title, QWidget *control) {
     const auto item = new OptionsCardItem;
     item->setTitle(title);
     item->addWidget(control);
-    addItem(item);
+    return addItem(item);
 }
 
-void OptionListCard::addItem(const QString &title, const QString &description) {
+OptionsCardItem *OptionListCard::addItem(const QString &title, const QString &description) {
     const auto item = new OptionsCardItem;
     item->setTitle(title);
     item->setDescription(description);
-    addItem(item);
+    return addItem(item);
 }
 
-void OptionListCard::addItem(const QString &title, const QList<QWidget *> &controls) {
+OptionsCardItem *OptionListCard::addItem(const QString &title, const QList<QWidget *> &controls) {
     const auto item = new OptionsCardItem;
     item->setTitle(title);
     for (const auto control : controls)
         item->addWidget(control);
-    addItem(item);
+    return addItem(item);
 }
 
-void OptionListCard::addItem(const QString &title, const QString &description, QWidget *control) {
+OptionsCardItem *OptionListCard::addItem(const QString &title, const QString &description,
+                                         QWidget *control) {
     const auto item = new OptionsCardItem;
     item->setTitle(title);
     item->setDescription(description);
     item->addWidget(control);
-    addItem(item);
+    return addItem(item);
 }
 
-void OptionListCard::addItem(const QString &title, const QString &description,
-                             const QList<QWidget *> &controls) {
+OptionsCardItem *OptionListCard::addItem(const QString &title, const QString &description,
+                                         const QList<QWidget *> &controls) {
     const auto item = new OptionsCardItem;
     item->setTitle(title);
     item->setDescription(description);
     for (const auto control : controls)
         item->addWidget(control);
-    addItem(item);
+    return addItem(item);
 }
 
 void OptionListCard::initUi() {

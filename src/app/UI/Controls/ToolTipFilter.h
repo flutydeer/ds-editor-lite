@@ -25,11 +25,11 @@ public:
     [[nodiscard]] QString title() const;
     void setTitle(const QString &text) const;
     [[nodiscard]] QString shortcutKey() const;
-    void setShortcutKey(const QString &text) const;
+    void setShortcutKey(const QString &text);
     [[nodiscard]] QList<QString> message() const;
-    void setMessage(const QList<QString> &text) const;
-    void appendMessage(const QString &text) const;
-    void clearMessage() const;
+    void setMessage(const QList<QString> &text);
+    void appendMessage(const QString &text);
+    void clearMessage();
 
 protected:
     QTimer m_timer;
@@ -39,6 +39,8 @@ protected:
     bool m_followCursor;
     bool m_animationEnabled;
     bool mouseInParent = false;
+    QString m_shortcutKey;
+    QList<QString> m_message;
 
     void showToolTip();
     void hideToolTip();

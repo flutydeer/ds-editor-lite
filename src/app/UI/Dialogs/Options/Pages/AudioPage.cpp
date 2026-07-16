@@ -8,6 +8,8 @@
 #include <QMessageBox>
 #include <QLabel>
 #include <QSettings>
+#include <QEvent>
+#include <QSignalBlocker>
 
 #include <TalcsCore/Decibels.h>
 #include <TalcsDevice/AudioDriverManager.h>
@@ -30,6 +32,7 @@
 #include <Modules/Audio/AudioSettings.h>
 
 #include "UI/Controls/OptionListCard.h"
+#include "UI/Controls/OptionsCardItem.h"
 #include "Utils/SystemUtils.h"
 
 #include <QDesktopServices>
@@ -50,166 +53,143 @@ static int panToSliderValue(const double pan) {
     return static_cast<int>(round(pan * 100.0));
 }
 
-class OutputPlaybackPageWidget : public QWidget {
-    Q_OBJECT
-public:
-    explicit OutputPlaybackPageWidget(QWidget *parent = nullptr) : QWidget(parent) {
-        const auto mainLayout = new QVBoxLayout;
-        mainLayout->setContentsMargins({});
-
-        m_driverComboBox = new ComboBox;
-        m_deviceComboBox = new ComboBox;
-        auto testDeviceButton = new QPushButton(tr("&Test"));
-        auto deviceControlPanelButton = new QPushButton(tr("Control &Panel"));
-        m_bufferSizeComboBox = new ComboBox;
-        m_sampleRateComboBox = new ComboBox;
-        m_hotPlugModeComboBox = new ComboBox;
-        m_hotPlugModeComboBox->addItems({tr("Notify when any device added or removed"),
-                                         tr("Notify when current device removed"),
-                                         tr("Do not notify")});
-
-        m_deviceGainSlider = new SVS::SeekBar;
-        m_deviceGainSlider->setFixedWidth(256);
-        m_deviceGainSlider->setRange(DecibelLinearizer::decibelToLinearValue(-96),
-                                     DecibelLinearizer::decibelToLinearValue(6));
-        m_deviceGainSlider->setDisplayValueConverter(
-            [](const double v) { return DecibelLinearizer::linearValueToDecibel(v); });
-        m_deviceGainSpinBox = new SVS::ExpressionDoubleSpinBox;
-        m_deviceGainSpinBox->setDecimals(1);
-        m_deviceGainSpinBox->setRange(-96, 6);
-        m_deviceGainSpinBox->setSpecialValueText("-INF");
-
-        m_devicePanSlider = new SVS::SeekBar;
-        m_devicePanSlider->setFixedWidth(256);
-        m_devicePanSlider->setRange(-100, 100);
-        m_devicePanSlider->setInterval(1);
-        m_devicePanSpinBox = new SVS::ExpressionSpinBox;
-        m_devicePanSpinBox->setRange(-100, 100);
-
-        const auto audioOutputCard = new OptionListCard(tr("Audio Driver and Device"));
-        audioOutputCard->addItem(tr("Audio d&river"), m_driverComboBox);
-        audioOutputCard->addItem(tr("Audio &device"),
-                                 {m_deviceComboBox, testDeviceButton, deviceControlPanelButton});
-        audioOutputCard->addItem(tr("&Buffer size"), m_bufferSizeComboBox);
-        audioOutputCard->addItem(tr("&Sample rate"), m_sampleRateComboBox);
-        audioOutputCard->addItem(tr("&Hot plug notification"), m_hotPlugModeComboBox);
-        audioOutputCard->addItem(tr("Device &Gain (dB)"),
-                                 {m_deviceGainSlider, m_deviceGainSpinBox});
-        audioOutputCard->addItem(tr("Device &Pan"), {m_devicePanSlider, m_devicePanSpinBox});
-        mainLayout->addWidget(audioOutputCard);
-
-        m_playHeadBehaviorComboBox = new ComboBox;
-        m_playHeadBehaviorComboBox->addItems(
-            {tr("Return to the start position after stopped"),
-             tr("Keep at current position after stopped, and play from current position next time"),
-             tr("Keep at current position after stopped, but play from the start position next "
-                "time")});
-
-        const auto playbackCard = new OptionListCard(tr("Playback"));
-        playbackCard->addItem(tr("Playhead behavior"), m_playHeadBehaviorComboBox);
-        mainLayout->addWidget(playbackCard);
-
-        m_fileBufferingReadAheadSizeSpinBox = new SVS::ExpressionSpinBox;
-        m_fileBufferingReadAheadSizeSpinBox->setRange(0, std::numeric_limits<int>::max());
-        const auto fileCard = new OptionListCard(tr("File Caching"));
-        fileCard->addItem(tr("&File reading buffer size (samples)"),
-                          m_fileBufferingReadAheadSizeSpinBox);
-        mainLayout->addWidget(fileCard);
-        mainLayout->addStretch();
-        setLayout(mainLayout);
-
-        auto outputSys = AudioSystem::outputSystem();
-
-        connect(testDeviceButton, &QPushButton::clicked, this, [outputSys, this] {
-            if (!outputSys->isReady()) {
-                QMessageBox msgBox(this);
-                msgBox.setIcon(QMessageBox::Critical);
-                msgBox.setText(tr("Cannot start audio playback"));
-                msgBox.setInformativeText(
-                    tr("Please check the status of the audio driver and device."));
-                msgBox.exec();
-            } else {
-                DeviceTester::playTestSound();
-            }
-        });
-
-        connect(deviceControlPanelButton, &QPushButton::clicked, this, [] {
-            if (const auto device = AudioSystem::outputSystem()->outputContext()->device()) {
-                const auto driverName = device->driver()->name();
-                if (SystemUtils::isWindows() &&
-                    (driverName == "winmm" || driverName == "directsound" ||
-                     driverName == "wasapi")) {
-                    QDesktopServices::openUrl(QUrl("ms-settings:sound"));
-                } else
-                    device->openControlPanel();
-            }
-        });
-
-        updateDriverComboBox();
-
-        m_hotPlugModeComboBox->setCurrentIndex(
-            AudioSystem::outputSystem()->outputContext()->hotPlugNotificationMode());
-
-        m_deviceGainSlider->setValue(
-            gainToSliderValue(outputSys->outputContext()->controlMixer()->gain()));
-        connect(m_deviceGainSlider, &SVS::SeekBar::valueChanged, this,
-                [this](const double value) { updateGain(sliderValueToGain(value)); });
-        m_deviceGainSpinBox->setValue(
-            talcs::Decibels::gainToDecibels(outputSys->outputContext()->controlMixer()->gain()));
-        connect(m_deviceGainSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
-                [this](const double value) {
-                    updateGain(talcs::Decibels::decibelsToGain(static_cast<float>(value)));
-                });
-        m_devicePanSlider->setValue(
-            panToSliderValue(outputSys->outputContext()->controlMixer()->pan()));
-        connect(m_devicePanSlider, &SVS::SeekBar::valueChanged, this,
-                [this](const int value) { updatePan(sliderValueToPan(value)); });
-        m_devicePanSpinBox->setValue(
-            panToSliderValue(outputSys->outputContext()->controlMixer()->pan()));
-        connect(m_devicePanSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this,
-                [this](const int value) { updatePan(sliderValueToPan(value)); });
-
-        m_playHeadBehaviorComboBox->setCurrentIndex(AudioSettings::playheadBehavior());
-
-        m_fileBufferingReadAheadSizeSpinBox->setValue(AudioSettings::fileBufferingReadAheadSize());
-    }
-
-    void accept() const {
-        AudioSystem::outputSystem()->setHotPlugNotificationMode(
-            static_cast<talcs::OutputContext::HotPlugNotificationMode>(
-                m_hotPlugModeComboBox->currentIndex()));
-        AudioSystem::outputSystem()->setFileBufferingReadAheadSize(
-            m_fileBufferingReadAheadSizeSpinBox->value());
-        AudioSettings::setDeviceGain(
-            AudioSystem::outputSystem()->outputContext()->controlMixer()->gain());
-        AudioSettings::setDevicePan(
-            AudioSystem::outputSystem()->outputContext()->controlMixer()->pan());
-        AudioSettings::setFileBufferingReadAheadSize(m_fileBufferingReadAheadSizeSpinBox->value());
-        AudioSettings::setPlayheadBehavior(m_playHeadBehaviorComboBox->currentIndex());
-        appOptions->saveAndNotify(AppOptionsGlobal::Audio);
-    }
-
-    ComboBox *m_driverComboBox = nullptr;
-    ComboBox *m_deviceComboBox = nullptr;
-    ComboBox *m_bufferSizeComboBox = nullptr;
-    ComboBox *m_sampleRateComboBox = nullptr;
-    ComboBox *m_hotPlugModeComboBox = nullptr;
-    SVS::SeekBar *m_deviceGainSlider = nullptr;
-    SVS::ExpressionDoubleSpinBox *m_deviceGainSpinBox = nullptr;
-    SVS::SeekBar *m_devicePanSlider = nullptr;
-    SVS::ExpressionSpinBox *m_devicePanSpinBox = nullptr;
-    ComboBox *m_playHeadBehaviorComboBox = nullptr;
-    SVS::ExpressionSpinBox *m_fileBufferingReadAheadSizeSpinBox = nullptr;
-
-    void updateDriverComboBox();
-    void updateDeviceComboBox();
-    void updateBufferSizeAndSampleRateComboBox();
-
-    void updateGain(double gain) const;
-    void updatePan(double pan) const;
+enum PlayheadBehaviorId {
+    ReturnToStart = 0,
+    KeepAtCurrent = 1,
+    KeepAtCurrentButPlayFromStart = 2,
 };
 
-void OutputPlaybackPageWidget::updateDriverComboBox() {
+QWidget *AudioPage::createContentWidget() {
+    const auto widget = new QWidget;
+    const auto mainLayout = new QVBoxLayout;
+    mainLayout->setContentsMargins({});
+
+    m_driverComboBox = new ComboBox;
+    m_deviceComboBox = new ComboBox;
+    m_testDeviceButton = new QPushButton(tr("&Test"));
+    m_deviceControlPanelButton = new QPushButton(tr("Control &Panel"));
+    m_bufferSizeComboBox = new ComboBox;
+    m_sampleRateComboBox = new ComboBox;
+    m_hotPlugModeComboBox = new ComboBox;
+    m_hotPlugModeComboBox->addItem(tr("Notify when any device added or removed"),
+                                   talcs::OutputContext::Omni);
+    m_hotPlugModeComboBox->addItem(tr("Notify when current device removed"),
+                                   talcs::OutputContext::Current);
+    m_hotPlugModeComboBox->addItem(tr("Do not notify"), talcs::OutputContext::None);
+
+    m_deviceGainSlider = new SVS::SeekBar;
+    m_deviceGainSlider->setFixedWidth(256);
+    m_deviceGainSlider->setRange(DecibelLinearizer::decibelToLinearValue(-96),
+                                 DecibelLinearizer::decibelToLinearValue(6));
+    m_deviceGainSlider->setDisplayValueConverter(
+        [](const double v) { return DecibelLinearizer::linearValueToDecibel(v); });
+    m_deviceGainSpinBox = new SVS::ExpressionDoubleSpinBox;
+    m_deviceGainSpinBox->setDecimals(1);
+    m_deviceGainSpinBox->setRange(-96, 6);
+    m_deviceGainSpinBox->setSpecialValueText("-INF");
+
+    m_devicePanSlider = new SVS::SeekBar;
+    m_devicePanSlider->setFixedWidth(256);
+    m_devicePanSlider->setRange(-100, 100);
+    m_devicePanSlider->setInterval(1);
+    m_devicePanSpinBox = new SVS::ExpressionSpinBox;
+    m_devicePanSpinBox->setRange(-100, 100);
+
+    m_audioOutputCard = new OptionListCard(tr("Audio Driver and Device"));
+    m_driverItem = m_audioOutputCard->addItem(tr("Audio d&river"), m_driverComboBox);
+    m_deviceItem = m_audioOutputCard->addItem(
+        tr("Audio &device"), {m_deviceComboBox, m_testDeviceButton, m_deviceControlPanelButton});
+    m_bufferSizeItem = m_audioOutputCard->addItem(tr("&Buffer size"), m_bufferSizeComboBox);
+    m_sampleRateItem = m_audioOutputCard->addItem(tr("&Sample rate"), m_sampleRateComboBox);
+    m_hotPlugItem = m_audioOutputCard->addItem(tr("&Hot plug notification"), m_hotPlugModeComboBox);
+    m_gainItem = m_audioOutputCard->addItem(tr("Device &Gain (dB)"),
+                                            {m_deviceGainSlider, m_deviceGainSpinBox});
+    m_panItem =
+        m_audioOutputCard->addItem(tr("Device &Pan"), {m_devicePanSlider, m_devicePanSpinBox});
+    mainLayout->addWidget(m_audioOutputCard);
+
+    m_playHeadBehaviorComboBox = new ComboBox;
+    m_playHeadBehaviorComboBox->addItem(tr("Return to the start position after stopped"),
+                                        ReturnToStart);
+    m_playHeadBehaviorComboBox->addItem(
+        tr("Keep at current position after stopped, and play from current position next time"),
+        KeepAtCurrent);
+    m_playHeadBehaviorComboBox->addItem(
+        tr("Keep at current position after stopped, but play from the start position next time"),
+        KeepAtCurrentButPlayFromStart);
+
+    m_playbackCard = new OptionListCard(tr("Playback"));
+    m_playheadItem = m_playbackCard->addItem(tr("Playhead behavior"), m_playHeadBehaviorComboBox);
+    mainLayout->addWidget(m_playbackCard);
+
+    m_fileBufferingReadAheadSizeSpinBox = new SVS::ExpressionSpinBox;
+    m_fileBufferingReadAheadSizeSpinBox->setRange(0, std::numeric_limits<int>::max());
+    m_fileCard = new OptionListCard(tr("File Caching"));
+    m_fileBufferItem = m_fileCard->addItem(tr("&File reading buffer size (samples)"),
+                                           m_fileBufferingReadAheadSizeSpinBox);
+    mainLayout->addWidget(m_fileCard);
+    mainLayout->addStretch();
+    widget->setLayout(mainLayout);
+    widget->setContentsMargins({});
+
+    auto outputSys = AudioSystem::outputSystem();
+
+    connect(m_testDeviceButton, &QPushButton::clicked, this, [outputSys, this] {
+        if (!outputSys->isReady()) {
+            QMessageBox msgBox(this);
+            msgBox.setIcon(QMessageBox::Critical);
+            msgBox.setText(tr("Cannot start audio playback"));
+            msgBox.setInformativeText(
+                tr("Please check the status of the audio driver and device."));
+            msgBox.exec();
+        } else {
+            DeviceTester::playTestSound();
+        }
+    });
+
+    connect(m_deviceControlPanelButton, &QPushButton::clicked, this, [] {
+        if (const auto device = AudioSystem::outputSystem()->outputContext()->device()) {
+            const auto driverName = device->driver()->name();
+            if (SystemUtils::isWindows() &&
+                (driverName == "winmm" || driverName == "directsound" || driverName == "wasapi")) {
+                QDesktopServices::openUrl(QUrl("ms-settings:sound"));
+            } else
+                device->openControlPanel();
+        }
+    });
+
+    updateDriverComboBox();
+
+    m_hotPlugModeComboBox->setCurrentIndex(m_hotPlugModeComboBox->findData(
+        AudioSystem::outputSystem()->outputContext()->hotPlugNotificationMode()));
+
+    m_deviceGainSlider->setValue(
+        gainToSliderValue(outputSys->outputContext()->controlMixer()->gain()));
+    connect(m_deviceGainSlider, &SVS::SeekBar::valueChanged, this,
+            [this](const double value) { updateGain(sliderValueToGain(value)); });
+    m_deviceGainSpinBox->setValue(
+        talcs::Decibels::gainToDecibels(outputSys->outputContext()->controlMixer()->gain()));
+    connect(m_deviceGainSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+            [this](const double value) {
+                updateGain(talcs::Decibels::decibelsToGain(static_cast<float>(value)));
+            });
+    m_devicePanSlider->setValue(
+        panToSliderValue(outputSys->outputContext()->controlMixer()->pan()));
+    connect(m_devicePanSlider, &SVS::SeekBar::valueChanged, this,
+            [this](const int value) { updatePan(sliderValueToPan(value)); });
+    m_devicePanSpinBox->setValue(
+        panToSliderValue(outputSys->outputContext()->controlMixer()->pan()));
+    connect(m_devicePanSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this,
+            [this](const int value) { updatePan(sliderValueToPan(value)); });
+
+    m_playHeadBehaviorComboBox->setCurrentIndex(
+        m_playHeadBehaviorComboBox->findData(AudioSettings::playheadBehavior()));
+
+    m_fileBufferingReadAheadSizeSpinBox->setValue(AudioSettings::fileBufferingReadAheadSize());
+    return widget;
+}
+
+void AudioPage::updateDriverComboBox() {
     auto outputSys = AudioSystem::outputSystem();
 
     auto driverList = outputSys->outputContext()->driverManager()->drivers();
@@ -272,7 +252,7 @@ void OutputPlaybackPageWidget::updateDriverComboBox() {
         });
 }
 
-void OutputPlaybackPageWidget::updateDeviceComboBox() {
+void AudioPage::updateDeviceComboBox() {
     auto outputSys = AudioSystem::outputSystem();
 
     bool currentIndexDetermined = false;
@@ -341,7 +321,7 @@ void OutputPlaybackPageWidget::updateDeviceComboBox() {
             });
 }
 
-void OutputPlaybackPageWidget::updateBufferSizeAndSampleRateComboBox() {
+void AudioPage::updateBufferSizeAndSampleRateComboBox() {
     auto outputSys = AudioSystem::outputSystem();
 
     auto bufferSizeList = outputSys->outputContext()->device()->availableBufferSizes();
@@ -368,7 +348,7 @@ void OutputPlaybackPageWidget::updateBufferSizeAndSampleRateComboBox() {
             });
 }
 
-void OutputPlaybackPageWidget::updateGain(const double gain) const {
+void AudioPage::updateGain(const double gain) const {
     QSignalBlocker sliderBlocker(m_deviceGainSlider);
     QSignalBlocker spinBoxBlocker(m_deviceGainSpinBox);
 
@@ -377,7 +357,7 @@ void OutputPlaybackPageWidget::updateGain(const double gain) const {
     AudioSystem::outputSystem()->outputContext()->controlMixer()->setGain(static_cast<float>(gain));
 }
 
-void OutputPlaybackPageWidget::updatePan(const double pan) const {
+void AudioPage::updatePan(const double pan) const {
     QSignalBlocker sliderBlocker(m_devicePanSlider);
     QSignalBlocker spinBoxBlocker(m_devicePanSpinBox);
 
@@ -395,13 +375,79 @@ AudioPage::~AudioPage() {
 }
 
 void AudioPage::modifyOption() {
-    m_widget->accept();
+    AudioSystem::outputSystem()->setHotPlugNotificationMode(
+        static_cast<talcs::OutputContext::HotPlugNotificationMode>(
+            m_hotPlugModeComboBox->currentData().toInt()));
+    AudioSystem::outputSystem()->setFileBufferingReadAheadSize(
+        m_fileBufferingReadAheadSizeSpinBox->value());
+    AudioSettings::setDeviceGain(
+        AudioSystem::outputSystem()->outputContext()->controlMixer()->gain());
+    AudioSettings::setDevicePan(
+        AudioSystem::outputSystem()->outputContext()->controlMixer()->pan());
+    AudioSettings::setFileBufferingReadAheadSize(m_fileBufferingReadAheadSizeSpinBox->value());
+    AudioSettings::setPlayheadBehavior(m_playHeadBehaviorComboBox->currentData().toInt());
+    appOptions->saveAndNotify(AppOptionsGlobal::Audio);
 }
 
-QWidget * AudioPage::createContentWidget() {
-    m_widget = new OutputPlaybackPageWidget;
-    m_widget->setContentsMargins({});
-    return m_widget;
+void AudioPage::changeEvent(QEvent *event) {
+    QScrollArea::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        retranslateUi();
 }
 
-#include "AudioPage.moc"
+void AudioPage::retranslateUi() {
+    m_audioOutputCard->setTitle(tr("Audio Driver and Device"));
+    m_driverItem->setTitle(tr("Audio d&river"));
+    m_deviceItem->setTitle(tr("Audio &device"));
+    m_bufferSizeItem->setTitle(tr("&Buffer size"));
+    m_sampleRateItem->setTitle(tr("&Sample rate"));
+    m_hotPlugItem->setTitle(tr("&Hot plug notification"));
+    m_gainItem->setTitle(tr("Device &Gain (dB)"));
+    m_panItem->setTitle(tr("Device &Pan"));
+    m_testDeviceButton->setText(tr("&Test"));
+    m_deviceControlPanelButton->setText(tr("Control &Panel"));
+
+    const auto hotPlugMode = m_hotPlugModeComboBox->currentData();
+    const QSignalBlocker hotPlugBlocker(m_hotPlugModeComboBox);
+    m_hotPlugModeComboBox->clear();
+    m_hotPlugModeComboBox->addItem(tr("Notify when any device added or removed"),
+                                   talcs::OutputContext::Omni);
+    m_hotPlugModeComboBox->addItem(tr("Notify when current device removed"),
+                                   talcs::OutputContext::Current);
+    m_hotPlugModeComboBox->addItem(tr("Do not notify"), talcs::OutputContext::None);
+    m_hotPlugModeComboBox->setCurrentIndex(m_hotPlugModeComboBox->findData(hotPlugMode));
+
+    const auto playheadBehavior = m_playHeadBehaviorComboBox->currentData();
+    const QSignalBlocker playheadBlocker(m_playHeadBehaviorComboBox);
+    m_playHeadBehaviorComboBox->clear();
+    m_playHeadBehaviorComboBox->addItem(tr("Return to the start position after stopped"),
+                                        ReturnToStart);
+    m_playHeadBehaviorComboBox->addItem(
+        tr("Keep at current position after stopped, and play from current position next time"),
+        KeepAtCurrent);
+    m_playHeadBehaviorComboBox->addItem(
+        tr("Keep at current position after stopped, but play from the start position next time"),
+        KeepAtCurrentButPlayFromStart);
+    m_playHeadBehaviorComboBox->setCurrentIndex(
+        m_playHeadBehaviorComboBox->findData(playheadBehavior));
+
+    for (int i = 0; i < m_driverComboBox->count(); ++i) {
+        if (m_driverComboBox->itemData(i).isNull())
+            m_driverComboBox->setItemText(i, tr("(Not working)"));
+    }
+    for (int i = 0; i < m_deviceComboBox->count(); ++i) {
+        if (!m_deviceComboBox->itemData(i).isNull() &&
+            m_deviceComboBox->itemData(i).toString().isEmpty()) {
+            m_deviceComboBox->setItemText(i, tr("Default device"));
+        } else if (m_deviceComboBox->itemData(i).isNull()) {
+            const auto device = AudioSystem::outputSystem()->outputContext()->device();
+            m_deviceComboBox->setItemText(i, device ? device->name() + tr("(Not working)")
+                                                    : tr("(Not working)"));
+        }
+    }
+
+    m_playbackCard->setTitle(tr("Playback"));
+    m_playheadItem->setTitle(tr("Playhead behavior"));
+    m_fileCard->setTitle(tr("File Caching"));
+    m_fileBufferItem->setTitle(tr("&File reading buffer size (samples)"));
+}

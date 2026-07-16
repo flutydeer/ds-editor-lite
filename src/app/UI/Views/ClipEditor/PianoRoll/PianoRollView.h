@@ -29,6 +29,9 @@ public:
 public slots:
     void onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode) const;
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private:
     PianoRollGraphicsScene *m_scene;
     PianoRollGraphicsView *m_graphicsView;

@@ -17,13 +17,13 @@ public:
     explicit OptionListCard(QWidget *parent = nullptr);
     explicit OptionListCard(QString title, QWidget *parent = nullptr);
 
-    void addItem(OptionsCardItem *item);
-    void addItem(const QString &title, QWidget *control);
-    void addItem(const QString &title, const QString &description);
-    void addItem(const QString &title, const QList<QWidget *> &controls);
-    void addItem(const QString &title, const QString &description, QWidget *control);
-    void addItem(const QString &title, const QString &description,
-                 const QList<QWidget *> &controls);
+    OptionsCardItem *addItem(OptionsCardItem *item);
+    OptionsCardItem *addItem(const QString &title, QWidget *control);
+    OptionsCardItem *addItem(const QString &title, const QString &description);
+    OptionsCardItem *addItem(const QString &title, const QList<QWidget *> &controls);
+    OptionsCardItem *addItem(const QString &title, const QString &description, QWidget *control);
+    OptionsCardItem *addItem(const QString &title, const QString &description,
+                             const QList<QWidget *> &controls);
 
 private:
     using OptionsCard::card;

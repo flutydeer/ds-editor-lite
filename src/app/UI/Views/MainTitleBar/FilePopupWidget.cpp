@@ -288,7 +288,8 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
     btnLayout->setContentsMargins(12, 12, 12, 12);
     btnLayout->setSpacing(6);
 
-    auto *btnNew = new Button(tr("New"));
+    m_btnNew = new Button(tr("New"));
+    auto *btnNew = m_btnNew;
     btnNew->setObjectName("filePopupActionButton");
     btnNew->setProperty("filePopupAction", true);
     btnNew->setIcon(
@@ -299,7 +300,8 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
         emit newProjectClicked();
     });
 
-    auto *btnOpen = new Button(tr("Open..."));
+    m_btnOpen = new Button(tr("Open..."));
+    auto *btnOpen = m_btnOpen;
     btnOpen->setObjectName("filePopupActionButton");
     btnOpen->setProperty("filePopupAction", true);
     btnOpen->setIcon(
@@ -321,7 +323,8 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
     recentLayout->setContentsMargins(6, 0, 6, 6);
     recentLayout->setSpacing(0);
 
-    auto *lbRecentTitle = new QLabel(tr("Recent Projects"));
+    m_lbRecentTitle = new QLabel(tr("Recent Projects"));
+    auto *lbRecentTitle = m_lbRecentTitle;
     lbRecentTitle->setObjectName("filePopupRecentTitle");
     lbRecentTitle->setContentsMargins(6, 0, 6, 6);
     recentLayout->addWidget(lbRecentTitle);
@@ -378,6 +381,18 @@ void FilePopupWidget::showAt(const QPoint &globalPos) {
 void FilePopupWidget::hideEvent(QHideEvent *event) {
     clearRecentItemHoverState();
     QFrame::hideEvent(event);
+}
+
+void FilePopupWidget::changeEvent(QEvent *event) {
+    QFrame::changeEvent(event);
+    if (event->type() != QEvent::LanguageChange)
+        return;
+
+    m_btnNew->setText(tr("New"));
+    m_btnOpen->setText(tr("Open..."));
+    m_lbRecentTitle->setText(tr("Recent Projects"));
+    m_lbEmpty->setText(tr("(No Recent Projects)"));
+    syncPopupGeometry();
 }
 
 void FilePopupWidget::refreshRecentFiles() {

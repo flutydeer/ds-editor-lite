@@ -11,9 +11,10 @@
 #include "UI/Controls/TaskView.h"
 
 #include <QApplication>
+#include <QEvent>
 
 TaskWindow::TaskWindow(QWidget *parent) : Window(parent) {
-    setWindowTitle(tr("Background Tasks - %1").arg(QGuiApplication::applicationDisplayName()));
+    retranslateUi();
     m_taskList = new QListWidget;
     m_taskList->setStyleSheet("QListWidget { background: transparent; border: none; "
                               "border-right: 1px solid #202020; outline:0px;"
@@ -33,6 +34,16 @@ TaskWindow::TaskWindow(QWidget *parent) : Window(parent) {
     mainLayout->addWidget(m_taskList);
     setLayout(mainLayout);
     resize(360, 480);
+}
+
+void TaskWindow::changeEvent(QEvent *event) {
+    Window::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        retranslateUi();
+}
+
+void TaskWindow::retranslateUi() {
+    setWindowTitle(tr("Background Tasks - %1").arg(QGuiApplication::applicationDisplayName()));
 }
 
 void TaskWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index) {

@@ -37,6 +37,9 @@ public slots:
     void onPositionChanged(double tick);
     void onPlaybackStatusChanged(PlaybackStatus status);
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private:
     TempoComboBox *m_elTempo;
     QPushButton *m_btnStop;

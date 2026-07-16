@@ -8,6 +8,8 @@
 #include <QScrollArea>
 #include <QListWidget>
 #include <QHBoxLayout>
+#include <QEvent>
+#include <QSignalBlocker>
 
 #include "Pages/AppearancePage.h"
 #include "Pages/GeneralPage.h"
@@ -26,7 +28,6 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     tabList = new QListWidget;
     tabList->setFixedWidth(160);
     tabList->setObjectName("AppOptionsDialogTabListWidget");
-    tabList->addItems(pageNames);
     tabList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
 
     generalPage = new GeneralPage;
@@ -53,6 +54,8 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     pages.append(inferencePage);
     pages.append(developerPage);
 
+    retranslateUi();
+
     const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(tabList);
     mainLayout->addSpacing(12);
@@ -60,8 +63,7 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     mainLayout->setContentsMargins({});
     body()->setLayout(mainLayout);
 
-    connect(tabList, &QListWidget::currentRowChanged, this,
-            &AppOptionsDialog::onSelectionChanged);
+    connect(tabList, &QListWidget::currentRowChanged, this, &AppOptionsDialog::onSelectionChanged);
     const auto pageIndex = option >= 1 ? option - 1 : 0; // Skip enum "All"
     tabList->setCurrentRow(pageIndex);
 
@@ -74,4 +76,27 @@ AppOptionsDialog::~AppOptionsDialog() {
 
 void AppOptionsDialog::onSelectionChanged(const int index) const {
     pageContent->setCurrentWidget(pages.at(index));
+}
+
+void AppOptionsDialog::changeEvent(QEvent *event) {
+    Dialog::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        retranslateUi();
+}
+
+void AppOptionsDialog::retranslateUi() {
+    setWindowTitle(tr("Options"));
+
+    const QStringList pageNames = {tr("General"),    tr("Audio"),     tr("MIDI"),
+                                   tr("Appearance"), tr("Inference"), tr("Developer Options")};
+    const QSignalBlocker blocker(tabList);
+    const auto currentRow = tabList->currentRow();
+    if (tabList->count() != pageNames.size()) {
+        tabList->clear();
+        tabList->addItems(pageNames);
+    } else {
+        for (int i = 0; i < pageNames.size(); ++i)
+            tabList->item(i)->setText(pageNames.at(i));
+    }
+    tabList->setCurrentRow(currentRow);
 }

@@ -34,9 +34,11 @@ signals:
     void detachRequested();
 
 protected:
+    void changeEvent(QEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
+    void retranslateUi();
     void buildDockedButtons();
     void buildDetachedButtons(bool useNativeFrame);
     void clearButtonLayout();
@@ -62,4 +64,4 @@ private:
     QVariantAnimation *m_animation = nullptr;
 };
 
-#endif //TABPANELTITLEBAR_H
+#endif // TABPANELTITLEBAR_H

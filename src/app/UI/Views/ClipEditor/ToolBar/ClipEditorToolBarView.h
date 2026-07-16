@@ -29,6 +29,9 @@ public:
 signals:
     void editModeChanged(PianoRollEditMode mode);
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private:
     Q_DECLARE_PRIVATE(ClipEditorToolBarView)
     ClipEditorToolBarViewPrivate *d_ptr;

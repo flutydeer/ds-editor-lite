@@ -7,6 +7,7 @@
 #include <QTimer>
 
 class QEvent;
+class QLabel;
 class TapTempoButton;
 
 namespace SVS {
@@ -37,6 +38,7 @@ private:
 
     SVS::ExpressionDoubleSpinBox *m_spinTempo = nullptr;
     TapTempoButton *m_btnTapTempo = nullptr;
+    QLabel *m_titleLabel = nullptr;
     QElapsedTimer m_tapTimer;
     QList<qint64> m_tapIntervals;
     QTimer m_tapResetTimer;

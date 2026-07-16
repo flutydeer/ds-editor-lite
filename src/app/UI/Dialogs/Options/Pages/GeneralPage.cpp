@@ -14,7 +14,6 @@
 #include "UI/Controls/OptionListCard.h"
 #include "UI/Controls/PathEditor.h"
 #include "UI/Views/Common/LanguageComboBox.h"
-#include "UI/Dialogs/Base/RestartDialog.h"
 #include "Global/AppOptionsGlobal.h"
 #include "Utils/UiLanguageManager.h"
 
@@ -56,10 +55,8 @@ QWidget *GeneralPage::createContentWidget() {
         modifyOption();
         if (previousLanguage == option->uiLanguage)
             return;
-        const auto message =
-            tr("The interface language will change after restarting the app. Restart now?");
-        const auto dialog = new RestartDialog(message, true, this);
-        dialog->show();
+        if (const auto languageManager = UiLanguageManager::instance())
+            languageManager->setPreference(option->uiLanguage);
     });
 
     const auto applicationCard = new OptionListCard(tr("Application"));

@@ -22,7 +22,11 @@ public:
 public slots:
     void onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index);
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private:
+    void retranslateUi();
     QListWidget *m_taskList{};
 
     void addTaskToView(Task *task);

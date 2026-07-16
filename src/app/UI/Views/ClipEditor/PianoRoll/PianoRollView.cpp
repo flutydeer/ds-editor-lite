@@ -13,6 +13,7 @@
 #include "UI/Views/Common/TimelineView.h"
 
 #include <QLabel>
+#include <QEvent>
 #include <QVBoxLayout>
 
 PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
@@ -118,4 +119,10 @@ void PianoRollView::onEditModeChanged(const PianoRollEditMode mode) const {
 
 void PianoRollView::setTrackColorIndex(int index) const {
     m_keyboardView->setTrackColorIndex(index);
+}
+
+void PianoRollView::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        m_lbTip->setText(tr("Select a singing clip to edit"));
 }

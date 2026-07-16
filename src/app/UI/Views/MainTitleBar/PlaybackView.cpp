@@ -18,6 +18,7 @@
 #include "Global/AppGlobal.h"
 
 #include <QColor>
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
@@ -357,4 +358,10 @@ void PlaybackView::updatePlaybackControlView() {
 void PlaybackView::updateLoopButtonView() {
     const bool enabled = appStatus->loopSettings.get().enabled;
     m_btnLoop->setChecked(enabled);
+}
+
+void PlaybackView::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        m_btnLoop->setToolTip(tr("Loop"));
 }

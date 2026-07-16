@@ -9,6 +9,7 @@
 #include "UI/Controls/ToolTipFilter.h"
 
 #include <QHBoxLayout>
+#include <QEvent>
 #include <QPushButton>
 
 ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
@@ -55,8 +56,22 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
 
 void ActionButtonsView::onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
                                           const QString &redoActionName) {
+    m_undoActionName = undoActionName;
+    m_redoActionName = redoActionName;
     m_btnUndo->setEnabled(canUndo);
     m_btnUndo->setToolTip(tr("Undo") + " " + undoActionName);
     m_btnRedo->setEnabled(canRedo);
     m_btnRedo->setToolTip(tr("Redo") + " " + redoActionName);
+}
+
+void ActionButtonsView::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        retranslateUi();
+}
+
+void ActionButtonsView::retranslateUi() {
+    m_btnSave->setToolTip(tr("Save Project"));
+    m_btnUndo->setToolTip(tr("Undo") + " " + m_undoActionName);
+    m_btnRedo->setToolTip(tr("Redo") + " " + m_redoActionName);
 }

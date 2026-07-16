@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <QFontMetrics>
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QVBoxLayout>
@@ -131,6 +132,12 @@ void ParamEditorView::setDataContext(SingingClip *clip) {
 
 ParamEditorGraphicsView *ParamEditorView::graphicsView() const {
     return m_graphicsView;
+}
+
+void ParamEditorView::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        refreshSpeakerMixToolBar();
 }
 
 void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) {

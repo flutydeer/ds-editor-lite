@@ -10,6 +10,7 @@
 #include "UI/Controls/ToolTipFilter.h"
 
 #include <QHBoxLayout>
+#include <QEvent>
 #include <QPainter>
 #include <QPushButton>
 
@@ -18,6 +19,7 @@ TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
 
     const auto btnNewTrack = new ToolButton;
+    m_btnNewTrack = btnNewTrack;
     btnNewTrack->setObjectName("btnNewTrack");
     btnNewTrack->setFixedSize(28, 28);
     btnNewTrack->setActionIcon(QStringLiteral(":/svg/icons/add_16_regular.svg"));
@@ -34,4 +36,10 @@ TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
 
 void TrackListHeaderView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
+}
+
+void TrackListHeaderView::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        m_btnNewTrack->setToolTip(tr("New Track"));
 }

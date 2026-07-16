@@ -35,6 +35,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QEvent>
 
 #include <algorithm>
 
@@ -105,6 +106,12 @@ QAction *MainMenuView::actionSaveAs() {
 void MainMenuView::openRecentProject(const QString &filePath) {
     Q_D(MainMenuView);
     d->onOpenRecentProject(filePath);
+}
+
+void MainMenuView::changeEvent(QEvent *event) {
+    QMenuBar::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        d_ptr->retranslateUi();
 }
 
 void MainMenuViewPrivate::onNew() const {
@@ -203,6 +210,8 @@ void MainMenuViewPrivate::onExportAudioFile() {
 void MainMenuViewPrivate::onUndoRedoChanged(bool canUndo, const QString &undoName, bool canRedo,
                                             const QString &redoName) {
     Q_Q(MainMenuView);
+    m_undoName = undoName;
+    m_redoName = redoName;
     actionUndo->setEnabled(canUndo);
     actionUndo->setText(tr("&Undo") + " " + undoName);
     actionRedo->setEnabled(canRedo);
@@ -577,7 +586,7 @@ void MainMenuViewPrivate::initEditActions() {
 
 Menu *MainMenuViewPrivate::buildFileMenu() {
     Q_Q(MainMenuView);
-    auto menuFile = new Menu(tr("&File"), q);
+    menuFile = new Menu(tr("&File"), q);
     menuFile->addAction(actionNew);
     menuFile->addAction(actionOpen);
 
@@ -595,13 +604,13 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
 
     menuFile->addSeparator();
 
-    auto menuImport = new Menu(tr("Import"), q);
+    menuImport = new Menu(tr("Import"), q);
     menuImport->menuAction()->setIcon(
         menuIcon(QStringLiteral(":/svg/icons/arrow_import_16_regular.svg")));
     menuImport->addAction(actionImportMidi);
     menuFile->addMenu(menuImport);
 
-    auto menuExport = new Menu(tr("Export"), q);
+    menuExport = new Menu(tr("Export"), q);
     menuExport->menuAction()->setIcon(
         menuIcon(QStringLiteral(":/svg/icons/arrow_export_16_regular.svg")));
     menuExport->addAction(actionExportAudio);
@@ -619,7 +628,7 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
 
 Menu *MainMenuViewPrivate::buildEditMenu() {
     Q_Q(MainMenuView);
-    auto menuEdit = new Menu(tr("&Edit"), q);
+    menuEdit = new Menu(tr("&Edit"), q);
     menuEdit->addAction(actionUndo);
     menuEdit->addAction(actionRedo);
 
@@ -652,25 +661,25 @@ Menu *MainMenuViewPrivate::buildEditMenu() {
 
 Menu *MainMenuViewPrivate::buildOptionsMenu() {
     Q_Q(MainMenuView);
-    auto actionGeneralOptions = new QAction(tr("&General..."), this);
+    actionGeneralOptions = new QAction(tr("&General..."), this);
     actionGeneralOptions->setIcon(menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
     connect(actionGeneralOptions, &QAction::triggered, this, [] {
         AppOptionsDialog dialog(AppOptionsGlobal::Option::General);
         dialog.exec();
     });
-    auto actionAudioSettings = new QAction(tr("&Audio..."), this);
+    actionAudioSettings = new QAction(tr("&Audio..."), this);
     actionAudioSettings->setIcon(menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
     connect(actionAudioSettings, &QAction::triggered, this, [] {
         AppOptionsDialog dialog(AppOptionsGlobal::Option::Audio);
         dialog.exec();
     });
-    auto actionMidiSettings = new QAction(tr("&MIDI..."), this);
+    actionMidiSettings = new QAction(tr("&MIDI..."), this);
     actionMidiSettings->setIcon(menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
     connect(actionMidiSettings, &QAction::triggered, this, [] {
         AppOptionsDialog dialog(AppOptionsGlobal::Option::Midi);
         dialog.exec();
     });
-    auto actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
+    actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
     actionAppearanceOptions->setIcon(
         menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
     connect(actionAppearanceOptions, &QAction::triggered, this, [] {
@@ -682,14 +691,14 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
     //     AppOptionsDialog dialog(AppOptionsGlobal::Option::Language);
     //     dialog.exec();
     // });
-    const auto actionInferenceOptions = new QAction(tr("&Inference..."), this);
+    actionInferenceOptions = new QAction(tr("&Inference..."), this);
     actionInferenceOptions->setIcon(
         menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
     connect(actionInferenceOptions, &QAction::triggered, this, [] {
         AppOptionsDialog dialog(AppOptionsGlobal::Option::Inference);
         dialog.exec();
     });
-    const auto actionDeveloperOptions = new QAction(tr("&Developer Options..."), this);
+    actionDeveloperOptions = new QAction(tr("&Developer Options..."), this);
     actionDeveloperOptions->setIcon(
         menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
     connect(actionDeveloperOptions, &QAction::triggered, this, [] {
@@ -697,7 +706,7 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
         dialog.exec();
     });
 
-    auto menuOptions = new Menu(tr("&Options"), q);
+    menuOptions = new Menu(tr("&Options"), q);
     menuOptions->addAction(actionGeneralOptions);
     menuOptions->addAction(actionAudioSettings);
     menuOptions->addAction(actionMidiSettings);
@@ -711,23 +720,68 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
 
 Menu *MainMenuViewPrivate::buildHelpMenu() {
     Q_Q(MainMenuView);
-    auto actionCheckForUpdates = new QAction(tr("Check for updates"), this);
+    actionCheckForUpdates = new QAction(tr("Check for updates"), this);
     actionCheckForUpdates->setIcon(menuIcon(QStringLiteral(":/svg/icons/info_16_regular.svg")));
     connect(actionCheckForUpdates, &QAction::triggered, this,
             [=] { Toast::show(tr("You are already up to date")); });
-    auto actionAbout = new QAction(tr("About..."), this);
+    actionAbout = new QAction(tr("About..."), this);
     actionAbout->setIcon(menuIcon(QStringLiteral(":/svg/icons/info_16_regular.svg")));
     connect(actionAbout, &QAction::triggered, this, [] { Toast::show(tr("About")); });
 
-    auto actionDiscoverDiffScope = new QAction(tr("Discover DiffScope"), this);
+    actionDiscoverDiffScope = new QAction(tr("Discover DiffScope"), this);
     connect(actionDiscoverDiffScope, &QAction::triggered, this, [] {
         DiscoverDiffScopeDialog dlg;
         dlg.exec();
     });
 
-    auto menuHelp = new Menu(tr("&Help"), q);
+    menuHelp = new Menu(tr("&Help"), q);
     menuHelp->addAction(actionCheckForUpdates);
     menuHelp->addAction(actionAbout);
     menuHelp->addAction(actionDiscoverDiffScope);
     return menuHelp;
+}
+
+void MainMenuViewPrivate::retranslateUi() {
+    actionNew->setText(tr("&New"));
+    actionOpen->setText(tr("&Open..."));
+    actionClearRecentProjects->setText(tr("Clear Recent Projects"));
+    actionSave->setText(tr("&Save"));
+    actionSaveAs->setText(tr("Save &as..."));
+    actionImportMidi->setText(tr("MIDI file..."));
+    actionExportAudio->setText(tr("Audio file..."));
+    actionExportMidi->setText(tr("MIDI file..."));
+    actionOpenPackageManager->setText(tr("Manage packages..."));
+    actionExit->setText(tr("E&xit"));
+
+    actionUndo->setText(tr("&Undo") + " " + m_undoName);
+    actionRedo->setText(tr("&Redo") + " " + m_redoName);
+    actionSelectAll->setText(tr("Select &all"));
+    actionDelete->setText(tr("&Delete"));
+    actionCut->setText(tr("Cu&t"));
+    actionCopy->setText(tr("&Copy"));
+    actionPaste->setText(tr("&Paste"));
+    actionOctaveUp->setText(tr("Move an octave up"));
+    actionOctaveDown->setText(tr("Move an octave down"));
+    actionFillLyrics->setText(tr("Fill lyrics..."));
+    actionSearchLyrics->setText(tr("Search lyrics..."));
+    actionExtractPitchParam->setText(tr("Extract pitch parameter..."));
+
+    actionGeneralOptions->setText(tr("&General..."));
+    actionAudioSettings->setText(tr("&Audio..."));
+    actionMidiSettings->setText(tr("&MIDI..."));
+    actionAppearanceOptions->setText(tr("A&ppearance..."));
+    actionInferenceOptions->setText(tr("&Inference..."));
+    actionDeveloperOptions->setText(tr("&Developer Options..."));
+    actionCheckForUpdates->setText(tr("Check for updates"));
+    actionAbout->setText(tr("About..."));
+    actionDiscoverDiffScope->setText(tr("Discover DiffScope"));
+
+    menuFile->setTitle(tr("&File"));
+    menuRecentProjects->setTitle(tr("Recent Projects"));
+    menuImport->setTitle(tr("Import"));
+    menuExport->setTitle(tr("Export"));
+    menuEdit->setTitle(tr("&Edit"));
+    menuOptions->setTitle(tr("&Options"));
+    menuHelp->setTitle(tr("&Help"));
+    refreshRecentProjectsMenu();
 }

@@ -48,7 +48,26 @@ public:
     QAction *actionSearchLyrics = nullptr;
     QAction *actionExtractPitchParam = nullptr;
 
+    QAction *actionGeneralOptions = nullptr;
+    QAction *actionAudioSettings = nullptr;
+    QAction *actionMidiSettings = nullptr;
+    QAction *actionAppearanceOptions = nullptr;
+    QAction *actionInferenceOptions = nullptr;
+    QAction *actionDeveloperOptions = nullptr;
+    QAction *actionCheckForUpdates = nullptr;
+    QAction *actionAbout = nullptr;
+    QAction *actionDiscoverDiffScope = nullptr;
+
+    Menu *menuFile = nullptr;
     Menu *menuRecentProjects = nullptr;
+    Menu *menuImport = nullptr;
+    Menu *menuExport = nullptr;
+    Menu *menuEdit = nullptr;
+    Menu *menuOptions = nullptr;
+    Menu *menuHelp = nullptr;
+
+    QString m_undoName;
+    QString m_redoName;
 
     AppGlobal::PanelType m_panelType = AppGlobal::Generic;
 
@@ -89,6 +108,7 @@ public:
     Menu *buildEditMenu();
     Menu *buildOptionsMenu();
     Menu *buildHelpMenu();
+    void retranslateUi();
 
 private:
     MainMenuView *q_ptr = nullptr;

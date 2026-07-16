@@ -27,6 +27,9 @@ signals:
     void resumeDynamicMix();
     void stopDynamicMix();
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private:
     Button *m_btnBypass = nullptr;
     Button *m_btnResume = nullptr;

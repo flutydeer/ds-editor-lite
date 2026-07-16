@@ -10,8 +10,10 @@
 #include "Utils/ParamUtils.h"
 #include "SpeakerMixToolBarView.h"
 
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QSignalBlocker>
 
 ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
@@ -24,8 +26,8 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     cbForegroundParam->addItems(paramUtils->names());
     cbForegroundParam->removeItem(0); // Remove pitch
 
-    const auto btnSwap = new Button(tr("Swap"));
-    btnSwap->setObjectName("btnSwap");
+    m_btnSwap = new Button(tr("Swap"));
+    m_btnSwap->setObjectName("btnSwap");
 
     lbBackgroundParam = new QLabel(tr("Background:"));
     lbBackgroundParam->setObjectName("lbBackgroundParam");
@@ -43,7 +45,7 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     layout->addSpacing(64);
     layout->addWidget(lbForegroundParam);
     layout->addWidget(cbForegroundParam);
-    layout->addWidget(btnSwap);
+    layout->addWidget(m_btnSwap);
     layout->addWidget(lbBackgroundParam);
     layout->addWidget(cbBackgroundParam);
     layout->addWidget(m_speakerMixToolBar);
@@ -57,7 +59,7 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
             &ParamEditorToolBarView::onForegroundSelectionChanged);
     connect(cbBackgroundParam, &ComboBox::currentIndexChanged, this,
             &ParamEditorToolBarView::onBackgroundSelectionChanged);
-    connect(btnSwap, &Button::clicked, this, &ParamEditorToolBarView::onSwap);
+    connect(m_btnSwap, &Button::clicked, this, &ParamEditorToolBarView::onSwap);
     connect(m_speakerMixToolBar, &SpeakerMixToolBarView::previousKeyframe, this,
             &ParamEditorToolBarView::previousKeyframe);
     connect(m_speakerMixToolBar, &SpeakerMixToolBarView::nextKeyframe, this,
@@ -101,4 +103,31 @@ void ParamEditorToolBarView::onSwap() const {
     const int temp = fgIndex;
     cbForegroundParam->setCurrentIndex(cbBackgroundParam->currentIndex());
     cbBackgroundParam->setCurrentIndex(temp);
+}
+
+void ParamEditorToolBarView::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        retranslateUi();
+}
+
+void ParamEditorToolBarView::retranslateUi() {
+    lbForegroundParam->setText(tr("Foreground:"));
+    lbBackgroundParam->setText(tr("Background:"));
+    m_btnSwap->setText(tr("Swap"));
+
+    const auto foregroundIndex = cbForegroundParam->currentIndex();
+    const QSignalBlocker foregroundBlocker(cbForegroundParam);
+    cbForegroundParam->clear();
+    cbForegroundParam->addItems(paramUtils->names());
+    cbForegroundParam->removeItem(0);
+    cbForegroundParam->setCurrentIndex(foregroundIndex);
+
+    const auto backgroundIndex = cbBackgroundParam->currentIndex();
+    const QSignalBlocker backgroundBlocker(cbBackgroundParam);
+    cbBackgroundParam->clear();
+    cbBackgroundParam->addItems(paramUtils->names());
+    cbBackgroundParam->removeItem(0);
+    cbBackgroundParam->removeItem(cbBackgroundParam->count() - 1);
+    cbBackgroundParam->setCurrentIndex(backgroundIndex);
 }

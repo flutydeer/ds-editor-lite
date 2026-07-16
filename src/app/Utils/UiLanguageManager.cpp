@@ -39,18 +39,30 @@ void UiLanguageManager::setPreference(const QString &preference) {
     const auto previousLanguage = m_effectiveLanguageId;
 
     m_preference = normalized;
-    removeTranslators();
 
-    if (requestedLanguage == SimplifiedChinese && !loadChineseTranslators()) {
-        qWarning() << "Failed to load the complete zh_CN translation set; falling back to English";
-        removeTranslators();
-        m_effectiveLanguageId = English;
+    if (requestedLanguage == previousLanguage)
+        return;
+
+    if (requestedLanguage == SimplifiedChinese) {
+        if (!loadChineseTranslators()) {
+            qWarning()
+                << "Failed to load the complete zh_CN translation set; falling back to English";
+            removeTranslators();
+            m_effectiveLanguageId = English;
+            return;
+        }
+        m_effectiveLanguageId = SimplifiedChinese;
+        if (!m_qtBaseTranslator.isEmpty())
+            qApp->installTranslator(&m_qtBaseTranslator);
+        if (!m_qtTranslator.isEmpty())
+            qApp->installTranslator(&m_qtTranslator);
+        qApp->installTranslator(&m_appTranslator);
     } else {
-        m_effectiveLanguageId = requestedLanguage;
+        m_effectiveLanguageId = English;
+        removeTranslators();
     }
 
-    if (previousLanguage != m_effectiveLanguageId)
-        emit languageChanged(m_effectiveLanguageId);
+    emit languageChanged(m_effectiveLanguageId);
 }
 
 QString UiLanguageManager::preference() const {
@@ -87,13 +99,5 @@ bool UiLanguageManager::loadChineseTranslators() {
         qWarning() << "Failed to load Qt zh_CN translations from" << qtTranslationsPath;
     if (!appLoaded)
         qWarning() << "Failed to load application translation :/i18n/translation_zh_CN.qm";
-    if (!qtTranslationsLoaded || !appLoaded)
-        return false;
-
-    if (qtBaseLoaded)
-        qApp->installTranslator(&m_qtBaseTranslator);
-    if (qtLoaded)
-        qApp->installTranslator(&m_qtTranslator);
-    qApp->installTranslator(&m_appTranslator);
-    return true;
+    return qtTranslationsLoaded && appLoaded;
 }

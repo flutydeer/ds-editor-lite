@@ -26,11 +26,15 @@ public:
 signals:
     void detachRequested();
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private slots:
     void onSelectionChanged(int index);
     void onToolBarVisibilityChanged();
 
 private:
+    void retranslateUi();
     void updateToolBarVisibility(TabPanelPage *page);
 
     TabPanelTitleBar *m_tabPanelTitleBar;
@@ -41,4 +45,4 @@ private:
 };
 
 
-#endif //TABPANELVIEW_H
+#endif // TABPANELVIEW_H

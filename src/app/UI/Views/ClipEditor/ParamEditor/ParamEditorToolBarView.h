@@ -40,11 +40,15 @@ private slots:
     void onSwap() const;
 
 private:
+    void changeEvent(QEvent *event) override;
+    void retranslateUi();
+
     SingingClip *m_clip = nullptr;
     QLabel *lbForegroundParam;
     ComboBox *cbForegroundParam;
     QLabel *lbBackgroundParam;
     ComboBox *cbBackgroundParam;
+    Button *m_btnSwap = nullptr;
     SpeakerMixToolBarView *m_speakerMixToolBar = nullptr;
 };
 

@@ -34,6 +34,7 @@ private:
     enum MouseMoveBehavior { Move, ResizeRight, ResizeLeft, None };
 
     bool event(QEvent *event) override;
+    void changeEvent(QEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;

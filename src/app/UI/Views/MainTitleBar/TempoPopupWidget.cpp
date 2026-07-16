@@ -45,7 +45,8 @@ TempoPopupWidget::TempoPopupWidget(QWidget *parent) : QFrame(parent) {
         setProperty("dwmBorder", true);
 #endif
 
-    auto *titleLabel = new QLabel(tr("Tempo"));
+    m_titleLabel = new QLabel(tr("Tempo"));
+    auto *titleLabel = m_titleLabel;
     titleLabel->setObjectName("popupTitle");
     titleLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
@@ -129,6 +130,10 @@ void TempoPopupWidget::changeEvent(QEvent *event) {
     QFrame::changeEvent(event);
     if (event->type() == QEvent::StyleChange && m_spinTempo && m_btnTapTempo)
         applyEditorGeometry();
+    else if (event->type() == QEvent::LanguageChange) {
+        m_titleLabel->setText(tr("Tempo"));
+        m_btnTapTempo->setText(m_tapTimer.isValid() ? tr("Keep Tapping") : tr("Tap Tempo"));
+    }
 }
 
 void TempoPopupWidget::applyEditorGeometry() {

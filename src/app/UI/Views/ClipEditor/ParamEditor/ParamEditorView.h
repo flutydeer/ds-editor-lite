@@ -31,6 +31,9 @@ public slots:
     void onForegroundChanged(ParamInfo::Name name);
     void onBackgroundChanged(ParamInfo::Name name) const;
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private slots:
     void onPreviousKeyframe() const;
     void onNextKeyframe() const;
@@ -48,10 +51,10 @@ private:
     void hideSpeakerMixEmptyState();
     void updateSpeakerMixEmptyStateGeometry();
     static bool hasFixedMixBase(const SpeakerMixModel::SpeakerMixData &data);
-    static SpeakerMixModel::SpeakerMixData dataWithDynamicEnabled(
-        const SpeakerMixModel::SpeakerMixData &data);
-    static SpeakerMixModel::SpeakerMixData dataWithDynamicStopped(
-        const SpeakerMixModel::SpeakerMixData &data);
+    static SpeakerMixModel::SpeakerMixData
+        dataWithDynamicEnabled(const SpeakerMixModel::SpeakerMixData &data);
+    static SpeakerMixModel::SpeakerMixData
+        dataWithDynamicStopped(const SpeakerMixModel::SpeakerMixData &data);
 
     SingingClip *m_clip = nullptr;
     ParamEditorGraphicsView *m_graphicsView;

@@ -42,6 +42,7 @@ public slots:
     void onActiveClipChanged(int clipId);
 
 private:
+    void changeEvent(QEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
     void moveToSingingClipState(SingingClip *clip) const;
     void moveToAudioClipState(const AudioClip *clip) const;

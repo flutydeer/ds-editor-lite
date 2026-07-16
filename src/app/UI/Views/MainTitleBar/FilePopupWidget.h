@@ -12,6 +12,7 @@
 class QVBoxLayout;
 class QLabel;
 class QHideEvent;
+class Button;
 
 class FilePopupWidget : public QFrame {
     Q_OBJECT
@@ -27,6 +28,7 @@ signals:
     void openRecentProject(const QString &filePath);
 
 protected:
+    void changeEvent(QEvent *event) override;
     void hideEvent(QHideEvent *event) override;
 
 private:
@@ -39,6 +41,9 @@ private:
     QFrame *m_surface = nullptr;
     QFrame *m_recentSection = nullptr;
     QVBoxLayout *m_listLayout = nullptr;
+    Button *m_btnNew = nullptr;
+    Button *m_btnOpen = nullptr;
+    QLabel *m_lbRecentTitle = nullptr;
     QLabel *m_lbEmpty = nullptr;
     QList<QWidget *> m_recentItems;
 };

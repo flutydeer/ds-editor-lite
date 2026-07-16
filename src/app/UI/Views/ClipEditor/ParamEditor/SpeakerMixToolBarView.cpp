@@ -7,6 +7,7 @@
 #include "UI/Controls/ColorDot.h"
 
 #include <QHBoxLayout>
+#include <QEvent>
 #include <QLabel>
 
 SpeakerMixToolBarView::SpeakerMixToolBarView(QWidget *parent) : QWidget(parent) {
@@ -102,4 +103,13 @@ void SpeakerMixToolBarView::setDynamicState(const SpeakerMixDynamicUiState state
     m_btnNext->setVisible(hasDynamic);
     m_btnPrev->setEnabled(hasDynamic);
     m_btnNext->setEnabled(hasDynamic);
+}
+
+void SpeakerMixToolBarView::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange) {
+        m_btnBypass->setText(tr("Bypass"));
+        m_btnResume->setText(tr("Resume"));
+        m_btnStop->setText(tr("Stop Dynamic..."));
+    }
 }

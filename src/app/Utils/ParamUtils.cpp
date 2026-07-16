@@ -11,15 +11,18 @@ ParamUtils::~ParamUtils() = default;
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(ParamUtils)
 
-const QStringList &ParamUtils::names() const {
-    return m_names;
+QStringList ParamUtils::names() const {
+    return {tr("Pitch"),    tr("Expressiveness"), tr("Energy"),        tr("Breathiness"),
+            tr("Voicing"),  tr("Tension"),        tr("Mouth Opening"), tr("Gender"),
+            tr("Velocity"), tr("Tone Shift"),     tr("Speaker Mix")};
 }
 
 QString ParamUtils::nameFromType(const ParamInfo::Name name) const {
     const auto index = static_cast<int>(name);
-    if (index < 0 || index >= m_names.size())
+    const auto translatedNames = names();
+    if (index < 0 || index >= translatedNames.size())
         return {};
-    return m_names[index];
+    return translatedNames[index];
 }
 
 const ParamProperties *ParamUtils::getPropertiesByName(const ParamInfo::Name name) const {

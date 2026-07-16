@@ -24,6 +24,9 @@ public:
     [[nodiscard]] QAction *actionSaveAs();
     void openRecentProject(const QString &filePath);
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private:
     Q_DECLARE_PRIVATE(MainMenuView)
     QScopedPointer<MainMenuViewPrivate> d_ptr;

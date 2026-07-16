@@ -43,7 +43,8 @@ TimeSignaturePopupWidget::TimeSignaturePopupWidget(QWidget *parent) : QFrame(par
         setProperty("dwmBorder", true);
 #endif
 
-    auto *titleLabel = new QLabel(tr("Time Signature"));
+    m_titleLabel = new QLabel(tr("Time Signature"));
+    auto *titleLabel = m_titleLabel;
     titleLabel->setObjectName("popupTitle");
 
     m_spinNumerator = new SVS::ExpressionSpinBox;
@@ -127,6 +128,12 @@ void TimeSignaturePopupWidget::setTimeSignature(int numerator, int denominator) 
     m_numerator = numerator;
     m_denominator = denominator;
     setEditors(numerator, denominator);
+}
+
+void TimeSignaturePopupWidget::changeEvent(QEvent *event) {
+    QFrame::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        m_titleLabel->setText(tr("Time Signature"));
 }
 
 void TimeSignaturePopupWidget::showAt(const QPoint &globalPos) {

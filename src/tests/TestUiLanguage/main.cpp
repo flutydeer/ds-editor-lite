@@ -59,5 +59,21 @@ int main(int argc, char *argv[]) {
     success &= expectEqual(option.value().value(QStringLiteral("uiLanguage")).toString(),
                            UiLanguageManager::English, "Preference serialization");
 
+    UiLanguageManager languageManager;
+    int languageChangedCount = 0;
+    QObject::connect(&languageManager, &UiLanguageManager::languageChanged,
+                     [&languageChangedCount] { ++languageChangedCount; });
+    languageManager.setPreference(UiLanguageManager::English);
+    languageManager.setPreference(UiLanguageManager::English);
+    success &= expectEqual(languageManager.preference(), UiLanguageManager::English,
+                           "Equivalent preference update");
+    success &= expectEqual(languageManager.effectiveLanguageId(), UiLanguageManager::English,
+                           "Equivalent effective language");
+    if (languageChangedCount != 0) {
+        qCritical() << "Equivalent language preference emitted" << languageChangedCount
+                    << "languageChanged signals";
+        success = false;
+    }
+
     return success ? 0 : 1;
 }

@@ -17,6 +17,7 @@
 #include "UI/Views/MixConsole/ChannelView.h"
 
 #include <QHBoxLayout>
+#include <QEvent>
 #include <QListWidget>
 #include <QShowEvent>
 #include <QScrollBar>
@@ -238,4 +239,10 @@ void MixConsoleView::updateItemSizeHints() const {
         auto item = m_channelListView->item(i);
         item->setSizeHint({97, viewportHeight});
     }
+}
+
+void MixConsoleView::changeEvent(QEvent *event) {
+    TabPanelPage::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        m_masterChannel->setName(tr("Master"));
 }

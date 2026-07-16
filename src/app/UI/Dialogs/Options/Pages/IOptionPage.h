@@ -16,7 +16,11 @@ public:
 protected:
     virtual void modifyOption() = 0;
     virtual QWidget *createContentWidget() = 0;
+    void changeEvent(QEvent *event) override;
     void initializePage();
+
+private:
+    bool m_retranslatePending = false;
 };
 
 #endif // OPTIONPAGE_H
