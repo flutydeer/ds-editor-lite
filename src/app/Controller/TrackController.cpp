@@ -7,6 +7,7 @@
 #include "Actions/AppModel/Clip/ClipActions.h"
 #include "ClipController.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/AudioClip.h"
 #include "Model/AppModel/AudioInfoModel.h"
@@ -15,6 +16,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/Task/TaskManager.h"
+#include "Tasks/ComputeAudioHashTask.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Dialogs/Base/Dialog.h"
@@ -22,6 +24,7 @@
 #include "UI/Views/TrackEditor/GraphicsItem/AudioClipView.h"
 #include "Global/AppGlobal.h"
 #include "Global/ControllerGlobal.h"
+#include "Utils/DiffscopeAudioWorkspace.h"
 #include "Utils/TimelineSnapUtils.h"
 
 #include <QClipboard>
@@ -427,6 +430,9 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
     audioClip->setPath(path);
     audioClip->setAudioInfo(result);
     audioClip->workspace().insert("diffscope.audio.formatData", task->workspace);
+    audioClip->setPathInfo({DiffscopeAudioWorkspace::relativeDirFor(
+                                path, documentWorkflowController->projectPath()),
+                            {}});
     const auto track = appModel->findTrackById(trackId);
     if (!track) {
         qDebug() << "handleDecodeAudioTaskFinished: track not found";
@@ -439,5 +445,33 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
     a->insertClips(clips, track);
     a->execute();
     historyManager->record(a);
+    scheduleHashUpdate(audioClip);
     delete task;
+}
+
+void TrackController::scheduleHashUpdate(const AudioClip *clip) {
+    if (!clip || clip->path().isEmpty())
+        return;
+    const auto hashTask = new ComputeAudioHashTask;
+    hashTask->clipId = clip->id();
+    hashTask->path = clip->path();
+    connect(hashTask, &Task::finished, trackController, [hashTask] {
+        taskManager->removeTask(hashTask);
+        if (hashTask->success && !hashTask->terminated()) {
+            // The clip may have been removed or relinked; verify the clipId + path snapshot before writing back
+            int trackIndex = -1;
+            const auto clip = appModel->findClipById(hashTask->clipId, trackIndex);
+            if (clip && clip->clipType() == IClip::Audio) {
+                const auto audioClip = static_cast<AudioClip *>(clip);
+                if (audioClip->path() == hashTask->path) {
+                    auto info = audioClip->pathInfo();
+                    info.sha512 = hashTask->resultSha512;
+                    audioClip->setPathInfo(info);
+                }
+            }
+        }
+        delete hashTask;
+    });
+    taskManager->addTask(hashTask);
+    taskManager->startTask(hashTask);
 }

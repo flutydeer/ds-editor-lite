@@ -17,6 +17,7 @@
 
 
 class SingingClip;
+class AudioClip;
 class QWidget;
 
 namespace talcs {
@@ -57,6 +58,7 @@ public slots:
 
 private:
     void handleDecodeAudioTaskFinished(DecodeAudioTask *task);
+    static void scheduleHashUpdate(const AudioClip *clip);
 
     // TODO: refactor
     QWidget *m_parentWidget = nullptr;
