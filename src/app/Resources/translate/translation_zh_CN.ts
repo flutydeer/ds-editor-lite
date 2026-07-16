@@ -5,21 +5,21 @@
     <name>ActionButtonsView</name>
     <message>
         <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="20"/>
-        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="74"/>
+        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="76"/>
         <source>Save Project</source>
         <translation>保存工程</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="29"/>
         <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="62"/>
-        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="75"/>
+        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="77"/>
         <source>Undo</source>
         <translation>撤销</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="38"/>
         <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="64"/>
-        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="76"/>
+        <location filename="../../UI/Views/MainTitleBar/ActionButtonsView.cpp" line="78"/>
         <source>Redo</source>
         <translation>重做</translation>
     </message>
@@ -844,28 +844,28 @@
 <context>
     <name>ClipActions</name>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="15"/>
-        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="21"/>
+        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="17"/>
+        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="23"/>
         <source>Insert clip(s)</source>
         <translation>插入剪辑</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="27"/>
+        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="29"/>
         <source>Remove clip(s)</source>
         <translation>删除剪辑</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="39"/>
+        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="41"/>
         <source>Edit singing clip(s)</source>
         <translation>编辑歌声剪辑</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="52"/>
+        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="54"/>
         <source>Edit audio clip(s)</source>
         <translation>编辑音频剪辑</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="63"/>
+        <location filename="../../Controller/Actions/AppModel/Clip/ClipActions.cpp" line="65"/>
         <source>Move clip to track</source>
         <translation>移动剪辑到轨道</translation>
     </message>
@@ -2072,7 +2072,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>ImportProjectActions</name>
     <message>
-        <location filename="../../Controller/Actions/AppModel/ImportProjectActions.cpp" line="12"/>
+        <location filename="../../Controller/Actions/AppModel/ImportProjectActions.cpp" line="13"/>
         <source>Import MIDI</source>
         <translation>导入 MIDI</translation>
     </message>
@@ -2663,74 +2663,74 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="216"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="508"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="756"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="758"/>
         <source>&amp;Undo</source>
         <translation>撤销(&amp;U)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="218"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="515"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="757"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="759"/>
         <source>&amp;Redo</source>
         <translation>重做(&amp;R)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="452"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="745"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="747"/>
         <source>&amp;New</source>
         <translation>新建(&amp;N)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="458"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="746"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="748"/>
         <source>&amp;Open...</source>
         <translation>打开(&amp;O)...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="470"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="748"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="750"/>
         <source>&amp;Save</source>
         <translation>保存(&amp;S)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="533"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="759"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="761"/>
         <source>&amp;Delete</source>
         <translation>删除(&amp;D)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="540"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="760"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="762"/>
         <source>Cu&amp;t</source>
         <translation>剪切(&amp;T)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="546"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="761"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="763"/>
         <source>&amp;Copy</source>
         <translation>复制(&amp;C)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="552"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="762"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="764"/>
         <source>&amp;Paste</source>
         <translation>粘贴(&amp;P)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="558"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="763"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="765"/>
         <source>Move an octave up</source>
         <translation>上移八度</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="563"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="764"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="766"/>
         <source>Move an octave down</source>
         <translation>下移八度</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="475"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="749"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="751"/>
         <source>Save &amp;as...</source>
         <translation>另存为(&amp;A)...</translation>
     </message>
@@ -2761,135 +2761,135 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="464"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="747"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="749"/>
         <source>Clear Recent Projects</source>
         <translation>清除最近工程</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="481"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="489"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="750"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="752"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="754"/>
         <source>MIDI file...</source>
         <translation>MIDI 文件...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="485"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="751"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="753"/>
         <source>Audio file...</source>
         <translation>音频文件...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="493"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="753"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="755"/>
         <source>Manage packages...</source>
         <translation>管理包...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="501"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="754"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="756"/>
         <source>E&amp;xit</source>
         <translation>退出(&amp;X)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="526"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="758"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="760"/>
         <source>Select &amp;all</source>
         <translation>全选(&amp;A)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="568"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="765"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="767"/>
         <source>Fill lyrics...</source>
         <translation>填入歌词...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="576"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="766"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="768"/>
         <source>Search lyrics...</source>
         <translation>搜索歌词...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="583"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="767"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="769"/>
         <source>Extract pitch parameter...</source>
         <translation>提取音高参数...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="589"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="779"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="781"/>
         <source>&amp;File</source>
         <translation>文件(&amp;F)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="593"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="780"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="782"/>
         <source>Recent Projects</source>
         <translation>最近工程</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="607"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="781"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="783"/>
         <source>Import</source>
         <translation>导入</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="613"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="782"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="784"/>
         <source>Export</source>
         <translation>导出</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="631"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="783"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="785"/>
         <source>&amp;Edit</source>
         <translation>编辑(&amp;E)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="664"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="769"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="771"/>
         <source>&amp;General...</source>
         <translation>常规(&amp;G)...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="670"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="770"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="772"/>
         <source>&amp;Audio...</source>
         <translation>音频(&amp;A)...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="676"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="771"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="773"/>
         <source>&amp;MIDI...</source>
         <translation>&amp;MIDI...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="682"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="772"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="774"/>
         <source>A&amp;ppearance...</source>
         <translation>外观(&amp;P)...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="694"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="773"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="775"/>
         <source>&amp;Inference...</source>
         <translation>推理(&amp;I)...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="701"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="774"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="776"/>
         <source>&amp;Developer Options...</source>
         <translation>开发者选项(&amp;D)...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="709"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="784"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="786"/>
         <source>&amp;Options</source>
         <translation>选项(&amp;O)</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="723"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="775"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="777"/>
         <source>Check for updates</source>
         <translation>检查更新</translation>
     </message>
@@ -2900,7 +2900,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="727"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="776"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="778"/>
         <source>About...</source>
         <translation>关于...</translation>
     </message>
@@ -2911,13 +2911,13 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="731"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="777"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="779"/>
         <source>Discover DiffScope</source>
         <translation>探索 DiffScope</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="737"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="785"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="787"/>
         <source>&amp;Help</source>
         <translation>帮助(&amp;H)</translation>
     </message>
@@ -3369,42 +3369,42 @@ error: %2</source>
 <context>
     <name>NoteActions</name>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="17"/>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="19"/>
         <source>Insert note(s)</source>
         <translation>插入音符</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="22"/>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="24"/>
         <source>Remove note(s)</source>
         <translation>删除音符</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="28"/>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="31"/>
         <source>Edit note start and length</source>
         <translation>编辑音符起始位置和长度</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="33"/>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="36"/>
         <source>Edit note length</source>
         <translation>编辑音符长度</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="39"/>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="42"/>
         <source>Edit note position</source>
         <translation>编辑音符位置</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="46"/>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="50"/>
         <source>Edit note word properties</source>
         <translation>编辑音符文字属性</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="51"/>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="55"/>
         <source>Edite phoneme offset</source>
         <translation>编辑音素偏移</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="56"/>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="60"/>
         <source>Split note</source>
         <translation>分割音符</translation>
     </message>
@@ -4142,28 +4142,28 @@ error: %2</source>
 <context>
     <name>SpeakerMixActions</name>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="31"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="32"/>
         <source>Edit speaker mix</source>
         <translation>编辑声线混合</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="42"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="44"/>
         <source>Enable dynamic speaker mix</source>
         <translation>启用动态声线混合</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="50"/>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="64"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="53"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="69"/>
         <source>Apply speaker mix preset</source>
         <translation>应用声线混合预设</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="57"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="61"/>
         <source>Select speaker</source>
         <translation>选择声线</translation>
     </message>
     <message>
-        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="70"/>
+        <location filename="../../Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.cpp" line="76"/>
         <source>Edit track speaker mix</source>
         <translation>编辑轨道声线混合</translation>
     </message>

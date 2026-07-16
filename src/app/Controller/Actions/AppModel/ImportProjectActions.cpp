@@ -9,7 +9,8 @@
 
 ImportProjectActions::ImportProjectActions(ProjectModelData &&data, const bool importTempo,
                                            const bool importTimeSignature, AppModel *model) {
-    setName(QCoreApplication::translate("ImportProjectActions", "Import MIDI"));
+    setTranslatableName("ImportProjectActions",
+                        QT_TRANSLATE_NOOP("ImportProjectActions", "Import MIDI"));
 
     if (importTempo && qAbs(model->tempo() - data.tempo) > 0.001) {
         const auto actions = new TempoActions;

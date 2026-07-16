@@ -4,6 +4,8 @@
 
 #include "ActionSequence.h"
 
+#include <QCoreApplication>
+
 ActionSequence::~ActionSequence() {
     for (const auto action : m_actions)
         delete action;
@@ -23,7 +25,9 @@ qsizetype ActionSequence::count() const {
     return m_actions.count();
 }
 
-QString ActionSequence::name() {
+QString ActionSequence::name() const {
+    if (!m_nameSourceText.isEmpty())
+        return QCoreApplication::translate(m_nameContext.constData(), m_nameSourceText.constData());
     return m_name;
 }
 
@@ -33,4 +37,12 @@ void ActionSequence::addAction(IAction *action) {
 
 void ActionSequence::setName(const QString &name) {
     m_name = name;
+    m_nameContext.clear();
+    m_nameSourceText.clear();
+}
+
+void ActionSequence::setTranslatableName(const char *context, const char *sourceText) {
+    m_name.clear();
+    m_nameContext = context;
+    m_nameSourceText = sourceText;
 }

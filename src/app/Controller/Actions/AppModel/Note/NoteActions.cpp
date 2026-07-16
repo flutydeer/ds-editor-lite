@@ -13,46 +13,50 @@
 #include "RemoveNoteAction.h"
 #include "SplitNoteAction.h"
 
+#include <QCoreApplication>
+
 void NoteActions::insertNotes(const QList<Note *> &notes, SingingClip *clip) {
-    setName(tr("Insert note(s)"));
+    setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Insert note(s)"));
     addAction(new InsertNoteAction(notes, clip));
 }
 
 void NoteActions::removeNotes(const QList<Note *> &notes, SingingClip *clip) {
-    setName(tr("Remove note(s)"));
+    setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Remove note(s)"));
     addAction(new RemoveNoteAction(notes, clip));
 }
 
 void NoteActions::editNotesStartAndLength(const QList<Note *> &notes, const int delta,
                                           SingingClip *clip) {
-    setName(tr("Edit note start and length"));
+    setTranslatableName("NoteActions",
+                        QT_TRANSLATE_NOOP("NoteActions", "Edit note start and length"));
     addAction(new EditNoteStartAndLengthAction(notes, delta, clip));
 }
 
 void NoteActions::editNotesLength(const QList<Note *> &notes, const int delta, SingingClip *clip) {
-    setName(tr("Edit note length"));
+    setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Edit note length"));
     addAction(new EditNotesLengthAction(notes, delta, clip));
 }
 
 void NoteActions::editNotePosition(const QList<Note *> &notes, const int deltaTick,
                                    const int deltaKey, SingingClip *clip) {
-    setName(tr("Edit note position"));
+    setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Edit note position"));
     addAction(new EditNotePositionAction(notes, deltaTick, deltaKey, clip));
 }
 
 void NoteActions::editNotesWordProperties(const QList<Note *> &notes,
                                           const QList<Note::WordProperties> &args,
                                           SingingClip *clip) {
-    setName(tr("Edit note word properties"));
+    setTranslatableName("NoteActions",
+                        QT_TRANSLATE_NOOP("NoteActions", "Edit note word properties"));
     addAction(new EditNoteWordPropertiesAction(notes, args, clip));
 }
 
 void NoteActions::editNotePhonemeOffset(Note *note, const QList<int> &offsets, SingingClip *clip) {
-    setName(tr("Edite phoneme offset"));
+    setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Edite phoneme offset"));
     addAction(new EditPhonemeOffsetAction(note, offsets, clip));
 }
 
 void NoteActions::splitNote(Note *originalNote, Note *newNote, int newLength, SingingClip *clip) {
-    setName(tr("Split note"));
+    setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Split note"));
     addAction(new SplitNoteAction(originalNote, newNote, newLength, clip));
 }

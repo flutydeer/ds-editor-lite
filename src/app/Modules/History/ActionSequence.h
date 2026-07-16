@@ -5,8 +5,9 @@
 #ifndef ACTIONSEQUENCE_H
 #define ACTIONSEQUENCE_H
 
-#include <QObject>
+#include <QByteArray>
 #include <QList>
+#include <QObject>
 
 #include "IAction.h"
 
@@ -18,15 +19,18 @@ public:
     void execute() override;
     void undo() override;
     qsizetype count() const;
-    QString name();
+    QString name() const;
 
 protected:
     void addAction(IAction *action);
     void setName(const QString &name);
+    void setTranslatableName(const char *context, const char *sourceText);
 
 private:
     QList<IAction *> m_actions;
     QString m_name;
+    QByteArray m_nameContext;
+    QByteArray m_nameSourceText;
 };
 
 

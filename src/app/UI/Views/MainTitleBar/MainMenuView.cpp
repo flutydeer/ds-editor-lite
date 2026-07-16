@@ -742,6 +742,8 @@ Menu *MainMenuViewPrivate::buildHelpMenu() {
 }
 
 void MainMenuViewPrivate::retranslateUi() {
+    m_undoName = historyManager->undoActionName();
+    m_redoName = historyManager->redoActionName();
     actionNew->setText(tr("&New"));
     actionOpen->setText(tr("&Open..."));
     actionClearRecentProjects->setText(tr("Clear Recent Projects"));

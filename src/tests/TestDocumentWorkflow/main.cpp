@@ -7,6 +7,7 @@
 #include <QState>
 #include <QStateMachine>
 #include <QTextStream>
+#include <QTranslator>
 
 template <>
 AppStatus *AppContext::instance<AppStatus>() {
@@ -54,6 +55,18 @@ namespace {
     public:
         using ActionSequence::addAction;
         using ActionSequence::setName;
+        using ActionSequence::setTranslatableName;
+    };
+
+    class TestTranslator final : public QTranslator {
+    public:
+        QString translate(const char *context, const char *sourceText, const char *,
+                          int) const override {
+            if (qstrcmp(context, "TestActionSequence") == 0 &&
+                qstrcmp(sourceText, "Translatable action") == 0)
+                return QStringLiteral("Translated action");
+            return {};
+        }
     };
 
     class TransitionEmitter final : public QObject {
@@ -131,7 +144,27 @@ int main(int argc, char *argv[]) {
                  "redo must transfer the complete import sequence back to undo");
 
     manager->reset(HistoryManager::ResetState::Saved);
-    ok &= expect(destroyCount == 1, "history reset must release the action it owns exactly once");
+    auto translatableSequence = new TestActionSequence;
+    translatableSequence->setTranslatableName(
+        "TestActionSequence", QT_TRANSLATE_NOOP("TestActionSequence", "Translatable action"));
+    translatableSequence->addAction(new CountingAction(executeCount, undoCount, destroyCount));
+    manager->record(translatableSequence);
+    ok &= expect(manager->undoActionName() == QStringLiteral("Translatable action"),
+                 "history name must use source text without a translator");
+
+    TestTranslator translator;
+    application.installTranslator(&translator);
+    ok &= expect(manager->undoActionName() == QStringLiteral("Translated action"),
+                 "undo name must resolve using the current translator");
+    manager->undo();
+    ok &= expect(manager->redoActionName() == QStringLiteral("Translated action"),
+                 "redo name must resolve using the current translator");
+    application.removeTranslator(&translator);
+    ok &= expect(manager->redoActionName() == QStringLiteral("Translatable action"),
+                 "history name must return to source text after removing the translator");
+
+    manager->reset(HistoryManager::ResetState::Saved);
+    ok &= expect(destroyCount == 2, "history reset must release every action it owns exactly once");
     ok &= expect(manager->isOnSavePoint(), "saved reset after import must be clean");
     ok &= expect(verifyGuardedBranch(true), "true guard must select the true target state");
     ok &= expect(verifyGuardedBranch(false), "false guard must select the false target state");

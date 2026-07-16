@@ -71,6 +71,8 @@ void ActionButtonsView::changeEvent(QEvent *event) {
 }
 
 void ActionButtonsView::retranslateUi() {
+    m_undoActionName = historyManager->undoActionName();
+    m_redoActionName = historyManager->redoActionName();
     m_btnSave->setToolTip(tr("Save Project"));
     m_btnUndo->setToolTip(tr("Undo") + " " + m_undoActionName);
     m_btnRedo->setToolTip(tr("Redo") + " " + m_redoActionName);
