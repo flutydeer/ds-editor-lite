@@ -445,6 +445,12 @@ void MainWindow::updateWindowTitle() {
     }
 }
 
+void MainWindow::changeEvent(QEvent *event) {
+    QMainWindow::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        updateWindowTitle();
+}
+
 void MainWindow::quit() {
     documentWorkflowController->requestTermination(TerminationMode::Exit);
 }

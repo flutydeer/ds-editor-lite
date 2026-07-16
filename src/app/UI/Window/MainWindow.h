@@ -57,6 +57,7 @@ public slots:
     void onTaskStatusChanged(const TaskStatus &status);
 
 protected:
+    void changeEvent(QEvent *event) override;
     void dropEvent(QDropEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
 

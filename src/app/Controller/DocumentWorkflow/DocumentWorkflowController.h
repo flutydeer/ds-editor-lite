@@ -137,6 +137,7 @@ private:
     ProjectOperationError m_error;
     QString m_savePath;
     QString m_projectPath;
+    // An empty name and path represent an untitled project; projectName() translates its label.
     QString m_projectName;
     QString m_lastProjectFolder;
     std::optional<TerminationMode> m_terminationAfterCancellation;

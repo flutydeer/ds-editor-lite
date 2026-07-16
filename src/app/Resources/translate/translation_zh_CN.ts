@@ -1170,56 +1170,53 @@ Right drag: Erase</source>
 <context>
     <name>DocumentWorkflowController</name>
     <message>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="55"/>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="76"/>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="569"/>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="623"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="136"/>
         <source>New Project</source>
         <translation>新工程</translation>
     </message>
     <message>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="304"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="303"/>
         <source>File not found</source>
         <translation>文件未找到</translation>
     </message>
     <message>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="304"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="303"/>
         <source>File does not exist: %1</source>
         <translation>文件不存在：%1</translation>
     </message>
     <message>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="314"/>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="429"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="313"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="428"/>
         <source>Unsupported file</source>
         <translation>不支持的文件</translation>
     </message>
     <message>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="314"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="313"/>
         <source>Unrecognized file format: %1</source>
         <translation>无法识别的文件格式：%1</translation>
     </message>
     <message>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="407"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="406"/>
         <source>Failed to save project</source>
         <translation>保存工程失败</translation>
     </message>
     <message>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="429"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="428"/>
         <source>This operation is not supported.</source>
         <translation>不支持此操作。</translation>
     </message>
     <message>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="462"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="461"/>
         <source>Applying project...</source>
         <translation>正在应用工程...</translation>
     </message>
     <message>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="471"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="470"/>
         <source>Failed to apply project</source>
         <translation>应用工程失败</translation>
     </message>
     <message>
-        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="471"/>
+        <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="470"/>
         <source>The prepared project is empty.</source>
         <translation>准备好的工程为空。</translation>
     </message>
@@ -2928,79 +2925,79 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="493"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="499"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="463"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="469"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="464"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="470"/>
         <source>Do you want to save changes?</source>
         <translation>要保存更改吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="467"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="473"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="474"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="480"/>
         <source>Don&apos;t save</source>
         <translation>不保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="481"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="501"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="487"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="507"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="507"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="513"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="510"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="516"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="492"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="498"/>
         <source>Save project</source>
         <translation>保存工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="497"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="499"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="503"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="505"/>
         <source>Package scan failed</source>
         <translation>包扫描失败</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="498"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="504"/>
         <source>Singer package metadata is not available. Open the project anyway?</source>
         <translation>歌手包元数据不可用。是否仍然打开工程？</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="500"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="506"/>
         <source>Open Anyway</source>
         <translation>仍然打开</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="515"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="521"/>
         <source>Another document operation is already in progress</source>
         <translation>另一个文档操作正在进行中</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="722"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="728"/>
         <source>%1 is exiting...</source>
         <translation>%1 正在退出...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="723"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="729"/>
         <source>Terminating background tasks...</source>
         <translation>正在停止后台任务...</translation>
     </message>

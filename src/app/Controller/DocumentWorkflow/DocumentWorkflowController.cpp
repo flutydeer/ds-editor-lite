@@ -51,8 +51,7 @@ namespace {
 
 DocumentWorkflowController::DocumentWorkflowController(QObject *parent)
     : QObject(parent),
-      m_lastProjectFolder(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)),
-      m_projectName(tr("New Project")) {
+      m_lastProjectFolder(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)) {
     initializeStateMachine();
 }
 
@@ -73,7 +72,7 @@ void DocumentWorkflowController::initializeNewDocument() {
     historyManager->reset(HistoryManager::ResetState::Saved);
     appModel->replaceProject(newModel.takeProjectData());
     appStatus->loopSettings.set(LoopSettings());
-    updateProjectIdentity({}, tr("New Project"));
+    updateProjectIdentity({});
     historyManager->reset(HistoryManager::ResetState::Saved);
     activateFirstClip();
 }
@@ -134,7 +133,7 @@ QString DocumentWorkflowController::projectPath() const {
 }
 
 QString DocumentWorkflowController::projectName() const {
-    return m_projectName;
+    return m_projectPath.isEmpty() && m_projectName.isEmpty() ? tr("New Project") : m_projectName;
 }
 
 QString DocumentWorkflowController::lastProjectFolder() const {
@@ -566,7 +565,6 @@ void DocumentWorkflowController::prepareNewProject() {
     payload.model = newModel.takeProjectData();
     payload.loopSettings = LoopSettings();
     payload.sourceKind = ProjectSourceKind::Foreign;
-    payload.displayName = tr("New Project");
     m_prepared = std::move(payload);
 }
 
@@ -619,9 +617,9 @@ void DocumentWorkflowController::activateFirstClip(const QList<Track *> &preferr
 
 void DocumentWorkflowController::updateProjectIdentity(const QString &path, const QString &name) {
     m_projectPath = path;
-    m_projectName = !name.isEmpty()           ? name
-                    : m_projectPath.isEmpty() ? tr("New Project")
-                                              : QFileInfo(m_projectPath).fileName();
+    m_projectName = !name.isEmpty()            ? name
+                    : !m_projectPath.isEmpty() ? QFileInfo(m_projectPath).fileName()
+                                               : QString();
     emit documentIdentityChanged();
 }
 
@@ -645,7 +643,7 @@ void DocumentWorkflowController::addRecentProjectFile(const QString &path) {
 }
 
 QString DocumentWorkflowController::suggestedSavePath() const {
-    return m_projectPath.isEmpty() ? m_lastProjectFolder + "/" + m_projectName : m_projectPath;
+    return m_projectPath.isEmpty() ? m_lastProjectFolder + "/" + projectName() : m_projectPath;
 }
 
 void DocumentWorkflowController::rejectBusyRequest() {
