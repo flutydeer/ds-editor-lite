@@ -484,7 +484,10 @@ void AudioContext::handleClipPropertyChanged(AudioClip *audioClip) const {
     const auto entryClassName = workspace.value("entryClassName").toString();
 
     if (audioClip->path() != audioClipContext->path()) {
-        audioClipContext->setPathLoad(audioClip->path(), userData, entryClassName);
+        if (!audioClipContext->setPathLoad(audioClip->path(), userData, entryClassName)) {
+            // File missing or unopenable; mark offline and let the missing-media flow handle it
+            audioClip->setPathStatus(AudioClip::PathStatus::Missing);
+        }
     }
 }
 

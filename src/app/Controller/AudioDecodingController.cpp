@@ -4,13 +4,18 @@
 
 #include "AudioDecodingController.h"
 
+#include <QFileInfo>
+
 #include <TalcsFormat/FormatManager.h>
 
+#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Model/AppModel/AudioClip.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
+#include "Tasks/ResolveAudioPathTask.h"
 #include "UI/Controls/AccentButton.h"
+#include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/Dialog.h"
 
 AudioDecodingController::AudioDecodingController(QObject *parent) : QObject(parent) {
@@ -25,12 +30,31 @@ void AudioDecodingController::onModelChanged() {
     for (const auto task : m_tasks) {
         taskManager->terminateTask(task);
     }
+    for (const auto task : m_resolveTasks) {
+        taskManager->terminateTask(task);
+    }
+
+    // Reset aggregated path resolution state
+    m_pendingResolveCount = 0;
+    m_missingClipIds.clear();
+    m_unconfirmedClipIds.clear();
+    m_autoRelocatedCount = 0;
+
     // Start new decoding tasks
     for (const auto track : appModel->tracks()) {
         connect(track, &Track::clipChanged, this, &AudioDecodingController::onClipChanged);
         for (const auto clip : track->clips()) {
-            if (clip->clipType() == Clip::Audio)
-                createAndStartTask(static_cast<AudioClip *>(clip));
+            if (clip->clipType() != Clip::Audio)
+                continue;
+            const auto audioClip = static_cast<AudioClip *>(clip);
+            if (QFileInfo::exists(audioClip->path())) {
+                audioClip->setPathStatus(AudioClip::PathStatus::Normal);
+                createAndStartTask(audioClip);
+            } else {
+                // Absolute path is broken; relocate in background via relativeDir / project sibling
+                m_pendingResolveCount++;
+                createAndStartResolveTask(audioClip);
+            }
         }
     }
 }
@@ -83,6 +107,85 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip) {
     taskManager->startTask(decodeTask);
 }
 
+void AudioDecodingController::createAndStartResolveTask(AudioClip *clip) {
+    const auto resolveTask = new ResolveAudioPathTask;
+    resolveTask->clipId = clip->id();
+    resolveTask->originalPath = clip->path();
+    resolveTask->relativeDir = clip->pathInfo().relativeDir;
+    resolveTask->fileName = QFileInfo(clip->path()).fileName();
+    resolveTask->expectedSha512 = clip->pathInfo().sha512;
+    resolveTask->projectDir =
+        QFileInfo(documentWorkflowController->projectPath()).absolutePath();
+
+    m_resolveTasks.append(resolveTask);
+    connect(resolveTask, &Task::finished, this,
+            [resolveTask, this] { handleResolveTaskFinished(resolveTask); });
+    taskManager->addTask(resolveTask);
+    taskManager->startTask(resolveTask);
+}
+
+void AudioDecodingController::handleResolveTaskFinished(ResolveAudioPathTask *task) {
+    const auto terminated = task->terminated();
+    taskManager->removeTask(task);
+    m_resolveTasks.removeOne(task);
+    m_pendingResolveCount--;
+
+    if (terminated) {
+        delete task;
+        finishResolveIfSessionDone();
+        return;
+    }
+
+    int trackIndex;
+    const auto clip = appModel->findClipById(task->clipId, trackIndex);
+    if (!clip || clip->clipType() != Clip::Audio) {
+        delete task;
+        finishResolveIfSessionDone();
+        return;
+    }
+
+    const auto audioClip = static_cast<AudioClip *>(clip);
+    switch (task->result) {
+        case ResolveAudioPathTask::Result::HitRelative:
+        case ResolveAudioPathTask::Result::HitSibling:
+            // Hash verified; adopt the new path silently (no undo, no dirty flag, persisted on next save)
+            audioClip->setPath(task->resolvedPath);
+            audioClip->setPathStatus(AudioClip::PathStatus::Normal);
+            m_autoRelocatedCount++;
+            createAndStartTask(audioClip);
+            break;
+        case ResolveAudioPathTask::Result::HitUnconfirmed:
+            // No sha512 to verify against; matched by file name, load it but mark as unconfirmed
+            audioClip->setPath(task->resolvedPath);
+            audioClip->setPathStatus(AudioClip::PathStatus::Unconfirmed);
+            m_unconfirmedClipIds.append(audioClip->id());
+            createAndStartTask(audioClip);
+            break;
+        case ResolveAudioPathTask::Result::Miss:
+            audioClip->setPathStatus(AudioClip::PathStatus::Missing);
+            m_missingClipIds.append(audioClip->id());
+            break;
+    }
+    delete task;
+    finishResolveIfSessionDone();
+}
+
+void AudioDecodingController::finishResolveIfSessionDone() {
+    if (m_pendingResolveCount > 0)
+        return;
+    if (m_missingClipIds.isEmpty() && m_unconfirmedClipIds.isEmpty() &&
+        m_autoRelocatedCount == 0)
+        return;
+
+    if (m_missingClipIds.isEmpty() && m_unconfirmedClipIds.isEmpty())
+        Toast::show(tr("%1 audio file(s) relocated automatically").arg(m_autoRelocatedCount));
+
+    emit resolveSessionFinished(m_missingClipIds, m_unconfirmedClipIds, m_autoRelocatedCount);
+    m_missingClipIds.clear();
+    m_unconfirmedClipIds.clear();
+    m_autoRelocatedCount = 0;
+}
+
 void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
     const auto terminate = task->terminated();
     taskManager->removeTask(task);
@@ -93,6 +196,15 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
         return;
     }
     if (!task->success) {
+        int trackIdx;
+        if (!QFileInfo::exists(task->path)) {
+            // A missing file goes offline and is handled by the missing-media flow; no error dialog
+            if (const auto clip = appModel->findClipById(task->clipId, trackIdx);
+                clip && clip->clipType() == Clip::Audio)
+                static_cast<AudioClip *>(clip)->setPathStatus(AudioClip::PathStatus::Missing);
+            delete task;
+            return;
+        }
         const auto dlg = new Dialog;
         dlg->setWindowTitle(tr("Error"));
         dlg->setTitle(tr("Failed to open audio file:"));
