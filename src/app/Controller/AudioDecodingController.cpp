@@ -47,6 +47,7 @@ void AudioDecodingController::onModelChanged() {
             if (clip->clipType() != Clip::Audio)
                 continue;
             const auto audioClip = static_cast<AudioClip *>(clip);
+            connectClip(audioClip);
             if (QFileInfo::exists(audioClip->path())) {
                 audioClip->setPathStatus(AudioClip::PathStatus::Normal);
                 createAndStartTask(audioClip);
@@ -74,14 +75,30 @@ void AudioDecodingController::onClipChanged(const Track::ClipChangeType type, Cl
     if (type == Track::Inserted) {
         if (clip->clipType() == Clip::Audio) {
             const auto audioClip = static_cast<AudioClip *>(clip);
+            connectClip(audioClip);
             // TODO: 用其他方式判断是否需要重新解码
             if (audioClip->audioInfo().peakCache.count() <= 0)
                 createAndStartTask(audioClip);
         }
     } else if (type == Track::Removed) {
-        if (clip->clipType() == Clip::Audio)
+        if (clip->clipType() == Clip::Audio) {
+            disconnect(static_cast<AudioClip *>(clip), &AudioClip::pathChanged, this, nullptr);
             terminateTaskByClipId(clip->id());
+        }
     }
+}
+
+void AudioDecodingController::connectClip(AudioClip *clip) {
+    // Re-decode the waveform after relink/replace (including undo)
+    connect(clip, &AudioClip::pathChanged, this, [clip, this] {
+        terminateTaskByClipId(clip->id());
+        if (QFileInfo::exists(clip->path())) {
+            clip->setPathStatus(AudioClip::PathStatus::Normal);
+            createAndStartTask(clip);
+        } else {
+            clip->setPathStatus(AudioClip::PathStatus::Missing);
+        }
+    });
 }
 
 void AudioDecodingController::createAndStartTask(AudioClip *clip) {

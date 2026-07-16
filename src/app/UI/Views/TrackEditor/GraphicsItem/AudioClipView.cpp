@@ -38,7 +38,8 @@ void AudioClipView::setPath(const QString &path) {
     if (m_path != path)
         resetIO();
     m_path = path;
-    m_status = AppGlobal::Loaded;
+    if (m_status != AppGlobal::Error)
+        m_status = AppGlobal::Loaded;
 }
 
 double AudioClipView::tempo() const {
@@ -138,6 +139,18 @@ double AudioClipView::sincInterpolate(const QVector<float> &samples, const qint6
 //   ≤ ~4         → waveform curve mode (IO seek+read, Lanczos sinc interpolation, QPainterPath)
 void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
                                     const QColor color) {
+    if (m_status == AppGlobal::Error) {
+        QPen pen;
+        auto dimmed = color;
+        dimmed.setAlphaF(color.alphaF() * 0.5);
+        pen.setColor(dimmed);
+        painter->setPen(pen);
+        auto text = QCoreApplication::translate("AudioClipView", "File missing");
+        if (!m_errorMessage.isEmpty())
+            text += ": " + m_errorMessage;
+        painter->drawText(previewRect, text, QTextOption(Qt::AlignCenter));
+        return;
+    }
     if (m_status == AppGlobal::Loading) {
         QPen pen;
         pen.setColor(color);

@@ -29,6 +29,7 @@ private slots:
     void onAddAudioClip();
     void onDeleteTriggered() const;
     static void onExtractMidiTriggered(int clipId);
+    void onRelocateAudioTriggered(int clipId);
 
 private:
     enum MouseMoveBehavior { Move, ResizeRight, ResizeLeft, None };

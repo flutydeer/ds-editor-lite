@@ -377,6 +377,17 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     track->clips[clip] = clipView;
 }
 
+namespace {
+    void applyAudioPathStatus(AudioClipView *clipView, const AudioClip::PathStatus status) {
+        if (status == AudioClip::PathStatus::Missing) {
+            clipView->setStatus(AppGlobal::Error);
+            clipView->setErrorMessage({});
+        } else {
+            clipView->setStatus(AppGlobal::Loaded);
+        }
+    }
+}
+
 void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track,
                                       const int trackIndex) {
     const auto clipView = new AudioClipView(clip->id());
@@ -386,9 +397,14 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track,
     clipView->setPath(clip->path());
     clipView->setTempo(appModel->tempo());
     clipView->setAudioInfo(clip->audioInfo());
+    applyAudioPathStatus(clipView, clip->pathStatus());
     m_tracksScene->addCommonItem(clipView);
     qDebug() << "Audio clip graphics item added to scene" << clipView->id() << clipView->name();
     connect(appModel, &AppModel::tempoChanged, clipView, &AudioClipView::onTempoChange);
+    connect(clip, &AudioClip::pathStatusChanged, clipView,
+            [clipView](const AudioClip::PathStatus status) {
+                applyAudioPathStatus(clipView, status);
+            });
     track->clips[clip] = clipView;
 }
 

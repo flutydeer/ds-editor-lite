@@ -132,6 +132,26 @@ void TracksGraphicsView::onExtractMidiTriggered(const int clipId) {
     midiExtractController->runExtractMidi(audioClip);
 }
 
+void TracksGraphicsView::onRelocateAudioTriggered(const int clipId) {
+    QString fileName;
+    QVariant userData;
+    QString entryClassName;
+    auto io = talcs::AudioFileDialog::getOpenAudioFileIO(AudioContext::instance()->formatManager(),
+                                                         fileName, userData, entryClassName, this,
+                                                         tr("Select an Audio File"), ".");
+    if (fileName.isNull())
+        return;
+
+    QByteArray dataBuffer;
+    QDataStream o(&dataBuffer, QIODevice::WriteOnly);
+    o << userData;
+    const QJsonObject workspace{
+        {"userData",       QString::fromLatin1(dataBuffer.toBase64())},
+        {"entryClassName", entryClassName                            },
+    };
+    trackController->onRelocateAudioClip(clipId, fileName, io, workspace);
+}
+
 bool TracksGraphicsView::event(QEvent *event) {
     if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
         const auto key = dynamic_cast<QKeyEvent *>(event)->key();
@@ -408,12 +428,32 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             Menu menu(this);
 
             if (clip->clipType() == IClip::Audio) {
+                const auto audioClip =
+                    dynamic_cast<AudioClip *>(appModel->findClipById(clip->id()));
+                const bool missing =
+                    audioClip && audioClip->pathStatus() == AudioClip::PathStatus::Missing;
+
+                const auto actionRelocate = new QAction(tr("Relink Audio File..."));
+                actionRelocate->setIcon(
+                    IconUtils::menuIcon(QStringLiteral(":/svg/icons/link_16_filled.svg")));
+                connect(actionRelocate, &QAction::triggered, this,
+                        [clip, this] { onRelocateAudioTriggered(clip->id()); });
+
                 const auto actionExtractMidi = new QAction(tr("Extract MIDI Score"));
                 actionExtractMidi->setIcon(
                     IconUtils::menuIcon(QStringLiteral(":/svg/icons/arrow_export_16_regular.svg")));
                 connect(actionExtractMidi, &QAction::triggered, this,
                         [clip, this] { onExtractMidiTriggered(clip->id()); });
-                menu.addAction(actionExtractMidi);
+
+                // When the file is missing, put relink first in the menu as the nearest repair entry
+                if (missing) {
+                    menu.addAction(actionRelocate);
+                    menu.addSeparator();
+                    menu.addAction(actionExtractMidi);
+                } else {
+                    menu.addAction(actionExtractMidi);
+                    menu.addAction(actionRelocate);
+                }
                 menu.addSeparator();
             }
 

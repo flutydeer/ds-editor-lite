@@ -48,6 +48,8 @@ public slots:
     static void setActiveClip(int clipId);
     static void changeTrackProperty(const Track::TrackProperties &args);
     void onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io, const QJsonObject &workspace, int id, int tick);
+    void onRelocateAudioClip(int clipId, const QString &path, talcs::AbstractAudioFormatIO *io,
+                             const QJsonObject &workspace);
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args, int newTrackIndex);
     static void onRemoveClips(const QList<int> &clipsId);

@@ -52,6 +52,7 @@ private:
 
     void createAndStartTask(AudioClip *clip);
     void createAndStartResolveTask(AudioClip *clip);
+    void connectClip(AudioClip *clip);
     void handleTaskFinished(DecodeAudioTask *task);
     void handleResolveTaskFinished(ResolveAudioPathTask *task);
     void finishResolveIfSessionDone();

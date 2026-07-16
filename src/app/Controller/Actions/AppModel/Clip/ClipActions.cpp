@@ -4,6 +4,7 @@
 
 #include "ClipActions.h"
 
+#include "EditAudioClipPathAction.h"
 #include "EditClipCommonPropertiesAction.h"
 #include "EditSingingClipPropertiesAction.h"
 #include "InsertClipAction.h"
@@ -57,6 +58,13 @@ void ClipActions::editAudioClipProperties(const QList<Clip::ClipCommonProperties
         addAction(EditClipCommonPropertiesAction::build(oldArgs[i], newArgs[i], clip, tracks[i]));
         i++;
     }
+}
+
+void ClipActions::relocateAudioClip(AudioClip *clip, const QString &newPath,
+                                    const AudioPathInfo &newPathInfo,
+                                    const QJsonObject &newFormatData) {
+    setTranslatableName("ClipActions", QT_TRANSLATE_NOOP("ClipActions", "Relocate audio file"));
+    addAction(EditAudioClipPathAction::build(clip, newPath, newPathInfo, newFormatData));
 }
 
 void ClipActions::moveClipToTrack(const Clip::ClipCommonProperties &oldArgs,

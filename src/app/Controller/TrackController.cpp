@@ -152,6 +152,30 @@ void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFo
     taskManager->startTask(decodeTask);
 }
 
+void TrackController::onRelocateAudioClip(const int clipId, const QString &path,
+                                          talcs::AbstractAudioFormatIO *io,
+                                          const QJsonObject &workspace) {
+    int trackIndex = -1;
+    const auto clip = appModel->findClipById(clipId, trackIndex);
+    if (!clip || clip->clipType() != IClip::Audio) {
+        delete io;
+        return;
+    }
+    // io was only used by the file dialog for format probing; path and format info reach the model via the action,
+    // re-decoding is done by AudioDecodingController in response to pathChanged
+    delete io;
+
+    const auto audioClip = static_cast<AudioClip *>(clip);
+    const AudioPathInfo newInfo{DiffscopeAudioWorkspace::relativeDirFor(
+                                    path, documentWorkflowController->projectPath()),
+                                {}};
+    const auto a = new ClipActions;
+    a->relocateAudioClip(audioClip, path, newInfo, workspace);
+    a->execute();
+    historyManager->record(a);
+    scheduleHashUpdate(audioClip);
+}
+
 void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
     onClipPropertyChanged(args, -1);
 }

@@ -49,6 +49,7 @@ public:
     void setAudioInfo(const AudioInfoModel &audioInfo);
 
 signals:
+    void pathChanged();
     void pathStatusChanged(PathStatus status);
 
 private:

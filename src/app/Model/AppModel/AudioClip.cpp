@@ -22,7 +22,10 @@ QString AudioClip::path() const {
 }
 
 void AudioClip::setPath(const QString &path) {
+    const bool changed = m_path != path;
     m_path = path;
+    if (changed)
+        emit pathChanged();
     emit propertyChanged();
 }
 
