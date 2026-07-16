@@ -203,6 +203,54 @@ void AudioDecodingController::finishResolveIfSessionDone() {
     m_autoRelocatedCount = 0;
 }
 
+void AudioDecodingController::resolveMissingClipsNear(const QString &filePath) {
+    const auto candidateDir = QFileInfo(filePath).absolutePath();
+    if (candidateDir.isEmpty())
+        return;
+
+    for (const auto track : appModel->tracks()) {
+        for (const auto clip : track->clips()) {
+            if (clip->clipType() != Clip::Audio)
+                continue;
+            const auto audioClip = static_cast<AudioClip *>(clip);
+            if (audioClip->pathStatus() != AudioClip::PathStatus::Missing)
+                continue;
+            // Without sha512 the identity cannot be verified; skip cascading, user must relink manually
+            if (audioClip->pathInfo().sha512.isEmpty())
+                continue;
+
+            const auto resolveTask = new ResolveAudioPathTask;
+            resolveTask->clipId = audioClip->id();
+            resolveTask->originalPath = audioClip->path();
+            resolveTask->relativeDir = {};
+            resolveTask->fileName = QFileInfo(audioClip->path()).fileName();
+            resolveTask->expectedSha512 = audioClip->pathInfo().sha512;
+            resolveTask->projectDir = candidateDir;
+
+            m_resolveTasks.append(resolveTask);
+            connect(resolveTask, &Task::finished, this, [resolveTask, this] {
+                taskManager->removeTask(resolveTask);
+                m_resolveTasks.removeOne(resolveTask);
+                if (!resolveTask->terminated() &&
+                    resolveTask->result == ResolveAudioPathTask::Result::HitSibling) {
+                    int trackIndex;
+                    const auto c = appModel->findClipById(resolveTask->clipId, trackIndex);
+                    if (c && c->clipType() == Clip::Audio) {
+                        const auto audio = static_cast<AudioClip *>(c);
+                        if (audio->pathStatus() == AudioClip::PathStatus::Missing) {
+                            audio->setPath(resolveTask->resolvedPath);
+                            emit clipRelocated(audio->id(), resolveTask->resolvedPath);
+                        }
+                    }
+                }
+                delete resolveTask;
+            });
+            taskManager->addTask(resolveTask);
+            taskManager->startTask(resolveTask);
+        }
+    }
+}
+
 void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
     const auto terminate = task->terminated();
     taskManager->removeTask(task);

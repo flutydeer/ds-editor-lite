@@ -10,6 +10,7 @@
 #endif
 
 #include "Controller/AppController.h"
+#include "Controller/AudioDecodingController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/TrackController.h"
 #include "Model/AppOptions/AppOptions.h"
@@ -24,6 +25,8 @@
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
+#include "UI/Dialogs/ResourceCheck/AudioResourcePage.h"
+#include "UI/Dialogs/ResourceCheck/ResourceCheckDialog.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
@@ -327,6 +330,17 @@ MainWindow::MainWindow() {
 
     connect(taskManager, &TaskManager::allDone, this, &MainWindow::onAllDone);
     connect(taskManager, &TaskManager::taskChanged, this, &MainWindow::onTaskChanged);
+
+    connect(audioDecodingController, &AudioDecodingController::resolveSessionFinished, this,
+            [this](const QList<int> &missingClipIds, const QList<int> &unconfirmedClipIds, int) {
+                if (missingClipIds.isEmpty() && unconfirmedClipIds.isEmpty())
+                    return;
+                const auto dialog = new ResourceCheckDialog(this);
+                dialog->setAttribute(Qt::WA_DeleteOnClose);
+                dialog->addPage(new AudioResourcePage(missingClipIds, unconfirmedClipIds));
+                dialog->finalizePages();
+                dialog->show();
+            });
 
     connect(m_mainMenu->actionSave(), &QAction::triggered, documentWorkflowController,
             &DocumentWorkflowController::requestSave);

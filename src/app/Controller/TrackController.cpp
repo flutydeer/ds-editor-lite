@@ -176,6 +176,16 @@ void TrackController::onRelocateAudioClip(const int clipId, const QString &path,
     scheduleHashUpdate(audioClip);
 }
 
+void TrackController::confirmAudioClipPath(const int clipId) {
+    int trackIndex = -1;
+    const auto clip = appModel->findClipById(clipId, trackIndex);
+    if (!clip || clip->clipType() != IClip::Audio)
+        return;
+    const auto audioClip = static_cast<AudioClip *>(clip);
+    audioClip->setPathStatus(AudioClip::PathStatus::Normal);
+    scheduleHashUpdate(audioClip);
+}
+
 void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
     onClipPropertyChanged(args, -1);
 }

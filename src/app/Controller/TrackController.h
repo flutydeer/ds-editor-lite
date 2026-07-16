@@ -50,6 +50,8 @@ public slots:
     void onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io, const QJsonObject &workspace, int id, int tick);
     void onRelocateAudioClip(int clipId, const QString &path, talcs::AbstractAudioFormatIO *io,
                              const QJsonObject &workspace);
+    // User confirms a "matched by name but no hash to verify" result: normalize status and compute sha512
+    static void confirmAudioClipPath(int clipId);
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args, int newTrackIndex);
     static void onRemoveClips(const QList<int> &clipsId);

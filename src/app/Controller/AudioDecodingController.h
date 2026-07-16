@@ -33,7 +33,16 @@ public slots:
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, const Track *track);
     void onClipChanged(Track::ClipChangeType type, Clip *clip);
 
+public:
+    // Cascading resolution: use filePath's directory as the candidate and try to resolve all still-missing audio clips
+    // (matched by file name + sha512; missing items without sha512 do not participate).
+    // Called after the user manually relinks one file, to recover other files moved to the same directory
+    void resolveMissingClipsNear(const QString &filePath);
+
 signals:
+    // Emitted when cascading resolution recovers a clip (the missing-media dialog refreshes its row)
+    void clipRelocated(int clipId, const QString &newPath);
+
     // Emitted when all path resolution after project load has finished.
     // missingClipIds / unconfirmedClipIds are clips that need a user decision;
     // autoRelocatedCount is the number of clips relocated automatically (hash verified)
