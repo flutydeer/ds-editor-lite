@@ -168,7 +168,11 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             return false;
         }
         const auto &speakerMapping = importOptions->speakerMapping;
-        input->words = convertInputWords(model.words, speakerName, speakerMapping);
+        input->words = convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
+        if (!error.isEmpty()) {
+            qCritical() << "inferAcoustic:" << error;
+            return false;
+        }
         input->speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
         if (!error.isEmpty()) {
             qCritical() << "inferAcoustic:" << error;

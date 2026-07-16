@@ -1,5 +1,7 @@
 #include "InferSpeakerMix.h"
 
+#include "Model/AppModel/InferPiece.h"
+
 #include <QCryptographicHash>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -125,6 +127,12 @@ namespace InferSpeakerMixModel {
         mix.fallbackSpeaker = speaker;
         mix.sources = {makeSource(speaker, 1.0)};
         return mix;
+    }
+
+    InferSpeakerMix effectiveSpeakerMixForPiece(const InferPiece &piece) {
+        if (!piece.speakerMix.isEmpty())
+            return piece.speakerMix;
+        return staticSpeakerMix(piece.speaker);
     }
 
     InferSpeakerMix fixedSpeakerMixFromData(const SpeakerMixModel::SpeakerMixData &data,

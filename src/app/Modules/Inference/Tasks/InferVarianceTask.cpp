@@ -176,7 +176,11 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
         return false;
     }
     const auto &speakerMapping = importOptions->speakerMapping;
-    input->words = convertInputWords(model.words, speakerName, speakerMapping);
+    input->words = convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
+    if (!error.isEmpty()) {
+        qCritical() << "inferVariance:" << error;
+        return false;
+    }
     input->speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
     if (!error.isEmpty()) {
         qCritical() << "inferVariance:" << error;

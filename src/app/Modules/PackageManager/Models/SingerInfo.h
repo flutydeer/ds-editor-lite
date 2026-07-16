@@ -6,6 +6,7 @@
 #include <QSharedData>
 #include <QSharedDataPointer>
 #include <QVariant>
+#include <optional>
 
 #include "SpeakerInfo.h"
 #include "LanguageInfo.h"
@@ -22,6 +23,35 @@ enum class ResolutionState {
     Resolved,
     Pending,
     Missing,
+};
+
+/// SingerCapabilitySummary - lite-side mirror of synthrt SingerCapabilityReport.
+///
+/// nullopt for pure G2P packages or legacy singers without inference.
+/// Carries parse-time mixable speakers / effective phonemes / languages
+/// analysis so the host UI can surface mixability at voicebank load time
+/// (without invoking PackageParser or running inference).
+///
+/// consistency fields use int (0=Ideal, 1=Degraded, 2=Inconsistent) to avoid
+/// cross-DLL enum export coupling with synthrt ConsistencyLevel.
+struct SingerCapabilitySummary {
+    QList<QString> mixableSpeakers;          ///< singer-domain speaker names allowed to mix
+    int speakerConsistency = 0;              ///< 0=Ideal, 1=Degraded, 2=Inconsistent
+    QStringList speakerWarnings;
+
+    QList<QString> effectivePhonemes;        ///< non-vocoder stage intersection
+    int phonemeConsistency = 0;
+    QStringList phonemeWarnings;
+    bool phonemeDegraded = false;
+
+    QList<QString> effectiveLanguages;       ///< non-vocoder stage intersection
+    int languageConsistency = 0;
+    QStringList languageWarnings;
+
+    bool operator==(const SingerCapabilitySummary &other) const;
+    bool operator!=(const SingerCapabilitySummary &other) const;
+
+    static QString consistencyText(int level);
 };
 
 class SingerInfo {
@@ -48,6 +78,11 @@ public:
     QString defaultDict() const;
 
     ResolutionState resolutionState() const;
+
+    /// Parse-time capability summary (mixable speakers / effective phonemes /
+    /// languages). nullopt for pure G2P packages or legacy singers.
+    const std::optional<SingerCapabilitySummary> &capability() const;
+    void setCapability(std::optional<SingerCapabilitySummary> cap);
 
     void setIdentifier(const SingerIdentifier &identifier);
     void setName(const QString &name);
@@ -92,6 +127,8 @@ public:
     // 默认 Pending：未经验证的 SingerInfo 不应被标记为已解析。
     // PackageManager 加载成功后显式 setResolutionState(Resolved)。
     ResolutionState resolutionState = ResolutionState::Pending;
+
+    std::optional<SingerCapabilitySummary> capability;
 
     bool operator==(const SingerInfoData &other) const;
     bool operator!=(const SingerInfoData &other) const;

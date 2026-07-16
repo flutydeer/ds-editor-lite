@@ -111,8 +111,47 @@ auto createParamInfo(const std::string_view tag) -> Co::InputParameterInfo {
 }
 
 auto convertInputWords(const QList<InferWord> &words, const std::string &speakerName,
-                       const std::map<std::string, std::string> &speakerMapping)
+                       const InferSpeakerMix &speakerMix,
+                       const std::map<std::string, std::string> &speakerMapping, QString &error)
     -> std::vector<Co::InputWordInfo> {
+
+    // Pre-convert speakerMix sources → static per-phone speaker weights.
+    // Duration has no frame-level speakers field (DurationStartInput only has
+    // words + duration), so phoneme-level Speaker is the only mix path.
+    // For stages with frame-level speakers (Pitch/Variance/Acoustic), the
+    // frame-level InputSpeakerInfo takes precedence; per-phone speakers here
+    // are still filled for consistency but may be overridden.
+    // Duration does not support time curves: take the first proportion as a
+    // static weight (empty proportions → 1.0).
+    std::vector<std::pair<std::string, double>> staticMix;
+    if (speakerMix.sources.isEmpty()) {
+        // Fallback to single speaker (backward compatible).
+        std::string mapped;
+        if (!mapSpeakerName(speakerName, speakerMapping, mapped)) {
+            error = QCoreApplication::translate(
+                "InferTaskCommon", "Speaker mapping not found for speaker %1")
+                        .arg(QString::fromStdString(speakerName));
+            return {};
+        }
+        staticMix.emplace_back(std::move(mapped), 1.0);
+    } else {
+        for (const auto &source : std::as_const(speakerMix.sources)) {
+            if (!source.isValid()) {
+                error = QCoreApplication::translate("InferTaskCommon", "Invalid speaker mix source");
+                return {};
+            }
+            std::string mapped;
+            const auto srcName = source.speaker.toStdString();
+            if (!mapSpeakerName(srcName, speakerMapping, mapped)) {
+                error = QCoreApplication::translate(
+                    "InferTaskCommon", "Speaker mapping not found for speaker %1")
+                            .arg(source.speaker);
+                return {};
+            }
+            const double p = source.proportions.isEmpty() ? 1.0 : source.proportions.first();
+            staticMix.emplace_back(std::move(mapped), p);
+        }
+    }
 
     std::vector<Co::InputWordInfo> inputWords;
     inputWords.reserve(words.size());
@@ -134,17 +173,17 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
         std::vector<Co::InputPhonemeInfo> inputPhones;
         inputPhones.reserve(word.phones.size());
         for (const auto &phone : std::as_const(word.phones)) {
-            std::string speakerIdForModel;
-            if (!mapSpeakerName(speakerName, speakerMapping, speakerIdForModel)) {
-                qCritical() << "could not find speaker mapping for" << speakerName;
+            std::vector<Co::InputPhonemeInfo::Speaker> speakers;
+            speakers.reserve(staticMix.size());
+            for (const auto &[name, p] : staticMix) {
+                speakers.emplace_back(Co::InputPhonemeInfo::Speaker{name, p});
             }
             inputPhones.emplace_back(Co::InputPhonemeInfo{
                 /* token */ phone.token.toStdString(),
                 /* language */ phone.languageDictId.toStdString(),
-                /* tone */ 0,
+                /* tone */ phone.tone,
                 /* start */ phone.start,
-                /* speakers */
-                std::vector{Co::InputPhonemeInfo::Speaker{std::move(speakerIdForModel), 1}}});
+                /* speakers */ std::move(speakers)});
         }
         inputWords.emplace_back(Co::InputWordInfo{std::move(inputPhones), std::move(inputNotes)});
     }
@@ -162,6 +201,10 @@ auto convertInputParams(const QList<InferParam> &params) -> std::vector<Co::Inpu
         }
         inputParam.interval = param.interval;
         inputParam.values = {param.values.begin(), param.values.end()};
+        if (param.retake.end > param.retake.start) {
+            inputParam.retake = Co::InputParameterInfo::RetakeRange{
+                param.retake.start, param.retake.end};
+        }
         inputParams.emplace_back(std::move(inputParam));
     }
     return inputParams;

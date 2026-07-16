@@ -127,13 +127,7 @@ namespace {
     }
 
     bool shouldCheckSpeakerMixSignature(const InferenceTaskContext &context) {
-        return !context.speakerMixSignature.isEmpty() && context.taskType != "duration";
-    }
-
-    InferSpeakerMix effectiveSpeakerMixForPiece(const InferPiece &piece) {
-        if (!piece.speakerMix.isEmpty())
-            return piece.speakerMix;
-        return InferSpeakerMixModel::staticSpeakerMix(piece.speaker);
+        return !context.speakerMixSignature.isEmpty();
     }
 
     bool hasPieceInputSignature(const InferenceTaskContext &context,
@@ -212,14 +206,14 @@ namespace InferenceApplyGate {
                 return drop("piece-singer-speaker-mismatch", currentRevision);
             }
             if (options.checkSingerSpeaker && shouldCheckSpeakerMixSignature(context) &&
-                effectiveSpeakerMixForPiece(*piece).signature() != context.speakerMixSignature) {
+                InferSpeakerMixModel::effectiveSpeakerMixForPiece(*piece).signature() != context.speakerMixSignature) {
                 return drop("piece-speaker-mix-mismatch", currentRevision);
             }
         }
 
         if (options.checkSingerSpeaker) {
             const auto currentMix =
-                piece ? effectiveSpeakerMixForPiece(*piece)
+                piece ? InferSpeakerMixModel::effectiveSpeakerMixForPiece(*piece)
                       : InferSpeakerMixModel::effectiveSpeakerMixForFixedInference(
                             clip->speakerMixData(), clip->speakerId());
             if (clip->singerIdentifier() != context.singer ||

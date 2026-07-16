@@ -187,7 +187,11 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
         return false;
     }
     const auto &speakerMapping = importOptions->speakerMapping;
-    input->words = convertInputWords(model.words, speakerName, speakerMapping);
+    input->words = convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
+    if (!error.isEmpty()) {
+        qCritical() << "inferDuration:" << error;
+        return false;
+    }
 
     // Run duration
     srt::core::NO<Dur::DurationResult> result;
@@ -266,7 +270,7 @@ QString InferDurationTask::InferDurInput::semanticSignature() const {
 GenericInferModel InferDurationTask::InferDurInput::toEngineModel() const {
     GenericInferModel model;
     model.speaker = speaker;
-    model.speakerMix = InferSpeakerMixModel::staticSpeakerMix(speaker);
+    model.speakerMix = speakerMix;
     model.words = InferTaskHelper::buildWords(*this);
     model.identifier = identifier;
     model.steps = steps;

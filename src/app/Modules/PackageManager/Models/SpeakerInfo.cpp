@@ -18,14 +18,15 @@ SpeakerInfoData::SpeakerInfoData(QString id, QString name, QString toneMin, QStr
 
 SpeakerInfoData::SpeakerInfoData(const SpeakerInfoData &other)
     : QSharedData(other), id(other.id), name(other.name), toneMin(other.toneMin),
-      toneMax(other.toneMax) {
+      toneMax(other.toneMax), toneRange(other.toneRange), mixable(other.mixable) {
 }
 
 SpeakerInfoData::~SpeakerInfoData() = default;
 
 bool SpeakerInfoData::operator==(const SpeakerInfoData &other) const {
     return id == other.id && name == other.name && toneMin == other.toneMin &&
-           toneMax == other.toneMax;
+           toneMax == other.toneMax && toneRange == other.toneRange &&
+           mixable == other.mixable;
 }
 
 bool SpeakerInfoData::operator!=(const SpeakerInfoData &other) const {
@@ -33,7 +34,8 @@ bool SpeakerInfoData::operator!=(const SpeakerInfoData &other) const {
 }
 
 bool SpeakerInfoData::isEmpty() const {
-    return id.isEmpty() && name.isEmpty() && toneMin.isEmpty() && toneMax.isEmpty();
+    return id.isEmpty() && name.isEmpty() && toneMin.isEmpty() && toneMax.isEmpty() &&
+           !toneRange.has_value();
 }
 
 SpeakerInfo::SpeakerInfo() : d(new SpeakerInfoData()) {
@@ -89,6 +91,22 @@ QString SpeakerInfo::toneMax() const {
     return d->toneMax;
 }
 
+std::optional<std::pair<int, int>> SpeakerInfo::toneRange() const {
+    return d->toneRange;
+}
+
+void SpeakerInfo::setToneRange(std::optional<std::pair<int, int>> range) {
+    d->toneRange = std::move(range);
+}
+
+bool SpeakerInfo::mixable() const {
+    return d->mixable;
+}
+
+void SpeakerInfo::setMixable(bool mixable) {
+    d->mixable = mixable;
+}
+
 void SpeakerInfo::setId(const QString &id) {
     d->id = id;
 }
@@ -118,8 +136,12 @@ void SpeakerInfo::swap(SpeakerInfo &other) noexcept {
 }
 
 QString SpeakerInfo::toString() const {
-    return QString("SpeakerInfo(id=%1, name=%2, toneMin=%3, toneMax=%4)")
-        .arg(d->id, d->name, d->toneMin, d->toneMax);
+    QString toneRangeStr = d->toneRange
+        ? QStringLiteral("[%1,%2]").arg(d->toneRange->first).arg(d->toneRange->second)
+        : QStringLiteral("(none)");
+    return QString("SpeakerInfo(id=%1, name=%2, toneMin=%3, toneMax=%4, toneRange=%5, mixable=%6)")
+        .arg(d->id, d->name, d->toneMin, d->toneMax, toneRangeStr)
+        .arg(d->mixable);
 }
 
 void swap(SpeakerInfo &first, SpeakerInfo &second) noexcept {

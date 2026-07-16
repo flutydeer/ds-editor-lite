@@ -8,6 +8,8 @@
 #include <QString>
 #include <QVector>
 
+class InferPiece;
+
 struct InferSpeakerMixSource {
     QString speaker;
     double interval = 0;
@@ -30,6 +32,7 @@ struct InferSpeakerMix {
 
 namespace InferSpeakerMixModel {
     InferSpeakerMix staticSpeakerMix(const QString &speaker);
+    InferSpeakerMix effectiveSpeakerMixForPiece(const InferPiece &piece);
     InferSpeakerMix fixedSpeakerMixFromData(const SpeakerMixModel::SpeakerMixData &data,
                                             const QString &fallbackSpeaker);
     InferSpeakerMix

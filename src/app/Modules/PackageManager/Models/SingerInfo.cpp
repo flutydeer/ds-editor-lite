@@ -2,6 +2,36 @@
 
 #include <utility>
 
+bool SingerCapabilitySummary::operator==(const SingerCapabilitySummary &other) const {
+    return mixableSpeakers == other.mixableSpeakers &&
+           speakerConsistency == other.speakerConsistency &&
+           speakerWarnings == other.speakerWarnings &&
+           effectivePhonemes == other.effectivePhonemes &&
+           phonemeConsistency == other.phonemeConsistency &&
+           phonemeWarnings == other.phonemeWarnings &&
+           phonemeDegraded == other.phonemeDegraded &&
+           effectiveLanguages == other.effectiveLanguages &&
+           languageConsistency == other.languageConsistency &&
+           languageWarnings == other.languageWarnings;
+}
+
+bool SingerCapabilitySummary::operator!=(const SingerCapabilitySummary &other) const {
+    return !(*this == other);
+}
+
+QString SingerCapabilitySummary::consistencyText(int level) {
+    switch (level) {
+        case 0:
+            return QStringLiteral("Ideal");
+        case 1:
+            return QStringLiteral("Degraded");
+        case 2:
+            return QStringLiteral("Inconsistent");
+        default:
+            return QStringLiteral("Unknown");
+    }
+}
+
 SingerInfoData::SingerInfoData(SingerIdentifier identifier, QString name,
                                QList<SpeakerInfo> speakers, QList<LanguageInfo> languages,
                                QString defaultLanguage, QString defaultDict)
@@ -13,7 +43,8 @@ SingerInfoData::SingerInfoData(SingerIdentifier identifier, QString name,
 SingerInfoData::SingerInfoData(const SingerInfoData &other)
     : QSharedData(other), identifier(other.identifier), name(other.name), speakers(other.speakers),
       languages(other.languages), defaultLanguage(other.defaultLanguage),
-      defaultDict(other.defaultDict), resolutionState(other.resolutionState) {
+      defaultDict(other.defaultDict), resolutionState(other.resolutionState),
+      capability(other.capability) {
 }
 
 SingerInfoData::~SingerInfoData() = default;
@@ -21,7 +52,8 @@ SingerInfoData::~SingerInfoData() = default;
 bool SingerInfoData::operator==(const SingerInfoData &other) const {
     return identifier == other.identifier && name == other.name && speakers == other.speakers &&
            languages == other.languages && defaultLanguage == other.defaultLanguage &&
-           defaultDict == other.defaultDict && resolutionState == other.resolutionState;
+           defaultDict == other.defaultDict && resolutionState == other.resolutionState &&
+           capability == other.capability;
 }
 
 bool SingerInfoData::operator!=(const SingerInfoData &other) const {
@@ -109,6 +141,14 @@ ResolutionState SingerInfo::resolutionState() const {
     return d->resolutionState;
 }
 
+const std::optional<SingerCapabilitySummary> &SingerInfo::capability() const {
+    return d->capability;
+}
+
+void SingerInfo::setCapability(std::optional<SingerCapabilitySummary> cap) {
+    d->capability = std::move(cap);
+}
+
 void SingerInfo::setIdentifier(const SingerIdentifier &identifier) {
     d->identifier = identifier;
 }
@@ -182,15 +222,29 @@ QString SingerInfo::toString() const {
     const auto stateName =
         (stateIdx >= 0 && stateIdx <= 2) ? QString::fromLatin1(stateStr[stateIdx]) : QStringLiteral("Unknown");
 
+    QString capStr = QStringLiteral("(none)");
+    if (d->capability) {
+        capStr = QStringLiteral(
+                     "mixableSpeakers=[%1], speakerConsistency=%2, "
+                     "effectivePhonemesCount=%3, phonemeConsistency=%4, phonemeDegraded=%5")
+                     .arg(d->capability->mixableSpeakers.join(", "))
+                     .arg(SingerCapabilitySummary::consistencyText(d->capability->speakerConsistency))
+                     .arg(d->capability->effectivePhonemes.size())
+                     .arg(SingerCapabilitySummary::consistencyText(d->capability->phonemeConsistency))
+                     .arg(d->capability->phonemeDegraded);
+    }
+
     return QString("SingerInfo(name=%1, identifier=%2, speakers=[%3], "
-                   "languages=[%4], defaultLanguage=%5, defaultDict=%6, resolutionState=%7)")
+                   "languages=[%4], defaultLanguage=%5, defaultDict=%6, resolutionState=%7, "
+                   "capability=%8)")
         .arg(d->name)
         .arg(d->identifier.singerId)
         .arg(speakers.join(", "))
         .arg(languages.join(", "))
         .arg(d->defaultLanguage)
         .arg(d->defaultDict)
-        .arg(stateName);
+        .arg(stateName)
+        .arg(capStr);
 }
 
 void swap(SingerInfo &first, SingerInfo &second) noexcept {

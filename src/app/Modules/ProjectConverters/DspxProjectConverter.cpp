@@ -308,16 +308,86 @@ namespace {
         if (sourcesArray.size() < 2)
             return {};
 
+        // 预解析原始 sources 与原始 weights，按 spk 过滤后保留可用 sources 并相应地
+        // 重建 weights 长度（N-1 explicit → M-1 explicit）。
+        // 否则 normalizeSpeakerMixData 会判 InvalidFixedWeights/InvalidDynamicKeyframes
+        // 整体退化为 Single，旧项目文件的混合配置被静默丢弃。
+        //
+        // 过滤规则（按优先级）:
+        //   1. resolveSpeakerInfoStrict: spk.id 必须在 effectiveSinger.speakers()
+        //   2. 若 effectiveSinger.capability().mixableSpeakers 非空: spk.id 必须 ∈ 该集合
+        struct RawSource {
+            SpeakerInfo speaker;
+            bool valid = false;
+        };
+        QList<RawSource> rawSources;
+        rawSources.reserve(sourcesArray.size());
         for (const auto &sourceValue : sourcesArray) {
-            const auto speaker = resolveSpeakerInfoStrict(
-                effectiveSinger, decodeSpeakerInfoFromWorkspace(sourceValue.toObject()));
-            if (speaker.isEmpty())
-                return {};
-            data.sources.append({speaker});
+            const auto fallback = decodeSpeakerInfoFromWorkspace(sourceValue.toObject());
+            if (fallback.isEmpty()) {
+                rawSources.append({{}, false});
+                continue;
+            }
+            const auto resolved = resolveSpeakerInfoStrict(effectiveSinger, fallback);
+            if (resolved.isEmpty()) {
+                rawSources.append({fallback, false}); // 记录原始名用于 dropped 列表
+                continue;
+            }
+            // 额外校验: 若 capability.mixableSpeakers 非空, spk.id 必须 ∈ 该集合
+            const auto &cap = effectiveSinger.capability();
+            if (cap && !cap->mixableSpeakers.isEmpty() &&
+                !cap->mixableSpeakers.contains(resolved.id())) {
+                rawSources.append({resolved, false});
+                continue;
+            }
+            rawSources.append({resolved, true});
         }
 
+        QStringList dropped;
+        for (const auto &r : rawSources) {
+            if (!r.valid && !r.speaker.isEmpty())
+                dropped.append(r.speaker.id());
+        }
+        if (!dropped.isEmpty()) {
+            qWarning().noquote()
+                << "[DspxProjectConverter] Singer" << effectiveSinger.singerId()
+                << "dropped legacy speakers:" << dropped.join(", ");
+        }
+
+        // 仅保留 valid sources
+        QList<int> validIndices;
+        for (int i = 0; i < rawSources.size(); ++i) {
+            if (rawSources[i].valid)
+                validIndices.append(i);
+        }
+        if (validIndices.size() < 2) {
+            // 退化为 Single (兼容旧行为)
+            return {};
+        }
+
+        for (int idx : validIndices)
+            data.sources.append({rawSources[idx].speaker});
+
+        // 重建 weights: original explicit (N-1) → full (N) → filter (M) → explicit (M-1)
+        const auto remapWeights = [&validIndices](const QVector<double> &explicitWeights) {
+            const int originalCount = validIndices.isEmpty()
+                ? 0
+                : *std::max_element(validIndices.begin(), validIndices.end()) + 1;
+            // explicit weights size 应为 originalCount - 1
+            if (explicitWeights.size() != originalCount - 1)
+                return QVector<double>();
+            const auto full = fullWeightsFromExplicitWeights(explicitWeights);
+            if (full.size() != originalCount)
+                return QVector<double>();
+            QVector<double> filtered;
+            filtered.reserve(validIndices.size());
+            for (int idx : validIndices)
+                filtered.append(full.value(idx));
+            return explicitWeightsFromFullWeights(filtered);
+        };
+
         if (obj.contains("fixedWeights"))
-            data.fixedWeights = decodeWeights(obj["fixedWeights"].toArray());
+            data.fixedWeights = remapWeights(decodeWeights(obj["fixedWeights"].toArray()));
 
         const auto presetObj = obj["sourcePreset"].toObject();
         data.sourcePresetId = presetObj["id"].toString();
@@ -330,8 +400,12 @@ namespace {
                 const auto keyframeObj = keyframeValue.toObject();
                 SpeakerMixKeyframe keyframe;
                 keyframe.tick = keyframeObj["tick"].toInt();
-                keyframe.weights = decodeWeights(keyframeObj["weights"].toArray());
-                data.dynamicKeyframes.append(keyframe);
+                const auto remapped = remapWeights(decodeWeights(keyframeObj["weights"].toArray()));
+                // 若 weights 长度不匹配则跳过该 keyframe（normalize 会处理空 keyframes）
+                if (!remapped.isEmpty()) {
+                    keyframe.weights = remapped;
+                    data.dynamicKeyframes.append(keyframe);
+                }
             }
         }
 

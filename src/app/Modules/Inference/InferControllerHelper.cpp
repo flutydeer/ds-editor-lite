@@ -12,6 +12,7 @@
 #include "Model/AppModel/InferPiece.h"
 #include "Models/InferInputNote.h"
 #include "Models/InferSpeakerMix.h"
+#include "Models/SpeakerMixValidator.h"
 #include "Utils/AppModelUtils.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
@@ -23,6 +24,28 @@
 #include "Model/AppOptions/AppOptions.h"
 
 namespace InferControllerHelper {
+
+    namespace {
+        /// Resolve and validate the (speaker, speakerMix) pair for a piece
+        /// against the clip's singer capability. Returns the sanitized pair
+        /// plus a flag indicating whether a degradation warning was emitted.
+        struct ValidatedSpeaker {
+            QString speaker;
+            InferSpeakerMix speakerMix;
+        };
+
+        ValidatedSpeaker resolveSpeakerForPiece(const InferPiece &piece) {
+            const auto singerInfo = piece.clip->singerInfo();
+            const auto rawMix = InferSpeakerMixModel::effectiveSpeakerMixForPiece(piece);
+            const auto validated =
+                SpeakerMixValidator::validate(piece.speaker, rawMix, singerInfo);
+            if (!validated.ok()) {
+                qWarning().noquote()
+                    << "[SpeakerMixValidator]" << validated.warningMessage;
+            }
+            return {validated.primarySpeaker, validated.sanitizedMix};
+        }
+    } // namespace
 
     DrawCurveList getEditedCurvesIncludingAnchor(const Param *param,
                                                  QList<DrawCurve *> &ownedCurves) {
@@ -46,12 +69,6 @@ namespace InferControllerHelper {
         return list;
     }
 
-    InferSpeakerMix effectiveSpeakerMixForPiece(const InferPiece &piece) {
-        if (!piece.speakerMix.isEmpty())
-            return piece.speakerMix;
-        return InferSpeakerMixModel::staticSpeakerMix(piece.speaker);
-    }
-
     DurInput buildInferDurInput(const InferPiece &piece, const SingerIdentifier &identifier) {
         DurInput input;
         input.clipId = piece.clip->id();
@@ -65,8 +82,9 @@ namespace InferControllerHelper {
         input.timeline = {{{0, appModel->tempo()}}};
         input.notes = buildInferInputNotes(piece.notes);
 
-        input.speaker = piece.speaker;
-        input.speakerMix = InferSpeakerMixModel::staticSpeakerMix(piece.speaker);
+        const auto spk = resolveSpeakerForPiece(piece);
+        input.speaker = spk.speaker;
+        input.speakerMix = spk.speakerMix;
         input.identifier = identifier;
         input.steps = appOptions->inference()->samplingSteps;
         input.pitchSmoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
@@ -91,8 +109,9 @@ namespace InferControllerHelper {
         input.notes = buildInferInputNotes(piece.notes);
         input.expressiveness = expr;
 
-        input.speaker = piece.speaker;
-        input.speakerMix = effectiveSpeakerMixForPiece(piece);
+        const auto spk = resolveSpeakerForPiece(piece);
+        input.speaker = spk.speaker;
+        input.speakerMix = spk.speakerMix;
         input.identifier = identifier;
         input.steps = appOptions->inference()->samplingSteps;
         input.pitchSmoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
@@ -118,8 +137,9 @@ namespace InferControllerHelper {
         input.notes = buildInferInputNotes(piece.notes);
         input.pitch = pitch;
 
-        input.speaker = piece.speaker;
-        input.speakerMix = effectiveSpeakerMixForPiece(piece);
+        const auto spk = resolveSpeakerForPiece(piece);
+        input.speaker = spk.speaker;
+        input.speakerMix = spk.speakerMix;
         input.identifier = identifier;
         input.steps = appOptions->inference()->samplingSteps;
         input.pitchSmoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
@@ -183,8 +203,9 @@ namespace InferControllerHelper {
         input.velocity = velocity;
         input.toneShift = toneShift;
 
-        input.speaker = piece.speaker;
-        input.speakerMix = effectiveSpeakerMixForPiece(piece);
+        const auto spk = resolveSpeakerForPiece(piece);
+        input.speaker = spk.speaker;
+        input.speakerMix = spk.speakerMix;
         input.identifier = identifier;
         input.steps = appOptions->inference()->samplingSteps;
         input.depth = appOptions->inference()->depth;

@@ -20,6 +20,7 @@ public:
     QString languageDictId;
     bool is_onset = true;
     double start = 0; // s
+    int tone = 0;
 
     [[nodiscard]] QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;

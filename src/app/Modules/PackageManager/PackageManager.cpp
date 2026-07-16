@@ -26,6 +26,7 @@
 #include <QElapsedTimer>
 #include <QLocale>
 #include <QMutexLocker>
+#include <QSet>
 
 #if defined(Q_OS_MAC)
 #  include "Utils/MacOSUtils.h"
@@ -148,8 +149,17 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                         languageInfos.append(std::move(langInfo));
                     }
                     for (const auto &spk : singer.speakers()) {
-                        speakerInfos.emplace_back(QString::fromStdString(spk.speakerId()),
-                                                  QString::fromStdString(spk.name()));
+                        SpeakerInfo liteSpk(QString::fromStdString(spk.speakerId()),
+                                            QString::fromStdString(spk.name()));
+                        // B-13 lite 侧: toneRange 映射 + 兼容旧 toneMin/toneMax QString
+                        if (spk.toneRange()) {
+                            const auto lo = spk.toneRange()->first;
+                            const auto hi = spk.toneRange()->second;
+                            liteSpk.setToneRange(std::make_pair(lo, hi));
+                            liteSpk.setToneMin(QString::number(lo));
+                            liteSpk.setToneMax(QString::number(hi));
+                        }
+                        speakerInfos.emplace_back(std::move(liteSpk));
                     }
                     break;
                 }
@@ -167,11 +177,48 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                     }
                 }
 
+                // 从 snapshot.capabilityReport 提取 lite 侧 capability 摘要
+                // 并标记每个 liteSpk.mixable（mixableSpeakers 集合成员）。
+                // 纯 G2P 包或 Inconsistent 声库 capabilityReport 为 nullopt / mixableSpeakers 空，
+                // lite UI 据此展示降级信息。
+                std::optional<SingerCapabilitySummary> capSummary;
+                if (snapshot.capabilityReport) {
+                    const auto &report = *snapshot.capabilityReport;
+                    SingerCapabilitySummary summary;
+                    for (const auto &spk : report.mixableSpeakers)
+                        summary.mixableSpeakers.append(QString::fromStdString(spk));
+                    summary.speakerConsistency = static_cast<int>(report.speakerConsistency);
+                    for (const auto &w : report.speakerWarnings)
+                        summary.speakerWarnings.append(QString::fromStdString(w));
+
+                    for (const auto &ph : report.effectivePhonemes)
+                        summary.effectivePhonemes.append(QString::fromStdString(ph));
+                    summary.phonemeConsistency = static_cast<int>(report.phonemeConsistency);
+                    for (const auto &w : report.phonemeWarnings)
+                        summary.phonemeWarnings.append(QString::fromStdString(w));
+                    summary.phonemeDegraded = report.phonemeDegraded;
+
+                    for (const auto &lang : report.effectiveLanguages)
+                        summary.effectiveLanguages.append(QString::fromStdString(lang));
+                    summary.languageConsistency = static_cast<int>(report.languageConsistency);
+                    for (const auto &w : report.languageWarnings)
+                        summary.languageWarnings.append(QString::fromStdString(w));
+                    capSummary = std::move(summary);
+
+                    // 标记每个 liteSpk.mixable（singer 域名匹配）
+                    QSet<QString> mixableSet;
+                    for (const auto &spk : report.mixableSpeakers)
+                        mixableSet.insert(QString::fromStdString(spk));
+                    for (auto &liteSpk : speakerInfos)
+                        liteSpk.setMixable(mixableSet.contains(liteSpk.id()));
+                }
+
                 SingerInfo singerInfo(
                     SingerIdentifier{QString::fromStdString(snapshot.ref.singerId), packageId,
                                      packageVersion},
                     QString::fromStdString(snapshot.name), std::move(speakerInfos),
                     std::move(languageInfos), QString::fromStdString(snapshot.defaultLanguage));
+                singerInfo.setCapability(std::move(capSummary));
                 switch (snapshot.resolutionState) {
                     case ds::bank::ResolutionState::Resolved:
                         singerInfo.setResolutionState(ResolutionState::Resolved);

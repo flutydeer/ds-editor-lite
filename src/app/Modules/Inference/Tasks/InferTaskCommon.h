@@ -57,7 +57,8 @@ private:
 auto createParamInfo(std::string_view tag) -> srt::svs::Api::Common::L1::InputParameterInfo;
 
 auto convertInputWords(const QList<InferWord> &words, const std::string &speakerName,
-                       const std::map<std::string, std::string> &speakerMapping)
+                       const InferSpeakerMix &speakerMix,
+                       const std::map<std::string, std::string> &speakerMapping, QString &error)
     -> std::vector<srt::svs::Api::Common::L1::InputWordInfo>;
 
 auto convertInputParams(const QList<InferParam> &params)

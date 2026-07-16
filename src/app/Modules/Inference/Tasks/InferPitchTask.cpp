@@ -169,7 +169,11 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
         return false;
     }
     const auto &speakerMapping = importOptions->speakerMapping;
-    input->words = convertInputWords(model.words, speakerName, speakerMapping);
+    input->words = convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
+    if (!error.isEmpty()) {
+        qCritical() << "inferPitch:" << error;
+        return false;
+    }
     input->speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
     if (!error.isEmpty()) {
         qCritical() << "inferPitch:" << error;

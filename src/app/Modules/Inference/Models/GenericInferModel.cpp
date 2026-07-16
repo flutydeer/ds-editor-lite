@@ -64,7 +64,8 @@ QJsonObject InferPhoneme::serialize() const {
     return QJsonObject{
         {"token",    token         },
         {"language", languageDictId},
-        {"start",    start         }
+        {"start",    start         },
+        {"tone",     tone          }
     };
 }
 
@@ -72,6 +73,7 @@ bool InferPhoneme::deserialize(const QJsonObject &obj) {
     token = obj["token"].toString();
     languageDictId = obj["language"].toString();
     start = obj["start"].toDouble();
+    tone = obj["tone"].toInt();
     return true;
 }
 
