@@ -358,6 +358,7 @@ void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex
             const auto srcAudio = static_cast<AudioClip *>(srcClip);
             auto audioClip = new AudioClip;
             audioClip->setPath(srcAudio->path());
+            audioClip->setPathInfo(srcAudio->pathInfo());
             newClip = audioClip;
         }
 

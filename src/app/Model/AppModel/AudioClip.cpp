@@ -26,6 +26,25 @@ void AudioClip::setPath(const QString &path) {
     emit propertyChanged();
 }
 
+AudioPathInfo AudioClip::pathInfo() const {
+    return m_pathInfo;
+}
+
+void AudioClip::setPathInfo(const AudioPathInfo &pathInfo) {
+    m_pathInfo = pathInfo;
+}
+
+AudioClip::PathStatus AudioClip::pathStatus() const {
+    return m_pathStatus;
+}
+
+void AudioClip::setPathStatus(const PathStatus status) {
+    if (m_pathStatus == status)
+        return;
+    m_pathStatus = status;
+    emit pathStatusChanged(status);
+}
+
 const AudioInfoModel &AudioClip::audioInfo() const {
     return m_info;
 }

@@ -23,6 +23,7 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppModel/SpeakerMixData.h"
 #include "Modules/PackageManager/PackageManager.h"
+#include "Utils/DiffscopeAudioWorkspace.h"
 
 #include <QDebug>
 #include <QCoreApplication>
@@ -984,6 +985,7 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                         JsonNlohmann::toQJsonValue(value).toObject();
                 }
                 clip->workspace() = workspace;
+                clip->setPathInfo(DiffscopeAudioWorkspace::read(workspace));
                 track->insertClip(clip);
             }
         }
@@ -1231,7 +1233,14 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 audioClipRef->control.gain = clip->gain();
                 audioClipRef->control.mute = clip->mute();
                 audioClipRef->path = audioClip->path().toStdString();
-                for (const auto &[key, value] : clip->workspace().asKeyValueRange()) {
+                // On save, recompute relativeDir against the save target and merge locating info into
+                // a local workspace copy (model untouched), so fallback-resolved paths persist on save
+                auto pathInfo = audioClip->pathInfo();
+                pathInfo.relativeDir =
+                    DiffscopeAudioWorkspace::relativeDirFor(audioClip->path(), path);
+                auto workspace = clip->workspace();
+                DiffscopeAudioWorkspace::write(workspace, pathInfo, audioClip->path());
+                for (const auto &[key, value] : workspace.asKeyValueRange()) {
                     audioClipRef->workspace[key.toStdString()] =
                         JsonNlohmann::fromQJsonValue(value);
                 }
