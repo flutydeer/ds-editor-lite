@@ -18,6 +18,7 @@ DeveloperPage::DeveloperPage(QWidget *parent) : IOptionPage(parent) {
 void DeveloperPage::modifyOption() {
     const auto option = appOptions->developer();
     option->enableDiagnostics = m_swEnableDiagnostics->value();
+    option->showLogWindow = m_swShowLogWindow->value();
     option->showTimelineDebugInfo = m_swShowTimelineDebugInfo->value();
     option->showClipDebugInfo = m_swShowClipDebugInfo->value();
     option->enablePanelDetach = m_swEnablePanelDetach->value();
@@ -30,6 +31,9 @@ QWidget *DeveloperPage::createContentWidget() {
 
     m_swEnableDiagnostics = new SwitchButton(option->enableDiagnostics);
     connect(m_swEnableDiagnostics, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
+
+    m_swShowLogWindow = new SwitchButton(option->showLogWindow);
+    connect(m_swShowLogWindow, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
 
     m_swShowTimelineDebugInfo = new SwitchButton(option->showTimelineDebugInfo);
     connect(m_swShowTimelineDebugInfo, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
@@ -44,6 +48,10 @@ QWidget *DeveloperPage::createContentWidget() {
     diagnosticsCard->addItem(tr("Enable diagnostic output"),
                              tr("Print event loop performance statistics to debug output"),
                              m_swEnableDiagnostics);
+    diagnosticsCard->addItem(tr("Show log window"),
+                             tr("Open a standalone window that shows application logs with "
+                                "level, tag and text filters"),
+                             m_swShowLogWindow);
     diagnosticsCard->addItem(tr("Show timeline debug overlay"),
                              tr("Display piece boundaries and range overlays on the timeline"),
                              m_swShowTimelineDebugInfo);

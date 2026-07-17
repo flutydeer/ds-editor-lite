@@ -32,6 +32,7 @@
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
 #include "UI/Views/MainTitleBar/FilePopupWidget.h"
 #include "UI/Window/EventDiagFilter.h"
+#include "UI/Window/LogWindow.h"
 
 #include <QStackedWidget>
 #include <QTabBar>
@@ -134,8 +135,11 @@ MainWindow::MainWindow() {
                     updateDiagnosticFilter();
                 if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
                     updatePanelDetachEnabled();
+                if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
+                    updateLogWindowVisible();
             });
     updateDiagnosticFilter();
+    updateLogWindowVisible();
 
     connect(taskManager, &TaskManager::allDone, this, &MainWindow::onAllDone);
 
@@ -225,6 +229,19 @@ void MainWindow::updateDiagnosticFilter() {
         qApp->removeEventFilter(m_eventDiagFilter);
         delete m_eventDiagFilter;
         m_eventDiagFilter = nullptr;
+    }
+}
+
+void MainWindow::updateLogWindowVisible() {
+    const bool enabled = appOptions->developer()->showLogWindow;
+    if (enabled) {
+        // Create lazily on first use; keep instance (and its history) when hidden
+        if (!m_logWindow)
+            m_logWindow = new LogWindow(this);
+        m_logWindow->show();
+        m_logWindow->raise();
+    } else if (m_logWindow) {
+        m_logWindow->hide();
     }
 }
 

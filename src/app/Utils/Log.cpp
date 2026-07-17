@@ -4,6 +4,8 @@
 
 #include "Log.h"
 
+#include "LogBus.h"
+
 #include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
@@ -203,13 +205,18 @@ void Log::log(const LogMessage &message) {
     isLogging = true;
     const auto guard = qScopeGuard([] { isLogging = false; });
 
-    QMutexLocker lock(&m_mutex);
-    if (canLogToConsole(message)) {
-        QTextStream consoleStream(stdout);
-        consoleStream.setEncoding(QStringConverter::System);
-        consoleStream << message.toConsoleText() << Qt::endl;
+    {
+        QMutexLocker lock(&m_mutex);
+        if (canLogToConsole(message)) {
+            QTextStream consoleStream(stdout);
+            consoleStream.setEncoding(QStringConverter::System);
+            consoleStream << message.toConsoleText() << Qt::endl;
+        }
+
+        if (m_logToFile && m_logFile.isOpen())
+            m_fileStream << message.toPlainText() << Qt::endl; // Qt::endl flushes the stream
     }
 
-    if (m_logToFile && m_logFile.isOpen())
-        m_fileStream << message.toPlainText() << Qt::endl; // Qt::endl flushes the stream
+    // Forward the unfiltered message to in-app viewers (LogBus has its own lock)
+    LogBus::instance()->append(message);
 }

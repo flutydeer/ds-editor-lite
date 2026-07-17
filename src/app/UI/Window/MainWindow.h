@@ -17,6 +17,7 @@ class QSplitter;
 class MainTitleBar;
 class MainMenuView;
 class TaskDialog;
+class LogWindow;
 class TrackEditorView;
 class ClipEditorView;
 
@@ -35,6 +36,7 @@ public:
     void restart() override;
     void setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) override;
     void updateDiagnosticFilter();
+    void updateLogWindowVisible();
     void updatePanelDetachEnabled();
     QWidget *documentWorkflowParentWidget() override;
     SaveDecision askDocumentSaveDecision() override;
@@ -89,6 +91,7 @@ private:
     QRect m_detachedWindowGeometry;
     QWK::WidgetWindowAgent *m_detachedAgent = nullptr;
     QObject *m_eventDiagFilter = nullptr;
+    LogWindow *m_logWindow = nullptr;
 };
 
 
