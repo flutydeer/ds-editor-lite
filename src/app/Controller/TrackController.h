@@ -50,7 +50,9 @@ public slots:
     void onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io, const QJsonObject &workspace, int id, int tick);
     void onRelocateAudioClip(int clipId, const QString &path, talcs::AbstractAudioFormatIO *io,
                              const QJsonObject &workspace);
-    // User confirms a "matched by name but no hash to verify" result: normalize status and compute sha512
+    // User confirms a "matched by name but no hash to verify" result: normalize status and compute sha512.
+    // Not undoable: it only promotes the transient path status and backfills the digest,
+    // no project content changes (the path was already adopted at load)
     static void confirmAudioClipPath(int clipId);
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args, int newTrackIndex);

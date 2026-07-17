@@ -36,7 +36,11 @@ public slots:
 public:
     // Cascading resolution: use filePath's directory as the candidate and try to resolve all still-missing audio clips
     // (matched by file name + sha512; missing items without sha512 do not participate).
-    // Called after the user manually relinks one file, to recover other files moved to the same directory
+    // Called after the user manually relinks one file, to recover other files moved to the same directory.
+    // Hits adopt the new path SILENTLY (no undo entry, no dirty flag) — by design, undo boundaries follow
+    // "could the content have changed": a manual relink is an edit (unverified user choice, undoable),
+    // while a sha512-verified hit is mathematically the original file, a fact correction with no user
+    // intent to revert. Undoing a manual relink therefore does NOT roll back cascade hits it triggered
     void resolveMissingClipsNear(const QString &filePath);
 
 signals:

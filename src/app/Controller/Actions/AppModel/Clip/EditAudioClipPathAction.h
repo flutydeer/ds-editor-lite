@@ -8,7 +8,11 @@
 
 // Relocates/replaces the file of an audio clip (relink).
 // Restores the {path, pathInfo, formatData workspace} triple;
-// path changes drive playback reload and waveform re-decoding via propertyChanged
+// path changes drive playback reload and waveform re-decoding via propertyChanged.
+// Manual relinks MUST be undoable: the user-picked file is unverified and may have
+// different content (this is also the "replace source" feature). In contrast,
+// sha512-verified auto/cascade relocation bypasses this action on purpose — see
+// AudioDecodingController::resolveMissingClipsNear for the undo-boundary rationale
 class EditAudioClipPathAction : public IAction {
 public:
     static EditAudioClipPathAction *build(AudioClip *clip, const QString &newPath,
