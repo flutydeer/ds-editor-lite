@@ -3,125 +3,34 @@
 //
 
 #include "AppContext.h"
-#include "Controller/AppController.h"
+#include "Bootstrap/AppEnvironment.h"
+#include "Bootstrap/CrashHandler.h"
+#include "Bootstrap/LoggingBootstrap.h"
+#include "Bootstrap/Restarter.h"
+#include "Bootstrap/StartupArguments.h"
+#include "Bootstrap/WindowPlacement.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
-#include "Controller/ClipController.h"
-#include "Controller/ProjectStatusController.h"
-#include "Controller/TrackController.h"
-#include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "Modules/Audio/AudioContext.h"
-#include "Modules/Inference/Utils/DmlGpuUtils.h"
 #include "Modules/PackageManager/PackageManager.h"
-#include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
-#include "UI/Window/MainWindow.h"
-#include "UI/Window/TaskWindow.h"
-#include "Utils/FontManager.h"
-#include "Utils/Log.h"
-#include "Utils/SystemUtils.h"
-#include "Utils/UiLanguageManager.h"
 #include "UI/Utils/AppColorPalette.h"
-
-#include <QMWidgets/ccombobox.h>
-#include <QMWidgets/cmenu.h>
+#include "UI/Window/MainWindow.h"
+#include "Utils/UiLanguageManager.h"
 
 #include <QApplication>
 #include <QDir>
 #include <QElapsedTimer>
-#include <QScreen>
-#include <QStyleHints>
-#include <QStyleFactory>
 #include <QTimer>
-
-#include <QtCore/QProcess>
-
-#ifdef APPLICATION_ENABLE_BREAKPAD
-#  include <QBreakpadHandler.h>
-#endif
-
-#if defined(WITH_DIRECT_MANIPULATION)
-#  include <QWDMHCore/DirectManipulationSystem.h>
-#endif
-
-class Restarter {
-public:
-    explicit Restarter(const QString &workingDir) : m_workingDir(workingDir) {
-    }
-
-    int restartOrExit(int exitCode) const {
-        return qApp->property("restart").toBool() ? restart(exitCode) : exitCode;
-    }
-
-    int restart(int exitCode) const {
-        qDebug() << "Restarting application...";
-        QProcess::startDetached(QApplication::applicationFilePath(), QApplication::arguments(),
-                                m_workingDir);
-        return exitCode;
-    }
-
-private:
-    QString m_workingDir;
-};
-
-// Log GPU info at the application layer to keep Log (Utils) free of module dependencies
-static void logGpuInfo() {
-    qInfo() << "-------- GPU Info Begin --------";
-    for (const auto &gpu : DmlGpuUtils::getGpuList())
-        qInfo() << gpu.index << gpu.description;
-    qInfo() << "--------- GPU Info End ---------";
-}
 
 int main(int argc, char *argv[]) {
     QElapsedTimer mstimer;
     mstimer.start();
-    // output log to file
-    qInstallMessageHandler(Log::handler);
-    qputenv("QT_ASSUME_STDERR_HAS_CONSOLE", "1");
-    qputenv("QT_ENABLE_HIGHDPI_SCALING", "1");
-    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
-        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
-    if (QSysInfo::productType() == "windows")
-        QGuiApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
+
+    AppEnvironment::preInit();
     QApplication a(argc, argv);
-    QApplication::setEffectEnabled(Qt::UI_AnimateTooltip, false);
-    QApplication::setOrganizationName("OpenVPI");
-    QApplication::setApplicationName("DS Editor Lite");
-    QApplication::setApplicationDisplayName("Lite");
-    QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
-    if (QSysInfo::productType() != "windows")
-        QApplication::setStyle(QStyleFactory::create("windows"));
-    else
-        QApplication::setStyle(QStyleFactory::create("windowsvista"));
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-    QApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
-#else
-    qWarning("setColorScheme is not available in this version of Qt.");
-#endif
+    AppEnvironment::postInit();
+    LoggingBootstrap::init();
 
-    CMenu::setDefaultCornerPreference(CMenu::Round);
-    CComboBox::setDefaultCornerPreference(CComboBox::Round);
-
-    // 设置日志等级和过滤器
-    QDir appDataDir(QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());
-    if (!appDataDir.exists()) {
-        if (!appDataDir.mkpath("."))
-            qFatal() << "Failed to create app data directory";
-    }
-    // Log::setLogDirectory(
-    //     QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() + "/Logs");
-    Log::setConsoleLogLevel(Log::Debug);
-    // Log::setConsoleTagFilter({"InferPipeline"});
-    Log::logSystemInfo();
-    logGpuInfo();
-
-    auto f = SystemUtils::isWindows() ? QFont("Microsoft Yahei UI") : QFont();
-    f.setHintingPreference(QFont::PreferNoHinting);
-    f.setPixelSize(13);
-    QApplication::setFont(f);
-
-    // Initialize FontManager to load custom fonts early (stays Meyers static)
-    FontManager::instance();
-
+    // AppOptions must be constructed (and the UI language applied) before AppContext
     auto options = std::make_unique<AppOptions>();
     UiLanguageManager uiLanguageManager;
     uiLanguageManager.setPreference(options->general()->uiLanguage);
@@ -135,42 +44,20 @@ int main(int argc, char *argv[]) {
     packageManager->initialize();
 
     MainWindow w;
-    trackController->setParentWidget(&w);
-    auto scr = QApplication::screenAt(QCursor::pos());
-    if (!scr) {
-        scr = QApplication::primaryScreen();
-    }
-    if (scr) {
-        auto availableRect = scr->availableGeometry();
-        auto left = (availableRect.width() - w.width()) / 2;
-        auto top = (availableRect.height() - w.height()) / 2;
-        w.move(left, top);
-    }
+    WindowPlacement::centerOnScreenAtCursor(w);
     w.show();
 #if defined(WITH_DIRECT_MANIPULATION)
     w.registerDirectManipulation();
 #endif
 
-    auto args = QApplication::arguments();
-    if (args.count() == 2) {
-        auto filePath = QApplication::arguments().at(1);
-        if (!filePath.isEmpty()) {
-            QTimer::singleShot(0, documentWorkflowController,
-                               [filePath] { documentWorkflowController->requestOpen(filePath); });
-        }
+    if (const auto filePath = StartupArguments::projectFilePath(); !filePath.isEmpty()) {
+        QTimer::singleShot(0, documentWorkflowController,
+                           [filePath] { documentWorkflowController->requestOpen(filePath); });
     }
 
     const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
     qInfo() << "App launched in" << time << "ms";
 
-#ifdef APPLICATION_ENABLE_BREAKPAD
-    QBreakpadHandler handler;
-    handler.setDumpPath(a.applicationDirPath() + "/dumps");
-
-    QBreakpadHandler::UniqueExtraHandler = []() {
-        // Do something when crash occurs.
-    };
-#endif
-
+    CrashHandler crashHandler;
     return Restarter(QDir::currentPath()).restartOrExit(a.exec());
 }
