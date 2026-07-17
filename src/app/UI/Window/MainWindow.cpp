@@ -20,7 +20,6 @@
 #include "Modules/Task/TaskManager.h"
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/Button.h"
-#include "UI/Controls/ProgressIndicator.h"
 #include "UI/Controls/SilentSplitter.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
@@ -49,11 +48,9 @@
 #include <QFileInfo>
 #include <QFileDialog>
 #include <QHBoxLayout>
-#include <QLabel>
 #include <QMimeData>
 #include <QProcess>
 #include <QSplitter>
-#include <QStatusBar>
 #include <QWKWidgets/widgetwindowagent.h>
 
 #if defined(WITH_DIRECT_MANIPULATION)
@@ -141,7 +138,6 @@ MainWindow::MainWindow() {
     updateDiagnosticFilter();
 
     connect(taskManager, &TaskManager::allDone, this, &MainWindow::onAllDone);
-    connect(taskManager, &TaskManager::taskChanged, this, &MainWindow::onTaskChanged);
 
     connect(audioDecodingController, &AudioDecodingController::resolveSessionFinished, this,
             [this](const QList<int> &missingClipIds, const QList<int> &unconfirmedClipIds, int) {
@@ -175,26 +171,9 @@ MainWindow::MainWindow() {
     m_splitter->setContentsMargins(6, 0, 6, 0);
     connect(m_splitter, &QSplitter::splitterMoved, this, &MainWindow::onSplitterMoved);
 
-    m_lbTaskTitle = new QLabel;
-    m_lbTaskTitle->setVisible(false);
-
-    m_statusProgressBar = new ProgressIndicator;
-    m_statusProgressBar->setFixedWidth(170);
-    m_statusProgressBar->setVisible(false);
-
-    auto statusBar = new QStatusBar(this);
-    statusBar->addPermanentWidget(m_lbTaskTitle);
-    statusBar->addPermanentWidget(m_statusProgressBar);
-    statusBar->setFixedHeight(28);
-    statusBar->setSizeGripEnabled(false);
-    statusBar->setContentsMargins(6, 0, 6, 0);
-    statusBar->setVisible(false);
-    setStatusBar(statusBar);
-
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_titleBar);
     mainLayout->addWidget(m_splitter);
-    mainLayout->addWidget(statusBar);
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins(0, 0, 0, 6);
 
@@ -376,35 +355,6 @@ void MainWindow::onAllDone() {
         m_isAllDone = true;
         close();
     }
-}
-
-void MainWindow::onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index) {
-    if (!m_lbTaskTitle || !m_statusProgressBar)
-        return;
-
-    auto taskCount = taskManager->tasks().count();
-    if (taskCount == 0) {
-        m_lbTaskTitle->setText("");
-        m_lbTaskTitle->setVisible(false);
-        m_statusProgressBar->setVisible(false);
-        m_statusProgressBar->setValue(0);
-        m_statusProgressBar->setTaskStatus(TaskGlobal::Normal);
-    } else {
-        if (type == TaskManager::Removed)
-            disconnect(task, nullptr, this, nullptr);
-
-        m_lbTaskTitle->setVisible(true);
-        m_statusProgressBar->setVisible(true);
-        auto firstTask = taskManager->tasks().first();
-        connect(firstTask, &Task::statusUpdated, this, &MainWindow::onTaskStatusChanged);
-    }
-}
-
-void MainWindow::onTaskStatusChanged(const TaskStatus &status) {
-    m_lbTaskTitle->setText(status.title);
-    m_statusProgressBar->setValue(status.progress);
-    m_statusProgressBar->setTaskStatus(status.runningStatus);
-    m_statusProgressBar->setIndeterminate(status.isIndetermine);
 }
 
 void MainWindow::onSplitterMoved(int pos, int index) const {

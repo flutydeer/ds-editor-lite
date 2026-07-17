@@ -10,8 +10,6 @@
 
 #include "Interface/IMainWindow.h"
 #include "Controller/DocumentWorkflow/IDocumentWorkflowUi.h"
-#include "Modules/Task/TaskManager.h"
-#include "Modules/Task/Task.h"
 #include "UI/Views/BottomPanelView.h"
 
 
@@ -19,8 +17,6 @@ class QSplitter;
 class MainTitleBar;
 class MainMenuView;
 class TaskDialog;
-class ProgressIndicator;
-class QLabel;
 class TrackEditorView;
 class ClipEditorView;
 
@@ -53,8 +49,6 @@ public:
 
 public slots:
     void onAllDone();
-    void onTaskChanged(TaskManager::TaskChangeType type, Task *task, qsizetype index);
-    void onTaskStatusChanged(const TaskStatus &status);
 
 protected:
     void changeEvent(QEvent *event) override;
@@ -85,9 +79,6 @@ private:
     BottomPanelView *m_bottomPanelView;
     QSplitter *m_splitter;
     QByteArray m_splitterState;
-
-    QLabel *m_lbTaskTitle = nullptr;
-    ProgressIndicator *m_statusProgressBar = nullptr;
 
     QTimer m_waitDoneDialogDelayTimer;
     TaskDialog *m_waitDoneDialog = nullptr;
