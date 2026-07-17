@@ -13,6 +13,8 @@
 
 #include <synthrt/Core/Support/Logging.h>
 
+#include <QCoreApplication>
+
 #include "Utils/DmlGpuUtils.h"
 #include "Utils/Log.h"
 #include "Utils/Expected.h"

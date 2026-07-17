@@ -11,6 +11,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Audio/AudioContext.h"
+#include "Modules/Inference/Utils/DmlGpuUtils.h"
 #include "Modules/PackageManager/PackageManager.h"
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include "UI/Window/MainWindow.h"
@@ -62,6 +63,14 @@ private:
     QString m_workingDir;
 };
 
+// Log GPU info at the application layer to keep Log (Utils) free of module dependencies
+static void logGpuInfo() {
+    qInfo() << "-------- GPU Info Begin --------";
+    for (const auto &gpu : DmlGpuUtils::getGpuList())
+        qInfo() << gpu.index << gpu.description;
+    qInfo() << "--------- GPU Info End ---------";
+}
+
 int main(int argc, char *argv[]) {
     QElapsedTimer mstimer;
     mstimer.start();
@@ -103,7 +112,7 @@ int main(int argc, char *argv[]) {
     Log::setConsoleLogLevel(Log::Debug);
     // Log::setConsoleTagFilter({"InferPipeline"});
     Log::logSystemInfo();
-    Log::logGpuInfo();
+    logGpuInfo();
 
     auto f = SystemUtils::isWindows() ? QFont("Microsoft Yahei UI") : QFont();
     f.setHintingPreference(QFont::PreferNoHinting);
