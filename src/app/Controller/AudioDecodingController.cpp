@@ -5,6 +5,7 @@
 #include "AudioDecodingController.h"
 
 #include <QFileInfo>
+#include <QTimer>
 
 #include <TalcsFormat/FormatManager.h>
 
@@ -40,14 +41,27 @@ void AudioDecodingController::onModelChanged() {
     m_unconfirmedClipIds.clear();
     m_autoRelocatedCount = 0;
 
-    // Start new decoding tasks
     for (const auto track : appModel->tracks()) {
         connect(track, &Track::clipChanged, this, &AudioDecodingController::onClipChanged);
+        for (const auto clip : track->clips()) {
+            if (clip->clipType() == Clip::Audio)
+                connectClip(static_cast<AudioClip *>(clip));
+        }
+    }
+
+    // Defer resolving and decoding until the current event loop iteration ends:
+    // in commitReplace, replaceProject (which emits modelChanged) runs before updateProjectIdentity,
+    // so documentWorkflowController->projectPath() is not yet updated at that point;
+    // projectPath only becomes available after commitReplace has fully completed
+    QTimer::singleShot(0, this, &AudioDecodingController::startDecodingAndResolving);
+}
+
+void AudioDecodingController::startDecodingAndResolving() {
+    for (const auto track : appModel->tracks()) {
         for (const auto clip : track->clips()) {
             if (clip->clipType() != Clip::Audio)
                 continue;
             const auto audioClip = static_cast<AudioClip *>(clip);
-            connectClip(audioClip);
             if (QFileInfo::exists(audioClip->path())) {
                 audioClip->setPathStatus(AudioClip::PathStatus::Normal);
                 createAndStartTask(audioClip);
