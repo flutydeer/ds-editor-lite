@@ -22,6 +22,50 @@ void PitchAnchorEditorView::setOverlayState(const AnchorOverlayState *state) {
     m_state = state;
 }
 
+QColor PitchAnchorEditorView::anchorColor() const {
+    return m_anchorColor;
+}
+
+void PitchAnchorEditorView::setAnchorColor(const QColor &color) {
+    if (m_anchorColor == color)
+        return;
+    m_anchorColor = color;
+    update();
+}
+
+QColor PitchAnchorEditorView::anchorSelectedColor() const {
+    return m_anchorSelectedColor;
+}
+
+void PitchAnchorEditorView::setAnchorSelectedColor(const QColor &color) {
+    if (m_anchorSelectedColor == color)
+        return;
+    m_anchorSelectedColor = color;
+    update();
+}
+
+QColor PitchAnchorEditorView::anchorCurveColor() const {
+    return m_anchorCurveColor;
+}
+
+void PitchAnchorEditorView::setAnchorCurveColor(const QColor &color) {
+    if (m_anchorCurveColor == color)
+        return;
+    m_anchorCurveColor = color;
+    update();
+}
+
+QColor PitchAnchorEditorView::anchorPreviewColor() const {
+    return m_anchorPreviewColor;
+}
+
+void PitchAnchorEditorView::setAnchorPreviewColor(const QColor &color) {
+    if (m_anchorPreviewColor == color)
+        return;
+    m_anchorPreviewColor = color;
+    update();
+}
+
 double PitchAnchorEditorView::valueToSceneY(const double value) const {
     constexpr int min = 0;
     constexpr int max = 12700;
@@ -67,9 +111,11 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
     const bool active = m_state->anchorEditActive;
     constexpr double anchorRadius = 2.0;
     constexpr double hoverRadius = 6.0;
-    const QColor normalColor(220, 220, 220, active ? 255 : 80);
-    const QColor selectedColor(155, 186, 255);
-    const QColor curveColor(220, 220, 220, active ? 200 : 60);
+    QColor normalColor = m_anchorColor;
+    normalColor.setAlpha(active ? 255 : 80);
+    const QColor selectedColor = m_anchorSelectedColor;
+    QColor curveColor = m_anchorCurveColor;
+    curveColor.setAlpha(active ? 200 : 60);
 
     auto drawNodeAt = [&](double x, double y, AnchorNode *node) {
         const bool isSelected = active && m_state->selectedNodes.contains(node);
@@ -198,7 +244,9 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
         virtualNode.setInterpMode(mode);
     }
 
-    QPen pen(QColor(155, 186, 255, 128), 1.5, Qt::DashLine);
+    QColor previewColor = m_anchorPreviewColor;
+    previewColor.setAlpha(128);
+    QPen pen(previewColor, 1.5, Qt::DashLine);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
 
@@ -213,7 +261,7 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
     const double cx = tickToItemX(virtualNode.pos());
     const double cy = sceneYToItemY(valueToSceneY(virtualNode.value()));
     painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(155, 186, 255, 128));
+    painter->setBrush(previewColor);
     painter->drawEllipse(QPointF(cx, cy), 2.0, 2.0);
 
     if (isAppend && oldLastNode)
@@ -233,7 +281,9 @@ void PitchAnchorEditorView::drawMergePreviewCurve(QPainter *painter) const {
     if (allNodes.size() < 2)
         return;
 
-    QPen pen(QColor(155, 186, 255, 160), 1.5, Qt::DashLine);
+    QColor mergePreviewColor = m_anchorPreviewColor;
+    mergePreviewColor.setAlpha(160);
+    QPen pen(mergePreviewColor, 1.5, Qt::DashLine);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
 
@@ -262,7 +312,9 @@ void PitchAnchorEditorView::drawDragPreviewCurve(QPainter *painter) const {
     auto tickToLocalX = [this](int tick) { return tickToItemX(tick); };
     auto valueToLocalY = [this](int value) { return sceneYToItemY(valueToSceneY(value)); };
 
-    QPen pen(QColor(155, 186, 255, 160), 1.5, Qt::DashLine);
+    QColor dragPreviewColor = m_anchorPreviewColor;
+    dragPreviewColor.setAlpha(160);
+    QPen pen(dragPreviewColor, 1.5, Qt::DashLine);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
 
@@ -291,7 +343,7 @@ void PitchAnchorEditorView::drawDragPreviewCurve(QPainter *painter) const {
         }
 
         painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(155, 186, 255, 160));
+        painter->setBrush(dragPreviewColor);
         for (auto *node : draggedNodes) {
             const double x = tickToLocalX(node->pos());
             const double y = valueToLocalY(node->value());
@@ -314,8 +366,12 @@ void PitchAnchorEditorView::drawSelectionRect(QPainter *painter) const {
     QRectF localRect(QPointF(x1, y1), QPointF(x2, y2));
 
     const auto radius = std::min({6.0, localRect.width() / 2, localRect.height() / 2});
-    painter->setPen(QPen(QColor(155, 186, 255, 200), 1.5));
-    painter->setBrush(QColor(155, 186, 255, 64));
+    QColor selectionBorderColor = m_anchorPreviewColor;
+    selectionBorderColor.setAlpha(200);
+    QColor selectionFillColor = m_anchorPreviewColor;
+    selectionFillColor.setAlpha(64);
+    painter->setPen(QPen(selectionBorderColor, 1.5));
+    painter->setBrush(selectionFillColor);
     painter->drawRoundedRect(localRect, radius, radius);
 }
 

@@ -63,6 +63,50 @@ const QList<DrawCurve *> &CommonParamEditorView::editedCurves() const {
     return m_drawCurvesEdited;
 }
 
+QColor CommonParamEditorView::graduateColor() const {
+    return m_graduateColor;
+}
+
+void CommonParamEditorView::setGraduateColor(const QColor &color) {
+    if (m_graduateColor == color)
+        return;
+    m_graduateColor = color;
+    update();
+}
+
+QColor CommonParamEditorView::originalCurveColor() const {
+    return m_originalCurveColor;
+}
+
+void CommonParamEditorView::setOriginalCurveColor(const QColor &color) {
+    if (m_originalCurveColor == color)
+        return;
+    m_originalCurveColor = color;
+    update();
+}
+
+QColor CommonParamEditorView::editedCurveColor() const {
+    return m_editedCurveColor;
+}
+
+void CommonParamEditorView::setEditedCurveColor(const QColor &color) {
+    if (m_editedCurveColor == color)
+        return;
+    m_editedCurveColor = color;
+    update();
+}
+
+QColor CommonParamEditorView::backgroundLayerColor() const {
+    return m_backgroundLayerColor;
+}
+
+void CommonParamEditorView::setBackgroundLayerColor(const QColor &color) {
+    if (m_backgroundLayerColor == color)
+        return;
+    m_backgroundLayerColor = color;
+    update();
+}
+
 void CommonParamEditorView::discardAction() {
     if (!cancelEditState()) {
         return;
@@ -120,7 +164,7 @@ void CommonParamEditorView::drawGraduates(QPainter *painter, const QStyleOptionG
     painter->setBrush(Qt::NoBrush);
     QPen pen;
     pen.setWidthF(1);
-    pen.setColor(QColor(72, 75, 78));
+    pen.setColor(m_graduateColor);
     painter->setPen(pen);
     const int step = m_properties->divisionValue;
     const auto min = m_properties->minimum;
@@ -146,12 +190,14 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
     if (m_properties->displayMode == ParamProperties::DisplayMode::CurveOnly) {
         painter->setBrush(Qt::NoBrush);
         if (!m_drawCurvesOriginal.isEmpty()) {
-            pen.setColor(QColor(255, 255, 255, 96));
+            pen.setColor(m_originalCurveColor);
             painter->setPen(pen);
             drawCurveBorder(painter, m_drawCurvesOriginal);
         }
         if (!m_drawCurvesEdited.isEmpty()) {
-            pen.setColor(QColor(255, 255, 255, foreground ? 230 : 60));
+            auto editedColor = m_editedCurveColor;
+            editedColor.setAlpha(foreground ? 230 : 60);
+            pen.setColor(editedColor);
             painter->setPen(pen);
             drawCurveBorder(painter, m_drawCurvesEdited);
         }
@@ -170,7 +216,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
                     AppColorPalette::instance()->paramFillFlat(NoteView::trackColorIndex()));
             }
         } else {
-            painter->setBrush(QColor(41, 44, 54));
+            painter->setBrush(m_backgroundLayerColor);
         }
 
         DrawCurveList base;
@@ -198,7 +244,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
             painter->setBrush(Qt::NoBrush);
             pen.setColor(foreground
                              ? AppColorPalette::instance()->paramLine(NoteView::trackColorIndex())
-                             : QColor(41, 44, 54));
+                             : m_backgroundLayerColor);
             painter->setPen(pen);
             drawCurveBorder(painter, base);
         }
@@ -206,7 +252,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         // 绘制已编辑描边
         if (foreground && !m_drawCurvesEdited.isEmpty()) {
             painter->setBrush(Qt::NoBrush);
-            pen.setColor(QColor(255, 255, 255));
+            pen.setColor(m_editedCurveColor);
             painter->setPen(pen);
             drawCurveBorder(painter, m_drawCurvesEdited);
         }

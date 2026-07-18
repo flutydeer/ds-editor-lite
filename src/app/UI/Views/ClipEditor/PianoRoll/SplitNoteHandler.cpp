@@ -25,11 +25,18 @@ void SplitNoteHandler::activate() {
         auto *scene = dynamic_cast<TimeGraphicsScene *>(q->scene());
         scene->addCommonItem(m_indicator);
     }
+    // Indicator is created lazily, so re-apply the themed color on each activation
+    m_indicator->setLineColor(d->m_splitLineColor);
 }
 
 void SplitNoteHandler::deactivate() {
     if (m_indicator)
         m_indicator->clearState();
+}
+
+void SplitNoteHandler::applySplitLineColor(const QColor &color) {
+    if (m_indicator)
+        m_indicator->setLineColor(color);
 }
 
 bool SplitNoteHandler::mousePressEvent(QMouseEvent *event) {

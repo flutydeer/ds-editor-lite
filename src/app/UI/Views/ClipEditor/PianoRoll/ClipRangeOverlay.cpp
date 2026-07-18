@@ -18,6 +18,17 @@ void ClipRangeOverlay::setClipRange(const int clipStart, const int clipLen) {
     update();
 }
 
+QColor ClipRangeOverlay::fillColor() const {
+    return m_fillColor;
+}
+
+void ClipRangeOverlay::setFillColor(const QColor &color) {
+    if (m_fillColor == color)
+        return;
+    m_fillColor = color;
+    update();
+}
+
 void ClipRangeOverlay::updateRectAndPos() {
     const auto pos = visibleRect().topLeft();
     setPos(pos);
@@ -28,18 +39,17 @@ void ClipRangeOverlay::updateRectAndPos() {
 void ClipRangeOverlay::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                              QWidget *widget) {
     painter->setPen(Qt::NoPen);
-    constexpr auto fillColor = QColor(0, 0, 0, 64);
     if (m_clipStart > startTick()) {
         constexpr auto topLeft = QPointF(0, 0);
         const auto bottomRight = QPointF(tickToItemX(m_clipStart), visibleRect().height());
         const auto rect = QRectF(topLeft, bottomRight);
-        painter->fillRect(rect, fillColor);
+        painter->fillRect(rect, m_fillColor);
     }
     const auto end = m_clipStart + m_clipLen;
     if (end < endTick()) {
         const auto topLeft = QPointF(tickToItemX(end), 0);
         const auto bottomRight = QPointF(visibleRect().width(), visibleRect().height());
         const auto rect = QRectF(topLeft, bottomRight);
-        painter->fillRect(rect, fillColor);
+        painter->fillRect(rect, m_fillColor);
     }
 }

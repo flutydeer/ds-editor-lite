@@ -4,6 +4,7 @@
 #include "PianoRollEditHandler.h"
 
 class NoteView;
+class QColor;
 class SplitLineIndicator;
 
 class SplitNoteHandler : public PianoRollEditHandler {
@@ -17,6 +18,8 @@ public:
     bool mouseMoveEvent(QMouseEvent *event) override;
     void hoverLeaveEvent(QHoverEvent *event) override;
     void hoverMoveEvent(QHoverEvent *event) override;
+
+    void applySplitLineColor(const QColor &color);
 
 private:
     void updateIndicator(NoteView *noteView, int tick);

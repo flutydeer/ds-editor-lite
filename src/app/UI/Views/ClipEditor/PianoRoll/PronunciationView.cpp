@@ -15,6 +15,16 @@ PronunciationView::PronunciationView(const int noteId, QGraphicsItem *parent)
 
 PronunciationView::~PronunciationView() = default;
 
+QColor PronunciationView::s_textColor = {200, 200, 200};
+
+QColor PronunciationView::textColor() {
+    return s_textColor;
+}
+
+void PronunciationView::setTextColor(const QColor &color) {
+    s_textColor = color;
+}
+
 void PronunciationView::setPronunciation(const QString &pronunciation, const bool edited) {
     m_pronunciation = pronunciation;
     m_pronunciationEdited = edited;
@@ -35,7 +45,7 @@ void PronunciationView::paint(QPainter *painter, const QStyleOptionGraphicsItem 
 
     QElapsedTimer timer;
     timer.start();
-    constexpr auto pronColorOriginal = QColor(200, 200, 200);
+    const auto pronColorOriginal = s_textColor;
     const auto pronColorEdited =
         AppColorPalette::instance()->phonemeEdited(NoteView::trackColorIndex());
     constexpr auto penWidth = 1.5f;

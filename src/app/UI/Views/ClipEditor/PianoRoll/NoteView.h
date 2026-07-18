@@ -11,6 +11,8 @@
 #include "Utils/Property.h"
 #include "Utils/UniqueObject.h"
 
+#include <QColor>
+
 class PronunciationView;
 
 class NoteView final : public AbstractGraphicsRectItem,
@@ -24,6 +26,9 @@ public:
 
     static int trackColorIndex();
     static void setTrackColorIndex(int index);
+    // NOTE: transitional; may move to AppColorPalette (per-index or contrast-derived)
+    static QColor selectedBorderColor();
+    static void setSelectedBorderColor(const QColor &color);
     [[nodiscard]] int rStart() const;
     void setRStart(int rStart);
     [[nodiscard]] int length() const;
@@ -74,6 +79,7 @@ private:
     int m_keyOffset = 0;
 
     static int s_trackColorIndex;
+    static QColor s_selectedBorderColor;
 };
 
 #endif // NOTEGRAPHICSITEM_H

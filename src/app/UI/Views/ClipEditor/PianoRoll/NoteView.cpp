@@ -20,6 +20,7 @@
 using namespace ClipEditorGlobal;
 
 int NoteView::s_trackColorIndex = 0;
+QColor NoteView::s_selectedBorderColor = {255, 255, 255};
 
 int NoteView::trackColorIndex() {
     return s_trackColorIndex;
@@ -27,6 +28,14 @@ int NoteView::trackColorIndex() {
 
 void NoteView::setTrackColorIndex(int index) {
     s_trackColorIndex = index;
+}
+
+QColor NoteView::selectedBorderColor() {
+    return s_selectedBorderColor;
+}
+
+void NoteView::setSelectedBorderColor(const QColor &color) {
+    s_selectedBorderColor = color;
 }
 
 NoteView::NoteView(const int itemId, QGraphicsItem *parent)
@@ -146,7 +155,7 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     const auto backgroundColorOverlapped = p.noteBackgroundOverlapped(ci);
 
     const auto borderColorNormal = p.noteBorder(ci);
-    constexpr auto borderColorSelected = QColor(255, 255, 255);
+    const auto borderColorSelected = s_selectedBorderColor;
     const auto borderColorOverlapped = p.noteBorderOverlapped(ci);
     const auto borderColorEditingPitch = p.noteBorderEditingPitch(ci);
 

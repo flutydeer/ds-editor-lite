@@ -148,6 +148,18 @@ PianoRollGraphicsView {
     qproperty-whiteKeyColor: #292C36;
     qproperty-blackKeyColor: #23262E;
     qproperty-octaveDividerColor: #1C2024;
+    qproperty-noteSelectedBorderColor: #FFFFFF;
+    qproperty-pronunciationTextColor: #C8C8C8;
+    qproperty-anchorColor: #DCDCDC;
+    qproperty-anchorSelectedColor: #9BBAFF;
+    qproperty-anchorCurveColor: #DCDCDC;
+    qproperty-anchorPreviewColor: #9BBAFF;
+    qproperty-clipRangeOverlayColor: rgba(0, 0, 0, 64);
+    qproperty-splitLineColor: #FF6464;
+    qproperty-paramGraduateColor: #484B4E;
+    qproperty-paramOriginalCurveColor: rgba(255, 255, 255, 96);
+    qproperty-paramEditedCurveColor: #FFFFFF;
+    qproperty-paramBackgroundLayerColor: #292C36;
 }
 
 PianoRollView>QLabel#lbNullClipTip {

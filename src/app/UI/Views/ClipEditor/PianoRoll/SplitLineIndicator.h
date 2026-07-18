@@ -3,6 +3,7 @@
 
 #include "UI/Utils/IScalableItem.h"
 
+#include <QColor>
 #include <QGraphicsPathItem>
 #include <QPointer>
 
@@ -16,6 +17,9 @@ public:
 
     void setPixelsPerQuarterNote(int px);
     UpdateResult updateIndicator(NoteView *noteView, int splitPos);
+
+    [[nodiscard]] QColor lineColor() const;
+    void setLineColor(const QColor &color);
 
     [[nodiscard]] NoteView *lastNoteView() const;
     [[nodiscard]] int lastTick() const;

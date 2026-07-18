@@ -635,6 +635,137 @@ void PianoRollGraphicsView::setOctaveDividerColor(const QColor &color) {
     d->m_gridItem->setOctaveDividerColor(color);
 }
 
+QColor PianoRollGraphicsView::noteSelectedBorderColor() const {
+    return NoteView::selectedBorderColor();
+}
+
+void PianoRollGraphicsView::setNoteSelectedBorderColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    if (NoteView::selectedBorderColor() == color)
+        return;
+    NoteView::setSelectedBorderColor(color);
+    for (const auto noteView : d->noteViews)
+        noteView->update();
+}
+
+QColor PianoRollGraphicsView::pronunciationTextColor() const {
+    return PronunciationView::textColor();
+}
+
+void PianoRollGraphicsView::setPronunciationTextColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    if (PronunciationView::textColor() == color)
+        return;
+    PronunciationView::setTextColor(color);
+    for (const auto noteView : d->noteViews)
+        if (const auto pronView = noteView->pronunciationView())
+            pronView->update();
+}
+
+QColor PianoRollGraphicsView::anchorColor() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->m_anchorEditor->anchorColor();
+}
+
+void PianoRollGraphicsView::setAnchorColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    d->m_anchorEditor->setAnchorColor(color);
+}
+
+QColor PianoRollGraphicsView::anchorSelectedColor() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->m_anchorEditor->anchorSelectedColor();
+}
+
+void PianoRollGraphicsView::setAnchorSelectedColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    d->m_anchorEditor->setAnchorSelectedColor(color);
+}
+
+QColor PianoRollGraphicsView::anchorCurveColor() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->m_anchorEditor->anchorCurveColor();
+}
+
+void PianoRollGraphicsView::setAnchorCurveColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    d->m_anchorEditor->setAnchorCurveColor(color);
+}
+
+QColor PianoRollGraphicsView::anchorPreviewColor() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->m_anchorEditor->anchorPreviewColor();
+}
+
+void PianoRollGraphicsView::setAnchorPreviewColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    d->m_anchorEditor->setAnchorPreviewColor(color);
+}
+
+QColor PianoRollGraphicsView::clipRangeOverlayColor() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->m_clipRangeOverlay->fillColor();
+}
+
+void PianoRollGraphicsView::setClipRangeOverlayColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    d->m_clipRangeOverlay->setFillColor(color);
+}
+
+QColor PianoRollGraphicsView::splitLineColor() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->m_splitLineColor;
+}
+
+void PianoRollGraphicsView::setSplitLineColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    if (d->m_splitLineColor == color)
+        return;
+    d->m_splitLineColor = color;
+    if (const auto handler = dynamic_cast<SplitNoteHandler *>(d->m_handlers.value(SplitNote)))
+        handler->applySplitLineColor(color);
+}
+
+QColor PianoRollGraphicsView::paramGraduateColor() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->m_pitchEditor->graduateColor();
+}
+
+void PianoRollGraphicsView::setParamGraduateColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    d->m_pitchEditor->setGraduateColor(color);
+}
+
+QColor PianoRollGraphicsView::paramOriginalCurveColor() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->m_pitchEditor->originalCurveColor();
+}
+
+void PianoRollGraphicsView::setParamOriginalCurveColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    d->m_pitchEditor->setOriginalCurveColor(color);
+}
+
+QColor PianoRollGraphicsView::paramEditedCurveColor() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->m_pitchEditor->editedCurveColor();
+}
+
+void PianoRollGraphicsView::setParamEditedCurveColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    d->m_pitchEditor->setEditedCurveColor(color);
+}
+
+QColor PianoRollGraphicsView::paramBackgroundLayerColor() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->m_pitchEditor->backgroundLayerColor();
+}
+
+void PianoRollGraphicsView::setParamBackgroundLayerColor(const QColor &color) {
+    Q_D(PianoRollGraphicsView);
+    d->m_pitchEditor->setBackgroundLayerColor(color);
+}
+
 void PianoRollGraphicsView::reset() {
     Q_D(PianoRollGraphicsView);
     for (const auto &noteView : d->noteViews) {

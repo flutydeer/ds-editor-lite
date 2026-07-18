@@ -58,6 +58,8 @@ public:
     quint64 m_pitchEditSessionId = 0;
     PitchAnchorEditorView *m_anchorEditor = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
+    // Applied to the lazily-created SplitLineIndicator on each tool activation
+    QColor m_splitLineColor = {255, 100, 100};
 
     PianoRollEditHandler *m_currentHandler = nullptr;
     QHash<PianoRollEditMode, PianoRollEditHandler *> m_handlers;

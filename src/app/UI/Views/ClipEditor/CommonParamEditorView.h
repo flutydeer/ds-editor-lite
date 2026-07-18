@@ -9,6 +9,8 @@
 #include "Model/AppModel/DrawCurve.h"
 #include "UI/Views/Common/TimeOverlayView.h"
 
+#include <QColor>
+
 class ParamProperties;
 
 class CommonParamEditorView : public TimeOverlayView, public IAtomicAction {
@@ -28,6 +30,15 @@ public:
     [[nodiscard]] const QList<DrawCurve *> &editedCurves() const;
     void discardAction() override;
     void commitAction() override;
+
+    [[nodiscard]] QColor graduateColor() const;
+    void setGraduateColor(const QColor &color);
+    [[nodiscard]] QColor originalCurveColor() const;
+    void setOriginalCurveColor(const QColor &color);
+    [[nodiscard]] QColor editedCurveColor() const;
+    void setEditedCurveColor(const QColor &color);
+    [[nodiscard]] QColor backgroundLayerColor() const;
+    void setBackgroundLayerColor(const QColor &color);
 
 signals:
     void editStarted();
@@ -74,6 +85,12 @@ private:
 
     const int paddingTopBottom = 2;
     const ParamProperties *m_properties;
+
+    // Base colors; per-layer alpha (foreground/background) is applied in paint()
+    QColor m_graduateColor = {72, 75, 78};
+    QColor m_originalCurveColor = {255, 255, 255, 96};
+    QColor m_editedCurveColor = {255, 255, 255};
+    QColor m_backgroundLayerColor = {41, 44, 54};
 };
 
 #endif // PITCHEDITORGRAPHICSITEM_H

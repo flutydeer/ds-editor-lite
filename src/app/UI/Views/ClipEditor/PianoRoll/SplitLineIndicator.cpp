@@ -20,6 +20,18 @@ void SplitLineIndicator::setPixelsPerQuarterNote(int px) {
     m_pixelsPerQuarterNote = px;
 }
 
+QColor SplitLineIndicator::lineColor() const {
+    return pen().color();
+}
+
+void SplitLineIndicator::setLineColor(const QColor &color) {
+    auto p = pen();
+    if (p.color() == color)
+        return;
+    p.setColor(color);
+    setPen(p);
+}
+
 SplitLineIndicator::UpdateResult SplitLineIndicator::updateIndicator(NoteView *noteView,
                                                                       int splitPos) {
     if (!noteView) {

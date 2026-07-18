@@ -8,6 +8,8 @@
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
 #include "Utils/UniqueObject.h"
 
+#include <QColor>
+
 class PronunciationView final : public AbstractGraphicsRectItem, public UniqueObject {
     Q_OBJECT
 
@@ -16,6 +18,9 @@ public:
     ~PronunciationView() override;
 
     const int textHeight = 20;
+
+    static QColor textColor();
+    static void setTextColor(const QColor &color);
 
     void setEditingPronunciation(bool editing);
     [[nodiscard]] bool isEditingPronunciation() const;
@@ -35,6 +40,8 @@ private:
     QSizeF m_size;
 
     bool m_editingPronunciation = false;
+
+    static QColor s_textColor;
 };
 
 

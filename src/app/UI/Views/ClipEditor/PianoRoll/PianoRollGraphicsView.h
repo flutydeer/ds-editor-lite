@@ -28,6 +28,24 @@ class PianoRollGraphicsView final : public TimeGraphicsView, public IAtomicActio
     Q_PROPERTY(QColor whiteKeyColor READ whiteKeyColor WRITE setWhiteKeyColor)
     Q_PROPERTY(QColor blackKeyColor READ blackKeyColor WRITE setBlackKeyColor)
     Q_PROPERTY(QColor octaveDividerColor READ octaveDividerColor WRITE setOctaveDividerColor)
+    Q_PROPERTY(QColor noteSelectedBorderColor READ noteSelectedBorderColor WRITE
+                   setNoteSelectedBorderColor)
+    Q_PROPERTY(QColor pronunciationTextColor READ pronunciationTextColor WRITE
+                   setPronunciationTextColor)
+    Q_PROPERTY(QColor anchorColor READ anchorColor WRITE setAnchorColor)
+    Q_PROPERTY(QColor anchorSelectedColor READ anchorSelectedColor WRITE setAnchorSelectedColor)
+    Q_PROPERTY(QColor anchorCurveColor READ anchorCurveColor WRITE setAnchorCurveColor)
+    Q_PROPERTY(QColor anchorPreviewColor READ anchorPreviewColor WRITE setAnchorPreviewColor)
+    Q_PROPERTY(
+        QColor clipRangeOverlayColor READ clipRangeOverlayColor WRITE setClipRangeOverlayColor)
+    Q_PROPERTY(QColor splitLineColor READ splitLineColor WRITE setSplitLineColor)
+    Q_PROPERTY(QColor paramGraduateColor READ paramGraduateColor WRITE setParamGraduateColor)
+    Q_PROPERTY(QColor paramOriginalCurveColor READ paramOriginalCurveColor WRITE
+                   setParamOriginalCurveColor)
+    Q_PROPERTY(
+        QColor paramEditedCurveColor READ paramEditedCurveColor WRITE setParamEditedCurveColor)
+    Q_PROPERTY(QColor paramBackgroundLayerColor READ paramBackgroundLayerColor WRITE
+                   setParamBackgroundLayerColor)
 
 public:
     explicit PianoRollGraphicsView(PianoRollGraphicsScene *scene, const QWidget *parent = nullptr);
@@ -90,6 +108,30 @@ private:
     void setBlackKeyColor(const QColor &color);
     QColor octaveDividerColor() const;
     void setOctaveDividerColor(const QColor &color);
+    QColor noteSelectedBorderColor() const;
+    void setNoteSelectedBorderColor(const QColor &color);
+    QColor pronunciationTextColor() const;
+    void setPronunciationTextColor(const QColor &color);
+    QColor anchorColor() const;
+    void setAnchorColor(const QColor &color);
+    QColor anchorSelectedColor() const;
+    void setAnchorSelectedColor(const QColor &color);
+    QColor anchorCurveColor() const;
+    void setAnchorCurveColor(const QColor &color);
+    QColor anchorPreviewColor() const;
+    void setAnchorPreviewColor(const QColor &color);
+    QColor clipRangeOverlayColor() const;
+    void setClipRangeOverlayColor(const QColor &color);
+    QColor splitLineColor() const;
+    void setSplitLineColor(const QColor &color);
+    QColor paramGraduateColor() const;
+    void setParamGraduateColor(const QColor &color);
+    QColor paramOriginalCurveColor() const;
+    void setParamOriginalCurveColor(const QColor &color);
+    QColor paramEditedCurveColor() const;
+    void setParamEditedCurveColor(const QColor &color);
+    QColor paramBackgroundLayerColor() const;
+    void setParamBackgroundLayerColor(const QColor &color);
 
     Q_DECLARE_PRIVATE(PianoRollGraphicsView)
     PianoRollGraphicsViewPrivate *d_ptr;
