@@ -136,5 +136,7 @@ TrackEditorView>OverlaySplitter#trackSplitter::handle:horizontal {
 /* TracksGraphicsView */
 TracksGraphicsView {
     /* background: #2A2B2C */
-    background: #292C36
+    background: #292C36;
+    qproperty-selectedTrackColor: #31353F;
+    qproperty-clipSelectedBorderColor: #FFFFFF;
 }

@@ -15,6 +15,9 @@ class TracksGraphicsScene;
 
 class TracksGraphicsView final : public TimeGraphicsView, public IAtomicAction {
     Q_OBJECT
+    Q_PROPERTY(QColor selectedTrackColor READ selectedTrackColor WRITE setSelectedTrackColor)
+    Q_PROPERTY(QColor clipSelectedBorderColor READ clipSelectedBorderColor WRITE
+                   setClipSelectedBorderColor)
 
 public:
     explicit TracksGraphicsView(TracksGraphicsScene *scene, const QWidget *parent = nullptr);
@@ -54,12 +57,19 @@ private:
     [[nodiscard]] int snapStep(bool snapOff) const;
     [[nodiscard]] QList<AbstractClipView *> selectedClipItems() const;
 
+    [[nodiscard]] QColor selectedTrackColor() const;
+    void setSelectedTrackColor(const QColor &color);
+    [[nodiscard]] QColor clipSelectedBorderColor() const;
+    void setClipSelectedBorderColor(const QColor &color);
+
     TracksGraphicsScene *m_scene;
     QAction *m_actionNewSingingClip;
     QAction *m_actionAddAudioClip;
     int m_trackIndex = -1;
     int m_tick = 0;
     TrackEditorBackgroundView *m_snapGrid = nullptr;
+    // Applied to the snap grid when it is attached via setSnapGrid
+    QColor m_selectedTrackColor = {0x31, 0x35, 0x3F};
 
     MouseMoveBehavior m_mouseMoveBehavior = None;
     QPointF m_mouseDownPos;

@@ -17,6 +17,17 @@
 
 using namespace TracksEditorGlobal;
 
+// NOTE: transitional; may move to AppColorPalette (per-index or contrast-derived)
+QColor AbstractClipView::s_selectedBorderColor = {255, 255, 255};
+
+QColor AbstractClipView::selectedBorderColor() {
+    return s_selectedBorderColor;
+}
+
+void AbstractClipView::setSelectedBorderColor(const QColor &color) {
+    s_selectedBorderColor = color;
+}
+
 AbstractClipView::AbstractClipView(const int itemId, QGraphicsItem *parent)
     : AbstractGraphicsRectItem(parent), IClip(itemId), d_ptr(new AbstractClipViewPrivate(this)) {
     setAcceptHoverEvents(true);
@@ -239,7 +250,7 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 
     QColor borderColor;
     if (isSelected()) {
-        borderColor = {255, 255, 255};
+        borderColor = s_selectedBorderColor;
     } else if (activeClip()) {
         borderColor = colorPrimary;
     }

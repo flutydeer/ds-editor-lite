@@ -7,8 +7,14 @@
 
 #include "UI/Views/Common/TimeGridView.h"
 
+#include <QColor>
+
 class TrackEditorBackgroundView final : public TimeGridView {
     Q_OBJECT
+
+public:
+    [[nodiscard]] QColor selectedTrackColor() const;
+    void setSelectedTrackColor(const QColor &color);
 
 public slots:
     void onTrackCountChanged(int count);
@@ -19,6 +25,7 @@ private:
 
     int m_trackCount = 0;
     int m_trackIndex = -1;
+    QColor m_selectedTrackColor = {0x31, 0x35, 0x3F};
 };
 
 #endif // TRACKEDITORBACKGROUNDVIEW_H

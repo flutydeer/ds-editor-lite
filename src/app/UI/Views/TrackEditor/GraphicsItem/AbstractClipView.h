@@ -20,6 +20,9 @@ public:
     explicit AbstractClipView(int itemId, QGraphicsItem *parent = nullptr);
     ~AbstractClipView() override;
 
+    static QColor selectedBorderColor();
+    static void setSelectedBorderColor(const QColor &color);
+
     [[nodiscard]] QString name() const override;
     void setName(const QString &text) override;
 
@@ -68,6 +71,8 @@ protected:
 private:
     Q_DECLARE_PRIVATE(AbstractClipView)
     AbstractClipViewPrivate *d_ptr;
+
+    static QColor s_selectedBorderColor;
 };
 
 

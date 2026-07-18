@@ -20,6 +20,17 @@ void TrackEditorBackgroundView::onTrackSelectionChanged(const int trackIndex) {
     update();
 }
 
+QColor TrackEditorBackgroundView::selectedTrackColor() const {
+    return m_selectedTrackColor;
+}
+
+void TrackEditorBackgroundView::setSelectedTrackColor(const QColor &color) {
+    if (m_selectedTrackColor == color)
+        return;
+    m_selectedTrackColor = color;
+    update();
+}
+
 void TrackEditorBackgroundView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                       QWidget *widget) {
     auto sceneYToTrackIndex = [&](const double y) { return y / scaleY() / trackHeight; };
@@ -31,10 +42,9 @@ void TrackEditorBackgroundView::paint(QPainter *painter, const QStyleOptionGraph
     // Draw background
 
     // Draw selected track background
-    constexpr auto selectionBackgroundColor = QColor(0x31, 0x35, 0x3F);
     if (m_trackIndex >= 0 && m_trackIndex < m_trackCount) {
         painter->setPen(Qt::NoPen);
-        painter->setBrush(selectionBackgroundColor);
+        painter->setBrush(m_selectedTrackColor);
         const auto y = sceneYToItemY(trackIndexToSceneY(m_trackIndex));
         const auto rect = QRectF(0, y, visibleRect().width(), trackHeight * scaleY());
         painter->drawRect(rect);

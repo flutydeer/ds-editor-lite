@@ -81,6 +81,33 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, const QWidget
 
 void TracksGraphicsView::setSnapGrid(TrackEditorBackgroundView *grid) {
     m_snapGrid = grid;
+    if (m_snapGrid)
+        m_snapGrid->setSelectedTrackColor(m_selectedTrackColor);
+}
+
+QColor TracksGraphicsView::selectedTrackColor() const {
+    return m_selectedTrackColor;
+}
+
+void TracksGraphicsView::setSelectedTrackColor(const QColor &color) {
+    if (m_selectedTrackColor == color)
+        return;
+    m_selectedTrackColor = color;
+    if (m_snapGrid)
+        m_snapGrid->setSelectedTrackColor(color);
+}
+
+QColor TracksGraphicsView::clipSelectedBorderColor() const {
+    return AbstractClipView::selectedBorderColor();
+}
+
+void TracksGraphicsView::setClipSelectedBorderColor(const QColor &color) {
+    if (AbstractClipView::selectedBorderColor() == color)
+        return;
+    AbstractClipView::setSelectedBorderColor(color);
+    for (const auto item : m_scene->items())
+        if (const auto clip = dynamic_cast<AbstractClipView *>(item))
+            clip->update();
 }
 
 int TracksGraphicsView::snapStep(const bool snapOff) const {
