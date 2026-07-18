@@ -80,7 +80,7 @@ void SpeakerMixBar::paintEvent(QPaintEvent *event) {
     const QRect trackRect(m_margin, trackTop, width() - 2 * m_margin, m_trackHeight);
 
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor("#2A2E38"));
+    painter.setBrush(m_trackColor);
     painter.drawRoundedRect(trackRect, 4, 4);
 
     const QVector<int> displayValues = roundedValues();
@@ -116,7 +116,7 @@ void SpeakerMixBar::paintEvent(QPaintEvent *event) {
             nameRect.setTop(nameRect.top() + 4);
             nameRect.setBottom(nameRect.top() + 15);
 
-            painter.setPen(QColor("#111318"));
+            painter.setPen(m_segmentTextColor);
             QFont nameFont = painter.font();
             nameFont.setPointSizeF(9.0);
             painter.setFont(nameFont);
@@ -127,7 +127,7 @@ void SpeakerMixBar::paintEvent(QPaintEvent *event) {
             QRect valueRect = segmentRect;
             valueRect.setTop(valueRect.top() + 20);
 
-            painter.setPen(QColor("#111318"));
+            painter.setPen(m_segmentTextColor);
             QFont valueFont = painter.font();
             valueFont.setPointSizeF(8.5);
             painter.setFont(valueFont);
@@ -140,11 +140,55 @@ void SpeakerMixBar::paintEvent(QPaintEvent *event) {
 
     for (int i = 1; i < m_dividers.size() - 1; ++i) {
         const int lineX = valueToPixel(m_dividers[i]);
-        const QColor lineColor = i == m_draggingIndex ? QColor("#FFFFFF") : QColor("#21242B");
+        const QColor lineColor = i == m_draggingIndex ? m_dividerDraggingColor : m_dividerColor;
 
         painter.setPen(QPen(lineColor, 4));
         painter.drawLine(lineX, trackTop, lineX, trackTop + m_trackHeight);
     }
+}
+
+QColor SpeakerMixBar::trackColor() const {
+    return m_trackColor;
+}
+
+void SpeakerMixBar::setTrackColor(const QColor &color) {
+    if (m_trackColor == color)
+        return;
+    m_trackColor = color;
+    update();
+}
+
+QColor SpeakerMixBar::segmentTextColor() const {
+    return m_segmentTextColor;
+}
+
+void SpeakerMixBar::setSegmentTextColor(const QColor &color) {
+    if (m_segmentTextColor == color)
+        return;
+    m_segmentTextColor = color;
+    update();
+}
+
+QColor SpeakerMixBar::dividerColor() const {
+    return m_dividerColor;
+}
+
+void SpeakerMixBar::setDividerColor(const QColor &color) {
+    if (m_dividerColor == color)
+        return;
+    m_dividerColor = color;
+    update();
+}
+
+QColor SpeakerMixBar::dividerDraggingColor() const {
+    return m_dividerDraggingColor;
+}
+
+void SpeakerMixBar::setDividerDraggingColor(const QColor &color) {
+    if (m_dividerDraggingColor == color)
+        return;
+    m_dividerDraggingColor = color;
+    update();
 }
 
 QRect SpeakerMixBar::getHandleRect(const int dividerIndex) const {

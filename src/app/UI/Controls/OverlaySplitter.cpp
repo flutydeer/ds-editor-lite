@@ -103,7 +103,8 @@ void SplitterOverlayGrip::paintEvent(QPaintEvent *event) {
         return;
 
     QPainter p(this);
-    auto color = QColor(255, 255, 255, qRound(80 * m_highlightOpacity));
+    auto color = m_highlightColor;
+    color.setAlpha(qRound(color.alpha() * m_highlightOpacity));
     if (m_splitter->orientation() == Qt::Horizontal) {
         int cx = (width() - 2) / 2;
         p.fillRect(cx, 0, 2, height(), color);
@@ -111,6 +112,17 @@ void SplitterOverlayGrip::paintEvent(QPaintEvent *event) {
         int cy = (height() - 2) / 2;
         p.fillRect(0, cy, width(), 2, color);
     }
+}
+
+QColor SplitterOverlayGrip::highlightColor() const {
+    return m_highlightColor;
+}
+
+void SplitterOverlayGrip::setHighlightColor(const QColor &color) {
+    if (m_highlightColor == color)
+        return;
+    m_highlightColor = color;
+    update();
 }
 
 void SplitterOverlayGrip::enterEvent(QEnterEvent *event) {

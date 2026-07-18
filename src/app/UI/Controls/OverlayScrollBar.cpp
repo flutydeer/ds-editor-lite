@@ -82,7 +82,8 @@ void OverlayScrollBar::paintEvent(QPaintEvent *event) {
             (availableLength - handleLength) * (value() - minimum()) / (maximum() - minimum());
 
     qreal baseOpacity = 0.25 + 0.10 * m_opacity;
-    auto color = QColor(255, 255, 255, qRound(255 * baseOpacity));
+    auto color = m_handleColor;
+    color.setAlpha(qRound(color.alpha() * baseOpacity));
     p.setBrush(color);
     p.setPen(Qt::NoPen);
     qreal radius = m_hovered ? 3.0 : 2.0;
@@ -125,6 +126,17 @@ void OverlayScrollBar::setHighlightVisible(bool visible) {
         m_animation->setDuration(300);
     }
     m_animation->start();
+}
+
+QColor OverlayScrollBar::handleColor() const {
+    return m_handleColor;
+}
+
+void OverlayScrollBar::setHandleColor(const QColor &color) {
+    if (m_handleColor == color)
+        return;
+    m_handleColor = color;
+    update();
 }
 
 void OverlayScrollBar::updatePosition() {

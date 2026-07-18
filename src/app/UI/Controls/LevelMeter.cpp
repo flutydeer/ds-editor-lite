@@ -107,7 +107,7 @@ void LevelMeter::paintEvent(QPaintEvent *event) {
         const auto textHeight = painter.fontMetrics().height();
         const auto textRect =
             QRectF(rect().left(), mouseY - textHeight, rect().width(), textHeight);
-        painter.setBrush(QColor(33, 36, 43, 192));
+        painter.setBrush(m_colorValueBack);
         painter.setPen(Qt::NoPen);
         painter.drawRect(textRect);
 
@@ -360,5 +360,23 @@ QColor LevelMeter::currentValueColor() const {
 
 void LevelMeter::setCurrentValueColor(const QColor &color) {
     m_colorCurrentValue = color;
+    update();
+}
+
+QColor LevelMeter::peakHoldColor() const {
+    return m_colorPeakHold;
+}
+
+void LevelMeter::setPeakHoldColor(const QColor &color) {
+    m_colorPeakHold = color;
+    update();
+}
+
+QColor LevelMeter::valueBackColor() const {
+    return m_colorValueBack;
+}
+
+void LevelMeter::setValueBackColor(const QColor &color) {
+    m_colorValueBack = color;
     update();
 }

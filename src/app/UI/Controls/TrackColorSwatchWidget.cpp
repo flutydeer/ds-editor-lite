@@ -54,17 +54,39 @@ void TrackColorSwatchWidget::paintEvent(QPaintEvent *event) {
         if (i == m_currentIndex) {
             auto borderRect = rect.adjusted(-1, -1, 1, 1);
             painter.setBrush(Qt::NoBrush);
-            painter.setPen(QPen(Qt::white, 1.5));
+            painter.setPen(QPen(m_selectedBorderColor, 1.5));
             painter.drawRoundedRect(borderRect, 5, 5);
         }
 
         if (i == m_hoveredIndex && i != m_currentIndex) {
             auto borderRect = rect.adjusted(-1, -1, 1, 1);
             painter.setBrush(Qt::NoBrush);
-            painter.setPen(QPen(QColor(255, 255, 255, 128), 1.5));
+            painter.setPen(QPen(m_hoverBorderColor, 1.5));
             painter.drawRoundedRect(borderRect, 5, 5);
         }
     }
+}
+
+QColor TrackColorSwatchWidget::selectedBorderColor() const {
+    return m_selectedBorderColor;
+}
+
+void TrackColorSwatchWidget::setSelectedBorderColor(const QColor &color) {
+    if (m_selectedBorderColor == color)
+        return;
+    m_selectedBorderColor = color;
+    update();
+}
+
+QColor TrackColorSwatchWidget::hoverBorderColor() const {
+    return m_hoverBorderColor;
+}
+
+void TrackColorSwatchWidget::setHoverBorderColor(const QColor &color) {
+    if (m_hoverBorderColor == color)
+        return;
+    m_hoverBorderColor = color;
+    update();
 }
 
 void TrackColorSwatchWidget::mousePressEvent(QMouseEvent *event) {

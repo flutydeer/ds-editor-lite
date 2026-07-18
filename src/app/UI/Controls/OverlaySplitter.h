@@ -40,6 +40,7 @@ private:
 // sizes while respecting child widget min/max constraints.
 class SplitterOverlayGrip : public QWidget {
     Q_OBJECT
+    Q_PROPERTY(QColor highlightColor READ highlightColor WRITE setHighlightColor)
 
 public:
     explicit SplitterOverlayGrip(OverlaySplitter *splitter, QWidget *parent);
@@ -54,9 +55,13 @@ protected:
 
 private:
     void setHighlightVisible(bool visible);
+    [[nodiscard]] QColor highlightColor() const;
+    void setHighlightColor(const QColor &color);
 
     OverlaySplitter *m_splitter;
     QVariantAnimation *m_animation = nullptr;
+    // Base highlight color; opacity is animated on top of its alpha
+    QColor m_highlightColor = QColor(255, 255, 255, 80);
     qreal m_highlightOpacity = 0.0;
     bool m_hovered = false;
     bool m_dragging = false;

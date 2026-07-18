@@ -35,3 +35,11 @@ ToolTip QFrame#toolTipContainer {
     border-radius: 6px;
     font-size: 10pt;
 }
+
+ToastWidget {
+    qproperty-shadowColor: rgba(0, 0, 0, 32);
+}
+
+ToolTip {
+    qproperty-shadowColor: rgba(0, 0, 0, 32);
+}

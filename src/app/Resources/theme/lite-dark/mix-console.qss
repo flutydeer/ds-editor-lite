@@ -105,3 +105,13 @@ MixConsoleView QListWidget#channelListView::item {
 MixConsoleView QListWidget#channelListView::item:selected {
     background: #1AFFFFFF;
 }
+
+/* Fader / PanSlider base colors (track RGB is injected per-channel from AppColorPalette) */
+Fader {
+    qproperty-trackInactiveColor: rgb(22, 22, 22);
+    qproperty-thumbFillColor: rgb(211, 214, 224);
+}
+
+PanSlider {
+    qproperty-centerGraduateColor: rgb(22, 22, 22);
+}

@@ -29,6 +29,20 @@ class ProgressIndicator : public QWidget, public IAnimatable {
     Q_PROPERTY(double apparentCurrentTaskValue READ apparentCurrentTaskValue WRITE
                    setApparentCurrentTaskValue)
     Q_PROPERTY(bool indeterminate READ indeterminate WRITE setIndeterminate)
+    Q_PROPERTY(QColor inactiveColor READ inactiveColor WRITE setInactiveColor)
+    Q_PROPERTY(QColor normalTotalColor READ normalTotalColor WRITE setNormalTotalColor)
+    Q_PROPERTY(QColor normalSecondaryColor READ normalSecondaryColor WRITE setNormalSecondaryColor)
+    Q_PROPERTY(QColor normalCurrentTaskColor READ normalCurrentTaskColor WRITE
+                   setNormalCurrentTaskColor)
+    Q_PROPERTY(QColor warningTotalColor READ warningTotalColor WRITE setWarningTotalColor)
+    Q_PROPERTY(
+        QColor warningSecondaryColor READ warningSecondaryColor WRITE setWarningSecondaryColor)
+    Q_PROPERTY(QColor warningCurrentTaskColor READ warningCurrentTaskColor WRITE
+                   setWarningCurrentTaskColor)
+    Q_PROPERTY(QColor errorTotalColor READ errorTotalColor WRITE setErrorTotalColor)
+    Q_PROPERTY(QColor errorSecondaryColor READ errorSecondaryColor WRITE setErrorSecondaryColor)
+    Q_PROPERTY(
+        QColor errorCurrentTaskColor READ errorCurrentTaskColor WRITE setErrorCurrentTaskColor)
 
 public:
     enum IndicatorStyle {
@@ -89,6 +103,32 @@ protected:
                                       QColor(255, 171, 173), QColor(255, 171, 221)};
 
     ColorPalette m_colorPalette;
+
+    // Theme color accessors (QSS-overridable via qproperty-*); the inactive
+    // color is shared across the three palettes
+    [[nodiscard]] QColor inactiveColor() const;
+    void setInactiveColor(const QColor &color);
+    [[nodiscard]] QColor normalTotalColor() const;
+    void setNormalTotalColor(const QColor &color);
+    [[nodiscard]] QColor normalSecondaryColor() const;
+    void setNormalSecondaryColor(const QColor &color);
+    [[nodiscard]] QColor normalCurrentTaskColor() const;
+    void setNormalCurrentTaskColor(const QColor &color);
+    [[nodiscard]] QColor warningTotalColor() const;
+    void setWarningTotalColor(const QColor &color);
+    [[nodiscard]] QColor warningSecondaryColor() const;
+    void setWarningSecondaryColor(const QColor &color);
+    [[nodiscard]] QColor warningCurrentTaskColor() const;
+    void setWarningCurrentTaskColor(const QColor &color);
+    [[nodiscard]] QColor errorTotalColor() const;
+    void setErrorTotalColor(const QColor &color);
+    [[nodiscard]] QColor errorSecondaryColor() const;
+    void setErrorSecondaryColor(const QColor &color);
+    [[nodiscard]] QColor errorCurrentTaskColor() const;
+    void setErrorCurrentTaskColor(const QColor &color);
+
+    // Re-resolve m_colorPalette from the palette matching m_taskStatus
+    void applyColorPalette();
 
     IndicatorStyle m_indicatorStyle = HorizontalBar;
     TaskGlobal::Status m_taskStatus = TaskGlobal::Normal;

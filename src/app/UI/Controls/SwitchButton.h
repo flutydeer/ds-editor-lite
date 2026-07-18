@@ -13,6 +13,10 @@
 class SwitchButton : public QAbstractButton, public IAnimatable {
     Q_OBJECT
     Q_PROPERTY(bool value READ value WRITE setValue NOTIFY valueChanged)
+    Q_PROPERTY(QColor trackOffColor READ trackOffColor WRITE setTrackOffColor)
+    Q_PROPERTY(QColor trackOnColor READ trackOnColor WRITE setTrackOnColor)
+    Q_PROPERTY(QColor thumbOffColor READ thumbOffColor WRITE setThumbOffColor)
+    Q_PROPERTY(QColor thumbOnColor READ thumbOnColor WRITE setThumbOnColor)
 
     // TODO: use QVariantAnimation
     Q_PROPERTY(double apparentValue READ apparentValue WRITE setApparentValue)
@@ -45,6 +49,20 @@ private:
     QPropertyAnimation m_thumbHoverAnimation;
 
     void initUi();
+
+    // Theme colors (QSS-overridable via qproperty-*)
+    QColor m_trackOffColor = QColor(255, 255, 255, 16);
+    [[nodiscard]] QColor trackOffColor() const;
+    void setTrackOffColor(const QColor &color);
+    QColor m_trackOnColor = QColor(155, 186, 255);
+    [[nodiscard]] QColor trackOnColor() const;
+    void setTrackOnColor(const QColor &color);
+    QColor m_thumbOffColor = QColor(255, 255, 255);
+    [[nodiscard]] QColor thumbOffColor() const;
+    void setThumbOffColor(const QColor &color);
+    QColor m_thumbOnColor = QColor(0, 0, 0);
+    [[nodiscard]] QColor thumbOnColor() const;
+    void setThumbOnColor(const QColor &color);
 
     // Animation
     int m_apparentValue = 0;

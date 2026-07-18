@@ -22,6 +22,8 @@ class LevelMeter : public QWidget {
     Q_PROPERTY(QColor warnColor READ warnColor WRITE setWarnColor)
     Q_PROPERTY(QColor criticalColor READ criticalColor WRITE setCriticalColor)
     Q_PROPERTY(QColor currentValueColor READ currentValueColor WRITE setCurrentValueColor)
+    Q_PROPERTY(QColor peakHoldColor READ peakHoldColor WRITE setPeakHoldColor)
+    Q_PROPERTY(QColor valueBackColor READ valueBackColor WRITE setValueBackColor)
 
 public:
     enum class MeterStyle { Segmented, Gradient };
@@ -73,6 +75,10 @@ private:
     void setCriticalColor(const QColor &color);
     QColor currentValueColor() const;
     void setCurrentValueColor(const QColor &color);
+    QColor peakHoldColor() const;
+    void setPeakHoldColor(const QColor &color);
+    QColor valueBackColor() const;
+    void setValueBackColor(const QColor &color);
 
     double m_padding = 8;
     double m_spacing = 1;
@@ -85,6 +91,7 @@ private:
     QColor m_colorCritical = {255, 224, 155};
     QColor m_colorCurrentValue = {211, 214, 224};
     QColor m_colorPeakHold = {211, 214, 224};
+    QColor m_colorValueBack = {33, 36, 43, 192};
     double m_peakHoldWidth = 1.2;
 
     MeterStyle m_style = MeterStyle::Gradient;

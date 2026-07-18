@@ -41,11 +41,11 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     container->setContentsMargins(8, 4, 8, 4);
     container->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 
-    const auto shadowEffect = new QGraphicsDropShadowEffect(this);
-    shadowEffect->setBlurRadius(24);
-    shadowEffect->setColor(QColor(0, 0, 0, 32));
-    shadowEffect->setOffset(0, 4);
-    container->setGraphicsEffect(shadowEffect);
+    m_shadowEffect = new QGraphicsDropShadowEffect(this);
+    m_shadowEffect->setBlurRadius(24);
+    m_shadowEffect->setColor(QColor(0, 0, 0, 32));
+    m_shadowEffect->setOffset(0, 4);
+    container->setGraphicsEffect(m_shadowEffect);
 
     const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(container);
@@ -70,6 +70,14 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
 
 ToolTip::~ToolTip() {
     delete m_opacityAnimation;
+}
+
+QColor ToolTip::shadowColor() const {
+    return m_shadowEffect->color();
+}
+
+void ToolTip::setShadowColor(const QColor &color) {
+    m_shadowEffect->setColor(color);
 }
 
 QString ToolTip::title() const {

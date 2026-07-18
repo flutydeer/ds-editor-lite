@@ -320,10 +320,15 @@ TaskGlobal::Status ProgressIndicator::taskStatus() const {
 
 void ProgressIndicator::setTaskStatus(const TaskGlobal::Status status) {
     m_taskStatus = status;
+    applyColorPalette();
+    update();
+}
+
+void ProgressIndicator::applyColorPalette() {
     switch (m_taskStatus) {
         case TaskGlobal::Normal:
             m_colorPalette = colorPaletteNormal;
-            return;
+            break;
         case TaskGlobal::Warning:
             m_colorPalette = colorPaletteWarning;
             break;
@@ -331,6 +336,128 @@ void ProgressIndicator::setTaskStatus(const TaskGlobal::Status status) {
             m_colorPalette = colorPaletteError;
             break;
     }
+}
+
+QColor ProgressIndicator::inactiveColor() const {
+    return colorPaletteNormal.inactive;
+}
+
+void ProgressIndicator::setInactiveColor(const QColor &color) {
+    if (colorPaletteNormal.inactive == color)
+        return;
+    // The inactive color is shared across all three palettes
+    colorPaletteNormal.inactive = color;
+    colorPaletteWarning.inactive = color;
+    colorPaletteError.inactive = color;
+    applyColorPalette();
+    update();
+}
+
+QColor ProgressIndicator::normalTotalColor() const {
+    return colorPaletteNormal.total;
+}
+
+void ProgressIndicator::setNormalTotalColor(const QColor &color) {
+    if (colorPaletteNormal.total == color)
+        return;
+    colorPaletteNormal.total = color;
+    applyColorPalette();
+    update();
+}
+
+QColor ProgressIndicator::normalSecondaryColor() const {
+    return colorPaletteNormal.secondary;
+}
+
+void ProgressIndicator::setNormalSecondaryColor(const QColor &color) {
+    if (colorPaletteNormal.secondary == color)
+        return;
+    colorPaletteNormal.secondary = color;
+    applyColorPalette();
+    update();
+}
+
+QColor ProgressIndicator::normalCurrentTaskColor() const {
+    return colorPaletteNormal.currentTask;
+}
+
+void ProgressIndicator::setNormalCurrentTaskColor(const QColor &color) {
+    if (colorPaletteNormal.currentTask == color)
+        return;
+    colorPaletteNormal.currentTask = color;
+    applyColorPalette();
+    update();
+}
+
+QColor ProgressIndicator::warningTotalColor() const {
+    return colorPaletteWarning.total;
+}
+
+void ProgressIndicator::setWarningTotalColor(const QColor &color) {
+    if (colorPaletteWarning.total == color)
+        return;
+    colorPaletteWarning.total = color;
+    applyColorPalette();
+    update();
+}
+
+QColor ProgressIndicator::warningSecondaryColor() const {
+    return colorPaletteWarning.secondary;
+}
+
+void ProgressIndicator::setWarningSecondaryColor(const QColor &color) {
+    if (colorPaletteWarning.secondary == color)
+        return;
+    colorPaletteWarning.secondary = color;
+    applyColorPalette();
+    update();
+}
+
+QColor ProgressIndicator::warningCurrentTaskColor() const {
+    return colorPaletteWarning.currentTask;
+}
+
+void ProgressIndicator::setWarningCurrentTaskColor(const QColor &color) {
+    if (colorPaletteWarning.currentTask == color)
+        return;
+    colorPaletteWarning.currentTask = color;
+    applyColorPalette();
+    update();
+}
+
+QColor ProgressIndicator::errorTotalColor() const {
+    return colorPaletteError.total;
+}
+
+void ProgressIndicator::setErrorTotalColor(const QColor &color) {
+    if (colorPaletteError.total == color)
+        return;
+    colorPaletteError.total = color;
+    applyColorPalette();
+    update();
+}
+
+QColor ProgressIndicator::errorSecondaryColor() const {
+    return colorPaletteError.secondary;
+}
+
+void ProgressIndicator::setErrorSecondaryColor(const QColor &color) {
+    if (colorPaletteError.secondary == color)
+        return;
+    colorPaletteError.secondary = color;
+    applyColorPalette();
+    update();
+}
+
+QColor ProgressIndicator::errorCurrentTaskColor() const {
+    return colorPaletteError.currentTask;
+}
+
+void ProgressIndicator::setErrorCurrentTaskColor(const QColor &color) {
+    if (colorPaletteError.currentTask == color)
+        return;
+    colorPaletteError.currentTask = color;
+    applyColorPalette();
     update();
 }
 

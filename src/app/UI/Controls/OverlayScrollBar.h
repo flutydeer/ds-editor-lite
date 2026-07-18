@@ -8,6 +8,7 @@ class QVariantAnimation;
 
 class OverlayScrollBar : public QScrollBar {
     Q_OBJECT
+    Q_PROPERTY(QColor handleColor READ handleColor WRITE setHandleColor)
 
 public:
     explicit OverlayScrollBar(Qt::Orientation orientation, QWidget *parent = nullptr);
@@ -26,9 +27,13 @@ protected:
 
 private:
     void setHighlightVisible(bool visible);
+    [[nodiscard]] QColor handleColor() const;
+    void setHandleColor(const QColor &color);
 
     QAbstractScrollArea *m_scrollArea = nullptr;
     QVariantAnimation *m_animation = nullptr;
+    // Base handle color; opacity is animated on top in paintEvent
+    QColor m_handleColor = QColor(255, 255, 255);
     qreal m_opacity = 0.0;
     bool m_hovered = false;
 };

@@ -71,7 +71,10 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
 
     // Draw inactive background
     pen.setWidthF(rect().height() - m_vPadding * 2);
-    pen.setColor(QColor(255, 255, 255, m_apparentValue == 255 ? 0 : 16));
+    auto trackOff = m_trackOffColor;
+    if (m_apparentValue == 255)
+        trackOff.setAlpha(0);
+    pen.setColor(trackOff);
     pen.setCapStyle(Qt::RoundCap);
     painter.setPen(pen);
     painter.drawLine(m_trackStart, m_trackEnd);
@@ -82,7 +85,9 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
         alpha = 255;
     if (alpha < 0)
         alpha = 0;
-    pen.setColor(QColor(155, 186, 255, alpha));
+    auto trackOn = m_trackOnColor;
+    trackOn.setAlpha(alpha * trackOn.alpha() / 255);
+    pen.setColor(trackOn);
     painter.setPen(pen);
     painter.drawLine(m_trackStart, m_trackEnd);
 
@@ -92,12 +97,16 @@ void SwitchButton::paintEvent(QPaintEvent *event) {
     const auto thumbRadius = m_thumbRadius * m_thumbScaleRatio / 100.0;
 
     painter.setPen(Qt::NoPen);
-    auto b = 255 - m_apparentValue;
-    if (b > 255)
-        b = 255;
-    if (b < 0)
-        b = 0;
-    painter.setBrush(QColor(b, b, b));
+    auto t = m_apparentValue;
+    if (t > 255)
+        t = 255;
+    if (t < 0)
+        t = 0;
+    // Interpolate thumb color between off and on states
+    const auto lerp = [t](const int from, const int to) { return from + (to - from) * t / 255; };
+    painter.setBrush(QColor(lerp(m_thumbOffColor.red(), m_thumbOnColor.red()),
+                            lerp(m_thumbOffColor.green(), m_thumbOnColor.green()),
+                            lerp(m_thumbOffColor.blue(), m_thumbOnColor.blue())));
     painter.drawEllipse(handlePos, thumbRadius, thumbRadius);
 }
 
@@ -117,6 +126,50 @@ int SwitchButton::thumbScaleRatio() const {
 void SwitchButton::setThumbScaleRatio(const int ratio) {
     m_thumbScaleRatio = ratio;
     repaint();
+}
+
+QColor SwitchButton::trackOffColor() const {
+    return m_trackOffColor;
+}
+
+void SwitchButton::setTrackOffColor(const QColor &color) {
+    if (m_trackOffColor == color)
+        return;
+    m_trackOffColor = color;
+    update();
+}
+
+QColor SwitchButton::trackOnColor() const {
+    return m_trackOnColor;
+}
+
+void SwitchButton::setTrackOnColor(const QColor &color) {
+    if (m_trackOnColor == color)
+        return;
+    m_trackOnColor = color;
+    update();
+}
+
+QColor SwitchButton::thumbOffColor() const {
+    return m_thumbOffColor;
+}
+
+void SwitchButton::setThumbOffColor(const QColor &color) {
+    if (m_thumbOffColor == color)
+        return;
+    m_thumbOffColor = color;
+    update();
+}
+
+QColor SwitchButton::thumbOnColor() const {
+    return m_thumbOnColor;
+}
+
+void SwitchButton::setThumbOnColor(const QColor &color) {
+    if (m_thumbOnColor == color)
+        return;
+    m_thumbOnColor = color;
+    update();
 }
 
 void SwitchButton::updateAnimationDuration() {

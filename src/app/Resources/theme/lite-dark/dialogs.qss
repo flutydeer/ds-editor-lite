@@ -73,3 +73,10 @@ QLabel#lbSpeakerPosition {
     border-radius: 3px;
     padding: 0 8px;
 }
+
+SpeakerMixBar {
+    qproperty-trackColor: #2A2E38;
+    qproperty-segmentTextColor: #111318;
+    qproperty-dividerColor: #21242B;
+    qproperty-dividerDraggingColor: #FFFFFF;
+}

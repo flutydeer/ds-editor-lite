@@ -10,9 +10,11 @@
 class QLabel;
 class QVBoxLayout;
 class QPropertyAnimation;
+class QGraphicsDropShadowEffect;
 
 class ToolTip : public QFrame {
     Q_OBJECT
+    Q_PROPERTY(QColor shadowColor READ shadowColor WRITE setShadowColor)
 
 public:
     explicit ToolTip(const QString &title = "", QWidget *parent = nullptr);
@@ -47,10 +49,13 @@ protected:
     QVBoxLayout *m_messageLayout;
 
     QPropertyAnimation *m_opacityAnimation;
+    QGraphicsDropShadowEffect *m_shadowEffect;
     bool m_animationEnabled = true;
 
     void updateMessage();
     [[nodiscard]] QPoint clampToScreen(const QPoint &screenPos) const;
+    [[nodiscard]] QColor shadowColor() const;
+    void setShadowColor(const QColor &color);
 };
 
 #endif // DATASET_TOOLS_TOOLTIP_H

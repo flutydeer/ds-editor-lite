@@ -31,11 +31,11 @@ ToastWidget::ToastWidget(const QString &text, QWidget *parent) : QWidget(parent)
     container->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     container->setMinimumWidth(0);
 
-    const auto shadowEffect = new QGraphicsDropShadowEffect(this);
-    shadowEffect->setBlurRadius(36);
-    shadowEffect->setColor(QColor(0, 0, 0, 32));
-    shadowEffect->setOffset(0, 8);
-    container->setGraphicsEffect(shadowEffect);
+    m_shadowEffect = new QGraphicsDropShadowEffect(this);
+    m_shadowEffect->setBlurRadius(36);
+    m_shadowEffect->setColor(QColor(0, 0, 0, 32));
+    m_shadowEffect->setOffset(0, 8);
+    container->setGraphicsEffect(m_shadowEffect);
 
     const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(container);
@@ -46,6 +46,14 @@ ToastWidget::ToastWidget(const QString &text, QWidget *parent) : QWidget(parent)
     setAttribute(Qt::WA_TranslucentBackground);
     setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     setWindowOpacity(0);
+}
+
+QColor ToastWidget::shadowColor() const {
+    return m_shadowEffect->color();
+}
+
+void ToastWidget::setShadowColor(const QColor &color) {
+    m_shadowEffect->setColor(color);
 }
 
 void Toast::show(const QString &message) {

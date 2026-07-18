@@ -15,16 +15,22 @@
 
 class QVBoxLayout;
 class QLabel;
+class QGraphicsDropShadowEffect;
 
 class ToastWidget : public QWidget {
     Q_OBJECT
+    Q_PROPERTY(QColor shadowColor READ shadowColor WRITE setShadowColor)
 
 public:
     explicit ToastWidget(const QString &text, QWidget *parent = nullptr);
 
 private:
+    [[nodiscard]] QColor shadowColor() const;
+    void setShadowColor(const QColor &color);
+
     QLabel *m_lbMessage;
     QVBoxLayout *m_cardLayout;
+    QGraphicsDropShadowEffect *m_shadowEffect;
 };
 
 class Toast : public QObject, public IAnimatable {
