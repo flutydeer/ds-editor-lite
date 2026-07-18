@@ -1245,6 +1245,11 @@ TimeGraphicsView {
     qproperty-barLineColor: #08090A;
     qproperty-beatLineColor: #16191C;
     qproperty-commonLineColor: #1C2024;
+    qproperty-playPosIndicatorColor: #C8C8C8;
+    qproperty-lastPlayPosIndicatorColor: #A0A0A0;
+    qproperty-scrollBarHandleColor: #FFFFFF;
+    qproperty-rubberBandBorderColor: rgba(155, 186, 255, 200);
+    qproperty-rubberBandFillColor: rgba(155, 186, 255, 64);
 }
 
 /* LevelMeter */

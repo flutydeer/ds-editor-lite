@@ -28,6 +28,14 @@ class TimeGraphicsView : public QGraphicsView, public IScalable, public IAnimata
     Q_PROPERTY(QColor barLineColor READ barLineColor WRITE setBarLineColor)
     Q_PROPERTY(QColor beatLineColor READ beatLineColor WRITE setBeatLineColor)
     Q_PROPERTY(QColor commonLineColor READ commonLineColor WRITE setCommonLineColor)
+    Q_PROPERTY(
+        QColor playPosIndicatorColor READ playPosIndicatorColor WRITE setPlayPosIndicatorColor)
+    Q_PROPERTY(QColor lastPlayPosIndicatorColor READ lastPlayPosIndicatorColor WRITE
+                   setLastPlayPosIndicatorColor)
+    Q_PROPERTY(QColor scrollBarHandleColor READ scrollBarHandleColor WRITE setScrollBarHandleColor)
+    Q_PROPERTY(QColor rubberBandBorderColor READ rubberBandBorderColor WRITE
+                   setRubberBandBorderColor)
+    Q_PROPERTY(QColor rubberBandFillColor READ rubberBandFillColor WRITE setRubberBandFillColor)
 
 public:
     enum class DragBehavior { None, HandScroll, RectSelect, IntervalSelect };
@@ -121,6 +129,16 @@ protected:
     void setBeatLineColor(const QColor &color);
     QColor commonLineColor() const;
     void setCommonLineColor(const QColor &color);
+    QColor playPosIndicatorColor() const;
+    void setPlayPosIndicatorColor(const QColor &color);
+    QColor lastPlayPosIndicatorColor() const;
+    void setLastPlayPosIndicatorColor(const QColor &color);
+    QColor scrollBarHandleColor() const;
+    void setScrollBarHandleColor(const QColor &color);
+    QColor rubberBandBorderColor() const;
+    void setRubberBandBorderColor(const QColor &color);
+    QColor rubberBandFillColor() const;
+    void setRubberBandFillColor(const QColor &color);
 
 private:
     enum class ItemType { HorizontalBar, VerticalBar, Content };
@@ -197,6 +215,11 @@ private:
     QColor m_barLineColor = {8, 9, 10};
     QColor m_beatLineColor = {22, 25, 28};
     QColor m_commonLineColor = {28, 32, 36};
+    QColor m_playPosIndicatorColor = {200, 200, 200};
+    QColor m_lastPlayPosIndicatorColor = {160, 160, 160};
+    QColor m_scrollBarHandleColor = {255, 255, 255};
+    QColor m_rubberBandBorderColor = {155, 186, 255, 200};
+    QColor m_rubberBandFillColor = {155, 186, 255, 64};
 };
 
 

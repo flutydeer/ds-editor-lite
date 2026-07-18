@@ -14,6 +14,10 @@ public:
     void mouseDown(const QPointF &pos);
     void mouseMove(const QPointF &pos);
     void setSelectMode(SelectMode mode);
+    [[nodiscard]] QColor borderColor() const;
+    void setBorderColor(const QColor &color);
+    [[nodiscard]] QColor fillColor() const;
+    void setFillColor(const QColor &color);
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -24,6 +28,8 @@ private:
     QPointF m_pos;
     QSizeF m_size;
     SelectMode m_selectMode = SelectMode::BeamSelect;
+    QColor m_borderColor = {155, 186, 255, 200};
+    QColor m_fillColor = {155, 186, 255, 64};
 };
 
 

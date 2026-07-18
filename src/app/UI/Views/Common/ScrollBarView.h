@@ -25,6 +25,8 @@ public:
     void moveToHoverState();
     void moveToPressedState();
     [[nodiscard]] bool mouseOnHandle(const QPointF &scenePos) const;
+    [[nodiscard]] QColor handleColor() const;
+    void setHandleColor(const QColor &color);
 
 protected:
     void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
@@ -43,6 +45,8 @@ private:
     void performStateChangeAnimation(int targetAlpha, double targetPadding, int duration);
 
     Qt::Orientation m_orientation = Qt::Horizontal;
+    // Base handle color; interaction alpha (normal/hover/pressed) is animated on top
+    QColor m_handleColor = {255, 255, 255};
     static constexpr int kWidth = 14;
     static constexpr int kHandleAlphaHover = 64;
     static constexpr int kHandleAlphaPressed = 96;

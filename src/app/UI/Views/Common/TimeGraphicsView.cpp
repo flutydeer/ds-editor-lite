@@ -81,7 +81,7 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     m_scenePlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
     QPen curPlayPosPen;
     curPlayPosPen.setWidth(1);
-    curPlayPosPen.setColor(QColor(200, 200, 200));
+    curPlayPosPen.setColor(m_playPosIndicatorColor);
     m_scenePlayPosIndicator->setPen(curPlayPosPen);
     m_scene->addTimeIndicator(m_scenePlayPosIndicator);
 
@@ -89,7 +89,7 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     m_sceneLastPlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
     QPen lastPlayPosPen;
     lastPlayPosPen.setWidth(1);
-    lastPlayPosPen.setColor(QColor(160, 160, 160));
+    lastPlayPosPen.setColor(m_lastPlayPosIndicatorColor);
     lastPlayPosPen.setStyle(Qt::DashLine);
     m_sceneLastPlayPosIndicator->setPen(lastPlayPosPen);
     if (showLastPlaybackPosition)
@@ -880,4 +880,72 @@ void TimeGraphicsView::setCommonLineColor(const QColor &color) {
     m_commonLineColor = color;
     if (m_gridItem)
         m_gridItem->setCommonLineColor(m_commonLineColor);
+}
+
+QColor TimeGraphicsView::playPosIndicatorColor() const {
+    return m_playPosIndicatorColor;
+}
+
+void TimeGraphicsView::setPlayPosIndicatorColor(const QColor &color) {
+    if (m_playPosIndicatorColor == color)
+        return;
+    m_playPosIndicatorColor = color;
+    if (m_scenePlayPosIndicator) {
+        auto pen = m_scenePlayPosIndicator->pen();
+        pen.setColor(color);
+        m_scenePlayPosIndicator->setPen(pen);
+        m_scenePlayPosIndicator->update();
+    }
+}
+
+QColor TimeGraphicsView::lastPlayPosIndicatorColor() const {
+    return m_lastPlayPosIndicatorColor;
+}
+
+void TimeGraphicsView::setLastPlayPosIndicatorColor(const QColor &color) {
+    if (m_lastPlayPosIndicatorColor == color)
+        return;
+    m_lastPlayPosIndicatorColor = color;
+    if (m_sceneLastPlayPosIndicator) {
+        auto pen = m_sceneLastPlayPosIndicator->pen();
+        pen.setColor(color);
+        m_sceneLastPlayPosIndicator->setPen(pen);
+        m_sceneLastPlayPosIndicator->update();
+    }
+}
+
+QColor TimeGraphicsView::scrollBarHandleColor() const {
+    return m_scrollBarHandleColor;
+}
+
+void TimeGraphicsView::setScrollBarHandleColor(const QColor &color) {
+    if (m_scrollBarHandleColor == color)
+        return;
+    m_scrollBarHandleColor = color;
+    if (m_scene) {
+        m_scene->horizontalBar()->setHandleColor(color);
+        m_scene->verticalBar()->setHandleColor(color);
+    }
+}
+
+QColor TimeGraphicsView::rubberBandBorderColor() const {
+    return m_rubberBandBorderColor;
+}
+
+void TimeGraphicsView::setRubberBandBorderColor(const QColor &color) {
+    if (m_rubberBandBorderColor == color)
+        return;
+    m_rubberBandBorderColor = color;
+    m_rubberBand.setBorderColor(color);
+}
+
+QColor TimeGraphicsView::rubberBandFillColor() const {
+    return m_rubberBandFillColor;
+}
+
+void TimeGraphicsView::setRubberBandFillColor(const QColor &color) {
+    if (m_rubberBandFillColor == color)
+        return;
+    m_rubberBandFillColor = color;
+    m_rubberBand.setFillColor(color);
 }

@@ -35,11 +35,33 @@ void RubberBandView::setSelectMode(SelectMode mode) {
     m_selectMode = mode;
 }
 
+QColor RubberBandView::borderColor() const {
+    return m_borderColor;
+}
+
+void RubberBandView::setBorderColor(const QColor &color) {
+    if (m_borderColor == color)
+        return;
+    m_borderColor = color;
+    update();
+}
+
+QColor RubberBandView::fillColor() const {
+    return m_fillColor;
+}
+
+void RubberBandView::setFillColor(const QColor &color) {
+    if (m_fillColor == color)
+        return;
+    m_fillColor = color;
+    update();
+}
+
 void RubberBandView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                    QWidget *widget) {
     painter->setRenderHint(QPainter::Antialiasing);
-    const auto borderColor = QColor(155, 186, 255, 200);
-    const auto backgroundColor = QColor(155, 186, 255, 64);
+    const auto borderColor = m_borderColor;
+    const auto backgroundColor = m_fillColor;
     const auto penWidth = 1.5f;
     const auto radiusBase = 6;
     const auto radiusX =

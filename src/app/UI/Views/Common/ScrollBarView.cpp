@@ -77,6 +77,17 @@ void ScrollBarView::afterSetAnimationLevel(AnimationGlobal::AnimationLevels leve
 void ScrollBarView::afterSetTimeScale(double scale) {
 }
 
+QColor ScrollBarView::handleColor() const {
+    return m_handleColor;
+}
+
+void ScrollBarView::setHandleColor(const QColor &color) {
+    if (m_handleColor == color)
+        return;
+    m_handleColor = color;
+    update();
+}
+
 void ScrollBarView::setHandleAlpha(const QVariant &value) {
     m_handleAlpha = value.toInt();
     update();
@@ -91,7 +102,8 @@ void ScrollBarView::paint(QPainter *painter, const QStyleOptionGraphicsItem *opt
                                   QWidget *widget) {
 
     painter->setRenderHint(QPainter::Antialiasing);
-    const auto backgroundColor = QColor(255, 255, 255, m_handleAlpha);
+    auto backgroundColor = m_handleColor;
+    backgroundColor.setAlpha(m_handleAlpha);
     const auto radiusBase = 2;
     auto padding = m_handlePadding;
 
