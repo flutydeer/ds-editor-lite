@@ -5,12 +5,29 @@
 #include <QWheelEvent>
 #include <QStyledItemDelegate>
 #include <QAbstractItemView>
+#include <QContextMenuEvent>
+#include <QLineEdit>
 #include <QPainter>
 #include <QStyleOptionComboBox>
 
+#include <array>
+
 #include "ComboBox.h"
+#include "UI/Controls/Menu.h"
 #include "UI/Utils/IconUtils.h"
 #include "Utils/SystemUtils.h"
+
+namespace {
+    constexpr std::array<const char *, 7> kStandardActionIcons = {
+        ":/svg/icons/arrow_undo_16_regular.svg",
+        ":/svg/icons/arrow_redo_16_regular.svg",
+        ":/svg/icons/cut_16_regular.svg",
+        ":/svg/icons/copy_16_regular.svg",
+        ":/svg/icons/clipboard_paste_16_regular.svg",
+        ":/svg/icons/delete_16_regular.svg",
+        ":/svg/icons/select_all_on_16_regular.svg",
+    };
+}
 
 ComboBox::ComboBox(QWidget *parent) : CComboBox(parent) {
     initUi();
@@ -55,6 +72,42 @@ void ComboBox::wheelEvent(QWheelEvent *event) {
         CComboBox::wheelEvent(event);
     else
         event->ignore();
+}
+
+Menu *ComboBox::createContextMenu(QWidget *parent) {
+    if (!lineEdit())
+        return nullptr;
+
+    const auto standardMenu = lineEdit()->createStandardContextMenu();
+    if (!standardMenu)
+        return nullptr;
+
+    auto *menu = new Menu(parent ? parent : this);
+    qsizetype actionIndex = 0;
+    for (const auto action : standardMenu->actions()) {
+        action->setParent(menu);
+        if (!action->isSeparator() && actionIndex < kStandardActionIcons.size()) {
+            action->setIcon(
+                IconUtils::menuIcon(QString::fromLatin1(kStandardActionIcons.at(actionIndex))));
+            ++actionIndex;
+        }
+        menu->addAction(action);
+    }
+    delete standardMenu;
+    return menu;
+}
+
+void ComboBox::contextMenuEvent(QContextMenuEvent *event) {
+    // The embedded line edit of an editable combo box has Qt::NoContextMenu policy,
+    // so its context menu events always arrive here; show the app-styled menu instead
+    // of letting QComboBox forward the event to the native line edit menu
+    if (const auto menu = createContextMenu(this)) {
+        menu->setAttribute(Qt::WA_DeleteOnClose);
+        menu->popup(event->globalPos());
+        event->accept();
+        return;
+    }
+    CComboBox::contextMenuEvent(event);
 }
 
 void ComboBox::initUi() {
