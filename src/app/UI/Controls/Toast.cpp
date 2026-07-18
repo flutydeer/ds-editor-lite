@@ -116,7 +116,9 @@ void Toast::showNextToast() {
         return;
 
     m_isShowingToast = true;
-    m_toastWidget = new ToastWidget(m_queue.dequeue());
+    // Parent to the global context (main window) so the toast inherits the
+    // theme stylesheet cascade; window flags keep it a top-level window
+    m_toastWidget = new ToastWidget(m_queue.dequeue(), m_globalContext);
     m_toastWidget->show();
 
     m_opacityAnimation.setTargetObject(m_toastWidget);

@@ -102,8 +102,10 @@ MainWindow::MainWindow() {
     QString styleSheet;
     QStringList qssFileList = {
         ":theme/lite-dark/base.qss",        ":theme/lite-dark/controls.qss",
-        ":theme/lite-dark/title-bar.qss",   ":theme/lite-dark/track-editor.qss",
-        ":theme/lite-dark/clip-editor.qss",
+        ":theme/lite-dark/popups.qss",      ":theme/lite-dark/title-bar.qss",
+        ":theme/lite-dark/track-editor.qss", ":theme/lite-dark/clip-editor.qss",
+        ":theme/lite-dark/mix-console.qss", ":theme/lite-dark/windows.qss",
+        ":theme/lite-dark/dialogs.qss",
     };
 
     for (const auto &file : qssFileList) {

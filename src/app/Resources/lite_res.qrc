@@ -153,9 +153,13 @@
         <file>theme/lite-dark/app-color-palette.json</file>
         <file>theme/lite-dark/base.qss</file>
         <file>theme/lite-dark/controls.qss</file>
+        <file>theme/lite-dark/popups.qss</file>
         <file>theme/lite-dark/title-bar.qss</file>
         <file>theme/lite-dark/track-editor.qss</file>
         <file>theme/lite-dark/clip-editor.qss</file>
+        <file>theme/lite-dark/mix-console.qss</file>
+        <file>theme/lite-dark/windows.qss</file>
+        <file>theme/lite-dark/dialogs.qss</file>
 
         <file>theme/lyricwarpview-dark.qss</file>
 
