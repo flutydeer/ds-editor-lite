@@ -242,3 +242,17 @@ TempoPopupWidget TapTempoButton#btnTapTempo[stable="true"] {
     font-size: 18px;
     font-weight: bold;
 }
+
+MainMenuView {
+    qproperty-iconColor: #E0E0E0;
+    qproperty-iconDisabledColor: #909090;
+}
+
+FilePopupWidget {
+    qproperty-iconColor: #C8C9CC;
+}
+
+PlaybackView {
+    qproperty-playAccentColor: #9BBAFF;
+    qproperty-pauseAccentColor: #FFCD9B;
+}

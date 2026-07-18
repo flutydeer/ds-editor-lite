@@ -23,6 +23,11 @@ class WaveformPainter;
 
 class PhonemeView final : public QWidget {
     Q_OBJECT
+    Q_PROPERTY(QColor hintTextColor READ hintTextColor WRITE setHintTextColor)
+    Q_PROPERTY(QColor textColor READ textColor WRITE setTextColor)
+    Q_PROPERTY(QColor positionLineColor READ positionLineColor WRITE setPositionLineColor)
+    Q_PROPERTY(QColor noteBoundaryColor READ noteBoundaryColor WRITE setNoteBoundaryColor)
+    Q_PROPERTY(QColor waveformColor READ waveformColor WRITE setWaveformColor)
 
 public:
     explicit PhonemeView(QWidget *parent = nullptr);
@@ -98,6 +103,26 @@ private:
     double xToTick(double x) const;
     [[nodiscard]] double ticksPerPixel() const;
     [[nodiscard]] bool canEdit() const;
+
+    // Theme color accessors (QSS-overridable via qproperty-*)
+    [[nodiscard]] QColor hintTextColor() const;
+    void setHintTextColor(const QColor &color);
+    [[nodiscard]] QColor textColor() const;
+    void setTextColor(const QColor &color);
+    [[nodiscard]] QColor positionLineColor() const;
+    void setPositionLineColor(const QColor &color);
+    [[nodiscard]] QColor noteBoundaryColor() const;
+    void setNoteBoundaryColor(const QColor &color);
+    [[nodiscard]] QColor waveformColor() const;
+    void setWaveformColor(const QColor &color);
+
+    // Theme colors; edited-state text color comes from AppColorPalette
+    QColor m_hintTextColor = {255, 255, 255, 80};
+    QColor m_textColor = {180, 180, 180};
+    QColor m_positionLineColor = {200, 200, 200};
+    QColor m_noteBoundaryColor = {49, 53, 63};
+    QColor m_waveformColor = {49, 53, 63};
+
     double m_startTick = 0;
     double m_endTick = 0;
     double m_resizeToleranceInTick = 0;

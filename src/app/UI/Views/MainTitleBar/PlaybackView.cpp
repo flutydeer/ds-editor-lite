@@ -28,14 +28,6 @@
 #include <cmath>
 
 namespace {
-    QColor playAccentColor() {
-        return QColor(155, 186, 255, 255);
-    }
-
-    QColor pauseAccentColor() {
-        return QColor(255, 205, 155, 255);
-    }
-
     QIcon buildActionIcon(const QString &svgPath, const QSize &iconSize) {
         return IconUtils::createTintedSvgIcon(svgPath, iconSize,
                                               MainTitleBarIconPalette::actionPalette());
@@ -364,4 +356,38 @@ void PlaybackView::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
         m_btnLoop->setToolTip(tr("Loop"));
+}
+
+QColor PlaybackView::playAccentColor() const {
+    return m_playAccentColor;
+}
+
+void PlaybackView::setPlayAccentColor(const QColor &color) {
+    if (m_playAccentColor == color)
+        return;
+    m_playAccentColor = color;
+    rebuildIcons();
+}
+
+QColor PlaybackView::pauseAccentColor() const {
+    return m_pauseAccentColor;
+}
+
+void PlaybackView::setPauseAccentColor(const QColor &color) {
+    if (m_pauseAccentColor == color)
+        return;
+    m_pauseAccentColor = color;
+    rebuildIcons();
+}
+
+void PlaybackView::rebuildIcons() {
+    if (m_btnPlay)
+        m_btnPlay->setIcon(
+            buildToggleIcon(":svg/icons/play_16_regular.svg", m_iconSize, m_playAccentColor));
+    if (m_btnLoop)
+        m_btnLoop->setIcon(buildToggleIcon(":svg/icons/arrow_repeat_all_16_regular.svg", m_iconSize,
+                                           m_playAccentColor));
+    if (m_btnPause)
+        m_btnPause->setIcon(
+            buildToggleIcon(":svg/icons/pause_16_regular.svg", m_iconSize, m_pauseAccentColor));
 }

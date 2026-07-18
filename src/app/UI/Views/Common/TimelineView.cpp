@@ -131,7 +131,7 @@ void TimelineView::paintEvent(QPaintEvent *event) {
 
     // Draw playback indicator
     auto penWidth = 2.0;
-    auto color = QColor(200, 200, 200);
+    auto color = m_playheadColor;
     QPen pen;
     pen.setWidthF(penWidth);
     pen.setColor(color);
@@ -153,12 +153,12 @@ void TimelineView::paintEvent(QPaintEvent *event) {
 void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
     auto x = tickToX(tick);
-    pen.setColor(QColor(200, 200, 200));
+    pen.setColor(m_barScaleColor);
     painter->setPen(pen);
     auto text = bar > 0 ? QString::number(bar) : QString::number(bar - 1);
 
     auto font = FontManager::instance().musicUIFont(13);
-    auto color = QColor(200, 200, 200);
+    auto color = m_barScaleColor;
     auto devicePixelRatio = painter->device()->devicePixelRatio();
     auto key = TextPixmapCache::Key{
         .text = text, .font = font, .color = color, .devicePixelRatio = devicePixelRatio};
@@ -179,7 +179,7 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     const QRectF textRect(x + m_textPaddingLeft, m_loopRegionHeight, pixmap.width(),
                           pixmap.height());
     painter->drawPixmap(textRect.topLeft(), pixmap);
-    pen.setColor(QColor(92, 96, 100));
+    pen.setColor(m_barTickColor);
     painter->setPen(pen);
     auto y1 = rect().height() - 24;
     auto y2 = rect().height();
@@ -189,12 +189,12 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
 void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     QPen pen;
     auto x = tickToX(tick);
-    pen.setColor(QColor(160, 160, 160));
+    pen.setColor(m_beatScaleColor);
     painter->setPen(pen);
     if (beat > 0) {
         const auto text = QString::number(beat);
         auto font = FontManager::instance().musicUIFont(13);
-        auto color = QColor(160, 160, 160);
+        auto color = m_beatScaleColor;
         auto devicePixelRatio = painter->device()->devicePixelRatio();
         auto key = TextPixmapCache::Key{
             .text = text, .font = font, .color = color, .devicePixelRatio = devicePixelRatio};
@@ -217,7 +217,7 @@ void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
         painter->drawPixmap(textRect.topLeft(), pixmap);
     }
 
-    pen.setColor(QColor(72, 75, 78));
+    pen.setColor(m_beatTickColor);
     painter->setPen(pen);
     auto y1 = rect().height() - 16;
     auto y2 = rect().height();
@@ -228,7 +228,7 @@ void TimelineView::drawSubdivision(QPainter *painter, int tick, int level, int l
     const double ratio = levelCount > 1 ? static_cast<double>(level) / (levelCount - 1) : 0.0;
     QPen pen;
     auto x = tickToX(tick);
-    pen.setColor(blendColor(QColor(76, 79, 83), QColor(57, 59, 61), ratio));
+    pen.setColor(blendColor(m_subdivisionFromColor, m_subdivisionToColor, ratio));
     painter->setPen(pen);
     constexpr int strongestLineHeight = 12;
     constexpr int weakestLineHeight = 6;
@@ -447,7 +447,7 @@ void TimelineView::drawLoopBackground(QPainter *painter) const {
     const double endX = tickToX(loopSettings.end());
 
     // Draw semi-transparent background for the entire loop region
-    QColor bgColor(155, 186, 255);
+    QColor bgColor = m_loopMarkerColor;
     bgColor.setAlpha(32); // Semi-transparent
     painter->setPen(Qt::NoPen);
     painter->setBrush(bgColor);
@@ -466,7 +466,7 @@ void TimelineView::drawLoopMarkers(QPainter *painter) const {
     const double lineHeight = 4;
 
     // Loop region color - gray when disabled, blue when enabled
-    const QColor loopColor = loopSettings.enabled ? QColor(155, 186, 255) : QColor(57, 59, 61);
+    const QColor loopColor = loopSettings.enabled ? m_loopMarkerColor : m_loopMarkerDisabledColor;
 
     painter->setPen(Qt::NoPen);
     painter->setBrush(loopColor);
@@ -541,4 +541,147 @@ void TimelineView::updateCursor(const QPoint &pos) {
             setCursor(Qt::ArrowCursor);
             break;
     }
+}
+
+QColor TimelineView::playheadColor() const {
+    return m_playheadColor;
+}
+
+void TimelineView::setPlayheadColor(const QColor &color) {
+    if (m_playheadColor == color)
+        return;
+    m_playheadColor = color;
+    update();
+}
+
+QColor TimelineView::barScaleColor() const {
+    return m_barScaleColor;
+}
+
+void TimelineView::setBarScaleColor(const QColor &color) {
+    if (m_barScaleColor == color)
+        return;
+    m_barScaleColor = color;
+    update();
+}
+
+QColor TimelineView::barTickColor() const {
+    return m_barTickColor;
+}
+
+void TimelineView::setBarTickColor(const QColor &color) {
+    if (m_barTickColor == color)
+        return;
+    m_barTickColor = color;
+    update();
+}
+
+QColor TimelineView::beatScaleColor() const {
+    return m_beatScaleColor;
+}
+
+void TimelineView::setBeatScaleColor(const QColor &color) {
+    if (m_beatScaleColor == color)
+        return;
+    m_beatScaleColor = color;
+    update();
+}
+
+QColor TimelineView::beatTickColor() const {
+    return m_beatTickColor;
+}
+
+void TimelineView::setBeatTickColor(const QColor &color) {
+    if (m_beatTickColor == color)
+        return;
+    m_beatTickColor = color;
+    update();
+}
+
+QColor TimelineView::subdivisionFromColor() const {
+    return m_subdivisionFromColor;
+}
+
+void TimelineView::setSubdivisionFromColor(const QColor &color) {
+    if (m_subdivisionFromColor == color)
+        return;
+    m_subdivisionFromColor = color;
+    update();
+}
+
+QColor TimelineView::subdivisionToColor() const {
+    return m_subdivisionToColor;
+}
+
+void TimelineView::setSubdivisionToColor(const QColor &color) {
+    if (m_subdivisionToColor == color)
+        return;
+    m_subdivisionToColor = color;
+    update();
+}
+
+QColor TimelineView::loopMarkerColor() const {
+    return m_loopMarkerColor;
+}
+
+void TimelineView::setLoopMarkerColor(const QColor &color) {
+    if (m_loopMarkerColor == color)
+        return;
+    m_loopMarkerColor = color;
+    update();
+}
+
+QColor TimelineView::loopMarkerDisabledColor() const {
+    return m_loopMarkerDisabledColor;
+}
+
+void TimelineView::setLoopMarkerDisabledColor(const QColor &color) {
+    if (m_loopMarkerDisabledColor == color)
+        return;
+    m_loopMarkerDisabledColor = color;
+    update();
+}
+
+QColor TimelineView::piecePendingColor() const {
+    return m_piecesColors[0];
+}
+
+void TimelineView::setPiecePendingColor(const QColor &color) {
+    if (m_piecesColors[0] == color)
+        return;
+    m_piecesColors[0] = color;
+    update();
+}
+
+QColor TimelineView::pieceRunningColor() const {
+    return m_piecesColors[1];
+}
+
+void TimelineView::setPieceRunningColor(const QColor &color) {
+    if (m_piecesColors[1] == color)
+        return;
+    m_piecesColors[1] = color;
+    update();
+}
+
+QColor TimelineView::pieceSuccessColor() const {
+    return m_piecesColors[2];
+}
+
+void TimelineView::setPieceSuccessColor(const QColor &color) {
+    if (m_piecesColors[2] == color)
+        return;
+    m_piecesColors[2] = color;
+    update();
+}
+
+QColor TimelineView::pieceFailedColor() const {
+    return m_piecesColors[3];
+}
+
+void TimelineView::setPieceFailedColor(const QColor &color) {
+    if (m_piecesColors[3] == color)
+        return;
+    m_piecesColors[3] = color;
+    update();
 }

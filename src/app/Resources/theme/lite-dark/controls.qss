@@ -1351,3 +1351,28 @@ LevelMeter {
     qproperty-peakHoldColor: rgb(211, 214, 224);
     qproperty-valueBackColor: rgba(33, 36, 43, 192);
 }
+
+/* TimelineView */
+TimelineView {
+    qproperty-playheadColor: rgb(200, 200, 200);
+    qproperty-barScaleColor: rgb(200, 200, 200);
+    qproperty-barTickColor: rgb(92, 96, 100);
+    qproperty-beatScaleColor: rgb(160, 160, 160);
+    qproperty-beatTickColor: rgb(72, 75, 78);
+    qproperty-subdivisionFromColor: rgb(76, 79, 83);
+    qproperty-subdivisionToColor: rgb(57, 59, 61);
+    qproperty-loopMarkerColor: #9BBAFF;
+    qproperty-loopMarkerDisabledColor: rgb(57, 59, 61);
+    qproperty-piecePendingColor: rgb(100, 100, 100);
+    qproperty-pieceRunningColor: rgb(255, 204, 153);
+    qproperty-pieceSuccessColor: rgb(155, 255, 162);
+    qproperty-pieceFailedColor: rgb(255, 155, 157);
+}
+
+/* TabPanelTitleBar icon colors */
+TabPanelTitleBar {
+    qproperty-iconColor: rgb(240, 240, 240);
+    qproperty-iconDisabledColor: rgba(240, 240, 240, 102);
+    qproperty-iconOnColor: #9BBAFF;
+    qproperty-iconOnDisabledColor: rgba(155, 186, 255, 102);
+}

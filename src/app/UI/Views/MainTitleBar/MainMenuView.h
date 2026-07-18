@@ -13,6 +13,8 @@ class QString;
 
 class MainMenuView : public QMenuBar {
     Q_OBJECT
+    Q_PROPERTY(QColor iconColor READ iconColor WRITE setIconColor)
+    Q_PROPERTY(QColor iconDisabledColor READ iconDisabledColor WRITE setIconDisabledColor)
 
 public:
     explicit MainMenuView(MainWindow *mainWindow);
@@ -30,6 +32,13 @@ protected:
 private:
     Q_DECLARE_PRIVATE(MainMenuView)
     QScopedPointer<MainMenuViewPrivate> d_ptr;
+
+    // Theme color accessors (QSS-overridable via qproperty-*); setters
+    // re-tint the already-generated menu icons
+    [[nodiscard]] QColor iconColor() const;
+    void setIconColor(const QColor &color);
+    [[nodiscard]] QColor iconDisabledColor() const;
+    void setIconDisabledColor(const QColor &color);
 };
 
 #endif // MAINMENUVIEW_H

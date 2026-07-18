@@ -19,6 +19,8 @@ using namespace PlaybackGlobal;
 
 class PlaybackView final : public QWidget {
     Q_OBJECT
+    Q_PROPERTY(QColor playAccentColor READ playAccentColor WRITE setPlayAccentColor)
+    Q_PROPERTY(QColor pauseAccentColor READ pauseAccentColor WRITE setPauseAccentColor)
 public:
     explicit PlaybackView(QWidget *parent = nullptr);
 
@@ -41,6 +43,18 @@ protected:
     void changeEvent(QEvent *event) override;
 
 private:
+    // Theme color accessors (QSS-overridable via qproperty-*); setters
+    // re-tint the already-generated button icons
+    [[nodiscard]] QColor playAccentColor() const;
+    void setPlayAccentColor(const QColor &color);
+    [[nodiscard]] QColor pauseAccentColor() const;
+    void setPauseAccentColor(const QColor &color);
+    // Re-tint play/pause/loop button icons from the current theme colors
+    void rebuildIcons();
+
+    QColor m_playAccentColor = {155, 186, 255};
+    QColor m_pauseAccentColor = {255, 205, 155};
+
     TempoComboBox *m_elTempo;
     QPushButton *m_btnStop;
     TimeSignatureComboBox *m_elTimeSignature;

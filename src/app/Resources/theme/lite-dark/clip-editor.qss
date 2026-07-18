@@ -266,3 +266,18 @@ QWidget#speakerMixEmptyState {
 QWidget#speakerMixEmptyState QLabel {
     color: rgba(220, 222, 230, 220);
 }
+
+PhonemeView {
+    qproperty-hintTextColor: rgba(255, 255, 255, 80);
+    qproperty-textColor: rgb(180, 180, 180);
+    qproperty-positionLineColor: rgb(200, 200, 200);
+    qproperty-noteBoundaryColor: rgb(49, 53, 63);
+    qproperty-waveformColor: rgb(49, 53, 63);
+}
+
+ClipEditorToolBarView {
+    qproperty-iconColor: rgb(240, 240, 240);
+    qproperty-iconDisabledColor: rgba(240, 240, 240, 102);
+    qproperty-iconOnColor: #9BBAFF;
+    qproperty-iconOnDisabledColor: rgba(155, 186, 255, 102);
+}

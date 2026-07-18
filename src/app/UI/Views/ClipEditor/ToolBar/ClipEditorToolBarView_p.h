@@ -8,7 +8,9 @@
 #include "Global/AppGlobal.h"
 
 #include <QButtonGroup>
+#include <QColor>
 #include <QObject>
+#include <QPair>
 
 class SingingClip;
 class TwoLevelComboBox;
@@ -48,7 +50,17 @@ public:
                               const QString &tipDesc = QString()) const;
 
     void setPianoRollToolsEnabled(bool on) const;
+    // Re-tint all registered toggle-button icons from the current theme colors
+    void rebuildIcons() const;
     int m_contentHeight = 28;
+
+    // Theme colors (owned here, exposed as QSS properties on the public view)
+    QColor m_iconColor = {240, 240, 240};
+    QColor m_iconDisabledColor = {240, 240, 240, 102};
+    QColor m_iconOnColor = {155, 186, 255};
+    QColor m_iconOnDisabledColor = {155, 186, 255, 102};
+    // Buttons with tinted SVG icons and their source paths, for re-tinting
+    mutable QList<QPair<Button *, QString>> m_tintedButtons;
 
     Clip *m_clip = nullptr;
     int m_editingClipId = -1;

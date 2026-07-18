@@ -16,6 +16,7 @@ class Button;
 
 class FilePopupWidget : public QFrame {
     Q_OBJECT
+    Q_PROPERTY(QColor iconColor READ iconColor WRITE setIconColor)
 
 public:
     explicit FilePopupWidget(QWidget *parent = nullptr);
@@ -37,6 +38,13 @@ private:
     QWidget *createRecentFileItem(const QString &filePath, bool isCurrent);
     void syncPopupGeometry();
     void applyWindowEffects();
+
+    // Theme color accessors (QSS-overridable via qproperty-*); the setter
+    // rebuilds recent items so their tinted icons pick up the new color
+    [[nodiscard]] QColor iconColor() const;
+    void setIconColor(const QColor &color);
+
+    QColor m_iconColor = {0xC8, 0xC9, 0xCC};
 
     QFrame *m_surface = nullptr;
     QFrame *m_recentSection = nullptr;

@@ -41,18 +41,6 @@
 
 #include "UI/Controls/Menu.h"
 
-namespace {
-
-    constexpr QSize kMenuIconSize(16, 16);
-    const QColor kMenuIconColor(0xE0, 0xE0, 0xE0);
-    const QColor kMenuIconDisabledColor(0x90, 0x90, 0x90);
-
-    QIcon menuIcon(const QString &path, const QSize &size = kMenuIconSize) {
-        return IconUtils::createTintedSvgIcon(path, size, kMenuIconColor, kMenuIconDisabledColor);
-    }
-
-}
-
 MainMenuView::MainMenuView(MainWindow *mainWindow)
     : QMenuBar(mainWindow), d_ptr(new MainMenuViewPrivate(mainWindow)) {
     Q_D(MainMenuView);
@@ -450,70 +438,67 @@ void MainMenuViewPrivate::initActions() {
 
 void MainMenuViewPrivate::initFileActions() {
     actionNew = new QAction(tr("&New"), this);
-    actionNew->setIcon(menuIcon(QStringLiteral(":/svg/icons/document_add_16_regular.svg")));
+    setMenuIcon(actionNew, QStringLiteral(":/svg/icons/document_add_16_regular.svg"));
     actionNew->setShortcut(QKeySequence("Ctrl+N"));
     actionNew->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionNew, &QAction::triggered, this, [this] { onNew(); });
 
     actionOpen = new QAction(tr("&Open..."));
-    actionOpen->setIcon(menuIcon(QStringLiteral(":/svg/icons/folder_open_16_regular.svg")));
+    setMenuIcon(actionOpen, QStringLiteral(":/svg/icons/folder_open_16_regular.svg"));
     actionOpen->setShortcut(QKeySequence("Ctrl+O"));
     actionOpen->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionOpen, &QAction::triggered, this, [this] { onOpen(); });
 
     actionClearRecentProjects = new QAction(tr("Clear Recent Projects"), this);
-    actionClearRecentProjects->setIcon(
-        menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
+    setMenuIcon(actionClearRecentProjects, QStringLiteral(":/svg/icons/delete_16_regular.svg"));
     connect(actionClearRecentProjects, &QAction::triggered, this,
             [this] { onClearRecentProjects(); });
 
     actionSave = new QAction(tr("&Save"), this);
-    actionSave->setIcon(menuIcon(QStringLiteral(":/svg/icons/save_16_regular.svg")));
+    setMenuIcon(actionSave, QStringLiteral(":/svg/icons/save_16_regular.svg"));
     actionSave->setShortcut(QKeySequence("Ctrl+S"));
     actionSave->setShortcutContext(Qt::ApplicationShortcut);
 
     actionSaveAs = new QAction(tr("Save &as..."), this);
-    actionSaveAs->setIcon(
-        menuIcon(QStringLiteral(":/svg/icons/save_edit_20_regular.svg"), QSize(20, 20)));
+    setMenuIcon(actionSaveAs, QStringLiteral(":/svg/icons/save_edit_20_regular.svg"), QSize(20, 20));
     actionSaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
     actionSaveAs->setShortcutContext(Qt::ApplicationShortcut);
 
     actionImportMidi = new QAction(tr("MIDI file..."), this);
-    actionImportMidi->setIcon(menuIcon(QStringLiteral(":/svg/icons/arrow_import_16_regular.svg")));
+    setMenuIcon(actionImportMidi, QStringLiteral(":/svg/icons/arrow_import_16_regular.svg"));
     connect(actionImportMidi, &QAction::triggered, this, [this] { onImportMidiFile(); });
 
     actionExportAudio = new QAction(tr("Audio file..."), this);
-    actionExportAudio->setIcon(menuIcon(QStringLiteral(":/svg/icons/arrow_export_16_regular.svg")));
+    setMenuIcon(actionExportAudio, QStringLiteral(":/svg/icons/arrow_export_16_regular.svg"));
     connect(actionExportAudio, &QAction::triggered, this, [this] { onExportAudioFile(); });
 
     actionExportMidi = new QAction(tr("MIDI file..."), this);
-    actionExportMidi->setIcon(menuIcon(QStringLiteral(":/svg/icons/arrow_export_16_regular.svg")));
+    setMenuIcon(actionExportMidi, QStringLiteral(":/svg/icons/arrow_export_16_regular.svg"));
     connect(actionExportMidi, &QAction::triggered, this, [this] { onExportMidiFile(); });
 
     actionOpenPackageManager = new QAction(tr("Manage packages..."), this);
-    actionOpenPackageManager->setIcon(
-        menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
+    setMenuIcon(actionOpenPackageManager, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
     connect(actionOpenPackageManager, &QAction::triggered, this, [] {
         PackageManagerDialog dialog;
         dialog.exec();
     });
 
     actionExit = new QAction(tr("E&xit"), this);
-    actionExit->setIcon(menuIcon(QStringLiteral(":/svg/icons/dismiss_16_regular.svg")));
+    setMenuIcon(actionExit, QStringLiteral(":/svg/icons/dismiss_16_regular.svg"));
     connect(actionExit, &QAction::triggered, this, [this] { exitApp(); });
 }
 
 void MainMenuViewPrivate::initEditActions() {
     Q_Q(MainMenuView);
     actionUndo = new QAction(tr("&Undo"), this);
-    actionUndo->setIcon(menuIcon(QStringLiteral(":/svg/icons/arrow_undo_16_regular.svg")));
+    setMenuIcon(actionUndo, QStringLiteral(":/svg/icons/arrow_undo_16_regular.svg"));
     actionUndo->setEnabled(false);
     actionUndo->setShortcut(QKeySequence("Ctrl+Z"));
     actionUndo->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionUndo, &QAction::triggered, historyManager, &HistoryManager::undo);
 
     actionRedo = new QAction(tr("&Redo"), this);
-    actionRedo->setIcon(menuIcon(QStringLiteral(":/svg/icons/arrow_redo_16_regular.svg")));
+    setMenuIcon(actionRedo, QStringLiteral(":/svg/icons/arrow_redo_16_regular.svg"));
     actionRedo->setEnabled(false);
     actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
     actionRedo->setShortcutContext(Qt::ApplicationShortcut);
@@ -524,33 +509,33 @@ void MainMenuViewPrivate::initEditActions() {
             });
 
     actionSelectAll = new QAction(tr("Select &all"), this);
-    actionSelectAll->setIcon(menuIcon(QStringLiteral(":/svg/icons/select_all_on_16_regular.svg")));
+    setMenuIcon(actionSelectAll, QStringLiteral(":/svg/icons/select_all_on_16_regular.svg"));
     actionSelectAll->setShortcut(QKeySequence("Ctrl+A"));
     actionSelectAll->setShortcutContext(Qt::ApplicationShortcut);
     actionSelectAll->setEnabled(false);
     connect(actionSelectAll, &QAction::triggered, this, [this] { onSelectAll(); });
 
     actionDelete = new QAction(tr("&Delete"), this);
-    actionDelete->setIcon(menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
+    setMenuIcon(actionDelete, QStringLiteral(":/svg/icons/delete_16_regular.svg"));
     actionDelete->setShortcut(Qt::Key_Delete);
     actionDelete->setShortcutContext(Qt::ApplicationShortcut);
     actionDelete->setEnabled(false);
     connect(actionDelete, &QAction::triggered, this, [this] { onDelete(); });
 
     actionCut = new QAction(tr("Cu&t"), this);
-    actionCut->setIcon(menuIcon(QStringLiteral(":/svg/icons/cut_16_regular.svg")));
+    setMenuIcon(actionCut, QStringLiteral(":/svg/icons/cut_16_regular.svg"));
     actionCut->setShortcut(QKeySequence("Ctrl+X"));
     actionCut->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionCut, &QAction::triggered, this, [this] { onCut(); });
 
     actionCopy = new QAction(tr("&Copy"), this);
-    actionCopy->setIcon(menuIcon(QStringLiteral(":/svg/icons/copy_16_regular.svg")));
+    setMenuIcon(actionCopy, QStringLiteral(":/svg/icons/copy_16_regular.svg"));
     actionCopy->setShortcut(QKeySequence("Ctrl+C"));
     actionCopy->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionCopy, &QAction::triggered, this, [this] { onCopy(); });
 
     actionPaste = new QAction(tr("&Paste"), this);
-    actionPaste->setIcon(menuIcon(QStringLiteral(":/svg/icons/clipboard_paste_16_regular.svg")));
+    setMenuIcon(actionPaste, QStringLiteral(":/svg/icons/clipboard_paste_16_regular.svg"));
     actionPaste->setShortcut(QKeySequence("Ctrl+V"));
     actionPaste->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionPaste, &QAction::triggered, this, [this] { onPaste(); });
@@ -574,7 +559,7 @@ void MainMenuViewPrivate::initEditActions() {
             [this, q] { clipController->onFillLyric(q); });
 
     actionSearchLyrics = new QAction(tr("Search lyrics..."), this);
-    actionSearchLyrics->setIcon(menuIcon(QStringLiteral(":/svg/icons/search_16_regular.svg")));
+    setMenuIcon(actionSearchLyrics, QStringLiteral(":/svg/icons/search_16_regular.svg"));
     actionSearchLyrics->setShortcut(QKeySequence("Ctrl+F"));
     actionSearchLyrics->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionSearchLyrics, &QAction::triggered, clipController,
@@ -591,8 +576,7 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
     menuFile->addAction(actionOpen);
 
     menuRecentProjects = new Menu(tr("Recent Projects"), q);
-    menuRecentProjects->menuAction()->setIcon(
-        menuIcon(QStringLiteral(":/svg/icons/history_16_regular.svg")));
+    setMenuIcon(menuRecentProjects->menuAction(), QStringLiteral(":/svg/icons/history_16_regular.svg"));
     connect(menuRecentProjects, &Menu::aboutToShow, this, [this] { refreshRecentProjectsMenu(); });
     connect(documentWorkflowController, &DocumentWorkflowController::recentProjectFilesChanged,
             this, [this] { refreshRecentProjectsMenu(); });
@@ -605,14 +589,12 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
     menuFile->addSeparator();
 
     menuImport = new Menu(tr("Import"), q);
-    menuImport->menuAction()->setIcon(
-        menuIcon(QStringLiteral(":/svg/icons/arrow_import_16_regular.svg")));
+    setMenuIcon(menuImport->menuAction(), QStringLiteral(":/svg/icons/arrow_import_16_regular.svg"));
     menuImport->addAction(actionImportMidi);
     menuFile->addMenu(menuImport);
 
     menuExport = new Menu(tr("Export"), q);
-    menuExport->menuAction()->setIcon(
-        menuIcon(QStringLiteral(":/svg/icons/arrow_export_16_regular.svg")));
+    setMenuIcon(menuExport->menuAction(), QStringLiteral(":/svg/icons/arrow_export_16_regular.svg"));
     menuExport->addAction(actionExportAudio);
     menuExport->addAction(actionExportMidi);
     menuFile->addMenu(menuExport);
@@ -662,26 +644,25 @@ Menu *MainMenuViewPrivate::buildEditMenu() {
 Menu *MainMenuViewPrivate::buildOptionsMenu() {
     Q_Q(MainMenuView);
     actionGeneralOptions = new QAction(tr("&General..."), this);
-    actionGeneralOptions->setIcon(menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
+    setMenuIcon(actionGeneralOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
     connect(actionGeneralOptions, &QAction::triggered, this, [] {
         AppOptionsDialog dialog(AppOptionsGlobal::Option::General);
         dialog.exec();
     });
     actionAudioSettings = new QAction(tr("&Audio..."), this);
-    actionAudioSettings->setIcon(menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
+    setMenuIcon(actionAudioSettings, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
     connect(actionAudioSettings, &QAction::triggered, this, [] {
         AppOptionsDialog dialog(AppOptionsGlobal::Option::Audio);
         dialog.exec();
     });
     actionMidiSettings = new QAction(tr("&MIDI..."), this);
-    actionMidiSettings->setIcon(menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
+    setMenuIcon(actionMidiSettings, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
     connect(actionMidiSettings, &QAction::triggered, this, [] {
         AppOptionsDialog dialog(AppOptionsGlobal::Option::Midi);
         dialog.exec();
     });
     actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
-    actionAppearanceOptions->setIcon(
-        menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
+    setMenuIcon(actionAppearanceOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
     connect(actionAppearanceOptions, &QAction::triggered, this, [] {
         AppOptionsDialog dialog(AppOptionsGlobal::Option::Appearance);
         dialog.exec();
@@ -692,15 +673,13 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
     //     dialog.exec();
     // });
     actionInferenceOptions = new QAction(tr("&Inference..."), this);
-    actionInferenceOptions->setIcon(
-        menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
+    setMenuIcon(actionInferenceOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
     connect(actionInferenceOptions, &QAction::triggered, this, [] {
         AppOptionsDialog dialog(AppOptionsGlobal::Option::Inference);
         dialog.exec();
     });
     actionDeveloperOptions = new QAction(tr("&Developer Options..."), this);
-    actionDeveloperOptions->setIcon(
-        menuIcon(QStringLiteral(":/svg/icons/settings_16_regular.svg")));
+    setMenuIcon(actionDeveloperOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
     connect(actionDeveloperOptions, &QAction::triggered, this, [] {
         AppOptionsDialog dialog(AppOptionsGlobal::Option::DeveloperOptions);
         dialog.exec();
@@ -721,11 +700,11 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
 Menu *MainMenuViewPrivate::buildHelpMenu() {
     Q_Q(MainMenuView);
     actionCheckForUpdates = new QAction(tr("Check for updates"), this);
-    actionCheckForUpdates->setIcon(menuIcon(QStringLiteral(":/svg/icons/info_16_regular.svg")));
+    setMenuIcon(actionCheckForUpdates, QStringLiteral(":/svg/icons/info_16_regular.svg"));
     connect(actionCheckForUpdates, &QAction::triggered, this,
             [=] { Toast::show(tr("You are already up to date")); });
     actionAbout = new QAction(tr("About..."), this);
-    actionAbout->setIcon(menuIcon(QStringLiteral(":/svg/icons/info_16_regular.svg")));
+    setMenuIcon(actionAbout, QStringLiteral(":/svg/icons/info_16_regular.svg"));
     connect(actionAbout, &QAction::triggered, this, [] { Toast::show(tr("About")); });
 
     actionDiscoverDiffScope = new QAction(tr("Discover DiffScope"), this);
@@ -786,4 +765,41 @@ void MainMenuViewPrivate::retranslateUi() {
     menuOptions->setTitle(tr("&Options"));
     menuHelp->setTitle(tr("&Help"));
     refreshRecentProjectsMenu();
+}
+
+void MainMenuViewPrivate::setMenuIcon(QAction *action, const QString &path, const QSize &size) {
+    action->setIcon(IconUtils::createTintedSvgIcon(path, size, m_iconColor, m_iconDisabledColor));
+    m_tintedActions.insert(action, {path, size});
+}
+
+void MainMenuViewPrivate::rebuildIcons() {
+    for (auto it = m_tintedActions.constBegin(); it != m_tintedActions.constEnd(); ++it)
+        it.key()->setIcon(IconUtils::createTintedSvgIcon(it.value().first, it.value().second,
+                                                         m_iconColor, m_iconDisabledColor));
+}
+
+QColor MainMenuView::iconColor() const {
+    Q_D(const MainMenuView);
+    return d->m_iconColor;
+}
+
+void MainMenuView::setIconColor(const QColor &color) {
+    Q_D(MainMenuView);
+    if (d->m_iconColor == color)
+        return;
+    d->m_iconColor = color;
+    d->rebuildIcons();
+}
+
+QColor MainMenuView::iconDisabledColor() const {
+    Q_D(const MainMenuView);
+    return d->m_iconDisabledColor;
+}
+
+void MainMenuView::setIconDisabledColor(const QColor &color) {
+    Q_D(MainMenuView);
+    if (d->m_iconDisabledColor == color)
+        return;
+    d->m_iconDisabledColor = color;
+    d->rebuildIcons();
 }

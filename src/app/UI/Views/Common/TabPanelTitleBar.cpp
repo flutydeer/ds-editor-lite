@@ -131,21 +131,10 @@ void TabPanelTitleBar::buildDockedButtons() {
     const int btnSize = 28;
     const QSize iconSize(16, 16);
 
-    IconUtils::SvgIconColorPalette actionPalette;
-    actionPalette.normal = QColor(240, 240, 240);
-    actionPalette.disabled = QColor(240, 240, 240, 102);
-
-    IconUtils::SvgIconToggleColorPalette togglePalette;
-    togglePalette.off = actionPalette;
-    togglePalette.on.normal = QColor(155, 186, 255);
-    togglePalette.on.disabled = QColor(155, 186, 255, 102);
-
     m_btnDetach = new Button;
     m_btnDetach->setObjectName("btnPanelDetach");
     m_btnDetach->setFixedSize(btnSize, btnSize);
     m_btnDetach->setIconSize(iconSize);
-    m_btnDetach->setIcon(IconUtils::createTintedSvgIcon(
-        ":svg/icons/panel_separate_window_20_filled.svg", iconSize, actionPalette));
     m_btnDetach->setToolTip(tr("Detach to window"));
     m_btnDetach->installEventFilter(new ToolTipFilter(m_btnDetach, 500, false, true));
     connect(m_btnDetach, &Button::clicked, this, &TabPanelTitleBar::detachRequested);
@@ -155,8 +144,6 @@ void TabPanelTitleBar::buildDockedButtons() {
     m_btnMaximize->setFixedSize(btnSize, btnSize);
     m_btnMaximize->setCheckable(true);
     m_btnMaximize->setIconSize(iconSize);
-    m_btnMaximize->setIcon(IconUtils::createTintedSvgIcon(":svg/icons/panel_maximize_24_filled.svg",
-                                                          iconSize, togglePalette));
     m_btnMaximize->setToolTip(tr("Maximize or restore"));
     m_btnMaximize->installEventFilter(new ToolTipFilter(m_btnMaximize, 500, false, true));
     connect(m_btnMaximize, &Button::clicked, this, [=] {
@@ -172,16 +159,87 @@ void TabPanelTitleBar::buildDockedButtons() {
     m_btnHide->setObjectName("btnPanelHide");
     m_btnHide->setFixedSize(btnSize, btnSize);
     m_btnHide->setIconSize(iconSize);
-    m_btnHide->setIcon(IconUtils::createTintedSvgIcon(":svg/icons/panel_hide_24_filled.svg",
-                                                      iconSize, actionPalette));
     m_btnHide->setToolTip(tr("Hide"));
     m_btnHide->installEventFilter(new ToolTipFilter(m_btnHide, 500, false, true));
     connect(m_btnHide, &Button::clicked, this,
             [=] { appController->setTrackAndClipPanelCollapsed(false, true); });
 
+    rebuildIcons();
+
     m_btnLayout->addWidget(m_btnDetach);
     m_btnLayout->addWidget(m_btnMaximize);
     m_btnLayout->addWidget(m_btnHide);
+}
+
+void TabPanelTitleBar::rebuildIcons() {
+    const QSize iconSize(16, 16);
+
+    IconUtils::SvgIconColorPalette actionPalette;
+    actionPalette.normal = m_iconColor;
+    actionPalette.disabled = m_iconDisabledColor;
+
+    IconUtils::SvgIconToggleColorPalette togglePalette;
+    togglePalette.off = actionPalette;
+    togglePalette.on.normal = m_iconOnColor;
+    togglePalette.on.disabled = m_iconOnDisabledColor;
+
+    if (m_btnDetach)
+        m_btnDetach->setIcon(IconUtils::createTintedSvgIcon(
+            ":svg/icons/panel_separate_window_20_filled.svg", iconSize, actionPalette));
+    if (m_btnMaximize)
+        m_btnMaximize->setIcon(IconUtils::createTintedSvgIcon(
+            ":svg/icons/panel_maximize_24_filled.svg", iconSize, togglePalette));
+    if (m_btnHide)
+        m_btnHide->setIcon(IconUtils::createTintedSvgIcon(":svg/icons/panel_hide_24_filled.svg",
+                                                          iconSize, actionPalette));
+}
+
+QColor TabPanelTitleBar::iconColor() const {
+    return m_iconColor;
+}
+
+void TabPanelTitleBar::setIconColor(const QColor &color) {
+    if (m_iconColor == color)
+        return;
+    m_iconColor = color;
+    rebuildIcons();
+    update();
+}
+
+QColor TabPanelTitleBar::iconDisabledColor() const {
+    return m_iconDisabledColor;
+}
+
+void TabPanelTitleBar::setIconDisabledColor(const QColor &color) {
+    if (m_iconDisabledColor == color)
+        return;
+    m_iconDisabledColor = color;
+    rebuildIcons();
+    update();
+}
+
+QColor TabPanelTitleBar::iconOnColor() const {
+    return m_iconOnColor;
+}
+
+void TabPanelTitleBar::setIconOnColor(const QColor &color) {
+    if (m_iconOnColor == color)
+        return;
+    m_iconOnColor = color;
+    rebuildIcons();
+    update();
+}
+
+QColor TabPanelTitleBar::iconOnDisabledColor() const {
+    return m_iconOnDisabledColor;
+}
+
+void TabPanelTitleBar::setIconOnDisabledColor(const QColor &color) {
+    if (m_iconOnDisabledColor == color)
+        return;
+    m_iconOnDisabledColor = color;
+    rebuildIcons();
+    update();
 }
 
 void TabPanelTitleBar::buildDetachedButtons(bool useNativeFrame) {

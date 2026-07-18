@@ -139,16 +139,16 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     QPen pen;
 
     if (!canEdit()) {
-        painter.setPen(QColor(255, 255, 255, 80));
+        painter.setPen(m_hintTextColor);
         painter.drawText(rect(), tr("Zoom in to edit phonemes"), QTextOption(Qt::AlignCenter));
         return;
     }
 
-    auto originalColor = QColor(180, 180, 180);
+    auto originalColor = m_textColor;
     auto editedColor = AppColorPalette::instance()->phonemeEdited(NoteView::trackColorIndex());
     auto fillColor = AppColorPalette::instance()->phonemeFill(NoteView::trackColorIndex());
-    auto positionLineColor = QColor(200, 200, 200);
-    auto noteBoundaryColor = QColor(49, 53, 63);
+    auto positionLineColor = m_positionLineColor;
+    auto noteBoundaryColor = m_noteBoundaryColor;
 
     drawWaveforms(&painter);
 
@@ -852,7 +852,7 @@ void PhonemeView::drawWaveforms(QPainter *painter) {
     if (m_pieceWaveforms.isEmpty())
         return;
 
-    const auto waveformColor = QColor(49, 53, 63);
+    const auto waveformColor = m_waveformColor;
 
     for (auto it = m_pieceWaveforms.constBegin(); it != m_pieceWaveforms.constEnd(); ++it) {
         const auto &wf = it.value();
@@ -875,4 +875,59 @@ void PhonemeView::clearPieceWaveforms() {
     for (auto it = m_pieceWaveforms.begin(); it != m_pieceWaveforms.end(); ++it)
         delete it.value().painter;
     m_pieceWaveforms.clear();
+}
+
+QColor PhonemeView::hintTextColor() const {
+    return m_hintTextColor;
+}
+
+void PhonemeView::setHintTextColor(const QColor &color) {
+    if (m_hintTextColor == color)
+        return;
+    m_hintTextColor = color;
+    update();
+}
+
+QColor PhonemeView::textColor() const {
+    return m_textColor;
+}
+
+void PhonemeView::setTextColor(const QColor &color) {
+    if (m_textColor == color)
+        return;
+    m_textColor = color;
+    update();
+}
+
+QColor PhonemeView::positionLineColor() const {
+    return m_positionLineColor;
+}
+
+void PhonemeView::setPositionLineColor(const QColor &color) {
+    if (m_positionLineColor == color)
+        return;
+    m_positionLineColor = color;
+    update();
+}
+
+QColor PhonemeView::noteBoundaryColor() const {
+    return m_noteBoundaryColor;
+}
+
+void PhonemeView::setNoteBoundaryColor(const QColor &color) {
+    if (m_noteBoundaryColor == color)
+        return;
+    m_noteBoundaryColor = color;
+    update();
+}
+
+QColor PhonemeView::waveformColor() const {
+    return m_waveformColor;
+}
+
+void PhonemeView::setWaveformColor(const QColor &color) {
+    if (m_waveformColor == color)
+        return;
+    m_waveformColor = color;
+    update();
 }

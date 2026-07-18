@@ -7,7 +7,11 @@
 
 #include "Global/AppGlobal.h"
 
+#include <QColor>
+#include <QHash>
 #include <QObject>
+#include <QPair>
+#include <QSize>
 
 class QAction;
 class Menu;
@@ -23,6 +27,18 @@ public:
     }
 
     MainWindow *m_mainWindow;
+
+    // Theme colors for tinted menu icons (exposed as QSS properties on MainMenuView)
+    QColor m_iconColor = {0xE0, 0xE0, 0xE0};
+    QColor m_iconDisabledColor = {0x90, 0x90, 0x90};
+    // Actions with tinted SVG icons and their source paths/sizes, for re-tinting
+    QHash<QAction *, QPair<QString, QSize>> m_tintedActions;
+
+    // Tint the SVG at path with the current theme colors, apply it to the
+    // action, and register the action for later re-tinting
+    void setMenuIcon(QAction *action, const QString &path, const QSize &size = QSize(16, 16));
+    // Re-tint all registered action icons from the current theme colors
+    void rebuildIcons();
 
     QAction *actionNew = nullptr;
     QAction *actionOpen = nullptr;

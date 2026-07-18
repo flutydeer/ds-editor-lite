@@ -46,10 +46,6 @@ namespace {
     constexpr int kPopupWidth = 360;
     constexpr int kItemHeight = 46;
 
-    QColor normalColor() {
-        return QColor(0xC8, 0xC9, 0xCC);
-    }
-
     QString elidePath(const QString &path, int width, const QFont &font) {
         return QFontMetrics(font).elidedText(path, Qt::ElideMiddle, width);
     }
@@ -100,7 +96,8 @@ namespace {
 
     class RecentFileItemWidget : public QFrame {
     public:
-        RecentFileItemWidget(QString filePath, bool isCurrent, QWidget *parent = nullptr)
+        RecentFileItemWidget(QString filePath, bool isCurrent, const QColor &iconColor,
+                             QWidget *parent = nullptr)
             : QFrame(parent), m_filePath(std::move(filePath)), m_isCurrent(isCurrent) {
             setObjectName("filePopupRecentItem");
             setProperty("current", m_isCurrent);
@@ -144,7 +141,7 @@ namespace {
             m_btnMore->setFixedSize(28, 28);
             m_btnMore->setIcon(IconUtils::createTintedSvgIcon(
                 QStringLiteral(":/svg/icons/more_vertical_16_regular.svg"), QSize(16, 16),
-                normalColor()));
+                iconColor));
             m_btnMore->setIconSize(QSize(16, 16));
             m_btnMore->setToolButtonStyle(Qt::ToolButtonIconOnly);
             m_btnMore->setAutoRaise(true);
@@ -429,7 +426,7 @@ void FilePopupWidget::refreshRecentFiles() {
 }
 
 QWidget *FilePopupWidget::createRecentFileItem(const QString &filePath, bool isCurrent) {
-    auto *itemWidget = new RecentFileItemWidget(filePath, isCurrent);
+    auto *itemWidget = new RecentFileItemWidget(filePath, isCurrent, m_iconColor);
     itemWidget->setOpenHandler([this, filePath] {
         close();
         emit openRecentProject(filePath);
@@ -438,6 +435,18 @@ QWidget *FilePopupWidget::createRecentFileItem(const QString &filePath, bool isC
         documentWorkflowController->removeRecentProjectFile(filePath);
     });
     return itemWidget;
+}
+
+QColor FilePopupWidget::iconColor() const {
+    return m_iconColor;
+}
+
+void FilePopupWidget::setIconColor(const QColor &color) {
+    if (m_iconColor == color)
+        return;
+    m_iconColor = color;
+    // Rebuild recent items so their tinted icons pick up the new color
+    refreshRecentFiles();
 }
 
 void FilePopupWidget::clearRecentItemHoverState() {

@@ -348,12 +348,13 @@ Button *ClipEditorToolBarViewPrivate::buildCommonButton(const QString &objName,
 
     const QSize iconSize(16, 16);
     IconUtils::SvgIconToggleColorPalette palette;
-    palette.off.normal = QColor(240, 240, 240);
-    palette.off.disabled = QColor(240, 240, 240, 102);
-    palette.on.normal = QColor(155, 186, 255);
-    palette.on.disabled = QColor(155, 186, 255, 102);
+    palette.off.normal = m_iconColor;
+    palette.off.disabled = m_iconDisabledColor;
+    palette.on.normal = m_iconOnColor;
+    palette.on.disabled = m_iconOnDisabledColor;
     btn->setIconSize(iconSize);
     btn->setIcon(IconUtils::createTintedSvgIcon(svgPath, iconSize, palette));
+    m_tintedButtons.append({btn, svgPath});
 
     btn->setToolTip(tipTitle);
     const auto toolTip = new ToolTipFilter(btn, 500, false, true);
@@ -575,4 +576,67 @@ void ClipEditorToolBarViewPrivate::retranslateUi() const {
                ClipEditorToolBarView::tr("Left drag: Draw\nRight drag: Erase"));
     setToolTip(m_btnPitchEraser, ClipEditorToolBarView::tr("Erase Pitch"));
     refreshSingerComboPresentation();
+}
+
+void ClipEditorToolBarViewPrivate::rebuildIcons() const {
+    const QSize iconSize(16, 16);
+    IconUtils::SvgIconToggleColorPalette palette;
+    palette.off.normal = m_iconColor;
+    palette.off.disabled = m_iconDisabledColor;
+    palette.on.normal = m_iconOnColor;
+    palette.on.disabled = m_iconOnDisabledColor;
+    for (const auto &[btn, svgPath] : m_tintedButtons)
+        btn->setIcon(IconUtils::createTintedSvgIcon(svgPath, iconSize, palette));
+}
+
+QColor ClipEditorToolBarView::iconColor() const {
+    Q_D(const ClipEditorToolBarView);
+    return d->m_iconColor;
+}
+
+void ClipEditorToolBarView::setIconColor(const QColor &color) {
+    Q_D(ClipEditorToolBarView);
+    if (d->m_iconColor == color)
+        return;
+    d->m_iconColor = color;
+    d->rebuildIcons();
+}
+
+QColor ClipEditorToolBarView::iconDisabledColor() const {
+    Q_D(const ClipEditorToolBarView);
+    return d->m_iconDisabledColor;
+}
+
+void ClipEditorToolBarView::setIconDisabledColor(const QColor &color) {
+    Q_D(ClipEditorToolBarView);
+    if (d->m_iconDisabledColor == color)
+        return;
+    d->m_iconDisabledColor = color;
+    d->rebuildIcons();
+}
+
+QColor ClipEditorToolBarView::iconOnColor() const {
+    Q_D(const ClipEditorToolBarView);
+    return d->m_iconOnColor;
+}
+
+void ClipEditorToolBarView::setIconOnColor(const QColor &color) {
+    Q_D(ClipEditorToolBarView);
+    if (d->m_iconOnColor == color)
+        return;
+    d->m_iconOnColor = color;
+    d->rebuildIcons();
+}
+
+QColor ClipEditorToolBarView::iconOnDisabledColor() const {
+    Q_D(const ClipEditorToolBarView);
+    return d->m_iconOnDisabledColor;
+}
+
+void ClipEditorToolBarView::setIconOnDisabledColor(const QColor &color) {
+    Q_D(ClipEditorToolBarView);
+    if (d->m_iconOnDisabledColor == color)
+        return;
+    d->m_iconOnDisabledColor = color;
+    d->rebuildIcons();
 }
