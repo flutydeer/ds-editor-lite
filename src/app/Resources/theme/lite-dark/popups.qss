@@ -1,3 +1,37 @@
 /* ================================================== */
 /*  Popups (Toast, ToolTip)                           */
 /* ================================================== */
+
+/* Toast */
+ToastWidget QLabel#toastMessage {
+    color: #F0F0F0;
+    font-size: 10.5pt;
+}
+
+ToastWidget QFrame#toastContainer {
+    background: #80202122;
+    border: 1px solid #80606060;
+    border-radius: 6px;
+    font-size: 10pt;
+}
+
+/* ToolTip */
+ToolTip QLabel#toolTipTitle {
+    color: #F0F0F0;
+    font-size: 10pt;
+}
+
+ToolTip QLabel#toolTipShortcutKey {
+    color: #808080;
+}
+
+ToolTip QLabel#toolTipMessage {
+    color: #808080;
+}
+
+ToolTip QFrame#toolTipContainer {
+    background: #202122;
+    border: 1px solid #606060;
+    border-radius: 6px;
+    font-size: 10pt;
+}

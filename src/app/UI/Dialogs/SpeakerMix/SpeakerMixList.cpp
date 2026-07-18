@@ -218,11 +218,10 @@ QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
     positionPrefixLabel->setFixedHeight(28);
 
     const auto positionLabel = new QLabel("0%", widget);
+    positionLabel->setObjectName("lbSpeakerPosition");
     positionLabel->setFixedHeight(28);
     positionLabel->setAlignment(Qt::AlignCenter);
     positionLabel->setFixedWidth(84);
-    positionLabel->setStyleSheet("color: #777B84; background: #252932; border: 1px solid #363B46;"
-                                 "border-radius: 3px; padding: 0 8px;");
 
     layout->addWidget(dragHandle);
     layout->addWidget(colorDot);

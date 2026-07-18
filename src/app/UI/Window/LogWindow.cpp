@@ -246,7 +246,7 @@ LogWindow::LogWindow(QWidget *parent) : Window(parent) {
     QFont logFont;
     logFont.setFamilies({QStringLiteral("Cascadia Code"), QStringLiteral("Microsoft YaHei UI")});
     m_tableView->setFont(logFont);
-    m_tableView->setStyleSheet(QStringLiteral("QTableView { background: #1D1F26 }"));
+    m_tableView->setObjectName("logTableView");
 
     // Scrolling away from the bottom pauses following; reaching the bottom resumes it.
     // The checkbox mirrors the state and can toggle it explicitly.

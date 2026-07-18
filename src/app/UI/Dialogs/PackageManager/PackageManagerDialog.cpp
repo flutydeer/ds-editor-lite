@@ -183,12 +183,6 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     listView->setItemDelegate(new PackageItemDelegate(listView));
     listView->setContentsMargins({});
-    listView->setStyleSheet(
-        "QListView { background: transparent; border: none; padding: 0px; } "
-        "QListView::item { background: transparent; border-radius: 4px; margin-top: 2px; margin-bottom: 2px } "
-        "QListView::item:hover { background: #1BC7D8FF; }"
-        "QListView::item:selected { background: #409BBAFF; }"
-        );
 
     auto layout = new QVBoxLayout;
     layout->addLayout(actionBar);
@@ -199,9 +193,6 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     auto panel = new QWidget;
     panel->setObjectName("PackageManagerDialogPackagePanel");
     panel->setAttribute(Qt::WA_StyledBackground);
-    panel->setStyleSheet(
-        "QWidget#PackageManagerDialogPackagePanel { border-right: 1px solid #1D1F26 }"
-        "QLabel#lbPackageCount { color: rgba(182, 183, 186, 140); }");
     panel->setLayout(layout);
     panel->setContentsMargins({12, 12, 12, 0});
     panel->setFixedWidth(280);
@@ -222,15 +213,11 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
 
     auto contentWidget = new QWidget;
     contentWidget->setObjectName("PackageManagerDialogDetailsContentWidget");
-    contentWidget->setStyleSheet(
-        "QWidget#PackageManagerDialogDetailsContentWidget { background: transparent; }");
     contentWidget->setLayout(contentLayout);
     contentWidget->setContentsMargins({});
 
     detailsPanelContent = new QScrollArea;
     detailsPanelContent->setObjectName("PackageManagerDialogDetailsScrollArea");
-    detailsPanelContent->setStyleSheet(
-        "QScrollArea#PackageManagerDialogDetailsScrollArea { padding: 0px; border: none }");
     detailsPanelContent->setWidgetResizable(true);
     detailsPanelContent->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     detailsPanelContent->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -248,13 +235,6 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
     detailsWidget->setLayout(mainLayout);
     detailsWidget->setContentsMargins({});
     detailsWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    detailsWidget->setStyleSheet(
-        "QWidget#PackageManagerDialogDetailsWidget { background: transparent; }"
-        "PackageDetailsHeader { border-bottom: 1px solid #1D1F26; } "
-        "PackageDetailsHeader>QLabel#lbPackageId { font-size: 24px; color: rgb(182, 183, 186); } "
-        "PackageDetailsHeader>QLabel#lbVendor { font-size: 13px; color: rgba(182, 183, 186, 140); } "
-        "PackageDetailsHeader>QLabel#lbVersion { font-size: 13px; color: rgba(182, 183, 186, 140); } "
-        "PackageDetailsHeader>QLabel#lbCopyright { font-size: 13px; color: rgba(182, 183, 186, 140); } ");
 
     detailsPanelPlaceholder = buildDetailsPanelPlaceholder();
 
@@ -268,9 +248,9 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
 
 QWidget *PackageManagerDialog::buildDetailsPanelPlaceholder() {
     auto label = new QLabel(tr("Select a package to view details"));
+    label->setObjectName("lbPackageDetailsPlaceholder");
     label->setAlignment(Qt::AlignCenter);
     label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    label->setStyleSheet("QLabel { color: rgba(182, 183, 186, 140); }");
 
     auto layout = new QVBoxLayout;
     layout->addWidget(label);

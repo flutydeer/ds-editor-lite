@@ -56,17 +56,6 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     m_speakerMixEmptyState = new QWidget(m_graphicsView->viewport());
     m_speakerMixEmptyState->setObjectName("speakerMixEmptyState");
     m_speakerMixEmptyState->setAttribute(Qt::WA_StyledBackground);
-    const QColor overlayBase(29, 31, 38);
-    const QColor overlayText(220, 222, 230);
-    m_speakerMixEmptyState->setStyleSheet(
-        QString("#speakerMixEmptyState { background-color: rgba(%1, %2, %3, 218); }"
-                "#speakerMixEmptyState QLabel { color: rgba(%4, %5, %6, 220); }")
-            .arg(overlayBase.red())
-            .arg(overlayBase.green())
-            .arg(overlayBase.blue())
-            .arg(overlayText.red())
-            .arg(overlayText.green())
-            .arg(overlayText.blue()));
     m_speakerMixEmptyState->setVisible(false);
 
     m_speakerMixEmptyTitle = new QLabel;

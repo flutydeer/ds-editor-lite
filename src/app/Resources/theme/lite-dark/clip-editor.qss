@@ -253,3 +253,16 @@ ParamEditorInfoArea {
 ParamEditorInfoArea>QLabel {
     color: rgb(127, 127, 127);
 }
+
+QLabel#clipEditorPlaceholder {
+    color: #80F0F0F0;
+    font-size: 14px;
+}
+
+QWidget#speakerMixEmptyState {
+    background-color: rgba(29, 31, 38, 218);
+}
+
+QWidget#speakerMixEmptyState QLabel {
+    color: rgba(220, 222, 230, 220);
+}

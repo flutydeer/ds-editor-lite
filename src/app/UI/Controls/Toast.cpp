@@ -15,7 +15,7 @@ QWidget *Toast::m_globalContext = nullptr;
 
 ToastWidget::ToastWidget(const QString &text, QWidget *parent) : QWidget(parent) {
     m_lbMessage = new QLabel(text);
-    m_lbMessage->setStyleSheet("color: #F0F0F0; font-size: 10.5pt");
+    m_lbMessage->setObjectName("toastMessage");
     m_lbMessage->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     m_lbMessage->setMinimumWidth(0);
     m_lbMessage->setWordWrap(false);
@@ -25,16 +25,11 @@ ToastWidget::ToastWidget(const QString &text, QWidget *parent) : QWidget(parent)
     m_cardLayout->setContentsMargins({});
 
     const auto container = new QFrame;
-    container->setObjectName("container");
+    container->setObjectName("toastContainer");
     container->setLayout(m_cardLayout);
     container->setContentsMargins(12, 8, 12, 8);
     container->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     container->setMinimumWidth(0);
-    container->setStyleSheet("QFrame#container {"
-                             "background: #80202122; "
-                             "border: 1px solid #80606060; "
-                             "border-radius: 6px; "
-                             "font-size: 10pt }");
 
     const auto shadowEffect = new QGraphicsDropShadowEffect(this);
     shadowEffect->setBlurRadius(36);

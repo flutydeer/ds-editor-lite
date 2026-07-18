@@ -13,11 +13,11 @@
 
 ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     m_lbTitle = new QLabel(title);
-    m_lbTitle->setStyleSheet("color: #F0F0F0; font-size: 10pt");
+    m_lbTitle->setObjectName("toolTipTitle");
     m_lbTitle->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
 
     m_lbShortcutKey = new QLabel();
-    m_lbShortcutKey->setStyleSheet("color: #808080");
+    m_lbShortcutKey->setObjectName("toolTipShortcutKey");
     m_lbShortcutKey->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     m_lbShortcutKey->setVisible(false);
 
@@ -36,15 +36,10 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     m_cardLayout->setContentsMargins({});
 
     const auto container = new QFrame;
-    container->setObjectName("container");
+    container->setObjectName("toolTipContainer");
     container->setLayout(m_cardLayout);
     container->setContentsMargins(8, 4, 8, 4);
     container->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-    container->setStyleSheet("QFrame#container {"
-                             "background: #202122; "
-                             "border: 1px solid #606060; "
-                             "border-radius: 6px; "
-                             "font-size: 10pt }");
 
     const auto shadowEffect = new QGraphicsDropShadowEffect(this);
     shadowEffect->setBlurRadius(24);
@@ -193,8 +188,8 @@ void ToolTip::updateMessage() {
 
     for (const auto &message : m_message) {
         const auto label = new QLabel;
+        label->setObjectName("toolTipMessage");
         label->setText(message);
-        label->setStyleSheet("color: #808080");
         m_messageLayout->addWidget(label);
     }
 }

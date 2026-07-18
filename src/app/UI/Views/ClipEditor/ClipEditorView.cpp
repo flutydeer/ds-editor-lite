@@ -58,10 +58,9 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
     m_pianoRollEditorView->setVisible(false);
 
     m_placeholderLabel = new QLabel(this);
+    m_placeholderLabel->setObjectName("clipEditorPlaceholder");
     m_placeholderLabel->setText(tr("Please select a singing clip to edit"));
     m_placeholderLabel->setAlignment(Qt::AlignCenter);
-    m_placeholderLabel->setStyleSheet(QStringLiteral("color: #80F0F0F0;"
-                                                     "font-size: 14px;"));
 
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_placeholderLabel);
