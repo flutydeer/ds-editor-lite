@@ -54,8 +54,22 @@ bool DrawNoteHandler::mousePressEvent(QMouseEvent *event) {
 bool DrawNoteHandler::mouseMoveEvent(QMouseEvent *event) {
     if (!m_drawing)
         return false;
+    updateDrawingAt(event->pos());
+    return true;
+}
 
-    const auto scenePos = q->mapToScene(event->pos());
+Qt::Orientations DrawNoteHandler::edgeAutoScrollAxes() const {
+    // Drawing only extends the note length, so scroll horizontally only
+    return m_drawing ? Qt::Orientations(Qt::Horizontal) : Qt::Orientations();
+}
+
+void DrawNoteHandler::continueDragAt(const QPoint &viewportPos) {
+    if (m_drawing)
+        updateDrawingAt(viewportPos);
+}
+
+void DrawNoteHandler::updateDrawingAt(const QPoint &viewportPos) {
+    const auto scenePos = q->mapToScene(viewportPos);
     const auto tick = q->sceneXToTick(scenePos.x()) + d->m_offset;
     const auto quantizedTickLength =
         TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
@@ -63,7 +77,6 @@ bool DrawNoteHandler::mouseMoveEvent(QMouseEvent *event) {
     const auto targetLength = snappedTick - d->m_offset - m_currentDrawingNote->rStart();
     if (targetLength >= quantizedTickLength)
         m_currentDrawingNote->setLength(targetLength);
-    return true;
 }
 
 bool DrawNoteHandler::mouseReleaseEvent(QMouseEvent *event) {

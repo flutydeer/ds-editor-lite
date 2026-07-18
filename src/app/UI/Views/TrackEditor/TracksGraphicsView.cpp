@@ -39,6 +39,7 @@
 #include <QKeyEvent>
 #include <QMimeData>
 #include <QMouseEvent>
+#include <QScrollBar>
 
 #include <TalcsWidgets/AudioFileDialog.h>
 
@@ -208,12 +209,18 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         return;
     }
 
-    if (event->modifiers() == Qt::AltModifier)
-        m_tempQuantizeOff = true;
-    else
-        m_tempQuantizeOff = false;
+    updateClipDragAt(event->pos(), event->modifiers());
+    TimeGraphicsView::mouseMoveEvent(event);
+}
 
-    const auto curPos = mapToScene(event->pos());
+void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
+                                          const Qt::KeyboardModifiers modifiers) {
+    if (m_mouseMoveBehavior == None || !m_currentEditingClip)
+        return;
+
+    m_tempQuantizeOff = modifiers == Qt::AltModifier;
+
+    const auto curPos = mapToScene(viewportPos);
     const auto dx = (curPos.x() - m_mouseDownPos.x()) / scaleX() /
                     TracksEditorGlobal::pixelsPerQuarterNote * AppGlobal::ticksPerQuarterNote;
 
@@ -242,10 +249,8 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         start = m_mouseDownStart;
         const int clipStart = left - start;
         clipLen = m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen - left;
-        if (clipLen <= 0) {
-            TimeGraphicsView::mouseMoveEvent(event);
+        if (clipLen <= 0)
             return;
-        }
 
         if (clipStart < 0) {
             m_currentEditingClip->setClipStart(0);
@@ -262,10 +267,8 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         const int right = TimelineSnapUtils::snapNearest(
             m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta, quantize);
         clipLen = right - (m_mouseDownStart + m_mouseDownClipStart);
-        if (clipLen <= 0) {
-            TimeGraphicsView::mouseMoveEvent(event);
+        if (clipLen <= 0)
             return;
-        }
 
         const auto curClipStart = m_currentEditingClip->clipStart();
         const auto curLength = m_currentEditingClip->length();
@@ -282,7 +285,28 @@ void TracksGraphicsView::mouseMoveEvent(QMouseEvent *event) {
             m_currentEditingClip->setClipLen(clipLen);
         }
     }
-    TimeGraphicsView::mouseMoveEvent(event);
+}
+
+void TracksGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
+                                               const Qt::KeyboardModifiers modifiers) {
+    if (cancelRequested)
+        return;
+
+    if (m_mouseMoveBehavior != None && m_currentEditingClip) {
+        // Extend the scene temporarily when dragging against the right edge so
+        // the clip can travel past the current project tail.
+        if (m_mouseMoveBehavior == Move || m_mouseMoveBehavior == ResizeRight) {
+            const auto hBar = horizontalScrollBar();
+            if (hBar->value() >= hBar->maximum()) {
+                const auto visibleTickSpan = qRound(endTick() - startTick());
+                setSceneLengthExtension(sceneLengthExtension() + visibleTickSpan);
+            }
+        }
+        updateClipDragAt(clampedViewportPos, modifiers);
+        return;
+    }
+    // Rubber band selection is handled by the base class
+    TimeGraphicsView::onEdgeAutoScrollFrame(clampedViewportPos, modifiers);
 }
 
 void TracksGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
@@ -445,7 +469,8 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
                 connect(actionExtractMidi, &QAction::triggered, this,
                         [clip, this] { onExtractMidiTriggered(clip->id()); });
 
-                // When the file is missing, put relink first in the menu as the nearest repair entry
+                // When the file is missing, put relink first in the menu as the nearest repair
+                // entry
                 if (missing) {
                     menu.addAction(actionRelocate);
                     menu.addSeparator();
@@ -512,6 +537,10 @@ void TracksGraphicsView::resetEditState() {
     m_movedBeforeMouseUp = false;
     m_currentEditingClip = nullptr;
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
+    disarmEdgeAutoScroll();
+    // Drop the temporary drag extension; the scene falls back to the latest
+    // externally driven base length.
+    setSceneLengthExtension(0);
 }
 
 void TracksGraphicsView::clearPastePreviewClipViews() {
@@ -578,6 +607,10 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
         clipIds.append(clipItem->id());
     editSessionManager->beginTransaction(AppStatus::EditObjectType::Clip, clipItem->id(), clipIds);
     appStatus->currentEditObject = AppStatus::EditObjectType::Clip;
+
+    // Moving allows both axes (track change); resizing is horizontal only
+    armEdgeAutoScroll(m_mouseMoveBehavior == Move ? (Qt::Horizontal | Qt::Vertical)
+                                                  : Qt::Orientations(Qt::Horizontal));
 }
 
 AbstractClipView *TracksGraphicsView::findClipById(const int id) const {

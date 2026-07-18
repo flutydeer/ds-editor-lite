@@ -61,6 +61,15 @@ void EraseNoteHandler::discard() {
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
+Qt::Orientations EraseNoteHandler::edgeAutoScrollAxes() const {
+    return m_erasing ? (Qt::Horizontal | Qt::Vertical) : Qt::Orientations();
+}
+
+void EraseNoteHandler::continueDragAt(const QPoint &viewportPos) {
+    if (m_erasing)
+        eraseNoteUnderPos(viewportPos);
+}
+
 void EraseNoteHandler::eraseNoteUnderPos(const QPoint &pos) {
     const auto noteView = d->noteViewAt(pos);
     if (!noteView)

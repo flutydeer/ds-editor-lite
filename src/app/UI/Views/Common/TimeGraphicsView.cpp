@@ -4,6 +4,8 @@
 
 #include "TimeGraphicsView.h"
 
+#include <QApplication>
+#include <QCursor>
 #include <QScrollBar>
 #include <QWheelEvent>
 
@@ -111,6 +113,9 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
 
         if (!m_autoTurnPage || appStatus->currentEditObject != AppStatus::EditObjectType::None)
             return;
+        // Do not auto turn pages while edge auto scroll drives the viewport
+        if (isEdgeAutoScrollActive())
+            return;
 
         auto viewWidth = viewport()->width();
         auto hBarValue = horizontalBarValue();
@@ -125,6 +130,9 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
         } else if (m_playbackPosition < startTick())
             setViewportStartTick(m_playbackPosition);
     });
+
+    connect(&m_edgeAutoScroller, &EdgeAutoScroller::frame, this,
+            &TimeGraphicsView::onEdgeAutoScrollTimerFrame);
 }
 
 TimeGraphicsScene *TimeGraphicsView::scene() {
@@ -475,10 +483,14 @@ void TimeGraphicsView::mousePressEvent(QMouseEvent *event) {
     if (isSelect && event->button() == Qt::LeftButton) {
         if (scene()) {
             m_isDraggingContent = true;
-            if (m_dragBehavior == DragBehavior::RectSelect)
+            if (m_dragBehavior == DragBehavior::RectSelect) {
                 m_rubberBand.setSelectMode(RubberBandView::SelectMode::RectSelect);
-            else
+                armEdgeAutoScroll(Qt::Horizontal | Qt::Vertical);
+            } else {
                 m_rubberBand.setSelectMode(RubberBandView::SelectMode::BeamSelect);
+                armEdgeAutoScroll(Qt::Horizontal);
+            }
+            m_edgeAutoScrollPressPos = event->pos();
             m_rubberBand.mouseDown(mapToScene(event->pos()));
             m_rubberBandAdded = false;
         }
@@ -522,16 +534,22 @@ void TimeGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         return;
     }
     if (m_isDraggingContent) {
-        if (!m_rubberBandAdded) {
-            scene()->addCommonItem(&m_rubberBand);
-            m_rubberBandAdded = true;
-        }
-        m_rubberBand.mouseMove(mapToScene(event->pos()));
-        QPainterPath path;
-        path.addRect(QRectF(m_rubberBand.pos(), m_rubberBand.boundingRect().size()));
-        scene()->setSelectionArea(path);
+        updateRubberBandSelection(mapToScene(event->pos()));
     }
+    if (m_edgeAutoScrollArmed)
+        updateEdgeAutoScrollState(event->pos());
     QGraphicsView::mouseMoveEvent(event);
+}
+
+void TimeGraphicsView::updateRubberBandSelection(const QPointF &scenePos) {
+    if (!m_rubberBandAdded) {
+        scene()->addCommonItem(&m_rubberBand);
+        m_rubberBandAdded = true;
+    }
+    m_rubberBand.mouseMove(scenePos);
+    QPainterPath path;
+    path.addRect(QRectF(m_rubberBand.pos(), m_rubberBand.boundingRect().size()));
+    scene()->setSelectionArea(path);
 }
 
 void TimeGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
@@ -550,6 +568,7 @@ void TimeGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
             scene()->removeCommonItem(&m_rubberBand);
         m_isDraggingContent = false;
     }
+    disarmEdgeAutoScroll();
     QGraphicsView::mouseReleaseEvent(event);
 }
 
@@ -697,8 +716,103 @@ void TimeGraphicsView::setAutoTurnPage(bool on) {
         pageAdd();
 }
 
-void TimeGraphicsView::setSceneLength(int tick) const {
-    m_scene->setSceneLength(tick);
+void TimeGraphicsView::setSceneLength(int tick) {
+    m_baseSceneLength = tick;
+    m_scene->setSceneLength(m_baseSceneLength + m_sceneLengthExtension);
+}
+
+void TimeGraphicsView::setSceneLengthExtension(int ticks) {
+    if (m_sceneLengthExtension == ticks)
+        return;
+    m_sceneLengthExtension = ticks;
+    m_scene->setSceneLength(m_baseSceneLength + m_sceneLengthExtension);
+}
+
+int TimeGraphicsView::sceneLengthExtension() const {
+    return m_sceneLengthExtension;
+}
+
+void TimeGraphicsView::armEdgeAutoScroll(Qt::Orientations axes) {
+    if (!m_edgeAutoScrollArmed) {
+        m_edgeAutoScrollAxes = axes;
+        m_edgeAutoScrollArmed = !!axes;
+        m_edgeAutoScrollDistanceReached = false;
+        m_edgeAutoScrollPressPos = viewport()->mapFromGlobal(QCursor::pos());
+        return;
+    }
+    // Already armed (callers may re-arm on every move event): refresh the axes
+    // and re-evaluate the hot zone, keeping the press position intact. This
+    // also covers subclasses whose mouseMoveEvent returns before reaching the
+    // base class implementation.
+    m_edgeAutoScrollAxes = axes;
+    updateEdgeAutoScrollState(viewport()->mapFromGlobal(QCursor::pos()));
+}
+
+void TimeGraphicsView::disarmEdgeAutoScroll() {
+    m_edgeAutoScrollArmed = false;
+    m_edgeAutoScrollDistanceReached = false;
+    m_edgeAutoScroller.stop();
+}
+
+bool TimeGraphicsView::isEdgeAutoScrollActive() const {
+    return m_edgeAutoScroller.isRunning();
+}
+
+void TimeGraphicsView::updateEdgeAutoScrollState(const QPoint &viewportPos) {
+    if (!m_edgeAutoScrollArmed)
+        return;
+
+    if (!m_edgeAutoScrollDistanceReached) {
+        const auto delta = viewportPos - m_edgeAutoScrollPressPos;
+        if (delta.manhattanLength() < QApplication::startDragDistance())
+            return;
+        m_edgeAutoScrollDistanceReached = true;
+    }
+
+    const QRectF vpRect(QPointF(0, 0), viewport()->size());
+    const auto v = EdgeAutoScroller::velocity(viewportPos, vpRect, m_edgeAutoScrollAxes,
+                                              m_edgeAutoScroller.config());
+    const bool inHotZone = !v.isNull();
+    if (inHotZone && !m_edgeAutoScroller.isRunning()) {
+        // Direct scroll bar writes must not fight the bar animations
+        m_hBarAnimation.stop();
+        m_vBarAnimation.stop();
+        m_edgeAutoScroller.start();
+    } else if (!inHotZone && m_edgeAutoScroller.isRunning()) {
+        m_edgeAutoScroller.stop();
+    }
+}
+
+void TimeGraphicsView::onEdgeAutoScrollTimerFrame(double dtMs) {
+    // Safety net: stop if the mouse button was released without us seeing the
+    // event (e.g. release outside the window swallowed by a popup).
+    if (!m_edgeAutoScrollArmed || QGuiApplication::mouseButtons() == Qt::NoButton || !isVisible()) {
+        disarmEdgeAutoScroll();
+        return;
+    }
+
+    const auto pointerPos = QPointF(viewport()->mapFromGlobal(QCursor::pos()));
+    const QRectF vpRect(QPointF(0, 0), viewport()->size());
+
+    const auto step =
+        m_edgeAutoScroller.computeStep(pointerPos, vpRect, m_edgeAutoScrollAxes, dtMs);
+    if (step.x() != 0)
+        setHorizontalBarValue(horizontalBarValue() + step.x());
+    if (step.y() != 0)
+        setVerticalBarValue(verticalBarValue() + step.y());
+
+    const auto clamped = EdgeAutoScroller::clampToRect(pointerPos, vpRect).toPoint();
+    onEdgeAutoScrollFrame(clamped, QGuiApplication::queryKeyboardModifiers());
+
+    // Stop the timer once the pointer left the hot zone (it may re-enter later)
+    updateEdgeAutoScrollState(pointerPos.toPoint());
+}
+
+void TimeGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
+                                             Qt::KeyboardModifiers modifiers) {
+    Q_UNUSED(modifiers);
+    if (m_isDraggingContent && scene())
+        updateRubberBandSelection(mapToScene(clampedViewportPos));
 }
 
 void TimeGraphicsView::setPlaybackPosition(double tick) {

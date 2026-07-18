@@ -103,50 +103,13 @@ bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
             if (!m_state.dragging && delta.manhattanLength() > 3)
                 m_state.dragging = true;
 
-            if (m_state.dragging) {
-                if (m_state.dragNodeInfos.isEmpty()) {
-                    for (auto *node : m_state.selectedNodes) {
-                        DragNodeInfo info;
-                        info.node = node;
-                        info.sourceCurve = findOwnerCurve(node);
-                        info.startTick = node->pos();
-                        info.startValue = node->value();
-                        m_state.dragNodeInfos.append(info);
-                    }
-                }
-
-                const auto deltaTick = static_cast<int>(q->sceneXToTick(scenePos.x()) -
-                                                        q->sceneXToTick(m_state.dragStartPos.x()));
-                const auto deltaValue =
-                    static_cast<int>(d->m_anchorEditor->sceneYToValue(scenePos.y()) -
-                                     d->m_anchorEditor->sceneYToValue(m_state.dragStartPos.y()));
-
-                for (auto &info : m_state.dragNodeInfos) {
-                    info.sourceCurve->removeNode(info.node);
-                    info.node->setPos(info.startTick + deltaTick);
-                    info.node->setValue(info.startValue + deltaValue);
-                    info.sourceCurve->insertNode(info.node);
-                    info.targetCurve = anchorCurveAt(info.node->pos(), info.sourceCurve);
-                }
-
-                triggerRepaint();
-            }
+            if (m_state.dragging)
+                updateNodeDragAt(scenePos);
             return true;
         }
 
         if (m_state.selecting) {
-            m_state.selectionRect.setBottomRight(scenePos);
-            const auto rect = m_state.selectionRect.normalized();
-            clearSelection();
-            for (auto *curve : anchorCurves()) {
-                for (auto *node : curve->nodes().toList()) {
-                    const auto x = q->tickToSceneX(node->pos());
-                    const auto y = d->m_anchorEditor->valueToSceneY(node->value());
-                    if (rect.contains(x, y))
-                        m_state.selectedNodes.append(node);
-                }
-            }
-            triggerRepaint();
+            updateSelectionRectAt(scenePos);
             return true;
         }
     } else {
@@ -163,6 +126,65 @@ bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
         }
     }
     return true;
+}
+
+void EditPitchAnchorHandler::updateNodeDragAt(const QPointF &scenePos) {
+    if (m_state.dragNodeInfos.isEmpty()) {
+        for (auto *node : m_state.selectedNodes) {
+            DragNodeInfo info;
+            info.node = node;
+            info.sourceCurve = findOwnerCurve(node);
+            info.startTick = node->pos();
+            info.startValue = node->value();
+            m_state.dragNodeInfos.append(info);
+        }
+    }
+
+    const auto deltaTick =
+        static_cast<int>(q->sceneXToTick(scenePos.x()) - q->sceneXToTick(m_state.dragStartPos.x()));
+    const auto deltaValue =
+        static_cast<int>(d->m_anchorEditor->sceneYToValue(scenePos.y()) -
+                         d->m_anchorEditor->sceneYToValue(m_state.dragStartPos.y()));
+
+    for (auto &info : m_state.dragNodeInfos) {
+        info.sourceCurve->removeNode(info.node);
+        info.node->setPos(info.startTick + deltaTick);
+        info.node->setValue(info.startValue + deltaValue);
+        info.sourceCurve->insertNode(info.node);
+        info.targetCurve = anchorCurveAt(info.node->pos(), info.sourceCurve);
+    }
+
+    triggerRepaint();
+}
+
+void EditPitchAnchorHandler::updateSelectionRectAt(const QPointF &scenePos) {
+    m_state.selectionRect.setBottomRight(scenePos);
+    const auto rect = m_state.selectionRect.normalized();
+    clearSelection();
+    for (auto *curve : anchorCurves()) {
+        for (auto *node : curve->nodes().toList()) {
+            const auto x = q->tickToSceneX(node->pos());
+            const auto y = d->m_anchorEditor->valueToSceneY(node->value());
+            if (rect.contains(x, y))
+                m_state.selectedNodes.append(node);
+        }
+    }
+    triggerRepaint();
+}
+
+Qt::Orientations EditPitchAnchorHandler::edgeAutoScrollAxes() const {
+    const bool draggingNodes = m_state.editing && m_state.dragging;
+    if (draggingNodes || m_state.selecting)
+        return Qt::Horizontal | Qt::Vertical;
+    return {};
+}
+
+void EditPitchAnchorHandler::continueDragAt(const QPoint &viewportPos) {
+    const auto scenePos = q->mapToScene(viewportPos);
+    if (m_state.editing && m_state.dragging && !m_state.selectedNodes.isEmpty())
+        updateNodeDragAt(scenePos);
+    else if (m_state.selecting)
+        updateSelectionRectAt(scenePos);
 }
 
 bool EditPitchAnchorHandler::mouseReleaseEvent(QMouseEvent *event) {

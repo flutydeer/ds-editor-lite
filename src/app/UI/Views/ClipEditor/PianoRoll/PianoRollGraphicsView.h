@@ -46,8 +46,13 @@ public:
     void setViewportCenterAt(double tick, double keyIndex);
     void setViewportCenterAtKeyIndex(double keyIndex);
 
-    [[nodiscard]] double sceneXToTick(double pos) const { return TimeGraphicsView::sceneXToTick(pos); }
-    [[nodiscard]] double tickToSceneX(double tick) const { return TimeGraphicsView::tickToSceneX(tick); }
+    [[nodiscard]] double sceneXToTick(double pos) const {
+        return TimeGraphicsView::sceneXToTick(pos);
+    }
+
+    [[nodiscard]] double tickToSceneX(double tick) const {
+        return TimeGraphicsView::tickToSceneX(tick);
+    }
 
 signals:
     void keyRangeChanged(double start, double end);
@@ -69,9 +74,13 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
+    void onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
+                               Qt::KeyboardModifiers modifiers) override;
 
 private:
     int m_noteFontPixelSize = 13;
+
+    void updateNoteDragAt(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
 
     [[nodiscard]] int noteFontPixelSize() const;
     void setNoteFontPixelSize(int size);

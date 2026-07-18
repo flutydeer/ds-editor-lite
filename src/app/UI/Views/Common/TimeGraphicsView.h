@@ -5,6 +5,7 @@
 #ifndef TIMEGRAPHICSVIEW_H
 #define TIMEGRAPHICSVIEW_H
 
+#include "EdgeAutoScroller.h"
 #include "RubberBandView.h"
 #include "UI/Utils/IAnimatable.h"
 #include "UI/Utils/IScalable.h"
@@ -75,7 +76,7 @@ public slots:
     void onWheelVerScroll(QWheelEvent *event);
     void adjustScaleXToFillView();
     void adjustScaleYToFillView();
-    void setSceneLength(int tick) const;
+    void setSceneLength(int tick);
     void setPlaybackPosition(double tick);
     void setLastPlaybackPosition(double tick);
     void pageAdd();
@@ -97,6 +98,23 @@ protected:
     [[nodiscard]] double sceneXToTick(double pos) const;
     [[nodiscard]] double tickToSceneX(double tick) const;
 
+    // --- Edge auto scroll ---
+    // Arm when a continuous drag operation begins; the scroll timer starts
+    // once the pointer has travelled past startDragDistance() and enters the
+    // hot zone, and stops on disarm/release/cancel.
+    void armEdgeAutoScroll(Qt::Orientations axes);
+    void disarmEdgeAutoScroll();
+    [[nodiscard]] bool isEdgeAutoScrollActive() const;
+    // Per-frame hook, called after the viewport has been scrolled. The base
+    // implementation keeps rubber band selection in sync.
+    virtual void onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
+                                       Qt::KeyboardModifiers modifiers);
+
+    // Temporary scene length extension on top of the externally driven base
+    // length (used by drag operations that need room past the right edge).
+    void setSceneLengthExtension(int ticks);
+    [[nodiscard]] int sceneLengthExtension() const;
+
     QColor barLineColor() const;
     void setBarLineColor(const QColor &color);
     QColor beatLineColor() const;
@@ -116,6 +134,9 @@ private:
     void handleHoverEnterEvent(QHoverEvent *event);
     void handleHoverLeaveEvent(QHoverEvent *event);
     void handleHoverMoveEvent(QHoverEvent *event);
+    void updateRubberBandSelection(const QPointF &scenePos);
+    void onEdgeAutoScrollTimerFrame(double dtMs);
+    void updateEdgeAutoScrollState(const QPoint &viewportPos);
 
     [[nodiscard]] ScrollBarView *scrollBarAt(const QPoint &pos);
 
@@ -145,6 +166,17 @@ private:
     RubberBandView m_rubberBand;
     ItemType m_prevHoveredItem = ItemType::Content;
     bool m_scrollBarPressed = false;
+
+    // Edge auto scroll state
+    EdgeAutoScroller m_edgeAutoScroller;
+    Qt::Orientations m_edgeAutoScrollAxes;
+    bool m_edgeAutoScrollArmed = false;
+    bool m_edgeAutoScrollDistanceReached = false;
+    QPoint m_edgeAutoScrollPressPos;
+
+    // Scene length = external base + temporary drag extension
+    int m_baseSceneLength = 0;
+    int m_sceneLengthExtension = 0;
 
     QTimer m_timer;
     bool m_touchPadLock = false;

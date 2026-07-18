@@ -399,8 +399,12 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     }
 
     if (d->m_currentHandler) {
-        if (d->m_currentHandler->mouseMoveEvent(event))
+        if (d->m_currentHandler->mouseMoveEvent(event)) {
+            // Arm edge auto scroll for handler-driven drags (draw/erase/anchor)
+            if (const auto axes = d->m_currentHandler->edgeAutoScrollAxes())
+                armEdgeAutoScroll(axes);
             return;
+        }
     }
     if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::None) {
         TimeGraphicsView::mouseMoveEvent(event);
@@ -409,12 +413,25 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     if (cancelRequested || d->m_interactionController->isMouseDown() == false)
         return;
 
-    if (event->modifiers() == Qt::AltModifier)
+    // Moving notes may scroll on both axes; resizing is horizontal only
+    armEdgeAutoScroll(d->m_interactionController->mouseMoveBehavior() ==
+                              NoteInteractionController::Move
+                          ? (Qt::Horizontal | Qt::Vertical)
+                          : Qt::Orientations(Qt::Horizontal));
+
+    updateNoteDragAt(event->position().toPoint(), event->modifiers());
+}
+
+void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
+                                             const Qt::KeyboardModifiers modifiers) {
+    Q_D(PianoRollGraphicsView);
+
+    if (modifiers == Qt::AltModifier)
         d->m_interactionController->setTempQuantizeOff(true);
     else
         d->m_interactionController->setTempQuantizeOff(false);
 
-    const auto scenePos = mapToScene(event->position().toPoint());
+    const auto scenePos = mapToScene(viewportPos);
     const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
     const auto quantizedTickLength = TimelineSnapUtils::quantizeStep(
         appStatus->pianoRollQuantize, d->m_interactionController->tempQuantizeOff());
@@ -423,8 +440,6 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), scaleY() * noteHeight);
     const auto deltaX = static_cast<int>(
         sceneXToTick(scenePos.x() - d->m_interactionController->mouseDownPos().x()));
-
-    const auto noteView = d->noteViewAt(event->pos());
 
     // TODO: Optimize note moving and resizing
     if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::Move) {
@@ -460,8 +475,26 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         d->m_interactionController->resizeRightSelectedNote(
             d->m_interactionController->deltaTick());
         d->m_interactionController->setMovedBeforeMouseUp(true);
-    } else
-        TimeGraphicsView::mouseMoveEvent(event);
+    }
+}
+
+void PianoRollGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
+                                                  const Qt::KeyboardModifiers modifiers) {
+    Q_D(PianoRollGraphicsView);
+    if (cancelRequested)
+        return;
+
+    if (d->m_interactionController->mouseMoveBehavior() != NoteInteractionController::None &&
+        d->m_interactionController->isMouseDown()) {
+        updateNoteDragAt(clampedViewportPos, modifiers);
+        return;
+    }
+    if (d->m_currentHandler && d->m_currentHandler->edgeAutoScrollAxes()) {
+        d->m_currentHandler->continueDragAt(clampedViewportPos);
+        return;
+    }
+    // Rubber band selection is handled by the base class
+    TimeGraphicsView::onEdgeAutoScrollFrame(clampedViewportPos, modifiers);
 }
 
 void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
@@ -632,6 +665,7 @@ void PianoRollGraphicsView::discardAction() {
     Q_D(PianoRollGraphicsView);
     d->m_pitchEditor->discardAction();
     cancelRequested = true;
+    disarmEdgeAutoScroll();
     if (d->m_currentHandler) {
         d->m_currentHandler->discard();
     }

@@ -42,6 +42,9 @@ private:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
+    void onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
+                               Qt::KeyboardModifiers modifiers) override;
+    void updateClipDragAt(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
     void prepareForMovingOrResizingClip(const QMouseEvent *event, AbstractClipView *clipItem);
     AbstractClipView *findClipById(int id) const;
     void clearSelections() const;

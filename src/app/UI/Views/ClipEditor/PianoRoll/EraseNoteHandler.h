@@ -20,6 +20,9 @@ public:
     void commit() override;
     void discard() override;
 
+    [[nodiscard]] Qt::Orientations edgeAutoScrollAxes() const override;
+    void continueDragAt(const QPoint &viewportPos) override;
+
 private:
     void eraseNoteUnderPos(const QPoint &pos);
 

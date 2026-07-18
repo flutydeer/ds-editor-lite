@@ -69,6 +69,9 @@ public:
     void commit() override;
     void discard() override;
 
+    [[nodiscard]] Qt::Orientations edgeAutoScrollAxes() const override;
+    void continueDragAt(const QPoint &viewportPos) override;
+
     void setAlwaysVisible(bool visible);
     void loadFromModel(const QList<AnchorCurve *> &curves);
 
@@ -102,6 +105,8 @@ private:
     void updateMergeCandidate(const QPointF &scenePos);
     void mergeCurves(AnchorCurve *target);
     void triggerRepaint();
+    void updateNodeDragAt(const QPointF &scenePos);
+    void updateSelectionRectAt(const QPointF &scenePos);
 
     static constexpr double kAnchorHitRadius = 6.0;
 };
