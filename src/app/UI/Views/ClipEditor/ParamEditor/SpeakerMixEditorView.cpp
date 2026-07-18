@@ -147,6 +147,61 @@ double SpeakerMixEditorView::nextKeyframeTick(double currentTick) const {
     return -1;
 }
 
+QColor SpeakerMixEditorView::textColor() const {
+    return m_textColor;
+}
+
+void SpeakerMixEditorView::setTextColor(const QColor &color) {
+    if (m_textColor == color)
+        return;
+    m_textColor = color;
+    update();
+}
+
+QColor SpeakerMixEditorView::keyframeLineColor() const {
+    return m_keyframeLineColor;
+}
+
+void SpeakerMixEditorView::setKeyframeLineColor(const QColor &color) {
+    if (m_keyframeLineColor == color)
+        return;
+    m_keyframeLineColor = color;
+    update();
+}
+
+QColor SpeakerMixEditorView::selectedDotColor() const {
+    return m_selectedDotColor;
+}
+
+void SpeakerMixEditorView::setSelectedDotColor(const QColor &color) {
+    if (m_selectedDotColor == color)
+        return;
+    m_selectedDotColor = color;
+    update();
+}
+
+QColor SpeakerMixEditorView::selectionBorderColor() const {
+    return m_selectionBorderColor;
+}
+
+void SpeakerMixEditorView::setSelectionBorderColor(const QColor &color) {
+    if (m_selectionBorderColor == color)
+        return;
+    m_selectionBorderColor = color;
+    update();
+}
+
+QColor SpeakerMixEditorView::selectionFillColor() const {
+    return m_selectionFillColor;
+}
+
+void SpeakerMixEditorView::setSelectionFillColor(const QColor &color) {
+    if (m_selectionFillColor == color)
+        return;
+    m_selectionFillColor = color;
+    update();
+}
+
 void SpeakerMixEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                  QWidget *widget) {
     Q_UNUSED(option)
@@ -160,7 +215,9 @@ void SpeakerMixEditorView::paint(QPainter *painter, const QStyleOptionGraphicsIt
     drawKeyframeDots(painter);
     drawSelectionRect(painter);
     if (m_dynamicBypassed) {
-        painter->setPen(QColor(220, 220, 220, 180));
+        QColor bypassedTextColor = m_textColor;
+        bypassedTextColor.setAlpha(180);
+        painter->setPen(bypassedTextColor);
         painter->drawText(QRectF(8, 4, rect().width() - 16, 20), Qt::AlignRight | Qt::AlignTop,
                           tr("Bypassed"));
     }
@@ -479,11 +536,8 @@ void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
                                   m_state.selectedKeyframeIndices.contains(kfIndex);
 
         if (kf.tick != 0) {
-            QColor keyFrameColor;
-            if (kfIndex == m_state.hoveredKeyframeIndex)
-                keyFrameColor = QColor(220, 220, 220, 160);
-            else
-                keyFrameColor = QColor(220, 220, 220, 80);
+            QColor keyFrameColor = m_keyframeLineColor;
+            keyFrameColor.setAlpha(kfIndex == m_state.hoveredKeyframeIndex ? 160 : 80);
             painter->setPen(QPen(keyFrameColor, 1.5));
             painter->drawLine(QPointF(localX, areaTop), QPointF(localX, areaTop + areaHeight));
         }
@@ -491,7 +545,7 @@ void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
         const auto weights = interpolateWeights(kf.tick);
         const auto drawDot = [&](const int speakerIndex, const QPointF &center, const bool selected,
                                  const bool clipInnerBottom = false) {
-            QColor centerColor = selected ? QColor(255, 255, 255) : m_speakers[speakerIndex].color;
+            QColor centerColor = selected ? m_selectedDotColor : m_speakers[speakerIndex].color;
             centerColor.setAlpha(selected ? 255 : 220);
 
             painter->setPen(Qt::NoPen);
@@ -527,10 +581,10 @@ void SpeakerMixEditorView::drawSelectionRect(QPainter *painter) const {
         return;
 
     painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(155, 186, 255, 40));
+    painter->setBrush(m_selectionFillColor);
     painter->drawRect(rect);
 
-    painter->setPen(QPen(QColor(155, 186, 255, 200), 1.0));
+    painter->setPen(QPen(m_selectionBorderColor, 1.0));
     painter->drawLine(QPointF(rect.left(), rect.top()), QPointF(rect.left(), rect.bottom()));
     painter->drawLine(QPointF(rect.right(), rect.top()), QPointF(rect.right(), rect.bottom()));
 }

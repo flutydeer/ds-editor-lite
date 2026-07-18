@@ -171,6 +171,15 @@ ParamEditorGraphicsView {
     background: #1D1F26;
     border-radius: 0px;
     border-bottom-right-radius: 6px;
+    qproperty-paramGraduateColor: #484B4E;
+    qproperty-paramOriginalCurveColor: rgba(255, 255, 255, 96);
+    qproperty-paramEditedCurveColor: #FFFFFF;
+    qproperty-paramBackgroundLayerColor: #292C36;
+    qproperty-speakerMixTextColor: #DCDCDC;
+    qproperty-speakerMixKeyframeLineColor: #DCDCDC;
+    qproperty-speakerMixSelectedDotColor: #FFFFFF;
+    qproperty-speakerMixSelectionBorderColor: rgba(155, 186, 255, 200);
+    qproperty-speakerMixSelectionFillColor: rgba(155, 186, 255, 40);
 }
 
 PhonemeView {

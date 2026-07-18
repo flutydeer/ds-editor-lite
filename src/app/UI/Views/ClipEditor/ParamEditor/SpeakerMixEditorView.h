@@ -60,6 +60,17 @@ public:
     double previousKeyframeTick(double currentTick) const;
     double nextKeyframeTick(double currentTick) const;
 
+    [[nodiscard]] QColor textColor() const;
+    void setTextColor(const QColor &color);
+    [[nodiscard]] QColor keyframeLineColor() const;
+    void setKeyframeLineColor(const QColor &color);
+    [[nodiscard]] QColor selectedDotColor() const;
+    void setSelectedDotColor(const QColor &color);
+    [[nodiscard]] QColor selectionBorderColor() const;
+    void setSelectionBorderColor(const QColor &color);
+    [[nodiscard]] QColor selectionFillColor() const;
+    void setSelectionFillColor(const QColor &color);
+
 signals:
     void speakerMixEdited(const SpeakerMixModel::SpeakerMixData &data);
 
@@ -114,6 +125,14 @@ private:
     bool m_editable = false;
     bool m_dynamicBypassed = false;
     QPointer<ToolTip> m_tooltip;
+
+    // Base colors; state-dependent alphas (hover/normal tiers) are applied in draw methods
+    QColor m_textColor = {220, 220, 220};
+    QColor m_keyframeLineColor = {220, 220, 220};
+    // NOTE: transitional; may move to AppColorPalette (per-index or contrast-derived)
+    QColor m_selectedDotColor = {255, 255, 255};
+    QColor m_selectionBorderColor = {155, 186, 255, 200};
+    QColor m_selectionFillColor = {155, 186, 255, 40};
 
     struct InteractionState {
         int hoveredKeyframeIndex = -1;

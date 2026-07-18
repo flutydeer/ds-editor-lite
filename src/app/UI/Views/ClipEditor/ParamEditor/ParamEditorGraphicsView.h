@@ -18,6 +18,22 @@ class SpeakerMixEditorView;
 
 class ParamEditorGraphicsView final : public TimeGraphicsView, public IAtomicAction {
     Q_OBJECT
+    Q_PROPERTY(QColor paramGraduateColor READ paramGraduateColor WRITE setParamGraduateColor)
+    Q_PROPERTY(QColor paramOriginalCurveColor READ paramOriginalCurveColor WRITE
+                   setParamOriginalCurveColor)
+    Q_PROPERTY(
+        QColor paramEditedCurveColor READ paramEditedCurveColor WRITE setParamEditedCurveColor)
+    Q_PROPERTY(QColor paramBackgroundLayerColor READ paramBackgroundLayerColor WRITE
+                   setParamBackgroundLayerColor)
+    Q_PROPERTY(QColor speakerMixTextColor READ speakerMixTextColor WRITE setSpeakerMixTextColor)
+    Q_PROPERTY(QColor speakerMixKeyframeLineColor READ speakerMixKeyframeLineColor WRITE
+                   setSpeakerMixKeyframeLineColor)
+    Q_PROPERTY(QColor speakerMixSelectedDotColor READ speakerMixSelectedDotColor WRITE
+                   setSpeakerMixSelectedDotColor)
+    Q_PROPERTY(QColor speakerMixSelectionBorderColor READ speakerMixSelectionBorderColor WRITE
+                   setSpeakerMixSelectionBorderColor)
+    Q_PROPERTY(QColor speakerMixSelectionFillColor READ speakerMixSelectionFillColor WRITE
+                   setSpeakerMixSelectionFillColor)
 
 public:
     explicit ParamEditorGraphicsView(ParamEditorGraphicsScene *scene,
@@ -54,6 +70,25 @@ private:
     void moveToNullClipState();
     void moveToSingingClipState(SingingClip *clip);
     void updateSpeakerMixViewData() const;
+
+    [[nodiscard]] QColor paramGraduateColor() const;
+    void setParamGraduateColor(const QColor &color);
+    [[nodiscard]] QColor paramOriginalCurveColor() const;
+    void setParamOriginalCurveColor(const QColor &color);
+    [[nodiscard]] QColor paramEditedCurveColor() const;
+    void setParamEditedCurveColor(const QColor &color);
+    [[nodiscard]] QColor paramBackgroundLayerColor() const;
+    void setParamBackgroundLayerColor(const QColor &color);
+    [[nodiscard]] QColor speakerMixTextColor() const;
+    void setSpeakerMixTextColor(const QColor &color);
+    [[nodiscard]] QColor speakerMixKeyframeLineColor() const;
+    void setSpeakerMixKeyframeLineColor(const QColor &color);
+    [[nodiscard]] QColor speakerMixSelectedDotColor() const;
+    void setSpeakerMixSelectedDotColor(const QColor &color);
+    [[nodiscard]] QColor speakerMixSelectionBorderColor() const;
+    void setSpeakerMixSelectionBorderColor(const QColor &color);
+    [[nodiscard]] QColor speakerMixSelectionFillColor() const;
+    void setSpeakerMixSelectionFillColor(const QColor &color);
 
     static QList<DrawCurve *> getDrawCurves(const QList<Curve *> &curves);
 
