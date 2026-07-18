@@ -161,7 +161,7 @@
         <file>theme/lite-dark/windows.qss</file>
         <file>theme/lite-dark/dialogs.qss</file>
 
-        <file>theme/lyricwarpview-dark.qss</file>
+        <file>theme/lite-dark/lyricwrapview.qss</file>
 
         <!-- ======== Fonts ======== -->
         <file>fonts/Sarasa-UI-Music-Regular.ttf</file>

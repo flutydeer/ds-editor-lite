@@ -45,7 +45,6 @@
 #include "Utils/WindowFrameUtils.h"
 
 #include <QApplication>
-#include <QFile>
 #include <QFileInfo>
 #include <QFileDialog>
 #include <QHBoxLayout>
@@ -99,24 +98,7 @@ MainWindow::MainWindow() {
     }
     installEventFilter(m_titleBar);
 
-    QString styleSheet;
-    QStringList qssFileList = {
-        ":theme/lite-dark/base.qss",        ":theme/lite-dark/controls.qss",
-        ":theme/lite-dark/popups.qss",      ":theme/lite-dark/title-bar.qss",
-        ":theme/lite-dark/track-editor.qss", ":theme/lite-dark/clip-editor.qss",
-        ":theme/lite-dark/mix-console.qss", ":theme/lite-dark/windows.qss",
-        ":theme/lite-dark/dialogs.qss",
-    };
-
-    for (const auto &file : qssFileList) {
-        if (auto qssFile = QFile(file); qssFile.open(QIODevice::ReadOnly)) {
-            styleSheet += qssFile.readAll();
-            qssFile.close();
-        } else {
-            qCritical() << "Failed to open qss:" << file;
-        }
-    }
-    setStyleSheet(styleSheet);
+    ThemeManager::instance()->addStyleRoot(this);
 
     Dialog::setGlobalContext(this);
     Toast::setGlobalContext(this);
@@ -427,7 +409,7 @@ void MainWindow::detachBottomPanel() {
         connect(titleBar->closeButton(), &Button::clicked, this, &MainWindow::attachBottomPanel);
     }
 
-    m_bottomPanelView->setStyleSheet(styleSheet());
+    ThemeManager::instance()->addStyleRoot(m_bottomPanelView);
 
     m_bottomPanelView->setMinimumWidth(960);
 
@@ -485,6 +467,7 @@ void MainWindow::attachBottomPanel() {
     m_bottomPanelView->setMinimumWidth(0);
 
     m_splitter->addWidget(m_bottomPanelView);
+    ThemeManager::instance()->removeStyleRoot(m_bottomPanelView);
     m_splitter->restoreState(m_detachSplitterState);
     m_bottomPanelView->show();
 }

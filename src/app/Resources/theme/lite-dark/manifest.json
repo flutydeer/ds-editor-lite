@@ -1,5 +1,18 @@
 {
     "name": "Lite Dark",
     "author": "FlutyDeer",
-    "colorType": "dark"
+    "colorType": "dark",
+    "styleSheets": [
+        "base.qss",
+        "controls.qss",
+        "popups.qss",
+        "title-bar.qss",
+        "track-editor.qss",
+        "clip-editor.qss",
+        "mix-console.qss",
+        "windows.qss",
+        "dialogs.qss"
+    ],
+    "appColorPalette": "app-color-palette.json",
+    "lyricStyleSheet": "lyricwrapview.qss"
 }

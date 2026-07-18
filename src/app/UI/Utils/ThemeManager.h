@@ -6,12 +6,16 @@
 #define THEMEMANAGER_H
 
 #include <QObject>
+#include <QPointer>
+#include <QString>
+
 #include "Utils/Singleton.h"
 #include "Global/AppOptionsGlobal.h"
 
 class IAnimatable;
 
 class ThemeManager : public QObject {
+    Q_OBJECT
 public:
     enum class ThemeColorType { Light, Dark, HighContrast };
 
@@ -23,11 +27,28 @@ public:
     LITE_SINGLETON_DECLARE_INSTANCE(ThemeManager)
     Q_DISABLE_COPY_MOVE(ThemeManager)
 
-public:
+    // --- Theme loading ---
+    bool initialize(const QString &themeId);
+    bool applyTheme(const QString &themeId);
+
+    // --- Query ---
+    QString currentThemeId() const;
+    ThemeColorType colorType() const;
+    QString styleSheet() const;
+    QString lyricStyleSheetPath() const;
+
+    // --- Style roots (windows that receive the full QSS) ---
+    void addStyleRoot(QWidget *root);
+    void removeStyleRoot(QWidget *root);
+
+    // --- Frame effects (existing) ---
     void addAnimationObserver(IAnimatable *object);
     void removeAnimationObserver(IAnimatable *object);
     void addWindow(QWidget *window);
     void removeWindow(QWidget *window);
+
+signals:
+    void themeChanged(const QString &themeId);
 
 public slots:
     void onAppOptionsChanged(AppOptionsGlobal::Option option);
@@ -37,8 +58,20 @@ private:
     static void applyAnimationSettings(IAnimatable *object);
     bool eventFilter(QObject *watched, QEvent *event) override;
 
+    // --- Theme state ---
+    QString m_currentThemeId;
+    ThemeColorType m_colorType = ThemeColorType::Dark;
+    QString m_styleSheet;
+    QString m_lyricStyleSheetPath;
+
+    // --- Animation ---
     QList<IAnimatable *> m_subscribers;
-    QList<QWidget *> m_windows;
+
+    // --- Frame windows ---
+    QList<QPointer<QWidget>> m_windows;
+
+    // --- Style roots ---
+    QList<QPointer<QWidget>> m_styleRoots;
 };
 
 #endif // THEMEMANAGER_H

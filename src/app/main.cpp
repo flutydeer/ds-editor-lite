@@ -12,7 +12,7 @@
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/PackageManager/PackageManager.h"
-#include "UI/Utils/AppColorPalette.h"
+#include "UI/Utils/ThemeManager.h"
 #include "UI/Window/MainWindow.h"
 #include "Utils/UiLanguageManager.h"
 
@@ -39,7 +39,8 @@ int main(int argc, char *argv[]) {
     AppContext appContext(std::move(options));
 
     // Infrastructure singletons (stays Meyers static)
-    AppColorPalette::instance()->load(":/theme/lite-dark/app-color-palette.json");
+    // ThemeManager: load theme, apply palette and QSS
+    ThemeManager::instance()->initialize("lite-dark");
 
     packageManager->initialize();
 

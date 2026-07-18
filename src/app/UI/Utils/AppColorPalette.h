@@ -15,6 +15,9 @@ public:
 
     bool load(const QString &jsonFilePath);
 
+    /// Set a pre-validated palette. Returns false if the size is wrong.
+    bool setColors(const QList<QColor> &colors);
+
     QColor baseColor(int index) const;
 
     QColor clipBackground(int index) const;

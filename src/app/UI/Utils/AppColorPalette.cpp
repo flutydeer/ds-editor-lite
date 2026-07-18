@@ -32,6 +32,12 @@ bool AppColorPalette::load(const QString &jsonFilePath) {
             return false;
         colors.append(c);
     }
+    return setColors(colors);
+}
+
+bool AppColorPalette::setColors(const QList<QColor> &colors) {
+    if (colors.size() != colorCount)
+        return false;
     m_palette = colors;
     return true;
 }

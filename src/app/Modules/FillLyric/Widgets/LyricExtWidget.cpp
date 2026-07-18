@@ -1,5 +1,7 @@
 #include "Modules/FillLyric/Widgets/LyricExtWidget.h"
 
+#include "UI/Utils/ThemeManager.h"
+
 #include <QFile>
 #include <utility>
 
@@ -11,7 +13,7 @@ namespace FillLyric {
         this->setContentsMargins(0, 0, 0, 0);
 
         m_wrapView =
-            new LyricWrapView(":/theme/lyricwarpview-dark.qss", m_priorityLanguages, g2pService);
+            new LyricWrapView(ThemeManager::instance()->lyricStyleSheetPath(), m_priorityLanguages, g2pService);
         m_wrapView->setContentsMargins(0, 0, 0, 0);
 
         m_tableTopLayout = new QHBoxLayout();
