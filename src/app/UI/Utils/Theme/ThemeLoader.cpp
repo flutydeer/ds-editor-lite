@@ -1,5 +1,7 @@
 #include "ThemeLoader.h"
 
+#include "ThemeColorResolver.h"
+
 #include "Global/AppGlobal.h"
 
 #include <QDir>
@@ -65,7 +67,31 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
         return std::nullopt;
     }
 
-    // --- 3. Load style sheets ---
+    // --- 3. Load semantic color tokens ---
+    const auto colorsFileName = root.value("colors").toString();
+    if (colorsFileName.isEmpty()) {
+        s_lastError = QStringLiteral("Manifest missing required field 'colors': %1")
+                          .arg(manifestPath(folderName));
+        return std::nullopt;
+    }
+
+    QFile colorsFile(resourcePath(folderName, colorsFileName));
+    if (!colorsFile.open(QIODevice::ReadOnly)) {
+        s_lastError = QStringLiteral("Cannot open colors file '%1' for theme: %2")
+                          .arg(colorsFileName, folderName);
+        return std::nullopt;
+    }
+
+    QString colorsError;
+    const auto themeColors = ThemeColorResolver::parse(colorsFile.readAll(), &colorsError);
+    colorsFile.close();
+    if (!themeColors) {
+        s_lastError = QStringLiteral("Invalid colors file '%1' for theme '%2': %3")
+                          .arg(colorsFileName, folderName, colorsError);
+        return std::nullopt;
+    }
+
+    // --- 4. Load style sheets ---
     const auto styleSheets = root.value("styleSheets").toArray();
     QString combinedStyleSheet;
     for (const auto &val : styleSheets) {
@@ -83,11 +109,22 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
             return std::nullopt;
         }
 
-        combinedStyleSheet += file.readAll() + "\n";
+        const QString rawStyleSheet = QString::fromUtf8(file.readAll());
         file.close();
+
+        QString substitutionError;
+        const auto resolvedStyleSheet = ThemeColorResolver::applyToStyleSheet(
+            rawStyleSheet, *themeColors, nullptr, &substitutionError);
+        if (!resolvedStyleSheet) {
+            s_lastError =
+                QStringLiteral("Invalid color placeholder in QSS file '%1' for theme '%2': %3")
+                    .arg(fileName, folderName, substitutionError);
+            return std::nullopt;
+        }
+        combinedStyleSheet += *resolvedStyleSheet + "\n";
     }
 
-    // --- 4. Load appColorPalette ---
+    // --- 5. Load appColorPalette ---
     // All-or-nothing: empty QSS list is invalid
     if (combinedStyleSheet.isEmpty()) {
         s_lastError =
@@ -134,7 +171,7 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
         }
     }
 
-    // --- 5. Load lyricStyleSheet ---
+    // --- 6. Load lyricStyleSheet ---
     // All-or-nothing: palette must be present and complete
     if (paletteColors.isEmpty()) {
         s_lastError =
@@ -152,11 +189,22 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
             return std::nullopt;
         }
 
-        lyricStyleSheet = QString::fromUtf8(lyricFile.readAll());
+        const QString rawLyricStyleSheet = QString::fromUtf8(lyricFile.readAll());
         lyricFile.close();
+
+        QString substitutionError;
+        const auto resolvedLyricStyleSheet = ThemeColorResolver::applyToStyleSheet(
+            rawLyricStyleSheet, *themeColors, nullptr, &substitutionError);
+        if (!resolvedLyricStyleSheet) {
+            s_lastError = QStringLiteral(
+                              "Invalid color placeholder in lyric QSS file '%1' for theme '%2': %3")
+                              .arg(lyricFileName, folderName, substitutionError);
+            return std::nullopt;
+        }
+        lyricStyleSheet = *resolvedLyricStyleSheet;
     }
 
-    // --- 6. All-or-nothing: construct result ---
+    // --- 7. All-or-nothing: construct result ---
     // All-or-nothing: lyric style sheet is required
     if (lyricStyleSheet.isEmpty()) {
         s_lastError =
@@ -172,6 +220,7 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
     def.styleSheet = combinedStyleSheet;
     def.paletteColors = paletteColors;
     def.lyricStyleSheet = lyricStyleSheet;
+    def.semanticColors = themeColors->tokens;
     return def;
 }
 

@@ -150,6 +150,7 @@
 
         <!-- ======== Themes ======== -->
         <file>theme/lite-dark/manifest.json</file>
+        <file>theme/lite-dark/colors.json</file>
         <file>theme/lite-dark/app-color-palette.json</file>
         <file>theme/lite-dark/base.qss</file>
         <file>theme/lite-dark/controls.qss</file>

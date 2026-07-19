@@ -2,6 +2,7 @@
     "name": "Lite Dark",
     "author": "FlutyDeer",
     "colorType": "dark",
+    "colors": "colors.json",
     "styleSheets": [
         "base.qss",
         "controls.qss",
