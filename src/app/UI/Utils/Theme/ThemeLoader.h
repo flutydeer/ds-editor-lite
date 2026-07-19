@@ -8,6 +8,9 @@
 
 class ThemeLoader {
 public:
+    /// Returns the external theme root from DS_EDITOR_THEME_DIR, if configured and present.
+    static QString externalThemeRoot();
+
     /// Scan :/theme/ and return folder names that contain a manifest.json.
     /// Note: does NOT fully validate the theme; use load() for verification.
     static QStringList themeCandidates();
@@ -20,6 +23,7 @@ public:
     static QString lastError();
 
 private:
+    static bool isSafeResourceName(const QString &fileName);
     static QString manifestPath(const QString &folderName);
     static QString resourcePath(const QString &folderName, const QString &fileName);
 };

@@ -61,6 +61,12 @@ bool ThemeManager::applyTheme(const QString &themeId) {
     return true;
 }
 
+bool ThemeManager::reloadCurrentTheme() {
+    if (m_currentThemeId.isEmpty())
+        return false;
+    return applyTheme(m_currentThemeId);
+}
+
 // ── Query ────────────────────────────────────────────────────────────────
 
 QString ThemeManager::currentThemeId() const {

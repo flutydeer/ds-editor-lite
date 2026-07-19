@@ -22,6 +22,8 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/SilentSplitter.h"
 #include "UI/Controls/Toast.h"
+#include "UI/Utils/ThemeManager.h"
+#include "UI/Utils/Theme/ThemeLoader.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Dialogs/ResourceCheck/AudioResourcePage.h"
@@ -50,6 +52,7 @@
 #include <QHBoxLayout>
 #include <QMimeData>
 #include <QProcess>
+#include <QShortcut>
 #include <QSplitter>
 #include <QWKWidgets/widgetwindowagent.h>
 
@@ -99,6 +102,16 @@ MainWindow::MainWindow() {
     installEventFilter(m_titleBar);
 
     ThemeManager::instance()->addStyleRoot(this);
+
+    auto themeReloadShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F5), this);
+    connect(themeReloadShortcut, &QShortcut::activated, this, [this] {
+        if (!ThemeManager::instance()->reloadCurrentTheme()) {
+            qWarning() << "Failed to reload theme:" << ThemeLoader::lastError();
+            Toast::show(tr("Failed to reload theme"));
+        } else {
+            Toast::show(tr("Theme reloaded"));
+        }
+    });
 
     Dialog::setGlobalContext(this);
     Toast::setGlobalContext(this);

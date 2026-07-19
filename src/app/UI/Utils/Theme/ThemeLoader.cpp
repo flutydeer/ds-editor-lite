@@ -10,19 +10,65 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
 
 static QString s_lastError;
+
+namespace {
+
+    QString bundledThemeRoot(const QString &folderName) {
+        return QStringLiteral(":/theme/%1").arg(folderName);
+    }
+
+    QString externalThemeRootPath(const QString &folderName) {
+        const auto root = ThemeLoader::externalThemeRoot();
+        if (root.isEmpty())
+            return {};
+        return QDir(root).filePath(folderName);
+    }
+
+    bool isSafeFolderName(const QString &folderName) {
+        if (folderName.isEmpty() || QDir::isAbsolutePath(folderName))
+            return false;
+        const auto parts = folderName.split(QRegularExpression(QStringLiteral("[/\\\\]")));
+        return parts.size() == 1 && parts.first() != QStringLiteral(".") &&
+               parts.first() != QStringLiteral("..");
+    }
+
+}
 
 QString ThemeLoader::lastError() {
     return s_lastError;
 }
 
+QString ThemeLoader::externalThemeRoot() {
+    const auto value = qEnvironmentVariable("DS_EDITOR_THEME_DIR").trimmed();
+    if (value.isEmpty())
+        return {};
+
+    const QFileInfo info(value);
+    if (!info.exists() || !info.isDir())
+        return {};
+    return info.absoluteFilePath();
+}
+
 QStringList ThemeLoader::themeCandidates() {
     QStringList result;
+
+    const auto externalRoot = externalThemeRoot();
+    if (!externalRoot.isEmpty()) {
+        const QDir externalThemeDir(externalRoot);
+        for (const auto &subdir : externalThemeDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+            if (QFileInfo::exists(externalThemeDir.filePath(subdir + QStringLiteral("/manifest.json"))) &&
+                !result.contains(subdir))
+                result.append(subdir);
+        }
+    }
+
     QDir themeDir(":/theme");
     const auto entries = themeDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
     for (const auto &subdir : entries) {
-        if (QFileInfo::exists(manifestPath(subdir)))
+        if (QFileInfo::exists(manifestPath(subdir)) && !result.contains(subdir))
             result.append(subdir);
     }
     return result;
@@ -31,10 +77,28 @@ QStringList ThemeLoader::themeCandidates() {
 std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
     s_lastError.clear();
 
+    if (!isSafeFolderName(folderName)) {
+        s_lastError = QStringLiteral("Invalid theme folder name: %1").arg(folderName);
+        return std::nullopt;
+    }
+
+    const auto externalRoot = externalThemeRootPath(folderName);
+    const auto externalManifest = externalRoot.isEmpty()
+                                      ? QString{}
+                                      : QDir(externalRoot).filePath(QStringLiteral("manifest.json"));
+    const bool useExternal = !externalManifest.isEmpty() && QFileInfo::exists(externalManifest);
+    const auto themeRoot = useExternal ? externalRoot : bundledThemeRoot(folderName);
+    const auto manifestFilePath = useExternal ? externalManifest : manifestPath(folderName);
+
+    auto filePath = [&](const QString &fileName) {
+        return useExternal ? QDir(themeRoot).filePath(fileName)
+                           : resourcePath(folderName, fileName);
+    };
+
     // --- 1. Read & parse manifest ---
-    QFile manifestFile(manifestPath(folderName));
+    QFile manifestFile(manifestFilePath);
     if (!manifestFile.open(QIODevice::ReadOnly)) {
-        s_lastError = QStringLiteral("Cannot open manifest: %1").arg(manifestPath(folderName));
+        s_lastError = QStringLiteral("Cannot open manifest: %1").arg(manifestFilePath);
         return std::nullopt;
     }
 
@@ -42,7 +106,7 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
     manifestFile.close();
     if (!manifestDoc.isObject()) {
         s_lastError =
-            QStringLiteral("Manifest is not a valid JSON object: %1").arg(manifestPath(folderName));
+            QStringLiteral("Manifest is not a valid JSON object: %1").arg(manifestFilePath);
         return std::nullopt;
     }
 
@@ -69,13 +133,13 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
 
     // --- 3. Load semantic color tokens ---
     const auto colorsFileName = root.value("colors").toString();
-    if (colorsFileName.isEmpty()) {
+    if (!isSafeResourceName(colorsFileName)) {
         s_lastError = QStringLiteral("Manifest missing required field 'colors': %1")
-                          .arg(manifestPath(folderName));
+                          .arg(manifestFilePath);
         return std::nullopt;
     }
 
-    QFile colorsFile(resourcePath(folderName, colorsFileName));
+    QFile colorsFile(filePath(colorsFileName));
     if (!colorsFile.open(QIODevice::ReadOnly)) {
         s_lastError = QStringLiteral("Cannot open colors file '%1' for theme: %2")
                           .arg(colorsFileName, folderName);
@@ -102,7 +166,13 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
             return std::nullopt;
         }
 
-        QFile file(resourcePath(folderName, fileName));
+        if (!isSafeResourceName(fileName)) {
+            s_lastError = QStringLiteral("Invalid QSS file name '%1' for theme: %2")
+                              .arg(fileName, folderName);
+            return std::nullopt;
+        }
+
+        QFile file(filePath(fileName));
         if (!file.open(QIODevice::ReadOnly)) {
             s_lastError =
                 QStringLiteral("Cannot open QSS file '%1' for theme: %2").arg(fileName, folderName);
@@ -135,7 +205,13 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
     const auto paletteFileName = root.value("appColorPalette").toString();
     QList<QColor> paletteColors;
     if (!paletteFileName.isEmpty()) {
-        QFile paletteFile(resourcePath(folderName, paletteFileName));
+        if (!isSafeResourceName(paletteFileName)) {
+            s_lastError = QStringLiteral("Invalid palette file name '%1' for theme: %2")
+                              .arg(paletteFileName, folderName);
+            return std::nullopt;
+        }
+
+        QFile paletteFile(filePath(paletteFileName));
         if (!paletteFile.open(QIODevice::ReadOnly)) {
             s_lastError = QStringLiteral("Cannot open palette file '%1' for theme: %2")
                               .arg(paletteFileName, folderName);
@@ -146,7 +222,7 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
         paletteFile.close();
         if (!paletteDoc.isObject()) {
             s_lastError = QStringLiteral("Palette file is not a valid JSON object: %1")
-                              .arg(resourcePath(folderName, paletteFileName));
+                              .arg(filePath(paletteFileName));
             return std::nullopt;
         }
 
@@ -182,7 +258,13 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
     const auto lyricFileName = root.value("lyricStyleSheet").toString();
     QString lyricStyleSheet;
     if (!lyricFileName.isEmpty()) {
-        QFile lyricFile(resourcePath(folderName, lyricFileName));
+        if (!isSafeResourceName(lyricFileName)) {
+            s_lastError = QStringLiteral("Invalid lyric style sheet name '%1' for theme: %2")
+                              .arg(lyricFileName, folderName);
+            return std::nullopt;
+        }
+
+        QFile lyricFile(filePath(lyricFileName));
         if (!lyricFile.open(QIODevice::ReadOnly)) {
             s_lastError = QStringLiteral("Cannot open lyric style sheet '%1' for theme: %2")
                               .arg(lyricFileName, folderName);
@@ -226,6 +308,18 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
 
 QString ThemeLoader::manifestPath(const QString &folderName) {
     return QStringLiteral(":/theme/%1/manifest.json").arg(folderName);
+}
+
+bool ThemeLoader::isSafeResourceName(const QString &fileName) {
+    if (fileName.isEmpty() || QDir::isAbsolutePath(fileName))
+        return false;
+
+    const auto parts = fileName.split(QRegularExpression(QStringLiteral("[/\\\\]")));
+    for (const auto &part : parts) {
+        if (part.isEmpty() || part == QStringLiteral(".") || part == QStringLiteral(".."))
+            return false;
+    }
+    return true;
 }
 
 QString ThemeLoader::resourcePath(const QString &folderName, const QString &fileName) {

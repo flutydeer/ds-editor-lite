@@ -1,9 +1,13 @@
 project(TestThemeColors)
 
+set(CMAKE_AUTORCC ON)
+
 add_executable(${PROJECT_NAME}
         main.cpp
         ../../app/UI/Utils/ColorUtils.cpp
         ../../app/UI/Utils/Theme/ThemeColorResolver.cpp
+        ../../app/UI/Utils/Theme/ThemeLoader.cpp
+        ../../app/Resources/lite_res.qrc
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

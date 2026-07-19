@@ -30,6 +30,7 @@ public:
     // --- Theme loading ---
     bool initialize(const QString &themeId);
     bool applyTheme(const QString &themeId);
+    bool reloadCurrentTheme();
 
     // --- Query ---
     QString currentThemeId() const;

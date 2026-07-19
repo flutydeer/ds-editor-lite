@@ -1,12 +1,15 @@
 #include "UI/Utils/Theme/ThemeColorResolver.h"
+#include "UI/Utils/Theme/ThemeLoader.h"
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
 #include <QDirIterator>
 #include <QFile>
 #include <QList>
 #include <QSet>
 #include <QStringList>
+#include <QTemporaryDir>
 
 namespace {
 
@@ -221,6 +224,101 @@ namespace {
         return success;
     }
 
+    bool writeFile(const QString &path, const QByteArray &content) {
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly))
+            return false;
+        return file.write(content) == content.size();
+    }
+
+    bool testExternalThemeRoot() {
+        QTemporaryDir tempDir;
+        if (!expect(tempDir.isValid(), QStringLiteral("temporary theme root should be created")))
+            return false;
+
+        const auto themeDir = QDir(tempDir.path()).filePath(QStringLiteral("external-test"));
+        if (!QDir().mkpath(themeDir))
+            return false;
+
+        const QByteArray colors = R"JSON({
+            "palette": {"neutral.base": "#123456"},
+            "tokens": {"surface.window": "{neutral.base}"}
+        })JSON";
+        const QByteArray manifest = R"JSON({
+            "name": "External Test",
+            "author": "Test",
+            "colorType": "light",
+            "colors": "colors.json",
+            "styleSheets": ["base.qss"],
+            "appColorPalette": "app-color-palette.json",
+            "lyricStyleSheet": "lyric.qss"
+        })JSON";
+        const QByteArray palette = R"JSON({
+            "baseColors": ["#111111", "#222222", "#333333", "#444444", "#555555", "#666666",
+                            "#777777", "#888888", "#999999", "#aaaaaa", "#bbbbbb", "#cccccc"]
+        })JSON";
+
+        bool success = true;
+        success &= expect(writeFile(QDir(themeDir).filePath("manifest.json"), manifest),
+                          QStringLiteral("external manifest should be writable"));
+        success &= expect(writeFile(QDir(themeDir).filePath("colors.json"), colors),
+                          QStringLiteral("external colors should be writable"));
+        success &= expect(writeFile(QDir(themeDir).filePath("base.qss"),
+                                   "QWidget { color: ${surface.window}; }"),
+                          QStringLiteral("external QSS should be writable"));
+        success &= expect(writeFile(QDir(themeDir).filePath("app-color-palette.json"), palette),
+                          QStringLiteral("external palette should be writable"));
+        success &= expect(writeFile(QDir(themeDir).filePath("lyric.qss"),
+                                   "QWidget { color: ${surface.window}; }"),
+                          QStringLiteral("external lyric QSS should be writable"));
+        if (!success)
+            return false;
+
+        qputenv("DS_EDITOR_THEME_DIR", tempDir.path().toUtf8());
+        const auto candidates = ThemeLoader::themeCandidates();
+        success &= expect(candidates.contains(QStringLiteral("external-test")),
+                          QStringLiteral("external theme should be discoverable"));
+
+        const auto loaded = ThemeLoader::load(QStringLiteral("external-test"));
+        success &= expect(loaded.has_value(), QStringLiteral("external theme should load"),
+                          ThemeLoader::lastError());
+        if (loaded) {
+            success &= expect(loaded->name == QStringLiteral("External Test"),
+                              QStringLiteral("external manifest should be used"));
+            success &= expect(loaded->styleSheet.contains(QStringLiteral("#123456")),
+                              QStringLiteral("external QSS should be resolved"));
+        }
+        qunsetenv("DS_EDITOR_THEME_DIR");
+        return success;
+    }
+
+    bool testBundledThemeLoadingAndFallback() {
+        qunsetenv("DS_EDITOR_THEME_DIR");
+        const auto bundled = ThemeLoader::load(QStringLiteral("lite-dark"));
+        bool success = expect(bundled.has_value(), QStringLiteral("bundled theme should load"),
+                              ThemeLoader::lastError());
+
+        QTemporaryDir tempDir;
+        if (!tempDir.isValid())
+            return false;
+        const auto overrideDir = QDir(tempDir.path()).filePath(QStringLiteral("lite-dark"));
+        QDir().mkpath(overrideDir);
+        success &= expect(writeFile(QDir(overrideDir).filePath("manifest.json"), "{}"),
+                          QStringLiteral("invalid override manifest should be writable"));
+
+        qputenv("DS_EDITOR_THEME_DIR", tempDir.path().toUtf8());
+        const auto invalidOverride = ThemeLoader::load(QStringLiteral("lite-dark"));
+        success &= expect(!invalidOverride,
+                          QStringLiteral("invalid external override should fail atomically"));
+        qunsetenv("DS_EDITOR_THEME_DIR");
+
+        const auto bundledAfterFailure = ThemeLoader::load(QStringLiteral("lite-dark"));
+        success &= expect(bundledAfterFailure.has_value(),
+                          QStringLiteral("bundled theme should remain available after override failure"),
+                          ThemeLoader::lastError());
+        return success;
+    }
+
 }
 
 int main(int argc, char *argv[]) {
@@ -231,5 +329,7 @@ int main(int argc, char *argv[]) {
     success &= testInvalidPlaceholders();
     success &= testBundledTokenDraft();
     success &= testBundledStyleSheets();
+    success &= testExternalThemeRoot();
+    success &= testBundledThemeLoadingAndFallback();
     return success ? 0 : 1;
 }
