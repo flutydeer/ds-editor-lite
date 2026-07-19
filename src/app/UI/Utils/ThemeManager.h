@@ -35,7 +35,7 @@ public:
     QString currentThemeId() const;
     ThemeColorType colorType() const;
     QString styleSheet() const;
-    QString lyricStyleSheetPath() const;
+    QString lyricStyleSheet() const;
 
     // --- Style roots (windows that receive the full QSS) ---
     void addStyleRoot(QWidget *root);
@@ -62,7 +62,7 @@ private:
     QString m_currentThemeId;
     ThemeColorType m_colorType = ThemeColorType::Dark;
     QString m_styleSheet;
-    QString m_lyricStyleSheetPath;
+    QString m_lyricStyleSheet;
 
     // --- Animation ---
     QList<IAnimatable *> m_subscribers;

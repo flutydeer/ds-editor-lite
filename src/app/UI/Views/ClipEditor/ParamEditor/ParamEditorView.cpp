@@ -48,6 +48,9 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     connect(m_graphicsView, &ParamEditorGraphicsView::sizeChanged, this,
             &ParamEditorView::updateSpeakerMixEmptyStateGeometry);
 
+    connect(m_graphicsView->speakerMixView(), &SpeakerMixEditorView::speakerColorsChanged, this,
+            &ParamEditorView::refreshSpeakerMixToolBar);
+
     const auto layout = new QHBoxLayout;
     layout->addWidget(m_infoArea);
     layout->addWidget(m_graphicsView);

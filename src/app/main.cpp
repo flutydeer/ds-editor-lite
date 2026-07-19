@@ -13,6 +13,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/PackageManager/PackageManager.h"
 #include "UI/Utils/ThemeManager.h"
+#include "UI/Utils/Theme/ThemeLoader.h"
 #include "UI/Window/MainWindow.h"
 #include "Utils/UiLanguageManager.h"
 
@@ -40,7 +41,9 @@ int main(int argc, char *argv[]) {
 
     // Infrastructure singletons (stays Meyers static)
     // ThemeManager: load theme, apply palette and QSS
-    ThemeManager::instance()->initialize("lite-dark");
+    if (!ThemeManager::instance()->initialize("lite-dark"))
+        qFatal("Failed to load the built-in default theme: %s",
+               qPrintable(ThemeLoader::lastError()));
 
     packageManager->initialize();
 

@@ -7,6 +7,7 @@
 #include "PianoPaintUtils.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Utils/AppColorPalette.h"
+#include "UI/Utils/ThemeManager.h"
 #include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
 
@@ -22,11 +23,19 @@
 PianoKeyboardView::PianoKeyboardView(QWidget *parent) : QWidget(parent) {
     setFixedWidth(ClipEditorGlobal::pianoKeyboardWidth);
     setMouseTracking(true);
+
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            [this] { refreshThemeColors(); });
 }
 
 void PianoKeyboardView::setTrackColorIndex(int index) {
     m_trackColorIndex = index;
     m_primaryColor = AppColorPalette::instance()->keyHighlight(index);
+    update();
+}
+
+void PianoKeyboardView::refreshThemeColors() {
+    m_primaryColor = AppColorPalette::instance()->keyHighlight(m_trackColorIndex);
     update();
 }
 
@@ -79,15 +88,14 @@ void PianoKeyboardView::paintEvent(QPaintEvent *event) {
         }
     } else {
         drawClassicKeyboard(painter);
-        if (m_hoveredKeyIndex >= 0 && !PianoPaintUtils::isWhiteKey(m_hoveredKeyIndex)
-            && m_hoveredKeyIndex != m_pressedKeyIndex) {
+        if (m_hoveredKeyIndex >= 0 && !PianoPaintUtils::isWhiteKey(m_hoveredKeyIndex) &&
+            m_hoveredKeyIndex != m_pressedKeyIndex) {
             drawKeyOverlay(painter, m_hoveredKeyIndex, 128);
         }
         if (m_pressedKeyIndex >= 0 && !PianoPaintUtils::isWhiteKey(m_pressedKeyIndex)) {
             drawKeyOverlay(painter, m_pressedKeyIndex, 200);
         }
     }
-
 }
 
 void PianoKeyboardView::wheelEvent(QWheelEvent *e) {
@@ -557,14 +565,13 @@ void PianoKeyboardView::drawClassicKeyboard(QPainter &painter) {
             auto keyRect = QRectF(-radius, y, width() / 5.0 * 3 + radius, pixelsPerBlackKey);
             painter.setPen(Qt::NoPen);
             painter.drawRoundedRect(keyRect, radius, radius);
-
         }
     };
 
     drawWhiteKeys();
 
-    if (m_hoveredKeyIndex >= 0 && PianoPaintUtils::isWhiteKey(m_hoveredKeyIndex)
-        && m_hoveredKeyIndex != m_pressedKeyIndex) {
+    if (m_hoveredKeyIndex >= 0 && PianoPaintUtils::isWhiteKey(m_hoveredKeyIndex) &&
+        m_hoveredKeyIndex != m_pressedKeyIndex) {
         constexpr auto radius = 4.0;
         constexpr auto overlayAlpha = 128;
         QColor overlayColor = m_primaryColor;

@@ -25,11 +25,12 @@ namespace FillLyric {
         Q_PROPERTY(QStringList splitterPen READ splitterPen WRITE setSplitterPen)
 
     public:
-        explicit LyricWrapView(QString qssPath, QStringList priorityLanguages,
+        explicit LyricWrapView(QString qssContent, QStringList priorityLanguages,
                                G2pService *g2pService, QWidget *parent = nullptr);
         ~LyricWrapView() override;
 
         void clear();
+        void setStyleSheetContent(const QString &qss);
         void init(const QList<QList<LangNote>> &noteLists);
 
         CellList *createNewList();
@@ -113,7 +114,7 @@ namespace FillLyric {
         QPoint m_rubberBandOrigin;
         QPoint m_lastClickPos;
 
-        QString m_qssPath;
+        QString m_qssContent;
         QStringList m_priorityLanguages;
         G2pService *m_g2pService = nullptr;
 

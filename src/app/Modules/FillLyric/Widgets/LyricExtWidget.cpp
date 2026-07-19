@@ -12,8 +12,8 @@ namespace FillLyric {
         : QWidget(parent), m_notesCount(notesCount), m_priorityLanguages(priorityLanguages) {
         this->setContentsMargins(0, 0, 0, 0);
 
-        m_wrapView =
-            new LyricWrapView(ThemeManager::instance()->lyricStyleSheetPath(), m_priorityLanguages, g2pService);
+        m_wrapView = new LyricWrapView(ThemeManager::instance()->lyricStyleSheet(),
+                                       m_priorityLanguages, g2pService);
         m_wrapView->setContentsMargins(0, 0, 0, 0);
 
         m_tableTopLayout = new QHBoxLayout();
@@ -52,6 +52,12 @@ namespace FillLyric {
         connect(m_btnFoldLeft, &QAbstractButton::clicked, this, &LyricExtWidget::foldLeftRequested);
         connect(m_btnInsertText, &QAbstractButton::clicked, this,
                 &LyricExtWidget::insertTextRequested);
+
+        // Update lyric QSS when theme changes
+        connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
+                [this](const QString &) {
+                    m_wrapView->setStyleSheetContent(ThemeManager::instance()->lyricStyleSheet());
+                });
     }
 
     LyricExtWidget::~LyricExtWidget() = default;

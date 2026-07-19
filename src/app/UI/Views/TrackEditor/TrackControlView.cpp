@@ -188,6 +188,9 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
         if (option == AppOptionsGlobal::Option::General || option == AppOptionsGlobal::Option::All)
             refreshSingerComboPresentation();
     });
+
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            [this] { updateTrackColor(); });
 }
 
 int TrackControlView::trackIndex() const {

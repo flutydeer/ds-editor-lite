@@ -71,8 +71,11 @@ public:
     [[nodiscard]] QColor selectionFillColor() const;
     void setSelectionFillColor(const QColor &color);
 
+    void refreshThemeColors();
+
 signals:
     void speakerMixEdited(const SpeakerMixModel::SpeakerMixData &data);
+    void speakerColorsChanged();
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;

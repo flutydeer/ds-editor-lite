@@ -28,6 +28,7 @@ public:
 
 public slots:
     void setKeyRange(double top, double bottom);
+    void refreshThemeColors();
 
 signals:
     void wheelScroll(QWheelEvent *event);

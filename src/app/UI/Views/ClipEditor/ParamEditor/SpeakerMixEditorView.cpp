@@ -6,6 +6,7 @@
 
 #include "UI/Controls/ToolTip.h"
 #include "UI/Utils/SpeakerMixColorResolver.h"
+#include "UI/Utils/ThemeManager.h"
 #include "UI/Utils/SpeakerMixUtils.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
@@ -25,9 +26,9 @@
 #include <cmath>
 #include <limits>
 
+using SpeakerMixModel::normalizeSpeakerMixData;
 using SpeakerMixModel::SingerSourceMode;
 using SpeakerMixModel::SpeakerMixData;
-using SpeakerMixModel::normalizeSpeakerMixData;
 
 namespace {
     QVector<double> toVector(const QList<double> &values) {
@@ -51,6 +52,9 @@ SpeakerMixEditorView::SpeakerMixEditorView() {
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     setTransparentMouseEvents(false);
     setFlag(ItemIsFocusable);
+
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            [this] { refreshThemeColors(); });
 }
 
 SpeakerMixEditorView::~SpeakerMixEditorView() {
@@ -905,6 +909,21 @@ void SpeakerMixEditorView::deleteSelectedKeyframe() {
 
     m_state.selectedKeyframeIndex = -1;
     m_state.selectedSplitIndex = -1;
+}
+
+void SpeakerMixEditorView::refreshThemeColors() {
+    for (int i = 0; i < m_speakers.size(); ++i) {
+        if (i >= m_committedData.sources.size())
+            break;
+        const auto &speaker = m_committedData.sources[i].speaker;
+        const auto colors =
+            SpeakerMixColorResolver::colorsForSpeaker(speaker.id(), m_referenceSpeakers, i);
+        m_speakers[i].color = colors.accent;
+        m_speakers[i].fillColor = colors.areaFill;
+        m_speakers[i].dotFillColor = colors.dotFill;
+    }
+    update();
+    emit speakerColorsChanged();
 }
 
 void SpeakerMixEditorView::syncWorkingFromCommitted() {

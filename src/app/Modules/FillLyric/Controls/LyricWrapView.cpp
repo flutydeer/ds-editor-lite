@@ -13,16 +13,13 @@
 #include <QFile>
 
 namespace FillLyric {
-    LyricWrapView::LyricWrapView(QString qssPath, QStringList priorityLanguages,
+    LyricWrapView::LyricWrapView(QString qssContent, QStringList priorityLanguages,
                                  G2pService *g2pService, QWidget *parent)
-        : QGraphicsView(parent), m_qssPath(std::move(qssPath)),
+        : QGraphicsView(parent), m_qssContent(std::move(qssContent)),
           m_priorityLanguages(std::move(priorityLanguages)), m_g2pService(g2pService) {
         setAttribute(Qt::WA_StyledBackground, true);
-        auto qssFile = QFile(m_qssPath);
-        if (qssFile.open(QIODevice::ReadOnly)) {
-            this->setStyleSheet(qssFile.readAll());
-            qssFile.close();
-        }
+        if (!m_qssContent.isEmpty())
+            this->setStyleSheet(m_qssContent);
 
         m_font = this->font();
         m_scene = new QGraphicsScene(this);
@@ -52,6 +49,12 @@ namespace FillLyric {
     }
 
     LyricWrapView::~LyricWrapView() = default;
+
+    void LyricWrapView::setStyleSheetContent(const QString &qss) {
+        m_qssContent = qss;
+        if (!m_qssContent.isEmpty())
+            this->setStyleSheet(m_qssContent);
+    }
 
     void LyricWrapView::keyPressEvent(QKeyEvent *event) {
         if (event->key() == Qt::Key_Delete) {

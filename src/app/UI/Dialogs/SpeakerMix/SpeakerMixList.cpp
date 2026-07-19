@@ -3,6 +3,7 @@
 #include "UI/Controls/ColorDot.h"
 #include "UI/Controls/ComboBox.h"
 #include "UI/Utils/SpeakerMixColorResolver.h"
+#include "UI/Utils/ThemeManager.h"
 
 #include <QAbstractItemView>
 #include <QCoreApplication>
@@ -50,6 +51,12 @@ SpeakerMixList::SpeakerMixList(const QString &packageName, const QStringList &sp
 
     connect(model(), &QAbstractItemModel::rowsMoved, this, &SpeakerMixList::onItemOrderChanged);
     connect(m_mixBar, &SpeakerMixBar::valuesChanged, this, &SpeakerMixList::syncRowsFromBar);
+
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this, [this] {
+        for (auto &row : m_rows)
+            updateRowColor(row);
+        updateBarLabelsAndColors();
+    });
 }
 
 void SpeakerMixList::setSpeakerTypes(const QStringList &speakerTypes) {

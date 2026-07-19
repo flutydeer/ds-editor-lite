@@ -41,8 +41,7 @@ bool ThemeManager::applyTheme(const QString &themeId) {
     // Store state
     m_currentThemeId = def->folderName;
     m_styleSheet = def->styleSheet;
-    m_lyricStyleSheetPath =
-        QStringLiteral(":/theme/%1/lyricwrapview.qss").arg(themeId);
+    m_lyricStyleSheet = def->lyricStyleSheet;
 
     // Map color type string to enum
     if (def->colorType == QStringLiteral("light"))
@@ -76,8 +75,8 @@ QString ThemeManager::styleSheet() const {
     return m_styleSheet;
 }
 
-QString ThemeManager::lyricStyleSheetPath() const {
-    return m_lyricStyleSheetPath;
+QString ThemeManager::lyricStyleSheet() const {
+    return m_lyricStyleSheet;
 }
 
 // ── Style roots ──────────────────────────────────────────────────────────
@@ -97,9 +96,7 @@ void ThemeManager::addStyleRoot(QWidget *root) {
         root->setStyleSheet(m_styleSheet);
 
     // Auto-remove when the widget is destroyed
-    connect(root, &QObject::destroyed, this, [this, ptr]() {
-        m_styleRoots.removeAll(ptr);
-    });
+    connect(root, &QObject::destroyed, this, [this, ptr]() { m_styleRoots.removeAll(ptr); });
 }
 
 void ThemeManager::removeStyleRoot(QWidget *root) {
@@ -133,9 +130,7 @@ void ThemeManager::addWindow(QWidget *window) {
     window->installEventFilter(this);
 
     // Auto-remove on destroy
-    connect(window, &QObject::destroyed, this, [this, ptr]() {
-        m_windows.removeAll(ptr);
-    });
+    connect(window, &QObject::destroyed, this, [this, ptr]() { m_windows.removeAll(ptr); });
 }
 
 void ThemeManager::removeWindow(QWidget *window) {

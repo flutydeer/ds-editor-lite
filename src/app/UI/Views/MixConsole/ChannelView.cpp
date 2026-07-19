@@ -12,6 +12,7 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/PanSlider.h"
 #include "UI/Utils/AppColorPalette.h"
+#include "UI/Utils/ThemeManager.h"
 
 #include <QVBoxLayout>
 #include <QLabel>
@@ -23,12 +24,15 @@ ChannelView::ChannelView(QWidget *parent) : QWidget(parent) {
     initUi();
 }
 
-ChannelView::ChannelView(Track &track, QWidget *parent): QWidget(parent), ITrack(track.id()),
-                                                         m_context(&track) {
+ChannelView::ChannelView(Track &track, QWidget *parent)
+    : QWidget(parent), ITrack(track.id()), m_context(&track) {
     initUi();
     ChannelView::setName(track.name());
     ChannelView::setControl(track.control());
     updateChannelColor();
+
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            [this] { updateChannelColor(); });
 }
 
 Track &ChannelView::context() const {
@@ -74,7 +78,7 @@ void ChannelView::setColorIndex(int colorIndex) {
         m_context->setColorIndex(colorIndex);
 }
 
-PanSlider * const & ChannelView::panSlider() const {
+PanSlider *const &ChannelView::panSlider() const {
     return m_panSlider;
 }
 
@@ -102,12 +106,15 @@ void ChannelView::updateChannelColor() {
     m_lbIndex->setStyleSheet(
         QStringLiteral("background-color: %1; color: %2;").arg(bg.name(), fg.name()));
     auto activeColor = palette.baseColor(ci);
-    auto activeWithAlpha =
-        QStringLiteral("rgba(%1,%2,%3,64)").arg(activeColor.red()).arg(activeColor.green()).arg(activeColor.blue());
+    auto activeWithAlpha = QStringLiteral("rgba(%1,%2,%3,64)")
+                               .arg(activeColor.red())
+                               .arg(activeColor.green())
+                               .arg(activeColor.blue());
     m_fader->setStyleSheet(
         QStringLiteral("Fader { qproperty-trackActiveColor: %1; }").arg(activeColor.name()));
     m_panSlider->setStyleSheet(
-        QStringLiteral("PanSlider { qproperty-trackActiveColor: %1; qproperty-thumbFillColor: %2; }")
+        QStringLiteral(
+            "PanSlider { qproperty-trackActiveColor: %1; qproperty-thumbFillColor: %2; }")
             .arg(activeWithAlpha, activeColor.name()));
 }
 
@@ -187,12 +194,8 @@ void ChannelView::initUi() {
     onPeakChanged(m_levelMeter->peakValue());
     connect(m_levelMeter, &LevelMeter::peakValueChanged, this, &ChannelView::onPeakChanged);
 
-    connect(m_btnMute, &QPushButton::clicked, this, [this] {
-        emit controlChanged(control());
-    });
-    connect(m_btnSolo, &QPushButton::clicked, this, [this] {
-        emit controlChanged(control());
-    });
+    connect(m_btnMute, &QPushButton::clicked, this, [this] { emit controlChanged(control()); });
+    connect(m_btnSolo, &QPushButton::clicked, this, [this] { emit controlChanged(control()); });
 }
 
 QString ChannelView::gainValueToString(double gain) {
