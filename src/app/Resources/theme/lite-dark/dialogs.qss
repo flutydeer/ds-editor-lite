@@ -17,19 +17,19 @@ QListView#PackageManagerDialogPackageListView::item {
 }
 
 QListView#PackageManagerDialogPackageListView::item:hover {
-    background: #1BC7D8FF;
+    background: ${accent.subtle};
 }
 
 QListView#PackageManagerDialogPackageListView::item:selected {
-    background: #409BBAFF;
+    background: ${selection.fill};
 }
 
 QWidget#PackageManagerDialogPackagePanel {
-    border-right: 1px solid #1D1F26;
+    border-right: 1px solid ${border.subtle};
 }
 
 QLabel#lbPackageCount {
-    color: rgba(182, 183, 186, 140);
+    color: ${control.foreground.disabled};
 }
 
 QWidget#PackageManagerDialogDetailsContentWidget {
@@ -46,37 +46,37 @@ QWidget#PackageManagerDialogDetailsWidget {
 }
 
 PackageDetailsHeader {
-    border-bottom: 1px solid #1D1F26;
+    border-bottom: 1px solid ${border.subtle};
 }
 
 PackageDetailsHeader>QLabel#lbPackageId {
     font-size: 24px;
-    color: rgb(182, 183, 186);
+    color: ${text.emphasis};
 }
 
 PackageDetailsHeader>QLabel#lbVendor,
 PackageDetailsHeader>QLabel#lbVersion,
 PackageDetailsHeader>QLabel#lbCopyright {
     font-size: 13px;
-    color: rgba(182, 183, 186, 140);
+    color: ${control.foreground.disabled};
 }
 
 QLabel#lbPackageDetailsPlaceholder {
-    color: rgba(182, 183, 186, 140);
+    color: ${control.foreground.disabled};
 }
 
 /* SpeakerMix */
 QLabel#lbSpeakerPosition {
-    color: #777B84;
-    background: #252932;
-    border: 1px solid #363B46;
+    color: ${speakerMix.position.text};
+    background: ${speakerMix.position.fill};
+    border: 1px solid ${speakerMix.position.border};
     border-radius: 3px;
     padding: 0 8px;
 }
 
 SpeakerMixBar {
-    qproperty-trackColor: #2A2E38;
-    qproperty-segmentTextColor: #111318;
-    qproperty-dividerColor: #21242B;
-    qproperty-dividerDraggingColor: #FFFFFF;
+    qproperty-trackColor: ${speakerMix.track};
+    qproperty-segmentTextColor: ${speakerMix.segmentText};
+    qproperty-dividerColor: ${speakerMix.divider};
+    qproperty-dividerDraggingColor: ${speakerMix.dividerDragging};
 }

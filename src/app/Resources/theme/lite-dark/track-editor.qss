@@ -10,11 +10,11 @@ TimelineView#tracksTimelineView {
 /* TrackControlView */
 TrackControlView {
     border-style: none;
-    border-bottom: 1px solid #1D1F26;
+    border-bottom: 1px solid ${border.subtle};
 }
 
 TrackControlView>QLabel {
-    color: #F0F0F0;
+    color: ${text.primary};
 }
 
 TrackControlView>QPushButton {
@@ -30,7 +30,7 @@ TrackControlView>QPushButton#btnColor {
 
 TrackControlView>QLabel#lbTrackIndex {
     min-width: 24;
-    color: #000;
+    color: ${text.onAccent};
     margin-left: 1px;
     margin-bottom: 1px;
     border-top-left-radius: 4px;
@@ -44,21 +44,47 @@ TrackControlView>InlineEditLabel#leTrackName {
 
 TrackControlView>QPushButton#btnMute,
 TrackControlView>QPushButton#btnSolo {
-    background-color: #0FC7D8FF;
+    background-color: ${control.fill.default};
     width: 24;
     height: 24;
     border-radius: 4px;
     border: none;
 }
 
+TrackControlView>QPushButton#btnMute:hover,
+TrackControlView>QPushButton#btnSolo:hover {
+    background-color: ${control.fill.hover};
+}
+
+TrackControlView>QPushButton#btnMute:pressed,
+TrackControlView>QPushButton#btnSolo:pressed {
+    background-color: ${control.fill.pressed};
+}
+
 TrackControlView>QPushButton#btnMute:checked {
-    color: #FF9BA0;
-    background-color: #40FF9BA0;
+    color: ${button.mute.checked.foreground};
+    background-color: ${button.mute.checked.fill};
+}
+
+TrackControlView>QPushButton#btnMute:checked:hover {
+    background-color: ${button.mute.checkedHover.fill};
+}
+
+TrackControlView>QPushButton#btnMute:checked:pressed {
+    background-color: ${button.mute.checkedPressed.fill};
 }
 
 TrackControlView>QPushButton#btnSolo:checked {
-    color: #FFCD9B;
-    background-color: #40FFCD9B;
+    color: ${button.solo.checked.foreground};
+    background-color: ${button.solo.checked.fill};
+}
+
+TrackControlView>QPushButton#btnSolo:checked:hover {
+    background-color: ${button.solo.checkedHover.fill};
+}
+
+TrackControlView>QPushButton#btnSolo:checked:pressed {
+    background-color: ${button.solo.checkedPressed.fill};
 }
 
 TrackControlView>ComboBox,
@@ -70,7 +96,7 @@ TrackControlView>TwoLevelComboBox {
 }
 
 TrackControlView>TwoLevelComboBox:hover {
-    background-color: #1AFFFFFF;
+    background-color: ${control.fill.hover};
     border: none;
 }
 
@@ -81,31 +107,30 @@ TrackControlView>TwoLevelComboBox::menu-button {
 TrackControlView>TwoLevelComboBox:disabled {
     background: transparent;
     border: none;
-    color: rgba(240, 240, 240, 0.4);
+    color: ${control.foreground.disabled};
 }
 
 TrackControlView>LevelMeter {
-    background: #1F2229;
+    background: ${meter.trackBackground};
     min-width: 12;
     qproperty-padding: 0;
     qproperty-spacing: 1;
     qproperty-clipIndicatorLength: 6;
     qproperty-showValueWhenHover: false;
     qproperty-dimmedColor: transparent;
-    qproperty-clippedColor: rgb(255, 155, 157);
-    qproperty-safeColor: rgb(155, 224, 255);
-    qproperty-warnColor: rgb(155, 255, 174);
-    qproperty-criticalColor: rgb(255, 224, 155);
-    qproperty-currentValueColor: rgb(211, 214, 224);
+    qproperty-clippedColor: ${meter.clipped};
+    qproperty-safeColor: ${meter.safe};
+    qproperty-warnColor: ${meter.warning};
+    qproperty-criticalColor: ${meter.critical};
+    qproperty-currentValueColor: ${meter.value};
 }
 
 /* TrackListView */
 TrackListView {
     background: transparent;
     border: none;
-    /* border-right: 1px solid #20000000; */
     outline: 0px;
-    border-top: 1px solid #1C1D1E;
+    border-top: 1px solid ${border.subtle};
 }
 
 TrackListView::item {
@@ -114,29 +139,28 @@ TrackListView::item {
 }
 
 TrackListView::item:hover {
-    background: #05FFFFFF
+    background: ${editor.trackHover}
 }
 
 TrackListView::item:selected {
-    background: #10FFFFFF
+    background: ${selection.inactiveFill}
 }
 
 /* TrackSplitter */
 TrackEditorView>OverlaySplitter#trackSplitter {
     border-radius: 6px;
-    background-color: #272A33;
+    background-color: ${surface.panel};
 }
 
 TrackEditorView>OverlaySplitter#trackSplitter::handle:horizontal {
     width: 0px;
     background-color: transparent;
-    border-right: 1px solid #1C1D1E;
+    border-right: 1px solid ${border.subtle};
 }
 
 /* TracksGraphicsView */
 TracksGraphicsView {
-    /* background: #2A2B2C */
-    background: #292C36;
-    qproperty-selectedTrackColor: #31353F;
-    qproperty-clipSelectedBorderColor: #FFFFFF;
+    background: ${editor.canvasAlternate};
+    qproperty-selectedTrackColor: ${surface.raised};
+    qproperty-clipSelectedBorderColor: ${text.emphasis};
 }

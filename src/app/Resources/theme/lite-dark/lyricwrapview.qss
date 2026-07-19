@@ -1,6 +1,6 @@
 FillLyric--LyricWrapView {
-    background: #1A1C22;
-    border: 1px solid #505050;
+    background: ${surface.input};
+    border: 1px solid ${border.default};
     border-radius: 6px;
 
     qproperty-cellBackgroundBrush: cellBackgroundBrush(NoBrush|255,255,255,15|255,255,255,30); /* r,g,b,a Normal|Hovered|Selected */

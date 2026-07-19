@@ -1207,26 +1207,20 @@ PanelView[activePanel="true"] {
 
 /* TimelineView */
 TimelineView {
-    /* background: rgb(28, 29, 30); */
-    background: #1D1F26;
+    background: ${editor.canvas};
 }
 
 /* TimeGraphicsView */
 TimeGraphicsView {
-    qproperty-barLineColor: #08090A;
-    qproperty-beatLineColor: #16191C;
-    qproperty-commonLineColor: #1C2024;
-    qproperty-playPosIndicatorColor: #C8C8C8;
-    qproperty-lastPlayPosIndicatorColor: #A0A0A0;
-    qproperty-scrollBarHandleColor: #FFFFFF;
-    qproperty-rubberBandBorderColor: rgba(155, 186, 255, 200);
-    qproperty-rubberBandFillColor: rgba(155, 186, 255, 64);
+    qproperty-barLineColor: ${editor.grid.bar};
+    qproperty-beatLineColor: ${editor.grid.beat};
+    qproperty-commonLineColor: ${editor.grid.subdivision};
+    qproperty-playPosIndicatorColor: ${editor.playhead};
+    qproperty-lastPlayPosIndicatorColor: ${editor.lastPlayhead};
+    qproperty-scrollBarHandleColor: ${scrollbar.handleEmphasis};
+    qproperty-rubberBandBorderColor: ${editor.selection.border};
+    qproperty-rubberBandFillColor: ${editor.selection.fill};
 }
-
-/* LevelMeter */
-/* LevelMeter {
-    background: #21242B;
-} */
 
 TabPanelTitleBar {
     border-bottom: 1px solid ${border.subtle};
@@ -1312,37 +1306,37 @@ SplitterOverlayGrip {
 
 /* TrackColorSwatchWidget */
 TrackColorSwatchWidget {
-    qproperty-selectedBorderColor: #FFFFFF;
-    qproperty-hoverBorderColor: rgba(255, 255, 255, 128);
+    qproperty-selectedBorderColor: ${text.emphasis};
+    qproperty-hoverBorderColor: ${control.foreground.disabled};
 }
 
 /* LevelMeter (class-level defaults; TrackControlView>LevelMeter overrides in track-editor.qss) */
 LevelMeter {
-    qproperty-dimmedColor: rgb(41, 44, 54);
-    qproperty-clippedColor: rgb(255, 155, 157);
-    qproperty-safeColor: rgb(155, 224, 255);
-    qproperty-warnColor: rgb(155, 255, 174);
-    qproperty-criticalColor: rgb(255, 224, 155);
-    qproperty-currentValueColor: rgb(211, 214, 224);
-    qproperty-peakHoldColor: rgb(211, 214, 224);
-    qproperty-valueBackColor: rgba(33, 36, 43, 192);
+    qproperty-dimmedColor: ${meter.dimmed};
+    qproperty-clippedColor: ${meter.clipped};
+    qproperty-safeColor: ${meter.safe};
+    qproperty-warnColor: ${meter.warning};
+    qproperty-criticalColor: ${meter.critical};
+    qproperty-currentValueColor: ${meter.value};
+    qproperty-peakHoldColor: ${meter.value};
+    qproperty-valueBackColor: ${meter.background};
 }
 
 /* TimelineView */
 TimelineView {
-    qproperty-playheadColor: rgb(200, 200, 200);
-    qproperty-barScaleColor: rgb(200, 200, 200);
-    qproperty-barTickColor: rgb(92, 96, 100);
-    qproperty-beatScaleColor: rgb(160, 160, 160);
-    qproperty-beatTickColor: rgb(72, 75, 78);
-    qproperty-subdivisionFromColor: rgb(76, 79, 83);
-    qproperty-subdivisionToColor: rgb(57, 59, 61);
-    qproperty-loopMarkerColor: #9BBAFF;
-    qproperty-loopMarkerDisabledColor: rgb(57, 59, 61);
-    qproperty-piecePendingColor: rgb(100, 100, 100);
-    qproperty-pieceRunningColor: rgb(255, 204, 153);
-    qproperty-pieceSuccessColor: rgb(155, 255, 162);
-    qproperty-pieceFailedColor: rgb(255, 155, 157);
+    qproperty-playheadColor: ${editor.playhead};
+    qproperty-barScaleColor: ${editor.playhead};
+    qproperty-barTickColor: ${timeline.ruler.barTick};
+    qproperty-beatScaleColor: ${timeline.ruler.beatScale};
+    qproperty-beatTickColor: ${timeline.ruler.beatTick};
+    qproperty-subdivisionFromColor: ${timeline.ruler.subdivisionFrom};
+    qproperty-subdivisionToColor: ${timeline.ruler.subdivisionTo};
+    qproperty-loopMarkerColor: ${editor.loop};
+    qproperty-loopMarkerDisabledColor: ${editor.loopDisabled};
+    qproperty-piecePendingColor: ${timeline.task.pending};
+    qproperty-pieceRunningColor: ${timeline.task.runningLow};
+    qproperty-pieceSuccessColor: ${timeline.task.success};
+    qproperty-pieceFailedColor: ${timeline.task.failed};
 }
 
 /* TabPanelTitleBar icon colors */

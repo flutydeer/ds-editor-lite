@@ -4,18 +4,18 @@
 
 /* ChannelView */
 ChannelView {
-    background: #272A33;
-    border-right: 1px solid #1D1F26;
+    background: ${surface.panel};
+    border-right: 1px solid ${border.subtle};
     min-width: 96px;
 }
 
 ChannelView[isMasterChannel="true"] {
     border-right: none;
-    border-left: 1px solid #1D1F26;
+    border-left: 1px solid ${border.subtle};
 }
 
 ChannelView>Fader {
-    background: #21242B;
+    background: ${surface.window};
     border-radius: 4px;
     min-width: 32px
 }
@@ -25,53 +25,79 @@ ChannelView>InlineEditLabel {
 }
 
 ChannelView>InlineEditLabel>QLabel {
-    color: #8CD7D8DB;
+    color: ${control.foreground.disabled};
 }
 
 QLineEdit#inlineEditLineEdit[editRole="Pan"],
 QLineEdit#inlineEditLineEdit[editRole="Gain"] {
-    color: #D7D8DB;
-    background: #1A1C22;
-    border: 1px solid #9BBAFF;
+    color: ${text.primary};
+    background: ${surface.input};
+    border: 1px solid ${border.focus};
     border-radius: 2px;
     padding: 0px;
 }
 
 ChannelView>LevelMeter {
-    background: #21242B;
+    background: ${surface.window};
     border-radius: 4px;
     min-width: 32px
 }
 
 ChannelView>PanSlider {
-    background: #21242B;
+    background: ${surface.window};
     border-radius: 4px;
     min-height: 24px
 }
 
 ChannelView>QLabel#lbPeakLevel {
     min-width: 36px;
-    color: #8CD7D8DB
+    color: ${control.foreground.disabled}
 }
 
 ChannelView QStackedWidget#muteSoloStack Button#btnMute,
 ChannelView QStackedWidget#muteSoloStack Button#btnSolo {
     padding: 0px;
-    background-color: #0CC7D8FF;
+    background-color: ${control.fill.default};
     width: 28px;
     height: 28px;
     border-radius: 4px;
     border: none;
 }
 
+ChannelView QStackedWidget#muteSoloStack Button#btnMute:hover,
+ChannelView QStackedWidget#muteSoloStack Button#btnSolo:hover {
+    background-color: ${control.fill.hover};
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnMute:pressed,
+ChannelView QStackedWidget#muteSoloStack Button#btnSolo:pressed {
+    background-color: ${control.fill.pressed};
+}
+
 ChannelView QStackedWidget#muteSoloStack Button#btnMute:checked {
-    color: #FF9BA0;
-    background-color: #40FF9BA0;
+    color: ${button.mute.checked.foreground};
+    background-color: ${button.mute.checked.fill};
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnMute:checked:hover {
+    background-color: ${button.mute.checkedHover.fill};
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnMute:checked:pressed {
+    background-color: ${button.mute.checkedPressed.fill};
 }
 
 ChannelView QStackedWidget#muteSoloStack Button#btnSolo:checked {
-    color: #FFCD9B;
-    background-color: #40FFCD9B;
+    color: ${button.solo.checked.foreground};
+    background-color: ${button.solo.checked.fill};
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnSolo:checked:hover {
+    background-color: ${button.solo.checkedHover.fill};
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnSolo:checked:pressed {
+    background-color: ${button.solo.checkedPressed.fill};
 }
 
 ChannelView>QWidget#muteSoloPlaceHolder {
@@ -80,7 +106,7 @@ ChannelView>QWidget#muteSoloPlaceHolder {
 
 ChannelView>QLabel#lbTitle {
     min-width: 76px;
-    color: #8CD7D8DB
+    color: ${control.foreground.disabled}
 }
 
 ChannelView QStackedWidget#indexStack QLabel#lbIndex {
@@ -94,7 +120,7 @@ ChannelView>QWidget#indexPlaceholder {
 }
 
 MixConsoleView {
-    background: #272A33;
+    background: ${surface.panel};
 }
 
 MixConsoleView QListWidget#channelListView::item {
@@ -103,15 +129,15 @@ MixConsoleView QListWidget#channelListView::item {
 }
 
 MixConsoleView QListWidget#channelListView::item:selected {
-    background: #1AFFFFFF;
+    background: ${selection.inactiveFill};
 }
 
 /* Fader / PanSlider base colors (track RGB is injected per-channel from AppColorPalette) */
 Fader {
-    qproperty-trackInactiveColor: rgb(22, 22, 22);
-    qproperty-thumbFillColor: rgb(211, 214, 224);
+    qproperty-trackInactiveColor: ${mix.fader.trackInactive};
+    qproperty-thumbFillColor: ${meter.value};
 }
 
 PanSlider {
-    qproperty-centerGraduateColor: rgb(22, 22, 22);
+    qproperty-centerGraduateColor: ${mix.fader.trackInactive};
 }

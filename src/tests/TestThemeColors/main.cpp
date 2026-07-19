@@ -160,9 +160,19 @@ namespace {
                 QStringLiteral("control.foreground.disabled"),
                 QStringLiteral("toast.background"),
                 QStringLiteral("editor.canvas"),
+                QStringLiteral("editor.trackHover"),
+                QStringLiteral("piano.roll.blackRow"),
+                QStringLiteral("curve.anchorSelected"),
+                QStringLiteral("meter.trackBackground"),
+                QStringLiteral("timeline.ruler.subdivisionFrom"),
                 QStringLiteral("timeline.task.runningLow"),
                 QStringLiteral("timeline.task.runningHigh"),
+                QStringLiteral("phoneme.waveform"),
+                QStringLiteral("speakerMix.track"),
+                QStringLiteral("speakerMix.emptyState.fill"),
+                QStringLiteral("mix.fader.trackInactive"),
                 QStringLiteral("button.mute.checkedHover.fill"),
+                QStringLiteral("button.solo.checkedPressed.fill"),
             };
             for (const auto &token : requiredTokens) {
                 success &=

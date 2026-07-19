@@ -164,7 +164,7 @@
         "editor.canvasAlternate": "{neutral.650}",
         "editor.grid.bar": "{neutral.1000}",
         "editor.grid.beat": "{neutral.900}",
-        "editor.grid.subdivision": "{neutral.800}",
+        "editor.grid.subdivision": "#1C2024",
         "editor.playhead": "{neutral.200}",
         "editor.lastPlayhead": "{neutral.300}",
         "editor.loop": "{accent.500}",
@@ -172,6 +172,7 @@
         "editor.selection.border": "{accent.alpha78}",
         "editor.selection.fill": "{accent.alpha25}",
         "editor.splitLine": "{feedback.errorStrong}",
+        "editor.trackHover": "#05FFFFFF",
 
         "piano.key.white": "#DADBE0",
         "piano.key.black": "{neutral.550}",
@@ -190,6 +191,7 @@
         "meter.clipped": "{feedback.error}",
         "meter.value": "{neutral.150}",
         "meter.background": "{neutral.black75}",
+        "meter.trackBackground": "#1F2229",
 
         "timeline.task.pending": "#646464",
         "timeline.task.runningLow": "{feedback.warning}",
@@ -197,20 +199,44 @@
         "timeline.task.success": "{feedback.success}",
         "timeline.task.failed": "{feedback.error}",
 
+        "timeline.ruler.barTick": "#5C6064",
+        "timeline.ruler.beatScale": "#A0A0A0",
+        "timeline.ruler.beatTick": "#484B4E",
+        "timeline.ruler.subdivisionFrom": "#4C4F53",
+        "timeline.ruler.subdivisionTo": "#393B3D",
+
+        "piano.roll.blackRow": "#23262E",
+        "piano.roll.octaveDivider": "#1C2024",
+        "piano.roll.noteSelectedBorder": "{text.emphasis}",
+        "piano.roll.pronunciation": "{text.secondary}",
+        "piano.roll.overlay": "{overlay.scrim}",
+
+        "phoneme.hint": "{neutral.white50}",
+        "phoneme.text": "#B4B4B4",
+        "phoneme.positionLine": "#C8C8C8",
+        "phoneme.noteBoundary": "{surface.raised}",
+        "phoneme.waveform": "{surface.raised}",
+
+        "speakerMix.position.text": "{neutral.350}",
+        "speakerMix.position.fill": "#252932",
+        "speakerMix.position.border": "#363B46",
+        "speakerMix.track": "#2A2E38",
+        "speakerMix.segmentText": "{icon.onAccent}",
+        "speakerMix.divider": "{surface.window}",
+        "speakerMix.dividerDragging": "{text.emphasis}",
+        "speakerMix.emptyState.fill": "#DA1D1F26",
+        "speakerMix.emptyState.text": "#DCDCDEE6",
+
+        "mix.fader.trackInactive": "#161616",
+
         "button.mute.checked.foreground": "{feedback.error}",
         "button.mute.checked.fill": "#40FF9B9D",
-        "button.mute.checked.border": "{feedback.error}",
         "button.mute.checkedHover.fill": "#60FF9B9D",
-        "button.mute.checkedHover.border": "{feedback.errorSoft}",
         "button.mute.checkedPressed.fill": "#30FF9B9D",
-        "button.mute.checkedPressed.border": "{feedback.errorStrong}",
 
         "button.solo.checked.foreground": "{feedback.warning}",
         "button.solo.checked.fill": "#40FFCD9B",
-        "button.solo.checked.border": "{feedback.warning}",
         "button.solo.checkedHover.fill": "#60FFCD9B",
-        "button.solo.checkedHover.border": "{feedback.warningStrong}",
-        "button.solo.checkedPressed.fill": "#30FFCD9B",
-        "button.solo.checkedPressed.border": "#FFCC99"
+        "button.solo.checkedPressed.fill": "#30FFCD9B"
     }
 }

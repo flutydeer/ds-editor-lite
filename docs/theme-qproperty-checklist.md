@@ -26,14 +26,14 @@
 ### TimeGraphicsView
 | 属性 | lite-dark 值 |
 |---|---|
-| barLineColor | #08090A |
-| beatLineColor | #16191C |
-| commonLineColor | #1C2024 |
-| playPosIndicatorColor | #C8C8C8 |
-| lastPlayPosIndicatorColor | #A0A0A0 |
-| scrollBarHandleColor | #FFFFFF |
-| rubberBandBorderColor | rgba(155, 186, 255, 200) |
-| rubberBandFillColor | rgba(155, 186, 255, 64) |
+| barLineColor | `${editor.grid.bar}` |
+| beatLineColor | `${editor.grid.beat}` |
+| commonLineColor | `${editor.grid.subdivision}` |
+| playPosIndicatorColor | `${editor.playhead}` |
+| lastPlayPosIndicatorColor | `${editor.lastPlayhead}` |
+| scrollBarHandleColor | `${scrollbar.handleEmphasis}` |
+| rubberBandBorderColor | `${editor.selection.border}` |
+| rubberBandFillColor | `${editor.selection.fill}` |
 
 ### DividerLine
 | 属性 | lite-dark 值 |
@@ -88,37 +88,37 @@
 ### TrackColorSwatchWidget
 | 属性 | lite-dark 值 |
 |---|---|
-| selectedBorderColor ※ | #FFFFFF |
-| hoverBorderColor ※ | rgba(255, 255, 255, 128) |
+| selectedBorderColor ※ | `${text.emphasis}` |
+| hoverBorderColor ※ | `${control.foreground.disabled}` |
 
 ### LevelMeter
 | 属性 | lite-dark 值 |
 |---|---|
-| dimmedColor | rgb(41, 44, 54) |
-| clippedColor | rgb(255, 155, 157) |
-| safeColor | rgb(155, 224, 255) |
-| warnColor | rgb(155, 255, 174) |
-| criticalColor | rgb(255, 224, 155) |
-| currentValueColor | rgb(211, 214, 224) |
-| peakHoldColor | rgb(211, 214, 224) |
-| valueBackColor | rgba(33, 36, 43, 192) |
+| dimmedColor | `${meter.dimmed}` |
+| clippedColor | `${meter.clipped}` |
+| safeColor | `${meter.safe}` |
+| warnColor | `${meter.warning}` |
+| criticalColor | `${meter.critical}` |
+| currentValueColor | `${meter.value}` |
+| peakHoldColor | `${meter.value}` |
+| valueBackColor | `${meter.background}` |
 
 ### TimelineView
 | 属性 | lite-dark 值 |
 |---|---|
-| playheadColor | rgb(200, 200, 200) |
-| barScaleColor | rgb(200, 200, 200) |
-| barTickColor | rgb(92, 96, 100) |
-| beatScaleColor | rgb(160, 160, 160) |
-| beatTickColor | rgb(72, 75, 78) |
-| subdivisionFromColor | rgb(76, 79, 83) |
-| subdivisionToColor | rgb(57, 59, 61) |
-| loopMarkerColor | #9BBAFF |
-| loopMarkerDisabledColor | rgb(57, 59, 61) |
-| piecePendingColor | rgb(100, 100, 100) |
-| pieceRunningColor | rgb(255, 204, 153) |
-| pieceSuccessColor | rgb(155, 255, 162) |
-| pieceFailedColor | rgb(255, 155, 157) |
+| playheadColor | `${editor.playhead}` |
+| barScaleColor | `${editor.playhead}` |
+| barTickColor | `${timeline.ruler.barTick}` |
+| beatScaleColor | `${timeline.ruler.beatScale}` |
+| beatTickColor | `${timeline.ruler.beatTick}` |
+| subdivisionFromColor | `${timeline.ruler.subdivisionFrom}` |
+| subdivisionToColor | `${timeline.ruler.subdivisionTo}` |
+| loopMarkerColor | `${editor.loop}` |
+| loopMarkerDisabledColor | `${editor.loopDisabled}` |
+| piecePendingColor | `${timeline.task.pending}` |
+| pieceRunningColor | `${timeline.task.runningLow}` |
+| pieceSuccessColor | `${timeline.task.success}` |
+| pieceFailedColor | `${timeline.task.failed}` |
 
 ### TabPanelTitleBar
 | 属性 | lite-dark 值 |
@@ -174,68 +174,68 @@
 | clipIndicatorLength（非颜色） | 6 |
 | showValueWhenHover（非颜色） | false |
 | dimmedColor | transparent |
-| clippedColor | rgb(255, 155, 157) |
-| safeColor | rgb(155, 224, 255) |
-| warnColor | rgb(155, 255, 174) |
-| criticalColor | rgb(255, 224, 155) |
-| currentValueColor | rgb(211, 214, 224) |
+| clippedColor | `${meter.clipped}` |
+| safeColor | `${meter.safe}` |
+| warnColor | `${meter.warning}` |
+| criticalColor | `${meter.critical}` |
+| currentValueColor | `${meter.value}` |
 
 ### TracksGraphicsView
 | 属性 | lite-dark 值 |
 |---|---|
-| selectedTrackColor | #31353F |
-| clipSelectedBorderColor ※ | #FFFFFF |
+| selectedTrackColor | `${surface.raised}` |
+| clipSelectedBorderColor ※ | `${text.emphasis}` |
 
 ## clip-editor.qss
 
 ### PianoKeyboardView
 | 属性 | lite-dark 值 |
 |---|---|
-| whiteKeyColor | #DADBE0 |
-| blackKeyColor | #3B3F47 |
-| dividerColor | #AAACB5 |
+| whiteKeyColor | `${piano.key.white}` |
+| blackKeyColor | `${piano.key.black}` |
+| dividerColor | `${piano.key.divider}` |
 
 ### PianoRollGraphicsView
 | 属性 | lite-dark 值 |
 |---|---|
 | noteFontPixelSize（非颜色） | 13 |
-| whiteKeyColor | #292C36 |
-| blackKeyColor | #23262E |
-| octaveDividerColor | #1C2024 |
-| noteSelectedBorderColor ※ | #FFFFFF |
-| pronunciationTextColor | #C8C8C8 |
-| anchorColor | #DCDCDC |
-| anchorSelectedColor | #9BBAFF |
-| anchorCurveColor | #DCDCDC |
-| anchorPreviewColor | #9BBAFF |
-| clipRangeOverlayColor | rgba(0, 0, 0, 64) |
-| splitLineColor | #FF6464 |
-| paramGraduateColor | #484B4E |
-| paramOriginalCurveColor | rgba(255, 255, 255, 96) |
-| paramEditedCurveColor | #FFFFFF |
-| paramBackgroundLayerColor | #292C36 |
+| whiteKeyColor | `${editor.canvasAlternate}` |
+| blackKeyColor | `${piano.roll.blackRow}` |
+| octaveDividerColor | `${piano.roll.octaveDivider}` |
+| noteSelectedBorderColor ※ | `${piano.roll.noteSelectedBorder}` |
+| pronunciationTextColor | `${piano.roll.pronunciation}` |
+| anchorColor | `${curve.anchor}` |
+| anchorSelectedColor | `${curve.anchorSelected}` |
+| anchorCurveColor | `${curve.anchor}` |
+| anchorPreviewColor | `${curve.anchorSelected}` |
+| clipRangeOverlayColor | `${piano.roll.overlay}` |
+| splitLineColor | `${editor.splitLine}` |
+| paramGraduateColor | `${curve.guide}` |
+| paramOriginalCurveColor | `${curve.original}` |
+| paramEditedCurveColor | `${curve.edited}` |
+| paramBackgroundLayerColor | `${editor.canvasAlternate}` |
 
 ### ParamEditorGraphicsView
 | 属性 | lite-dark 值 |
 |---|---|
-| paramGraduateColor | #484B4E |
-| paramOriginalCurveColor | rgba(255, 255, 255, 96) |
-| paramEditedCurveColor | #FFFFFF |
-| paramBackgroundLayerColor | #292C36 |
-| speakerMixTextColor | #DCDCDC |
-| speakerMixKeyframeLineColor | #DCDCDC |
-| speakerMixSelectedDotColor ※ | #FFFFFF |
-| speakerMixSelectionBorderColor | rgba(155, 186, 255, 200) |
-| speakerMixSelectionFillColor | rgba(155, 186, 255, 40) |
+| paramGraduateColor | `${curve.guide}` |
+| paramOriginalCurveColor | `${curve.original}` |
+| paramEditedCurveColor | `${curve.edited}` |
+| paramBackgroundLayerColor | `${editor.canvasAlternate}` |
+| speakerMixTextColor | `${curve.anchor}` |
+| speakerMixKeyframeLineColor | `${curve.anchor}` |
+| speakerMixSelectedDotColor ※ | `${curve.edited}` |
+| speakerMixSelectionBorderColor | `${editor.selection.border}` |
+| speakerMixSelectionFillColor | `${editor.selection.fill}` |
 
 ### PhonemeView
 | 属性 | lite-dark 值 |
 |---|---|
-| hintTextColor | rgba(255, 255, 255, 80) |
-| textColor | rgb(180, 180, 180) |
-| positionLineColor | rgb(200, 200, 200) |
-| noteBoundaryColor | rgb(49, 53, 63) |
-| waveformColor | rgb(49, 53, 63) |
+| hintTextColor | `${phoneme.hint}` |
+| textColor | `${phoneme.text}` |
+| positionLineColor | `${phoneme.positionLine}` |
+| noteBoundaryColor | `${phoneme.noteBoundary}` |
+| waveformColor | `${phoneme.waveform}` |
 
 ### ClipEditorToolBarView
 | 属性 | lite-dark 值 |
@@ -250,23 +250,23 @@
 ### Fader
 | 属性 | lite-dark 值 |
 |---|---|
-| trackInactiveColor | rgb(22, 22, 22) |
-| thumbFillColor | rgb(211, 214, 224) |
+| trackInactiveColor | `${mix.fader.trackInactive}` |
+| thumbFillColor | `${meter.value}` |
 
 ### PanSlider
 | 属性 | lite-dark 值 |
 |---|---|
-| centerGraduateColor | rgb(22, 22, 22) |
+| centerGraduateColor | `${mix.fader.trackInactive}` |
 
 ## dialogs.qss
 
 ### SpeakerMixBar
 | 属性 | lite-dark 值 |
 |---|---|
-| trackColor | #2A2E38 |
-| segmentTextColor | #111318 |
-| dividerColor | #21242B |
-| dividerDraggingColor | #FFFFFF |
+| trackColor | `${speakerMix.track}` |
+| segmentTextColor | `${speakerMix.segmentText}` |
+| dividerColor | `${speakerMix.divider}` |
+| dividerDraggingColor | `${speakerMix.dividerDragging}` |
 
 ## 过渡属性（※）
 

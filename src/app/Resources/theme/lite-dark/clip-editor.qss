@@ -2,7 +2,7 @@
 ClipEditorToolBarView QPushButton {
     padding: 0px;
     border: none;
-    background-color: #31353F;
+    background-color: ${surface.raised};
     border-radius: 0px;
 }
 
@@ -26,36 +26,49 @@ ClipEditorToolBarView QPushButton#btnRetake {
 }
 
 ClipEditorToolBarView QPushButton:checked {
-    background-color: #409BBAFF;
+    background-color: ${selection.fill};
 }
 
 ClipEditorToolBarView QPushButton:checked:hover {
-    background-color: #509BBAFF;
+    background-color: ${selection.hoverFill};
 }
 
 ClipEditorToolBarView QPushButton:hover {
-    background: #1AFFFFFF;
+    background: ${control.fill.hover};
 }
 
 ClipEditorToolBarView QPushButton:pressed {
-    background: #10FFFFFF;
+    background: ${control.fill.pressed};
 }
 
 ClipEditorToolBarView QPushButton#btnMute {
-    background: #10FFFFFF;
+    background: ${control.fill.default};
+    border: none;
 }
 
 ClipEditorToolBarView QPushButton#btnMute:hover {
-    background: #1AFFFFFF;
+    background: ${control.fill.hover};
 }
 
-ClipEditorToolBarView QPushButton#btnMute:checked,
+ClipEditorToolBarView QPushButton#btnMute:pressed {
+    background: ${control.fill.pressed};
+}
+
+ClipEditorToolBarView QPushButton#btnMute:checked {
+    color: ${button.mute.checked.foreground};
+    background-color: ${button.mute.checked.fill};
+}
+
 ClipEditorToolBarView QPushButton#btnMute:checked:hover {
-    background-color: #FF9B9D;
+    background-color: ${button.mute.checkedHover.fill};
+}
+
+ClipEditorToolBarView QPushButton#btnMute:checked:pressed {
+    background-color: ${button.mute.checkedPressed.fill};
 }
 
 InlineEditLabel#leClipName {
-    background: #31353F;
+    background: ${surface.raised};
     border: none;
     height: 28px;
     border-radius: 0px;
@@ -68,9 +81,9 @@ InlineEditLabel#leClipName[groupPos="only"] {
 }
 
 QLineEdit#inlineEditLineEdit[editRole="ClipName"] {
-    background: #1A1C22;
+    background: ${surface.input};
     border: none;
-    border-bottom: 1px solid #9BBAFF;
+    border-bottom: 1px solid ${border.focus};
     border-radius: 0px;
     border-top-left-radius: 4px;
     border-bottom-left-radius: 4px;
@@ -82,15 +95,15 @@ QLineEdit#inlineEditLineEdit[editRole="ClipName"][groupPos="only"] {
 }
 
 QLineEdit#inlineEditLineEdit[editRole="Lyric"] {
-    background: #1A1C22;
-    border: 1px solid #9BBAFF;
+    background: ${surface.input};
+    border: 1px solid ${border.focus};
     border-radius: 2px;
     padding: 0px 2px;
 }
 
 QLineEdit#inlineEditLineEdit[editRole="Pronunciation"] {
-    background: #1A1C22;
-    border: 1px solid #9BBAFF;
+    background: ${surface.input};
+    border: 1px solid ${border.focus};
     border-radius: 2px;
     padding: 0px 2px;
 }
@@ -98,7 +111,7 @@ QLineEdit#inlineEditLineEdit[editRole="Pronunciation"] {
 TwoLevelComboBox#cbClipSinger,
 ComboBox#cbClipLanguage,
 ComboBox#cbPianoRollQuantize {
-    background: #31353F;
+    background: ${surface.raised};
     border: none;
     height: 28px;
     border-radius: 0px;
@@ -112,7 +125,7 @@ ComboBox#cbPianoRollQuantize::menu-button {
 }
 
 TwoLevelComboBox#cbClipSinger:disabled {
-    color: rgba(240, 240, 240, 0.4);
+    color: ${control.foreground.disabled};
 }
 
 ComboBox#cbClipLanguage {
@@ -131,79 +144,74 @@ TimelineView#pianoRollTimelineView {
 
 /* PianoKeyboardView */
 PianoKeyboardView {
-    qproperty-whiteKeyColor: #DADBE0;
-    qproperty-blackKeyColor: #3B3F47;
-    qproperty-dividerColor: #AAACB5;
+    qproperty-whiteKeyColor: ${piano.key.white};
+    qproperty-blackKeyColor: ${piano.key.black};
+    qproperty-dividerColor: ${piano.key.divider};
 }
 
 /* PianoRollView */
 PianoRollView {
-    /* background: #1C1D1E; */
     /* border-radius: 6px; */
     border-radius: 0px;
 }
 
 PianoRollGraphicsView {
     qproperty-noteFontPixelSize: 13;
-    qproperty-whiteKeyColor: #292C36;
-    qproperty-blackKeyColor: #23262E;
-    qproperty-octaveDividerColor: #1C2024;
-    qproperty-noteSelectedBorderColor: #FFFFFF;
-    qproperty-pronunciationTextColor: #C8C8C8;
-    qproperty-anchorColor: #DCDCDC;
-    qproperty-anchorSelectedColor: #9BBAFF;
-    qproperty-anchorCurveColor: #DCDCDC;
-    qproperty-anchorPreviewColor: #9BBAFF;
-    qproperty-clipRangeOverlayColor: rgba(0, 0, 0, 64);
-    qproperty-splitLineColor: #FF6464;
-    qproperty-paramGraduateColor: #484B4E;
-    qproperty-paramOriginalCurveColor: rgba(255, 255, 255, 96);
-    qproperty-paramEditedCurveColor: #FFFFFF;
-    qproperty-paramBackgroundLayerColor: #292C36;
+    qproperty-whiteKeyColor: ${editor.canvasAlternate};
+    qproperty-blackKeyColor: ${piano.roll.blackRow};
+    qproperty-octaveDividerColor: ${piano.roll.octaveDivider};
+    qproperty-noteSelectedBorderColor: ${piano.roll.noteSelectedBorder};
+    qproperty-pronunciationTextColor: ${piano.roll.pronunciation};
+    qproperty-anchorColor: ${curve.anchor};
+    qproperty-anchorSelectedColor: ${curve.anchorSelected};
+    qproperty-anchorCurveColor: ${curve.anchor};
+    qproperty-anchorPreviewColor: ${curve.anchorSelected};
+    qproperty-clipRangeOverlayColor: ${piano.roll.overlay};
+    qproperty-splitLineColor: ${editor.splitLine};
+    qproperty-paramGraduateColor: ${curve.guide};
+    qproperty-paramOriginalCurveColor: ${curve.original};
+    qproperty-paramEditedCurveColor: ${curve.edited};
+    qproperty-paramBackgroundLayerColor: ${editor.canvasAlternate};
 }
 
 PianoRollView>QLabel#lbNullClipTip {
-    color: #80FFFFFF;
+    color: ${control.foreground.disabled};
 }
 
 ParamEditorGraphicsView {
-    /* background: rgb(28, 29, 30); */
-    background: #1D1F26;
+    background: ${editor.canvas};
     border-radius: 0px;
     border-bottom-right-radius: 6px;
-    qproperty-paramGraduateColor: #484B4E;
-    qproperty-paramOriginalCurveColor: rgba(255, 255, 255, 96);
-    qproperty-paramEditedCurveColor: #FFFFFF;
-    qproperty-paramBackgroundLayerColor: #292C36;
-    qproperty-speakerMixTextColor: #DCDCDC;
-    qproperty-speakerMixKeyframeLineColor: #DCDCDC;
-    qproperty-speakerMixSelectedDotColor: #FFFFFF;
-    qproperty-speakerMixSelectionBorderColor: rgba(155, 186, 255, 200);
-    qproperty-speakerMixSelectionFillColor: rgba(155, 186, 255, 40);
+    qproperty-paramGraduateColor: ${curve.guide};
+    qproperty-paramOriginalCurveColor: ${curve.original};
+    qproperty-paramEditedCurveColor: ${curve.edited};
+    qproperty-paramBackgroundLayerColor: ${editor.canvasAlternate};
+    qproperty-speakerMixTextColor: ${curve.anchor};
+    qproperty-speakerMixKeyframeLineColor: ${curve.anchor};
+    qproperty-speakerMixSelectedDotColor: ${curve.edited};
+    qproperty-speakerMixSelectionBorderColor: ${editor.selection.border};
+    qproperty-speakerMixSelectionFillColor: ${editor.selection.fill};
 }
 
 PhonemeView {
-    /* background: rgb(28, 29, 30); */
-    background: #1D1F26;
+    background: ${editor.canvas};
     /* border-bottom-right-radius: 6px; */
 }
 
 LyricWrapView {
     background: transparent;
-    border: 1px solid #505050;
+    border: 1px solid ${border.default};
     border-radius: 4px;
     padding: 2px;
 }
 
 QWidget#pianoRollTopLeftSpacing {
-    /* background: #1C1D1E; */
-    background: #272A33;
+    background: ${surface.panel};
     /* border-top-left-radius: 6px; */
 }
 
 QWidget#pianoRollBottomLeftSpacing {
-    /* background: #1C1D1E; */
-    background: #272A33;
+    background: ${surface.panel};
     /* border-bottom-left-radius: 6px; */
 }
 
@@ -212,28 +220,26 @@ QWidget#pianoRollBottomLeftSpacing {
 } */
 
 PianoRollEditorView {
-    background: #2F323B;
+    background: ${surface.raised};
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px
 }
 
 PianoRollEditorView::handle:vertical {
     height: 12px;
-    background-color: green;
+    background-color: ${surface.panel};
 }
 
 ParamEditorToolBarView {
     height: 32px;
-    /* background: #232425; */
-    background: #272A33;
-    border-top: 1px solid #1C1D1E;
-    /* border-bottom: 1px solid #1C1D1E; */
+    background: ${surface.panel};
+    border-top: 1px solid ${border.subtle};
 }
 
 ParamEditorToolBarView>QLabel#lbForegroundParam,
 ParamEditorToolBarView>QLabel#lbBackgroundParam {
     max-height: 24;
-    color: #80F0F0F0;
+    color: ${control.foreground.disabled};
 }
 
 ParamEditorToolBarView>ComboBox#cbForegroundParam,
@@ -242,12 +248,12 @@ ParamEditorToolBarView>ComboBox#cbBackgroundParam {
     border: none;
     padding-left: 8px;
     background: transparent;
-    color: #C8C9CC;
+    color: ${text.secondary};
 }
 
 ParamEditorToolBarView>ComboBox#cbForegroundParam:hover,
 ParamEditorToolBarView>ComboBox#cbBackgroundParam:hover {
-    color: #FFFFFF;
+    color: ${text.emphasis};
 }
 
 ParamEditorToolBarView>Button#btnSwap {
@@ -266,39 +272,38 @@ ParamEditorToolBarView Button#btnNextKeyframe {
 }
 
 ParamEditorInfoArea {
-    /* background: #232425; */
-    background: #272A33;
+    background: ${surface.panel};
     border-bottom-left-radius: 6px;
 }
 
 ParamEditorInfoArea>QLabel {
-    color: rgb(127, 127, 127);
+    color: ${control.foreground.disabled};
 }
 
 QLabel#clipEditorPlaceholder {
-    color: #80F0F0F0;
+    color: ${control.foreground.disabled};
     font-size: 14px;
 }
 
 QWidget#speakerMixEmptyState {
-    background-color: rgba(29, 31, 38, 218);
+    background-color: ${speakerMix.emptyState.fill};
 }
 
 QWidget#speakerMixEmptyState QLabel {
-    color: rgba(220, 222, 230, 220);
+    color: ${speakerMix.emptyState.text};
 }
 
 PhonemeView {
-    qproperty-hintTextColor: rgba(255, 255, 255, 80);
-    qproperty-textColor: rgb(180, 180, 180);
-    qproperty-positionLineColor: rgb(200, 200, 200);
-    qproperty-noteBoundaryColor: rgb(49, 53, 63);
-    qproperty-waveformColor: rgb(49, 53, 63);
+    qproperty-hintTextColor: ${phoneme.hint};
+    qproperty-textColor: ${phoneme.text};
+    qproperty-positionLineColor: ${phoneme.positionLine};
+    qproperty-noteBoundaryColor: ${phoneme.noteBoundary};
+    qproperty-waveformColor: ${phoneme.waveform};
 }
 
 ClipEditorToolBarView {
-    qproperty-iconColor: rgb(240, 240, 240);
-    qproperty-iconDisabledColor: rgba(240, 240, 240, 102);
-    qproperty-iconOnColor: #9BBAFF;
-    qproperty-iconOnDisabledColor: rgba(155, 186, 255, 102);
+    qproperty-iconColor: ${icon.primary};
+    qproperty-iconDisabledColor: ${icon.disabled};
+    qproperty-iconOnColor: ${accent.default};
+    qproperty-iconOnDisabledColor: ${accent.muted};
 }

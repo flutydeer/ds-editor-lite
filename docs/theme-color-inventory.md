@@ -1,8 +1,8 @@
 # 主题颜色基线盘点
 
-> 状态：迁移前基线，统计对象为 `src/app/Resources/theme/lite-dark/*.qss`。Phase 2 已将
-> 基础窗口、通用控件、弹层和标题栏迁移到 semantic token；下列数字保留为迁移前快照，
-> 用于衡量后续编辑领域 QSS 的剩余规模。
+> 状态：迁移前基线，统计对象为 `src/app/Resources/theme/lite-dark/*.qss`。数字保留为历史
+> 快照，用于衡量迁移规模。Phase 3 已将领域 QSS 中的普通颜色和 `qproperty-*` 颜色属性
+> 迁移到 semantic token；FillLyric 的复合字符串属性仍由独立 QssParser 管理。
 
 ## 规模
 
@@ -45,3 +45,6 @@
   仅凭深色主题中的白色决定浅色主题方案；
 - 第一轮不引入自动亮度变体。所有状态色均为显式 token，避免把深色主题的变体规则错误地
   套到浅色主题。
+- Phase 3 后，主题 QSS 中除 `transparent` 等与主题无关的关键字外，不再保留普通十六进制
+  或 `rgb/rgba` 颜色字面量；FillLyric 的 `cell*`、`handle*`、`splitterPen` 复合值暂不在此
+  规则内。
