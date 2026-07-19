@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDirIterator>
 #include <QFile>
 #include <QList>
 #include <QSet>
@@ -172,6 +173,44 @@ namespace {
         return success;
     }
 
+    bool testBundledStyleSheets() {
+        QFile file(QString::fromUtf8(TEST_SOURCE_DIR) +
+                   QStringLiteral("/src/app/Resources/theme/lite-dark/colors.json"));
+        if (!expect(file.open(QIODevice::ReadOnly),
+                    QStringLiteral("bundled colors.json should open for stylesheet test"),
+                    file.errorString())) {
+            return false;
+        }
+
+        QString error;
+        const auto colors = parse(file.readAll(), error);
+        if (!expect(colors.has_value(),
+                    QStringLiteral("bundled colors should parse for stylesheet test"), error)) {
+            return false;
+        }
+
+        bool success = true;
+        QDirIterator iterator(QString::fromUtf8(TEST_SOURCE_DIR) +
+                                  QStringLiteral("/src/app/Resources/theme/lite-dark"),
+                              {QStringLiteral("*.qss")}, QDir::Files);
+        while (iterator.hasNext()) {
+            QFile styleSheetFile(iterator.next());
+            if (!expect(styleSheetFile.open(QIODevice::ReadOnly),
+                        QStringLiteral("bundled stylesheet should open"),
+                        styleSheetFile.errorString())) {
+                success = false;
+                continue;
+            }
+
+            const auto resolved = ThemeColorResolver::applyToStyleSheet(
+                QString::fromUtf8(styleSheetFile.readAll()), *colors, nullptr, &error);
+            success &= expect(resolved.has_value(),
+                              QStringLiteral("bundled stylesheet tokens should resolve"),
+                              styleSheetFile.fileName() + QStringLiteral(": ") + error);
+        }
+        return success;
+    }
+
 }
 
 int main(int argc, char *argv[]) {
@@ -181,5 +220,6 @@ int main(int argc, char *argv[]) {
     success &= testInvalidDefinitions();
     success &= testInvalidPlaceholders();
     success &= testBundledTokenDraft();
+    success &= testBundledStyleSheets();
     return success ? 0 : 1;
 }

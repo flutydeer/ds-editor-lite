@@ -112,8 +112,10 @@
         "accent.subtle": "{accent.alpha10}",
 
         "selection.fill": "{accent.alpha25}",
+        "selection.hoverFill": "#50A9C4FF",
         "selection.border": "{accent.alpha78}",
         "selection.text": "{neutral.950}",
+        "selection.textFill": "{accent.500}",
         "selection.inactiveFill": "{neutral.white10}",
 
         "status.info": "{feedback.info}",
@@ -130,6 +132,33 @@
         "tooltip.background": "#202122",
         "tooltip.border": "#606060",
         "tooltip.text": "{text.secondary}",
+
+        "toolButton.fill.checked": "{neutral.white16}",
+        "toolButton.fill.checkedHover": "{neutral.white20}",
+        "toolButton.fill.pressed": "{neutral.white16}",
+        "toolButton.border.checked": "{neutral.450}",
+
+        "checkBox.fill.unchecked": "#404040",
+        "checkBox.fill.uncheckedHover": "#484848",
+        "checkBox.fill.uncheckedPressed": "#383838",
+
+        "scrollbar.handle": "{neutral.white28}",
+        "scrollbar.handleHover": "{neutral.white38}",
+        "scrollbar.handlePressed": "{neutral.white16}",
+        "scrollbar.handleEmphasis": "{neutral.0}",
+
+        "slider.track.inactive": "{neutral.white38}",
+        "slider.track.inactiveSubtle": "{neutral.black13}",
+        "slider.track.active": "{accent.500}",
+        "slider.thumb.fill": "{accent.500}",
+        "slider.thumb.border": "{neutral.450}",
+        "slider.thumb.borderStrong": "{neutral.0}",
+
+        "window.closeButton.hover": "#C42B1C",
+        "window.closeButton.pressed": "#B32E1D",
+
+        "playback.control.playingFill": "{accent.alpha25}",
+        "playback.control.pausedFill": "#40FFCD9B",
 
         "editor.canvas": "{neutral.800}",
         "editor.canvasAlternate": "{neutral.650}",

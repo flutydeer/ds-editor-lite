@@ -8,15 +8,15 @@ Button#CloseButton {
 }
 
 Button#CloseButton:hover {
-    background: #C42B1C;
+    background: ${window.closeButton.hover};
 }
 
 Button#CloseButton:pressed {
-    background: #B32E1D;
+    background: ${window.closeButton.pressed};
 }
 
 Button#MaximizeButton:checked {
-    color: #f2f2f2;
+    color: ${control.foreground.default};
 }
 
 Button#MinimizeButton,
@@ -29,12 +29,12 @@ Button#MaximizeButton {
 
 Button#MinimizeButton:hover,
 Button#MaximizeButton:hover {
-    background: #0FC7D8FF;
+    background: ${control.fill.hover};
 }
 
 Button#MinimizeButton:pressed,
 Button#MaximizeButton:pressed {
-    background: #0FC7D8FF;
+    background: ${control.fill.pressed};
 }
 
 /* ControlGroup */
@@ -44,7 +44,7 @@ PlaybackView ControlGroup>QPushButton {
     height: 28px;
     padding: 0px;
     border: none;
-    background: #2B2F37;
+    background: ${surface.raised};
     border-radius: 0px;
 }
 
@@ -63,32 +63,30 @@ PlaybackView ControlGroup>QPushButton[groupPos="only"] {
 }
 
 PlaybackView ControlGroup>QPushButton:hover {
-    background: #12C7D8FF
+    background: ${control.fill.hover}
 }
 
 PlaybackView ControlGroup>QPushButton:pressed {
-    background: #0CFFFFFF
+    background: ${control.fill.pressed}
 }
 
 PlaybackView ControlGroup>QPushButton#btnPlay:checked {
-    /* background-color: #9BBAFF; */
-    background-color: #409BBAFF;
+    background-color: ${playback.control.playingFill};
 }
 
 PlaybackView ControlGroup>QPushButton#btnPause:checked {
-    /* background-color: #FFCD9B; */
-    background-color: #40FFCD9B;
+    background-color: ${playback.control.pausedFill};
 }
 
 PlaybackView ControlGroup>QPushButton#btnLoop:checked {
-    background-color: #409BBAFF;
+    background-color: ${selection.fill};
 }
 
 PlaybackView ControlGroup>InlineEditLabel {
     height: 28px;
     padding: 0px;
     border: none;
-    background: #2B2F37;
+    background: ${surface.raised};
     border-radius: 0px;
 }
 
@@ -114,9 +112,9 @@ PlaybackView ControlGroup>InlineEditLabel[groupPos="only"] {
 QLineEdit#inlineEditLineEdit[editRole="Tempo"],
 QLineEdit#inlineEditLineEdit[editRole="TimeSignature"],
 QLineEdit#inlineEditLineEdit[editRole="PlaybackPosition"] {
-    background: #1A1C22;
+    background: ${surface.input};
     border: none;
-    border-bottom: 1px solid #9BBAFF;
+    border-bottom: 1px solid ${control.border.focus};
     border-radius: 0px;
     padding: 0px 12px;
 }
@@ -148,17 +146,17 @@ PlaybackView ControlGroup {
 /* PlaybackView */
 
 PlaybackView>QLabel {
-    color: #F0F0F0;
+    color: ${text.primary};
     background: none;
     border-radius: 6px;
 }
 
 PlaybackView>QLabel:hover {
-    background: #12C7D8FF;
+    background: ${control.fill.hover};
 }
 
 PlaybackView>QLabel:pressed {
-    background: #0FC7D8FF;
+    background: ${control.fill.pressed};
 }
 
 PlaybackView>QLineEdit {
@@ -166,18 +164,18 @@ PlaybackView>QLineEdit {
 }
 
 PlaybackView>QComboBox {
-    color: #F0F0F0;
+    color: ${control.foreground.default};
     border: none;
     background: transparent;
     border-radius: 6px;
 }
 
 PlaybackView>QComboBox:hover {
-    background: #12C7D8FF;
+    background: ${control.fill.hover};
 }
 
 PlaybackView>QComboBox:pressed {
-    background: #0FC7D8FF;
+    background: ${control.fill.pressed};
 }
 /* Time Signature Popup */
 TimeSignaturePopupWidget {
@@ -189,18 +187,18 @@ TimeSignaturePopupWidget[dwmBorder="true"] QFrame#timeSignaturePopupSurface {
 }
 
 TimeSignaturePopupWidget QFrame#timeSignaturePopupSurface {
-    background: #21242B;
-    border: 1px solid #1AFFFFFF;
+    background: ${surface.popup};
+    border: 1px solid ${control.border.default};
     border-radius: 4px;
 }
 
 TimeSignaturePopupWidget QLabel#popupTitle {
-    color: #99C8C9CC;
+    color: ${text.secondary};
     font-size: 12px;
 }
 
 TimeSignaturePopupWidget QLabel#slashLabel {
-    color: #D7D8DB;
+    color: ${text.emphasis};
     font-size: 14px;
     font-weight: bold;
 }
@@ -215,44 +213,44 @@ TempoPopupWidget[dwmBorder="true"] QFrame#tempoPopupSurface {
 }
 
 TempoPopupWidget QFrame#tempoPopupSurface {
-    background: #21242B;
-    border: 1px solid #1AFFFFFF;
+    background: ${surface.popup};
+    border: 1px solid ${control.border.default};
     border-radius: 4px;
 }
 
 TempoPopupWidget QLabel#popupTitle {
-    color: #99C8C9CC;
+    color: ${text.secondary};
     font-size: 12px;
 }
 
 TempoPopupWidget TapTempoButton#btnTapTempo {
     height: 48px;
     padding: 0px 12px;
-    qproperty-progressColor: rgba(155, 186, 255, 80);
+    qproperty-progressColor: ${selection.fill};
 }
 
 TempoPopupWidget TapTempoButton#btnTapTempo:hover,
 TempoPopupWidget TapTempoButton#btnTapTempo:pressed {
-    color: #f2f2f2;
-    background: #10FFFFFF;
+    color: ${control.foreground.default};
+    background: ${control.fill.default};
 }
 
 TempoPopupWidget TapTempoButton#btnTapTempo[stable="true"] {
-    color: #9BBAFF;
+    color: ${text.link};
     font-size: 18px;
     font-weight: bold;
 }
 
 MainMenuView {
-    qproperty-iconColor: #E0E0E0;
-    qproperty-iconDisabledColor: #909090;
+    qproperty-iconColor: ${icon.primary};
+    qproperty-iconDisabledColor: ${icon.disabled};
 }
 
 FilePopupWidget {
-    qproperty-iconColor: #C8C9CC;
+    qproperty-iconColor: ${icon.secondary};
 }
 
 PlaybackView {
-    qproperty-playAccentColor: #9BBAFF;
-    qproperty-pauseAccentColor: #FFCD9B;
+    qproperty-playAccentColor: ${accent.default};
+    qproperty-pauseAccentColor: ${status.warning};
 }

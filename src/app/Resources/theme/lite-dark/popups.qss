@@ -4,42 +4,42 @@
 
 /* Toast */
 ToastWidget QLabel#toastMessage {
-    color: #F0F0F0;
+    color: ${toast.text};
     font-size: 10.5pt;
 }
 
 ToastWidget QFrame#toastContainer {
-    background: #80202122;
-    border: 1px solid #80606060;
+    background: ${toast.background};
+    border: 1px solid ${toast.border};
     border-radius: 6px;
     font-size: 10pt;
 }
 
 /* ToolTip */
 ToolTip QLabel#toolTipTitle {
-    color: #F0F0F0;
+    color: ${text.emphasis};
     font-size: 10pt;
 }
 
 ToolTip QLabel#toolTipShortcutKey {
-    color: #808080;
+    color: ${text.secondary};
 }
 
 ToolTip QLabel#toolTipMessage {
-    color: #808080;
+    color: ${tooltip.text};
 }
 
 ToolTip QFrame#toolTipContainer {
-    background: #202122;
-    border: 1px solid #606060;
+    background: ${tooltip.background};
+    border: 1px solid ${tooltip.border};
     border-radius: 6px;
     font-size: 10pt;
 }
 
 ToastWidget {
-    qproperty-shadowColor: rgba(0, 0, 0, 32);
+    qproperty-shadowColor: ${shadow.popup};
 }
 
 ToolTip {
-    qproperty-shadowColor: rgba(0, 0, 0, 32);
+    qproperty-shadowColor: ${shadow.popup};
 }

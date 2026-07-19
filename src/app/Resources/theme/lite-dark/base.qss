@@ -5,7 +5,7 @@ QWidget {
 Dialog[transparentWindow="false"],
 Window[transparentWindow="false"],
 QMainWindow[transparentWindow="false"] {
-    background: #21242B;
+    background: ${surface.window};
 }
 
 Dialog[transparentWindow="true"],

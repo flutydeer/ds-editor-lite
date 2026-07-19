@@ -1,7 +1,8 @@
 # 主题颜色基线盘点
 
-> 状态：第一轮基线，统计对象为 `src/app/Resources/theme/lite-dark/*.qss`。本轮只建立
-> token 基础设施，不替换现有 QSS，因此当前视觉不应发生变化。
+> 状态：迁移前基线，统计对象为 `src/app/Resources/theme/lite-dark/*.qss`。Phase 2 已将
+> 基础窗口、通用控件、弹层和标题栏迁移到 semantic token；下列数字保留为迁移前快照，
+> 用于衡量后续编辑领域 QSS 的剩余规模。
 
 ## 规模
 

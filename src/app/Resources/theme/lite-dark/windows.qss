@@ -4,5 +4,5 @@
 
 /* LogWindow */
 QTableView#logTableView {
-    background: #1D1F26;
+    background: ${surface.sunken};
 }
