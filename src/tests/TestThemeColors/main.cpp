@@ -197,22 +197,37 @@ namespace {
 
     bool testAppearanceThemePreference() {
         AppearanceOption option;
-        bool success = expect(option.themeId == AppearanceOption::defaultThemeId(),
-                              QStringLiteral("dark theme should be the default preference"));
+        bool success = expect(option.themeId == AppearanceOption::systemThemePreferenceId(),
+                              QStringLiteral("system theme should be the default preference"));
+        success &= expect(option.value().value(QStringLiteral("themeId")).toString() ==
+                              AppearanceOption::systemThemePreferenceId(),
+                          QStringLiteral("system theme preference should serialize by stable ID"));
 
         option.load(QJsonObject{
-            {QStringLiteral("themeId"), AppearanceOption::lightThemeId()}
+            {QStringLiteral("themeId"), AppearanceOption::lightThemePreferenceId()}
         });
-        success &= expect(option.themeId == AppearanceOption::lightThemeId(),
+        success &= expect(option.themeId == AppearanceOption::lightThemePreferenceId(),
                           QStringLiteral("light theme preference should load"));
         success &= expect(option.value().value(QStringLiteral("themeId")).toString() ==
-                              AppearanceOption::lightThemeId(),
+                              AppearanceOption::lightThemePreferenceId(),
                           QStringLiteral("theme preference should serialize by stable ID"));
+
+        option.load(QJsonObject{
+            {QStringLiteral("themeId"), AppearanceOption::systemThemePreferenceId()}
+        });
+        success &= expect(option.themeId == AppearanceOption::systemThemePreferenceId(),
+                          QStringLiteral("system theme preference should load"));
+
+        option.load(QJsonObject{
+            {QStringLiteral("themeId"), QStringLiteral("lite-dark")}
+        });
+        success &= expect(option.themeId == AppearanceOption::systemThemePreferenceId(),
+                          QStringLiteral("legacy theme ids should be ignored"));
 
         option.load(QJsonObject{
             {QStringLiteral("themeId"), QStringLiteral("unknown-theme")}
         });
-        success &= expect(option.themeId == AppearanceOption::lightThemeId(),
+        success &= expect(option.themeId == AppearanceOption::systemThemePreferenceId(),
                           QStringLiteral("invalid theme preference should be ignored"));
         return success;
     }

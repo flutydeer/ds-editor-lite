@@ -9,7 +9,6 @@
 
 #include <QApplication>
 #include <QStyleFactory>
-#include <QStyleHints>
 
 namespace AppEnvironment {
 
@@ -34,12 +33,6 @@ namespace AppEnvironment {
             QApplication::setStyle(QStyleFactory::create("windows"));
         else
             QApplication::setStyle(QStyleFactory::create("windowsvista"));
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-        QApplication::styleHints()->setColorScheme(Qt::ColorScheme::Dark);
-#else
-        qWarning("setColorScheme is not available in this version of Qt.");
-#endif
-
         CMenu::setDefaultCornerPreference(CMenu::Round);
         CComboBox::setDefaultCornerPreference(CComboBox::Round);
 

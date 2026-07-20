@@ -15,7 +15,7 @@ void AppearanceOption::load(const QJsonObject &object) {
         animationTimeScale = object.value(animationTimeScaleKey).toDouble();
     if (object.contains(themeIdKey)) {
         const auto savedThemeId = object.value(themeIdKey).toString().trimmed();
-        if (isBuiltInThemeId(savedThemeId))
+        if (isThemePreferenceId(savedThemeId))
             themeId = savedThemeId;
     }
 }
@@ -60,6 +60,33 @@ QString AppearanceOption::lightThemeId() {
     return QStringLiteral("lite-light");
 }
 
+QString AppearanceOption::systemThemePreferenceId() {
+    return QStringLiteral("system");
+}
+
+QString AppearanceOption::lightThemePreferenceId() {
+    return QStringLiteral("light");
+}
+
+QString AppearanceOption::darkThemePreferenceId() {
+    return QStringLiteral("dark");
+}
+
+QString AppearanceOption::themeIdForPreference(const QString &themePreferenceId) {
+    if (themePreferenceId == systemThemePreferenceId())
+        return QString();
+    if (themePreferenceId == lightThemePreferenceId())
+        return lightThemeId();
+    if (themePreferenceId == darkThemePreferenceId())
+        return defaultThemeId();
+    return themePreferenceId;
+}
+
 bool AppearanceOption::isBuiltInThemeId(const QString &themeId) {
     return themeId == defaultThemeId() || themeId == lightThemeId();
+}
+
+bool AppearanceOption::isThemePreferenceId(const QString &themeId) {
+    return themeId == systemThemePreferenceId() || themeId == lightThemePreferenceId() ||
+           themeId == darkThemePreferenceId();
 }

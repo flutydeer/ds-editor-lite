@@ -35,19 +35,21 @@ void AppearancePage::modifyOption() {
 }
 
 void AppearancePage::changeTheme(const int index) {
-    const auto themeId = m_cbxTheme->itemData(index).toString();
-    if (themeId.isEmpty())
+    const auto themePreferenceId = m_cbxTheme->itemData(index).toString();
+    if (themePreferenceId.isEmpty())
         return;
 
     const auto themeManager = ThemeManager::instance();
-    if (themeId != themeManager->currentThemeId() && !themeManager->applyTheme(themeId)) {
+    const auto previousThemePreferenceId = appOptions->appearance()->themeId;
+    if (themePreferenceId != previousThemePreferenceId &&
+        !themeManager->applyThemePreference(themePreferenceId)) {
         const QSignalBlocker blocker(m_cbxTheme);
-        m_cbxTheme->setCurrentIndex(m_cbxTheme->findData(themeManager->currentThemeId()));
+        m_cbxTheme->setCurrentIndex(m_cbxTheme->findData(previousThemePreferenceId));
         QMessageBox::critical(this, tr("Theme switch failed"), ThemeLoader::lastError());
         return;
     }
 
-    appOptions->appearance()->themeId = themeId;
+    appOptions->appearance()->themeId = themePreferenceId;
     appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
 }
 
@@ -56,10 +58,10 @@ QWidget *AppearancePage::createContentWidget() {
     const auto option = appOptions->appearance();
 
     m_cbxTheme = new ComboBox;
-    m_cbxTheme->addItem(tr("Light"), AppearanceOption::lightThemeId());
-    m_cbxTheme->addItem(tr("Dark"), AppearanceOption::defaultThemeId());
-    const auto activeThemeId = ThemeManager::instance()->currentThemeId();
-    m_cbxTheme->setCurrentIndex(m_cbxTheme->findData(activeThemeId));
+    m_cbxTheme->addItem(tr("System"), AppearanceOption::systemThemePreferenceId());
+    m_cbxTheme->addItem(tr("Light"), AppearanceOption::lightThemePreferenceId());
+    m_cbxTheme->addItem(tr("Dark"), AppearanceOption::darkThemePreferenceId());
+    m_cbxTheme->setCurrentIndex(m_cbxTheme->findData(option->themeId));
     connect(m_cbxTheme, &ComboBox::currentIndexChanged, this, &AppearancePage::changeTheme);
 
     const auto themeCard = new OptionListCard(tr("Theme"));

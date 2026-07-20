@@ -24,13 +24,18 @@ public:
     bool enableDirectManipulation = true;
     AnimationGlobal::AnimationLevels animationLevel = AnimationGlobal::Full;
     double animationTimeScale = 1;
-    QString themeId = defaultThemeId();
+    QString themeId = systemThemePreferenceId();
 
     static AnimationGlobal::AnimationLevels animationLevelFromString(const QString &name);
     static QString animationLevelToString(AnimationGlobal::AnimationLevels level);
     static QString defaultThemeId();
     static QString lightThemeId();
+    static QString systemThemePreferenceId();
+    static QString lightThemePreferenceId();
+    static QString darkThemePreferenceId();
+    static QString themeIdForPreference(const QString &themePreferenceId);
     static bool isBuiltInThemeId(const QString &themeId);
+    static bool isThemePreferenceId(const QString &themeId);
 
 protected:
     void save(QJsonObject &object) override;

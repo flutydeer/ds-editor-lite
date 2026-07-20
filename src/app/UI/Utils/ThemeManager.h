@@ -30,6 +30,7 @@ public:
     // --- Theme loading ---
     bool initialize(const QString &themeId);
     bool applyTheme(const QString &themeId);
+    bool applyThemePreference(const QString &themePreferenceId);
     bool reloadCurrentTheme();
 
     // --- Query ---
@@ -56,12 +57,18 @@ public slots:
     void onSystemThemeColorChanged();
 
 private:
+    enum class ColorSchemePolicy { Explicit, FollowSystem };
+
     static void applyAnimationSettings(IAnimatable *object);
+    static QString normalizedThemePreferenceId(const QString &themePreferenceId);
+    static QString systemThemeId();
     bool eventFilter(QObject *watched, QEvent *event) override;
+    bool applyThemeInternal(const QString &themeId, ColorSchemePolicy colorSchemePolicy);
 
     // --- Theme state ---
     QString m_currentThemeId;
     QString m_observedThemePreferenceId;
+    bool m_followSystemTheme = false;
     ThemeColorType m_colorType = ThemeColorType::Dark;
     QString m_styleSheet;
     QString m_lyricStyleSheet;
