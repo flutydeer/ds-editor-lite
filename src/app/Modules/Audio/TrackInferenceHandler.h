@@ -41,6 +41,8 @@ private:
     void handlePieceRemoved(SingingClip *clip, InferPiece *inferPiece);
 
     void handleInferPieceStatusChange(int clipId, int pieceId, InferStatus status) const;
+    void syncInferPiecePosition(const InferPiece *inferPiece) const;
+    void syncInferPiecePositions(SingingClip *clip) const;
 
     void handleTimeChanged() const;
 };

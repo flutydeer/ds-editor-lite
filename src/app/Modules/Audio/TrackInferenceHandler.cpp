@@ -85,6 +85,21 @@ void TrackInferenceHandler::handleSingingClipInserted(SingingClip *clip) {
         DEVICE_LOCKER;
         handlePieceChanged(clip, pieces);
     });
+
+    connect(clip, &SingingClip::noteChanged, this,
+            [clip, this](SingingClip::NoteChangeType type, const QList<Note *> &) {
+                switch (type) {
+                    case SingingClip::OriginalWordPropertyChange:
+                    case SingingClip::EditedPhonemeOffsetChange:
+                    case SingingClip::TimeKeyPropertyChange: {
+                        DEVICE_LOCKER;
+                        syncInferPiecePositions(clip);
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            });
 }
 
 void TrackInferenceHandler::handleSingingClipRemoved(SingingClip *clip) {
@@ -103,6 +118,8 @@ void TrackInferenceHandler::handleSingingClipPropertyChanged(SingingClip *clip) 
     singingClipInferenceContext->controlMixer()->setGain(
         talcs::Decibels::decibelsToGain(clip->gain()));
     singingClipInferenceContext->controlMixer()->setSilentFlags(clip->mute() ? -1 : 0);
+
+    syncInferPiecePositions(clip);
 }
 
 void TrackInferenceHandler::handlePieceChanged(SingingClip *clip,
@@ -132,8 +149,7 @@ void TrackInferenceHandler::handlePieceInserted(SingingClip *clip, InferPiece *i
     const auto inferencePieceContext =
         singingClipInferenceContext->addInferencePiece(inferPiece->id());
     m_inferPieceModelDict.insert(inferPiece->id(), inferencePieceContext);
-    inferencePieceContext->setPos(inferPiece->localStartTick());
-    inferencePieceContext->setLength(inferPiece->localEndTick() - inferPiece->localStartTick());
+    syncInferPiecePosition(inferPiece);
     handleInferPieceStatusChange(clip->id(), inferPiece->id(), inferPiece->acousticInferStatus);
     connect(inferPiece, &InferPiece::statusChanged, this,
             [clipId = clip->id(), pieceId = inferPiece->id(), this](auto status) {
@@ -159,6 +175,11 @@ void TrackInferenceHandler::handleInferPieceStatusChange(const int clipId, const
     const auto inferencePieceContext = m_inferPieceModelDict.value(pieceId);
     if (!inferencePieceContext)
         return;
+
+    {
+        DEVICE_LOCKER;
+        syncInferPiecePosition(piece);
+    }
 
     switch (status) {
         case Success: {
@@ -190,6 +211,25 @@ void TrackInferenceHandler::handleInferPieceStatusChange(const int clipId, const
                 DEVICE_LOCKER;
                 inferencePieceContext->reset();
             }
+    }
+}
+
+void TrackInferenceHandler::syncInferPiecePosition(const InferPiece *inferPiece) const {
+    if (!inferPiece)
+        return;
+    const auto inferencePieceContext = m_inferPieceModelDict.value(inferPiece->id());
+    if (!inferencePieceContext)
+        return;
+
+    const auto start = inferPiece->localStartTick();
+    const auto end = inferPiece->localEndTick();
+    inferencePieceContext->setPos(start);
+    inferencePieceContext->setLength(end - start);
+}
+
+void TrackInferenceHandler::syncInferPiecePositions(SingingClip *clip) const {
+    for (const auto piece : m_singingClipInferPieces.value(clip)) {
+        syncInferPiecePosition(piece);
     }
 }
 
