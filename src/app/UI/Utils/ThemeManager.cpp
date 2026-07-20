@@ -11,8 +11,10 @@
 #include "Utils/WindowFrameUtils.h"
 
 #include <QEvent>
+#include <QGuiApplication>
 #include <QPointer>
 #include <QStyle>
+#include <QStyleHints>
 #include <QTimer>
 #include <QWidget>
 
@@ -51,10 +53,21 @@ bool ThemeManager::applyTheme(const QString &themeId) {
     else
         m_colorType = ThemeColorType::Dark;
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    QGuiApplication::styleHints()->setColorScheme(m_colorType == ThemeColorType::Light
+                                                      ? Qt::ColorScheme::Light
+                                                      : Qt::ColorScheme::Dark);
+#endif
+
     // Apply QSS to all registered style roots
     for (const auto &ptr : std::as_const(m_styleRoots)) {
         if (auto *root = ptr.data())
             root->setStyleSheet(m_styleSheet);
+    }
+
+    for (const auto &windowPtr : std::as_const(m_windows)) {
+        if (auto *window = windowPtr.data())
+            WindowFrameUtils::applyFrameEffects(window);
     }
 
     emit themeChanged(themeId);

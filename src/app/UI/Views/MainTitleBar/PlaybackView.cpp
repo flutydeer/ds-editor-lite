@@ -28,15 +28,17 @@
 #include <cmath>
 
 namespace {
-    QIcon buildActionIcon(const QString &svgPath, const QSize &iconSize) {
-        return IconUtils::createTintedSvgIcon(svgPath, iconSize,
-                                              MainTitleBarIconPalette::actionPalette());
+    QIcon buildActionIcon(const QString &svgPath, const QSize &iconSize, const QColor &normalColor,
+                          const QColor &disabledColor) {
+        return IconUtils::createTintedSvgIcon(
+            svgPath, iconSize, MainTitleBarIconPalette::actionPalette(normalColor, disabledColor));
     }
 
-    QIcon buildToggleIcon(const QString &svgPath, const QSize &iconSize,
-                          const QColor &checkedColor) {
+    QIcon buildToggleIcon(const QString &svgPath, const QSize &iconSize, const QColor &normalColor,
+                          const QColor &disabledColor, const QColor &checkedColor) {
         return IconUtils::createTintedSvgIcon(
-            svgPath, iconSize, MainTitleBarIconPalette::toggledPalette(checkedColor));
+            svgPath, iconSize,
+            MainTitleBarIconPalette::toggledPalette(normalColor, disabledColor, checkedColor));
     }
 }
 
@@ -83,13 +85,15 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnStop = new QPushButton;
     m_btnStop->setObjectName("btnStop");
     m_btnStop->setIconSize(m_iconSize);
-    m_btnStop->setIcon(buildActionIcon(":svg/icons/stop_16_regular.svg", m_iconSize));
+    m_btnStop->setIcon(buildActionIcon(":svg/icons/stop_16_regular.svg", m_iconSize,
+                                       m_actionIconColor, m_actionIconDisabledColor));
 
     m_btnPlay = new QPushButton;
     m_btnPlay->setObjectName("btnPlay");
     m_btnPlay->setIconSize(m_iconSize);
-    m_btnPlay->setIcon(
-        buildToggleIcon(":svg/icons/play_16_regular.svg", m_iconSize, playAccentColor()));
+    m_btnPlay->setIcon(buildToggleIcon(":svg/icons/play_16_regular.svg", m_iconSize,
+                                       m_actionIconColor, m_actionIconDisabledColor,
+                                       playAccentColor()));
     m_btnPlay->setCheckable(true);
 
     m_btnPlayPause = new QPushButton(this);
@@ -114,6 +118,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnLoop->setObjectName("btnLoop");
     m_btnLoop->setIconSize(m_iconSize);
     m_btnLoop->setIcon(buildToggleIcon(":svg/icons/arrow_repeat_all_16_regular.svg", m_iconSize,
+                                       m_actionIconColor, m_actionIconDisabledColor,
                                        playAccentColor()));
     m_btnLoop->setCheckable(true);
     m_btnLoop->setToolTip(tr("Loop"));
@@ -142,8 +147,9 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnPause = new QPushButton;
     m_btnPause->setObjectName("btnPause");
     m_btnPause->setIconSize(m_iconSize);
-    m_btnPause->setIcon(
-        buildToggleIcon(":svg/icons/pause_16_regular.svg", m_iconSize, pauseAccentColor()));
+    m_btnPause->setIcon(buildToggleIcon(":svg/icons/pause_16_regular.svg", m_iconSize,
+                                        m_actionIconColor, m_actionIconDisabledColor,
+                                        pauseAccentColor()));
     m_btnPause->setCheckable(true);
 
     m_elTime = new InlineEditLabel;
@@ -362,6 +368,28 @@ QColor PlaybackView::playAccentColor() const {
     return m_playAccentColor;
 }
 
+QColor PlaybackView::actionIconColor() const {
+    return m_actionIconColor;
+}
+
+void PlaybackView::setActionIconColor(const QColor &color) {
+    if (m_actionIconColor == color)
+        return;
+    m_actionIconColor = color;
+    rebuildIcons();
+}
+
+QColor PlaybackView::actionIconDisabledColor() const {
+    return m_actionIconDisabledColor;
+}
+
+void PlaybackView::setActionIconDisabledColor(const QColor &color) {
+    if (m_actionIconDisabledColor == color)
+        return;
+    m_actionIconDisabledColor = color;
+    rebuildIcons();
+}
+
 void PlaybackView::setPlayAccentColor(const QColor &color) {
     if (m_playAccentColor == color)
         return;
@@ -381,13 +409,19 @@ void PlaybackView::setPauseAccentColor(const QColor &color) {
 }
 
 void PlaybackView::rebuildIcons() {
+    if (m_btnStop)
+        m_btnStop->setIcon(buildActionIcon(":svg/icons/stop_16_regular.svg", m_iconSize,
+                                           m_actionIconColor, m_actionIconDisabledColor));
     if (m_btnPlay)
-        m_btnPlay->setIcon(
-            buildToggleIcon(":svg/icons/play_16_regular.svg", m_iconSize, m_playAccentColor));
+        m_btnPlay->setIcon(buildToggleIcon(":svg/icons/play_16_regular.svg", m_iconSize,
+                                           m_actionIconColor, m_actionIconDisabledColor,
+                                           m_playAccentColor));
     if (m_btnLoop)
         m_btnLoop->setIcon(buildToggleIcon(":svg/icons/arrow_repeat_all_16_regular.svg", m_iconSize,
+                                           m_actionIconColor, m_actionIconDisabledColor,
                                            m_playAccentColor));
     if (m_btnPause)
-        m_btnPause->setIcon(
-            buildToggleIcon(":svg/icons/pause_16_regular.svg", m_iconSize, m_pauseAccentColor));
+        m_btnPause->setIcon(buildToggleIcon(":svg/icons/pause_16_regular.svg", m_iconSize,
+                                            m_actionIconColor, m_actionIconDisabledColor,
+                                            m_pauseAccentColor));
 }

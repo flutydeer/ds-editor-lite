@@ -41,8 +41,11 @@ int main(int argc, char *argv[]) {
 
     // Infrastructure singletons (stays Meyers static)
     // ThemeManager: load theme, apply palette and QSS
-    if (!ThemeManager::instance()->initialize("lite-dark"))
-        qFatal("Failed to load the built-in default theme: %s",
+    auto initialThemeId = qEnvironmentVariable("DS_EDITOR_THEME").trimmed();
+    if (initialThemeId.isEmpty())
+        initialThemeId = QStringLiteral("lite-dark");
+    if (!ThemeManager::instance()->initialize(initialThemeId))
+        qFatal("Failed to load initial theme '%s': %s", qPrintable(initialThemeId),
                qPrintable(ThemeLoader::lastError()));
 
     packageManager->initialize();

@@ -1,5 +1,7 @@
 #include "WindowFrameUtils.h"
 
+#include "UI/Utils/ThemeManager.h"
+
 #ifdef Q_OS_MAC
 #  include <AppKit/AppKit.h>
 
@@ -17,7 +19,9 @@ void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
     visualEffectView.wantsLayer = YES;
     visualEffectView.frame = frame;
     visualEffectView.state = NSVisualEffectStateActive;
-    visualEffectView.material = NSVisualEffectMaterialUltraDark;
+    const bool dark = ThemeManager::instance()->colorType() != ThemeManager::ThemeColorType::Light;
+    visualEffectView.material =
+        dark ? NSVisualEffectMaterialUltraDark : NSVisualEffectMaterialWindowBackground;
     visualEffectView.blendingMode = NSVisualEffectBlendingModeBehindWindow;
     visualEffectView.wantsLayer = YES;
 
@@ -31,7 +35,8 @@ void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
     [content addSubview:visualEffectView positioned:NSWindowBelow relativeTo:nullptr];
 
     window.titlebarAppearsTransparent = YES;
-    window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+    window.appearance = [NSAppearance appearanceNamed:(dark ? NSAppearanceNameDarkAqua
+                                                            : NSAppearanceNameAqua)];
 }
 
 #endif

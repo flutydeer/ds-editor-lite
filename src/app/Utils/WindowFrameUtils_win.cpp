@@ -1,5 +1,7 @@
 #include "WindowFrameUtils.h"
 
+#include "UI/Utils/ThemeManager.h"
+
 #ifdef Q_OS_WIN
 #  include <QWidget>
 #  include <dwmapi.h>
@@ -21,8 +23,7 @@ void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
         MARGINS margins = {mgn, mgn, mgn, mgn};
         DwmExtendFrameIntoClientArea(reinterpret_cast<HWND>(widget->winId()), &margins);
     }
-    // Dark theme
-    constexpr uint dark = 1;
+    const BOOL dark = ThemeManager::instance()->colorType() != ThemeManager::ThemeColorType::Light;
     DwmSetWindowAttribute(reinterpret_cast<HWND>(widget->winId()), DWMWA_USE_IMMERSIVE_DARK_MODE,
                           &dark, sizeof(dark));
 }

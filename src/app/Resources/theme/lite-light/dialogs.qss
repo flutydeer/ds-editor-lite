@@ -1,0 +1,82 @@
+/* ================================================== */
+/*  Dialogs (PackageManager, SpeakerMix, ...)         */
+/* ================================================== */
+
+/* PackageManagerDialog */
+QListView#PackageManagerDialogPackageListView {
+    background: transparent;
+    border: none;
+    padding: 0px;
+}
+
+QListView#PackageManagerDialogPackageListView::item {
+    background: transparent;
+    border-radius: 4px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+QListView#PackageManagerDialogPackageListView::item:hover {
+    background: ${accent.subtle};
+}
+
+QListView#PackageManagerDialogPackageListView::item:selected {
+    background: ${selection.fill};
+}
+
+QWidget#PackageManagerDialogPackagePanel {
+    border-right: 1px solid ${border.subtle};
+}
+
+QLabel#lbPackageCount {
+    color: ${control.foreground.disabled};
+}
+
+QWidget#PackageManagerDialogDetailsContentWidget {
+    background: transparent;
+}
+
+QScrollArea#PackageManagerDialogDetailsScrollArea {
+    padding: 0px;
+    border: none;
+}
+
+QWidget#PackageManagerDialogDetailsWidget {
+    background: transparent;
+}
+
+PackageDetailsHeader {
+    border-bottom: 1px solid ${border.subtle};
+}
+
+PackageDetailsHeader>QLabel#lbPackageId {
+    font-size: 24px;
+    color: ${text.emphasis};
+}
+
+PackageDetailsHeader>QLabel#lbVendor,
+PackageDetailsHeader>QLabel#lbVersion,
+PackageDetailsHeader>QLabel#lbCopyright {
+    font-size: 13px;
+    color: ${control.foreground.disabled};
+}
+
+QLabel#lbPackageDetailsPlaceholder {
+    color: ${control.foreground.disabled};
+}
+
+/* SpeakerMix */
+QLabel#lbSpeakerPosition {
+    color: ${speakerMix.position.text};
+    background: ${speakerMix.position.fill};
+    border: 1px solid ${speakerMix.position.border};
+    border-radius: 3px;
+    padding: 0 8px;
+}
+
+SpeakerMixBar {
+    qproperty-trackColor: ${speakerMix.track};
+    qproperty-segmentTextColor: ${speakerMix.segmentText};
+    qproperty-dividerColor: ${speakerMix.divider};
+    qproperty-dividerDraggingColor: ${speakerMix.dividerDragging};
+}

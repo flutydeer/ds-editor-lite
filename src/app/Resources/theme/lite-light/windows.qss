@@ -1,0 +1,8 @@
+/* ================================================== */
+/*  Windows (LogWindow)                               */
+/* ================================================== */
+
+/* LogWindow */
+QTableView#logTableView {
+    background: ${surface.sunken};
+}

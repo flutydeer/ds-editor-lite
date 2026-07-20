@@ -1,0 +1,19 @@
+{
+    "name": "Lite Light",
+    "author": "FlutyDeer",
+    "colorType": "light",
+    "colors": "colors.json",
+    "styleSheets": [
+        "base.qss",
+        "controls.qss",
+        "popups.qss",
+        "title-bar.qss",
+        "track-editor.qss",
+        "clip-editor.qss",
+        "mix-console.qss",
+        "windows.qss",
+        "dialogs.qss"
+    ],
+    "appColorPalette": "app-color-palette.json",
+    "lyricStyleSheet": "lyricwrapview.qss"
+}

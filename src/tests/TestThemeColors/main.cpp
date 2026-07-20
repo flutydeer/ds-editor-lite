@@ -143,83 +143,95 @@ namespace {
     }
 
     bool testBundledTokenDraft() {
-        QFile file(QString::fromUtf8(TEST_SOURCE_DIR) +
-                   QStringLiteral("/src/app/Resources/theme/lite-dark/colors.json"));
-        if (!expect(file.open(QIODevice::ReadOnly),
-                    QStringLiteral("bundled colors.json should open"), file.errorString())) {
-            return false;
-        }
+        const QStringList requiredTokens{
+            QStringLiteral("surface.window"),
+            QStringLiteral("text.primary"),
+            QStringLiteral("control.fill.checkedPressed"),
+            QStringLiteral("control.border.focus"),
+            QStringLiteral("control.foreground.disabled"),
+            QStringLiteral("toast.background"),
+            QStringLiteral("editor.canvas"),
+            QStringLiteral("editor.trackHover"),
+            QStringLiteral("piano.roll.blackRow"),
+            QStringLiteral("curve.anchorSelected"),
+            QStringLiteral("meter.trackBackground"),
+            QStringLiteral("timeline.ruler.subdivisionFrom"),
+            QStringLiteral("timeline.task.runningLow"),
+            QStringLiteral("timeline.task.runningHigh"),
+            QStringLiteral("phoneme.waveform"),
+            QStringLiteral("speakerMix.track"),
+            QStringLiteral("speakerMix.emptyState.fill"),
+            QStringLiteral("mix.fader.trackInactive"),
+            QStringLiteral("button.mute.checkedHover.fill"),
+            QStringLiteral("button.solo.checkedPressed.fill"),
+        };
 
-        QString error;
-        const auto colors = parse(file.readAll(), error);
-        bool success =
-            expect(colors.has_value(), QStringLiteral("bundled colors.json should parse"), error);
-        if (colors) {
-            const QStringList requiredTokens{
-                QStringLiteral("surface.window"),
-                QStringLiteral("text.primary"),
-                QStringLiteral("control.fill.checkedPressed"),
-                QStringLiteral("control.border.focus"),
-                QStringLiteral("control.foreground.disabled"),
-                QStringLiteral("toast.background"),
-                QStringLiteral("editor.canvas"),
-                QStringLiteral("editor.trackHover"),
-                QStringLiteral("piano.roll.blackRow"),
-                QStringLiteral("curve.anchorSelected"),
-                QStringLiteral("meter.trackBackground"),
-                QStringLiteral("timeline.ruler.subdivisionFrom"),
-                QStringLiteral("timeline.task.runningLow"),
-                QStringLiteral("timeline.task.runningHigh"),
-                QStringLiteral("phoneme.waveform"),
-                QStringLiteral("speakerMix.track"),
-                QStringLiteral("speakerMix.emptyState.fill"),
-                QStringLiteral("mix.fader.trackInactive"),
-                QStringLiteral("button.mute.checkedHover.fill"),
-                QStringLiteral("button.solo.checkedPressed.fill"),
-            };
+        bool success = true;
+        for (const auto &themeId : {QStringLiteral("lite-dark"), QStringLiteral("lite-light")}) {
+            QFile file(QString::fromUtf8(TEST_SOURCE_DIR) +
+                       QStringLiteral("/src/app/Resources/theme/%1/colors.json").arg(themeId));
+            if (!expect(file.open(QIODevice::ReadOnly),
+                        QStringLiteral("bundled colors.json should open"),
+                        themeId + QStringLiteral(": ") + file.errorString())) {
+                success = false;
+                continue;
+            }
+
+            QString error;
+            const auto colors = parse(file.readAll(), error);
+            success &= expect(colors.has_value(),
+                              QStringLiteral("bundled colors.json should parse"),
+                              themeId + QStringLiteral(": ") + error);
+            if (!colors)
+                continue;
+
             for (const auto &token : requiredTokens) {
-                success &=
-                    expect(colors->tokens.contains(token),
-                           QStringLiteral("bundled colors.json missing required token"), token);
+                success &= expect(colors->tokens.contains(token),
+                                  QStringLiteral("bundled colors.json missing required token"),
+                                  themeId + QStringLiteral(": ") + token);
             }
         }
         return success;
     }
 
     bool testBundledStyleSheets() {
-        QFile file(QString::fromUtf8(TEST_SOURCE_DIR) +
-                   QStringLiteral("/src/app/Resources/theme/lite-dark/colors.json"));
-        if (!expect(file.open(QIODevice::ReadOnly),
-                    QStringLiteral("bundled colors.json should open for stylesheet test"),
-                    file.errorString())) {
-            return false;
-        }
-
-        QString error;
-        const auto colors = parse(file.readAll(), error);
-        if (!expect(colors.has_value(),
-                    QStringLiteral("bundled colors should parse for stylesheet test"), error)) {
-            return false;
-        }
-
         bool success = true;
-        QDirIterator iterator(QString::fromUtf8(TEST_SOURCE_DIR) +
-                                  QStringLiteral("/src/app/Resources/theme/lite-dark"),
-                              {QStringLiteral("*.qss")}, QDir::Files);
-        while (iterator.hasNext()) {
-            QFile styleSheetFile(iterator.next());
-            if (!expect(styleSheetFile.open(QIODevice::ReadOnly),
-                        QStringLiteral("bundled stylesheet should open"),
-                        styleSheetFile.errorString())) {
+        for (const auto &themeId : {QStringLiteral("lite-dark"), QStringLiteral("lite-light")}) {
+            const auto themePath = QString::fromUtf8(TEST_SOURCE_DIR) +
+                                   QStringLiteral("/src/app/Resources/theme/%1").arg(themeId);
+            QFile file(themePath + QStringLiteral("/colors.json"));
+            if (!expect(file.open(QIODevice::ReadOnly),
+                        QStringLiteral("bundled colors.json should open for stylesheet test"),
+                        themeId + QStringLiteral(": ") + file.errorString())) {
                 success = false;
                 continue;
             }
 
-            const auto resolved = ThemeColorResolver::applyToStyleSheet(
-                QString::fromUtf8(styleSheetFile.readAll()), *colors, nullptr, &error);
-            success &= expect(resolved.has_value(),
-                              QStringLiteral("bundled stylesheet tokens should resolve"),
-                              styleSheetFile.fileName() + QStringLiteral(": ") + error);
+            QString error;
+            const auto colors = parse(file.readAll(), error);
+            if (!expect(colors.has_value(),
+                        QStringLiteral("bundled colors should parse for stylesheet test"),
+                        themeId + QStringLiteral(": ") + error)) {
+                success = false;
+                continue;
+            }
+
+            QDirIterator iterator(themePath, {QStringLiteral("*.qss")}, QDir::Files);
+            while (iterator.hasNext()) {
+                QFile styleSheetFile(iterator.next());
+                if (!expect(styleSheetFile.open(QIODevice::ReadOnly),
+                            QStringLiteral("bundled stylesheet should open"),
+                            styleSheetFile.errorString())) {
+                    success = false;
+                    continue;
+                }
+
+                const auto resolved = ThemeColorResolver::applyToStyleSheet(
+                    QString::fromUtf8(styleSheetFile.readAll()), *colors, nullptr, &error);
+                success &= expect(resolved.has_value(),
+                                  QStringLiteral("bundled stylesheet tokens should resolve"),
+                                  styleSheetFile.fileName() + QStringLiteral(": ") + error);
+            }
         }
         return success;
     }
@@ -297,6 +309,14 @@ namespace {
         const auto bundled = ThemeLoader::load(QStringLiteral("lite-dark"));
         bool success = expect(bundled.has_value(), QStringLiteral("bundled theme should load"),
                               ThemeLoader::lastError());
+        const auto bundledLight = ThemeLoader::load(QStringLiteral("lite-light"));
+        success &= expect(bundledLight.has_value(),
+                          QStringLiteral("bundled light theme should load"),
+                          ThemeLoader::lastError());
+        if (bundledLight) {
+            success &= expect(bundledLight->colorType == QStringLiteral("light"),
+                              QStringLiteral("bundled light theme should declare light color type"));
+        }
 
         QTemporaryDir tempDir;
         if (!tempDir.isValid())

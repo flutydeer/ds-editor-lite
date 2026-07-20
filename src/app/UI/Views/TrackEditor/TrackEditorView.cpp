@@ -62,7 +62,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     m_gridItem = new TrackEditorBackgroundView;
     m_gridItem->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     m_gridItem->setQuantize(128);
-    m_tracksScene->addTimeGrid(m_gridItem);
+    m_graphicsView->setGridItem(m_gridItem);
     m_graphicsView->setSnapGrid(m_gridItem);
     m_trackListView->setGraphicsView(m_graphicsView);
 

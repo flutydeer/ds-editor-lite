@@ -1,0 +1,143 @@
+/* ================================================== */
+/*  Mix Console                                       */
+/* ================================================== */
+
+/* ChannelView */
+ChannelView {
+    background: ${surface.panel};
+    border-right: 1px solid ${border.subtle};
+    min-width: 96px;
+}
+
+ChannelView[isMasterChannel="true"] {
+    border-right: none;
+    border-left: 1px solid ${border.subtle};
+}
+
+ChannelView>Fader {
+    background: ${surface.window};
+    border-radius: 4px;
+    min-width: 32px
+}
+
+ChannelView>InlineEditLabel {
+    min-width: 36px
+}
+
+ChannelView>InlineEditLabel>QLabel {
+    color: ${control.foreground.disabled};
+}
+
+QLineEdit#inlineEditLineEdit[editRole="Pan"],
+QLineEdit#inlineEditLineEdit[editRole="Gain"] {
+    color: ${text.primary};
+    background: ${surface.input};
+    border: 1px solid ${border.focus};
+    border-radius: 2px;
+    padding: 0px;
+}
+
+ChannelView>LevelMeter {
+    background: ${surface.window};
+    border-radius: 4px;
+    min-width: 32px
+}
+
+ChannelView>PanSlider {
+    background: ${surface.window};
+    border-radius: 4px;
+    min-height: 24px
+}
+
+ChannelView>QLabel#lbPeakLevel {
+    min-width: 36px;
+    color: ${control.foreground.disabled}
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnMute,
+ChannelView QStackedWidget#muteSoloStack Button#btnSolo {
+    padding: 0px;
+    background-color: ${control.fill.default};
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: none;
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnMute:hover,
+ChannelView QStackedWidget#muteSoloStack Button#btnSolo:hover {
+    background-color: ${control.fill.hover};
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnMute:pressed,
+ChannelView QStackedWidget#muteSoloStack Button#btnSolo:pressed {
+    background-color: ${control.fill.pressed};
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnMute:checked {
+    color: ${button.mute.checked.foreground};
+    background-color: ${button.mute.checked.fill};
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnMute:checked:hover {
+    background-color: ${button.mute.checkedHover.fill};
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnMute:checked:pressed {
+    background-color: ${button.mute.checkedPressed.fill};
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnSolo:checked {
+    color: ${button.solo.checked.foreground};
+    background-color: ${button.solo.checked.fill};
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnSolo:checked:hover {
+    background-color: ${button.solo.checkedHover.fill};
+}
+
+ChannelView QStackedWidget#muteSoloStack Button#btnSolo:checked:pressed {
+    background-color: ${button.solo.checkedPressed.fill};
+}
+
+ChannelView>QWidget#muteSoloPlaceHolder {
+    min-height: 28px;
+}
+
+ChannelView>QLabel#lbTitle {
+    min-width: 76px;
+    color: ${control.foreground.disabled}
+}
+
+ChannelView QStackedWidget#indexStack QLabel#lbIndex {
+    min-height: 20px;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+ChannelView>QWidget#indexPlaceholder {
+    min-height: 20px;
+}
+
+MixConsoleView {
+    background: ${surface.panel};
+}
+
+MixConsoleView QListWidget#channelListView::item {
+    border-radius: 0px;
+    padding: 0px;
+}
+
+MixConsoleView QListWidget#channelListView::item:selected {
+    background: ${selection.inactiveFill};
+}
+
+/* Fader / PanSlider base colors (track RGB is injected per-channel from AppColorPalette) */
+Fader {
+    qproperty-trackInactiveColor: ${mix.fader.trackInactive};
+    qproperty-thumbFillColor: ${meter.value};
+}
+
+PanSlider {
+    qproperty-centerGraduateColor: ${mix.fader.trackInactive};
+}

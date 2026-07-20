@@ -19,6 +19,9 @@ using namespace PlaybackGlobal;
 
 class PlaybackView final : public QWidget {
     Q_OBJECT
+    Q_PROPERTY(QColor actionIconColor READ actionIconColor WRITE setActionIconColor)
+    Q_PROPERTY(QColor actionIconDisabledColor READ actionIconDisabledColor WRITE
+                   setActionIconDisabledColor)
     Q_PROPERTY(QColor playAccentColor READ playAccentColor WRITE setPlayAccentColor)
     Q_PROPERTY(QColor pauseAccentColor READ pauseAccentColor WRITE setPauseAccentColor)
 public:
@@ -45,6 +48,10 @@ protected:
 private:
     // Theme color accessors (QSS-overridable via qproperty-*); setters
     // re-tint the already-generated button icons
+    [[nodiscard]] QColor actionIconColor() const;
+    void setActionIconColor(const QColor &color);
+    [[nodiscard]] QColor actionIconDisabledColor() const;
+    void setActionIconDisabledColor(const QColor &color);
     [[nodiscard]] QColor playAccentColor() const;
     void setPlayAccentColor(const QColor &color);
     [[nodiscard]] QColor pauseAccentColor() const;
@@ -52,17 +59,19 @@ private:
     // Re-tint play/pause/loop button icons from the current theme colors
     void rebuildIcons();
 
+    QColor m_actionIconColor = {240, 240, 240};
+    QColor m_actionIconDisabledColor = {240, 240, 240, 102};
     QColor m_playAccentColor = {155, 186, 255};
     QColor m_pauseAccentColor = {255, 205, 155};
 
-    TempoComboBox *m_elTempo;
-    QPushButton *m_btnStop;
-    TimeSignatureComboBox *m_elTimeSignature;
-    QPushButton *m_btnPlay;
-    QPushButton *m_btnPause;
-    QPushButton *m_btnPlayPause;
-    QPushButton *m_btnLoop;
-    InlineEditLabel *m_elTime;
+    TempoComboBox *m_elTempo = nullptr;
+    QPushButton *m_btnStop = nullptr;
+    TimeSignatureComboBox *m_elTimeSignature = nullptr;
+    QPushButton *m_btnPlay = nullptr;
+    QPushButton *m_btnPause = nullptr;
+    QPushButton *m_btnPlayPause = nullptr;
+    QPushButton *m_btnLoop = nullptr;
+    InlineEditLabel *m_elTime = nullptr;
 
     double m_tempo = 120;
     int m_numerator = 4;

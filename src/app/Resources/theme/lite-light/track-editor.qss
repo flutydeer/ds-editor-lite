@@ -1,0 +1,166 @@
+
+
+
+/* TimelineView */
+TimelineView#tracksTimelineView {
+    border-top-right-radius: 6px;
+}
+
+
+/* TrackControlView */
+TrackControlView {
+    border-style: none;
+    border-bottom: 1px solid ${border.subtle};
+}
+
+TrackControlView>QLabel {
+    color: ${text.primary};
+}
+
+TrackControlView>QPushButton {
+    padding: 0px
+}
+
+TrackControlView>QPushButton#btnColor {
+    border-style: none;
+    border-radius: 0px;
+    width: 10px;
+    padding-bottom: 1px;
+}
+
+TrackControlView>QLabel#lbTrackIndex {
+    min-width: 24;
+    color: ${text.onAccent};
+    margin-left: 1px;
+    margin-bottom: 1px;
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+TrackControlView>InlineEditLabel#leTrackName {
+    height: 24px;
+    border: none;
+}
+
+TrackControlView>QPushButton#btnMute,
+TrackControlView>QPushButton#btnSolo {
+    background-color: ${control.fill.default};
+    width: 24;
+    height: 24;
+    border-radius: 4px;
+    border: none;
+}
+
+TrackControlView>QPushButton#btnMute:hover,
+TrackControlView>QPushButton#btnSolo:hover {
+    background-color: ${control.fill.hover};
+}
+
+TrackControlView>QPushButton#btnMute:pressed,
+TrackControlView>QPushButton#btnSolo:pressed {
+    background-color: ${control.fill.pressed};
+}
+
+TrackControlView>QPushButton#btnMute:checked {
+    color: ${button.mute.checked.foreground};
+    background-color: ${button.mute.checked.fill};
+}
+
+TrackControlView>QPushButton#btnMute:checked:hover {
+    background-color: ${button.mute.checkedHover.fill};
+}
+
+TrackControlView>QPushButton#btnMute:checked:pressed {
+    background-color: ${button.mute.checkedPressed.fill};
+}
+
+TrackControlView>QPushButton#btnSolo:checked {
+    color: ${button.solo.checked.foreground};
+    background-color: ${button.solo.checked.fill};
+}
+
+TrackControlView>QPushButton#btnSolo:checked:hover {
+    background-color: ${button.solo.checkedHover.fill};
+}
+
+TrackControlView>QPushButton#btnSolo:checked:pressed {
+    background-color: ${button.solo.checkedPressed.fill};
+}
+
+TrackControlView>ComboBox,
+TrackControlView>TwoLevelComboBox {
+    height: 24;
+    border: none;
+    padding-left: 8px;
+    background: transparent;
+}
+
+TrackControlView>TwoLevelComboBox:hover {
+    background-color: ${control.fill.hover};
+    border: none;
+}
+
+TrackControlView>TwoLevelComboBox::menu-button {
+    border: none;
+}
+
+TrackControlView>TwoLevelComboBox:disabled {
+    background: transparent;
+    border: none;
+    color: ${control.foreground.disabled};
+}
+
+TrackControlView>LevelMeter {
+    background: ${meter.trackBackground};
+    min-width: 12;
+    qproperty-padding: 0;
+    qproperty-spacing: 1;
+    qproperty-clipIndicatorLength: 6;
+    qproperty-showValueWhenHover: false;
+    qproperty-dimmedColor: transparent;
+    qproperty-clippedColor: ${meter.clipped};
+    qproperty-safeColor: ${meter.safe};
+    qproperty-warnColor: ${meter.warning};
+    qproperty-criticalColor: ${meter.critical};
+    qproperty-currentValueColor: ${meter.value};
+}
+
+/* TrackListView */
+TrackListView {
+    background: transparent;
+    border: none;
+    outline: 0px;
+    border-top: 1px solid ${border.subtle};
+}
+
+TrackListView::item {
+    border-radius: 0px;
+    padding: 0px;
+}
+
+TrackListView::item:hover {
+    background: ${editor.trackHover}
+}
+
+TrackListView::item:selected {
+    background: ${selection.inactiveFill}
+}
+
+/* TrackSplitter */
+TrackEditorView>OverlaySplitter#trackSplitter {
+    border-radius: 6px;
+    background-color: ${surface.panel};
+}
+
+TrackEditorView>OverlaySplitter#trackSplitter::handle:horizontal {
+    width: 0px;
+    background-color: transparent;
+    border-right: 1px solid ${border.subtle};
+}
+
+/* TracksGraphicsView */
+TracksGraphicsView {
+    background: ${editor.canvasAlternate};
+    qproperty-selectedTrackColor: ${surface.raised};
+    qproperty-clipSelectedBorderColor: ${text.emphasis};
+}
