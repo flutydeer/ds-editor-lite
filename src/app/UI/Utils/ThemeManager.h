@@ -61,6 +61,7 @@ private:
 
     // --- Theme state ---
     QString m_currentThemeId;
+    QString m_observedThemePreferenceId;
     ThemeColorType m_colorType = ThemeColorType::Dark;
     QString m_styleSheet;
     QString m_lyricStyleSheet;

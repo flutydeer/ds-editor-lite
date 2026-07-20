@@ -7,6 +7,7 @@ add_executable(${PROJECT_NAME}
         ../../app/UI/Utils/ColorUtils.cpp
         ../../app/UI/Utils/Theme/ThemeColorResolver.cpp
         ../../app/UI/Utils/Theme/ThemeLoader.cpp
+        ../../app/Model/AppOptions/Options/AppearanceOption.cpp
         ../../app/Resources/lite_res.qrc
 )
 

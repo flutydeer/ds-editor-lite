@@ -13,6 +13,11 @@ void AppearanceOption::load(const QJsonObject &object) {
         animationLevel = animationLevelFromString(object.value(animationLevelKey).toString());
     if (object.contains(animationTimeScaleKey))
         animationTimeScale = object.value(animationTimeScaleKey).toDouble();
+    if (object.contains(themeIdKey)) {
+        const auto savedThemeId = object.value(themeIdKey).toString().trimmed();
+        if (isBuiltInThemeId(savedThemeId))
+            themeId = savedThemeId;
+    }
 }
 
 void AppearanceOption::save(QJsonObject &object) {
@@ -20,6 +25,7 @@ void AppearanceOption::save(QJsonObject &object) {
     object.insert(enableDirectManipulationKey, enableDirectManipulation);
     object.insert(animationLevelKey, animationLevelToString(animationLevel));
     object.insert(animationTimeScaleKey, animationTimeScale);
+    object.insert(themeIdKey, themeId);
 }
 
 AnimationGlobal::AnimationLevels AppearanceOption::animationLevelFromString(const QString &name) {
@@ -44,4 +50,16 @@ QString AppearanceOption::animationLevelToString(const AnimationGlobal::Animatio
         default:
             return "full";
     }
+}
+
+QString AppearanceOption::defaultThemeId() {
+    return QStringLiteral("lite-dark");
+}
+
+QString AppearanceOption::lightThemeId() {
+    return QStringLiteral("lite-light");
+}
+
+bool AppearanceOption::isBuiltInThemeId(const QString &themeId) {
+    return themeId == defaultThemeId() || themeId == lightThemeId();
 }

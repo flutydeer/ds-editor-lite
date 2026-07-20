@@ -28,6 +28,7 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(ThemeManager)
 // ── Theme loading ────────────────────────────────────────────────────────
 
 bool ThemeManager::initialize(const QString &themeId) {
+    m_observedThemePreferenceId = appOptions->appearance()->themeId;
     return applyTheme(themeId);
 }
 
@@ -54,9 +55,8 @@ bool ThemeManager::applyTheme(const QString &themeId) {
         m_colorType = ThemeColorType::Dark;
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-    QGuiApplication::styleHints()->setColorScheme(m_colorType == ThemeColorType::Light
-                                                      ? Qt::ColorScheme::Light
-                                                      : Qt::ColorScheme::Dark);
+    QGuiApplication::styleHints()->setColorScheme(
+        m_colorType == ThemeColorType::Light ? Qt::ColorScheme::Light : Qt::ColorScheme::Dark);
 #endif
 
     // Apply QSS to all registered style roots
@@ -70,7 +70,7 @@ bool ThemeManager::applyTheme(const QString &themeId) {
             WindowFrameUtils::applyFrameEffects(window);
     }
 
-    emit themeChanged(themeId);
+    emit themeChanged(m_currentThemeId);
     return true;
 }
 
@@ -169,6 +169,18 @@ void ThemeManager::onAppOptionsChanged(const AppOptionsGlobal::Option option) {
 
     for (const auto object : m_subscribers)
         applyAnimationSettings(object);
+
+    const auto preferredThemeId = appOptions->appearance()->themeId;
+    if (preferredThemeId == m_observedThemePreferenceId)
+        return;
+
+    if (preferredThemeId.isEmpty() || preferredThemeId == m_currentThemeId ||
+        applyTheme(preferredThemeId)) {
+        m_observedThemePreferenceId = preferredThemeId;
+    } else {
+        qWarning().noquote() << "Failed to apply preferred theme" << preferredThemeId << ":"
+                             << ThemeLoader::lastError();
+    }
 }
 
 void ThemeManager::onSystemThemeColorChanged() {

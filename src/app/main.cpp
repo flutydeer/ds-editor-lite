@@ -36,17 +36,26 @@ int main(int argc, char *argv[]) {
     UiLanguageManager uiLanguageManager;
     uiLanguageManager.setPreference(options->general()->uiLanguage);
 
+    auto initialThemeId = qEnvironmentVariable("DS_EDITOR_THEME").trimmed();
+    if (initialThemeId.isEmpty())
+        initialThemeId = options->appearance()->themeId;
+
     // Construct AppContext — creates ALL business singletons in dependency order
     AppContext appContext(std::move(options));
 
     // Infrastructure singletons (stays Meyers static)
     // ThemeManager: load theme, apply palette and QSS
-    auto initialThemeId = qEnvironmentVariable("DS_EDITOR_THEME").trimmed();
-    if (initialThemeId.isEmpty())
-        initialThemeId = QStringLiteral("lite-dark");
-    if (!ThemeManager::instance()->initialize(initialThemeId))
-        qFatal("Failed to load initial theme '%s': %s", qPrintable(initialThemeId),
-               qPrintable(ThemeLoader::lastError()));
+    if (!ThemeManager::instance()->initialize(initialThemeId)) {
+        const auto error = ThemeLoader::lastError();
+        const auto fallbackThemeId = AppearanceOption::defaultThemeId();
+        qWarning("Failed to load initial theme '%s': %s", qPrintable(initialThemeId),
+                 qPrintable(error));
+        if (initialThemeId == fallbackThemeId ||
+            !ThemeManager::instance()->initialize(fallbackThemeId)) {
+            qFatal("Failed to load fallback theme '%s': %s", qPrintable(fallbackThemeId),
+                   qPrintable(ThemeLoader::lastError()));
+        }
+    }
 
     packageManager->initialize();
 

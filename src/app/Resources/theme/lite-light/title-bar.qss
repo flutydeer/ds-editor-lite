@@ -179,7 +179,7 @@ PlaybackView>QComboBox:pressed {
 }
 /* Time Signature Popup */
 TimeSignaturePopupWidget {
-    background: transparent;
+    background: ${surface.popup};
 }
 
 TimeSignaturePopupWidget[dwmBorder="true"] QFrame#timeSignaturePopupSurface {
@@ -189,7 +189,6 @@ TimeSignaturePopupWidget[dwmBorder="true"] QFrame#timeSignaturePopupSurface {
 TimeSignaturePopupWidget QFrame#timeSignaturePopupSurface {
     background: ${surface.popup};
     border: 1px solid ${control.border.default};
-    border-radius: 4px;
 }
 
 TimeSignaturePopupWidget QLabel#popupTitle {
@@ -205,7 +204,7 @@ TimeSignaturePopupWidget QLabel#slashLabel {
 
 /* Tempo Popup */
 TempoPopupWidget {
-    background: transparent;
+    background: ${surface.popup};
 }
 
 TempoPopupWidget[dwmBorder="true"] QFrame#tempoPopupSurface {
@@ -215,7 +214,6 @@ TempoPopupWidget[dwmBorder="true"] QFrame#tempoPopupSurface {
 TempoPopupWidget QFrame#tempoPopupSurface {
     background: ${surface.popup};
     border: 1px solid ${control.border.default};
-    border-radius: 4px;
 }
 
 TempoPopupWidget QLabel#popupTitle {

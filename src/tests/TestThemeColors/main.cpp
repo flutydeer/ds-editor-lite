@@ -1,3 +1,4 @@
+#include "Model/AppOptions/Options/AppearanceOption.h"
 #include "UI/Utils/Theme/ThemeColorResolver.h"
 #include "UI/Utils/Theme/ThemeLoader.h"
 
@@ -179,9 +180,9 @@ namespace {
 
             QString error;
             const auto colors = parse(file.readAll(), error);
-            success &= expect(colors.has_value(),
-                              QStringLiteral("bundled colors.json should parse"),
-                              themeId + QStringLiteral(": ") + error);
+            success &=
+                expect(colors.has_value(), QStringLiteral("bundled colors.json should parse"),
+                       themeId + QStringLiteral(": ") + error);
             if (!colors)
                 continue;
 
@@ -191,6 +192,28 @@ namespace {
                                   themeId + QStringLiteral(": ") + token);
             }
         }
+        return success;
+    }
+
+    bool testAppearanceThemePreference() {
+        AppearanceOption option;
+        bool success = expect(option.themeId == AppearanceOption::defaultThemeId(),
+                              QStringLiteral("dark theme should be the default preference"));
+
+        option.load(QJsonObject{
+            {QStringLiteral("themeId"), AppearanceOption::lightThemeId()}
+        });
+        success &= expect(option.themeId == AppearanceOption::lightThemeId(),
+                          QStringLiteral("light theme preference should load"));
+        success &= expect(option.value().value(QStringLiteral("themeId")).toString() ==
+                              AppearanceOption::lightThemeId(),
+                          QStringLiteral("theme preference should serialize by stable ID"));
+
+        option.load(QJsonObject{
+            {QStringLiteral("themeId"), QStringLiteral("unknown-theme")}
+        });
+        success &= expect(option.themeId == AppearanceOption::lightThemeId(),
+                          QStringLiteral("invalid theme preference should be ignored"));
         return success;
     }
 
@@ -275,13 +298,13 @@ namespace {
                           QStringLiteral("external manifest should be writable"));
         success &= expect(writeFile(QDir(themeDir).filePath("colors.json"), colors),
                           QStringLiteral("external colors should be writable"));
-        success &= expect(writeFile(QDir(themeDir).filePath("base.qss"),
-                                   "QWidget { color: ${surface.window}; }"),
-                          QStringLiteral("external QSS should be writable"));
+        success &= expect(
+            writeFile(QDir(themeDir).filePath("base.qss"), "QWidget { color: ${surface.window}; }"),
+            QStringLiteral("external QSS should be writable"));
         success &= expect(writeFile(QDir(themeDir).filePath("app-color-palette.json"), palette),
                           QStringLiteral("external palette should be writable"));
         success &= expect(writeFile(QDir(themeDir).filePath("lyric.qss"),
-                                   "QWidget { color: ${surface.window}; }"),
+                                    "QWidget { color: ${surface.window}; }"),
                           QStringLiteral("external lyric QSS should be writable"));
         if (!success)
             return false;
@@ -310,12 +333,13 @@ namespace {
         bool success = expect(bundled.has_value(), QStringLiteral("bundled theme should load"),
                               ThemeLoader::lastError());
         const auto bundledLight = ThemeLoader::load(QStringLiteral("lite-light"));
-        success &= expect(bundledLight.has_value(),
-                          QStringLiteral("bundled light theme should load"),
-                          ThemeLoader::lastError());
+        success &=
+            expect(bundledLight.has_value(), QStringLiteral("bundled light theme should load"),
+                   ThemeLoader::lastError());
         if (bundledLight) {
-            success &= expect(bundledLight->colorType == QStringLiteral("light"),
-                              QStringLiteral("bundled light theme should declare light color type"));
+            success &=
+                expect(bundledLight->colorType == QStringLiteral("light"),
+                       QStringLiteral("bundled light theme should declare light color type"));
         }
 
         QTemporaryDir tempDir;
@@ -333,9 +357,10 @@ namespace {
         qunsetenv("DS_EDITOR_THEME_DIR");
 
         const auto bundledAfterFailure = ThemeLoader::load(QStringLiteral("lite-dark"));
-        success &= expect(bundledAfterFailure.has_value(),
-                          QStringLiteral("bundled theme should remain available after override failure"),
-                          ThemeLoader::lastError());
+        success &=
+            expect(bundledAfterFailure.has_value(),
+                   QStringLiteral("bundled theme should remain available after override failure"),
+                   ThemeLoader::lastError());
         return success;
     }
 
@@ -348,6 +373,7 @@ int main(int argc, char *argv[]) {
     success &= testInvalidDefinitions();
     success &= testInvalidPlaceholders();
     success &= testBundledTokenDraft();
+    success &= testAppearanceThemePreference();
     success &= testBundledStyleSheets();
     success &= testExternalThemeRoot();
     success &= testBundledThemeLoadingAndFallback();

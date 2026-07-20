@@ -24,9 +24,13 @@ public:
     bool enableDirectManipulation = true;
     AnimationGlobal::AnimationLevels animationLevel = AnimationGlobal::Full;
     double animationTimeScale = 1;
+    QString themeId = defaultThemeId();
 
     static AnimationGlobal::AnimationLevels animationLevelFromString(const QString &name);
     static QString animationLevelToString(AnimationGlobal::AnimationLevels level);
+    static QString defaultThemeId();
+    static QString lightThemeId();
+    static bool isBuiltInThemeId(const QString &themeId);
 
 protected:
     void save(QJsonObject &object) override;
@@ -36,6 +40,7 @@ private:
     const QString enableDirectManipulationKey = "enableDirectManipulation";
     const QString animationLevelKey = "animationLevel";
     const QString animationTimeScaleKey = "animationTimeScale";
+    const QString themeIdKey = "themeId";
 };
 
 #endif // APPEARANCEOPTION_H

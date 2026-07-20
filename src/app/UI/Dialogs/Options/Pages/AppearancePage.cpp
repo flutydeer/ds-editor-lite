@@ -4,6 +4,8 @@
 
 #include "AppearancePage.h"
 
+#include <QMessageBox>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 
 #include "Model/AppOptions/AppOptions.h"
@@ -13,6 +15,8 @@
 #include "UI/Controls/OptionListCard.h"
 #include "UI/Controls/SwitchButton.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
+#include "UI/Utils/Theme/ThemeLoader.h"
+#include "UI/Utils/ThemeManager.h"
 
 AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     initializePage();
@@ -30,9 +34,36 @@ void AppearancePage::modifyOption() {
     appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
 }
 
+void AppearancePage::changeTheme(const int index) {
+    const auto themeId = m_cbxTheme->itemData(index).toString();
+    if (themeId.isEmpty())
+        return;
+
+    const auto themeManager = ThemeManager::instance();
+    if (themeId != themeManager->currentThemeId() && !themeManager->applyTheme(themeId)) {
+        const QSignalBlocker blocker(m_cbxTheme);
+        m_cbxTheme->setCurrentIndex(m_cbxTheme->findData(themeManager->currentThemeId()));
+        QMessageBox::critical(this, tr("Theme switch failed"), ThemeLoader::lastError());
+        return;
+    }
+
+    appOptions->appearance()->themeId = themeId;
+    appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
+}
+
 QWidget *AppearancePage::createContentWidget() {
     const auto widget = new QWidget;
     const auto option = appOptions->appearance();
+
+    m_cbxTheme = new ComboBox;
+    m_cbxTheme->addItem(tr("Light"), AppearanceOption::lightThemeId());
+    m_cbxTheme->addItem(tr("Dark"), AppearanceOption::defaultThemeId());
+    const auto activeThemeId = ThemeManager::instance()->currentThemeId();
+    m_cbxTheme->setCurrentIndex(m_cbxTheme->findData(activeThemeId));
+    connect(m_cbxTheme, &ComboBox::currentIndexChanged, this, &AppearancePage::changeTheme);
+
+    const auto themeCard = new OptionListCard(tr("Theme"));
+    themeCard->addItem(tr("Color theme"), m_cbxTheme);
 
     m_swUseNativeFrame = new SwitchButton(option->useNativeFrame);
     connect(m_swUseNativeFrame, &SwitchButton::toggled, this, [this] {
@@ -74,6 +105,7 @@ QWidget *AppearancePage::createContentWidget() {
 #endif
 
     const auto mainLayout = new QVBoxLayout;
+    mainLayout->addWidget(themeCard);
     mainLayout->addWidget(windowCard);
     mainLayout->addWidget(animationCard);
 #if defined(WITH_DIRECT_MANIPULATION)

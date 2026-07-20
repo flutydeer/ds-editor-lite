@@ -79,6 +79,26 @@
 <context>
     <name>AppearancePage</name>
     <message>
+        <source>Theme</source>
+        <translation>主题</translation>
+    </message>
+    <message>
+        <source>Color theme</source>
+        <translation>颜色主题</translation>
+    </message>
+    <message>
+        <source>Light</source>
+        <translation>浅色</translation>
+    </message>
+    <message>
+        <source>Dark</source>
+        <translation>深色</translation>
+    </message>
+    <message>
+        <source>Theme switch failed</source>
+        <translation>主题切换失败</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.h" line="32"/>
         <source>Full</source>
         <translation>完全</translation>

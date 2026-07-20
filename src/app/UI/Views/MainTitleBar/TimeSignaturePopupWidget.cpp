@@ -7,11 +7,7 @@
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/SvsExpressionSpinBox.h"
 #include "Utils/SystemUtils.h"
-
-#ifdef Q_OS_WIN
-#  include <Windows.h>
-#  include <dwmapi.h>
-#endif
+#include "Utils/WindowFrameUtils.h"
 
 #include <QApplication>
 #include <QHBoxLayout>
@@ -33,7 +29,9 @@ namespace {
 TimeSignaturePopupWidget::TimeSignaturePopupWidget(QWidget *parent) : QFrame(parent) {
     setObjectName("timeSignaturePopup");
     setWindowFlags(Qt::Popup | Qt::FramelessWindowHint);
-    setAttribute(Qt::WA_TranslucentBackground);
+    // Keep this popup opaque: WA_TranslucentBackground plus DWM frame effects on the same
+    // window can freeze the compositor system-wide. Corner rounding comes from DWM on
+    // Windows 11 and stays square elsewhere.
     setAttribute(Qt::WA_StyledBackground);
     setAttribute(Qt::WA_WindowPropagation);
     setProperty("dwmBorder", false);
@@ -158,21 +156,7 @@ void TimeSignaturePopupWidget::showAt(const QPoint &globalPos) {
 }
 
 void TimeSignaturePopupWidget::applyWindowEffects() {
-#ifdef Q_OS_WIN
-    if (!SystemUtils::isWindows11() || !winId())
-        return;
-
-    HWND hwnd = reinterpret_cast<HWND>(winId());
-    constexpr int DWMWA_USE_IMMERSIVE_DARK_MODE_ = 20;
-    constexpr int DWMWA_WINDOW_CORNER_PREFERENCE_ = 33;
-    constexpr int DWMWA_NCRENDERING_POLICY_ = 2;
-    DWMNCRENDERINGPOLICY ncrp = DWMNCRP_ENABLED;
-    INT dwcp = 2;
-    UINT dark = 1;
-    DwmSetWindowAttribute(hwnd, DWMWA_NCRENDERING_POLICY_, &ncrp, sizeof(ncrp));
-    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_, &dark, sizeof(dark));
-    DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE_, &dwcp, sizeof(dwcp));
-#endif
+    WindowFrameUtils::applyPopupEffects(this);
 }
 
 void TimeSignaturePopupWidget::onPresetClicked(int numerator, int denominator) {

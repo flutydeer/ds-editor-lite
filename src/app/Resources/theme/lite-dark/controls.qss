@@ -480,7 +480,7 @@ QMenu[dwmBorder="true"] {
 }
 
 FilePopupWidget {
-    background: transparent;
+    background: ${surface.window};
 }
 
 FilePopupWidget[dwmBorder="true"] QFrame#filePopupSurface {
@@ -490,7 +490,6 @@ FilePopupWidget[dwmBorder="true"] QFrame#filePopupSurface {
 FilePopupWidget QFrame#filePopupSurface {
     background-color: ${surface.window};
     border: 1px solid ${control.border.default};
-    border-radius: 4px;
 }
 
 QFrame#filePopupButtonSection,
