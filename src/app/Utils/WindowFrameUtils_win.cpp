@@ -49,10 +49,9 @@ void WindowFrameUtils::applyFrameEffects(QWidget *widget) {
         DwmExtendFrameIntoClientArea(hwnd, &margins);
     }
 
-    // Experiment: in light themes drop the DWM border on the main window as well; keep the
-    // default border in dark themes where it separates the window from dark backgrounds.
-    const bool light = ThemeManager::instance()->colorType() == ThemeManager::ThemeColorType::Light;
-    applyTheme(hwnd, light ? kDwmColorNone : kDwmColorDefault);
+    // Keep the default DWM border on the main window in both schemes — top-level rounded
+    // windows conventionally have one. Borderless is popup-only for now.
+    applyTheme(hwnd, kDwmColorDefault);
 }
 
 void WindowFrameUtils::applyPopupEffects(QWidget *widget, const CornerPreference cornerPreference) {
