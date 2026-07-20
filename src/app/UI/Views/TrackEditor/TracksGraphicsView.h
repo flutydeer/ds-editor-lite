@@ -37,6 +37,7 @@ private slots:
 private:
     enum MouseMoveBehavior { Move, ResizeRight, ResizeLeft, None };
 
+    void rebuildPersistentActionIcons();
     bool event(QEvent *event) override;
     void changeEvent(QEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;

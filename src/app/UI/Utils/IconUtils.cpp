@@ -1,5 +1,7 @@
 #include "IconUtils.h"
 
+#include "ThemeManager.h"
+
 #include <QImage>
 #include <QPainter>
 #include <QPixmap>
@@ -175,9 +177,16 @@ namespace IconUtils {
     }
 
     SvgIconColorPalette defaultActionPalette() {
+        const auto themeManager = ThemeManager::instance();
+        const auto primaryColor = themeManager->semanticColor(QStringLiteral("icon.primary"));
+        const auto disabledColor = themeManager->semanticColor(QStringLiteral("icon.disabled"));
+
         SvgIconColorPalette palette;
-        palette.normal = QColor(240, 240, 240, 255);
-        palette.disabled = QColor(240, 240, 240, 102);
+        palette.normal = primaryColor.isValid() ? primaryColor : QColor(240, 240, 240, 255);
+        palette.disabled =
+            disabledColor.isValid() ? disabledColor : QColor(240, 240, 240, 102);
+        palette.active = palette.normal;
+        palette.selected = palette.normal;
         return palette;
     }
 

@@ -5,6 +5,8 @@
 #ifndef THEMEMANAGER_H
 #define THEMEMANAGER_H
 
+#include <QColor>
+#include <QHash>
 #include <QObject>
 #include <QPointer>
 #include <QString>
@@ -38,6 +40,7 @@ public:
     ThemeColorType colorType() const;
     QString styleSheet() const;
     QString lyricStyleSheet() const;
+    [[nodiscard]] QColor semanticColor(const QString &token) const;
 
     // --- Style roots (windows that receive the full QSS) ---
     void addStyleRoot(QWidget *root);
@@ -72,6 +75,7 @@ private:
     ThemeColorType m_colorType = ThemeColorType::Dark;
     QString m_styleSheet;
     QString m_lyricStyleSheet;
+    QHash<QString, QColor> m_semanticColors;
 
     // --- Animation ---
     QList<IAnimatable *> m_subscribers;

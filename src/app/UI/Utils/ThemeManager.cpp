@@ -75,6 +75,7 @@ bool ThemeManager::applyThemeInternal(const QString &themeId,
     m_currentThemeId = def->folderName;
     m_styleSheet = def->styleSheet;
     m_lyricStyleSheet = def->lyricStyleSheet;
+    m_semanticColors = def->semanticColors;
 
     // Map color type string to enum
     if (def->colorType == QStringLiteral("light"))
@@ -140,6 +141,10 @@ QString ThemeManager::styleSheet() const {
 
 QString ThemeManager::lyricStyleSheet() const {
     return m_lyricStyleSheet;
+}
+
+QColor ThemeManager::semanticColor(const QString &token) const {
+    return m_semanticColors.value(token);
 }
 
 // ── Style roots ──────────────────────────────────────────────────────────
