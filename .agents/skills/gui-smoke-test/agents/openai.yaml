@@ -1,0 +1,4 @@
+interface:
+  display_name: "DS Editor Lite GUI 冒烟测试"
+  short_description: "通过 GUI 验证声库、合成、播放、工程保存和音频导出"
+  default_prompt: "使用 $gui-smoke-test 对当前 DS Editor Lite 构建执行完整 GUI 冒烟测试。"
