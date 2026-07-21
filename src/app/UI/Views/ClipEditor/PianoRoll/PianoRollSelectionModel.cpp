@@ -67,7 +67,8 @@ void PianoRollSelectionModel::applyNoteSelection(NoteView *noteView,
     selectRange(anchor, noteView, mode == NoteSelectionMode::AddRange);
 }
 
-void PianoRollSelectionModel::selectOnly(NoteView *noteView) const {
+void PianoRollSelectionModel::selectOnly(NoteView *noteView) {
+    m_selectionAnchorId = noteView ? noteView->id() : -1;
     m_view->clearNoteSelections(noteView);
     if (noteView)
         noteView->setSelected(true);
@@ -106,6 +107,7 @@ void PianoRollSelectionModel::updateSceneSelectionState() {
     m_selectionChangeBarrier = true;
     m_view->clearNoteSelections();
 
+    QList<NoteView *> selectedNoteViews;
     for (const auto id : appStatus->selectedNotes.get()) {
         const auto noteView = m_noteViewIndex.value(id, nullptr);
         if (!noteView) {
@@ -113,9 +115,14 @@ void PianoRollSelectionModel::updateSceneSelectionState() {
             continue;
         }
         noteView->setSelected(true);
+        selectedNoteViews.append(noteView);
     }
-    if (!selectionAnchor())
+
+    const auto anchor = selectionAnchor();
+    if (selectedNoteViews.isEmpty())
         clearSelectionAnchor();
+    else if (!selectedNoteViews.contains(anchor))
+        m_selectionAnchorId = selectedNoteViews.constLast()->id();
     m_selectionChangeBarrier = false;
 }
 
