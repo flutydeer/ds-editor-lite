@@ -23,6 +23,7 @@
 #include <QCryptographicHash>
 #include <QDebug>
 #include <QDir>
+#include <QFile>
 
 namespace Ac = srt::svs::Api::Acoustic::L1;
 namespace Vo = srt::svs::Api::Vocoder::L1;
@@ -75,6 +76,30 @@ QString InferAcousticTask::result() const {
     return m_result;
 }
 
+InferAcousticTask::AcousticCacheLookup
+InferAcousticTask::lookupCache(const InferAcousticInput &input) {
+    AcousticCacheLookup lookup;
+    lookup.model = input.toEngineModel();
+    lookup.inputHash = lookup.model.hashData();
+
+    const QDir cacheDir(appOptions->inference()->cacheDirectory);
+    lookup.inputCachePath =
+        cacheDir.filePath(QString("infer-acoustic-input-%1.json").arg(lookup.inputHash));
+    lookup.outputCachePath =
+        cacheDir.filePath(QString("infer-acoustic-output-%1.wav").arg(lookup.inputHash));
+
+    if (!QFile::exists(lookup.outputCachePath))
+        return lookup;
+
+    const auto nativeOutputPath = StringUtils::qstr_to_native(lookup.outputCachePath);
+    const SndfileHandle outputFile(nativeOutputPath.c_str());
+    lookup.hit = outputFile.error() == SF_ERR_NO_ERROR &&
+                 (outputFile.format() & SF_FORMAT_TYPEMASK) == SF_FORMAT_WAV &&
+                 outputFile.channels() == 1 && outputFile.samplerate() == 44100 &&
+                 outputFile.frames() > 0;
+    return lookup;
+}
+
 void InferAcousticTask::runTask() {
     qDebug() << "Running task..."
              << "pieceId:" << pieceId() << " clipId:" << clipId() << "taskId:" << id();
@@ -83,32 +108,23 @@ void InferAcousticTask::runTask() {
     newStatus.isIndetermine = true;
     setStatus(newStatus);
 
-    GenericInferModel model;
-    const auto input = m_input.toEngineModel();
-    m_inputHash = input.hashData();
-    const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
-    const auto inputCachePath =
-        cacheDir.filePath(QString("infer-acoustic-input-%1.json").arg(m_inputHash));
-    if (!QFile(inputCachePath).exists())
-        JsonUtils::save(inputCachePath, input.serialize());
-    bool useCache = false;
-    const auto outputCachePath =
-        cacheDir.filePath(QString("infer-acoustic-output-%1.wav").arg(m_inputHash));
-    if (QFile(outputCachePath).exists())
-        useCache = true;
+    const auto cache = lookupCache(m_input);
+    m_inputHash = cache.inputHash;
+    if (!QFile::exists(cache.inputCachePath))
+        JsonUtils::save(cache.inputCachePath, cache.model.serialize());
 
     QString errorMessage;
-    if (useCache) {
-        qInfo() << "Use cached acoustic inference result:" << outputCachePath;
-        m_result = outputCachePath;
+    if (cache.hit) {
+        qInfo() << "Use cached acoustic inference result:" << cache.outputCachePath;
+        m_result = cache.outputCachePath;
     } else {
         qDebug() << "acoustic inference cache not found. Running inference...";
         if (isTerminateRequested()) {
             abort();
             return;
         }
-        if (runInference(input, outputCachePath, errorMessage)) {
-            m_result = outputCachePath;
+        if (runInference(cache.model, cache.outputCachePath, errorMessage)) {
+            m_result = cache.outputCachePath;
         } else {
             qCritical() << "Task failed:" << errorMessage;
             return;
