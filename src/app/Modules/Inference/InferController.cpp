@@ -110,6 +110,8 @@ InferController::InferController(QObject *parent)
         makePlaybackPriorityComparator<InferVarianceTask>());
     d->m_inferAcousticTasks.setPriorityComparator(
         makePlaybackPriorityComparator<InferAcousticTask>());
+    d->m_inferAcousticCacheProbeTasks.setPriorityComparator(
+        makePlaybackPriorityComparator<InferAcousticCacheProbeTask>());
 
     connect(appStatus, &AppStatus::moduleStatusChanged, d,
             &InferControllerPrivate::onModuleStatusChanged);
@@ -186,6 +188,21 @@ bool InferController::finishCurrentInferAcousticTask(InferAcousticTask *task) {
     return d->m_inferAcousticTasks.onCurrentFinished(task);
 }
 
+void InferController::addInferAcousticCacheProbeTask(InferAcousticCacheProbeTask &task) {
+    Q_D(InferController);
+    d->m_inferAcousticCacheProbeTasks.add(&task);
+}
+
+void InferController::cancelInferAcousticCacheProbeTask(int taskId) {
+    Q_D(InferController);
+    d->m_inferAcousticCacheProbeTasks.cancelIf(L_PRED(t, t->id() == taskId));
+}
+
+bool InferController::finishCurrentInferAcousticCacheProbeTask(InferAcousticCacheProbeTask *task) {
+    Q_D(InferController);
+    return d->m_inferAcousticCacheProbeTasks.onCurrentFinished(task);
+}
+
 void InferControllerPrivate::onModuleStatusChanged(const AppStatus::ModuleType module,
                                                    const AppStatus::ModuleStatus status) {
     if (module == AppStatus::ModuleType::Language)
@@ -219,6 +236,7 @@ void InferControllerPrivate::onInferOptionChanged(const AppOptionsGlobal::Option
         return;
 
     m_autoStartAcousticInfer = appOptions->inference()->autoStartInfer;
+    m_inferAcousticCacheProbeTasks.cancelAll();
 }
 
 void InferControllerPrivate::onPlaybackStatusChanged(const PlaybackGlobal::PlaybackStatus status) {
@@ -245,6 +263,7 @@ void InferControllerPrivate::handleModelChanged() {
     m_inferPitchTasks.cancelAll();
     m_inferVarianceTasks.cancelAll();
     m_inferAcousticTasks.cancelAll();
+    m_inferAcousticCacheProbeTasks.cancelAll();
     for (const auto pipeline : std::as_const(m_inferPipelines))
         delete pipeline;
     m_inferPipelines.clear();
@@ -370,6 +389,7 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 m_inferPitchTasks.cancelIf(pred);
                 m_inferVarianceTasks.cancelIf(pred);
                 m_inferAcousticTasks.cancelIf(pred);
+                m_inferAcousticCacheProbeTasks.cancelIf(pred);
 
                 auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
                     return p->pieceId() == piece->id();
@@ -383,6 +403,7 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                 auto pred = L_PRED(t, t->pieceId() == piece->id());
                 m_inferVarianceTasks.cancelIf(pred);
                 m_inferAcousticTasks.cancelIf(pred);
+                m_inferAcousticCacheProbeTasks.cancelIf(pred);
 
                 auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
                     return p->pieceId() == piece->id();
@@ -402,6 +423,7 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
             for (const auto &piece : dirtyPieces) {
                 auto pred = L_PRED(t, t->pieceId() == piece->id());
                 m_inferAcousticTasks.cancelIf(pred);
+                m_inferAcousticCacheProbeTasks.cancelIf(pred);
 
                 auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
                     return p->pieceId() == piece->id();
@@ -443,6 +465,7 @@ void InferControllerPrivate::handleSpeakerMixChanged(SingingClip *clip) {
         m_inferPitchTasks.cancelIf(pred);
         m_inferVarianceTasks.cancelIf(pred);
         m_inferAcousticTasks.cancelIf(pred);
+        m_inferAcousticCacheProbeTasks.cancelIf(pred);
 
         auto pipelines = Linq::where(m_inferPipelines, [piece](const InferPipeline *p) {
             return p->pieceId() == piece->id();
@@ -853,6 +876,7 @@ void InferControllerPrivate::reset() {
     m_inferPitchTasks.cancelAll();
     m_inferVarianceTasks.cancelAll();
     m_inferAcousticTasks.cancelAll();
+    m_inferAcousticCacheProbeTasks.cancelAll();
 }
 
 void InferControllerPrivate::cancelAllInferTasks() {
@@ -882,6 +906,7 @@ void InferControllerPrivate::cancelPieceRelatedTasks(int pieceId) {
     m_inferPitchTasks.cancelIf(pred);
     m_inferVarianceTasks.cancelIf(pred);
     m_inferAcousticTasks.cancelIf(pred);
+    m_inferAcousticCacheProbeTasks.cancelIf(pred);
 }
 
 void InferControllerPrivate::notifyNextPipeline(const QList<InferPipeline *> &pipelines,

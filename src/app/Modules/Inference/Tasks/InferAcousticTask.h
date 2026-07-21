@@ -40,6 +40,14 @@ public:
         [[nodiscard]] GenericInferModel toEngineModel() const;
     };
 
+    struct AcousticCacheLookup {
+        GenericInferModel model;
+        QString inputHash;
+        QString inputCachePath;
+        QString outputCachePath;
+        bool hit = false;
+    };
+
     [[nodiscard]] int clipId() const override;
     [[nodiscard]] int pieceId() const override;
     [[nodiscard]] InferenceTaskContext inferenceContext() const override;
@@ -48,6 +56,7 @@ public:
     explicit InferAcousticTask(InferAcousticInput input);
     InferAcousticInput input() const;
     QString result() const;
+    [[nodiscard]] static AcousticCacheLookup lookupCache(const InferAcousticInput &input);
 
 private:
     void runTask() override;

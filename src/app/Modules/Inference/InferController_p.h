@@ -13,6 +13,7 @@
 #include "Modules/Inference/Models/InferenceTaskContext.h"
 #include "Modules/Inference/Models/PhonemeNameResult.h"
 #include "Tasks/InferAcousticTask.h"
+#include "Tasks/InferAcousticCacheProbeTask.h"
 #include "Tasks/InferDurationTask.h"
 #include "Tasks/InferPitchTask.h"
 #include "Tasks/InferVarianceTask.h"
@@ -115,6 +116,7 @@ public:
     TaskQueue<InferPitchTask> m_inferPitchTasks;
     TaskQueue<InferVarianceTask> m_inferVarianceTasks;
     TaskQueue<InferAcousticTask> m_inferAcousticTasks;
+    TaskQueue<InferAcousticCacheProbeTask> m_inferAcousticCacheProbeTasks;
 
     QHash<int, PendingPronunciationApply> m_pendingPronunciationApplies;
     QHash<int, PendingPhonemeNameApply> m_pendingPhonemeNameApplies;
