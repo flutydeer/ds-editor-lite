@@ -317,6 +317,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
                 clearNoteSelections();
             noteView->setSelected(true);
         } else {
+            d->m_selectionModel->clearSelectionAnchor();
             clearNoteSelections();
             TimeGraphicsView::mousePressEvent(event);
         }
@@ -333,8 +334,10 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     if (d->m_editMode == Select) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
-        if (!noteView)
+        if (!noteView) {
+            d->m_selectionModel->clearSelectionAnchor();
             TimeGraphicsView::mousePressEvent(event);
+        }
     } else if (d->m_editMode == DrawNote) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
@@ -353,8 +356,10 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     } else if (d->m_editMode == IntervalSelect) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
-        if (!noteView)
+        if (!noteView) {
+            d->m_selectionModel->clearSelectionAnchor();
             TimeGraphicsView::mousePressEvent(event);
+        }
     } else if (d->m_editMode == EditPitchAnchor) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
@@ -513,13 +518,9 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
         }
         cancelRequested = false;
     }
-    if (!cancelRequested)
+    if (!cancelRequested) {
+        d->m_interactionController->finalizeClickSelection();
         commitAction();
-    const bool ctrlDown = event->modifiers() == Qt::ControlModifier;
-    if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::Move) {
-        if (!d->m_interactionController->movedBeforeMouseUp() && !ctrlDown) {
-            clearNoteSelections(d->m_interactionController->currentEditingNote());
-        }
     }
     cancelRequested = false;
     TimeGraphicsView::mouseReleaseEvent(event);

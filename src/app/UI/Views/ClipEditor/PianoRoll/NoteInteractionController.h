@@ -126,6 +126,7 @@ public:
     // Interaction preparation
     void prepareForEditingNotes(const QMouseEvent *event, QPointF scenePos, int keyIndex,
                                 NoteView *noteItem);
+    void finalizeClickSelection() const;
 
     // Action handlers
     void handleNotesMoved(int deltaTick, int deltaKey) const;
@@ -160,6 +161,7 @@ private:
     int m_deltaTick = 0;
     int m_deltaKey = 0;
     bool m_movedBeforeMouseUp = false;
+    bool m_preserveSelectionOnClickRelease = false;
     int m_moveMaxDeltaKey = 127;
     int m_moveMinDeltaKey = 0;
 

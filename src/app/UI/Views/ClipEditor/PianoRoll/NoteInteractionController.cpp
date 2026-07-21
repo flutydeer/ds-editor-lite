@@ -49,19 +49,30 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
         return;
     }
 
-    const bool ctrlDown = event->modifiers() == Qt::ControlModifier;
-    m_selectionModel->applyNoteSelection(
-        noteItem, ctrlDown ? PianoRollSelectionModel::NoteSelectionMode::Toggle
-                           : PianoRollSelectionModel::NoteSelectionMode::Plain);
+    const auto modifiers = event->modifiers();
+    const auto ctrlDown = modifiers.testFlag(Qt::ControlModifier);
+    const auto shiftDown = modifiers.testFlag(Qt::ShiftModifier);
+    auto selectionMode = PianoRollSelectionModel::NoteSelectionMode::Plain;
+    if (shiftDown)
+        selectionMode = ctrlDown ? PianoRollSelectionModel::NoteSelectionMode::AddRange
+                                 : PianoRollSelectionModel::NoteSelectionMode::ReplaceRange;
+    else if (ctrlDown)
+        selectionMode = PianoRollSelectionModel::NoteSelectionMode::Toggle;
+    m_preserveSelectionOnClickRelease = ctrlDown || shiftDown;
+    m_selectionModel->applyNoteSelection(noteItem, selectionMode);
+
+    if (!noteItem->isSelected()) {
+        m_mouseMoveBehavior = None;
+        m_currentEditingNote = nullptr;
+        return;
+    }
 
     const auto rPos = noteItem->mapFromScene(scenePos);
     const auto rx = rPos.x();
     if (rx >= 0 && rx <= resizeTolerance) {
         m_mouseMoveBehavior = ResizeLeft;
-        noteItem->setSelected(true);
     } else if (rx >= noteItem->rect().width() - resizeTolerance && rx <= noteItem->rect().width()) {
         m_mouseMoveBehavior = ResizeRight;
-        noteItem->setSelected(true);
     } else {
         m_mouseMoveBehavior = Move;
     }
@@ -72,6 +83,12 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
     m_mouseDownLength = m_currentEditingNote->length();
     m_mouseDownKeyIndex = keyIndex;
     updateMoveDeltaKeyRange();
+}
+
+void NoteInteractionController::finalizeClickSelection() const {
+    if (!m_currentEditingNote || m_movedBeforeMouseUp || m_preserveSelectionOnClickRelease)
+        return;
+    m_selectionModel->selectOnly(m_currentEditingNote);
 }
 
 void NoteInteractionController::handleNotesMoved(const int deltaTick, const int deltaKey) const {
@@ -145,6 +162,7 @@ void NoteInteractionController::reset() {
     m_deltaTick = 0;
     m_deltaKey = 0;
     m_movedBeforeMouseUp = false;
+    m_preserveSelectionOnClickRelease = false;
     m_moveMaxDeltaKey = 127;
     m_moveMinDeltaKey = 0;
     m_currentEditingNote = nullptr;
