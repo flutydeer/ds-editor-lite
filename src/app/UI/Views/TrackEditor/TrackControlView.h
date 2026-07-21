@@ -62,6 +62,7 @@ private:
     void retranslateUi();
     void changeTrackProperty() const;
     void refreshSingerComboPresentation() const;
+    void refreshLanguageComboPresentation() const;
     void populatePresetMenus() const;
     void onPresetApplied(const QString &presetId) const;
     void onManagePresetsAction(const SingerInfo &singerInfo) const;

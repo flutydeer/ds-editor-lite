@@ -82,6 +82,7 @@ public:
 signals:
     void propertyChanged();
     void clipChanged(Track::ClipChangeType type, Clip *clip);
+    void defaultLanguageChanged(const QString &language);
     void singerOrSpeakerChanged();
     void speakerMixChanged(const SpeakerMixModel::SpeakerMixData &data);
 
