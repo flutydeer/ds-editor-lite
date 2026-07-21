@@ -139,6 +139,11 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     cbLanguage = new LanguageComboBox("unknown");
     cbLanguage->setObjectName("cbLanguage");
     cbLanguage->setMaximumWidth(144);
+    connect(cbLanguage, &LanguageComboBox::currentLanguageChanged, this,
+            [this](const QString &language) {
+                if (m_track && m_track->defaultLanguage() != language)
+                    m_track->setDefaultLanguage(language);
+            });
 
     singerLanguageLayout = new QHBoxLayout;
     singerLanguageLayout->addWidget(cbSinger);
@@ -168,7 +173,6 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     setName(track->name());
     setControl(track->control());
     refreshSingerComboPresentation();
-    setLanguage(track->defaultLanguage());
     updateTrackColor();
 
     // Nullify m_track when the Track is destroyed (e.g. during
@@ -180,6 +184,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 
     connect(track, &Track::singerOrSpeakerChanged, this,
             &TrackControlView::refreshSingerComboPresentation);
+    connect(track, &Track::defaultLanguageChanged, this, &TrackControlView::setLanguage);
     connect(track, &Track::speakerMixChanged, this,
             [this](const SpeakerMixData &) { refreshSingerComboPresentation(); });
 
@@ -251,7 +256,7 @@ void TrackControlView::setNarrowMode(const bool on) const {
 }
 
 void TrackControlView::setLanguage(const QString &language) const {
-    cbLanguage->setCurrentText(language);
+    cbLanguage->setCurrentLanguage(language);
 }
 
 LevelMeter *TrackControlView::levelMeter() const {
@@ -350,6 +355,18 @@ void TrackControlView::refreshSingerComboPresentation() const {
     }
     cbSinger->setToolTip(cbSinger->currentText());
     populatePresetMenus();
+    refreshLanguageComboPresentation();
+}
+
+void TrackControlView::refreshLanguageComboPresentation() const {
+    if (!m_track || !cbLanguage)
+        return;
+
+    const auto singerInfo = m_track->singerInfo();
+    const auto language = cbLanguage->setLanguages(
+        singerInfo.languages(), m_track->defaultLanguage(), singerInfo.defaultLanguage());
+    if (language != m_track->defaultLanguage())
+        m_track->setDefaultLanguage(language);
 }
 
 void TrackControlView::populatePresetMenus() const {

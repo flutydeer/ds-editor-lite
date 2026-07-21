@@ -32,7 +32,7 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
 void GeneralPage::modifyOption() {
     const auto option = appOptions->general();
     option->uiLanguage = m_cbUiLanguage->currentData().toString();
-    option->defaultSingingLanguage = m_cbDefaultSingingLanguage->currentText();
+    option->defaultSingingLanguage = m_cbDefaultSingingLanguage->currentLanguage();
     option->defaultLyrics[option->defaultSingingLanguage] = m_leDefaultLyric->text();
 
     option->gameDir = m_fsGameDir->path();
@@ -77,7 +77,7 @@ QWidget *GeneralPage::createContentWidget() {
     connect(m_cbDefaultSingingLanguage, &ComboBox::currentIndexChanged, this, [this]() {
         const auto option = appOptions->general();
         option->defaultLyrics[m_previousLanguage] = m_leDefaultLyric->text();
-        const auto newLang = m_cbDefaultSingingLanguage->currentText();
+        const auto newLang = m_cbDefaultSingingLanguage->currentLanguage();
         m_leDefaultLyric->setText(option->defaultLyricForLanguage(newLang));
         m_previousLanguage = newLang;
         modifyOption();

@@ -59,10 +59,9 @@ static void setTrackVoiceContextForClip(Clip *clip, const SingerInfo &singerInfo
 void Track::insertClip(Clip *clip) {
     m_clips.add(clip);
     setTrackVoiceContextForClip(clip, m_singerInfo, m_speakerInfo, m_speakerMixData);
-    connect(this, &Track::singerOrSpeakerChanged, clip,
-            [clip, this] {
-                setTrackVoiceContextForClip(clip, m_singerInfo, m_speakerInfo, m_speakerMixData);
-            });
+    connect(this, &Track::singerOrSpeakerChanged, clip, [clip, this] {
+        setTrackVoiceContextForClip(clip, m_singerInfo, m_speakerInfo, m_speakerMixData);
+    });
     connect(this, &Track::speakerMixChanged, clip,
             [clip, this](const SpeakerMixModel::SpeakerMixData &) {
                 setTrackVoiceContextForClip(clip, m_singerInfo, m_speakerInfo, m_speakerMixData);
@@ -95,9 +94,12 @@ QString Track::defaultLanguage() const {
 }
 
 void Track::setDefaultLanguage(const QString &language) {
-    // TODO: validate
+    if (m_defaultLanguage == language)
+        return;
     m_defaultLanguage = language;
     this->updateDefaultG2pId(language);
+    emit defaultLanguageChanged(language);
+    emit propertyChanged();
 }
 
 QString Track::defaultG2pId() const {

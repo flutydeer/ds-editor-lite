@@ -296,7 +296,7 @@ void ClipEditorToolBarViewPrivate::onClipPropertyChanged() const {
 }
 
 void ClipEditorToolBarViewPrivate::onClipLanguageChanged(const QString &language) const {
-    m_cbClipLanguage->setCurrentText(language);
+    m_cbClipLanguage->setCurrentLanguage(language);
 }
 
 void ClipEditorToolBarViewPrivate::onLanguageEdited(const QString &language) const {
@@ -386,11 +386,10 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
         connect(m_singingClip, &SingingClip::speakerMixChanged, this,
                 [this](const SpeakerMixData &) { refreshSingerComboPresentation(); });
 
-        m_cbClipLanguage->setCurrentText(m_singingClip->defaultLanguage());
-        connect(m_cbClipLanguage, &ComboBox::currentTextChanged, this,
+        connect(m_cbClipLanguage, &LanguageComboBox::currentLanguageChanged, this,
                 &ClipEditorToolBarViewPrivate::onLanguageEdited);
-        connect(m_singingClip, &SingingClip::defaultLanguageChanged, m_cbClipLanguage,
-                &ComboBox::setCurrentText);
+        connect(m_singingClip, &SingingClip::defaultLanguageChanged, this,
+                &ClipEditorToolBarViewPrivate::onClipLanguageChanged);
     } else {
         disconnect(m_cbSinger, &TwoLevelComboBox::currentDataChanged, this,
                    &ClipEditorToolBarViewPrivate::onSingerEdited);
@@ -398,13 +397,13 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
             disconnect(m_singingClip, &SingingClip::singerOrSpeakerChanged, this,
                        &ClipEditorToolBarViewPrivate::onClipSingerChanged);
             disconnect(m_singingClip, &SingingClip::speakerMixChanged, this, nullptr);
-            disconnect(m_singingClip, &SingingClip::defaultLanguageChanged, m_cbClipLanguage,
-                       &ComboBox::setCurrentText);
+            disconnect(m_singingClip, &SingingClip::defaultLanguageChanged, this,
+                       &ClipEditorToolBarViewPrivate::onClipLanguageChanged);
         }
 
-        disconnect(m_cbClipLanguage, &ComboBox::currentTextChanged, this,
+        disconnect(m_cbClipLanguage, &LanguageComboBox::currentLanguageChanged, this,
                    &ClipEditorToolBarViewPrivate::onLanguageEdited);
-        m_cbClipLanguage->setCurrentText("unknown");
+        m_cbClipLanguage->setLanguages({}, QStringLiteral("unknown"));
     }
 }
 
@@ -442,6 +441,18 @@ void ClipEditorToolBarViewPrivate::refreshSingerComboPresentation() const {
     }
     m_cbSinger->setToolTip(m_cbSinger->currentText());
     populatePresetMenus();
+    refreshLanguageComboPresentation();
+}
+
+void ClipEditorToolBarViewPrivate::refreshLanguageComboPresentation() const {
+    if (!m_singingClip || !m_cbClipLanguage)
+        return;
+
+    const auto singerInfo = m_singingClip->singerInfo();
+    const auto language = m_cbClipLanguage->setLanguages(
+        singerInfo.languages(), m_singingClip->defaultLanguage(), singerInfo.defaultLanguage());
+    if (language != m_singingClip->defaultLanguage())
+        m_singingClip->setDefaultLanguage(language);
 }
 
 void ClipEditorToolBarViewPrivate::populatePresetMenus() const {

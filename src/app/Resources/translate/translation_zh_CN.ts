@@ -4483,6 +4483,34 @@ All current mix settings will be lost.</source>
     </message>
 </context>
 <context>
+    <name>LanguageComboBox</name>
+    <message>
+        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="17"/>
+        <source>Mandarin</source>
+        <translation>普通话</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="19"/>
+        <source>English</source>
+        <translation>英语</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="21"/>
+        <source>Japanese</source>
+        <translation>日语</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="23"/>
+        <source>Cantonese</source>
+        <translation>粤语</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/Common/LanguageComboBox.cpp" line="25"/>
+        <source>Unknown</source>
+        <translation>未知</translation>
+    </message>
+</context>
+<context>
     <name>TwoLevelComboBox</name>
     <message>
         <location filename="../../UI/Controls/TwoLevelComboBox.cpp" line="37"/>
