@@ -11,6 +11,7 @@
 #include "States/UpdatePitchState.h"
 #include "States/InferVarianceState.h"
 #include "States/UpdateVarianceState.h"
+#include "States/ProbeAcousticCacheState.h"
 #include "States/AwaitingInferAcousticState.h"
 #include "States/InferAcousticState.h"
 #include "States/UpdateAcousticState.h"
@@ -158,6 +159,7 @@ void InferPipeline::initStates() {
     updateVarianceState = new UpdateVarianceState(*this);
     awaitingVarianceApplyState =
         new AwaitingEditSessionApplyState(*this, AwaitingEditSessionApplyState::Stage::Variance);
+    probeAcousticCacheState = new ProbeAcousticCacheState(*this);
     awaitingInferAcousticState = new AwaitingInferAcousticState(*this);
     inferAcousticState = new InferAcousticState(*this);
     updateAcousticState = new UpdateAcousticState(*this);
@@ -175,6 +177,7 @@ void InferPipeline::initStates() {
     stateMachine.addState(inferVarianceState);
     stateMachine.addState(updateVarianceState);
     stateMachine.addState(awaitingVarianceApplyState);
+    stateMachine.addState(probeAcousticCacheState);
     stateMachine.addState(awaitingInferAcousticState);
     stateMachine.addState(inferAcousticState);
     stateMachine.addState(updateAcousticState);
@@ -188,6 +191,7 @@ void InferPipeline::initTransitions() {
     initDurationTransitions();
     initPitchTransitions();
     initVarianceTransitions();
+    initProbeAcousticCacheTransitions();
     initAwaitingInferAcousticTransitions();
     initAcousticTransitions();
     initPlaybackReadyTransitions();
@@ -197,9 +201,10 @@ void InferPipeline::initTransitions() {
         awaitingDurationApplyState, inferPitchState,
         updatePitchState,           awaitingPitchApplyState,
         inferVarianceState,         updateVarianceState,
-        awaitingVarianceApplyState, awaitingInferAcousticState,
-        inferAcousticState,         updateAcousticState,
-        awaitingAcousticApplyState, playbackReadyState,
+        awaitingVarianceApplyState, probeAcousticCacheState,
+        awaitingInferAcousticState, inferAcousticState,
+        updateAcousticState,        awaitingAcousticApplyState,
+        playbackReadyState,
     };
     // Inference options are part of the task snapshot, so active pipelines restart with a new
     // snapshot instead of mixing old worker output with new apply-time options.
@@ -255,7 +260,7 @@ void InferPipeline::initVarianceTransitions() {
 
     updateVarianceState->addTransition(updateVarianceState,
                                        &UpdateVarianceState::updateSuccessWithLazyInference,
-                                       awaitingInferAcousticState);
+                                       probeAcousticCacheState);
     updateVarianceState->addTransition(updateVarianceState,
                                        &UpdateVarianceState::updateSuccessWithImmediateInference,
                                        inferAcousticState);
@@ -273,6 +278,31 @@ void InferPipeline::initVarianceTransitions() {
                                               inferVarianceState);
 }
 
+void InferPipeline::initProbeAcousticCacheTransitions() {
+    probeAcousticCacheState->addTransition(probeAcousticCacheState,
+                                           &ProbeAcousticCacheState::cacheHit,
+                                           updateAcousticState);
+    probeAcousticCacheState->addTransition(
+        probeAcousticCacheState, &ProbeAcousticCacheState::cacheMissWithLazyInference,
+        awaitingInferAcousticState);
+    probeAcousticCacheState->addTransition(
+        probeAcousticCacheState, &ProbeAcousticCacheState::cacheMissWithImmediateInference,
+        inferAcousticState);
+    probeAcousticCacheState->addTransition(probeAcousticCacheState,
+                                           &ProbeAcousticCacheState::dropped, finalState);
+    probeAcousticCacheState->addTransition(this, &InferPipeline::playbackStarted,
+                                           inferAcousticState);
+    probeAcousticCacheState->addTransition(this, &InferPipeline::lazyInferAcousticTurnedOff,
+                                           inferAcousticState);
+    probeAcousticCacheState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
+    probeAcousticCacheState->addTransition(this, &InferPipeline::expressivenessChanged,
+                                           inferPitchState);
+    probeAcousticCacheState->addTransition(this, &InferPipeline::pitchChanged,
+                                           inferVarianceState);
+    probeAcousticCacheState->addTransition(this, &InferPipeline::varianceChanged,
+                                           probeAcousticCacheState);
+}
+
 void InferPipeline::initAwaitingInferAcousticTransitions() {
     awaitingInferAcousticState->addTransition(this, &InferPipeline::playbackStarted,
                                               inferAcousticState);
@@ -283,6 +313,8 @@ void InferPipeline::initAwaitingInferAcousticTransitions() {
                                               inferPitchState);
     awaitingInferAcousticState->addTransition(this, &InferPipeline::pitchChanged,
                                               inferVarianceState);
+    awaitingInferAcousticState->addTransition(this, &InferPipeline::varianceChanged,
+                                              probeAcousticCacheState);
 }
 
 void InferPipeline::initAcousticTransitions() {
@@ -324,7 +356,7 @@ void InferPipeline::initPlaybackReadyTransitions() {
     playbackReadyState->addTransition(immediateTransition);
 
     auto lazyTransition = new ConditionalTransition(this, SIGNAL(varianceChanged()));
-    lazyTransition->setTargetState(awaitingInferAcousticState);
+    lazyTransition->setTargetState(probeAcousticCacheState);
     lazyTransition->setGuardCondition([]() { return !appOptions->inference()->autoStartInfer; });
     playbackReadyState->addTransition(lazyTransition);
 }

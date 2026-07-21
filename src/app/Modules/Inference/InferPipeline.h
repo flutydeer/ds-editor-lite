@@ -24,6 +24,7 @@ class InferPitchState;
 class UpdatePitchState;
 class InferVarianceState;
 class UpdateVarianceState;
+class ProbeAcousticCacheState;
 class AwaitingInferAcousticState;
 class AwaitingEditSessionApplyState;
 class InferAcousticState;
@@ -109,6 +110,7 @@ private:
     void initDurationTransitions();
     void initPitchTransitions();
     void initVarianceTransitions();
+    void initProbeAcousticCacheTransitions();
     void initAwaitingInferAcousticTransitions();
     void initAcousticTransitions();
     void initPlaybackReadyTransitions();
@@ -126,6 +128,7 @@ private:
     InferVarianceState *inferVarianceState{};
     UpdateVarianceState *updateVarianceState{};
     AwaitingEditSessionApplyState *awaitingVarianceApplyState{};
+    ProbeAcousticCacheState *probeAcousticCacheState{};
     AwaitingInferAcousticState *awaitingInferAcousticState{};
     InferAcousticState *inferAcousticState{};
     UpdateAcousticState *updateAcousticState{};
