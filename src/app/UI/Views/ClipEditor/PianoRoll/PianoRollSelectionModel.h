@@ -14,11 +14,18 @@ class PianoRollSelectionModel : public QObject {
     Q_OBJECT
 
 public:
+    enum class NoteSelectionMode { Plain, Toggle, ReplaceRange, AddRange };
+
     explicit PianoRollSelectionModel(PianoRollGraphicsView *view, QList<NoteView *> &noteViews,
                                      QHash<int, NoteView *> &noteViewIndex, QList<Note *> &notes,
                                      QObject *parent = nullptr);
 
     [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
+    [[nodiscard]] QList<NoteView *> orderedNoteItems() const;
+    void applyNoteSelection(NoteView *noteView, NoteSelectionMode mode);
+    void selectOnly(NoteView *noteView) const;
+    void clearSelectionAnchor();
+    void invalidateSelectionAnchor(int noteId);
 
     [[nodiscard]] bool isSelecting() const {
         return m_selecting;
@@ -74,8 +81,12 @@ signals:
     void selectionChanged();
 
 private:
+    [[nodiscard]] NoteView *selectionAnchor() const;
+    void selectRange(NoteView *anchor, NoteView *target, bool additive) const;
+
     bool m_selecting = false;
     bool m_selectionChangeBarrier = false;
+    int m_selectionAnchorId = -1;
     QList<NoteView *> m_pastePreviewViews;
     QList<NoteView *> m_noteViewsToErase;
 

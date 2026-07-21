@@ -45,7 +45,6 @@
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
 #include "Utils/TimelineSnapUtils.h"
-#include <algorithm>
 #include <climits>
 #include <cmath>
 
@@ -768,6 +767,7 @@ void PianoRollGraphicsView::setParamBackgroundLayerColor(const QColor &color) {
 
 void PianoRollGraphicsView::reset() {
     Q_D(PianoRollGraphicsView);
+    d->m_selectionModel->clearSelectionAnchor();
     for (const auto &noteView : d->noteViews) {
         d->removeNoteViewFromScene(noteView);
         delete noteView;
@@ -1083,13 +1083,7 @@ NoteView *PianoRollGraphicsViewPrivate::findAdjacentNoteView(NoteView *currentNo
                                                              const bool backwards) const {
     if (!currentNoteView)
         return nullptr;
-    auto orderedViews = noteViews;
-    std::sort(orderedViews.begin(), orderedViews.end(),
-              [](const NoteView *lhs, const NoteView *rhs) {
-                  if (lhs->rStart() != rhs->rStart())
-                      return lhs->rStart() < rhs->rStart();
-                  return lhs->id() < rhs->id();
-              });
+    const auto orderedViews = m_selectionModel->orderedNoteItems();
     const auto index = orderedViews.indexOf(currentNoteView);
     const auto targetIndex = backwards ? index - 1 : index + 1;
     return targetIndex >= 0 && targetIndex < orderedViews.size() ? orderedViews.at(targetIndex)
@@ -1151,6 +1145,7 @@ void PianoRollGraphicsViewPrivate::applyPronunciationEdit(const int noteId, cons
 
 void PianoRollGraphicsViewPrivate::moveToNullClipState() {
     Q_Q(PianoRollGraphicsView);
+    m_selectionModel->clearSelectionAnchor();
     finishInlineEditing();
     m_pitchEditor->cancelEdit();
     endPitchEditSession(EditSessionEndReason::Cancel);
@@ -1168,6 +1163,7 @@ void PianoRollGraphicsViewPrivate::moveToNullClipState() {
 
 void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     Q_Q(PianoRollGraphicsView);
+    m_selectionModel->clearSelectionAnchor();
     finishInlineEditing();
     m_pitchEditor->cancelEdit();
     endPitchEditSession(EditSessionEndReason::Cancel);
@@ -1284,6 +1280,7 @@ void PianoRollGraphicsViewPrivate::handleNoteInserted(Note *note) {
 }
 
 void PianoRollGraphicsViewPrivate::handleNoteRemoved(Note *note) {
+    m_selectionModel->invalidateSelectionAnchor(note->id());
     if (m_inlineEditingNoteId == note->id())
         finishInlineEditing();
     m_selectionModel->setSelectionChangeBarrier(true);

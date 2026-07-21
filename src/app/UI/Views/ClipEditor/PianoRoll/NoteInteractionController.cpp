@@ -50,14 +50,9 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
     }
 
     const bool ctrlDown = event->modifiers() == Qt::ControlModifier;
-    if (!ctrlDown) {
-        if (m_selectionModel->selectedNoteItems().count() <= 1 ||
-            !m_selectionModel->selectedNoteItems().contains(noteItem))
-            m_view->clearNoteSelections();
-        noteItem->setSelected(true);
-    } else {
-        noteItem->setSelected(!noteItem->isSelected());
-    }
+    m_selectionModel->applyNoteSelection(
+        noteItem, ctrlDown ? PianoRollSelectionModel::NoteSelectionMode::Toggle
+                           : PianoRollSelectionModel::NoteSelectionMode::Plain);
 
     const auto rPos = noteItem->mapFromScene(scenePos);
     const auto rx = rPos.x();

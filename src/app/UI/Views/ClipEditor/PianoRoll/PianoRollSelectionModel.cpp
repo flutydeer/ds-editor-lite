@@ -12,6 +12,8 @@
 
 #include "UI/Views/Common/TimeGraphicsScene.h"
 
+#include <algorithm>
+
 PianoRollSelectionModel::PianoRollSelectionModel(PianoRollGraphicsView *view,
                                                  QList<NoteView *> &noteViews,
                                                  QHash<int, NoteView *> &noteViewIndex,
@@ -22,6 +24,82 @@ PianoRollSelectionModel::PianoRollSelectionModel(PianoRollGraphicsView *view,
 
 QList<NoteView *> PianoRollSelectionModel::selectedNoteItems() const {
     return Linq::where(m_noteViews, L_PRED(n, n->isSelected()));
+}
+
+QList<NoteView *> PianoRollSelectionModel::orderedNoteItems() const {
+    auto orderedItems = m_noteViews;
+    std::sort(orderedItems.begin(), orderedItems.end(),
+              [](const NoteView *lhs, const NoteView *rhs) {
+                  if (lhs->rStart() != rhs->rStart())
+                      return lhs->rStart() < rhs->rStart();
+                  return lhs->id() < rhs->id();
+              });
+    return orderedItems;
+}
+
+void PianoRollSelectionModel::applyNoteSelection(NoteView *noteView,
+                                                 const NoteSelectionMode mode) {
+    if (!noteView)
+        return;
+
+    if (mode == NoteSelectionMode::Plain) {
+        m_selectionAnchorId = noteView->id();
+        const auto selectedItems = selectedNoteItems();
+        if (selectedItems.count() <= 1 || !selectedItems.contains(noteView))
+            selectOnly(noteView);
+        else
+            noteView->setSelected(true);
+        return;
+    }
+
+    if (mode == NoteSelectionMode::Toggle) {
+        m_selectionAnchorId = noteView->id();
+        noteView->setSelected(!noteView->isSelected());
+        return;
+    }
+
+    const auto anchor = selectionAnchor();
+    if (!anchor) {
+        m_selectionAnchorId = noteView->id();
+        selectOnly(noteView);
+        return;
+    }
+    selectRange(anchor, noteView, mode == NoteSelectionMode::AddRange);
+}
+
+void PianoRollSelectionModel::selectOnly(NoteView *noteView) const {
+    m_view->clearNoteSelections(noteView);
+    if (noteView)
+        noteView->setSelected(true);
+}
+
+void PianoRollSelectionModel::clearSelectionAnchor() {
+    m_selectionAnchorId = -1;
+}
+
+void PianoRollSelectionModel::invalidateSelectionAnchor(const int noteId) {
+    if (m_selectionAnchorId == noteId)
+        clearSelectionAnchor();
+}
+
+NoteView *PianoRollSelectionModel::selectionAnchor() const {
+    return m_noteViewIndex.value(m_selectionAnchorId, nullptr);
+}
+
+void PianoRollSelectionModel::selectRange(NoteView *anchor, NoteView *target,
+                                          const bool additive) const {
+    const auto orderedItems = orderedNoteItems();
+    const auto anchorIndex = orderedItems.indexOf(anchor);
+    const auto targetIndex = orderedItems.indexOf(target);
+    if (anchorIndex < 0 || targetIndex < 0)
+        return;
+
+    if (!additive)
+        m_view->clearNoteSelections();
+    const auto first = qMin(anchorIndex, targetIndex);
+    const auto last = qMax(anchorIndex, targetIndex);
+    for (auto index = first; index <= last; ++index)
+        orderedItems.at(index)->setSelected(true);
 }
 
 void PianoRollSelectionModel::updateSceneSelectionState() {
@@ -36,6 +114,8 @@ void PianoRollSelectionModel::updateSceneSelectionState() {
         }
         noteView->setSelected(true);
     }
+    if (!selectionAnchor())
+        clearSelectionAnchor();
     m_selectionChangeBarrier = false;
 }
 
