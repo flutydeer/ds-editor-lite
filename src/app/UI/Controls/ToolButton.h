@@ -17,6 +17,16 @@ public:
 
     void setActionIcon(const QString &svgPath, const QSize &iconSize = QSize(16, 16));
     void setToggleIcon(const QString &svgPath, const QSize &iconSize, const QColor &checkedColor);
+
+private:
+    enum class IconType { None, Action, Toggle };
+
+    void rebuildIcon();
+
+    IconType m_iconType = IconType::None;
+    QString m_svgPath;
+    QSize m_actionIconSize;
+    QColor m_checkedColor;
 };
 
 #endif // TOOLBUTTON_H

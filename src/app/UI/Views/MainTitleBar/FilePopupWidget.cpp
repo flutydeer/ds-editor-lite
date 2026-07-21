@@ -9,6 +9,7 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Utils/IconUtils.h"
+#include "UI/Utils/ThemeManager.h"
 #include "Utils/SystemUtils.h"
 #include "Utils/WindowFrameUtils.h"
 
@@ -287,9 +288,6 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
     auto *btnNew = m_btnNew;
     btnNew->setObjectName("filePopupActionButton");
     btnNew->setProperty("filePopupAction", true);
-    btnNew->setIcon(
-        IconUtils::createTintedSvgIcon(QStringLiteral(":/svg/icons/document_add_16_regular.svg"),
-                                       QSize(16, 16), IconUtils::defaultActionPalette()));
     connect(btnNew, &Button::clicked, this, [this] {
         close();
         emit newProjectClicked();
@@ -299,13 +297,14 @@ FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
     auto *btnOpen = m_btnOpen;
     btnOpen->setObjectName("filePopupActionButton");
     btnOpen->setProperty("filePopupAction", true);
-    btnOpen->setIcon(
-        IconUtils::createTintedSvgIcon(QStringLiteral(":/svg/icons/folder_open_16_regular.svg"),
-                                       QSize(16, 16), IconUtils::defaultActionPalette()));
     connect(btnOpen, &Button::clicked, this, [this] {
         close();
         emit openProjectClicked();
     });
+
+    rebuildActionIcons();
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            &FilePopupWidget::rebuildActionIcons);
 
     btnLayout->addWidget(btnNew);
     btnLayout->addWidget(btnOpen);
@@ -445,6 +444,15 @@ void FilePopupWidget::setIconColor(const QColor &color) {
     m_iconColor = color;
     // Rebuild recent items so their tinted icons pick up the new color
     refreshRecentFiles();
+}
+
+void FilePopupWidget::rebuildActionIcons() {
+    m_btnNew->setIcon(
+        IconUtils::createTintedSvgIcon(QStringLiteral(":/svg/icons/document_add_16_regular.svg"),
+                                       QSize(16, 16), IconUtils::defaultActionPalette()));
+    m_btnOpen->setIcon(
+        IconUtils::createTintedSvgIcon(QStringLiteral(":/svg/icons/folder_open_16_regular.svg"),
+                                       QSize(16, 16), IconUtils::defaultActionPalette()));
 }
 
 void FilePopupWidget::clearRecentItemHoverState() {

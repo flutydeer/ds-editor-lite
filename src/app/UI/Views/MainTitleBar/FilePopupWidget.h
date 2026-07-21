@@ -38,6 +38,7 @@ private:
     QWidget *createRecentFileItem(const QString &filePath, bool isCurrent);
     void syncPopupGeometry();
     void applyWindowEffects();
+    void rebuildActionIcons();
 
     // Theme color accessors (QSS-overridable via qproperty-*); the setter
     // rebuilds recent items so their tinted icons pick up the new color

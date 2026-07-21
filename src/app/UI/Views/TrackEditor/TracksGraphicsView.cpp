@@ -28,6 +28,7 @@
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Utils/IconUtils.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
+#include "UI/Utils/ThemeManager.h"
 #include "UI/Views/Common/ScrollBarView.h"
 #include "Utils/TimelineSnapUtils.h"
 
@@ -55,15 +56,15 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, const QWidget
     setMinimumHeight(0);
 
     m_actionNewSingingClip = new QAction(tr("New singing clip"), this);
-    m_actionNewSingingClip->setIcon(
-        IconUtils::menuIcon(QStringLiteral(":/svg/icons/midi_clip_16_filled.svg")));
     connect(m_actionNewSingingClip, &QAction::triggered, this,
             &TracksGraphicsView::onNewSingingClip);
 
     m_actionAddAudioClip = new QAction(tr("Insert audio clip..."), this);
-    m_actionAddAudioClip->setIcon(
-        IconUtils::menuIcon(QStringLiteral(":/svg/icons/audio_clip_16_filled.svg")));
     connect(m_actionAddAudioClip, &QAction::triggered, this, &TracksGraphicsView::onAddAudioClip);
+
+    rebuildPersistentActionIcons();
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            &TracksGraphicsView::rebuildPersistentActionIcons);
 
     connect(appStatus, &AppStatus::activeClipIdChanged, this, [this](const int clipId) {
         if (clipId == -1) {
@@ -77,6 +78,13 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, const QWidget
         } else
             qFatal() << "Clip not found: " << clipId;
     });
+}
+
+void TracksGraphicsView::rebuildPersistentActionIcons() {
+    m_actionNewSingingClip->setIcon(
+        IconUtils::menuIcon(QStringLiteral(":/svg/icons/midi_clip_16_filled.svg")));
+    m_actionAddAudioClip->setIcon(
+        IconUtils::menuIcon(QStringLiteral(":/svg/icons/audio_clip_16_filled.svg")));
 }
 
 void TracksGraphicsView::setSnapGrid(TrackEditorBackgroundView *grid) {
