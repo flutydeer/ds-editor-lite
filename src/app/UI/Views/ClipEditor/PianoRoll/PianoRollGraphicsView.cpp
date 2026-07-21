@@ -312,10 +312,8 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
          d->m_editMode == EraseNote || d->m_editMode == SplitNote)) {
         d->m_interactionController->setMouseMoveBehavior(NoteInteractionController::None);
         if (const auto noteView = d->noteViewAt(event->pos())) {
-            if (d->m_selectionModel->selectedNoteItems().count() <= 1 ||
-                !d->m_selectionModel->selectedNoteItems().contains(noteView))
-                clearNoteSelections();
-            noteView->setSelected(true);
+            d->m_selectionModel->applyNoteSelection(
+                noteView, PianoRollSelectionModel::NoteSelectionMode::Plain);
         } else {
             d->m_selectionModel->clearSelectionAnchor();
             clearNoteSelections();
@@ -1059,8 +1057,7 @@ void PianoRollGraphicsViewPrivate::onInlineNavigationRequested(const QString &te
     onInlineTextSubmitted(text);
     const auto nextNoteView = findAdjacentNoteView(currentNoteView, backwards);
     if (nextNoteView) {
-        q->clearNoteSelections();
-        nextNoteView->setSelected(true);
+        m_selectionModel->selectOnly(nextNoteView);
         const auto notes = q->selectedNotesId();
         clipController->selectNotes(notes, true);
         onStartEditingNoteLyric(nextNoteView);

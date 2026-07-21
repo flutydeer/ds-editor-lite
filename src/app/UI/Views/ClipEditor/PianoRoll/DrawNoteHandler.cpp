@@ -4,6 +4,7 @@
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
 #include "PianoRollGraphicsView_p.h"
+#include "PianoRollSelectionModel.h"
 #include "PianoRollCoord.h"
 #include "NoteInteractionController.h"
 #include "PianoRollGraphicsViewHelper.h"
@@ -43,7 +44,7 @@ bool DrawNoteHandler::mousePressEvent(QMouseEvent *event) {
         return false;
     } else if (pronView) {
         const auto currentNoteView = d->findNoteViewById(pronView->id());
-        currentNoteView->setSelected(true);
+        d->m_selectionModel->selectOnly(currentNoteView);
         return false;
     } else {
         prepareForDrawingNote(tick, keyIndex);
