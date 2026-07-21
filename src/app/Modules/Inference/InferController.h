@@ -16,6 +16,7 @@ class InferDurationTask;
 class InferPitchTask;
 class InferVarianceTask;
 class InferAcousticTask;
+class InferAcousticCacheProbeTask;
 class Task;
 
 class InferController final : public QObject {
@@ -40,6 +41,10 @@ public:
     void addInferAcousticTask(InferAcousticTask &task);
     void cancelInferAcousticTask(int taskId);
     bool finishCurrentInferAcousticTask(InferAcousticTask *task = nullptr);
+
+    void addInferAcousticCacheProbeTask(InferAcousticCacheProbeTask &task);
+    void cancelInferAcousticCacheProbeTask(int taskId);
+    bool finishCurrentInferAcousticCacheProbeTask(InferAcousticCacheProbeTask *task = nullptr);
 
 private:
     explicit InferController(QObject *parent = nullptr);
