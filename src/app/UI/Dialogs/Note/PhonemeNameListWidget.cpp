@@ -90,12 +90,12 @@ void PhonemeNameListWidget::updateItemWidget(int row) {
         setItemWidget(item(row), widget);
 
         auto listItem = item(row);
-        connect(widget->cbLanguage(), &QComboBox::currentTextChanged, this,
-                [this, listItem](const QString &text) {
+        connect(widget->cbLanguage(), &LanguageComboBox::currentLanguageChanged, this,
+                [this, listItem](const QString &language) {
                     if (m_model) {
                         int currentRow = this->row(listItem);
                         if (currentRow >= 0)
-                            m_model->setData(m_model->index(currentRow), text,
+                            m_model->setData(m_model->index(currentRow), language,
                                              PhonemeNameListModel::LanguageRole);
                     }
                 });
@@ -132,7 +132,7 @@ void PhonemeNameListWidget::updateItemWidget(int row) {
 
     QModelIndex index = m_model->index(row);
     widget->blockSignals(true);
-    widget->cbLanguage()->setCurrentText(
+    widget->cbLanguage()->setCurrentLanguage(
         m_model->data(index, PhonemeNameListModel::LanguageRole).toString());
     widget->leName()->setText(m_model->data(index, PhonemeNameListModel::NameRole).toString());
     widget->cbIsOnset()->setChecked(
