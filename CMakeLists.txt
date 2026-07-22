@@ -1,30 +1,67 @@
 cmake_minimum_required(VERSION 3.17)
 
-project(ds-editor-lite LANGUAGES CXX)
+project(lite
+    VERSION 0.0.0.1
+    LANGUAGES C CXX
+    DESCRIPTION "DS Editor Lite"
+    HOMEPAGE_URL "https://github.com/flutydeer/ds-editor-lite"
+)
 
-option(APPLICATION_ENABLE_BREAKPAD "Enable breakpad for crash reporting" OFF)
+# ----------------------------------
+# Build Options
+# ----------------------------------
+option(LITE_BUILD_TESTS "Build test targets" OFF)
+option(LITE_ENABLE_BREAKPAD "Enable breakpad for crash reporting" OFF)
+option(LITE_INSTALL "Install the project" OFF)
 
-if (LITE_BUILD_TESTS)
-    enable_testing()
-endif ()
-
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-
-if (MSVC)
+# ----------------------------------
+# CMake Settings
+# ----------------------------------
+if(MSVC)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /manifest:no")
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /manifest:no")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /manifest:no")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8")
-endif ()
+elseif(MINGW)
+    set(CMAKE_STATIC_LIBRARY_PREFIX "")
+    set(CMAKE_SHARED_LIBRARY_PREFIX "")
+    set(CMAKE_IMPORT_LIBRARY_PREFIX "")
+endif()
 
-set(PROJECT_CMAKE_MODULES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmake)
+if(LITE_INSTALL)
+    include(GNUInstallDirs)
+    include(CMakePackageConfigHelpers)
+endif()
 
-set(TALCS_DSPX ON)
-set(TALCS_WIDGETS ON)
+# ----------------------------------
+# Project Variables
+# ----------------------------------
+set(LITE_VERSION ${PROJECT_VERSION})
+set(LITE_DESCRIPTION ${PROJECT_DESCRIPTION})
+set(LITE_HOMEPAGE_URL ${PROJECT_HOMEPAGE_URL})
+set(LITE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
+# ----------------------------------
+# Initialize QMSetup (Required)
+# ----------------------------------
+find_package(qmsetup REQUIRED)
+qm_import(Filesystem)
+
+if(NOT DEFINED QMSETUP_BUILD_DIR)
+    set(QMSETUP_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/out")
+endif()
+
+qm_init_directories()
+
+# ----------------------------------
+# Tests
+# ----------------------------------
+if(LITE_BUILD_TESTS)
+    enable_testing()
+endif()
+
+# ----------------------------------
+# Add source modules
+# ----------------------------------
 add_subdirectory(src)

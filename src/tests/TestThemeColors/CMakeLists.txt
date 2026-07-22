@@ -1,8 +1,7 @@
 project(TestThemeColors)
 
-set(CMAKE_AUTORCC ON)
-
-add_executable(${PROJECT_NAME}
+lite_add_test(${PROJECT_NAME}
+        SOURCES
         main.cpp
         ../../app/UI/Utils/ColorUtils.cpp
         ../../app/UI/Utils/Theme/ThemeColorResolver.cpp

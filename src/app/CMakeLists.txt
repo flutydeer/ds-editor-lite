@@ -1,50 +1,14 @@
-project(DsEditorLite VERSION 0.0.0.1)
+project(DsEditorLite VERSION ${LITE_VERSION})
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
+if(APPLE)
+    file(GLOB_RECURSE _src CONFIGURE_DEPENDS *.h *.cpp *.mm)
+else()
+    file(GLOB_RECURSE _src CONFIGURE_DEPENDS *.h *.cpp)
+endif()
 
-if (APPLE)
-    file(GLOB_RECURSE _src *.h *.cpp *.mm)
-else ()
-    file(GLOB_RECURSE _src *.h *.cpp)
-endif ()
-
-if (WIN32)
-    set(PLATFORM_LIB dwmapi.lib)
-endif ()
-
-add_executable(${PROJECT_NAME} ${_src} Resources/lite_res.qrc)
-
-# Enable macOS bundle
-if (APPLE)
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-            MACOSX_BUNDLE ON
-            MACOSX_BUNDLE_GUI_IDENTIFIER "com.dseditor.lite"
-            MACOSX_BUNDLE_BUNDLE_NAME "DsEditorLite"
-            MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
-            MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
-            MACOSX_BUNDLE_INFO_STRING "DS Editor Lite"
-            MACOSX_BUNDLE_COPYRIGHT "Copyright © 2024"
-    )
-endif ()
-
-if (WIN32)
-    set(RC_APPLICATION_NAME "Lite")
-    set(RC_DESCRIPTION "DS Editor Lite")
-    include("../../scripts/cmake/winrc.cmake")
-endif ()
-
-if (MSVC)
-    target_link_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:/INCREMENTAL>)
-    target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:/ZI>)
-endif ()
-
-target_include_directories(${PROJECT_NAME} PUBLIC .)
-target_compile_definitions(${PROJECT_NAME} PRIVATE QT_MESSAGELOGCONTEXT)
-
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Concurrent StateMachine
-        LinguistTools)
+find_package(Qt6 REQUIRED COMPONENTS
+    Core Widgets OpenGLWidgets Concurrent StateMachine LinguistTools
+)
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
@@ -60,33 +24,45 @@ find_package(srt-audio CONFIG REQUIRED)
 find_package(srt-extract CONFIG REQUIRED)
 find_package(SndFile CONFIG REQUIRED)
 
-find_package(Qt6 COMPONENTS CorePrivate GuiPrivate)
-if (WIN32)
-    find_package(QtWin32DirectManipulateHelper CONFIG REQUIRED)
-endif ()
-
-set(USE_LITE_CONTROLS OFF)
-
-set(_links_icu)
+set(_platform_links)
 if(WIN32)
-    list(APPEND _links_icu icu)
+    list(APPEND _platform_links dwmapi.lib icu)
 elseif(NOT APPLE)
     find_package(ICU COMPONENTS uc REQUIRED)
-    list(APPEND _links_icu ICU::uc)
+    list(APPEND _platform_links ICU::uc)
 endif()
 
 find_path(INTERVAL_TREE_INCLUDE_DIRS "interval-tree/interval_tree.hpp" REQUIRED)
-target_include_directories(${PROJECT_NAME} PUBLIC
-        "$<BUILD_INTERFACE:${INTERVAL_TREE_INCLUDE_DIRS}>"
-)
-target_link_libraries(${PROJECT_NAME} PUBLIC
-        Qt6::Core
-        Qt6::Widgets
-        Qt6::Concurrent
-        Qt6::StateMachine
-        ${PLATFORM_LIB}
-        talcs::Core talcs::Device talcs::Format talcs::Midi talcs::Dspx talcs::Widgets
-        opendspx::converter opendspx::serializer
+
+lite_add_application(${PROJECT_NAME}
+    QT_AUTOGEN
+    SOURCES
+        ${_src}
+        Resources/lite_res.qrc
+    INCLUDE_PRIVATE
+        .
+        ${INTERVAL_TREE_INCLUDE_DIRS}
+    DEFINES_PRIVATE
+        QT_MESSAGELOGCONTEXT
+        NOMINMAX
+        ONNXRUNTIME_ENABLE_CUDA
+        ONNXRUNTIME_ENABLE_DML
+    FEATURES_PRIVATE cxx_std_20
+    QT_LINKS_PRIVATE
+        Core
+        Widgets
+        Concurrent
+        StateMachine
+    LINKS_PRIVATE
+        ${_platform_links}
+        talcs::Core
+        talcs::Device
+        talcs::Format
+        talcs::Midi
+        talcs::Dspx
+        talcs::Widgets
+        opendspx::converter
+        opendspx::serializer
         QWindowKit::Widgets
         qtmediate::Widgets
         curve-util::curve-util
@@ -98,230 +74,62 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         SndFile::sndfile
         dsinfer::dsinfer
         re2::re2
-        ${_links_icu}
 )
 
-if (APPLICATION_ENABLE_BREAKPAD)
+if(APPLE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        MACOSX_BUNDLE ON
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.dseditor.lite"
+        MACOSX_BUNDLE_BUNDLE_NAME "DsEditorLite"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
+        MACOSX_BUNDLE_INFO_STRING "DS Editor Lite"
+        MACOSX_BUNDLE_COPYRIGHT "Copyright (C) 2024"
+    )
+endif()
+
+qm_add_win_rc(${PROJECT_NAME}
+    NAME "Lite"
+    VERSION ${PROJECT_VERSION}
+    DESCRIPTION "DS Editor Lite"
+    COPYRIGHT "Copyright (C) 2024"
+)
+
+# Enable Edit and Continue for MSVC Debug builds.
+if(MSVC)
+    qm_configure_target(${PROJECT_NAME}
+        CCFLAGS $<$<CONFIG:Debug>:/ZI>
+        LDFLAGS $<$<CONFIG:Debug>:/INCREMENTAL>
+    )
+endif()
+
+if(LITE_ENABLE_BREAKPAD)
     find_package(qBreakpad CONFIG REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PRIVATE qBreakpad::qBreakpad)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE APPLICATION_ENABLE_BREAKPAD)
-endif ()
+    qm_configure_target(${PROJECT_NAME}
+        LINKS_PRIVATE qBreakpad::qBreakpad
+        DEFINES_PRIVATE LITE_ENABLE_BREAKPAD
+    )
+endif()
 
-if (WIN32)
-    if (QtWin32DirectManipulateHelper_FOUND)
+if(WIN32)
+    find_package(Qt6 REQUIRED COMPONENTS CorePrivate GuiPrivate)
+    find_package(QtWin32DirectManipulateHelper CONFIG QUIET)
+    if(QtWin32DirectManipulateHelper_FOUND)
         message(STATUS "Building with Direct Manipulation support on Windows")
-        target_link_libraries(${PROJECT_NAME} PRIVATE
-                QtWin32DirectManipulateHelper::Core
+        qm_configure_target(${PROJECT_NAME}
+            LINKS_PRIVATE QtWin32DirectManipulateHelper::Core
+            DEFINES_PRIVATE WITH_DIRECT_MANIPULATION
         )
-        target_compile_definitions(${PROJECT_NAME} PRIVATE WITH_DIRECT_MANIPULATION)
-    else ()
-        message(STATUS "QtWin32DirectManipulateHelper is not found. "
-                "Building without Direct Manipulation support on Windows")
-    endif ()
-endif ()
-
-target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
+    else()
+        message(STATUS "Building without Direct Manipulation support on Windows")
+    endif()
+endif()
 
 qt_add_translations(
-        TARGETS ${PROJECT_NAME}
-        TS_FILES Resources/translate/translation_zh_CN.ts
-        RESOURCE_PREFIX "/i18n"
-        LUPDATE_OPTIONS -no-obsolete
+    TARGETS ${PROJECT_NAME}
+    TS_FILES Resources/translate/translation_zh_CN.ts
+    RESOURCE_PREFIX "/i18n"
+    LUPDATE_OPTIONS -no-obsolete
 )
 
-#if (ONNXRUNTIME_ENABLE_CUDA)
-target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_CUDA)
-#endif()
-
-#if (ONNXRUNTIME_ENABLE_DML)
-target_compile_definitions(${PROJECT_NAME} PRIVATE ONNXRUNTIME_ENABLE_DML)
-#endif()
-
-set_property(TARGET DeployedTargets APPEND PROPERTY TARGETS ${PROJECT_NAME})
-
-# deploy Qt
-
-# "QT_QMAKE_EXECUTABLE" is usually defined by QtCreator.
-if (NOT DEFINED QT_QMAKE_EXECUTABLE)
-    get_target_property(QT_QMAKE_EXECUTABLE Qt::qmake IMPORTED_LOCATION)
-endif ()
-
-if (NOT EXISTS "${QT_QMAKE_EXECUTABLE}")
-    message(WARNING "deploy_qt_runtime: Can't locate the QMake executable.")
-    return()
-endif ()
-
-cmake_path(GET QT_QMAKE_EXECUTABLE PARENT_PATH __qt_bin_dir)
-
-if (WIN32)
-    set(_qt_deploy_executable "windeployqt.exe")
-    find_program(WINDEPLOYQT_EXE ${_qt_deploy_executable} HINTS "${__qt_bin_dir}")
-
-    if (WINDEPLOYQT_EXE)
-        message(STATUS "Found ${_qt_deploy_executable}: ${WINDEPLOYQT_EXE}")
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                COMMAND "${WINDEPLOYQT_EXE}"
-                --verbose 0
-                --translations zh_CN
-                \"$<TARGET_FILE:${PROJECT_NAME}>\"
-                COMMENT "Deploy Qt"
-        )
-    else ()
-        message(WARNING "${_qt_deploy_executable} not found, skipping deploying Qt")
-    endif ()
-elseif (APPLE)
-    find_program(MACDEPLOYQT_EXE macdeployqt HINTS "${__qt_bin_dir}")
-
-    if (MACDEPLOYQT_EXE)
-        message(STATUS "Found macdeployqt: ${MACDEPLOYQT_EXE}")
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                COMMAND "${MACDEPLOYQT_EXE}"
-                \"$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>\"
-                -verbose=0
-                -always-overwrite
-                COMMENT "Deploy Qt"
-        )
-
-        # Fix dylib paths after macdeployqt
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                COMMAND bash "${CMAKE_SOURCE_DIR}/scripts/fix_macos_dylib_paths.sh"
-                \"$<TARGET_BUNDLE_DIR:${PROJECT_NAME}>\"
-                "1"
-                COMMENT "Fix dylib paths"
-        )
-    else ()
-        message(WARNING "macdeployqt not found, skipping deploying Qt")
-    endif ()
-endif ()
-
-# copy dsinfer binaries
-if (APPLE)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            # copy dsinfer plugins
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory
-            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins"
-            "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/PlugIns"
-    )
-
-    install(DIRECTORY
-            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins"
-            DESTINATION "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/PlugIns"
-    )
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            # copy g2p packages
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory
-            "${CMAKE_SOURCE_DIR}/vcpkg/installed/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages"
-            "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/PlugIns/srt-g2p/G2pPackages"
-    )
-    install(DIRECTORY
-            "${CMAKE_SOURCE_DIR}/vcpkg/installed/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages"
-            DESTINATION "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/PlugIns/srt-g2p"
-    )
-elseif (WIN32)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-            "$<TARGET_FILE:cpp-pinyin::cpp-pinyin>"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
-            COMMENT "Deploy G2P plugin runtime dependencies"
-    )
-    install(FILES "$<TARGET_FILE:cpp-pinyin::cpp-pinyin>"
-            DESTINATION "${CMAKE_INSTALL_PREFIX}"
-    )
-
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            # copy dsinfer plugins
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory
-            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/plugins"
-    )
-
-    install(DIRECTORY
-            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins"
-            DESTINATION "${CMAKE_INSTALL_PREFIX}"
-    )
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            # copy g2p packages
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory
-            "${CMAKE_SOURCE_DIR}/vcpkg/installed/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/plugins/srt-g2p/G2pPackages"
-    )
-    install(DIRECTORY
-            "${CMAKE_SOURCE_DIR}/vcpkg/installed/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages"
-            DESTINATION "${CMAKE_INSTALL_PREFIX}/plugins/srt-g2p"
-    )
-elseif (UNIX AND NOT APPLE)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            # copy dsinfer plugins
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory
-            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../lib/plugins"
-
-            # fix RPATH of each plugin .so file
-            # TODO: This is a temporary workaround to let plugins find synthrt and dsinfer (post build),
-            # but we still need to deploy the .so to app lib dir and fix RPATH to make the app self-contained.
-            COMMAND bash "${CMAKE_SOURCE_DIR}/scripts/fix_linux_rpath_recursive.sh"
-            "--normalize"
-            "--pattern=lib*.so"
-            "--except=libonnxruntime*.so"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../lib/plugins"
-            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib"
-    )
-
-    install(DIRECTORY
-            "$<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins"
-            DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
-    )
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            # copy g2p packages
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory
-            "${CMAKE_SOURCE_DIR}/vcpkg/installed/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../lib/plugins/srt-g2p/G2pPackages"
-    )
-    install(DIRECTORY
-            "${CMAKE_SOURCE_DIR}/vcpkg/installed/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages"
-            DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/plugins/srt-g2p"
-    )
-endif ()
-
-if (APPLE)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND
-            ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/Resources
-            $<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/Resources
-    )
-
-    install(
-            DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Resources
-            DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>
-    )
-else ()
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND
-            ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/Resources
-            ${CMAKE_BINARY_DIR}/bin/Resources
-    )
-
-    install(
-            DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Resources
-            DESTINATION .
-    )
-endif ()
-
-# copy FillLyric configs
-if (APPLE)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/Modules/FillLyric/configs"
-            "$<TARGET_BUNDLE_CONTENT_DIR:${PROJECT_NAME}>/MacOS/configs"
-    )
-else ()
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/Modules/FillLyric/configs"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/configs"
-    )
-endif ()
-
-
+lite_deploy_application(${PROJECT_NAME})

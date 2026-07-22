@@ -1,12 +1,12 @@
 #include "CrashHandler.h"
 
-#ifdef APPLICATION_ENABLE_BREAKPAD
+#ifdef LITE_ENABLE_BREAKPAD
 #  include <QApplication>
 #  include <QBreakpadHandler.h>
 #endif
 
 CrashHandler::CrashHandler() {
-#ifdef APPLICATION_ENABLE_BREAKPAD
+#ifdef LITE_ENABLE_BREAKPAD
     m_handler = std::make_unique<QBreakpadHandler>();
     m_handler->setDumpPath(QApplication::applicationDirPath() + "/dumps");
 

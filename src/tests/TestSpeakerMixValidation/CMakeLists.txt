@@ -1,10 +1,7 @@
 project(TestSpeakerMixValidation)
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
-
-add_executable(${PROJECT_NAME}
+lite_add_test(${PROJECT_NAME}
+        SOURCES
         main.cpp
         Stubs.cpp
         ../../app/Model/AppModel/InferPiece.h

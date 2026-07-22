@@ -1,9 +1,7 @@
 project(TestThemeIcons)
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-
-add_executable(${PROJECT_NAME}
+lite_add_test(${PROJECT_NAME}
+        SOURCES
         main.cpp
         Stubs.cpp
         ../../app/UI/Utils/AppColorPalette.cpp

@@ -1,16 +1,10 @@
-project(LitePalette)
+project(LitePalette VERSION ${LITE_VERSION})
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
+file(GLOB_RECURSE _src CONFIGURE_DEPENDS *.h *.cpp)
 
-file(GLOB_RECURSE _src *.h *.cpp)
-
-add_executable(${PROJECT_NAME} ${_src})
-
-target_include_directories(${PROJECT_NAME} PUBLIC .)
-
-target_link_libraries(${PROJECT_NAME} PUBLIC
-        Qt${QT_VERSION_MAJOR}::Core
-        Qt${QT_VERSION_MAJOR}::Widgets
+lite_add_tool(${PROJECT_NAME}
+    SOURCES ${_src}
+    INCLUDE_PRIVATE .
+    FEATURES_PRIVATE cxx_std_20
+    QT_LINKS_PRIVATE Core Widgets
 )

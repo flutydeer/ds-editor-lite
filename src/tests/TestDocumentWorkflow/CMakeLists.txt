@@ -1,8 +1,7 @@
 project(TestDocumentWorkflow)
 
-set(CMAKE_AUTOMOC ON)
-
-add_executable(${PROJECT_NAME}
+lite_add_test(${PROJECT_NAME}
+        SOURCES
         main.cpp
         ../../app/Model/AppModel/LoopSettings.cpp
         ../../app/Model/AppStatus/AppStatus.cpp

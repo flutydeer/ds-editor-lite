@@ -1,10 +1,7 @@
 project(TestSpeakerMix)
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
-
-add_executable(${PROJECT_NAME}
+lite_add_test(${PROJECT_NAME}
+        SOURCES
         main.cpp
         ../../app/Model/AppModel/SpeakerMixData.cpp
         ../../app/Modules/Inference/Models/InferSpeakerMix.cpp

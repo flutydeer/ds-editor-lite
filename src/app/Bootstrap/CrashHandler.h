@@ -6,14 +6,14 @@
 class QBreakpadHandler;
 
 // RAII wrapper around the Breakpad crash handler. When the application is
-// built without APPLICATION_ENABLE_BREAKPAD, construction is a no-op.
+// built without LITE_ENABLE_BREAKPAD, construction is a no-op.
 class CrashHandler {
 public:
     CrashHandler();
     ~CrashHandler();
 
 private:
-#ifdef APPLICATION_ENABLE_BREAKPAD
+#ifdef LITE_ENABLE_BREAKPAD
     std::unique_ptr<QBreakpadHandler> m_handler;
 #endif
 };

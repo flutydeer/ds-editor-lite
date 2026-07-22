@@ -1,8 +1,7 @@
 project(TestUiLanguage)
 
-set(CMAKE_AUTOMOC ON)
-
-add_executable(${PROJECT_NAME}
+lite_add_test(${PROJECT_NAME}
+        SOURCES
         main.cpp
         ../../app/Utils/UiLanguageManager.cpp
         ../../app/Model/AppOptions/Options/GeneralOption.cpp
