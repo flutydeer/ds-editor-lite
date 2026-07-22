@@ -326,11 +326,8 @@ void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, const in
         if (clip->clipType() == Clip::Singing) {
             const auto singingClip = static_cast<SingingClip *>(clip);
             const auto singingView = static_cast<SingingClipView *>(cachedView);
-            connect(
-                singingClip, &SingingClip::singerOrSpeakerChanged, this,
-                [singingClip, singingView] { updateSingingClipDisplay(singingClip, singingView); });
-            connect(singingClip, &SingingClip::speakerMixChanged, this,
-                    [singingClip, singingView](const SpeakerMixModel::SpeakerMixData &) {
+            connect(singingClip, &SingingClip::voiceContextChanged, this,
+                    [singingClip, singingView](const VoiceContextChange &) {
                         updateSingingClipDisplay(singingClip, singingView);
                     });
             connect(singingClip, &SingingClip::defaultLanguageChanged, singingView,
@@ -365,12 +362,9 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     clipView->setDefaultLanguage(clip->defaultLanguage());
     m_tracksScene->addCommonItem(clipView);
     qDebug() << "Singing clip graphics item added to scene" << clipView->id() << clipView->name();
-    connect(clip, &SingingClip::singerOrSpeakerChanged, this,
-            [clip, clipView] { updateSingingClipDisplay(clip, clipView); });
-    connect(clip, &SingingClip::speakerMixChanged, this,
-            [clip, clipView](const SpeakerMixModel::SpeakerMixData &) {
-                updateSingingClipDisplay(clip, clipView);
-            });
+    connect(
+        clip, &SingingClip::voiceContextChanged, this,
+        [clip, clipView](const VoiceContextChange &) { updateSingingClipDisplay(clip, clipView); });
     connect(clip, &SingingClip::defaultLanguageChanged, clipView,
             &SingingClipView::setDefaultLanguage);
     connect(clip, &SingingClip::noteChanged, clipView, &SingingClipView::onNoteListChanged);

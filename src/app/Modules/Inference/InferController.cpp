@@ -277,11 +277,6 @@ void InferControllerPrivate::handleTempoChanged(double tempo) {
 
 void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipInserted(clip);
-    connect(clip, &SingingClip::singerOrSpeakerChanged, this, [clip, this] {
-        clip->removeAllPieces();
-        if (canStartClipInference(*clip))
-            createAndRunGetPronTask(*clip);
-    });
 
     if (!clip->pieces().isEmpty()) {
         // Cross-track move: keep existing pipelines only when their singer/speaker context is
@@ -441,13 +436,24 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
     }
 }
 
-void InferControllerPrivate::handleSpeakerMixChanged(SingingClip *clip) {
+void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange &change,
+                                                       SingingClip *clip) {
     if (!clip)
         return;
 
+    const bool singerChanged = change.before.singer != change.after.singer;
+    const bool speakerChanged = change.before.speaker != change.after.speaker;
+    if (singerChanged || speakerChanged) {
+        clip->removeAllPieces();
+        ensureClipInferenceStarted(*clip);
+        return;
+    }
+
+    if (change.before.speakerMix == change.after.speakerMix)
+        return;
+
     if (clip->pieces().isEmpty()) {
-        if (canStartClipInference(*clip))
-            createAndRunGetPronTask(*clip);
+        ensureClipInferenceStarted(*clip);
         return;
     }
 
@@ -501,6 +507,17 @@ bool InferControllerPrivate::allRequiredModulesReady() const {
 bool InferControllerPrivate::canStartClipInference(const SingingClip &clip) const {
     return allRequiredModulesReady() && !clip.singerInfo().isEmpty() &&
            !clip.singerIdentifier().isEmpty();
+}
+
+void InferControllerPrivate::ensureClipInferenceStarted(SingingClip &clip) {
+    const QPointer<SingingClip> guardedClip(&clip);
+    QTimer::singleShot(0, this, [this, guardedClip] {
+        if (!guardedClip || appModel->findClipById(guardedClip->id()) != guardedClip)
+            return;
+
+        if (canStartClipInference(*guardedClip))
+            createAndRunGetPronTask(*guardedClip);
+    });
 }
 
 void InferControllerPrivate::scheduleRetryAllSingingClips() {

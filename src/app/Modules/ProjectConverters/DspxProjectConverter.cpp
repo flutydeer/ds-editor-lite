@@ -1192,7 +1192,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 // Write clip DS workspace (flags/speaker/language)
                 QJsonObject clipDsWs;
                 clipDsWs["schemaVersion"] = kDsWorkspaceSchemaVersion;
-                const bool useTrackInfo = singingClip->useTrackSingerInfo.get();
+                const bool useTrackInfo = singingClip->usesTrackVoiceContext();
                 clipDsWs["useTrackSingerInfo"] = useTrackInfo;
 
                 auto clipLang = singingClip->defaultLanguage();

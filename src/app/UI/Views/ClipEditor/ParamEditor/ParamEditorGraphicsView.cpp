@@ -300,8 +300,8 @@ void ParamEditorGraphicsView::moveToSingingClipState(SingingClip *clip) {
     connect(clip, &SingingClip::propertyChanged, this,
             &ParamEditorGraphicsView::onClipPropertyChanged);
     connect(clip, &SingingClip::paramChanged, this, &ParamEditorGraphicsView::onParamChanged);
-    connect(clip, &SingingClip::speakerMixChanged, this,
-            &ParamEditorGraphicsView::onSpeakerMixChanged);
+    connect(clip, &SingingClip::voiceContextChanged, this,
+            [this](const VoiceContextChange &) { onSpeakerMixChanged(); });
 }
 
 void ParamEditorGraphicsView::updateSpeakerMixViewData() const {

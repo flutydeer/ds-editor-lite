@@ -19,6 +19,15 @@ struct EffectiveVoiceContext {
     bool operator!=(const EffectiveVoiceContext &other) const {
         return !(*this == other);
     }
+
+    bool hasSameInferenceInput(const EffectiveVoiceContext &other) const {
+        return singer == other.singer && speaker == other.speaker && speakerMix == other.speakerMix;
+    }
+};
+
+struct VoiceContextChange {
+    EffectiveVoiceContext before;
+    EffectiveVoiceContext after;
 };
 
 #endif // EFFECTIVEVOICECONTEXT_H

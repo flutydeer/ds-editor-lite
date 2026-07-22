@@ -30,7 +30,7 @@ protected:
     virtual void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes,
                                    SingingClip *clip);
     virtual void handleParamChanged(ParamInfo::Name name, Param::Type type, SingingClip *clip);
-    virtual void handleSpeakerMixChanged(SingingClip *clip);
+    virtual void handleVoiceContextChanged(const VoiceContextChange &change, SingingClip *clip);
     virtual void handlePiecesChanged(const PieceList &pieces, const PieceList &discardedPieces,
                                      SingingClip *clip);
 

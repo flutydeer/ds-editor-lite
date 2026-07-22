@@ -59,13 +59,10 @@ static void setTrackVoiceContextForClip(Clip *clip, const SingerInfo &singerInfo
 void Track::insertClip(Clip *clip) {
     m_clips.add(clip);
     setTrackVoiceContextForClip(clip, m_singerInfo, m_speakerInfo, m_speakerMixData);
-    connect(this, &Track::singerOrSpeakerChanged, clip, [clip, this] {
-        setTrackVoiceContextForClip(clip, m_singerInfo, m_speakerInfo, m_speakerMixData);
+    connect(this, &Track::voiceContextChanged, clip, [clip](const VoiceContextChange &change) {
+        const auto &context = change.after;
+        setTrackVoiceContextForClip(clip, context.singer, context.speaker, context.speakerMix);
     });
-    connect(this, &Track::speakerMixChanged, clip,
-            [clip, this](const SpeakerMixModel::SpeakerMixData &) {
-                setTrackVoiceContextForClip(clip, m_singerInfo, m_speakerInfo, m_speakerMixData);
-            });
 }
 
 void Track::insertClips(const QList<Clip *> &clips) {
@@ -75,8 +72,7 @@ void Track::insertClips(const QList<Clip *> &clips) {
 }
 
 void Track::removeClip(Clip *clip) {
-    disconnect(this, &Track::singerOrSpeakerChanged, clip, nullptr);
-    disconnect(this, &Track::speakerMixChanged, clip, nullptr);
+    disconnect(this, &Track::voiceContextChanged, clip, nullptr);
     m_clips.remove(clip);
 }
 
@@ -144,10 +140,8 @@ void Track::setVoiceContext(const SingerInfo &singerInfo, const SpeakerInfo &spe
     this->updateDefaultG2pId(m_defaultLanguage);
 
     const auto newContext = voiceContext();
-    if (oldContext.speakerMix != newContext.speakerMix)
-        emit speakerMixChanged(m_speakerMixData);
-    if (oldContext.singer != newContext.singer || oldContext.speaker != newContext.speaker)
-        emit singerOrSpeakerChanged();
+    if (oldContext != newContext)
+        emit voiceContextChanged({oldContext, newContext});
 }
 
 void Track::selectSingleSpeaker(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo) {

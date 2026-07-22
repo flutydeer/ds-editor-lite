@@ -381,10 +381,8 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
         refreshSingerComboPresentation();
         connect(m_cbSinger, &TwoLevelComboBox::currentDataChanged, this,
                 &ClipEditorToolBarViewPrivate::onSingerEdited);
-        connect(m_singingClip, &SingingClip::singerOrSpeakerChanged, this,
-                &ClipEditorToolBarViewPrivate::onClipSingerChanged);
-        connect(m_singingClip, &SingingClip::speakerMixChanged, this,
-                [this](const SpeakerMixData &) { refreshSingerComboPresentation(); });
+        connect(m_singingClip, &SingingClip::voiceContextChanged, this,
+                [this](const VoiceContextChange &) { refreshSingerComboPresentation(); });
 
         connect(m_cbClipLanguage, &LanguageComboBox::currentLanguageChanged, this,
                 &ClipEditorToolBarViewPrivate::onLanguageEdited);
@@ -394,9 +392,7 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
         disconnect(m_cbSinger, &TwoLevelComboBox::currentDataChanged, this,
                    &ClipEditorToolBarViewPrivate::onSingerEdited);
         if (m_singingClip) {
-            disconnect(m_singingClip, &SingingClip::singerOrSpeakerChanged, this,
-                       &ClipEditorToolBarViewPrivate::onClipSingerChanged);
-            disconnect(m_singingClip, &SingingClip::speakerMixChanged, this, nullptr);
+            disconnect(m_singingClip, &SingingClip::voiceContextChanged, this, nullptr);
             disconnect(m_singingClip, &SingingClip::defaultLanguageChanged, this,
                        &ClipEditorToolBarViewPrivate::onClipLanguageChanged);
         }
@@ -405,10 +401,6 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
                    &ClipEditorToolBarViewPrivate::onLanguageEdited);
         m_cbClipLanguage->setLanguages({}, QStringLiteral("unknown"));
     }
-}
-
-void ClipEditorToolBarViewPrivate::onClipSingerChanged() const {
-    refreshSingerComboPresentation();
 }
 
 void ClipEditorToolBarViewPrivate::onSingerEdited() const {
@@ -430,7 +422,7 @@ void ClipEditorToolBarViewPrivate::refreshSingerComboPresentation() const {
     if (!m_singingClip || !m_cbSinger)
         return;
 
-    const bool inherit = m_singingClip->useTrackSingerInfo.get();
+    const bool inherit = m_singingClip->usesTrackVoiceContext();
     m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(), inherit);
     if (const auto text = SpeakerMixDisplayUtils::comboDisplayText(m_singingClip->singerInfo(),
                                                                    m_singingClip->speakerMixData());

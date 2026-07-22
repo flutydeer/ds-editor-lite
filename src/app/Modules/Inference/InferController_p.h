@@ -53,7 +53,7 @@ protected:
     void handleNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes,
                            SingingClip *clip) override;
     void handleParamChanged(ParamInfo::Name name, Param::Type type, SingingClip *clip) override;
-    void handleSpeakerMixChanged(SingingClip *clip) override;
+    void handleVoiceContextChanged(const VoiceContextChange &change, SingingClip *clip) override;
 
 public:
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
@@ -62,6 +62,7 @@ public:
 
     bool allRequiredModulesReady() const;
     bool canStartClipInference(const SingingClip &clip) const;
+    void ensureClipInferenceStarted(SingingClip &clip);
     void scheduleRetryAllSingingClips();
     void retryAllSingingClips();
 

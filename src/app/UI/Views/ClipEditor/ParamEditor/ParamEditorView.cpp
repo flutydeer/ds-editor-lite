@@ -112,13 +112,12 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
 
 void ParamEditorView::setDataContext(SingingClip *clip) {
     if (m_clip)
-        disconnect(m_clip, &SingingClip::speakerMixChanged, this,
-                   &ParamEditorView::refreshSpeakerMixToolBar);
+        disconnect(m_clip, &SingingClip::voiceContextChanged, this, nullptr);
     m_clip = clip;
     m_graphicsView->setDataContext(clip);
     if (m_clip)
-        connect(m_clip, &SingingClip::speakerMixChanged, this,
-                &ParamEditorView::refreshSpeakerMixToolBar);
+        connect(m_clip, &SingingClip::voiceContextChanged, this,
+                [this](const VoiceContextChange &) { refreshSpeakerMixToolBar(); });
     refreshSpeakerMixToolBar();
 }
 
@@ -214,7 +213,7 @@ void ParamEditorView::onEnableDynamicMix() {
 }
 
 void ParamEditorView::onBypassDynamicMix() const {
-    if (!m_clip || m_clip->useTrackSingerInfo.get())
+    if (!m_clip || m_clip->usesTrackVoiceContext())
         return;
 
     auto data = m_clip->speakerMixData();
@@ -226,7 +225,7 @@ void ParamEditorView::onBypassDynamicMix() const {
 }
 
 void ParamEditorView::onResumeDynamicMix() const {
-    if (!m_clip || m_clip->useTrackSingerInfo.get())
+    if (!m_clip || m_clip->usesTrackVoiceContext())
         return;
 
     auto data = m_clip->speakerMixData();
@@ -238,7 +237,7 @@ void ParamEditorView::onResumeDynamicMix() const {
 }
 
 void ParamEditorView::onStopDynamicMix() {
-    if (!m_clip || m_clip->useTrackSingerInfo.get())
+    if (!m_clip || m_clip->usesTrackVoiceContext())
         return;
 
     auto data = m_clip->speakerMixData();
@@ -311,7 +310,7 @@ void ParamEditorView::refreshSpeakerMixEmptyState(const SpeakerMixData &data) {
         return;
     }
 
-    if (m_clip && m_clip->useTrackSingerInfo.get()) {
+    if (m_clip && m_clip->usesTrackVoiceContext()) {
         setSpeakerMixEmptyState(tr("Enable clip dynamic mix?"),
                                 tr("This clip is following the track. Enabling dynamic mix will "
                                    "copy the current track speaker mix to this clip and stop "

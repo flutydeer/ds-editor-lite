@@ -61,7 +61,7 @@ void ProjectPackageResolver::resolveProject() {
             singingClip->setTrackVoiceContext(track->singerInfo(), track->speakerInfo(),
                                               track->speakerMixData());
 
-            if (!singingClip->useTrackSingerInfo.get()) {
+            if (!singingClip->usesTrackVoiceContext()) {
                 const auto ownSinger = resolveSinger(singingClip->ownSingerInfo());
                 const auto ownSpeaker = resolveSpeaker(ownSinger, singingClip->ownSpeakerInfo());
                 if (ownSinger != singingClip->ownSingerInfo() ||

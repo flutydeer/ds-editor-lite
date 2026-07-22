@@ -182,11 +182,9 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     // dangling pointer and crash in QSharedDataPointer's fetch_add.
     connect(track, &QObject::destroyed, this, [this](QObject *) { m_track = nullptr; });
 
-    connect(track, &Track::singerOrSpeakerChanged, this,
-            &TrackControlView::refreshSingerComboPresentation);
+    connect(track, &Track::voiceContextChanged, this,
+            [this](const VoiceContextChange &) { refreshSingerComboPresentation(); });
     connect(track, &Track::defaultLanguageChanged, this, &TrackControlView::setLanguage);
-    connect(track, &Track::speakerMixChanged, this,
-            [this](const SpeakerMixData &) { refreshSingerComboPresentation(); });
 
     // 预设变化时刷新下拉框（如其他轨道保存/删除了同名预设）
     connect(appOptions, &AppOptions::optionsChanged, this, [this](AppOptionsGlobal::Option option) {

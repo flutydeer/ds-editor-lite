@@ -70,6 +70,7 @@ public:
     SingerInfo ownSingerInfo() const;
     SpeakerInfo speakerInfo() const;
     SpeakerInfo ownSpeakerInfo() const;
+    bool usesTrackVoiceContext() const;
     SpeakerMixData speakerMixData() const;
     SpeakerMixData ownSpeakerMixData() const;
     SpeakerMixData trackSpeakerMixData() const;
@@ -93,11 +94,8 @@ public:
 
     ParamInfo params;
 
-    Property<bool> useTrackSingerInfo{true};
-
 signals:
-    void singerOrSpeakerChanged();
-    void speakerMixChanged(const SpeakerMixData &data);
+    void voiceContextChanged(const VoiceContextChange &change);
     void noteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void paramChanged(ParamInfo::Name name, Param::Type type);
     void defaultLanguageChanged(QString language);
@@ -124,7 +122,7 @@ private:
     Property<SpeakerInfo> m_trackSpeakerInfo;
     SpeakerMixData m_ownSpeakerMixData;
     SpeakerMixData m_trackSpeakerMixData;
-    bool m_singerSpeakerBatching = false;
+    Property<bool> m_useTrackSingerInfo{true};
 };
 
 #endif // SINGINGCLIP_H

@@ -28,7 +28,7 @@ SetClipVoiceContextAction::Snapshot
     if (!clip)
         return {};
 
-    return {clip->useTrackSingerInfo.get(), clip->ownSingerInfo(), clip->ownSpeakerInfo(),
+    return {clip->usesTrackVoiceContext(), clip->ownSingerInfo(), clip->ownSpeakerInfo(),
             clip->ownSpeakerMixData()};
 }
 

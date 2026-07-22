@@ -384,7 +384,7 @@ void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex
             singingClip->setTrackVoiceContext(targetTrack->singerInfo(),
                                               targetTrack->speakerInfo(),
                                               targetTrack->speakerMixData());
-            if (!srcSinging->useTrackSingerInfo.get()) {
+            if (!srcSinging->usesTrackVoiceContext()) {
                 singingClip->setOwnSingerAndSpeaker(srcSinging->ownSingerInfo(),
                                                     srcSinging->ownSpeakerInfo());
                 singingClip->setOwnSpeakerMixData(srcSinging->ownSpeakerMixData());

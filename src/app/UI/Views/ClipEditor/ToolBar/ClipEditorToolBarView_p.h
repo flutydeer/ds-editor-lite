@@ -92,7 +92,6 @@ public slots:
     void onClipPropertyChanged() const;
     void onClipLanguageChanged(const QString &language) const;
     void onLanguageEdited(const QString &language) const;
-    void onClipSingerChanged() const;
     void onSingerEdited() const;
 
 private:

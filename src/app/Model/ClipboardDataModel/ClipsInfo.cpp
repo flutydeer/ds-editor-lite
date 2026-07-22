@@ -226,7 +226,7 @@ QJsonObject ClipsInfo::serializeToJson(const ClipsInfo &info) {
             const auto singingClip = static_cast<SingingClip *>(clip);
             obj["type"] = "singing";
             obj["defaultLanguage"] = singingClip->defaultLanguage();
-            const bool useTrackInfo = singingClip->useTrackSingerInfo.get();
+            const bool useTrackInfo = singingClip->usesTrackVoiceContext();
             obj["useTrackSingerInfo"] = useTrackInfo;
             obj["singer"] = serializeSingerInfo(singingClip->ownSingerInfo());
             obj["speaker"] = serializeSpeakerInfo(singingClip->ownSpeakerInfo());
