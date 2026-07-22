@@ -7,6 +7,9 @@
 
 #include "OptionsCard.h"
 
+#include <QHash>
+
+class DividerLine;
 class OptionsCardItem;
 class QVBoxLayout;
 
@@ -24,12 +27,14 @@ public:
     OptionsCardItem *addItem(const QString &title, const QString &description, QWidget *control);
     OptionsCardItem *addItem(const QString &title, const QString &description,
                              const QList<QWidget *> &controls);
+    void setItemVisible(OptionsCardItem *item, bool visible);
 
 private:
     using OptionsCard::card;
     void initUi();
     QString m_title = "Card Title";
     QVBoxLayout *m_cardLayout = nullptr;
+    QHash<OptionsCardItem *, DividerLine *> m_itemDividers;
     int m_itemCount = 0;
 };
 

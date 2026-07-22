@@ -126,16 +126,24 @@ QWidget *InferencePage::createContentWidget() {
     const auto deviceCard = new OptionListCard(tr("Device"));
     deviceCard->addItem(tr("Execution Provider"), tr("App needs a restart to take effect"),
                         m_cbExecutionProvider);
+    OptionsCardItem *gpuItem;
     if (hasAvailableGpu) {
-        deviceCard->addItem(tr("GPU"),
-                            tr("GPUs with less than %1 GiB VRAM are hidden")
-                                .arg(static_cast<double>(kMinGpuVramBytes) / (1024 * 1024 * 1024), 0, 'f', 0),
-                            m_cbDeviceList);
+        gpuItem = deviceCard->addItem(
+            tr("GPU"),
+            tr("GPUs with less than %1 GiB VRAM are hidden")
+                .arg(static_cast<double>(kMinGpuVramBytes) / (1024 * 1024 * 1024), 0, 'f', 0),
+            m_cbDeviceList);
     } else {
-        deviceCard->addItem(
+        gpuItem = deviceCard->addItem(
             tr("GPU"),
             tr("No available GPU found. Please switch the Execution Provider above to CPU."));
     }
+    const auto updateGpuItemVisibility = [this, deviceCard, gpuItem] {
+        deviceCard->setItemVisible(gpuItem, m_cbExecutionProvider->currentText() != "CPU");
+    };
+    connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this,
+            updateGpuItemVisibility);
+    updateGpuItemVisibility();
 
     // Render - Sampling Steps
     m_cbSamplingSteps = new ComboBox();

@@ -21,9 +21,13 @@ OptionListCard::OptionListCard(QString title, QWidget *parent)
 }
 
 OptionsCardItem *OptionListCard::addItem(OptionsCardItem *item) {
-    if (m_itemCount > 0)
-        m_cardLayout->addWidget(new DividerLine(Qt::Horizontal));
+    DividerLine *divider = nullptr;
+    if (m_itemCount > 0) {
+        divider = new DividerLine(Qt::Horizontal);
+        m_cardLayout->addWidget(divider);
+    }
     m_cardLayout->addWidget(item);
+    m_itemDividers.insert(item, divider);
     m_itemCount++;
     return item;
 }
@@ -67,6 +71,16 @@ OptionsCardItem *OptionListCard::addItem(const QString &title, const QString &de
     for (const auto control : controls)
         item->addWidget(control);
     return addItem(item);
+}
+
+void OptionListCard::setItemVisible(OptionsCardItem *item, bool visible) {
+    const auto divider = m_itemDividers.constFind(item);
+    if (divider == m_itemDividers.cend())
+        return;
+
+    if (*divider)
+        (*divider)->setVisible(visible);
+    item->setVisible(visible);
 }
 
 void OptionListCard::initUi() {
