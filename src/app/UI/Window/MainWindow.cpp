@@ -436,9 +436,11 @@ bool MainWindow::setEditorPanelVisibility(const bool trackPanelVisible,
 bool MainWindow::showBottomPanelPage(const QString &pageId) {
     if (!m_bottomPanelView->hasPage(pageId))
         return false;
-    const bool trackPanelVisible = !appStatus->trackPanelCollapsed;
-    if (!setEditorPanelVisibility(trackPanelVisible, true))
-        return false;
+    if (appStatus->bottomPanelCollapsed) {
+        const bool trackPanelVisible = !appStatus->trackPanelCollapsed;
+        if (!setEditorPanelVisibility(trackPanelVisible, true))
+            return false;
+    }
     return m_bottomPanelView->setCurrentPageId(pageId);
 }
 
