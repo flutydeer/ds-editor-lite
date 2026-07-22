@@ -23,9 +23,8 @@ endfunction()
     _lite_find_qt_deploy_tool(<out-var>)
 
     Sets <out-var> to the windeployqt/macdeployqt path, or an empty string when it
-    cannot be found. qm_win_applocal_deps only copies DLLs reachable from the import
-    table, so the Qt plugins (platforms, imageformats, styles) and translations still
-    have to come from the official deploy tool.
+    cannot be found. Qt plugins (platforms, imageformats, styles) and translations
+    are deployed by the official Qt deployment tool.
 ]] #
 function(_lite_find_qt_deploy_tool _out)
     set(${_out} "" PARENT_SCOPE)
@@ -61,9 +60,15 @@ function(_lite_find_qt_deploy_tool _out)
 endfunction()
 
 function(lite_deploy_application _target)
-    qm_import(Filesystem Deploy)
+    qm_import(Filesystem)
 
     _lite_find_qt_deploy_tool(_deploy_tool)
+
+    if(LITE_INSTALL)
+        set(_install_copy_args INSTALL_DIR .)
+    else()
+        set(_install_copy_args SKIP_INSTALL)
+    endif()
 
     # Deploy the Qt runtime first: on macOS the plugins copied below must land inside a
     # bundle macdeployqt has already processed.
@@ -72,6 +77,7 @@ function(lite_deploy_application _target)
             COMMAND "${_deploy_tool}"
                 --verbose 0
                 --translations zh_CN
+                --plugindir "$<TARGET_FILE_DIR:${_target}>/plugins"
                 --no-system-d3d-compiler
                 --no-compiler-runtime
                 --no-opengl-sw
@@ -97,6 +103,7 @@ function(lite_deploy_application _target)
         qm_add_copy_command(${_target}
             SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Resources/
             DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${_target}>/Resources
+            ${_install_copy_args}
         )
         qm_add_copy_command(${_target}
             SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Modules/FillLyric/configs/
@@ -107,7 +114,7 @@ function(lite_deploy_application _target)
         qm_add_copy_command(${_target}
             SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Resources/
             DESTINATION Resources
-            INSTALL_DIR .
+            ${_install_copy_args}
         )
         qm_add_copy_command(${_target}
             SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Modules/FillLyric/configs/
@@ -120,92 +127,66 @@ function(lite_deploy_application _target)
         ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages)
 
     if(WIN32)
-        qm_win_applocal_deps(${_target})
-        add_custom_command(TARGET ${_target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_FILE:cpp-pinyin::cpp-pinyin>
-                $<TARGET_FILE_DIR:${_target}>
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-                $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins
-                $<TARGET_FILE_DIR:${_target}>/plugins
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-                ${_g2p_packages}
-                $<TARGET_FILE_DIR:${_target}>/plugins/srt-g2p/G2pPackages
-            COMMENT "Deploy application runtime dependencies"
+        qm_add_copy_command(${_target}
+            SOURCES $<TARGET_FILE:cpp-pinyin::cpp-pinyin>
+            DESTINATION .
+            ${_install_copy_args}
+        )
+        qm_add_copy_command(${_target}
+            SOURCES $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins/
+            DESTINATION plugins
+            ${_install_copy_args}
+        )
+        qm_add_copy_command(${_target}
+            SOURCES ${_g2p_packages}/
+            DESTINATION plugins/srt-g2p/G2pPackages
+            ${_install_copy_args}
         )
     elseif(APPLE)
-        add_custom_command(TARGET ${_target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-                $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins
-                $<TARGET_BUNDLE_CONTENT_DIR:${_target}>/PlugIns
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-                ${_g2p_packages}
-                $<TARGET_BUNDLE_CONTENT_DIR:${_target}>/PlugIns/srt-g2p/G2pPackages
-            COMMENT "Deploy application runtime dependencies"
+        qm_add_copy_command(${_target}
+            SOURCES $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins/
+            DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${_target}>/PlugIns
+            ${_install_copy_args}
+        )
+        qm_add_copy_command(${_target}
+            SOURCES ${_g2p_packages}/
+            DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${_target}>/PlugIns/srt-g2p/G2pPackages
+            ${_install_copy_args}
         )
     elseif(UNIX)
+        qm_add_copy_command(${_target}
+            SOURCES $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins/
+            DESTINATION $<TARGET_FILE_DIR:${_target}>/../lib/plugins
+            ${_install_copy_args}
+        )
+        qm_add_copy_command(${_target}
+            SOURCES ${_g2p_packages}/
+            DESTINATION $<TARGET_FILE_DIR:${_target}>/../lib/plugins/srt-g2p/G2pPackages
+            ${_install_copy_args}
+        )
         add_custom_command(TARGET ${_target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-                $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins
-                $<TARGET_FILE_DIR:${_target}>/../lib/plugins
             COMMAND bash ${LITE_SOURCE_DIR}/scripts/fix_linux_rpath_recursive.sh
                 --normalize --pattern=lib*.so --except=libonnxruntime*.so
                 $<TARGET_FILE_DIR:${_target}>/../lib/plugins
                 $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-                ${_g2p_packages}
-                $<TARGET_FILE_DIR:${_target}>/../lib/plugins/srt-g2p/G2pPackages
-            COMMENT "Deploy application runtime dependencies"
+            COMMENT "Fix deployed plugin RPATHs"
         )
     endif()
 
-    if(LITE_INSTALL)
-        _lite_install_application(${_target} "${_deploy_tool}" "${_g2p_packages}")
-    endif()
-endfunction()
-
-#[[
-    Install the runtime dependencies that POST_BUILD copies into the build tree.
-
-    The build-tree copies above are not visible to install(), so the same payload
-    (dsinfer plugins, G2P packages, the Qt runtime) has to be declared again here.
-]] #
-function(_lite_install_application _target _deploy_tool _g2p_packages)
-    set(_dsinfer_plugins $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins)
-
-    if(APPLE)
-        install(DIRECTORY ${_dsinfer_plugins}
-            DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${_target}>/PlugIns
-        )
-        install(DIRECTORY ${_g2p_packages}
-            DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${_target}>/PlugIns/srt-g2p
-        )
-        return()
-    endif()
-
-    if(WIN32)
-        install(FILES $<TARGET_FILE:cpp-pinyin::cpp-pinyin> DESTINATION .)
-        install(DIRECTORY ${_dsinfer_plugins} DESTINATION .)
-        install(DIRECTORY ${_g2p_packages} DESTINATION plugins/srt-g2p)
-    else()
-        install(DIRECTORY ${_dsinfer_plugins} DESTINATION lib)
-        install(DIRECTORY ${_g2p_packages} DESTINATION lib/plugins/srt-g2p)
-    endif()
-
-    if(_deploy_tool AND WIN32)
+    if(LITE_INSTALL AND _deploy_tool AND WIN32)
         install(CODE "
             execute_process(
                 COMMAND \"${_deploy_tool}\"
-                    --libdir \"\${CMAKE_INSTALL_PREFIX}\"
-                    --plugindir \"\${CMAKE_INSTALL_PREFIX}/plugins\"
+                    --libdir \"\${CMAKE_INSTALL_PREFIX}/${LITE_INSTALL_RUNTIME_DIR}\"
+                    --plugindir \"\${CMAKE_INSTALL_PREFIX}/${LITE_INSTALL_RUNTIME_DIR}/plugins\"
                     --translations zh_CN
                     --no-system-d3d-compiler
                     --no-compiler-runtime
                     --no-opengl-sw
                     --force
                     --verbose 0
-                    \"\${CMAKE_INSTALL_PREFIX}/$<TARGET_FILE_NAME:${_target}>\"
-                WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}\"
+                    \"\${CMAKE_INSTALL_PREFIX}/${LITE_INSTALL_RUNTIME_DIR}/$<TARGET_FILE_NAME:${_target}>\"
+                WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}/${LITE_INSTALL_RUNTIME_DIR}\"
             )
         ")
     endif()

@@ -14,13 +14,6 @@ option(LITE_BUILD_TESTS "Build test targets" OFF)
 option(LITE_ENABLE_BREAKPAD "Enable breakpad for crash reporting" OFF)
 option(LITE_INSTALL "Install the project" OFF)
 
-# CMake silently ignores unknown -D arguments, so a stale APPLICATION_ENABLE_BREAKPAD
-# would turn crash reporting off without any diagnostic. Honour it and warn instead.
-if(DEFINED APPLICATION_ENABLE_BREAKPAD)
-    message(WARNING "APPLICATION_ENABLE_BREAKPAD is deprecated, use LITE_ENABLE_BREAKPAD.")
-    set(LITE_ENABLE_BREAKPAD ${APPLICATION_ENABLE_BREAKPAD})
-endif()
-
 # ----------------------------------
 # CMake Settings
 # ----------------------------------
