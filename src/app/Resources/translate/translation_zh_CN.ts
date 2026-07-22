@@ -2219,6 +2219,11 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <translation>默认</translation>
     </message>
     <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="85"/>
+        <source>Detecting...</source>
+        <translation>正在检测...</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="126"/>
         <source>Device</source>
         <translation>设备</translation>
@@ -2248,6 +2253,11 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="137"/>
         <source>No available GPU found. Please switch the Execution Provider above to CPU.</source>
         <translation>未找到可用的 GPU。请将上方的执行提供程序切换为 CPU。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="121"/>
+        <source>No available GPU found</source>
+        <translation>未找到可用的 GPU</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="189"/>

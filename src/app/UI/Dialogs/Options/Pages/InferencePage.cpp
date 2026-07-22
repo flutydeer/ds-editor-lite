@@ -8,6 +8,7 @@
 #include "UI/Controls/ComboBox.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Controls/OptionListCard.h"
+#include "UI/Controls/OptionsCardItem.h"
 #include "UI/Controls/SeekBarSpinboxGroup.h"
 #include "UI/Controls/DoubleSeekBarSpinboxGroup.h"
 #include "UI/Controls/SvsSeekbar.h"
@@ -20,30 +21,131 @@
 #include <synthrt/SVS/SingerContrib.h>
 
 #include <QDir>
+#include <QSignalBlocker>
 #include <QStandardItemModel>
 #include <QTreeView>
 #include <QVBoxLayout>
+#include <qtconcurrentrun.h>
 
 enum CustomRole {
     GpuInfoRole = Qt::UserRole,
     IsDefaultGpuRole = Qt::UserRole + 1,
 };
 
-InferencePage::InferencePage(QWidget *parent) : IOptionPage(parent) {
+InferencePage::InferencePage(QWidget *parent)
+    : IOptionPage(parent), m_gpuDetectionWatcher(new QFutureWatcher<QList<GpuInfo>>(this)) {
+    connect(m_gpuDetectionWatcher, &QFutureWatcher<QList<GpuInfo>>::finished, this, [this] {
+        const auto detectedProvider = m_activeGpuProvider;
+        m_activeGpuProvider.clear();
+
+        if (detectedProvider == m_requestedGpuProvider &&
+            detectedProvider == m_cbExecutionProvider->currentText()) {
+            applyGpuList(m_gpuDetectionWatcher->result());
+        }
+
+        if (m_requestedGpuProvider != QStringLiteral("CPU") &&
+            m_requestedGpuProvider != detectedProvider) {
+            startGpuDetection(m_requestedGpuProvider);
+        }
+    });
     initializePage();
+}
+
+void InferencePage::requestGpuDetection() {
+    const auto provider = m_cbExecutionProvider->currentText();
+    m_requestedGpuProvider = provider;
+
+    const bool needsGpu = provider != QStringLiteral("CPU");
+    m_deviceCard->setItemVisible(m_gpuItem, needsGpu);
+    if (!needsGpu) {
+        return;
+    }
+
+    showGpuDetectionPending();
+    if (m_activeGpuProvider.isEmpty()) {
+        startGpuDetection(provider);
+    }
+}
+
+void InferencePage::startGpuDetection(const QString &provider) {
+    m_activeGpuProvider = provider;
+    m_gpuDetectionWatcher->setFuture(QtConcurrent::run([provider] {
+        if (provider == QStringLiteral("DirectML")) {
+            return DmlGpuUtils::getGpuList();
+        }
+        if (provider == QStringLiteral("CUDA")) {
+            return CudaGpuUtils::getGpuList();
+        }
+        return QList<GpuInfo>{};
+    }));
+}
+
+void InferencePage::showGpuDetectionPending() {
+    const QSignalBlocker blocker(m_cbDeviceList);
+    m_cbDeviceList->clear();
+    m_cbDeviceList->addItem(tr("Detecting..."));
+    m_cbDeviceList->setEnabled(false);
+    m_gpuItem->setDescription(
+        tr("GPUs with less than %1 GiB VRAM are hidden")
+            .arg(static_cast<double>(kMinGpuVramBytes) / (1024 * 1024 * 1024), 0, 'f', 0));
+}
+
+void InferencePage::applyGpuList(const QList<GpuInfo> &deviceList) {
+    const QSignalBlocker blocker(m_cbDeviceList);
+    m_cbDeviceList->clear();
+    m_cbDeviceList->addItem(tr("Default"));
+    m_cbDeviceList->setItemData(0, QVariant::fromValue<GpuInfo>({-1}), GpuInfoRole);
+    m_cbDeviceList->setItemData(0, true, IsDefaultGpuRole);
+
+    const auto option = appOptions->inference();
+    int selectedIndex = 0;
+    for (const auto &device : deviceList) {
+        if (device.memory < kMinGpuVramBytes) {
+            continue;
+        }
+
+        const int currentIndex = m_cbDeviceList->count();
+        const auto displayText =
+            QStringLiteral("%1 (%2 GiB)")
+                .arg(device.description)
+                .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
+        m_cbDeviceList->addItem(displayText);
+        m_cbDeviceList->setItemData(currentIndex, QVariant::fromValue(device), GpuInfoRole);
+        m_cbDeviceList->setItemData(currentIndex, false, IsDefaultGpuRole);
+        if (!option->selectedGpuId.isEmpty() && device.deviceId == option->selectedGpuId) {
+            selectedIndex = currentIndex;
+        }
+    }
+
+    if (m_cbDeviceList->count() == 1) {
+        m_cbDeviceList->clear();
+        m_cbDeviceList->addItem(tr("No available GPU found"));
+        m_cbDeviceList->setEnabled(false);
+        m_gpuItem->setDescription(
+            tr("No available GPU found. Please switch the Execution Provider above to CPU."));
+        return;
+    }
+
+    m_cbDeviceList->setCurrentIndex(selectedIndex);
+    m_cbDeviceList->setEnabled(true);
+    m_gpuItem->setDescription(
+        tr("GPUs with less than %1 GiB VRAM are hidden")
+            .arg(static_cast<double>(kMinGpuVramBytes) / (1024 * 1024 * 1024), 0, 'f', 0));
 }
 
 void InferencePage::modifyOption() {
     const auto option = appOptions->inference();
 
     option->executionProvider = m_cbExecutionProvider->currentText();
-    if (m_cbDeviceList->currentData(IsDefaultGpuRole).toBool() == true) {
-        option->selectedGpuIndex = -1;
-        option->selectedGpuId = {};
-    } else {
-        const GpuInfo &gpuInfo = m_cbDeviceList->currentData(GpuInfoRole).value<GpuInfo>();
-        option->selectedGpuIndex = gpuInfo.index;
-        option->selectedGpuId = gpuInfo.deviceId;
+    if (option->executionProvider != QStringLiteral("CPU") && m_cbDeviceList->isEnabled()) {
+        if (m_cbDeviceList->currentData(IsDefaultGpuRole).toBool() == true) {
+            option->selectedGpuIndex = -1;
+            option->selectedGpuId = {};
+        } else {
+            const GpuInfo &gpuInfo = m_cbDeviceList->currentData(GpuInfoRole).value<GpuInfo>();
+            option->selectedGpuIndex = gpuInfo.index;
+            option->selectedGpuId = gpuInfo.deviceId;
+        }
     }
     option->samplingSteps = m_cbSamplingSteps->currentText().toInt();
     option->depth = m_dsDepthSlider->spinbox->value();
@@ -69,81 +171,26 @@ QWidget *InferencePage::createContentWidget() {
         m_cbExecutionProvider->setCurrentIndex(epIndexDirectML);
     else if (option->executionProvider == "CUDA")
         m_cbExecutionProvider->setCurrentIndex(epIndexCuda);
-    connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this,
-            &InferencePage::modifyOption);
+
+    // Device - GPU
+    m_cbDeviceList = new ComboBox();
+    m_cbDeviceList->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    connect(m_cbDeviceList, &ComboBox::currentIndexChanged, this, &InferencePage::modifyOption);
+
+    // Device
+    m_deviceCard = new OptionListCard(tr("Device"));
+    m_deviceCard->addItem(tr("Execution Provider"), tr("App needs a restart to take effect"),
+                          m_cbExecutionProvider);
+    m_gpuItem = m_deviceCard->addItem(tr("GPU"), QString{}, m_cbDeviceList);
     connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this, [this] {
+        requestGpuDetection();
+        modifyOption();
         const auto message = tr(
             "The settings will take effect after restarting the app. Do you want to restart now?");
         const auto dlg = new RestartDialog(message, true, this);
         dlg->show();
     });
-
-    // Device - GPU
-    m_cbDeviceList = new ComboBox();
-    auto deviceList = [&]() -> QList<GpuInfo> {
-        if (option->executionProvider == "DirectML") {
-            return DmlGpuUtils::getGpuList();
-        }
-        if (option->executionProvider == "CUDA") {
-            return CudaGpuUtils::getGpuList();
-        }
-        return {};
-    }();
-
-    m_cbDeviceList->insertItem(0, tr("Default"));
-    m_cbDeviceList->setItemData(0, QVariant::fromValue<GpuInfo>({-1}), GpuInfoRole);
-    m_cbDeviceList->setItemData(0, true, IsDefaultGpuRole);
-
-    bool hasChosenDevice = false;
-
-    for (const auto &device : std::as_const(deviceList)) {
-        if (device.memory < kMinGpuVramBytes)
-            continue;
-        const int currentIndex = m_cbDeviceList->count();
-        auto displayText =
-            QStringLiteral("%1 (%2 GiB)")
-            .arg(device.description)
-            .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
-        m_cbDeviceList->insertItem(currentIndex, displayText);
-        m_cbDeviceList->setItemData(currentIndex, QVariant::fromValue<GpuInfo>(device),
-                                    GpuInfoRole);
-        m_cbDeviceList->setItemData(currentIndex, false, IsDefaultGpuRole);
-        if (!hasChosenDevice) {
-            if (device.deviceId == appOptions->inference()->selectedGpuId) {
-                m_cbDeviceList->setCurrentIndex(currentIndex);
-                hasChosenDevice = true;
-            }
-        }
-    }
-    if (const auto index_ = m_cbDeviceList->findData(option->selectedGpuIndex); index_ >= 0) {
-        m_cbDeviceList->setCurrentIndex(index_);
-    }
-    connect(m_cbDeviceList, &ComboBox::currentIndexChanged, this, &InferencePage::modifyOption);
-
-    const bool hasAvailableGpu = m_cbDeviceList->count() > 1;
-
-    // Device
-    const auto deviceCard = new OptionListCard(tr("Device"));
-    deviceCard->addItem(tr("Execution Provider"), tr("App needs a restart to take effect"),
-                        m_cbExecutionProvider);
-    OptionsCardItem *gpuItem;
-    if (hasAvailableGpu) {
-        gpuItem = deviceCard->addItem(
-            tr("GPU"),
-            tr("GPUs with less than %1 GiB VRAM are hidden")
-                .arg(static_cast<double>(kMinGpuVramBytes) / (1024 * 1024 * 1024), 0, 'f', 0),
-            m_cbDeviceList);
-    } else {
-        gpuItem = deviceCard->addItem(
-            tr("GPU"),
-            tr("No available GPU found. Please switch the Execution Provider above to CPU."));
-    }
-    const auto updateGpuItemVisibility = [this, deviceCard, gpuItem] {
-        deviceCard->setItemVisible(gpuItem, m_cbExecutionProvider->currentText() != "CPU");
-    };
-    connect(m_cbExecutionProvider, &ComboBox::currentIndexChanged, this,
-            updateGpuItemVisibility);
-    updateGpuItemVisibility();
+    requestGpuDetection();
 
     // Render - Sampling Steps
     m_cbSamplingSteps = new ComboBox();
@@ -392,7 +439,7 @@ QWidget *InferencePage::createContentWidget() {
 
     // Main Layout
     const auto mainLayout = new QVBoxLayout();
-    mainLayout->addWidget(deviceCard, 0, Qt::AlignTop);
+    mainLayout->addWidget(m_deviceCard, 0, Qt::AlignTop);
     mainLayout->addWidget(renderCard, 0, Qt::AlignTop);
     mainLayout->addWidget(debugCard, 1, Qt::AlignTop);
     mainLayout->setContentsMargins({});
