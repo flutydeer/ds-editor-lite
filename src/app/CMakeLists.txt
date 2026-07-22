@@ -92,7 +92,7 @@ qm_add_win_rc(${PROJECT_NAME}
     NAME "Lite"
     VERSION ${PROJECT_VERSION}
     DESCRIPTION "DS Editor Lite"
-    COPYRIGHT "Copyright (C) 2024"
+    COPYRIGHT "Copyright (C) 2022-2024 OpenVPI"
 )
 
 # Enable Edit and Continue for MSVC Debug builds.
