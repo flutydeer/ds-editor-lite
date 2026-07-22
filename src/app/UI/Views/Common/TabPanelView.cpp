@@ -12,6 +12,8 @@
 #include <QVBoxLayout>
 #include <QEvent>
 
+#include <algorithm>
+
 TabPanelView::TabPanelView(AppGlobal::PanelType type, QWidget *parent) : PanelView(type, parent) {
     setAttribute(Qt::WA_StyledBackground);
 
@@ -57,6 +59,36 @@ void TabPanelView::registerPage(TabPanelPage *page) {
         onSelectionChanged(0);
 }
 
+bool TabPanelView::hasPage(const QString &pageId) const {
+    return std::any_of(m_pages.cbegin(), m_pages.cend(),
+                       [&pageId](const TabPanelPage *page) { return page->tabId() == pageId; });
+}
+
+QString TabPanelView::currentPageId() const {
+    if (m_currentIndex < 0 || m_currentIndex >= m_pages.size())
+        return {};
+    return m_pages.at(m_currentIndex)->tabId();
+}
+
+AppGlobal::PanelType TabPanelView::currentPagePanelType() const {
+    if (m_currentIndex < 0 || m_currentIndex >= m_pages.size())
+        return AppGlobal::Generic;
+    return m_pages.at(m_currentIndex)->panelType();
+}
+
+bool TabPanelView::setCurrentPageId(const QString &pageId) {
+    for (int i = 0; i < m_pages.size(); ++i) {
+        if (m_pages.at(i)->tabId() != pageId)
+            continue;
+        if (m_tabPanelTitleBar->tabBar()->currentIndex() == i)
+            onSelectionChanged(i);
+        else
+            m_tabPanelTitleBar->tabBar()->setCurrentIndex(i);
+        return true;
+    }
+    return false;
+}
+
 void TabPanelView::onSelectionChanged(int index) {
     if (index < 0 || index >= m_pages.size()) {
         m_currentIndex = -1;
@@ -68,6 +100,7 @@ void TabPanelView::onSelectionChanged(int index) {
     m_tabPanelTitleBar->toolBar()->setCurrentWidget(page->toolBar());
     updateToolBarVisibility(page);
     m_pageContent->setCurrentIndex(index);
+    emit currentPageChanged(page->tabId(), page->panelType());
 }
 
 void TabPanelView::onToolBarVisibilityChanged() {

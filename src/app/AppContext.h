@@ -23,6 +23,7 @@ class AudioDecodingController;
 class ClipboardController;
 class TrackController;
 class ClipController;
+class EditorViewController;
 class PitchExtractController;
 class MidiExtractController;
 class EditSessionManager;
@@ -76,6 +77,7 @@ public:
     ClipboardController *m_clipboardController = nullptr;
     TrackController *m_trackController = nullptr;
     ClipController *m_clipController = nullptr;
+    EditorViewController *m_editorViewController = nullptr;
     PitchExtractController *m_pitchExtractController = nullptr;
     MidiExtractController *m_midiExtractController = nullptr;
     EditSessionManager *m_editSessionManager = nullptr;

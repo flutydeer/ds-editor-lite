@@ -7,6 +7,7 @@
 
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Track.h"
+#include "Interface/EditorViewState.h"
 #include "UI/Views/Common/PanelView.h"
 
 
@@ -27,8 +28,12 @@ class TrackEditorView final : public PanelView {
 
 public:
     explicit TrackEditorView(QWidget *parent = nullptr);
+    ~TrackEditorView() override;
 
     AbstractClipView *findClipItemById(int id);
+    [[nodiscard]] TrackPanelViewState viewState() const;
+    bool centerAt(double tick, double trackIndex) const;
+    bool setViewScale(double horizontalScale, double verticalScale) const;
 
 public slots:
     void onModelChanged();

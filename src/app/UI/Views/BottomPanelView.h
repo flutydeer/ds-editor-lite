@@ -7,11 +7,18 @@
 
 #include "UI/Views/Common/TabPanelView.h"
 
+class ClipEditorView;
+
 class BottomPanelView : public TabPanelView {
     Q_OBJECT
 
 public:
     explicit BottomPanelView(QWidget *parent = nullptr);
+    ~BottomPanelView() override;
+    [[nodiscard]] ClipEditorView *clipEditorView() const;
+
+private:
+    ClipEditorView *m_clipEditorView;
 };
 
-#endif //BOTTOMPANELVIEW_H
+#endif // BOTTOMPANELVIEW_H

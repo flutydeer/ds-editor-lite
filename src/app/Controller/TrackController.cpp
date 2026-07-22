@@ -5,12 +5,13 @@
 #include "TrackController.h"
 
 #include "Actions/AppModel/Clip/ClipActions.h"
-#include "ClipController.h"
+#include "EditorViewController.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/AudioClip.h"
 #include "Model/AppModel/AudioInfoModel.h"
+#include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -206,7 +207,7 @@ void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &ar
         a->execute();
         historyManager->record(a);
         if (appStatus->activeClipId == args.id)
-            clipController->notifyActiveClipTrackChanged();
+            editorViewController->refreshActiveClipTrackPresentation();
         return;
     }
 

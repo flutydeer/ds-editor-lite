@@ -13,7 +13,6 @@
 #include "Actions/AppModel/Tempo/TempoActions.h"
 #include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
 #include "Interface/IMainWindow.h"
-#include "Interface/IPanel.h"
 #include "Model/AppModel/Track.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -81,14 +80,6 @@ void AppController::editMasterControl(const TrackControl &control) {
     historyManager->record(actions);
 }
 
-void AppController::setActivePanel(const AppGlobal::PanelType panelType) {
-    Q_D(AppController);
-    for (const auto panel : d->m_panels)
-        panel->setPanelActive(panel->panelType() == panelType);
-    d->m_activePanel = panelType;
-    emit activePanelChanged(panelType);
-}
-
 void AppController::onUndoRedoChanged(const bool canUndo, const QString &undoActionName,
                                       const bool canRedo, const QString &redoActionName) {
     Q_D(AppController);
@@ -113,17 +104,6 @@ void AppController::restart() {
     qDebug() << "restart";
     Q_D(AppController);
     d->m_mainWindow->restart();
-}
-
-void AppController::registerPanel(IPanel *panel) {
-    Q_D(AppController);
-    d->m_panels.append(panel);
-}
-
-void AppController::setTrackAndClipPanelCollapsed(const bool trackCollapsed,
-                                                  const bool clipCollapsed) {
-    Q_D(AppController);
-    d->m_mainWindow->setTrackAndClipPanelCollapsed(trackCollapsed, clipCollapsed);
 }
 
 void AppControllerPrivate::initializeModules() {

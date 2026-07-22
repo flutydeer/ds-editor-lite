@@ -4,8 +4,8 @@
 
 #include "ClipEditorView.h"
 
-#include "Controller/AppController.h"
 #include "Controller/ClipController.h"
+#include "Controller/EditorViewController.h"
 #include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"
@@ -22,6 +22,8 @@
 #include <QEvent>
 #include <QMouseEvent>
 #include <QVBoxLayout>
+
+#include <cmath>
 
 QString ClipEditorView::tabId() const {
     return "ClipEditor";
@@ -69,7 +71,6 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
     mainLayout->setContentsMargins({1, 0, 1, 1});
     setLayout(mainLayout);
 
-    clipController->setView(this);
     installEventFilter(this);
 
     connect(m_toolbarView, &ClipEditorToolBarView::editModeChanged,
@@ -77,39 +78,58 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
 
     connect(appModel, &AppModel::modelChanged, this, &ClipEditorView::onModelChanged);
     connect(appStatus, &AppStatus::activeClipIdChanged, this, &ClipEditorView::onActiveClipChanged);
-    connect(clipController, &ClipController::activeClipTrackChanged, this, [this] {
-        Track *trackRef = nullptr;
-        appModel->findClipById(appStatus->activeClipId, trackRef);
-        if (!trackRef)
-            return;
-        disconnect(m_trackColorConnection);
-        NoteView::setTrackColorIndex(trackRef->colorIndex());
-        m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
-        m_pianoRollEditorView->pianoRollView()->update();
-        m_pianoRollEditorView->paramEditorView()->update();
-        m_trackColorConnection = connect(trackRef, &Track::propertyChanged, this, [this, trackRef] {
-            NoteView::setTrackColorIndex(trackRef->colorIndex());
-            m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
-            m_pianoRollEditorView->pianoRollView()->update();
-            m_pianoRollEditorView->paramEditorView()->update();
-        });
-    });
-    connect(clipController, &ClipController::liveTrackColorChanged, this, [this](int colorIndex) {
-        NoteView::setTrackColorIndex(colorIndex);
-        m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(colorIndex);
-        m_pianoRollEditorView->pianoRollView()->update();
-        m_pianoRollEditorView->paramEditorView()->update();
-    });
 }
 
-void ClipEditorView::centerAt(const double tick, const double keyIndex) {
-    m_pianoRollEditorView->pianoRollView()->graphicsView()->setViewportCenterAt(tick, keyIndex);
+PianoRollViewState ClipEditorView::viewState() const {
+    const auto graphicsView = m_pianoRollEditorView->pianoRollView()->graphicsView();
+    return {
+        .centerTick = (graphicsView->startTick() + graphicsView->endTick()) / 2,
+        .centerKeyIndex = graphicsView->centerKeyIndex(),
+        .horizontalScale = graphicsView->scaleX(),
+        .verticalScale = graphicsView->scaleY(),
+        .editMode = m_toolbarView->editMode(),
+    };
 }
 
-void ClipEditorView::centerAt(const double startTick, const double length, const double keyIndex) {
-    const auto centerTick = startTick + length / 2;
-    m_pianoRollEditorView->pianoRollView()->graphicsView()->setViewportCenterAt(centerTick,
-                                                                                keyIndex);
+bool ClipEditorView::supportsEditMode(const EditorViewGlobal::PianoRollEditMode mode) const {
+    return m_toolbarView->supportsEditMode(mode);
+}
+
+bool ClipEditorView::centerAt(const double tick, const double keyIndex) const {
+    if (!std::isfinite(tick) || !std::isfinite(keyIndex))
+        return false;
+    const auto graphicsView = m_pianoRollEditorView->pianoRollView()->graphicsView();
+    graphicsView->stopViewportAnimations();
+    graphicsView->setViewportCenterAt(tick, keyIndex, false);
+    return true;
+}
+
+bool ClipEditorView::setViewScale(const double horizontalScale, const double verticalScale) const {
+    const auto previousState = viewState();
+    const auto graphicsView = m_pianoRollEditorView->pianoRollView()->graphicsView();
+    if (!graphicsView->setViewportScale(horizontalScale, verticalScale))
+        return false;
+    return centerAt(previousState.centerTick, previousState.centerKeyIndex);
+}
+
+bool ClipEditorView::setEditMode(const EditorViewGlobal::PianoRollEditMode mode) {
+    return m_toolbarView->setEditMode(mode);
+}
+
+void ClipEditorView::refreshActiveClipTrackPresentation() {
+    Track *trackRef = nullptr;
+    appModel->findClipById(appStatus->activeClipId, trackRef);
+    if (!trackRef)
+        return;
+
+    disconnect(m_trackColorConnection);
+    applyTrackColor(trackRef->colorIndex());
+    m_trackColorConnection = connect(trackRef, &Track::propertyChanged, this,
+                                     [this, trackRef] { applyTrackColor(trackRef->colorIndex()); });
+}
+
+void ClipEditorView::previewActiveClipTrackColor(const int colorIndex) const {
+    applyTrackColor(colorIndex);
 }
 
 void ClipEditorView::onModelChanged() {
@@ -126,13 +146,9 @@ void ClipEditorView::onActiveClipChanged(const int clipId) {
     disconnect(m_trackColorConnection);
 
     if (trackRef) {
-        NoteView::setTrackColorIndex(trackRef->colorIndex());
-        m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
+        applyTrackColor(trackRef->colorIndex());
         m_trackColorConnection = connect(trackRef, &Track::propertyChanged, this, [this, trackRef] {
-            NoteView::setTrackColorIndex(trackRef->colorIndex());
-            m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(trackRef->colorIndex());
-            m_pianoRollEditorView->pianoRollView()->update();
-            m_pianoRollEditorView->paramEditorView()->update();
+            applyTrackColor(trackRef->colorIndex());
         });
     }
 
@@ -152,7 +168,7 @@ void ClipEditorView::onActiveClipChanged(const int clipId) {
 
 bool ClipEditorView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QMouseEvent::MouseButtonPress)
-        appController->setActivePanel(AppGlobal::ClipEditor);
+        editorViewController->setActivePanel(AppGlobal::ClipEditor);
     return QWidget::eventFilter(watched, event);
 }
 
@@ -181,6 +197,13 @@ void ClipEditorView::moveToNullClipState() const {
 
 void ClipEditorView::reset() {
     onActiveClipChanged(-1);
+}
+
+void ClipEditorView::applyTrackColor(const int colorIndex) const {
+    NoteView::setTrackColorIndex(colorIndex);
+    m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(colorIndex);
+    m_pianoRollEditorView->pianoRollView()->update();
+    m_pianoRollEditorView->paramEditorView()->update();
 }
 
 void ClipEditorView::changeEvent(QEvent *event) {

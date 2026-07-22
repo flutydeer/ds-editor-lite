@@ -38,7 +38,7 @@ public:
 
     // Main Window
     Property<bool> trackPanelCollapsed = false;
-    Property<bool> clipPanelCollapsed = false;
+    Property<bool> bottomPanelCollapsed = false;
 
     // Project
     Property<int> pianoRollQuantize = 16;
@@ -59,7 +59,7 @@ signals:
 
     // Main Window
     void trackPanelCollapseStateChanged(bool collapsed);
-    void clipPanelCollapseStateChanged(bool collapsed);
+    void bottomPanelCollapseStateChanged(bool collapsed);
 
     // Project
     void pianoRollQuantizeChanged(int quantize);

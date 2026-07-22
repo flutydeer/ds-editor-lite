@@ -7,7 +7,6 @@
 
 #define appController AppController::instance()
 
-#include "Global/AppGlobal.h"
 #include "Utils/Singleton.h"
 
 #include <QObject>
@@ -15,7 +14,6 @@
 
 class AppControllerPrivate;
 class IMainWindow;
-class IPanel;
 class AppModel;
 class DecodeAudioTask;
 class AudioClip;
@@ -35,12 +33,9 @@ public:
 public:
     void setMainWindow(IMainWindow *window);
 
-    void registerPanel(IPanel *panel);
-
 public slots:
     void quit();
     void restart();
-    void setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed);
 
     bool exportMidiFile(const QString &filePath);
 
@@ -48,12 +43,8 @@ public slots:
     static void onSetTempo(double tempo);
     void onSetTimeSignature(int numerator, int denominator);
     static void editMasterControl(const TrackControl &control);
-    void setActivePanel(AppGlobal::PanelType panel);
     void onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
                            const QString &redoActionName);
-
-signals:
-    void activePanelChanged(AppGlobal::PanelType panel);
 
 private:
     Q_DECLARE_PRIVATE(AppController)

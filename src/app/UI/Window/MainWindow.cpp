@@ -10,6 +10,7 @@
 #endif
 
 #include "Controller/AppController.h"
+#include "Controller/EditorViewController.h"
 #include "Controller/AudioDecodingController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/TrackController.h"
@@ -55,6 +56,8 @@
 #include <QShortcut>
 #include <QSplitter>
 #include <QWKWidgets/widgetwindowagent.h>
+
+#include <cmath>
 
 #if defined(WITH_DIRECT_MANIPULATION)
 #  include <QWDMHCore/DirectManipulationSystem.h>
@@ -182,6 +185,7 @@ MainWindow::MainWindow() {
     mainWidget->setLayout(mainLayout);
 
     this->setCentralWidget(mainWidget);
+    editorViewController->setView(this);
 
     auto scr = QApplication::screenAt(QCursor::pos());
     if (!scr) {
@@ -197,6 +201,12 @@ MainWindow::MainWindow() {
         // Fallback if no screen is available
         resize(1366, 768);
     }
+
+    QTimer::singleShot(0, this, [this] {
+        const auto sizes = m_splitter->sizes();
+        if (sizes.size() >= 2 && sizes.at(0) > 0 && sizes.at(1) > 0)
+            m_splitterState = m_splitter->saveState();
+    });
 
     ThemeManager::instance()->addWindow(this);
 #if defined(WITH_DIRECT_MANIPULATION)
@@ -214,6 +224,7 @@ MainWindow::MainWindow() {
 }
 
 MainWindow::~MainWindow() {
+    editorViewController->setView(nullptr);
     ThemeManager::instance()->removeWindow(this);
 }
 
@@ -340,28 +351,115 @@ void MainWindow::showDocumentWorkflowBusy() {
     Toast::show(tr("Another document operation is already in progress"));
 }
 
-void MainWindow::setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) {
-    if (trackCollapsed && clipCollapsed) {
-        qFatal() << "Cannot set track and clip panel collapsed";
-        return;
+EditorViewState MainWindow::captureEditorViewState() const {
+    return {
+        .trackPanel = m_trackEditorView->viewState(),
+        .layout = {
+            .trackPanelVisible = !appStatus->trackPanelCollapsed,
+            .bottomPanelVisible = !appStatus->bottomPanelCollapsed,
+            .bottomPanelPageId = m_bottomPanelView->currentPageId(),
+        },
+        .pianoRoll = m_bottomPanelView->clipEditorView()->viewState(),
+    };
+}
+
+bool MainWindow::restoreEditorViewState(const EditorViewState &state) {
+    const auto finite = [](const double value) { return std::isfinite(value); };
+    if ((!state.layout.trackPanelVisible && !state.layout.bottomPanelVisible) ||
+        !m_bottomPanelView->hasPage(state.layout.bottomPanelPageId) ||
+        !m_bottomPanelView->clipEditorView()->supportsEditMode(state.pianoRoll.editMode) ||
+        !finite(state.trackPanel.centerTick) || !finite(state.trackPanel.centerTrackIndex) ||
+        !finite(state.trackPanel.horizontalScale) || !finite(state.trackPanel.verticalScale) ||
+        state.trackPanel.horizontalScale <= 0 || state.trackPanel.verticalScale <= 0 ||
+        !finite(state.pianoRoll.centerTick) || !finite(state.pianoRoll.centerKeyIndex) ||
+        !finite(state.pianoRoll.horizontalScale) || !finite(state.pianoRoll.verticalScale) ||
+        state.pianoRoll.horizontalScale <= 0 || state.pianoRoll.verticalScale <= 0) {
+        return false;
     }
 
-    if (trackCollapsed) {
-        m_splitterState = m_splitter->saveState();
-        m_splitter->setSizes({0, 100});
-        appStatus->trackPanelCollapsed = true;
-        appStatus->clipPanelCollapsed = false;
-    } else if (clipCollapsed) {
-        m_splitterState = m_splitter->saveState();
-        m_splitter->setSizes({100, 0});
-        appStatus->trackPanelCollapsed = false;
-        appStatus->clipPanelCollapsed = true;
+    setEditorPanelVisibility(state.layout.trackPanelVisible, state.layout.bottomPanelVisible);
+    m_bottomPanelView->setCurrentPageId(state.layout.bottomPanelPageId);
+    m_trackEditorView->setViewScale(state.trackPanel.horizontalScale,
+                                    state.trackPanel.verticalScale);
+    m_trackEditorView->centerAt(state.trackPanel.centerTick, state.trackPanel.centerTrackIndex);
+    const auto clipEditor = m_bottomPanelView->clipEditorView();
+    clipEditor->setViewScale(state.pianoRoll.horizontalScale, state.pianoRoll.verticalScale);
+    clipEditor->centerAt(state.pianoRoll.centerTick, state.pianoRoll.centerKeyIndex);
+    clipEditor->setEditMode(state.pianoRoll.editMode);
+    return true;
+}
+
+bool MainWindow::centerTrackPanelAt(const double tick, const double trackIndex) {
+    return m_trackEditorView->centerAt(tick, trackIndex);
+}
+
+bool MainWindow::setTrackPanelScale(const double horizontalScale, const double verticalScale) {
+    return m_trackEditorView->setViewScale(horizontalScale, verticalScale);
+}
+
+bool MainWindow::setEditorPanelVisibility(const bool trackPanelVisible,
+                                          const bool bottomPanelVisible) {
+    if (!trackPanelVisible && !bottomPanelVisible)
+        return false;
+
+    if (m_bottomPanelDetached) {
+        m_trackEditorView->setVisible(trackPanelVisible);
+        m_bottomPanelView->setVisible(bottomPanelVisible);
     } else {
-        // TODO: 恢复到折叠前的大小
-        m_splitter->setSizes({240, 100}); // 临时解决方案
-        appStatus->trackPanelCollapsed = false;
-        appStatus->clipPanelCollapsed = false;
+        // Detached mode controls widget visibility directly. Re-enable both children before
+        // applying docked collapse state through splitter sizes.
+        m_trackEditorView->setVisible(true);
+        m_bottomPanelView->setVisible(true);
+        const auto currentSizes = m_splitter->sizes();
+        const bool bothCurrentlyVisible =
+            currentSizes.size() >= 2 && currentSizes.at(0) > 0 && currentSizes.at(1) > 0;
+        if (bothCurrentlyVisible && (!trackPanelVisible || !bottomPanelVisible))
+            m_splitterState = m_splitter->saveState();
+
+        if (trackPanelVisible && bottomPanelVisible) {
+            if (!bothCurrentlyVisible &&
+                (m_splitterState.isEmpty() || !m_splitter->restoreState(m_splitterState))) {
+                m_splitter->setSizes({1, 1});
+            }
+        } else if (trackPanelVisible) {
+            m_splitter->setSizes({1, 0});
+        } else {
+            m_splitter->setSizes({0, 1});
+        }
     }
+
+    appStatus->trackPanelCollapsed = !trackPanelVisible;
+    appStatus->bottomPanelCollapsed = !bottomPanelVisible;
+    return true;
+}
+
+bool MainWindow::showBottomPanelPage(const QString &pageId) {
+    if (!m_bottomPanelView->hasPage(pageId))
+        return false;
+    const bool trackPanelVisible = !appStatus->trackPanelCollapsed;
+    if (!setEditorPanelVisibility(trackPanelVisible, true))
+        return false;
+    return m_bottomPanelView->setCurrentPageId(pageId);
+}
+
+bool MainWindow::centerPianoRollAt(const double tick, const double keyIndex) {
+    return m_bottomPanelView->clipEditorView()->centerAt(tick, keyIndex);
+}
+
+bool MainWindow::setPianoRollScale(const double horizontalScale, const double verticalScale) {
+    return m_bottomPanelView->clipEditorView()->setViewScale(horizontalScale, verticalScale);
+}
+
+bool MainWindow::setPianoRollEditMode(const EditorViewGlobal::PianoRollEditMode mode) {
+    return m_bottomPanelView->clipEditorView()->setEditMode(mode);
+}
+
+void MainWindow::refreshActiveClipTrackPresentation() {
+    m_bottomPanelView->clipEditorView()->refreshActiveClipTrackPresentation();
+}
+
+void MainWindow::previewActiveClipTrackColor(const int colorIndex) {
+    m_bottomPanelView->clipEditorView()->previewActiveClipTrackColor(colorIndex);
 }
 
 void MainWindow::onAllDone() {
@@ -371,18 +469,23 @@ void MainWindow::onAllDone() {
     }
 }
 
-void MainWindow::onSplitterMoved(int pos, int index) const {
+void MainWindow::onSplitterMoved(int pos, int index) {
+    const auto sizes = m_splitter->sizes();
+    if (sizes.size() < 2)
+        return;
+
     qDebug() << "MainWindow::onSplitterMoved"
-             << "size 0:" << m_splitter->sizes().at(0) << "size 1:" << m_splitter->sizes().at(1);
-    if (m_splitter->sizes().at(0) == 0) {
+             << "size 0:" << sizes.at(0) << "size 1:" << sizes.at(1);
+    if (sizes.at(0) == 0) {
         appStatus->trackPanelCollapsed = true;
-        appStatus->clipPanelCollapsed = false;
-    } else if (m_splitter->sizes().at(1) == 0) {
+        appStatus->bottomPanelCollapsed = false;
+    } else if (sizes.at(1) == 0) {
         appStatus->trackPanelCollapsed = false;
-        appStatus->clipPanelCollapsed = true;
+        appStatus->bottomPanelCollapsed = true;
     } else {
+        m_splitterState = m_splitter->saveState();
         appStatus->trackPanelCollapsed = false;
-        appStatus->clipPanelCollapsed = false;
+        appStatus->bottomPanelCollapsed = false;
     }
 }
 
@@ -483,6 +586,8 @@ void MainWindow::attachBottomPanel() {
     ThemeManager::instance()->removeStyleRoot(m_bottomPanelView);
     m_splitter->restoreState(m_detachSplitterState);
     m_bottomPanelView->show();
+    setEditorPanelVisibility(!appStatus->trackPanelCollapsed,
+                             !appStatus->bottomPanelCollapsed);
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {

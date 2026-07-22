@@ -20,11 +20,16 @@ public:
     ~TabPanelView() override;
 
     void registerPage(TabPanelPage *page);
+    [[nodiscard]] bool hasPage(const QString &pageId) const;
+    [[nodiscard]] QString currentPageId() const;
+    [[nodiscard]] AppGlobal::PanelType currentPagePanelType() const;
+    bool setCurrentPageId(const QString &pageId);
 
     [[nodiscard]] TabPanelTitleBar *titleBar() const;
 
 signals:
     void detachRequested();
+    void currentPageChanged(const QString &pageId, AppGlobal::PanelType panelType);
 
 protected:
     void changeEvent(QEvent *event) override;

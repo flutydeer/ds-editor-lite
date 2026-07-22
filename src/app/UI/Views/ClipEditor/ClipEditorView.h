@@ -6,7 +6,7 @@
 #define CLIPEDITVIEW_H
 
 #include "PianoRollEditorView.h"
-#include "Interface/IClipEditorView.h"
+#include "Interface/EditorViewState.h"
 #include "UI/Views/Common/TabPanelPage.h"
 #include "UI/Views/Common/PanelView.h"
 
@@ -21,7 +21,7 @@ class Clip;
 class SingingClip;
 class AudioClip;
 
-class ClipEditorView final : public TabPanelPage, public IClipEditorView {
+class ClipEditorView final : public TabPanelPage {
     Q_OBJECT
 
 public:
@@ -34,8 +34,13 @@ public:
 
     explicit ClipEditorView(QWidget *parent = nullptr);
 
-    void centerAt(double tick, double keyIndex) override;
-    void centerAt(double startTick, double length, double keyIndex) override;
+    [[nodiscard]] PianoRollViewState viewState() const;
+    [[nodiscard]] bool supportsEditMode(EditorViewGlobal::PianoRollEditMode mode) const;
+    bool centerAt(double tick, double keyIndex) const;
+    bool setViewScale(double horizontalScale, double verticalScale) const;
+    bool setEditMode(EditorViewGlobal::PianoRollEditMode mode);
+    void refreshActiveClipTrackPresentation();
+    void previewActiveClipTrackColor(int colorIndex) const;
 
 public slots:
     void onModelChanged();
@@ -55,6 +60,7 @@ private:
     QMetaObject::Connection m_trackColorConnection;
 
     void reset();
+    void applyTrackColor(int colorIndex) const;
 };
 
 

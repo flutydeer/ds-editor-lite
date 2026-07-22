@@ -874,17 +874,26 @@ double PianoRollGraphicsView::bottomKeyIndex() const {
     return PianoRollCoord::sceneYToKeyIndexDouble(visibleRect().bottom(), scaleY() * noteHeight);
 }
 
-void PianoRollGraphicsView::setViewportCenterAt(const double tick, const double keyIndex) {
-    setViewportCenterAtTick(tick);
-    setViewportCenterAtKeyIndex(keyIndex);
+double PianoRollGraphicsView::centerKeyIndex() const {
+    return (topKeyIndex() + bottomKeyIndex()) / 2;
 }
 
-void PianoRollGraphicsView::setViewportCenterAtKeyIndex(const double keyIndex) {
+void PianoRollGraphicsView::setViewportCenterAt(const double tick, const double keyIndex,
+                                                const bool animated) {
+    setViewportCenterAtTick(tick);
+    setViewportCenterAtKeyIndex(keyIndex, animated);
+}
+
+void PianoRollGraphicsView::setViewportCenterAtKeyIndex(const double keyIndex,
+                                                        const bool animated) {
     const auto keyIndexRange = topKeyIndex() - bottomKeyIndex();
     const auto keyIndexStart = keyIndex + keyIndexRange / 2 + 0.5;
     const auto vBarValue =
         qRound(PianoRollCoord::keyIndexToSceneY(keyIndexStart, scaleY() * noteHeight));
-    verticalBarAnimateTo(vBarValue);
+    if (animated)
+        verticalBarAnimateTo(vBarValue);
+    else
+        setVerticalBarValue(vBarValue);
 }
 
 void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {

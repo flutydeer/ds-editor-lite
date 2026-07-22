@@ -18,7 +18,6 @@
 
 class Curve;
 class ClipControllerPrivate;
-class IClipEditorView;
 
 class ClipController final : public QObject {
     Q_OBJECT
@@ -32,7 +31,6 @@ public:
     Q_DISABLE_COPY_MOVE(ClipController)
 
 public:
-    void setView(IClipEditorView *view);
     [[nodiscard]] Clip *clip();
     void setClip(Clip *clip);
     void copySelectedNotesWithParams() const;
@@ -42,19 +40,10 @@ public:
     [[nodiscard]] bool canSelectAll() const;
     [[nodiscard]] bool hasSelectedNotes() const;
 
-    // View operations
-    void centerAt(double tick, double keyIndex);
-    void centerAt(const Note &note);
-
-    void notifyActiveClipTrackChanged();
-    void notifyLiveTrackColorChanged(int colorIndex);
-
 signals:
     // TODO: 连接到 AppStatus 模型监听更改
     void canSelectAllChanged(bool canSelectAll);
     void hasSelectedNotesChanged(bool has);
-    void activeClipTrackChanged();
-    void liveTrackColorChanged(int colorIndex);
 
 public slots:
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);

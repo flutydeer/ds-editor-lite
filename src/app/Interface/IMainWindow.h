@@ -12,7 +12,6 @@ LITE_INTERFACE IMainWindow {
     I_METHOD(void updateWindowTitle());
     I_METHOD(void quit());
     I_METHOD(void restart());
-    I_METHOD(void setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed));
 };
 // END_INTERFACE
 #endif // IMAINWINDOW_H

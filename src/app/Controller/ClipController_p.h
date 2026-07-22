@@ -9,7 +9,6 @@
 
 class Note;
 class Clip;
-class IClipEditorView;
 class ClipController;
 
 class ClipControllerPrivate {
@@ -19,7 +18,6 @@ public:
     explicit ClipControllerPrivate(ClipController *q) : q_ptr(q) {
     }
 
-    IClipEditorView *m_view = nullptr;
     Clip *m_clip = nullptr;
 
     void editNotesLyric(const QList<Note *> &notes) const;

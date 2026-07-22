@@ -249,6 +249,51 @@ PianoRollEditMode ClipEditorToolBarView::editMode() const {
     return d->m_editMode;
 }
 
+bool ClipEditorToolBarView::supportsEditMode(const PianoRollEditMode mode) const {
+    return mode >= Select && mode <= ErasePitch;
+}
+
+bool ClipEditorToolBarView::setEditMode(const PianoRollEditMode mode) {
+    Q_D(ClipEditorToolBarView);
+    if (!supportsEditMode(mode))
+        return false;
+
+    Button *button = nullptr;
+    switch (mode) {
+        case Select:
+            button = d->m_btnArrow;
+            break;
+        case IntervalSelect:
+            button = d->m_btnBeam;
+            break;
+        case DrawNote:
+            button = d->m_btnNotePencil;
+            break;
+        case EraseNote:
+            button = d->m_btnNoteEraser;
+            break;
+        case SplitNote:
+            button = d->m_btnNoteSplit;
+            break;
+        case DrawPitch:
+            button = d->m_btnPitchPencil;
+            break;
+        case EditPitchAnchor:
+            button = d->m_btnPitchAnchor;
+            break;
+        case ErasePitch:
+            button = d->m_btnPitchEraser;
+            break;
+        case FreezePitch:
+            return false;
+    }
+
+    if (!button)
+        return false;
+    button->setChecked(true);
+    return true;
+}
+
 void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(const QAbstractButton *button,
                                                                 const bool checked) {
     Q_Q(ClipEditorToolBarView);

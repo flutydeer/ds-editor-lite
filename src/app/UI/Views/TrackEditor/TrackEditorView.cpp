@@ -10,7 +10,7 @@
 #include "TracksGraphicsScene.h"
 #include "TracksGraphicsView.h"
 #include "TrackViewModel.h"
-#include "Controller/AppController.h"
+#include "Controller/EditorViewController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
@@ -37,6 +37,8 @@
 #include <QSplitter>
 #include <QTimer>
 #include <QVBoxLayout>
+
+#include <cmath>
 
 namespace {
 
@@ -114,7 +116,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
 
     setLayout(mainLayout);
     setPanelActive(true);
-    appController->registerPanel(this);
+    editorViewController->registerPanel(this);
     installEventFilter(this);
 
     connect(m_trackListView, &QListWidget::currentRowChanged, this,
@@ -147,6 +149,43 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
 
     connect(appStatus, &AppStatus::projectEditableLengthChanged, m_graphicsView,
             &TracksGraphicsView::setSceneLength);
+}
+
+TrackEditorView::~TrackEditorView() {
+    editorViewController->unregisterPanel(this);
+}
+
+TrackPanelViewState TrackEditorView::viewState() const {
+    const auto scaleY = m_graphicsView->scaleY();
+    const auto trackHeight = TracksEditorGlobal::trackHeight * scaleY;
+    const auto centerTrackIndex =
+        trackHeight > 0 ? m_graphicsView->visibleRect().center().y() / trackHeight - 0.5 : 0;
+    return {
+        .centerTick = (m_graphicsView->startTick() + m_graphicsView->endTick()) / 2,
+        .centerTrackIndex = centerTrackIndex,
+        .horizontalScale = m_graphicsView->scaleX(),
+        .verticalScale = scaleY,
+    };
+}
+
+bool TrackEditorView::centerAt(double tick, double trackIndex) const {
+    if (!std::isfinite(tick) || !std::isfinite(trackIndex))
+        return false;
+
+    m_graphicsView->stopViewportAnimations();
+    m_graphicsView->setViewportCenterAtTick(tick);
+    const auto centerSceneY =
+        (trackIndex + 0.5) * TracksEditorGlobal::trackHeight * m_graphicsView->scaleY();
+    m_graphicsView->setVerticalBarValue(
+        qRound(centerSceneY - m_graphicsView->viewport()->height() / 2.0));
+    return true;
+}
+
+bool TrackEditorView::setViewScale(double horizontalScale, double verticalScale) const {
+    const auto previousState = viewState();
+    if (!m_graphicsView->setViewportScale(horizontalScale, verticalScale))
+        return false;
+    return centerAt(previousState.centerTick, previousState.centerTrackIndex);
 }
 
 void TrackEditorView::onModelChanged() {
@@ -232,7 +271,7 @@ void TrackEditorView::onRemoveTrackTriggered(const int id) {
 
 bool TrackEditorView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QMouseEvent::MouseButtonPress) {
-        appController->setActivePanel(AppGlobal::TracksEditor);
+        editorViewController->setActivePanel(AppGlobal::TracksEditor);
     }
 
     return QWidget::eventFilter(watched, event);

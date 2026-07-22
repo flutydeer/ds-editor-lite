@@ -9,6 +9,7 @@
 #include <QTimer>
 
 #include "Interface/IMainWindow.h"
+#include "Interface/IEditorView.h"
 #include "Controller/DocumentWorkflow/IDocumentWorkflowUi.h"
 #include "UI/Views/BottomPanelView.h"
 
@@ -25,7 +26,10 @@ namespace QWK {
     class WidgetWindowAgent;
 }
 
-class MainWindow final : public QMainWindow, public IMainWindow, public IDocumentWorkflowUi {
+class MainWindow final : public QMainWindow,
+                         public IMainWindow,
+                         public IEditorView,
+                         public IDocumentWorkflowUi {
     Q_OBJECT
 
 public:
@@ -34,7 +38,17 @@ public:
     void updateWindowTitle() override;
     void quit() override;
     void restart() override;
-    void setTrackAndClipPanelCollapsed(bool trackCollapsed, bool clipCollapsed) override;
+    [[nodiscard]] EditorViewState captureEditorViewState() const override;
+    bool restoreEditorViewState(const EditorViewState &state) override;
+    bool centerTrackPanelAt(double tick, double trackIndex) override;
+    bool setTrackPanelScale(double horizontalScale, double verticalScale) override;
+    bool setEditorPanelVisibility(bool trackPanelVisible, bool bottomPanelVisible) override;
+    bool showBottomPanelPage(const QString &pageId) override;
+    bool centerPianoRollAt(double tick, double keyIndex) override;
+    bool setPianoRollScale(double horizontalScale, double verticalScale) override;
+    bool setPianoRollEditMode(EditorViewGlobal::PianoRollEditMode mode) override;
+    void refreshActiveClipTrackPresentation() override;
+    void previewActiveClipTrackColor(int colorIndex) override;
     void updateDiagnosticFilter();
     void updateLogWindowVisible();
     void updatePanelDetachEnabled();
@@ -58,7 +72,7 @@ protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
 
 private slots:
-    void onSplitterMoved(int pos, int index) const;
+    void onSplitterMoved(int pos, int index);
     void detachBottomPanel();
     void attachBottomPanel();
 

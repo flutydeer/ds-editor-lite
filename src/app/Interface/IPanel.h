@@ -27,6 +27,10 @@ public:
         afterSetActive();
     }
 
+    void setPanelType(const AppGlobal::PanelType type) {
+        m_type = type;
+    }
+
 protected:
     virtual void afterSetActive() = 0;
 

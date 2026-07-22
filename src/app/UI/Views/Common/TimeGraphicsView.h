@@ -69,6 +69,8 @@ public:
     void setAutoTurnPage(bool on);
     void setViewportStartTick(double tick);
     void setViewportCenterAtTick(double tick);
+    bool setViewportScale(double horizontalScale, double verticalScale);
+    void stopViewportAnimations();
 
 signals:
     void scaleChanged(double sx, double sy);

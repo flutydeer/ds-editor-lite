@@ -4,7 +4,7 @@
 
 #include "TabPanelTitleBar.h"
 
-#include "Controller/AppController.h"
+#include "Controller/EditorViewController.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ToolTipFilter.h"
@@ -148,9 +148,9 @@ void TabPanelTitleBar::buildDockedButtons() {
     m_btnMaximize->installEventFilter(new ToolTipFilter(m_btnMaximize, 500, false, true));
     connect(m_btnMaximize, &Button::clicked, this, [=] {
         if (appStatus->trackPanelCollapsed)
-            appController->setTrackAndClipPanelCollapsed(false, false);
+            editorViewController->setPanelVisibility(true, true);
         else
-            appController->setTrackAndClipPanelCollapsed(true, false);
+            editorViewController->setPanelVisibility(false, true);
     });
     connect(appStatus, &AppStatus::trackPanelCollapseStateChanged, m_btnMaximize,
             &Button::setChecked);
@@ -162,7 +162,7 @@ void TabPanelTitleBar::buildDockedButtons() {
     m_btnHide->setToolTip(tr("Hide"));
     m_btnHide->installEventFilter(new ToolTipFilter(m_btnHide, 500, false, true));
     connect(m_btnHide, &Button::clicked, this,
-            [=] { appController->setTrackAndClipPanelCollapsed(false, true); });
+            [=] { editorViewController->setPanelVisibility(true, false); });
 
     rebuildIcons();
 

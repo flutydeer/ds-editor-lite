@@ -6,6 +6,7 @@
 
 #include "MainMenuView_p.h"
 #include "Controller/AppController.h"
+#include "Controller/EditorViewController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/ClipboardController.h"
 #include "Controller/ClipController.h"
@@ -48,7 +49,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
 
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    connect(appController, &AppController::activePanelChanged, this,
+    connect(editorViewController, &EditorViewController::activePanelChanged, this,
             [=](AppGlobal::PanelType panel) { d->onActivatedPanelChanged(panel); });
 
     connect(QGuiApplication::clipboard(), &QClipboard::dataChanged, this,

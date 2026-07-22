@@ -16,7 +16,8 @@ AppStatus::AppStatus(QObject *parent) : QObject(parent) {
 
     // Main Window
     trackPanelCollapsed.onChanged([this](auto value) { emit trackPanelCollapseStateChanged(value); });
-    clipPanelCollapsed.onChanged([this](auto value) { emit clipPanelCollapseStateChanged(value); });
+    bottomPanelCollapsed.onChanged(
+        [this](auto value) { emit bottomPanelCollapseStateChanged(value); });
 
     // Project
     pianoRollQuantize.onChanged([this](auto value) { emit pianoRollQuantizeChanged(value); });

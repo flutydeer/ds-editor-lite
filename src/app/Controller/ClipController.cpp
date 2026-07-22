@@ -9,7 +9,6 @@
 #include "Actions/AppModel/Note/NoteActions.h"
 #include "Actions/AppModel/Param/ParamsActions.h"
 #include "Global/ControllerGlobal.h"
-#include "Interface/IClipEditorView.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
@@ -33,11 +32,6 @@ ClipController::~ClipController() {
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(ClipController)
 
-void ClipController::setView(IClipEditorView *view) {
-    Q_D(ClipController);
-    d->m_view = view;
-}
-
 Clip *ClipController::clip() {
     Q_D(ClipController);
     return d->m_clip;
@@ -48,14 +42,6 @@ void ClipController::setClip(Clip *clip) {
     d->m_clip = clip;
     emit canSelectAllChanged(canSelectAll());
     emit hasSelectedNotesChanged(hasSelectedNotes());
-}
-
-void ClipController::notifyActiveClipTrackChanged() {
-    emit activeClipTrackChanged();
-}
-
-void ClipController::notifyLiveTrackColorChanged(const int colorIndex) {
-    emit liveTrackColorChanged(colorIndex);
 }
 
 void ClipController::copySelectedNotesWithParams() const {
@@ -152,17 +138,6 @@ bool ClipController::hasSelectedNotes() const {
         return false;
     const auto selectedNotes = appStatus->selectedNotes;
     return !selectedNotes.get().isEmpty();
-}
-
-void ClipController::centerAt(const double tick, const double keyIndex) {
-    Q_D(ClipController);
-    if (d->m_view)
-        d->m_view->centerAt(tick, keyIndex);
-}
-
-void ClipController::centerAt(const Note &note) {
-    Q_D(ClipController);
-    d->m_view->centerAt(note.globalStart(), note.length(), note.keyIndex());
 }
 
 void ClipController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {

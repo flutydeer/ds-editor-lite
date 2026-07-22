@@ -5,7 +5,7 @@
 #include "IProjectLoadSession.h"
 #include "LegacyMidiLoadSession.h"
 #include "Controller/Actions/AppModel/ImportProjectActions.h"
-#include "Controller/AppController.h"
+#include "Controller/EditorViewController.h"
 #include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
@@ -610,7 +610,7 @@ void DocumentWorkflowController::activateFirstClip(const QList<Track *> &preferr
         if (clips.count() == 0)
             continue;
         trackController->setActiveClip(clips.toList().first()->id());
-        appController->setActivePanel(AppGlobal::ClipEditor);
+        editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
         return;
     }
 }

@@ -61,8 +61,9 @@ public:
 
     [[nodiscard]] double topKeyIndex() const;
     [[nodiscard]] double bottomKeyIndex() const;
-    void setViewportCenterAt(double tick, double keyIndex);
-    void setViewportCenterAtKeyIndex(double keyIndex);
+    [[nodiscard]] double centerKeyIndex() const;
+    void setViewportCenterAt(double tick, double keyIndex, bool animated = true);
+    void setViewportCenterAtKeyIndex(double keyIndex, bool animated = true);
 
     [[nodiscard]] double sceneXToTick(double pos) const {
         return TimeGraphicsView::sceneXToTick(pos);

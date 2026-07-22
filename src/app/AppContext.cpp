@@ -25,6 +25,7 @@
 #include "Controller/ClipboardController.h"
 #include "Controller/TrackController.h"
 #include "Controller/ClipController.h"
+#include "Controller/EditorViewController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/ProjectStatusController.h"
 #include "Controller/ProjectPackageResolver.h"
@@ -92,6 +93,7 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     m_clipboardController = new ClipboardController;
     m_trackController = new TrackController;
     m_clipController = new ClipController;
+    m_editorViewController = new EditorViewController;
     m_pitchExtractController = new PitchExtractController;
     m_midiExtractController = new MidiExtractController;
     m_editSessionManager = new EditSessionManager;
@@ -162,6 +164,7 @@ AppContext::~AppContext() {
     delete m_editSessionManager;
     delete m_midiExtractController;
     delete m_pitchExtractController;
+    delete m_editorViewController;
     delete m_clipController;
     delete m_trackController;
     delete m_clipboardController;
@@ -206,6 +209,7 @@ template <> AudioDecodingController *AppContext::instance() { return s_self ? s_
 template <> ClipboardController *AppContext::instance() { return s_self ? s_self->m_clipboardController : nullptr; }
 template <> TrackController *AppContext::instance() { return s_self ? s_self->m_trackController : nullptr; }
 template <> ClipController *AppContext::instance() { return s_self ? s_self->m_clipController : nullptr; }
+template <> EditorViewController *AppContext::instance() { return s_self ? s_self->m_editorViewController : nullptr; }
 template <> PitchExtractController *AppContext::instance() { return s_self ? s_self->m_pitchExtractController : nullptr; }
 template <> MidiExtractController *AppContext::instance() { return s_self ? s_self->m_midiExtractController : nullptr; }
 template <> EditSessionManager *AppContext::instance() { return s_self ? s_self->m_editSessionManager : nullptr; }

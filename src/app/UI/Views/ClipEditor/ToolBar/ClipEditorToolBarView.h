@@ -29,6 +29,8 @@ public:
     explicit ClipEditorToolBarView(QWidget *parent = nullptr);
     void setDataContext(Clip *clip);
     [[nodiscard]] PianoRollEditMode editMode() const;
+    [[nodiscard]] bool supportsEditMode(PianoRollEditMode mode) const;
+    bool setEditMode(PianoRollEditMode mode);
 
 signals:
     void editModeChanged(PianoRollEditMode mode);

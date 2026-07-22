@@ -9,6 +9,8 @@
 #include <QScrollBar>
 #include <QWheelEvent>
 
+#include <cmath>
+
 #include "TimeGraphicsScene.h"
 #include "TimeGridView.h"
 #include "TimeIndicatorView.h"
@@ -836,6 +838,43 @@ void TimeGraphicsView::setViewportCenterAtTick(double tick) {
     auto tickRange = endTick() - startTick();
     auto targetStart = tick - tickRange / 2;
     setViewportStartTick(targetStart);
+}
+
+bool TimeGraphicsView::setViewportScale(double horizontalScale, double verticalScale) {
+    if (!std::isfinite(horizontalScale) || !std::isfinite(verticalScale) || horizontalScale <= 0 ||
+        verticalScale <= 0) {
+        return false;
+    }
+
+    stopViewportAnimations();
+
+    double minimumHorizontalScale = 0.0001;
+    if (m_ensureSceneFillViewX && scaleX() > 0 && sceneRect().width() > 0) {
+        const auto unscaledSceneWidth = sceneRect().width() / scaleX();
+        if (unscaledSceneWidth > 0)
+            minimumHorizontalScale = viewport()->width() / unscaledSceneWidth;
+    }
+
+    auto minimumVerticalScale = m_scaleYMin;
+    if (m_ensureSceneFillViewY && scaleY() > 0 && sceneRect().height() > 0) {
+        const auto unscaledSceneHeight = sceneRect().height() / scaleY();
+        if (unscaledSceneHeight > 0)
+            minimumVerticalScale =
+                qMax(minimumVerticalScale, viewport()->height() / unscaledSceneHeight);
+    }
+
+    const auto targetHorizontalScale =
+        qMin(m_scaleXMax, qMax(minimumHorizontalScale, horizontalScale));
+    const auto targetVerticalScale = qMin(m_scaleYMax, qMax(minimumVerticalScale, verticalScale));
+    setScaleXY(targetHorizontalScale, targetVerticalScale);
+    return true;
+}
+
+void TimeGraphicsView::stopViewportAnimations() {
+    m_scaleXAnimation.stop();
+    m_scaleYAnimation.stop();
+    m_hBarAnimation.stop();
+    m_vBarAnimation.stop();
 }
 
 void TimeGraphicsView::pageAdd() {

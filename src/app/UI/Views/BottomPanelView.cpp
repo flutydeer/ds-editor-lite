@@ -4,14 +4,28 @@
 
 #include "BottomPanelView.h"
 
-#include "Controller/AppController.h"
+#include "Controller/EditorViewController.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/MixConsole/MixConsoleView.h"
 
 BottomPanelView::BottomPanelView(QWidget *parent) : TabPanelView(AppGlobal::ClipEditor, parent) {
-    // TODO: 重构，不应使用 ClipEditor 类型
-    registerPage(new ClipEditorView);
+    m_clipEditorView = new ClipEditorView;
+    registerPage(m_clipEditorView);
     registerPage(new MixConsoleView);
 
-    appController->registerPanel(this);
+    setPanelType(currentPagePanelType());
+    connect(this, &TabPanelView::currentPageChanged, this,
+            [this](const QString &, const AppGlobal::PanelType panelType) {
+                setPanelType(panelType);
+                editorViewController->setActivePanel(panelType);
+            });
+    editorViewController->registerPanel(this);
+}
+
+BottomPanelView::~BottomPanelView() {
+    editorViewController->unregisterPanel(this);
+}
+
+ClipEditorView *BottomPanelView::clipEditorView() const {
+    return m_clipEditorView;
 }

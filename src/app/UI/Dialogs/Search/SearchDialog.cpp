@@ -1,6 +1,7 @@
 #include "SearchDialog.h"
 
 #include "Controller/ClipController.h"
+#include "Controller/EditorViewController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Note.h"
 
@@ -164,7 +165,8 @@ void SearchDialog::onItemSelectionChanged(const int row) const {
     if (item) {
         const int noteId = item->data(Qt::UserRole).toInt();
         const auto &note = m_clip->findNoteById(noteId);
-        clipController->centerAt(note->globalStart(), note->keyIndex());
+        editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
+        editorViewController->centerPianoRollAt(note->globalStart(), note->keyIndex());
         clipController->selectNotes({note->id()}, true);
     }
 }

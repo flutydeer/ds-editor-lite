@@ -5,8 +5,8 @@
 #include "TracksGraphicsView.h"
 
 #include "TracksGraphicsScene.h"
-#include "Controller/AppController.h"
 #include "Controller/ClipController.h"
+#include "Controller/EditorViewController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
 #include "Global/ControllerGlobal.h"
@@ -275,7 +275,7 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
             m_currentEditingClip->setTrackIndex(targetTrackIndex);
             const auto colorIndex = appModel->tracks().at(targetTrackIndex)->colorIndex();
             m_currentEditingClip->setColorIndex(colorIndex);
-            clipController->notifyLiveTrackColorChanged(colorIndex);
+            editorViewController->previewActiveClipTrackColor(colorIndex);
         }
     } else if (m_mouseMoveBehavior == ResizeLeft) {
         m_movedBeforeMouseUp = true;
@@ -365,11 +365,8 @@ void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     const auto tick = m_scene->tickAt(scenePos.x());
     if (const auto item = itemAt(event->pos())) {
         if (auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
-            // appController->setActivePanel(AppGlobal::ClipEditor);
-            if (appStatus->clipPanelCollapsed) {
-                appController->setTrackAndClipPanelCollapsed(false, false);
-                clipController->centerAt(playbackController->position(), 60);
-            }
+            editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
+            editorViewController->centerPianoRollAt(playbackController->position(), 60);
         } else if (dynamic_cast<TrackEditorBackgroundView *>(item)) {
             m_tick = TimelineSnapUtils::snapDown(tick, snapStep(false));
             onNewSingingClip();
@@ -551,7 +548,7 @@ void TracksGraphicsView::discardAction() {
         m_currentEditingClip->setClipLen(m_mouseDownClipLen);
         m_currentEditingClip->setTrackIndex(m_mouseDownTrackIndex);
         m_currentEditingClip->setColorIndex(m_mouseDownColorIndex);
-        clipController->notifyLiveTrackColorChanged(m_mouseDownColorIndex);
+        editorViewController->previewActiveClipTrackColor(m_mouseDownColorIndex);
     }
     editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
     resetEditState();
