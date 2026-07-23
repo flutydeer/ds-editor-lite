@@ -1,6 +1,6 @@
 #include "InferTaskCommon.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
-#include "Model/AppModel/InferSpeakerMix.h"
+#include "Model/Infer/InferSpeakerMix.h"
 
 #include <utility>
 #include <QCoreApplication>

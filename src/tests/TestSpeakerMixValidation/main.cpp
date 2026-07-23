@@ -10,8 +10,8 @@
 // behavior is fully covered here by manually constructing SingerInfo +
 // capability.
 
-#include "Model/AppModel/InferPiece.h"
-#include "Model/AppModel/InferSpeakerMix.h"
+#include "Model/Infer/InferPiece.h"
+#include "Model/Infer/InferSpeakerMix.h"
 #include "Modules/Inference/Models/SpeakerMixValidator.h"
 #include "Modules/PackageManager/Models/SingerInfo.h"
 #include "Modules/PackageManager/Models/SpeakerInfo.h"

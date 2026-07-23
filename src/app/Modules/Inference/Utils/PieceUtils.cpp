@@ -4,7 +4,7 @@
 
 #include "PieceUtils.h"
 
-#include "Model/AppModel/InferPiece.h"
+#include "Model/Infer/InferPiece.h"
 #include "Modules/SingingClipSlicer/Models/SliceResult.h"
 
 bool PieceUtils::isSamePiece(const InferPiece &left, const Segment &right) {

@@ -2,11 +2,11 @@
 // Created by fluty on 24-10-7.
 //
 
-#include "InferPiece.h"
+#include "Model/Infer/InferPiece.h"
 
-#include "AppModel.h"
-#include "SingingClip.h"
-#include "Note.h"
+#include "Model/AppModel/AppModel.h"
+#include "Model/AppModel/SingingClip.h"
+#include "Model/AppModel/Note.h"
 
 #include <algorithm>
 

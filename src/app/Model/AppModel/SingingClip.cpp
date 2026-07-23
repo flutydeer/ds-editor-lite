@@ -10,7 +10,7 @@
 #include "Clip.h"
 #include "DrawCurve.h"
 #include "Note.h"
-#include "InferPiece.h"
+#include "Model/Infer/InferPiece.h"
 #include "Timeline.h"
 #include "Track.h"
 #include "Modules/SingingClipSlicer/SingingClipSlicer.h"

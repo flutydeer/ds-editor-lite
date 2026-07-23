@@ -4,7 +4,7 @@ lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
         ../../app/Model/AppModel/SpeakerMixData.cpp
-        ../../app/Model/AppModel/InferSpeakerMix.cpp
+        ../../app/Model/Infer/InferSpeakerMix.cpp
         ../../app/Model/AppModel/Timeline.cpp
         ../../app/Model/AppModel/Tempo.cpp
         ../../app/Model/AppModel/TimeSignature.cpp

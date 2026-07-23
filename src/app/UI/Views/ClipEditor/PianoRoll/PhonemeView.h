@@ -8,7 +8,7 @@
 
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppModel/AudioInfoModel.h"
-#include "Model/AppModel/InferStatus.h"
+#include "Model/Infer/InferStatus.h"
 #include "UI/Utils/TextPixmapCache.h"
 
 #include <QWidget>

@@ -5,12 +5,12 @@
 #ifndef INFERPIECE_H
 #define INFERPIECE_H
 
-#include "DrawCurve.h"
-#include "InferStatus.h"
-#include "Params.h"
+#include "Model/AppModel/DrawCurve.h"
+#include "Model/Infer/InferStatus.h"
+#include "Model/AppModel/Params.h"
 #include "Interface/IInferPiece.h"
 #include "Utils/Property.h"
-#include "Model/AppModel/InferSpeakerMix.h"
+#include "Model/Infer/InferSpeakerMix.h"
 #include "Model/AppModel/SingerIdentifier.h"
 
 #include <QObject>

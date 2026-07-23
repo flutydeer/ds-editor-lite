@@ -1,6 +1,6 @@
 #include "Model/AppModel/SpeakerMixData.h"
 #include "Model/AppModel/Timeline.h"
-#include "Model/AppModel/InferSpeakerMix.h"
+#include "Model/Infer/InferSpeakerMix.h"
 
 #include <QCoreApplication>
 #include <QTextStream>

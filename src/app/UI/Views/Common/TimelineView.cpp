@@ -12,7 +12,7 @@
 #include "Model/AppModel/LoopSettings.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Model/AppModel/InferPiece.h"
+#include "Model/Infer/InferPiece.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/TextPixmapCache.h"

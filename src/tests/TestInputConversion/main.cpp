@@ -3,9 +3,9 @@
 //         B-05 retake fill, B-12 tone passthrough.
 // Reference: docs/synthrt-refactor-v3/07-test-matrix.md §3.1, §4.1-4.3
 
-#include "Model/AppModel/InferPiece.h"
+#include "Model/Infer/InferPiece.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
-#include "Model/AppModel/InferSpeakerMix.h"
+#include "Model/Infer/InferSpeakerMix.h"
 #include "Modules/Inference/Tasks/InferTaskCommon.h"
 
 #include <QCoreApplication>

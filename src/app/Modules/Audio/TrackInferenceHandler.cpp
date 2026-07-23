@@ -3,7 +3,7 @@
 #include <TalcsDevice/AudioDevice.h>
 
 #include "AudioContext.h"
-#include "Model/AppModel/InferPiece.h"
+#include "Model/Infer/InferPiece.h"
 #include "dspx/DspxInferencePieceContext.h"
 #include "dspx/DspxSingingClipInferenceContext.h"
 
