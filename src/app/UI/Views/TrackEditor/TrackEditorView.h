@@ -37,6 +37,7 @@ public:
     bool setViewScale(double horizontalScale, double verticalScale) const;
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus) const;
+    bool revealFocus(const HistoryFocus &focus, bool animated) const;
 
 public slots:
     void onModelChanged();

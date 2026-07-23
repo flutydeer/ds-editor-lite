@@ -81,6 +81,7 @@ private slots:
     void attachBottomPanel();
 
 private:
+    bool navigateToFocus(const HistoryFocus &focus, bool animated);
     void closeEvent(QCloseEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;

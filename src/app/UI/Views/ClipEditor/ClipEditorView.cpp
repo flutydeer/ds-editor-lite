@@ -121,7 +121,11 @@ HistoryFocusVisibility ClipEditorView::focusVisibility(const HistoryFocus &focus
 }
 
 bool ClipEditorView::revealFocus(const HistoryFocus &focus) const {
-    return m_pianoRollEditorView->pianoRollView()->graphicsView()->revealFocus(focus);
+    return revealFocus(focus, true);
+}
+
+bool ClipEditorView::revealFocus(const HistoryFocus &focus, const bool animated) const {
+    return m_pianoRollEditorView->pianoRollView()->graphicsView()->revealFocus(focus, animated);
 }
 
 void ClipEditorView::refreshActiveClipTrackPresentation() {

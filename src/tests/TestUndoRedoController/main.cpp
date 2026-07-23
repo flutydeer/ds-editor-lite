@@ -175,25 +175,20 @@ namespace {
                "visible focus must skip preview and finalize the result");
     }
 
-    void testHiddenRequiresSecondRequest(FakeEditorView &view) {
+    void testScrollRequiredExecutesOnSecondRequest(FakeEditorView &view) {
         reset(view);
         int value = 0;
         recordAction(value);
-        view.visibility = HistoryFocusVisibility::Hidden;
+        view.visibility = HistoryFocusVisibility::ScrollRequired;
         undoRedoController->requestUndo();
         expect(value == 1 && historyManager->canUndo(),
                "first hidden request must not mutate the model or stack");
         expect(view.revealCount == 1, "first hidden request must reveal the focus");
 
         undoRedoController->requestUndo();
-        expect(value == 1 && view.revealCount == 2,
-               "a second request must navigate again if the focus was moved out of view");
-
-        view.visibility = HistoryFocusVisibility::Visible;
-        undoRedoController->requestUndo();
         expect(value == 0 && historyManager->canRedo(),
-               "second matching request must execute undo");
-        expect(view.finalizeCount == 1 && view.clearCount == 2,
+               "second matching request must execute while scrolling is still in progress");
+        expect(view.revealCount == 1 && view.finalizeCount == 1 && view.clearCount == 1,
                "executing a pending request must clear preview and finalize focus");
     }
 
@@ -204,21 +199,34 @@ namespace {
         undoRedoController->requestUndo();
         expect(value == 0 && historyManager->canRedo(), "test setup must create a redo entry");
 
-        view.visibility = HistoryFocusVisibility::Hidden;
+        view.visibility = HistoryFocusVisibility::ScrollRequired;
         undoRedoController->requestRedo();
         expect(value == 0 && view.revealCount == 1,
                "first hidden redo request must only reveal the before focus");
-        view.visibility = HistoryFocusVisibility::Visible;
         undoRedoController->requestRedo();
         expect(value == 1 && view.finalizeCount == 2,
-               "second matching redo request must execute and finalize the after focus");
+               "second matching redo request must execute before scrolling completes");
+    }
+
+    void testContextSwitchExecutesOnSecondRequest(FakeEditorView &view) {
+        reset(view);
+        int value = 0;
+        recordAction(value);
+        view.visibility = HistoryFocusVisibility::ContextSwitchRequired;
+        undoRedoController->requestUndo();
+        expect(value == 1 && view.revealCount == 1,
+               "first context-switch request must only navigate");
+
+        undoRedoController->requestUndo();
+        expect(value == 0 && view.revealCount == 1 && view.finalizeCount == 1,
+               "second context-switch request must execute without navigating again");
     }
 
     void testDirectionChangeClearsPending(FakeEditorView &view) {
         reset(view);
         int value = 0;
         recordAction(value);
-        view.visibility = HistoryFocusVisibility::Hidden;
+        view.visibility = HistoryFocusVisibility::ScrollRequired;
         undoRedoController->requestUndo();
         undoRedoController->requestRedo();
         expect(view.clearCount == 1, "changing direction must clear pending navigation");
@@ -231,7 +239,7 @@ namespace {
         reset(view);
         int value = 0;
         recordAction(value);
-        view.visibility = HistoryFocusVisibility::Hidden;
+        view.visibility = HistoryFocusVisibility::ScrollRequired;
         undoRedoController->requestUndo();
         recordAction(value);
         expect(view.clearCount == 1, "recording a new entry must invalidate pending navigation");
@@ -258,7 +266,7 @@ namespace {
         reset(view);
         value = 0;
         recordAction(value);
-        view.visibility = HistoryFocusVisibility::Hidden;
+        view.visibility = HistoryFocusVisibility::ScrollRequired;
         view.revealResult = false;
         undoRedoController->requestUndo();
         expect(value == 0, "failed focus navigation must not block undo");
@@ -266,7 +274,7 @@ namespace {
         reset(view);
         value = 0;
         recordAction(value);
-        view.visibility = HistoryFocusVisibility::Hidden;
+        view.visibility = HistoryFocusVisibility::ContextSwitchRequired;
         appStatus->currentEditObject = AppStatus::EditObjectType::Note;
         undoRedoController->requestUndo();
         expect(value == 1 && view.revealCount == 0,
@@ -282,8 +290,9 @@ int main(int argc, char *argv[]) {
     editorViewController->setView(&view);
 
     testVisibleExecutesImmediately(view);
-    testHiddenRequiresSecondRequest(view);
+    testScrollRequiredExecutesOnSecondRequest(view);
     testRedoUsesTwoPhases(view);
+    testContextSwitchExecutesOnSecondRequest(view);
     testDirectionChangeClearsPending(view);
     testHistoryChangeInvalidatesPending(view);
     testFallbacksAndEditGuard(view);

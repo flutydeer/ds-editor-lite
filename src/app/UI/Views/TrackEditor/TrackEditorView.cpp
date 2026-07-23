@@ -199,25 +199,30 @@ HistoryFocusVisibility TrackEditorView::focusVisibility(const HistoryFocus &focu
                                              : itemBounds.united(item->sceneBoundingRect());
     }
     if (!itemBounds.isNull())
-        return m_graphicsView->visibleRect().intersects(itemBounds)
+        return m_graphicsView->logicalVisibleRect().intersects(itemBounds)
                    ? HistoryFocusVisibility::Visible
-                   : HistoryFocusVisibility::Hidden;
+                   : HistoryFocusVisibility::ScrollRequired;
 
     int trackIndex = focus.trackIndex;
     if (focus.trackId >= 0)
         appModel->findTrackById(focus.trackId, trackIndex);
-    const auto tickVisible = focus.tickEnd >= m_graphicsView->startTick() &&
-                             focus.tickStart <= m_graphicsView->endTick();
+    const auto visible = m_graphicsView->logicalVisibleRect();
+    const auto left = m_graphicsView->sceneXForTick(focus.tickStart);
+    const auto right = m_graphicsView->sceneXForTick(focus.tickEnd);
+    const auto tickVisible = right >= visible.left() && left <= visible.right();
     const auto trackHeight = TracksEditorGlobal::trackHeight * m_graphicsView->scaleY();
     const auto trackTop = trackIndex * trackHeight;
     const auto trackBottom = trackTop + trackHeight;
-    const auto visible = m_graphicsView->visibleRect();
     return tickVisible && trackBottom >= visible.top() && trackTop <= visible.bottom()
                ? HistoryFocusVisibility::Visible
-               : HistoryFocusVisibility::Hidden;
+               : HistoryFocusVisibility::ScrollRequired;
 }
 
 bool TrackEditorView::revealFocus(const HistoryFocus &focus) const {
+    return revealFocus(focus, true);
+}
+
+bool TrackEditorView::revealFocus(const HistoryFocus &focus, const bool animated) const {
     if (focus.kind != HistoryFocusKind::TrackClips || !focus.isValid())
         return false;
 
@@ -236,9 +241,8 @@ bool TrackEditorView::revealFocus(const HistoryFocus &focus) const {
     if (!selectedIds.isEmpty())
         trackController->setActiveClip(selectedIds.first());
 
-    m_graphicsView->stopViewportAnimations();
     if (!itemBounds.isNull()) {
-        m_graphicsView->ensureVisible(itemBounds, 24, 24);
+        m_graphicsView->ensureSceneRectVisible(itemBounds, 24, 24, animated);
         return true;
     }
 
@@ -252,8 +256,9 @@ bool TrackEditorView::revealFocus(const HistoryFocus &focus) const {
     const auto trackHeight = TracksEditorGlobal::trackHeight * m_graphicsView->scaleY();
     const auto left = m_graphicsView->sceneXForTick(focus.tickStart);
     const auto right = m_graphicsView->sceneXForTick(focus.tickEnd);
-    m_graphicsView->ensureVisible(
-        QRectF(left, trackIndex * trackHeight, qMax(1.0, right - left), trackHeight), 24, 24);
+    m_graphicsView->ensureSceneRectVisible(
+        QRectF(left, trackIndex * trackHeight, qMax(1.0, right - left), trackHeight), 24, 24,
+        animated);
     return true;
 }
 

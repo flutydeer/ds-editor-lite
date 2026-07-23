@@ -58,6 +58,16 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     m_vBarAnimation.setPropertyName("verticalScrollBarValue");
     m_vBarAnimation.setEasingCurve(QEasingCurve::OutCubic);
 
+    const auto clearLogicalViewport = [this] {
+        if (m_hBarAnimation.state() == QAbstractAnimation::Running ||
+            m_vBarAnimation.state() == QAbstractAnimation::Running)
+            return;
+        m_logicalHorizontalBarValue.reset();
+        m_logicalVerticalBarValue.reset();
+    };
+    connect(&m_hBarAnimation, &QPropertyAnimation::finished, this, clearLogicalViewport);
+    connect(&m_vBarAnimation, &QPropertyAnimation::finished, this, clearLogicalViewport);
+
     connect(horizontalScrollBar(), &QScrollBar::valueChanged, this,
             &TimeGraphicsView::notifyVisibleRectChanged);
     connect(verticalScrollBar(), &QScrollBar::valueChanged, this,
@@ -177,6 +187,8 @@ int TimeGraphicsView::horizontalBarValue() const {
 }
 
 void TimeGraphicsView::setHorizontalBarValue(const int value) {
+    if (m_hBarAnimation.state() != QAbstractAnimation::Running)
+        m_logicalHorizontalBarValue.reset();
     horizontalScrollBar()->setValue(value);
 }
 
@@ -185,6 +197,8 @@ int TimeGraphicsView::verticalBarValue() const {
 }
 
 void TimeGraphicsView::setVerticalBarValue(const int value) {
+    if (m_vBarAnimation.state() != QAbstractAnimation::Running)
+        m_logicalVerticalBarValue.reset();
     verticalScrollBar()->setValue(value);
 }
 
@@ -221,6 +235,42 @@ QRectF TimeGraphicsView::visibleRect() const {
     auto rightBottom = mapToScene(viewportRect.width(), viewportRect.height());
     auto rect = QRectF(leftTop, rightBottom);
     return rect;
+}
+
+QRectF TimeGraphicsView::logicalVisibleRect() const {
+    const auto rect = visibleRect();
+    if ((!m_logicalHorizontalBarValue.has_value() && !m_logicalVerticalBarValue.has_value()) ||
+        scaleX() <= 0 || scaleY() <= 0)
+        return rect;
+
+    const auto horizontalValue = m_logicalHorizontalBarValue.value_or(horizontalBarValue());
+    const auto verticalValue = m_logicalVerticalBarValue.value_or(verticalBarValue());
+    return rect.translated((horizontalValue - horizontalBarValue()) / scaleX(),
+                           (verticalValue - verticalBarValue()) / scaleY());
+}
+
+void TimeGraphicsView::ensureSceneRectVisible(const QRectF &rect, const int xmargin,
+                                              const int ymargin, const bool animated) {
+    stopViewportAnimations();
+    if (!animated || (m_hBarAnimation.duration() <= 0 && m_vBarAnimation.duration() <= 0)) {
+        QGraphicsView::ensureVisible(rect, xmargin, ymargin);
+        return;
+    }
+
+    const auto currentHorizontalValue = horizontalBarValue();
+    const auto currentVerticalValue = verticalBarValue();
+    QGraphicsView::ensureVisible(rect, xmargin, ymargin);
+    const auto targetHorizontalValue = horizontalBarValue();
+    const auto targetVerticalValue = verticalBarValue();
+    setHorizontalBarValue(currentHorizontalValue);
+    setVerticalBarValue(currentVerticalValue);
+
+    m_logicalHorizontalBarValue = targetHorizontalValue;
+    m_logicalVerticalBarValue = targetVerticalValue;
+    if (targetHorizontalValue != currentHorizontalValue)
+        horizontalBarAnimateTo(targetHorizontalValue);
+    if (targetVerticalValue != currentVerticalValue)
+        verticalBarAnimateTo(targetVerticalValue);
 }
 
 void TimeGraphicsView::setEnsureSceneFillViewX(bool on) {
@@ -392,6 +442,7 @@ bool TimeGraphicsView::event(QEvent *event) {
         auto gestureEvent = static_cast<QNativeGestureEvent *>(event);
 
         if (gestureEvent->gestureType() == Qt::ZoomNativeGesture) {
+            stopViewportAnimations();
             auto cursorGlobalPos = gestureEvent->globalPosition().toPoint();
             auto cursorPos = mapFromGlobal(cursorGlobalPos);
             auto scenePos = mapToScene(cursorPos);
@@ -434,6 +485,7 @@ bool TimeGraphicsView::event(QEvent *event) {
 }
 
 void TimeGraphicsView::wheelEvent(QWheelEvent *event) {
+    stopViewportAnimations();
     if (event->modifiers() == Qt::ControlModifier) {
         onWheelHorScale(event);
     } else if (event->modifiers() == Qt::AltModifier) {
@@ -461,6 +513,7 @@ void TimeGraphicsView::resizeEvent(QResizeEvent *event) {
 }
 
 void TimeGraphicsView::mousePressEvent(QMouseEvent *event) {
+    stopViewportAnimations();
     if (scene()) {
         if (auto scrollBar = scrollBarAt(event->position().toPoint())) {
             m_isDraggingScrollBar = true;
@@ -875,6 +928,8 @@ void TimeGraphicsView::stopViewportAnimations() {
     m_scaleYAnimation.stop();
     m_hBarAnimation.stop();
     m_vBarAnimation.stop();
+    m_logicalHorizontalBarValue.reset();
+    m_logicalVerticalBarValue.reset();
 }
 
 void TimeGraphicsView::pageAdd() {
