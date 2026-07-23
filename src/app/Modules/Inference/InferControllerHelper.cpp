@@ -13,10 +13,10 @@
 #include "Models/InferInputNote.h"
 #include "Model/AppModel/InferSpeakerMix.h"
 #include "Models/SpeakerMixValidator.h"
-#include "Utils/AppModelUtils.h"
+#include "Model/Utils/AppModelUtils.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
-#include "Utils/ParamUtils.h"
+#include "Model/Utils/ParamUtils.h"
 #include "curve-util/CurveUtil.h"
 
 #include <QDebug>

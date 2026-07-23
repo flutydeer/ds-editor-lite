@@ -14,7 +14,7 @@
 #include "Timeline.h"
 #include "Track.h"
 #include "Modules/SingingClipSlicer/SingingClipSlicer.h"
-#include "Utils/AppModelUtils.h"
+#include "Model/Utils/AppModelUtils.h"
 #include "Utils/MathUtils.h"
 
 #include <QTimer>

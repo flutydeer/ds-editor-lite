@@ -23,7 +23,7 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppModel/SpeakerMixData.h"
 #include "Modules/PackageManager/PackageManager.h"
-#include "Utils/DiffscopeAudioWorkspace.h"
+#include "Model/Utils/DiffscopeAudioWorkspace.h"
 
 #include <QDebug>
 #include <QCoreApplication>
