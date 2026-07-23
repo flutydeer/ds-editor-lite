@@ -14,7 +14,7 @@
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
-#include "Utils/Linq.h"
+#include <lite/Support/Linq.h>
 
 #include <QFileInfo>
 

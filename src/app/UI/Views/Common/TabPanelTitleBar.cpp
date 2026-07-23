@@ -9,7 +9,7 @@
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ToolTipFilter.h"
 #include "UI/Utils/IconUtils.h"
-#include "Utils/SystemUtils.h"
+#include <lite/Support/SystemUtils.h>
 
 #include <QEvent>
 #include <QHBoxLayout>

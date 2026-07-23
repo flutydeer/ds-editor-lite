@@ -17,8 +17,8 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
-#include "Utils/Linq.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/Linq.h>
+#include <lite/Support/MathUtils.h>
 #include "Utils/TimelineSnapUtils.h"
 
 void PianoRollGraphicsViewHelper::drawNote(const int rStart, const int length, const int keyIndex) {

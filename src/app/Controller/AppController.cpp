@@ -25,7 +25,7 @@
 #include "Modules/Task/TaskManager.h"
 #include "Tasks/DecodeAudioTask.h"
 #include "UI/Utils/ThemeManager.h"
-#include "Utils/Log.h"
+#include <lite/Support/Log.h>
 
 #include "Actions/AppModel/MasterControl/MasterControlActions.h"
 

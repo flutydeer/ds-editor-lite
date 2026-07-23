@@ -2,7 +2,7 @@
 #define LOGWINDOW_H
 
 #include "Base/Window.h"
-#include "Utils/Log.h"
+#include <lite/Support/Log.h>
 
 #include <QAbstractTableModel>
 #include <QSortFilterProxyModel>

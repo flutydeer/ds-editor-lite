@@ -7,7 +7,7 @@
 #include "EditPitchAnchorHandler.h"
 #include "Model/AppModel/AnchorCurve.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/MathUtils.h>
 
 #include <QPainter>
 #include <QSet>

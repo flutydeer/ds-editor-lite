@@ -6,7 +6,7 @@
 
 #include "Clip.h"
 #include "SingingClip.h"
-#include "Utils/JsonUtils.h"
+#include <lite/Support/JsonUtils.h>
 
 #include <QJsonArray>
 

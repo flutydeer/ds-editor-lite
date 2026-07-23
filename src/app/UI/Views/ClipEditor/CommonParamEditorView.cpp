@@ -11,7 +11,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
 #include "UI/Utils/AppColorPalette.h"
 #include "Model/Utils/AppModelUtils.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/MathUtils.h>
 
 #include <QElapsedTimer>
 #include <QGraphicsSceneMouseEvent>

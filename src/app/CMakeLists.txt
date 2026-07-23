@@ -66,6 +66,8 @@ lite_add_application(${PROJECT_NAME}
         QWindowKit::Widgets
         qtmediate::Widgets
         curve-util::curve-util
+        lite::ADT
+        lite::Support
         unofficial::tinyexpr::tinyexpr
         srt::synthrt
         srt::diffsinger

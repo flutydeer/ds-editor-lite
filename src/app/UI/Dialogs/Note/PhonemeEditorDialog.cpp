@@ -11,7 +11,7 @@
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/Toast.h"
-#include "Utils/Linq.h"
+#include <lite/Support/Linq.h>
 
 #include <QVBoxLayout>
 

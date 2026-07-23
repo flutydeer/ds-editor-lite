@@ -6,7 +6,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Global/AppGlobal.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include "Utils/Linq.h"
+#include <lite/Support/Linq.h>
 
 #include <QDebug>
 

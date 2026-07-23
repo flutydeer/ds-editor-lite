@@ -4,7 +4,7 @@
 
 #include "Model/Utils/AppModelUtils.h"
 
-#include "Utils/MathUtils.h"
+#include <lite/Support/MathUtils.h>
 #include "Global/SingingClipSlicerGlobal.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Curve.h"

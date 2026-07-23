@@ -10,7 +10,7 @@
 #include "Params.h"
 #include "SpeakerMixData.h"
 #include "Global/AppGlobal.h"
-#include "Utils/Property.h"
+#include <lite/ADT/Property.h>
 #include "Model/AppModel/SingerIdentifier.h"
 #include "Modules/PackageManager/Models/SingerInfo.h"
 #include "Modules/PackageManager/Models/SpeakerInfo.h"

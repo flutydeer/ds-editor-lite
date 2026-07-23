@@ -6,7 +6,7 @@
 #define DSNOTE_H
 
 #include "Global/AppGlobal.h"
-#include "Utils/Overlappable.h"
+#include <lite/ADT/Overlappable.h>
 #include "Utils/UniqueObject.h"
 #include "Phonemes.h"
 #include "Pronunciation.h"

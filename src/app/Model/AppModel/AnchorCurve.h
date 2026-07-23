@@ -6,7 +6,7 @@
 #define ANCHORCURVE_H
 
 #include "Curve.h"
-#include "Utils/OverlappableSerialList.h"
+#include <lite/ADT/OverlappableSerialList.h>
 
 #include <opendspxinterpolator/interpolator.h>
 

@@ -8,7 +8,7 @@
 #define appStatus AppStatus::instance()
 
 #include "Model/AppModel/LoopSettings.h"
-#include "Utils/Property.h"
+#include <lite/ADT/Property.h>
 #include "Utils/Singleton.h"
 
 #include <QObject>

@@ -6,7 +6,7 @@
 #define DEVELOPEROPTION_H
 
 #include "Model/AppOptions/IOption.h"
-#include "Utils/Property.h"
+#include <lite/ADT/Property.h>
 
 class DeveloperOption final : public IOption {
 public:

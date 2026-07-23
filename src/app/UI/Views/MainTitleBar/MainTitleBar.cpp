@@ -13,7 +13,7 @@
 #include "Modules/History/HistoryManager.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ToolTipFilter.h"
-#include "Utils/SystemUtils.h"
+#include <lite/Support/SystemUtils.h>
 
 #include <QEvent>
 #include <QGraphicsOpacityEffect>

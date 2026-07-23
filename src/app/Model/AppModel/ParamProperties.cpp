@@ -4,7 +4,7 @@
 
 #include "ParamProperties.h"
 
-#include "Utils/MathUtils.h"
+#include <lite/Support/MathUtils.h>
 
 ParamProperties::ParamProperties() = default;
 

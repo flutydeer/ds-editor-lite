@@ -6,8 +6,8 @@
 
 #include "AppOptions.h"
 
-#include "Utils/JsonUtils.h"
-#include "Utils/Log.h"
+#include <lite/Support/JsonUtils.h>
+#include <lite/Support/Log.h>
 
 #include <QStandardPaths>
 #include <QDir>

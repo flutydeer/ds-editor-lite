@@ -9,7 +9,7 @@
 #include "Track.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/MathUtils.h>
 #include "Utils/MusicTimeConverter.h"
 #include "Global/AppGlobal.h"
 

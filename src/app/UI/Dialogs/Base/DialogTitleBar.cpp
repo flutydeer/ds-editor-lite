@@ -5,7 +5,7 @@
 #include "DialogTitleBar.h"
 
 #include "UI/Controls/Button.h"
-#include "Utils/SystemUtils.h"
+#include <lite/Support/SystemUtils.h>
 
 #include <QEvent>
 #include <QGraphicsOpacityEffect>

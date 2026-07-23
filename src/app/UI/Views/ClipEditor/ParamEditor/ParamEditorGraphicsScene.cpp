@@ -4,7 +4,7 @@
 #include "ParamEditorGraphicsScene.h"
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include "Utils/Log.h"
+#include <lite/Support/Log.h>
 
 ParamEditorGraphicsScene::ParamEditorGraphicsScene(QObject *parent) : TimeGraphicsScene(parent) {
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);

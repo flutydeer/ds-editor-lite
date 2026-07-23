@@ -1,6 +1,6 @@
 #include "G2pInfoWidget.h"
 
-#include "Utils/VersionUtils.h"
+#include <lite/Support/VersionUtils.h>
 
 #include <synthrt/G2P/Core/Manager.h>
 

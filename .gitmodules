@@ -1,5 +1,5 @@
 [submodule "src/libs/qtmediate"]
-	path = src/libs/qtmediate
+	path = src/3rdparty/qtmediate
 	url = ../../flutydeer/qtmediate
 
 [submodule "scripts/vcpkg"]

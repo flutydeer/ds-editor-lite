@@ -10,7 +10,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/SynthrtEngine/SynthrtEngine.h"
-#include "Utils/StringUtils.h"
+#include <lite/Support/StringUtils.h>
 
 #include <synthrt/Core/Plugin/PluginFactory.h>
 #include <synthrt/Extract/MidiExtractorPlugin.h>

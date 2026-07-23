@@ -1,6 +1,6 @@
 #include "LogWindow.h"
 
-#include "Utils/LogBus.h"
+#include <lite/Support/LogBus.h>
 #include "Model/AppOptions/AppOptions.h"
 
 #include <QApplication>

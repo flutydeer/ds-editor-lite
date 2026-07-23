@@ -1,7 +1,7 @@
 #include "LoggingBootstrap.h"
 
 #include "Modules/Inference/Utils/DmlGpuUtils.h"
-#include "Utils/Log.h"
+#include <lite/Support/Log.h>
 
 #include <QDir>
 #include <QStandardPaths>

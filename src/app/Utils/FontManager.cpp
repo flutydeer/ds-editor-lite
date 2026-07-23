@@ -3,8 +3,8 @@
 //
 
 #include "FontManager.h"
-#include "SystemUtils.h"
-#include "Log.h"
+#include <lite/Support/SystemUtils.h>
+#include <lite/Support/Log.h>
 
 #include <QApplication>
 #include <QFile>

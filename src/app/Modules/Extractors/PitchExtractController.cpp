@@ -13,8 +13,8 @@
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
-#include "Utils/Linq.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/Linq.h>
+#include <lite/Support/MathUtils.h>
 
 #include <curve-util/CurveUtil.h>
 

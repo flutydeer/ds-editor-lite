@@ -5,7 +5,7 @@
 #ifndef DSCURVE_H
 #define DSCURVE_H
 
-#include "Utils/Overlappable.h"
+#include <lite/ADT/Overlappable.h>
 #include "Utils/UniqueObject.h"
 
 #include <QPointer>

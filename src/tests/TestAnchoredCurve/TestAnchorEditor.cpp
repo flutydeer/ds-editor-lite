@@ -4,7 +4,7 @@
 
 #include "TestAnchorEditor.h"
 
-#include "../../app/Utils/Linq.h"
+#include <lite/Support/Linq.h>
 
 #include <QPainter>
 #include <QPainterPath>

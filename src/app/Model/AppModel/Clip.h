@@ -6,8 +6,8 @@
 #define CLIP_H
 
 #include "Interface/IClip.h"
-#include "Utils/Overlappable.h"
-#include "Utils/OverlappableSerialList.h"
+#include <lite/ADT/Overlappable.h>
+#include <lite/ADT/OverlappableSerialList.h>
 
 #include <QObject>
 #include <QMap>

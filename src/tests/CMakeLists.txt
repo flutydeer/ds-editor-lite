@@ -1,3 +1,8 @@
+# Tests recompile app source directly (no Model library to link yet), so they
+# inherit the app's transitive <lite/...> includes. Expose the sync_include root
+# for the whole test tree here rather than linking each lib into every test.
+include_directories(${LITE_BUILD_INCLUDE_DIR})
+
 #add_subdirectory(TestAnchoredCurve)
 add_subdirectory(TestElasticAnimation)
 add_subdirectory(TestExpected)

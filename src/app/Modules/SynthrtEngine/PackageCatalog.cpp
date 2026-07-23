@@ -1,6 +1,6 @@
 #include "PackageCatalog.h"
 
-#include "Utils/VersionUtils.h"
+#include <lite/Support/VersionUtils.h>
 
 #include <algorithm>
 #include <set>

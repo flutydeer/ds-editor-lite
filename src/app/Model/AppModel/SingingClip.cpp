@@ -15,7 +15,7 @@
 #include "Track.h"
 #include "Modules/SingingClipSlicer/SingingClipSlicer.h"
 #include "Model/Utils/AppModelUtils.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/MathUtils.h>
 
 #include <QTimer>
 

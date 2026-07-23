@@ -7,7 +7,7 @@
 
 #include "Modules/PackageManager/Models/GetInstalledPackagesResult.h"
 #include "Modules/Task/Task.h"
-#include "Utils/Expected.h"
+#include <lite/ADT/Expected.h>
 
 class GetInstalledPackagesTask final : public Task {
     Q_OBJECT

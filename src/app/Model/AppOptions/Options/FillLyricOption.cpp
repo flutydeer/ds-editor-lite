@@ -1,6 +1,6 @@
 #include "FillLyricOption.h"
 
-#include "Utils/JsonUtils.h"
+#include <lite/Support/JsonUtils.h>
 
 #include <QJsonArray>
 
