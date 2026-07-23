@@ -21,29 +21,44 @@ OverlaySplitter::OverlaySplitter(QWidget *parent) : QSplitter(parent) {
     setHandleWidth(0);
 }
 
+OverlaySplitter::~OverlaySplitter() {
+    // The grip is intentionally parented to the splitter's parent, so it is not
+    // destroyed automatically with this widget.
+    delete m_grip;
+}
+
 void OverlaySplitter::ensureGrip() {
-    if (m_grip)
-        return;
-
-    // The grip must be parented to this splitter's parent widget (a sibling
-    // in the widget hierarchy), because QSplitter treats all direct children
-    // as managed split panels, which would break the grip's positioning.
     auto *p = parentWidget();
-    if (!p)
+    if (!p) {
+        if (m_grip)
+            m_grip->hide();
         return;
+    }
 
-    m_grip = new SplitterOverlayGrip(this, p);
-    m_grip->show();
-    connect(this, &QSplitter::splitterMoved, this, &OverlaySplitter::updateGripPosition);
+    if (!m_grip) {
+        // Keep the grip outside the splitter's managed children. QSplitter
+        // treats direct child widgets as split panels when laying itself out.
+        m_grip = new SplitterOverlayGrip(this, p);
+        connect(this, &QSplitter::splitterMoved, this, &OverlaySplitter::updateGripPosition);
+    } else if (m_grip->parentWidget() != p) {
+        m_grip->setParent(p);
+    }
+
+    updateGripVisibility();
 }
 
 bool OverlaySplitter::event(QEvent *event) {
-    // Defer grip creation until the splitter has a parent and is shown.
-    if (event->type() == QEvent::ParentChange || event->type() == QEvent::Show) {
+    const auto result = QSplitter::event(event);
+    // Keep the sibling widget synchronized with the splitter through page
+    // switches and layout moves.
+    if (event->type() == QEvent::ParentChange || event->type() == QEvent::Show ||
+        event->type() == QEvent::Move) {
         ensureGrip();
         updateGripPosition();
+    } else if (event->type() == QEvent::Hide) {
+        updateGripVisibility();
     }
-    return QSplitter::event(event);
+    return result;
 }
 
 void OverlaySplitter::resizeEvent(QResizeEvent *event) {
@@ -51,9 +66,23 @@ void OverlaySplitter::resizeEvent(QResizeEvent *event) {
     updateGripPosition();
 }
 
-void OverlaySplitter::updateGripPosition() {
-    if (!m_grip || count() < 2 || !parentWidget())
+void OverlaySplitter::updateGripVisibility() {
+    if (!m_grip)
         return;
+
+    const bool visible = parentWidget() && count() >= 2 && isVisible();
+    m_grip->setVisible(visible);
+    if (!visible)
+        m_grip->setUpdatesEnabled(false);
+}
+
+void OverlaySplitter::updateGripPosition() {
+    if (!m_grip || count() < 2 || !parentWidget() || !isVisible()) {
+        updateGripVisibility();
+        return;
+    }
+
+    updateGripVisibility();
 
     auto *first = widget(0);
     if (!first)
@@ -64,13 +93,13 @@ void OverlaySplitter::updateGripPosition() {
     if (orientation() == Qt::Horizontal) {
         int localX = first->geometry().right() + 1;
         QPoint posInParent = mapToParent(QPoint(localX, 0));
-        m_grip->setGeometry(posInParent.x() - kGripHalfWidth, posInParent.y(),
-                            kGripHalfWidth * 2, height());
+        m_grip->setGeometry(posInParent.x() - kGripHalfWidth, posInParent.y(), kGripHalfWidth * 2,
+                            height());
     } else {
         int localY = first->geometry().bottom() + 1;
         QPoint posInParent = mapToParent(QPoint(0, localY));
-        m_grip->setGeometry(posInParent.x(), posInParent.y() - kGripHalfWidth,
-                            width(), kGripHalfWidth * 2);
+        m_grip->setGeometry(posInParent.x(), posInParent.y() - kGripHalfWidth, width(),
+                            kGripHalfWidth * 2);
     }
     // Ensure the grip stays above all sibling widgets.
     m_grip->raise();
