@@ -7,9 +7,9 @@
 
 #include "Model/AppModel/Timeline.h"
 #include "InferenceTaskContext.h"
-#include "InferSpeakerMix.h"
+#include "Model/InferenceData/InferSpeakerMix.h"
 #include "InferInputNote.h"
-#include "SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 
 #include <QList>
 #include <QJsonArray>

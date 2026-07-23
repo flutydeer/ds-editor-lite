@@ -16,7 +16,7 @@
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferInputNote.h"
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 #include "Modules/Task/Task.h"
 
 class InferDurationTask final : public IInferTask {

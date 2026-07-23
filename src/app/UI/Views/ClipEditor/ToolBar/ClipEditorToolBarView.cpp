@@ -13,7 +13,7 @@
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 #include "Modules/PackageManager/PackageManager.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ComboBox.h"

@@ -1,4 +1,4 @@
-#include "DiffscopeAudioWorkspace.h"
+#include "Model/Utils/DiffscopeAudioWorkspace.h"
 
 #include "Model/AppModel/AudioClip.h"
 

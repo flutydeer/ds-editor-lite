@@ -10,7 +10,7 @@
 
 #include "SpeakerInfo.h"
 #include "LanguageInfo.h"
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 
 class SingerInfoData;
 

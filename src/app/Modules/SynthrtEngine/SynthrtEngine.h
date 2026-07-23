@@ -49,7 +49,7 @@
 #include <diffsinger/Infer/InferenceService.h>
 #include <synthrt/Driver/OnnxSetup.h>
 
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 #include "PackageCatalog.h"
 
 class SingerModelSession;

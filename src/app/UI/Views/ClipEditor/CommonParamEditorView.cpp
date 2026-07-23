@@ -10,7 +10,7 @@
 #include "UI/Views/Common/TimeGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
 #include "UI/Utils/AppColorPalette.h"
-#include "Utils/AppModelUtils.h"
+#include "Model/Utils/AppModelUtils.h"
 #include "Utils/MathUtils.h"
 
 #include <QElapsedTimer>

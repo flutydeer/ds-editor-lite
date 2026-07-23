@@ -1,6 +1,6 @@
-#include "InferSpeakerMix.h"
+#include "Model/InferenceData/InferSpeakerMix.h"
 
-#include "Model/AppModel/InferPiece.h"
+#include "Model/InferenceData/InferPiece.h"
 
 #include <QCryptographicHash>
 #include <QJsonArray>

@@ -7,7 +7,7 @@
 
 #include "PianoRollEditorView.h"
 #include "Interface/EditorViewState.h"
-#include "Modules/History/HistoryFocus.h"
+#include "Interface/HistoryFocus.h"
 #include "UI/Views/Common/TabPanelPage.h"
 #include "UI/Views/Common/PanelView.h"
 

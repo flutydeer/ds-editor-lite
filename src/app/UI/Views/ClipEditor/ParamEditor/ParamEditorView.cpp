@@ -17,7 +17,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Controller/PlaybackController.h"
 #include "Modules/History/HistoryManager.h"
-#include "Utils/ParamUtils.h"
+#include "Model/Utils/ParamUtils.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
 
 #include <algorithm>

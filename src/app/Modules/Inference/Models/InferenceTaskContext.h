@@ -5,7 +5,7 @@
 #ifndef DS_EDITOR_LITE_INFERENCETASKCONTEXT_H
 #define DS_EDITOR_LITE_INFERENCETASKCONTEXT_H
 
-#include "SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 
 #include <QList>
 #include <QString>

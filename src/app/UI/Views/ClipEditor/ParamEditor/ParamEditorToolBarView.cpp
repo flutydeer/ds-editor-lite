@@ -7,7 +7,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ComboBox.h"
-#include "Utils/ParamUtils.h"
+#include "Model/Utils/ParamUtils.h"
 #include "SpeakerMixToolBarView.h"
 
 #include <QEvent>

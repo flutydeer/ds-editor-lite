@@ -10,11 +10,11 @@
 #include "Clip.h"
 #include "DrawCurve.h"
 #include "Note.h"
-#include "InferPiece.h"
+#include "Model/InferenceData/InferPiece.h"
 #include "Timeline.h"
 #include "Track.h"
 #include "Modules/SingingClipSlicer/SingingClipSlicer.h"
-#include "Utils/AppModelUtils.h"
+#include "Model/Utils/AppModelUtils.h"
 #include "Utils/MathUtils.h"
 
 #include <QTimer>

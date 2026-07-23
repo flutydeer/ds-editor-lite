@@ -6,7 +6,7 @@
 #define PIANOROLLGRAPHICSVIEW_H
 
 #include "Interface/IAtomicAction.h"
-#include "Modules/History/HistoryFocus.h"
+#include "Interface/HistoryFocus.h"
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/TimeGraphicsView.h"

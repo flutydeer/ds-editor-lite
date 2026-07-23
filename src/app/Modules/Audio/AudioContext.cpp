@@ -2,7 +2,7 @@
 
 #include "TrackInferenceHandler.h"
 #include "Model/AppModel/AudioClip.h"
-#include "Model/AppModel/InferPiece.h"
+#include "Model/InferenceData/InferPiece.h"
 #include "Model/AppModel/SingingClip.h"
 
 #include <QMessageBox>

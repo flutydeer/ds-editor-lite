@@ -2,7 +2,7 @@
 // Created by fluty on 24-10-21.
 //
 
-#include "ParamUtils.h"
+#include "Model/Utils/ParamUtils.h"
 
 ParamUtils::ParamUtils(QObject *parent) : QObject(parent) {
 }

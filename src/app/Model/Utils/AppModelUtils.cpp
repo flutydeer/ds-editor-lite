@@ -2,9 +2,9 @@
 // Created by OrangeCat on 24-9-4.
 //
 
-#include "AppModelUtils.h"
+#include "Model/Utils/AppModelUtils.h"
 
-#include "MathUtils.h"
+#include "Utils/MathUtils.h"
 #include "Global/SingingClipSlicerGlobal.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Curve.h"

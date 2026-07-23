@@ -9,14 +9,14 @@
 #include "Model/AppModel/DrawCurve.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
-#include "Model/AppModel/InferPiece.h"
+#include "Model/InferenceData/InferPiece.h"
 #include "Models/InferInputNote.h"
-#include "Models/InferSpeakerMix.h"
+#include "Model/InferenceData/InferSpeakerMix.h"
 #include "Models/SpeakerMixValidator.h"
-#include "Utils/AppModelUtils.h"
+#include "Model/Utils/AppModelUtils.h"
 #include "Utils/Linq.h"
 #include "Utils/MathUtils.h"
-#include "Utils/ParamUtils.h"
+#include "Model/Utils/ParamUtils.h"
 #include "curve-util/CurveUtil.h"
 
 #include <QDebug>

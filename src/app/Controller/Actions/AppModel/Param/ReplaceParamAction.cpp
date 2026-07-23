@@ -5,7 +5,7 @@
 #include "ReplaceParamAction.h"
 
 #include "Model/AppModel/SingingClip.h"
-#include "Utils/AppModelUtils.h"
+#include "Model/Utils/AppModelUtils.h"
 
 ReplaceParamAction::ReplaceParamAction(const ParamInfo::Name paramName, const Param::Type paramType,
                                        const QList<Curve *> &curves, SingingClip *clip)

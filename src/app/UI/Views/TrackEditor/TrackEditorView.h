@@ -8,7 +8,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Track.h"
 #include "Interface/EditorViewState.h"
-#include "Modules/History/HistoryFocus.h"
+#include "Interface/HistoryFocus.h"
 #include "UI/Views/Common/PanelView.h"
 
 

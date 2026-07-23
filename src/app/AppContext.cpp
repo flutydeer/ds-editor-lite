@@ -8,7 +8,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Utils/ParamUtils.h"
+#include "Model/Utils/ParamUtils.h"
 #include "Utils/IdGenerator.h"
 #include "Modules/Task/TaskManager.h"
 #include "Modules/History/HistoryManager.h"

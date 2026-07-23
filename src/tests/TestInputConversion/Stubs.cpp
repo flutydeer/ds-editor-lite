@@ -2,7 +2,7 @@
 // These allow effectiveSpeakerMixForPiece to be tested without linking
 // the full AppModel / SingingClip / Note dependency chain.
 
-#include "Model/AppModel/InferPiece.h"
+#include "Model/InferenceData/InferPiece.h"
 #include "Model/AppModel/DrawCurve.h"
 #include "Utils/IdGenerator.h"
 

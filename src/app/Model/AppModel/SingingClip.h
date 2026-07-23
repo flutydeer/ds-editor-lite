@@ -11,7 +11,7 @@
 #include "SpeakerMixData.h"
 #include "Global/AppGlobal.h"
 #include "Utils/Property.h"
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 #include "Modules/PackageManager/Models/SingerInfo.h"
 #include "Modules/PackageManager/Models/SpeakerInfo.h"
 

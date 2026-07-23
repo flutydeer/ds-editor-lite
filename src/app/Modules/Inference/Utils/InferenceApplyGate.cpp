@@ -6,11 +6,11 @@
 
 #include "Modules/Inference/EditSessionManager.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/InferPiece.h"
+#include "Model/InferenceData/InferPiece.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Modules/Inference/InferControllerHelper.h"
-#include "Modules/Inference/Models/InferSpeakerMix.h"
+#include "Model/InferenceData/InferSpeakerMix.h"
 
 #include <QDebug>
 
