@@ -6,8 +6,8 @@
 #define ANCHORCURVE_H
 
 #include "anchoredcurve.h"
-#include "../../app/Utils/Overlappable.h"
-#include "../../app/Utils/OverlappableSerialList.h"
+#include <lite/ADT/Overlappable.h>
+#include <lite/ADT/OverlappableSerialList.h>
 #include "../../app/Utils/UniqueObject.h"
 
 class AnchorNode : public Overlappable, public UniqueObject {

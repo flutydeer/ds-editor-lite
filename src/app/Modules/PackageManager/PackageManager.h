@@ -13,7 +13,7 @@
 
 #include "Modules/PackageManager/Models/GetInstalledPackagesResult.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Utils/Expected.h"
+#include <lite/ADT/Expected.h>
 #include "Utils/Singleton.h"
 
 #include <QObject>

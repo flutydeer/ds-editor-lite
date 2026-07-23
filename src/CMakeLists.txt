@@ -2,6 +2,7 @@ include(conf.cmake)
 
 lite_init_buildsystem(LITE)
 
+add_subdirectory(3rdparty)
 add_subdirectory(libs)
 
 qm_find_qt(Core)

@@ -7,7 +7,7 @@
 
 #include "Utils/Singleton.h"
 #include "UI/Utils/IAnimatable.h"
-#include "Utils/Queue.h"
+#include <lite/ADT/Queue.h>
 
 #include <QWidget>
 #include <QTimer>

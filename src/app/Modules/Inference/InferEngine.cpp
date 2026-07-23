@@ -17,7 +17,7 @@
 
 #include "Utils/DmlGpuUtils.h"
 #include "Utils/Log.h"
-#include "Utils/Expected.h"
+#include <lite/ADT/Expected.h>
 #include "Utils/StringUtils.h"
 #include "Utils/VersionUtils.h"
 

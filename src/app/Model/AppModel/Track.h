@@ -9,7 +9,7 @@
 
 #include "Model/AppModel/EffectiveVoiceContext.h"
 #include "Model/AppModel/SpeakerMixData.h"
-#include "Utils/OverlappableSerialList.h"
+#include <lite/ADT/OverlappableSerialList.h>
 #include "TrackControl.h"
 #include "Interface/ISerializable.h"
 #include "Interface/ITrack.h"

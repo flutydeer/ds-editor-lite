@@ -13,7 +13,7 @@
 #include "Global/AppGlobal.h"
 #include "Model/AppModel/Params.h"
 #include "Model/AppOptions/IOption.h"
-#include "Utils/Property.h"
+#include <lite/ADT/Property.h>
 
 class GeneralOption final : public IOption {
 public:

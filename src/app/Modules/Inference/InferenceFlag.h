@@ -1,7 +1,7 @@
 #ifndef INFERENCE_FLAG_H
 #define INFERENCE_FLAG_H
 
-#include "Utils/BitMaskFlag.h"
+#include <lite/ADT/BitMaskFlag.h>
 
 namespace InferenceFlag {
     using Type = BitMaskFlag<struct InferenceFlagTag, uint8_t>;

@@ -8,7 +8,7 @@
 #include "Global/AppGlobal.h"
 #include "UI/Utils/OverlappableItem.h"
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
-#include "Utils/Property.h"
+#include <lite/ADT/Property.h>
 #include "Utils/UniqueObject.h"
 
 #include <QColor>
