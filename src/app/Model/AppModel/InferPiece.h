@@ -10,7 +10,7 @@
 #include "Params.h"
 #include "Interface/IInferPiece.h"
 #include "Utils/Property.h"
-#include "Modules/Inference/Models/InferSpeakerMix.h"
+#include "Model/AppModel/InferSpeakerMix.h"
 #include "Modules/Inference/Models/SingerIdentifier.h"
 
 #include <QObject>

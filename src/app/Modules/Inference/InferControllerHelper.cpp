@@ -11,7 +11,7 @@
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppModel/InferPiece.h"
 #include "Models/InferInputNote.h"
-#include "Models/InferSpeakerMix.h"
+#include "Model/AppModel/InferSpeakerMix.h"
 #include "Models/SpeakerMixValidator.h"
 #include "Utils/AppModelUtils.h"
 #include "Utils/Linq.h"

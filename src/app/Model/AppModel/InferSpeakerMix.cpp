@@ -1,4 +1,4 @@
-#include "InferSpeakerMix.h"
+#include "Model/AppModel/InferSpeakerMix.h"
 
 #include "Model/AppModel/InferPiece.h"
 

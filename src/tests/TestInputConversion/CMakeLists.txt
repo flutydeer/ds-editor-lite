@@ -7,7 +7,7 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Model/AppModel/InferPiece.h
         ../../app/Modules/Inference/Tasks/InferTaskCommon.cpp
         ../../app/Modules/Inference/Models/GenericInferModel.cpp
-        ../../app/Modules/Inference/Models/InferSpeakerMix.cpp
+        ../../app/Model/AppModel/InferSpeakerMix.cpp
         ../../app/Model/AppModel/SpeakerMixData.cpp
         ../../app/Model/AppModel/Timeline.cpp
         ../../app/Model/AppModel/Tempo.cpp

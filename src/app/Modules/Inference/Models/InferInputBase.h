@@ -7,7 +7,7 @@
 
 #include "Model/AppModel/Timeline.h"
 #include "InferenceTaskContext.h"
-#include "InferSpeakerMix.h"
+#include "Model/AppModel/InferSpeakerMix.h"
 #include "InferInputNote.h"
 #include "SingerIdentifier.h"
 

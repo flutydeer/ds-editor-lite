@@ -2,7 +2,7 @@
 #define IEDITORVIEW_H
 
 #include "EditorViewState.h"
-#include "Modules/History/HistoryFocus.h"
+#include "Interface/HistoryFocus.h"
 #include "Utils/Macros.h"
 
 LITE_INTERFACE IEditorView {

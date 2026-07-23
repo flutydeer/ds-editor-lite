@@ -11,7 +11,7 @@
 #include <optional>
 
 #include "IAction.h"
-#include "HistoryFocus.h"
+#include "Interface/HistoryFocus.h"
 
 class HistoryManager;
 

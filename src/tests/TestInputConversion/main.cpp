@@ -5,7 +5,7 @@
 
 #include "Model/AppModel/InferPiece.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
-#include "Modules/Inference/Models/InferSpeakerMix.h"
+#include "Model/AppModel/InferSpeakerMix.h"
 #include "Modules/Inference/Tasks/InferTaskCommon.h"
 
 #include <QCoreApplication>

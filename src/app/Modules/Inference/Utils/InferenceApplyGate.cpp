@@ -10,7 +10,7 @@
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Modules/Inference/InferControllerHelper.h"
-#include "Modules/Inference/Models/InferSpeakerMix.h"
+#include "Model/AppModel/InferSpeakerMix.h"
 
 #include <QDebug>
 

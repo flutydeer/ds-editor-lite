@@ -9,7 +9,7 @@
 #include "Model/AppModel/InferPiece.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "Models/InferSpeakerMix.h"
+#include "Model/AppModel/InferSpeakerMix.h"
 #include "Models/NoteInferenceSnapshot.h"
 #include "Tasks/GetPhonemeNameTask.h"
 #include "Tasks/GetPronunciationTask.h"

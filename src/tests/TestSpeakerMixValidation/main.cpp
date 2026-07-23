@@ -11,7 +11,7 @@
 // capability.
 
 #include "Model/AppModel/InferPiece.h"
-#include "Modules/Inference/Models/InferSpeakerMix.h"
+#include "Model/AppModel/InferSpeakerMix.h"
 #include "Modules/Inference/Models/SpeakerMixValidator.h"
 #include "Modules/PackageManager/Models/SingerInfo.h"
 #include "Modules/PackageManager/Models/SpeakerInfo.h"

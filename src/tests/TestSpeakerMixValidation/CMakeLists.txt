@@ -7,7 +7,7 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Model/AppModel/InferPiece.h
         ../../app/Model/AppModel/SpeakerMixData.cpp
         ../../app/Modules/Inference/Models/GenericInferModel.cpp
-        ../../app/Modules/Inference/Models/InferSpeakerMix.cpp
+        ../../app/Model/AppModel/InferSpeakerMix.cpp
         ../../app/Modules/Inference/Models/SpeakerMixValidator.cpp
         ../../app/Modules/PackageManager/Models/SpeakerInfo.cpp
         ../../app/Modules/PackageManager/Models/SingerInfo.cpp
