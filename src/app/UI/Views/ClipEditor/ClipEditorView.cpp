@@ -116,6 +116,14 @@ bool ClipEditorView::setEditMode(const EditorViewGlobal::PianoRollEditMode mode)
     return m_toolbarView->setEditMode(mode);
 }
 
+HistoryFocusVisibility ClipEditorView::focusVisibility(const HistoryFocus &focus) const {
+    return m_pianoRollEditorView->pianoRollView()->graphicsView()->focusVisibility(focus);
+}
+
+bool ClipEditorView::revealFocus(const HistoryFocus &focus) const {
+    return m_pianoRollEditorView->pianoRollView()->graphicsView()->revealFocus(focus);
+}
+
 void ClipEditorView::refreshActiveClipTrackPresentation() {
     Track *trackRef = nullptr;
     appModel->findClipById(appStatus->activeClipId, trackRef);

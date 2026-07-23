@@ -6,6 +6,7 @@
 #define PIANOROLLGRAPHICSVIEW_H
 
 #include "Interface/IAtomicAction.h"
+#include "Modules/History/HistoryFocus.h"
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
@@ -30,8 +31,8 @@ class PianoRollGraphicsView final : public TimeGraphicsView, public IAtomicActio
     Q_PROPERTY(QColor octaveDividerColor READ octaveDividerColor WRITE setOctaveDividerColor)
     Q_PROPERTY(QColor noteSelectedBorderColor READ noteSelectedBorderColor WRITE
                    setNoteSelectedBorderColor)
-    Q_PROPERTY(QColor pronunciationTextColor READ pronunciationTextColor WRITE
-                   setPronunciationTextColor)
+    Q_PROPERTY(
+        QColor pronunciationTextColor READ pronunciationTextColor WRITE setPronunciationTextColor)
     Q_PROPERTY(QColor anchorColor READ anchorColor WRITE setAnchorColor)
     Q_PROPERTY(QColor anchorSelectedColor READ anchorSelectedColor WRITE setAnchorSelectedColor)
     Q_PROPERTY(QColor anchorCurveColor READ anchorCurveColor WRITE setAnchorCurveColor)
@@ -55,6 +56,8 @@ public:
     void reset();
     [[nodiscard]] QList<int> selectedNotesId() const;
     void clearNoteSelections(const NoteView *except = nullptr);
+    [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
+    bool revealFocus(const HistoryFocus &focus);
 
     void discardAction() override;
     void commitAction() override;

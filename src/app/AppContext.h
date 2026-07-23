@@ -24,6 +24,7 @@ class ClipboardController;
 class TrackController;
 class ClipController;
 class EditorViewController;
+class UndoRedoController;
 class PitchExtractController;
 class MidiExtractController;
 class EditSessionManager;
@@ -78,6 +79,7 @@ public:
     TrackController *m_trackController = nullptr;
     ClipController *m_clipController = nullptr;
     EditorViewController *m_editorViewController = nullptr;
+    UndoRedoController *m_undoRedoController = nullptr;
     PitchExtractController *m_pitchExtractController = nullptr;
     MidiExtractController *m_midiExtractController = nullptr;
     EditSessionManager *m_editSessionManager = nullptr;

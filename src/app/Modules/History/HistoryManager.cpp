@@ -61,6 +61,7 @@ void HistoryManager::record(ActionSequence *actions) {
         return;
     }
 
+    actions->setHistoryId(d->m_nextHistoryId++);
     d->m_undoStack.push(actions);
     for (const auto sequence : d->m_redoStack)
         delete sequence;
@@ -132,4 +133,14 @@ QString HistoryManager::undoActionName() const {
 QString HistoryManager::redoActionName() const {
     Q_D(const HistoryManager);
     return d->m_redoStack.isEmpty() ? "" : d->m_redoStack.top()->name();
+}
+
+const ActionSequence *HistoryManager::nextUndoEntry() const {
+    Q_D(const HistoryManager);
+    return d->m_undoStack.isEmpty() ? nullptr : d->m_undoStack.top();
+}
+
+const ActionSequence *HistoryManager::nextRedoEntry() const {
+    Q_D(const HistoryManager);
+    return d->m_redoStack.isEmpty() ? nullptr : d->m_redoStack.top();
 }

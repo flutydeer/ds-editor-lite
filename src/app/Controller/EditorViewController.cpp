@@ -67,6 +67,23 @@ void EditorViewController::previewActiveClipTrackColor(int colorIndex) const {
         m_view->previewActiveClipTrackColor(colorIndex);
 }
 
+HistoryFocusVisibility EditorViewController::focusVisibility(const HistoryFocus &focus) const {
+    return m_view ? m_view->focusVisibility(focus) : HistoryFocusVisibility::Unavailable;
+}
+
+bool EditorViewController::revealFocus(const HistoryFocus &focus) const {
+    return m_view && m_view->revealFocus(focus);
+}
+
+bool EditorViewController::finalizeFocus(const HistoryFocus &focus) const {
+    return m_view && m_view->finalizeFocus(focus);
+}
+
+void EditorViewController::clearFocusPreview() const {
+    if (m_view)
+        m_view->clearFocusPreview();
+}
+
 void EditorViewController::registerPanel(IPanel *panel) {
     if (!panel || m_panels.contains(panel))
         return;

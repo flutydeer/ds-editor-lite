@@ -19,6 +19,7 @@ public:
     ActionSequence *m_savePoint = nullptr;
     bool m_isSavePointSet = false;
     bool m_unsavedBaseline = false;
+    quint64 m_nextHistoryId = 1;
 
 private:
     HistoryManager *q_ptr = nullptr;

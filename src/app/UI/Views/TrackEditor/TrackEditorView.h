@@ -8,6 +8,7 @@
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Track.h"
 #include "Interface/EditorViewState.h"
+#include "Modules/History/HistoryFocus.h"
 #include "UI/Views/Common/PanelView.h"
 
 
@@ -30,10 +31,12 @@ public:
     explicit TrackEditorView(QWidget *parent = nullptr);
     ~TrackEditorView() override;
 
-    AbstractClipView *findClipItemById(int id);
+    AbstractClipView *findClipItemById(int id) const;
     [[nodiscard]] TrackPanelViewState viewState() const;
     bool centerAt(double tick, double trackIndex) const;
     bool setViewScale(double horizontalScale, double verticalScale) const;
+    [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
+    bool revealFocus(const HistoryFocus &focus) const;
 
 public slots:
     void onModelChanged();

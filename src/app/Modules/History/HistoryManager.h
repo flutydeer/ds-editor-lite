@@ -39,6 +39,8 @@ public:
     [[nodiscard]] bool canRedo() const;
     [[nodiscard]] QString undoActionName() const;
     [[nodiscard]] QString redoActionName() const;
+    [[nodiscard]] const ActionSequence *nextUndoEntry() const;
+    [[nodiscard]] const ActionSequence *nextRedoEntry() const;
 
 signals:
     void undoRedoChanged(bool canUndo, const QString &undoName, bool canRedo,

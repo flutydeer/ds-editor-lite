@@ -49,6 +49,10 @@ public:
     bool setPianoRollEditMode(EditorViewGlobal::PianoRollEditMode mode) override;
     void refreshActiveClipTrackPresentation() override;
     void previewActiveClipTrackColor(int colorIndex) override;
+    [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const override;
+    bool revealFocus(const HistoryFocus &focus) override;
+    bool finalizeFocus(const HistoryFocus &focus) override;
+    void clearFocusPreview() override;
     void updateDiagnosticFilter();
     void updateLogWindowVisible();
     void updatePanelDetachEnabled();

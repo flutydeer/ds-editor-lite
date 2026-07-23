@@ -24,6 +24,10 @@ public:
     void setSnapGrid(TrackEditorBackgroundView *grid);
     [[nodiscard]] QList<int> selectedClipsId() const;
 
+    [[nodiscard]] double sceneXForTick(double tick) const {
+        return TimeGraphicsView::tickToSceneX(tick);
+    }
+
     void discardAction() override;
     void commitAction() override;
 

@@ -23,6 +23,7 @@
 #include "Modules/Extractors/MidiExtractController.h"
 #include "Modules/Extractors/PitchExtractController.h"
 #include "Modules/History/HistoryManager.h"
+#include "Controller/UndoRedoController.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Dialogs/Extractor/ExtractPitchParamDialog.h"
@@ -461,7 +462,8 @@ void MainMenuViewPrivate::initFileActions() {
     actionSave->setShortcutContext(Qt::ApplicationShortcut);
 
     actionSaveAs = new QAction(tr("Save &as..."), this);
-    setMenuIcon(actionSaveAs, QStringLiteral(":/svg/icons/save_edit_20_regular.svg"), QSize(20, 20));
+    setMenuIcon(actionSaveAs, QStringLiteral(":/svg/icons/save_edit_20_regular.svg"),
+                QSize(20, 20));
     actionSaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
     actionSaveAs->setShortcutContext(Qt::ApplicationShortcut);
 
@@ -496,14 +498,16 @@ void MainMenuViewPrivate::initEditActions() {
     actionUndo->setEnabled(false);
     actionUndo->setShortcut(QKeySequence("Ctrl+Z"));
     actionUndo->setShortcutContext(Qt::ApplicationShortcut);
-    connect(actionUndo, &QAction::triggered, historyManager, &HistoryManager::undo);
+    actionUndo->setAutoRepeat(false);
+    connect(actionUndo, &QAction::triggered, undoRedoController, &UndoRedoController::requestUndo);
 
     actionRedo = new QAction(tr("&Redo"), this);
     setMenuIcon(actionRedo, QStringLiteral(":/svg/icons/arrow_redo_16_regular.svg"));
     actionRedo->setEnabled(false);
     actionRedo->setShortcut(QKeySequence("Ctrl+Y"));
     actionRedo->setShortcutContext(Qt::ApplicationShortcut);
-    connect(actionRedo, &QAction::triggered, historyManager, &HistoryManager::redo);
+    actionRedo->setAutoRepeat(false);
+    connect(actionRedo, &QAction::triggered, undoRedoController, &UndoRedoController::requestRedo);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             [this](bool canUndo, const QString &undoName, bool canRedo, const QString &redoName) {
                 onUndoRedoChanged(canUndo, undoName, canRedo, redoName);
@@ -577,7 +581,8 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
     menuFile->addAction(actionOpen);
 
     menuRecentProjects = new Menu(tr("Recent Projects"), q);
-    setMenuIcon(menuRecentProjects->menuAction(), QStringLiteral(":/svg/icons/history_16_regular.svg"));
+    setMenuIcon(menuRecentProjects->menuAction(),
+                QStringLiteral(":/svg/icons/history_16_regular.svg"));
     connect(menuRecentProjects, &Menu::aboutToShow, this, [this] { refreshRecentProjectsMenu(); });
     connect(documentWorkflowController, &DocumentWorkflowController::recentProjectFilesChanged,
             this, [this] { refreshRecentProjectsMenu(); });
@@ -590,12 +595,14 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
     menuFile->addSeparator();
 
     menuImport = new Menu(tr("Import"), q);
-    setMenuIcon(menuImport->menuAction(), QStringLiteral(":/svg/icons/arrow_import_16_regular.svg"));
+    setMenuIcon(menuImport->menuAction(),
+                QStringLiteral(":/svg/icons/arrow_import_16_regular.svg"));
     menuImport->addAction(actionImportMidi);
     menuFile->addMenu(menuImport);
 
     menuExport = new Menu(tr("Export"), q);
-    setMenuIcon(menuExport->menuAction(), QStringLiteral(":/svg/icons/arrow_export_16_regular.svg"));
+    setMenuIcon(menuExport->menuAction(),
+                QStringLiteral(":/svg/icons/arrow_export_16_regular.svg"));
     menuExport->addAction(actionExportAudio);
     menuExport->addAction(actionExportMidi);
     menuFile->addMenu(menuExport);

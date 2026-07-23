@@ -791,6 +791,68 @@ void PianoRollGraphicsView::clearNoteSelections(const NoteView *except) {
     }
 }
 
+HistoryFocusVisibility PianoRollGraphicsView::focusVisibility(const HistoryFocus &focus) const {
+    Q_D(const PianoRollGraphicsView);
+    if (focus.kind != HistoryFocusKind::PianoRollNotes || !focus.isValid() || !d->m_clip ||
+        d->m_clip->id() != focus.containerId) {
+        return HistoryFocusVisibility::Unavailable;
+    }
+
+    QRectF itemBounds;
+    for (const auto id : focus.objectIds) {
+        if (const auto item = d->findNoteViewById(id))
+            itemBounds = itemBounds.isNull() ? item->sceneBoundingRect()
+                                             : itemBounds.united(item->sceneBoundingRect());
+    }
+    if (!itemBounds.isNull())
+        return visibleRect().intersects(itemBounds) ? HistoryFocusVisibility::Visible
+                                                    : HistoryFocusVisibility::Hidden;
+
+    const auto globalStart =
+        focus.ticksAreLocal ? d->m_clip->start() + focus.tickStart : focus.tickStart;
+    const auto globalEnd = focus.ticksAreLocal ? d->m_clip->start() + focus.tickEnd : focus.tickEnd;
+    const auto tickVisible = globalEnd >= startTick() && globalStart <= endTick();
+    const auto keyVisible = focus.valueEnd >= bottomKeyIndex() && focus.valueStart <= topKeyIndex();
+    return tickVisible && keyVisible ? HistoryFocusVisibility::Visible
+                                     : HistoryFocusVisibility::Hidden;
+}
+
+bool PianoRollGraphicsView::revealFocus(const HistoryFocus &focus) {
+    Q_D(PianoRollGraphicsView);
+    if (focus.kind != HistoryFocusKind::PianoRollNotes || !focus.isValid() || !d->m_clip ||
+        d->m_clip->id() != focus.containerId) {
+        return false;
+    }
+
+    QList<int> selectedIds;
+    QRectF itemBounds;
+    for (const auto id : focus.objectIds) {
+        if (const auto item = d->findNoteViewById(id)) {
+            selectedIds.append(id);
+            itemBounds = itemBounds.isNull() ? item->sceneBoundingRect()
+                                             : itemBounds.united(item->sceneBoundingRect());
+        }
+    }
+    clipController->selectNotes(selectedIds, true);
+    stopViewportAnimations();
+    if (!itemBounds.isNull()) {
+        ensureVisible(itemBounds, 24, 24);
+        return true;
+    }
+
+    const auto localStart =
+        focus.ticksAreLocal ? focus.tickStart : focus.tickStart - d->m_clip->start();
+    const auto localEnd = focus.ticksAreLocal ? focus.tickEnd : focus.tickEnd - d->m_clip->start();
+    const auto left = tickToSceneX(localStart);
+    const auto right = tickToSceneX(localEnd);
+    const auto keyHeight = scaleY() * noteHeight;
+    const auto top = PianoRollCoord::keyIndexToSceneY(focus.valueEnd, keyHeight);
+    const auto bottom = PianoRollCoord::keyIndexToSceneY(focus.valueStart, keyHeight) + keyHeight;
+    ensureVisible(QRectF(left, top, qMax(1.0, right - left), qMax(keyHeight, bottom - top)), 24,
+                  24);
+    return true;
+}
+
 void PianoRollGraphicsView::discardAction() {
     Q_D(PianoRollGraphicsView);
     d->m_pitchEditor->discardAction();

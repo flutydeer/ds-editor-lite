@@ -7,6 +7,7 @@
 
 #include "PianoRollEditorView.h"
 #include "Interface/EditorViewState.h"
+#include "Modules/History/HistoryFocus.h"
 #include "UI/Views/Common/TabPanelPage.h"
 #include "UI/Views/Common/PanelView.h"
 
@@ -39,6 +40,8 @@ public:
     bool centerAt(double tick, double keyIndex) const;
     bool setViewScale(double horizontalScale, double verticalScale) const;
     bool setEditMode(EditorViewGlobal::PianoRollEditMode mode);
+    [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
+    bool revealFocus(const HistoryFocus &focus) const;
     void refreshActiveClipTrackPresentation();
     void previewActiveClipTrackColor(int colorIndex) const;
 

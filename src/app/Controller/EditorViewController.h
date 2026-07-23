@@ -5,6 +5,7 @@
 
 #include "Global/AppGlobal.h"
 #include "Interface/EditorViewState.h"
+#include "Modules/History/HistoryFocus.h"
 #include "Utils/Singleton.h"
 
 #include <QObject>
@@ -39,6 +40,10 @@ public:
 
     void refreshActiveClipTrackPresentation() const;
     void previewActiveClipTrackColor(int colorIndex) const;
+    [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
+    bool revealFocus(const HistoryFocus &focus) const;
+    bool finalizeFocus(const HistoryFocus &focus) const;
+    void clearFocusPreview() const;
 
     void registerPanel(IPanel *panel);
     void unregisterPanel(IPanel *panel);

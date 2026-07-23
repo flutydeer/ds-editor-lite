@@ -2,6 +2,7 @@
 #define IEDITORVIEW_H
 
 #include "EditorViewState.h"
+#include "Modules/History/HistoryFocus.h"
 #include "Utils/Macros.h"
 
 LITE_INTERFACE IEditorView {
@@ -21,6 +22,10 @@ LITE_INTERFACE IEditorView {
 
     I_METHOD(void refreshActiveClipTrackPresentation());
     I_METHOD(void previewActiveClipTrackColor(int colorIndex));
+    I_METHOD(HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const);
+    I_METHOD(bool revealFocus(const HistoryFocus &focus));
+    I_METHOD(bool finalizeFocus(const HistoryFocus &focus));
+    I_METHOD(void clearFocusPreview());
 };
 
 #endif // IEDITORVIEW_H

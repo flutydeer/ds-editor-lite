@@ -14,6 +14,8 @@
 #include "Controller/AudioDecodingController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/TrackController.h"
+#include "Controller/UndoRedoController.h"
+#include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
@@ -221,6 +223,12 @@ MainWindow::MainWindow() {
     });
 #endif
     documentWorkflowController->initializeNewDocument();
+
+    connect(undoRedoController, &UndoRedoController::focusNavigationRequested, this,
+            [this](const bool undo) {
+                Toast::show(undo ? tr("Press Undo again to apply")
+                                 : tr("Press Redo again to apply"));
+            });
 }
 
 MainWindow::~MainWindow() {
@@ -354,11 +362,12 @@ void MainWindow::showDocumentWorkflowBusy() {
 EditorViewState MainWindow::captureEditorViewState() const {
     return {
         .trackPanel = m_trackEditorView->viewState(),
-        .layout = {
-            .trackPanelVisible = !appStatus->trackPanelCollapsed,
-            .bottomPanelVisible = !appStatus->bottomPanelCollapsed,
-            .bottomPanelPageId = m_bottomPanelView->currentPageId(),
-        },
+        .layout =
+            {
+                     .trackPanelVisible = !appStatus->trackPanelCollapsed,
+                     .bottomPanelVisible = !appStatus->bottomPanelCollapsed,
+                     .bottomPanelPageId = m_bottomPanelView->currentPageId(),
+                     },
         .pianoRoll = m_bottomPanelView->clipEditorView()->viewState(),
     };
 }
@@ -462,6 +471,50 @@ void MainWindow::refreshActiveClipTrackPresentation() {
 
 void MainWindow::previewActiveClipTrackColor(const int colorIndex) {
     m_bottomPanelView->clipEditorView()->previewActiveClipTrackColor(colorIndex);
+}
+
+HistoryFocusVisibility MainWindow::focusVisibility(const HistoryFocus &focus) const {
+    if (focus.kind == HistoryFocusKind::TrackClips) {
+        if (appStatus->trackPanelCollapsed)
+            return HistoryFocusVisibility::Hidden;
+        return m_trackEditorView->focusVisibility(focus);
+    }
+    if (focus.kind == HistoryFocusKind::PianoRollNotes) {
+        if (appStatus->bottomPanelCollapsed ||
+            m_bottomPanelView->currentPageId() != QStringLiteral("ClipEditor") ||
+            appStatus->activeClipId != focus.containerId) {
+            return HistoryFocusVisibility::Hidden;
+        }
+        return m_bottomPanelView->clipEditorView()->focusVisibility(focus);
+    }
+    return HistoryFocusVisibility::Unavailable;
+}
+
+bool MainWindow::revealFocus(const HistoryFocus &focus) {
+    if (focus.kind == HistoryFocusKind::TrackClips) {
+        if (appStatus->trackPanelCollapsed &&
+            !setEditorPanelVisibility(true, !appStatus->bottomPanelCollapsed))
+            return false;
+        editorViewController->setActivePanel(AppGlobal::TracksEditor);
+        return m_trackEditorView->revealFocus(focus);
+    }
+    if (focus.kind == HistoryFocusKind::PianoRollNotes) {
+        if (!appModel->findClipById(focus.containerId))
+            return false;
+        trackController->setActiveClip(focus.containerId);
+        if (!showBottomPanelPage(QStringLiteral("ClipEditor")))
+            return false;
+        editorViewController->setActivePanel(AppGlobal::ClipEditor);
+        return m_bottomPanelView->clipEditorView()->revealFocus(focus);
+    }
+    return false;
+}
+
+bool MainWindow::finalizeFocus(const HistoryFocus &focus) {
+    return revealFocus(focus);
+}
+
+void MainWindow::clearFocusPreview() {
 }
 
 void MainWindow::onAllDone() {
@@ -588,8 +641,7 @@ void MainWindow::attachBottomPanel() {
     ThemeManager::instance()->removeStyleRoot(m_bottomPanelView);
     m_splitter->restoreState(m_detachSplitterState);
     m_bottomPanelView->show();
-    setEditorPanelVisibility(!appStatus->trackPanelCollapsed,
-                             !appStatus->bottomPanelCollapsed);
+    setEditorPanelVisibility(!appStatus->trackPanelCollapsed, !appStatus->bottomPanelCollapsed);
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {

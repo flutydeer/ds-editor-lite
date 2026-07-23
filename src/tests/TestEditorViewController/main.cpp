@@ -48,6 +48,11 @@ namespace {
         int refreshCount = 0;
         int previewCount = 0;
         int previewColorIndex = -1;
+        HistoryFocusVisibility nextFocusVisibility = HistoryFocusVisibility::Visible;
+        int focusVisibilityCount = 0;
+        int revealFocusCount = 0;
+        int finalizeFocusCount = 0;
+        int clearFocusPreviewCount = 0;
 
         [[nodiscard]] EditorViewState captureEditorViewState() const override {
             ++captureCount;
@@ -132,6 +137,28 @@ namespace {
             ++previewCount;
             previewColorIndex = colorIndex;
         }
+
+        HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const override {
+            Q_UNUSED(focus);
+            ++const_cast<FakeEditorView *>(this)->focusVisibilityCount;
+            return nextFocusVisibility;
+        }
+
+        bool revealFocus(const HistoryFocus &focus) override {
+            Q_UNUSED(focus);
+            ++revealFocusCount;
+            return true;
+        }
+
+        bool finalizeFocus(const HistoryFocus &focus) override {
+            Q_UNUSED(focus);
+            ++finalizeFocusCount;
+            return true;
+        }
+
+        void clearFocusPreview() override {
+            ++clearFocusPreviewCount;
+        }
     };
 
     class FakePanel final : public IPanel {
@@ -194,6 +221,12 @@ namespace {
                "tool switching without a bound view must fail");
         controller->refreshActiveClipTrackPresentation();
         controller->previewActiveClipTrackColor(3);
+        HistoryFocus focus;
+        expect(controller->focusVisibility(focus) == HistoryFocusVisibility::Unavailable,
+               "focus visibility without a bound view must be unavailable");
+        expect(!controller->revealFocus(focus), "focus reveal without a bound view must fail");
+        expect(!controller->finalizeFocus(focus), "focus finalize without a bound view must fail");
+        controller->clearFocusPreview();
     }
 
     void testForwardingAndSnapshots(EditorViewController *controller) {
@@ -218,6 +251,13 @@ namespace {
                "tool switching must be forwarded");
         controller->refreshActiveClipTrackPresentation();
         controller->previewActiveClipTrackColor(7);
+        HistoryFocus focus;
+        focus.tickEnd = 10;
+        expect(controller->focusVisibility(focus) == HistoryFocusVisibility::Visible,
+               "focus visibility must be forwarded");
+        expect(controller->revealFocus(focus), "focus reveal must be forwarded");
+        expect(controller->finalizeFocus(focus), "focus finalize must be forwarded");
+        controller->clearFocusPreview();
 
         expect(view.state.trackPanel.centerTick == 960 &&
                    view.state.trackPanel.centerTrackIndex == 1.5,
@@ -237,6 +277,9 @@ namespace {
                "piano-roll scale and tool must reach the view");
         expect(view.refreshCount == 1 && view.previewCount == 1 && view.previewColorIndex == 7,
                "track presentation operations must be forwarded");
+        expect(view.focusVisibilityCount == 1 && view.revealFocusCount == 1 &&
+                   view.finalizeFocusCount == 1 && view.clearFocusPreviewCount == 1,
+               "history focus operations must be forwarded");
 
         const auto restored = sampleState();
         expect(controller->restoreState(restored), "a valid snapshot must restore");

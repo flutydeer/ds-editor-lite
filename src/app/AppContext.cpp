@@ -26,6 +26,7 @@
 #include "Controller/TrackController.h"
 #include "Controller/ClipController.h"
 #include "Controller/EditorViewController.h"
+#include "Controller/UndoRedoController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/ProjectStatusController.h"
 #include "Controller/ProjectPackageResolver.h"
@@ -94,6 +95,7 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     m_trackController = new TrackController;
     m_clipController = new ClipController;
     m_editorViewController = new EditorViewController;
+    m_undoRedoController = new UndoRedoController;
     m_pitchExtractController = new PitchExtractController;
     m_midiExtractController = new MidiExtractController;
     m_editSessionManager = new EditSessionManager;
@@ -164,6 +166,7 @@ AppContext::~AppContext() {
     delete m_editSessionManager;
     delete m_midiExtractController;
     delete m_pitchExtractController;
+    delete m_undoRedoController;
     delete m_editorViewController;
     delete m_clipController;
     delete m_trackController;
@@ -210,6 +213,7 @@ template <> ClipboardController *AppContext::instance() { return s_self ? s_self
 template <> TrackController *AppContext::instance() { return s_self ? s_self->m_trackController : nullptr; }
 template <> ClipController *AppContext::instance() { return s_self ? s_self->m_clipController : nullptr; }
 template <> EditorViewController *AppContext::instance() { return s_self ? s_self->m_editorViewController : nullptr; }
+template <> UndoRedoController *AppContext::instance() { return s_self ? s_self->m_undoRedoController : nullptr; }
 template <> PitchExtractController *AppContext::instance() { return s_self ? s_self->m_pitchExtractController : nullptr; }
 template <> MidiExtractController *AppContext::instance() { return s_self ? s_self->m_midiExtractController : nullptr; }
 template <> EditSessionManager *AppContext::instance() { return s_self ? s_self->m_editSessionManager : nullptr; }

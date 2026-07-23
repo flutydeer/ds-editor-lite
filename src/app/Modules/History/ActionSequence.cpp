@@ -31,6 +31,14 @@ QString ActionSequence::name() const {
     return m_name;
 }
 
+quint64 ActionSequence::historyId() const {
+    return m_historyId;
+}
+
+const std::optional<HistoryFocusTransition> &ActionSequence::focusTransition() const {
+    return m_focusTransition;
+}
+
 void ActionSequence::addAction(IAction *action) {
     m_actions.append(action);
 }
@@ -45,4 +53,12 @@ void ActionSequence::setTranslatableName(const char *context, const char *source
     m_name.clear();
     m_nameContext = context;
     m_nameSourceText = sourceText;
+}
+
+void ActionSequence::setFocusTransition(const HistoryFocusTransition &transition) {
+    m_focusTransition = transition;
+}
+
+void ActionSequence::setHistoryId(const quint64 id) {
+    m_historyId = id;
 }

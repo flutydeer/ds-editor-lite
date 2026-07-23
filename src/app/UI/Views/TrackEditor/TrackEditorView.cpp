@@ -188,6 +188,75 @@ bool TrackEditorView::setViewScale(double horizontalScale, double verticalScale)
     return centerAt(previousState.centerTick, previousState.centerTrackIndex);
 }
 
+HistoryFocusVisibility TrackEditorView::focusVisibility(const HistoryFocus &focus) const {
+    if (focus.kind != HistoryFocusKind::TrackClips || !focus.isValid())
+        return HistoryFocusVisibility::Unavailable;
+
+    QRectF itemBounds;
+    for (const auto id : focus.objectIds) {
+        if (const auto item = findClipItemById(id))
+            itemBounds = itemBounds.isNull() ? item->sceneBoundingRect()
+                                             : itemBounds.united(item->sceneBoundingRect());
+    }
+    if (!itemBounds.isNull())
+        return m_graphicsView->visibleRect().intersects(itemBounds)
+                   ? HistoryFocusVisibility::Visible
+                   : HistoryFocusVisibility::Hidden;
+
+    int trackIndex = focus.trackIndex;
+    if (focus.trackId >= 0)
+        appModel->findTrackById(focus.trackId, trackIndex);
+    const auto tickVisible = focus.tickEnd >= m_graphicsView->startTick() &&
+                             focus.tickStart <= m_graphicsView->endTick();
+    const auto trackHeight = TracksEditorGlobal::trackHeight * m_graphicsView->scaleY();
+    const auto trackTop = trackIndex * trackHeight;
+    const auto trackBottom = trackTop + trackHeight;
+    const auto visible = m_graphicsView->visibleRect();
+    return tickVisible && trackBottom >= visible.top() && trackTop <= visible.bottom()
+               ? HistoryFocusVisibility::Visible
+               : HistoryFocusVisibility::Hidden;
+}
+
+bool TrackEditorView::revealFocus(const HistoryFocus &focus) const {
+    if (focus.kind != HistoryFocusKind::TrackClips || !focus.isValid())
+        return false;
+
+    m_tracksScene->clearSelection();
+    QList<int> selectedIds;
+    QRectF itemBounds;
+    for (const auto id : focus.objectIds) {
+        if (const auto item = findClipItemById(id)) {
+            item->setSelected(true);
+            selectedIds.append(id);
+            itemBounds = itemBounds.isNull() ? item->sceneBoundingRect()
+                                             : itemBounds.united(item->sceneBoundingRect());
+        }
+    }
+    appStatus->selectedClips = selectedIds;
+    if (!selectedIds.isEmpty())
+        trackController->setActiveClip(selectedIds.first());
+
+    m_graphicsView->stopViewportAnimations();
+    if (!itemBounds.isNull()) {
+        m_graphicsView->ensureVisible(itemBounds, 24, 24);
+        return true;
+    }
+
+    int trackIndex = focus.trackIndex;
+    if (focus.trackId >= 0)
+        appModel->findTrackById(focus.trackId, trackIndex);
+    if (trackIndex < 0)
+        trackIndex = qRound((focus.valueStart + focus.valueEnd) / 2.0);
+    if (trackIndex < 0)
+        return false;
+    const auto trackHeight = TracksEditorGlobal::trackHeight * m_graphicsView->scaleY();
+    const auto left = m_graphicsView->sceneXForTick(focus.tickStart);
+    const auto right = m_graphicsView->sceneXForTick(focus.tickEnd);
+    m_graphicsView->ensureVisible(
+        QRectF(left, trackIndex * trackHeight, qMax(1.0, right - left), trackHeight), 24, 24);
+    return true;
+}
+
 void TrackEditorView::onModelChanged() {
     for (auto i = m_viewModel.tracks.count() - 1; i >= 0; i--) {
         const auto track = m_viewModel.tracks.at(i)->dsTrack;
@@ -434,10 +503,9 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track,
     m_tracksScene->addCommonItem(clipView);
     qDebug() << "Audio clip graphics item added to scene" << clipView->id() << clipView->name();
     connect(appModel, &AppModel::tempoChanged, clipView, &AudioClipView::onTempoChange);
-    connect(clip, &AudioClip::pathStatusChanged, clipView,
-            [clipView](const AudioClip::PathStatus status) {
-                applyAudioPathStatus(clipView, status);
-            });
+    connect(
+        clip, &AudioClip::pathStatusChanged, clipView,
+        [clipView](const AudioClip::PathStatus status) { applyAudioPathStatus(clipView, status); });
     track->clips[clip] = clipView;
 }
 
@@ -455,7 +523,7 @@ void TrackEditorView::onClipRemoved(Clip *clip, TrackViewModel *track) {
     });
 }
 
-AbstractClipView *TrackEditorView::findClipItemById(const int id) {
+AbstractClipView *TrackEditorView::findClipItemById(const int id) const {
     for (const auto &track : m_viewModel.tracks)
         for (const auto clip : track->clips)
             if (clip->id() == id)

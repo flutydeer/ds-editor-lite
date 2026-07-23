@@ -5,6 +5,7 @@
 #include "ActionButtonsView.h"
 
 #include "Modules/History/HistoryManager.h"
+#include "Controller/UndoRedoController.h"
 #include "UI/Controls/ToolButton.h"
 #include "UI/Controls/ToolTipFilter.h"
 
@@ -48,8 +49,10 @@ ActionButtonsView::ActionButtonsView(QWidget *parent) : QWidget(parent) {
     mainLayout->addWidget(m_btnUndo);
     mainLayout->addWidget(m_btnRedo);
 
-    connect(this, &ActionButtonsView::undoTriggered, historyManager, &HistoryManager::undo);
-    connect(this, &ActionButtonsView::redoTriggered, historyManager, &HistoryManager::redo);
+    connect(this, &ActionButtonsView::undoTriggered, undoRedoController,
+            &UndoRedoController::requestUndo);
+    connect(this, &ActionButtonsView::redoTriggered, undoRedoController,
+            &UndoRedoController::requestRedo);
     connect(historyManager, &HistoryManager::undoRedoChanged, this,
             &ActionButtonsView::onUndoRedoChanged);
 }
