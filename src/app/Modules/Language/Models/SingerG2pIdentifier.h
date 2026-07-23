@@ -9,7 +9,7 @@
 #include <QMetaType>
 #include <QString>
 
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 
 struct SingerG2pIdentifier {
     SingerIdentifier singerIdentifier;

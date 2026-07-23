@@ -11,7 +11,7 @@
 #include "Interface/IInferPiece.h"
 #include "Utils/Property.h"
 #include "Model/AppModel/InferSpeakerMix.h"
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 
 #include <QObject>
 

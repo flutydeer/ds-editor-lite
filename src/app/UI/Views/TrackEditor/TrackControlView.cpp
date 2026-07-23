@@ -39,7 +39,7 @@
 #include "UI/Views/Common/LanguageComboBox.h"
 
 #include "Modules/PackageManager/PackageManager.h"
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 
 using namespace SVS;
 using SpeakerMixModel::SpeakerMixData;

@@ -9,7 +9,7 @@
 #include "InferenceTaskContext.h"
 #include "Model/AppModel/InferSpeakerMix.h"
 #include "InferInputNote.h"
-#include "SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 
 #include <QList>
 #include <QJsonArray>

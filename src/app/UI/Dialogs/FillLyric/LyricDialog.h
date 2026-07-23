@@ -5,7 +5,7 @@
 
 #include "Modules/FillLyric/LyricTab.h"
 #include "Modules/FillLyric/LangCommon.h"
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 
 #include "UI/Dialogs/Base/Dialog.h"
 

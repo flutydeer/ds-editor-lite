@@ -13,7 +13,7 @@
 #include "TrackControl.h"
 #include "Interface/ISerializable.h"
 #include "Interface/ITrack.h"
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 #include "Modules/PackageManager/Models/SingerInfo.h"
 
 class Clip;

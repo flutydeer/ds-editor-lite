@@ -8,7 +8,7 @@
 #include "Interface/IHashProvider.h"
 #include "Interface/ISerializable.h"
 #include "Model/AppModel/InferSpeakerMix.h"
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 
 class InferPhoneme final : public ISerializable {
 public:

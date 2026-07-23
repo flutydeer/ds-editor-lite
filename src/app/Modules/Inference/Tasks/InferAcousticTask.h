@@ -14,7 +14,7 @@
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferParamCurve.h"
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 
 class InferInputNote;
 

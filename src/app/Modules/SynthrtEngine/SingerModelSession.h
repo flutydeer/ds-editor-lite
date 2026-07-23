@@ -8,7 +8,7 @@
 #include <synthrt/SVS/Inference.h>
 #include <synthrt/SVS/InferenceContrib.h>
 
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 
 class SingerModelSession final {
 public:

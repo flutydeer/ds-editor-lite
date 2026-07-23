@@ -8,7 +8,7 @@
 #include "Model/AppModel/Params.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Models/PhonemeNameResult.h"
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 #include "Tasks/InferAcousticTask.h"
 #include "Tasks/InferDurationTask.h"
 #include "Tasks/InferPitchTask.h"

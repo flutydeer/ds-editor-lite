@@ -15,7 +15,7 @@
 #include <synthrt/Core/Support/Error.h>
 #include <synthrt/Core/Support/Expected.h>
 
-#include "Modules/Inference/Models/SingerIdentifier.h"
+#include "Model/AppModel/SingerIdentifier.h"
 
 class PackageCatalog final {
 public:
