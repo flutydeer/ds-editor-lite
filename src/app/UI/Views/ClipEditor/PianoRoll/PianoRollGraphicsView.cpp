@@ -805,19 +805,30 @@ HistoryFocusVisibility PianoRollGraphicsView::focusVisibility(const HistoryFocus
                                              : itemBounds.united(item->sceneBoundingRect());
     }
     if (!itemBounds.isNull())
-        return visibleRect().intersects(itemBounds) ? HistoryFocusVisibility::Visible
-                                                    : HistoryFocusVisibility::Hidden;
+        return logicalVisibleRect().intersects(itemBounds) ? HistoryFocusVisibility::Visible
+                                                           : HistoryFocusVisibility::ScrollRequired;
 
     const auto globalStart =
         focus.ticksAreLocal ? d->m_clip->start() + focus.tickStart : focus.tickStart;
     const auto globalEnd = focus.ticksAreLocal ? d->m_clip->start() + focus.tickEnd : focus.tickEnd;
-    const auto tickVisible = globalEnd >= startTick() && globalStart <= endTick();
-    const auto keyVisible = focus.valueEnd >= bottomKeyIndex() && focus.valueStart <= topKeyIndex();
+    const auto logicalRect = logicalVisibleRect();
+    const auto visibleStartTick = sceneXToTick(logicalRect.left()) + d->m_offset;
+    const auto visibleEndTick = sceneXToTick(logicalRect.right()) + d->m_offset;
+    const auto tickVisible = globalEnd >= visibleStartTick && globalStart <= visibleEndTick;
+    const auto logicalTopKey =
+        PianoRollCoord::sceneYToKeyIndexDouble(logicalRect.top(), scaleY() * noteHeight);
+    const auto logicalBottomKey =
+        PianoRollCoord::sceneYToKeyIndexDouble(logicalRect.bottom(), scaleY() * noteHeight);
+    const auto keyVisible = focus.valueEnd >= logicalBottomKey && focus.valueStart <= logicalTopKey;
     return tickVisible && keyVisible ? HistoryFocusVisibility::Visible
-                                     : HistoryFocusVisibility::Hidden;
+                                     : HistoryFocusVisibility::ScrollRequired;
 }
 
 bool PianoRollGraphicsView::revealFocus(const HistoryFocus &focus) {
+    return revealFocus(focus, true);
+}
+
+bool PianoRollGraphicsView::revealFocus(const HistoryFocus &focus, const bool animated) {
     Q_D(PianoRollGraphicsView);
     if (focus.kind != HistoryFocusKind::PianoRollNotes || !focus.isValid() || !d->m_clip ||
         d->m_clip->id() != focus.containerId) {
@@ -834,9 +845,8 @@ bool PianoRollGraphicsView::revealFocus(const HistoryFocus &focus) {
         }
     }
     clipController->selectNotes(selectedIds, true);
-    stopViewportAnimations();
     if (!itemBounds.isNull()) {
-        ensureVisible(itemBounds, 24, 24);
+        ensureSceneRectVisible(itemBounds, 24, 24, animated);
         return true;
     }
 
@@ -848,8 +858,9 @@ bool PianoRollGraphicsView::revealFocus(const HistoryFocus &focus) {
     const auto keyHeight = scaleY() * noteHeight;
     const auto top = PianoRollCoord::keyIndexToSceneY(focus.valueEnd, keyHeight);
     const auto bottom = PianoRollCoord::keyIndexToSceneY(focus.valueStart, keyHeight) + keyHeight;
-    ensureVisible(QRectF(left, top, qMax(1.0, right - left), qMax(keyHeight, bottom - top)), 24,
-                  24);
+    ensureSceneRectVisible(
+        QRectF(left, top, qMax(1.0, right - left), qMax(keyHeight, bottom - top)), 24, 24,
+        animated);
     return true;
 }
 

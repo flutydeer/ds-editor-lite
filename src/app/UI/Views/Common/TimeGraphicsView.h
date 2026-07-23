@@ -14,6 +14,8 @@
 #include <QPropertyAnimation>
 #include <QTimer>
 
+#include <optional>
+
 class TimeGraphicsScene;
 class TimeGridView;
 class TimeIndicatorView;
@@ -33,8 +35,8 @@ class TimeGraphicsView : public QGraphicsView, public IScalable, public IAnimata
     Q_PROPERTY(QColor lastPlayPosIndicatorColor READ lastPlayPosIndicatorColor WRITE
                    setLastPlayPosIndicatorColor)
     Q_PROPERTY(QColor scrollBarHandleColor READ scrollBarHandleColor WRITE setScrollBarHandleColor)
-    Q_PROPERTY(QColor rubberBandBorderColor READ rubberBandBorderColor WRITE
-                   setRubberBandBorderColor)
+    Q_PROPERTY(
+        QColor rubberBandBorderColor READ rubberBandBorderColor WRITE setRubberBandBorderColor)
     Q_PROPERTY(QColor rubberBandFillColor READ rubberBandFillColor WRITE setRubberBandFillColor)
 
 public:
@@ -57,6 +59,9 @@ public:
     void verticalBarAnimateTo(int value);
     void horizontalBarVBarAnimateTo(int hValue, int vValue);
     [[nodiscard]] QRectF visibleRect() const;
+    [[nodiscard]] QRectF logicalVisibleRect() const;
+    void ensureSceneRectVisible(const QRectF &rect, int xmargin = 50, int ymargin = 50,
+                                bool animated = false);
     void setEnsureSceneFillViewX(bool on);
     void setEnsureSceneFillViewY(bool on);
     [[nodiscard]] DragBehavior dragBehavior() const;
@@ -182,6 +187,8 @@ private:
     QPropertyAnimation m_scaleYAnimation;
     QPropertyAnimation m_hBarAnimation;
     QPropertyAnimation m_vBarAnimation;
+    std::optional<int> m_logicalHorizontalBarValue;
+    std::optional<int> m_logicalVerticalBarValue;
 
     RubberBandView m_rubberBand;
     ItemType m_prevHoveredItem = ItemType::Content;

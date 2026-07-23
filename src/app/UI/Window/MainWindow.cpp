@@ -476,14 +476,14 @@ void MainWindow::previewActiveClipTrackColor(const int colorIndex) {
 HistoryFocusVisibility MainWindow::focusVisibility(const HistoryFocus &focus) const {
     if (focus.kind == HistoryFocusKind::TrackClips) {
         if (appStatus->trackPanelCollapsed)
-            return HistoryFocusVisibility::Hidden;
+            return HistoryFocusVisibility::ContextSwitchRequired;
         return m_trackEditorView->focusVisibility(focus);
     }
     if (focus.kind == HistoryFocusKind::PianoRollNotes) {
         if (appStatus->bottomPanelCollapsed ||
             m_bottomPanelView->currentPageId() != QStringLiteral("ClipEditor") ||
             appStatus->activeClipId != focus.containerId) {
-            return HistoryFocusVisibility::Hidden;
+            return HistoryFocusVisibility::ContextSwitchRequired;
         }
         return m_bottomPanelView->clipEditorView()->focusVisibility(focus);
     }
@@ -491,12 +491,17 @@ HistoryFocusVisibility MainWindow::focusVisibility(const HistoryFocus &focus) co
 }
 
 bool MainWindow::revealFocus(const HistoryFocus &focus) {
+    const auto visibility = focusVisibility(focus);
+    return navigateToFocus(focus, visibility == HistoryFocusVisibility::ScrollRequired);
+}
+
+bool MainWindow::navigateToFocus(const HistoryFocus &focus, const bool animated) {
     if (focus.kind == HistoryFocusKind::TrackClips) {
         if (appStatus->trackPanelCollapsed &&
             !setEditorPanelVisibility(true, !appStatus->bottomPanelCollapsed))
             return false;
         editorViewController->setActivePanel(AppGlobal::TracksEditor);
-        return m_trackEditorView->revealFocus(focus);
+        return m_trackEditorView->revealFocus(focus, animated);
     }
     if (focus.kind == HistoryFocusKind::PianoRollNotes) {
         if (!appModel->findClipById(focus.containerId))
@@ -505,13 +510,14 @@ bool MainWindow::revealFocus(const HistoryFocus &focus) {
         if (!showBottomPanelPage(QStringLiteral("ClipEditor")))
             return false;
         editorViewController->setActivePanel(AppGlobal::ClipEditor);
-        return m_bottomPanelView->clipEditorView()->revealFocus(focus);
+        return m_bottomPanelView->clipEditorView()->revealFocus(focus, animated);
     }
     return false;
 }
 
 bool MainWindow::finalizeFocus(const HistoryFocus &focus) {
-    return revealFocus(focus);
+    const auto visibility = focusVisibility(focus);
+    return navigateToFocus(focus, visibility != HistoryFocusVisibility::ContextSwitchRequired);
 }
 
 void MainWindow::clearFocusPreview() {

@@ -42,6 +42,7 @@ public:
     bool setEditMode(EditorViewGlobal::PianoRollEditMode mode);
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus) const;
+    bool revealFocus(const HistoryFocus &focus, bool animated) const;
     void refreshActiveClipTrackPresentation();
     void previewActiveClipTrackColor(int colorIndex) const;
 

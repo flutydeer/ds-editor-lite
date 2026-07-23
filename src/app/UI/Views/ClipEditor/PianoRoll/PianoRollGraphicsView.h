@@ -58,6 +58,7 @@ public:
     void clearNoteSelections(const NoteView *except = nullptr);
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus);
+    bool revealFocus(const HistoryFocus &focus, bool animated);
 
     void discardAction() override;
     void commitAction() override;

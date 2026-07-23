@@ -59,10 +59,11 @@ void UndoRedoController::request(const Direction direction) {
         return;
     }
 
-    if (!isSamePending || visibility == HistoryFocusVisibility::Hidden) {
+    const bool needsNavigation = visibility == HistoryFocusVisibility::ScrollRequired ||
+                                 visibility == HistoryFocusVisibility::ContextSwitchRequired;
+    if (!isSamePending && needsNavigation) {
         clearPending();
-        if (visibility == HistoryFocusVisibility::Hidden &&
-            editorViewController->revealFocus(currentFocus)) {
+        if (editorViewController->revealFocus(currentFocus)) {
             m_pending = Pending{sequence->historyId(), direction};
             emit focusNavigationRequested(direction == Direction::Undo);
             return;

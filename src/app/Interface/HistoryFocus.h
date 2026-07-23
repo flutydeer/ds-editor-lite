@@ -32,7 +32,8 @@ struct HistoryFocusTransition {
 
 enum class HistoryFocusVisibility {
     Unavailable,
-    Hidden,
+    ScrollRequired,
+    ContextSwitchRequired,
     Visible,
 };
 
