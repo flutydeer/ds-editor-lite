@@ -16,7 +16,7 @@
 #include <QCoreApplication>
 
 #include "Utils/DmlGpuUtils.h"
-#include "Utils/Log.h"
+#include <lite/Support/Log.h>
 #include <lite/ADT/Expected.h>
 #include <lite/Support/StringUtils.h>
 #include <lite/Support/VersionUtils.h>

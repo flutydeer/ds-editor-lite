@@ -50,7 +50,10 @@ Log::Log() {
 
 Log::~Log() = default;
 
-LITE_SINGLETON_IMPLEMENT_INSTANCE(Log)
+Log *Log::instance() {
+    static Log obj;
+    return &obj;
+}
 
 void Log::handler(const QtMsgType type, const QMessageLogContext &context, const QString &msg) {
     if (msg.startsWith("QWindowsWindow::setGeometry: Unable to set geometry") ||

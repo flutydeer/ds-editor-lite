@@ -5,7 +5,7 @@
 #ifndef JSONUTILS_H
 #define JSONUTILS_H
 
-#include "Log.h"
+#include <lite/Support/Log.h>
 
 #include <QFile>
 #include <QJsonArray>

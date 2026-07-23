@@ -232,10 +232,8 @@ class Toast;
 class AppColorPalette;
 class TextPixmapCache;
 class ThemeManager;
-class Log;
 
 template <> Toast *AppContext::instance() { return nullptr; }
 template <> AppColorPalette *AppContext::instance() { return nullptr; }
 template <> TextPixmapCache *AppContext::instance() { return nullptr; }
 template <> ThemeManager *AppContext::instance() { return nullptr; }
-template <> Log *AppContext::instance() { return nullptr; }

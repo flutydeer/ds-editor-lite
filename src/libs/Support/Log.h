@@ -5,7 +5,6 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include "Singleton.h"
 
 #include <QFile>
 #include <QMutex>
@@ -46,7 +45,7 @@ private:
     ~Log();
 
 public:
-    LITE_SINGLETON_DECLARE_INSTANCE(Log)
+    static Log *instance();
     Q_DISABLE_COPY_MOVE(Log)
 
 public:

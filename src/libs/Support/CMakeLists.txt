@@ -5,7 +5,7 @@ project(Support LANGUAGES CXX)
 # MacOSUtils) makes this a static library rather than header-only.
 file(GLOB _src CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
-lite_add_library(Support STATIC SOURCES ${_src})
+lite_add_library(Support STATIC QT_AUTOGEN SOURCES ${_src})
 add_library(lite::Support ALIAS Support)
 
 # Public headers use Qt Core (QString/QList/QSysInfo/QVersionNumber/...) and

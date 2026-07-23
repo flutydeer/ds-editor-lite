@@ -1,7 +1,7 @@
 #include "AppEnvironment.h"
 
 #include "Utils/FontManager.h"
-#include "Utils/Log.h"
+#include <lite/Support/Log.h>
 #include <lite/Support/SystemUtils.h>
 
 #include <QMWidgets/ccombobox.h>
