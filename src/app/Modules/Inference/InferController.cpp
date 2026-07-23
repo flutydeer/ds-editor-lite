@@ -6,10 +6,10 @@
 #include "InferController_p.h"
 
 #include "InferControllerHelper.h"
-#include "Model/Infer/InferPiece.h"
+#include "Model/InferenceData/InferPiece.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "Model/Infer/InferSpeakerMix.h"
+#include "Model/InferenceData/InferSpeakerMix.h"
 #include "Models/NoteInferenceSnapshot.h"
 #include "Tasks/GetPhonemeNameTask.h"
 #include "Tasks/GetPronunciationTask.h"

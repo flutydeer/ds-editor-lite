@@ -2,7 +2,7 @@
 // Created by fluty on 24-10-7.
 //
 
-#include "Model/Infer/InferPiece.h"
+#include "Model/InferenceData/InferPiece.h"
 
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"

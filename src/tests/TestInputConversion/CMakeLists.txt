@@ -4,10 +4,10 @@ lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
         Stubs.cpp
-        ../../app/Model/Infer/InferPiece.h
+        ../../app/Model/InferenceData/InferPiece.h
         ../../app/Modules/Inference/Tasks/InferTaskCommon.cpp
         ../../app/Modules/Inference/Models/GenericInferModel.cpp
-        ../../app/Model/Infer/InferSpeakerMix.cpp
+        ../../app/Model/InferenceData/InferSpeakerMix.cpp
         ../../app/Model/AppModel/SpeakerMixData.cpp
         ../../app/Model/AppModel/Timeline.cpp
         ../../app/Model/AppModel/Tempo.cpp

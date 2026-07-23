@@ -72,16 +72,16 @@ UI          48    63    13   141    76    64   351
 
 项目里有两拨名字都带 `Infer` 的类型,分属不同层,**不是散乱,是有意的分层**,依赖方向为证:
 
-| | `Model/Infer/` | `Modules/Inference/Models/` |
+| | `Model/InferenceData/` | `Modules/Inference/Models/` |
 |---|---|---|
 | 定位 | 模型的**推理投影** | 喂给推理引擎的**输入模型** |
 | 成员 | InferPiece、InferStatus、InferSpeakerMix | InferInputBase、InferInputNote、GenericInferModel、SpeakerMixValidator、InferenceTaskContext、GpuInfo… |
 | 归属 | 被 `SingingClip::PieceList` 拥有,模型的一部分;有 `Interface/IInferPiece.h` seam | 引擎输入契约(可序列化 / 带 hash 供推理缓存) |
-| 依赖 | 仅 Model / Interface / Utils | **向下依赖 `Model/Infer/`** + 推理域(部分依赖 PackageManager) |
+| 依赖 | 仅 Model / Interface / Utils | **向下依赖 `Model/InferenceData/`** + 推理域(部分依赖 PackageManager) |
 
-- 依赖方向:`Modules/Inference/Models/* → Model/Infer/*`(Modules→Model,向下,合法)。引擎输入模型构建在模型推理投影之上。
-- **不可合并的铁证**:`SpeakerMixValidator.h` 依赖 `Modules/PackageManager/Models/SingerInfo.h`;若把它并入 `Model/Infer/` 会引入 `Model→PackageManager` 违规。故 `Modules/Inference/Models/` 必须留在 Module 层。
-- 已完成:InferPiece / InferStatus / InferSpeakerMix 从 `Model/AppModel/` 收进 `Model/Infer/`(提交 b62c5d6a),把"模型推理投影"与核心可编辑类型(Note/Clip/Params)在结构上分开。
+- 依赖方向:`Modules/Inference/Models/* → Model/InferenceData/*`(Modules→Model,向下,合法)。引擎输入模型构建在模型推理投影之上。
+- **不可合并的铁证**:`SpeakerMixValidator.h` 依赖 `Modules/PackageManager/Models/SingerInfo.h`;若把它并入 `Model/InferenceData/` 会引入 `Model→PackageManager` 违规。故 `Modules/Inference/Models/` 必须留在 Module 层。
+- 已完成:InferPiece / InferStatus / InferSpeakerMix 从 `Model/AppModel/` 收进 `Model/InferenceData/`(提交 b62c5d6a),把"模型推理投影"与核心可编辑类型(Note/Clip/Params)在结构上分开。
 - 遗留(不在本轮):两边都叫 `Infer*` 语义上易混,理想可重命名以喊出区分(如引擎侧改 `InferInput*` 前缀),但重命名有 QSS/AUTOMOC 连锁风险,单列、不在搬迁里顺手做。
 
 ---

@@ -6,11 +6,11 @@
 #define INFERPIECE_H
 
 #include "Model/AppModel/DrawCurve.h"
-#include "Model/Infer/InferStatus.h"
+#include "Model/InferenceData/InferStatus.h"
 #include "Model/AppModel/Params.h"
 #include "Interface/IInferPiece.h"
 #include "Utils/Property.h"
-#include "Model/Infer/InferSpeakerMix.h"
+#include "Model/InferenceData/InferSpeakerMix.h"
 #include "Model/AppModel/SingerIdentifier.h"
 
 #include <QObject>

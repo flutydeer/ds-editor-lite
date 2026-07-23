@@ -5,7 +5,7 @@
 #ifndef DS_EDITOR_LITE_INFERPIPELINE_H
 #define DS_EDITOR_LITE_INFERPIPELINE_H
 
-#include "Model/Infer/InferPiece.h"
+#include "Model/InferenceData/InferPiece.h"
 #include "Models/InferenceTaskContext.h"
 #include "Models/InferInputNote.h"
 #include "Models/InferParamCurve.h"

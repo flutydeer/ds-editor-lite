@@ -8,7 +8,7 @@
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/Infer/InferPiece.h"
+#include "Model/InferenceData/InferPiece.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Inference/EditSessionManager.h"
