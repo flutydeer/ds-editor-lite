@@ -12,8 +12,8 @@
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include "Utils/JsonUtils.h"
-#include "Utils/Linq.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/Linq.h>
+#include <lite/Support/MathUtils.h>
 #include "InferTaskCommon.h"
 
 #include <QDebug>

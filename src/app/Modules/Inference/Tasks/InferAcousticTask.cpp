@@ -15,8 +15,8 @@
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include "Utils/JsonUtils.h"
-#include "Utils/MathUtils.h"
-#include "Utils/StringUtils.h"
+#include <lite/Support/MathUtils.h>
+#include <lite/Support/StringUtils.h>
 
 #include "InferTaskCommon.h"
 

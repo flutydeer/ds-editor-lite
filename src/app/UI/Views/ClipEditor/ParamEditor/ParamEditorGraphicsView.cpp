@@ -14,7 +14,7 @@
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/ClipEditor/CommonParamEditorView.h"
 #include "UI/Views/Common/TimeGridView.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/MathUtils.h>
 
 #include <QKeyEvent>
 #include <QWheelEvent>

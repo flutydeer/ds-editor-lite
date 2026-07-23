@@ -5,7 +5,7 @@
 #ifndef IMAINWINDOW_H
 #define IMAINWINDOW_H
 
-#include "Utils/Macros.h"
+#include <lite/Support/Macros.h>
 
 LITE_INTERFACE IMainWindow {
     I_DECL(IMainWindow)

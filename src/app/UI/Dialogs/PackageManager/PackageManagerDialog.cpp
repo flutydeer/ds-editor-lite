@@ -14,7 +14,7 @@
 #include "UI/Dialogs/PackageManager/PackageFilterProxyModel.h"
 #include "UI/Dialogs/PackageManager/PackageItemDelegate.h"
 #include "UI/Dialogs/PackageManager/PackageListModel.h"
-#include "Utils/StringUtils.h"
+#include <lite/Support/StringUtils.h>
 
 #include <diffsinger/Bank/PackageValidator.h>
 

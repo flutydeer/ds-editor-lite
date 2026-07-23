@@ -10,8 +10,8 @@
 #include "AppContext.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Utils/StringUtils.h"
-#include "Utils/VersionUtils.h"
+#include <lite/Support/StringUtils.h>
+#include <lite/Support/VersionUtils.h>
 
 #include <stdcorelib/path.h>
 #include <stdcorelib/system.h>
@@ -44,7 +44,7 @@
 #include <vector>
 
 #if defined(Q_OS_MAC)
-#  include "Utils/MacOSUtils.h"
+#  include <lite/Support/MacOSUtils.h>
 #endif
 
 namespace fs = std::filesystem;

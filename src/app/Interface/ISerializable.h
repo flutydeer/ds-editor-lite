@@ -6,7 +6,7 @@
 #define ISERIALIZABLE_H
 
 #include "Utils/JsonUtils.h"
-#include "Utils/Macros.h"
+#include <lite/Support/Macros.h>
 
 #include <QJsonArray>
 #include <QJsonObject>

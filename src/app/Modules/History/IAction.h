@@ -5,7 +5,7 @@
 #ifndef IACTION_H
 #define IACTION_H
 
-#include "Utils/Macros.h"
+#include <lite/Support/Macros.h>
 
 LITE_INTERFACE IAction {
     I_DECL(IAction)

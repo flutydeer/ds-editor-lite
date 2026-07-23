@@ -15,7 +15,7 @@
 #include "UI/Controls/SwitchButton.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
 #include "Utils/UiLanguageManager.h"
-#include "Utils/StringUtils.h"
+#include <lite/Support/StringUtils.h>
 
 #include <synthrt/Core/Core/Runtime.h>
 #include <synthrt/SVS/SingerContrib.h>

@@ -42,8 +42,8 @@
 #include "UI/Dialogs/Note/PhonemeEditorDialog.h"
 #include "UI/Controls/InlineTextEditOverlay.h"
 #include "UI/Views/Common/ScrollBarView.h"
-#include "Utils/Linq.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/Linq.h>
+#include <lite/Support/MathUtils.h>
 #include "Utils/TimelineSnapUtils.h"
 #include <climits>
 #include <cmath>

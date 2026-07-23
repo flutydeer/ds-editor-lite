@@ -7,7 +7,7 @@
 
 #include "Modules/Task/Task.h"
 #include "Modules/Inference/Models/InferenceTaskContext.h"
-#include "Utils/Macros.h"
+#include <lite/Support/Macros.h>
 
 LITE_INTERFACE IInferTask : public Task {
     I_DECL(IInferTask)

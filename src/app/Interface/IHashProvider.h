@@ -5,7 +5,7 @@
 #ifndef IHASHPROVIDER_H
 #define IHASHPROVIDER_H
 
-#include "Utils/Macros.h"
+#include <lite/Support/Macros.h>
 
 #include <QString>
 

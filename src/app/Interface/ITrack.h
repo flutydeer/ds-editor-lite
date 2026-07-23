@@ -7,7 +7,7 @@
 
 #include "Model/AppModel/TrackControl.h"
 #include "Utils/UniqueObject.h"
-#include "Utils/Macros.h"
+#include <lite/Support/Macros.h>
 
 #include <QString>
 

@@ -14,7 +14,7 @@
 #include "Tasks/GetPhonemeNameTask.h"
 #include "Tasks/GetPronunciationTask.h"
 #include "Utils/InferenceApplyGate.h"
-#include "Utils/Linq.h"
+#include <lite/Support/Linq.h>
 #include "Utils/ValidationUtils.h"
 #include "Controller/PlaybackController.h"
 #include "InferPipeline.h"

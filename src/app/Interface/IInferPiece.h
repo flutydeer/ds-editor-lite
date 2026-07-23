@@ -5,7 +5,7 @@
 #ifndef IINFERPIECE_H
 #define IINFERPIECE_H
 
-#include "Utils/Macros.h"
+#include <lite/Support/Macros.h>
 #include "Utils/UniqueObject.h"
 
 LITE_INTERFACE IInferPiece : public UniqueObject {

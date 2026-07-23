@@ -5,7 +5,7 @@
 #include "Menu.h"
 
 #include "UI/Utils/IconUtils.h"
-#include "Utils/SystemUtils.h"
+#include <lite/Support/SystemUtils.h>
 
 #include <QPainter>
 #include <QPaintEvent>

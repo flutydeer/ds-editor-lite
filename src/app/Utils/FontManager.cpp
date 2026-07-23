@@ -3,7 +3,7 @@
 //
 
 #include "FontManager.h"
-#include "SystemUtils.h"
+#include <lite/Support/SystemUtils.h>
 #include "Log.h"
 
 #include <QApplication>

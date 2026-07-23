@@ -5,7 +5,7 @@
 #ifndef IATOMICACTION_H
 #define IATOMICACTION_H
 
-#include "Utils/Macros.h"
+#include <lite/Support/Macros.h>
 
 LITE_INTERFACE IAtomicAction {
     I_DECL(IAtomicAction)

@@ -5,7 +5,7 @@
 #include "PitchEditorView.h"
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/MathUtils.h>
 
 PitchEditorView::PitchEditorView()
     : CommonParamEditorView(m_properties) {

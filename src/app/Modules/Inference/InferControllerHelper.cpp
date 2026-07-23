@@ -14,8 +14,8 @@
 #include "Model/InferenceData/InferSpeakerMix.h"
 #include "Models/SpeakerMixValidator.h"
 #include "Model/Utils/AppModelUtils.h"
-#include "Utils/Linq.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/Linq.h>
+#include <lite/Support/MathUtils.h>
 #include "Model/Utils/ParamUtils.h"
 #include "curve-util/CurveUtil.h"
 

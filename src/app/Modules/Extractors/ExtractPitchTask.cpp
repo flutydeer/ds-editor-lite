@@ -9,9 +9,9 @@
 #include "AppContext.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/SynthrtEngine/SynthrtEngine.h"
-#include "Utils/StringUtils.h"
-#include "Utils/Linq.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/StringUtils.h>
+#include <lite/Support/Linq.h>
+#include <lite/Support/MathUtils.h>
 
 #include <synthrt/Core/Plugin/PluginFactory.h>
 #include <synthrt/Extract/PitchExtractorPlugin.h>

@@ -15,7 +15,7 @@
 #include "ComboBox.h"
 #include "UI/Controls/Menu.h"
 #include "UI/Utils/IconUtils.h"
-#include "Utils/SystemUtils.h"
+#include <lite/Support/SystemUtils.h>
 
 namespace {
     constexpr std::array<const char *, 7> kStandardActionIcons = {

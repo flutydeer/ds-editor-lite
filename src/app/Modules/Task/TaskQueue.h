@@ -7,7 +7,7 @@
 
 #include "TaskManager.h"
 #include "Task.h"
-#include "Utils/Linq.h"
+#include <lite/Support/Linq.h>
 #include <lite/ADT/Queue.h>
 
 #include <QDebug>

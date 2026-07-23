@@ -5,7 +5,7 @@
 #ifndef ICLIP_H
 #define ICLIP_H
 
-#include "Utils/Macros.h"
+#include <lite/Support/Macros.h>
 #include "Utils/UniqueObject.h"
 
 #include <QString>

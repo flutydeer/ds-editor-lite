@@ -7,7 +7,7 @@
 #include "Track.h"
 #include "Clip.h"
 #include "SingingClip.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/MathUtils.h>
 
 #include <QJsonArray>
 

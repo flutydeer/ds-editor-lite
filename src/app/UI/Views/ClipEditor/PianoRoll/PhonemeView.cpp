@@ -16,8 +16,8 @@
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/WaveformPainter.h"
 #include "UI/Controls/ToolTip.h"
-#include "Utils/Linq.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/Linq.h>
+#include <lite/Support/MathUtils.h>
 
 #include <algorithm>
 

@@ -10,7 +10,7 @@
 #include "UI/Controls/Menu.h"
 #include "UI/Utils/IconUtils.h"
 #include "UI/Utils/ThemeManager.h"
-#include "Utils/SystemUtils.h"
+#include <lite/Support/SystemUtils.h>
 #include "Utils/WindowFrameUtils.h"
 
 #include <QMCore/qmsystem.h>

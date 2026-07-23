@@ -2,7 +2,7 @@
 
 #include "Utils/FontManager.h"
 #include "Utils/Log.h"
-#include "Utils/SystemUtils.h"
+#include <lite/Support/SystemUtils.h>
 
 #include <QMWidgets/ccombobox.h>
 #include <QMWidgets/cmenu.h>

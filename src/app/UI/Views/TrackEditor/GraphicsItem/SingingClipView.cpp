@@ -9,7 +9,7 @@
 
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppModel/Note.h"
-#include "Utils/MathUtils.h"
+#include <lite/Support/MathUtils.h>
 #include "Global/AppGlobal.h"
 
 using namespace TracksEditorGlobal;

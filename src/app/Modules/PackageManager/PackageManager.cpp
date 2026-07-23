@@ -6,8 +6,8 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Utils/StringUtils.h"
-#include "Utils/VersionUtils.h"
+#include <lite/Support/StringUtils.h>
+#include <lite/Support/VersionUtils.h>
 #include "Models/PackageInfo.h"
 #include "Models/SingerInfo.h"
 #include "Modules/Task/TaskManager.h"
@@ -29,7 +29,7 @@
 #include <QSet>
 
 #if defined(Q_OS_MAC)
-#  include "Utils/MacOSUtils.h"
+#  include <lite/Support/MacOSUtils.h>
 #endif
 
 namespace fs = std::filesystem;
