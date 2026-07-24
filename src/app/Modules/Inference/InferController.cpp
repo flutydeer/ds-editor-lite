@@ -29,14 +29,23 @@
 namespace Helper = InferControllerHelper;
 
 namespace {
-    int pieceGlobalStartTick(int clipId, int pieceId) {
+    struct PieceGlobalRange {
+        int start = INT_MAX;
+        int end = INT_MAX;
+
+        [[nodiscard]] bool isValid() const {
+            return start != INT_MAX;
+        }
+    };
+
+    PieceGlobalRange pieceGlobalRange(int clipId, int pieceId) {
         const auto clip = dynamic_cast<SingingClip *>(appModel->findClipById(clipId));
         if (!clip)
-            return INT_MAX;
+            return {};
         const auto piece = clip->findPieceById(pieceId);
         if (!piece)
-            return INT_MAX;
-        return piece->localStartTick() + clip->start();
+            return {};
+        return {piece->localStartTick() + clip->start(), piece->localEndTick() + clip->start()};
     }
 
     QList<NoteInferenceSnapshot> buildNoteInferenceSnapshots(const SingingClip &clip) {
@@ -56,21 +65,25 @@ namespace {
         return result;
     }
 
+    // 排序键：档位越小优先级越高，同档位内距播放头越近越优先。
+    // 档位 0 = 播放头落在片段范围内(必须最先推理，否则一定位就听不到声音)，
+    // 1 = 播放头之后，2 = 播放头之前，3 = 片段已不存在。
+    std::pair<int, int> playbackPriorityKey(const PieceGlobalRange &range, const int pos) {
+        if (!range.isValid())
+            return {3, 0};
+        if (range.start <= pos && pos < range.end)
+            return {0, 0};
+        if (range.start >= pos)
+            return {1, range.start - pos};
+        return {2, pos - range.start};
+    }
+
     template <typename T>
     std::function<bool(T *, T *)> makePlaybackPriorityComparator() {
         return [](T *a, T *b) {
             const auto pos = static_cast<int>(playbackController->position());
-            const auto startA = pieceGlobalStartTick(a->clipId(), a->pieceId());
-            const auto startB = pieceGlobalStartTick(b->clipId(), b->pieceId());
-            const auto diffA = startA - pos;
-            const auto diffB = startB - pos;
-            const bool aAhead = diffA >= 0;
-            const bool bAhead = diffB >= 0;
-            if (aAhead != bAhead)
-                return aAhead;
-            if (aAhead)
-                return diffA < diffB;
-            return diffA > diffB;
+            return playbackPriorityKey(pieceGlobalRange(a->clipId(), a->pieceId()), pos) <
+                   playbackPriorityKey(pieceGlobalRange(b->clipId(), b->pieceId()), pos);
         };
     }
 
