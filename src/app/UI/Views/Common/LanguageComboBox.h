@@ -33,6 +33,7 @@ protected:
 
 private:
     void refreshDisplayNames();
+    void adjustWidthToContent();
 };
 
 #endif // LANGUAGECOMBOBOX_H

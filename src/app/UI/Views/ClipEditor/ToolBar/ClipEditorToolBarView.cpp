@@ -74,7 +74,6 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     d->m_cbSinger = new TwoLevelComboBox;
     d->m_cbSinger->setObjectName("cbClipSinger");
-    d->m_cbSinger->setFixedWidth(128);
     d->m_cbSinger->installEventFilter(new ToolTipFilter(d->m_cbSinger, 500));
     d->m_cbSinger->setToolTip(tr("Clip Singer"));
 

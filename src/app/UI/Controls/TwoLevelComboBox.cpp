@@ -311,6 +311,7 @@ void TwoLevelComboBox::onActionTriggered(const QAction *action) {
 
 void TwoLevelComboBox::updateDisplayText() {
     update();
+    updateGeometry();
 }
 
 void TwoLevelComboBox::updateActionCheckStates() const {
