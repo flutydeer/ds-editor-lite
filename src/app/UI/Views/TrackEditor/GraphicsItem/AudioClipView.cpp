@@ -8,6 +8,8 @@
 #include <QElapsedTimer>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPolygon>
+#include "UI/Utils/WaveformRenderUtils.h"
 #include <cmath>
 
 #include "Global/TracksEditorGlobal.h"
@@ -137,6 +139,15 @@ double AudioClipView::sincInterpolate(const QVector<float> &samples, const qint6
 //   > chunkSize  → peak mipmap / peakCache (vertical lines, batch drawLines)
 //   > ~4         → sub-chunk peak mode (IO seek+read, per-pixel min/max lines)
 //   ≤ ~4         → waveform curve mode (IO seek+read, Lanczos sinc interpolation, QPainterPath)
+void AudioClipView::setRenderMode(const WaveformRenderUtils::Mode mode) {
+    m_renderMode = mode;
+    update();
+}
+
+WaveformRenderUtils::Mode AudioClipView::renderMode() const {
+    return m_renderMode;
+}
+
 void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect,
                                     const QColor color) {
     if (m_status == AppGlobal::Error) {
@@ -180,24 +191,17 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
 }
 
 // Peak mode: uses pre-computed peakCache / peakCacheMipmap.
-// Physical-pixel stepping + scene-aligned grid + batch drawLines.
+// Physical-pixel stepping + scene-aligned grid.
 void AudioClipView::drawPeakMode(QPainter *painter, const QRectF &previewRect,
                                  const QColor &color) {
     if (m_audioInfo.peakCache.count() == 0 || m_audioInfo.peakCacheMipmap.count() == 0)
         return;
 
-    // Cosmetic pen: width 0 means always 1 physical pixel, fastest drawing mode
     const auto rectLeft = previewRect.left();
     const auto rectTop = previewRect.top();
     const auto rectWidth = previewRect.width();
     const auto rectHeight = previewRect.height();
     const auto halfRectHeight = rectHeight / 2;
-
-    painter->setRenderHint(QPainter::Antialiasing, false);
-    QPen pen;
-    pen.setColor(color);
-    pen.setWidthF(0);
-    painter->setPen(pen);
 
     // Select resolution level: use full-resolution peak data when zoomed in,
     // downsampled mipmap when zoomed out
@@ -237,10 +241,10 @@ void AudioClipView::drawPeakMode(QPainter *painter, const QRectF &previewRect,
 
     const double chunksPerDevPixel = chunksPerScenePixel / scaleXDev;
 
-    QVector<QLineF> lines;
-    lines.reserve(stepCount);
-
     const double startTickOffset = static_cast<double>(start());
+
+    QVector<WaveformRenderUtils::PeakPoint> points;
+    points.reserve(stepCount);
 
     for (int di = devStart; di <= devEnd; di++) {
         const double localX = di / scaleXDev;
@@ -275,11 +279,10 @@ void AudioClipView::drawPeakMode(QPainter *painter, const QRectF &previewRect,
         const double x = rectLeft + localX;
         const double yMin = -min * halfRectHeight / 32767.0 + halfRectHeight + rectTop;
         const double yMax = -max * halfRectHeight / 32767.0 + halfRectHeight + rectTop;
-        lines.append(QLineF(x, yMin, x, yMax));
+        points.append({x, yMin, yMax});
     }
 
-    // Batch draw all waveform lines in one call for optimal performance
-    painter->drawLines(lines);
+    WaveformRenderUtils::renderWaveform(painter, color, m_renderMode, points);
 }
 
 // Sub-chunk peak mode: reads raw samples via IO, computes per-pixel min/max.
@@ -295,12 +298,6 @@ void AudioClipView::drawSubChunkPeakMode(QPainter *painter, const QRectF &previe
     const auto rectWidth = previewRect.width();
     const auto rectHeight = previewRect.height();
     const auto halfRectHeight = rectHeight / 2;
-
-    painter->setRenderHint(QPainter::Antialiasing, false);
-    QPen pen;
-    pen.setColor(color);
-    pen.setWidthF(0);
-    painter->setPen(pen);
 
     const auto rectLeftScene = mapToScene(previewRect.topLeft()).x();
     const auto rectRightScene = mapToScene(previewRect.bottomRight()).x();
@@ -353,11 +350,9 @@ void AudioClipView::drawSubChunkPeakMode(QPainter *painter, const QRectF &previe
 
     m_io->seek(sampleStart);
     const qint64 framesRead = m_io->read(m_ioBuffer.data(), framesToRead);
-    if (framesRead <= 0)
-        return;
 
-    QVector<QLineF> lines;
-    lines.reserve(stepCount);
+    QVector<WaveformRenderUtils::PeakPoint> points;
+    points.reserve(stepCount);
 
     for (int di = devStart; di <= devEnd; di++) {
         const double localX = di / scaleXDev;
@@ -392,10 +387,11 @@ void AudioClipView::drawSubChunkPeakMode(QPainter *painter, const QRectF &previe
         const double x = rectLeft + localX;
         const double yMin = -min * halfRectHeight + halfRectHeight + rectTop;
         const double yMax = -max * halfRectHeight + halfRectHeight + rectTop;
-        lines.append(QLineF(x, yMin, x, yMax));
+        points.append({x, yMin, yMax});
     }
 
-    painter->drawLines(lines);
+    // Sub-chunk mode uses LineMode for performance (FilledMode is too slow at this zoom level)
+    WaveformRenderUtils::renderWaveform(painter, color, WaveformRenderUtils::LineMode, points);
 }
 
 // Waveform curve mode: reads raw samples, applies Lanczos sinc interpolation,

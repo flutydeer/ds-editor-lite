@@ -37,6 +37,15 @@ void WaveformPainter::setTempo(const double tempo) {
     m_cache = QPixmap();
 }
 
+void WaveformPainter::setRenderMode(const WaveformRenderUtils::Mode mode) {
+    m_renderMode = mode;
+    m_cache = QPixmap();
+}
+
+WaveformRenderUtils::Mode WaveformPainter::renderMode() const {
+    return m_renderMode;
+}
+
 void WaveformPainter::paint(QPainter *painter, const QRectF &rect, const QColor &color,
                             const double rectStartTick, const double rectEndTick) {
     if (m_audioInfo.sampleRate <= 0 || m_audioInfo.chunkSize <= 0)
@@ -108,6 +117,14 @@ void WaveformPainter::resetIO() {
     }
 }
 
+double WaveformPainter::logAmplify(const double value) {
+    constexpr double k = 15.0;
+    static const double norm = 1.0 / std::log(1.0 + k);
+    if (value >= 0)
+        return std::log(1.0 + k * value) * norm;
+    return -std::log(1.0 - k * value) * norm;
+}
+
 void WaveformPainter::drawPeakMode(QPainter *painter, const QRectF &rect, const QColor &color,
                                     const double rectStartTick, const double ticksPerPixel,
                                     const double samplesPerTick) {
@@ -119,12 +136,6 @@ void WaveformPainter::drawPeakMode(QPainter *painter, const QRectF &rect, const 
     const auto rectWidth = rect.width();
     const auto rectHeight = rect.height();
     const auto halfRectHeight = rectHeight / 2;
-
-    painter->setRenderHint(QPainter::Antialiasing, false);
-    QPen pen;
-    pen.setColor(color);
-    pen.setWidthF(0);
-    painter->setPen(pen);
 
     const auto chunksPerTickBase = static_cast<double>(m_audioInfo.sampleRate) /
                                    m_audioInfo.chunkSize * 60 / m_tempo /
@@ -142,8 +153,8 @@ void WaveformPainter::drawPeakMode(QPainter *painter, const QRectF &rect, const 
     const int peakCount = peakData.count();
     const int stepCount = static_cast<int>(std::ceil(rectWidth / pixelStep)) + 1;
 
-    QVector<QLineF> lines;
-    lines.reserve(stepCount);
+    QVector<WaveformRenderUtils::PeakPoint> points;
+    points.reserve(stepCount);
 
     for (int i = 0; i < stepCount; i++) {
         const double localX = i * pixelStep;
@@ -177,18 +188,10 @@ void WaveformPainter::drawPeakMode(QPainter *painter, const QRectF &rect, const 
         const double x = rectLeft + localX;
         const double yMin = -logAmplify(min / 32767.0) * halfRectHeight + halfRectHeight + rectTop;
         const double yMax = -logAmplify(max / 32767.0) * halfRectHeight + halfRectHeight + rectTop;
-        lines.append(QLineF(x, yMin, x, yMax));
+        points.append({x, yMin, yMax});
     }
 
-    painter->drawLines(lines);
-}
-
-double WaveformPainter::logAmplify(const double value) {
-    constexpr double k = 15.0;
-    static const double norm = 1.0 / std::log(1.0 + k);
-    if (value >= 0)
-        return std::log(1.0 + k * value) * norm;
-    return -std::log(1.0 - k * value) * norm;
+    WaveformRenderUtils::renderWaveform(painter, color, m_renderMode, points);
 }
 
 void WaveformPainter::drawSubChunkPeakMode(QPainter *painter, const QRectF &rect,
@@ -203,12 +206,6 @@ void WaveformPainter::drawSubChunkPeakMode(QPainter *painter, const QRectF &rect
     const auto rectWidth = rect.width();
     const auto rectHeight = rect.height();
     const auto halfRectHeight = rectHeight / 2;
-
-    painter->setRenderHint(QPainter::Antialiasing, false);
-    QPen pen;
-    pen.setColor(color);
-    pen.setWidthF(0);
-    painter->setPen(pen);
 
     const qreal dpr = painter->device()->devicePixelRatio();
     const double pixelStep = 1.0 / dpr;
@@ -237,8 +234,8 @@ void WaveformPainter::drawSubChunkPeakMode(QPainter *painter, const QRectF &rect
     if (framesRead <= 0)
         return;
 
-    QVector<QLineF> lines;
-    lines.reserve(stepCount);
+    QVector<WaveformRenderUtils::PeakPoint> points;
+    points.reserve(stepCount);
 
     for (int i = 0; i < stepCount; i++) {
         const double localX = i * pixelStep;
@@ -273,8 +270,8 @@ void WaveformPainter::drawSubChunkPeakMode(QPainter *painter, const QRectF &rect
         const double x = rectLeft + localX;
         const double yMin = -logAmplify(min) * halfRectHeight + halfRectHeight + rectTop;
         const double yMax = -logAmplify(max) * halfRectHeight + halfRectHeight + rectTop;
-        lines.append(QLineF(x, yMin, x, yMax));
+        points.append({x, yMin, yMax});
     }
 
-    painter->drawLines(lines);
+    WaveformRenderUtils::renderWaveform(painter, color, m_renderMode, points);
 }

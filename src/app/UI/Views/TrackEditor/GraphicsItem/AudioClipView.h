@@ -10,6 +10,7 @@
 #include "Global/AppGlobal.h"
 
 #include <QVector>
+#include "UI/Utils/WaveformRenderUtils.h"
 
 namespace talcs {
 class AbstractAudioFormatIO;
@@ -33,6 +34,9 @@ public:
 
     explicit AudioClipView(int itemId, QGraphicsItem *parent = nullptr);
     ~AudioClipView() override;
+
+    void setRenderMode(WaveformRenderUtils::Mode mode);
+    [[nodiscard]] WaveformRenderUtils::Mode renderMode() const;
 
     [[nodiscard]] QString path() const;
     void setPath(const QString &path);
@@ -69,6 +73,8 @@ private:
     double m_tempo = 60;
     RenderResolution m_resolution = High;
     QString m_path;
+
+    WaveformRenderUtils::Mode m_renderMode = WaveformRenderUtils::FilledMode;
 
     talcs::AbstractAudioFormatIO *m_io = nullptr;
     QVector<float> m_ioBuffer;

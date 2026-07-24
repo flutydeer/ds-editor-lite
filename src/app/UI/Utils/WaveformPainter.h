@@ -6,6 +6,7 @@
 #define WAVEFORMPAINTER_H
 
 #include "Model/AppModel/AudioInfoModel.h"
+#include "UI/Utils/WaveformRenderUtils.h"
 
 #include <QVector>
 #include <QString>
@@ -14,7 +15,6 @@
 
 class QPainter;
 class QRectF;
-class QColor;
 
 namespace talcs {
 class AbstractAudioFormatIO;
@@ -28,6 +28,9 @@ public:
     void setAudioPath(const QString &path);
     void setAudioInfo(const AudioInfoModel &info);
     void setTempo(double tempo);
+
+    void setRenderMode(WaveformRenderUtils::Mode mode);
+    [[nodiscard]] WaveformRenderUtils::Mode renderMode() const;
 
     void paint(QPainter *painter, const QRectF &rect, const QColor &color,
                double rectStartTick, double rectEndTick);
@@ -45,6 +48,8 @@ private:
                               double rectStartTick, double ticksPerPixel, double samplesPerTick);
 
     static double logAmplify(double value);
+
+    WaveformRenderUtils::Mode m_renderMode = WaveformRenderUtils::FilledMode;
 
     AudioInfoModel m_audioInfo;
     double m_tempo = 120;
