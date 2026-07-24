@@ -5,6 +5,7 @@
 #include "SpeakerMixToolBarView.h"
 
 #include "UI/Controls/ColorDot.h"
+#include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include <QHBoxLayout>
 #include <QEvent>
@@ -13,22 +14,25 @@
 SpeakerMixToolBarView::SpeakerMixToolBarView(QWidget *parent) : QWidget(parent) {
     auto *layout = new QHBoxLayout;
 
-    m_btnBypass = new Button(tr("Bypass"));
-    m_btnBypass->setObjectName("btnBypassDynamicMix");
-    m_btnResume = new Button(tr("Resume"));
-    m_btnResume->setObjectName("btnResumeDynamicMix");
+    m_btnBypassToggle = new Button(tr("Bypass"));
+    m_btnBypassToggle->setObjectName("btnDynamicMixBypassToggle");
+    m_btnBypassToggle->setCheckable(true);
     m_btnStop = new Button(tr("Stop Dynamic..."));
     m_btnStop->setObjectName("btnStopDynamicMix");
 
     m_btnPrev = new Button(QStringLiteral("\u25C0"));
     m_btnPrev->setObjectName("btnPrevKeyframe");
-    m_btnPrev->setFixedWidth(28);
     m_btnNext = new Button(QStringLiteral("\u25B6"));
     m_btnNext->setObjectName("btnNextKeyframe");
-    m_btnNext->setFixedWidth(28);
 
-    layout->addWidget(m_btnBypass);
-    layout->addWidget(m_btnResume);
+    m_btnBypassToggle->setFixedHeight(ClipEditorGlobal::paramEditorToolControlHeight);
+    m_btnStop->setFixedHeight(ClipEditorGlobal::paramEditorToolControlHeight);
+    m_btnPrev->setFixedSize(ClipEditorGlobal::paramEditorToolControlHeight,
+                            ClipEditorGlobal::paramEditorToolControlHeight);
+    m_btnNext->setFixedSize(ClipEditorGlobal::paramEditorToolControlHeight,
+                            ClipEditorGlobal::paramEditorToolControlHeight);
+
+    layout->addWidget(m_btnBypassToggle);
     layout->addWidget(m_btnStop);
     layout->addSpacing(8);
     layout->addWidget(m_btnPrev);
@@ -47,8 +51,12 @@ SpeakerMixToolBarView::SpeakerMixToolBarView(QWidget *parent) : QWidget(parent) 
 
     setLayout(layout);
 
-    connect(m_btnBypass, &Button::clicked, this, &SpeakerMixToolBarView::bypassDynamicMix);
-    connect(m_btnResume, &Button::clicked, this, &SpeakerMixToolBarView::resumeDynamicMix);
+    connect(m_btnBypassToggle, &Button::clicked, this, [this](const bool bypassed) {
+        if (bypassed)
+            emit bypassDynamicMix();
+        else
+            emit resumeDynamicMix();
+    });
     connect(m_btnStop, &Button::clicked, this, &SpeakerMixToolBarView::stopDynamicMix);
     connect(m_btnPrev, &Button::clicked, this, &SpeakerMixToolBarView::previousKeyframe);
     connect(m_btnNext, &Button::clicked, this, &SpeakerMixToolBarView::nextKeyframe);
@@ -88,16 +96,12 @@ void SpeakerMixToolBarView::setSpeakers(const QStringList &names, const QList<QC
 }
 
 void SpeakerMixToolBarView::setDynamicState(const SpeakerMixDynamicUiState state) {
-    if (m_dynamicState == state)
-        return;
-
     m_dynamicState = state;
     const bool active = state == SpeakerMixDynamicUiState::Active;
     const bool bypassed = state == SpeakerMixDynamicUiState::Bypassed;
     const bool hasDynamic = active || bypassed;
 
-    m_btnBypass->setVisible(active);
-    m_btnResume->setVisible(bypassed);
+    updateBypassButton();
     m_btnStop->setVisible(hasDynamic);
     m_btnPrev->setVisible(hasDynamic);
     m_btnNext->setVisible(hasDynamic);
@@ -108,8 +112,15 @@ void SpeakerMixToolBarView::setDynamicState(const SpeakerMixDynamicUiState state
 void SpeakerMixToolBarView::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
     if (event->type() == QEvent::LanguageChange) {
-        m_btnBypass->setText(tr("Bypass"));
-        m_btnResume->setText(tr("Resume"));
+        updateBypassButton();
         m_btnStop->setText(tr("Stop Dynamic..."));
     }
+}
+
+void SpeakerMixToolBarView::updateBypassButton() {
+    const bool bypassed = m_dynamicState == SpeakerMixDynamicUiState::Bypassed;
+    const bool hasDynamic = m_dynamicState == SpeakerMixDynamicUiState::Active || bypassed;
+    m_btnBypassToggle->setVisible(hasDynamic);
+    m_btnBypassToggle->setChecked(bypassed);
+    m_btnBypassToggle->setText(bypassed ? tr("Cancel Bypass") : tr("Bypass"));
 }

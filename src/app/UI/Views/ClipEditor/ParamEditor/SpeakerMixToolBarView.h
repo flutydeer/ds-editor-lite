@@ -31,8 +31,9 @@ protected:
     void changeEvent(QEvent *event) override;
 
 private:
-    Button *m_btnBypass = nullptr;
-    Button *m_btnResume = nullptr;
+    void updateBypassButton();
+
+    Button *m_btnBypassToggle = nullptr;
     Button *m_btnStop = nullptr;
     Button *m_btnPrev = nullptr;
     Button *m_btnNext = nullptr;

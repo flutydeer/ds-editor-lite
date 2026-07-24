@@ -4297,20 +4297,19 @@ All current mix settings will be lost.</source>
 <context>
     <name>SpeakerMixToolBarView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixToolBarView.cpp" line="16"/>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixToolBarView.cpp" line="111"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixToolBarView.cpp" line="17"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixToolBarView.cpp" line="125"/>
         <source>Bypass</source>
         <translation>旁通</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixToolBarView.cpp" line="18"/>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixToolBarView.cpp" line="112"/>
-        <source>Resume</source>
-        <translation>恢复</translation>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixToolBarView.cpp" line="125"/>
+        <source>Cancel Bypass</source>
+        <translation>取消旁通</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixToolBarView.cpp" line="20"/>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixToolBarView.cpp" line="113"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/SpeakerMixToolBarView.cpp" line="116"/>
         <source>Stop Dynamic...</source>
         <translation>停止动态...</translation>
     </message>

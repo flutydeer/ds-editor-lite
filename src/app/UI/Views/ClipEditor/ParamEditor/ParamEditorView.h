@@ -11,6 +11,8 @@
 
 #include <QWidget>
 
+#include <optional>
+
 class ParamEditorInfoArea;
 class SingingClip;
 class ParamEditorGraphicsView;
@@ -47,7 +49,7 @@ private slots:
 private:
     void refreshSpeakerMixEmptyState(const SpeakerMixModel::SpeakerMixData &data);
     void setSpeakerMixEmptyState(const QString &title, const QString &message,
-                                 const QString &buttonText, bool buttonEnabled);
+                                 const std::optional<QString> &actionText);
     void hideSpeakerMixEmptyState();
     void updateSpeakerMixEmptyStateGeometry();
     static bool hasFixedMixBase(const SpeakerMixModel::SpeakerMixData &data);

@@ -306,7 +306,7 @@ void ParamEditorView::refreshSpeakerMixEmptyState(const SpeakerMixData &data) {
         setSpeakerMixEmptyState(tr("Dynamic mix is unavailable"),
                                 tr("Choose a fixed speaker mix preset with at least two speakers "
                                    "before enabling dynamic mix."),
-                                tr("Enable Dynamic Mix"), false);
+                                std::nullopt);
         return;
     }
 
@@ -315,22 +315,23 @@ void ParamEditorView::refreshSpeakerMixEmptyState(const SpeakerMixData &data) {
                                 tr("This clip is following the track. Enabling dynamic mix will "
                                    "copy the current track speaker mix to this clip and stop "
                                    "following the track."),
-                                tr("Copy and Enable Dynamic Mix"), true);
+                                tr("Copy and Enable Dynamic Mix"));
         return;
     }
 
     setSpeakerMixEmptyState(tr("Enable Dynamic Mix"),
                             tr("Create the first keyframe from the current fixed speaker mix."),
-                            tr("Enable Dynamic Mix"), true);
+                            tr("Enable Dynamic Mix"));
 }
 
 void ParamEditorView::setSpeakerMixEmptyState(const QString &title, const QString &message,
-                                              const QString &buttonText, const bool buttonEnabled) {
+                                              const std::optional<QString> &actionText) {
     m_speakerMixEmptyTitle->setText(title);
     m_speakerMixEmptyMessageText = message;
     m_speakerMixEmptyMessage->setText(message);
-    m_enableDynamicMixButton->setText(buttonText);
-    m_enableDynamicMixButton->setEnabled(buttonEnabled);
+    if (actionText)
+        m_enableDynamicMixButton->setText(*actionText);
+    m_enableDynamicMixButton->setVisible(actionText.has_value());
     m_speakerMixEmptyMessage->setToolTip({});
     m_enableDynamicMixButton->setToolTip({});
     m_speakerMixEmptyState->setToolTip({});

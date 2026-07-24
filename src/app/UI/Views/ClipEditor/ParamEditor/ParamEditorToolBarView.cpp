@@ -7,6 +7,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/Button.h"
 #include "UI/Controls/ComboBox.h"
+#include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "Model/Utils/ParamUtils.h"
 #include "SpeakerMixToolBarView.h"
 
@@ -17,6 +18,7 @@
 
 ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
+    setFixedHeight(ClipEditorGlobal::paramEditorToolBarHeight);
 
     lbForegroundParam = new QLabel(tr("Foreground:"));
     lbForegroundParam->setObjectName("lbForegroundParam");
@@ -41,6 +43,12 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     m_speakerMixToolBar = new SpeakerMixToolBarView;
     m_speakerMixToolBar->setVisible(false);
 
+    lbForegroundParam->setMaximumHeight(ClipEditorGlobal::paramEditorToolControlHeight);
+    cbForegroundParam->setFixedHeight(ClipEditorGlobal::paramEditorToolControlHeight);
+    m_btnSwap->setFixedHeight(ClipEditorGlobal::paramEditorToolControlHeight);
+    lbBackgroundParam->setMaximumHeight(ClipEditorGlobal::paramEditorToolControlHeight);
+    cbBackgroundParam->setFixedHeight(ClipEditorGlobal::paramEditorToolControlHeight);
+
     const auto layout = new QHBoxLayout();
     layout->addSpacing(64);
     layout->addWidget(lbForegroundParam);
@@ -51,7 +59,8 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     layout->addWidget(m_speakerMixToolBar);
     layout->addStretch();
     layout->setSpacing(4);
-    layout->setContentsMargins(8, 4, 4, 4);
+    layout->setContentsMargins(8, ClipEditorGlobal::paramEditorToolBarVerticalMargin, 4,
+                               ClipEditorGlobal::paramEditorToolBarVerticalMargin);
 
     setLayout(layout);
 

@@ -231,20 +231,17 @@ PianoRollEditorView::handle:vertical {
 }
 
 ParamEditorToolBarView {
-    height: 32px;
     background: ${surface.panel};
     border-top: 1px solid ${border.subtle};
 }
 
 ParamEditorToolBarView>QLabel#lbForegroundParam,
 ParamEditorToolBarView>QLabel#lbBackgroundParam {
-    max-height: 24;
     color: ${control.foreground.disabled};
 }
 
 ParamEditorToolBarView>ComboBox#cbForegroundParam,
 ParamEditorToolBarView>ComboBox#cbBackgroundParam {
-    height: 24;
     border: none;
     padding-left: 8px;
     background: transparent;
@@ -257,15 +254,12 @@ ParamEditorToolBarView>ComboBox#cbBackgroundParam:hover {
 }
 
 ParamEditorToolBarView>Button#btnSwap {
-    height: 24;
     border: none;
     background: transparent;
 }
 
 ParamEditorToolBarView Button#btnPrevKeyframe,
 ParamEditorToolBarView Button#btnNextKeyframe {
-    width: 24;
-    height: 24;
     padding: 0px;
     border: none;
     background: transparent;

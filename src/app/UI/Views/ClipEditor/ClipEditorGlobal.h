@@ -10,8 +10,12 @@
 namespace ClipEditorGlobal {
     constexpr int pixelsPerQuarterNote = 96;
     constexpr double noteHeight = 24;
-    constexpr int timelineViewHeight = 32;  // Increased for loop region display
+    constexpr int timelineViewHeight = 32; // Increased for loop region display
     constexpr int pianoKeyboardWidth = 64;
+    constexpr int paramEditorToolControlHeight = 24;
+    constexpr int paramEditorToolBarVerticalMargin = 4;
+    constexpr int paramEditorToolBarHeight =
+        paramEditorToolControlHeight + paramEditorToolBarVerticalMargin * 2;
 
     using PianoRollEditMode = EditorViewGlobal::PianoRollEditMode;
     inline constexpr auto Select = EditorViewGlobal::Select;
