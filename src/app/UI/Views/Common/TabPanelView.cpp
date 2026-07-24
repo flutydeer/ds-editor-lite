@@ -12,6 +12,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QEvent>
+#include <QSizePolicy>
 
 #include <algorithm>
 
@@ -26,12 +27,13 @@ TabPanelView::TabPanelView(AppGlobal::PanelType type, QWidget *parent) : PanelVi
     titleBarLayout->setContentsMargins(1, 0, 1, 0);
     titleBarLayout->setSpacing(0);
     titleBarHost->setLayout(titleBarLayout);
+    titleBarHost->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
     m_pageContent = new QStackedWidget;
 
     auto layout = new QVBoxLayout;
     layout->addWidget(titleBarHost);
-    layout->addWidget(m_pageContent);
+    layout->addWidget(m_pageContent, 1);
     layout->setContentsMargins({});
     layout->setSpacing({});
     setLayout(layout);
