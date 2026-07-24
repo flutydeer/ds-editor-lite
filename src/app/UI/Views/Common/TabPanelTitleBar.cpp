@@ -43,7 +43,7 @@ TabPanelTitleBar::TabPanelTitleBar(QWidget *parent) : QWidget(parent) {
     m_innerLayout->addStretch();
     m_innerLayout->addLayout(m_btnLayout);
     m_innerLayout->setSpacing(0);
-    m_innerLayout->setContentsMargins(6, 6, 9, 6);
+    m_innerLayout->setContentsMargins(5, 6, 8, 6);
 
     m_systemBtnLayout = new QHBoxLayout;
     m_systemBtnLayout->setContentsMargins({});

@@ -10,6 +10,7 @@
 #include <QTabBar>
 #include <QStackedWidget>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QEvent>
 
 #include <algorithm>
@@ -19,10 +20,17 @@ TabPanelView::TabPanelView(AppGlobal::PanelType type, QWidget *parent) : PanelVi
 
     m_tabPanelTitleBar = new TabPanelTitleBar;
 
+    auto titleBarHost = new QWidget;
+    auto titleBarLayout = new QHBoxLayout;
+    titleBarLayout->addWidget(m_tabPanelTitleBar);
+    titleBarLayout->setContentsMargins(1, 0, 1, 0);
+    titleBarLayout->setSpacing(0);
+    titleBarHost->setLayout(titleBarLayout);
+
     m_pageContent = new QStackedWidget;
 
     auto layout = new QVBoxLayout;
-    layout->addWidget(m_tabPanelTitleBar);
+    layout->addWidget(titleBarHost);
     layout->addWidget(m_pageContent);
     layout->setContentsMargins({});
     layout->setSpacing({});

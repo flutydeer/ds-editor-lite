@@ -1,6 +1,7 @@
 #ifndef OVERLAYSPLITTER_H
 #define OVERLAYSPLITTER_H
 
+#include <QPointer>
 #include <QSplitter>
 
 class QVariantAnimation;
@@ -17,6 +18,7 @@ class OverlaySplitter : public QSplitter {
 public:
     explicit OverlaySplitter(Qt::Orientation orientation, QWidget *parent = nullptr);
     explicit OverlaySplitter(QWidget *parent = nullptr);
+    ~OverlaySplitter() override;
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -25,10 +27,12 @@ protected:
 private:
     // Lazily creates the overlay grip once a parent widget is available.
     void ensureGrip();
+    // Keeps the out-of-tree grip in sync with the splitter's visibility and child count.
+    void updateGripVisibility();
     // Synchronizes the grip's geometry with the current split boundary.
     void updateGripPosition();
 
-    SplitterOverlayGrip *m_grip = nullptr;
+    QPointer<SplitterOverlayGrip> m_grip;
 
     friend class SplitterOverlayGrip;
 };
