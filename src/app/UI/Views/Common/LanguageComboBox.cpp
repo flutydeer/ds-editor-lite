@@ -74,6 +74,7 @@ QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
     if (findData(selected) < 0)
         selected = itemData(0).toString();
     setCurrentIndex(findData(selected));
+    adjustWidthToContent();
     return selected;
 }
 
@@ -108,4 +109,24 @@ void LanguageComboBox::refreshDisplayNames() {
         setItemText(index, displayName(itemData(index).toString(),
                                        itemData(index, Qt::UserRole + 1).toString()));
     }
+    adjustWidthToContent();
+}
+
+void LanguageComboBox::adjustWidthToContent() {
+    int maxWidth = 0;
+    const QFontMetrics fm(font());
+    for (int i = 0; i < count(); ++i) {
+        const int textWidth = fm.horizontalAdvance(itemText(i));
+        maxWidth = qMax(maxWidth, textWidth);
+    }
+
+    // Account for: left text padding (~8), arrow button area (28),
+    // right gap between text and arrow (~8), and frame border (~2+2)
+    constexpr int kArrowArea = 28;
+    constexpr int kPadding = 20;
+    constexpr int kFrameBorder = 4;
+    const int totalWidth = maxWidth + kArrowArea + kPadding + kFrameBorder;
+
+    setMinimumWidth(totalWidth);
+    updateGeometry();
 }

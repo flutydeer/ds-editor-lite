@@ -138,7 +138,6 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 
     cbLanguage = new LanguageComboBox("unknown");
     cbLanguage->setObjectName("cbLanguage");
-    cbLanguage->setMaximumWidth(144);
     connect(cbLanguage, &LanguageComboBox::currentLanguageChanged, this,
             [this](const QString &language) {
                 if (m_track && m_track->defaultLanguage() != language)
