@@ -83,6 +83,8 @@ void InferDurationTask::runTask() {
     const auto input = m_input.toEngineModel();
     m_inputHash = input.hashData();
     const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
+    if (!cacheDir.exists())
+        cacheDir.mkpath(".");
     const auto inputCachePath =
         cacheDir.filePath(QString("infer-duration-input-%1.json").arg(m_inputHash));
     if (!QFile(inputCachePath).exists())

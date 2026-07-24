@@ -83,6 +83,8 @@ InferAcousticTask::lookupCache(const InferAcousticInput &input) {
     lookup.inputHash = lookup.model.hashData();
 
     const QDir cacheDir(appOptions->inference()->cacheDirectory);
+    if (!cacheDir.exists())
+        cacheDir.mkpath(".");
     lookup.inputCachePath =
         cacheDir.filePath(QString("infer-acoustic-input-%1.json").arg(lookup.inputHash));
     lookup.outputCachePath =
