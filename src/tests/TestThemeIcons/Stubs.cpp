@@ -2,7 +2,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/ThemeManager.h"
-#include "Utils/WindowFrameUtils.h"
+#include "UI/Utils/WindowFrameUtils.h"
 
 template <> ThemeManager *AppContext::instance<ThemeManager>() {
     return nullptr;
