@@ -4,15 +4,15 @@
 
 #include "ChannelView.h"
 
-#include "Model/AppModel/Track.h"
-#include "Model/AppModel/TrackControl.h"
-#include "UI/Controls/Fader.h"
-#include "UI/Controls/LevelMeter.h"
-#include "UI/Controls/InlineEditLabel.h"
-#include "UI/Controls/Button.h"
-#include "UI/Controls/PanSlider.h"
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/AppModel/TrackControl.h>
+#include <lite/GUI/Controls/Fader.h>
+#include <lite/GUI/Controls/LevelMeter.h>
+#include <lite/GUI/Controls/InlineEditLabel.h>
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/PanSlider.h>
 #include "UI/Utils/AppColorPalette.h"
-#include "UI/Utils/ThemeManager.h"
+#include <lite/GUI/Theme/ThemeManager.h>
 
 #include <QVBoxLayout>
 #include <QLabel>

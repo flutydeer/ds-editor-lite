@@ -7,10 +7,10 @@
 #include "PhonemeNameItemView.h"
 #include "Model/NoteDialog/PhonemeNameListModel.h"
 #include "Model/NoteDialog/PhonemeNameItemModel.h"
-#include "UI/Controls/LineEdit.h"
+#include <lite/GUI/Controls/LineEdit.h>
 #include "UI/Views/Common/LanguageComboBox.h"
 
-#include "UI/Controls/Menu.h"
+#include <lite/GUI/Controls/Menu.h>
 
 PhonemeNameListWidget::PhonemeNameListWidget(QWidget *parent) : QListWidget(parent) {
     setSelectionMode(QAbstractItemView::NoSelection);

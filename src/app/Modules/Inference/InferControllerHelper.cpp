@@ -5,15 +5,15 @@
 #include "InferControllerHelper.h"
 
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/AnchorCurve.h"
-#include "Model/AppModel/DrawCurve.h"
-#include "Model/AppModel/Note.h"
-#include "Model/AppModel/SingingClip.h"
-#include "Model/InferenceData/InferPiece.h"
+#include <lite/ProjectModel/AppModel/AnchorCurve.h>
+#include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include "Models/InferInputNote.h"
-#include "Model/InferenceData/InferSpeakerMix.h"
+#include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
 #include "Models/SpeakerMixValidator.h"
-#include "Model/Utils/AppModelUtils.h"
+#include <lite/ProjectModel/Utils/AppModelUtils.h>
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
 #include "Model/Utils/ParamUtils.h"
@@ -245,7 +245,7 @@ namespace InferControllerHelper {
             } else {
                 const auto baseValue = paramUtils->getPropertiesByName(name)->defaultValue;
                 if (auto resultCurve = AppModelUtils::getResultCurve(
-                        {piece->localStartTick(), piece->localEndTick()}, baseValue, editedCurves);
+                        {piece->localStartTick(appModel->tempo()), piece->localEndTick(appModel->tempo())}, baseValue, editedCurves);
                     resultCurve != input) {
                     piece->setInputCurve(name, resultCurve);
                     result.append(piece);
@@ -307,7 +307,7 @@ namespace InferControllerHelper {
     void updateParam(const ParamInfo::Name name, const InferParamCurve &taskResult,
                      InferPiece &piece, int scale, int smoothKernelSize) {
         const auto &[alignTick, alignValues] = CurveUtil::alignCurve(
-            piece.localStartTick(), 5, {taskResult.values.begin(), taskResult.values.end()}, 5);
+            piece.localStartTick(appModel->tempo()), 5, {taskResult.values.begin(), taskResult.values.end()}, 5);
 
         if (smoothKernelSize < 0)
             smoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;

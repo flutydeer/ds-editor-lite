@@ -5,13 +5,12 @@
 #include <QList>
 
 #include "Global/AppGlobal.h"
-#include "Utils/Singleton.h"
 
 class AppColorPalette {
 public:
     static constexpr int colorCount = AppGlobal::paletteColorCount;
 
-    LITE_SINGLETON_DECLARE_INSTANCE(AppColorPalette)
+    static AppColorPalette *instance();
 
     bool load(const QString &jsonFilePath);
 

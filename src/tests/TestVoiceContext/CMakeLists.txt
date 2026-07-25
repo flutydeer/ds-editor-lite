@@ -4,14 +4,14 @@ lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
         Stubs.cpp
-        ../../app/Model/AppModel/Clip.cpp
-        ../../app/Model/AppModel/Track.cpp
-        ../../app/Model/AppModel/TrackControl.cpp
-        ../../app/Model/AppModel/SpeakerMixData.cpp
-        ../../app/Modules/PackageManager/Models/SingerInfo.cpp
-        ../../app/Modules/PackageManager/Models/SpeakerInfo.cpp
-        ../../app/Modules/PackageManager/Models/LanguageInfo.cpp
-        ../../app/Utils/IdGenerator.cpp
+        ../../libs/ProjectModel/AppModel/Clip.cpp
+        ../../libs/ProjectModel/AppModel/Track.cpp
+        ../../libs/ProjectModel/AppModel/TrackControl.cpp
+        ../../libs/ProjectModel/AppModel/SpeakerMixData.cpp
+        ../../libs/ProjectModel/Voice/SingerInfo.cpp
+        ../../libs/ProjectModel/Voice/SpeakerInfo.cpp
+        ../../libs/ProjectModel/Voice/LanguageInfo.cpp
+        ../../libs/Core/IdGenerator.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -25,6 +25,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Core
+        lite::MusicBase
 )
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

@@ -11,8 +11,8 @@
 #include "MoveClipToTrackAction.h"
 #include "RemoveClipAction.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/AudioClip.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QCoreApplication>
 

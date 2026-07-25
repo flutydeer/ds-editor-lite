@@ -1,8 +1,8 @@
 #ifndef SPEAKERMIXVALIDATOR_H
 #define SPEAKERMIXVALIDATOR_H
 
-#include "Model/InferenceData/InferSpeakerMix.h"
-#include "Modules/PackageManager/Models/SingerInfo.h"
+#include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
+#include <lite/ProjectModel/Voice/SingerInfo.h>
 
 #include <QString>
 #include <QStringList>

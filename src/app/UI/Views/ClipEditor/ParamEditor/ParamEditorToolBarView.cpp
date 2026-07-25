@@ -5,8 +5,8 @@
 #include "ParamEditorToolBarView.h"
 
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Controls/Button.h"
-#include "UI/Controls/ComboBox.h"
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/ComboBox.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "Model/Utils/ParamUtils.h"
 #include "SpeakerMixToolBarView.h"

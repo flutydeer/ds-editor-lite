@@ -5,9 +5,9 @@
 #ifndef PARAMEDITORVIEW_H
 #define PARAMEDITORVIEW_H
 
-#include "Model/AppModel/ParamProperties.h"
-#include "Model/AppModel/Params.h"
-#include "Model/AppModel/SpeakerMixData.h"
+#include <lite/ProjectModel/AppModel/ParamProperties.h>
+#include <lite/ProjectModel/AppModel/Params.h>
+#include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 
 #include <QWidget>
 

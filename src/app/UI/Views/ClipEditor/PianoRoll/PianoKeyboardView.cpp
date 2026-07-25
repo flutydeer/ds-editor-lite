@@ -7,7 +7,7 @@
 #include "PianoPaintUtils.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Utils/AppColorPalette.h"
-#include "UI/Utils/ThemeManager.h"
+#include <lite/GUI/Theme/ThemeManager.h>
 #include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
 

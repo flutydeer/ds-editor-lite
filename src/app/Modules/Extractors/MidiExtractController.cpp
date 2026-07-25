@@ -7,12 +7,12 @@
 #include "ExtractMidiTask.h"
 #include "Controller/TrackController.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
-#include "Model/AppModel/AudioClip.h"
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include "Model/AppOptions/AppOptions.h"
-#include "Modules/Task/TaskManager.h"
-#include "UI/Controls/AccentButton.h"
-#include "UI/Controls/Toast.h"
+#include <lite/Tasking/TaskManager.h>
+#include <lite/GUI/Controls/AccentButton.h>
+#include <lite/GUI/Controls/Toast.h>
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include <lite/Support/Linq.h>
 

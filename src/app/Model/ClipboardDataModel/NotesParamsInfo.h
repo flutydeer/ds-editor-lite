@@ -5,7 +5,7 @@
 #ifndef NOTESPARAMSINFO_H
 #define NOTESPARAMSINFO_H
 
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/AppModel/Note.h>
 
 #include <QJsonArray>
 #include <QJsonObject>

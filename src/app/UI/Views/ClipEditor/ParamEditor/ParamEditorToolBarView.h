@@ -5,7 +5,7 @@
 #ifndef PARAMEDITORTOOLBARVIEW_H
 #define PARAMEDITORTOOLBARVIEW_H
 
-#include "Model/AppModel/Params.h"
+#include <lite/ProjectModel/AppModel/Params.h>
 #include "SpeakerMixToolBarView.h"
 
 #include <QWidget>

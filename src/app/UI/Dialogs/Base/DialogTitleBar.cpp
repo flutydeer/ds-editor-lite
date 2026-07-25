@@ -4,7 +4,7 @@
 
 #include "DialogTitleBar.h"
 
-#include "UI/Controls/Button.h"
+#include <lite/GUI/Controls/Button.h>
 #include <lite/Support/SystemUtils.h>
 
 #include <QEvent>

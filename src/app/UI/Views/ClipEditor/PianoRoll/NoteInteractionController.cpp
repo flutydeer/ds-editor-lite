@@ -6,7 +6,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Controller/ClipController.h"
 #include "Modules/Inference/EditSessionManager.h"
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/MusicBase/TimelineSnapUtils.h>
 #include "Global/AppGlobal.h"
 
 #include <QDebug>

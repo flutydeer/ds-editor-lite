@@ -32,19 +32,19 @@
 #include "Global/AppGlobal.h"
 #include "Global/ControllerGlobal.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/DrawCurve.h"
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Dialogs/Note/PhonemeEditorDialog.h"
-#include "UI/Controls/InlineTextEditOverlay.h"
+#include <lite/GUI/Controls/InlineTextEditOverlay.h>
 #include "UI/Views/Common/ScrollBarView.h"
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/MusicBase/TimelineSnapUtils.h>
 #include <climits>
 #include <cmath>
 
@@ -61,7 +61,7 @@
 #include <QJsonDocument>
 #include <QScrollBar>
 #include <QShowEvent>
-#include "UI/Controls/Menu.h"
+#include <lite/GUI/Controls/Menu.h>
 
 namespace Helper = PianoRollGraphicsViewHelper;
 

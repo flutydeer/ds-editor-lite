@@ -6,7 +6,7 @@
 #define PITCHEDITORGRAPHICSITEM_H
 
 #include "Interface/IAtomicAction.h"
-#include "Model/AppModel/DrawCurve.h"
+#include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include "UI/Views/Common/TimeOverlayView.h"
 
 #include <QColor>

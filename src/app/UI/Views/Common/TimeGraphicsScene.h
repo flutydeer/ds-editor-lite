@@ -6,7 +6,7 @@
 #define TIMEGRAPHICSSCENE_H
 
 #include "ScrollBarView.h"
-#include "UI/Utils/IScalableItem.h"
+#include <lite/GUI/Base/IScalableItem.h>
 
 #include <QGraphicsScene>
 

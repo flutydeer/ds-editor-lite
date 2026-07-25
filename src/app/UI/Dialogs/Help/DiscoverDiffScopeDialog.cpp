@@ -12,7 +12,7 @@
 #include <QVBoxLayout>
 #include <QtGlobal>
 
-#include "UI/Utils/ThemeManager.h"
+#include <lite/GUI/Theme/ThemeManager.h>
 
 DiscoverDiffScopeDialog::DiscoverDiffScopeDialog(QWidget *parent)
     : QDialog(parent),

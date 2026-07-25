@@ -5,10 +5,10 @@
 #ifndef GENERICINFERMODEL_H
 #define GENERICINFERMODEL_H
 
-#include "Interface/IHashProvider.h"
-#include "Interface/ISerializable.h"
-#include "Model/InferenceData/InferSpeakerMix.h"
-#include "Model/AppModel/SingerIdentifier.h"
+#include <lite/Support/IHashProvider.h>
+#include <lite/Support/ISerializable.h>
+#include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
+#include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
 class InferPhoneme final : public ISerializable {
 public:

@@ -15,9 +15,9 @@
 #include <QVBoxLayout>
 
 #include "MidiTextCodecConverter.h"
-#include "UI/Controls/AccentButton.h"
-#include "UI/Controls/Button.h"
-#include "UI/Controls/ComboBox.h"
+#include <lite/GUI/Controls/AccentButton.h>
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/ComboBox.h>
 
 class BinaryToggleCheckBox : public QCheckBox {
 public:

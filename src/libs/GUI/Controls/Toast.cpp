@@ -1,0 +1,156 @@
+//
+// Created by fluty on 2024/7/14.
+//
+
+#include <lite/GUI/Controls/Toast.h>
+
+#include <QApplication>
+#include <QGraphicsDropShadowEffect>
+#include <QLabel>
+#include <QPropertyAnimation>
+#include <QScreen>
+#include <QVBoxLayout>
+
+QWidget *Toast::m_globalContext = nullptr;
+
+ToastWidget::ToastWidget(const QString &text, QWidget *parent) : QWidget(parent) {
+    m_lbMessage = new QLabel(text);
+    m_lbMessage->setObjectName("toastMessage");
+    m_lbMessage->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+    m_lbMessage->setMinimumWidth(0);
+    m_lbMessage->setWordWrap(false);
+
+    m_cardLayout = new QVBoxLayout;
+    m_cardLayout->addWidget(m_lbMessage);
+    m_cardLayout->setContentsMargins({});
+
+    const auto container = new QFrame;
+    container->setObjectName("toastContainer");
+    container->setLayout(m_cardLayout);
+    container->setContentsMargins(12, 8, 12, 8);
+    container->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    container->setMinimumWidth(0);
+
+    m_shadowEffect = new QGraphicsDropShadowEffect(this);
+    m_shadowEffect->setBlurRadius(36);
+    m_shadowEffect->setColor(QColor(0, 0, 0, 32));
+    m_shadowEffect->setOffset(0, 8);
+    container->setGraphicsEffect(m_shadowEffect);
+
+    const auto mainLayout = new QHBoxLayout;
+    mainLayout->addWidget(container);
+    mainLayout->setContentsMargins(16, 16, 16, 16);
+    setLayout(mainLayout);
+
+    setAttribute(Qt::WA_TransparentForMouseEvents);
+    setAttribute(Qt::WA_TranslucentBackground);
+    setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    setWindowOpacity(0);
+}
+
+QColor ToastWidget::shadowColor() const {
+    return m_shadowEffect->color();
+}
+
+void ToastWidget::setShadowColor(const QColor &color) {
+    m_shadowEffect->setColor(color);
+}
+
+void Toast::show(const QString &message) {
+    instance()->m_queue.enqueue(message);
+    if (!instance()->m_isShowingToast)
+        instance()->showNextToast();
+}
+
+void Toast::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+}
+
+void Toast::afterSetTimeScale(double scale) {
+    m_opacityAnimation.setDuration(getScaledAnimationTime(animationDurationBase));
+    m_posAnimation.setDuration(getScaledAnimationTime(animationDurationBase));
+    m_destroyWidgetTimer.setInterval(getScaledAnimationTime(animationDurationBase));
+}
+
+void Toast::hideToast() {
+    m_opacityAnimation.stop();
+    m_opacityAnimation.setStartValue(m_toastWidget->windowOpacity());
+    m_opacityAnimation.setEndValue(0);
+    m_opacityAnimation.start();
+    m_destroyWidgetTimer.start();
+}
+
+Toast::Toast(QObject *parent) : QObject(parent) {
+    m_keepOnScreenTimer.setInterval(1500);
+    m_keepOnScreenTimer.setSingleShot(true);
+    connect(&m_keepOnScreenTimer, &QTimer::timeout, this, &Toast::hideToast);
+
+    m_destroyWidgetTimer.setSingleShot(true);
+    connect(&m_destroyWidgetTimer, &QTimer::timeout, this, [this] {
+        m_toastWidget->hide();
+        delete m_toastWidget;
+        oneToastShowFinished();
+    });
+
+    const auto duration = animationLevel() == AnimationGlobal::None
+                              ? 0
+                              : getScaledAnimationTime(animationDurationBase);
+
+    m_opacityAnimation.setPropertyName("windowOpacity");
+    m_opacityAnimation.setEasingCurve(QEasingCurve::InOutCubic);
+    m_opacityAnimation.setDuration(duration);
+
+    m_posAnimation.setPropertyName("pos");
+    m_posAnimation.setEasingCurve(QEasingCurve::OutQuart);
+    m_posAnimation.setDuration(duration);
+
+    initializeAnimation();
+}
+
+Toast::~Toast() = default;
+
+Toast *Toast::instance() {
+    static Toast obj;
+    return &obj;
+}
+
+void Toast::setGlobalContext(QWidget *context) {
+    m_globalContext = context;
+}
+
+void Toast::showNextToast() {
+    if (m_queue.count() <= 0)
+        return;
+
+    m_isShowingToast = true;
+    // Parent to the global context (main window) so the toast inherits the
+    // theme stylesheet cascade; window flags keep it a top-level window
+    m_toastWidget = new ToastWidget(m_queue.dequeue(), m_globalContext);
+    m_toastWidget->show();
+
+    m_opacityAnimation.setTargetObject(m_toastWidget);
+    m_posAnimation.setTargetObject(m_toastWidget);
+
+    const auto toastWidth = m_toastWidget->geometry().width();
+    if (m_globalContext) {
+        const auto targetPos =
+            m_globalContext->geometry().center() -
+            QPoint(toastWidth / 2, m_globalContext->geometry().height() / 2 - 96);
+        const auto startPos = QPoint(targetPos.x(), targetPos.y() - 32);
+        m_posAnimation.setStartValue(startPos);
+        m_posAnimation.setEndValue(targetPos);
+        m_posAnimation.start();
+    } else
+        m_toastWidget->move(QApplication::primaryScreen()->geometry().center() -
+                            m_toastWidget->rect().center());
+
+    m_opacityAnimation.stop();
+    m_opacityAnimation.setStartValue(m_toastWidget->windowOpacity());
+    m_opacityAnimation.setEndValue(1);
+    m_opacityAnimation.start();
+    m_keepOnScreenTimer.start();
+}
+
+void Toast::oneToastShowFinished() {
+    m_isShowingToast = false;
+    showNextToast();
+}

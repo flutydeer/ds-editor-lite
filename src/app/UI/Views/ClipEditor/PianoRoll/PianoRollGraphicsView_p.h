@@ -5,8 +5,8 @@
 #ifndef PIANOROLLGRAPHICSVIEW_P_H
 #define PIANOROLLGRAPHICSVIEW_P_H
 
-#include "Model/AppModel/Params.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/Params.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QHash>
 #include <QObject>

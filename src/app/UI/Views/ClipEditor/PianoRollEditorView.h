@@ -5,7 +5,7 @@
 #ifndef PIANOROLLEDITORVIEW_H
 #define PIANOROLLEDITORVIEW_H
 
-#include "UI/Controls/OverlaySplitter.h"
+#include <lite/GUI/Controls/OverlaySplitter.h>
 
 
 class SingingClip;

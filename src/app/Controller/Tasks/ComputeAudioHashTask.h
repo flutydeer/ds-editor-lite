@@ -1,7 +1,7 @@
 #ifndef COMPUTEAUDIOHASHTASK_H
 #define COMPUTEAUDIOHASHTASK_H
 
-#include "Modules/Task/Task.h"
+#include <lite/Tasking/Task.h>
 
 // Computes the SHA-512 digest (lowercase hex) of an audio file in the background,
 // used for project portability verification, see Utils/DiffscopeAudioWorkspace.h

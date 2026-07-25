@@ -6,7 +6,7 @@
 
 #include "Modules/FillLyric/Utils/LrcTools/LrcDecoder.h"
 #include "Modules/FillLyric/Utils/SplitLyric.h"
-#include "UI/Utils/IconUtils.h"
+#include <lite/GUI/Utils/IconUtils.h>
 
 namespace FillLyric {
     // R16: UI 层统一 QStringList，调用 LyricSplitter 时转 std::vector<std::string>

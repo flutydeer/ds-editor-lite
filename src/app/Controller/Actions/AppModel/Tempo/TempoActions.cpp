@@ -7,8 +7,8 @@
 #include "EditTempoAction.h"
 #include "Controller/Actions/AppModel/Clip/EditClipCommonPropertiesAction.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/AudioClip.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 #include "Global/AppGlobal.h"
 
 void TempoActions::editTempo(const double oldTempo, const double newTempo, AppModel *model) {

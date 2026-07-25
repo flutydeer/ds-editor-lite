@@ -4,7 +4,7 @@
 
 #include "ITimelinePainter.h"
 
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QPainter>
 

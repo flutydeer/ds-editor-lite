@@ -6,22 +6,22 @@
 
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
 #include "Controller/TrackController.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/History/HistoryManager.h"
-#include "UI/Controls/Button.h"
-#include "UI/Controls/InlineEditLabel.h"
-#include "UI/Controls/LevelMeter.h"
-#include "UI/Controls/Menu.h"
-#include "UI/Controls/Toast.h"
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/InlineEditLabel.h>
+#include <lite/GUI/Controls/LevelMeter.h>
+#include <lite/GUI/Controls/Menu.h>
+#include <lite/GUI/Controls/Toast.h>
 #include "UI/Controls/TrackColorSwatchWidget.h"
-#include "UI/Controls/SvsSeekbar.h"
+#include <lite/GUI/Controls/SvsSeekbar.h>
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Utils/AppColorPalette.h"
-#include "UI/Utils/IconUtils.h"
+#include <lite/GUI/Utils/IconUtils.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 
 #include <QContextMenuEvent>
@@ -35,11 +35,11 @@
 
 #include <optional>
 
-#include "UI/Controls/SvsSeekbar.h"
+#include <lite/GUI/Controls/SvsSeekbar.h>
 #include "UI/Views/Common/LanguageComboBox.h"
 
 #include "Modules/PackageManager/PackageManager.h"
-#include "Model/AppModel/SingerIdentifier.h"
+#include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
 using namespace SVS;
 using SpeakerMixModel::SpeakerMixData;

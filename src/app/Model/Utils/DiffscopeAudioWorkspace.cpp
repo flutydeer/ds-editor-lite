@@ -1,6 +1,6 @@
 #include "Model/Utils/DiffscopeAudioWorkspace.h"
 
-#include "Model/AppModel/AudioClip.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 
 #include <QDir>
 #include <QFileInfo>

@@ -3,7 +3,7 @@
 
 #include "Dialog.h"
 
-#include "Global/TaskGlobal.h"
+#include <lite/Tasking/TaskGlobal.h>
 
 class Button;
 class ProgressIndicator;

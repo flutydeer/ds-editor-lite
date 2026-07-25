@@ -1,7 +1,7 @@
 #include "ResourceCheckDialog.h"
 
 #include "IResourceCheckPage.h"
-#include "UI/Controls/AccentButton.h"
+#include <lite/GUI/Controls/AccentButton.h>
 
 #include <QHBoxLayout>
 #include <QListWidget>

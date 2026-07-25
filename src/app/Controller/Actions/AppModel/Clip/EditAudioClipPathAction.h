@@ -1,7 +1,7 @@
 #ifndef EDITAUDIOCLIPPATHACTION_H
 #define EDITAUDIOCLIPPATHACTION_H
 
-#include "Model/AppModel/AudioClip.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include "Modules/History/IAction.h"
 
 #include <QJsonObject>

@@ -7,9 +7,9 @@
 
 #define paramUtils ParamUtils::instance()
 
-#include "Model/AppModel/Params.h"
+#include <lite/ProjectModel/AppModel/Params.h>
 #include "Utils/Singleton.h"
-#include "Model/AppModel/ParamProperties.h"
+#include <lite/ProjectModel/AppModel/ParamProperties.h>
 
 #include <QObject>
 

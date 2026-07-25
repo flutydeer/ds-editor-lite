@@ -6,7 +6,7 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/Task/TaskManager.h"
+#include <lite/Tasking/TaskManager.h>
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/SynthrtEngine/SynthrtEngine.h"
 #include "Tasks/InitInferEngineTask.h"

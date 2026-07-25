@@ -1,7 +1,7 @@
 #include "ProgressDialog.h"
 
-#include "UI/Controls/Button.h"
-#include "UI/Controls/ProgressIndicator.h"
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/ProgressIndicator.h>
 
 #include <QCloseEvent>
 #include <QHBoxLayout>

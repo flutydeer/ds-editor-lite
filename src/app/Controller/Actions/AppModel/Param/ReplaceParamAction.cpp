@@ -4,8 +4,8 @@
 
 #include "ReplaceParamAction.h"
 
-#include "Model/AppModel/SingingClip.h"
-#include "Model/Utils/AppModelUtils.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/Utils/AppModelUtils.h>
 
 ReplaceParamAction::ReplaceParamAction(const ParamInfo::Name paramName, const Param::Type paramType,
                                        const QList<Curve *> &curves, SingingClip *clip)

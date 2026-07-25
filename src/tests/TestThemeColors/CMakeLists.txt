@@ -3,9 +3,6 @@ project(TestThemeColors)
 lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
-        ../../app/UI/Utils/ColorUtils.cpp
-        ../../app/UI/Utils/Theme/ThemeColorResolver.cpp
-        ../../app/UI/Utils/Theme/ThemeLoader.cpp
         ../../app/Model/AppOptions/Options/AppearanceOption.cpp
         ../../app/Resources/lite_res.qrc
 )
@@ -23,6 +20,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui)
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Core
         Qt${QT_VERSION_MAJOR}::Gui
+        lite::GUI
 )
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

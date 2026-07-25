@@ -4,7 +4,7 @@
 
 #include "SpeakerMixToolBarView.h"
 
-#include "UI/Controls/ColorDot.h"
+#include <lite/GUI/Controls/ColorDot.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include <QHBoxLayout>

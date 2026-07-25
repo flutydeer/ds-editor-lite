@@ -8,8 +8,8 @@
 #include "Controller/EditorViewController.h"
 #include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/SingingClip.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "ParamEditor/ParamEditorView.h"
 #include "PianoRoll/NoteView.h"

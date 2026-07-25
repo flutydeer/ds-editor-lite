@@ -4,7 +4,7 @@
 
 #include "Window.h"
 
-#include "UI/Utils/ThemeManager.h"
+#include <lite/GUI/Theme/ThemeManager.h>
 
 Window::Window(QWidget *parent, Qt::WindowFlags f) : QWidget(parent, f) {
     ThemeManager::instance()->addWindow(this);

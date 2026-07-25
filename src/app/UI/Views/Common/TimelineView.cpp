@@ -9,14 +9,14 @@
 
 #include "Controller/PlaybackController.h"
 #include "Utils/FontManager.h"
-#include "Model/AppModel/LoopSettings.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/LoopSettings.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
-#include "Model/InferenceData/InferPiece.h"
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Utils/TextPixmapCache.h"
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/GUI/Utils/TextPixmapCache.h>
+#include <lite/MusicBase/TimelineSnapUtils.h>
 
 namespace {
 
@@ -357,8 +357,8 @@ void TimelineView::drawPieces(QPainter *painter) const {
         // Draw piece range with status
         pen.setColor(m_piecesColors[piece->acousticInferStatus]);
         painter->setPen(pen);
-        auto pieceStartX = tickToX(piece->localStartTick() + m_clip->start());
-        auto pieceEndX = tickToX(piece->localEndTick() + m_clip->start());
+        auto pieceStartX = tickToX(piece->localStartTick(appModel->tempo()) + m_clip->start());
+        auto pieceEndX = tickToX(piece->localEndTick(appModel->tempo()) + m_clip->start());
         painter->drawLine(pieceStartX, y, pieceEndX, y);
 
         if (appOptions->developer()->showTimelineDebugInfo)
@@ -368,8 +368,8 @@ void TimelineView::drawPieces(QPainter *painter) const {
 
 void TimelineView::drawPieceDebugOverlay(QPainter *painter, const InferPiece *piece) const {
     auto y = rect().height() - 1;
-    auto pieceStartX = tickToX(piece->localStartTick() + m_clip->start());
-    auto pieceEndX = tickToX(piece->localEndTick() + m_clip->start());
+    auto pieceStartX = tickToX(piece->localStartTick(appModel->tempo()) + m_clip->start());
+    auto pieceEndX = tickToX(piece->localEndTick(appModel->tempo()) + m_clip->start());
 
     auto stateText = "#" + QString::number(piece->id()) + " " + piece->state.get();
     painter->drawText(QPointF(pieceStartX, y - 4), stateText);

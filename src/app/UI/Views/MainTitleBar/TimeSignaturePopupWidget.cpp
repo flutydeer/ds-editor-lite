@@ -4,10 +4,10 @@
 
 #include "TimeSignaturePopupWidget.h"
 
-#include "UI/Controls/ComboBox.h"
-#include "UI/Controls/SvsExpressionSpinBox.h"
+#include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/SvsExpressionSpinBox.h>
 #include <lite/Support/SystemUtils.h>
-#include "Utils/WindowFrameUtils.h"
+#include <lite/GUI/Utils/WindowFrameUtils.h>
 
 #include <QApplication>
 #include <QHBoxLayout>

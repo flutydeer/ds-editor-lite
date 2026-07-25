@@ -9,14 +9,16 @@
 #include <QVBoxLayout>
 
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Controls/ComboBox.h"
-#include "UI/Controls/LineEdit.h"
-#include "UI/Controls/CardView.h"
-#include "UI/Controls/OptionListCard.h"
-#include "UI/Controls/SwitchButton.h"
+#include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/LineEdit.h>
+#include <lite/GUI/Controls/CardView.h>
+#include <lite/GUI/Controls/OptionListCard.h>
+#include <lite/GUI/Controls/SwitchButton.h>
 #include "UI/Dialogs/Base/RestartDialog.h"
-#include "UI/Utils/Theme/ThemeLoader.h"
-#include "UI/Utils/ThemeManager.h"
+#include <lite/GUI/Theme/ThemeLoader.h>
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Theme/ThemeIds.h>
+#include <lite/GUI/Animation/AnimationGlobal.h>
 
 AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     initializePage();
@@ -28,8 +30,8 @@ void AppearancePage::modifyOption() {
 #if defined(WITH_DIRECT_MANIPULATION)
     option->enableDirectManipulation = m_swEnableDirectManipulation->value();
 #endif
-    option->animationLevel =
-        static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
+    option->animationLevel = AnimationGlobal::toString(
+        static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex()));
     option->animationTimeScale = m_leAnimationTimeScale->text().toDouble();
     appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
 }
@@ -58,9 +60,9 @@ QWidget *AppearancePage::createContentWidget() {
     const auto option = appOptions->appearance();
 
     m_cbxTheme = new ComboBox;
-    m_cbxTheme->addItem(tr("System"), AppearanceOption::systemThemePreferenceId());
-    m_cbxTheme->addItem(tr("Light"), AppearanceOption::lightThemePreferenceId());
-    m_cbxTheme->addItem(tr("Dark"), AppearanceOption::darkThemePreferenceId());
+    m_cbxTheme->addItem(tr("System"), ThemeIds::systemThemePreferenceId());
+    m_cbxTheme->addItem(tr("Light"), ThemeIds::lightThemePreferenceId());
+    m_cbxTheme->addItem(tr("Dark"), ThemeIds::darkThemePreferenceId());
     m_cbxTheme->setCurrentIndex(m_cbxTheme->findData(option->themeId));
     connect(m_cbxTheme, &ComboBox::currentIndexChanged, this, &AppearancePage::changeTheme);
 
@@ -82,7 +84,7 @@ QWidget *AppearancePage::createContentWidget() {
 
     m_cbxAnimationLevel = new ComboBox;
     m_cbxAnimationLevel->addItems(animationLevelsName);
-    m_cbxAnimationLevel->setCurrentIndex(option->animationLevel);
+    m_cbxAnimationLevel->setCurrentIndex(AnimationGlobal::fromString(option->animationLevel));
     connect(m_cbxAnimationLevel, &ComboBox::currentIndexChanged, this,
             &AppearancePage::modifyOption);
 

@@ -1,7 +1,7 @@
 #ifndef DSPXPHONEMECOMPAT_H
 #define DSPXPHONEMECOMPAT_H
 
-#include "Model/AppModel/Phonemes.h"
+#include <lite/ProjectModel/AppModel/Phonemes.h>
 
 #include <opendspx/phonemes.h>
 

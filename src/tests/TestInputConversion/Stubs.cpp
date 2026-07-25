@@ -2,9 +2,9 @@
 // These allow effectiveSpeakerMixForPiece to be tested without linking
 // the full AppModel / SingingClip / Note dependency chain.
 
-#include "Model/InferenceData/InferPiece.h"
-#include "Model/AppModel/DrawCurve.h"
-#include "Utils/IdGenerator.h"
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/Core/IdGenerator.h>
 
 // IdGenerator singleton stub (avoids pulling in AppContext / full singleton impl)
 IdGenerator *IdGenerator::instance() {

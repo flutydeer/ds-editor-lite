@@ -8,7 +8,7 @@
 #include <QVBoxLayout>
 #include <QFile>
 
-#include "UI/Controls/TaskView.h"
+#include <lite/GUI/Controls/TaskView.h>
 
 #include <QApplication>
 #include <QEvent>

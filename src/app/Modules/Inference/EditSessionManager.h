@@ -7,7 +7,7 @@
 
 #define editSessionManager EditSessionManager::instance()
 
-#include "Model/AppModel/Params.h"
+#include <lite/ProjectModel/AppModel/Params.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Utils/Singleton.h"
 

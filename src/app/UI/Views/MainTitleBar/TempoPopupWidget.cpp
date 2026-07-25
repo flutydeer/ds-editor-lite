@@ -1,9 +1,9 @@
 #include "TempoPopupWidget.h"
 
-#include "UI/Controls/SvsExpressionDoubleSpinBox.h"
-#include "UI/Controls/TapTempoButton.h"
+#include <lite/GUI/Controls/SvsExpressionDoubleSpinBox.h>
+#include <lite/GUI/Controls/TapTempoButton.h>
 #include <lite/Support/SystemUtils.h>
-#include "Utils/WindowFrameUtils.h"
+#include <lite/GUI/Utils/WindowFrameUtils.h>
 
 #include <QApplication>
 #include <QEvent>

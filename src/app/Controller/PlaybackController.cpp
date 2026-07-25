@@ -7,7 +7,7 @@
 
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "UI/Controls/Toast.h"
+#include <lite/GUI/Controls/Toast.h>
 #include "Global/AppGlobal.h"
 
 PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(this)) {

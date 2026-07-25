@@ -5,7 +5,7 @@
 #ifndef EDITPHONEMEOFFSETACTION_H
 #define EDITPHONEMEOFFSETACTION_H
 
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/AppModel/Note.h>
 #include "Modules/History/IAction.h"
 
 class SingingClip;

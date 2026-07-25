@@ -8,14 +8,14 @@
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/InferenceData/InferPiece.h"
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "Modules/Inference/Utils/InferenceApplyGate.h"
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/WaveformPainter.h"
-#include "UI/Controls/ToolTip.h"
+#include <lite/GUI/Controls/ToolTip.h>
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
 
@@ -749,8 +749,8 @@ void PhonemeView::onWaveformReady(const int clipId, const int pieceId, const qui
 
     PieceWaveform wf;
     wf.painter = painter;
-    wf.globalStartTick = piece->localStartTick() + clipOffset;
-    wf.globalEndTick = piece->localEndTick() + clipOffset;
+    wf.globalStartTick = piece->localStartTick(appModel->tempo()) + clipOffset;
+    wf.globalEndTick = piece->localEndTick(appModel->tempo()) + clipOffset;
 
     if (m_pieceWaveforms.contains(piece))
         delete m_pieceWaveforms[piece].painter;

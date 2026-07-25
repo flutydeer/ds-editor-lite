@@ -4,8 +4,8 @@
 
 #include "OKCancelDialog.h"
 
-#include "UI/Controls/AccentButton.h"
-#include "UI/Controls/Button.h"
+#include <lite/GUI/Controls/AccentButton.h>
+#include <lite/GUI/Controls/Button.h>
 
 OKCancelDialog::OKCancelDialog(QWidget *parent) : Dialog(parent) {
     m_btnOk = new AccentButton(tr("&OK"), this);

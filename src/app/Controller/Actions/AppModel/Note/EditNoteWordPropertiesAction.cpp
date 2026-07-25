@@ -4,8 +4,8 @@
 
 #include "EditNoteWordPropertiesAction.h"
 
-#include "Model/AppModel/Note.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(const QList<Note *> &notes,
                                                            const QList<Note::WordProperties> &args,

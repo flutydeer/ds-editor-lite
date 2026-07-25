@@ -5,7 +5,7 @@
 #include "InsertTrackAction.h"
 
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/Track.h>
 
 InsertTrackAction *InsertTrackAction::build(Track *track, const qsizetype index, AppModel *model) {
     const auto a = new InsertTrackAction;

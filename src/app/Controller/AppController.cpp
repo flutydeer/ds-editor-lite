@@ -13,7 +13,7 @@
 #include "Actions/AppModel/Tempo/TempoActions.h"
 #include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
 #include "Interface/IMainWindow.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"
@@ -22,9 +22,10 @@
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
-#include "Modules/Task/TaskManager.h"
+#include <lite/Tasking/TaskManager.h>
 #include "Tasks/DecodeAudioTask.h"
-#include "UI/Utils/ThemeManager.h"
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Animation/AnimationGlobal.h>
 #include <lite/Support/Log.h>
 
 #include "Actions/AppModel/MasterControl/MasterControlActions.h"
@@ -112,8 +113,21 @@ void AppControllerPrivate::initializeModules() {
     InferController::instance();
     ProjectStatusController::instance();
 
+    // Read appearance settings and push them into the theme system, which no
+    // longer depends on AppOptions.
+    const auto pushAppearance = [] {
+        const auto appearance = appOptions->appearance();
+        auto *theme = ThemeManager::instance();
+        theme->setAnimationSettings(AnimationGlobal::fromString(appearance->animationLevel),
+                                    appearance->animationTimeScale);
+        theme->updateThemePreference(appearance->themeId);
+    };
+    pushAppearance();
     connect(appOptions, &AppOptions::optionsChanged, ThemeManager::instance(),
-            &ThemeManager::onAppOptionsChanged);
+            [pushAppearance](AppOptionsGlobal::Option option) {
+                if (option == AppOptionsGlobal::All || option == AppOptionsGlobal::Appearance)
+                    pushAppearance();
+            });
     connect(appModel, &AppModel::modelChanged, audioDecodingController,
             &AudioDecodingController::onModelChanged);
     connect(appModel, &AppModel::trackChanged, audioDecodingController,

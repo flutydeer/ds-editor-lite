@@ -10,16 +10,16 @@
 #include "PronunciationView.h"
 #include "Controller/ClipController.h"
 #include "Global/AppGlobal.h"
-#include "Model/AppModel/DrawCurve.h"
-#include "Model/AppModel/AnchorCurve.h"
-#include "Model/AppModel/Note.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/AppModel/AnchorCurve.h>
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/MusicBase/TimelineSnapUtils.h>
 
 void PianoRollGraphicsViewHelper::drawNote(const int rStart, const int length, const int keyIndex) {
     qDebug() << "Note drawn rStart:" << rStart << "len:" << length << "key:" << keyIndex;

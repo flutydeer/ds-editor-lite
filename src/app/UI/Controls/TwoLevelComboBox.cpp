@@ -1,6 +1,6 @@
 #include "TwoLevelComboBox.h"
 
-#include "UI/Utils/IconUtils.h"
+#include <lite/GUI/Utils/IconUtils.h>
 
 #include <QDebug>
 #include <QIcon>

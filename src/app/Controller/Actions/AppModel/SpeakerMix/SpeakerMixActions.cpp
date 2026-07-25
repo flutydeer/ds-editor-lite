@@ -7,8 +7,8 @@
 #include "SetClipVoiceContextAction.h"
 #include "SetTrackVoiceContextAction.h"
 
-#include "Model/AppModel/SingingClip.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QCoreApplication>
 

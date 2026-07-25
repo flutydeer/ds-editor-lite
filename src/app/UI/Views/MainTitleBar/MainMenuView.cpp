@@ -13,8 +13,8 @@
 #include "Controller/TrackController.h"
 #include "Global/ControllerGlobal.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/AudioClip.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
 
 #include <QClipboard>
@@ -24,14 +24,14 @@
 #include "Modules/Extractors/PitchExtractController.h"
 #include "Modules/History/HistoryManager.h"
 #include "Controller/UndoRedoController.h"
-#include "UI/Controls/Toast.h"
+#include <lite/GUI/Controls/Toast.h>
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Dialogs/Extractor/ExtractPitchParamDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Window/MainWindow.h"
 #include "Global/AppOptionsGlobal.h"
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
-#include "UI/Utils/IconUtils.h"
+#include <lite/GUI/Utils/IconUtils.h>
 #include "UI/Dialogs/Help/DiscoverDiffScopeDialog.h"
 
 #include <QFile>
@@ -41,7 +41,7 @@
 
 #include <algorithm>
 
-#include "UI/Controls/Menu.h"
+#include <lite/GUI/Controls/Menu.h>
 
 MainMenuView::MainMenuView(MainWindow *mainWindow)
     : QMenuBar(mainWindow), d_ptr(new MainMenuViewPrivate(mainWindow)) {

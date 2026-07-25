@@ -7,8 +7,8 @@
 
 #include "EdgeAutoScroller.h"
 #include "RubberBandView.h"
-#include "UI/Utils/IAnimatable.h"
-#include "UI/Utils/IScalable.h"
+#include <lite/GUI/Animation/IAnimatable.h>
+#include <lite/GUI/Base/IScalable.h>
 
 #include <QGraphicsView>
 #include <QPropertyAnimation>

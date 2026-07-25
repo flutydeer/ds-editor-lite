@@ -8,9 +8,9 @@
 #include <TalcsMidi/MidiMessage.h>
 
 #include "Utils/Decibellinearizer.h"
-#include "UI/Controls/SvsSeekbar.h"
-#include "UI/Controls/SvsExpressionSpinBox.h"
-#include "UI/Controls/SvsExpressionDoubleSpinBox.h"
+#include <lite/GUI/Controls/SvsSeekbar.h>
+#include <lite/GUI/Controls/SvsExpressionSpinBox.h>
+#include <lite/GUI/Controls/SvsExpressionDoubleSpinBox.h>
 
 #include <Modules/Audio/utils/AudioHelpers.h>
 #include <Modules/Audio/AudioSystem.h>

@@ -5,7 +5,7 @@
 #ifndef SPEAKERMIXTOOLBARVIEW_H
 #define SPEAKERMIXTOOLBARVIEW_H
 
-#include "UI/Controls/Button.h"
+#include <lite/GUI/Controls/Button.h>
 
 #include <QWidget>
 

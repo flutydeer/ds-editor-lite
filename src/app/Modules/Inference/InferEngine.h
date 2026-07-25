@@ -11,7 +11,7 @@
 #include <mutex>
 
 #include "Utils/Singleton.h"
-#include "Model/AppModel/SingerIdentifier.h"
+#include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
 #include <QReadWriteLock>
 #include <QObject>

@@ -5,7 +5,7 @@
 #ifndef TIMESIGNATURECOMBOBOX_H
 #define TIMESIGNATURECOMBOBOX_H
 
-#include "UI/Controls/InlineEditLabel.h"
+#include <lite/GUI/Controls/InlineEditLabel.h>
 
 class TimeSignaturePopupWidget;
 class QMouseEvent;

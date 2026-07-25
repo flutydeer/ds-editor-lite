@@ -1,6 +1,6 @@
 #include "Modules/FillLyric/Widgets/LyricExtWidget.h"
 
-#include "UI/Utils/ThemeManager.h"
+#include <lite/GUI/Theme/ThemeManager.h>
 
 #include <QFile>
 #include <utility>

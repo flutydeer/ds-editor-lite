@@ -11,9 +11,9 @@
 
 #include "DialogTitleBar.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Controls/Button.h"
-#include "UI/Utils/ThemeManager.h"
-#include "Utils/WindowFrameUtils.h"
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Utils/WindowFrameUtils.h>
 
 QWidget *Dialog::m_globalParent = nullptr;
 

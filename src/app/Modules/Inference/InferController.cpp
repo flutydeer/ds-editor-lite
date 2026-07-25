@@ -6,10 +6,10 @@
 #include "InferController_p.h"
 
 #include "InferControllerHelper.h"
-#include "Model/InferenceData/InferPiece.h"
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include "Model/AppOptions/AppOptions.h"
-#include "Model/InferenceData/InferSpeakerMix.h"
+#include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
 #include "Models/NoteInferenceSnapshot.h"
 #include "Tasks/GetPhonemeNameTask.h"
 #include "Tasks/GetPronunciationTask.h"
@@ -45,7 +45,7 @@ namespace {
         const auto piece = clip->findPieceById(pieceId);
         if (!piece)
             return {};
-        return {piece->localStartTick() + clip->start(), piece->localEndTick() + clip->start()};
+        return {piece->localStartTick(appModel->tempo()) + clip->start(), piece->localEndTick(appModel->tempo()) + clip->start()};
     }
 
     QList<NoteInferenceSnapshot> buildNoteInferenceSnapshots(const SingingClip &clip) {
@@ -92,8 +92,8 @@ namespace {
         const Timeline timeline{{{0, appModel->tempo()}}};
         for (const auto piece : clip.pieces()) {
             const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
-                clip.speakerMixData(), clip.speakerId(), piece->localStartTick(),
-                piece->localEndTick(), timeline);
+                clip.speakerMixData(), clip.speakerId(), piece->localStartTick(appModel->tempo()),
+                piece->localEndTick(appModel->tempo()), timeline);
             if (piece->identifier != identifier || piece->speakerMix != speakerMix)
                 return false;
         }
@@ -473,8 +473,8 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
     const Timeline timeline{{{0, appModel->tempo()}}};
     for (const auto piece : clip->pieces()) {
         const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
-            clip->speakerMixData(), clip->speakerId(), piece->localStartTick(),
-            piece->localEndTick(), timeline);
+            clip->speakerMixData(), clip->speakerId(), piece->localStartTick(appModel->tempo()),
+            piece->localEndTick(appModel->tempo()), timeline);
         piece->speakerMix = speakerMix;
         piece->speaker = speakerMix.fallbackSpeaker;
         Helper::resetPitch(*piece);
@@ -621,7 +621,7 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
         case InferenceApplyGate::Decision::Apply:
             Helper::updatePhoneName(resolution.notes, task.result, *resolution.clip);
             if (!resolution.clip->singerInfo().isEmpty()) {
-                auto result = resolution.clip->reSegment();
+                auto result = resolution.clip->reSegment(appModel->tempo());
                 for (const auto piece : result.addedPieces)
                     createPipeline(*piece);
             }
@@ -696,7 +696,7 @@ InferControllerPrivate::PendingApplyResult
                                                                      : "clip-task-apply",
                                             resolution.clip->inferenceRevision());
             if (!resolution.clip->singerInfo().isEmpty()) {
-                const auto result = resolution.clip->reSegment();
+                const auto result = resolution.clip->reSegment(appModel->tempo());
                 for (const auto piece : result.addedPieces)
                     createPipeline(*piece);
             }

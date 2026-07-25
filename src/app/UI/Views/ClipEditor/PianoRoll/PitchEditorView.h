@@ -5,7 +5,7 @@
 #ifndef PITCHEDITORVIEW_H
 #define PITCHEDITORVIEW_H
 
-#include "Model/AppModel/ParamProperties.h"
+#include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include "UI/Views/ClipEditor/CommonParamEditorView.h"
 
 class PitchEditorView final : public CommonParamEditorView {

@@ -5,7 +5,7 @@
 #ifndef WAVEFORMPAINTER_H
 #define WAVEFORMPAINTER_H
 
-#include "Model/AppModel/AudioInfoModel.h"
+#include <lite/ProjectModel/AppModel/AudioInfoModel.h>
 #include "UI/Utils/WaveformRenderUtils.h"
 
 #include <QVector>

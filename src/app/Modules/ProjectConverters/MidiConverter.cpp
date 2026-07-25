@@ -4,10 +4,10 @@
 
 #include "UI/Dialogs/Base/Dialog.h"
 
-#include "Model/AppModel/Track.h"
-#include "Model/AppModel/Note.h"
-#include "Model/AppModel/SingingClip.h"
-#include "Model/AppModel/AudioClip.h"
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include "Model/AppOptions/AppOptions.h"
 
 #include <opendspx/track.h>

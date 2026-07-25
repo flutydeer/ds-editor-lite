@@ -6,7 +6,7 @@
 #define SCROLLBARVIEW_H
 
 #include "AbstractGraphicsRectItem.h"
-#include "UI/Utils/IAnimatable.h"
+#include <lite/GUI/Animation/IAnimatable.h>
 
 #include <QVariantAnimation>
 

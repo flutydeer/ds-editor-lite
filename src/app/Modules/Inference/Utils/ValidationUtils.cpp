@@ -4,8 +4,8 @@
 
 #include "ValidationUtils.h"
 
-#include "Model/AppModel/Note.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QDebug>
 

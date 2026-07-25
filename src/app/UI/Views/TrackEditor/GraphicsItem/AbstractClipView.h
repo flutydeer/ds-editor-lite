@@ -5,9 +5,9 @@
 #ifndef DATASET_TOOLS_CLIPGRAPHICSITEM_H
 #define DATASET_TOOLS_CLIPGRAPHICSITEM_H
 
-#include "Interface/IClip.h"
-#include "Model/AppModel/Clip.h"
-#include "UI/Utils/OverlappableItem.h"
+#include <lite/ProjectModel/Interface/IClip.h>
+#include <lite/ProjectModel/AppModel/Clip.h>
+#include <lite/GUI/Base/OverlappableItem.h>
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
 
 class Menu;

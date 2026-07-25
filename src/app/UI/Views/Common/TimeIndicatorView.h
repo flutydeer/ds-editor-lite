@@ -7,7 +7,7 @@
 
 #include <QGraphicsLineItem>
 
-#include "UI/Utils/IScalableItem.h"
+#include <lite/GUI/Base/IScalableItem.h>
 
 class TimeIndicatorView : public QObject, public QGraphicsLineItem, public IScalableItem {
     Q_OBJECT

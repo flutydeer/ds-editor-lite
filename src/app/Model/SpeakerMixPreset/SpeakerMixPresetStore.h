@@ -2,7 +2,7 @@
 #define SPEAKERMIXPRESETSTORE_H
 
 #include "SpeakerMixPreset.h"
-#include "Modules/PackageManager/Models/SingerInfo.h"
+#include <lite/ProjectModel/Voice/SingerInfo.h>
 
 #include <optional>
 

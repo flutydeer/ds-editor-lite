@@ -4,7 +4,7 @@
 
 #include "EditPhonemeOffsetAction.h"
 
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 EditPhonemeOffsetAction::EditPhonemeOffsetAction(Note *note, const QList<int> &offsets,
                                                  SingingClip *clip)

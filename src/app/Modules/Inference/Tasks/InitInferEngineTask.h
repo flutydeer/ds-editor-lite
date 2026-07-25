@@ -7,7 +7,7 @@
 
 #include <atomic>
 
-#include "Modules/Task/Task.h"
+#include <lite/Tasking/Task.h>
 
 class InitInferEngineTask : public Task {
     Q_OBJECT

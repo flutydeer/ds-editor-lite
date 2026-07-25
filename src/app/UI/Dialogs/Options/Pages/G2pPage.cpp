@@ -5,9 +5,9 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "UI/Controls/CardView.h"
-#include "UI/Controls/DividerLine.h"
-#include "UI/Controls/OptionsCard.h"
+#include <lite/GUI/Controls/CardView.h>
+#include <lite/GUI/Controls/DividerLine.h>
+#include <lite/GUI/Controls/OptionsCard.h>
 
 G2pPage::G2pPage(QWidget *parent) : IOptionPage(parent) {
     initializePage();

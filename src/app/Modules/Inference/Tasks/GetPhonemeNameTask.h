@@ -7,8 +7,8 @@
 
 #include "Modules/Inference/Models/NoteInferenceSnapshot.h"
 #include "Modules/Inference/Models/PhonemeNameResult.h"
-#include "Modules/PackageManager/Models/SingerInfo.h"
-#include "Modules/Task/Task.h"
+#include <lite/ProjectModel/Voice/SingerInfo.h>
+#include <lite/Tasking/Task.h>
 
 class GetPhonemeNameTask final : public Task {
     Q_OBJECT

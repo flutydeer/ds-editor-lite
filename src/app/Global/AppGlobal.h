@@ -8,10 +8,14 @@
 #include <QList>
 #include <QString>
 
+#include <lite/MusicBase/MusicTime.h>
+
 namespace AppGlobal {
     // Global Constants
-    inline constexpr int ticksPerQuarterNote = 480;
-    inline constexpr int ticksPerWholeNote = ticksPerQuarterNote * 4;
+    // The tick time base now lives in lite::MusicBase; re-exported here so the
+    // existing AppGlobal::ticksPer* call sites keep resolving.
+    inline constexpr int ticksPerQuarterNote = MusicTime::ticksPerQuarterNote;
+    inline constexpr int ticksPerWholeNote = MusicTime::ticksPerWholeNote;
     inline constexpr int resizeTolerance = 8;
 
     // Number of colors in the application-wide color palette.

@@ -1,7 +1,7 @@
 #include "TrackSynthesizer.h"
 
 #include "AudioContext.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <TalcsCore/Decibels.h>
 #include <TalcsCore/PositionableMixerAudioSource.h>
@@ -12,9 +12,9 @@
 #include <TalcsDspx/DspxTrackContext.h>
 
 #include <Model/AppModel/AppModel.h>
-#include <Model/AppModel/Track.h>
-#include <Model/AppModel/Clip.h>
-#include <Model/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/AppModel/Clip.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>

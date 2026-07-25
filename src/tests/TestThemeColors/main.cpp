@@ -1,6 +1,7 @@
 #include "Model/AppOptions/Options/AppearanceOption.h"
-#include "UI/Utils/Theme/ThemeColorResolver.h"
-#include "UI/Utils/Theme/ThemeLoader.h"
+#include <lite/GUI/Theme/ThemeIds.h>
+#include <lite/GUI/Theme/ThemeColorResolver.h>
+#include <lite/GUI/Theme/ThemeLoader.h>
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -197,37 +198,37 @@ namespace {
 
     bool testAppearanceThemePreference() {
         AppearanceOption option;
-        bool success = expect(option.themeId == AppearanceOption::systemThemePreferenceId(),
+        bool success = expect(option.themeId == ThemeIds::systemThemePreferenceId(),
                               QStringLiteral("system theme should be the default preference"));
         success &= expect(option.value().value(QStringLiteral("themeId")).toString() ==
-                              AppearanceOption::systemThemePreferenceId(),
+                              ThemeIds::systemThemePreferenceId(),
                           QStringLiteral("system theme preference should serialize by stable ID"));
 
         option.load(QJsonObject{
-            {QStringLiteral("themeId"), AppearanceOption::lightThemePreferenceId()}
+            {QStringLiteral("themeId"), ThemeIds::lightThemePreferenceId()}
         });
-        success &= expect(option.themeId == AppearanceOption::lightThemePreferenceId(),
+        success &= expect(option.themeId == ThemeIds::lightThemePreferenceId(),
                           QStringLiteral("light theme preference should load"));
         success &= expect(option.value().value(QStringLiteral("themeId")).toString() ==
-                              AppearanceOption::lightThemePreferenceId(),
+                              ThemeIds::lightThemePreferenceId(),
                           QStringLiteral("theme preference should serialize by stable ID"));
 
         option.load(QJsonObject{
-            {QStringLiteral("themeId"), AppearanceOption::systemThemePreferenceId()}
+            {QStringLiteral("themeId"), ThemeIds::systemThemePreferenceId()}
         });
-        success &= expect(option.themeId == AppearanceOption::systemThemePreferenceId(),
+        success &= expect(option.themeId == ThemeIds::systemThemePreferenceId(),
                           QStringLiteral("system theme preference should load"));
 
         option.load(QJsonObject{
             {QStringLiteral("themeId"), QStringLiteral("lite-dark")}
         });
-        success &= expect(option.themeId == AppearanceOption::systemThemePreferenceId(),
+        success &= expect(option.themeId == ThemeIds::systemThemePreferenceId(),
                           QStringLiteral("legacy theme ids should be ignored"));
 
         option.load(QJsonObject{
             {QStringLiteral("themeId"), QStringLiteral("unknown-theme")}
         });
-        success &= expect(option.themeId == AppearanceOption::systemThemePreferenceId(),
+        success &= expect(option.themeId == ThemeIds::systemThemePreferenceId(),
                           QStringLiteral("invalid theme preference should be ignored"));
         return success;
     }

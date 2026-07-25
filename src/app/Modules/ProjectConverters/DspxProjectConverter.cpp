@@ -6,8 +6,8 @@
 #include "DspxProjectParser.h"
 #include "DspxPhonemeCompat.h"
 
-#include "Model/AppModel/AnchorCurve.h"
-#include "Model/AppModel/AudioClip.h"
+#include <lite/ProjectModel/AppModel/AnchorCurve.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include "Model/AppStatus/AppStatus.h"
 
 #include <opendspx/model.h>
@@ -15,13 +15,13 @@
 #include <opendspx/mixedsinger.h>
 #include <opendspxserializer/serializer.h>
 
-#include "Model/AppModel/Track.h"
-#include "Model/AppModel/Note.h"
-#include "Model/AppModel/Params.h"
-#include "Model/AppModel/Curve.h"
-#include "Model/AppModel/DrawCurve.h"
-#include "Model/AppModel/SingingClip.h"
-#include "Model/AppModel/SpeakerMixData.h"
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/Params.h>
+#include <lite/ProjectModel/AppModel/Curve.h>
+#include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include "Modules/PackageManager/PackageManager.h"
 #include "Model/Utils/DiffscopeAudioWorkspace.h"
 

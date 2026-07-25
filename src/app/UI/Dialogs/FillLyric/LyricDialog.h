@@ -1,11 +1,11 @@
 #ifndef DS_EDITOR_LITE_LYRICDIALOG_H
 #define DS_EDITOR_LITE_LYRICDIALOG_H
 
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include "Modules/FillLyric/LyricTab.h"
 #include "Modules/FillLyric/LangCommon.h"
-#include "Model/AppModel/SingerIdentifier.h"
+#include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
 #include "UI/Dialogs/Base/Dialog.h"
 

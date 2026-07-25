@@ -7,7 +7,7 @@
 
 #define appStatus AppStatus::instance()
 
-#include "Model/AppModel/LoopSettings.h"
+#include <lite/ProjectModel/AppModel/LoopSettings.h>
 #include <lite/ADT/Property.h>
 #include "Utils/Singleton.h"
 

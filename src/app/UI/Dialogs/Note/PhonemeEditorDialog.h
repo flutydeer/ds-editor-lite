@@ -5,7 +5,7 @@
 #ifndef DS_EDITOR_LITE_PHONEMEEDITORDIALOG_H
 #define DS_EDITOR_LITE_PHONEMEEDITORDIALOG_H
 
-#include "Model/AppModel/Phonemes.h"
+#include <lite/ProjectModel/AppModel/Phonemes.h>
 #include "UI/Dialogs/Base/OKCancelDialog.h"
 
 #include <QList>

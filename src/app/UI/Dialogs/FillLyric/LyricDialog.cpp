@@ -2,7 +2,7 @@
 
 #include <QApplication>
 
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/AppModel/Note.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/FillLyric/Widgets/SplitterConfigTab.h"
 #include "Modules/FillLyric/Widgets/TaggerConfigTab.h"
@@ -10,7 +10,7 @@
 #include "Modules/FillLyric/Utils/TextSplitter.h"
 #include "Modules/FillLyric/Utils/TextTagger.h"
 #include "Modules/SynthrtEngine/SynthrtEngine.h"
-#include "UI/Controls/AccentButton.h"
+#include <lite/GUI/Controls/AccentButton.h>
 // #include "UI/Dialogs/Options/Pages/G2pPage.h"
 
 #include <QKeyEvent>

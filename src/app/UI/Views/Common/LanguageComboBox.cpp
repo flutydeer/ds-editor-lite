@@ -5,7 +5,7 @@
 #include "LanguageComboBox.h"
 
 #include "Global/AppGlobal.h"
-#include "Modules/PackageManager/Models/LanguageInfo.h"
+#include <lite/ProjectModel/Voice/LanguageInfo.h>
 
 #include <QEvent>
 #include <QSet>

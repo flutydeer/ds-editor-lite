@@ -14,7 +14,7 @@
 #include "Modules/FillLyric/Controls/PhonicTextEdit.h"
 #include "Modules/FillLyric/LangCommon.h"
 #include "Modules/FillLyric/LyricTabConfig.h"
-#include "UI/Controls/ComboBox.h"
+#include <lite/GUI/Controls/ComboBox.h>
 
 namespace FillLyric {
     enum SplitType { Auto, ByChar, Custom };

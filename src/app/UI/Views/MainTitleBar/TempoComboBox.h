@@ -1,7 +1,7 @@
 #ifndef TEMPOCOMBOBOX_H
 #define TEMPOCOMBOBOX_H
 
-#include "UI/Controls/InlineEditLabel.h"
+#include <lite/GUI/Controls/InlineEditLabel.h>
 
 class TempoPopupWidget;
 class QMouseEvent;

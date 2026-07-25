@@ -10,13 +10,13 @@
 #include <TalcsFormat/FormatManager.h>
 
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
-#include "Model/AppModel/AudioClip.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include "Modules/Audio/AudioContext.h"
-#include "Modules/Task/TaskManager.h"
+#include <lite/Tasking/TaskManager.h>
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/ResolveAudioPathTask.h"
-#include "UI/Controls/AccentButton.h"
-#include "UI/Controls/Toast.h"
+#include <lite/GUI/Controls/AccentButton.h>
+#include <lite/GUI/Controls/Toast.h>
 #include "UI/Dialogs/Base/Dialog.h"
 
 AudioDecodingController::AudioDecodingController(QObject *parent) : QObject(parent) {

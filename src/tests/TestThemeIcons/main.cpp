@@ -1,6 +1,6 @@
-#include "UI/Utils/IconUtils.h"
-#include "UI/Utils/Theme/ThemeLoader.h"
-#include "UI/Utils/ThemeManager.h"
+#include <lite/GUI/Utils/IconUtils.h>
+#include <lite/GUI/Theme/ThemeLoader.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 
 #include <QApplication>
 #include <QColor>

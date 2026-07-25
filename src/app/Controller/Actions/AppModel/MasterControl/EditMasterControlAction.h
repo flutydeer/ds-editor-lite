@@ -6,7 +6,7 @@
 #define EDITMASTERCONTROLACTION_H
 
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/TrackControl.h"
+#include <lite/ProjectModel/AppModel/TrackControl.h>
 #include "Modules/History/IAction.h"
 
 

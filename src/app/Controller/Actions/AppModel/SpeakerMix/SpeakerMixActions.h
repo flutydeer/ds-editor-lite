@@ -5,7 +5,7 @@
 #ifndef SPEAKERMIXACTIONS_H
 #define SPEAKERMIXACTIONS_H
 
-#include "Model/AppModel/SpeakerMixData.h"
+#include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include "Modules/History/ActionSequence.h"
 
 class SingingClip;

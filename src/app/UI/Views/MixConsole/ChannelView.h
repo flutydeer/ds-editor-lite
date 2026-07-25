@@ -5,7 +5,7 @@
 #ifndef CHANNELVIEW_H
 #define CHANNELVIEW_H
 
-#include "Interface/ITrack.h"
+#include <lite/ProjectModel/Interface/ITrack.h>
 
 #include <QWidget>
 

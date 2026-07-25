@@ -4,7 +4,7 @@
 
 #include "PhonemeNameItemView.h"
 
-#include "UI/Controls/LineEdit.h"
+#include <lite/GUI/Controls/LineEdit.h>
 #include "UI/Views/Common/LanguageComboBox.h"
 
 #include <QHBoxLayout>

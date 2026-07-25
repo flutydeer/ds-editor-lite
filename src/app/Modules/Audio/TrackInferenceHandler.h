@@ -2,7 +2,7 @@
 #define TRACKINFERENCEHANDLER_H
 
 #include "TrackInferenceHandler.h"
-#include "Model/InferenceData/InferStatus.h"
+#include <lite/ProjectModel/InferenceData/InferStatus.h>
 #include "dspx/DspxTrackInferenceContext.h"
 
 #include <QObject>

@@ -5,7 +5,7 @@
 #ifndef EDITETRACKACTION_H
 #define EDITETRACKACTION_H
 
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/Track.h>
 #include "Modules/History/IAction.h"
 
 class EditTrackPropertiesAction final : public IAction {

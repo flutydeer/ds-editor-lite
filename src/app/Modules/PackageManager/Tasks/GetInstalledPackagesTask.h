@@ -6,7 +6,7 @@
 #define GETINSTALLEDPACKAGESTASK_H
 
 #include "Modules/PackageManager/Models/GetInstalledPackagesResult.h"
-#include "Modules/Task/Task.h"
+#include <lite/Tasking/Task.h>
 #include <lite/ADT/Expected.h>
 
 class GetInstalledPackagesTask final : public Task {

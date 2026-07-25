@@ -4,7 +4,7 @@
 
 #include "ParamEditorInfoArea.h"
 
-#include "Model/AppModel/ParamProperties.h"
+#include <lite/ProjectModel/AppModel/ParamProperties.h>
 
 #include <QLabel>
 #include <QVBoxLayout>

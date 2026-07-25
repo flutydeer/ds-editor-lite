@@ -6,12 +6,12 @@
 
 #include "Controller/AppController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
-#include "UI/Controls/Button.h"
-#include "UI/Controls/Menu.h"
-#include "UI/Utils/IconUtils.h"
-#include "UI/Utils/ThemeManager.h"
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/Menu.h>
+#include <lite/GUI/Utils/IconUtils.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/Support/SystemUtils.h>
-#include "Utils/WindowFrameUtils.h"
+#include <lite/GUI/Utils/WindowFrameUtils.h>
 
 #include <QMCore/qmsystem.h>
 

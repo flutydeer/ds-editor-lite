@@ -1,5 +1,5 @@
-#include "Model/AppModel/EffectiveVoiceContext.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/EffectiveVoiceContext.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QCoreApplication>
 

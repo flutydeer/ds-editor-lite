@@ -1,14 +1,14 @@
 #include "SingingClipPhonemeNormalizer.h"
 
 #include "AppModel.h"
-#include "Clip.h"
-#include "Note.h"
-#include "Phonemes.h"
-#include "SingingClip.h"
-#include "Timeline.h"
-#include "Track.h"
-#include "Modules/SingingClipSlicer/SingingClipSlicer.h"
-#include "Utils/MusicTimeConverter.h"
+#include <lite/ProjectModel/AppModel/Clip.h>
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/Phonemes.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/MusicBase/Timeline.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/SingingClipSlicer/SingingClipSlicer.h>
+#include <lite/MusicBase/MusicTimeConverter.h>
 
 #include <algorithm>
 

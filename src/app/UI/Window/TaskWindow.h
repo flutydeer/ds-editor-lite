@@ -6,7 +6,7 @@
 #define TASKWINDOW_H
 
 #include "Base/Window.h"
-#include "Modules/Task/TaskManager.h"
+#include <lite/Tasking/TaskManager.h>
 
 
 class QListWidgetItem;

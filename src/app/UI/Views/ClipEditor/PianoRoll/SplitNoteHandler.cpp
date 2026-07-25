@@ -8,7 +8,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/TimeGraphicsScene.h"
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QMouseEvent>
 

@@ -5,7 +5,7 @@
 #ifndef PIANOROLLGRAPHICSVIEWHELPER_H
 #define PIANOROLLGRAPHICSVIEWHELPER_H
 
-#include "Model/AppModel/Params.h"
+#include <lite/ProjectModel/AppModel/Params.h>
 
 #include <QList>
 

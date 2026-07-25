@@ -1,0 +1,77 @@
+//
+// Created by fluty on 24-9-15.
+//
+
+#ifndef INFERPIECE_H
+#define INFERPIECE_H
+
+#include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/InferenceData/InferStatus.h>
+#include <lite/ProjectModel/AppModel/Params.h>
+#include <lite/ProjectModel/Interface/IInferPiece.h>
+#include <lite/ADT/Property.h>
+#include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
+#include <lite/ProjectModel/AppModel/SingerIdentifier.h>
+
+#include <QObject>
+
+class SingingClip;
+class Note;
+
+class InferPiece final : public QObject, public IInferPiece {
+    Q_OBJECT
+public:
+    Property<InferStatus> acousticInferStatus = Pending;
+    Property<QString> state = QString("Unknown");
+    SingingClip *clip;
+    bool dirty = false;
+    double headAvailableLengthMs = 0;
+    double paddingStartMs = 0;
+    double paddingEndMs = 0;
+
+    SingerIdentifier identifier;
+    QString speaker; // Static fallback used by duration and legacy checks.
+    InferSpeakerMix speakerMix;
+    QList<Note *> notes;
+
+    // Infer result
+    DrawCurve originalPitch;
+    DrawCurve originalBreathiness;
+    DrawCurve originalTension;
+    DrawCurve originalVoicing;
+    DrawCurve originalEnergy;
+    DrawCurve originalMouthOpening;
+    QString audioPath;
+
+    // Cached inputs
+    DrawCurve inputExpressiveness;
+
+    DrawCurve inputPitch;
+    DrawCurve inputBreathiness;
+    DrawCurve inputTension;
+    DrawCurve inputVoicing;
+    DrawCurve inputEnergy;
+    DrawCurve inputMouthOpening;
+
+    DrawCurve inputGender;
+    DrawCurve inputVelocity;
+    DrawCurve inputToneShift;
+
+    explicit InferPiece(SingingClip *clip);
+
+    [[nodiscard]] int clipId() const override;
+    [[nodiscard]] int localStartTick(double tempo) const;
+    [[nodiscard]] int localEndTick(double tempo) const;
+
+    [[nodiscard]] const DrawCurve *getOriginalCurve(ParamInfo::Name name) const;
+    void setOriginalCurve(ParamInfo::Name name, const DrawCurve &curve);
+
+    [[nodiscard]] const DrawCurve *getInputCurve(ParamInfo::Name name) const;
+    void setInputCurve(ParamInfo::Name name, const DrawCurve &curve);
+
+signals:
+    void statusChanged(InferStatus status);
+    void stateChanged(const QString &state);
+};
+
+#endif // INFERPIECE_H

@@ -5,7 +5,7 @@
 #include <QLabel>
 
 #include "Dialog.h"
-#include "UI/Controls/AccentButton.h"
+#include <lite/GUI/Controls/AccentButton.h>
 
 class MessageDialog : public Dialog {
     Q_OBJECT

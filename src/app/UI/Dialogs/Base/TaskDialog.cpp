@@ -4,8 +4,8 @@
 
 #include "TaskDialog.h"
 
-#include "Modules/Task/Task.h"
-#include "Modules/Task/TaskManager.h"
+#include <lite/Tasking/Task.h>
+#include <lite/Tasking/TaskManager.h>
 
 TaskDialog::TaskDialog(Task *task, const bool cancellable, const bool canHide, QWidget *parent)
     : ProgressDialog(cancellable, canHide, parent), m_task(task) {

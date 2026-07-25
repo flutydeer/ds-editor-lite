@@ -4,18 +4,14 @@ lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
         Stubs.cpp
-        ../../app/Model/InferenceData/InferPiece.h
-        ../../app/Model/AppModel/SpeakerMixData.cpp
+        ../../libs/ProjectModel/InferenceData/InferPiece.h
+        ../../libs/ProjectModel/AppModel/SpeakerMixData.cpp
         ../../app/Modules/Inference/Models/GenericInferModel.cpp
-        ../../app/Model/InferenceData/InferSpeakerMix.cpp
+        ../../libs/ProjectModel/InferenceData/InferSpeakerMix.cpp
         ../../app/Modules/Inference/Models/SpeakerMixValidator.cpp
-        ../../app/Modules/PackageManager/Models/SpeakerInfo.cpp
-        ../../app/Modules/PackageManager/Models/SingerInfo.cpp
-        ../../app/Modules/PackageManager/Models/LanguageInfo.cpp
-        ../../app/Model/AppModel/Timeline.cpp
-        ../../app/Model/AppModel/Tempo.cpp
-        ../../app/Model/AppModel/TimeSignature.cpp
-        ../../app/Utils/MusicTimeConverter.cpp
+        ../../libs/ProjectModel/Voice/SpeakerInfo.cpp
+        ../../libs/ProjectModel/Voice/SingerInfo.cpp
+        ../../libs/ProjectModel/Voice/LanguageInfo.cpp
         ../../app/Modules/SynthrtEngine/SingerModelSession.cpp
 )
 
@@ -31,6 +27,7 @@ find_package(dsinfer CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Core
+        lite::MusicBase
         srt::synthrt
         srt::diffsinger
         dsinfer::dsinfer

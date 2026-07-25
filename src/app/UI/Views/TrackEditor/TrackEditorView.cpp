@@ -17,12 +17,12 @@
 #include "GraphicsItem/AudioClipView.h"
 #include "GraphicsItem/SingingClipView.h"
 #include "GraphicsItem/TrackEditorBackgroundView.h"
-#include "Model/AppModel/AudioClip.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"
-#include "UI/Controls/LevelMeter.h"
-#include "UI/Controls/LevelMeterViewModel.h"
+#include <lite/GUI/Controls/LevelMeter.h>
+#include <lite/GUI/Controls/LevelMeterViewModel.h>
 #include "UI/Controls/LevelMeterManager.h"
 #include "AppContext.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
@@ -32,7 +32,7 @@
 #include <QMouseEvent>
 #include <QScrollBar>
 #include <QSignalBlocker>
-#include "UI/Controls/OverlaySplitter.h"
+#include <lite/GUI/Controls/OverlaySplitter.h>
 
 #include <QSplitter>
 #include <QTimer>

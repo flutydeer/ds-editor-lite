@@ -6,8 +6,8 @@
 #define TRACKCONTROLWIDGET_H
 
 #include "Global/AppGlobal.h"
-#include "Interface/ITrack.h"
-#include "Model/AppModel/TrackControl.h"
+#include <lite/ProjectModel/Interface/ITrack.h>
+#include <lite/ProjectModel/AppModel/TrackControl.h>
 #include "UI/Controls/TwoLevelComboBox.h"
 
 #include <QWidget>

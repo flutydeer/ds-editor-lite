@@ -10,7 +10,7 @@
 #include <QRadioButton>
 
 #include "UI/Dialogs/Base/Dialog.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 class SearchDialog final : public Dialog {
     Q_OBJECT

@@ -1,7 +1,7 @@
 #ifndef EXTRACTTASK_H
 #define EXTRACTTASK_H
 
-#include "Modules/Task/Task.h"
+#include <lite/Tasking/Task.h>
 
 class ExtractTask : public Task {
     Q_OBJECT

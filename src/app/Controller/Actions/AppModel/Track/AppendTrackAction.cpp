@@ -5,7 +5,7 @@
 #include "AppendTrackAction.h"
 
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/Track.h>
 
 AppendTrackAction *AppendTrackAction::build(Track *track, AppModel *model) {
     auto a = new AppendTrackAction;

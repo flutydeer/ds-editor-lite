@@ -3,7 +3,7 @@ project(TestDocumentWorkflow)
 lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
-        ../../app/Model/AppModel/LoopSettings.cpp
+        ../../libs/ProjectModel/AppModel/LoopSettings.cpp
         ../../app/Model/AppStatus/AppStatus.cpp
         ../../app/Modules/History/ActionSequence.cpp
         ../../app/Modules/History/HistoryManager.cpp
