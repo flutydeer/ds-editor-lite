@@ -2,7 +2,6 @@
 
 #include "ThemeColorResolver.h"
 
-#include "Global/AppGlobal.h"
 
 #include <QDir>
 #include <QFile>
@@ -226,15 +225,9 @@ std::optional<ThemeDefinition> ThemeLoader::load(const QString &folderName) {
             return std::nullopt;
         }
 
+        // Load whatever palette the theme declares; the app-owned AppColorPalette
+        // validates the count when the colors are handed to it.
         const auto arr = paletteDoc.object().value("baseColors").toArray();
-        if (arr.size() != AppGlobal::paletteColorCount) {
-            s_lastError =
-                QStringLiteral("Palette has %1 colors instead of expected %2 in theme: %3")
-                    .arg(arr.size())
-                    .arg(AppGlobal::paletteColorCount)
-                    .arg(folderName);
-            return std::nullopt;
-        }
 
         for (const auto &val : arr) {
             QColor c(val.toString());
