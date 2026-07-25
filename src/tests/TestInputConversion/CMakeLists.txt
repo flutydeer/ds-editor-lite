@@ -9,10 +9,6 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Modules/Inference/Models/GenericInferModel.cpp
         ../../app/Model/InferenceData/InferSpeakerMix.cpp
         ../../app/Model/AppModel/SpeakerMixData.cpp
-        ../../app/Model/AppModel/Timeline.cpp
-        ../../app/Model/AppModel/Tempo.cpp
-        ../../app/Model/AppModel/TimeSignature.cpp
-        ../../app/Utils/MusicTimeConverter.cpp
         ../../app/Model/Voice/SpeakerInfo.cpp
         ../../app/Modules/SynthrtEngine/SingerModelSession.cpp
 )
@@ -29,6 +25,7 @@ find_package(dsinfer CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Core
+        lite::MusicBase
         srt::synthrt
         srt::diffsinger
         dsinfer::dsinfer

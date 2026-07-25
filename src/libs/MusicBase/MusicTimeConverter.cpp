@@ -3,16 +3,16 @@
 //
 
 #include "MusicTimeConverter.h"
-#include "Global/AppGlobal.h"
+#include "MusicTime.h"
 
 namespace MusicTimeConverter {
 
 double tickToMs(const double tick, const double tempo) {
-    return tick * 60 / tempo / AppGlobal::ticksPerQuarterNote * 1000;
+    return tick * 60 / tempo / MusicTime::ticksPerQuarterNote * 1000;
 }
 
 double msToTick(const double ms, const double tempo) {
-    return ms * AppGlobal::ticksPerQuarterNote * tempo / 60000;
+    return ms * MusicTime::ticksPerQuarterNote * tempo / 60000;
 }
 
 double tickToSec(const double tick, const double tempo) {
@@ -24,8 +24,8 @@ double secToTick(const double sec, const double tempo) {
 }
 
 QString getBarBeatTickTime(const int ticks, const int numerator, const int denominator) {
-    const int barTicks = AppGlobal::ticksPerWholeNote * numerator / denominator;
-    const int beatTicks = AppGlobal::ticksPerWholeNote / denominator;
+    const int barTicks = MusicTime::ticksPerWholeNote * numerator / denominator;
+    const int beatTicks = MusicTime::ticksPerWholeNote / denominator;
     const auto bar = ticks / barTicks + 1;
     const auto beat = ticks % barTicks / beatTicks + 1;
     const auto tick = ticks % barTicks % beatTicks;

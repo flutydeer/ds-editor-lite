@@ -2,7 +2,7 @@
 #define INFERSPEAKERMIX_H
 
 #include "Model/AppModel/SpeakerMixData.h"
-#include "Model/AppModel/Timeline.h"
+#include <lite/MusicBase/Timeline.h>
 
 #include <QList>
 #include <QString>

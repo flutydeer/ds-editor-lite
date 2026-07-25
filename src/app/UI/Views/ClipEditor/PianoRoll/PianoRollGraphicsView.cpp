@@ -44,7 +44,7 @@
 #include "UI/Views/Common/ScrollBarView.h"
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/MusicBase/TimelineSnapUtils.h>
 #include <climits>
 #include <cmath>
 

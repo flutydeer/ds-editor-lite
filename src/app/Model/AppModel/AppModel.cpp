@@ -10,7 +10,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/Support/MathUtils.h>
-#include "Utils/MusicTimeConverter.h"
+#include <lite/MusicBase/MusicTimeConverter.h>
 #include "Global/AppGlobal.h"
 
 #include <QJsonArray>

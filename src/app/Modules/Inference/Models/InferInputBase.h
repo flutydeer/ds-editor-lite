@@ -5,7 +5,7 @@
 #ifndef INFERINPUTBASE_H
 #define INFERINPUTBASE_H
 
-#include "Model/AppModel/Timeline.h"
+#include <lite/MusicBase/Timeline.h>
 #include "InferenceTaskContext.h"
 #include "Model/InferenceData/InferSpeakerMix.h"
 #include "InferInputNote.h"

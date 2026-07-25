@@ -14,7 +14,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QDebug>
 #include <QMouseEvent>

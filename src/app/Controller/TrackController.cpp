@@ -26,7 +26,7 @@
 #include "Global/AppGlobal.h"
 #include "Global/ControllerGlobal.h"
 #include "Model/Utils/DiffscopeAudioWorkspace.h"
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QClipboard>
 #include <QFileInfo>

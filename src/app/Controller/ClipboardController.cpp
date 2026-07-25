@@ -10,7 +10,7 @@
 #include "TrackController.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/ClipboardDataModel/ClipsInfo.h"
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QClipboard>
 #include <QGuiApplication>

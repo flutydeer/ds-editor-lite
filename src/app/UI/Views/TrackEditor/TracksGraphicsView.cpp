@@ -30,7 +30,7 @@
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include <lite/GUI/Theme/ThemeManager.h>
 #include "UI/Views/Common/ScrollBarView.h"
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QClipboard>
 #include <QFileDialog>

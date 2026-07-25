@@ -1,12 +1,12 @@
 #ifndef TIMELINESNAPUTILS_H
 #define TIMELINESNAPUTILS_H
 
-#include "Global/AppGlobal.h"
+#include "MusicTime.h"
 
 class TimelineSnapUtils {
 public:
     static constexpr int ticksPerWholeNote() {
-        return AppGlobal::ticksPerWholeNote;
+        return MusicTime::ticksPerWholeNote;
     }
 
     static int ticksPerBeat(int denominator) {

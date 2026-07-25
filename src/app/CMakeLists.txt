@@ -69,6 +69,7 @@ lite_add_application(${PROJECT_NAME}
         lite::Core
         lite::ADT
         lite::Support
+        lite::MusicBase
         lite::Tasking
         lite::GUI
         unofficial::tinyexpr::tinyexpr

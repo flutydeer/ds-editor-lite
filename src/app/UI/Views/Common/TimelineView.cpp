@@ -16,7 +16,7 @@
 #include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
 #include <lite/GUI/Utils/TextPixmapCache.h>
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/MusicBase/TimelineSnapUtils.h>
 
 namespace {
 

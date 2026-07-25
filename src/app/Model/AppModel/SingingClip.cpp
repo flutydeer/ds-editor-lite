@@ -11,7 +11,7 @@
 #include "DrawCurve.h"
 #include "Note.h"
 #include "Model/InferenceData/InferPiece.h"
-#include "Timeline.h"
+#include <lite/MusicBase/Timeline.h>
 #include "Track.h"
 #include "Model/SingingClipSlicer/SingingClipSlicer.h"
 #include "Model/Utils/AppModelUtils.h"

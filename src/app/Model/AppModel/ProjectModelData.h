@@ -1,7 +1,7 @@
 #ifndef PROJECTMODELDATA_H
 #define PROJECTMODELDATA_H
 
-#include "TimeSignature.h"
+#include <lite/MusicBase/TimeSignature.h>
 #include "TrackControl.h"
 
 #include <memory>

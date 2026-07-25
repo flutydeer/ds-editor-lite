@@ -3,8 +3,7 @@
 //
 
 #include "Timeline.h"
-#include "Global/AppGlobal.h"
-#include "Utils/MusicTimeConverter.h"
+#include "MusicTimeConverter.h"
 
 // TODO 支持多曲速
 double Timeline::tickToMs(const double tick) const {

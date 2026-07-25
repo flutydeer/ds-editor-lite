@@ -9,7 +9,7 @@
 
 #include "Utils/Singleton.h"
 #include "Clip.h"
-#include "TimeSignature.h"
+#include <lite/MusicBase/TimeSignature.h>
 #include <lite/Support/ISerializable.h>
 #include "TrackControl.h"
 #include "ProjectModelData.h"

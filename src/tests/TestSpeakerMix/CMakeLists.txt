@@ -5,12 +5,7 @@ lite_add_test(${PROJECT_NAME}
         main.cpp
         ../../app/Model/AppModel/SpeakerMixData.cpp
         ../../app/Model/InferenceData/InferSpeakerMix.cpp
-        ../../app/Model/AppModel/Timeline.cpp
-        ../../app/Model/AppModel/Tempo.cpp
-        ../../app/Model/AppModel/TimeSignature.cpp
-        ../../app/Utils/MusicTimeConverter.cpp
         ../../app/Model/Voice/SpeakerInfo.cpp
-        ../../app/Utils/MusicTimeConverter.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -21,6 +16,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Core
+        lite::MusicBase
 )
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

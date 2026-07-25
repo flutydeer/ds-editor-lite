@@ -6,7 +6,7 @@
 
 #include "Model/SingingClipSlicer/SingingClipSlicerGlobal.h"
 #include "Model/AppModel/Note.h"
-#include "Model/AppModel/Timeline.h"
+#include <lite/MusicBase/Timeline.h>
 
 #include <QDebug>
 

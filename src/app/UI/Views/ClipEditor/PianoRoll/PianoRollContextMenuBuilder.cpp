@@ -11,7 +11,7 @@
 #include "Controller/ClipboardController.h"
 #include "Global/ControllerGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QGuiApplication>
 #include <QJsonDocument>

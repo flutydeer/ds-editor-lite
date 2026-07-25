@@ -15,7 +15,7 @@
 #include <lite/GUI/Controls/Toast.h>
 #include "UI/Dialogs/FillLyric/LyricDialog.h"
 #include "UI/Dialogs/Search/SearchDialog.h"
-#include "Utils/TimelineSnapUtils.h"
+#include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QClipboard>
 #include <QGuiApplication>

@@ -1,5 +1,6 @@
 add_subdirectory(Core)
 add_subdirectory(ADT)
 add_subdirectory(Support)
+add_subdirectory(MusicBase)
 add_subdirectory(Tasking)
 add_subdirectory(GUI)

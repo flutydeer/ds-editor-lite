@@ -5,10 +5,10 @@
 #include "Note.h"
 #include "Phonemes.h"
 #include "SingingClip.h"
-#include "Timeline.h"
+#include <lite/MusicBase/Timeline.h>
 #include "Track.h"
 #include "Model/SingingClipSlicer/SingingClipSlicer.h"
-#include "Utils/MusicTimeConverter.h"
+#include <lite/MusicBase/MusicTimeConverter.h>
 
 #include <algorithm>
 

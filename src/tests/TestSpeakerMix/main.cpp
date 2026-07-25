@@ -1,5 +1,5 @@
 #include "Model/AppModel/SpeakerMixData.h"
-#include "Model/AppModel/Timeline.h"
+#include <lite/MusicBase/Timeline.h>
 #include "Model/InferenceData/InferSpeakerMix.h"
 
 #include <QCoreApplication>
