@@ -5,8 +5,6 @@
 #ifndef APPEARANCEOPTION_H
 #define APPEARANCEOPTION_H
 
-#include "Global/AnimationGlobal.h"
-
 #include "Model/AppOptions/IOption.h"
 
 class AppearanceOption : public IOption {
@@ -22,14 +20,12 @@ public:
     bool useNativeFrame = false;
 #endif
     bool enableDirectManipulation = true;
-    AnimationGlobal::AnimationLevels animationLevel = AnimationGlobal::Full;
+    // animationLevel and themeId are stored as opaque persisted strings; the
+    // UI/animation and theme systems own the AnimationLevels enum and the theme
+    // vocabulary respectively and convert at the boundary.
+    QString animationLevel = QStringLiteral("full");
     double animationTimeScale = 1;
-    // Opaque theme-preference string; the theme system (ThemeIds/ThemeManager)
-    // owns the vocabulary and interprets it. Default is the "system" preference.
     QString themeId = QStringLiteral("system");
-
-    static AnimationGlobal::AnimationLevels animationLevelFromString(const QString &name);
-    static QString animationLevelToString(AnimationGlobal::AnimationLevels level);
 
 protected:
     void save(QJsonObject &object) override;

@@ -6,7 +6,7 @@
 #define IANIMATABLE_H
 
 #include "ThemeManager.h"
-#include "Global/AnimationGlobal.h"
+#include "UI/Utils/AnimationGlobal.h"
 
 class IAnimatable {
 public:

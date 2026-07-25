@@ -18,6 +18,7 @@
 #include "UI/Utils/Theme/ThemeLoader.h"
 #include "UI/Utils/ThemeManager.h"
 #include "UI/Utils/ThemeIds.h"
+#include "UI/Utils/AnimationGlobal.h"
 
 AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     initializePage();
@@ -29,8 +30,8 @@ void AppearancePage::modifyOption() {
 #if defined(WITH_DIRECT_MANIPULATION)
     option->enableDirectManipulation = m_swEnableDirectManipulation->value();
 #endif
-    option->animationLevel =
-        static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex());
+    option->animationLevel = AnimationGlobal::toString(
+        static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex()));
     option->animationTimeScale = m_leAnimationTimeScale->text().toDouble();
     appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
 }
@@ -83,7 +84,7 @@ QWidget *AppearancePage::createContentWidget() {
 
     m_cbxAnimationLevel = new ComboBox;
     m_cbxAnimationLevel->addItems(animationLevelsName);
-    m_cbxAnimationLevel->setCurrentIndex(option->animationLevel);
+    m_cbxAnimationLevel->setCurrentIndex(AnimationGlobal::fromString(option->animationLevel));
     connect(m_cbxAnimationLevel, &ComboBox::currentIndexChanged, this,
             &AppearancePage::modifyOption);
 

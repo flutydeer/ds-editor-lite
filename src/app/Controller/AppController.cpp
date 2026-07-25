@@ -25,6 +25,7 @@
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/DecodeAudioTask.h"
 #include "UI/Utils/ThemeManager.h"
+#include "UI/Utils/AnimationGlobal.h"
 #include <lite/Support/Log.h>
 
 #include "Actions/AppModel/MasterControl/MasterControlActions.h"
@@ -117,7 +118,8 @@ void AppControllerPrivate::initializeModules() {
     const auto pushAppearance = [] {
         const auto appearance = appOptions->appearance();
         auto *theme = ThemeManager::instance();
-        theme->setAnimationSettings(appearance->animationLevel, appearance->animationTimeScale);
+        theme->setAnimationSettings(AnimationGlobal::fromString(appearance->animationLevel),
+                                    appearance->animationTimeScale);
         theme->updateThemePreference(appearance->themeId);
     };
     pushAppearance();

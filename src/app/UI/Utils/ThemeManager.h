@@ -12,7 +12,7 @@
 #include <QString>
 
 #include "Utils/Singleton.h"
-#include "Global/AnimationGlobal.h"
+#include "UI/Utils/AnimationGlobal.h"
 
 class IAnimatable;
 
