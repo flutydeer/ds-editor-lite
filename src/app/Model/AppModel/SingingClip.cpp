@@ -6,7 +6,6 @@
 
 #include "SingingClip.h"
 
-#include "AppModel.h"
 #include "Clip.h"
 #include "DrawCurve.h"
 #include "Note.h"
@@ -102,12 +101,12 @@ void SingingClip::removeAllPieces() {
         delete piece;
 }
 
-ReSegmentResult SingingClip::reSegment() {
+ReSegmentResult SingingClip::reSegment(double tempo) {
     ReSegmentResult result;
-    // TODO: Refactor AppModel to support multiple tempos
+    // TODO: support multiple tempos (the caller passes the single project tempo)
     Timeline timeline;
     timeline.tempos = {
-        {0, appModel->tempo()}
+        {0, tempo}
     };
 
     auto [segments] = SingingClipSlicer::slice(timeline, m_notes.toList());
@@ -157,7 +156,7 @@ ReSegmentResult SingingClip::reSegment() {
             newPiece->headAvailableLengthMs = segment.headAvailableLengthMs;
             newPiece->paddingStartMs = segment.paddingStartMs;
             newPiece->paddingEndMs = segment.paddingEndMs;
-            const Timeline timeline{{{0, appModel->tempo()}}};
+            const Timeline timeline{{{0, tempo}}};
             newPiece->speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
                 speakerMixData(), speakerId(), newPiece->localStartTick(), newPiece->localEndTick(),
                 timeline);

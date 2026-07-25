@@ -54,7 +54,7 @@ public:
     void notifyParamChanged(ParamInfo::Name name, Param::Type type);
     const PieceList &pieces() const;
     void removeAllPieces();
-    ReSegmentResult reSegment();
+    ReSegmentResult reSegment(double tempo);
     void updateOriginalParam(ParamInfo::Name name);
     InferPiece *findPieceById(int id) const;
     PieceList findPiecesByNotes(const QList<Note *> &notes) const;

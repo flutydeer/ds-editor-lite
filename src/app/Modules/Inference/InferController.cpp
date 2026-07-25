@@ -621,7 +621,7 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
         case InferenceApplyGate::Decision::Apply:
             Helper::updatePhoneName(resolution.notes, task.result, *resolution.clip);
             if (!resolution.clip->singerInfo().isEmpty()) {
-                auto result = resolution.clip->reSegment();
+                auto result = resolution.clip->reSegment(appModel->tempo());
                 for (const auto piece : result.addedPieces)
                     createPipeline(*piece);
             }
@@ -696,7 +696,7 @@ InferControllerPrivate::PendingApplyResult
                                                                      : "clip-task-apply",
                                             resolution.clip->inferenceRevision());
             if (!resolution.clip->singerInfo().isEmpty()) {
-                const auto result = resolution.clip->reSegment();
+                const auto result = resolution.clip->reSegment(appModel->tempo());
                 for (const auto piece : result.addedPieces)
                     createPipeline(*piece);
             }
