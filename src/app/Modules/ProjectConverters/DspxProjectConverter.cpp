@@ -28,6 +28,7 @@
 #include <QDebug>
 #include <QCoreApplication>
 #include <QFile>
+#include <QJsonArray>
 
 #include <algorithm>
 
