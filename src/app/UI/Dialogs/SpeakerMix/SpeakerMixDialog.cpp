@@ -2,13 +2,13 @@
 #include "SpeakerMixBar.h"
 #include "SpeakerMixList.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
-#include "UI/Controls/AccentButton.h"
-#include "UI/Controls/Button.h"
-#include "UI/Controls/ComboBox.h"
-#include "UI/Controls/FlowLayout.h"
-#include "UI/Controls/Menu.h"
-#include "UI/Controls/TagButton.h"
-#include "UI/Controls/Toast.h"
+#include <lite/GUI/Controls/AccentButton.h>
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/FlowLayout.h>
+#include <lite/GUI/Controls/Menu.h>
+#include <lite/GUI/Controls/TagButton.h>
+#include <lite/GUI/Controls/Toast.h>
 
 #include <QHBoxLayout>
 #include <QInputDialog>

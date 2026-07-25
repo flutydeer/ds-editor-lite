@@ -8,9 +8,9 @@
 #include "PhonemeNameListWidget.h"
 #include "Model/NoteDialog/PhonemeNameListModel.h"
 #include "Model/NoteDialog/PhonemeNameItemModel.h"
-#include "UI/Controls/AccentButton.h"
-#include "UI/Controls/Button.h"
-#include "UI/Controls/Toast.h"
+#include <lite/GUI/Controls/AccentButton.h>
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/Toast.h>
 #include <lite/Support/Linq.h>
 
 #include <QVBoxLayout>

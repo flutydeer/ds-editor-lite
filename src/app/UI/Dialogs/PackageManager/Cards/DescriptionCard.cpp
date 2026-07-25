@@ -4,7 +4,7 @@
 
 #include "DescriptionCard.h"
 
-#include "UI/Controls/CardView.h"
+#include <lite/GUI/Controls/CardView.h>
 
 #include <QHBoxLayout>
 #include <QLabel>

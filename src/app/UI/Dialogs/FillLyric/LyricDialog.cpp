@@ -10,7 +10,7 @@
 #include "Modules/FillLyric/Utils/TextSplitter.h"
 #include "Modules/FillLyric/Utils/TextTagger.h"
 #include "Modules/SynthrtEngine/SynthrtEngine.h"
-#include "UI/Controls/AccentButton.h"
+#include <lite/GUI/Controls/AccentButton.h>
 // #include "UI/Dialogs/Options/Pages/G2pPage.h"
 
 #include <QKeyEvent>

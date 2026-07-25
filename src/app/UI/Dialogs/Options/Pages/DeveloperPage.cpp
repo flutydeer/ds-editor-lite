@@ -5,9 +5,9 @@
 #include "DeveloperPage.h"
 
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Controls/CardView.h"
-#include "UI/Controls/OptionListCard.h"
-#include "UI/Controls/SwitchButton.h"
+#include <lite/GUI/Controls/CardView.h>
+#include <lite/GUI/Controls/OptionListCard.h>
+#include <lite/GUI/Controls/SwitchButton.h>
 
 #include <QVBoxLayout>
 

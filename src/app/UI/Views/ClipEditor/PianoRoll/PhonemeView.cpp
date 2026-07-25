@@ -15,7 +15,7 @@
 #include "Modules/Inference/Utils/InferenceApplyGate.h"
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/WaveformPainter.h"
-#include "UI/Controls/ToolTip.h"
+#include <lite/GUI/Controls/ToolTip.h>
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
 

@@ -12,10 +12,10 @@
 #include <QCheckBox>
 
 #include "Utils/Decibellinearizer.h"
-#include "UI/Controls/ComboBox.h"
-#include "UI/Controls/SvsSeekbar.h"
-#include "UI/Controls/SvsExpressionSpinBox.h"
-#include "UI/Controls/SvsExpressionDoubleSpinBox.h"
+#include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/SvsSeekbar.h>
+#include <lite/GUI/Controls/SvsExpressionSpinBox.h>
+#include <lite/GUI/Controls/SvsExpressionDoubleSpinBox.h>
 
 #include <Modules/Audio/utils/SettingPagesSynthHelper.h>
 #include <Modules/Audio/AudioSettings.h>

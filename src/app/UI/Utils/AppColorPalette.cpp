@@ -1,6 +1,6 @@
 #include "AppColorPalette.h"
-#include "ColorUtils.h"
-#include "ThemeManager.h"
+#include <lite/GUI/Utils/ColorUtils.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 
 #include <QFile>
 #include <QJsonArray>

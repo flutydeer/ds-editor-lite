@@ -6,8 +6,8 @@
 
 #include "Modules/History/HistoryManager.h"
 #include "Controller/UndoRedoController.h"
-#include "UI/Controls/ToolButton.h"
-#include "UI/Controls/ToolTipFilter.h"
+#include <lite/GUI/Controls/ToolButton.h>
+#include <lite/GUI/Controls/ToolTipFilter.h>
 
 #include <QHBoxLayout>
 #include <QEvent>

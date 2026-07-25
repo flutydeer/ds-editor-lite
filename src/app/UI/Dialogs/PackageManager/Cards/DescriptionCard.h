@@ -5,7 +5,7 @@
 #ifndef DS_EDITOR_LITE_DESCRIPTIONCARD_H
 #define DS_EDITOR_LITE_DESCRIPTIONCARD_H
 
-#include "UI/Controls/OptionsCard.h"
+#include <lite/GUI/Controls/OptionsCard.h>
 
 class QPlainTextEdit;
 

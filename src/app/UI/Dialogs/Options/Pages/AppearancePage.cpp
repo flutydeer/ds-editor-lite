@@ -9,16 +9,16 @@
 #include <QVBoxLayout>
 
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Controls/ComboBox.h"
-#include "UI/Controls/LineEdit.h"
-#include "UI/Controls/CardView.h"
-#include "UI/Controls/OptionListCard.h"
-#include "UI/Controls/SwitchButton.h"
+#include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/LineEdit.h>
+#include <lite/GUI/Controls/CardView.h>
+#include <lite/GUI/Controls/OptionListCard.h>
+#include <lite/GUI/Controls/SwitchButton.h>
 #include "UI/Dialogs/Base/RestartDialog.h"
-#include "UI/Utils/Theme/ThemeLoader.h"
-#include "UI/Utils/ThemeManager.h"
-#include "UI/Utils/ThemeIds.h"
-#include "UI/Utils/AnimationGlobal.h"
+#include <lite/GUI/Theme/ThemeLoader.h>
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Theme/ThemeIds.h>
+#include <lite/GUI/Animation/AnimationGlobal.h>
 
 AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     initializePage();

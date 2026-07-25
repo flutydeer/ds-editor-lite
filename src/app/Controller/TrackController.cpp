@@ -19,7 +19,7 @@
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/ComputeAudioHashTask.h"
 #include "Tasks/DecodeAudioTask.h"
-#include "UI/Controls/AccentButton.h"
+#include <lite/GUI/Controls/AccentButton.h>
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Views/TrackEditor/GraphicsItem/AudioClipView.h"

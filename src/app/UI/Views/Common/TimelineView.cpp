@@ -15,7 +15,7 @@
 #include "Model/InferenceData/InferPiece.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Utils/TextPixmapCache.h"
+#include <lite/GUI/Utils/TextPixmapCache.h>
 #include "Utils/TimelineSnapUtils.h"
 
 namespace {

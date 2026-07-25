@@ -7,7 +7,7 @@
 #include "Global/AppGlobal.h"
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Controls/Menu.h"
+#include <lite/GUI/Controls/Menu.h>
 #include "UI/Utils/AppColorPalette.h"
 
 #include <QGraphicsSceneMouseEvent>

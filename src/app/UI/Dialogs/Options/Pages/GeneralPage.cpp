@@ -5,14 +5,14 @@
 #include "GeneralPage.h"
 
 #include "Model/AppOptions/AppOptions.h"
-#include "UI/Controls/Button.h"
-#include "UI/Controls/CardView.h"
-#include "UI/Controls/ComboBox.h"
-#include "UI/Controls/DirSelector.h"
-#include "UI/Controls/FileSelector.h"
-#include "UI/Controls/LineEdit.h"
-#include "UI/Controls/OptionListCard.h"
-#include "UI/Controls/PathEditor.h"
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/CardView.h>
+#include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/DirSelector.h>
+#include <lite/GUI/Controls/FileSelector.h>
+#include <lite/GUI/Controls/LineEdit.h>
+#include <lite/GUI/Controls/OptionListCard.h>
+#include <lite/GUI/Controls/PathEditor.h>
 #include "UI/Views/Common/LanguageComboBox.h"
 #include "Global/AppOptionsGlobal.h"
 #include "Utils/UiLanguageManager.h"

@@ -24,8 +24,8 @@
 #include "Modules/ProjectConverters/MidiConverter.h"
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/DecodeAudioTask.h"
-#include "UI/Utils/ThemeManager.h"
-#include "UI/Utils/AnimationGlobal.h"
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Animation/AnimationGlobal.h>
 #include <lite/Support/Log.h>
 
 #include "Actions/AppModel/MasterControl/MasterControlActions.h"

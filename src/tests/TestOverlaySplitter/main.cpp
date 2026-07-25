@@ -1,4 +1,4 @@
-#include "UI/Controls/OverlaySplitter.h"
+#include <lite/GUI/Controls/OverlaySplitter.h>
 
 #include <QApplication>
 #include <QTextStream>

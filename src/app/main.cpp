@@ -12,9 +12,9 @@
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/PackageManager/PackageManager.h"
-#include "UI/Utils/ThemeManager.h"
-#include "UI/Utils/ThemeIds.h"
-#include "UI/Utils/Theme/ThemeLoader.h"
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Theme/ThemeIds.h>
+#include <lite/GUI/Theme/ThemeLoader.h>
 #include "UI/Window/MainWindow.h"
 #include "Utils/UiLanguageManager.h"
 

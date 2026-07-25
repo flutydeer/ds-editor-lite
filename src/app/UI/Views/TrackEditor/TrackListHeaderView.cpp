@@ -6,8 +6,8 @@
 
 #include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
-#include "UI/Controls/ToolButton.h"
-#include "UI/Controls/ToolTipFilter.h"
+#include <lite/GUI/Controls/ToolButton.h>
+#include <lite/GUI/Controls/ToolTipFilter.h>
 
 #include <QHBoxLayout>
 #include <QEvent>

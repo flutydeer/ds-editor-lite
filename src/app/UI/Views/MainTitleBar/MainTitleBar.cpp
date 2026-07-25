@@ -5,14 +5,14 @@
 #include "MainTitleBar.h"
 
 #include "ActionButtonsView.h"
-#include "UI/Controls/DividerLine.h"
+#include <lite/GUI/Controls/DividerLine.h>
 #include "MainMenuView.h"
 #include "PlaybackView.h"
 #include "TitleBarComboBox.h"
 #include "Controller/AppController.h"
 #include "Modules/History/HistoryManager.h"
-#include "UI/Controls/Button.h"
-#include "UI/Controls/ToolTipFilter.h"
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/ToolTipFilter.h>
 #include <lite/Support/SystemUtils.h>
 
 #include <QEvent>

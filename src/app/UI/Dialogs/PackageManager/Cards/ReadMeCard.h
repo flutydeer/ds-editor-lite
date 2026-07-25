@@ -5,7 +5,7 @@
 #ifndef DS_EDITOR_LITE_READMECARD_H
 #define DS_EDITOR_LITE_READMECARD_H
 
-#include "UI/Controls/OptionsCard.h"
+#include <lite/GUI/Controls/OptionsCard.h>
 
 class ReadMeCard : public OptionsCard {
     Q_OBJECT

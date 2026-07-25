@@ -9,7 +9,7 @@
 #include <QScrollBar>
 #include <QTimer>
 
-// #include "UI/Controls/OverlayScrollBar.h"
+// #include <lite/GUI/Controls/OverlayScrollBar.h>
 
 IOptionPage::IOptionPage(QWidget *parent) : QScrollArea(parent) {
     setAttribute(Qt::WA_StyledBackground);

@@ -1,8 +1,8 @@
 #include "AppContext.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/AppColorPalette.h"
-#include "UI/Utils/ThemeManager.h"
-#include "UI/Utils/WindowFrameUtils.h"
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Utils/WindowFrameUtils.h>
 
 template <> ThemeManager *AppContext::instance<ThemeManager>() {
     return nullptr;

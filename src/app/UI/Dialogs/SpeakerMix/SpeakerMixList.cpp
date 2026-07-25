@@ -1,9 +1,9 @@
 #include "SpeakerMixList.h"
 #include "SpeakerMixBar.h"
-#include "UI/Controls/ColorDot.h"
-#include "UI/Controls/ComboBox.h"
+#include <lite/GUI/Controls/ColorDot.h>
+#include <lite/GUI/Controls/ComboBox.h>
 #include "UI/Utils/SpeakerMixColorResolver.h"
-#include "UI/Utils/ThemeManager.h"
+#include <lite/GUI/Theme/ThemeManager.h>
 
 #include <QAbstractItemView>
 #include <QCoreApplication>

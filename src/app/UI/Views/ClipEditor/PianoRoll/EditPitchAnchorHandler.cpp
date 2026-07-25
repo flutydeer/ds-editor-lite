@@ -14,7 +14,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Controller/ClipController.h"
 #include "Modules/Inference/EditSessionManager.h"
-#include "UI/Controls/Menu.h"
+#include <lite/GUI/Controls/Menu.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include <QActionGroup>

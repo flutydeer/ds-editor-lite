@@ -40,7 +40,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Dialogs/Note/PhonemeEditorDialog.h"
-#include "UI/Controls/InlineTextEditOverlay.h"
+#include <lite/GUI/Controls/InlineTextEditOverlay.h>
 #include "UI/Views/Common/ScrollBarView.h"
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
@@ -61,7 +61,7 @@
 #include <QJsonDocument>
 #include <QScrollBar>
 #include <QShowEvent>
-#include "UI/Controls/Menu.h"
+#include <lite/GUI/Controls/Menu.h>
 
 namespace Helper = PianoRollGraphicsViewHelper;
 

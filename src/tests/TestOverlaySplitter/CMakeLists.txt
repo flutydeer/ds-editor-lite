@@ -3,7 +3,6 @@ project(TestOverlaySplitter)
 lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
-        ../../app/UI/Controls/OverlaySplitter.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -15,6 +14,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets)
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Core
         Qt${QT_VERSION_MAJOR}::Widgets
+        lite::GUI
 )
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

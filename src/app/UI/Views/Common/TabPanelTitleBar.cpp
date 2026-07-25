@@ -6,9 +6,9 @@
 
 #include "Controller/EditorViewController.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "UI/Controls/Button.h"
-#include "UI/Controls/ToolTipFilter.h"
-#include "UI/Utils/IconUtils.h"
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/ToolTipFilter.h>
+#include <lite/GUI/Utils/IconUtils.h>
 #include <lite/Support/SystemUtils.h>
 
 #include <QEvent>

@@ -220,10 +220,3 @@ template <> InferController *AppContext::instance() { return s_self ? s_self->m_
 template <> AppController *AppContext::instance() { return s_self ? s_self->m_appController : nullptr; }
 template <> DocumentWorkflowController *AppContext::instance() { return s_self ? s_self->m_documentWorkflowController : nullptr; }
 template <> LevelMeterManager *AppContext::instance() { return s_self ? s_self->m_levelMeterManager : nullptr; }
-
-// Infrastructure singletons — NOT managed by AppContext (stays Meyers static).
-// These specializations return nullptr so the LITE_SINGLETON_IMPLEMENT_INSTANCE fallback
-// to Meyers static kicks in.
-class Toast;
-
-template <> Toast *AppContext::instance() { return nullptr; }

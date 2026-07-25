@@ -5,8 +5,8 @@
 #include "RestartDialog.h"
 
 #include "Controller/AppController.h"
-#include "UI/Controls/AccentButton.h"
-#include "UI/Controls/Button.h"
+#include <lite/GUI/Controls/AccentButton.h>
+#include <lite/GUI/Controls/Button.h>
 
 #include <QApplication>
 

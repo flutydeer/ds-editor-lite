@@ -11,8 +11,8 @@
 #include "Model/AppModel/Note.h"
 #include "Model/AppOptions/AppOptions.h"
 #include <lite/Tasking/TaskManager.h>
-#include "UI/Controls/AccentButton.h"
-#include "UI/Controls/Toast.h"
+#include <lite/GUI/Controls/AccentButton.h>
+#include <lite/GUI/Controls/Toast.h>
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include <lite/Support/Linq.h>
 

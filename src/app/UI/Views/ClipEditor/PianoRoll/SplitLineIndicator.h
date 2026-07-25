@@ -1,7 +1,7 @@
 #ifndef SPLITLINEINDICATOR_H
 #define SPLITLINEINDICATOR_H
 
-#include "UI/Utils/IScalableItem.h"
+#include <lite/GUI/Base/IScalableItem.h>
 
 #include <QColor>
 #include <QGraphicsPathItem>

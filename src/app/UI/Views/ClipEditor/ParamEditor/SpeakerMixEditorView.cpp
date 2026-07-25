@@ -4,11 +4,11 @@
 
 #include "SpeakerMixEditorView.h"
 
-#include "UI/Controls/ToolTip.h"
+#include <lite/GUI/Controls/ToolTip.h>
 #include "UI/Utils/SpeakerMixColorResolver.h"
-#include "UI/Utils/ThemeManager.h"
+#include <lite/GUI/Theme/ThemeManager.h>
 #include "UI/Utils/SpeakerMixUtils.h"
-#include "UI/Controls/Menu.h"
+#include <lite/GUI/Controls/Menu.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include <QApplication>

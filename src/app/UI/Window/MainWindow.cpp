@@ -21,12 +21,12 @@
 #include "Modules/History/HistoryManager.h"
 #include "Modules/PackageManager/PackageManager.h"
 #include <lite/Tasking/TaskManager.h>
-#include "UI/Controls/AccentButton.h"
-#include "UI/Controls/Button.h"
-#include "UI/Controls/SilentSplitter.h"
-#include "UI/Controls/Toast.h"
-#include "UI/Utils/ThemeManager.h"
-#include "UI/Utils/Theme/ThemeLoader.h"
+#include <lite/GUI/Controls/AccentButton.h>
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/SilentSplitter.h>
+#include <lite/GUI/Controls/Toast.h>
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Theme/ThemeLoader.h>
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Dialogs/ResourceCheck/AudioResourcePage.h"
@@ -47,7 +47,7 @@
 #include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include "UI/Views/MainTitleBar/PlaybackView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
-#include "UI/Utils/WindowFrameUtils.h"
+#include <lite/GUI/Utils/WindowFrameUtils.h>
 
 #include <QApplication>
 #include <QFileInfo>

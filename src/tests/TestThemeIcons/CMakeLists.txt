@@ -5,11 +5,6 @@ lite_add_test(${PROJECT_NAME}
         main.cpp
         Stubs.cpp
         ../../app/UI/Utils/AppColorPalette.cpp
-        ../../app/UI/Utils/ColorUtils.cpp
-        ../../app/UI/Utils/IconUtils.cpp
-        ../../app/UI/Utils/ThemeManager.cpp
-        ../../app/UI/Utils/Theme/ThemeColorResolver.cpp
-        ../../app/UI/Utils/Theme/ThemeLoader.cpp
         ../../app/Model/AppOptions/Options/AppearanceOption.cpp
         ../../app/Resources/lite_res.qrc
 )
@@ -25,6 +20,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Gui
         Qt${QT_VERSION_MAJOR}::Widgets
         Qt${QT_VERSION_MAJOR}::Svg
+        lite::GUI
 )
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

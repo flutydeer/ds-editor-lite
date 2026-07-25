@@ -5,7 +5,7 @@
 #include "TitleBarComboBox.h"
 
 #include "FilePopupWidget.h"
-#include "UI/Utils/IconUtils.h"
+#include <lite/GUI/Utils/IconUtils.h>
 
 #include <QMouseEvent>
 #include <QCursor>

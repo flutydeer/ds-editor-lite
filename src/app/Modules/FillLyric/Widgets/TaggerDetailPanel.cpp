@@ -9,7 +9,7 @@
 #include <QStackedWidget>
 #include <QVBoxLayout>
 
-#include "UI/Controls/ComboBox.h"
+#include <lite/GUI/Controls/ComboBox.h>
 
 namespace FillLyric {
     TaggerDetailPanel::TaggerDetailPanel(QWidget *parent) : QWidget(parent) {

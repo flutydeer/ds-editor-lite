@@ -34,7 +34,7 @@
 #include "Model/AppModel/Track.h"
 #include "Model/AppModel/LoopSettings.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "UI/Controls/LevelMeterViewModel.h"
+#include <lite/GUI/Controls/LevelMeterViewModel.h>
 #include "utils/PseudoSingerConfigNotifier.h"
 
 #include <Model/AppOptions/AppOptions.h>

@@ -1,5 +1,5 @@
 #include "LevelMeterManager.h"
-#include "LevelMeterViewModel.h"
+#include <lite/GUI/Controls/LevelMeterViewModel.h>
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/Track.h"
 

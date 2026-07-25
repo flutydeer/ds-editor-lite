@@ -24,8 +24,8 @@
 #include <QProgressBar>
 #include <QTimer>
 
-#include "UI/Controls/SvsExpressionSpinBox.h"
-#include "UI/Controls/ComboBox.h"
+#include <lite/GUI/Controls/SvsExpressionSpinBox.h>
+#include <lite/GUI/Controls/ComboBox.h>
 
 #include <Modules/Audio/AudioExporter_p.h>
 

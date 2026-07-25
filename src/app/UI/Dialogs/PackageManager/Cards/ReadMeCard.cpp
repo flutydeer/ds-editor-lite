@@ -4,7 +4,7 @@
 
 #include "ReadMeCard.h"
 
-#include "UI/Controls/CardView.h"
+#include <lite/GUI/Controls/CardView.h>
 
 #include <QFile>
 #include <QFutureWatcher>

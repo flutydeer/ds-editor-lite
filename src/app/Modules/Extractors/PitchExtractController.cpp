@@ -10,8 +10,8 @@
 #include "Model/AppModel/DrawCurve.h"
 #include "Modules/History/HistoryManager.h"
 #include <lite/Tasking/TaskManager.h>
-#include "UI/Controls/AccentButton.h"
-#include "UI/Controls/Toast.h"
+#include <lite/GUI/Controls/AccentButton.h>
+#include <lite/GUI/Controls/Toast.h>
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>

@@ -7,8 +7,8 @@
 #include "Modules/PackageManager/PackageManager.h"
 #include "Modules/PackageManager/Tasks/GetInstalledPackagesTask.h"
 #include <lite/Tasking/TaskManager.h>
-#include "UI/Controls/Button.h"
-#include "UI/Controls/LineEdit.h"
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/LineEdit.h>
 #include "UI/Dialogs/PackageManager/PackageDetailsContent.h"
 #include "UI/Dialogs/PackageManager/PackageDetailsHeader.h"
 #include "UI/Dialogs/PackageManager/PackageFilterProxyModel.h"

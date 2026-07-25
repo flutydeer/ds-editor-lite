@@ -5,13 +5,13 @@
 #include "PlaybackView.h"
 
 #include "MainTitleBarIconPalette.h"
-#include "UI/Controls/ControlGroup.h"
+#include <lite/GUI/Controls/ControlGroup.h>
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "UI/Controls/InlineEditLabel.h"
-#include "UI/Utils/IconUtils.h"
+#include <lite/GUI/Controls/InlineEditLabel.h>
+#include <lite/GUI/Utils/IconUtils.h>
 #include "Utils/FontManager.h"
 #include "TempoComboBox.h"
 #include "TimeSignatureComboBox.h"

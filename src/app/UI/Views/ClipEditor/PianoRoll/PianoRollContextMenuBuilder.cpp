@@ -4,8 +4,8 @@
 #include "NoteView.h"
 #include "PronunciationView.h"
 #include "PianoRollGraphicsViewHelper.h"
-#include "UI/Controls/Menu.h"
-#include "UI/Utils/IconUtils.h"
+#include <lite/GUI/Controls/Menu.h>
+#include <lite/GUI/Utils/IconUtils.h>
 #include "UI/Views/Common/TimeGraphicsScene.h"
 #include "Controller/ClipController.h"
 #include "Controller/ClipboardController.h"

@@ -5,7 +5,7 @@
 #ifndef LANGUAGECOMBOBOX_H
 #define LANGUAGECOMBOBOX_H
 
-#include "UI/Controls/ComboBox.h"
+#include <lite/GUI/Controls/ComboBox.h>
 
 class LanguageInfo;
 class QEvent;

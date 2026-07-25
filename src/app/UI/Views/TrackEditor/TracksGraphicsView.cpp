@@ -23,12 +23,12 @@
 #include "Model/ClipboardDataModel/ClipsInfo.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Extractors/MidiExtractController.h"
-#include "UI/Controls/AccentButton.h"
-#include "UI/Controls/Menu.h"
+#include <lite/GUI/Controls/AccentButton.h>
+#include <lite/GUI/Controls/Menu.h>
 #include "UI/Dialogs/Base/Dialog.h"
-#include "UI/Utils/IconUtils.h"
+#include <lite/GUI/Utils/IconUtils.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
-#include "UI/Utils/ThemeManager.h"
+#include <lite/GUI/Theme/ThemeManager.h>
 #include "UI/Views/Common/ScrollBarView.h"
 #include "Utils/TimelineSnapUtils.h"
 

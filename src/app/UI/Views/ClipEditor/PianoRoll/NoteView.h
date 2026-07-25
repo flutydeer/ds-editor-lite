@@ -6,7 +6,7 @@
 #define NOTEGRAPHICSITEM_H
 
 #include "Global/AppGlobal.h"
-#include "UI/Utils/OverlappableItem.h"
+#include <lite/GUI/Base/OverlappableItem.h>
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
 #include <lite/ADT/Property.h>
 #include <lite/Core/UniqueObject.h>

@@ -17,13 +17,13 @@
 #include <TalcsMidi/MidiNoteSynthesizer.h>
 
 #include "Utils/Decibellinearizer.h"
-#include "UI/Controls/SvsSeekbar.h"
-#include "UI/Controls/SvsExpressionSpinBox.h"
-#include "UI/Controls/SvsExpressionDoubleSpinBox.h"
-#include "UI/Controls/OptionListCard.h"
-#include "UI/Controls/OptionsCardItem.h"
-#include "UI/Controls/SwitchButton.h"
-#include "UI/Controls/ComboBox.h"
+#include <lite/GUI/Controls/SvsSeekbar.h>
+#include <lite/GUI/Controls/SvsExpressionSpinBox.h>
+#include <lite/GUI/Controls/SvsExpressionDoubleSpinBox.h>
+#include <lite/GUI/Controls/OptionListCard.h>
+#include <lite/GUI/Controls/OptionsCardItem.h>
+#include <lite/GUI/Controls/SwitchButton.h>
+#include <lite/GUI/Controls/ComboBox.h>
 
 #include <Modules/Audio/AudioSystem.h>
 

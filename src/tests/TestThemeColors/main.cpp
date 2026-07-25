@@ -1,7 +1,7 @@
 #include "Model/AppOptions/Options/AppearanceOption.h"
-#include "UI/Utils/ThemeIds.h"
-#include "UI/Utils/Theme/ThemeColorResolver.h"
-#include "UI/Utils/Theme/ThemeLoader.h"
+#include <lite/GUI/Theme/ThemeIds.h>
+#include <lite/GUI/Theme/ThemeColorResolver.h>
+#include <lite/GUI/Theme/ThemeLoader.h>
 
 #include <QCoreApplication>
 #include <QDebug>

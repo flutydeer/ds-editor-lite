@@ -19,10 +19,10 @@
 #include <TalcsDevice/SDLAudioDriverDisplayNameHelper.h>
 
 #include "Utils/Decibellinearizer.h"
-#include "UI/Controls/SvsSeekbar.h"
-#include "UI/Controls/SvsExpressionSpinBox.h"
-#include "UI/Controls/SvsExpressionDoubleSpinBox.h"
-#include "UI/Controls/ComboBox.h"
+#include <lite/GUI/Controls/SvsSeekbar.h>
+#include <lite/GUI/Controls/SvsExpressionSpinBox.h>
+#include <lite/GUI/Controls/SvsExpressionDoubleSpinBox.h>
+#include <lite/GUI/Controls/ComboBox.h>
 
 #include <Model/AppOptions/AppOptions.h>
 #include <Modules/Audio/AudioSystem.h>
@@ -31,8 +31,8 @@
 #include <Modules/Audio/utils/DeviceTester.h>
 #include <Modules/Audio/AudioSettings.h>
 
-#include "UI/Controls/OptionListCard.h"
-#include "UI/Controls/OptionsCardItem.h"
+#include <lite/GUI/Controls/OptionListCard.h>
+#include <lite/GUI/Controls/OptionsCardItem.h>
 #include <lite/Support/SystemUtils.h>
 
 #include <QDesktopServices>

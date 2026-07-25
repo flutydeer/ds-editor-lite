@@ -8,12 +8,12 @@
 #include "Controller/TrackController.h"
 #include "Model/AppModel/Track.h"
 #include "Modules/Audio/AudioContext.h"
-#include "UI/Controls/Fader.h"
-#include "UI/Controls/LevelMeter.h"
-#include "UI/Controls/LevelMeterViewModel.h"
+#include <lite/GUI/Controls/Fader.h>
+#include <lite/GUI/Controls/LevelMeter.h>
+#include <lite/GUI/Controls/LevelMeterViewModel.h>
 #include "UI/Controls/LevelMeterManager.h"
 #include "AppContext.h"
-#include "UI/Controls/PanSlider.h"
+#include <lite/GUI/Controls/PanSlider.h>
 #include "UI/Views/MixConsole/ChannelView.h"
 
 #include <QHBoxLayout>

@@ -9,7 +9,7 @@
 #include "ParamEditorInfoArea.h"
 #include "ParamEditorToolBarView.h"
 #include "SpeakerMixEditorView.h"
-#include "UI/Controls/Button.h"
+#include <lite/GUI/Controls/Button.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"

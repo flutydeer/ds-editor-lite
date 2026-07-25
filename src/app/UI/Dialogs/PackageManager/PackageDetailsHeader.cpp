@@ -5,7 +5,7 @@
 #include "PackageDetailsHeader.h"
 
 #include "Modules/PackageManager/Models/PackageInfo.h"
-#include "UI/Controls/Button.h"
+#include <lite/GUI/Controls/Button.h>
 
 #include <QDesktopServices>
 #include <QHBoxLayout>

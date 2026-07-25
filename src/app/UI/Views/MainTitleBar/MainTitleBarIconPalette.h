@@ -1,7 +1,7 @@
 #ifndef MAINTITLEBARICONPALETTE_H
 #define MAINTITLEBARICONPALETTE_H
 
-#include "UI/Utils/IconUtils.h"
+#include <lite/GUI/Utils/IconUtils.h>
 
 #include <QColor>
 

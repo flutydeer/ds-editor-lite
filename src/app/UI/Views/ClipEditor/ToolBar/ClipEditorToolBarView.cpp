@@ -15,16 +15,16 @@
 #include "Modules/History/HistoryManager.h"
 #include "Model/AppModel/SingerIdentifier.h"
 #include "Modules/PackageManager/PackageManager.h"
-#include "UI/Controls/Button.h"
-#include "UI/Controls/ComboBox.h"
-#include "UI/Controls/ControlGroup.h"
-#include "UI/Controls/InlineEditLabel.h"
-#include "UI/Controls/SvsSeekbar.h"
-#include "UI/Controls/ToolTipFilter.h"
-#include "UI/Controls/Toast.h"
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/ControlGroup.h>
+#include <lite/GUI/Controls/InlineEditLabel.h>
+#include <lite/GUI/Controls/SvsSeekbar.h>
+#include <lite/GUI/Controls/ToolTipFilter.h>
+#include <lite/GUI/Controls/Toast.h>
 #include "UI/Controls/TwoLevelComboBox.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
-#include "UI/Utils/IconUtils.h"
+#include <lite/GUI/Utils/IconUtils.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 

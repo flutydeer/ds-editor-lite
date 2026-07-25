@@ -4,7 +4,7 @@
 #include "Modules/PackageManager/Models/PackageInfo.h"
 #include "Modules/PackageManager/Models/SingerInfo.h"
 
-#include "UI/Controls/Menu.h"
+#include <lite/GUI/Controls/Menu.h>
 #include <QToolButton>
 
 class QAction;

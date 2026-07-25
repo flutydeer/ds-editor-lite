@@ -7,7 +7,7 @@
 
 #include "Interface/IClip.h"
 #include "Model/AppModel/Clip.h"
-#include "UI/Utils/OverlappableItem.h"
+#include <lite/GUI/Base/OverlappableItem.h>
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
 
 class Menu;
