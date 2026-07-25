@@ -8,7 +8,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/IAnimatable.h"
 #include "Theme/ThemeLoader.h"
-#include "Utils/WindowFrameUtils.h"
+#include "UI/Utils/WindowFrameUtils.h"
 
 #include <QEvent>
 #include <QGuiApplication>

@@ -11,7 +11,7 @@
 #include "UI/Utils/IconUtils.h"
 #include "UI/Utils/ThemeManager.h"
 #include <lite/Support/SystemUtils.h>
-#include "Utils/WindowFrameUtils.h"
+#include "UI/Utils/WindowFrameUtils.h"
 
 #include <QMCore/qmsystem.h>
 

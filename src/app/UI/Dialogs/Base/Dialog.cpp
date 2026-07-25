@@ -13,7 +13,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Controls/Button.h"
 #include "UI/Utils/ThemeManager.h"
-#include "Utils/WindowFrameUtils.h"
+#include "UI/Utils/WindowFrameUtils.h"
 
 QWidget *Dialog::m_globalParent = nullptr;
 

@@ -47,7 +47,7 @@
 #include "UI/Views/MainTitleBar/MainTitleBar.h"
 #include "UI/Views/MainTitleBar/PlaybackView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
-#include "Utils/WindowFrameUtils.h"
+#include "UI/Utils/WindowFrameUtils.h"
 
 #include <QApplication>
 #include <QFileInfo>

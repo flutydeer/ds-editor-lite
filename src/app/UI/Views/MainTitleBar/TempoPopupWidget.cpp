@@ -3,7 +3,7 @@
 #include "UI/Controls/SvsExpressionDoubleSpinBox.h"
 #include "UI/Controls/TapTempoButton.h"
 #include <lite/Support/SystemUtils.h>
-#include "Utils/WindowFrameUtils.h"
+#include "UI/Utils/WindowFrameUtils.h"
 
 #include <QApplication>
 #include <QEvent>
