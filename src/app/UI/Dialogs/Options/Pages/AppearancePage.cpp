@@ -17,6 +17,7 @@
 #include "UI/Dialogs/Base/RestartDialog.h"
 #include "UI/Utils/Theme/ThemeLoader.h"
 #include "UI/Utils/ThemeManager.h"
+#include "UI/Utils/ThemeIds.h"
 
 AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     initializePage();
@@ -58,9 +59,9 @@ QWidget *AppearancePage::createContentWidget() {
     const auto option = appOptions->appearance();
 
     m_cbxTheme = new ComboBox;
-    m_cbxTheme->addItem(tr("System"), AppearanceOption::systemThemePreferenceId());
-    m_cbxTheme->addItem(tr("Light"), AppearanceOption::lightThemePreferenceId());
-    m_cbxTheme->addItem(tr("Dark"), AppearanceOption::darkThemePreferenceId());
+    m_cbxTheme->addItem(tr("System"), ThemeIds::systemThemePreferenceId());
+    m_cbxTheme->addItem(tr("Light"), ThemeIds::lightThemePreferenceId());
+    m_cbxTheme->addItem(tr("Dark"), ThemeIds::darkThemePreferenceId());
     m_cbxTheme->setCurrentIndex(m_cbxTheme->findData(option->themeId));
     connect(m_cbxTheme, &ComboBox::currentIndexChanged, this, &AppearancePage::changeTheme);
 

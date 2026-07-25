@@ -112,8 +112,20 @@ void AppControllerPrivate::initializeModules() {
     InferController::instance();
     ProjectStatusController::instance();
 
+    // Read appearance settings and push them into the theme system, which no
+    // longer depends on AppOptions.
+    const auto pushAppearance = [] {
+        const auto appearance = appOptions->appearance();
+        auto *theme = ThemeManager::instance();
+        theme->setAnimationSettings(appearance->animationLevel, appearance->animationTimeScale);
+        theme->updateThemePreference(appearance->themeId);
+    };
+    pushAppearance();
     connect(appOptions, &AppOptions::optionsChanged, ThemeManager::instance(),
-            &ThemeManager::onAppOptionsChanged);
+            [pushAppearance](AppOptionsGlobal::Option option) {
+                if (option == AppOptionsGlobal::All || option == AppOptionsGlobal::Appearance)
+                    pushAppearance();
+            });
     connect(appModel, &AppModel::modelChanged, audioDecodingController,
             &AudioDecodingController::onModelChanged);
     connect(appModel, &AppModel::trackChanged, audioDecodingController,

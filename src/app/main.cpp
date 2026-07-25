@@ -13,6 +13,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/PackageManager/PackageManager.h"
 #include "UI/Utils/ThemeManager.h"
+#include "UI/Utils/ThemeIds.h"
 #include "UI/Utils/Theme/ThemeLoader.h"
 #include "UI/Window/MainWindow.h"
 #include "Utils/UiLanguageManager.h"
@@ -47,7 +48,7 @@ int main(int argc, char *argv[]) {
     // ThemeManager: load theme, apply palette and QSS
     if (!ThemeManager::instance()->initialize(initialThemeId)) {
         const auto error = ThemeLoader::lastError();
-        const auto fallbackThemeId = AppearanceOption::defaultThemeId();
+        const auto fallbackThemeId = ThemeIds::defaultThemeId();
         qWarning("Failed to load initial theme '%s': %s", qPrintable(initialThemeId),
                  qPrintable(error));
         if (initialThemeId == fallbackThemeId ||

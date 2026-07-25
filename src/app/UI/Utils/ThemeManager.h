@@ -12,7 +12,7 @@
 #include <QString>
 
 #include "Utils/Singleton.h"
-#include "Global/AppOptionsGlobal.h"
+#include "Global/AnimationGlobal.h"
 
 class IAnimatable;
 
@@ -55,14 +55,19 @@ public:
 signals:
     void themeChanged(const QString &themeId);
 
+public:
+    // Theme preference and animation settings are pushed in by app code (which
+    // reads AppOptions), so the theme system carries no settings dependency.
+    void updateThemePreference(const QString &preferredThemeId);
+    void setAnimationSettings(AnimationGlobal::AnimationLevels level, double timeScale);
+
 public slots:
-    void onAppOptionsChanged(AppOptionsGlobal::Option option);
     void onSystemThemeColorChanged();
 
 private:
     enum class ColorSchemePolicy { Explicit, FollowSystem };
 
-    static void applyAnimationSettings(IAnimatable *object);
+    void applyAnimationSettings(IAnimatable *object) const;
     static QString normalizedThemePreferenceId(const QString &themePreferenceId);
     static QString systemThemeId();
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -79,6 +84,8 @@ private:
 
     // --- Animation ---
     QList<IAnimatable *> m_subscribers;
+    AnimationGlobal::AnimationLevels m_animationLevel = AnimationGlobal::Full;
+    double m_animationTimeScale = 1;
 
     // --- Frame windows ---
     QList<QPointer<QWidget>> m_windows;

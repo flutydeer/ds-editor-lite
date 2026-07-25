@@ -14,9 +14,15 @@ void AppearanceOption::load(const QJsonObject &object) {
     if (object.contains(animationTimeScaleKey))
         animationTimeScale = object.value(animationTimeScaleKey).toDouble();
     if (object.contains(themeIdKey)) {
-        const auto savedThemeId = object.value(themeIdKey).toString().trimmed();
-        if (isThemePreferenceId(savedThemeId))
-            themeId = savedThemeId;
+        const auto saved = object.value(themeIdKey).toString().trimmed();
+        // Accept only this setting's own valid preference ids; legacy concrete
+        // theme ids ("lite-dark") or unknown values fall back to the default.
+        // These preference strings are the setting's own vocabulary — the theme
+        // system's ThemeIds carries the same names independently, so there is no
+        // cross-layer (Model -> theme system) dependency.
+        if (saved == QStringLiteral("system") || saved == QStringLiteral("light") ||
+            saved == QStringLiteral("dark"))
+            themeId = saved;
     }
 }
 
@@ -52,41 +58,3 @@ QString AppearanceOption::animationLevelToString(const AnimationGlobal::Animatio
     }
 }
 
-QString AppearanceOption::defaultThemeId() {
-    return QStringLiteral("lite-dark");
-}
-
-QString AppearanceOption::lightThemeId() {
-    return QStringLiteral("lite-light");
-}
-
-QString AppearanceOption::systemThemePreferenceId() {
-    return QStringLiteral("system");
-}
-
-QString AppearanceOption::lightThemePreferenceId() {
-    return QStringLiteral("light");
-}
-
-QString AppearanceOption::darkThemePreferenceId() {
-    return QStringLiteral("dark");
-}
-
-QString AppearanceOption::themeIdForPreference(const QString &themePreferenceId) {
-    if (themePreferenceId == systemThemePreferenceId())
-        return QString();
-    if (themePreferenceId == lightThemePreferenceId())
-        return lightThemeId();
-    if (themePreferenceId == darkThemePreferenceId())
-        return defaultThemeId();
-    return themePreferenceId;
-}
-
-bool AppearanceOption::isBuiltInThemeId(const QString &themeId) {
-    return themeId == defaultThemeId() || themeId == lightThemeId();
-}
-
-bool AppearanceOption::isThemePreferenceId(const QString &themeId) {
-    return themeId == systemThemePreferenceId() || themeId == lightThemePreferenceId() ||
-           themeId == darkThemePreferenceId();
-}

@@ -5,7 +5,7 @@
 #include "ThemeManager.h"
 
 #include "AppColorPalette.h"
-#include "Model/AppOptions/AppOptions.h"
+#include "ThemeIds.h"
 #include "UI/Utils/IAnimatable.h"
 #include "Theme/ThemeLoader.h"
 #include "UI/Utils/WindowFrameUtils.h"
@@ -33,7 +33,7 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(ThemeManager)
 // ── Theme loading ────────────────────────────────────────────────────────
 
 bool ThemeManager::initialize(const QString &themeId) {
-    m_observedThemePreferenceId = normalizedThemePreferenceId(appOptions->appearance()->themeId);
+    m_observedThemePreferenceId = normalizedThemePreferenceId(themeId);
     return applyThemePreference(themeId);
 }
 
@@ -48,10 +48,10 @@ bool ThemeManager::applyTheme(const QString &themeId) {
 bool ThemeManager::applyThemePreference(const QString &themePreferenceId) {
     const auto normalizedThemeId = normalizedThemePreferenceId(themePreferenceId);
     const auto shouldFollowSystem =
-        normalizedThemeId == AppearanceOption::systemThemePreferenceId();
+        normalizedThemeId == ThemeIds::systemThemePreferenceId();
     const auto themeId = shouldFollowSystem
                              ? systemThemeId()
-                             : AppearanceOption::themeIdForPreference(normalizedThemeId);
+                             : ThemeIds::themeIdForPreference(normalizedThemeId);
     if (!applyThemeInternal(themeId, shouldFollowSystem ? ColorSchemePolicy::FollowSystem
                                                         : ColorSchemePolicy::Explicit)) {
         return false;
@@ -121,7 +121,7 @@ bool ThemeManager::reloadCurrentTheme() {
     if (m_currentThemeId.isEmpty())
         return false;
     if (m_followSystemTheme)
-        return applyThemePreference(AppearanceOption::systemThemePreferenceId());
+        return applyThemePreference(ThemeIds::systemThemePreferenceId());
     return applyThemeInternal(m_currentThemeId, ColorSchemePolicy::Explicit);
 }
 
@@ -212,28 +212,22 @@ void ThemeManager::removeWindow(QWidget *window) {
 
 // ── Slots ────────────────────────────────────────────────────────────────
 
-void ThemeManager::onAppOptionsChanged(const AppOptionsGlobal::Option option) {
-    if (option != AppOptionsGlobal::All && option != AppOptionsGlobal::Appearance)
+void ThemeManager::updateThemePreference(const QString &preferredThemeId) {
+    const auto normalized = normalizedThemePreferenceId(preferredThemeId);
+    if (normalized == m_observedThemePreferenceId)
         return;
 
-    for (const auto object : m_subscribers)
-        applyAnimationSettings(object);
-
-    const auto preferredThemeId = normalizedThemePreferenceId(appOptions->appearance()->themeId);
-    if (preferredThemeId == m_observedThemePreferenceId)
-        return;
-
-    if ((preferredThemeId == AppearanceOption::systemThemePreferenceId() && m_followSystemTheme) ||
-        (preferredThemeId != AppearanceOption::systemThemePreferenceId() &&
-         AppearanceOption::themeIdForPreference(preferredThemeId) == m_currentThemeId)) {
-        m_observedThemePreferenceId = preferredThemeId;
+    if ((normalized == ThemeIds::systemThemePreferenceId() && m_followSystemTheme) ||
+        (normalized != ThemeIds::systemThemePreferenceId() &&
+         ThemeIds::themeIdForPreference(normalized) == m_currentThemeId)) {
+        m_observedThemePreferenceId = normalized;
         return;
     }
 
-    if (applyThemePreference(preferredThemeId)) {
-        m_observedThemePreferenceId = preferredThemeId;
+    if (applyThemePreference(normalized)) {
+        m_observedThemePreferenceId = normalized;
     } else {
-        qWarning().noquote() << "Failed to apply preferred theme" << preferredThemeId << ":"
+        qWarning().noquote() << "Failed to apply preferred theme" << normalized << ":"
                              << ThemeLoader::lastError();
     }
 }
@@ -258,18 +252,22 @@ void ThemeManager::onSystemThemeColorChanged() {
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-void ThemeManager::applyAnimationSettings(IAnimatable *object) {
-    const auto option = appOptions->appearance();
-    const auto level = option->animationLevel;
-    const auto scale = option->animationTimeScale;
-    object->setAnimationLevel(level);
-    object->setTimeScale(scale);
+void ThemeManager::applyAnimationSettings(IAnimatable *object) const {
+    object->setAnimationLevel(m_animationLevel);
+    object->setTimeScale(m_animationTimeScale);
+}
+
+void ThemeManager::setAnimationSettings(AnimationGlobal::AnimationLevels level, double timeScale) {
+    m_animationLevel = level;
+    m_animationTimeScale = timeScale;
+    for (auto *object : m_subscribers)
+        applyAnimationSettings(object);
 }
 
 QString ThemeManager::normalizedThemePreferenceId(const QString &themePreferenceId) {
     const auto normalizedThemeId = themePreferenceId.trimmed();
     if (normalizedThemeId.isEmpty())
-        return AppearanceOption::systemThemePreferenceId();
+        return ThemeIds::systemThemePreferenceId();
     return normalizedThemeId;
 }
 
@@ -285,9 +283,9 @@ QString ThemeManager::systemThemeId() {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     const auto colorScheme = QGuiApplication::styleHints()->colorScheme();
     if (colorScheme == Qt::ColorScheme::Light)
-        return AppearanceOption::lightThemeId();
+        return ThemeIds::lightThemeId();
 #endif
-    return AppearanceOption::defaultThemeId();
+    return ThemeIds::defaultThemeId();
 }
 
 bool ThemeManager::eventFilter(QObject *watched, QEvent *event) {
