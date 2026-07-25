@@ -26,7 +26,6 @@
 #include "Tasks/DecodeAudioTask.h"
 #include "UI/Utils/ThemeManager.h"
 #include "UI/Utils/AnimationGlobal.h"
-#include "UI/Utils/AppColorPalette.h"
 #include <lite/Support/Log.h>
 
 #include "Actions/AppModel/MasterControl/MasterControlActions.h"
@@ -113,11 +112,6 @@ void AppControllerPrivate::initializeModules() {
     ProjectPackageResolver::instance();
     InferController::instance();
     ProjectStatusController::instance();
-
-    // The theme system loads palette colors but does not own the app palette;
-    // feed them into the app-owned AppColorPalette.
-    ThemeManager::instance()->setPaletteSink(
-        [](const QList<QColor> &colors) { AppColorPalette::instance()->setColors(colors); });
 
     // Read appearance settings and push them into the theme system, which no
     // longer depends on AppOptions.

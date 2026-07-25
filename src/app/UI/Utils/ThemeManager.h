@@ -12,8 +12,6 @@
 #include <QPointer>
 #include <QString>
 
-#include <functional>
-
 #include "UI/Utils/AnimationGlobal.h"
 
 class IAnimatable;
@@ -63,10 +61,9 @@ public:
     void updateThemePreference(const QString &preferredThemeId);
     void setAnimationSettings(AnimationGlobal::AnimationLevels level, double timeScale);
 
-    // The app owns its color palette (AppColorPalette); the theme system merely
-    // loads palette colors from the theme file and hands them to this sink, so
-    // the theme code carries no dependency on the app palette.
-    void setPaletteSink(std::function<void(const QList<QColor> &)> sink);
+    // The app owns its color palette; the theme system just loads the palette
+    // colors and exposes them here. AppColorPalette (app) pulls on themeChanged.
+    [[nodiscard]] QList<QColor> currentPaletteColors() const;
 
 public slots:
     void onSystemThemeColorChanged();
@@ -94,9 +91,8 @@ private:
     AnimationGlobal::AnimationLevels m_animationLevel = AnimationGlobal::Full;
     double m_animationTimeScale = 1;
 
-    // --- Palette (owned by the app; pushed out via the sink) ---
+    // --- Palette (loaded from the theme; the app pulls it) ---
     QList<QColor> m_paletteColors;
-    std::function<void(const QList<QColor> &)> m_paletteSink;
 
     // --- Frame windows ---
     QList<QPointer<QWidget>> m_windows;

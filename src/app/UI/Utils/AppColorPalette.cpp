@@ -1,5 +1,6 @@
 #include "AppColorPalette.h"
 #include "ColorUtils.h"
+#include "ThemeManager.h"
 
 #include <QFile>
 #include <QJsonArray>
@@ -13,6 +14,13 @@ AppColorPalette *AppColorPalette::instance() {
 
 AppColorPalette::AppColorPalette() {
     m_palette.fill(QColor(155, 186, 255), colorCount);
+
+    // The theme system loads the palette; pull the current one and follow future
+    // theme changes. Both orderings are covered: if a theme was already applied,
+    // the immediate pull picks it up; later changes arrive via themeChanged.
+    const auto pull = [this] { setColors(ThemeManager::instance()->currentPaletteColors()); };
+    pull();
+    QObject::connect(ThemeManager::instance(), &ThemeManager::themeChanged, pull);
 }
 
 bool AppColorPalette::load(const QString &jsonFilePath) {

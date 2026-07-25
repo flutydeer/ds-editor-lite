@@ -32,12 +32,8 @@ ThemeManager *ThemeManager::instance() {
     return &obj;
 }
 
-void ThemeManager::setPaletteSink(std::function<void(const QList<QColor> &)> sink) {
-    m_paletteSink = std::move(sink);
-    // Push the current palette immediately so a sink registered after the initial
-    // theme has been applied still receives it.
-    if (m_paletteSink && !m_paletteColors.isEmpty())
-        m_paletteSink(m_paletteColors);
+QList<QColor> ThemeManager::currentPaletteColors() const {
+    return m_paletteColors;
 }
 
 // ── Theme loading ────────────────────────────────────────────────────────
@@ -77,10 +73,8 @@ bool ThemeManager::applyThemeInternal(const QString &themeId,
     if (!def)
         return false;
 
-    // Hand the loaded palette to the app-owned palette via the sink.
+    // Store the loaded palette; AppColorPalette (app) pulls it on themeChanged.
     m_paletteColors = def->paletteColors;
-    if (m_paletteSink && !m_paletteColors.isEmpty())
-        m_paletteSink(m_paletteColors);
 
     // Store state
     m_currentThemeId = def->folderName;
