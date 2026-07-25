@@ -8,8 +8,8 @@
 #define trackController TrackController::instance()
 
 #include "Model/ClipboardDataModel/ClipsInfo.h"
-#include "Model/AppModel/Clip.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/Clip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 #include "Tasks/DecodeAudioTask.h"
 #include "Utils/Singleton.h"
 

@@ -1,9 +1,9 @@
 #ifndef SPEAKERMIXDISPLAYUTILS_H
 #define SPEAKERMIXDISPLAYUTILS_H
 
-#include "Model/AppModel/SpeakerMixData.h"
+#include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
-#include "Model/Voice/SingerInfo.h"
+#include <lite/ProjectModel/Voice/SingerInfo.h>
 
 #include <QCoreApplication>
 #include <QString>

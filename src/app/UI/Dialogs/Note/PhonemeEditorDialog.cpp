@@ -4,7 +4,7 @@
 
 #include "PhonemeEditorDialog.h"
 
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/AppModel/Note.h>
 #include "PhonemeNameListWidget.h"
 #include "Model/NoteDialog/PhonemeNameListModel.h"
 #include "Model/NoteDialog/PhonemeNameItemModel.h"

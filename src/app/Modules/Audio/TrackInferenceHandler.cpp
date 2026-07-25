@@ -3,7 +3,7 @@
 #include <TalcsDevice/AudioDevice.h>
 
 #include "AudioContext.h"
-#include "Model/InferenceData/InferPiece.h"
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include "dspx/DspxInferencePieceContext.h"
 #include "dspx/DspxSingingClipInferenceContext.h"
 
@@ -15,9 +15,9 @@
 #include <TalcsFormat/AudioFormatInputSource.h>
 
 #include <Model/AppModel/AppModel.h>
-#include <Model/AppModel/Track.h>
-#include <Model/AppModel/Clip.h>
-#include <Model/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/AppModel/Clip.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>

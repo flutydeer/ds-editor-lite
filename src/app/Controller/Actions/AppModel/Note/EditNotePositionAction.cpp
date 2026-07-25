@@ -4,8 +4,8 @@
 
 #include "EditNotePositionAction.h"
 
-#include "Model/AppModel/Note.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 void EditNotePositionAction::execute() {
     for (const auto &note : m_notes) {

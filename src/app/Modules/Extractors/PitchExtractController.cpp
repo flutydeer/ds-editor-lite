@@ -6,8 +6,8 @@
 
 #include "ExtractPitchTask.h"
 #include "Controller/Actions/AppModel/Param/ParamsActions.h"
-#include "Model/AppModel/AudioClip.h"
-#include "Model/AppModel/DrawCurve.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include "Modules/History/HistoryManager.h"
 #include <lite/Tasking/TaskManager.h>
 #include <lite/GUI/Controls/AccentButton.h>

@@ -4,8 +4,8 @@
 
 #include "PieceUtils.h"
 
-#include "Model/InferenceData/InferPiece.h"
-#include "Model/SingingClipSlicer/Models/SliceResult.h"
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/ProjectModel/SingingClipSlicer/Models/SliceResult.h>
 
 bool PieceUtils::isSamePiece(const InferPiece &left, const Segment &right) {
     if (left.notes.count() != right.notes.count())

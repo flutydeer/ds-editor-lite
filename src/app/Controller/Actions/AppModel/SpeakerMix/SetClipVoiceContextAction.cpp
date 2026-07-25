@@ -1,6 +1,6 @@
 #include "SetClipVoiceContextAction.h"
 
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 using namespace SpeakerMixModel;
 

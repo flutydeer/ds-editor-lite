@@ -32,10 +32,10 @@
 #include "Global/AppGlobal.h"
 #include "Global/ControllerGlobal.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/DrawCurve.h"
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"

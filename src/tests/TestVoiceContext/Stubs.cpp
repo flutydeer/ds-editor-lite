@@ -1,4 +1,4 @@
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "AppContext.h"
 #include <lite/Core/IdGenerator.h>
 

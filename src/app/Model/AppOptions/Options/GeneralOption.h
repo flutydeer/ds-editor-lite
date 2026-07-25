@@ -11,7 +11,7 @@
 #include <QMap>
 
 #include "Global/AppGlobal.h"
-#include "Model/AppModel/Params.h"
+#include <lite/ProjectModel/AppModel/Params.h>
 #include "Model/AppOptions/IOption.h"
 #include <lite/ADT/Property.h>
 

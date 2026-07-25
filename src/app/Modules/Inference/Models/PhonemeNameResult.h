@@ -5,7 +5,7 @@
 #ifndef PHONEMENAMERESULT_H
 #define PHONEMENAMERESULT_H
 
-#include "Model/AppModel/Phonemes.h"
+#include <lite/ProjectModel/AppModel/Phonemes.h>
 #include <QStringList>
 
 class PhonemeNameResult {

@@ -7,7 +7,7 @@
 
 #include "AbstractClipView.h"
 
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ADT/OverlappableSerialList.h>
 
 class Note;

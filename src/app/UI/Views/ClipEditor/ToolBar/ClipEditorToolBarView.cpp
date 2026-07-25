@@ -8,12 +8,12 @@
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
 #include "Controller/TrackController.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"
-#include "Model/AppModel/SingerIdentifier.h"
+#include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 #include "Modules/PackageManager/PackageManager.h"
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ComboBox.h>

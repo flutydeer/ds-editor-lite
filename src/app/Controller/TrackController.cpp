@@ -9,10 +9,10 @@
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/AudioClip.h"
-#include "Model/AppModel/AudioInfoModel.h"
-#include "Model/AppModel/Note.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/AudioInfoModel.h>
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/HistoryManager.h"

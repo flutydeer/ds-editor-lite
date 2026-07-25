@@ -6,7 +6,7 @@
 #define GETPRONUNCIATIONTASK_H
 
 #include "Modules/Inference/Models/NoteInferenceSnapshot.h"
-#include "Model/Voice/SingerInfo.h"
+#include <lite/ProjectModel/Voice/SingerInfo.h>
 #include <lite/Tasking/Task.h>
 
 #include <QStringList>

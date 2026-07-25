@@ -1,8 +1,8 @@
 #ifndef SPEAKERMIXPRESET_H
 #define SPEAKERMIXPRESET_H
 
-#include "Model/AppModel/SpeakerMixData.h"
-#include "Model/AppModel/SingerIdentifier.h"
+#include <lite/ProjectModel/AppModel/SpeakerMixData.h>
+#include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
 #include <QDateTime>
 #include <QJsonObject>

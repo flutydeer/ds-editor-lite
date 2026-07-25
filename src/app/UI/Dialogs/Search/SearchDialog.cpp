@@ -3,7 +3,7 @@
 #include "Controller/ClipController.h"
 #include "Controller/EditorViewController.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/AppModel/Note.h>
 
 #include <QApplication>
 #include <QButtonGroup>

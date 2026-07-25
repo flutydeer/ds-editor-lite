@@ -4,13 +4,13 @@ lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
         Stubs.cpp
-        ../../app/Model/AppModel/Clip.cpp
-        ../../app/Model/AppModel/Track.cpp
-        ../../app/Model/AppModel/TrackControl.cpp
-        ../../app/Model/AppModel/SpeakerMixData.cpp
-        ../../app/Model/Voice/SingerInfo.cpp
-        ../../app/Model/Voice/SpeakerInfo.cpp
-        ../../app/Model/Voice/LanguageInfo.cpp
+        ../../libs/ProjectModel/AppModel/Clip.cpp
+        ../../libs/ProjectModel/AppModel/Track.cpp
+        ../../libs/ProjectModel/AppModel/TrackControl.cpp
+        ../../libs/ProjectModel/AppModel/SpeakerMixData.cpp
+        ../../libs/ProjectModel/Voice/SingerInfo.cpp
+        ../../libs/ProjectModel/Voice/SpeakerInfo.cpp
+        ../../libs/ProjectModel/Voice/LanguageInfo.cpp
         ../../libs/Core/IdGenerator.cpp
 )
 

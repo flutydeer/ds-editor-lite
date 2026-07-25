@@ -4,8 +4,8 @@
 
 #include "MoveClipToTrackAction.h"
 
-#include "Model/AppModel/SingingClip.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 
 MoveClipToTrackAction *MoveClipToTrackAction::build(const Clip::ClipCommonProperties &oldArgs,
                                                     const Clip::ClipCommonProperties &newArgs,

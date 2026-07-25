@@ -10,7 +10,7 @@
 #include <QVariant>
 #include <utility>
 
-#include "Model/Voice/SingerInfo.h"
+#include <lite/ProjectModel/Voice/SingerInfo.h>
 
 class PackageInfoData;
 

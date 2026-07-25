@@ -15,7 +15,7 @@
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Inference/Models/InferParamCurve.h"
-#include "Model/AppModel/SingerIdentifier.h"
+#include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
 class InferPitchTask final : public IInferTask {
     Q_OBJECT

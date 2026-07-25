@@ -8,9 +8,9 @@
 #include "PianoRollGraphicsView_p.h"
 #include "PitchAnchorEditorView.h"
 
-#include "Model/AppModel/AnchorCurve.h"
-#include "Model/AppModel/DrawCurve.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/AnchorCurve.h>
+#include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Controller/ClipController.h"
 #include "Modules/Inference/EditSessionManager.h"

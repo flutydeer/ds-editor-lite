@@ -5,12 +5,12 @@
 #include "CommonParamEditorView.h"
 
 #include "ClipEditorGlobal.h"
-#include "Model/AppModel/ParamProperties.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/ParamProperties.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "UI/Views/Common/TimeGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
 #include "UI/Utils/AppColorPalette.h"
-#include "Model/Utils/AppModelUtils.h"
+#include <lite/ProjectModel/Utils/AppModelUtils.h>
 #include <lite/Support/MathUtils.h>
 
 #include <QElapsedTimer>

@@ -13,7 +13,7 @@
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Controller/PlaybackController.h"
 #include "Modules/History/HistoryManager.h"

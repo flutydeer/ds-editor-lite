@@ -10,7 +10,7 @@
 #include "PianoRollGraphicsViewHelper.h"
 #include "PronunciationView.h"
 #include "Controller/ClipController.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"

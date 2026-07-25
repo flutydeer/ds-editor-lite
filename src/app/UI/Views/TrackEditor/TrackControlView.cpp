@@ -6,7 +6,7 @@
 
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
 #include "Controller/TrackController.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Modules/Audio/AudioContext.h"
@@ -39,7 +39,7 @@
 #include "UI/Views/Common/LanguageComboBox.h"
 
 #include "Modules/PackageManager/PackageManager.h"
-#include "Model/AppModel/SingerIdentifier.h"
+#include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
 using namespace SVS;
 using SpeakerMixModel::SpeakerMixData;

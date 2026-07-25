@@ -9,11 +9,11 @@
 
 #include "Controller/PlaybackController.h"
 #include "Utils/FontManager.h"
-#include "Model/AppModel/LoopSettings.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/LoopSettings.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
-#include "Model/InferenceData/InferPiece.h"
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include "Model/AppOptions/AppOptions.h"
 #include <lite/GUI/Utils/TextPixmapCache.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>

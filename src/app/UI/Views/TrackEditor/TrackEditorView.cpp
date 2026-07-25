@@ -17,8 +17,8 @@
 #include "GraphicsItem/AudioClipView.h"
 #include "GraphicsItem/SingingClipView.h"
 #include "GraphicsItem/TrackEditorBackgroundView.h"
-#include "Model/AppModel/AudioClip.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"
 #include <lite/GUI/Controls/LevelMeter.h>

@@ -16,8 +16,8 @@
 #include "GraphicsItem/SingingClipView.h"
 #include "GraphicsItem/TrackEditorBackgroundView.h"
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/AudioClip.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "Model/ClipboardDataModel/ClipsInfo.h"

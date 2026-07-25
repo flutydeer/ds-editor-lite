@@ -5,7 +5,7 @@
 #include "InsertNoteAction.h"
 
 
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 void InsertNoteAction::execute() {
     for (const auto &note : m_notes)

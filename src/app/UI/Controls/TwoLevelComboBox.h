@@ -2,7 +2,7 @@
 #define TWOLEVELCOMBOBOX_H
 
 #include "Modules/PackageManager/Models/PackageInfo.h"
-#include "Model/Voice/SingerInfo.h"
+#include <lite/ProjectModel/Voice/SingerInfo.h>
 
 #include <lite/GUI/Controls/Menu.h>
 #include <QToolButton>

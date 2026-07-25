@@ -5,7 +5,7 @@
 #include "PitchAnchorEditorView.h"
 
 #include "EditPitchAnchorHandler.h"
-#include "Model/AppModel/AnchorCurve.h"
+#include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include <lite/Support/MathUtils.h>
 

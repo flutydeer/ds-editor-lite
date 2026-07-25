@@ -5,7 +5,7 @@
 #ifndef EDITNOTESWORDPROPERTIESACTION_H
 #define EDITNOTESWORDPROPERTIESACTION_H
 
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/AppModel/Note.h>
 #include "Modules/History/IAction.h"
 
 class SingingClip;

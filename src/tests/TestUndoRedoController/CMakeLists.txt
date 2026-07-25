@@ -6,7 +6,7 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Controller/EditorViewController.cpp
         ../../app/Controller/UndoRedoController.cpp
         ../../app/Model/AppStatus/AppStatus.cpp
-        ../../app/Model/AppModel/LoopSettings.cpp
+        ../../libs/ProjectModel/AppModel/LoopSettings.cpp
         ../../app/Modules/History/ActionSequence.cpp
         ../../app/Interface/HistoryFocus.cpp
         ../../app/Modules/History/HistoryManager.cpp

@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "Modules/FillLyric/LangCommon.h"
-#include "Model/AppModel/SingerIdentifier.h"
+#include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
 namespace srt::g2p {
     class LanguageService;

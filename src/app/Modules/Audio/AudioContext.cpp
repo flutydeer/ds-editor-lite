@@ -1,9 +1,9 @@
 #include "AudioContext.h"
 
 #include "TrackInferenceHandler.h"
-#include "Model/AppModel/AudioClip.h"
-#include "Model/InferenceData/InferPiece.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QMessageBox>
 #include <QFile>
@@ -31,8 +31,8 @@
 #include <Modules/Audio/AudioSettings.h>
 #include <Modules/Audio/TrackSynthesizer.h>
 
-#include "Model/AppModel/Track.h"
-#include "Model/AppModel/LoopSettings.h"
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/AppModel/LoopSettings.h>
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/GUI/Controls/LevelMeterViewModel.h>
 #include "utils/PseudoSingerConfigNotifier.h"

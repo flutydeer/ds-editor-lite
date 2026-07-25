@@ -6,9 +6,9 @@
 #define PHONEMEPARAMEDITOR_H
 
 
-#include "Model/AppModel/SingingClip.h"
-#include "Model/AppModel/AudioInfoModel.h"
-#include "Model/InferenceData/InferStatus.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/AudioInfoModel.h>
+#include <lite/ProjectModel/InferenceData/InferStatus.h>
 #include <lite/GUI/Utils/TextPixmapCache.h>
 
 #include <QWidget>

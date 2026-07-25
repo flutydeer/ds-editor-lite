@@ -12,7 +12,7 @@
 #include "InsertNoteAction.h"
 #include "RemoveNoteAction.h"
 #include "SplitNoteAction.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QCoreApplication>
 

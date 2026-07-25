@@ -5,7 +5,7 @@
 #ifndef INFERINPUTNOTE_H
 #define INFERINPUTNOTE_H
 
-#include "Model/AppModel/Phonemes.h"
+#include <lite/ProjectModel/AppModel/Phonemes.h>
 #include <QList>
 
 class Note;

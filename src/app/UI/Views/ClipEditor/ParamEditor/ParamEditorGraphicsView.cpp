@@ -8,7 +8,7 @@
 #include "SpeakerMixEditorView.h"
 #include "Controller/ClipController.h"
 
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"

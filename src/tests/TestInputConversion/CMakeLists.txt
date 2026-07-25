@@ -4,12 +4,12 @@ lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
         Stubs.cpp
-        ../../app/Model/InferenceData/InferPiece.h
+        ../../libs/ProjectModel/InferenceData/InferPiece.h
         ../../app/Modules/Inference/Tasks/InferTaskCommon.cpp
         ../../app/Modules/Inference/Models/GenericInferModel.cpp
-        ../../app/Model/InferenceData/InferSpeakerMix.cpp
-        ../../app/Model/AppModel/SpeakerMixData.cpp
-        ../../app/Model/Voice/SpeakerInfo.cpp
+        ../../libs/ProjectModel/InferenceData/InferSpeakerMix.cpp
+        ../../libs/ProjectModel/AppModel/SpeakerMixData.cpp
+        ../../libs/ProjectModel/Voice/SpeakerInfo.cpp
         ../../app/Modules/SynthrtEngine/SingerModelSession.cpp
 )
 

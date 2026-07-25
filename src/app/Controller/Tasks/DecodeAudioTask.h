@@ -7,7 +7,7 @@
 
 #include <QJsonObject>
 
-#include "Model/AppModel/AudioInfoModel.h"
+#include <lite/ProjectModel/AppModel/AudioInfoModel.h>
 #include <lite/Tasking/Task.h>
 
 namespace talcs {

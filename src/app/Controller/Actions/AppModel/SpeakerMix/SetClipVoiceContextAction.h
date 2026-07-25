@@ -1,9 +1,9 @@
 #ifndef SETCLIPVOICECONTEXTACTION_H
 #define SETCLIPVOICECONTEXTACTION_H
 
-#include "Model/AppModel/SpeakerMixData.h"
+#include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include "Modules/History/IAction.h"
-#include "Model/Voice/SingerInfo.h"
+#include <lite/ProjectModel/Voice/SingerInfo.h>
 
 class SingingClip;
 class SpeakerInfo;

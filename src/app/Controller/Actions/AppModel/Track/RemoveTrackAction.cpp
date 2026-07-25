@@ -5,7 +5,7 @@
 #include "RemoveTrackAction.h"
 
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/Track.h>
 
 RemoveTrackAction *RemoveTrackAction::build(Track *track, AppModel *model) {
     const auto a = new RemoveTrackAction;

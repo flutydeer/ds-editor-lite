@@ -9,7 +9,7 @@
 #include <lite/Support/StringUtils.h>
 #include <lite/Support/VersionUtils.h>
 #include "Models/PackageInfo.h"
-#include "Model/Voice/SingerInfo.h"
+#include <lite/ProjectModel/Voice/SingerInfo.h>
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/GetInstalledPackagesTask.h"
 #include "Modules/SynthrtEngine/SynthrtEngine.h"

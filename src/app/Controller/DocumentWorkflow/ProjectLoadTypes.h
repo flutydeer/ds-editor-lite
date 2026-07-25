@@ -1,8 +1,8 @@
 #ifndef PROJECTLOADTYPES_H
 #define PROJECTLOADTYPES_H
 
-#include "Model/AppModel/LoopSettings.h"
-#include "Model/AppModel/ProjectModelData.h"
+#include <lite/ProjectModel/AppModel/LoopSettings.h>
+#include <lite/ProjectModel/AppModel/ProjectModelData.h>
 
 #include <QString>
 

@@ -4,8 +4,8 @@
 
 #include "ChannelView.h"
 
-#include "Model/AppModel/Track.h"
-#include "Model/AppModel/TrackControl.h"
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/AppModel/TrackControl.h>
 #include <lite/GUI/Controls/Fader.h>
 #include <lite/GUI/Controls/LevelMeter.h>
 #include <lite/GUI/Controls/InlineEditLabel.h>

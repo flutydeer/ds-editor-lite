@@ -6,7 +6,7 @@
 
 #include "Controller/AppController.h"
 #include "Controller/TrackController.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/Track.h>
 #include "Modules/Audio/AudioContext.h"
 #include <lite/GUI/Controls/Fader.h>
 #include <lite/GUI/Controls/LevelMeter.h>

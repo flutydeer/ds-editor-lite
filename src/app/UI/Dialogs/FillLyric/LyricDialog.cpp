@@ -2,7 +2,7 @@
 
 #include <QApplication>
 
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/AppModel/Note.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/FillLyric/Widgets/SplitterConfigTab.h"
 #include "Modules/FillLyric/Widgets/TaggerConfigTab.h"

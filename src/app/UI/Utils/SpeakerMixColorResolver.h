@@ -1,7 +1,7 @@
 #ifndef SPEAKERMIXCOLORRESOLVER_H
 #define SPEAKERMIXCOLORRESOLVER_H
 
-#include "Model/Voice/SpeakerInfo.h"
+#include <lite/ProjectModel/Voice/SpeakerInfo.h>
 
 #include <QColor>
 #include <QList>

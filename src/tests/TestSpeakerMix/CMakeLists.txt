@@ -3,9 +3,9 @@ project(TestSpeakerMix)
 lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
-        ../../app/Model/AppModel/SpeakerMixData.cpp
-        ../../app/Model/InferenceData/InferSpeakerMix.cpp
-        ../../app/Model/Voice/SpeakerInfo.cpp
+        ../../libs/ProjectModel/AppModel/SpeakerMixData.cpp
+        ../../libs/ProjectModel/InferenceData/InferSpeakerMix.cpp
+        ../../libs/ProjectModel/Voice/SpeakerInfo.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

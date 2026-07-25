@@ -2,7 +2,7 @@
 #include "PianoRollGraphicsView.h"
 #include "NoteView.h"
 #include "PronunciationView.h"
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/AppModel/Note.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Global/AppGlobal.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"

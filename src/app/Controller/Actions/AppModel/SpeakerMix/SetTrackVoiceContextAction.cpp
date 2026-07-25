@@ -1,6 +1,6 @@
 #include "SetTrackVoiceContextAction.h"
 
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/Track.h>
 
 using namespace SpeakerMixModel;
 

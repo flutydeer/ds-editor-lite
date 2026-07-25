@@ -10,7 +10,7 @@
 #include <TalcsFormat/FormatManager.h>
 
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
-#include "Model/AppModel/AudioClip.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include "Modules/Audio/AudioContext.h"
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/DecodeAudioTask.h"

@@ -4,7 +4,7 @@
 
 #include "InferInputNote.h"
 
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/AppModel/Note.h>
 
 InferInputNote::InferInputNote(const Note &note) {
     id = note.id();

@@ -6,7 +6,7 @@
 #define PARAMEDITORGRAPHICSVIEW_H
 
 #include "Interface/IAtomicAction.h"
-#include "Model/AppModel/Params.h"
+#include <lite/ProjectModel/AppModel/Params.h>
 #include "UI/Views/Common/TimeGraphicsView.h"
 
 class ParamProperties;

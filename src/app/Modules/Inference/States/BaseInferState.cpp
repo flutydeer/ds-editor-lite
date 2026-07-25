@@ -5,7 +5,7 @@
 #include "BaseInferState.h"
 #include "Modules/Inference/InferPipeline.h"
 #include "Modules/Inference/InferControllerHelper.h"
-#include "Model/AppModel/SingingClip.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Modules/Inference/Tasks/IInferTask.h"
 
 #include <QTimer>

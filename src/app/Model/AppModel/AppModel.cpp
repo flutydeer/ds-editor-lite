@@ -5,8 +5,8 @@
 #include "AppModel.h"
 
 #include "AppModel_p.h"
-#include "SingingClip.h"
-#include "Track.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/Support/MathUtils.h>

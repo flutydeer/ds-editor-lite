@@ -6,7 +6,7 @@
 #define AUDIOCLIPGRAPHICSITEM_H
 
 #include "AbstractClipView.h"
-#include "Model/AppModel/AudioInfoModel.h"
+#include <lite/ProjectModel/AppModel/AudioInfoModel.h>
 #include "Global/AppGlobal.h"
 
 #include <QVector>

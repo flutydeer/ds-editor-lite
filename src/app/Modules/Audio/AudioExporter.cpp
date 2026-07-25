@@ -4,7 +4,7 @@
 #include "AudioExporter_p.h"
 #include "Controller/AppController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QApplication>
 #include <QCoreApplication>

@@ -7,8 +7,8 @@
 #include "ExtractMidiTask.h"
 #include "Controller/TrackController.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
-#include "Model/AppModel/AudioClip.h"
-#include "Model/AppModel/Note.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include "Model/AppOptions/AppOptions.h"
 #include <lite/Tasking/TaskManager.h>
 #include <lite/GUI/Controls/AccentButton.h>

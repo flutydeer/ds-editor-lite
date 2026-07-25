@@ -10,11 +10,11 @@
 // behavior is fully covered here by manually constructing SingerInfo +
 // capability.
 
-#include "Model/InferenceData/InferPiece.h"
-#include "Model/InferenceData/InferSpeakerMix.h"
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
 #include "Modules/Inference/Models/SpeakerMixValidator.h"
-#include "Model/Voice/SingerInfo.h"
-#include "Model/Voice/SpeakerInfo.h"
+#include <lite/ProjectModel/Voice/SingerInfo.h>
+#include <lite/ProjectModel/Voice/SpeakerInfo.h>
 
 #include <QCoreApplication>
 #include <QTextStream>

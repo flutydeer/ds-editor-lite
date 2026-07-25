@@ -4,11 +4,11 @@
 
 #include "ClipsInfo.h"
 
-#include "Model/AppModel/AudioClip.h"
-#include "Model/AppModel/Clip.h"
-#include "Model/AppModel/Note.h"
-#include "Model/AppModel/SingingClip.h"
-#include "Model/AppModel/SpeakerMixData.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/Clip.h>
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include "Modules/PackageManager/PackageManager.h"
 
 namespace {

@@ -16,7 +16,7 @@
 
 #include "Controller/PlaybackController.h"
 #include "Global/PlaybackGlobal.h"
-#include "Model/AppModel/AudioClip.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include "AudioExporter.h"
 
 

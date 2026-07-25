@@ -8,11 +8,11 @@
 #define appModel AppModel::instance()
 
 #include "Utils/Singleton.h"
-#include "Clip.h"
+#include <lite/ProjectModel/AppModel/Clip.h>
 #include <lite/MusicBase/TimeSignature.h>
 #include <lite/Support/ISerializable.h>
-#include "TrackControl.h"
-#include "ProjectModelData.h"
+#include <lite/ProjectModel/AppModel/TrackControl.h>
+#include <lite/ProjectModel/AppModel/ProjectModelData.h>
 
 class Track;
 class WorkspaceEditor;

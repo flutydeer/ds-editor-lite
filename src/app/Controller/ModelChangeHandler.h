@@ -6,8 +6,8 @@
 #define MODELCHANGEHANDLER_H
 
 #include "Model/AppModel/AppModel.h"
-#include "Model/AppModel/SingingClip.h"
-#include "Model/AppModel/Track.h"
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 
 
 #include <QObject>
