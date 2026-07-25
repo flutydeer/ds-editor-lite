@@ -17,7 +17,7 @@
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Model/AppModel/SingerIdentifier.h"
-#include "Modules/Task/Task.h"
+#include <lite/Tasking/Task.h>
 
 class InferDurationTask final : public IInferTask {
     Q_OBJECT

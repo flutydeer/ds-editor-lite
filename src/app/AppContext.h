@@ -57,7 +57,6 @@ public:
     ParamUtils *m_paramUtils = nullptr;
 
     // L1: Independent modules
-    TaskManager *m_taskManager = nullptr;
     HistoryManager *m_historyManager = nullptr;
     PackageManager *m_packageManager = nullptr;
 

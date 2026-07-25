@@ -12,7 +12,7 @@
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Model/AppModel/AudioClip.h"
 #include "Modules/Audio/AudioContext.h"
-#include "Modules/Task/TaskManager.h"
+#include <lite/Tasking/TaskManager.h>
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/ResolveAudioPathTask.h"
 #include "UI/Controls/AccentButton.h"

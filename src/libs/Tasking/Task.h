@@ -13,7 +13,7 @@
 #include <QRunnable>
 #include <QReadWriteLock>
 
-#include "Global/TaskGlobal.h"
+#include "TaskGlobal.h"
 #include <lite/Core/UniqueObject.h>
 
 class TaskStatus {

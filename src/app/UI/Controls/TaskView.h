@@ -7,7 +7,7 @@
 
 #include <QWidget>
 
-#include "Modules/Task/Task.h"
+#include <lite/Tasking/Task.h>
 
 class ProgressIndicator;
 class QLabel;

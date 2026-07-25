@@ -1,7 +1,7 @@
 #ifndef RESOLVEAUDIOPATHTASK_H
 #define RESOLVEAUDIOPATHTASK_H
 
-#include "Modules/Task/Task.h"
+#include <lite/Tasking/Task.h>
 
 // When the absolute path of an audio file is broken, relocates the file in the background, in candidate order:
 // 1. project dir + relativeDir + fileName (sha512 must match)

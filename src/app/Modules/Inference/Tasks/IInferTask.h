@@ -5,7 +5,7 @@
 #ifndef IINFERTASK_H
 #define IINFERTASK_H
 
-#include "Modules/Task/Task.h"
+#include <lite/Tasking/Task.h>
 #include "Modules/Inference/Models/InferenceTaskContext.h"
 #include <lite/Support/Macros.h>
 

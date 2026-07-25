@@ -8,7 +8,7 @@
 #include <QJsonObject>
 
 #include "Model/AppModel/AudioInfoModel.h"
-#include "Modules/Task/Task.h"
+#include <lite/Tasking/Task.h>
 
 namespace talcs {
     class AbstractAudioFormatIO;

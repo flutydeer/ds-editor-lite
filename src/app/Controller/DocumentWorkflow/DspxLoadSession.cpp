@@ -6,7 +6,7 @@
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/ProjectConverters/DspxProjectConverter.h"
-#include "Modules/Task/TaskManager.h"
+#include <lite/Tasking/TaskManager.h>
 
 #include <QFileInfo>
 

@@ -8,7 +8,7 @@
 #include "Controller/ModelChangeHandler.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/Task/TaskQueue.h"
+#include <lite/Tasking/TaskQueue.h>
 #include "Modules/Inference/EditSessionManager.h"
 #include "Modules/Inference/Models/InferenceTaskContext.h"
 #include "Modules/Inference/Models/PhonemeNameResult.h"

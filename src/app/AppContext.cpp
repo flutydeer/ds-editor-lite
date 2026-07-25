@@ -9,7 +9,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/Utils/ParamUtils.h"
-#include "Modules/Task/TaskManager.h"
+#include <lite/Tasking/TaskManager.h>
 #include "Modules/History/HistoryManager.h"
 #include "Modules/PackageManager/PackageManager.h"
 #include "Modules/SynthrtEngine/SynthrtEngine.h"
@@ -75,7 +75,7 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     m_paramUtils = new ParamUtils;
 
     // L1: Independent modules
-    m_taskManager = new TaskManager;
+    TaskManager::instance(); // force early construction on the main thread
     m_historyManager = new HistoryManager;
     m_packageManager = new PackageManager;
 
@@ -131,18 +131,20 @@ AppContext::~AppContext() {
 
     // Runtime users must finish before controllers and the runtime host are destroyed.
     const auto appThread = QCoreApplication::instance()->thread();
-    const auto drainTasks = [this, appThread] {
-        m_taskManager->terminateAllTasks();
-        m_taskManager->wait();
-        if (m_taskManager->thread() != appThread) {
-            m_taskManager->moveToThread(appThread);
+    const auto drainTasks = [appThread] {
+        auto *tm = TaskManager::instance();
+        tm->terminateAllTasks();
+        tm->wait();
+        if (tm->thread() != appThread) {
+            tm->moveToThread(appThread);
         }
     };
-    const auto taskThread = m_taskManager->thread();
+    const auto taskThread = TaskManager::instance()->thread();
     if (taskThread == QThread::currentThread() || !taskThread->isRunning()) {
         drainTasks();
     } else {
-        QMetaObject::invokeMethod(m_taskManager, drainTasks, Qt::BlockingQueuedConnection);
+        QMetaObject::invokeMethod(TaskManager::instance(), drainTasks,
+                                  Qt::BlockingQueuedConnection);
     }
 
     // Audio system
@@ -181,7 +183,6 @@ AppContext::~AppContext() {
     // L1 (reverse)
     delete m_packageManager;
     delete m_historyManager;
-    delete m_taskManager;
 
     // L0 (reverse)
     delete m_paramUtils;
@@ -198,7 +199,6 @@ template <> AppStatus *AppContext::instance() { return s_self ? s_self->m_appSta
 template <> AppOptions *AppContext::instance() { return s_self ? s_self->m_appOptions : nullptr; }
 template <> AppModel *AppContext::instance() { return s_self ? s_self->m_appModel : nullptr; }
 template <> ParamUtils *AppContext::instance() { return s_self ? s_self->m_paramUtils : nullptr; }
-template <> TaskManager *AppContext::instance() { return s_self ? s_self->m_taskManager : nullptr; }
 template <> HistoryManager *AppContext::instance() { return s_self ? s_self->m_historyManager : nullptr; }
 template <> PackageManager *AppContext::instance() { return s_self ? s_self->m_packageManager : nullptr; }
 template <> LangSetting::ILangSetManager *AppContext::instance() { return s_self ? s_self->m_iLangSetManager : nullptr; }

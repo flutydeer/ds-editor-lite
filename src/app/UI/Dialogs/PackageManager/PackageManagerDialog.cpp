@@ -6,7 +6,7 @@
 
 #include "Modules/PackageManager/PackageManager.h"
 #include "Modules/PackageManager/Tasks/GetInstalledPackagesTask.h"
-#include "Modules/Task/TaskManager.h"
+#include <lite/Tasking/TaskManager.h>
 #include "UI/Controls/Button.h"
 #include "UI/Controls/LineEdit.h"
 #include "UI/Dialogs/PackageManager/PackageDetailsContent.h"

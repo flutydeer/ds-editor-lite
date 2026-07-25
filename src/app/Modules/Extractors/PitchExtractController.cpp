@@ -9,7 +9,7 @@
 #include "Model/AppModel/AudioClip.h"
 #include "Model/AppModel/DrawCurve.h"
 #include "Modules/History/HistoryManager.h"
-#include "Modules/Task/TaskManager.h"
+#include <lite/Tasking/TaskManager.h>
 #include "UI/Controls/AccentButton.h"
 #include "UI/Controls/Toast.h"
 #include "UI/Dialogs/Base/TaskDialog.h"

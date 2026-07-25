@@ -10,7 +10,7 @@
 #include <lite/Support/VersionUtils.h>
 #include "Models/PackageInfo.h"
 #include "Models/SingerInfo.h"
-#include "Modules/Task/TaskManager.h"
+#include <lite/Tasking/TaskManager.h>
 #include "Tasks/GetInstalledPackagesTask.h"
 #include "Modules/SynthrtEngine/SynthrtEngine.h"
 

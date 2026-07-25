@@ -5,7 +5,7 @@
 #include "GetInstalledPackagesTask.h"
 
 #include "Modules/PackageManager/PackageManager.h"
-#include "Modules/Task/Task.h"
+#include <lite/Tasking/Task.h>
 
 GetInstalledPackagesTask::GetInstalledPackagesTask() {
     TaskStatus status;

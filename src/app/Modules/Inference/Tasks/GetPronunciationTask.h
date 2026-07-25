@@ -7,7 +7,7 @@
 
 #include "Modules/Inference/Models/NoteInferenceSnapshot.h"
 #include "Modules/PackageManager/Models/SingerInfo.h"
-#include "Modules/Task/Task.h"
+#include <lite/Tasking/Task.h>
 
 #include <QStringList>
 

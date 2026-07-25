@@ -2,7 +2,7 @@
 #define OPENDSPXPROJECTTASK_H
 
 #include "Modules/ProjectConverters/DspxProjectParser.h"
-#include "Modules/Task/Task.h"
+#include <lite/Tasking/Task.h>
 
 class OpenDspxProjectTask final : public Task {
 public:

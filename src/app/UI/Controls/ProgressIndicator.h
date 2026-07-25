@@ -11,7 +11,7 @@
 #include <QTimer>
 
 #include "UI/Utils/IAnimatable.h"
-#include "Global/TaskGlobal.h"
+#include <lite/Tasking/TaskGlobal.h>
 
 class ProgressIndicator : public QWidget, public IAnimatable {
     Q_OBJECT

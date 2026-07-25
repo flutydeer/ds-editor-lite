@@ -9,8 +9,6 @@
 
 #include <QThreadPool>
 
-#include "Utils/Singleton.h"
-
 class Task;
 class TaskManagerPrivate;
 
@@ -25,7 +23,9 @@ private:
     ~TaskManager() override;
 
 public:
-    LITE_SINGLETON_DECLARE_INSTANCE(TaskManager)
+    // Leaky Meyers singleton: task runtime below AppContext. AppContext drains
+    // it during teardown (terminate/wait) but no longer owns it.
+    static TaskManager *instance();
     Q_DISABLE_COPY_MOVE(TaskManager)
 
 public:
