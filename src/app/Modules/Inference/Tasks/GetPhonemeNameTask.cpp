@@ -6,7 +6,7 @@
 #include "PhonemeDistribution.h"
 
 #include "Global/AppGlobal.h"
-#include "Global/SingingClipSlicerGlobal.h"
+#include "Model/SingingClipSlicer/SingingClipSlicerGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/SynthrtEngine/SynthrtEngine.h"
 

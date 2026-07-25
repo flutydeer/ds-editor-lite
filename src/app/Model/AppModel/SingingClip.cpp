@@ -13,7 +13,7 @@
 #include "Model/InferenceData/InferPiece.h"
 #include "Timeline.h"
 #include "Track.h"
-#include "Modules/SingingClipSlicer/SingingClipSlicer.h"
+#include "Model/SingingClipSlicer/SingingClipSlicer.h"
 #include "Model/Utils/AppModelUtils.h"
 #include <lite/Support/MathUtils.h>
 

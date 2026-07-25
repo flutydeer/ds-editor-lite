@@ -4,7 +4,7 @@
 
 #include "SingingClipSlicer.h"
 
-#include "Global/SingingClipSlicerGlobal.h"
+#include "Model/SingingClipSlicer/SingingClipSlicerGlobal.h"
 #include "Model/AppModel/Note.h"
 #include "Model/AppModel/Timeline.h"
 

@@ -7,7 +7,7 @@
 #include "SingingClip.h"
 #include "Timeline.h"
 #include "Track.h"
-#include "Modules/SingingClipSlicer/SingingClipSlicer.h"
+#include "Model/SingingClipSlicer/SingingClipSlicer.h"
 #include "Utils/MusicTimeConverter.h"
 
 #include <algorithm>
