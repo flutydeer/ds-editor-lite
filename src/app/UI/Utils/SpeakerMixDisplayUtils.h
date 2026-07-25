@@ -3,7 +3,7 @@
 
 #include "Model/AppModel/SpeakerMixData.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
-#include "Modules/PackageManager/Models/SingerInfo.h"
+#include "Model/Voice/SingerInfo.h"
 
 #include <QCoreApplication>
 #include <QString>

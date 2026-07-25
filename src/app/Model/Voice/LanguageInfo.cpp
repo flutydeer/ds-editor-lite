@@ -1,4 +1,4 @@
-#include "LanguageInfo.h"
+#include "Model/Voice/LanguageInfo.h"
 #include <QDebug>
 #include <utility>
 

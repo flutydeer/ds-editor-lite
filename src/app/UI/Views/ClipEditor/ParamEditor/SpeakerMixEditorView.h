@@ -6,7 +6,7 @@
 #define SPEAKERMIXEDITORVIEW_H
 
 #include "Model/AppModel/SpeakerMixData.h"
-#include "Modules/PackageManager/Models/SpeakerInfo.h"
+#include "Model/Voice/SpeakerInfo.h"
 #include "UI/Views/Common/TimeOverlayView.h"
 
 #include <QColor>

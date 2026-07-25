@@ -1,4 +1,4 @@
-#include "SpeakerInfo.h"
+#include "Model/Voice/SpeakerInfo.h"
 #include <QDebug>
 #include <utility>
 

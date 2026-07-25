@@ -12,8 +12,8 @@
 #include "Global/AppGlobal.h"
 #include <lite/ADT/Property.h>
 #include "Model/AppModel/SingerIdentifier.h"
-#include "Modules/PackageManager/Models/SingerInfo.h"
-#include "Modules/PackageManager/Models/SpeakerInfo.h"
+#include "Model/Voice/SingerInfo.h"
+#include "Model/Voice/SpeakerInfo.h"
 
 class DrawCurve;
 class InferPiece;

@@ -8,9 +8,9 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Model/AppModel/Track.cpp
         ../../app/Model/AppModel/TrackControl.cpp
         ../../app/Model/AppModel/SpeakerMixData.cpp
-        ../../app/Modules/PackageManager/Models/SingerInfo.cpp
-        ../../app/Modules/PackageManager/Models/SpeakerInfo.cpp
-        ../../app/Modules/PackageManager/Models/LanguageInfo.cpp
+        ../../app/Model/Voice/SingerInfo.cpp
+        ../../app/Model/Voice/SpeakerInfo.cpp
+        ../../app/Model/Voice/LanguageInfo.cpp
         ../../libs/Core/IdGenerator.cpp
 )
 

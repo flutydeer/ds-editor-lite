@@ -3,7 +3,7 @@
 
 #include "Model/AppModel/SpeakerMixData.h"
 #include "Modules/History/IAction.h"
-#include "Modules/PackageManager/Models/SingerInfo.h"
+#include "Model/Voice/SingerInfo.h"
 
 class SingingClip;
 class SpeakerInfo;

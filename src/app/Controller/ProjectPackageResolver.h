@@ -7,8 +7,8 @@
 
 #define projectPackageResolver ProjectPackageResolver::instance()
 
-#include "Modules/PackageManager/Models/SingerInfo.h"
-#include "Modules/PackageManager/Models/SpeakerInfo.h"
+#include "Model/Voice/SingerInfo.h"
+#include "Model/Voice/SpeakerInfo.h"
 #include "Utils/Singleton.h"
 
 #include <QObject>

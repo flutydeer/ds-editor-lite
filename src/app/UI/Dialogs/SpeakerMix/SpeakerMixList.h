@@ -6,7 +6,7 @@
 #include <QVector>
 #include <QString>
 
-#include "Modules/PackageManager/Models/SpeakerInfo.h"
+#include "Model/Voice/SpeakerInfo.h"
 
 class QHBoxLayout;
 class ComboBox;

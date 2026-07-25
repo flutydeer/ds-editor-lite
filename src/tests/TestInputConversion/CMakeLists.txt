@@ -13,7 +13,7 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Model/AppModel/Tempo.cpp
         ../../app/Model/AppModel/TimeSignature.cpp
         ../../app/Utils/MusicTimeConverter.cpp
-        ../../app/Modules/PackageManager/Models/SpeakerInfo.cpp
+        ../../app/Model/Voice/SpeakerInfo.cpp
         ../../app/Modules/SynthrtEngine/SingerModelSession.cpp
 )
 

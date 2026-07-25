@@ -13,8 +13,8 @@
 #include "Model/InferenceData/InferPiece.h"
 #include "Model/InferenceData/InferSpeakerMix.h"
 #include "Modules/Inference/Models/SpeakerMixValidator.h"
-#include "Modules/PackageManager/Models/SingerInfo.h"
-#include "Modules/PackageManager/Models/SpeakerInfo.h"
+#include "Model/Voice/SingerInfo.h"
+#include "Model/Voice/SpeakerInfo.h"
 
 #include <QCoreApplication>
 #include <QTextStream>

@@ -2,7 +2,7 @@
 #define DS_EDITOR_LITE_SPEAKERMIXDIALOG_H
 
 #include "Model/AppModel/SpeakerMixData.h"
-#include "Modules/PackageManager/Models/SingerInfo.h"
+#include "Model/Voice/SingerInfo.h"
 #include "UI/Dialogs/Base/OKCancelDialog.h"
 
 #include <QMap>

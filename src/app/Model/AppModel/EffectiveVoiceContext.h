@@ -2,8 +2,8 @@
 #define EFFECTIVEVOICECONTEXT_H
 
 #include "SpeakerMixData.h"
-#include "Modules/PackageManager/Models/SingerInfo.h"
-#include "Modules/PackageManager/Models/SpeakerInfo.h"
+#include "Model/Voice/SingerInfo.h"
+#include "Model/Voice/SpeakerInfo.h"
 
 struct EffectiveVoiceContext {
     SingerInfo singer;

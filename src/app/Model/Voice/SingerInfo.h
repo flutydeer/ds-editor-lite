@@ -8,8 +8,8 @@
 #include <QVariant>
 #include <optional>
 
-#include "SpeakerInfo.h"
-#include "LanguageInfo.h"
+#include "Model/Voice/SpeakerInfo.h"
+#include "Model/Voice/LanguageInfo.h"
 #include "Model/AppModel/SingerIdentifier.h"
 
 class SingerInfoData;

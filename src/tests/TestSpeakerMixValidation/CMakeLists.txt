@@ -9,9 +9,9 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Modules/Inference/Models/GenericInferModel.cpp
         ../../app/Model/InferenceData/InferSpeakerMix.cpp
         ../../app/Modules/Inference/Models/SpeakerMixValidator.cpp
-        ../../app/Modules/PackageManager/Models/SpeakerInfo.cpp
-        ../../app/Modules/PackageManager/Models/SingerInfo.cpp
-        ../../app/Modules/PackageManager/Models/LanguageInfo.cpp
+        ../../app/Model/Voice/SpeakerInfo.cpp
+        ../../app/Model/Voice/SingerInfo.cpp
+        ../../app/Model/Voice/LanguageInfo.cpp
         ../../app/Model/AppModel/Timeline.cpp
         ../../app/Model/AppModel/Tempo.cpp
         ../../app/Model/AppModel/TimeSignature.cpp

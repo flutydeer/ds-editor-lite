@@ -5,7 +5,7 @@
 #ifndef SPEAKERMIXDATA_H
 #define SPEAKERMIXDATA_H
 
-#include "Modules/PackageManager/Models/SpeakerInfo.h"
+#include "Model/Voice/SpeakerInfo.h"
 
 #include <QList>
 #include <QString>

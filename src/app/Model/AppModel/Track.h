@@ -14,7 +14,7 @@
 #include <lite/Support/ISerializable.h>
 #include "Interface/ITrack.h"
 #include "Model/AppModel/SingerIdentifier.h"
-#include "Modules/PackageManager/Models/SingerInfo.h"
+#include "Model/Voice/SingerInfo.h"
 
 class Clip;
 
