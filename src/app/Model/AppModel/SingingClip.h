@@ -9,7 +9,6 @@
 #include "EffectiveVoiceContext.h"
 #include "Params.h"
 #include "SpeakerMixData.h"
-#include "Global/AppGlobal.h"
 #include <lite/ADT/Property.h>
 #include "Model/AppModel/SingerIdentifier.h"
 #include "Model/Voice/SingerInfo.h"

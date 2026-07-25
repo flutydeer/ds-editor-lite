@@ -3,7 +3,7 @@
 //
 
 #include "LoopSettings.h"
-#include "Global/AppGlobal.h"
+#include <lite/MusicBase/MusicTime.h>
 
 LoopSettings::LoopSettings(bool enabled, int start, int length)
     : enabled(enabled), start(start), length(length) {
@@ -20,7 +20,7 @@ QJsonObject LoopSettings::serialize() const {
 bool LoopSettings::deserialize(const QJsonObject &obj) {
     enabled = obj["enabled"].toBool(false);
     start = obj["start"].toInt(0);
-    length = obj["length"].toInt(AppGlobal::ticksPerWholeNote);
+    length = obj["length"].toInt(MusicTime::ticksPerWholeNote);
     return true;
 }
 

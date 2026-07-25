@@ -5,7 +5,7 @@
 #ifndef DSNOTE_H
 #define DSNOTE_H
 
-#include "Global/AppGlobal.h"
+#include <lite/MusicBase/MusicTime.h>
 #include <lite/ADT/Overlappable.h>
 #include <lite/Core/UniqueObject.h>
 #include "Phonemes.h"
@@ -89,7 +89,7 @@ private:
     QMap<QString, QJsonObject> m_workspace;
     QPointer<SingingClip> m_clip;
     int m_rStart = 0;
-    int m_length = AppGlobal::ticksPerQuarterNote;
+    int m_length = MusicTime::ticksPerQuarterNote;
     int m_keyIndex = 60;
     int m_centShift = 0;
 
