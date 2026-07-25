@@ -15,7 +15,6 @@ class ParamUtils;
 class TaskManager;
 class HistoryManager;
 class PackageManager;
-class IdGenerator;
 namespace LangSetting { class ILangSetManager; }
 class InferEngine;
 class SynthrtEngine;
@@ -58,7 +57,6 @@ public:
     ParamUtils *m_paramUtils = nullptr;
 
     // L1: Independent modules
-    IdGenerator *m_idGenerator = nullptr;
     TaskManager *m_taskManager = nullptr;
     HistoryManager *m_historyManager = nullptr;
     PackageManager *m_packageManager = nullptr;

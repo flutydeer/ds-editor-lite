@@ -6,7 +6,7 @@
 #define PRONUNCIATIONVIEW_H
 
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
-#include "Utils/UniqueObject.h"
+#include <lite/Core/UniqueObject.h>
 
 #include <QColor>
 

@@ -9,7 +9,7 @@
 #include "UI/Utils/OverlappableItem.h"
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
 #include <lite/ADT/Property.h>
-#include "Utils/UniqueObject.h"
+#include <lite/Core/UniqueObject.h>
 
 #include <QColor>
 

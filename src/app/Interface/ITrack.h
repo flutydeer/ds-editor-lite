@@ -6,7 +6,7 @@
 #define ITRACK_H
 
 #include "Model/AppModel/TrackControl.h"
-#include "Utils/UniqueObject.h"
+#include <lite/Core/UniqueObject.h>
 #include <lite/Support/Macros.h>
 
 #include <QString>

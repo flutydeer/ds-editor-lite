@@ -4,7 +4,7 @@
 
 #include "Model/InferenceData/InferPiece.h"
 #include "Model/AppModel/DrawCurve.h"
-#include "Utils/IdGenerator.h"
+#include <lite/Core/IdGenerator.h>
 
 // IdGenerator singleton stub (avoids pulling in AppContext / full singleton impl)
 IdGenerator *IdGenerator::instance() {

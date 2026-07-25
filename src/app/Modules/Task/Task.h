@@ -14,7 +14,7 @@
 #include <QReadWriteLock>
 
 #include "Global/TaskGlobal.h"
-#include "Utils/UniqueObject.h"
+#include <lite/Core/UniqueObject.h>
 
 class TaskStatus {
 public:

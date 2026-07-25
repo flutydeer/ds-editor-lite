@@ -9,7 +9,6 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/Utils/ParamUtils.h"
-#include "Utils/IdGenerator.h"
 #include "Modules/Task/TaskManager.h"
 #include "Modules/History/HistoryManager.h"
 #include "Modules/PackageManager/PackageManager.h"
@@ -76,7 +75,6 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     m_paramUtils = new ParamUtils;
 
     // L1: Independent modules
-    m_idGenerator = new IdGenerator;
     m_taskManager = new TaskManager;
     m_historyManager = new HistoryManager;
     m_packageManager = new PackageManager;
@@ -184,7 +182,6 @@ AppContext::~AppContext() {
     delete m_packageManager;
     delete m_historyManager;
     delete m_taskManager;
-    delete m_idGenerator;
 
     // L0 (reverse)
     delete m_paramUtils;
@@ -201,7 +198,6 @@ template <> AppStatus *AppContext::instance() { return s_self ? s_self->m_appSta
 template <> AppOptions *AppContext::instance() { return s_self ? s_self->m_appOptions : nullptr; }
 template <> AppModel *AppContext::instance() { return s_self ? s_self->m_appModel : nullptr; }
 template <> ParamUtils *AppContext::instance() { return s_self ? s_self->m_paramUtils : nullptr; }
-template <> IdGenerator *AppContext::instance() { return s_self ? s_self->m_idGenerator : nullptr; }
 template <> TaskManager *AppContext::instance() { return s_self ? s_self->m_taskManager : nullptr; }
 template <> HistoryManager *AppContext::instance() { return s_self ? s_self->m_historyManager : nullptr; }
 template <> PackageManager *AppContext::instance() { return s_self ? s_self->m_packageManager : nullptr; }

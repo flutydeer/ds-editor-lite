@@ -1,6 +1,6 @@
 #include "Model/AppModel/SingingClip.h"
 #include "AppContext.h"
-#include "Utils/IdGenerator.h"
+#include <lite/Core/IdGenerator.h>
 
 template <>
 IdGenerator *AppContext::instance<IdGenerator>() {

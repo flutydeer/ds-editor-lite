@@ -7,7 +7,7 @@
 
 #include "Global/AppGlobal.h"
 #include <lite/ADT/Overlappable.h>
-#include "Utils/UniqueObject.h"
+#include <lite/Core/UniqueObject.h>
 #include "Phonemes.h"
 #include "Pronunciation.h"
 

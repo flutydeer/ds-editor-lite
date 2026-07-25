@@ -6,7 +6,7 @@
 #define ICLIP_H
 
 #include <lite/Support/Macros.h>
-#include "Utils/UniqueObject.h"
+#include <lite/Core/UniqueObject.h>
 
 #include <QString>
 

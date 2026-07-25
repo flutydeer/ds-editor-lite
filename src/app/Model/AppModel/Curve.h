@@ -6,7 +6,7 @@
 #define DSCURVE_H
 
 #include <lite/ADT/Overlappable.h>
-#include "Utils/UniqueObject.h"
+#include <lite/Core/UniqueObject.h>
 
 #include <QPointer>
 

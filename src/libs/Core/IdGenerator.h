@@ -7,8 +7,6 @@
 
 #include <atomic>
 
-#include "Singleton.h"
-
 class IdGenerator {
 private:
     IdGenerator() : m_id(0) {
@@ -16,7 +14,8 @@ private:
     ~IdGenerator() = default;
 
 public:
-    LITE_SINGLETON_DECLARE_INSTANCE(IdGenerator)
+    // Plain Meyers singleton: identity infrastructure below AppContext.
+    static IdGenerator *instance();
 
     IdGenerator(const IdGenerator &) = delete;
     IdGenerator &operator=(const IdGenerator &) = delete;

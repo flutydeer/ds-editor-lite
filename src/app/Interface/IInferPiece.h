@@ -6,7 +6,7 @@
 #define IINFERPIECE_H
 
 #include <lite/Support/Macros.h>
-#include "Utils/UniqueObject.h"
+#include <lite/Core/UniqueObject.h>
 
 LITE_INTERFACE IInferPiece : public UniqueObject {
     I_DECL(IInferPiece)

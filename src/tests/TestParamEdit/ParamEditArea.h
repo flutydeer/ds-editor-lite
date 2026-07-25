@@ -6,7 +6,7 @@
 #define DATASET_TOOLS_PARAMEDITAREA_H
 
 #include <lite/ADT/Overlappable.h>
-#include "../../app/Utils/UniqueObject.h"
+#include <lite/Core/UniqueObject.h>
 #include <lite/ADT/OverlappableSerialList.h>
 
 #include <QFrame>

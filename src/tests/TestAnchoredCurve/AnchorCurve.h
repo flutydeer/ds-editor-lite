@@ -8,7 +8,7 @@
 #include "anchoredcurve.h"
 #include <lite/ADT/Overlappable.h>
 #include <lite/ADT/OverlappableSerialList.h>
-#include "../../app/Utils/UniqueObject.h"
+#include <lite/Core/UniqueObject.h>
 
 class AnchorNode : public Overlappable, public UniqueObject {
 public:

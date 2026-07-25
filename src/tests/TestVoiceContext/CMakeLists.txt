@@ -11,7 +11,7 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Modules/PackageManager/Models/SingerInfo.cpp
         ../../app/Modules/PackageManager/Models/SpeakerInfo.cpp
         ../../app/Modules/PackageManager/Models/LanguageInfo.cpp
-        ../../app/Utils/IdGenerator.cpp
+        ../../libs/Core/IdGenerator.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
