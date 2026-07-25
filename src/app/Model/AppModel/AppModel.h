@@ -10,7 +10,7 @@
 #include "Utils/Singleton.h"
 #include "Clip.h"
 #include "TimeSignature.h"
-#include "Interface/ISerializable.h"
+#include <lite/Support/ISerializable.h>
 #include "TrackControl.h"
 #include "ProjectModelData.h"
 

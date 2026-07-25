@@ -5,7 +5,7 @@
 #ifndef PHONEMES_H
 #define PHONEMES_H
 
-#include "Interface/ISerializable.h"
+#include <lite/Support/ISerializable.h>
 
 #include <QList>
 

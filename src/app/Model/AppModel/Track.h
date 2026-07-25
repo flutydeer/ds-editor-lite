@@ -11,7 +11,7 @@
 #include "Model/AppModel/SpeakerMixData.h"
 #include <lite/ADT/OverlappableSerialList.h>
 #include "TrackControl.h"
-#include "Interface/ISerializable.h"
+#include <lite/Support/ISerializable.h>
 #include "Interface/ITrack.h"
 #include "Model/AppModel/SingerIdentifier.h"
 #include "Modules/PackageManager/Models/SingerInfo.h"

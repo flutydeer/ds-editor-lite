@@ -5,7 +5,7 @@
 #ifndef DSTRACKCONTROL_H
 #define DSTRACKCONTROL_H
 
-#include "Interface/ISerializable.h"
+#include <lite/Support/ISerializable.h>
 
 class TrackControl : public ISerializable {
 public:

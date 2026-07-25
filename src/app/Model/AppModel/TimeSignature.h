@@ -5,7 +5,7 @@
 #ifndef TIMESIGNATURE_H
 #define TIMESIGNATURE_H
 
-#include "Interface/ISerializable.h"
+#include <lite/Support/ISerializable.h>
 
 class TimeSignature : ISerializable {
 public:

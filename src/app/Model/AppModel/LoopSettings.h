@@ -5,7 +5,7 @@
 #ifndef LOOPSETTINGS_H
 #define LOOPSETTINGS_H
 
-#include "Interface/ISerializable.h"
+#include <lite/Support/ISerializable.h>
 
 class LoopSettings : public ISerializable {
 public:

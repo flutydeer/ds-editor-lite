@@ -5,8 +5,8 @@
 #ifndef GENERICINFERMODEL_H
 #define GENERICINFERMODEL_H
 
-#include "Interface/IHashProvider.h"
-#include "Interface/ISerializable.h"
+#include <lite/Support/IHashProvider.h>
+#include <lite/Support/ISerializable.h>
 #include "Model/InferenceData/InferSpeakerMix.h"
 #include "Model/AppModel/SingerIdentifier.h"
 
