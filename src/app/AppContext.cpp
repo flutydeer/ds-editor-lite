@@ -225,11 +225,5 @@ template <> LevelMeterManager *AppContext::instance() { return s_self ? s_self->
 // These specializations return nullptr so the LITE_SINGLETON_IMPLEMENT_INSTANCE fallback
 // to Meyers static kicks in.
 class Toast;
-class AppColorPalette;
-class TextPixmapCache;
-class ThemeManager;
 
 template <> Toast *AppContext::instance() { return nullptr; }
-template <> AppColorPalette *AppContext::instance() { return nullptr; }
-template <> TextPixmapCache *AppContext::instance() { return nullptr; }
-template <> ThemeManager *AppContext::instance() { return nullptr; }

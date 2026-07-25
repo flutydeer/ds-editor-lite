@@ -11,7 +11,6 @@
 #include <QPointer>
 #include <QString>
 
-#include "Utils/Singleton.h"
 #include "UI/Utils/AnimationGlobal.h"
 
 class IAnimatable;
@@ -26,7 +25,7 @@ private:
     ~ThemeManager() override;
 
 public:
-    LITE_SINGLETON_DECLARE_INSTANCE(ThemeManager)
+    static ThemeManager *instance();
     Q_DISABLE_COPY_MOVE(ThemeManager)
 
     // --- Theme loading ---

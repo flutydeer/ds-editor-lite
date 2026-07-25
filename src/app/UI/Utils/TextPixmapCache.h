@@ -5,7 +5,6 @@
 #ifndef TEXTPIXMAPCACHE_H
 #define TEXTPIXMAPCACHE_H
 
-#include "Utils/Singleton.h"
 
 #include <QColor>
 #include <QFont>
@@ -24,7 +23,7 @@ public:
         bool operator==(const Key &other) const;
     };
 
-    LITE_SINGLETON_DECLARE_INSTANCE(TextPixmapCache)
+    static TextPixmapCache *instance();
     Q_DISABLE_COPY_MOVE(TextPixmapCache)
 
     QPixmap get(const Key &key) const;

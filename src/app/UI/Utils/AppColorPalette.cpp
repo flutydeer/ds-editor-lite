@@ -6,7 +6,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-LITE_SINGLETON_IMPLEMENT_INSTANCE(AppColorPalette)
+AppColorPalette *AppColorPalette::instance() {
+    static AppColorPalette obj;
+    return &obj;
+}
 
 AppColorPalette::AppColorPalette() {
     m_palette.fill(QColor(155, 186, 255), colorCount);

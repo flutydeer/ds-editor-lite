@@ -6,7 +6,10 @@
 
 #include <QtGlobal>
 
-LITE_SINGLETON_IMPLEMENT_INSTANCE(TextPixmapCache)
+TextPixmapCache *TextPixmapCache::instance() {
+    static TextPixmapCache obj;
+    return &obj;
+}
 
 bool TextPixmapCache::Key::operator==(const Key &other) const {
     return text == other.text && font == other.font && 

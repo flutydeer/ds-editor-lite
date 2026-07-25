@@ -28,7 +28,10 @@ ThemeManager::ThemeManager(QObject *parent) : QObject(parent) {
 
 ThemeManager::~ThemeManager() = default;
 
-LITE_SINGLETON_IMPLEMENT_INSTANCE(ThemeManager)
+ThemeManager *ThemeManager::instance() {
+    static ThemeManager obj;
+    return &obj;
+}
 
 // ── Theme loading ────────────────────────────────────────────────────────
 
