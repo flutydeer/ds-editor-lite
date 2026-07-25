@@ -4,9 +4,9 @@
 
 #include "Model/InferenceData/InferPiece.h"
 
-#include "Model/AppModel/AppModel.h"
 #include "Model/AppModel/SingingClip.h"
 #include "Model/AppModel/Note.h"
+#include <lite/MusicBase/MusicTimeConverter.h>
 
 #include <algorithm>
 
@@ -19,8 +19,7 @@ int InferPiece::clipId() const {
     return clip->id();
 }
 
-int InferPiece::localStartTick() const {
-    // TODO: 传入时间轴
+int InferPiece::localStartTick(double tempo) const {
     int extraPaddingMs = 0;
     if (!notes.isEmpty()) {
         const auto &offsets = notes.first()->phonemeOffsetSeq().result();
@@ -30,13 +29,13 @@ int InferPiece::localStartTick() const {
                 extraPaddingMs = -minOffset;
         }
     }
-    const int paddingTicks = qRound(appModel->msToTick(paddingStartMs + extraPaddingMs));
+    const int paddingTicks =
+        qRound(MusicTimeConverter::msToTick(paddingStartMs + extraPaddingMs, tempo));
     return notes.first()->localStart() - paddingTicks;
 }
 
-int InferPiece::localEndTick() const {
-    // TODO: 传入时间轴
-    const int paddingTicks = qRound(appModel->msToTick(paddingEndMs));
+int InferPiece::localEndTick(double tempo) const {
+    const int paddingTicks = qRound(MusicTimeConverter::msToTick(paddingEndMs, tempo));
     return notes.last()->localStart() + notes.last()->length() + paddingTicks;
 }
 

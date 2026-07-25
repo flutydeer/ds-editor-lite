@@ -245,7 +245,7 @@ namespace InferControllerHelper {
             } else {
                 const auto baseValue = paramUtils->getPropertiesByName(name)->defaultValue;
                 if (auto resultCurve = AppModelUtils::getResultCurve(
-                        {piece->localStartTick(), piece->localEndTick()}, baseValue, editedCurves);
+                        {piece->localStartTick(appModel->tempo()), piece->localEndTick(appModel->tempo())}, baseValue, editedCurves);
                     resultCurve != input) {
                     piece->setInputCurve(name, resultCurve);
                     result.append(piece);
@@ -307,7 +307,7 @@ namespace InferControllerHelper {
     void updateParam(const ParamInfo::Name name, const InferParamCurve &taskResult,
                      InferPiece &piece, int scale, int smoothKernelSize) {
         const auto &[alignTick, alignValues] = CurveUtil::alignCurve(
-            piece.localStartTick(), 5, {taskResult.values.begin(), taskResult.values.end()}, 5);
+            piece.localStartTick(appModel->tempo()), 5, {taskResult.values.begin(), taskResult.values.end()}, 5);
 
         if (smoothKernelSize < 0)
             smoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;

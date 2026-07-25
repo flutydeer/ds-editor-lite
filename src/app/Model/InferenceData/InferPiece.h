@@ -60,8 +60,8 @@ public:
     explicit InferPiece(SingingClip *clip);
 
     [[nodiscard]] int clipId() const override;
-    [[nodiscard]] int localStartTick() const;
-    [[nodiscard]] int localEndTick() const;
+    [[nodiscard]] int localStartTick(double tempo) const;
+    [[nodiscard]] int localEndTick(double tempo) const;
 
     [[nodiscard]] const DrawCurve *getOriginalCurve(ParamInfo::Name name) const;
     void setOriginalCurve(ParamInfo::Name name, const DrawCurve &curve);

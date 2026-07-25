@@ -749,8 +749,8 @@ void PhonemeView::onWaveformReady(const int clipId, const int pieceId, const qui
 
     PieceWaveform wf;
     wf.painter = painter;
-    wf.globalStartTick = piece->localStartTick() + clipOffset;
-    wf.globalEndTick = piece->localEndTick() + clipOffset;
+    wf.globalStartTick = piece->localStartTick(appModel->tempo()) + clipOffset;
+    wf.globalEndTick = piece->localEndTick(appModel->tempo()) + clipOffset;
 
     if (m_pieceWaveforms.contains(piece))
         delete m_pieceWaveforms[piece].painter;

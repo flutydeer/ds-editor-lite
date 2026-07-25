@@ -45,7 +45,7 @@ namespace {
         const auto piece = clip->findPieceById(pieceId);
         if (!piece)
             return {};
-        return {piece->localStartTick() + clip->start(), piece->localEndTick() + clip->start()};
+        return {piece->localStartTick(appModel->tempo()) + clip->start(), piece->localEndTick(appModel->tempo()) + clip->start()};
     }
 
     QList<NoteInferenceSnapshot> buildNoteInferenceSnapshots(const SingingClip &clip) {
@@ -92,8 +92,8 @@ namespace {
         const Timeline timeline{{{0, appModel->tempo()}}};
         for (const auto piece : clip.pieces()) {
             const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
-                clip.speakerMixData(), clip.speakerId(), piece->localStartTick(),
-                piece->localEndTick(), timeline);
+                clip.speakerMixData(), clip.speakerId(), piece->localStartTick(appModel->tempo()),
+                piece->localEndTick(appModel->tempo()), timeline);
             if (piece->identifier != identifier || piece->speakerMix != speakerMix)
                 return false;
         }
@@ -473,8 +473,8 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
     const Timeline timeline{{{0, appModel->tempo()}}};
     for (const auto piece : clip->pieces()) {
         const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
-            clip->speakerMixData(), clip->speakerId(), piece->localStartTick(),
-            piece->localEndTick(), timeline);
+            clip->speakerMixData(), clip->speakerId(), piece->localStartTick(appModel->tempo()),
+            piece->localEndTick(appModel->tempo()), timeline);
         piece->speakerMix = speakerMix;
         piece->speaker = speakerMix.fallbackSpeaker;
         Helper::resetPitch(*piece);

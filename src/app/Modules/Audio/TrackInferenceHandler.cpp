@@ -221,8 +221,8 @@ void TrackInferenceHandler::syncInferPiecePosition(const InferPiece *inferPiece)
     if (!inferencePieceContext)
         return;
 
-    const auto start = inferPiece->localStartTick();
-    const auto end = inferPiece->localEndTick();
+    const auto start = inferPiece->localStartTick(appModel->tempo());
+    const auto end = inferPiece->localEndTick(appModel->tempo());
     inferencePieceContext->setPos(start);
     inferencePieceContext->setLength(end - start);
 }
