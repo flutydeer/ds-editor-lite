@@ -23,7 +23,7 @@
 
 ## Context
 
-当前工程只支持**单一曲速 + 单一拍号**。`src/app/Model/AppModel/Timeline.cpp` 虽然已经持有 `QList<Tempo>` / `QList<TimeSignature>`，但所有换算一律取 `.first()`（作者自己留了 `// TODO 支持多曲速`）；`src/app/Model/AppModel/AppModel.h` 实际存的是 `double m_tempo` + 单个 `TimeSignature`。
+当前工程只支持**单一曲速 + 单一拍号**。`src/libs/MusicBase/Timeline.cpp` 虽然已经持有 `QList<Tempo>` / `QList<TimeSignature>`，但所有换算一律取 `.first()`（作者自己留了 `// TODO 支持多曲速`）；`src/app/Model/AppModel/AppModel.h` 实际存的是 `double m_tempo` + 单个 `TimeSignature`。
 
 "tempo 是全局常量"这一假设已渗透进 5 个子系统：21 处 `appModel->tempo()`、9 处 `appModel->timeSignature()`、25 处 `tempoChanged` 连接、14 个文件缓存了各自的 `m_tempo` 副本。
 
@@ -66,15 +66,15 @@
 
 ### 改动
 
-- `src/app/Model/AppModel/Timeline.h` / `Timeline.cpp`
+- `src/libs/MusicBase/Timeline.h` / `Timeline.cpp`
   - 曲速侧：`msecSumMap`（tick → 累计毫秒）+ 反向表，`upperBound` 二分 + 增量重算
   - 拍号侧：`measureMap`（tick → 小节号）+ `revMeasureMap`（小节号 → tick），独立维护
   - 新增 API：`tempoAt(tick)` / `timeSignatureAt(bar)` / `nearestTickWithTempoTo(tick)` / `nearestBarWithTimeSignatureTo(bar)` / `barToTick(bar)` / `timeToTick(bar,beat,tick)`
   - 保留 `tickToMs` / `msToTick` 的 **`double` 返回值**（推理链路依赖亚 tick 精度；svscraft 的 `msecToTick` 返回 `int`，**不可照抄**）
   - 反向查找**不要用 `QMap<double,int>`**（svscraft 的做法，浮点做 key 有精度隐患）——用有序 `QList` + `std::upper_bound`
 - 新增 `MusicTime` 值类型（measure/beat/tick 三元组 + `fromString`/`toString`），替代现在返回格式化字符串的 `getBarBeatTickTime`
-- `src/app/Model/AppModel/TimeSignature.h`：`pos` 改名为 `barIndex` 并明确为小节号语义（现在只有一个拍号且 pos=0，改名成本极低；以后改是数据兼容性问题）
-- `src/app/Utils/MusicTimeConverter.cpp` 降级为 Timeline 内部实现细节
+- `src/libs/MusicBase/TimeSignature.h`：`pos` 改名为 `barIndex` 并明确为小节号语义（现在只有一个拍号且 pos=0，改名成本极低；以后改是数据兼容性问题）
+- `src/libs/MusicBase/MusicTimeConverter.cpp` 降级为 Timeline 内部实现细节
 
 ### 参考
 
@@ -168,7 +168,7 @@ for (bar = startBar; bar <= endBar; bar++) {
 
 同步更新继承者：`src/app/UI/Views/Common/TimelineView.cpp`、`src/app/UI/Views/Common/TimeGridView.cpp`。
 
-标尺上顺带加拍号标签（参考 scopicflow `src/internal/TimelineScaleQuickItem.cpp:253-260`）：仅当 `nearestBarWithTimeSignatureTo(bar) == bar` 时，在小节号右侧多画一个 "n/d"。lite 已有 `src/app/UI/Utils/TextPixmapCache.h`，加一种 key 即可。
+标尺上顺带加拍号标签（参考 scopicflow `src/internal/TimelineScaleQuickItem.cpp:253-260`）：仅当 `nearestBarWithTimeSignatureTo(bar) == bar` 时，在小节号右侧多画一个 "n/d"。lite 已有 `src/libs/GUI/Utils/TextPixmapCache.h`，加一种 key 即可。
 
 ### 验收
 
@@ -184,7 +184,7 @@ for (bar = startBar; bar <= endBar; bar++) {
 
 ### 改动
 
-- `src/app/Utils/TimelineSnapUtils.h`：`snapNearest(tick, step)` 是从 tick 0 起的全局等分，新增以**所在小节起点为基准**的重载。此处 **diffscope 无参照实现**（其 `TimeManipulator::alignPosition` 也是纯全局等分），需自行设计。
+- `src/libs/MusicBase/TimelineSnapUtils.h`：`snapNearest(tick, step)` 是从 tick 0 起的全局等分，新增以**所在小节起点为基准**的重载。此处 **diffscope 无参照实现**（其 `TimeManipulator::alignPosition` 也是纯全局等分），需自行设计。
 - 所有拖动路径改用新重载：note / clip / loop 标记（`src/app/UI/Views/Common/TimelineView.cpp:272-274`）
 - `src/app/UI/Views/MainTitleBar/PlaybackView.cpp` 的 Bar:Beat:Tick 显示改用 `MusicTime`；新增跳转输入（依赖阶段 1 的 `timeToTick`）
 - `src/app/Model/AppModel/AppModel.cpp:169-172` 的 `length = ticksPerWholeNote * numerator / denominator * bars` 改走 timeline
@@ -312,7 +312,7 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 - 右键菜单双态（按 `nearestTickWithTempoTo(tick) == tick` 判定）
 - 编辑对话框（参考 diffscope `src/plugins/coreplugin/qml/dialogs/EditTempoDialog.qml`）
 - 撤销 Action 三类：扩展 `src/app/Controller/Actions/AppModel/Tempo/TempoActions.h` / `EditTempoAction.cpp`（现在只是 `setTempo(old/new)` 二元操作）
-- `src/app/UI/Views/MainTitleBar/TempoComboBox.cpp` / `TempoPopupWidget.cpp` / `src/app/UI/Controls/TapTempoButton.cpp` 改为作用于播放头所在段
+- `src/app/UI/Views/MainTitleBar/TempoComboBox.cpp` / `TempoPopupWidget.cpp` / `src/libs/GUI/Controls/TapTempoButton.cpp` 改为作用于播放头所在段
 - 曲速变化时的推理失效：保留 `src/app/Model/AppModel/AppModel.cpp:46-56` 中 `setTempo` 里的 `bumpInferenceRevision()`，但优化为只失效受影响 tick 范围内的 piece
 
 ### 验收
@@ -328,7 +328,7 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 
 - [ ] 边界 case：同位置多点、极端曲速值、极端拍号、大量曲速点时的绘制性能（缓存命中率）
 - [ ] i18n：`src/app/Resources/translate/translation_zh_CN.ts` 有 13 处相关条目，新增菜单/对话框文案需补齐
-- [ ] 清理三处历史 TODO：`src/app/Model/AppModel/Timeline.cpp:9`、`src/app/Model/AppModel/SingingClip.cpp:107`、`src/app/UI/Views/Common/TimelineView.cpp:381`
+- [ ] 清理三处历史 TODO：`src/libs/MusicBase/Timeline.cpp:9`、`src/app/Model/AppModel/SingingClip.cpp:107`、`src/app/UI/Views/Common/TimelineView.cpp:381`
 - [ ] （可选）补齐 diffscope 也没做完的两处近似：标尺抽稀层级按 4/4 硬算、拍线可见性假设 beat = 四分音符
 
 ---
