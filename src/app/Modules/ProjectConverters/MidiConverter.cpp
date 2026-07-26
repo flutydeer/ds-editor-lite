@@ -41,7 +41,8 @@ static QList<Note *> convertNotes(const std::vector<opendspx::Note> &arrNotes, c
     return notes;
 }
 
-static void convertClips(const opendspx::Track &track, Track *dsTrack, const QString &language) {
+static void convertClips(const opendspx::Track &track, Track *dsTrack, const QString &language,
+                         const Timeline &timeline) {
     for (auto &clip : track.clips) {
         if (clip->type == opendspx::Clip::Type::Singing) {
             const auto singClip = std::static_pointer_cast<opendspx::SingingClip>(clip);
@@ -65,10 +66,13 @@ static void convertClips(const opendspx::Track &track, Track *dsTrack, const QSt
             const auto start = clip->time.pos - clip->time.clipStart;
             audioClip->setStart(start);
             audioClip->setClipStart(clip->time.clipStart);
-            audioClip->setLength(clip->time.clipLen);
+            audioClip->setLength(qMax(clip->time.length, clip->time.clipLen));
             audioClip->setClipLen(clip->time.clipLen);
             audioClip->setPath(
                 QString::fromStdString(std::static_pointer_cast<opendspx::AudioClip>(clip)->path));
+            // Ticks in the source file are authoritative; establish the
+            // realtime anchor under the timeline that was just applied
+            audioClip->syncTruthFromTicks(timeline);
             dsTrack->insertClip(audioClip);
         }
     }
@@ -80,7 +84,7 @@ static void convertTracks(const opendspx::Model &dspx, AppModel *model, const QS
         const auto dsTrack = new Track;
         dsTrack->setName(QString::fromStdString(track.name));
         dsTrack->setDefaultLanguage(language);
-        convertClips(track, dsTrack, language);
+        convertClips(track, dsTrack, language, model->timeline());
         model->insertTrack(dsTrack, count);
         count++;
     }

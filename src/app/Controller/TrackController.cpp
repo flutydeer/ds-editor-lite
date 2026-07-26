@@ -410,6 +410,17 @@ void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex
             newClip->setGain(srcClip->gain());
             newClip->setMute(srcClip->mute());
             newClip->workspace() = srcClip->workspace();
+            if (newClip->clipType() == IClip::Audio) {
+                const auto audioNew = static_cast<AudioClip *>(newClip);
+                const auto audioSrc = static_cast<AudioClip *>(srcClip);
+                if (audioSrc->hasRealTimeAnchor())
+                    audioNew->setRealTimeAnchor(audioSrc->trimStartMs(), audioSrc->playLengthMs(),
+                                                audioSrc->materialLengthMs());
+                else
+                    audioNew->syncTruthFromTicks(appModel->timeline());
+                // Re-derive the caches at the paste position
+                audioNew->updateTicksFromTruth(appModel->timeline());
+            }
             newClips.append(newClip);
             targetTracks.append(appModel->tracks().at(targetTrackIndex));
         }
@@ -453,9 +464,14 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
     const auto result = task->result();
 
     const auto sampleRate = result.sampleRate;
-    const auto tempo = appModel->timeline().tempoAt(0);
     const auto frames = result.frames;
-    const auto length = frames / (sampleRate * 60 / tempo / AppGlobal::ticksPerQuarterNote);
+    // Realtime truth comes from the file duration; ticks are derived at the
+    // drop position under the current tempo map
+    const auto &timeline = appModel->timeline();
+    const double durationMs =
+        sampleRate > 0 ? static_cast<double>(frames) * 1000.0 / sampleRate : 0.0;
+    const double posMs = timeline.tickToMs(tick);
+    const int length = qMax(1, qRound(timeline.msToTick(posMs + durationMs)) - tick);
 
     const auto audioClip = new AudioClip;
     audioClip->setName(QFileInfo(path).baseName());
@@ -465,6 +481,7 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
     audioClip->setClipLen(length);
     audioClip->setPath(path);
     audioClip->setAudioInfo(result);
+    audioClip->setRealTimeAnchor(0, durationMs, durationMs);
     audioClip->workspace().insert("diffscope.audio.formatData", task->workspace);
     audioClip->setPathInfo({DiffscopeAudioWorkspace::relativeDirFor(
                                 path, documentWorkflowController->projectPath()),

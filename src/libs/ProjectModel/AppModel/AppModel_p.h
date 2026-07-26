@@ -20,6 +20,9 @@ public:
 
     void reset();
     void dispose();
+    // Re-derive audio clip tick caches from their realtime truth under the
+    // current timeline (called after any tempo-affecting timeline mutation)
+    void updateAudioClipTickCaches() const;
 
     Timeline m_timeline;
     TrackControl m_masterControl;

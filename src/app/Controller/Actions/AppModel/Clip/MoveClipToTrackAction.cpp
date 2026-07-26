@@ -4,8 +4,24 @@
 
 #include "MoveClipToTrackAction.h"
 
+#include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+
+namespace {
+    void applyArgs(Clip *clip, const Clip::ClipCommonProperties &args) {
+        clip->setName(args.name);
+        clip->setStart(args.start);
+        clip->setClipStart(args.clipStart);
+        clip->setLength(args.length);
+        clip->setClipLen(args.clipLen);
+        if (clip->clipType() == IClip::Audio) {
+            static_cast<AudioClip *>(clip)->applyRealTimeAnchorFromProperties(
+                args, appModel->timeline());
+        }
+    }
+}
 
 MoveClipToTrackAction *MoveClipToTrackAction::build(const Clip::ClipCommonProperties &oldArgs,
                                                     const Clip::ClipCommonProperties &newArgs,
@@ -16,16 +32,19 @@ MoveClipToTrackAction *MoveClipToTrackAction::build(const Clip::ClipCommonProper
     a->m_clip = clip;
     a->m_oldTrack = oldTrack;
     a->m_newTrack = newTrack;
+    if (clip->clipType() == IClip::Audio) {
+        const auto &timeline = appModel->timeline();
+        if (a->m_oldArgs.playLengthMs < 0)
+            AudioClip::deriveTruthForProperties(a->m_oldArgs, timeline);
+        if (a->m_newArgs.playLengthMs < 0)
+            AudioClip::deriveTruthForProperties(a->m_newArgs, timeline);
+    }
     return a;
 }
 
 void MoveClipToTrackAction::execute() {
     m_oldTrack->removeClip(m_clip);
-    m_clip->setName(m_newArgs.name);
-    m_clip->setStart(m_newArgs.start);
-    m_clip->setClipStart(m_newArgs.clipStart);
-    m_clip->setLength(m_newArgs.length);
-    m_clip->setClipLen(m_newArgs.clipLen);
+    applyArgs(m_clip, m_newArgs);
     m_newTrack->insertClip(m_clip);
     if (m_clip->clipType() == IClip::Singing) {
         const auto singingClip = static_cast<SingingClip *>(m_clip);
@@ -39,11 +58,7 @@ void MoveClipToTrackAction::execute() {
 
 void MoveClipToTrackAction::undo() {
     m_newTrack->removeClip(m_clip);
-    m_clip->setName(m_oldArgs.name);
-    m_clip->setStart(m_oldArgs.start);
-    m_clip->setClipStart(m_oldArgs.clipStart);
-    m_clip->setLength(m_oldArgs.length);
-    m_clip->setClipLen(m_oldArgs.clipLen);
+    applyArgs(m_clip, m_oldArgs);
     m_oldTrack->insertClip(m_clip);
     if (m_clip->clipType() == IClip::Singing) {
         const auto singingClip = static_cast<SingingClip *>(m_clip);

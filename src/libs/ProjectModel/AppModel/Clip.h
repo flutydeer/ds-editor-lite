@@ -61,6 +61,11 @@ public:
         int clipLen = 0;
         double gain = 0;
         bool mute = false;
+        // Realtime truth carried for audio clips only; negative = derive from
+        // the tick fields under the timeline current at execution time
+        double trimStartMs = -1;
+        double playLengthMs = -1;
+        double materialLengthMs = -1;
     };
 
 signals:

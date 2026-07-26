@@ -5,51 +5,9 @@
 #include "TempoActions.h"
 
 #include "EditTempoAction.h"
-#include "Controller/Actions/AppModel/Clip/EditClipCommonPropertiesAction.h"
-#include <lite/ProjectModel/AppModel/AppModel.h>
-#include <lite/ProjectModel/AppModel/AudioClip.h>
-#include <lite/ProjectModel/AppModel/Track.h>
-#include "Global/AppGlobal.h"
 
 void TempoActions::editTempo(const double oldTempo, const double newTempo, AppModel *model) {
+    // Audio clips are anchored in real time; their tick caches are re-derived
+    // inside AppModel::setTempo, so no per-clip re-anchoring action is needed
     addAction(EditTempoAction::build(oldTempo, newTempo, model));
-
-    // Update audio clips' length
-    for (const auto track : model->tracks()) {
-        for (const auto clip : track->clips()) {
-            if (clip->clipType() == Clip::Audio) {
-                const auto audioClip = dynamic_cast<AudioClip *>(clip);
-                const auto audioInfo = audioClip->audioInfo();
-                Clip::ClipCommonProperties oldArgs(*clip);
-                auto newArgs = oldArgs;
-                auto chunksPerTick = static_cast<double>(audioInfo.sampleRate) /
-                                     audioInfo.chunkSize * 60 / newTempo / AppGlobal::ticksPerQuarterNote;
-
-                const auto oldStartInMs = tickToMs(oldArgs.start, oldTempo);
-                newArgs.start = msToTick(oldStartInMs, newTempo);
-
-                const auto oldClipStartInMs = tickToMs(oldArgs.clipStart, oldTempo);
-                newArgs.clipStart = msToTick(oldClipStartInMs, newTempo);
-
-                auto targetLength = static_cast<int>(audioInfo.frames /
-                                                     (audioInfo.sampleRate * 60 / newTempo / AppGlobal::ticksPerQuarterNote));
-                newArgs.length = targetLength;
-
-                const auto oldClipLenInMs = oldArgs.clipLen * 60 / oldTempo / AppGlobal::ticksPerQuarterNote * 1000;
-                auto targetClipLen = static_cast<int>(oldClipLenInMs * AppGlobal::ticksPerQuarterNote * newTempo / 60000);
-                newArgs.clipLen = targetClipLen > targetLength ? targetLength : targetClipLen;
-
-                const auto action = EditClipCommonPropertiesAction::build(oldArgs, newArgs, clip, track);
-                addAction(action);
-            }
-        }
-    }
-}
-
-double TempoActions::tickToMs(const int tick, const double tempo) {
-    return tick * 60 / tempo / AppGlobal::ticksPerQuarterNote * 1000;
-}
-
-int TempoActions::msToTick(const double ms, const double tempo) {
-    return static_cast<int>(ms * AppGlobal::ticksPerQuarterNote * tempo / 60000);
 }

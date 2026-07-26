@@ -5,6 +5,7 @@
 #include "InsertTrackAction.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 
 InsertTrackAction *InsertTrackAction::build(Track *track, const qsizetype index, AppModel *model) {
@@ -21,6 +22,15 @@ InsertTrackAction::~InsertTrackAction() = default;
 void InsertTrackAction::execute() {
     if (m_ownedTrack)
         m_ownedTrack.release();
+    // Imported tracks may carry audio clips whose ticks are authoritative;
+    // establish the realtime anchor under the timeline in effect now
+    for (const auto clip : m_track->clips()) {
+        if (clip->clipType() != IClip::Audio)
+            continue;
+        const auto audioClip = static_cast<AudioClip *>(clip);
+        if (!audioClip->hasRealTimeAnchor())
+            audioClip->syncTruthFromTicks(m_model->timeline());
+    }
     m_model->insertTrack(m_track, m_index);
 }
 

@@ -5,6 +5,7 @@
 #include "AppModel.h"
 
 #include "AppModel_p.h"
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/Support/MathUtils.h>
@@ -34,6 +35,8 @@ void AppModel::setTimeline(Timeline timeline) {
     const bool temposChanged = d->m_timeline.tempos() != timeline.tempos();
     d->m_timeline = std::move(timeline);
     if (temposChanged) {
+        // Audio clips are anchored in real time; their tick caches follow the map
+        d->updateAudioClipTickCaches();
         for (const auto track : d->m_tracks) {
             for (const auto clip : track->clips()) {
                 if (clip->clipType() == IClip::Singing)
@@ -53,6 +56,7 @@ void AppModel::setTimeSignature(const TimeSignature &signature) {
 void AppModel::setTempo(const double tempo) {
     Q_D(AppModel);
     d->m_timeline.addTempo({0, tempo});
+    d->updateAudioClipTickCaches();
     for (const auto track : d->m_tracks) {
         for (const auto clip : track->clips()) {
             if (clip->clipType() == IClip::Singing)
@@ -164,6 +168,12 @@ void AppModel::replaceProject(ProjectModelData &&data) {
         if (track->defaultLanguage().isEmpty() || track->defaultLanguage() == "unknown")
             track->setDefaultLanguage(defaultLanguage);
         for (const auto clip : track->clips()) {
+            if (clip->clipType() == IClip::Audio) {
+                // dspx stores ticks only; establish the realtime truth under
+                // the timeline the ticks were saved with
+                static_cast<AudioClip *>(clip)->syncTruthFromTicks(d->m_timeline);
+                continue;
+            }
             if (clip->clipType() != IClip::Singing)
                 continue;
             const auto singingClip = static_cast<SingingClip *>(clip);
@@ -345,6 +355,29 @@ void AppModelPrivate::reset() {
     m_masterControl = TrackControl();
     m_previousTracks = m_tracks;
     m_tracks.clear();
+}
+
+void AppModelPrivate::updateAudioClipTickCaches() const {
+    for (const auto track : m_tracks) {
+        for (const auto clip : track->clips()) {
+            if (clip->clipType() != IClip::Audio)
+                continue;
+            const auto audioClip = static_cast<AudioClip *>(clip);
+            if (!audioClip->hasRealTimeAnchor()) {
+                // Clips inserted through paths that predate the realtime
+                // anchor: adopt the current ticks as truth
+                audioClip->syncTruthFromTicks(m_timeline);
+                continue;
+            }
+            // Reindex around the mutation: the overlap list keys on the
+            // interval captured at insertion time
+            track->removeClip(audioClip);
+            const bool changed = audioClip->updateTicksFromTruth(m_timeline);
+            track->insertClip(audioClip);
+            if (changed)
+                audioClip->notifyPropertyChanged();
+        }
+    }
 }
 
 void AppModelPrivate::dispose() {

@@ -245,6 +245,12 @@ QJsonObject ClipsInfo::serializeToJson(const ClipsInfo &info) {
             obj["path"] = audioClip->path();
             obj["relativeDir"] = audioClip->pathInfo().relativeDir;
             obj["sha512"] = audioClip->pathInfo().sha512;
+            // Realtime truth so paste after a tempo edit stays time-accurate
+            if (audioClip->hasRealTimeAnchor()) {
+                obj["trimStartMs"] = audioClip->trimStartMs();
+                obj["playLengthMs"] = audioClip->playLengthMs();
+                obj["materialLengthMs"] = audioClip->materialLengthMs();
+            }
         }
 
         clipList.append(obj);
@@ -300,6 +306,11 @@ ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
 
         if (clip) {
             deserializeClipCommon(clip, obj);
+            if (type == "audio" && obj.contains("playLengthMs")) {
+                static_cast<AudioClip *>(clip)->setRealTimeAnchor(
+                    obj["trimStartMs"].toDouble(), obj["playLengthMs"].toDouble(),
+                    obj["materialLengthMs"].toDouble());
+            }
             info.clips.append(clip);
         }
     }
