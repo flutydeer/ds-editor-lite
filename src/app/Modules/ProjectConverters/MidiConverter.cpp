@@ -270,15 +270,16 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
     const auto hasTempo = !timeline.tempos.empty();
 
     if (hasTimeSignature) {
-        const auto &ts = timeline.timeSignatures.front();
-        if (ts.denominator != 2 && ts.denominator != 4 && ts.denominator != 8 &&
-            ts.denominator != 16) {
-            errMsg = QCoreApplication::translate(
-                         "MidiConverter",
-                         "Failed to load MIDI file.\ntimeSignatures denominator must be: 2, 4, "
-                         "8, 16\ncurrent denominator: %1")
-                         .arg(ts.denominator);
-            return LoadStatus::Failed;
+        for (const auto &ts : timeline.timeSignatures) {
+            if (ts.denominator != 2 && ts.denominator != 4 && ts.denominator != 8 &&
+                ts.denominator != 16) {
+                errMsg = QCoreApplication::translate(
+                             "MidiConverter",
+                             "Failed to load MIDI file.\ntimeSignatures denominator must be: 2, 4, "
+                             "8, 16\ncurrent denominator: %1")
+                             .arg(ts.denominator);
+                return LoadStatus::Failed;
+            }
         }
     }
 
@@ -287,20 +288,23 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
         return LoadStatus::Failed;
     }
 
+    auto newTimeline = model->timeline();
     if (hasTimeSignature) {
-        const auto &ts = timeline.timeSignatures.front();
-        const auto currentSignature = model->timeline().timeSignatureAt(0);
-        if (currentSignature.numerator != ts.numerator ||
-            currentSignature.denominator != ts.denominator) {
-            model->setTimeSignature({ts.numerator, ts.denominator});
-        }
+        QList<TimeSignature> signatures;
+        signatures.reserve(static_cast<qsizetype>(timeline.timeSignatures.size()));
+        for (const auto &ts : timeline.timeSignatures)
+            signatures.append(TimeSignature(ts.index, ts.numerator, ts.denominator));
+        newTimeline.setTimeSignatures(std::move(signatures));
     }
-
     if (hasTempo) {
-        const auto &tempoVal = timeline.tempos.front().value;
-        if (qAbs(model->timeline().tempoAt(0) - tempoVal) > 0.001)
-            model->setTempo(tempoVal);
+        QList<Tempo> tempos;
+        tempos.reserve(static_cast<qsizetype>(timeline.tempos.size()));
+        for (const auto &tempo : timeline.tempos)
+            tempos.append({tempo.pos, tempo.value});
+        newTimeline.setTempos(std::move(tempos));
     }
+    if (newTimeline != model->timeline())
+        model->setTimeline(std::move(newTimeline));
 
     if (!midiDspx.content.tracks.empty()) {
         convertTracks(midiDspx, model, language);
@@ -317,9 +321,10 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
     opendspx::Model dspx;
     opendspx::MidiConverter midiConverter;
 
-    dspx.content.timeline.tempos.push_back({0, model->timeline().tempoAt(0)});
-    const auto ts = model->timeline().timeSignatureAt(0);
-    dspx.content.timeline.timeSignatures.push_back({0, ts.numerator, ts.denominator});
+    for (const auto &tempo : model->timeline().tempos())
+        dspx.content.timeline.tempos.push_back({tempo.pos, tempo.value});
+    for (const auto &ts : model->timeline().timeSignatures())
+        dspx.content.timeline.timeSignatures.push_back({ts.barIndex, ts.numerator, ts.denominator});
 
     encodeTracks(model, dspx);
 

@@ -1039,16 +1039,32 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
         return false;
     }
 
-    const auto &timeSignature = timeline.timeSignatures.front();
-    const auto &tempo = timeline.tempos.front();
-    if (timeSignature.numerator <= 0 || timeSignature.denominator <= 0 || tempo.value <= 0) {
-        errMsg = QCoreApplication::translate(
-            "DspxProjectConverter", "Failed to load project file: timeline values are invalid.");
-        return false;
+    QList<Tempo> tempos;
+    tempos.reserve(static_cast<qsizetype>(timeline.tempos.size()));
+    for (const auto &tempo : timeline.tempos) {
+        if (tempo.value <= 0 || tempo.pos < 0) {
+            errMsg = QCoreApplication::translate(
+                "DspxProjectConverter",
+                "Failed to load project file: timeline values are invalid.");
+            return false;
+        }
+        tempos.append({tempo.pos, tempo.value});
     }
-
-    model->setTimeSignature(TimeSignature(timeSignature.numerator, timeSignature.denominator));
-    model->setTempo(tempo.value);
+    QList<TimeSignature> timeSignatures;
+    timeSignatures.reserve(static_cast<qsizetype>(timeline.timeSignatures.size()));
+    for (const auto &signature : timeline.timeSignatures) {
+        if (signature.numerator <= 0 || signature.denominator <= 0 || signature.index < 0) {
+            errMsg = QCoreApplication::translate(
+                "DspxProjectConverter",
+                "Failed to load project file: timeline values are invalid.");
+            return false;
+        }
+        // opendspx::TimeSignature::index is the measure number the signature
+        // takes effect at; it maps directly onto TimeSignature::barIndex.
+        timeSignatures.append(TimeSignature(signature.index, signature.numerator,
+                                            signature.denominator));
+    }
+    model->setTimeline(Timeline(std::move(tempos), std::move(timeSignatures)));
     auto masterControl = TrackControl();
     masterControl.setGain(dspxModel.content.master.control.gain);
     masterControl.setPan(dspxModel.content.master.control.pan);
@@ -1299,10 +1315,11 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     dspxModel.content.master.control.pan = masterControl.pan();
     dspxModel.content.master.control.mute = masterControl.mute();
     auto &timeline = dspxModel.content.timeline;
-    const auto signature = model->timeline().timeSignatureAt(0);
-    timeline.tempos.push_back(opendspx::Tempo(0, model->timeline().tempoAt(0)));
-    timeline.timeSignatures.push_back(
-        opendspx::TimeSignature(0, signature.numerator, signature.denominator));
+    for (const auto &tempo : model->timeline().tempos())
+        timeline.tempos.push_back(opendspx::Tempo{tempo.pos, tempo.value});
+    for (const auto &signature : model->timeline().timeSignatures())
+        timeline.timeSignatures.push_back(opendspx::TimeSignature{
+            signature.barIndex, signature.numerator, signature.denominator});
 
     encodeTracks(model, dspxModel);
 
