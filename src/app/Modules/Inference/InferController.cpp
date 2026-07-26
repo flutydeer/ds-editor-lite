@@ -804,6 +804,16 @@ void InferControllerPrivate::recreateAllInferTasks() {
                 Helper::resetPhoneOffset(piece->notes, *piece);
                 piece->dirty = true;
             }
+            // Marking pieces dirty is not enough: no other event re-drives
+            // the clip after a tempo change, so re-segment with the current
+            // timeline (dirty pieces are all replaced) and start fresh
+            // pipelines. Pipelines of discarded pieces are cleaned up by
+            // handlePiecesChanged via the piecesChanged signal.
+            if (singingClip->pieces().isEmpty() || !canStartClipInference(*singingClip))
+                continue;
+            const auto result = singingClip->reSegment(appModel->timeline());
+            for (const auto piece : result.addedPieces)
+                createPipeline(*piece);
         }
 }
 
