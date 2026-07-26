@@ -5,7 +5,7 @@
 #ifndef TRACKSVIEW_H
 #define TRACKSVIEW_H
 
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Interface/EditorViewState.h"
 #include "Interface/HistoryFocus.h"

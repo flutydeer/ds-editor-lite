@@ -6,7 +6,7 @@
 #include "Global/AppGlobal.h"
 #include "Interface/EditorViewState.h"
 #include "Interface/HistoryFocus.h"
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 
 #include <QObject>
 #include <optional>

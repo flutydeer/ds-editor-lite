@@ -4,7 +4,7 @@
 
 #include "InsertTrackAction.h"
 
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 
 InsertTrackAction *InsertTrackAction::build(Track *track, const qsizetype index, AppModel *model) {

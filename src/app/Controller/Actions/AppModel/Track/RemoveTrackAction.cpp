@@ -4,7 +4,7 @@
 
 #include "RemoveTrackAction.h"
 
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 
 RemoveTrackAction *RemoveTrackAction::build(Track *track, AppModel *model) {

@@ -7,7 +7,7 @@
 #include "ExtractorUtils.h"
 
 #include "AppContext.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/SynthrtEngine/SynthrtEngine.h"
 #include <lite/Support/StringUtils.h>

@@ -4,7 +4,7 @@
 
 #include "ProjectStatusController.h"
 
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Global/AppGlobal.h"
 

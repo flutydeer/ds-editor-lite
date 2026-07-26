@@ -10,7 +10,7 @@
 #include <memory>
 #include <mutex>
 
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
 #include <QReadWriteLock>
@@ -54,13 +54,16 @@ public:
     std::shared_ptr<SingerModelSession>
         acquireSingerSession(const SingerIdentifier &identifier) const;
 
+    // Kicks off asynchronous initialization; called by the owner after
+    // construction.
+    void startInitialization();
+
 private:
     friend class InitInferEngineTask;
     friend class InferDurationTask;
     friend class InferPitchTask;
     friend class InferVarianceTask;
     friend class InferAcousticTask;
-    void startInitialization();
     bool initialize(QString &error);
     void dispose();
 

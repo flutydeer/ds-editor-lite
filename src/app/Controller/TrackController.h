@@ -11,7 +11,7 @@
 #include <lite/ProjectModel/AppModel/Clip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Tasks/DecodeAudioTask.h"
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 
 #include <QObject>
 

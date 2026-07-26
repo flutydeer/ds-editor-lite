@@ -2,7 +2,7 @@
 
 #include "Controller/AudioDecodingController.h"
 #include "Controller/TrackController.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Modules/Audio/AudioContext.h"

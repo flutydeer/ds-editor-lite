@@ -7,8 +7,8 @@
 
 #define playbackController PlaybackController::instance()
 
-#include "Model/AppModel/AppModel.h"
-#include "Utils/Singleton.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/Core/Singleton.h>
 #include "Global/PlaybackGlobal.h"
 
 #include <QObject>

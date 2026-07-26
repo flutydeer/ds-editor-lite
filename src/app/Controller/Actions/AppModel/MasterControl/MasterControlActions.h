@@ -5,7 +5,7 @@
 #ifndef MASTERCONTROLACTIONS_H
 #define MASTERCONTROLACTIONS_H
 
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Modules/History/ActionSequence.h"
 
 class MasterControlActions : public ActionSequence {

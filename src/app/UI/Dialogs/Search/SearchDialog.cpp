@@ -2,7 +2,7 @@
 
 #include "Controller/ClipController.h"
 #include "Controller/EditorViewController.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 
 #include <QApplication>

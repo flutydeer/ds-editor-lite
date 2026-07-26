@@ -8,7 +8,7 @@
 #define pitchExtractController PitchExtractController::instance()
 
 #include "Controller/ModelChangeHandler.h"
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 
 
 class ExtractPitchTask;

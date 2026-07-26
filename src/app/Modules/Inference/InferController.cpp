@@ -18,7 +18,7 @@
 #include "Utils/ValidationUtils.h"
 #include "Controller/PlaybackController.h"
 #include "InferPipeline.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Modules/Inference/EditSessionManager.h"
 
 #include <QTimer>

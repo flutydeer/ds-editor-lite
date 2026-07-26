@@ -7,7 +7,7 @@
 
 #define historyManager HistoryManager::instance()
 
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 
 #include <QObject>
 

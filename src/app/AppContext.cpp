@@ -4,8 +4,10 @@
 
 #include "AppContext.h"
 
+#include <lite/Core/SingletonRegistry.h>
+
 // Business singletons — all headers included here
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/Utils/ParamUtils.h"
@@ -68,44 +70,53 @@ AppContext *AppContext::s_self = nullptr;
 AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     s_self = this;
 
+    // SingletonRegistry::create constructs each service (bypassing its private ctor via
+    // the SingletonRegistry friendship) and registers it immediately, so that a later
+    // service's constructor — which may call Xxx::instance() — resolves the
+    // owned instance instead of falling back to a stray Meyers static. This
+    // object still owns the returned pointers and tears them down, in reverse,
+    // via SingletonRegistry::destroy in the destructor.
+
     // L0: Basic data models (no dependencies)
-    m_appStatus = new AppStatus;
+    m_appStatus = SingletonRegistry::create<AppStatus>();
+    // AppOptions is constructed by main() and handed in; just register it.
     m_appOptions = options.release();
-    m_appModel = new AppModel;
-    m_paramUtils = new ParamUtils;
+    SingletonRegistry::add(m_appOptions);
+    m_appModel = SingletonRegistry::create<AppModel>();
+    m_paramUtils = SingletonRegistry::create<ParamUtils>();
 
     // L1: Independent modules
     TaskManager::instance(); // force early construction on the main thread
-    m_historyManager = new HistoryManager;
-    m_packageManager = new PackageManager;
+    m_historyManager = SingletonRegistry::create<HistoryManager>();
+    m_packageManager = SingletonRegistry::create<PackageManager>();
 
     // L3: Runtime host must outlive the inference facade.
-    m_synthrtEngine = new SynthrtEngine;
-    m_inferEngine = new InferEngine;
+    m_synthrtEngine = SingletonRegistry::create<SynthrtEngine>();
+    m_inferEngine = SingletonRegistry::create<InferEngine>();
     m_inferEngine->startInitialization();
 
     // Level meter manager (depends on AppModel from L0)
-    m_levelMeterManager = new LevelMeterManager(m_appModel);
+    m_levelMeterManager = SingletonRegistry::create<LevelMeterManager>(m_appModel);
 
     // L4: Controllers (no construction-time cross-deps)
-    m_audioDecodingController = new AudioDecodingController;
-    m_clipboardController = new ClipboardController;
-    m_trackController = new TrackController;
-    m_clipController = new ClipController;
-    m_editorViewController = new EditorViewController;
-    m_undoRedoController = new UndoRedoController;
-    m_pitchExtractController = new PitchExtractController;
-    m_midiExtractController = new MidiExtractController;
-    m_editSessionManager = new EditSessionManager;
+    m_audioDecodingController = SingletonRegistry::create<AudioDecodingController>();
+    m_clipboardController = SingletonRegistry::create<ClipboardController>();
+    m_trackController = SingletonRegistry::create<TrackController>();
+    m_clipController = SingletonRegistry::create<ClipController>();
+    m_editorViewController = SingletonRegistry::create<EditorViewController>();
+    m_undoRedoController = SingletonRegistry::create<UndoRedoController>();
+    m_pitchExtractController = SingletonRegistry::create<PitchExtractController>();
+    m_midiExtractController = SingletonRegistry::create<MidiExtractController>();
+    m_editSessionManager = SingletonRegistry::create<EditSessionManager>();
 
     // L5: Controllers with construction-time deps
-    m_playbackController = new PlaybackController;
-    m_projectStatusController = new ProjectStatusController;
+    m_playbackController = SingletonRegistry::create<PlaybackController>();
+    m_projectStatusController = SingletonRegistry::create<ProjectStatusController>();
     // ProjectPackageResolver connects to AppModel + PackageManager + AppStatus
-    m_projectPackageResolver = new ProjectPackageResolver;
+    m_projectPackageResolver = SingletonRegistry::create<ProjectPackageResolver>();
 
     // L6: InferController connects to AppOptions, AppStatus, EditSessionManager, PlaybackController
-    m_inferController = new InferController;
+    m_inferController = SingletonRegistry::create<InferController>();
 
     // Audio system (replaces old AudioSystemContext)
     m_audio = std::make_unique<AudioSystemContext>();
@@ -118,16 +129,16 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     // Its constructor calls initializeModules() which triggers instance() calls
     // to InferEngine, ProjectPackageResolver, InferController, etc.
     // — all already constructed above, so instance() will return valid pointers.
-    m_appController = new AppController;
-    m_documentWorkflowController = new DocumentWorkflowController;
+    m_appController = SingletonRegistry::create<AppController>();
+    m_documentWorkflowController = SingletonRegistry::create<DocumentWorkflowController>();
 }
 
 AppContext::~AppContext() {
     // Reverse order of construction.
-    delete m_documentWorkflowController;
+    SingletonRegistry::destroy(m_documentWorkflowController);
 
     // L7: AppController dies while MainWindow is still on the stack.
-    delete m_appController;
+    SingletonRegistry::destroy(m_appController);
 
     // Runtime users must finish before controllers and the runtime host are destroyed.
     const auto appThread = QCoreApplication::instance()->thread();
@@ -155,41 +166,42 @@ AppContext::~AppContext() {
 #endif
 
     // L6
-    delete m_inferController;
+    SingletonRegistry::destroy(m_inferController);
 
     // L5 (reverse)
-    delete m_projectPackageResolver;
-    delete m_projectStatusController;
-    delete m_playbackController;
+    SingletonRegistry::destroy(m_projectPackageResolver);
+    SingletonRegistry::destroy(m_projectStatusController);
+    SingletonRegistry::destroy(m_playbackController);
 
     // L4 (reverse)
-    delete m_editSessionManager;
-    delete m_midiExtractController;
-    delete m_pitchExtractController;
-    delete m_undoRedoController;
-    delete m_editorViewController;
-    delete m_clipController;
-    delete m_trackController;
-    delete m_clipboardController;
-    delete m_audioDecodingController;
+    SingletonRegistry::destroy(m_editSessionManager);
+    SingletonRegistry::destroy(m_midiExtractController);
+    SingletonRegistry::destroy(m_pitchExtractController);
+    SingletonRegistry::destroy(m_undoRedoController);
+    SingletonRegistry::destroy(m_editorViewController);
+    SingletonRegistry::destroy(m_clipController);
+    SingletonRegistry::destroy(m_trackController);
+    SingletonRegistry::destroy(m_clipboardController);
+    SingletonRegistry::destroy(m_audioDecodingController);
 
     // L3
-    delete m_inferEngine;
-    delete m_synthrtEngine;
+    SingletonRegistry::destroy(m_inferEngine);
+    SingletonRegistry::destroy(m_synthrtEngine);
 
     // Level meter manager (depends on AppModel, must die before L0)
-    delete m_levelMeterManager;
+    SingletonRegistry::destroy(m_levelMeterManager);
 
     // L1 (reverse)
-    delete m_packageManager;
-    delete m_historyManager;
+    SingletonRegistry::destroy(m_packageManager);
+    SingletonRegistry::destroy(m_historyManager);
 
     // L0 (reverse)
-    delete m_paramUtils;
-    delete m_appModel;
-    delete m_appOptions;
-    delete m_appStatus;
+    SingletonRegistry::destroy(m_paramUtils);
+    SingletonRegistry::destroy(m_appModel);
+    SingletonRegistry::destroy(m_appOptions);
+    SingletonRegistry::destroy(m_appStatus);
 
+    SingletonRegistry::clear();
     s_self = nullptr;
 }
 

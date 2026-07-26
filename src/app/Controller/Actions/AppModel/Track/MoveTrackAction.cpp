@@ -4,7 +4,7 @@
 
 #include "MoveTrackAction.h"
 
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 
 MoveTrackAction *MoveTrackAction::build(const qsizetype fromIndex, const qsizetype toIndex,
                                          AppModel *model) {

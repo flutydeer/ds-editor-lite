@@ -4,7 +4,7 @@
 
 #include "EditTempoAction.h"
 
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 
 EditTempoAction *EditTempoAction::build(const double oldTempo, const double newTempo, AppModel *model) {
     const auto a = new EditTempoAction;

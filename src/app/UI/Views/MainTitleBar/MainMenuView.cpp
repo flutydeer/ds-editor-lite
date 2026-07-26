@@ -12,7 +12,7 @@
 #include "Controller/ClipController.h"
 #include "Controller/TrackController.h"
 #include "Global/ControllerGlobal.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"

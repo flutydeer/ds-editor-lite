@@ -1,5 +1,6 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/ActionSequence.h"
+#include "AppContext.h"
 #include "Modules/History/HistoryManager.h"
 #include "Utils/ConditionalTransition.h"
 

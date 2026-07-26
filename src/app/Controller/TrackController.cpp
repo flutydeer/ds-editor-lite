@@ -8,7 +8,7 @@
 #include "EditorViewController.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/AudioInfoModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>

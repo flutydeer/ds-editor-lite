@@ -1,6 +1,6 @@
 #include "SingingClipPhonemeNormalizer.h"
 
-#include "AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/Phonemes.h>

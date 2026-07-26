@@ -9,7 +9,7 @@
 
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
 #include <lite/ADT/Property.h>
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 
 #include <QObject>
 #include "Global/AppGlobal.h"

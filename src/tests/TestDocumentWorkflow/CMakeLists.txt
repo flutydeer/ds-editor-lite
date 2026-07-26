@@ -17,6 +17,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core StateMachine)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
+        lite::Core
         Qt${QT_VERSION_MAJOR}::Core
         Qt${QT_VERSION_MAJOR}::StateMachine
 )

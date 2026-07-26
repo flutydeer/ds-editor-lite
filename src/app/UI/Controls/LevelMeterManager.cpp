@@ -1,6 +1,6 @@
 #include "LevelMeterManager.h"
 #include <lite/GUI/Controls/LevelMeterViewModel.h>
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 
 LevelMeterManager::LevelMeterManager(AppModel *model, QObject *parent)

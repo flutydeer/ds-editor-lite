@@ -7,7 +7,7 @@
 
 #define appModel AppModel::instance()
 
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 #include <lite/MusicBase/TimeSignature.h>
 #include <lite/Support/ISerializable.h>
@@ -38,6 +38,10 @@ public:
     void setTempo(double tempo);
     TrackControl masterControl() const;
     void setMasterControl(const TrackControl &control);
+    // Defaults for newly created tracks, supplied by the app layer so the model
+    // does not depend on AppOptions / the app-wide color palette.
+    void setDefaultSingingLanguage(const QString &language);
+    void setPaletteColorCount(int count);
     const QList<Track *> &tracks() const;
     void insertTrack(Track *track, qsizetype index);
     void appendTrack(Track *track);
