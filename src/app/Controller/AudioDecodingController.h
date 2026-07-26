@@ -7,7 +7,7 @@
 
 #define audioDecodingController AudioDecodingController::instance()
 
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 #include "Model/AppModel/AppModel.h"
 #include <lite/ProjectModel/AppModel/Track.h>
 

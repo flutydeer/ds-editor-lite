@@ -10,7 +10,7 @@
 #include <memory>
 #include <mutex>
 
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
 #include <QReadWriteLock>

@@ -14,7 +14,7 @@
 #include "Modules/PackageManager/Models/GetInstalledPackagesResult.h"
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/ADT/Expected.h>
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 
 #include <QObject>
 #include <QMutex>

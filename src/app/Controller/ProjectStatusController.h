@@ -6,7 +6,7 @@
 #define PROJECTSTATUSCONTROLLER_H
 
 #include "ModelChangeHandler.h"
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 
 class ProjectStatusController final : public ModelChangeHandler {
     Q_OBJECT

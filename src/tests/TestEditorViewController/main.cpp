@@ -1,5 +1,6 @@
 #include "Controller/EditorViewController.h"
 #include "Interface/IEditorView.h"
+#include "AppContext.h"
 #include "Interface/IPanel.h"
 
 #include <QCoreApplication>

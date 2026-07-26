@@ -7,7 +7,7 @@
 
 #define appOptions AppOptions::instance()
 
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 #include "Options/AppearanceOption.h"
 #include "Options/AudioOption.h"
 #include "Options/DeveloperOption.h"

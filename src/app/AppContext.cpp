@@ -4,6 +4,8 @@
 
 #include "AppContext.h"
 
+#include <lite/Core/Registry.h>
+
 // Business singletons — all headers included here
 #include "Model/AppModel/AppModel.h"
 #include "Model/AppOptions/AppOptions.h"
@@ -68,44 +70,71 @@ AppContext *AppContext::s_self = nullptr;
 AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     s_self = this;
 
+    // Each service is registered with the process Registry immediately after
+    // construction, so that a later service's constructor (which may call
+    // Xxx::instance()) resolves the owned instance instead of falling back to a
+    // stray Meyers static. Destruction clears the Registry (see the destructor).
+
     // L0: Basic data models (no dependencies)
     m_appStatus = new AppStatus;
+    Registry::add(m_appStatus);
     m_appOptions = options.release();
+    Registry::add(m_appOptions);
     m_appModel = new AppModel;
+    Registry::add(m_appModel);
     m_paramUtils = new ParamUtils;
+    Registry::add(m_paramUtils);
 
     // L1: Independent modules
     TaskManager::instance(); // force early construction on the main thread
     m_historyManager = new HistoryManager;
+    Registry::add(m_historyManager);
     m_packageManager = new PackageManager;
+    Registry::add(m_packageManager);
 
     // L3: Runtime host must outlive the inference facade.
     m_synthrtEngine = new SynthrtEngine;
+    Registry::add(m_synthrtEngine);
     m_inferEngine = new InferEngine;
+    Registry::add(m_inferEngine);
     m_inferEngine->startInitialization();
 
     // Level meter manager (depends on AppModel from L0)
     m_levelMeterManager = new LevelMeterManager(m_appModel);
+    Registry::add(m_levelMeterManager);
 
     // L4: Controllers (no construction-time cross-deps)
     m_audioDecodingController = new AudioDecodingController;
+    Registry::add(m_audioDecodingController);
     m_clipboardController = new ClipboardController;
+    Registry::add(m_clipboardController);
     m_trackController = new TrackController;
+    Registry::add(m_trackController);
     m_clipController = new ClipController;
+    Registry::add(m_clipController);
     m_editorViewController = new EditorViewController;
+    Registry::add(m_editorViewController);
     m_undoRedoController = new UndoRedoController;
+    Registry::add(m_undoRedoController);
     m_pitchExtractController = new PitchExtractController;
+    Registry::add(m_pitchExtractController);
     m_midiExtractController = new MidiExtractController;
+    Registry::add(m_midiExtractController);
     m_editSessionManager = new EditSessionManager;
+    Registry::add(m_editSessionManager);
 
     // L5: Controllers with construction-time deps
     m_playbackController = new PlaybackController;
+    Registry::add(m_playbackController);
     m_projectStatusController = new ProjectStatusController;
+    Registry::add(m_projectStatusController);
     // ProjectPackageResolver connects to AppModel + PackageManager + AppStatus
     m_projectPackageResolver = new ProjectPackageResolver;
+    Registry::add(m_projectPackageResolver);
 
     // L6: InferController connects to AppOptions, AppStatus, EditSessionManager, PlaybackController
     m_inferController = new InferController;
+    Registry::add(m_inferController);
 
     // Audio system (replaces old AudioSystemContext)
     m_audio = std::make_unique<AudioSystemContext>();
@@ -119,7 +148,9 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     // to InferEngine, ProjectPackageResolver, InferController, etc.
     // — all already constructed above, so instance() will return valid pointers.
     m_appController = new AppController;
+    Registry::add(m_appController);
     m_documentWorkflowController = new DocumentWorkflowController;
+    Registry::add(m_documentWorkflowController);
 }
 
 AppContext::~AppContext() {
@@ -190,6 +221,7 @@ AppContext::~AppContext() {
     delete m_appOptions;
     delete m_appStatus;
 
+    Registry::clear();
     s_self = nullptr;
 }
 

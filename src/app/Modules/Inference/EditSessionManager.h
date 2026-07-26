@@ -9,7 +9,7 @@
 
 #include <lite/ProjectModel/AppModel/Params.h>
 #include "Model/AppStatus/AppStatus.h"
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 
 #include <QObject>
 

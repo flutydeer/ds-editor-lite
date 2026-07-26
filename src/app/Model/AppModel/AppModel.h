@@ -7,7 +7,7 @@
 
 #define appModel AppModel::instance()
 
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 #include <lite/MusicBase/TimeSignature.h>
 #include <lite/Support/ISerializable.h>

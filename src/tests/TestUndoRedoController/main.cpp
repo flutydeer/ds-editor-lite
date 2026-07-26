@@ -1,5 +1,6 @@
 #include "Controller/EditorViewController.h"
 #include "Controller/UndoRedoController.h"
+#include "AppContext.h"
 #include "Interface/IEditorView.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/History/ActionSequence.h"

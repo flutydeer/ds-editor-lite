@@ -9,7 +9,7 @@
 
 #include <lite/ProjectModel/Voice/SingerInfo.h>
 #include <lite/ProjectModel/Voice/SpeakerInfo.h>
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 
 #include <QObject>
 

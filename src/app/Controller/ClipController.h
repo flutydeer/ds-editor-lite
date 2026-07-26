@@ -11,7 +11,7 @@
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/Params.h>
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
-#include "Utils/Singleton.h"
+#include <lite/Core/Singleton.h>
 
 #include <QObject>
 
