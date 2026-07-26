@@ -293,6 +293,8 @@ for (bar = startBar; bar <= endBar; bar++) {
 - 引擎三元组在 `AudioContext::feedCompensatedPosition`（含"勿用于演唱 clip"注释）；`handleTimeChanged` 改为重喂三元组 + 无条件 `updatePosition`
 - 波形未采用 diffscope 的显式 section 列表，改为逐像素边界的绝对 tick→ms 映射（`tickToSamplePos`/`samplePosAtTick`），单曲速下与旧公式数学等价；PhonemeView 在 timelineChanged 时重对齐存活 piece 波形
 - `Clip.h` 补 `<QJsonObject>` include（moc 自包含）
+- 审查修复 `f8c3057f`：新增 `AudioClip::preserveUnchangedTruth`——纯移动保留 trim/播放时长，只有对应 tick 分量变化时才重定义真相分量（否则跨段拖动会用落点 tick 几何改写真相，可能播出静音）
+- 人工验收修复 `52695594`（2026-07-27）：轨道区拖动改为 **ms 真相预览**。此前 Move 预览按 tick 几何平移（clipStart/clipLen tick 不变），跨段时素材内容相对光标漂移、松手时几何跳变。现在：①按下时捕获真相窗口与按下点的 ms 偏移；② Move 以"按下点内容始终跟随光标"为约束反解新可见起点（吸附仍作用于左缘），Move/ResizeLeft/ResizeRight 每帧用 `AudioClip::deriveTickCaches`（自 `updateTicksFromTruth` 提取的共享静态推导）从真相重算四个 tick 字段设到视图；③提交时把手势的精确 ms 真相盖章进 `ClipCommonProperties`，避免从取整 tick 重派生的亚毫秒漂移。回归测试 `testDragPreviewMatchesCommit`（预览 tick == 提交后 tick，真相不被重派生）
 
 ### 改动
 
@@ -324,10 +326,10 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 
 ### 验收
 
-- [x] **退化等价性（最强判据）**：转换层已由 `TestAudioAnchor` 逐值断言（同值多点 timeline 的缓存与三元组与单点完全一致）；导出音频比对待人工验证（允许 ≤1 sample 偏差，见设计定稿第 3 条）
-- [ ] 音频 clip 跨曲速变化点：素材不被拉伸，起点对齐正确，波形绘制无错位（待人工验证）
-- [ ] 播放中改曲速：位置正确、无持续错位；瞬时轻微 glitch 可接受（talcs 无 seek fade，见设计定稿第 2 条）（待人工验证）
-- [ ] 导出与实时播放结果一致（待人工验证）
+- [x] **退化等价性（最强判据）**：转换层已由 `TestAudioAnchor` 逐值断言（同值多点 timeline 的缓存与三元组与单点完全一致）；同值双点工程的播放/波形/导出与单点一致（人工验证通过 2026-07-27）
+- [x] 音频 clip 跨曲速变化点：素材不被拉伸，起点对齐正确，波形绘制无错位（三种缩放级人工验证通过 2026-07-27；同时发现拖动交互两问题——内容漂移与预览/提交不一致——已由 `52695594` 修复，修复后待复验）
+- [x] 播放中改曲速：位置正确、无持续错位；瞬时轻微 glitch 可接受（talcs 无 seek fade，见设计定稿第 2 条）（人工验证通过 2026-07-27）
+- [x] 导出与实时播放结果一致；循环范围跨曲速点回绕正确；拖 clip→改曲速→撤销→重做链正确；单曲速日常操作无回归（人工验证通过 2026-07-27）
 
 ---
 
