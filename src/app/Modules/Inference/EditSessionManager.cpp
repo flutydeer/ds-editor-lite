@@ -4,7 +4,7 @@
 
 #include "EditSessionManager.h"
 
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QDebug>

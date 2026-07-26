@@ -14,7 +14,7 @@
 #include <TalcsFormat/FormatManager.h>
 #include <TalcsFormat/AudioFormatInputSource.h>
 
-#include <Model/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>

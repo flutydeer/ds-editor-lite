@@ -1,6 +1,6 @@
 #include "LegacyMidiLoadSession.h"
 
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 #include "Modules/ProjectConverters/MidiConverter.h"

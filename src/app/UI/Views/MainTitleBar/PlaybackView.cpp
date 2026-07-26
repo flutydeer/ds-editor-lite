@@ -8,7 +8,7 @@
 #include <lite/GUI/Controls/ControlGroup.h>
 #include "Controller/AppController.h"
 #include "Controller/PlaybackController.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/GUI/Controls/InlineEditLabel.h>
 #include <lite/GUI/Utils/IconUtils.h>

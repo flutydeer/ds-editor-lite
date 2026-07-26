@@ -7,7 +7,7 @@
 #include "Controller/ClipController.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/TrackController.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppStatus/AppStatus.h"

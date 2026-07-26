@@ -5,7 +5,7 @@
 #include "InferenceApplyGate.h"
 
 #include "Modules/Inference/EditSessionManager.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>

@@ -5,7 +5,7 @@
 #ifndef MIXCONSOLEVIEW_H
 #define MIXCONSOLEVIEW_H
 
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include "UI/Views/Common/TabPanelPage.h"
 
 #include <QWidget>

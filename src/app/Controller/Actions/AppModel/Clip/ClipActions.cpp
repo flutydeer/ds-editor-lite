@@ -10,7 +10,7 @@
 #include "InsertClipAction.h"
 #include "MoveClipToTrackAction.h"
 #include "RemoveClipAction.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 

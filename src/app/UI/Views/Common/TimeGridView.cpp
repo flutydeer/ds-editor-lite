@@ -4,7 +4,7 @@
 
 #include "TimeGridView.h"
 
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Global/AppGlobal.h"
 
 #include <QPainter>

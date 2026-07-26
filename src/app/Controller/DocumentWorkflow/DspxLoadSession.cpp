@@ -2,7 +2,7 @@
 
 #include "IDocumentWorkflowUi.h"
 #include "Controller/Tasks/OpenDspxProjectTask.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/ProjectConverters/DspxProjectConverter.h"

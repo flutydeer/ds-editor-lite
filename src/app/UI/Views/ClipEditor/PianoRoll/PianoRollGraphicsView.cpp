@@ -31,7 +31,7 @@
 #include "Controller/Actions/AppModel/Note/NoteActions.h"
 #include "Global/AppGlobal.h"
 #include "Global/ControllerGlobal.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"

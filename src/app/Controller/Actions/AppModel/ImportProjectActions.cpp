@@ -3,7 +3,7 @@
 #include "Controller/Actions/AppModel/Tempo/TempoActions.h"
 #include "Controller/Actions/AppModel/TimeSignature/TimeSignatureActions.h"
 #include "Controller/Actions/AppModel/Track/InsertTrackAction.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include <QCoreApplication>
 

@@ -7,7 +7,7 @@
 
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
 #include "Controller/TrackController.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"

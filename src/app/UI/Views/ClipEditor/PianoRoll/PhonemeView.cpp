@@ -7,7 +7,7 @@
 #include "NoteView.h"
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"

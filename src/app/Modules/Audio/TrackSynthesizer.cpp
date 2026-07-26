@@ -11,7 +11,7 @@
 #include <TalcsDspx/DspxNoteContext.h>
 #include <TalcsDspx/DspxTrackContext.h>
 
-#include <Model/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 #include <lite/ProjectModel/AppModel/Note.h>

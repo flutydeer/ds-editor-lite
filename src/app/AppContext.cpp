@@ -7,7 +7,7 @@
 #include <lite/Core/SingletonRegistry.h>
 
 // Business singletons — all headers included here
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/Utils/ParamUtils.h"

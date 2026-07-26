@@ -5,7 +5,7 @@
 #include "PlaybackController.h"
 #include "PlaybackController_p.h"
 
-#include "Model/AppModel/AppModel.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/GUI/Controls/Toast.h>
 #include "Global/AppGlobal.h"
