@@ -22,6 +22,9 @@ public:
 
 signals:
     void timeSignatureChanged(int numerator, int denominator);
+    // Emitted right before the popup editor opens; lets the owner snapshot
+    // editing context (e.g. the playhead's bar) before values start changing
+    void popupAboutToShow();
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;

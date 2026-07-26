@@ -31,6 +31,8 @@
 
 #include "Actions/AppModel/MasterControl/MasterControlActions.h"
 
+#include <algorithm>
+
 AppController::AppController(QObject *parent)
     : QObject(parent), d_ptr(new AppControllerPrivate(this)) {
     Q_D(AppController);
@@ -60,17 +62,43 @@ void AppController::onSetTempo(const double tempo) {
     historyManager->record(actions);
 }
 
-void AppController::onSetTimeSignature(const int numerator, const int denominator) {
-    Q_D(AppController);
+void AppController::onSetTimeSignatureAt(const int barIndex, const int numerator,
+                                         const int denominator) {
     const auto model = appModel;
-    const auto oldSig = model->timeline().timeSignatureAt(0);
-    const auto newSig = TimeSignature(numerator, denominator);
+    if (barIndex < 0 || numerator <= 0 || denominator <= 0 ||
+        !AppControllerPrivate::isPowerOf2(denominator))
+        return;
+
+    // Skip when an existing point at this bar already has these values, so
+    // live edits from the popup do not spam the undo stack with no-ops
+    const auto &signatures = model->timeline().timeSignatures();
+    const auto existing =
+        std::find_if(signatures.cbegin(), signatures.cend(),
+                     [barIndex](const TimeSignature &sig) { return sig.barIndex == barIndex; });
+    if (existing != signatures.cend() && existing->numerator == numerator &&
+        existing->denominator == denominator)
+        return;
+
     const auto actions = new TimeSignatureActions;
-    if (AppControllerPrivate::isPowerOf2(denominator)) {
-        actions->editTimeSignature(oldSig, newSig, model);
-    } else {
-        actions->editTimeSignature(oldSig, oldSig, model);
-    }
+    actions->setTimeSignatureAt(TimeSignature(barIndex, numerator, denominator), model);
+    actions->execute();
+    historyManager->record(actions);
+}
+
+void AppController::onRemoveTimeSignatureAt(const int barIndex) {
+    const auto model = appModel;
+    // The bar 0 anchor point is never removable
+    if (barIndex <= 0)
+        return;
+    const auto &signatures = model->timeline().timeSignatures();
+    const bool exists =
+        std::any_of(signatures.cbegin(), signatures.cend(),
+                    [barIndex](const TimeSignature &sig) { return sig.barIndex == barIndex; });
+    if (!exists)
+        return;
+
+    const auto actions = new TimeSignatureActions;
+    actions->removeTimeSignatureAt(barIndex, model);
     actions->execute();
     historyManager->record(actions);
 }

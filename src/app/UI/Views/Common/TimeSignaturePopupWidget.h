@@ -7,12 +7,8 @@
 
 #include <QFrame>
 
-class ComboBox;
 class QLabel;
-
-namespace SVS {
-    class ExpressionSpinBox;
-}
+class TimeSignatureEditWidget;
 
 class TimeSignaturePopupWidget : public QFrame {
     Q_OBJECT
@@ -31,13 +27,8 @@ protected:
 
 private:
     void applyWindowEffects();
-    void onPresetClicked(int numerator, int denominator);
-    void setEditors(int numerator, int denominator);
 
-    int m_numerator = 4;
-    int m_denominator = 4;
-    SVS::ExpressionSpinBox *m_spinNumerator = nullptr;
-    ComboBox *m_cbDenominator = nullptr;
+    TimeSignatureEditWidget *m_editWidget = nullptr;
     QLabel *m_titleLabel = nullptr;
 };
 

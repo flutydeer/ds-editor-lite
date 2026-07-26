@@ -17,6 +17,8 @@
 #include "GraphicsItem/AudioClipView.h"
 #include "GraphicsItem/SingingClipView.h"
 #include "GraphicsItem/TrackEditorBackgroundView.h"
+#include "InfoLane/InfoLaneHeaderView.h"
+#include "InfoLane/TimeSignatureLaneView.h"
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
@@ -76,19 +78,34 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     m_timeline->setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
     m_timeline->setCanEditLoop(true); // Enable loop editing in track editor
 
+    m_timeSignatureLane = new TimeSignatureLaneView;
+    m_timeSignatureLane->setFixedHeight(TracksEditorGlobal::infoLaneHeight);
+    m_timeSignatureLane->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
+    m_timeSignatureLane->setQuantize(128);
+    m_timeSignatureLane->setTimeRange(m_graphicsView->startTick(), m_graphicsView->endTick());
+
+    m_timeSignatureLaneHeader = new InfoLaneHeaderView;
+    m_timeSignatureLaneHeader->setObjectName("timeSignatureLaneHeaderView");
+    m_timeSignatureLaneHeader->setTitle(tr("Time Signature"));
+    m_timeSignatureLaneHeader->setFixedHeight(TracksEditorGlobal::infoLaneHeight);
+
     const auto gBar = m_graphicsView->verticalScrollBar();
     const auto lBar = m_trackListView->verticalScrollBar();
+
+    const auto trackListHeader = new TrackListHeaderView;
 
     const auto trackListPanelLayout = new QVBoxLayout;
     trackListPanelLayout->setContentsMargins({});
     trackListPanelLayout->setSpacing(0);
-    trackListPanelLayout->addWidget(new TrackListHeaderView);
+    trackListPanelLayout->addWidget(trackListHeader);
+    trackListPanelLayout->addWidget(m_timeSignatureLaneHeader);
     trackListPanelLayout->addWidget(m_trackListView);
 
     const auto trackTimelineAndViewLayout = new QVBoxLayout;
     trackTimelineAndViewLayout->setContentsMargins({});
     trackTimelineAndViewLayout->setSpacing(0);
     trackTimelineAndViewLayout->addWidget(m_timeline);
+    trackTimelineAndViewLayout->addWidget(m_timeSignatureLane);
     trackTimelineAndViewLayout->addWidget(m_graphicsView);
 
     auto *trackListPanel = new QWidget;
@@ -137,6 +154,19 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
             &TracksGraphicsView::onWheelHorScale);
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeline,
             &TimelineView::setTimeRange);
+    connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeSignatureLane,
+            &InfoLaneView::setTimeRange);
+    connect(m_timeSignatureLane, &InfoLaneView::wheelHorScale, m_graphicsView,
+            &TracksGraphicsView::onWheelHorScale);
+    connect(m_timeSignatureLane, &InfoLaneView::wheelHorScroll, m_graphicsView,
+            &TracksGraphicsView::onWheelHorScroll);
+    connect(m_timeSignatureLane, &InfoLaneView::wheelVerScroll, m_graphicsView,
+            &TracksGraphicsView::onWheelVerScroll);
+    connect(trackListHeader, &TrackListHeaderView::timeSignatureLaneToggled, this,
+            [this](const bool visible) {
+                m_timeSignatureLaneHeader->setVisible(visible);
+                m_timeSignatureLane->setVisible(visible);
+            });
     connect(gBar, &QScrollBar::valueChanged, lBar, &QScrollBar::setValue);
     connect(lBar, &QScrollBar::valueChanged, gBar, &QScrollBar::setValue);
 
@@ -153,6 +183,12 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
 
 TrackEditorView::~TrackEditorView() {
     editorViewController->unregisterPanel(this);
+}
+
+void TrackEditorView::changeEvent(QEvent *event) {
+    PanelView::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        m_timeSignatureLaneHeader->setTitle(tr("Time Signature"));
 }
 
 TrackPanelViewState TrackEditorView::viewState() const {

@@ -29,7 +29,7 @@ public:
 
 signals:
     void setTempoTriggered(double tempo);
-    void setTimeSignatureTriggered(int numerator, int denominator);
+    void setTimeSignatureTriggered(int barIndex, int numerator, int denominator);
     void playTriggered();
     void pauseTriggered();
     void stopTriggered();
@@ -75,6 +75,9 @@ private:
     double m_tempo = 120;
     int m_numerator = 4;
     int m_denominator = 4;
+    // Bar of the time signature point being edited, snapshotted when editing
+    // starts because the playhead keeps moving during playback
+    int m_signatureEditBar = 0;
     int m_tick = 0;
     PlaybackStatus m_status = Stopped;
 
@@ -82,6 +85,10 @@ private:
     QSize m_iconSize = QSize(16, 16);
 
     QString toFormattedTickTime(int ticks) const;
+    // Bar of the point governing the playhead position
+    [[nodiscard]] int playheadSignatureBar() const;
+    // Sync the displayed time signature with the playhead's segment
+    void refreshTimeSignatureDisplay();
 
     void updateTempoView();
     void updateTimeSignatureView();

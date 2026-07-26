@@ -186,6 +186,23 @@
 | selectedTrackColor | `${surface.raised}` |
 | clipSelectedBorderColor ※ | `${text.emphasis}` |
 
+### InfoLaneView（含子类 TimeSignatureLaneView）
+| 属性 | lite-dark 值 |
+|---|---|
+| textColor | `${text.secondary}` |
+| markerColor | `${text.secondary}` |
+| hoverFillColor | `${control.fill.hover}` |
+| barLineColor | `${editor.grid.bar}` |
+| beatLineColor | `${editor.grid.beat}` |
+| commonLineColor | `${editor.grid.subdivision}` |
+| playheadColor | `${editor.playhead}` |
+| lastPlayheadColor | `${editor.lastPlayhead}` |
+
+### TrackListHeaderView
+| 属性 | lite-dark 值 |
+|---|---|
+| iconCheckedColor | `${accent.default}` |
+
 ## clip-editor.qss
 
 ### PianoKeyboardView

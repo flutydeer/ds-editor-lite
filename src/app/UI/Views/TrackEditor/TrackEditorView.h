@@ -18,6 +18,8 @@ class TrackListView;
 class TracksGraphicsView;
 class TracksGraphicsScene;
 class TimelineView;
+class TimeSignatureLaneView;
+class InfoLaneHeaderView;
 class TrackEditorBackgroundView;
 class TrackViewModel;
 class AbstractClipView;
@@ -56,11 +58,14 @@ private slots:
 
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void changeEvent(QEvent *event) override;
 
     TrackListView *m_trackListView;
     TracksGraphicsView *m_graphicsView;
     TracksGraphicsScene *m_tracksScene;
     TimelineView *m_timeline;
+    TimeSignatureLaneView *m_timeSignatureLane;
+    InfoLaneHeaderView *m_timeSignatureLaneHeader;
     TrackEditorBackgroundView *m_gridItem;
     QSplitter *m_splitter;
 

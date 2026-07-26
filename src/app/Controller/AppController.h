@@ -41,7 +41,11 @@ public slots:
 
 
     static void onSetTempo(double tempo);
-    void onSetTimeSignature(int numerator, int denominator);
+    // Inserts a time signature point at barIndex, or edits the existing point
+    // at that bar; invalid input (denominator not a power of 2, etc.) is a no-op
+    void onSetTimeSignatureAt(int barIndex, int numerator, int denominator);
+    // Removes the point at exactly barIndex; the bar 0 anchor is refused
+    void onRemoveTimeSignatureAt(int barIndex);
     static void editMasterControl(const TrackControl &control);
     void onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
                            const QString &redoActionName);

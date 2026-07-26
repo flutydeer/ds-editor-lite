@@ -6,6 +6,37 @@ TimelineView#tracksTimelineView {
     border-top-right-radius: 6px;
 }
 
+/* Info lanes below the timeline ruler */
+InfoLaneView {
+    background: ${editor.canvasAlternate};
+    border-top: 1px solid ${border.subtle};
+    border-bottom: 1px solid ${border.subtle};
+    qproperty-textColor: ${text.secondary};
+    qproperty-markerColor: ${text.secondary};
+    qproperty-hoverFillColor: ${control.fill.hover};
+    qproperty-barLineColor: ${editor.grid.bar};
+    qproperty-beatLineColor: ${editor.grid.beat};
+    qproperty-commonLineColor: ${editor.grid.subdivision};
+    qproperty-playheadColor: ${editor.playhead};
+    qproperty-lastPlayheadColor: ${editor.lastPlayhead};
+}
+
+InfoLaneHeaderView {
+    background: transparent;
+    border-top: 1px solid ${border.subtle};
+    border-bottom: 1px solid ${border.subtle};
+}
+
+InfoLaneHeaderView>QLabel {
+    color: ${text.secondary};
+}
+
+/* TrackListHeaderView */
+TrackListHeaderView {
+    qproperty-iconCheckedColor: ${accent.default};
+}
+
+
 
 /* TrackControlView */
 TrackControlView {

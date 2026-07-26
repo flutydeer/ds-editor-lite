@@ -178,12 +178,16 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         updateTempoView();
     });
 
+    connect(m_elTimeSignature, &TimeSignatureComboBox::popupAboutToShow, this,
+            [this] { m_signatureEditBar = playheadSignatureBar(); });
+    connect(m_elTimeSignature, &InlineEditLabel::editingStarted, this,
+            [this] { m_signatureEditBar = playheadSignatureBar(); });
     connect(m_elTimeSignature, &TimeSignatureComboBox::timeSignatureChanged, this,
             [this](int numerator, int denominator) {
                 if (m_numerator != numerator || m_denominator != denominator) {
                     m_numerator = numerator;
                     m_denominator = denominator;
-                    emit setTimeSignatureTriggered(numerator, denominator);
+                    emit setTimeSignatureTriggered(m_signatureEditBar, numerator, denominator);
                 }
                 updateTimeSignatureView();
             });
@@ -246,7 +250,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
 
     connect(this, &PlaybackView::setTempoTriggered, appController, &AppController::onSetTempo);
     connect(this, &PlaybackView::setTimeSignatureTriggered, appController,
-            &AppController::onSetTimeSignature);
+            &AppController::onSetTimeSignatureAt);
     connect(this, &PlaybackView::playTriggered, playbackController, &PlaybackController::play);
     connect(this, &PlaybackView::pauseTriggered, playbackController, &PlaybackController::pause);
     connect(this, &PlaybackView::stopTriggered, playbackController, &PlaybackController::stop);
@@ -266,12 +270,11 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
 void PlaybackView::updateView() {
     const auto &timeline = appModel->timeline();
     m_tempo = timeline.tempoAt(0);
-    m_numerator = timeline.timeSignatureAt(0).numerator;
-    m_denominator = timeline.timeSignatureAt(0).denominator;
     m_tick = static_cast<int>(playbackController->position());
     m_status = playbackController->playbackStatus();
 
     updateTempoView();
+    refreshTimeSignatureDisplay();
     updateTimeSignatureView();
     updateTimeView();
     updatePlaybackControlView();
@@ -281,17 +284,15 @@ void PlaybackView::updateView() {
 void PlaybackView::onTimelineChanged() {
     const auto &timeline = appModel->timeline();
     m_tempo = timeline.tempoAt(0);
-    const auto signature = timeline.timeSignatureAt(0);
-    m_numerator = signature.numerator;
-    m_denominator = signature.denominator;
     updateTempoView();
-    updateTimeSignatureView();
+    refreshTimeSignatureDisplay();
     updateTimeView();
 }
 
 void PlaybackView::onPositionChanged(double tick) {
     m_tick = static_cast<int>(tick);
     updateTimeView();
+    refreshTimeSignatureDisplay();
 }
 
 void PlaybackView::onPlaybackStatusChanged(PlaybackStatus status) {
@@ -301,6 +302,23 @@ void PlaybackView::onPlaybackStatusChanged(PlaybackStatus status) {
 
 QString PlaybackView::toFormattedTickTime(int ticks) const {
     return appModel->timeline().getBarBeatTickTime(ticks);
+}
+
+int PlaybackView::playheadSignatureBar() const {
+    const auto &timeline = appModel->timeline();
+    const int bar = timeline.tickToTime(qMax(0, m_tick)).measure;
+    return timeline.nearestBarWithTimeSignatureTo(qMax(0, bar));
+}
+
+void PlaybackView::refreshTimeSignatureDisplay() {
+    const auto &timeline = appModel->timeline();
+    const int bar = timeline.tickToTime(qMax(0, m_tick)).measure;
+    const auto signature = timeline.timeSignatureAt(qMax(0, bar));
+    if (m_numerator == signature.numerator && m_denominator == signature.denominator)
+        return;
+    m_numerator = signature.numerator;
+    m_denominator = signature.denominator;
+    updateTimeSignatureView();
 }
 
 void PlaybackView::updateTempoView() {

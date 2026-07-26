@@ -4,7 +4,7 @@
 
 #include "TimeSignatureComboBox.h"
 
-#include "TimeSignaturePopupWidget.h"
+#include "UI/Views/Common/TimeSignaturePopupWidget.h"
 
 #include <QApplication>
 #include <QCursor>
@@ -99,6 +99,7 @@ void TimeSignatureComboBox::showPopup() {
     if (m_popup->isVisible())
         return;
 
+    emit popupAboutToShow();
     m_popup->setTimeSignature(m_numerator, m_denominator);
     setPopupVisible(true);
     m_popup->showAt(mapToGlobal(QPoint(0, height())));
