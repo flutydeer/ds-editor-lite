@@ -27,6 +27,7 @@ target_link_libraries(GUI PUBLIC
     Qt${QT_VERSION_MAJOR}::Svg
     qtmediate::Widgets
     unofficial::tinyexpr::tinyexpr
+    lite::Core
     lite::ADT
     lite::Support
     lite::Tasking

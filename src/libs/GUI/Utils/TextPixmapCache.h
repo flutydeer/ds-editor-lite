@@ -11,6 +11,7 @@
 #include <QHash>
 #include <QPixmap>
 #include <QString>
+#include <lite/Core/Singleton.h>
 
 class TextPixmapCache {
 public:
@@ -23,7 +24,7 @@ public:
         bool operator==(const Key &other) const;
     };
 
-    static TextPixmapCache *instance();
+    LITE_SINGLETON_DECLARE_INSTANCE(TextPixmapCache)
     Q_DISABLE_COPY_MOVE(TextPixmapCache)
 
     QPixmap get(const Key &key) const;

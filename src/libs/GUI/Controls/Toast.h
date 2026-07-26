@@ -5,6 +5,7 @@
 #ifndef TOAST_H
 #define TOAST_H
 
+#include <lite/Core/Singleton.h>
 #include <lite/GUI/Animation/IAnimatable.h>
 #include <lite/ADT/Queue.h>
 
@@ -40,7 +41,7 @@ private:
     ~Toast() override;
 
 public:
-    static Toast *instance();
+    LITE_SINGLETON_DECLARE_INSTANCE(Toast)
     Q_DISABLE_COPY_MOVE(Toast)
 
 public:

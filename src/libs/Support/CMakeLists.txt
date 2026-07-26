@@ -12,6 +12,7 @@ add_library(lite::Support ALIAS Support)
 # stdcorelib (VersionUtils.h exposes stdcorelib::support::VersionNumber).
 find_package(stdcorelib CONFIG REQUIRED)
 target_link_libraries(Support PUBLIC
+    lite::Core
     Qt${QT_VERSION_MAJOR}::Core
     stdcorelib::stdcorelib
 )

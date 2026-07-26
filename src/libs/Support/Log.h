@@ -12,6 +12,7 @@
 #include <QTextStream>
 #include <QtLogging>
 #include <utility>
+#include <lite/Core/Singleton.h>
 
 class QDir;
 
@@ -45,7 +46,7 @@ private:
     ~Log();
 
 public:
-    static Log *instance();
+    LITE_SINGLETON_DECLARE_INSTANCE(Log)
     Q_DISABLE_COPY_MOVE(Log)
 
 public:

@@ -108,10 +108,7 @@ Toast::Toast(QObject *parent) : QObject(parent) {
 
 Toast::~Toast() = default;
 
-Toast *Toast::instance() {
-    static Toast obj;
-    return &obj;
-}
+LITE_SINGLETON_IMPLEMENT_INSTANCE(Toast)
 
 void Toast::setGlobalContext(QWidget *context) {
     m_globalContext = context;

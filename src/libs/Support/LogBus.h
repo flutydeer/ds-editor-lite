@@ -5,6 +5,7 @@
 
 #include <QMutex>
 #include <QObject>
+#include <lite/Core/Singleton.h>
 
 Q_DECLARE_METATYPE(Log::LogMessage)
 
@@ -23,7 +24,7 @@ private:
 
 public:
     // Plain Meyers singleton: LogBus is logging infrastructure below AppContext
-    static LogBus *instance();
+    LITE_SINGLETON_DECLARE_INSTANCE(LogBus)
     Q_DISABLE_COPY_MOVE(LogBus)
 
     /// Maximum number of messages kept for backfill

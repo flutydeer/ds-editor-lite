@@ -1,9 +1,6 @@
 #include "LogBus.h"
 
-LogBus *LogBus::instance() {
-    static LogBus obj;
-    return &obj;
-}
+LITE_SINGLETON_IMPLEMENT_INSTANCE(LogBus)
 
 void LogBus::append(const Log::LogMessage &message) {
     {
