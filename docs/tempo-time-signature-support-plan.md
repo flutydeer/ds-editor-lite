@@ -283,6 +283,17 @@ for (bar = startBar; bar <= endBar; bar++) {
 
 **内部实施顺序**：① 先行四小修 → ② 模型真相字段 + 派生缓存管线 + 序列化/剪贴板/导入/action 改造 → ③ 三元组喂值 → ④ 波形分段 → ⑤ 退化等价性测试 + 人工验收
 
+### 实施记录（2026-07-26）
+
+五步各一个提交：①=`1f42c77b`、②=`a9509206`、③=`111947f3`、④=`62a3a46e`、⑤=`42079408`（`TestAudioAnchor`，14 个测试目标全绿）。要点：
+
+- 模型侧派生入口 `AppModelPrivate::updateAudioClipTickCaches`（`setTimeline`/`setTempo` 中、`timelineChanged` 发射前）；无真相的 clip 在此兜底采纳当前 tick
+- 真相建立点：`replaceProject`（dspx 载入）、`InsertTrackAction::execute`（工程导入）、`MidiConverter::convertClips`（MIDI 载入，顺带修复其 length 取 `clipLen` 的不一致）、`TrackController` 音频导入（`frames/sr`，替换 `tempoAt(0)` 公式）、粘贴（剪贴板 ms 优先）
+- action 侧 `ClipCommonProperties` 增加 ms 字段（-1 = 由 tick 派生），`build()` 时补齐，execute/undo 经 `applyRealTimeAnchorFromProperties` 重派生——tick 快照过期（如 MIDI Append 绕过 undo 栈改 timeline）时仍正确
+- 引擎三元组在 `AudioContext::feedCompensatedPosition`（含"勿用于演唱 clip"注释）；`handleTimeChanged` 改为重喂三元组 + 无条件 `updatePosition`
+- 波形未采用 diffscope 的显式 section 列表，改为逐像素边界的绝对 tick→ms 映射（`tickToSamplePos`/`samplePosAtTick`），单曲速下与旧公式数学等价；PhonemeView 在 timelineChanged 时重对齐存活 piece 波形
+- `Clip.h` 补 `<QJsonObject>` include（moc 自包含）
+
 ### 改动
 
 **核心是"补偿三元组"**。talcs 的 `src/dspx/DspxAudioClipContext.cpp:131-139` 中 `updatePosition()` 计算：
@@ -313,10 +324,10 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 
 ### 验收
 
-- [ ] **退化等价性（最强判据）**：把单曲速工程表达成两个同值曲速点，转换层逐值断言严格一致；导出音频事件位置允许 ≤1 sample 偏差（浮点结合顺序 + qint64 截断，见设计定稿第 3 条）
-- [ ] 音频 clip 跨曲速变化点：素材不被拉伸，起点对齐正确，波形绘制无错位
-- [ ] 播放中改曲速：位置正确、无持续错位；瞬时轻微 glitch 可接受（talcs 无 seek fade，见设计定稿第 2 条）
-- [ ] 导出与实时播放结果一致
+- [x] **退化等价性（最强判据）**：转换层已由 `TestAudioAnchor` 逐值断言（同值多点 timeline 的缓存与三元组与单点完全一致）；导出音频比对待人工验证（允许 ≤1 sample 偏差，见设计定稿第 3 条）
+- [ ] 音频 clip 跨曲速变化点：素材不被拉伸，起点对齐正确，波形绘制无错位（待人工验证）
+- [ ] 播放中改曲速：位置正确、无持续错位；瞬时轻微 glitch 可接受（talcs 无 seek fade，见设计定稿第 2 条）（待人工验证）
+- [ ] 导出与实时播放结果一致（待人工验证）
 
 ---
 
