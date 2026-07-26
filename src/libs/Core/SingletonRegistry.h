@@ -1,5 +1,5 @@
-#ifndef LITE_CORE_REGISTRY_H
-#define LITE_CORE_REGISTRY_H
+#ifndef LITE_CORE_SINGLETONREGISTRY_H
+#define LITE_CORE_SINGLETONREGISTRY_H
 
 #include <utility>
 
@@ -10,7 +10,7 @@
 // Keys are per-type static addresses, so no RTTI is required and it works for
 // any type without pre-registration of a type list. Everything is linked into a
 // single binary here, so each type's key is a single stable address.
-class Registry {
+class SingletonRegistry {
 public:
     template <typename T>
     static T *instance() {
@@ -27,7 +27,7 @@ public:
         set(key<T>(), nullptr);
     }
 
-    // Construct T (LITE_SINGLETON grants Registry friendship, so a private
+    // Construct T (LITE_SINGLETON grants SingletonRegistry friendship, so a private
     // constructor is fine), register it, and return it. The caller owns the
     // returned pointer and decides the destruction order.
     template <typename T, typename... Args>
@@ -58,4 +58,4 @@ private:
     static void set(const void *key, void *value);
 };
 
-#endif // LITE_CORE_REGISTRY_H
+#endif // LITE_CORE_SINGLETONREGISTRY_H

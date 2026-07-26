@@ -1,4 +1,4 @@
-#include "Registry.h"
+#include "SingletonRegistry.h"
 
 #include <unordered_map>
 
@@ -9,16 +9,16 @@ namespace {
     }
 }
 
-void *Registry::get(const void *key) {
+void *SingletonRegistry::get(const void *key) {
     const auto &t = table();
     const auto it = t.find(key);
     return it == t.end() ? nullptr : it->second;
 }
 
-void Registry::set(const void *key, void *value) {
+void SingletonRegistry::set(const void *key, void *value) {
     table()[key] = value;
 }
 
-void Registry::clear() {
+void SingletonRegistry::clear() {
     table().clear();
 }
