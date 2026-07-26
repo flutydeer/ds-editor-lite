@@ -97,6 +97,7 @@ private:
     void handleClipPropertyChanged(AudioClip *audioClip) const;
 
     void handleTimeChanged() const;
+    void updateLoopingRange() const;
 
     bool willStartCallback(AudioExporter *exporter) override;
     void willFinishCallback(AudioExporter *exporter) override;

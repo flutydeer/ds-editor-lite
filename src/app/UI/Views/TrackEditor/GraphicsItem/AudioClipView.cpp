@@ -46,6 +46,7 @@ void AudioClipView::setPath(const QString &path) {
 
 void AudioClipView::setTimeline(const Timeline &timeline) {
     m_timeline = timeline;
+    update();
 }
 
 void AudioClipView::setAudioInfo(const AudioInfoModel &info) {

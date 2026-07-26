@@ -56,7 +56,7 @@ void WaveformPainter::paint(QPainter *painter, const QRectF &rect, const QColor 
     const qreal dpr = painter->device()->devicePixelRatio();
     const auto pixSize = (rect.size() * dpr).toSize();
 
-    if (m_cacheDpr != dpr || m_cacheSize != pixSize) {
+    if (m_cache.isNull() || m_cacheDpr != dpr || m_cacheSize != pixSize) {
         m_cacheDpr = dpr;
         m_cacheSize = pixSize;
         m_cache = QPixmap(pixSize);

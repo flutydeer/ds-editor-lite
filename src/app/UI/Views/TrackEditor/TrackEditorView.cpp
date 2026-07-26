@@ -485,6 +485,8 @@ void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, const in
                     &SingingClipView::onNoteListChanged);
         } else if (clip->clipType() == Clip::Audio) {
             const auto audioView = static_cast<AudioClipView *>(cachedView);
+            // The timeline may have changed while the view sat in the cache
+            audioView->setTimeline(appModel->timeline());
             connect(appModel, &AppModel::timelineChanged, audioView,
                     [audioView] { audioView->setTimeline(appModel->timeline()); });
         }

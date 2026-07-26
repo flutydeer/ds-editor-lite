@@ -12,7 +12,7 @@
 | 4 — 网格重写〔拍号线〕 | ✅ | ★★★☆☆ | 中（骨架有参照，视觉分层需自行嫁接） |
 | 5 — 吸附与 Bar:Beat 双向〔拍号线〕 | ✅ | ★★★☆☆ | 中（吸附**无参照实现**） |
 | 6 — 拍号编辑 UI 与撤销〔拍号线〕 | ✅ | ★★★☆☆ | 低（交互设计可照抄） |
-| 7 — 音频引擎与波形〔曲速线〕 | ⬜ | ★★★☆☆ | 中（talcs 不需改，补偿方案已验证可行） |
+| 7 — 音频引擎与波形〔曲速线〕 | 🔵 | ★★★☆☆ | 中（talcs 不需改，补偿方案已验证可行） |
 | 8 — 参数曲线非均匀重采样〔曲速线〕 | ⬜ | ★★★★☆ | **高**（最易静默出错，必须靠退化等价性测试兜底） |
 | 9 — 曲速编辑 UI 与撤销〔曲速线〕 | ⬜ | ★★★☆☆ | 低 |
 | 10 — 打磨 | ⬜ | ★★☆☆☆ | 低 |
@@ -255,9 +255,33 @@ for (bar = startBar; bar <= endBar; bar++) {
 
 # 曲速线
 
-## 阶段 7 — 音频引擎与波形 ⬜
+## 阶段 7 — 音频引擎与波形 🔵
 
 **目标**：多曲速下播放、循环、导出、波形全部正确。
+
+### 设计定稿（2026-07-26，源码调研后拍板）
+
+**四项决策**：
+
+1. **持久化与 diffscope 对齐，dspx 只存 tick**：ms 真相仅存在于运行时内存；保存时落盘派生 tick（与落盘 timeline 天然自洽），载入时由 tick + 文件 timeline 反推 ms。不写 workspace 扩展。理由：曲速变化都发生在工程打开期间、tick 缓存当场重算，落盘必然自洽；亚 tick 精度受 talcs int 接口限制本就进不了引擎；持久化 ms 唯一携带独立信息的场景（外部工具改曲速）恰是应以 tick 为准的场景。已知代价：每次"存盘→重开→再改曲速"循环 trim/长度重吸附当时 tick 网格（≤0.5 tick/循环），会话内零漂移，可见起点 P 永不漂移。**剪贴板例外**：`ClipsInfo` JSON 额外携带 ms（自有格式无兼容负担，覆盖"复制→改曲速→粘贴"）
+2. **播放中改曲速验收放宽**：talcs `TransportAudioSource::setPosition` 无 fade（已确认），验收改为"位置正确、无持续错位、瞬时轻微 glitch 可接受"；crossfade 留阶段 10 可选
+3. **导出退化等价性放宽**：同值双点浮点结合顺序 + `static_cast<qint64>` 截断理论上可差 1 sample。转换层测试断言严格（亚 ms 容差），导出比对允许事件位置 ≤1 sample 偏差
+4. **trim 精度接受整 tick 量化**：talcs `TimeConverter` 是 `std::function<qint64(int)>`，三元组必须是 int tick（±0.5 tick ≈ 0.5ms@120BPM 素材偏移，与现状 tick 粒度一致）
+
+**调研发现的关键改动点**（原计划未覆盖）：
+
+- **timelineChanged 必须重喂三元组**：`AudioContext::handleTimeChanged` 现只调 `updatePosition()`，重转的是 talcs 里存的旧三元组；改为"重算三元组 → set → 无条件 `updatePosition()`"（talcs setter 等值 no-op，`DspxAudioClipContext.cpp:71-77`）。三元组与采样率无关（`f⁻¹(秒×sr)` 中 sr 约掉 = `msToTick`），采样率/导出路径维持现状仅 `updatePosition()`
+- **引擎三元组 ≠ UI tick 缓存**：喂 talcs 的 `clipStart' = round(msToTick(trimMs))`（绝对映射补偿量）与模型缓存 `clipStart = P − round(msToTick(tickToMs(P) − trimMs))`（素材原点可视偏移）是不同推导，仅单曲速下重合。`AudioContext` 直接读真相字段算三元组，不经 UI 缓存
+- **派生缓存重算顺序**：`OverlappableSerialList` 以当前 `interval()` 为 key，必须 `removeClip → 改 → insertClip → notifyPropertyChanged`（setter 不发信号）；重算在 `timelineChanged` 发射前完成
+- **撤销 action 改存 ms 真相**（音频 clip）：`MidiConverter` AppendToProject 绕过 undo 栈直接 `setTimeline`，破坏"回放时 timeline 与录制时一致"前提，tick 快照回放不可靠
+- **删除旧重锚定逻辑**：`TempoActions::editTempo` 的 tick↔ms round-trip 重锚定（含 `static_cast<int>` 截断漂移）与新机制双重锚定，删除；`ImportProjectActions` 单点分支同理简化
+- **导入公式修正**：`TrackController.cpp:456` 的 `tempoAt(0)` 改为 clip 所在位置的 timeline 往返（同 diffscope `AudioClipAddOn.cpp:256-259` 形状）
+- **先行小修四项**：`AudioClipView::setTimeline` 缺 `update()`；`WaveformPainter` pixmap cache 被 setter 清空后 `paint()` 仅按 dpr/size 重建（画空白）；clip view 复用路径缺初始 timeline 快照；`sampleRateChanged` 后循环采样范围不重算
+- **禁止推广**：补偿三元组绝不能用于演唱 clip——`DspxNoteContext.cpp:165` 单独转换演唱 clip 的 `start`，负值会走零下外推（代码留注释）
+- 波形分段参照 diffscope `AudioThumbnailWaveformThumbnail.cpp:198-234` 的 section 骨架；`WaveformPainter`（PhonemeView piece 波形）同步分段化
+- diffscope 自身语义为"tick 即真相、素材窗口随曲速漂移"（刻意设计，模型/schema/序列化均无 ms 字段），与本项目决策 3 相反，仅持久化层对齐
+
+**内部实施顺序**：① 先行四小修 → ② 模型真相字段 + 派生缓存管线 + 序列化/剪贴板/导入/action 改造 → ③ 三元组喂值 → ④ 波形分段 → ⑤ 退化等价性测试 + 人工验收
 
 ### 改动
 
@@ -289,9 +313,9 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 
 ### 验收
 
-- [ ] **退化等价性（最强判据）**：把单曲速工程表达成两个同值曲速点，导出音频与单点版本**逐比特相同**
+- [ ] **退化等价性（最强判据）**：把单曲速工程表达成两个同值曲速点，转换层逐值断言严格一致；导出音频事件位置允许 ≤1 sample 偏差（浮点结合顺序 + qint64 截断，见设计定稿第 3 条）
 - [ ] 音频 clip 跨曲速变化点：素材不被拉伸，起点对齐正确，波形绘制无错位
-- [ ] 播放中改曲速：位置连续、无爆音、循环范围正确
+- [ ] 播放中改曲速：位置正确、无持续错位；瞬时轻微 glitch 可接受（talcs 无 seek fade，见设计定稿第 2 条）
 - [ ] 导出与实时播放结果一致
 
 ---

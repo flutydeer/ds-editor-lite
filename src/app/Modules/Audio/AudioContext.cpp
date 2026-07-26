@@ -120,11 +120,7 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         handleModelChanged();
         handleMasterControlChanged(appModel->masterControl());
         // Reapply loop settings after model change
-        const auto &settings = appStatus->loopSettings.get();
-        if (settings.enabled)
-            transport()->setLoopingRange(tickToSample(settings.start), tickToSample(settings.end()));
-        else
-            transport()->setLoopingRange(-1, -1);
+        updateLoopingRange();
     });
     connect(appModel, &AppModel::trackChanged, this,
             [this](const AppModel::TrackChangeType type, const int index, Track *track) {
@@ -143,11 +139,8 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
         DEVICE_LOCKER;
         handleTimeChanged();
         handlePlaybackPositionChanged(playbackController->position());
-        // Update loop range when tempo changes
-        const auto &settings = appStatus->loopSettings.get();
-        if (settings.enabled) {
-            transport()->setLoopingRange(tickToSample(settings.start), tickToSample(settings.end()));
-        }
+        // The loop sample range depends on the tempo map
+        updateLoopingRange();
     });
 
     connect(appModel, &AppModel::masterControlChanged, this, [this](const TrackControl &control) {
@@ -163,6 +156,8 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
             &talcs::AbstractOutputContext::sampleRateChanged, this, [this] {
                 DEVICE_LOCKER;
                 handleTimeChanged();
+                // The loop sample range depends on the sample rate
+                updateLoopingRange();
                 playbackController->stop();
             });
 
@@ -176,14 +171,12 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 
     // Connect loop settings changes to transport
     connect(appStatus, &AppStatus::loopSettingsChanged, this, [this](const LoopSettings &settings) {
+        updateLoopingRange();
         if (settings.enabled) {
-            transport()->setLoopingRange(tickToSample(settings.start), tickToSample(settings.end()));
             auto currentPos = playbackController->position();
             if (currentPos < settings.start || currentPos >= settings.end()) {
                 playbackController->setPosition(settings.start);
             }
-        } else {
-            transport()->setLoopingRange(-1, -1);
         }
     });
 
@@ -508,6 +501,14 @@ void AudioContext::handleTimeChanged() const {
             audioClipContext->updatePosition();
         }
     }
+}
+
+void AudioContext::updateLoopingRange() const {
+    const auto &settings = appStatus->loopSettings.get();
+    if (settings.enabled)
+        transport()->setLoopingRange(tickToSample(settings.start), tickToSample(settings.end()));
+    else
+        transport()->setLoopingRange(-1, -1);
 }
 
 void AudioContext::updateSmoothedValue(std::shared_ptr<talcs::SmoothedFloat> &sm, float dBL) {
