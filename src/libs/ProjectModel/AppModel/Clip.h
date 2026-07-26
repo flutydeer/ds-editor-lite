@@ -11,6 +11,7 @@
 
 #include <QObject>
 #include <QMap>
+#include <QJsonObject>
 
 class Clip : public QObject, public IClip, public Overlappable {
     Q_OBJECT
