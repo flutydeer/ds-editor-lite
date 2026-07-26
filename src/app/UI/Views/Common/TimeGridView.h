@@ -17,7 +17,6 @@ public:
     [[nodiscard]] int logicalGridStepForCurrentScale() const;
 
 public slots:
-    void setTimeSignature(int numerator, int denominator) override;
     void setQuantize(int quantize) override;
     void setOffset(int tick);
 

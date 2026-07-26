@@ -55,12 +55,6 @@ void drawWithOpacity(QPainter *painter, double opacity, DrawFn &&draw) {
     painter->setOpacity(previousOpacity);
 }
 
-int previousGridTick(double tick, int step) {
-    if (step <= 0)
-        return 0;
-    return static_cast<int>(std::floor(tick / step)) * step;
-}
-
 std::vector<int> buildSubdivisionCandidates(int beatTicks, int minSubdivisionTicks) {
     std::vector<int> result;
     if (beatTicks <= 1 || minSubdivisionTicks >= beatTicks)
@@ -95,29 +89,6 @@ int levelIndexForTick(int tick, const std::vector<StepLevel> &levels) {
     return -1;
 }
 
-std::vector<StepLevel> buildBarLevels(double barSpacing, int barTicks, int minimumSpacing) {
-    int baseHop = 1;
-    double spacing = barSpacing;
-    while (spacing < minimumSpacing) {
-        baseHop *= 2;
-        spacing *= 2;
-    }
-
-    std::vector<StepLevel> levels;
-    int level = 0;
-    for (int hop = baseHop; hop >= 1; hop /= 2) {
-        const double opacity = hop == baseHop
-                                   ? 1.0
-                                   : spacingVisibility(barSpacing * hop, minimumSpacing);
-        if (opacity > kVisibilityEpsilon)
-            levels.push_back({barTicks * hop, level, opacity});
-        ++level;
-        if (hop == 1)
-            break;
-    }
-    return levels;
-}
-
 std::vector<StepLevel> buildSubdivisionLevels(const std::vector<int> &candidates,
                                               double ticksPerPixel, int minimumSpacing) {
     std::vector<StepLevel> levels;
@@ -132,17 +103,49 @@ std::vector<StepLevel> buildSubdivisionLevels(const std::vector<int> &candidates
     return levels;
 }
 
+// Bar thinning levels expressed in whole bars (hop = draw every n-th bar).
+// Measures are not equally wide across signature changes, so thinning is
+// keyed on the measure number instead of a global tick modulo.
+struct BarLevel {
+    int hop = 1;
+    int level = 0;
+    double opacity = 1.0;
+};
+
+std::vector<BarLevel> buildBarLevels(double barSpacing, int minimumSpacing) {
+    int baseHop = 1;
+    double spacing = barSpacing;
+    while (spacing < minimumSpacing && spacing > 0) {
+        baseHop *= 2;
+        spacing *= 2;
+    }
+
+    std::vector<BarLevel> levels;
+    int level = 0;
+    for (int hop = baseHop; hop >= 1; hop /= 2) {
+        const double opacity =
+            hop == baseHop ? 1.0 : spacingVisibility(barSpacing * hop, minimumSpacing);
+        if (opacity > kVisibilityEpsilon)
+            levels.push_back({hop, level, opacity});
+        ++level;
+        if (hop == 1)
+            break;
+    }
+    return levels;
+}
+
 } // namespace
 
-int ITimelinePainter::logicalGridStepForScale(double ticksPerPixel) const {
+int ITimelinePainter::logicalGridStepForScale(const double ticksPerPixel, const int atTick) const {
     const int minSubdivisionTicks = TimelineSnapUtils::quantizeToTicks(m_quantize);
     if (ticksPerPixel <= 0)
         return minSubdivisionTicks;
 
-    const int denominator = std::max(1, m_denominator);
-    const int beatTicks = TimelineSnapUtils::ticksPerBeat(denominator);
-    const int barTicks = std::max(
-        beatTicks, TimelineSnapUtils::ticksPerWholeNote() * std::max(1, m_numerator) / denominator);
+    // Beat and bar lengths follow the signature of the measure at `atTick`.
+    const auto signature =
+        m_timeline.timeSignatureAt(m_timeline.tickToTime(std::max(0, atTick)).measure);
+    const int beatTicks = signature.ticksPerBeat();
+    const int barTicks = signature.ticksPerBar();
 
     const auto subdivisionCandidates = buildSubdivisionCandidates(beatTicks, minSubdivisionTicks);
     for (auto it = subdivisionCandidates.rbegin(); it != subdivisionCandidates.rend(); ++it) {
@@ -154,14 +157,14 @@ int ITimelinePainter::logicalGridStepForScale(double ticksPerPixel) const {
         return beatTicks;
 
     const auto barSpacing = barTicks / ticksPerPixel;
-    const auto barLevels = buildBarLevels(barSpacing, barTicks, m_minimumSpacing);
+    const auto barLevels = buildBarLevels(barSpacing, m_minimumSpacing);
     for (auto it = barLevels.rbegin(); it != barLevels.rend(); ++it) {
         if (it->opacity >= kSnapVisibilityThreshold)
-            return it->step;
+            return barTicks * it->hop;
     }
 
     if (!barLevels.empty())
-        return barLevels.front().step;
+        return barTicks * barLevels.front().hop;
 
     return barTicks;
 }
@@ -175,57 +178,88 @@ void ITimelinePainter::drawTimeline(QPainter *painter, double startTick, double 
     if (ticksPerPixel <= 0)
         return;
 
-    const int denominator = std::max(1, m_denominator);
-    const int beatTicks = TimelineSnapUtils::ticksPerBeat(denominator);
-    const int barTicks = std::max(
-        beatTicks, TimelineSnapUtils::ticksPerWholeNote() * std::max(1, m_numerator) / denominator);
-    const auto barSpacing = barTicks / ticksPerPixel;
-    const auto barLevels = buildBarLevels(barSpacing, barTicks, m_minimumSpacing);
-
-    if (!barLevels.empty()) {
-        const int barDrawStep = barLevels.back().step;
-        const int firstBarTick = previousGridTick(startTick, barDrawStep);
-        for (int tick = firstBarTick; tick <= endTick; tick += barDrawStep) {
-            const int index = levelIndexForTick(tick, barLevels);
-            if (index == -1)
-                continue;
-            const auto &line = barLevels[index];
-            const auto bar = tick / barTicks + 1;
-            drawWithOpacity(painter, line.opacity, [&] { drawBar(painter, tick, bar); });
-        }
-    }
-
-    const double beatSpacing = beatTicks / ticksPerPixel;
-    const double beatOpacity = spacingVisibility(beatSpacing, m_minimumSpacing);
-    if (beatOpacity > kVisibilityEpsilon) {
-        const int firstBeatTick = previousGridTick(startTick, beatTicks);
-        for (int tick = firstBeatTick; tick <= endTick; tick += beatTicks) {
-            if (tick % barTicks == 0)
-                continue;
-            const auto bar = tick / barTicks + 1;
-            const auto beat = (tick % barTicks) / beatTicks + 1;
-            drawWithOpacity(painter, beatOpacity, [&] { drawBeat(painter, tick, bar, beat); });
-        }
-    }
-
     const int minSubdivisionTicks = TimelineSnapUtils::quantizeToTicks(m_quantize);
-    const auto subdivisionCandidates = buildSubdivisionCandidates(beatTicks, minSubdivisionTicks);
-    const int subdivisionLevelCount = static_cast<int>(subdivisionCandidates.size());
-    const auto subdivisionLevels =
-        buildSubdivisionLevels(subdivisionCandidates, ticksPerPixel, m_minimumSpacing);
-    if (!subdivisionLevels.empty() && subdivisionLevelCount > 0) {
-        const int subdivisionDrawStep = subdivisionLevels.back().step;
-        const int firstSubdivisionTick = previousGridTick(startTick, subdivisionDrawStep);
-        for (int tick = firstSubdivisionTick; tick <= endTick; tick += subdivisionDrawStep) {
-            if (tick % barTicks == 0 || tick % beatTicks == 0)
+    const int firstVisibleTick = std::max(0, static_cast<int>(std::floor(startTick)));
+
+    int startBar = m_timeline.tickToTime(firstVisibleTick).measure;
+    {
+        // Back off far enough that a thinned-out bar just left of the view is
+        // still painted; its number label can poke into the view.
+        const double firstBarSpacing =
+            m_timeline.timeSignatureAt(startBar).ticksPerBar() / ticksPerPixel;
+        const auto firstBarLevels = buildBarLevels(firstBarSpacing, m_minimumSpacing);
+        if (!firstBarLevels.empty())
+            startBar = std::max(0, startBar - firstBarLevels.front().hop);
+    }
+
+    // Per-signature-segment caches: recomputed only when the measure length
+    // or beat length changes while walking the bars.
+    int cachedBarTicks = -1;
+    int cachedBeatTicks = -1;
+    std::vector<BarLevel> barLevels;
+    std::vector<int> subdivisionCandidates;
+    std::vector<StepLevel> subdivisionLevels;
+    double beatOpacity = 0.0;
+
+    constexpr int maxBars = 200000; // safety bound against degenerate input
+    int barsWalked = 0;
+    for (int bar = startBar; barsWalked < maxBars; bar++, barsWalked++) {
+        const int barStartTick = m_timeline.barToTick(bar);
+        if (barStartTick > endTick)
+            break;
+        const auto signature = m_timeline.timeSignatureAt(bar);
+        const int beatTicks = signature.ticksPerBeat();
+        const int barTicks = signature.ticksPerBar();
+        if (barTicks != cachedBarTicks || beatTicks != cachedBeatTicks) {
+            cachedBarTicks = barTicks;
+            cachedBeatTicks = beatTicks;
+            barLevels = buildBarLevels(barTicks / ticksPerPixel, m_minimumSpacing);
+            beatOpacity = spacingVisibility(beatTicks / ticksPerPixel, m_minimumSpacing);
+            subdivisionCandidates = buildSubdivisionCandidates(beatTicks, minSubdivisionTicks);
+            subdivisionLevels =
+                buildSubdivisionLevels(subdivisionCandidates, ticksPerPixel, m_minimumSpacing);
+        }
+
+        for (const auto &line : barLevels) {
+            if (bar % line.hop != 0)
                 continue;
-            const int index = levelIndexForTick(tick, subdivisionLevels);
-            if (index == -1)
-                continue;
-            const auto &line = subdivisionLevels[index];
-            drawWithOpacity(painter, line.opacity, [&] {
-                drawSubdivision(painter, tick, line.level, subdivisionLevelCount);
-            });
+            drawWithOpacity(painter, line.opacity,
+                            [&] { drawBar(painter, barStartTick, bar + 1); });
+            break;
+        }
+
+        // Bars entirely left of the view only contribute their (clipped) bar
+        // line; their beats and subdivisions can never become visible.
+        if (barStartTick + barTicks <= firstVisibleTick)
+            continue;
+
+        if (beatOpacity > kVisibilityEpsilon) {
+            for (int beat = 1; beat < signature.numerator; beat++) {
+                const int tick = barStartTick + beat * beatTicks;
+                if (tick > endTick)
+                    break;
+                drawWithOpacity(painter, beatOpacity,
+                                [&] { drawBeat(painter, tick, bar + 1, beat + 1); });
+            }
+        }
+
+        const int subdivisionLevelCount = static_cast<int>(subdivisionCandidates.size());
+        if (!subdivisionLevels.empty() && subdivisionLevelCount > 0) {
+            const int drawStep = subdivisionLevels.back().step;
+            for (int offset = drawStep; offset < barTicks; offset += drawStep) {
+                if (offset % beatTicks == 0)
+                    continue;
+                const int tick = barStartTick + offset;
+                if (tick > endTick)
+                    break;
+                const int index = levelIndexForTick(offset, subdivisionLevels);
+                if (index == -1)
+                    continue;
+                const auto &line = subdivisionLevels[index];
+                drawWithOpacity(painter, line.opacity, [&] {
+                    drawSubdivision(painter, tick, line.level, subdivisionLevelCount);
+                });
+            }
         }
     }
 }
@@ -238,15 +272,14 @@ void ITimelinePainter::setPixelsPerQuarterNote(int px) {
     m_pixelsPerQuarterNote = px;
 }
 
-void ITimelinePainter::setTimeSignature(int numerator, int denominator) {
-    m_numerator = std::max(1, numerator);
-    m_denominator = std::max(1, denominator);
+void ITimelinePainter::setTimeline(const Timeline &timeline) {
+    m_timeline = timeline;
 }
 
 void ITimelinePainter::setQuantize(int quantize) {
     m_quantize = std::max(1, quantize);
 }
 
-int ITimelinePainter::denominator() const {
-    return m_denominator;
+const Timeline &ITimelinePainter::timeline() const {
+    return m_timeline;
 }

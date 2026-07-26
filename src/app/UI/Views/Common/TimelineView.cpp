@@ -36,11 +36,11 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TimelineView");
     setMouseTracking(true);
-    const auto applyTimeSignature = [this] {
-        const auto signature = appModel->timeline().timeSignatureAt(0);
-        setTimeSignature(signature.numerator, signature.denominator);
+    const auto applyTimeline = [this] {
+        setTimeline(appModel->timeline());
+        update();
     };
-    applyTimeSignature();
+    applyTimeline();
 
     m_pieceUpdateThrottle.setSingleShot(true);
     m_pieceUpdateThrottle.setInterval(16);
@@ -59,8 +59,8 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     });
     connect(playbackController, &PlaybackController::positionChanged, this,
             &TimelineView::setPosition);
-    connect(appModel, &AppModel::modelChanged, this, applyTimeSignature);
-    connect(appModel, &AppModel::timelineChanged, this, applyTimeSignature);
+    connect(appModel, &AppModel::modelChanged, this, applyTimeline);
+    connect(appModel, &AppModel::timelineChanged, this, applyTimeline);
     connect(appStatus, &AppStatus::loopSettingsChanged, this, &TimelineView::onLoopSettingsChanged);
     connect(appOptions, &AppOptions::optionsChanged, this,
             [this](AppOptionsGlobal::Option option) {
@@ -76,11 +76,6 @@ void TimelineView::setCanEditLoop(bool canEdit) {
 void TimelineView::setTimeRange(double startTick, double endTick) {
     m_startTick = startTick;
     m_endTick = endTick;
-    update();
-}
-
-void TimelineView::setTimeSignature(int numerator, int denominator) {
-    ITimelinePainter::setTimeSignature(numerator, denominator);
     update();
 }
 
@@ -151,6 +146,30 @@ void TimelineView::paintEvent(QPaintEvent *event) {
     painter.drawPolygon(points, 3);
 }
 
+namespace {
+    // Returns by value: TextPixmapCache::get() returns a temporary, and
+    // QPixmap is implicitly shared, so the copy is cheap.
+    QPixmap cachedTextPixmap(const QString &text, const QFont &font, const QColor &color,
+                             const qreal devicePixelRatio) {
+        const auto key = TextPixmapCache::Key{
+            .text = text, .font = font, .color = color, .devicePixelRatio = devicePixelRatio};
+        const auto cache = TextPixmapCache::instance();
+        if (!cache->contains(key)) {
+            const QFontMetrics fontMetrics(font);
+            const QSize textSize = fontMetrics.size(Qt::TextSingleLine, text);
+            QPixmap pixmap(textSize * devicePixelRatio);
+            pixmap.setDevicePixelRatio(devicePixelRatio);
+            pixmap.fill(Qt::transparent);
+            QPainter cachePainter(&pixmap);
+            cachePainter.setFont(font);
+            cachePainter.setPen(color);
+            cachePainter.drawText(pixmap.rect(), text);
+            cache->insert(key, pixmap);
+        }
+        return cache->get(key);
+    }
+} // namespace
+
 void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     QPen pen;
     auto x = tickToX(tick);
@@ -159,27 +178,24 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     auto text = bar > 0 ? QString::number(bar) : QString::number(bar - 1);
 
     auto font = FontManager::instance().musicUIFont(13);
-    auto color = m_barScaleColor;
     auto devicePixelRatio = painter->device()->devicePixelRatio();
-    auto key = TextPixmapCache::Key{
-        .text = text, .font = font, .color = color, .devicePixelRatio = devicePixelRatio};
-    auto cache = TextPixmapCache::instance();
-    if (!cache->contains(key)) {
-        const QFontMetrics fontMetrics(font);
-        const QSize textSize = fontMetrics.size(Qt::TextSingleLine, text);
-        QPixmap pixmap(textSize * devicePixelRatio);
-        pixmap.setDevicePixelRatio(devicePixelRatio);
-        pixmap.fill(Qt::transparent);
-        QPainter cachePainter(&pixmap);
-        cachePainter.setFont(font);
-        cachePainter.setPen(color);
-        cachePainter.drawText(pixmap.rect(), text);
-        cache->insert(key, pixmap);
-    }
-    const auto &pixmap = cache->get(key);
+    const auto pixmap = cachedTextPixmap(text, font, m_barScaleColor, devicePixelRatio);
     const QRectF textRect(x + m_textPaddingLeft, m_loopRegionHeight, pixmap.width(),
                           pixmap.height());
     painter->drawPixmap(textRect.topLeft(), pixmap);
+
+    // Show a meter label ("3/4") next to the number of measures where the
+    // time signature changes (including measure 0).
+    const int barIndex = bar - 1;
+    if (barIndex >= 0 && timeline().nearestBarWithTimeSignatureTo(barIndex) == barIndex) {
+        const auto signature = timeline().timeSignatureAt(barIndex);
+        const auto signatureText = QString::number(signature.numerator) + QStringLiteral("/") +
+                                   QString::number(signature.denominator);
+        const auto signaturePixmap =
+            cachedTextPixmap(signatureText, font, m_beatScaleColor, devicePixelRatio);
+        painter->drawPixmap(QPointF(textRect.right() + 6, textRect.top()), signaturePixmap);
+    }
+
     pen.setColor(m_barTickColor);
     painter->setPen(pen);
     auto y1 = rect().height() - 24;

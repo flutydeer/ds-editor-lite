@@ -25,14 +25,14 @@ QColor blendColor(const QColor &from, const QColor &to, double ratio) {
 } // namespace
 
 TimeGridView::TimeGridView(QGraphicsItem *parent) : AbstractGraphicsRectItem(parent) {
-    const auto applyTimeSignature = [this] {
-        const auto signature = appModel->timeline().timeSignatureAt(0);
-        this->setTimeSignature(signature.numerator, signature.denominator);
+    const auto applyTimeline = [this] {
+        setTimeline(appModel->timeline());
+        update();
     };
-    applyTimeSignature();
+    applyTimeline();
 
-    connect(appModel, &AppModel::modelChanged, this, applyTimeSignature);
-    connect(appModel, &AppModel::timelineChanged, this, applyTimeSignature);
+    connect(appModel, &AppModel::modelChanged, this, applyTimeline);
+    connect(appModel, &AppModel::timelineChanged, this, applyTimeline);
 }
 
 double TimeGridView::startTick() const {
@@ -48,11 +48,6 @@ int TimeGridView::logicalGridStepForCurrentScale() const {
     if (width <= 0)
         return logicalGridStepForScale(0);
     return logicalGridStepForScale((endTick() - startTick()) / width);
-}
-
-void TimeGridView::setTimeSignature(int numerator, int denominator) {
-    ITimelinePainter::setTimeSignature(numerator, denominator);
-    update();
 }
 
 void TimeGridView::setQuantize(int quantize) {
