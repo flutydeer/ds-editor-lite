@@ -60,6 +60,9 @@ private:
     static double sincInterpolate(const QVector<float> &samples, qint64 offset,
                                   qint64 totalFrames, double position, int halfKernel = 16);
 
+    double tickToSamplePos(double absTick) const;
+    double samplePosToTick(double samplePos) const;
+
     void drawPeakMode(QPainter *painter, const QRectF &previewRect, const QColor &color);
     void drawSubChunkPeakMode(QPainter *painter, const QRectF &previewRect, const QColor &color);
     void drawWaveformCurve(QPainter *painter, const QRectF &previewRect, const QColor &color);

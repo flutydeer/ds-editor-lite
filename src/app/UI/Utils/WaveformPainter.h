@@ -44,9 +44,13 @@ private:
                  double rectStartTick, double rectEndTick);
 
     void drawPeakMode(QPainter *painter, const QRectF &rect, const QColor &color,
-                      double rectStartTick, double ticksPerPixel, double samplesPerTick);
+                      double rectStartTick, double ticksPerPixel);
     void drawSubChunkPeakMode(QPainter *painter, const QRectF &rect, const QColor &color,
-                              double rectStartTick, double ticksPerPixel, double samplesPerTick);
+                              double rectStartTick, double ticksPerPixel);
+
+    // Piece-local tick → sample position, piecewise over the tempo map; the
+    // piece audio's sample 0 sits at rectStartTick
+    [[nodiscard]] double samplePosAtTick(double tick, double originTick) const;
 
     static double logAmplify(double value);
 

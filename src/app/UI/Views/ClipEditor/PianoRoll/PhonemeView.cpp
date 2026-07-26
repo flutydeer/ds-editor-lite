@@ -83,6 +83,18 @@ void PhonemeView::onTimelineChanged() {
     if (m_clip) {
         resetPhonemeList();
         buildPhonemeList();
+        // Re-align surviving piece waveforms so the interim display (before
+        // re-inference lands) tracks the new tempo map; entries whose piece
+        // is gone are cleaned up by the piece-removed path
+        const int clipOffset = m_clip->start();
+        const auto livePieces = m_clip->pieces();
+        for (auto it = m_pieceWaveforms.begin(); it != m_pieceWaveforms.end(); ++it) {
+            if (!livePieces.contains(it.key()))
+                continue;
+            it->painter->setTimeline(appModel->timeline());
+            it->globalStartTick = it.key()->localStartTick(appModel->timeline()) + clipOffset;
+            it->globalEndTick = it.key()->localEndTick(appModel->timeline()) + clipOffset;
+        }
         update();
     }
 }

@@ -77,19 +77,22 @@ void WaveformPainter::doPaint(QPainter *painter, const QRectF &rect, const QColo
                                const double rectStartTick, const double rectEndTick) {
 
     const double ticksPerPixel = (rectEndTick - rectStartTick) / rect.width();
-    // Interim single-segment mapping; per-segment waveform drawing lands with
-    // the audio engine work for tempo changes.
-    const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 /
-                                  m_timeline.tempoAt(0) / AppGlobal::ticksPerQuarterNote;
     const qreal dpr = painter->device()->devicePixelRatio();
     const double pixelStep = 1.0 / dpr;
-    const double samplesPerPixel = ticksPerPixel * pixelStep * samplesPerTick;
+    // Dispatch by the average density; per-pixel math is piecewise over the tempo map
+    const double totalSamples = samplePosAtTick(rectEndTick, rectStartTick);
+    const double samplesPerPixel = totalSamples / (rect.width() / pixelStep);
     const double chunkSize = static_cast<double>(m_audioInfo.chunkSize);
 
     if (samplesPerPixel <= chunkSize)
-        drawSubChunkPeakMode(painter, rect, color, rectStartTick, ticksPerPixel, samplesPerTick);
+        drawSubChunkPeakMode(painter, rect, color, rectStartTick, ticksPerPixel);
     else
-        drawPeakMode(painter, rect, color, rectStartTick, ticksPerPixel, samplesPerTick);
+        drawPeakMode(painter, rect, color, rectStartTick, ticksPerPixel);
+}
+
+double WaveformPainter::samplePosAtTick(const double tick, const double originTick) const {
+    return (m_timeline.tickToMs(tick) - m_timeline.tickToMs(originTick)) *
+           m_audioInfo.sampleRate / 1000.0;
 }
 
 bool WaveformPainter::ensureIO() {
@@ -128,8 +131,7 @@ double WaveformPainter::logAmplify(const double value) {
 }
 
 void WaveformPainter::drawPeakMode(QPainter *painter, const QRectF &rect, const QColor &color,
-                                    const double rectStartTick, const double ticksPerPixel,
-                                    const double samplesPerTick) {
+                                    const double rectStartTick, const double ticksPerPixel) {
     if (m_audioInfo.peakCache.count() == 0 || m_audioInfo.peakCacheMipmap.count() == 0)
         return;
 
@@ -139,34 +141,32 @@ void WaveformPainter::drawPeakMode(QPainter *painter, const QRectF &rect, const 
     const auto rectHeight = rect.height();
     const auto halfRectHeight = rectHeight / 2;
 
-    const auto chunksPerTickBase = static_cast<double>(m_audioInfo.sampleRate) /
-                                   m_audioInfo.chunkSize * 60 / m_timeline.tempoAt(0) /
-                                   AppGlobal::ticksPerQuarterNote;
-
     const qreal dpr = painter->device()->devicePixelRatio();
     const double pixelStep = 1.0 / dpr;
 
     const bool lowRes = ticksPerPixel > 5.0;
     const auto &peakData = lowRes ? m_audioInfo.peakCacheMipmap : m_audioInfo.peakCache;
-    const auto chunksPerTick =
-        lowRes ? chunksPerTickBase / m_audioInfo.mipmapScale : chunksPerTickBase;
+    const double framesPerChunk =
+        lowRes ? static_cast<double>(m_audioInfo.chunkSize) * m_audioInfo.mipmapScale
+               : static_cast<double>(m_audioInfo.chunkSize);
 
-    const double chunksPerStep = ticksPerPixel * pixelStep * chunksPerTick;
     const int peakCount = peakData.count();
     const int stepCount = static_cast<int>(std::ceil(rectWidth / pixelStep)) + 1;
 
     QVector<WaveformRenderUtils::PeakPoint> points;
     points.reserve(stepCount);
 
+    double prevChunkPos = 0;
+
     for (int i = 0; i < stepCount; i++) {
         const double localX = i * pixelStep;
         if (localX > rectWidth)
             break;
 
-        const double tick = rectStartTick + localX * ticksPerPixel;
-        const double relativeTick = tick - rectStartTick;
-        const double chunkPos = relativeTick * chunksPerTick;
-        const double chunkEnd = chunkPos + chunksPerStep;
+        const double tickEnd = rectStartTick + (localX + pixelStep) * ticksPerPixel;
+        const double chunkPos = prevChunkPos;
+        const double chunkEnd = samplePosAtTick(tickEnd, rectStartTick) / framesPerChunk;
+        prevChunkPos = chunkEnd;
 
         short min = 0;
         short max = 0;
@@ -198,8 +198,7 @@ void WaveformPainter::drawPeakMode(QPainter *painter, const QRectF &rect, const 
 
 void WaveformPainter::drawSubChunkPeakMode(QPainter *painter, const QRectF &rect,
                                             const QColor &color, const double rectStartTick,
-                                            const double ticksPerPixel,
-                                            const double samplesPerTick) {
+                                            const double ticksPerPixel) {
     if (!ensureIO())
         return;
 
@@ -211,18 +210,14 @@ void WaveformPainter::drawSubChunkPeakMode(QPainter *painter, const QRectF &rect
 
     const qreal dpr = painter->device()->devicePixelRatio();
     const double pixelStep = 1.0 / dpr;
-    const double samplesPerStep = ticksPerPixel * pixelStep * samplesPerTick;
     const int channels = m_audioInfo.channels;
     const qint64 totalFrames = m_audioInfo.frames;
 
     const int stepCount = static_cast<int>(std::ceil(rectWidth / pixelStep)) + 1;
 
-    const double firstRelativeTick = 0;
-    const double lastRelativeTick = rectWidth * ticksPerPixel;
-    qint64 sampleStart = static_cast<qint64>(std::floor(firstRelativeTick * samplesPerTick));
-    qint64 sampleEnd =
-        static_cast<qint64>(std::ceil(lastRelativeTick * samplesPerTick + samplesPerStep));
-    sampleStart = std::max(sampleStart, qint64(0));
+    const double lastTick = rectStartTick + (rectWidth + pixelStep) * ticksPerPixel;
+    qint64 sampleStart = 0;
+    qint64 sampleEnd = static_cast<qint64>(std::ceil(samplePosAtTick(lastTick, rectStartTick)));
     sampleEnd = std::min(sampleEnd, totalFrames);
 
     if (sampleEnd <= sampleStart)
@@ -239,15 +234,17 @@ void WaveformPainter::drawSubChunkPeakMode(QPainter *painter, const QRectF &rect
     QVector<WaveformRenderUtils::PeakPoint> points;
     points.reserve(stepCount);
 
+    double prevSamplePos = 0;
+
     for (int i = 0; i < stepCount; i++) {
         const double localX = i * pixelStep;
         if (localX > rectWidth)
             break;
 
-        const double tick = rectStartTick + localX * ticksPerPixel;
-        const double relativeTick = tick - rectStartTick;
-        const double samplePos = relativeTick * samplesPerTick;
-        const double samplePosEnd = samplePos + samplesPerStep;
+        const double tickEnd = rectStartTick + (localX + pixelStep) * ticksPerPixel;
+        const double samplePos = prevSamplePos;
+        const double samplePosEnd = samplePosAtTick(tickEnd, rectStartTick);
+        prevSamplePos = samplePosEnd;
 
         qint64 jStart = static_cast<qint64>(std::floor(samplePos));
         qint64 jEnd = static_cast<qint64>(std::ceil(samplePosEnd));
