@@ -472,9 +472,7 @@ void AudioContext::handleClipRemoved(Track *track, const int id, AudioClip *audi
 void AudioContext::handleClipPropertyChanged(AudioClip *audioClip) const {
     const auto audioClipContext = getContextFromAudioClip(audioClip);
 
-    audioClipContext->setStart(audioClip->start());
-    audioClipContext->setClipStart(audioClip->clipStart());
-    audioClipContext->setClipLen(audioClip->clipLen());
+    feedCompensatedPosition(audioClip, audioClipContext);
 
     audioClipContext->controlMixer()->setGain(talcs::Decibels::decibelsToGain(audioClip->gain()));
     audioClipContext->controlMixer()->setSilentFlags(audioClip->mute() ? -1 : 0);
@@ -493,14 +491,49 @@ void AudioContext::handleClipPropertyChanged(AudioClip *audioClip) const {
     }
 }
 
+void AudioContext::feedCompensatedPosition(const AudioClip *audioClip,
+                                           talcs::DspxAudioClipContext *audioClipContext) {
+    // talcs converts (clipStart, start + clipStart, start + clipStart + clipLen)
+    // through the project tempo map; under multi-tempo the raw model ticks would
+    // shift the material read offset. Feed a compensation triplet instead:
+    //   clipStart' = f⁻¹(trim)  — the tick whose absolute conversion equals the
+    //                             material trim offset
+    //   start'     = P − clipStart'  (never converted alone by talcs; may be
+    //                                 negative, stored without validation)
+    //   clipLen'   = f⁻¹(f(P) + playLength) − P
+    // where P is the visible start tick and f the absolute tick→time mapping.
+    // NOTE: this compensation must never be applied to singing clips —
+    // DspxNoteContext converts the singing clip's start tick ALONE.
+    const auto &timeline = appModel->timeline();
+    const int visibleStart = audioClip->start() + audioClip->clipStart();
+    if (!audioClip->hasRealTimeAnchor()) {
+        // Truth not established yet; raw ticks are still correct in this state
+        audioClipContext->setStart(audioClip->start());
+        audioClipContext->setClipStart(audioClip->clipStart());
+        audioClipContext->setClipLen(audioClip->clipLen());
+        audioClipContext->updatePosition();
+        return;
+    }
+    const int compClipStart = qMax(0, qRound(timeline.msToTick(audioClip->trimStartMs())));
+    const int compStart = visibleStart - compClipStart;
+    const double visibleMs = timeline.tickToMs(visibleStart);
+    const int compClipLen =
+        qMax(1, qRound(timeline.msToTick(visibleMs + audioClip->playLengthMs())) - visibleStart);
+    audioClipContext->setStart(compStart);
+    audioClipContext->setClipStart(compClipStart);
+    audioClipContext->setClipLen(compClipLen);
+    // The setters no-op on equal ticks even though the tempo map may have
+    // changed; recompute unconditionally
+    audioClipContext->updatePosition();
+}
+
 void AudioContext::handleTimeChanged() const {
     for (int i = 0; i < 4; i++)
         PseudoSingerConfigNotifier::notify(i);
-    for (const auto trackContext : tracks()) {
-        for (const auto audioClipContext : trackContext->clips()) {
-            audioClipContext->updatePosition();
-        }
-    }
+    // The compensation triplet depends on the tempo map, so re-derive it
+    // instead of just re-converting the stale ticks stored inside talcs
+    for (auto it = m_audioClipModelDict.constBegin(); it != m_audioClipModelDict.constEnd(); ++it)
+        feedCompensatedPosition(it.key(), it.value());
 }
 
 void AudioContext::updateLoopingRange() const {

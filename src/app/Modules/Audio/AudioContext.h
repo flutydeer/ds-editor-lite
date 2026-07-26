@@ -95,6 +95,8 @@ private:
     void handleClipRemoved(Track *track, int id, AudioClip *audioClip);
 
     void handleClipPropertyChanged(AudioClip *audioClip) const;
+    static void feedCompensatedPosition(const AudioClip *audioClip,
+                                        talcs::DspxAudioClipContext *audioClipContext);
 
     void handleTimeChanged() const;
     void updateLoopingRange() const;
