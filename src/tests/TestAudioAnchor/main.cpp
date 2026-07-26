@@ -242,6 +242,58 @@ namespace {
         delete clip;
         return ok;
     }
+
+    // A pure move across a tempo boundary must keep the realtime window; only
+    // the components the tick edit changed may be re-derived.
+    bool testMovePreservesTruth() {
+        bool ok = true;
+        const Timeline timeline({
+            {0,    120.0},
+            {9600, 60.0 }
+        });
+        // Trimmed clip in the 120 BPM region: 4800 ticks of trim = 5000 ms
+        const auto clip = makeClip(0, 4800, 4800, 9600, timeline);
+        ok &= expectNear(clip->trimStartMs(), 5000.0, "trim under 120 BPM is 5000 ms");
+
+        // Simulate the drag commit: only start changes (pure move into 60 BPM)
+        Clip::ClipCommonProperties oldArgs;
+        oldArgs.start = clip->start();
+        oldArgs.clipStart = clip->clipStart();
+        oldArgs.clipLen = clip->clipLen();
+        oldArgs.length = clip->length();
+        oldArgs.trimStartMs = clip->trimStartMs();
+        oldArgs.playLengthMs = clip->playLengthMs();
+        oldArgs.materialLengthMs = clip->materialLengthMs();
+
+        auto newArgs = oldArgs;
+        newArgs.start = 9600;
+        newArgs.trimStartMs = -1;
+        newArgs.playLengthMs = -1;
+        newArgs.materialLengthMs = -1;
+        AudioClip::deriveTruthForProperties(newArgs, timeline);
+        AudioClip::preserveUnchangedTruth(newArgs, oldArgs);
+        ok &= expectNear(newArgs.trimStartMs, oldArgs.trimStartMs,
+                         "pure move keeps the material trim");
+        ok &= expectNear(newArgs.playLengthMs, oldArgs.playLengthMs,
+                         "pure move keeps the play length");
+        ok &= expectNear(newArgs.materialLengthMs, oldArgs.materialLengthMs,
+                         "the material duration is never re-derived by an edit");
+
+        // A right trim redefines the play length but keeps the trim
+        auto trimArgs = oldArgs;
+        trimArgs.clipLen = 2400;
+        trimArgs.trimStartMs = -1;
+        trimArgs.playLengthMs = -1;
+        trimArgs.materialLengthMs = -1;
+        AudioClip::deriveTruthForProperties(trimArgs, timeline);
+        AudioClip::preserveUnchangedTruth(trimArgs, oldArgs);
+        ok &= expectNear(trimArgs.trimStartMs, oldArgs.trimStartMs,
+                         "right trim keeps the material trim");
+        ok &= expect(std::abs(trimArgs.playLengthMs - oldArgs.playLengthMs) > 1.0,
+                     "right trim redefines the play length");
+        delete clip;
+        return ok;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -253,6 +305,7 @@ int main(int argc, char *argv[]) {
     ok &= testRealTempoChange();
     ok &= testCompensationProperty();
     ok &= testPropertiesRoundTrip();
+    ok &= testMovePreservesTruth();
 
     if (!ok)
         return 1;

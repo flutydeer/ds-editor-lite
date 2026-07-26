@@ -69,6 +69,12 @@ public:
     bool updateTicksFromTruth(const Timeline &timeline);
     // Fill the ms fields of tick-space properties under the given timeline
     static void deriveTruthForProperties(ClipCommonProperties &args, const Timeline &timeline);
+    // A tick-space edit only redefines the realtime window for the components
+    // it actually changed: a pure move keeps trim and play length, a left trim
+    // redefines both, a right trim redefines the play length only. The
+    // material duration is a property of the file and is always preserved.
+    static void preserveUnchangedTruth(ClipCommonProperties &newArgs,
+                                       const ClipCommonProperties &oldArgs);
     // Apply properties' truth (or adopt its ticks when no ms is carried) and
     // re-derive the tick caches; for undoable actions
     void applyRealTimeAnchorFromProperties(const ClipCommonProperties &args,

@@ -34,11 +34,21 @@ EditClipCommonPropertiesAction *
     a->m_clip = clip;
     a->m_track = track;
     if (clip->clipType() == IClip::Audio) {
+        const auto audioClip = static_cast<AudioClip *>(clip);
         const auto &timeline = appModel->timeline();
-        if (a->m_oldArgs.playLengthMs < 0)
-            AudioClip::deriveTruthForProperties(a->m_oldArgs, timeline);
-        if (a->m_newArgs.playLengthMs < 0)
+        if (a->m_oldArgs.playLengthMs < 0) {
+            if (audioClip->hasRealTimeAnchor()) {
+                a->m_oldArgs.trimStartMs = audioClip->trimStartMs();
+                a->m_oldArgs.playLengthMs = audioClip->playLengthMs();
+                a->m_oldArgs.materialLengthMs = audioClip->materialLengthMs();
+            } else {
+                AudioClip::deriveTruthForProperties(a->m_oldArgs, timeline);
+            }
+        }
+        if (a->m_newArgs.playLengthMs < 0) {
             AudioClip::deriveTruthForProperties(a->m_newArgs, timeline);
+            AudioClip::preserveUnchangedTruth(a->m_newArgs, a->m_oldArgs);
+        }
     }
     return a;
 }
