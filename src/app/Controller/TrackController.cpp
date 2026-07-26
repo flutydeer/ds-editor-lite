@@ -271,9 +271,10 @@ void TrackController::onRemoveClips(const QList<int> &clipsId) {
 SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int tick) {
     const auto singingClip = new SingingClip;
     constexpr int bars = 4;
-    const auto timeSig = appModel->timeline().timeSignatureAt(0);
-    const int length =
-        AppGlobal::ticksPerWholeNote * timeSig.numerator / timeSig.denominator * bars;
+    // Four measures from the insertion point, following the local signature.
+    const auto &timeline = appModel->timeline();
+    const int startBar = timeline.tickToTime(qMax(0, tick)).measure;
+    const int length = timeline.barToTick(startBar + bars) - timeline.barToTick(startBar);
     singingClip->setName(tr("New Singing Clip"));
     singingClip->setStart(tick);
     singingClip->setClipStart(0);
@@ -343,7 +344,7 @@ void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex
         return;
 
     const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-    const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantize);
+    const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantize, appModel->timeline());
 
     int minStart = srcClips.first()->start();
     for (const auto clip : srcClips)

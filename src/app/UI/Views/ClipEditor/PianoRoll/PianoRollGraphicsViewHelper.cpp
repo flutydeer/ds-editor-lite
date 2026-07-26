@@ -3,6 +3,7 @@
 //
 
 #include "PianoRollGraphicsViewHelper.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include "NoteView.h"
 #include "PitchEditorView.h"
@@ -47,7 +48,8 @@ void PianoRollGraphicsViewHelper::splitNote(const int noteId, const int tick) {
 
     const auto quantizedTickLength =
         TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-    const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
+    const auto snappedTick =
+        TimelineSnapUtils::snapNearest(tick, quantizedTickLength, appModel->timeline());
     const auto splitPos = snappedTick - singingClip->start();
     const auto noteLocalStart = note->localStart();
     const auto noteLocalEnd = noteLocalStart + note->length();

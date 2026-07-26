@@ -183,9 +183,7 @@ void AppModel::newProject() {
 
     const auto singingClip = new SingingClip;
     constexpr int bars = 4;
-    const auto timeSig = d->m_timeline.timeSignatureAt(0);
-    const int length =
-        MusicTime::ticksPerWholeNote * timeSig.numerator / timeSig.denominator * bars;
+    const int length = d->m_timeline.barToTick(bars);
     singingClip->setName(tr("New Singing Clip"));
     singingClip->setStart(0);
     singingClip->setClipStart(0);

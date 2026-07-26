@@ -14,7 +14,7 @@ class TimeGridView : public AbstractGraphicsRectItem, public ITimelinePainter {
 public:
     explicit TimeGridView(QGraphicsItem *parent = nullptr);
     ~TimeGridView() override = default;
-    [[nodiscard]] int logicalGridStepForCurrentScale() const;
+    [[nodiscard]] int logicalGridStepForCurrentScale(int atTick = 0) const;
 
 public slots:
     void setQuantize(int quantize) override;

@@ -286,15 +286,19 @@ void TimelineView::mouseMoveEvent(QMouseEvent *event) {
     if (m_loopDragMode != None && m_canEditLoop) {
         auto loopSettings = appStatus->loopSettings.get();
         const bool noSnap = event->modifiers() & Qt::AltModifier;
-        const int quantizeInterval = noSnap ? 1 : logicalGridStepForScale(
-            rect().width() > 0 ? (m_endTick - m_startTick) / rect().width() : 0);
-        const int currentTick = TimelineSnapUtils::snapNearest(
-            static_cast<int>(xToTick(event->pos().x())), quantizeInterval);
+        const int mouseTick = static_cast<int>(xToTick(event->pos().x()));
+        const int quantizeInterval =
+            noSnap ? 1
+                   : logicalGridStepForScale(
+                         rect().width() > 0 ? (m_endTick - m_startTick) / rect().width() : 0,
+                         mouseTick);
+        const int currentTick =
+            TimelineSnapUtils::snapNearest(mouseTick, quantizeInterval, timeline());
         const int deltaTick = currentTick - m_loopDragStartPos;
 
         if (m_loopDragMode == DragStart) {
             int newStart = qMax(0, TimelineSnapUtils::snapNearest(m_loopDragStartTick + deltaTick,
-                                                                  quantizeInterval));
+                                                                  quantizeInterval, timeline()));
             int newLength = loopSettings.length - (newStart - loopSettings.start);
             if (newLength >= quantizeInterval) {
                 loopSettings.start = newStart;
@@ -303,13 +307,14 @@ void TimelineView::mouseMoveEvent(QMouseEvent *event) {
         } else if (m_loopDragMode == DragEnd) {
             // Calculate desired end position and snap it to grid
             int desiredEnd = loopSettings.start + loopSettings.length + deltaTick;
-            int snappedEnd = TimelineSnapUtils::snapNearest(desiredEnd, quantizeInterval);
+            int snappedEnd =
+                TimelineSnapUtils::snapNearest(desiredEnd, quantizeInterval, timeline());
             int newLength = qMax(quantizeInterval, snappedEnd - loopSettings.start);
             loopSettings.length = newLength;
             m_loopDragStartPos = currentTick;
         } else if (m_loopDragMode == DragBody) {
             int newStart = qMax(0, TimelineSnapUtils::snapNearest(m_loopDragStartTick + deltaTick,
-                                                                  quantizeInterval));
+                                                                  quantizeInterval, timeline()));
             loopSettings.start = newStart;
         }
         appStatus->loopSettings.set(loopSettings);

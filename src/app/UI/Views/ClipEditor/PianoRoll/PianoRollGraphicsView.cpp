@@ -437,8 +437,10 @@ void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
     const auto tick = static_cast<int>(sceneXToTick(scenePos.x()) + d->m_offset);
     const auto quantizedTickLength = TimelineSnapUtils::quantizeStep(
         appStatus->pianoRollQuantize, d->m_interactionController->tempQuantizeOff());
-    const auto snappedTick = TimelineSnapUtils::snapDown(tick, quantizedTickLength);
-    const auto snappedTickNearest = TimelineSnapUtils::snapNearest(tick, quantizedTickLength);
+    const auto snappedTick =
+        TimelineSnapUtils::snapDown(tick, quantizedTickLength, appModel->timeline());
+    const auto snappedTickNearest =
+        TimelineSnapUtils::snapNearest(tick, quantizedTickLength, appModel->timeline());
     const auto keyIndex = PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), scaleY() * noteHeight);
     const auto deltaX = static_cast<int>(
         sceneXToTick(scenePos.x() - d->m_interactionController->mouseDownPos().x()));

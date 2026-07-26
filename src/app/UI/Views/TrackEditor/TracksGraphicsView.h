@@ -59,7 +59,7 @@ private:
     void resetActiveClips() const;
     void resetEditState();
     void syncClipSelectionToAppStatus() const;
-    [[nodiscard]] int snapStep(bool snapOff) const;
+    [[nodiscard]] int snapStep(bool snapOff, int atTick = 0) const;
     [[nodiscard]] QList<AbstractClipView *> selectedClipItems() const;
 
     [[nodiscard]] QColor selectedTrackColor() const;

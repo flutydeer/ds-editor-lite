@@ -82,7 +82,6 @@ private:
     QSize m_iconSize = QSize(16, 16);
 
     QString toFormattedTickTime(int ticks) const;
-    int fromTickTimeString(const QStringList &splitStr) const;
 
     void updateTempoView();
     void updateTimeSignatureView();

@@ -3,6 +3,7 @@
 //
 
 #include "ClipController.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include "ClipController_p.h"
 #include "TrackController.h"
@@ -77,7 +78,7 @@ void ClipController::pasteNotesWithParams(const NotesParamsInfo &info, int tick)
     const auto singingClip = static_cast<SingingClip *>(d->m_clip);
 
     const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-    const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantize);
+    const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantize, appModel->timeline());
 
     const auto clipStart = singingClip->start();
     const auto localTick = snappedTick - clipStart;

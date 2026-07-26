@@ -43,11 +43,11 @@ double TimeGridView::endTick() const {
     return sceneXToTick(visibleRect().right()) + m_offset;
 }
 
-int TimeGridView::logicalGridStepForCurrentScale() const {
+int TimeGridView::logicalGridStepForCurrentScale(const int atTick) const {
     const auto width = visibleRect().width();
     if (width <= 0)
-        return logicalGridStepForScale(0);
-    return logicalGridStepForScale((endTick() - startTick()) / width);
+        return logicalGridStepForScale(0, atTick);
+    return logicalGridStepForScale((endTick() - startTick()) / width, atTick);
 }
 
 void TimeGridView::setQuantize(int quantize) {

@@ -1,4 +1,5 @@
 #include "PianoRollContextMenuBuilder.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include "PianoRollGraphicsView.h"
 #include "PianoRollSelectionModel.h"
 #include "NoteView.h"
@@ -118,7 +119,8 @@ Menu *
         const auto scenePos = view->mapToScene(pos);
         const auto tick = qRound(view->sceneXToTick(scenePos.x())) + offset;
         const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-        const auto previewTick = TimelineSnapUtils::snapNearest(tick, quantize);
+        const auto previewTick =
+            TimelineSnapUtils::snapNearest(tick, quantize, appModel->timeline());
 
         QObject::connect(actionPaste, &QAction::triggered, view,
                          [info, tick] { clipController->pasteNotesWithParams(info, tick); });

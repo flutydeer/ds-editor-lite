@@ -1,6 +1,7 @@
 #include <lite/MusicBase/MusicTime.h>
 #include <lite/MusicBase/MusicTimeConverter.h>
 #include <lite/MusicBase/Timeline.h>
+#include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QCoreApplication>
 
@@ -296,6 +297,49 @@ namespace {
         return ok;
     }
 
+    bool testBarAnchoredSnapping() {
+        bool ok = true;
+        // Degenerate equivalence: a single 4/4 timeline snaps exactly like the
+        // plain global grid for every grid-typical step.
+        const Timeline single({
+            {0, 120.0}
+        });
+        for (const int step : {1, 15, 30, 60, 120, 240, 480, 1920, 3840, 7680}) {
+            for (int tick = 0; tick <= 4 * 1920; tick += 37) {
+                ok &= expect(TimelineSnapUtils::snapNearest(tick, step, single) ==
+                                 TimelineSnapUtils::snapNearest(tick, step),
+                             "degenerate snapNearest equals global snapping");
+                ok &= expect(TimelineSnapUtils::snapDown(tick, step, single) ==
+                                 TimelineSnapUtils::snapDown(tick, step),
+                             "degenerate snapDown equals global snapping");
+            }
+        }
+
+        // 4/4 for bars 0..3, 3/4 for bars 4..7 (bar 4 at 7680), 6/8 from
+        // bar 8 on (bar 8 at 13440).
+        const auto timeline = threeMeterTimeline();
+        // Beat snapping anchors on the containing measure's start.
+        ok &= expect(TimelineSnapUtils::snapNearest(7680 + 500, 480, timeline) == 7680 + 480,
+                     "beat snapping anchors on the 3/4 measure start");
+        // Crossing the signature change from the left: the measure line wins.
+        ok &= expect(TimelineSnapUtils::snapNearest(7680 - 100, 480, timeline) == 7680,
+                     "snapping across a signature change reaches the measure line");
+        // The next measure line is a target even when the step does not
+        // divide the measure evenly (step 480 inside a 1440-tick 6/8 measure).
+        ok &= expect(TimelineSnapUtils::snapNearest(13440 + 1400, 480, timeline) == 13440 + 1440,
+                     "measure line wins when closer than the last step");
+        // Measure-sized steps snap in whole measures despite uneven widths.
+        ok &= expect(TimelineSnapUtils::snapNearest(8000, 1440, timeline) == 7680,
+                     "measure-level snapping in the 3/4 section");
+        ok &= expect(TimelineSnapUtils::snapDown(9200, 1440, timeline) == 7680 + 1440,
+                     "snapDown lands on the measure start");
+        // Negative ticks fall back to the plain grid instead of crashing.
+        ok &= expect(TimelineSnapUtils::snapNearest(-5, 480, timeline) ==
+                         TimelineSnapUtils::snapNearest(-5, 480),
+                     "negative ticks use the plain grid");
+        return ok;
+    }
+
     bool testMusicTimeStrings() {
         bool ok = true;
         ok &= expect(MusicTime(0, 0, 0).toString() == QStringLiteral("001:01:000"),
@@ -336,6 +380,7 @@ int main(int argc, char *argv[]) {
     ok &= testZeroPointInvariant();
     ok &= testMutationApi();
     ok &= testExtremeValues();
+    ok &= testBarAnchoredSnapping();
     ok &= testMusicTimeStrings();
 
     if (!ok)

@@ -118,10 +118,10 @@ void TracksGraphicsView::setClipSelectedBorderColor(const QColor &color) {
             clip->update();
 }
 
-int TracksGraphicsView::snapStep(const bool snapOff) const {
+int TracksGraphicsView::snapStep(const bool snapOff, const int atTick) const {
     if (snapOff)
         return 1;
-    return m_snapGrid ? m_snapGrid->logicalGridStepForCurrentScale()
+    return m_snapGrid ? m_snapGrid->logicalGridStepForCurrentScale(atTick)
                       : TimelineSnapUtils::quantizeToTicks(128);
 }
 
@@ -263,11 +263,11 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
     int left;
     int clipLen;
     const int delta = qRound(dx);
-    const int quantize = snapStep(m_tempQuantizeOff);
+    const int quantize = snapStep(m_tempQuantizeOff, m_mouseDownStart + m_mouseDownClipStart + delta);
     if (m_mouseMoveBehavior == Move) {
         m_movedBeforeMouseUp = true;
         left = TimelineSnapUtils::snapNearest(m_mouseDownStart + m_mouseDownClipStart + delta,
-                                              quantize);
+                                              quantize, appModel->timeline());
         start = left - m_mouseDownClipStart;
         m_currentEditingClip->setStart(start);
         const auto targetTrackIndex = m_scene->trackIndexAt(curPos.y());
@@ -280,7 +280,7 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
     } else if (m_mouseMoveBehavior == ResizeLeft) {
         m_movedBeforeMouseUp = true;
         left = TimelineSnapUtils::snapNearest(m_mouseDownStart + m_mouseDownClipStart + delta,
-                                              quantize);
+                                              quantize, appModel->timeline());
         start = m_mouseDownStart;
         const int clipStart = left - start;
         clipLen = m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen - left;
@@ -300,7 +300,8 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
     } else if (m_mouseMoveBehavior == ResizeRight) {
         m_movedBeforeMouseUp = true;
         const int right = TimelineSnapUtils::snapNearest(
-            m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta, quantize);
+            m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta, quantize,
+            appModel->timeline());
         clipLen = right - (m_mouseDownStart + m_mouseDownClipStart);
         if (clipLen <= 0)
             return;
@@ -368,7 +369,8 @@ void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
             editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
             editorViewController->centerPianoRollAt(playbackController->position(), 60);
         } else if (dynamic_cast<TrackEditorBackgroundView *>(item)) {
-            m_tick = TimelineSnapUtils::snapDown(tick, snapStep(false));
+            m_tick = TimelineSnapUtils::snapDown(tick, snapStep(false, tick),
+                                                 appModel->timeline());
             onNewSingingClip();
         }
     }
@@ -386,7 +388,8 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     if (const auto item = itemAt(event->pos())) {
         if (dynamic_cast<TrackEditorBackgroundView *>(item)) {
             m_trackIndex = trackIndex;
-            m_tick = TimelineSnapUtils::snapDown(tick, snapStep(false));
+            m_tick = TimelineSnapUtils::snapDown(tick, snapStep(false, tick),
+                                                 appModel->timeline());
 
             Menu menu(this);
             menu.installEventFilter(this);
@@ -409,7 +412,8 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
                 ClipsInfo info = ClipsInfo::deserializeFromJson(json.object());
                 const auto pasteTick = m_tick;
                 const auto previewTick = TimelineSnapUtils::snapNearest(
-                    pasteTick, TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize));
+                    pasteTick, TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize),
+                    appModel->timeline());
                 const auto pasteTrack = trackIndex;
                 connect(actionPaste, &QAction::triggered, this, [info, pasteTick, pasteTrack] {
                     trackController->pasteClips(info, pasteTick, pasteTrack);

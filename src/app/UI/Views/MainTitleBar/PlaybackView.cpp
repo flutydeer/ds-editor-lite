@@ -4,6 +4,8 @@
 
 #include "PlaybackView.h"
 
+#include <lite/MusicBase/MusicTime.h>
+
 #include "MainTitleBarIconPalette.h"
 #include <lite/GUI/Controls/ControlGroup.h>
 #include "Controller/AppController.h"
@@ -160,19 +162,12 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTime->setDisplayFont(musicFont);
     m_elTime->setTextMargins({12, 0, 12, 0});
     m_elTime->setFixedHeight(m_contentHeight);
-    m_elTime->setCommitValidator([this](const QString &text) {
-        const auto parts = text.trimmed().split(':');
-        if (parts.size() != 3)
+    m_elTime->setCommitValidator([](const QString &text) {
+        bool ok = false;
+        const auto time = MusicTime::fromString(text, &ok);
+        if (!ok)
             return false;
-        bool barOk = false;
-        bool beatOk = false;
-        bool tickOk = false;
-        const auto bar = parts.at(0).toInt(&barOk);
-        const auto beat = parts.at(1).toInt(&beatOk);
-        const auto tick = parts.at(2).toInt(&tickOk);
-        const auto beatTicks = AppGlobal::ticksPerWholeNote / m_denominator;
-        return barOk && beatOk && tickOk && bar >= 1 && beat >= 1 && beat <= m_numerator &&
-               tick >= 0 && tick < beatTicks;
+        return appModel->timeline().timeToTick(time) >= 0;
     });
 
     connect(m_elTempo, &TempoComboBox::tempoChanged, this, [this](double tempo) {
@@ -193,14 +188,13 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
                 updateTimeSignatureView();
             });
     connect(m_elTime, &InlineEditLabel::editCompleted, this, [this](const QString &value) {
-        if (!value.contains(':'))
+        bool ok = false;
+        const auto time = MusicTime::fromString(value, &ok);
+        if (!ok)
             return;
-
-        auto splitStr = value.split(':');
-        if (splitStr.size() != 3)
+        const auto tick = appModel->timeline().timeToTick(time);
+        if (tick < 0)
             return;
-
-        auto tick = fromTickTimeString(splitStr);
         if (tick != m_tick) {
             m_tick = tick;
             emit setPositionTriggered(tick);
@@ -306,22 +300,7 @@ void PlaybackView::onPlaybackStatusChanged(PlaybackStatus status) {
 }
 
 QString PlaybackView::toFormattedTickTime(int ticks) const {
-    int barTicks = AppGlobal::ticksPerWholeNote * m_numerator / m_denominator;
-    int beatTicks = AppGlobal::ticksPerWholeNote / m_denominator;
-    auto bar = ticks / barTicks + 1;
-    auto beat = ticks % barTicks / beatTicks + 1;
-    auto tick = ticks % barTicks % beatTicks;
-    auto str = QString::asprintf("%03d", bar) + ":" + QString::asprintf("%02d", beat) + ":" +
-               QString::asprintf("%03d", tick);
-    return str;
-}
-
-int PlaybackView::fromTickTimeString(const QStringList &splitStr) const {
-    auto bar = splitStr.at(0).toInt();
-    auto beat = splitStr.at(1).toInt();
-    auto tick = splitStr.at(2).toInt();
-    return (bar - 1) * AppGlobal::ticksPerWholeNote * m_numerator / m_denominator +
-           (beat - 1) * AppGlobal::ticksPerWholeNote / m_denominator + tick;
+    return appModel->timeline().getBarBeatTickTime(ticks);
 }
 
 void PlaybackView::updateTempoView() {

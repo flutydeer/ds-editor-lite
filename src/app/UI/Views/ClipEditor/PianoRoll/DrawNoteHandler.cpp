@@ -1,4 +1,5 @@
 #include "DrawNoteHandler.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include "NoteView.h"
 #include "PianoRollGraphicsScene.h"
@@ -71,10 +72,11 @@ void DrawNoteHandler::continueDragAt(const QPoint &viewportPos) {
 
 void DrawNoteHandler::updateDrawingAt(const QPoint &viewportPos) {
     const auto scenePos = q->mapToScene(viewportPos);
-    const auto tick = q->sceneXToTick(scenePos.x()) + d->m_offset;
+    const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x())) + d->m_offset;
     const auto quantizedTickLength =
         TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-    const auto snappedTick = TimelineSnapUtils::snapDown(tick, quantizedTickLength);
+    const auto snappedTick =
+        TimelineSnapUtils::snapDown(tick, quantizedTickLength, appModel->timeline());
     const auto targetLength = snappedTick - d->m_offset - m_currentDrawingNote->rStart();
     if (targetLength >= quantizedTickLength)
         m_currentDrawingNote->setLength(targetLength);
@@ -118,7 +120,8 @@ void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,
 
     const auto quantizedTickLength =
         TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-    const auto snappedTick = TimelineSnapUtils::snapDown(tick, quantizedTickLength);
+    const auto snappedTick =
+        TimelineSnapUtils::snapDown(tick, quantizedTickLength, appModel->timeline());
     qDebug() << "Draw note at:" << snappedTick;
 
     if (!m_currentDrawingNote) {
