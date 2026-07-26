@@ -15,6 +15,7 @@
 #include "Interface/IMainWindow.h"
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppOptions/AppOptions.h"
+#include "Global/AppGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
@@ -128,6 +129,20 @@ void AppControllerPrivate::initializeModules() {
                 if (option == AppOptionsGlobal::All || option == AppOptionsGlobal::Appearance)
                     pushAppearance();
             });
+
+    // Push app-provided new-track defaults into the model, which no longer
+    // reaches into AppOptions / the app-wide color palette itself.
+    appModel->setPaletteColorCount(AppGlobal::paletteColorCount);
+    const auto pushModelDefaults = [] {
+        appModel->setDefaultSingingLanguage(appOptions->general()->defaultSingingLanguage);
+    };
+    pushModelDefaults();
+    connect(appOptions, &AppOptions::optionsChanged, appModel,
+            [pushModelDefaults](AppOptionsGlobal::Option option) {
+                if (option == AppOptionsGlobal::All || option == AppOptionsGlobal::General)
+                    pushModelDefaults();
+            });
+
     connect(appModel, &AppModel::modelChanged, audioDecodingController,
             &AudioDecodingController::onModelChanged);
     connect(appModel, &AppModel::trackChanged, audioDecodingController,

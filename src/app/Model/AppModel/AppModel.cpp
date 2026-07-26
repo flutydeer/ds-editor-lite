@@ -7,11 +7,9 @@
 #include "AppModel_p.h"
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
-#include "Model/AppOptions/AppOptions.h"
-#include "Model/AppStatus/AppStatus.h"
 #include <lite/Support/MathUtils.h>
 #include <lite/MusicBase/MusicTimeConverter.h>
-#include "Global/AppGlobal.h"
+#include <lite/MusicBase/MusicTime.h>
 
 #include <QJsonArray>
 
@@ -66,6 +64,17 @@ void AppModel::setMasterControl(const TrackControl &control) {
     emit masterControlChanged(d->m_masterControl);
 }
 
+void AppModel::setDefaultSingingLanguage(const QString &language) {
+    Q_D(AppModel);
+    d->m_defaultSingingLanguage = language;
+}
+
+void AppModel::setPaletteColorCount(const int count) {
+    Q_D(AppModel);
+    if (count > 0)
+        d->m_paletteColorCount = count;
+}
+
 const QList<Track *> &AppModel::tracks() const {
     Q_D(const AppModel);
     return d->m_tracks;
@@ -79,7 +88,7 @@ void AppModel::insertTrack(Track *track, const qsizetype index) {
             prev = d->m_tracks[index - 1]->colorIndex();
         else if (index >= d->m_tracks.size() && !d->m_tracks.isEmpty())
             prev = d->m_tracks.last()->colorIndex();
-        const int newIdx = (prev < 0) ? 0 : (prev + 1) % AppGlobal::paletteColorCount;
+        const int newIdx = (prev < 0) ? 0 : (prev + 1) % d->m_paletteColorCount;
         track->setColorIndex(newIdx);
     }
     d->m_tracks.insert(index, track);
@@ -143,7 +152,7 @@ void AppModel::replaceProject(ProjectModelData &&data) {
     for (auto &track : data.tracks)
         d->m_tracks.append(track.release());
 
-    const auto defaultLanguage = appOptions->general()->defaultSingingLanguage;
+    const auto defaultLanguage = d->m_defaultSingingLanguage;
     for (const auto track : std::as_const(d->m_tracks)) {
         if (track->defaultLanguage().isEmpty() || track->defaultLanguage() == "unknown")
             track->setDefaultLanguage(defaultLanguage);
@@ -169,7 +178,7 @@ void AppModel::newProject() {
     constexpr int bars = 4;
     const auto timeSig = timeSignature();
     const int length =
-        AppGlobal::ticksPerWholeNote * timeSig.numerator / timeSig.denominator * bars;
+        MusicTime::ticksPerWholeNote * timeSig.numerator / timeSig.denominator * bars;
     singingClip->setName(tr("New Singing Clip"));
     singingClip->setStart(0);
     singingClip->setClipStart(0);
@@ -177,7 +186,7 @@ void AppModel::newProject() {
     singingClip->setClipLen(length);
     const auto newTrack = new Track;
     newTrack->setName(tr("New Track"));
-    newTrack->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
+    newTrack->setDefaultLanguage(d->m_defaultSingingLanguage);
     newTrack->setColorIndex(0);
 
     newTrack->insertClip(singingClip);
