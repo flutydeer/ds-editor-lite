@@ -103,23 +103,33 @@ void AudioClip::syncTruthFromTicks(const Timeline &timeline) {
 bool AudioClip::updateTicksFromTruth(const Timeline &timeline) {
     if (!hasRealTimeAnchor())
         return false;
-    const int visibleStart = m_start + m_clipStart;
-    const double visibleMs = timeline.tickToMs(visibleStart);
-    const int newStart = qRound(timeline.msToTick(visibleMs - m_trimStartMs));
-    const int newClipStart = visibleStart - newStart;
-    const int newClipLen =
-        qMax(1, qRound(timeline.msToTick(visibleMs + m_playLengthMs)) - visibleStart);
-    const int newLength =
-        qMax(newClipStart + newClipLen,
-             qRound(timeline.msToTick(visibleMs - m_trimStartMs + m_materialLengthMs)) - newStart);
-    if (newStart == m_start && newClipStart == m_clipStart && newClipLen == m_clipLen &&
-        newLength == m_length)
+    const auto caches = deriveTickCaches(m_trimStartMs, m_playLengthMs, m_materialLengthMs,
+                                         m_start + m_clipStart, timeline);
+    if (caches.start == m_start && caches.clipStart == m_clipStart &&
+        caches.clipLen == m_clipLen && caches.length == m_length)
         return false;
-    m_start = newStart;
-    m_clipStart = newClipStart;
-    m_clipLen = newClipLen;
-    m_length = newLength;
+    m_start = caches.start;
+    m_clipStart = caches.clipStart;
+    m_clipLen = caches.clipLen;
+    m_length = caches.length;
     return true;
+}
+
+AudioClip::TickCaches AudioClip::deriveTickCaches(const double trimStartMs,
+                                                  const double playLengthMs,
+                                                  const double materialLengthMs,
+                                                  const int visibleStartTick,
+                                                  const Timeline &timeline) {
+    const double visibleMs = timeline.tickToMs(visibleStartTick);
+    TickCaches caches;
+    caches.start = qRound(timeline.msToTick(visibleMs - trimStartMs));
+    caches.clipStart = visibleStartTick - caches.start;
+    caches.clipLen =
+        qMax(1, qRound(timeline.msToTick(visibleMs + playLengthMs)) - visibleStartTick);
+    caches.length =
+        qMax(caches.clipStart + caches.clipLen,
+             qRound(timeline.msToTick(visibleMs - trimStartMs + materialLengthMs)) - caches.start);
+    return caches;
 }
 
 void AudioClip::deriveTruthForProperties(ClipCommonProperties &args, const Timeline &timeline) {

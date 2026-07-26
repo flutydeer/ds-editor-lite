@@ -294,6 +294,59 @@ namespace {
         delete clip;
         return ok;
     }
+
+    // The drag preview derives the tick caches from the gesture's ms truth;
+    // committing the same truth through the action path must reproduce them
+    // exactly (no jump on mouse release).
+    bool testDragPreviewMatchesCommit() {
+        bool ok = true;
+        const Timeline timeline({
+            {0,    120.0},
+            {4800, 60.0 },
+            {9600, 150.0},
+        });
+        const struct {
+            double trimMs;
+            double playMs;
+            double materialMs;
+            int visibleStart;
+        } cases[] = {
+            {0.0,    2000.0, 4000.0, 0    },
+            {500.0,  1500.0, 4000.0, 4700 }, // window crosses the first tempo point
+            {5000.0, 2500.0, 9000.0, 9600 }, // trim spans two segments, start on a point
+            {250.0,  3000.0, 3250.0, 12000}, // window ends exactly at the material end
+        };
+        for (const auto &c : cases) {
+            const auto caches = AudioClip::deriveTickCaches(c.trimMs, c.playMs, c.materialMs,
+                                                            c.visibleStart, timeline);
+            ok &= expect(caches.start + caches.clipStart == c.visibleStart,
+                         "preview keeps the visible start tick");
+
+            const auto clip = new AudioClip;
+            clip->setStart(caches.start);
+            clip->setClipStart(caches.clipStart);
+            clip->setClipLen(caches.clipLen);
+            clip->setLength(caches.length);
+            Clip::ClipCommonProperties args;
+            args.start = caches.start;
+            args.clipStart = caches.clipStart;
+            args.clipLen = caches.clipLen;
+            args.length = caches.length;
+            args.trimStartMs = c.trimMs;
+            args.playLengthMs = c.playMs;
+            args.materialLengthMs = c.materialMs;
+            clip->applyRealTimeAnchorFromProperties(args, timeline);
+            ok &= expect(clip->start() == caches.start && clip->clipStart() == caches.clipStart &&
+                             clip->clipLen() == caches.clipLen && clip->length() == caches.length,
+                         "committing the gesture truth reproduces the preview ticks");
+            ok &= expectNear(clip->trimStartMs(), c.trimMs,
+                             "the committed trim is the gesture value, not a re-derivation");
+            ok &= expectNear(clip->playLengthMs(), c.playMs,
+                             "the committed play length is the gesture value");
+            delete clip;
+        }
+        return ok;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -306,6 +359,7 @@ int main(int argc, char *argv[]) {
     ok &= testCompensationProperty();
     ok &= testPropertiesRoundTrip();
     ok &= testMovePreservesTruth();
+    ok &= testDragPreviewMatchesCommit();
 
     if (!ok)
         return 1;

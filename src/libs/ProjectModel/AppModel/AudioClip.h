@@ -67,6 +67,18 @@ public:
     // fixed. Returns true when any tick field changed. The caller owns list
     // reindexing (Track::removeClip / insertClip) and change notification.
     bool updateTicksFromTruth(const Timeline &timeline);
+    // The pure derivation behind updateTicksFromTruth: the tick caches of a
+    // realtime window placed with its visible start at the given tick. Shared
+    // with the track editor so drag previews match the commit exactly.
+    struct TickCaches {
+        int start = 0;
+        int clipStart = 0;
+        int clipLen = 0;
+        int length = 0;
+    };
+    static TickCaches deriveTickCaches(double trimStartMs, double playLengthMs,
+                                       double materialLengthMs, int visibleStartTick,
+                                       const Timeline &timeline);
     // Fill the ms fields of tick-space properties under the given timeline
     static void deriveTruthForProperties(ClipCommonProperties &args, const Timeline &timeline);
     // A tick-space edit only redefines the realtime window for the components
