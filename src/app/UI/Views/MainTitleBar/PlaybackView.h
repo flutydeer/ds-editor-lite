@@ -37,8 +37,7 @@ signals:
 
 public slots:
     void updateView();
-    void onTempoChanged(double tempo);
-    void onTimeSignatureChanged(int numerator, int denominator);
+    void onTimelineChanged();
     void onPositionChanged(double tick);
     void onPlaybackStatusChanged(PlaybackStatus status);
 

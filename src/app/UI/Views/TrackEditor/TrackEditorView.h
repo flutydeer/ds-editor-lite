@@ -47,7 +47,6 @@ public slots:
     void onLastPositionChanged(double tick) const;
 
 signals:
-    void tempoChanged(double tempo);
     void trackCountChanged(qsizetype count);
     void setPositionTriggered(double tick);
 

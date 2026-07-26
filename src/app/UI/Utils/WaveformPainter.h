@@ -5,6 +5,7 @@
 #ifndef WAVEFORMPAINTER_H
 #define WAVEFORMPAINTER_H
 
+#include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/AppModel/AudioInfoModel.h>
 #include "UI/Utils/WaveformRenderUtils.h"
 
@@ -27,7 +28,7 @@ public:
 
     void setAudioPath(const QString &path);
     void setAudioInfo(const AudioInfoModel &info);
-    void setTempo(double tempo);
+    void setTimeline(const Timeline &timeline);
 
     void setRenderMode(WaveformRenderUtils::Mode mode);
     [[nodiscard]] WaveformRenderUtils::Mode renderMode() const;
@@ -52,7 +53,7 @@ private:
     WaveformRenderUtils::Mode m_renderMode = WaveformRenderUtils::FilledMode;
 
     AudioInfoModel m_audioInfo;
-    double m_tempo = 120;
+    Timeline m_timeline;
     QString m_path;
     talcs::AbstractAudioFormatIO *m_io = nullptr;
     QVector<float> m_ioBuffer;

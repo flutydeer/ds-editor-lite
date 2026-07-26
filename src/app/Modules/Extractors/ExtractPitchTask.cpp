@@ -219,9 +219,7 @@ std::vector<float> ExtractPitchTask::freqToMidi(const std::vector<float> &freque
 }
 
 QList<double> ExtractPitchTask::processOutput(const QList<double> &values) const {
-    auto tickToSec = [&](const double &tick) {
-        return tick * 60 / m_input.tempo / AppGlobal::ticksPerQuarterNote;
-    };
+    auto tickToSec = [&](const double &tick) { return m_input.timeline.tickToSec(tick); };
     constexpr auto interval = 0.01;
     const auto newInterval = tickToSec(5);
     return MathUtils::resample(values, interval, newInterval);

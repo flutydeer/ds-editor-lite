@@ -29,7 +29,7 @@ void PitchExtractController::runExtractPitch(const AudioClip *audioClip,
                                              const SingingClip *singingClip) {
     const auto path = audioClip->path();
     const auto task =
-        new ExtractPitchTask({singingClip->id(), audioClip->id(), path, appModel->tempo()});
+        new ExtractPitchTask({singingClip->id(), audioClip->id(), path, appModel->timeline()});
     const auto dlg = new TaskDialog(task, true, true);
     dlg->show();
     connect(task, &Task::finished, this, [=] { onExtractPitchTaskFinished(task); });

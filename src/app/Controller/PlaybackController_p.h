@@ -16,11 +16,7 @@ public:
     double m_position = 0;
     double m_lastPlayPosition = 0;
     double m_sampleRate = 48000;
-    double m_tempo = 120;
     PlaybackStatus m_playbackStatus = Stopped;
-
-    [[nodiscard]] double samplePosToTick(int sample) const;
-    [[nodiscard]] int tickToSamplePos(double tick) const;
 
 private:
     PlaybackController *q_ptr;

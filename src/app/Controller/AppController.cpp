@@ -52,8 +52,8 @@ bool AppController::exportMidiFile(const QString &filePath) {
 
 void AppController::onSetTempo(const double tempo) {
     const auto model = appModel;
-    const auto oldTempo = model->tempo();
-    const auto newTempo = tempo > 0 ? tempo : model->tempo();
+    const auto oldTempo = model->timeline().tempoAt(0);
+    const auto newTempo = tempo > 0 ? tempo : oldTempo;
     const auto actions = new TempoActions;
     actions->editTempo(oldTempo, newTempo, model);
     actions->execute();
@@ -63,7 +63,7 @@ void AppController::onSetTempo(const double tempo) {
 void AppController::onSetTimeSignature(const int numerator, const int denominator) {
     Q_D(AppController);
     const auto model = appModel;
-    const auto oldSig = model->timeSignature();
+    const auto oldSig = model->timeline().timeSignatureAt(0);
     const auto newSig = TimeSignature(numerator, denominator);
     const auto actions = new TimeSignatureActions;
     if (AppControllerPrivate::isPowerOf2(denominator)) {

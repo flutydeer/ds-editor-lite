@@ -35,7 +35,7 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     setObjectName("PhonemeView");
     installEventFilter(this);
 
-    connect(appModel, &AppModel::tempoChanged, this, &PhonemeView::onTempoChanged);
+    connect(appModel, &AppModel::timelineChanged, this, &PhonemeView::onTimelineChanged);
     connect(playbackController, &PlaybackController::positionChanged, this,
             &PhonemeView::setPosition);
 
@@ -79,7 +79,7 @@ void PhonemeView::setPosition(const double tick) {
         m_positionThrottle.start();
 }
 
-void PhonemeView::onTempoChanged() {
+void PhonemeView::onTimelineChanged() {
     if (m_clip) {
         resetPhonemeList();
         buildPhonemeList();
@@ -745,12 +745,12 @@ void PhonemeView::onWaveformReady(const int clipId, const int pieceId, const qui
     auto *painter = new WaveformPainter;
     painter->setAudioPath(piece->audioPath);
     painter->setAudioInfo(info);
-    painter->setTempo(appModel->tempo());
+    painter->setTimeline(appModel->timeline());
 
     PieceWaveform wf;
     wf.painter = painter;
-    wf.globalStartTick = piece->localStartTick(appModel->tempo()) + clipOffset;
-    wf.globalEndTick = piece->localEndTick(appModel->tempo()) + clipOffset;
+    wf.globalStartTick = piece->localStartTick(appModel->timeline()) + clipOffset;
+    wf.globalEndTick = piece->localEndTick(appModel->timeline()) + clipOffset;
 
     if (m_pieceWaveforms.contains(piece))
         delete m_pieceWaveforms[piece].painter;

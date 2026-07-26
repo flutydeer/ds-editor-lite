@@ -17,6 +17,7 @@
 
 class SingingClip;
 class Note;
+class Timeline;
 
 class InferPiece final : public QObject, public IInferPiece {
     Q_OBJECT
@@ -60,8 +61,8 @@ public:
     explicit InferPiece(SingingClip *clip);
 
     [[nodiscard]] int clipId() const override;
-    [[nodiscard]] int localStartTick(double tempo) const;
-    [[nodiscard]] int localEndTick(double tempo) const;
+    [[nodiscard]] int localStartTick(const Timeline &timeline) const;
+    [[nodiscard]] int localEndTick(const Timeline &timeline) const;
 
     [[nodiscard]] const DrawCurve *getOriginalCurve(ParamInfo::Name name) const;
     void setOriginalCurve(ParamInfo::Name name, const DrawCurve &curve);

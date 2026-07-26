@@ -19,7 +19,9 @@ protected:
     explicit ModelChangeHandler(QObject *parent = nullptr);
 
     virtual void handleModelChanged();
-    virtual void handleTempoChanged(double tempo);
+    // Fired only when the tempo side of the timeline actually changed;
+    // signature-only edits do not reach tempo-sensitive handlers.
+    virtual void handleTempoChanged();
     virtual void handleTrackInserted(Track *track);
     virtual void handleTrackRemoved(Track *track);
     virtual void handleClipInserted(Clip *clip);
@@ -36,12 +38,13 @@ protected:
 
 private slots:
     void onModelChanged();
-    void onTempoChanged(double tempo);
+    void onTimelineChanged();
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
     void onClipChanged(Track::ClipChangeType type, Clip *clip);
 
 private:
     QList<Track *> m_tracks;
+    QList<Tempo> m_tempoSnapshot;
 };
 
 

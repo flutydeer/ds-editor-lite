@@ -271,7 +271,7 @@ void TrackController::onRemoveClips(const QList<int> &clipsId) {
 SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int tick) {
     const auto singingClip = new SingingClip;
     constexpr int bars = 4;
-    const auto timeSig = appModel->timeSignature();
+    const auto timeSig = appModel->timeline().timeSignatureAt(0);
     const int length =
         AppGlobal::ticksPerWholeNote * timeSig.numerator / timeSig.denominator * bars;
     singingClip->setName(tr("New Singing Clip"));
@@ -452,7 +452,7 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
     const auto result = task->result();
 
     const auto sampleRate = result.sampleRate;
-    const auto tempo = appModel->tempo();
+    const auto tempo = appModel->timeline().tempoAt(0);
     const auto frames = result.frames;
     const auto length = frames / (sampleRate * 60 / tempo / AppGlobal::ticksPerQuarterNote);
 

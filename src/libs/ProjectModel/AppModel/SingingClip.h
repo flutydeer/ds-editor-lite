@@ -17,6 +17,7 @@
 class DrawCurve;
 class InferPiece;
 class Note;
+class Timeline;
 
 using PieceList = QList<InferPiece *>;
 using SpeakerMixModel::SpeakerMixData;
@@ -54,7 +55,7 @@ public:
     void notifyParamChanged(ParamInfo::Name name, Param::Type type);
     const PieceList &pieces() const;
     void removeAllPieces();
-    ReSegmentResult reSegment(double tempo);
+    ReSegmentResult reSegment(const Timeline &timeline);
     void updateOriginalParam(ParamInfo::Name name);
     InferPiece *findPieceById(int id) const;
     PieceList findPiecesByNotes(const QList<Note *> &notes) const;

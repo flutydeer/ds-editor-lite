@@ -1299,9 +1299,10 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     dspxModel.content.master.control.pan = masterControl.pan();
     dspxModel.content.master.control.mute = masterControl.mute();
     auto &timeline = dspxModel.content.timeline;
-    timeline.tempos.push_back(opendspx::Tempo(0, model->tempo()));
-    timeline.timeSignatures.push_back(opendspx::TimeSignature(0, model->timeSignature().numerator,
-                                                              model->timeSignature().denominator));
+    const auto signature = model->timeline().timeSignatureAt(0);
+    timeline.tempos.push_back(opendspx::Tempo(0, model->timeline().tempoAt(0)));
+    timeline.timeSignatures.push_back(
+        opendspx::TimeSignature(0, signature.numerator, signature.denominator));
 
     encodeTracks(model, dspxModel);
 

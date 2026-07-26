@@ -45,7 +45,7 @@ public slots:
 
 protected:
     void handleModelChanged() override;
-    void handleTempoChanged(double tempo) override;
+    void handleTempoChanged() override;
     void handleSingingClipInserted(SingingClip *clip) override;
     void handleSingingClipRemoved(SingingClip *clip) override;
     void handlePiecesChanged(const PieceList &newPieces, const PieceList &discardedPieces,

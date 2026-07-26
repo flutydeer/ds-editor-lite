@@ -6,6 +6,7 @@
 #define AUDIOCLIPGRAPHICSITEM_H
 
 #include "AbstractClipView.h"
+#include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/AppModel/AudioInfoModel.h>
 #include "Global/AppGlobal.h"
 
@@ -40,15 +41,11 @@ public:
 
     [[nodiscard]] QString path() const;
     void setPath(const QString &path);
-    [[nodiscard]] double tempo() const;
-    void setTempo(double tempo);
+    void setTimeline(const Timeline &timeline);
     void setAudioInfo(const AudioInfoModel &info);
     void setStatus(AppGlobal::AudioLoadStatus status);
     void setErrorMessage(const QString &errorMessage);
     [[nodiscard]] int contentLength() const override;
-
-public slots:
-    void onTempoChange(double tempo);
 
 private:
     enum RenderResolution { High, Low };
@@ -70,7 +67,7 @@ private:
     AppGlobal::AudioLoadStatus m_status = AppGlobal::Init;
     AudioInfoModel m_audioInfo;
     QString m_errorMessage;
-    double m_tempo = 60;
+    Timeline m_timeline;
     RenderResolution m_resolution = High;
     QString m_path;
 

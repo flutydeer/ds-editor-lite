@@ -9,7 +9,7 @@
 
 #include <lite/Core/Singleton.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
-#include <lite/MusicBase/TimeSignature.h>
+#include <lite/MusicBase/Timeline.h>
 #include <lite/Support/ISerializable.h>
 #include <lite/ProjectModel/AppModel/TrackControl.h>
 #include <lite/ProjectModel/AppModel/ProjectModelData.h>
@@ -32,10 +32,12 @@ public:
 public:
     enum TrackChangeType { Insert, Remove };
 
-    TimeSignature timeSignature() const;
-    void setTimeSignature(const TimeSignature &signature);
-    double tempo() const;
+    const Timeline &timeline() const;
+    void setTimeline(Timeline timeline);
+    // Convenience editors used by the single-point UI: they edit the anchor
+    // point at position 0 and leave any other timeline points untouched.
     void setTempo(double tempo);
+    void setTimeSignature(const TimeSignature &signature);
     TrackControl masterControl() const;
     void setMasterControl(const TrackControl &control);
     // Defaults for newly created tracks, supplied by the app layer so the model
@@ -70,8 +72,7 @@ public slots:
 
 signals:
     void modelChanged();
-    void tempoChanged(double tempo);
-    void timeSignatureChanged(int numerator, int denominator);
+    void timelineChanged();
     void masterControlChanged(const TrackControl &control);
     void trackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
 

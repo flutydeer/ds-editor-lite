@@ -27,7 +27,7 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(MidiExtractController)
 
 void MidiExtractController::runExtractMidi(const AudioClip *audioClip) {
     const auto path = audioClip->path();
-    const auto task = new ExtractMidiTask({-1, audioClip->id(), path, appModel->tempo()});
+    const auto task = new ExtractMidiTask({-1, audioClip->id(), path, appModel->timeline()});
     const auto dlg = new TaskDialog(task, true, true);
     dlg->show();
     connect(task, &Task::finished, this, [=] { onExtractMidiTaskFinished(task); });

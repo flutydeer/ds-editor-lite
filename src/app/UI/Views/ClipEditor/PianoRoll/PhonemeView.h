@@ -75,7 +75,7 @@ public slots:
     void setPosition(double tick);
 
 private slots:
-    void onTempoChanged();
+    void onTimelineChanged();
     void onClipPropertyChanged();
     void onNoteChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
     void onPiecesChanged(const PieceList &pieces, const PieceList &newPieces,

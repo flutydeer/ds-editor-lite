@@ -25,13 +25,14 @@ QColor blendColor(const QColor &from, const QColor &to, double ratio) {
 } // namespace
 
 TimeGridView::TimeGridView(QGraphicsItem *parent) : AbstractGraphicsRectItem(parent) {
-    setTimeSignature(appModel->timeSignature().numerator, appModel->timeSignature().denominator);
+    const auto applyTimeSignature = [this] {
+        const auto signature = appModel->timeline().timeSignatureAt(0);
+        this->setTimeSignature(signature.numerator, signature.denominator);
+    };
+    applyTimeSignature();
 
-    connect(appModel, &AppModel::modelChanged, this, [this] {
-        this->setTimeSignature(appModel->timeSignature().numerator,
-                               appModel->timeSignature().denominator);
-    });
-    connect(appModel, &AppModel::timeSignatureChanged, this, &TimeGridView::setTimeSignature);
+    connect(appModel, &AppModel::modelChanged, this, applyTimeSignature);
+    connect(appModel, &AppModel::timelineChanged, this, applyTimeSignature);
 }
 
 double TimeGridView::startTick() const {

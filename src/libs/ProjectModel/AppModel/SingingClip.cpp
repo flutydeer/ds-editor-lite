@@ -101,13 +101,8 @@ void SingingClip::removeAllPieces() {
         delete piece;
 }
 
-ReSegmentResult SingingClip::reSegment(double tempo) {
+ReSegmentResult SingingClip::reSegment(const Timeline &timeline) {
     ReSegmentResult result;
-    // TODO: support multiple tempos (the caller passes the single project tempo)
-    const Timeline timeline({
-        {0, tempo}
-    });
-
     auto [segments] = SingingClipSlicer::slice(timeline, m_notes.toList());
 
     // Check if existing piece and segment are the same
@@ -155,10 +150,9 @@ ReSegmentResult SingingClip::reSegment(double tempo) {
             newPiece->headAvailableLengthMs = segment.headAvailableLengthMs;
             newPiece->paddingStartMs = segment.paddingStartMs;
             newPiece->paddingEndMs = segment.paddingEndMs;
-            const Timeline timeline{{{0, tempo}}};
             newPiece->speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
-                speakerMixData(), speakerId(), newPiece->localStartTick(tempo), newPiece->localEndTick(tempo),
-                timeline);
+                speakerMixData(), speakerId(), newPiece->localStartTick(timeline),
+                newPiece->localEndTick(timeline), timeline);
             newPiece->speaker = newPiece->speakerMix.fallbackSpeaker;
             newPieces.append(newPiece);
             result.addedPieces.append(newPiece);

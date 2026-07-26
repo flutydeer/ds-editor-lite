@@ -79,7 +79,7 @@ namespace InferControllerHelper {
         input.paddingStartMs = piece.paddingStartMs;
         input.paddingEndMs = piece.paddingEndMs;
 
-        input.timeline = Timeline({{0, appModel->tempo()}});
+        input.timeline = appModel->timeline();
         input.notes = buildInferInputNotes(piece.notes);
 
         const auto spk = resolveSpeakerForPiece(piece);
@@ -105,7 +105,7 @@ namespace InferControllerHelper {
         input.paddingStartMs = piece.paddingStartMs;
         input.paddingEndMs = piece.paddingEndMs;
 
-        input.timeline = Timeline({{0, appModel->tempo()}});
+        input.timeline = appModel->timeline();
         input.notes = buildInferInputNotes(piece.notes);
         input.expressiveness = expr;
 
@@ -133,7 +133,7 @@ namespace InferControllerHelper {
         input.paddingStartMs = piece.paddingStartMs;
         input.paddingEndMs = piece.paddingEndMs;
 
-        input.timeline = Timeline({{0, appModel->tempo()}});
+        input.timeline = appModel->timeline();
         input.notes = buildInferInputNotes(piece.notes);
         input.pitch = pitch;
 
@@ -191,7 +191,7 @@ namespace InferControllerHelper {
         input.paddingStartMs = piece.paddingStartMs;
         input.paddingEndMs = piece.paddingEndMs;
 
-        input.timeline = Timeline({{0, appModel->tempo()}});
+        input.timeline = appModel->timeline();
         input.notes = buildInferInputNotes(piece.notes);
         input.pitch = pitch;
         input.breathiness = breathiness;
@@ -245,7 +245,9 @@ namespace InferControllerHelper {
             } else {
                 const auto baseValue = paramUtils->getPropertiesByName(name)->defaultValue;
                 if (auto resultCurve = AppModelUtils::getResultCurve(
-                        {piece->localStartTick(appModel->tempo()), piece->localEndTick(appModel->tempo())}, baseValue, editedCurves);
+                        {piece->localStartTick(appModel->timeline()),
+                         piece->localEndTick(appModel->timeline())},
+                        baseValue, editedCurves);
                     resultCurve != input) {
                     piece->setInputCurve(name, resultCurve);
                     result.append(piece);
@@ -307,7 +309,8 @@ namespace InferControllerHelper {
     void updateParam(const ParamInfo::Name name, const InferParamCurve &taskResult,
                      InferPiece &piece, int scale, int smoothKernelSize) {
         const auto &[alignTick, alignValues] = CurveUtil::alignCurve(
-            piece.localStartTick(appModel->tempo()), 5, {taskResult.values.begin(), taskResult.values.end()}, 5);
+            piece.localStartTick(appModel->timeline()), 5,
+            {taskResult.values.begin(), taskResult.values.end()}, 5);
 
         if (smoothKernelSize < 0)
             smoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;

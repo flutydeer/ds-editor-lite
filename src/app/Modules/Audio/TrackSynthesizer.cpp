@@ -39,7 +39,7 @@ TrackSynthesizer::TrackSynthesizer(talcs::DspxTrackContext *trackContext, Track 
         handleSingingClipInserted(static_cast<SingingClip *>(clip));
     }
 
-    connect(appModel, &AppModel::tempoChanged, this, [this] {
+    connect(appModel, &AppModel::timelineChanged, this, [this] {
         DEVICE_LOCKER;
         handleTimeChanged();
     });

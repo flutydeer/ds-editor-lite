@@ -448,8 +448,9 @@ void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, const in
             connect(singingClip, &SingingClip::noteChanged, singingView,
                     &SingingClipView::onNoteListChanged);
         } else if (clip->clipType() == Clip::Audio) {
-            connect(appModel, &AppModel::tempoChanged, static_cast<AudioClipView *>(cachedView),
-                    &AudioClipView::onTempoChange);
+            const auto audioView = static_cast<AudioClipView *>(cachedView);
+            connect(appModel, &AppModel::timelineChanged, audioView,
+                    [audioView] { audioView->setTimeline(appModel->timeline()); });
         }
         return;
     }
@@ -502,12 +503,13 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track,
     clipView->setTrackIndex(trackIndex);
     clipView->setColorIndex(track->dsTrack->colorIndex());
     clipView->setPath(clip->path());
-    clipView->setTempo(appModel->tempo());
+    clipView->setTimeline(appModel->timeline());
     clipView->setAudioInfo(clip->audioInfo());
     applyAudioPathStatus(clipView, clip->pathStatus());
     m_tracksScene->addCommonItem(clipView);
     qDebug() << "Audio clip graphics item added to scene" << clipView->id() << clipView->name();
-    connect(appModel, &AppModel::tempoChanged, clipView, &AudioClipView::onTempoChange);
+    connect(appModel, &AppModel::timelineChanged, clipView,
+            [clipView] { clipView->setTimeline(appModel->timeline()); });
     connect(
         clip, &AudioClip::pathStatusChanged, clipView,
         [clipView](const AudioClip::PathStatus status) { applyAudioPathStatus(clipView, status); });

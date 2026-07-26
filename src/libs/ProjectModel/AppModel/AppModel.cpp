@@ -8,7 +8,6 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/Support/MathUtils.h>
-#include <lite/MusicBase/MusicTimeConverter.h>
 #include <lite/MusicBase/MusicTime.h>
 
 #include <QJsonArray>
@@ -25,32 +24,42 @@ AppModel::~AppModel() {
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(AppModel)
 
-TimeSignature AppModel::timeSignature() const {
+const Timeline &AppModel::timeline() const {
     Q_D(const AppModel);
-    return d->m_timeSignature;
+    return d->m_timeline;
+}
+
+void AppModel::setTimeline(Timeline timeline) {
+    Q_D(AppModel);
+    const bool temposChanged = d->m_timeline.tempos() != timeline.tempos();
+    d->m_timeline = std::move(timeline);
+    if (temposChanged) {
+        for (const auto track : d->m_tracks) {
+            for (const auto clip : track->clips()) {
+                if (clip->clipType() == IClip::Singing)
+                    static_cast<SingingClip *>(clip)->bumpInferenceRevision();
+            }
+        }
+    }
+    emit timelineChanged();
 }
 
 void AppModel::setTimeSignature(const TimeSignature &signature) {
     Q_D(AppModel);
-    d->m_timeSignature = signature;
-    emit timeSignatureChanged(d->m_timeSignature.numerator, d->m_timeSignature.denominator);
-}
-
-double AppModel::tempo() const {
-    Q_D(const AppModel);
-    return d->m_tempo;
+    d->m_timeline.addTimeSignature(TimeSignature(0, signature.numerator, signature.denominator));
+    emit timelineChanged();
 }
 
 void AppModel::setTempo(const double tempo) {
     Q_D(AppModel);
-    d->m_tempo = tempo;
+    d->m_timeline.addTempo({0, tempo});
     for (const auto track : d->m_tracks) {
         for (const auto clip : track->clips()) {
             if (clip->clipType() == IClip::Singing)
                 static_cast<SingingClip *>(clip)->bumpInferenceRevision();
         }
     }
-    emit tempoChanged(d->m_tempo);
+    emit timelineChanged();
 }
 
 TrackControl AppModel::masterControl() const {
@@ -132,8 +141,7 @@ void AppModel::clearTracks() {
 ProjectModelData AppModel::takeProjectData() {
     Q_D(AppModel);
     ProjectModelData data;
-    data.tempo = d->m_tempo;
-    data.timeSignature = d->m_timeSignature;
+    data.timeline = d->m_timeline;
     data.masterControl = d->m_masterControl;
     data.tracks.reserve(static_cast<size_t>(d->m_tracks.size()));
     for (const auto track : std::as_const(d->m_tracks))
@@ -145,8 +153,7 @@ ProjectModelData AppModel::takeProjectData() {
 void AppModel::replaceProject(ProjectModelData &&data) {
     Q_D(AppModel);
     d->reset();
-    d->m_tempo = data.tempo;
-    d->m_timeSignature = data.timeSignature;
+    d->m_timeline = std::move(data.timeline);
     d->m_masterControl = data.masterControl;
     d->m_tracks.reserve(static_cast<qsizetype>(data.tracks.size()));
     for (auto &track : data.tracks)
@@ -176,7 +183,7 @@ void AppModel::newProject() {
 
     const auto singingClip = new SingingClip;
     constexpr int bars = 4;
-    const auto timeSig = timeSignature();
+    const auto timeSig = d->m_timeline.timeSignatureAt(0);
     const int length =
         MusicTime::ticksPerWholeNote * timeSig.numerator / timeSig.denominator * bars;
     singingClip->setName(tr("New Singing Clip"));
@@ -214,15 +221,17 @@ QJsonObject AppModel::serialize() const {
         {"control", objControl}
     };
 
-    const QJsonObject objTempo{
-        {"pos",   0         },
-        {"value", d->m_tempo}
-    };
+    QJsonArray arrTempos;
+    for (const auto &tempo : d->m_timeline.tempos()) {
+        arrTempos.append(QJsonObject{
+            {"pos",   tempo.pos  },
+            {"value", tempo.value}
+        });
+    }
 
-    QJsonArray arrTempos = {objTempo};
-
-    const auto objTimeSignature = d->m_timeSignature.serialize();
-    QJsonArray arrTimeSignatures = {objTimeSignature};
+    QJsonArray arrTimeSignatures;
+    for (const auto &signature : d->m_timeline.timeSignatures())
+        arrTimeSignatures.append(signature.serialize());
 
     QJsonObject objTimeLine{
         {"labels",         QJsonArray()     },
@@ -310,18 +319,17 @@ Track *AppModel::findTrackById(const int id) {
 
 double AppModel::tickToMs(const double tick) const {
     Q_D(const AppModel);
-    return MusicTimeConverter::tickToMs(tick, d->m_tempo);
+    return d->m_timeline.tickToMs(tick);
 }
 
 double AppModel::msToTick(const double ms) const {
     Q_D(const AppModel);
-    return MusicTimeConverter::msToTick(ms, d->m_tempo);
+    return d->m_timeline.msToTick(ms);
 }
 
 QString AppModel::getBarBeatTickTime(const int ticks) const {
     Q_D(const AppModel);
-    return MusicTimeConverter::getBarBeatTickTime(ticks, d->m_timeSignature.numerator,
-                                                  d->m_timeSignature.denominator);
+    return d->m_timeline.getBarBeatTickTime(ticks);
 }
 
 int AppModel::projectLengthInTicks() const {
@@ -335,9 +343,7 @@ int AppModel::projectLengthInTicks() const {
 }
 
 void AppModelPrivate::reset() {
-    m_tempo = 120;
-    m_timeSignature.numerator = 4;
-    m_timeSignature.denominator = 4;
+    m_timeline = Timeline();
     m_masterControl = TrackControl();
     m_previousTracks = m_tracks;
     m_tracks.clear();

@@ -32,8 +32,8 @@ void WaveformPainter::setAudioInfo(const AudioInfoModel &info) {
     m_cache = QPixmap();
 }
 
-void WaveformPainter::setTempo(const double tempo) {
-    m_tempo = tempo;
+void WaveformPainter::setTimeline(const Timeline &timeline) {
+    m_timeline = timeline;
     m_cache = QPixmap();
 }
 
@@ -77,8 +77,10 @@ void WaveformPainter::doPaint(QPainter *painter, const QRectF &rect, const QColo
                                const double rectStartTick, const double rectEndTick) {
 
     const double ticksPerPixel = (rectEndTick - rectStartTick) / rect.width();
+    // Interim single-segment mapping; per-segment waveform drawing lands with
+    // the audio engine work for tempo changes.
     const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 /
-                                  m_tempo / AppGlobal::ticksPerQuarterNote;
+                                  m_timeline.tempoAt(0) / AppGlobal::ticksPerQuarterNote;
     const qreal dpr = painter->device()->devicePixelRatio();
     const double pixelStep = 1.0 / dpr;
     const double samplesPerPixel = ticksPerPixel * pixelStep * samplesPerTick;
@@ -138,7 +140,7 @@ void WaveformPainter::drawPeakMode(QPainter *painter, const QRectF &rect, const 
     const auto halfRectHeight = rectHeight / 2;
 
     const auto chunksPerTickBase = static_cast<double>(m_audioInfo.sampleRate) /
-                                   m_audioInfo.chunkSize * 60 / m_tempo /
+                                   m_audioInfo.chunkSize * 60 / m_timeline.tempoAt(0) /
                                    AppGlobal::ticksPerQuarterNote;
 
     const qreal dpr = painter->device()->devicePixelRatio();

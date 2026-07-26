@@ -12,7 +12,6 @@
 
 PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(this)) {
     Q_D(PlaybackController);
-    connect(appModel, &AppModel::tempoChanged, this, &PlaybackController::onTempoChanged);
     connect(appModel, &AppModel::modelChanged, this, [d, this] {
         if (d->m_playbackStatus != Stopped) {
             stop();
@@ -41,11 +40,6 @@ double PlaybackController::position() const {
 double PlaybackController::lastPosition() const {
     Q_D(const PlaybackController);
     return d->m_lastPlayPosition;
-}
-
-double PlaybackController::tempo() const {
-    Q_D(const PlaybackController);
-    return d->m_tempo;
 }
 
 void PlaybackController::play() {
@@ -88,23 +82,5 @@ void PlaybackController::sampleRateChanged(const double sr) {
     d->m_sampleRate = sr;
 }
 
-void PlaybackController::onTempoChanged(const double tempo) {
-    Q_D(PlaybackController);
-    d->m_tempo = tempo;
-}
-
 void PlaybackController::onModelChanged() {
-    const auto tempo = appModel->tempo();
-    onTempoChanged(tempo);
-}
-
-double PlaybackControllerPrivate::samplePosToTick(const int sample) const {
-    const auto secs = sample / m_sampleRate;
-    const auto tick = secs * 60 / m_tempo * AppGlobal::ticksPerQuarterNote;
-    return tick;
-}
-
-int PlaybackControllerPrivate::tickToSamplePos(const double tick) const {
-    const auto pos = tick * m_tempo * m_sampleRate / 60 / AppGlobal::ticksPerQuarterNote;
-    return static_cast<int>(pos);
 }

@@ -265,15 +265,15 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     connect(playbackController, &PlaybackController::positionChanged, this,
             &PlaybackView::onPositionChanged);
     connect(appModel, &AppModel::modelChanged, this, &PlaybackView::updateView);
-    connect(appModel, &AppModel::tempoChanged, this, &PlaybackView::onTempoChanged);
-    connect(appModel, &AppModel::timeSignatureChanged, this, &PlaybackView::onTimeSignatureChanged);
+    connect(appModel, &AppModel::timelineChanged, this, &PlaybackView::onTimelineChanged);
     connect(appStatus, &AppStatus::loopSettingsChanged, this, [this] { updateLoopButtonView(); });
 }
 
 void PlaybackView::updateView() {
-    m_tempo = appModel->tempo();
-    m_numerator = appModel->timeSignature().numerator;
-    m_denominator = appModel->timeSignature().denominator;
+    const auto &timeline = appModel->timeline();
+    m_tempo = timeline.tempoAt(0);
+    m_numerator = timeline.timeSignatureAt(0).numerator;
+    m_denominator = timeline.timeSignatureAt(0).denominator;
     m_tick = static_cast<int>(playbackController->position());
     m_status = playbackController->playbackStatus();
 
@@ -284,14 +284,13 @@ void PlaybackView::updateView() {
     updateLoopButtonView();
 }
 
-void PlaybackView::onTempoChanged(double tempo) {
-    m_tempo = tempo;
+void PlaybackView::onTimelineChanged() {
+    const auto &timeline = appModel->timeline();
+    m_tempo = timeline.tempoAt(0);
+    const auto signature = timeline.timeSignatureAt(0);
+    m_numerator = signature.numerator;
+    m_denominator = signature.denominator;
     updateTempoView();
-}
-
-void PlaybackView::onTimeSignatureChanged(int numerator, int denominator) {
-    m_numerator = numerator;
-    m_denominator = denominator;
     updateTimeSignatureView();
     updateTimeView();
 }

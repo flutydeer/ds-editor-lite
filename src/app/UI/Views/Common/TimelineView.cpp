@@ -36,7 +36,11 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TimelineView");
     setMouseTracking(true);
-    setTimeSignature(appModel->timeSignature().numerator, appModel->timeSignature().denominator);
+    const auto applyTimeSignature = [this] {
+        const auto signature = appModel->timeline().timeSignatureAt(0);
+        setTimeSignature(signature.numerator, signature.denominator);
+    };
+    applyTimeSignature();
 
     m_pieceUpdateThrottle.setSingleShot(true);
     m_pieceUpdateThrottle.setInterval(16);
@@ -55,11 +59,8 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     });
     connect(playbackController, &PlaybackController::positionChanged, this,
             &TimelineView::setPosition);
-    connect(appModel, &AppModel::modelChanged, this, [this] {
-        setTimeSignature(appModel->timeSignature().numerator,
-                         appModel->timeSignature().denominator);
-    });
-    connect(appModel, &AppModel::timeSignatureChanged, this, &TimelineView::setTimeSignature);
+    connect(appModel, &AppModel::modelChanged, this, applyTimeSignature);
+    connect(appModel, &AppModel::timelineChanged, this, applyTimeSignature);
     connect(appStatus, &AppStatus::loopSettingsChanged, this, &TimelineView::onLoopSettingsChanged);
     connect(appOptions, &AppOptions::optionsChanged, this,
             [this](AppOptionsGlobal::Option option) {
@@ -357,8 +358,8 @@ void TimelineView::drawPieces(QPainter *painter) const {
         // Draw piece range with status
         pen.setColor(m_piecesColors[piece->acousticInferStatus]);
         painter->setPen(pen);
-        auto pieceStartX = tickToX(piece->localStartTick(appModel->tempo()) + m_clip->start());
-        auto pieceEndX = tickToX(piece->localEndTick(appModel->tempo()) + m_clip->start());
+        auto pieceStartX = tickToX(piece->localStartTick(appModel->timeline()) + m_clip->start());
+        auto pieceEndX = tickToX(piece->localEndTick(appModel->timeline()) + m_clip->start());
         painter->drawLine(pieceStartX, y, pieceEndX, y);
 
         if (appOptions->developer()->showTimelineDebugInfo)
@@ -368,8 +369,8 @@ void TimelineView::drawPieces(QPainter *painter) const {
 
 void TimelineView::drawPieceDebugOverlay(QPainter *painter, const InferPiece *piece) const {
     auto y = rect().height() - 1;
-    auto pieceStartX = tickToX(piece->localStartTick(appModel->tempo()) + m_clip->start());
-    auto pieceEndX = tickToX(piece->localEndTick(appModel->tempo()) + m_clip->start());
+    auto pieceStartX = tickToX(piece->localStartTick(appModel->timeline()) + m_clip->start());
+    auto pieceEndX = tickToX(piece->localEndTick(appModel->timeline()) + m_clip->start());
 
     auto stateText = "#" + QString::number(piece->id()) + " " + piece->state.get();
     painter->drawText(QPointF(pieceStartX, y - 4), stateText);

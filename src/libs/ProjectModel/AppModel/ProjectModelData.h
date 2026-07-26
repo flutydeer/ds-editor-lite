@@ -1,7 +1,7 @@
 #ifndef PROJECTMODELDATA_H
 #define PROJECTMODELDATA_H
 
-#include <lite/MusicBase/TimeSignature.h>
+#include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/AppModel/TrackControl.h>
 
 #include <memory>
@@ -18,8 +18,7 @@ struct ProjectModelData {
     ProjectModelData(const ProjectModelData &) = delete;
     ProjectModelData &operator=(const ProjectModelData &) = delete;
 
-    double tempo = 120.0;
-    TimeSignature timeSignature;
+    Timeline timeline;
     TrackControl masterControl;
     std::vector<std::unique_ptr<Track>> tracks;
 };

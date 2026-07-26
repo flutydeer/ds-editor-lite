@@ -453,7 +453,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
                                     view->setTrackIndex(targetTrack);
                                     view->setStart(targetStart);
                                     view->setPath(ac->path());
-                                    view->setTempo(appModel->tempo());
+                                    view->setTimeline(appModel->timeline());
                                     view->setAudioInfo(ac->audioInfo());
                                     clipView = view;
                                 }

@@ -8,7 +8,6 @@
 #include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/SingingClipSlicer/SingingClipSlicer.h>
-#include <lite/MusicBase/MusicTimeConverter.h>
 
 #include <algorithm>
 
@@ -72,7 +71,7 @@ namespace {
     }
 
     bool editedOffsetExceedsLeftBoundary(const EffectiveNote &effective, double leftBoundary,
-                                         const double tempo) {
+                                         const Timeline &timeline) {
         const auto note = effective.note;
         if (!note || isRestNote(*note) || !note->phonemeOffsetSeq().isEdited())
             return false;
@@ -81,11 +80,11 @@ namespace {
             return false;
 
         const auto earliestStart =
-            effective.start + MusicTimeConverter::msToTick(minimumEditedOffset(*note), tempo);
+            effective.start + timeline.msToTick(minimumEditedOffset(*note));
         return earliestStart < leftBoundary;
     }
 
-    QList<Note *> collectInvalidEditedOffsetNotes(SingingClip &clip, const double tempo) {
+    QList<Note *> collectInvalidEditedOffsetNotes(SingingClip &clip, const Timeline &timeline) {
         QList<Note *> result;
         QSet<Note *> resultSet;
 
@@ -94,7 +93,6 @@ namespace {
                 appendUnique(result, resultSet, note);
         }
 
-        const Timeline timeline{{{0, tempo}}};
         const auto sliceResult = SingingClipSlicer::slice(timeline, clip.notes().toList());
         for (const auto &segment : sliceResult.segments) {
             const auto effectiveNotes = buildEffectiveNotes(segment.notes);
@@ -108,14 +106,13 @@ namespace {
                 if (i == 0) {
                     const auto availableExtraHeadMs =
                         std::max(0.0, segment.headAvailableLengthMs - segment.paddingStartMs);
-                    leftBoundary =
-                        effective.start - MusicTimeConverter::msToTick(availableExtraHeadMs, tempo);
+                    leftBoundary = effective.start - timeline.msToTick(availableExtraHeadMs);
                 } else {
                     const auto &previous = effectiveNotes.at(i - 1);
                     leftBoundary = previous.end < effective.start ? previous.end : previous.start;
                 }
 
-                if (editedOffsetExceedsLeftBoundary(effective, leftBoundary, tempo))
+                if (editedOffsetExceedsLeftBoundary(effective, leftBoundary, timeline))
                     appendUnique(result, resultSet, note);
             }
         }
@@ -124,9 +121,9 @@ namespace {
     }
 
     QList<SingingClipPhonemeNormalizer::ResetRecord>
-        normalizeEditedOffsetsWithTempo(SingingClip &clip, const double tempo) {
+        normalizeEditedOffsetsWithTimeline(SingingClip &clip, const Timeline &timeline) {
         QList<SingingClipPhonemeNormalizer::ResetRecord> records;
-        const auto notes = collectInvalidEditedOffsetNotes(clip, tempo);
+        const auto notes = collectInvalidEditedOffsetNotes(clip, timeline);
         for (const auto note : notes) {
             if (!note || !note->phonemeOffsetSeq().isEdited())
                 continue;
@@ -142,12 +139,12 @@ namespace {
 }
 
 QList<Note *> SingingClipPhonemeNormalizer::collectInvalidEditedOffsetNotes(SingingClip &clip) {
-    return ::collectInvalidEditedOffsetNotes(clip, appModel->tempo());
+    return ::collectInvalidEditedOffsetNotes(clip, appModel->timeline());
 }
 
 QList<SingingClipPhonemeNormalizer::ResetRecord>
     SingingClipPhonemeNormalizer::normalizeEditedOffsets(SingingClip &clip) {
-    return normalizeEditedOffsetsWithTempo(clip, appModel->tempo());
+    return normalizeEditedOffsetsWithTimeline(clip, appModel->timeline());
 }
 
 void SingingClipPhonemeNormalizer::restoreEditedOffsets(const QList<ResetRecord> &records) {
@@ -169,11 +166,11 @@ QList<Note *>
 }
 
 void SingingClipPhonemeNormalizer::normalizeEditedOffsets(AppModel &model) {
-    const auto tempo = model.tempo();
+    const auto &timeline = model.timeline();
     for (const auto track : model.tracks()) {
         for (const auto clip : track->clips()) {
             if (clip->clipType() == IClip::Singing)
-                normalizeEditedOffsetsWithTempo(*static_cast<SingingClip *>(clip), tempo);
+                normalizeEditedOffsetsWithTimeline(*static_cast<SingingClip *>(clip), timeline);
         }
     }
 }

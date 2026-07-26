@@ -5,12 +5,13 @@
 #include "ModelChangeHandler.h"
 
 ModelChangeHandler::ModelChangeHandler(QObject *parent) : QObject(parent) {
+    m_tempoSnapshot = appModel->timeline().tempos();
     connect(appModel, &AppModel::modelChanged, this, &ModelChangeHandler::onModelChanged);
-    connect(appModel, &AppModel::tempoChanged, this, &ModelChangeHandler::onTempoChanged);
+    connect(appModel, &AppModel::timelineChanged, this, &ModelChangeHandler::onTimelineChanged);
     connect(appModel, &AppModel::trackChanged, this, &ModelChangeHandler::onTrackChanged);
 }
 
-void ModelChangeHandler::handleTempoChanged(double tempo) {
+void ModelChangeHandler::handleTempoChanged() {
 }
 
 void ModelChangeHandler::handleModelChanged() {
@@ -87,6 +88,7 @@ void ModelChangeHandler::handlePiecesChanged(const QList<InferPiece *> &pieces,
 }
 
 void ModelChangeHandler::onModelChanged() {
+    m_tempoSnapshot = appModel->timeline().tempos();
     handleModelChanged();
 
     for (const auto track : m_tracks)
@@ -96,8 +98,11 @@ void ModelChangeHandler::onModelChanged() {
         onTrackChanged(AppModel::Insert, -1, track);
 }
 
-void ModelChangeHandler::onTempoChanged(const double tempo) {
-    handleTempoChanged(tempo);
+void ModelChangeHandler::onTimelineChanged() {
+    if (m_tempoSnapshot == appModel->timeline().tempos())
+        return;
+    m_tempoSnapshot = appModel->timeline().tempos();
+    handleTempoChanged();
 }
 
 void ModelChangeHandler::onTrackChanged(const AppModel::TrackChangeType type, qsizetype index,

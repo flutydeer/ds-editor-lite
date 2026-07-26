@@ -1,6 +1,7 @@
 #ifndef EXTRACTTASK_H
 #define EXTRACTTASK_H
 
+#include <lite/MusicBase/Timeline.h>
 #include <lite/Tasking/Task.h>
 
 class ExtractTask : public Task {
@@ -20,7 +21,7 @@ public:
         int singingClipId = -1;
         int audioClipId = -1;
         QString audioPath;
-        double tempo = 0;
+        Timeline timeline;
     };
 
     explicit ExtractTask(Input input) : m_input(std::move(input)) {}

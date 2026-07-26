@@ -289,15 +289,16 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
 
     if (hasTimeSignature) {
         const auto &ts = timeline.timeSignatures.front();
-        if (model->timeSignature().numerator != ts.numerator ||
-            model->timeSignature().denominator != ts.denominator) {
+        const auto currentSignature = model->timeline().timeSignatureAt(0);
+        if (currentSignature.numerator != ts.numerator ||
+            currentSignature.denominator != ts.denominator) {
             model->setTimeSignature({ts.numerator, ts.denominator});
         }
     }
 
     if (hasTempo) {
         const auto &tempoVal = timeline.tempos.front().value;
-        if (qAbs(model->tempo() - tempoVal) > 0.001)
+        if (qAbs(model->timeline().tempoAt(0) - tempoVal) > 0.001)
             model->setTempo(tempoVal);
     }
 
@@ -316,8 +317,8 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
     opendspx::Model dspx;
     opendspx::MidiConverter midiConverter;
 
-    dspx.content.timeline.tempos.push_back({0, model->tempo()});
-    const auto &ts = model->timeSignature();
+    dspx.content.timeline.tempos.push_back({0, model->timeline().tempoAt(0)});
+    const auto ts = model->timeline().timeSignatureAt(0);
     dspx.content.timeline.timeSignatures.push_back({0, ts.numerator, ts.denominator});
 
     encodeTracks(model, dspx);

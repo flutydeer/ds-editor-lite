@@ -45,7 +45,9 @@ namespace {
         const auto piece = clip->findPieceById(pieceId);
         if (!piece)
             return {};
-        return {piece->localStartTick(appModel->tempo()) + clip->start(), piece->localEndTick(appModel->tempo()) + clip->start()};
+        const auto &timeline = appModel->timeline();
+        return {piece->localStartTick(timeline) + clip->start(),
+                piece->localEndTick(timeline) + clip->start()};
     }
 
     QList<NoteInferenceSnapshot> buildNoteInferenceSnapshots(const SingingClip &clip) {
@@ -89,11 +91,11 @@ namespace {
 
     bool clipPiecesMatchCurrentSingerAndSpeaker(const SingingClip &clip) {
         const auto identifier = clip.singerIdentifier();
-        const Timeline timeline{{{0, appModel->tempo()}}};
+        const auto &timeline = appModel->timeline();
         for (const auto piece : clip.pieces()) {
             const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
-                clip.speakerMixData(), clip.speakerId(), piece->localStartTick(appModel->tempo()),
-                piece->localEndTick(appModel->tempo()), timeline);
+                clip.speakerMixData(), clip.speakerId(), piece->localStartTick(timeline),
+                piece->localEndTick(timeline), timeline);
             if (piece->identifier != identifier || piece->speakerMix != speakerMix)
                 return false;
         }
@@ -283,7 +285,7 @@ void InferControllerPrivate::handleModelChanged() {
     m_retryAllScheduled = false;
 }
 
-void InferControllerPrivate::handleTempoChanged(double tempo) {
+void InferControllerPrivate::handleTempoChanged() {
     reset();
     recreateAllInferTasks();
 }
@@ -470,11 +472,11 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
         return;
     }
 
-    const Timeline timeline{{{0, appModel->tempo()}}};
+    const auto &timeline = appModel->timeline();
     for (const auto piece : clip->pieces()) {
         const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
-            clip->speakerMixData(), clip->speakerId(), piece->localStartTick(appModel->tempo()),
-            piece->localEndTick(appModel->tempo()), timeline);
+            clip->speakerMixData(), clip->speakerId(), piece->localStartTick(timeline),
+            piece->localEndTick(timeline), timeline);
         piece->speakerMix = speakerMix;
         piece->speaker = speakerMix.fallbackSpeaker;
         Helper::resetPitch(*piece);
@@ -621,7 +623,7 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
         case InferenceApplyGate::Decision::Apply:
             Helper::updatePhoneName(resolution.notes, task.result, *resolution.clip);
             if (!resolution.clip->singerInfo().isEmpty()) {
-                auto result = resolution.clip->reSegment(appModel->tempo());
+                auto result = resolution.clip->reSegment(appModel->timeline());
                 for (const auto piece : result.addedPieces)
                     createPipeline(*piece);
             }
@@ -696,7 +698,7 @@ InferControllerPrivate::PendingApplyResult
                                                                      : "clip-task-apply",
                                             resolution.clip->inferenceRevision());
             if (!resolution.clip->singerInfo().isEmpty()) {
-                const auto result = resolution.clip->reSegment(appModel->tempo());
+                const auto result = resolution.clip->reSegment(appModel->timeline());
                 for (const auto piece : result.addedPieces)
                     createPipeline(*piece);
             }
@@ -841,7 +843,7 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
 
     auto task = new GetPhonemeNameTask(clip.id(), clip.inferenceRevision(),
                                        buildNoteInferenceSnapshots(clip), clip.singerInfo(),
-                                       appModel->tempo());
+                                       appModel->timeline());
     connect(task, &Task::finished, this, [task, this] { handleGetPhoneTaskFinished(*task); });
     m_getPhoneTasks.add(task);
 }

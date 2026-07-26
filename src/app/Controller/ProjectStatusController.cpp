@@ -25,7 +25,7 @@ void ProjectStatusController::handleTrackRemoved(Track *track) {
     }
 }
 
-void ProjectStatusController::handleTempoChanged(double tempo) {
+void ProjectStatusController::handleTempoChanged() {
     updateProjectEditableLength();
 }
 

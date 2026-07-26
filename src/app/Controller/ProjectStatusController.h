@@ -21,7 +21,7 @@ public:
 
 private:
     void handleTrackRemoved(Track *track) override;
-    void handleTempoChanged(double tempo) override;
+    void handleTempoChanged() override;
     void handleClipInserted(Clip *clip) override;
     void handleClipRemoved(Clip *clip) override;
     void handleClipPropertyChanged(Clip *clip) override;

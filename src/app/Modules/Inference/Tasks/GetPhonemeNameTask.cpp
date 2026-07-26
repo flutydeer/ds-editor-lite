@@ -19,9 +19,9 @@ Q_LOGGING_CATEGORY(logInferPhoneme, "infer.phoneme_name")
 
 GetPhonemeNameTask::GetPhonemeNameTask(const int clipId, const quint64 clipRevision,
                                        const QList<NoteInferenceSnapshot> &notes,
-                                       const SingerInfo &singerInfo, const double tempo)
+                                       const SingerInfo &singerInfo, const Timeline &timeline)
     : m_clipSingerInfo(singerInfo), m_clipId(clipId), m_clipRevision(clipRevision), m_inputs(notes),
-      m_tempo(tempo) {
+      m_timeline(timeline) {
     for (int i = 0; i < notes.count(); i++) {
         const auto &note = notes.at(i);
         m_previewText.append(note.lyric);
@@ -172,7 +172,7 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
 
 void GetPhonemeNameTask::distributePhonemes() {
     const double gapThresholdMs = 2.0 * SingingClipSlicerGlobal::padBaseLength;
-    const int gapThresholdTicks = static_cast<int>(
-        std::round(gapThresholdMs * AppGlobal::ticksPerQuarterNote * m_tempo / 60000.0));
+    const int gapThresholdTicks =
+        static_cast<int>(std::round(m_timeline.msToTick(gapThresholdMs)));
     distributePhonemesToNotes(m_inputs, result, gapThresholdTicks);
 }

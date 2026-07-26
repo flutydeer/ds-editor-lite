@@ -7,6 +7,8 @@
 
 #include <QString>
 
+#include <lite/MusicBase/Timeline.h>
+
 class AppModel;
 
 class AppModelPrivate {
@@ -19,8 +21,7 @@ public:
     void reset();
     void dispose();
 
-    TimeSignature m_timeSignature;
-    double m_tempo = 120;
+    Timeline m_timeline;
     TrackControl m_masterControl;
     QList<Track *> m_tracks;
     QList<Track *> m_previousTracks;

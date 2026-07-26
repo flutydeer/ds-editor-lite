@@ -44,12 +44,8 @@ void AudioClipView::setPath(const QString &path) {
         m_status = AppGlobal::Loaded;
 }
 
-double AudioClipView::tempo() const {
-    return m_tempo;
-}
-
-void AudioClipView::setTempo(const double tempo) {
-    m_tempo = tempo;
+void AudioClipView::setTimeline(const Timeline &timeline) {
+    m_timeline = timeline;
 }
 
 void AudioClipView::setAudioInfo(const AudioInfoModel &info) {
@@ -69,10 +65,6 @@ void AudioClipView::setErrorMessage(const QString &errorMessage) {
 
 int AudioClipView::contentLength() const {
     return length();
-}
-
-void AudioClipView::onTempoChange(const double tempo) {
-    m_tempo = tempo;
 }
 
 bool AudioClipView::ensureIO() {
@@ -174,7 +166,7 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
 
     const double ticksPerScenePixel =
         AppGlobal::ticksPerQuarterNote / (scaleX() * pixelsPerQuarterNote);
-    const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 / m_tempo /
+    const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 / m_timeline.tempoAt(0) /
                                   AppGlobal::ticksPerQuarterNote;
     const double scaleXDev = painter->deviceTransform().m11();
     const double samplesPerDevPixel = ticksPerScenePixel * samplesPerTick / scaleXDev;
@@ -207,7 +199,7 @@ void AudioClipView::drawPeakMode(QPainter *painter, const QRectF &previewRect,
     // downsampled mipmap when zoomed out
     m_resolution = scaleX() >= 0.2 ? High : Low;
     const auto chunksPerTickBase = static_cast<double>(m_audioInfo.sampleRate) /
-                                   m_audioInfo.chunkSize * 60 / m_tempo /
+                                   m_audioInfo.chunkSize * 60 / m_timeline.tempoAt(0) /
                                    AppGlobal::ticksPerQuarterNote;
     const auto &peakData =
         m_resolution == Low ? m_audioInfo.peakCacheMipmap : m_audioInfo.peakCache;
@@ -311,7 +303,7 @@ void AudioClipView::drawSubChunkPeakMode(QPainter *painter, const QRectF &previe
 
     const double ticksPerScenePixel =
         AppGlobal::ticksPerQuarterNote / (scaleX() * pixelsPerQuarterNote);
-    const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 / m_tempo /
+    const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 / m_timeline.tempoAt(0) /
                                   AppGlobal::ticksPerQuarterNote;
     const double samplesPerScenePixel = ticksPerScenePixel * samplesPerTick;
     const int channels = m_audioInfo.channels;
@@ -428,7 +420,7 @@ void AudioClipView::drawWaveformCurve(QPainter *painter, const QRectF &previewRe
 
     const double ticksPerScenePixel =
         AppGlobal::ticksPerQuarterNote / (scaleX() * pixelsPerQuarterNote);
-    const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 / m_tempo /
+    const double samplesPerTick = static_cast<double>(m_audioInfo.sampleRate) * 60.0 / m_timeline.tempoAt(0) /
                                   AppGlobal::ticksPerQuarterNote;
     const int channels = m_audioInfo.channels;
     const qint64 totalFrames = m_audioInfo.frames;

@@ -12,14 +12,18 @@ ImportProjectActions::ImportProjectActions(ProjectModelData &&data, const bool i
     setTranslatableName("ImportProjectActions",
                         QT_TRANSLATE_NOOP("ImportProjectActions", "Import MIDI"));
 
-    if (importTempo && qAbs(model->tempo() - data.tempo) > 0.001) {
+    const auto oldTempo = model->timeline().tempoAt(0);
+    const auto newTempo = data.timeline.tempoAt(0);
+    if (importTempo && qAbs(oldTempo - newTempo) > 0.001) {
         const auto actions = new TempoActions;
-        actions->editTempo(model->tempo(), data.tempo, model);
+        actions->editTempo(oldTempo, newTempo, model);
         addAction(actions);
     }
-    if (importTimeSignature && model->timeSignature() != data.timeSignature) {
+    const auto oldSignature = model->timeline().timeSignatureAt(0);
+    const auto newSignature = data.timeline.timeSignatureAt(0);
+    if (importTimeSignature && oldSignature != newSignature) {
         const auto actions = new TimeSignatureActions;
-        actions->editTimeSignature(model->timeSignature(), data.timeSignature, model);
+        actions->editTimeSignature(oldSignature, newSignature, model);
         addAction(actions);
     }
 

@@ -61,13 +61,22 @@ static AudioExporter *m_exporter = nullptr;
 static qint64 tickToSample(const double tick) {
     const auto sr =
         m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
-    return static_cast<qint64>(tick * 60.0 * sr / appModel->tempo() / AppGlobal::ticksPerQuarterNote);
+    // Piecewise mapping over the tempo map: anchor on the governing tempo
+    // point and extrapolate linearly inside the segment. With a single tempo
+    // point this reduces exactly to the old constant-tempo formula.
+    const auto &timeline = appModel->timeline();
+    const int refTick =
+        timeline.nearestTickWithTempoTo(static_cast<int>(std::floor(qMax(0.0, tick))));
+    const auto tempo = timeline.tempoAt(refTick);
+    const auto refSamples = timeline.tickToMs(refTick) / 1000.0 * sr;
+    return static_cast<qint64>(refSamples + (tick - refTick) * 60.0 * sr / tempo /
+                                                AppGlobal::ticksPerQuarterNote);
 }
 
 static double sampleToTick(const qint64 sample) {
     const auto sr =
         m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
-    return static_cast<double>(sample) / sr * appModel->tempo() / 60.0 * AppGlobal::ticksPerQuarterNote;
+    return appModel->timeline().msToTick(static_cast<double>(sample) / sr * 1000.0);
 }
 
 AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
@@ -130,7 +139,7 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
                 }
             });
 
-    connect(appModel, &AppModel::tempoChanged, this, [this] {
+    connect(appModel, &AppModel::timelineChanged, this, [this] {
         DEVICE_LOCKER;
         handleTimeChanged();
         handlePlaybackPositionChanged(playbackController->position());

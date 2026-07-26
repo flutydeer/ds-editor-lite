@@ -6,7 +6,7 @@
 
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Note.h>
-#include <lite/MusicBase/MusicTimeConverter.h>
+#include <lite/MusicBase/Timeline.h>
 
 #include <algorithm>
 
@@ -19,7 +19,7 @@ int InferPiece::clipId() const {
     return clip->id();
 }
 
-int InferPiece::localStartTick(double tempo) const {
+int InferPiece::localStartTick(const Timeline &timeline) const {
     int extraPaddingMs = 0;
     if (!notes.isEmpty()) {
         const auto &offsets = notes.first()->phonemeOffsetSeq().result();
@@ -29,13 +29,14 @@ int InferPiece::localStartTick(double tempo) const {
                 extraPaddingMs = -minOffset;
         }
     }
-    const int paddingTicks =
-        qRound(MusicTimeConverter::msToTick(paddingStartMs + extraPaddingMs, tempo));
+    // Padding is a duration; it is converted at the timeline origin for now
+    // (piecewise-correct conversion is part of the inference resampling work).
+    const int paddingTicks = qRound(timeline.msToTick(paddingStartMs + extraPaddingMs));
     return notes.first()->localStart() - paddingTicks;
 }
 
-int InferPiece::localEndTick(double tempo) const {
-    const int paddingTicks = qRound(MusicTimeConverter::msToTick(paddingEndMs, tempo));
+int InferPiece::localEndTick(const Timeline &timeline) const {
+    const int paddingTicks = qRound(timeline.msToTick(paddingEndMs));
     return notes.last()->localStart() + notes.last()->length() + paddingTicks;
 }
 

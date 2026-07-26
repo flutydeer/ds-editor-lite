@@ -36,7 +36,7 @@ TrackInferenceHandler::TrackInferenceHandler(talcs::DspxTrackContext *trackConte
         handleSingingClipInserted(static_cast<SingingClip *>(clip));
     }
 
-    connect(appModel, &AppModel::tempoChanged, this, [this] {
+    connect(appModel, &AppModel::timelineChanged, this, [this] {
         DEVICE_LOCKER;
         handleTimeChanged();
     });
@@ -221,8 +221,8 @@ void TrackInferenceHandler::syncInferPiecePosition(const InferPiece *inferPiece)
     if (!inferencePieceContext)
         return;
 
-    const auto start = inferPiece->localStartTick(appModel->tempo());
-    const auto end = inferPiece->localEndTick(appModel->tempo());
+    const auto start = inferPiece->localStartTick(appModel->timeline());
+    const auto end = inferPiece->localEndTick(appModel->timeline());
     inferencePieceContext->setPos(start);
     inferencePieceContext->setLength(end - start);
 }

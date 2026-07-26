@@ -34,8 +34,6 @@ public:
     [[nodiscard]] double position() const;
     [[nodiscard]] double lastPosition() const;
 
-    [[nodiscard]] double tempo() const;
-
     signals:
     void positionChanged(double tick);
     void lastPositionChanged(double tick);
@@ -50,7 +48,6 @@ public slots:
     void setLastPosition(double tick);
 
     void sampleRateChanged(double sr);
-    void onTempoChanged(double tempo);
     void onModelChanged();
 
 private:
