@@ -1,6 +1,5 @@
-#include "G2pListWidget.h"
+#include <lite/Language/LangSetting/Controls/G2pListWidget.h>
 
-#include "Model/AppOptions/AppOptions.h"
 
 #include <QDragEnterEvent>
 #include <QCheckBox>
@@ -45,7 +44,6 @@ namespace LangSetting {
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
         // TODO g2pMgr->g2ps() bug
-        const auto langOrder = appOptions->g2pLanguage()->langOrder;
         // for (const auto &g2pId : langOrder) {
         //     const auto &g2p = g2pMgr->g2p(g2pId);
         //     this->addItem(g2p->displayName());

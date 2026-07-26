@@ -7,7 +7,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
-#include "Modules/Language/LangSetting/Controls/G2pListWidget.h"
+#include <lite/Language/LangSetting/Controls/G2pListWidget.h>
 #include <lite/GUI/Controls/AccentButton.h>
 
 #include <QVBoxLayout>

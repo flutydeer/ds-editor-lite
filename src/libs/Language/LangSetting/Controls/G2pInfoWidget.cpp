@@ -1,4 +1,4 @@
-#include "G2pInfoWidget.h"
+#include <lite/Language/LangSetting/Controls/G2pInfoWidget.h>
 
 #include <lite/Support/VersionUtils.h>
 
