@@ -8,14 +8,13 @@
 
 #include "Registry.h"
 
-// The owner that constructs the (private-ctor) singletons and registers them.
-// Forward-declared only: this header has no dependency on its definition, so it
-// lives in lite::Core and any layer may use LITE_SINGLETON.
-class AppContext;
-
-// Put this in the class definition (.h)
+// Put this in the class definition (.h).
+// Registry is befriended so that whoever owns the object (e.g. the app's
+// AppContext) can construct/destroy it through Registry::create/destroy even
+// when the constructor and destructor are private — no app type is named here,
+// so LITE_SINGLETON stays usable from any layer, including libraries.
 #define LITE_SINGLETON_DECLARE_INSTANCE(ClassName)                                                 \
-    friend class AppContext;                                                                        \
+    friend class Registry;                                                                          \
     static ClassName *instance();
 
 // Put this in the source file (.cpp).

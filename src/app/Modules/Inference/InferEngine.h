@@ -54,13 +54,16 @@ public:
     std::shared_ptr<SingerModelSession>
         acquireSingerSession(const SingerIdentifier &identifier) const;
 
+    // Kicks off asynchronous initialization; called by the owner after
+    // construction.
+    void startInitialization();
+
 private:
     friend class InitInferEngineTask;
     friend class InferDurationTask;
     friend class InferPitchTask;
     friend class InferVarianceTask;
     friend class InferAcousticTask;
-    void startInitialization();
     bool initialize(QString &error);
     void dispose();
 

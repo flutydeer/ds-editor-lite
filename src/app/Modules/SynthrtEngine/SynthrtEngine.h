@@ -60,6 +60,7 @@ class SynthrtEngine final : public QObject {
 
 private:
     friend class AppContext;
+    friend class Registry; // constructed/destroyed via Registry::create/destroy
     explicit SynthrtEngine(QObject *parent = nullptr);
     ~SynthrtEngine() override;
 
