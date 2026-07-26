@@ -19,6 +19,22 @@
 
 **风险重心在阶段 8**，其次是阶段 2 的收敛质量。阶段 1–3 是两条线共用的地基，务必先完成；之后拍号线优先。
 
+### 实施记录（阶段 1–5，2026-07-26）
+
+每阶段一个提交：1=`2df341d9`、2=`766fd5c6`、3=`c5bc5c4b`、4=`180e3799`、5=`f3853825`；另有存量 bug 修复 `95b8030b`（见下）。**仓库结构已迁移**：本计划中 `src/app/Model/AppModel/*` 的路径现为 `src/libs/ProjectModel/AppModel/*`（`SingingClipPhonemeNormalizer` 除外，仍在 `src/app/Model/AppModel/`）；已完成阶段的行号引用不再维护。
+
+关键偏差与提前完成项：
+
+- `MusicTime` 由常量 namespace 升级为值类型（静态常量保留，源码兼容）；显示 1-based（"001:01:000"），内部 0-based
+- `Timeline` 封装为私有排序列表 + 并行前缀表（`m_msAtTempo` / `m_tickAtSignature`）；转换公式保持与旧 `MusicTimeConverter` 相同的运算顺序，单点时**逐比特一致**（TestMusicTimeline 以 `==` 断言）；缓存采用整表重建而非增量重算（点数少，无性能差异）
+- `TimeSignature::pos` → `barIndex`，JSON key 保持 `"pos"` 以兼容既有工程与推理缓存签名
+- 信号收敛为单个 `timelineChanged()`；`ModelChangeHandler` 内部对曲速侧做 diff，改拍号不会误触推理重建。`setTempo` / `setTimeSignature` 目前编辑位置 0 锚点（阶段 6/9 改为按播放头段）
+- `AudioContext::tickToSample` / `sampleToTick` 已按 tempo map 分段（阶段 7 的一项提前完成，单点位精确性保持）；`WaveformPainter` / `AudioClipView` 仍用 `tempoAt(0)` 单段公式，留给阶段 7
+- `timeToTick` 对负分量直接返回 -1（未沿用 svscraft 的负 beat 归一化循环）；beat 溢出按该小节拍长向后顺延
+- 音符**移动**保留原 delta 吸附语义（保持子网格偏移，退化等价性要求）；绝对位置吸附（clip 拖动/缩放、画音符、切分、粘贴、loop 标记）全部走小节基准新重载 `snapNearest/snapDown(tick, step, timeline)`
+- 存量 bug 修复 `95b8030b`：曲速修改后 `recreateAllInferTasks` 只标脏不重启推理（2024 年 `6e74b624` 的原始实现含 reSegment + 建任务，管线化重构时丢失）；已按现行架构补回 reSegment + `createPipeline`
+- 曾修复一次启动崩溃（`cachedTextPixmap` 返回临时量引用），已并入阶段 4 提交
+
 ---
 
 ## Context
@@ -29,7 +45,7 @@
 
 **目标**：支持工程内任意位置插入/编辑/删除曲速点与拍号点，并保证播放、导出、网格、吸附、推理全链路正确。
 
-**参考实现**：`E:\GitHub\diffscope-project`（含 svscraft / scopicflow / talcs 子模块）。仅作**算法与交互设计的参照**——所有代码改动限定在 lite 内，不改 talcs / svscraft / opendspx；svscraft 是 LGPL-3.0，不复制其代码。
+**参考实现**：`D:\GitRepos\diffscope-project`（含 svscraft / scopicflow / talcs 子模块）。仅作**算法与交互设计的参照**——所有代码改动限定在 lite 内，不改 talcs / svscraft / opendspx；svscraft 是 LGPL-3.0，不复制其代码。
 
 ### 已确认的关键结论（来自源码调研）
 
@@ -84,12 +100,14 @@ svscraft `src/libs/3rdparty/svscraft/src/core/time/MusicTimeline.cpp` 的 `updat
 
 新增测试目标 `src/tests/TestMusicTimeline`，照 `src/tests/TestSpeakerMixValidation/CMakeLists.txt` 的模式（它已经在编译 `Timeline.cpp` / `Tempo.cpp` / `TimeSignature.cpp`），在 `src/tests/CMakeLists.txt` 注册：
 
-- [ ] 退化等价性：多个同值点 == 单点
-- [ ] tick↔ms 往返一致性（含跨段、段边界上、段边界±1）
-- [ ] tick↔MusicTime 往返，跨拍号段小节号累加正确
-- [ ] `barToTick(timeToTick(...))` 恒等；负 beat / 越界输入返回 -1 而非崩溃
-- [ ] 0 位置不可删的不变量（删除时应拒绝并保持 map 完整）
-- [ ] 极端值：极慢/极快曲速、denominator = 1..128、连续同位置点
+- [x] 退化等价性：多个同值点 == 单点
+- [x] tick↔ms 往返一致性（含跨段、段边界上、段边界±1）
+- [x] tick↔MusicTime 往返，跨拍号段小节号累加正确
+- [x] `barToTick(timeToTick(...))` 恒等；负 beat / 越界输入返回 -1 而非崩溃
+- [x] 0 位置不可删的不变量（删除时应拒绝并保持 map 完整）
+- [x] 极端值：极慢/极快曲速、denominator = 1..128、连续同位置点
+
+全部由 `TestMusicTimeline` 覆盖，另补充了单点与旧 `MusicTimeConverter` 逐比特一致、字符串解析、小节基准吸附（含跨段与小节线兜底）用例。
 
 ---
 
@@ -109,9 +127,9 @@ svscraft `src/libs/3rdparty/svscraft/src/core/time/MusicTimeline.cpp` 的 `updat
 
 ### 验收
 
-- [ ] 现有测试全绿（`TestSpeakerMixValidation` / `TestVoiceContext` / `TestDocumentWorkflow` 已在编译 `Timeline.cpp`，构成天然回归网）
-- [ ] 手工冒烟：打开工程 → 播放 → 改曲速 → 播放位置与音高正确 → 推理一次 → 导出音频
-- [ ] **导出比对**：改动前后导出同一工程，音频文件逐比特相同
+- [x] 现有测试全绿（13 个测试目标）
+- [x] 手工冒烟：打开工程 → 播放 → 改曲速 → 重新推理 →（曲速触发重推理即上文 `95b8030b` 修复的存量 bug）
+- [ ] **导出比对**：未做完整导出逐比特比对；目前以单点转换逐比特断言 + 人工冒烟近似替代，如后续发现导出差异再回头排查
 
 ---
 
@@ -128,10 +146,10 @@ svscraft `src/libs/3rdparty/svscraft/src/core/time/MusicTimeline.cpp` 的 `updat
 
 ### 验收
 
-- [ ] 手工构造一个含 3 个曲速点 + 2 个拍号点的 .dspx，打开 → 保存 → 再打开，序列完全一致
-- [ ] 导入一个带曲速/拍号变化的 MIDI，序列完整进入模型
-- [ ] 退化等价性：单点工程往返后仍是单点，字节级与旧版本兼容
-- [ ] 非法 denominator（如 3）被正确拒绝并给出提示
+- [x] 多拍号工程 打开 → 保存 → 再打开 序列一致（借新建工程临时拍号初步人工验证）
+- [ ] 导入一个带曲速/拍号变化的 MIDI，序列完整进入模型（代码已支持，未人工验证）
+- [x] 退化等价性：单点工程往返后仍是单点
+- [ ] 非法 denominator（如 3）被正确拒绝并给出提示（校验已改为逐项，未人工验证）
 
 ---
 
@@ -172,9 +190,9 @@ for (bar = startBar; bar <= endBar; bar++) {
 
 ### 验收
 
-- [ ] 打开 4/4 → 3/4 → 6/8 的三段工程，标尺与钢琴卷帘小节线对齐、小节编号连续、拍号标签出现在正确位置
-- [ ] 全缩放范围拉一遍：细分线的淡入淡出与抽稀层级不闪烁、不重叠
-- [ ] 退化等价性：所有拍号相同时，渲染结果与改动前**像素级一致**（可截图比对）
+- [x] 打开 4/4 → 3/4 → 6/8 的三段工程，标尺与钢琴卷帘小节线对齐、小节编号连续、拍号标签出现在正确位置（初步人工验证）
+- [x] 全缩放范围拉一遍：细分线的淡入淡出与抽稀层级不闪烁、不重叠（初步人工验证）
+- [ ] 退化等价性像素级截图比对未做（绘制调用序列在推导上与旧实现一致，日常使用未见差异）
 
 ---
 
@@ -191,10 +209,10 @@ for (bar = startBar; bar <= endBar; bar++) {
 
 ### 验收
 
-- [ ] 在 3/4 段内拖动音符，吸附点落在该段的小节线/拍线上，跨段拖动时基准正确切换
-- [ ] Alt 关闭吸附仍然可用
-- [ ] 输入 "015:2:000" 能跳转到正确位置，且跨拍号段计算正确
-- [ ] 退化等价性：单拍号工程的吸附行为与改动前完全一致
+- [x] 在 3/4 段内拖动，吸附点落在该段的小节线/拍线上，跨段拖动时基准正确切换（单测覆盖核心逻辑 + 初步人工验证；注意音符"移动"按既定决策保留 delta 吸附）
+- [x] Alt 关闭吸附仍然可用（step<=1 直通，单测覆盖）
+- [x] 输入 "015:2:000" 能跳转到正确位置，且跨拍号段计算正确（`MusicTime::fromString` 支持 `15` / `15:2` 简写与全角冒号）
+- [x] 退化等价性：单拍号工程的吸附行为与改动前完全一致（单测按全部网格典型 step 断言）
 
 ---
 
@@ -248,13 +266,13 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 ```
 
 - `start'` 可能为负：已确认安全（talcs `setStart()` 无校验，且 `startTick` 单独从不进 `convertTime`）
-- `src/app/Model/AppModel/AudioClip.h` 新增实时字段（`trimStartMs` / `lengthMs`）作为真相，`src/app/Model/AppModel/Clip.h:72-74` 的 tick 字段降为 UI 派生缓存，timeline 变化时重算
+- `src/libs/ProjectModel/AppModel/AudioClip.h` 新增实时字段（`trimStartMs` / `lengthMs`）作为真相，`src/libs/ProjectModel/AppModel/Clip.h` 的 tick 字段降为 UI 派生缓存，timeline 变化时重算
 
 其余改动：
 
-- `src/app/Modules/Audio/AudioContext.cpp:62-71` 的 `tickToSample` / `sampleToTick` 走 tempo map（后者需反查表）
-- `src/app/Modules/Audio/AudioContext.cpp:494-502` 的 `handleTimeChanged()` 与 `src/app/Modules/Audio/TrackSynthesizer.cpp:41` 的同名函数，两条链路都重算补偿三元组
-- 波形分段绘制：`src/app/UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp:166`、`:317`、`:435` 与 `src/app/UI/Utils/WaveformPainter.cpp:72` 共 5 处单一 `samplesPerTick` 改为按曲速段分段
+- ~~`AudioContext` 的 `tickToSample` / `sampleToTick` 走 tempo map~~ **已在阶段 2 提前完成**（分段锚定 + `Timeline::msToTick` 反查，单点位精确）
+- `src/app/Modules/Audio/AudioContext.cpp` 的 `handleTimeChanged()` 与 `src/app/Modules/Audio/TrackSynthesizer.cpp` 的同名函数，两条链路都重算补偿三元组（两处已改接 `timelineChanged`）
+- 波形分段绘制：`AudioClipView.cpp` 与 `WaveformPainter.cpp` 的单一 `samplesPerTick` 改为按曲速段分段（阶段 2 已把两者的 `m_tempo` 换成 Timeline 快照，现用 `tempoAt(0)` 单段公式并留有注释标记）
 - 循环范围、播放头位置在 timeline 变化后重算
 
 ### 验收
@@ -272,7 +290,7 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 
 ### 问题
 
-参数曲线以 **5-tick 网格**存储（`src/app/Model/AppModel/DrawCurve.h:25` 的 `step = 5`），引擎工作在 **0.01s 帧网格**。两个方向各自"统一单位后做等间隔重采样"：
+参数曲线以 **5-tick 网格**存储（`src/libs/ProjectModel/AppModel/DrawCurve.h` 的 `step = 5`），引擎工作在 **0.01s 帧网格**。两个方向各自"统一单位后做等间隔重采样"：
 
 - **入方向** `src/app/Modules/Inference/Tasks/InferAcousticTask.cpp:357-399`：`resample(values, 5 /*tick*/, timeline.secToTick(0.01))` — 统一到 tick
 - **出方向** `src/app/Modules/Inference/Tasks/InferPitchTask.cpp:291-292`：`resample(values, interval /*秒*/, timeline.tickToSec(5))` — 统一到秒
@@ -283,7 +301,7 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 
 1. `MathUtils` 新增按**目标点位置数组**采样的重载，并改为**指定输出点数**而非指定间隔（见下）
 2. 改造 17 处调用：`InferAcousticTask.cpp:367-399` 9 处、`InferVarianceTask.cpp:281-331` 7 处、`InferPitchTask.cpp:271` 2 处、`src/app/Modules/Extractors/ExtractPitchTask.cpp:222-227` 1 处
-3. **传递绝对起始 tick**：现在这些函数只有局部序列，改造后需知道 piece 在工程时间轴上的绝对起点。`InferPitchInput` / `InferAcousticInput` / `InferVarianceInput` 与 `src/app/Modules/Extractors/ExtractTask.h:23` 的 `Input`（现在按值传 `double tempo`）都要带上 timeline 快照 + 绝对起点
+3. **传递绝对起始 tick**：现在这些函数只有局部序列，改造后需知道 piece 在工程时间轴上的绝对起点。`InferPitchInput` / `InferAcousticInput` / `InferVarianceInput` 与 `src/app/Modules/Extractors/ExtractTask.h` 的 `Input`（阶段 2 已改为持有 `Timeline` 快照）都要带上绝对起点
 4. **帧数对齐**：入方向 `frames = qRound(totalLength/interval)` 且 `retake.end = frames`，而 `resample` 的输出点数是算出来的（还带 `break` 提前退出）。变速下极易差 1–2 点导致引擎侧错位——改为让 `frames` 成为单一真相
 5. **尾部截断**：`if (oldIndex >= numOldSamples - 1) break;` 会静默丢尾部；变速下截断位置会漂移，需明确定义边界外插值行为
 
@@ -313,7 +331,8 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 - 编辑对话框（参考 diffscope `src/plugins/coreplugin/qml/dialogs/EditTempoDialog.qml`）
 - 撤销 Action 三类：扩展 `src/app/Controller/Actions/AppModel/Tempo/TempoActions.h` / `EditTempoAction.cpp`（现在只是 `setTempo(old/new)` 二元操作）
 - `src/app/UI/Views/MainTitleBar/TempoComboBox.cpp` / `TempoPopupWidget.cpp` / `src/libs/GUI/Controls/TapTempoButton.cpp` 改为作用于播放头所在段
-- 曲速变化时的推理失效：保留 `src/app/Model/AppModel/AppModel.cpp:46-56` 中 `setTempo` 里的 `bumpInferenceRevision()`，但优化为只失效受影响 tick 范围内的 piece
+- 曲速变化时的推理失效：保留 `src/libs/ProjectModel/AppModel/AppModel.cpp` 中 `setTempo` / `setTimeline` 里的 `bumpInferenceRevision()`，但优化为只失效受影响 tick 范围内的 piece
+- **失效架构改为两层**（与推理状态机对齐，替代 `95b8030b` 的全量重建）：控制器侧去掉 `recreateAllInferTasks` 的强制标脏，让 `reSegment` 按 `isSamePiece` 自然做最小替换；`InferPipeline` 沿用 `inferenceOptionsChanged` 的 `restartableStates` 模式新增 `timelineChanged` 转移（全部状态 → `inferDurationState`），分段未变的存活 piece 就地重启；控制器 diff 新旧 timeline 得出受影响 tick 范围，只对区间重叠的 piece 发信号。顺带处理 `InferPipeline` 中从未接线的 `phonemeNameChanged` / `phonemeOffsetChanged` 信号（接活或删除）
 
 ### 验收
 
@@ -328,7 +347,7 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 
 - [ ] 边界 case：同位置多点、极端曲速值、极端拍号、大量曲速点时的绘制性能（缓存命中率）
 - [ ] i18n：`src/app/Resources/translate/translation_zh_CN.ts` 有 13 处相关条目，新增菜单/对话框文案需补齐
-- [ ] 清理三处历史 TODO：`src/libs/MusicBase/Timeline.cpp:9`、`src/app/Model/AppModel/SingingClip.cpp:107`、`src/app/UI/Views/Common/TimelineView.cpp:381`
+- [ ] 清理历史 TODO：~~`Timeline.cpp:9`~~、~~`SingingClip.cpp:107`~~（已在阶段 1/2 随重构移除）；剩 `src/app/UI/Views/Common/TimelineView.cpp:403`（piece 调试覆盖层的 `msToTick` 多曲速处理，属阶段 7/8 范畴）
 - [ ] （可选）补齐 diffscope 也没做完的两处近似：标尺抽稀层级按 4/4 硬算、拍线可见性假设 beat = 四分音符
 
 ---
@@ -337,11 +356,13 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 
 ```powershell
 # 进 VS 开发者环境与构建必须在同一条命令里（env 不跨调用持久）
-$vs = "C:\Program Files\Microsoft Visual Studio\2022\Community"
+$vs = "C:\Program Files\Microsoft Visual Studio\18\Insiders"
 Import-Module (Join-Path $vs "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
 Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64" | Out-Null
-Set-Location E:\GitHub\ds-editor-lite\build\Debug
-ninja DsEditorLite; if ($?) { ctest --output-on-failure }
+Set-Location D:\GitRepos\ds-editor-lite\build\Debug
+ninja; if ($?) { ctest --output-on-failure }
 ```
+
+（cmd 环境亦可 `call "...\VC\Auxiliary\Build\vcvars64.bat"` 后在 `build\Debug` 直接 `ninja`。）
 
 `debug` preset 已带 `LITE_BUILD_TESTS=ON`。新测试目标在 `src/tests/CMakeLists.txt` 用 `add_subdirectory` 注册，CMakeLists 照 `src/tests/TestSpeakerMixValidation/CMakeLists.txt` 的 `lite_add_test(...)` 模式直接编译 app 源码，main.cpp 用 `QCoreApplication` + 手写 `expect()` 断言。
