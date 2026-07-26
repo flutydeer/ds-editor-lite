@@ -40,7 +40,7 @@ namespace {
 
     QJsonArray tempoArray(const Timeline &timeline) {
         QJsonArray array;
-        for (const auto &tempo : timeline.tempos)
+        for (const auto &tempo : timeline.tempos())
             array.append(QJsonObject{
                 {"pos",   tempo.pos  },
                 {"value", tempo.value}
@@ -50,9 +50,9 @@ namespace {
 
     QJsonArray timeSignatureArray(const Timeline &timeline) {
         QJsonArray array;
-        for (const auto &signature : timeline.timeSignatures) {
+        for (const auto &signature : timeline.timeSignatures()) {
             array.append(QJsonObject{
-                {"pos",         signature.pos        },
+                {"pos",         signature.barIndex   },
                 {"numerator",   signature.numerator  },
                 {"denominator", signature.denominator},
             });

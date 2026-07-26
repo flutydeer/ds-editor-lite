@@ -59,12 +59,8 @@ namespace {
     }
 
     Timeline timeline120Bpm() {
-        Timeline timeline;
-        Tempo tempo;
-        tempo.value = 120;
-        timeline.tempos = {tempo};
-        timeline.timeSignatures = {TimeSignature()};
-        return timeline;
+        // The default-constructed timeline is a single 120 BPM point plus 4/4.
+        return Timeline();
     }
 
     bool testWeightConversions() {

@@ -79,7 +79,7 @@ namespace InferControllerHelper {
         input.paddingStartMs = piece.paddingStartMs;
         input.paddingEndMs = piece.paddingEndMs;
 
-        input.timeline = {{{0, appModel->tempo()}}};
+        input.timeline = Timeline({{0, appModel->tempo()}});
         input.notes = buildInferInputNotes(piece.notes);
 
         const auto spk = resolveSpeakerForPiece(piece);
@@ -105,7 +105,7 @@ namespace InferControllerHelper {
         input.paddingStartMs = piece.paddingStartMs;
         input.paddingEndMs = piece.paddingEndMs;
 
-        input.timeline = {{{0, appModel->tempo()}}};
+        input.timeline = Timeline({{0, appModel->tempo()}});
         input.notes = buildInferInputNotes(piece.notes);
         input.expressiveness = expr;
 
@@ -133,7 +133,7 @@ namespace InferControllerHelper {
         input.paddingStartMs = piece.paddingStartMs;
         input.paddingEndMs = piece.paddingEndMs;
 
-        input.timeline = {{{0, appModel->tempo()}}};
+        input.timeline = Timeline({{0, appModel->tempo()}});
         input.notes = buildInferInputNotes(piece.notes);
         input.pitch = pitch;
 
@@ -191,7 +191,7 @@ namespace InferControllerHelper {
         input.paddingStartMs = piece.paddingStartMs;
         input.paddingEndMs = piece.paddingEndMs;
 
-        input.timeline = {{{0, appModel->tempo()}}};
+        input.timeline = Timeline({{0, appModel->tempo()}});
         input.notes = buildInferInputNotes(piece.notes);
         input.pitch = pitch;
         input.breathiness = breathiness;

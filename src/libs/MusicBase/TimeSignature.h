@@ -13,11 +13,21 @@ public:
 
     TimeSignature(int num, int deno);
 
+    TimeSignature(int barIndex, int num, int deno);
+
     [[nodiscard]] QJsonObject serialize() const override;
 
     bool deserialize(const QJsonObject &obj) override;
 
-    int pos = 0;
+    [[nodiscard]] bool isValid() const;
+
+    [[nodiscard]] int ticksPerBar() const;
+
+    [[nodiscard]] int ticksPerBeat() const;
+
+    // The measure number (0-based) this signature takes effect at. Signatures
+    // are indexed by measure, not tick, matching opendspx::TimeSignature::index.
+    int barIndex = 0;
     int numerator = 4;
     int denominator = 4;
 

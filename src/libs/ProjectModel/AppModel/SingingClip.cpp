@@ -104,10 +104,9 @@ void SingingClip::removeAllPieces() {
 ReSegmentResult SingingClip::reSegment(double tempo) {
     ReSegmentResult result;
     // TODO: support multiple tempos (the caller passes the single project tempo)
-    Timeline timeline;
-    timeline.tempos = {
+    const Timeline timeline({
         {0, tempo}
-    };
+    });
 
     auto [segments] = SingingClipSlicer::slice(timeline, m_notes.toList());
 
