@@ -11,7 +11,7 @@
 | 3 — 序列化贯通 | ✅ | ★★☆☆☆ | 低 |
 | 4 — 网格重写〔拍号线〕 | ✅ | ★★★☆☆ | 中（骨架有参照，视觉分层需自行嫁接） |
 | 5 — 吸附与 Bar:Beat 双向〔拍号线〕 | ✅ | ★★★☆☆ | 中（吸附**无参照实现**） |
-| 6 — 拍号编辑 UI 与撤销〔拍号线〕 | ⬜ | ★★★☆☆ | 低（交互设计可照抄） |
+| 6 — 拍号编辑 UI 与撤销〔拍号线〕 | ✅ | ★★★☆☆ | 低（交互设计可照抄） |
 | 7 — 音频引擎与波形〔曲速线〕 | ⬜ | ★★★☆☆ | 中（talcs 不需改，补偿方案已验证可行） |
 | 8 — 参数曲线非均匀重采样〔曲速线〕 | ⬜ | ★★★★☆ | **高**（最易静默出错，必须靠退化等价性测试兜底） |
 | 9 — 曲速编辑 UI 与撤销〔曲速线〕 | ⬜ | ★★★☆☆ | 低 |
@@ -22,6 +22,10 @@
 ### 实施记录（阶段 1–5，2026-07-26）
 
 每阶段一个提交：1=`2df341d9`、2=`766fd5c6`、3=`c5bc5c4b`、4=`180e3799`、5=`f3853825`；另有存量 bug 修复 `95b8030b`（见下）。**仓库结构已迁移**：本计划中 `src/app/Model/AppModel/*` 的路径现为 `src/libs/ProjectModel/AppModel/*`（`SingingClipPhonemeNormalizer` 除外，仍在 `src/app/Model/AppModel/`）；已完成阶段的行号引用不再维护。
+
+### 实施记录（阶段 6，2026-07-26）
+
+提交 `d950d202`。**交互方案偏离原计划**：未采用"标尺右键菜单"设计，改按用户的 Lunacy 设计稿实现为轨道编辑器标尺下方的**拍号轨**（详见阶段 6 节的实际实现小结）。
 
 关键偏差与提前完成项：
 
@@ -216,13 +220,20 @@ for (bar = startBar; bar <= endBar; bar++) {
 
 ---
 
-## 阶段 6 — 拍号编辑 UI 与撤销 ⬜
+## 阶段 6 — 拍号编辑 UI 与撤销 ✅
 
-**目标**：可在标尺上插入/编辑/删除拍号点。
+**目标**：可插入/编辑/删除拍号点。
 
-### 改动
+### 实际实现（按用户 Lunacy 设计稿，替代下方原方案）
 
-交互设计**照抄 diffscope**：
+- **拍号轨**：轨道编辑器标尺下方 28px 信息行（`src/app/UI/Views/TrackEditor/InfoLane/`）。`InfoLaneView` 为可复用基类（chip 绘制/命中/横向同步/与画布同款小节-拍-细分网格线/播放头实线+上次位置虚线，全走 qproperty 主题 token），曲速轨与标记轨将来复用；`TimeSignatureLaneView` 提供 chip 数据与交互；左侧面板对应 `InfoLaneHeaderView` 标题行。工具栏音符图标 toggle 控制显隐（占位图标，待重新设计）
+- **交互**：双击空白=在鼠标所在小节插入；双击 chip=编辑；chip 右键菜单=编辑/删除，**小节 0 删除置灰**。无 +/− 按钮（有意砍掉降复杂度）
+- **编辑器**：模态对话框 `EditTimeSignatureDialog`（OK/取消，确认才提交=一条撤销记录）；分子 SpinBox + **分母下拉只给 2 的幂** + 常用拍号快捷（4/4、2/4、3/4、6/8）抽为 `TimeSignatureEditWidget`（`UI/Views/Common/`），与标题栏 popup 共用；无"位置输入"（位置由双击处/chip 决定）
+- **撤销**：插入/删除/改值三类语义统一由 `EditTimeSignaturesAction` 整序列替换实现（`TimeSignatureActions::setTimeSignatureAt/removeTimeSignatureAt`，undo 栈名称区分三类；无变化时不产生记录）；单点 `EditTimeSignatureAction` 已删除。控制器入口 `AppController::onSetTimeSignatureAt/onRemoveTimeSignatureAt`
+- **标题栏**：`TimeSignatureComboBox` 显示/编辑**播放头所在段**，编辑开始（popup 打开或行内编辑）时快照所在段小节号，播放中改动落在快照段上——原方案的 TimeSignaturePopupWidget 改造项按此完成（popup 移至 `UI/Views/Common/`，保持实时生效）
+- 同位置多点容错（保留第一个并 warn）已由阶段 1 的 `Timeline` 归一化覆盖
+
+### 原方案（保留备查，交互参考 diffscope）
 
 - **右键菜单双态**（参考 `src/plugins/visualeditor/qml/TimelineContextMenuHelper.qml`）：按 `nearestBarWithTimeSignatureTo(measure) == measure` 判断该小节是否已有拍号点，分别弹"插入"或"编辑/删除"菜单；菜单首项是禁用的当前 MusicTime 字符串作上下文标题；**删除项在 `measure == 0` 时置灰**
 - **编辑对话框**（参考 `src/plugins/coreplugin/qml/dialogs/EditTimeSignatureDialog.qml`）：分子 SpinBox + **分母下拉只给 2 的幂**（从 UI 根除非法值）+ 常用拍号快捷按钮（4/4、2/4、3/4、6/8）+ Bar:Beat:Tick 位置输入 + "修改已有 / 插入新的" 单选
@@ -233,11 +244,12 @@ for (bar = startBar; bar <= endBar; bar++) {
 
 ### 验收
 
-- [ ] 插入 → 撤销 → 重做 → 删除 → 撤销，序列与网格每步都正确
-- [ ] 尝试删除小节 0 的拍号点：菜单项置灰
-- [ ] 输入非法分母：UI 上不可选
-- [ ] 改拍号后音符 tick 不变（相对小节线漂移），符合既定语义
-- [ ] 播放头移动时标题栏拍号显示跟随变化
+- [x] 插入 → 撤销 → 重做 → 删除 → 撤销，序列与网格每步都正确（人工验收通过）
+- [x] 尝试删除小节 0 的拍号点：菜单项置灰
+- [x] 输入非法分母：UI 上不可选（分母下拉仅 2 的幂）
+- [x] 改拍号后音符 tick 不变（相对小节线漂移），符合既定语义
+- [x] 播放头移动时标题栏拍号显示跟随变化（含播放中编辑落到快照段）
+- 已知小项：拍号轨行与轨道列表间分隔线与列表自带上边框叠加（视觉略粗，待打磨）；插入对话框选择与当前段相同的值时控制器按无变化跳过（退化操作，无音乐效果）
 
 ---
 
