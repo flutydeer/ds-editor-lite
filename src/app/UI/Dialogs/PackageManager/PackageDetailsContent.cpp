@@ -4,7 +4,7 @@
 
 #include "PackageDetailsContent.h"
 
-#include "Modules/PackageManager/Models/PackageInfo.h"
+#include <lite/PackageManager/Models/PackageInfo.h>
 #include "UI/Dialogs/PackageManager/Cards/DescriptionCard.h"
 
 #include <QVBoxLayout>

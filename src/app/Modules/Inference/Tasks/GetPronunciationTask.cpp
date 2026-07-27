@@ -14,9 +14,9 @@
 
 #include <synthrt/G2P/Base/LangCommon.h>
 
-#include "Modules/Language/G2pConvertRunner.h"
-#include "Modules/Language/G2pInputAdapter.h"
-#include "Modules/SynthrtEngine/SynthrtEngine.h"
+#include <lite/Language/G2pConvertRunner.h>
+#include <lite/Language/G2pInputAdapter.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 Q_LOGGING_CATEGORY(logInferPron, "infer.pronunciation")
 

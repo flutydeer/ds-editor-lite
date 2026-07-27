@@ -8,7 +8,7 @@
 #include "Global/AppGlobal.h"
 #include <lite/ProjectModel/SingingClipSlicer/SingingClipSlicerGlobal.h>
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/SynthrtEngine/SynthrtEngine.h"
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <QDebug>
 #include <QLoggingCategory>

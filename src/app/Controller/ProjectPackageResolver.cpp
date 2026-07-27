@@ -8,7 +8,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/PackageManager/PackageManager.h"
+#include <lite/PackageManager/PackageManager.h>
 
 #include <QDebug>
 #include <QTimer>

@@ -2,8 +2,8 @@
 
 #include "EditorViewController.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/History/ActionSequence.h"
-#include "Modules/History/HistoryManager.h"
+#include <lite/History/ActionSequence.h>
+#include <lite/History/HistoryManager.h>
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(UndoRedoController)
 
@@ -29,11 +29,10 @@ void UndoRedoController::request(const Direction direction) {
         return;
 
     if (appStatus->currentEditObject != AppStatus::EditObjectType::None) {
+        // An edit is still in progress: refuse undo/redo. This guard used to
+        // live inside HistoryManager::undo()/redo(); it moved here so the
+        // history library stays free of AppStatus (app-runtime state).
         clearPending();
-        if (direction == Direction::Undo)
-            historyManager->undo();
-        else
-            historyManager->redo();
         return;
     }
 

@@ -8,8 +8,8 @@
 #include <synthrt/G2P/LanguageService.h>
 
 #include "Modules/FillLyric/Utils/TextTagger.h"
-#include "Modules/Language/G2pConvertRunner.h"
-#include "Modules/Language/G2pInputAdapter.h"
+#include <lite/Language/G2pConvertRunner.h>
+#include <lite/Language/G2pInputAdapter.h>
 Q_LOGGING_CATEGORY(logFillG2p, "fill.g2p")
 
 namespace FillLyric {

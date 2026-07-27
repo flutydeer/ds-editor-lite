@@ -8,7 +8,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/Tasking/TaskManager.h>
 #include "Modules/Inference/Models/GenericInferModel.h"
-#include "Modules/SynthrtEngine/SynthrtEngine.h"
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "Tasks/InitInferEngineTask.h"
 
 #include <synthrt/Core/Support/Logging.h>

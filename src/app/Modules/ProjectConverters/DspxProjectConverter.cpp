@@ -22,7 +22,7 @@
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
-#include "Modules/PackageManager/PackageManager.h"
+#include <lite/PackageManager/PackageManager.h>
 #include "Model/Utils/DiffscopeAudioWorkspace.h"
 
 #include <QDebug>

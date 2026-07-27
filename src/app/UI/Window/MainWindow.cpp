@@ -18,8 +18,8 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/History/HistoryManager.h"
-#include "Modules/PackageManager/PackageManager.h"
+#include <lite/History/HistoryManager.h>
+#include <lite/PackageManager/PackageManager.h>
 #include <lite/Tasking/TaskManager.h>
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/Button.h>

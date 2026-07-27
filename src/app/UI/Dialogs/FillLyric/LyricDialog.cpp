@@ -9,7 +9,7 @@
 #include "Modules/FillLyric/Widgets/RuleTestTab.h"
 #include "Modules/FillLyric/Utils/TextSplitter.h"
 #include "Modules/FillLyric/Utils/TextTagger.h"
-#include "Modules/SynthrtEngine/SynthrtEngine.h"
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <lite/GUI/Controls/AccentButton.h>
 // #include "UI/Dialogs/Options/Pages/G2pPage.h"
 

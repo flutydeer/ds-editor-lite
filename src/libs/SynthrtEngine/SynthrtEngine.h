@@ -53,13 +53,11 @@
 #include "PackageCatalog.h"
 
 class SingerModelSession;
-class AppContext;
 
 class SynthrtEngine final : public QObject {
     Q_OBJECT
 
 private:
-    friend class AppContext;
     friend class SingletonRegistry; // constructed/destroyed via SingletonRegistry::create/destroy
     explicit SynthrtEngine(QObject *parent = nullptr);
     ~SynthrtEngine() override;

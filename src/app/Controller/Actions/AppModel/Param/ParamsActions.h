@@ -6,7 +6,7 @@
 #define PARAMSACTIONS_H
 
 #include <lite/ProjectModel/AppModel/Params.h>
-#include "Modules/History/ActionSequence.h"
+#include <lite/History/ActionSequence.h>
 
 class SingingClip;
 

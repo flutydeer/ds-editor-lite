@@ -8,7 +8,7 @@
 
 #include "AppContext.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "Modules/SynthrtEngine/SynthrtEngine.h"
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <lite/Support/StringUtils.h>
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>

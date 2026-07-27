@@ -4,15 +4,13 @@
 
 #include "PackageManager.h"
 
-#include "Model/AppOptions/AppOptions.h"
-#include "Model/AppStatus/AppStatus.h"
 #include <lite/Support/StringUtils.h>
 #include <lite/Support/VersionUtils.h>
-#include "Models/PackageInfo.h"
+#include <lite/PackageManager/Models/PackageInfo.h>
 #include <lite/ProjectModel/Voice/SingerInfo.h>
 #include <lite/Tasking/TaskManager.h>
-#include "Tasks/GetInstalledPackagesTask.h"
-#include "Modules/SynthrtEngine/SynthrtEngine.h"
+#include <lite/PackageManager/Tasks/GetInstalledPackagesTask.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <filesystem>
 
@@ -41,17 +39,17 @@ PackageManager::~PackageManager() = default;
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(PackageManager)
 
-void PackageManager::initialize() {
-    std::call_once(m_initialized, [this]() {
-        appStatus->packageModuleStatus = AppStatus::ModuleStatus::Loading;
-        auto task = new GetInstalledPackagesTask;
-        connect(task, &GetInstalledPackagesTask::finished, this, [task]() {
+void PackageManager::initialize(const QStringList &searchPaths) {
+    std::call_once(m_initialized, [this, searchPaths]() {
+        Q_EMIT moduleStatusChanged(ModuleStatus::Loading);
+        auto task = new GetInstalledPackagesTask(searchPaths);
+        connect(task, &GetInstalledPackagesTask::finished, this, [this, task]() {
             taskManager->removeTask(task);
             if (task->result) {
-                appStatus->packageModuleStatus = AppStatus::ModuleStatus::Ready;
+                Q_EMIT moduleStatusChanged(ModuleStatus::Ready);
             } else {
                 qCritical() << "Package scan failed:" << task->result.getError().message;
-                appStatus->packageModuleStatus = AppStatus::ModuleStatus::Error;
+                Q_EMIT moduleStatusChanged(ModuleStatus::Error);
             }
             delete task;
         });
@@ -60,7 +58,7 @@ void PackageManager::initialize() {
 }
 
 Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
-    PackageManager::refreshInstalledPackages() {
+    PackageManager::refreshInstalledPackages(const QStringList &searchPathsQt) {
     {
         std::unique_lock lock(m_refreshMutex);
         if (m_refreshing) {
@@ -71,13 +69,14 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         m_refreshing = true;
     }
 
-    auto completed = [this]() -> Expected<GetInstalledPackagesResult, GetInstalledPackagesError> {
+    auto completed =
+        [this, &searchPathsQt]() -> Expected<GetInstalledPackagesResult, GetInstalledPackagesError> {
         QElapsedTimer timer;
         timer.start();
         GetInstalledPackagesResult result;
 
         std::vector<fs::path> searchPaths;
-        for (const auto &pathQt : std::as_const(appOptions->general()->packageSearchPaths)) {
+        for (const auto &pathQt : searchPathsQt) {
             const auto path = StringUtils::qstr_to_path(pathQt);
             if (!fs::exists(path) || !fs::is_directory(path)) {
                 result.failedPackages.emplace_back(pathQt, tr("Path is not a valid directory"));

@@ -1,4 +1,4 @@
-#include "G2pInputAdapter.h"
+#include <lite/Language/G2pInputAdapter.h>
 
 namespace G2pInputAdapter {
     srt::g2p::G2pInput fromRoute(std::string lyric, const srt::g2p::LanguageRoute &route) {

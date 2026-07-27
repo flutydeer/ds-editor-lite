@@ -5,7 +5,7 @@
 #ifndef EDITTEMPOACTION_H
 #define EDITTEMPOACTION_H
 
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 
 class AppModel;
 

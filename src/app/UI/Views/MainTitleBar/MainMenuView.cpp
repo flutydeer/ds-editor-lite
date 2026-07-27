@@ -22,7 +22,7 @@
 #include <QMimeData>
 #include "Modules/Extractors/MidiExtractController.h"
 #include "Modules/Extractors/PitchExtractController.h"
-#include "Modules/History/HistoryManager.h"
+#include <lite/History/HistoryManager.h>
 #include "Controller/UndoRedoController.h"
 #include <lite/GUI/Controls/Toast.h>
 #include "UI/Dialogs/Audio/AudioExportDialog.h"

@@ -17,9 +17,10 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Global/AppGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
+#include <lite/PackageManager/PackageManager.h>
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
-#include "Modules/History/HistoryManager.h"
+#include <lite/History/HistoryManager.h>
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/ProjectConverters/MidiConverter.h"
@@ -169,6 +170,23 @@ void AppControllerPrivate::initializeModules() {
             [pushModelDefaults](AppOptionsGlobal::Option option) {
                 if (option == AppOptionsGlobal::All || option == AppOptionsGlobal::General)
                     pushModelDefaults();
+            });
+
+    // Map the package library's own scan-lifecycle signal onto AppStatus, which
+    // the library no longer references directly.
+    connect(packageManager, &PackageManager::moduleStatusChanged, appStatus,
+            [](PackageManager::ModuleStatus status) {
+                appStatus->packageModuleStatus = [status] {
+                    switch (status) {
+                        case PackageManager::ModuleStatus::Loading:
+                            return AppStatus::ModuleStatus::Loading;
+                        case PackageManager::ModuleStatus::Ready:
+                            return AppStatus::ModuleStatus::Ready;
+                        case PackageManager::ModuleStatus::Error:
+                            return AppStatus::ModuleStatus::Error;
+                    }
+                    return AppStatus::ModuleStatus::Unknown;
+                }();
             });
 
     connect(appModel, &AppModel::modelChanged, audioDecodingController,

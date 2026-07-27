@@ -6,7 +6,7 @@
 #define MOVECLIPTOTRACKACTION_H
 
 #include <lite/ProjectModel/AppModel/Clip.h>
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 
 class Track;
 

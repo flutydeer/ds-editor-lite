@@ -2,7 +2,7 @@
 #define EDITAUDIOCLIPPATHACTION_H
 
 #include <lite/ProjectModel/AppModel/AudioClip.h>
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 
 #include <QJsonObject>
 
