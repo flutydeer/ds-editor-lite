@@ -14,8 +14,8 @@ namespace SVS {
 }
 
 // Shared tempo value editor used by both the title-bar popup and the modal
-// editor for tempo-map points. Tap Tempo only previews a measured BPM; the
-// spin box remains the authoritative value that is committed by the caller.
+// editor for tempo-map points. Tap Tempo writes the measured BPM into the spin
+// box; the caller decides whether changes are applied live or on acceptance.
 class TempoEditWidget final : public QWidget {
     Q_OBJECT
 

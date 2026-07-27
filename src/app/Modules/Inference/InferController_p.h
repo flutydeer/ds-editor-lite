@@ -66,8 +66,6 @@ public:
     void scheduleRetryAllSingingClips();
     void retryAllSingingClips();
 
-    void recreateAllInferTasks();
-
     void createAndRunGetPronTask(const SingingClip &clip);
     void createAndRunGetPhoneTask(const SingingClip &clip);
 

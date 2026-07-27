@@ -4344,6 +4344,66 @@ All current mix settings will be lost.</source>
     </message>
 </context>
 <context>
+    <name>EditTempoDialog</name>
+    <message>
+        <location filename="../../UI/Dialogs/Timeline/EditTempoDialog.cpp" line="11"/>
+        <location filename="../../UI/Dialogs/Timeline/EditTempoDialog.cpp" line="12"/>
+        <source>Tempo</source>
+        <translation>曲速</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Timeline/EditTempoDialog.cpp" line="13"/>
+        <source>Tick %1</source>
+        <translation>刻度 %1</translation>
+    </message>
+</context>
+<context>
+    <name>TempoActions</name>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Tempo/TempoActions.cpp" line="30"/>
+        <source>Edit Tempo</source>
+        <translation>编辑曲速</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Tempo/TempoActions.cpp" line="31"/>
+        <source>Insert Tempo</source>
+        <translation>插入曲速</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/Actions/AppModel/Tempo/TempoActions.cpp" line="44"/>
+        <source>Remove Tempo</source>
+        <translation>删除曲速</translation>
+    </message>
+</context>
+<context>
+    <name>TempoEditWidget</name>
+    <message>
+        <location filename="../../UI/Views/Common/TempoEditWidget.cpp" line="35"/>
+        <location filename="../../UI/Views/Common/TempoEditWidget.cpp" line="65"/>
+        <source>Tap Tempo</source>
+        <translation>敲击测速</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/Common/TempoEditWidget.cpp" line="71"/>
+        <location filename="../../UI/Views/Common/TempoEditWidget.cpp" line="82"/>
+        <source>Keep Tapping</source>
+        <translation>继续拍击</translation>
+    </message>
+</context>
+<context>
+    <name>TempoLaneView</name>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/InfoLane/TempoLaneView.cpp" line="29"/>
+        <source>Edit Tempo...</source>
+        <translation>编辑曲速...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/InfoLane/TempoLaneView.cpp" line="31"/>
+        <source>Remove Tempo</source>
+        <translation>删除曲速</translation>
+    </message>
+</context>
+<context>
     <name>TempoPopupWidget</name>
     <message>
         <location filename="../../UI/Views/MainTitleBar/TempoPopupWidget.cpp" line="48"/>
@@ -4438,12 +4498,39 @@ All current mix settings will be lost.</source>
     </message>
 </context>
 <context>
+    <name>TrackEditorView</name>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="90"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="222"/>
+        <source>Tempo</source>
+        <translation>曲速</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="101"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="223"/>
+        <source>Time Signature</source>
+        <translation>拍号</translation>
+    </message>
+</context>
+<context>
     <name>TrackListHeaderView</name>
     <message>
         <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="26"/>
         <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="44"/>
         <source>New Track</source>
         <translation>新建轨道</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="42"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="83"/>
+        <source>Show Tempo Track</source>
+        <translation>显示曲速轨</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="55"/>
+        <location filename="../../UI/Views/TrackEditor/TrackListHeaderView.cpp" line="84"/>
+        <source>Show Time Signature Track</source>
+        <translation>显示拍号轨</translation>
     </message>
 </context>
 <context>

@@ -5,8 +5,10 @@
 #include "Timeline.h"
 
 #include <QDebug>
+#include <QSet>
 
 #include <algorithm>
+#include <limits>
 
 // Conversion formulas intentionally keep the exact operation order of the old
 // single-tempo MusicTimeConverter so that a single-point timeline stays
@@ -39,9 +41,9 @@ void Timeline::addTempo(const Tempo &tempo) {
                    << tempo.value;
         return;
     }
-    const auto it = std::lower_bound(
-        m_tempos.begin(), m_tempos.end(), tempo.pos,
-        [](const Tempo &item, const int pos) { return item.pos < pos; });
+    const auto it =
+        std::lower_bound(m_tempos.begin(), m_tempos.end(), tempo.pos,
+                         [](const Tempo &item, const int pos) { return item.pos < pos; });
     if (it != m_tempos.end() && it->pos == tempo.pos)
         it->value = tempo.value;
     else
@@ -52,9 +54,9 @@ void Timeline::addTempo(const Tempo &tempo) {
 bool Timeline::removeTempoAt(const int tick) {
     if (tick == 0)
         return false; // The anchor point at tick 0 is not removable.
-    const auto it = std::lower_bound(
-        m_tempos.begin(), m_tempos.end(), tick,
-        [](const Tempo &item, const int pos) { return item.pos < pos; });
+    const auto it =
+        std::lower_bound(m_tempos.begin(), m_tempos.end(), tick,
+                         [](const Tempo &item, const int pos) { return item.pos < pos; });
     if (it == m_tempos.end() || it->pos != tick)
         return false;
     m_tempos.erase(it);
@@ -68,6 +70,31 @@ double Timeline::tempoAt(const double tick) const {
 
 int Timeline::nearestTickWithTempoTo(const int tick) const {
     return m_tempos[tempoIndexAtTick(tick)].pos;
+}
+
+QList<TempoChangeRange> Timeline::tempoChangeRanges(const Timeline &before, const Timeline &after) {
+    QSet<int> breakpointSet;
+    for (const auto &tempo : before.tempos())
+        breakpointSet.insert(tempo.pos);
+    for (const auto &tempo : after.tempos())
+        breakpointSet.insert(tempo.pos);
+
+    QList<int> breakpoints(breakpointSet.cbegin(), breakpointSet.cend());
+    std::sort(breakpoints.begin(), breakpoints.end());
+
+    QList<TempoChangeRange> ranges;
+    for (qsizetype i = 0; i < breakpoints.size(); ++i) {
+        const int start = breakpoints.at(i);
+        const int end =
+            i + 1 < breakpoints.size() ? breakpoints.at(i + 1) : std::numeric_limits<int>::max();
+        if (before.tempoAt(start) == after.tempoAt(start))
+            continue;
+        if (!ranges.isEmpty() && ranges.last().endTick == start)
+            ranges.last().endTick = end;
+        else
+            ranges.append({start, end});
+    }
+    return ranges;
 }
 
 const QList<TimeSignature> &Timeline::timeSignatures() const {
@@ -212,9 +239,10 @@ void Timeline::normalizeTempos() {
 }
 
 void Timeline::normalizeTimeSignatures() {
-    std::stable_sort(
-        m_timeSignatures.begin(), m_timeSignatures.end(),
-        [](const TimeSignature &lhs, const TimeSignature &rhs) { return lhs.barIndex < rhs.barIndex; });
+    std::stable_sort(m_timeSignatures.begin(), m_timeSignatures.end(),
+                     [](const TimeSignature &lhs, const TimeSignature &rhs) {
+                         return lhs.barIndex < rhs.barIndex;
+                     });
     QList<TimeSignature> cleaned;
     cleaned.reserve(m_timeSignatures.size());
     for (const auto &signature : m_timeSignatures) {
@@ -246,9 +274,8 @@ void Timeline::rebuildTempoCache() {
     m_msAtTempo[0] = 0.0;
     for (qsizetype i = 1; i < m_tempos.size(); i++) {
         const auto &prev = m_tempos[i - 1];
-        m_msAtTempo[i] =
-            m_msAtTempo[i - 1] +
-            (m_tempos[i].pos - prev.pos) * 60 / prev.value / MusicTime::ticksPerQuarterNote * 1000;
+        m_msAtTempo[i] = m_msAtTempo[i - 1] + (m_tempos[i].pos - prev.pos) * 60 / prev.value /
+                                                  MusicTime::ticksPerQuarterNote * 1000;
     }
 }
 
@@ -257,16 +284,15 @@ void Timeline::rebuildTimeSignatureCache() {
     m_tickAtSignature[0] = 0;
     for (qsizetype i = 1; i < m_timeSignatures.size(); i++) {
         const auto &prev = m_timeSignatures[i - 1];
-        m_tickAtSignature[i] =
-            m_tickAtSignature[i - 1] +
-            (m_timeSignatures[i].barIndex - prev.barIndex) * prev.ticksPerBar();
+        m_tickAtSignature[i] = m_tickAtSignature[i - 1] +
+                               (m_timeSignatures[i].barIndex - prev.barIndex) * prev.ticksPerBar();
     }
 }
 
 qsizetype Timeline::tempoIndexAtTick(const double tick) const {
-    const auto it = std::upper_bound(
-        m_tempos.cbegin(), m_tempos.cend(), tick,
-        [](const double value, const Tempo &item) { return value < item.pos; });
+    const auto it =
+        std::upper_bound(m_tempos.cbegin(), m_tempos.cend(), tick,
+                         [](const double value, const Tempo &item) { return value < item.pos; });
     return qMax<qsizetype>(0, std::distance(m_tempos.cbegin(), it) - 1);
 }
 

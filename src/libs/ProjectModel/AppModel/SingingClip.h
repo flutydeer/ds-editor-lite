@@ -55,7 +55,7 @@ public:
     void notifyParamChanged(ParamInfo::Name name, Param::Type type);
     const PieceList &pieces() const;
     void removeAllPieces();
-    ReSegmentResult reSegment(const Timeline &timeline);
+    ReSegmentResult reSegment(const Timeline &timeline, bool bumpRevision = true);
     void updateOriginalParam(ParamInfo::Name name);
     InferPiece *findPieceById(int id) const;
     PieceList findPiecesByNotes(const QList<Note *> &notes) const;

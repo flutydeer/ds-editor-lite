@@ -101,7 +101,7 @@ void SingingClip::removeAllPieces() {
         delete piece;
 }
 
-ReSegmentResult SingingClip::reSegment(const Timeline &timeline) {
+ReSegmentResult SingingClip::reSegment(const Timeline &timeline, const bool bumpRevision) {
     ReSegmentResult result;
     auto [segments] = SingingClipSlicer::slice(timeline, m_notes.toList());
 
@@ -163,7 +163,8 @@ ReSegmentResult SingingClip::reSegment(const Timeline &timeline) {
     m_pieces = newPieces;
     for (const auto piece : temp)
         result.removedPieceIds.append(piece->id());
-    bumpInferenceRevision();
+    if (bumpRevision)
+        bumpInferenceRevision();
     emit piecesChanged(m_pieces, newPieces, temp);
     qInfo() << "piecesChanged";
     for (const auto piece : temp)
