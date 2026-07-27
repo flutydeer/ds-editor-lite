@@ -49,7 +49,7 @@ class PianoRollGraphicsView final : public TimeGraphicsView, public IAtomicActio
                    setParamBackgroundLayerColor)
 
 public:
-    explicit PianoRollGraphicsView(PianoRollGraphicsScene *scene, const QWidget *parent = nullptr);
+    explicit PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent = nullptr);
     ~PianoRollGraphicsView() override;
     void setDataContext(SingingClip *clip);
     void setEditMode(PianoRollEditMode mode);

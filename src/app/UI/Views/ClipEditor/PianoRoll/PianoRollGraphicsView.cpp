@@ -72,8 +72,8 @@ namespace {
     }
 }
 
-PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, const QWidget *parent)
-    : TimeGraphicsView(scene, parent), d_ptr(new PianoRollGraphicsViewPrivate(this)) {
+PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent)
+    : TimeGraphicsView(scene, true, parent), d_ptr(new PianoRollGraphicsViewPrivate(this)) {
     Q_D(PianoRollGraphicsView);
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("PianoRollGraphicsView");

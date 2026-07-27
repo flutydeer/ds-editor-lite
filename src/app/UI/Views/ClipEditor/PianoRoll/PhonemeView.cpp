@@ -38,6 +38,8 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     connect(appModel, &AppModel::timelineChanged, this, &PhonemeView::onTimelineChanged);
     connect(playbackController, &PlaybackController::positionChanged, this,
             &PhonemeView::setPosition);
+    connect(playbackController, &PlaybackController::lastPositionChanged, this,
+            &PhonemeView::setLastPosition);
 
     m_positionThrottle.setSingleShot(true);
     m_positionThrottle.setInterval(33);
@@ -45,6 +47,7 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
         m_position = m_pendingPosition;
         update();
     });
+    m_lastPosition = playbackController->lastPosition();
 }
 
 void PhonemeView::setDataContext(SingingClip *clip) {
@@ -77,6 +80,11 @@ void PhonemeView::setPosition(const double tick) {
     m_pendingPosition = tick;
     if (!m_positionThrottle.isActive())
         m_positionThrottle.start();
+}
+
+void PhonemeView::setLastPosition(const double tick) {
+    m_lastPosition = tick;
+    update();
 }
 
 void PhonemeView::onTimelineChanged() {
@@ -274,8 +282,18 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
         }
     }
 
+    // Draw last playback position (dashed)
+    painter.setRenderHint(QPainter::Antialiasing);
+    pen.setStyle(Qt::DashLine);
+    pen.setWidthF(1.0);
+    pen.setColor(m_lastPositionLineColor);
+    painter.setPen(pen);
+    auto lastX = tickToX(m_lastPosition);
+    painter.drawLine(QLineF(lastX, 0, lastX, rect().height()));
+
     // Draw playback indicator
     painter.setRenderHint(QPainter::Antialiasing);
+    pen.setStyle(Qt::SolidLine);
     auto penWidth = 1.0;
     pen.setWidthF(penWidth);
     pen.setColor(positionLineColor);
@@ -919,6 +937,17 @@ void PhonemeView::setPositionLineColor(const QColor &color) {
     if (m_positionLineColor == color)
         return;
     m_positionLineColor = color;
+    update();
+}
+
+QColor PhonemeView::lastPositionLineColor() const {
+    return m_lastPositionLineColor;
+}
+
+void PhonemeView::setLastPositionLineColor(const QColor &color) {
+    if (m_lastPositionLineColor == color)
+        return;
+    m_lastPositionLineColor = color;
     update();
 }
 

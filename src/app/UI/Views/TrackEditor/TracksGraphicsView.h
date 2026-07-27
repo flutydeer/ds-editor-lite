@@ -20,7 +20,7 @@ class TracksGraphicsView final : public TimeGraphicsView, public IAtomicAction {
                    setClipSelectedBorderColor)
 
 public:
-    explicit TracksGraphicsView(TracksGraphicsScene *scene, const QWidget *parent = nullptr);
+    explicit TracksGraphicsView(TracksGraphicsScene *scene, QWidget *parent = nullptr);
     void setSnapGrid(TrackEditorBackgroundView *grid);
     [[nodiscard]] QList<int> selectedClipsId() const;
 

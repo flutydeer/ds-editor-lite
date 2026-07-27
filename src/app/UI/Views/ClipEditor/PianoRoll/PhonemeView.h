@@ -26,6 +26,7 @@ class PhonemeView final : public QWidget {
     Q_PROPERTY(QColor hintTextColor READ hintTextColor WRITE setHintTextColor)
     Q_PROPERTY(QColor textColor READ textColor WRITE setTextColor)
     Q_PROPERTY(QColor positionLineColor READ positionLineColor WRITE setPositionLineColor)
+    Q_PROPERTY(QColor lastPositionLineColor READ lastPositionLineColor WRITE setLastPositionLineColor)
     Q_PROPERTY(QColor noteBoundaryColor READ noteBoundaryColor WRITE setNoteBoundaryColor)
     Q_PROPERTY(QColor waveformColor READ waveformColor WRITE setWaveformColor)
 
@@ -73,6 +74,7 @@ signals:
 public slots:
     void setTimeRange(double startTick, double endTick);
     void setPosition(double tick);
+    void setLastPosition(double tick);
 
 private slots:
     void onTimelineChanged();
@@ -111,6 +113,8 @@ private:
     void setTextColor(const QColor &color);
     [[nodiscard]] QColor positionLineColor() const;
     void setPositionLineColor(const QColor &color);
+    [[nodiscard]] QColor lastPositionLineColor() const;
+    void setLastPositionLineColor(const QColor &color);
     [[nodiscard]] QColor noteBoundaryColor() const;
     void setNoteBoundaryColor(const QColor &color);
     [[nodiscard]] QColor waveformColor() const;
@@ -120,6 +124,7 @@ private:
     QColor m_hintTextColor = {255, 255, 255, 80};
     QColor m_textColor = {180, 180, 180};
     QColor m_positionLineColor = {200, 200, 200};
+    QColor m_lastPositionLineColor = {160, 160, 160};
     QColor m_noteBoundaryColor = {49, 53, 63};
     QColor m_waveformColor = {49, 53, 63};
 
@@ -127,6 +132,7 @@ private:
     double m_endTick = 0;
     double m_resizeToleranceInTick = 0;
     double m_position = 0;
+    double m_lastPosition = 0;
     QList<Note *> m_notes;
     QList<PhonemeViewModel *> m_phonemes;
     MouseMoveBehavior m_mouseMoveBehavior = None;

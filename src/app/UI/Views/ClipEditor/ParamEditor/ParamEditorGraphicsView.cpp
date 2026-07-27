@@ -23,7 +23,7 @@ ParamEditorGraphicsView::ParamEditorGraphicsView(ParamEditorGraphicsScene *scene
                                                  const ParamProperties &foregroundProperties,
                                                  const ParamProperties &backgroundProperties,
                                                  QWidget *parent)
-    : TimeGraphicsView(scene, false, parent) {
+    : TimeGraphicsView(scene, true, parent) {
     setAttribute(Qt::WA_StyledBackground);
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     setMinimumHeight(0);

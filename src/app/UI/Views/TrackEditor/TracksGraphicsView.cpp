@@ -44,8 +44,8 @@
 
 #include <TalcsWidgets/AudioFileDialog.h>
 
-TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, const QWidget *parent)
-    : TimeGraphicsView(scene, parent), m_scene(scene) {
+TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *parent)
+    : TimeGraphicsView(scene, true, parent), m_scene(scene) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TracksGraphicsView");
     setScaleYMin(0.575);

@@ -291,6 +291,7 @@ PhonemeView {
     qproperty-hintTextColor: ${phoneme.hint};
     qproperty-textColor: ${phoneme.text};
     qproperty-positionLineColor: ${phoneme.positionLine};
+    qproperty-lastPositionLineColor: ${editor.lastPlayhead};
     qproperty-noteBoundaryColor: ${phoneme.noteBoundary};
     qproperty-waveformColor: ${phoneme.waveform};
 }
