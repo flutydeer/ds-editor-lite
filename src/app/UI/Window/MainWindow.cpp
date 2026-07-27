@@ -19,7 +19,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/History/HistoryManager.h>
-#include "Modules/PackageManager/PackageManager.h"
+#include <lite/PackageManager/PackageManager.h>
 #include <lite/Tasking/TaskManager.h>
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/Button.h>

@@ -11,14 +11,14 @@
 #include <cstdint>
 #include <mutex>
 
-#include "Modules/PackageManager/Models/GetInstalledPackagesResult.h"
-#include "Model/AppStatus/AppStatus.h"
+#include <lite/PackageManager/Models/GetInstalledPackagesResult.h>
 #include <lite/ADT/Expected.h>
 #include <lite/Core/Singleton.h>
 
 #include <QObject>
 #include <QMutex>
 #include <QReadWriteLock>
+#include <QStringList>
 
 namespace srt::core {
     class Error;
@@ -36,10 +36,15 @@ public:
     Q_DISABLE_COPY_MOVE(PackageManager)
 
 public:
-    void initialize();
+    enum class ModuleStatus { Loading, Ready, Error };
+
+    // searchPaths: directories to scan for packages. Supplied by the app (from
+    // its settings) so the library does not depend on AppOptions.
+    void initialize(const QStringList &searchPaths);
 
     [[nodiscard]]
-    Expected<GetInstalledPackagesResult, GetInstalledPackagesError> refreshInstalledPackages();
+    Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
+        refreshInstalledPackages(const QStringList &searchPaths);
 
     GetInstalledPackagesResult installedPackages() const;
     PackageInfo findPackageByIdentifier(const SingerIdentifier &identifier) const;
@@ -47,6 +52,9 @@ public:
 
 Q_SIGNALS:
     void packagesRefreshed(QList<PackageInfo> packages);
+    // Package-scan lifecycle. The app maps this to AppStatus::packageModuleStatus
+    // so the library stays free of AppStatus.
+    void moduleStatusChanged(PackageManager::ModuleStatus status);
 
 private:
     static QString srtErrorToString(const srt::core::Error &error);

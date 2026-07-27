@@ -3,6 +3,7 @@
 //
 
 #include "EditSessionManager.h"
+#include "Model/AppStatus/AppStatus.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>

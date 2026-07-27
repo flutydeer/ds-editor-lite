@@ -3,6 +3,7 @@
 //
 
 #include "InferenceApplyGate.h"
+#include "Model/AppStatus/AppStatus.h"
 
 #include "Modules/Inference/EditSessionManager.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>

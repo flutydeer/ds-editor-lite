@@ -3,6 +3,7 @@
 //
 
 #include "TrackControlView.h"
+#include "Model/AppStatus/AppStatus.h"
 
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
 #include "Controller/TrackController.h"
@@ -38,7 +39,7 @@
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include "UI/Views/Common/LanguageComboBox.h"
 
-#include "Modules/PackageManager/PackageManager.h"
+#include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
 using namespace SVS;

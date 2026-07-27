@@ -3,9 +3,10 @@
 //
 
 #include "PackageManagerDialog.h"
+#include "Model/AppStatus/AppStatus.h"
 
-#include "Modules/PackageManager/PackageManager.h"
-#include "Modules/PackageManager/Tasks/GetInstalledPackagesTask.h"
+#include <lite/PackageManager/PackageManager.h>
+#include <lite/PackageManager/Tasks/GetInstalledPackagesTask.h>
 #include <lite/Tasking/TaskManager.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/LineEdit.h>

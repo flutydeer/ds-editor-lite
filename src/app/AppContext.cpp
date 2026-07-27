@@ -13,7 +13,7 @@
 #include "Model/Utils/ParamUtils.h"
 #include <lite/Tasking/TaskManager.h>
 #include <lite/History/HistoryManager.h>
-#include "Modules/PackageManager/PackageManager.h"
+#include <lite/PackageManager/PackageManager.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/InferController.h"

@@ -11,7 +11,7 @@
 #include "Bootstrap/WindowPlacement.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "Modules/PackageManager/PackageManager.h"
+#include <lite/PackageManager/PackageManager.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    packageManager->initialize();
+    packageManager->initialize(appOptions->general()->packageSearchPaths);
 
     MainWindow w;
     WindowPlacement::centerOnScreenAtCursor(w);

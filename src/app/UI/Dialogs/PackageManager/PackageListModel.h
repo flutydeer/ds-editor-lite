@@ -7,7 +7,7 @@
 
 #include <QAbstractListModel>
 
-#include "Modules/PackageManager/Models/PackageInfo.h"
+#include <lite/PackageManager/Models/PackageInfo.h>
 
 class PackageListModel : public QAbstractListModel {
 public:
