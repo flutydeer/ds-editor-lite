@@ -6,7 +6,7 @@
 #define CLIPACTIONS_H
 
 #include <lite/ProjectModel/AppModel/Clip.h>
-#include "Modules/History/ActionSequence.h"
+#include <lite/History/ActionSequence.h>
 
 #include <QJsonObject>
 

@@ -4,7 +4,7 @@
 
 #include "ActionButtonsView.h"
 
-#include "Modules/History/HistoryManager.h"
+#include <lite/History/HistoryManager.h>
 #include "Controller/UndoRedoController.h"
 #include <lite/GUI/Controls/ToolButton.h>
 #include <lite/GUI/Controls/ToolTipFilter.h>

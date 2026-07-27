@@ -5,7 +5,7 @@
 #ifndef INSERTCLIPACTION_H
 #define INSERTCLIPACTION_H
 
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 
 class Track;
 class Clip;

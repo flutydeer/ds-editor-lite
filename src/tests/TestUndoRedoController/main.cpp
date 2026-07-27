@@ -3,8 +3,8 @@
 #include "AppContext.h"
 #include "Interface/IEditorView.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/History/ActionSequence.h"
-#include "Modules/History/HistoryManager.h"
+#include <lite/History/ActionSequence.h>
+#include <lite/History/HistoryManager.h>
 
 #include <QCoreApplication>
 #include <QTextStream>

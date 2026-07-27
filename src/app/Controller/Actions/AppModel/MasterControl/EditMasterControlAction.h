@@ -7,7 +7,7 @@
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/TrackControl.h>
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 
 
 class EditMasterControlAction : public IAction {

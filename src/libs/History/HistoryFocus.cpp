@@ -1,4 +1,4 @@
-#include "Interface/HistoryFocus.h"
+#include <lite/History/HistoryFocus.h>
 
 #include <cmath>
 

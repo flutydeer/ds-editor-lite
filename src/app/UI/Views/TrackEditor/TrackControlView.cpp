@@ -10,7 +10,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Modules/Audio/AudioContext.h"
-#include "Modules/History/HistoryManager.h"
+#include <lite/History/HistoryManager.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/InlineEditLabel.h>
 #include <lite/GUI/Controls/LevelMeter.h>

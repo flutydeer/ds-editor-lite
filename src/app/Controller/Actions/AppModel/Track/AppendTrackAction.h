@@ -5,7 +5,7 @@
 #ifndef APPENDTRACKSACTION_H
 #define APPENDTRACKSACTION_H
 
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 
 #include <memory>
 

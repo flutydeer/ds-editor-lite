@@ -2,7 +2,7 @@
 #define SETCLIPVOICECONTEXTACTION_H
 
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 #include <lite/ProjectModel/Voice/SingerInfo.h>
 
 class SingingClip;

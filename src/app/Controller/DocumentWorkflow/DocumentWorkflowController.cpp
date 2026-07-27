@@ -10,7 +10,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/History/HistoryManager.h"
+#include <lite/History/HistoryManager.h>
 #include "Modules/ProjectConverters/DspxProjectConverter.h"
 #include "UI/Dialogs/Base/ProgressDialog.h"
 #include "Utils/ConditionalTransition.h"

@@ -5,7 +5,7 @@
 #ifndef MOVETRACKACTION_H
 #define MOVETRACKACTION_H
 
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 
 #include <QtTypes>
 

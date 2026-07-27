@@ -5,7 +5,7 @@
 #ifndef REMOVECLIPACTION_H
 #define REMOVECLIPACTION_H
 
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 
 class Track;
 class Clip;

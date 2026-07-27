@@ -6,7 +6,7 @@
 #define TRACKACTIONS_H
 
 #include <lite/ProjectModel/AppModel/Track.h>
-#include "Modules/History/ActionSequence.h"
+#include <lite/History/ActionSequence.h>
 
 class AppModel;
 
