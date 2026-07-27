@@ -3,8 +3,8 @@
 
 #include "IOptionPage.h"
 
-#include <lite/Language/LangSetting/Controls/G2pListWidget.h>
-#include <lite/Language/LangSetting/Controls/G2pInfoWidget.h>
+#include "UI/Controls/G2pListWidget.h"
+#include "UI/Controls/G2pInfoWidget.h"
 
 class OptionsCardItem;
 

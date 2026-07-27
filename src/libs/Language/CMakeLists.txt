@@ -1,9 +1,9 @@
 project(Language LANGUAGES CXX)
 
 # G2P (grapheme-to-phoneme) language support: the convert runner, the input
-# adapter, the singer-G2P identifier and the language-settings widgets. Wraps
-# the synthrt G2P services. Consumed as <lite/Language/.../Xxx.h>.
-qm_find_qt(Widgets)
+# adapter and the singer-G2P identifier. Wraps the synthrt G2P services.
+# Pure domain (no Qt Widgets); the language-settings widgets live in the app.
+# Consumed as <lite/Language/.../Xxx.h>.
 find_package(synthrt CONFIG REQUIRED)
 
 file(GLOB_RECURSE _src CONFIGURE_DEPENDS
@@ -14,7 +14,6 @@ add_library(lite::Language ALIAS Language)
 
 target_link_libraries(Language PUBLIC
     Qt${QT_VERSION_MAJOR}::Core
-    Qt${QT_VERSION_MAJOR}::Widgets
     lite::Support
     lite::ProjectModel
     srt::synthrt
@@ -27,5 +26,4 @@ target_include_directories(Language PUBLIC
 # qm_sync_include flattens a directory, so sync each subfolder separately to
 # reproduce the <lite/Language/<Folder>/Xxx.h> layout.
 lite_sync_include(Language PREFIX lite/Language FORCE)
-lite_sync_include(Language DIRECTORY LangSetting/Controls PREFIX lite/Language/LangSetting/Controls FORCE)
 lite_sync_include(Language DIRECTORY Models PREFIX lite/Language/Models FORCE)

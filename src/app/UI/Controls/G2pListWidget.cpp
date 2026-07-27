@@ -1,4 +1,4 @@
-#include <lite/Language/LangSetting/Controls/G2pListWidget.h>
+#include "UI/Controls/G2pListWidget.h"
 
 
 #include <QDragEnterEvent>
