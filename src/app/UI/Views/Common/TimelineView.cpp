@@ -184,18 +184,6 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
                           pixmap.height());
     painter->drawPixmap(textRect.topLeft(), pixmap);
 
-    // Show a meter label ("3/4") next to the number of measures where the
-    // time signature changes (including measure 0).
-    const int barIndex = bar - 1;
-    if (barIndex >= 0 && timeline().nearestBarWithTimeSignatureTo(barIndex) == barIndex) {
-        const auto signature = timeline().timeSignatureAt(barIndex);
-        const auto signatureText = QString::number(signature.numerator) + QStringLiteral("/") +
-                                   QString::number(signature.denominator);
-        const auto signaturePixmap =
-            cachedTextPixmap(signatureText, font, m_beatScaleColor, devicePixelRatio);
-        painter->drawPixmap(QPointF(textRect.right() + 6, textRect.top()), signaturePixmap);
-    }
-
     pen.setColor(m_barTickColor);
     painter->setPen(pen);
     auto y1 = rect().height() - 24;

@@ -4,7 +4,8 @@
 #include "UI/Dialogs/Timeline/EditTimeSignatureDialog.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
-#include <QMenu>
+#include <lite/GUI/Controls/Menu.h>
+#include <lite/GUI/Utils/IconUtils.h>
 
 TimeSignatureLaneView::TimeSignatureLaneView(QWidget *parent) : InfoLaneView(parent) {
     setObjectName("timeSignatureLaneView");
@@ -27,14 +28,19 @@ void TimeSignatureLaneView::blankDoubleClicked(const QPoint &pos) {
 
 void TimeSignatureLaneView::chipContextMenuRequested(const Chip &chip, const QPoint &globalPos) {
     const int barIndex = chip.id;
-    QMenu menu(this);
-    menu.addAction(tr("Edit Time Signature..."), this,
-                   [this, barIndex] { openEditorFor(barIndex); });
-    const auto removeAction = menu.addAction(
-        tr("Remove Time Signature"), this,
-        [barIndex] { appController->onRemoveTimeSignatureAt(barIndex); });
+    Menu menu(this);
+
+    auto *editAction = menu.addAction(tr("Edit Time Signature..."), this,
+                                      [this, barIndex] { openEditorFor(barIndex); });
+    editAction->setIcon(IconUtils::menuIcon(QStringLiteral(":/svg/icons/edit_16_regular.svg")));
+
+    const auto removeAction = menu.addAction(tr("Remove Time Signature"), this, [barIndex] {
+        appController->onRemoveTimeSignatureAt(barIndex);
+    });
+    removeAction->setIcon(IconUtils::menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
     // The bar 0 anchor point can be edited but never removed
     removeAction->setEnabled(barIndex != 0);
+
     menu.exec(globalPos);
 }
 
@@ -43,9 +49,7 @@ void TimeSignatureLaneView::rebuildChips() {
     QList<Chip> chips;
     for (const auto &signature : timeline.timeSignatures())
         chips.append({signature.barIndex, timeline.barToTick(signature.barIndex),
-                      QStringLiteral("%1/%2")
-                          .arg(signature.numerator)
-                          .arg(signature.denominator)});
+                      QStringLiteral("%1/%2").arg(signature.numerator).arg(signature.denominator)});
     setChips(std::move(chips));
 }
 

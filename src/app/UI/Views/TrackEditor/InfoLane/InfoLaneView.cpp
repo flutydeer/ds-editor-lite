@@ -163,6 +163,7 @@ void InfoLaneView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
 
     QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
     drawTimeline(&painter, m_startTick, m_endTick, rect().width());
     for (int i = 0; i < m_chips.size(); i++) {
         const auto chipArea = chipRect(i);

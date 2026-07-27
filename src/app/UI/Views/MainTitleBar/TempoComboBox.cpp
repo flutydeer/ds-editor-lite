@@ -2,6 +2,8 @@
 
 #include "TempoPopupWidget.h"
 
+#include <lite/MusicBase/Tempo.h>
+
 #include <QApplication>
 #include <QCursor>
 #include <QGuiApplication>
@@ -35,7 +37,7 @@ TempoComboBox::TempoComboBox(QWidget *parent) : InlineEditLabel(parent) {
 
 void TempoComboBox::setTempo(double tempo) {
     m_tempo = tempo;
-    setText(QString::number(tempo));
+    setText(Tempo::formatValue(tempo));
 }
 
 void TempoComboBox::mousePressEvent(QMouseEvent *event) {

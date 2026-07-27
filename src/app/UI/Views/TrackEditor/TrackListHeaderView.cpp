@@ -15,6 +15,7 @@
 #include <QPushButton>
 
 TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
+    setAttribute(Qt::WA_StyledBackground);
     setObjectName("trackListHeaderView");
     setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
 

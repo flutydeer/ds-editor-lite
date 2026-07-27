@@ -127,6 +127,7 @@
 
         <!-- ======== Editing Tools (custom-designed) ======== -->
         <file>svg/icons/cursor_24_filled.svg</file>
+        <file>svg/icons/edit_16_regular.svg</file>
         <file>svg/icons/edit_24_filled.svg</file>
         <file>svg/icons/eraser_24_filled.svg</file>
         <file>svg/icons/beam_24_filled.svg</file>

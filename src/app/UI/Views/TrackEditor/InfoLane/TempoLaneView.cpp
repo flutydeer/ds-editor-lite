@@ -5,7 +5,8 @@
 #include <lite/MusicBase/TimelineSnapUtils.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
-#include <QMenu>
+#include <lite/GUI/Controls/Menu.h>
+#include <lite/GUI/Utils/IconUtils.h>
 
 TempoLaneView::TempoLaneView(QWidget *parent) : InfoLaneView(parent) {
     setObjectName("tempoLaneView");
@@ -25,18 +26,24 @@ void TempoLaneView::blankDoubleClicked(const QPoint &pos) {
 
 void TempoLaneView::chipContextMenuRequested(const Chip &chip, const QPoint &globalPos) {
     const int tick = chip.id;
-    QMenu menu(this);
-    menu.addAction(tr("Edit Tempo..."), this, [this, tick] { openEditorFor(tick); });
+    Menu menu(this);
+
+    auto *editAction =
+        menu.addAction(tr("Edit Tempo..."), this, [this, tick] { openEditorFor(tick); });
+    editAction->setIcon(IconUtils::menuIcon(QStringLiteral(":/svg/icons/edit_16_regular.svg")));
+
     const auto removeAction =
         menu.addAction(tr("Remove Tempo"), this, [tick] { appController->onRemoveTempoAt(tick); });
+    removeAction->setIcon(IconUtils::menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
     removeAction->setEnabled(tick != 0);
+
     menu.exec(globalPos);
 }
 
 void TempoLaneView::rebuildChips() {
     QList<Chip> chips;
     for (const auto &tempo : appModel->timeline().tempos()) {
-        chips.append({tempo.pos, tempo.pos, QStringLiteral("%1 BPM").arg(tempo.value, 0, 'f', 3)});
+        chips.append({tempo.pos, tempo.pos, Tempo::formatValue(tempo.value)});
     }
     setChips(std::move(chips));
 }

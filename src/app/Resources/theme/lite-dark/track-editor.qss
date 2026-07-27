@@ -10,7 +10,6 @@ TimelineView#tracksTimelineView {
 InfoLaneView {
     background: ${editor.canvasAlternate};
     border-top: 1px solid ${border.subtle};
-    border-bottom: 1px solid ${border.subtle};
     qproperty-textColor: ${text.secondary};
     qproperty-markerColor: ${text.secondary};
     qproperty-hoverFillColor: ${control.fill.hover};
@@ -24,15 +23,25 @@ InfoLaneView {
 InfoLaneHeaderView {
     background: transparent;
     border-top: 1px solid ${border.subtle};
-    border-bottom: 1px solid ${border.subtle};
 }
 
 InfoLaneHeaderView>QLabel {
     color: ${text.secondary};
 }
 
+/* Last lane (time signature) keeps a bottom border */
+InfoLaneView#timeSignatureLaneView {
+    border-bottom: 1px solid ${border.subtle};
+}
+
+InfoLaneHeaderView#timeSignatureLaneHeaderView {
+    border-bottom: 1px solid ${border.subtle};
+}
+
 /* TrackListHeaderView */
 TrackListHeaderView {
+    background: ${editor.canvas};
+    border-top-left-radius: 6px;
     qproperty-iconCheckedColor: ${accent.default};
 }
 
@@ -161,7 +170,6 @@ TrackListView {
     background: transparent;
     border: none;
     outline: 0px;
-    border-top: 1px solid ${border.subtle};
 }
 
 TrackListView::item {
@@ -191,6 +199,7 @@ TrackEditorView>OverlaySplitter#trackSplitter::handle:horizontal {
 
 /* TracksGraphicsView */
 TracksGraphicsView {
+    border: none;
     background: ${editor.canvasAlternate};
     qproperty-selectedTrackColor: ${surface.raised};
     qproperty-clipSelectedBorderColor: ${text.emphasis};
