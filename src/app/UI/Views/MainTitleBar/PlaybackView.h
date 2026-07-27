@@ -28,7 +28,7 @@ public:
     explicit PlaybackView(QWidget *parent = nullptr);
 
 signals:
-    void setTempoTriggered(double tempo);
+    void setTempoTriggered(int tick, double tempo);
     void setTimeSignatureTriggered(int barIndex, int numerator, int denominator);
     void playTriggered();
     void pauseTriggered();
@@ -78,6 +78,8 @@ private:
     // Bar of the time signature point being edited, snapshotted when editing
     // starts because the playhead keeps moving during playback
     int m_signatureEditBar = 0;
+    // Tick of the tempo point being edited, snapshotted for the same reason.
+    int m_tempoEditTick = 0;
     int m_tick = 0;
     PlaybackStatus m_status = Stopped;
 
@@ -85,6 +87,10 @@ private:
     QSize m_iconSize = QSize(16, 16);
 
     QString toFormattedTickTime(int ticks) const;
+    // Tick of the tempo point governing the playhead position.
+    [[nodiscard]] int playheadTempoTick() const;
+    // Sync the displayed tempo with the playhead's segment.
+    void refreshTempoDisplay();
     // Bar of the point governing the playhead position
     [[nodiscard]] int playheadSignatureBar() const;
     // Sync the displayed time signature with the playhead's segment

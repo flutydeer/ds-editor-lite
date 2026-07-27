@@ -84,6 +84,7 @@ void TempoComboBox::showPopup() {
     if (m_popup->isVisible())
         return;
 
+    emit popupAboutToShow();
     m_popup->setTempo(m_tempo);
     setPopupVisible(true);
     m_popup->showAt(mapToGlobal(QPoint(0, height())));

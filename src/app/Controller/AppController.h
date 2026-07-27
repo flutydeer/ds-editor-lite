@@ -41,6 +41,10 @@ public slots:
 
 
     static void onSetTempo(double tempo);
+    // Inserts a tempo point at tick, or edits the existing point there.
+    void onSetTempoAt(int tick, double tempo);
+    // Removes the point exactly at tick; the tick 0 anchor is refused.
+    void onRemoveTempoAt(int tick);
     // Inserts a time signature point at barIndex, or edits the existing point
     // at that bar; invalid input (denominator not a power of 2, etc.) is a no-op
     void onSetTimeSignatureAt(int barIndex, int numerator, int denominator);
