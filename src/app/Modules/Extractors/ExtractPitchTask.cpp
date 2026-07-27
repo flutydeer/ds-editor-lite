@@ -174,13 +174,14 @@ void ExtractPitchTask::runTask() {
             QList<double> values;
             for (const auto &value : midi)
                 values.append(value);
-            auto processed = processOutput(values);
+            auto processed = processOutput(values, frame.offset);
             if (isTerminateRequested()) {
                 terminateTask();
                 result.clear();
                 return;
             }
-            result.append({frame.offset, std::move(processed)});
+            if (!processed.values.isEmpty())
+                result.append(std::move(processed));
         }
     } else {
         m_errorCode = ErrorCode::ModelRunFailed;
@@ -218,9 +219,38 @@ std::vector<float> ExtractPitchTask::freqToMidi(const std::vector<float> &freque
     return midiPitches;
 }
 
-QList<double> ExtractPitchTask::processOutput(const QList<double> &values) const {
-    auto tickToSec = [&](const double &tick) { return m_input.timeline.tickToSec(tick); };
-    constexpr auto interval = 0.01;
-    const auto newInterval = tickToSec(5);
-    return MathUtils::resample(values, interval, newInterval);
+ExtractPitchTask::ResultSegment ExtractPitchTask::processOutput(const QList<double> &values,
+                                                                const double frameOffsetMs) const {
+    ResultSegment result;
+    if (values.isEmpty())
+        return result;
+
+    constexpr double intervalMs = 10.0;
+    QList<double> sourcePositions;
+    sourcePositions.reserve(values.size());
+    for (qsizetype i = 0; i < values.size(); ++i) {
+        sourcePositions.append(m_input.audioMaterialOriginMs + frameOffsetMs + i * intervalMs);
+    }
+
+    const double overlapStartMs = qMax(sourcePositions.first(), m_input.audioVisibleStartMs);
+    const double overlapEndMs = qMin(sourcePositions.last(), m_input.audioVisibleEndMs);
+    if (overlapEndMs < overlapStartMs)
+        return result;
+
+    const double firstGlobalTick = m_input.timeline.msToTick(overlapStartMs);
+    const double lastGlobalTick = m_input.timeline.msToTick(overlapEndMs);
+    const int firstLocalGrid = qCeil((firstGlobalTick - m_input.singingClipStartTick) / 5.0) * 5;
+    const int lastLocalGrid = qFloor((lastGlobalTick - m_input.singingClipStartTick) / 5.0) * 5;
+    if (lastLocalGrid < firstLocalGrid)
+        return result;
+
+    QList<double> targetPositions;
+    targetPositions.reserve((lastLocalGrid - firstLocalGrid) / 5 + 1);
+    for (int localTick = firstLocalGrid; localTick <= lastLocalGrid; localTick += 5) {
+        targetPositions.append(m_input.timeline.tickToMs(m_input.singingClipStartTick + localTick));
+    }
+
+    result.globalStartTick = m_input.singingClipStartTick + firstLocalGrid;
+    result.values = MathUtils::resample(values, sourcePositions, targetPositions);
+    return result;
 }

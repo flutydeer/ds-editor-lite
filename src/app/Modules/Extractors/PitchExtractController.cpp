@@ -16,8 +16,6 @@
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
 
-#include <curve-util/CurveUtil.h>
-
 PitchExtractController::PitchExtractController(QObject *parent) : ModelChangeHandler(parent) {
 }
 
@@ -28,8 +26,27 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(PitchExtractController)
 void PitchExtractController::runExtractPitch(const AudioClip *audioClip,
                                              const SingingClip *singingClip) {
     const auto path = audioClip->path();
-    const auto task =
-        new ExtractPitchTask({singingClip->id(), audioClip->id(), path, appModel->timeline()});
+    const auto &timeline = appModel->timeline();
+    const int visibleStartTick = audioClip->start() + audioClip->clipStart();
+    const double visibleStartMs = timeline.tickToMs(visibleStartTick);
+    const double trimStartMs = audioClip->hasRealTimeAnchor()
+                                   ? audioClip->trimStartMs()
+                                   : visibleStartMs - timeline.tickToMs(audioClip->start());
+    const double visibleLengthMs =
+        audioClip->hasRealTimeAnchor()
+            ? audioClip->playLengthMs()
+            : timeline.tickToMs(visibleStartTick + audioClip->clipLen()) - visibleStartMs;
+
+    ExtractTask::Input input;
+    input.singingClipId = singingClip->id();
+    input.audioClipId = audioClip->id();
+    input.audioPath = path;
+    input.timeline = timeline;
+    input.singingClipStartTick = singingClip->start();
+    input.audioMaterialOriginMs = visibleStartMs - trimStartMs;
+    input.audioVisibleStartMs = visibleStartMs;
+    input.audioVisibleEndMs = visibleStartMs + visibleLengthMs;
+    const auto task = new ExtractPitchTask(std::move(input));
     const auto dlg = new TaskDialog(task, true, true);
     dlg->show();
     connect(task, &Task::finished, this, [=] { onExtractPitchTaskFinished(task); });
@@ -62,16 +79,18 @@ void PitchExtractController::onExtractPitchTaskFinished(ExtractPitchTask *task) 
         delete task;
         return;
     }
+    if (singingClip->start() != task->input().singingClipStartTick ||
+        appModel->timeline() != task->input().timeline) {
+        qWarning() << "Discarding stale pitch extraction result after timeline/clip movement";
+        delete task;
+        return;
+    }
 
     QList<Curve *> curves;
-    for (const auto &[offset, values] : task->result) {
-        const int rawTick = appModel->msToTick(offset);
-        const auto &[alignTick, alignValues] =
-            CurveUtil::alignCurve(audioClip->start() - singingClip->start() + rawTick, 5,
-                                  {values.begin(), values.end()}, 5);
+    for (const auto &[globalStartTick, values] : task->result) {
         const auto pitchParam = new DrawCurve;
-        pitchParam->setLocalStart(alignTick);
-        pitchParam->setValues(Linq::selectMany(alignValues, L_PRED(v, static_cast<int>(v * 100))));
+        pitchParam->setLocalStart(globalStartTick - singingClip->start());
+        pitchParam->setValues(Linq::selectMany(values, L_PRED(v, static_cast<int>(v * 100))));
         curves.append(pitchParam);
     }
 
