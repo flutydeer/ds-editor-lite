@@ -6,7 +6,7 @@
 #define EDITNOTESWORDPROPERTIESACTION_H
 
 #include <lite/ProjectModel/AppModel/Note.h>
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 
 class SingingClip;
 

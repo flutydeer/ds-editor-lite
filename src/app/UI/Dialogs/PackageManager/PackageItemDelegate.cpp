@@ -4,7 +4,7 @@
 
 #include "PackageItemDelegate.h"
 
-#include "Modules/PackageManager/Models/PackageInfo.h"
+#include <lite/PackageManager/Models/PackageInfo.h>
 
 #include <QPainter>
 

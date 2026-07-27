@@ -10,7 +10,7 @@
 #include "PlaybackView.h"
 #include "TitleBarComboBox.h"
 #include "Controller/AppController.h"
-#include "Modules/History/HistoryManager.h"
+#include <lite/History/HistoryManager.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ToolTipFilter.h>
 #include <lite/Support/SystemUtils.h>

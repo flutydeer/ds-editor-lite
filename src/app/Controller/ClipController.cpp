@@ -12,7 +12,7 @@
 #include "Global/ControllerGlobal.h"
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/History/HistoryManager.h"
+#include <lite/History/HistoryManager.h>
 #include <lite/GUI/Controls/Toast.h>
 #include "UI/Dialogs/FillLyric/LyricDialog.h"
 #include "UI/Dialogs/Search/SearchDialog.h"

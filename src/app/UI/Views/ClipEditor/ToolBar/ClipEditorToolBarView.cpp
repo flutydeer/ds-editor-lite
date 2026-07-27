@@ -12,9 +12,9 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/History/HistoryManager.h"
+#include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
-#include "Modules/PackageManager/PackageManager.h"
+#include <lite/PackageManager/PackageManager.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/ControlGroup.h>

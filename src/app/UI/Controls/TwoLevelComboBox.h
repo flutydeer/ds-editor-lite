@@ -1,7 +1,7 @@
 #ifndef TWOLEVELCOMBOBOX_H
 #define TWOLEVELCOMBOBOX_H
 
-#include "Modules/PackageManager/Models/PackageInfo.h"
+#include <lite/PackageManager/Models/PackageInfo.h>
 #include <lite/ProjectModel/Voice/SingerInfo.h>
 
 #include <lite/GUI/Controls/Menu.h>

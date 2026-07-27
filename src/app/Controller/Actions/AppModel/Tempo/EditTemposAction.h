@@ -1,7 +1,7 @@
 #ifndef EDITTEMPOSACTION_H
 #define EDITTEMPOSACTION_H
 
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 
 #include <lite/MusicBase/Tempo.h>
 

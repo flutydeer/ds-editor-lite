@@ -15,7 +15,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/History/HistoryManager.h"
+#include <lite/History/HistoryManager.h>
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/ComputeAudioHashTask.h"
 #include "Tasks/DecodeAudioTask.h"

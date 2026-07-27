@@ -7,7 +7,7 @@
 
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Dialogs/Base/Dialog.h"
-#include "Modules/PackageManager/Models/PackageInfo.h"
+#include <lite/PackageManager/Models/PackageInfo.h>
 
 class QScrollArea;
 class QStackedWidget;

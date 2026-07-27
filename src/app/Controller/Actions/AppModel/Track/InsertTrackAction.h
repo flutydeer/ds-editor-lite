@@ -5,7 +5,7 @@
 #ifndef ADDTRACKSACTION_H
 #define ADDTRACKSACTION_H
 
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 
 #include <QtTypes>
 #include <memory>

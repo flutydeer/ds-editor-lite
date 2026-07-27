@@ -1,7 +1,7 @@
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/History/ActionSequence.h"
+#include <lite/History/ActionSequence.h>
 #include "AppContext.h"
-#include "Modules/History/HistoryManager.h"
+#include <lite/History/HistoryManager.h>
 #include "Utils/ConditionalTransition.h"
 
 #include <QCoreApplication>

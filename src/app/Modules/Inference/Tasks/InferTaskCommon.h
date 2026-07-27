@@ -15,7 +15,7 @@
 #include <diffsinger/Infer/dsinfer/Api/Inferences/Common/1/CommonApiL1.h>
 #include <diffsinger/Infer/dsinfer/Api/Inferences/Acoustic/1/AcousticApiL1.h>
 
-#include "Modules/SynthrtEngine/SingerModelSession.h"
+#include <lite/SynthrtEngine/SingerModelSession.h>
 
 class InferWord;
 class InferParam;

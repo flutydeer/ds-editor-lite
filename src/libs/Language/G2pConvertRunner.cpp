@@ -1,4 +1,4 @@
-#include "G2pConvertRunner.h"
+#include <lite/Language/G2pConvertRunner.h>
 
 std::vector<srt::g2p::G2pRes>
     G2pConvertRunner::convert(const srt::g2p::LanguageService &service,

@@ -4,10 +4,11 @@
 
 #include "GetInstalledPackagesTask.h"
 
-#include "Modules/PackageManager/PackageManager.h"
+#include <lite/PackageManager/PackageManager.h>
 #include <lite/Tasking/Task.h>
 
-GetInstalledPackagesTask::GetInstalledPackagesTask() {
+GetInstalledPackagesTask::GetInstalledPackagesTask(QStringList searchPaths)
+    : m_searchPaths(std::move(searchPaths)) {
     TaskStatus status;
     status.title = tr("Get Installed Packages");
     status.isIndetermine = true;
@@ -16,5 +17,5 @@ GetInstalledPackagesTask::GetInstalledPackagesTask() {
 
 void GetInstalledPackagesTask::runTask() {
     // TODO 获取进度？
-    result = packageManager->refreshInstalledPackages();
+    result = packageManager->refreshInstalledPackages(m_searchPaths);
 }

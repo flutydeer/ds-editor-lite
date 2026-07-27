@@ -1,7 +1,7 @@
 #ifndef EDITTIMESIGNATURESACTION_H
 #define EDITTIMESIGNATURESACTION_H
 
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 
 #include <lite/MusicBase/TimeSignature.h>
 

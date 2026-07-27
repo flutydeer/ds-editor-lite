@@ -5,7 +5,7 @@
 #ifndef TEMPOACTIONS_H
 #define TEMPOACTIONS_H
 
-#include "Modules/History/ActionSequence.h"
+#include <lite/History/ActionSequence.h>
 
 #include <lite/MusicBase/Tempo.h>
 

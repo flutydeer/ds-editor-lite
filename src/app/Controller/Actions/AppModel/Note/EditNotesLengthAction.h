@@ -5,7 +5,7 @@
 #ifndef EDITNOTESLENGTHACTION_H
 #define EDITNOTESLENGTHACTION_H
 
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 #include <QList>

@@ -3,6 +3,7 @@
 //
 
 #include "InferController.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "InferController_p.h"
 
 #include "InferControllerHelper.h"

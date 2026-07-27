@@ -2,7 +2,7 @@
 #define IMPORTPROJECTACTIONS_H
 
 #include <lite/ProjectModel/AppModel/ProjectModelData.h>
-#include "Modules/History/ActionSequence.h"
+#include <lite/History/ActionSequence.h>
 
 class AppModel;
 

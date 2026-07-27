@@ -7,9 +7,7 @@
 #include "SynthrtEngine.h"
 #include "SingerModelSession.h"
 
-#include "AppContext.h"
-#include "Model/AppOptions/AppOptions.h"
-#include "Model/AppStatus/AppStatus.h"
+#include <lite/Core/SingletonRegistry.h>
 #include <lite/Support/StringUtils.h>
 #include <lite/Support/VersionUtils.h>
 
@@ -199,9 +197,10 @@ srt::core::Runtime &SynthrtEngine::RuntimeOperationLease::runtime() const {
 
 // === Singleton ===
 SynthrtEngine &SynthrtEngine::instance() {
-    auto *engine = AppContext::instance<SynthrtEngine>();
+    auto *engine = SingletonRegistry::instance<SynthrtEngine>();
     if (!engine) {
-        qFatal("SynthrtEngine::instance() requires an active AppContext");
+        qFatal("SynthrtEngine::instance() requires an owner to register it "
+               "(e.g. the app's AppContext)");
     }
     return *engine;
 }

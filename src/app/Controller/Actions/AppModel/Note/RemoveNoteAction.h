@@ -5,7 +5,7 @@
 #ifndef REMOVENOTEACTION_H
 #define REMOVENOTEACTION_H
 
-#include "Modules/History/IAction.h"
+#include <lite/History/IAction.h>
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 #include <QList>

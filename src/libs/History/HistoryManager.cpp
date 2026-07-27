@@ -8,7 +8,6 @@
 #include <QDebug>
 
 #include "ActionSequence.h"
-#include "Model/AppStatus/AppStatus.h"
 
 HistoryManager::HistoryManager(QObject *parent)
     : QObject(parent), d_ptr(new HistoryManagerPrivate) {
@@ -24,10 +23,6 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(HistoryManager)
 
 void HistoryManager::undo() {
     Q_D(HistoryManager);
-    if (appStatus->currentEditObject != AppStatus::EditObjectType::None) {
-        qWarning() << "Cannot undo because editing not finished";
-        return;
-    }
     if (d->m_undoStack.isEmpty())
         return;
 
@@ -40,10 +35,6 @@ void HistoryManager::undo() {
 
 void HistoryManager::redo() {
     Q_D(HistoryManager);
-    if (appStatus->currentEditObject != AppStatus::EditObjectType::None) {
-        qWarning() << "Cannot redo because editing not finished";
-        return;
-    }
     if (d->m_redoStack.isEmpty())
         return;
 

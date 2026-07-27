@@ -12,9 +12,9 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/Utils/ParamUtils.h"
 #include <lite/Tasking/TaskManager.h>
-#include "Modules/History/HistoryManager.h"
-#include "Modules/PackageManager/PackageManager.h"
-#include "Modules/SynthrtEngine/SynthrtEngine.h"
+#include <lite/History/HistoryManager.h>
+#include <lite/PackageManager/PackageManager.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/EditSessionManager.h"
