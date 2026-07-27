@@ -43,6 +43,26 @@
 - 存量 bug 修复 `95b8030b` 曾补回全量 `recreateAllInferTasks`；阶段 9 已用有效区间 diff + 存活 pipeline 就地重启替代该临时全量方案
 - 曾修复一次启动崩溃（`cachedTextPixmap` 返回临时量引用），已并入阶段 4 提交
 
+#### Code Review 待讨论项（2026-07-27）
+
+**1. `effectiveTempoArray` 区间过滤语义**
+
+`InferInputBase.cpp` 中 `effectiveTempoArray` 用 `tempo.pos <= startTick` 来跳过 startTick 处的重复曲速点——因为前面已手动 `append({startTick, tempoAt(startTick)})`。当前 `<=` 能正确防止重复，但属于"巧合正确"：若未来有人改为 `<` 则立即产生重复 JSON entry。建议改条件为 `tempo.pos > startTick && tempo.pos < endTick` 的正向包含语义，消除维护陷阱。
+
+**2. `resampleFramesToCurve` 的 5-tick 网格对齐**
+
+`InferInputBase.cpp:158` 用 `qRound(localPieceStart / 5.0) * 5` 对齐到最近网格。若 `localPieceStart = 3`，`qRound` 得到 5，但源帧位置从 0 秒开始算——0~5 tick 之间的数据被丢失。建议改用 `floor` 确保不遗漏。
+
+**3. `handleTempoChanged` 中 `reSegment(timeline, false)` 的信号完整性**
+
+`InferController.cpp:315` 传 `bumpRevision=false`（注释说 AppModel 已 bump），需确认此时 `piecesChanged` 信号仍能正确触发 pipeline 清理。
+
+**4. 语义签名与 `fitToFrames` 的一致性（已确认为假警报）**
+
+所有 `operator==` 改用 `semanticSignature()`，但 `toEngineModel()` 内调 `speakerMix = fitToFrames(effectiveMix, frames, interval)`。经分析，签名中已包含决定 `frames`/`interval` 的全部输入（notes、曲速、piece 范围），`fitToFrames` 不改变语义——**该问题属假警报，无需处理**。
+
+5. 第 5 项留空，供后续审查填充。
+
 ---
 
 ## Context
