@@ -46,6 +46,8 @@ namespace InferSpeakerMixModel {
                                                 const QString &fallbackSpeaker, int startTick,
                                                 int endTick, const Timeline &timeline,
                                                 double intervalSeconds = 0.01);
+    InferSpeakerMix fitToFrames(const InferSpeakerMix &mix, int frames,
+                                double intervalSeconds = 0.01);
 }
 
 #endif // INFERSPEAKERMIX_H

@@ -13,7 +13,6 @@
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include <lite/Support/JsonUtils.h>
 #include <lite/Support/Linq.h>
-#include <lite/Support/MathUtils.h>
 #include "InferTaskCommon.h"
 
 #include <QDebug>
@@ -23,9 +22,7 @@
 namespace Var = srt::svs::Api::Variance::L1;
 
 bool InferVarianceTask::InferVarianceInput::operator==(const InferVarianceInput &other) const {
-    return clipId == other.clipId /*&& pieceId == other.pieceId*/ && notes == other.notes &&
-           identifier == other.identifier && timeline == other.timeline &&
-           speaker == other.speaker && speakerMix == other.speakerMix && pitch == other.pitch;
+    return semanticSignature() == other.semanticSignature();
 }
 
 int InferVarianceTask::clipId() const {
@@ -178,7 +175,8 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
         return false;
     }
     const auto &speakerMapping = importOptions->speakerMapping;
-    input->words = convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
+    input->words =
+        convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
     if (!error.isEmpty()) {
         qCritical() << "inferVariance:" << error;
         return false;
@@ -256,7 +254,7 @@ void InferVarianceTask::buildPreviewText() {
 QString InferVarianceTask::InferVarianceInput::semanticSignature() const {
     return InferInputBase::semanticSignature(
         "variance", QJsonObject{
-                        {"pitch", InferInputBase::doubleArray(pitch.values)}
+                        {"pitch", InferInputBase::paramCurveObject(pitch)}
     });
 }
 
@@ -277,8 +275,7 @@ GenericInferModel InferVarianceTask::InferVarianceInput::toEngineModel() const {
 
     InferParam pitch = param;
     pitch.tag = "pitch";
-    pitch.values =
-        MathUtils::resample(this->pitch.values, 5 /*tick*/, timeline.secToTick(interval));
+    pitch.values = resampleCurveToFrames(this->pitch, frames, interval);
 
     InferParam breathiness = param;
     breathiness.tag = "breathiness";
@@ -300,8 +297,9 @@ GenericInferModel InferVarianceTask::InferVarianceInput::toEngineModel() const {
 
     GenericInferModel model;
     model.speaker = speaker;
-    model.speakerMix =
+    const auto effectiveMix =
         speakerMix.isEmpty() ? InferSpeakerMixModel::staticSpeakerMix(speaker) : speakerMix;
+    model.speakerMix = InferSpeakerMixModel::fitToFrames(effectiveMix, frames, interval);
     model.words = words;
     model.params = {pitch, breathiness, tension, voicing, energy, mouthOpening};
     model.steps = steps;
@@ -310,24 +308,21 @@ GenericInferModel InferVarianceTask::InferVarianceInput::toEngineModel() const {
 }
 
 bool InferVarianceTask::processOutput(const GenericInferModel &model) {
-    const auto newInterval = m_input.timeline.tickToSec(5);
-
     const auto breathiness = Linq::where(model.params, L_PRED(p, p.tag == "breathiness")).first();
-    m_result.breathiness.values =
-        MathUtils::resample(breathiness.values, breathiness.interval, newInterval);
+    m_result.breathiness = m_input.resampleFramesToCurve(breathiness.values, breathiness.interval);
 
     const auto tension = Linq::where(model.params, L_PRED(p, p.tag == "tension")).first();
-    m_result.tension.values = MathUtils::resample(tension.values, tension.interval, newInterval);
+    m_result.tension = m_input.resampleFramesToCurve(tension.values, tension.interval);
 
     const auto voicing = Linq::where(model.params, L_PRED(p, p.tag == "voicing")).first();
-    m_result.voicing.values = MathUtils::resample(voicing.values, voicing.interval, newInterval);
+    m_result.voicing = m_input.resampleFramesToCurve(voicing.values, voicing.interval);
 
     const auto energy = Linq::where(model.params, L_PRED(p, p.tag == "energy")).first();
-    m_result.energy.values = MathUtils::resample(energy.values, energy.interval, newInterval);
+    m_result.energy = m_input.resampleFramesToCurve(energy.values, energy.interval);
 
     const auto mouthOpening =
         Linq::where(model.params, L_PRED(p, p.tag == "mouth_opening")).first();
-    m_result.mouthOpening.values =
-        MathUtils::resample(mouthOpening.values, mouthOpening.interval, newInterval);
+    m_result.mouthOpening =
+        m_input.resampleFramesToCurve(mouthOpening.values, mouthOpening.interval);
     return true;
 }

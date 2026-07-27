@@ -151,8 +151,8 @@ ReSegmentResult SingingClip::reSegment(const Timeline &timeline) {
             newPiece->paddingStartMs = segment.paddingStartMs;
             newPiece->paddingEndMs = segment.paddingEndMs;
             newPiece->speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
-                speakerMixData(), speakerId(), newPiece->localStartTick(timeline),
-                newPiece->localEndTick(timeline), timeline);
+                speakerMixData(), speakerId(), start() + newPiece->localStartTick(timeline),
+                start() + newPiece->localEndTick(timeline), timeline);
             newPiece->speaker = newPiece->speakerMix.fallbackSpeaker;
             newPieces.append(newPiece);
             result.addedPieces.append(newPiece);

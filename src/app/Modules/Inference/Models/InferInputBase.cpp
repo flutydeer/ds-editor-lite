@@ -74,6 +74,13 @@ QJsonArray InferInputBase::doubleArray(const QList<double> &values) {
     return array;
 }
 
+QJsonObject InferInputBase::paramCurveObject(const InferParamCurve &curve) {
+    return {
+        {"localStartTick", curve.localStartTick     },
+        {"values",         doubleArray(curve.values)}
+    };
+}
+
 QJsonObject InferInputBase::semanticObject(const QString &taskType) const {
     // This is the canonical semantic task snapshot. Engine payloads and apply-gate signatures
     // must both be derived from InferInputBase instead of reading live options later.

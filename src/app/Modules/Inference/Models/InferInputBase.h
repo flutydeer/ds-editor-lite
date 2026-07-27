@@ -69,6 +69,7 @@ public:
 
 protected:
     [[nodiscard]] static QJsonArray doubleArray(const QList<double> &values);
+    [[nodiscard]] static QJsonObject paramCurveObject(const InferParamCurve &curve);
 
 private:
     [[nodiscard]] QList<double> curveSampleSeconds(const InferParamCurve &curve) const;
