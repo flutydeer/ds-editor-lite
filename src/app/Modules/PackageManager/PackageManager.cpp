@@ -12,7 +12,7 @@
 #include <lite/ProjectModel/Voice/SingerInfo.h>
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/GetInstalledPackagesTask.h"
-#include "Modules/SynthrtEngine/SynthrtEngine.h"
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <filesystem>
 

@@ -9,7 +9,7 @@
 #include "AppContext.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppOptions/AppOptions.h"
-#include "Modules/SynthrtEngine/SynthrtEngine.h"
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <lite/Support/StringUtils.h>
 
 #include <synthrt/Core/Plugin/PluginFactory.h>

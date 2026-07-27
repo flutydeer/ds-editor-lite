@@ -72,6 +72,7 @@ lite_add_application(${PROJECT_NAME}
         lite::MusicBase
         lite::ProjectModel
         lite::History
+        lite::SynthrtEngine
         lite::Language
         lite::Tasking
         lite::GUI

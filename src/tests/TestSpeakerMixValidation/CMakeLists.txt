@@ -12,7 +12,6 @@ lite_add_test(${PROJECT_NAME}
         ../../libs/ProjectModel/Voice/SpeakerInfo.cpp
         ../../libs/ProjectModel/Voice/SingerInfo.cpp
         ../../libs/ProjectModel/Voice/LanguageInfo.cpp
-        ../../app/Modules/SynthrtEngine/SingerModelSession.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -28,6 +27,7 @@ find_package(dsinfer CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Core
         lite::MusicBase
+        lite::SynthrtEngine
         srt::synthrt
         srt::diffsinger
         dsinfer::dsinfer
