@@ -3,6 +3,7 @@ project(TestDocumentWorkflow)
 lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
+        ../../app/Controller/DocumentWorkflow/DocumentWorkflowPathUtils.cpp
         ../../libs/ProjectModel/AppModel/LoopSettings.cpp
         ../../app/Model/AppStatus/AppStatus.cpp
         ../../app/Utils/ConditionalTransition.cpp

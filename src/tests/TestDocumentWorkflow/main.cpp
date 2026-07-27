@@ -1,3 +1,4 @@
+#include "Controller/DocumentWorkflow/DocumentWorkflowPathUtils.h"
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/History/ActionSequence.h>
 #include "AppContext.h"
@@ -5,6 +6,7 @@
 #include "Utils/ConditionalTransition.h"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QState>
 #include <QStateMachine>
 #include <QTextStream>
@@ -103,6 +105,35 @@ namespace {
         QCoreApplication::processEvents();
         return condition ? whenTrue->active() : whenFalse->active();
     }
+
+    bool verifySuggestedSavePaths() {
+        const auto sourceFolder = QDir::cleanPath(QDir::tempPath() + "/midi-source");
+        bool ok = true;
+        ok &= expect(DocumentWorkflowPathUtils::suggestedSavePath({}, sourceFolder,
+                                                                  QStringLiteral("test")) ==
+                         QDir(sourceFolder).filePath(QStringLiteral("test.dspx")),
+                     "MIDI save path must replace the source extension with .dspx");
+        ok &= expect(DocumentWorkflowPathUtils::suggestedSavePath({}, sourceFolder,
+                                                                  QStringLiteral("song.v1")) ==
+                         QDir(sourceFolder).filePath(QStringLiteral("song.v1.dspx")),
+                     "MIDI save path must preserve every part of a multi-dot base name");
+        ok &= expect(DocumentWorkflowPathUtils::suggestedSavePath(
+                         {}, sourceFolder, QStringLiteral("New Project")) ==
+                         QDir(sourceFolder).filePath(QStringLiteral("New Project.dspx")),
+                     "new project save path must include a .dspx file name");
+        ok &= expect(DocumentWorkflowPathUtils::suggestedSavePath(
+                         {}, sourceFolder, QStringLiteral("draft.dspx")) ==
+                         QDir(sourceFolder).filePath(QStringLiteral("draft.dspx")),
+                     "suggested save path must not duplicate an existing .dspx extension");
+
+        const auto existingProject =
+            QDir(sourceFolder).filePath(QStringLiteral("existing.project.dspx"));
+        ok &= expect(DocumentWorkflowPathUtils::suggestedSavePath(
+                         existingProject, QStringLiteral("ignored"), QStringLiteral("ignored")) ==
+                         existingProject,
+                     "existing DSPX project path must remain unchanged");
+        return ok;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -169,6 +200,7 @@ int main(int argc, char *argv[]) {
     ok &= expect(manager->isOnSavePoint(), "saved reset after import must be clean");
     ok &= expect(verifyGuardedBranch(true), "true guard must select the true target state");
     ok &= expect(verifyGuardedBranch(false), "false guard must select the false target state");
+    ok &= verifySuggestedSavePaths();
 
     return ok ? 0 : 1;
 }

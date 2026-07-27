@@ -47,7 +47,7 @@ void LegacyMidiLoadSession::start() {
         payload.loopSettings = LoopSettings();
         payload.sourceKind = ProjectSourceKind::Foreign;
         payload.sourcePath = m_filePath;
-        payload.displayName = QFileInfo(m_filePath).baseName();
+        payload.displayName = QFileInfo(m_filePath).completeBaseName();
         m_result = std::move(payload);
     } else {
         AppendProjectPayload payload;

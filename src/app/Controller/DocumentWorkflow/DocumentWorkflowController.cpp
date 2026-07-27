@@ -1,6 +1,7 @@
 #include "DocumentWorkflowController.h"
 
 #include "DspxLoadSession.h"
+#include "DocumentWorkflowPathUtils.h"
 #include "IDocumentWorkflowUi.h"
 #include "IProjectLoadSession.h"
 #include "LegacyMidiLoadSession.h"
@@ -643,7 +644,8 @@ void DocumentWorkflowController::addRecentProjectFile(const QString &path) {
 }
 
 QString DocumentWorkflowController::suggestedSavePath() const {
-    return m_projectPath.isEmpty() ? m_lastProjectFolder + "/" + projectName() : m_projectPath;
+    return DocumentWorkflowPathUtils::suggestedSavePath(m_projectPath, m_lastProjectFolder,
+                                                        projectName());
 }
 
 void DocumentWorkflowController::rejectBusyRequest() {
