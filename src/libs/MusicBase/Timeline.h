@@ -11,6 +11,15 @@
 
 #include <QList>
 
+struct TempoChangeRange {
+    int startTick = 0;
+    int endTick = 0; // exclusive; INT_MAX denotes the unbounded tail
+
+    [[nodiscard]] bool intersects(int start, int end) const {
+        return start < endTick && end > startTick;
+    }
+};
+
 // The project time axis: a tempo map indexed by tick and a time signature map
 // indexed by measure number. Both lists are kept sorted, deduplicated and
 // always contain a point at position 0 — that anchor point can be edited but
@@ -34,6 +43,10 @@ public:
     [[nodiscard]] double tempoAt(double tick) const;
     // The tick of the tempo point governing `tick` (the nearest point at or before it).
     [[nodiscard]] int nearestTickWithTempoTo(int tick) const;
+    // Effective tick ranges whose governing BPM differs between two maps.
+    // Redundant same-value points therefore produce no invalidation.
+    [[nodiscard]] static QList<TempoChangeRange> tempoChangeRanges(const Timeline &before,
+                                                                   const Timeline &after);
 
     // --- time signature map (indexed by measure number) ---
     [[nodiscard]] const QList<TimeSignature> &timeSignatures() const;
@@ -53,7 +66,7 @@ public:
     [[nodiscard]] double secToTick(double sec) const;
 
     // --- tick <-> measure/beat ---
-    [[nodiscard]] int barToTick(int bar) const; // -1 if bar < 0
+    [[nodiscard]] int barToTick(int bar) const;         // -1 if bar < 0
     [[nodiscard]] MusicTime tickToTime(int tick) const; // invalid if tick < 0
     // Beats may exceed the measure's numerator and simply spill forward using
     // that measure's beat length; any negative component yields -1.

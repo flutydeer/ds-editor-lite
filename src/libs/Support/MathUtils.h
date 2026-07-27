@@ -8,6 +8,9 @@
 #include <QDebug>
 #include <QPoint>
 
+#include <algorithm>
+#include <cmath>
+
 class MathUtils {
 public:
     static double clip(const double value, const double min, const double max) {
@@ -90,6 +93,53 @@ public:
         }
 
         return resampledValues;
+    }
+
+    // Samples values defined at explicit source positions onto explicit target positions.
+    // Target points outside the source range are clamped to the nearest endpoint. This keeps the
+    // output length deterministic and avoids the silent tail truncation of the interval overload.
+    static QList<double> resample(const QList<double> &values, const QList<double> &sourcePositions,
+                                  const QList<double> &targetPositions) {
+        QList<double> result;
+        if (targetPositions.isEmpty() || values.isEmpty())
+            return result;
+        if (values.size() != sourcePositions.size()) {
+            qWarning() << "MathUtils::resample: value/position count mismatch";
+            return result;
+        }
+
+        result.reserve(targetPositions.size());
+        if (values.size() == 1) {
+            result.fill(values.first(), targetPositions.size());
+            return result;
+        }
+
+        for (qsizetype i = 1; i < sourcePositions.size(); ++i) {
+            if (!(sourcePositions.at(i) > sourcePositions.at(i - 1))) {
+                qWarning() << "MathUtils::resample: source positions are not strictly increasing";
+                return {};
+            }
+        }
+
+        for (const double target : targetPositions) {
+            if (target <= sourcePositions.first()) {
+                result.append(values.first());
+                continue;
+            }
+            if (target >= sourcePositions.last()) {
+                result.append(values.last());
+                continue;
+            }
+
+            const auto right =
+                std::lower_bound(sourcePositions.cbegin(), sourcePositions.cend(), target);
+            const auto rightIndex = std::distance(sourcePositions.cbegin(), right);
+            const auto leftIndex = rightIndex - 1;
+            result.append(linearValueAt({sourcePositions.at(leftIndex), values.at(leftIndex)},
+                                        {sourcePositions.at(rightIndex), values.at(rightIndex)},
+                                        target));
+        }
+        return result;
     }
 
     template <typename T>

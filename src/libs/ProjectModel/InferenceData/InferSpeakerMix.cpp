@@ -1,6 +1,7 @@
 #include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
 
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/Support/MathUtils.h>
 
 #include <QCryptographicHash>
 #include <QJsonArray>
@@ -183,7 +184,8 @@ namespace InferSpeakerMixModel {
             return fixedSpeakerMixFromData(normalized, fallbackSpeaker);
         }
 
-        const double totalLengthSeconds = timeline.tickToSec(endTick - startTick);
+        const double startSeconds = timeline.tickToSec(startTick);
+        const double totalLengthSeconds = timeline.tickToSec(endTick) - startSeconds;
         if (totalLengthSeconds <= 0)
             return fixedSpeakerMixFromData(normalized, fallbackSpeaker);
 
@@ -201,9 +203,9 @@ namespace InferSpeakerMixModel {
             sources.append(std::move(source));
         }
 
-        const double intervalTicks = timeline.secToTick(intervalSeconds);
         for (int frame = 0; frame < frames; ++frame) {
-            const int sampleTick = startTick + qRound(intervalTicks * frame);
+            const int sampleTick =
+                qRound(timeline.secToTick(startSeconds + intervalSeconds * frame));
             const auto fullWeights = SpeakerMixModel::fullWeightsFromExplicitWeights(
                 interpolateExplicitWeights(normalized.dynamicKeyframes, sampleTick));
             if (fullWeights.size() != sources.size())
@@ -227,5 +229,35 @@ namespace InferSpeakerMixModel {
                                              intervalSeconds);
         }
         return fixedSpeakerMixFromData(data, fallbackSpeaker);
+    }
+
+    InferSpeakerMix fitToFrames(const InferSpeakerMix &mix, const int frames,
+                                const double intervalSeconds) {
+        if (frames <= 0 || intervalSeconds <= 0)
+            return mix;
+
+        InferSpeakerMix result = mix;
+        QList<double> targetPositions;
+        targetPositions.reserve(frames);
+        for (int frame = 0; frame < frames; ++frame)
+            targetPositions.append(frame * intervalSeconds);
+
+        for (auto &source : result.sources) {
+            if (source.interval <= 0 || source.proportions.size() <= 1)
+                continue;
+
+            QList<double> sourcePositions;
+            QList<double> proportions;
+            sourcePositions.reserve(source.proportions.size());
+            proportions.reserve(source.proportions.size());
+            for (qsizetype i = 0; i < source.proportions.size(); ++i) {
+                sourcePositions.append(i * source.interval);
+                proportions.append(source.proportions.at(i));
+            }
+            const auto fitted = MathUtils::resample(proportions, sourcePositions, targetPositions);
+            source.interval = intervalSeconds;
+            source.proportions = QVector<double>(fitted.begin(), fitted.end());
+        }
+        return result;
     }
 }

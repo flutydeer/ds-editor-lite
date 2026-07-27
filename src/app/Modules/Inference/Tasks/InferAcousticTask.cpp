@@ -15,7 +15,6 @@
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include <lite/Support/JsonUtils.h>
-#include <lite/Support/MathUtils.h>
 #include <lite/Support/StringUtils.h>
 
 #include "InferTaskCommon.h"
@@ -29,12 +28,7 @@ namespace Ac = srt::svs::Api::Acoustic::L1;
 namespace Vo = srt::svs::Api::Vocoder::L1;
 
 bool InferAcousticTask::InferAcousticInput::operator==(const InferAcousticInput &other) const {
-    return clipId == other.clipId && notes == other.notes && identifier == other.identifier &&
-           timeline == other.timeline && pitch == other.pitch && breathiness == other.breathiness &&
-           tension == other.tension && voicing == other.voicing && energy == other.energy &&
-           mouthOpening == other.mouthOpening && gender == other.gender &&
-           velocity == other.velocity && toneShift == other.toneShift && speaker == other.speaker &&
-           speakerMix == other.speakerMix;
+    return semanticSignature() == other.semanticSignature();
 }
 
 int InferAcousticTask::clipId() const {
@@ -77,7 +71,7 @@ QString InferAcousticTask::result() const {
 }
 
 InferAcousticTask::AcousticCacheLookup
-InferAcousticTask::lookupCache(const InferAcousticInput &input) {
+    InferAcousticTask::lookupCache(const InferAcousticInput &input) {
     AcousticCacheLookup lookup;
     lookup.model = input.toEngineModel();
     lookup.inputHash = lookup.model.hashData();
@@ -186,7 +180,8 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             return false;
         }
         const auto &speakerMapping = importOptions->speakerMapping;
-        input->words = convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
+        input->words =
+            convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
         if (!error.isEmpty()) {
             qCritical() << "inferAcoustic:" << error;
             return false;
@@ -334,15 +329,15 @@ void InferAcousticTask::buildPreviewText() {
 QString InferAcousticTask::InferAcousticInput::semanticSignature() const {
     return InferInputBase::semanticSignature(
         "acoustic", QJsonObject{
-                        {"pitch",        InferInputBase::doubleArray(pitch.values)       },
-                        {"breathiness",  InferInputBase::doubleArray(breathiness.values) },
-                        {"tension",      InferInputBase::doubleArray(tension.values)     },
-                        {"voicing",      InferInputBase::doubleArray(voicing.values)     },
-                        {"energy",       InferInputBase::doubleArray(energy.values)      },
-                        {"mouthOpening", InferInputBase::doubleArray(mouthOpening.values)},
-                        {"gender",       InferInputBase::doubleArray(gender.values)      },
-                        {"velocity",     InferInputBase::doubleArray(velocity.values)    },
-                        {"toneShift",    InferInputBase::doubleArray(toneShift.values)   },
+                        {"pitch",        InferInputBase::paramCurveObject(pitch)       },
+                        {"breathiness",  InferInputBase::paramCurveObject(breathiness) },
+                        {"tension",      InferInputBase::paramCurveObject(tension)     },
+                        {"voicing",      InferInputBase::paramCurveObject(voicing)     },
+                        {"energy",       InferInputBase::paramCurveObject(energy)      },
+                        {"mouthOpening", InferInputBase::paramCurveObject(mouthOpening)},
+                        {"gender",       InferInputBase::paramCurveObject(gender)      },
+                        {"velocity",     InferInputBase::paramCurveObject(velocity)    },
+                        {"toneShift",    InferInputBase::paramCurveObject(toneShift)   },
     });
 }
 
@@ -354,7 +349,6 @@ GenericInferModel InferAcousticTask::InferAcousticInput::toEngineModel() const {
         totalLength += word.length();
 
     int frames = qRound(totalLength / interval);
-    auto newInterval = timeline.secToTick(interval);
     InferRetake retake;
     retake.end = frames;
 
@@ -364,44 +358,45 @@ GenericInferModel InferAcousticTask::InferAcousticInput::toEngineModel() const {
 
     InferParam pitch = param;
     pitch.tag = "pitch";
-    pitch.values = MathUtils::resample(this->pitch.values, 5 /*tick*/, newInterval);
+    pitch.values = resampleCurveToFrames(this->pitch, frames, interval);
 
     InferParam breathiness = param;
     breathiness.tag = "breathiness";
-    breathiness.values = MathUtils::resample(this->breathiness.values, 5, newInterval);
+    breathiness.values = resampleCurveToFrames(this->breathiness, frames, interval);
 
     InferParam tension = param;
     tension.tag = "tension";
-    tension.values = MathUtils::resample(this->tension.values, 5, newInterval);
+    tension.values = resampleCurveToFrames(this->tension, frames, interval);
 
     InferParam voicing = param;
     voicing.tag = "voicing";
-    voicing.values = MathUtils::resample(this->voicing.values, 5, newInterval);
+    voicing.values = resampleCurveToFrames(this->voicing, frames, interval);
 
     InferParam energy = param;
     energy.tag = "energy";
-    energy.values = MathUtils::resample(this->energy.values, 5, newInterval);
+    energy.values = resampleCurveToFrames(this->energy, frames, interval);
 
     InferParam mouthOpening = param;
     mouthOpening.tag = "mouth_opening";
-    mouthOpening.values = MathUtils::resample(this->mouthOpening.values, 5, newInterval);
+    mouthOpening.values = resampleCurveToFrames(this->mouthOpening, frames, interval);
 
     InferParam gender = param;
     gender.tag = "gender";
-    gender.values = MathUtils::resample(this->gender.values, 5, newInterval);
+    gender.values = resampleCurveToFrames(this->gender, frames, interval);
 
     InferParam velocity = param;
     velocity.tag = "velocity";
-    velocity.values = MathUtils::resample(this->velocity.values, 5, newInterval);
+    velocity.values = resampleCurveToFrames(this->velocity, frames, interval);
 
     InferParam toneShift = param;
     toneShift.tag = "tone_shift";
-    toneShift.values = MathUtils::resample(this->toneShift.values, 5, newInterval);
+    toneShift.values = resampleCurveToFrames(this->toneShift, frames, interval);
 
     GenericInferModel model;
     model.speaker = speaker;
-    model.speakerMix =
+    const auto effectiveMix =
         speakerMix.isEmpty() ? InferSpeakerMixModel::staticSpeakerMix(speaker) : speakerMix;
+    model.speakerMix = InferSpeakerMixModel::fitToFrames(effectiveMix, frames, interval);
     model.words = words;
     model.params = {pitch,        breathiness, tension,  voicing,  energy,
                     mouthOpening, gender,      velocity, toneShift};

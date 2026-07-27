@@ -170,12 +170,14 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         return appModel->timeline().timeToTick(time) >= 0;
     });
 
+    connect(m_elTempo, &TempoComboBox::popupAboutToShow, this,
+            [this] { m_tempoEditTick = playheadTempoTick(); });
+    connect(m_elTempo, &InlineEditLabel::editingStarted, this,
+            [this] { m_tempoEditTick = playheadTempoTick(); });
     connect(m_elTempo, &TempoComboBox::tempoChanged, this, [this](double tempo) {
-        if (m_tempo != tempo) {
-            m_tempo = tempo;
-            emit setTempoTriggered(tempo);
-        }
-        updateTempoView();
+        if (appModel->timeline().tempoAt(m_tempoEditTick) != tempo)
+            emit setTempoTriggered(m_tempoEditTick, tempo);
+        refreshTempoDisplay();
     });
 
     connect(m_elTimeSignature, &TimeSignatureComboBox::popupAboutToShow, this,
@@ -248,7 +250,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
 
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    connect(this, &PlaybackView::setTempoTriggered, appController, &AppController::onSetTempo);
+    connect(this, &PlaybackView::setTempoTriggered, appController, &AppController::onSetTempoAt);
     connect(this, &PlaybackView::setTimeSignatureTriggered, appController,
             &AppController::onSetTimeSignatureAt);
     connect(this, &PlaybackView::playTriggered, playbackController, &PlaybackController::play);
@@ -268,12 +270,10 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
 }
 
 void PlaybackView::updateView() {
-    const auto &timeline = appModel->timeline();
-    m_tempo = timeline.tempoAt(0);
     m_tick = static_cast<int>(playbackController->position());
     m_status = playbackController->playbackStatus();
 
-    updateTempoView();
+    refreshTempoDisplay();
     refreshTimeSignatureDisplay();
     updateTimeSignatureView();
     updateTimeView();
@@ -282,9 +282,7 @@ void PlaybackView::updateView() {
 }
 
 void PlaybackView::onTimelineChanged() {
-    const auto &timeline = appModel->timeline();
-    m_tempo = timeline.tempoAt(0);
-    updateTempoView();
+    refreshTempoDisplay();
     refreshTimeSignatureDisplay();
     updateTimeView();
 }
@@ -292,6 +290,7 @@ void PlaybackView::onTimelineChanged() {
 void PlaybackView::onPositionChanged(double tick) {
     m_tick = static_cast<int>(tick);
     updateTimeView();
+    refreshTempoDisplay();
     refreshTimeSignatureDisplay();
 }
 
@@ -302,6 +301,18 @@ void PlaybackView::onPlaybackStatusChanged(PlaybackStatus status) {
 
 QString PlaybackView::toFormattedTickTime(int ticks) const {
     return appModel->timeline().getBarBeatTickTime(ticks);
+}
+
+int PlaybackView::playheadTempoTick() const {
+    return appModel->timeline().nearestTickWithTempoTo(qMax(0, m_tick));
+}
+
+void PlaybackView::refreshTempoDisplay() {
+    const double tempo = appModel->timeline().tempoAt(qMax(0, m_tick));
+    if (m_tempo == tempo)
+        return;
+    m_tempo = tempo;
+    updateTempoView();
 }
 
 int PlaybackView::playheadSignatureBar() const {

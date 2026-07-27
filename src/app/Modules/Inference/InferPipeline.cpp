@@ -132,6 +132,10 @@ void InferPipeline::onVarianceChanged() {
     emit varianceChanged();
 }
 
+void InferPipeline::onTimelineChanged() {
+    emit timelineChanged();
+}
+
 void InferPipeline::onAppOptionsChanged(const AppOptionsGlobal::Option option) {
     if (option != AppOptionsGlobal::All && option != AppOptionsGlobal::Inference)
         return;
@@ -197,19 +201,18 @@ void InferPipeline::initTransitions() {
     initPlaybackReadyTransitions();
 
     const QList<QState *> restartableStates{
-        inferDurationState,         updateDurationState,
-        awaitingDurationApplyState, inferPitchState,
-        updatePitchState,           awaitingPitchApplyState,
-        inferVarianceState,         updateVarianceState,
-        awaitingVarianceApplyState, probeAcousticCacheState,
-        awaitingInferAcousticState, inferAcousticState,
-        updateAcousticState,        awaitingAcousticApplyState,
-        playbackReadyState,
+        inferDurationState,      updateDurationState,        awaitingDurationApplyState,
+        inferPitchState,         updatePitchState,           awaitingPitchApplyState,
+        inferVarianceState,      updateVarianceState,        awaitingVarianceApplyState,
+        probeAcousticCacheState, awaitingInferAcousticState, inferAcousticState,
+        updateAcousticState,     awaitingAcousticApplyState, playbackReadyState,
     };
     // Inference options are part of the task snapshot, so active pipelines restart with a new
     // snapshot instead of mixing old worker output with new apply-time options.
-    for (const auto state : restartableStates)
+    for (const auto state : restartableStates) {
         state->addTransition(this, &InferPipeline::inferenceOptionsChanged, inferDurationState);
+        state->addTransition(this, &InferPipeline::timelineChanged, inferDurationState);
+    }
 }
 
 void InferPipeline::initDurationTransitions() {
@@ -280,11 +283,10 @@ void InferPipeline::initVarianceTransitions() {
 
 void InferPipeline::initProbeAcousticCacheTransitions() {
     probeAcousticCacheState->addTransition(probeAcousticCacheState,
-                                           &ProbeAcousticCacheState::cacheHit,
-                                           updateAcousticState);
-    probeAcousticCacheState->addTransition(
-        probeAcousticCacheState, &ProbeAcousticCacheState::cacheMissWithLazyInference,
-        awaitingInferAcousticState);
+                                           &ProbeAcousticCacheState::cacheHit, updateAcousticState);
+    probeAcousticCacheState->addTransition(probeAcousticCacheState,
+                                           &ProbeAcousticCacheState::cacheMissWithLazyInference,
+                                           awaitingInferAcousticState);
     probeAcousticCacheState->addTransition(
         probeAcousticCacheState, &ProbeAcousticCacheState::cacheMissWithImmediateInference,
         inferAcousticState);
@@ -297,8 +299,7 @@ void InferPipeline::initProbeAcousticCacheTransitions() {
     probeAcousticCacheState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
     probeAcousticCacheState->addTransition(this, &InferPipeline::expressivenessChanged,
                                            inferPitchState);
-    probeAcousticCacheState->addTransition(this, &InferPipeline::pitchChanged,
-                                           inferVarianceState);
+    probeAcousticCacheState->addTransition(this, &InferPipeline::pitchChanged, inferVarianceState);
     probeAcousticCacheState->addTransition(this, &InferPipeline::varianceChanged,
                                            probeAcousticCacheState);
 }

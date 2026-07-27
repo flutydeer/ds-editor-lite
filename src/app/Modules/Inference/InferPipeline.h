@@ -74,6 +74,7 @@ public slots:
     void onExpressivenessChanged();
     void onPitchChanged();
     void onVarianceChanged();
+    void onTimelineChanged();
 
     void notifyPlaybackStarted();
 
@@ -86,11 +87,10 @@ private slots:
 
 private:
     // Params
-    Q_SIGNAL void phonemeNameChanged();
-    Q_SIGNAL void phonemeOffsetChanged();
     Q_SIGNAL void expressivenessChanged();
     Q_SIGNAL void pitchChanged();
     Q_SIGNAL void varianceChanged();
+    Q_SIGNAL void timelineChanged();
 
     // Inference Options
     Q_SIGNAL void pitchStepsChanged();

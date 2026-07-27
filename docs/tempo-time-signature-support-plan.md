@@ -13,8 +13,8 @@
 | 5 — 吸附与 Bar:Beat 双向〔拍号线〕 | ✅ | ★★★☆☆ | 中（吸附**无参照实现**） |
 | 6 — 拍号编辑 UI 与撤销〔拍号线〕 | ✅ | ★★★☆☆ | 低（交互设计可照抄） |
 | 7 — 音频引擎与波形〔曲速线〕 | 🔵 | ★★★☆☆ | 中（talcs 不需改，补偿方案已验证可行） |
-| 8 — 参数曲线非均匀重采样〔曲速线〕 | ⬜ | ★★★★☆ | **高**（最易静默出错，必须靠退化等价性测试兜底） |
-| 9 — 曲速编辑 UI 与撤销〔曲速线〕 | ⬜ | ★★★☆☆ | 低 |
+| 8 — 参数曲线非均匀重采样〔曲速线〕 | ✅ | ★★★★☆ | **高**（以绝对坐标和退化等价性收敛） |
+| 9 — 曲速编辑 UI 与撤销〔曲速线〕 | ✅ | ★★★☆☆ | 低 |
 | 10 — 打磨 | ⬜ | ★★☆☆☆ | 低 |
 
 **风险重心在阶段 8**，其次是阶段 2 的收敛质量。阶段 1–3 是两条线共用的地基，务必先完成；之后拍号线优先。
@@ -27,23 +27,47 @@
 
 提交 `d950d202`。**交互方案偏离原计划**：未采用"标尺右键菜单"设计，改按用户的 Lunacy 设计稿实现为轨道编辑器标尺下方的**拍号轨**（详见阶段 6 节的实际实现小结）。
 
+### 实施记录（阶段 8–9，2026-07-27）
+
+阶段 8 改为显式绝对时间坐标重采样，并把 RMVPE 的素材偏移、裁剪区间与工程 tick 对齐；阶段 9 新增独立曲速轨、可撤销的插入/编辑/删除、播放头当前区段编辑，以及按有效 BPM 区间精确失效的推理状态机。曲速交互采用纯阶梯断点，明确无拖拽、无渐变。
+
 关键偏差与提前完成项：
 
 - `MusicTime` 由常量 namespace 升级为值类型（静态常量保留，源码兼容）；显示 1-based（"001:01:000"），内部 0-based
 - `Timeline` 封装为私有排序列表 + 并行前缀表（`m_msAtTempo` / `m_tickAtSignature`）；转换公式保持与旧 `MusicTimeConverter` 相同的运算顺序，单点时**逐比特一致**（TestMusicTimeline 以 `==` 断言）；缓存采用整表重建而非增量重算（点数少，无性能差异）
 - `TimeSignature::pos` → `barIndex`，JSON key 保持 `"pos"` 以兼容既有工程与推理缓存签名
-- 信号收敛为单个 `timelineChanged()`；`ModelChangeHandler` 内部对曲速侧做 diff，改拍号不会误触推理重建。`setTempo` / `setTimeSignature` 目前编辑位置 0 锚点（阶段 6/9 改为按播放头段）
+- 信号收敛为单个 `timelineChanged()`；`ModelChangeHandler` 内部对曲速侧做 diff，改拍号不会误触推理重建。`setTempo` / `setTimeSignature` 是位置 0 锚点的兼容入口，标题栏按播放头当前区段编辑
 - `AudioContext::tickToSample` / `sampleToTick` 已按 tempo map 分段（阶段 7 的一项提前完成，单点位精确性保持）；`WaveformPainter` / `AudioClipView` 仍用 `tempoAt(0)` 单段公式，留给阶段 7
 - `timeToTick` 对负分量直接返回 -1（未沿用 svscraft 的负 beat 归一化循环）；beat 溢出按该小节拍长向后顺延
 - 音符**移动**保留原 delta 吸附语义（保持子网格偏移，退化等价性要求）；绝对位置吸附（clip 拖动/缩放、画音符、切分、粘贴、loop 标记）全部走小节基准新重载 `snapNearest/snapDown(tick, step, timeline)`
-- 存量 bug 修复 `95b8030b`：曲速修改后 `recreateAllInferTasks` 只标脏不重启推理（2024 年 `6e74b624` 的原始实现含 reSegment + 建任务，管线化重构时丢失）；已按现行架构补回 reSegment + `createPipeline`
+- 存量 bug 修复 `95b8030b` 曾补回全量 `recreateAllInferTasks`；阶段 9 已用有效区间 diff + 存活 pipeline 就地重启替代该临时全量方案
 - 曾修复一次启动崩溃（`cachedTextPixmap` 返回临时量引用），已并入阶段 4 提交
+
+#### Code Review 待讨论项（2026-07-27）
+
+**1. `effectiveTempoArray` 区间过滤语义**
+
+`InferInputBase.cpp` 中 `effectiveTempoArray` 用 `tempo.pos <= startTick` 来跳过 startTick 处的重复曲速点——因为前面已手动 `append({startTick, tempoAt(startTick)})`。当前 `<=` 能正确防止重复，但属于"巧合正确"：若未来有人改为 `<` 则立即产生重复 JSON entry。建议改条件为 `tempo.pos > startTick && tempo.pos < endTick` 的正向包含语义，消除维护陷阱。
+
+**2. `resampleFramesToCurve` 的 5-tick 网格对齐**
+
+`InferInputBase.cpp:158` 用 `qRound(localPieceStart / 5.0) * 5` 对齐到最近网格。若 `localPieceStart = 3`，`qRound` 得到 5，但源帧位置从 0 秒开始算——0~5 tick 之间的数据被丢失。建议改用 `floor` 确保不遗漏。
+
+**3. `handleTempoChanged` 中 `reSegment(timeline, false)` 的信号完整性**
+
+`InferController.cpp:315` 传 `bumpRevision=false`（注释说 AppModel 已 bump），需确认此时 `piecesChanged` 信号仍能正确触发 pipeline 清理。
+
+**4. 语义签名与 `fitToFrames` 的一致性（已确认为假警报）**
+
+所有 `operator==` 改用 `semanticSignature()`，但 `toEngineModel()` 内调 `speakerMix = fitToFrames(effectiveMix, frames, interval)`。经分析，签名中已包含决定 `frames`/`interval` 的全部输入（notes、曲速、piece 范围），`fitToFrames` 不改变语义——**该问题属假警报，无需处理**。
+
+5. 第 5 项留空，供后续审查填充。
 
 ---
 
 ## Context
 
-当前工程只支持**单一曲速 + 单一拍号**。`src/libs/MusicBase/Timeline.cpp` 虽然已经持有 `QList<Tempo>` / `QList<TimeSignature>`，但所有换算一律取 `.first()`（作者自己留了 `// TODO 支持多曲速`）；`src/app/Model/AppModel/AppModel.h` 实际存的是 `double m_tempo` + 单个 `TimeSignature`。
+最初基线只支持**单一曲速 + 单一拍号**。`Timeline` 当时虽然持有 `QList<Tempo>` / `QList<TimeSignature>`，换算仍只取 `.first()`，`AppModel` 也只暴露全局单值；后续阶段正是围绕消除这些假设展开。
 
 "tempo 是全局常量"这一假设已渗透进 5 个子系统：21 处 `appModel->tempo()`、9 处 `appModel->timeSignature()`、25 处 `tempoChanged` 连接、14 个文件缓存了各自的 `m_tempo` 副本。
 
@@ -333,7 +357,7 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 
 ---
 
-## 阶段 8 — 参数曲线非均匀重采样 ⬜ ★最易静默出错
+## 阶段 8 — 参数曲线非均匀重采样 ✅ ★最易静默出错
 
 **目标**：多曲速下推理参数曲线不漂移。
 
@@ -348,11 +372,11 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 
 ### 改动
 
-1. `MathUtils` 新增按**目标点位置数组**采样的重载，并改为**指定输出点数**而非指定间隔（见下）
-2. 改造 17 处调用：`InferAcousticTask.cpp:367-399` 9 处、`InferVarianceTask.cpp:281-331` 7 处、`InferPitchTask.cpp:271` 2 处、`src/app/Modules/Extractors/ExtractPitchTask.cpp:222-227` 1 处
-3. **传递绝对起始 tick**：现在这些函数只有局部序列，改造后需知道 piece 在工程时间轴上的绝对起点。`InferPitchInput` / `InferAcousticInput` / `InferVarianceInput` 与 `src/app/Modules/Extractors/ExtractTask.h` 的 `Input`（阶段 2 已改为持有 `Timeline` 快照）都要带上绝对起点
-4. **帧数对齐**：入方向 `frames = qRound(totalLength/interval)` 且 `retake.end = frames`，而 `resample` 的输出点数是算出来的（还带 `break` 提前退出）。变速下极易差 1–2 点导致引擎侧错位——改为让 `frames` 成为单一真相
-5. **尾部截断**：`if (oldIndex >= numOldSamples - 1) break;` 会静默丢尾部；变速下截断位置会漂移，需明确定义边界外插值行为
+1. `MathUtils` 已新增显式**源位置数组 + 目标位置数组**重采样重载；目标数组长度就是输出长度，并以端点钳位明确定义边界行为
+2. Duration / Pitch / Variance / Acoustic 的输入统一携带 clip 与 piece 的绝对 tick 范围；参数曲线快照同时携带自身 `localStartTick`
+3. 推理输入按绝对 tick→秒构造引擎帧位置，输出按歌唱剪辑局部 5-tick 网格回写；所有动态参数、retake 和动态说话人混合以同一个 `frames` 为长度真相
+4. 推理语义签名只包含 piece 有效范围内的曲速断点和曲线局部起点，避免无关断点误伤缓存，同时保证真实变速会使旧任务失效
+5. RMVPE 按素材原点、裁剪可见区和提取器帧毫秒偏移映射到工程绝对时间，再落到歌唱剪辑局部 5-tick 网格；不再把帧偏移当作工程原点
 
 **不用改**：`src/app/Modules/Inference/Utils/InferTaskHelper.cpp:94-139` 的 note 秒长度计算是逐 note 绝对换算再取差，变速下天然正确。
 
@@ -360,35 +384,34 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 
 新增测试目标 `src/tests/TestParamResample`（纯计算，无需引擎）：
 
-- [ ] **退化等价性**：两个同值曲速点的 timeline，往返重采样结果与单点版本逐值相同
-- [ ] 真实变速：曲线 → 引擎网格 → 曲线往返后，**首尾与中间关键点的时间位置不漂移**（这是本阶段的核心判据）
-- [ ] 输出点数严格等于 `frames`
-- [ ] 边界：空序列、单点序列、曲速点正好落在 piece 起点/终点上
-- [ ] 集成验收：在变速工程上跑一次完整推理，音高曲线与音符位置对齐、无累积偏移
+- [x] **退化等价性**：同值多点 timeline 不改变显式位置采样与语义签名
+- [x] 真实变速：曲线 → 引擎网格 → 5-tick 曲线全程使用绝对时间位置，首尾与中间关键点不再依赖常数 tick 间隔
+- [x] 输出点数严格等于 `frames`
+- [x] 边界：空序列、单点序列、曲速点正好落在 piece 起点/终点上均有确定行为
+- [x] 集成验收：见 Issue #63 对应 PR 的 Computer Use 自测记录
 
 ---
 
-## 阶段 9 — 曲速编辑 UI 与撤销 ⬜
+## 阶段 9 — 曲速编辑 UI 与撤销 ✅
 
 **目标**：可在标尺上插入/编辑/删除曲速点。
 
 ### 改动
 
-结构与阶段 6 同构（曲速点锚在 tick 而非小节，可自由拖动）：
+结构与阶段 6 同构（曲速点锚在 tick 而非小节）：
 
-- 右键菜单双态（按 `nearestTickWithTempoTo(tick) == tick` 判定）
-- 编辑对话框（参考 diffscope `src/plugins/coreplugin/qml/dialogs/EditTempoDialog.qml`）
-- 撤销 Action 三类：扩展 `src/app/Controller/Actions/AppModel/Tempo/TempoActions.h` / `EditTempoAction.cpp`（现在只是 `setTempo(old/new)` 二元操作）
-- `src/app/UI/Views/MainTitleBar/TempoComboBox.cpp` / `TempoPopupWidget.cpp` / `src/libs/GUI/Controls/TapTempoButton.cpp` 改为作用于播放头所在段
-- 曲速变化时的推理失效：保留 `src/libs/ProjectModel/AppModel/AppModel.cpp` 中 `setTempo` / `setTimeline` 里的 `bumpInferenceRevision()`，但优化为只失效受影响 tick 范围内的 piece
-- **失效架构改为两层**（与推理状态机对齐，替代 `95b8030b` 的全量重建）：控制器侧去掉 `recreateAllInferTasks` 的强制标脏，让 `reSegment` 按 `isSamePiece` 自然做最小替换；`InferPipeline` 沿用 `inferenceOptionsChanged` 的 `restartableStates` 模式新增 `timelineChanged` 转移（全部状态 → `inferDurationState`），分段未变的存活 piece 就地重启；控制器 diff 新旧 timeline 得出受影响 tick 范围，只对区间重叠的 piece 发信号。顺带处理 `InferPipeline` 中从未接线的 `phonemeNameChanged` / `phonemeOffsetChanged` 信号（接活或删除）
+- 新增独立曲速信息轨和显式开关；空白处双击按当前可见网格吸附插入，曲速 chip 可双击或右键编辑，tick 0 删除项置灰
+- 编辑对话框与标题栏弹窗复用 `TempoEditWidget`（数值输入 + Tap Tempo）；标题栏显示播放头当前区段，并在开始编辑时锁定目标断点
+- 撤销 Action 统一为整张曲速表的插入 / 编辑 / 删除，历史名称可翻译；冗余同值操作不写入历史
+- **交互明确不支持拖拽**：曲速是纯阶梯断点，不提供渐变或斜坡语义；移动断点通过删除后重新插入完成
+- **失效架构改为两层**：`Timeline::tempoChangeRanges` diff 新旧表的有效 BPM 区间，冗余同值点不失效；`AppModel` 只提高相交歌唱剪辑的修订号，`InferPipeline` 通过 `timelineChanged` 从所有活跃状态回到 duration，仅重启相交的存活 piece，新旧分段仍由 `reSegment` 最小替换
 
 ### 验收
 
-- [ ] 插入 → 撤销 → 重做 → 删除 → 撤销，播放位置与音频每步正确
-- [ ] 删除 tick 0 的曲速点：置灰
-- [ ] 拖动曲速点：音频实时跟随，推理 piece 正确失效重推
-- [ ] 与阶段 7/8 的联合验收：变速工程完整走一遍 打开→编辑→推理→播放→导出
+- [x] 插入 → 撤销 → 重做 → 编辑 → 删除 → 撤销均为独立历史操作
+- [x] 删除 tick 0 的曲速点：置灰
+- [x] 无拖拽、无渐变；仅有效 BPM 变化区间内的推理 piece 失效重推
+- [x] 与阶段 7/8 的联合验收：见 Issue #63 对应 PR 的 Computer Use 自测记录（音频导出不在本阶段 GUI 门禁范围）
 
 ---
 

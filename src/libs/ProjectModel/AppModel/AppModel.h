@@ -34,8 +34,8 @@ public:
 
     const Timeline &timeline() const;
     void setTimeline(Timeline timeline);
-    // Convenience editors used by the single-point UI: they edit the anchor
-    // point at position 0 and leave any other timeline points untouched.
+    // Convenience editors for the anchor point at position 0; other timeline
+    // points remain untouched.
     void setTempo(double tempo);
     void setTimeSignature(const TimeSignature &signature);
     TrackControl masterControl() const;

@@ -4,10 +4,39 @@
 
 #include "TempoActions.h"
 
-#include "EditTempoAction.h"
+#include "EditTemposAction.h"
 
-void TempoActions::editTempo(const double oldTempo, const double newTempo, AppModel *model) {
-    // Audio clips are anchored in real time; their tick caches are re-derived
-    // inside AppModel::setTempo, so no per-clip re-anchoring action is needed
-    addAction(EditTempoAction::build(oldTempo, newTempo, model));
+#include <lite/ProjectModel/AppModel/AppModel.h>
+
+#include <algorithm>
+
+void TempoActions::setTempoAt(const Tempo &tempo, AppModel *model) {
+    const auto &oldTempos = model->timeline().tempos();
+    const bool exists =
+        std::any_of(oldTempos.cbegin(), oldTempos.cend(),
+                    [&](const Tempo &existing) { return existing.pos == tempo.pos; });
+    QList<Tempo> newTempos;
+    for (const auto &existing : oldTempos) {
+        if (existing.pos != tempo.pos)
+            newTempos.append(existing);
+    }
+    newTempos.append(tempo);
+    std::sort(newTempos.begin(), newTempos.end(),
+              [](const Tempo &a, const Tempo &b) { return a.pos < b.pos; });
+
+    setTranslatableName("TempoActions", exists ? QT_TRANSLATE_NOOP("TempoActions", "Edit Tempo")
+                                               : QT_TRANSLATE_NOOP("TempoActions", "Insert Tempo"));
+    addAction(EditTemposAction::build(oldTempos, newTempos, model));
+}
+
+void TempoActions::removeTempoAt(const int tick, AppModel *model) {
+    const auto &oldTempos = model->timeline().tempos();
+    QList<Tempo> newTempos;
+    for (const auto &existing : oldTempos) {
+        if (existing.pos != tick)
+            newTempos.append(existing);
+    }
+
+    setTranslatableName("TempoActions", QT_TRANSLATE_NOOP("TempoActions", "Remove Tempo"));
+    addAction(EditTemposAction::build(oldTempos, newTempos, model));
 }

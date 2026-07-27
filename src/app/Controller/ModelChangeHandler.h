@@ -18,6 +18,8 @@ class ModelChangeHandler : public QObject {
 protected:
     explicit ModelChangeHandler(QObject *parent = nullptr);
 
+    [[nodiscard]] const QList<TempoChangeRange> &tempoChangeRanges() const;
+
     virtual void handleModelChanged();
     // Fired only when the tempo side of the timeline actually changed;
     // signature-only edits do not reach tempo-sensitive handlers.
@@ -44,7 +46,8 @@ private slots:
 
 private:
     QList<Track *> m_tracks;
-    QList<Tempo> m_tempoSnapshot;
+    Timeline m_timelineSnapshot;
+    QList<TempoChangeRange> m_tempoChangeRanges;
 };
 
 

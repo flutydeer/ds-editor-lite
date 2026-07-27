@@ -22,9 +22,14 @@ public:
         int audioClipId = -1;
         QString audioPath;
         Timeline timeline;
+        int singingClipStartTick = 0;
+        double audioMaterialOriginMs = 0;
+        double audioVisibleStartMs = 0;
+        double audioVisibleEndMs = 0;
     };
 
-    explicit ExtractTask(Input input) : m_input(std::move(input)) {}
+    explicit ExtractTask(Input input) : m_input(std::move(input)) {
+    }
 
     const Input &input() const {
         return m_input;

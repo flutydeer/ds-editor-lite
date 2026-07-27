@@ -5,10 +5,14 @@
 #include "ModelChangeHandler.h"
 
 ModelChangeHandler::ModelChangeHandler(QObject *parent) : QObject(parent) {
-    m_tempoSnapshot = appModel->timeline().tempos();
+    m_timelineSnapshot = appModel->timeline();
     connect(appModel, &AppModel::modelChanged, this, &ModelChangeHandler::onModelChanged);
     connect(appModel, &AppModel::timelineChanged, this, &ModelChangeHandler::onTimelineChanged);
     connect(appModel, &AppModel::trackChanged, this, &ModelChangeHandler::onTrackChanged);
+}
+
+const QList<TempoChangeRange> &ModelChangeHandler::tempoChangeRanges() const {
+    return m_tempoChangeRanges;
 }
 
 void ModelChangeHandler::handleTempoChanged() {
@@ -88,7 +92,8 @@ void ModelChangeHandler::handlePiecesChanged(const QList<InferPiece *> &pieces,
 }
 
 void ModelChangeHandler::onModelChanged() {
-    m_tempoSnapshot = appModel->timeline().tempos();
+    m_timelineSnapshot = appModel->timeline();
+    m_tempoChangeRanges.clear();
     handleModelChanged();
 
     for (const auto track : m_tracks)
@@ -99,9 +104,13 @@ void ModelChangeHandler::onModelChanged() {
 }
 
 void ModelChangeHandler::onTimelineChanged() {
-    if (m_tempoSnapshot == appModel->timeline().tempos())
+    const auto currentTimeline = appModel->timeline();
+    if (m_timelineSnapshot.tempos() == currentTimeline.tempos()) {
+        m_timelineSnapshot = currentTimeline;
         return;
-    m_tempoSnapshot = appModel->timeline().tempos();
+    }
+    m_tempoChangeRanges = Timeline::tempoChangeRanges(m_timelineSnapshot, currentTimeline);
+    m_timelineSnapshot = currentTimeline;
     handleTempoChanged();
 }
 

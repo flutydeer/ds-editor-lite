@@ -12,7 +12,6 @@
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include <lite/Support/JsonUtils.h>
 #include <lite/Support/Linq.h>
-#include <lite/Support/MathUtils.h>
 #include "InferTaskCommon.h"
 
 #include <QDebug>
@@ -22,10 +21,7 @@
 namespace Pit = srt::svs::Api::Pitch::L1;
 
 bool InferPitchTask::InferPitchInput::operator==(const InferPitchInput &other) const {
-    return clipId == other.clipId /*&& pieceId == other.pieceId*/ && notes == other.notes &&
-           identifier == other.identifier && timeline == other.timeline &&
-           speaker == other.speaker && speakerMix == other.speakerMix &&
-           expressiveness == other.expressiveness;
+    return semanticSignature() == other.semanticSignature();
 }
 
 int InferPitchTask::clipId() const {
@@ -171,7 +167,8 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
         return false;
     }
     const auto &speakerMapping = importOptions->speakerMapping;
-    input->words = convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
+    input->words =
+        convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
     if (!error.isEmpty()) {
         qCritical() << "inferPitch:" << error;
         return false;
@@ -246,7 +243,7 @@ void InferPitchTask::buildPreviewText() {
 QString InferPitchTask::InferPitchInput::semanticSignature() const {
     return InferInputBase::semanticSignature(
         "pitch", QJsonObject{
-                     {"expressiveness", InferInputBase::doubleArray(expressiveness.values)}
+                     {"expressiveness", InferInputBase::paramCurveObject(expressiveness)}
     });
 }
 
@@ -257,7 +254,6 @@ GenericInferModel InferPitchTask::InferPitchInput::toEngineModel() const {
     for (const auto &word : words)
         totalLength += word.length();
 
-    const auto newInterval = timeline.secToTick(interval);
     const int frames = qRound(totalLength / interval);
     InferRetake retake;
     retake.end = frames;
@@ -268,7 +264,7 @@ GenericInferModel InferPitchTask::InferPitchInput::toEngineModel() const {
 
     InferParam expr = param;
     expr.tag = "expr";
-    expr.values = MathUtils::resample(expressiveness.values, 5, newInterval);
+    expr.values = resampleCurveToFrames(expressiveness, frames, interval);
 
     InferParam pitch = param;
     pitch.tag = "pitch";
@@ -277,8 +273,9 @@ GenericInferModel InferPitchTask::InferPitchInput::toEngineModel() const {
 
     GenericInferModel model;
     model.speaker = speaker;
-    model.speakerMix =
+    const auto effectiveMix =
         speakerMix.isEmpty() ? InferSpeakerMixModel::staticSpeakerMix(speaker) : speakerMix;
+    model.speakerMix = InferSpeakerMixModel::fitToFrames(effectiveMix, frames, interval);
     model.words = words;
     model.params = {pitch, expr};
     model.steps = steps;
@@ -288,7 +285,6 @@ GenericInferModel InferPitchTask::InferPitchInput::toEngineModel() const {
 
 bool InferPitchTask::processOutput(const GenericInferModel &model) {
     const auto oriPitch = Linq::where(model.params, L_PRED(p, p.tag == "pitch")).first();
-    const auto newInterval = m_input.timeline.tickToSec(5);
-    m_result.values = MathUtils::resample(oriPitch.values, oriPitch.interval, newInterval);
+    m_result = m_input.resampleFramesToCurve(oriPitch.values, oriPitch.interval);
     return true;
 }

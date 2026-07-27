@@ -33,6 +33,7 @@
 #include "Actions/AppModel/MasterControl/MasterControlActions.h"
 
 #include <algorithm>
+#include <cmath>
 
 AppController::AppController(QObject *parent)
     : QObject(parent), d_ptr(new AppControllerPrivate(this)) {
@@ -54,11 +55,41 @@ bool AppController::exportMidiFile(const QString &filePath) {
 }
 
 void AppController::onSetTempo(const double tempo) {
+    appController->onSetTempoAt(0, tempo);
+}
+
+void AppController::onSetTempoAt(const int tick, const double tempo) {
+    if (tick < 0 || !std::isfinite(tempo) || tempo <= 0.0)
+        return;
+
     const auto model = appModel;
-    const auto oldTempo = model->timeline().tempoAt(0);
-    const auto newTempo = tempo > 0 ? tempo : oldTempo;
+    const auto &tempos = model->timeline().tempos();
+    const auto existing =
+        std::find_if(tempos.cbegin(), tempos.cend(),
+                     [tick](const Tempo &candidate) { return candidate.pos == tick; });
+    if (existing != tempos.cend() && existing->value == tempo)
+        return;
+
     const auto actions = new TempoActions;
-    actions->editTempo(oldTempo, newTempo, model);
+    actions->setTempoAt({tick, tempo}, model);
+    actions->execute();
+    historyManager->record(actions);
+}
+
+void AppController::onRemoveTempoAt(const int tick) {
+    if (tick <= 0)
+        return;
+
+    const auto model = appModel;
+    const auto &tempos = model->timeline().tempos();
+    const bool exists = std::any_of(tempos.cbegin(), tempos.cend(), [tick](const Tempo &candidate) {
+        return candidate.pos == tick;
+    });
+    if (!exists)
+        return;
+
+    const auto actions = new TempoActions;
+    actions->removeTempoAt(tick, model);
     actions->execute();
     historyManager->record(actions);
 }

@@ -18,6 +18,7 @@ class TrackListView;
 class TracksGraphicsView;
 class TracksGraphicsScene;
 class TimelineView;
+class TempoLaneView;
 class TimeSignatureLaneView;
 class InfoLaneHeaderView;
 class TrackEditorBackgroundView;
@@ -64,6 +65,8 @@ private:
     TracksGraphicsView *m_graphicsView;
     TracksGraphicsScene *m_tracksScene;
     TimelineView *m_timeline;
+    TempoLaneView *m_tempoLane;
+    InfoLaneHeaderView *m_tempoLaneHeader;
     TimeSignatureLaneView *m_timeSignatureLane;
     InfoLaneHeaderView *m_timeSignatureLaneHeader;
     TrackEditorBackgroundView *m_gridItem;

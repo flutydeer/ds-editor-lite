@@ -7,11 +7,14 @@
 
 #include <lite/History/ActionSequence.h>
 
+#include <lite/MusicBase/Tempo.h>
+
 class AppModel;
 
 class TempoActions : public ActionSequence {
 public:
-    void editTempo(double oldTempo, double newTempo, AppModel *model);
+    void setTempoAt(const Tempo &tempo, AppModel *model);
+    void removeTempoAt(int tick, AppModel *model);
 };
 
 

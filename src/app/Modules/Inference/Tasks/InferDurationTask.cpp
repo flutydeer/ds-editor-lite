@@ -22,14 +22,7 @@
 namespace Dur = srt::svs::Api::Duration::L1;
 
 bool InferDurationTask::InferDurInput::operator==(const InferDurInput &other) const {
-    const bool clipIdEqual = clipId == other.clipId;
-    const bool pieceIdEqual = pieceId == other.pieceId;
-    const bool notesEqual = notes == other.notes;
-    const bool identifierEqual = identifier == other.identifier;
-    const bool timelineEqual = timeline == other.timeline;
-    const bool speakerEqual = speaker == other.speaker;
-    return clipIdEqual && pieceIdEqual && notesEqual && identifierEqual && timelineEqual &&
-           speakerEqual;
+    return semanticSignature() == other.semanticSignature();
 }
 
 int InferDurationTask::clipId() const {
@@ -189,7 +182,8 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
         return false;
     }
     const auto &speakerMapping = importOptions->speakerMapping;
-    input->words = convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
+    input->words =
+        convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
     if (!error.isEmpty()) {
         qCritical() << "inferDuration:" << error;
         return false;

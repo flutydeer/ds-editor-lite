@@ -17,6 +17,7 @@ public:
     void setTempo(double tempo);
 
 signals:
+    void popupAboutToShow();
     void tempoChanged(double tempo);
 
 protected:

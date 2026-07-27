@@ -13,6 +13,18 @@
 
 #include <QJsonArray>
 
+#include <algorithm>
+
+namespace {
+    bool intersectsTempoChange(const QList<TempoChangeRange> &ranges, const Clip &clip) {
+        const int start = clip.start() + clip.clipStart();
+        const int end = start + clip.clipLen();
+        return std::any_of(
+            ranges.cbegin(), ranges.cend(),
+            [start, end](const TempoChangeRange &range) { return range.intersects(start, end); });
+    }
+}
+
 AppModel::AppModel(QObject *parent) : QObject(parent), d_ptr(new AppModelPrivate(this)) {
 }
 
@@ -33,13 +45,15 @@ const Timeline &AppModel::timeline() const {
 void AppModel::setTimeline(Timeline timeline) {
     Q_D(AppModel);
     const bool temposChanged = d->m_timeline.tempos() != timeline.tempos();
+    const auto tempoRanges = temposChanged ? Timeline::tempoChangeRanges(d->m_timeline, timeline)
+                                           : QList<TempoChangeRange>{};
     d->m_timeline = std::move(timeline);
-    if (temposChanged) {
+    if (!tempoRanges.isEmpty()) {
         // Audio clips are anchored in real time; their tick caches follow the map
         d->updateAudioClipTickCaches();
         for (const auto track : d->m_tracks) {
             for (const auto clip : track->clips()) {
-                if (clip->clipType() == IClip::Singing)
+                if (clip->clipType() == IClip::Singing && intersectsTempoChange(tempoRanges, *clip))
                     static_cast<SingingClip *>(clip)->bumpInferenceRevision();
             }
         }
@@ -54,16 +68,9 @@ void AppModel::setTimeSignature(const TimeSignature &signature) {
 }
 
 void AppModel::setTempo(const double tempo) {
-    Q_D(AppModel);
-    d->m_timeline.addTempo({0, tempo});
-    d->updateAudioClipTickCaches();
-    for (const auto track : d->m_tracks) {
-        for (const auto clip : track->clips()) {
-            if (clip->clipType() == IClip::Singing)
-                static_cast<SingingClip *>(clip)->bumpInferenceRevision();
-        }
-    }
-    emit timelineChanged();
+    auto newTimeline = timeline();
+    newTimeline.addTempo({0, tempo});
+    setTimeline(std::move(newTimeline));
 }
 
 TrackControl AppModel::masterControl() const {

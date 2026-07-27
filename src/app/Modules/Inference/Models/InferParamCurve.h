@@ -10,10 +10,11 @@
 class InferParamCurve {
 
 public:
+    int localStartTick = 0;
     QList<double> values;
 
     friend bool operator==(const InferParamCurve &lhs, const InferParamCurve &rhs) {
-        if (lhs.values.count() != rhs.values.count())
+        if (lhs.localStartTick != rhs.localStartTick || lhs.values.count() != rhs.values.count())
             return false;
 
         for (int i = 0; i < lhs.values.count(); ++i)

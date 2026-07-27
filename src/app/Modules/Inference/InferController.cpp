@@ -25,6 +25,7 @@
 #include <QTimer>
 #include <QPointer>
 
+#include <algorithm>
 #include <utility>
 
 namespace Helper = InferControllerHelper;
@@ -95,12 +96,20 @@ namespace {
         const auto &timeline = appModel->timeline();
         for (const auto piece : clip.pieces()) {
             const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
-                clip.speakerMixData(), clip.speakerId(), piece->localStartTick(timeline),
-                piece->localEndTick(timeline), timeline);
+                clip.speakerMixData(), clip.speakerId(),
+                clip.start() + piece->localStartTick(timeline),
+                clip.start() + piece->localEndTick(timeline), timeline);
             if (piece->identifier != identifier || piece->speakerMix != speakerMix)
                 return false;
         }
         return true;
+    }
+
+    bool intersectsTempoRanges(const QList<TempoChangeRange> &ranges, const int start,
+                               const int end) {
+        return std::any_of(
+            ranges.cbegin(), ranges.cend(),
+            [start, end](const TempoChangeRange &range) { return range.intersects(start, end); });
     }
 
     template <typename T>
@@ -287,8 +296,53 @@ void InferControllerPrivate::handleModelChanged() {
 }
 
 void InferControllerPrivate::handleTempoChanged() {
-    reset();
-    recreateAllInferTasks();
+    const auto &ranges = tempoChangeRanges();
+    if (ranges.isEmpty())
+        return;
+
+    const auto &timeline = appModel->timeline();
+    for (const auto track : appModel->tracks()) {
+        for (const auto clip : track->clips()) {
+            if (clip->clipType() != IClip::Singing)
+                continue;
+            const auto singingClip = static_cast<SingingClip *>(clip);
+            const int clipStart = singingClip->start() + singingClip->clipStart();
+            const int clipEnd = clipStart + singingClip->clipLen();
+            if (!intersectsTempoRanges(ranges, clipStart, clipEnd) ||
+                singingClip->pieces().isEmpty())
+                continue;
+
+            // AppModel has already bumped this clip's revision. Re-segment
+            // without a second bump; piecesChanged synchronously removes
+            // pipelines for discarded pieces.
+            const auto result = singingClip->reSegment(timeline, false);
+
+            // Only surviving pieces that overlap an effective BPM change need
+            // their state machines restarted. Unrelated pieces keep their
+            // current result and in-flight state.
+            const auto pipelines = Linq::where(
+                m_inferPipelines, [singingClip, &ranges, &timeline](const InferPipeline *pipeline) {
+                    if (pipeline->clipId() != singingClip->id())
+                        return false;
+                    const auto &piece = pipeline->piece();
+                    const int start = singingClip->start() + piece.localStartTick(timeline);
+                    const int end = singingClip->start() + piece.localEndTick(timeline);
+                    return intersectsTempoRanges(ranges, start, end);
+                });
+            for (const auto pipeline : pipelines) {
+                auto &piece = pipeline->piece();
+                piece.speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
+                    singingClip->speakerMixData(), singingClip->speakerId(),
+                    singingClip->start() + piece.localStartTick(timeline),
+                    singingClip->start() + piece.localEndTick(timeline), timeline);
+                piece.speaker = piece.speakerMix.fallbackSpeaker;
+                pipeline->onTimelineChanged();
+            }
+
+            for (const auto piece : result.addedPieces)
+                createPipeline(*piece);
+        }
+    }
 }
 
 void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
@@ -476,8 +530,9 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
     const auto &timeline = appModel->timeline();
     for (const auto piece : clip->pieces()) {
         const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
-            clip->speakerMixData(), clip->speakerId(), piece->localStartTick(timeline),
-            piece->localEndTick(timeline), timeline);
+            clip->speakerMixData(), clip->speakerId(),
+            clip->start() + piece->localStartTick(timeline),
+            clip->start() + piece->localEndTick(timeline), timeline);
         piece->speakerMix = speakerMix;
         piece->speaker = speakerMix.fallbackSpeaker;
         Helper::resetPitch(*piece);
@@ -793,29 +848,6 @@ void InferControllerPrivate::clearPendingForClip(const int clipId, const QString
                                         reason);
         m_pendingPhonemeNameApplies.remove(clipId);
     }
-}
-
-void InferControllerPrivate::recreateAllInferTasks() {
-    for (const auto &track : appModel->tracks())
-        for (const auto &clip : track->clips()) {
-            if (clip->clipType() != IClip::Singing)
-                continue;
-            const auto singingClip = static_cast<SingingClip *>(clip);
-            for (const auto &piece : singingClip->pieces()) {
-                Helper::resetPhoneOffset(piece->notes, *piece);
-                piece->dirty = true;
-            }
-            // Marking pieces dirty is not enough: no other event re-drives
-            // the clip after a tempo change, so re-segment with the current
-            // timeline (dirty pieces are all replaced) and start fresh
-            // pipelines. Pipelines of discarded pieces are cleaned up by
-            // handlePiecesChanged via the piecesChanged signal.
-            if (singingClip->pieces().isEmpty() || !canStartClipInference(*singingClip))
-                continue;
-            const auto result = singingClip->reSegment(appModel->timeline());
-            for (const auto piece : result.addedPieces)
-                createPipeline(*piece);
-        }
 }
 
 void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {

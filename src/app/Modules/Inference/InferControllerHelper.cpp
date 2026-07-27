@@ -37,13 +37,42 @@ namespace InferControllerHelper {
         ValidatedSpeaker resolveSpeakerForPiece(const InferPiece &piece) {
             const auto singerInfo = piece.clip->singerInfo();
             const auto rawMix = InferSpeakerMixModel::effectiveSpeakerMixForPiece(piece);
-            const auto validated =
-                SpeakerMixValidator::validate(piece.speaker, rawMix, singerInfo);
+            const auto validated = SpeakerMixValidator::validate(piece.speaker, rawMix, singerInfo);
             if (!validated.ok()) {
-                qWarning().noquote()
-                    << "[SpeakerMixValidator]" << validated.warningMessage;
+                qWarning().noquote() << "[SpeakerMixValidator]" << validated.warningMessage;
             }
             return {validated.primarySpeaker, validated.sanitizedMix};
+        }
+
+        void populateBaseInput(InferInputBase &input, const InferPiece &piece,
+                               const SingerIdentifier &identifier) {
+            input.clipId = piece.clipId();
+            input.pieceId = piece.id();
+            input.clipRevision = piece.clip->inferenceRevision();
+            input.clipStartTick = piece.clip->start();
+            input.timeline = appModel->timeline();
+            input.pieceStartTick = input.clipStartTick + piece.localStartTick(input.timeline);
+            input.pieceEndTick = input.clipStartTick + piece.localEndTick(input.timeline);
+            input.headAvailableLengthMs = piece.headAvailableLengthMs;
+            input.paddingStartMs = piece.paddingStartMs;
+            input.paddingEndMs = piece.paddingEndMs;
+            input.notes = buildInferInputNotes(piece.notes);
+
+            const auto spk = resolveSpeakerForPiece(piece);
+            input.speaker = spk.speaker;
+            input.speakerMix = spk.speakerMix;
+            input.identifier = identifier;
+            input.steps = appOptions->inference()->samplingSteps;
+            input.pitchSmoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
+        }
+
+        InferParamCurve curveSnapshot(const DrawCurve &curve, const double scale) {
+            InferParamCurve result;
+            result.localStartTick = curve.localStart();
+            result.values.reserve(curve.values().size());
+            for (const auto value : curve.values())
+                result.values.append(value / scale);
+            return result;
         }
     } // namespace
 
@@ -71,145 +100,39 @@ namespace InferControllerHelper {
 
     DurInput buildInferDurInput(const InferPiece &piece, const SingerIdentifier &identifier) {
         DurInput input;
-        input.clipId = piece.clip->id();
-        input.pieceId = piece.id();
-        input.clipRevision = piece.clip->inferenceRevision();
-
-        input.headAvailableLengthMs = piece.headAvailableLengthMs;
-        input.paddingStartMs = piece.paddingStartMs;
-        input.paddingEndMs = piece.paddingEndMs;
-
-        input.timeline = appModel->timeline();
-        input.notes = buildInferInputNotes(piece.notes);
-
-        const auto spk = resolveSpeakerForPiece(piece);
-        input.speaker = spk.speaker;
-        input.speakerMix = spk.speakerMix;
-        input.identifier = identifier;
-        input.steps = appOptions->inference()->samplingSteps;
-        input.pitchSmoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
+        populateBaseInput(input, piece, identifier);
         return input;
     }
 
     PitchInput buildInferPitchInput(const InferPiece &piece, const SingerIdentifier &identifier) {
-        InferParamCurve expr;
-        for (const auto &value : piece.inputExpressiveness.values())
-            expr.values.append(value / 1000.0);
-
         PitchInput input;
-        input.clipId = piece.clipId();
-        input.pieceId = piece.id();
-        input.clipRevision = piece.clip->inferenceRevision();
-
-        input.headAvailableLengthMs = piece.headAvailableLengthMs;
-        input.paddingStartMs = piece.paddingStartMs;
-        input.paddingEndMs = piece.paddingEndMs;
-
-        input.timeline = appModel->timeline();
-        input.notes = buildInferInputNotes(piece.notes);
-        input.expressiveness = expr;
-
-        const auto spk = resolveSpeakerForPiece(piece);
-        input.speaker = spk.speaker;
-        input.speakerMix = spk.speakerMix;
-        input.identifier = identifier;
-        input.steps = appOptions->inference()->samplingSteps;
-        input.pitchSmoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
+        populateBaseInput(input, piece, identifier);
+        input.expressiveness = curveSnapshot(piece.inputExpressiveness, 1000.0);
         return input;
     }
 
     VarianceInput buildInferVarianceInput(const InferPiece &piece,
                                           const SingerIdentifier &identifier) {
-        InferParamCurve pitch;
-        for (const auto &value : piece.inputPitch.values())
-            pitch.values.append(value / 100.0);
-
         VarianceInput input;
-        input.clipId = piece.clipId();
-        input.pieceId = piece.id();
-        input.clipRevision = piece.clip->inferenceRevision();
-
-        input.headAvailableLengthMs = piece.headAvailableLengthMs;
-        input.paddingStartMs = piece.paddingStartMs;
-        input.paddingEndMs = piece.paddingEndMs;
-
-        input.timeline = appModel->timeline();
-        input.notes = buildInferInputNotes(piece.notes);
-        input.pitch = pitch;
-
-        const auto spk = resolveSpeakerForPiece(piece);
-        input.speaker = spk.speaker;
-        input.speakerMix = spk.speakerMix;
-        input.identifier = identifier;
-        input.steps = appOptions->inference()->samplingSteps;
-        input.pitchSmoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
+        populateBaseInput(input, piece, identifier);
+        input.pitch = curveSnapshot(piece.inputPitch, 100.0);
         return input;
     }
 
     AcousticInput buildInferAcousticInput(const InferPiece &piece,
                                           const SingerIdentifier &identifier) {
-        InferParamCurve pitch;
-        for (const auto &value : piece.inputPitch.values())
-            pitch.values.append(value / 100.0);
-
-        InferParamCurve breathiness;
-        for (const auto &value : piece.inputBreathiness.values())
-            breathiness.values.append(value / 1000.0);
-
-        InferParamCurve tension;
-        for (const auto &value : piece.inputTension.values())
-            tension.values.append(value / 1000.0);
-
-        InferParamCurve voicing;
-        for (const auto &value : piece.inputVoicing.values())
-            voicing.values.append(value / 1000.0);
-
-        InferParamCurve energy;
-        for (const auto &value : piece.inputEnergy.values())
-            energy.values.append(value / 1000.0);
-
-        InferParamCurve mouthOpening;
-        for (const auto &value : piece.inputMouthOpening.values())
-            mouthOpening.values.append(value / 1000.0);
-
-        InferParamCurve gender;
-        for (const auto &value : piece.inputGender.values())
-            gender.values.append(value / 1000.0);
-
-        const InferParamCurve velocity = {
-            Linq::selectMany(piece.inputVelocity.values(), L_PRED(p, p / 1000.0))};
-
-        const InferParamCurve toneShift = {
-            Linq::selectMany(piece.inputToneShift.values(), L_PRED(p, p * 1.0))};
-
         AcousticInput input;
-        input.clipId = piece.clipId();
-        input.pieceId = piece.id();
-        input.clipRevision = piece.clip->inferenceRevision();
-
-        input.headAvailableLengthMs = piece.headAvailableLengthMs;
-        input.paddingStartMs = piece.paddingStartMs;
-        input.paddingEndMs = piece.paddingEndMs;
-
-        input.timeline = appModel->timeline();
-        input.notes = buildInferInputNotes(piece.notes);
-        input.pitch = pitch;
-        input.breathiness = breathiness;
-        input.tension = tension;
-        input.voicing = voicing;
-        input.energy = energy;
-        input.mouthOpening = mouthOpening;
-        input.gender = gender;
-        input.velocity = velocity;
-        input.toneShift = toneShift;
-
-        const auto spk = resolveSpeakerForPiece(piece);
-        input.speaker = spk.speaker;
-        input.speakerMix = spk.speakerMix;
-        input.identifier = identifier;
-        input.steps = appOptions->inference()->samplingSteps;
+        populateBaseInput(input, piece, identifier);
+        input.pitch = curveSnapshot(piece.inputPitch, 100.0);
+        input.breathiness = curveSnapshot(piece.inputBreathiness, 1000.0);
+        input.tension = curveSnapshot(piece.inputTension, 1000.0);
+        input.voicing = curveSnapshot(piece.inputVoicing, 1000.0);
+        input.energy = curveSnapshot(piece.inputEnergy, 1000.0);
+        input.mouthOpening = curveSnapshot(piece.inputMouthOpening, 1000.0);
+        input.gender = curveSnapshot(piece.inputGender, 1000.0);
+        input.velocity = curveSnapshot(piece.inputVelocity, 1000.0);
+        input.toneShift = curveSnapshot(piece.inputToneShift, 1.0);
         input.depth = appOptions->inference()->depth;
-        input.pitchSmoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
         return input;
     }
 
@@ -244,10 +167,10 @@ namespace InferControllerHelper {
                 }
             } else {
                 const auto baseValue = paramUtils->getPropertiesByName(name)->defaultValue;
-                if (auto resultCurve = AppModelUtils::getResultCurve(
-                        {piece->localStartTick(appModel->timeline()),
-                         piece->localEndTick(appModel->timeline())},
-                        baseValue, editedCurves);
+                if (auto resultCurve =
+                        AppModelUtils::getResultCurve({piece->localStartTick(appModel->timeline()),
+                                                       piece->localEndTick(appModel->timeline())},
+                                                      baseValue, editedCurves);
                     resultCurve != input) {
                     piece->setInputCurve(name, resultCurve);
                     result.append(piece);
@@ -308,9 +231,8 @@ namespace InferControllerHelper {
 
     void updateParam(const ParamInfo::Name name, const InferParamCurve &taskResult,
                      InferPiece &piece, int scale, int smoothKernelSize) {
-        const auto &[alignTick, alignValues] = CurveUtil::alignCurve(
-            piece.localStartTick(appModel->timeline()), 5,
-            {taskResult.values.begin(), taskResult.values.end()}, 5);
+        const auto alignTick = taskResult.localStartTick;
+        const std::vector<double> alignValues{taskResult.values.begin(), taskResult.values.end()};
 
         if (smoothKernelSize < 0)
             smoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
