@@ -19,6 +19,13 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
     }
 
     auto hasNegativeValue = [](const double value) { return value < 0 && !qFuzzyIsNull(value); };
+    const auto noteStartSeconds = [&](const InferInputNote &note) {
+        return timeline.tickToSec(input.clipStartTick + note.start);
+    };
+    const auto noteLengthSeconds = [&](const InferInputNote &note) {
+        const int globalStart = input.clipStartTick + note.start;
+        return timeline.tickToSec(globalStart + note.length) - timeline.tickToSec(globalStart);
+    };
 
     auto validateNonNegative = [&](const char *name, const double value, const int noteId) {
         if (hasNegativeValue(value))
@@ -91,10 +98,10 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
     while (noteIndex < notes.count()) {
         const auto &note = notes.at(noteIndex);
         lastKey = note.key;
-        wordStart = timeline.tickToSec(note.start);
-        wordLen = timeline.tickToSec(note.start + note.length) - wordStart;
+        wordStart = noteStartSeconds(note);
+        wordLen = noteLengthSeconds(note);
         validateNonNegative("word length", wordLen, note.id);
-        noteBuffer.append({note.key, 0, timeline.tickToSec(note.length), note.isRest});
+        noteBuffer.append({note.key, 0, wordLen, note.isRest});
 
         bool foundOnset = false;
         for (int i = 0; i < note.phonemeNames.count(); i++) {
@@ -123,10 +130,9 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
             bool reachLast = false;
             while (notes.at(noteIndex + 1).isSlur) {
                 const auto &nextNote = notes.at(noteIndex + 1);
-                noteBuffer.append(
-                    {nextNote.key, 0, timeline.tickToSec(nextNote.length), nextNote.isRest});
-                wordLen += timeline.tickToSec(nextNote.start + nextNote.length) -
-                           timeline.tickToSec(nextNote.start);
+                const double nextNoteLength = noteLengthSeconds(nextNote);
+                noteBuffer.append({nextNote.key, 0, nextNoteLength, nextNote.isRest});
+                wordLen += nextNoteLength;
                 noteIndex++;
                 if (noteIndex == notes.size() - 1) { // 查找找到了最后一个音符
                     reachLast = true;
@@ -136,7 +142,7 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
             if (!reachLast) {
                 // 找到下一个非转音音符
                 const auto &nextNonSlurNote = notes.at(noteIndex + 1);
-                auto nextNoteStartMs = timeline.tickToSec(nextNonSlurNote.start);
+                auto nextNoteStartMs = noteStartSeconds(nextNonSlurNote);
                 gapLen = nextNoteStartMs - (wordStart + wordLen);
                 validateNonNegative("gap length", gapLen, nextNonSlurNote.id);
                 hasGap = !qFuzzyCompare(gapLen, 0);

@@ -20,6 +20,8 @@ int InferPiece::clipId() const {
 }
 
 int InferPiece::localStartTick(const Timeline &timeline) const {
+    if (notes.isEmpty())
+        return 0;
     int extraPaddingMs = 0;
     if (!notes.isEmpty()) {
         const auto &offsets = notes.first()->phonemeOffsetSeq().result();
@@ -29,15 +31,19 @@ int InferPiece::localStartTick(const Timeline &timeline) const {
                 extraPaddingMs = -minOffset;
         }
     }
-    // Padding is a duration; it is converted at the timeline origin for now
-    // (piecewise-correct conversion is part of the inference resampling work).
-    const int paddingTicks = qRound(timeline.msToTick(paddingStartMs + extraPaddingMs));
-    return notes.first()->localStart() - paddingTicks;
+    const int firstNoteGlobalTick = clip->start() + notes.first()->localStart();
+    const double paddedStartMs =
+        timeline.tickToMs(firstNoteGlobalTick) - paddingStartMs - extraPaddingMs;
+    return qRound(timeline.msToTick(paddedStartMs)) - clip->start();
 }
 
 int InferPiece::localEndTick(const Timeline &timeline) const {
-    const int paddingTicks = qRound(timeline.msToTick(paddingEndMs));
-    return notes.last()->localStart() + notes.last()->length() + paddingTicks;
+    if (notes.isEmpty())
+        return 0;
+    const int lastNoteEndGlobalTick =
+        clip->start() + notes.last()->localStart() + notes.last()->length();
+    const double paddedEndMs = timeline.tickToMs(lastNoteEndGlobalTick) + paddingEndMs;
+    return qRound(timeline.msToTick(paddedEndMs)) - clip->start();
 }
 
 const DrawCurve *InferPiece::getOriginalCurve(const ParamInfo::Name name) const {
