@@ -1,14 +1,10 @@
 #include "MidiConverter.h"
-#include "MidiConverterDialog.h"
 #include "MidiTextCodecConverter.h"
-
-#include "UI/Dialogs/Base/Dialog.h"
 
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
-#include "Model/AppOptions/AppOptions.h"
 
 #include <opendspx/track.h>
 #include <opendspx/timeline.h>
@@ -25,16 +21,15 @@
 #include <sstream>
 
 static QList<Note *> convertNotes(const std::vector<opendspx::Note> &arrNotes, const int offset,
-                                  const QString &language) {
+                                  const QString &language, const QString &defaultLyric) {
     QList<Note *> notes;
     for (const opendspx::Note &dsNote : arrNotes) {
         const auto note = new Note;
         note->setLocalStart(dsNote.pos - offset);
         note->setLength(dsNote.length);
         note->setKeyIndex(dsNote.keyNum);
-        note->setLyric(dsNote.lyric.empty()
-                           ? appOptions->general()->defaultLyricForLanguage(language)
-                           : QString::fromStdString(dsNote.lyric));
+        note->setLyric(dsNote.lyric.empty() ? defaultLyric
+                                            : QString::fromStdString(dsNote.lyric));
         note->setLanguage(language);
         notes.push_back(note);
     }
@@ -42,7 +37,7 @@ static QList<Note *> convertNotes(const std::vector<opendspx::Note> &arrNotes, c
 }
 
 static void convertClips(const opendspx::Track &track, Track *dsTrack, const QString &language,
-                         const Timeline &timeline) {
+                         const Timeline &timeline, const QString &defaultLyric) {
     for (auto &clip : track.clips) {
         if (clip->type == opendspx::Clip::Type::Singing) {
             const auto singClip = std::static_pointer_cast<opendspx::SingingClip>(clip);
@@ -55,7 +50,7 @@ static void convertClips(const opendspx::Track &track, Track *dsTrack, const QSt
             singingClip->setClipLen(clip->time.clipLen + 960);
             singingClip->setDefaultLanguage(language);
 
-            auto notes = convertNotes(singClip->notes, start, language);
+            auto notes = convertNotes(singClip->notes, start, language, defaultLyric);
             for (const auto note : notes) {
                 singingClip->insertNote(note);
             }
@@ -78,13 +73,14 @@ static void convertClips(const opendspx::Track &track, Track *dsTrack, const QSt
     }
 }
 
-static void convertTracks(const opendspx::Model &dspx, AppModel *model, const QString &language) {
+static void convertTracks(const opendspx::Model &dspx, AppModel *model, const QString &language,
+                          const QString &defaultLyric) {
     int count = 0;
     for (const auto &track : dspx.content.tracks) {
         const auto dsTrack = new Track;
         dsTrack->setName(QString::fromStdString(track.name));
         dsTrack->setDefaultLanguage(language);
-        convertClips(track, dsTrack, language, model->timeline());
+        convertClips(track, dsTrack, language, model->timeline(), defaultLyric);
         model->insertTrack(dsTrack, count);
         count++;
     }
@@ -154,13 +150,13 @@ static QString toneNumToToneName(const int num) {
     return tones[step] + QString::number(octave);
 }
 
-static QList<MidiConverterDialog::TrackInfo>
+static QList<MidiImportTrackInfo>
     buildTrackInfoList(const std::vector<opendspx::MidiIntermediateData::Track> &tracks) {
-    QList<MidiConverterDialog::TrackInfo> result;
+    QList<MidiImportTrackInfo> result;
     result.reserve(static_cast<int>(tracks.size()));
 
     for (const auto &track : tracks) {
-        MidiConverterDialog::TrackInfo info;
+        MidiImportTrackInfo info;
         info.name = QByteArray::fromStdString(track.title);
         if (!track.notes.empty()) {
             const auto minMaxNotes =
@@ -190,7 +186,7 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
                                                          QString &errMsg, const ImportMode mode,
                                                          LoadOptions &options) {
     const auto midiConverter = std::make_unique<opendspx::MidiConverter>();
-    const QString language = appOptions->general()->defaultSingingLanguage;
+    const QString language = importLanguage();
 
     QFile midiFile(path);
     if (!midiFile.open(QIODevice::ReadOnly)) {
@@ -211,28 +207,39 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
         return LoadStatus::Failed;
     }
 
-    MidiConverterDialog dlg(buildTrackInfoList(midiMediate.tracks()), Dialog::globalParent());
-    dlg.setImportTempo(mode == NewProject);
-    dlg.setImportTimeSignature(mode == NewProject);
-    dlg.detectCodec();
+    // Re-derives the track layout when the interactive UI toggles
+    // separate-channels; keeps midiMediate in sync so the final selection below
+    // indexes into the reconverted tracks.
+    struct Reconverter final : MidiTrackReconverter {
+        opendspx::MidiConverter &converter;
+        const QByteArray &midiData;
+        opendspx::MidiIntermediateData &midiMediate;
+        opendspx::MidiConverter::Error &midiError;
 
-    QObject::connect(
-        &dlg, &MidiConverterDialog::separateMidiChannelsChanged, &dlg, [&](bool enabled) {
-            std::stringstream ssUpdate(midiData.toStdString(), std::ios::in);
-            auto updated = midiConverter->convertMidiToIntermediate(ssUpdate, midiError, {enabled});
-            if (midiError != opendspx::MidiConverter::Error::NoError)
-                return;
-            midiMediate = std::move(updated);
-            dlg.setTrackInfoList(buildTrackInfoList(midiMediate.tracks()));
-            dlg.detectCodec();
-        });
+        Reconverter(opendspx::MidiConverter &converter, const QByteArray &midiData,
+                    opendspx::MidiIntermediateData &midiMediate,
+                    opendspx::MidiConverter::Error &midiError)
+            : converter(converter), midiData(midiData), midiMediate(midiMediate),
+              midiError(midiError) {
+        }
 
-    if (dlg.exec() != QDialog::Accepted) {
+        QList<MidiImportTrackInfo> reconvert(bool separateChannels) override {
+            std::stringstream ss(midiData.toStdString(), std::ios::in);
+            auto updated = converter.convertMidiToIntermediate(ss, midiError, {separateChannels});
+            if (midiError == opendspx::MidiConverter::Error::NoError)
+                midiMediate = std::move(updated);
+            return buildTrackInfoList(midiMediate.tracks());
+        }
+    } reconverter{*midiConverter, midiData, midiMediate, midiError};
+
+    MidiImportOptions choice;
+    if (!chooseImportOptions(buildTrackInfoList(midiMediate.tracks()), reconverter,
+                             mode == NewProject, mode == NewProject, choice)) {
         return LoadStatus::Canceled;
     }
 
-    const auto codec = dlg.selectedCodec();
-    const auto selectTrackIds = dlg.selectedTracks();
+    const auto codec = choice.codec;
+    const auto selectTrackIds = choice.selectedTrackIndices;
 
     std::vector<opendspx::MidiIntermediateData::Track> selectedTracks;
     selectedTracks.reserve(selectTrackIds.size());
@@ -259,9 +266,9 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
 
     midiMediate = {
         midiMediate.resolution(),
-        dlg.importTempo() ? midiMediate.tempos()
+        choice.importTempo ? midiMediate.tempos()
                           : std::vector<opendspx::MidiIntermediateData::Tempo>{},
-        dlg.importTimeSignature() ? midiMediate.timeSignatures()
+        choice.importTimeSignature ? midiMediate.timeSignatures()
                                   : std::vector<opendspx::MidiIntermediateData::TimeSignature>{},
         midiMediate.markers(),
         selectedTracks,
@@ -311,9 +318,9 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
         model->setTimeline(std::move(newTimeline));
 
     if (!midiDspx.content.tracks.empty()) {
-        convertTracks(midiDspx, model, language);
-        options.importTempo = dlg.importTempo() && hasTempo;
-        options.importTimeSignature = dlg.importTimeSignature() && hasTimeSignature;
+        convertTracks(midiDspx, model, language, defaultLyric(language));
+        options.importTempo = choice.importTempo && hasTempo;
+        options.importTimeSignature = choice.importTimeSignature && hasTimeSignature;
         return LoadStatus::Success;
     }
     errMsg =

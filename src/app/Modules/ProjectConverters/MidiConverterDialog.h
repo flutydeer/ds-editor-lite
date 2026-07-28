@@ -2,6 +2,7 @@
 #define MIDICONVERTERDIALOG_H
 
 #include "UI/Dialogs/Base/Dialog.h"
+#include "MidiConverter.h" // MidiImportTrackInfo
 
 #include <QByteArray>
 #include <QList>
@@ -14,23 +15,15 @@ class MidiConverterDialog : public Dialog {
     Q_OBJECT
     Q_DECLARE_PRIVATE(MidiConverterDialog)
 public:
-    struct TrackInfo {
-        QByteArray name;
-        QString rangeText;
-        int noteCount = 0;
-        QList<QByteArray> lyrics;
-        bool disabled = false;
-        bool selectedByDefault = false;
-    };
-
     explicit MidiConverterDialog(QWidget *parent = nullptr) : MidiConverterDialog({}, parent) {
     }
 
-    explicit MidiConverterDialog(const QList<TrackInfo> &trackInfoList, QWidget *parent = nullptr);
+    explicit MidiConverterDialog(const QList<MidiImportTrackInfo> &trackInfoList,
+                                 QWidget *parent = nullptr);
     ~MidiConverterDialog() override;
 
-    void setTrackInfoList(const QList<TrackInfo> &trackInfoList);
-    QList<TrackInfo> trackInfoList() const;
+    void setTrackInfoList(const QList<MidiImportTrackInfo> &trackInfoList);
+    QList<MidiImportTrackInfo> trackInfoList() const;
 
     QList<int> selectedTracks() const;
     QByteArray selectedCodec() const;

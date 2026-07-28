@@ -370,7 +370,7 @@ public:
     }
 
     MidiConverterDialog *q_ptr{};
-    QList<MidiConverterDialog::TrackInfo> trackInfos;
+    QList<MidiImportTrackInfo> trackInfos;
     QByteArray currentCodec;
     QByteArray autoDetectedCodec;
     QList<int> selectedIndexesCache;
@@ -388,7 +388,7 @@ public:
     QCheckBox *importTimeSignatureCheckBox = nullptr;
 };
 
-MidiConverterDialog::MidiConverterDialog(const QList<TrackInfo> &trackInfoList, QWidget *parent)
+MidiConverterDialog::MidiConverterDialog(const QList<MidiImportTrackInfo> &trackInfoList, QWidget *parent)
     : Dialog(parent), d_ptr(new MidiConverterDialogPrivate(this)) {
     Q_D(MidiConverterDialog);
     setWindowTitle(tr("Configure MIDI Import"));
@@ -398,7 +398,7 @@ MidiConverterDialog::MidiConverterDialog(const QList<TrackInfo> &trackInfoList, 
 
 MidiConverterDialog::~MidiConverterDialog() = default;
 
-void MidiConverterDialog::setTrackInfoList(const QList<TrackInfo> &trackInfoList) {
+void MidiConverterDialog::setTrackInfoList(const QList<MidiImportTrackInfo> &trackInfoList) {
     Q_D(MidiConverterDialog);
     d->trackInfos = trackInfoList;
     d->autoDetectedCodec.clear();
@@ -406,7 +406,7 @@ void MidiConverterDialog::setTrackInfoList(const QList<TrackInfo> &trackInfoList
     d->rebuildModel();
 }
 
-QList<MidiConverterDialog::TrackInfo> MidiConverterDialog::trackInfoList() const {
+QList<MidiImportTrackInfo> MidiConverterDialog::trackInfoList() const {
     Q_D(const MidiConverterDialog);
     return d->trackInfos;
 }
