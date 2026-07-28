@@ -21,6 +21,7 @@
 #include <synthrt/SVS/SingerContrib.h>
 
 #include <QDir>
+#include <QLocale>
 #include <QSignalBlocker>
 #include <QStandardItemModel>
 #include <QTreeView>
@@ -86,7 +87,7 @@ void InferencePage::showGpuDetectionPending() {
     m_cbDeviceList->addItem(tr("Detecting..."));
     m_cbDeviceList->setEnabled(false);
     m_gpuItem->setDescription(
-        tr("GPUs with less than %1 GiB VRAM are hidden")
+        tr("GPUs with less than %L1 GiB VRAM are hidden")
             .arg(static_cast<double>(kMinGpuVramBytes) / (1024 * 1024 * 1024), 0, 'f', 0));
 }
 
@@ -106,7 +107,7 @@ void InferencePage::applyGpuList(const QList<GpuInfo> &deviceList) {
 
         const int currentIndex = m_cbDeviceList->count();
         const auto displayText =
-            QStringLiteral("%1 (%2 GiB)")
+            QStringLiteral("%1 (%L2 GiB)")
                 .arg(device.description)
                 .arg(static_cast<double>(device.memory) / (1024 * 1024 * 1024), 0, 'f', 2);
         m_cbDeviceList->addItem(displayText);
@@ -129,7 +130,7 @@ void InferencePage::applyGpuList(const QList<GpuInfo> &deviceList) {
     m_cbDeviceList->setCurrentIndex(selectedIndex);
     m_cbDeviceList->setEnabled(true);
     m_gpuItem->setDescription(
-        tr("GPUs with less than %1 GiB VRAM are hidden")
+        tr("GPUs with less than %L1 GiB VRAM are hidden")
             .arg(static_cast<double>(kMinGpuVramBytes) / (1024 * 1024 * 1024), 0, 'f', 0));
 }
 
@@ -147,7 +148,7 @@ void InferencePage::modifyOption() {
             option->selectedGpuId = gpuInfo.deviceId;
         }
     }
-    option->samplingSteps = m_cbSamplingSteps->currentText().toInt();
+    option->samplingSteps = QLocale().toInt(m_cbSamplingSteps->currentText());
     option->depth = m_dsDepthSlider->spinbox->value();
     option->runVocoderOnCpu = m_swRunVocoderOnCpu->value();
     option->autoStartInfer = m_autoStartInfer->value();
@@ -197,8 +198,11 @@ QWidget *InferencePage::createContentWidget() {
     m_cbSamplingSteps->setEditable(true);
     m_cbSamplingSteps->setFixedWidth(100);
     m_cbSamplingSteps->setValidator(new QIntValidator(1, 1000));
-    m_cbSamplingSteps->addItems({"1", "5", "10", "20", "50", "100"});
-    m_cbSamplingSteps->setCurrentText(QString::number(option->samplingSteps));
+    const QLocale numberLocale;
+    m_cbSamplingSteps->addItems(
+        {numberLocale.toString(1), numberLocale.toString(5), numberLocale.toString(10),
+         numberLocale.toString(20), numberLocale.toString(50), numberLocale.toString(100)});
+    m_cbSamplingSteps->setCurrentText(numberLocale.toString(option->samplingSteps));
     connect(m_cbSamplingSteps, &ComboBox::currentTextChanged, this, &InferencePage::modifyOption);
 
     // Render - Depth
@@ -333,7 +337,7 @@ QWidget *InferencePage::createContentWidget() {
         auto packagePathRoot = new QStandardItem(tr("search paths"));
         int packagePathIndex = 0;
         for (const auto &path : std::as_const(packagePaths)) {
-            auto itemKey = new QStandardItem('[' + QString::number(packagePathIndex) + ']');
+            auto itemKey = new QStandardItem('[' + QLocale().toString(packagePathIndex) + ']');
             auto itemValue = new QStandardItem(path);
             packagePathRoot->appendRow({itemKey, itemValue});
             ++packagePathIndex;
@@ -353,6 +357,7 @@ QWidget *InferencePage::createContentWidget() {
                 continue;
             }
             const auto singerId = QString::fromUtf8(singer->id());
+            // API levels are stable protocol identifiers, not localized quantities.
             const auto singerLevel = QString::number(singer->apiLevel());
             const auto singerName = QString::fromUtf8(singer->name().text(localeName));
             const auto singerArch = QString::fromUtf8(singer->className());
@@ -388,6 +393,7 @@ QWidget *InferencePage::createContentWidget() {
                 }
                 const auto inferenceName = QString::fromUtf8(inference->name().text(localeName));
                 const auto inferenceClassName = QString::fromUtf8(inference->className());
+                // API levels are stable protocol identifiers, not localized quantities.
                 const auto inferenceLevel = QString::number(inference->apiLevel());
                 const auto inferencePath = StringUtils::path_to_qstr(inference->path());
                 auto currentInferenceRoot = new QStandardItem(inferenceName);

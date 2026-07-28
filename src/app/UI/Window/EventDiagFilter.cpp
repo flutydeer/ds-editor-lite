@@ -101,6 +101,7 @@ void EventDiagFilter::printStats() {
     // actual interval may exceed 1s if timer itself is delayed (strong backlog)
     bool intervalDelayed = elapsedSec > 1.5;
 
+    // Diagnostic console output intentionally remains locale-independent.
     qDebug().noquote().nospace()
         << "[Diag] interval=" << QString::number(elapsedSec, 'f', 1) << "s"
         << " | total=" << qSetFieldWidth(5) << int(totalPerSec) << qSetFieldWidth(0)

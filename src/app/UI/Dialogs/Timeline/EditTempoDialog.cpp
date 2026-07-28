@@ -10,7 +10,7 @@ EditTempoDialog::EditTempoDialog(const int tick, const double tempo, QWidget *pa
     : OKCancelDialog(parent) {
     setWindowTitle(tr("Tempo"));
     setTitle(tr("Tempo"));
-    setMessage(tr("Tick %1").arg(tick));
+    setMessage(tr("Tick %L1").arg(tick));
 
     m_editWidget = new TempoEditWidget;
     m_editWidget->setTempo(tempo);

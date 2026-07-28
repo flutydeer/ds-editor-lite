@@ -10,6 +10,7 @@
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLocale>
 #include <QMouseEvent>
 #include <QResizeEvent>
 #include <QSet>
@@ -330,7 +331,7 @@ void SpeakerMixList::onSpeakerTypeChanged(int index) {
 void SpeakerMixList::syncRowsFromBar(const QVector<double> &values) {
     double cumulative = 0;
     for (int i = 0; i < m_rows.size() && i < values.size(); ++i) {
-        m_rows[i].positionLabel->setText(QString::number(qRound(cumulative)) + "%");
+        m_rows[i].positionLabel->setText(QLocale().toString(qRound(cumulative)) + "%");
         cumulative += values[i];
     }
     updateBarLabelsAndColors();
@@ -341,7 +342,7 @@ void SpeakerMixList::setRowsValues(const QVector<double> &values) {
 
     double cumulative = 0;
     for (int i = 0; i < m_rows.size() && i < values.size(); ++i) {
-        m_rows[i].positionLabel->setText(QString::number(qRound(cumulative)) + "%");
+        m_rows[i].positionLabel->setText(QLocale().toString(qRound(cumulative)) + "%");
         cumulative += values[i];
     }
 }

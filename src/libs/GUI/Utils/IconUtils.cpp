@@ -22,6 +22,7 @@ namespace {
 
     QString pixmapCacheKey(const QString &svgPath, const QSize &iconSize, const QColor &color,
                            qreal devicePixelRatio) {
+        // Cache keys are machine-readable and must stay locale-independent.
         return QStringLiteral("IconUtils:tinted-svg:%1:%2x%3:%4:%5")
             .arg(svgPath)
             .arg(iconSize.width())

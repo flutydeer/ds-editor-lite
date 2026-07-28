@@ -7,6 +7,7 @@
 #include <QCheckBox>
 #include <QMessageBox>
 #include <QLabel>
+#include <QLocale>
 #include <QSettings>
 #include <QEvent>
 #include <QSignalBlocker>
@@ -326,7 +327,7 @@ void AudioPage::updateBufferSizeAndSampleRateComboBox() {
 
     auto bufferSizeList = outputSys->outputContext()->device()->availableBufferSizes();
     for (int i = 0; i < bufferSizeList.size(); i++) {
-        m_bufferSizeComboBox->addItem(QString::number(bufferSizeList[i]), bufferSizeList[i]);
+        m_bufferSizeComboBox->addItem(QLocale().toString(bufferSizeList[i]), bufferSizeList[i]);
         if (bufferSizeList[i] == outputSys->outputContext()->adoptedBufferSize())
             m_bufferSizeComboBox->setCurrentIndex(i);
     }
@@ -337,7 +338,7 @@ void AudioPage::updateBufferSizeAndSampleRateComboBox() {
             });
     auto sampleRateList = outputSys->outputContext()->device()->availableSampleRates();
     for (int i = 0; i < sampleRateList.size(); i++) {
-        m_sampleRateComboBox->addItem(QString::number(sampleRateList[i]), sampleRateList[i]);
+        m_sampleRateComboBox->addItem(QLocale().toString(sampleRateList[i]), sampleRateList[i]);
         if (sampleRateList[i] == outputSys->outputContext()->adoptedSampleRate())
             m_sampleRateComboBox->setCurrentIndex(i);
     }

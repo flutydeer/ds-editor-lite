@@ -19,6 +19,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
 #include <QKeyEvent>
+#include <QLocale>
 #include <QPainter>
 #include <QWidget>
 
@@ -859,7 +860,8 @@ void SpeakerMixEditorView::updateSplitToolTipContent(const int keyframeIndex) {
 
     QStringList titleParts;
     for (int i = 0; i < m_speakers.size(); ++i)
-        titleParts.append(QString("%1: %2%").arg(m_speakers[i].name).arg(displayValues.value(i)));
+        titleParts.append(
+            QString("%1: %L2%").arg(m_speakers[i].name).arg(displayValues.value(i)));
 
     auto *tooltip = ensureToolTip();
     tooltip->setTitle(titleParts.join("\n"));

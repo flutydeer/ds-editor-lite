@@ -40,7 +40,7 @@ void PackageManagerDialog::onModuleStatusChanged(AppStatus::ModuleType module,
 }
 
 void PackageManagerDialog::updatePackageCount(int count) {
-    lbPackageCount->setText(tr("Installed (%1)").arg(count));
+    lbPackageCount->setText(tr("Installed (%L1)").arg(count));
 }
 
 void PackageManagerDialog::updatePackageList(QList<PackageInfo> packages) {
@@ -159,7 +159,7 @@ void PackageManagerDialog::loadPackageList() {
     auto packages = packageManager->installedPackages();
     if (packages.successfulPackages.empty()) {
         listView->setModel(nullptr);
-        lbPackageCount->setText(tr("Installed (0)"));
+        lbPackageCount->setText(tr("Installed (%L1)").arg(0));
     }
     updatePackageCount(packages.successfulPackages.size());
     updatePackageList(packages.successfulPackages);

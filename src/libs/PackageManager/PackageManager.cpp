@@ -185,6 +185,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                             const auto lo = spk.toneRange()->first;
                             const auto hi = spk.toneRange()->second;
                             liteSpk.setToneRange(std::make_pair(lo, hi));
+                            // Legacy tone range fields are serialized protocol values.
                             liteSpk.setToneMin(QString::number(lo));
                             liteSpk.setToneMax(QString::number(hi));
                         }

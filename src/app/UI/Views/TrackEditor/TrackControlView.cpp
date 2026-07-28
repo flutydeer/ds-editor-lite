@@ -31,6 +31,7 @@
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
+#include <QLocale>
 #include <QMWidgets/cmenu.h>
 #include <QWidgetAction>
 
@@ -197,11 +198,11 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 }
 
 int TrackControlView::trackIndex() const {
-    return lbTrackIndex->text().toInt();
+    return QLocale().toInt(lbTrackIndex->text());
 }
 
 void TrackControlView::setTrackIndex(const int i) const {
-    lbTrackIndex->setText(QString::number(i));
+    lbTrackIndex->setText(QLocale().toString(i));
 }
 
 QString TrackControlView::name() const {
@@ -455,17 +456,17 @@ void TrackControlView::onManagePresetsAction(const SingerInfo &singerInfo) const
 
 QString TrackControlView::panValueToString(const double value) {
     if (value < 0)
-        return "L" + QString::number(-qRound(value));
+        return "L" + QLocale().toString(-qRound(value));
     if (value == 0)
         return "C";
-    return "R" + QString::number(qRound(value));
+    return "R" + QLocale().toString(qRound(value));
 }
 
 QString TrackControlView::gainValueToString(const double value) {
     const auto gain = 60 * std::log10(1.0 * value) - 114;
     if (gain == -70)
         return "-inf";
-    const auto absVal = QString::number(qAbs(gain), 'f', 1);
+    const auto absVal = QLocale().toString(qAbs(gain), 'f', 1);
     QString sig = "";
     if (gain > 0) {
         sig = "+";

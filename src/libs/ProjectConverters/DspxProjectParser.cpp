@@ -19,7 +19,7 @@ DspxParseResult DspxProjectParser::parse(const QByteArray &data) {
 
         QString errorDetails;
         for (const auto &error : errors)
-            errorDetails += QCoreApplication::translate("DspxProjectParser", "Error type: %1\n")
+            errorDetails += QCoreApplication::translate("DspxProjectParser", "Error type: %L1\n")
                                 .arg(error->type());
         return {nullptr, QCoreApplication::translate("DspxProjectParser",
                                                      "Failed to parse project file.\nerrors: %1")

@@ -5,6 +5,7 @@
 
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLocale>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QVBoxLayout>
@@ -40,7 +41,7 @@ TimeSignatureEditWidget::TimeSignatureEditWidget(QWidget *parent) : QWidget(pare
     denominatorSizePolicy.setHorizontalPolicy(QSizePolicy::Ignored);
     m_cbDenominator->setSizePolicy(denominatorSizePolicy);
     for (const int denominator : kDenominators)
-        m_cbDenominator->addItem(QString::number(denominator), denominator);
+        m_cbDenominator->addItem(QLocale().toString(denominator), denominator);
 
     auto *editorRow = new QHBoxLayout;
     editorRow->setContentsMargins(0, 0, 0, 0);
@@ -54,7 +55,8 @@ TimeSignatureEditWidget::TimeSignatureEditWidget(QWidget *parent) : QWidget(pare
     presetsRow->setSpacing(6);
 
     const auto createPresetButton = [this](int numerator, int denominator) {
-        auto *button = new QPushButton(QStringLiteral("%1/%2").arg(numerator).arg(denominator));
+        auto *button =
+            new QPushButton(QStringLiteral("%L1/%L2").arg(numerator).arg(denominator));
         button->setObjectName("btnPreset");
         button->setFixedHeight(28);
         connect(button, &QPushButton::clicked, this,
@@ -115,7 +117,7 @@ void TimeSignatureEditWidget::setEditors(int numerator, int denominator) {
     m_spinNumerator->setValue(numerator);
     int index = m_cbDenominator->findData(denominator);
     if (index < 0) {
-        m_cbDenominator->addItem(QString::number(denominator), denominator);
+        m_cbDenominator->addItem(QLocale().toString(denominator), denominator);
         index = m_cbDenominator->count() - 1;
     }
     m_cbDenominator->setCurrentIndex(index);

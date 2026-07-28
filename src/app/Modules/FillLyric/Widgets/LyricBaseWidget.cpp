@@ -40,8 +40,8 @@ namespace FillLyric {
             QCoreApplication::translate("LyricBaseWidget", "Please input lyric here."));
 
         m_textBottomLayout = new QHBoxLayout();
-        m_textCountLabel =
-            new QLabel(QCoreApplication::translate("LyricBaseWidget", "Note Count: 0"));
+        m_textCountLabel = new QLabel(
+            QCoreApplication::translate("LyricBaseWidget", "Note Count: %L1").arg(0));
 
         m_btnToTable = new QPushButton(">>");
         m_btnToTable->setToolTip(
@@ -189,8 +189,7 @@ namespace FillLyric {
             count += static_cast<int>(notes.size());
         }
         this->m_textCountLabel->setText(
-            QCoreApplication::translate("LyricBaseWidget", "Note Count: ") +
-            QString::number(count));
+            QCoreApplication::translate("LyricBaseWidget", "Note Count: %L1").arg(count));
     }
 
     void LyricBaseWidget::onBtnImportLrcClicked() {

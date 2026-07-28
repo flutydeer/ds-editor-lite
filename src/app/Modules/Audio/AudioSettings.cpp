@@ -1,5 +1,6 @@
 #include "AudioSettings.h"
 
+// Indexed option keys are persisted machine-readable identifiers and must use C-locale digits.
 #define AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_1(readName, writeName)                          \
   AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_2(                                                    \
       readName, writeName, std::invoke_result<decltype(&AudioSettings::readName)>::type{})

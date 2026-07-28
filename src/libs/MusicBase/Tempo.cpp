@@ -4,14 +4,17 @@
 
 #include "Tempo.h"
 
+#include <QLocale>
 #include <QtNumeric>
 
 QString Tempo::formatValue(const double value) {
-    auto s = QString::number(value, 'f', 3);
-    while (s.contains('.') && s.endsWith('0'))
+    const QLocale locale;
+    const auto decimalPoint = locale.decimalPoint();
+    auto s = locale.toString(value, 'f', 3);
+    while (s.contains(decimalPoint) && s.endsWith('0'))
         s.chop(1);
-    if (s.endsWith('.'))
-        s.chop(1);
+    if (s.endsWith(decimalPoint))
+        s.chop(decimalPoint.size());
     return s;
 }
 

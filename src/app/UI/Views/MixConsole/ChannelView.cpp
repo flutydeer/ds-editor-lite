@@ -16,6 +16,7 @@
 
 #include <QVBoxLayout>
 #include <QLabel>
+#include <QLocale>
 #include <QStackedWidget>
 
 #include <cmath>
@@ -95,7 +96,7 @@ void ChannelView::setName(const QString &name) {
 }
 
 void ChannelView::setChannelIndex(int index) {
-    m_lbIndex->setText(QString::number(index));
+    m_lbIndex->setText(QLocale().toString(index));
 }
 
 void ChannelView::updateChannelColor() {
@@ -203,9 +204,9 @@ QString ChannelView::gainValueToString(double gain) {
         return "-∞";
 
     if (qAbs(gain) < 0.05)
-        return "0.0";
+        return QLocale().toString(0.0, 'f', 1);
 
-    const QString absVal = QString::number(qAbs(gain), 'f', 1);
+    const QString absVal = QLocale().toString(qAbs(gain), 'f', 1);
     QString sign;
 
     if (gain > 0.05)
@@ -218,18 +219,18 @@ QString ChannelView::gainValueToString(double gain) {
 
 QString ChannelView::panValueToString(double pan) {
     if (pan <= -0.995) {
-        return "L100";
+        return "L" + QLocale().toString(100);
     }
     if (pan >= 0.995) {
-        return "R100";
+        return "R" + QLocale().toString(100);
     }
     if (qAbs(pan) < 0.005) {
         return "C";
     }
     if (pan < 0) {
-        return "L" + QString::number(qRound(-pan * 100));
+        return "L" + QLocale().toString(qRound(-pan * 100));
     }
-    return "R" + QString::number(qRound(pan * 100));
+    return "R" + QLocale().toString(qRound(pan * 100));
 }
 
 bool ChannelView::tryParseGainValue(const QString &text, double &gain) {
@@ -239,7 +240,7 @@ bool ChannelView::tryParseGainValue(const QString &text, double &gain) {
         return true;
     }
     bool ok = false;
-    const auto parsed = value.toDouble(&ok);
+    const auto parsed = QLocale().toDouble(value, &ok);
     if (!ok || !std::isfinite(parsed))
         return false;
     gain = parsed;
@@ -256,7 +257,7 @@ bool ChannelView::tryParsePanValue(const QString &text, double &pan) {
     if (panStr.startsWith('L', Qt::CaseInsensitive)) {
         const QString numStr = panStr.mid(1).trimmed();
         bool ok = false;
-        const double value = numStr.toDouble(&ok);
+        const double value = QLocale().toDouble(numStr, &ok);
         if (ok && value >= 0.0 && value <= 100.0) {
             pan = -value / 100.0;
             return true;
@@ -264,7 +265,7 @@ bool ChannelView::tryParsePanValue(const QString &text, double &pan) {
     } else if (panStr.startsWith('R', Qt::CaseInsensitive)) {
         const QString numStr = panStr.mid(1).trimmed();
         bool ok = false;
-        const double value = numStr.toDouble(&ok);
+        const double value = QLocale().toDouble(numStr, &ok);
         if (ok && value >= 0.0 && value <= 100.0) {
             pan = value / 100.0;
             return true;
@@ -276,7 +277,7 @@ bool ChannelView::tryParsePanValue(const QString &text, double &pan) {
 
     // 处理数值格式：-xx / 0 / +xx
     bool ok = false;
-    const double value = panStr.toDouble(&ok);
+    const double value = QLocale().toDouble(panStr, &ok);
     if (ok) {
         if (value < -100.0) {
             pan = -1.0;

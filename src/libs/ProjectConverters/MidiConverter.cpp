@@ -146,6 +146,7 @@ static QString toneNumToToneName(const int num) {
     if (octave < -1 || step < 0 || step >= 12)
         return QCoreApplication::translate("MidiConverter", "Invalid tone or octave");
 
+    // Scientific pitch names are stable identifiers, not localized quantities.
     return tones[step] + QString::number(octave);
 }
 
@@ -200,7 +201,7 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
     auto midiMediate = midiConverter->convertMidiToIntermediate(ss, midiError, {true});
     if (midiError != opendspx::MidiConverter::Error::NoError) {
         errMsg = QCoreApplication::translate("MidiConverter",
-                                             "Failed to load MIDI file.\npath: %1\ntype: %2")
+                                             "Failed to load MIDI file.\npath: %1\ntype: %L2")
                      .arg(path)
                      .arg(static_cast<int>(midiError));
         return LoadStatus::Failed;
@@ -285,8 +286,12 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
                 ts.denominator != 16) {
                 errMsg = QCoreApplication::translate(
                              "MidiConverter",
-                             "Failed to load MIDI file.\ntimeSignatures denominator must be: 2, 4, "
-                             "8, 16\ncurrent denominator: %1")
+                             "Failed to load MIDI file.\ntimeSignatures denominator must be: "
+                             "%L1, %L2, %L3, %L4\ncurrent denominator: %L5")
+                             .arg(2)
+                             .arg(4)
+                             .arg(8)
+                             .arg(16)
                              .arg(ts.denominator);
                 return LoadStatus::Failed;
             }
