@@ -14,7 +14,7 @@
 #include <QTreeView>
 #include <QVBoxLayout>
 
-#include "MidiTextCodecConverter.h"
+#include <lite/ProjectConverters/MidiTextCodecConverter.h>
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ComboBox.h>

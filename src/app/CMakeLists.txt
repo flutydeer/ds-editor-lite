@@ -74,6 +74,7 @@ lite_add_application(${PROJECT_NAME}
         lite::History
         lite::SynthrtEngine
         lite::PackageManager
+        lite::ProjectConverters
         lite::Language
         lite::Tasking
         lite::GUI

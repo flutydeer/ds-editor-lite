@@ -2,7 +2,7 @@
 #define MIDICONVERTERDIALOG_H
 
 #include "UI/Dialogs/Base/Dialog.h"
-#include "MidiConverter.h" // MidiImportTrackInfo
+#include <lite/ProjectConverters/MidiConverter.h> // MidiImportTrackInfo
 
 #include <QByteArray>
 #include <QList>

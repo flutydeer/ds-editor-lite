@@ -1,4 +1,4 @@
-#include "DspxPhonemeCompat.h"
+#include <lite/ProjectConverters/DspxPhonemeCompat.h>
 
 #include <QJsonArray>
 

@@ -1,7 +1,7 @@
 #ifndef DSPXPROJECTCONVERTERUI_H
 #define DSPXPROJECTCONVERTERUI_H
 
-#include "DspxProjectConverter.h"
+#include <lite/ProjectConverters/DspxProjectConverter.h>
 
 // App-side DspxProjectConverter: bridges the loop region to AppStatus so the
 // converter domain logic itself stays free of app-runtime state.

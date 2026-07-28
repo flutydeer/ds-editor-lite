@@ -1,5 +1,5 @@
-#include "MidiConverter.h"
-#include "MidiTextCodecConverter.h"
+#include <lite/ProjectConverters/MidiConverter.h>
+#include <lite/ProjectConverters/MidiTextCodecConverter.h>
 
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/Note.h>
@@ -13,7 +13,6 @@
 #include <opendspxconverter/midi/midiconverter.h>
 #include <opendspxconverter/midi/midiintermediatedata.h>
 
-#include <QDialog>
 #include <QFile>
 #include <QCoreApplication>
 

@@ -1,7 +1,7 @@
 #ifndef DS_EDITOR_LITE_MIDICONVERTER_H
 #define DS_EDITOR_LITE_MIDICONVERTER_H
 
-#include "IProjectConverter.h"
+#include <lite/ProjectConverters/IProjectConverter.h>
 
 #include <QByteArray>
 #include <QList>

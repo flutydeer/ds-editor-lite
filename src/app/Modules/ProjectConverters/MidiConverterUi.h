@@ -1,7 +1,7 @@
 #ifndef DS_EDITOR_LITE_MIDICONVERTERUI_H
 #define DS_EDITOR_LITE_MIDICONVERTERUI_H
 
-#include "MidiConverter.h"
+#include <lite/ProjectConverters/MidiConverter.h>
 
 // App-side MidiConverter: supplies the interactive import dialog and the
 // AppOptions-backed import settings, so the MidiConverter domain logic stays

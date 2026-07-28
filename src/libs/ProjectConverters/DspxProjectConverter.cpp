@@ -2,9 +2,9 @@
 // Created by hrukalive on 2/7/24.
 //
 
-#include "DspxProjectConverter.h"
-#include "DspxProjectParser.h"
-#include "DspxPhonemeCompat.h"
+#include <lite/ProjectConverters/DspxProjectConverter.h>
+#include <lite/ProjectConverters/DspxProjectParser.h>
+#include <lite/ProjectConverters/DspxPhonemeCompat.h>
 
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>

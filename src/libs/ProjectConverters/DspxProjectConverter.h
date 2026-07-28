@@ -5,7 +5,7 @@
 #ifndef DSPXPROJECTCONVERTER_H
 #define DSPXPROJECTCONVERTER_H
 
-#include "IProjectConverter.h"
+#include <lite/ProjectConverters/IProjectConverter.h>
 
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
 

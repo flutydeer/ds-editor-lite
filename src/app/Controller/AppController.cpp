@@ -23,7 +23,7 @@
 #include <lite/History/HistoryManager.h>
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferEngine.h"
-#include "Modules/ProjectConverters/MidiConverter.h"
+#include <lite/ProjectConverters/MidiConverter.h>
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/DecodeAudioTask.h"
 #include <lite/GUI/Theme/ThemeManager.h>
