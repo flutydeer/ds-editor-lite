@@ -32,6 +32,10 @@ bool PhonemeHeadLayout::isWithinBounds() const {
            qFuzzyCompare(requiredHeadLengthMs + 1.0, maximumHeadLengthMs + 1.0);
 }
 
+int PhonemeHeadLayout::minimumAllowedOffsetMs() const {
+    return qCeil(-maximumHeadLengthMs);
+}
+
 double PhonemeHeadLayout::pieceStartMs(const double firstNoteStartMs) const {
     return firstNoteStartMs - requiredHeadLengthMs;
 }

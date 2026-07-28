@@ -18,6 +18,7 @@ public:
 
     [[nodiscard]] bool hasValidBounds() const;
     [[nodiscard]] bool isWithinBounds() const;
+    [[nodiscard]] int minimumAllowedOffsetMs() const;
     [[nodiscard]] double pieceStartMs(double firstNoteStartMs) const;
     [[nodiscard]] double earliestAllowedStartMs(double firstNoteStartMs) const;
     [[nodiscard]] int pieceStartTick(const Timeline &timeline, int firstNoteGlobalTick) const;
