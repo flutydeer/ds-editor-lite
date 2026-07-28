@@ -1,5 +1,6 @@
 #include "AppEnvironment.h"
 
+#include "Utils/ApplicationLocale.h"
 #include "Utils/FontManager.h"
 #include <lite/Support/Log.h>
 #include <lite/Support/SystemUtils.h>
@@ -13,6 +14,8 @@
 namespace AppEnvironment {
 
     void preInit() {
+        ApplicationLocale::initialize();
+
         // output log to file
         qInstallMessageHandler(Log::handler);
         qputenv("QT_ASSUME_STDERR_HAS_CONSOLE", "1");

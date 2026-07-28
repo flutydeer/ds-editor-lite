@@ -9,7 +9,10 @@
 - “自动检测”使用 `QLocale::system().language()`：任意中文系统映射到简体中文，其他系统回退英文。
 - 自动检测在应用启动和用户重新选择“自动检测”时执行，不监听运行期间的系统语言变化。Windows 显示语言通常在注销后才生效，应用下次启动时会重新检测。
 - 用户显式选择 English 或简体中文后立即热切换，不需要重启。
-- UI 语言与歌声/G2P 语言、数字和日期区域格式相互独立。不要调用 `QLocale::setDefault()`；需要按 UI 语言选择本地化显示名时使用 `UiLanguageManager::effectiveLocale()`。
+- UI 语言与歌声/G2P 语言、数字和日期区域格式相互独立。应用默认 `QLocale`
+  仅由系统 locale 派生，并在保留系统 number options 的基础上启用
+  `OmitGroupSeparator`；不要根据 UI 语言改写默认 locale。需要按 UI 语言选择本地化显示名时
+  使用 `UiLanguageManager::effectiveLocale()`。
 - 轨道名、剪辑名、歌词和文件名等项目数据不会随 UI 语言变化。`New Project` 这类未命名工程占位文本在显示时翻译，不作为项目数据保存。
 
 ## 核心架构
