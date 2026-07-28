@@ -158,12 +158,12 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
     std::string speakerName = model.speaker.toStdString();
     const auto input = srt::core::NO<Dur::DurationStartInput>::create();
 
-    const auto session = inferEngine->acquireSingerSession(identifier);
-    if (!session) {
+    const auto handle = inferEngine->acquireSingerSession(identifier);
+    if (!handle) {
         qCritical() << "inferDuration: failed to acquire singer session for" << identifier;
         return false;
     }
-    auto modelExp = m_activeInference.acquire(session, ds::infer::StageKind::Duration);
+    auto modelExp = m_activeInference.acquire(handle, ds::infer::StageKind::Duration);
     if (!modelExp) {
         qCritical().noquote().nospace()
             << "inferDuration: failed to load duration model for " << identifier << ": "
@@ -267,7 +267,7 @@ void InferDurationTask::abort() {
     newStatus.message = tr("Terminating: %1").arg(m_previewText);
     newStatus.isIndetermine = true;
     setStatus(newStatus);
-    qInfo() << "时长推理任务被终止 clipId:" << clipId() << "pieceId:" << pieceId()
+    qInfo() << "Duration inference task terminated clipId:" << clipId() << "pieceId:" << pieceId()
             << "taskId:" << id();
 }
 
@@ -323,11 +323,11 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
     auto result = m_input;
     int phoneIndex = 0;
     for (auto &note : result.notes) {
-        // 跳过连续的休止、换气和转音音符
+        // Skip consecutive rest, breath, and slur notes.
         if (note.isRest || note.isSlur)
             continue;
 
-        // 跳过连续的 SP 和 AP 音素
+        // Skip consecutive SP and AP phonemes.
         while (phoneIndex < outputPhones.size() &&
                (outputPhones.at(phoneIndex).token == "SP" ||
                 outputPhones.at(phoneIndex).token == "AP")) {

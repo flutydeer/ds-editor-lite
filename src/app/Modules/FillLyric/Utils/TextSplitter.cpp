@@ -3,6 +3,7 @@
 #include "Model/AppOptions/Options/FillLyricOption.h"
 
 #include <mutex>
+#include <stdcorelib/path.h>
 
 #include <QCoreApplication>
 #include <QFile>
@@ -24,11 +25,11 @@ namespace FillLyric
 
     static std::vector<SplitterConfig> g_splitters;
     static bool g_splitterInitialized = false;
-    static std::once_flag g_splitterInitOnce; // R11/TD-7: 保护 lazy init 的线程安全
+    static std::once_flag g_splitterInitOnce; // R11/TD-7: guards lazy init thread safety
 
     static void ensureSplitterInitialized() {
         std::call_once(g_splitterInitOnce, [] {
-            if (g_splitterInitialized) // 允许 init() 被直接调用（如测试）后跳过重复初始化
+            if (g_splitterInitialized) // allow init() to be called directly (e.g. by tests) and skip re-initialization
                 return;
             const auto basePath = std::filesystem::path(QCoreApplication::applicationDirPath().toStdString()) / "configs";
             TextSplitter::init(basePath / "splitter");
@@ -86,7 +87,7 @@ namespace FillLyric
         std::sort(entries.begin(), entries.end());
 
         for (const auto &path : entries) {
-            QFile file(QString::fromStdString(path.string()));
+            QFile file(QString::fromStdString(stdc::path::to_utf8(path)));
             if (!file.open(QIODevice::ReadOnly))
                 continue;
 
@@ -99,7 +100,7 @@ namespace FillLyric
 
             const QJsonObject obj = doc.object();
             SplitterConfig cfg;
-            cfg.name = path.stem().string();
+            cfg.name = stdc::path::to_utf8(path.stem());
             cfg.builtin = true;
             cfg.enabled = true;
 

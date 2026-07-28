@@ -8,6 +8,17 @@
 namespace Co = srt::svs::Api::Common::L1;
 
 namespace {
+    // Serializes ModelSet::load() calls across tasks sharing the same ModelSet.
+    // ModelSet::load uses try_to_lock internally; without external serialization,
+    // parallel load() calls from different tasks (e.g. pitch + variance) would
+    // fail with "busy" errors. This restores the blocking behavior of the old
+    // SingerModelSession::acquire which used std::lock_guard on m_modelSetMutex.
+    // load() is fast when the slot is already cached (just a pointer return),
+    // so this does not become a bottleneck.
+    std::mutex g_modelLoadMutex;
+}
+
+namespace {
     bool mapSpeakerName(const std::string &speakerName,
                         const std::map<std::string, std::string> &speakerMapping,
                         std::string &mappedSpeakerName) {
@@ -25,7 +36,7 @@ namespace {
     }
 }
 
-ActiveInference::Handle::Handle(ActiveInference &owner, SingerModelSession::Model model,
+ActiveInference::Handle::Handle(ActiveInference &owner, Model model,
                                 std::uint64_t generation)
     : m_owner(&owner), m_model(std::move(model)), m_generation(generation) {
 }
@@ -40,18 +51,37 @@ ActiveInference::Handle::Handle(Handle &&other) noexcept
       m_generation(other.m_generation) {
 }
 
-SingerModelSession::Model &ActiveInference::Handle::model() noexcept {
+ActiveInference::Model &ActiveInference::Handle::model() noexcept {
     return m_model;
 }
 
 srt::core::Expected<ActiveInference::Handle>
-    ActiveInference::acquire(const std::shared_ptr<SingerModelSession> &session,
+    ActiveInference::acquire(const std::shared_ptr<ds::session::ModelSetHandle> &handle,
                              ds::infer::StageKind kind) {
-    auto result = session->acquire(kind);
-    if (!result)
-        return result.takeError();
+    // B1b: build the {inference, importOptions} Model from the ModelSetHandle.
+    // handle->load(kind) lazily creates and initializes the Inference; the
+    // importOptions come from the bound StageSet's matching StageSpec. This
+    // mirrors the old SingerModelSession::acquire() implementation, preserving
+    // the exact Model shape the 4 DiffSinger tasks consume.
+    if (!handle) {
+        return srt::core::Error(srt::core::ErrorCode::InferenceNotInitialized,
+                                "ActiveInference::acquire: null ModelSetHandle");
+    }
+    // Serialize load() across tasks: ModelSet::load uses try_to_lock internally,
+    // so parallel calls (e.g. pitch + variance sharing the same ModelSet) would
+    // fail with "busy". The old SingerModelSession::acquire serialized via
+    // std::lock_guard on m_modelSetMutex; we restore that here.
+    std::lock_guard loadLock(g_modelLoadMutex);
+    auto loadExp = handle->load(kind);
+    if (!loadExp)
+        return loadExp.takeError();
 
-    auto model = result.take();
+    Model model;
+    model.inference = *loadExp;
+    if (const auto *stage = handle->stages().find(kind); stage) {
+        model.importOptions = stage->options;
+    }
+
     srt::core::NO<srt::svs::Inference> inferenceToStop;
     std::uint64_t generation;
     {

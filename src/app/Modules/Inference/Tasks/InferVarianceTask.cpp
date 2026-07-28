@@ -144,12 +144,12 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
         return false;
     }
 
-    const auto session = inferEngine->acquireSingerSession(identifier);
-    if (!session) {
+    const auto handle = inferEngine->acquireSingerSession(identifier);
+    if (!handle) {
         qCritical() << "inferVariance: failed to acquire singer session for" << identifier;
         return false;
     }
-    auto modelExp = m_activeInference.acquire(session, ds::infer::StageKind::Variance);
+    auto modelExp = m_activeInference.acquire(handle, ds::infer::StageKind::Variance);
     if (!modelExp) {
         qCritical().noquote().nospace()
             << "inferVariance: failed to load variance model for " << identifier << ": "
@@ -240,7 +240,7 @@ void InferVarianceTask::abort() {
     newStatus.message = tr("Terminating: %1").arg(m_previewText);
     newStatus.isIndetermine = true;
     setStatus(newStatus);
-    qInfo() << "唱法参数推理任务被终止 clipId:" << clipId() << "pieceId:" << pieceId()
+    qInfo() << "Variance inference task terminated clipId:" << clipId() << "pieceId:" << pieceId()
             << "taskId:" << id();
 }
 

@@ -8,6 +8,8 @@
 #include <functional> // std::hash
 #include <tuple>      // std::tie
 
+#include <diffsinger/Bank/SingerRef.h>
+
 struct SingerIdentifier {
     QString singerId;
     QString packageId;
@@ -41,6 +43,18 @@ struct SingerIdentifier {
 
     inline bool isEmpty() const noexcept {
         return singerId.isEmpty() && packageId.isEmpty() && packageVersion.isNull();
+    }
+
+    /// Implicit conversion to synthrt's SingerRef.
+    /// Field mapping: packageId -> std::string, singerId -> std::string,
+    /// packageVersion.toString() -> std::string version (normalized).
+    /// Allows direct call: session.ensureModelSet(identifier)
+    operator ds::bank::SingerRef() const {
+        return {
+            packageId.toStdString(),
+            singerId.toStdString(),
+            packageVersion.toString().toStdString(),
+        };
     }
 };
 

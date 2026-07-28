@@ -201,13 +201,66 @@ bool InferEngine::initialize(QString &error) {
     return true;
 }
 
-std::shared_ptr<SingerModelSession>
+std::shared_ptr<ds::session::ModelSetHandle>
     InferEngine::acquireSingerSession(const SingerIdentifier &identifier) const {
     if (appStatus->inferEngineEnvStatus != AppStatus::ModuleStatus::Ready || !initialized()) {
         qCritical() << "acquireSingerSession: inference runtime is not ready" << identifier;
         return {};
     }
-    return SynthrtEngine::instance().acquireSingerSession(identifier);
+    // Cache lookup: reuse a still-live, non-stale handle for the same singer.
+    // This restores the caching behavior of the old SingerModelSession map
+    // (m_singerSessions). Without this cache, every task (duration/pitch/variance/
+    // acoustic) would create a new ModelSet via VoicebankSession::ensureModelSet(),
+    // causing frequent ONNX session create/destroy and occasional CUBLAS failures
+    // due to CUDA resource contention. With the cache, consecutive/parallel tasks
+    // for the same singer share the same ModelSet, and ModelSet::load(kind) returns
+    // the cached Inference from its slot, avoiding repeated ONNX session creation.
+    {
+        std::lock_guard lock(m_singerHandlesMutex);
+        if (auto it = m_singerHandles.find(identifier); it != m_singerHandles.end()) {
+            if (auto sp = it.value().lock()) {
+                if (!sp->isStale()) {
+                    return sp;
+                }
+            }
+            // Either expired or stale — remove the dead entry.
+            m_singerHandles.erase(it);
+        }
+    }
+    // B1b: delegate to VoicebankSession::ensureModelSet(), which internally
+    // resolves the singer stage set, loads the package into Runtime, and binds
+    // the returned handle to the current snapshot generation. The SingerIdentifier
+    // implicit operator SingerRef() (B1a) supplies the version-aware key.
+    // D-30: on StaleModelSet, retry exactly once — the session publishes a fresh
+    // snapshot before returning StaleModelSet, so a second ensureModelSet() picks
+    // up the new generation. A second failure is surfaced to the caller as null.
+    auto &session = SynthrtEngine::instance().session();
+    auto exp = session.ensureModelSet(identifier);
+    if (!exp) {
+        if (exp.error().code() != srt::core::ErrorCode::StaleModelSet) {
+            qCritical().noquote().nospace()
+                << "acquireSingerSession: ensureModelSet failed for " << identifier
+                << ": " << QString::fromUtf8(exp.error().messageWithLocation());
+            return {};
+        }
+        // StaleModelSet — discard the failed result and retry once.
+        qWarning() << "acquireSingerSession: StaleModelSet for" << identifier
+                   << "; retrying ensureModelSet once";
+        exp = session.ensureModelSet(identifier);
+        if (!exp) {
+            qCritical().noquote().nospace()
+                << "acquireSingerSession: ensureModelSet retry failed for " << identifier
+                << ": " << QString::fromUtf8(exp.error().messageWithLocation());
+            return {};
+        }
+    }
+    // Cache the new handle (weak_ptr) so subsequent tasks for the same singer
+    // can reuse it.
+    {
+        std::lock_guard lock(m_singerHandlesMutex);
+        m_singerHandles.insert(identifier, *exp);
+    }
+    return *exp;
 }
 
 void InferEngine::dispose() {

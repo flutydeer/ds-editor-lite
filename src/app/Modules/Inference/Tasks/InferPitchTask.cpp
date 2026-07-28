@@ -136,12 +136,12 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
     input->parameters = convertInputParams(model.params);
     input->steps = model.steps;
 
-    const auto session = inferEngine->acquireSingerSession(identifier);
-    if (!session) {
+    const auto handle = inferEngine->acquireSingerSession(identifier);
+    if (!handle) {
         qCritical() << "inferPitch: failed to acquire singer session for" << identifier;
         return false;
     }
-    auto modelExp = m_activeInference.acquire(session, ds::infer::StageKind::Pitch);
+    auto modelExp = m_activeInference.acquire(handle, ds::infer::StageKind::Pitch);
     if (!modelExp) {
         qCritical().noquote().nospace()
             << "inferPitch: failed to load pitch model for " << identifier << ": "
@@ -233,7 +233,7 @@ void InferPitchTask::abort() {
 }
 
 void InferPitchTask::buildPreviewText() {
-    // 可能用歌词会比较好？
+    // TODO: maybe use lyrics for the preview text?
     for (const auto &note : m_input.notes) {
         for (const auto &phoneme : note.phonemeNames)
             m_previewText.append(phoneme.name + " ");

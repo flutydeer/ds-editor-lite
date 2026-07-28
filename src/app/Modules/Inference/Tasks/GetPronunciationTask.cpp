@@ -11,9 +11,12 @@
 
 #include <map>
 #include <optional>
+#include <utility>
+#include <vector>
 
 #include <synthrt/G2P/Base/LangCommon.h>
 
+#include <lite/Support/VersionUtils.h>
 #include <lite/Language/G2pConvertRunner.h>
 #include <lite/Language/G2pInputAdapter.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
@@ -30,7 +33,7 @@ namespace {
         return QString::fromUtf8(value.data(), static_cast<qsizetype>(value.size()));
     }
 
-    /// 将 G2pErrorType 转为可读字符串，方便日志排查
+    /// Convert G2pErrorType to a readable string for log diagnostics.
     QString g2pErrorTypeName(srt::g2p::G2pErrorType type) {
         switch (type) {
             case srt::g2p::NoError:
@@ -69,7 +72,7 @@ GetPronunciationTask::GetPronunciationTask(const int clipId, const quint64 clipR
     status.message = m_previewText;
     status.isIndetermine = true;
     setStatus(status);
-    qInfo() << "创建获取发音任务"
+    qInfo() << "GetPronunciationTask created"
             << "clipId:" << clipId << "taskId:" << id() << "taskRevision:" << m_clipRevision;
 }
 
@@ -90,27 +93,30 @@ QList<int> GetPronunciationTask::noteIds() const {
 }
 
 void GetPronunciationTask::runTask() {
-    qDebug() << "运行获取发音任务"
+    qDebug() << "Running pronunciation task"
              << "clipId:" << clipId() << "taskId:" << id();
     result = getPronunciations(m_notes);
-    qInfo() << "获取发音任务完成 taskId:" << id() << "terminate:" << terminated();
+    qInfo() << "Pronunciation task finished taskId:" << id() << "terminate:" << terminated();
 }
 
 QStringList
     GetPronunciationTask::getPronunciations(const QList<NoteInferenceSnapshot> &notes) const {
-    // 预填 copy fallback：语言模块未就绪或后续 G2P 失败时均使用原 lyric
+    // Pre-fill with original lyric: when the language module is not ready or
+    // G2P fails later, the original lyric is kept as the pronunciation
+    // (ds-session.md §206: G2P failure preserves lyric; no G2P fallback).
     QStringList pronResult;
     pronResult.resize(notes.count());
     for (int i = 0; i < notes.count(); i++)
         pronResult[i] = notes.at(i).lyric;
 
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
-        qCCritical(logInferPron) << "Language module not ready yet, using copy fallback";
+        qCCritical(logInferPron) << "Language module not ready yet; keeping original lyric";
         return pronResult;
     }
 
-    // R9: resolutionState 预检查（lite UI 状态关注点）。
-    // 非 Resolved 视为不可路由，直接 copy fallback（与 GetPhonemeNameTask 语义对齐）。
+    // R9: resolutionState pre-check (lite UI state concern).
+    // Non-Resolved singers are treated as non-routable; original lyric is
+    // kept as the pronunciation (aligned with GetPhonemeNameTask semantics).
     if (m_singerInfo.resolutionState() != ResolutionState::Resolved) {
         qCWarning(logInferPron) << "SingerInfo not resolved, skip pronunciation fetch. identifier:"
                                 << m_singerInfo.identifier();
@@ -124,10 +130,13 @@ QStringList
         return lyric.count('+') == lyric.length();
     };
 
-    // SynthrtEngine 统一解析并缓存路由。推理链路不回退官方，路由失败时直接 copy fallback。
-    std::vector<srt::g2p::G2pInput> requests;
-    QList<int> convertIndices; // 仅记录参与 convert 的音符在 notes 中的下标
-    std::map<QString, std::optional<srt::g2p::LanguageRoute>> routeCache;
+    // B1b-3: Group non-skipped notes by language (preserving first-seen order).
+    // Each language calls session().convertG2p once (internally routed by
+    // SingerRef.version, which fills g2pId/g2pContext/g2pContextVersion).
+    // The inference chain never falls back to official; on route/convert
+    // failure that language keeps the original lyric (ds-session.md §206).
+    // language -> [(noteIndex, lyricUtf8), ...]
+    std::map<QString, std::vector<std::pair<int, std::string>>> langGroups;
 
     for (int i = 0; i < notes.count(); i++) {
         const auto &note = notes.at(i);
@@ -140,64 +149,87 @@ QStringList
         while (lyric.endsWith('+'))
             lyric.chop(1);
 
-        auto routeIt = routeCache.find(note.language);
-        if (routeIt == routeCache.end()) {
-            const auto route = SynthrtEngine::instance().resolveLanguageRoute(
-                m_singerInfo.identifier(), note.language);
-            if (!route.hasValue()) {
-                qCWarning(logInferPron).nospace()
-                    << "G2P route invalid for lang='" << note.language
-                    << "': " << fromUtf8(route.error().message()) << ". Using copy fallback.";
-                routeIt = routeCache.emplace(note.language, std::nullopt).first;
-            } else {
-                routeIt = routeCache.emplace(note.language, *route).first;
-            }
+        langGroups[note.language].emplace_back(i, toUtf8(lyric));
+    }
+
+    if (langGroups.empty())
+        return pronResult;
+
+    auto &session = SynthrtEngine::instance().session();
+    const auto identifier = m_singerInfo.identifier();
+    const auto packageId = identifier.packageId.toStdString();
+    const auto version = VersionUtils::qt_to_stdc(identifier.packageVersion);
+
+    for (const auto &[language, entries] : langGroups) {
+        std::vector<srt::g2p::G2pInput> inputs;
+        inputs.reserve(entries.size());
+        for (const auto &entry : entries) {
+            srt::g2p::G2pInput input;
+            input.lyric = entry.second;
+            inputs.push_back(std::move(input));
         }
-        if (!routeIt->second) {
-            // 推理链路绝不静默回退官方
-            // 用户后续可在 PronunciationView 手动调整
-            pronResult[i] = lyric;
+
+        // Ensure the G2P language module is loaded before conversion.
+        // convertG2p does not auto-initialize models; ensureLanguageReady
+        // loads them lazily on first call (cached internally by the session).
+        const auto langStd = toUtf8(language);
+        auto readyExp = session.ensureLanguageReady(packageId, version, langStd);
+        if (!readyExp) {
+            qCWarning(logInferPron).nospace()
+                << "G2P language ready failed for lang='" << language
+                << "': " << fromUtf8(readyExp.error().message()) << ". Keeping original lyric.";
+            for (const auto &entry : entries)
+                pronResult[entry.first] = fromUtf8(entry.second);
             continue;
         }
 
-        requests.push_back(G2pInputAdapter::fromRoute(toUtf8(lyric), *routeIt->second));
-        convertIndices.append(i);
-    }
-
-    if (requests.empty())
-        return pronResult;
-
-    // 统一 Never 策略，声库 G2P 失败即 copy fallback（LangCore 在 pronunciation 中回填 lyric）
-    const auto outcomes =
-        G2pConvertRunner::convert(SynthrtEngine::instance().languageService(), requests);
-
-    // 调用方负责结果数量与 copy fallback，不再用 Q_ASSERT（Debug 构建下 abort 与 D11
-    // 精确报错相悖）。
-    if (outcomes.size() != requests.size()) {
-        qCWarning(logInferPron).nospace()
-            << "G2pConvertRunner returned " << outcomes.size() << " outcomes for "
-            << requests.size() << " requests; using copy fallback for all convert notes";
-        for (int j = 0; j < convertIndices.size(); ++j)
-            pronResult[convertIndices.at(j)] = fromUtf8(requests.at(j).lyric);
-        return pronResult;
-    }
-
-    for (int i = 0; i < outcomes.size(); i++) {
-        pronResult[convertIndices.at(i)] = fromUtf8(outcomes.at(i).pronunciation);
-
-        // 失败诊断（不阻塞）：copy fallback 时 LangCore 已设 pronunciation=lyric
-        // 注：使用 qPrintable() 避免 Qt6 QDebug 对 QString 自动加引号
-        // （否则空字符串显示为 ""，导致 context='""' 误导排查方向）
-        if (outcomes.at(i).errorType != srt::g2p::NoError) {
+        auto exp = session.convertG2p(identifier, langStd, inputs);
+        if (!exp) {
+            // The inference chain never silently falls back to official;
+            // original lyric is kept so users can manually adjust later in
+            // PronunciationView (ds-session.md §206).
             qCWarning(logInferPron).nospace()
-                << "G2P conversion error note[" << convertIndices.at(i) << "] g2pId='"
-                << qPrintable(fromUtf8(outcomes.at(i).g2pId)) << "' context='"
-                << qPrintable(fromUtf8(outcomes.at(i).g2pContext))
-                << "' source=" << qPrintable(fromUtf8(outcomes.at(i).g2pSource))
-                << " errorType=" << outcomes.at(i).errorType << " ("
-                << qPrintable(g2pErrorTypeName(outcomes.at(i).errorType)) << ") lyric='"
-                << qPrintable(fromUtf8(requests.at(i).lyric)) << "' pronunciation='"
-                << qPrintable(fromUtf8(outcomes.at(i).pronunciation)) << "'";
+                << "G2P conversion failed for lang='" << language
+                << "': " << fromUtf8(exp.error().message()) << ". Keeping original lyric.";
+            for (const auto &entry : entries)
+                pronResult[entry.first] = fromUtf8(entry.second);
+            continue;
+        }
+
+        const auto &outcomes = *exp;
+        // Caller is responsible for result count validation; on mismatch the
+        // original lyric is kept (no Q_ASSERT: Debug-build abort conflicts
+        // with D11 precise error reporting).
+        if (outcomes.size() != entries.size()) {
+            qCWarning(logInferPron).nospace()
+                << "convertG2p returned " << outcomes.size() << " outcomes for "
+                << entries.size() << " requests; keeping original lyric for all convert notes";
+            for (const auto &entry : entries)
+                pronResult[entry.first] = fromUtf8(entry.second);
+            continue;
+        }
+
+        for (size_t i = 0; i < outcomes.size(); i++) {
+            const auto noteIdx = entries[i].first;
+            pronResult[noteIdx] = fromUtf8(outcomes[i].pronunciation);
+
+            // Failure diagnostics (non-blocking): on per-lyric failure LangCore
+            // already sets pronunciation=lyric (the only allowed behavior per
+            // ds-session.md §196 — no G2P fallback).
+            // Note: qPrintable() avoids Qt6 QDebug auto-quoting QString
+            // (otherwise empty strings display as "", causing context='""'
+            // which misleads debugging).
+            if (outcomes[i].errorType != srt::g2p::NoError) {
+                qCWarning(logInferPron).nospace()
+                    << "G2P conversion error note[" << noteIdx << "] g2pId='"
+                    << qPrintable(fromUtf8(outcomes[i].g2pId)) << "' context='"
+                    << qPrintable(fromUtf8(outcomes[i].g2pContext))
+                    << "' source=" << qPrintable(fromUtf8(outcomes[i].g2pSource))
+                    << " errorType=" << outcomes[i].errorType << " ("
+                    << qPrintable(g2pErrorTypeName(outcomes[i].errorType)) << ") lyric='"
+                    << qPrintable(fromUtf8(inputs[i].lyric)) << "' pronunciation='"
+                    << qPrintable(fromUtf8(outcomes[i].pronunciation)) << "'";
+            }
         }
     }
 

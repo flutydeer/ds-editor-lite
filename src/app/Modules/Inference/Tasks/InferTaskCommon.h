@@ -15,7 +15,7 @@
 #include <diffsinger/Infer/dsinfer/Api/Inferences/Common/1/CommonApiL1.h>
 #include <diffsinger/Infer/dsinfer/Api/Inferences/Acoustic/1/AcousticApiL1.h>
 
-#include <lite/SynthrtEngine/SingerModelSession.h>
+#include <diffsinger/Session/ModelSetHandle.h>
 
 class InferWord;
 class InferParam;
@@ -23,9 +23,19 @@ struct InferSpeakerMix;
 
 class ActiveInference final {
 public:
+    /// Model — the {inference, importOptions} pair a DiffSinger task consumes.
+    /// B1b: previously a nested type of SingerModelSession; now defined locally
+    /// since ActiveInference adapts a ds::session::ModelSetHandle into this
+    /// shape via handle->load(kind) + handle->stages().find(kind)->options.
+    /// Field shape is unchanged so all 4 task call sites compile unchanged.
+    struct Model {
+        srt::core::NO<srt::svs::Inference> inference;
+        srt::core::NO<srt::svs::InferenceImportOptions> importOptions;
+    };
+
     class Handle final {
     public:
-        Handle(ActiveInference &owner, SingerModelSession::Model model, std::uint64_t generation);
+        Handle(ActiveInference &owner, Model model, std::uint64_t generation);
         ~Handle();
 
         Handle(const Handle &) = delete;
@@ -33,15 +43,20 @@ public:
         Handle(Handle &&other) noexcept;
         Handle &operator=(Handle &&) = delete;
 
-        SingerModelSession::Model &model() noexcept;
+        Model &model() noexcept;
 
     private:
         ActiveInference *m_owner;
-        SingerModelSession::Model m_model;
+        Model m_model;
         std::uint64_t m_generation;
     };
 
-    srt::core::Expected<Handle> acquire(const std::shared_ptr<SingerModelSession> &session,
+    // B1b: acquire now takes a ModelSetHandle (from VoicebankSession::ensureModelSet)
+    // instead of a SingerModelSession. Internally load(kind) + model(kind) +
+    // stages().find(kind)->options build the equivalent {inference, importOptions}
+    // pair. Handle's public interface is unchanged, so the 4 DiffSinger task
+    // call sites continue to compile.
+    srt::core::Expected<Handle> acquire(const std::shared_ptr<ds::session::ModelSetHandle> &handle,
                                         ds::infer::StageKind kind);
     void stop();
 

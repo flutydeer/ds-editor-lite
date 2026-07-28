@@ -24,15 +24,22 @@ namespace FillLyric {
 
     class G2pService {
     public:
+        /// `languageService` is preserved for API stability during B1b migration
+        /// (LyricTab/LyricDialog construct G2pService with SynthrtEngine::
+        /// languageService()). B1b-3 routes G2P conversion through
+        /// SynthrtEngine::session().convertG2p() which uses the LanguageService
+        /// injected via SessionResources; this parameter is no longer used
+        /// internally and will be removed together with the legacy SynthrtEngine
+        /// API in B1c.
         G2pService(SingerIdentifier singer, const srt::g2p::LanguageService &languageService);
 
-        /// 每次调用按不同语言解析一次路由，失败也在本次调用内缓存。
+        /// Each call invokes session().convertG2p per language; on failure
+        /// that language keeps the original lyric (ds-session.md §206).
         QList<G2pResult> convert(const QList<LangNote> &notes,
                                  const std::vector<std::string> &priorityLanguages = {}) const;
 
     private:
         SingerIdentifier m_singer;
-        const srt::g2p::LanguageService &m_languageService;
     };
 } // namespace FillLyric
 

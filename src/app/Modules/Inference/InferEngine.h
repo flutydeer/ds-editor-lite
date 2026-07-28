@@ -13,14 +13,15 @@
 #include <lite/Core/Singleton.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
+#include <QHash>
 #include <QReadWriteLock>
 #include <QObject>
 
 #include <synthrt/Core/Core/Runtime.h>
+#include <diffsinger/Session/ModelSetHandle.h>
 
 class GenericInferModel;
 class InferParam;
-class SingerModelSession;
 
 struct InferEnginePaths {
     QString config;
@@ -51,7 +52,12 @@ public:
     QString inferenceInterpreterPath() const;
     // Returns a const reference to the Runtime. Intended for public, read-only access.
     const srt::core::Runtime &constRuntime() const;
-    std::shared_ptr<SingerModelSession>
+    // B1b: acquireSingerSession now returns a ModelSetHandle from
+    // VoicebankSession::ensureModelSet() instead of a SingerModelSession.
+    // The handle is the synthrt-side chokepoint for per-stage load/start/stop;
+    // ActiveInference adapts it into the same {inference, importOptions} Model
+    // shape the 4 DiffSinger tasks consume.
+    std::shared_ptr<ds::session::ModelSetHandle>
         acquireSingerSession(const SingerIdentifier &identifier) const;
 
     // Kicks off asynchronous initialization; called by the owner after
@@ -72,6 +78,15 @@ private:
     bool m_initialized = false;
     bool m_disposed = false;
     InferEnginePaths m_paths;
+
+    // Cache of ModelSetHandle per SingerIdentifier. Uses weak_ptr so handles
+    // can be released when all task references are gone, but consecutive/parallel
+    // tasks for the same singer can reuse the underlying ModelSet (and its
+    // cached ONNX sessions) instead of recreating them each time.
+    // This restores the caching behavior of the old SingerModelSession map
+    // (m_singerSessions) that was lost during the VoicebankSession migration.
+    mutable std::mutex m_singerHandlesMutex;
+    mutable QHash<SingerIdentifier, std::weak_ptr<ds::session::ModelSetHandle>> m_singerHandles;
 };
 
 

@@ -3,13 +3,16 @@
 #include <QLoggingCategory>
 
 #include <map>
-#include <optional>
+#include <utility>
+#include <vector>
 
 #include <synthrt/G2P/LanguageService.h>
 
 #include "Modules/FillLyric/Utils/TextTagger.h"
 #include <lite/Language/G2pConvertRunner.h>
 #include <lite/Language/G2pInputAdapter.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
+#include <lite/Support/VersionUtils.h>
 Q_LOGGING_CATEGORY(logFillG2p, "fill.g2p")
 
 namespace FillLyric {
@@ -26,14 +29,18 @@ namespace FillLyric {
 
     G2pService::G2pService(SingerIdentifier singer,
                            const srt::g2p::LanguageService &languageService)
-        : m_singer(std::move(singer)), m_languageService(languageService) {
+        : m_singer(std::move(singer)) {
+        Q_UNUSED(languageService);
     }
 
     QList<G2pResult> G2pService::convert(const QList<LangNote> &notes,
                                          const std::vector<std::string> &priorityLanguages) const {
 
-        // 预填充 results：所有 note 默认 copy fallback（pronunciation=lyric, candidates={lyric}）
-        // 保证返回与输入等长，调用方不会越界
+        // Pre-fill results: all notes default to original lyric preservation
+        // (pronunciation=lyric, candidates={lyric}) per ds-session.md §206.
+        // This guarantees the returned list is the same length as the input so
+        // callers do not go out of bounds. G2P fallback is forbidden by
+        // ds-session.md §196; on failure the host only preserves the lyric.
         QList<G2pResult> results;
         results.reserve(notes.size());
         for (const auto &note : notes) {
@@ -56,67 +63,90 @@ namespace FillLyric {
 
         if (m_singer.isEmpty()) {
             qCWarning(logFillG2p)
-                << "Singer identifier is empty; using copy fallback for all notes";
+                << "Singer identifier is empty; keeping original lyric for all notes";
             return results;
         }
 
-        std::map<QString, std::optional<srt::g2p::LanguageRoute>> routeCache;
-        std::vector<srt::g2p::G2pInput> requests;
-        QList<int> requestIndices;
+        // Group by resolved language (preserving first-seen order):
+        // language -> [(noteIndex, lyricUtf8), ...].
+        // lyric has its trailing '+' stripped, matching the old implementation
+        // (which chopped the trailing '+' before fromRoute).
+        std::map<QString, std::vector<std::pair<int, std::string>>> langGroups;
         const int commonCount = qMin(static_cast<int>(taggerRes.size()), notes.size());
-        requests.reserve(commonCount);
-        requestIndices.reserve(commonCount);
         for (int i = 0; i < commonCount; i++) {
             const auto language = notes[i].language == QStringLiteral("unknown")
                                       ? fromUtf8(taggerRes[i].language)
                                       : notes[i].language;
-            auto routeIt = routeCache.find(language);
-            if (routeIt == routeCache.end()) {
-                const auto route = m_languageService.resolveLanguageRoute(
-                    toUtf8(m_singer.packageId), toUtf8(m_singer.singerId), toUtf8(language));
-                if (!route.hasValue()) {
-                    qCWarning(logFillG2p) << "Failed to resolve G2P route for language" << language
-                                          << ":" << fromUtf8(route.error().message());
-                    routeIt = routeCache.emplace(language, std::nullopt).first;
-                } else {
-                    routeIt = routeCache.emplace(language, *route).first;
-                }
-            }
-            if (!routeIt->second)
-                continue;
 
-            requests.push_back(G2pInputAdapter::fromRoute(taggerRes[i].lyric, *routeIt->second));
-            requestIndices.append(i);
+            auto lyric = notes[i].lyric;
+            while (lyric.endsWith('+'))
+                lyric.chop(1);
+
+            langGroups[language].emplace_back(i, toUtf8(lyric));
         }
 
-        if (requests.empty())
+        if (langGroups.empty())
             return results;
 
-        const auto outcomes = G2pConvertRunner::convert(m_languageService, requests);
+        // B1b-3: Each language calls session().convertG2p once (internally
+        // routed by SingerRef.version, filling g2pId/g2pContext/
+        // g2pContextVersion). On route or conversion failure an Expected
+        // error is returned and all notes in that language keep the original
+        // lyric (ds-session.md §206: G2P failure preserves lyric).
+        auto &session = SynthrtEngine::instance().session();
+        const auto packageId = m_singer.packageId.toStdString();
+        const auto version = VersionUtils::qt_to_stdc(m_singer.packageVersion);
+        for (const auto &[language, entries] : langGroups) {
+            std::vector<srt::g2p::G2pInput> inputs;
+            inputs.reserve(entries.size());
+            for (const auto &entry : entries) {
+                srt::g2p::G2pInput input;
+                input.lyric = entry.second;
+                inputs.push_back(std::move(input));
+            }
 
-        // 调用方校验结果数量；可用结果按请求索引覆盖，其余保持 copy fallback。
-        if (outcomes.size() != requests.size()) {
-            qCWarning(logFillG2p) << "G2pConvertRunner returned" << outcomes.size()
-                                  << "outcomes for" << requests.size() << "requests;"
-                                  << "using copy fallback for unmatched notes";
-        }
+            // Ensure the G2P language module is loaded before conversion.
+            // convertG2p does not auto-initialize models; ensureLanguageReady
+            // loads them lazily on first call (cached internally by the session).
+            const auto langStd = toUtf8(language);
+            auto readyExp = session.ensureLanguageReady(packageId, version, langStd);
+            if (!readyExp) {
+                qCWarning(logFillG2p) << "G2P language ready failed for language" << language
+                                      << ":" << fromUtf8(readyExp.error().message());
+                continue; // Keep original lyric for this language
+            }
 
-        const auto coveredCount = std::min(outcomes.size(), requests.size());
-        for (size_t i = 0; i < coveredCount; i++) {
-            const auto noteIdx = requestIndices.at(static_cast<qsizetype>(i));
-            auto &result = results[noteIdx];
+            auto exp = session.convertG2p(m_singer, langStd, inputs);
+            if (!exp) {
+                qCWarning(logFillG2p) << "Failed to convert G2P for language" << language
+                                      << ":" << fromUtf8(exp.error().message());
+                continue; // Keep original lyric for this language
+            }
 
-            result.language = notes[noteIdx].language == QStringLiteral("unknown")
-                                  ? fromUtf8(taggerRes[noteIdx].language)
-                                  : notes[noteIdx].language;
+            const auto &outcomes = *exp;
+            if (outcomes.size() != entries.size()) {
+                qCWarning(logFillG2p) << "convertG2p returned" << outcomes.size()
+                                      << "outcomes for" << entries.size()
+                                      << "requests; keeping original lyric for unmatched notes";
+            }
 
-            const auto &outcome = outcomes[i];
-            result.g2pId = fromUtf8(outcome.g2pId);
-            result.pronunciation = fromUtf8(outcome.pronunciation);
-            result.candidates.clear();
-            result.candidates.reserve(static_cast<qsizetype>(outcome.candidates.size()));
-            for (const auto &candidate : outcome.candidates) {
-                result.candidates.append(fromUtf8(candidate));
+            const auto coveredCount = std::min(outcomes.size(), entries.size());
+            for (size_t i = 0; i < coveredCount; i++) {
+                const auto noteIdx = entries[i].first;
+                auto &result = results[noteIdx];
+
+                result.language = notes[noteIdx].language == QStringLiteral("unknown")
+                                      ? fromUtf8(taggerRes[noteIdx].language)
+                                      : notes[noteIdx].language;
+
+                const auto &outcome = outcomes[i];
+                result.g2pId = fromUtf8(outcome.g2pId);
+                result.pronunciation = fromUtf8(outcome.pronunciation);
+                result.candidates.clear();
+                result.candidates.reserve(static_cast<qsizetype>(outcome.candidates.size()));
+                for (const auto &candidate : outcome.candidates) {
+                    result.candidates.append(fromUtf8(candidate));
+                }
             }
         }
 

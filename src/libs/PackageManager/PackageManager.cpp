@@ -86,43 +86,73 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         }
 
         const bool allowReuse = m_catalogGeneration == 0;
-        auto catalogExp = SynthrtEngine::instance().refreshVoicebanks(searchPaths, allowReuse);
-        if (!catalogExp) {
+        // SynthrtEngine::initialize is triggered asynchronously by InferEngine
+        // on a separate task. VoicebankSession (Stage 1: voicebank scan +
+        // LanguageService metadata) must be ready before we can query the
+        // snapshot. We wait on sessionReady() rather than initialized() so
+        // PackageManager doesn't block on Stage 2 (ONNX model loading), which
+        // is slow and not needed for package enumeration. Uses a condition
+        // variable internally — no polling.
+        //
+        // If initialize() finishes (success or failure) without the session
+        // becoming ready, waitForSession returns true but refreshVoicebanks
+        // below will surface the actual error (e.g. "session not initialized"
+        // when Stage 1's refresh failed).
+        if (!SynthrtEngine::instance().sessionReady()) {
+            if (!SynthrtEngine::instance().waitForSession()) {
+                return GetInstalledPackagesError{
+                    GetInstalledPackagesErrorType::MetadataBackendNotInitialized,
+                    QStringLiteral("SynthrtEngine session initialization timed out"),
+                };
+            }
+        }
+        auto snapshotExp = SynthrtEngine::instance().refreshVoicebanks(searchPaths, allowReuse);
+        if (!snapshotExp) {
             return GetInstalledPackagesError{
                 GetInstalledPackagesErrorType::MetadataBackendNotInitialized,
-                QString::fromUtf8(catalogExp.error().message()),
+                QString::fromUtf8(snapshotExp.error().message()),
             };
         }
-        const auto catalog = *catalogExp;
+        const auto snapshot = *snapshotExp;
 
-        for (const auto &record : catalog->packages) {
-            const auto &status = record.status;
+        // Iterate packages (valid + invalid). For valid packages, look up the
+        // manifest via VoicebankSnapshot::findManifest(). Singers are looked up
+        // by matching singer.ref.packageId + singer.ref.version to the package.
+        for (const auto &status : snapshot->packages) {
             if (!status.valid) {
                 result.failedPackages.emplace_back(StringUtils::path_to_qstr(status.rootPath),
                                                    QString::fromStdString(status.error.message));
                 continue;
             }
-            if (record.parseError) {
+
+            const auto packageId = QString::fromStdString(status.packageId);
+            const auto packageVersion = VersionUtils::stdc_to_qt(status.version);
+
+            const auto *manifest = snapshot->findManifest(status.packageId, status.version);
+            if (!manifest) {
                 result.failedPackages.emplace_back(
                     StringUtils::path_to_qstr(status.rootPath),
-                    QString::fromStdString(record.parseError->message()));
+                    QStringLiteral("Manifest not available for package %1").arg(packageId));
                 continue;
             }
 
-            const auto &manifest = *record.manifest;
-            const auto packageId = QString::fromStdString(status.packageId);
-            const auto packageVersion = VersionUtils::stdc_to_qt(status.version);
             PackageInfo packageInfo(packageId, packageVersion,
-                                    QString::fromStdString(manifest.author()),
-                                    QString::fromStdString(manifest.description()),
-                                    QString::fromStdString(manifest.license()), {}, {},
+                                    QString::fromStdString(manifest->author()),
+                                    QString::fromStdString(manifest->description()),
+                                    QString::fromStdString(manifest->license()), {}, {},
                                     StringUtils::path_to_qstr(status.rootPath));
 
-            for (const auto &snapshot : record.singers) {
+            // Find singers belonging to this package version.
+            for (const auto &singerSnapshot : snapshot->singers) {
+                if (singerSnapshot.ref.packageId != status.packageId ||
+                    singerSnapshot.ref.version != status.version.toString()) {
+                    continue;
+                }
+
                 QList<LanguageInfo> languageInfos;
                 QList<SpeakerInfo> speakerInfos;
-                for (const auto &singer : manifest.singers()) {
-                    if (singer.singerId() != snapshot.ref.singerId) {
+                for (const auto &singer : manifest->singers()) {
+                    if (singer.singerId() != singerSnapshot.ref.singerId) {
                         continue;
                     }
                     for (const auto &lang : singer.languages()) {
@@ -164,14 +194,14 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 }
 
                 if (languageInfos.isEmpty()) {
-                    for (const auto &languageId : snapshot.languages) {
-                        const auto id = QString::fromStdString(languageId);
+                    for (const auto &langInfo : singerSnapshot.languageInfos) {
+                        const auto id = QString::fromStdString(langInfo.languageId());
                         languageInfos.emplace_back(id, id);
                     }
                 }
                 if (speakerInfos.isEmpty()) {
-                    for (const auto &speakerId : snapshot.speakerIds) {
-                        const auto id = QString::fromStdString(speakerId);
+                    for (const auto &spkInfo : singerSnapshot.speakerInfos) {
+                        const auto id = QString::fromStdString(spkInfo.speakerId());
                         speakerInfos.emplace_back(id, id);
                     }
                 }
@@ -181,8 +211,8 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 // 纯 G2P 包或 Inconsistent 声库 capabilityReport 为 nullopt / mixableSpeakers 空，
                 // lite UI 据此展示降级信息。
                 std::optional<SingerCapabilitySummary> capSummary;
-                if (snapshot.capabilityReport) {
-                    const auto &report = *snapshot.capabilityReport;
+                if (singerSnapshot.capabilityReport) {
+                    const auto &report = *singerSnapshot.capabilityReport;
                     SingerCapabilitySummary summary;
                     for (const auto &spk : report.mixableSpeakers)
                         summary.mixableSpeakers.append(QString::fromStdString(spk));
@@ -213,12 +243,13 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 }
 
                 SingerInfo singerInfo(
-                    SingerIdentifier{QString::fromStdString(snapshot.ref.singerId), packageId,
+                    SingerIdentifier{QString::fromStdString(singerSnapshot.ref.singerId), packageId,
                                      packageVersion},
-                    QString::fromStdString(snapshot.name), std::move(speakerInfos),
-                    std::move(languageInfos), QString::fromStdString(snapshot.defaultLanguage));
+                    QString::fromStdString(singerSnapshot.name), std::move(speakerInfos),
+                    std::move(languageInfos),
+                    QString::fromStdString(singerSnapshot.defaultLanguage));
                 singerInfo.setCapability(std::move(capSummary));
-                switch (snapshot.resolutionState) {
+                switch (singerSnapshot.resolutionState) {
                     case ds::bank::ResolutionState::Resolved:
                         singerInfo.setResolutionState(ResolutionState::Resolved);
                         break;
@@ -239,7 +270,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         {
             QWriteLocker writeLocker(&m_resultRwLock);
             m_result = result;
-            m_catalogGeneration = catalog->generation;
+            m_catalogGeneration = snapshot->generation;
             m_packageLocator.clear();
             m_singerLocator.clear();
             for (const auto &packageInfo : std::as_const(m_result.successfulPackages)) {

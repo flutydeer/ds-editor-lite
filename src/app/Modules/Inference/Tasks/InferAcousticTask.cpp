@@ -146,8 +146,8 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
     input->depth = model.depth;
     input->steps = model.steps;
 
-    const auto session = inferEngine->acquireSingerSession(identifier);
-    if (!session) {
+    const auto handle = inferEngine->acquireSingerSession(identifier);
+    if (!handle) {
         qCritical() << "inferAcoustic: failed to acquire singer session for" << identifier;
         return false;
     }
@@ -155,7 +155,7 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
     srt::core::NO<srt::core::ITensor> mel;
     srt::core::NO<srt::core::ITensor> f0;
     {
-        auto acousticExp = m_activeInference.acquire(session, ds::infer::StageKind::Acoustic);
+        auto acousticExp = m_activeInference.acquire(handle, ds::infer::StageKind::Acoustic);
         if (!acousticExp) {
             qCritical().noquote().nospace()
                 << "inferAcoustic: failed to load acoustic model for " << identifier << ": "
@@ -231,7 +231,7 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
     }
     // Run vocoder
     {
-        auto vocoderExp = m_activeInference.acquire(session, ds::infer::StageKind::Vocoder);
+        auto vocoderExp = m_activeInference.acquire(handle, ds::infer::StageKind::Vocoder);
         if (!vocoderExp) {
             qCritical().noquote().nospace()
                 << "inferAcoustic: failed to load vocoder model for " << identifier << ": "
