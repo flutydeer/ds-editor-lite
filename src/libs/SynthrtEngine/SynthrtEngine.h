@@ -213,7 +213,6 @@ private:
     bool initializeRuntime(const std::filesystem::path &pluginRoot, const QString &ep,
                            int deviceIndex);
     void initializeExtractors(const std::filesystem::path &pluginRoot);
-    bool initializeG2pOnnxDriver();
 };
 
 #endif // SYNTHRT_ENGINE_H
