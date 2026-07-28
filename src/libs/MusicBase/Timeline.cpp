@@ -147,16 +147,18 @@ int Timeline::nearestBarWithTimeSignatureTo(const int bar) const {
 }
 
 double Timeline::tickToMs(const double tick) const {
-    const auto i = tempoIndexAtTick(tick);
-    const auto &tempo = m_tempos[i];
-    return m_msAtTempo[i] +
+    // Anchor to the start of the same-value run so redundant tempo points do not
+    // change the result (see rebuildTempoCache / TestParamResample).
+    const auto r = m_tempoRunStart[tempoIndexAtTick(tick)];
+    const auto &tempo = m_tempos[r];
+    return m_msAtTempo[r] +
            (tick - tempo.pos) * 60 / tempo.value / MusicTime::ticksPerQuarterNote * 1000;
 }
 
 double Timeline::msToTick(const double ms) const {
-    const auto i = tempoIndexAtMs(ms);
-    const auto &tempo = m_tempos[i];
-    return tempo.pos + (ms - m_msAtTempo[i]) * MusicTime::ticksPerQuarterNote * tempo.value / 60000;
+    const auto r = m_tempoRunStart[tempoIndexAtMs(ms)];
+    const auto &tempo = m_tempos[r];
+    return tempo.pos + (ms - m_msAtTempo[r]) * MusicTime::ticksPerQuarterNote * tempo.value / 60000;
 }
 
 double Timeline::tickToSec(const double tick) const {
@@ -271,11 +273,17 @@ void Timeline::normalizeTimeSignatures() {
 
 void Timeline::rebuildTempoCache() {
     m_msAtTempo.resize(m_tempos.size());
+    m_tempoRunStart.resize(m_tempos.size());
     m_msAtTempo[0] = 0.0;
+    m_tempoRunStart[0] = 0;
     for (qsizetype i = 1; i < m_tempos.size(); i++) {
         const auto &prev = m_tempos[i - 1];
         m_msAtTempo[i] = m_msAtTempo[i - 1] + (m_tempos[i].pos - prev.pos) * 60 / prev.value /
                                                   MusicTime::ticksPerQuarterNote * 1000;
+        // A point that does not change the tempo continues the previous run, so
+        // it shares the run's anchor for time conversion.
+        m_tempoRunStart[i] =
+            m_tempos[i].value == prev.value ? m_tempoRunStart[i - 1] : i;
     }
 }
 

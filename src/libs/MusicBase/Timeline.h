@@ -94,6 +94,10 @@ private:
     // std::upper_bound. Kept as sorted lists rather than floating-point-keyed
     // maps to avoid precision pitfalls in reverse lookups.
     QList<double> m_msAtTempo;    // accumulated ms at m_tempos[i].pos
+    // Index of the first point in m_tempos[i]'s maximal same-value run. tickToMs
+    // anchors to it so that redundant same-value points (legal, editable) do not
+    // perturb the conversion via floating-point non-associativity.
+    QList<qsizetype> m_tempoRunStart;
     QList<int> m_tickAtSignature; // tick where bar m_timeSignatures[i].barIndex starts
 };
 
