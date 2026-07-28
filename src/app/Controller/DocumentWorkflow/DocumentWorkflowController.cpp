@@ -12,7 +12,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/History/HistoryManager.h>
-#include "Modules/ProjectConverters/DspxProjectConverter.h"
+#include "Modules/ProjectConverters/DspxProjectConverterUi.h"
 #include "UI/Dialogs/Base/ProgressDialog.h"
 #include "Utils/ConditionalTransition.h"
 
@@ -391,7 +391,7 @@ void DocumentWorkflowController::askSavePath() {
 
 void DocumentWorkflowController::performSave() {
     QString errorMessage;
-    DspxProjectConverter converter;
+    DspxProjectConverterUi converter;
     if (converter.save(m_savePath, appModel, errorMessage)) {
         historyManager->setSavePoint();
         updateProjectIdentity(m_savePath);

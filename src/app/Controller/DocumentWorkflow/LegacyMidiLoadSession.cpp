@@ -3,7 +3,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
-#include "Modules/ProjectConverters/MidiConverter.h"
+#include "Modules/ProjectConverters/MidiConverterUi.h"
 
 #include <QFileInfo>
 
@@ -21,7 +21,7 @@ void LegacyMidiLoadSession::start() {
     m_started = true;
 
     AppModel resultModel;
-    MidiConverter converter;
+    MidiConverterUi converter;
     MidiConverter::LoadOptions options;
     QString errorMessage;
     const auto mode = m_purpose == ProjectLoadPurpose::Open

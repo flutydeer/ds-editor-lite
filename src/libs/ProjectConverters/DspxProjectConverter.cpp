@@ -2,13 +2,12 @@
 // Created by hrukalive on 2/7/24.
 //
 
-#include "DspxProjectConverter.h"
-#include "DspxProjectParser.h"
-#include "DspxPhonemeCompat.h"
+#include <lite/ProjectConverters/DspxProjectConverter.h>
+#include <lite/ProjectConverters/DspxProjectParser.h>
+#include <lite/ProjectConverters/DspxPhonemeCompat.h>
 
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
-#include "Model/AppStatus/AppStatus.h"
 
 #include <opendspx/model.h>
 #include <opendspx/singlesinger.h>
@@ -23,7 +22,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include <lite/PackageManager/PackageManager.h>
-#include "Model/Utils/DiffscopeAudioWorkspace.h"
+#include <lite/ProjectModel/Utils/DiffscopeAudioWorkspace.h>
 
 #include <QDebug>
 #include <QCoreApplication>
@@ -34,14 +33,6 @@
 
 namespace {
     using namespace SpeakerMixModel;
-
-    void warnIfPackageMetadataNotReady(const SingerIdentifier &identifier) {
-        if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready)
-            return;
-
-        qWarning() << "DspxProjectConverter is resolving singer before package metadata is ready:"
-                   << identifier;
-    }
 
     class JsonNlohmann {
     public:
@@ -173,7 +164,6 @@ namespace {
             return {};
 
         // Try to resolve from package manager
-        warnIfPackageMetadataNotReady(identifier);
         auto resolved = packageManager->findSingerByIdentifier(identifier);
         if (!resolved.isEmpty())
             return resolved;
@@ -468,7 +458,6 @@ namespace {
         if (identifier.isEmpty())
             return {};
 
-        warnIfPackageMetadataNotReady(identifier);
         auto resolved = packageManager->findSingerByIdentifier(identifier);
         if (!resolved.isEmpty())
             return resolved;
@@ -1102,7 +1091,7 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     LoopSettings loopSettings;
     if (!loadParsedProject(*parseResult.model, model, loopSettings, errMsg, mode))
         return false;
-    appStatus->loopSettings.set(loopSettings);
+    applyLoadedLoopSettings(loopSettings);
     return true;
 }
 
@@ -1323,7 +1312,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
 
     encodeTracks(model, dspxModel);
 
-    const auto loopSettings = appStatus->loopSettings.get();
+    const auto loopSettings = loopSettingsToSave();
     dspxModel.content.workspace["loop"] = JsonNlohmann::fromQJsonValue(loopSettings.serialize());
 
     auto saveModelToFile = [](const opendspx::Model &model_, const QString &filePath,

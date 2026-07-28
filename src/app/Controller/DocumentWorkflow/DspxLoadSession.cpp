@@ -5,7 +5,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/ProjectConverters/DspxProjectConverter.h"
+#include "Modules/ProjectConverters/DspxProjectConverterUi.h"
 #include <lite/Tasking/TaskManager.h>
 
 #include <QFileInfo>
@@ -136,7 +136,7 @@ void DspxLoadSession::handleTaskFinished(OpenDspxProjectTask *task) {
     AppModel resultModel;
     LoopSettings loopSettings;
     QString errorMessage;
-    DspxProjectConverter converter;
+    DspxProjectConverterUi converter;
     if (!converter.loadParsedProject(*parseResult.model, &resultModel, loopSettings, errorMessage,
                                      IProjectConverter::ImportMode::NewProject)) {
         m_terminal = true;

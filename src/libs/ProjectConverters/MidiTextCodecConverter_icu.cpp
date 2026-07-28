@@ -1,4 +1,4 @@
-#include "MidiTextCodecConverter.h"
+#include <lite/ProjectConverters/MidiTextCodecConverter.h>
 
 #ifndef Q_OS_MAC
 

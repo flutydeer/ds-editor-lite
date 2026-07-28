@@ -25,7 +25,7 @@
 #include "UI/Views/TrackEditor/GraphicsItem/AudioClipView.h"
 #include "Global/AppGlobal.h"
 #include "Global/ControllerGlobal.h"
-#include "Model/Utils/DiffscopeAudioWorkspace.h"
+#include <lite/ProjectModel/Utils/DiffscopeAudioWorkspace.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QClipboard>

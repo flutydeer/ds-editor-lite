@@ -1,7 +1,7 @@
 #ifndef OPENDSPXPROJECTTASK_H
 #define OPENDSPXPROJECTTASK_H
 
-#include "Modules/ProjectConverters/DspxProjectParser.h"
+#include <lite/ProjectConverters/DspxProjectParser.h>
 #include <lite/Tasking/Task.h>
 
 class OpenDspxProjectTask final : public Task {

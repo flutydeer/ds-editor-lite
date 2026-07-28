@@ -1,4 +1,4 @@
-#include "DspxProjectParser.h"
+#include <lite/ProjectConverters/DspxProjectParser.h>
 
 #include <opendspx/model.h>
 #include <opendspxserializer/serializer.h>
