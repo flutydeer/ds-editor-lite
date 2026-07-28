@@ -47,6 +47,12 @@ public:
     const QList<Track *> &tracks() const;
     void insertTrack(Track *track, qsizetype index);
     void appendTrack(Track *track);
+    // 重排轨道顺序（to 为移动完成后的最终下标，语义同 QList::move）。
+    // 与「takeTrackAt + insertTrack」不同：列表先完成重排，之后才发出
+    // Remove/Insert 通知，因此监听者在处理 Remove 时仍能通过
+    // findTrackById / findClipById 查到该轨道及其剪辑，从而把「移动」
+    // 与「删除」区分开，不会误清空 activeClipId、推理管线等状态。
+    void moveTrack(qsizetype from, qsizetype to);
     void removeTrackAt(qsizetype index);
     void removeTrack(Track *track);
     Track *takeTrackAt(qsizetype index);

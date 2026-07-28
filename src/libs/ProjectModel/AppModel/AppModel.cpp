@@ -121,6 +121,22 @@ void AppModel::appendTrack(Track *track) {
     insertTrack(track, d->m_tracks.count());
 }
 
+void AppModel::moveTrack(const qsizetype from, const qsizetype to) {
+    Q_D(AppModel);
+    if (from == to)
+        return;
+    const auto size = d->m_tracks.size();
+    if (from < 0 || from >= size || to < 0 || to >= size)
+        return;
+
+    const auto track = d->m_tracks.at(from);
+    d->m_tracks.move(from, to);
+
+    // 先重排、后通知：发信号时模型已处于一致状态，监听者据此判定这是移动而非删除
+    emit trackChanged(Remove, from, track);
+    emit trackChanged(Insert, to, track);
+}
+
 void AppModel::removeTrackAt(const qsizetype index) {
     takeTrackAt(index);
 }

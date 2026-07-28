@@ -19,38 +19,19 @@ void MoveTrackAction::execute() {
     if (m_fromIndex == m_toIndex)
         return;
 
-    const auto &tracks = m_model->tracks();
-    if (m_fromIndex < 0 || m_fromIndex >= tracks.size() || m_toIndex < 0 ||
-        m_toIndex > tracks.size())
+    const auto size = m_model->tracks().size();
+    if (m_fromIndex < 0 || m_fromIndex >= size || m_toIndex < 0 || m_toIndex > size)
         return;
 
-    auto *track = tracks[m_fromIndex];
-    m_model->removeTrackAt(m_fromIndex);
-
-    // After removal, if toIndex is beyond the removed item, we need to adjust
-    m_actualToIndex = m_toIndex;
-    if (m_toIndex > m_fromIndex) {
-        m_actualToIndex = m_toIndex - 1;
-    }
-
-    m_model->insertTrack(track, m_actualToIndex);
+    // 拖拽给出的 toIndex 是「插入到该位置之前」的语义；moveTrack 需要的是移动后的
+    // 最终下标，因此当目标位于源之后时要向前修正一位
+    m_actualToIndex = m_toIndex > m_fromIndex ? m_toIndex - 1 : m_toIndex;
+    m_model->moveTrack(m_fromIndex, m_actualToIndex);
 }
 
 void MoveTrackAction::undo() {
-    if (m_fromIndex == m_toIndex)
+    if (m_fromIndex == m_toIndex || m_actualToIndex < 0)
         return;
 
-    const auto &tracks = m_model->tracks();
-    if (m_actualToIndex < 0 || m_actualToIndex >= tracks.size())
-        return;
-
-    auto *track = tracks[m_actualToIndex];
-    m_model->removeTrackAt(m_actualToIndex);
-
-    // After removal, m_fromIndex should be valid for insertion
-    // (can be up to the size of the shortened list)
-    if (m_fromIndex < 0 || m_fromIndex > tracks.size() - 1)
-        return;
-
-    m_model->insertTrack(track, m_fromIndex);
+    m_model->moveTrack(m_actualToIndex, m_fromIndex);
 }
