@@ -69,6 +69,7 @@ public:
     explicit VelocityParamProperties();
     int valueFromNormalized(double normalized) const override;
     double valueToNormalized(int value) const override;
+    QString valueToString(int value, bool withUnit, int precision) const override;
 };
 
 class ToneShiftParamProperties final : public ParamProperties {

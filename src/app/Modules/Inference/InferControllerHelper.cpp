@@ -80,6 +80,16 @@ namespace InferControllerHelper {
                 result.values.append(value / scale);
             return result;
         }
+
+        template <typename F>
+        InferParamCurve curveTransformedSnapshot(const DrawCurve &curve, const double scale, F unaryOp) {
+            InferParamCurve result;
+            result.localStartTick = curve.localStart();
+            result.values.reserve(curve.values().size());
+            for (const auto value : curve.values())
+                result.values.append(unaryOp(value / scale));
+            return result;
+        }
     } // namespace
 
     DrawCurveList getEditedCurvesIncludingAnchor(const Param *param,
@@ -136,7 +146,7 @@ namespace InferControllerHelper {
         input.energy = curveSnapshot(piece.inputEnergy, 1000.0);
         input.mouthOpening = curveSnapshot(piece.inputMouthOpening, 1000.0);
         input.gender = curveSnapshot(piece.inputGender, 1000.0);
-        input.velocity = curveSnapshot(piece.inputVelocity, 1000.0);
+        input.velocity = curveTransformedSnapshot(piece.inputVelocity, 1000.0, [](double x) { return std::exp2(x); });
         input.toneShift = curveSnapshot(piece.inputToneShift, 1.0);
         input.depth = appOptions->inference()->depth;
         return input;
