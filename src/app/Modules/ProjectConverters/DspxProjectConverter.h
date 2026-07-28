@@ -7,7 +7,7 @@
 
 #include "IProjectConverter.h"
 
-class LoopSettings;
+#include <lite/ProjectModel/AppModel/LoopSettings.h>
 
 namespace opendspx {
     struct Model;
@@ -15,12 +15,25 @@ namespace opendspx {
 
 using ImportMode = IProjectConverter::ImportMode;
 
-class DspxProjectConverter final : public IProjectConverter {
+class DspxProjectConverter : public IProjectConverter {
 public:
     bool load(const QString &path, AppModel *model, QString &errMsg, ImportMode mode) override;
     bool loadParsedProject(const opendspx::Model &dspxModel, AppModel *model,
                            LoopSettings &loopSettings, QString &errMsg, ImportMode mode);
     bool save(const QString &path, AppModel *model, QString &errMsg) override;
+
+protected:
+    // Publish the loaded project's loop region. The base ignores it; the app
+    // overrides this to push it into AppStatus, keeping the converter free of
+    // app-runtime state.
+    virtual void applyLoadedLoopSettings(const LoopSettings &loopSettings) {
+        Q_UNUSED(loopSettings);
+    }
+    // The loop region to persist on save. The base has none; the app overrides
+    // this to read the active loop region from AppStatus.
+    virtual LoopSettings loopSettingsToSave() const {
+        return {};
+    }
 };
 
 #endif // DSPXPROJECTCONVERTER_H
