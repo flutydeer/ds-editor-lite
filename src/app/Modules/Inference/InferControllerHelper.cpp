@@ -51,11 +51,17 @@ namespace InferControllerHelper {
             input.clipRevision = piece.clip->inferenceRevision();
             input.clipStartTick = piece.clip->start();
             input.timeline = appModel->timeline();
-            input.pieceStartTick = input.clipStartTick + piece.localStartTick(input.timeline);
+            const auto headLayout = piece.phonemeHeadLayout();
+            const auto firstNoteGlobalTick =
+                input.clipStartTick + piece.notes.first()->localStart();
+            input.pieceStartTick = headLayout.pieceStartTick(input.timeline, firstNoteGlobalTick);
             input.pieceEndTick = input.clipStartTick + piece.localEndTick(input.timeline);
             input.headAvailableLengthMs = piece.headAvailableLengthMs;
             input.paddingStartMs = piece.paddingStartMs;
             input.paddingEndMs = piece.paddingEndMs;
+            input.minimumFirstOffsetMs = headLayout.minimumFirstOffsetMs;
+            input.requiredHeadLengthMs = headLayout.requiredHeadLengthMs;
+            input.maximumHeadLengthMs = headLayout.maximumHeadLengthMs;
             input.notes = buildInferInputNotes(piece.notes);
 
             const auto spk = resolveSpeakerForPiece(piece);

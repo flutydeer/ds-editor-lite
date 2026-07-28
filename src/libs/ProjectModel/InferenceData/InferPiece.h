@@ -12,6 +12,7 @@
 #include <lite/ADT/Property.h>
 #include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
+#include <lite/ProjectModel/Utils/PhonemeHeadLayout.h>
 
 #include <QObject>
 
@@ -61,6 +62,7 @@ public:
     explicit InferPiece(SingingClip *clip);
 
     [[nodiscard]] int clipId() const override;
+    [[nodiscard]] PhonemeHeadLayout phonemeHeadLayout() const;
     [[nodiscard]] int localStartTick(const Timeline &timeline) const;
     [[nodiscard]] int localEndTick(const Timeline &timeline) const;
 

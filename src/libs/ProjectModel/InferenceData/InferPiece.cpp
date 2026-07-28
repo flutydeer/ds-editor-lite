@@ -8,8 +8,6 @@
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/MusicBase/Timeline.h>
 
-#include <algorithm>
-
 InferPiece::InferPiece(SingingClip *clip) : QObject(clip), clip(clip) {
     acousticInferStatus.onChanged(qSignalCallback(statusChanged));
     state.onChanged(qSignalCallback(stateChanged));
@@ -19,22 +17,18 @@ int InferPiece::clipId() const {
     return clip->id();
 }
 
+PhonemeHeadLayout InferPiece::phonemeHeadLayout() const {
+    if (notes.isEmpty())
+        return PhonemeHeadLayout::calculate(paddingStartMs, headAvailableLengthMs);
+    return PhonemeHeadLayout::calculate(paddingStartMs, headAvailableLengthMs,
+                                        notes.first()->phonemeOffsetSeq().result());
+}
+
 int InferPiece::localStartTick(const Timeline &timeline) const {
     if (notes.isEmpty())
         return 0;
-    int extraPaddingMs = 0;
-    if (!notes.isEmpty()) {
-        const auto &offsets = notes.first()->phonemeOffsetSeq().result();
-        if (!offsets.isEmpty()) {
-            auto minOffset = *std::min_element(offsets.begin(), offsets.end());
-            if (minOffset < 0)
-                extraPaddingMs = -minOffset;
-        }
-    }
     const int firstNoteGlobalTick = clip->start() + notes.first()->localStart();
-    const double paddedStartMs =
-        timeline.tickToMs(firstNoteGlobalTick) - paddingStartMs - extraPaddingMs;
-    return qRound(timeline.msToTick(paddedStartMs)) - clip->start();
+    return phonemeHeadLayout().pieceStartTick(timeline, firstNoteGlobalTick) - clip->start();
 }
 
 int InferPiece::localEndTick(const Timeline &timeline) const {

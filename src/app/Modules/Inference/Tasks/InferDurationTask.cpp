@@ -10,9 +10,12 @@
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
+#include <lite/ProjectModel/Utils/PhonemeHeadLayout.h>
 #include <lite/Support/JsonUtils.h>
 #include "InferTaskCommon.h"
 
+#include <algorithm>
+#include <cmath>
 #include <QThread>
 #include <QDebug>
 #include <QDir>
@@ -106,18 +109,22 @@ void InferDurationTask::runTask() {
                 for (auto &word : words) {
                     double timeCursor = 0.0;
                     for (auto &phoneme : word.phones) {
-                        if (i >= phonemeDurations.size()) {
-                            return;
-                        }
+                        if (i >= phonemeDurations.size())
+                            return false;
                         phoneme.start = timeCursor;
                         timeCursor += phonemeDurations[i];
                         ++i;
                     }
                 }
+                return i == phonemeDurations.size();
             };
 
             model = input;
-            updatePhonemeStarts(model.words, durations);
+            if (!updatePhonemeStarts(model.words, durations)) {
+                qCritical() << "Duration result mapping failed. clipId:" << clipId()
+                            << "pieceId:" << pieceId() << "taskId:" << id();
+                return;
+            }
         } else {
             qCritical() << "Task failed:" << errorMessage;
             return;
@@ -233,6 +240,18 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
         return false;
     }
 
+    for (size_t i = 0; i < result->durations.size(); ++i) {
+        const auto duration = result->durations[i];
+        if (!std::isfinite(duration) || duration < 0) {
+            error = QStringLiteral("Duration result contains an invalid value at index %1: %2")
+                        .arg(static_cast<qulonglong>(i))
+                        .arg(duration);
+            qCritical().noquote() << "inferDuration:" << error << "clipId:" << clipId()
+                                  << "pieceId:" << pieceId() << "taskId:" << id();
+            return false;
+        }
+    }
+
     outDuration = std::move(result->durations);
 
     return true;
@@ -274,67 +293,110 @@ GenericInferModel InferDurationTask::InferDurInput::toEngineModel() const {
 }
 
 bool InferDurationTask::processOutput(const GenericInferModel &model) {
-    QList<bool> isRestPhones;
-    QList<std::pair<double, double>> offsets;
+    class OutputPhone {
+    public:
+        QString token;
+        double wordLength = 0;
+        double start = 0;
+    };
+
+    QList<OutputPhone> outputPhones;
     for (const auto &word : model.words) {
+        const auto wordLength = word.length();
+        if (!std::isfinite(wordLength) || wordLength < 0) {
+            qCritical() << "Duration output has invalid word length. clipId:" << clipId()
+                        << "pieceId:" << pieceId() << "taskId:" << id()
+                        << "wordLength:" << wordLength;
+            return false;
+        }
         for (const auto &phoneme : word.phones) {
-            isRestPhones.append(phoneme.token == "SP" || phoneme.token == "AP");
-            offsets.append({word.length(), phoneme.start});
+            if (!std::isfinite(phoneme.start) || phoneme.start < 0) {
+                qCritical() << "Duration output has invalid phoneme start. clipId:" << clipId()
+                            << "pieceId:" << pieceId() << "taskId:" << id()
+                            << "phone:" << phoneme.token << "start:" << phoneme.start;
+                return false;
+            }
+            outputPhones.append({phoneme.token, wordLength, phoneme.start});
         }
     }
-    QWriteLocker writeLocker(&m_rwLock);
-    m_result = m_input;
-    int phoneIndex = 1;
-    int noteIndex = 0;
-    for (auto &note : m_result.notes) {
+
+    auto result = m_input;
+    int phoneIndex = 0;
+    for (auto &note : result.notes) {
         // 跳过连续的休止、换气和转音音符
         if (note.isRest || note.isSlur)
             continue;
 
         // 跳过连续的 SP 和 AP 音素
-        while (phoneIndex < isRestPhones.size() && isRestPhones.at(phoneIndex) == true) {
+        while (phoneIndex < outputPhones.size() &&
+               (outputPhones.at(phoneIndex).token == "SP" ||
+                outputPhones.at(phoneIndex).token == "AP")) {
             phoneIndex++;
         }
-        if (phoneIndex >= offsets.size()) {
+
+        QList<int> noteOffsets;
+        bool foundOnset = false;
+        for (const auto &phonemeName : note.phonemeNames) {
+            if (phoneIndex >= outputPhones.size()) {
+                qCritical() << "Duration output ended before the note phoneme mapping. clipId:"
+                            << clipId() << "pieceId:" << pieceId() << "taskId:" << id()
+                            << "noteId:" << note.id;
+                return false;
+            }
+            const auto &outputPhone = outputPhones.at(phoneIndex);
+            if (outputPhone.token != phonemeName.name) {
+                qCritical() << "Duration output phoneme mapping mismatch. clipId:" << clipId()
+                            << "pieceId:" << pieceId() << "taskId:" << id()
+                            << "noteId:" << note.id << "expected:" << phonemeName.name
+                            << "actual:" << outputPhone.token;
+                return false;
+            }
+            if (phonemeName.isOnset)
+                foundOnset = true;
+            const auto offsetSeconds =
+                foundOnset ? outputPhone.start : outputPhone.start - outputPhone.wordLength;
+            noteOffsets.append(qRound(offsetSeconds * 1000));
+            phoneIndex++;
+        }
+
+        if (!std::is_sorted(noteOffsets.cbegin(), noteOffsets.cend())) {
+            qCritical() << "Duration output produced unordered phoneme offsets. clipId:" << clipId()
+                        << "pieceId:" << pieceId() << "taskId:" << id()
+                        << "noteId:" << note.id << "offsets:" << noteOffsets;
             return false;
         }
-
-        qsizetype headerPhonemeCount = 0;
-        qsizetype normalPhonemeCount = 0;
-        bool foundOnset = false;
-        for (int i = 0; i < note.phonemeNames.count(); i++) {
-            auto phonemeName = note.phonemeNames.at(i);
-            if (phonemeName.isOnset) {
-                foundOnset = true;
-            }
-            if (foundOnset) {
-                normalPhonemeCount++;
-            } else {
-                headerPhonemeCount++;
-            }
-        }
-
-        QList<int> aheadOffsets;
-        for (int aheadIndex = 0; aheadIndex < headerPhonemeCount; aheadIndex++) {
-            if (phoneIndex >= offsets.size()) {
-                return false;
-            }
-            aheadOffsets.append(
-                qRound((offsets[phoneIndex].second - offsets[phoneIndex].first) * 1000));
-            phoneIndex++;
-        }
-
-        QList<int> normalOffsets;
-        for (int normalIndex = 0; normalIndex < normalPhonemeCount; normalIndex++) {
-            if (phoneIndex >= offsets.size()) {
-                return false;
-            }
-            normalOffsets.append(qRound(offsets[phoneIndex].second * 1000));
-            phoneIndex++;
-        }
-
-        note.phonemeOffsets = aheadOffsets + normalOffsets;
-        noteIndex++;
+        note.phonemeOffsets = noteOffsets;
     }
+
+    while (phoneIndex < outputPhones.size() &&
+           (outputPhones.at(phoneIndex).token == "SP" ||
+            outputPhones.at(phoneIndex).token == "AP")) {
+        phoneIndex++;
+    }
+    if (phoneIndex != outputPhones.size()) {
+        qCritical() << "Duration output contains unmapped phonemes. clipId:" << clipId()
+                    << "pieceId:" << pieceId() << "taskId:" << id()
+                    << "firstUnmappedIndex:" << phoneIndex;
+        return false;
+    }
+
+    if (!result.notes.isEmpty() && !result.notes.first().isRest &&
+        !result.notes.first().isSlur) {
+        const auto headLayout =
+            PhonemeHeadLayout::calculate(result.paddingStartMs, result.headAvailableLengthMs,
+                                         result.notes.first().phonemeOffsets);
+        if (!headLayout.isWithinBounds()) {
+            qCritical() << "Duration output exceeds the piece head boundary. clipId:" << clipId()
+                        << "pieceId:" << pieceId() << "taskId:" << id()
+                        << "noteId:" << result.notes.first().id
+                        << "minimumOffsetMs:" << headLayout.minimumFirstOffsetMs
+                        << "requiredHeadLengthMs:" << headLayout.requiredHeadLengthMs
+                        << "maximumHeadLengthMs:" << headLayout.maximumHeadLengthMs;
+            return false;
+        }
+    }
+
+    QWriteLocker writeLocker(&m_rwLock);
+    m_result = std::move(result);
     return true;
 }
