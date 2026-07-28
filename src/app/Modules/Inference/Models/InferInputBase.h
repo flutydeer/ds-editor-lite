@@ -31,6 +31,9 @@ public:
     double headAvailableLengthMs = 0;
     double paddingStartMs = 0;
     double paddingEndMs = 0;
+    int minimumFirstOffsetMs = 0;
+    double requiredHeadLengthMs = 0;
+    double maximumHeadLengthMs = 0;
 
     Timeline timeline;
     QList<InferInputNote> notes;

@@ -9,6 +9,7 @@
 #include "Controller/PlaybackController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/ProjectModel/Utils/PhonemeHeadLayout.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Inference/EditSessionManager.h"
@@ -358,13 +359,7 @@ void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
         double leftBoundary = prior->start;
         if (cur->isFirstOfNote) {
             if (cur->isFirstOfPiece) {
-                const auto extraHeadMs = cur->pieceHeadAvailableLengthMs - cur->piecePaddingStartMs;
-                if (extraHeadMs > 0) {
-                    const auto extraHeadTicks = qRound(appModel->msToTick(extraHeadMs));
-                    leftBoundary = cur->noteStart - extraHeadTicks;
-                } else {
-                    leftBoundary = cur->noteStart;
-                }
+                leftBoundary = cur->pieceHeadLeftBoundaryTick;
             } else if (prior->type != PhonemeViewModel::Sil) {
                 leftBoundary = std::max<double>(prior->noteStart, prior->start);
             }
@@ -638,9 +633,11 @@ void PhonemeView::buildPhonemeList() {
                 model->isFirstOfNote = (k == 0);
                 model->isLastOfNote = (k == phoneCount - 1);
                 if (piece && k == 0) {
+                    const auto headLayout = piece->phonemeHeadLayout();
                     model->isFirstOfPiece = true;
-                    model->pieceHeadAvailableLengthMs = piece->headAvailableLengthMs;
-                    model->piecePaddingStartMs = piece->paddingStartMs;
+                    model->pieceHeadLeftBoundaryTick = headLayout.earliestAllowedStartTick(
+                        appModel->timeline(), note->globalStart());
+                    model->pieceMinimumOffsetMs = headLayout.minimumAllowedOffsetMs();
                 }
                 if (!offsets.result().isEmpty() && k < offsets.result().count()) {
                     model->offsetReady = true;
@@ -686,7 +683,10 @@ void PhonemeView::handleAdjustCompleted(const PhonemeViewModel *phVm) {
     if (phVm->type == PhonemeViewModel::Normal) {
         for (const auto phoneme : relatedPhonemes) {
             const auto phonemeStartInMs = appModel->tickToMs(phoneme->start + phoneme->startOffset);
-            offsets.append(qRound(phonemeStartInMs - noteStartInMs));
+            auto offset = qRound(phonemeStartInMs - noteStartInMs);
+            if (phoneme->isFirstOfPiece)
+                offset = std::max(offset, phoneme->pieceMinimumOffsetMs);
+            offsets.append(offset);
         }
     } else {
         qFatal() << "handleAdjustCompleted: adjusted Sil phoneme";

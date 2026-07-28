@@ -14,6 +14,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/Utils/PhonemeHeadLayout.h>
 #include "Model/AppOptions/AppOptions.h"
 #include <lite/GUI/Utils/TextPixmapCache.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
@@ -388,8 +389,9 @@ void TimelineView::drawPieceDebugOverlay(QPainter *painter, const InferPiece *pi
     auto firstNoteStartTick = piece->notes.first()->localStart() + m_clip->start();
     auto firstNoteStartX = tickToX(firstNoteStartTick);
 
-    // TODO: handle multiple tempo changes
-    auto headX = tickToX(firstNoteStartTick - appModel->msToTick(piece->headAvailableLengthMs));
+    const auto headX = tickToX(
+        piece->phonemeHeadLayout().earliestAllowedStartTick(appModel->timeline(),
+                                                            firstNoteStartTick));
 
     auto lastNoteEndTick =
         piece->notes.last()->localStart() + piece->notes.last()->length() + m_clip->start();

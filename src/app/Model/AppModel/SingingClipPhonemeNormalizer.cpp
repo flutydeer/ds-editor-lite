@@ -8,6 +8,7 @@
 #include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/SingingClipSlicer/SingingClipSlicer.h>
+#include <lite/ProjectModel/Utils/PhonemeHeadLayout.h>
 
 #include <algorithm>
 
@@ -37,6 +38,13 @@ namespace {
         if (!note || !note->phonemeOffsetSeq().isEdited())
             return false;
         return note->phonemeOffsetSeq().edited.count() != note->phonemeNameSeq().result().count();
+    }
+
+    bool hasUnorderedOffsets(Note *note) {
+        if (!note || !note->phonemeOffsetSeq().isEdited())
+            return false;
+        const auto &offsets = note->phonemeOffsetSeq().edited;
+        return !std::is_sorted(offsets.cbegin(), offsets.cend());
     }
 
     double minimumEditedOffset(const Note &note) {
@@ -70,8 +78,9 @@ namespace {
         return result;
     }
 
-    bool editedOffsetExceedsLeftBoundary(const EffectiveNote &effective, double leftBoundary,
-                                         const Timeline &timeline) {
+    bool editedOffsetExceedsLeftBoundary(const EffectiveNote &effective,
+                                         const int leftBoundaryGlobalTick,
+                                         const int clipStartTick, const Timeline &timeline) {
         const auto note = effective.note;
         if (!note || isRestNote(*note) || !note->phonemeOffsetSeq().isEdited())
             return false;
@@ -79,9 +88,10 @@ namespace {
         if (offsets.isEmpty())
             return false;
 
-        const auto earliestStart =
-            effective.start + timeline.msToTick(minimumEditedOffset(*note));
-        return earliestStart < leftBoundary;
+        const auto noteStartMs = timeline.tickToMs(clipStartTick + effective.start);
+        const auto earliestStartTick =
+            qCeil(timeline.msToTick(noteStartMs + minimumEditedOffset(*note)));
+        return earliestStartTick < leftBoundaryGlobalTick;
     }
 
     QList<Note *> collectInvalidEditedOffsetNotes(SingingClip &clip, const Timeline &timeline) {
@@ -89,7 +99,7 @@ namespace {
         QSet<Note *> resultSet;
 
         for (const auto note : clip.notes()) {
-            if (hasInvalidOffsetCount(note))
+            if (hasInvalidOffsetCount(note) || hasUnorderedOffsets(note))
                 appendUnique(result, resultSet, note);
         }
 
@@ -102,17 +112,22 @@ namespace {
                 if (!note || resultSet.contains(note) || !note->phonemeOffsetSeq().isEdited())
                     continue;
 
-                double leftBoundary = effective.start;
                 if (i == 0) {
-                    const auto availableExtraHeadMs =
-                        std::max(0.0, segment.headAvailableLengthMs - segment.paddingStartMs);
-                    leftBoundary = effective.start - timeline.msToTick(availableExtraHeadMs);
-                } else {
-                    const auto &previous = effectiveNotes.at(i - 1);
-                    leftBoundary = previous.end < effective.start ? previous.end : previous.start;
+                    const auto headLayout =
+                        PhonemeHeadLayout::calculate(segment.paddingStartMs,
+                                                     segment.headAvailableLengthMs,
+                                                     note->phonemeOffsetSeq().edited);
+                    if (!headLayout.isWithinBounds())
+                        appendUnique(result, resultSet, note);
+                    continue;
                 }
 
-                if (editedOffsetExceedsLeftBoundary(effective, leftBoundary, timeline))
+                const auto &previous = effectiveNotes.at(i - 1);
+                const auto leftBoundary =
+                    clip.start() +
+                    (previous.end < effective.start ? previous.end : previous.start);
+                if (editedOffsetExceedsLeftBoundary(effective, leftBoundary, clip.start(),
+                                                    timeline))
                     appendUnique(result, resultSet, note);
             }
         }

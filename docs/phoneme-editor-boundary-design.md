@@ -1,300 +1,180 @@
 # 音素编辑器边界与推理分片设计
 
-本文说明音素编辑器、歌声片段分片算法和推理预处理之间的边界约束关系。目标是让用户编辑音素偏移时，不产生非法音素长度、不让推理输入出现负 start，也不破坏 piece 之间不重叠的前提。
+本文说明音素编辑器、歌声片段分片算法、Duration 后处理和后续推理任务如何共享同一套
+piece 首部时间语义。目标是保证推理输入中的 phone start 非负、音素顺序合法，并且
+相邻 piece 的推理、参数曲线、波形和音频范围不会重叠。
 
-## 设计目标
+## 统一的首部布局
 
-音素时间边界需要同时满足三层逻辑：
-
-1. `SingingClipSlicer` 给出每个 piece 的可用范围。
-2. `InferTaskHelper::buildWords()` 将 note 与 phoneme offset 转换为推理输入 word/phone。
-3. `PhonemeView` 在用户拖拽时限制 offset，避免写入推理层无法安全解释的值。
-
-核心原则是：**音素编辑器的可编辑范围必须和分片算法、推理预处理使用同一套边界定义**。推理层可以做兜底防崩溃，但 UI 不应该允许用户轻易制造明显非法的音素布局。
-
-## 关键概念
-
-### Header phoneme 与 onset
-
-一个 note 的音素序列中，onset 前的音素称为 header phoneme。它们通常位于音符起点之前，用负 offset 表示。
-
-例如：
+`PhonemeHeadLayout` 是首部时间范围的唯一计算入口。它接收
+`paddingStartMs`、`headAvailableLengthMs` 和首 note 的音素 offset，并给出：
 
 ```text
-音符起点:           |==== note ====
-header phoneme:   h1 h2
-onset phoneme:             o
+baseWordLengthMs     = paddingStartMs
+minimumFirstOffsetMs = min(0, firstNoteOffsets...)
+requiredHeadLengthMs = max(paddingStartMs, -minimumFirstOffsetMs)
+maximumHeadLengthMs  = max(paddingStartMs, headAvailableLengthMs)
 ```
 
-header offset 的定义来自 Duration 后处理：
+`paddingStartMs` 是首个 SP word 的基础**总长度**，不是可以在负 offset 之外再次叠加的
+一段额外 padding。`requiredHeadLengthMs` 也因此使用 `max`，不能写成：
 
 ```text
-headerOffset = phonemeStartInWord - wordLength
+paddingStartMs + abs(minimumFirstOffsetMs)
 ```
 
-因此 header offset 通常是负值。
+后一种写法会把同一个 header offset 同时解释为 word 内位置和额外预卷，导致 piece
+越过 slicer 分配的头部边界。
 
-### `paddingStartMs`
+### 首 piece 特例
 
-`paddingStartMs` 是 piece 首 note 前面的基础 padding SP word 长度，由 `SingingClipSlicer` 根据首 note 的 header phoneme 数量计算。
+第一个 piece 前面没有上一 piece 的 tail。此时 `headAvailableLengthMs` 可能小于
+`paddingStartMs`，但首个 SP word 仍需要基础预卷。因此允许上限取两者的最大值。
 
-非休止音符的 header 最小长度为：
+对非首 piece，`SingingClipSlicer` 只有在当前 header 与上一 piece tail 之间存在足够
+间隔时才分片，所以 `headAvailableLengthMs` 已经覆盖基础 padding；同一公式会严格服从
+slicer 给出的上限。
+
+### 绝对时间锚点与取整
+
+所有毫秒与 tick 的换算都以首 note 的项目绝对位置为锚点：
 
 ```text
-padBaseLength + headerPhonemeCount * padUnitAdditionalLength
+firstNoteStartMs = timeline.tickToMs(firstNoteGlobalTick)
+pieceStartMs     = firstNoteStartMs - requiredHeadLengthMs
+leftBoundaryMs   = firstNoteStartMs - maximumHeadLengthMs
 ```
 
-当前常量位于 `SingingClipSlicerGlobal`：
+然后再用同一 `Timeline` 转回 tick。转换为整数 tick 或整数 offset 时使用不向左越界的
+保守取整；不能把一段“毫秒时长”直接传给项目绝对 `msToTick()`。这一点对高曲速和跨
+tempo 点场景尤其重要。
 
-```text
-padBaseLength = 100ms
-padUnitAdditionalLength = 100ms
-headerAvailableLengthMax = 1000ms
-```
+## 分片算法如何避免重叠
 
-### `headAvailableLengthMs`
-
-`headAvailableLengthMs` 是当前 piece 首 note 前面真实可用的最大头部空间。它由当前 piece 首 note 起点与上一个 piece tail 结束位置之间的距离决定，并且最大不超过 `headerAvailableLengthMax`。
-
-```text
-headAvailableLengthMs = min(firstNoteStart - previousTailEnd, headerAvailableLengthMax)
-```
-
-它表示当前 piece 最多可以向左占用多少空间，而不是基础 padding SP 的默认长度。
-
-### firstWord
-
-对 piece 首 note 来说，`InferTaskHelper::buildWords()` 会在首 note 前插入一个 SP word，本文称为 firstWord。它的基础长度是 `paddingStartMs`。
-
-当用户把 piece 首音素继续向左拉长时，firstWord 的左边界会同步向左扩展。扩展极限是 `headAvailableLengthMs` 的左边界。
-
-因此 piece 首音素的可拖拽额外空间不是 `headAvailableLengthMs`，而是：
-
-```text
-extraHeadMs = headAvailableLengthMs - paddingStartMs
-```
-
-对应到时间轴上的最左边界是：
-
-```text
-leftBoundary = noteStart - max(extraHeadMs, 0)
-```
-
-也就是说：首音素被拖到该位置时，firstWord 左边界刚好碰到 head available 左边界。
-
-## 分片算法如何避免 piece 重叠
-
-`SingingClipSlicer` 使用相邻 note 的 header/tail 需求判断是否切成不同 piece。
-
-对当前 note A 和下一个 note B：
+`SingingClipSlicer` 对当前 note A 和下一 note B 计算：
 
 ```text
 B.headerStart = B.start - B.headerMinLength
-A.tailEnd = A.end + A.tailLength
+A.tailEnd     = A.end + A.tailLength
 ```
 
-分片条件：
+只有满足以下条件才切成两个 piece：
 
 ```text
-commitFlag = B.headerStart > A.tailEnd
+B.headerStart > A.tailEnd
 ```
 
-含义：
+提交 segment 时，slicer 保存：
 
-- 如果 `B.headerStart <= A.tailEnd`，说明 B 的 header 区域与 A 的 tail 区域相交或相接，A/B 必须合并到同一个 piece。
-- 如果 `B.headerStart > A.tailEnd`，说明中间存在足够 gap，可以切成两个 piece。
+- `paddingStartMs`：首 note 对应 SP word 的基础总长度；
+- `headAvailableLengthMs`：首 note 到上一 piece tail 结束位置之间可用的头部范围；
+- `paddingEndMs`：末 note 后的 tail 长度。
 
-示意：
+后续代码不得在这些值之外自行叠加另一份 header offset。
+
+## Duration 的往返关系
+
+Duration 模型仍接收 word、note 和 phone 序列，并返回逐音素 duration。输入首 word
+始终使用基础 `paddingStartMs`。后处理在每个 word 内累计 duration，得到 phone start：
 
 ```text
-合并：
-A: |==== note ====|←tail→|
-B:          |←header→|==== note ====
-
-分开：
-A: |==== note ====|←tail→|
-B:                         |←header→|==== note ====
+phoneStart[0] = 0
+phoneStart[n] = sum(duration[0..n-1])
 ```
 
-因此，在所有参与分片的 note 都已有音素信息时，`headAvailableLengthMs`、`paddingStartMs` 和 `paddingEndMs` 已经给出了每个 piece 的合法可用范围。
-
-## 推理预处理中的 word 构建
-
-`InferTaskHelper::buildWords()` 中有三类 header 场景。
-
-### 1. Piece 首 note 的 header
-
-首 note 的 header phoneme 放入 firstWord：
+首 note 的 header offset 按原有语义投影：
 
 ```text
-phone.start = firstWordLen + phonemeOffset
+headerOffset = phoneStartInFirstWord - firstWordLength
+normalOffset = phoneStartInNoteWord
 ```
 
-基础情况下：
+把结果重新送入 Pitch、Variance 或 Acoustic 预处理时，首 word 长度为：
 
 ```text
-firstWordLen = paddingStartMs
+max(paddingStartMs, -minimumFirstOffsetMs)
 ```
 
-如果用户编辑产生更负的 offset，推理层会扩展 firstWord 兜底，避免负 start：
+于是每个 header phone 满足：
 
 ```text
-if useOffsetInfo && firstOffset < 0:
-    firstWordLen += -firstOffset
+phone.start = requiredHeadLengthMs + headerOffset >= 0
 ```
 
-这保证推理不会崩溃，但 UI 层仍应限制 firstWord 不超过 `headAvailableLengthMs` 的范围。
+这构成 duration → start → offset → word 的往返关系。Duration 结果在写回前必须验证：
 
-### 2. Gap word 的 header
+- duration 数量与输入 phone 数量相同；
+- 每个 duration、word 长度和 phone start 都是有限非负值；
+- 输出 token 能逐一映射回原 note 的音素；
+- note 内 offset 不降序；
+- 首 note 的 `requiredHeadLengthMs` 不超过 `maximumHeadLengthMs`。
 
-如果两个 note 之间有 gap，下一 note 的 header 会进入 gap SP word：
+验证失败时任务携带 clip、piece、note 上下文失败，不通过截断、重排或扩大 piece
+来掩盖不一致。
+
+## 推理、缓存、参数与音频范围
+
+`InferPiece::localStartTick()` 和 `InferControllerHelper` 的输入快照都使用
+`PhonemeHeadLayout`。快照显式保存首部最小 offset、所需长度和允许上限，并把它们纳入
+语义签名。因此首部布局改变后不会复用旧布局的 Duration、Pitch、Variance 或 Acoustic
+结果。
+
+参数曲线采样、结果曲线对齐、波形显示和音频定位继续消费统一的 `pieceStartTick`。
+它们不再各自重算或再次扩展 header。
+
+## 音素编辑器边界
+
+`PhonemeView` 为每个 piece 首 note 的首音素保存 canonical 左边界：
 
 ```text
-phone.start = gapLen + phonemeOffset
+leftBoundaryTick =
+    timeline.msToTick(firstNoteStartMs - maximumHeadLengthMs)
 ```
 
-UI 中 gap Sil 的起点作为屏障，后一个 note 的首音素不能越过这个 Sil 起点。
+拖拽预览不能越过该 tick。提交时再以首 note 的绝对毫秒位置计算 offset，并以
+`ceil(-maximumHeadLengthMs)` 作为最小整数 offset，避免 tick 与整数毫秒量化把结果向
+约束外扩。
 
-### 3. 相邻 note 的 header
+其他边界规则保持不变：
 
-如果两个 note 相邻且属于同一个 piece，下一 note 的 header 会进入前一个 note 的 word：
+- gap 后的 note 不能越过 gap Sil；
+- 相邻 note 的首音素不能越过前一有效 note 的边界或最后音素；
+- 内部音素不能拖穿前后音素；
+- note 尾音素不能超过 note 结束位置。
 
-```text
-phone.start = previousWordLen + phonemeOffset
-```
+Timeline 的开发者调试覆盖层也使用同一 canonical 左边界，以便直接比较 slicer 上限、
+实际 piece 起点和首 note 起点。
 
-此时后一个 note 的首音素可以进入前一个 note 的区域，但不能无限向左侵入。
+## 已有编辑的载入与归一化
 
-## 音素编辑器的边界规则
+`SingingClipPhonemeNormalizer` 在载入和结构编辑后检查人工 offset：
 
-`PhonemeView` 使用链表形式保存可视音素，每个正常音素记录：
+- offset 数量必须与音素名称数量相同；
+- offset 必须不降序；
+- piece 首 note 的布局必须位于 canonical 首部上限内；
+- 其他 note 的最早音素必须位于基于绝对时间锚点计算的左边界内。
 
-- `isFirstOfNote`
-- `isLastOfNote`
-- `isFirstOfPiece`
-- `pieceHeadAvailableLengthMs`
-- `piecePaddingStartMs`
-- `start`
-- `startOffset`
+仍在 canonical 上限内的历史编辑保持不变。真正非法的编辑沿用现有可撤销流程：清空
+edited offset，让自动结果重新生效；相关 Action 在撤销时恢复原 edited offset。不会
+静默裁剪某个值后继续推理。
 
-### 左边界
+## 相关文件
 
-#### Piece 首 note 的首音素
-
-```text
-extraHeadMs = pieceHeadAvailableLengthMs - piecePaddingStartMs
-leftBoundary = noteStart - max(extraHeadMs, 0)
-```
-
-语义：首音素向左拉长时，firstWord 左边界最多扩展到 head available 左边界。
-
-#### 非 piece 首 note，且前驱是普通音素
-
-这是相邻 note 场景，例如 A 在前、B 在后，B 的首音素被拖动。
-
-```text
-leftBoundary = max(A.noteStart, A.lastPhoneme.start)
-```
-
-语义：
-
-- B 的首音素不能越过 A 的起始位置。
-- 如果 A 的最后一个音素仍在 A 起点右侧，则 B 也不能拖穿 A 的最后一个音素。
-
-#### 非 piece 首 note，且前驱是 gap Sil
-
-```text
-leftBoundary = priorSil.start
-```
-
-语义：Sil 是 gap 屏障，后一个 note 的 header 不能侵入 gap 前的 note 区域。
-
-#### 普通内部音素
-
-```text
-leftBoundary = priorPhoneme.start
-```
-
-语义：不能拖穿前一个音素，避免产生负长度。
-
-### 右边界
-
-#### Note 尾音素
-
-```text
-rightBoundary = min(nextPhoneme.start, noteStart + noteLength)
-```
-
-如果没有后继音素：
-
-```text
-rightBoundary = noteStart + noteLength
-```
-
-语义：尾音素不能超过当前 note 结束位置。
-
-#### 普通音素
-
-```text
-rightBoundary = nextPhoneme.start
-```
-
-语义：不能拖穿后一个音素。
-
-## 已解决的问题
-
-### Piece 首音素突破 head available 边界
-
-错误做法是直接把首音素限制到：
-
-```text
-noteStart - headAvailableLengthMs
-```
-
-这会忽略 firstWord 本身已有的 `paddingStartMs`，导致 firstWord 左边界实际越过 head available 左边界。
-
-正确做法是限制首音素的额外左移量：
-
-```text
-noteStart - (headAvailableLengthMs - paddingStartMs)
-```
-
-这样首音素到达边界时，firstWord 左边界正好与 head available 左边界对齐。
-
-### 非首个 piece 的 head 约束不生效
-
-旧逻辑依赖链表 head sentinel 判断首音素，因此只有整个 clip 的第一个音素能触发 head 约束。
-
-当前逻辑在 `buildPhonemeList()` 中显式建立 note → piece 映射，并只把每个 piece 的首 note 的首音素标记为 `isFirstOfPiece`。
-
-### 相邻 note 首音素活动范围为零
-
-旧逻辑把相邻 note B 的首音素左边界夹到 B 的 `noteStart`，当 B 的 onset 也在 `noteStart` 时，可移动范围会变成零。
-
-当前逻辑允许 B 的首音素进入 A 的区域，但最多到 A 的起点，且不能拖穿 A 的最后一个音素。
-
-## 修改相关文件
-
-- `src/app/Modules/SingingClipSlicer/SingingClipSlicer.cpp`
-  - 分片算法与 `headAvailableLengthMs` / `paddingStartMs` 的来源。
+- `src/libs/ProjectModel/Utils/PhonemeHeadLayout.*`
+- `src/libs/ProjectModel/SingingClipSlicer/SingingClipSlicer.cpp`
+- `src/libs/ProjectModel/InferenceData/InferPiece.cpp`
+- `src/app/Modules/Inference/InferControllerHelper.cpp`
 - `src/app/Modules/Inference/Utils/InferTaskHelper.cpp`
-  - 推理 word 构建逻辑。
 - `src/app/Modules/Inference/Tasks/InferDurationTask.cpp`
-  - Duration 输出转 phoneme offset 的规则。
-- `src/app/Model/AppModel/InferPiece.cpp`
-  - piece 本地起点与首 note 负 offset 的对齐。
-- `src/app/UI/Views/ClipEditor/PianoRoll/PhonemeView.cpp`
-  - 用户拖拽时的音素边界约束。
-- `src/app/UI/Views/ClipEditor/PianoRoll/PhonemeView.h`
-  - `PhonemeViewModel` 中与边界相关的状态。
+- `src/app/Model/AppModel/SingingClipPhonemeNormalizer.cpp`
+- `src/app/UI/Views/ClipEditor/PianoRoll/PhonemeView.*`
+- `src/app/UI/Views/Common/TimelineView.cpp`
 
 ## 验证建议
 
-修改相关逻辑后，至少验证以下场景：
-
-1. 单个 piece 的首音素向左拉长，firstWord 左边界不能越过 head available 左边界。
-2. 多个 piece 中，非首个 piece 的首音素也受到同样限制。
-3. 有 gap Sil 的两个 note，后一个 note 的首音素不能越过 Sil 起点。
-4. 相邻两个 note，后一个 note 的首音素可以进入前一个 note 区域，但不能越过前一个 note 起点。
-5. note 尾音素不能超过当前 note 结束位置。
-6. 修改后运行 `cmake --build --preset debug`。
+1. 分别验证 120、160、180 和 240 BPM，并覆盖临界分片间隔与跨 tempo 点。
+2. 检查相邻 piece 的参数、波形和音频范围只相接或保留间隔，绝不重叠。
+3. 把非首 piece 的首音素拖到最左边界并继续向左，确认预览和提交都阻止越界。
+4. 重推理并复用缓存，确认 piece 起点不漂移。
+5. 覆盖首 piece、无 header、SP/AP、转音与已有合法 edited offset。
+6. 运行标准 CMake 构建；不要用 CTest 代替真实应用验证。

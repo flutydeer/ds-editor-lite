@@ -7,6 +7,7 @@
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputBase.h"
 #include "Modules/Inference/Models/InferInputNote.h"
+#include <lite/ProjectModel/Utils/PhonemeHeadLayout.h>
 
 #include <QDebug>
 
@@ -40,6 +41,27 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
                          << "noteId:" << note.id << "offsetCount:" << note.phonemeOffsets.count()
                          << "nameCount:" << note.phonemeNames.count();
         }
+
+        const auto headLayout =
+            PhonemeHeadLayout::calculate(input.paddingStartMs, input.headAvailableLengthMs,
+                                         notes.first().phonemeOffsets);
+        if (!headLayout.isWithinBounds()) {
+            qFatal() << "buildWords: first phoneme offsets exceed piece head boundary"
+                     << "clipId:" << input.clipId << "pieceId:" << input.pieceId
+                     << "noteId:" << notes.first().id
+                     << "minimumOffsetMs:" << headLayout.minimumFirstOffsetMs
+                     << "requiredHeadLengthMs:" << headLayout.requiredHeadLengthMs
+                     << "maximumHeadLengthMs:" << headLayout.maximumHeadLengthMs;
+        }
+        if (headLayout.minimumFirstOffsetMs != input.minimumFirstOffsetMs ||
+            !qFuzzyCompare(headLayout.requiredHeadLengthMs + 1.0,
+                           input.requiredHeadLengthMs + 1.0) ||
+            !qFuzzyCompare(headLayout.maximumHeadLengthMs + 1.0,
+                           input.maximumHeadLengthMs + 1.0)) {
+            qFatal() << "buildWords: phoneme head layout does not match the inference snapshot"
+                     << "clipId:" << input.clipId << "pieceId:" << input.pieceId
+                     << "noteId:" << notes.first().id;
+        }
     }
 
     QList<InferWord> result;
@@ -62,16 +84,9 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
 
     // 如果第一个音符不是休止符，则填充 SP 音符
     if (!firstNote.isRest) {
-        auto firstWordLen = input.paddingStartMs / 1000.0;
+        const auto firstWordLen =
+            (useOffsetInfo ? input.requiredHeadLengthMs : input.paddingStartMs) / 1000.0;
         validateNonNegative("first word length", firstWordLen, firstNote.id);
-
-        // 如果首个 header 音素在音符起始前（Duration 引擎已调整偏移），
-        // 则扩展 SP 时长以确保音素 start 不为负值
-        if (useOffsetInfo && !firstNote.phonemeOffsets.isEmpty()) {
-            auto firstOffsetSec = firstNote.phonemeOffsets.first() / 1000.0;
-            if (firstOffsetSec < 0)
-                firstWordLen += -firstOffsetSec;
-        }
 
         noteBuffer.append({0, 0, firstWordLen, true});
         phoneBuffer.append({"SP", firstNote.languageDictId, true, 0});
