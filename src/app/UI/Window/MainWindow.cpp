@@ -276,8 +276,8 @@ void MainWindow::updateWindowTitle() {
         setWindowTitle(appName);
     else {
         auto projectPath = documentWorkflowController->projectPath();
-        auto displayName = projectPath.isEmpty() ? QFileInfo(projectName).completeBaseName()
-                                                 : QFileInfo(projectPath).completeBaseName();
+        auto displayName =
+            projectPath.isEmpty() ? projectName : QFileInfo(projectPath).completeBaseName();
         auto indicator = saved ? "" : "● ";
         setWindowTitle(indicator + displayName);
     }
