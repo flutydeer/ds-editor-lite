@@ -159,12 +159,9 @@ void MixConsoleView::onTrackMoved(const qsizetype from, const qsizetype to) {
     if (from == to || from < 0 || from >= count || to < 0 || to >= count)
         return;
 
-    const auto sourceItem = m_channelListView->item(from);
-    const auto sourceWidget = m_channelListView->itemWidget(sourceItem);
-    m_channelListView->removeItemWidget(sourceItem);
-    const auto movedItem = m_channelListView->takeItem(from);
-    m_channelListView->insertItem(to, movedItem);
-    m_channelListView->setItemWidget(movedItem, sourceWidget);
+    const auto destination = to > from ? to + 1 : to;
+    if (!m_channelListView->model()->moveRow({}, from, {}, destination))
+        return;
 
     const auto firstChangedIndex = qMin(from, to);
     const auto lastChangedIndex = qMax(from, to);

@@ -358,12 +358,9 @@ void TrackEditorView::onTrackMoved(const qsizetype from, const qsizetype to) {
     const auto previousSelectedTrackIndex = static_cast<int>(appStatus->selectedTrackIndex);
     const QSignalBlocker listBlocker(m_trackListView);
 
-    const auto sourceItem = m_trackListView->item(from);
-    const auto sourceWidget = m_trackListView->itemWidget(sourceItem);
-    m_trackListView->removeItemWidget(sourceItem);
-    const auto movedItem = m_trackListView->takeItem(from);
-    m_trackListView->insertItem(to, movedItem);
-    m_trackListView->setItemWidget(movedItem, sourceWidget);
+    const auto destination = to > from ? to + 1 : to;
+    if (!m_trackListView->model()->moveRow({}, from, {}, destination))
+        return;
     m_viewModel.tracks.move(from, to);
 
     const auto firstChangedIndex = qMin(from, to);
