@@ -61,7 +61,8 @@ int main(int argc, char *argv[]) {
     packageManager->initialize(appOptions->general()->packageSearchPaths);
 
     MainWindow w;
-    WindowPlacement::centerOnScreenAtCursor(w);
+    WindowPlacement windowPlacement(w);
+    windowPlacement.restoreOrPlace(appOptions->window()->mainWindowGeometry());
     w.show();
 #if defined(WITH_DIRECT_MANIPULATION)
     w.registerDirectManipulation();
@@ -76,5 +77,9 @@ int main(int argc, char *argv[]) {
     qInfo() << "App launched in" << time << "ms";
 
     CrashHandler crashHandler;
-    return Restarter(QDir::currentPath()).restartOrExit(a.exec());
+    const auto result = a.exec();
+    appOptions->window()->setMainWindowGeometry(windowPlacement.saveGeometry());
+    if (!appOptions->saveAndNotify(AppOptionsGlobal::Window))
+        qWarning("Failed to save main-window placement");
+    return Restarter(QDir::currentPath()).restartOrExit(result);
 }

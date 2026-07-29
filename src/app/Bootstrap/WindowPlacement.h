@@ -1,28 +1,41 @@
 #ifndef WINDOWPLACEMENT_H
 #define WINDOWPLACEMENT_H
 
-#include <QApplication>
-#include <QCursor>
-#include <QScreen>
-#include <QWidget>
+#include <QByteArray>
+#include <QObject>
+#include <QRect>
+#include <QSet>
+#include <QTimer>
 
-namespace WindowPlacement {
+class QEvent;
+class QScreen;
+class QWidget;
 
-    // Centers the widget on the screen under the mouse cursor,
-    // falling back to the primary screen.
-    inline void centerOnScreenAtCursor(QWidget &widget) {
-        auto scr = QApplication::screenAt(QCursor::pos());
-        if (!scr) {
-            scr = QApplication::primaryScreen();
-        }
-        if (scr) {
-            auto availableRect = scr->availableGeometry();
-            auto left = (availableRect.width() - widget.width()) / 2;
-            auto top = (availableRect.height() - widget.height()) / 2;
-            widget.move(left, top);
-        }
-    }
+class WindowPlacement final : public QObject {
+public:
+    explicit WindowPlacement(QWidget &window);
+    ~WindowPlacement() override;
 
-} // namespace WindowPlacement
+    void restoreOrPlace(const QByteArray &geometry);
+    [[nodiscard]] QByteArray saveGeometry() const;
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
+private:
+    void connectScreen(QScreen *screen);
+    void syncScreens();
+    void scheduleCorrection();
+    void ensureVisible();
+    void placeDefault();
+    [[nodiscard]] QRect placementGeometry() const;
+    [[nodiscard]] QScreen *screenForGeometry(const QRect &geometry) const;
+    [[nodiscard]] static QRect constrainedGeometry(const QRect &geometry,
+                                                    const QRect &availableGeometry);
+
+    QWidget &m_window;
+    QSet<QScreen *> m_connectedScreens;
+    QTimer m_correctionTimer;
+};
 
 #endif // WINDOWPLACEMENT_H
