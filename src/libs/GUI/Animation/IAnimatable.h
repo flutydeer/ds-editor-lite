@@ -19,6 +19,8 @@ public:
 
 protected:
     [[nodiscard]] int getScaledAnimationTime(int ms) const;
+    [[nodiscard]] int getEffectiveAnimationTime(
+        int ms, AnimationGlobal::AnimationLevels minimumLevel = AnimationGlobal::Decreased) const;
 
     virtual void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) = 0;
     virtual void afterSetTimeScale(double scale) = 0;
@@ -60,6 +62,16 @@ inline void IAnimatable::setTimeScale(double scale) {
 
 inline int IAnimatable::getScaledAnimationTime(int ms) const {
     return static_cast<int>(ms * m_scale);
+}
+
+inline int
+    IAnimatable::getEffectiveAnimationTime(int ms,
+                                           AnimationGlobal::AnimationLevels minimumLevel) const {
+    if (m_level == AnimationGlobal::None ||
+        (minimumLevel == AnimationGlobal::Full && m_level != AnimationGlobal::Full)) {
+        return 0;
+    }
+    return getScaledAnimationTime(ms);
 }
 
 inline void IAnimatable::initializeAnimation() {

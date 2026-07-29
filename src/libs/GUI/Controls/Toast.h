@@ -58,6 +58,8 @@ private slots:
 private:
     void showNextToast();
     void oneToastShowFinished();
+    void destroyCurrentToast();
+    void updateAnimationSettings();
 
     bool m_isShowingToast = false;
     const int animationDurationBase = 300;

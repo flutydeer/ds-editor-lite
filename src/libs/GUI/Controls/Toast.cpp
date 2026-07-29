@@ -63,18 +63,27 @@ void Toast::show(const QString &message) {
 }
 
 void Toast::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+    Q_UNUSED(level)
+    updateAnimationSettings();
 }
 
 void Toast::afterSetTimeScale(double scale) {
-    m_opacityAnimation.setDuration(getScaledAnimationTime(animationDurationBase));
-    m_posAnimation.setDuration(getScaledAnimationTime(animationDurationBase));
-    m_destroyWidgetTimer.setInterval(getScaledAnimationTime(animationDurationBase));
+    Q_UNUSED(scale)
+    updateAnimationSettings();
 }
 
 void Toast::hideToast() {
+    if (!m_toastWidget)
+        return;
+
     m_opacityAnimation.stop();
     m_opacityAnimation.setStartValue(m_toastWidget->windowOpacity());
     m_opacityAnimation.setEndValue(0);
+    if (m_opacityAnimation.duration() == 0) {
+        m_toastWidget->setWindowOpacity(0);
+        destroyCurrentToast();
+        return;
+    }
     m_opacityAnimation.start();
     m_destroyWidgetTimer.start();
 }
@@ -85,23 +94,13 @@ Toast::Toast(QObject *parent) : QObject(parent) {
     connect(&m_keepOnScreenTimer, &QTimer::timeout, this, &Toast::hideToast);
 
     m_destroyWidgetTimer.setSingleShot(true);
-    connect(&m_destroyWidgetTimer, &QTimer::timeout, this, [this] {
-        m_toastWidget->hide();
-        delete m_toastWidget;
-        oneToastShowFinished();
-    });
-
-    const auto duration = animationLevel() == AnimationGlobal::None
-                              ? 0
-                              : getScaledAnimationTime(animationDurationBase);
+    connect(&m_destroyWidgetTimer, &QTimer::timeout, this, &Toast::destroyCurrentToast);
 
     m_opacityAnimation.setPropertyName("windowOpacity");
     m_opacityAnimation.setEasingCurve(QEasingCurve::InOutCubic);
-    m_opacityAnimation.setDuration(duration);
 
     m_posAnimation.setPropertyName("pos");
     m_posAnimation.setEasingCurve(QEasingCurve::OutQuart);
-    m_posAnimation.setDuration(duration);
 
     initializeAnimation();
 }
@@ -135,7 +134,10 @@ void Toast::showNextToast() {
         const auto startPos = QPoint(targetPos.x(), targetPos.y() - 32);
         m_posAnimation.setStartValue(startPos);
         m_posAnimation.setEndValue(targetPos);
-        m_posAnimation.start();
+        if (m_posAnimation.duration() == 0)
+            m_toastWidget->move(targetPos);
+        else
+            m_posAnimation.start();
     } else
         m_toastWidget->move(QApplication::primaryScreen()->geometry().center() -
                             m_toastWidget->rect().center());
@@ -143,11 +145,76 @@ void Toast::showNextToast() {
     m_opacityAnimation.stop();
     m_opacityAnimation.setStartValue(m_toastWidget->windowOpacity());
     m_opacityAnimation.setEndValue(1);
-    m_opacityAnimation.start();
+    if (m_opacityAnimation.duration() == 0)
+        m_toastWidget->setWindowOpacity(1);
+    else
+        m_opacityAnimation.start();
     m_keepOnScreenTimer.start();
 }
 
 void Toast::oneToastShowFinished() {
     m_isShowingToast = false;
     showNextToast();
+}
+
+void Toast::destroyCurrentToast() {
+    m_keepOnScreenTimer.stop();
+    m_destroyWidgetTimer.stop();
+    m_opacityAnimation.stop();
+    m_posAnimation.stop();
+    if (m_toastWidget) {
+        m_toastWidget->hide();
+        delete m_toastWidget;
+        m_toastWidget = nullptr;
+    }
+    if (m_isShowingToast)
+        oneToastShowFinished();
+}
+
+void Toast::updateAnimationSettings() {
+    const auto opacityDuration = getEffectiveAnimationTime(animationDurationBase);
+    const auto positionDuration =
+        getEffectiveAnimationTime(animationDurationBase, AnimationGlobal::Full);
+
+    const auto opacityRunning = m_opacityAnimation.state() == QAbstractAnimation::Running;
+    const auto opacityEndValue = m_opacityAnimation.endValue().toDouble();
+    const auto positionRunning = m_posAnimation.state() == QAbstractAnimation::Running;
+    const auto positionEndValue = m_posAnimation.endValue().toPoint();
+
+    m_opacityAnimation.stop();
+    m_posAnimation.stop();
+    m_opacityAnimation.setDuration(opacityDuration);
+    m_posAnimation.setDuration(positionDuration);
+    m_destroyWidgetTimer.setInterval(opacityDuration);
+
+    if (m_destroyWidgetTimer.isActive() && opacityDuration == 0) {
+        destroyCurrentToast();
+        return;
+    }
+
+    if (positionRunning && m_toastWidget) {
+        if (positionDuration == 0) {
+            m_toastWidget->move(positionEndValue);
+        } else {
+            m_posAnimation.setStartValue(m_toastWidget->pos());
+            m_posAnimation.setEndValue(positionEndValue);
+            m_posAnimation.start();
+        }
+    }
+
+    if (!opacityRunning || !m_toastWidget)
+        return;
+
+    if (opacityDuration == 0) {
+        m_toastWidget->setWindowOpacity(opacityEndValue);
+        if (qFuzzyIsNull(opacityEndValue))
+            destroyCurrentToast();
+        return;
+    }
+
+    m_opacityAnimation.setStartValue(m_toastWidget->windowOpacity());
+    m_opacityAnimation.setEndValue(opacityEndValue);
+    m_opacityAnimation.start();
+    if (qFuzzyIsNull(opacityEndValue))
+        m_destroyWidgetTimer.start();
 }

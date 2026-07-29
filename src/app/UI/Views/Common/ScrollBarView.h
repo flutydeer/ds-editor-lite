@@ -43,6 +43,7 @@ private:
     [[nodiscard]] double handleLength() const;
     [[nodiscard]] double handleEnd() const;
     void performStateChangeAnimation(int targetAlpha, double targetPadding, int duration);
+    void updateAnimationSettings();
 
     Qt::Orientation m_orientation = Qt::Horizontal;
     // Base handle color; interaction alpha (normal/hover/pressed) is animated on top
