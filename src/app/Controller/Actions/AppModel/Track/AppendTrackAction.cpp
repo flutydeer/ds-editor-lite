@@ -18,11 +18,20 @@ AppendTrackAction *AppendTrackAction::build(Track *track, AppModel *model) {
 AppendTrackAction::~AppendTrackAction() = default;
 
 void AppendTrackAction::execute() {
-    if (m_ownedTrack)
-        m_ownedTrack.release();
-    m_model->appendTrack(m_track);
+    const auto index = m_model->tracks().size();
+    if (!m_model->appendTrack(m_track))
+        return;
+    m_ownedTrack.release();
+    m_model->notifyTrackChanged(AppModel::Insert, index, m_track);
 }
 
 void AppendTrackAction::undo() {
-    m_ownedTrack.reset(m_model->takeTrack(m_track));
+    const auto index = m_model->tracks().indexOf(m_track);
+    if (index < 0)
+        return;
+    const auto track = m_model->takeTrack(m_track);
+    if (!track)
+        return;
+    m_ownedTrack.reset(track);
+    m_model->notifyTrackChanged(AppModel::Remove, index, track);
 }

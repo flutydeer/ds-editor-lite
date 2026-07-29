@@ -134,6 +134,11 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
                         break;
                 }
             });
+    connect(appModel, &AppModel::trackMoved, this, [this](const qsizetype from,
+                                                          const qsizetype to) {
+        DEVICE_LOCKER;
+        handleTrackMoved(static_cast<int>(from), static_cast<int>(to));
+    });
 
     connect(appModel, &AppModel::timelineChanged, this, [this] {
         DEVICE_LOCKER;
@@ -435,6 +440,16 @@ void AudioContext::handleTrackRemoved(const int index, Track *track) {
     m_trackInferDict.remove(track);
     m_trackModelDict.remove(track);
     m_trackLevelMeterValue.remove(track);
+}
+
+void AudioContext::handleTrackMoved(const int from, const int to) {
+    const auto trackCount = tracks().size();
+    if (from == to || from < 0 || from >= trackCount || to < 0 || to >= trackCount)
+        return;
+
+    // talcs 的 dest 是从原列表移除前的插入位置；AppModel 的 to 是最终下标。
+    const auto destination = to > from ? to + 1 : to;
+    talcs::DspxProjectContext::moveTrack(from, 1, destination);
 }
 
 void AudioContext::handleMasterControlChanged(const TrackControl &control) const {

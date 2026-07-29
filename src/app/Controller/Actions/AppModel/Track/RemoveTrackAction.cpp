@@ -18,11 +18,23 @@ RemoveTrackAction *RemoveTrackAction::build(Track *track, AppModel *model) {
 RemoveTrackAction::~RemoveTrackAction() = default;
 
 void RemoveTrackAction::execute() {
-    m_ownedTrack.reset(m_model->takeTrack(m_track));
+    const auto index = m_model->tracks().indexOf(m_track);
+    if (index < 0)
+        return;
+    const auto track = m_model->takeTrack(m_track);
+    if (!track)
+        return;
+    m_index = index;
+    m_ownedTrack.reset(track);
+    m_model->notifyTrackChanged(AppModel::Remove, index, track);
 }
 
 void RemoveTrackAction::undo() {
     if (!m_ownedTrack)
         return;
-    m_model->insertTrack(m_ownedTrack.release(), m_index);
+    const auto track = m_ownedTrack.get();
+    if (!m_model->insertTrack(track, m_index))
+        return;
+    m_ownedTrack.release();
+    m_model->notifyTrackChanged(AppModel::Insert, m_index, track);
 }
