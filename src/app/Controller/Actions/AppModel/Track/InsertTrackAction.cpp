@@ -20,8 +20,10 @@ InsertTrackAction *InsertTrackAction::build(Track *track, const qsizetype index,
 InsertTrackAction::~InsertTrackAction() = default;
 
 void InsertTrackAction::execute() {
-    if (m_ownedTrack)
-        m_ownedTrack.release();
+    if (!m_track || m_index < 0 || m_index > m_model->tracks().size() ||
+        m_model->tracks().contains(m_track))
+        return;
+
     // Imported tracks may carry audio clips whose ticks are authoritative;
     // establish the realtime anchor under the timeline in effect now
     for (const auto clip : m_track->clips()) {
@@ -31,9 +33,19 @@ void InsertTrackAction::execute() {
         if (!audioClip->hasRealTimeAnchor())
             audioClip->syncTruthFromTicks(m_model->timeline());
     }
-    m_model->insertTrack(m_track, m_index);
+    if (!m_model->insertTrack(m_track, m_index))
+        return;
+    m_ownedTrack.release();
+    m_model->notifyTrackChanged(AppModel::Insert, m_index, m_track);
 }
 
 void InsertTrackAction::undo() {
-    m_ownedTrack.reset(m_model->takeTrack(m_track));
+    const auto index = m_model->tracks().indexOf(m_track);
+    if (index < 0)
+        return;
+    const auto track = m_model->takeTrack(m_track);
+    if (!track)
+        return;
+    m_ownedTrack.reset(track);
+    m_model->notifyTrackChanged(AppModel::Remove, index, track);
 }

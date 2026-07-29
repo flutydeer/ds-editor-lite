@@ -88,6 +88,7 @@ private:
     void handleModelChanged();
     void handleTrackInserted(int index, Track *track);
     void handleTrackRemoved(int index, Track *track);
+    void handleTrackMoved(int from, int to);
 
     void handleMasterControlChanged(const TrackControl &control) const;
     void handleTrackControlChanged(Track *track) const;

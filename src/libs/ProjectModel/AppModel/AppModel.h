@@ -45,19 +45,18 @@ public:
     void setDefaultSingingLanguage(const QString &language);
     void setPaletteColorCount(int count);
     const QList<Track *> &tracks() const;
-    void insertTrack(Track *track, qsizetype index);
-    void appendTrack(Track *track);
-    // 重排轨道顺序（to 为移动完成后的最终下标，语义同 QList::move）。
-    // 与「takeTrackAt + insertTrack」不同：列表先完成重排，之后才发出
-    // Remove/Insert 通知，因此监听者在处理 Remove 时仍能通过
-    // findTrackById / findClipById 查到该轨道及其剪辑，从而把「移动」
-    // 与「删除」区分开，不会误清空 activeClipId、推理管线等状态。
-    void moveTrack(qsizetype from, qsizetype to);
+    bool insertTrack(Track *track, qsizetype index);
+    bool appendTrack(Track *track);
+    // 轨道集合操作只修改数据；Action 在复合编辑完成后显式发布通知。
+    // to 为移动完成后的最终下标，语义同 QList::move。
+    bool moveTrack(qsizetype from, qsizetype to);
     void removeTrackAt(qsizetype index);
     void removeTrack(Track *track);
     Track *takeTrackAt(qsizetype index);
     Track *takeTrack(Track *track);
     void clearTracks();
+    void notifyTrackChanged(TrackChangeType type, qsizetype index, Track *track);
+    void notifyTrackMoved(qsizetype from, qsizetype to);
     ProjectModelData takeProjectData();
     void replaceProject(ProjectModelData &&data);
 
@@ -81,6 +80,7 @@ signals:
     void timelineChanged();
     void masterControlChanged(const TrackControl &control);
     void trackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
+    void trackMoved(qsizetype from, qsizetype to);
 
 private:
     Q_DECLARE_PRIVATE(AppModel);

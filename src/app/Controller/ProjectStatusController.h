@@ -20,7 +20,6 @@ public:
     Q_DISABLE_COPY_MOVE(ProjectStatusController)
 
 private:
-    void handleTrackRemoved(Track *track) override;
     void handleTempoChanged() override;
     void handleClipInserted(Clip *clip) override;
     void handleClipRemoved(Clip *clip) override;

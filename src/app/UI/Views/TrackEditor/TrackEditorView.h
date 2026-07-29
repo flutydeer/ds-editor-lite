@@ -45,6 +45,7 @@ public:
 public slots:
     void onModelChanged();
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
+    void onTrackMoved(qsizetype from, qsizetype to);
     void onClipChanged(Track::ClipChangeType type, Clip *clip, const Track *dsTrack);
     void onPositionChanged(double tick) const;
     void onLastPositionChanged(double tick) const;
