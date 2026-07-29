@@ -176,6 +176,7 @@ namespace SVS {
         connect(d->thumbHoverAnimation, &QVariantAnimation::valueChanged, d,
                 &SeekBarPrivate::setThumbBorderRatio);
         d->calculateParams();
+        initializeAnimation();
     }
 
     SeekBar::~SeekBar() = default;
@@ -317,17 +318,10 @@ namespace SVS {
     }
 
     bool SeekBar::eventFilter(QObject *object, QEvent *event) {
-        Q_D(SeekBar);
         if (event->type() == QEvent::HoverEnter) {
-            d->thumbHoverAnimation->stop();
-            d->thumbHoverAnimation->setStartValue(d->thumbBorderRatio);
-            d->thumbHoverAnimation->setEndValue(77);
-            d->thumbHoverAnimation->start();
+            animateThumbTo(77);
         } else if (event->type() == QEvent::HoverLeave) {
-            d->thumbHoverAnimation->stop();
-            d->thumbHoverAnimation->setStartValue(d->thumbBorderRatio);
-            d->thumbHoverAnimation->setEndValue(102);
-            d->thumbHoverAnimation->start();
+            animateThumbTo(102);
         }
         return QObject::eventFilter(object, event);
     }
@@ -395,10 +389,7 @@ namespace SVS {
     void SeekBar::mousePressEvent(QMouseEvent *event) {
         Q_D(SeekBar);
         d->timer->start();
-        d->thumbHoverAnimation->stop();
-        d->thumbHoverAnimation->setStartValue(d->thumbBorderRatio);
-        d->thumbHoverAnimation->setEndValue(114);
-        d->thumbHoverAnimation->start();
+        animateThumbTo(114);
         const auto pos = event->pos();
         if (!d->mouseOnHandle(pos) && !d->doubleClickLocked) {
             const auto posValue =
@@ -411,10 +402,7 @@ namespace SVS {
 
     void SeekBar::mouseReleaseEvent(QMouseEvent *event) {
         Q_D(SeekBar);
-        d->thumbHoverAnimation->stop();
-        d->thumbHoverAnimation->setStartValue(d->thumbBorderRatio);
-        d->thumbHoverAnimation->setEndValue(77);
-        d->thumbHoverAnimation->start();
+        animateThumbTo(77);
         setSliderDown(false);
         d->setValue(d->sliderValue);
         QWidget::mouseReleaseEvent(event);
@@ -519,7 +507,7 @@ namespace SVS {
     void SeekBar::setAnimationDuration(const int dur) {
         Q_D(SeekBar);
         d->animationDuration = dur;
-        d->thumbHoverAnimation->setDuration(d->animationDuration);
+        updateAnimationSettings();
     }
 
     bool SeekBar::resetOnDoubleClick() const {
@@ -530,6 +518,38 @@ namespace SVS {
     void SeekBar::setResetOnDoubleClick(const bool a) {
         Q_D(SeekBar);
         d->resetOnDoubleClick = a;
+    }
+
+    void SeekBar::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+        Q_UNUSED(level)
+        updateAnimationSettings();
+    }
+
+    void SeekBar::afterSetTimeScale(double scale) {
+        Q_UNUSED(scale)
+        updateAnimationSettings();
+    }
+
+    void SeekBar::animateThumbTo(int targetRatio) {
+        Q_D(SeekBar);
+        d->thumbHoverAnimation->stop();
+        d->thumbHoverAnimation->setStartValue(d->thumbBorderRatio);
+        d->thumbHoverAnimation->setEndValue(targetRatio);
+        if (d->thumbHoverAnimation->duration() == 0) {
+            d->setThumbBorderRatio(targetRatio);
+            return;
+        }
+        d->thumbHoverAnimation->start();
+    }
+
+    void SeekBar::updateAnimationSettings() {
+        Q_D(SeekBar);
+        const auto running = d->thumbHoverAnimation->state() == QAbstractAnimation::Running;
+        const auto targetRatio = d->thumbHoverAnimation->endValue().toInt();
+        d->thumbHoverAnimation->stop();
+        d->thumbHoverAnimation->setDuration(getEffectiveAnimationTime(d->animationDuration));
+        if (running)
+            animateThumbTo(targetRatio);
     }
 
 } // SVS

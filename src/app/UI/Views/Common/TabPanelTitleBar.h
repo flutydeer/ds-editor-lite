@@ -5,6 +5,8 @@
 #ifndef TABPANELTITLEBAR_H
 #define TABPANELTITLEBAR_H
 
+#include <lite/GUI/Animation/IAnimatable.h>
+
 #include <QWidget>
 
 class Button;
@@ -14,7 +16,7 @@ class QHBoxLayout;
 class QGraphicsOpacityEffect;
 class QVariantAnimation;
 
-class TabPanelTitleBar : public QWidget {
+class TabPanelTitleBar : public QWidget, public IAnimatable {
     Q_OBJECT
     Q_PROPERTY(QColor iconColor READ iconColor WRITE setIconColor)
     Q_PROPERTY(QColor iconDisabledColor READ iconDisabledColor WRITE setIconDisabledColor)
@@ -40,13 +42,16 @@ signals:
 protected:
     void changeEvent(QEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetTimeScale(double scale) override;
 
 private:
     void retranslateUi();
     void buildDockedButtons();
     void buildDetachedButtons(bool useNativeFrame);
     void clearButtonLayout();
-    void setActiveStyle(bool active) const;
+    void setActiveStyle(bool active);
+    void updateAnimationSettings();
     // Re-tint docked button icons from the current theme colors
     void rebuildIcons();
 
@@ -84,6 +89,7 @@ private:
     bool m_detached = false;
     QGraphicsOpacityEffect *m_opacityEffect = nullptr;
     QVariantAnimation *m_animation = nullptr;
+    bool m_targetActive = true;
 };
 
 #endif // TABPANELTITLEBAR_H

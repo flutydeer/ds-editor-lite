@@ -123,6 +123,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
     m_animation->setEasingCurve(QEasingCurve::OutCubic);
     connect(m_animation, &QVariantAnimation::valueChanged, this,
             [this](const QVariant &value) { m_opacityEffect->setOpacity(value.toDouble()); });
+    initializeAnimation();
 }
 
 MainMenuView *MainTitleBar::menuView() const {
@@ -183,15 +184,32 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
     return QWidget::eventFilter(watched, event);
 }
 
-void MainTitleBar::setActiveStyle(bool active) const {
+void MainTitleBar::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+    Q_UNUSED(level)
+    updateAnimationSettings();
+}
+
+void MainTitleBar::afterSetTimeScale(double scale) {
+    Q_UNUSED(scale)
+    updateAnimationSettings();
+}
+
+void MainTitleBar::setActiveStyle(bool active) {
+    m_targetActive = active;
     m_animation->stop();
     m_animation->setStartValue(m_opacityEffect->opacity());
-    if (active) {
-        m_animation->setEndValue(1.0);
-        m_animation->setDuration(100);
-    } else {
-        m_animation->setEndValue(0.5);
-        m_animation->setDuration(300);
+    const auto targetOpacity = active ? 1.0 : 0.5;
+    const auto duration = getEffectiveAnimationTime(active ? 100 : 300);
+    m_animation->setEndValue(targetOpacity);
+    m_animation->setDuration(duration);
+    if (duration == 0) {
+        m_opacityEffect->setOpacity(targetOpacity);
+        return;
     }
     m_animation->start();
+}
+
+void MainTitleBar::updateAnimationSettings() {
+    if (m_animation->state() == QAbstractAnimation::Running)
+        setActiveStyle(m_targetActive);
 }

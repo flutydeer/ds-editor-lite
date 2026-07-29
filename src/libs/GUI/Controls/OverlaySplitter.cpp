@@ -124,6 +124,7 @@ SplitterOverlayGrip::SplitterOverlayGrip(OverlaySplitter *splitter, QWidget *par
     });
 
     setUpdatesEnabled(false);
+    initializeAnimation();
 }
 
 void SplitterOverlayGrip::paintEvent(QPaintEvent *event) {
@@ -242,14 +243,34 @@ void SplitterOverlayGrip::mouseReleaseEvent(QMouseEvent *event) {
 }
 
 void SplitterOverlayGrip::setHighlightVisible(bool visible) {
+    m_targetHighlightVisible = visible;
     m_animation->stop();
     m_animation->setStartValue(m_highlightOpacity);
-    if (visible) {
-        m_animation->setEndValue(1.0);
-        m_animation->setDuration(100);
-    } else {
-        m_animation->setEndValue(0.0);
-        m_animation->setDuration(300);
+    const auto targetOpacity = visible ? 1.0 : 0.0;
+    const auto duration = getEffectiveAnimationTime(visible ? 100 : 300);
+    m_animation->setEndValue(targetOpacity);
+    m_animation->setDuration(duration);
+    if (duration == 0) {
+        m_highlightOpacity = targetOpacity;
+        update();
+        if (!visible && !m_hovered && !m_dragging)
+            setUpdatesEnabled(false);
+        return;
     }
     m_animation->start();
+}
+
+void SplitterOverlayGrip::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+    Q_UNUSED(level)
+    updateAnimationSettings();
+}
+
+void SplitterOverlayGrip::afterSetTimeScale(double scale) {
+    Q_UNUSED(scale)
+    updateAnimationSettings();
+}
+
+void SplitterOverlayGrip::updateAnimationSettings() {
+    if (m_animation->state() == QAbstractAnimation::Running)
+        setHighlightVisible(m_targetHighlightVisible);
 }

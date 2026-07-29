@@ -5,11 +5,13 @@
 #ifndef DATASET_TOOLS_SEEKBAR_H
 #define DATASET_TOOLS_SEEKBAR_H
 
+#include <lite/GUI/Animation/IAnimatable.h>
+
 #include <QWidget>
 
 class QPropertyAnimation;
 
-class SeekBar : public QWidget {
+class SeekBar : public QWidget, public IAnimatable {
     Q_OBJECT
     Q_PROPERTY(QColor trackInactiveColor READ trackInactiveColor WRITE setTrackInactiveColor)
     Q_PROPERTY(QColor trackActiveColor READ trackActiveColor WRITE setTrackActiveColor)
@@ -40,9 +42,13 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetTimeScale(double scale) override;
 
 private:
     void calculateParams();
+    void animateThumbTo(int targetRatio);
+    void updateAnimationSettings();
     bool m_hasAsyncSetValueTask = false;
     double m_cachedValue = 0;
 

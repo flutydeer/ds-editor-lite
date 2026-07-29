@@ -62,6 +62,7 @@ TabPanelTitleBar::TabPanelTitleBar(QWidget *parent) : QWidget(parent) {
     m_animation->setEasingCurve(QEasingCurve::OutCubic);
 
     setContentsMargins({});
+    initializeAnimation();
 }
 
 QTabBar *const &TabPanelTitleBar::tabBar() const {
@@ -340,15 +341,35 @@ void TabPanelTitleBar::retranslateUi() {
         m_btnHide->setToolTip(tr("Hide"));
 }
 
-void TabPanelTitleBar::setActiveStyle(bool active) const {
+void TabPanelTitleBar::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+    Q_UNUSED(level)
+    updateAnimationSettings();
+}
+
+void TabPanelTitleBar::afterSetTimeScale(double scale) {
+    Q_UNUSED(scale)
+    updateAnimationSettings();
+}
+
+void TabPanelTitleBar::setActiveStyle(bool active) {
+    if (!m_opacityEffect)
+        return;
+
+    m_targetActive = active;
     m_animation->stop();
     m_animation->setStartValue(m_opacityEffect->opacity());
-    if (active) {
-        m_animation->setEndValue(1.0);
-        m_animation->setDuration(100);
-    } else {
-        m_animation->setEndValue(0.5);
-        m_animation->setDuration(300);
+    const auto targetOpacity = active ? 1.0 : 0.5;
+    const auto duration = getEffectiveAnimationTime(active ? 100 : 300);
+    m_animation->setEndValue(targetOpacity);
+    m_animation->setDuration(duration);
+    if (duration == 0) {
+        m_opacityEffect->setOpacity(targetOpacity);
+        return;
     }
     m_animation->start();
+}
+
+void TabPanelTitleBar::updateAnimationSettings() {
+    if (m_animation->state() == QAbstractAnimation::Running)
+        setActiveStyle(m_targetActive);
 }

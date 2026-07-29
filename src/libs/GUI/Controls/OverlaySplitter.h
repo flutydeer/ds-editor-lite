@@ -1,6 +1,8 @@
 #ifndef OVERLAYSPLITTER_H
 #define OVERLAYSPLITTER_H
 
+#include <lite/GUI/Animation/IAnimatable.h>
+
 #include <QPointer>
 #include <QSplitter>
 
@@ -42,7 +44,7 @@ private:
 // (not the splitter itself) to avoid being managed by QSplitter's layout.
 // On hover it draws a thin highlight line; on drag it adjusts the splitter
 // sizes while respecting child widget min/max constraints.
-class SplitterOverlayGrip : public QWidget {
+class SplitterOverlayGrip : public QWidget, public IAnimatable {
     Q_OBJECT
     Q_PROPERTY(QColor highlightColor READ highlightColor WRITE setHighlightColor)
 
@@ -56,9 +58,12 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetTimeScale(double scale) override;
 
 private:
     void setHighlightVisible(bool visible);
+    void updateAnimationSettings();
     [[nodiscard]] QColor highlightColor() const;
     void setHighlightColor(const QColor &color);
 
@@ -74,6 +79,7 @@ private:
     // Hysteresis state for collapse/expand to prevent jitter near the threshold.
     bool m_collapsed0 = false;
     bool m_collapsed1 = false;
+    bool m_targetHighlightVisible = false;
 };
 
 #endif // OVERLAYSPLITTER_H

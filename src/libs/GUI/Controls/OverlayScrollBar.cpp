@@ -25,6 +25,7 @@ OverlayScrollBar::OverlayScrollBar(Qt::Orientation orientation, QWidget *parent)
         m_opacity = value.toDouble();
         update();
     });
+    initializeAnimation();
 }
 
 void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
@@ -36,8 +37,7 @@ void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
     else
         scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    auto *source =
-        horizontal ? scrollArea->horizontalScrollBar() : scrollArea->verticalScrollBar();
+    auto *source = horizontal ? scrollArea->horizontalScrollBar() : scrollArea->verticalScrollBar();
 
     connect(source, &QScrollBar::rangeChanged, this, [this](int min, int max) {
         setRange(min, max);
@@ -116,16 +116,34 @@ bool OverlayScrollBar::eventFilter(QObject *watched, QEvent *event) {
 }
 
 void OverlayScrollBar::setHighlightVisible(bool visible) {
+    m_targetHighlightVisible = visible;
     m_animation->stop();
     m_animation->setStartValue(m_opacity);
-    if (visible) {
-        m_animation->setEndValue(1.0);
-        m_animation->setDuration(100);
-    } else {
-        m_animation->setEndValue(0.0);
-        m_animation->setDuration(300);
+    const auto targetOpacity = visible ? 1.0 : 0.0;
+    const auto duration = getEffectiveAnimationTime(visible ? 100 : 300);
+    m_animation->setEndValue(targetOpacity);
+    m_animation->setDuration(duration);
+    if (duration == 0) {
+        m_opacity = targetOpacity;
+        update();
+        return;
     }
     m_animation->start();
+}
+
+void OverlayScrollBar::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+    Q_UNUSED(level)
+    updateAnimationSettings();
+}
+
+void OverlayScrollBar::afterSetTimeScale(double scale) {
+    Q_UNUSED(scale)
+    updateAnimationSettings();
+}
+
+void OverlayScrollBar::updateAnimationSettings() {
+    if (m_animation->state() == QAbstractAnimation::Running)
+        setHighlightVisible(m_targetHighlightVisible);
 }
 
 QColor OverlayScrollBar::handleColor() const {
@@ -156,7 +174,7 @@ void OverlayScrollBar::updatePosition() {
 }
 
 OverlayScrollBar *OverlayScrollBar::install(QAbstractScrollArea *scrollArea,
-                                             Qt::Orientation orientation) {
+                                            Qt::Orientation orientation) {
     auto *bar = new OverlayScrollBar(orientation, scrollArea);
     bar->attachTo(scrollArea);
     bar->updatePosition();

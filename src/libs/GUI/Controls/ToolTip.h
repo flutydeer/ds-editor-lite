@@ -5,6 +5,8 @@
 #ifndef DATASET_TOOLS_TOOLTIP_H
 #define DATASET_TOOLS_TOOLTIP_H
 
+#include <lite/GUI/Animation/IAnimatable.h>
+
 #include <QFrame>
 
 class QLabel;
@@ -12,7 +14,7 @@ class QVBoxLayout;
 class QPropertyAnimation;
 class QGraphicsDropShadowEffect;
 
-class ToolTip : public QFrame {
+class ToolTip : public QFrame, public IAnimatable {
     Q_OBJECT
     Q_PROPERTY(QColor shadowColor READ shadowColor WRITE setShadowColor)
 
@@ -39,6 +41,9 @@ signals:
     void hideAnimationFinished();
 
 protected:
+    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetTimeScale(double scale) override;
+
     QString m_title;
     QString m_shortcutKey;
     QList<QString> m_message;
@@ -56,6 +61,8 @@ protected:
     [[nodiscard]] QPoint clampToScreen(const QPoint &screenPos) const;
     [[nodiscard]] QColor shadowColor() const;
     void setShadowColor(const QColor &color);
+    void updateAnimationSettings();
+    void completeOpacityAnimation();
 };
 
 #endif // DATASET_TOOLS_TOOLTIP_H

@@ -66,6 +66,7 @@ ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
             emit hideAnimationFinished();
         }
     });
+    initializeAnimation();
 }
 
 ToolTip::~ToolTip() {
@@ -120,7 +121,10 @@ void ToolTip::clearMessage() {
 }
 
 void ToolTip::setAnimationEnabled(bool on) {
+    if (m_animationEnabled == on)
+        return;
     m_animationEnabled = on;
+    updateAnimationSettings();
 }
 
 bool ToolTip::animationEnabled() const {
@@ -159,7 +163,7 @@ QPoint ToolTip::clampToScreen(const QPoint &screenPos) const {
 void ToolTip::showAt(const QPoint &screenPos) {
     move(clampToScreen(screenPos));
 
-    if (m_animationEnabled) {
+    if (m_animationEnabled && m_opacityAnimation->duration() > 0) {
         m_opacityAnimation->stop();
         m_opacityAnimation->setStartValue(windowOpacity());
         m_opacityAnimation->setEndValue(1);
@@ -176,7 +180,7 @@ void ToolTip::moveTo(const QPoint &screenPos) {
 }
 
 void ToolTip::hideWithAnimation() {
-    if (m_animationEnabled) {
+    if (m_animationEnabled && m_opacityAnimation->duration() > 0) {
         m_opacityAnimation->stop();
         m_opacityAnimation->setStartValue(windowOpacity());
         m_opacityAnimation->setEndValue(0);
@@ -184,6 +188,45 @@ void ToolTip::hideWithAnimation() {
     } else {
         setWindowOpacity(0);
         hide();
+        emit hideAnimationFinished();
+    }
+}
+
+void ToolTip::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+    Q_UNUSED(level)
+    updateAnimationSettings();
+}
+
+void ToolTip::afterSetTimeScale(double scale) {
+    Q_UNUSED(scale)
+    updateAnimationSettings();
+}
+
+void ToolTip::updateAnimationSettings() {
+    const auto running = m_opacityAnimation->state() == QAbstractAnimation::Running;
+    const auto endValue = m_opacityAnimation->endValue();
+    const auto duration = m_animationEnabled ? getEffectiveAnimationTime(150) : 0;
+    m_opacityAnimation->stop();
+    m_opacityAnimation->setDuration(duration);
+    if (!running)
+        return;
+    if (duration == 0) {
+        m_opacityAnimation->setEndValue(endValue);
+        completeOpacityAnimation();
+        return;
+    }
+    m_opacityAnimation->setStartValue(windowOpacity());
+    m_opacityAnimation->setEndValue(endValue);
+    m_opacityAnimation->start();
+}
+
+void ToolTip::completeOpacityAnimation() {
+    const auto targetOpacity = m_opacityAnimation->endValue().toDouble();
+    m_opacityAnimation->stop();
+    setWindowOpacity(targetOpacity);
+    if (qFuzzyIsNull(targetOpacity)) {
+        hide();
+        emit hideAnimationFinished();
     }
 }
 
