@@ -1,12 +1,13 @@
 #ifndef TAPTEMPOBUTTON_H
 #define TAPTEMPOBUTTON_H
 
+#include <lite/GUI/Animation/IAnimatable.h>
 #include <lite/GUI/Controls/Button.h>
 
 #include <QColor>
 #include <QPropertyAnimation>
 
-class TapTempoButton : public Button {
+class TapTempoButton : public Button, public IAnimatable {
     Q_OBJECT
     Q_PROPERTY(double apparentProgress READ apparentProgress WRITE setApparentProgress)
     Q_PROPERTY(QColor progressColor READ progressColor WRITE setProgressColor)
@@ -27,10 +28,13 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetTimeScale(double scale) override;
 
 private:
     [[nodiscard]] double apparentProgress() const;
     void setApparentProgress(double progress);
+    void updateAnimationSettings();
 
     double m_progress = 0.0;
     QColor m_progressColor = QColor(155, 186, 255, 80);

@@ -106,7 +106,7 @@ namespace FillLyric {
         QString text;
         for (int i = 0; i < info.entries.size(); i++) {
             const auto &e = info.entries[i];
-            text += QStringLiteral("#%1  type=%2  tag=%3").arg(i + 1).arg(e.type, e.tag);
+            text += QStringLiteral("#%L1  type=%2  tag=%3").arg(i + 1).arg(e.type, e.tag);
             if (e.discard)
                 text += QStringLiteral("  ") + tr("(discard)");
             text += '\n';

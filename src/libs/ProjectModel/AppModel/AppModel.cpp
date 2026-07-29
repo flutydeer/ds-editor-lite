@@ -100,8 +100,11 @@ const QList<Track *> &AppModel::tracks() const {
     return d->m_tracks;
 }
 
-void AppModel::insertTrack(Track *track, const qsizetype index) {
+bool AppModel::insertTrack(Track *track, const qsizetype index) {
     Q_D(AppModel);
+    if (!track || index < 0 || index > d->m_tracks.size() || d->m_tracks.contains(track))
+        return false;
+
     if (track->colorIndex() == 0) {
         int prev = -1;
         if (index > 0 && index - 1 < d->m_tracks.size())
@@ -112,13 +115,24 @@ void AppModel::insertTrack(Track *track, const qsizetype index) {
         track->setColorIndex(newIdx);
     }
     d->m_tracks.insert(index, track);
-
-    emit trackChanged(Insert, index, track);
+    return true;
 }
 
-void AppModel::appendTrack(Track *track) {
+bool AppModel::appendTrack(Track *track) {
     Q_D(AppModel);
-    insertTrack(track, d->m_tracks.count());
+    return insertTrack(track, d->m_tracks.count());
+}
+
+bool AppModel::moveTrack(const qsizetype from, const qsizetype to) {
+    Q_D(AppModel);
+    if (from == to)
+        return false;
+    const auto size = d->m_tracks.size();
+    if (from < 0 || from >= size || to < 0 || to >= size)
+        return false;
+
+    d->m_tracks.move(from, to);
+    return true;
 }
 
 void AppModel::removeTrackAt(const qsizetype index) {
@@ -133,9 +147,7 @@ Track *AppModel::takeTrackAt(const qsizetype index) {
     Q_D(AppModel);
     if (index < 0 || index >= d->m_tracks.count())
         return nullptr;
-    const auto track = d->m_tracks.takeAt(index);
-    emit trackChanged(Remove, index, track);
-    return track;
+    return d->m_tracks.takeAt(index);
 }
 
 Track *AppModel::takeTrack(Track *track) {
@@ -147,6 +159,18 @@ void AppModel::clearTracks() {
     Q_D(AppModel);
     while (d->m_tracks.count() > 0)
         delete takeTrackAt(0);
+}
+
+void AppModel::notifyTrackChanged(const TrackChangeType type, const qsizetype index, Track *track) {
+    emit trackChanged(type, index, track);
+}
+
+void AppModel::notifyTrackMoved(const qsizetype from, const qsizetype to) {
+    Q_D(const AppModel);
+    const auto size = d->m_tracks.size();
+    if (from == to || from < 0 || from >= size || to < 0 || to >= size)
+        return;
+    emit trackMoved(from, to);
 }
 
 ProjectModelData AppModel::takeProjectData() {

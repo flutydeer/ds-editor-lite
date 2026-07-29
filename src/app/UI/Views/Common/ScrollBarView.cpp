@@ -12,8 +12,7 @@ ScrollBarView::ScrollBarView() {
     initUi();
 }
 
-ScrollBarView::ScrollBarView(Qt::Orientation orientation)
-    : m_orientation(orientation) {
+ScrollBarView::ScrollBarView(Qt::Orientation orientation) : m_orientation(orientation) {
     initUi();
 }
 
@@ -72,9 +71,13 @@ bool ScrollBarView::mouseOnHandle(const QPointF &scenePos) const {
 }
 
 void ScrollBarView::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+    Q_UNUSED(level)
+    updateAnimationSettings();
 }
 
 void ScrollBarView::afterSetTimeScale(double scale) {
+    Q_UNUSED(scale)
+    updateAnimationSettings();
 }
 
 QColor ScrollBarView::handleColor() const {
@@ -99,7 +102,7 @@ void ScrollBarView::setHandlePadding(const QVariant &value) {
 }
 
 void ScrollBarView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
-                                  QWidget *widget) {
+                          QWidget *widget) {
 
     painter->setRenderHint(QPainter::Antialiasing);
     auto backgroundColor = m_handleColor;
@@ -133,7 +136,6 @@ void ScrollBarView::paint(QPainter *painter, const QStyleOptionGraphicsItem *opt
 
 void ScrollBarView::initUi() {
     updateRectAndPos();
-    initializeAnimation();
 
     m_aniHandleAlpha.setEasingCurve(QEasingCurve::OutCubic);
     m_aniHandlePadding.setEasingCurve(QEasingCurve::OutCubic);
@@ -141,6 +143,7 @@ void ScrollBarView::initUi() {
             &ScrollBarView::setHandleAlpha);
     connect(&m_aniHandlePadding, &QVariantAnimation::valueChanged, this,
             &ScrollBarView::setHandlePadding);
+    initializeAnimation();
 }
 
 double ScrollBarView::handleStart() const {
@@ -161,12 +164,13 @@ double ScrollBarView::handleEnd() const {
 }
 
 void ScrollBarView::performStateChangeAnimation(int targetAlpha, double targetPadding,
-                                                        int duration) {
+                                                int duration) {
     m_aniHandleAlpha.stop();
     m_aniHandlePadding.stop();
 
-    m_aniHandleAlpha.setDuration(static_cast<int>(animationTimeScale() * duration));
-    m_aniHandlePadding.setDuration(static_cast<int>(animationTimeScale() * duration));
+    const auto effectiveDuration = getEffectiveAnimationTime(duration);
+    m_aniHandleAlpha.setDuration(effectiveDuration);
+    m_aniHandlePadding.setDuration(effectiveDuration);
 
     m_aniHandleAlpha.setStartValue(m_handleAlpha);
     m_aniHandlePadding.setStartValue(m_handlePadding);
@@ -174,6 +178,24 @@ void ScrollBarView::performStateChangeAnimation(int targetAlpha, double targetPa
     m_aniHandleAlpha.setEndValue(targetAlpha);
     m_aniHandlePadding.setEndValue(targetPadding);
 
+    if (effectiveDuration == 0) {
+        setHandleAlpha(targetAlpha);
+        setHandlePadding(targetPadding);
+        return;
+    }
+
     m_aniHandleAlpha.start();
     m_aniHandlePadding.start();
+}
+
+void ScrollBarView::updateAnimationSettings() {
+    const auto alphaRunning = m_aniHandleAlpha.state() == QAbstractAnimation::Running;
+    const auto paddingRunning = m_aniHandlePadding.state() == QAbstractAnimation::Running;
+    if (!alphaRunning && !paddingRunning)
+        return;
+
+    const auto targetAlpha = m_aniHandleAlpha.endValue().toInt();
+    const auto targetPadding = m_aniHandlePadding.endValue().toDouble();
+    const auto duration = targetAlpha == kHandleAlphaNormal ? 300 : 100;
+    performStateChangeAnimation(targetAlpha, targetPadding, duration);
 }

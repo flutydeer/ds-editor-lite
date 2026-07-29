@@ -7,6 +7,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QItemSelectionModel>
+#include <QLocale>
 #include <QSignalBlocker>
 #include <QStandardItem>
 #include <QStandardItemModel>
@@ -206,7 +207,7 @@ public:
             rangeItem->setFlags((rangeItem->flags() | Qt::ItemIsSelectable) &
                                 ~(Qt::ItemIsEditable | Qt::ItemIsUserCheckable));
 
-            auto *noteCountItem = new QStandardItem(QString::number(info.noteCount));
+            auto *noteCountItem = new QStandardItem(QLocale().toString(info.noteCount));
             noteCountItem->setFlags((noteCountItem->flags() | Qt::ItemIsSelectable) &
                                     ~(Qt::ItemIsEditable | Qt::ItemIsUserCheckable));
 

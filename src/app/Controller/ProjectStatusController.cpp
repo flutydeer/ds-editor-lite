@@ -10,21 +10,6 @@
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(ProjectStatusController)
 
-void ProjectStatusController::handleTrackRemoved(Track *track) {
-    ModelChangeHandler::handleTrackRemoved(track);
-    bool trackContainsActiveClip = false;
-    for (const auto clip : track->clips()) {
-        if (clip->id() == appStatus->activeClipId) {
-            trackContainsActiveClip = true;
-            break;
-        }
-    }
-    if (trackContainsActiveClip) {
-        appStatus->selectedNotes = QList<int>();
-        appStatus->activeClipId = -1;
-    }
-}
-
 void ProjectStatusController::handleTempoChanged() {
     updateProjectEditableLength();
 }

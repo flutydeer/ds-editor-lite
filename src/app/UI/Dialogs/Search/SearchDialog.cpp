@@ -23,7 +23,7 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
 
     resultListWidget = new QListWidget();
     resultListWidget->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    labelInfo = new QLabel(tr("Found 0 matches"));
+    labelInfo = new QLabel(tr("Found %L1 matches").arg(0));
 
     startWithRadioButton = new QRadioButton(tr("Starts With"));
     startWithRadioButton->setToolTip(tr("Search from the beginning of the input text"));
@@ -154,7 +154,7 @@ void SearchDialog::onSearchTextChanged() {
         }
     }
 
-    labelInfo->setText(tr("Found %1 matches").arg(resultListWidget->count()));
+    labelInfo->setText(tr("Found %L1 matches").arg(resultListWidget->count()));
     if (resultListWidget->count() > 0)
         resultListWidget->setCurrentRow(0);
     updateButtonState();

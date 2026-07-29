@@ -13,6 +13,10 @@ LevelMeterManager::LevelMeterManager(AppModel *model, QObject *parent)
             [this](AppModel::TrackChangeType type, qsizetype index, Track *track) {
                 onTrackChanged(static_cast<int>(type), static_cast<int>(index), track);
             });
+    connect(m_appModel, &AppModel::trackMoved, this, [this](const qsizetype from,
+                                                           const qsizetype to) {
+        moveModel(static_cast<int>(from), static_cast<int>(to));
+    });
 }
 
 LevelMeterViewModel *LevelMeterManager::viewModelForTrack(const Track *track) const {
@@ -65,6 +69,13 @@ void LevelMeterManager::removeModelAt(int index) {
     if (index < 0 || index >= m_viewModels.size())
         return;
     delete m_viewModels.takeAt(index);
+}
+
+void LevelMeterManager::moveModel(const int from, const int to) {
+    if (from == to || from < 0 || from >= m_viewModels.size() || to < 0 ||
+        to >= m_viewModels.size())
+        return;
+    m_viewModels.move(from, to);
 }
 
 void LevelMeterManager::clearAll() {

@@ -9,6 +9,7 @@
 #include <QApplication>
 #include <QCursor>
 #include <QGuiApplication>
+#include <QLocale>
 #include <QMouseEvent>
 #include <QStyle>
 #include <QTimer>
@@ -31,8 +32,8 @@ TimeSignatureComboBox::TimeSignatureComboBox(QWidget *parent) : InlineEditLabel(
 
         bool numeratorOk = false;
         bool denominatorOk = false;
-        const int numerator = parts.at(0).toInt(&numeratorOk);
-        const int denominator = parts.at(1).toInt(&denominatorOk);
+        const int numerator = QLocale().toInt(parts.at(0).trimmed(), &numeratorOk);
+        const int denominator = QLocale().toInt(parts.at(1).trimmed(), &denominatorOk);
         if (!numeratorOk || !denominatorOk ||
             (m_numerator == numerator && m_denominator == denominator))
             return;
@@ -50,7 +51,8 @@ TimeSignatureComboBox::TimeSignatureComboBox(QWidget *parent) : InlineEditLabel(
 void TimeSignatureComboBox::setTimeSignature(int numerator, int denominator) {
     m_numerator = numerator;
     m_denominator = denominator;
-    setText(QString::number(numerator) + QStringLiteral("/") + QString::number(denominator));
+    const QLocale locale;
+    setText(locale.toString(numerator) + QStringLiteral("/") + locale.toString(denominator));
 }
 
 void TimeSignatureComboBox::mousePressEvent(QMouseEvent *event) {

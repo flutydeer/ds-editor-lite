@@ -139,6 +139,19 @@ endif()
 
 qt_add_translations(
     TARGETS ${PROJECT_NAME}
+    SOURCE_TARGETS
+        ${PROJECT_NAME}
+        Core
+        Support
+        MusicBase
+        ProjectModel
+        History
+        SynthrtEngine
+        PackageManager
+        ProjectConverters
+        Language
+        Tasking
+        GUI
     TS_FILES Resources/translate/translation_zh_CN.ts
     RESOURCE_PREFIX "/i18n"
     LUPDATE_OPTIONS -no-obsolete

@@ -45,7 +45,7 @@ namespace FillLyric {
         mainLayout->addWidget(inputGroup);
 
         // ── Step 1: Split result ────────────────────────────────────────────
-        auto *splitGroup = new QGroupBox(tr("Step 1 - Split Result"));
+        auto *splitGroup = new QGroupBox(tr("Step %L1 - Split Result").arg(1));
         auto *splitLayout = new QVBoxLayout(splitGroup);
         splitLayout->setContentsMargins(8, 8, 8, 8);
 
@@ -70,13 +70,15 @@ namespace FillLyric {
         mainLayout->addWidget(splitGroup, 1);
 
         // ── Step 2: Tag result ──────────────────────────────────────────────
-        auto *tagGroup = new QGroupBox(tr("Step 2 - Tag Result"));
+        auto *tagGroup = new QGroupBox(tr("Step %L1 - Tag Result").arg(2));
         auto *tagLayout = new QVBoxLayout(tagGroup);
         tagLayout->setContentsMargins(8, 8, 8, 8);
 
         auto *tagHeaderRow = new QHBoxLayout;
-        auto *tagDesc = new QLabel(tr("Each token from step 1 is tagged with language/tag by "
-                                      "tagger rules (first match wins)."));
+        auto *tagDesc =
+            new QLabel(tr("Each token from step %L1 is tagged with language/tag by "
+                          "tagger rules (first match wins).")
+                           .arg(1));
         tagDesc->setObjectName("ruleInfoLabel");
         tagDesc->setWordWrap(true);
         tagHeaderRow->addWidget(tagDesc, 1);
@@ -120,7 +122,7 @@ namespace FillLyric {
         for (const auto &token : splitResult)
             splitTokens.append(QString::fromStdString(token));
 
-        m_splitOutput->setPlainText(tr("Token count: %1\n").arg(splitResult.size()) +
+        m_splitOutput->setPlainText(tr("Token count: %L1\n").arg(splitResult.size()) +
                                     splitTokens.join(QStringLiteral(" | ")));
 
         // ── Step 2: Tag (uses split result as input) ────────────────────────

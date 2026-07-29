@@ -7,6 +7,7 @@
 
 #include <QMouseEvent>
 #include <QPainter>
+#include <QLocale>
 
 #include <lite/GUI/Utils/VolumeUtils.h>
 
@@ -260,9 +261,9 @@ QString LevelMeter::gainValueToString(const double gain) {
         return "-∞";
 
     if (qAbs(gain) < 0.05)
-        return "0.0";
+        return QLocale().toString(0.0, 'f', 1);
 
-    const QString absVal = QString::number(qAbs(gain), 'f', 1);
+    const QString absVal = QLocale().toString(qAbs(gain), 'f', 1);
     QString sign;
 
     if (gain > 0.05)

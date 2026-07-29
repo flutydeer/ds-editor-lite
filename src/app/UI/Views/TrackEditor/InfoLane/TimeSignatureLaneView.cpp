@@ -49,7 +49,9 @@ void TimeSignatureLaneView::rebuildChips() {
     QList<Chip> chips;
     for (const auto &signature : timeline.timeSignatures())
         chips.append({signature.barIndex, timeline.barToTick(signature.barIndex),
-                      QStringLiteral("%1/%2").arg(signature.numerator).arg(signature.denominator)});
+                      QStringLiteral("%L1/%L2")
+                          .arg(signature.numerator)
+                          .arg(signature.denominator)});
     setChips(std::move(chips));
 }
 

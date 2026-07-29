@@ -173,20 +173,30 @@ void SwitchButton::setThumbOnColor(const QColor &color) {
 }
 
 void SwitchButton::updateAnimationDuration() {
-    int valueDuration = 0;
-    int hoverDuration = 0;
-    if (animationLevel() == AnimationGlobal::Full) {
-        valueDuration = 400;
-        hoverDuration = 200;
-    } else if (animationLevel() == AnimationGlobal::Decreased) {
-        valueDuration = 0;
-        hoverDuration = 200;
-    } else if (animationLevel() == AnimationGlobal::None) {
-        valueDuration = 0;
-        hoverDuration = 0;
-    }
-    m_valueAnimation.setDuration(getScaledAnimationTime(valueDuration));
-    m_thumbHoverAnimation.setDuration(getScaledAnimationTime(hoverDuration));
+    const auto valueDuration = getEffectiveAnimationTime(400, AnimationGlobal::Full);
+    const auto hoverDuration = getEffectiveAnimationTime(200);
+
+    auto updateAnimation = [](QPropertyAnimation &animation, int duration, int currentValue,
+                              const auto &applyValue) {
+        const auto running = animation.state() == QAbstractAnimation::Running;
+        const auto endValue = animation.endValue().toInt();
+        animation.stop();
+        animation.setDuration(duration);
+        if (!running)
+            return;
+        if (duration == 0) {
+            applyValue(endValue);
+            return;
+        }
+        animation.setStartValue(currentValue);
+        animation.setEndValue(endValue);
+        animation.start();
+    };
+
+    updateAnimation(m_valueAnimation, valueDuration, m_apparentValue,
+                    [this](int value) { setApparentValue(value); });
+    updateAnimation(m_thumbHoverAnimation, hoverDuration, m_thumbScaleRatio,
+                    [this](int value) { setThumbScaleRatio(value); });
 }
 
 bool SwitchButton::eventFilter(QObject *object, QEvent *event) {

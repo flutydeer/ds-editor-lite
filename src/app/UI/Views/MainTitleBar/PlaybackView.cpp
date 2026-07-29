@@ -24,6 +24,7 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QLocale>
 #include <QPushButton>
 #include <QShortcut>
 
@@ -60,7 +61,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_elTempo->setFixedHeight(m_contentHeight);
     m_elTempo->setCommitValidator([](const QString &text) {
         bool ok = false;
-        const auto value = text.trimmed().toDouble(&ok);
+        const auto value = QLocale().toDouble(text.trimmed(), &ok);
         return ok && std::isfinite(value) && value > 0.0;
     });
 
@@ -78,8 +79,8 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
             return false;
         bool numeratorOk = false;
         bool denominatorOk = false;
-        const auto numerator = parts.at(0).toInt(&numeratorOk);
-        const auto denominator = parts.at(1).toInt(&denominatorOk);
+        const auto numerator = QLocale().toInt(parts.at(0).trimmed(), &numeratorOk);
+        const auto denominator = QLocale().toInt(parts.at(1).trimmed(), &denominatorOk);
         return numeratorOk && denominatorOk && numerator > 0 && denominator > 0 &&
                (denominator & (denominator - 1)) == 0;
     });

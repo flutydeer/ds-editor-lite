@@ -209,7 +209,7 @@ void AudioDecodingController::finishResolveIfSessionDone() {
         return;
 
     if (m_missingClipIds.isEmpty() && m_unconfirmedClipIds.isEmpty())
-        Toast::show(tr("%1 audio file(s) relocated automatically").arg(m_autoRelocatedCount));
+        Toast::show(tr("%L1 audio file(s) relocated automatically").arg(m_autoRelocatedCount));
 
     emit resolveSessionFinished(m_missingClipIds, m_unconfirmedClipIds, m_autoRelocatedCount);
     m_missingClipIds.clear();

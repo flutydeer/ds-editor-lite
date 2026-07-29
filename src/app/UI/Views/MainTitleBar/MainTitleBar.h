@@ -5,6 +5,8 @@
 #ifndef MAINTITLEBAR_H
 #define MAINTITLEBAR_H
 
+#include <lite/GUI/Animation/IAnimatable.h>
+
 #include <QWidget>
 
 class QVariantAnimation;
@@ -15,7 +17,7 @@ class PlaybackView;
 class Button;
 class MainMenuView;
 
-class MainTitleBar : public QWidget {
+class MainTitleBar : public QWidget, public IAnimatable {
     Q_OBJECT
 
 public:
@@ -36,9 +38,14 @@ signals:
     void maximizeTriggered(bool max = false);
     void closeTriggered();
 
+protected:
+    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetTimeScale(double scale) override;
+
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
-    void setActiveStyle(bool active) const;
+    void setActiveStyle(bool active);
+    void updateAnimationSettings();
 
     QWidget *m_window;
     MainMenuView *m_menuView;
@@ -50,6 +57,7 @@ private:
     TitleBarComboBox *m_titleComboBox = nullptr;
     QGraphicsOpacityEffect *m_opacityEffect;
     QVariantAnimation *m_animation;
+    bool m_targetActive = true;
 };
 
 

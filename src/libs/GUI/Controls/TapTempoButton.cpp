@@ -7,8 +7,8 @@
 TapTempoButton::TapTempoButton(QWidget *parent) : Button(parent) {
     m_progressAnimation.setTargetObject(this);
     m_progressAnimation.setPropertyName("apparentProgress");
-    m_progressAnimation.setDuration(150);
     m_progressAnimation.setEasingCurve(QEasingCurve::OutCubic);
+    initializeAnimation();
 }
 
 double TapTempoButton::progress() const {
@@ -23,6 +23,10 @@ void TapTempoButton::setProgress(double progress) {
     m_progressAnimation.stop();
     m_progressAnimation.setStartValue(m_progress);
     m_progressAnimation.setEndValue(progress);
+    if (m_progressAnimation.duration() == 0) {
+        setApparentProgress(progress);
+        return;
+    }
     m_progressAnimation.start();
 }
 
@@ -89,4 +93,30 @@ void TapTempoButton::paintEvent(QPaintEvent *event) {
     }
 
     Button::paintEvent(event);
+}
+
+void TapTempoButton::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+    Q_UNUSED(level)
+    updateAnimationSettings();
+}
+
+void TapTempoButton::afterSetTimeScale(double scale) {
+    Q_UNUSED(scale)
+    updateAnimationSettings();
+}
+
+void TapTempoButton::updateAnimationSettings() {
+    const auto running = m_progressAnimation.state() == QAbstractAnimation::Running;
+    const auto targetProgress = m_progressAnimation.endValue().toDouble();
+    m_progressAnimation.stop();
+    m_progressAnimation.setDuration(getEffectiveAnimationTime(150, AnimationGlobal::Full));
+    if (!running)
+        return;
+    if (m_progressAnimation.duration() == 0) {
+        setApparentProgress(targetProgress);
+        return;
+    }
+    m_progressAnimation.setStartValue(m_progress);
+    m_progressAnimation.setEndValue(targetProgress);
+    m_progressAnimation.start();
 }

@@ -7,6 +7,7 @@
 #include <QApplication>
 #include <QCursor>
 #include <QGuiApplication>
+#include <QLocale>
 #include <QMouseEvent>
 #include <QStyle>
 #include <QTimer>
@@ -23,7 +24,7 @@ TempoComboBox::TempoComboBox(QWidget *parent) : InlineEditLabel(parent) {
     });
     connect(this, &InlineEditLabel::editCompleted, this, [this](const QString &text) {
         bool ok = false;
-        const double tempo = text.trimmed().toDouble(&ok);
+        const double tempo = QLocale().toDouble(text.trimmed(), &ok);
         if (!ok || m_tempo == tempo)
             return;
         m_tempo = tempo;

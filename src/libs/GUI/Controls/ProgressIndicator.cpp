@@ -20,29 +20,19 @@ ProgressIndicator::ProgressIndicator(const IndicatorStyle indicatorStyle, QWidge
 
 void ProgressIndicator::initUi() {
     m_timer.setInterval(8);
-    connect(&m_timer, &QTimer::timeout, this, [this] {
-        update();
-    });
+    connect(&m_timer, &QTimer::timeout, this, [this] { update(); });
     m_colorPalette = colorPaletteNormal;
-
-    constexpr int animationDurationBase = 250;
-    const auto duration = animationLevel() == AnimationGlobal::None
-                              ? 0
-                              : getScaledAnimationTime(animationDurationBase);
 
     m_valueAnimation.setTargetObject(this);
     m_valueAnimation.setPropertyName("apparentValue");
-    m_valueAnimation.setDuration(duration);
     m_valueAnimation.setEasingCurve(QEasingCurve::OutQuart);
 
     m_SecondaryValueAnimation.setTargetObject(this);
     m_SecondaryValueAnimation.setPropertyName("apparentSecondaryValue");
-    m_SecondaryValueAnimation.setDuration(duration);
     m_SecondaryValueAnimation.setEasingCurve(QEasingCurve::OutQuart);
 
     m_currentTaskValueAnimation.setTargetObject(this);
     m_currentTaskValueAnimation.setPropertyName("apparentCurrentTaskValue");
-    m_currentTaskValueAnimation.setDuration(duration);
     m_currentTaskValueAnimation.setEasingCurve(QEasingCurve::OutQuart);
 
     switch (m_indicatorStyle) {
@@ -230,6 +220,10 @@ double ProgressIndicator::value() const {
 void ProgressIndicator::setValue(const double value) {
     m_value = value;
     m_valueAnimation.stop();
+    if (m_valueAnimation.duration() == 0) {
+        setApparentValue(m_value);
+        return;
+    }
     m_valueAnimation.setStartValue(m_apparentValue);
     m_valueAnimation.setEndValue(m_value);
     m_valueAnimation.start();
@@ -266,6 +260,10 @@ double ProgressIndicator::secondaryValue() const {
 void ProgressIndicator::setSecondaryValue(const double value) {
     m_secondaryValue = value;
     m_SecondaryValueAnimation.stop();
+    if (m_SecondaryValueAnimation.duration() == 0) {
+        setApparentSecondaryValue(m_secondaryValue);
+        return;
+    }
     m_SecondaryValueAnimation.setStartValue(m_apparentSecondaryValue);
     m_SecondaryValueAnimation.setEndValue(m_secondaryValue);
     m_SecondaryValueAnimation.start();
@@ -274,16 +272,25 @@ void ProgressIndicator::setSecondaryValue(const double value) {
 void ProgressIndicator::setCurrentTaskValue(const double value) {
     m_currentTaskValue = value;
     m_currentTaskValueAnimation.stop();
+    if (m_currentTaskValueAnimation.duration() == 0) {
+        setApparentCurrentTaskValue(m_currentTaskValue);
+        return;
+    }
     m_currentTaskValueAnimation.setStartValue(m_apparentCurrentTaskValue);
     m_currentTaskValueAnimation.setEndValue(m_currentTaskValue);
     m_currentTaskValueAnimation.start();
 }
 
 void ProgressIndicator::reset() {
+    m_valueAnimation.stop();
+    m_SecondaryValueAnimation.stop();
+    m_currentTaskValueAnimation.stop();
     m_value = 0;
     m_secondaryValue = 0;
     m_currentTaskValue = 0;
-    update();
+    setApparentValue(0);
+    setApparentSecondaryValue(0);
+    setApparentCurrentTaskValue(0);
 }
 
 double ProgressIndicator::currentTaskValue() const {
@@ -520,4 +527,33 @@ double ProgressIndicator::apparentCurrentTaskValue() const {
 void ProgressIndicator::setApparentCurrentTaskValue(const double x) {
     m_apparentCurrentTaskValue = x;
     update();
+}
+
+void ProgressIndicator::updateAnimationDurations() {
+    constexpr int animationDurationBase = 250;
+    const auto duration = getEffectiveAnimationTime(animationDurationBase, AnimationGlobal::Full);
+
+    auto updateAnimation = [duration](QPropertyAnimation &animation, double currentValue,
+                                      const auto &applyValue) {
+        const auto running = animation.state() == QAbstractAnimation::Running;
+        const auto endValue = animation.endValue().toDouble();
+        animation.stop();
+        animation.setDuration(duration);
+        if (!running)
+            return;
+        if (duration == 0) {
+            applyValue(endValue);
+            return;
+        }
+        animation.setStartValue(currentValue);
+        animation.setEndValue(endValue);
+        animation.start();
+    };
+
+    updateAnimation(m_valueAnimation, m_apparentValue,
+                    [this](double value) { setApparentValue(value); });
+    updateAnimation(m_SecondaryValueAnimation, m_apparentSecondaryValue,
+                    [this](double value) { setApparentSecondaryValue(value); });
+    updateAnimation(m_currentTaskValueAnimation, m_apparentCurrentTaskValue,
+                    [this](double value) { setApparentCurrentTaskValue(value); });
 }

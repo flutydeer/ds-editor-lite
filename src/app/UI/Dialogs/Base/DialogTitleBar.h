@@ -5,6 +5,8 @@
 #ifndef DIALOGTITLEBAR_H
 #define DIALOGTITLEBAR_H
 
+#include <lite/GUI/Animation/IAnimatable.h>
+
 #include <QWidget>
 
 class QVariantAnimation;
@@ -12,7 +14,7 @@ class QGraphicsOpacityEffect;
 class QLabel;
 class Button;
 
-class DialogTitleBar : public QWidget {
+class DialogTitleBar : public QWidget, public IAnimatable {
     Q_OBJECT
 
 public:
@@ -25,15 +27,21 @@ public:
 signals:
     void closeTriggered();
 
+protected:
+    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetTimeScale(double scale) override;
+
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
-    void setActiveStyle(bool active) const;
+    void setActiveStyle(bool active);
+    void updateAnimationSettings();
 
     QWidget *m_window;
     QLabel *m_lbTitle = nullptr;
     Button *m_btnClose = nullptr;
     QGraphicsOpacityEffect *m_opacityEffect;
     QVariantAnimation *m_animation;
+    bool m_targetActive = true;
 };
 
 #endif // DIALOGTITLEBAR_H

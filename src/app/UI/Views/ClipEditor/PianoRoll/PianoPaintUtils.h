@@ -24,6 +24,7 @@ inline QString PianoPaintUtils::noteName(int midiKey) {
     const QString noteNames[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
     int index = qAbs(midiKey) % 12;
     int octave = midiKey / 12 - 1;
+    // Scientific pitch names are stable identifiers, not localized quantities.
     QString noteName = noteNames[index] + QString::number(octave);
     return noteName;
 }
