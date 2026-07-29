@@ -18,6 +18,7 @@ namespace AppOptionsGlobal {
         // Hidden options
         G2pLanguage,
         FillLyric,
+        Window,
         // PreviewFunctions,
     };
 };

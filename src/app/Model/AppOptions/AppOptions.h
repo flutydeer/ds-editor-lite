@@ -15,6 +15,7 @@
 #include "Options/FillLyricOption.h"
 #include "Options/GeneralOption.h"
 #include "Options/InferenceOption.h"
+#include "Options/WindowOption.h"
 #include "Global/AppOptionsGlobal.h"
 
 class AppOptions : public QObject {
@@ -39,6 +40,7 @@ public:
     FillLyricOption *fillLyric();
     InferenceOption *inference();
     DeveloperOption *developer();
+    WindowOption *window();
 
 signals:
     void optionsChanged(AppOptionsGlobal::Option option);
@@ -51,6 +53,7 @@ private:
     FillLyricOption m_fillLyricOption;
     InferenceOption m_inferenceOption;
     DeveloperOption m_developerOption;
+    WindowOption m_windowOption;
 
     QString fileName = "appConfig.json";
     QString m_configPath;
