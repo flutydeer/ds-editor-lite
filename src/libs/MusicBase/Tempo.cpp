@@ -4,17 +4,15 @@
 
 #include "Tempo.h"
 
-#include <QLocale>
 #include <QtNumeric>
 
 QString Tempo::formatValue(const double value) {
-    const QLocale locale;
-    const auto decimalPoint = locale.decimalPoint();
-    auto s = locale.toString(value, 'f', 3);
-    while (s.contains(decimalPoint) && s.endsWith('0'))
+    // TODO(FlutyDeer): Localize this value without changing the existing trailing-zero trimming.
+    auto s = QString::number(value, 'f', 3);
+    while (s.contains('.') && s.endsWith('0'))
         s.chop(1);
-    if (s.endsWith(decimalPoint))
-        s.chop(decimalPoint.size());
+    if (s.endsWith('.'))
+        s.chop(1);
     return s;
 }
 

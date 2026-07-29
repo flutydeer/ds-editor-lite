@@ -5,8 +5,6 @@
 #include "MusicTimeConverter.h"
 #include "MusicTime.h"
 
-#include <QLocale>
-
 namespace MusicTimeConverter {
 
 double tickToMs(const double tick, const double tempo) {
@@ -31,15 +29,9 @@ QString getBarBeatTickTime(const int ticks, const int numerator, const int denom
     const auto bar = ticks / barTicks + 1;
     const auto beat = ticks % barTicks / beatTicks + 1;
     const auto tick = ticks % barTicks % beatTicks;
-    const QLocale locale;
-    const auto paddedNumber = [&locale](const int value, const qsizetype width) {
-        auto text = locale.toString(value);
-        while (text.size() < width)
-            text.prepend(locale.zeroDigit());
-        return text;
-    };
-    return paddedNumber(bar, 3) + ":" + paddedNumber(beat, 2) + ":" +
-           paddedNumber(tick, 3);
+    auto str = QString::asprintf("%03d", bar) + ":" + QString::asprintf("%02d", beat) + ":" +
+               QString::asprintf("%03d", tick);
+    return str;
 }
 
 } // namespace MusicTimeConverter

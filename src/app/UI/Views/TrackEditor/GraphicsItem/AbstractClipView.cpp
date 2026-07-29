@@ -195,7 +195,7 @@ QString AbstractClipView::text() const {
         // Clip IDs are stable identifiers; the gain is a user-facing quantity.
         (showDebug ? QString("id: %1 ").arg(id()) : "") +
         QString("%1 %2dB %3 ").arg(name(), QLocale().toString(gain()), mute() ? "M" : "");
-    const auto timeStr = QString("s: %L1 l: %L2 cs: %L3 cl: %L4 sx: %L5 sy: %L6")
+    const auto timeStr = QString("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
                              .arg(start())
                              .arg(length())
                              .arg(clipStart())

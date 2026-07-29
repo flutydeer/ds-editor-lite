@@ -332,7 +332,7 @@ void PhonemeView::mousePressEvent(QMouseEvent *event) {
         m_currentLengthInMs = calculatePhonemeLengthInMs(*phoneme);
 
         if (!m_tooltip) {
-            m_tooltip = new ToolTip(QString("%L1 ms").arg(m_currentLengthInMs), this);
+            m_tooltip = new ToolTip(QString("%1 ms").arg(m_currentLengthInMs), this);
         }
 
         m_tooltip->setWindowOpacity(1);
@@ -398,7 +398,7 @@ void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
         m_currentLengthInMs = calculatePhonemeLengthInMs(*cur);
 
         if (m_tooltip) {
-            m_tooltip->setTitle(QString("%L1 ms").arg(m_currentLengthInMs));
+            m_tooltip->setTitle(QString("%1 ms").arg(m_currentLengthInMs));
             const auto cursorPos = QCursor::pos();
             m_tooltip->move(cursorPos.x(), cursorPos.y());
         }

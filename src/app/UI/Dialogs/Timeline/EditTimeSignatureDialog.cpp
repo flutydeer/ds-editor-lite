@@ -12,7 +12,7 @@ EditTimeSignatureDialog::EditTimeSignatureDialog(const int barIndex, const int n
     setWindowTitle(tr("Time Signature"));
     setTitle(tr("Time Signature"));
     // Bars are 0-based in the model but displayed 1-based
-    setMessage(tr("Bar %L1").arg(barIndex + 1));
+    setMessage(tr("Bar %1").arg(barIndex + 1));
 
     m_editWidget = new TimeSignatureEditWidget;
     m_editWidget->setTimeSignature(numerator, denominator);

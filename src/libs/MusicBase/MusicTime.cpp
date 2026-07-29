@@ -1,6 +1,5 @@
 #include "MusicTime.h"
 
-#include <QLocale>
 #include <QStringList>
 
 MusicTime MusicTime::fromString(QStringView str, bool *ok) {
@@ -22,7 +21,7 @@ MusicTime MusicTime::fromString(QStringView str, bool *ok) {
         if (trimmed.isEmpty())
             continue;
         bool numberOk = false;
-        values[i] = QLocale().toInt(trimmed, &numberOk);
+        values[i] = trimmed.toInt(&numberOk);
         if (!numberOk)
             return {-1, -1, -1};
         anyComponent = true;
@@ -35,13 +34,5 @@ MusicTime MusicTime::fromString(QStringView str, bool *ok) {
 }
 
 QString MusicTime::toString() const {
-    const QLocale locale;
-    const auto paddedNumber = [&locale](const int value, const qsizetype width) {
-        auto text = locale.toString(value);
-        while (text.size() < width)
-            text.prepend(locale.zeroDigit());
-        return text;
-    };
-    return paddedNumber(measure + 1, 3) + ":" + paddedNumber(beat + 1, 2) + ":" +
-           paddedNumber(tick, 3);
+    return QString::asprintf("%03d:%02d:%03d", measure + 1, beat + 1, tick);
 }

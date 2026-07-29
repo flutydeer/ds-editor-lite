@@ -5,7 +5,6 @@
 #include "TimelineView.h"
 
 #include <QPainter>
-#include <QLocale>
 #include <QWheelEvent>
 
 #include "Controller/PlaybackController.h"
@@ -177,7 +176,7 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     auto x = tickToX(tick);
     pen.setColor(m_barScaleColor);
     painter->setPen(pen);
-    const auto text = QLocale().toString(bar > 0 ? bar : bar - 1);
+    const auto text = bar > 0 ? QString::number(bar) : QString::number(bar - 1);
 
     auto font = FontManager::instance().musicUIFont(13);
     auto devicePixelRatio = painter->device()->devicePixelRatio();
@@ -199,7 +198,7 @@ void TimelineView::drawBeat(QPainter *painter, int tick, int bar, int beat) {
     pen.setColor(m_beatScaleColor);
     painter->setPen(pen);
     if (beat > 0) {
-        const auto text = QLocale().toString(beat);
+        const auto text = QString::number(beat);
         auto font = FontManager::instance().musicUIFont(13);
         auto color = m_beatScaleColor;
         auto devicePixelRatio = painter->device()->devicePixelRatio();
