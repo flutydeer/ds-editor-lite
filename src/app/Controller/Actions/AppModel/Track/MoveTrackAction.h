@@ -10,6 +10,7 @@
 #include <QtTypes>
 
 class AppModel;
+class Track;
 
 class MoveTrackAction final : public IAction {
 public:
@@ -21,6 +22,7 @@ private:
     qsizetype m_fromIndex = -1;
     qsizetype m_toIndex = -1;
     qsizetype m_actualToIndex = -1; // The actual index after adjustment
+    Track *m_track = nullptr;
     AppModel *m_model = nullptr;
 };
 
