@@ -10,22 +10,6 @@
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(ProjectStatusController)
 
-void ProjectStatusController::handleTrackRemoved(Track *track) {
-    ModelChangeHandler::handleTrackRemoved(track);
-    bool trackContainsActiveClip = false;
-    for (const auto clip : track->clips()) {
-        if (clip->id() == appStatus->activeClipId) {
-            trackContainsActiveClip = true;
-            break;
-        }
-    }
-    // 若该剪辑仍能在模型中找到，说明这是轨道重排（移动）而非删除，保留当前编辑状态
-    if (trackContainsActiveClip && !appModel->findClipById(appStatus->activeClipId)) {
-        appStatus->selectedNotes = QList<int>();
-        appStatus->activeClipId = -1;
-    }
-}
-
 void ProjectStatusController::handleTempoChanged() {
     updateProjectEditableLength();
 }
