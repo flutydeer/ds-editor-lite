@@ -25,6 +25,19 @@
     </message>
 </context>
 <context>
+    <name>AppModel</name>
+    <message>
+        <location filename="../../../libs/ProjectModel/AppModel/AppModel.cpp" line="228"/>
+        <source>New Singing Clip</source>
+        <translation>新歌声剪辑</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectModel/AppModel/AppModel.cpp" line="234"/>
+        <source>New Track</source>
+        <translation>新轨道</translation>
+    </message>
+</context>
+<context>
     <name>AppOptionsDialog</name>
     <message>
         <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="90"/>
@@ -673,13 +686,13 @@
 <context>
     <name>AudioContext</name>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="259"/>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="576"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="264"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="591"/>
         <source>Inference failed</source>
         <translation>推理失败</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="275"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="280"/>
         <source>Cannot open audio device!</source>
         <translation>无法打开音频设备！</translation>
     </message>
@@ -1197,6 +1210,19 @@ Right drag: Erase</source>
     </message>
 </context>
 <context>
+    <name>DirSelector</name>
+    <message>
+        <location filename="../../../libs/GUI/Controls/DirSelector.cpp" line="15"/>
+        <source>Browse</source>
+        <translation>浏览</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/GUI/Controls/DirSelector.cpp" line="76"/>
+        <source>Select a Directory</source>
+        <translation>选择目录</translation>
+    </message>
+</context>
+<context>
     <name>DiscoverDiffScopeDialog</name>
     <message>
         <location filename="../../UI/Dialogs/Help/DiscoverDiffScopeDialog.cpp" line="23"/>
@@ -1339,6 +1365,81 @@ Right drag: Erase</source>
     </message>
 </context>
 <context>
+    <name>DspxProjectConverter</name>
+    <message>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1026"/>
+        <source>Failed to load project file: timeline is incomplete.</source>
+        <translation>加载工程文件失败：时间线不完整。</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1035"/>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1046"/>
+        <source>Failed to load project file: timeline values are invalid.</source>
+        <translation>加载工程文件失败：时间线数值无效。</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1078"/>
+        <source>Failed to open project file: %1</source>
+        <translation>打开工程文件失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1085"/>
+        <source>Failed to load project file.
+path: %1
+%2</source>
+        <translation>加载工程文件失败。
+路径：%1
+%2</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1326"/>
+        <source>Failed to open file for writing: %1</source>
+        <translation>打开文件写入失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1338"/>
+        <source>Failed to write all data to file: %1</source>
+        <translation>未能将全部数据写入文件：%1</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1346"/>
+        <source>Serialization errors occurred:</source>
+        <translation>发生序列化错误：</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1368"/>
+        <source> at %1</source>
+        <translation> 于 %1</translation>
+    </message>
+</context>
+<context>
+    <name>DspxProjectParser</name>
+    <message>
+        <location filename="../../../libs/ProjectConverters/DspxProjectParser.cpp" line="22"/>
+        <source>Error type: %L1
+</source>
+        <translation>错误类型：%L1
+</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/DspxProjectParser.cpp" line="24"/>
+        <source>Failed to parse project file.
+errors: %1</source>
+        <translation>解析工程文件失败。
+错误：%1</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/DspxProjectParser.cpp" line="29"/>
+        <source>Failed to parse project file: %1</source>
+        <translation>解析工程文件失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/DspxProjectParser.cpp" line="32"/>
+        <source>Failed to parse project file: unknown error</source>
+        <translation>解析工程文件失败：未知错误</translation>
+    </message>
+</context>
+<context>
     <name>EditTempoDialog</name>
     <message>
         <location filename="../../UI/Dialogs/Timeline/EditTempoDialog.cpp" line="11"/>
@@ -1348,8 +1449,8 @@ Right drag: Erase</source>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Timeline/EditTempoDialog.cpp" line="13"/>
-        <source>Tick %L1</source>
-        <translation>刻度 %L1</translation>
+        <source>Tick %1</source>
+        <translation>刻度 %1</translation>
     </message>
 </context>
 <context>
@@ -1362,8 +1463,8 @@ Right drag: Erase</source>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Timeline/EditTimeSignatureDialog.cpp" line="15"/>
-        <source>Bar %L1</source>
-        <translation>小节 %L1</translation>
+        <source>Bar %1</source>
+        <translation>小节 %1</translation>
     </message>
 </context>
 <context>
@@ -1550,6 +1651,24 @@ Right drag: Erase</source>
         <location filename="../../UI/Views/MainTitleBar/FilePopupWidget.cpp" line="388"/>
         <source>(No Recent Projects)</source>
         <translation>（无最近工程）</translation>
+    </message>
+</context>
+<context>
+    <name>FileSelector</name>
+    <message>
+        <location filename="../../../libs/GUI/Controls/FileSelector.cpp" line="16"/>
+        <source>Browse</source>
+        <translation>浏览</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/GUI/Controls/FileSelector.cpp" line="102"/>
+        <source>Select a Folder</source>
+        <translation>选择文件夹</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/GUI/Controls/FileSelector.cpp" line="105"/>
+        <source>Select a File</source>
+        <translation>选择文件</translation>
     </message>
 </context>
 <context>
@@ -2066,6 +2185,14 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="91"/>
         <source>Singing</source>
         <translation>演唱</translation>
+    </message>
+</context>
+<context>
+    <name>GetInstalledPackagesTask</name>
+    <message>
+        <location filename="../../../libs/PackageManager/Tasks/GetInstalledPackagesTask.cpp" line="13"/>
+        <source>Get Installed Packages</source>
+        <translation>获取已安装的包</translation>
     </message>
 </context>
 <context>
@@ -3229,6 +3356,68 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
 </context>
 <context>
+    <name>MidiConverter</name>
+    <message>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="147"/>
+        <source>Invalid tone or octave</source>
+        <translation>无效的音名或八度</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="193"/>
+        <source>Failed to read MIDI file.
+path: %1</source>
+        <translation>读取 MIDI 文件失败。
+路径：%1</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="203"/>
+        <source>Failed to load MIDI file.
+path: %1
+type: %L2</source>
+        <translation>加载 MIDI 文件失败。
+路径：%1
+类型：%L2</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="287"/>
+        <source>Failed to load MIDI file.
+timeSignatures denominator must be: %L1, %L2, %L3, %L4
+current denominator: %L5</source>
+        <translation>加载 MIDI 文件失败。
+拍号分母必须为：%L1、%L2、%L3、%L4
+当前分母：%L5</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="302"/>
+        <source>Unsupported MIDI import mode.</source>
+        <translation>不支持的 MIDI 导入模式。</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="331"/>
+        <source>No MIDI tracks were selected for import.</source>
+        <translation>未选择要导入的 MIDI 轨道。</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="355"/>
+        <source>Failed to open file for writing: %1</source>
+        <translation>打开文件写入失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="365"/>
+        <source>Failed to write all data to file: %1</source>
+        <translation>未能将全部数据写入文件：%1</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="376"/>
+        <source>Failed to save MIDI file.
+path: %1
+error: %2</source>
+        <translation>保存 MIDI 文件失败。
+路径：%1
+错误：%2</translation>
+    </message>
+</context>
+<context>
     <name>MidiConverterDialog</name>
     <message>
         <location filename="../../Modules/ProjectConverters/MidiConverterDialog.cpp" line="395"/>
@@ -3477,7 +3666,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
     <message>
         <location filename="../../UI/Views/MixConsole/MixConsoleView.cpp" line="75"/>
-        <location filename="../../UI/Views/MixConsole/MixConsoleView.cpp" line="247"/>
+        <location filename="../../UI/Views/MixConsole/MixConsoleView.cpp" line="267"/>
         <source>Master</source>
         <translation>主控</translation>
     </message>
@@ -3590,6 +3779,19 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <location filename="../../UI/Dialogs/PackageManager/PackageDetailsHeader.cpp" line="91"/>
         <source>No Package Selected</source>
         <translation>未选择包</translation>
+    </message>
+</context>
+<context>
+    <name>PackageManager</name>
+    <message>
+        <location filename="../../../libs/PackageManager/PackageManager.cpp" line="82"/>
+        <source>Path is not a valid directory</source>
+        <translation>路径不是有效目录</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/PackageManager/PackageManager.cpp" line="334"/>
+        <source>No error: </source>
+        <translation>无错误：</translation>
     </message>
 </context>
 <context>
@@ -3811,6 +4013,34 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <location filename="../../Model/Utils/ParamUtils.cpp" line="17"/>
         <source>Speaker Mix</source>
         <translation>声线混合</translation>
+    </message>
+</context>
+<context>
+    <name>PathEditor</name>
+    <message>
+        <location filename="../../../libs/GUI/Controls/PathEditor.cpp" line="87"/>
+        <source>&amp;Add</source>
+        <translation>添加(&amp;A)</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/GUI/Controls/PathEditor.cpp" line="87"/>
+        <source>&amp;Delete</source>
+        <translation>删除(&amp;D)</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/GUI/Controls/PathEditor.cpp" line="88"/>
+        <source>Move &amp;Up</source>
+        <translation>上移(&amp;U)</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/GUI/Controls/PathEditor.cpp" line="88"/>
+        <source>Move D&amp;own</source>
+        <translation>下移(&amp;o)</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/GUI/Controls/PathEditor.cpp" line="189"/>
+        <source>Browse directory</source>
+        <translation>浏览目录</translation>
     </message>
 </context>
 <context>
@@ -4118,6 +4348,32 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <location filename="../../UI/Dialogs/Base/RestartDialog.cpp" line="27"/>
         <source>Restart Later</source>
         <translation>稍后重启</translation>
+    </message>
+</context>
+<context>
+    <name>SVS::ExpressionDoubleSpinBox</name>
+    <message>
+        <location filename="../../../libs/GUI/Controls/SvsExpressionDoubleSpinBox.cpp" line="114"/>
+        <source>Step Up</source>
+        <translation>增加</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/GUI/Controls/SvsExpressionDoubleSpinBox.cpp" line="119"/>
+        <source>Step Down</source>
+        <translation>减少</translation>
+    </message>
+</context>
+<context>
+    <name>SVS::ExpressionSpinBox</name>
+    <message>
+        <location filename="../../../libs/GUI/Controls/SvsExpressionSpinBox.cpp" line="114"/>
+        <source>Step Up</source>
+        <translation>增加</translation>
+    </message>
+    <message>
+        <location filename="../../../libs/GUI/Controls/SvsExpressionSpinBox.cpp" line="119"/>
+        <source>Step Down</source>
+        <translation>减少</translation>
     </message>
 </context>
 <context>
@@ -4544,13 +4800,13 @@ All current mix settings will be lost.</source>
     <name>TrackEditorView</name>
     <message>
         <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="90"/>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="218"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="219"/>
         <source>Tempo</source>
         <translation>曲速</translation>
     </message>
     <message>
         <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="101"/>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="219"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="220"/>
         <source>Time Signature</source>
         <translation>拍号</translation>
     </message>
