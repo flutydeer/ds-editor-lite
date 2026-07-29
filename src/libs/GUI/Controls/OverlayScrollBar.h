@@ -1,12 +1,14 @@
 #ifndef OVERLAYSCROLLBAR_H
 #define OVERLAYSCROLLBAR_H
 
+#include <lite/GUI/Animation/IAnimatable.h>
+
 #include <QScrollBar>
 
 class QAbstractScrollArea;
 class QVariantAnimation;
 
-class OverlayScrollBar : public QScrollBar {
+class OverlayScrollBar : public QScrollBar, public IAnimatable {
     Q_OBJECT
     Q_PROPERTY(QColor handleColor READ handleColor WRITE setHandleColor)
 
@@ -24,9 +26,12 @@ protected:
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetTimeScale(double scale) override;
 
 private:
     void setHighlightVisible(bool visible);
+    void updateAnimationSettings();
     [[nodiscard]] QColor handleColor() const;
     void setHandleColor(const QColor &color);
 
@@ -36,6 +41,7 @@ private:
     QColor m_handleColor = QColor(255, 255, 255);
     qreal m_opacity = 0.0;
     bool m_hovered = false;
+    bool m_targetHighlightVisible = false;
 };
 
 #endif // OVERLAYSCROLLBAR_H

@@ -22,12 +22,12 @@ SeekBar::SeekBar(QWidget *parent) : QWidget(parent) {
     setMaximumHeight(20);
     setAttribute(Qt::WA_Hover, true);
     installEventFilter(this);
-    m_thumbHoverAnimation = new QPropertyAnimation;
+    m_thumbHoverAnimation = new QPropertyAnimation(this);
     m_thumbHoverAnimation->setTargetObject(this);
     m_thumbHoverAnimation->setPropertyName("thumbBorderRatio");
-    m_thumbHoverAnimation->setDuration(200);
     m_thumbHoverAnimation->setEasingCurve(QEasingCurve::OutCubic);
     calculateParams();
+    initializeAnimation();
 }
 
 double SeekBar::value() const {
@@ -151,10 +151,7 @@ void SeekBar::mouseDoubleClickEvent(QMouseEvent *event) {
 
 void SeekBar::mousePressEvent(QMouseEvent *event) {
     timer->start();
-    m_thumbHoverAnimation->stop();
-    m_thumbHoverAnimation->setStartValue(m_thumbBorderRatio);
-    m_thumbHoverAnimation->setEndValue(114);
-    m_thumbHoverAnimation->start();
+    animateThumbTo(114);
     const auto pos = event->pos();
     if (!mouseOnHandle(pos) && !doubleClickLocked) {
         const auto x = pos.x();
@@ -177,10 +174,7 @@ void SeekBar::mouseReleaseEvent(QMouseEvent *event) {
         setValue(m_cachedValue);
         m_hasAsyncSetValueTask = false;
     }
-    m_thumbHoverAnimation->stop();
-    m_thumbHoverAnimation->setStartValue(m_thumbBorderRatio);
-    m_thumbHoverAnimation->setEndValue(77);
-    m_thumbHoverAnimation->start();
+    animateThumbTo(77);
     QWidget::mouseReleaseEvent(event);
 }
 
@@ -236,15 +230,9 @@ void SeekBar::setThumbBorderColor(const QColor &color) {
 
 bool SeekBar::eventFilter(QObject *object, QEvent *event) {
     if (event->type() == QEvent::HoverEnter) {
-        m_thumbHoverAnimation->stop();
-        m_thumbHoverAnimation->setStartValue(m_thumbBorderRatio);
-        m_thumbHoverAnimation->setEndValue(77);
-        m_thumbHoverAnimation->start();
+        animateThumbTo(77);
     } else if (event->type() == QEvent::HoverLeave) {
-        m_thumbHoverAnimation->stop();
-        m_thumbHoverAnimation->setStartValue(m_thumbBorderRatio);
-        m_thumbHoverAnimation->setEndValue(102);
-        m_thumbHoverAnimation->start();
+        animateThumbTo(102);
     }
     return QObject::eventFilter(object, event);
 }
@@ -256,4 +244,34 @@ int SeekBar::thumbBorderRatio() const {
 void SeekBar::setThumbBorderRatio(const int ratio) {
     m_thumbBorderRatio = ratio;
     update();
+}
+
+void SeekBar::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+    Q_UNUSED(level)
+    updateAnimationSettings();
+}
+
+void SeekBar::afterSetTimeScale(double scale) {
+    Q_UNUSED(scale)
+    updateAnimationSettings();
+}
+
+void SeekBar::animateThumbTo(int targetRatio) {
+    m_thumbHoverAnimation->stop();
+    m_thumbHoverAnimation->setStartValue(m_thumbBorderRatio);
+    m_thumbHoverAnimation->setEndValue(targetRatio);
+    if (m_thumbHoverAnimation->duration() == 0) {
+        setThumbBorderRatio(targetRatio);
+        return;
+    }
+    m_thumbHoverAnimation->start();
+}
+
+void SeekBar::updateAnimationSettings() {
+    const auto running = m_thumbHoverAnimation->state() == QAbstractAnimation::Running;
+    const auto targetRatio = m_thumbHoverAnimation->endValue().toInt();
+    m_thumbHoverAnimation->stop();
+    m_thumbHoverAnimation->setDuration(getEffectiveAnimationTime(200));
+    if (running)
+        animateThumbTo(targetRatio);
 }

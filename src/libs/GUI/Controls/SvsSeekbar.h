@@ -3,13 +3,15 @@
 
 #include <functional>
 
+#include <lite/GUI/Animation/IAnimatable.h>
+
 #include <QWidget>
 
 namespace SVS {
 
     class SeekBarPrivate;
 
-    class SeekBar : public QWidget {
+    class SeekBar : public QWidget, public IAnimatable {
         Q_OBJECT
         Q_DECLARE_PRIVATE(SeekBar)
         Q_PROPERTY(QColor trackInactiveColor READ trackInactiveColor WRITE setTrackInactiveColor)
@@ -81,10 +83,15 @@ namespace SVS {
         void mousePressEvent(QMouseEvent *event) override;
         void mouseReleaseEvent(QMouseEvent *event) override;
         void keyPressEvent(QKeyEvent *event) override;
+        void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+        void afterSetTimeScale(double scale) override;
 
         explicit SeekBar(QWidget *parent, SeekBarPrivate &d);
 
     private:
+        void animateThumbTo(int targetRatio);
+        void updateAnimationSettings();
+
         QScopedPointer<SeekBarPrivate> d_ptr;
 
         QColor trackInactiveColor() const;

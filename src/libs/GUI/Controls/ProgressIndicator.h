@@ -32,8 +32,8 @@ class ProgressIndicator : public QWidget, public IAnimatable {
     Q_PROPERTY(QColor inactiveColor READ inactiveColor WRITE setInactiveColor)
     Q_PROPERTY(QColor normalTotalColor READ normalTotalColor WRITE setNormalTotalColor)
     Q_PROPERTY(QColor normalSecondaryColor READ normalSecondaryColor WRITE setNormalSecondaryColor)
-    Q_PROPERTY(QColor normalCurrentTaskColor READ normalCurrentTaskColor WRITE
-                   setNormalCurrentTaskColor)
+    Q_PROPERTY(
+        QColor normalCurrentTaskColor READ normalCurrentTaskColor WRITE setNormalCurrentTaskColor)
     Q_PROPERTY(QColor warningTotalColor READ warningTotalColor WRITE setWarningTotalColor)
     Q_PROPERTY(
         QColor warningSecondaryColor READ warningSecondaryColor WRITE setWarningSecondaryColor)
@@ -163,9 +163,13 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
 
     void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override {
+        Q_UNUSED(level)
+        updateAnimationDurations();
     }
 
     void afterSetTimeScale(double scale) override {
+        Q_UNUSED(scale)
+        updateAnimationDurations();
     }
 
 private:
@@ -181,6 +185,7 @@ private:
     void setApparentSecondaryValue(double x);
     [[nodiscard]] double apparentCurrentTaskValue() const;
     void setApparentCurrentTaskValue(double x);
+    void updateAnimationDurations();
 };
 
 

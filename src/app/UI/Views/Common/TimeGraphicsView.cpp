@@ -653,14 +653,34 @@ bool TimeGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
 }
 
 void TimeGraphicsView::updateAnimationDuration() {
-    const int animationDurationBase = 250;
-    auto duration = animationLevel() == AnimationGlobal::Full
-                        ? getScaledAnimationTime(animationDurationBase)
-                        : 0;
-    m_scaleXAnimation.setDuration(duration);
-    m_scaleYAnimation.setDuration(duration);
-    m_hBarAnimation.setDuration(duration);
-    m_vBarAnimation.setDuration(duration);
+    constexpr int animationDurationBase = 250;
+    const auto duration = getEffectiveAnimationTime(animationDurationBase, AnimationGlobal::Full);
+
+    auto updateAnimation = [duration](QPropertyAnimation &animation, const QVariant &currentValue,
+                                      const auto &applyValue) {
+        const auto running = animation.state() == QAbstractAnimation::Running;
+        const auto endValue = animation.endValue();
+        animation.stop();
+        animation.setDuration(duration);
+        if (!running)
+            return;
+        if (duration == 0) {
+            applyValue(endValue);
+            return;
+        }
+        animation.setStartValue(currentValue);
+        animation.setEndValue(endValue);
+        animation.start();
+    };
+
+    updateAnimation(m_scaleXAnimation, scaleX(),
+                    [this](const QVariant &value) { setScaleX(value.toDouble()); });
+    updateAnimation(m_scaleYAnimation, scaleY(),
+                    [this](const QVariant &value) { setScaleY(value.toDouble()); });
+    updateAnimation(m_hBarAnimation, horizontalBarValue(),
+                    [this](const QVariant &value) { setHorizontalBarValue(value.toInt()); });
+    updateAnimation(m_vBarAnimation, verticalBarValue(),
+                    [this](const QVariant &value) { setVerticalBarValue(value.toInt()); });
 }
 
 void TimeGraphicsView::handleHoverEnterEvent(QHoverEvent *event) {
