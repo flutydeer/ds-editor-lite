@@ -263,6 +263,7 @@ namespace Audio {
             if (templateName == "projectName") {
                 replacedText = projectName();
             } else if (templateName == "sampleRate") {
+                // File-name template substitutions are stable machine-readable text.
                 replacedText = QString::number(config.formatSampleRate()).replace('.', '_');
             } else if (templateName == "today") {
                 replacedText = QDate::currentDate().toString("yyyyMMdd");
@@ -272,6 +273,7 @@ namespace Audio {
                 if (templateName == "trackName") {
                     replacedText = trackName;
                 } else if (templateName == "trackIndex") {
+                    // File-name template substitutions are stable machine-readable text.
                     replacedText = QString::number(trackIndex + 1);
                 } else {
                     allTemplatesMatch = false;

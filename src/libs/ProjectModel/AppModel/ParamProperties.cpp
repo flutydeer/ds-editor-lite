@@ -6,6 +6,8 @@
 
 #include <lite/Support/MathUtils.h>
 
+#include <QLocale>
+
 ParamProperties::ParamProperties() = default;
 
 bool ParamProperties::hasUnit() const {
@@ -14,7 +16,7 @@ bool ParamProperties::hasUnit() const {
 
 QString ParamProperties::valueToString(const int value, const bool withUnit,
                                        const int precision) const {
-    auto strValue = QString::number(value / 1000.0, 'f', precision);
+    const auto strValue = QLocale().toString(value / 1000.0, 'f', precision);
     if (withUnit)
         return QString("%1 %2").arg(strValue, unit);
     return strValue;
@@ -107,7 +109,7 @@ double VelocityParamProperties::valueToNormalized(const int value) const {
 }
 
 QString VelocityParamProperties::valueToString(int value, bool withUnit, int precision) const {
-    auto strValue = QString::number(std::exp2(value / 1000.0), 'f', precision);
+    const auto strValue = QLocale().toString(std::exp2(value / 1000.0), 'f', precision);
     if (withUnit)
         return QString("%1 %2").arg(strValue, unit);
     return strValue;
@@ -126,7 +128,7 @@ ToneShiftParamProperties::ToneShiftParamProperties() {
 QString ToneShiftParamProperties::valueToString(const int value, const bool withUnit,
                                                 const int precision) const {
     Q_UNUSED(precision);
-    auto strValue = QString::number(value);
+    const auto strValue = QLocale().toString(value);
     if (withUnit)
         return QString("%1 %2").arg(strValue, unit);
     return strValue;

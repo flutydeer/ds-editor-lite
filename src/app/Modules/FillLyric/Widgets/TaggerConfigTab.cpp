@@ -276,7 +276,7 @@ namespace FillLyric
             const auto &cr = m_rules[i].customRule;
             if (cr.language.trimmed().isEmpty()) {
                 QMessageBox::warning(this, tr("Error"),
-                                     tr("Custom rule #%1 has an empty language.").arg(i + 1));
+                                     tr("Custom rule #%L1 has an empty language.").arg(i + 1));
                 m_listPanel->listWidget()->setCurrentRow(i);
                 return;
             }

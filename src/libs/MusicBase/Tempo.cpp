@@ -7,6 +7,7 @@
 #include <QtNumeric>
 
 QString Tempo::formatValue(const double value) {
+    // TODO(FlutyDeer): Localize this value without changing the existing trailing-zero trimming.
     auto s = QString::number(value, 'f', 3);
     while (s.contains('.') && s.endsWith('0'))
         s.chop(1);

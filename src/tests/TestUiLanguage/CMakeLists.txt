@@ -3,6 +3,7 @@ project(TestUiLanguage)
 lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
+        ../../app/Utils/ApplicationLocale.cpp
         ../../app/Utils/UiLanguageManager.cpp
         ../../app/Model/AppOptions/Options/GeneralOption.cpp
 )

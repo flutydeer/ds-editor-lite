@@ -110,7 +110,7 @@ void TempoEditWidget::recordTap() {
         m_hasDisplayedTapBpm = true;
     }
 
-    m_btnTapTempo->setText(QStringLiteral("%1 BPM").arg(m_displayedTapBpm));
+    m_btnTapTempo->setText(QStringLiteral("%L1 BPM").arg(m_displayedTapBpm));
     m_spinTempo->setValue(m_displayedTapBpm);
     const auto readyIntervalCount = qMin(m_tapIntervals.size(), kReadyTapIntervalCount);
     m_btnTapTempo->setProgress(static_cast<double>(readyIntervalCount) / kReadyTapIntervalCount);

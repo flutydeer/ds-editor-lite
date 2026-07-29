@@ -1,4 +1,5 @@
 #include "Model/AppOptions/Options/GeneralOption.h"
+#include "Utils/ApplicationLocale.h"
 #include "Utils/UiLanguageManager.h"
 
 #include <QCoreApplication>
@@ -10,6 +11,13 @@ namespace {
         if (actual == expected)
             return true;
         qCritical() << scenario << "expected" << expected << "but got" << actual;
+        return false;
+    }
+
+    bool expectTrue(const bool actual, const char *scenario) {
+        if (actual)
+            return true;
+        qCritical() << scenario << "expected true";
         return false;
     }
 
@@ -47,6 +55,20 @@ int main(int argc, char *argv[]) {
         expectEqual(UiLanguageManager::resolveEffectiveLanguageId(
                         QStringLiteral("invalid"), QLocale(QLocale::Chinese, QLocale::China)),
                     UiLanguageManager::SimplifiedChinese, "Invalid preference fallback");
+
+    auto sourceLocale = QLocale(QLocale::French, QLocale::France);
+    sourceLocale.setNumberOptions(QLocale::RejectGroupSeparator);
+    const auto configuredLocale = ApplicationLocale::configuredLocale(sourceLocale);
+    success &= expectEqual(configuredLocale.name(), sourceLocale.name(), "System locale retained");
+    success &= expectEqual(configuredLocale.toString(1234), QStringLiteral("1234"),
+                           "Integer grouping omitted");
+    success &= expectEqual(configuredLocale.toString(12.5, 'f', 1), QStringLiteral("12,5"),
+                           "Locale decimal separator retained");
+    success &= expectTrue(
+        configuredLocale.numberOptions().testFlag(QLocale::OmitGroupSeparator),
+        "OmitGroupSeparator enabled");
+    success &= expectTrue(configuredLocale.numberOptions().testFlag(QLocale::RejectGroupSeparator),
+                          "Existing number option retained");
 
     GeneralOption option;
     option.load(QJsonObject{

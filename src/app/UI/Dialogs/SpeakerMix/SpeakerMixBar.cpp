@@ -4,6 +4,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QMouseEvent>
+#include <QLocale>
 #include <cmath>
 
 SpeakerMixBar::SpeakerMixBar(QWidget *parent)
@@ -132,7 +133,7 @@ void SpeakerMixBar::paintEvent(QPaintEvent *event) {
             valueFont.setPointSizeF(8.5);
             painter.setFont(valueFont);
             painter.drawText(valueRect, Qt::AlignCenter,
-                             QString::number(displayValues.value(i)) + "%");
+                             QLocale().toString(displayValues.value(i)) + "%");
         }
 
         currentPosition = segmentEnd;

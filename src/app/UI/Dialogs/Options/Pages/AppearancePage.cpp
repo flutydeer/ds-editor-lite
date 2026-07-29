@@ -4,6 +4,7 @@
 
 #include "AppearancePage.h"
 
+#include <QLocale>
 #include <QMessageBox>
 #include <QSignalBlocker>
 #include <QVBoxLayout>
@@ -32,7 +33,7 @@ void AppearancePage::modifyOption() {
 #endif
     option->animationLevel = AnimationGlobal::toString(
         static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex()));
-    option->animationTimeScale = m_leAnimationTimeScale->text().toDouble();
+    option->animationTimeScale = QLocale().toDouble(m_leAnimationTimeScale->text());
     appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
 }
 
@@ -91,7 +92,7 @@ QWidget *AppearancePage::createContentWidget() {
     m_leAnimationTimeScale = new LineEdit;
     const auto doubleValidator = new QDoubleValidator(m_leAnimationTimeScale);
     m_leAnimationTimeScale->setValidator(doubleValidator);
-    m_leAnimationTimeScale->setText(QString::number(option->animationTimeScale));
+    m_leAnimationTimeScale->setText(QLocale().toString(option->animationTimeScale));
     m_leAnimationTimeScale->setFixedWidth(80);
     connect(m_leAnimationTimeScale, &LineEdit::editingFinished, this,
             &AppearancePage::modifyOption);

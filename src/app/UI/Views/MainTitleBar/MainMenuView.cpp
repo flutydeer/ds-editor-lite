@@ -154,7 +154,7 @@ void MainMenuViewPrivate::refreshRecentProjectsMenu() {
     for (qsizetype i = 0; i < count; ++i) {
         const auto filePath = files.at(i);
         const auto text =
-            tr("&%1 %2").arg(static_cast<int>(i + 1)).arg(QFileInfo(filePath).fileName());
+            tr("&%L1 %2").arg(static_cast<int>(i + 1)).arg(QFileInfo(filePath).fileName());
         const auto action = menuRecentProjects->addAction(text);
         action->setData(filePath);
         action->setToolTip(filePath);

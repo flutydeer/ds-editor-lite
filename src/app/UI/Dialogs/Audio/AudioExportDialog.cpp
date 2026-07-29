@@ -166,8 +166,7 @@ namespace Audio::Internal {
         m_formatSampleRateComboBox->setEditable(true);
         m_formatSampleRateComboBox->setValidator(
             new QDoubleValidator(0.01, std::numeric_limits<double>::max(), 2));
-        QLocale locale;
-        locale.setNumberOptions(QLocale::OmitGroupSeparator);
+        const QLocale locale;
         m_formatSampleRateComboBox->addItems(
             {locale.toString(8000), locale.toString(11025), locale.toString(12000),
              locale.toString(16000), locale.toString(22050), locale.toString(24000),
@@ -582,8 +581,7 @@ namespace Audio::Internal {
         m_formatMonoComboBox->setCurrentIndex(config.formatMono() ? 0 : 1);
         m_formatOptionComboBox->setCurrentIndex(config.formatOption());
         m_vbrSlider->setValue(config.formatQuality());
-        QLocale locale;
-        locale.setNumberOptions(QLocale::OmitGroupSeparator);
+        const QLocale locale;
         m_formatSampleRateComboBox->setCurrentText(locale.toString(config.formatSampleRate()));
         m_mixingOptionComboBox->setCurrentIndex(config.mixingOption());
         m_enableMuteSoloCheckBox->setChecked(config.isMuteSoloEnabled());
@@ -694,7 +692,7 @@ namespace Audio::Internal {
                     if (sourceIndex == -1) {
                         item->setText(tr("Clipping is detected"));
                     } else {
-                        item->setText(tr("Clipping is detected in track %1 \"%2\"")
+                        item->setText(tr("Clipping is detected in track %L1 \"%2\"")
                                           .arg(sourceIndex + 1)
                                           .arg(m_audioExporter->d_func()->trackName(sourceIndex)));
                     }
@@ -702,7 +700,7 @@ namespace Audio::Internal {
                     warningList->addItem(item);
                     mainPromptWarningButton->setVisible(true);
                     mainPromptWarningButton->setToolTip(
-                        tr("%n warning(s)", nullptr, warningList->count()));
+                        tr("%Ln warning(s)", nullptr, warningList->count()));
                     QApplication::beep();
                 });
         connect(m_audioExporter, &AudioExporter::warningAdded, &progressDialog,
@@ -715,7 +713,7 @@ namespace Audio::Internal {
                     warningList->addItem(item);
                     mainPromptWarningButton->setVisible(true);
                     mainPromptWarningButton->setToolTip(
-                        tr("%n warning(s)", nullptr, warningList->count()));
+                        tr("%Ln warning(s)", nullptr, warningList->count()));
                     QApplication::beep();
                 });
 
@@ -767,19 +765,19 @@ namespace Audio::Internal {
             if (warningList->count()) {
                 switch (ret) {
                     case AudioExporter::R_Ok:
-                        mainPromptLabel->setText(tr("Export finished with %n warning(s)", nullptr,
+                        mainPromptLabel->setText(tr("Export finished with %Ln warning(s)", nullptr,
                                                     warningList->count()));
                         QApplication::beep();
                         break;
                     case AudioExporter::R_Abort:
                         mainPromptLabel->setText(
-                            tr("Export aborted with %n warning(s)", nullptr, warningList->count()));
+                            tr("Export aborted with %Ln warning(s)", nullptr, warningList->count()));
                         QApplication::beep();
                         keepPartialFileCheckBox->setVisible(true);
                         break;
                     case AudioExporter::R_Fail:
-                        mainPromptLabel->setText(tr("Export failed with %n warning(s)\n%1", nullptr,
-                                                    warningList->count())
+                        mainPromptLabel->setText(tr("Export failed with %Ln warning(s)\n%1",
+                                                    nullptr, warningList->count())
                                                      .arg(m_audioExporter->errorString()));
                         iconLabel->setVisible(true);
                         QApplication::beep();

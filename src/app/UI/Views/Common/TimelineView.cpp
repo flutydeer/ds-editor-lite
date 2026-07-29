@@ -176,7 +176,7 @@ void TimelineView::drawBar(QPainter *painter, int tick, int bar) {
     auto x = tickToX(tick);
     pen.setColor(m_barScaleColor);
     painter->setPen(pen);
-    auto text = bar > 0 ? QString::number(bar) : QString::number(bar - 1);
+    const auto text = bar > 0 ? QString::number(bar) : QString::number(bar - 1);
 
     auto font = FontManager::instance().musicUIFont(13);
     auto devicePixelRatio = painter->device()->devicePixelRatio();
@@ -382,6 +382,7 @@ void TimelineView::drawPieceDebugOverlay(QPainter *painter, const InferPiece *pi
     auto pieceStartX = tickToX(piece->localStartTick(appModel->timeline()) + m_clip->start());
     auto pieceEndX = tickToX(piece->localEndTick(appModel->timeline()) + m_clip->start());
 
+    // Piece IDs and state names are stable inference identifiers shown only in developer mode.
     auto stateText = "#" + QString::number(piece->id()) + " " + piece->state.get();
     painter->drawText(QPointF(pieceStartX, y - 4), stateText);
 
