@@ -32,6 +32,7 @@ public:
 public slots:
     void onModelChanged();
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
+    void onTrackMoved(qsizetype from, qsizetype to);
     void onMasterControlChanged(const TrackControl &control);
 
 private slots:

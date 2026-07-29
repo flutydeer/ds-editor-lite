@@ -26,6 +26,7 @@ private:
     void syncAll();
     void insertModel(int index);
     void removeModelAt(int index);
+    void moveModel(int from, int to);
     void clearAll();
 
     AppModel *m_appModel = nullptr;
