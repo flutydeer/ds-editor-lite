@@ -203,6 +203,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
             &TrackEditorView::onLastPositionChanged);
     connect(appModel, &AppModel::modelChanged, this, &TrackEditorView::onModelChanged);
     connect(appModel, &AppModel::trackChanged, this, &TrackEditorView::onTrackChanged);
+    connect(appModel, &AppModel::trackMoved, this, &TrackEditorView::onTrackMoved);
 
     connect(appStatus, &AppStatus::projectEditableLengthChanged, m_graphicsView,
             &TracksGraphicsView::setSceneLength);
@@ -347,6 +348,44 @@ void TrackEditorView::onTrackChanged(const AppModel::TrackChangeType type, const
     else if (type == AppModel::Remove)
         onTrackRemoved(track, index);
     emit trackCountChanged(m_viewModel.tracks.count());
+}
+
+void TrackEditorView::onTrackMoved(const qsizetype from, const qsizetype to) {
+    const auto count = m_viewModel.tracks.size();
+    if (from == to || from < 0 || from >= count || to < 0 || to >= count)
+        return;
+
+    const auto previousSelectedTrackIndex = static_cast<int>(appStatus->selectedTrackIndex);
+    const QSignalBlocker listBlocker(m_trackListView);
+
+    const auto sourceItem = m_trackListView->item(from);
+    const auto sourceWidget = m_trackListView->itemWidget(sourceItem);
+    m_trackListView->removeItemWidget(sourceItem);
+    const auto movedItem = m_trackListView->takeItem(from);
+    m_trackListView->insertItem(to, movedItem);
+    m_trackListView->setItemWidget(movedItem, sourceWidget);
+    m_viewModel.tracks.move(from, to);
+
+    const auto firstChangedIndex = qMin(from, to);
+    const auto lastChangedIndex = qMax(from, to);
+    for (auto i = firstChangedIndex; i <= lastChangedIndex; ++i) {
+        const auto trackVm = m_viewModel.tracks.at(i);
+        trackVm->controlView->setTrackIndex(i + 1);
+        for (const auto clipItem : trackVm->clips)
+            clipItem->setTrackIndex(i);
+    }
+
+    auto selectedTrackIndex = previousSelectedTrackIndex;
+    if (previousSelectedTrackIndex == from) {
+        selectedTrackIndex = static_cast<int>(to);
+    } else if (from < to && previousSelectedTrackIndex > from &&
+               previousSelectedTrackIndex <= to) {
+        selectedTrackIndex = previousSelectedTrackIndex - 1;
+    } else if (to < from && previousSelectedTrackIndex >= to &&
+               previousSelectedTrackIndex < from) {
+        selectedTrackIndex = previousSelectedTrackIndex + 1;
+    }
+    setSelectedTrackIndex(selectedTrackIndex);
 }
 
 void TrackEditorView::onClipChanged(const Track::ClipChangeType type, Clip *clip,

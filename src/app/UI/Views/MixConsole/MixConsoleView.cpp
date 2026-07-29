@@ -113,6 +113,7 @@ MixConsoleView::MixConsoleView(QWidget *parent) : TabPanelPage(parent) {
     onModelChanged();
     connect(appModel, &AppModel::modelChanged, this, &MixConsoleView::onModelChanged);
     connect(appModel, &AppModel::trackChanged, this, &MixConsoleView::onTrackChanged);
+    connect(appModel, &AppModel::trackMoved, this, &MixConsoleView::onTrackMoved);
     connect(appModel, &AppModel::masterControlChanged, this,
             &MixConsoleView::onMasterControlChanged);
 
@@ -151,6 +152,28 @@ void MixConsoleView::onTrackChanged(AppModel::TrackChangeType type, qsizetype in
         onTrackInserted(track, index);
     else if (type == AppModel::Remove)
         onTrackRemoved(index);
+}
+
+void MixConsoleView::onTrackMoved(const qsizetype from, const qsizetype to) {
+    const auto count = m_channelListView->count();
+    if (from == to || from < 0 || from >= count || to < 0 || to >= count)
+        return;
+
+    const auto sourceItem = m_channelListView->item(from);
+    const auto sourceWidget = m_channelListView->itemWidget(sourceItem);
+    m_channelListView->removeItemWidget(sourceItem);
+    const auto movedItem = m_channelListView->takeItem(from);
+    m_channelListView->insertItem(to, movedItem);
+    m_channelListView->setItemWidget(movedItem, sourceWidget);
+
+    const auto firstChangedIndex = qMin(from, to);
+    const auto lastChangedIndex = qMax(from, to);
+    for (auto i = firstChangedIndex; i <= lastChangedIndex; ++i) {
+        const auto item = m_channelListView->item(i);
+        const auto channelView =
+            qobject_cast<ChannelView *>(m_channelListView->itemWidget(item));
+        channelView->setChannelIndex(i + 1);
+    }
 }
 
 void MixConsoleView::onMasterControlChanged(const TrackControl &control) {
