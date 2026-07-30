@@ -6,7 +6,6 @@
 
 #include "Controller/TrackController.h"
 #include "TrackControlView.h"
-#include "TracksGraphicsView.h"
 #include "Global/TracksEditorGlobal.h"
 
 #include <QDragMoveEvent>
@@ -37,10 +36,6 @@ TrackListView::TrackListView(QWidget *parent) : QListWidget(parent) {
     setAutoScrollMargin(50);
 }
 
-void TrackListView::setGraphicsView(TracksGraphicsView *view) {
-    m_view = view;
-}
-
 void TrackListView::mousePressEvent(QMouseEvent *event) {
     // Check if the click is in the drag area (track index label)
     m_canStartDrag = isInDragArea(event->pos());
@@ -59,14 +54,16 @@ void TrackListView::mouseMoveEvent(QMouseEvent *event) {
 }
 
 void TrackListView::wheelEvent(QWheelEvent *event) {
-    if (!m_view)
-        return;
-
     const auto modifiers = event->modifiers();
-    if (modifiers == Qt::AltModifier)
-        m_view->onWheelVerScale(event);
-    else if (modifiers == Qt::NoModifier)
-        m_view->onWheelVerScroll(event);
+    if (modifiers == Qt::AltModifier) {
+        emit wheelVerScale(event);
+        event->accept();
+    } else if (modifiers == Qt::NoModifier) {
+        emit wheelVerScroll(event);
+        event->accept();
+    } else {
+        QListWidget::wheelEvent(event);
+    }
 }
 
 void TrackListView::dragMoveEvent(QDragMoveEvent *event) {

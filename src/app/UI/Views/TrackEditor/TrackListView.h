@@ -7,13 +7,16 @@
 
 #include <QListWidget>
 
-class TracksGraphicsView;
+class QWheelEvent;
 
 class TrackListView : public QListWidget {
     Q_OBJECT
 public:
     explicit TrackListView(QWidget *parent = nullptr);
-    void setGraphicsView(TracksGraphicsView *view);
+
+signals:
+    void wheelVerScale(QWheelEvent *event);
+    void wheelVerScroll(QWheelEvent *event);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -26,7 +29,6 @@ protected:
 private:
     bool isInDragArea(const QPoint &pos) const;
 
-    TracksGraphicsView *m_view = nullptr;
     int m_scrollPosBeforeDrag = 0;
     bool m_canStartDrag = false;
 };

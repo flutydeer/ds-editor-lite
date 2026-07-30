@@ -7,7 +7,7 @@ else()
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS
-    Core Widgets OpenGLWidgets Concurrent StateMachine LinguistTools
+    Core Widgets Concurrent StateMachine LinguistTools GuiPrivate ShaderTools
 )
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
@@ -54,6 +54,7 @@ lite_add_application(${PROJECT_NAME}
         Concurrent
         StateMachine
     LINKS_PRIVATE
+        Qt6::GuiPrivate
         ${_platform_links}
         talcs::Core
         talcs::Device
@@ -86,6 +87,18 @@ lite_add_application(${PROJECT_NAME}
         SndFile::sndfile
         dsinfer::dsinfer
         re2::re2
+)
+
+qt_add_shaders(${PROJECT_NAME} "editor_rhi_shaders"
+    BASE
+        UI/Views/Common/shaders
+    PREFIX
+        "/editor_rhi"
+    FILES
+        UI/Views/Common/shaders/solid.vert
+        UI/Views/Common/shaders/solid.frag
+        UI/Views/Common/shaders/texture.vert
+        UI/Views/Common/shaders/texture.frag
 )
 
 if(APPLE)

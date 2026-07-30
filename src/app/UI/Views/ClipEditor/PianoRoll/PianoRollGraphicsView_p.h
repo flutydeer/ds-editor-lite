@@ -13,6 +13,8 @@
 #include <QPointF>
 #include <QPointer>
 #include <QColor>
+#include <QElapsedTimer>
+#include <QVector>
 
 class ClipRangeOverlay;
 class PitchAnchorEditorView;
@@ -77,6 +79,10 @@ public:
     Qt::MouseButton m_mouseDownButton = Qt::NoButton;
     bool m_isEditPitchMode = false;
     bool m_initialViewportPositionPending = false;
+
+    QElapsedTimer m_legacyPaintIntervalTimer;
+    QVector<double> m_legacyPaintSamples;
+    QVector<double> m_legacyPaintIntervalSamples;
 
     void moveToNullClipState();
     void moveToSingingClipState(SingingClip *clip);

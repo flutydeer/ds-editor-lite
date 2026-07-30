@@ -46,11 +46,13 @@
 #include <lite/Support/MathUtils.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
 #include <climits>
+#include <algorithm>
 #include <cmath>
 
 #include <QApplication>
 #include <QClipboard>
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QGraphicsLineItem>
 #include <QMimeData>
 #include <QGraphicsPathItem>
@@ -59,6 +61,7 @@
 #include <QKeyEvent>
 #include <QGuiApplication>
 #include <QJsonDocument>
+#include <QPaintEvent>
 #include <QScrollBar>
 #include <QShowEvent>
 #include <lite/GUI/Controls/Menu.h>
@@ -66,10 +69,30 @@
 namespace Helper = PianoRollGraphicsViewHelper;
 
 namespace {
+    constexpr int kLegacyStatsWindow = 120;
+
+    double percentile(const QVector<double> &values, const double ratio) {
+        if (values.isEmpty())
+            return 0.0;
+        auto sorted = values;
+        std::sort(sorted.begin(), sorted.end());
+        const auto index = static_cast<qsizetype>(std::clamp(ratio, 0.0, 1.0) *
+                                                  static_cast<double>(sorted.size() - 1));
+        return sorted.at(index);
+    }
+
+    QString statsTriple(const QVector<double> &values) {
+        return QStringLiteral("%1/%2/%3")
+            .arg(percentile(values, 0.50), 0, 'f', 3)
+            .arg(percentile(values, 0.95), 0, 'f', 3)
+            .arg(percentile(values, 0.99), 0, 'f', 3);
+    }
+
     void logMissingNoteView(const char *context, const int noteId) {
         qWarning() << "Ignore note update because note view is missing"
                    << "context:" << context << "noteId:" << noteId;
     }
+
 }
 
 PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWidget *parent)
@@ -215,6 +238,33 @@ void PianoRollGraphicsView::onSceneSelectionChanged() const {
 
 void PianoRollGraphicsView::notifyKeyRangeChanged() {
     emit keyRangeChanged(topKeyIndex(), bottomKeyIndex());
+}
+
+void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
+    Q_D(PianoRollGraphicsView);
+    QElapsedTimer timer;
+    timer.start();
+    QGraphicsView::paintEvent(event);
+    d->m_legacyPaintSamples.append(timer.nsecsElapsed() / 1000000.0);
+    if (d->m_legacyPaintIntervalTimer.isValid()) {
+        const auto intervalMs = d->m_legacyPaintIntervalTimer.nsecsElapsed() / 1000000.0;
+        if (intervalMs <= 500.0)
+            d->m_legacyPaintIntervalSamples.append(intervalMs);
+    }
+    d->m_legacyPaintIntervalTimer.restart();
+
+    if (d->m_legacyPaintSamples.size() >= kLegacyStatsWindow) {
+        qInfo().noquote() << QStringLiteral(
+                                 "[PianoRollLegacyStats] frames=%1 "
+                                 "paintMs(p50/p95/p99)=%2 intervalMs(p50/p95/p99)=%3 size=%4x%5")
+                                 .arg(d->m_legacyPaintSamples.size())
+                                 .arg(statsTriple(d->m_legacyPaintSamples),
+                                      statsTriple(d->m_legacyPaintIntervalSamples))
+                                 .arg(viewport()->width())
+                                 .arg(viewport()->height());
+        d->m_legacyPaintSamples.clear();
+        d->m_legacyPaintIntervalSamples.clear();
+    }
 }
 
 bool PianoRollGraphicsViewPrivate::eventFilter(QObject *watched, QEvent *event) {

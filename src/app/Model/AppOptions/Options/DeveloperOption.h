@@ -10,6 +10,8 @@
 
 class DeveloperOption final : public IOption {
 public:
+    enum class EditorRenderBackend { Legacy, RhiExperimental };
+
     explicit DeveloperOption() : IOption("developer") {};
 
     void load(const QJsonObject &object) override;
@@ -20,6 +22,12 @@ public:
     LITE_OPTION_ITEM(bool, showTimelineDebugInfo, false)
     LITE_OPTION_ITEM(bool, showClipDebugInfo, false)
     LITE_OPTION_ITEM(bool, enablePanelDetach, false)
+
+public:
+    EditorRenderBackend editorRenderBackend = EditorRenderBackend::Legacy;
+
+    [[nodiscard]] static QString editorRenderBackendToString(EditorRenderBackend backend);
+    [[nodiscard]] static EditorRenderBackend editorRenderBackendFromString(const QString &value);
 };
 
 

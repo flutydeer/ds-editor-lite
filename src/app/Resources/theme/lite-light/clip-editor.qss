@@ -155,22 +155,28 @@ PianoRollView {
     border-radius: 0px;
 }
 
-PianoRollGraphicsView {
+PianoRollGraphicsView, PianoRollRhiWidget {
     qproperty-noteFontPixelSize: 13;
     qproperty-whiteKeyColor: ${editor.canvasAlternate};
     qproperty-blackKeyColor: ${piano.roll.blackRow};
     qproperty-octaveDividerColor: ${piano.roll.octaveDivider};
     qproperty-noteSelectedBorderColor: ${piano.roll.noteSelectedBorder};
     qproperty-pronunciationTextColor: ${piano.roll.pronunciation};
+    qproperty-clipRangeOverlayColor: ${piano.roll.overlay};
+    qproperty-paramOriginalCurveColor: ${curve.original};
+    qproperty-paramEditedCurveColor: ${curve.edited};
+    qproperty-barLineColor: ${editor.grid.bar};
+    qproperty-beatLineColor: ${editor.grid.beat};
+    qproperty-commonLineColor: ${editor.grid.subdivision};
+}
+
+PianoRollGraphicsView {
     qproperty-anchorColor: ${curve.anchor};
     qproperty-anchorSelectedColor: ${curve.anchorSelected};
     qproperty-anchorCurveColor: ${curve.anchor};
     qproperty-anchorPreviewColor: ${curve.anchorSelected};
-    qproperty-clipRangeOverlayColor: ${piano.roll.overlay};
     qproperty-splitLineColor: ${editor.splitLine};
     qproperty-paramGraduateColor: ${curve.guide};
-    qproperty-paramOriginalCurveColor: ${curve.original};
-    qproperty-paramEditedCurveColor: ${curve.edited};
     qproperty-paramBackgroundLayerColor: ${editor.canvasAlternate};
 }
 

@@ -17,6 +17,7 @@ class SingingClip;
 class TrackListView;
 class TracksGraphicsView;
 class TracksGraphicsScene;
+class TracksRhiWidget;
 class TimelineView;
 class TempoLaneView;
 class TimeSignatureLaneView;
@@ -26,6 +27,7 @@ class TrackViewModel;
 class AbstractClipView;
 class QSplitter;
 class ChannelView;
+class QVBoxLayout;
 
 class TrackEditorView final : public PanelView {
     Q_OBJECT
@@ -61,17 +63,25 @@ private slots:
 private:
     bool eventFilter(QObject *watched, QEvent *event) override;
     void changeEvent(QEvent *event) override;
+    void createLegacyBackend();
+    void connectLegacyBackend();
+    void connectRhiBackend();
+    void fallbackToLegacy();
+    void populateLegacyClipItems();
+    [[nodiscard]] double activeScaleY() const;
 
-    TrackListView *m_trackListView;
-    TracksGraphicsView *m_graphicsView;
-    TracksGraphicsScene *m_tracksScene;
+    TrackListView *m_trackListView = nullptr;
+    TracksGraphicsView *m_graphicsView = nullptr;
+    TracksGraphicsScene *m_tracksScene = nullptr;
+    TracksRhiWidget *m_rhiView = nullptr;
     TimelineView *m_timeline;
     TempoLaneView *m_tempoLane;
     InfoLaneHeaderView *m_tempoLaneHeader;
     TimeSignatureLaneView *m_timeSignatureLane;
     InfoLaneHeaderView *m_timeSignatureLaneHeader;
-    TrackEditorBackgroundView *m_gridItem;
-    QSplitter *m_splitter;
+    TrackEditorBackgroundView *m_gridItem = nullptr;
+    QSplitter *m_splitter = nullptr;
+    QVBoxLayout *m_trackTimelineAndViewLayout = nullptr;
 
     class ViewModel {
     public:

@@ -5,7 +5,9 @@
 #include "DeveloperPage.h"
 
 #include "Model/AppOptions/AppOptions.h"
+#include "UI/Dialogs/Base/RestartDialog.h"
 #include <lite/GUI/Controls/CardView.h>
+#include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/OptionListCard.h>
 #include <lite/GUI/Controls/SwitchButton.h>
 
@@ -22,6 +24,8 @@ void DeveloperPage::modifyOption() {
     option->showTimelineDebugInfo = m_swShowTimelineDebugInfo->value();
     option->showClipDebugInfo = m_swShowClipDebugInfo->value();
     option->enablePanelDetach = m_swEnablePanelDetach->value();
+    option->editorRenderBackend = static_cast<DeveloperOption::EditorRenderBackend>(
+        m_cbxEditorRenderBackend->currentData().toInt());
     appOptions->saveAndNotify(AppOptionsGlobal::DeveloperOptions);
 }
 
@@ -44,6 +48,23 @@ QWidget *DeveloperPage::createContentWidget() {
     m_swEnablePanelDetach = new SwitchButton(option->enablePanelDetach);
     connect(m_swEnablePanelDetach, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
 
+    m_cbxEditorRenderBackend = new ComboBox;
+    m_cbxEditorRenderBackend->addItem(
+        tr("Legacy (QGraphicsView)"), static_cast<int>(DeveloperOption::EditorRenderBackend::Legacy));
+    m_cbxEditorRenderBackend->addItem(
+        tr("Experimental (QRhiWidget)"),
+        static_cast<int>(DeveloperOption::EditorRenderBackend::RhiExperimental));
+    m_cbxEditorRenderBackend->setCurrentIndex(
+        m_cbxEditorRenderBackend->findData(static_cast<int>(option->editorRenderBackend)));
+    connect(m_cbxEditorRenderBackend, &ComboBox::currentIndexChanged, this, [this] {
+        modifyOption();
+        const auto message = tr(
+            "The editor rendering backend will change after restarting the app. Do you want to "
+            "restart now?");
+        const auto dialog = new RestartDialog(message, true, this);
+        dialog->show();
+    });
+
     const auto diagnosticsCard = new OptionListCard(tr("Diagnostics"));
     diagnosticsCard->addItem(tr("Enable diagnostic output"),
                              tr("Print event loop performance statistics to debug output"),
@@ -63,6 +84,9 @@ QWidget *DeveloperPage::createContentWidget() {
     experimentalCard->addItem(tr("Enable panel detach"),
                               tr("Show the detach button on panel title bars to separate panels into standalone windows"),
                               m_swEnablePanelDetach);
+    experimentalCard->addItem(tr("Editor rendering backend"),
+                              tr("Applies to the track editor and piano roll after restart"),
+                              m_cbxEditorRenderBackend);
 
     const auto mainLayout = new QVBoxLayout();
     mainLayout->addWidget(diagnosticsCard, 0, Qt::AlignTop);

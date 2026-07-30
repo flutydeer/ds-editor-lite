@@ -7,7 +7,6 @@
 #include "Controller/PlaybackController.h"
 #include "ParamEditor/ParamEditorGraphicsView.h"
 #include "ParamEditor/ParamEditorView.h"
-#include "PianoRoll/PianoRollGraphicsView.h"
 #include "PianoRoll/PianoRollView.h"
 
 #include <QScrollBar>
@@ -25,28 +24,27 @@ PianoRollEditorView::PianoRollEditorView(QWidget *parent) : OverlaySplitter(Qt::
     setStretchFactor(0, 100);
     setStretchFactor(1, 1);
 
-    const auto pianoGraphicsView = m_pianoRollView->graphicsView();
     const auto paramGraphicsView = m_paramEditorView->graphicsView();
     connect(playbackController, &PlaybackController::positionChanged, this, [=](const double tick) {
-        pianoGraphicsView->setPlaybackPosition(tick);
+        m_pianoRollView->setPlaybackPosition(tick);
         paramGraphicsView->setPlaybackPosition(tick);
     });
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             [=](const double tick) {
-                pianoGraphicsView->setLastPlaybackPosition(tick);
+                m_pianoRollView->setLastPlaybackPosition(tick);
                 paramGraphicsView->setLastPlaybackPosition(tick);
             });
-    connect(pianoGraphicsView, &TimeGraphicsView::scaleChanged, [=](const double sx) {
+    connect(m_pianoRollView, &PianoRollView::scaleChanged, [=](const double sx) {
         paramGraphicsView->setScaleX(sx);
-        paramGraphicsView->setHorizontalBarValue(pianoGraphicsView->horizontalBarValue());
+        paramGraphicsView->setHorizontalBarValue(m_pianoRollView->horizontalBarValue());
     });
-    connect(pianoGraphicsView->horizontalScrollBar(), &QScrollBar::valueChanged, this, [=] {
-        paramGraphicsView->setHorizontalBarValue(pianoGraphicsView->horizontalBarValue());
+    connect(m_pianoRollView, &PianoRollView::horizontalBarValueChanged, this, [=] {
+        paramGraphicsView->setHorizontalBarValue(m_pianoRollView->horizontalBarValue());
     });
-    connect(paramGraphicsView, &ParamEditorGraphicsView::wheelHorScale, pianoGraphicsView,
-            &TimeGraphicsView::onWheelHorScale);
-    connect(paramGraphicsView, &ParamEditorGraphicsView::wheelHorScroll, pianoGraphicsView,
-            &TimeGraphicsView::onWheelHorScroll);
+    connect(paramGraphicsView, &ParamEditorGraphicsView::wheelHorScale, m_pianoRollView,
+            &PianoRollView::onWheelHorScale);
+    connect(paramGraphicsView, &ParamEditorGraphicsView::wheelHorScroll, m_pianoRollView,
+            &PianoRollView::onWheelHorScroll);
 }
 
 PianoRollView *PianoRollEditorView::pianoRollView() const {
@@ -61,8 +59,7 @@ void PianoRollEditorView::setDataContext(SingingClip *clip) const {
     m_pianoRollView->setDataContext(clip);
     m_paramEditorView->setDataContext(clip);
 
-    const auto pianoGraphicsView = m_pianoRollView->graphicsView();
     const auto paramGraphicsView = m_paramEditorView->graphicsView();
-    paramGraphicsView->setScaleX(pianoGraphicsView->scaleX());
-    paramGraphicsView->setHorizontalBarValue(pianoGraphicsView->horizontalBarValue());
+    paramGraphicsView->setScaleX(m_pianoRollView->scaleX());
+    paramGraphicsView->setHorizontalBarValue(m_pianoRollView->horizontalBarValue());
 }

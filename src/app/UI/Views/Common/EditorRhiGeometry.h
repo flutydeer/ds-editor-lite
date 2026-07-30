@@ -1,0 +1,35 @@
+#ifndef EDITORRHIGEOMETRY_H
+#define EDITORRHIGEOMETRY_H
+
+#include <QColor>
+#include <QPointF>
+#include <QRectF>
+#include <QVector>
+
+struct EditorRhiSolidVertex {
+    float x = 0.0f;
+    float y = 0.0f;
+    float r = 0.0f;
+    float g = 0.0f;
+    float b = 0.0f;
+    float a = 0.0f;
+    float coverage = 1.0f;
+};
+
+namespace EditorRhiGeometry {
+    void appendRect(QVector<EditorRhiSolidVertex> &vertices, const QRectF &physicalRect,
+                    const QColor &color, float coverage = 1.0f);
+    void appendRoundedRect(QVector<EditorRhiSolidVertex> &vertices, const QRectF &physicalRect,
+                           double radius, const QColor &color);
+    void appendPixelAlignedVerticalLine(QVector<EditorRhiSolidVertex> &vertices, double physicalX,
+                                        double top, double bottom, const QColor &color);
+    void appendPixelAlignedHorizontalLine(QVector<EditorRhiSolidVertex> &vertices,
+                                          double physicalY, double left, double right,
+                                          const QColor &color);
+    void appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &vertices,
+                                 const QVector<QPointF> &physicalPoints, double width,
+                                 const QColor &color, double feather = 1.0,
+                                 double miterLimit = 3.0);
+}
+
+#endif // EDITORRHIGEOMETRY_H
