@@ -7,8 +7,9 @@ else()
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS
-    Core Widgets OpenGLWidgets Concurrent StateMachine LinguistTools
+    Core Widgets OpenGLWidgets Concurrent StateMachine LinguistTools ShaderTools
 )
+find_package(Qt6 REQUIRED COMPONENTS GuiPrivate WidgetsPrivate)
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
@@ -88,6 +89,10 @@ lite_add_application(${PROJECT_NAME}
         re2::re2
 )
 
+qm_configure_target(${PROJECT_NAME}
+    LINKS_PRIVATE Qt6::GuiPrivate Qt6::WidgetsPrivate
+)
+
 if(APPLE)
     set_target_properties(${PROJECT_NAME} PROPERTIES
         MACOSX_BUNDLE ON
@@ -124,7 +129,7 @@ if(LITE_ENABLE_BREAKPAD)
 endif()
 
 if(WIN32)
-    find_package(Qt6 REQUIRED COMPONENTS CorePrivate GuiPrivate)
+    find_package(Qt6 REQUIRED COMPONENTS CorePrivate)
     find_package(QtWin32DirectManipulateHelper CONFIG QUIET)
     if(QtWin32DirectManipulateHelper_FOUND)
         message(STATUS "Building with Direct Manipulation support on Windows")
@@ -136,6 +141,20 @@ if(WIN32)
         message(STATUS "Building without Direct Manipulation support on Windows")
     endif()
 endif()
+
+qt_add_shaders(${PROJECT_NAME} "editor_canvas_shaders"
+    PRECOMPILE
+    OPTIMIZED
+    PREFIX
+        "/shaders/editor"
+    BASE
+        "Resources/shaders"
+    FILES
+        "Resources/shaders/editor_canvas.vert"
+        "Resources/shaders/editor_canvas.frag"
+        "Resources/shaders/editor_text.vert"
+        "Resources/shaders/editor_text.frag"
+)
 
 qt_add_translations(
     TARGETS ${PROJECT_NAME}
