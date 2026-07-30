@@ -12,19 +12,15 @@
 #include "UI/Views/Common/PanelView.h"
 
 
-class AudioClip;
-class SingingClip;
+class ITrackEditorCanvas;
 class TrackListView;
-class TracksGraphicsView;
-class TracksGraphicsScene;
 class TimelineView;
 class TempoLaneView;
 class TimeSignatureLaneView;
 class InfoLaneHeaderView;
-class TrackEditorBackgroundView;
 class TrackViewModel;
-class AbstractClipView;
 class QSplitter;
+class QVBoxLayout;
 class ChannelView;
 
 class TrackEditorView final : public PanelView {
@@ -34,7 +30,6 @@ public:
     explicit TrackEditorView(QWidget *parent = nullptr);
     ~TrackEditorView() override;
 
-    AbstractClipView *findClipItemById(int id) const;
     [[nodiscard]] TrackPanelViewState viewState() const;
     bool centerAt(double tick, double trackIndex) const;
     bool setViewScale(double horizontalScale, double verticalScale) const;
@@ -46,7 +41,6 @@ public slots:
     void onModelChanged();
     void onTrackChanged(AppModel::TrackChangeType type, qsizetype index, Track *track);
     void onTrackMoved(qsizetype from, qsizetype to);
-    void onClipChanged(Track::ClipChangeType type, Clip *clip, const Track *dsTrack);
     void onPositionChanged(double tick) const;
     void onLastPositionChanged(double tick) const;
 
@@ -63,14 +57,11 @@ private:
     void changeEvent(QEvent *event) override;
 
     TrackListView *m_trackListView;
-    TracksGraphicsView *m_graphicsView;
-    TracksGraphicsScene *m_tracksScene;
     TimelineView *m_timeline;
     TempoLaneView *m_tempoLane;
     InfoLaneHeaderView *m_tempoLaneHeader;
     TimeSignatureLaneView *m_timeSignatureLane;
     InfoLaneHeaderView *m_timeSignatureLaneHeader;
-    TrackEditorBackgroundView *m_gridItem;
     QSplitter *m_splitter;
 
     class ViewModel {
@@ -80,18 +71,18 @@ private:
     };
 
     ViewModel m_viewModel;
-    QMap<int, AbstractClipView *> m_pendingRemoveClipViews;
-
     void onTrackInserted(Track *dsTrack, qsizetype trackIndex);
-    void onClipInserted(Clip *clip, TrackViewModel *track, int trackIndex);
-    void insertSingingClip(SingingClip *clip, TrackViewModel *track, int trackIndex);
-    void insertAudioClip(AudioClip *clip, TrackViewModel *track, int trackIndex);
-    void onClipRemoved(Clip *clip, TrackViewModel *track);
     void onTrackPropertyChanged() const;
-    void updateClipOnView(Clip *clip);
     void onTrackRemoved(const Track *dsTrack, qsizetype index);
     void setSelectedTrackIndex(int trackIndex) const;
     void syncSelectedTrackToList(int trackIndex) const;
+    void connectCanvas();
+    void scheduleLegacyFallback(const QString &reason);
+    void replaceCanvasWithLegacy();
+
+    ITrackEditorCanvas *m_canvas = nullptr;
+    QVBoxLayout *m_trackTimelineAndViewLayout = nullptr;
+    bool m_fallbackPending = false;
 };
 
 

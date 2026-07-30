@@ -5,8 +5,8 @@
 #include "TrackListView.h"
 
 #include "Controller/TrackController.h"
+#include "ITrackEditorCanvas.h"
 #include "TrackControlView.h"
-#include "TracksGraphicsView.h"
 #include "Global/TracksEditorGlobal.h"
 
 #include <QDragMoveEvent>
@@ -37,8 +37,8 @@ TrackListView::TrackListView(QWidget *parent) : QListWidget(parent) {
     setAutoScrollMargin(50);
 }
 
-void TrackListView::setGraphicsView(TracksGraphicsView *view) {
-    m_view = view;
+void TrackListView::setCanvas(ITrackEditorCanvas *canvas) {
+    m_canvas = canvas;
 }
 
 void TrackListView::mousePressEvent(QMouseEvent *event) {
@@ -59,14 +59,14 @@ void TrackListView::mouseMoveEvent(QMouseEvent *event) {
 }
 
 void TrackListView::wheelEvent(QWheelEvent *event) {
-    if (!m_view)
+    if (!m_canvas)
         return;
 
     const auto modifiers = event->modifiers();
     if (modifiers == Qt::AltModifier)
-        m_view->onWheelVerScale(event);
+        m_canvas->onWheelVerScale(event);
     else if (modifiers == Qt::NoModifier)
-        m_view->onWheelVerScroll(event);
+        m_canvas->onWheelVerScroll(event);
 }
 
 void TrackListView::dragMoveEvent(QDragMoveEvent *event) {

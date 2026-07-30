@@ -12,9 +12,8 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "ParamEditor/ParamEditorView.h"
-#include "PianoRoll/NoteView.h"
+#include "PianoRoll/IPianoRollCanvas.h"
 #include "PianoRoll/PhonemeView.h"
-#include "PianoRoll/PianoRollGraphicsView.h"
 #include "PianoRoll/PianoRollView.h"
 #include "ToolBar/ClipEditorToolBarView.h"
 
@@ -81,12 +80,12 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
 }
 
 PianoRollViewState ClipEditorView::viewState() const {
-    const auto graphicsView = m_pianoRollEditorView->pianoRollView()->graphicsView();
+    const auto canvas = m_pianoRollEditorView->pianoRollView()->canvas();
     return {
-        .centerTick = (graphicsView->startTick() + graphicsView->endTick()) / 2,
-        .centerKeyIndex = graphicsView->centerKeyIndex(),
-        .horizontalScale = graphicsView->scaleX(),
-        .verticalScale = graphicsView->scaleY(),
+        .centerTick = (canvas->startTick() + canvas->endTick()) / 2,
+        .centerKeyIndex = canvas->centerKeyIndex(),
+        .horizontalScale = canvas->scaleX(),
+        .verticalScale = canvas->scaleY(),
         .editMode = m_toolbarView->editMode(),
     };
 }
@@ -98,16 +97,13 @@ bool ClipEditorView::supportsEditMode(const EditorViewGlobal::PianoRollEditMode 
 bool ClipEditorView::centerAt(const double tick, const double keyIndex) const {
     if (!std::isfinite(tick) || !std::isfinite(keyIndex))
         return false;
-    const auto graphicsView = m_pianoRollEditorView->pianoRollView()->graphicsView();
-    graphicsView->stopViewportAnimations();
-    graphicsView->setViewportCenterAt(tick, keyIndex, false);
-    return true;
+    return m_pianoRollEditorView->pianoRollView()->canvas()->centerAt(tick, keyIndex);
 }
 
 bool ClipEditorView::setViewScale(const double horizontalScale, const double verticalScale) const {
     const auto previousState = viewState();
-    const auto graphicsView = m_pianoRollEditorView->pianoRollView()->graphicsView();
-    if (!graphicsView->setViewportScale(horizontalScale, verticalScale))
+    const auto canvas = m_pianoRollEditorView->pianoRollView()->canvas();
+    if (!canvas->setViewportScale(horizontalScale, verticalScale))
         return false;
     return centerAt(previousState.centerTick, previousState.centerKeyIndex);
 }
@@ -117,7 +113,7 @@ bool ClipEditorView::setEditMode(const EditorViewGlobal::PianoRollEditMode mode)
 }
 
 HistoryFocusVisibility ClipEditorView::focusVisibility(const HistoryFocus &focus) const {
-    return m_pianoRollEditorView->pianoRollView()->graphicsView()->focusVisibility(focus);
+    return m_pianoRollEditorView->pianoRollView()->canvas()->focusVisibility(focus);
 }
 
 bool ClipEditorView::revealFocus(const HistoryFocus &focus) const {
@@ -125,7 +121,7 @@ bool ClipEditorView::revealFocus(const HistoryFocus &focus) const {
 }
 
 bool ClipEditorView::revealFocus(const HistoryFocus &focus, const bool animated) const {
-    return m_pianoRollEditorView->pianoRollView()->graphicsView()->revealFocus(focus, animated);
+    return m_pianoRollEditorView->pianoRollView()->canvas()->revealFocus(focus, animated);
 }
 
 void ClipEditorView::refreshActiveClipTrackPresentation() {
@@ -212,7 +208,6 @@ void ClipEditorView::reset() {
 }
 
 void ClipEditorView::applyTrackColor(const int colorIndex) const {
-    NoteView::setTrackColorIndex(colorIndex);
     m_pianoRollEditorView->pianoRollView()->setTrackColorIndex(colorIndex);
     m_pianoRollEditorView->pianoRollView()->update();
     m_pianoRollEditorView->paramEditorView()->update();

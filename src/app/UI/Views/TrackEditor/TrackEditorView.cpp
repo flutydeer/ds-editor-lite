@@ -7,32 +7,26 @@
 #include "TrackControlView.h"
 #include "TrackListHeaderView.h"
 #include "TrackListView.h"
-#include "TracksGraphicsScene.h"
-#include "TracksGraphicsView.h"
+#include "ITrackEditorCanvas.h"
 #include "TrackViewModel.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
-#include "GraphicsItem/AudioClipView.h"
-#include "GraphicsItem/SingingClipView.h"
-#include "GraphicsItem/TrackEditorBackgroundView.h"
 #include "InfoLane/InfoLaneHeaderView.h"
 #include "InfoLane/TempoLaneView.h"
 #include "InfoLane/TimeSignatureLaneView.h"
-#include <lite/ProjectModel/AppModel/AudioClip.h>
-#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
-#include "Modules/Audio/AudioContext.h"
 #include <lite/GUI/Controls/LevelMeter.h>
 #include <lite/GUI/Controls/LevelMeterViewModel.h>
 #include "UI/Controls/LevelMeterManager.h"
 #include "AppContext.h"
-#include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/TimelineView.h"
+#include "UI/Views/EditorCanvas/EditorCanvasFactory.h"
 
 #include <QFileDialog>
 #include <QMouseEvent>
+#include <QLoggingCategory>
 #include <QScrollBar>
 #include <QSignalBlocker>
 #include <lite/GUI/Controls/OverlaySplitter.h>
@@ -43,15 +37,7 @@
 
 #include <cmath>
 
-namespace {
-
-    void updateSingingClipDisplay(SingingClip *clip, SingingClipView *view) {
-        view->setSingerName(clip->singerInfo().name());
-        view->setSpeakerName(SpeakerMixDisplayUtils::speakerDisplayName(
-            clip->singerInfo(), clip->speakerInfo(), clip->speakerMixData()));
-    }
-
-} // namespace
+Q_LOGGING_CATEGORY(lcTrackEditorCanvas, "ds.editor.canvas.track")
 
 TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksEditor, parent) {
     trackController->setParentWidget(this);
@@ -60,20 +46,14 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
 
     m_trackListView = new TrackListView;
 
-    m_tracksScene = new TracksGraphicsScene;
-    m_graphicsView = new TracksGraphicsView(m_tracksScene);
-    m_graphicsView->centerOn(0, 0);
-    m_graphicsView->setSceneLength(appStatus->projectEditableLength);
-    m_gridItem = new TrackEditorBackgroundView;
-    m_gridItem->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
-    m_gridItem->setQuantize(128);
-    m_graphicsView->setGridItem(m_gridItem);
-    m_graphicsView->setSnapGrid(m_gridItem);
-    m_trackListView->setGraphicsView(m_graphicsView);
+    m_canvas = EditorCanvasFactory::createTrackCanvas(this);
+    m_canvas->setSceneLength(appStatus->projectEditableLength);
+    m_trackListView->setCanvas(m_canvas);
 
     m_timeline = new TimelineView;
     m_timeline->setObjectName("tracksTimelineView");
-    m_timeline->setTimeRange(m_graphicsView->startTick(), m_graphicsView->endTick());
+    const auto initialViewport = m_canvas->viewportState();
+    m_timeline->setTimeRange(initialViewport.startTick, initialViewport.endTick);
     m_timeline->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     m_timeline->setQuantize(128);
     m_timeline->setFixedHeight(TracksEditorGlobal::trackViewHeaderHeight);
@@ -83,7 +63,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     m_tempoLane->setFixedHeight(TracksEditorGlobal::infoLaneHeight);
     m_tempoLane->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     m_tempoLane->setQuantize(128);
-    m_tempoLane->setTimeRange(m_graphicsView->startTick(), m_graphicsView->endTick());
+    m_tempoLane->setTimeRange(initialViewport.startTick, initialViewport.endTick);
 
     m_tempoLaneHeader = new InfoLaneHeaderView;
     m_tempoLaneHeader->setObjectName("tempoLaneHeaderView");
@@ -94,15 +74,12 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     m_timeSignatureLane->setFixedHeight(TracksEditorGlobal::infoLaneHeight);
     m_timeSignatureLane->setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     m_timeSignatureLane->setQuantize(128);
-    m_timeSignatureLane->setTimeRange(m_graphicsView->startTick(), m_graphicsView->endTick());
+    m_timeSignatureLane->setTimeRange(initialViewport.startTick, initialViewport.endTick);
 
     m_timeSignatureLaneHeader = new InfoLaneHeaderView;
     m_timeSignatureLaneHeader->setObjectName("timeSignatureLaneHeaderView");
     m_timeSignatureLaneHeader->setTitle(tr("Time Signature"));
     m_timeSignatureLaneHeader->setFixedHeight(TracksEditorGlobal::infoLaneHeight);
-
-    const auto gBar = m_graphicsView->verticalScrollBar();
-    const auto lBar = m_trackListView->verticalScrollBar();
 
     const auto trackListHeader = new TrackListHeaderView;
 
@@ -114,13 +91,13 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     trackListPanelLayout->addWidget(m_timeSignatureLaneHeader);
     trackListPanelLayout->addWidget(m_trackListView);
 
-    const auto trackTimelineAndViewLayout = new QVBoxLayout;
-    trackTimelineAndViewLayout->setContentsMargins({});
-    trackTimelineAndViewLayout->setSpacing(0);
-    trackTimelineAndViewLayout->addWidget(m_timeline);
-    trackTimelineAndViewLayout->addWidget(m_tempoLane);
-    trackTimelineAndViewLayout->addWidget(m_timeSignatureLane);
-    trackTimelineAndViewLayout->addWidget(m_graphicsView);
+    m_trackTimelineAndViewLayout = new QVBoxLayout;
+    m_trackTimelineAndViewLayout->setContentsMargins({});
+    m_trackTimelineAndViewLayout->setSpacing(0);
+    m_trackTimelineAndViewLayout->addWidget(m_timeline);
+    m_trackTimelineAndViewLayout->addWidget(m_tempoLane);
+    m_trackTimelineAndViewLayout->addWidget(m_timeSignatureLane);
+    m_trackTimelineAndViewLayout->addWidget(m_canvas->widget());
 
     auto *trackListPanel = new QWidget;
     trackListPanel->setObjectName("trackListPanel");
@@ -129,7 +106,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     trackListPanel->setMaximumWidth(600);
 
     auto *trackTimelineAndView = new QWidget;
-    trackTimelineAndView->setLayout(trackTimelineAndViewLayout);
+    trackTimelineAndView->setLayout(m_trackTimelineAndViewLayout);
 
     m_splitter = new OverlaySplitter(Qt::Horizontal);
     m_splitter->setObjectName("trackSplitter");
@@ -154,36 +131,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
             &TrackEditorView::setSelectedTrackIndex);
     connect(appStatus, &AppStatus::selectedTrackIndexChanged, this,
             &TrackEditorView::syncSelectedTrackToList);
-    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, this,
-            &TrackEditorView::onViewScaleChanged);
-    connect(m_graphicsView, &TracksGraphicsView::sizeChanged, m_tracksScene,
-            &TracksGraphicsScene::onViewResized);
-    connect(this, &TrackEditorView::trackCountChanged, m_tracksScene,
-            &TracksGraphicsScene::onTrackCountChanged);
-    connect(this, &TrackEditorView::trackCountChanged, m_gridItem,
-            &TrackEditorBackgroundView::onTrackCountChanged);
-    connect(appStatus, &AppStatus::selectedTrackIndexChanged, m_gridItem,
-            &TrackEditorBackgroundView::onTrackSelectionChanged);
-    connect(m_timeline, &TimelineView::wheelHorScale, m_graphicsView,
-            &TracksGraphicsView::onWheelHorScale);
-    connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeline,
-            &TimelineView::setTimeRange);
-    connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_tempoLane,
-            &InfoLaneView::setTimeRange);
-    connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeSignatureLane,
-            &InfoLaneView::setTimeRange);
-    connect(m_tempoLane, &InfoLaneView::wheelHorScale, m_graphicsView,
-            &TracksGraphicsView::onWheelHorScale);
-    connect(m_tempoLane, &InfoLaneView::wheelHorScroll, m_graphicsView,
-            &TracksGraphicsView::onWheelHorScroll);
-    connect(m_tempoLane, &InfoLaneView::wheelVerScroll, m_graphicsView,
-            &TracksGraphicsView::onWheelVerScroll);
-    connect(m_timeSignatureLane, &InfoLaneView::wheelHorScale, m_graphicsView,
-            &TracksGraphicsView::onWheelHorScale);
-    connect(m_timeSignatureLane, &InfoLaneView::wheelHorScroll, m_graphicsView,
-            &TracksGraphicsView::onWheelHorScroll);
-    connect(m_timeSignatureLane, &InfoLaneView::wheelVerScroll, m_graphicsView,
-            &TracksGraphicsView::onWheelVerScroll);
+    connectCanvas();
     connect(trackListHeader, &TrackListHeaderView::tempoLaneToggled, this,
             [this](const bool visible) {
                 m_tempoLaneHeader->setVisible(visible);
@@ -194,9 +142,6 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
                 m_timeSignatureLaneHeader->setVisible(visible);
                 m_timeSignatureLane->setVisible(visible);
             });
-    connect(gBar, &QScrollBar::valueChanged, lBar, &QScrollBar::setValue);
-    connect(lBar, &QScrollBar::valueChanged, gBar, &QScrollBar::setValue);
-
     connect(playbackController, &PlaybackController::positionChanged, this,
             &TrackEditorView::onPositionChanged);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
@@ -205,8 +150,77 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     connect(appModel, &AppModel::trackChanged, this, &TrackEditorView::onTrackChanged);
     connect(appModel, &AppModel::trackMoved, this, &TrackEditorView::onTrackMoved);
 
-    connect(appStatus, &AppStatus::projectEditableLengthChanged, m_graphicsView,
-            &TracksGraphicsView::setSceneLength);
+    connect(appStatus, &AppStatus::projectEditableLengthChanged, this,
+            [this](const int tick) { m_canvas->setSceneLength(tick); });
+}
+
+void TrackEditorView::connectCanvas() {
+    m_trackListView->setCanvas(m_canvas);
+    connect(m_canvas, &ITrackEditorCanvas::scaleChanged, this,
+            &TrackEditorView::onViewScaleChanged);
+    connect(m_canvas, &ITrackEditorCanvas::timeRangeChanged, m_timeline,
+            &TimelineView::setTimeRange);
+    connect(m_canvas, &ITrackEditorCanvas::timeRangeChanged, m_tempoLane,
+            &InfoLaneView::setTimeRange);
+    connect(m_canvas, &ITrackEditorCanvas::timeRangeChanged, m_timeSignatureLane,
+            &InfoLaneView::setTimeRange);
+    connect(m_canvas, &ITrackEditorCanvas::rendererFailed, this,
+            &TrackEditorView::scheduleLegacyFallback);
+
+    connect(m_timeline, &TimelineView::wheelHorScale, m_canvas,
+            &ITrackEditorCanvas::onWheelHorScale);
+    connect(m_tempoLane, &InfoLaneView::wheelHorScale, m_canvas,
+            &ITrackEditorCanvas::onWheelHorScale);
+    connect(m_tempoLane, &InfoLaneView::wheelHorScroll, m_canvas,
+            &ITrackEditorCanvas::onWheelHorScroll);
+    connect(m_tempoLane, &InfoLaneView::wheelVerScroll, m_canvas,
+            &ITrackEditorCanvas::onWheelVerScroll);
+    connect(m_timeSignatureLane, &InfoLaneView::wheelHorScale, m_canvas,
+            &ITrackEditorCanvas::onWheelHorScale);
+    connect(m_timeSignatureLane, &InfoLaneView::wheelHorScroll, m_canvas,
+            &ITrackEditorCanvas::onWheelHorScroll);
+    connect(m_timeSignatureLane, &InfoLaneView::wheelVerScroll, m_canvas,
+            &ITrackEditorCanvas::onWheelVerScroll);
+
+    const auto canvasBar = m_canvas->verticalScrollBar();
+    const auto listBar = m_trackListView->verticalScrollBar();
+    connect(canvasBar, &QScrollBar::valueChanged, listBar, &QScrollBar::setValue);
+    connect(listBar, &QScrollBar::valueChanged, canvasBar, &QScrollBar::setValue);
+
+    for (const auto *track : m_viewModel.tracks) {
+        connect(m_canvas, &ITrackEditorCanvas::scaleChanged, track->controlView,
+                &TrackControlView::finishTrackNameEditing);
+        connect(m_canvas, &ITrackEditorCanvas::visibleRectChanged, track->controlView,
+                &TrackControlView::finishTrackNameEditing);
+        connect(m_canvas, &ITrackEditorCanvas::sizeChanged, track->controlView,
+                &TrackControlView::finishTrackNameEditing);
+    }
+}
+
+void TrackEditorView::scheduleLegacyFallback(const QString &reason) {
+    if (m_canvas->backend() != EditorCanvasBackend::ExperimentalRhi || m_fallbackPending)
+        return;
+    m_fallbackPending = true;
+    qCWarning(lcTrackEditorCanvas) << "RHI canvas failed; falling back to Legacy:" << reason;
+    QTimer::singleShot(0, this, &TrackEditorView::replaceCanvasWithLegacy);
+}
+
+void TrackEditorView::replaceCanvasWithLegacy() {
+    const auto viewport = m_canvas->viewportState();
+    auto *failedCanvas = m_canvas;
+    auto *failedWidget = failedCanvas->widget();
+    m_trackTimelineAndViewLayout->removeWidget(failedWidget);
+    m_trackListView->setCanvas(nullptr);
+    delete failedCanvas;
+    delete failedWidget;
+
+    m_canvas = EditorCanvasFactory::createTrackCanvas(EditorCanvasBackend::Legacy, this);
+    m_canvas->setSceneLength(appStatus->projectEditableLength);
+    m_trackTimelineAndViewLayout->insertWidget(3, m_canvas->widget());
+    connectCanvas();
+    m_canvas->restoreViewportState(viewport);
+    onViewScaleChanged(viewport.horizontalScale, viewport.verticalScale);
+    m_fallbackPending = false;
 }
 
 TrackEditorView::~TrackEditorView() {
@@ -222,66 +236,28 @@ void TrackEditorView::changeEvent(QEvent *event) {
 }
 
 TrackPanelViewState TrackEditorView::viewState() const {
-    const auto scaleY = m_graphicsView->scaleY();
-    const auto trackHeight = TracksEditorGlobal::trackHeight * scaleY;
-    const auto centerTrackIndex =
-        trackHeight > 0 ? m_graphicsView->visibleRect().center().y() / trackHeight - 0.5 : 0;
+    const auto state = m_canvas->viewportState();
     return {
-        .centerTick = (m_graphicsView->startTick() + m_graphicsView->endTick()) / 2,
-        .centerTrackIndex = centerTrackIndex,
-        .horizontalScale = m_graphicsView->scaleX(),
-        .verticalScale = scaleY,
+        .centerTick = state.centerTick,
+        .centerTrackIndex = state.centerTrack,
+        .horizontalScale = state.horizontalScale,
+        .verticalScale = state.verticalScale,
     };
 }
 
-bool TrackEditorView::centerAt(double tick, double trackIndex) const {
-    if (!std::isfinite(tick) || !std::isfinite(trackIndex))
-        return false;
-
-    m_graphicsView->stopViewportAnimations();
-    m_graphicsView->setViewportCenterAtTick(tick);
-    const auto centerSceneY =
-        (trackIndex + 0.5) * TracksEditorGlobal::trackHeight * m_graphicsView->scaleY();
-    m_graphicsView->setVerticalBarValue(
-        qRound(centerSceneY - m_graphicsView->viewport()->height() / 2.0));
-    return true;
+bool TrackEditorView::centerAt(const double tick, const double trackIndex) const {
+    return m_canvas->centerAt(tick, trackIndex);
 }
 
-bool TrackEditorView::setViewScale(double horizontalScale, double verticalScale) const {
+bool TrackEditorView::setViewScale(const double horizontalScale, const double verticalScale) const {
     const auto previousState = viewState();
-    if (!m_graphicsView->setViewportScale(horizontalScale, verticalScale))
+    if (!m_canvas->setViewportScale(horizontalScale, verticalScale))
         return false;
     return centerAt(previousState.centerTick, previousState.centerTrackIndex);
 }
 
 HistoryFocusVisibility TrackEditorView::focusVisibility(const HistoryFocus &focus) const {
-    if (focus.kind != HistoryFocusKind::TrackClips || !focus.isValid())
-        return HistoryFocusVisibility::Unavailable;
-
-    QRectF itemBounds;
-    for (const auto id : focus.objectIds) {
-        if (const auto item = findClipItemById(id))
-            itemBounds = itemBounds.isNull() ? item->sceneBoundingRect()
-                                             : itemBounds.united(item->sceneBoundingRect());
-    }
-    if (!itemBounds.isNull())
-        return m_graphicsView->logicalVisibleRect().intersects(itemBounds)
-                   ? HistoryFocusVisibility::Visible
-                   : HistoryFocusVisibility::ScrollRequired;
-
-    int trackIndex = focus.trackIndex;
-    if (focus.trackId >= 0)
-        appModel->findTrackById(focus.trackId, trackIndex);
-    const auto visible = m_graphicsView->logicalVisibleRect();
-    const auto left = m_graphicsView->sceneXForTick(focus.tickStart);
-    const auto right = m_graphicsView->sceneXForTick(focus.tickEnd);
-    const auto tickVisible = right >= visible.left() && left <= visible.right();
-    const auto trackHeight = TracksEditorGlobal::trackHeight * m_graphicsView->scaleY();
-    const auto trackTop = trackIndex * trackHeight;
-    const auto trackBottom = trackTop + trackHeight;
-    return tickVisible && trackBottom >= visible.top() && trackTop <= visible.bottom()
-               ? HistoryFocusVisibility::Visible
-               : HistoryFocusVisibility::ScrollRequired;
+    return m_canvas->focusVisibility(focus);
 }
 
 bool TrackEditorView::revealFocus(const HistoryFocus &focus) const {
@@ -289,43 +265,7 @@ bool TrackEditorView::revealFocus(const HistoryFocus &focus) const {
 }
 
 bool TrackEditorView::revealFocus(const HistoryFocus &focus, const bool animated) const {
-    if (focus.kind != HistoryFocusKind::TrackClips || !focus.isValid())
-        return false;
-
-    m_tracksScene->clearSelection();
-    QList<int> selectedIds;
-    QRectF itemBounds;
-    for (const auto id : focus.objectIds) {
-        if (const auto item = findClipItemById(id)) {
-            item->setSelected(true);
-            selectedIds.append(id);
-            itemBounds = itemBounds.isNull() ? item->sceneBoundingRect()
-                                             : itemBounds.united(item->sceneBoundingRect());
-        }
-    }
-    appStatus->selectedClips = selectedIds;
-    if (!selectedIds.isEmpty())
-        trackController->setActiveClip(selectedIds.first());
-
-    if (!itemBounds.isNull()) {
-        m_graphicsView->ensureSceneRectVisible(itemBounds, 24, 24, animated);
-        return true;
-    }
-
-    int trackIndex = focus.trackIndex;
-    if (focus.trackId >= 0)
-        appModel->findTrackById(focus.trackId, trackIndex);
-    if (trackIndex < 0)
-        trackIndex = qRound((focus.valueStart + focus.valueEnd) / 2.0);
-    if (trackIndex < 0)
-        return false;
-    const auto trackHeight = TracksEditorGlobal::trackHeight * m_graphicsView->scaleY();
-    const auto left = m_graphicsView->sceneXForTick(focus.tickStart);
-    const auto right = m_graphicsView->sceneXForTick(focus.tickEnd);
-    m_graphicsView->ensureSceneRectVisible(
-        QRectF(left, trackIndex * trackHeight, qMax(1.0, right - left), trackHeight), 24, 24,
-        animated);
-    return true;
+    return m_canvas->revealFocus(focus, animated);
 }
 
 void TrackEditorView::onModelChanged() {
@@ -339,6 +279,7 @@ void TrackEditorView::onModelChanged() {
         index++;
     }
     emit trackCountChanged(m_viewModel.tracks.count());
+    m_canvas->refreshSnapshot(EditorDirtyDomain::All);
 }
 
 void TrackEditorView::onTrackChanged(const AppModel::TrackChangeType type, const qsizetype index,
@@ -348,6 +289,7 @@ void TrackEditorView::onTrackChanged(const AppModel::TrackChangeType type, const
     else if (type == AppModel::Remove)
         onTrackRemoved(track, index);
     emit trackCountChanged(m_viewModel.tracks.count());
+    m_canvas->refreshSnapshot(EditorDirtyDomain::Geometry);
 }
 
 void TrackEditorView::onTrackMoved(const qsizetype from, const qsizetype to) {
@@ -368,42 +310,26 @@ void TrackEditorView::onTrackMoved(const qsizetype from, const qsizetype to) {
     for (auto i = firstChangedIndex; i <= lastChangedIndex; ++i) {
         const auto trackVm = m_viewModel.tracks.at(i);
         trackVm->controlView->setTrackIndex(i + 1);
-        for (const auto clipItem : trackVm->clips)
-            clipItem->setTrackIndex(i);
     }
 
     auto selectedTrackIndex = previousSelectedTrackIndex;
     if (previousSelectedTrackIndex == from) {
         selectedTrackIndex = static_cast<int>(to);
-    } else if (from < to && previousSelectedTrackIndex > from &&
-               previousSelectedTrackIndex <= to) {
+    } else if (from < to && previousSelectedTrackIndex > from && previousSelectedTrackIndex <= to) {
         selectedTrackIndex = previousSelectedTrackIndex - 1;
-    } else if (to < from && previousSelectedTrackIndex >= to &&
-               previousSelectedTrackIndex < from) {
+    } else if (to < from && previousSelectedTrackIndex >= to && previousSelectedTrackIndex < from) {
         selectedTrackIndex = previousSelectedTrackIndex + 1;
     }
     setSelectedTrackIndex(selectedTrackIndex);
-}
-
-void TrackEditorView::onClipChanged(const Track::ClipChangeType type, Clip *clip,
-                                    const Track *dsTrack) {
-    const auto trackVm = m_viewModel.findTrack(dsTrack);
-    Q_ASSERT(trackVm);
-    if (type == Track::Inserted) {
-        int trackIndex;
-        appModel->findTrackById(dsTrack->id(), trackIndex);
-        onClipInserted(clip, trackVm, trackIndex);
-    } else if (type == Track::Removed) {
-        onClipRemoved(clip, trackVm);
-    }
+    m_canvas->refreshSnapshot(EditorDirtyDomain::Geometry);
 }
 
 void TrackEditorView::onPositionChanged(const double tick) const {
-    m_graphicsView->setPlaybackPosition(tick);
+    m_canvas->setPlaybackPosition(tick);
 }
 
 void TrackEditorView::onLastPositionChanged(const double tick) const {
-    m_graphicsView->setLastPlaybackPosition(tick);
+    m_canvas->setLastPlaybackPosition(tick);
 }
 
 void TrackEditorView::onViewScaleChanged(const qreal sx, const qreal sy) const {
@@ -465,30 +391,23 @@ void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex
     const QSignalBlocker listBlocker(m_trackListView);
 
     connect(dsTrack, &Track::propertyChanged, this, [this] { onTrackPropertyChanged(); });
-    connect(dsTrack, &Track::clipChanged, this,
-            [dsTrack, this](const Track::ClipChangeType type, Clip *clip) {
-                onClipChanged(type, clip, dsTrack);
-            });
 
     const auto track = new TrackViewModel(dsTrack);
-    for (const auto clip : dsTrack->clips()) {
-        onClipInserted(clip, track, trackIndex);
-    }
     auto newTrackItem = new QListWidgetItem;
     const auto controlView = new TrackControlView(newTrackItem, dsTrack);
     controlView->setTrackNameOverlayParent(m_trackListView->viewport());
-    connect(m_graphicsView, &TracksGraphicsView::scaleChanged, controlView,
+    connect(m_canvas, &ITrackEditorCanvas::scaleChanged, controlView,
             &TrackControlView::finishTrackNameEditing);
-    connect(m_graphicsView, &TracksGraphicsView::visibleRectChanged, controlView,
+    connect(m_canvas, &ITrackEditorCanvas::visibleRectChanged, controlView,
             &TrackControlView::finishTrackNameEditing);
-    connect(m_graphicsView, &TracksGraphicsView::sizeChanged, controlView,
+    connect(m_canvas, &ITrackEditorCanvas::sizeChanged, controlView,
             &TrackControlView::finishTrackNameEditing);
     connect(m_trackListView->verticalScrollBar(), &QScrollBar::valueChanged, controlView,
             &TrackControlView::finishTrackNameEditing);
-    newTrackItem->setSizeHint(
-        QSize(0, static_cast<int>(TracksEditorGlobal::trackHeight * m_graphicsView->scaleY())));
+    const auto scaleY = m_canvas->viewportState().verticalScale;
+    newTrackItem->setSizeHint(QSize(0, static_cast<int>(TracksEditorGlobal::trackHeight * scaleY)));
     controlView->setTrackIndex(trackIndex + 1);
-    controlView->setNarrowMode(m_graphicsView->scaleY() < TracksEditorGlobal::narrowModeScaleY);
+    controlView->setNarrowMode(scaleY < TracksEditorGlobal::narrowModeScaleY);
     m_trackListView->insertItem(trackIndex, newTrackItem);
     m_trackListView->setItemWidget(newTrackItem, controlView);
     track->controlView = controlView;
@@ -514,10 +433,6 @@ void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex
             const auto widget = m_trackListView->itemWidget(item);
             const auto trackWidget = dynamic_cast<TrackControlView *>(widget);
             trackWidget->setTrackIndex(i + 1);
-            // Update clips' index
-            for (const auto &clipItem : m_viewModel.tracks.at(i)->clips) {
-                clipItem->setTrackIndex(i);
-            }
         }
 
     // An insertion before the selected row moves the same logical track down by one row.
@@ -526,119 +441,7 @@ void TrackEditorView::onTrackInserted(Track *dsTrack, const qsizetype trackIndex
         setSelectedTrackIndex(previousSelectedTrackIndex + 1);
     else
         syncSelectedTrackToList(previousSelectedTrackIndex);
-}
-
-void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, const int trackIndex) {
-    if (const auto cachedView = m_pendingRemoveClipViews.take(clip->id())) {
-        // Cross-track move: reuse the cached clip view preserving its state
-        cachedView->setTrackIndex(trackIndex);
-        cachedView->setColorIndex(track->dsTrack->colorIndex());
-        m_tracksScene->addCommonItem(cachedView);
-        track->clips[clip] = cachedView;
-        connect(clip, &Clip::propertyChanged, this, [clip, this] { updateClipOnView(clip); });
-        // Reconnect type-specific signals that were disconnected by onClipRemoved
-        if (clip->clipType() == Clip::Singing) {
-            const auto singingClip = static_cast<SingingClip *>(clip);
-            const auto singingView = static_cast<SingingClipView *>(cachedView);
-            connect(singingClip, &SingingClip::voiceContextChanged, this,
-                    [singingClip, singingView](const VoiceContextChange &) {
-                        updateSingingClipDisplay(singingClip, singingView);
-                    });
-            connect(singingClip, &SingingClip::defaultLanguageChanged, singingView,
-                    &SingingClipView::setDefaultLanguage);
-            connect(singingClip, &SingingClip::noteChanged, singingView,
-                    &SingingClipView::onNoteListChanged);
-        } else if (clip->clipType() == Clip::Audio) {
-            const auto audioView = static_cast<AudioClipView *>(cachedView);
-            // The timeline may have changed while the view sat in the cache
-            audioView->setTimeline(appModel->timeline());
-            connect(appModel, &AppModel::timelineChanged, audioView,
-                    [audioView] { audioView->setTimeline(appModel->timeline()); });
-        }
-        return;
-    }
-    if (clip->clipType() == Clip::Audio) {
-        const auto audioClip = static_cast<AudioClip *>(clip);
-        insertAudioClip(audioClip, track, trackIndex);
-    } else if (clip->clipType() == Clip::Singing) {
-        const auto singingClip = static_cast<SingingClip *>(clip);
-        insertSingingClip(singingClip, track, trackIndex);
-    }
-    connect(clip, &Clip::propertyChanged, this, [clip, this] { updateClipOnView(clip); });
-}
-
-void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track,
-                                        const int trackIndex) {
-    auto clipView = new SingingClipView(clip->id());
-    clipView->loadCommonProperties(Clip::ClipCommonProperties(*clip));
-    clipView->setTrackIndex(trackIndex);
-    clipView->setColorIndex(track->dsTrack->colorIndex());
-    const auto &notesRef = clip->notes();
-    clipView->loadNotes(notesRef);
-    updateSingingClipDisplay(clip, clipView);
-    clipView->setDefaultLanguage(clip->defaultLanguage());
-    m_tracksScene->addCommonItem(clipView);
-    qDebug() << "Singing clip graphics item added to scene" << clipView->id() << clipView->name();
-    connect(
-        clip, &SingingClip::voiceContextChanged, this,
-        [clip, clipView](const VoiceContextChange &) { updateSingingClipDisplay(clip, clipView); });
-    connect(clip, &SingingClip::defaultLanguageChanged, clipView,
-            &SingingClipView::setDefaultLanguage);
-    connect(clip, &SingingClip::noteChanged, clipView, &SingingClipView::onNoteListChanged);
-    track->clips[clip] = clipView;
-}
-
-namespace {
-    void applyAudioPathStatus(AudioClipView *clipView, const AudioClip::PathStatus status) {
-        if (status == AudioClip::PathStatus::Missing) {
-            clipView->setStatus(AppGlobal::Error);
-            clipView->setErrorMessage({});
-        } else {
-            clipView->setStatus(AppGlobal::Loaded);
-        }
-    }
-}
-
-void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track,
-                                      const int trackIndex) {
-    const auto clipView = new AudioClipView(clip->id());
-    clipView->loadCommonProperties(Clip::ClipCommonProperties(*clip));
-    clipView->setTrackIndex(trackIndex);
-    clipView->setColorIndex(track->dsTrack->colorIndex());
-    clipView->setPath(clip->path());
-    clipView->setTimeline(appModel->timeline());
-    clipView->setAudioInfo(clip->audioInfo());
-    applyAudioPathStatus(clipView, clip->pathStatus());
-    m_tracksScene->addCommonItem(clipView);
-    qDebug() << "Audio clip graphics item added to scene" << clipView->id() << clipView->name();
-    connect(appModel, &AppModel::timelineChanged, clipView,
-            [clipView] { clipView->setTimeline(appModel->timeline()); });
-    connect(
-        clip, &AudioClip::pathStatusChanged, clipView,
-        [clipView](const AudioClip::PathStatus status) { applyAudioPathStatus(clipView, status); });
-    track->clips[clip] = clipView;
-}
-
-void TrackEditorView::onClipRemoved(Clip *clip, TrackViewModel *track) {
-    qInfo() << "removeClipFromView" << clip->id();
-    disconnect(clip, nullptr, this, nullptr);
-    const auto clipView = findClipItemById(clip->id());
-    m_tracksScene->removeCommonItem(clipView);
-    track->clips.remove(clip);
-    m_pendingRemoveClipViews.insert(clip->id(), clipView);
-    // Clean up if the view is not reused by a subsequent onClipInserted
-    QTimer::singleShot(0, this, [this, clipId = clip->id()] {
-        if (const auto cachedView = m_pendingRemoveClipViews.take(clipId))
-            delete cachedView;
-    });
-}
-
-AbstractClipView *TrackEditorView::findClipItemById(const int id) const {
-    for (const auto &track : m_viewModel.tracks)
-        for (const auto clip : track->clips)
-            if (clip->id() == id)
-                return clip;
-    return nullptr;
+    m_canvas->refreshSnapshot(EditorDirtyDomain::Geometry);
 }
 
 void TrackEditorView::onTrackPropertyChanged() const {
@@ -649,30 +452,8 @@ void TrackEditorView::onTrackPropertyChanged() const {
         widget->setName(track->name());
         widget->setControl(track->control());
         widget->updateTrackColor();
-
-        for (auto clipView : m_viewModel.tracks.at(i)->clips.values())
-            clipView->setColorIndex(track->colorIndex());
     }
-}
-
-void TrackEditorView::updateClipOnView(Clip *clip) {
-    const auto item = findClipItemById(clip->id());
-    item->setName(clip->name());
-    item->setStart(clip->start());
-    item->setClipStart(clip->clipStart());
-    item->setLength(clip->length());
-    item->setClipLen(clip->clipLen());
-
-    if (clip->clipType() == Clip::Audio) {
-        const auto audioClip = dynamic_cast<AudioClip *>(clip);
-        const auto audioItem = dynamic_cast<AudioClipView *>(item);
-        audioItem->setPath(audioClip->path());
-        audioItem->setAudioInfo(audioClip->audioInfo());
-    } else if (clip->clipType() == Clip::Singing) {
-        const auto singingClip = dynamic_cast<SingingClip *>(clip);
-        const auto singingItem = dynamic_cast<SingingClipView *>(item);
-        singingItem->loadNotes(singingClip->notes());
-    }
+    m_canvas->refreshSnapshot(EditorDirtyDomain::Style | EditorDirtyDomain::Geometry);
 }
 
 void TrackEditorView::onTrackRemoved(const Track *dsTrack, const qsizetype index) {
@@ -683,9 +464,6 @@ void TrackEditorView::onTrackRemoved(const Track *dsTrack, const qsizetype index
     disconnect(dsTrack, nullptr, this, nullptr);
     // remove from view
     const auto trackVm = m_viewModel.tracks.at(index);
-    auto keys = trackVm->clips.keys();
-    for (const auto &key : keys)
-        onClipRemoved(key, trackVm);
     const auto item = m_trackListView->takeItem(index);
     m_trackListView->removeItemWidget(item);
     delete item;
@@ -700,10 +478,6 @@ void TrackEditorView::onTrackRemoved(const Track *dsTrack, const qsizetype index
             const auto widget = m_trackListView->itemWidget(widgetItem);
             const auto trackWidget = dynamic_cast<TrackControlView *>(widget);
             trackWidget->setTrackIndex(i + 1);
-            // Update clips' index
-            for (const auto &clipItem : m_viewModel.tracks.at(i)->clips) {
-                clipItem->setTrackIndex(i);
-            }
         }
     // Removing a row before the selection shifts it up; removing the selected row selects its
     // neighbor.
@@ -717,4 +491,5 @@ void TrackEditorView::onTrackRemoved(const Track *dsTrack, const qsizetype index
                                  : qMin(removedTrackIndex, m_viewModel.tracks.count() - 1);
 
     setSelectedTrackIndex(selectedTrackIndex);
+    m_canvas->refreshSnapshot(EditorDirtyDomain::Geometry);
 }
