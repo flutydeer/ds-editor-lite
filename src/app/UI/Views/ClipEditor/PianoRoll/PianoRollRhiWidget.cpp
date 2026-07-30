@@ -13,12 +13,14 @@
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "Global/ControllerGlobal.h"
+#include "Modules/Inference/EditSessionManager.h"
 
 #include <lite/GUI/Controls/Menu.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/Utils/AppModelUtils.h>
 #include <lite/Support/MathUtils.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
@@ -110,7 +112,12 @@ public:
     explicit Private(PianoRollRhiWidget *q) : q(q) {
     }
 
+    ~Private() {
+        clearPitchPreview();
+    }
+
     void setDataContext(SingingClip *newClip) {
+        cancelPitchEdit();
         if (clip)
             QObject::disconnect(clip, nullptr, q, nullptr);
 
@@ -322,9 +329,173 @@ public:
                (clip ? clip->start() : 0);
     }
 
+    QPoint pitchPointAt(const QPointF &viewportPosition) const {
+        const auto tick = std::max(
+            0, MathUtils::round(static_cast<int>(localTickAt(viewportPosition)), DrawCurve().step));
+        const auto sceneY = cameraY + viewportPosition.y();
+        const auto value = qRound((127.5 - sceneY / (noteHeight * scaleY)) * 100.0);
+        return {tick, std::clamp(value, 0, 12700)};
+    }
+
+    DrawCurve *pitchCurveAt(const int tick) const {
+        for (auto *curve : pitchPreviewCurves) {
+            if (curve->localStart() <= tick && curve->localEndTick() > tick)
+                return curve;
+        }
+        return nullptr;
+    }
+
+    void clearPitchPreview() {
+        qDeleteAll(pitchPreviewCurves);
+        pitchPreviewCurves.clear();
+        pitchEditingCurve = nullptr;
+    }
+
+    void finishPitchEdit(const EditSessionEndReason reason) {
+        if (pitchEditSessionId != 0 && editSessionManager->hasActiveTransaction() &&
+            editSessionManager->activeSession().sessionId == pitchEditSessionId) {
+            editSessionManager->endTransaction(pitchEditSessionId, reason);
+        }
+        pitchEditSessionId = 0;
+        if (!editSessionManager->hasActiveTransaction())
+            appStatus->currentEditObject = AppStatus::EditObjectType::None;
+    }
+
+    void cancelPitchEdit(const bool update = true) {
+        if (!pitchEditing)
+            return;
+        clearPitchPreview();
+        pitchEditing = false;
+        pitchMouseMoved = false;
+        pitchNewCurveCreated = false;
+        pitchEditType = PitchEditType::None;
+        finishPitchEdit(EditSessionEndReason::Discard);
+        if (update)
+            scheduleSnapshot();
+    }
+
+    void beginPitchEdit(const QPointF &viewportPosition) {
+        const auto *pitch = clip->params.getParamByName(ParamInfo::Pitch);
+        if (!pitch)
+            return;
+
+        clearPitchPreview();
+        for (const auto *curve : pitch->curves(Param::Edited)) {
+            if (curve->type() == Curve::Draw)
+                MathUtils::binaryInsert(pitchPreviewCurves,
+                                        new DrawCurve(*static_cast<const DrawCurve *>(curve)));
+        }
+
+        pitchMouseDownPos = pitchPointAt(viewportPosition);
+        pitchPreviousPos = pitchMouseDownPos;
+        pitchMouseMoved = false;
+        pitchNewCurveCreated = false;
+        pitchEditingCurve = nullptr;
+        if (editMode == ErasePitch) {
+            pitchEditType = PitchEditType::Erase;
+        } else if ((pitchEditingCurve = pitchCurveAt(pitchMouseDownPos.x()))) {
+            pitchEditType = PitchEditType::DrawOnCurve;
+        } else {
+            pitchEditType = PitchEditType::DrawOnInterval;
+        }
+
+        pitchEditSessionId = editSessionManager->beginTransaction(
+            AppStatus::EditObjectType::Param, clip->id(), {}, {}, {}, {ParamInfo::Pitch});
+        appStatus->currentEditObject = AppStatus::EditObjectType::Param;
+        pitchEditing = true;
+        scheduleSnapshot();
+    }
+
+    static void drawPitchLine(const QPoint &p1, const QPoint &p2, DrawCurve &curve) {
+        if (p1.x() == p2.x())
+            return;
+
+        const auto startPoint = p1.x() < p2.x() ? p1 : p2;
+        const auto endPoint = p1.x() < p2.x() ? p2 : p1;
+        DrawCurve line(-1);
+        line.setLocalStart(startPoint.x());
+        const auto pointCount = (endPoint.x() - startPoint.x()) / curve.step;
+        for (int i = 0; i < pointCount; ++i) {
+            const auto tick = startPoint.x() + i * curve.step;
+            line.appendValue(qRound(MathUtils::linearValueAt(startPoint, endPoint, tick)));
+        }
+        curve.mergeWithOtherPriority(line);
+    }
+
+    void updatePitchEdit(const QPointF &viewportPosition) {
+        if (!pitchEditing || pitchEditType == PitchEditType::None)
+            return;
+
+        const auto current = pitchPointAt(viewportPosition);
+        if (current == pitchPreviousPos)
+            return;
+        if (current.x() == pitchPreviousPos.x())
+            return;
+        pitchMouseMoved = true;
+        const auto startTick = std::min(pitchPreviousPos.x(), current.x());
+        const auto endTick = std::max(pitchPreviousPos.x(), current.x());
+        const auto overlapped = AppModelUtils::curvesIn(pitchPreviewCurves, startTick, endTick);
+
+        if (pitchEditType == PitchEditType::Erase) {
+            for (auto *curve : overlapped) {
+                if (curve->localStart() >= startTick && curve->localEndTick() <= endTick) {
+                    pitchPreviewCurves.removeOne(curve);
+                    delete curve;
+                } else if (curve->localStart() < startTick && curve->localEndTick() > endTick) {
+                    auto *rightCurve = new DrawCurve;
+                    rightCurve->setLocalStart(endTick);
+                    rightCurve->setValues(curve->mid(endTick));
+                    curve->eraseTailFrom(startTick);
+                    MathUtils::binaryInsert(pitchPreviewCurves, rightCurve);
+                } else {
+                    curve->erase(startTick, endTick);
+                }
+            }
+        } else {
+            if (!pitchNewCurveCreated && pitchEditType == PitchEditType::DrawOnInterval) {
+                pitchEditingCurve = new DrawCurve;
+                pitchEditingCurve->setLocalStart(pitchMouseDownPos.x());
+                pitchEditingCurve->appendValue(pitchMouseDownPos.y());
+                MathUtils::binaryInsert(pitchPreviewCurves, pitchEditingCurve);
+                pitchNewCurveCreated = true;
+            }
+
+            drawPitchLine(pitchPreviousPos, current, *pitchEditingCurve);
+            for (auto *curve : overlapped) {
+                if (curve == pitchEditingCurve)
+                    continue;
+                pitchEditingCurve->mergeWithCurrentPriority(*curve);
+                pitchPreviewCurves.removeOne(curve);
+                delete curve;
+            }
+        }
+
+        pitchPreviousPos = current;
+        scheduleSnapshot();
+    }
+
+    void commitPitchEdit(const QPointF &viewportPosition) {
+        if (!pitchEditing)
+            return;
+        updatePitchEdit(viewportPosition);
+        if (pitchMouseMoved)
+            PianoRollGraphicsViewHelper::editPitch(pitchPreviewCurves);
+        clearPitchPreview();
+        pitchEditing = false;
+        pitchMouseMoved = false;
+        pitchNewCurveCreated = false;
+        pitchEditType = PitchEditType::None;
+        finishPitchEdit(EditSessionEndReason::Commit);
+        scheduleSnapshot();
+    }
+
     void mousePress(QMouseEvent *event) {
         if (!clip || event->button() != Qt::LeftButton)
             return;
+        if (editMode == DrawPitch || editMode == ErasePitch) {
+            beginPitchEdit(event->position());
+            return;
+        }
         auto *note = noteAt(event->position());
         if (editMode == EraseNote) {
             if (note)
@@ -394,6 +565,10 @@ public:
             hoveredKey = key;
             emit q->keyHovered(key);
         }
+        if (pitchEditing) {
+            updatePitchEdit(event->position());
+            return;
+        }
         if (interaction == Interaction::Draw) {
             drawEnd = std::max(drawStart + 1, snapLocalTick(localTickAt(event->position())));
             scheduleSnapshot();
@@ -419,6 +594,10 @@ public:
     void mouseRelease(QMouseEvent *event) {
         if (!clip || event->button() != Qt::LeftButton)
             return;
+        if (pitchEditing) {
+            commitPitchEdit(event->position());
+            return;
+        }
         if (interaction == Interaction::Draw) {
             const auto step = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
             PianoRollGraphicsViewHelper::drawNote(drawStart, std::max(step, drawEnd - drawStart),
@@ -745,7 +924,10 @@ private:
                           q->paramOriginalCurveColor());
         auto editedColor = q->paramEditedCurveColor();
         editedColor.setAlpha(std::min(editedColor.alpha(), 180));
-        appendPitchCurves(pitch->curves(Param::Edited), localStart, localEnd, editedColor);
+        if (pitchEditing)
+            appendPitchCurves(pitchPreviewCurves, localStart, localEnd, editedColor);
+        else
+            appendPitchCurves(pitch->curves(Param::Edited), localStart, localEnd, editedColor);
     }
 
     void appendPitchCurves(const QList<Curve *> &curves, const double localStart,
@@ -755,37 +937,52 @@ private:
                 continue;
             if (curve->localStart() > localEnd)
                 break;
-            const auto *drawCurve = static_cast<const DrawCurve *>(curve);
-            const auto &values = drawCurve->values();
-            if (values.size() < 2)
-                continue;
-            const auto startIndex =
-                std::max(0, static_cast<int>(std::floor((localStart - drawCurve->localStart()) /
-                                                        static_cast<double>(drawCurve->step))) -
-                                1);
-            QVector<QPointF> points;
-            points.reserve(values.size() - startIndex);
-            double lastAcceptedX = -1e30;
-            for (int i = startIndex; i < values.size(); ++i) {
-                const auto tick = drawCurve->localStart() + i * drawCurve->step;
-                if (tick > localEnd + drawCurve->step)
-                    break;
-                const auto x = tick * pixelsPerTick();
-                const auto value = MathUtils::clip(values.at(i), 0, 12700);
-                const auto y = (12700 - value + 50) * scaleY * noteHeight / 100.0;
-                if (points.isEmpty() || (x - lastAcceptedX) * dpr >= 1.0) {
-                    points.append(QPointF(x, y) * dpr);
-                    lastAcceptedX = x;
-                }
-            }
-            QVector<EditorRhiSolidVertex> stroke;
-            EditorRhiGeometry::appendAntialiasedStroke(stroke, points, kPitchLineWidth * dpr, color,
-                                                       1.0, 3.0);
-            vertices.reserve(vertices.size() + stroke.size());
-            for (const auto &vertex : stroke)
-                vertices.append(
-                    {vertex.x, vertex.y, vertex.r, vertex.g, vertex.b, vertex.a, vertex.coverage});
+            appendPitchCurve(*static_cast<const DrawCurve *>(curve), localStart, localEnd, color);
         }
+    }
+
+    void appendPitchCurves(const QList<DrawCurve *> &curves, const double localStart,
+                           const double localEnd, const QColor &color) {
+        for (const auto *curve : curves) {
+            if (!curve || curve->localEndTick() < localStart)
+                continue;
+            if (curve->localStart() > localEnd)
+                break;
+            appendPitchCurve(*curve, localStart, localEnd, color);
+        }
+    }
+
+    void appendPitchCurve(const DrawCurve &curve, const double localStart, const double localEnd,
+                          const QColor &color) {
+        const auto &values = curve.values();
+        if (values.size() < 2)
+            return;
+        const auto startIndex =
+            std::max(0, static_cast<int>(std::floor((localStart - curve.localStart()) /
+                                                    static_cast<double>(curve.step))) -
+                            1);
+        QVector<QPointF> points;
+        points.reserve(values.size() - startIndex);
+        double lastAcceptedX = -1e30;
+        for (int i = startIndex; i < values.size(); ++i) {
+            const auto tick = curve.localStart() + i * curve.step;
+            if (tick > localEnd + curve.step)
+                break;
+            const auto x = tick * pixelsPerTick();
+            const auto value = MathUtils::clip(values.at(i), 0, 12700);
+            const auto y = (12700 - value + 50) * scaleY * noteHeight / 100.0;
+            if (points.isEmpty() || (x - lastAcceptedX) * dpr >= 1.0) {
+                points.append(QPointF(x, y) * dpr);
+                lastAcceptedX = x;
+            }
+        }
+        QVector<EditorRhiSolidVertex> stroke;
+        EditorRhiGeometry::appendAntialiasedStroke(stroke, points, kPitchLineWidth * dpr, color,
+                                                   1.0, 3.0);
+        vertices.reserve(vertices.size() + stroke.size());
+        for (const auto &vertex : stroke)
+            vertices.append(
+                {vertex.x, vertex.y, vertex.r, vertex.g, vertex.b, vertex.a, vertex.coverage});
     }
 
     void appendClipMask(const double localStart, const double localEnd, const double sceneTop,
@@ -867,6 +1064,16 @@ public:
     QPointF rubberBandStart;
     QPointF rubberBandEnd;
     QList<int> rubberBandBaseSelection;
+    enum class PitchEditType { None, DrawOnCurve, DrawOnInterval, Erase };
+    PitchEditType pitchEditType = PitchEditType::None;
+    bool pitchEditing = false;
+    bool pitchMouseMoved = false;
+    bool pitchNewCurveCreated = false;
+    quint64 pitchEditSessionId = 0;
+    QPoint pitchMouseDownPos;
+    QPoint pitchPreviousPos;
+    QList<DrawCurve *> pitchPreviewCurves;
+    DrawCurve *pitchEditingCurve = nullptr;
     double scaleX = 1.0;
     double scaleY = 1.0;
     double cameraX = 0.0;
@@ -904,7 +1111,9 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     connect(appModel, &AppModel::timelineChanged, this, [this] { d->scheduleSnapshot(); });
 }
 
-PianoRollRhiWidget::~PianoRollRhiWidget() = default;
+PianoRollRhiWidget::~PianoRollRhiWidget() {
+    d->cancelPitchEdit(false);
+}
 
 void PianoRollRhiWidget::setDataContext(SingingClip *clip) {
     d->setDataContext(clip);
@@ -967,6 +1176,8 @@ bool PianoRollRhiWidget::revealFocus(const HistoryFocus &focus, bool) {
 }
 
 void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
+    if (d->editMode != mode)
+        d->cancelPitchEdit();
     d->editMode = mode;
 }
 
@@ -1035,6 +1246,11 @@ void PianoRollRhiWidget::mouseReleaseEvent(QMouseEvent *event) {
 
 void PianoRollRhiWidget::keyPressEvent(QKeyEvent *event) {
     if (event->key() == Qt::Key_Escape) {
+        if (d->pitchEditing) {
+            d->cancelPitchEdit();
+            event->accept();
+            return;
+        }
         d->interaction = Private::Interaction::None;
         d->interactionNoteId = -1;
         d->interactionDeltaTick = 0;
