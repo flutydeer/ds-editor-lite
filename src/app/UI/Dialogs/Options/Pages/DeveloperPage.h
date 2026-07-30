@@ -8,6 +8,7 @@
 #include "IOptionPage.h"
 
 class SwitchButton;
+class ComboBox;
 
 class DeveloperPage : public IOptionPage {
     Q_OBJECT
@@ -25,6 +26,7 @@ private:
     SwitchButton *m_swShowTimelineDebugInfo;
     SwitchButton *m_swShowClipDebugInfo;
     SwitchButton *m_swEnablePanelDetach;
+    ComboBox *m_cbEditorRenderer;
 };
 
 
