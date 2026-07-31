@@ -413,17 +413,23 @@ void EditPitchAnchorHandler::loadFromModel(const QList<AnchorCurve *> &curves) {
 }
 
 AnchorNode *EditPitchAnchorHandler::anchorNodeAt(const QPointF &scenePos) const {
+    AnchorNode *nearestNode = nullptr;
+    double nearestDistanceSquared = kAnchorHitRadius * kAnchorHitRadius;
     for (auto *curve : anchorCurves()) {
         for (auto *node : curve->nodes().toList()) {
             const auto x = q->tickToSceneX(node->pos());
             const auto y = d->m_anchorEditor->valueToSceneY(node->value());
             const auto dx = scenePos.x() - x;
             const auto dy = scenePos.y() - y;
-            if (dx * dx + dy * dy <= kAnchorHitRadius * kAnchorHitRadius)
-                return node;
+            const auto distanceSquared = dx * dx + dy * dy;
+            if (distanceSquared <= kAnchorHitRadius * kAnchorHitRadius &&
+                (!nearestNode || distanceSquared < nearestDistanceSquared)) {
+                nearestNode = node;
+                nearestDistanceSquared = distanceSquared;
+            }
         }
     }
-    return nullptr;
+    return nearestNode;
 }
 
 AnchorCurve *EditPitchAnchorHandler::anchorCurveAt(int tick, AnchorCurve *exclude) const {
