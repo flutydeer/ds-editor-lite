@@ -1,6 +1,7 @@
 #ifndef LYRIC_TAB_CONTROLS_HANDLE_ITEM_H
 #define LYRIC_TAB_CONTROLS_HANDLE_ITEM_H
 
+#include <QBrush>
 #include <QGraphicsItem>
 #include <QGraphicsView>
 
@@ -32,8 +33,10 @@ namespace FillLyric
 
         void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
 
+    public:
         void setQss();
 
+    protected:
         QRectF boundingRect() const override;
         QPainterPath shape() const override;
 

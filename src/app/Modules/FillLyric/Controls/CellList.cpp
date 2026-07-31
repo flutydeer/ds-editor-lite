@@ -55,7 +55,7 @@ namespace FillLyric {
                          QWidget *widget) {
         painter->setPen(Qt::NoPen);
         if (option->state & QStyle::State_Selected) {
-            painter->setBrush(QColor(255, 255, 255, 10));
+            painter->setBrush(m_selectedFillBrush);
         } else {
             painter->setBrush(Qt::NoBrush);
         }
@@ -448,5 +448,24 @@ namespace FillLyric {
             QssParser::parsePens(QssParser::propertyValue(m_view, "cellBorderPen"), 3);
         if (borderPen.size() == 3)
             m_cellQss->cellBorderPen = {borderPen[0], borderPen[1], borderPen[2]};
+    }
+
+    void CellList::repaintItems() {
+        m_selectedFillBrush = QBrush();
+        const auto selectedFill =
+            QssParser::parseBrushes(QssParser::propertyValue(m_view, "cellListSelectedFillBrush"),
+                                    1);
+        if (!selectedFill.isEmpty())
+            m_selectedFillBrush = selectedFill[0];
+
+        if (m_handle)
+            m_handle->setQss();
+        if (m_splitter)
+            m_splitter->setQss();
+        for (const auto &cell : m_cells) {
+            cell->setQss(m_cellQss);
+            cell->update();
+        }
+        this->update();
     }
 } // namespace FillLyric

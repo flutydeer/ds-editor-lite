@@ -52,8 +52,15 @@ namespace FillLyric {
 
     void LyricWrapView::setStyleSheetContent(const QString &qss) {
         m_qssContent = qss;
-        if (!m_qssContent.isEmpty())
+        if (!m_qssContent.isEmpty()) {
             this->setStyleSheet(m_qssContent);
+            // Re-parse the composite style properties and push them into
+            // existing items so a theme switch repaints rows immediately.
+            for (const auto &cellList : m_cellLists) {
+                cellList->setCellQss();
+                cellList->repaintItems();
+            }
+        }
     }
 
     void LyricWrapView::keyPressEvent(QKeyEvent *event) {
@@ -641,6 +648,14 @@ namespace FillLyric {
 
     void LyricWrapView::setCellSyllablePen(const QStringList &cellSyllablePen) {
         m_cellSyllablePen = cellSyllablePen;
+    }
+
+    QStringList LyricWrapView::cellListSelectedFillBrush() const {
+        return m_cellListSelectedFillBrush;
+    }
+
+    void LyricWrapView::setCellListSelectedFillBrush(const QStringList &cellListSelectedFillBrush) {
+        m_cellListSelectedFillBrush = cellListSelectedFillBrush;
     }
 
     QStringList LyricWrapView::handleBackgroundBrush() const {

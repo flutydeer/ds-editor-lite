@@ -58,6 +58,9 @@ namespace FillLyric {
         void setLyricRect(const QRect &rect);
         void setSyllableRect(const QRect &rect);
 
+        // Re-apply the shared cell style (used on theme change)
+        void setQss(const CellQss *qss);
+
     Q_SIGNALS:
         void updateLyric(FillLyric::LyricCell *cell, const QString &lyric) const;
         void changeSyllable(FillLyric::LyricCell *cell, const QString &syllable) const;
@@ -81,7 +84,6 @@ namespace FillLyric {
 
     private:
         void updateLyricRect();
-        void setQss(const CellQss *qss);
 
         qreal lyricWidth() const;
         qreal syllableWidth() const;

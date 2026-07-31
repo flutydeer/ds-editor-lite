@@ -23,11 +23,11 @@ namespace FillLyric
         void setMargin(const qreal &margin);
         qreal margin() const;
 
+        void setQss();
+
     protected:
         QRectF boundingRect() const override;
         QPainterPath shape() const override;
-
-        void setQss();
 
         void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 

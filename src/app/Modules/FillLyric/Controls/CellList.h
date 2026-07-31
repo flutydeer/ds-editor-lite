@@ -59,6 +59,11 @@ namespace FillLyric {
         void connectCell(const LyricCell *cell);
         void disconnectCell(const LyricCell *cell) const;
 
+        // Re-parse the composite style properties from the view and repaint
+        // existing cells/handle/splitter (used on theme change)
+        void setCellQss() const;
+        void repaintItems();
+
         QList<LyricCell *> m_cells;
 
     Q_SIGNALS:
@@ -85,12 +90,14 @@ namespace FillLyric {
 
     private:
         void showContextMenu(const QPointF &pos);
-        void setCellQss() const;
         QFont syllableFont() const;
 
         qreal m_curWidth = 0;
         qreal m_height = 0;
         qreal m_cellMargin = 5;
+
+        // Whole-line selection background (from the view's theme property)
+        QBrush m_selectedFillBrush;
 
         QFont m_font = QApplication::font();
         QGraphicsView *m_view;

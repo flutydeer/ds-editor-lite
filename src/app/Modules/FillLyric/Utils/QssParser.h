@@ -11,6 +11,8 @@ namespace FillLyric
 {
     namespace QssParser
     {
+        // Accepts both the legacy "r,g,b,a[,width]" component lists and
+        // single "#RRGGBB"/"#AARRGGBB" literals or "${token}" theme tokens.
         QVector<QBrush> parseBrushes(const QString &value, int count);
         QVector<QPen> parsePens(const QString &value, int count);
         QString propertyValue(const QGraphicsView *view, const QString &propertyName);

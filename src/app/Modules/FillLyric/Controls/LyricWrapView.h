@@ -20,6 +20,8 @@ namespace FillLyric {
         Q_PROPERTY(QStringList cellBorderPen READ cellBorderPen WRITE setCellBorderPen)
         Q_PROPERTY(QStringList cellLyricPen READ cellLyricPen WRITE setCellLyricPen)
         Q_PROPERTY(QStringList cellSyllablePen READ cellSyllablePen WRITE setCellSyllablePen)
+        Q_PROPERTY(QStringList cellListSelectedFillBrush READ cellListSelectedFillBrush WRITE
+                       setCellListSelectedFillBrush)
         Q_PROPERTY(QStringList handleBackgroundBrush READ handleBackgroundBrush WRITE
                        setHandleBackgroundBrush)
         Q_PROPERTY(QStringList splitterPen READ splitterPen WRITE setSplitterPen)
@@ -82,6 +84,10 @@ namespace FillLyric {
         QStringList m_cellSyllablePen;
         QStringList cellSyllablePen() const;
         void setCellSyllablePen(const QStringList &cellSyllablePen);
+
+        QStringList m_cellListSelectedFillBrush;
+        QStringList cellListSelectedFillBrush() const;
+        void setCellListSelectedFillBrush(const QStringList &cellListSelectedFillBrush);
 
         QStringList m_handleBackgroundBrush;
         QStringList handleBackgroundBrush() const;

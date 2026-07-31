@@ -306,5 +306,6 @@ namespace FillLyric {
         m_borderPen = qss->cellBorderPen;
         m_lyricPen = qss->cellLyricPen;
         m_syllablePen = qss->cellSyllablePen;
+        update();
     }
 } // namespace FillLyric

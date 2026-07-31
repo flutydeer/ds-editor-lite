@@ -70,5 +70,6 @@ namespace FillLyric
         const auto pens = QssParser::parsePens(penValue, 1);
         if (!pens.isEmpty())
             m_pen = pens[0];
+        update();
     }
 } // namespace FillLyric
