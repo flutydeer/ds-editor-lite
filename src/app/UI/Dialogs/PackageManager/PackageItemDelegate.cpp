@@ -14,23 +14,32 @@ PackageItemDelegate::PackageItemDelegate(QObject *parent) : QStyledItemDelegate(
 
 QColor PackageItemDelegate::titleColor(const QStyleOptionViewItem &option,
                                        const bool selected) const {
-    const auto token = selected ? QStringLiteral("selection.text") : QStringLiteral("text.primary");
-    const auto color = ThemeManager::instance()->semanticColor(token);
-    if (color.isValid())
-        return color;
-    return selected ? option.palette.color(QPalette::HighlightedText)
-                    : option.palette.color(QPalette::Text);
+    if (selected) {
+        // Match the combobox popup's selected-item foreground (accent.default)
+        const auto accent = ThemeManager::instance()->semanticColor(QStringLiteral("accent.default"));
+        if (accent.isValid())
+            return accent;
+        return option.palette.color(QPalette::HighlightedText);
+    }
+    const auto primary = ThemeManager::instance()->semanticColor(QStringLiteral("text.primary"));
+    if (primary.isValid())
+        return primary;
+    return option.palette.color(QPalette::Text);
 }
 
 QColor PackageItemDelegate::descColor(const QStyleOptionViewItem &option,
                                       const bool selected) const {
-    const auto token =
-        selected ? QStringLiteral("selection.text") : QStringLiteral("text.secondary");
-    const auto color = ThemeManager::instance()->semanticColor(token);
-    if (color.isValid())
-        return color;
-    return selected ? option.palette.color(QPalette::HighlightedText)
-                    : option.palette.color(QPalette::PlaceholderText);
+    if (selected) {
+        // Match the combobox popup's selected-item foreground (accent.default)
+        const auto accent = ThemeManager::instance()->semanticColor(QStringLiteral("accent.default"));
+        if (accent.isValid())
+            return accent;
+        return option.palette.color(QPalette::HighlightedText);
+    }
+    const auto secondary = ThemeManager::instance()->semanticColor(QStringLiteral("text.secondary"));
+    if (secondary.isValid())
+        return secondary;
+    return option.palette.color(QPalette::PlaceholderText);
 }
 
 void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,

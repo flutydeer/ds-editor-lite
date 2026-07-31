@@ -22,6 +22,7 @@ QListView#PackageManagerDialogPackageListView::item:hover {
 
 QListView#PackageManagerDialogPackageListView::item:selected {
     background: ${selection.fill};
+    color: ${accent.default};
 }
 
 QWidget#PackageManagerDialogPackagePanel {
