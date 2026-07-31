@@ -33,6 +33,10 @@ class PianoRollRhiWidget final : public EditorRhiWidget {
                    setParamOriginalCurveColor)
     Q_PROPERTY(
         QColor paramEditedCurveColor READ paramEditedCurveColor WRITE setParamEditedCurveColor)
+    Q_PROPERTY(QColor anchorColor READ anchorColor WRITE setAnchorColor)
+    Q_PROPERTY(QColor anchorSelectedColor READ anchorSelectedColor WRITE setAnchorSelectedColor)
+    Q_PROPERTY(QColor anchorCurveColor READ anchorCurveColor WRITE setAnchorCurveColor)
+    Q_PROPERTY(QColor anchorPreviewColor READ anchorPreviewColor WRITE setAnchorPreviewColor)
     Q_PROPERTY(QColor barLineColor READ barLineColor WRITE setBarLineColor)
     Q_PROPERTY(QColor beatLineColor READ beatLineColor WRITE setBeatLineColor)
     Q_PROPERTY(QColor commonLineColor READ commonLineColor WRITE setCommonLineColor)
@@ -83,6 +87,7 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     void leaveEvent(QEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
@@ -114,6 +119,14 @@ private:
     void setParamOriginalCurveColor(const QColor &color);
     QColor paramEditedCurveColor() const;
     void setParamEditedCurveColor(const QColor &color);
+    QColor anchorColor() const;
+    void setAnchorColor(const QColor &color);
+    QColor anchorSelectedColor() const;
+    void setAnchorSelectedColor(const QColor &color);
+    QColor anchorCurveColor() const;
+    void setAnchorCurveColor(const QColor &color);
+    QColor anchorPreviewColor() const;
+    void setAnchorPreviewColor(const QColor &color);
     QColor barLineColor() const;
     void setBarLineColor(const QColor &color);
     QColor beatLineColor() const;

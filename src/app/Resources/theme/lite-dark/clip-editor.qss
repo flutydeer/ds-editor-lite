@@ -170,7 +170,7 @@ PianoRollGraphicsView, PianoRollRhiWidget {
     qproperty-commonLineColor: ${editor.grid.subdivision};
 }
 
-PianoRollGraphicsView {
+PianoRollGraphicsView, PianoRollRhiWidget {
     qproperty-anchorColor: ${curve.anchor};
     qproperty-anchorSelectedColor: ${curve.anchorSelected};
     qproperty-anchorCurveColor: ${curve.anchor};
