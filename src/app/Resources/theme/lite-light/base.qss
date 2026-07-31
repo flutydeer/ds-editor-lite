@@ -2,9 +2,11 @@ QWidget {
     outline: none;
 }
 
-Dialog[transparentWindow="false"],
-Window[transparentWindow="false"],
-QMainWindow[transparentWindow="false"] {
+/* Opaque background is the default so the first frame after show() is already
+   themed (the transparentWindow property is only set after QEvent::Show). */
+Dialog,
+Window,
+QMainWindow {
     background: ${surface.window};
 }
 
