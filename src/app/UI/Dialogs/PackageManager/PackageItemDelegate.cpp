@@ -4,11 +4,33 @@
 
 #include "PackageItemDelegate.h"
 
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/PackageManager/Models/PackageInfo.h>
 
 #include <QPainter>
 
 PackageItemDelegate::PackageItemDelegate(QObject *parent) : QStyledItemDelegate(parent) {
+}
+
+QColor PackageItemDelegate::titleColor(const QStyleOptionViewItem &option,
+                                       const bool selected) const {
+    const auto token = selected ? QStringLiteral("selection.text") : QStringLiteral("text.primary");
+    const auto color = ThemeManager::instance()->semanticColor(token);
+    if (color.isValid())
+        return color;
+    return selected ? option.palette.color(QPalette::HighlightedText)
+                    : option.palette.color(QPalette::Text);
+}
+
+QColor PackageItemDelegate::descColor(const QStyleOptionViewItem &option,
+                                      const bool selected) const {
+    const auto token =
+        selected ? QStringLiteral("selection.text") : QStringLiteral("text.secondary");
+    const auto color = ThemeManager::instance()->semanticColor(token);
+    if (color.isValid())
+        return color;
+    return selected ? option.palette.color(QPalette::HighlightedText)
+                    : option.palette.color(QPalette::PlaceholderText);
 }
 
 void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
@@ -56,15 +78,9 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     auto elidedVendorText = vendorMetrics.elidedText(vendor, Qt::ElideRight, vendorTextRectWidth);
     QPointF vendorTextPos = {contentRect.left(), descTextY + vendorMetrics.ascent()};
 
-    QColor colorTitle;
-    QColor colorDesc;
-    if (opt.state & QStyle::State_Selected) {
-        colorTitle = m_selectedPalette.colorTitle;
-        colorDesc = m_selectedPalette.colorDesc;
-    } else {
-        colorTitle = m_normalPalette.colorTitle;
-        colorDesc = m_normalPalette.colorDesc;
-    }
+    const bool selected = opt.state & QStyle::State_Selected;
+    const auto colorTitle = titleColor(option, selected);
+    const auto colorDesc = descColor(option, selected);
 
     // Draw title text
     painter->setPen(colorTitle);

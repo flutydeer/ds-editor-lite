@@ -15,6 +15,7 @@
 #include "UI/Dialogs/PackageManager/PackageFilterProxyModel.h"
 #include "UI/Dialogs/PackageManager/PackageItemDelegate.h"
 #include "UI/Dialogs/PackageManager/PackageListModel.h"
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/Support/StringUtils.h>
 
 #include <diffsinger/Bank/PackageValidator.h>
@@ -137,6 +138,11 @@ void PackageManagerDialog::initUi() {
 
     connect(leSearch, &QLineEdit::textChanged,
             proxyModel, &PackageFilterProxyModel::setFilterString);
+
+    // Repaint existing items so the delegate picks up the new theme colors
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, listView, [this] {
+        listView->viewport()->update();
+    });
 
     if (appStatus->inferEngineEnvStatus != AppStatus::ModuleStatus::Ready) {
         btnInstall->setEnabled(false);

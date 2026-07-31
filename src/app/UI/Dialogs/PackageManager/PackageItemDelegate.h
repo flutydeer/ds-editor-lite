@@ -19,18 +19,11 @@ public:
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override;
 
 private:
-    struct NormalPalette {
-        QColor colorTitle = {182, 183, 186};
-        QColor colorDesc = {182, 183, 186, 140};
-    };
+    // Text colors resolve from the current theme at paint time; the option
+    // palette is the fallback when the semantic token is unavailable.
+    QColor titleColor(const QStyleOptionViewItem &option, bool selected) const;
+    QColor descColor(const QStyleOptionViewItem &option, bool selected) const;
 
-    struct SelectedPalette {
-        QColor colorTitle = {155, 186, 255};
-        QColor colorDesc = {155, 186, 255};
-    };
-
-    NormalPalette m_normalPalette;
-    SelectedPalette m_selectedPalette;
     int m_titlePixelSize = 13;
     int m_descPixelSize = 12;
     double m_paddingLeft = 8;
