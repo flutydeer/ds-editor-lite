@@ -2,13 +2,13 @@
 
 #include <lite/Support/LogBus.h>
 #include "Model/AppOptions/AppOptions.h"
+#include <lite/GUI/Theme/ThemeManager.h>
 
 #include <QApplication>
 #include <QBrush>
 #include <QCheckBox>
 #include <QClipboard>
 #include <QCloseEvent>
-#include <QColor>
 #include <QComboBox>
 #include <QEvent>
 #include <QHBoxLayout>
@@ -74,17 +74,26 @@ QVariant LogWindowModel::data(const QModelIndex &index, const int role) const {
         }
     }
     if (role == Qt::ForegroundRole) {
+        // Level colors resolve from the current theme at query time; an
+        // invalid token keeps the view's default text color instead.
+        const auto &theme = ThemeManager::instance();
+        QColor color;
         switch (message.level) {
             case Log::Debug:
-                return QColor(0x69, 0xD1, 0xB8);
+                color = theme->semanticColor(QStringLiteral("status.success"));
+                break;
             case Log::Info:
-                return QColor(0x9B, 0xBA, 0xFF);
+                color = theme->semanticColor(QStringLiteral("status.info"));
+                break;
             case Log::Warning:
-                return QColor(0xDA, 0xB6, 0x69);
+                color = theme->semanticColor(QStringLiteral("status.warning"));
+                break;
             case Log::Error:
             case Log::Fatal:
-                return QColor(0xF7, 0xA1, 0x99);
+                color = theme->semanticColor(QStringLiteral("status.error"));
+                break;
         }
+        return color;
     }
     return {};
 }
@@ -156,6 +165,10 @@ void LogFilterProxyModel::setTagFilter(const QString &tag) {
 
 void LogFilterProxyModel::setSearchText(const QString &text) {
     m_searchText = text;
+    invalidateRowsFilter();
+}
+
+void LogFilterProxyModel::invalidateFilters() {
     invalidateRowsFilter();
 }
 
@@ -247,6 +260,13 @@ LogWindow::LogWindow(QWidget *parent) : Window(parent) {
     logFont.setFamilies({QStringLiteral("Cascadia Code"), QStringLiteral("Microsoft YaHei UI")});
     m_tableView->setFont(logFont);
     m_tableView->setObjectName("logTableView");
+
+    // Repaint existing rows so per-level colors pick up the new theme
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            [this](const QString &) {
+                m_proxyModel->invalidateFilters();
+                m_tableView->viewport()->update();
+            });
 
     // Scrolling away from the bottom pauses following; reaching the bottom resumes it.
     // The checkbox mirrors the state and can toggle it explicitly.

@@ -413,7 +413,8 @@ void SpeakerMixList::refreshComboBoxItems() {
             popupWidth = std::max(popupWidth, fontMetrics.horizontalAdvance(displayText) + 36);
 
             if (isUsedByOther) {
-                row.speakerComboBox->setItemData(i, QColor(255, 255, 255, 96), Qt::ForegroundRole);
+                // Disabled items keep the theme's disabled palette; the
+                // combobox popup QSS supplies normal/hover/selected colors.
                 if (auto *model =
                         qobject_cast<QStandardItemModel *>(row.speakerComboBox->model())) {
                     if (auto *item = model->item(i))

@@ -1,8 +1,26 @@
 /* ================================================== */
-/*  Windows (LogWindow)                               */
+/*  Windows (LogWindow, TaskWindow)                   */
 /* ================================================== */
 
 /* LogWindow */
 QTableView#logTableView {
     background: ${surface.sunken};
+}
+
+/* TaskWindow */
+QListWidget#taskList {
+    background: transparent;
+    border: none;
+    border-right: 1px solid ${border.subtle};
+    border-top: 1px solid ${border.subtle};
+    margin-bottom: 16px;
+    outline: 0px;
+}
+
+QListWidget#taskList::item:hover {
+    background: ${control.fill.hover};
+}
+
+QListWidget#taskList::item:selected {
+    background: ${selection.fill};
 }

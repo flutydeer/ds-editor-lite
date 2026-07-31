@@ -53,6 +53,8 @@ public:
     void setMinimumLevel(Log::LogLevel level);
     void setTagFilter(const QString &tag); // empty = all tags
     void setSearchText(const QString &text);
+    // Re-evaluate filters for all rows (used to refresh colors on theme change)
+    void invalidateFilters();
 
 protected:
     [[nodiscard]] bool filterAcceptsRow(int sourceRow,
