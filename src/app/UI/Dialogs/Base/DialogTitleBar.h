@@ -35,6 +35,8 @@ private:
     bool eventFilter(QObject *watched, QEvent *event) override;
     void setActiveStyle(bool active);
     void updateAnimationSettings();
+    // Tint the close button icon from the current theme (non-Windows only)
+    void rebuildCloseButtonIcon();
 
     QWidget *m_window;
     QLabel *m_lbTitle = nullptr;

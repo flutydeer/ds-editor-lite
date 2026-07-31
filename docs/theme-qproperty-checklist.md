@@ -128,6 +128,23 @@
 | iconOnColor | #9BBAFF |
 | iconOnDisabledColor | rgba(155, 186, 255, 102) |
 
+## lyricwrapview.qss
+
+### FillLyric--LyricWrapView
+| 属性 | lite-dark 值 |
+|---|---|
+| cellBackgroundBrush | `NoBrush` \| `${control.fill.hover}` \| `${selection.fill}` |
+| cellBorderPen | `${border.default},2` \| `${border.strong},2` \| `${selection.border},2` |
+| cellLyricPen | `${text.primary}` ×4 |
+| cellSyllablePen | `${text.primary}` \| `${accent.default}` \| `${status.warning}` \| `${status.error}` |
+| cellListSelectedFillBrush | `${selection.inactiveFill}` |
+| handleBackgroundBrush | `${border.default}` \| `${control.fill.hover}` \| `${accent.default}` |
+| splitterPen | `${border.strong},1` |
+
+复合值兼容旧格式 `r,g,b,a[,width]` 与单值 `#RRGGBB`/`#AARRGGBB`/`${token}`（token 由
+`ThemeColorResolver` 先行展开为十六进制字面量，`QssParser` 再做解析）。主题切换时
+`LyricWrapView::setStyleSheetContent()` 重新解析属性并重绘既有 cell/list/handle/splitter。
+
 ## popups.qss
 
 ### ToastWidget
@@ -293,4 +310,6 @@
 
 - **AppColorPalette 业务色**：轨道色、音符色、说话人色等按色号取值的业务语义色，走 `AppColorPalette` + JSON，不经 QSS；
 - **交互 alpha 档位**：悬停/按下/激活等状态透明度、动画插值端点保留在 C++，QSS 只提供基色；
-- **FillLyric 模块**：已有独立的 QssParser + `lyricwrapview-dark.qss` 通道。
+- **标题栏系统按钮**：Windows 使用 Segoe 字体字形；非 Windows 运行时由
+  `MainTitleBar`/`TabPanelTitleBar`/`DialogTitleBar` 用 `IconUtils` 把单色 SVG 按
+  `icon.primary`/`icon.disabled` 蒙版着色，主题与最大化/还原状态变化时统一重建；

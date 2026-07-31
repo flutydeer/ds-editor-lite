@@ -7,7 +7,10 @@
 
 Phase 3 已将时间线、轨道编辑器、钢琴卷帘/参数编辑器、混音台和对话框中的普通 QSS 颜色及
 `qproperty-*` 颜色属性接入本表。FillLyric 的复合字符串
-属性仍保留独立 QssParser 格式，待后续单独设计可替换协议。
+属性保留独立 QssParser 格式；Phase 4 起其 `qproperty-*` 复合值可直接使用 `${token}`
+占位符（由 `ThemeColorResolver` 展开为十六进制字面量后经 `QssParser` 解析），旧
+`r,g,b,a[,width]` 写法继续兼容。FillLyric 目前使用的 token 见
+`docs/theme-qproperty-checklist.md` 的 lyricwrapview.qss 一节。
 
 ## 第一轮审查结果
 
@@ -290,6 +293,11 @@ Mute/Solo 当前采用无描边组件契约。`control.border.*` 表示可使用
   对比度策略；
 - 自动生成 hover/pressed 的公式。v1 使用显式值，等深浅主题稳定后再评估 recipe 层；
 - Timeline 脉动过程中的中间色；主题只提供 low/high 端点。
+- **代码内硬编码色**：`PackageItemDelegate`（已改由 paint 时查询
+  `text.primary`/`text.secondary`/`selection.text`，回退到 option palette）、
+  `LogWindowModel::data()` 的级别色（查询 `status.success/info/warning/error`）、
+  SpeakerMix 下拉禁用项前景（改回主题 disabled palette）、QRhi 控件、12 色业务调色板
+  的动态前景等；此类颜色按本次修订在 `docs/theme-color-inventory.md` 中归类说明。
 
 ## 已确认的迁移原则
 

@@ -46,6 +46,8 @@ private:
     bool eventFilter(QObject *watched, QEvent *event) override;
     void setActiveStyle(bool active);
     void updateAnimationSettings();
+    // Tint the system button icons from the current theme (non-Windows only)
+    void rebuildSystemButtonIcons();
 
     QWidget *m_window;
     MainMenuView *m_menuView;

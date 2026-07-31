@@ -13,6 +13,8 @@
 #include <lite/History/HistoryManager.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ToolTipFilter.h>
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Utils/IconUtils.h>
 #include <lite/Support/SystemUtils.h>
 
 #include <QEvent>
@@ -75,13 +77,7 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
             m_btnClose->setText(ChromeClose);
             m_btnClose->setFont(font);
         } else {
-            constexpr auto icoSize = QSize(14, 14);
-            m_btnMin->setIconSize(icoSize);
-            m_btnMin->setIcon(QIcon(":svg/title-bar/minimize_16_filled_white.svg"));
-            m_btnMax->setIconSize(icoSize);
-            m_btnMax->setIcon(QIcon(":svg/title-bar/maximize_16_filled_white.svg"));
-            m_btnClose->setIconSize(icoSize);
-            m_btnClose->setIcon(QIcon(":svg/title-bar/close_16_filled_white.svg"));
+            rebuildSystemButtonIcons();
         }
 
 
@@ -124,6 +120,43 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
     connect(m_animation, &QVariantAnimation::valueChanged, this,
             [this](const QVariant &value) { m_opacityEffect->setOpacity(value.toDouble()); });
     initializeAnimation();
+
+    // Re-tint system button icons when the theme changes (non-Windows only)
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            [this](const QString &) {
+                if (!SystemUtils::isWindows())
+                    rebuildSystemButtonIcons();
+            });
+}
+
+void MainTitleBar::rebuildSystemButtonIcons() {
+    if (!m_btnMin || !m_btnMax || !m_btnClose)
+        return;
+
+    constexpr auto icoSize = QSize(14, 14);
+    const auto iconColor = ThemeManager::instance()->semanticColor(QStringLiteral("icon.primary"));
+    const auto disabledColor =
+        ThemeManager::instance()->semanticColor(QStringLiteral("icon.disabled"));
+
+    IconUtils::SvgIconColorPalette palette;
+    palette.normal = iconColor.isValid() ? iconColor : QColor(240, 240, 240);
+    palette.disabled = disabledColor.isValid() ? disabledColor : QColor(240, 240, 240, 102);
+    palette.active = palette.normal;
+    palette.selected = palette.normal;
+
+    m_btnMin->setIconSize(icoSize);
+    m_btnMin->setIcon(IconUtils::createTintedSvgIcon(":svg/title-bar/minimize_16_filled_white.svg",
+                                                     icoSize, palette));
+
+    const bool maximized = m_window && m_window->isMaximized();
+    const auto maximizePath = maximized ? QStringLiteral(":svg/title-bar/restore_16_filled_white.svg")
+                                        : QStringLiteral(":svg/title-bar/maximize_16_filled_white.svg");
+    m_btnMax->setIconSize(icoSize);
+    m_btnMax->setIcon(IconUtils::createTintedSvgIcon(maximizePath, icoSize, palette));
+
+    m_btnClose->setIconSize(icoSize);
+    m_btnClose->setIcon(
+        IconUtils::createTintedSvgIcon(":svg/title-bar/close_16_filled_white.svg", icoSize, palette));
 }
 
 MainMenuView *MainTitleBar::menuView() const {
@@ -173,8 +206,7 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
             if (SystemUtils::isWindows())
                 m_btnMax->setText(checked ? ChromeRestore : ChromeMaximize);
             else
-                m_btnMax->setIcon(checked ? QIcon(":svg/title-bar/restore_16_filled_white.svg")
-                                          : QIcon(":svg/title-bar/maximize_16_filled_white.svg"));
+                rebuildSystemButtonIcons();
         }
     } else if (event->type() == QEvent::WindowActivate)
         setActiveStyle(true);

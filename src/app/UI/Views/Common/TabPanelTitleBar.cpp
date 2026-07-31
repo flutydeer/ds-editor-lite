@@ -8,6 +8,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ToolTipFilter.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Utils/IconUtils.h>
 #include <lite/Support/SystemUtils.h>
 
@@ -60,6 +61,13 @@ TabPanelTitleBar::TabPanelTitleBar(QWidget *parent) : QWidget(parent) {
 
     m_animation = new QVariantAnimation(this);
     m_animation->setEasingCurve(QEasingCurve::OutCubic);
+
+    // Re-tint system button icons when the theme changes (non-Windows only)
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            [this](const QString &) {
+                if (!SystemUtils::isWindows() && m_btnMin)
+                    rebuildSystemButtonIcons();
+            });
 
     setContentsMargins({});
     initializeAnimation();
@@ -195,6 +203,37 @@ void TabPanelTitleBar::rebuildIcons() {
                                                           iconSize, actionPalette));
 }
 
+void TabPanelTitleBar::rebuildSystemButtonIcons() {
+    if (!m_btnMin || !m_btnMax || !m_btnClose)
+        return;
+
+    constexpr auto icoSize = QSize(14, 14);
+    const auto iconColor = ThemeManager::instance()->semanticColor(QStringLiteral("icon.primary"));
+    const auto disabledColor =
+        ThemeManager::instance()->semanticColor(QStringLiteral("icon.disabled"));
+
+    IconUtils::SvgIconColorPalette palette;
+    palette.normal = iconColor.isValid() ? iconColor : QColor(240, 240, 240);
+    palette.disabled = disabledColor.isValid() ? disabledColor : QColor(240, 240, 240, 102);
+    palette.active = palette.normal;
+    palette.selected = palette.normal;
+
+    m_btnMin->setIconSize(icoSize);
+    m_btnMin->setIcon(IconUtils::createTintedSvgIcon(":svg/title-bar/minimize_16_filled_white.svg",
+                                                     icoSize, palette));
+
+    const bool maximized = window() && window()->isMaximized();
+    const auto maximizePath =
+        maximized ? QStringLiteral(":svg/title-bar/restore_16_filled_white.svg")
+                  : QStringLiteral(":svg/title-bar/maximize_16_filled_white.svg");
+    m_btnMax->setIconSize(icoSize);
+    m_btnMax->setIcon(IconUtils::createTintedSvgIcon(maximizePath, icoSize, palette));
+
+    m_btnClose->setIconSize(icoSize);
+    m_btnClose->setIcon(
+        IconUtils::createTintedSvgIcon(":svg/title-bar/close_16_filled_white.svg", icoSize, palette));
+}
+
 QColor TabPanelTitleBar::iconColor() const {
     return m_iconColor;
 }
@@ -275,13 +314,7 @@ void TabPanelTitleBar::buildDetachedButtons(bool useNativeFrame) {
         m_btnClose->setText(ChromeClose);
         m_btnClose->setFont(font);
     } else {
-        constexpr auto icoSize = QSize(14, 14);
-        m_btnMin->setIconSize(icoSize);
-        m_btnMin->setIcon(QIcon(":svg/title-bar/minimize_16_filled_white.svg"));
-        m_btnMax->setIconSize(icoSize);
-        m_btnMax->setIcon(QIcon(":svg/title-bar/maximize_16_filled_white.svg"));
-        m_btnClose->setIconSize(icoSize);
-        m_btnClose->setIcon(QIcon(":svg/title-bar/close_16_filled_white.svg"));
+        rebuildSystemButtonIcons();
     }
 
     m_systemBtnLayout->addWidget(m_btnMin);
@@ -319,8 +352,7 @@ bool TabPanelTitleBar::eventFilter(QObject *watched, QEvent *event) {
             if (SystemUtils::isWindows())
                 m_btnMax->setText(checked ? ChromeRestore : ChromeMaximize);
             else
-                m_btnMax->setIcon(checked ? QIcon(":svg/title-bar/restore_16_filled_white.svg")
-                                          : QIcon(":svg/title-bar/maximize_16_filled_white.svg"));
+                rebuildSystemButtonIcons();
         }
     }
     return QWidget::eventFilter(watched, event);

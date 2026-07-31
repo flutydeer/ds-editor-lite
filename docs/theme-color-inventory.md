@@ -1,8 +1,10 @@
 # 主题颜色基线盘点
 
-> 状态：迁移前基线，统计对象为 `src/app/Resources/theme/lite-dark/*.qss`。数字保留为历史
+> 状态：迁移后审计。统计对象为 `src/app/Resources/theme/lite-dark/*.qss`。数字保留为历史
 > 快照，用于衡量迁移规模。Phase 3 已将领域 QSS 中的普通颜色和 `qproperty-*` 颜色属性
-> 迁移到 semantic token；FillLyric 的复合字符串属性仍由独立 QssParser 管理。
+> 迁移到 semantic token；FillLyric 的复合字符串属性由独立 QssParser 管理，自 Phase 4 起
+> 支持 `${token}` 占位符与旧 `r,g,b,a[,width]` 格式。Phase 4 另完成生产代码（`src/app` 与
+> `src/libs/GUI`）硬编码颜色复核，结果见下文「生产代码硬编码颜色审计」。
 
 ## 规模
 
@@ -47,4 +49,32 @@
   套到浅色主题。
 - Phase 3 后，主题 QSS 中除 `transparent` 等与主题无关的关键字外，不再保留普通十六进制
   或 `rgb/rgba` 颜色字面量；FillLyric 的 `cell*`、`handle*`、`splitterPen` 复合值暂不在此
-  规则内。
+  规则内（Phase 4 已全部改为 `${token}` 或单值字面量）。
+
+## 生产代码硬编码颜色审计（Phase 4）
+
+对 `src/app` 与 `src/libs/GUI` 生产代码中的颜色字面量逐项复核，剩余结果全部落入以下类别：
+
+### 本批次修复的主题绕过
+
+| 位置 | 处理 |
+|---|---|
+| `UI/Dialogs/PackageManager/PackageItemDelegate` | 删除固定 palette；普通标题/说明取 `text.primary`/`text.secondary`，选中前景取 `selection.text`，token 无效回退 `QStyleOptionViewItem::palette`；主题变化刷新列表 viewport |
+| `UI/Window/TaskWindow.cpp` | 删除局部 `setStyleSheet()`，内联边框/hover/selected 迁入两套 `windows.qss`（`border.subtle`/`control.fill.hover`/`selection.fill`） |
+| `UI/Window/LogWindow.cpp` | Debug/Info/Warning/Error/Fatal 改查 `status.success/info/warning/error`；`themeChanged` 后重绘既有行 |
+| `UI/Dialogs/SpeakerMix/SpeakerMixList.cpp` | 移除禁用下拉项的固定半透明白前景，改回主题 disabled palette |
+| `Modules/FillLyric/{Utils,QssParser,Controls}` | 复合解析器兼容 `${token}` 与旧格式；cell/handle/splitter 与整行选中底色全部 token 化；热切换重解析并重绘既有项 |
+| `MainTitleBar`/`TabPanelTitleBar`/`DialogTitleBar` | 非 Windows 分支用 `IconUtils` 按 `icon.primary`/`icon.disabled` 蒙版着色系统按钮 SVG；主题与最大化/还原变化时重建；Windows 字体字形路径不变 |
+
+### 明确不做修改的类别
+
+- **QRhi 控件**及其 shader/geometry/clear/overlay 颜色：由独立渲染主题工作处理；
+- **AppColorPalette**、两套 `app-color-palette.json`、轨道/音符/说话人 12 色，以及基于业务色
+  计算的对比前景（含 Timeline 调试叠层的四个业务分类色）；
+- **构造期回退值**：`SeekBar`/`SwitchButton`/`ProgressIndicator`/`LevelMeter`/`TimelineView`
+  正常状态、钢琴卷帘/参数编辑器等已在深浅 QSS 中逐项覆盖的 Q_PROPERTY 默认值，保留为
+  无主题时的安全回退；
+- **与主题无关**：`Qt::transparent`、字形 alpha 蒙版、图像缓存清空、`shadow.popup` 已覆盖的
+  阴影默认值、未使用的 AcrylicBrush 默认参数、测试/工具/第三方/品牌图标资源；
+- `DiscoverDiffScopeDialog` 的探索性样式与富文本颜色按本次修订明确不迁移。
+

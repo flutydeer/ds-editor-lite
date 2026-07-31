@@ -5,6 +5,8 @@
 #include "DialogTitleBar.h"
 
 #include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Utils/IconUtils.h>
 #include <lite/Support/SystemUtils.h>
 
 #include <QEvent>
@@ -38,9 +40,7 @@ DialogTitleBar::DialogTitleBar(QWidget *parent)
         m_btnClose->setText(ChromeClose);
         m_btnClose->setFont(font);
     } else {
-        constexpr auto icoSize = QSize(14, 14);
-        m_btnClose->setIconSize(icoSize);
-        m_btnClose->setIcon(QIcon(":svg/title-bar/close_16_filled_white.svg"));
+        rebuildCloseButtonIcon();
     }
 
     connect(m_btnClose, &Button::clicked, this, &DialogTitleBar::closeTriggered);
@@ -63,8 +63,35 @@ DialogTitleBar::DialogTitleBar(QWidget *parent)
             [this](const QVariant &value) { m_opacityEffect->setOpacity(value.toDouble()); });
     initializeAnimation();
 
+    // Re-tint the close icon when the theme changes (non-Windows only)
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            [this](const QString &) {
+                if (!SystemUtils::isWindows())
+                    rebuildCloseButtonIcon();
+            });
+
     if (m_window)
         m_window->installEventFilter(this);
+}
+
+void DialogTitleBar::rebuildCloseButtonIcon() {
+    if (!m_btnClose)
+        return;
+
+    constexpr auto icoSize = QSize(14, 14);
+    const auto iconColor = ThemeManager::instance()->semanticColor(QStringLiteral("icon.primary"));
+    const auto disabledColor =
+        ThemeManager::instance()->semanticColor(QStringLiteral("icon.disabled"));
+
+    IconUtils::SvgIconColorPalette palette;
+    palette.normal = iconColor.isValid() ? iconColor : QColor(240, 240, 240);
+    palette.disabled = disabledColor.isValid() ? disabledColor : QColor(240, 240, 240, 102);
+    palette.active = palette.normal;
+    palette.selected = palette.normal;
+
+    m_btnClose->setIconSize(icoSize);
+    m_btnClose->setIcon(
+        IconUtils::createTintedSvgIcon(":svg/title-bar/close_16_filled_white.svg", icoSize, palette));
 }
 
 Button *DialogTitleBar::closeButton() const {

@@ -54,6 +54,8 @@ private:
     void updateAnimationSettings();
     // Re-tint docked button icons from the current theme colors
     void rebuildIcons();
+    // Tint the detached-window system buttons from the current theme (non-Windows)
+    void rebuildSystemButtonIcons();
 
     // Theme color accessors (QSS-overridable via qproperty-*); setters
     // re-tint the already-generated icons
