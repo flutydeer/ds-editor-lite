@@ -1324,7 +1324,11 @@ public:
         } else if (interaction == Interaction::RectSelect) {
             rubberBandEnd = event->position();
             auto selected = rubberBandBaseSelection;
-            const auto selection = QRectF(rubberBandStart, rubberBandEnd).normalized();
+            auto selection = QRectF(rubberBandStart, rubberBandEnd).normalized();
+            if (editMode == IntervalSelect) {
+                selection.setTop(0.0);
+                selection.setBottom(q->height());
+            }
             for (const auto *note : clip->notes()) {
                 const QRectF rect(note->localStart() * pixelsPerTick() - cameraX,
                                   (127 - note->keyIndex()) * noteHeight * scaleY - cameraY,
@@ -2043,16 +2047,23 @@ private:
     void appendRubberBand() {
         if (interaction != Interaction::RectSelect)
             return;
-        const auto viewportRect = QRectF(rubberBandStart, rubberBandEnd).normalized();
+        auto viewportRect = QRectF(rubberBandStart, rubberBandEnd).normalized();
+        const auto intervalSelect = editMode == IntervalSelect;
+        if (intervalSelect) {
+            viewportRect.setTop(0.0);
+            viewportRect.setBottom(q->height());
+        }
         const auto sceneRect = viewportRect.translated(cameraX, cameraY);
         appendLogicalRect(sceneRect, QColor(155, 186, 255, 48));
         constexpr double borderWidth = 1.0;
         const auto border = QColor(155, 186, 255, 190);
-        appendLogicalRect(QRectF(sceneRect.left(), sceneRect.top(), sceneRect.width(), borderWidth),
-                          border);
-        appendLogicalRect(QRectF(sceneRect.left(), sceneRect.bottom() - borderWidth,
-                                 sceneRect.width(), borderWidth),
-                          border);
+        if (!intervalSelect) {
+            appendLogicalRect(
+                QRectF(sceneRect.left(), sceneRect.top(), sceneRect.width(), borderWidth), border);
+            appendLogicalRect(QRectF(sceneRect.left(), sceneRect.bottom() - borderWidth,
+                                     sceneRect.width(), borderWidth),
+                              border);
+        }
         appendLogicalRect(
             QRectF(sceneRect.left(), sceneRect.top(), borderWidth, sceneRect.height()), border);
         appendLogicalRect(QRectF(sceneRect.right() - borderWidth, sceneRect.top(), borderWidth,
@@ -2367,6 +2378,16 @@ void PianoRollRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
         }
         if (auto *note = d->noteAt(event->position())) {
             d->startLyricEdit(note);
+            event->accept();
+            return;
+        }
+        if (d->editMode == Select) {
+            d->interaction = Private::Interaction::Draw;
+            d->drawStart = d->snapLocalTick(d->localTickAt(event->position()));
+            d->drawEnd =
+                d->drawStart + TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+            d->drawKey = d->keyAt(event->position());
+            d->scheduleSnapshot();
             event->accept();
             return;
         }
