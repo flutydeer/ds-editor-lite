@@ -6,6 +6,7 @@
 #include "PronunciationView.h"
 #include "Controller/ClipController.h"
 #include "Global/AppGlobal.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/ITimelinePainter.h"
@@ -16,6 +17,7 @@
 #include "Modules/Inference/EditSessionManager.h"
 
 #include <lite/GUI/Controls/Menu.h>
+#include <lite/GUI/Controls/InlineTextEditOverlay.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -117,6 +119,8 @@ namespace {
 
 class PianoRollRhiWidget::Private {
 public:
+    enum class InlineEditField { None, Lyric, Pronunciation };
+
     struct AnchorDragInfo {
         AnchorNode *node = nullptr;
         AnchorCurve *sourceCurve = nullptr;
@@ -133,7 +137,20 @@ public:
         qDeleteAll(anchorCurves);
     }
 
+    void initializeInlineEditor() {
+        inlineEditor = new InlineTextEditOverlay(q);
+        QObject::connect(inlineEditor, &InlineTextEditOverlay::textSubmitted, q,
+                         [this](const QString &text) { submitInlineText(text); });
+        QObject::connect(inlineEditor, &InlineTextEditOverlay::navigationRequested, q,
+                         [this](const QString &text, const bool backwards) {
+                             navigateInlineText(text, backwards);
+                         });
+        QObject::connect(inlineEditor, &InlineTextEditOverlay::editCancelled, q,
+                         [this] { cancelInlineEdit(); });
+    }
+
     void setDataContext(SingingClip *newClip) {
+        finishInlineEditing();
         cancelPitchEdit();
         cancelAnchorEdit(false);
         if (clip)
@@ -342,6 +359,149 @@ public:
                 return note;
         }
         return nullptr;
+    }
+
+    QRectF noteViewportRect(const Note *note) const {
+        if (!note)
+            return {};
+        return {note->localStart() * pixelsPerTick() - cameraX,
+                (127 - note->keyIndex()) * noteHeight * scaleY - cameraY,
+                note->length() * pixelsPerTick(), noteHeight * scaleY};
+    }
+
+    Note *pronunciationAt(const QPointF &viewportPosition) const {
+        if (!clip)
+            return nullptr;
+        for (auto iterator = clip->notes().rbegin(); iterator != clip->notes().rend(); ++iterator) {
+            auto *note = *iterator;
+            const auto noteRect = noteViewportRect(note);
+            const QRectF pronunciationRect(noteRect.left(), noteRect.bottom(), noteRect.width(),
+                                           20.0);
+            if (pronunciationRect.contains(viewportPosition) &&
+                !note->pronunciation().result().isEmpty()) {
+                return note;
+            }
+        }
+        return nullptr;
+    }
+
+    QRect inlineAnchorRect(const QRectF &source) const {
+        const auto viewportRect = q->rect();
+        QRect anchorRect = source.toAlignedRect();
+        const int width = std::min(viewportRect.width(), std::max(40, anchorRect.width()));
+        const int height = std::min(viewportRect.height(), std::max(20, anchorRect.height()));
+        anchorRect.setSize({width, height});
+        anchorRect.moveLeft(std::clamp(anchorRect.left(), 0, viewportRect.width() - width));
+        anchorRect.moveTop(std::clamp(anchorRect.top(), 0, viewportRect.height() - height));
+        return anchorRect;
+    }
+
+    void startLyricEdit(Note *note) {
+        if (!note || !inlineEditor)
+            return;
+        if (inlineEditField == InlineEditField::Lyric && inlineEditingNoteId == note->id() &&
+            inlineEditor->isEditing()) {
+            return;
+        }
+        finishInlineEditing();
+        inlineEditField = InlineEditField::Lyric;
+        inlineEditingNoteId = note->id();
+        QFont font = q->font();
+        font.setPixelSize(q->noteFontPixelSize());
+        const QVariantMap properties = {
+            {QStringLiteral("editRole"),          QStringLiteral("Lyric")},
+            {QStringLiteral("navigationEnabled"), true                   },
+        };
+        inlineEditor->showAt(inlineAnchorRect(noteViewportRect(note)), note->lyric(), font,
+                             properties);
+        scheduleSnapshot();
+    }
+
+    void startPronunciationEdit(Note *note) {
+        if (!note || !inlineEditor)
+            return;
+        if (inlineEditField == InlineEditField::Pronunciation &&
+            inlineEditingNoteId == note->id() && inlineEditor->isEditing()) {
+            return;
+        }
+        finishInlineEditing();
+        inlineEditField = InlineEditField::Pronunciation;
+        inlineEditingNoteId = note->id();
+        const auto noteRect = noteViewportRect(note);
+        const QRectF pronunciationRect(noteRect.left(), noteRect.bottom(), noteRect.width(), 20.0);
+        QFont font = q->font();
+        font.setPixelSize(q->noteFontPixelSize());
+        const auto pronunciation = note->pronunciation();
+        const auto text = pronunciation.isEdited() ? pronunciation.edited : pronunciation.original;
+        const QVariantMap properties = {
+            {QStringLiteral("editRole"), QStringLiteral("Pronunciation")},
+        };
+        inlineEditor->showAt(inlineAnchorRect(pronunciationRect), text, font, properties);
+        scheduleSnapshot();
+    }
+
+    void finishInlineEditing() {
+        if (inlineEditor && inlineEditor->isEditing())
+            inlineEditor->submit();
+    }
+
+    void cancelInlineEdit() {
+        inlineEditField = InlineEditField::None;
+        inlineEditingNoteId = -1;
+        scheduleSnapshot();
+    }
+
+    void submitInlineText(const QString &text) {
+        const auto field = inlineEditField;
+        const auto noteId = inlineEditingNoteId;
+        cancelInlineEdit();
+        if (!clip)
+            return;
+        const auto *note = clip->findNoteById(noteId);
+        if (!note)
+            return;
+        if (field == InlineEditField::Lyric) {
+            auto lyric = text.trimmed();
+            if (lyric.isEmpty())
+                lyric = appOptions->general()->defaultLyricForLanguage(note->language());
+            if (lyric != note->lyric())
+                clipController->onNoteLyricEdited(noteId, lyric);
+        } else if (field == InlineEditField::Pronunciation) {
+            const auto pronunciation = note->pronunciation();
+            const auto displayText =
+                pronunciation.isEdited() ? pronunciation.edited : pronunciation.original;
+            const auto editedText = text.trimmed();
+            if (editedText != displayText && editedText != pronunciation.edited)
+                clipController->onNotePronunciationEdited(noteId, editedText);
+        }
+    }
+
+    void navigateInlineText(const QString &text, const bool backwards) {
+        const auto currentId = inlineEditingNoteId;
+        submitInlineText(text);
+        if (!clip)
+            return;
+        QList<Note *> ordered;
+        for (auto *note : clip->notes())
+            ordered.append(note);
+        std::sort(ordered.begin(), ordered.end(), [](const Note *left, const Note *right) {
+            if (left->localStart() != right->localStart())
+                return left->localStart() < right->localStart();
+            if (left->keyIndex() != right->keyIndex())
+                return left->keyIndex() > right->keyIndex();
+            return left->id() < right->id();
+        });
+        const auto current =
+            std::find_if(ordered.begin(), ordered.end(),
+                         [currentId](const Note *note) { return note->id() == currentId; });
+        if (current == ordered.end())
+            return;
+        const auto index = static_cast<qsizetype>(std::distance(ordered.begin(), current));
+        const auto target = backwards ? index - 1 : index + 1;
+        if (target < 0 || target >= ordered.size())
+            return;
+        clipController->selectNotes({ordered.at(target)->id()}, true);
+        startLyricEdit(ordered.at(target));
     }
 
     int snapLocalTick(const double localTick) const {
@@ -1435,13 +1595,21 @@ private:
                 const QRectF scaledClip((rect.left() + 3.0) * dpr, rect.top() * dpr,
                                         std::max(0.0, rect.width() - 6.0) * dpr,
                                         rect.height() * dpr);
-                glyphAtlas.appendText(note->lyric(), font,
-                                      QPointF((rect.left() + 3.0) * dpr, (rect.top() + 1.0) * dpr),
-                                      foreground, scaledClip);
+                const auto editingLyric =
+                    inlineEditField == InlineEditField::Lyric && inlineEditingNoteId == note->id();
+                if (!editingLyric) {
+                    glyphAtlas.appendText(
+                        note->lyric(), font,
+                        QPointF((rect.left() + 3.0) * dpr, (rect.top() + 1.0) * dpr), foreground,
+                        scaledClip);
+                }
 
                 const auto pronunciation = note->pronunciation();
                 const auto pronunciationText = pronunciation.result();
-                if (!pronunciationText.isEmpty()) {
+                const auto editingPronunciation =
+                    inlineEditField == InlineEditField::Pronunciation &&
+                    inlineEditingNoteId == note->id();
+                if (!pronunciationText.isEmpty() && !editingPronunciation) {
                     const auto pronunciationColor = pronunciation.isEdited()
                                                         ? palette->phonemeEdited(trackColorIndex)
                                                         : q->pronunciationTextColor();
@@ -1934,12 +2102,16 @@ public:
     QColor barLineColor{86, 90, 98};
     QColor beatLineColor{62, 66, 73};
     QColor commonLineColor{47, 50, 56};
+    InlineTextEditOverlay *inlineEditor = nullptr;
+    InlineEditField inlineEditField = InlineEditField::None;
+    int inlineEditingNoteId = -1;
 };
 
 PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     : EditorRhiWidget(QStringLiteral("PianoRollRhi"), parent), d(std::make_unique<Private>(this)) {
     setObjectName(QStringLiteral("PianoRollRhiWidget"));
     setMouseTracking(true);
+    d->initializeInlineEditor();
     connect(this, &EditorRhiWidget::backendFailed, this,
             [this](const QString &) { d->requestFallback(); });
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, this,
@@ -2015,6 +2187,7 @@ bool PianoRollRhiWidget::revealFocus(const HistoryFocus &focus, bool) {
 
 void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
     if (d->editMode != mode) {
+        d->finishInlineEditing();
         d->cancelPitchEdit();
         if (d->editMode == EditPitchAnchor)
             d->cancelAnchorEdit();
@@ -2100,6 +2273,22 @@ void PianoRollRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
         d->scheduleSnapshot();
         event->accept();
         return;
+    }
+    const auto supportsInlineEditing =
+        d->editMode == Select || d->editMode == IntervalSelect || d->editMode == DrawNote;
+    if (d->clip && supportsInlineEditing && event->button() == Qt::LeftButton) {
+        d->interaction = Private::Interaction::None;
+        d->interactionNoteId = -1;
+        if (auto *note = d->pronunciationAt(event->position())) {
+            d->startPronunciationEdit(note);
+            event->accept();
+            return;
+        }
+        if (auto *note = d->noteAt(event->position())) {
+            d->startLyricEdit(note);
+            event->accept();
+            return;
+        }
     }
     EditorRhiWidget::mouseDoubleClickEvent(event);
 }
