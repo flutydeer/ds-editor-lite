@@ -138,9 +138,9 @@
         "toast.background": "#E6FFFFFF",
         "toast.border": "{neutral.black16}",
         "toast.text": "{text.emphasis}",
-        "tooltip.background": "{neutral.900}",
-        "tooltip.border": "{neutral.750}",
-        "tooltip.text": "{neutral.50}",
+        "tooltip.background": "{neutral.0}",
+        "tooltip.border": "{neutral.300}",
+        "tooltip.text": "{text.primary}",
 
         "toolButton.fill.checked": "{neutral.black12}",
         "toolButton.fill.checkedHover": "{neutral.black16}",
