@@ -153,6 +153,7 @@ public:
         finishInlineEditing();
         cancelPitchEdit();
         cancelAnchorEdit(false);
+        clearSplitPreview();
         if (clip)
             QObject::disconnect(clip, nullptr, q, nullptr);
 
@@ -359,6 +360,45 @@ public:
                 return note;
         }
         return nullptr;
+    }
+
+    void clearSplitPreview() {
+        if (splitPreviewNoteId < 0)
+            return;
+        splitPreviewNoteId = -1;
+        splitPreviewTick = 0;
+        scheduleSnapshot();
+    }
+
+    void updateSplitPreview(const QPointF &viewportPosition) {
+        if (!clip || editMode != SplitNote) {
+            clearSplitPreview();
+            return;
+        }
+
+        auto *note = noteAt(viewportPosition);
+        if (!note) {
+            clearSplitPreview();
+            return;
+        }
+
+        const auto quantizedTickLength =
+            TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+        const auto globalTick = localTickAt(viewportPosition) + clip->start();
+        const auto snappedGlobalTick =
+            TimelineSnapUtils::snapNearest(globalTick, quantizedTickLength, appModel->timeline());
+        const auto snappedLocalTick = snappedGlobalTick - clip->start();
+        const auto noteEnd = note->localStart() + note->length();
+        if (snappedLocalTick <= note->localStart() || snappedLocalTick >= noteEnd) {
+            clearSplitPreview();
+            return;
+        }
+
+        if (splitPreviewNoteId == note->id() && splitPreviewTick == snappedLocalTick)
+            return;
+        splitPreviewNoteId = note->id();
+        splitPreviewTick = snappedLocalTick;
+        scheduleSnapshot();
     }
 
     QRectF noteViewportRect(const Note *note) const {
@@ -1201,9 +1241,11 @@ public:
             return;
         }
         if (editMode == SplitNote) {
-            if (note)
-                PianoRollGraphicsViewHelper::splitNote(
-                    note->id(), qRound(localTickAt(event->position())) + clip->start());
+            updateSplitPreview(event->position());
+            if (note && splitPreviewNoteId == note->id())
+                PianoRollGraphicsViewHelper::splitNote(note->id(),
+                                                       splitPreviewTick + clip->start());
+            clearSplitPreview();
             return;
         }
         if (editMode == DrawNote && !note) {
@@ -1266,6 +1308,10 @@ public:
         if (editMode == EditPitchAnchor) {
             anchorCursorInView = true;
             mouseMoveAnchor(event);
+            return;
+        }
+        if (editMode == SplitNote) {
+            updateSplitPreview(event->position());
             return;
         }
         if (pitchEditing) {
@@ -1389,6 +1435,7 @@ public:
             appendClipMask(localStart, localEnd, sceneTop, sceneBottom);
             appendPlaybackIndicators(sceneTop, sceneBottom);
             appendRubberBand();
+            appendSplitPreview();
         }
         EditorRhiFrameData frame;
         frame.clearColor = q->whiteKeyColor();
@@ -2013,6 +2060,35 @@ private:
                           border);
     }
 
+    void appendSplitPreview() {
+        if (editMode != SplitNote || splitPreviewNoteId < 0 || !clip)
+            return;
+        const auto *note = clip->findNoteById(splitPreviewNoteId);
+        if (!note || splitPreviewTick <= note->localStart() ||
+            splitPreviewTick >= note->localStart() + note->length()) {
+            return;
+        }
+
+        constexpr double extensionLength = 8.0;
+        constexpr double forkLength = 6.0;
+        constexpr double forkAngle = 45.0;
+        constexpr double lineWidth = 2.0;
+        const auto x = splitPreviewTick * pixelsPerTick();
+        const auto noteTop = (127 - note->keyIndex()) * noteHeight * scaleY;
+        const auto lineTop = noteTop - extensionLength;
+        const auto lineBottom = noteTop + noteHeight * scaleY + extensionLength;
+        const auto forkAngleRad = forkAngle * std::numbers::pi / 180.0;
+        const auto forkOffsetX = forkLength * std::sin(forkAngleRad);
+        const auto forkOffsetY = forkLength * std::cos(forkAngleRad);
+        const auto color = q->splitLineColor();
+
+        appendLine({x, lineTop}, {x, lineBottom}, lineWidth, color);
+        appendLine({x, lineTop}, {x - forkOffsetX, lineTop - forkOffsetY}, lineWidth, color);
+        appendLine({x, lineTop}, {x + forkOffsetX, lineTop - forkOffsetY}, lineWidth, color);
+        appendLine({x, lineBottom}, {x - forkOffsetX, lineBottom + forkOffsetY}, lineWidth, color);
+        appendLine({x, lineBottom}, {x + forkOffsetX, lineBottom + forkOffsetY}, lineWidth, color);
+    }
+
 public:
     void requestFallback() {
         if (fallbackRequested)
@@ -2043,6 +2119,8 @@ public:
     int drawEnd = 0;
     int drawKey = 60;
     int hoveredKey = -1;
+    int splitPreviewNoteId = -1;
+    int splitPreviewTick = 0;
     QPointF rubberBandStart;
     QPointF rubberBandEnd;
     QList<int> rubberBandBaseSelection;
@@ -2099,6 +2177,7 @@ public:
     QColor anchorSelectedColor{255, 205, 80};
     QColor anchorCurveColor{220, 220, 220};
     QColor anchorPreviewColor{120, 180, 255};
+    QColor splitLineColor{255, 100, 100};
     QColor barLineColor{86, 90, 98};
     QColor beatLineColor{62, 66, 73};
     QColor commonLineColor{47, 50, 56};
@@ -2191,6 +2270,8 @@ void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
         d->cancelPitchEdit();
         if (d->editMode == EditPitchAnchor)
             d->cancelAnchorEdit();
+        if (d->editMode == SplitNote)
+            d->clearSplitPreview();
         if (mode == EditPitchAnchor) {
             d->loadAnchorCurvesFromModel();
             d->anchorCursorInView = true;
@@ -2332,6 +2413,8 @@ void PianoRollRhiWidget::leaveEvent(QEvent *event) {
         d->showAnchorMergePreview = false;
         d->scheduleSnapshot();
     }
+    if (d->editMode == SplitNote)
+        d->clearSplitPreview();
     EditorRhiWidget::leaveEvent(event);
 }
 
@@ -2584,6 +2667,17 @@ QColor PianoRollRhiWidget::anchorPreviewColor() const {
 
 void PianoRollRhiWidget::setAnchorPreviewColor(const QColor &color) {
     d->anchorPreviewColor = color;
+    d->scheduleSnapshot();
+}
+
+QColor PianoRollRhiWidget::splitLineColor() const {
+    return d->splitLineColor;
+}
+
+void PianoRollRhiWidget::setSplitLineColor(const QColor &color) {
+    if (d->splitLineColor == color)
+        return;
+    d->splitLineColor = color;
     d->scheduleSnapshot();
 }
 

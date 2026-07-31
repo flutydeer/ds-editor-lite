@@ -170,7 +170,7 @@ PianoRollGraphicsView, PianoRollRhiWidget {
     qproperty-commonLineColor: ${editor.grid.subdivision};
 }
 
-PianoRollGraphicsView, PianoRollRhiWidget {
+PianoRollGraphicsView {
     qproperty-anchorColor: ${curve.anchor};
     qproperty-anchorSelectedColor: ${curve.anchorSelected};
     qproperty-anchorCurveColor: ${curve.anchor};
@@ -178,6 +178,14 @@ PianoRollGraphicsView, PianoRollRhiWidget {
     qproperty-splitLineColor: ${editor.splitLine};
     qproperty-paramGraduateColor: ${curve.guide};
     qproperty-paramBackgroundLayerColor: ${editor.canvasAlternate};
+}
+
+PianoRollRhiWidget {
+    qproperty-anchorColor: ${curve.anchor};
+    qproperty-anchorSelectedColor: ${curve.anchorSelected};
+    qproperty-anchorCurveColor: ${curve.anchor};
+    qproperty-anchorPreviewColor: ${curve.anchorSelected};
+    qproperty-splitLineColor: ${editor.splitLine};
 }
 
 PianoRollView>QLabel#lbNullClipTip {

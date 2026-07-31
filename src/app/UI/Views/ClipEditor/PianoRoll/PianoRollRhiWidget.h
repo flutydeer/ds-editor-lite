@@ -37,6 +37,7 @@ class PianoRollRhiWidget final : public EditorRhiWidget {
     Q_PROPERTY(QColor anchorSelectedColor READ anchorSelectedColor WRITE setAnchorSelectedColor)
     Q_PROPERTY(QColor anchorCurveColor READ anchorCurveColor WRITE setAnchorCurveColor)
     Q_PROPERTY(QColor anchorPreviewColor READ anchorPreviewColor WRITE setAnchorPreviewColor)
+    Q_PROPERTY(QColor splitLineColor READ splitLineColor WRITE setSplitLineColor)
     Q_PROPERTY(QColor barLineColor READ barLineColor WRITE setBarLineColor)
     Q_PROPERTY(QColor beatLineColor READ beatLineColor WRITE setBeatLineColor)
     Q_PROPERTY(QColor commonLineColor READ commonLineColor WRITE setCommonLineColor)
@@ -127,6 +128,8 @@ private:
     void setAnchorCurveColor(const QColor &color);
     QColor anchorPreviewColor() const;
     void setAnchorPreviewColor(const QColor &color);
+    QColor splitLineColor() const;
+    void setSplitLineColor(const QColor &color);
     QColor barLineColor() const;
     void setBarLineColor(const QColor &color);
     QColor beatLineColor() const;
