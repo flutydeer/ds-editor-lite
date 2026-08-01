@@ -5,6 +5,7 @@
 #ifndef DS_EDITOR_LITE_BASEINFERSTATE_H
 #define DS_EDITOR_LITE_BASEINFERSTATE_H
 
+#include <QPointer>
 #include <QState>
 
 class InferPipeline;
@@ -46,7 +47,7 @@ protected:
     virtual bool validateTaskResult(IInferTask *task, SingingClip *clip) = 0;
 
     InferPipeline &m_pipeline;
-    IInferTask *currentTask = nullptr;
+    QPointer<IInferTask> currentTask;
     int m_preparationEpoch = 0;
 
     QState *m_runningInferenceState;

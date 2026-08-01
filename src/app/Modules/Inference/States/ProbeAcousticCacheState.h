@@ -7,6 +7,7 @@
 
 #include "Modules/Inference/Tasks/InferAcousticCacheProbeTask.h"
 
+#include <QPointer>
 #include <QState>
 
 class InferPipeline;
@@ -31,7 +32,7 @@ private:
     void cancelCurrentTask();
 
     InferPipeline &m_pipeline;
-    InferAcousticCacheProbeTask *m_currentTask = nullptr;
+    QPointer<InferAcousticCacheProbeTask> m_currentTask;
 };
 
 #endif // DS_EDITOR_LITE_PROBEACOUSTICCACHESTATE_H
