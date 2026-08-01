@@ -7,12 +7,14 @@
 #include "PianoKeyboardView.h"
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
+#include "PianoRollContextMenuController.h"
 #include "PianoRollRhiWidget.h"
 #include "PhonemeView.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 #include "UI/Views/Common/TimelineView.h"
+#include "UI/Views/Common/EditorShortcutUtils.h"
 
 #include <QLabel>
 #include <QEvent>
@@ -24,6 +26,7 @@
 PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setMinimumHeight(128);
+    m_contextMenuController = new PianoRollContextMenuController(this);
 
     const auto useRhi = appOptions->developer()->editorRenderBackend ==
                         DeveloperOption::EditorRenderBackend::RhiExperimental;
@@ -101,6 +104,31 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
         connectRhiBackend();
     else
         connectLegacyBackend();
+    registerEditorShortcuts();
+}
+
+void PianoRollView::registerEditorShortcuts() {
+    using EditorShortcutUtils::add;
+    add(this, QKeySequence::Cut, m_contextMenuController,
+        &PianoRollContextMenuController::cutSelection);
+    add(this, QKeySequence::Copy, m_contextMenuController,
+        &PianoRollContextMenuController::copySelection);
+    add(this, QKeySequence::Paste, m_contextMenuController,
+        &PianoRollContextMenuController::pasteSelection);
+    add(this, QKeySequence::SelectAll, m_contextMenuController,
+        &PianoRollContextMenuController::selectAll);
+    const auto remove = [this] {
+        if (m_editMode == EditPitchAnchor) {
+            if (m_rhiView)
+                m_rhiView->deleteSelectedAnchors();
+            else if (m_graphicsView)
+                m_graphicsView->deleteSelectedAnchors();
+        } else {
+            m_contextMenuController->deleteSelection();
+        }
+    };
+    add(this, QKeySequence::Delete, this, remove);
+    add(this, QKeySequence(Qt::Key_Backspace), this, remove);
 }
 
 void PianoRollView::createLegacyBackend() {
@@ -125,6 +153,10 @@ void PianoRollView::connectLegacyBackend() {
             });
     connect(m_graphicsView->horizontalScrollBar(), &QScrollBar::valueChanged, this,
             &PianoRollView::horizontalBarValueChanged);
+    connect(m_graphicsView, &PianoRollGraphicsView::contextMenuRequested, this,
+            [this](const PianoRollMenuContext &context) {
+                m_contextMenuController->showMenu(context, m_clip, m_graphicsView, m_graphicsView);
+            });
 }
 
 void PianoRollView::connectRhiBackend() {
@@ -143,6 +175,10 @@ void PianoRollView::connectRhiBackend() {
             &PianoRollView::horizontalBarValueChanged);
     connect(m_rhiView, &PianoRollRhiWidget::backendUnavailable, this,
             &PianoRollView::fallbackToLegacy);
+    connect(m_rhiView, &PianoRollRhiWidget::contextMenuRequested, this,
+            [this](const PianoRollMenuContext &context) {
+                m_contextMenuController->showMenu(context, m_clip, m_rhiView, m_rhiView);
+            });
 }
 
 void PianoRollView::fallbackToLegacy() {

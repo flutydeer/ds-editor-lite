@@ -1,9 +1,10 @@
 #include "TrackEditorContextMenuController.h"
 
 #include "Controller/TrackController.h"
+#include "Controller/PlaybackController.h"
 #include "Global/ControllerGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Model/ClipboardDataModel/ClipsInfo.h"
+#include "Model/ClipboardDataModel/DecodedClipboardPayload.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Extractors/MidiExtractController.h"
 
@@ -30,14 +31,6 @@
 
 namespace {
 
-    struct DecodedClipsPayload {
-        ClipsInfo info;
-
-        ~DecodedClipsPayload() {
-            qDeleteAll(info.clips);
-        }
-    };
-
     std::shared_ptr<DecodedClipsPayload> decodeClipboardClips() {
         const auto *mimeData = QGuiApplication::clipboard()->mimeData();
         const auto format = ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip);
@@ -49,9 +42,8 @@ namespace {
         if (error.error != QJsonParseError::NoError || !document.isObject())
             return {};
 
-        auto payload = std::make_shared<DecodedClipsPayload>();
-        payload->info = ClipsInfo::deserializeFromJson(document.object());
-        if (payload->info.clips.isEmpty())
+        auto payload = std::make_shared<DecodedClipsPayload>(document.object());
+        if (payload->isEmpty())
             return {};
         return payload;
     }
@@ -126,7 +118,7 @@ void TrackEditorContextMenuController::showMenu(const TrackEditorMenuContext &co
             IconUtils::menuIcon(QStringLiteral(":/svg/icons/clipboard_paste_16_regular.svg")));
         paste->setEnabled(payload != nullptr);
         if (payload) {
-            const auto previewData = makePreviewData(payload->info);
+            const auto previewData = makePreviewData(payload->info());
             const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
             const auto previewTick =
                 TimelineSnapUtils::snapNearest(context.rawTick, quantize, appModel->timeline());
@@ -138,7 +130,7 @@ void TrackEditorContextMenuController::showMenu(const TrackEditorMenuContext &co
                         }
                     });
             connect(paste, &QAction::triggered, this, [payload, context] {
-                trackController->pasteClips(payload->info, context.rawTick, context.trackIndex);
+                trackController->pasteClips(payload->info(), context.rawTick, context.trackIndex);
             });
         }
         for (auto *action : menu.actions()) {
@@ -179,18 +171,18 @@ void TrackEditorContextMenuController::showMenu(const TrackEditorMenuContext &co
 
         auto *cut = menu.addAction(tr("Cu&t"));
         cut->setIcon(IconUtils::menuIcon(QStringLiteral(":/svg/icons/cut_16_regular.svg")));
-        connect(cut, &QAction::triggered, trackController, &TrackController::cutSelectedClips);
+        connect(cut, &QAction::triggered, this, &TrackEditorContextMenuController::cutSelection);
 
         auto *copy = menu.addAction(tr("&Copy"));
         copy->setIcon(IconUtils::menuIcon(QStringLiteral(":/svg/icons/copy_16_regular.svg")));
-        connect(copy, &QAction::triggered, trackController, &TrackController::copySelectedClips);
+        connect(copy, &QAction::triggered, this, &TrackEditorContextMenuController::copySelection);
 
         auto *remove = menu.addAction(tr("&Delete"));
         remove->setIcon(IconUtils::menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
         const auto selectedIds = context.selectedClipIds.isEmpty() ? QList<int>{context.clipId}
                                                                    : context.selectedClipIds;
         connect(remove, &QAction::triggered, this,
-                [selectedIds] { trackController->onRemoveClips(selectedIds); });
+                [this, selectedIds] { deleteSelection(selectedIds); });
     }
 
     connect(&menu, &QMenu::aboutToHide, this, [previewHost] {
@@ -198,6 +190,44 @@ void TrackEditorContextMenuController::showMenu(const TrackEditorMenuContext &co
             previewHost->clearTrackPastePreview();
     });
     menu.exec(context.globalPos);
+}
+
+void TrackEditorContextMenuController::cutSelection() const {
+    trackController->cutSelectedClips();
+}
+
+void TrackEditorContextMenuController::copySelection() const {
+    trackController->copySelectedClips();
+}
+
+void TrackEditorContextMenuController::pasteSelection() const {
+    const auto payload = decodeClipboardClips();
+    if (!payload)
+        return;
+    auto trackIndex = appStatus->selectedTrackIndex.get();
+    if (trackIndex < 0)
+        trackIndex = 0;
+    if (trackIndex >= appModel->tracks().size())
+        return;
+    trackController->pasteClips(payload->info(), qRound(playbackController->position()),
+                                trackIndex);
+}
+
+void TrackEditorContextMenuController::deleteSelection(const QList<int> &clipIds) const {
+    const auto ids = clipIds.isEmpty() ? appStatus->selectedClips.get() : clipIds;
+    if (!ids.isEmpty())
+        trackController->onRemoveClips(ids);
+}
+
+void TrackEditorContextMenuController::selectAll() const {
+    QList<int> ids;
+    for (const auto *track : appModel->tracks()) {
+        for (const auto *clip : track->clips())
+            ids.append(clip->id());
+    }
+    appStatus->selectedClips = ids;
+    if (!ids.isEmpty())
+        trackController->setActiveClip(ids.first());
 }
 
 void TrackEditorContextMenuController::insertAudioClip(const int trackIndex, const int tick) const {

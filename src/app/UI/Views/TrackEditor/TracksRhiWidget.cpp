@@ -411,11 +411,6 @@ void TracksRhiWidget::keyPressEvent(QKeyEvent *event) {
         event->accept();
         return;
     }
-    if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
-        trackController->onRemoveClips(appStatus->selectedClips.get());
-        event->accept();
-        return;
-    }
     EditorRhiWidget::keyPressEvent(event);
 }
 

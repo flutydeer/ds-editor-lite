@@ -7,7 +7,6 @@
 class QKeyEvent;
 class QMouseEvent;
 class QHoverEvent;
-class QContextMenuEvent;
 class QPoint;
 class PianoRollGraphicsView;
 class PianoRollGraphicsViewPrivate;
@@ -52,10 +51,6 @@ public:
     }
 
     virtual void hoverMoveEvent(QHoverEvent *event) {
-        Q_UNUSED(event);
-    }
-
-    virtual void contextMenuEvent(QContextMenuEvent *event) {
         Q_UNUSED(event);
     }
 

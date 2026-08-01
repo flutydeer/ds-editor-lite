@@ -516,33 +516,33 @@ void MainMenuViewPrivate::initEditActions() {
     actionSelectAll = new QAction(tr("Select &all"), this);
     setMenuIcon(actionSelectAll, QStringLiteral(":/svg/icons/select_all_on_16_regular.svg"));
     actionSelectAll->setShortcut(QKeySequence("Ctrl+A"));
-    actionSelectAll->setShortcutContext(Qt::ApplicationShortcut);
+    actionSelectAll->setShortcutContext(Qt::WidgetShortcut);
     actionSelectAll->setEnabled(false);
     connect(actionSelectAll, &QAction::triggered, this, [this] { onSelectAll(); });
 
     actionDelete = new QAction(tr("&Delete"), this);
     setMenuIcon(actionDelete, QStringLiteral(":/svg/icons/delete_16_regular.svg"));
     actionDelete->setShortcut(Qt::Key_Delete);
-    actionDelete->setShortcutContext(Qt::ApplicationShortcut);
+    actionDelete->setShortcutContext(Qt::WidgetShortcut);
     actionDelete->setEnabled(false);
     connect(actionDelete, &QAction::triggered, this, [this] { onDelete(); });
 
     actionCut = new QAction(tr("Cu&t"), this);
     setMenuIcon(actionCut, QStringLiteral(":/svg/icons/cut_16_regular.svg"));
     actionCut->setShortcut(QKeySequence("Ctrl+X"));
-    actionCut->setShortcutContext(Qt::ApplicationShortcut);
+    actionCut->setShortcutContext(Qt::WidgetShortcut);
     connect(actionCut, &QAction::triggered, this, [this] { onCut(); });
 
     actionCopy = new QAction(tr("&Copy"), this);
     setMenuIcon(actionCopy, QStringLiteral(":/svg/icons/copy_16_regular.svg"));
     actionCopy->setShortcut(QKeySequence("Ctrl+C"));
-    actionCopy->setShortcutContext(Qt::ApplicationShortcut);
+    actionCopy->setShortcutContext(Qt::WidgetShortcut);
     connect(actionCopy, &QAction::triggered, this, [this] { onCopy(); });
 
     actionPaste = new QAction(tr("&Paste"), this);
     setMenuIcon(actionPaste, QStringLiteral(":/svg/icons/clipboard_paste_16_regular.svg"));
     actionPaste->setShortcut(QKeySequence("Ctrl+V"));
-    actionPaste->setShortcutContext(Qt::ApplicationShortcut);
+    actionPaste->setShortcutContext(Qt::WidgetShortcut);
     connect(actionPaste, &QAction::triggered, this, [this] { onPaste(); });
 
     actionOctaveUp = new QAction(tr("Move an octave up"), this);

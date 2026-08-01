@@ -33,6 +33,7 @@
 #include "AppContext.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/TimelineView.h"
+#include "UI/Views/Common/EditorShortcutUtils.h"
 
 #include <QFileDialog>
 #include <QMouseEvent>
@@ -161,6 +162,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
         connectRhiBackend();
     else
         connectLegacyBackend();
+    registerEditorShortcuts();
     connect(trackListHeader, &TrackListHeaderView::tempoLaneToggled, this,
             [this](const bool visible) {
                 m_tempoLaneHeader->setVisible(visible);
@@ -178,6 +180,22 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     connect(appModel, &AppModel::modelChanged, this, &TrackEditorView::onModelChanged);
     connect(appModel, &AppModel::trackChanged, this, &TrackEditorView::onTrackChanged);
     connect(appModel, &AppModel::trackMoved, this, &TrackEditorView::onTrackMoved);
+}
+
+void TrackEditorView::registerEditorShortcuts() {
+    using EditorShortcutUtils::add;
+    add(this, QKeySequence::Cut, m_contextMenuController,
+        &TrackEditorContextMenuController::cutSelection);
+    add(this, QKeySequence::Copy, m_contextMenuController,
+        &TrackEditorContextMenuController::copySelection);
+    add(this, QKeySequence::Paste, m_contextMenuController,
+        &TrackEditorContextMenuController::pasteSelection);
+    add(this, QKeySequence::SelectAll, m_contextMenuController,
+        &TrackEditorContextMenuController::selectAll);
+    add(this, QKeySequence::Delete, m_contextMenuController,
+        [this] { m_contextMenuController->deleteSelection(); });
+    add(this, QKeySequence(Qt::Key_Backspace), m_contextMenuController,
+        [this] { m_contextMenuController->deleteSelection(); });
 }
 
 TrackEditorView::~TrackEditorView() {

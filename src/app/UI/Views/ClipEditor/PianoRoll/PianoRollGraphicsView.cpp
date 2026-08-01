@@ -10,7 +10,7 @@
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsViewHelper.h"
 #include "PianoRollCoord.h"
-#include "PianoRollContextMenuBuilder.h"
+#include "PianoRollContextMenuController.h"
 #include "NoteInteractionController.h"
 #include "PianoRollSelectionModel.h"
 #include "PianoRollGraphicsView_p.h"
@@ -26,20 +26,16 @@
 #include "SelectNoteHandler.h"
 #include "SplitNoteHandler.h"
 #include "Controller/ClipController.h"
-#include "Controller/ClipboardController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/Actions/AppModel/Note/NoteActions.h"
 #include "Global/AppGlobal.h"
-#include "Global/ControllerGlobal.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/ProjectModel/AppModel/Note.h>
-#include "Model/ClipboardDataModel/NotesParamsInfo.h"
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
-#include "UI/Dialogs/Note/PhonemeEditorDialog.h"
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
 #include "UI/Views/Common/ScrollBarView.h"
 #include <lite/Support/Linq.h>
@@ -49,22 +45,16 @@
 #include <algorithm>
 #include <cmath>
 
-#include <QApplication>
-#include <QClipboard>
 #include <QDebug>
 #include <QElapsedTimer>
 #include <QGraphicsLineItem>
-#include <QMimeData>
 #include <QGraphicsPathItem>
 #include <QPainterPath>
 #include <QMouseEvent>
 #include <QKeyEvent>
-#include <QGuiApplication>
-#include <QJsonDocument>
 #include <QPaintEvent>
 #include <QScrollBar>
 #include <QShowEvent>
-#include <lite/GUI/Controls/Menu.h>
 
 namespace Helper = PianoRollGraphicsViewHelper;
 
@@ -268,18 +258,6 @@ void PianoRollGraphicsView::paintEvent(QPaintEvent *event) {
     }
 }
 
-bool PianoRollGraphicsViewPrivate::eventFilter(QObject *watched, QEvent *event) {
-    if (event->type() == QEvent::Leave) {
-        m_selectionModel->clearPastePreviewViews();
-    } else if (event->type() == QEvent::HoverMove) {
-        if (auto *menu = qobject_cast<QMenu *>(watched)) {
-            if (menu->activeAction() != m_pasteAction)
-                m_selectionModel->clearPastePreviewViews();
-        }
-    }
-    return QObject::eventFilter(watched, event);
-}
-
 bool PianoRollGraphicsView::event(QEvent *event) {
     Q_D(PianoRollGraphicsView);
     if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
@@ -300,43 +278,90 @@ bool PianoRollGraphicsView::event(QEvent *event) {
 
 void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     Q_D(PianoRollGraphicsView);
+    if (!d->m_clip)
+        return;
+
+    PianoRollMenuContext context;
+    context.globalPos = event->globalPos();
     if (d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote ||
         d->m_editMode == EraseNote || d->m_editMode == SplitNote) {
-        if (const auto noteView = d->noteViewAt(event->pos())) {
-            const auto note = d->m_clip->findNoteById(noteView->id());
+        const auto scenePos = mapToScene(event->pos());
+        context.globalTick = qRound(sceneXToTick(scenePos.x())) + d->m_offset;
+        context.keyIndex = 127 - qFloor(scenePos.y() / noteHeight);
+        if (auto *noteView = d->noteViewAt(event->pos())) {
+            if (!noteView->isSelected())
+                d->m_selectionModel->selectOnly(noteView);
+            const auto *note = d->m_clip->findNoteById(noteView->id());
             Q_ASSERT(note);
-            const auto selectedNoteIds = selectedNotesId();
-            const auto menu = PianoRollContextMenuBuilder::buildNoteContextMenu(
-                this, noteView, [d] { d->onDeleteSelectedNotes(); }, note->language(),
-                selectedNoteIds.count() == 1,
-                [selectedNoteIds](const QString &language) {
-                    clipController->onNoteLanguagesEdited(selectedNoteIds, language);
-                },
-                [d](const int noteId) { d->onOpenPhonemeEditor(noteId); });
-            menu->exec(event->globalPos());
+            context.target = PianoRollMenuContext::Target::Note;
+            context.noteId = noteView->id();
+            context.selectedNoteIds = selectedNotesId();
+            context.noteLanguage = note->language();
+            context.phonemeEditorEnabled = context.selectedNoteIds.size() == 1;
         } else {
-            const auto menu = PianoRollContextMenuBuilder::buildBackgroundContextMenu(
-                this, d->m_selectionModel, event->pos(), d->m_offset);
-            menu->installEventFilter(d);
-            d->m_pasteAction = nullptr;
-            for (auto action : menu->actions()) {
-                if (!action->isSeparator() && action->isEnabled()) {
-                    d->m_pasteAction = action;
-                    break;
-                }
-            }
-            menu->exec(event->globalPos());
-            d->m_selectionModel->clearPastePreviewViews();
-            d->m_pasteAction = nullptr;
+            context.target = PianoRollMenuContext::Target::Background;
         }
-        return;
+        emit contextMenuRequested(context);
+        event->accept();
     } else if (d->m_editMode == EditPitchAnchor) {
-        if (d->m_currentHandler)
-            d->m_currentHandler->contextMenuEvent(event);
-        return;
+        auto *handler = dynamic_cast<EditPitchAnchorHandler *>(d->m_currentHandler);
+        if (handler && handler->prepareMenuContext(event, context))
+            emit contextMenuRequested(context);
+        event->accept();
+    } else {
+        TimeGraphicsView::contextMenuEvent(event);
     }
+}
 
-    TimeGraphicsView::contextMenuEvent(event);
+void PianoRollGraphicsView::showPianoRollPastePreview(const PianoRollPastePreviewData &data,
+                                                      const int globalTick) {
+    Q_D(PianoRollGraphicsView);
+    if (!d->m_clip || !d->m_selectionModel->pastePreviewViews().isEmpty())
+        return;
+
+    const auto localStart = globalTick - d->m_offset;
+    for (const auto &note : data.notes) {
+        auto *noteView = new NoteView(-1);
+        noteView->setPronunciationView(new PronunciationView(-1));
+        noteView->setRStart(note.relativeStart + localStart);
+        noteView->setLength(note.length);
+        noteView->setKeyIndex(note.key);
+        noteView->setLyric(note.lyric);
+        noteView->setPronunciation(note.pronunciation, note.pronunciationEdited);
+        noteView->setOverlapped(note.overlapped);
+        noteView->setOpacity(0.35);
+        noteView->setAcceptedMouseButtons(Qt::NoButton);
+        noteView->setAcceptHoverEvents(false);
+        noteView->setFlag(QGraphicsItem::ItemIsSelectable, false);
+        if (noteView->pronunciationView())
+            noteView->pronunciationView()->setOpacity(0.35);
+
+        scene()->addCommonItem(noteView);
+        if (noteView->pronunciationView())
+            scene()->addCommonItem(noteView->pronunciationView());
+        d->m_selectionModel->appendPastePreviewView(noteView);
+    }
+}
+
+void PianoRollGraphicsView::clearPianoRollPastePreview() {
+    Q_D(PianoRollGraphicsView);
+    d->m_selectionModel->clearPastePreviewViews();
+}
+
+void PianoRollGraphicsView::setSelectedAnchorInterpolation(const PianoRollAnchorMode mode) {
+    Q_D(PianoRollGraphicsView);
+    if (auto *handler =
+            dynamic_cast<EditPitchAnchorHandler *>(d->m_handlers.value(EditPitchAnchor))) {
+        handler->setSelectedInterpolation(mode);
+    }
+}
+
+void PianoRollGraphicsView::deleteSelectedAnchors() {
+    Q_D(PianoRollGraphicsView);
+    if (auto *handler =
+            dynamic_cast<EditPitchAnchorHandler *>(d->m_handlers.value(EditPitchAnchor))) {
+        handler->deleteSelectedNodesFromMenu();
+    }
 }
 
 void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
@@ -1112,22 +1137,6 @@ void PianoRollGraphicsViewPrivate::onParamChanged(const ParamInfo::Name name,
         const auto pitchParam = m_clip->params.getParamByName(name);
         updatePitch(type, *pitchParam);
     }
-}
-
-void PianoRollGraphicsViewPrivate::onDeleteSelectedNotes() const {
-    Q_Q(const PianoRollGraphicsView);
-    const auto notes = q->selectedNotesId();
-    clipController->onRemoveNotes(notes);
-}
-
-void PianoRollGraphicsViewPrivate::onOpenPhonemeEditor(const int noteId) {
-    Q_Q(PianoRollGraphicsView);
-    const auto note = m_clip->findNoteById(noteId);
-    Q_ASSERT(note);
-    const auto dlg = new PhonemeEditorDialog(note, q);
-    connect(dlg, &PhonemeEditorDialog::accepted, this,
-            [=] { clipController->onNotePhonemesEdited(noteId, dlg->phonemeNames()); });
-    dlg->show();
 }
 
 void PianoRollGraphicsViewPrivate::onStartEditingNoteLyric(NoteView *noteView) {

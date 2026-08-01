@@ -9,12 +9,11 @@
 #include "PlaybackController.h"
 #include "TrackController.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Model/ClipboardDataModel/ClipsInfo.h"
-#include <lite/MusicBase/TimelineSnapUtils.h>
-
+#include "Model/ClipboardDataModel/DecodedClipboardPayload.h"
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QJsonDocument>
+#include <QJsonParseError>
 #include <QMimeData>
 
 ClipboardController::ClipboardController(QObject *parent)
@@ -37,27 +36,40 @@ void ClipboardController::cut() {
 
 void ClipboardController::paste() {
     const auto mimeData = QGuiApplication::clipboard()->mimeData();
+    if (!mimeData)
+        return;
     if (mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams))) {
         const auto array =
             mimeData->data(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams));
-        const auto json = QJsonDocument::fromJson(array);
-        const auto info = NotesParamsInfo::deserializeFromJson(json.object());
+        QJsonParseError error;
+        const auto json = QJsonDocument::fromJson(array, &error);
+        if (error.error != QJsonParseError::NoError || !json.isObject())
+            return;
+        const DecodedNotesPayload payload(json.object());
+        if (payload.isEmpty())
+            return;
         const auto tick = static_cast<int>(playbackController->position());
-        clipController->pasteNotesWithParams(info, tick);
+        clipController->pasteNotesWithParams(payload.info(), tick);
     } else if (mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip))) {
         const auto array =
             mimeData->data(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip));
-        const auto json = QJsonDocument::fromJson(array);
-        const auto info = ClipsInfo::deserializeFromJson(json.object());
+        QJsonParseError error;
+        const auto json = QJsonDocument::fromJson(array, &error);
+        if (error.error != QJsonParseError::NoError || !json.isObject())
+            return;
+        const DecodedClipsPayload payload(json.object());
+        if (payload.isEmpty())
+            return;
         const auto tick = static_cast<int>(playbackController->position());
         auto targetTrackIndex = appStatus->selectedTrackIndex.get();
         if (targetTrackIndex < 0)
             targetTrackIndex = 0;
-        trackController->pasteClips(info, tick, targetTrackIndex);
+        trackController->pasteClips(payload.info(), tick, targetTrackIndex);
     }
 }
 
-void ClipboardControllerPrivate::copyCutSelectedItems(const ControllerGlobal::ElemType type, const bool isCut) {
+void ClipboardControllerPrivate::copyCutSelectedItems(const ControllerGlobal::ElemType type,
+                                                      const bool isCut) {
     switch (type) {
         case ControllerGlobal::LoopStart:
             break;

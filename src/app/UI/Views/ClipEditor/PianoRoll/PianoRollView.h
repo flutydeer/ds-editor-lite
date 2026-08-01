@@ -14,6 +14,7 @@ class SingingClip;
 class PianoRollGraphicsScene;
 class PianoRollGraphicsView;
 class PianoRollRhiWidget;
+class PianoRollContextMenuController;
 class PianoKeyboardView;
 class QVBoxLayout;
 class QWheelEvent;
@@ -54,6 +55,7 @@ private:
     void connectLegacyBackend();
     void connectRhiBackend();
     void fallbackToLegacy();
+    void registerEditorShortcuts();
     [[nodiscard]] double startTick() const;
     [[nodiscard]] double endTick() const;
     [[nodiscard]] double topKeyIndex() const;
@@ -62,6 +64,7 @@ private:
     PianoRollGraphicsScene *m_scene = nullptr;
     PianoRollGraphicsView *m_graphicsView = nullptr;
     PianoRollRhiWidget *m_rhiView = nullptr;
+    PianoRollContextMenuController *m_contextMenuController = nullptr;
     QWidget *m_editorWidget = nullptr;
     PianoKeyboardView *m_keyboardView = nullptr;
     TimelineView *m_timelineView = nullptr;

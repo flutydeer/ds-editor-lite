@@ -41,8 +41,6 @@ public:
     enum class InlineEditField { None, Lyric, Pronunciation };
 
     explicit PianoRollGraphicsViewPrivate(PianoRollGraphicsView *p) : q_ptr(p) {};
-    bool eventFilter(QObject *watched, QEvent *event) override;
-
     SingingClip *m_clip = nullptr;
     int m_offset = 0;
     QList<Note *> m_notes;
@@ -66,7 +64,6 @@ public:
     InlineTextEditOverlay *m_inlineEditor = nullptr;
     InlineEditField m_inlineEditField = InlineEditField::None;
     int m_inlineEditingNoteId = -1;
-    QAction *m_pasteAction = nullptr;
     void restoreHandler();
 
     PianoRollEditMode m_editMode = Select;
@@ -110,8 +107,6 @@ public slots:
     void onNoteSelectionChanged();
     void onParamChanged(ParamInfo::Name name, Param::Type type) const;
 
-    void onDeleteSelectedNotes() const;
-    void onOpenPhonemeEditor(int noteId);
     void onStartEditingNoteLyric(NoteView *noteView);
     void finishInlineEditing();
     void onInlineTextSubmitted(const QString &text);

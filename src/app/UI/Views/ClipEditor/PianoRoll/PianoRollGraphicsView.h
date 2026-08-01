@@ -2,6 +2,7 @@
 #define PIANOROLLGRAPHICSVIEW_H
 
 #include "Interface/IAtomicAction.h"
+#include "PianoRollContextMenuController.h"
 #include <lite/History/HistoryFocus.h>
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
@@ -20,7 +21,10 @@ class PianoRollGraphicsViewPrivate;
 class QPaintEvent;
 class QShowEvent;
 
-class PianoRollGraphicsView final : public TimeGraphicsView, public IAtomicAction {
+class PianoRollGraphicsView final : public TimeGraphicsView,
+                                    public IAtomicAction,
+                                    public IPianoRollPastePreviewHost,
+                                    public IAnchorCommandHost {
     Q_OBJECT
     Q_PROPERTY(int noteFontPixelSize READ noteFontPixelSize WRITE setNoteFontPixelSize)
     Q_PROPERTY(QColor whiteKeyColor READ whiteKeyColor WRITE setWhiteKeyColor)
@@ -57,6 +61,11 @@ public:
     bool revealFocus(const HistoryFocus &focus);
     bool revealFocus(const HistoryFocus &focus, bool animated);
 
+    void showPianoRollPastePreview(const PianoRollPastePreviewData &data, int globalTick) override;
+    void clearPianoRollPastePreview() override;
+    void setSelectedAnchorInterpolation(PianoRollAnchorMode mode) override;
+    void deleteSelectedAnchors() override;
+
     void discardAction() override;
     void commitAction() override;
 
@@ -78,6 +87,7 @@ signals:
     void keyRangeChanged(double start, double end);
     void keyHovered(int keyIndex);
     void keyHoverCleared();
+    void contextMenuRequested(const PianoRollMenuContext &context);
 
 public slots:
     void onSceneSelectionChanged() const;

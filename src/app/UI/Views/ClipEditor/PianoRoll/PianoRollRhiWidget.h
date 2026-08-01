@@ -2,6 +2,7 @@
 #define PIANOROLLRHIWIDGET_H
 
 #include "Interface/EditorViewState.h"
+#include "PianoRollContextMenuController.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
 
@@ -17,7 +18,9 @@ class QResizeEvent;
 class QWheelEvent;
 class SingingClip;
 
-class PianoRollRhiWidget final : public EditorRhiWidget {
+class PianoRollRhiWidget final : public EditorRhiWidget,
+                                 public IPianoRollPastePreviewHost,
+                                 public IAnchorCommandHost {
     Q_OBJECT
     Q_PROPERTY(int noteFontPixelSize READ noteFontPixelSize WRITE setNoteFontPixelSize)
     Q_PROPERTY(QColor whiteKeyColor READ whiteKeyColor WRITE setWhiteKeyColor)
@@ -63,6 +66,10 @@ public:
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus, bool animated = true);
     void setEditMode(ClipEditorGlobal::PianoRollEditMode mode);
+    void showPianoRollPastePreview(const PianoRollPastePreviewData &data, int globalTick) override;
+    void clearPianoRollPastePreview() override;
+    void setSelectedAnchorInterpolation(PianoRollAnchorMode mode) override;
+    void deleteSelectedAnchors() override;
 
 public slots:
     void onWheelHorScale(QWheelEvent *event);
@@ -81,6 +88,7 @@ signals:
     void keyHovered(int keyIndex);
     void keyHoverCleared();
     void backendUnavailable();
+    void contextMenuRequested(const PianoRollMenuContext &context);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;

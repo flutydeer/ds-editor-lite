@@ -56,6 +56,11 @@ public:
     explicit TrackEditorContextMenuController(QWidget *owner);
 
     void showMenu(const TrackEditorMenuContext &context, ITrackPastePreviewHost *previewHost);
+    void cutSelection() const;
+    void copySelection() const;
+    void pasteSelection() const;
+    void deleteSelection(const QList<int> &clipIds = {}) const;
+    void selectAll() const;
 
 private:
     void insertAudioClip(int trackIndex, int tick) const;

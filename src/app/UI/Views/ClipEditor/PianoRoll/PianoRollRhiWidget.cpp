@@ -13,10 +13,8 @@
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
-#include "Global/ControllerGlobal.h"
 #include "Modules/Inference/EditSessionManager.h"
 
-#include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
@@ -28,18 +26,13 @@
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QEvent>
-#include <QActionGroup>
-#include <QClipboard>
 #include <QContextMenuEvent>
 #include <QFontMetricsF>
-#include <QGuiApplication>
 #include <QHash>
-#include <QJsonDocument>
 #include <QKeyEvent>
 #include <QLineF>
 #include <QMetaObject>
 #include <QMouseEvent>
-#include <QMimeData>
 #include <QPainter>
 #include <QResizeEvent>
 #include <QSet>
@@ -411,24 +404,18 @@ public:
         scheduleSnapshot();
     }
 
-    void setPastePreview(const NotesParamsInfo &info, const int globalTick) {
+    void setPastePreview(const PianoRollPastePreviewData &data, const int globalTick) {
         pastePreviewNotes.clear();
-        if (!clip || info.selectedNotes.isEmpty()) {
+        if (!clip || data.notes.isEmpty()) {
             scheduleSnapshot();
             return;
         }
 
-        auto minimumStart = info.selectedNotes.first()->localStart();
-        for (const auto *note : info.selectedNotes)
-            minimumStart = std::min(minimumStart, note->localStart());
         const auto localPreviewStart = globalTick - clip->start();
-        pastePreviewNotes.reserve(info.selectedNotes.size());
-        for (const auto *note : info.selectedNotes) {
-            const auto pronunciation = note->pronunciation();
-            pastePreviewNotes.append({note->localStart() - minimumStart + localPreviewStart,
-                                      note->length(), note->keyIndex(), note->lyric(),
-                                      pronunciation.result(), pronunciation.isEdited()});
-        }
+        pastePreviewNotes.reserve(data.notes.size());
+        for (const auto &note : data.notes)
+            pastePreviewNotes.append({note.relativeStart + localPreviewStart, note.length, note.key,
+                                      note.lyric, note.pronunciation, note.pronunciationEdited});
         scheduleSnapshot();
     }
 
@@ -1251,11 +1238,6 @@ public:
                 exitAnchorEditing();
             finishAnchorEditSession(EditSessionEndReason::Discard);
             scheduleSnapshot();
-            return true;
-        }
-        if ((event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) &&
-            !selectedAnchorNodes.isEmpty()) {
-            deleteSelectedAnchorNodes();
             return true;
         }
         return false;
@@ -2506,11 +2488,6 @@ void PianoRollRhiWidget::keyPressEvent(QKeyEvent *event) {
         event->accept();
         return;
     }
-    if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
-        clipController->onDeleteSelectedNotes();
-        event->accept();
-        return;
-    }
     EditorRhiWidget::keyPressEvent(event);
 }
 
@@ -2535,6 +2512,11 @@ void PianoRollRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
     if (!d->clip)
         return;
 
+    PianoRollMenuContext context;
+    context.globalPos = event->globalPos();
+    context.globalTick = qRound(d->localTickAt(event->pos())) + d->clip->start();
+    context.keyIndex = d->keyAt(event->pos());
+
     if (d->editMode == EditPitchAnchor) {
         auto *node = d->anchorNodeAt(event->pos());
         if (!node) {
@@ -2553,7 +2535,6 @@ void PianoRollRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
         }
         d->scheduleSnapshot();
 
-        Menu menu(this);
         const auto currentMode = d->selectedAnchorNodes.first()->interpMode();
         const auto allSame =
             std::all_of(d->selectedAnchorNodes.begin(), d->selectedAnchorNodes.end(),
@@ -2567,86 +2548,61 @@ void PianoRollRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
         };
         const auto allAreLast =
             std::all_of(d->selectedAnchorNodes.begin(), d->selectedAnchorNodes.end(), isLastNode);
-
-        auto *linear = menu.addAction(tr("Linear"));
-        linear->setCheckable(true);
-        linear->setChecked(allSame && currentMode == AnchorNode::Linear);
-        linear->setEnabled(!allAreLast);
-        connect(linear, &QAction::triggered, this, [this, isLastNode] {
-            for (auto *selected : d->selectedAnchorNodes) {
-                if (!isLastNode(selected))
-                    selected->setInterpMode(AnchorNode::Linear);
-            }
-            d->commitAnchorEdit();
-        });
-
-        auto *hermite = menu.addAction(tr("Hermite"));
-        hermite->setCheckable(true);
-        hermite->setChecked(allSame && currentMode == AnchorNode::Hermite);
-        hermite->setEnabled(!allAreLast);
-        connect(hermite, &QAction::triggered, this, [this, isLastNode] {
-            for (auto *selected : d->selectedAnchorNodes) {
-                if (!isLastNode(selected))
-                    selected->setInterpMode(AnchorNode::Hermite);
-            }
-            d->commitAnchorEdit();
-        });
-
-        auto *interpolationGroup = new QActionGroup(&menu);
-        interpolationGroup->setExclusive(true);
-        interpolationGroup->addAction(linear);
-        interpolationGroup->addAction(hermite);
-        if (!allSame) {
-            linear->setChecked(false);
-            hermite->setChecked(false);
-        }
-
-        menu.addSeparator();
-        auto *remove = menu.addAction(tr("Delete"));
-        connect(remove, &QAction::triggered, this, [this] { d->deleteSelectedAnchorNodes(); });
-        menu.exec(event->globalPos());
+        context.target = PianoRollMenuContext::Target::Anchor;
+        context.anchorInterpolationEnabled = !allAreLast;
+        context.anchorMode = !allSame                             ? PianoRollAnchorMode::Mixed
+                             : currentMode == AnchorNode::Linear  ? PianoRollAnchorMode::Linear
+                             : currentMode == AnchorNode::Hermite ? PianoRollAnchorMode::Hermite
+                                                                  : PianoRollAnchorMode::None;
+        emit contextMenuRequested(context);
         event->accept();
         return;
     }
 
-    Menu menu(this);
     if (auto *note = d->noteAt(event->pos())) {
         if (!appStatus->selectedNotes.get().contains(note->id()))
             appStatus->selectedNotes = QList<int>{note->id()};
-        auto *cut = menu.addAction(tr("Cut"));
-        connect(cut, &QAction::triggered, clipController,
-                &ClipController::cutSelectedNotesWithParams);
-        auto *copy = menu.addAction(tr("Copy"));
-        connect(copy, &QAction::triggered, clipController,
-                &ClipController::copySelectedNotesWithParams);
-        auto *split = menu.addAction(tr("Split Note"));
-        const auto splitTick = qRound(d->localTickAt(event->pos())) + d->clip->start();
-        connect(split, &QAction::triggered, this, [noteId = note->id(), splitTick] {
-            PianoRollGraphicsViewHelper::splitNote(noteId, splitTick);
-        });
-        auto *remove = menu.addAction(tr("Delete"));
-        connect(remove, &QAction::triggered, clipController,
-                &ClipController::onDeleteSelectedNotes);
+        context.target = PianoRollMenuContext::Target::Note;
+        context.noteId = note->id();
+        context.selectedNoteIds = appStatus->selectedNotes.get();
+        context.noteLanguage = note->language();
+        context.phonemeEditorEnabled = context.selectedNoteIds.size() == 1;
     } else {
-        const auto *mimeData = QGuiApplication::clipboard()->mimeData();
-        const auto format = ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams);
-        auto *paste = menu.addAction(tr("Paste"));
-        paste->setEnabled(mimeData && mimeData->hasFormat(format));
-        if (paste->isEnabled()) {
-            const auto info = NotesParamsInfo::deserializeFromJson(
-                QJsonDocument::fromJson(mimeData->data(format)).object());
-            const auto tick = qRound(d->localTickAt(event->pos())) + d->clip->start();
-            const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-            const auto previewTick =
-                TimelineSnapUtils::snapNearest(tick, quantize, appModel->timeline());
-            connect(paste, &QAction::hovered, this,
-                    [this, info, previewTick] { d->setPastePreview(info, previewTick); });
-            connect(paste, &QAction::triggered, this,
-                    [info, tick] { clipController->pasteNotesWithParams(info, tick); });
+        context.target = PianoRollMenuContext::Target::Background;
+    }
+    emit contextMenuRequested(context);
+    event->accept();
+}
+
+void PianoRollRhiWidget::showPianoRollPastePreview(const PianoRollPastePreviewData &data,
+                                                   const int globalTick) {
+    d->setPastePreview(data, globalTick);
+}
+
+void PianoRollRhiWidget::clearPianoRollPastePreview() {
+    d->clearPastePreview();
+}
+
+void PianoRollRhiWidget::setSelectedAnchorInterpolation(const PianoRollAnchorMode mode) {
+    if (mode != PianoRollAnchorMode::Linear && mode != PianoRollAnchorMode::Hermite)
+        return;
+    const auto targetMode =
+        mode == PianoRollAnchorMode::Linear ? AnchorNode::Linear : AnchorNode::Hermite;
+    bool changed = false;
+    for (auto *selected : d->selectedAnchorNodes) {
+        const auto *owner = d->findAnchorOwner(selected);
+        const auto nodes = owner ? owner->nodes().toList() : QList<AnchorNode *>();
+        if (!nodes.isEmpty() && nodes.last() != selected && selected->interpMode() != targetMode) {
+            selected->setInterpMode(targetMode);
+            changed = true;
         }
     }
-    connect(&menu, &QMenu::aboutToHide, this, [this] { d->clearPastePreview(); });
-    menu.exec(event->globalPos());
+    if (changed)
+        d->commitAnchorEdit();
+}
+
+void PianoRollRhiWidget::deleteSelectedAnchors() {
+    d->deleteSelectedAnchorNodes();
 }
 
 void PianoRollRhiWidget::onRhiReady() {

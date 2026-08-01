@@ -8,6 +8,7 @@
 #include "PianoRollGraphicsView_p.h"
 #include "PitchAnchorEditorView.h"
 #include "PitchEditorView.h"
+#include "PianoRollContextMenuController.h"
 
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
@@ -15,10 +16,8 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Controller/ClipController.h"
 #include "Modules/Inference/EditSessionManager.h"
-#include <lite/GUI/Controls/Menu.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
-#include <QActionGroup>
 #include <QContextMenuEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -255,7 +254,8 @@ void EditPitchAnchorHandler::mouseDoubleClickEvent(QMouseEvent *event) {
     triggerRepaint();
 }
 
-void EditPitchAnchorHandler::contextMenuEvent(QContextMenuEvent *event) {
+bool EditPitchAnchorHandler::prepareMenuContext(QContextMenuEvent *event,
+                                                PianoRollMenuContext &context) {
     const auto scenePos = q->mapToScene(event->pos());
     auto *node = anchorNodeAt(scenePos);
 
@@ -264,7 +264,7 @@ void EditPitchAnchorHandler::contextMenuEvent(QContextMenuEvent *event) {
             exitEditingState();
             triggerRepaint();
         }
-        return;
+        return false;
     }
 
     if (m_state.selectedNodes.size() <= 1 || !m_state.selectedNodes.contains(node)) {
@@ -274,64 +274,50 @@ void EditPitchAnchorHandler::contextMenuEvent(QContextMenuEvent *event) {
     }
     triggerRepaint();
 
-    auto *menu = new Menu(q);
-
-    const auto &curveNodes = m_state.currentCurve->nodes().toList();
-    auto *lastCurveNode = curveNodes.isEmpty() ? nullptr : curveNodes.last();
-
-    auto currentMode = m_state.selectedNodes.first()->interpMode();
-    bool allSame =
+    const auto currentMode = m_state.selectedNodes.first()->interpMode();
+    const auto allSame =
         std::all_of(m_state.selectedNodes.begin(), m_state.selectedNodes.end(),
                     [currentMode](AnchorNode *n) { return n->interpMode() == currentMode; });
+    const auto isLastNode = [this](AnchorNode *selected) {
+        const auto *owner = findOwnerCurve(selected);
+        const auto nodes = owner ? owner->nodes().toList() : QList<AnchorNode *>();
+        return !nodes.isEmpty() && nodes.last() == selected;
+    };
+    const auto allAreLast =
+        std::all_of(m_state.selectedNodes.begin(), m_state.selectedNodes.end(), isLastNode);
 
-    auto *linearAction = menu->addAction(QObject::tr("Linear"));
-    linearAction->setCheckable(true);
-    linearAction->setChecked(allSame && currentMode == AnchorNode::Linear);
-    QObject::connect(linearAction, &QAction::triggered, q, [this, lastCurveNode] {
-        for (auto *n : m_state.selectedNodes) {
-            if (n == lastCurveNode)
-                continue;
-            n->setInterpMode(AnchorNode::Linear);
+    context.target = PianoRollMenuContext::Target::Anchor;
+    context.globalPos = event->globalPos();
+    context.anchorInterpolationEnabled = !allAreLast;
+    context.anchorMode = !allSame                             ? PianoRollAnchorMode::Mixed
+                         : currentMode == AnchorNode::Linear  ? PianoRollAnchorMode::Linear
+                         : currentMode == AnchorNode::Hermite ? PianoRollAnchorMode::Hermite
+                                                              : PianoRollAnchorMode::None;
+    return true;
+}
+
+void EditPitchAnchorHandler::setSelectedInterpolation(const PianoRollAnchorMode mode) {
+    if (mode != PianoRollAnchorMode::Linear && mode != PianoRollAnchorMode::Hermite)
+        return;
+    const auto targetMode =
+        mode == PianoRollAnchorMode::Linear ? AnchorNode::Linear : AnchorNode::Hermite;
+    bool changed = false;
+    for (auto *node : m_state.selectedNodes) {
+        const auto *owner = findOwnerCurve(node);
+        const auto nodes = owner ? owner->nodes().toList() : QList<AnchorNode *>();
+        if (!nodes.isEmpty() && nodes.last() != node && node->interpMode() != targetMode) {
+            node->setInterpMode(targetMode);
+            changed = true;
         }
-        triggerRepaint();
-        commit();
-    });
-
-    auto *hermiteAction = menu->addAction(QObject::tr("Hermite"));
-    hermiteAction->setCheckable(true);
-    hermiteAction->setChecked(allSame && currentMode == AnchorNode::Hermite);
-    QObject::connect(hermiteAction, &QAction::triggered, q, [this, lastCurveNode] {
-        for (auto *n : m_state.selectedNodes) {
-            if (n == lastCurveNode)
-                continue;
-            n->setInterpMode(AnchorNode::Hermite);
-        }
-        triggerRepaint();
-        commit();
-    });
-
-    auto *interpGroup = new QActionGroup(menu);
-    interpGroup->setExclusive(true);
-    interpGroup->addAction(linearAction);
-    interpGroup->addAction(hermiteAction);
-    if (!allSame) {
-        linearAction->setChecked(false);
-        hermiteAction->setChecked(false);
     }
+    if (!changed)
+        return;
+    triggerRepaint();
+    commit();
+}
 
-    bool allAreLast = std::all_of(m_state.selectedNodes.begin(), m_state.selectedNodes.end(),
-                                  [lastCurveNode](AnchorNode *n) { return n == lastCurveNode; });
-    if (allAreLast) {
-        linearAction->setEnabled(false);
-        hermiteAction->setEnabled(false);
-    }
-
-    menu->addSeparator();
-
-    auto *deleteAction = menu->addAction(QObject::tr("Delete"));
-    QObject::connect(deleteAction, &QAction::triggered, q, [this] { deleteSelectedNodes(); });
-    menu->exec(event->globalPos());
-    menu->deleteLater();
+void EditPitchAnchorHandler::deleteSelectedNodesFromMenu() {
+    deleteSelectedNodes();
 }
 
 bool EditPitchAnchorHandler::keyPressEvent(QKeyEvent *event) {
@@ -340,10 +326,6 @@ bool EditPitchAnchorHandler::keyPressEvent(QKeyEvent *event) {
         editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
         appStatus->currentEditObject = AppStatus::EditObjectType::None;
         triggerRepaint();
-        return true;
-    }
-    if (event->key() == Qt::Key_Delete && !m_state.selectedNodes.isEmpty()) {
-        deleteSelectedNodes();
         return true;
     }
     return false;

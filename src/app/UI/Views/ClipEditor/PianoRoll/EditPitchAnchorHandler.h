@@ -13,6 +13,9 @@
 class AnchorNode;
 class AnchorCurve;
 class QMenu;
+class QContextMenuEvent;
+struct PianoRollMenuContext;
+enum class PianoRollAnchorMode;
 
 struct DragNodeInfo {
     AnchorNode *node = nullptr;
@@ -60,7 +63,6 @@ public:
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void hoverEnterEvent(QHoverEvent *event) override;
     void hoverLeaveEvent(QHoverEvent *event) override;
-    void contextMenuEvent(QContextMenuEvent *event) override;
     bool keyPressEvent(QKeyEvent *event) override;
 
     void commit() override;
@@ -73,6 +75,9 @@ public:
     void loadFromModel(const QList<AnchorCurve *> &curves);
 
     [[nodiscard]] const AnchorOverlayState &overlayState() const;
+    bool prepareMenuContext(QContextMenuEvent *event, PianoRollMenuContext &context);
+    void setSelectedInterpolation(PianoRollAnchorMode mode);
+    void deleteSelectedNodesFromMenu();
 
 private:
     AnchorOverlayState m_state;

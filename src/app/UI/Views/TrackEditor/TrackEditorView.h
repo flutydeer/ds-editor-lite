@@ -64,6 +64,7 @@ private:
     void connectLegacyBackend();
     void connectRhiBackend();
     void fallbackToLegacy();
+    void registerEditorShortcuts();
     void populateLegacyClipItems();
     [[nodiscard]] double activeScaleY() const;
 
