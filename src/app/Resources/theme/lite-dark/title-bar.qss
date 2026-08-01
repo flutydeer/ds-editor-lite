@@ -9,10 +9,12 @@ Button#CloseButton {
 
 Button#CloseButton:hover {
     background: ${window.closeButton.hover};
+    color: ${window.closeButton.foreground};
 }
 
 Button#CloseButton:pressed {
     background: ${window.closeButton.pressed};
+    color: ${window.closeButton.foreground};
 }
 
 Button#MaximizeButton:checked {
