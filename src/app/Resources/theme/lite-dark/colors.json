@@ -77,7 +77,7 @@
         "icon.disabled": "{neutral.white40}",
         "icon.onAccent": "{neutral.950}",
 
-        "border.subtle": "{neutral.800}",
+        "border.subtle": "{neutral.900}",
         "border.default": "{neutral.450}",
         "border.strong": "{neutral.400}",
         "border.focus": "{accent.500}",
@@ -228,7 +228,7 @@
         "speakerMix.emptyState.fill": "#DA1D1F26",
         "speakerMix.emptyState.text": "#DCDCDEE6",
 
-        "mix.fader.trackInactive": "#161616",
+        "mix.fader.trackInactive": "{neutral.900}",
 
         "button.mute.checked.foreground": "{feedback.error}",
         "button.mute.checked.fill": "#40FF9B9D",
