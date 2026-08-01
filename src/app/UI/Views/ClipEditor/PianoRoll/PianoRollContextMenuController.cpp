@@ -8,6 +8,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/ClipboardDataModel/DecodedClipboardPayload.h"
 #include "UI/Dialogs/Note/PhonemeEditorDialog.h"
+#include "UI/Views/Common/EditorMenuPreviewGuard.h"
 
 #include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Utils/IconUtils.h>
@@ -79,6 +80,7 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
         return;
 
     Menu menu(m_owner);
+    QAction *previewAction = nullptr;
     if (context.target == PianoRollMenuContext::Target::Anchor) {
         if (!anchorHost)
             return;
@@ -166,6 +168,7 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
     } else {
         const auto payload = decodeClipboardNotes();
         auto *paste = menu.addAction(tr("&Paste"));
+        previewAction = paste;
         paste->setIcon(
             IconUtils::menuIcon(QStringLiteral(":/svg/icons/clipboard_paste_16_regular.svg")));
         paste->setEnabled(payload != nullptr);
@@ -184,7 +187,7 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
         }
     }
 
-    connect(&menu, &QMenu::aboutToHide, this, [previewHost] {
+    new EditorMenuPreviewGuard(&menu, previewAction, [previewHost] {
         if (previewHost)
             previewHost->clearPianoRollPastePreview();
     });

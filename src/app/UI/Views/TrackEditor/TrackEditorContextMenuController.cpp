@@ -7,6 +7,7 @@
 #include "Model/ClipboardDataModel/DecodedClipboardPayload.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Extractors/MidiExtractController.h"
+#include "UI/Views/Common/EditorMenuPreviewGuard.h"
 
 #include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Utils/IconUtils.h>
@@ -98,6 +99,7 @@ void TrackEditorContextMenuController::showMenu(const TrackEditorMenuContext &co
         return;
 
     Menu menu(m_owner);
+    QAction *previewAction = nullptr;
     if (context.target == TrackEditorMenuContext::Target::Background) {
         auto *create = menu.addAction(tr("New singing clip"));
         create->setIcon(IconUtils::menuIcon(QStringLiteral(":/svg/icons/midi_clip_16_filled.svg")));
@@ -114,6 +116,7 @@ void TrackEditorContextMenuController::showMenu(const TrackEditorMenuContext &co
 
         const auto payload = decodeClipboardClips();
         auto *paste = menu.addAction(tr("&Paste"));
+        previewAction = paste;
         paste->setIcon(
             IconUtils::menuIcon(QStringLiteral(":/svg/icons/clipboard_paste_16_regular.svg")));
         paste->setEnabled(payload != nullptr);
@@ -132,14 +135,6 @@ void TrackEditorContextMenuController::showMenu(const TrackEditorMenuContext &co
             connect(paste, &QAction::triggered, this, [payload, context] {
                 trackController->pasteClips(payload->info(), context.rawTick, context.trackIndex);
             });
-        }
-        for (auto *action : menu.actions()) {
-            if (action != paste && !action->isSeparator()) {
-                connect(action, &QAction::hovered, this, [previewHost] {
-                    if (previewHost)
-                        previewHost->clearTrackPastePreview();
-                });
-            }
         }
     } else {
         if (context.target == TrackEditorMenuContext::Target::AudioClip) {
@@ -185,7 +180,7 @@ void TrackEditorContextMenuController::showMenu(const TrackEditorMenuContext &co
                 [this, selectedIds] { deleteSelection(selectedIds); });
     }
 
-    connect(&menu, &QMenu::aboutToHide, this, [previewHost] {
+    new EditorMenuPreviewGuard(&menu, previewAction, [previewHost] {
         if (previewHost)
             previewHost->clearTrackPastePreview();
     });
