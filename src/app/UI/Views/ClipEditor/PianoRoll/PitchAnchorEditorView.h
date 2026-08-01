@@ -5,12 +5,14 @@
 #ifndef PITCHANCHOREDITORVIEW_H
 #define PITCHANCHOREDITORVIEW_H
 
+#include "PitchDisplayStrategy.h"
 #include "UI/Views/Common/TimeOverlayView.h"
 
 #include <QColor>
 
 struct AnchorOverlayState;
 class AnchorNode;
+class QPainterPath;
 
 class PitchAnchorEditorView : public TimeOverlayView {
     Q_OBJECT
@@ -19,6 +21,7 @@ public:
     PitchAnchorEditorView();
 
     void setOverlayState(const AnchorOverlayState *state);
+    void setDisplayMode(PitchDisplayMode mode);
     [[nodiscard]] double valueToSceneY(double value) const;
     [[nodiscard]] double sceneYToValue(double y) const;
 
@@ -41,10 +44,11 @@ private:
     void drawDragPreviewCurve(QPainter *painter) const;
     void drawSelectionRect(QPainter *painter) const;
 
-    void interpolateSegment(QPainter *painter, AnchorNode *n1, AnchorNode *n2,
-                            AnchorNode *ref1, AnchorNode *ref2) const;
+    [[nodiscard]] QPainterPath interpolatedPath(const QList<AnchorNode *> &nodes,
+                                                double devicePixelRatio) const;
 
     const AnchorOverlayState *m_state = nullptr;
+    PitchDisplayMode m_displayMode = PitchDisplayMode::Final;
 
     // Base colors; state-dependent alphas (active/preview tiers) are applied in draw methods
     QColor m_anchorColor = {220, 220, 220};

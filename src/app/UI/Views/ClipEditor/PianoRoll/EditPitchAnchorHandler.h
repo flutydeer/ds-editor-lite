@@ -34,6 +34,7 @@ struct AnchorOverlayState {
     QList<AnchorNode *> selectedNodes;
     AnchorNode *hoveredNode = nullptr;
     QPointF previewPos;
+    int previewTick = 0;
     bool showPreview = false;
     AnchorCurve *previewCurve = nullptr;
 
