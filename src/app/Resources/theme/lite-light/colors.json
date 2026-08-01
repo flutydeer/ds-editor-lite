@@ -165,6 +165,7 @@
 
         "window.closeButton.hover": "#C42B1C",
         "window.closeButton.pressed": "#B32E1D",
+        "window.closeButton.foreground": "{neutral.0}",
 
         "playback.control.playingFill": "{accent.alpha25}",
         "playback.control.pausedFill": "#409A5A18",
