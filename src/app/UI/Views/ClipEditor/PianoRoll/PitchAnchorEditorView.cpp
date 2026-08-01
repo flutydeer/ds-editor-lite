@@ -377,6 +377,7 @@ QPainterPath PitchAnchorEditorView::interpolatedPath(const QList<AnchorNode *> &
     const auto dpr = std::max(1.0, devicePixelRatio);
     const auto visibleLeft = rect().left() - 2.0 / dpr;
     const auto visibleRight = rect().right() + 2.0 / dpr;
+    bool hasPoint = false;
     for (int i = 0; i < nodes.size() - 1; ++i) {
         const auto *firstNode = nodes.at(i);
         const auto *secondNode = nodes.at(i + 1);
@@ -395,10 +396,12 @@ QPainterPath PitchAnchorEditorView::interpolatedPath(const QList<AnchorNode *> &
             const auto tick = sceneXToTick(x + pos().x());
             const auto value = interpolator.evaluate(tick);
             const QPointF point(x, sceneYToItemY(valueToSceneY(value)));
-            if (path.isEmpty())
+            if (!hasPoint) {
                 path.moveTo(point);
-            else if (QLineF(path.currentPosition(), point).length() > 0.001)
+                hasPoint = true;
+            } else if (QLineF(path.currentPosition(), point).length() > 0.001) {
                 path.lineTo(point);
+            }
             return point.y();
         };
 
