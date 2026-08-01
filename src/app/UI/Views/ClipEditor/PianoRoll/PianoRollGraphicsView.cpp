@@ -177,6 +177,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     editPitchAnchorHandler->setContext(this, d);
     d->m_handlers.insert(EditPitchAnchor, editPitchAnchorHandler);
     d->m_anchorEditor->setOverlayState(&editPitchAnchorHandler->overlayState());
+    d->m_pitchEditor->setAnchorOverlayState(&editPitchAnchorHandler->overlayState());
     editPitchAnchorHandler->setAlwaysVisible(true);
 
     connect(scene, &QGraphicsScene::selectionChanged, this,
@@ -1033,6 +1034,14 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
 
     d->m_editMode = mode;
     d->m_currentHandler = d->m_handlers.value(mode, nullptr);
+
+    auto displayMode = PitchDisplayMode::Final;
+    if (mode == DrawPitch || mode == ErasePitch || mode == FreezePitch)
+        displayMode = PitchDisplayMode::Draw;
+    else if (mode == EditPitchAnchor)
+        displayMode = PitchDisplayMode::Anchor;
+    d->m_pitchEditor->setDisplayMode(displayMode);
+    d->m_anchorEditor->setDisplayMode(displayMode);
 
     if (d->m_currentHandler) {
         d->m_currentHandler->activate();

@@ -9,8 +9,10 @@
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include <lite/Support/MathUtils.h>
 
+#include <QLineF>
 #include <QPainter>
 #include <QSet>
+#include <algorithm>
 #include <cmath>
 
 PitchAnchorEditorView::PitchAnchorEditorView() {
@@ -20,6 +22,13 @@ PitchAnchorEditorView::PitchAnchorEditorView() {
 
 void PitchAnchorEditorView::setOverlayState(const AnchorOverlayState *state) {
     m_state = state;
+}
+
+void PitchAnchorEditorView::setDisplayMode(const PitchDisplayMode mode) {
+    if (m_displayMode == mode)
+        return;
+    m_displayMode = mode;
+    update();
 }
 
 QColor PitchAnchorEditorView::anchorColor() const {
@@ -112,10 +121,18 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
     constexpr double anchorRadius = 2.0;
     constexpr double hoverRadius = 6.0;
     QColor normalColor = m_anchorColor;
-    normalColor.setAlpha(active ? 255 : 80);
-    const QColor selectedColor = m_anchorSelectedColor;
     QColor curveColor = m_anchorCurveColor;
-    curveColor.setAlpha(active ? 200 : 60);
+    if (m_displayMode == PitchDisplayMode::Final) {
+        normalColor.setAlpha(std::min(normalColor.alpha(), 220));
+        curveColor.setAlpha(std::min(curveColor.alpha(), 180));
+    } else if (m_displayMode == PitchDisplayMode::Draw) {
+        normalColor.setAlpha(std::min(normalColor.alpha(), 80));
+        curveColor.setAlpha(std::min(curveColor.alpha(), 60));
+    } else {
+        normalColor.setAlpha(std::min(normalColor.alpha(), 255));
+        curveColor.setAlpha(std::min(curveColor.alpha(), 200));
+    }
+    const QColor selectedColor = m_anchorSelectedColor;
 
     auto drawNodeAt = [&](double x, double y, AnchorNode *node) {
         const bool isSelected = active && m_state->selectedNodes.contains(node);
@@ -173,13 +190,7 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
         painter->setPen(pen);
         painter->setBrush(Qt::NoBrush);
 
-        for (int i = 0; i < nodes.size() - 1; i++) {
-            auto *n1 = nodes[i];
-            auto *n2 = nodes[i + 1];
-            auto *ref1 = (i > 0) ? nodes[i - 1] : nullptr;
-            auto *ref2 = (i + 2 < nodes.size()) ? nodes[i + 2] : nullptr;
-            interpolateSegment(painter, n1, n2, ref1, ref2);
-        }
+        painter->drawPath(interpolatedPath(nodes, painter->device()->devicePixelRatioF()));
 
         for (auto *node : nodes) {
             const double x = tickToLocalX(node->pos());
@@ -250,13 +261,7 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
 
-    for (int i = 0; i < allNodes.size() - 1; i++) {
-        auto *n1 = allNodes[i];
-        auto *n2 = allNodes[i + 1];
-        auto *ref1 = (i > 0) ? allNodes[i - 1] : nullptr;
-        auto *ref2 = (i + 2 < allNodes.size()) ? allNodes[i + 2] : nullptr;
-        interpolateSegment(painter, n1, n2, ref1, ref2);
-    }
+    painter->drawPath(interpolatedPath(allNodes, painter->device()->devicePixelRatioF()));
 
     const double cx = tickToItemX(virtualNode.pos());
     const double cy = sceneYToItemY(valueToSceneY(virtualNode.value()));
@@ -287,13 +292,7 @@ void PitchAnchorEditorView::drawMergePreviewCurve(QPainter *painter) const {
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
 
-    for (int i = 0; i < allNodes.size() - 1; i++) {
-        auto *n1 = allNodes[i];
-        auto *n2 = allNodes[i + 1];
-        auto *ref1 = (i > 0) ? allNodes[i - 1] : nullptr;
-        auto *ref2 = (i + 2 < allNodes.size()) ? allNodes[i + 2] : nullptr;
-        interpolateSegment(painter, n1, n2, ref1, ref2);
-    }
+    painter->drawPath(interpolatedPath(allNodes, painter->device()->devicePixelRatioF()));
 }
 
 void PitchAnchorEditorView::drawDragPreviewCurve(QPainter *painter) const {
@@ -334,13 +333,7 @@ void PitchAnchorEditorView::drawDragPreviewCurve(QPainter *painter) const {
         if (allNodes.size() < 2)
             continue;
 
-        for (int i = 0; i < allNodes.size() - 1; i++) {
-            auto *n1 = allNodes[i];
-            auto *n2 = allNodes[i + 1];
-            auto *ref1 = (i > 0) ? allNodes[i - 1] : nullptr;
-            auto *ref2 = (i + 2 < allNodes.size()) ? allNodes[i + 2] : nullptr;
-            interpolateSegment(painter, n1, n2, ref1, ref2);
-        }
+        painter->drawPath(interpolatedPath(allNodes, painter->device()->devicePixelRatioF()));
 
         painter->setPen(Qt::NoPen);
         painter->setBrush(dragPreviewColor);
@@ -375,38 +368,53 @@ void PitchAnchorEditorView::drawSelectionRect(QPainter *painter) const {
     painter->drawRoundedRect(localRect, radius, radius);
 }
 
-void PitchAnchorEditorView::interpolateSegment(QPainter *painter, AnchorNode *n1, AnchorNode *n2,
-                                               AnchorNode *ref1, AnchorNode *ref2) const {
-    auto interp = AnchorCurve::createInterpolator(n1, n2, ref1, ref2);
-
-    const double startX = tickToItemX(n1->pos());
-    const double endX = tickToItemX(n2->pos());
-
+QPainterPath PitchAnchorEditorView::interpolatedPath(const QList<AnchorNode *> &nodes,
+                                                     const double devicePixelRatio) const {
     QPainterPath path;
-    bool first = true;
-    double prevLy = 0;
-    double step = 2.0;
-    const double dir = (endX < startX) ? -1.0 : 1.0;
-    double px = startX;
-    while ((dir > 0) ? (px <= endX) : (px >= endX)) {
-        const double tick = sceneXToTick(px + pos().x());
-        const double val = interp.evaluate(tick);
-        const double ly = sceneYToItemY(valueToSceneY(static_cast<int>(val)));
-        if (first) {
-            path.moveTo(px, ly);
-            first = false;
-        } else {
-            path.lineTo(px, ly);
-            double dy = std::abs(ly - prevLy);
-            step = (dy > 4.0) ? 0.5 : (dy > 2.0) ? 1.0 : 2.0;
+    if (nodes.size() < 2)
+        return path;
+
+    const auto dpr = std::max(1.0, devicePixelRatio);
+    const auto visibleLeft = rect().left() - 2.0 / dpr;
+    const auto visibleRight = rect().right() + 2.0 / dpr;
+    bool hasPoint = false;
+    for (int i = 0; i < nodes.size() - 1; ++i) {
+        const auto *firstNode = nodes.at(i);
+        const auto *secondNode = nodes.at(i + 1);
+        const auto segmentLeft = tickToItemX(firstNode->pos());
+        const auto segmentRight = tickToItemX(secondNode->pos());
+        const auto startX = std::max(segmentLeft, visibleLeft);
+        const auto endX = std::min(segmentRight, visibleRight);
+        if (endX < startX)
+            continue;
+
+        const auto *previousNode = i > 0 ? nodes.at(i - 1) : nullptr;
+        const auto *nextNode = i + 2 < nodes.size() ? nodes.at(i + 2) : nullptr;
+        const auto interpolator =
+            AnchorCurve::createInterpolator(firstNode, secondNode, previousNode, nextNode);
+        auto appendPoint = [&](const double x) {
+            const auto tick = sceneXToTick(x + pos().x());
+            const auto value = interpolator.evaluate(tick);
+            const QPointF point(x, sceneYToItemY(valueToSceneY(value)));
+            if (!hasPoint) {
+                path.moveTo(point);
+                hasPoint = true;
+            } else if (QLineF(path.currentPosition(), point).length() > 0.001) {
+                path.lineTo(point);
+            }
+            return point.y();
+        };
+
+        auto x = startX;
+        auto previousY = appendPoint(x);
+        auto physicalStep = 2.0;
+        while (x < endX) {
+            x = std::min(endX, x + physicalStep / dpr);
+            const auto y = appendPoint(x);
+            const auto physicalDeltaY = std::abs(y - previousY) * dpr;
+            physicalStep = physicalDeltaY > 4.0 ? 0.5 : physicalDeltaY > 2.0 ? 1.0 : 2.0;
+            previousY = y;
         }
-        prevLy = ly;
-        px += dir * step;
     }
-    if (!first) {
-        const double tick = sceneXToTick(endX + pos().x());
-        const double val = interp.evaluate(tick);
-        path.lineTo(endX, sceneYToItemY(valueToSceneY(static_cast<int>(val))));
-    }
-    painter->drawPath(path);
+    return path;
 }

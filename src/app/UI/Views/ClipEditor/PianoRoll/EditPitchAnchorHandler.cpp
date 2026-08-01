@@ -7,6 +7,7 @@
 #include "PianoRollGraphicsView.h"
 #include "PianoRollGraphicsView_p.h"
 #include "PitchAnchorEditorView.h"
+#include "PitchEditorView.h"
 
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
@@ -677,6 +678,7 @@ void EditPitchAnchorHandler::createAnchorAt(const QPointF &scenePos) {
 
 void EditPitchAnchorHandler::updatePreview(const QPointF &scenePos) {
     m_state.previewPos = q->mapFromScene(scenePos.toPoint());
+    m_state.previewTick = static_cast<int>(q->sceneXToTick(scenePos.x()));
     m_state.showPreview = m_state.editing && m_state.currentCurve != nullptr &&
                           m_state.hoveredNode == nullptr && !m_state.showMergePreview;
 
@@ -768,6 +770,8 @@ void EditPitchAnchorHandler::mergeCurves(AnchorCurve *target) {
 
 void EditPitchAnchorHandler::triggerRepaint() {
     m_state.visibleCurves = anchorCurves();
+    if (d->m_pitchEditor)
+        d->m_pitchEditor->update();
     if (d->m_anchorEditor)
         d->m_anchorEditor->update();
 }
