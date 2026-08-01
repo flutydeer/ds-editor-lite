@@ -63,6 +63,10 @@ const QList<DrawCurve *> &CommonParamEditorView::editedCurves() const {
     return m_drawCurvesEdited;
 }
 
+const QList<DrawCurve *> &CommonParamEditorView::originalCurves() const {
+    return m_drawCurvesOriginal;
+}
+
 QColor CommonParamEditorView::graduateColor() const {
     return m_graduateColor;
 }

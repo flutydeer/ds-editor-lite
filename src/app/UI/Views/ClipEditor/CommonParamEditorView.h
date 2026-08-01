@@ -51,6 +51,8 @@ protected:
     [[nodiscard]] virtual double sceneYToValue(double y) const;
     virtual void drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                QWidget *widget);
+    [[nodiscard]] const QList<DrawCurve *> &originalCurves() const;
+    void drawCurveBorder(QPainter *painter, const QList<DrawCurve *> &curves) const;
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -59,7 +61,6 @@ private:
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void updateRectAndPos() override;
     bool cancelEditState();
-    void drawCurveBorder(QPainter *painter, const QList<DrawCurve *> &curves) const;
     void drawCurvePolygon(QPainter *painter, const QList<DrawCurve *> &curves) const;
     static void drawLine(const QPoint &p1, const QPoint &p2, DrawCurve &curve);
 

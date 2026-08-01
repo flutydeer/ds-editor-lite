@@ -7,6 +7,7 @@
 #include "PianoRollGraphicsView.h"
 #include "PianoRollGraphicsView_p.h"
 #include "PitchAnchorEditorView.h"
+#include "PitchEditorView.h"
 
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
@@ -769,6 +770,8 @@ void EditPitchAnchorHandler::mergeCurves(AnchorCurve *target) {
 
 void EditPitchAnchorHandler::triggerRepaint() {
     m_state.visibleCurves = anchorCurves();
+    if (d->m_pitchEditor)
+        d->m_pitchEditor->update();
     if (d->m_anchorEditor)
         d->m_anchorEditor->update();
 }
