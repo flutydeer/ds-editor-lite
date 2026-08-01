@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/7/13.
-//
-
 #ifndef FILEPOPUPWIDGET_H
 #define FILEPOPUPWIDGET_H
 

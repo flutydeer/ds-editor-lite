@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-14.
-//
-
 #ifndef DRAWCURVE_H
 #define DRAWCURVE_H
 

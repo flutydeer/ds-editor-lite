@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/3.
-//
-
 #ifndef UNIQUEOBJECT_H
 #define UNIQUEOBJECT_H
 

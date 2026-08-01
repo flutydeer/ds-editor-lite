@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/7/10.
-//
-
 #ifndef IPANEL_H
 #define IPANEL_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-2.
-//
-
 #ifndef LANGUAGECOMBOBOX_H
 #define LANGUAGECOMBOBOX_H
 

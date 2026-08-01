@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-26.
-//
-
 #ifndef RUBBERBANDVIEW_H
 #define RUBBERBANDVIEW_H
 

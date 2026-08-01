@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-18.
-//
-
 #ifndef OPTIONSCARD_H
 #define OPTIONSCARD_H
 

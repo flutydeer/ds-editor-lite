@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-26.
-//
-
 #ifndef TASKMANAGER_H
 #define TASKMANAGER_H
 

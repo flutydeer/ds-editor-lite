@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/22.
-//
-
 #ifndef SINGINGCLIPGRAPHICSITEM_H
 #define SINGINGCLIPGRAPHICSITEM_H
 

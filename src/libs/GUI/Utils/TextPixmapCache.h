@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/4/10.
-//
-
 #ifndef TEXTPIXMAPCACHE_H
 #define TEXTPIXMAPCACHE_H
 

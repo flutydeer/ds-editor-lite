@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2023/12/1.
-//
-
 #ifndef TRACKSMODEL_H
 #define TRACKSMODEL_H
 

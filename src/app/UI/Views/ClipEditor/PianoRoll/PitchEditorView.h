@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-14.
-//
-
 #ifndef PITCHEDITORVIEW_H
 #define PITCHEDITORVIEW_H
 

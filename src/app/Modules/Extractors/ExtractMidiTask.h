@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-11-13.
-//
-
 #ifndef EXTRACTMIDITASK_H
 #define EXTRACTMIDITASK_H
 

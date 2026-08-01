@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-7-25.
-//
-
 #ifndef ABSTRACTCLIPGRAPHICSITEM_P_H
 #define ABSTRACTCLIPGRAPHICSITEM_P_H
 

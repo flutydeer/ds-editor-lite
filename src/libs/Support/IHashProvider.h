@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-25.
-//
-
 #ifndef IHASHPROVIDER_H
 #define IHASHPROVIDER_H
 

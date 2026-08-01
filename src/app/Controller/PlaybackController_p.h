@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-7-21.
-//
-
 #ifndef PLAYBACKCONTROLLER_P_H
 #define PLAYBACKCONTROLLER_P_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-18.
-//
-
 #ifndef LOG_H
 #define LOG_H
 

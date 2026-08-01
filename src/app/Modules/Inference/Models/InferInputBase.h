@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-5.
-//
-
 #ifndef INFERINPUTBASE_H
 #define INFERINPUTBASE_H
 

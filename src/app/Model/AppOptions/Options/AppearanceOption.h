@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-13.
-//
-
 #ifndef APPEARANCEOPTION_H
 #define APPEARANCEOPTION_H
 

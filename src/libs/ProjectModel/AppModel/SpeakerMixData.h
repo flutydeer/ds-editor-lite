@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/6/20.
-//
-
 #ifndef SPEAKERMIXDATA_H
 #define SPEAKERMIXDATA_H
 

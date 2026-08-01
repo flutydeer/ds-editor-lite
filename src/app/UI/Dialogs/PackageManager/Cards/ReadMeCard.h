@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/10/2.
-//
-
 #ifndef DS_EDITOR_LITE_READMECARD_H
 #define DS_EDITOR_LITE_READMECARD_H
 

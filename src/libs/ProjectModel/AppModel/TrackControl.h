@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/27.
-//
-
 #ifndef DSTRACKCONTROL_H
 #define DSTRACKCONTROL_H
 

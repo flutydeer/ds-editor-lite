@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/5/30.
-//
-
 #ifndef MASTERCONTROLACTIONS_H
 #define MASTERCONTROLACTIONS_H
 

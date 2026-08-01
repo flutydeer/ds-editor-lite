@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/11/14.
-//
-
 #ifndef DATASET_TOOLS_CLIPGRAPHICSITEM_H
 #define DATASET_TOOLS_CLIPGRAPHICSITEM_H
 

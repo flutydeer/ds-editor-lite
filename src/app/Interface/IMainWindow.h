@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/7/13.
-//
-
 #ifndef IMAINWINDOW_H
 #define IMAINWINDOW_H
 

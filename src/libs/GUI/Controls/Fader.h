@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/3/26.
-//
-
 #ifndef FADER_H
 #define FADER_H
 

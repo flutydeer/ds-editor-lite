@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/7/9.
-//
-
 #ifndef TOOLBUTTON_H
 #define TOOLBUTTON_H
 

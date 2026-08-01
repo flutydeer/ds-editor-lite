@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/7/13.
-//
-
 #ifndef TIMESIGNATURECOMBOBOX_H
 #define TIMESIGNATURECOMBOBOX_H
 

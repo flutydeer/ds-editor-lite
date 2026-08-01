@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/8/30.
-//
-
 #ifndef DATASET_TOOLS_TOOLTIP_H
 #define DATASET_TOOLS_TOOLTIP_H
 

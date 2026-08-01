@@ -1,7 +1,3 @@
-//
-// Created by fluty on 26-5-8.
-//
-
 #ifndef DEVELOPEROPTION_H
 #define DEVELOPEROPTION_H
 

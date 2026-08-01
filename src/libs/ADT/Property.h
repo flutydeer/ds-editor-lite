@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-13.
-//
-
 #ifndef PROPERTY_H
 #define PROPERTY_H
 

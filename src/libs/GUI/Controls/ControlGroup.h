@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2026/5/26.
-//
-
 #ifndef CONTROLGROUP_H
 #define CONTROLGROUP_H
 

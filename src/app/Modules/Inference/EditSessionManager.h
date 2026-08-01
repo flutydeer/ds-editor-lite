@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/6/8.
-//
-
 #ifndef DS_EDITOR_LITE_EDITSESSIONMANAGER_H
 #define DS_EDITOR_LITE_EDITSESSIONMANAGER_H
 

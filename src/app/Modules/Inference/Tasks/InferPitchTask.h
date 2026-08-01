@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-2.
-//
-
 #ifndef INFERPITCHTASK_H
 #define INFERPITCHTASK_H
 

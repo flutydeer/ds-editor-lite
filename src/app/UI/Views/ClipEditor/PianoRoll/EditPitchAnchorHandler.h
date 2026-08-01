@@ -1,7 +1,3 @@
-//
-// Created by fluty on 26-4-30.
-//
-
 #ifndef EDITPITCHANCHORHANDLER_H
 #define EDITPITCHANCHORHANDLER_H
 

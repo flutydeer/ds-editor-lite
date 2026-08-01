@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2023/12/1.
-//
-
 #ifndef APPCONTROLLER_H
 #define APPCONTROLLER_H
 

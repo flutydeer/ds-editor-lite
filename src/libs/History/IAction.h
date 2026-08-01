@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/7.
-//
-
 #ifndef IACTION_H
 #define IACTION_H
 

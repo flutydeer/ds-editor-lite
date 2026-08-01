@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-18.
-//
-
 #ifndef OPTIONPAGE_H
 #define OPTIONPAGE_H
 

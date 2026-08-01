@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-28.
-//
-
 #ifndef SCROLLBARVIEW_H
 #define SCROLLBARVIEW_H
 

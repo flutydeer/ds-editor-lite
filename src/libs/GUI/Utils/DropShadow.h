@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-9.
-//
-
 #ifndef DROPSHADOW_H
 #define DROPSHADOW_H
 

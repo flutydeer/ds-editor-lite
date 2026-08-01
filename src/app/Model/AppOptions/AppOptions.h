@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-13.
-//
-
 #ifndef APPOPTIONS_H
 #define APPOPTIONS_H
 

@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 24-3-18.
-//
-
 #ifndef DIVIDERLINE_H
 #define DIVIDERLINE_H
 

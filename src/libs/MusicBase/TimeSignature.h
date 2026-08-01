@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-7-29.
-//
-
 #ifndef TIMESIGNATURE_H
 #define TIMESIGNATURE_H
 

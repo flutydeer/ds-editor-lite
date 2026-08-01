@@ -1,7 +1,3 @@
-//
-// Created by hrukalive on 2/7/24.
-//
-
 #ifndef DSPXPROJECTCONVERTER_H
 #define DSPXPROJECTCONVERTER_H
 

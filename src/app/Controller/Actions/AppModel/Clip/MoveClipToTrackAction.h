@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/8.
-//
-
 #ifndef MOVECLIPTOTRACKACTION_H
 #define MOVECLIPTOTRACKACTION_H
 

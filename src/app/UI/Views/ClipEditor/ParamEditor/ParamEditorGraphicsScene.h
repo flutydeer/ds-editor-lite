@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-21.
-//
-
 #ifndef PARAMEDITORGRAPHICSSCENE_H
 #define PARAMEDITORGRAPHICSSCENE_H
 

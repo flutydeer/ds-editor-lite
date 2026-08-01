@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/7/13.
-//
-
 #ifndef TABPANELTITLEBAR_H
 #define TABPANELTITLEBAR_H
 

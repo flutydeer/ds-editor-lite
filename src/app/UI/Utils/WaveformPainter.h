@@ -1,7 +1,3 @@
-//
-// Created by assistant on 2025/04/29.
-//
-
 #ifndef WAVEFORMPAINTER_H
 #define WAVEFORMPAINTER_H
 

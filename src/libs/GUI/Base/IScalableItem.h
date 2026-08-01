@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-1.
-//
-
 #ifndef SCALABLEITEM_H
 #define SCALABLEITEM_H
 

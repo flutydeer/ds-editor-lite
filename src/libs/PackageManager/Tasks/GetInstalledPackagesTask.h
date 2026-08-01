@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/7/31.
-//
-
 #ifndef GETINSTALLEDPACKAGESTASK_H
 #define GETINSTALLEDPACKAGESTASK_H
 

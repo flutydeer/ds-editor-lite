@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-10.
-//
-
 #ifndef DECODEAUDIOTASK_H
 #define DECODEAUDIOTASK_H
 

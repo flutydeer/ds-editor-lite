@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/7/12.
-//
-
 #ifndef DS_EDITOR_LITE_PHONEMEEDITORDIALOG_H
 #define DS_EDITOR_LITE_PHONEMEEDITORDIALOG_H
 

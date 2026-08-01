@@ -1,7 +1,3 @@
-//
-// Created by OrangeCat on 24-9-4.
-//
-
 #ifndef INFERDURATIONTASK_H
 #define INFERDURATIONTASK_H
 

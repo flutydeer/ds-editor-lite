@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-7-25.
-//
-
 #ifndef ITRACK_H
 #define ITRACK_H
 

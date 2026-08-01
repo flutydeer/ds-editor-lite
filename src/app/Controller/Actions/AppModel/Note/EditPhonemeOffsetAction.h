@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-11.
-//
-
 #ifndef EDITPHONEMEOFFSETACTION_H
 #define EDITPHONEMEOFFSETACTION_H
 

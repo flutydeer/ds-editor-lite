@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-12.
-//
-
 #ifndef RESTARTDIALOG_H
 #define RESTARTDIALOG_H
 

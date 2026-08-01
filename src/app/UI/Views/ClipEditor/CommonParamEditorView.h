@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/25.
-//
-
 #ifndef PITCHEDITORGRAPHICSITEM_H
 #define PITCHEDITORGRAPHICSITEM_H
 

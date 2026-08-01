@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-5.
-//
-
 #ifndef INFERVARIANCETASK_H
 #define INFERVARIANCETASK_H
 

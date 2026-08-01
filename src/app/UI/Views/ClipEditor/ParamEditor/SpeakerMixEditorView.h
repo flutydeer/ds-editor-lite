@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2026/5/4.
-//
-
 #ifndef SPEAKERMIXEDITORVIEW_H
 #define SPEAKERMIXEDITORVIEW_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-18.
-//
-
 #ifndef CLIPSINFO_H
 #define CLIPSINFO_H
 

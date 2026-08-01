@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/4.
-//
-
 #ifndef PLAYBACKVIEW_H
 #define PLAYBACKVIEW_H
 

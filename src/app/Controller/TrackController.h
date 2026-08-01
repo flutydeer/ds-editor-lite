@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/31.
-//
-
 #ifndef TRACKCONTROLLER_H
 #define TRACKCONTROLLER_H
 

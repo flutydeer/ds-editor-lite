@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-18.
-//
-
 #ifndef CARDVIEW_H
 #define CARDVIEW_H
 

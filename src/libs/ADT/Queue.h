@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-5.
-//
-
 #ifndef QUEUE_H
 #define QUEUE_H
 

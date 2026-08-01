@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/6.
-//
-
 #ifndef MATHUTILS_H
 #define MATHUTILS_H
 

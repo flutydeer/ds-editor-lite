@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-16.
-//
-
 #ifndef GENERICINFERMODEL_H
 #define GENERICINFERMODEL_H
 

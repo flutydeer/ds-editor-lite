@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/6/7.
-//
-
 #ifndef DS_EDITOR_LITE_INFERENCETASKCONTEXT_H
 #define DS_EDITOR_LITE_INFERENCETASKCONTEXT_H
 

@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/6/1.
-//
-
 #ifndef EXPECTED_H
 #define EXPECTED_H
 

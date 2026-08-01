@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/4/1.
-//
-
 #ifndef DS_EDITOR_LITE_PHONEMENAMEITEMMODEL_H
 #define DS_EDITOR_LITE_PHONEMENAMEITEMMODEL_H
 

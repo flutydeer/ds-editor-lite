@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-10.
-//
-
 #ifndef GRAPHICSLAYERMANAGER_H
 #define GRAPHICSLAYERMANAGER_H
 

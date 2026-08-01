@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-13.
-//
-
 #ifndef IOPTION_H
 #define IOPTION_H
 

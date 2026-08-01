@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/11/27.
-//
-
 #ifndef DS_EDITOR_LITE_SINGINGCLIPSLICER_H
 #define DS_EDITOR_LITE_SINGINGCLIPSLICER_H
 

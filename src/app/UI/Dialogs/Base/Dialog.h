@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-19.
-//
-
 #ifndef DIALOG_H
 #define DIALOG_H
 

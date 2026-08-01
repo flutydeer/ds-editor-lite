@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/5.
-//
-
 #ifndef TRACKLISTHEADERVIEW_H
 #define TRACKLISTHEADERVIEW_H
 

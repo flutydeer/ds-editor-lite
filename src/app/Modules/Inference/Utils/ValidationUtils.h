@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-27.
-//
-
 #ifndef VALIDATIONUTILS_H
 #define VALIDATIONUTILS_H
 

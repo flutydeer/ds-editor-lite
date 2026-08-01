@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-30.
-//
-
 #ifndef PROJECTSTATUSCONTROLLER_H
 #define PROJECTSTATUSCONTROLLER_H
 

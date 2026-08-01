@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-15.
-//
-
 #ifndef INFERPIECE_H
 #define INFERPIECE_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-17.
-//
-
 #ifndef OKCANCELAPPLYDIALOG_H
 #define OKCANCELAPPLYDIALOG_H
 

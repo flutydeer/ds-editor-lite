@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-14.
-//
-
 #ifndef IATOMICACTION_H
 #define IATOMICACTION_H
 

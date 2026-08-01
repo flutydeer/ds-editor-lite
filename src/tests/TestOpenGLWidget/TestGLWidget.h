@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/7/4.
-//
-
 #ifndef TESTGLWIDGET_H
 #define TESTGLWIDGET_H
 

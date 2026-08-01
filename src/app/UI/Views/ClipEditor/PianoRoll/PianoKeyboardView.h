@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-19.
-//
-
 #ifndef PIANOKEYBOARDVIEW_H
 #define PIANOKEYBOARDVIEW_H
 

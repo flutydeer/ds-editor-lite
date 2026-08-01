@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/4/25.
-//
-
 #ifndef MENU_H
 #define MENU_H
 

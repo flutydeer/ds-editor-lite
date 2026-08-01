@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/10.
-//
-
 #ifndef TIMEGRAPHICSVIEW_H
 #define TIMEGRAPHICSVIEW_H
 

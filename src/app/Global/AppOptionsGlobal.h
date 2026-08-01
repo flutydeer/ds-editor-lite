@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/2/26.
-//
-
 #ifndef APPOPTIONSGLOBAL_H
 #define APPOPTIONSGLOBAL_H
 

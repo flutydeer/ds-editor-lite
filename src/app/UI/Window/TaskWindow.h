@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-19.
-//
-
 #ifndef TASKWINDOW_H
 #define TASKWINDOW_H
 

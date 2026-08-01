@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-19.
-//
-
 #ifndef PIANOPAINTUTILS_H
 #define PIANOPAINTUTILS_H
 

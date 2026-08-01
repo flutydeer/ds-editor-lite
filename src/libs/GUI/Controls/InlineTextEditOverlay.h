@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/7/12.
-//
-
 #ifndef INLINETEXTEDITOVERLAY_H
 #define INLINETEXTEDITOVERLAY_H
 

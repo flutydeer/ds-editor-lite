@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/1/22.
-//
-
 #ifndef DS_EDITOR_LITE_PLAYBACKREADYSTATE_H
 #define DS_EDITOR_LITE_PLAYBACKREADYSTATE_H
 

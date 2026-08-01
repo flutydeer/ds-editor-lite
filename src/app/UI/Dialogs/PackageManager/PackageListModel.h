@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/7/31.
-//
-
 #ifndef PACKAGELISTMODEL_H
 #define PACKAGELISTMODEL_H
 

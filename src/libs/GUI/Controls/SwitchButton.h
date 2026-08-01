@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/8/17.
-//
-
 #ifndef DATASET_TOOLS_SWITCHBUTTON_H
 #define DATASET_TOOLS_SWITCHBUTTON_H
 

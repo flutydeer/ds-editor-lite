@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-1.
-//
-
 #ifndef OVERLAPPABLEITEM_H
 #define OVERLAPPABLEITEM_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/21.
-//
-
 #ifndef TIMEGRIDVIEW_H
 #define TIMEGRIDVIEW_H
 

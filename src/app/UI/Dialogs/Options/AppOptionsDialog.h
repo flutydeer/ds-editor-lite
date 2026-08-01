@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-16.
-//
-
 #ifndef APPOPTIONSDIALOG_H
 #define APPOPTIONSDIALOG_H
 

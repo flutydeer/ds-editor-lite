@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/1.
-//
-
 #ifndef SERIALLIST_H
 #define SERIALLIST_H
 

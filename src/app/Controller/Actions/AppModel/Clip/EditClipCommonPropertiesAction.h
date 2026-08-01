@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/8.
-//
-
 #ifndef EDITCLIPCOMMONPROPERTIESACTION_H
 #define EDITCLIPCOMMONPROPERTIESACTION_H
 

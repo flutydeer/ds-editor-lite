@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-7-28.
-//
-
 #ifndef APPMODEL_P_H
 #define APPMODEL_P_H
 

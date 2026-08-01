@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/7/14.
-//
-
 #ifndef TOAST_H
 #define TOAST_H
 

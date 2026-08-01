@@ -1,7 +1,3 @@
-//
-// Created by OrangeCat on 24-9-3.
-//
-
 #ifndef INFERCONTROLLER_H
 #define INFERCONTROLLER_H
 

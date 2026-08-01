@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-10.
-//
-
 #ifndef PHONEMES_H
 #define PHONEMES_H
 

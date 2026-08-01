@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-7.
-//
-
 #ifndef INFERACOUSTICTASK_H
 #define INFERACOUSTICTASK_H
 

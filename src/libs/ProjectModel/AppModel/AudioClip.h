@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-18.
-//
-
 #ifndef AUDIOCLIP_H
 #define AUDIOCLIP_H
 

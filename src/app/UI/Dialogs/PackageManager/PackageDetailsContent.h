@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/9/3.
-//
-
 #ifndef DS_EDITOR_LITE_PACKAGEDETAILSCONTENT_H
 #define DS_EDITOR_LITE_PACKAGEDETAILSCONTENT_H
 

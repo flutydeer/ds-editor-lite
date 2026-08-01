@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-7-21.
-//
-
 #ifndef MAINMENUVIEW_P_H
 #define MAINMENUVIEW_P_H
 

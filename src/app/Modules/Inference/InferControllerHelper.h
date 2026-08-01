@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-6.
-//
-
 #ifndef INFERCONTROLLERHELPER_H
 #define INFERCONTROLLERHELPER_H
 

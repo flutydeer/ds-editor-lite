@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-26.
-//
-
 #ifndef INFERCONTROLLERPRIVATE_H
 #define INFERCONTROLLERPRIVATE_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/26.
-//
-
 #ifndef ABSTRACTGRAPHICSRECTITEM_H
 #define ABSTRACTGRAPHICSRECTITEM_H
 

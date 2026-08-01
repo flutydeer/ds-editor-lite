@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-14.
-//
-
 #ifndef PARAMPROPERTIES_H
 #define PARAMPROPERTIES_H
 

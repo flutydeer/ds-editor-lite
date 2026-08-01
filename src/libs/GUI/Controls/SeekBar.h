@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/8/16.
-//
-
 #ifndef DATASET_TOOLS_SEEKBAR_H
 #define DATASET_TOOLS_SEEKBAR_H
 

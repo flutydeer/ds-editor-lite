@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/3/25.
-//
-
 #ifndef CHANNELVIEW_H
 #define CHANNELVIEW_H
 

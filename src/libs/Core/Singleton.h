@@ -1,8 +1,3 @@
-//
-// Created by fluty on 2024/1/31.
-// Modified by Jobsecond on 2025/9/6.
-//
-
 #ifndef LITE_CORE_SINGLETON_H
 #define LITE_CORE_SINGLETON_H
 

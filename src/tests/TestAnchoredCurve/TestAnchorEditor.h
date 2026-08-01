@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 25-1-22.
-//
-
 #ifndef TESTANCHOREDITOR_H
 #define TESTANCHOREDITOR_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-17.
-//
-
 #ifndef ANCHORCURVE_H
 #define ANCHORCURVE_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/27.
-//
-
 #ifndef DSCURVE_H
 #define DSCURVE_H
 

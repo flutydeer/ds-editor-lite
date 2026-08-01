@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/8.
-//
-
 #ifndef EDITNOTEPOSITIONACTION_H
 #define EDITNOTEPOSITIONACTION_H
 

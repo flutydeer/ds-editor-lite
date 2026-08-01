@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-13.
-//
-
 #ifndef PARAMEDITORINFOAREA_H
 #define PARAMEDITORINFOAREA_H
 

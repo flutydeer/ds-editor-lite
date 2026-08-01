@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/6/6.
-//
-
 #ifndef PROJECTPACKAGERESOLVER_H
 #define PROJECTPACKAGERESOLVER_H
 

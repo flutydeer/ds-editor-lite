@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-7-25.
-//
-
 #ifndef PANELVIEW_H
 #define PANELVIEW_H
 

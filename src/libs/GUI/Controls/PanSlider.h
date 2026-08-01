@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/6/11.
-//
-
 #ifndef PANSLIDER_H
 #define PANSLIDER_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/10.
-//
-
 #ifndef CLIPEDITVIEW_H
 #define CLIPEDITVIEW_H
 

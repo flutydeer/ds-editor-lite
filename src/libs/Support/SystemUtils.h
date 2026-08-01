@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-3.
-//
-
 #ifndef SYSTEMUTILS_H
 #define SYSTEMUTILS_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-15.
-//
-
 #ifndef THEMEMANAGER_H
 #define THEMEMANAGER_H
 

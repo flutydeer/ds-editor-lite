@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-28.
-//
-
 #ifndef PIANOROLLGRAPHICSVIEWHELPER_H
 #define PIANOROLLGRAPHICSVIEWHELPER_H
 

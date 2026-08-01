@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-19.
-//
-
 #ifndef TASKVIEW_H
 #define TASKVIEW_H
 

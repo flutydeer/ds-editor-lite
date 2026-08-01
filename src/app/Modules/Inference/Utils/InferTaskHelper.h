@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-2.
-//
-
 #ifndef INFERTASKHELPER_H
 #define INFERTASKHELPER_H
 

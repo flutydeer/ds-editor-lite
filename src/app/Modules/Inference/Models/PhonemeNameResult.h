@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-7.
-//
-
 #ifndef PHONEMENAMERESULT_H
 #define PHONEMENAMERESULT_H
 

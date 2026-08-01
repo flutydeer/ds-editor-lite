@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-7-21.
-//
-
 #ifndef APPCONTROLLER_P_H
 #define APPCONTROLLER_P_H
 

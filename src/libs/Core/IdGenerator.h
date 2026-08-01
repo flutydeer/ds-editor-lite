@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/3.
-//
-
 #ifndef IDGENERATOR_H
 #define IDGENERATOR_H
 

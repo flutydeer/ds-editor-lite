@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-21.
-//
-
 #ifndef AUDIOOPTION_H
 #define AUDIOOPTION_H
 

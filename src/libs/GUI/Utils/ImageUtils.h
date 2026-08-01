@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-16.
-//
-
 #ifndef IMAGEUTILS_H
 #define IMAGEUTILS_H
 

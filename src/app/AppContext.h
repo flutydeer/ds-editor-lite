@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/7/3.
-//
-
 #ifndef APPCONTEXT_H
 #define APPCONTEXT_H
 

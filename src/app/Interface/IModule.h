@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-30.
-//
-
 #ifndef IMODULE_H
 #define IMODULE_H
 

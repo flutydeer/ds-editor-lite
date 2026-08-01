@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-27.
-//
-
 #ifndef PRONUNCIATIONVIEW_H
 #define PRONUNCIATIONVIEW_H
 

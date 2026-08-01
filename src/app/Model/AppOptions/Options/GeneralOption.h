@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-2.
-//
-
 #ifndef GENERALOPTION_H
 #define GENERALOPTION_H
 

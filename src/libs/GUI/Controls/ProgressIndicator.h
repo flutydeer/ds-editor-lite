@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/8/14.
-//
-
 #ifndef DATASET_TOOLS_PROGRESSINDICATOR_H
 #define DATASET_TOOLS_PROGRESSINDICATOR_H
 

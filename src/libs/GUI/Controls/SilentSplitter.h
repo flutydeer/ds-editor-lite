@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2026/5/5.
-//
-
 #ifndef SILENTSPLITTER_H
 #define SILENTSPLITTER_H
 

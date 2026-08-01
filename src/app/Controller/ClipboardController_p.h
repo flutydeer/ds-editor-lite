@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-7-21.
-//
-
 #ifndef CLIPBOARDCONTROLLER_P_H
 #define CLIPBOARDCONTROLLER_P_H
 

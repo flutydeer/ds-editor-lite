@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/6/14.
-//
-
 #ifndef HSLGRADIENTAREA_H
 #define HSLGRADIENTAREA_H
 

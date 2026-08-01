@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 25-2-7.
-//
-
 #ifndef TITLECONTROLGROUP_H
 #define TITLECONTROLGROUP_H
 

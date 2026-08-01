@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-7-30.
-//
-
 #ifndef MAINTITLEBAR_H
 #define MAINTITLEBAR_H
 

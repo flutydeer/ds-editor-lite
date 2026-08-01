@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/6/15.
-//
-
 #ifndef COLORDOT_H
 #define COLORDOT_H
 

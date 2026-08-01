@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-25.
-//
-
 #ifndef INITINFERENGINETASK_H
 #define INITINFERENGINETASK_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-16.
-//
-
 #ifndef CLIPRANGEOVERLAY_H
 #define CLIPRANGEOVERLAY_H
 

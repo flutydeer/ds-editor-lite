@@ -1,7 +1,3 @@
-//
-// Created by OrangeCat on 24-9-3.
-//
-
 #ifndef GETPHONEMENAMETASK_H
 #define GETPHONEMENAMETASK_H
 

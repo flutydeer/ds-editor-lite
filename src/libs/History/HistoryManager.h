@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/7.
-//
-
 #ifndef HISTORYMANAGER_H
 #define HISTORYMANAGER_H
 

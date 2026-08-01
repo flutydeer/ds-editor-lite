@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-16.
-//
-
 #ifndef PIANOROLLEDITORVIEW_H
 #define PIANOROLLEDITORVIEW_H
 

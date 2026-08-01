@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/26.
-//
-
 #ifndef TRACKSEDITORGLOBAL_H
 #define TRACKSEDITORGLOBAL_H
 

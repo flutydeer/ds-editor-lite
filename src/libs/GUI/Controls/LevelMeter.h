@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/8/6.
-//
-
 #ifndef CHORUSKIT_LEVELMETER_H
 #define CHORUSKIT_LEVELMETER_H
 

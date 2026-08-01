@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/7/27.
-//
-
 #ifndef PACKAGEMANAGER_H
 #define PACKAGEMANAGER_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-20.
-//
-
 #ifndef LINEEDIT_H
 #define LINEEDIT_H
 

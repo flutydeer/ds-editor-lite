@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-16.
-//
-
 #ifndef ACRYLICBRUSH_H
 #define ACRYLICBRUSH_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/7.
-//
-
 #ifndef TIMESIGNATUREACTIONS_H
 #define TIMESIGNATUREACTIONS_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-23.
-//
-
 #ifndef PARAMSACTIONS_H
 #define PARAMSACTIONS_H
 

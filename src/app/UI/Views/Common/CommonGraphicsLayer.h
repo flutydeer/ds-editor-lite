@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-7.
-//
-
 #ifndef COMMONGRAPHICSLAYER_H
 #define COMMONGRAPHICSLAYER_H
 

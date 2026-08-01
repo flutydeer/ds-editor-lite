@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/6/3.
-//
-
 #ifndef MIXCONSOLEVIEW_H
 #define MIXCONSOLEVIEW_H
 

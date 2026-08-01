@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/1.
-//
-
 #ifndef IOVERLAPABLE_H
 #define IOVERLAPABLE_H
 

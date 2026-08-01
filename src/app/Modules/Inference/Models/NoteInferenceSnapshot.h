@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/6/7.
-//
-
 #ifndef NOTEINFERENCESNAPSHOT_H
 #define NOTEINFERENCESNAPSHOT_H
 

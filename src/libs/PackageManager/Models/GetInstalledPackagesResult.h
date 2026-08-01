@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/7/31.
-//
-
 #ifndef GETINSTALLEDPACKAGESRESULT_H
 #define GETINSTALLEDPACKAGESRESULT_H
 

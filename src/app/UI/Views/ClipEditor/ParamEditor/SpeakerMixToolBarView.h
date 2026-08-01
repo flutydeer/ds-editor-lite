@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2026/5/4.
-//
-
 #ifndef SPEAKERMIXTOOLBARVIEW_H
 #define SPEAKERMIXTOOLBARVIEW_H
 

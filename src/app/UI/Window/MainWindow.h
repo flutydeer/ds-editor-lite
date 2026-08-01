@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/31.
-//
-
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 

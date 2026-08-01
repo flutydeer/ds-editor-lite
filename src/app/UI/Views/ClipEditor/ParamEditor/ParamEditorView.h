@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-21.
-//
-
 #ifndef PARAMEDITORVIEW_H
 #define PARAMEDITORVIEW_H
 

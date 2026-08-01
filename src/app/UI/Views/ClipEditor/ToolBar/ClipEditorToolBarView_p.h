@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-2.
-//
-
 #ifndef CLIPEDITORTOOLBARVIEW_P_H
 #define CLIPEDITORTOOLBARVIEW_P_H
 

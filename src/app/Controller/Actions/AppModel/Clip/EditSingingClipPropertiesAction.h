@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/8.
-//
-
 #ifndef EDITSINGINGCLIPPROPERTIES_H
 #define EDITSINGINGCLIPPROPERTIES_H
 

@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/7/12.
-//
-
 #ifndef INLINEEDITLABEL_H
 #define INLINEEDITLABEL_H
 

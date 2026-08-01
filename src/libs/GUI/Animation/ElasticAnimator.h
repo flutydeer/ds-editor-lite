@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/4/1.
-//
-
 #ifndef ELASTICANIMATOR_H
 #define ELASTICANIMATOR_H
 

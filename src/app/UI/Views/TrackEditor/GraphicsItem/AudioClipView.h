@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/11/16.
-//
-
 #ifndef AUDIOCLIPGRAPHICSITEM_H
 #define AUDIOCLIPGRAPHICSITEM_H
 

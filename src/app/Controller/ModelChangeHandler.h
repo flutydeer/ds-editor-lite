@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-29.
-//
-
 #ifndef MODELCHANGEHANDLER_H
 #define MODELCHANGEHANDLER_H
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/9/5.
-//
-
 #ifndef DATASET_TOOLS_PARAMEDITAREA_H
 #define DATASET_TOOLS_PARAMEDITAREA_H
 

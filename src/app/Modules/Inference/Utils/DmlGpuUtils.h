@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-28.
-//
-
 #ifndef DMLGPUUTILS_H
 #define DMLGPUUTILS_H
 

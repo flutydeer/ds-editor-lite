@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-19.
-//
-
 #ifndef PARAMUTILS_H
 #define PARAMUTILS_H
 

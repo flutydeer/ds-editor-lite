@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-16.
-//
-
 #ifndef APPEARANCEPAGE_H
 #define APPEARANCEPAGE_H
 

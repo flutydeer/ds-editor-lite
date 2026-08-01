@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-12.
-//
-
 #ifndef PHONEMEPARAMEDITOR_H
 #define PHONEMEPARAMEDITOR_H
 

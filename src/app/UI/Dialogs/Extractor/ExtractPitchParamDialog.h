@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-11-13.
-//
-
 #ifndef EXTRACTPITCHPARAMDIALOG_H
 #define EXTRACTPITCHPARAMDIALOG_H
 

@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/8/1.
-//
-
 #ifndef PACKAGEITEMDELEGATE_H
 #define PACKAGEITEMDELEGATE_H
 

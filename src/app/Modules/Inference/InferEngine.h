@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-25.
-//
-
 #ifndef INFERENGINE_H
 #define INFERENGINE_H
 

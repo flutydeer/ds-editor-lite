@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-10.
-//
-
 #ifndef ISERIALIZABLE_H
 #define ISERIALIZABLE_H
 

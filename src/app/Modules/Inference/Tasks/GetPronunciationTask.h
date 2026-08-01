@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-10.
-//
-
 #ifndef GETPRONUNCIATIONTASK_H
 #define GETPRONUNCIATIONTASK_H
 

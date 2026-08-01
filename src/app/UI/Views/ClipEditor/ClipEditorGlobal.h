@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/26.
-//
-
 #ifndef PIANOROLLGLOBAL_H
 #define PIANOROLLGLOBAL_H
 

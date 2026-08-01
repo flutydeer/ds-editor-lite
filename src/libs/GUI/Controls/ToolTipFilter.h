@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-22.
-//
-
 #ifndef TOOLTIPFILTER_H
 #define TOOLTIPFILTER_H
 

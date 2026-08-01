@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/4/25.
-//
-
 #ifndef DS_EDITOR_LITE_BASEINFERSTATE_H
 #define DS_EDITOR_LITE_BASEINFERSTATE_H
 
