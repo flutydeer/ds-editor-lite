@@ -129,6 +129,15 @@ public:
         int startValue = 0;
     };
 
+    struct PastePreviewNote {
+        int localStart = 0;
+        int length = 0;
+        int keyIndex = 60;
+        QString lyric;
+        QString pronunciation;
+        bool pronunciationEdited = false;
+    };
+
     explicit Private(PianoRollRhiWidget *q) : q(q) {
     }
 
@@ -154,6 +163,7 @@ public:
         cancelPitchEdit();
         cancelAnchorEdit(false);
         clearSplitPreview();
+        clearPastePreview();
         if (clip)
             QObject::disconnect(clip, nullptr, q, nullptr);
 
@@ -398,6 +408,34 @@ public:
             return;
         splitPreviewNoteId = note->id();
         splitPreviewTick = snappedLocalTick;
+        scheduleSnapshot();
+    }
+
+    void setPastePreview(const NotesParamsInfo &info, const int globalTick) {
+        pastePreviewNotes.clear();
+        if (!clip || info.selectedNotes.isEmpty()) {
+            scheduleSnapshot();
+            return;
+        }
+
+        auto minimumStart = info.selectedNotes.first()->localStart();
+        for (const auto *note : info.selectedNotes)
+            minimumStart = std::min(minimumStart, note->localStart());
+        const auto localPreviewStart = globalTick - clip->start();
+        pastePreviewNotes.reserve(info.selectedNotes.size());
+        for (const auto *note : info.selectedNotes) {
+            const auto pronunciation = note->pronunciation();
+            pastePreviewNotes.append({note->localStart() - minimumStart + localPreviewStart,
+                                      note->length(), note->keyIndex(), note->lyric(),
+                                      pronunciation.result(), pronunciation.isEdited()});
+        }
+        scheduleSnapshot();
+    }
+
+    void clearPastePreview() {
+        if (pastePreviewNotes.isEmpty())
+            return;
+        pastePreviewNotes.clear();
         scheduleSnapshot();
     }
 
@@ -1434,6 +1472,7 @@ public:
             appendBackground(localStart, localEnd, sceneTop, sceneBottom);
             appendTimeline(localStart, localEnd, sceneTop, sceneBottom);
             appendNotes(localStart, localEnd);
+            appendPastePreview(localStart, localEnd);
             appendPitch(localStart, localEnd);
             appendAnchors(localStart, localEnd);
             appendClipMask(localStart, localEnd, sceneTop, sceneBottom);
@@ -1680,6 +1719,58 @@ private:
             appendLogicalRect(rect, selectedBorder);
             const auto inset = kNoteBorderWidth;
             appendLogicalRect(rect.adjusted(inset, inset, -inset, -inset), selectedFill);
+        }
+    }
+
+    void appendPastePreview(const double localStart, const double localEnd) {
+        if (pastePreviewNotes.isEmpty())
+            return;
+        const auto *palette = AppColorPalette::instance();
+        auto fill = palette->noteBackground(trackColorIndex);
+        auto border = palette->noteBorder(trackColorIndex);
+        auto foreground = palette->noteForeground(trackColorIndex);
+        auto pronunciationEdited = palette->phonemeEdited(trackColorIndex);
+        auto pronunciationNormal = q->pronunciationTextColor();
+        constexpr double opacity = 0.35;
+        const auto applyOpacity = [opacity](QColor &color) {
+            color.setAlphaF(color.alphaF() * opacity);
+        };
+        applyOpacity(fill);
+        applyOpacity(border);
+        applyOpacity(foreground);
+        applyOpacity(pronunciationEdited);
+        applyOpacity(pronunciationNormal);
+
+        for (const auto &note : pastePreviewNotes) {
+            const auto noteEnd = note.localStart + note.length;
+            if (noteEnd < localStart || note.localStart > localEnd)
+                continue;
+            const QRectF rect(note.localStart * pixelsPerTick(),
+                              (127 - note.keyIndex) * noteHeight * scaleY,
+                              note.length * pixelsPerTick(), noteHeight * scaleY);
+            appendLogicalRect(rect, border);
+            const auto inset = kNoteBorderWidth;
+            appendLogicalRect(rect.adjusted(inset, inset, -inset, -inset), fill);
+
+            if (scaleX < 0.3 || rect.width() <= 8.0 || rect.height() <= 8.0)
+                continue;
+            QFont font = q->font();
+            font.setPixelSize(std::max(1, qRound(q->noteFontPixelSize() * dpr)));
+            const QRectF lyricClip((rect.left() + 3.0) * dpr, rect.top() * dpr,
+                                   std::max(0.0, rect.width() - 6.0) * dpr, rect.height() * dpr);
+            glyphAtlas.appendText(note.lyric, font,
+                                  QPointF((rect.left() + 3.0) * dpr, (rect.top() + 1.0) * dpr),
+                                  foreground, lyricClip);
+            if (!note.pronunciation.isEmpty()) {
+                const QRectF pronunciationClip(rect.left() * dpr, rect.bottom() * dpr,
+                                               rect.width() * dpr,
+                                               q->noteFontPixelSize() * 1.5 * dpr);
+                glyphAtlas.appendText(
+                    note.pronunciation, font,
+                    QPointF((rect.left() + 3.0) * dpr, (rect.bottom() + 1.0) * dpr),
+                    note.pronunciationEdited ? pronunciationEdited : pronunciationNormal,
+                    pronunciationClip);
+            }
         }
     }
 
@@ -2135,6 +2226,7 @@ public:
     QPointF rubberBandStart;
     QPointF rubberBandEnd;
     QList<int> rubberBandBaseSelection;
+    QList<PastePreviewNote> pastePreviewNotes;
     enum class PitchEditType { None, DrawOnCurve, DrawOnInterval, Erase };
     PitchEditType pitchEditType = PitchEditType::None;
     bool pitchEditing = false;
@@ -2544,10 +2636,16 @@ void PianoRollRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
             const auto info = NotesParamsInfo::deserializeFromJson(
                 QJsonDocument::fromJson(mimeData->data(format)).object());
             const auto tick = qRound(d->localTickAt(event->pos())) + d->clip->start();
+            const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+            const auto previewTick =
+                TimelineSnapUtils::snapNearest(tick, quantize, appModel->timeline());
+            connect(paste, &QAction::hovered, this,
+                    [this, info, previewTick] { d->setPastePreview(info, previewTick); });
             connect(paste, &QAction::triggered, this,
                     [info, tick] { clipController->pasteNotesWithParams(info, tick); });
         }
     }
+    connect(&menu, &QMenu::aboutToHide, this, [this] { d->clearPastePreview(); });
     menu.exec(event->globalPos());
 }
 
