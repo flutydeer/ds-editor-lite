@@ -5,6 +5,7 @@
 #include "TrackEditorView.h"
 
 #include "TrackControlView.h"
+#include "TrackEditorContextMenuController.h"
 #include "TrackListHeaderView.h"
 #include "TrackListView.h"
 #include "TracksGraphicsScene.h"
@@ -59,6 +60,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     trackController->setParentWidget(this);
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TracksView");
+    m_contextMenuController = new TrackEditorContextMenuController(this);
 
     m_trackListView = new TrackListView;
 
@@ -70,8 +72,8 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     } else {
         createLegacyBackend();
     }
-    auto *editorWidget = m_rhiView ? static_cast<QWidget *>(m_rhiView)
-                                   : static_cast<QWidget *>(m_graphicsView);
+    auto *editorWidget =
+        m_rhiView ? static_cast<QWidget *>(m_rhiView) : static_cast<QWidget *>(m_graphicsView);
     const auto initialStartTick = m_rhiView ? m_rhiView->startTick() : m_graphicsView->startTick();
     const auto initialEndTick = m_rhiView ? m_rhiView->endTick() : m_graphicsView->endTick();
 
@@ -176,7 +178,6 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     connect(appModel, &AppModel::modelChanged, this, &TrackEditorView::onModelChanged);
     connect(appModel, &AppModel::trackChanged, this, &TrackEditorView::onTrackChanged);
     connect(appModel, &AppModel::trackMoved, this, &TrackEditorView::onTrackMoved);
-
 }
 
 TrackEditorView::~TrackEditorView() {
@@ -196,6 +197,10 @@ void TrackEditorView::createLegacyBackend() {
 }
 
 void TrackEditorView::connectLegacyBackend() {
+    connect(m_graphicsView, &TracksGraphicsView::contextMenuRequested, this,
+            [this](const TrackEditorMenuContext &context) {
+                m_contextMenuController->showMenu(context, m_graphicsView);
+            });
     connect(m_graphicsView, &TracksGraphicsView::scaleChanged, this,
             &TrackEditorView::onViewScaleChanged);
     connect(m_graphicsView, &TracksGraphicsView::sizeChanged, m_tracksScene,
@@ -239,16 +244,17 @@ void TrackEditorView::connectLegacyBackend() {
 }
 
 void TrackEditorView::connectRhiBackend() {
-    connect(m_rhiView, &TracksRhiWidget::scaleChanged, this,
-            &TrackEditorView::onViewScaleChanged);
-    connect(m_rhiView, &TracksRhiWidget::timeRangeChanged, m_timeline,
-            &TimelineView::setTimeRange);
+    connect(m_rhiView, &TracksRhiWidget::contextMenuRequested, this,
+            [this](const TrackEditorMenuContext &context) {
+                m_contextMenuController->showMenu(context, m_rhiView);
+            });
+    connect(m_rhiView, &TracksRhiWidget::scaleChanged, this, &TrackEditorView::onViewScaleChanged);
+    connect(m_rhiView, &TracksRhiWidget::timeRangeChanged, m_timeline, &TimelineView::setTimeRange);
     connect(m_rhiView, &TracksRhiWidget::timeRangeChanged, m_tempoLane,
             &InfoLaneView::setTimeRange);
     connect(m_rhiView, &TracksRhiWidget::timeRangeChanged, m_timeSignatureLane,
             &InfoLaneView::setTimeRange);
-    connect(m_timeline, &TimelineView::wheelHorScale, m_rhiView,
-            &TracksRhiWidget::onWheelHorScale);
+    connect(m_timeline, &TimelineView::wheelHorScale, m_rhiView, &TracksRhiWidget::onWheelHorScale);
     connect(m_tempoLane, &InfoLaneView::wheelHorScale, m_rhiView,
             &TracksRhiWidget::onWheelHorScale);
     connect(m_tempoLane, &InfoLaneView::wheelHorScroll, m_rhiView,
@@ -273,8 +279,8 @@ void TrackEditorView::connectRhiBackend() {
             &TracksRhiWidget::setSceneLength);
     connect(m_rhiView, &EditorRhiWidget::backendFailed, this,
             [this](const QString &reason) {
-                qWarning().noquote() << QStringLiteral("[TracksRhi] falling back to Legacy: %1")
-                                            .arg(reason);
+                qWarning().noquote()
+                    << QStringLiteral("[TracksRhi] falling back to Legacy: %1").arg(reason);
                 fallbackToLegacy();
             });
 }
@@ -494,11 +500,9 @@ void TrackEditorView::onTrackMoved(const qsizetype from, const qsizetype to) {
     auto selectedTrackIndex = previousSelectedTrackIndex;
     if (previousSelectedTrackIndex == from) {
         selectedTrackIndex = static_cast<int>(to);
-    } else if (from < to && previousSelectedTrackIndex > from &&
-               previousSelectedTrackIndex <= to) {
+    } else if (from < to && previousSelectedTrackIndex > from && previousSelectedTrackIndex <= to) {
         selectedTrackIndex = previousSelectedTrackIndex - 1;
-    } else if (to < from && previousSelectedTrackIndex >= to &&
-               previousSelectedTrackIndex < from) {
+    } else if (to < from && previousSelectedTrackIndex >= to && previousSelectedTrackIndex < from) {
         selectedTrackIndex = previousSelectedTrackIndex + 1;
     }
     setSelectedTrackIndex(selectedTrackIndex);

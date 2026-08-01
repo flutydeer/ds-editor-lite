@@ -20,6 +20,7 @@ class TimeSignatureLaneView;
 class InfoLaneHeaderView;
 class TrackEditorBackgroundView;
 class TrackViewModel;
+class TrackEditorContextMenuController;
 class AbstractClipView;
 class QSplitter;
 class ChannelView;
@@ -76,6 +77,7 @@ private:
     TimeSignatureLaneView *m_timeSignatureLane;
     InfoLaneHeaderView *m_timeSignatureLaneHeader;
     TrackEditorBackgroundView *m_gridItem = nullptr;
+    TrackEditorContextMenuController *m_contextMenuController = nullptr;
     QSplitter *m_splitter = nullptr;
     QVBoxLayout *m_trackTimelineAndViewLayout = nullptr;
 

@@ -6,6 +6,8 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ADT/OverlappableSerialList.h>
 
+#include <QVector>
+
 class Note;
 
 class SingingClipView final : public AbstractClipView {
@@ -31,6 +33,7 @@ public:
     ~SingingClipView() override;
 
     void loadNotes(const OverlappableSerialList<Note> &notes);
+    void loadPreviewNotes(const QVector<std::tuple<int, int, int>> &notes);
     [[nodiscard]] int contentLength() const override;
 
 public slots:

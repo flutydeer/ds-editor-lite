@@ -2,6 +2,7 @@
 #define DATASET_TOOLS_TRACKSGRAPHICSVIEW_H
 
 #include "Interface/IAtomicAction.h"
+#include "TrackEditorContextMenuController.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
 class Menu;
@@ -9,7 +10,9 @@ class AbstractClipView;
 class TrackEditorBackgroundView;
 class TracksGraphicsScene;
 
-class TracksGraphicsView final : public TimeGraphicsView, public IAtomicAction {
+class TracksGraphicsView final : public TimeGraphicsView,
+                                 public IAtomicAction,
+                                 public ITrackPastePreviewHost {
     Q_OBJECT
     Q_PROPERTY(QColor selectedTrackColor READ selectedTrackColor WRITE setSelectedTrackColor)
     Q_PROPERTY(QColor clipSelectedBorderColor READ clipSelectedBorderColor WRITE
@@ -26,18 +29,19 @@ public:
 
     void discardAction() override;
     void commitAction() override;
+    void showTrackPastePreview(const TrackPastePreviewData &data, int previewTick,
+                               int baseTrackIndex) override;
+    void clearTrackPastePreview() override;
+
+signals:
+    void contextMenuRequested(const TrackEditorMenuContext &context);
 
 private slots:
     void onNewSingingClip() const;
-    void onAddAudioClip();
-    void onDeleteTriggered() const;
-    static void onExtractMidiTriggered(int clipId);
-    void onRelocateAudioTriggered(int clipId);
 
 private:
     enum MouseMoveBehavior { Move, ResizeRight, ResizeLeft, None };
 
-    void rebuildPersistentActionIcons();
     bool event(QEvent *event) override;
     void changeEvent(QEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -65,8 +69,6 @@ private:
     void setClipSelectedBorderColor(const QColor &color);
 
     TracksGraphicsScene *m_scene;
-    QAction *m_actionNewSingingClip;
-    QAction *m_actionAddAudioClip;
     int m_trackIndex = -1;
     int m_tick = 0;
     TrackEditorBackgroundView *m_snapGrid = nullptr;
@@ -95,7 +97,6 @@ private:
     double m_visibleEndMs = 0;    // wall-clock position of the mouse-down right edge
     AbstractClipView *m_currentEditingClip = nullptr;
     QList<AbstractClipView *> m_pastePreviewClipViews;
-    void clearPastePreviewClipViews();
 };
 
 #endif // DATASET_TOOLS_TRACKSGRAPHICSVIEW_H

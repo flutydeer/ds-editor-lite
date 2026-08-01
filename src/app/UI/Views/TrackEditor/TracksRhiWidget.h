@@ -2,6 +2,7 @@
 #define TRACKSRHIWIDGET_H
 
 #include "Interface/EditorViewState.h"
+#include "TrackEditorContextMenuController.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
 #include "UI/Views/Common/EditorViewportController.h"
@@ -17,12 +18,13 @@ class QMouseEvent;
 class QResizeEvent;
 class QWheelEvent;
 
-class TracksRhiWidget final : public EditorRhiWidget {
+class TracksRhiWidget final : public EditorRhiWidget, public ITrackPastePreviewHost {
     Q_OBJECT
     Q_PROPERTY(QColor barLineColor READ barLineColor WRITE setBarLineColor)
     Q_PROPERTY(QColor beatLineColor READ beatLineColor WRITE setBeatLineColor)
     Q_PROPERTY(QColor commonLineColor READ commonLineColor WRITE setCommonLineColor)
-    Q_PROPERTY(QColor playPosIndicatorColor READ playPosIndicatorColor WRITE setPlayPosIndicatorColor)
+    Q_PROPERTY(
+        QColor playPosIndicatorColor READ playPosIndicatorColor WRITE setPlayPosIndicatorColor)
     Q_PROPERTY(QColor lastPlayPosIndicatorColor READ lastPlayPosIndicatorColor WRITE
                    setLastPlayPosIndicatorColor)
     Q_PROPERTY(QColor selectedTrackColor READ selectedTrackColor WRITE setSelectedTrackColor)
@@ -43,6 +45,9 @@ public:
     [[nodiscard]] double scaleY() const;
     [[nodiscard]] double startTick() const;
     [[nodiscard]] double endTick() const;
+    void showTrackPastePreview(const TrackPastePreviewData &data, int previewTick,
+                               int baseTrackIndex) override;
+    void clearTrackPastePreview() override;
 
 public slots:
     void setSceneLength(int tick);
@@ -62,6 +67,7 @@ signals:
     void timeRangeChanged(double startTick, double endTick);
     void verticalOffsetChanged(double value);
     void setPositionTriggered(double tick);
+    void contextMenuRequested(const TrackEditorMenuContext &context);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -90,10 +96,14 @@ private:
         int trackIndex = -1;
         int colorIndex = 0;
         IClip::ClipType type = IClip::Generic;
+        int contentStartTick = 0;
+        int visibleStartTick = 0;
+        int visibleEndTick = 0;
         QRectF physicalRect;
         QString title;
         bool selected = false;
         bool active = false;
+        bool pastePreview = false;
         QVector<NoteSnapshot> notes;
         QVector<std::tuple<short, short>> peaks;
     };
@@ -110,11 +120,13 @@ private:
     void appendClips(EditorRhiFrameData &frame, double dpr);
     void appendClip(EditorRhiFrameData &frame, const ClipSnapshot &clip, double dpr);
     void appendPlaybackIndicators(EditorRhiFrameData &frame, double dpr) const;
-    [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex, double dpr) const;
+    [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex,
+                                                 double dpr) const;
     [[nodiscard]] const ClipSnapshot *hitTest(const QPointF &viewportPosition) const;
     [[nodiscard]] double wheelDelta(const QWheelEvent *event, bool preferHorizontal) const;
     [[nodiscard]] int trackIndexAt(const QPointF &viewportPosition) const;
     [[nodiscard]] int tickAt(const QPointF &viewportPosition) const;
+    [[nodiscard]] int snapStep(int tick) const;
     [[nodiscard]] int snapTick(int tick) const;
     void beginClipDrag(const ClipSnapshot &clip, const QMouseEvent *event);
     void updateDrag(const QPointF &position, Qt::KeyboardModifiers modifiers);
@@ -142,6 +154,7 @@ private:
     EditorViewportController m_viewport;
     EditorGlyphAtlas m_glyphAtlas;
     QVector<ClipSnapshot> m_clipSnapshots;
+    QVector<ClipSnapshot> m_pastePreviewSnapshots;
     bool m_snapshotScheduled = false;
     double m_playbackPosition = 0.0;
     double m_lastPlaybackPosition = 0.0;

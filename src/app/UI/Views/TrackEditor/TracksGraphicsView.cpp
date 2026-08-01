@@ -5,11 +5,9 @@
 #include "TracksGraphicsView.h"
 
 #include "TracksGraphicsScene.h"
-#include "Controller/ClipController.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
-#include "Global/ControllerGlobal.h"
 #include "Global/TracksEditorGlobal.h"
 #include "GraphicsItem/AbstractClipView.h"
 #include "GraphicsItem/AudioClipView.h"
@@ -20,29 +18,14 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
-#include "Model/ClipboardDataModel/ClipsInfo.h"
-#include "Modules/Audio/AudioContext.h"
-#include "Modules/Extractors/MidiExtractController.h"
 #include <lite/GUI/Controls/AccentButton.h>
-#include <lite/GUI/Controls/Menu.h>
-#include "UI/Dialogs/Base/Dialog.h"
-#include <lite/GUI/Utils/IconUtils.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
-#include <lite/GUI/Theme/ThemeManager.h>
 #include "UI/Views/Common/ScrollBarView.h"
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
-#include <QClipboard>
-#include <QFileDialog>
-#include <climits>
-#include <QGuiApplication>
-#include <QJsonDocument>
 #include <QKeyEvent>
-#include <QMimeData>
 #include <QMouseEvent>
 #include <QScrollBar>
-
-#include <TalcsWidgets/AudioFileDialog.h>
 
 TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *parent)
     : TimeGraphicsView(scene, true, parent), m_scene(scene) {
@@ -54,17 +37,6 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
     setPixelsPerQuarterNote(TracksEditorGlobal::pixelsPerQuarterNote);
     setDragBehavior(DragBehavior::RectSelect);
     setMinimumHeight(0);
-
-    m_actionNewSingingClip = new QAction(tr("New singing clip"), this);
-    connect(m_actionNewSingingClip, &QAction::triggered, this,
-            &TracksGraphicsView::onNewSingingClip);
-
-    m_actionAddAudioClip = new QAction(tr("Insert audio clip..."), this);
-    connect(m_actionAddAudioClip, &QAction::triggered, this, &TracksGraphicsView::onAddAudioClip);
-
-    rebuildPersistentActionIcons();
-    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
-            &TracksGraphicsView::rebuildPersistentActionIcons);
 
     connect(appStatus, &AppStatus::activeClipIdChanged, this, [this](const int clipId) {
         if (clipId == -1) {
@@ -78,13 +50,6 @@ TracksGraphicsView::TracksGraphicsView(TracksGraphicsScene *scene, QWidget *pare
         } else
             qFatal() << "Clip not found: " << clipId;
     });
-}
-
-void TracksGraphicsView::rebuildPersistentActionIcons() {
-    m_actionNewSingingClip->setIcon(
-        IconUtils::menuIcon(QStringLiteral(":/svg/icons/midi_clip_16_filled.svg")));
-    m_actionAddAudioClip->setIcon(
-        IconUtils::menuIcon(QStringLiteral(":/svg/icons/audio_clip_16_filled.svg")));
 }
 
 void TracksGraphicsView::setSnapGrid(TrackEditorBackgroundView *grid) {
@@ -136,58 +101,6 @@ void TracksGraphicsView::onNewSingingClip() const {
     trackController->onNewSingingClip(m_trackIndex, m_tick);
 }
 
-void TracksGraphicsView::onAddAudioClip() {
-    QString fileName;
-    QVariant userData;
-    QString entryClassName;
-    auto io = talcs::AudioFileDialog::getOpenAudioFileIO(AudioContext::instance()->formatManager(),
-                                                         fileName, userData, entryClassName, this,
-                                                         tr("Select an Audio File"), ".");
-
-    QByteArray dataBuffer;
-    QDataStream o(&dataBuffer, QIODevice::WriteOnly);
-    o << userData;
-    const QJsonObject workspace{
-        {"userData",       QString::fromLatin1(dataBuffer.toBase64())},
-        {"entryClassName", entryClassName                            },
-    };
-
-    if (fileName.isNull())
-        return;
-    const auto track = appModel->tracks().at(m_trackIndex);
-    trackController->onAddAudioClip(fileName, io, workspace, track->id(), m_tick);
-}
-
-void TracksGraphicsView::onDeleteTriggered() const {
-    trackController->onRemoveClips(selectedClipsId());
-}
-
-void TracksGraphicsView::onExtractMidiTriggered(const int clipId) {
-    const auto audioClip = dynamic_cast<AudioClip *>(appModel->findClipById(clipId));
-    Q_ASSERT(audioClip);
-    midiExtractController->runExtractMidi(audioClip);
-}
-
-void TracksGraphicsView::onRelocateAudioTriggered(const int clipId) {
-    QString fileName;
-    QVariant userData;
-    QString entryClassName;
-    auto io = talcs::AudioFileDialog::getOpenAudioFileIO(AudioContext::instance()->formatManager(),
-                                                         fileName, userData, entryClassName, this,
-                                                         tr("Select an Audio File"), ".");
-    if (fileName.isNull())
-        return;
-
-    QByteArray dataBuffer;
-    QDataStream o(&dataBuffer, QIODevice::WriteOnly);
-    o << userData;
-    const QJsonObject workspace{
-        {"userData",       QString::fromLatin1(dataBuffer.toBase64())},
-        {"entryClassName", entryClassName                            },
-    };
-    trackController->onRelocateAudioClip(clipId, fileName, io, workspace);
-}
-
 bool TracksGraphicsView::event(QEvent *event) {
     if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
         const auto key = dynamic_cast<QKeyEvent *>(event)->key();
@@ -202,7 +115,7 @@ bool TracksGraphicsView::event(QEvent *event) {
 
 bool TracksGraphicsView::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QEvent::Leave)
-        clearPastePreviewClipViews();
+        clearTrackPastePreview();
     return TimeGraphicsView::eventFilter(watched, event);
 }
 
@@ -263,7 +176,8 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
     int left;
     int clipLen;
     const int delta = qRound(dx);
-    const int quantize = snapStep(m_tempQuantizeOff, m_mouseDownStart + m_mouseDownClipStart + delta);
+    const int quantize =
+        snapStep(m_tempQuantizeOff, m_mouseDownStart + m_mouseDownClipStart + delta);
     const auto &timeline = appModel->timeline();
     if (m_mouseMoveBehavior == Move) {
         m_movedBeforeMouseUp = true;
@@ -329,9 +243,9 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
         }
     } else if (m_mouseMoveBehavior == ResizeRight) {
         m_movedBeforeMouseUp = true;
-        const int right = TimelineSnapUtils::snapNearest(
-            m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen + delta, quantize,
-            timeline);
+        const int right = TimelineSnapUtils::snapNearest(m_mouseDownStart + m_mouseDownClipStart +
+                                                             m_mouseDownClipLen + delta,
+                                                         quantize, timeline);
         if (m_dragUsesRealtimeTruth) {
             // The visible start and the trim stay fixed; the right edge
             // redefines the audible length, capped at the end of the material
@@ -414,8 +328,7 @@ void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
             editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
             editorViewController->centerPianoRollAt(playbackController->position(), 60);
         } else if (dynamic_cast<TrackEditorBackgroundView *>(item)) {
-            m_tick = TimelineSnapUtils::snapDown(tick, snapStep(false, tick),
-                                                 appModel->timeline());
+            m_tick = TimelineSnapUtils::snapDown(tick, snapStep(false, tick), appModel->timeline());
             onNewSingingClip();
         }
     }
@@ -430,162 +343,29 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
         return;
 
     const auto tick = m_scene->tickAt(scenePos.x());
-    if (const auto item = itemAt(event->pos())) {
-        if (dynamic_cast<TrackEditorBackgroundView *>(item)) {
-            m_trackIndex = trackIndex;
-            m_tick = TimelineSnapUtils::snapDown(tick, snapStep(false, tick),
-                                                 appModel->timeline());
-
-            Menu menu(this);
-            menu.installEventFilter(this);
-            menu.addAction(m_actionNewSingingClip);
-            menu.addAction(m_actionAddAudioClip);
-            menu.addSeparator();
-
-            const auto mimeData = QGuiApplication::clipboard()->mimeData();
-            const auto hasClipData =
-                mimeData &&
-                mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip));
-            const auto actionPaste = menu.addAction(tr("&Paste"));
-            actionPaste->setIcon(
-                IconUtils::menuIcon(QStringLiteral(":/svg/icons/clipboard_paste_16_regular.svg")));
-            actionPaste->setEnabled(hasClipData);
-            if (hasClipData) {
-                const auto array =
-                    mimeData->data(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip));
-                const auto json = QJsonDocument::fromJson(array);
-                ClipsInfo info = ClipsInfo::deserializeFromJson(json.object());
-                const auto pasteTick = m_tick;
-                const auto previewTick = TimelineSnapUtils::snapNearest(
-                    pasteTick, TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize),
-                    appModel->timeline());
-                const auto pasteTrack = trackIndex;
-                connect(actionPaste, &QAction::triggered, this, [info, pasteTick, pasteTrack] {
-                    trackController->pasteClips(info, pasteTick, pasteTrack);
-                });
-
-                int firstClipStart = INT_MAX;
-                for (const auto clip : info.clips)
-                    firstClipStart = qMin(firstClipStart, clip->start());
-
-                connect(actionPaste, &QAction::hovered, this,
-                        [this, info, previewTick, pasteTrack, firstClipStart] {
-                            if (!m_pastePreviewClipViews.isEmpty())
-                                return;
-                            for (int i = 0; i < info.clips.count(); i++) {
-                                const auto clip = info.clips.at(i);
-                                int targetTrack = pasteTrack + info.trackIndexOffsets.value(i, 0);
-                                targetTrack =
-                                    qBound(0, targetTrack, appModel->tracks().count() - 1);
-                                const auto track = appModel->tracks().at(targetTrack);
-                                const int targetStart =
-                                    previewTick + (clip->start() - firstClipStart);
-
-                                AbstractClipView *clipView = nullptr;
-                                if (clip->clipType() == IClip::Singing) {
-                                    const auto sc = static_cast<SingingClip *>(clip);
-                                    auto view = new SingingClipView(-1);
-                                    view->loadCommonProperties(Clip::ClipCommonProperties(*clip));
-                                    view->setTrackIndex(targetTrack);
-                                    view->setStart(targetStart);
-                                    view->loadNotes(sc->notes());
-                                    view->setSingerName(track->singerInfo().name());
-                                    view->setSpeakerName(SpeakerMixDisplayUtils::speakerDisplayName(
-                                        track->singerInfo(), track->speakerInfo(),
-                                        track->speakerMixData()));
-                                    view->setDefaultLanguage(sc->defaultLanguage());
-                                    clipView = view;
-                                } else if (clip->clipType() == IClip::Audio) {
-                                    const auto ac = static_cast<AudioClip *>(clip);
-                                    auto view = new AudioClipView(-1);
-                                    view->loadCommonProperties(Clip::ClipCommonProperties(*clip));
-                                    view->setTrackIndex(targetTrack);
-                                    view->setStart(targetStart);
-                                    view->setPath(ac->path());
-                                    view->setTimeline(appModel->timeline());
-                                    view->setAudioInfo(ac->audioInfo());
-                                    clipView = view;
-                                }
-
-                                if (clipView) {
-                                    clipView->setColorIndex(track->colorIndex());
-                                    clipView->setOpacity(0.35);
-                                    clipView->setAcceptedMouseButtons(Qt::NoButton);
-                                    clipView->setAcceptHoverEvents(false);
-                                    clipView->setFlag(QGraphicsItem::ItemIsSelectable, false);
-                                    m_scene->addCommonItem(clipView);
-                                    m_pastePreviewClipViews.append(clipView);
-                                }
-                            }
-                        });
-
-                for (auto a : menu.actions()) {
-                    if (a != actionPaste && !a->isSeparator())
-                        connect(a, &QAction::hovered, this,
-                                [this] { clearPastePreviewClipViews(); });
-                }
-
-                connect(&menu, &QMenu::aboutToHide, this, [this] { clearPastePreviewClipViews(); });
-            }
-
-            menu.exec(event->globalPos());
-        } else if (auto clip = dynamic_cast<AbstractClipView *>(item)) {
-            Menu menu(this);
-
-            if (clip->clipType() == IClip::Audio) {
-                const auto audioClip =
-                    dynamic_cast<AudioClip *>(appModel->findClipById(clip->id()));
-                const bool missing =
-                    audioClip && audioClip->pathStatus() == AudioClip::PathStatus::Missing;
-
-                const auto actionRelocate = new QAction(tr("Relink Audio File..."));
-                actionRelocate->setIcon(
-                    IconUtils::menuIcon(QStringLiteral(":/svg/icons/link_16_filled.svg")));
-                connect(actionRelocate, &QAction::triggered, this,
-                        [clip, this] { onRelocateAudioTriggered(clip->id()); });
-
-                const auto actionExtractMidi = new QAction(tr("Extract MIDI Score"));
-                actionExtractMidi->setIcon(
-                    IconUtils::menuIcon(QStringLiteral(":/svg/icons/arrow_export_16_regular.svg")));
-                connect(actionExtractMidi, &QAction::triggered, this,
-                        [clip, this] { onExtractMidiTriggered(clip->id()); });
-
-                // When the file is missing, put relink first in the menu as the nearest repair
-                // entry
-                if (missing) {
-                    menu.addAction(actionRelocate);
-                    menu.addSeparator();
-                    menu.addAction(actionExtractMidi);
-                } else {
-                    menu.addAction(actionExtractMidi);
-                    menu.addAction(actionRelocate);
-                }
-                menu.addSeparator();
-            }
-
-            const auto actionCut = menu.addAction(tr("Cu&t"));
-            actionCut->setIcon(
-                IconUtils::menuIcon(QStringLiteral(":/svg/icons/cut_16_regular.svg")));
-            connect(actionCut, &QAction::triggered, this,
-                    [] { trackController->cutSelectedClips(); });
-
-            const auto actionCopy = menu.addAction(tr("&Copy"));
-            actionCopy->setIcon(
-                IconUtils::menuIcon(QStringLiteral(":/svg/icons/copy_16_regular.svg")));
-            connect(actionCopy, &QAction::triggered, this,
-                    [] { trackController->copySelectedClips(); });
-
-            const auto actionDelete = menu.addAction(tr("&Delete"));
-            actionDelete->setIcon(
-                IconUtils::menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
-            connect(actionDelete, &QAction::triggered, this,
-                    &TracksGraphicsView::onDeleteTriggered);
-
-            menu.exec(event->globalPos());
-        } else {
-            TimeGraphicsView::contextMenuEvent(event);
-        }
+    const auto *item = itemAt(event->pos());
+    TrackEditorMenuContext context;
+    context.globalPos = event->globalPos();
+    context.rawTick = tick;
+    context.snappedTick = TimelineSnapUtils::snapDown(
+        context.rawTick, snapStep(false, context.rawTick), appModel->timeline());
+    context.trackIndex = trackIndex;
+    if (dynamic_cast<const TrackEditorBackgroundView *>(item)) {
+        context.target = TrackEditorMenuContext::Target::Background;
+    } else if (const auto *clip = dynamic_cast<const AbstractClipView *>(item)) {
+        context.clipId = clip->id();
+        context.selectedClipIds = selectedClipsId();
+        context.target = clip->clipType() == IClip::Audio
+                             ? TrackEditorMenuContext::Target::AudioClip
+                             : TrackEditorMenuContext::Target::SingingClip;
+        if (const auto *audio = qobject_cast<const AudioClip *>(appModel->findClipById(clip->id())))
+            context.audioMissing = audio->pathStatus() == AudioClip::PathStatus::Missing;
+    } else {
+        TimeGraphicsView::contextMenuEvent(event);
+        return;
     }
+    emit contextMenuRequested(context);
+    event->accept();
 }
 
 void TracksGraphicsView::discardAction() {
@@ -632,12 +412,65 @@ void TracksGraphicsView::resetEditState() {
     setSceneLengthExtension(0);
 }
 
-void TracksGraphicsView::clearPastePreviewClipViews() {
+void TracksGraphicsView::clearTrackPastePreview() {
     for (auto view : m_pastePreviewClipViews) {
         m_scene->removeCommonItem(view);
         delete view;
     }
     m_pastePreviewClipViews.clear();
+}
+
+void TracksGraphicsView::showTrackPastePreview(const TrackPastePreviewData &data,
+                                               const int previewTick, const int baseTrackIndex) {
+    if (!m_pastePreviewClipViews.isEmpty() || data.clips.isEmpty() || appModel->tracks().isEmpty())
+        return;
+
+    auto firstClipStart = data.clips.first().properties.start;
+    for (const auto &clip : data.clips)
+        firstClipStart = std::min(firstClipStart, clip.properties.start);
+
+    for (const auto &clip : data.clips) {
+        const auto targetTrack = std::clamp(baseTrackIndex + clip.trackIndexOffset, 0,
+                                            static_cast<int>(appModel->tracks().size()) - 1);
+        const auto *track = appModel->tracks().at(targetTrack);
+        const auto targetStart = previewTick + clip.properties.start - firstClipStart;
+        AbstractClipView *clipView = nullptr;
+        if (clip.type == IClip::Singing) {
+            auto *view = new SingingClipView(-1);
+            view->loadCommonProperties(clip.properties);
+            view->setTrackIndex(targetTrack);
+            view->setStart(targetStart);
+            QVector<std::tuple<int, int, int>> notes;
+            notes.reserve(clip.notes.size());
+            for (const auto &note : clip.notes)
+                notes.append({note.start, note.length, note.key});
+            view->loadPreviewNotes(notes);
+            view->setSingerName(track->singerInfo().name());
+            view->setSpeakerName(SpeakerMixDisplayUtils::speakerDisplayName(
+                track->singerInfo(), track->speakerInfo(), track->speakerMixData()));
+            view->setDefaultLanguage(clip.defaultLanguage);
+            clipView = view;
+        } else if (clip.type == IClip::Audio) {
+            auto *view = new AudioClipView(-1);
+            view->loadCommonProperties(clip.properties);
+            view->setTrackIndex(targetTrack);
+            view->setStart(targetStart);
+            view->setPath(clip.audioPath);
+            view->setTimeline(appModel->timeline());
+            view->setAudioInfo(clip.audioInfo);
+            clipView = view;
+        }
+
+        if (!clipView)
+            continue;
+        clipView->setColorIndex(track->colorIndex());
+        clipView->setOpacity(0.35);
+        clipView->setAcceptedMouseButtons(Qt::NoButton);
+        clipView->setAcceptHoverEvents(false);
+        clipView->setFlag(QGraphicsItem::ItemIsSelectable, false);
+        m_scene->addCommonItem(clipView);
+        m_pastePreviewClipViews.append(clipView);
+    }
 }
 
 void TracksGraphicsView::applyRealtimeTruthPreview(const int visibleStartTick) const {
@@ -711,8 +544,7 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
             m_dragTrimMs = audioClip->trimStartMs();
             m_dragPlayLengthMs = audioClip->playLengthMs();
             m_dragMaterialLengthMs = audioClip->materialLengthMs();
-            const double visibleMs =
-                timeline.tickToMs(m_mouseDownStart + m_mouseDownClipStart);
+            const double visibleMs = timeline.tickToMs(m_mouseDownStart + m_mouseDownClipStart);
             m_materialStartMs = visibleMs - m_dragTrimMs;
             m_visibleEndMs = visibleMs + m_dragPlayLengthMs;
             const double grabTick = scenePos.x() / scaleX() /
@@ -768,8 +600,4 @@ QList<AbstractClipView *> TracksGraphicsView::selectedClipItems() const {
 
 void TracksGraphicsView::changeEvent(QEvent *event) {
     TimeGraphicsView::changeEvent(event);
-    if (event->type() == QEvent::LanguageChange) {
-        m_actionNewSingingClip->setText(tr("New singing clip"));
-        m_actionAddAudioClip->setText(tr("Insert audio clip..."));
-    }
 }

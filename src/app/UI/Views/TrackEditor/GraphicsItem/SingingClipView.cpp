@@ -12,6 +12,8 @@
 #include <lite/Support/MathUtils.h>
 #include "Global/AppGlobal.h"
 
+#include <algorithm>
+
 using namespace TracksEditorGlobal;
 
 int SingingClipView::NoteViewModel::compareTo(const NoteViewModel *obj) const {
@@ -47,6 +49,22 @@ void SingingClipView::loadNotes(const OverlappableSerialList<Note> &notes) {
         for (const auto &note : notes)
             addNote(note);
 
+    update();
+}
+
+void SingingClipView::loadPreviewNotes(const QVector<std::tuple<int, int, int>> &notes) {
+    dispose();
+    for (const auto &[start, length, key] : notes) {
+        auto *viewModel = new NoteViewModel;
+        viewModel->rStart = start;
+        viewModel->length = length;
+        viewModel->keyIndex = key;
+        m_notes.append(viewModel);
+    }
+    std::sort(m_notes.begin(), m_notes.end(),
+              [](const NoteViewModel *left, const NoteViewModel *right) {
+                  return left->rStart < right->rStart;
+              });
     update();
 }
 
