@@ -814,7 +814,7 @@ QTreeView QHeaderView::section:hover {
 
 /* Dialog */
 QDialog {
-    background: ${surface.input};
+    background: ${surface.window};
 }
 
 QLabel#DialogTitleLabel {
@@ -1125,7 +1125,7 @@ TimeGraphicsView {
 /* CardView */
 CardView {
     border-radius: 8px;
-    background-color: ${surface.panel};
+    background-color: ${surface.raised};
 }
 
 OptionsCard>QLabel#title {

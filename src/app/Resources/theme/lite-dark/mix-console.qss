@@ -15,7 +15,7 @@ ChannelView[isMasterChannel="true"] {
 }
 
 ChannelView>Fader {
-    background: ${surface.window};
+    background: ${surface.sunken};
     border-radius: 4px;
     min-width: 32px
 }
@@ -38,13 +38,13 @@ QLineEdit#inlineEditLineEdit[editRole="Gain"] {
 }
 
 ChannelView>LevelMeter {
-    background: ${surface.window};
+    background: ${surface.sunken};
     border-radius: 4px;
     min-width: 32px
 }
 
 ChannelView>PanSlider {
-    background: ${surface.window};
+    background: ${surface.sunken};
     border-radius: 4px;
     min-height: 24px
 }
