@@ -50,7 +50,7 @@ Phase 6 后，Fixed Mix 的正式入口已迁移到 track/clip 的 singer/speake
 | `UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsScene.h/.cpp` | 图形场景 |
 | `UI/Views/ClipEditor/ParamEditor/ParamEditorInfoArea.h/.cpp` | 左侧刻度标签 |
 | `UI/Views/ClipEditor/CommonParamEditorView.h/.cpp` | 通用参数编辑视图（手绘/擦除 + DrawCurve 渲染） |
-| `UI/Views/ClipEditor/PianoRoll/PitchAnchorEditorView.h/.cpp` | 音高锚点渲染（可参考锚点绘制方式） |
+| `UI/Views/ClipEditor/AnchorEditor/AnchorOverlayView.h/.cpp` | 通用锚点渲染（可参考锚点绘制方式） |
 | `UI/Views/ClipEditor/PianoRoll/EditPitchAnchorHandler.h/.cpp` | 音高锚点交互逻辑（可参考锚点交互模式） |
 | `Model/AppModel/Params.h/.cpp` | ParamInfo::Name 枚举 + Param 数据模型 |
 | `Model/AppModel/ParamProperties.h/.cpp` | 参数属性定义（值域、显示模式等） |
@@ -262,7 +262,7 @@ HitResult hitTest(const QPointF &itemPos) const;
 ##### 渲染增强
 
 在 `paint()` 中根据状态额外绘制：
-- hover 分割点：放大圆点 + 外圈（参考 `PitchAnchorEditorView` 的 hover ring，半径 6px）
+- hover 分割点：放大圆点 + 外圈（参考 `AnchorOverlayView` 的 hover ring，半径 6px）
 - 选中分割点：高亮色 `(155, 186, 255)`
 - 区间选择框：蓝色半透明圆角矩形 `(155, 186, 255, 64)` 填充 + `(155, 186, 255, 200)` 描边，同锚点编辑器样式
 
@@ -289,8 +289,8 @@ HitResult hitTest(const QPointF &itemPos) const;
 |--------|---------|------|
 | 命中检测 | `EditPitchAnchorHandler::anchorNodeAt()` | `PianoRoll/EditPitchAnchorHandler.cpp` |
 | 鼠标状态机 | `EditPitchAnchorHandler` 的 press/move/release | 同上 |
-| 区间选择框渲染 | `PitchAnchorEditorView::drawSelectionRect()` | `PianoRoll/PitchAnchorEditorView.cpp` |
-| Hover 圆点样式 | `PitchAnchorEditorView::drawAnchorCurves()` | 同上 |
+| 区间选择框渲染 | `AnchorOverlayView::drawSelectionRect()` | `AnchorEditor/AnchorOverlayView.cpp` |
+| Hover 圆点样式 | `AnchorOverlayView::drawAnchorCurves()` | 同上 |
 | 右键菜单 | `EditPitchAnchorHandler::contextMenuEvent()` | `PianoRoll/EditPitchAnchorHandler.cpp` |
 | 拖拽阈值 | Manhattan distance > 3px | 同上 |
 

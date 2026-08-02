@@ -4,7 +4,10 @@
 #include <QList>
 
 class DrawCurve;
-struct AnchorOverlayState;
+
+namespace AnchorEditor {
+    struct AnchorOverlayState;
+}
 
 enum class PitchDisplayMode {
     Final,
@@ -18,10 +21,9 @@ struct PitchDisplayInterval {
 };
 
 namespace PitchDisplayStrategy {
+    [[nodiscard]] QList<PitchDisplayInterval> drawCurveCoverage(const QList<DrawCurve *> &curves);
     [[nodiscard]] QList<PitchDisplayInterval>
-        drawCurveCoverage(const QList<DrawCurve *> &curves);
-    [[nodiscard]] QList<PitchDisplayInterval>
-        anchorCoverage(const AnchorOverlayState &state);
+        anchorCoverage(const AnchorEditor::AnchorOverlayState &state);
     [[nodiscard]] QList<PitchDisplayInterval>
         combineCoverage(const QList<PitchDisplayInterval> &first,
                         const QList<PitchDisplayInterval> &second);

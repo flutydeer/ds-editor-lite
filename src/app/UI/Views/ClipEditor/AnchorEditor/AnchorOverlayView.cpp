@@ -1,9 +1,7 @@
-#include "PitchAnchorEditorView.h"
+#include "AnchorOverlayView.h"
 
-#include "EditPitchAnchorHandler.h"
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include <lite/Support/MathUtils.h>
 
 #include <QLineF>
 #include <QPainter>
@@ -11,82 +9,83 @@
 #include <algorithm>
 #include <cmath>
 
-PitchAnchorEditorView::PitchAnchorEditorView() {
+AnchorOverlayView::AnchorOverlayView(ValueMapper valueToSceneY, ValueMapper sceneYToValue)
+    : m_valueToSceneY(std::move(valueToSceneY)), m_sceneYToValue(std::move(sceneYToValue)) {
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
     setTransparentMouseEvents(true);
 }
 
-void PitchAnchorEditorView::setOverlayState(const AnchorOverlayState *state) {
+void AnchorOverlayView::setOverlayState(const AnchorEditor::AnchorOverlayState *state) {
     m_state = state;
 }
 
-void PitchAnchorEditorView::setDisplayMode(const PitchDisplayMode mode) {
+void AnchorOverlayView::setDisplayMode(const DisplayMode mode) {
     if (m_displayMode == mode)
         return;
     m_displayMode = mode;
     update();
 }
 
-QColor PitchAnchorEditorView::anchorColor() const {
+void AnchorOverlayView::setValueMappers(ValueMapper valueToSceneY, ValueMapper sceneYToValue) {
+    m_valueToSceneY = std::move(valueToSceneY);
+    m_sceneYToValue = std::move(sceneYToValue);
+    update();
+}
+
+QColor AnchorOverlayView::anchorColor() const {
     return m_anchorColor;
 }
 
-void PitchAnchorEditorView::setAnchorColor(const QColor &color) {
+void AnchorOverlayView::setAnchorColor(const QColor &color) {
     if (m_anchorColor == color)
         return;
     m_anchorColor = color;
     update();
 }
 
-QColor PitchAnchorEditorView::anchorSelectedColor() const {
+QColor AnchorOverlayView::anchorSelectedColor() const {
     return m_anchorSelectedColor;
 }
 
-void PitchAnchorEditorView::setAnchorSelectedColor(const QColor &color) {
+void AnchorOverlayView::setAnchorSelectedColor(const QColor &color) {
     if (m_anchorSelectedColor == color)
         return;
     m_anchorSelectedColor = color;
     update();
 }
 
-QColor PitchAnchorEditorView::anchorCurveColor() const {
+QColor AnchorOverlayView::anchorCurveColor() const {
     return m_anchorCurveColor;
 }
 
-void PitchAnchorEditorView::setAnchorCurveColor(const QColor &color) {
+void AnchorOverlayView::setAnchorCurveColor(const QColor &color) {
     if (m_anchorCurveColor == color)
         return;
     m_anchorCurveColor = color;
     update();
 }
 
-QColor PitchAnchorEditorView::anchorPreviewColor() const {
+QColor AnchorOverlayView::anchorPreviewColor() const {
     return m_anchorPreviewColor;
 }
 
-void PitchAnchorEditorView::setAnchorPreviewColor(const QColor &color) {
+void AnchorOverlayView::setAnchorPreviewColor(const QColor &color) {
     if (m_anchorPreviewColor == color)
         return;
     m_anchorPreviewColor = color;
     update();
 }
 
-double PitchAnchorEditorView::valueToSceneY(const double value) const {
-    constexpr int min = 0;
-    constexpr int max = 12700;
-    return (12700 - MathUtils::clip(value, min, max) + 50) * scaleY() *
-           ClipEditorGlobal::noteHeight / 100;
+double AnchorOverlayView::valueToSceneY(const double value) const {
+    return m_valueToSceneY ? m_valueToSceneY(value) : value;
 }
 
-double PitchAnchorEditorView::sceneYToValue(const double y) const {
-    constexpr int min = 0;
-    constexpr int max = 12700;
-    const auto value = -(y * 100 / ClipEditorGlobal::noteHeight / scaleY() - 12700 - 50);
-    return MathUtils::clip(value, min, max);
+double AnchorOverlayView::sceneYToValue(const double y) const {
+    return m_sceneYToValue ? m_sceneYToValue(y) : y;
 }
 
-void PitchAnchorEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
-                                  QWidget *widget) {
+void AnchorOverlayView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                              QWidget *widget) {
     Q_UNUSED(option)
     Q_UNUSED(widget)
     if (!m_state || (!m_state->anchorVisible && !m_state->anchorEditActive))
@@ -102,14 +101,14 @@ void PitchAnchorEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         drawSelectionRect(painter);
 }
 
-void PitchAnchorEditorView::updateRectAndPos() {
+void AnchorOverlayView::updateRectAndPos() {
     const auto pos = visibleRect().topLeft();
     setPos(pos);
     setRect(QRectF(0, 0, visibleRect().width(), visibleRect().height()));
     update();
 }
 
-void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
+void AnchorOverlayView::drawAnchorCurves(QPainter *painter) const {
     if (!m_state)
         return;
 
@@ -118,10 +117,10 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
     constexpr double hoverRadius = 6.0;
     QColor normalColor = m_anchorColor;
     QColor curveColor = m_anchorCurveColor;
-    if (m_displayMode == PitchDisplayMode::Final) {
+    if (m_displayMode == DisplayMode::Final) {
         normalColor.setAlpha(std::min(normalColor.alpha(), 220));
         curveColor.setAlpha(std::min(curveColor.alpha(), 180));
-    } else if (m_displayMode == PitchDisplayMode::Draw) {
+    } else if (m_displayMode == DisplayMode::Draw) {
         normalColor.setAlpha(std::min(normalColor.alpha(), 80));
         curveColor.setAlpha(std::min(curveColor.alpha(), 60));
     } else {
@@ -149,13 +148,9 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
         }
     };
 
-    auto tickToLocalX = [this](int tick) {
-        return tickToItemX(tick);
-    };
+    auto tickToLocalX = [this](int tick) { return tickToItemX(tick); };
 
-    auto valueToLocalY = [this](int value) {
-        return sceneYToItemY(valueToSceneY(value));
-    };
+    auto valueToLocalY = [this](int value) { return sceneYToItemY(valueToSceneY(value)); };
 
     auto drawCurve = [&](AnchorCurve *curve) {
         auto allNodes = curve->nodes().toList();
@@ -167,8 +162,7 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
             for (auto *node : allNodes) {
                 bool skip = false;
                 for (const auto &info : m_state->dragNodeInfos) {
-                    if (info.node == node && info.targetCurve &&
-                        info.sourceCurve == curve) {
+                    if (info.node == node && info.targetCurve && info.sourceCurve == curve) {
                         skip = true;
                         break;
                     }
@@ -199,7 +193,7 @@ void PitchAnchorEditorView::drawAnchorCurves(QPainter *painter) const {
         drawCurve(curve);
 }
 
-void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
+void AnchorOverlayView::drawPreviewCurve(QPainter *painter) const {
     if (!m_state || !m_state->currentCurve || m_state->dragging || !m_state->cursorInView)
         return;
 
@@ -215,11 +209,16 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
     if (nodes.isEmpty())
         return;
 
-    const QPointF scenePreviewPos = m_state->previewPos + visibleRect().topLeft();
+    const QPointF scenePreviewPos = m_state->previewScenePos;
     const double previewTick = sceneXToTick(scenePreviewPos.x());
     const double previewValue = sceneYToValue(scenePreviewPos.y());
 
     AnchorNode virtualNode(static_cast<int>(previewTick), static_cast<int>(previewValue));
+    if (std::any_of(nodes.cbegin(), nodes.cend(), [&virtualNode](const AnchorNode *node) {
+            return node->pos() == virtualNode.pos();
+        })) {
+        return;
+    }
 
     QList<AnchorNode *> allNodes = nodes;
     auto it = std::lower_bound(allNodes.begin(), allNodes.end(), &virtualNode,
@@ -236,8 +235,7 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
         savedLastMode = oldLastNode->interpMode();
         if (savedLastMode == AnchorNode::None) {
             auto idx = nodes.indexOf(oldLastNode);
-            auto predecessorMode =
-                (idx > 0) ? nodes[idx - 1]->interpMode() : AnchorNode::Hermite;
+            auto predecessorMode = (idx > 0) ? nodes[idx - 1]->interpMode() : AnchorNode::Hermite;
             oldLastNode->setInterpMode(predecessorMode);
         }
     } else {
@@ -269,7 +267,7 @@ void PitchAnchorEditorView::drawPreviewCurve(QPainter *painter) const {
         oldLastNode->setInterpMode(savedLastMode);
 }
 
-void PitchAnchorEditorView::drawMergePreviewCurve(QPainter *painter) const {
+void AnchorOverlayView::drawMergePreviewCurve(QPainter *painter) const {
     QList<AnchorNode *> allNodes;
     for (auto *node : m_state->currentCurve->nodes().toList())
         allNodes.append(node);
@@ -291,7 +289,7 @@ void PitchAnchorEditorView::drawMergePreviewCurve(QPainter *painter) const {
     painter->drawPath(interpolatedPath(allNodes, painter->device()->devicePixelRatioF()));
 }
 
-void PitchAnchorEditorView::drawDragPreviewCurve(QPainter *painter) const {
+void AnchorOverlayView::drawDragPreviewCurve(QPainter *painter) const {
     if (!m_state || !m_state->dragging || m_state->dragNodeInfos.isEmpty())
         return;
 
@@ -343,11 +341,11 @@ void PitchAnchorEditorView::drawDragPreviewCurve(QPainter *painter) const {
     }
 }
 
-void PitchAnchorEditorView::drawSelectionRect(QPainter *painter) const {
+void AnchorOverlayView::drawSelectionRect(QPainter *painter) const {
     if (!m_state || !m_state->selecting)
         return;
 
-    const auto rect = m_state->selectionRect.normalized();
+    const auto rect = m_state->selectionSceneRect.normalized();
     const double x1 = sceneXToItemX(rect.left());
     const double y1 = sceneYToItemY(rect.top());
     const double x2 = sceneXToItemX(rect.right());
@@ -364,19 +362,27 @@ void PitchAnchorEditorView::drawSelectionRect(QPainter *painter) const {
     painter->drawRoundedRect(localRect, radius, radius);
 }
 
-QPainterPath PitchAnchorEditorView::interpolatedPath(const QList<AnchorNode *> &nodes,
-                                                     const double devicePixelRatio) const {
+QPainterPath AnchorOverlayView::interpolatedPath(const QList<AnchorNode *> &nodes,
+                                                 const double devicePixelRatio) const {
     QPainterPath path;
-    if (nodes.size() < 2)
+    QList<AnchorNode *> renderNodes;
+    renderNodes.reserve(nodes.size());
+    for (auto *node : nodes) {
+        if (!renderNodes.isEmpty() && renderNodes.last()->pos() == node->pos())
+            renderNodes.last() = node;
+        else
+            renderNodes.append(node);
+    }
+    if (renderNodes.size() < 2)
         return path;
 
     const auto dpr = std::max(1.0, devicePixelRatio);
     const auto visibleLeft = rect().left() - 2.0 / dpr;
     const auto visibleRight = rect().right() + 2.0 / dpr;
     bool hasPoint = false;
-    for (int i = 0; i < nodes.size() - 1; ++i) {
-        const auto *firstNode = nodes.at(i);
-        const auto *secondNode = nodes.at(i + 1);
+    for (int i = 0; i < renderNodes.size() - 1; ++i) {
+        const auto *firstNode = renderNodes.at(i);
+        const auto *secondNode = renderNodes.at(i + 1);
         const auto segmentLeft = tickToItemX(firstNode->pos());
         const auto segmentRight = tickToItemX(secondNode->pos());
         const auto startX = std::max(segmentLeft, visibleLeft);
@@ -384,8 +390,8 @@ QPainterPath PitchAnchorEditorView::interpolatedPath(const QList<AnchorNode *> &
         if (endX < startX)
             continue;
 
-        const auto *previousNode = i > 0 ? nodes.at(i - 1) : nullptr;
-        const auto *nextNode = i + 2 < nodes.size() ? nodes.at(i + 2) : nullptr;
+        const auto *previousNode = i > 0 ? renderNodes.at(i - 1) : nullptr;
+        const auto *nextNode = i + 2 < renderNodes.size() ? renderNodes.at(i + 2) : nullptr;
         const auto interpolator =
             AnchorCurve::createInterpolator(firstNode, secondNode, previousNode, nextNode);
         auto appendPoint = [&](const double x) {

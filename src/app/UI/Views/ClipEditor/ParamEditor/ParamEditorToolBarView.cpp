@@ -5,12 +5,14 @@
 #include <lite/GUI/Controls/ComboBox.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "Model/Utils/ParamUtils.h"
+#include "ParamEditToolBarView.h"
 #include "SpeakerMixToolBarView.h"
 
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QSignalBlocker>
+#include <QStackedWidget>
 
 ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
@@ -36,8 +38,14 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     cbBackgroundParam->removeItem(0);                              // Remove pitch
     cbBackgroundParam->removeItem(cbBackgroundParam->count() - 1); // Remove speaker mix
 
+    m_paramEditToolBar = new ParamEditToolBarView;
     m_speakerMixToolBar = new SpeakerMixToolBarView;
-    m_speakerMixToolBar->setVisible(false);
+    m_toolBarStack = new QStackedWidget;
+    m_toolBarStack->setObjectName("paramEditorToolBarStack");
+    m_toolBarStack->addWidget(m_paramEditToolBar);
+    m_toolBarStack->addWidget(m_speakerMixToolBar);
+    m_toolBarStack->setCurrentWidget(m_paramEditToolBar);
+    m_toolBarStack->setFixedHeight(ClipEditorGlobal::paramEditorToolControlHeight);
 
     lbForegroundParam->setMaximumHeight(ClipEditorGlobal::paramEditorToolControlHeight);
     cbForegroundParam->setFixedHeight(ClipEditorGlobal::paramEditorToolControlHeight);
@@ -52,7 +60,7 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     layout->addWidget(m_btnSwap);
     layout->addWidget(lbBackgroundParam);
     layout->addWidget(cbBackgroundParam);
-    layout->addWidget(m_speakerMixToolBar);
+    layout->addWidget(m_toolBarStack);
     layout->addStretch();
     layout->setSpacing(4);
     layout->setContentsMargins(8, ClipEditorGlobal::paramEditorToolBarVerticalMargin, 4,
@@ -65,6 +73,8 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     connect(cbBackgroundParam, &ComboBox::currentIndexChanged, this,
             &ParamEditorToolBarView::onBackgroundSelectionChanged);
     connect(m_btnSwap, &Button::clicked, this, &ParamEditorToolBarView::onSwap);
+    connect(m_paramEditToolBar, &ParamEditToolBarView::editModeChanged, this,
+            &ParamEditorToolBarView::editModeChanged);
     connect(m_speakerMixToolBar, &SpeakerMixToolBarView::previousKeyframe, this,
             &ParamEditorToolBarView::previousKeyframe);
     connect(m_speakerMixToolBar, &SpeakerMixToolBarView::nextKeyframe, this,
@@ -78,10 +88,14 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
 
     cbForegroundParam->setCurrentIndex(appOptions->general()->defaultForegroundParam - 1);
     cbBackgroundParam->setCurrentIndex(appOptions->general()->defaultBackgroundParam - 1);
+    setSpeakerMixMode(static_cast<ParamInfo::Name>(cbForegroundParam->currentIndex() + 1) ==
+                      ParamInfo::SpeakerMix);
+    retranslateUi();
 }
 
 void ParamEditorToolBarView::setSpeakerMixMode(bool on) {
-    m_speakerMixToolBar->setVisible(on);
+    m_toolBarStack->setCurrentWidget(on ? static_cast<QWidget *>(m_speakerMixToolBar)
+                                        : static_cast<QWidget *>(m_paramEditToolBar));
 }
 
 void ParamEditorToolBarView::setSpeakers(const QStringList &names, const QList<QColor> &colors) {
@@ -93,7 +107,9 @@ void ParamEditorToolBarView::setSpeakerMixDynamicState(const SpeakerMixDynamicUi
 }
 
 void ParamEditorToolBarView::onForegroundSelectionChanged(const int index) {
-    emit foregroundChanged(static_cast<ParamInfo::Name>(index + 1));
+    const auto name = static_cast<ParamInfo::Name>(index + 1);
+    setSpeakerMixMode(name == ParamInfo::SpeakerMix);
+    emit foregroundChanged(name);
 }
 
 void ParamEditorToolBarView::onBackgroundSelectionChanged(const int index) {

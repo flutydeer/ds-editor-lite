@@ -1,6 +1,6 @@
 #include "PitchEditorView.h"
 
-#include "EditPitchAnchorHandler.h"
+#include "UI/Views/ClipEditor/AnchorEditor/AnchorEditController.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include <lite/ProjectModel/Utils/AppModelUtils.h>
 #include <lite/Support/MathUtils.h>
@@ -10,8 +10,7 @@
 
 #include <algorithm>
 
-PitchEditorView::PitchEditorView()
-    : CommonParamEditorView(m_properties) {
+PitchEditorView::PitchEditorView() : CommonParamEditorView(m_properties) {
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
 }
 
@@ -27,7 +26,7 @@ void PitchEditorView::setDisplayMode(const PitchDisplayMode mode) {
     update();
 }
 
-void PitchEditorView::setAnchorOverlayState(const AnchorOverlayState *state) {
+void PitchEditorView::setAnchorOverlayState(const AnchorEditor::AnchorOverlayState *state) {
     m_anchorState = state;
     update();
 }
@@ -57,9 +56,8 @@ void PitchEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *o
     painter->setBrush(Qt::NoBrush);
 
     const auto editedCoverage = PitchDisplayStrategy::drawCurveCoverage(editedCurves());
-    const auto anchorCoverage = m_anchorState
-                                    ? PitchDisplayStrategy::anchorCoverage(*m_anchorState)
-                                    : QList<PitchDisplayInterval>();
+    const auto anchorCoverage = m_anchorState ? PitchDisplayStrategy::anchorCoverage(*m_anchorState)
+                                              : QList<PitchDisplayInterval>();
     const auto editedOrAnchorCoverage =
         PitchDisplayStrategy::combineCoverage(editedCoverage, anchorCoverage);
 
@@ -71,8 +69,7 @@ void PitchEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *o
     }
 
     if (m_displayMode == PitchDisplayMode::Draw) {
-        drawCurveLayer(painter, originalCurves(), originalCurveColor(), {},
-                       editedOrAnchorCoverage);
+        drawCurveLayer(painter, originalCurves(), originalCurveColor(), {}, editedOrAnchorCoverage);
         auto focusColor = editedCurveColor();
         focusColor.setAlpha(std::min(focusColor.alpha(), 230));
         drawCurveLayer(painter, editedCurves(), focusColor, {}, anchorCoverage);
@@ -88,8 +85,7 @@ void PitchEditorView::drawGraduates(QPainter *painter, const QStyleOptionGraphic
                                     QWidget *widget) {
 }
 
-QPainterPath
-PitchEditorView::coveragePath(const QList<PitchDisplayInterval> &coverage) const {
+QPainterPath PitchEditorView::coveragePath(const QList<PitchDisplayInterval> &coverage) const {
     QPainterPath path;
     const auto verticalMargin = 4.0;
     const auto top = rect().top() - verticalMargin;
@@ -106,10 +102,10 @@ PitchEditorView::coveragePath(const QList<PitchDisplayInterval> &coverage) const
     return path;
 }
 
-void PitchEditorView::drawCurveLayer(
-    QPainter *painter, const QList<DrawCurve *> &curves, const QColor &color,
-    const QList<PitchDisplayInterval> &hiddenCoverage,
-    const QList<PitchDisplayInterval> &dashedCoverage) const {
+void PitchEditorView::drawCurveLayer(QPainter *painter, const QList<DrawCurve *> &curves,
+                                     const QColor &color,
+                                     const QList<PitchDisplayInterval> &hiddenCoverage,
+                                     const QList<PitchDisplayInterval> &dashedCoverage) const {
     if (curves.isEmpty())
         return;
 

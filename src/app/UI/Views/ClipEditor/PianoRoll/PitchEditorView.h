@@ -5,7 +5,9 @@
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include "UI/Views/ClipEditor/CommonParamEditorView.h"
 
-struct AnchorOverlayState;
+namespace AnchorEditor {
+    struct AnchorOverlayState;
+}
 class QPainterPath;
 
 class PitchEditorView final : public CommonParamEditorView {
@@ -15,7 +17,7 @@ public:
     ~PitchEditorView() override;
 
     void setDisplayMode(PitchDisplayMode mode);
-    void setAnchorOverlayState(const AnchorOverlayState *state);
+    void setAnchorOverlayState(const AnchorEditor::AnchorOverlayState *state);
     void loadOriginal(const QList<DrawCurve *> &curves);
     void loadEdited(const QList<DrawCurve *> &curves);
     void clearParams();
@@ -34,7 +36,7 @@ private:
 
     PitchParamProperties m_properties;
     QList<DrawCurve *> m_mergedCurves;
-    const AnchorOverlayState *m_anchorState = nullptr;
+    const AnchorEditor::AnchorOverlayState *m_anchorState = nullptr;
     PitchDisplayMode m_displayMode = PitchDisplayMode::Final;
 };
 

@@ -144,7 +144,7 @@ void PianoRollGraphicsViewHelper::updateAnchorPitch(const Param &param,
     QList<AnchorCurve *> anchorCurves;
     for (const auto curve : param.curves(Param::Edited)) {
         if (curve->type() == Curve::Anchor)
-            anchorCurves.append(new AnchorCurve(*dynamic_cast<AnchorCurve *>(curve)));
+            anchorCurves.append(static_cast<AnchorCurve *>(curve));
     }
     handler.loadFromModel(anchorCurves);
 }

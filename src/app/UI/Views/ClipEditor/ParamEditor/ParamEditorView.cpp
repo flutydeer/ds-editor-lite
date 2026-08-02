@@ -89,6 +89,8 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
             &ParamEditorView::onForegroundChanged);
     connect(m_toolBar, &ParamEditorToolBarView::backgroundChanged, this,
             &ParamEditorView::onBackgroundChanged);
+    connect(m_toolBar, &ParamEditorToolBarView::editModeChanged, m_graphicsView,
+            &ParamEditorGraphicsView::setEditMode);
     connect(m_toolBar, &ParamEditorToolBarView::previousKeyframe, this,
             &ParamEditorView::onPreviousKeyframe);
     connect(m_toolBar, &ParamEditorToolBarView::nextKeyframe, this,
@@ -139,13 +141,11 @@ void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) {
             mixView->setSpeakerMixData(m_clip->speakerMixData());
         }
         refreshSpeakerMixToolBar();
-        m_toolBar->setSpeakerMixMode(true);
         return;
     }
     qDebug() << "foreground changed" << paramUtils->nameFromType(name);
     m_infoArea->setParamProperties(*paramUtils->getPropertiesByName(name));
     m_graphicsView->setForeground(name, *paramUtils->getPropertiesByName(name));
-    m_toolBar->setSpeakerMixMode(false);
     hideSpeakerMixEmptyState();
 }
 

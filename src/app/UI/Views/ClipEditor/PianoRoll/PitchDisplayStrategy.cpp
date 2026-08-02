@@ -1,6 +1,6 @@
 #include "PitchDisplayStrategy.h"
 
-#include "EditPitchAnchorHandler.h"
+#include "UI/Views/ClipEditor/AnchorEditor/AnchorEditController.h"
 
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
@@ -10,16 +10,15 @@
 #include <algorithm>
 
 namespace {
-    void appendNodeCoverage(QList<PitchDisplayInterval> &result,
-                            const QList<AnchorNode *> &nodes) {
+    void appendNodeCoverage(QList<PitchDisplayInterval> &result, const QList<AnchorNode *> &nodes) {
         if (nodes.size() < 2)
             return;
-        result.append({static_cast<double>(nodes.first()->pos()),
-                       static_cast<double>(nodes.last()->pos())});
+        result.append(
+            {static_cast<double>(nodes.first()->pos()), static_cast<double>(nodes.last()->pos())});
     }
 
     QList<AnchorNode *> sourceNodesForDisplay(AnchorCurve *curve,
-                                               const AnchorOverlayState &state) {
+                                              const AnchorEditor::AnchorOverlayState &state) {
         auto nodes = curve->nodes().toList();
         if (!state.dragging)
             return nodes;
@@ -61,19 +60,19 @@ namespace {
 }
 
 QList<PitchDisplayInterval>
-PitchDisplayStrategy::drawCurveCoverage(const QList<DrawCurve *> &curves) {
+    PitchDisplayStrategy::drawCurveCoverage(const QList<DrawCurve *> &curves) {
     QList<PitchDisplayInterval> result;
     for (const auto *curve : curves) {
         if (!curve || curve->values().size() < 2)
             continue;
-        result.append({static_cast<double>(curve->localStart()),
-                       static_cast<double>(curve->localEndTick())});
+        result.append(
+            {static_cast<double>(curve->localStart()), static_cast<double>(curve->localEndTick())});
     }
     return normalized(result);
 }
 
 QList<PitchDisplayInterval>
-PitchDisplayStrategy::anchorCoverage(const AnchorOverlayState &state) {
+    PitchDisplayStrategy::anchorCoverage(const AnchorEditor::AnchorOverlayState &state) {
     QList<PitchDisplayInterval> result;
     for (auto *curve : state.visibleCurves) {
         if (curve)
@@ -90,11 +89,10 @@ PitchDisplayStrategy::anchorCoverage(const AnchorOverlayState &state) {
             auto nodes = target->nodes().toList();
             for (const auto &info : state.dragNodeInfos) {
                 if (info.targetCurve == target) {
-                    auto it = std::lower_bound(
-                        nodes.begin(), nodes.end(), info.node,
-                        [](const AnchorNode *left, const AnchorNode *right) {
-                            return left->pos() < right->pos();
-                        });
+                    auto it = std::lower_bound(nodes.begin(), nodes.end(), info.node,
+                                               [](const AnchorNode *left, const AnchorNode *right) {
+                                                   return left->pos() < right->pos();
+                                               });
                     nodes.insert(it, info.node);
                 }
             }
@@ -124,8 +122,8 @@ PitchDisplayStrategy::anchorCoverage(const AnchorOverlayState &state) {
 }
 
 QList<PitchDisplayInterval>
-PitchDisplayStrategy::combineCoverage(const QList<PitchDisplayInterval> &first,
-                                      const QList<PitchDisplayInterval> &second) {
+    PitchDisplayStrategy::combineCoverage(const QList<PitchDisplayInterval> &first,
+                                          const QList<PitchDisplayInterval> &second) {
     auto result = first;
     result.append(second);
     return normalized(result);

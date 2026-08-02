@@ -8,22 +8,27 @@
 #include <QColor>
 
 class ParamProperties;
+class AnchorCurve;
+class QPainterPath;
+class QPen;
 
 class CommonParamEditorView : public TimeOverlayView, public IAtomicAction {
     Q_OBJECT
 
 public:
-    enum EditMode { Free, Anchor, Off };
-
     explicit CommonParamEditorView(const ParamProperties &properties);
+    ~CommonParamEditorView() override;
 
     void setParamProperties(const ParamProperties &properties);
     void loadOriginal(const QList<DrawCurve *> &curves);
     void loadEdited(const QList<DrawCurve *> &curves);
+    void loadAnchorEdited(const QList<AnchorCurve *> &curves);
     void clearParams();
     void cancelEdit();
     void setEraseMode(bool on);
     [[nodiscard]] const QList<DrawCurve *> &editedCurves() const;
+    [[nodiscard]] double sceneYForValue(double value) const;
+    [[nodiscard]] double valueAtSceneY(double y) const;
     void discardAction() override;
     void commitAction() override;
 
@@ -58,6 +63,8 @@ private:
     void updateRectAndPos() override;
     bool cancelEditState();
     void drawCurvePolygon(QPainter *painter, const QList<DrawCurve *> &curves) const;
+    void drawEditedCurveBorders(QPainter *painter, const QPen &pen) const;
+    [[nodiscard]] QPainterPath anchorCoveragePath() const;
     static void drawLine(const QPoint &p1, const QPoint &p2, DrawCurve &curve);
 
     bool m_showDebugInfo = false;
@@ -74,6 +81,7 @@ private:
     bool m_newCurveCreated = false;
     bool m_mouseMoved = false;
     QList<DrawCurve *> m_drawCurvesEdited;
+    QList<DrawCurve *> m_anchorCurvesEdited;
     QList<DrawCurve *> m_drawCurvesOriginal;
     QList<DrawCurve *> m_drawCurvesEditedBak;
 

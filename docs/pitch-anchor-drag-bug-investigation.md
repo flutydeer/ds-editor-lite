@@ -10,8 +10,8 @@
 |------|------|
 | EditPitchAnchorHandler.cpp | `src/app/UI/Views/ClipEditor/PianoRoll/EditPitchAnchorHandler.cpp` |
 | EditPitchAnchorHandler.h | `src/app/UI/Views/ClipEditor/PianoRoll/EditPitchAnchorHandler.h` |
-| PitchAnchorEditorView.cpp | `src/app/UI/Views/ClipEditor/PianoRoll/PitchAnchorEditorView.cpp` |
-| PitchAnchorEditorView.h | `src/app/UI/Views/ClipEditor/PianoRoll/PitchAnchorEditorView.h` |
+| AnchorOverlayView.cpp | `src/app/UI/Views/ClipEditor/AnchorEditor/AnchorOverlayView.cpp` |
+| AnchorOverlayView.h | `src/app/UI/Views/ClipEditor/AnchorEditor/AnchorOverlayView.h` |
 | AnchorCurve.h / .cpp | `src/app/Model/AppModel/AnchorCurve.h` `.cpp` |
 | OverlappableSerialList.h | `src/app/Utils/OverlappableSerialList.h` |
 

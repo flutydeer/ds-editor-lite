@@ -10,7 +10,7 @@
 #include "NoteInteractionController.h"
 #include "PianoRollSelectionModel.h"
 #include "PianoRollGraphicsView_p.h"
-#include "PitchAnchorEditorView.h"
+#include "UI/Views/ClipEditor/AnchorEditor/AnchorOverlayView.h"
 #include "PitchEditorView.h"
 #include "PronunciationView.h"
 #include "PianoRollEditHandler.h"
@@ -130,7 +130,9 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     scene->addCommonItem(d->m_pitchEditor);
     d->m_pitchEditor->setTransparentMouseEvents(true);
 
-    d->m_anchorEditor = new PitchAnchorEditorView;
+    d->m_anchorEditor = new AnchorOverlayView(
+        [d](const double value) { return d->m_pitchEditor->valueToSceneY(value); },
+        [d](const double y) { return d->m_pitchEditor->sceneYToValue(y); });
     d->m_anchorEditor->setZValue(2.5);
     scene->addCommonItem(d->m_anchorEditor);
     d->m_anchorEditor->setTransparentMouseEvents(true);
@@ -1062,7 +1064,11 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     else if (mode == EditPitchAnchor)
         displayMode = PitchDisplayMode::Anchor;
     d->m_pitchEditor->setDisplayMode(displayMode);
-    d->m_anchorEditor->setDisplayMode(displayMode);
+    const auto anchorDisplayMode =
+        displayMode == PitchDisplayMode::Draw     ? AnchorOverlayView::DisplayMode::Draw
+        : displayMode == PitchDisplayMode::Anchor ? AnchorOverlayView::DisplayMode::Anchor
+                                                  : AnchorOverlayView::DisplayMode::Final;
+    d->m_anchorEditor->setDisplayMode(anchorDisplayMode);
 
     if (d->m_currentHandler) {
         d->m_currentHandler->activate();

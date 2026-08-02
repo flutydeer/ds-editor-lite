@@ -1,753 +1,178 @@
 #include "EditPitchAnchorHandler.h"
 
+#include "PianoRollContextMenuController.h"
 #include "PianoRollGraphicsView.h"
 #include "PianoRollGraphicsView_p.h"
-#include "PitchAnchorEditorView.h"
 #include "PitchEditorView.h"
-#include "PianoRollContextMenuController.h"
-
-#include <lite/ProjectModel/AppModel/AnchorCurve.h>
-#include <lite/ProjectModel/AppModel/DrawCurve.h>
-#include <lite/ProjectModel/AppModel/SingingClip.h>
-#include "Model/AppStatus/AppStatus.h"
 #include "Controller/ClipController.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
-#include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
+#include "UI/Views/ClipEditor/AnchorEditor/AnchorOverlayView.h"
+
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QContextMenuEvent>
+#include <QHoverEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
-#include <QSet>
 
-namespace {
-    void beginPitchEditSession() {
-        if (editSessionManager->hasActiveTransaction())
-            return;
-        const auto clip = dynamic_cast<SingingClip *>(clipController->clip());
-        if (!clip)
-            return;
-        editSessionManager->beginTransaction(AppStatus::EditObjectType::Param, clip->id(), {}, {},
-                                             {}, {ParamInfo::Pitch});
-        appStatus->currentEditObject = AppStatus::EditObjectType::Param;
-    }
+EditPitchAnchorHandler::EditPitchAnchorHandler() {
+    m_controller.setCoordinateMapper({
+        [this](const double x) { return qRound(q->sceneXToTick(x)); },
+        [this](const int tick) { return q->tickToSceneX(tick); },
+        [this](const double y) { return qRound(d->m_anchorEditor->sceneYToValue(y)); },
+        [this](const int value) { return d->m_anchorEditor->valueToSceneY(value); },
+    });
+    m_controller.setHostCallbacks({
+        [this] { return beginEditSession(); },
+        [this](const QList<AnchorCurve *> &curves) { publish(curves); },
+        [this](const AnchorEditor::EditFinishReason reason) { finishEditSession(reason); },
+        [this] { triggerRepaint(); },
+    });
 }
 
 void EditPitchAnchorHandler::activate() {
-    m_state.anchorEditActive = true;
-    d->m_anchorEditor->setOverlayState(&m_state);
     q->setMouseTracking(true);
-    triggerRepaint();
+    m_controller.setEditActive(true);
 }
 
 void EditPitchAnchorHandler::deactivate() {
     q->setMouseTracking(false);
-    m_state.anchorEditActive = false;
-    m_state.showPreview = false;
-    m_state.hoveredNode = nullptr;
-    m_state.selecting = false;
-    m_state.dragging = false;
-    editSessionManager->endActiveTransaction(EditSessionEndReason::Cancel);
-    appStatus->currentEditObject = AppStatus::EditObjectType::None;
-    triggerRepaint();
+    m_controller.setEditActive(false);
 }
 
 bool EditPitchAnchorHandler::mousePressEvent(QMouseEvent *event) {
-    const auto scenePos = q->mapToScene(event->position().toPoint());
-    const auto node = anchorNodeAt(scenePos);
-
-    if (event->button() == Qt::LeftButton) {
-        beginPitchEditSession();
-        if (m_state.editing) {
-            if (node) {
-                if (m_state.showMergePreview && node == m_state.mergeEndpointNode) {
-                    mergeCurves(m_state.mergeCandidateCurve);
-                } else {
-                    if (!m_state.selectedNodes.contains(node))
-                        selectNode(node);
-                    m_state.dragStartPos = scenePos;
-                    m_state.dragging = false;
-                }
-            } else {
-                createAnchorAt(scenePos);
-                m_state.dragStartPos = scenePos;
-                m_state.dragging = false;
-            }
-        } else {
-            if (node) {
-                selectNode(node);
-                enterEditingState(m_state.currentCurve, node);
-                m_state.dragStartPos = scenePos;
-                m_state.dragging = false;
-            } else {
-                m_state.selectionRect = QRectF(scenePos, QSizeF(0, 0));
-                m_state.selecting = true;
-            }
-        }
-        triggerRepaint();
-        return true;
-    }
-
-    return true;
+    return m_controller.pressAt(q->mapToScene(event->position().toPoint()), event->button());
 }
 
 bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
-    const auto scenePos = q->mapToScene(event->position().toPoint());
-
-    if (event->buttons() & Qt::LeftButton) {
-        if (m_state.editing && !m_state.selectedNodes.isEmpty()) {
-            const auto delta = scenePos - m_state.dragStartPos;
-            if (!m_state.dragging && delta.manhattanLength() > 3)
-                m_state.dragging = true;
-
-            if (m_state.dragging)
-                updateNodeDragAt(scenePos);
-            return true;
-        }
-
-        if (m_state.selecting) {
-            updateSelectionRectAt(scenePos);
-            return true;
-        }
-    } else {
-        auto *hovered = anchorNodeAt(scenePos);
-        if (hovered != m_state.hoveredNode) {
-            m_state.hoveredNode = hovered;
-            triggerRepaint();
-        }
-
-        if (m_state.editing) {
-            updateMergeCandidate(scenePos);
-            updatePreview(scenePos);
-            triggerRepaint();
-        }
-    }
-    return true;
-}
-
-void EditPitchAnchorHandler::updateNodeDragAt(const QPointF &scenePos) {
-    if (m_state.dragNodeInfos.isEmpty()) {
-        for (auto *node : m_state.selectedNodes) {
-            DragNodeInfo info;
-            info.node = node;
-            info.sourceCurve = findOwnerCurve(node);
-            info.startTick = node->pos();
-            info.startValue = node->value();
-            m_state.dragNodeInfos.append(info);
-        }
-    }
-
-    const auto deltaTick =
-        static_cast<int>(q->sceneXToTick(scenePos.x()) - q->sceneXToTick(m_state.dragStartPos.x()));
-    const auto deltaValue =
-        static_cast<int>(d->m_anchorEditor->sceneYToValue(scenePos.y()) -
-                         d->m_anchorEditor->sceneYToValue(m_state.dragStartPos.y()));
-
-    for (auto &info : m_state.dragNodeInfos) {
-        info.sourceCurve->removeNode(info.node);
-        info.node->setPos(info.startTick + deltaTick);
-        info.node->setValue(info.startValue + deltaValue);
-        info.sourceCurve->insertNode(info.node);
-        info.targetCurve = anchorCurveAt(info.node->pos(), info.sourceCurve);
-    }
-
-    triggerRepaint();
-}
-
-void EditPitchAnchorHandler::updateSelectionRectAt(const QPointF &scenePos) {
-    m_state.selectionRect.setBottomRight(scenePos);
-    const auto rect = m_state.selectionRect.normalized();
-    clearSelection();
-    for (auto *curve : anchorCurves()) {
-        for (auto *node : curve->nodes().toList()) {
-            const auto x = q->tickToSceneX(node->pos());
-            const auto y = d->m_anchorEditor->valueToSceneY(node->value());
-            if (rect.contains(x, y))
-                m_state.selectedNodes.append(node);
-        }
-    }
-    triggerRepaint();
-}
-
-Qt::Orientations EditPitchAnchorHandler::edgeAutoScrollAxes() const {
-    const bool draggingNodes = m_state.editing && m_state.dragging;
-    if (draggingNodes || m_state.selecting)
-        return Qt::Horizontal | Qt::Vertical;
-    return {};
-}
-
-void EditPitchAnchorHandler::continueDragAt(const QPoint &viewportPos) {
-    const auto scenePos = q->mapToScene(viewportPos);
-    if (m_state.editing && m_state.dragging && !m_state.selectedNodes.isEmpty())
-        updateNodeDragAt(scenePos);
-    else if (m_state.selecting)
-        updateSelectionRectAt(scenePos);
+    return m_controller.moveAt(q->mapToScene(event->position().toPoint()), event->buttons());
 }
 
 bool EditPitchAnchorHandler::mouseReleaseEvent(QMouseEvent *event) {
-    if (event->button() == Qt::LeftButton) {
-        if (m_state.dragging) {
-            m_state.dragging = false;
-
-            QSet<AnchorCurve *> sourcesToCleanup;
-            for (auto &info : m_state.dragNodeInfos) {
-                if (info.targetCurve && info.targetCurve != info.sourceCurve) {
-                    info.sourceCurve->removeNode(info.node);
-                    info.targetCurve->insertNode(info.node);
-                    sourcesToCleanup.insert(info.sourceCurve);
-                }
-            }
-
-            for (auto &info : m_state.dragNodeInfos) {
-                auto *finalCurve = info.targetCurve ? info.targetCurve : info.sourceCurve;
-                removeOverlappingNodes(finalCurve, info.node);
-            }
-
-            for (auto *curve : sourcesToCleanup)
-                cleanupEmptyCurve(curve);
-
-            if (!m_state.selectedNodes.isEmpty())
-                m_state.currentCurve = findOwnerCurve(m_state.selectedNodes.first());
-
-            m_state.dragNodeInfos.clear();
-
-            const auto scenePos = q->mapToScene(event->pos());
-            updatePreview(scenePos);
-            triggerRepaint();
-            commit();
-            return true;
-        }
-
-        if (m_state.selecting) {
-            m_state.selecting = false;
-            if (!m_state.selectedNodes.isEmpty()) {
-                QSet<AnchorCurve *> involvedCurves;
-                for (auto *node : m_state.selectedNodes)
-                    involvedCurves.insert(findOwnerCurve(node));
-                if (involvedCurves.size() == 1)
-                    enterEditingState(*involvedCurves.begin());
-                else
-                    m_state.editing = true;
-            }
-            m_state.selectionRect = QRectF();
-            triggerRepaint();
-            editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
-            appStatus->currentEditObject = AppStatus::EditObjectType::None;
-            return true;
-        }
-    }
-    editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
-    appStatus->currentEditObject = AppStatus::EditObjectType::None;
-    return true;
+    return m_controller.releaseAt(q->mapToScene(event->position().toPoint()), event->button());
 }
 
 void EditPitchAnchorHandler::mouseDoubleClickEvent(QMouseEvent *event) {
-    if (event->button() != Qt::LeftButton)
-        return;
-    const auto scenePos = q->mapToScene(event->position().toPoint());
-    createAnchorAt(scenePos);
-    m_state.dragStartPos = scenePos;
-    m_state.dragging = false;
-    triggerRepaint();
+    m_controller.doubleClickAt(q->mapToScene(event->position().toPoint()), event->button());
 }
 
-bool EditPitchAnchorHandler::prepareMenuContext(QContextMenuEvent *event,
-                                                PianoRollMenuContext &context) {
-    const auto scenePos = q->mapToScene(event->pos());
-    auto *node = anchorNodeAt(scenePos);
-
-    if (!node) {
-        if (m_state.editing) {
-            exitEditingState();
-            triggerRepaint();
-        }
-        return false;
-    }
-
-    if (m_state.selectedNodes.size() <= 1 || !m_state.selectedNodes.contains(node)) {
-        clearSelection();
-        selectNode(node);
-        enterEditingState(m_state.currentCurve, node);
-    }
-    triggerRepaint();
-
-    const auto currentMode = m_state.selectedNodes.first()->interpMode();
-    const auto allSame =
-        std::all_of(m_state.selectedNodes.begin(), m_state.selectedNodes.end(),
-                    [currentMode](AnchorNode *n) { return n->interpMode() == currentMode; });
-    const auto isLastNode = [this](AnchorNode *selected) {
-        const auto *owner = findOwnerCurve(selected);
-        const auto nodes = owner ? owner->nodes().toList() : QList<AnchorNode *>();
-        return !nodes.isEmpty() && nodes.last() == selected;
-    };
-    const auto allAreLast =
-        std::all_of(m_state.selectedNodes.begin(), m_state.selectedNodes.end(), isLastNode);
-
-    context.target = PianoRollMenuContext::Target::Anchor;
-    context.globalPos = event->globalPos();
-    context.anchorInterpolationEnabled = !allAreLast;
-    context.anchorMode = !allSame                             ? PianoRollAnchorMode::Mixed
-                         : currentMode == AnchorNode::Linear  ? PianoRollAnchorMode::Linear
-                         : currentMode == AnchorNode::Hermite ? PianoRollAnchorMode::Hermite
-                                                              : PianoRollAnchorMode::None;
-    return true;
+void EditPitchAnchorHandler::hoverEnterEvent(QHoverEvent *event) {
+    Q_UNUSED(event)
+    m_controller.hoverEnter();
 }
 
-void EditPitchAnchorHandler::setSelectedInterpolation(const PianoRollAnchorMode mode) {
-    if (mode != PianoRollAnchorMode::Linear && mode != PianoRollAnchorMode::Hermite)
-        return;
-    const auto targetMode =
-        mode == PianoRollAnchorMode::Linear ? AnchorNode::Linear : AnchorNode::Hermite;
-    bool changed = false;
-    for (auto *node : m_state.selectedNodes) {
-        const auto *owner = findOwnerCurve(node);
-        const auto nodes = owner ? owner->nodes().toList() : QList<AnchorNode *>();
-        if (!nodes.isEmpty() && nodes.last() != node && node->interpMode() != targetMode) {
-            node->setInterpMode(targetMode);
-            changed = true;
-        }
-    }
-    if (!changed)
-        return;
-    triggerRepaint();
-    commit();
-}
-
-void EditPitchAnchorHandler::deleteSelectedNodesFromMenu() {
-    deleteSelectedNodes();
+void EditPitchAnchorHandler::hoverLeaveEvent(QHoverEvent *event) {
+    Q_UNUSED(event)
+    m_controller.hoverLeave();
 }
 
 bool EditPitchAnchorHandler::keyPressEvent(QKeyEvent *event) {
-    if (event->key() == Qt::Key_Escape && m_state.editing) {
-        exitEditingState();
-        editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
-        appStatus->currentEditObject = AppStatus::EditObjectType::None;
-        triggerRepaint();
+    if (event->key() == Qt::Key_Escape) {
+        m_controller.exitEditing();
+        return true;
+    }
+    if (event->key() == Qt::Key_Delete) {
+        m_controller.deleteSelectedNodes();
         return true;
     }
     return false;
 }
 
 void EditPitchAnchorHandler::commit() {
-    auto *clip = dynamic_cast<SingingClip *>(clipController->clip());
-    if (!clip)
-        return;
-    beginPitchEditSession();
-
-    QList<Curve *> combined;
-    const auto &existing = clip->params.getParamByName(ParamInfo::Pitch)->curves(Param::Edited);
-    for (auto *curve : existing) {
-        if (curve->type() == Curve::Draw)
-            combined.append(new DrawCurve(*dynamic_cast<DrawCurve *>(curve)));
-    }
-    for (auto *curve : m_localCurves)
-        combined.append(new AnchorCurve(*curve));
-
-    m_committing = true;
-    clipController->onParamEdited(ParamInfo::Pitch, combined);
-    m_committing = false;
-    editSessionManager->endActiveTransaction(EditSessionEndReason::Commit);
-    appStatus->currentEditObject = AppStatus::EditObjectType::None;
+    // Mutations are committed atomically by AnchorEditController.
 }
 
 void EditPitchAnchorHandler::discard() {
-    m_state.dragging = false;
-    m_state.selecting = false;
-    editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
-    appStatus->currentEditObject = AppStatus::EditObjectType::None;
-    triggerRepaint();
+    m_controller.cancel();
 }
 
-const AnchorOverlayState &EditPitchAnchorHandler::overlayState() const {
-    return m_state;
+Qt::Orientations EditPitchAnchorHandler::edgeAutoScrollAxes() const {
+    return m_controller.edgeAutoScrollAxes();
 }
 
-void EditPitchAnchorHandler::hoverEnterEvent(QHoverEvent *event) {
-    Q_UNUSED(event);
-    m_state.cursorInView = true;
-    triggerRepaint();
+void EditPitchAnchorHandler::continueDragAt(const QPoint &viewportPos) {
+    m_controller.continueDragAtScene(q->mapToScene(viewportPos));
 }
 
-void EditPitchAnchorHandler::hoverLeaveEvent(QHoverEvent *event) {
-    Q_UNUSED(event);
-    m_state.cursorInView = false;
-    triggerRepaint();
-}
-
-void EditPitchAnchorHandler::setAlwaysVisible(bool visible) {
-    m_state.anchorVisible = visible;
-    triggerRepaint();
+void EditPitchAnchorHandler::setAlwaysVisible(const bool visible) {
+    m_controller.setAlwaysVisible(visible);
 }
 
 void EditPitchAnchorHandler::loadFromModel(const QList<AnchorCurve *> &curves) {
-    if (m_committing) {
-        qDeleteAll(curves);
+    m_controller.loadFromModel(curves);
+}
+
+const AnchorEditor::AnchorOverlayState &EditPitchAnchorHandler::overlayState() const {
+    return m_controller.state();
+}
+
+bool EditPitchAnchorHandler::prepareMenuContext(QContextMenuEvent *event,
+                                                PianoRollMenuContext &context) {
+    AnchorEditor::MenuInfo info;
+    if (!m_controller.prepareMenu(q->mapToScene(event->pos()), info))
+        return false;
+    context.target = PianoRollMenuContext::Target::Anchor;
+    context.globalPos = event->globalPos();
+    context.anchorInterpolationEnabled = info.interpolationEnabled;
+    context.anchorMode = info.mixedInterpolation                     ? PianoRollAnchorMode::Mixed
+                         : info.interpolation == AnchorNode::Linear  ? PianoRollAnchorMode::Linear
+                         : info.interpolation == AnchorNode::Hermite ? PianoRollAnchorMode::Hermite
+                                                                     : PianoRollAnchorMode::None;
+    return true;
+}
+
+void EditPitchAnchorHandler::setSelectedInterpolation(const PianoRollAnchorMode mode) {
+    if (mode == PianoRollAnchorMode::Linear)
+        m_controller.setSelectedInterpolation(AnchorNode::Linear);
+    else if (mode == PianoRollAnchorMode::Hermite)
+        m_controller.setSelectedInterpolation(AnchorNode::Hermite);
+}
+
+void EditPitchAnchorHandler::deleteSelectedNodesFromMenu() {
+    m_controller.deleteSelectedNodes();
+}
+
+bool EditPitchAnchorHandler::beginEditSession() {
+    if (!d || !d->m_clip)
+        return false;
+    if (m_sessionId != 0)
+        return true;
+    if (editSessionManager->hasActiveTransaction())
+        return false;
+    m_sessionId = editSessionManager->beginTransaction(
+        AppStatus::EditObjectType::Param, d->m_clip->id(), {}, {}, {}, {ParamInfo::Pitch});
+    appStatus->currentEditObject = AppStatus::EditObjectType::Param;
+    return m_sessionId != 0;
+}
+
+void EditPitchAnchorHandler::publish(const QList<AnchorCurve *> &curves) {
+    if (!d || !d->m_clip)
         return;
+    const auto *pitch = d->m_clip->params.getParamByName(ParamInfo::Pitch);
+    auto edited = AnchorEditor::replaceAnchors(pitch->curves(Param::Edited), curves);
+    clipController->onParamEdited(ParamInfo::Pitch, edited);
+    qDeleteAll(edited);
+}
+
+void EditPitchAnchorHandler::finishEditSession(const AnchorEditor::EditFinishReason reason) {
+    const auto sessionId = m_sessionId;
+    m_sessionId = 0;
+    if (sessionId != 0 && editSessionManager->hasActiveTransaction() &&
+        editSessionManager->activeSession().sessionId == sessionId) {
+        editSessionManager->endTransaction(sessionId,
+                                           reason == AnchorEditor::EditFinishReason::Commit
+                                               ? EditSessionEndReason::Commit
+                                               : EditSessionEndReason::Discard);
     }
-    exitEditingState();
-    qDeleteAll(m_localCurves);
-    m_localCurves.clear();
-    for (auto *curve : curves)
-        m_localCurves.append(curve);
-    triggerRepaint();
+    if (!editSessionManager->hasActiveTransaction())
+        appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
-AnchorNode *EditPitchAnchorHandler::anchorNodeAt(const QPointF &scenePos) const {
-    AnchorNode *nearestNode = nullptr;
-    double nearestDistanceSquared = kAnchorHitRadius * kAnchorHitRadius;
-    for (auto *curve : anchorCurves()) {
-        for (auto *node : curve->nodes().toList()) {
-            const auto x = q->tickToSceneX(node->pos());
-            const auto y = d->m_anchorEditor->valueToSceneY(node->value());
-            const auto dx = scenePos.x() - x;
-            const auto dy = scenePos.y() - y;
-            const auto distanceSquared = dx * dx + dy * dy;
-            if (distanceSquared <= kAnchorHitRadius * kAnchorHitRadius &&
-                (!nearestNode || distanceSquared < nearestDistanceSquared)) {
-                nearestNode = node;
-                nearestDistanceSquared = distanceSquared;
-            }
-        }
-    }
-    return nearestNode;
-}
-
-AnchorCurve *EditPitchAnchorHandler::anchorCurveAt(int tick, AnchorCurve *exclude) const {
-    for (auto *curve : anchorCurves()) {
-        if (curve == exclude)
-            continue;
-        const auto &nodes = curve->nodes().toList();
-        if (nodes.isEmpty())
-            continue;
-        if (tick >= nodes.first()->pos() && tick <= nodes.last()->pos())
-            return curve;
-    }
-    return nullptr;
-}
-
-QList<AnchorCurve *> EditPitchAnchorHandler::anchorCurves() const {
-    return m_localCurves;
-}
-
-std::pair<int, int> EditPitchAnchorHandler::getReachableBounds(AnchorCurve *curve) const {
-    if (!curve)
-        return {INT_MIN, INT_MAX};
-
-    const auto &curveNodes = curve->nodes().toList();
-    if (curveNodes.isEmpty())
-        return {INT_MIN, INT_MAX};
-
-    int curveFirst = curveNodes.first()->pos();
-    int curveLast = curveNodes.last()->pos();
-
-    int minBound = INT_MIN;
-    int maxBound = INT_MAX;
-
-    for (auto *other : m_localCurves) {
-        if (other == curve)
-            continue;
-        const auto &otherNodes = other->nodes().toList();
-        if (otherNodes.isEmpty())
-            continue;
-        int otherLast = otherNodes.last()->pos();
-        int otherFirst = otherNodes.first()->pos();
-        if (otherLast < curveFirst)
-            minBound = qMax(minBound, otherLast + 1);
-        if (otherFirst > curveLast)
-            maxBound = qMin(maxBound, otherFirst - 1);
-    }
-
-    return {minBound, maxBound};
-}
-
-AnchorCurve *EditPitchAnchorHandler::findOwnerCurve(AnchorNode *node) const {
-    for (auto *curve : m_localCurves) {
-        if (curve->nodes().toList().contains(node))
-            return curve;
-    }
-    return nullptr;
-}
-
-AnchorNode *EditPitchAnchorHandler::findNodeAtTick(AnchorCurve *curve, int tick,
-                                                   AnchorNode *exclude) {
-    if (!curve)
-        return nullptr;
-    for (auto *node : curve->nodes().toList()) {
-        if (node != exclude && node->pos() == tick)
-            return node;
-    }
-    return nullptr;
-}
-
-void EditPitchAnchorHandler::removeOverlappingNodes(AnchorCurve *curve, AnchorNode *keep) {
-    if (!curve || !keep)
+void EditPitchAnchorHandler::triggerRepaint() const {
+    if (!d)
         return;
-    QList<AnchorNode *> toRemove;
-    for (auto *node : curve->nodes().toList()) {
-        if (node != keep && node->pos() == keep->pos())
-            toRemove.append(node);
-    }
-    for (auto *node : toRemove) {
-        curve->removeNode(node);
-        m_state.selectedNodes.removeOne(node);
-        if (m_state.hoveredNode == node)
-            m_state.hoveredNode = nullptr;
-        delete node;
-    }
-}
-
-void EditPitchAnchorHandler::transferNodeToCurve(AnchorNode *node, AnchorCurve *from,
-                                                 AnchorCurve *to) {
-    from->removeNode(node);
-    to->insertNode(node);
-    m_state.currentCurve = to;
-    cleanupEmptyCurve(from);
-}
-
-void EditPitchAnchorHandler::detachNodeToNewCurve(AnchorNode *node, AnchorCurve *from) {
-    from->removeNode(node);
-
-    auto *newCurve = new AnchorCurve;
-    newCurve->insertNode(node);
-    m_localCurves.append(newCurve);
-    m_state.currentCurve = newCurve;
-    cleanupEmptyCurve(from);
-}
-
-void EditPitchAnchorHandler::cleanupEmptyCurve(AnchorCurve *curve) {
-    if (!curve || !curve->nodes().toList().isEmpty())
-        return;
-    m_localCurves.removeOne(curve);
-    if (m_state.currentCurve == curve) {
-        m_state.currentCurve = nullptr;
-        exitEditingState();
-    }
-    delete curve;
-}
-
-void EditPitchAnchorHandler::enterEditingState(AnchorCurve *curve, AnchorNode *node) {
-    m_state.editing = true;
-    m_state.currentCurve = curve;
-    if (node)
-        selectNode(node);
-}
-
-void EditPitchAnchorHandler::exitEditingState() {
-    m_state.editing = false;
-    m_state.currentCurve = nullptr;
-    m_state.showPreview = false;
-    clearSelection();
-}
-
-void EditPitchAnchorHandler::selectNode(AnchorNode *node) {
-    m_state.selectedNodes.clear();
-    m_state.selectedNodes.append(node);
-    for (auto *curve : anchorCurves()) {
-        if (curve->nodes().toList().contains(node)) {
-            m_state.currentCurve = curve;
-            break;
-        }
-    }
-}
-
-void EditPitchAnchorHandler::clearSelection() {
-    m_state.selectedNodes.clear();
-}
-
-void EditPitchAnchorHandler::deleteSelectedNodes() {
-    if (m_state.selectedNodes.isEmpty())
-        return;
-
-    QHash<AnchorCurve *, QList<AnchorNode *>> nodesByCurve;
-    for (auto *node : m_state.selectedNodes) {
-        auto *curve = findOwnerCurve(node);
-        if (curve)
-            nodesByCurve[curve].append(node);
-    }
-    clearSelection();
-
-    for (auto it = nodesByCurve.begin(); it != nodesByCurve.end(); ++it) {
-        auto *curve = it.key();
-        for (auto *node : it.value())
-            curve->removeNode(node);
-        const auto &remaining = curve->nodes().toList();
-        if (remaining.isEmpty()) {
-            m_localCurves.removeOne(curve);
-            if (m_state.currentCurve == curve)
-                m_state.currentCurve = nullptr;
-            delete curve;
-        } else {
-            remaining.last()->setInterpMode(AnchorNode::None);
-        }
-    }
-
-    if (!m_state.currentCurve)
-        exitEditingState();
-    triggerRepaint();
-    commit();
-}
-
-void EditPitchAnchorHandler::createAnchorAt(const QPointF &scenePos) {
-    const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()));
-    const auto value = static_cast<int>(d->m_anchorEditor->sceneYToValue(scenePos.y()));
-
-    AnchorCurve *curve = nullptr;
-
-    if (m_state.editing && m_state.currentCurve) {
-        auto *otherCurve = anchorCurveAt(tick, m_state.currentCurve);
-        if (otherCurve) {
-            curve = otherCurve;
-        } else {
-            auto [minBound, maxBound] = getReachableBounds(m_state.currentCurve);
-            if (tick >= minBound && tick <= maxBound) {
-                curve = m_state.currentCurve;
-            } else {
-                curve = new AnchorCurve;
-                m_localCurves.append(curve);
-            }
-        }
-    } else {
-        curve = anchorCurveAt(tick);
-        if (!curve) {
-            curve = new AnchorCurve;
-            m_localCurves.append(curve);
-        }
-    }
-
-    auto *existing = findNodeAtTick(curve, tick);
-    if (existing) {
-        enterEditingState(curve, existing);
-        return;
-    }
-
-    const auto &existingNodes = curve->nodes().toList();
-    auto *oldLast = existingNodes.isEmpty() ? nullptr : existingNodes.last();
-
-    auto *node = new AnchorNode(tick, value);
-
-    if (!oldLast || tick > oldLast->pos()) {
-        node->setInterpMode(AnchorNode::None);
-        if (oldLast) {
-            auto predecessorMode = oldLast->interpMode();
-            if (predecessorMode == AnchorNode::None) {
-                auto idx = existingNodes.indexOf(oldLast);
-                if (idx > 0)
-                    predecessorMode = existingNodes[idx - 1]->interpMode();
-                else
-                    predecessorMode = AnchorNode::Hermite;
-            }
-            oldLast->setInterpMode(predecessorMode);
-        }
-    } else {
-        auto mode = AnchorNode::Hermite;
-        for (int i = existingNodes.size() - 1; i >= 0; i--) {
-            if (existingNodes[i]->pos() < tick) {
-                mode = existingNodes[i]->interpMode();
-                break;
-            }
-        }
-        node->setInterpMode(mode);
-    }
-
-    curve->insertNode(node);
-
-    enterEditingState(curve, node);
-    commit();
-}
-
-void EditPitchAnchorHandler::updatePreview(const QPointF &scenePos) {
-    m_state.previewPos = q->mapFromScene(scenePos.toPoint());
-    m_state.previewTick = static_cast<int>(q->sceneXToTick(scenePos.x()));
-    m_state.showPreview = m_state.editing && m_state.currentCurve != nullptr &&
-                          m_state.hoveredNode == nullptr && !m_state.showMergePreview;
-
-    m_state.previewCurve = nullptr;
-    if (m_state.showPreview) {
-        const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()));
-        auto *otherCurve = anchorCurveAt(tick, m_state.currentCurve);
-        if (otherCurve) {
-            m_state.previewCurve = otherCurve;
-        } else {
-            auto [minBound, maxBound] = getReachableBounds(m_state.currentCurve);
-            if (tick >= minBound && tick <= maxBound)
-                m_state.previewCurve = m_state.currentCurve;
-        }
-    }
-}
-
-void EditPitchAnchorHandler::updateMergeCandidate(const QPointF &scenePos) {
-    m_state.mergeCandidateCurve = nullptr;
-    m_state.mergeEndpointNode = nullptr;
-    m_state.showMergePreview = false;
-
-    if (!m_state.editing || !m_state.currentCurve)
-        return;
-
-    const auto &currentNodes = m_state.currentCurve->nodes().toList();
-    if (currentNodes.isEmpty())
-        return;
-
-    auto *currentFirst = currentNodes.first();
-    auto *currentLast = currentNodes.last();
-
-    for (auto *curve : m_localCurves) {
-        if (curve == m_state.currentCurve)
-            continue;
-        const auto &nodes = curve->nodes().toList();
-        if (nodes.isEmpty())
-            continue;
-
-        auto *otherFirst = nodes.first();
-        auto *otherLast = nodes.last();
-
-        AnchorNode *candidateNode = nullptr;
-        if (otherLast->pos() < currentFirst->pos())
-            candidateNode = otherLast;
-        else if (otherFirst->pos() > currentLast->pos())
-            candidateNode = otherFirst;
-        else
-            continue;
-
-        const auto x = q->tickToSceneX(candidateNode->pos());
-        const auto y = d->m_anchorEditor->valueToSceneY(candidateNode->value());
-        const auto dx = scenePos.x() - x;
-        const auto dy = scenePos.y() - y;
-        if (dx * dx + dy * dy <= kAnchorHitRadius * kAnchorHitRadius) {
-            m_state.mergeCandidateCurve = curve;
-            m_state.mergeEndpointNode = candidateNode;
-            m_state.showMergePreview = true;
-            return;
-        }
-    }
-}
-
-void EditPitchAnchorHandler::mergeCurves(AnchorCurve *target) {
-    if (!m_state.currentCurve || !target || target == m_state.currentCurve)
-        return;
-
-    QList<AnchorNode *> nodesToMove;
-    for (auto *node : target->nodes().toList())
-        nodesToMove.append(node);
-
-    for (auto *node : nodesToMove) {
-        target->removeNode(node);
-        if (findNodeAtTick(m_state.currentCurve, node->pos())) {
-            delete node;
-        } else {
-            m_state.currentCurve->insertNode(node);
-        }
-    }
-
-    m_localCurves.removeOne(target);
-    delete target;
-
-    m_state.mergeCandidateCurve = nullptr;
-    m_state.mergeEndpointNode = nullptr;
-    m_state.showMergePreview = false;
-    commit();
-}
-
-void EditPitchAnchorHandler::triggerRepaint() {
-    m_state.visibleCurves = anchorCurves();
     if (d->m_pitchEditor)
         d->m_pitchEditor->update();
     if (d->m_anchorEditor)

@@ -13,7 +13,7 @@
 #include <QVector>
 
 class ClipRangeOverlay;
-class PitchAnchorEditorView;
+class AnchorOverlayView;
 class PitchEditorView;
 class QMouseEvent;
 class QHoverEvent;
@@ -52,7 +52,7 @@ public:
     PitchEditorView *m_pitchEditor = nullptr;
     bool m_pitchEditSessionActive = false;
     quint64 m_pitchEditSessionId = 0;
-    PitchAnchorEditorView *m_anchorEditor = nullptr;
+    AnchorOverlayView *m_anchorEditor = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
     // Applied to the lazily-created SplitLineIndicator on each tool activation
     QColor m_splitLineColor = {255, 100, 100};

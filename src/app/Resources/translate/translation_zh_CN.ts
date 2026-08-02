@@ -3895,6 +3895,33 @@ error: %2</source>
         <source>Background:</source>
         <translation>背景：</translation>
     </message>
+    <message>
+        <source>Draw</source>
+        <translation>绘制</translation>
+    </message>
+    <message>
+        <source>Erase</source>
+        <translation>擦除</translation>
+    </message>
+    <message>
+        <source>Anchor</source>
+        <translation>锚点</translation>
+    </message>
+</context>
+<context>
+    <name>ParamEditorGraphicsView</name>
+    <message>
+        <source>Linear</source>
+        <translation>线性</translation>
+    </message>
+    <message>
+        <source>Hermite</source>
+        <translation>Hermite</translation>
+    </message>
+    <message>
+        <source>&amp;Delete</source>
+        <translation>删除(&amp;D)</translation>
+    </message>
 </context>
 <context>
     <name>ParamEditorView</name>

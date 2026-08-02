@@ -1,23 +1,28 @@
-#ifndef PITCHANCHOREDITORVIEW_H
-#define PITCHANCHOREDITORVIEW_H
+#ifndef ANCHOROVERLAYVIEW_H
+#define ANCHOROVERLAYVIEW_H
 
-#include "PitchDisplayStrategy.h"
+#include "AnchorEditController.h"
 #include "UI/Views/Common/TimeOverlayView.h"
 
 #include <QColor>
 
-struct AnchorOverlayState;
+#include <functional>
+
 class AnchorNode;
 class QPainterPath;
 
-class PitchAnchorEditorView : public TimeOverlayView {
+class AnchorOverlayView : public TimeOverlayView {
     Q_OBJECT
 
 public:
-    PitchAnchorEditorView();
+    enum class DisplayMode { Final, Draw, Anchor };
+    using ValueMapper = std::function<double(double)>;
 
-    void setOverlayState(const AnchorOverlayState *state);
-    void setDisplayMode(PitchDisplayMode mode);
+    AnchorOverlayView(ValueMapper valueToSceneY, ValueMapper sceneYToValue);
+
+    void setOverlayState(const AnchorEditor::AnchorOverlayState *state);
+    void setDisplayMode(DisplayMode mode);
+    void setValueMappers(ValueMapper valueToSceneY, ValueMapper sceneYToValue);
     [[nodiscard]] double valueToSceneY(double value) const;
     [[nodiscard]] double sceneYToValue(double y) const;
 
@@ -43,8 +48,10 @@ private:
     [[nodiscard]] QPainterPath interpolatedPath(const QList<AnchorNode *> &nodes,
                                                 double devicePixelRatio) const;
 
-    const AnchorOverlayState *m_state = nullptr;
-    PitchDisplayMode m_displayMode = PitchDisplayMode::Final;
+    const AnchorEditor::AnchorOverlayState *m_state = nullptr;
+    DisplayMode m_displayMode = DisplayMode::Final;
+    ValueMapper m_valueToSceneY;
+    ValueMapper m_sceneYToValue;
 
     // Base colors; state-dependent alphas (active/preview tiers) are applied in draw methods
     QColor m_anchorColor = {220, 220, 220};
@@ -53,4 +60,4 @@ private:
     QColor m_anchorPreviewColor = {155, 186, 255};
 };
 
-#endif // PITCHANCHOREDITORVIEW_H
+#endif // ANCHOROVERLAYVIEW_H

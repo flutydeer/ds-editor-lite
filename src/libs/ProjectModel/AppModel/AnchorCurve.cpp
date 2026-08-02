@@ -102,7 +102,8 @@ DrawCurve *AnchorCurve::toDrawCurve() const {
             auto *ref2 = segIdx + 2 < nodeList.size() ? nodeList[segIdx + 2] : nullptr;
             interp = createInterpolator(nodeList[segIdx], nodeList[segIdx + 1], ref1, ref2);
         }
-        values.append(static_cast<int>(interp.evaluate(tick)));
+        const auto sampleTick = qBound(nodeList[segIdx]->pos(), tick, nodeList[segIdx + 1]->pos());
+        values.append(static_cast<int>(interp.evaluate(sampleTick)));
     }
 
     auto *dc = new DrawCurve;

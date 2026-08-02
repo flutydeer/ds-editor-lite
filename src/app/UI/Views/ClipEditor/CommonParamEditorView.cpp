@@ -1,6 +1,7 @@
 #include "CommonParamEditorView.h"
 
 #include "ClipEditorGlobal.h"
+#include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "UI/Views/Common/TimeGraphicsScene.h"
@@ -13,11 +14,21 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QPainter>
+#include <QPainterPath>
+
+#include <algorithm>
 
 CommonParamEditorView::CommonParamEditorView(const ParamProperties &properties)
     : m_properties(&properties) {
     // setBackgroundColor(Qt::transparent);
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
+}
+
+CommonParamEditorView::~CommonParamEditorView() {
+    qDeleteAll(m_drawCurvesEditedBak);
+    qDeleteAll(m_anchorCurvesEdited);
+    qDeleteAll(m_drawCurvesEdited);
+    qDeleteAll(m_drawCurvesOriginal);
 }
 
 void CommonParamEditorView::setParamProperties(const ParamProperties &properties) {
@@ -35,13 +46,28 @@ void CommonParamEditorView::loadEdited(const QList<DrawCurve *> &curves) {
     update();
 }
 
+void CommonParamEditorView::loadAnchorEdited(const QList<AnchorCurve *> &curves) {
+    qDeleteAll(m_anchorCurvesEdited);
+    m_anchorCurvesEdited.clear();
+    for (const auto *curve : curves) {
+        if (curve) {
+            if (auto *sampled = curve->toDrawCurve())
+                m_anchorCurvesEdited.append(sampled);
+        }
+    }
+    update();
+}
+
 void CommonParamEditorView::clearParams() {
     for (const auto curve : m_drawCurvesOriginal)
         delete curve;
     for (const auto curve : m_drawCurvesEdited)
         delete curve;
+    for (const auto curve : m_anchorCurvesEdited)
+        delete curve;
     m_drawCurvesOriginal.clear();
     m_drawCurvesEdited.clear();
+    m_anchorCurvesEdited.clear();
     update();
 }
 
@@ -57,6 +83,14 @@ void CommonParamEditorView::setEraseMode(const bool on) {
 
 const QList<DrawCurve *> &CommonParamEditorView::editedCurves() const {
     return m_drawCurvesEdited;
+}
+
+double CommonParamEditorView::sceneYForValue(const double value) const {
+    return valueToSceneY(value);
+}
+
+double CommonParamEditorView::valueAtSceneY(const double y) const {
+    return sceneYToValue(y);
 }
 
 const QList<DrawCurve *> &CommonParamEditorView::originalCurves() const {
@@ -139,7 +173,10 @@ double CommonParamEditorView::valueToSceneY(const double value) const {
     const auto yMin = paddingTopBottom;
     const auto yMax = scene()->height() - paddingTopBottom;
     const auto availableHeight = yMax - yMin;
-    const auto normalizedValue = m_properties->valueToNormalized(value);
+    const auto finiteValue = std::isfinite(value) ? value : m_properties->defaultValue;
+    const auto clippedValue =
+        MathUtils::clip(finiteValue, m_properties->minimum, m_properties->maximum);
+    const auto normalizedValue = m_properties->valueToNormalized(clippedValue);
     const auto y = (1 - normalizedValue) * availableHeight + yMin;
     const auto clippedY = MathUtils::clip(y, yMin, yMax);
     return clippedY;
@@ -187,6 +224,9 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
     constexpr auto penWidth = 1.5;
     QPen pen;
     pen.setWidthF(penWidth);
+    auto editedLayers = m_drawCurvesEdited;
+    editedLayers.append(m_anchorCurvesEdited);
+    const auto effectiveEdited = AppModelUtils::mergeCurves({}, editedLayers);
     if (m_properties->displayMode == ParamProperties::DisplayMode::CurveOnly) {
         painter->setBrush(Qt::NoBrush);
         if (!m_drawCurvesOriginal.isEmpty()) {
@@ -194,12 +234,11 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
             painter->setPen(pen);
             drawCurveBorder(painter, m_drawCurvesOriginal);
         }
-        if (!m_drawCurvesEdited.isEmpty()) {
+        if (!effectiveEdited.isEmpty()) {
             auto editedColor = m_editedCurveColor;
             editedColor.setAlpha(foreground ? 230 : 60);
             pen.setColor(editedColor);
-            painter->setPen(pen);
-            drawCurveBorder(painter, m_drawCurvesEdited);
+            drawEditedCurveBorders(painter, pen);
         }
     } else {
         // 绘制填充图形
@@ -232,8 +271,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         } else {
             base = m_drawCurvesOriginal;
         }
-        const auto overlay = m_drawCurvesEdited;
-        auto curves = AppModelUtils::mergeCurves(base, overlay);
+        auto curves = AppModelUtils::mergeCurves(base, effectiveEdited);
         if (!curves.isEmpty()) {
             drawCurvePolygon(painter, curves);
             for (const auto curve : curves)
@@ -250,15 +288,63 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         }
 
         // 绘制已编辑描边
-        if (foreground && !m_drawCurvesEdited.isEmpty()) {
+        if (foreground && !effectiveEdited.isEmpty()) {
             painter->setBrush(Qt::NoBrush);
             pen.setColor(m_editedCurveColor);
-            painter->setPen(pen);
-            drawCurveBorder(painter, m_drawCurvesEdited);
+            drawEditedCurveBorders(painter, pen);
         }
         delete baseCurve;
     }
+    qDeleteAll(effectiveEdited);
+}
 
+QPainterPath CommonParamEditorView::anchorCoveragePath() const {
+    QPainterPath path;
+    const auto top = rect().top() - 2.0;
+    const auto height = rect().height() + 4.0;
+    for (const auto *curve : m_anchorCurvesEdited) {
+        if (!curve || curve->values().size() < 2)
+            continue;
+        const auto left = tickToItemX(curve->localStart());
+        const auto right = tickToItemX(curve->localEndTick());
+        if (right <= rect().left() || left >= rect().right())
+            continue;
+        const auto clippedLeft = std::max(left, rect().left());
+        const auto clippedRight = std::min(right, rect().right());
+        path.addRect(QRectF(clippedLeft, top, clippedRight - clippedLeft, height));
+    }
+    return path;
+}
+
+void CommonParamEditorView::drawEditedCurveBorders(QPainter *painter, const QPen &pen) const {
+    const auto anchorCoverage = anchorCoveragePath();
+    if (!m_drawCurvesEdited.isEmpty()) {
+        QPainterPath fullPath;
+        fullPath.addRect(rect().adjusted(-2, -2, 2, 2));
+        const auto solidPath = fullPath.subtracted(anchorCoverage);
+        if (!solidPath.isEmpty()) {
+            painter->save();
+            painter->setClipPath(solidPath, Qt::IntersectClip);
+            painter->setPen(pen);
+            drawCurveBorder(painter, m_drawCurvesEdited);
+            painter->restore();
+        }
+        if (!anchorCoverage.isEmpty()) {
+            auto dashedPen = pen;
+            dashedPen.setStyle(Qt::CustomDashLine);
+            dashedPen.setDashPattern({4.0, 3.0});
+            painter->save();
+            painter->setClipPath(anchorCoverage, Qt::IntersectClip);
+            painter->setPen(dashedPen);
+            drawCurveBorder(painter, m_drawCurvesEdited);
+            painter->restore();
+        }
+    }
+
+    if (!m_anchorCurvesEdited.isEmpty()) {
+        painter->setPen(pen);
+        drawCurveBorder(painter, m_anchorCurvesEdited);
+    }
 }
 
 void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {

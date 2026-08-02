@@ -2,6 +2,7 @@
 #define PARAMEDITORTOOLBARVIEW_H
 
 #include <lite/ProjectModel/AppModel/Params.h>
+#include "ParamEditorEditMode.h"
 #include "SpeakerMixToolBarView.h"
 
 #include <QWidget>
@@ -9,7 +10,9 @@
 class ComboBox;
 class Button;
 class QLabel;
+class QStackedWidget;
 class SingingClip;
+class ParamEditToolBarView;
 
 class ParamEditorToolBarView final : public QWidget {
     Q_OBJECT
@@ -24,6 +27,7 @@ public:
 signals:
     void foregroundChanged(ParamInfo::Name name);
     void backgroundChanged(ParamInfo::Name name);
+    void editModeChanged(ParamEditorEditMode mode);
     void previousKeyframe();
     void nextKeyframe();
     void bypassDynamicMix();
@@ -45,6 +49,8 @@ private:
     QLabel *lbBackgroundParam;
     ComboBox *cbBackgroundParam;
     Button *m_btnSwap = nullptr;
+    QStackedWidget *m_toolBarStack = nullptr;
+    ParamEditToolBarView *m_paramEditToolBar = nullptr;
     SpeakerMixToolBarView *m_speakerMixToolBar = nullptr;
 };
 
