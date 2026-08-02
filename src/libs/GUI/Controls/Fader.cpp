@@ -18,6 +18,7 @@ public:
     double decibelMaximum = 6;
     double decibelDefaultValue = 0;
     double scalePower = 0.4;
+    double zeroSnapRange = 0.3; // 0dB 附近吸附范围（±dB）
 
     double paddingVertical = 0;
     double trackPenWidth = 2;
@@ -78,6 +79,9 @@ double FaderPrivate::boundAndRound(double value_) const {
 void FaderPrivate::setSliderPosition(double value_) {
     Q_Q(Fader);
     value_ = boundAndRound(value_);
+    // 拖拽时在 0dB 附近（±0.3dB）吸附，便于归位
+    if (qAbs(value_) <= zeroSnapRange)
+        value_ = 0;
     if (!qFuzzyCompare(value_, decibelSliderValue)) {
         decibelSliderValue = value_;
         if (isSliderDown)

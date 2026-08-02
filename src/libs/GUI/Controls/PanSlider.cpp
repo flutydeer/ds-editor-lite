@@ -17,7 +17,7 @@ public:
     double panMinimum = -1;
     double panMaximum = 1;
     double panDefaultValue = 0;
-    double panStep = 5;
+    double panStep = 10;
 
     double thumbWidth = 2;
     double paddingH = 5; // = padding + thumbWidth / 2
@@ -61,6 +61,8 @@ double PanSliderPrivate::boundAndRound(double value_) const {
 void PanSliderPrivate::setSliderPosition(double value_) {
     Q_Q(PanSlider);
     value_ = boundAndRound(value_);
+    // 拖拽时吸附到 10% 的倍数
+    value_ = qRound(value_ * 100 / panStep) * panStep / 100.0;
     if (!qFuzzyCompare(value_, panSliderValue)) {
         panSliderValue = value_;
         if (isSliderDown)
