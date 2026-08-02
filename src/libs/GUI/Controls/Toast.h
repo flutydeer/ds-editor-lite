@@ -47,6 +47,7 @@ public:
 protected:
     void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
     void afterSetTimeScale(double scale) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
     void hideToast();
@@ -56,6 +57,8 @@ private:
     void oneToastShowFinished();
     void destroyCurrentToast();
     void updateAnimationSettings();
+    /// 计算 toast 的目标位置（相对主窗口水平居中，卡片顶部 y=96）
+    [[nodiscard]] QPoint targetPos() const;
 
     bool m_isShowingToast = false;
     const int animationDurationBase = 300;

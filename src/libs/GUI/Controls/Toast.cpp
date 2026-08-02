@@ -105,12 +105,36 @@ Toast::Toast(QObject *parent) : QObject(parent) {
     initializeAnimation();
 }
 
-Toast::~Toast() = default;
+Toast::~Toast() {
+    if (m_globalContext)
+        m_globalContext->removeEventFilter(this);
+}
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(Toast)
 
 void Toast::setGlobalContext(QWidget *context) {
     m_globalContext = context;
+}
+
+bool Toast::eventFilter(QObject *watched, QEvent *event) {
+    // 顶层 toast 不随主窗口自动移动，监听主窗口移动/隐藏事件保持相对位置
+    if (watched == m_globalContext && m_toastWidget) {
+        if (event->type() == QEvent::Move) {
+            m_posAnimation.stop();
+            m_toastWidget->move(targetPos());
+        } else if (event->type() == QEvent::Hide || event->type() == QEvent::WindowStateChange) {
+            if (!m_globalContext->isVisible())
+                destroyCurrentToast();
+        }
+    }
+    return QObject::eventFilter(watched, event);
+}
+
+QPoint Toast::targetPos() const {
+    const auto contextGeometry = m_globalContext->geometry();
+    const auto toastWidth = m_toastWidget ? m_toastWidget->geometry().width() : 0;
+    return contextGeometry.center() -
+           QPoint(toastWidth / 2, contextGeometry.height() / 2 - 96);
 }
 
 void Toast::showNextToast() {
@@ -128,14 +152,13 @@ void Toast::showNextToast() {
 
     const auto toastWidth = m_toastWidget->geometry().width();
     if (m_globalContext) {
-        const auto targetPos =
-            m_globalContext->geometry().center() -
-            QPoint(toastWidth / 2, m_globalContext->geometry().height() / 2 - 96);
-        const auto startPos = QPoint(targetPos.x(), targetPos.y() - 32);
+        m_globalContext->installEventFilter(this);
+        const auto targetPos_ = targetPos();
+        const auto startPos = QPoint(targetPos_.x(), targetPos_.y() - 32);
         m_posAnimation.setStartValue(startPos);
-        m_posAnimation.setEndValue(targetPos);
+        m_posAnimation.setEndValue(targetPos_);
         if (m_posAnimation.duration() == 0)
-            m_toastWidget->move(targetPos);
+            m_toastWidget->move(targetPos_);
         else
             m_posAnimation.start();
     } else
@@ -160,6 +183,8 @@ void Toast::oneToastShowFinished() {
 void Toast::destroyCurrentToast() {
     m_keepOnScreenTimer.stop();
     m_destroyWidgetTimer.stop();
+    if (m_globalContext)
+        m_globalContext->removeEventFilter(this);
     m_opacityAnimation.stop();
     m_posAnimation.stop();
     if (m_toastWidget) {
