@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/8/27.
-//
-
 #include "AppContext.h"
 #include "Bootstrap/AppEnvironment.h"
 #include "Bootstrap/CrashHandler.h"

@@ -1,7 +1,3 @@
-//
-// Created on 2026/4/27.
-//
-
 #ifndef TRACKCOLORSWATCHWIDGET_H
 #define TRACKCOLORSWATCHWIDGET_H
 

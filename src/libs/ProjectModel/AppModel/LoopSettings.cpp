@@ -1,7 +1,3 @@
-//
-// Created for loop section feature
-//
-
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
 #include <lite/MusicBase/MusicTime.h>
 

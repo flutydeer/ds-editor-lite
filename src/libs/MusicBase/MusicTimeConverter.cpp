@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/7/5.
-//
-
 #include "MusicTimeConverter.h"
 #include "MusicTime.h"
 

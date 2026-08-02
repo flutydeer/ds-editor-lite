@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-13.
-//
-
 #include "AppearanceOption.h"
 
 void AppearanceOption::load(const QJsonObject &object) {

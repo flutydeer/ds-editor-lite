@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/8/14.
-//
-
 #include <lite/GUI/Controls/ProgressIndicator.h>
 
 #include <QPainter>

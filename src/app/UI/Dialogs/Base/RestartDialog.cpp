@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-12.
-//
-
 #include "RestartDialog.h"
 
 #include "Controller/AppController.h"

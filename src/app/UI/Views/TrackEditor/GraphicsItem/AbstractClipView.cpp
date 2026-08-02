@@ -1,6 +1,3 @@
-//
-// Created by fluty on 2023/11/14.
-//
 #include "AbstractClipView.h"
 #include "AbstractClipView_p.h"
 

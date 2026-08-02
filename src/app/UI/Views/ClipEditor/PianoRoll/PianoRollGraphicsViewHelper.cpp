@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-28.
-//
-
 #include "PianoRollGraphicsViewHelper.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 

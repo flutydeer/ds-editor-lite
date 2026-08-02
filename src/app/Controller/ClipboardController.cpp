@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-17.
-//
-
 #include "ClipboardController.h"
 #include "ClipboardController_p.h"
 

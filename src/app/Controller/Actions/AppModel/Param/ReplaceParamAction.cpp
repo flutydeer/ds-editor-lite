@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-23.
-//
-
 #include "ReplaceParamAction.h"
 
 #include <lite/ProjectModel/AppModel/SingingClip.h>

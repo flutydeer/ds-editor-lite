@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-23.
-//
-
 #include "ParamsActions.h"
 
 #include "ReplaceParamAction.h"

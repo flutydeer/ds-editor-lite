@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2023/12/1.
-//
-
 #include "AppController.h"
 
 #include "AppController_p.h"

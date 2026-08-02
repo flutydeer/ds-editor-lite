@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/6/11.
-//
-
 #include <lite/GUI/Controls/PanSlider.h>
 
 #include <QMouseEvent>

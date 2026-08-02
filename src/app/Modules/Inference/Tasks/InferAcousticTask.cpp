@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-7.
-//
-
 #include "InferAcousticTask.h"
 
 #include <sndfile.hh>

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-22.
-//
-
 #include <QApplication>
 #include <QAbstractButton>
 #include <QEvent>

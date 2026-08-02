@@ -1,7 +1,3 @@
-//
-// Created for split note functionality
-//
-
 #ifndef SPLITNOTEACTION_H
 #define SPLITNOTEACTION_H
 

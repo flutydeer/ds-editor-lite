@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2026/5/4.
-//
-
 #include "SpeakerMixToolBarView.h"
 
 #include <lite/GUI/Controls/ColorDot.h>

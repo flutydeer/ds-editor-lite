@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-31.
-//
-
 #include <lite/GUI/Controls/OptionListCard.h>
 
 #include <lite/GUI/Controls/CardView.h>

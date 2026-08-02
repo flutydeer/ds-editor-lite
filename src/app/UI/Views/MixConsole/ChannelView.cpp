@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/3/25.
-//
-
 #include "ChannelView.h"
 
 #include <lite/ProjectModel/AppModel/Track.h>

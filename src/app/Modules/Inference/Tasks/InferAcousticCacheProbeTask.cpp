@@ -1,7 +1,3 @@
-//
-// Created by OpenVPI on 2026/7/22.
-//
-
 #include "InferAcousticCacheProbeTask.h"
 
 #include <QDebug>

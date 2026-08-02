@@ -1,7 +1,3 @@
-//
-// Created by fluty on 26-4-30.
-//
-
 #include "EditPitchAnchorHandler.h"
 
 #include "PianoRollGraphicsView.h"

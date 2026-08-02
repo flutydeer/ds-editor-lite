@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-10.
-//
-
 #include <lite/ProjectModel/AppModel/Phonemes.h>
 
 #include <lite/Support/JsonUtils.h>

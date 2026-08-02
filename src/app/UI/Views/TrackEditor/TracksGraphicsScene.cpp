@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/11/14.
-//
-
 #include "TracksGraphicsScene.h"
 
 #include "Global/TracksEditorGlobal.h"

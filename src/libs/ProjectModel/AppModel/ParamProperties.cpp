@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-14.
-//
-
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
 
 #include <lite/Support/MathUtils.h>

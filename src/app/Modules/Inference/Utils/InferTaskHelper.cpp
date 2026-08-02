@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-2.
-//
-
 #include "InferTaskHelper.h"
 
 #include "Modules/Inference/Models/GenericInferModel.h"

@@ -1,8 +1,3 @@
-//
-// Created by FlutyDeer on 2026/4/1.
-//
-
-
 #include "PhonemeNameListModel.h"
 
 PhonemeNameListModel::PhonemeNameListModel(QObject *parent) : QAbstractListModel(parent) {

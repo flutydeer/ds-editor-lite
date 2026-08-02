@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/8.
-//
-
 #include "ClipActions.h"
 
 #include "EditAudioClipPathAction.h"

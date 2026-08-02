@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/1/22.
-//
-
 #include "PlaybackReadyState.h"
 
 #include "Modules/Inference/InferPipeline.h"

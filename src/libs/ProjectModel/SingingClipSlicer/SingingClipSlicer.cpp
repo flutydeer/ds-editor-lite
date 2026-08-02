@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/11/27.
-//
-
 #include <lite/ProjectModel/SingingClipSlicer/SingingClipSlicer.h>
 
 #include <lite/ProjectModel/SingingClipSlicer/SingingClipSlicerGlobal.h>

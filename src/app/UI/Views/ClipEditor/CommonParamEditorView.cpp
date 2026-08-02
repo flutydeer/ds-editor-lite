@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/25.
-//
-
 #include "CommonParamEditorView.h"
 
 #include "ClipEditorGlobal.h"

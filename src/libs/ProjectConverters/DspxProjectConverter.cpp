@@ -1,7 +1,3 @@
-//
-// Created by hrukalive on 2/7/24.
-//
-
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectConverters/DspxProjectParser.h>
 #include <lite/ProjectConverters/DspxPhonemeCompat.h>

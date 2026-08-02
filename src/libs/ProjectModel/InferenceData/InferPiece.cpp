@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-7.
-//
-
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 
 #include <lite/ProjectModel/AppModel/SingingClip.h>

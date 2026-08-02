@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/9/5.
-//
-
 #include <QJsonArray>
 #include <QDebug>
 

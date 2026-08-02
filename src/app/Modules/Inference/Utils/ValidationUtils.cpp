@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-27.
-//
-
 #include "ValidationUtils.h"
 
 #include <lite/ProjectModel/AppModel/Note.h>

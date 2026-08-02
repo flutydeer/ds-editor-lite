@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-28.
-//
-
 #include "InferenceOption.h"
 
 #include <lite/Support/Log.h>

@@ -1,7 +1,3 @@
-//
-// Created by OrangeCat on 24-9-3.
-//
-
 #include "InferController.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "InferController_p.h"

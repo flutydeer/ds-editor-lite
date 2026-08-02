@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/1/21.
-//
-
 #include "AwaitingInferAcousticState.h"
 
 #include "Modules/Inference/InferPipeline.h"

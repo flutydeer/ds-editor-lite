@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/2/5.
-//
-
 #include "PieceUtils.h"
 
 #include <lite/ProjectModel/InferenceData/InferPiece.h>

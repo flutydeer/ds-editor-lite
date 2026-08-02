@@ -1,7 +1,3 @@
-//
-// Created by Codex on 26-8-1.
-//
-
 #include "PitchDisplayStrategy.h"
 
 #include "EditPitchAnchorHandler.h"

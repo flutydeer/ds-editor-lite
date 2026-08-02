@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-14.
-//
-
 #include "PitchEditorView.h"
 
 #include "EditPitchAnchorHandler.h"

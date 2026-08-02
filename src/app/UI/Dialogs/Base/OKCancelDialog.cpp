@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-17.
-//
-
 #include "OKCancelDialog.h"
 
 #include <lite/GUI/Controls/AccentButton.h>

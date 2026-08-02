@@ -1,7 +1,3 @@
-//
-// Created by OrangeCat on 24-9-4.
-//
-
 #include "InferDurationTask.h"
 
 #include <diffsinger/Infer/dsinfer/Api/Inferences/Duration/1/DurationApiL1.h>

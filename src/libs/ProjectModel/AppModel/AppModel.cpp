@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/27.
-//
-
 #include "AppModel.h"
 
 #include "AppModel_p.h"

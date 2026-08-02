@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-18.
-//
-
 #include <lite/GUI/Controls/OptionsCardItem.h>
 
 #include <QHBoxLayout>

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/3.
-//
-
 #include "TimeIndicatorView.h"
 #include "Global/AppGlobal.h"
 

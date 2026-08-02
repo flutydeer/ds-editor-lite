@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-2.
-//
-
 #include "InferPitchTask.h"
 
 #include <diffsinger/Infer/dsinfer/Api/Inferences/Pitch/1/PitchApiL1.h>

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/8.
-//
-
 #include "EditTrackPropertiesAction.h"
 
 EditTrackPropertiesAction *EditTrackPropertiesAction::build(const Track::TrackProperties &oldArgs,

@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/7/13.
-//
-
 #include "TimeSignatureComboBox.h"
 
 #include "UI/Views/Common/TimeSignaturePopupWidget.h"

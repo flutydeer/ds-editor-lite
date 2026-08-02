@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/29.
-//
-
 #include "TrackControlView.h"
 #include "Model/AppStatus/AppStatus.h"
 

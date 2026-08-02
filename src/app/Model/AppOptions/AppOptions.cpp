@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-13.
-//
-
 #define CLASS_NAME "AppOptions"
 
 #include "AppOptions.h"

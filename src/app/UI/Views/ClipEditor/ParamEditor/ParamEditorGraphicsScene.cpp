@@ -1,6 +1,3 @@
-//
-// Created by fluty on 24-8-21.
-//
 #include "ParamEditorGraphicsScene.h"
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"

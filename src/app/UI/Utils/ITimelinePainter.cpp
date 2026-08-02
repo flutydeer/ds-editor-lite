@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/3.
-//
-
 #include "ITimelinePainter.h"
 
 #include <lite/MusicBase/TimelineSnapUtils.h>

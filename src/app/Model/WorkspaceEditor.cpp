@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-18.
-//
-
 #include "WorkspaceEditor.h"
 
 WorkspaceEditor::WorkspaceEditor(QJsonObject &globalWorkspace, const QString &key) {

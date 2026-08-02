@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/8/30.
-//
-
 #include <QApplication>
 #include <QGraphicsDropShadowEffect>
 #include <QPropertyAnimation>

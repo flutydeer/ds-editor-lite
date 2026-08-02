@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/8/17.
-//
-
 #include <lite/GUI/Controls/SwitchButton.h>
 
 #include <QPainter>

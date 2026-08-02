@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-2.
-//
-
 #include "LanguageComboBox.h"
 
 #include "Global/AppGlobal.h"

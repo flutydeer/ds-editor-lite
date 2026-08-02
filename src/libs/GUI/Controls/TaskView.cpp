@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-19.
-//
-
 #include <lite/GUI/Controls/TaskView.h>
 
 #include <QLabel>

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-21.
-//
-
 #include "PianoRollView.h"
 
 #include "PianoKeyboardView.h"

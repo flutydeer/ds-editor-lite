@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/4/1.
-//
-
 #include <lite/GUI/Animation/ElasticAnimator.h>
 
 #include <QDebug>

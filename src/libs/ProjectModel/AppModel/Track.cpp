@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2023/12/1.
-//
-
 #include <QDebug>
 
 #include <lite/ProjectModel/AppModel/Track.h>

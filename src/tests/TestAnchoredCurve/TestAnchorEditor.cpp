@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 25-1-22.
-//
-
 #include "TestAnchorEditor.h"
 
 #include <lite/Support/Linq.h>

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/7/4.
-//
-
 #include "TestGLWidget.h"
 
 #include <QMouseEvent>

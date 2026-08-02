@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-16.
-//
-
 #include "AppOptionsDialog.h"
 
 #include <QStackedWidget>

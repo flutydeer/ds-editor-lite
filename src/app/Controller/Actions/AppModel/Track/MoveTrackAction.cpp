@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/7/11.
-//
-
 #include "MoveTrackAction.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>

@@ -1,7 +1,3 @@
-//
-// Created by Codex on 26-8-1.
-//
-
 #ifndef PITCHDISPLAYSTRATEGY_H
 #define PITCHDISPLAYSTRATEGY_H
 

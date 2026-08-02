@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/7/13.
-//
-
 #include "MainMenuView.h"
 
 #include "MainMenuView_p.h"

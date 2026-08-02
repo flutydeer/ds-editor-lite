@@ -1,7 +1,3 @@
-//
-// Created by fluty on 26-5-8.
-//
-
 #include "DeveloperOption.h"
 
 namespace {

@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/7/31.
-//
-
 #include "GetInstalledPackagesTask.h"
 
 #include <lite/PackageManager/PackageManager.h>

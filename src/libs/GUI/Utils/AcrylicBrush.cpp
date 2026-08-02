@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-16.
-//
-
 #include <lite/GUI/Utils/AcrylicBrush.h>
 
 #include <lite/GUI/Utils/ImageUtils.h>

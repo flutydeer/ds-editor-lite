@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/6/8.
-//
-
 #include "EditSessionManager.h"
 #include "Model/AppStatus/AppStatus.h"
 

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-12.
-//
-
 #include "PhonemeView.h"
 
 #include "NoteView.h"

@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/11/27.
-//
-
 #include "Timeline.h"
 
 #include <QDebug>

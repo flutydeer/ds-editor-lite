@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-16.
-//
-
 #include "AppearancePage.h"
 
 #include <QLocale>

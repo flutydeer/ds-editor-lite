@@ -1,7 +1,3 @@
-//
-// Created on 2026/4/27.
-//
-
 #include "TrackColorSwatchWidget.h"
 
 #include "UI/Utils/AppColorPalette.h"

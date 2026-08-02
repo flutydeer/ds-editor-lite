@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/7/13.
-//
-
 #include "TabPanelView.h"
 
 #include "UI/Views/Common/TabPanelPage.h"

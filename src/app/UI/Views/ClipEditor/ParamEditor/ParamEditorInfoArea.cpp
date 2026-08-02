@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-13.
-//
-
 #include "ParamEditorInfoArea.h"
 
 #include <lite/ProjectModel/AppModel/ParamProperties.h>

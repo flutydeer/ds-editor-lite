@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-20.
-//
-
 #include <QWheelEvent>
 #include <QStyledItemDelegate>
 #include <QAbstractItemView>

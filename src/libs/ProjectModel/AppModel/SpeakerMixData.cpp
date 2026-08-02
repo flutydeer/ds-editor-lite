@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/6/20.
-//
-
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 
 #include <QtGlobal>

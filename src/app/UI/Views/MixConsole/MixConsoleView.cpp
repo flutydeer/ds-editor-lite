@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/6/3.
-//
-
 #include "MixConsoleView.h"
 
 #include "Controller/AppController.h"

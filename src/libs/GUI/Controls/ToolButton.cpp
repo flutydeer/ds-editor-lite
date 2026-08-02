@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/7/9.
-//
-
 #include <lite/GUI/Controls/ToolButton.h>
 
 #include <lite/GUI/Utils/IconUtils.h>

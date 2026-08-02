@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/8/1.
-//
-
 #include "PackageItemDelegate.h"
 
 #include <lite/GUI/Theme/ThemeManager.h>

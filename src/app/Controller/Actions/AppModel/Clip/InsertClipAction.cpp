@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/8.
-//
-
 #include "InsertClipAction.h"
 
 #include <lite/ProjectModel/AppModel/Track.h>

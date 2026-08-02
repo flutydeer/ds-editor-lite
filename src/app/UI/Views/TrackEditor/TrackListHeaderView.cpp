@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/5.
-//
-
 #include "TrackListHeaderView.h"
 
 #include "Controller/TrackController.h"

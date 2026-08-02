@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-7-4.
-//
-
 #include <QApplication>
 #include <QStyleFactory>
 #include <QMainWindow>

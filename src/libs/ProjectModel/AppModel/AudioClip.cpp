@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-18.
-//
-
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 
 #include <lite/MusicBase/Timeline.h>

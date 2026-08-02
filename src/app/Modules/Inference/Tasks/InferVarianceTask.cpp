@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-5.
-//
-
 #include "InferVarianceTask.h"
 
 #include <diffsinger/Infer/dsinfer/Api/Inferences/Variance/1/VarianceApiL1.h>

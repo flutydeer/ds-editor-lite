@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/5/30.
-//
-
 #include "MasterControlActions.h"
 
 #include "EditMasterControlAction.h"

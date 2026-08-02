@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/4/25.
-//
-
 #include <lite/GUI/Controls/Menu.h>
 
 #include <lite/GUI/Utils/IconUtils.h>

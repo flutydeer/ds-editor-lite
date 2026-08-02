@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-17.
-//
-
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 
 #include <lite/ProjectModel/AppModel/DrawCurve.h>

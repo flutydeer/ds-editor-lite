@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/8/31.
-//
-
 #include "PackageDetailsHeader.h"
 
 #include <lite/PackageManager/Models/PackageInfo.h>

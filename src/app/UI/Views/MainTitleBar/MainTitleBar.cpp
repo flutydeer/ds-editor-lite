@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-7-30.
-//
-
 #include "MainTitleBar.h"
 
 #include "ActionButtonsView.h"

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-18.
-//
-
 #include "GeneralPage.h"
 
 #include "Model/AppOptions/AppOptions.h"

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/31.
-//
-
 #include "TrackController.h"
 
 #include "Actions/AppModel/Clip/ClipActions.h"

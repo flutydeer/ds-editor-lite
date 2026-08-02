@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2026/5/26.
-//
-
 #include <lite/GUI/Controls/ControlGroup.h>
 
 #include <QChildEvent>

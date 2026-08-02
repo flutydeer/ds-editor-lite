@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-20.
-//
-
 #include <lite/GUI/Controls/LineEdit.h>
 
 #include <lite/GUI/Controls/Menu.h>

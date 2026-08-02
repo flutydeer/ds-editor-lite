@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/31.
-//
-
 #include "MainWindow.h"
 
 #ifdef Q_OS_WIN

@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/10/2.
-//
-
 #include "ReadMeCard.h"
 
 #include <lite/GUI/Controls/CardView.h>

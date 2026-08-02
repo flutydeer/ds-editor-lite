@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/7/12.
-//
-
 #include <lite/GUI/Controls/InlineEditLabel.h>
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
 

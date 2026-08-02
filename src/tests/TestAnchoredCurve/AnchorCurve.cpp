@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-17.
-//
-
 #include "AnchorCurve.h"
 
 int AnchorNode::pos() const {

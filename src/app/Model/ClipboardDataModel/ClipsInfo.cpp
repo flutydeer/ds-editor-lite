@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-18.
-//
-
 #include "ClipsInfo.h"
 
 #include <lite/ProjectModel/AppModel/AudioClip.h>

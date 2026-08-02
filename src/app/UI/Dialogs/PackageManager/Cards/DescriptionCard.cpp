@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/9/3.
-//
-
 #include "DescriptionCard.h"
 
 #include <lite/GUI/Controls/CardView.h>

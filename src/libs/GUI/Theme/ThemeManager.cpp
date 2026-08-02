@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-3-15.
-//
-
 #include <lite/GUI/Theme/ThemeManager.h>
 
 #include <lite/GUI/Theme/ThemeIds.h>

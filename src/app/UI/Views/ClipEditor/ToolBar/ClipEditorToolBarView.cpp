@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/10.
-//
-
 #include "ClipEditorToolBarView.h"
 #include "ClipEditorToolBarView_p.h"
 

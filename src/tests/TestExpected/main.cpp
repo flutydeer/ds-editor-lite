@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-7-4.
-//
-
 #include <lite/ADT/Expected.h>
 
 #include <QApplication>

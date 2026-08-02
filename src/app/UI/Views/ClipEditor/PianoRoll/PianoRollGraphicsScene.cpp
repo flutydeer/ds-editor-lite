@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/23.
-//
-
 #include "PianoRollGraphicsScene.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "Global/AppGlobal.h"

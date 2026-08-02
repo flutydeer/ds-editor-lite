@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-10.
-//
-
 #include "GetPronunciationTask.h"
 
 #include "Model/AppStatus/AppStatus.h"

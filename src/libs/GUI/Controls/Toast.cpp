@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/7/14.
-//
-
 #include <lite/GUI/Controls/Toast.h>
 
 #include <QApplication>

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/9/5.
-//
-
 #include "ParamEditArea.h"
 #include <QMouseEvent>
 #include <QPainter>

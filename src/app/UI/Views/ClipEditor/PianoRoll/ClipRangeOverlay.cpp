@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-16.
-//
-
 #include "ClipRangeOverlay.h"
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"

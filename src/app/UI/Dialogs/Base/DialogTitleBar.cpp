@@ -1,7 +1,3 @@
-//
-// Created on 2026/4/23.
-//
-
 #include "DialogTitleBar.h"
 
 #include <lite/GUI/Controls/Button.h>

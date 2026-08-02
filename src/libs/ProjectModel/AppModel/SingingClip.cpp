@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-18.
-//
-
 // ReSharper disable CppUseRangeAlgorithm
 
 #include <lite/ProjectModel/AppModel/SingingClip.h>

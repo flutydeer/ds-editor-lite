@@ -1,7 +1,3 @@
-//
-// Created for split note functionality
-//
-
 #include "SplitNoteAction.h"
 
 #include <lite/ProjectModel/AppModel/Note.h>

@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/6/6.
-//
-
 #include "ProjectPackageResolver.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>

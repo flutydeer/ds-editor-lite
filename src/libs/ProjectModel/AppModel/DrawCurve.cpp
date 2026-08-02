@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-14.
-//
-
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 
 #include <QDebug>

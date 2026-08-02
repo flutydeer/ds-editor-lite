@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/8/6.
-//
-
 #include <lite/GUI/Controls/LevelMeter.h>
 #include <lite/GUI/Controls/LevelMeterViewModel.h>
 

@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/4/10.
-//
-
 #include <lite/GUI/Utils/TextPixmapCache.h>
 
 #include <QtGlobal>

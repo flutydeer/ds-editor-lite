@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/3/26.
-//
-
 #include <lite/GUI/Controls/Fader.h>
 
 #include <QMouseEvent>

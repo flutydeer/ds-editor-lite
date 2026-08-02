@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-16.
-//
-
 #include "PianoRollEditorView.h"
 
 #include "Controller/PlaybackController.h"

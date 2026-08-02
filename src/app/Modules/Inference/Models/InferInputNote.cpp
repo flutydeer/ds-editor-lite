@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-26.
-//
-
 #include "InferInputNote.h"
 
 #include <lite/ProjectModel/AppModel/Note.h>

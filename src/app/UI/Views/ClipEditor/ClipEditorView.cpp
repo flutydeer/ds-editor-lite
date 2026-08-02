@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/10.
-//
-
 #include "ClipEditorView.h"
 
 #include "Controller/ClipController.h"

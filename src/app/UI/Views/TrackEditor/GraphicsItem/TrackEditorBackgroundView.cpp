@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/22.
-//
-
 #include "TrackEditorBackgroundView.h"
 
 #include <QPainter>

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-25.
-//
-
 #include "InitInferEngineTask.h"
 
 #include "Modules/Inference/InferEngine.h"

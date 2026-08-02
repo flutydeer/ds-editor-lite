@@ -1,7 +1,3 @@
-//
-// Created by OrangeCat on 24-9-4.
-//
-
 #include <lite/ProjectModel/Utils/AppModelUtils.h>
 
 #include <lite/Support/MathUtils.h>

@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/7/3.
-//
-
 #include "AppContext.h"
 
 #include <lite/Core/SingletonRegistry.h>

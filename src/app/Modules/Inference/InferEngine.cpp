@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-25.
-//
-
 #include "InferEngine.h"
 
 #include "Model/AppOptions/AppOptions.h"

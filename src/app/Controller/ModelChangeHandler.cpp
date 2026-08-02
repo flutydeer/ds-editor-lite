@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-29.
-//
-
 #include "ModelChangeHandler.h"
 
 ModelChangeHandler::ModelChangeHandler(QObject *parent) : QObject(parent) {

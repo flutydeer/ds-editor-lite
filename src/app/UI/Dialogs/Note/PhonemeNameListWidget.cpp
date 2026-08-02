@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/4/1.
-//
-
 #include "PhonemeNameListWidget.h"
 
 #include "PhonemeNameItemView.h"

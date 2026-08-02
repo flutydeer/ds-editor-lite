@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-2-23.
-//
-
 #include <lite/ProjectModel/AppModel/Params.h>
 
 #include <lite/ProjectModel/AppModel/SingingClip.h>

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/11/16.
-//
-
 #include "AudioClipView.h"
 
 #include <QCoreApplication>

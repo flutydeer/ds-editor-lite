@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/1/3.
-//
-
 #include "InferPipeline.h"
 
 #include "States/InferDurationState.h"

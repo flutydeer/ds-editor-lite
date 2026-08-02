@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/4/25.
-//
-
 #include "BaseInferState.h"
 #include "Modules/Inference/InferPipeline.h"
 #include "Modules/Inference/InferControllerHelper.h"

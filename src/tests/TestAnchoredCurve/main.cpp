@@ -1,6 +1,3 @@
-//
-// Created by fluty on 24-2-11.
-//
 #include <QApplication>
 
 #include "TestAnchorEditor.h"

@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/6/15.
-//
-
 #include <lite/GUI/Controls/ColorDot.h>
 
 #include <QPainter>

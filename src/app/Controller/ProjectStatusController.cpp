@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-30.
-//
-
 #include "ProjectStatusController.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>

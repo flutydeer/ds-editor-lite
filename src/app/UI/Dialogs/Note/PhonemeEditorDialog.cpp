@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/7/12.
-//
-
 #include "PhonemeEditorDialog.h"
 
 #include <lite/ProjectModel/AppModel/Note.h>

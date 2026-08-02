@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/7.
-//
-
 #include "HistoryManager.h"
 #include "HistoryManager_p.h"
 

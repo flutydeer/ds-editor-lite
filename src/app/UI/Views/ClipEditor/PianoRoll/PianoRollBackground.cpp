@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/24.
-//
-
 #include "PianoRollBackground.h"
 
 #include "PianoPaintUtils.h"

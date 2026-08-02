@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/27.
-//
-
 #include <lite/ProjectModel/AppModel/Note.h>
 
 #include <lite/ProjectModel/AppModel/Clip.h>

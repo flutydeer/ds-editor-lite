@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-11.
-//
-
 #include "EditPhonemeOffsetAction.h"
 
 #include <lite/ProjectModel/AppModel/SingingClip.h>

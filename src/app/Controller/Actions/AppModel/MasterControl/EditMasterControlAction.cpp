@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/5/30.
-//
-
 #include "EditMasterControlAction.h"
 
 EditMasterControlAction::EditMasterControlAction(const TrackControl&control, AppModel* model) {

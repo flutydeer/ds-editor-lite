@@ -1,7 +1,3 @@
-//
-// Created for loop section feature
-//
-
 #ifndef LOOPSETTINGS_H
 #define LOOPSETTINGS_H
 

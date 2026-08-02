@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-10-27.
-//
-
 #include "PronunciationView.h"
 #include "NoteView.h"
 #include "UI/Utils/AppColorPalette.h"

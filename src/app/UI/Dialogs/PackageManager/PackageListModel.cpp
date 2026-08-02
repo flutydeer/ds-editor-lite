@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/7/31.
-//
-
 #include "PackageListModel.h"
 
 const PackageInfo &PackageListModel::getPackage(const QModelIndex &index) const {

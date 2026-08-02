@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/5.
-//
-
 #include "ActionButtonsView.h"
 
 #include <lite/History/HistoryManager.h>

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-9-6.
-//
-
 #include "InferControllerHelper.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>

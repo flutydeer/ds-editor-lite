@@ -1,7 +1,3 @@
-//
-// Created by assistant on 2025/04/29.
-//
-
 #include "WaveformPainter.h"
 
 #include "Modules/Audio/AudioContext.h"

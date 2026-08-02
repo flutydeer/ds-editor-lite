@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/2/4.
-//
-
 #include "PlaybackView.h"
 
 #include <lite/MusicBase/MusicTime.h>

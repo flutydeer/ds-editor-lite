@@ -1,7 +1,3 @@
-//
-// Created by fluty on 24-8-26.
-//
-
 #include "RubberBandView.h"
 
 #include "TimeGraphicsScene.h"

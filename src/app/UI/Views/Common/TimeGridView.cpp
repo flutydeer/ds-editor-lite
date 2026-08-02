@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/21.
-//
-
 #include "TimeGridView.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>

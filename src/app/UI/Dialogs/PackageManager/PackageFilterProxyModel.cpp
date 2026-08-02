@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/7/31.
-//
-
 #include "PackageFilterProxyModel.h"
 
 #include "UI/Dialogs/PackageManager/PackageListModel.h"

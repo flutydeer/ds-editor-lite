@@ -1,7 +1,3 @@
-//
-// Created on 2026/4/23.
-//
-
 #ifndef DIALOGTITLEBAR_H
 #define DIALOGTITLEBAR_H
 

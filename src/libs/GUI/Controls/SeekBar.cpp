@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2023/8/16.
-//
-
 #include <lite/GUI/Controls/SeekBar.h>
 
 #include <QDebug>

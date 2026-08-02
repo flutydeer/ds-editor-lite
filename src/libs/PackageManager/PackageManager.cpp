@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2025/7/27.
-//
-
 #include "PackageManager.h"
 
 #include <lite/Support/StringUtils.h>

@@ -1,7 +1,3 @@
-//
-// Created by fluty on 2024/1/29.
-//
-
 #include "TrackEditorView.h"
 
 #include "TrackControlView.h"

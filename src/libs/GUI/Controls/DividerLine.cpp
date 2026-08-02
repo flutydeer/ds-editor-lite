@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 24-3-18.
-//
-
 #include <lite/GUI/Controls/DividerLine.h>
 
 #include <QPainter>

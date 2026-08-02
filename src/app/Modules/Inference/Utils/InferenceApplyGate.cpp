@@ -1,7 +1,3 @@
-//
-// Created by FlutyDeer on 2026/6/7.
-//
-
 #include "InferenceApplyGate.h"
 #include "Model/AppStatus/AppStatus.h"
 
