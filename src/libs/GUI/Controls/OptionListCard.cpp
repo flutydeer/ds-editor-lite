@@ -23,6 +23,7 @@ OptionsCardItem *OptionListCard::addItem(OptionsCardItem *item) {
         divider->setObjectName("optionListCardDivider");
         m_cardLayout->addWidget(divider);
     }
+    item->setContentsMargins(10, 0, 10, 0);
     m_cardLayout->addWidget(item);
     m_itemDividers.insert(item, divider);
     m_itemCount++;
@@ -84,7 +85,7 @@ void OptionListCard::initUi() {
     setAttribute(Qt::WA_StyledBackground);
 
     m_cardLayout = new QVBoxLayout;
-    m_cardLayout->setContentsMargins(10, 5, 10, 5);
+    m_cardLayout->setContentsMargins(0, 5, 0, 5);
     m_cardLayout->setSpacing(0);
     card()->setLayout(m_cardLayout);
 
