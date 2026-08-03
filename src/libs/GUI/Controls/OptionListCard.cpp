@@ -20,6 +20,7 @@ OptionsCardItem *OptionListCard::addItem(OptionsCardItem *item) {
     DividerLine *divider = nullptr;
     if (m_itemCount > 0) {
         divider = new DividerLine(Qt::Horizontal);
+        divider->setObjectName("optionListCardDivider");
         m_cardLayout->addWidget(divider);
     }
     m_cardLayout->addWidget(item);
