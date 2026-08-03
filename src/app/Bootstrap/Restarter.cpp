@@ -12,8 +12,13 @@ int Restarter::restartOrExit(int exitCode) const {
 }
 
 int Restarter::restart(int exitCode) const {
-    qDebug() << "Restarting application...";
-    QProcess::startDetached(QApplication::applicationFilePath(), QApplication::arguments(),
-                            m_workingDir);
+    const auto applicationFilePath = QApplication::applicationFilePath();
+    const auto applicationArguments = QApplication::arguments().mid(1);
+    const auto started = QProcess::startDetached(applicationFilePath, applicationArguments,
+                                                 m_workingDir);
+    if (started)
+        qDebug() << "Restarting application..." << applicationFilePath << applicationArguments;
+    else
+        qWarning() << "Failed to restart application" << applicationFilePath;
     return exitCode;
 }

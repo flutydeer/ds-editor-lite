@@ -678,7 +678,11 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         taskManager->moveToThread(thread);
         connect(thread, &QThread::started, taskManager, &TaskManager::wait);
         thread->start();
-        event->accept();
+        // Keep the window alive until background tasks have been terminated
+        // (TaskManager::allDone -> onAllDone -> close()). Accepting here would
+        // close the window and quit the event loop before onAllDone runs, so
+        // restartApp() (the "Restart Now" path) would never be reached.
+        event->ignore();
     }
 }
 
