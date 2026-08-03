@@ -1261,9 +1261,6 @@ DividerLine {
     qproperty-lineColor: ${border.subtle};
 }
 
-OptionsCardItem>DividerLine {
-    qproperty-lineMargin: 0px;
-}
 /* SeekBar */
 SeekBar {
     qproperty-trackInactiveColor: ${slider.track.inactiveSubtle};
