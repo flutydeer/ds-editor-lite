@@ -56,6 +56,7 @@ public:
     QAction *actionPaste = nullptr;
     QAction *actionOctaveUp = nullptr;
     QAction *actionOctaveDown = nullptr;
+    QAction *actionQuantize = nullptr;
     QAction *actionFillLyrics = nullptr;
     QAction *actionSearchLyrics = nullptr;
     QAction *actionExtractPitchParam = nullptr;
@@ -104,6 +105,7 @@ public:
     void onExtractPitchParam();
     void onOctaveUp();
     void onOctaveDown();
+    void onQuantize();
     void exitApp();
 
     void enterClipEditorState();

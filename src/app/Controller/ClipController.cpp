@@ -18,6 +18,7 @@
 #include <QGuiApplication>
 #include <QJsonDocument>
 #include <QMimeData>
+#include <QPair>
 
 ClipController::ClipController(QObject *parent)
     : QObject(parent), d_ptr(new ClipControllerPrivate(this)) {
@@ -253,6 +254,61 @@ void ClipController::onParamEdited(const ParamInfo::Name name, const QList<Curve
     const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     const auto a = new ParamsActions;
     a->replaceParam(name, Param::Edited, curves, singingClip);
+    a->execute();
+    historyManager->record(a);
+}
+
+void ClipController::onQuantizeNotes(const int quantize, const bool quantizeStart,
+                                     const bool quantizeLength) const {
+    Q_D(const ClipController);
+    if (!d->m_clip || d->m_clip->clipType() != Clip::Singing)
+        return;
+    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
+
+    // Selected notes if any, otherwise the whole clip (DAW-style: quantize
+    // everything when nothing is selected).
+    QList<Note *> notes;
+    const auto selectedIds = appStatus->selectedNotes.get();
+    if (!selectedIds.isEmpty()) {
+        notes.reserve(selectedIds.size());
+        for (const auto id : selectedIds) {
+            if (auto *note = singingClip->findNoteById(id))
+                notes.append(note);
+        }
+    } else {
+        const auto &allNotes = singingClip->notes();
+        notes.reserve(allNotes.count());
+        for (const auto &note : allNotes)
+            notes.append(note);
+    }
+    if (notes.isEmpty())
+        return;
+
+    const int grid = TimelineSnapUtils::quantizeToTicks(quantize);
+    const auto clipStart = singingClip->start();
+    QList<QPair<int, int>> newStartLengths;
+    newStartLengths.reserve(notes.size());
+    bool changed = false;
+    for (const auto note : notes) {
+        auto newStart = note->localStart();
+        auto newLength = note->length();
+        if (quantizeStart) {
+            // Snap the absolute (measure-anchored) position, then convert back
+            // to clip-local ticks, matching how paste snaps to the grid.
+            const auto snapped = TimelineSnapUtils::snapNearest(
+                clipStart + newStart, grid, appModel->timeline());
+            newStart = qMax(0, snapped - clipStart);
+        }
+        if (quantizeLength)
+            newLength = qMax(grid, TimelineSnapUtils::snapNearest(newLength, grid));
+        newStartLengths.append({newStart, newLength});
+        changed |= newStart != note->localStart() || newLength != note->length();
+    }
+    if (!changed)
+        return;
+
+    const auto a = new NoteActions;
+    a->quantizeNotes(notes, newStartLengths, singingClip);
     a->execute();
     historyManager->record(a);
 }

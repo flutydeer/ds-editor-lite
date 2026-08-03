@@ -6,6 +6,7 @@
 #include "EditNoteWordPropertiesAction.h"
 #include "EditPhonemeOffsetAction.h"
 #include "InsertNoteAction.h"
+#include "QuantizeNotesAction.h"
 #include "RemoveNoteAction.h"
 #include "SplitNoteAction.h"
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -13,6 +14,8 @@
 #include <QCoreApplication>
 
 #include <limits>
+
+#include <utility>
 
 namespace {
 
@@ -112,5 +115,39 @@ void NoteActions::splitNote(Note *originalNote, Note *newNote, int newLength, Si
     after.tickEnd = qMax(after.tickEnd, newNoteFocus.tickEnd);
     after.valueStart = qMin(after.valueStart, newNoteFocus.valueStart);
     after.valueEnd = qMax(after.valueEnd, newNoteFocus.valueEnd);
+    setFocusTransition({before, after});
+}
+
+void NoteActions::quantizeNotes(const QList<Note *> &notes,
+                                const QList<QPair<int, int>> &newStartLengths,
+                                SingingClip *clip) {
+    setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Quantize notes"));
+    QList<QuantizeNotesAction::Change> changes;
+    changes.reserve(notes.size());
+    for (int i = 0; i < notes.size(); ++i) {
+        const auto note = notes.at(i);
+        if (!note)
+            continue;
+        QuantizeNotesAction::Change change;
+        change.note = note;
+        change.oldStart = note->localStart();
+        change.oldLength = note->length();
+        change.newStart = newStartLengths.at(i).first;
+        change.newLength = newStartLengths.at(i).second;
+        changes.append(change);
+    }
+    addAction(new QuantizeNotesAction(std::move(changes), clip));
+
+    const auto before = noteFocus(notes, clip);
+    auto after = before;
+    after.tickStart = std::numeric_limits<double>::max();
+    after.tickEnd = std::numeric_limits<double>::lowest();
+    for (const auto &change : changes) {
+        after.tickStart = qMin(after.tickStart, static_cast<double>(change.newStart));
+        after.tickEnd =
+            qMax(after.tickEnd, static_cast<double>(change.newStart + change.newLength));
+    }
+    if (changes.isEmpty())
+        after.tickStart = after.tickEnd = 0;
     setFocusTransition({before, after});
 }

@@ -22,6 +22,7 @@
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include <lite/GUI/Utils/IconUtils.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
+#include "UI/Utils/QuantizeOptions.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 
 #include <QButtonGroup>
@@ -35,17 +36,8 @@
 
 namespace {
 
-    // Tuplet options (e.g. 1/8T = eighth-note triplet, 1920 / 12 = 160 ticks)
-    // reuse the same "divisions per whole note" scheme: any divisor of 1920 works.
-    const QStringList quantizeStrings = {"1/2",    "1/4",    "1/8",    "1/16",
-                                         "1/32",   "1/64",   "1/128",
-                                         "1/2T",   "1/4T",   "1/8T",   "1/16T",
-                                         "1/32T",  "1/64T",  "1/128T"};
-    const QList<int> quantizeValues = {2, 4, 8, 16, 32, 64, 128, 3, 6, 12, 24, 48, 96, 192};
-
     int quantizeIndex(int quantize) {
-        const int index = quantizeValues.indexOf(quantize);
-        return index >= 0 ? index : quantizeValues.indexOf(16);
+        return QuantizeOptions::indexOf(quantize);
     }
 
 } // namespace
@@ -117,12 +109,12 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     d->m_cbPianoRollQuantize = new ComboBox(true);
     d->m_cbPianoRollQuantize->setObjectName("cbPianoRollQuantize");
-    d->m_cbPianoRollQuantize->addItems(quantizeStrings);
+    d->m_cbPianoRollQuantize->addItems(QuantizeOptions::strings());
     d->m_cbPianoRollQuantize->setCurrentIndex(quantizeIndex(appStatus->pianoRollQuantize));
     d->m_cbPianoRollQuantize->setFixedHeight(d->m_contentHeight);
     d->m_cbPianoRollQuantize->setToolTip(tr("Piano Roll Quantize"));
     connect(d->m_cbPianoRollQuantize, &QComboBox::currentIndexChanged, this,
-            [](int index) { appStatus->pianoRollQuantize = quantizeValues.at(index); });
+            [](int index) { appStatus->pianoRollQuantize = QuantizeOptions::values().at(index); });
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, d->m_cbPianoRollQuantize,
             [combo = d->m_cbPianoRollQuantize](int quantize) {
                 const QSignalBlocker blocker(combo);

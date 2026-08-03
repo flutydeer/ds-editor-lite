@@ -4,6 +4,8 @@
 #include <lite/History/ActionSequence.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 
+#include <QPair>
+
 class SingingClip;
 
 class NoteActions : public ActionSequence {
@@ -30,6 +32,10 @@ public:
 
     // Split note
     void splitNote(Note *originalNote, Note *newNote, int newLength, SingingClip *clip);
+
+    // Quantize: set absolute start/length values (per-note, not a uniform delta)
+    void quantizeNotes(const QList<Note *> &notes,
+                       const QList<QPair<int, int>> &newStartLengths, SingingClip *clip);
 };
 
 

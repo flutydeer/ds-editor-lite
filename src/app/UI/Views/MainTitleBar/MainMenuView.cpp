@@ -14,6 +14,7 @@
 #include "Model/AppStatus/AppStatus.h"
 
 #include <QClipboard>
+#include <QDialog>
 #include <QGuiApplication>
 #include <QMimeData>
 #include "Modules/Extractors/MidiExtractController.h"
@@ -23,6 +24,7 @@
 #include <lite/GUI/Controls/Toast.h>
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Dialogs/Extractor/ExtractPitchParamDialog.h"
+#include "UI/Dialogs/Note/QuantizeDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Window/MainWindow.h"
 #include "Global/AppOptionsGlobal.h"
@@ -310,6 +312,17 @@ void MainMenuViewPrivate::onOctaveDown() {
     clipController->onMoveNotes(appStatus->selectedNotes, 0, -12);
 }
 
+void MainMenuViewPrivate::onQuantize() {
+    QuantizeDialog dialog(m_mainWindow);
+    dialog.setQuantize(appStatus->pianoRollQuantize);
+    dialog.exec();
+    if (dialog.result() != QDialog::Accepted)
+        return;
+
+    clipController->onQuantizeNotes(dialog.quantize(), dialog.quantizeStart(),
+                                    dialog.quantizeLength());
+}
+
 void MainMenuViewPrivate::exitApp() {
     qDebug() << "MainMenuViewPrivate::exitApp";
     m_mainWindow->close();
@@ -347,6 +360,9 @@ void MainMenuViewPrivate::enterClipEditorState() {
     actionFillLyrics->setEnabled(hasSelectedNotes);
     QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionFillLyrics,
                      &QAction::setEnabled);
+
+    // Quantize applies to selected notes or all notes in the active clip.
+    actionQuantize->setEnabled(true);
 }
 
 void MainMenuViewPrivate::exitClipEditorState() {
@@ -379,6 +395,8 @@ void MainMenuViewPrivate::exitClipEditorState() {
     QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionFillLyrics,
                         &QAction::setEnabled);
     actionFillLyrics->setEnabled(false);
+
+    actionQuantize->setEnabled(false);
 }
 
 void MainMenuViewPrivate::enterTracksEditorState() {
@@ -568,6 +586,12 @@ void MainMenuViewPrivate::initEditActions() {
 
     actionExtractPitchParam = new QAction(tr("Extract pitch parameter..."));
     connect(actionExtractPitchParam, &QAction::triggered, this, [this] { onExtractPitchParam(); });
+
+    actionQuantize = new QAction(tr("Quantize..."), this);
+    actionQuantize->setShortcut(QKeySequence("Q"));
+    actionQuantize->setShortcutContext(Qt::WidgetShortcut);
+    actionQuantize->setEnabled(false);
+    connect(actionQuantize, &QAction::triggered, this, [this] { onQuantize(); });
 }
 
 Menu *MainMenuViewPrivate::buildFileMenu() {
@@ -633,6 +657,10 @@ Menu *MainMenuViewPrivate::buildEditMenu() {
 
     menuEdit->addAction(actionOctaveUp);
     menuEdit->addAction(actionOctaveDown);
+
+    menuEdit->addSeparator();
+
+    menuEdit->addAction(actionQuantize);
 
     menuEdit->addSeparator();
 
@@ -747,6 +775,7 @@ void MainMenuViewPrivate::retranslateUi() {
     actionPaste->setText(tr("&Paste"));
     actionOctaveUp->setText(tr("Move an octave up"));
     actionOctaveDown->setText(tr("Move an octave down"));
+    actionQuantize->setText(tr("Quantize..."));
     actionFillLyrics->setText(tr("Fill lyrics..."));
     actionSearchLyrics->setText(tr("Search lyrics..."));
     actionExtractPitchParam->setText(tr("Extract pitch parameter..."));
