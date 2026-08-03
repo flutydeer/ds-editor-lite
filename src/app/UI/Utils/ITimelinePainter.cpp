@@ -62,7 +62,11 @@ std::vector<int> buildSubdivisionCandidates(int beatTicks, int minSubdivisionTic
             break;
     }
 
-    if (beatTicks % minSubdivisionTicks == 0 &&
+    // The minimum step may not divide the beat evenly (e.g. quarter-note
+    // triplet = 320 ticks vs a 480-tick beat). It still needs to be drawn so
+    // the triplet grid is visible; the binary halving loop above can never
+    // produce such a step.
+    if (minSubdivisionTicks < beatTicks &&
         std::find(result.begin(), result.end(), minSubdivisionTicks) == result.end()) {
         result.push_back(minSubdivisionTicks);
     }
@@ -229,7 +233,15 @@ void ITimelinePainter::drawTimeline(QPainter *painter, double startTick, double 
         if (barStartTick + barTicks <= firstVisibleTick)
             continue;
 
-        if (beatOpacity > kVisibilityEpsilon) {
+        // Triplet grids: when the subdivision step does not divide the beat
+        // evenly (e.g. quarter-note triplet 320 vs a 480-tick beat), the
+        // independent beat lines would land between triplet lines and break
+        // the equal spacing. Skip them so the grid is purely the triplet
+        // step. For binary steps (or steps wider than the beat, where beat
+        // lines are the only grid), beat lines stay.
+        const bool tripletSkipsBeatLines =
+            minSubdivisionTicks < beatTicks && beatTicks % minSubdivisionTicks != 0;
+        if (!tripletSkipsBeatLines && beatOpacity > kVisibilityEpsilon) {
             for (int beat = 1; beat < signature.numerator; beat++) {
                 const int tick = barStartTick + beat * beatTicks;
                 if (tick > endTick)
@@ -243,7 +255,10 @@ void ITimelinePainter::drawTimeline(QPainter *painter, double startTick, double 
         if (!subdivisionLevels.empty() && subdivisionLevelCount > 0) {
             const int drawStep = subdivisionLevels.back().step;
             for (int offset = drawStep; offset < barTicks; offset += drawStep) {
-                if (offset % beatTicks == 0)
+                // Beat-line positions are normally drawn by drawBeat; with a
+                // triplet grid the beat lines are skipped, so the subdivision
+                // pass must cover those positions itself to keep equal spacing.
+                if (offset % beatTicks == 0 && !tripletSkipsBeatLines)
                     continue;
                 const int tick = barStartTick + offset;
                 if (tick > endTick)

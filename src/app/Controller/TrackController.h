@@ -56,6 +56,8 @@ public slots:
     static SingingClip *onNewSingingClip(int trackIndex, int tick);
     static void copySelectedClips();
     static void cutSelectedClips();
+    // `tick` must already be snapped by the caller (view layer applies the
+    // current WYSIWYG grid step; global paste passes the playhead tick as-is).
     static void pasteClips(const ClipsInfo &info, int tick, int trackIndex);
 
 private:

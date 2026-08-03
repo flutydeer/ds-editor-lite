@@ -32,6 +32,7 @@ public:
     void showTrackPastePreview(const TrackPastePreviewData &data, int previewTick,
                                int baseTrackIndex) override;
     void clearTrackPastePreview() override;
+    [[nodiscard]] int snapStep(bool snapOff, int atTick = 0) const;
 
 signals:
     void contextMenuRequested(const TrackEditorMenuContext &context);
@@ -60,7 +61,6 @@ private:
     void resetActiveClips() const;
     void resetEditState();
     void syncClipSelectionToAppStatus() const;
-    [[nodiscard]] int snapStep(bool snapOff, int atTick = 0) const;
     [[nodiscard]] QList<AbstractClipView *> selectedClipItems() const;
 
     [[nodiscard]] QColor selectedTrackColor() const;

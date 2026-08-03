@@ -22,7 +22,6 @@
 #include "Global/AppGlobal.h"
 #include "Global/ControllerGlobal.h"
 #include <lite/ProjectModel/Utils/DiffscopeAudioWorkspace.h>
-#include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QClipboard>
 #include <QFileInfo>
@@ -339,13 +338,10 @@ void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex
     if (trackIndex < 0 || trackIndex >= appModel->tracks().count())
         return;
 
-    const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-    const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantize, appModel->timeline());
-
     int minStart = srcClips.first()->start();
     for (const auto clip : srcClips)
         minStart = qMin(minStart, clip->start());
-    const auto offset = snappedTick - minStart;
+    const auto offset = tick - minStart;
 
     QList<Clip *> newClips;
     QList<Track *> targetTracks;

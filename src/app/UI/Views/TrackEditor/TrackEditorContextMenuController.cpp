@@ -1,5 +1,6 @@
 #include "TrackEditorContextMenuController.h"
 
+#include "TrackEditorView.h"
 #include "Controller/TrackController.h"
 #include "Controller/PlaybackController.h"
 #include "Global/ControllerGlobal.h"
@@ -122,9 +123,9 @@ void TrackEditorContextMenuController::showMenu(const TrackEditorMenuContext &co
         paste->setEnabled(payload != nullptr);
         if (payload) {
             const auto previewData = makePreviewData(payload->info());
-            const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-            const auto previewTick =
-                TimelineSnapUtils::snapNearest(context.rawTick, quantize, appModel->timeline());
+            // The backend already snapped to the WYSIWYG grid; the preview
+            // must match the position pasteClips() will actually use.
+            const auto previewTick = context.snappedTick;
             connect(paste, &QAction::hovered, this,
                     [previewHost, previewData, previewTick, context] {
                         if (previewHost) {
@@ -133,7 +134,8 @@ void TrackEditorContextMenuController::showMenu(const TrackEditorMenuContext &co
                         }
                     });
             connect(paste, &QAction::triggered, this, [payload, context] {
-                trackController->pasteClips(payload->info(), context.rawTick, context.trackIndex);
+                trackController->pasteClips(payload->info(), context.snappedTick,
+                                            context.trackIndex);
             });
         }
     } else {
@@ -204,14 +206,21 @@ void TrackEditorContextMenuController::pasteSelection() const {
         trackIndex = 0;
     if (trackIndex >= appModel->tracks().size())
         return;
-    trackController->pasteClips(payload->info(), qRound(playbackController->position()),
-                                trackIndex);
+    const auto tick = qRound(playbackController->position());
+    const auto snappedTick =
+        TimelineSnapUtils::snapNearest(tick, gridStepAt(tick), appModel->timeline());
+    trackController->pasteClips(payload->info(), snappedTick, trackIndex);
 }
 
 void TrackEditorContextMenuController::deleteSelection(const QList<int> &clipIds) const {
     const auto ids = clipIds.isEmpty() ? appStatus->selectedClips.get() : clipIds;
     if (!ids.isEmpty())
         trackController->onRemoveClips(ids);
+}
+
+int TrackEditorContextMenuController::gridStepAt(int tick) const {
+    const auto *view = qobject_cast<const TrackEditorView *>(m_owner);
+    return view ? view->currentGridStep(tick) : 1;
 }
 
 void TrackEditorContextMenuController::selectAll() const {

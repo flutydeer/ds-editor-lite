@@ -389,6 +389,12 @@ bool TrackEditorView::setViewScale(double horizontalScale, double verticalScale)
     return centerAt(previousState.centerTick, previousState.centerTrackIndex);
 }
 
+int TrackEditorView::currentGridStep(int atTick) const {
+    if (m_rhiView)
+        return m_rhiView->snapStep(atTick);
+    return m_graphicsView->snapStep(false, atTick);
+}
+
 HistoryFocusVisibility TrackEditorView::focusVisibility(const HistoryFocus &focus) const {
     if (m_rhiView)
         return m_rhiView->focusVisibility(focus);

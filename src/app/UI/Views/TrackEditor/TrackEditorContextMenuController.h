@@ -65,6 +65,9 @@ public:
 private:
     void insertAudioClip(int trackIndex, int tick) const;
     void relocateAudioClip(int clipId) const;
+    // WYSIWYG grid step from the owning TrackEditorView; 1 (no snap) when
+    // the view is unavailable.
+    [[nodiscard]] int gridStepAt(int tick) const;
 
     QWidget *m_owner = nullptr;
 };

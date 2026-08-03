@@ -48,6 +48,8 @@ public:
     void showTrackPastePreview(const TrackPastePreviewData &data, int previewTick,
                                int baseTrackIndex) override;
     void clearTrackPastePreview() override;
+    // WYSIWYG snap step at `tick` for the current zoom level.
+    [[nodiscard]] int snapStep(int tick) const;
 
 public slots:
     void setSceneLength(int tick);
@@ -126,7 +128,6 @@ private:
     [[nodiscard]] double wheelDelta(const QWheelEvent *event, bool preferHorizontal) const;
     [[nodiscard]] int trackIndexAt(const QPointF &viewportPosition) const;
     [[nodiscard]] int tickAt(const QPointF &viewportPosition) const;
-    [[nodiscard]] int snapStep(int tick) const;
     [[nodiscard]] int snapTick(int tick) const;
     void beginClipDrag(const ClipSnapshot &clip, const QMouseEvent *event);
     void updateDrag(const QPointF &position, Qt::KeyboardModifiers modifiers);

@@ -40,6 +40,9 @@ public:
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus, bool animated) const;
+    // WYSIWYG snap step: the visible grid line spacing at the current zoom
+    // level around `atTick` (delegates to the active backend).
+    [[nodiscard]] int currentGridStep(int atTick) const;
 
 public slots:
     void onModelChanged();

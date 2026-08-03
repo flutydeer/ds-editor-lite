@@ -35,8 +35,13 @@
 
 namespace {
 
-    const QStringList quantizeStrings = {"1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/128"};
-    const QList<int> quantizeValues = {2, 4, 8, 16, 32, 64, 128};
+    // Tuplet options (e.g. 1/8T = eighth-note triplet, 1920 / 12 = 160 ticks)
+    // reuse the same "divisions per whole note" scheme: any divisor of 1920 works.
+    const QStringList quantizeStrings = {"1/2",    "1/4",    "1/8",    "1/16",
+                                         "1/32",   "1/64",   "1/128",
+                                         "1/2T",   "1/4T",   "1/8T",   "1/16T",
+                                         "1/32T",  "1/64T",  "1/128T"};
+    const QList<int> quantizeValues = {2, 4, 8, 16, 32, 64, 128, 3, 6, 12, 24, 48, 96, 192};
 
     int quantizeIndex(int quantize) {
         const int index = quantizeValues.indexOf(quantize);
