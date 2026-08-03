@@ -8,6 +8,80 @@
 #include <QScopeGuard>
 #include <QSysInfo>
 
+#include <iostream>
+#include <mutex>
+#include <streambuf>
+#include <string>
+
+// ========================================================================
+// StderrCatcher -- redirects std::cerr into the Log system
+// ========================================================================
+// Third-party libraries (e.g. RtMidi) often write directly to std::cerr,
+// bypassing Qt's message handler and therefore the Log system. This class
+// installs a custom std::streambuf on std::cerr that captures each line
+// and forwards it to Log::w("stderr", ...), so those messages appear in
+// the console log, the log file, and the in-app LogBus viewer.
+//
+// It is safe to use alongside Qt's message handler because Log::log()
+// writes to stdout, not stderr -- there is no feedback loop.
+// ========================================================================
+class Log::StderrCatcher : public std::streambuf {
+public:
+    StderrCatcher() : m_oldBuf(std::cerr.rdbuf(this)) {
+    }
+
+    ~StderrCatcher() override {
+        flushLine();
+        // Restore the original buffer. At program exit std::cerr is still
+        // alive because it is constructed before main() and destroyed after
+        // all static-local objects (Log is a Meyers singleton).
+        if (m_oldBuf)
+            std::cerr.rdbuf(m_oldBuf);
+    }
+
+protected:
+    int_type overflow(int_type ch) override {
+        if (ch == '\n') {
+            flushLine();
+        } else if (ch != traits_type::eof()) {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_lineBuffer += static_cast<char>(ch);
+        }
+        return ch;
+    }
+
+    std::streamsize xsputn(const char_type *s, std::streamsize count) override {
+        for (std::streamsize i = 0; i < count; ++i) {
+            if (s[i] == '\n') {
+                flushLine();
+            } else {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                m_lineBuffer += s[i];
+            }
+        }
+        return count;
+    }
+
+private:
+    void flushLine() {
+        std::string line;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            line.swap(m_lineBuffer);
+        }
+        if (line.empty())
+            return;
+        // Trim trailing whitespace / carriage returns
+        while (!line.empty() && (line.back() == ' ' || line.back() == '\r'))
+            line.pop_back();
+        Log::w(QStringLiteral("stderr"), QString::fromStdString(line));
+    }
+
+    std::streambuf *m_oldBuf;
+    std::mutex m_mutex;
+    std::string m_lineBuffer;
+};
+
 QString Log::LogMessage::toPlainText() const {
     return QString("%1 %2 [%3] %4")
         .arg(time, padText(tag, consoleTagWidth), levelText(level), text);
@@ -42,6 +116,7 @@ QString Log::LogMessage::padText(const QString &text, const int spaces) {
 
 Log::Log() {
     m_logFileName = QDateTime::currentDateTime().toString("yyyy_MM_dd_hh_mm_ss") + ".log";
+    m_stderrCatcher = std::make_unique<StderrCatcher>();
 }
 
 Log::~Log() = default;

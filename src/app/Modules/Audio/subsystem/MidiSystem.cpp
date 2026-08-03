@@ -59,8 +59,14 @@ bool MidiSystem::initialize() {
 
     const auto savedDeviceIndex = AudioSettings::midiDeviceIndex();
     qDebug() << "Audio::MidiSystem: saved device index" << savedDeviceIndex;
-    const auto deviceCount = talcs::MidiInputDevice::devices().size();
-    for (int i = -1; i < deviceCount; i++) {
+
+    const auto availableDevices = talcs::MidiInputDevice::devices();
+    if (availableDevices.isEmpty()) {
+        qWarning() << "Audio::MidiSystem: no MIDI input devices available, skipping";
+        return false;
+    }
+
+    for (int i = -1; i < availableDevices.size(); i++) {
         if (i == savedDeviceIndex)
             continue;
         int deviceIndex = i;

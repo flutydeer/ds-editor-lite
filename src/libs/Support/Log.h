@@ -7,6 +7,7 @@
 #include <QStringList>
 #include <QTextStream>
 #include <QtLogging>
+#include <memory>
 #include <utility>
 #include <lite/Core/Singleton.h>
 
@@ -63,6 +64,10 @@ private:
     // Retention policy: number of log files kept in the log directory (including the current one)
     static constexpr int maxLogFiles = 10;
 
+    /// Captures std::cerr output (from third-party libraries like RtMidi)
+    /// and routes it through the Log system.
+    class StderrCatcher;
+
     static QString timeStr();
     static QString colorizeText(LogLevel level, const QString &text);
     static QString colorizeHighlightText(LogLevel level, const QString &text);
@@ -78,6 +83,7 @@ private:
     bool m_logToFile = false;
     LogLevel m_consoleLogLevel = Debug;
     QStringList m_tagFilter;
+    std::unique_ptr<StderrCatcher> m_stderrCatcher;
 };
 
 
