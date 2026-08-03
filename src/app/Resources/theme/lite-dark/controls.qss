@@ -1261,7 +1261,7 @@ DividerLine {
     qproperty-lineColor: ${border.subtle};
 }
 
-OptionsCardItem>DividerLine {
+OptionListCard>CardView>DividerLine {
     qproperty-lineMargin: 0px;
 }
 /* SeekBar */

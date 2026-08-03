@@ -41,7 +41,7 @@
 | lineMargin（非颜色） | 12px |
 | lineColor | #1D1F26 |
 
-### OptionsCardItem>DividerLine
+### OptionListCard>CardView>DividerLine
 | 属性 | lite-dark 值 |
 |---|---|
 | lineMargin（非颜色） | 0px |
