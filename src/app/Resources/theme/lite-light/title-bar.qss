@@ -84,6 +84,14 @@ PlaybackView ControlGroup>QPushButton#btnLoop:checked {
     background-color: ${selection.fill};
 }
 
+PlaybackView ControlGroup>QPushButton#btnAutoPageTurn:checked {
+    background-color: ${selection.fill};
+}
+
+PlaybackView ControlGroup>QPushButton#btnAutoPageTurn[autoPageTurnAvailable="false"] {
+    background-color: ${control.fill.disabled};
+}
+
 PlaybackView ControlGroup>InlineEditLabel {
     height: 28px;
     padding: 0px;

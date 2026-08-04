@@ -90,6 +90,7 @@ NEW_ICONS = [
     "mic_off_16_filled.svg",
     "headphones_16_filled.svg",
     "arrow_repeat_all_off_16_filled.svg",
+    "arrow_step_over_16_regular.svg",
 
     # 工具 (24px)
     "zoom_in_24_filled.svg",

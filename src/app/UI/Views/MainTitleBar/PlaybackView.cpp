@@ -23,6 +23,7 @@
 #include <QLocale>
 #include <QPushButton>
 #include <QShortcut>
+#include <QStyle>
 
 #include <cmath>
 
@@ -143,6 +144,14 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         updateLoopButtonView();
     });
 
+    m_btnAutoPageTurn = new QPushButton;
+    m_btnAutoPageTurn->setObjectName("btnAutoPageTurn");
+    m_btnAutoPageTurn->setIconSize(m_iconSize);
+    m_btnAutoPageTurn->setCheckable(true);
+    m_btnAutoPageTurn->setToolTip(tr("Auto Page Turn"));
+    connect(m_btnAutoPageTurn, &QPushButton::clicked, this,
+            [](const bool checked) { appStatus->autoPageTurnEnabled = checked; });
+
     m_btnPause = new QPushButton;
     m_btnPause->setObjectName("btnPause");
     m_btnPause->setIconSize(m_iconSize);
@@ -222,6 +231,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     transportLayout->addWidget(m_btnPlay);
     transportLayout->addWidget(m_btnPause);
     transportLayout->addWidget(m_btnLoop);
+    transportLayout->addWidget(m_btnAutoPageTurn);
     transportLayout->addWidget(m_elTime);
     transportLayout->setSpacing(1);
     transportLayout->setContentsMargins({});
@@ -264,6 +274,11 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     connect(appModel, &AppModel::modelChanged, this, &PlaybackView::updateView);
     connect(appModel, &AppModel::timelineChanged, this, &PlaybackView::onTimelineChanged);
     connect(appStatus, &AppStatus::loopSettingsChanged, this, [this] { updateLoopButtonView(); });
+    connect(appStatus, &AppStatus::autoPageTurnEnabledChanged, this,
+            [this] { updateAutoPageTurnButtonView(); });
+    connect(appStatus, &AppStatus::autoPageTurnAvailabilityChanged, this,
+            [this] { updateAutoPageTurnButtonView(); });
+    updateAutoPageTurnButtonView();
 }
 
 void PlaybackView::updateView() {
@@ -276,6 +291,7 @@ void PlaybackView::updateView() {
     updateTimeView();
     updatePlaybackControlView();
     updateLoopButtonView();
+    updateAutoPageTurnButtonView();
 }
 
 void PlaybackView::onTimelineChanged() {
@@ -362,10 +378,26 @@ void PlaybackView::updateLoopButtonView() {
     m_btnLoop->setChecked(enabled);
 }
 
+void PlaybackView::updateAutoPageTurnButtonView() {
+    const bool enabled = appStatus->autoPageTurnEnabled;
+    const bool available = appStatus->autoPageTurnAvailable;
+    m_btnAutoPageTurn->setChecked(enabled);
+    if (m_btnAutoPageTurn->property("autoPageTurnAvailable").toBool() != available ||
+        !m_btnAutoPageTurn->property("autoPageTurnAvailable").isValid()) {
+        m_btnAutoPageTurn->setProperty("autoPageTurnAvailable", available);
+        m_btnAutoPageTurn->style()->unpolish(m_btnAutoPageTurn);
+        m_btnAutoPageTurn->style()->polish(m_btnAutoPageTurn);
+        m_btnAutoPageTurn->update();
+    }
+    rebuildIcons();
+}
+
 void PlaybackView::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
-    if (event->type() == QEvent::LanguageChange)
+    if (event->type() == QEvent::LanguageChange) {
         m_btnLoop->setToolTip(tr("Loop"));
+        m_btnAutoPageTurn->setToolTip(tr("Auto Page Turn"));
+    }
 }
 
 QColor PlaybackView::playAccentColor() const {
@@ -424,6 +456,14 @@ void PlaybackView::rebuildIcons() {
         m_btnLoop->setIcon(buildToggleIcon(":svg/icons/arrow_repeat_all_16_regular.svg", m_iconSize,
                                            m_actionIconColor, m_actionIconDisabledColor,
                                            m_playAccentColor));
+    if (m_btnAutoPageTurn) {
+        const bool available = appStatus->autoPageTurnAvailable;
+        const auto normalColor = available ? m_actionIconColor : m_actionIconDisabledColor;
+        const auto checkedColor = available ? m_playAccentColor : m_actionIconDisabledColor;
+        m_btnAutoPageTurn->setIcon(buildToggleIcon(":svg/icons/arrow_step_over_16_regular.svg",
+                                                   m_iconSize, normalColor,
+                                                   m_actionIconDisabledColor, checkedColor));
+    }
     if (m_btnPause)
         m_btnPause->setIcon(buildToggleIcon(":svg/icons/pause_16_regular.svg", m_iconSize,
                                             m_actionIconColor, m_actionIconDisabledColor,

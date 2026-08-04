@@ -4234,6 +4234,12 @@ error: %2</source>
         <source>Loop</source>
         <translation>循环</translation>
     </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="153"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="396"/>
+        <source>Auto Page Turn</source>
+        <translation>自动翻页</translation>
+    </message>
 </context>
 <context>
     <name>ProgressDialog</name>
