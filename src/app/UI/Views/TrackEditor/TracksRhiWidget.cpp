@@ -18,9 +18,15 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 
+#include <QApplication>
 #include <QContextMenuEvent>
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QHideEvent>
 #include <QKeyEvent>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QResizeEvent>
@@ -96,7 +102,8 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     m_viewport.setScaleBounds(0.0001, 10000.0, 0.575, 8.0);
     m_viewport.setEnsureContentFillsViewport(true, false);
     m_viewport.setContentTickRange(0.0, appStatus->projectEditableLength);
-    m_viewport.setVerticalContent(appModel->tracks().size(), trackHeight);
+    // One extra unit for the virtual append slot at the bottom of the canvas
+    m_viewport.setVerticalContent(appModel->tracks().size() + 1, trackHeight);
 
     connect(&m_viewport, &EditorViewportController::scaleChanged, this,
             &TracksRhiWidget::scaleChanged);
@@ -111,15 +118,17 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
             });
     connect(&m_viewport, &EditorViewportController::viewportChanged, this,
             &TracksRhiWidget::scheduleSnapshot);
+    connect(&m_edgeAutoScroller, &EdgeAutoScroller::frame, this,
+            &TracksRhiWidget::onExternalDropScrollFrame);
 
     connect(appModel, &AppModel::modelChanged, this, [this] {
         rebuildModelConnections();
-        m_viewport.setVerticalContent(appModel->tracks().size(), trackHeight);
+        m_viewport.setVerticalContent(appModel->tracks().size() + 1, trackHeight);
         scheduleSnapshot();
     });
     connect(appModel, &AppModel::trackChanged, this, [this] {
         rebuildModelConnections();
-        m_viewport.setVerticalContent(appModel->tracks().size(), trackHeight);
+        m_viewport.setVerticalContent(appModel->tracks().size() + 1, trackHeight);
         scheduleSnapshot();
     });
     connect(appModel, &AppModel::trackMoved, this, [this] {
@@ -433,6 +442,163 @@ void TracksRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
     event->accept();
 }
 
+void TracksRhiWidget::dragEnterEvent(QDragEnterEvent *event) {
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+        m_externalDragActive = true;
+        m_dropScrollDistanceReached = false;
+        m_dropDragStartPos = event->position();
+        updateExternalDropOverlay(event->position());
+        return;
+    }
+    QWidget::dragEnterEvent(event);
+}
+
+void TracksRhiWidget::dragMoveEvent(QDragMoveEvent *event) {
+    if (m_externalDragActive && event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+        updateExternalDropOverlay(event->position());
+        updateExternalDropScrollState(event->position());
+        return;
+    }
+    QWidget::dragMoveEvent(event);
+}
+
+void TracksRhiWidget::dragLeaveEvent(QDragLeaveEvent *event) {
+    if (m_externalDragActive) {
+        endExternalDropOverlay();
+        event->accept();
+        return;
+    }
+    QWidget::dragLeaveEvent(event);
+}
+
+void TracksRhiWidget::dropEvent(QDropEvent *event) {
+    if (m_externalDragActive && event->mimeData()->hasUrls()) {
+        if (const auto slot = dropSlotAt(event->position()))
+            emit externalDropRequested(*slot, event->mimeData()->urls());
+        endExternalDropOverlay();
+        event->acceptProposedAction();
+        return;
+    }
+    QWidget::dropEvent(event);
+}
+
+std::optional<TrackDropSlot> TracksRhiWidget::dropSlotAt(const QPointF &viewportPosition) const {
+    const auto scenePos = m_viewport.viewportToScene(viewportPosition);
+    if (scenePos.y() < 0)
+        return std::nullopt;
+    const auto unit = m_viewport.sceneYToUnit(scenePos.y());
+    const auto trackIndex = static_cast<int>(std::floor(unit));
+    TrackDropSlot slot;
+    slot.snappedTick = snapTick(tickAt(viewportPosition));
+    if (trackIndex >= 0 && trackIndex < appModel->tracks().size()) {
+        slot.kind = TrackDropSlot::Kind::ExistingTrack;
+        slot.trackIndex = trackIndex;
+        return slot;
+    }
+    if (unit >= appModel->tracks().size() && unit < appModel->tracks().size() + 1.0) {
+        slot.kind = TrackDropSlot::Kind::Append;
+        slot.trackIndex = appModel->tracks().size();
+        return slot;
+    }
+    return std::nullopt;
+}
+
+void TracksRhiWidget::updateExternalDropOverlay(const QPointF &viewportPosition) {
+    m_dropSlot = dropSlotAt(viewportPosition);
+    scheduleSnapshot();
+}
+
+void TracksRhiWidget::endExternalDropOverlay() {
+    m_externalDragActive = false;
+    m_dropSlot.reset();
+    m_dropScrollDistanceReached = false;
+    m_edgeAutoScroller.stop();
+    scheduleSnapshot();
+}
+
+void TracksRhiWidget::updateExternalDropScrollState(const QPointF &viewportPosition) {
+    if (!m_externalDragActive)
+        return;
+    if (!m_dropScrollDistanceReached) {
+        if ((viewportPosition - m_dropDragStartPos).manhattanLength() <
+            QApplication::startDragDistance())
+            return;
+        m_dropScrollDistanceReached = true;
+    }
+    const QRectF viewportRect(QPointF(0, 0), size());
+    const auto velocity =
+        EdgeAutoScroller::velocity(viewportPosition, viewportRect, Qt::Vertical,
+                                   m_edgeAutoScroller.config());
+    const bool inHotZone = !velocity.isNull();
+    if (inHotZone && !m_edgeAutoScroller.isRunning())
+        m_edgeAutoScroller.start();
+    else if (!inHotZone && m_edgeAutoScroller.isRunning())
+        m_edgeAutoScroller.stop();
+}
+
+void TracksRhiWidget::onExternalDropScrollFrame(const double dtMs) {
+    // Safety net: stop if the drag ended without us seeing the event
+    if (!m_externalDragActive || QGuiApplication::mouseButtons() == Qt::NoButton || !isVisible()) {
+        m_edgeAutoScroller.stop();
+        return;
+    }
+    const auto pointerPos = QPointF(mapFromGlobal(QCursor::pos()));
+    const QRectF viewportRect(QPointF(0, 0), size());
+    const auto step = m_edgeAutoScroller.computeStep(pointerPos, viewportRect, Qt::Vertical,
+                                                     dtMs);
+    if (step.y() != 0)
+        m_viewport.scrollBy({0.0, static_cast<double>(step.y())});
+    const auto clamped = EdgeAutoScroller::clampToRect(pointerPos, viewportRect);
+    updateExternalDropOverlay(clamped);
+    // Stop the timer once the pointer left the hot zone (it may re-enter later)
+    updateExternalDropScrollState(pointerPos);
+}
+
+void TracksRhiWidget::appendDropOverlay(EditorRhiFrameData &frame, const double dpr) const {
+    if (!m_externalDragActive || !m_dropSlot)
+        return;
+    const auto slot = *m_dropSlot;
+    const auto sceneWidth = m_viewport.tickToSceneX(appStatus->projectEditableLength);
+    const auto trackHeightPx = trackHeight * scaleY();
+    const auto top = slot.trackIndex * trackHeightPx;
+    EditorRhiGeometry::appendRect(
+        frame.solidVertices,
+        QRectF(0, top * dpr, sceneWidth * dpr, trackHeightPx * dpr), m_dropHighlightColor);
+    EditorRhiGeometry::appendPixelAlignedHorizontalLine(frame.solidVertices, top * dpr, 0.0,
+                                                        sceneWidth * dpr, m_dropIndicatorColor);
+    EditorRhiGeometry::appendPixelAlignedHorizontalLine(
+        frame.solidVertices, (top + trackHeightPx) * dpr, 0.0, sceneWidth * dpr,
+        m_dropIndicatorColor);
+    const auto contentHeight = (appModel->tracks().size() + 1) * trackHeightPx * dpr;
+    EditorRhiGeometry::appendPixelAlignedVerticalLine(
+        frame.solidVertices, m_viewport.tickToSceneX(slot.snappedTick) * dpr, 0.0, contentHeight,
+        m_dropIndicatorColor);
+}
+
+QColor TracksRhiWidget::dropHighlightColor() const {
+    return m_dropHighlightColor;
+}
+
+void TracksRhiWidget::setDropHighlightColor(const QColor &color) {
+    if (m_dropHighlightColor == color)
+        return;
+    m_dropHighlightColor = color;
+    scheduleSnapshot();
+}
+
+QColor TracksRhiWidget::dropIndicatorColor() const {
+    return m_dropIndicatorColor;
+}
+
+void TracksRhiWidget::setDropIndicatorColor(const QColor &color) {
+    if (m_dropIndicatorColor == color)
+        return;
+    m_dropIndicatorColor = color;
+    scheduleSnapshot();
+}
+
 void TracksRhiWidget::keyPressEvent(QKeyEvent *event) {
     if (event->key() == Qt::Key_Escape) {
         discardDrag();
@@ -466,6 +632,7 @@ void TracksRhiWidget::rebuildSnapshot() {
     appendGrid(frame, dpr);
     appendClips(frame, dpr);
     appendPlaybackIndicators(frame, dpr);
+    appendDropOverlay(frame, dpr);
     if (m_dragMode == DragMode::RectSelect) {
         const QRectF rect(m_rubberBandStart * dpr, m_rubberBandEnd * dpr);
         auto fill = QColor(155, 186, 255, 64);
@@ -499,7 +666,8 @@ void TracksRhiWidget::rebuildModelConnections() {
 void TracksRhiWidget::appendGrid(EditorRhiFrameData &frame, const double dpr) const {
     const auto visible = m_viewport.visibleSceneRect();
     const auto sceneWidth = m_viewport.tickToSceneX(appStatus->projectEditableLength);
-    const auto sceneHeight = appModel->tracks().size() * trackHeight * scaleY();
+    // One extra row for the virtual append slot at the bottom of the canvas
+    const auto sceneHeight = (appModel->tracks().size() + 1) * trackHeight * scaleY();
     if (appStatus->selectedTrackIndex >= 0) {
         const auto top = appStatus->selectedTrackIndex * trackHeight * scaleY();
         EditorRhiGeometry::appendRect(
@@ -638,7 +806,8 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
 }
 
 void TracksRhiWidget::appendPlaybackIndicators(EditorRhiFrameData &frame, const double dpr) const {
-    const auto height = appModel->tracks().size() * trackHeight * scaleY() * dpr;
+    // One extra row for the virtual append slot at the bottom of the canvas
+    const auto height = (appModel->tracks().size() + 1) * trackHeight * scaleY() * dpr;
     EditorRhiGeometry::appendPixelAlignedVerticalLine(
         frame.solidVertices, m_viewport.tickToSceneX(m_lastPlaybackPosition) * dpr, 0.0, height,
         m_lastPlayPosIndicatorColor);

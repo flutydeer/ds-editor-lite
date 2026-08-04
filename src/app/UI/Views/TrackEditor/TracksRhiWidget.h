@@ -3,20 +3,27 @@
 
 #include "Interface/EditorViewState.h"
 #include "TrackEditorContextMenuController.h"
+#include "TracksGraphicsScene.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
 #include "UI/Views/Common/EditorViewportController.h"
+#include "UI/Views/Common/EdgeAutoScroller.h"
 
 #include <lite/History/HistoryFocus.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 
 #include <QTimer>
+#include <QUrl>
 
 #include <optional>
 
 class QContextMenuEvent;
-class QKeyEvent;
+class QDragEnterEvent;
+class QDragLeaveEvent;
+class QDragMoveEvent;
+class QDropEvent;
 class QHideEvent;
+class QKeyEvent;
 class QMouseEvent;
 class QResizeEvent;
 class QShowEvent;
@@ -34,6 +41,8 @@ class TracksRhiWidget final : public EditorRhiWidget, public ITrackPastePreviewH
     Q_PROPERTY(QColor selectedTrackColor READ selectedTrackColor WRITE setSelectedTrackColor)
     Q_PROPERTY(QColor clipSelectedBorderColor READ clipSelectedBorderColor WRITE
                    setClipSelectedBorderColor)
+    Q_PROPERTY(QColor dropHighlightColor READ dropHighlightColor WRITE setDropHighlightColor)
+    Q_PROPERTY(QColor dropIndicatorColor READ dropIndicatorColor WRITE setDropIndicatorColor)
 
 public:
     explicit TracksRhiWidget(QWidget *parent = nullptr);
@@ -76,6 +85,9 @@ signals:
     void setPositionTriggered(double tick);
     void contextMenuRequested(const TrackEditorMenuContext &context);
     void autoPageTurnAvailabilityChanged(bool available);
+    // Emitted when an external file drag is dropped on the canvas. Phase 1
+    // only resolves the drop slot; actual import is wired up in later phases.
+    void externalDropRequested(const TrackDropSlot &slot, const QList<QUrl> &urls);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -88,6 +100,10 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dragMoveEvent(QDragMoveEvent *event) override;
+    void dragLeaveEvent(QDragLeaveEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
     void leaveEvent(QEvent *event) override;
     void onRhiReady() override;
     void onDevicePixelRatioChanged() override;
@@ -130,6 +146,7 @@ private:
     void appendClips(EditorRhiFrameData &frame, double dpr);
     void appendClip(EditorRhiFrameData &frame, const ClipSnapshot &clip, double dpr);
     void appendPlaybackIndicators(EditorRhiFrameData &frame, double dpr) const;
+    void appendDropOverlay(EditorRhiFrameData &frame, double dpr) const;
     [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex,
                                                  double dpr) const;
     [[nodiscard]] const ClipSnapshot *hitTest(const QPointF &viewportPosition) const;
@@ -147,6 +164,16 @@ private:
     void updateAutoPageTurnAvailability();
     [[nodiscard]] Clip::ClipCommonProperties previewOrModelProperties(const Clip *clip) const;
 
+    // --- External file drag-and-drop (Phase 1) ---
+    // Resolves the drop slot at the given viewport position, hitting either a
+    // real track or the virtual append slot. Returns nullopt outside the
+    // canvas (e.g. over the timeline ruler).
+    [[nodiscard]] std::optional<TrackDropSlot> dropSlotAt(const QPointF &viewportPosition) const;
+    void updateExternalDropOverlay(const QPointF &viewportPosition);
+    void endExternalDropOverlay();
+    void updateExternalDropScrollState(const QPointF &viewportPosition);
+    void onExternalDropScrollFrame(double dtMs);
+
     QColor barLineColor() const;
     void setBarLineColor(const QColor &color);
     QColor beatLineColor() const;
@@ -161,6 +188,10 @@ private:
     void setSelectedTrackColor(const QColor &color);
     QColor clipSelectedBorderColor() const;
     void setClipSelectedBorderColor(const QColor &color);
+    QColor dropHighlightColor() const;
+    void setDropHighlightColor(const QColor &color);
+    QColor dropIndicatorColor() const;
+    void setDropIndicatorColor(const QColor &color);
 
     EditorViewportController m_viewport;
     EditorGlyphAtlas m_glyphAtlas;
@@ -182,6 +213,13 @@ private:
     int m_mouseDownTrackIndex = -1;
     bool m_dragMoved = false;
 
+    // External file drag-and-drop state (Phase 1)
+    bool m_externalDragActive = false;
+    std::optional<TrackDropSlot> m_dropSlot;
+    EdgeAutoScroller m_edgeAutoScroller;
+    QPointF m_dropDragStartPos;
+    bool m_dropScrollDistanceReached = false;
+
     QColor m_barLineColor{8, 9, 10};
     QColor m_beatLineColor{22, 25, 28};
     QColor m_commonLineColor{28, 32, 36};
@@ -189,6 +227,9 @@ private:
     QColor m_lastPlayPosIndicatorColor{160, 160, 160};
     QColor m_selectedTrackColor{0x31, 0x35, 0x3F};
     QColor m_clipSelectedBorderColor{255, 255, 255};
+    // External drop overlay colors (theme-injected via QSS)
+    QColor m_dropHighlightColor{0xA9, 0xC4, 0xFF, 0x50};
+    QColor m_dropIndicatorColor{200, 200, 200};
 };
 
 #endif // TRACKSRHIWIDGET_H

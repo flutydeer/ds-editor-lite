@@ -202,4 +202,17 @@ TracksGraphicsView {
     background: ${editor.canvasAlternate};
     qproperty-selectedTrackColor: ${surface.raised};
     qproperty-clipSelectedBorderColor: ${text.emphasis};
+    qproperty-dropHighlightColor: ${selection.hoverFill};
+    qproperty-dropIndicatorColor: ${editor.playhead};
+}
+
+/* TracksRhiWidget */
+TracksRhiWidget {
+    qproperty-dropHighlightColor: ${selection.hoverFill};
+    qproperty-dropIndicatorColor: ${editor.playhead};
+}
+
+/* Append-slot placeholder row at the bottom of the track list */
+TrackAppendSlotView {
+    qproperty-lineColor: ${border.subtle};
 }

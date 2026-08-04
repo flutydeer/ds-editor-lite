@@ -3,6 +3,7 @@
 #include "Controller/TrackController.h"
 #include "TrackControlView.h"
 #include "Global/TracksEditorGlobal.h"
+#include "TrackAppendSlotView.h"
 
 #include <QDragMoveEvent>
 #include <QDropEvent>
@@ -30,6 +31,41 @@ TrackListView::TrackListView(QWidget *parent) : QListWidget(parent) {
     // Enable auto-scroll during drag operations
     setAutoScroll(true);
     setAutoScrollMargin(50);
+
+    // Permanent append-slot placeholder row at the bottom of the list. It
+    // mirrors the canvas append slot: disabled, non-selectable and
+    // non-draggable, excluded from track count/ordering/selection.
+    m_appendSlotItem = new QListWidgetItem;
+    m_appendSlotItem->setFlags(Qt::NoItemFlags);
+    m_appendSlotItem->setSizeHint(QSize(0, qRound(TracksEditorGlobal::trackHeight)));
+    addItem(m_appendSlotItem);
+    setItemWidget(m_appendSlotItem, new TrackAppendSlotView);
+}
+
+int TrackListView::trackCount() const {
+    return m_appendSlotItem ? count() - 1 : count();
+}
+
+bool TrackListView::moveTrackRow(const int from, const int to) {
+    if (from == to)
+        return true;
+    if (from < 0 || from >= trackCount() || to < 0 || to >= trackCount())
+        return false;
+    auto *item = takeItem(from);
+    if (!item)
+        return false;
+    auto *widget = itemWidget(item);
+    insertItem(to, item);
+    if (widget)
+        setItemWidget(item, widget);
+    return true;
+}
+
+void TrackListView::setAppendSlotHeight(const int height) {
+    if (!m_appendSlotItem)
+        return;
+    m_appendSlotItem->setSizeHint(QSize(0, height));
+    doItemsLayout();
 }
 
 void TrackListView::mousePressEvent(QMouseEvent *event) {
@@ -83,15 +119,17 @@ void TrackListView::dropEvent(QDropEvent *event) {
     auto dropRow = indexAt(event->position().toPoint()).row();
     const auto dropIndicator = dropIndicatorPosition();
 
-    if (dropRow < 0) {
-        dropRow = count();
+    // The append-slot placeholder row is not a valid drop target; dropping on
+    // it (or past the last real track) appends to the end of the list.
+    if (dropRow < 0 || dropRow >= trackCount()) {
+        dropRow = trackCount();
     } else if (dropIndicator == BelowItem) {
         dropRow++;
     } else if (dropIndicator == AboveItem && dragRow < dropRow) {
         dropRow++;
     }
 
-    if (dragRow == dropRow || (dragRow + 1 == dropRow && dragRow < count() - 1)) {
+    if (dragRow == dropRow || (dragRow + 1 == dropRow && dragRow < trackCount() - 1)) {
         event->ignore();
         return;
     }

@@ -262,6 +262,20 @@ void TrackEditorView::connectLegacyBackend() {
             &TracksGraphicsView::setSceneLength);
     connect(m_graphicsView, &TracksGraphicsView::autoPageTurnAvailabilityChanged, this,
             &TrackEditorView::updateAutoPageTurnButtonView);
+    // Phase 1: drop slot resolution only. Actual import is wired up in
+    // later phases.
+    connect(m_graphicsView, &TracksGraphicsView::externalDropRequested, this,
+            [](const TrackDropSlot &slot, const QList<QUrl> &urls) {
+                qInfo().noquote()
+                    << QStringLiteral("[TrackEditor] external drop: kind=%1 track=%2 tick=%3 "
+                                      "urls=%4")
+                           .arg(slot.kind == TrackDropSlot::Kind::Append
+                                    ? QStringLiteral("append")
+                                    : QStringLiteral("track"))
+                           .arg(slot.trackIndex)
+                           .arg(slot.snappedTick)
+                           .arg(urls.size());
+            });
     m_graphicsView->setAutoTurnPage(appStatus->trackAutoPageTurnEnabled);
 }
 
@@ -307,6 +321,20 @@ void TrackEditorView::connectRhiBackend() {
             });
     connect(m_rhiView, &TracksRhiWidget::autoPageTurnAvailabilityChanged, this,
             &TrackEditorView::updateAutoPageTurnButtonView);
+    // Phase 1: drop slot resolution only. Actual import is wired up in
+    // later phases.
+    connect(m_rhiView, &TracksRhiWidget::externalDropRequested, this,
+            [](const TrackDropSlot &slot, const QList<QUrl> &urls) {
+                qInfo().noquote()
+                    << QStringLiteral("[TrackEditor] external drop: kind=%1 track=%2 tick=%3 "
+                                      "urls=%4")
+                           .arg(slot.kind == TrackDropSlot::Kind::Append
+                                    ? QStringLiteral("append")
+                                    : QStringLiteral("track"))
+                           .arg(slot.trackIndex)
+                           .arg(slot.snappedTick)
+                           .arg(urls.size());
+            });
     m_rhiView->setAutoPageTurn(appStatus->trackAutoPageTurnEnabled);
 }
 
@@ -514,8 +542,10 @@ void TrackEditorView::onTrackMoved(const qsizetype from, const qsizetype to) {
     const auto previousSelectedTrackIndex = static_cast<int>(appStatus->selectedTrackIndex);
     const QSignalBlocker listBlocker(m_trackListView);
 
-    const auto destination = to > from ? to + 1 : to;
-    if (!m_trackListView->model()->moveRow({}, from, {}, destination))
+    // takeItem + insertItem semantics: `to` is the final row index, matching
+    // the model after MoveTrackAction. The append-slot placeholder row is
+    // never moved.
+    if (!m_trackListView->moveTrackRow(static_cast<int>(from), static_cast<int>(to)))
         return;
     m_viewModel.tracks.move(from, to);
 
@@ -573,7 +603,10 @@ void TrackEditorView::onLastPositionChanged(const double tick) const {
 void TrackEditorView::onViewScaleChanged(const qreal sx, const qreal sy) const {
     Q_UNUSED(sx);
     int previousHeightSum = 0;
-    for (int i = 0; i < m_trackListView->count(); i++) {
+    // The append-slot placeholder row is excluded from the track loop and
+    // sized separately below.
+    const auto trackCount = m_trackListView->trackCount();
+    for (int i = 0; i < trackCount; i++) {
         // adjust track item height
         const auto item = m_trackListView->item(i);
         const int height =
@@ -585,6 +618,8 @@ void TrackEditorView::onViewScaleChanged(const qreal sx, const qreal sy) const {
         widget->setNarrowMode(sy < TracksEditorGlobal::narrowModeScaleY);
         previousHeightSum += height;
     }
+    // Keep the append slot one track height tall, aligned with the canvas
+    m_trackListView->setAppendSlotHeight(qRound(TracksEditorGlobal::trackHeight * sy));
 }
 
 void TrackEditorView::setSelectedTrackIndex(const int trackIndex) const {
@@ -596,7 +631,7 @@ void TrackEditorView::setSelectedTrackIndex(const int trackIndex) const {
 
 void TrackEditorView::syncSelectedTrackToList(const int trackIndex) const {
     const QSignalBlocker blocker(m_trackListView);
-    if (trackIndex >= 0 && trackIndex < m_trackListView->count()) {
+    if (trackIndex >= 0 && trackIndex < m_trackListView->trackCount()) {
         m_trackListView->setCurrentRow(trackIndex);
     } else {
         m_trackListView->setCurrentItem(nullptr);
