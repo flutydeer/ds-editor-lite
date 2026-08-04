@@ -144,14 +144,6 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         updateLoopButtonView();
     });
 
-    m_btnAutoPageTurn = new QPushButton;
-    m_btnAutoPageTurn->setObjectName("btnAutoPageTurn");
-    m_btnAutoPageTurn->setIconSize(m_iconSize);
-    m_btnAutoPageTurn->setCheckable(true);
-    m_btnAutoPageTurn->setToolTip(tr("Auto Page Turn"));
-    connect(m_btnAutoPageTurn, &QPushButton::clicked, this,
-            [](const bool checked) { appStatus->autoPageTurnEnabled = checked; });
-
     m_btnPause = new QPushButton;
     m_btnPause->setObjectName("btnPause");
     m_btnPause->setIconSize(m_iconSize);
@@ -159,6 +151,14 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
                                         m_actionIconColor, m_actionIconDisabledColor,
                                         pauseAccentColor()));
     m_btnPause->setCheckable(true);
+
+    m_btnAutoPageTurn = new QPushButton;
+    m_btnAutoPageTurn->setObjectName("btnAutoPageTurn");
+    m_btnAutoPageTurn->setIconSize(m_iconSize);
+    m_btnAutoPageTurn->setCheckable(true);
+    m_btnAutoPageTurn->setToolTip(tr("Auto Page Turn"));
+    connect(m_btnAutoPageTurn, &QPushButton::clicked, this,
+            [](const bool checked) { appStatus->trackAutoPageTurnEnabled = checked; });
 
     m_elTime = new InlineEditLabel;
     m_elTime->setObjectName("elTime");
@@ -274,9 +274,9 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     connect(appModel, &AppModel::modelChanged, this, &PlaybackView::updateView);
     connect(appModel, &AppModel::timelineChanged, this, &PlaybackView::onTimelineChanged);
     connect(appStatus, &AppStatus::loopSettingsChanged, this, [this] { updateLoopButtonView(); });
-    connect(appStatus, &AppStatus::autoPageTurnEnabledChanged, this,
+    connect(appStatus, &AppStatus::trackAutoPageTurnEnabledChanged, this,
             [this] { updateAutoPageTurnButtonView(); });
-    connect(appStatus, &AppStatus::autoPageTurnAvailabilityChanged, this,
+    connect(appStatus, &AppStatus::trackAutoPageTurnAvailabilityChanged, this,
             [this] { updateAutoPageTurnButtonView(); });
     updateAutoPageTurnButtonView();
 }
@@ -379,8 +379,8 @@ void PlaybackView::updateLoopButtonView() {
 }
 
 void PlaybackView::updateAutoPageTurnButtonView() {
-    const bool enabled = appStatus->autoPageTurnEnabled;
-    const bool available = appStatus->autoPageTurnAvailable;
+    const bool enabled = appStatus->trackAutoPageTurnEnabled;
+    const bool available = appStatus->trackAutoPageTurnAvailable;
     m_btnAutoPageTurn->setChecked(enabled);
     if (m_btnAutoPageTurn->property("autoPageTurnAvailable").toBool() != available ||
         !m_btnAutoPageTurn->property("autoPageTurnAvailable").isValid()) {
@@ -457,12 +457,13 @@ void PlaybackView::rebuildIcons() {
                                            m_actionIconColor, m_actionIconDisabledColor,
                                            m_playAccentColor));
     if (m_btnAutoPageTurn) {
-        const bool available = appStatus->autoPageTurnAvailable;
-        const auto normalColor = available ? m_actionIconColor : m_actionIconDisabledColor;
-        const auto checkedColor = available ? m_playAccentColor : m_actionIconDisabledColor;
-        m_btnAutoPageTurn->setIcon(buildToggleIcon(":svg/icons/arrow_step_over_16_regular.svg",
-                                                   m_iconSize, normalColor,
-                                                   m_actionIconDisabledColor, checkedColor));
+        // Temporary unavailability (visible page shorter than the minimum) is
+        // shown by the gray background (QSS [autoPageTurnAvailable="false"]);
+        // the icon keeps its solid color so it stays distinguishable from the
+        // truly-disabled (fully gray) state.
+        m_btnAutoPageTurn->setIcon(buildToggleIcon(":svg/icons/arrow_right_16_regular.svg",
+                                                   m_iconSize, m_actionIconColor,
+                                                   m_actionIconDisabledColor, m_playAccentColor));
     }
     if (m_btnPause)
         m_btnPause->setIcon(buildToggleIcon(":svg/icons/pause_16_regular.svg", m_iconSize,

@@ -56,6 +56,7 @@ private:
     void connectRhiBackend();
     void fallbackToLegacy();
     void registerEditorShortcuts();
+    void updateAutoPageTurnButtonView(bool available);
     [[nodiscard]] double startTick() const;
     [[nodiscard]] double endTick() const;
     [[nodiscard]] double topKeyIndex() const;

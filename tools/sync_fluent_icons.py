@@ -27,8 +27,6 @@ REPLACE_ICONS = [
     "arrow_repeat_all_16_filled.svg",
 
     # Edit
-    "arrow_undo_16_filled.svg",
-    "arrow_redo_16_filled.svg",
     "cut_20_filled.svg",
     "copy_16_filled.svg",
     "clipboard_paste_16_filled.svg",
@@ -36,7 +34,6 @@ REPLACE_ICONS = [
     "checkmark_16_filled.svg",
 
     # File
-    "save_16_filled.svg",
     "save_edit_20_filled.svg",
     "document_add_16_filled.svg",
     "folder_open_16_filled.svg",
@@ -90,7 +87,7 @@ NEW_ICONS = [
     "mic_off_16_filled.svg",
     "headphones_16_filled.svg",
     "arrow_repeat_all_off_16_filled.svg",
-    "arrow_step_over_16_regular.svg",
+    "arrow_right_16_regular.svg",
 
     # 工具 (24px)
     "zoom_in_24_filled.svg",

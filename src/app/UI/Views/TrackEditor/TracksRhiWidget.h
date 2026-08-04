@@ -59,6 +59,7 @@ public slots:
     void setSceneLength(int tick);
     void setPlaybackPosition(double tick);
     void setLastPlaybackPosition(double tick);
+    void setAutoPageTurn(bool enabled);
     void onWheelHorScale(QWheelEvent *event);
     void onWheelVerScale(QWheelEvent *event);
     void onWheelHorScroll(QWheelEvent *event);

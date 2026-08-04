@@ -146,6 +146,24 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
         "btnPitchEraser", ":svg/icons/pitch_erase_24_filled.svg", tr("Erase Pitch"), Qt::Key_H);
     auto freezePitchDesc = tr("Copy automatic pitch inference results to edited pitch");
 
+    d->m_btnAutoPageTurn = d->buildToolButton(
+        "btnAutoPageTurn", ":svg/icons/arrow_right_16_regular.svg", tr("Auto Page Turn"));
+    connect(d->m_btnAutoPageTurn, &QPushButton::toggled, this,
+            [](const bool checked) { appStatus->pianoRollAutoPageTurnEnabled = checked; });
+    connect(appStatus, &AppStatus::pianoRollAutoPageTurnEnabledChanged, this,
+            [btn = d->m_btnAutoPageTurn](const bool enabled) { btn->setChecked(enabled); });
+    connect(appStatus, &AppStatus::pianoRollAutoPageTurnAvailabilityChanged, this,
+            [btn = d->m_btnAutoPageTurn](const bool available) {
+                if (btn->property("autoPageTurnAvailable").toBool() != available ||
+                    !btn->property("autoPageTurnAvailable").isValid()) {
+                    btn->setProperty("autoPageTurnAvailable", available);
+                    btn->style()->unpolish(btn);
+                    btn->style()->polish(btn);
+                    btn->update();
+                }
+            });
+    d->m_btnAutoPageTurn->setChecked(appStatus->pianoRollAutoPageTurnEnabled);
+
     d->m_toolButtonGroup = new QButtonGroup;
     d->m_toolButtonGroup->setExclusive(true);
     d->m_toolButtonGroup->addButton(d->m_btnArrow);
@@ -192,6 +210,14 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     auto quantizeGroup = new ControlGroup;
     quantizeGroup->setLayout(quantizeLayout);
 
+    auto autoPageTurnLayout = new QHBoxLayout;
+    autoPageTurnLayout->addWidget(d->m_btnAutoPageTurn);
+    autoPageTurnLayout->setSpacing(1);
+    autoPageTurnLayout->setContentsMargins({});
+
+    auto autoPageTurnGroup = new ControlGroup;
+    autoPageTurnGroup->setLayout(autoPageTurnLayout);
+
 
     const auto mainLayout = new QHBoxLayout;
     mainLayout->addWidget(clipInfoGroup);
@@ -199,6 +225,8 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     mainLayout->addWidget(toolButtonGroup);
     mainLayout->addSpacing(16);
     mainLayout->addWidget(quantizeGroup);
+    mainLayout->addSpacing(16);
+    mainLayout->addWidget(autoPageTurnGroup);
     mainLayout->addSpacing(16);
     mainLayout->addStretch();
 

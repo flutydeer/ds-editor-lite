@@ -1085,6 +1085,12 @@ Right drag: Erase</source>
         <source>Clip Default Language</source>
         <translation>剪辑默认语种</translation>
     </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="150"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="608"/>
+        <source>Auto Page Turn</source>
+        <translation>自动翻页</translation>
+    </message>
 </context>
 <context>
     <name>ClipEditorToolBarViewPrivate</name>
@@ -4235,8 +4241,8 @@ error: %2</source>
         <translation>循环</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="153"/>
-        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="396"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="159"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="386"/>
         <source>Auto Page Turn</source>
         <translation>自动翻页</translation>
     </message>

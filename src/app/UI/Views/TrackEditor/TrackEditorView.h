@@ -104,6 +104,7 @@ private:
     void onTrackRemoved(const Track *dsTrack, qsizetype index);
     void setSelectedTrackIndex(int trackIndex) const;
     void syncSelectedTrackToList(int trackIndex) const;
+    void updateAutoPageTurnButtonView(bool available);
 };
 
 

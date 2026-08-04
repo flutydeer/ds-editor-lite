@@ -118,9 +118,6 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
             [this] { updateAutoPageTurnAvailability(); });
     connect(appModel, &AppModel::timelineChanged, this,
             &TimeGraphicsView::updateAutoPageTurnAvailability);
-    connect(appStatus, &AppStatus::autoPageTurnEnabledChanged, this,
-            &TimeGraphicsView::setAutoTurnPage);
-    m_autoTurnPage = appStatus->autoPageTurnEnabled;
 
     m_positionThrottle.setSingleShot(true);
     m_positionThrottle.setInterval(33);
@@ -816,10 +813,6 @@ void TimeGraphicsView::setAutoTurnPage(bool on) {
         pageAdd();
 }
 
-bool TimeGraphicsView::autoPageTurnAvailable() const {
-    return m_autoPageTurnAvailable;
-}
-
 void TimeGraphicsView::setSceneLength(int tick) {
     m_baseSceneLength = tick;
     m_scene->setSceneLength(m_baseSceneLength + m_sceneLengthExtension);
@@ -844,10 +837,6 @@ void TimeGraphicsView::updateAutoPageTurnAvailability() {
         m_autoPageTurnAvailable = available;
         emit autoPageTurnAvailabilityChanged(available);
     }
-
-    const bool participating =
-        isVisible() && isEnabled() && m_baseSceneLength > 0 && viewport()->width() > 0;
-    appStatus->reportAutoPageTurnAvailability(this, participating, available);
 }
 
 void TimeGraphicsView::armEdgeAutoScroll(Qt::Orientations axes) {

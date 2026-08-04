@@ -65,6 +65,7 @@ public:
     [[nodiscard]] PianoRollViewState viewState() const;
     bool centerAt(double tick, double keyIndex);
     bool setViewScale(double horizontalScale, double verticalScale);
+    void setAutoPageTurn(bool enabled);
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus, bool animated = true);
     void setEditMode(ClipEditorGlobal::PianoRollEditMode mode);

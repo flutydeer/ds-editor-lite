@@ -32,6 +32,7 @@
 #include "UI/Views/Common/EditorShortcutUtils.h"
 
 #include <QFileDialog>
+#include <QHBoxLayout>
 #include <QMouseEvent>
 #include <QScrollBar>
 #include <QSignalBlocker>
@@ -155,6 +156,10 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     connect(appStatus, &AppStatus::selectedTrackIndexChanged, this,
             &TrackEditorView::syncSelectedTrackToList);
     if (m_rhiView)
+        m_rhiView->setAutoPageTurn(appStatus->trackAutoPageTurnEnabled);
+    else
+        m_graphicsView->setAutoTurnPage(appStatus->trackAutoPageTurnEnabled);
+    if (m_rhiView)
         connectRhiBackend();
     else
         connectLegacyBackend();
@@ -255,6 +260,9 @@ void TrackEditorView::connectLegacyBackend() {
             m_graphicsView->verticalScrollBar(), &QScrollBar::setValue);
     connect(appStatus, &AppStatus::projectEditableLengthChanged, m_graphicsView,
             &TracksGraphicsView::setSceneLength);
+    connect(m_graphicsView, &TracksGraphicsView::autoPageTurnAvailabilityChanged, this,
+            &TrackEditorView::updateAutoPageTurnButtonView);
+    m_graphicsView->setAutoTurnPage(appStatus->trackAutoPageTurnEnabled);
 }
 
 void TrackEditorView::connectRhiBackend() {
@@ -297,6 +305,9 @@ void TrackEditorView::connectRhiBackend() {
                     << QStringLiteral("[TracksRhi] falling back to Legacy: %1").arg(reason);
                 fallbackToLegacy();
             });
+    connect(m_rhiView, &TracksRhiWidget::autoPageTurnAvailabilityChanged, this,
+            &TrackEditorView::updateAutoPageTurnButtonView);
+    m_rhiView->setAutoPageTurn(appStatus->trackAutoPageTurnEnabled);
 }
 
 void TrackEditorView::fallbackToLegacy() {
@@ -591,6 +602,10 @@ void TrackEditorView::syncSelectedTrackToList(const int trackIndex) const {
         m_trackListView->setCurrentItem(nullptr);
         m_trackListView->clearSelection();
     }
+}
+
+void TrackEditorView::updateAutoPageTurnButtonView(const bool available) {
+    appStatus->trackAutoPageTurnAvailable = available;
 }
 
 void TrackEditorView::onRemoveTrackTriggered(const int id) {

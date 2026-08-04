@@ -136,12 +136,6 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     connect(appStatus, &AppStatus::activeClipIdChanged, this, &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::projectEditableLengthChanged, this,
             &TracksRhiWidget::setSceneLength);
-    connect(appStatus, &AppStatus::autoPageTurnEnabledChanged, this, [this](const bool enabled) {
-        m_autoTurnPage = enabled;
-        if (enabled)
-            handleAutoPageTurn();
-    });
-    m_autoTurnPage = appStatus->autoPageTurnEnabled;
     m_positionThrottle.setSingleShot(true);
     m_positionThrottle.setInterval(33);
     connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
@@ -898,6 +892,12 @@ void TracksRhiWidget::updateCursor(const QPointF &position) {
                   : Qt::ArrowCursor);
 }
 
+void TracksRhiWidget::setAutoPageTurn(const bool enabled) {
+    m_autoTurnPage = enabled;
+    if (enabled)
+        handleAutoPageTurn();
+}
+
 void TracksRhiWidget::handleAutoPageTurn() {
     if (!m_autoTurnPage || !m_autoPageTurnAvailable ||
         appStatus->currentEditObject != AppStatus::EditObjectType::None) {
@@ -923,9 +923,6 @@ void TracksRhiWidget::updateAutoPageTurnAvailability() {
         m_autoPageTurnAvailable = available;
         emit autoPageTurnAvailabilityChanged(available);
     }
-
-    const bool participating = isVisible() && appStatus->projectEditableLength > 0 && width() > 0;
-    appStatus->reportAutoPageTurnAvailability(this, participating, available);
 }
 
 Clip::ClipCommonProperties TracksRhiWidget::previewOrModelProperties(const Clip *clip) const {

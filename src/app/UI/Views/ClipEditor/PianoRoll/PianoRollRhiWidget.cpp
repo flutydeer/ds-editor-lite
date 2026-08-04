@@ -323,8 +323,6 @@ public:
             autoPageTurnAvailable = available;
             emit q->autoPageTurnAvailabilityChanged(available);
         }
-        appStatus->reportAutoPageTurnAvailability(q, clip && q->isVisible() && q->width() > 0,
-                                                  autoPageTurnAvailable);
     }
 
     HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const {
@@ -2344,9 +2342,6 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, this,
             [this] { d->scheduleSnapshot(); });
     connect(appStatus, &AppStatus::noteSelectionChanged, this, [this] { d->scheduleSnapshot(); });
-    connect(appStatus, &AppStatus::autoPageTurnEnabledChanged, this,
-            [this] { d->setAutoPageTurn(appStatus->autoPageTurnEnabled); });
-    d->autoPageTurn = appStatus->autoPageTurnEnabled;
     d->positionThrottle.setSingleShot(true);
     d->positionThrottle.setInterval(33);
     connect(&d->positionThrottle, &QTimer::timeout, this,
@@ -2457,6 +2452,10 @@ void PianoRollRhiWidget::onWheelVerScroll(QWheelEvent *event) {
 
 void PianoRollRhiWidget::setHorizontalBarValue(const int value) {
     d->setHorizontalBarValue(value);
+}
+
+void PianoRollRhiWidget::setAutoPageTurn(const bool enabled) {
+    d->setAutoPageTurn(enabled);
 }
 
 void PianoRollRhiWidget::setPlaybackPosition(const double tick) {

@@ -70,7 +70,6 @@ public:
     void setOffset(int tick);
     void setPixelsPerQuarterNote(int px);
     void setAutoTurnPage(bool on);
-    [[nodiscard]] bool autoPageTurnAvailable() const;
     void setViewportStartTick(double tick);
     void setViewportCenterAtTick(double tick);
     bool setViewportScale(double horizontalScale, double verticalScale);

@@ -142,6 +142,10 @@ TimelineView#pianoRollTimelineView {
     border-top-right-radius: 0px;
 }
 
+ClipEditorToolBarView QPushButton#btnAutoPageTurn[autoPageTurnAvailable="false"] {
+    background-color: ${control.fill.disabled};
+}
+
 /* PianoKeyboardView */
 PianoKeyboardView {
     qproperty-whiteKeyColor: ${piano.key.white};

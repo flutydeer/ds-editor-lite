@@ -8,8 +8,6 @@
 #include <lite/Core/Singleton.h>
 
 #include <QObject>
-#include <QHash>
-#include <QSet>
 #include "Global/AppGlobal.h"
 
 class AppStatus : public QObject {
@@ -52,10 +50,10 @@ public:
     Property<LoopSettings> loopSettings;
 
     // Playback viewport
-    Property<bool> autoPageTurnEnabled = true;
-    Property<bool> autoPageTurnAvailable = true;
-
-    void reportAutoPageTurnAvailability(QObject *source, bool participating, bool available);
+    Property<bool> trackAutoPageTurnEnabled = true;
+    Property<bool> trackAutoPageTurnAvailable = true;
+    Property<bool> pianoRollAutoPageTurnEnabled = true;
+    Property<bool> pianoRollAutoPageTurnAvailable = true;
 
 signals:
     // Modules
@@ -79,14 +77,10 @@ signals:
     void loopSettingsChanged(const LoopSettings &settings);
 
     // Playback viewport
-    void autoPageTurnEnabledChanged(bool enabled);
-    void autoPageTurnAvailabilityChanged(bool available);
-
-private:
-    void updateAutoPageTurnAvailability();
-
-    QHash<QObject *, bool> m_autoPageTurnAvailability;
-    QSet<QObject *> m_autoPageTurnSources;
+    void trackAutoPageTurnEnabledChanged(bool enabled);
+    void trackAutoPageTurnAvailabilityChanged(bool available);
+    void pianoRollAutoPageTurnEnabledChanged(bool enabled);
+    void pianoRollAutoPageTurnAvailabilityChanged(bool available);
 };
 
 #endif // APPSTATUS_H
