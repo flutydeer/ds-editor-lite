@@ -12,9 +12,11 @@
 
 class QEvent;
 class QContextMenuEvent;
+class QHideEvent;
 class QKeyEvent;
 class QMouseEvent;
 class QResizeEvent;
+class QShowEvent;
 class QWheelEvent;
 class SingingClip;
 
@@ -89,8 +91,11 @@ signals:
     void keyHoverCleared();
     void backendUnavailable();
     void contextMenuRequested(const PianoRollMenuContext &context);
+    void autoPageTurnAvailabilityChanged(bool available);
 
 protected:
+    void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;

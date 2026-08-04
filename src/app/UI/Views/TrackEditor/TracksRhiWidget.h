@@ -10,12 +10,16 @@
 #include <lite/History/HistoryFocus.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 
+#include <QTimer>
+
 #include <optional>
 
 class QContextMenuEvent;
 class QKeyEvent;
+class QHideEvent;
 class QMouseEvent;
 class QResizeEvent;
+class QShowEvent;
 class QWheelEvent;
 
 class TracksRhiWidget final : public EditorRhiWidget, public ITrackPastePreviewHost {
@@ -70,9 +74,12 @@ signals:
     void verticalOffsetChanged(double value);
     void setPositionTriggered(double tick);
     void contextMenuRequested(const TrackEditorMenuContext &context);
+    void autoPageTurnAvailabilityChanged(bool available);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
+    void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
@@ -135,6 +142,8 @@ private:
     void discardDrag();
     void syncSelection(const QList<int> &ids, int preferredTrack = -1) const;
     void updateCursor(const QPointF &position);
+    void handleAutoPageTurn();
+    void updateAutoPageTurnAvailability();
     [[nodiscard]] Clip::ClipCommonProperties previewOrModelProperties(const Clip *clip) const;
 
     QColor barLineColor() const;
@@ -158,7 +167,11 @@ private:
     QVector<ClipSnapshot> m_pastePreviewSnapshots;
     bool m_snapshotScheduled = false;
     double m_playbackPosition = 0.0;
+    double m_pendingPlaybackPosition = 0.0;
     double m_lastPlaybackPosition = 0.0;
+    QTimer m_positionThrottle;
+    bool m_autoTurnPage = true;
+    bool m_autoPageTurnAvailable = false;
     DragMode m_dragMode = DragMode::None;
     QPointF m_mouseDownScene;
     QPointF m_rubberBandStart;

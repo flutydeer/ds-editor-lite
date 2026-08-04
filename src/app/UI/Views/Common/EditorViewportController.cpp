@@ -117,6 +117,15 @@ bool EditorViewportController::centerAt(const double tick, const double unit) {
     return true;
 }
 
+bool EditorViewportController::setStartTick(const double tick) {
+    if (!std::isfinite(tick))
+        return false;
+    m_offsetX = tickToSceneX(tick);
+    normalize(false);
+    notify(false);
+    return true;
+}
+
 void EditorViewportController::scrollBy(const QPointF &deltaPixels) {
     m_offsetX += deltaPixels.x();
     m_offsetY += deltaPixels.y();
@@ -127,16 +136,16 @@ void EditorViewportController::scrollBy(const QPointF &deltaPixels) {
 void EditorViewportController::zoomHorizontal(const double wheelDelta, const double anchorX) {
     if (qFuzzyIsNull(wheelDelta))
         return;
-    const auto factor = wheelDelta > 0.0 ? 1.0 + 0.4 * wheelDelta / 120.0
-                                         : 1.0 / (1.0 + 0.4 * -wheelDelta / 120.0);
+    const auto factor =
+        wheelDelta > 0.0 ? 1.0 + 0.4 * wheelDelta / 120.0 : 1.0 / (1.0 + 0.4 * -wheelDelta / 120.0);
     setScale(m_scaleX * factor, m_scaleY, {anchorX, m_viewportSize.height() * 0.5});
 }
 
 void EditorViewportController::zoomVertical(const double wheelDelta, const double anchorY) {
     if (qFuzzyIsNull(wheelDelta))
         return;
-    const auto factor = wheelDelta > 0.0 ? 1.0 + 0.3 * wheelDelta / 120.0
-                                         : 1.0 / (1.0 + 0.3 * -wheelDelta / 120.0);
+    const auto factor =
+        wheelDelta > 0.0 ? 1.0 + 0.3 * wheelDelta / 120.0 : 1.0 / (1.0 + 0.3 * -wheelDelta / 120.0);
     setScale(m_scaleX, m_scaleY * factor, {m_viewportSize.width() * 0.5, anchorY});
 }
 

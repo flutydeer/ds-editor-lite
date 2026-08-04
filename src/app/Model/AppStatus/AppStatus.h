@@ -8,6 +8,8 @@
 #include <lite/Core/Singleton.h>
 
 #include <QObject>
+#include <QHash>
+#include <QSet>
 #include "Global/AppGlobal.h"
 
 class AppStatus : public QObject {
@@ -28,7 +30,8 @@ public:
 
     // Modules
     Property<ModuleStatus> languageModuleStatus = ModuleStatus::Unknown;
-    Property<QString> languageModuleError; // R6/TD-8: 语言引擎启动失败的具体原因，运行期状态不持久化
+    Property<QString>
+        languageModuleError; // R6/TD-8: 语言引擎启动失败的具体原因，运行期状态不持久化
     Property<ModuleStatus> inferEngineEnvStatus = ModuleStatus::Unknown;
     Property<ModuleStatus> packageModuleStatus = ModuleStatus::Unknown;
 
@@ -47,6 +50,12 @@ public:
 
     // Loop
     Property<LoopSettings> loopSettings;
+
+    // Playback viewport
+    Property<bool> autoPageTurnEnabled = true;
+    Property<bool> autoPageTurnAvailable = true;
+
+    void reportAutoPageTurnAvailability(QObject *source, bool participating, bool available);
 
 signals:
     // Modules
@@ -68,6 +77,16 @@ signals:
 
     // Loop
     void loopSettingsChanged(const LoopSettings &settings);
+
+    // Playback viewport
+    void autoPageTurnEnabledChanged(bool enabled);
+    void autoPageTurnAvailabilityChanged(bool available);
+
+private:
+    void updateAutoPageTurnAvailability();
+
+    QHash<QObject *, bool> m_autoPageTurnAvailability;
+    QSet<QObject *> m_autoPageTurnSources;
 };
 
 #endif // APPSTATUS_H

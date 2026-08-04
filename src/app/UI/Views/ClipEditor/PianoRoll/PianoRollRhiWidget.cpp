@@ -11,6 +11,7 @@
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/ITimelinePainter.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "Modules/Inference/EditSessionManager.h"
@@ -29,6 +30,7 @@
 #include <QContextMenuEvent>
 #include <QFontMetricsF>
 #include <QHash>
+#include <QHideEvent>
 #include <QKeyEvent>
 #include <QLineF>
 #include <QMetaObject>
@@ -36,6 +38,7 @@
 #include <QPainter>
 #include <QResizeEvent>
 #include <QSet>
+#include <QShowEvent>
 #include <QTimer>
 #include <QWheelEvent>
 
@@ -177,6 +180,7 @@ public:
         }
         loadAnchorCurvesFromModel();
         initializeCamera();
+        updateAutoPageTurnAvailability();
         scheduleSnapshot();
     }
 
@@ -266,6 +270,61 @@ public:
     void setHorizontalBarValue(const int value) {
         cameraX = value;
         viewportChanged(false);
+    }
+
+    void setPlaybackPosition(const double tick) {
+        pendingPlaybackPosition = tick;
+        if (!positionThrottle.isActive())
+            positionThrottle.start();
+    }
+
+    void applyPendingPlaybackPosition() {
+        playbackPosition = pendingPlaybackPosition;
+        handleAutoPageTurn();
+        scheduleSnapshot();
+    }
+
+    void setAutoPageTurn(const bool enabled) {
+        autoPageTurn = enabled;
+        if (enabled)
+            handleAutoPageTurn();
+    }
+
+    void handleAutoPageTurn() {
+        if (!autoPageTurn || !autoPageTurnAvailable || !clip ||
+            appStatus->currentEditObject != AppStatus::EditObjectType::None ||
+            interaction != Interaction::None || pitchEditing || anchorDragging || anchorSelecting) {
+            return;
+        }
+
+        const auto viewportStart = startTick();
+        const auto viewportEnd = endTick();
+        const auto viewportLength = viewportEnd - viewportStart;
+        if (viewportLength <= 0.0)
+            return;
+
+        if (playbackPosition > viewportEnd) {
+            const auto targetStart = playbackPosition - viewportLength;
+            if (targetStart > viewportEnd)
+                cameraX = (playbackPosition - clip->start()) * pixelsPerTick();
+            else
+                cameraX += q->width();
+            viewportChanged(false);
+        } else if (playbackPosition < viewportStart) {
+            cameraX = (playbackPosition - clip->start()) * pixelsPerTick();
+            viewportChanged(false);
+        }
+    }
+
+    void updateAutoPageTurnAvailability() {
+        const auto available = clip && AutoPageTurnUtils::isPageDurationAvailable(
+                                           appModel->timeline(), startTick(), endTick());
+        if (autoPageTurnAvailable != available) {
+            autoPageTurnAvailable = available;
+            emit q->autoPageTurnAvailabilityChanged(available);
+        }
+        appStatus->reportAutoPageTurnAvailability(q, clip && q->isVisible() && q->width() > 0,
+                                                  autoPageTurnAvailable);
     }
 
     HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const {
@@ -2243,7 +2302,11 @@ public:
     double cameraX = 0.0;
     double cameraY = 0.0;
     double playbackPosition = 0.0;
+    double pendingPlaybackPosition = 0.0;
     double lastPlaybackPosition = 0.0;
+    QTimer positionThrottle;
+    bool autoPageTurn = true;
+    bool autoPageTurnAvailable = false;
     double dpr = 1.0;
     QVector<Vertex> vertices;
     TimelineLineEmitter timelineEmitter;
@@ -2281,7 +2344,17 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, this,
             [this] { d->scheduleSnapshot(); });
     connect(appStatus, &AppStatus::noteSelectionChanged, this, [this] { d->scheduleSnapshot(); });
-    connect(appModel, &AppModel::timelineChanged, this, [this] { d->scheduleSnapshot(); });
+    connect(appStatus, &AppStatus::autoPageTurnEnabledChanged, this,
+            [this] { d->setAutoPageTurn(appStatus->autoPageTurnEnabled); });
+    d->autoPageTurn = appStatus->autoPageTurnEnabled;
+    d->positionThrottle.setSingleShot(true);
+    d->positionThrottle.setInterval(33);
+    connect(&d->positionThrottle, &QTimer::timeout, this,
+            [this] { d->applyPendingPlaybackPosition(); });
+    connect(appModel, &AppModel::timelineChanged, this, [this] {
+        d->updateAutoPageTurnAvailability();
+        d->scheduleSnapshot();
+    });
 }
 
 PianoRollRhiWidget::~PianoRollRhiWidget() {
@@ -2387,13 +2460,22 @@ void PianoRollRhiWidget::setHorizontalBarValue(const int value) {
 }
 
 void PianoRollRhiWidget::setPlaybackPosition(const double tick) {
-    d->playbackPosition = tick;
-    d->scheduleSnapshot();
+    d->setPlaybackPosition(tick);
 }
 
 void PianoRollRhiWidget::setLastPlaybackPosition(const double tick) {
     d->lastPlaybackPosition = tick;
     d->scheduleSnapshot();
+}
+
+void PianoRollRhiWidget::showEvent(QShowEvent *event) {
+    EditorRhiWidget::showEvent(event);
+    d->updateAutoPageTurnAvailability();
+}
+
+void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
+    EditorRhiWidget::hideEvent(event);
+    d->updateAutoPageTurnAvailability();
 }
 
 void PianoRollRhiWidget::resizeEvent(QResizeEvent *event) {
@@ -2619,6 +2701,7 @@ void PianoRollRhiWidget::notifyViewportChanged() {
     emit keyRangeChanged(topKeyIndex(), bottomKeyIndex());
     emit scaleChanged(scaleX(), scaleY());
     emit horizontalBarValueChanged(horizontalBarValue());
+    d->updateAutoPageTurnAvailability();
 }
 
 void PianoRollRhiWidget::notifyBackendUnavailable() {
