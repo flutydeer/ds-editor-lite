@@ -12,9 +12,11 @@
 
 class QEvent;
 class QContextMenuEvent;
+class QHideEvent;
 class QKeyEvent;
 class QMouseEvent;
 class QResizeEvent;
+class QShowEvent;
 class QWheelEvent;
 class SingingClip;
 
@@ -63,6 +65,7 @@ public:
     [[nodiscard]] PianoRollViewState viewState() const;
     bool centerAt(double tick, double keyIndex);
     bool setViewScale(double horizontalScale, double verticalScale);
+    void setAutoPageTurn(bool enabled);
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus, bool animated = true);
     void setEditMode(ClipEditorGlobal::PianoRollEditMode mode);
@@ -89,8 +92,11 @@ signals:
     void keyHoverCleared();
     void backendUnavailable();
     void contextMenuRequested(const PianoRollMenuContext &context);
+    void autoPageTurnAvailabilityChanged(bool available);
 
 protected:
+    void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;

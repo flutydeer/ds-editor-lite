@@ -16,6 +16,8 @@ class TimeGraphicsScene;
 class TimeGridView;
 class TimeIndicatorView;
 class ScrollBarView;
+class QHideEvent;
+class QShowEvent;
 
 class TimeGraphicsView : public QGraphicsView, public IScalable, public IAnimatable {
     Q_OBJECT
@@ -78,6 +80,7 @@ signals:
     void visibleRectChanged(const QRectF &rect);
     void sizeChanged(QSize size);
     void timeRangeChanged(double startTick, double endTick);
+    void autoPageTurnAvailabilityChanged(bool available);
 
 public slots:
     void notifyVisibleRectChanged();
@@ -102,6 +105,9 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+    void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
+    void changeEvent(QEvent *event) override;
     void afterSetScale() override;
     void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
     void afterSetTimeScale(double scale) override;
@@ -158,6 +164,7 @@ private:
     void updateRubberBandSelection(const QPointF &scenePos);
     void onEdgeAutoScrollTimerFrame(double dtMs);
     void updateEdgeAutoScrollState(const QPoint &viewportPos);
+    void updateAutoPageTurnAvailability();
 
     [[nodiscard]] ScrollBarView *scrollBarAt(const QPoint &pos);
 
@@ -212,6 +219,7 @@ private:
     int m_offset = 0;
     int m_pixelsPerQuarterNote = 64;
     bool m_autoTurnPage = true;
+    bool m_autoPageTurnAvailable = false;
     double m_playbackPosition = 0;
     double m_lastPlaybackPosition = 0;
     double m_pendingPosition = 0;

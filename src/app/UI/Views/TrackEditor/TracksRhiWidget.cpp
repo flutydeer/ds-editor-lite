@@ -9,6 +9,7 @@
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/ITimelinePainter.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
+#include "UI/Views/Common/AutoPageTurnUtils.h"
 
 #include <lite/MusicBase/TimelineSnapUtils.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -18,10 +19,12 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QContextMenuEvent>
+#include <QHideEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QResizeEvent>
+#include <QShowEvent>
 #include <QTimer>
 #include <QWheelEvent>
 
@@ -99,6 +102,8 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
             &TracksRhiWidget::scaleChanged);
     connect(&m_viewport, &EditorViewportController::timeRangeChanged, this,
             &TracksRhiWidget::timeRangeChanged);
+    connect(&m_viewport, &EditorViewportController::timeRangeChanged, this,
+            &TracksRhiWidget::updateAutoPageTurnAvailability);
     connect(&m_viewport, &EditorViewportController::scrollChanged, this,
             [this](const double, const double vertical) {
                 emit verticalOffsetChanged(vertical);
@@ -121,14 +126,25 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
         rebuildModelConnections();
         scheduleSnapshot();
     });
-    connect(appModel, &AppModel::timelineChanged, this, &TracksRhiWidget::scheduleSnapshot);
+    connect(appModel, &AppModel::timelineChanged, this, [this] {
+        updateAutoPageTurnAvailability();
+        scheduleSnapshot();
+    });
     connect(appStatus, &AppStatus::selectedTrackIndexChanged, this,
             &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::clipSelectionChanged, this, &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::activeClipIdChanged, this, &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::projectEditableLengthChanged, this,
             &TracksRhiWidget::setSceneLength);
+    m_positionThrottle.setSingleShot(true);
+    m_positionThrottle.setInterval(33);
+    connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
+        m_playbackPosition = m_pendingPlaybackPosition;
+        handleAutoPageTurn();
+        scheduleSnapshot();
+    });
     rebuildModelConnections();
+    QTimer::singleShot(0, this, &TracksRhiWidget::updateAutoPageTurnAvailability);
 }
 
 TracksRhiWidget::~TracksRhiWidget() = default;
@@ -239,11 +255,13 @@ double TracksRhiWidget::endTick() const {
 
 void TracksRhiWidget::setSceneLength(const int tick) {
     m_viewport.setContentTickRange(0.0, std::max(0, tick));
+    updateAutoPageTurnAvailability();
 }
 
 void TracksRhiWidget::setPlaybackPosition(const double tick) {
-    m_playbackPosition = tick;
-    scheduleSnapshot();
+    m_pendingPlaybackPosition = tick;
+    if (!m_positionThrottle.isActive())
+        m_positionThrottle.start();
 }
 
 void TracksRhiWidget::setLastPlaybackPosition(const double tick) {
@@ -285,6 +303,16 @@ void TracksRhiWidget::resizeEvent(QResizeEvent *event) {
     EditorRhiWidget::resizeEvent(event);
     m_viewport.setViewportSize(event->size());
     emit sizeChanged(event->size());
+}
+
+void TracksRhiWidget::showEvent(QShowEvent *event) {
+    EditorRhiWidget::showEvent(event);
+    updateAutoPageTurnAvailability();
+}
+
+void TracksRhiWidget::hideEvent(QHideEvent *event) {
+    EditorRhiWidget::hideEvent(event);
+    updateAutoPageTurnAvailability();
 }
 
 void TracksRhiWidget::wheelEvent(QWheelEvent *event) {
@@ -862,6 +890,39 @@ void TracksRhiWidget::updateCursor(const QPointF &position) {
     setCursor(relative <= tolerance || relative >= clip->physicalRect.width() - tolerance
                   ? Qt::SizeHorCursor
                   : Qt::ArrowCursor);
+}
+
+void TracksRhiWidget::setAutoPageTurn(const bool enabled) {
+    m_autoTurnPage = enabled;
+    if (enabled)
+        handleAutoPageTurn();
+}
+
+void TracksRhiWidget::handleAutoPageTurn() {
+    if (!m_autoTurnPage || !m_autoPageTurnAvailable ||
+        appStatus->currentEditObject != AppStatus::EditObjectType::None) {
+        return;
+    }
+
+    const auto start = startTick();
+    const auto end = endTick();
+    const auto range = end - start;
+    if (range <= 0.0)
+        return;
+    if (m_playbackPosition > end) {
+        m_viewport.setStartTick(m_playbackPosition > end + range ? m_playbackPosition : end);
+    } else if (m_playbackPosition < start) {
+        m_viewport.setStartTick(m_playbackPosition);
+    }
+}
+
+void TracksRhiWidget::updateAutoPageTurnAvailability() {
+    const bool available =
+        AutoPageTurnUtils::isPageDurationAvailable(appModel->timeline(), startTick(), endTick());
+    if (m_autoPageTurnAvailable != available) {
+        m_autoPageTurnAvailable = available;
+        emit autoPageTurnAvailabilityChanged(available);
+    }
 }
 
 Clip::ClipCommonProperties TracksRhiWidget::previewOrModelProperties(const Clip *clip) const {

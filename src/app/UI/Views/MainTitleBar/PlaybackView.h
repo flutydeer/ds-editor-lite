@@ -51,7 +51,7 @@ private:
     void setPlayAccentColor(const QColor &color);
     [[nodiscard]] QColor pauseAccentColor() const;
     void setPauseAccentColor(const QColor &color);
-    // Re-tint play/pause/loop button icons from the current theme colors
+    // Re-tint playback button icons from the current theme colors
     void rebuildIcons();
 
     QColor m_actionIconColor = {240, 240, 240};
@@ -66,6 +66,7 @@ private:
     QPushButton *m_btnPause = nullptr;
     QPushButton *m_btnPlayPause = nullptr;
     QPushButton *m_btnLoop = nullptr;
+    QPushButton *m_btnAutoPageTurn = nullptr;
     InlineEditLabel *m_elTime = nullptr;
 
     double m_tempo = 120;
@@ -97,6 +98,7 @@ private:
     void updateTimeView();
     void updatePlaybackControlView();
     void updateLoopButtonView();
+    void updateAutoPageTurnButtonView();
 };
 
 #endif // PLAYBACKVIEW_H

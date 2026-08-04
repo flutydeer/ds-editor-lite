@@ -58,6 +58,7 @@ public:
     QColor m_iconOnDisabledColor = {155, 186, 255, 102};
     // Buttons with tinted SVG icons and their source paths, for re-tinting
     mutable QList<QPair<Button *, QString>> m_tintedButtons;
+    Button *m_btnAutoPageTurn = nullptr;
 
     Clip *m_clip = nullptr;
     int m_editingClipId = -1;

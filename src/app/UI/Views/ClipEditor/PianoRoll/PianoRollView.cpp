@@ -153,6 +153,9 @@ void PianoRollView::connectLegacyBackend() {
             [this](const PianoRollMenuContext &context) {
                 m_contextMenuController->showMenu(context, m_clip, m_graphicsView, m_graphicsView);
             });
+    connect(m_graphicsView, &TimeGraphicsView::autoPageTurnAvailabilityChanged, this,
+            &PianoRollView::updateAutoPageTurnButtonView);
+    m_graphicsView->setAutoTurnPage(appStatus->pianoRollAutoPageTurnEnabled);
 }
 
 void PianoRollView::connectRhiBackend() {
@@ -175,6 +178,9 @@ void PianoRollView::connectRhiBackend() {
             [this](const PianoRollMenuContext &context) {
                 m_contextMenuController->showMenu(context, m_clip, m_rhiView, m_rhiView);
             });
+    connect(m_rhiView, &PianoRollRhiWidget::autoPageTurnAvailabilityChanged, this,
+            &PianoRollView::updateAutoPageTurnButtonView);
+    m_rhiView->setAutoPageTurn(appStatus->pianoRollAutoPageTurnEnabled);
 }
 
 void PianoRollView::fallbackToLegacy() {
@@ -324,4 +330,8 @@ void PianoRollView::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
         m_lbTip->setText(tr("Select a singing clip to edit"));
+}
+
+void PianoRollView::updateAutoPageTurnButtonView(const bool available) {
+    appStatus->pianoRollAutoPageTurnAvailable = available;
 }

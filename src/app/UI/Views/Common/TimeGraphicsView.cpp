@@ -2,7 +2,9 @@
 
 #include <QApplication>
 #include <QCursor>
+#include <QHideEvent>
 #include <QScrollBar>
+#include <QShowEvent>
 #include <QWheelEvent>
 
 #include <cmath>
@@ -11,9 +13,11 @@
 #include "TimeGridView.h"
 #include "TimeIndicatorView.h"
 #include "Controller/PlaybackController.h"
+#include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Global/AppGlobal.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 
 #if defined(Q_OS_MAC) && QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #  define SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
@@ -110,6 +114,10 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
             [this] { emit timeRangeChanged(startTick(), endTick()); });
     connect(this, &TimeGraphicsView::visibleRectChanged, this,
             [this] { emit timeRangeChanged(startTick(), endTick()); });
+    connect(this, &TimeGraphicsView::timeRangeChanged, this,
+            [this] { updateAutoPageTurnAvailability(); });
+    connect(appModel, &AppModel::timelineChanged, this,
+            &TimeGraphicsView::updateAutoPageTurnAvailability);
 
     m_positionThrottle.setSingleShot(true);
     m_positionThrottle.setInterval(33);
@@ -119,7 +127,8 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
         if (m_scenePlayPosIndicator != nullptr)
             m_scenePlayPosIndicator->setPosition(tick);
 
-        if (!m_autoTurnPage || appStatus->currentEditObject != AppStatus::EditObjectType::None)
+        if (!m_autoTurnPage || !m_autoPageTurnAvailable ||
+            appStatus->currentEditObject != AppStatus::EditObjectType::None)
             return;
         // Do not auto turn pages while edge auto scroll drives the viewport
         if (isEdgeAutoScrollActive())
@@ -141,6 +150,7 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
 
     connect(&m_edgeAutoScroller, &EdgeAutoScroller::frame, this,
             &TimeGraphicsView::onEdgeAutoScrollTimerFrame);
+    QTimer::singleShot(0, this, &TimeGraphicsView::updateAutoPageTurnAvailability);
 }
 
 TimeGraphicsScene *TimeGraphicsView::scene() {
@@ -623,6 +633,22 @@ void TimeGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
     QGraphicsView::mouseReleaseEvent(event);
 }
 
+void TimeGraphicsView::showEvent(QShowEvent *event) {
+    QGraphicsView::showEvent(event);
+    updateAutoPageTurnAvailability();
+}
+
+void TimeGraphicsView::hideEvent(QHideEvent *event) {
+    QGraphicsView::hideEvent(event);
+    updateAutoPageTurnAvailability();
+}
+
+void TimeGraphicsView::changeEvent(QEvent *event) {
+    QGraphicsView::changeEvent(event);
+    if (event->type() == QEvent::EnabledChange)
+        updateAutoPageTurnAvailability();
+}
+
 bool TimeGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
 #ifdef SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
     return event->deviceType() == QInputDevice::DeviceType::Mouse;
@@ -783,13 +809,14 @@ void TimeGraphicsView::setPixelsPerQuarterNote(int px) {
 
 void TimeGraphicsView::setAutoTurnPage(bool on) {
     m_autoTurnPage = on;
-    if (m_playbackPosition > endTick())
+    if (m_autoTurnPage && m_autoPageTurnAvailable && m_playbackPosition > endTick())
         pageAdd();
 }
 
 void TimeGraphicsView::setSceneLength(int tick) {
     m_baseSceneLength = tick;
     m_scene->setSceneLength(m_baseSceneLength + m_sceneLengthExtension);
+    updateAutoPageTurnAvailability();
 }
 
 void TimeGraphicsView::setSceneLengthExtension(int ticks) {
@@ -801,6 +828,15 @@ void TimeGraphicsView::setSceneLengthExtension(int ticks) {
 
 int TimeGraphicsView::sceneLengthExtension() const {
     return m_sceneLengthExtension;
+}
+
+void TimeGraphicsView::updateAutoPageTurnAvailability() {
+    const bool available =
+        AutoPageTurnUtils::isPageDurationAvailable(appModel->timeline(), startTick(), endTick());
+    if (m_autoPageTurnAvailable != available) {
+        m_autoPageTurnAvailable = available;
+        emit autoPageTurnAvailabilityChanged(available);
+    }
 }
 
 void TimeGraphicsView::armEdgeAutoScroll(Qt::Orientations axes) {

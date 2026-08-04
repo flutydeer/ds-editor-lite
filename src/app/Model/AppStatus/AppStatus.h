@@ -28,7 +28,8 @@ public:
 
     // Modules
     Property<ModuleStatus> languageModuleStatus = ModuleStatus::Unknown;
-    Property<QString> languageModuleError; // R6/TD-8: 语言引擎启动失败的具体原因，运行期状态不持久化
+    Property<QString>
+        languageModuleError; // R6/TD-8: 语言引擎启动失败的具体原因，运行期状态不持久化
     Property<ModuleStatus> inferEngineEnvStatus = ModuleStatus::Unknown;
     Property<ModuleStatus> packageModuleStatus = ModuleStatus::Unknown;
 
@@ -47,6 +48,12 @@ public:
 
     // Loop
     Property<LoopSettings> loopSettings;
+
+    // Playback viewport
+    Property<bool> trackAutoPageTurnEnabled = true;
+    Property<bool> trackAutoPageTurnAvailable = true;
+    Property<bool> pianoRollAutoPageTurnEnabled = true;
+    Property<bool> pianoRollAutoPageTurnAvailable = true;
 
 signals:
     // Modules
@@ -68,6 +75,12 @@ signals:
 
     // Loop
     void loopSettingsChanged(const LoopSettings &settings);
+
+    // Playback viewport
+    void trackAutoPageTurnEnabledChanged(bool enabled);
+    void trackAutoPageTurnAvailabilityChanged(bool available);
+    void pianoRollAutoPageTurnEnabledChanged(bool enabled);
+    void pianoRollAutoPageTurnAvailabilityChanged(bool available);
 };
 
 #endif // APPSTATUS_H
