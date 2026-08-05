@@ -6,8 +6,7 @@ C++20 / Qt 6 Widgets desktop application (singing voice editor).
 
 - CMake 3.21+, Ninja, C++20 compiler
 - Windows: Visual Studio 2026 MSVC x64 开发环境 + Qt 6.11.1+ + vcpkg 依赖
-- 详细环境配置步骤 → `AGENTS.md`（Configure and build 章节）
-- 初次搭建完整指南 → `docs/1 配置开发环境.md`
+- 详细环境配置步骤 → `AGENTS.md`（Configure and build 章节，含初次搭建完整指南）
 
 ## Configure & Build
 
