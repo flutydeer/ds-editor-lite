@@ -83,6 +83,7 @@ private:
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
     static void emulateLeaveEvent(QWidget *widget);
     static void restartApp();
+    void updateShutdownBlockReason();
 
     bool m_restartRequested = false;
     bool m_isCloseRequested = false;

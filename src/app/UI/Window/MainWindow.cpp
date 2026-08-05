@@ -122,6 +122,8 @@ MainWindow::MainWindow() {
     documentWorkflowController->setUi(this);
     connect(documentWorkflowController, &DocumentWorkflowController::documentIdentityChanged, this,
             &MainWindow::updateWindowTitle);
+    connect(historyManager, &HistoryManager::savePointChanged, this,
+            &MainWindow::updateWindowTitle);
     connect(documentWorkflowController, &DocumentWorkflowController::terminationApproved, this,
             [this](const TerminationMode mode) {
                 m_restartRequested = mode == TerminationMode::Restart;
@@ -215,6 +217,9 @@ MainWindow::MainWindow() {
 }
 
 MainWindow::~MainWindow() {
+#ifdef Q_OS_WIN
+    ShutdownBlockReasonDestroy(reinterpret_cast<HWND>(this->winId()));
+#endif
     editorViewController->setView(nullptr);
     ThemeManager::instance()->removeWindow(this);
 }
@@ -264,6 +269,7 @@ void MainWindow::updateWindowTitle() {
         auto indicator = saved ? "" : "● ";
         setWindowTitle(indicator + displayName);
     }
+    updateShutdownBlockReason();
 }
 
 void MainWindow::changeEvent(QEvent *event) {
@@ -704,12 +710,27 @@ void MainWindow::unregisterDirectManipulation() {
 }
 #endif
 
+void MainWindow::updateShutdownBlockReason() {
+#ifdef Q_OS_WIN
+    const bool onSavePoint = historyManager->isOnSavePoint();
+    HWND hwnd = reinterpret_cast<HWND>(this->winId());
+    if (onSavePoint) {
+        ShutdownBlockReasonDestroy(hwnd);
+    } else {
+        const QString reason = tr("You have unsaved changes, please save first");
+        ShutdownBlockReasonCreate(hwnd, reinterpret_cast<LPCWSTR>(reason.utf16()));
+    }
+#endif
+}
+
 bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
 #ifdef Q_OS_WIN
     if (eventType == "windows_generic_MSG") {
         MSG *msg = static_cast<MSG *>(message);
         if (msg->message == WM_QUERYENDSESSION) {
             *result = historyManager->isOnSavePoint() ? TRUE : FALSE;
+            if (*result == FALSE)
+                updateShutdownBlockReason();
             close();
             return true;
         } else if (msg->message == WM_SETTINGCHANGE) {

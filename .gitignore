@@ -63,6 +63,9 @@ CMakeSettings.json
 setup-vcpkg.json
 setup-vcpkg-temp*
 
+# Qt translation binaries (generated from .ts, not committed)
+*.qm
+
 # Automation Scripts
 /update-vcpkg*
 

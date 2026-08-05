@@ -41,6 +41,7 @@ public:
 signals:
     void undoRedoChanged(bool canUndo, const QString &undoName, bool canRedo,
                          const QString &redoName);
+    void savePointChanged();
 
 private:
     Q_DECLARE_PRIVATE(HistoryManager)

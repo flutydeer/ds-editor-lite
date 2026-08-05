@@ -97,9 +97,11 @@ void HistoryManager::setSavePoint() {
     d->m_isSavePointSet = true;
     if (d->m_undoStack.isEmpty()) {
         d->m_savePoint = nullptr;
+        emit savePointChanged();
         return;
     }
     d->m_savePoint = d->m_undoStack.top();
+    emit savePointChanged();
 }
 
 bool HistoryManager::canUndo() const {
