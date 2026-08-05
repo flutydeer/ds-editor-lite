@@ -65,10 +65,20 @@
 - 参数页显式 Dynamic Mix 启用入口；启用后工具栏提供 Bypass / Resume / Stop Dynamic 命令。
 - 前景参数列表中的 Speaker Mix 使用 `ParamInfo::SpeakerMix`，不再借用 `ParamInfo::Unknown`。
 - Dynamic Mix 状态下打开 Fixed Mix 对话框：列表按保存的 `sources` 顺序恢复，比例优先使用 `fixedWeights`，不回退到 singer 默认顺序。
+- **Follow Track 是三合一语义**：`useTrackSingerInfo == true` 视为 singer/speaker/speaker mix 全部跟随 Track；**不要引入"只跟随 speaker 但不跟随 mix"的新路径**。Clip 编辑 own speaker mix / 进入 Dynamic Mix 会通过 voice context action 自动退出 Follow Track（先复制当前 effective voice context），不允许静默失败。
+
+## Action 与 Undo 约定
+
+- 底层 undo 快照统一收敛到两个 action：`SetClipVoiceContextAction`（保存 `useTrackVoiceContext + ownSinger + ownSpeaker + ownMix` 快照）和 `SetTrackVoiceContextAction`（保存 `singer + speaker + mix` 快照），只负责快照与 execute/undo。
+- `SpeakerMixActions` 保留为**语义工厂层**：`applyClipSpeakerMixPreset` / `enableClipDynamicSpeakerMix` / `applyTrackSpeakerMixPreset` / `replaceSpeakerMix` / `replaceTrackSpeakerMix` / `selectTrackSingleSpeaker` 等工厂方法名表达业务语义，**不要删除或合并名称**——消重的只是底层 undo 逻辑，不是 UI 层语义。
+- Track 歌手/说话人下拉框选择单 speaker 必须走 `SetTrackVoiceContextAction`（进 history），不得直接调 `Track::setSingerAndSpeakerInfo()` 绕过 undo 栈（否则"选 mix 预设 → 开启动态混合 → 换 speaker → 撤销"会跳过 track 单 speaker 选择导致非法状态）。
+- `preservePresetSourceAsDirty` 逻辑集中实现，不要在 clip/track action 内复制。
 
 ## Follow-up Notes（未完成项）
 
-- [ ] 下一轮优先补 `SpeakerMixData` 和 `InferSpeakerMixModel` 的**纯数据测试**。
+- [ ] 下一轮优先补 `SpeakerMixData` 和 `InferSpeakerMixModel` 的**纯数据测试**，具体函数清单：
+  - `SpeakerMixData`：`normalizeSpeakerMixFullWeights` / `explicitWeightsFromFullWeights` / `fullWeightsFromExplicitWeights` / `normalizeSpeakerMixData` / `hasDynamicMixAutomation` / `isDynamicMixActive` / `isDynamicMixBypassed`；重点场景：权重和 >1、<1、空 weights、source 数量不足、DynamicMix+bypassed 旁路、DynamicMix+空 keyframes 降级
+  - `InferSpeakerMixModel`：`staticSpeakerMix` / `fixedSpeakerMixFromData` / `effectiveSpeakerMixForFixedInference` / `dynamicSpeakerMixFromData` / `effectiveSpeakerMixFromData` / `InferSpeakerMix::signature`；重点场景：Single 保持旧行为、Fixed 比例 0.0~1.0、Dynamic Active 按时间范围采样、Bypassed 用 fixedWeights、timing 不足 fallback、signature 对 fixed/dynamic 变化敏感
 - [ ] Bypass 当前是文字按钮 + 轻量状态提示；后续可参考 DAW 的 automation/plugin bypass 样式设计更明确的旁路视觉语言。
 - [ ] preset 管理功能完整但操作偏重，后续讨论是否简化（更轻量的保存/覆盖/删除流程）。
 - [ ] 动态推理当前以 piece 范围采样为主，不做音符/音素级动态规划（更细粒度后续再评估）。
