@@ -20,6 +20,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <TalcsWidgets/AudioFileDialog.h>
+#include <TalcsFormat/AbstractAudioFormatIO.h>
 
 #include <QClipboard>
 #include <QGuiApplication>

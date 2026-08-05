@@ -1,4 +1,5 @@
 #include "TrackController.h"
+#include <TalcsFormat/AbstractAudioFormatIO.h>
 
 #include "Actions/AppModel/Clip/ClipActions.h"
 #include "EditorViewController.h"
