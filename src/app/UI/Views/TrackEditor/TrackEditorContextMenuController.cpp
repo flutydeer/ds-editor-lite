@@ -7,6 +7,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/ClipboardDataModel/DecodedClipboardPayload.h"
 #include "Modules/Audio/AudioContext.h"
+#include "Modules/Import/AudioFilePreparer.h"
 #include "Modules/Extractors/MidiExtractController.h"
 #include "UI/Views/Common/EditorMenuPreviewGuard.h"
 
@@ -21,11 +22,9 @@
 #include <TalcsWidgets/AudioFileDialog.h>
 
 #include <QClipboard>
-#include <QDataStream>
 #include <QGuiApplication>
 #include <QJsonDocument>
 #include <QJsonParseError>
-#include <QIODevice>
 #include <QMimeData>
 #include <QWidget>
 
@@ -76,16 +75,6 @@ namespace {
             data.clips.append(std::move(preview));
         }
         return data;
-    }
-
-    QJsonObject audioWorkspace(const QVariant &userData, const QString &entryClassName) {
-        QByteArray dataBuffer;
-        QDataStream stream(&dataBuffer, QIODevice::WriteOnly);
-        stream << userData;
-        return {
-            {QStringLiteral("userData"),       QString::fromLatin1(dataBuffer.toBase64())},
-            {QStringLiteral("entryClassName"), entryClassName                            },
-        };
     }
 
 } // namespace
@@ -241,9 +230,17 @@ void TrackEditorContextMenuController::insertAudioClip(const int trackIndex, con
     auto io = talcs::AudioFileDialog::getOpenAudioFileIO(
         AudioContext::instance()->formatManager(), fileName, userData, entryClassName, m_owner,
         tr("Select an Audio File"), QStringLiteral("."));
-    if (fileName.isNull() || trackIndex < 0 || trackIndex >= appModel->tracks().size())
+    if (fileName.isNull() || trackIndex < 0 || trackIndex >= appModel->tracks().size()) {
+        // The dialog-probed IO is only used for preparation; drop it when the
+        // selection is abandoned.
+        delete io;
         return;
-    trackController->onAddAudioClip(fileName, io, audioWorkspace(userData, entryClassName),
+    }
+    // Selection and preparation are separated: the dialog picks the file and
+    // probes the format, then the shared AudioFilePreparer pipeline decodes
+    // and commits it (same path as drag-and-drop in later phases).
+    const auto workspace = AudioFilePreparer::makeWorkspace(userData, entryClassName);
+    trackController->onAddAudioClip(fileName, io, workspace,
                                     appModel->tracks().at(trackIndex)->id(), tick);
 }
 
@@ -259,5 +256,6 @@ void TrackEditorContextMenuController::relocateAudioClip(const int clipId) const
     if (fileName.isNull())
         return;
     trackController->onRelocateAudioClip(clipId, fileName, io,
-                                         audioWorkspace(userData, entryClassName));
+                                         AudioFilePreparer::makeWorkspace(userData,
+                                                                          entryClassName));
 }

@@ -21,6 +21,7 @@
 #include "UI/Views/TrackEditor/GraphicsItem/AudioClipView.h"
 #include "Global/AppGlobal.h"
 #include "Global/ControllerGlobal.h"
+#include "Modules/Import/AudioFilePreparer.h"
 #include <lite/ProjectModel/Utils/DiffscopeAudioWorkspace.h>
 
 #include <QClipboard>
@@ -134,12 +135,11 @@ void TrackController::changeTrackProperty(const Track::TrackProperties &args) {
 
 void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io,
                                      const QJsonObject &workspace, const int id, const int tick) {
-    auto decodeTask = new DecodeAudioTask;
-    decodeTask->io = io;
-    decodeTask->path = path;
+    // The decode task takes ownership of `io` (the dialog already probed the
+    // format); both dialog and drag-drop paths go through the same preparer.
+    auto *decodeTask = AudioFilePreparer::createPrepareTask(path, io, workspace);
     decodeTask->trackId = id;
     decodeTask->tick = tick;
-    decodeTask->workspace = workspace;
     const auto dlg = new TaskDialog(decodeTask, true, true, m_parentWidget);
     dlg->show();
     connect(decodeTask, &Task::finished, this,

@@ -13,6 +13,7 @@ namespace talcs {
 class DecodeAudioTask : public Task {
 public:
     explicit DecodeAudioTask();
+    ~DecodeAudioTask() override;
     // explicit DecodeAudioTask(int id);
 
     talcs::AbstractAudioFormatIO *io{};

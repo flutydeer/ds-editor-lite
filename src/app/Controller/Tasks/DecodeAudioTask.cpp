@@ -13,6 +13,12 @@ DecodeAudioTask::DecodeAudioTask() {
     setStatus(status);
 }
 
+DecodeAudioTask::~DecodeAudioTask() {
+    // The task owns the format IO handed to it by its creator
+    // (AudioFilePreparer::createPrepareTask or the file dialog path).
+    delete io;
+}
+
 AudioInfoModel DecodeAudioTask::result() const {
     AudioInfoModel info;
     info.sampleRate = m_sampleRate;
