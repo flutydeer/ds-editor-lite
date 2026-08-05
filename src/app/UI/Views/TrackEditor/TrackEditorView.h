@@ -5,6 +5,7 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Interface/EditorViewState.h"
 #include <lite/History/HistoryFocus.h>
+#include "TracksGraphicsScene.h"
 #include "UI/Views/Common/PanelView.h"
 
 
@@ -69,6 +70,7 @@ private:
     void fallbackToLegacy();
     void registerEditorShortcuts();
     void populateLegacyClipItems();
+    void handleExternalDrop(const TrackDropSlot &slot, const QList<QUrl> &urls);
     [[nodiscard]] double activeScaleY() const;
 
     TrackListView *m_trackListView = nullptr;

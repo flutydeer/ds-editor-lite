@@ -4,6 +4,7 @@
 #include "Controller/AppController.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
+#include "Modules/Import/DocumentImportController.h"
 #include "Controller/ClipboardController.h"
 #include "Controller/ClipController.h"
 #include "Controller/TrackController.h"
@@ -172,11 +173,17 @@ void MainMenuViewPrivate::openFileWithSavePrompt(const QString &filePath) {
 void MainMenuViewPrivate::onImportMidiFile() {
     Q_Q(MainMenuView);
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    auto fileName = QFileDialog::getOpenFileName(q, tr("Select a MIDI File"), lastDir,
-                                                 tr("MIDI File (*.mid *.midi)"));
-    if (fileName.isNull())
+    const auto fileNames = QFileDialog::getOpenFileNames(q, tr("Select MIDI Files"), lastDir,
+                                                         tr("MIDI File (*.mid *.midi)"));
+    if (fileNames.isEmpty())
         return;
-    documentWorkflowController->requestImport(fileName);
+    if (fileNames.size() == 1) {
+        // Single-file import keeps the interactive per-file dialog.
+        documentWorkflowController->requestImport(fileNames.first());
+        return;
+    }
+    // Batch import: parse all files, then show one shared options dialog.
+    documentImportController->requestImport(fileNames);
 }
 
 void MainMenuViewPrivate::onExportMidiFile() {

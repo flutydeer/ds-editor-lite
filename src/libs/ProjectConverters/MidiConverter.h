@@ -3,6 +3,8 @@
 
 #include <lite/ProjectConverters/IProjectConverter.h>
 
+#include <opendspxconverter/midi/midiintermediatedata.h>
+
 #include <QByteArray>
 #include <QList>
 #include <QString>
@@ -76,6 +78,49 @@ protected:
         Q_UNUSED(language);
         return {};
     }
+};
+
+// Parsed MIDI payload: reusable across files and import options. Producing it
+// never touches the model; the interactive UI and batch imports both start
+// from it.
+struct MidiParseData {
+    QString path;
+    // Raw file bytes, kept for separate-channels re-parsing and lyric
+    // encoding detection.
+    QByteArray rawData;
+    opendspx::MidiIntermediateData mediate;
+    QList<MidiImportTrackInfo> trackInfos;
+    bool valid = false;
+    QString errorMessage;
+};
+
+// Stage 1 of the split MIDI pipeline: file -> reusable intermediate data.
+// No UI, no import options, no model mutation.
+class MidiFileParser {
+public:
+    static MidiParseData parse(const QString &path);
+};
+
+// Tracks generated from parsed MIDI data, ready to be committed. Generation
+// itself never mutates the model; the caller applies the timeline and inserts
+// the tracks (optionally as one undoable history item).
+struct MidiGenerationResult {
+    QList<Track *> tracks;
+    bool hasTimeline = false;
+    QList<Tempo> tempos;
+    QList<TimeSignature> timeSignatures;
+    QString errorMessage;
+};
+
+// Stage 2 of the split MIDI pipeline: intermediate data + import options ->
+// generated track objects (no UI, no model mutation).
+class MidiTrackGenerator {
+public:
+    static MidiGenerationResult generateTracks(MidiParseData &data,
+                                               const MidiImportOptions &choice,
+                                               const QString &language,
+                                               const QString &defaultLyric,
+                                               const Timeline &timeline);
 };
 
 #endif // DS_EDITOR_LITE_MIDICONVERTER_H

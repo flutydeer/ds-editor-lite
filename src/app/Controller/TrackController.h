@@ -60,9 +60,12 @@ public slots:
     // current WYSIWYG grid step; global paste passes the playhead tick as-is).
     static void pasteClips(const ClipsInfo &info, int tick, int trackIndex);
 
+    // Schedules the sha512/audio-hash computation for an audio clip (used
+    // after import/relink so the project tracks the file).
+    static void scheduleHashUpdate(const AudioClip *clip);
+
 private:
     void handleDecodeAudioTaskFinished(DecodeAudioTask *task);
-    static void scheduleHashUpdate(const AudioClip *clip);
 
     // TODO: refactor
     QWidget *m_parentWidget = nullptr;

@@ -4,6 +4,7 @@
 #include <QJsonObject>
 #include <QString>
 
+#include <lite/ProjectConverters/MidiConverter.h>
 #include <lite/ProjectModel/AppModel/AudioInfoModel.h>
 
 // File kind classification shared by all external drop/import entry points.
@@ -29,7 +30,7 @@ struct PreparedImportItem {
     QString path;
     QString errorMessage;    // Set when kind == Failed.
     PreparedAudioItem audio; // Set when kind == Audio.
-    // The Midi payload lands here with the Phase 3 MidiConverter split.
+    MidiParseData midi;      // Set when kind == Midi (parsed, not yet generated).
 };
 
 #endif // DS_EDITOR_LITE_PREPAREDIMPORTITEM_H

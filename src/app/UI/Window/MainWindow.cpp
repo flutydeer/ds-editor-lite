@@ -11,6 +11,8 @@
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/TrackController.h"
 #include "Controller/UndoRedoController.h"
+#include "Modules/Import/DocumentImportController.h"
+#include "Modules/Import/ExternalFileClassifier.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -749,36 +751,40 @@ void MainWindow::restartApp() {
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
     if (event->mimeData()->hasUrls()) {
-        bool validFile = false;
-
         for (const QUrl &url : event->mimeData()->urls()) {
-            const QFileInfo fileInfo(url.toLocalFile());
-            if (fileInfo.suffix().toLower() == "dspx") {
-                validFile = true;
-                break;
+            if (!url.isLocalFile())
+                continue;
+            const auto kind = ExternalFileClassifier::classify(url.toLocalFile()).kind;
+            if (kind != ExternalFileKind::Unsupported) {
+                event->acceptProposedAction();
+                return;
             }
-        }
-
-        if (validFile) {
-            event->acceptProposedAction();
-            return;
         }
     }
     event->ignore();
 }
 
 void MainWindow::dropEvent(QDropEvent *event) {
+    QStringList projectPaths;
+    QStringList importPaths;
     for (const QUrl &url : event->mimeData()->urls()) {
-        const QFileInfo fileInfo(url.toLocalFile());
-
-        if (fileInfo.suffix().toLower() == "dspx") {
-            auto openProject = [&] {
-                const auto fileName = fileInfo.absoluteFilePath();
-                if (fileName.isNull())
-                    return;
-                documentWorkflowController->requestOpen(fileName);
-            };
-            openProject();
-        }
+        if (!url.isLocalFile())
+            continue;
+        const auto path = url.toLocalFile();
+        const auto kind = ExternalFileClassifier::classify(path).kind;
+        if (kind == ExternalFileKind::Project)
+            projectPaths.append(path);
+        else if (kind != ExternalFileKind::Unsupported)
+            importPaths.append(path);
     }
+
+    if (projectPaths.size() == 1 && importPaths.isEmpty()) {
+        documentWorkflowController->requestOpen(projectPaths.first());
+        return;
+    }
+    // Mixing a project with other files rejects the whole batch inside the
+    // import controller; canvas-outside drops import at the project end.
+    importPaths.append(projectPaths);
+    if (!importPaths.isEmpty())
+        documentImportController->requestImport(importPaths);
 }

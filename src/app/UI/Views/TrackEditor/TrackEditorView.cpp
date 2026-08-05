@@ -23,6 +23,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Audio/AudioContext.h"
+#include "Modules/Import/DocumentImportController.h"
 #include <lite/GUI/Controls/LevelMeter.h>
 #include <lite/GUI/Controls/LevelMeterViewModel.h>
 #include "UI/Controls/LevelMeterManager.h"
@@ -262,20 +263,10 @@ void TrackEditorView::connectLegacyBackend() {
             &TracksGraphicsView::setSceneLength);
     connect(m_graphicsView, &TracksGraphicsView::autoPageTurnAvailabilityChanged, this,
             &TrackEditorView::updateAutoPageTurnButtonView);
-    // Phase 1: drop slot resolution only. Actual import is wired up in
-    // later phases.
+    // Canvas drag-and-drop: resolve the drop target and hand the batch over
+    // to the shared import controller.
     connect(m_graphicsView, &TracksGraphicsView::externalDropRequested, this,
-            [](const TrackDropSlot &slot, const QList<QUrl> &urls) {
-                qInfo().noquote()
-                    << QStringLiteral("[TrackEditor] external drop: kind=%1 track=%2 tick=%3 "
-                                      "urls=%4")
-                           .arg(slot.kind == TrackDropSlot::Kind::Append
-                                    ? QStringLiteral("append")
-                                    : QStringLiteral("track"))
-                           .arg(slot.trackIndex)
-                           .arg(slot.snappedTick)
-                           .arg(urls.size());
-            });
+            &TrackEditorView::handleExternalDrop);
     m_graphicsView->setAutoTurnPage(appStatus->trackAutoPageTurnEnabled);
 }
 
@@ -321,20 +312,10 @@ void TrackEditorView::connectRhiBackend() {
             });
     connect(m_rhiView, &TracksRhiWidget::autoPageTurnAvailabilityChanged, this,
             &TrackEditorView::updateAutoPageTurnButtonView);
-    // Phase 1: drop slot resolution only. Actual import is wired up in
-    // later phases.
+    // Canvas drag-and-drop: resolve the drop target and hand the batch over
+    // to the shared import controller.
     connect(m_rhiView, &TracksRhiWidget::externalDropRequested, this,
-            [](const TrackDropSlot &slot, const QList<QUrl> &urls) {
-                qInfo().noquote()
-                    << QStringLiteral("[TrackEditor] external drop: kind=%1 track=%2 tick=%3 "
-                                      "urls=%4")
-                           .arg(slot.kind == TrackDropSlot::Kind::Append
-                                    ? QStringLiteral("append")
-                                    : QStringLiteral("track"))
-                           .arg(slot.trackIndex)
-                           .arg(slot.snappedTick)
-                           .arg(urls.size());
-            });
+            &TrackEditorView::handleExternalDrop);
     m_rhiView->setAutoPageTurn(appStatus->trackAutoPageTurnEnabled);
 }
 
@@ -379,6 +360,24 @@ void TrackEditorView::populateLegacyClipItems() {
 
 double TrackEditorView::activeScaleY() const {
     return m_rhiView ? m_rhiView->scaleY() : m_graphicsView->scaleY();
+}
+
+void TrackEditorView::handleExternalDrop(const TrackDropSlot &slot, const QList<QUrl> &urls) {
+    QStringList paths;
+    for (const auto &url : urls) {
+        if (url.isLocalFile())
+            paths.append(url.toLocalFile());
+    }
+    if (paths.isEmpty())
+        return;
+    // Snapshot the existing tracks from the drop row to the end. The append
+    // slot reports trackIndex == trackCount, which yields an empty snapshot
+    // and therefore new tracks for the whole batch.
+    FileImportDropTarget target;
+    target.audioStartTick = slot.snappedTick;
+    for (auto i = slot.trackIndex; i < appModel->tracks().size(); ++i)
+        target.existingTrackIds.append(appModel->tracks().at(i)->id());
+    documentImportController->requestImport(paths, target);
 }
 
 void TrackEditorView::changeEvent(QEvent *event) {
