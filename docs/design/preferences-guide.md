@@ -1,5 +1,7 @@
-# 首选项
+# 首选项页面开发指南
+
 > 状态：✅ 有效（2024 年写作，代码路径经验证仍与当前实现一致：AppOptions / IOptionPage / OptionsCard / appConfig.json）
+> 本文说明如何为编辑器新增一个首选项页面：模型 → AppOptions → 页面 → 对话框 → 菜单入口的完整接入流程。
 
 ## 简介
 
