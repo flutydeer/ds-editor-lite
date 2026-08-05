@@ -1,5 +1,5 @@
 # app 内部依赖解耦方案
-> 状态：🔵 部分实施（A 类下沉与 B 类上移已完成；C 类三 seam 倒置未做；`scripts/check-layering.py` 护栏脚本未创建。物理抽库进展见 app-architecture.md）
+> 状态：🔵 部分实施（A 类下沉与 B 类上移已完成；C 类三 seam 倒置未做；`scripts/check-layering.py` 护栏脚本未创建。物理抽库进展见 ../design/app-architecture.md）
 
 > 目标:在**单个 `DsEditorLite` target 内部**把错误的层间依赖梳理干净,为后续物理抽库(`src/libs/` + sync_include)扫清障碍。
 > 依赖解耦与物理抽库是正交的两件事——本方案只做前者,全程不动 CMake target 结构,不改包含前缀风格(仍用 `"Model/Xxx.h"` 相对写法)。

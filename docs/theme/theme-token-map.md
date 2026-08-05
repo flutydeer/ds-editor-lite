@@ -10,7 +10,7 @@ Phase 3 已将时间线、轨道编辑器、钢琴卷帘/参数编辑器、混�
 属性保留独立 QssParser 格式；Phase 4 起其 `qproperty-*` 复合值可直接使用 `${token}`
 占位符（由 `ThemeColorResolver` 展开为十六进制字面量后经 `QssParser` 解析），旧
 `r,g,b,a[,width]` 写法继续兼容。FillLyric 目前使用的 token 见
-`docs/theme-qproperty-checklist.md` 的 lyricwrapview.qss 一节。
+`theme-qproperty-checklist.md` 的 lyricwrapview.qss 一节。
 
 ## 第一轮审查结果
 
@@ -297,7 +297,7 @@ Mute/Solo 当前采用无描边组件契约。`control.border.*` 表示可使用
   `text.primary`/`text.secondary`/`selection.text`，回退到 option palette）、
   `LogWindowModel::data()` 的级别色（查询 `status.success/info/warning/error`）、
   SpeakerMix 下拉禁用项前景（改回主题 disabled palette）、QRhi 控件、12 色业务调色板
-  的动态前景等；此类颜色按本次修订在 `docs/theme-color-inventory.md` 中归类说明。
+  的动态前景等；此类颜色按本次修订在 `theme-color-inventory.md` 中归类说明。
 
 ## 已确认的迁移原则
 

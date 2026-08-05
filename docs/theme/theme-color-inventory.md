@@ -34,7 +34,7 @@
 3. **业务调色板**：轨道、音符、说话人等 12 个可选色，继续由
    `app-color-palette.json` 管理，不进入 UI token。
 
-`docs/theme-qproperty-checklist.md` 已覆盖 C++ 视图暴露出的颜色属性。本次 token map 将这些
+`theme-qproperty-checklist.md` 已覆盖 C++ 视图暴露出的颜色属性。本次 token map 将这些
 属性按视觉职责归并，而不是按控件类名逐项复制。
 
 ## 迁移约束
