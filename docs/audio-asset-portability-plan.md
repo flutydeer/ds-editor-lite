@@ -1,6 +1,5 @@
 # 工程资源跨设备可移植性方案
-
-> 状态：讨论后修订 v2（2026-07-17）
+> 状态：🔵 部分实施（方案 1 基础设施已落地：`AudioClip::AudioPathInfo` + 后台 hash + 多级解析 + DS workspace 序列化；方案 3 离线状态/资源检查对话框、方案 2 资产管理、方案 4 zip 打包未实施。讨论后修订 v2，2026-07-17）
 > 已定：存储机制对齐 DiffScope，直接读写 `workspace["diffscope"]["audio"]`（§2）；FileContentChanged 静默处理（§3.1）；缺失处理扩展为统一资源检查，覆盖音频与歌手包（§3.3）。
 
 ## TL;DR

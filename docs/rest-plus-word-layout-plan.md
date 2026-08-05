@@ -1,4 +1,5 @@
 # Rest / Plus / Word Layout 整理计划
+> 状态：⬜ 未实施（Phase 1–4 均为计划；代码中 `isRestNote` 仍分散在 SingingClipSlicer / SingingClipPhonemeNormalizer，尚未统一到 `Note::isRest()`）
 
 ## 背景
 

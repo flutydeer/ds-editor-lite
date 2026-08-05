@@ -1,12 +1,13 @@
-# Cross-Track Clip Movement
+# Cross-Track Clip Movement — 设计文档
+
+> 状态：✅ 实施完成（含后续修复：`ed9dcbd4` 钢琴卷帘位置、`a4126c5e` 推理管线保留）
+> 本文是最终设计说明；修改文件清单等过程记录已移除。
 
 ## Overview
 
-Implements dragging clips vertically across tracks in the Track Editor. Previously clips could only be moved horizontally (time position), not vertically between tracks.
+在轨道编辑器中支持将 clip 垂直拖动跨越轨道。此前 clip 只能在同一轨道内水平移动，跨轨移动实际是"删除 + 新建"，会丢失视图状态并错误拆除推理状态。
 
 ## Architecture
-
-The clip movement pipeline spans 5 layers:
 
 ```
 TracksGraphicsView (drag interaction)
@@ -22,113 +23,57 @@ TrackEditorView (view: preserve/reuse clip graphics item)
 
 ## Key Design Decisions
 
-### MoveClipToTrackAction — Dedicated action for cross-track moves
+### MoveClipToTrackAction — 专用跨轨 action
 
-`EditClipCommonPropertiesAction` only edits clip properties (start, length, etc.) and assumes the clip stays on the same track. Cross-track movement is a different operation: it manipulates two tracks' clip membership. A new `MoveClipToTrackAction` was created for this purpose.
+`EditClipCommonPropertiesAction` 只编辑 clip 属性（start、length 等）且假定 clip 留在原轨道，跨轨移动需要独立 action。
 
-**Files:**
-- `src/app/Controller/Actions/AppModel/Clip/MoveClipToTrackAction.h`
-- `src/app/Controller/Actions/AppModel/Clip/MoveClipToTrackAction.cpp`
+执行顺序（execute / undo 相同）：
 
-**Execution order:**
 1. `oldTrack->removeClip(clip)`
-2. Set new clip properties (start, clipStart, length, clipLen)
+2. 设置新 clip 属性（start、clipStart、length、clipLen）
 3. `newTrack->insertClip(clip)`
-4. `oldTrack->notifyClipChanged(Removed)` — triggers view destruction + subsystem teardown
-5. `newTrack->notifyClipChanged(Inserted)` — triggers view creation + subsystem setup
+4. `oldTrack->notifyClipChanged(Removed)` — 触发视图缓存 + 子系统 teardown
+5. `newTrack->notifyClipChanged(Inserted)` — 触发视图复用 + 子系统 setup
 
-Note: step 3 happens before step 4, so `appModel->findClipById()` finds the clip on the new track when `handleClipRemoved` runs.
+步骤 3 在步骤 4 之前：`appModel->findClipById()` 在 `handleClipRemoved` 中能找到新轨道上的 clip，从而区分"移动"与"删除"。
 
-### View preservation — No destroy/recreate of clip graphics
+### 视图保留 — 不销毁重建 clip 图形
 
-When `notifyClipChanged(Removed)` fires, `TrackEditorView::onClipRemoved` caches the `AbstractClipView` instead of deleting it. When `notifyClipChanged(Inserted)` follows, `onClipInserted` reuses the cached view. This preserves selected/active/hover states.
+`notifyClipChanged(Removed)` 触发时，`TrackEditorView::onClipRemoved` 把 `AbstractClipView` 缓存到 `m_pendingRemoveClipViews` 而不是销毁；后续 insert 复用它。`QTimer::singleShot(0, ...)` 处理清理：若缓存视图未被随后的 insert 复用（真正的删除），则销毁。
 
-**Files:**
-- `src/app/UI/Views/TrackEditor/TrackEditorView.h` — added `m_pendingRemoveClipViews` map
-- `src/app/UI/Views/TrackEditor/TrackEditorView.cpp` — cache/reuse logic
+复用 SingingClip 视图时必须**重新连接**类型相关信号（`singerChanged`、`speakerChanged` 等）。
 
-A `QTimer::singleShot(0, ...)` handles cleanup: if the cached view is not reused by a subsequent insert (genuine delete), it's destroyed.
+### Active clip 保留
 
-### Active clip preservation
+`ProjectStatusController::handleClipRemoved` 原来无条件清空 `activeClipId`；跨轨移动时保持 active clip（编辑上下文不因换轨丢失）。
 
-`ProjectStatusController::handleClipRemoved` previously cleared `activeClipId` unconditionally when the removed clip matched. Now it checks `appModel->findClipById()` first — if the clip still exists on another track, it's a move, not a delete.
+### 轨道颜色更新
 
-**File:** `src/app/Controller/ProjectStatusController.cpp`
+- 拖动期间：`TracksGraphicsView::mouseMoveEvent` 在跨越轨道时更新 clip view 的 `colorIndex`。
+- 提交后：`TrackController` 调 `ClipController::notifyActiveClipTrackChanged()`，从模型取最终颜色。
+- 丢弃时：`notifyLiveTrackColorChanged(m_mouseDownColorIndex)` 恢复原色。
 
-### Track color updates
+`liveTrackColorChanged` handler 只更新颜色并重绘，不触碰信号连接。
 
-- **During drag:** `TracksGraphicsView::mouseMoveEvent` updates `colorIndex` on the clip view as it crosses track boundaries, using `appModel->tracks().at(targetTrackIndex)->colorIndex()`.
-- **After commit:** `TrackController` calls `ClipController::notifyActiveClipTrackChanged()` which emits `activeClipTrackChanged`. `ClipEditorView` handles this by updating `NoteView`/`PianoRollView`/`ParamEditorView` track colors and calling `update()` for repaint.
+### 信号泄漏修复
 
-**Files:**
-- `src/app/UI/Views/TrackEditor/TracksGraphicsView.cpp`
-- `src/app/Controller/ClipController.h` — added signal + method
-- `src/app/Controller/ClipController.cpp`
-- `src/app/UI/Views/ClipEditor/ClipEditorView.cpp`
-- `src/app/Controller/TrackController.cpp`
+`Track::removeClip()` 现在断开被移除 clip 的 `singerOrSpeakerChanged` 连接，防止陈旧信号穿透到已卸载的视图。
 
-### Signal leak fix
-
-`Track::removeClip()` now disconnects `singerOrSpeakerChanged` from the removed clip, preventing stale signal propagation from the old track.
-
-**File:** `src/app/Model/AppModel/Track.cpp`
-
-### Signal reconnection for cached views
-
-When a SingingClip view is reused (cross-track move), the type-specific signals (`singerChanged`, `speakerChanged`, `noteChanged`, etc.) are reconnected since `disconnect(clip, nullptr, this, nullptr)` in `onClipRemoved` disconnected them.
-
-## Files Modified
-
-| File | Change |
-|------|--------|
-| `src/app/Model/AppModel/Track.cpp` | Disconnect signal in `removeClip` |
-| `src/app/Controller/Actions/.../MoveClipToTrackAction.h` | **New** — Cross-track move action |
-| `src/app/Controller/Actions/.../MoveClipToTrackAction.cpp` | **New** — execute/undo |
-| `src/app/Controller/Actions/.../ClipActions.h` | Added `moveClipToTrack` |
-| `src/app/Controller/Actions/.../ClipActions.cpp` | Implement `moveClipToTrack` |
-| `src/app/Controller/TrackController.h` | Added `onClipPropertyChanged(args, newTrackIndex)` overload |
-| `src/app/Controller/TrackController.cpp` | Cross-track dispatch + notify clipController |
-| `src/app/Controller/ProjectStatusController.cpp` | Don't clear activeClipId on cross-track move |
-| `src/app/Controller/ClipController.h` | Added `notifyActiveClipTrackChanged` + `notifyLiveTrackColorChanged` + signals |
-| `src/app/Controller/ClipController.cpp` | Implement `notifyActiveClipTrackChanged` + `notifyLiveTrackColorChanged` |
-| `src/app/UI/Views/TrackEditor/TracksGraphicsView.h` | Uncommented `m_mouseDownTrackIndex`, added `m_mouseDownColorIndex` |
-| `src/app/UI/Views/TrackEditor/TracksGraphicsView.cpp` | Vertical drag + color sync, live color preview, discard restore |
-| `src/app/UI/Views/TrackEditor/TrackEditorView.h` | Added `m_pendingRemoveClipViews` |
-| `src/app/UI/Views/TrackEditor/TrackEditorView.cpp` | Cache/reuse clip views + signal reconnection |
-| `src/app/UI/Views/ClipEditor/ClipEditorView.cpp` | Handle `activeClipTrackChanged` + `liveTrackColorChanged` |
-| `src/app/Modules/Inference/InferController.cpp` | Don't tear down inference pipelines on move |
-
-## Signal Design: Three-Signal Approach
-
-`MoveClipToTrackAction` emits three signals, each serving a distinct set of consumers:
+## Signal Design: 三信号方案
 
 | Signal | PianoRoll / ParamEditor | TrackEditorView | InferController |
 |--------|------------------------|-----------------|-----------------|
-| `clip→notifyPropertyChanged()` | Updates offset, scene length, notes | `updateClipOnView` (position sync) | — |
-| `oldTrack→notifyClipChanged(Removed)` | — | Caches clip view, disconnects signals | **Move:** keep pipelines alive; **Delete:** full teardown |
-| `newTrack→notifyClipChanged(Inserted)` | — | Reuses cached view, reconnects signals | **Move:** skip restart; **New clip:** start inference |
+| `clip→notifyPropertyChanged()` | 更新 offset、scene length、notes | `updateClipOnView`（位置同步） | — |
+| `oldTrack→notifyClipChanged(Removed)` | — | 缓存 clip view、断信号 | **移动：**保留 pipeline 只断信号 |
+| `newTrack→notifyClipChanged(Inserted)` | — | 复用缓存视图、重连信号 | **移动：**跳过重启；**新 clip：**启动推理 |
 
-This mirrors the pattern in `EditClipCommonPropertiesAction` (same-track), which emits only `notifyPropertyChanged()`. Cross-track moves add the two track signals to communicate track membership changes.
+信号顺序：`notifyPropertyChanged()` 先于 track 信号触发（PianoRoll/ParamEditor 的 property 连接在视图销毁前完成更新）。
 
-### Signal ordering
+### 推理管线保留（跨轨移动）
 
-`notifyPropertyChanged()` fires before the track signals. PianoRoll/ParamEditor connections to `clip→propertyChanged` survive the entire sequence (they are not affected by `TrackEditorView::disconnect(clip, nullptr, this, nullptr)`). TrackEditorView's connection is torn down during `Removed` and rebuilt during `Inserted`, so `notifyPropertyChanged` reaches it through the old-track connection — redundant but harmless since all signals fire synchronously within one call stack.
+`InferControllerPrivate::handleSingingClipRemoved` 曾无条件取消该 clip 的所有推理任务。现在区分"移动"与"删除"：
 
-### Fix: Piano roll position after cross-track move
-
-`MoveClipToTrackAction` was missing the `m_clip->notifyPropertyChanged()` call. After setting new properties (start, clipStart, length, clipLen), the piano roll views (`PianoRollGraphicsViewPrivate`, `ParamEditorGraphicsView`) caches were not updated — they still held the old `m_offset` and scene length. Clicking away and back triggered a full re-init via `setDataContext`, masking the bug.
-
-Added `m_clip->notifyPropertyChanged()` to both `execute()` and `undo()`.
-
-**File:** `src/app/Controller/Actions/AppModel/Clip/MoveClipToTrackAction.cpp`
-
-### Fix: Inference pipeline teardown on cross-track move
-
-**Root cause:** `InferControllerPrivate::handleSingingClipRemoved` unconditionally cancelled all inference tasks and deleted pipelines for the removed clip. For a cross-track move (where the clip still exists on a new track), this destroyed the inference pipeline unnecessarily. Subsequent `handleSingingClipInserted` started a new `GetPronunciationTask` chain, which eventually called `reSegment()`. Since notes hadn't changed and existing pieces were not dirty (their inference was complete), `reSegment` reused old pieces without creating new ones, so `createPipeline` was never called — the inference state machine never restarted.
-
-**Fix:** Both `handleSingingClipRemoved` and `handleSingingClipInserted` now distinguish between "move" and "delete/insert" using `appModel->findClipById(clip->id())` and `clip->pieces().isEmpty()`:
-
-```
+```cpp
 handleSingingClipRemoved:
   if findClipById(clip->id()) → 移动: 只断信号连接，不动任务/管线
   else                         → 删除: 完整拆除推理状态
@@ -138,34 +83,14 @@ handleSingingClipInserted:
   else                         → 新clip: 启动获取发音→音素→reSegment→管线
 ```
 
-This is the same "distinguish move from delete" pattern already used by `ProjectStatusController` and `TrackEditorView`.
+已知边界：移动后若目标轨道 singer/speaker 上下文与源不同，仅保留 singer/speaker 上下文匹配的 pipeline；不匹配的 pipeline 正常拆除（当前实现已覆盖）。
 
-**File:** `src/app/Modules/Inference/InferController.cpp`
+## 关键文件
 
-### Live piano roll color preview during drag
-
-During cross-track drag in `TracksGraphicsView::mouseMoveEvent`, the clip view color follows the target track immediately. A new `ClipController::liveTrackColorChanged` signal extends this to the piano roll, so note colors and background reflect the target track in real time:
-
-```
-mouseMoveEvent (target track changes):
-  → clipController->notifyLiveTrackColorChanged(targetColorIndex)
-  → ClipEditorView: updates NoteView color, PianoRollView color, ParamEditorView color + repaint
-
-discardAction (Esc / release outside):
-  → clipController->notifyLiveTrackColorChanged(m_mouseDownColorIndex)  // restore original
-
-commitAction (mouse release):
-  → clipController->notifyActiveClipTrackChanged()  // final color from model
-```
-
-The `liveTrackColorChanged` handler only updates colors and repaints — it does not touch signal connections (unlike `activeClipTrackChanged` which reconnects `m_trackColorConnection` to the new track). This makes the live preview side-effect-free and safe to fire at high frequency during drag.
-
-**Files:**
-- `src/app/Controller/ClipController.h` — Added signal + method
-- `src/app/Controller/ClipController.cpp` — Implementation
-- `src/app/UI/Views/ClipEditor/ClipEditorView.cpp` — Connect signal
-- `src/app/UI/Views/TrackEditor/TracksGraphicsView.cpp` — Emit during drag + restore on discard
-
-## Known Issues (Next Steps)
-
-1. **Inference state machine not transitioning:** After cross-track movement, the acoustic model inference state machine does not properly transition to the new track context. The `TrackSynthesizer` handles `clipChanged(Removed)` by tearing down the singing clip context, and `clipChanged(Inserted)` by creating a new one. The teardown/recreation may not properly restart the inference pipeline.
+- `src/app/Controller/Actions/AppModel/Clip/MoveClipToTrackAction.h/.cpp`
+- `src/app/Controller/TrackController.cpp`（跨轨分发 + notify）
+- `src/app/Controller/ClipController.h/.cpp`（`notifyActiveClipTrackChanged` / `notifyLiveTrackColorChanged`）
+- `src/app/Controller/ProjectStatusController.cpp`（active clip 保留）
+- `src/app/UI/Views/TrackEditor/TracksGraphicsView.cpp`（垂直拖拽 + 颜色同步）
+- `src/app/UI/Views/TrackEditor/TrackEditorView.cpp`（视图缓存/复用 + 信号重连）
+- `src/app/Modules/Inference/InferController.cpp`（移动 vs 删除区分）

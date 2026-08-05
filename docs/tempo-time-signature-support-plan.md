@@ -1,4 +1,5 @@
 # Tempo and Time Signature Change Support — Implementation Plan
+> 状态：🔵 进行中（阶段 1–6/8/9 已完成；阶段 7 音频引擎与波形进行中；阶段 10 打磨未开始；4 项 Code Review 待讨论，2026-07-27）
 
 ## 进度总览
 

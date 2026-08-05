@@ -1,308 +1,84 @@
-# 声线混合支持分阶段计划
+# 声线混合（Speaker Mix）— 设计文档
 
-## Summary
+> 状态：✅ 全部实施完成（Fixed Mix / Fixed Mix Preset / Dynamic Mix 模型、UI、持久化、推理接入均已落地；opendspx 官方 mix 结构暂缓）
+> 本文是最终设计说明；分阶段计划与验收过程已移除。
 
-目标是把当前 Speaker Mix 从"视图 demo"推进到完整支持三种 clip 声源模式：
+## 三种 clip 声源模式
 
 - `Single`：当前单歌手/单 speaker 行为，保持兼容。
 - `Fixed Mix`：同一歌手模型内多个 speaker 的固定比例混合，可保存为本地用户预设。
-- `Dynamic Mix`：同一组 speaker 的比例随时间变化，使用当前 Speaker Mix 关键帧编辑器。
+- `Dynamic Mix`：同一组 speaker 的比例随时间变化（SpeakerMixEditorView 关键帧编辑）。
 
-当前第一轮接入已经从编辑闭环推进到推理链路：Fixed Mix 与 Dynamic Mix 都可以进入推理请求。
-Duration 阶段仍使用静态基座 speaker mix；Pitch / Variance / Acoustic 阶段使用当前 piece
-时间范围采样后的 speaker mix。
+推理链路已全通：Duration 阶段使用静态基座 speaker mix；Pitch / Variance / Acoustic 阶段使用当前 piece 时间范围采样后的 speaker mix。
 
-当前进展：
+## 数据模型
 
-- `Single` 继续沿用原有 singer/speaker 行为。
-- `Fixed Mix` 已完成 AppModel、undo/redo、对话框、workspace 持久化与工程恢复闭环。
-- `Fixed Mix Preset` 已完成用户级 store、track/clip singer 二级菜单入口、对话框 preset bar、track 级 speaker mix 与 undo/redo。
-- `Dynamic Mix` 已完成模型接入：参数页绑定 `SingingClip::SpeakerMixData`，关键帧编辑通过 `ReplaceSpeakerMixAction` 提交。
-- `Dynamic Mix` 已改为显式启用的 clip 自定义自动化：未启用时参数页显示启用说明；启用后支持 DAW 风格 bypass，`mode = FixedMix` 且保留 `dynamicKeyframes` 表示旁路状态。
-- 推理链路已初步支持 Fixed Mix / Dynamic Mix：Dynamic Active 使用 keyframe 采样比例，Bypass / Stop Dynamic 回到 Fixed Mix 推理。
-- `EffectiveVoiceContext` 已接入 Track / SingingClip，单 speaker、preset、Follow Track 的 singer/speaker/mix 状态变更不再依赖分散的事件顺序补洞。
-- `Speaker Mix` 参数入口已从临时 `ParamInfo::Unknown` 迁移到明确的 `ParamInfo::SpeakerMix`。
-- opendspx 官方 mix 结构暂不写入；当前只把 speaker mix 存入 DS workspace，官方 `sources` 保持单 effective singer/speaker fallback。
+`SingingClip::SpeakerMixData` 是独立的声源混合模型，不塞进 `ParamInfo`：
 
-## Key Changes
+- `SingerSourceMode { Single, FixedMix, DynamicMix }`
+- `SpeakerMixSource { SpeakerInfo speaker }`
+- `SpeakerMixKeyframe { int tick, QVector<double> weights }`，weights 存 **N-1 项**（最后一个 speaker 权重隐式 = 1 - sum），保持总和恒为 1
+- `SpeakerMixData { mode, sources, fixedWeights, dynamicKeyframes }`；`mode` 表示当前生效/旁路状态
+- 发出独立 `speakerMixChanged()` 信号，并 bump inference revision
 
-- 在 `SingingClip` 增加独立的声源混合模型，不塞进 `ParamInfo`：
-    - `SingerSourceMode { Single, FixedMix, DynamicMix }`
-    - `SpeakerMixSource { SpeakerInfo speaker }`
-    - `SpeakerMixKeyframe { int tick, QVector<double> weights }`，weights 存 N-1 项（最后一个 speaker 的权重隐式 = 1 - sum），UI 始终显示 N 个比例。
-    - `SpeakerMixData { mode, sources, fixedWeights, dynamicKeyframes }`。`mode` 表示当前生效/旁路状态；`fixedWeights` 和 `dynamicKeyframes` 可以同时保留，用于 Dynamic Mix Bypass 在固定底座和动态关键帧之间切换。
-    - 发出独立 `speakerMixChanged()` 信号，并 bump inference revision。
+关键语义：
 
-- DSPX 序列化策略：
-    - `Single`：沿用当前一个 `SingleSinger`。
-    - `Fixed Mix` / `Dynamic Mix`：当前暂不写 opendspx 官方 mix 结构，官方 `sources` 仍写一个 `SingleSinger` 作为兼容 fallback。
-    - DS workspace 保存完整 `SpeakerMixData`，用于恢复 speakerId、显示名、固定权重和动态关键帧。
-    - 读取时当前优先恢复 DS workspace；无 DS workspace 时仍按旧工程 `Single` 处理。
-    - opendspx 官方结构的 `MixedSinger` / `Sources::mix` 后续只在 converter 层评估，不反向影响 AppModel 语义。
-
-- UI 分阶段落地：
-    - 已完成：把 `TestSpeakerMix` 抽象成正式比例控件，用于 Fixed Mix 配置。
-    - 已完成：把 `SpeakerMixEditorView` 从硬编码数据改为绑定 `SingingClip::SpeakerMixData`，关键帧编辑通过 action 提交。
-    - 已完成：参数页加入显式 Dynamic Mix 启用入口；启用后工具栏提供 Bypass / Resume / Stop Dynamic 命令。
-    - 已完成：前景参数列表中的 Speaker Mix 使用 `ParamInfo::SpeakerMix`，不再借用 `ParamInfo::Unknown`。
-    - 之后：增加清晰的声源模式入口：`Single / Fixed Mix / Dynamic Mix`。
-
-- 本地预设：
-    - 新增用户级 preset store，保存同一 singer 版本下的 speaker 列表和固定比例（不含动态关键帧）。
-    - 预设按 `packageId + singerId + packageVersion` 精确匹配；package 升级后旧版本 preset 不显示、不自动迁移、不删除。
-    - 预设集成到现有 speaker 选择二级菜单：单个 speaker 列表下方加分隔线和预设列表，选预设 = 进入 Fixed Mix 模式。
-    - speaker 菜单底部提供“新建混合预设...”和“管理混合预设...”入口，打开 `SpeakerMixDialog` 管理固定混合预设。
-    - `SpeakerMixDialog` 顶部增加 preset bar：预设 ComboBox，以及新建、保存、另存为、删除、重置等操作。
-    - 预设全局可用，track 和 clip 均可通过二级菜单选择。
-    - 工程文件保存展开后的实际 `SpeakerMixData`；预设库保存在应用常规设置中，不随工程复制，但会保存 `sourcePresetId/sourcePresetName/sourcePresetDirty` 用于 DAW 风格当前 preset 显示。
-    - 预设应用时复制到 track/clip，之后修改不自动反写预设，除非用户选择覆盖保存。
-    - 预设菜单入口完成后，剪辑工具栏上的临时 `Speaker Mix` 按钮已移除。
-
-- 推理接入：
-    - Duration 使用 `effectiveSpeakerMixForFixedInference()` 得到静态 fallback，不做动态采样。
-    - `InferSpeakerMixModel::effectiveSpeakerMixFromData()` 在 Dynamic Active 时按 piece tick 范围采样 keyframes，输出带等长 `proportions` 的 `InferSpeakerMix`。
-    - Dynamic Bypassed 或 Stop Dynamic 后，推理使用 Fixed Mix 的 `fixedWeights`。
-    - timing 不足、动态数据无效或 speaker source 无效时降级到 Fixed Mix / Single fallback。
-
-## Design Decisions
-
-> 本节记录讨论过程中确认的设计决策和待讨论项。每项标注状态：✅ 已决定 / 🔲 待讨论。
-
-### 1. 权重存储维度与增删逻辑 ✅
-
-**存储 N-1，UI 显示 N。** 与 opendspx `ratio` 字段对齐，避免冗余。
-
-#### 新增 speaker ✅
-- 按比例压缩现有权重：新 speaker 获得默认比例 p%，原有 speaker 各自按 `(1-p)` 等比缩放，保持相对比例不变。
-- 在 N-1 存储下，新 speaker 不插在末尾（保持原最后一位 speaker 的隐式权重位置不变），UI 显示顺序通过 index mapping 与存储顺序解耦。
-
-#### 删除 speaker ✅
-- 按比例分摊：被删 speaker 的权重按剩余 speaker 的当前比例分摊给所有人。
-- 删除最后一个 speaker 时：原倒数第二位变为新的隐式末位，其 stored weight 被移除。
-
-#### 排序 speaker ✅
-- Fixed Mix 下支持排序。
-- 排序时同步重排 `sources` 列表和 `weights` 数组（保持对应关系）。
-- 若存在 Dynamic Mix keyframe，所有 keyframe 的 weights 也同步重排。
-
-#### Dynamic Mix 限制 ✅
-- Dynamic Mix 下**不允许增删、换 speaker、排序**。所有 keyframe 的 weights 数组长度必须一致。
-- speaker 列表的构成（哪些 speaker、什么顺序）由 Fixed Mix 阶段决定，进入 Dynamic Mix 后锁定。
-
-### 2. UI "位置"字段 ✅
-
-SpeakerMixList 上每行的"位置"是**纯展示的计算值**，基于各 speaker 占的比例换算（累积比例），不提供文本框编辑。
-
-- 删除 spinbox 输入，仅保留比例条拖拽作为编辑方式。
-- 理由：对话框宽度 400px+，比例条精度足够声线混合场景使用。
-
-### 3. Fixed Mix ↔ Dynamic Mix 模式切换 ✅
-
-- **Fixed → Dynamic：** 自动以当前 Fixed Mix 比例创建第一个关键帧（类比 DAW 自动化：以当前推子位置创建第一个自动化点）。
-- **Dynamic → Fixed：** Fixed Mix 比例保持不变（不从 Dynamic keyframe 反写）。若之前设过 Fixed Mix 则用原值，若从未设过则取 Dynamic 第一个关键帧的值。
-- **Dynamic 关闭不删除 keyframe：** 关闭后再开启，keyframe 数据恢复。
-- `mode` 只表示当前生效的权重来源。为了支持 Dynamic Mix Bypass，normalize 不能在 FixedMix 时清掉 `dynamicKeyframes`，也不能在 DynamicMix 时清掉 `fixedWeights`。
-
-### 4. Dynamic Mix 第一个关键帧 ✅
-
-第一个关键帧**时间锁定**（不可水平拖动），但**分界点可编辑**（权重可调）。
-
-- 与 Fixed Mix 脱钩：编辑第一个关键帧不反写 Fixed Mix 比例。
-- Fixed Mix 始终是"安全退路"，Dynamic Mix 是自由编辑区。
-
-### 5. Action 粒度 ✅
-
-采用粗粒度方案：**一个 `ReplaceSpeakerMixAction`，存 old/new 两个 `SpeakerMixData` 快照，全量替换。**
-
-- Undo 粒度由 View 层控制：拖拽开始时记快照，拖拽结束时提交一次 action，不会产生逐帧 undo。
-- 整体替换天然保证原子性（增删 speaker 同时改 sources + weights + keyframe 不会出现中间状态不一致）。
-- `SpeakerMixData` 数据量小（几个 speaker + 几十个 keyframe），快照无性能压力。
-
-### 6. Track 级 Fixed Mix 与统一 Follow Track ✅
-
-Track 拥有自己的 `SpeakerMixData`，并与 track singer/speaker 一起构成 clip 的“跟随轨道”来源：
-
-- `Track::speakerMixData()` 保存 track 当前 Fixed/Dynamic mix 数据；本阶段 track 菜单主要应用 Fixed Mix preset。
-- track singer/speaker 改变时，track speaker mix 自动重置为 `Single`。
-- `SingingClip::useTrackSingerInfo` 保留为唯一跟随标志：`true` 表示 singer、speaker、speaker mix 全部跟随 track。
-- 旧工程中的 `useTrackSpeakerInfo` 兼容读取；若旧工程任一跟随标志为 false，则 clip 视为自定义。
-- clip 选择具体 speaker 或 preset 时退出 Follow Track；选择 `Follow Track` 时恢复三者跟随。
-- track 应用 preset 后，通过 `Track::speakerMixChanged` 同步所有仍处于 Follow Track 的 singing clips。
-- track/clip 应用 preset 都通过 action 提交，undo/redo 能恢复 singer/speaker/mix 的整体状态。
-
-### 7. Fixed Mix / Dynamic Mix 共享 speaker 列表 ✅
-
-`SpeakerMixData` 中 `sources`（speaker 列表）在 Fixed Mix 和 Dynamic Mix 之间共享，weights 各自独立。
-
-- Fixed Mix 有自己的 `fixedWeights`。
-- Dynamic Mix 有自己的 `dynamicKeyframes`（每个 keyframe 含独立 weights）。
-- 切换模式时 speaker 列表不变，只是切换当前生效的 weights 来源。
-- 在 Fixed Mix 下增删/排序 speaker 时，所有 Dynamic keyframe 的 weights 同步调整。
-- opendspx 官方 mix 结构本阶段暂缓；当前只在 DS workspace 写入 `SpeakerMixData`，官方 `sources` 仍写单 effective singer/speaker fallback。
-- 若后续确认 opendspx 官方结构可表达同 singer 内多 speaker mix，再只在 converter 层补充 `MixedSinger` / `Sources::mix` 映射，不反向改变 AppModel 语义。
-
-### 8. Dynamic Mix 关键帧编辑入口 ✅
-
-Dynamic Mix 的关键帧权重直接在 `SpeakerMixEditorView` 中编辑，不再接入 `SpeakerMixDialog`
-或单独的关键帧属性对话框。
-
-- `SpeakerMixEditorView` 的分割点拖拽精度已足够日常编辑。
-- 保留一个动态编辑入口可以减少状态同步、dialog 临时数据和 undo 粒度复杂度。
-- `SpeakerMixDialog` 后续只负责 Fixed Mix 的 sources / fixedWeights 配置。
-
-### 9. Dynamic Mix 显式启用与 Bypass ✅
-
-Dynamic Mix 不是普通显示开关，而是 clip 自定义自动化状态。
-
-- 未启用：`mode = FixedMix` 且 `dynamicKeyframes` 为空，参数页显示启用说明和按钮。
-- 启用：`mode = DynamicMix` 且 `dynamicKeyframes` 非空，使用关键帧自动化。
-- Bypass：`mode = FixedMix` 且 `dynamicKeyframes` 非空，保留关键帧但实际生效使用 `fixedWeights`，用于 A/B 对比。
-- Stop Dynamic：清空 `dynamicKeyframes`，回到 clip 自定义 Fixed Mix；不自动恢复 Follow Track。
-- Follow Track clip 启用 Dynamic Mix 时，必须通过显式按钮复制当前 effective singer/speaker/mix 到 clip 自有状态，并停止跟随轨道。
-- Fixed Mix 是底座，Dynamic Mix 是 clip 自动化层；二者共享同一份 `sources`。
-
-### 10. 混合预设入口与管理 ✅
-
-混合预设作为 Fixed Mix 的用户模板存在，不保存 Dynamic Mix keyframes。
-
-- 支持声线混合的 singer，在 speaker 二级菜单中显示：单 speaker 列表、分隔线、用户混合预设列表、管理入口。
-- 选择单 speaker：进入 `Single`。
-- 选择混合预设：复制预设的 `sources + fixedWeights` 到当前 clip，进入 `FixedMix`。
-- `SpeakerMixDialog` 作为固定混合预设编辑/管理界面，顶部提供 preset ComboBox 和新建、保存、另存为、删除、重置等操作。
-- 应用预设是复制，不是引用。track/clip 后续修改不自动反写 preset。
-- preset 库保存在应用常规设置中，不随工程复制；工程恢复以展开后的 `SpeakerMixData` 为准，并保留 source preset id/name/dirty 作为 UI 元数据。
-
-### 11. Effective Voice Context 与事件收敛 ✅
-
-`SingerInfo + SpeakerInfo + SpeakerMixData + Follow Track` 已收敛为 effective voice context 语义。
-
-- `Track::voiceContext()` / `Track::setVoiceContext()` 表达 track 级 singer/speaker/mix 整体状态。
-- `SingingClip::effectiveVoiceContext()` 返回当前真正生效的 singer/speaker/mix。
-- `SingingClip::setOwnVoiceContext()` 用于 clip 自定义 preset / Dynamic Mix 启用。
-- `SingingClip::selectOwnSingleSpeaker()` 与 `Track::selectSingleSpeaker()` 明确表示选择单 speaker，并必须 reset speaker mix 到 `Single`。
-- `SingingClip::setTrackVoiceContext()` 用于把 track singer/speaker/mix 一次性同步给 clip，避免 Follow Track clip 暴露中间状态。
-- 旧 `useTrackSpeakerInfo` 字段仍保留用于兼容；新语义只读 `useTrackSingerInfo` 表示 singer/speaker/mix 三者都 Follow Track。
-
-### 12. 推理接入策略 ✅
-
-第一版推理以“先跑通、可听辨”为目标。
-
-- Single：保持旧行为。
-- Fixed Mix：使用固定比例构造 `InferSpeakerMix`，比例按 `0.0~1.0` 传入底层。
-- Dynamic Mix Active：在 duration 之后，基于 piece local tick 范围采样 keyframe 曲线，再传给 Pitch / Variance / Acoustic。
-- Dynamic Mix Bypassed：保留 keyframes，但推理使用 `fixedWeights`。
-- Stop Dynamic：清空 keyframes 后按 Fixed Mix 推理。
-- Duration：由于 duration 前无法获得实际音素/片段范围，继续使用静态基座，不做动态混合。
-- 当前采样粒度以 piece 时间范围为准；更细的音符/音素级动态混合后续再评估。
-
-## Phases
-
-- Phase 1：正式化比例控件 — **基本完成**
-    - ✅ 从 `TestSpeakerMix` 提炼为 `SpeakerMixList`（列表）和 `SpeakerMixBar`（比例条）。
-    - ✅ 新增 `SpeakerMixDialog`，组合 Tag 选择区 + 列表 + 比例条。
-    - ✅ 新增 `TagButton` 控件和 `FlowLayout`，实现 speaker 成员选择。
-    - ✅ 接入真实 `SingerInfo::speakers()`，不再使用硬编码测试 speaker。
-    - ✅ 固定混合对话框接入 `SingingClip::SpeakerMixData`。
-    - ✅ 对话框显示 speaker name，内部业务值仍使用 speaker id。
-    - ✅ Dynamic Mix 接入后，固定模式显示只读平直权重，动态模式允许编辑 keyframes。
-
-- Phase 2：Clip 模型与撤销重做 — **Fixed Mix / Dynamic Mix 已完成**
-    - ✅ 在 `SingingClip` 增加 `SpeakerMixData`。
-    - ✅ 新增 `ReplaceSpeakerMixAction` / `SpeakerMixActions`。
-    - ✅ Fixed Mix 对话框 OK 后通过 action 提交。
-    - ✅ 调整 normalize 语义：FixedMix 保留有效 `dynamicKeyframes`，DynamicMix 保留有效 `fixedWeights`，让 Dynamic Mix Bypass 可保存 inactive 数据。
-    - ✅ `SpeakerMixEditorView` 的关键帧编辑通过 action 提交，不再只改 view 内数据。
-
-- Phase 3：DSPX / workspace 读写 — **workspace 已完成**
-    - ✅ `Single` 继续按旧逻辑保存。
-    - ✅ Fixed Mix 写入 `workspace["ds-editor-lite"]["speakerMix"]`。
-    - ✅ workspace 读取时严格按当前 effective singer 的 speakers 解析。
-    - ✅ Dynamic Mix 写入/读取 `dynamicKeyframes`，并允许同时保存 inactive 的 `fixedWeights`。
-    - 🔲 opendspx 官方 mix 结构暂缓。
-
-- Phase 4：Dynamic Mix 编辑闭环 — **基本完成**
-    - ✅ Speaker Mix 参数页显示当前 clip 的真实 speaker 列表和 keyframes。
-    - ✅ 从 Fixed Mix 进入 Dynamic Mix 时，以当前 fixedWeights 创建第一个关键帧。
-    - ✅ 在 Speaker Mix 参数页加入显式 Dynamic Mix 启用入口。
-    - ✅ 编辑关键帧比例、添加/删除/移动关键帧后，通过 `ReplaceSpeakerMixAction` 提交。
-    - ✅ 不再规划单独关键帧属性对话框；Dynamic Mix 权重编辑只在 `SpeakerMixEditorView` 内完成。
-    - ✅ 支持 Dynamic Mix Bypass：旁路时保留关键帧并使用 Fixed Mix 生效。
-    - ✅ 支持 Stop Dynamic：清空动态关键帧并回到 Fixed Mix。
-    - ✅ 工具栏 speaker 指示器刷新已做幂等处理，避免每次关键帧提交后重建造成闪烁。
-    - ✅ Fixed Mix 对话框、Dynamic Mix 编辑视图、参数页工具栏共用 `SpeakerMixColorResolver`，同一 speaker 在同一 singer 内颜色稳定。
-    - ✅ Fixed Mix 对话框在当前 `mode == DynamicMix` 时从 `sources + fixedWeights` 恢复固定底座；没有有效 `fixedWeights` 时才使用第一帧 `dynamicKeyframes` 兜底。
-
-- Phase 6：Fixed Mix 预设与正式入口 — **已完成**
-    - ✅ 新增用户级 fixed mix preset store，持久化到 `GeneralOption::speakerMixPresets`。
-    - ✅ preset 精确绑定 `packageId + singerId + packageVersion`，同 singer 同版本内名称去重，跨版本允许同名。
-    - ✅ 在 track/clip 的 speaker 二级菜单中加入 preset 列表和新建/管理入口。
-    - ✅ `SpeakerMixDialog` 顶部增加 preset ComboBox 和新建、保存、另存为、删除、重置按钮。
-    - ✅ 选择 preset 时复制为当前 track/clip 的 Fixed Mix 配置，不引用 preset。
-    - ✅ Track 新增 `SpeakerMixData`，并通过统一 Follow Track 语义同步到跟随中的 clips。
-    - ✅ 新增 track/clip preset 应用 action，覆盖 undo/redo。
-    - ✅ 移除剪辑工具栏上的临时 `Speaker Mix` 按钮。
-
-- Phase 5：推理接入 — **初步完成**
-    - ✅ Fixed Mix 推理接入，preset 切换后能触发推理并听到固定比例差异。
-    - ✅ Dynamic Mix Active 推理接入，Pitch / Variance / Acoustic 使用 keyframe 采样后的 speaker mix。
-    - ✅ Dynamic Mix Bypassed 使用 Fixed Mix 推理，保留 keyframes。
-    - ✅ Stop Dynamic 清空 keyframes 后回到 Fixed Mix 推理。
-    - ✅ Duration 保持静态基座策略，避免 duration 前无法获得实际音素范围的蛋鸡问题。
-    - ✅ `InferenceApplyGate` 使用 piece 上的 speaker mix signature，避免动态 mix 的异步推理结果误应用。
-    - 🔲 需要补数据层单元测试和更多手动听测用例。
-
-## Test Plan
-
-- 单歌手旧工程打开、保存、再打开后 singer/speaker 不变。
-- Fixed Mix：创建 3 个 speaker、调整比例、保存 DSPX、重新打开后比例和顺序一致。
-- Dynamic Mix：创建关键帧、拖动比例、保存 DSPX、重新打开后 anchors 一致。
-- 动态关闭后保存再打开：固定比例生效，隐藏动态关键帧仍可恢复。
-- Dynamic Mix 显式启用：Fixed → Dynamic 创建首个关键帧；Follow Track clip 启用后退出跟随，undo 后恢复跟随。
-- Dynamic Mix Bypass：Active → Bypassed 保留 keyframes，保存再打开仍保持旁路；Resume 后 keyframes 恢复生效。
-- Stop Dynamic：清空 keyframes，回到 FixedMix，不自动恢复 Follow Track。
-- 应用 Fixed Mix preset：clip 进入 FixedMix，保存再打开后展开后的 speaker/weights 一致。
-- 应用 Fixed Mix preset：track 进入 FixedMix，跟随中的 clip 自动刷新，自定义 clip 不受影响。
-- 预设版本匹配：`packageId/singerId` 相同但 `packageVersion` 不同时，菜单只显示当前版本 preset。
-- Follow Track：clip 选择 preset 后退出跟随；重新选择 Follow Track 后 singer/speaker/speaker mix 都跟随 track。
-- preset 修改：clip 已应用的旧配置不随 preset 自动变化，除非用户显式覆盖应用。
 - 添加 speaker：现有权重按比例压缩，总和始终 100%。
 - 删除 speaker：权重按比例分摊，总和始终 100%，无负数。
 - 排序 speaker（Fixed Mix 下）：顺序变更后 Dynamic Mix keyframe 同步重排。
 - Fixed → Dynamic 切换：第一个关键帧自动继承 Fixed Mix 比例。
 - Dynamic → Fixed 切换：Fixed Mix 比例保持不变。
-- DynamicMix 状态下打开 Fixed Mix 对话框：列表按保存的 `sources` 顺序恢复，比例优先使用 `fixedWeights`，不会回退到 singer 默认顺序。
-- 同一 speaker 在 Fixed Mix 对话框、参数页 toolbar、Dynamic Mix 图中的 accent 颜色一致。
-- Single：推理行为与旧版本一致。
-- Fixed Mix：不同 preset 能听到不同混合效果。
-- Dynamic Mix Active：关键帧变化后 Pitch / Variance / Acoustic 使用动态比例。
-- Dynamic Mix Bypassed：保留 keyframes，但推理使用 `fixedWeights`。
-- Stop Dynamic：清空 keyframes 后按 Fixed Mix 推理。
-- 保存重开后 Dynamic Active / Bypassed 状态推理一致。
-- 状态机回归：preset -> single speaker、track preset -> clip own single、Follow Track -> own Dynamic Mix 都必须触发正确推理。
-- Undo/redo 覆盖：模式切换、比例拖拽、添加/删除 keyframe、增删/排序 speaker、应用 preset。
-- 兼容读取：无 DS workspace 的旧工程仍按 `Single` 打开；`MixedSinger` / `Sources::mix` 官方结构导入暂缓到后续评估。
-- 构建验证：每个实现阶段至少跑 `git diff --check` 与 `cmake --build --preset debug`。
-
-## Follow-up Notes
-
-- 颜色仍不写入 `SpeakerMixData`，只在 UI 层派生。`AppColorPalette` 提供应用基础色池和 speaker mix 角色色，`SpeakerMixColorResolver` 负责把 speaker id 映射到稳定 palette index。
-- speaker 颜色优先按 `SingerInfo::speakers()` 的稳定顺序派生；找不到 singer 上下文或找不到 speaker id 时，按当前 sources 下标兜底。
-- Fixed Mix 对话框是固定底座入口：即使当前 clip 处于 `DynamicMix`，打开时也恢复保存的 `sources + fixedWeights`，不会根据 Dynamic Mix 当前帧重建 speaker 顺序。
-- 初步验收发现的“开启 Dynamic Mix 后双击添加关键帧可能无效”已定位为 Follow Track clip 的旧开关路径会尝试写入跟随数据；现改为显式启用并在启用时复制为 clip 自定义动态混合。
-- Bypass 当前先采用文字按钮和轻量状态提示；后续可参考 DAW 的 automation/plugin bypass 样式，设计更明确的旁路视觉语言。
-- 当前 preset 管理功能完整但操作偏重，后续需要讨论是否简化为更轻量的保存/覆盖/删除流程。
-- Fixed Mix preset 当前状态显示改为 DAW/VSTi 风格：应用 preset 后保存 source preset id/name，编辑后显示 dirty 状态，不再按内容反推 preset；speaker 二级菜单使用选中态标记 source preset。
-- Dynamic Mix 推理已经初步接入，但当前仍以 piece 范围采样为主，不做音符/音素级动态规划。
-- 下一轮优先补 `SpeakerMixData` 和 `InferSpeakerMixModel` 的纯数据测试，减少后续重构风险。
-
-## Assumptions
-
-- 第一版只支持同一歌手模型内的 speaker 混合；跨 singer/model 不支持编辑。
-- opendspx 的平铺 singer 表达会通过 DS workspace 补充 speaker 语义。
 - Dynamic Mix 下 speaker 列表锁定，不允许增删/排序。
-- Bypass 不删除动态关键帧；Stop Dynamic 会删除动态关键帧。
-- Fixed Mix 预设只保存 speaker 列表和固定比例，不保存动态关键帧。
-- 应用预设是复制，不是引用。
-- 第一版动态推理只支持同一 singer/model 内多 speaker 混合。
+- **Bypass 不删除动态关键帧**（保留 keyframes，推理用 `fixedWeights`）；**Stop Dynamic 会删除动态关键帧**并回到 Fixed Mix。
+- 颜色不写入模型，由 `SpeakerMixColorResolver` 在 UI 层派生；同一 speaker 在同一 singer 内颜色稳定（Fixed Mix 对话框、参数页工具栏、Dynamic Mix 图一致）。
+
+## DSPX 序列化策略
+
+- `Single`：沿用当前一个 `SingleSinger`。
+- `Fixed Mix` / `Dynamic Mix`：**暂不写 opendspx 官方 mix 结构**，官方 `sources` 仍写一个 `SingleSinger` 作为兼容 fallback。
+- DS workspace 保存完整 `SpeakerMixData`（speakerId、显示名、固定权重、动态关键帧）。
+- 读取优先恢复 DS workspace；无 DS workspace 的旧工程按 `Single` 打开。
+- opendspx 官方结构的 `MixedSinger` / `Sources::mix` 后续只在 converter 层评估，**不反向影响 AppModel 语义**。
+
+## 预设（Preset）
+
+- 用户级 preset store，保存同一 singer 版本下的 speaker 列表和固定比例（**不含动态关键帧**），持久化到 `GeneralOption::speakerMixPresets`。
+- 预设按 `packageId + singerId + packageVersion` 精确匹配；package 升级后旧版本 preset 不显示、不自动迁移、不删除。
+- 入口：speaker 选择二级菜单（单个 speaker 列表下方分隔线 + preset 列表；底部"新建混合预设..." / "管理混合预设..."）+ `SpeakerMixDialog` 顶部 preset bar（ComboBox + 新建/保存/另存为/删除/重置）。
+- 预设全局可用，track 和 clip 均可选择；选预设 = 进入 Fixed Mix 模式。
+- 工程保存展开后的实际 `SpeakerMixData` + `sourcePresetId/sourcePresetName/sourcePresetDirty`（DAW/VSTi 风格 dirty 状态，编辑后显示 dirty，不按内容反推 preset）。
+- **应用预设是复制，不是引用**：track/clip 后续修改不自动反写 preset，除非显式覆盖保存。
+- 剪辑工具栏上的临时 `Speaker Mix` 按钮已移除（正式入口为 singer/speaker 二级菜单）。
+
+## 推理接入
+
+- Duration 使用 `effectiveSpeakerMixForFixedInference()` 静态 fallback，不做动态采样（避免 duration 前无法获得实际音素范围的蛋鸡问题）。
+- `InferSpeakerMixModel::effectiveSpeakerMixFromData()` 在 Dynamic Active 时按 piece tick 范围采样 keyframes，输出等长权重。
+- Dynamic Bypassed / Stop Dynamic 后使用 `fixedWeights`。
+- timing 不足、动态数据无效或 speaker source 无效时降级到 Fixed Mix / Single fallback。
+- `InferenceApplyGate` 使用 piece 上的 speaker mix signature，避免动态 mix 的异步推理结果误应用。
 - dsinfer speaker mix 比例按 `0.0~1.0` 处理。
-- Duration 不做动态混合，使用静态基座。
+
+## UI 约定
+
+- `SpeakerMixDialog` 只负责 Fixed Mix 底座（speaker 列表 + 固定比例 + preset 管理）；Dynamic Mix keyframe 权重编辑只在参数编辑器 `SpeakerMixEditorView` 内完成（不再规划单独关键帧属性对话框）。
+- 参数页显式 Dynamic Mix 启用入口；启用后工具栏提供 Bypass / Resume / Stop Dynamic 命令。
+- 前景参数列表中的 Speaker Mix 使用 `ParamInfo::SpeakerMix`，不再借用 `ParamInfo::Unknown`。
+- Dynamic Mix 状态下打开 Fixed Mix 对话框：列表按保存的 `sources` 顺序恢复，比例优先使用 `fixedWeights`，不回退到 singer 默认顺序。
+
+## Follow-up Notes（未完成项）
+
+- [ ] 下一轮优先补 `SpeakerMixData` 和 `InferSpeakerMixModel` 的**纯数据测试**。
+- [ ] Bypass 当前是文字按钮 + 轻量状态提示；后续可参考 DAW 的 automation/plugin bypass 样式设计更明确的旁路视觉语言。
+- [ ] preset 管理功能完整但操作偏重，后续讨论是否简化（更轻量的保存/覆盖/删除流程）。
+- [ ] 动态推理当前以 piece 范围采样为主，不做音符/音素级动态规划（更细粒度后续再评估）。
+- [ ] `MixedSinger` / `Sources::mix` 官方结构导入暂缓，确认 opendspx 官方表达后只调整 converter。
+
+## 关键文件
+
+- `src/libs/ProjectModel/AppModel/SingingClip.*`（`SpeakerMixData`）
+- `src/app/Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.*`（`ReplaceSpeakerMixAction` 等，undo/redo）
+- `src/app/UI/Dialogs/SpeakerMix/SpeakerMixDialog.*`（Fixed Mix + preset 管理）
+- `src/app/UI/Views/ClipEditor/ParamEditor/`（`SpeakerMixEditorView` 关键帧编辑）
+- `src/app/Modules/Inference/Models/InferSpeakerMixModel.*`（推理采样）
+- `src/app/UI/Views/TrackEditor/TrackControlView.cpp`、`ClipEditor/ToolBar/ClipEditorToolBarView.cpp`（二级菜单入口）
