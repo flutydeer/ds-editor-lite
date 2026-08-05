@@ -112,7 +112,7 @@ scripts/
   cmake/        # CMake utilities (winrc, etc.)
   vcpkg/        # Git submodule - vcpkg overlay ports/triplets
   vcpkg-manifest/ # vcpkg.json
-docs/           # Chinese-language dev docs (design/ = 已完成的设计契约, plans/ = 进行中方案, theme/ = 主题文档, archive/ = 历史归档)
+docs/           # Chinese-language dev docs (design/ = 已完成的设计契约, plans/ = 进行中方案, guides/ = 开发指南, theme/ = 主题文档, archive/ = 历史归档)
 ```
 
 ## Code style

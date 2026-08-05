@@ -228,12 +228,12 @@ Windows 部署由 `windeployqt --translations zh_CN` 携带 Qt 标准控件所�
 
 ## 相关实现
 
-- [`src/app/Utils/UiLanguageManager.*`](../src/app/Utils/UiLanguageManager.cpp)：语言解析和 translator 生命周期；
-- [`src/app/Model/AppOptions/Options/GeneralOption.*`](../src/app/Model/AppOptions/Options/GeneralOption.cpp)：语言偏好持久化；
-- [`src/app/UI/Dialogs/Options/Pages/GeneralPage.*`](../src/app/UI/Dialogs/Options/Pages/GeneralPage.cpp)：语言设置入口；
-- [`src/app/Modules/History/ActionSequence.*`](../src/app/Modules/History/ActionSequence.cpp)：长期撤销历史名称的动态翻译；
-- [`src/app/Controller/DocumentWorkflow/DocumentWorkflowController.cpp`](../src/app/Controller/DocumentWorkflow/DocumentWorkflowController.cpp)：未命名工程的语义状态与动态翻译；
-- [`src/app/Resources/translate/translation_zh_CN.ts`](../src/app/Resources/translate/translation_zh_CN.ts)：简体中文翻译源；
-- [`src/app/CMakeLists.txt`](../src/app/CMakeLists.txt)：TS/QM 生成、资源嵌入和 Windows 部署规则；
-- [`src/tests/TestUiLanguage/main.cpp`](../src/tests/TestUiLanguage/main.cpp)：语言解析和配置测试；
-- [`src/tests/TestDocumentWorkflow/main.cpp`](../src/tests/TestDocumentWorkflow/main.cpp)：未命名工程和撤销历史的动态翻译测试。
+- [`src/app/Utils/UiLanguageManager.*`](../../src/app/Utils/UiLanguageManager.cpp)：语言解析和 translator 生命周期；
+- [`src/app/Model/AppOptions/Options/GeneralOption.*`](../../src/app/Model/AppOptions/Options/GeneralOption.cpp)：语言偏好持久化；
+- [`src/app/UI/Dialogs/Options/Pages/GeneralPage.*`](../../src/app/UI/Dialogs/Options/Pages/GeneralPage.cpp)：语言设置入口；
+- [`src/app/Modules/History/ActionSequence.*`](../../src/app/Modules/History/ActionSequence.cpp)：长期撤销历史名称的动态翻译；
+- [`src/app/Controller/DocumentWorkflow/DocumentWorkflowController.cpp`](../../src/app/Controller/DocumentWorkflow/DocumentWorkflowController.cpp)：未命名工程的语义状态与动态翻译；
+- [`src/app/Resources/translate/translation_zh_CN.ts`](../../src/app/Resources/translate/translation_zh_CN.ts)：简体中文翻译源；
+- [`src/app/CMakeLists.txt`](../../src/app/CMakeLists.txt)：TS/QM 生成、资源嵌入和 Windows 部署规则；
+- [`src/tests/TestUiLanguage/main.cpp`](../../src/tests/TestUiLanguage/main.cpp)：语言解析和配置测试；
+- [`src/tests/TestDocumentWorkflow/main.cpp`](../../src/tests/TestDocumentWorkflow/main.cpp)：未命名工程和撤销历史的动态翻译测试。
