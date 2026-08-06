@@ -16,6 +16,9 @@
 #include "curve-util/CurveUtil.h"
 
 #include <QDebug>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(logInferHelper, "infer.helper")
 
 #include "Model/AppOptions/AppOptions.h"
 
@@ -78,7 +81,8 @@ namespace InferControllerHelper {
         }
 
         template <typename F>
-        InferParamCurve curveTransformedSnapshot(const DrawCurve &curve, const double scale, F unaryOp) {
+        InferParamCurve curveTransformedSnapshot(const DrawCurve &curve, const double scale,
+                                                 F unaryOp) {
             InferParamCurve result;
             result.localStartTick = curve.localStart();
             result.values.reserve(curve.values().size());
@@ -142,7 +146,8 @@ namespace InferControllerHelper {
         input.energy = curveSnapshot(piece.inputEnergy, 1000.0);
         input.mouthOpening = curveSnapshot(piece.inputMouthOpening, 1000.0);
         input.gender = curveSnapshot(piece.inputGender, 1000.0);
-        input.velocity = curveTransformedSnapshot(piece.inputVelocity, 1000.0, [](double x) { return std::exp2(x); });
+        input.velocity = curveTransformedSnapshot(piece.inputVelocity, 1000.0,
+                                                  [](double x) { return std::exp2(x); });
         input.toneShift = curveSnapshot(piece.inputToneShift, 1.0);
         input.depth = appOptions->inference()->depth;
         return input;
@@ -196,8 +201,9 @@ namespace InferControllerHelper {
     void updatePronunciation(const QList<Note *> &notes, const QList<QString> &args,
                              SingingClip &clip) {
         if (notes.count() != args.count()) {
-            qFatal() << "updateNotesPronunciation() note count != args count:" << notes.count()
-                     << args.count();
+            qCCritical(logInferHelper)
+                << "updateNotesPronunciation() note count != args count:" << notes.count()
+                << args.count() << "clipId:" << clip.id();
             return;
         }
         int i = 0;
@@ -211,8 +217,9 @@ namespace InferControllerHelper {
     void updatePhoneName(const QList<Note *> &notes, const QList<PhonemeNameResult> &args,
                          SingingClip &clip) {
         if (notes.count() != args.count()) {
-            qFatal() << "updatePhoneName() note count != args count:" << notes.count()
-                     << args.count();
+            qCCritical(logInferHelper)
+                << "updatePhoneName() note count != args count:" << notes.count() << args.count()
+                << "clipId:" << clip.id();
             return;
         }
         int i = 0;
@@ -229,8 +236,9 @@ namespace InferControllerHelper {
     void updatePhoneOffset(const QList<Note *> &notes, const QList<InferInputNote> &args,
                            SingingClip &clip) {
         if (notes.count() != args.count()) {
-            qFatal() << "updateNotesPhonemeName() note count != args count:" << notes.count()
-                     << args.count();
+            qCCritical(logInferHelper)
+                << "updateNotesPhonemeName() note count != args count:" << notes.count()
+                << args.count() << "clipId:" << clip.id();
             return;
         }
         int i = 0;

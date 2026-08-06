@@ -17,6 +17,9 @@
 #include <lite/Support/MathUtils.h>
 
 #include <algorithm>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(logPhonemeView, "phoneme.view")
 
 #include <QElapsedTimer>
 #include <QMouseEvent>
@@ -297,7 +300,6 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     painter.setPen(pen);
     auto x = tickToX(m_position);
     painter.drawLine(QLineF(x, 0, x, rect().height()));
-
 }
 
 void PhonemeView::mousePressEvent(QMouseEvent *event) {
@@ -670,7 +672,8 @@ void PhonemeView::handleAdjustCompleted(const PhonemeViewModel *phVm) {
     auto relatedPhonemes =
         Linq::where(phonemes, [&](const PhonemeViewModel *p) { return p->type == phVm->type; });
     if (relatedPhonemes.isEmpty()) {
-        qFatal() << "handleAdjustCompleted: related phonemes is empty";
+        qCCritical(logPhonemeView) << "handleAdjustCompleted: related phonemes is empty"
+                                   << "noteId:" << phVm->noteId;
         return;
     }
     const auto note = m_clip->findNoteById(phVm->noteId);
@@ -685,7 +688,8 @@ void PhonemeView::handleAdjustCompleted(const PhonemeViewModel *phVm) {
             offsets.append(offset);
         }
     } else {
-        qFatal() << "handleAdjustCompleted: adjusted Sil phoneme";
+        qCCritical(logPhonemeView) << "handleAdjustCompleted: adjusted Sil phoneme"
+                                   << "noteId:" << phVm->noteId;
         return;
     }
 

@@ -76,10 +76,7 @@ void GetPhonemeNameTask::processNotes() {
 
 QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
-        // R3/TD-3: Replace qFatal with qCCritical + return an equal-length
-        // fallback result, aligned with GetPronunciationTask's same scenario
-        // (cpp:71-74). The original qFatal aborted the process directly; while
-        // InferController guards against it, the design was inconsistent.
+        // Language module not ready — use fallback empty result.
         // Returning an equal-length list (each PhonemeNameResult defaults to
         // success=false) ensures distributePhonemes' result[i] access does
         // not go out of bounds.
@@ -187,7 +184,6 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
 
 void GetPhonemeNameTask::distributePhonemes() {
     const double gapThresholdMs = 2.0 * SingingClipSlicerGlobal::padBaseLength;
-    const int gapThresholdTicks =
-        static_cast<int>(std::round(m_timeline.msToTick(gapThresholdMs)));
+    const int gapThresholdTicks = static_cast<int>(std::round(m_timeline.msToTick(gapThresholdMs)));
     distributePhonemesToNotes(m_inputs, result, gapThresholdTicks);
 }

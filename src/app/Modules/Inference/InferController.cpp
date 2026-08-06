@@ -20,6 +20,9 @@
 
 #include <QTimer>
 #include <QPointer>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(logInferController, "infer.controller")
 
 #include <algorithm>
 #include <utility>
@@ -494,10 +497,10 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
             }
             break;
         case ParamInfo::SpeakerMix:
-            qFatal() << "Speaker mix is not a regular param";
+            qCCritical(logInferController) << "Speaker mix is not a regular param";
             break;
         case ParamInfo::Unknown:
-            qFatal() << "Unknown param";
+            qCCritical(logInferController) << "Unknown param";
             break;
     }
 }

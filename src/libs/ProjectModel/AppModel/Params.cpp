@@ -3,6 +3,9 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QDebug>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(logParams, "model.params")
 
 Param::~Param() {
     auto dispose = [=](const QList<Curve *> &curves) {
@@ -77,7 +80,7 @@ Param *ParamInfo::getParamByName(const Name name) {
         default:
             break;
     }
-    qFatal() << "Param type out of range" << name;
+    qCCritical(logParams) << "Param type out of range" << name;
     return nullptr;
 }
 

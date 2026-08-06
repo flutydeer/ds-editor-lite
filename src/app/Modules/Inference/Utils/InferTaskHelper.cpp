@@ -6,12 +6,16 @@
 #include <lite/ProjectModel/Utils/PhonemeHeadLayout.h>
 
 #include <QDebug>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(logInferBuildWords, "infer.build_words")
 
 QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool useOffsetInfo) {
     const auto &notes = input.notes;
     const auto &timeline = input.timeline;
     if (notes.isEmpty()) {
-        qFatal() << "buildWords: notes is empty";
+        qCCritical(logInferBuildWords) << "buildWords: notes is empty - clipId:" << input.clipId
+                                       << "pieceId:" << input.pieceId;
         return {};
     }
 
@@ -26,37 +30,38 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
 
     auto validateNonNegative = [&](const char *name, const double value, const int noteId) {
         if (hasNegativeValue(value))
-            qFatal() << "buildWords:" << name << "is negative"
-                     << "noteId:" << noteId << "value:" << value;
+            qCCritical(logInferBuildWords) << "buildWords:" << name << "is negative"
+                                           << "noteId:" << noteId << "value:" << value;
     };
 
     if (useOffsetInfo) {
         for (const auto &note : notes) {
             if (!note.isRest && note.phonemeOffsets.count() != note.phonemeNames.count())
-                qFatal() << "buildWords: phoneme offset count does not match phoneme name count"
-                         << "noteId:" << note.id << "offsetCount:" << note.phonemeOffsets.count()
-                         << "nameCount:" << note.phonemeNames.count();
+                qCCritical(logInferBuildWords)
+                    << "buildWords: phoneme offset count does not match phoneme name count"
+                    << "noteId:" << note.id << "offsetCount:" << note.phonemeOffsets.count()
+                    << "nameCount:" << note.phonemeNames.count();
         }
 
-        const auto headLayout =
-            PhonemeHeadLayout::calculate(input.paddingStartMs, input.headAvailableLengthMs,
-                                         notes.first().phonemeOffsets);
+        const auto headLayout = PhonemeHeadLayout::calculate(
+            input.paddingStartMs, input.headAvailableLengthMs, notes.first().phonemeOffsets);
         if (!headLayout.isWithinBounds()) {
-            qFatal() << "buildWords: first phoneme offsets exceed piece head boundary"
-                     << "clipId:" << input.clipId << "pieceId:" << input.pieceId
-                     << "noteId:" << notes.first().id
-                     << "minimumOffsetMs:" << headLayout.minimumFirstOffsetMs
-                     << "requiredHeadLengthMs:" << headLayout.requiredHeadLengthMs
-                     << "maximumHeadLengthMs:" << headLayout.maximumHeadLengthMs;
+            qCCritical(logInferBuildWords)
+                << "buildWords: first phoneme offsets exceed piece head boundary"
+                << "clipId:" << input.clipId << "pieceId:" << input.pieceId
+                << "noteId:" << notes.first().id
+                << "minimumOffsetMs:" << headLayout.minimumFirstOffsetMs
+                << "requiredHeadLengthMs:" << headLayout.requiredHeadLengthMs
+                << "maximumHeadLengthMs:" << headLayout.maximumHeadLengthMs;
         }
         if (headLayout.minimumFirstOffsetMs != input.minimumFirstOffsetMs ||
             !qFuzzyCompare(headLayout.requiredHeadLengthMs + 1.0,
                            input.requiredHeadLengthMs + 1.0) ||
-            !qFuzzyCompare(headLayout.maximumHeadLengthMs + 1.0,
-                           input.maximumHeadLengthMs + 1.0)) {
-            qFatal() << "buildWords: phoneme head layout does not match the inference snapshot"
-                     << "clipId:" << input.clipId << "pieceId:" << input.pieceId
-                     << "noteId:" << notes.first().id;
+            !qFuzzyCompare(headLayout.maximumHeadLengthMs + 1.0, input.maximumHeadLengthMs + 1.0)) {
+            qCCritical(logInferBuildWords)
+                << "buildWords: phoneme head layout does not match the inference snapshot"
+                << "clipId:" << input.clipId << "pieceId:" << input.pieceId
+                << "noteId:" << notes.first().id;
         }
     }
 
@@ -74,9 +79,12 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
 
     auto firstNote = notes.first();
     if (firstNote.isSlur)
-        qFatal() << "First note of a segment cannot be a slur.";
+        qCCritical(logInferBuildWords) << "buildWords: first note of a segment cannot be a slur."
+                                       << "clipId:" << input.clipId << "noteId:" << firstNote.id;
     if (firstNote.isPlus)
-        qFatal() << "First note of a segment cannot be an orphan plus note.";
+        qCCritical(logInferBuildWords)
+            << "buildWords: first note of a segment cannot be an orphan plus note."
+            << "clipId:" << input.clipId << "noteId:" << firstNote.id;
 
     // 如果第一个音符不是休止符，则填充 SP 音符
     if (!firstNote.isRest) {

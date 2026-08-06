@@ -4,6 +4,10 @@
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/MusicBase/Timeline.h>
 
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(logInferPiece, "infer.piece")
+
 InferPiece::InferPiece(SingingClip *clip) : QObject(clip), clip(clip) {
     acousticInferStatus.onChanged(qSignalCallback(statusChanged));
     state.onChanged(qSignalCallback(stateChanged));
@@ -51,7 +55,8 @@ const DrawCurve *InferPiece::getOriginalCurve(const ParamInfo::Name name) const 
         case ParamInfo::MouthOpening:
             return &originalMouthOpening;
         default:
-            qFatal() << "Param type out of range" << name;
+            qCCritical(logInferPiece)
+                << "Param type out of range" << name << "for getOriginalCurve";
             return nullptr;
     }
 }
@@ -77,7 +82,8 @@ void InferPiece::setOriginalCurve(const ParamInfo::Name name, const DrawCurve &c
             originalMouthOpening = curve;
             break;
         default:
-            qFatal() << "Param type out of range" << name;
+            qCCritical(logInferPiece)
+                << "Param type out of range" << name << "for setOriginalCurve";
     }
 }
 
@@ -104,7 +110,7 @@ const DrawCurve *InferPiece::getInputCurve(const ParamInfo::Name name) const {
         case ParamInfo::ToneShift:
             return &inputToneShift;
         default:
-            qFatal() << "Param type out of range" << name;
+            qCCritical(logInferPiece) << "Param type out of range" << name << "for getInputCurve";
             return nullptr;
     }
 }
@@ -142,6 +148,6 @@ void InferPiece::setInputCurve(const ParamInfo::Name name, const DrawCurve &curv
             inputToneShift = curve;
             break;
         default:
-            qFatal() << "Param type out of range" << name;
+            qCCritical(logInferPiece) << "Param type out of range" << name << "for setInputCurve";
     }
 }
