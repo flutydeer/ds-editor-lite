@@ -8,6 +8,7 @@
 #include <lite/Core/Singleton.h>
 
 #include <QObject>
+#include <QRectF>
 #include "Global/AppGlobal.h"
 
 class AppStatus : public QObject {
@@ -45,6 +46,8 @@ public:
     Property<QList<int>> selectedNotes;
     Property<QList<int>> selectedClips;
     Property<EditObjectType> currentEditObject = EditObjectType::None;
+    // Piano roll viewport (tick range x, keyIndex range y); null rect = invalid
+    Property<QRectF> pianoRollVisibleRect;
 
     // Loop
     Property<LoopSettings> loopSettings;
@@ -69,6 +72,7 @@ signals:
     void projectEditableLengthChanged(int newLength);
     void selectedTrackIndexChanged(int trackIndex);
     void activeClipIdChanged(int newId);
+    void pianoRollVisibleRectChanged(const QRectF &rect);
     void noteSelectionChanged(const QList<int> &selectedNotes);
     void clipSelectionChanged(const QList<int> &selectedClips);
     void editingChanged(AppStatus::EditObjectType type);

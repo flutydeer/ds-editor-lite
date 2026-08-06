@@ -30,11 +30,10 @@ AbstractClipView::AbstractClipView(const int itemId, QGraphicsItem *parent)
     : AbstractGraphicsRectItem(parent), IClip(itemId), d_ptr(new AbstractClipViewPrivate(this)) {
     setAcceptHoverEvents(true);
     setFlag(ItemIsSelectable);
-    connect(appOptions, &AppOptions::optionsChanged, this,
-            [this](AppOptionsGlobal::Option option) {
-                if (option == AppOptionsGlobal::DeveloperOptions)
-                    update();
-            });
+    connect(appOptions, &AppOptions::optionsChanged, this, [this](AppOptionsGlobal::Option option) {
+        if (option == AppOptionsGlobal::DeveloperOptions)
+            update();
+    });
 }
 
 AbstractClipView::~AbstractClipView() {
@@ -186,6 +185,11 @@ QRectF AbstractClipViewPrivate::previewRect() const {
     return paddedRect;
 }
 
+QRectF AbstractClipView::previewRect() const {
+    Q_D(const AbstractClipView);
+    return d->previewRect();
+}
+
 QString AbstractClipView::text() const {
     const auto showDebug = appOptions->developer()->showClipDebugInfo;
     const auto controlStr =
@@ -220,7 +224,7 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     auto width = rect().width() - penWidth;
     auto height = rect().height() - verticalPadding * 2;
     auto paddedRect = QRectF(left, top, width, height);
-    auto radius = 4;
+    const auto radius = clipCornerRadius;
 
     double iconWidth = 4;
     double textPadding = 0;
@@ -318,7 +322,8 @@ void AbstractClipView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 
 void AbstractClipView::updateRectAndPos() {
     Q_D(AbstractClipView);
-    const auto x = (d->m_start + d->m_clipStart) * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
+    const auto x = (d->m_start + d->m_clipStart) * scaleX() * pixelsPerQuarterNote /
+                   AppGlobal::ticksPerQuarterNote;
     const auto y = d->m_trackIndex * trackHeight * scaleY();
     const auto w = d->m_clipLen * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
     const auto h = trackHeight * scaleY();

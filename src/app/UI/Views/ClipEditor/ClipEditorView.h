@@ -52,6 +52,7 @@ private:
     void moveToSingingClipState(SingingClip *clip) const;
     void moveToAudioClipState(const AudioClip *clip) const;
     void moveToNullClipState() const;
+    void resetPianoRollViewportRange() const;
 
     ClipEditorToolBarView *m_toolbarView;
     PianoRollEditorView *m_pianoRollEditorView;

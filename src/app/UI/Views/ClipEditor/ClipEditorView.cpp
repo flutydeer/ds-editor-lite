@@ -16,6 +16,7 @@
 #include <QLabel>
 #include <QEvent>
 #include <QMouseEvent>
+#include <QRectF>
 #include <QVBoxLayout>
 
 #include <cmath>
@@ -182,6 +183,7 @@ void ClipEditorView::moveToAudioClipState(const AudioClip *clip) const {
     Q_UNUSED(clip);
     m_hasActiveClip = true;
     m_pianoRollEditorView->setVisible(false);
+    resetPianoRollViewportRange();
     m_placeholderLabel->setVisible(true);
     m_pianoRollEditorView->setDataContext(nullptr);
 }
@@ -189,8 +191,13 @@ void ClipEditorView::moveToAudioClipState(const AudioClip *clip) const {
 void ClipEditorView::moveToNullClipState() const {
     m_hasActiveClip = false;
     m_pianoRollEditorView->setVisible(false);
+    resetPianoRollViewportRange();
     m_placeholderLabel->setVisible(true);
     m_pianoRollEditorView->setDataContext(nullptr);
+}
+
+void ClipEditorView::resetPianoRollViewportRange() const {
+    appStatus->pianoRollVisibleRect = QRectF(); // null rect → invalid
 }
 
 void ClipEditorView::reset() {

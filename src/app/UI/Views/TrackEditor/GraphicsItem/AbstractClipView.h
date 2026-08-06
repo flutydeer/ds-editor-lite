@@ -53,9 +53,13 @@ signals:
     void removeTriggered(int id);
 
 protected:
+    // Clip 圆角半径；子类装饰绘制（如钢琴卷帘视口叠加层）复用同一值
+    static constexpr int clipCornerRadius = 4;
+
     [[nodiscard]] virtual QString text() const;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     virtual void drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) = 0;
+    [[nodiscard]] QRectF previewRect() const;
     void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
     void updateRectAndPos() override;
     [[nodiscard]] virtual QString clipTypeName() const = 0;

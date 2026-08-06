@@ -35,6 +35,8 @@ public:
     void loadNotes(const OverlappableSerialList<Note> &notes);
     void loadPreviewNotes(const QVector<std::tuple<int, int, int>> &notes);
     [[nodiscard]] int contentLength() const override;
+    // 将场景坐标换算为钢琴卷帘落点的 keyIndex；不在音符绘制区内返回 -1
+    [[nodiscard]] double keyIndexAtScenePos(const QPointF &scenePos) const;
 
 public slots:
     void onNoteListChanged(SingingClip::NoteChangeType type, const QList<Note *> &notes);
@@ -44,9 +46,22 @@ public slots:
     void setDefaultLanguage(const QString &language);
 
 private:
+    struct NoteLayout {
+        int lowestKeyIndex = 127;
+        int highestKeyIndex = 0;
+        double noteHeight = 0.0;
+
+        [[nodiscard]] bool valid() const {
+            return noteHeight > 0;
+        }
+    };
+
     // override;
     [[nodiscard]] QString text() const override;
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) override;
+    void drawPianoRollOverlay(QPainter *painter, const QRectF &previewRect, double noteHeight,
+                              int highestKeyIndex);
+    [[nodiscard]] NoteLayout computeNoteLayout(const QRectF &previewRect) const;
     [[nodiscard]] QString clipTypeName() const override;
     [[nodiscard]] QString iconPath() const override;
 

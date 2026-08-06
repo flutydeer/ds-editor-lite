@@ -14,6 +14,9 @@
 
 #include <QLabel>
 #include <QEvent>
+#include <QHideEvent>
+#include <QRectF>
+#include <QShowEvent>
 #include <QScrollBar>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -101,6 +104,15 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     else
         connectLegacyBackend();
     registerEditorShortcuts();
+    // 底部面板折叠（docked 模式为 splitter 高度归零，不触发 hideEvent）时
+    // 使轨道侧叠加层失效；展开且本视图可见时恢复
+    connect(appStatus, &AppStatus::bottomPanelCollapseStateChanged, this,
+            [this](const bool collapsed) {
+                if (collapsed)
+                    appStatus->pianoRollVisibleRect = QRectF();
+                else if (isVisible())
+                    updatePianoRollVisibleRect();
+            });
 }
 
 void PianoRollView::registerEditorShortcuts() {
@@ -155,6 +167,10 @@ void PianoRollView::connectLegacyBackend() {
             });
     connect(m_graphicsView, &TimeGraphicsView::autoPageTurnAvailabilityChanged, this,
             &PianoRollView::updateAutoPageTurnButtonView);
+    connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, this,
+            [this](double, double) { updatePianoRollVisibleRect(); });
+    connect(m_graphicsView, &PianoRollGraphicsView::keyRangeChanged, this,
+            [this](double, double) { updatePianoRollVisibleRect(); });
     m_graphicsView->setAutoTurnPage(appStatus->pianoRollAutoPageTurnEnabled);
 }
 
@@ -180,6 +196,10 @@ void PianoRollView::connectRhiBackend() {
             });
     connect(m_rhiView, &PianoRollRhiWidget::autoPageTurnAvailabilityChanged, this,
             &PianoRollView::updateAutoPageTurnButtonView);
+    connect(m_rhiView, &PianoRollRhiWidget::timeRangeChanged, this,
+            [this](double, double) { updatePianoRollVisibleRect(); });
+    connect(m_rhiView, &PianoRollRhiWidget::keyRangeChanged, this,
+            [this](double, double) { updatePianoRollVisibleRect(); });
     m_rhiView->setAutoPageTurn(appStatus->pianoRollAutoPageTurnEnabled);
 }
 
@@ -200,6 +220,7 @@ void PianoRollView::fallbackToLegacy() {
     QTimer::singleShot(0, this, [this, state] {
         setViewScale(state.horizontalScale, state.verticalScale);
         centerAt(state.centerTick, state.centerKeyIndex);
+        updatePianoRollVisibleRect();
     });
     qWarning() << "[PianoRollRhi] backend failed; restored Legacy view";
 }
@@ -219,6 +240,9 @@ void PianoRollView::setDataContext(SingingClip *clip) const {
     m_phonemeView->setVisible(notNull);
     m_keyboardView->setVisible(notNull);
     m_lbTip->setVisible(!notNull);
+
+    if (clip)
+        updatePianoRollVisibleRect();
 }
 
 void PianoRollView::onEditModeChanged(const PianoRollEditMode mode) const {
@@ -326,10 +350,40 @@ double PianoRollView::bottomKeyIndex() const {
     return m_rhiView ? m_rhiView->bottomKeyIndex() : m_graphicsView->bottomKeyIndex();
 }
 
+void PianoRollView::updatePianoRollVisibleRect() const {
+    if (!m_clip) {
+        appStatus->pianoRollVisibleRect = QRectF();
+        return;
+    }
+    const double start = startTick();
+    const double end = endTick();
+    const double top = topKeyIndex();
+    const double bottom = bottomKeyIndex();
+    // x 轴存相对 active clip 的局部 tick；轨道侧叠加层用 clip 当前 start() 平移，
+    // 拖动 clip（view start 实时变化、model start 未提交）时叠加层随之跟随
+    appStatus->pianoRollVisibleRect =
+        QRectF(start - m_clip->start(), bottom, end - start, top - bottom);
+}
+
 void PianoRollView::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
         m_lbTip->setText(tr("Select a singing clip to edit"));
+}
+
+void PianoRollView::hideEvent(QHideEvent *event) {
+    // 钢琴卷帘不可见（底部面板折叠 / 切换页面）时，轨道侧叠加层随之失效
+    appStatus->pianoRollVisibleRect = QRectF();
+    QWidget::hideEvent(event);
+}
+
+void PianoRollView::showEvent(QShowEvent *event) {
+    QWidget::showEvent(event);
+    if (appStatus->bottomPanelCollapsed) {
+        appStatus->pianoRollVisibleRect = QRectF();
+        return;
+    }
+    updatePianoRollVisibleRect();
 }
 
 void PianoRollView::updateAutoPageTurnButtonView(const bool available) {

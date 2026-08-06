@@ -342,7 +342,17 @@ void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     if (const auto item = itemAt(event->pos())) {
         if (auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
             editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
-            editorViewController->centerPianoRollAt(playbackController->position(), 60);
+            double tick = playbackController->position();
+            double keyIndex = 60;
+            // 音符绘制区内双击：钢琴卷帘居中到双击落点（tick + keyIndex）
+            if (const auto singingClip = dynamic_cast<SingingClipView *>(clipItem)) {
+                const double key = singingClip->keyIndexAtScenePos(scenePos);
+                if (key >= 0) {
+                    tick = m_scene->tickAt(scenePos.x());
+                    keyIndex = key;
+                }
+            }
+            editorViewController->centerPianoRollAt(tick, keyIndex);
         } else if (dynamic_cast<TrackEditorBackgroundView *>(item)) {
             m_tick = TimelineSnapUtils::snapDown(tick, snapStep(false, tick), appModel->timeline());
             onNewSingingClip();

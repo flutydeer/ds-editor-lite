@@ -18,6 +18,8 @@ class PianoRollContextMenuController;
 class PianoKeyboardView;
 class QVBoxLayout;
 class QWheelEvent;
+class QHideEvent;
+class QShowEvent;
 class TimelineView;
 
 class PianoRollView final : public QWidget {
@@ -49,6 +51,8 @@ signals:
 
 protected:
     void changeEvent(QEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
+    void showEvent(QShowEvent *event) override;
 
 private:
     void createLegacyBackend();
@@ -57,6 +61,7 @@ private:
     void fallbackToLegacy();
     void registerEditorShortcuts();
     void updateAutoPageTurnButtonView(bool available);
+    void updatePianoRollVisibleRect() const;
     [[nodiscard]] double startTick() const;
     [[nodiscard]] double endTick() const;
     [[nodiscard]] double topKeyIndex() const;
