@@ -50,6 +50,8 @@ private:
         int lowestKeyIndex = 127;
         int highestKeyIndex = 0;
         double noteHeight = 0.0;
+        // 音符内容区顶部锚点（previewRect.top() + 垂直居中偏移）
+        double contentTop = 0.0;
 
         [[nodiscard]] bool valid() const {
             return noteHeight > 0;
@@ -59,11 +61,14 @@ private:
     // override;
     [[nodiscard]] QString text() const override;
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) override;
-    void drawPianoRollOverlay(QPainter *painter, const QRectF &previewRect, double noteHeight,
-                              int highestKeyIndex);
+    void drawPianoRollOverlay(QPainter *painter, double noteHeight, int highestKeyIndex,
+                              double contentTop);
     [[nodiscard]] NoteLayout computeNoteLayout(const QRectF &previewRect) const;
     [[nodiscard]] QString clipTypeName() const override;
     [[nodiscard]] QString iconPath() const override;
+
+    // 音符缩略图最大高度（像素）；超过时压缩并垂直居中绘制
+    static constexpr double maxNoteHeight = 8.0;
 
     QList<NoteViewModel *> m_notes;
     QString m_singerName;

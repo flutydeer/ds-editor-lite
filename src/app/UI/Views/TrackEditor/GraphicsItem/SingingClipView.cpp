@@ -127,7 +127,6 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
                                       const QColor color) {
     painter->setRenderHint(QPainter::Antialiasing);
 
-    const auto rectTop = previewRect.top();
     const auto rectWidth = previewRect.width();
     const auto rectHeight = previewRect.height();
 
@@ -140,6 +139,7 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
     const auto layout = computeNoteLayout(previewRect);
     const auto noteHeight = layout.noteHeight;
     const auto highestKeyIndex = layout.highestKeyIndex;
+    const auto contentTop = layout.contentTop;
 
     for (const auto &note : m_notes) {
         const auto clipLeft = start() + clipStart();
@@ -157,15 +157,15 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
             width = sceneXToItemX(tickToSceneX(start() + note->rStart + note->length)) - left;
         } else if (start() + note->rStart + note->length >= clipRight)
             width = tickToSceneX(clipRight - start() - note->rStart);
-        const auto top = -(note->keyIndex - highestKeyIndex) * noteHeight + rectTop;
+        const auto top = -(note->keyIndex - highestKeyIndex) * noteHeight + contentTop;
         painter->drawRect(QRectF(left, top, width, noteHeight));
     }
 
-    drawPianoRollOverlay(painter, previewRect, noteHeight, highestKeyIndex);
+    drawPianoRollOverlay(painter, noteHeight, highestKeyIndex, contentTop);
 }
 
-void SingingClipView::drawPianoRollOverlay(QPainter *painter, const QRectF &previewRect,
-                                           const double noteHeight, const int highestKeyIndex) {
+void SingingClipView::drawPianoRollOverlay(QPainter *painter, const double noteHeight,
+                                           const int highestKeyIndex, const double contentTop) {
     if (!activeClip() || m_notes.isEmpty() || noteHeight <= 0)
         return;
 
@@ -191,9 +191,8 @@ void SingingClipView::drawPianoRollOverlay(QPainter *painter, const QRectF &prev
     const auto right = sceneXToItemX(tickToSceneX(overlayTickEnd));
 
     // y 轴：复用 drawPreviewArea 的 noteHeight + highestKeyIndex 映射
-    const auto rectTop = previewRect.top();
-    const auto overlayTop = -(prHighKey - highestKeyIndex) * noteHeight + rectTop;
-    const auto overlayBottom = -(prLowKey - highestKeyIndex) * noteHeight + rectTop + noteHeight;
+    const auto overlayTop = -(prHighKey - highestKeyIndex) * noteHeight + contentTop;
+    const auto overlayBottom = -(prLowKey - highestKeyIndex) * noteHeight + contentTop + noteHeight;
     const auto overlayRect = QRectF(left, overlayTop, right - left, overlayBottom - overlayTop);
 
     // 边框色跟随轨道色（AppColorPalette 由主题系统驱动）
@@ -216,8 +215,12 @@ SingingClipView::NoteLayout SingingClipView::computeNoteLayout(const QRectF &pre
     }
     const int divideCount = layout.highestKeyIndex - layout.lowestKeyIndex + 1;
     layout.noteHeight = previewRect.height() / divideCount;
-    if (layout.noteHeight > 16)
-        layout.noteHeight = 16;
+    if (layout.noteHeight > maxNoteHeight)
+        layout.noteHeight = maxNoteHeight;
+    // 内容总高小于预览区时垂直居中，避免贴顶绘制（音域窄 / 纵向放大时留白均匀）
+    const double contentHeight = divideCount * layout.noteHeight;
+    layout.contentTop =
+        previewRect.top() + std::max(0.0, previewRect.height() - contentHeight) * 0.5;
     return layout;
 }
 
@@ -231,8 +234,8 @@ double SingingClipView::keyIndexAtScenePos(const QPointF &scenePos) const {
     const double localY = mapFromScene(scenePos).y();
     if (localY < preview.top() || localY > preview.bottom())
         return -1.0;
-    // 逆映射：y = -(keyIndex - highestKeyIndex) * noteHeight + preview.top()
-    return layout.highestKeyIndex - (localY - preview.top()) / layout.noteHeight;
+    // 逆映射：y = -(keyIndex - highestKeyIndex) * noteHeight + contentTop
+    return layout.highestKeyIndex - (localY - layout.contentTop) / layout.noteHeight;
 }
 
 QString SingingClipView::clipTypeName() const {
