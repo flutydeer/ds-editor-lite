@@ -1331,6 +1331,7 @@ TimelineView {
     qproperty-loopMarkerDisabledColor: ${editor.loopDisabled};
     qproperty-piecePendingColor: ${timeline.task.pending};
     qproperty-pieceRunningColor: ${timeline.task.runningLow};
+    qproperty-pieceRunningColorHigh: ${timeline.task.runningHigh};
     qproperty-pieceSuccessColor: ${timeline.task.success};
     qproperty-pieceFailedColor: ${timeline.task.failed};
 }

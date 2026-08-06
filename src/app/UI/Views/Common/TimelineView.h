@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QTimer>
+#include <QElapsedTimer>
 #include "UI/Utils/ITimelinePainter.h"
 
 class SingingClip;
@@ -19,10 +20,12 @@ class TimelineView : public QWidget, public ITimelinePainter {
     Q_PROPERTY(QColor subdivisionFromColor READ subdivisionFromColor WRITE setSubdivisionFromColor)
     Q_PROPERTY(QColor subdivisionToColor READ subdivisionToColor WRITE setSubdivisionToColor)
     Q_PROPERTY(QColor loopMarkerColor READ loopMarkerColor WRITE setLoopMarkerColor)
-    Q_PROPERTY(
-        QColor loopMarkerDisabledColor READ loopMarkerDisabledColor WRITE setLoopMarkerDisabledColor)
+    Q_PROPERTY(QColor loopMarkerDisabledColor READ loopMarkerDisabledColor WRITE
+                   setLoopMarkerDisabledColor)
     Q_PROPERTY(QColor piecePendingColor READ piecePendingColor WRITE setPiecePendingColor)
     Q_PROPERTY(QColor pieceRunningColor READ pieceRunningColor WRITE setPieceRunningColor)
+    Q_PROPERTY(
+        QColor pieceRunningColorHigh READ pieceRunningColorHigh WRITE setPieceRunningColorHigh)
     Q_PROPERTY(QColor pieceSuccessColor READ pieceSuccessColor WRITE setPieceSuccessColor)
     Q_PROPERTY(QColor pieceFailedColor READ pieceFailedColor WRITE setPieceFailedColor)
 
@@ -91,6 +94,8 @@ private:
     void setPiecePendingColor(const QColor &color);
     [[nodiscard]] QColor pieceRunningColor() const;
     void setPieceRunningColor(const QColor &color);
+    [[nodiscard]] QColor pieceRunningColorHigh() const;
+    void setPieceRunningColorHigh(const QColor &color);
     [[nodiscard]] QColor pieceSuccessColor() const;
     void setPieceSuccessColor(const QColor &color);
     [[nodiscard]] QColor pieceFailedColor() const;
@@ -107,8 +112,9 @@ private:
     QList<InferPiece *> m_pieces;
     SingingClip *m_clip = nullptr;
     // Piece status colors: Pending, Running, Success, Failed (indexed by status)
-    QList<QColor> m_piecesColors = {QColor(100, 100, 100), QColor(255, 204, 153),
-                                    QColor(155, 255, 162), QColor(255, 155, 157)};
+    QList<QColor> m_piecesColors = {QColor(100, 100, 100), QColor(95, 99, 108),
+                                    QColor(155, 255, 174), QColor(255, 155, 157)};
+    QColor m_runningColorHigh = QColor(154, 158, 168);
 
     // Theme colors (QSS-overridable via qproperty-*)
     QColor m_playheadColor = {200, 200, 200};
@@ -130,7 +136,10 @@ private:
     int m_loopHandleWidth = 8;
     QTimer m_pieceUpdateThrottle;
     QTimer m_positionThrottle;
+    QTimer m_pulseTimer;
+    QElapsedTimer m_pulseElapsed;
     double m_pendingPosition = 0;
+    void updatePulseTimer();
 };
 
 

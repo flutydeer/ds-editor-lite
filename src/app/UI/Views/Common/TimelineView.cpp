@@ -1,6 +1,7 @@
 #include "TimelineView.h"
 
 #include <QPainter>
+#include <numbers>
 #include <QWheelEvent>
 
 #include "Controller/PlaybackController.h"
@@ -50,6 +51,10 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
         update();
     });
 
+    m_pulseTimer.setInterval(16);
+    m_pulseTimer.setSingleShot(false);
+    connect(&m_pulseTimer, &QTimer::timeout, this, qOverload<>(&QWidget::update));
+
     connect(this, &TimelineView::setLastPositionTriggered, playbackController, [=](double tick) {
         playbackController->setLastPosition(tick);
         playbackController->setPosition(tick);
@@ -59,11 +64,10 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     connect(appModel, &AppModel::modelChanged, this, applyTimeline);
     connect(appModel, &AppModel::timelineChanged, this, applyTimeline);
     connect(appStatus, &AppStatus::loopSettingsChanged, this, &TimelineView::onLoopSettingsChanged);
-    connect(appOptions, &AppOptions::optionsChanged, this,
-            [this](AppOptionsGlobal::Option option) {
-                if (option == AppOptionsGlobal::DeveloperOptions)
-                    update();
-            });
+    connect(appOptions, &AppOptions::optionsChanged, this, [this](AppOptionsGlobal::Option option) {
+        if (option == AppOptionsGlobal::DeveloperOptions)
+            update();
+    });
 }
 
 void TimelineView::setCanEditLoop(bool canEdit) {
@@ -100,7 +104,6 @@ void TimelineView::setDataContext(SingingClip *clip) {
     m_clip = clip;
     update();
 }
-
 
 void TimelineView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
@@ -338,6 +341,7 @@ void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
         connect(piece, &InferPiece::statusChanged, this, [this] {
             if (!m_pieceUpdateThrottle.isActive())
                 m_pieceUpdateThrottle.start();
+            updatePulseTimer();
         });
         connect(piece, &InferPiece::stateChanged, this, [this] {
             if (!m_pieceUpdateThrottle.isActive())
@@ -345,6 +349,7 @@ void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
         });
     }
     m_pieces = pieces;
+    updatePulseTimer();
     update();
 }
 
@@ -362,7 +367,16 @@ void TimelineView::drawPieces(QPainter *painter) const {
     painter->setBrush(Qt::NoBrush);
     for (const auto &piece : m_clip->pieces()) {
         // Draw piece range with status
-        pen.setColor(m_piecesColors[piece->acousticInferStatus]);
+        if (piece->acousticInferStatus == Running && m_pulseTimer.isActive()) {
+            // Sine-wave pulse between neutral.400 and neutral.250
+            constexpr double kPulseFrequency = 1.0;
+            const double elapsed = m_pulseElapsed.elapsed();
+            const double phase = elapsed / 1000.0 * kPulseFrequency * 2.0 * std::numbers::pi;
+            const double t = 0.5 + 0.5 * std::sin(phase);
+            pen.setColor(blendColor(m_piecesColors[1], m_runningColorHigh, t));
+        } else {
+            pen.setColor(m_piecesColors[piece->acousticInferStatus]);
+        }
         painter->setPen(pen);
         auto pieceStartX = tickToX(piece->localStartTick(appModel->timeline()) + m_clip->start());
         auto pieceEndX = tickToX(piece->localEndTick(appModel->timeline()) + m_clip->start());
@@ -386,9 +400,8 @@ void TimelineView::drawPieceDebugOverlay(QPainter *painter, const InferPiece *pi
     auto firstNoteStartTick = piece->notes.first()->localStart() + m_clip->start();
     auto firstNoteStartX = tickToX(firstNoteStartTick);
 
-    const auto headX = tickToX(
-        piece->phonemeHeadLayout().earliestAllowedStartTick(appModel->timeline(),
-                                                            firstNoteStartTick));
+    const auto headX = tickToX(piece->phonemeHeadLayout().earliestAllowedStartTick(
+        appModel->timeline(), firstNoteStartTick));
 
     auto lastNoteEndTick =
         piece->notes.last()->localStart() + piece->notes.last()->length() + m_clip->start();
@@ -692,5 +705,32 @@ void TimelineView::setPieceFailedColor(const QColor &color) {
     if (m_piecesColors[3] == color)
         return;
     m_piecesColors[3] = color;
+    update();
+}
+
+void TimelineView::updatePulseTimer() {
+    bool hasRunning = false;
+    for (const auto &piece : m_pieces) {
+        if (piece->acousticInferStatus == Running) {
+            hasRunning = true;
+            break;
+        }
+    }
+    if (hasRunning && !m_pulseTimer.isActive()) {
+        m_pulseElapsed.start();
+        m_pulseTimer.start();
+    } else if (!hasRunning && m_pulseTimer.isActive()) {
+        m_pulseTimer.stop();
+    }
+}
+
+QColor TimelineView::pieceRunningColorHigh() const {
+    return m_runningColorHigh;
+}
+
+void TimelineView::setPieceRunningColorHigh(const QColor &color) {
+    if (m_runningColorHigh == color)
+        return;
+    m_runningColorHigh = color;
     update();
 }

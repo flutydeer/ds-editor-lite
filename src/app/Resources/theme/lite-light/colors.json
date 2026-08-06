@@ -204,8 +204,8 @@
         "meter.trackBackground": "{neutral.200}",
 
         "timeline.task.pending": "{neutral.500}",
-        "timeline.task.runningLow": "{feedback.warning}",
-        "timeline.task.runningHigh": "{feedback.warningStrong}",
+        "timeline.task.runningLow": "{neutral.500}",
+        "timeline.task.runningHigh": "{neutral.250}",
         "timeline.task.success": "{feedback.success}",
         "timeline.task.failed": "{feedback.error}",
 

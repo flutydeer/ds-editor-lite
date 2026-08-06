@@ -194,9 +194,9 @@
         "meter.background": "{neutral.black75}",
         "meter.trackBackground": "{transparent.default}",
 
-        "timeline.task.pending": "#646464",
-        "timeline.task.runningLow": "{feedback.warning}",
-        "timeline.task.runningHigh": "{feedback.warningStrong}",
+        "timeline.task.pending": "{neutral.550}",
+        "timeline.task.runningLow": "{neutral.500}",
+        "timeline.task.runningHigh": "{neutral.250}",
         "timeline.task.success": "{feedback.success}",
         "timeline.task.failed": "{feedback.error}",
 
