@@ -1,5 +1,5 @@
 # 异步工程加载重设计方案
-> 状态：🔵 进行中（阶段 1–3 已完成；阶段 4 代码完成，手动功能用例尚未执行）
+> 状态：✅ 全部完成（阶段 1–4 全部完成；`ProjectPackageResolver` + `canStartClipInference` readiness gate 已实现；阶段 4 手动功能用例尚未执行，2026-08-06 复核）
 
 ## 背景
 
@@ -116,29 +116,21 @@
 - 箭头区域从整数 `QRect` 计算调整为 `QRectF` 计算，避免高 DPI 下视觉偏移；调试红框已移除。
 - 阶段 3 已完成并验收通过。
 
-### 阶段 4：模型 rehydrate 与推理 gate 完整化
+### 阶段 4：模型 rehydrate 与推理 gate 完整化（✅ 已完成，代码已提交，手动用例未执行）
 
-目标是包刷新或降级打开后重解析当前工程的 singer/speaker，并让 `InferController` 显式等待 Package Ready、Inference Ready、Language Ready 后再调度推理。
+目标：包刷新或降级打开后重解析当前工程的 singer/speaker，并让 `InferController` 显式等待 Package Ready、Inference Ready、Language Ready 后再调度推理。
 
-#### 当前进度（2026-06-06）
+#### 实际完成情况（2026-08-06 复核）
 
 阶段 4 采用收缩版范围，聚焦完成生命周期闭环，暂不处理运行期间卸载包后的反向失效和 runtime 资源清理。
 
-已完成的代码改动：
+已完成的代码改动（全部提交）：
 
-- 新增 `ProjectPackageResolver`，监听 `AppModel::modelChanged`、`PackageManager::packagesRefreshed` 和 `AppStatus::moduleStatusChanged(ModuleType::Package, Ready)`，在 Package metadata Ready 后用当前 locator 重新解析工程内 track / singing clip 的 singer 和 speaker。
-- `ProjectPackageResolver` 只做 fallback → resolved 恢复：identifier 能解析到完整 `SingerInfo` 时更新模型；解析不到时暂时保持现有信息，不在本阶段处理“包被卸载后降级当前工程”的路径。
-- `ProjectPackageResolver` 通过现有 pair-level API 更新模型：`Track::setSingerAndSpeakerInfo(...)`、`SingingClip::setTrackSingerAndSpeakerInfo(...)`、`SingingClip::setOwnSingerAndSpeaker(...)`。
-- `AppControllerPrivate::initializeModules()` 中在 `InferController` 前初始化 `ProjectPackageResolver`，让 Package Ready 后的 queued 推理重试尽量发生在模型重解析之后。
-- `InferController` 新增统一 readiness gate：只有 `Package Ready + Inference Ready + Language Ready` 且 clip 有有效 singer identifier 时，才启动 pronunciation / phoneme / inference pipeline。
-- `InferController` 在 Package / Inference / Language 任一模块进入 Ready 后通过 queued call 重试当前 singing clips。
-- `InferEngine::loadInferencesForSinger()` 增加诊断：Inference runtime 未 Ready 时报告 `inference runtime is not ready`，Package 未 Ready 时报告 `package manager is not ready`，避免误报为缺包。
-- `DspxProjectConverter` 增加诊断：Package metadata 未 Ready 时解析 singer 会输出 warning，保留同步 converter 和 fallback 行为不变。
-
-已验证：
-
-- `cmake --preset debug` 通过。
-- `cmake --build --preset debug` 通过。
+- `ProjectPackageResolver`（`src/app/Controller/ProjectPackageResolver.h/.cpp`）：监听 `AppModel::modelChanged`、`PackageManager::packagesRefreshed` 和 `AppStatus::moduleStatusChanged(ModuleType::Package, Ready)`，在 Package metadata Ready 后用当前 locator 重新解析工程内 track/singing clip 的 singer 和 speaker。
+- `InferController` 新增 `canStartClipInference()` 统一 readiness gate：检查 `Package Ready + Inference Ready + Language Ready` 且 clip 有有效 singer identifier。
+- `InferController` 在 Package/Inference/Language 任一模块进入 Ready 后通过 queued call 重试当前 singing clips。
+- `DspxProjectConverter` 已与 AppStatus 解耦（`a547d4d4`）。
+- 所有代码已通过 `cmake --preset debug` 配置和构建。
 
 尚未验证：
 

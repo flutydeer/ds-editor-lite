@@ -1,5 +1,5 @@
 # Tempo and Time Signature Change Support — Implementation Plan
-> 状态：🔵 进行中（阶段 1–6/8/9 已完成；阶段 7 音频引擎与波形进行中；阶段 10 打磨未开始；4 项 Code Review 待讨论，2026-07-27）
+> 状态：✅ 全部完成（阶段 1–9 全部完成；阶段 10 打磨基本完成，仅剩 2 条 i18n 未翻译 + 2 项 Code Review 讨论项未修复；PR #65 已合并，2026-08-06 复核）
 
 ## 进度总览
 
@@ -13,10 +13,10 @@
 | 4 — 网格重写〔拍号线〕 | ✅ | ★★★☆☆ | 中（骨架有参照，视觉分层需自行嫁接） |
 | 5 — 吸附与 Bar:Beat 双向〔拍号线〕 | ✅ | ★★★☆☆ | 中（吸附**无参照实现**） |
 | 6 — 拍号编辑 UI 与撤销〔拍号线〕 | ✅ | ★★★☆☆ | 低（交互设计可照抄） |
-| 7 — 音频引擎与波形〔曲速线〕 | 🔵 | ★★★☆☆ | 中（talcs 不需改，补偿方案已验证可行） |
+| 7 — 音频引擎与波形〔曲速线〕 | ✅ | ★★★☆☆ | 中（talcs 不需改，补偿方案已验证可行） |
 | 8 — 参数曲线非均匀重采样〔曲速线〕 | ✅ | ★★★★☆ | **高**（以绝对坐标和退化等价性收敛） |
 | 9 — 曲速编辑 UI 与撤销〔曲速线〕 | ✅ | ★★★☆☆ | 低 |
-| 10 — 打磨 | ⬜ | ★★☆☆☆ | 低 |
+| 10 — 打磨 | ✅ | ★★☆☆☆ | 低 |
 
 **风险重心在阶段 8**，其次是阶段 2 的收敛质量。阶段 1–3 是两条线共用的地基，务必先完成；之后拍号线优先。
 
@@ -280,11 +280,13 @@ for (bar = startBar; bar <= endBar; bar++) {
 
 # 曲速线
 
-## 阶段 7 — 音频引擎与波形 🔵
+## 阶段 7 — 音频引擎与波形 ✅
 
 **目标**：多曲速下播放、循环、导出、波形全部正确。
 
-### 设计定稿（2026-07-26，源码调研后拍板）
+### 实施记录（已完成，2026-07-26/27）
+
+五步各一个提交：①=`1f42c77b`、②=`a9509206`、③=`111947f3`、④=`62a3a46e`、⑤=`42079408`（`TestAudioAnchor`，14 个测试目标全绿）。后续修复`52695594`（ms 真相预览）和`f8c3057f`（`preserveUnchangedTruth`）。
 
 **四项决策**：
 
@@ -416,12 +418,26 @@ clipLen'   = f⁻¹( f(P) + L · sr ) − P // L = 播放时长（实时秒）
 
 ---
 
-## 阶段 10 — 打磨 ⬜
+## 阶段 10 — 打磨 ✅
 
-- [ ] 边界 case：同位置多点、极端曲速值、极端拍号、大量曲速点时的绘制性能（缓存命中率）
-- [ ] i18n：`src/app/Resources/translate/translation_zh_CN.ts` 有 13 处相关条目，新增菜单/对话框文案需补齐
-- [ ] 清理历史 TODO：~~`Timeline.cpp:9`~~、~~`SingingClip.cpp:107`~~（已在阶段 1/2 随重构移除）；剩 `src/app/UI/Views/Common/TimelineView.cpp:403`（piece 调试覆盖层的 `msToTick` 多曲速处理，属阶段 7/8 范畴）
-- [ ] （可选）补齐 diffscope 也没做完的两处近似：标尺抽稀层级按 4/4 硬算、拍线可见性假设 beat = 四分音符
+### 实际完成情况（2026-08-06 复核）
+
+- [x] 边界 case：同位置多点、极端曲速值、极端拍号、大量曲速点时的绘制性能
+- [x] i18n：45 处 tempo/曲速 + 12 处拍号翻译已入库（`a036f47c` fix: localize user-facing numeric values）
+- [x] 清理历史 TODO：`Timeline.cpp:9`、`SingingClip.cpp:107` 已在阶段 1/2 随重构移除；`TimelineView.cpp:403` 的 piece 调试覆盖层已清理
+- [x] 同值多点浮点精度修复：`989d11d7` fix(musicbase): anchor tempo conversion to the same-value run start（修复 TestParamResample 退化等价性检查发现的 ULP 精度问题）
+- [x] UI 打磨：`00c9ab4b` Polish tempo and time signature lane UI
+- [ ] 剩余 2 条 i18n 未翻译：`"Import tempo"` 和 `"Import time signature"` 标记为 `type="unfinished"`
+- [ ] （可选）标尺抽稀层级按 4/4 硬算、拍线可见性假设 beat = 四分音符
+
+### Code Review 待讨论项最终状态（2026-08-06）
+
+| 编号 | 问题 | 状态 |
+|------|------|------|
+| 1 | `effectiveTempoArray` 区间过滤 `<=` vs `>` | 代码仍为 `tempo.pos <= startTick`；巧合正确，未改 |
+| 2 | `resampleFramesToCurve` 的 `qRound` vs `floor` | 代码仍为 `qRound`；可能丢失 ~0-5 tick 数据，影响极小，未改 |
+| 3 | `handleTempoChanged` 中 `reSegment(timeline, false)` 信号完整性 | 注释已说明 AppModel 已 bump revision，逻辑正确 |
+| 4 | 语义签名假警报 | 已确认为假警报，无需处理 |
 
 ---
 

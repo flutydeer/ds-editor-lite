@@ -1,5 +1,5 @@
 # 推理期间 UI 性能优化报告
-> 状态：📋 技术债清单（4 项优化已完成；5 项待优化未实施，见文末性价比表）
+> 状态：📋 技术债清单（5 项优化已完成；5 项待优化未实施，见文末性价比表。2026-08-06 复核）
 
 ## 问题描述
 
@@ -16,6 +16,16 @@
 - `States/BaseInferState.cpp` — `prepareTaskInput()` + `createTask()` 通过 `QtConcurrent::run()` 移至工作线程
 
 **效果：** 解决按下播放后所有 pipeline 同时进入 InferAcousticState 导致的主线程阻塞。
+
+### ✅ 将声学缓存探测移出 UI 线程
+
+**提交：** `c34768ae` fix(inference): route lazy acoustic cache probes off ui thread
+
+**修改文件：**
+- `InferPipeline.cpp/h` — 新增异步探测路径
+- `States/ProbeAcousticCacheState.cpp/h` — 新增独立状态，在工作线程执行声学缓存探测
+
+**效果：** 进一步减少推理状态转换对主线程事件循环的阻塞。
 
 ### ✅ 修复 worker 线程 mutate 模型（线程安全）
 
@@ -140,7 +150,8 @@
 | 排名 | 项目 | 收益 | 风险 | 工作量 | 性价比 |
 |------|------|------|------|--------|--------|
 | 1 | （已完成）TimelineView 重绘节流 | 高 | 极低 | 极小 | ★★★★★ |
-| 2 | mergeCurves 每帧深拷贝 | 高 | 低 | 小 | ★★★★☆ |
-| 3 | updateOriginalParam 信号风暴 | 高 | 低 | 中等 | ★★★☆☆ |
-| 4 | TaskQueue 全量排序 | 中 | 低 | 中等 | ★★☆☆☆ |
-| 5 | PhonemeView 全量重建 | 中 | 中 | 中等 | ★★☆☆☆ |
+| 2 | （已完成）声学缓存探测移出 UI 线程 | 高 | 低 | 中等 | ★★★★☆ |
+| 3 | mergeCurves 每帧深拷贝 | 高 | 低 | 小 | ★★★★☆ |
+| 4 | updateOriginalParam 信号风暴 | 高 | 低 | 中等 | ★★★☆☆ |
+| 5 | TaskQueue 全量排序 | 中 | 低 | 中等 | ★★☆☆☆ |
+| 6 | PhonemeView 全量重建 | 中 | 中 | 中等 | ★★☆☆☆ |

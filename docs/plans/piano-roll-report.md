@@ -1,5 +1,5 @@
 # 钢琴卷帘状态管理与事件分发审计报告
-> 状态：📋 技术债清单（A1–B6 问题均未修复，不影响当前功能正确性；`m_selecting` 标志仍在代码中）
+> 状态：📋 技术债清单（A2、A3、A4、IntervalSelectHandler 重复已修复；A1、A5、A6、B1–B6 未修复，不影响当前功能正确性。2026-08-06 复核）
 
 ## 架构概述
 
@@ -125,23 +125,23 @@ Pimpl 中的 `m_selecting`（`_p.h:59`）在 `mousePressEvent` 中设为 `true`�
 
 ## C. 总结
 
-| 编号 | 严重度 | 分类 | 问题 |
-|---|---|---|---|
-| A1 | 设计 | 架构 | `mousePressEvent` 中 Handler 分发与内联逻辑混合 |
-| A2 | 设计 | 分层 | `DrawNoteHandler` 直接修改 `d->m_currentHandler` |
-| A3 | 设计 | DRY | `splitNoteAtPosition` 存在两套重复实现 |
-| A4 | 设计 | 语义 | `anchorEditMode` 标志语义重载 |
-| A5 | 设计 | 完整性 | `DrawPitch`/`ErasePitch` 无 Handler，依赖 Z 序 |
-| A6 | 设计 | 生命周期 | 锚点 Handler 自动提交，脱离 `commitAction()` 流程 |
-| B1 | 质量 | 契约 | Handler 返回值语义不一致 |
-| B2 | 质量 | 逻辑 | Escape 在 `event()` 和 `keyPressEvent` 中双重处理 |
-| B3 | 质量 | 性能 | 音符查找使用线性扫描 |
-| B4 | 质量 | 清晰度 | `cancelRequested` 来自基类，与 Pimpl 状态混用 |
-| B5 | 质量 | 清晰度 | `m_selecting` 标志功能退化 |
-| B6 | 质量 | 模式 | 锚点 Handler 用 `mouseMoveEvent` 代替 `hoverMoveEvent` 检测悬停 |
+| 编号 | 严重度 | 分类 | 问题 | 状态 |
+|------|--------|------|------|------|
+| A1 | 设计 | 架构 | `mousePressEvent` 中 Handler 分发与内联逻辑混合 | ❌ 未修复 |
+| A2 | 设计 | 分层 | `DrawNoteHandler` 直接修改 `d->m_currentHandler` | ✅ **已修复**（`47412231`） |
+| A3 | 设计 | DRY | `splitNoteAtPosition` 存在两套重复实现 | ✅ **已修复**（统一到 `PianoRollGraphicsViewHelper::splitNote`） |
+| A4 | 设计 | 语义 | `anchorEditMode` 标志语义重载 | ✅ **已修复**（`d2aed9bb` 拆分为 `anchorVisible` + `anchorEditActive`） |
+| A5 | 设计 | 完整性 | `DrawPitch`/`ErasePitch` 无 Handler，依赖 Z 序 | ❌ 未修复 |
+| A6 | 设计 | 生命周期 | 锚点 Handler 自动提交，脱离 `commitAction()` 流程 | ❌ 未修复 |
+| B1 | 质量 | 契约 | Handler 返回值语义不一致 | ❌ 未修复 |
+| B2 | 质量 | 逻辑 | Escape 在 `event()` 和 `keyPressEvent` 中双重处理 | ❌ 未修复 |
+| B3 | 质量 | 性能 | 音符查找使用线性扫描 | ❌ 未修复 |
+| B4 | 质量 | 清晰度 | `cancelRequested` 来自基类，与 Pimpl 状态混用 | ❌ 未修复 |
+| B5 | 质量 | 清晰度 | `m_selecting` 标志功能退化 | ⚠️ 部分修复（已移至 `PianoRollSelectionModel`） |
+| B6 | 质量 | 模式 | 锚点 Handler 用 `mouseMoveEvent` 代替 `hoverMoveEvent` 检测悬停 | ❌ 未修复 |
 
-以上问题均不影响当前功能正确性，可在后续重构中逐步改进。建议优先关注：
+以上问题均不影响当前功能正确性，可在后续重构中逐步改进。已修复 3 项（A2、A3、A4），建议继续关注：
 
-1. **A4**（标志拆分）— 防止后续功能引入隐性 Bug
-2. **A2**（Handler 指针管理）— 理清分层职责
-3. **B1**（返回值语义）— 统一契约可降低后续开发心智负担
+1. **B1**（返回值语义）— 统一契约可降低后续开发心智负担
+2. **A1**（Handler 分发与内联逻辑混合）— 架构清晰化
+3. **B2**（Escape 双重处理）— 防止逻辑冲突

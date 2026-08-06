@@ -1,5 +1,5 @@
 # app 内部依赖解耦方案
-> 状态：🔵 部分实施（A 类下沉与 B 类上移已完成；C 类三 seam 倒置未做；`scripts/check-layering.py` 护栏脚本未创建。物理抽库进展见 ../design/app-architecture.md）
+> 状态：🔵 部分实施（A 类下沉与 B 类上移已完成；`check-layering.py` 护栏脚本未创建；C 类三 seam 倒置未做；物理抽库已完成 lib 提取。2026-08-06 复核）
 
 > 目标:在**单个 `DsEditorLite` target 内部**把错误的层间依赖梳理干净,为后续物理抽库(`src/libs/` + sync_include)扫清障碍。
 > 依赖解耦与物理抽库是正交的两件事——本方案只做前者,全程不动 CMake target 结构,不改包含前缀风格(仍用 `"Model/Xxx.h"` 相对写法)。
@@ -142,17 +142,18 @@ UI          48    63    13   141    76    64   351
 
 ---
 
-## 执行顺序
+## 执行顺序（实际完成情况）
 
 ```
-1. A 类整簇下沉:{SingerIdentifier,SingerInfo,SpeakerInfo,LanguageInfo} → Model/AppModel
-2. A 类单件下沉:InferSpeakerMix、HistoryFocus
+1. ✅ A 类整簇下沉:{SingerIdentifier,SingerInfo,SpeakerInfo,LanguageInfo} → Model/Voice
+2. ✅ A 类单件下沉:InferSpeakerMix、HistoryFocus
    —— Model→Modules 15→~3、Interface→Modules 清零 ——
-3. 上依赖护栏脚本(scripts/check-layering.py):当前违规记 baseline,只拦新增
-4. B 类:摸清 Utils 模型辅助簇边界,整簇上移进 Model
-5. C-seam①:UI 弹窗倒置(含 MidiConverterDialog、FillLyric→UI)
-6. C-seam②:Playback 访问倒置
-7. C-seam③:ModelChangeHandler/Actions 倒置
+3. ❌ 上依赖护栏脚本(scripts/check-layering.py):当前违规记 baseline,只拦新增（未创建）
+4. ✅ B 类:摸清 Utils 模型辅助簇边界,整簇上移进 Model/Utils
+5. ✅ 物理抽库:ProjectModel、PackageManager、Language、History、MusicBase、GUI 已提取
+6. ❌ C-seam①:UI 弹窗倒置(含 MidiConverterDialog、FillLyric→UI)
+7. ❌ C-seam②:Playback 访问倒置
+8. ❌ C-seam③:ModelChangeHandler/Actions 倒置
 ```
 
 ## 每步的验证不变量

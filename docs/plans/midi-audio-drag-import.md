@@ -1,5 +1,5 @@
 # MIDI 与音频拖放导入分阶段实施方案
-> 状态：🔵 进行中（Phase 1–3 已实现并提交：虚拟追加槽、文件分类器、批量 MIDI 解析；Phase 4 混合队列/统一历史、Phase 5 测试回归未完成；落点偏移 Open Question 待讨论，2026-08-05 暂缓决策）
+> 状态：🔵 进行中（Phase 1–4 已实现并提交：虚拟追加槽、文件分类器、批量 MIDI 解析、混合队列/统一历史；Phase 5 测试回归未完成；落点偏移 Open Question 待讨论，2026-08-06 暂缓决策）
 
 ## Summary
 
@@ -99,9 +99,17 @@ void requestImport(const QStringList &paths,
 - 第一个 MIDI 损坏时，使用下一个成功解析的 MIDI 作为时间线来源。
 - 空 MIDI 或无音符 MIDI 被记为失败，但不阻止其他文件。
 
-## Phase 4：混合队列、连续分轨与统一历史
+## Phase 4：混合队列、连续分轨与统一历史 ✅
 
-### Changes
+### 实施情况（2026-08-06 复核，提交 `f8b70a5b`）
+
+Phase 4 已实现并提交，包含以下关键文件：
+
+- `BatchImportActions.h/.cpp` — 批量导入的 ActionSequence，整个批次一个历史项
+- `DocumentImportController.h/.cpp` — 文档导入控制器，按 URL 顺序串行准备 MIDI 和音频
+- `MidiBatchImportDialog.h/.cpp` — 批量 MIDI 公共配置弹窗
+
+### Changes（已实现）
 
 - 文档导入控制器按 `QMimeData::urls()` 顺序串行准备 MIDI 和音频，期间保持 busy。
 - 画布真实轨道落点保存从目标轨道到末尾的稳定 track ID 快照；追加槽和画布外不提供现有轨道。
@@ -132,9 +140,11 @@ void requestImport(const QStringList &paths,
 - 文件菜单导入 MIDI 没有落点，因此全部在工程末尾新建轨道。
 - 落在虚拟追加槽时 MIDI 和音频全部新建轨道，但仍使用画布横坐标提供的音频 tick。
 
-## Phase 5：测试、回归与 GUI 验证
+## Phase 5：测试、回归与 GUI 验证 ⬜
 
-### Automated Tests
+### 当前状态（2026-08-06 复核）
+
+Phase 5 尚未实施。无专用测试文件覆盖 batch import / drag drop 路径。
 
 - 文件分类：大小写扩展名、远程 URL、目录、未知格式、工程与资源混拖。
 - 虚拟追加槽：零轨道、未填满、填满、超出视口、纵向缩放和自动滚动。
@@ -157,7 +167,8 @@ void requestImport(const QStringList &paths,
 - 现有轨道仅指拖放瞬间已经存在的轨道，不包括本批次新建轨道。
 - 多个音频共享同一开始 tick，不首尾串联。
 - 导入内容允许与已有剪辑重叠。
-- Phase 1 到 Phase 3 先建立基础能力；完整用户功能在 Phase 4 接通后启用。
+- Phase 1 到 Phase 3 先建立基础能力；完整用户功能在 Phase 4 接通后启用。
+
 ## Open Questions：MIDI 导入落点偏移
 
 **现状**：MIDI 导入保留源 tick（音符从 MIDI 原始 tick 开始，与光标/落点无关）。
@@ -175,4 +186,5 @@ void requestImport(const QStringList &paths,
 - 画布外拖放：Δ = 播放位置。
 
 **状态**：待讨论（2026-08-05 记录，暂缓决策）。
-
+
+
