@@ -337,11 +337,20 @@ void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
     for (const auto piece : m_pieces) {
         disconnect(piece, nullptr, this, nullptr);
     }
+    m_previousStatus.clear();
+    m_transitions.clear();
     for (const auto piece : pieces) {
-        connect(piece, &InferPiece::statusChanged, this, [this] {
+        m_previousStatus[piece->id()] = piece->acousticInferStatus;
+        connect(piece, &InferPiece::statusChanged, this, [this, piece](InferStatus /*newStatus*/) {
+            const InferStatus oldStatus = m_previousStatus.value(piece->id(), Pending);
+            m_previousStatus[piece->id()] = piece->acousticInferStatus;
+            if (!m_pulseTimer.isActive()) {
+                m_pulseElapsed.start();
+                m_pulseTimer.start();
+            }
+            startTransition(piece, oldStatus);
             if (!m_pieceUpdateThrottle.isActive())
                 m_pieceUpdateThrottle.start();
-            updatePulseTimer();
         });
         connect(piece, &InferPiece::stateChanged, this, [this] {
             if (!m_pieceUpdateThrottle.isActive())
@@ -359,32 +368,53 @@ void TimelineView::onLoopSettingsChanged(const LoopSettings &settings) {
 }
 
 void TimelineView::drawPieces(QPainter *painter) const {
+    for (const auto &piece : m_clip->pieces()) {
+        drawPiece(painter, piece);
+    }
+}
+
+void TimelineView::drawPiece(QPainter *painter, const InferPiece *piece) const {
     auto penWidth = 2;
     auto y = rect().height() - penWidth / 2;
     QPen pen;
     pen.setWidthF(penWidth);
     pen.setCapStyle(Qt::RoundCap);
     painter->setBrush(Qt::NoBrush);
-    for (const auto &piece : m_clip->pieces()) {
-        // Draw piece range with status
-        if (piece->acousticInferStatus == Running && m_pulseTimer.isActive()) {
-            // Sine-wave pulse between neutral.400 and neutral.250
-            constexpr double kPulseFrequency = 1.0;
-            const double elapsed = m_pulseElapsed.elapsed();
-            const double phase = elapsed / 1000.0 * kPulseFrequency * 2.0 * std::numbers::pi;
-            const double t = 0.5 + 0.5 * std::sin(phase);
-            pen.setColor(blendColor(m_piecesColors[1], m_runningColorHigh, t));
-        } else {
-            pen.setColor(m_piecesColors[piece->acousticInferStatus]);
-        }
-        painter->setPen(pen);
-        auto pieceStartX = tickToX(piece->localStartTick(appModel->timeline()) + m_clip->start());
-        auto pieceEndX = tickToX(piece->localEndTick(appModel->timeline()) + m_clip->start());
-        painter->drawLine(pieceStartX, y, pieceEndX, y);
 
-        if (appOptions->developer()->showTimelineDebugInfo)
-            drawPieceDebugOverlay(painter, piece);
+    // Compute target color based on status
+    QColor targetColor;
+    if (piece->acousticInferStatus == Running && m_pulseTimer.isActive()) {
+        constexpr double kPulsePeriod = 1.3;
+        constexpr double kPulseFrequency = 1.0 / kPulsePeriod;
+        const double elapsed = m_pulseElapsed.elapsed();
+        const double phase = elapsed / 1000.0 * kPulseFrequency * 2.0 * std::numbers::pi;
+        const double t = 0.5 + 0.5 * std::sin(phase);
+        targetColor = blendColor(m_piecesColors[1], m_runningColorHigh, t);
+    } else {
+        targetColor = m_piecesColors[piece->acousticInferStatus];
     }
+
+    // Apply active color transition
+    auto it = m_transitions.find(piece->id());
+    if (it != m_transitions.end()) {
+        const qint64 elapsed = m_pulseElapsed.elapsed() - it->startTime;
+        if (elapsed >= it->duration) {
+            m_transitions.erase(it);
+        } else {
+            const double progress =
+                1.0 - std::pow(1.0 - static_cast<double>(elapsed) / it->duration, 3);
+            targetColor = blendColor(it->fromColor, targetColor, progress);
+        }
+    }
+
+    pen.setColor(targetColor);
+    painter->setPen(pen);
+    auto pieceStartX = tickToX(piece->localStartTick(appModel->timeline()) + m_clip->start());
+    auto pieceEndX = tickToX(piece->localEndTick(appModel->timeline()) + m_clip->start());
+    painter->drawLine(pieceStartX, y, pieceEndX, y);
+
+    if (appOptions->developer()->showTimelineDebugInfo)
+        drawPieceDebugOverlay(painter, piece);
 }
 
 void TimelineView::drawPieceDebugOverlay(QPainter *painter, const InferPiece *piece) const {
@@ -722,6 +752,21 @@ void TimelineView::updatePulseTimer() {
     } else if (!hasRunning && m_pulseTimer.isActive()) {
         m_pulseTimer.stop();
     }
+}
+
+void TimelineView::startTransition(InferPiece *piece, InferStatus oldStatus) {
+    QColor fromColor;
+    if (oldStatus == Running) {
+        constexpr double kPulsePeriod = 1.3;
+        constexpr double kPulseFrequency = 1.0 / kPulsePeriod;
+        const double elapsed = m_pulseElapsed.elapsed();
+        const double phase = elapsed / 1000.0 * kPulseFrequency * 2.0 * std::numbers::pi;
+        const double t = 0.5 + 0.5 * std::sin(phase);
+        fromColor = blendColor(m_piecesColors[1], m_runningColorHigh, t);
+    } else {
+        fromColor = m_piecesColors[oldStatus];
+    }
+    m_transitions[piece->id()] = {fromColor, m_pulseElapsed.elapsed(), 200};
 }
 
 QColor TimelineView::pieceRunningColorHigh() const {

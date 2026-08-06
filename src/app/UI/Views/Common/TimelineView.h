@@ -4,7 +4,15 @@
 #include <QWidget>
 #include <QTimer>
 #include <QElapsedTimer>
+#include <QMap>
+#include <lite/ProjectModel/InferenceData/InferStatus.h>
 #include "UI/Utils/ITimelinePainter.h"
+
+struct PieceColorTransition {
+    QColor fromColor;
+    qint64 startTime;
+    int duration = 200;
+};
 
 class SingingClip;
 class InferPiece;
@@ -64,6 +72,8 @@ private slots:
 private:
     void drawPieces(QPainter *painter) const;
     void drawPieceDebugOverlay(QPainter *painter, const InferPiece *piece) const;
+    void drawPiece(QPainter *painter, const InferPiece *piece) const;
+    void startTransition(InferPiece *piece, InferStatus oldStatus);
     void drawLoopRegion(QPainter *painter) const;
     void drawLoopBackground(QPainter *painter) const;
     void drawLoopMarkers(QPainter *painter) const;
@@ -139,9 +149,9 @@ private:
     QTimer m_pulseTimer;
     QElapsedTimer m_pulseElapsed;
     double m_pendingPosition = 0;
+    mutable QMap<int, PieceColorTransition> m_transitions;
+    QMap<int, InferStatus> m_previousStatus;
     void updatePulseTimer();
 };
-
-
 
 #endif // TIMELINEVIEW_H
