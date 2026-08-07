@@ -342,7 +342,7 @@ QWidget *InferencePage::createContentWidget() {
 
     const auto cacheCard = new OptionListCard(tr("Cache"));
     cacheCard->addItem(tr("Cache Directory"), m_btnOpenCacheFolder);
-    cacheCard->addItem(tr("Cache Size"), m_lblCacheStats);
+    cacheCard->addItem(tr("Cache Size"), {m_lblCacheStats, m_btnScanCache});
     cacheCard->addItem(tr("Clean Up"), m_btnCleanCache);
 
     startCacheScan();
