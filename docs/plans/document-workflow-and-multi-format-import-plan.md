@@ -4,7 +4,7 @@
 
 | 阶段 | 状态 | 更新时间 |
 | --- | --- | --- |
-| 第一阶段：统一文档工作流 | 已完成 | 2026-07-15 |
+| 第一阶段：统一文档工作流 | 已完成（2026-08-08 复核并补充实现细节） | 2026-07-15 |
 | 第二阶段：通用多格式导入框架 | 待讨论（未实施） | 2026-08-06 |
 
 本文记录 DS Editor Lite 的 New、Open、Import、Save、Save As、Close、Restart 工作流改造，
@@ -202,7 +202,8 @@ Replace 的实际顺序：
 
 ### Append
 
-MIDI Import 使用名为 `Import MIDI` 的 `ActionSequence`：
+MIDI Import 使用 `ImportProjectActions`（`ActionSequence` 子类，
+`src/app/Controller/Actions/AppModel/ImportProjectActions.h`）：
 
 - 可选 tempo 使用 TempoActions。
 - 可选 time signature 使用 TimeSignatureActions。
@@ -256,6 +257,26 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 
 批准后的第二次 close 进入现有 TaskManager 终止和等待流程。Restart 使用相同路径并携带
 `TerminationMode::Restart`。
+
+## 批量导入与拖放并行管线（2026-08 补充）
+
+文档创建后新增了独立的批量导入管线（`f8b70a5b`），与上方外层状态机**并行存在**：
+
+- `DocumentImportController`（`src/app/Modules/Import/`）接收批量文件列表（多选 / 拖放），串行准备后由 `BatchImportActions`（`ActionSequence` 子类）**直接提交**并 `historyManager->record()`。
+- 该管线**不经过外层状态机**：没有保存保护、并发拒绝、requestId 校验和统一提交器；遵守追加语义（不改文档身份、路径、loop 和最近工程）。
+- 因此"菜单、最近工程、拖放和启动参数统一提交请求"目前只对**单文件入口**成立；批量 / 拖放走轻量管线。
+- 第二阶段迁移顺序第 1 步（`MidiFormatHandler` 替换 `LegacyMidiLoadSession`）时应评估是否将批量管线一并纳入格式注册表。
+
+## 文档创建后的实现补充（2026-08-08 复核）
+
+- `ReplaceProjectPayload::displayName`：外来工程的显示名（`71e3cfa6` 修复带点外来文件名在标题中丢失的问题）。
+- `m_skipSaveGuard`：用户选择 Discard 或保存后 resume 时跳过重复的保存保护询问。
+- 枚举：`DocumentOperation { New, Open, Import, Save, SaveAs }`、`ProjectLoadPurpose { Open, Import }`、`ProjectSourceKind { Native, Foreign }`。
+- 信号：`busyChanged` / `documentIdentityChanged` / `recentProjectFilesChanged` / `terminationApproved`；完成事件除文档列出的 4 个外还有 `sessionStarted` / `sessionReadyEvent` / `sessionFailedEvent` / `sessionCanceledEvent` / `cancelSessionRequested` / `commitFinished` / `failureHandled` / `operationFailed`。
+- `initializeNewDocument()`：启动时创建默认文档的入口。
+- 状态命名：文档中的 `AwaitingSessionCancellation` 对应代码 `m_cancelingSessionState`。
+- 进度对话框父窗口：`ensureProgressDialog` 使用 `m_ui->documentWorkflowParentWidget()` 作为 parent（`ProgressDialog(true, false, ...)` 可取消、不可隐藏）。
+- 相关后续修复：`f184dde5`（Restart 不再把 exe 路径当工程打开）、`b844644f`（未保存时 Windows 关机拦截自定义文案）。
 
 ## 第一阶段验证记录
 
@@ -432,29 +453,31 @@ enum class ProjectIssueSeverity {
 - Parser / Converter 不直接弹窗。
 - 保存和提交错误继续由外层工作流处理。
 
-## 建议迁移顺序
 
-1. 用 `MidiFormatHandler` 替换 `LegacyMidiLoadSession`，拆分后台解析、配置和物化。
-2. MIDI 通道切换改为异步 Reprocessing，并用 generationId 丢弃旧结果。
-3. 引入通用导入向导和基础 UserInput DTO。
-4. 实现 DSPX Import：轨道选择、时间线选项和 loop 忽略策略。
-5. 引入 SingerMapping 和 ResourceMapping。
-6. 将 DSPX Open 迁入格式注册表，移除第一阶段临时 Session 工厂。
-7. 接入至少一种新的歌声工程格式，用第三种实现验证抽象。
-8. 根据第三种格式暴露的问题，再冻结 Handler、配置页和 Issue API。
+## 迁移顺序（2026-08-08 冻结为最小闭环 6 步）
 
-## 下一轮需要优先讨论的问题
+**范围**：最小闭环——框架 + MIDI/DSPX 迁移，抽象由 DSPX Import 验证；不接入新歌声工程格式（原第 7/8 步取消，等真实格式需求再评估）。
 
-1. 配置页接口、生命周期及前后导航如何建模？
-2. 配置变化引发重解析时，哪些中间结果可以复用？
-3. SingerMapping 按 singer、track 还是 clip 建模？
-4. 歌手映射规则是否持久化，如何避免错误自动复用？
-5. Import 时 tempo / time signature / loop 冲突如何统一表达？
-6. 无法识别的参数、自动化曲线和资源如何降级？
-7. RecoverableError 的标准动作是否统一为 Retry / Skip / Map / Abort？
-8. 跳过错误 Track / Clip 后如何保证 payload 完整性？
-9. Warning 是否支持“不再提示”，作用域是什么？
-10. Materializing 阶段的取消边界和原子性如何定义？
+1. **S1 — `MidiFormatHandler` 替换 `LegacyMidiLoadSession`**（只拆结构不改行为）：引入 `ProjectFormatRegistry` + `IProjectFormatHandler` 骨架；Session 内部暂保持线性流程，通用状态机骨架留到 S2。
+2. **S2 — MIDI 通道切换异步 Reprocessing**：引入通用 Session 状态机骨架；用 generationId 丢弃过期结果。
+3. **S3 — 通用单页配置面板 + 基础 UserInput DTO**：MIDI 配置页迁入面板容器；Session 只收 DTO，不持有 QWidget。
+4. **S4 — DSPX Import**（轨道选择、时间线选项、loop 忽略策略）：第一个 Append 型歌声工程格式，验证 Handler 抽象。
+5. **S5 — SingerMapping + ResourceMapping**：按 track 粒度；Skip / Map / Abort 落地。
+6. **S6 — DSPX Open 迁入格式注册表**：移除 `DspxLoadSession` / `LegacyMidiLoadSession` 临时 Session 工厂，内外层边界收口。
+
+
+## 已冻结决策（2026-08-08 讨论）
+
+1. **配置页接口、生命周期及前后导航**：单页配置面板——Handler 提供 page widget，DTO 先行；多页向导容器后置（等真实格式暴露需求再评估）。
+2. **配置变化引发重解析时哪些中间结果可复用**：解析产物（中间表示）跨配置复用；物化结果（`ProjectModelData`）永不缓存；generationId 只丢弃过期物化。
+3. **SingerMapping 粒度**：按 track 建模 `{ sourceTrackId, targetSingerIdentifier, targetSpeakerId? }`，允许“未映射”状态；源 clip 显式指定不同歌手时才落 clip 级。
+4. **歌手映射规则是否持久化**：不持久化，每次导入重新映射（避免换包后静默映射错）；“最近使用”仅作 UI 快捷项，不自动应用。
+5. **Import 时 tempo / time signature / loop 冲突统一表达**：复用现有 `importTempo` / `importTimeSignature` 布尔选项（`ImportProjectActions` 已有）；冲突升级为 Warning 级 Issue；Import 永不触碰 loop，Open 整体替换。
+6. **无法识别的参数、自动化曲线和资源降级**：分层降级——可安全丢弃（未知自动化曲线）→ Warning + 丢弃；影响正确性（未知参数曲线）→ Warning + 保留；资源 → 走现有资源检查链。解析器永不因未知数据失败，降级必须记录 Issue。
+7. **RecoverableError 标准动作**：Skip / Map / Abort 三动作；Retry 不单独建模（隐含为返回配置页重新分析）。
+8. **跳过错误 Track / Clip 后 payload 完整性**：Skip = 该 Track 不出现在 payload；至少保留 1 个有效 Track 才能提交（全跳 = Abort）；被跳过内容进 Warning 汇总。
+9. **Warning 是否支持“不再提示”**：第一版不做（作用域成本高收益低，真实格式接入后再评估）。
+10. **Materializing 取消边界和原子性**：进入 Materializing 前可取消，进入后不可取消（与外层 Committing 对齐）；物化在临时 AppModel 上进行，取消 = 丢弃临时对象，当前文档零影响。
 
 ## 第二阶段验收方向
 

@@ -52,18 +52,18 @@ InferEngine runtime init     ├─ 并行
 LanguageEngine init          ┘
 ```
 
-## 工程打开等待（requestOpenFile + ProgressDialog）
+## 工程打开等待（requestOpen + DspxLoadSession）
 
-保留现有同步接口 `bool openFile(const QString &filePath, QString &errorMessage)`，新增异步请求接口 `void requestOpenFile(const QString &filePath)`：
+**现状（2026-08-08 复核）**：打开请求已收敛到 `DocumentWorkflowController::requestOpen(...)`（第一阶段统一文档工作流接管；`AppController::requestOpenFile` 已不存在）。Package 等待内嵌在 `DspxLoadSession` 内部（`handlePackageStatus()`），进度对话框由外层状态机统一管理（`ensureProgressDialog`，`ProgressDialog(true, false, ...)` 可取消、不可隐藏，提交阶段禁用取消）：
 
-- `.mid` / `.midi`：不依赖歌手包，立即走现有打开流程
-- `.dspx` 且 `packageModuleStatus == Ready`：立即调用现有 `openFile(...)`
-- `.dspx` 且包在 `Unknown` / `Loading`：显示 `ProgressDialog` 等待（indeterminate），包 ready 后关闭 dialog 并继续打开工程
-- 包扫描进入 `Error`：提示初始化失败，但**允许用户继续降级打开**（保留 fallback singer identity，不阻塞用户）
+- `.mid` / `.midi`：不依赖歌手包，由 `LegacyMidiLoadSession` 立即处理，不走 Package 等待
+- `.dspx` 且 `packageModuleStatus == Ready`：直接启动 `OpenDspxProjectTask`
+- `.dspx` 且包在 `Unknown` / `Loading`：显示 `ProgressDialog` 等待（indeterminate），包 ready 后继续打开工程
+- 包扫描进入 `Error`：通过 `IDocumentWorkflowUi::confirmOpenWithoutPackageMetadata()` 询问用户，**允许降级打开**（保留 fallback singer identity，不阻塞用户）
 
-`.dspx` 打开**不等待** `InferEngine Ready`。`main.cpp` 命令行工程路径改为 `QTimer::singleShot(0, ...)` 在事件循环开始后调用 `requestOpenFile`；"打开成功后自动选中第一条轨道第一个 clip 并切到 ClipEditor"的行为移到延迟打开成功之后的 helper 中执行。
+`.dspx` 打开**不等待** `InferEngine Ready`。`main.cpp` 命令行工程路径在事件循环开始后调用 `documentWorkflowController->requestOpen(filePath)`（`main.cpp:69`）；"打开成功后自动选中第一条轨道第一个 clip 并切到 ClipEditor"由 `DocumentWorkflowController::activateFirstClip()` 执行。
 
-**ProgressDialog** 从 `TaskDialog` 中抽出：只负责标题、消息、进度条、取消按钮、隐藏/关闭控制等 UI 能力，不依赖 `Task` / `TaskManager`；`TaskDialog` 改为继承 `ProgressDialog`，只保留 Task 状态适配与取消终止任务逻辑。等待连接建立后会立即复查当前 Package 状态（避免错过 Ready/Error）；pending dialog 在完成、替换请求、控制器析构时集中关闭并删除，避免泄漏；取消（`cancelPendingOpen()`）清空 pending 路径和 dialog，确保取消后不会在 Package Ready 时误打开工程。
+**ProgressDialog** 从 `TaskDialog` 中抽出：只负责标题、消息、进度条、取消按钮、隐藏/关闭控制等 UI 能力，不依赖 `Task` / `TaskManager`；`TaskDialog` 改为继承 `ProgressDialog`，只保留 Task 状态适配与取消终止任务逻辑。等待连接建立后会立即复查当前 Package 状态（避免错过 Ready/Error）；pending dialog 在完成、替换请求、控制器析构时集中关闭并删除，避免泄漏；取消走 `DocumentWorkflowController::cancelCurrentOperation()`（对应 AppController 时代的 `cancelPendingOpen()`），清空 pending 请求和 dialog，确保取消后不会在 Package Ready 时误打开工程。
 
 ## UI 表达 Package Loading
 
@@ -127,7 +127,7 @@ fallback `SingerInfo` 构造逻辑保留，仅作为**降级路径**：包扫描
 - 缺包 UI 显示 `packageId/packageVersion/singerId`，而不是笼统 `No singer`
 - 包搜索路径变更后自动刷新并重解析当前工程
 - 打开工程时显示更详细的多阶段进度：扫描包、加载工程、校验资源、初始化推理引擎
-- 将菜单、最近文件、拖放等所有 UI 打开入口统一迁移到 `requestOpenFile(...)`，让运行中打开 `.dspx` 也复用 Package Ready 等待逻辑
+- 将菜单、最近文件、拖放等所有 UI 打开入口统一迁移到 `DocumentWorkflowController::requestOpen(...)`，让运行中打开 `.dspx` 也复用 Package Ready 等待逻辑（批量 / 拖放目前仍走 `DocumentImportController` 独立管线）
 - `ProgressDialog` 中仍暴露的 `TaskGlobal::Status` 替换为更通用的进度状态类型，减少 Task 语义泄漏
 - 清理 `requestOpenFile(...)` / `openFile(...)` 的重复文件检查和后缀判断；优化打开成功后激活首个 clip 的容器访问
 - 为 fallback → resolved 的模型恢复过程增加自动测试
@@ -137,7 +137,7 @@ fallback `SingerInfo` 构造逻辑保留，仅作为**降级路径**：包扫描
 
 | 风险 | 规避 |
 |---|---|
-| openFile 语义改变影响调用方 | 保留同步 `openFile(...)`，新增 `requestOpenFile(...)`，逐步迁移 |
+| 打开请求语义改变影响调用方 | 打开请求统一收敛到 `DocumentWorkflowController::requestOpen(...)`（保留同步路径的内部等价物），逐步迁移剩余入口 |
 | 默认工程启动期间用户看到空 singer 列表 | 不阻塞主窗口，组合框显示 disabled 的"(Scanning...)"，ready 后自动刷新 |
 | metadata / inference 两个 SynthUnit 配置不一致 | 抽共享配置 helper；同一 package search path 来源 |
 | 重解析触发大量 singerOrSpeakerChanged | setter 前比较旧/新 pair；继续使用 pair-level batching，只在真变化时发信号 |
@@ -151,7 +151,8 @@ fallback `SingerInfo` 构造逻辑保留，仅作为**降级路径**：包扫描
 |---|---|
 | 状态 | `src/app/Model/AppStatus/AppStatus.h/.cpp` |
 | 启动 | `src/app/main.cpp` |
-| 控制器 | `src/app/Controller/AppController.h/.cpp`、`AppController_p.h`、`src/app/Controller/ProjectPackageResolver.h/.cpp` |
+| 控制器 | `src/app/Controller/DocumentWorkflow/DocumentWorkflowController.h/.cpp`、`src/app/Controller/ProjectPackageResolver.h/.cpp` |
+| 加载会话 | `src/app/Controller/DocumentWorkflow/DspxLoadSession.h/.cpp`、`IProjectLoadSession.h`、`LegacyMidiLoadSession.h/.cpp` |
 | 对话框 | `src/app/UI/Dialogs/Base/ProgressDialog.h/.cpp`、`TaskDialog.h/.cpp` |
 | UI | `src/app/UI/Controls/TwoLevelComboBox.h/.cpp`、`src/app/UI/Views/TrackEditor/TrackControlView.cpp`、`src/app/UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp` |
 | 包管理 | `src/app/Modules/PackageManager/PackageManager.h/.cpp` |
