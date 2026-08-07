@@ -3,6 +3,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QStyle>
+#include <QStyleOptionButton>
 
 TapTempoButton::TapTempoButton(QWidget *parent) : Button(parent) {
     m_progressAnimation.setTargetObject(this);
@@ -78,6 +79,8 @@ void TapTempoButton::setApparentProgress(double progress) {
 }
 
 void TapTempoButton::paintEvent(QPaintEvent *event) {
+    Button::paintEvent(event);
+
     if (m_progress > 0.0 && m_progressColor.alpha() > 0) {
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
@@ -90,9 +93,11 @@ void TapTempoButton::paintEvent(QPaintEvent *event) {
         QRectF progressRect(buttonRect);
         progressRect.setWidth(buttonRect.width() * m_progress);
         painter.fillRect(progressRect, m_progressColor);
-    }
 
-    Button::paintEvent(event);
+        QStyleOptionButton option;
+        initStyleOption(&option);
+        style()->drawControl(QStyle::CE_PushButtonLabel, &option, &painter, this);
+    }
 }
 
 void TapTempoButton::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
