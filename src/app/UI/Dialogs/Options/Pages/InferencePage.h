@@ -2,6 +2,7 @@
 #define INFERENCEPAGE_H
 
 #include "IOptionPage.h"
+#include "Modules/Inference/Utils/InferCacheUtils.h"
 #include "Modules/Inference/Models/GpuInfo.h"
 
 #include <QFutureWatcher>
@@ -14,6 +15,8 @@ class DoubleSeekBarSpinboxGroup;
 class OptionListCard;
 class OptionsCardItem;
 class QTreeView;
+class Button;
+class QLabel;
 
 class InferencePage : public IOptionPage {
     Q_OBJECT
@@ -31,6 +34,9 @@ private:
     void startGpuDetection(const QString &provider);
     void showGpuDetectionPending();
     void applyGpuList(const QList<GpuInfo> &deviceList);
+    void startCacheScan();
+    void applyCacheScanResult(const InferCacheUtils::CacheStats &stats);
+    void confirmCleanCache();
 
     ComboBox *m_cbExecutionProvider;
     ComboBox *m_cbDeviceList;
@@ -45,6 +51,12 @@ private:
     SwitchButton *m_autoStartInfer;
     SeekBarSpinboxGroup *m_smoothSlider;
     QTreeView *m_treeView;
+    Button *m_btnOpenCacheFolder;
+    QLabel *m_lblCacheStats;
+    Button *m_btnScanCache;
+    Button *m_btnCleanCache;
+    QFutureWatcher<InferCacheUtils::CacheStats> *m_cacheScanWatcher;
+    InferCacheUtils::CacheStats m_lastCacheStats;
 };
 
 

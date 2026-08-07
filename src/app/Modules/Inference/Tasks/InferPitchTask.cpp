@@ -58,6 +58,13 @@ InferParamCurve InferPitchTask::result() {
     return m_result;
 }
 
+QStringList InferPitchTask::cacheFileNames() const {
+    if (m_inputHash.isEmpty())
+        return {};
+    return {QStringLiteral("infer-pitch-input-%1.json").arg(m_inputHash),
+            QStringLiteral("infer-pitch-output-%1.json").arg(m_inputHash)};
+}
+
 void InferPitchTask::runTask() {
     qDebug() << "Running task..."
              << "pieceId:" << pieceId() << " clipId:" << clipId() << "taskId:" << id();

@@ -63,6 +63,13 @@ QList<InferInputNote> InferDurationTask::result() const {
     return m_result.notes;
 }
 
+QStringList InferDurationTask::cacheFileNames() const {
+    if (m_inputHash.isEmpty())
+        return {};
+    return {QStringLiteral("infer-duration-input-%1.json").arg(m_inputHash),
+            QStringLiteral("infer-duration-output-%1.json").arg(m_inputHash)};
+}
+
 void InferDurationTask::runTask() {
     qDebug() << "Running task..."
              << "pieceId:" << pieceId() << " clipId:" << clipId() << "taskId:" << id();

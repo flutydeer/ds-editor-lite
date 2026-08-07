@@ -11,6 +11,7 @@
 #include "Tasks/GetPhonemeNameTask.h"
 #include "Tasks/GetPronunciationTask.h"
 #include "Utils/InferenceApplyGate.h"
+#include "Utils/InferCacheUtils.h"
 #include <lite/Support/Linq.h>
 #include "Utils/ValidationUtils.h"
 #include "Controller/PlaybackController.h"
@@ -21,6 +22,7 @@
 #include <QTimer>
 #include <QPointer>
 #include <QLoggingCategory>
+#include <QDir>
 
 Q_LOGGING_CATEGORY(logInferController, "infer.controller")
 
@@ -164,6 +166,11 @@ void InferController::cancelInferDurationTask(int taskId) {
 
 bool InferController::finishCurrentInferDurationTask(InferDurationTask *task) {
     Q_D(InferController);
+    if (task) {
+        const auto cacheDir = appOptions->inference()->cacheDirectory;
+        for (const auto &fileName : task->cacheFileNames())
+            InferCacheUtils::registerCacheFile(QDir(cacheDir).filePath(fileName));
+    }
     return d->m_inferDurTasks.onCurrentFinished(task);
 }
 
@@ -179,6 +186,11 @@ void InferController::cancelInferPitchTask(int taskId) {
 
 bool InferController::finishCurrentInferPitchTask(InferPitchTask *task) {
     Q_D(InferController);
+    if (task) {
+        const auto cacheDir = appOptions->inference()->cacheDirectory;
+        for (const auto &fileName : task->cacheFileNames())
+            InferCacheUtils::registerCacheFile(QDir(cacheDir).filePath(fileName));
+    }
     return d->m_inferPitchTasks.onCurrentFinished(task);
 }
 
@@ -194,6 +206,11 @@ void InferController::cancelInferVarianceTask(int taskId) {
 
 bool InferController::finishCurrentInferVarianceTask(InferVarianceTask *task) {
     Q_D(InferController);
+    if (task) {
+        const auto cacheDir = appOptions->inference()->cacheDirectory;
+        for (const auto &fileName : task->cacheFileNames())
+            InferCacheUtils::registerCacheFile(QDir(cacheDir).filePath(fileName));
+    }
     return d->m_inferVarianceTasks.onCurrentFinished(task);
 }
 
@@ -209,6 +226,11 @@ void InferController::cancelInferAcousticTask(int taskId) {
 
 bool InferController::finishCurrentInferAcousticTask(InferAcousticTask *task) {
     Q_D(InferController);
+    if (task) {
+        const auto cacheDir = appOptions->inference()->cacheDirectory;
+        for (const auto &fileName : task->cacheFileNames())
+            InferCacheUtils::registerCacheFile(QDir(cacheDir).filePath(fileName));
+    }
     return d->m_inferAcousticTasks.onCurrentFinished(task);
 }
 

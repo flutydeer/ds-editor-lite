@@ -66,6 +66,13 @@ QString InferAcousticTask::result() const {
     return m_result;
 }
 
+QStringList InferAcousticTask::cacheFileNames() const {
+    if (m_inputHash.isEmpty())
+        return {};
+    return {QStringLiteral("infer-acoustic-input-%1.json").arg(m_inputHash),
+            QStringLiteral("infer-acoustic-output-%1.wav").arg(m_inputHash)};
+}
+
 InferAcousticTask::AcousticCacheLookup
     InferAcousticTask::lookupCache(const InferAcousticInput &input) {
     AcousticCacheLookup lookup;

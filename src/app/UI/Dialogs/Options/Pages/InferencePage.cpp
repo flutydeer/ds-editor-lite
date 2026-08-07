@@ -6,6 +6,7 @@
 #include "Modules/Inference/Utils/CudaGpuUtils.h"
 #include <lite/GUI/Controls/CardView.h>
 #include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/LineEdit.h>
 #include <lite/GUI/Controls/OptionListCard.h>
 #include <lite/GUI/Controls/OptionsCardItem.h>
@@ -13,6 +14,8 @@
 #include <lite/GUI/Controls/DoubleSeekBarSpinboxGroup.h>
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include <lite/GUI/Controls/SwitchButton.h>
+#include <lite/GUI/Controls/Toast.h>
+#include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
 #include "Utils/UiLanguageManager.h"
 #include <lite/Support/StringUtils.h>
@@ -21,12 +24,16 @@
 #include <synthrt/SVS/SingerContrib.h>
 
 #include <QDir>
+#include <QFileInfo>
 #include <QLocale>
 #include <QSignalBlocker>
 #include <QStandardItemModel>
 #include <QTreeView>
 #include <QVBoxLayout>
 #include <qtconcurrentrun.h>
+#include <QMCore/qmsystem.h>
+
+#include <algorithm>
 
 enum CustomRole {
     GpuInfoRole = Qt::UserRole,
@@ -34,7 +41,9 @@ enum CustomRole {
 };
 
 InferencePage::InferencePage(QWidget *parent)
-    : IOptionPage(parent), m_gpuDetectionWatcher(new QFutureWatcher<QList<GpuInfo>>(this)) {
+    : IOptionPage(parent)
+    , m_gpuDetectionWatcher(new QFutureWatcher<QList<GpuInfo>>(this))
+    , m_cacheScanWatcher(new QFutureWatcher<InferCacheUtils::CacheStats>(this)) {
     connect(m_gpuDetectionWatcher, &QFutureWatcher<QList<GpuInfo>>::finished, this, [this] {
         const auto detectedProvider = m_activeGpuProvider;
         m_activeGpuProvider.clear();
@@ -49,6 +58,11 @@ InferencePage::InferencePage(QWidget *parent)
             startGpuDetection(m_requestedGpuProvider);
         }
     });
+    connect(m_cacheScanWatcher, &QFutureWatcher<InferCacheUtils::CacheStats>::finished, this,
+            [this] {
+                m_btnScanCache->setEnabled(true);
+                applyCacheScanResult(m_cacheScanWatcher->result());
+            });
     initializePage();
 }
 
@@ -132,6 +146,61 @@ void InferencePage::applyGpuList(const QList<GpuInfo> &deviceList) {
     m_gpuItem->setDescription(
         tr("GPUs with less than %L1 GiB VRAM are hidden")
             .arg(static_cast<double>(kMinGpuVramBytes) / (1024 * 1024 * 1024), 0, 'f', 0));
+}
+
+void InferencePage::startCacheScan() {
+    m_lblCacheStats->setText(tr("Scanning..."));
+    m_btnScanCache->setEnabled(false);
+    m_cacheScanWatcher->setFuture(QtConcurrent::run(
+        InferCacheUtils::scanCache, appOptions->inference()->cacheDirectory));
+}
+
+void InferencePage::applyCacheScanResult(const InferCacheUtils::CacheStats &stats) {
+    m_lastCacheStats = stats;
+    if (stats.files.isEmpty()) {
+        m_lblCacheStats->setText(tr("No cache files"));
+        m_btnCleanCache->setEnabled(false);
+        return;
+    }
+    m_lblCacheStats->setText(tr("%L1 files, %2")
+                                 .arg(stats.files.size())
+                                 .arg(QLocale().formattedDataSize(stats.totalBytes)));
+    m_btnCleanCache->setEnabled(true);
+}
+
+void InferencePage::confirmCleanCache() {
+    // 主线程收集活跃集合（访问 appModel + 登记集合），再启动后台清理
+    const auto active = InferCacheUtils::collectActiveCacheFiles();
+    const auto cacheDir = appOptions->inference()->cacheDirectory;
+    const auto deletableCount = std::count_if(
+        m_lastCacheStats.files.cbegin(), m_lastCacheStats.files.cend(), [&](const auto &info) {
+            const auto path = QDir(cacheDir).filePath(info.fileName);
+            return !active.contains(QFileInfo(path).absoluteFilePath().toLower());
+        });
+
+    auto *dlg = new MessageDialog(
+        tr("Clean Up Cache"),
+        tr("This will delete %L1 cache file(s) not used by the current project. Files used by undo history and current playback will be kept.")
+            .arg(deletableCount),
+        this);
+    dlg->addButton(tr("Cancel"), 0);
+    dlg->addAccentButton(tr("Clean Up"), 1);
+    if (dlg->exec() != 1)
+        return;
+
+    m_lblCacheStats->setText(tr("Cleaning..."));
+    m_btnCleanCache->setEnabled(false);
+    auto *watcher = new QFutureWatcher<InferCacheUtils::CleanResult>(this);
+    connect(watcher, &QFutureWatcher<InferCacheUtils::CleanResult>::finished, this,
+            [this, watcher] {
+                const auto result = watcher->result();
+                watcher->deleteLater();
+                Toast::show(tr("Cache cleaned: %1 files, %2 released")
+                                .arg(result.deletedCount)
+                                .arg(QLocale().formattedDataSize(result.deletedBytes)));
+                startCacheScan(); // 刷新统计
+            });
+    watcher->setFuture(QtConcurrent::run(InferCacheUtils::cleanCache, cacheDir, active));
 }
 
 void InferencePage::modifyOption() {
@@ -254,6 +323,29 @@ QWidget *InferencePage::createContentWidget() {
     renderCard->addItem(tr("Pitch Smooth Kernel Size"),
                         tr("Smooth the pitch curve with a sinusoidal kernel"),
                         {m_smoothSlider->seekbar, m_smoothSlider->spinbox});
+
+    // Cache
+    m_btnOpenCacheFolder = new Button(tr("Open Folder..."), this);
+    connect(m_btnOpenCacheFolder, &Button::clicked, this, [this] {
+        QM::reveal(appOptions->inference()->cacheDirectory);
+    });
+
+    m_lblCacheStats = new QLabel(tr("Scanning..."));
+    m_lblCacheStats->setTextInteractionFlags(Qt::TextSelectableByMouse);
+
+    m_btnScanCache = new Button(tr("Refresh"), this);
+    connect(m_btnScanCache, &Button::clicked, this, &InferencePage::startCacheScan);
+
+    m_btnCleanCache = new Button(tr("Clean Up..."), this);
+    m_btnCleanCache->setEnabled(false);
+    connect(m_btnCleanCache, &Button::clicked, this, &InferencePage::confirmCleanCache);
+
+    const auto cacheCard = new OptionListCard(tr("Cache"));
+    cacheCard->addItem(tr("Cache Directory"), m_btnOpenCacheFolder);
+    cacheCard->addItem(tr("Cache Size"), m_lblCacheStats);
+    cacheCard->addItem(tr("Clean Up"), m_btnCleanCache);
+
+    startCacheScan();
 
     // Debug
     m_treeView = new QTreeView();
@@ -447,6 +539,7 @@ QWidget *InferencePage::createContentWidget() {
     const auto mainLayout = new QVBoxLayout();
     mainLayout->addWidget(m_deviceCard, 0, Qt::AlignTop);
     mainLayout->addWidget(renderCard, 0, Qt::AlignTop);
+    mainLayout->addWidget(cacheCard, 0, Qt::AlignTop);
     mainLayout->addWidget(debugCard, 1, Qt::AlignTop);
     mainLayout->setContentsMargins({});
 

@@ -44,6 +44,7 @@ public:
     explicit InferVarianceTask(InferVarianceInput input);
     InferVarianceInput input() const;
     InferVarianceResult result() const;
+    [[nodiscard]] QStringList cacheFileNames() const;
 
 private:
     void runTask() override;

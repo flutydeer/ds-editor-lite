@@ -1145,13 +1145,13 @@ Right drag: Erase</source>
 <context>
     <name>ClipEditorView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorView.cpp" line="28" />
+        <location filename="../../UI/Views/ClipEditor/ClipEditorView.cpp" line="29" />
         <source>Edit</source>
         <translation>编辑</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ClipEditorView.cpp" line="59" />
-        <location filename="../../UI/Views/ClipEditor/ClipEditorView.cpp" line="210" />
+        <location filename="../../UI/Views/ClipEditor/ClipEditorView.cpp" line="60" />
+        <location filename="../../UI/Views/ClipEditor/ClipEditorView.cpp" line="217" />
         <source>Please select a singing clip to edit</source>
         <translation>请选择一个歌声剪辑以编辑</translation>
     </message>
@@ -2336,12 +2336,12 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <translation>待推理：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Inference/Tasks/InferAcousticTask.cpp" line="99" />
+        <location filename="../../Modules/Inference/Tasks/InferAcousticTask.cpp" line="106" />
         <source>Running inference: %1</source>
         <translation>正在运行推理：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Inference/Tasks/InferAcousticTask.cpp" line="311" />
+        <location filename="../../Modules/Inference/Tasks/InferAcousticTask.cpp" line="318" />
         <source>Terminating: %1</source>
         <translation>正在终止：%1</translation>
     </message>
@@ -2359,12 +2359,12 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <translation>待推理：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Inference/Tasks/InferDurationTask.cpp" line="70" />
+        <location filename="../../Modules/Inference/Tasks/InferDurationTask.cpp" line="77" />
         <source>Running inference: %1</source>
         <translation>正在运行推理：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Inference/Tasks/InferDurationTask.cpp" line="263" />
+        <location filename="../../Modules/Inference/Tasks/InferDurationTask.cpp" line="270" />
         <source>Terminating: %1</source>
         <translation>正在终止：%1</translation>
     </message>
@@ -2382,12 +2382,12 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <translation>待推理：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Inference/Tasks/InferPitchTask.cpp" line="65" />
+        <location filename="../../Modules/Inference/Tasks/InferPitchTask.cpp" line="72" />
         <source>Running inference: %1</source>
         <translation>正在运行推理：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Inference/Tasks/InferPitchTask.cpp" line="224" />
+        <location filename="../../Modules/Inference/Tasks/InferPitchTask.cpp" line="231" />
         <source>Terminating: %1</source>
         <translation>正在终止：%1</translation>
     </message>
@@ -2421,12 +2421,12 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <translation>待推理：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Inference/Tasks/InferVarianceTask.cpp" line="66" />
+        <location filename="../../Modules/Inference/Tasks/InferVarianceTask.cpp" line="73" />
         <source>Running inference: %1</source>
         <translation>正在运行推理：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Inference/Tasks/InferVarianceTask.cpp" line="236" />
+        <location filename="../../Modules/Inference/Tasks/InferVarianceTask.cpp" line="243" />
         <source>Terminating: %1</source>
         <translation>正在终止：%1</translation>
     </message>
@@ -2434,199 +2434,276 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>InferencePage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="189" />
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="226" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="258" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="295" />
         <source>The settings will take effect after restarting the app. Do you want to restart now?</source>
         <translation>重启应用后设置会生效。要现在重启吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="97" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="111" />
         <source>Default</source>
         <translation>默认</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="87" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="101" />
         <source>Detecting...</source>
         <translation>正在检测...</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="182" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="251" />
         <source>Device</source>
         <translation>设备</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="183" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="252" />
         <source>Execution Provider</source>
         <translation>执行提供程序</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="183" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="252" />
         <source>App needs a restart to take effect</source>
         <translation>需要重启以生效</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="185" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="254" />
         <source>GPU</source>
         <translation>GPU</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="126" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="140" />
         <source>No available GPU found. Please switch the Execution Provider above to CPU.</source>
         <translation>未找到可用的 GPU。请将上方的执行提供程序切换为 CPU。</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="123" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="137" />
         <source>No available GPU found</source>
         <translation>未找到可用的 GPU</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="90" />
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="133" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="104" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="147" />
         <source>GPUs with less than %L1 GiB VRAM are hidden</source>
         <translation>隐藏显存少于 %L1 GiB 的 GPU</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="248" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="152" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="333" />
+        <source>Scanning...</source>
+        <translation type="">正在扫描...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="161" />
+        <source>No cache files</source>
+        <translation type="">无缓存文件</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="165" />
+        <source>%L1 files, %2</source>
+        <translation type="">%L1 个文件，%2</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="182" />
+        <source>Clean Up Cache</source>
+        <translation type="">清理缓存</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="183" />
+        <source>This will delete %L1 cache file(s) not used by the current project. Files used by undo history and current playback will be kept.</source>
+        <translation type="">将删除当前工程未使用的 %L1 个缓存文件。撤销历史与当前播放所用的文件将保留。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="186" />
+        <source>Cancel</source>
+        <translation type="">取消</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="187" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="346" />
+        <source>Clean Up</source>
+        <translation type="">清理</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="191" />
+        <source>Cleaning...</source>
+        <translation type="">正在清理...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="198" />
+        <source>Cache cleaned: %1 files, %2 released</source>
+        <translation type="">缓存已清理：删除 %1 个文件，释放 %2</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="317" />
         <source>Render</source>
         <translation>渲染</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="249" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="318" />
         <source>Sampling Steps</source>
         <translation>采样步数</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="250" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="319" />
         <source>Depth</source>
         <translation>深度</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="251" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="320" />
         <source>Run Vocoder on CPU</source>
         <translation>在 CPU 上运行声码器</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="251" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="320" />
         <source>For compatibility with legacy vocoders</source>
         <translation>用于与旧版声码器兼容</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="253" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="322" />
         <source>Auto Start Infer</source>
         <translation>自动启动推理</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="254" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="323" />
         <source>Pitch Smooth Kernel Size</source>
         <translation>音高平滑核大小</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="255" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="324" />
         <source>Smooth the pitch curve with a sinusoidal kernel</source>
         <translation>使用正弦核平滑音高曲线</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="261" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="328" />
+        <source>Open Folder...</source>
+        <translation type="">打开文件夹...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="336" />
+        <source>Refresh</source>
+        <translation type="">刷新</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="339" />
+        <source>Clean Up...</source>
+        <translation type="">清理...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="343" />
+        <source>Cache</source>
+        <translation type="">缓存</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="344" />
+        <source>Cache Directory</source>
+        <translation type="">缓存目录</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="345" />
+        <source>Cache Size</source>
+        <translation type="">缓存大小</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="353" />
         <source>Key</source>
         <translation>键</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="261" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="353" />
         <source>Value</source>
         <translation>值</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="296" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="388" />
         <source>Yes</source>
         <translation>是</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="297" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="389" />
         <source>No</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="300" />
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="424" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="392" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="516" />
         <source>engine</source>
         <translation>引擎</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="304" />
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="427" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="396" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="519" />
         <source>initialized</source>
         <translation>已初始化</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="308" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="400" />
         <source>plugins</source>
         <translation>插件</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="333" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="425" />
         <source>package</source>
         <translation>包</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="337" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="429" />
         <source>search paths</source>
         <translation>搜索路径</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="348" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="440" />
         <source>loaded packages</source>
         <translation>已加载的包</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="369" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="461" />
         <source>id</source>
         <translation>ID</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="385" />
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="413" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="477" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="505" />
         <source>path</source>
         <translation>路径</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="354" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="446" />
         <source>loaded singers</source>
         <translation>已加载的歌手</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="373" />
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="401" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="465" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="493" />
         <source>name</source>
         <translation>名称</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="377" />
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="409" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="469" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="501" />
         <source>api level</source>
         <translation>API 级别</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="381" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="473" />
         <source>architecture</source>
         <translation>架构</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="388" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="480" />
         <source>inferences</source>
         <translation>推理</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="405" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="497" />
         <source>class name</source>
         <translation>类名</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="428" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="520" />
         <source>InferEngine is not created (null pointer)</source>
         <translation>推理引擎未创建（空指针）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="442" />
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="534" />
         <source>Debug</source>
         <translation>调试</translation>
     </message>
@@ -3410,7 +3487,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="720" />
         <source>You have unsaved changes, please save first</source>
-        <translation type="">你有未保存的更改，请先保存</translation>
+        <translation>你有未保存的更改，请先保存</translation>
     </message>
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="325" />
@@ -4244,7 +4321,7 @@ error: %2</source>
 <context>
     <name>PhonemeView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PhonemeView.cpp" line="160" />
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PhonemeView.cpp" line="163" />
         <source>Zoom in to edit phonemes</source>
         <translation>放大以编辑音素</translation>
     </message>
@@ -4311,8 +4388,8 @@ error: %2</source>
 <context>
     <name>PianoRollView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="56" />
-        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="332" />
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="59" />
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp" line="371" />
         <source>Select a singing clip to edit</source>
         <translation>选中歌声剪辑以编辑</translation>
     </message>
@@ -4670,12 +4747,12 @@ error: %2</source>
 <context>
     <name>SingingClipView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="118" />
+        <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="128" />
         <source>(No singer)</source>
         <translation>(无歌手)</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="177" />
+        <location filename="../../UI/Views/TrackEditor/GraphicsItem/SingingClipView.cpp" line="304" />
         <source>[Singing] </source>
         <translation>[歌声] </translation>
     </message>

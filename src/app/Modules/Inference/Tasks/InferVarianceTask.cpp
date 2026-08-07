@@ -59,6 +59,13 @@ InferVarianceTask::InferVarianceResult InferVarianceTask::result() const {
     return m_result;
 }
 
+QStringList InferVarianceTask::cacheFileNames() const {
+    if (m_inputHash.isEmpty())
+        return {};
+    return {QStringLiteral("infer-variance-input-%1.json").arg(m_inputHash),
+            QStringLiteral("infer-variance-output-%1.json").arg(m_inputHash)};
+}
+
 void InferVarianceTask::runTask() {
     qDebug() << "Running task..."
              << "pieceId:" << pieceId() << " clipId:" << clipId() << "taskId:" << id();

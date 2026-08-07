@@ -34,6 +34,7 @@ public:
     explicit InferPitchTask(InferPitchInput input);
     InferPitchInput input() const;
     InferParamCurve result();
+    [[nodiscard]] QStringList cacheFileNames() const;
 
 private:
     void runTask() override;

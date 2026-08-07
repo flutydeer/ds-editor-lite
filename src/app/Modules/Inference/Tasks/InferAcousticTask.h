@@ -52,6 +52,7 @@ public:
     explicit InferAcousticTask(InferAcousticInput input);
     InferAcousticInput input() const;
     QString result() const;
+    [[nodiscard]] QStringList cacheFileNames() const;
     [[nodiscard]] static AcousticCacheLookup lookupCache(const InferAcousticInput &input);
 
 private:

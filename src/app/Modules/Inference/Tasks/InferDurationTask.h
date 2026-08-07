@@ -34,6 +34,7 @@ public:
     explicit InferDurationTask(InferDurInput input);
     InferDurInput input() const;
     QList<InferInputNote> result() const;
+    [[nodiscard]] QStringList cacheFileNames() const;
 
 private:
     void runTask() override;
