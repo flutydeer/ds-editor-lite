@@ -7,7 +7,7 @@
 // AppOptions-backed import settings, so the MidiConverter domain logic stays
 // free of UI and app settings.
 class MidiConverterUi final : public MidiConverter {
-protected:
+public:
     bool chooseImportOptions(const QList<MidiImportTrackInfo> &initialTracks,
                              MidiTrackReconverter &reconverter, bool defaultImportTempo,
                              bool defaultImportTimeSignature, MidiImportOptions &out) override;

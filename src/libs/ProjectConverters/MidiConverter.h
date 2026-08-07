@@ -38,6 +38,11 @@ public:
     virtual QList<MidiImportTrackInfo> reconvert(bool separateChannels) = 0;
 };
 
+// Shared helper: builds the UI-facing track list from parsed intermediate
+// data. Used by MidiFileParser and by reconvert-on-channel-toggle flows.
+QList<MidiImportTrackInfo>
+    buildMidiTrackInfoList(const std::vector<opendspx::MidiIntermediateData::Track> &tracks);
+
 class MidiConverter : public IProjectConverter {
 public:
     enum class LoadStatus { Success, Canceled, Failed };
@@ -74,6 +79,7 @@ protected:
     virtual QString importLanguage() const {
         return {};
     }
+
     virtual QString defaultLyric(const QString &language) const {
         Q_UNUSED(language);
         return {};
@@ -116,10 +122,8 @@ struct MidiGenerationResult {
 // generated track objects (no UI, no model mutation).
 class MidiTrackGenerator {
 public:
-    static MidiGenerationResult generateTracks(MidiParseData &data,
-                                               const MidiImportOptions &choice,
-                                               const QString &language,
-                                               const QString &defaultLyric,
+    static MidiGenerationResult generateTracks(MidiParseData &data, const MidiImportOptions &choice,
+                                               const QString &language, const QString &defaultLyric,
                                                const Timeline &timeline);
 };
 

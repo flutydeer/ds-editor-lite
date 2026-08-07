@@ -4,7 +4,6 @@
 #include "DocumentWorkflowPathUtils.h"
 #include "IDocumentWorkflowUi.h"
 #include "IProjectLoadSession.h"
-#include "LegacyMidiLoadSession.h"
 #include "Controller/Actions/AppModel/ImportProjectActions.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/TrackController.h"
@@ -12,6 +11,8 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/History/HistoryManager.h>
+#include "Modules/ProjectFormats/IProjectFormatHandler.h"
+#include "Modules/ProjectFormats/ProjectFormatRegistry.h"
 #include "Modules/ProjectConverters/DspxProjectConverterUi.h"
 #include "UI/Dialogs/Base/ProgressDialog.h"
 #include "Utils/ConditionalTransition.h"
@@ -422,10 +423,11 @@ void DocumentWorkflowController::createSession() {
                              : ProjectLoadPurpose::Open;
     if (suffix == "dspx" && purpose == ProjectLoadPurpose::Open) {
         m_session = new DspxLoadSession(m_pending.filePath, m_pending.requestId, m_ui, this);
-    } else if (suffix == "mid" || suffix == "midi") {
-        m_session =
-            new LegacyMidiLoadSession(m_pending.filePath, purpose, m_pending.requestId, this);
-    } else {
+    } else if (const auto handler = projectFormatRegistry->resolveByPath(m_pending.filePath)) {
+        ProjectLoadRequest request{m_pending.filePath, purpose, m_pending.requestId};
+        m_session = handler->createSession(request, this);
+    }
+    if (!m_session) {
         m_error = {tr("Unsupported file"), tr("This operation is not supported.")};
         emit operationFailed();
         return;

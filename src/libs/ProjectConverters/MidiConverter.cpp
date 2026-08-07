@@ -27,8 +27,7 @@ static QList<Note *> convertNotes(const std::vector<opendspx::Note> &arrNotes, c
         note->setLocalStart(dsNote.pos - offset);
         note->setLength(dsNote.length);
         note->setKeyIndex(dsNote.keyNum);
-        note->setLyric(dsNote.lyric.empty() ? defaultLyric
-                                            : QString::fromStdString(dsNote.lyric));
+        note->setLyric(dsNote.lyric.empty() ? defaultLyric : QString::fromStdString(dsNote.lyric));
         note->setLanguage(language);
         notes.push_back(note);
     }
@@ -146,8 +145,8 @@ static QString toneNumToToneName(const int num) {
     return tones[step] + QString::number(octave);
 }
 
-static QList<MidiImportTrackInfo>
-    buildTrackInfoList(const std::vector<opendspx::MidiIntermediateData::Track> &tracks) {
+QList<MidiImportTrackInfo>
+    buildMidiTrackInfoList(const std::vector<opendspx::MidiIntermediateData::Track> &tracks) {
     QList<MidiImportTrackInfo> result;
     result.reserve(static_cast<int>(tracks.size()));
 
@@ -203,7 +202,7 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
             auto updated = converter.convertMidiToIntermediate(ss, error, {separateChannels});
             if (error == opendspx::MidiConverter::Error::NoError)
                 data.mediate = std::move(updated);
-            return buildTrackInfoList(data.mediate.tracks());
+            return buildMidiTrackInfoList(data.mediate.tracks());
         }
     } reconverter{parseData};
 
@@ -214,9 +213,8 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
     }
 
     const auto language = importLanguage();
-    auto generated =
-        MidiTrackGenerator::generateTracks(parseData, choice, language, defaultLyric(language),
-                                           model->timeline());
+    auto generated = MidiTrackGenerator::generateTracks(parseData, choice, language,
+                                                        defaultLyric(language), model->timeline());
     if (!generated.errorMessage.isEmpty()) {
         errMsg = generated.errorMessage;
         return LoadStatus::Failed;
@@ -267,15 +265,14 @@ MidiParseData MidiFileParser::parse(const QString &path) {
     std::stringstream ss(result.rawData.toStdString(), std::ios::in);
     result.mediate = converter.convertMidiToIntermediate(ss, midiError, {true});
     if (midiError != opendspx::MidiConverter::Error::NoError) {
-        result.errorMessage =
-            QCoreApplication::translate("MidiConverter",
-                                        "Failed to load MIDI file.\npath: %1\ntype: %L2")
-                .arg(path)
-                .arg(static_cast<int>(midiError));
+        result.errorMessage = QCoreApplication::translate(
+                                  "MidiConverter", "Failed to load MIDI file.\npath: %1\ntype: %L2")
+                                  .arg(path)
+                                  .arg(static_cast<int>(midiError));
         return result;
     }
 
-    result.trackInfos = buildTrackInfoList(result.mediate.tracks());
+    result.trackInfos = buildMidiTrackInfoList(result.mediate.tracks());
     result.valid = true;
     return result;
 }
@@ -293,9 +290,10 @@ MidiGenerationResult MidiTrackGenerator::generateTracks(MidiParseData &data,
     selectedTracks.reserve(selectTrackIds.size());
     for (const auto index : selectTrackIds) {
         if (index < 0 || static_cast<qsizetype>(index) >= data.mediate.tracks().size()) {
-            result.errorMessage = QCoreApplication::translate(
-                "MidiConverter", "Invalid MIDI track selection while importing.\npath: %1")
-                                      .arg(data.path);
+            result.errorMessage =
+                QCoreApplication::translate(
+                    "MidiConverter", "Invalid MIDI track selection while importing.\npath: %1")
+                    .arg(data.path);
             return result;
         }
         selectedTracks.push_back(data.mediate.tracks().at(index));
@@ -304,7 +302,8 @@ MidiGenerationResult MidiTrackGenerator::generateTracks(MidiParseData &data,
     auto decodeText = [&](const std::string &value) -> std::string {
         if (value.empty())
             return {};
-        const auto decoded = MidiTextCodecConverter::decode(QByteArray::fromStdString(value), codec);
+        const auto decoded =
+            MidiTextCodecConverter::decode(QByteArray::fromStdString(value), codec);
         if (decoded.isEmpty())
             return value;
         return decoded.toStdString();
@@ -319,12 +318,10 @@ MidiGenerationResult MidiTrackGenerator::generateTracks(MidiParseData &data,
 
     data.mediate = {
         data.mediate.resolution(),
-        choice.importTempo
-            ? data.mediate.tempos()
-            : std::vector<opendspx::MidiIntermediateData::Tempo>{},
-        choice.importTimeSignature
-            ? data.mediate.timeSignatures()
-            : std::vector<opendspx::MidiIntermediateData::TimeSignature>{},
+        choice.importTempo ? data.mediate.tempos()
+                           : std::vector<opendspx::MidiIntermediateData::Tempo>{},
+        choice.importTimeSignature ? data.mediate.timeSignatures()
+                                   : std::vector<opendspx::MidiIntermediateData::TimeSignature>{},
         data.mediate.markers(),
         selectedTracks,
     };
@@ -356,8 +353,7 @@ MidiGenerationResult MidiTrackGenerator::generateTracks(MidiParseData &data,
     }
 
     if (hasTimeSignature) {
-        result.timeSignatures.reserve(
-            static_cast<qsizetype>(timelineModel.timeSignatures.size()));
+        result.timeSignatures.reserve(static_cast<qsizetype>(timelineModel.timeSignatures.size()));
         for (const auto &ts : timelineModel.timeSignatures)
             result.timeSignatures.append(TimeSignature(ts.index, ts.numerator, ts.denominator));
     }
