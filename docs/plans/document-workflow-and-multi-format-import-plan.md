@@ -14,7 +14,7 @@
 其中的接口和交互策略尚未冻结。
 
 DSPX 异步读取、Package metadata 等前置工作的历史背景见
-[`async-project-loading-redesign-plan.md`](async-project-loading-redesign-plan.md)。
+[异步工程加载 — 设计文档](../design/async-project-loading-design.md)。
 
 ## 总体边界
 
