@@ -24,6 +24,8 @@ public:
 
 private:
     void updateDrawingAt(const QPoint &viewportPos);
+    // 发布正在绘制（未提交）音符的实时几何，id=-1 表示新音符
+    void publishDrawingPreview() const;
 
     NoteView *m_currentDrawingNote = nullptr;
     bool m_drawing = false;

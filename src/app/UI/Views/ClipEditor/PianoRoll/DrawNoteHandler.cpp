@@ -80,6 +80,15 @@ void DrawNoteHandler::updateDrawingAt(const QPoint &viewportPos) {
     const auto targetLength = snappedTick - d->m_offset - m_currentDrawingNote->rStart();
     if (targetLength >= quantizedTickLength)
         m_currentDrawingNote->setLength(targetLength);
+    publishDrawingPreview();
+}
+
+void DrawNoteHandler::publishDrawingPreview() const {
+    QVector<AppStatus::NoteEditPreview> preview;
+    if (m_drawing && m_currentDrawingNote)
+        preview.append({-1, m_currentDrawingNote->rStart(), m_currentDrawingNote->length(),
+                        m_currentDrawingNote->keyIndex()});
+    appStatus->pianoRollNoteEditPreview = preview;
 }
 
 bool DrawNoteHandler::mouseReleaseEvent(QMouseEvent *event) {
@@ -98,6 +107,8 @@ void DrawNoteHandler::commit() {
     PianoRollGraphicsViewHelper::drawNote(m_currentDrawingNote->rStart(),
                                           m_currentDrawingNote->length(),
                                           m_currentDrawingNote->keyIndex());
+    // model 写入后清空预览，轨道侧一次刷新到最终状态
+    appStatus->pianoRollNoteEditPreview = {};
     m_drawing = false;
     editSessionManager->endActiveTransaction(EditSessionEndReason::Commit);
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
@@ -108,6 +119,7 @@ void DrawNoteHandler::discard() {
     if (!m_drawing)
         return;
     q->scene()->removeCommonItem(m_currentDrawingNote);
+    appStatus->pianoRollNoteEditPreview = {};
     m_drawing = false;
     editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
@@ -146,4 +158,5 @@ void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,
     m_currentDrawingNote->setKeyIndex(keyIndex);
     q->scene()->addCommonItem(m_currentDrawingNote);
     m_drawing = true;
+    publishDrawingPreview();
 }

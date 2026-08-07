@@ -9,6 +9,7 @@
 
 #include <QObject>
 #include <QRectF>
+#include <QVector>
 #include "Global/AppGlobal.h"
 
 class AppStatus : public QObject {
@@ -49,6 +50,20 @@ public:
     // Piano roll viewport (tick range x, keyIndex range y); null rect = invalid
     Property<QRectF> pianoRollVisibleRect;
 
+    // 钢琴卷帘编辑进行中（未提交）的音符实时几何；空列表 = 无编辑
+    struct NoteEditPreview {
+        int id = -1;
+        int rStart = 0;
+        int length = 0;
+        int keyIndex = 0;
+        friend bool operator==(const NoteEditPreview &lhs, const NoteEditPreview &rhs) = default;
+    };
+
+    Property<QVector<NoteEditPreview>> pianoRollNoteEditPreview;
+
+    // 钢琴卷帘擦除中（未提交）被移除的音符 id；空列表 = 无擦除
+    Property<QList<int>> pianoRollNoteErasePreview;
+
     // Loop
     Property<LoopSettings> loopSettings;
 
@@ -73,6 +88,8 @@ signals:
     void selectedTrackIndexChanged(int trackIndex);
     void activeClipIdChanged(int newId);
     void pianoRollVisibleRectChanged(const QRectF &rect);
+    void pianoRollNoteEditPreviewChanged(const QVector<NoteEditPreview> &preview);
+    void pianoRollNoteErasePreviewChanged(const QList<int> &noteIds);
     void noteSelectionChanged(const QList<int> &selectedNotes);
     void clipSelectionChanged(const QList<int> &selectedClips);
     void editingChanged(AppStatus::EditObjectType type);

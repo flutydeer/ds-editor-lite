@@ -195,6 +195,9 @@ PianoRollGraphicsView::~PianoRollGraphicsView() {
 
 void PianoRollGraphicsView::setDataContext(SingingClip *clip) {
     Q_D(PianoRollGraphicsView);
+    // 切换 clip 时清空编辑预览，避免残留到新 clip
+    appStatus->pianoRollNoteEditPreview = {};
+    appStatus->pianoRollNoteErasePreview = {};
     if (clip == nullptr)
         d->moveToNullClipState();
     else
@@ -554,6 +557,7 @@ void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
             d->m_interactionController->deltaTick());
         d->m_interactionController->setMovedBeforeMouseUp(true);
     }
+    publishNoteEditPreview();
 }
 
 void PianoRollGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
@@ -573,6 +577,27 @@ void PianoRollGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportP
     }
     // Rubber band selection is handled by the base class
     TimeGraphicsView::onEdgeAutoScrollFrame(clampedViewportPos, modifiers);
+}
+
+void PianoRollGraphicsView::publishNoteEditPreview() const {
+    Q_D(const PianoRollGraphicsView);
+    QVector<AppStatus::NoteEditPreview> preview;
+    const auto behavior = d->m_interactionController->mouseMoveBehavior();
+    if (behavior == NoteInteractionController::Move) {
+        for (const auto note : d->m_selectionModel->selectedNoteItems()) {
+            preview.append({note->id(), note->rStart() + note->startOffset(),
+                            note->length() + note->lengthOffset(),
+                            note->keyIndex() + note->keyOffset()});
+        }
+    } else if (behavior == NoteInteractionController::ResizeLeft ||
+               behavior == NoteInteractionController::ResizeRight) {
+        if (const auto note = d->m_interactionController->currentEditingNote()) {
+            preview.append({note->id(), note->rStart() + note->startOffset(),
+                            note->length() + note->lengthOffset(),
+                            note->keyIndex() + note->keyOffset()});
+        }
+    }
+    appStatus->pianoRollNoteEditPreview = preview;
 }
 
 void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
@@ -942,6 +967,8 @@ bool PianoRollGraphicsView::revealFocus(const HistoryFocus &focus, const bool an
 
 void PianoRollGraphicsView::discardAction() {
     Q_D(PianoRollGraphicsView);
+    appStatus->pianoRollNoteEditPreview = {};
+    appStatus->pianoRollNoteErasePreview = {};
     d->m_pitchEditor->discardAction();
     cancelRequested = true;
     disarmEdgeAutoScroll();
@@ -1001,6 +1028,9 @@ void PianoRollGraphicsView::commitAction() {
                 d->m_interactionController->deltaTick());
         }
     }
+    // model 写入完成后才清空预览，避免轨道先画旧几何再跳变
+    appStatus->pianoRollNoteEditPreview = {};
+    appStatus->pianoRollNoteErasePreview = {};
     d->m_interactionController->setMouseMoveBehavior(NoteInteractionController::None);
     d->m_interactionController->setDeltaTick(0);
     d->m_interactionController->setDeltaKey(0);

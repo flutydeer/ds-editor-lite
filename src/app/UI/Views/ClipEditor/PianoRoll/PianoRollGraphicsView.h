@@ -112,6 +112,8 @@ private:
     int m_noteFontPixelSize = 13;
 
     void updateNoteDragAt(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
+    // 发布拖动中音符的实时几何到 AppStatus（轨道侧缩略图预览用）
+    void publishNoteEditPreview() const;
 
     [[nodiscard]] int noteFontPixelSize() const;
     void setNoteFontPixelSize(int size);

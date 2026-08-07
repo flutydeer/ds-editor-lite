@@ -1,7 +1,9 @@
 #include "SingingClipView.h"
 
 #include <QFile>
+#include <QHash>
 #include <QPainter>
+#include <QSet>
 
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -36,6 +38,10 @@ SingingClipView::SingingClipView(const int itemId, QGraphicsItem *parent)
     setCanResizeLength(true);
     connect(appStatus, &AppStatus::pianoRollVisibleRectChanged, this,
             [this](const QRectF &) { update(); });
+    connect(appStatus, &AppStatus::pianoRollNoteEditPreviewChanged, this,
+            [this](const QVector<AppStatus::NoteEditPreview> &) { update(); });
+    connect(appStatus, &AppStatus::pianoRollNoteErasePreviewChanged, this,
+            [this](const QList<int> &) { update(); });
 }
 
 SingingClipView::~SingingClipView() {
@@ -136,29 +142,60 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
     painter->setPen(Qt::NoPen);
     painter->setBrush(color);
 
-    const auto layout = computeNoteLayout(previewRect);
+    // 钢琴卷帘编辑进行中的音符用实时几何覆盖绘制（id 匹配）
+    const QVector<AppStatus::NoteEditPreview> previewList = appStatus->pianoRollNoteEditPreview;
+    // 擦除进行中（未提交）被移除的音符 id
+    const QList<int> eraseList = appStatus->pianoRollNoteErasePreview;
+
+    const auto layout = computeNoteLayout(previewRect, &previewList, &eraseList);
     const auto noteHeight = layout.noteHeight;
     const auto highestKeyIndex = layout.highestKeyIndex;
     const auto contentTop = layout.contentTop;
 
-    for (const auto &note : m_notes) {
-        const auto clipLeft = start() + clipStart();
-        const auto clipRight = clipLeft + clipLen();
-        if (start() + note->rStart + note->length < clipLeft)
-            continue;
-        if (start() + note->rStart >= clipRight)
-            break;
+    QHash<int, AppStatus::NoteEditPreview> previewMap;
+    previewMap.reserve(previewList.size());
+    for (const auto &p : previewList)
+        previewMap.insert(p.id, p);
+    QSet<int> eraseSet(eraseList.cbegin(), eraseList.cend());
 
-        const auto leftScene = tickToSceneX(start() + note->rStart);
+    const auto clipLeft = start() + clipStart();
+    const auto clipRight = clipLeft + clipLen();
+    const auto drawNoteAt = [&](const int rStart, const int length, const int keyIndex) {
+        if (start() + rStart + length < clipLeft)
+            return;
+        if (start() + rStart >= clipRight)
+            return;
+        const auto leftScene = tickToSceneX(start() + rStart);
         auto left = sceneXToItemX(leftScene);
-        auto width = tickToSceneX(note->length);
-        if (start() + note->rStart < clipLeft) {
+        auto width = tickToSceneX(length);
+        if (start() + rStart < clipLeft) {
             left = sceneXToItemX(tickToSceneX(clipLeft));
-            width = sceneXToItemX(tickToSceneX(start() + note->rStart + note->length)) - left;
-        } else if (start() + note->rStart + note->length >= clipRight)
-            width = tickToSceneX(clipRight - start() - note->rStart);
-        const auto top = -(note->keyIndex - highestKeyIndex) * noteHeight + contentTop;
+            width = sceneXToItemX(tickToSceneX(start() + rStart + length)) - left;
+        } else if (start() + rStart + length >= clipRight)
+            width = tickToSceneX(clipRight - start() - rStart);
+        const auto top = -(keyIndex - highestKeyIndex) * noteHeight + contentTop;
         painter->drawRect(QRectF(left, top, width, noteHeight));
+    };
+
+    for (const auto &note : m_notes) {
+        if (eraseSet.contains(note->id))
+            continue;
+        auto rStart = note->rStart;
+        auto length = note->length;
+        auto keyIndex = note->keyIndex;
+        if (const auto it = previewMap.constFind(note->id); it != previewMap.cend()) {
+            rStart = it->rStart;
+            length = it->length;
+            keyIndex = it->keyIndex;
+        }
+        if (start() + rStart >= clipRight)
+            break;
+        drawNoteAt(rStart, length, keyIndex);
+    }
+    // 正在绘制的新音符（DrawNote 工具，id=-1，尚未写入 model）
+    for (const auto &p : previewList) {
+        if (p.id == -1)
+            drawNoteAt(p.rStart, p.length, p.keyIndex);
     }
 
     drawPianoRollOverlay(painter, noteHeight, highestKeyIndex, contentTop);
@@ -190,9 +227,11 @@ void SingingClipView::drawPianoRollOverlay(QPainter *painter, const double noteH
     const auto left = sceneXToItemX(tickToSceneX(overlayTickStart));
     const auto right = sceneXToItemX(tickToSceneX(overlayTickEnd));
 
-    // y 轴：复用 drawPreviewArea 的 noteHeight + highestKeyIndex 映射
+    // y 轴：复用 drawPreviewArea 的 noteHeight + highestKeyIndex 映射。
+    // 视口边界映射（不加 noteHeight）：kBottom 是连续浮点 key，底边所在格子可能不可见，
+    // +noteHeight 会把不可见的格子也框进叠加层（多 1 个 key）
     const auto overlayTop = -(prHighKey - highestKeyIndex) * noteHeight + contentTop;
-    const auto overlayBottom = -(prLowKey - highestKeyIndex) * noteHeight + contentTop + noteHeight;
+    const auto overlayBottom = -(prLowKey - highestKeyIndex) * noteHeight + contentTop;
     const auto overlayRect = QRectF(left, overlayTop, right - left, overlayBottom - overlayTop);
 
     // 边框色跟随轨道色（AppColorPalette 由主题系统驱动）
@@ -204,14 +243,37 @@ void SingingClipView::drawPianoRollOverlay(QPainter *painter, const double noteH
                              AbstractClipView::clipCornerRadius);
 }
 
-SingingClipView::NoteLayout SingingClipView::computeNoteLayout(const QRectF &previewRect) const {
+SingingClipView::NoteLayout
+    SingingClipView::computeNoteLayout(const QRectF &previewRect,
+                                       const QVector<AppStatus::NoteEditPreview> *extraNotes,
+                                       const QList<int> *excludedIds) const {
     NoteLayout layout;
+    // 预览几何索引（id → keyIndex）：被预览覆盖的音符用预览值参与统计（替换语义），
+    // 保证预览期布局 == 提交后布局（m_notes 更新后同 id 音符即预览几何）
+    QHash<int, int> previewKeys;
+    if (extraNotes) {
+        for (const auto &p : *extraNotes)
+            previewKeys.insert(p.id, p.keyIndex);
+    }
     for (const auto note : m_notes) {
-        const auto keyIndex = note->keyIndex;
+        if (excludedIds && excludedIds->contains(note->id))
+            continue;
+        const auto keyIndex = previewKeys.value(note->id, note->keyIndex);
         if (keyIndex < layout.lowestKeyIndex)
             layout.lowestKeyIndex = keyIndex;
         if (keyIndex > layout.highestKeyIndex)
             layout.highestKeyIndex = keyIndex;
+    }
+    // 正在绘制的新音符（id=-1，尚不在 m_notes 中）追加纳入音域
+    if (extraNotes) {
+        for (const auto &p : *extraNotes) {
+            if (p.id != -1)
+                continue;
+            if (p.keyIndex < layout.lowestKeyIndex)
+                layout.lowestKeyIndex = p.keyIndex;
+            if (p.keyIndex > layout.highestKeyIndex)
+                layout.highestKeyIndex = p.keyIndex;
+        }
     }
     const int divideCount = layout.highestKeyIndex - layout.lowestKeyIndex + 1;
     layout.noteHeight = previewRect.height() / divideCount;

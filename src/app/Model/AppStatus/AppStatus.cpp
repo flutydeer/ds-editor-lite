@@ -25,6 +25,10 @@ AppStatus::AppStatus(QObject *parent) : QObject(parent) {
     activeClipId.onChanged([this](auto value) { emit activeClipIdChanged(value); });
     pianoRollVisibleRect.onChanged(
         [this](const auto &value) { emit pianoRollVisibleRectChanged(value); });
+    pianoRollNoteEditPreview.onChanged(
+        [this](const auto &value) { emit pianoRollNoteEditPreviewChanged(value); });
+    pianoRollNoteErasePreview.onChanged(
+        [this](const auto &value) { emit pianoRollNoteErasePreviewChanged(value); });
     selectedNotes.onChanged([this](const auto &value) { emit noteSelectionChanged(value); });
     selectedClips.onChanged([this](const auto &value) { emit clipSelectionChanged(value); });
     currentEditObject.onChanged([this](auto value) { emit editingChanged(value); });

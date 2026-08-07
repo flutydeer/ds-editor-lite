@@ -44,6 +44,8 @@ void EraseNoteHandler::commit() {
         qDebug() << "Note erased count:" << m_notesToErase.count();
         clipController->onRemoveNotes(m_notesToErase);
     }
+    // model 删除完成后清空擦除预览，轨道侧一次刷新到最终状态
+    appStatus->pianoRollNoteErasePreview = {};
     m_notesToErase.clear();
     d->m_selectionModel->clearNoteViewsToErase();
     m_erasing = false;
@@ -54,6 +56,7 @@ void EraseNoteHandler::commit() {
 void EraseNoteHandler::discard() {
     for (const auto noteView : d->m_selectionModel->noteViewsToErase())
         d->addNoteViewToScene(noteView);
+    appStatus->pianoRollNoteErasePreview = {};
     m_notesToErase.clear();
     d->m_selectionModel->clearNoteViewsToErase();
     m_erasing = false;
@@ -81,6 +84,7 @@ void EraseNoteHandler::eraseNoteUnderPos(const QPoint &pos) {
     appStatus->currentEditObject = AppStatus::EditObjectType::Note;
     if (!m_notesToErase.contains(noteView->id()))
         m_notesToErase.append(noteView->id());
+    appStatus->pianoRollNoteErasePreview = m_notesToErase;
     editSessionManager->addNoteIds({noteView->id()});
     d->m_selectionModel->appendNoteViewToErase(noteView);
     d->removeNoteViewFromScene(noteView);
