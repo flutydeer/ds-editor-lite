@@ -42,6 +42,18 @@ void TempoComboBox::setTempo(double tempo) {
 }
 
 void TempoComboBox::mousePressEvent(QMouseEvent *event) {
+    if (event->button() == Qt::RightButton) {
+        m_clickTimer->stop();
+        if (m_popup->isVisible()) {
+            m_hidingPopupFromCombo = true;
+            hidePopup();
+            m_hidingPopupFromCombo = false;
+        } else {
+            showPopup();
+        }
+        event->accept();
+        return;
+    }
     if (event->button() != Qt::LeftButton) {
         InlineEditLabel::mousePressEvent(event);
         return;
