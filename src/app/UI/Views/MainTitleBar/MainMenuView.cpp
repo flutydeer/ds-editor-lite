@@ -5,6 +5,8 @@
 #include "Controller/EditorViewController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Modules/Import/DocumentImportController.h"
+#include "Modules/ProjectFormats/IProjectFormatHandler.h"
+#include "Modules/ProjectFormats/ProjectFormatRegistry.h"
 #include "Controller/ClipboardController.h"
 #include "Controller/ClipController.h"
 #include "Controller/TrackController.h"
@@ -64,6 +66,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
                 d->actionSaveAs->setEnabled(!busy);
                 d->actionImportMidi->setEnabled(!busy);
                 d->actionImportDspx->setEnabled(!busy);
+                d->actionImportLibreSVIP->setEnabled(!busy);
             });
     addMenu(d->buildFileMenu());
     addMenu(d->buildEditMenu());
@@ -192,6 +195,28 @@ void MainMenuViewPrivate::onImportDspxFile() {
     const auto lastDir = documentWorkflowController->lastProjectFolder();
     const auto fileName = QFileDialog::getOpenFileName(
         q, tr("Select DiffScope Project File"), lastDir, tr("DiffScope Project File (*.dspx)"));
+    if (fileName.isNull())
+        return;
+    documentWorkflowController->requestImport(fileName);
+}
+
+void MainMenuViewPrivate::onImportLibreSVIPFile() {
+    Q_Q(MainMenuView);
+    // Collect the bridge-layer extensions from the registry so the dialog
+    // stays in sync with LibreSVIPFormatHandler::descriptor().
+    QStringList patterns;
+    for (const auto *handler : projectFormatRegistry->handlers()) {
+        if (handler->descriptor().id != QStringLiteral("libresvip"))
+            continue;
+        for (const auto &ext : handler->descriptor().extensions)
+            patterns.append(QStringLiteral("*.%1").arg(ext));
+    }
+    if (patterns.isEmpty())
+        return;
+    const auto lastDir = documentWorkflowController->lastProjectFolder();
+    const auto fileName =
+        QFileDialog::getOpenFileName(q, tr("Select Project File"), lastDir,
+                                     tr("Singing Project Files (%1)").arg(patterns.join(QLatin1Char(' '))));
     if (fileName.isNull())
         return;
     documentWorkflowController->requestImport(fileName);
@@ -507,6 +532,10 @@ void MainMenuViewPrivate::initFileActions() {
     setMenuIcon(actionImportDspx, QStringLiteral(":/svg/icons/arrow_import_16_regular.svg"));
     connect(actionImportDspx, &QAction::triggered, this, [this] { onImportDspxFile(); });
 
+    actionImportLibreSVIP = new QAction(tr("Project file (LibreSVIP)..."), this);
+    setMenuIcon(actionImportLibreSVIP, QStringLiteral(":/svg/icons/arrow_import_16_regular.svg"));
+    connect(actionImportLibreSVIP, &QAction::triggered, this, [this] { onImportLibreSVIPFile(); });
+
     actionExportAudio = new QAction(tr("Audio file..."), this);
     setMenuIcon(actionExportAudio, QStringLiteral(":/svg/icons/arrow_export_16_regular.svg"));
     connect(actionExportAudio, &QAction::triggered, this, [this] { onExportAudioFile(); });
@@ -641,6 +670,7 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
                 QStringLiteral(":/svg/icons/arrow_import_16_regular.svg"));
     menuImport->addAction(actionImportMidi);
     menuImport->addAction(actionImportDspx);
+    menuImport->addAction(actionImportLibreSVIP);
     menuFile->addMenu(menuImport);
 
     menuExport = new Menu(tr("Export"), q);
@@ -785,6 +815,7 @@ void MainMenuViewPrivate::retranslateUi() {
     actionSaveAs->setText(tr("Save &as..."));
     actionImportMidi->setText(tr("MIDI file..."));
     actionImportDspx->setText(tr("DiffScope project file..."));
+    actionImportLibreSVIP->setText(tr("Project file (LibreSVIP)..."));
     actionExportAudio->setText(tr("Audio file..."));
     actionExportMidi->setText(tr("MIDI file..."));
     actionOpenPackageManager->setText(tr("Manage packages..."));

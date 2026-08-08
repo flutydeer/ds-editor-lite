@@ -41,6 +41,7 @@ public:
     QAction *actionClearRecentProjects = nullptr;
     QAction *actionImportMidi = nullptr;
     QAction *actionImportDspx = nullptr;
+    QAction *actionImportLibreSVIP = nullptr;
     QAction *actionExportAudio = nullptr;
     QAction *actionExportMidi = nullptr;
     QAction *actionOpenPackageManager = nullptr;
@@ -93,6 +94,7 @@ public:
     void openFileWithSavePrompt(const QString &filePath);
     void onImportMidiFile();
     void onImportDspxFile();
+    void onImportLibreSVIPFile();
     void onExportMidiFile();
     void onExportAudioFile();
     void onUndoRedoChanged(bool canUndo, const QString &undoName, bool canRedo,
