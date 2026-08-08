@@ -1,6 +1,7 @@
 #include "MidiFormatHandler.h"
 
 #include "Controller/DocumentWorkflow/MidiLoadSession.h"
+#include "Modules/ProjectConverters/MidiConfigPage.h"
 
 ProjectFormatDescriptor MidiFormatHandler::descriptor() const {
     ProjectFormatDescriptor result;
@@ -18,5 +19,9 @@ bool MidiFormatHandler::probe(const QByteArray &header) const {
 
 IProjectLoadSession *MidiFormatHandler::createSession(const ProjectLoadRequest &request,
                                                       QObject *parent) {
-    return new MidiLoadSession(request.filePath, request.purpose, request.requestId, parent);
+    return new MidiLoadSession(this, request.filePath, request.purpose, request.requestId, parent);
+}
+
+IProjectConfigPage *MidiFormatHandler::createConfigPage(QWidget *parent) {
+    return new MidiConfigPage({}, parent);
 }

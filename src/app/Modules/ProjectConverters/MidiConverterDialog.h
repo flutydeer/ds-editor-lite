@@ -6,14 +6,15 @@
 
 #include <QByteArray>
 #include <QList>
-#include <QScopedPointer>
 #include <QString>
 
-class MidiConverterDialogPrivate;
+class MidiConfigPage;
 
+// Thin dialog shell hosting MidiConfigPage. Kept for the synchronous libs
+// import path (MidiConverterUi::chooseImportOptions); interactive imports
+// host MidiConfigPage inside the generic ProjectImportConfigDialog.
 class MidiConverterDialog : public Dialog {
     Q_OBJECT
-    Q_DECLARE_PRIVATE(MidiConverterDialog)
 public:
     explicit MidiConverterDialog(QWidget *parent = nullptr) : MidiConverterDialog({}, parent) {
     }
@@ -39,7 +40,7 @@ public:
     void setImportTempo(bool enabled);
     void setImportTimeSignature(bool enabled);
 
-Q_SIGNALS:
+signals:
     void codecChanged(const QByteArray &codec);
     void selectedTracksChanged();
     void separateMidiChannelsChanged(bool enabled);
@@ -47,7 +48,7 @@ Q_SIGNALS:
     void importTimeSignatureChanged(bool enabled);
 
 private:
-    QScopedPointer<MidiConverterDialogPrivate> d_ptr;
+    MidiConfigPage *m_page = nullptr;
 };
 
 #endif // MIDICONVERTERDIALOG_H

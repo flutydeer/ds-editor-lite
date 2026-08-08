@@ -3,7 +3,9 @@
 #include "Controller/Tasks/MidiParseTask.h"
 #include "Controller/Tasks/MidiReprocessTask.h"
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
-#include "Modules/ProjectConverters/MidiConverterDialog.h"
+#include "Modules/ProjectConverters/MidiConfigPage.h"
+#include "Modules/ProjectFormats/IProjectFormatHandler.h"
+#include "Modules/ProjectFormats/ProjectImportConfigDialog.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
 #include <lite/Tasking/TaskManager.h>
@@ -14,10 +16,11 @@
 
 #include <utility>
 
-MidiLoadSession::MidiLoadSession(QString filePath, const ProjectLoadPurpose purpose,
-                                 const quint64 requestId, QObject *parent)
-    : IProjectLoadSession(parent), m_filePath(std::move(filePath)), m_purpose(purpose),
-      m_requestId(requestId) {
+MidiLoadSession::MidiLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
+                                 const ProjectLoadPurpose purpose, const quint64 requestId,
+                                 QObject *parent)
+    : IProjectLoadSession(parent), m_formatHandler(formatHandler), m_filePath(std::move(filePath)),
+      m_purpose(purpose), m_requestId(requestId) {
 }
 
 MidiLoadSession::~MidiLoadSession() {
@@ -83,21 +86,27 @@ void MidiLoadSession::handleTaskFinished(MidiParseTask *task) {
 }
 
 void MidiLoadSession::startConfiguration() {
-    auto *dialog = new MidiConverterDialog(m_parseData.trackInfos, Dialog::globalParent());
+    auto *dialog = new ProjectImportConfigDialog(Dialog::globalParent());
     m_dialog = dialog;
+    dialog->setWindowTitle(tr("Configure MIDI Import"));
+    auto *page = m_formatHandler->createConfigPage(dialog);
+    auto *midiPage = qobject_cast<MidiConfigPage *>(page ? page->widget() : nullptr);
+    m_configPage = midiPage;
+    dialog->setPage(midiPage);
+    midiPage->setTrackInfoList(m_parseData.trackInfos);
     const auto defaultImportTimeline = m_purpose == ProjectLoadPurpose::Open;
-    dialog->setImportTempo(defaultImportTimeline);
-    dialog->setImportTimeSignature(defaultImportTimeline);
-    dialog->detectCodec();
-    connect(dialog, &MidiConverterDialog::separateMidiChannelsChanged, this,
+    midiPage->setImportTempo(defaultImportTimeline);
+    midiPage->setImportTimeSignature(defaultImportTimeline);
+    midiPage->detectCodec();
+    connect(midiPage, &MidiConfigPage::separateMidiChannelsChanged, this,
             [this](const bool enabled) { requestReprocess(enabled); });
+    dialog->resize(720, 480);
 
     const auto accepted = dialog->exec() == QDialog::Accepted;
-    MidiImportOptions choice;
-    choice.codec = dialog->selectedCodec();
-    choice.selectedTrackIndices = dialog->selectedTracks();
-    choice.importTempo = dialog->importTempo();
-    choice.importTimeSignature = dialog->importTimeSignature();
+    MidiUserInput input;
+    if (accepted && midiPage)
+        input = midiPage->collectInput();
+    m_configPage = nullptr;
     m_dialog = nullptr;
     dialog->deleteLater();
     if (m_terminal)
@@ -108,7 +117,7 @@ void MidiLoadSession::startConfiguration() {
         return;
     }
 
-    materialize(choice);
+    materialize(input);
 }
 
 void MidiLoadSession::requestReprocess(const bool separateChannels) {
@@ -136,18 +145,23 @@ void MidiLoadSession::handleReprocessFinished(const quint64 generation, MidiRepr
     auto result = task->takeResult();
     if (result.errorMessage.isEmpty()) {
         m_parseData.mediate = std::move(result.mediate);
-        if (m_dialog) {
-            m_dialog->setTrackInfoList(result.trackInfos);
-            m_dialog->detectCodec();
-        }
+        if (m_configPage)
+            m_configPage->setTrackInfoList(result.trackInfos);
+        if (m_configPage)
+            m_configPage->detectCodec();
     }
     // On re-parse errors keep the previous track list; the user can still
     // proceed with the last valid layout.
 }
 
-void MidiLoadSession::materialize(const MidiImportOptions &choice) {
+void MidiLoadSession::materialize(const MidiUserInput &input) {
     AppModel resultModel;
     const auto language = m_converterUi.importLanguage();
+    MidiImportOptions choice;
+    choice.codec = input.encoding.codec;
+    choice.selectedTrackIndices = input.tracks.selectedTrackIndices;
+    choice.importTempo = input.timeline.importTempo;
+    choice.importTimeSignature = input.timeline.importTimeSignature;
     auto generated = MidiTrackGenerator::generateTracks(m_parseData, choice, language,
                                                         m_converterUi.defaultLyric(language),
                                                         resultModel.timeline());

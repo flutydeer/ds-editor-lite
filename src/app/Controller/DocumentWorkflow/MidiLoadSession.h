@@ -4,10 +4,13 @@
 #include "IProjectLoadSession.h"
 
 #include "Modules/ProjectConverters/MidiConverterUi.h"
+#include "Modules/ProjectFormats/UserInput.h"
 
-class MidiConverterDialog;
+class IProjectFormatHandler;
 class MidiParseTask;
 class MidiReprocessTask;
+class MidiConfigPage;
+class ProjectImportConfigDialog;
 
 // MIDI load session split into background parse, interactive configuration
 // and materialization. Replaces the legacy synchronous MidiConverter flow
@@ -19,8 +22,8 @@ class MidiLoadSession final : public IProjectLoadSession {
     Q_OBJECT
 
 public:
-    MidiLoadSession(QString filePath, ProjectLoadPurpose purpose, quint64 requestId,
-                    QObject *parent = nullptr);
+    MidiLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
+                    ProjectLoadPurpose purpose, quint64 requestId, QObject *parent = nullptr);
     ~MidiLoadSession() override;
 
     void start() override;
@@ -34,17 +37,19 @@ private:
     void startConfiguration();
     void requestReprocess(bool separateChannels);
     void handleReprocessFinished(quint64 generation, MidiReprocessTask *task);
-    void materialize(const MidiImportOptions &choice);
+    void materialize(const MidiUserInput &input);
     void detachTask();
     void detachReprocessTask();
 
+    IProjectFormatHandler *m_formatHandler = nullptr;
     QString m_filePath;
     ProjectLoadPurpose m_purpose = ProjectLoadPurpose::Open;
     quint64 m_requestId = 0;
     MidiParseTask *m_task = nullptr;
     MidiReprocessTask *m_reprocessTask = nullptr;
     quint64 m_reprocessGeneration = 0;
-    MidiConverterDialog *m_dialog = nullptr;
+    ProjectImportConfigDialog *m_dialog = nullptr;
+    MidiConfigPage *m_configPage = nullptr;
     MidiConverterUi m_converterUi;
     MidiParseData m_parseData;
     PreparedProject m_result;

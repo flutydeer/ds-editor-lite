@@ -8,6 +8,7 @@ public:
     ProjectFormatDescriptor descriptor() const override;
     bool probe(const QByteArray &header) const override;
     IProjectLoadSession *createSession(const ProjectLoadRequest &request, QObject *parent) override;
+    IProjectConfigPage *createConfigPage(QWidget *parent) override;
 };
 
 #endif // DS_EDITOR_LITE_MIDIFORMATHANDLER_H

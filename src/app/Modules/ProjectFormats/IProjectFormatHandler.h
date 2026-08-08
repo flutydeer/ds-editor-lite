@@ -8,6 +8,8 @@
 #include <QStringList>
 
 class IProjectLoadSession;
+class IProjectConfigPage;
+class QWidget;
 
 struct ProjectFormatDescriptor {
     QString id;
@@ -35,6 +37,10 @@ public:
     virtual bool probe(const QByteArray &header) const = 0;
     virtual IProjectLoadSession *createSession(const ProjectLoadRequest &request,
                                                QObject *parent) = 0;
+    // Format-specific configuration page for interactive imports, hosted by
+    // the generic ProjectImportConfigDialog. Returns nullptr for formats
+    // without an interactive configuration step.
+    virtual IProjectConfigPage *createConfigPage(QWidget *parent) = 0;
 };
 
 #endif // DS_EDITOR_LITE_IPROJECTFORMATHANDLER_H
