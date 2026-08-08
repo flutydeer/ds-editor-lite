@@ -18,7 +18,6 @@ class NoteView;
 using namespace ClipEditorGlobal;
 
 class PianoRollGraphicsViewPrivate;
-class QPaintEvent;
 class QShowEvent;
 
 class PianoRollGraphicsView final : public TimeGraphicsView,
@@ -96,7 +95,6 @@ private slots:
     void notifyKeyRangeChanged();
 
 protected:
-    void paintEvent(QPaintEvent *event) override;
     void showEvent(QShowEvent *event) override;
     bool event(QEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
