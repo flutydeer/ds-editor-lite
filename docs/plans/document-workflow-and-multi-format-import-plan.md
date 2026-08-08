@@ -338,7 +338,7 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 | 3 | 引入通用导入向导和基础 UserInput DTO | ✅ `d970f22a` |
 | 4 | 实现 DSPX Import（轨道选择、时间线选项、loop 忽略策略） | ✅（2026-08-08） |
 | 5 | 引入 SingerMapping 和 ResourceMapping | ⬜（2026-08-08 暂缓，先不做） |
-| 6 | DSPX Open 迁入格式注册表 + Session 骨架重构（流程基类 / 配置解耦） | ⬜ |
+| 6 | DSPX Open 迁入格式注册表 + Session 骨架重构（流程基类 / 配置解耦） | ✅（2026-08-08） |
 | 7 | 接入 LibreSVIP 转换器：外部进程 + DSPX 中间表示（参考 DiffScope） | ⬜ |
 | 8 | 冻结 Handler、配置页和 Issue API（LibreSVIP 接入完成后） | ⬜ |
 
@@ -386,6 +386,16 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 
 补充：导入菜单新增「DiffScope project file...」入口（`MainMenuView`，单文件对话框 `*.dspx` → `requestImport`）；批量导入管线仍为 MIDI 专用，DSPX 暂走单文件交互路径。
 补充：`validatePendingRequest` 的硬编码格式白名单改为从 `ProjectFormatRegistry` 派生（Open = dspx 专用路径 ∪ registry 命中；Import = registry 命中且 `canImport`），新格式注册后校验自动生效。
+
+第 6 步落地内容（2026-08-08）：
+
+- **S6a 骨架化**：新增 `Controller/DocumentWorkflow/ProjectLoadSessionBase`——start / cancel / terminal 状态机、主解析任务生命周期（`createParseTask` / `handleParseResult` 钩子）、可选重解析（`requestReprocess` + generationId 丢弃过期结果，`createReprocessTask` / `handleReprocessResult` 钩子）、进度发布（`shouldPublishProgress` 控制，MIDI 不发布保持原行为）、`finishWithResult` / `fail` / `emitCanceled` 结果交接。
+- **S6b 配置解耦**：`MidiLoadSession` / `DspxImportLoadSession` 不再持有具体配置页类型成员（`MidiConfigPage*` / `DspxConfigPage*` → 仅 `IProjectConfigPage*` 生命周期引用或局部变量）；配置内容与交互仍 100% 格式专属（MIDI 编码预览 / 通道分离重解析、DSPX 轨道选择各自实现）。
+- **S6c DSPX Open 入注册表**：`IProjectFormatHandler::createSession` 增加 `IDocumentWorkflowUi*` 参数（交互会话确认框用）；`DspxFormatHandler` 声明 `canOpen`，按 purpose 分派（Open → `DspxLoadSession`，Import → `DspxImportLoadSession`）；`DocumentWorkflowController` 删除 dspx 专用分支与硬编码白名单（Open 改 `canOpen` 派生），`DspxLoadSession` 由 Handler 创建。
+- 三个既有 Session（`MidiLoadSession` / `DspxImportLoadSession` / `DspxLoadSession`）净减约 370 行样板；`DspxImportLoadSession` 保留显式析构（`unique_ptr<opendspx::Model>` 前向声明，析构需在类型完整处定义）。
+
+验证：Debug 构建通过（重新 configure 拾取新源文件）；ctest 18/19（`TestAnimationSettings` 为既有失败）；`TestDocumentWorkflow` / `TestSpeakerMix` / `TestSpeakerMixValidation` 通过。待人工验证：Open / Import DSPX、MIDI Open / Import、MIDI 编码预览与通道重解析回归。
+
 ## 目标
 
 在不破坏第一阶段外层工作流和统一提交器的前提下，将 DSPX / MIDI 临时 Session 扩展为支持：
