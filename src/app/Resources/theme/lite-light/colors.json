@@ -172,6 +172,7 @@
 
         "editor.canvas": "{neutral.100}",
         "editor.canvasAlternate": "{neutral.0}",
+        "editor.trackListHeader": "{transparent.default}",
         "editor.grid.bar": "{neutral.150}",
         "editor.grid.beat": "{neutral.100}",
         "editor.grid.subdivision": "{neutral.50}",
@@ -203,6 +204,8 @@
         "meter.background": "{neutral.black75}",
         "meter.trackBackground": "{neutral.200}",
 
+        "timeline.background": "{transparent.default}",
+
         "timeline.task.pending": "{neutral.500}",
         "timeline.task.runningLow": "{neutral.500}",
         "timeline.task.runningHigh": "{neutral.250}",
@@ -220,6 +223,7 @@
         "piano.roll.noteSelectedBorder": "{text.emphasis}",
         "piano.roll.pronunciation": "{text.secondary}",
         "piano.roll.overlay": "{overlay.scrim}",
+        "piano.roll.background": "{transparent.default}",
 
         "phoneme.hint": "{neutral.600}",
         "phoneme.text": "{neutral.750}",

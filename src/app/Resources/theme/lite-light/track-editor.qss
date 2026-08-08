@@ -40,7 +40,7 @@ InfoLaneHeaderView#timeSignatureLaneHeaderView {
 
 /* TrackListHeaderView */
 TrackListHeaderView {
-    background: ${editor.canvas};
+    background: ${editor.trackListHeader};
     border-top-left-radius: 6px;
     qproperty-iconCheckedColor: ${accent.default};
 }

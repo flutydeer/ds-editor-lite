@@ -228,12 +228,12 @@ LyricWrapView {
 }
 
 QWidget#pianoRollTopLeftSpacing {
-    background: ${surface.panel};
+    background: ${piano.roll.background};
     /* border-top-left-radius: 6px; */
 }
 
 QWidget#pianoRollBottomLeftSpacing {
-    background: ${surface.panel};
+    background: ${piano.roll.background};
     /* border-bottom-left-radius: 6px; */
 }
 
@@ -242,7 +242,7 @@ QWidget#pianoRollBottomLeftSpacing {
 } */
 
 PianoRollEditorView {
-    background: ${surface.raised};
+    background: ${piano.roll.background};
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px
 }

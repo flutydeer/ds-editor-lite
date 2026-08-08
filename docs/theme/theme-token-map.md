@@ -1,6 +1,6 @@
 # 主题语义 Token Map（初稿）
 
-> 版本：v1 基线，已完成第一轮协同审查和 Phase 3 迁移。当前共 **150 个 semantic token**。
+> 版本：v1 基线，已完成第一轮协同审查和 Phase 3 迁移。当前共 **152 个 semantic token**。
 >
 > 本稿确定职责和状态接口。`lite-dark/colors.json` 中的值主要来自现有视觉基线，新增状态使用
 > 临近颜色占位，均不代表最终配色已经定稿。
@@ -185,6 +185,7 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 |---|---|
 | `editor.canvas` | 轨道、钢琴卷帘和参数编辑器主画布 |
 | `editor.canvasAlternate` | 相邻行、黑键行或局部层的交替底色 |
+| `editor.trackListHeader` | 轨道列表表头背景 |
 | `editor.grid.bar` | 小节主网格线 |
 | `editor.grid.beat` | 拍网格线 |
 | `editor.grid.subdivision` | 细分网格线 |
@@ -204,6 +205,7 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 | `piano.roll.noteSelectedBorder` | 选中音符边框 |
 | `piano.roll.pronunciation` | 音符内发音文本 |
 | `piano.roll.overlay` | 音符范围覆盖层 |
+| `piano.roll.background` | 钢琴卷帘编辑器容器背景（默认透明以透出面板） |
 
 编辑器选择不直接复用通用 `selection.*`：它画在高信息密度画布上，需要独立控制对比度。
 
@@ -232,6 +234,7 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 
 | Token | 职责 |
 |---|---|
+| `timeline.background` | 时间线标尺与任务片段背景 |
 | `timeline.task.pending` | 尚未执行的任务片段 |
 | `timeline.task.runningLow` | 运行中脉动的低强度端点 |
 | `timeline.task.runningHigh` | 运行中脉动的高强度端点 |

@@ -59,7 +59,7 @@
         "feedback.errorAlt": "#FFABDD"
     },
     "tokens": {
-        "surface.window": "{neutral.800}",
+        "surface.window": "{neutral.850}",
         "surface.panel": "{neutral.800}",
         "surface.raised": "{neutral.700}",
         "surface.sunken": "{neutral.850}",
@@ -163,6 +163,7 @@
 
         "editor.canvas": "{neutral.850}",
         "editor.canvasAlternate": "{neutral.750}",
+        "editor.trackListHeader": "{transparent.default}",
         "editor.grid.bar": "{neutral.950}",
         "editor.grid.beat": "{neutral.900}",
         "editor.grid.subdivision": "{neutral.850}",
@@ -194,6 +195,8 @@
         "meter.background": "{neutral.black75}",
         "meter.trackBackground": "{transparent.default}",
 
+        "timeline.background": "{transparent.default}",
+
         "timeline.task.pending": "{neutral.550}",
         "timeline.task.runningLow": "{neutral.500}",
         "timeline.task.runningHigh": "{neutral.250}",
@@ -206,11 +209,12 @@
         "timeline.ruler.subdivisionFrom": "#4C4F53",
         "timeline.ruler.subdivisionTo": "#393B3D",
 
-        "piano.roll.blackRow": "{neutral.800}",
+        "piano.roll.blackRow": "oklch(27% 0.0135 265)",
         "piano.roll.octaveDivider": "{neutral.850}",
         "piano.roll.noteSelectedBorder": "{text.emphasis}",
         "piano.roll.pronunciation": "{text.secondary}",
         "piano.roll.overlay": "{overlay.scrim}",
+        "piano.roll.background": "{transparent.default}",
 
         "phoneme.hint": "{neutral.white50}",
         "phoneme.text": "#B4B4B4",

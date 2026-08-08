@@ -1204,11 +1204,6 @@ PanelView[activePanel="true"] {
     border: 1px solid ${border.strong};
 }
 
-/* TimelineView */
-TimelineView {
-    background: ${editor.canvas};
-}
-
 /* TimeGraphicsView */
 TimeGraphicsView {
     qproperty-barLineColor: ${editor.grid.bar};
@@ -1320,6 +1315,7 @@ LevelMeter {
 
 /* TimelineView */
 TimelineView {
+    background: ${timeline.background};
     qproperty-playheadColor: ${editor.playhead};
     qproperty-barScaleColor: ${editor.playhead};
     qproperty-barTickColor: ${timeline.ruler.barTick};
