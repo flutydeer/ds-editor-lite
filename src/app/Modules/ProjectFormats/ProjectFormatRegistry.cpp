@@ -2,6 +2,7 @@
 
 #include "DspxFormatHandler.h"
 #include "IProjectFormatHandler.h"
+#include "LibreSVIPFormatHandler.h"
 #include "MidiFormatHandler.h"
 
 #include <QFileInfo>
@@ -11,6 +12,8 @@ ProjectFormatRegistry::ProjectFormatRegistry(QObject *parent) : QObject(parent) 
     // registerHandler() at startup.
     registerHandler(std::make_unique<MidiFormatHandler>());
     registerHandler(std::make_unique<DspxFormatHandler>());
+    // Bridge layer: all remaining formats via the external libresvip-cli.
+    registerHandler(std::make_unique<LibreSVIPFormatHandler>());
 }
 
 ProjectFormatRegistry::~ProjectFormatRegistry() = default;

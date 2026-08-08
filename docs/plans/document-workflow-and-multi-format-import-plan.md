@@ -552,12 +552,16 @@ enum class ProjectIssueSeverity {
 完全一致（vcpkg `opendspx`），`DspxProjectParser` 即 deserialize 封装，`OpenDspxProjectTask` → 物化链路现成。
 
 **S7（LibreSVIP 接入 = 桥接层）**：格式分两层——**原生层**（DSPX / MIDI，解析器编译进编辑器）+ **桥接层**
-（SVP / USTX / ACEP / VSQX 等：libresvip 外部进程转成 DSPX 二进制 → deserialize → 与原生 DSPX 完全相同的链路，编辑器侧无感）。
-桥接 Handler 的 Session 钩子：parse = 转换 task（QProcess + protobuf，参考 DiffScope
-`LibreSVIPManager` / `LibreSVIPConversionWizard` / `JsonSchemaForm`）；config = 向导页（格式选择 + JSON Schema
-选项表单）；materialize = 复用 DSPX 物化（中间表示同为 opendspx::Model）。进程管理（下载 / sha512 校验 / 更新检查）
-一并接入；libresvip 的 warningMessages 用于向用户展示转换信息损失。
-风险：libresvip 输出的 dspx schema 版本与本地 opendspx serializer 版本需对齐验证。
+（SVP / USTX / ACEP / VSQX 等：libresvip 外部进程转成 DSPX 数据 → deserialize → 与原生 DSPX 完全相同的链路，编辑器侧无感）。
+**2026-08-08 路线决策：stdio MVP**——`libresvip-cli proj convert in out` 一次性调用（QProcess + 超量默认应答 `\n`×40 覆盖全部交互问答），
+输出为 zstd 压缩 DSPX JSON（version 1.0.0），经 `opendspx::Serializer::deserialize` 自动解压解析（已实测 USTX 366 音符完整；
+vcpkg opendspx 1ea5b75c 与 libresvip 2.8.1 输出兼容，探针验证需 /MD 与 release 库匹配）。Session 钩子：parse = 转换 task（QProcess）；
+config / materialize = 复用 DSPX Import 链路（轨道选择 + Append payload，中间表示同为 opendspx::Model）。
+可执行文件获取：DiffScope catalog（catalogs.diffscope.org/3rdparty/libresvip/index.json）或 GitHub release（SoulMelody/LibreSVIP）。
+**不采用 gRPC**：DiffScope 用 rpc（QtGrpc + protobuf，`rpc server` 端口 15150）是为了动态 catalog / 结构化选项 / 常驻进程；
+对单向导入收益小（导入低频，5-6s Python 启动可接受），且需 Qt 安装器加 QtGrpc 组件 + protobuf 工具链。
+**远期方向**：将 libresvip（Python + mypyc）按需翻译为 C++ 库内嵌（先 SVP / USTX），替换转换 task 内部实现，进程边界消失；
+Session / Handler 抽象不变，仅 parse 实现替换。
 
 
 ## 已冻结决策（2026-08-08 讨论）
