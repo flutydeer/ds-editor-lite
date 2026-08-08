@@ -6,7 +6,6 @@
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/ProjectConverters/DspxProjectConverterUi.h"
-#include <lite/Tasking/TaskManager.h>
 
 #include <QFileInfo>
 
@@ -14,32 +13,19 @@
 
 DspxLoadSession::DspxLoadSession(QString filePath, const quint64 requestId, IDocumentWorkflowUi *ui,
                                  QObject *parent)
-    : IProjectLoadSession(parent), m_filePath(std::move(filePath)), m_requestId(requestId),
-      m_ui(ui) {
+    : ProjectLoadSessionBase(std::move(filePath), requestId, parent), m_ui(ui) {
 }
 
-DspxLoadSession::~DspxLoadSession() {
-    if (m_packageConnection)
-        disconnect(m_packageConnection);
-    detachTask();
-}
-
-void DspxLoadSession::start() {
-    if (m_started || m_terminal)
-        return;
-    m_started = true;
-
+void DspxLoadSession::onStart() {
     switch (appStatus->packageModuleStatus.get()) {
         case AppStatus::ModuleStatus::Ready:
-            startTask();
+            startParseTask();
             break;
         case AppStatus::ModuleStatus::Error:
             if (m_ui && m_ui->confirmOpenWithoutPackageMetadata())
-                startTask();
-            else {
-                m_terminal = true;
-                emit canceled();
-            }
+                startParseTask();
+            else
+                emitCanceled();
             break;
         case AppStatus::ModuleStatus::Unknown:
         case AppStatus::ModuleStatus::Loading: {
@@ -57,78 +43,40 @@ void DspxLoadSession::start() {
     }
 }
 
-void DspxLoadSession::cancel() {
-    if (m_terminal)
-        return;
-    m_terminal = true;
+void DspxLoadSession::onCancel() {
     if (m_packageConnection) {
         disconnect(m_packageConnection);
         m_packageConnection = {};
     }
-    detachTask();
-    emit canceled();
 }
 
-PreparedProject DspxLoadSession::takeResult() {
-    return std::move(m_result);
+Task *DspxLoadSession::createParseTask() {
+    return new OpenDspxProjectTask(m_filePath, m_requestId);
 }
 
-quint64 DspxLoadSession::requestId() const {
-    return m_requestId;
-}
-
-void DspxLoadSession::startTask() {
-    if (m_terminal || m_task)
-        return;
-    if (m_packageConnection) {
-        disconnect(m_packageConnection);
-        m_packageConnection = {};
-    }
-
-    const auto task = new OpenDspxProjectTask(m_filePath, m_requestId);
-    m_task = task;
-    publishProgress(task->status());
-    connect(task, &Task::statusUpdated, this, [this, task](const TaskStatus &status) {
-        if (task == m_task && !m_terminal)
-            publishProgress(status);
-    });
-    connect(task, &Task::finished, this, [this, task] { handleTaskFinished(task); });
-    connect(task, &Task::finished, task, &QObject::deleteLater);
-    taskManager->addAndStartTask(task);
+bool DspxLoadSession::shouldPublishProgress() const {
+    return true;
 }
 
 void DspxLoadSession::handlePackageStatus() {
-    if (m_terminal)
+    if (isTerminal())
         return;
     if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready) {
-        startTask();
+        startParseTask();
     } else if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Error) {
         if (m_ui && m_ui->confirmOpenWithoutPackageMetadata())
-            startTask();
+            startParseTask();
         else {
-            m_terminal = true;
-            emit canceled();
+            emitCanceled();
         }
     }
 }
 
-void DspxLoadSession::handleTaskFinished(OpenDspxProjectTask *task) {
-    if (taskManager->tasks().contains(task))
-        taskManager->removeTask(task);
-    if (task != m_task || m_terminal)
-        return;
-    m_task = nullptr;
-
-    if (task->terminated()) {
-        m_terminal = true;
-        emit canceled();
-        return;
-    }
-
-    auto parseResult = task->takeResult();
+void DspxLoadSession::handleParseResult(Task *task) {
+    auto *parseTask = static_cast<OpenDspxProjectTask *>(task);
+    auto parseResult = parseTask->takeResult();
     if (!parseResult.success()) {
-        m_terminal = true;
-        emit failed({tr("Failed to open project"), parseResult.errorMessage});
+        fail({tr("Failed to open project"), parseResult.errorMessage});
         return;
     }
 
@@ -139,8 +87,7 @@ void DspxLoadSession::handleTaskFinished(OpenDspxProjectTask *task) {
     DspxProjectConverterUi converter;
     if (!converter.loadParsedProject(*parseResult.model, &resultModel, loopSettings, errorMessage,
                                      IProjectConverter::ImportMode::NewProject)) {
-        m_terminal = true;
-        emit failed({tr("Failed to open project"), errorMessage});
+        fail({tr("Failed to open project"), errorMessage});
         return;
     }
 
@@ -151,22 +98,5 @@ void DspxLoadSession::handleTaskFinished(OpenDspxProjectTask *task) {
     payload.sourceKind = ProjectSourceKind::Native;
     payload.sourcePath = m_filePath;
     payload.displayName = QFileInfo(m_filePath).fileName();
-    m_result = std::move(payload);
-    m_terminal = true;
-    emit ready();
-}
-
-void DspxLoadSession::publishProgress(const TaskStatus &status) {
-    emit progressChanged({status.title, status.message, status.minimum, status.maximum,
-                          status.progress, status.isIndetermine});
-}
-
-void DspxLoadSession::detachTask() {
-    if (!m_task)
-        return;
-    const auto task = m_task;
-    m_task = nullptr;
-    taskManager->terminateTask(task);
-    if (taskManager->tasks().contains(task))
-        taskManager->removeTask(task);
+    finishWithResult(std::move(payload));
 }

@@ -7,7 +7,6 @@
 #include "Modules/ProjectFormats/ProjectImportConfigDialog.h"
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
-#include <lite/Tasking/TaskManager.h>
 
 #include <opendspx/clip.h>
 #include <opendspx/model.h>
@@ -61,72 +60,29 @@ namespace {
         }
         return infos;
     }
-}
+} // namespace
 
 DspxImportLoadSession::DspxImportLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
                                              const quint64 requestId, QObject *parent)
-    : IProjectLoadSession(parent), m_formatHandler(formatHandler), m_filePath(std::move(filePath)),
-      m_requestId(requestId) {
+    : ProjectLoadSessionBase(std::move(filePath), requestId, parent),
+      m_formatHandler(formatHandler) {
 }
 
-DspxImportLoadSession::~DspxImportLoadSession() {
-    detachTask();
-}
+DspxImportLoadSession::~DspxImportLoadSession() = default;
 
-void DspxImportLoadSession::start() {
-    if (m_started || m_terminal)
-        return;
-    m_started = true;
+void DspxImportLoadSession::onStart() {
     startParseTask();
 }
 
-void DspxImportLoadSession::cancel() {
-    if (m_terminal)
-        return;
-    m_terminal = true;
-    detachTask();
-    emit canceled();
+Task *DspxImportLoadSession::createParseTask() {
+    return new OpenDspxProjectTask(m_filePath, m_requestId);
 }
 
-PreparedProject DspxImportLoadSession::takeResult() {
-    return std::move(m_result);
-}
-
-quint64 DspxImportLoadSession::requestId() const {
-    return m_requestId;
-}
-
-void DspxImportLoadSession::startParseTask() {
-    if (m_terminal || m_task)
-        return;
-    const auto task = new OpenDspxProjectTask(m_filePath, m_requestId);
-    m_task = task;
-    connect(task, &Task::statusUpdated, this, [this, task](const TaskStatus &status) {
-        if (task == m_task && !m_terminal)
-            publishProgress(status);
-    });
-    connect(task, &Task::finished, this, [this, task] { handleTaskFinished(task); });
-    connect(task, &Task::finished, task, &QObject::deleteLater);
-    taskManager->addAndStartTask(task);
-}
-
-void DspxImportLoadSession::handleTaskFinished(OpenDspxProjectTask *task) {
-    if (taskManager->tasks().contains(task))
-        taskManager->removeTask(task);
-    if (task != m_task || m_terminal)
-        return;
-    m_task = nullptr;
-
-    if (task->terminated()) {
-        m_terminal = true;
-        emit canceled();
-        return;
-    }
-
-    auto parseResult = task->takeResult();
+void DspxImportLoadSession::handleParseResult(Task *task) {
+    auto *parseTask = static_cast<OpenDspxProjectTask *>(task);
+    auto parseResult = parseTask->takeResult();
     if (!parseResult.success()) {
-        m_terminal = true;
-        emit failed({tr("Failed to import project"), parseResult.errorMessage});
+        fail({tr("Failed to import project"), parseResult.errorMessage});
         return;
     }
 
@@ -134,13 +90,15 @@ void DspxImportLoadSession::handleTaskFinished(OpenDspxProjectTask *task) {
     startConfiguration();
 }
 
+bool DspxImportLoadSession::shouldPublishProgress() const {
+    return true;
+}
+
 void DspxImportLoadSession::startConfiguration() {
     auto *dialog = new ProjectImportConfigDialog(Dialog::globalParent());
-    m_dialog = dialog;
     dialog->setWindowTitle(tr("Configure DSPX Import"));
     auto *page = m_formatHandler->createConfigPage(dialog);
     auto *dspxPage = qobject_cast<DspxConfigPage *>(page ? page->widget() : nullptr);
-    m_configPage = dspxPage;
     dialog->setPage(dspxPage);
     dspxPage->setTrackInfoList(buildDspxTrackInfos(*m_model));
     // Tempo / time signature default to enabled: imports usually merge
@@ -154,14 +112,11 @@ void DspxImportLoadSession::startConfiguration() {
     DspxUserInput input;
     if (accepted && dspxPage)
         input = dspxPage->collectInput();
-    m_configPage = nullptr;
-    m_dialog = nullptr;
     dialog->deleteLater();
-    if (m_terminal)
+    if (isTerminal())
         return;
     if (!accepted) {
-        m_terminal = true;
-        emit canceled();
+        emitCanceled();
         return;
     }
 
@@ -182,10 +137,9 @@ void DspxImportLoadSession::materialize(const DspxUserInput &input) {
     }
     tracks = std::move(kept);
     if (tracks.empty()) {
-        m_terminal = true;
-        emit failed({tr("Failed to import project"),
-                     QCoreApplication::translate("DspxImportLoadSession",
-                                                 "No tracks were selected for import.")});
+        fail({tr("Failed to import project"),
+              QCoreApplication::translate("DspxImportLoadSession",
+                                          "No tracks were selected for import.")});
         return;
     }
 
@@ -198,8 +152,7 @@ void DspxImportLoadSession::materialize(const DspxUserInput &input) {
     DspxProjectConverter converter;
     if (!converter.loadParsedProject(*filteredModel, &resultModel, loopSettings, errorMessage,
                                      IProjectConverter::ImportMode::AppendToProject)) {
-        m_terminal = true;
-        emit failed({tr("Failed to import project"), errorMessage});
+        fail({tr("Failed to import project"), errorMessage});
         return;
     }
 
@@ -209,22 +162,5 @@ void DspxImportLoadSession::materialize(const DspxUserInput &input) {
     payload.importTempo = input.timeline.importTempo;
     payload.importTimeSignature = input.timeline.importTimeSignature;
     payload.sourcePath = m_filePath;
-    m_result = std::move(payload);
-    m_terminal = true;
-    emit ready();
-}
-
-void DspxImportLoadSession::publishProgress(const TaskStatus &status) {
-    emit progressChanged({status.title, status.message, status.minimum, status.maximum,
-                          status.progress, status.isIndetermine});
-}
-
-void DspxImportLoadSession::detachTask() {
-    if (!m_task)
-        return;
-    const auto task = m_task;
-    m_task = nullptr;
-    taskManager->terminateTask(task);
-    if (taskManager->tasks().contains(task))
-        taskManager->removeTask(task);
+    finishWithResult(std::move(payload));
 }
