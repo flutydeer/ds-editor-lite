@@ -5,7 +5,7 @@
 | 阶段 | 状态 | 更新时间 |
 | --- | --- | --- |
 | 第一阶段：统一文档工作流 | 已完成（2026-08-08 复核并补充实现细节） | 2026-07-15 |
-| 第二阶段：通用多格式导入框架 | 实施中（迁移顺序第 1-2 步已完成） | 2026-08-08 |
+| 第二阶段：通用多格式导入框架 | 实施中（迁移顺序第 1-3 步已完成） | 2026-08-08 |
 
 本文记录 DS Editor Lite 的 New、Open、Import、Save、Save As、Close、Restart 工作流改造，
 以及后续接入 DSPX Import、VSQX、USTX、SVP 等格式时的架构方向。
@@ -335,7 +335,7 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 | --- | --- | --- |
 | 1 | `MidiFormatHandler` 替换 `LegacyMidiLoadSession`（拆分后台解析 / 配置 / 物化） | ✅ `6422a524` |
 | 2 | MIDI 通道切换改为异步 Reprocessing，用 generationId 丢弃旧结果 | ✅ `f007c139` |
-| 3 | 引入通用导入向导和基础 UserInput DTO | ⬜ |
+| 3 | 引入通用导入向导和基础 UserInput DTO | ✅ `d970f22a` |
 | 4 | 实现 DSPX Import（轨道选择、时间线选项、loop 忽略策略） | ⬜ |
 | 5 | 引入 SingerMapping 和 ResourceMapping | ⬜ |
 | 6 | 将 DSPX Open 迁入格式注册表，移除临时 Session 工厂 | ⬜ |
@@ -362,6 +362,17 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 
 验证：Debug 构建通过；`TestDocumentWorkflow` / `TestSpeakerMix` / `TestSpeakerMixValidation` 通过。
 
+
+第 3 步落地内容（2026-08-08）：
+
+- 新增 `src/app/Modules/ProjectFormats/UserInput.h`：基础 UserInput DTO——`TextEncodingInput` / `TrackSelectionInput` / `ChannelSeparationInput` / `TimelineOptionsInput`，以及 MIDI 汇总 `MidiUserInput`。
+- 新增 `src/app/Modules/ProjectFormats/IProjectConfigPage.h`：配置页接口（`widget()`）。
+- 新增 `src/app/Modules/ProjectFormats/ProjectImportConfigDialog`：通用单页配置容器（内容区 + OK/Cancel），`setPage()` 注入格式页面。
+- 新增 `src/app/Modules/ProjectConverters/MidiConfigPage`：`MidiConverterDialog` 的 body 整体迁出（轨道选择 / 全选 / 编码 / 歌词预览 / 选项），新增 `collectInput() -> MidiUserInput`；`MidiConverterDialog` 收缩为薄壳（内部托管 `MidiConfigPage`，保留给 libs 同步路径 `MidiConverterUi::chooseImportOptions`）。
+- `IProjectFormatHandler` 新增 `createConfigPage(QWidget*)`；`MidiFormatHandler` 返回 `MidiConfigPage`。
+- `MidiLoadSession` 不再依赖 `MidiConverterDialog`：经 Handler 获取配置页注入通用容器，确认后只消费 `MidiUserInput` 物化；通道切换 reprocess 信号与结果回写（`setTrackInfoList` / `detectCodec`）改经 `MidiConfigPage`。Session 对格式专用 UI 类零依赖。
+
+验证：Debug 构建通过；`TestDocumentWorkflow` / `TestSpeakerMix` / `TestSpeakerMixValidation` 通过。待人工验证：Open / Import MIDI 配置对话框交互与第 2 步一致（含通道切换异步重解析）。
 
 ## 目标
 
