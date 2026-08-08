@@ -1,41 +1,18 @@
 #include "MidiLoadSession.h"
 
 #include "Controller/Tasks/MidiParseTask.h"
+#include "Controller/Tasks/MidiReprocessTask.h"
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
+#include "Modules/ProjectConverters/MidiConverterDialog.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
 #include <lite/Tasking/TaskManager.h>
-
-#include <opendspxconverter/midi/midiconverter.h>
+#include "UI/Dialogs/Base/Dialog.h"
 
 #include <QCoreApplication>
 #include <QFileInfo>
 
-#include <sstream>
 #include <utility>
-
-namespace {
-    // Re-derives the track layout when the interactive UI toggles
-    // "separate MIDI channels" - re-parses the raw bytes and rebuilds the
-    // track info list.
-    class MidiTrackReconverterImpl final : public MidiTrackReconverter {
-    public:
-        explicit MidiTrackReconverterImpl(MidiParseData &data) : data(data) {
-        }
-
-        QList<MidiImportTrackInfo> reconvert(const bool separateChannels) override {
-            opendspx::MidiConverter converter;
-            opendspx::MidiConverter::Error error;
-            std::stringstream ss(data.rawData.toStdString(), std::ios::in);
-            auto updated = converter.convertMidiToIntermediate(ss, error, {separateChannels});
-            if (error == opendspx::MidiConverter::Error::NoError)
-                data.mediate = std::move(updated);
-            return buildMidiTrackInfoList(data.mediate.tracks());
-        }
-
-        MidiParseData &data;
-    };
-}
 
 MidiLoadSession::MidiLoadSession(QString filePath, const ProjectLoadPurpose purpose,
                                  const quint64 requestId, QObject *parent)
@@ -45,6 +22,7 @@ MidiLoadSession::MidiLoadSession(QString filePath, const ProjectLoadPurpose purp
 
 MidiLoadSession::~MidiLoadSession() {
     detachTask();
+    detachReprocessTask();
 }
 
 void MidiLoadSession::start() {
@@ -59,6 +37,7 @@ void MidiLoadSession::cancel() {
         return;
     m_terminal = true;
     detachTask();
+    detachReprocessTask();
     emit canceled();
 }
 
@@ -100,19 +79,70 @@ void MidiLoadSession::handleTaskFinished(MidiParseTask *task) {
         return;
     }
 
-    MidiTrackReconverterImpl reconverter{m_parseData};
-    MidiImportOptions choice;
+    startConfiguration();
+}
+
+void MidiLoadSession::startConfiguration() {
+    auto *dialog = new MidiConverterDialog(m_parseData.trackInfos, Dialog::globalParent());
+    m_dialog = dialog;
     const auto defaultImportTimeline = m_purpose == ProjectLoadPurpose::Open;
-    if (!m_converterUi.chooseImportOptions(m_parseData.trackInfos, reconverter,
-                                           defaultImportTimeline, defaultImportTimeline, choice)) {
+    dialog->setImportTempo(defaultImportTimeline);
+    dialog->setImportTimeSignature(defaultImportTimeline);
+    dialog->detectCodec();
+    connect(dialog, &MidiConverterDialog::separateMidiChannelsChanged, this,
+            [this](const bool enabled) { requestReprocess(enabled); });
+
+    const auto accepted = dialog->exec() == QDialog::Accepted;
+    MidiImportOptions choice;
+    choice.codec = dialog->selectedCodec();
+    choice.selectedTrackIndices = dialog->selectedTracks();
+    choice.importTempo = dialog->importTempo();
+    choice.importTimeSignature = dialog->importTimeSignature();
+    m_dialog = nullptr;
+    dialog->deleteLater();
+    if (m_terminal)
+        return;
+    if (!accepted) {
         m_terminal = true;
         emit canceled();
         return;
     }
-    if (m_terminal)
-        return;
 
     materialize(choice);
+}
+
+void MidiLoadSession::requestReprocess(const bool separateChannels) {
+    if (m_terminal)
+        return;
+    detachReprocessTask();
+    const auto generation = ++m_reprocessGeneration;
+    const auto task = new MidiReprocessTask(m_parseData.rawData, separateChannels);
+    m_reprocessTask = task;
+    connect(task, &Task::finished, this,
+            [this, generation, task] { handleReprocessFinished(generation, task); });
+    connect(task, &Task::finished, task, &QObject::deleteLater);
+    taskManager->addAndStartTask(task);
+}
+
+void MidiLoadSession::handleReprocessFinished(const quint64 generation, MidiReprocessTask *task) {
+    if (taskManager->tasks().contains(task))
+        taskManager->removeTask(task);
+    if (task != m_reprocessTask || generation != m_reprocessGeneration || m_terminal)
+        return;
+    m_reprocessTask = nullptr;
+    if (task->terminated())
+        return;
+
+    auto result = task->takeResult();
+    if (result.errorMessage.isEmpty()) {
+        m_parseData.mediate = std::move(result.mediate);
+        if (m_dialog) {
+            m_dialog->setTrackInfoList(result.trackInfos);
+            m_dialog->detectCodec();
+        }
+    }
+    // On re-parse errors keep the previous track list; the user can still
+    // proceed with the last valid layout.
 }
 
 void MidiLoadSession::materialize(const MidiImportOptions &choice) {
@@ -181,6 +211,16 @@ void MidiLoadSession::detachTask() {
         return;
     const auto task = m_task;
     m_task = nullptr;
+    taskManager->terminateTask(task);
+    if (taskManager->tasks().contains(task))
+        taskManager->removeTask(task);
+}
+
+void MidiLoadSession::detachReprocessTask() {
+    if (!m_reprocessTask)
+        return;
+    const auto task = m_reprocessTask;
+    m_reprocessTask = nullptr;
     taskManager->terminateTask(task);
     if (taskManager->tasks().contains(task))
         taskManager->removeTask(task);
