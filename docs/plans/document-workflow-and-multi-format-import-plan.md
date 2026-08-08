@@ -5,7 +5,7 @@
 | 阶段 | 状态 | 更新时间 |
 | --- | --- | --- |
 | 第一阶段：统一文档工作流 | 已完成（2026-08-08 复核并补充实现细节） | 2026-07-15 |
-| 第二阶段：通用多格式导入框架 | 实施中（迁移顺序第 1 步已完成） | 2026-08-08 |
+| 第二阶段：通用多格式导入框架 | 实施中（迁移顺序第 1-2 步已完成） | 2026-08-08 |
 
 本文记录 DS Editor Lite 的 New、Open、Import、Save、Save As、Close、Restart 工作流改造，
 以及后续接入 DSPX Import、VSQX、USTX、SVP 等格式时的架构方向。
@@ -334,7 +334,7 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 | 步骤 | 内容 | 状态 |
 | --- | --- | --- |
 | 1 | `MidiFormatHandler` 替换 `LegacyMidiLoadSession`（拆分后台解析 / 配置 / 物化） | ✅ `6422a524` |
-| 2 | MIDI 通道切换改为异步 Reprocessing，用 generationId 丢弃旧结果 | ⬜ |
+| 2 | MIDI 通道切换改为异步 Reprocessing，用 generationId 丢弃旧结果 | ✅ `f007c139` |
 | 3 | 引入通用导入向导和基础 UserInput DTO | ⬜ |
 | 4 | 实现 DSPX Import（轨道选择、时间线选项、loop 忽略策略） | ⬜ |
 | 5 | 引入 SingerMapping 和 ResourceMapping | ⬜ |
@@ -352,6 +352,16 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 - 修复 `a627df39`：追加提交时重置导入轨道颜色——payload 轨道在临时模型上已被分配色轮色，`AppModel::insertTrack` 只对 `colorIndex()==0` 的轨道重新分配，导致前两条轨道颜色重复；`commitAppend` 统一重置后由 `insertTrack` 基于真实模型重新分配，颜色序列恢复递增。该 bug 为既有问题（旧同步流程同样经过临时模型），拖放导入路径不受影响（轨道未经过临时模型）。
 
 验证：Debug 构建通过；ctest 18/19 通过（`TestAnimationSettings` 为既有失败，与导入无关）；人工验证 Open / Import / 拖放导入与色轮递增均正常。
+
+第 2 步落地内容（2026-08-08，`f007c139`）：
+
+- 新增 `Controller/Tasks/MidiReprocessTask`：rawData + separateChannels → 后台重新转换 + 重建轨道列表（`buildMidiTrackInfoList`）。
+- `MidiLoadSession` 直接驱动 `MidiConverterDialog`（替代经 `MidiConverterUi::chooseImportOptions` 的同步接线）：对话框切换"分离 MIDI 通道" → `requestReprocess`（终止旧任务、`m_reprocessGeneration++`）→ 后台任务完成后经 generationId 校验，仅最新结果更新 `m_parseData.mediate` 并回写对话框轨道列表 + 重新检测编码；过期/终止任务的结果直接丢弃。重解析失败时保留上一个有效轨道列表，不阻塞导入。
+- 移除 `MidiTrackReconverterImpl`（同步 reconvert 路径）；libs 的 `MidiConverter::loadInteractive` 同步路径原样保留（app 侧已无调用者）。
+- 与第一阶段约束一致：物化仍使用最终 `m_parseData.mediate`（含最后一次通道切换的结果），对话框关闭/取消后到达的过期结果不影响已定型的 payload。
+
+验证：Debug 构建通过；`TestDocumentWorkflow` / `TestSpeakerMix` / `TestSpeakerMixValidation` 通过。
+
 
 ## 目标
 
