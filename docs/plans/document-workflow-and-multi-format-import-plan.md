@@ -339,7 +339,7 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 | 4 | 实现 DSPX Import（轨道选择、时间线选项、loop 忽略策略） | ✅（2026-08-08） |
 | 5 | 引入 SingerMapping 和 ResourceMapping | ⬜（2026-08-08 暂缓，先不做） |
 | 6 | DSPX Open 迁入格式注册表 + Session 骨架重构（流程基类 / 配置解耦） | ✅（2026-08-08） |
-| 7 | 接入 LibreSVIP 转换器：外部进程 + DSPX 中间表示（参考 DiffScope） | ⬜ |
+| 7 | 接入 LibreSVIP 转换器：外部进程 + DSPX 中间表示（stdio MVP，Open + Import） | ✅（2026-08-08） |
 | 8 | 冻结 Handler、配置页和 Issue API（LibreSVIP 接入完成后） | ⬜ |
 
 第 1 步落地内容（2026-08-08）：
@@ -395,6 +395,17 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 - 三个既有 Session（`MidiLoadSession` / `DspxImportLoadSession` / `DspxLoadSession`）净减约 370 行样板；`DspxImportLoadSession` 保留显式析构（`unique_ptr<opendspx::Model>` 前向声明，析构需在类型完整处定义）。
 
 验证：Debug 构建通过（重新 configure 拾取新源文件）；ctest 18/19（`TestAnimationSettings` 为既有失败）；`TestDocumentWorkflow` / `TestSpeakerMix` / `TestSpeakerMixValidation` 通过。待人工验证：Open / Import DSPX、MIDI Open / Import、MIDI 编码预览与通道重解析回归。
+
+第 7 步落地内容（2026-08-08，stdio MVP）：
+
+- 新增 `Controller/Tasks/LibreSVIPConvertTask`：QProcess 启动 `libresvip-cli proj convert <in> <临时.dspx>`，stdin 喂 40 行默认应答覆盖任意格式的交互问答；输出为 zstd 压缩 DSPX JSON，复用 `DspxProjectParser::parse`（opendspx 自动解压，vcpkg 1ea5b75c 与 libresvip 2.8.1 兼容已实测）。
+- 新增 `Controller/DocumentWorkflow/OpendspxImportLoadSession` 基类：DSPX 与桥接格式共享的配置（`DspxConfigPage` 轨道选择）与物化（基类 `DspxProjectConverter` Append；`purpose == Open` 时改用 `DspxProjectConverterUi` NewProject + `ReplaceProjectPayload`，loop 进 AppStatus）；子类只实现 `createParseTask` / `takeParsedModel` 钩子。
+- 新增 `LibreSVIPLoadSession`（~30 行，parse = 转换 task）+ `Modules/ProjectFormats/LibreSVIPFormatHandler`（36 个扩展名，排除 mid/midi/dspx 与泛 .xml；`canOpen` / `canImport`；配置页复用 `DspxConfigPage`）。
+- libresvip 路径配置沿用 AppOptions：`GeneralOption::libreSVIPPath`（与 `rmvpePath` 同款 `LITE_OPTION_ITEM`）+ `GeneralPage` 的 Model 卡片 FileSelector；解析器读取顺序 = AppOptions → PATH 兜底。
+- UI 入口：导入菜单新增「Project file (LibreSVIP)...」（扩展名从 registry 派生）；文件 → 打开对话框过滤器改为 registry `canOpen` 动态派生（桥接扩展名自动可见）。
+- libresvip-cli 获取：DiffScope catalog（catalogs.diffscope.org/3rdparty/libresvip/index.json）→ GitHub release（SoulMelody/LibreSVIP）v2.8.1 win-amd64，本机部署于 `D:\GitRepos\libresvip\libresvip-cli\`。
+
+验证：Debug 构建通过；ctest 无回归；人工验证（用户 2026-08-08 实测）文件 → 打开 USTX 正常（轨道选择 → Replace），导入入口可用。已知限制：格式选项全默认（stdio 问答无 GUI）；libresvip 每次启动约 5-6s（Python 打包）；转换警告未展示；`OpendspxImportLoadSession` 等新翻译 context 待 i18n 更新。
 
 ## 目标
 
