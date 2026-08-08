@@ -29,6 +29,7 @@ ProjectFormatDescriptor LibreSVIPFormatHandler::descriptor() const {
         QStringLiteral("vpr"),      QStringLiteral("vshp"),       QStringLiteral("vspx"),
         QStringLiteral("vsq"),      QStringLiteral("vsqx"),       QStringLiteral("vvproj"),
         QStringLiteral("vxf"),      QStringLiteral("xvsq"),       QStringLiteral("y77")};
+    result.canOpen = true;
     result.canImport = true;
     return result;
 }
@@ -43,9 +44,8 @@ bool LibreSVIPFormatHandler::probe(const QByteArray &header) const {
 IProjectLoadSession *LibreSVIPFormatHandler::createSession(const ProjectLoadRequest &request,
                                                            IDocumentWorkflowUi * /*ui*/,
                                                            QObject *parent) {
-    if (request.purpose != ProjectLoadPurpose::Import)
-        return nullptr;
-    return new LibreSVIPLoadSession(this, request.filePath, request.requestId, parent);
+    return new LibreSVIPLoadSession(this, request.filePath, request.purpose, request.requestId,
+                                    parent);
 }
 
 IProjectConfigPage *LibreSVIPFormatHandler::createConfigPage(QWidget *parent) {

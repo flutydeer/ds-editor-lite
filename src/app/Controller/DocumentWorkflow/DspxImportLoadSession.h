@@ -12,8 +12,8 @@ class DspxImportLoadSession final : public OpendspxImportLoadSession {
     Q_OBJECT
 
 public:
-    DspxImportLoadSession(IProjectFormatHandler *formatHandler, QString filePath, quint64 requestId,
-                          QObject *parent = nullptr);
+    DspxImportLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
+                          ProjectLoadPurpose purpose, quint64 requestId, QObject *parent = nullptr);
 
 private:
     Task *createParseTask() override;

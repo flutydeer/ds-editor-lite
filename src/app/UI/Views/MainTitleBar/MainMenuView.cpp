@@ -113,11 +113,30 @@ void MainMenuViewPrivate::onNew() const {
 
 void MainMenuViewPrivate::onOpen() {
     Q_Q(MainMenuView);
+    // Build the Open filter from the registry (canOpen handlers) so newly
+    // registered formats appear automatically.
+    QStringList allPatterns;
+    QStringList namedFilters;
+    for (const auto *handler : projectFormatRegistry->handlers()) {
+        if (!handler->descriptor().canOpen)
+            continue;
+        QStringList patterns;
+        for (const auto &ext : handler->descriptor().extensions)
+            patterns.append(QStringLiteral("*.%1").arg(ext));
+        allPatterns.append(patterns);
+        // Skip the bridge handler: its 30+ extensions would make an
+        // unreadable named filter (they are all covered by All Supported Files).
+        if (handler->descriptor().id == QStringLiteral("libresvip"))
+            continue;
+        namedFilters.append(QStringLiteral("%1 (%2)").arg(handler->descriptor().displayName,
+                                                          patterns.join(QLatin1Char(' '))));
+    }
+    auto filter =
+        MainMenuView::tr("All Supported Files (%1)").arg(allPatterns.join(QLatin1Char(' ')));
+    if (!namedFilters.isEmpty())
+        filter += QStringLiteral(";;") + namedFilters.join(QStringLiteral(";;"));
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    const auto fileName = QFileDialog::getOpenFileName(
-        q, tr("Open"), lastDir,
-        MainMenuView::tr("All Supported Files (*.dspx *.mid *.midi);;DiffScope Project File "
-                         "(*.dspx);;MIDI File (*.mid *.midi)"));
+    const auto fileName = QFileDialog::getOpenFileName(q, tr("Open"), lastDir, filter);
     if (fileName.isNull()) {
         qDebug() << "User cancelled open";
         return;
@@ -214,9 +233,9 @@ void MainMenuViewPrivate::onImportLibreSVIPFile() {
     if (patterns.isEmpty())
         return;
     const auto lastDir = documentWorkflowController->lastProjectFolder();
-    const auto fileName =
-        QFileDialog::getOpenFileName(q, tr("Select Project File"), lastDir,
-                                     tr("Singing Project Files (%1)").arg(patterns.join(QLatin1Char(' '))));
+    const auto fileName = QFileDialog::getOpenFileName(
+        q, tr("Select Project File"), lastDir,
+        tr("Singing Project Files (%1)").arg(patterns.join(QLatin1Char(' '))));
     if (fileName.isNull())
         return;
     documentWorkflowController->requestImport(fileName);

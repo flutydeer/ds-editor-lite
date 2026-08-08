@@ -6,8 +6,9 @@
 #include <utility>
 
 LibreSVIPLoadSession::LibreSVIPLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
+                                           const ProjectLoadPurpose purpose,
                                            const quint64 requestId, QObject *parent)
-    : OpendspxImportLoadSession(formatHandler, std::move(filePath), requestId, parent) {
+    : OpendspxImportLoadSession(formatHandler, std::move(filePath), purpose, requestId, parent) {
 }
 
 Task *LibreSVIPLoadSession::createParseTask() {

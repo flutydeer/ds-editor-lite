@@ -2,6 +2,7 @@
 
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 #include "Modules/ProjectConverters/DspxConfigPage.h"
+#include "Modules/ProjectConverters/DspxProjectConverterUi.h"
 #include "Modules/ProjectFormats/IProjectFormatHandler.h"
 #include "Modules/ProjectFormats/ProjectImportConfigDialog.h"
 #include <lite/ProjectConverters/DspxProjectConverter.h>
@@ -15,6 +16,7 @@
 #include "UI/Dialogs/Base/Dialog.h"
 
 #include <QCoreApplication>
+#include <QFileInfo>
 
 #include <utility>
 
@@ -60,10 +62,11 @@ namespace {
 } // namespace
 
 OpendspxImportLoadSession::OpendspxImportLoadSession(IProjectFormatHandler *formatHandler,
-                                                     QString filePath, const quint64 requestId,
-                                                     QObject *parent)
+                                                     QString filePath,
+                                                     const ProjectLoadPurpose purpose,
+                                                     const quint64 requestId, QObject *parent)
     : ProjectLoadSessionBase(std::move(filePath), requestId, parent),
-      m_formatHandler(formatHandler) {
+      m_formatHandler(formatHandler), m_purpose(purpose) {
 }
 
 OpendspxImportLoadSession::~OpendspxImportLoadSession() = default;
@@ -150,6 +153,32 @@ void OpendspxImportLoadSession::materialize(const DspxUserInput &input) {
     }
 
     SingingClipPhonemeNormalizer::normalizeEditedOffsets(resultModel);
+
+    if (m_purpose == ProjectLoadPurpose::Open) {
+        // Open replaces the whole document: the Ui converter pushes the
+        // source loop region into AppStatus, matching native DSPX Open.
+        emit progressChanged({tr("Opening Project"), tr("Applying project..."), 0, 100, 0, true});
+        AppModel openModel;
+        LoopSettings openLoopSettings;
+        QString openErrorMessage;
+        DspxProjectConverterUi openConverter;
+        if (!openConverter.loadParsedProject(*filteredModel, &openModel, openLoopSettings,
+                                             openErrorMessage,
+                                             IProjectConverter::ImportMode::NewProject)) {
+            fail({tr("Failed to open project"), openErrorMessage});
+            return;
+        }
+        SingingClipPhonemeNormalizer::normalizeEditedOffsets(openModel);
+        ReplaceProjectPayload payload;
+        payload.model = openModel.takeProjectData();
+        payload.loopSettings = openLoopSettings;
+        payload.sourceKind = ProjectSourceKind::Foreign;
+        payload.sourcePath = m_filePath;
+        payload.displayName = QFileInfo(m_filePath).completeBaseName();
+        finishWithResult(std::move(payload));
+        return;
+    }
+
     AppendProjectPayload payload;
     payload.model = resultModel.takeProjectData();
     payload.importTempo = input.timeline.importTempo;

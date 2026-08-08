@@ -12,8 +12,8 @@ class LibreSVIPLoadSession final : public OpendspxImportLoadSession {
     Q_OBJECT
 
 public:
-    LibreSVIPLoadSession(IProjectFormatHandler *formatHandler, QString filePath, quint64 requestId,
-                         QObject *parent = nullptr);
+    LibreSVIPLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
+                         ProjectLoadPurpose purpose, quint64 requestId, QObject *parent = nullptr);
 
 private:
     Task *createParseTask() override;

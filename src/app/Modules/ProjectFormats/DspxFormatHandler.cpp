@@ -23,7 +23,8 @@ IProjectLoadSession *DspxFormatHandler::createSession(const ProjectLoadRequest &
                                                       IDocumentWorkflowUi *ui, QObject *parent) {
     if (request.purpose == ProjectLoadPurpose::Open)
         return new DspxLoadSession(request.filePath, request.requestId, ui, parent);
-    return new DspxImportLoadSession(this, request.filePath, request.requestId, parent);
+    return new DspxImportLoadSession(this, request.filePath, request.purpose, request.requestId,
+                                     parent);
 }
 
 IProjectConfigPage *DspxFormatHandler::createConfigPage(QWidget *parent) {
