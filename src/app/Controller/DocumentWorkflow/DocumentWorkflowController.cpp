@@ -594,8 +594,14 @@ void DocumentWorkflowController::commitReplace(ReplaceProjectPayload &&payload) 
 void DocumentWorkflowController::commitAppend(AppendProjectPayload &&payload) {
     QList<Track *> importedTracks;
     importedTracks.reserve(static_cast<qsizetype>(payload.model.tracks.size()));
-    for (const auto &track : payload.model.tracks)
+    for (const auto &track : payload.model.tracks) {
+        // Payload tracks were already colored against the throwaway staging
+        // model; AppModel::insertTrack only auto-assigns the palette color
+        // when colorIndex() == 0. Reset so the append continues the live
+        // palette sequence instead of repeating the staging colors.
+        track->setColorIndex(0);
         importedTracks.append(track.get());
+    }
 
     const auto actions = new ImportProjectActions(std::move(payload.model), payload.importTempo,
                                                   payload.importTimeSignature, appModel);
