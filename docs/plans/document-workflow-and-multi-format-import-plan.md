@@ -5,7 +5,7 @@
 | 阶段 | 状态 | 更新时间 |
 | --- | --- | --- |
 | 第一阶段：统一文档工作流 | 已完成（2026-08-08 复核并补充实现细节） | 2026-07-15 |
-| 第二阶段：通用多格式导入框架 | 待讨论（未实施） | 2026-08-06 |
+| 第二阶段：通用多格式导入框架 | 实施中（迁移顺序第 1 步已完成） | 2026-08-08 |
 
 本文记录 DS Editor Lite 的 New、Open、Import、Save、Save As、Close、Restart 工作流改造，
 以及后续接入 DSPX Import、VSQX、USTX、SVP 等格式时的架构方向。
@@ -327,7 +327,31 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 
 ## 状态
 
-第二阶段尚未实施。本节用于新对话中讨论和修订，不代表接口已经冻结。
+第二阶段自 2026-08-08 起按"建议迁移顺序"逐步实施。接口以实际代码为准，本节保留讨论记录。
+
+### 实施进度
+
+| 步骤 | 内容 | 状态 |
+| --- | --- | --- |
+| 1 | `MidiFormatHandler` 替换 `LegacyMidiLoadSession`（拆分后台解析 / 配置 / 物化） | ✅ `6422a524` |
+| 2 | MIDI 通道切换改为异步 Reprocessing，用 generationId 丢弃旧结果 | ⬜ |
+| 3 | 引入通用导入向导和基础 UserInput DTO | ⬜ |
+| 4 | 实现 DSPX Import（轨道选择、时间线选项、loop 忽略策略） | ⬜ |
+| 5 | 引入 SingerMapping 和 ResourceMapping | ⬜ |
+| 6 | 将 DSPX Open 迁入格式注册表，移除临时 Session 工厂 | ⬜ |
+| 7 | 接入至少一种新的歌声工程格式验证抽象 | ⬜ |
+| 8 | 冻结 Handler、配置页和 Issue API | ⬜ |
+
+第 1 步落地内容（2026-08-08）：
+
+- 新增 `src/app/Modules/ProjectFormats/`：`IProjectFormatHandler`（`descriptor / probe / createSession`，请求为 `ProjectLoadRequest { filePath, purpose, requestId }`）、`ProjectFormatRegistry`（LITE_SINGLETON，构造时内置注册内置格式，`resolveByPath` 按扩展名解析）、`MidiFormatHandler`（`.mid` / `.midi`，probe 为 `MThd` 文件头）。
+- 新增 `Controller/Tasks/MidiParseTask`：`MidiFileParser` 移入后台 Task（`isTerminateRequested` 可中断）。
+- 新增 `Controller/DocumentWorkflow/MidiLoadSession` 替代 `LegacyMidiLoadSession`：后台解析 → 交互配置（Open 默认勾选 tempo/拍号，Import 默认不勾）→ 物化（临时 AppModel + 音素 offset 规范化）→ Replace / Append payload。用户可见行为与原同步流程一致。
+- `DocumentWorkflowController::createSession`：MIDI 经注册表创建 Session；DSPX Open 保持专用路径（步骤 6 迁移）。
+- 接口小改：`MidiConverterUi` 三个配置方法 protected → public；`buildTrackInfoList` 公开为 `buildMidiTrackInfoList`（`MidiConverter.h`）。
+- 修复 `a627df39`：追加提交时重置导入轨道颜色——payload 轨道在临时模型上已被分配色轮色，`AppModel::insertTrack` 只对 `colorIndex()==0` 的轨道重新分配，导致前两条轨道颜色重复；`commitAppend` 统一重置后由 `insertTrack` 基于真实模型重新分配，颜色序列恢复递增。该 bug 为既有问题（旧同步流程同样经过临时模型），拖放导入路径不受影响（轨道未经过临时模型）。
+
+验证：Debug 构建通过；ctest 18/19 通过（`TestAnimationSettings` 为既有失败，与导入无关）；人工验证 Open / Import / 拖放导入与色轮递增均正常。
 
 ## 目标
 
