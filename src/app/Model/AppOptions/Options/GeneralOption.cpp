@@ -80,6 +80,8 @@ void GeneralOption::load(const QJsonObject &object) {
         gameDir = object[gameDirKey].toString();
     if (object.contains(rmvpePathKey))
         rmvpePath = object[rmvpePathKey].toString();
+    if (object.contains(libreSVIPPathKey))
+        libreSVIPPath = object[libreSVIPPathKey].toString();
 }
 
 void GeneralOption::save(QJsonObject &object) {
@@ -95,7 +97,8 @@ void GeneralOption::save(QJsonObject &object) {
         {recentProjectFilesKey,     QJsonArray::fromStringList(recentProjectFiles)},
         {speakerMixPresetsKey,      speakerMixPresets                             },
         serialize_gameDir(),
-        serialize_rmvpePath()
+        serialize_rmvpePath(),
+        serialize_libreSVIPPath()
     };
 }
 

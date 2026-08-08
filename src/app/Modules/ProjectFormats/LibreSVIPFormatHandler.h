@@ -16,8 +16,8 @@ public:
                                        QObject *parent) override;
     IProjectConfigPage *createConfigPage(QWidget *parent) override;
 
-    // Path of the libresvip-cli executable: QSettings override first, then
-    // PATH lookup. Empty string means the converter is not available.
+    // Path of the libresvip-cli executable: AppOptions general->libreSVIPPath
+    // first, then PATH lookup. Empty string means the converter is not available.
     static QString executablePath();
     static void setExecutablePath(const QString &path);
 };

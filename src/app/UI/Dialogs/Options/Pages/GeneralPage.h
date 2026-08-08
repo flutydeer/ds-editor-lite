@@ -32,6 +32,7 @@ private:
 
     FileSelector *m_fsGameDir;
     FileSelector *m_fsRmvpePath;
+    FileSelector *m_fsLibreSVIPPath;
 };
 
 #endif // GENERALPAGE_H

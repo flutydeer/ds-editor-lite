@@ -33,6 +33,7 @@ public:
     QJsonValue speakerMixPresets;
     LITE_OPTION_ITEM(QString, gameDir, QString())
     LITE_OPTION_ITEM(QString, rmvpePath, QString())
+    LITE_OPTION_ITEM(QString, libreSVIPPath, QString())
 
 
 public:

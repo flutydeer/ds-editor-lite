@@ -33,6 +33,7 @@ void GeneralPage::modifyOption() {
 
     option->gameDir = m_fsGameDir->path();
     option->rmvpePath = m_fsRmvpePath->path();
+    option->libreSVIPPath = m_fsLibreSVIPPath->path();
     appOptions->saveAndNotify(AppOptionsGlobal::Option::General);
 }
 
@@ -118,10 +119,16 @@ QWidget *GeneralPage::createContentWidget() {
     m_fsRmvpePath->setFileDropExtensions({"onnx"});
     m_fsRmvpePath->setPath(option->rmvpePath);
     connect(m_fsRmvpePath, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
+    m_fsLibreSVIPPath = new FileSelector;
+    m_fsLibreSVIPPath->setMinimumWidth(480);
+    m_fsLibreSVIPPath->setFilter(tr("Executable (*.exe)"));
+    m_fsLibreSVIPPath->setPath(option->libreSVIPPath);
+    connect(m_fsLibreSVIPPath, &FileSelector::pathChanged, this, &GeneralPage::modifyOption);
 
     const auto modelCard = new OptionListCard(tr("Model"));
     modelCard->addItem(tr("Game Model Dir"), m_fsGameDir);
     modelCard->addItem(tr("Rmvpe Model Path"), m_fsRmvpePath);
+    modelCard->addItem(tr("LibreSVIP Path"), m_fsLibreSVIPPath);
 
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(applicationCard);

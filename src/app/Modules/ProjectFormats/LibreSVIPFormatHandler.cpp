@@ -1,15 +1,12 @@
 #include "LibreSVIPFormatHandler.h"
 
 #include "Controller/DocumentWorkflow/LibreSVIPLoadSession.h"
+#include "Global/AppOptionsGlobal.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Modules/ProjectConverters/DspxConfigPage.h"
 
 #include <QFileInfo>
-#include <QSettings>
 #include <QStandardPaths>
-
-namespace {
-    constexpr auto kSettingsKey = "libresvip/executablePath";
-}
 
 ProjectFormatDescriptor LibreSVIPFormatHandler::descriptor() const {
     ProjectFormatDescriptor result;
@@ -56,14 +53,13 @@ IProjectConfigPage *LibreSVIPFormatHandler::createConfigPage(QWidget *parent) {
 }
 
 QString LibreSVIPFormatHandler::executablePath() {
-    QSettings settings;
-    const auto configured = settings.value(QString::fromLatin1(kSettingsKey)).toString();
+    const auto configured = appOptions->general()->libreSVIPPath;
     if (!configured.isEmpty() && QFileInfo::exists(configured))
         return configured;
     return QStandardPaths::findExecutable(QStringLiteral("libresvip-cli"));
 }
 
 void LibreSVIPFormatHandler::setExecutablePath(const QString &path) {
-    QSettings settings;
-    settings.setValue(QString::fromLatin1(kSettingsKey), path);
+    appOptions->general()->libreSVIPPath = path;
+    appOptions->saveAndNotify(AppOptionsGlobal::Option::General);
 }
