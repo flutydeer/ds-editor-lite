@@ -63,6 +63,7 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
                 d->actionSave->setEnabled(!busy);
                 d->actionSaveAs->setEnabled(!busy);
                 d->actionImportMidi->setEnabled(!busy);
+                d->actionImportDspx->setEnabled(!busy);
             });
     addMenu(d->buildFileMenu());
     addMenu(d->buildEditMenu());
@@ -184,6 +185,16 @@ void MainMenuViewPrivate::onImportMidiFile() {
     }
     // Batch import: parse all files, then show one shared options dialog.
     documentImportController->requestImport(fileNames);
+}
+
+void MainMenuViewPrivate::onImportDspxFile() {
+    Q_Q(MainMenuView);
+    const auto lastDir = documentWorkflowController->lastProjectFolder();
+    const auto fileName = QFileDialog::getOpenFileName(
+        q, tr("Select DiffScope Project File"), lastDir, tr("DiffScope Project File (*.dspx)"));
+    if (fileName.isNull())
+        return;
+    documentWorkflowController->requestImport(fileName);
 }
 
 void MainMenuViewPrivate::onExportMidiFile() {
@@ -492,6 +503,10 @@ void MainMenuViewPrivate::initFileActions() {
     setMenuIcon(actionImportMidi, QStringLiteral(":/svg/icons/arrow_import_16_regular.svg"));
     connect(actionImportMidi, &QAction::triggered, this, [this] { onImportMidiFile(); });
 
+    actionImportDspx = new QAction(tr("DiffScope project file..."), this);
+    setMenuIcon(actionImportDspx, QStringLiteral(":/svg/icons/arrow_import_16_regular.svg"));
+    connect(actionImportDspx, &QAction::triggered, this, [this] { onImportDspxFile(); });
+
     actionExportAudio = new QAction(tr("Audio file..."), this);
     setMenuIcon(actionExportAudio, QStringLiteral(":/svg/icons/arrow_export_16_regular.svg"));
     connect(actionExportAudio, &QAction::triggered, this, [this] { onExportAudioFile(); });
@@ -625,6 +640,7 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
     setMenuIcon(menuImport->menuAction(),
                 QStringLiteral(":/svg/icons/arrow_import_16_regular.svg"));
     menuImport->addAction(actionImportMidi);
+    menuImport->addAction(actionImportDspx);
     menuFile->addMenu(menuImport);
 
     menuExport = new Menu(tr("Export"), q);
@@ -768,6 +784,7 @@ void MainMenuViewPrivate::retranslateUi() {
     actionSave->setText(tr("&Save"));
     actionSaveAs->setText(tr("Save &as..."));
     actionImportMidi->setText(tr("MIDI file..."));
+    actionImportDspx->setText(tr("DiffScope project file..."));
     actionExportAudio->setText(tr("Audio file..."));
     actionExportMidi->setText(tr("MIDI file..."));
     actionOpenPackageManager->setText(tr("Manage packages..."));

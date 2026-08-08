@@ -1,0 +1,14 @@
+#ifndef DS_EDITOR_LITE_DSPXFORMATHANDLER_H
+#define DS_EDITOR_LITE_DSPXFORMATHANDLER_H
+
+#include "IProjectFormatHandler.h"
+
+class DspxFormatHandler final : public IProjectFormatHandler {
+public:
+    ProjectFormatDescriptor descriptor() const override;
+    bool probe(const QByteArray &header) const override;
+    IProjectLoadSession *createSession(const ProjectLoadRequest &request, QObject *parent) override;
+    IProjectConfigPage *createConfigPage(QWidget *parent) override;
+};
+
+#endif // DS_EDITOR_LITE_DSPXFORMATHANDLER_H

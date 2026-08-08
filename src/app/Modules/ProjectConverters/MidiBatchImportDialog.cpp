@@ -13,8 +13,7 @@
 class MidiBatchImportDialogPrivate {
     Q_DECLARE_PUBLIC(MidiBatchImportDialog)
 public:
-    explicit MidiBatchImportDialogPrivate(MidiBatchImportDialog *q,
-                                          const QByteArray &defaultCodec)
+    explicit MidiBatchImportDialogPrivate(MidiBatchImportDialog *q, const QByteArray &defaultCodec)
         : q_ptr(q), defaultCodec(defaultCodec) {
     }
 
@@ -38,10 +37,12 @@ public:
         }
 
         importTempoCheckBox = new QCheckBox(MidiBatchImportDialog::tr("Import tempo"), q);
+        importTempoCheckBox->setChecked(true);
         contentLayout->addWidget(importTempoCheckBox);
 
         importTimeSignatureCheckBox =
             new QCheckBox(MidiBatchImportDialog::tr("Import time signature"), q);
+        importTimeSignatureCheckBox->setChecked(true);
         contentLayout->addWidget(importTimeSignatureCheckBox);
 
         auto *okButton = new AccentButton(MidiBatchImportDialog::tr("OK"));

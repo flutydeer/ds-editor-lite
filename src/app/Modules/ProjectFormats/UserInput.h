@@ -32,4 +32,10 @@ struct MidiUserInput {
     TimelineOptionsInput timeline;
 };
 
+// Aggregated configuration of the DSPX import page.
+struct DspxUserInput {
+    TrackSelectionInput tracks;
+    TimelineOptionsInput timeline;
+};
+
 #endif // DS_EDITOR_LITE_USERINPUT_H

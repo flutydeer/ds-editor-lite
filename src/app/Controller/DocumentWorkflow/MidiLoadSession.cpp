@@ -94,9 +94,11 @@ void MidiLoadSession::startConfiguration() {
     m_configPage = midiPage;
     dialog->setPage(midiPage);
     midiPage->setTrackInfoList(m_parseData.trackInfos);
-    const auto defaultImportTimeline = m_purpose == ProjectLoadPurpose::Open;
-    midiPage->setImportTempo(defaultImportTimeline);
-    midiPage->setImportTimeSignature(defaultImportTimeline);
+    // Tempo / time signature default to enabled for both Open and Import:
+    // imports usually merge parts of the same song, where adopting the
+    // source timeline is harmless (and desired on a fresh project).
+    midiPage->setImportTempo(true);
+    midiPage->setImportTimeSignature(true);
     midiPage->detectCodec();
     connect(midiPage, &MidiConfigPage::separateMidiChannelsChanged, this,
             [this](const bool enabled) { requestReprocess(enabled); });

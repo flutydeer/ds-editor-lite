@@ -308,10 +308,16 @@ void DocumentWorkflowController::validatePendingRequest() {
             return;
         }
         const auto suffix = QFileInfo(m_pending.filePath).suffix().toLower();
-        const bool supportedOpen = suffix == "dspx" || suffix == "mid" || suffix == "midi";
-        const bool supportedImport = suffix == "mid" || suffix == "midi";
-        if ((m_pending.operation == DocumentOperation::Open && !supportedOpen) ||
-            (m_pending.operation == DocumentOperation::Import && !supportedImport)) {
+        bool supported = false;
+        if (m_pending.operation == DocumentOperation::Open) {
+            // DSPX Open keeps its dedicated session until migration step 6.
+            supported = suffix == "dspx" ||
+                        projectFormatRegistry->resolveByPath(m_pending.filePath) != nullptr;
+        } else if (m_pending.operation == DocumentOperation::Import) {
+            const auto handler = projectFormatRegistry->resolveByPath(m_pending.filePath);
+            supported = handler != nullptr && handler->descriptor().canImport;
+        }
+        if (!supported) {
             m_error = {tr("Unsupported file"), tr("Unrecognized file format: %1").arg(suffix)};
             m_validationResult = ValidationResult::Fail;
             emit validationCompleted();

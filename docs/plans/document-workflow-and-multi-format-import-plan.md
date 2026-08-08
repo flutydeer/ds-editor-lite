@@ -5,7 +5,7 @@
 | 阶段 | 状态 | 更新时间 |
 | --- | --- | --- |
 | 第一阶段：统一文档工作流 | 已完成（2026-08-08 复核并补充实现细节） | 2026-07-15 |
-| 第二阶段：通用多格式导入框架 | 实施中（迁移顺序第 1-3 步已完成） | 2026-08-08 |
+| 第二阶段：通用多格式导入框架 | 实施中（迁移顺序第 1-4 步已完成） | 2026-08-08 |
 
 本文记录 DS Editor Lite 的 New、Open、Import、Save、Save As、Close、Restart 工作流改造，
 以及后续接入 DSPX Import、VSQX、USTX、SVP 等格式时的架构方向。
@@ -336,7 +336,7 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 | 1 | `MidiFormatHandler` 替换 `LegacyMidiLoadSession`（拆分后台解析 / 配置 / 物化） | ✅ `6422a524` |
 | 2 | MIDI 通道切换改为异步 Reprocessing，用 generationId 丢弃旧结果 | ✅ `f007c139` |
 | 3 | 引入通用导入向导和基础 UserInput DTO | ✅ `d970f22a` |
-| 4 | 实现 DSPX Import（轨道选择、时间线选项、loop 忽略策略） | ⬜ |
+| 4 | 实现 DSPX Import（轨道选择、时间线选项、loop 忽略策略） | ✅（2026-08-08） |
 | 5 | 引入 SingerMapping 和 ResourceMapping | ⬜ |
 | 6 | 将 DSPX Open 迁入格式注册表，移除临时 Session 工厂 | ⬜ |
 | 7 | 接入至少一种新的歌声工程格式验证抽象 | ⬜ |
@@ -374,6 +374,18 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 
 验证：Debug 构建通过；`TestDocumentWorkflow` / `TestSpeakerMix` / `TestSpeakerMixValidation` 通过。待人工验证：Open / Import MIDI 配置对话框交互与第 2 步一致（含通道切换异步重解析）。
 
+第 4 步落地内容（2026-08-08）：
+
+- 新增 `src/app/Modules/ProjectFormats/DspxFormatHandler`：`.dspx` 扩展名、zip 文件头 probe、`createSession` 仅接受 Import（DSPX Open 保持专用路径，步骤 6 迁移）、`createConfigPage` 返回 `DspxConfigPage`。
+- 新增 `src/app/Modules/ProjectConverters/DspxConfigPage`：轨道选择器（Name / Type / Notes 三列 + Select All，Type 为 Singing / Audio / Mixed / Empty）+ 时间线选项；`collectInput() -> DspxUserInput`（复用 `MidiImportTrackInfo` 作为通用轨道展示记录，`rangeText` 承载轨道类型）。
+- 新增 `src/app/Controller/DocumentWorkflow/DspxImportLoadSession`：解析复用 `OpenDspxProjectTask`（无 Package 等待——singer 引用以 identifier 传递，不查包）；配置经通用容器；物化 = 拷贝 `opendspx::Model` → 丢弃未选轨道 → **基类 `DspxProjectConverter`**（非 Ui 子类，loop 不推 AppStatus，实现"Import 永不触碰 loop"）→ `AppendProjectPayload`。
+- `ProjectFormatRegistry` 注册 `DspxFormatHandler`（扩展名命中后 `createSession` 按 purpose 分派，Open 返回 nullptr 由外层专用路径兜底）。
+- `UserInput.h` 新增 `DspxUserInput { TrackSelectionInput, TimelineOptionsInput }`。
+
+验证：Debug 构建通过；`TestDocumentWorkflow` / `TestSpeakerMix` / `TestSpeakerMixValidation` 通过。待人工验证：DSPX Import 轨道选择 / tempo / 拍号 / loop 忽略 / 一次撤销。
+
+补充：导入菜单新增「DiffScope project file...」入口（`MainMenuView`，单文件对话框 `*.dspx` → `requestImport`）；批量导入管线仍为 MIDI 专用，DSPX 暂走单文件交互路径。
+补充：`validatePendingRequest` 的硬编码格式白名单改为从 `ProjectFormatRegistry` 派生（Open = dspx 专用路径 ∪ registry 命中；Import = registry 命中且 `canImport`），新格式注册后校验自动生效。
 ## 目标
 
 在不破坏第一阶段外层工作流和统一提交器的前提下，将 DSPX / MIDI 临时 Session 扩展为支持：

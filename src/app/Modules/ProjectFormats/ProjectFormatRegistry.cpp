@@ -1,5 +1,6 @@
 #include "ProjectFormatRegistry.h"
 
+#include "DspxFormatHandler.h"
 #include "IProjectFormatHandler.h"
 #include "MidiFormatHandler.h"
 
@@ -9,6 +10,7 @@ ProjectFormatRegistry::ProjectFormatRegistry(QObject *parent) : QObject(parent) 
     // Built-in formats are registered here; future formats can be added via
     // registerHandler() at startup.
     registerHandler(std::make_unique<MidiFormatHandler>());
+    registerHandler(std::make_unique<DspxFormatHandler>());
 }
 
 ProjectFormatRegistry::~ProjectFormatRegistry() = default;
