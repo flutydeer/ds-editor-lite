@@ -337,10 +337,10 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 | 2 | MIDI 通道切换改为异步 Reprocessing，用 generationId 丢弃旧结果 | ✅ `f007c139` |
 | 3 | 引入通用导入向导和基础 UserInput DTO | ✅ `d970f22a` |
 | 4 | 实现 DSPX Import（轨道选择、时间线选项、loop 忽略策略） | ✅（2026-08-08） |
-| 5 | 引入 SingerMapping 和 ResourceMapping | ⬜ |
-| 6 | 将 DSPX Open 迁入格式注册表，移除临时 Session 工厂 | ⬜ |
-| 7 | 接入至少一种新的歌声工程格式验证抽象 | ⬜ |
-| 8 | 冻结 Handler、配置页和 Issue API | ⬜ |
+| 5 | 引入 SingerMapping 和 ResourceMapping | ⬜（2026-08-08 暂缓，先不做） |
+| 6 | DSPX Open 迁入格式注册表 + Session 骨架重构（流程基类 / 配置解耦） | ⬜ |
+| 7 | 接入 LibreSVIP 转换器：外部进程 + DSPX 中间表示（参考 DiffScope） | ⬜ |
+| 8 | 冻结 Handler、配置页和 Issue API（LibreSVIP 接入完成后） | ⬜ |
 
 第 1 步落地内容（2026-08-08）：
 
@@ -395,6 +395,10 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 - USTX
 - SVP
 - 后续其他歌声合成工程格式
+
+> **2026-08-08 路线调整**：VSQX / USTX / SVP 等外部格式不再自研解析器，改为接入 LibreSVIP 转换器
+> （参考 DiffScope 架构）：libresvip 外部进程负责解析任意格式并输出 DSPX 二进制，编辑器复用现有
+> opendspx 解析链路消费。SVP 已在 libresvip 支持列表（svp / ustx / vsqx / vspx / svip 等 30+ 格式），无需逆向。
 
 重点解决：
 
@@ -511,30 +515,54 @@ enum class ProjectIssueSeverity {
 - 保存和提交错误继续由外层工作流处理。
 
 
-## 迁移顺序（2026-08-08 冻结为最小闭环 6 步）
+## 迁移顺序（2026-08-08 冻结；S5 暂缓；7 改为 LibreSVIP 路线）
 
-**范围**：最小闭环——框架 + MIDI/DSPX 迁移，抽象由 DSPX Import 验证；不接入新歌声工程格式（原第 7/8 步取消，等真实格式需求再评估）。
+**范围**：最小闭环——框架 + MIDI/DSPX 迁移，抽象由 DSPX Import 验证；S5 暂缓；多格式经 LibreSVIP 转换器接入（2026-08-08 DiffScope 调研后确定，见 S7 说明）。
 
 1. **S1 — `MidiFormatHandler` 替换 `LegacyMidiLoadSession`**（只拆结构不改行为）：引入 `ProjectFormatRegistry` + `IProjectFormatHandler` 骨架；Session 内部暂保持线性流程，通用状态机骨架留到 S2。
 2. **S2 — MIDI 通道切换异步 Reprocessing**：引入通用 Session 状态机骨架；用 generationId 丢弃过期结果。
 3. **S3 — 通用单页配置面板 + 基础 UserInput DTO**：MIDI 配置页迁入面板容器；Session 只收 DTO，不持有 QWidget。
 4. **S4 — DSPX Import**（轨道选择、时间线选项、loop 忽略策略）：第一个 Append 型歌声工程格式，验证 Handler 抽象。
-5. **S5 — SingerMapping + ResourceMapping**：按 track 粒度；Skip / Map / Abort 落地。
-6. **S6 — DSPX Open 迁入格式注册表**：移除 `DspxLoadSession` / `LegacyMidiLoadSession` 临时 Session 工厂，内外层边界收口。
+5. **S5 — SingerMapping + ResourceMapping**（**2026-08-08 暂缓，先不做**）：按 track 粒度；Skip / Map / Abort 落地；复杂度偏高，待真实格式需求暴露后再评估。
+6. **S6 — Session 骨架重构 + DSPX Open 迁入格式注册表**（**多格式接入前置**）：
+   - **S6a 骨架化**：抽 `ProjectLoadSessionBase`——任务生命周期 / 进度 / 取消 / terminal / generationId 进基类，
+     模板方法 `parse() → [config()] → materialize()`；`requestReprocess()` 成为通用能力（配置变化 → 终止旧任务 →
+     只接受最新 generation），MIDI 通道分离重解析是它的第一个用户。三个既有 Session 继承后各自只剩解析 task、配置页、物化逻辑。
+   - **S6b 配置解耦**：`IProjectConfigPage` 只抽象生命周期（widget / 容器 / OK-Cancel），配置内容与交互 100% 格式专属
+     （MIDI 编码预览 / 重解析、DSPX 轨道选择各自实现）；声明式表单（JSON Schema）是 LibreSVIP 向导的内部实现选择，不做统一。
+   - **S6c DSPX Open 入注册表**：移除 `DspxLoadSession` / `LegacyMidiLoadSession` 临时工厂；`createSession` 增加
+     `IDocumentWorkflowUi*` 参数；Open 白名单改 `canOpen` 派生。LibreSVIP handler 将声明 30+ 扩展名，分派与白名单必须先 registry 化。
+   - 行为等价硬约束：MIDI 编码预览 / 通道分离重解析逻辑不动，重构只搬骨架。
+
+**2026-08-08 DiffScope 调研（S7 路线依据）**：DiffScope 的多格式接入策略——内部统一 `opendspx::Model` 中间表示，
+原生只实现 dspx / midi，其余 30+ 格式全部通过外部 libresvip 可执行程序转换（`LibreSVIPManager` 用 QProcess + protobuf
+通信：`{inputIdentifier, outputIdentifier, inputData, options}`），libresvip 输出 DSPX 二进制，再由
+`opendspx::Serializer::deserialize` 反序列化。格式清单（`prebuiltinformats.h`）只是元数据，真实能力来自 libresvip
+的 plugin catalog；可执行文件支持下载 / sha512 校验 / 更新检查。lite 可复刻：`opendspx::Serializer` API 与 DiffScope
+完全一致（vcpkg `opendspx`），`DspxProjectParser` 即 deserialize 封装，`OpenDspxProjectTask` → 物化链路现成。
+
+**S7（LibreSVIP 接入 = 桥接层）**：格式分两层——**原生层**（DSPX / MIDI，解析器编译进编辑器）+ **桥接层**
+（SVP / USTX / ACEP / VSQX 等：libresvip 外部进程转成 DSPX 二进制 → deserialize → 与原生 DSPX 完全相同的链路，编辑器侧无感）。
+桥接 Handler 的 Session 钩子：parse = 转换 task（QProcess + protobuf，参考 DiffScope
+`LibreSVIPManager` / `LibreSVIPConversionWizard` / `JsonSchemaForm`）；config = 向导页（格式选择 + JSON Schema
+选项表单）；materialize = 复用 DSPX 物化（中间表示同为 opendspx::Model）。进程管理（下载 / sha512 校验 / 更新检查）
+一并接入；libresvip 的 warningMessages 用于向用户展示转换信息损失。
+风险：libresvip 输出的 dspx schema 版本与本地 opendspx serializer 版本需对齐验证。
 
 
 ## 已冻结决策（2026-08-08 讨论）
 
 1. **配置页接口、生命周期及前后导航**：单页配置面板——Handler 提供 page widget，DTO 先行；多页向导容器后置（等真实格式暴露需求再评估）。
 2. **配置变化引发重解析时哪些中间结果可复用**：解析产物（中间表示）跨配置复用；物化结果（`ProjectModelData`）永不缓存；generationId 只丢弃过期物化。
-3. **SingerMapping 粒度**：按 track 建模 `{ sourceTrackId, targetSingerIdentifier, targetSpeakerId? }`，允许“未映射”状态；源 clip 显式指定不同歌手时才落 clip 级。
-4. **歌手映射规则是否持久化**：不持久化，每次导入重新映射（避免换包后静默映射错）；“最近使用”仅作 UI 快捷项，不自动应用。
+3. **SingerMapping 粒度**（随 S5 暂缓）：按 track 建模 `{ sourceTrackId, targetSingerIdentifier, targetSpeakerId? }`，允许“未映射”状态；源 clip 显式指定不同歌手时才落 clip 级。
+4. **歌手映射规则是否持久化**（随 S5 暂缓）：不持久化，每次导入重新映射（避免换包后静默映射错）；“最近使用”仅作 UI 快捷项，不自动应用。
 5. **Import 时 tempo / time signature / loop 冲突统一表达**：复用现有 `importTempo` / `importTimeSignature` 布尔选项（`ImportProjectActions` 已有）；冲突升级为 Warning 级 Issue；Import 永不触碰 loop，Open 整体替换。
 6. **无法识别的参数、自动化曲线和资源降级**：分层降级——可安全丢弃（未知自动化曲线）→ Warning + 丢弃；影响正确性（未知参数曲线）→ Warning + 保留；资源 → 走现有资源检查链。解析器永不因未知数据失败，降级必须记录 Issue。
 7. **RecoverableError 标准动作**：Skip / Map / Abort 三动作；Retry 不单独建模（隐含为返回配置页重新分析）。
 8. **跳过错误 Track / Clip 后 payload 完整性**：Skip = 该 Track 不出现在 payload；至少保留 1 个有效 Track 才能提交（全跳 = Abort）；被跳过内容进 Warning 汇总。
 9. **Warning 是否支持“不再提示”**：第一版不做（作用域成本高收益低，真实格式接入后再评估）。
 10. **Materializing 取消边界和原子性**：进入 Materializing 前可取消，进入后不可取消（与外层 Committing 对齐）；物化在临时 AppModel 上进行，取消 = 丢弃临时对象，当前文档零影响。
+11. **配置页不做声明式统一**：`IProjectConfigPage` 只抽象生命周期（widget / 容器 / OK-Cancel）；配置内容与交互 100% 格式专属——MIDI 的编码实时预览 / 通道重解析、DSPX 的轨道选择各自实现；JSON Schema 声明式表单是 LibreSVIP 向导的内部实现选择，不是通用配置方案。
 
 ## 第二阶段验收方向
 
@@ -542,12 +570,14 @@ enum class ProjectIssueSeverity {
 - Handler 的 Open / Import 能力限制。
 - 配置取消、返回修改和重新分析。
 - 多次异步 Reprocessing 只接受最新 generation。
-- 歌手映射完成、跳过、失败和持久化复用。
+- 歌手映射完成、跳过、失败和持久化复用（随 S5 暂缓，不验收）。
 - Warning 继续、RecoverableError 修复、FatalError 终止。
 - DSPX Import 不覆盖路径和 loop。
 - 不同格式统一生成 Replace / Append payload。
 - 任意内部失败、取消或过期结果均不修改当前工程。
-- 使用 MIDI、DSPX 和至少一种新增格式验证抽象，而不是只依靠模拟实现。
+- 使用 MIDI、DSPX 和 LibreSVIP 接入的格式（如 svp / ustx）验证抽象，而不是只依靠模拟实现。
+- 重构后行为等价：MIDI 编码预览 / 通道分离重解析 / DSPX 轨道选择与重构前一致。
+- 桥接格式导入与原生 DSPX 同链路（同一物化），转换信息损失经向导警告展示。
 
 ## 保持不变的约束
 
