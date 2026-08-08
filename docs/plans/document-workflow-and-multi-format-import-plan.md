@@ -340,7 +340,7 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 | 5 | 引入 SingerMapping 和 ResourceMapping | ⬜（2026-08-08 暂缓，先不做） |
 | 6 | DSPX Open 迁入格式注册表 + Session 骨架重构（流程基类 / 配置解耦） | ✅（2026-08-08） |
 | 7 | 接入 LibreSVIP 转换器：外部进程 + DSPX 中间表示（stdio MVP，Open + Import） | ✅（2026-08-08） |
-| 8 | 冻结 Handler、配置页和 Issue API（LibreSVIP 接入完成后） | ⬜ |
+| 8 | 冻结 Handler、配置页 API（Issue API 剔除，等真实格式需求） | ✅（2026-08-08） |
 
 第 1 步落地内容（2026-08-08）：
 
@@ -405,7 +405,16 @@ MainWindow 实现 `IDocumentWorkflowUi`，负责：
 - UI 入口：导入菜单新增「Project file (LibreSVIP)...」（扩展名从 registry 派生）；文件 → 打开对话框过滤器改为 registry `canOpen` 动态派生（桥接扩展名自动可见）。
 - libresvip-cli 获取：DiffScope catalog（catalogs.diffscope.org/3rdparty/libresvip/index.json）→ GitHub release（SoulMelody/LibreSVIP）v2.8.1 win-amd64，本机部署于 `D:\GitRepos\libresvip\libresvip-cli\`。
 
-验证：Debug 构建通过；ctest 无回归；人工验证（用户 2026-08-08 实测）文件 → 打开 USTX 正常（轨道选择 → Replace），导入入口可用。已知限制：格式选项全默认（stdio 问答无 GUI）；libresvip 每次启动约 5-6s（Python 打包）；转换警告未展示；`OpendspxImportLoadSession` 等新翻译 context 待 i18n 更新。
+验证：Debug 构建通过；ctest 无回归；人工验证（用户 2026-08-08 实测）文件 → 打开 USTX 正常（轨道选择 → Replace），导入入口可用。已知限制：格式选项全默认（stdio 问答无 GUI）；libresvip 每次启动约 5-6s（Python 打包）；转换警告未展示。
+
+第 8 步落地内容（2026-08-08，冻结 API）：
+
+- **冻结范围**：`IProjectFormatHandler`（descriptor / probe / createSession(request, ui, parent) / createConfigPage）、`IProjectLoadSession`（start / cancel / takeResult / requestId + progressChanged / ready / failed / canceled）、`IProjectConfigPage`（widget）、`ProjectLoadTypes.h`（ProjectLoadPurpose / ProjectSourceKind / ProjectLoadProgress / ProjectOperationError / ReplaceProjectPayload / AppendProjectPayload / PreparedProject）、`ProjectFormatRegistry`（registerHandler / resolveByPath / handlers）、`UserInput.h` DTO（TextEncodingInput / TrackSelectionInput / ChannelSeparationInput / TimelineOptionsInput / MidiUserInput / DspxUserInput）。内部实现类（Session / Task / Handler 实现 / 配置页实现 / 对话框）不冻结。
+- **审计结论**：全部冻结接口经 3 类格式（MIDI / DSPX / LibreSVIP）× 2 种 purpose（Open / Import）验证，无已知待改点；`DspxUserInput` 命名略窄（已被 LibreSVIP 复用）为已知瑕疵，冻结接受不改名。
+- **Issue API 剔除**：plan 设计的 Warning / RecoverableError / FatalError 体系代码零落地，无真实格式触发需求——不纳入冻结范围，等真实格式需求再设计（与 S5 同逻辑）。
+- 冻结后接口变更需走 plan 评估；内部实现（如 libresvip 转换 task 的 C++ 移植）可任意演进，不破坏冻结契约。
+
+验证：MIDI 编码预览 / 通道分离重解析人工回归通过（用户 2026-08-08 实测）；`TestDocumentWorkflow` / `TestSpeakerMix` / `TestSpeakerMixValidation` 通过。
 
 ## 目标
 
