@@ -9,6 +9,7 @@
 
 class IProjectLoadSession;
 class IProjectConfigPage;
+class IDocumentWorkflowUi;
 class QWidget;
 
 struct ProjectFormatDescriptor {
@@ -35,8 +36,10 @@ public:
 
     virtual ProjectFormatDescriptor descriptor() const = 0;
     virtual bool probe(const QByteArray &header) const = 0;
+    // ui carries the workflow UI context for interactive sessions (e.g. the
+    // confirm-without-package-metadata dialog); may be null for non-interactive use.
     virtual IProjectLoadSession *createSession(const ProjectLoadRequest &request,
-                                               QObject *parent) = 0;
+                                               IDocumentWorkflowUi *ui, QObject *parent) = 0;
     // Format-specific configuration page for interactive imports, hosted by
     // the generic ProjectImportConfigDialog. Returns nullptr for formats
     // without an interactive configuration step.

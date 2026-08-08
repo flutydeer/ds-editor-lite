@@ -18,6 +18,7 @@ bool MidiFormatHandler::probe(const QByteArray &header) const {
 }
 
 IProjectLoadSession *MidiFormatHandler::createSession(const ProjectLoadRequest &request,
+                                                      IDocumentWorkflowUi * /*ui*/,
                                                       QObject *parent) {
     return new MidiLoadSession(this, request.filePath, request.purpose, request.requestId, parent);
 }

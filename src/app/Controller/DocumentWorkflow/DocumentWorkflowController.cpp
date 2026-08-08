@@ -1,6 +1,5 @@
 #include "DocumentWorkflowController.h"
 
-#include "DspxLoadSession.h"
 #include "DocumentWorkflowPathUtils.h"
 #include "IDocumentWorkflowUi.h"
 #include "IProjectLoadSession.h"
@@ -310,9 +309,8 @@ void DocumentWorkflowController::validatePendingRequest() {
         const auto suffix = QFileInfo(m_pending.filePath).suffix().toLower();
         bool supported = false;
         if (m_pending.operation == DocumentOperation::Open) {
-            // DSPX Open keeps its dedicated session until migration step 6.
-            supported = suffix == "dspx" ||
-                        projectFormatRegistry->resolveByPath(m_pending.filePath) != nullptr;
+            const auto handler = projectFormatRegistry->resolveByPath(m_pending.filePath);
+            supported = handler != nullptr && handler->descriptor().canOpen;
         } else if (m_pending.operation == DocumentOperation::Import) {
             const auto handler = projectFormatRegistry->resolveByPath(m_pending.filePath);
             supported = handler != nullptr && handler->descriptor().canImport;
@@ -423,15 +421,12 @@ void DocumentWorkflowController::performSave() {
 }
 
 void DocumentWorkflowController::createSession() {
-    const auto suffix = QFileInfo(m_pending.filePath).suffix().toLower();
     const auto purpose = m_pending.operation == DocumentOperation::Import
                              ? ProjectLoadPurpose::Import
                              : ProjectLoadPurpose::Open;
-    if (suffix == "dspx" && purpose == ProjectLoadPurpose::Open) {
-        m_session = new DspxLoadSession(m_pending.filePath, m_pending.requestId, m_ui, this);
-    } else if (const auto handler = projectFormatRegistry->resolveByPath(m_pending.filePath)) {
+    if (const auto handler = projectFormatRegistry->resolveByPath(m_pending.filePath)) {
         ProjectLoadRequest request{m_pending.filePath, purpose, m_pending.requestId};
-        m_session = handler->createSession(request, this);
+        m_session = handler->createSession(request, m_ui, this);
     }
     if (!m_session) {
         m_error = {tr("Unsupported file"), tr("This operation is not supported.")};

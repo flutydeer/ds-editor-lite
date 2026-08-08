@@ -7,7 +7,8 @@ class MidiFormatHandler final : public IProjectFormatHandler {
 public:
     ProjectFormatDescriptor descriptor() const override;
     bool probe(const QByteArray &header) const override;
-    IProjectLoadSession *createSession(const ProjectLoadRequest &request, QObject *parent) override;
+    IProjectLoadSession *createSession(const ProjectLoadRequest &request, IDocumentWorkflowUi *ui,
+                                       QObject *parent) override;
     IProjectConfigPage *createConfigPage(QWidget *parent) override;
 };
 

@@ -1,6 +1,7 @@
 #include "DspxFormatHandler.h"
 
 #include "Controller/DocumentWorkflow/DspxImportLoadSession.h"
+#include "Controller/DocumentWorkflow/DspxLoadSession.h"
 #include "Modules/ProjectConverters/DspxConfigPage.h"
 
 ProjectFormatDescriptor DspxFormatHandler::descriptor() const {
@@ -8,6 +9,7 @@ ProjectFormatDescriptor DspxFormatHandler::descriptor() const {
     result.id = QStringLiteral("dspx");
     result.displayName = QStringLiteral("DiffSinger Project");
     result.extensions = {QStringLiteral("dspx")};
+    result.canOpen = true;
     result.canImport = true;
     return result;
 }
@@ -18,10 +20,9 @@ bool DspxFormatHandler::probe(const QByteArray &header) const {
 }
 
 IProjectLoadSession *DspxFormatHandler::createSession(const ProjectLoadRequest &request,
-                                                      QObject *parent) {
-    // DSPX Open keeps its dedicated session until migration step 6.
-    if (request.purpose != ProjectLoadPurpose::Import)
-        return nullptr;
+                                                      IDocumentWorkflowUi *ui, QObject *parent) {
+    if (request.purpose == ProjectLoadPurpose::Open)
+        return new DspxLoadSession(request.filePath, request.requestId, ui, parent);
     return new DspxImportLoadSession(this, request.filePath, request.requestId, parent);
 }
 
