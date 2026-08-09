@@ -835,6 +835,13 @@ DialogTitleBar QLabel {
     color: ${text.emphasis};
 }
 
+/* EmbeddedModalHost（遮罩由 EmbeddedModalHost::paintEvent 直接绘制） */
+#EmbeddedModalPanel {
+    background: ${surface.window};
+    border: 1px solid ${control.border.default};
+    border-radius: 8px;
+}
+
 QListWidget#AppOptionsDialogTabListWidget {
     outline: 0px;
     background: transparent;

@@ -28,7 +28,6 @@
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Dialogs/Extractor/ExtractPitchParamDialog.h"
 #include "UI/Dialogs/Note/QuantizeDialog.h"
-#include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Window/MainWindow.h"
 #include "Global/AppOptionsGlobal.h"
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
@@ -749,28 +748,20 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
     Q_Q(MainMenuView);
     actionGeneralOptions = new QAction(tr("&General..."), this);
     setMenuIcon(actionGeneralOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
-    connect(actionGeneralOptions, &QAction::triggered, this, [] {
-        AppOptionsDialog dialog(AppOptionsGlobal::Option::General);
-        dialog.exec();
-    });
+    connect(actionGeneralOptions, &QAction::triggered, this,
+            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::General); });
     actionAudioSettings = new QAction(tr("&Audio..."), this);
     setMenuIcon(actionAudioSettings, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
-    connect(actionAudioSettings, &QAction::triggered, this, [] {
-        AppOptionsDialog dialog(AppOptionsGlobal::Option::Audio);
-        dialog.exec();
-    });
+    connect(actionAudioSettings, &QAction::triggered, this,
+            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Audio); });
     actionMidiSettings = new QAction(tr("&MIDI..."), this);
     setMenuIcon(actionMidiSettings, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
-    connect(actionMidiSettings, &QAction::triggered, this, [] {
-        AppOptionsDialog dialog(AppOptionsGlobal::Option::Midi);
-        dialog.exec();
-    });
+    connect(actionMidiSettings, &QAction::triggered, this,
+            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Midi); });
     actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
     setMenuIcon(actionAppearanceOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
-    connect(actionAppearanceOptions, &QAction::triggered, this, [] {
-        AppOptionsDialog dialog(AppOptionsGlobal::Option::Appearance);
-        dialog.exec();
-    });
+    connect(actionAppearanceOptions, &QAction::triggered, this,
+            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Appearance); });
     // const auto actionLanguageOptions = new QAction(tr("&Language..."), this);
     // connect(actionLanguageOptions, &QAction::triggered, this, [] {
     //     AppOptionsDialog dialog(AppOptionsGlobal::Option::Language);
@@ -778,16 +769,12 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
     // });
     actionInferenceOptions = new QAction(tr("&Inference..."), this);
     setMenuIcon(actionInferenceOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
-    connect(actionInferenceOptions, &QAction::triggered, this, [] {
-        AppOptionsDialog dialog(AppOptionsGlobal::Option::Inference);
-        dialog.exec();
-    });
+    connect(actionInferenceOptions, &QAction::triggered, this,
+            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Inference); });
     actionDeveloperOptions = new QAction(tr("&Developer Options..."), this);
     setMenuIcon(actionDeveloperOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
-    connect(actionDeveloperOptions, &QAction::triggered, this, [] {
-        AppOptionsDialog dialog(AppOptionsGlobal::Option::DeveloperOptions);
-        dialog.exec();
-    });
+    connect(actionDeveloperOptions, &QAction::triggered, this,
+            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::DeveloperOptions); });
 
     menuOptions = new Menu(tr("&Options"), q);
     menuOptions->addAction(actionGeneralOptions);

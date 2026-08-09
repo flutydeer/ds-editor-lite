@@ -1,9 +1,12 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <QAction>
 #include <QMainWindow>
+#include <QPointer>
 #include <QTimer>
 
+#include "Global/AppOptionsGlobal.h"
 #include "Interface/IMainWindow.h"
 #include "Interface/IEditorView.h"
 #include "Controller/DocumentWorkflow/IDocumentWorkflowUi.h"
@@ -17,6 +20,10 @@ class TaskDialog;
 class LogWindow;
 class TrackEditorView;
 class ClipEditorView;
+class EmbeddedModalHost;
+class AppOptionsPanel;
+class QAction;
+class QShortcut;
 
 namespace QWK {
     class WidgetWindowAgent;
@@ -66,8 +73,13 @@ public:
 public slots:
     void onAllDone();
 
+    // 内嵌式设置面板（EmbeddedModalHost 承载，带遮罩/动画）
+    void openAppOptions(AppOptionsGlobal::Option option);
+    void closeAppOptions();
+
 protected:
     void changeEvent(QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
     void dropEvent(QDropEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
 
@@ -108,6 +120,25 @@ private:
     QWK::WidgetWindowAgent *m_detachedAgent = nullptr;
     QObject *m_eventDiagFilter = nullptr;
     LogWindow *m_logWindow = nullptr;
+
+    // Embedded modal: backdrop overlay plus the settings panel.
+    EmbeddedModalHost *m_modalHost = nullptr;
+    AppOptionsPanel *m_appOptionsPanel = nullptr;
+    // Actions/shortcuts of the background that are disabled while the modal is
+    // open; restored on close. Stored as QPointer so that actions destroyed
+    // while the modal is open (e.g. the track-control view rebuilding its
+    // injected mix-preset actions in response to an option change) are
+    // automatically dropped instead of dangling.
+    QList<QPointer<QAction>> m_suspendedActions;
+    QList<QShortcut *> m_suspendedShortcuts;
+    // Focus holder before the modal opened. Restored on close: on Windows,
+    // wheel events are delivered to the focus widget rather than the widget
+    // under the cursor, so focus must live inside the modal for scrolling to
+    // reach the settings pages.
+    QPointer<QWidget> m_focusBeforeModal;
+
+    void suspendBackgroundInteraction();
+    void restoreBackgroundInteraction();
 };
 
 

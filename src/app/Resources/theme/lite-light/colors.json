@@ -134,6 +134,7 @@
 
         "shadow.popup": "{neutral.black25}",
         "overlay.scrim": "{neutral.50}",
+        "overlay.backdrop": "{neutral.black38}",
 
         "toast.background": "#E6FFFFFF",
         "toast.border": "{neutral.black16}",
