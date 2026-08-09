@@ -16,7 +16,6 @@
 #include "Modules/Inference/EditSessionManager.h"
 #include <lite/GUI/Controls/AccentButton.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
-#include "UI/Views/Common/ScrollBarView.h"
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QDragEnterEvent>
@@ -130,13 +129,6 @@ bool TracksGraphicsView::eventFilter(QObject *watched, QEvent *event) {
 }
 
 void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
-    // 在滚动条上按下时，交还给基类处理
-    if (dynamic_cast<ScrollBarView *>(itemAt(event->pos()))) {
-        TimeGraphicsView::mousePressEvent(event);
-        event->ignore();
-        return;
-    }
-
     cancelRequested = false;
 
     if (const auto item = itemAt(event->pos())) {

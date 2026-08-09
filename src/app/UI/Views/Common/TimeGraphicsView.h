@@ -15,7 +15,7 @@
 class TimeGraphicsScene;
 class TimeGridView;
 class TimeIndicatorView;
-class ScrollBarView;
+class OverlayScrollBar;
 class QHideEvent;
 class QShowEvent;
 
@@ -32,7 +32,6 @@ class TimeGraphicsView : public QGraphicsView, public IScalable, public IAnimata
         QColor playPosIndicatorColor READ playPosIndicatorColor WRITE setPlayPosIndicatorColor)
     Q_PROPERTY(QColor lastPlayPosIndicatorColor READ lastPlayPosIndicatorColor WRITE
                    setLastPlayPosIndicatorColor)
-    Q_PROPERTY(QColor scrollBarHandleColor READ scrollBarHandleColor WRITE setScrollBarHandleColor)
     Q_PROPERTY(
         QColor rubberBandBorderColor READ rubberBandBorderColor WRITE setRubberBandBorderColor)
     Q_PROPERTY(QColor rubberBandFillColor READ rubberBandFillColor WRITE setRubberBandFillColor)
@@ -142,31 +141,22 @@ protected:
     void setPlayPosIndicatorColor(const QColor &color);
     QColor lastPlayPosIndicatorColor() const;
     void setLastPlayPosIndicatorColor(const QColor &color);
-    QColor scrollBarHandleColor() const;
-    void setScrollBarHandleColor(const QColor &color);
     QColor rubberBandBorderColor() const;
     void setRubberBandBorderColor(const QColor &color);
     QColor rubberBandFillColor() const;
     void setRubberBandFillColor(const QColor &color);
 
 private:
-    enum class ItemType { HorizontalBar, VerticalBar, Content };
-
     using QGraphicsView::setDragMode;
     using QGraphicsView::setHorizontalScrollBarPolicy;
     using QGraphicsView::setVerticalScrollBarPolicy;
 
     bool isMouseEventFromWheel(QWheelEvent *event);
     void updateAnimationDuration();
-    void handleHoverEnterEvent(QHoverEvent *event);
-    void handleHoverLeaveEvent(QHoverEvent *event);
-    void handleHoverMoveEvent(QHoverEvent *event);
     void updateRubberBandSelection(const QPointF &scenePos);
     void onEdgeAutoScrollTimerFrame(double dtMs);
     void updateEdgeAutoScrollState(const QPoint &viewportPos);
     void updateAutoPageTurnAvailability();
-
-    [[nodiscard]] ScrollBarView *scrollBarAt(const QPoint &pos);
 
     double m_hZoomingStep = 0.4;
     double m_vZoomingStep = 0.3;
@@ -179,13 +169,6 @@ private:
     bool m_isDraggingContent = false;
     bool m_rubberBandAdded = false;
 
-    bool m_isDraggingScrollBar = false;
-    bool m_mouseOnScrollBarHandle = false;
-    Qt::Orientation m_draggingScrollbarType = Qt::Horizontal;
-    QPointF m_mouseDownPos;
-    int m_mouseDownBarValue = 0;
-    int m_mouseDownBarMax = 0;
-
     QPropertyAnimation m_scaleXAnimation;
     QPropertyAnimation m_scaleYAnimation;
     QPropertyAnimation m_hBarAnimation;
@@ -194,8 +177,6 @@ private:
     std::optional<int> m_logicalVerticalBarValue;
 
     RubberBandView m_rubberBand;
-    ItemType m_prevHoveredItem = ItemType::Content;
-    bool m_scrollBarPressed = false;
 
     // Edge auto scroll state
     EdgeAutoScroller m_edgeAutoScroller;
@@ -210,6 +191,11 @@ private:
 
     QTimer m_timer;
     bool m_touchPadLock = false;
+
+    OverlayScrollBar *m_hScrollBar = nullptr;
+    OverlayScrollBar *m_vScrollBar = nullptr;
+    bool m_hScrollBarEnabled = true;
+    bool m_vScrollBarEnabled = true;
 
     TimeGraphicsScene *m_scene;
     TimeGridView *m_gridItem = nullptr;
@@ -230,7 +216,6 @@ private:
     QColor m_commonLineColor = {28, 32, 36};
     QColor m_playPosIndicatorColor = {200, 200, 200};
     QColor m_lastPlayPosIndicatorColor = {160, 160, 160};
-    QColor m_scrollBarHandleColor = {255, 255, 255};
     QColor m_rubberBandBorderColor = {155, 186, 255, 200};
     QColor m_rubberBandFillColor = {155, 186, 255, 64};
 };

@@ -31,7 +31,6 @@
 | commonLineColor | `${editor.grid.subdivision}` |
 | playPosIndicatorColor | `${editor.playhead}` |
 | lastPlayPosIndicatorColor | `${editor.lastPlayhead}` |
-| scrollBarHandleColor | `${scrollbar.handleEmphasis}` |
 | rubberBandBorderColor | `${editor.selection.border}` |
 | rubberBandFillColor | `${editor.selection.fill}` |
 

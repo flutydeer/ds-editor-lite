@@ -1255,7 +1255,6 @@ TimeGraphicsView {
     qproperty-commonLineColor: ${editor.grid.subdivision};
     qproperty-playPosIndicatorColor: ${editor.playhead};
     qproperty-lastPlayPosIndicatorColor: ${editor.lastPlayhead};
-    qproperty-scrollBarHandleColor: ${scrollbar.handleEmphasis};
     qproperty-rubberBandBorderColor: ${editor.selection.border};
     qproperty-rubberBandFillColor: ${editor.selection.fill};
 }

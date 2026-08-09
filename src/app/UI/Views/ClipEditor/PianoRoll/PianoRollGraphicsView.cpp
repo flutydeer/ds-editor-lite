@@ -33,7 +33,6 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
-#include "UI/Views/Common/ScrollBarView.h"
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
@@ -323,13 +322,6 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
         return;
     }
     d->m_interactionController->setMouseDown(true, event->button());
-
-    // When pressing on scrollbar, delegate to base class
-    if (dynamic_cast<ScrollBarView *>(itemAt(event->pos()))) {
-        TimeGraphicsView::mousePressEvent(event);
-        event->ignore();
-        return;
-    }
 
     cancelRequested = false;
     d->m_selectionModel->setSelecting(true);

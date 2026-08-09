@@ -1,7 +1,6 @@
 #ifndef TIMEGRAPHICSSCENE_H
 #define TIMEGRAPHICSSCENE_H
 
-#include "ScrollBarView.h"
 #include <lite/GUI/Base/IScalableItem.h>
 
 #include <QGraphicsScene>
@@ -36,20 +35,12 @@ protected:
 
 private:
     friend class TimeGraphicsView;
-    [[nodiscard]] ScrollBarView *horizontalBar();
-    [[nodiscard]] ScrollBarView *verticalBar();
-    void setHorizontalBarVisibility(bool visible);
-    void setVerticalBarVisibility(bool visible);
     void setSceneLength(int tick);
     using QGraphicsScene::addItem;
     using QGraphicsScene::removeItem;
 
     QSizeF m_sceneSize = QSizeF(1920, 1080);
     QList<IScalableItem *> m_items;
-    ScrollBarView m_hBar = ScrollBarView();
-    ScrollBarView m_vBar = ScrollBarView(Qt::Vertical);
-    bool m_hBarAdded = false;
-    bool m_vBarAdded = false;
     int m_pixelsPerQuarterNote = 32;
 };
 
