@@ -6,6 +6,7 @@
 #include <QScrollBar>
 
 class QAbstractScrollArea;
+class QTimer;
 class QVariantAnimation;
 
 class OverlayScrollBar : public QScrollBar, public IAnimatable {
@@ -33,6 +34,10 @@ private:
     void setHighlightVisible(bool visible);
     void updateVisualState();
     void updateGeometryAnimation();
+    void updateVisibilityAnimation();
+    void restartHideTimer();
+    void onHideTimeout();
+    void pollCursor();
     void updateAnimationSettings();
     [[nodiscard]] QColor handleColor() const;
     void setHandleColor(const QColor &color);
@@ -40,12 +45,18 @@ private:
     QAbstractScrollArea *m_scrollArea = nullptr;
     QVariantAnimation *m_animation = nullptr;
     QVariantAnimation *m_geometryAnimation = nullptr;
+    QVariantAnimation *m_visibilityAnimation = nullptr;
+    QTimer *m_hideTimer = nullptr;
+    QTimer *m_cursorPollTimer = nullptr;
     // Base handle color; opacity is animated on top in paintEvent
     QColor m_handleColor = QColor(255, 255, 255);
     qreal m_opacity = 0.0;
     qreal m_geometryProgress = 0.0;
+    qreal m_visibility = 0.0;
+    QPoint m_lastCursorPos;
     bool m_hovered = false;
     bool m_pressed = false;
+    bool m_idleVisible = false;
     bool m_targetHighlightVisible = false;
     bool m_targetGeometryVisible = false;
 };

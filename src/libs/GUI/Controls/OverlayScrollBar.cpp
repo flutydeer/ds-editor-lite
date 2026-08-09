@@ -1,14 +1,18 @@
 #include <lite/GUI/Controls/OverlayScrollBar.h>
 
 #include <QAbstractScrollArea>
+#include <QCursor>
 #include <QEvent>
 #include <QPainter>
+#include <QPoint>
 #include <QScrollBar>
+#include <QTimer>
 #include <QVariantAnimation>
 
 static constexpr int kBarThickness = 16;
 static constexpr int kHandleMargin = 4;
 static constexpr int kHandleMinLength = 20;
+static constexpr int kHideDelayMs = 3000;
 
 OverlayScrollBar::OverlayScrollBar(Qt::Orientation orientation, QWidget *parent)
     : QScrollBar(orientation, parent) {
@@ -34,8 +38,28 @@ OverlayScrollBar::OverlayScrollBar(Qt::Orientation orientation, QWidget *parent)
                 update();
             });
 
+    m_visibilityAnimation = new QVariantAnimation(this);
+    m_visibilityAnimation->setEasingCurve(QEasingCurve::OutCubic);
+    connect(m_visibilityAnimation, &QVariantAnimation::valueChanged, this,
+            [this](const QVariant &value) {
+                m_visibility = value.toDouble();
+                update();
+            });
+
+    m_hideTimer = new QTimer(this);
+    m_hideTimer->setSingleShot(true);
+    m_hideTimer->setInterval(kHideDelayMs);
+    connect(m_hideTimer, &QTimer::timeout, this, &OverlayScrollBar::onHideTimeout);
+
+    // 无按键的 MouseMove 只会发给视口下最深层的 widget（且需开启鼠标跟踪），
+    // 视口内的子控件可能吞掉事件，故改用轮询全局鼠标位置
+    m_cursorPollTimer = new QTimer(this);
+    m_cursorPollTimer->setInterval(200);
+    connect(m_cursorPollTimer, &QTimer::timeout, this, &OverlayScrollBar::pollCursor);
+    m_cursorPollTimer->start();
+
     // initializeAnimation 会同步回调 afterSetAnimationLevel/afterSetTimeScale，
-    // 必须在两个动画对象创建之后调用
+    // 必须在动画对象创建之后调用
     initializeAnimation();
 
     connect(this, &QScrollBar::sliderPressed, this, [this] {
@@ -45,6 +69,8 @@ OverlayScrollBar::OverlayScrollBar(Qt::Orientation orientation, QWidget *parent)
     connect(this, &QScrollBar::sliderReleased, this, [this] {
         m_pressed = false;
         updateVisualState();
+        if (!m_hovered)
+            m_hideTimer->start();
     });
 }
 
@@ -65,6 +91,7 @@ void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
         updatePosition();
     });
     connect(source, &QScrollBar::valueChanged, this, &QScrollBar::setValue);
+    connect(source, &QScrollBar::valueChanged, this, &OverlayScrollBar::restartHideTimer);
     connect(this, &QScrollBar::valueChanged, source, &QScrollBar::setValue);
 
     setRange(source->minimum(), source->maximum());
@@ -77,7 +104,12 @@ void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
         setSingleStep(source->singleStep());
     });
 
-    scrollArea->viewport()->installEventFilter(this);
+    // 视口需开启鼠标跟踪，未按键的 MouseMove 才会到达 eventFilter，
+    // 否则鼠标在视口内移动无法重置自动隐藏计时
+    auto *viewport = scrollArea->viewport();
+    viewport->setMouseTracking(true);
+    viewport->installEventFilter(this);
+    m_lastCursorPos = QCursor::pos();
 }
 
 void OverlayScrollBar::paintEvent(QPaintEvent *event) {
@@ -101,7 +133,8 @@ void OverlayScrollBar::paintEvent(QPaintEvent *event) {
         handlePos +=
             (availableLength - handleLength) * (value() - minimum()) / (maximum() - minimum());
 
-    qreal baseOpacity = 0.25 + 0.10 * m_opacity;
+    // 可见性因子：m_visibility 0→1 淡入，静止 3s 后淡出隐藏（与高亮/几何动画同曲线）
+    qreal baseOpacity = (0.25 + 0.10 * m_opacity) * m_visibility;
     auto color = m_handleColor;
     color.setAlpha(qRound(color.alpha() * baseOpacity));
     p.setBrush(color);
@@ -134,11 +167,17 @@ void OverlayScrollBar::leaveEvent(QEvent *event) {
     Q_UNUSED(event)
     m_hovered = false;
     updateVisualState();
+    if (!m_pressed)
+        m_hideTimer->start();
 }
 
 bool OverlayScrollBar::eventFilter(QObject *watched, QEvent *event) {
-    if (watched == m_scrollArea->viewport() && event->type() == QEvent::Resize)
-        updatePosition();
+    if (watched == m_scrollArea->viewport()) {
+        if (event->type() == QEvent::Resize)
+            updatePosition();
+        else if (event->type() == QEvent::Enter || event->type() == QEvent::MouseMove)
+            restartHideTimer();
+    }
     return QScrollBar::eventFilter(watched, event);
 }
 
@@ -163,6 +202,57 @@ void OverlayScrollBar::updateVisualState() {
     m_targetGeometryVisible = active;
     setHighlightVisible(active);
     updateGeometryAnimation();
+    updateVisibilityAnimation();
+    if (active)
+        m_hideTimer->stop();
+}
+
+void OverlayScrollBar::updateVisibilityAnimation() {
+    const auto target = (m_hovered || m_pressed || m_idleVisible) ? 1.0 : 0.0;
+    if (qFuzzyCompare(m_visibility, target)) {
+        m_visibility = target;
+        update();
+        return;
+    }
+    m_visibilityAnimation->stop();
+    m_visibilityAnimation->setStartValue(m_visibility);
+    m_visibilityAnimation->setEndValue(target);
+    const auto duration = getEffectiveAnimationTime(target != 0.0 ? 100 : 500);
+    m_visibilityAnimation->setDuration(duration);
+    if (duration == 0) {
+        m_visibility = target;
+        update();
+        return;
+    }
+    m_visibilityAnimation->start();
+}
+
+void OverlayScrollBar::restartHideTimer() {
+    m_idleVisible = true;
+    updateVisibilityAnimation();
+    if (m_hovered || m_pressed)
+        m_hideTimer->stop();
+    else
+        m_hideTimer->start();
+}
+
+void OverlayScrollBar::onHideTimeout() {
+    if (m_hovered || m_pressed)
+        return;
+    m_idleVisible = false;
+    updateVisibilityAnimation();
+}
+
+void OverlayScrollBar::pollCursor() {
+    if (!m_scrollArea || !m_scrollArea->isVisible())
+        return;
+    const QPoint pos = QCursor::pos();
+    if (pos == m_lastCursorPos)
+        return;
+    m_lastCursorPos = pos;
+    auto *viewport = m_scrollArea->viewport();
+    if (viewport->rect().contains(viewport->mapFromGlobal(pos)))
+        restartHideTimer();
 }
 
 void OverlayScrollBar::updateGeometryAnimation() {
@@ -195,6 +285,8 @@ void OverlayScrollBar::updateAnimationSettings() {
         setHighlightVisible(m_targetHighlightVisible);
     if (m_geometryAnimation->state() == QAbstractAnimation::Running)
         updateGeometryAnimation();
+    if (m_visibilityAnimation->state() == QAbstractAnimation::Running)
+        updateVisibilityAnimation();
 }
 
 QColor OverlayScrollBar::handleColor() const {
