@@ -19,7 +19,10 @@ OptionsCard::OptionsCard(QWidget *parent) : QWidget(parent) {
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_lbTitle);
     mainLayout->addWidget(m_card);
-    mainLayout->setContentsMargins({0, 0, 0, 12});
+    // No bottom margin on the card itself: card-to-card spacing belongs to
+    // the outer layout (otherwise the last card floats above the page
+    // bottom by its own margin).
+    mainLayout->setContentsMargins({0, 0, 0, 0});
     mainLayout->setSpacing(6);
     setLayout(mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);

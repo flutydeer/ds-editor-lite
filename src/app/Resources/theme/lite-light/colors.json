@@ -74,6 +74,7 @@
         "surface.sunken": "{neutral.150}",
         "surface.input": "{neutral.0}",
         "surface.popup": "{neutral.0}",
+        "surface.sidebar": "{neutral.0}",
 
         "text.primary": "{neutral.900}",
         "text.secondary": "{neutral.700}",

@@ -14,6 +14,8 @@ PackageDetailsContent::PackageDetailsContent(QWidget *parent) : QWidget(parent) 
     auto layout = new QVBoxLayout;
     layout->addWidget(descriptionCard);
     layout->addWidget(readMeCard);
+    // Cards carry no bottom margin (see OptionsCard); spacing comes from here.
+    layout->setSpacing(12);
     setLayout(layout);
 }
 

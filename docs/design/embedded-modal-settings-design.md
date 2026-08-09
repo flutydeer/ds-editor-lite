@@ -23,7 +23,9 @@ MainWindow
 
 - `EmbeddedModalHost` 是**无布局浮层子窗口**（与 `OverlaySplitter` 的悬浮 grip 同一模式）：不参与任何父级布局，由 MainWindow 在 `resizeEvent` 中同步 `setGeometry(rect())`，打开时 `raise()`。
 - `open(content, panelSize)` 将内容 reparent 到 `m_panel` 内，`closePanel()` 立即 `hide()` 并 `emit closed()`。
-- 面板背景由 QSS 控制：`#EmbeddedModalPanel { background: ${surface.window} }`（跟随主题 token，两套主题统一）。
+- 面板背景由 QSS 控制：`#EmbeddedModalPanel { background: ${surface.window} }`（跟随主题 token，两套主题统一）；左侧 tab 列表（`QListWidget#AppOptionsDialogTabListWidget`）使用独立语义 token **`surface.sidebar`**（dark：`neutral.800`，light：`neutral.0`），比 `surface.window` 亮一档，形成左栏与右侧内容区的层次。
+- 布局无整体内边距（body `setContentsMargins({})`）：左侧栏为独立容器 `QWidget#AppOptionsSidebar`（`WA_StyledBackground`，背景用 `surface.sidebar`，`border-top/bottom-left-radius: 8px` 对齐面板圆角），其布局 `setContentsMargins(12, 9, 12, 9)` + item 3px 上下外边距补偿出 12px 内容缩进；列表本身透明、无任何内边距（滚动区上的 box-model padding 会引发多余的滚动条，故背景与内边距全部移到侧栏容器上）；侧栏宽度固定为「列表固定宽 + 左右边距」（列表原始 sizeHint 基于内容会超过固定宽度，须钳制否则背景比列表宽）。
+- 右侧页面（`IOptionPage`，继承 `QScrollArea`）单独覆盖全局 `QScrollArea { padding: 6px }` 规则为 0（`QScrollArea.IOptionPage { padding: 0px }`，提高选择器特异性）；并安装 `OverlayScrollBar`（悬浮在 viewport 右缘、悬停淡入，原生滚动条 AlwaysOff 不预留空间），**滚动条显隐不影响卡片宽度**。
 
 ## 渲染（无动画）
 

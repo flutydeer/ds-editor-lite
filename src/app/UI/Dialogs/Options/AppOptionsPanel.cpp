@@ -23,6 +23,21 @@ AppOptionsPanel::AppOptionsPanel(QWidget *parent) : QWidget(parent) {
     m_tabList->setObjectName("AppOptionsDialogTabListWidget");
     m_tabList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
 
+    // The sidebar is a dedicated container owning the sidebar background;
+    // the list itself stays transparent and unpadded (box-model padding on a
+    // scroll area caused a spurious scrollbar).
+    const auto sidebar = new QWidget;
+    sidebar->setObjectName(QStringLiteral("AppOptionsSidebar"));
+    sidebar->setAttribute(Qt::WA_StyledBackground);
+    const auto sidebarLayout = new QVBoxLayout(sidebar);
+    sidebarLayout->setContentsMargins(12, 9, 12, 9);
+    sidebarLayout->addWidget(m_tabList);
+    // The list's raw sizeHint (content-based) can exceed its fixed width and
+    // would stretch the sidebar; pin the sidebar to list width + margins so
+    // the background hugs the list.
+    sidebar->setFixedWidth(m_tabList->minimumWidth() + sidebarLayout->contentsMargins().left()
+                           + sidebarLayout->contentsMargins().right());
+
     m_generalPage = new GeneralPage;
     m_audioPage = new AudioPage;
     m_midiPage = new MidiPage;
@@ -50,12 +65,12 @@ AppOptionsPanel::AppOptionsPanel(QWidget *parent) : QWidget(parent) {
     retranslateUi();
 
     const auto body = new QWidget;
-    body->setContentsMargins(12, 12, 12, 12);
+    body->setContentsMargins({});
     const auto bodyLayout = new QHBoxLayout;
-    bodyLayout->addWidget(m_tabList);
-    bodyLayout->addSpacing(12);
+    bodyLayout->addWidget(sidebar);
     bodyLayout->addWidget(m_pageContent);
     bodyLayout->setContentsMargins({});
+    bodyLayout->setSpacing(0);
     body->setLayout(bodyLayout);
 
     const auto mainLayout = new QVBoxLayout(this);

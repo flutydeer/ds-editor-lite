@@ -57,6 +57,7 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
     mainLayout->addSpacing(12);
     mainLayout->addWidget(pageContent);
     mainLayout->setContentsMargins({});
+    mainLayout->setSpacing(0);
     body()->setLayout(mainLayout);
 
     connect(tabList, &QListWidget::currentRowChanged, this, &AppOptionsDialog::onSelectionChanged);

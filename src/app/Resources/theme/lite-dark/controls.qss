@@ -842,6 +842,15 @@ DialogTitleBar QLabel {
     border-radius: 8px;
 }
 
+/* Sidebar container owns the background; the list inside is transparent and
+   unpadded (box-model padding on the scroll area caused a spurious
+   scrollbar). */
+QWidget#AppOptionsSidebar {
+    background: ${surface.sidebar};
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
 QListWidget#AppOptionsDialogTabListWidget {
     outline: 0px;
     background: transparent;
@@ -878,6 +887,16 @@ IOptionPage {
 IOptionPage::viewport {
     background: transparent;
 }
+
+/* The settings pages opt out of the global QScrollArea padding below; their
+   left/right 12px content spacing lives on the content layout margins set in
+   IOptionPage::initializePage (padding here would inset the viewport and
+   drag the overlay scrollbar away from the right edge).
+   NOTE: this rule must be declared AFTER the global QScrollArea rule (both
+   are type selectors with equal specificity, and later declarations win).
+   A "QScrollArea.IOptionPage" selector would NOT match: the .IOptionPage
+   class part only matches the exact class name, not its subclasses
+   (GeneralPage, AudioPage, ...). */
 
 /* Split/Tag Config Tabs */
 FillLyric--SplitterConfigTab,
@@ -1157,6 +1176,10 @@ QScrollArea {
     background: transparent;
     border: none;
     padding: 6px;
+}
+
+IOptionPage {
+    padding: 0px;
 }
 
 QScrollArea::viewport {
