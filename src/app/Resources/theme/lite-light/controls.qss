@@ -851,6 +851,13 @@ QWidget#AppOptionsSidebar {
     border-bottom-left-radius: 8px;
 }
 
+/* In the standalone options dialog the sidebar sits flush against the square
+   window edge, so the left rounding is dropped (set in AppOptionsDialog). */
+QWidget#AppOptionsSidebar[standalone="true"] {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+}
+
 QListWidget#AppOptionsDialogTabListWidget {
     outline: 0px;
     background: transparent;

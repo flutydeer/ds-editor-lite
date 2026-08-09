@@ -20,6 +20,7 @@ void DeveloperPage::modifyOption() {
     option->showTimelineDebugInfo = m_swShowTimelineDebugInfo->value();
     option->showClipDebugInfo = m_swShowClipDebugInfo->value();
     option->enablePanelDetach = m_swEnablePanelDetach->value();
+    option->enableEmbeddedOptionsDialog = m_swEnableEmbeddedOptionsDialog->value();
     option->editorRenderBackend = static_cast<DeveloperOption::EditorRenderBackend>(
         m_cbxEditorRenderBackend->currentData().toInt());
     appOptions->saveAndNotify(AppOptionsGlobal::DeveloperOptions);
@@ -43,6 +44,15 @@ QWidget *DeveloperPage::createContentWidget() {
 
     m_swEnablePanelDetach = new SwitchButton(option->enablePanelDetach);
     connect(m_swEnablePanelDetach, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
+
+    m_swEnableEmbeddedOptionsDialog = new SwitchButton(option->enableEmbeddedOptionsDialog);
+    connect(m_swEnableEmbeddedOptionsDialog, &SwitchButton::toggled, this, [this] {
+        modifyOption();
+        const auto message = tr("The embedded options dialog setting will take effect after "
+                                "restarting the app. Do you want to restart now?");
+        const auto dialog = new RestartDialog(message, true, this);
+        dialog->show();
+    });
 
     m_cbxEditorRenderBackend = new ComboBox;
     m_cbxEditorRenderBackend->addItem(
@@ -80,6 +90,9 @@ QWidget *DeveloperPage::createContentWidget() {
     experimentalCard->addItem(tr("Enable panel detach"),
                               tr("Show the detach button on panel title bars to separate panels into standalone windows"),
                               m_swEnablePanelDetach);
+    experimentalCard->addItem(tr("Embedded options dialog"),
+                              tr("Open the settings window inside the main window instead of a standalone dialog (experimental, applies after restart)"),
+                              m_swEnableEmbeddedOptionsDialog);
     experimentalCard->addItem(tr("Editor rendering backend"),
                               tr("Applies to the track editor and piano roll after restart"),
                               m_cbxEditorRenderBackend);

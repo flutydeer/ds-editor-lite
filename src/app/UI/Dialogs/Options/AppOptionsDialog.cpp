@@ -4,6 +4,7 @@
 #include <QScrollArea>
 #include <QListWidget>
 #include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QEvent>
 #include <QSignalBlocker>
 
@@ -52,12 +53,30 @@ AppOptionsDialog::AppOptionsDialog(const AppOptionsGlobal::Option option, QWidge
 
     retranslateUi();
 
+    // Same sidebar container treatment as the embedded panel: the sidebar
+    // owns its background (QWidget#AppOptionsSidebar) and inner margins; the
+    // list itself stays transparent and unpadded.
+    const auto sidebar = new QWidget;
+    sidebar->setObjectName(QStringLiteral("AppOptionsSidebar"));
+    sidebar->setAttribute(Qt::WA_StyledBackground);
+    // Standalone mode: flush against the square window edge, so the QSS
+    // drops the left rounding (QWidget#AppOptionsSidebar[standalone="true"]).
+    sidebar->setProperty("standalone", true);
+    const auto sidebarLayout = new QVBoxLayout(sidebar);
+    sidebarLayout->setContentsMargins(12, 9, 12, 9);
+    sidebarLayout->addWidget(tabList);
+    sidebar->setFixedWidth(160 + sidebarLayout->contentsMargins().left()
+                           + sidebarLayout->contentsMargins().right());
+
     const auto mainLayout = new QHBoxLayout;
-    mainLayout->addWidget(tabList);
-    mainLayout->addSpacing(12);
+    mainLayout->addWidget(sidebar);
     mainLayout->addWidget(pageContent);
     mainLayout->setContentsMargins({});
     mainLayout->setSpacing(0);
+    // The Dialog base leaves a 12px inset around the body; the options layout
+    // is flush by design (sidebar owns its background, pages carry their own
+    // 16px content margins), so drop it here.
+    body()->setContentsMargins({});
     body()->setLayout(mainLayout);
 
     connect(tabList, &QListWidget::currentRowChanged, this, &AppOptionsDialog::onSelectionChanged);

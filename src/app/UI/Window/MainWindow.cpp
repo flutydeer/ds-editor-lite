@@ -27,6 +27,7 @@
 #include <lite/GUI/Theme/ThemeLoader.h>
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
+#include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Dialogs/Options/AppOptionsPanel.h"
 #include "UI/Dialogs/ResourceCheck/AudioResourcePage.h"
 #include "UI/Dialogs/ResourceCheck/ResourceCheckDialog.h"
@@ -290,6 +291,13 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
 }
 
 void MainWindow::openAppOptions(const AppOptionsGlobal::Option option) {
+    // The embedded panel is experimental and opt-in (Developer Options ->
+    // Embedded options dialog); the standalone dialog stays the default.
+    if (!appOptions->developer()->enableEmbeddedOptionsDialog) {
+        AppOptionsDialog dialog(option);
+        dialog.exec();
+        return;
+    }
     if (!m_modalHost) {
         m_modalHost = new EmbeddedModalHost(this);
         m_modalHost->setGeometry(rect());

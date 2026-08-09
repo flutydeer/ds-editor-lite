@@ -22,6 +22,7 @@ private:
     SwitchButton *m_swShowTimelineDebugInfo;
     SwitchButton *m_swShowClipDebugInfo;
     SwitchButton *m_swEnablePanelDetach;
+    SwitchButton *m_swEnableEmbeddedOptionsDialog;
     ComboBox *m_cbxEditorRenderBackend;
 };
 

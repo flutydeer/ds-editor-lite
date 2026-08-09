@@ -85,7 +85,6 @@ Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
     m_mainLayout = new QVBoxLayout;
     m_mainLayout->addWidget(m_header);
     m_mainLayout->addWidget(m_body);
-    m_mainLayout->addSpacing(12);
     m_mainLayout->setContentsMargins(0, 0, 0, 0);
     m_mainLayout->setSpacing(0);
     setContentsMargins(0, 0, 0, 0);
@@ -162,6 +161,10 @@ void Dialog::setGlobalContext(QWidget *parent) {
 
 void Dialog::createButtonBar() {
     m_buttonBar = new DialogButtonBar(this);
+    // The 12px gap above the button bar only applies when buttons exist;
+    // button-less dialogs (e.g. the options dialog) get no dead space at the
+    // bottom.
+    m_mainLayout->addSpacing(12);
     m_mainLayout->addWidget(m_buttonBar);
 }
 
