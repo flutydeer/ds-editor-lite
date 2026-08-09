@@ -151,6 +151,104 @@ int main(int argc, char *argv[]) {
                "accumulated distance matches speed * time within one pixel");
     }
 
+    // --- Press position dead zone: all four edges/corners ---
+    // A drag that starts inside a hot zone must not scroll while the pointer
+    // stays closer to the viewport center than it was at press time; it only
+    // scrolls toward an edge once the pointer moves closer to that edge than
+    // the press position.
+    {
+        // Pressed in the top-left corner hot zones, moved toward the center:
+        // no scroll on either axis, even though the pointer is still inside
+        // the configured 72/56 px zones.
+        const QPointF pressTL(20, 30);
+        const auto vCenter =
+            EdgeAutoScroller::velocity(QPointF(400, 300), pressTL, vp, bothAxes, cfg);
+        expect(vCenter.isNull(), "press in top-left zone, move to center: zero velocity");
+
+        // Slightly right-down (the user's box-select gesture): still zero.
+        const auto vInward =
+            EdgeAutoScroller::velocity(QPointF(60, 50), pressTL, vp, bothAxes, cfg);
+        expect(vInward.isNull(), "press in top-left zone, small move toward center: zero velocity");
+
+        // Moving deeper toward the corner scrolls left and up.
+        const auto vDeeper =
+            EdgeAutoScroller::velocity(QPointF(5, 10), pressTL, vp, bothAxes, cfg);
+        expect(vDeeper.x() < 0 && vDeeper.y() < 0,
+               "moving beyond the press depth scrolls toward the edge");
+
+        // Crossing over into the opposite hot zones scrolls in that direction.
+        const auto vOpposite =
+            EdgeAutoScroller::velocity(QPointF(790, 590), pressTL, vp, bothAxes, cfg);
+        expect(vOpposite.x() > 0 && vOpposite.y() > 0,
+               "crossing into the opposite zones scrolls outward");
+    }
+
+    {
+        // Symmetry on all four corners: move to center stays zero, moving
+        // deeper toward the pressed corner scrolls toward it.
+        struct CornerCase {
+            QPointF press;
+            QPointF deeper;
+        };
+        const CornerCase cases[] = {
+            {{10, 10}, {2, 2}},      // top-left: scroll -x, -y
+            {{790, 10}, {798, 2}},   // top-right: scroll +x, -y
+            {{10, 590}, {2, 598}},   // bottom-left: scroll -x, +y
+            {{790, 590}, {798, 598}} // bottom-right: scroll +x, +y
+        };
+        const auto center = QPointF(400, 300);
+        for (const auto &c : cases) {
+            const auto vC = EdgeAutoScroller::velocity(center, c.press, vp, bothAxes, cfg);
+            expect(vC.isNull(), "press in a corner, move to center: zero velocity");
+
+            const auto vD = EdgeAutoScroller::velocity(c.deeper, c.press, vp, bothAxes, cfg);
+            const bool xSignOk = (c.deeper.x() > c.press.x()) ? vD.x() > 0 : vD.x() < 0;
+            const bool ySignOk = (c.deeper.y() > c.press.y()) ? vD.y() > 0 : vD.y() < 0;
+            expect(vD.x() != 0 && xSignOk && vD.y() != 0 && ySignOk,
+                   "moving deeper toward the pressed corner scrolls toward it");
+        }
+    }
+
+    {
+        // Pressed exactly on the left edge: the narrowed zone must still let
+        // the pointer scroll by moving further out.
+        const QPointF pressEdge(0, 300);
+        const auto vOut =
+            EdgeAutoScroller::velocity(QPointF(-10, 300), pressEdge, vp, bothAxes, cfg);
+        expect(vOut.x() < 0 && fuzzyEqual(vOut.y(), 0),
+               "press on the edge, move outward: scrolls toward the edge");
+
+        const auto vIn = EdgeAutoScroller::velocity(QPointF(400, 300), pressEdge, vp, bothAxes, cfg);
+        expect(vIn.isNull(), "press on the edge, move to center: zero velocity");
+    }
+
+    // --- Press outside the hot zones: behavior unchanged ---
+    {
+        const QPointF pressMid(400, 300);
+        const auto vLeft = EdgeAutoScroller::velocity(QPointF(10, 300), pressMid, vp, bothAxes, cfg);
+        expect(vLeft.x() < 0 && fuzzyEqual(vLeft.y(), 0),
+               "press outside the zones, enter the left zone: scrolls left");
+
+        const auto vBottom =
+            EdgeAutoScroller::velocity(QPointF(400, 590), pressMid, vp, bothAxes, cfg);
+        expect(vBottom.y() > 0 && fuzzyEqual(vBottom.x(), 0),
+               "press outside the zones, enter the bottom zone: scrolls down");
+    }
+
+    // --- Press-aware computeStep drives the same dead zone ---
+    {
+        EdgeAutoScroller scroller;
+        scroller.resetAccumulator();
+        const QPointF pressTL(20, 30);
+        const auto stepCenter = scroller.computeStep(QPointF(400, 300), pressTL, vp, bothAxes, 16);
+        expect(stepCenter.x() == 0 && stepCenter.y() == 0,
+               "computeStep with press position in the zone: no scroll toward center");
+
+        const auto stepRight = scroller.computeStep(QPointF(790, 300), pressTL, vp, bothAxes, 16);
+        expect(stepRight.x() > 0 && stepRight.y() == 0,
+               "computeStep scrolls right after crossing into the right zone");
+    }
+
     // --- Pointer clamping ---
     {
         const auto c1 = EdgeAutoScroller::clampToRect(QPointF(-100, 300), vp);

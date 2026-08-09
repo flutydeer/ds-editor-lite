@@ -877,8 +877,8 @@ void TimeGraphicsView::updateEdgeAutoScrollState(const QPoint &viewportPos) {
     }
 
     const QRectF vpRect(QPointF(0, 0), viewport()->size());
-    const auto v = EdgeAutoScroller::velocity(viewportPos, vpRect, m_edgeAutoScrollAxes,
-                                              m_edgeAutoScroller.config());
+    const auto v = EdgeAutoScroller::velocity(viewportPos, m_edgeAutoScrollPressPos, vpRect,
+                                              m_edgeAutoScrollAxes, m_edgeAutoScroller.config());
     const bool inHotZone = !v.isNull();
     if (inHotZone && !m_edgeAutoScroller.isRunning()) {
         // Direct scroll bar writes must not fight the bar animations
@@ -901,8 +901,8 @@ void TimeGraphicsView::onEdgeAutoScrollTimerFrame(double dtMs) {
     const auto pointerPos = QPointF(viewport()->mapFromGlobal(QCursor::pos()));
     const QRectF vpRect(QPointF(0, 0), viewport()->size());
 
-    const auto step =
-        m_edgeAutoScroller.computeStep(pointerPos, vpRect, m_edgeAutoScrollAxes, dtMs);
+    const auto step = m_edgeAutoScroller.computeStep(pointerPos, QPointF(m_edgeAutoScrollPressPos),
+                                                     vpRect, m_edgeAutoScrollAxes, dtMs);
     if (step.x() != 0)
         setHorizontalBarValue(horizontalBarValue() + step.x());
     if (step.y() != 0)

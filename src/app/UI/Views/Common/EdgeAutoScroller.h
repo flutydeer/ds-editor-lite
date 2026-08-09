@@ -38,16 +38,27 @@ public:
 
     // --- Pure computation (testable, no timer involved) ---
 
-    // Signed speed (px/s) along one axis. pos may lie outside [start, end]; in
-    // that case the speed saturates at +-maxSpeed. Overlapping hot zones (tiny
-    // viewport) produce opposing contributions that cancel symmetrically.
-    static double axisSpeed(double pos, double start, double end, int hotZone, double maxSpeed,
-                            double baseSpeed);
+    // Signed speed (px/s) along one axis. Each edge carries its own hot zone
+    // width. pos may lie outside [start, end]; in that case the speed
+    // saturates at +-maxSpeed. Overlapping hot zones (tiny viewport) produce
+    // opposing contributions that cancel symmetrically.
+    static double axisSpeed(double pos, double start, double end, double lowHotZone,
+                            double highHotZone, double maxSpeed, double baseSpeed);
 
     // Velocity vector (px/s) for the raw (unclamped) pointer position.
     // Disabled axes always yield zero.
     static QPointF velocity(const QPointF &pointerPos, const QRectF &viewportRect,
                             Qt::Orientations axes, const EdgeAutoScrollConfig &config);
+
+    // Velocity for a drag that started at pressPos (same coordinate space as
+    // pointerPos). For every edge, if the pointer already lay inside the hot
+    // zone at press time, that edge's zone is narrowed to the press distance,
+    // so scrolling only starts when the pointer moves closer to the edge than
+    // it was when the drag began (prevents accidental scroll-back when a drag
+    // starts near a corner and moves toward the viewport center).
+    static QPointF velocity(const QPointF &pointerPos, const QPointF &pressPos,
+                            const QRectF &viewportRect, Qt::Orientations axes,
+                            const EdgeAutoScrollConfig &config);
 
     static QPointF clampToRect(const QPointF &pos, const QRectF &rect);
 
@@ -56,6 +67,11 @@ public:
     // session starts.
     QPoint computeStep(const QPointF &pointerPos, const QRectF &viewportRect, Qt::Orientations axes,
                        double dtMs);
+
+    // computeStep variant carrying the drag press position (same semantics as
+    // the pressPos-aware velocity overload above).
+    QPoint computeStep(const QPointF &pointerPos, const QPointF &pressPos,
+                       const QRectF &viewportRect, Qt::Orientations axes, double dtMs);
     void resetAccumulator();
 
     // --- Runner ---
