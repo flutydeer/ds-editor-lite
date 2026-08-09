@@ -42,9 +42,9 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
     connect(historyManager, &HistoryManager::undoRedoChanged, appController,
             &AppController::onUndoRedoChanged);
 
-    if (!useNativeFrame) {
-        m_titleComboBox = new TitleBarComboBox;
+    m_titleComboBox = new TitleBarComboBox;
 
+    if (!useNativeFrame) {
         int systemButtonWidth = 48;
 
         m_btnMin = new Button;
@@ -88,13 +88,11 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
         mainLayout->addSpacerItem(new QSpacerItem(32, 20, QSizePolicy::Fixed));
     }
     mainLayout->addLayout(menuBarContainer);
-    if (!useNativeFrame) {
-        auto dividerBeforeTitle = new DividerLine(Qt::Vertical);
-        mainLayout->addWidget(dividerBeforeTitle);
-        mainLayout->addWidget(m_titleComboBox);
-        auto dividerBeforeTools = new DividerLine(Qt::Vertical);
-        mainLayout->addWidget(dividerBeforeTools);
-    }
+    auto dividerBeforeTitle = new DividerLine(Qt::Vertical);
+    mainLayout->addWidget(dividerBeforeTitle);
+    mainLayout->addWidget(m_titleComboBox);
+    auto dividerBeforeTools = new DividerLine(Qt::Vertical);
+    mainLayout->addWidget(dividerBeforeTools);
     mainLayout->addWidget(m_actionButtonsView);
     mainLayout->addStretch();
     mainLayout->addWidget(m_playbackView);

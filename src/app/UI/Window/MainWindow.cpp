@@ -96,16 +96,16 @@ MainWindow::MainWindow() {
             emulateLeaveEvent(m_titleBar->maximizeButton());
         });
         connect(m_titleBar, &MainTitleBar::closeTriggered, this, &MainWindow::close);
-
-        // Connect file popup actions
-        auto *filePopup = m_titleBar->titleComboBox()->popupWidget();
-        connect(filePopup, &FilePopupWidget::newProjectClicked, m_mainMenu->actionNew(),
-                &QAction::trigger);
-        connect(filePopup, &FilePopupWidget::openProjectClicked, m_mainMenu->actionOpen(),
-                &QAction::trigger);
-        connect(filePopup, &FilePopupWidget::openRecentProject, m_mainMenu,
-                &MainMenuView::openRecentProject);
     }
+
+    // Connect file popup actions
+    auto *filePopup = m_titleBar->titleComboBox()->popupWidget();
+    connect(filePopup, &FilePopupWidget::newProjectClicked, m_mainMenu->actionNew(),
+            &QAction::trigger);
+    connect(filePopup, &FilePopupWidget::openProjectClicked, m_mainMenu->actionOpen(),
+            &QAction::trigger);
+    connect(filePopup, &FilePopupWidget::openRecentProject, m_mainMenu,
+            &MainMenuView::openRecentProject);
     installEventFilter(m_titleBar);
 
     ThemeManager::instance()->addStyleRoot(this);
