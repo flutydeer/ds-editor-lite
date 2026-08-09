@@ -6,7 +6,7 @@
 #include <QScrollBar>
 #include <QVariantAnimation>
 
-static constexpr int kBarThickness = 14;
+static constexpr int kBarThickness = 16;
 static constexpr int kHandleMargin = 4;
 static constexpr int kHandleMinLength = 20;
 
@@ -25,7 +25,27 @@ OverlayScrollBar::OverlayScrollBar(Qt::Orientation orientation, QWidget *parent)
         m_opacity = value.toDouble();
         update();
     });
+
+    m_geometryAnimation = new QVariantAnimation(this);
+    m_geometryAnimation->setEasingCurve(QEasingCurve::OutCubic);
+    connect(m_geometryAnimation, &QVariantAnimation::valueChanged, this,
+            [this](const QVariant &value) {
+                m_geometryProgress = value.toDouble();
+                update();
+            });
+
+    // initializeAnimation 会同步回调 afterSetAnimationLevel/afterSetTimeScale，
+    // 必须在两个动画对象创建之后调用
     initializeAnimation();
+
+    connect(this, &QScrollBar::sliderPressed, this, [this] {
+        m_pressed = true;
+        updateVisualState();
+    });
+    connect(this, &QScrollBar::sliderReleased, this, [this] {
+        m_pressed = false;
+        updateVisualState();
+    });
 }
 
 void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
@@ -86,27 +106,34 @@ void OverlayScrollBar::paintEvent(QPaintEvent *event) {
     color.setAlpha(qRound(color.alpha() * baseOpacity));
     p.setBrush(color);
     p.setPen(Qt::NoPen);
-    qreal radius = m_hovered ? 3.0 : 2.0;
-    qreal margin = m_hovered ? 3.0 : 4.0;
 
-    if (horizontal)
-        p.drawRoundedRect(QRectF(handlePos, margin, handleLength, height() - 2 * margin), radius,
-                          radius);
-    else
-        p.drawRoundedRect(QRectF(margin, handlePos, width() - 2 * margin, handleLength), radius,
-                          radius);
+    // 条厚 16px：平时手柄 2px 贴外缘（距边 4px），hover/按住时外缘边不动、
+    // 向内侧展开到 6px 宽（圆角 1→2）；m_geometryProgress 0→1 插值，
+    // 与透明度动画使用相同的时长与曲线
+    const qreal t = m_geometryProgress;
+    const qreal radius = 1.0 + t;
+
+    if (horizontal) {
+        const qreal y = height() - 6.0 - 4.0 * t;
+        const qreal h = 2.0 + 4.0 * t;
+        p.drawRoundedRect(QRectF(handlePos, y, handleLength, h), radius, radius);
+    } else {
+        const qreal x = width() - 6.0 - 4.0 * t;
+        const qreal w = 2.0 + 4.0 * t;
+        p.drawRoundedRect(QRectF(x, handlePos, w, handleLength), radius, radius);
+    }
 }
 
 void OverlayScrollBar::enterEvent(QEnterEvent *event) {
     Q_UNUSED(event)
     m_hovered = true;
-    setHighlightVisible(true);
+    updateVisualState();
 }
 
 void OverlayScrollBar::leaveEvent(QEvent *event) {
     Q_UNUSED(event)
     m_hovered = false;
-    setHighlightVisible(false);
+    updateVisualState();
 }
 
 bool OverlayScrollBar::eventFilter(QObject *watched, QEvent *event) {
@@ -131,6 +158,28 @@ void OverlayScrollBar::setHighlightVisible(bool visible) {
     m_animation->start();
 }
 
+void OverlayScrollBar::updateVisualState() {
+    const bool active = m_hovered || m_pressed;
+    m_targetGeometryVisible = active;
+    setHighlightVisible(active);
+    updateGeometryAnimation();
+}
+
+void OverlayScrollBar::updateGeometryAnimation() {
+    const auto target = m_targetGeometryVisible ? 1.0 : 0.0;
+    m_geometryAnimation->stop();
+    m_geometryAnimation->setStartValue(m_geometryProgress);
+    m_geometryAnimation->setEndValue(target);
+    const auto duration = getEffectiveAnimationTime(m_targetGeometryVisible ? 100 : 300);
+    m_geometryAnimation->setDuration(duration);
+    if (duration == 0) {
+        m_geometryProgress = target;
+        update();
+        return;
+    }
+    m_geometryAnimation->start();
+}
+
 void OverlayScrollBar::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
     Q_UNUSED(level)
     updateAnimationSettings();
@@ -144,6 +193,8 @@ void OverlayScrollBar::afterSetTimeScale(double scale) {
 void OverlayScrollBar::updateAnimationSettings() {
     if (m_animation->state() == QAbstractAnimation::Running)
         setHighlightVisible(m_targetHighlightVisible);
+    if (m_geometryAnimation->state() == QAbstractAnimation::Running)
+        updateGeometryAnimation();
 }
 
 QColor OverlayScrollBar::handleColor() const {

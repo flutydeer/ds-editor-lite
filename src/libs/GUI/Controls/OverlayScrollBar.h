@@ -31,17 +31,23 @@ protected:
 
 private:
     void setHighlightVisible(bool visible);
+    void updateVisualState();
+    void updateGeometryAnimation();
     void updateAnimationSettings();
     [[nodiscard]] QColor handleColor() const;
     void setHandleColor(const QColor &color);
 
     QAbstractScrollArea *m_scrollArea = nullptr;
     QVariantAnimation *m_animation = nullptr;
+    QVariantAnimation *m_geometryAnimation = nullptr;
     // Base handle color; opacity is animated on top in paintEvent
     QColor m_handleColor = QColor(255, 255, 255);
     qreal m_opacity = 0.0;
+    qreal m_geometryProgress = 0.0;
     bool m_hovered = false;
+    bool m_pressed = false;
     bool m_targetHighlightVisible = false;
+    bool m_targetGeometryVisible = false;
 };
 
 #endif // OVERLAYSCROLLBAR_H
