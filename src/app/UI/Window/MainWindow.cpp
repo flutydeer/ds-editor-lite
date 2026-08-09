@@ -28,7 +28,6 @@
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
-#include "UI/Dialogs/Options/AppOptionsPanel.h"
 #include "UI/Dialogs/ResourceCheck/AudioResourcePage.h"
 #include "UI/Dialogs/ResourceCheck/ResourceCheckDialog.h"
 #include "UI/Views/BottomPanelView.h"
@@ -294,8 +293,7 @@ void MainWindow::openAppOptions(const AppOptionsGlobal::Option option) {
     // The embedded panel is experimental and opt-in (Developer Options ->
     // Embedded options dialog); the standalone dialog stays the default.
     if (!appOptions->developer()->enableEmbeddedOptionsDialog) {
-        AppOptionsDialog dialog(option);
-        dialog.exec();
+        AppOptionsDialog::showStandaloneDialog(option, this);
         return;
     }
     if (!m_modalHost) {
@@ -304,10 +302,10 @@ void MainWindow::openAppOptions(const AppOptionsGlobal::Option option) {
         connect(m_modalHost, &EmbeddedModalHost::closed, this,
                 &MainWindow::restoreBackgroundInteraction);
     }
-    if (!m_appOptionsPanel)
-        m_appOptionsPanel = new AppOptionsPanel(this);
+    if (!m_appOptionsDialog)
+        m_appOptionsDialog = new AppOptionsDialog(this);
     m_focusBeforeModal = qApp->focusWidget();
-    m_appOptionsPanel->selectOption(option);
+    m_appOptionsDialog->selectOption(option);
     // Unregister Direct Manipulation while the modal is open: DManip hijacks
     // WM_MOUSEWHEEL on the main window after the first wheel event (converting
     // it into a pan gesture for the editor), so the settings pages would never
@@ -315,7 +313,7 @@ void MainWindow::openAppOptions(const AppOptionsGlobal::Option option) {
 #if defined(WITH_DIRECT_MANIPULATION)
     unregisterDirectManipulation();
 #endif
-    m_modalHost->open(m_appOptionsPanel, QSize(900, 600));
+    m_modalHost->open(m_appOptionsDialog, QSize(900, 600));
     // Suspend AFTER opening so that the panel (a descendant of the host) is
     // excluded from the isAncestorOf()-based filtering.
     suspendBackgroundInteraction();
@@ -324,7 +322,7 @@ void MainWindow::openAppOptions(const AppOptionsGlobal::Option option) {
     // On Windows the wheel event follows keyboard focus (delivered to the
     // focus widget instead of the widget under the cursor), so without this
     // the panel would never receive wheel events.
-    QTimer::singleShot(0, m_appOptionsPanel, [this] { m_appOptionsPanel->setFocus(); });
+    QTimer::singleShot(0, m_appOptionsDialog, [this] { m_appOptionsDialog->setFocus(); });
 }
 
 void MainWindow::closeAppOptions() {

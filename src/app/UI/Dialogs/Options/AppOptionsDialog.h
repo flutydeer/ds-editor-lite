@@ -1,29 +1,39 @@
 #ifndef APPOPTIONSDIALOG_H
 #define APPOPTIONSDIALOG_H
 
-#include "UI/Dialogs/Base/Dialog.h"
+#include <QWidget>
+
 #include "Global/AppOptionsGlobal.h"
 
 class AudioPage;
 class MidiPage;
-class PseudoSingerPage;
 class AppearancePage;
-// class LanguagePage;
-// class G2pPage;
 class GeneralPage;
 class InferencePage;
 class DeveloperPage;
 class IOptionPage;
 class QListWidget;
-class Button;
 class QStackedWidget;
 
-class AppOptionsDialog : public Dialog {
+// Options settings panel shared by both hosting modes:
+//  - Embedded (default): serves as the EmbeddedModalHost content; there is no
+//    title bar — the modal is closed by clicking the backdrop or pressing Esc.
+//  - Standalone: showStandaloneDialog() wraps the panel in a Dialog (title
+//    bar, modal exec) for the classic floating options window.
+class AppOptionsDialog : public QWidget {
     Q_OBJECT
 
 public:
-    explicit AppOptionsDialog(AppOptionsGlobal::Option option, QWidget *parent = nullptr);
-    ~AppOptionsDialog() override;
+    explicit AppOptionsDialog(QWidget *parent = nullptr, bool standalone = false);
+
+    // Switches to the requested settings page (matching the old menu item
+    // semantics: General -> page 1, ...).
+    void selectOption(AppOptionsGlobal::Option option);
+
+    // Shows the options as a standalone modal dialog (Dialog base + title bar)
+    // and enters its modal event loop. Returns the dialog's result.
+    static int showStandaloneDialog(AppOptionsGlobal::Option option,
+                                    QWidget *parent = nullptr);
 
 protected:
     void changeEvent(QEvent *event) override;
@@ -34,20 +44,18 @@ private slots:
 private:
     void retranslateUi();
 
-    QListWidget *tabList;
-    QStackedWidget *pageContent;
+    QListWidget *m_tabList = nullptr;
+    QStackedWidget *m_pageContent = nullptr;
+    QWidget *m_sidebar = nullptr;
+    bool m_standalone = false;
 
-    GeneralPage *generalPage;
-    AudioPage *audioPage;
-    MidiPage *midiPage;
-    // PseudoSingerPage *m_pseudoSingerPage;
-    AppearancePage *appearancePage;
-    // G2pPage *g2pPage;
-    InferencePage *inferencePage;
-    DeveloperPage *developerPage;
-    QList<IOptionPage *> pages;
+    GeneralPage *m_generalPage = nullptr;
+    AudioPage *m_audioPage = nullptr;
+    MidiPage *m_midiPage = nullptr;
+    AppearancePage *m_appearancePage = nullptr;
+    InferencePage *m_inferencePage = nullptr;
+    DeveloperPage *m_developerPage = nullptr;
+    QList<IOptionPage *> m_pages;
 };
-
-
 
 #endif // APPOPTIONSDIALOG_H

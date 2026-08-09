@@ -37,38 +37,37 @@
 <context>
     <name>AppOptionsDialog</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="86" />
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="142" />
         <source>General</source>
         <translation>常规</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="86" />
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="142" />
         <source>Audio</source>
         <translation>音频</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="86" />
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="142" />
         <source>MIDI</source>
         <translation>MIDI</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="87" />
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="143" />
         <source>Inference</source>
         <translation>推理</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="87" />
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="143" />
         <source>Appearance</source>
         <translation>外观</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="87" />
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="143" />
         <source>Developer Options</source>
         <translation>开发者选项</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="22" />
-        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="84" />
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="137" />
         <source>Options</source>
         <translation>选项</translation>
     </message>

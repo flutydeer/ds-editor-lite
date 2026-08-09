@@ -21,7 +21,7 @@ class LogWindow;
 class TrackEditorView;
 class ClipEditorView;
 class EmbeddedModalHost;
-class AppOptionsPanel;
+class AppOptionsDialog;
 class QAction;
 class QShortcut;
 
@@ -123,7 +123,7 @@ private:
 
     // Embedded modal: backdrop overlay plus the settings panel.
     EmbeddedModalHost *m_modalHost = nullptr;
-    AppOptionsPanel *m_appOptionsPanel = nullptr;
+    AppOptionsDialog *m_appOptionsDialog = nullptr;
     // Actions/shortcuts of the background that are disabled while the modal is
     // open; restored on close. Stored as QPointer so that actions destroyed
     // while the modal is open (e.g. the track-control view rebuilding its
