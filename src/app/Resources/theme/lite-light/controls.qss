@@ -317,9 +317,16 @@ QToolButton:focus {
 }
 
 /* ScrollBar */
+/* NOTE: QScrollBar must declare a box property (margin/padding/spacing, even
+   if 0). Without one, QStyleSheetStyle treats the rule as box-less and falls
+   back to the native SC_ScrollBarGroove geometry (inset by PM_ScrollBarExtent
+   = 16px at both ends), which disagrees with the QSS full-length
+   SC_ScrollBarSlider geometry and makes dragging the handle jump. See
+   docs/theme/theme-qss-gotchas.md. */
 QScrollBar {
     background-color: transparent;
     border-style: none;
+    margin: 0px;
 }
 
 QScrollBar::add-page,
