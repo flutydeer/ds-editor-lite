@@ -188,6 +188,13 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
             &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::projectEditableLengthChanged, this,
             &TracksRhiWidget::setSceneLength);
+    connect(appOptions, &AppOptions::optionsChanged, this,
+            [this](const AppOptionsGlobal::Option option) {
+                if (option == AppOptionsGlobal::DeveloperOptions ||
+                    option == AppOptionsGlobal::All) {
+                    scheduleSnapshot();
+                }
+            });
     m_positionThrottle.setSingleShot(true);
     m_positionThrottle.setInterval(33);
     connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
@@ -704,6 +711,8 @@ void TracksRhiWidget::rebuildModelConnections() {
             disconnect(clip, nullptr, this, nullptr);
             connect(clip, &Clip::propertyChanged, this, &TracksRhiWidget::scheduleSnapshot);
             if (const auto *singing = qobject_cast<const SingingClip *>(clip)) {
+                connect(singing, &SingingClip::defaultLanguageChanged, this,
+                        &TracksRhiWidget::scheduleSnapshot);
                 connect(singing, &SingingClip::noteChanged, this,
                         &TracksRhiWidget::scheduleSnapshot);
                 connect(singing, &SingingClip::voiceContextChanged, this,
