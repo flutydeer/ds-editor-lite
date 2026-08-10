@@ -46,6 +46,8 @@ protected:
 private:
     void noteToPhonic();
     void ensureTabInitialized(int index);
+    void onCurrentTabChanged(int index);
+    int lyricCompactWidthFor(int expandedWidth) const;
 
     void shrinkWindowRight(const int &newWidth);
     void expandWindowRight();
@@ -73,6 +75,8 @@ private:
     QList<Note *> m_notes;
     QList<LangNote> m_langNotes;
     LyricResult m_noteResult;
+    bool m_lyricPreviewVisible = true;
+    int m_lyricCompactWidth = 0;
 };
 
 #endif // DS_EDITOR_LITE_LYRICDIALOG_H

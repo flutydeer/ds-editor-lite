@@ -27,7 +27,7 @@ namespace FillLyric {
         bool exportSkipSlur() const;
 
     Q_SIGNALS:
-        void shrinkWindowRight(int newWidth);
+        void shrinkWindowRight();
         void expandWindowRight();
         void modifyOptionSignal(const FillLyric::LyricTabConfig &config);
 

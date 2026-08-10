@@ -15,11 +15,17 @@
 
 #include <QKeyEvent>
 #include <QScreen>
+#include <QStyle>
 
 namespace {
+    constexpr int kLyricTabIndex = 0;
     constexpr int kSplitterTabIndex = 1;
     constexpr int kTaggerTabIndex = 2;
     constexpr int kRuleTestTabIndex = 3;
+    constexpr int kLyricBaseStretch = 1;
+    constexpr int kLyricPreviewStretch = 2;
+    constexpr int kLyricCompactPadding = 20;
+    constexpr int kMinimumLyricCompactWidth = 300;
 }
 
 LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier singer,
@@ -38,16 +44,20 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier
     m_mainLayout = new QVBoxLayout();
     m_tabWidget = new QTabWidget();
 
+    const bool lyricExtVisible = appOptions->fillLyric()->extVisible;
+    m_lyricPreviewVisible = lyricExtVisible;
+
     m_lyricWidget = new FillLyric::LyricTab(
         m_langNotes, std::move(singer), SynthrtEngine::instance().languageService(),
         priorityLanguages,
-        {appOptions->fillLyric()->baseVisible, appOptions->fillLyric()->extVisible,
+        {appOptions->fillLyric()->baseVisible, lyricExtVisible,
          appOptions->fillLyric()->textEditFontSize, appOptions->fillLyric()->skipSlur,
          appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,
          appOptions->fillLyric()->exportLanguage});
 
-    if (!appOptions->fillLyric()->extVisible) {
-        shrinkWindowRight(300);
+    m_lyricCompactWidth = lyricCompactWidthFor(width());
+    if (!lyricExtVisible) {
+        shrinkWindowRight(m_lyricCompactWidth);
     }
 
     // Apply saved Split/Tag config to engines
@@ -84,15 +94,22 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier
     connect(m_btnOk, &QPushButton::clicked, this, &QDialog::accept);
     connect(m_btnCancel, &QPushButton::clicked, this, &QDialog::reject);
 
-    connect(m_lyricWidget, &FillLyric::LyricTab::shrinkWindowRight, this,
-            &LyricDialog::shrinkWindowRight);
-    connect(m_lyricWidget, &FillLyric::LyricTab::expandWindowRight, this,
-            &LyricDialog::expandWindowRight);
+    connect(m_lyricWidget, &FillLyric::LyricTab::shrinkWindowRight, this, [this] {
+        m_lyricPreviewVisible = false;
+        m_lyricCompactWidth = lyricCompactWidthFor(width());
+        if (m_tabWidget->currentIndex() == kLyricTabIndex)
+            shrinkWindowRight(m_lyricCompactWidth);
+    });
+    connect(m_lyricWidget, &FillLyric::LyricTab::expandWindowRight, this, [this] {
+        m_lyricPreviewVisible = true;
+        if (m_tabWidget->currentIndex() == kLyricTabIndex)
+            expandWindowRight();
+    });
 
     connect(m_lyricWidget, &FillLyric::LyricTab::modifyOptionSignal, this,
             &LyricDialog::_on_modifyOption);
 
-    connect(m_tabWidget, &QTabWidget::currentChanged, this, &LyricDialog::ensureTabInitialized);
+    connect(m_tabWidget, &QTabWidget::currentChanged, this, &LyricDialog::onCurrentTabChanged);
 }
 
 LyricDialog::~LyricDialog() = default;
@@ -133,6 +150,31 @@ void LyricDialog::ensureTabInitialized(const int index) {
     } else {
         return;
     }
+}
+
+void LyricDialog::onCurrentTabChanged(const int index) {
+    if (index == kLyricTabIndex) {
+        if (m_lyricPreviewVisible)
+            expandWindowRight();
+        else
+            shrinkWindowRight(m_lyricCompactWidth);
+    } else {
+        expandWindowRight();
+    }
+
+    ensureTabInitialized(index);
+}
+
+int LyricDialog::lyricCompactWidthFor(const int expandedWidth) const {
+    const auto bodyMargins = body()->contentsMargins();
+    const int layoutSpacing = qMax(
+        0, m_lyricWidget->style()->pixelMetric(QStyle::PM_LayoutHorizontalSpacing, nullptr,
+                                               m_lyricWidget));
+    const int contentWidth =
+        expandedWidth - bodyMargins.left() - bodyMargins.right() - layoutSpacing;
+    const int totalStretch = kLyricBaseStretch + kLyricPreviewStretch;
+    return qMax(kMinimumLyricCompactWidth,
+                contentWidth * kLyricBaseStretch / totalStretch + kLyricCompactPadding);
 }
 
 void LyricDialog::setLangNotes() const {

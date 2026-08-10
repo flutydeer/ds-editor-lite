@@ -66,7 +66,7 @@ namespace FillLyric {
             if (m_lyricExtWidget->isVisible()) {
                 Q_EMIT this->expandWindowRight();
             } else {
-                Q_EMIT this->shrinkWindowRight(m_lyricBaseWidget->width() + 20);
+                Q_EMIT this->shrinkWindowRight();
             }
             modifyOption();
         });
