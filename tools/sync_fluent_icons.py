@@ -80,6 +80,10 @@ NEW_ICONS = [
     "question_circle_16_filled.svg",
     "add_circle_16_filled.svg",
 
+    # 规则列表
+    "re_order_dots_vertical_16_regular.svg",
+    "lock_closed_16_regular.svg",
+
     # 录音
     "record_16_filled.svg",
     "timer_16_filled.svg",
