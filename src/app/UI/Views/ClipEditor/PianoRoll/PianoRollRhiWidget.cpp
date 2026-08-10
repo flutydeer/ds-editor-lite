@@ -132,6 +132,7 @@ public:
         QString lyric;
         QString pronunciation;
         bool pronunciationEdited = false;
+        bool overlapped = false;
     };
 
     explicit Private(PianoRollRhiWidget *q) : q(q) {
@@ -472,7 +473,8 @@ public:
         pastePreviewNotes.reserve(data.notes.size());
         for (const auto &note : data.notes)
             pastePreviewNotes.append({note.relativeStart + localPreviewStart, note.length, note.key,
-                                      note.lyric, note.pronunciation, note.pronunciationEdited});
+                                      note.lyric, note.pronunciation, note.pronunciationEdited,
+                                      note.overlapped});
         scheduleSnapshot();
     }
 
@@ -1683,12 +1685,78 @@ private:
             });
     }
 
+    void appendFullNoteShape(const QRectF &rect, const QColor &fill, const QColor &border) {
+        const auto padded =
+            rect.adjusted(kNoteBorderWidth, kNoteBorderWidth, -kNoteBorderWidth, -kNoteBorderWidth);
+        if (padded.isEmpty())
+            return;
+        const auto physical = QRectF(padded.topLeft() * dpr, padded.size() * dpr);
+        EditorRhiGeometry::appendRoundedRect(vertices, physical, 2.0 * dpr, fill);
+        EditorRhiGeometry::appendRoundedRectStroke(vertices, physical, 2.0 * dpr,
+                                                   kNoteBorderWidth * dpr, border, 0.5);
+    }
+
+    void appendCompactNoteShape(const QRectF &rect, const QColor &fill) {
+        const auto width = std::max(2.0, rect.width() - kNoteBorderWidth);
+        const auto height = std::max(2.0, rect.height() - kNoteBorderWidth);
+        appendLogicalRect(QRectF(rect.left() + kNoteBorderWidth * 0.5,
+                                 rect.top() + kNoteBorderWidth * 0.5, width, height),
+                          fill);
+    }
+
+    void appendNoteText(const QRectF &rect, const QString &lyric, const QString &pronunciation,
+                        const QColor &foreground, const QColor &pronunciationColor,
+                        const bool editingLyric, const bool editingPronunciation) {
+        if (editingLyric)
+            return;
+
+        QFont font;
+        font.setPixelSize(std::max(1, qRound(q->noteFontPixelSize() * dpr)));
+        const QFontMetricsF metrics(font);
+        const auto padded =
+            rect.adjusted(kNoteBorderWidth, kNoteBorderWidth, -kNoteBorderWidth, -kNoteBorderWidth);
+        const auto textRect = padded.adjusted(2.0, 0.0, -2.0, 0.0);
+        const auto textWidth =
+            std::max(metrics.horizontalAdvance(lyric), metrics.horizontalAdvance(pronunciation));
+        if (textWidth >= textRect.width() * dpr || metrics.height() >= textRect.height() * dpr)
+            return;
+
+        const auto physicalTextRect = QRectF(textRect.topLeft() * dpr, textRect.size() * dpr);
+        const auto textTop =
+            physicalTextRect.top() + (physicalTextRect.height() - metrics.height()) * 0.5;
+        glyphAtlas.appendText(lyric, font, QPointF(physicalTextRect.left(), textTop), foreground,
+                              physicalTextRect);
+
+        if (pronunciation.isEmpty() || editingPronunciation)
+            return;
+        QFont pronunciationFont = q->font();
+        const auto logicalPixelSize =
+            pronunciationFont.pixelSize() > 0
+                ? pronunciationFont.pixelSize()
+                : pronunciationFont.pointSizeF() * q->logicalDpiY() / 72.0;
+        pronunciationFont.setPixelSize(std::max(1, qRound(logicalPixelSize * dpr)));
+        const QRectF pronunciationRect(
+            (rect.left() + kNoteBorderWidth + 2.0) * dpr, rect.bottom() * dpr,
+            (rect.width() - kNoteBorderWidth * 2.0 - 4.0) * dpr, 20.0 * dpr);
+        glyphAtlas.appendText(pronunciation, pronunciationFont, pronunciationRect.topLeft(),
+                              pronunciationColor, pronunciationRect);
+    }
+
     void appendNotes(const double localStart, const double localEnd) {
         const auto *palette = AppColorPalette::instance();
         const auto normalFill = palette->noteBackground(trackColorIndex);
         const auto normalBorder = palette->noteBorder(trackColorIndex);
         const auto selectedFill = palette->noteBackgroundSelected(trackColorIndex);
         const auto selectedBorder = q->noteSelectedBorderColor();
+        const auto overlappedFill = palette->noteBackgroundOverlapped(trackColorIndex);
+        const auto overlappedBorder = palette->noteBorderOverlapped(trackColorIndex);
+        const auto editingFill = palette->noteBackgroundEditingPitch(trackColorIndex);
+        const auto editingBorder = palette->noteBorderEditingPitch(trackColorIndex);
+        const auto normalForeground = palette->noteForeground(trackColorIndex);
+        const auto overlappedForeground = palette->noteForegroundOverlapped(trackColorIndex);
+        const auto editingForeground = palette->noteForegroundEditingPitch(trackColorIndex);
+        const auto editingPitch = editMode == DrawPitch || editMode == EditPitchAnchor ||
+                                  editMode == ErasePitch || editMode == FreezePitch;
         const auto selectedNotes = appStatus->selectedNotes.get();
         for (const auto *note : clip->notes()) {
             auto noteStart = note->localStart();
@@ -1712,52 +1780,45 @@ private:
             const auto rect =
                 QRectF(noteStart * pixelsPerTick(), (127 - noteKey) * noteHeight * scaleY,
                        noteLength * pixelsPerTick(), noteHeight * scaleY);
-            appendLogicalRect(rect, selected ? selectedBorder : normalBorder);
-            const auto inset = kNoteBorderWidth;
-            appendLogicalRect(rect.adjusted(inset, inset, -inset, -inset),
-                              selected ? selectedFill : normalFill);
-
-            if (scaleX >= 0.3 && rect.width() > 8.0 && rect.height() > 8.0) {
-                QFont font = q->font();
-                font.setPixelSize(std::max(1, qRound(q->noteFontPixelSize() * dpr)));
-                const auto foreground = palette->noteForeground(trackColorIndex);
-                const QRectF scaledClip((rect.left() + 3.0) * dpr, rect.top() * dpr,
-                                        std::max(0.0, rect.width() - 6.0) * dpr,
-                                        rect.height() * dpr);
-                const auto editingLyric =
-                    inlineEditField == InlineEditField::Lyric && inlineEditingNoteId == note->id();
-                if (!editingLyric) {
-                    glyphAtlas.appendText(
-                        note->lyric(), font,
-                        QPointF((rect.left() + 3.0) * dpr, (rect.top() + 1.0) * dpr), foreground,
-                        scaledClip);
-                }
-
-                const auto pronunciation = note->pronunciation();
-                const auto pronunciationText = pronunciation.result();
-                const auto editingPronunciation =
-                    inlineEditField == InlineEditField::Pronunciation &&
-                    inlineEditingNoteId == note->id();
-                if (!pronunciationText.isEmpty() && !editingPronunciation) {
-                    const auto pronunciationColor = pronunciation.isEdited()
-                                                        ? palette->phonemeEdited(trackColorIndex)
-                                                        : q->pronunciationTextColor();
-                    const QRectF pronunciationClip(rect.left() * dpr, rect.bottom() * dpr,
-                                                   rect.width() * dpr,
-                                                   q->noteFontPixelSize() * 1.5 * dpr);
-                    glyphAtlas.appendText(
-                        pronunciationText, font,
-                        QPointF((rect.left() + 3.0) * dpr, (rect.bottom() + 1.0) * dpr),
-                        pronunciationColor, pronunciationClip);
-                }
+            const auto overlapped = note->overlapped();
+            const auto fill = selected       ? selectedFill
+                              : overlapped   ? overlappedFill
+                              : editingPitch ? editingFill
+                                             : normalFill;
+            const auto border = selected       ? selectedBorder
+                                : overlapped   ? overlappedBorder
+                                : editingPitch ? editingBorder
+                                               : normalBorder;
+            const auto foreground = selected       ? normalForeground
+                                    : overlapped   ? overlappedForeground
+                                    : editingPitch ? editingForeground
+                                                   : normalForeground;
+            if (scaleX < 0.3) {
+                appendCompactNoteShape(rect, selected       ? selectedFill
+                                             : overlapped   ? overlappedBorder
+                                             : editingPitch ? editingBorder
+                                                            : normalFill);
+                continue;
             }
+            appendFullNoteShape(rect, fill, border);
+
+            const auto pronunciation = note->pronunciation();
+            const auto editingLyric =
+                inlineEditField == InlineEditField::Lyric && inlineEditingNoteId == note->id();
+            const auto editingPronunciation = inlineEditField == InlineEditField::Pronunciation &&
+                                              inlineEditingNoteId == note->id();
+            appendNoteText(rect, note->lyric(), pronunciation.result(), foreground,
+                           pronunciation.isEdited() ? palette->phonemeEdited(trackColorIndex)
+                                                    : q->pronunciationTextColor(),
+                           editingLyric, editingPronunciation);
         }
         if (interaction == Interaction::Draw && drawEnd > drawStart) {
             const QRectF rect(drawStart * pixelsPerTick(), (127 - drawKey) * noteHeight * scaleY,
                               (drawEnd - drawStart) * pixelsPerTick(), noteHeight * scaleY);
-            appendLogicalRect(rect, selectedBorder);
-            const auto inset = kNoteBorderWidth;
-            appendLogicalRect(rect.adjusted(inset, inset, -inset, -inset), selectedFill);
+            if (scaleX < 0.3)
+                appendCompactNoteShape(rect, selectedFill);
+            else
+                appendFullNoteShape(rect, selectedFill, selectedBorder);
         }
     }
 
@@ -1768,6 +1829,9 @@ private:
         auto fill = palette->noteBackground(trackColorIndex);
         auto border = palette->noteBorder(trackColorIndex);
         auto foreground = palette->noteForeground(trackColorIndex);
+        auto overlappedFill = palette->noteBackgroundOverlapped(trackColorIndex);
+        auto overlappedBorder = palette->noteBorderOverlapped(trackColorIndex);
+        auto overlappedForeground = palette->noteForegroundOverlapped(trackColorIndex);
         auto pronunciationEdited = palette->phonemeEdited(trackColorIndex);
         auto pronunciationNormal = q->pronunciationTextColor();
         constexpr double opacity = 0.35;
@@ -1777,6 +1841,9 @@ private:
         applyOpacity(fill);
         applyOpacity(border);
         applyOpacity(foreground);
+        applyOpacity(overlappedFill);
+        applyOpacity(overlappedBorder);
+        applyOpacity(overlappedForeground);
         applyOpacity(pronunciationEdited);
         applyOpacity(pronunciationNormal);
 
@@ -1787,29 +1854,17 @@ private:
             const QRectF rect(note.localStart * pixelsPerTick(),
                               (127 - note.keyIndex) * noteHeight * scaleY,
                               note.length * pixelsPerTick(), noteHeight * scaleY);
-            appendLogicalRect(rect, border);
-            const auto inset = kNoteBorderWidth;
-            appendLogicalRect(rect.adjusted(inset, inset, -inset, -inset), fill);
-
-            if (scaleX < 0.3 || rect.width() <= 8.0 || rect.height() <= 8.0)
+            const auto noteFill = note.overlapped ? overlappedFill : fill;
+            const auto noteBorder = note.overlapped ? overlappedBorder : border;
+            const auto noteForeground = note.overlapped ? overlappedForeground : foreground;
+            if (scaleX < 0.3) {
+                appendCompactNoteShape(rect, note.overlapped ? noteBorder : noteFill);
                 continue;
-            QFont font = q->font();
-            font.setPixelSize(std::max(1, qRound(q->noteFontPixelSize() * dpr)));
-            const QRectF lyricClip((rect.left() + 3.0) * dpr, rect.top() * dpr,
-                                   std::max(0.0, rect.width() - 6.0) * dpr, rect.height() * dpr);
-            glyphAtlas.appendText(note.lyric, font,
-                                  QPointF((rect.left() + 3.0) * dpr, (rect.top() + 1.0) * dpr),
-                                  foreground, lyricClip);
-            if (!note.pronunciation.isEmpty()) {
-                const QRectF pronunciationClip(rect.left() * dpr, rect.bottom() * dpr,
-                                               rect.width() * dpr,
-                                               q->noteFontPixelSize() * 1.5 * dpr);
-                glyphAtlas.appendText(
-                    note.pronunciation, font,
-                    QPointF((rect.left() + 3.0) * dpr, (rect.bottom() + 1.0) * dpr),
-                    note.pronunciationEdited ? pronunciationEdited : pronunciationNormal,
-                    pronunciationClip);
             }
+            appendFullNoteShape(rect, noteFill, noteBorder);
+            appendNoteText(rect, note.lyric, note.pronunciation, noteForeground,
+                           note.pronunciationEdited ? pronunciationEdited : pronunciationNormal,
+                           false, false);
         }
     }
 
@@ -2170,8 +2225,11 @@ private:
     void appendPlaybackIndicators(const double sceneTop, const double sceneBottom) {
         const auto lastX = (lastPlaybackPosition - clip->start()) * pixelsPerTick();
         const auto currentX = (playbackPosition - clip->start()) * pixelsPerTick();
-        appendPixelAlignedVerticalLine(lastX, sceneTop, sceneBottom, QColor(150, 150, 150));
-        appendPixelAlignedVerticalLine(currentX, sceneTop, sceneBottom, QColor(220, 220, 220));
+        for (auto top = sceneTop; top < sceneBottom; top += 6.0) {
+            appendPixelAlignedVerticalLine(lastX, top, std::min(top + 4.0, sceneBottom),
+                                           q->lastPlayPosIndicatorColor());
+        }
+        appendPixelAlignedVerticalLine(currentX, sceneTop, sceneBottom, q->playPosIndicatorColor());
     }
 
     void appendRubberBand() {
@@ -2184,21 +2242,21 @@ private:
             viewportRect.setBottom(q->height());
         }
         const auto sceneRect = viewportRect.translated(cameraX, cameraY);
-        appendLogicalRect(sceneRect, QColor(155, 186, 255, 48));
-        constexpr double borderWidth = 1.0;
-        const auto border = QColor(155, 186, 255, 190);
-        if (!intervalSelect) {
-            appendLogicalRect(
-                QRectF(sceneRect.left(), sceneRect.top(), sceneRect.width(), borderWidth), border);
-            appendLogicalRect(QRectF(sceneRect.left(), sceneRect.bottom() - borderWidth,
-                                     sceneRect.width(), borderWidth),
-                              border);
+        if (intervalSelect) {
+            appendLogicalRect(sceneRect, q->rubberBandFillColor());
+            appendLine(sceneRect.topLeft(), sceneRect.bottomLeft(), 1.5,
+                       q->rubberBandBorderColor());
+            appendLine(sceneRect.topRight(), sceneRect.bottomRight(), 1.5,
+                       q->rubberBandBorderColor());
+        } else {
+            const auto physicalRect = QRectF(sceneRect.topLeft() * dpr, sceneRect.size() * dpr);
+            const auto radius =
+                std::min({6.0 * dpr, physicalRect.width() * 0.5, physicalRect.height() * 0.5});
+            EditorRhiGeometry::appendRoundedRect(vertices, physicalRect, radius,
+                                                 q->rubberBandFillColor());
+            EditorRhiGeometry::appendRoundedRectStroke(vertices, physicalRect, radius, 1.5 * dpr,
+                                                       q->rubberBandBorderColor(), 0.5);
         }
-        appendLogicalRect(
-            QRectF(sceneRect.left(), sceneRect.top(), borderWidth, sceneRect.height()), border);
-        appendLogicalRect(QRectF(sceneRect.right() - borderWidth, sceneRect.top(), borderWidth,
-                                 sceneRect.height()),
-                          border);
     }
 
     void appendSplitPreview() {
@@ -2327,6 +2385,10 @@ public:
     QColor barLineColor{86, 90, 98};
     QColor beatLineColor{62, 66, 73};
     QColor commonLineColor{47, 50, 56};
+    QColor playPosIndicatorColor{200, 200, 200};
+    QColor lastPlayPosIndicatorColor{160, 160, 160};
+    QColor rubberBandBorderColor{155, 186, 255, 200};
+    QColor rubberBandFillColor{155, 186, 255, 64};
     InlineTextEditOverlay *inlineEditor = nullptr;
     InlineEditField inlineEditField = InlineEditField::None;
     int inlineEditingNoteId = -1;
@@ -2862,5 +2924,41 @@ QColor PianoRollRhiWidget::commonLineColor() const {
 
 void PianoRollRhiWidget::setCommonLineColor(const QColor &color) {
     d->commonLineColor = color;
+    d->scheduleSnapshot();
+}
+
+QColor PianoRollRhiWidget::playPosIndicatorColor() const {
+    return d->playPosIndicatorColor;
+}
+
+void PianoRollRhiWidget::setPlayPosIndicatorColor(const QColor &color) {
+    d->playPosIndicatorColor = color;
+    d->scheduleSnapshot();
+}
+
+QColor PianoRollRhiWidget::lastPlayPosIndicatorColor() const {
+    return d->lastPlayPosIndicatorColor;
+}
+
+void PianoRollRhiWidget::setLastPlayPosIndicatorColor(const QColor &color) {
+    d->lastPlayPosIndicatorColor = color;
+    d->scheduleSnapshot();
+}
+
+QColor PianoRollRhiWidget::rubberBandBorderColor() const {
+    return d->rubberBandBorderColor;
+}
+
+void PianoRollRhiWidget::setRubberBandBorderColor(const QColor &color) {
+    d->rubberBandBorderColor = color;
+    d->scheduleSnapshot();
+}
+
+QColor PianoRollRhiWidget::rubberBandFillColor() const {
+    return d->rubberBandFillColor;
+}
+
+void PianoRollRhiWidget::setRubberBandFillColor(const QColor &color) {
+    d->rubberBandFillColor = color;
     d->scheduleSnapshot();
 }
