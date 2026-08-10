@@ -54,6 +54,7 @@ using namespace ClipEditorGlobal;
 namespace {
     constexpr float kPitchLineWidth = 1.5f;
     constexpr float kNoteBorderWidth = 1.5f;
+    constexpr double kRasterLineOpacity = 0.25;
 
     using Vertex = EditorRhiSolidVertex;
 
@@ -63,6 +64,12 @@ namespace {
                                 from.greenF() + (to.greenF() - from.greenF()) * t,
                                 from.blueF() + (to.blueF() - from.blueF()) * t,
                                 from.alphaF() + (to.alphaF() - from.alphaF()) * t);
+    }
+
+    QColor withOpacity(const QColor &source, const double opacity) {
+        auto color = source;
+        color.setAlphaF(color.alphaF() * opacity);
+        return color;
     }
 
     class TimelineLineEmitter final : public ITimelinePainter {
@@ -197,7 +204,7 @@ public:
             const auto *firstNote = *clip->notes().begin();
             const auto visibleTicks = q->width() / pixelsPerTick();
             cameraX = (firstNote->localStart() - visibleTicks * 0.3) * pixelsPerTick();
-            const auto noteCenterY = (127.5 - firstNote->keyIndex()) * noteHeight * scaleY;
+            const auto noteCenterY = (126.5 - firstNote->keyIndex()) * noteHeight * scaleY;
             cameraY = noteCenterY - q->height() * 0.5;
         }
         clampCamera();
@@ -1665,7 +1672,8 @@ private:
             if (!PianoPaintUtils::isWhiteKey(key))
                 appendLogicalRect(QRectF(left, y, right - left, noteHeight * scaleY), black);
             if ((key + 1) % 12 == 0)
-                appendPixelAlignedHorizontalLine(y, left, right, octave);
+                appendPixelAlignedHorizontalLine(y, left, right,
+                                                 withOpacity(octave, kRasterLineOpacity));
         }
     }
 
@@ -1681,7 +1689,8 @@ private:
             appModel->timeline(), appStatus->pianoRollQuantize, globalStart, globalEnd, width, bar,
             beat, common, [this, sceneTop, sceneBottom](const int tick, const QColor &color) {
                 const auto x = (tick - clip->start()) * pixelsPerTick();
-                appendPixelAlignedVerticalLine(x, sceneTop, sceneBottom, color);
+                appendPixelAlignedVerticalLine(x, sceneTop, sceneBottom,
+                                               withOpacity(color, kRasterLineOpacity));
             });
     }
 
@@ -2226,10 +2235,12 @@ private:
         const auto lastX = (lastPlaybackPosition - clip->start()) * pixelsPerTick();
         const auto currentX = (playbackPosition - clip->start()) * pixelsPerTick();
         for (auto top = sceneTop; top < sceneBottom; top += 6.0) {
-            appendPixelAlignedVerticalLine(lastX, top, std::min(top + 4.0, sceneBottom),
-                                           q->lastPlayPosIndicatorColor());
+            appendPixelAlignedVerticalLine(
+                lastX, top, std::min(top + 4.0, sceneBottom),
+                withOpacity(q->lastPlayPosIndicatorColor(), kRasterLineOpacity));
         }
-        appendPixelAlignedVerticalLine(currentX, sceneTop, sceneBottom, q->playPosIndicatorColor());
+        appendPixelAlignedVerticalLine(currentX, sceneTop, sceneBottom,
+                                       withOpacity(q->playPosIndicatorColor(), kRasterLineOpacity));
     }
 
     void appendRubberBand() {

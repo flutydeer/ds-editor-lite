@@ -183,6 +183,10 @@ double EditorViewportController::bottomUnit() const {
     return sceneYToUnit(m_offsetY + m_viewportSize.height());
 }
 
+double EditorViewportController::leftMarginPx() const {
+    return m_leftMarginPx;
+}
+
 double EditorViewportController::horizontalOffset() const {
     return m_offsetX;
 }

@@ -46,6 +46,7 @@ public:
     [[nodiscard]] double endTick() const;
     [[nodiscard]] double topUnit() const;
     [[nodiscard]] double bottomUnit() const;
+    [[nodiscard]] double leftMarginPx() const;
     [[nodiscard]] double horizontalOffset() const;
     [[nodiscard]] double verticalOffset() const;
     [[nodiscard]] QRectF visibleSceneRect() const;
