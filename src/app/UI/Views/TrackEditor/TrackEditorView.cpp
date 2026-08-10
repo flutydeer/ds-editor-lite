@@ -746,9 +746,9 @@ void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, const in
         return;
     if (const auto cachedView = m_pendingRemoveClipViews.take(clip->id())) {
         // Cross-track move: reuse the cached clip view preserving its state
+        m_tracksScene->addCommonItem(cachedView);
         cachedView->setTrackIndex(trackIndex);
         cachedView->setColorIndex(track->dsTrack->colorIndex());
-        m_tracksScene->addCommonItem(cachedView);
         track->clips[clip] = cachedView;
         connect(clip, &Clip::propertyChanged, this, [clip, this] { updateClipOnView(clip); });
         // Reconnect type-specific signals that were disconnected by onClipRemoved
@@ -785,6 +785,7 @@ void TrackEditorView::onClipInserted(Clip *clip, TrackViewModel *track, const in
 void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track,
                                         const int trackIndex) {
     auto clipView = new SingingClipView(clip->id());
+    m_tracksScene->addCommonItem(clipView);
     clipView->loadCommonProperties(Clip::ClipCommonProperties(*clip));
     clipView->setTrackIndex(trackIndex);
     clipView->setColorIndex(track->dsTrack->colorIndex());
@@ -792,7 +793,6 @@ void TrackEditorView::insertSingingClip(SingingClip *clip, TrackViewModel *track
     clipView->loadNotes(notesRef);
     updateSingingClipDisplay(clip, clipView);
     clipView->setDefaultLanguage(clip->defaultLanguage());
-    m_tracksScene->addCommonItem(clipView);
     qDebug() << "Singing clip graphics item added to scene" << clipView->id() << clipView->name();
     connect(
         clip, &SingingClip::voiceContextChanged, this,
@@ -817,6 +817,7 @@ namespace {
 void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track,
                                       const int trackIndex) {
     const auto clipView = new AudioClipView(clip->id());
+    m_tracksScene->addCommonItem(clipView);
     clipView->loadCommonProperties(Clip::ClipCommonProperties(*clip));
     clipView->setTrackIndex(trackIndex);
     clipView->setColorIndex(track->dsTrack->colorIndex());
@@ -824,7 +825,6 @@ void TrackEditorView::insertAudioClip(AudioClip *clip, TrackViewModel *track,
     clipView->setTimeline(appModel->timeline());
     clipView->setAudioInfo(clip->audioInfo());
     applyAudioPathStatus(clipView, clip->pathStatus());
-    m_tracksScene->addCommonItem(clipView);
     qDebug() << "Audio clip graphics item added to scene" << clipView->id() << clipView->name();
     connect(appModel, &AppModel::timelineChanged, clipView,
             [clipView] { clipView->setTimeline(appModel->timeline()); });

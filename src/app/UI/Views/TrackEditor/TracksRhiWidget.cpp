@@ -956,11 +956,8 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
     result.visibleEndTick = result.visibleStartTick + props.clipLen;
     result.selected = appStatus->selectedClips.get().contains(clip->id());
     result.active = appStatus->activeClipId == clip->id();
-    const auto left =
-        (m_viewport.tickToSceneX(props.start + props.clipStart) - m_viewport.leftMarginPx()) * dpr;
-    const auto right = (m_viewport.tickToSceneX(props.start + props.clipStart + props.clipLen) -
-                        m_viewport.leftMarginPx()) *
-                       dpr;
+    const auto left = m_viewport.tickToSceneX(props.start + props.clipStart) * dpr;
+    const auto right = m_viewport.tickToSceneX(props.start + props.clipStart + props.clipLen) * dpr;
     result.physicalRect = QRectF(left, displayTrack * trackHeight * scaleY() * dpr, right - left,
                                  trackHeight * scaleY() * dpr)
                               .adjusted(0.6 * dpr, 1.2 * dpr, -0.6 * dpr, -1.2 * dpr);
@@ -1014,10 +1011,8 @@ void TracksRhiWidget::showTrackPastePreview(const TrackPastePreviewData &data,
         snapshot.visibleEndTick = snapshot.visibleStartTick + properties.clipLen;
         snapshot.title = commonClipTitle(properties, -1, scaleX(), scaleY());
         snapshot.pastePreview = true;
-        const auto left =
-            (m_viewport.tickToSceneX(snapshot.visibleStartTick) - m_viewport.leftMarginPx()) * dpr;
-        const auto right =
-            (m_viewport.tickToSceneX(snapshot.visibleEndTick) - m_viewport.leftMarginPx()) * dpr;
+        const auto left = m_viewport.tickToSceneX(snapshot.visibleStartTick) * dpr;
+        const auto right = m_viewport.tickToSceneX(snapshot.visibleEndTick) * dpr;
         snapshot.physicalRect = QRectF(left, targetTrackIndex * trackHeight * scaleY() * dpr,
                                        right - left, trackHeight * scaleY() * dpr)
                                     .adjusted(0.6 * dpr, 1.2 * dpr, -0.6 * dpr, -1.2 * dpr);
