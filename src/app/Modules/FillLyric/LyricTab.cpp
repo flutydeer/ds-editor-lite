@@ -59,7 +59,7 @@ namespace FillLyric {
         connect(m_lyricBaseWidget, &LyricBaseWidget::lyricPrevRequested, this, [this] {
             m_lyricExtWidget->setVisible(!m_lyricExtWidget->isVisible());
             if (m_lyricExtWidget->isVisible() && !m_previewInitialized)
-                setLangNotes(false);
+                initializeOriginalNotesPreview();
             m_lyricBaseWidget->setToTableVisible(m_lyricExtWidget->isVisible());
             m_lyricBaseWidget->setLyricPrevText(m_lyricExtWidget->isVisible() ? tr("Fold Preview")
                                                                               : tr("Lyric Prev"));
@@ -129,6 +129,22 @@ namespace FillLyric {
         m_originalNotesG2pReady = true;
     }
 
+    void LyricTab::initializeOriginalNotesPreview() {
+        ensureOriginalNotesG2p();
+
+        QList<LangNote> langNotes;
+        for (const auto &langNote : m_langNotes) {
+            if (m_lyricBaseWidget->skipSlur() &&
+                (langNote->g2pId == kSlurLyric || langNote->lyric == "-"))
+                continue;
+            langNotes.append(*langNote);
+        }
+
+        m_notesCount = static_cast<int>(langNotes.size());
+        m_lyricExtWidget->wrapView()->init({langNotes});
+        m_previewInitialized = true;
+    }
+
     void LyricTab::setLangNotes(const bool warn) {
         const bool skipSlurRes = m_lyricBaseWidget->skipSlur();
 
@@ -142,24 +158,17 @@ namespace FillLyric {
         }
 
         if (!warn || setLangNotes) {
-            if (m_lyricExtWidget->isVisible())
-                ensureOriginalNotesG2p();
-
             QStringList lyrics;
-            QList<LangNote> langNotes;
             for (const auto &langNote : m_langNotes) {
                 if (skipSlurRes && (langNote->g2pId == kSlurLyric || langNote->lyric == "-"))
                     continue;
-                langNotes.append(*langNote);
                 lyrics.append(langNote->lyric);
             }
-            m_notesCount = static_cast<int>(langNotes.size());
+            m_notesCount = static_cast<int>(lyrics.size());
             m_lyricBaseWidget->setLyricText(lyrics.join(" "));
             m_previewInitialized = false;
-            if (m_lyricExtWidget->isVisible()) {
-                m_lyricExtWidget->wrapView()->init({langNotes});
-                m_previewInitialized = true;
-            }
+            if (m_lyricExtWidget->isVisible())
+                initializeOriginalNotesPreview();
         } else {
             m_lyricBaseWidget->setSkipSlur(!skipSlurRes);
             modifyOption();

@@ -37,6 +37,7 @@ namespace FillLyric {
 
     private:
         void ensureOriginalNotesG2p();
+        void initializeOriginalNotesPreview();
         void modifyOption();
 
         QStringList m_priorityLanguages;
