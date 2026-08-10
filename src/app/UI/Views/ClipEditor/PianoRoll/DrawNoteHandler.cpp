@@ -147,7 +147,7 @@ void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,
                                          singingClip ? singingClip->id() : -1, {}, {}, {}, {},
                                          true);
     appStatus->currentEditObject = AppStatus::EditObjectType::Note;
-    const auto language = singingClip ? singingClip->defaultLanguage()
+    const auto language = singingClip ? singingClip->effectiveDefaultLanguage()
                                       : appOptions->general()->defaultSingingLanguage;
     m_currentDrawingNote->setLyric(appOptions->general()->defaultLyricForLanguage(language));
     m_currentDrawingNote->setRStart(snappedTick - d->m_offset);

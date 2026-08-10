@@ -10,8 +10,7 @@ InferInputNote::InferInputNote(const Note &note) {
     isRest = note.lyric() == "SP" || note.lyric() == "AP";
     isSlur = note.isSlur();
     isPlus = !note.lyric().isEmpty() && note.lyric().count('+') == note.lyric().length();
-    // TODO: language dict id form singer info
-    languageDictId = note.language();
+    languageDictId = note.effectiveLanguage();
     phonemeNames = note.phonemeNameSeq().result();
     phonemeOffsets = note.phonemeOffsetSeq().result();
 }

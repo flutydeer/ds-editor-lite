@@ -115,18 +115,48 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
         connect(remove, &QAction::triggered, this,
                 [anchorHost] { anchorHost->deleteSelectedAnchors(); });
     } else if (context.target == PianoRollMenuContext::Target::Note) {
+        const auto singerInfo = clip->singerInfo();
+        const bool hasLanguages = singerInfo.resolutionState() == ResolutionState::Resolved &&
+                                  !singerInfo.languages().isEmpty();
         auto *languageMenu = new Menu(tr("Language"), &menu);
         auto *languageGroup = new QActionGroup(languageMenu);
         languageGroup->setExclusive(true);
-        for (const auto &language : AppGlobal::languageNames) {
-            auto *action = languageMenu->addAction(language);
-            action->setCheckable(true);
-            action->setChecked(language == context.noteLanguage);
-            languageGroup->addAction(action);
-            connect(action, &QAction::triggered, this, [context, language] {
-                clipController->onNoteLanguagesEdited(context.selectedNoteIds, language);
-            });
+
+        // auto/follow singer: checked when note language is unspecified (empty)
+        auto *followAction = languageMenu->addAction(tr("Follow singer"));
+        followAction->setCheckable(true);
+        followAction->setChecked(context.noteLanguage.isEmpty());
+        languageGroup->addAction(followAction);
+        connect(followAction, &QAction::triggered, this, [context] {
+            clipController->onNoteLanguagesEdited(context.selectedNoteIds, QString());
+        });
+
+        if (hasLanguages) {
+            for (const auto &language : singerInfo.languages()) {
+                const auto id = language.id();
+                auto text = id;
+                if (id == singerInfo.defaultLanguage())
+                    text += tr(" (default)");
+                auto *action = languageMenu->addAction(text);
+                action->setCheckable(true);
+                action->setChecked(context.noteLanguage == id);
+                languageGroup->addAction(action);
+                connect(action, &QAction::triggered, this, [context, id] {
+                    clipController->onNoteLanguagesEdited(context.selectedNoteIds, id);
+                });
+            }
+            languageMenu->addSeparator();
         }
+
+        // "unknown" = detection failure / terminal language; keep manual entry, distinct from auto
+        auto *unknownAction = languageMenu->addAction(tr("Unknown"));
+        unknownAction->setCheckable(true);
+        unknownAction->setChecked(context.noteLanguage == QStringLiteral("unknown"));
+        languageGroup->addAction(unknownAction);
+        connect(unknownAction, &QAction::triggered, this, [context] {
+            clipController->onNoteLanguagesEdited(context.selectedNoteIds,
+                                                  QStringLiteral("unknown"));
+        });
         menu.addMenu(languageMenu);
 
         auto *fillLyrics = menu.addAction(tr("Fill lyrics..."));

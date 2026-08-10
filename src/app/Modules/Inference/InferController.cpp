@@ -60,7 +60,7 @@ namespace {
             NoteInferenceSnapshot snapshot;
             snapshot.noteId = note->id();
             snapshot.lyric = note->lyric();
-            snapshot.language = note->language();
+            snapshot.language = note->effectiveLanguage();
             snapshot.pronunciation = note->pronunciation().result();
             snapshot.globalStart = note->globalStart();
             snapshot.length = note->length();

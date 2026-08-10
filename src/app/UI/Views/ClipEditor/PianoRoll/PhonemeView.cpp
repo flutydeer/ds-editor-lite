@@ -622,7 +622,7 @@ void PhonemeView::buildPhonemeList() {
                 model->noteId = note->id();
                 model->noteStart = note->globalStart();
                 model->noteLength = note->length();
-                model->noteLanguage = note->language();
+                model->noteLanguage = note->effectiveLanguage();
                 model->nameEdited = names.isEdited();
                 model->offsetEdited = offsets.isEdited();
                 model->language = names.result().at(k).language;

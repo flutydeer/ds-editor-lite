@@ -226,6 +226,19 @@ QString SingingClip::defaultLanguage() const {
     return m_defaultLanguage.get();
 }
 
+QString SingingClip::effectiveDefaultLanguage() const {
+    // explicit clip language (non-empty and not "unknown") wins, never overridden by singer
+    const auto lang = m_defaultLanguage.get();
+    if (!lang.isEmpty() && lang != QStringLiteral("unknown"))
+        return lang;
+    // not explicit: follow the singer package default language (when a resolved singer exists)
+    const auto info = singerInfo();
+    if (!info.defaultLanguage().isEmpty())
+        return info.defaultLanguage();
+    // fall back to defaultLanguage()'s parent-following semantics
+    return defaultLanguage();
+}
+
 QString SingingClip::defaultG2pId() const {
     return m_singerInfo.get().g2pId(m_defaultLanguage.get());
 }

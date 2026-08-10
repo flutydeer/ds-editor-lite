@@ -9,6 +9,8 @@
 
 namespace {
     QString displayName(const QString &id, const QString &packageName) {
+        if (id.isEmpty())
+            return LanguageComboBox::tr("Follow singer");
         if (id == QStringLiteral("cmn"))
             return LanguageComboBox::tr("Mandarin");
         if (id == QStringLiteral("eng"))
@@ -60,7 +62,9 @@ QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
     }
 
     if (count() == 0) {
-        addItem(displayName(QStringLiteral("unknown"), {}), QStringLiteral("unknown"));
+        // no selectable languages (usually no singer) -> show "Follow singer" (auto/unspecified),
+        // id is empty
+        addItem(tr("Follow singer"), QString());
         setItemData(0, QString(), Qt::UserRole + 1);
     }
 

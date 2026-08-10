@@ -26,8 +26,10 @@ void PianoRollGraphicsViewHelper::drawNote(const int rStart, const int length, c
     note->setLocalStart(rStart);
     note->setLength(length);
     note->setKeyIndex(keyIndex);
-    note->setLanguage(singingClip->defaultLanguage());
-    note->setLyric(appOptions->general()->defaultLyricForLanguage(singingClip->defaultLanguage()));
+    // keep language auto (empty), resolved at inference; pick the default lyric by the effective
+    // language
+    note->setLyric(
+        appOptions->general()->defaultLyricForLanguage(singingClip->effectiveDefaultLanguage()));
     note->setPronunciation(Pronunciation("", ""));
     clipController->onInsertNote(note);
     clipController->selectNotes(QList({note->id()}), true);

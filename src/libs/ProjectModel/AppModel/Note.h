@@ -56,6 +56,9 @@ public:
 
     QString language() const;
     void setLanguage(const QString &language);
+    // empty = auto (unspecified, resolved at inference); "unknown" = detection failure/terminal;
+    // else explicit
+    QString effectiveLanguage() const;
     bool lineFeed() const;
     void setLineFeed(const bool &lineFeed);
     bool isSlur() const;
@@ -90,7 +93,7 @@ private:
     int m_centShift = 0;
 
     QString m_lyric;
-    QString m_language = "unknown";
+    QString m_language;
 
     Pronunciation m_pronunciation;
     QStringList m_pronCandidates;

@@ -60,6 +60,9 @@ public:
 
     void setDefaultLanguage(const QString &language);
     QString defaultLanguage() const;
+    // effective language usable at inference: explicit clip language > singer package default >
+    // defaultLanguage() fallback
+    QString effectiveDefaultLanguage() const;
     QString defaultG2pId() const;
 
     SingerInfo singerInfo() const;

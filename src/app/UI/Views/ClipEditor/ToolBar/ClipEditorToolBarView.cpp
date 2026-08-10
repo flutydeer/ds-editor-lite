@@ -508,7 +508,10 @@ void ClipEditorToolBarViewPrivate::refreshLanguageComboPresentation() const {
     const auto singerInfo = m_singingClip->singerInfo();
     const auto language = m_cbClipLanguage->setLanguages(
         singerInfo.languages(), m_singingClip->defaultLanguage(), singerInfo.defaultLanguage());
-    if (language != m_singingClip->defaultLanguage())
+    // latch singer default language only when singer is resolved; do not write back without a
+    // singer
+    if (singerInfo.resolutionState() == ResolutionState::Resolved &&
+        language != m_singingClip->defaultLanguage())
         m_singingClip->setDefaultLanguage(language);
 }
 

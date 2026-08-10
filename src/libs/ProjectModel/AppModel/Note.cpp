@@ -150,6 +150,15 @@ void Note::setLanguage(const QString &language) {
     m_language = language;
 }
 
+QString Note::effectiveLanguage() const {
+    // auto (empty): resolve to clip effective default; explicit/unknown returned as-is
+    if (!m_language.isEmpty())
+        return m_language;
+    if (m_clip)
+        return m_clip->effectiveDefaultLanguage();
+    return QString();
+}
+
 bool Note::lineFeed() const {
     return m_lineFeed;
 }
@@ -209,9 +218,10 @@ QJsonObject Note::serialize() const {
     obj["keyIndex"] = m_keyIndex;
     obj["centShift"] = m_centShift;
     obj["lyric"] = m_lyric;
-    obj["language"] = m_language;
-    obj["pronunciation"] = Pronunciation::serialize(
-        Pronunciation({}, m_pronunciation.edited));
+    // auto (empty) is not persisted and reloads as auto; explicit/unknown persisted as-is
+    if (!m_language.isEmpty())
+        obj["language"] = m_language;
+    obj["pronunciation"] = Pronunciation::serialize(Pronunciation({}, m_pronunciation.edited));
     obj["lineFeed"] = m_lineFeed;
 
     if (!m_pronCandidates.isEmpty()) {
@@ -233,7 +243,7 @@ bool Note::deserialize(const QJsonObject &obj) {
     m_keyIndex = obj["keyIndex"].toInt();
     m_centShift = obj["centShift"].toInt();
     m_lyric = obj["lyric"].toString();
-    m_language = obj["language"].toString("unknown");
+    m_language = obj["language"].toString(); // missing/empty -> auto; "unknown" kept as terminal
     m_lineFeed = obj["lineFeed"].toBool();
 
     const auto pronObj = obj["pronunciation"].toObject();
