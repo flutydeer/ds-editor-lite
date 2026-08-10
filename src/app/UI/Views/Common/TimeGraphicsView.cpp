@@ -36,6 +36,13 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
                                    QWidget *parent)
     : QGraphicsView(parent), m_scene(scene) {
     setRenderHint(QPainter::Antialiasing);
+    // Full viewport repaint: with partial updates the fast-scrubbing playhead
+    // indicator leaves ghost lines behind (the antialiased 1px ink extends
+    // past Qt's computed damage rect, so old positions never get erased).
+    // TODO: rework to repaint only the indicator's swept span (a route via
+    // scene->invalidate() was tried and did not clear the ghosts) or use
+    // SmartViewportUpdate with a custom damage tracking, to drop CPU cost.
+    setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
     setAttribute(Qt::WA_AcceptTouchEvents);
     setAttribute(Qt::WA_Hover);
     setMinimumHeight(150);
