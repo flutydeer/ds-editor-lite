@@ -45,6 +45,7 @@ protected:
 
 private:
     void noteToPhonic();
+    void ensureTabInitialized(int index);
 
     void shrinkWindowRight(const int &newWidth);
     void expandWindowRight();
@@ -57,9 +58,13 @@ private:
     QTabWidget *m_tabWidget;
 
     FillLyric::LyricTab *m_lyricWidget;
-    FillLyric::SplitterConfigTab *m_splitterConfigTab;
-    FillLyric::TaggerConfigTab *m_taggerConfigTab;
-    FillLyric::RuleTestTab *m_ruleTestTab;
+    QWidget *m_splitterConfigPage = nullptr;
+    QWidget *m_taggerConfigPage = nullptr;
+    QWidget *m_ruleTestPage = nullptr;
+
+    FillLyric::SplitterConfigTab *m_splitterConfigTab = nullptr;
+    FillLyric::TaggerConfigTab *m_taggerConfigTab = nullptr;
+    FillLyric::RuleTestTab *m_ruleTestTab = nullptr;
     // G2pPage *m_g2pPage;
 
     AccentButton *m_btnOk;
