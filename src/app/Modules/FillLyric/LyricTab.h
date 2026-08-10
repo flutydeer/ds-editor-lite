@@ -32,10 +32,11 @@ namespace FillLyric {
         void modifyOptionSignal(const FillLyric::LyricTabConfig &config);
 
     public Q_SLOTS:
-        void onBtnInsertTextClicked() const;
-        void onBtnToTableClicked() const;
+        void onBtnInsertTextClicked();
+        void onBtnToTableClicked();
 
     private:
+        void ensureOriginalNotesG2p();
         void modifyOption();
 
         QStringList m_priorityLanguages;
@@ -48,6 +49,8 @@ namespace FillLyric {
 
         int m_notesCount = 0;
         bool m_exportLanguage = false;
+        bool m_previewInitialized = false;
+        bool m_originalNotesG2pReady = false;
 
         QVBoxLayout *m_mainLayout;
         QHBoxLayout *m_lyricLayout;
