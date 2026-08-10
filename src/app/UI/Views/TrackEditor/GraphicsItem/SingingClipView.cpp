@@ -167,12 +167,16 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
             return;
         const auto leftScene = tickToSceneX(start() + rStart);
         auto left = sceneXToItemX(leftScene);
-        auto width = tickToSceneX(length);
+        // 宽度不能用 tickToSceneX(length)：tickToSceneX 含 leftMarginPx() 偏移，
+        // 而 tick 长度是平移不变量，margin 会被错计进宽度导致音符重叠（回归于
+        // 237a904a）。两端场景坐标相减（margin 抵消）得到正确的 item 局部宽度。
+        auto width = sceneXToItemX(tickToSceneX(start() + rStart + length)) - left;
         if (start() + rStart < clipLeft) {
             left = sceneXToItemX(tickToSceneX(clipLeft));
             width = sceneXToItemX(tickToSceneX(start() + rStart + length)) - left;
         } else if (start() + rStart + length >= clipRight)
-            width = tickToSceneX(clipRight - start() - rStart);
+            // 右端触到 clip 边界：同理由右边界场景坐标回推，勿把 tick 当长度
+            width = sceneXToItemX(tickToSceneX(clipRight)) - left;
         const auto top = -(keyIndex - highestKeyIndex) * noteHeight + contentTop;
         painter->drawRect(QRectF(left, top, width, noteHeight));
     };
