@@ -18,9 +18,12 @@ public:
 
     void attachTo(QAbstractScrollArea *scrollArea);
     void updatePosition();
-    /** 是否允许根据 range 自动显示/隐藏（默认 true）。设为 false 时强制隐藏，
-     * 且后续 rangeChanged 不会再次显示该条。 */
+    /** Whether the bar may auto-show/hide based on range (default true). When set to
+     * false it is force-hidden and later rangeChanged will not show it again. */
     void setRangeVisible(bool visible);
+    /// Makes the two bars aware of each other so that, when both are shown, their
+    /// tails recede at the bottom-right corner instead of overlapping.
+    void setCompanion(OverlayScrollBar *companion);
 
     static OverlayScrollBar *install(QAbstractScrollArea *scrollArea,
                                      Qt::Orientation orientation = Qt::Horizontal);
@@ -36,6 +39,8 @@ protected:
 private:
     void setHighlightVisible(bool visible);
     void updateVisualState();
+    void updateLayout();
+    [[nodiscard]] bool willShow() const;
     void updateGeometryAnimation();
     void updateVisibilityAnimation();
     void restartHideTimer();
@@ -61,6 +66,7 @@ private:
     bool m_pressed = false;
     bool m_rangeVisible = true;
     bool m_idleVisible = false;
+    OverlayScrollBar *m_companion = nullptr;
     bool m_targetHighlightVisible = false;
     bool m_targetGeometryVisible = false;
 };

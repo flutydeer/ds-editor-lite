@@ -317,18 +317,40 @@ void OverlayScrollBar::setRangeVisible(bool visible) {
     updatePosition();
 }
 
+void OverlayScrollBar::setCompanion(OverlayScrollBar *companion) {
+    if (m_companion == companion)
+        return;
+    m_companion = companion;
+    updatePosition();
+}
+
+bool OverlayScrollBar::willShow() const {
+    return m_rangeVisible && maximum() > 0;
+}
+
 void OverlayScrollBar::updatePosition() {
+    // Lay out the companion bar first, then this one, so this bar reads the
+    // companion's freshest visibility state.
+    if (m_companion)
+        m_companion->updateLayout();
+    updateLayout();
+}
+
+void OverlayScrollBar::updateLayout() {
     if (!m_scrollArea)
         return;
 
     auto viewport = m_scrollArea->viewport();
     auto mapped = viewport->mapTo(parentWidget(), QPoint(0, 0));
+    const bool companionShown = m_companion && m_companion->willShow();
     if (orientation() == Qt::Horizontal) {
-        setGeometry(mapped.x(), mapped.y() + viewport->height() - kBarThickness, viewport->width(),
+        const int width = companionShown ? viewport->width() - kBarThickness : viewport->width();
+        setGeometry(mapped.x(), mapped.y() + viewport->height() - kBarThickness, width,
                     kBarThickness);
     } else {
+        const int height = companionShown ? viewport->height() - kBarThickness : viewport->height();
         setGeometry(mapped.x() + viewport->width() - kBarThickness, mapped.y(), kBarThickness,
-                    viewport->height());
+                    height);
     }
     raise();
 }

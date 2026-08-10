@@ -52,8 +52,12 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
 
     m_hScrollBar = OverlayScrollBar::install(this, Qt::Horizontal);
     m_vScrollBar = OverlayScrollBar::install(this, Qt::Vertical);
-    // OverlayScrollBar 的可见性由内部 rangeChanged 逻辑自动控制；
-    // 显式关闭（如参数编辑器）时用 setRangeVisible(false) 保持隐藏。
+    // The two bars are companions: when both are shown their tails recede so the
+    // bottom-right corner stays clear instead of overlapping.
+    m_hScrollBar->setCompanion(m_vScrollBar);
+    m_vScrollBar->setCompanion(m_hScrollBar);
+    // OverlayScrollBar visibility is controlled internally by rangeChanged; use
+    // setRangeVisible(false) to keep it hidden (e.g. the parameter editor).
 
     m_scaleXAnimation.setTargetObject(this);
     m_scaleXAnimation.setPropertyName("scaleX");
