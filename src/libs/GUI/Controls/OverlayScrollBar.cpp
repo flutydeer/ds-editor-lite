@@ -85,11 +85,24 @@ void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
 
     auto *source = horizontal ? scrollArea->horizontalScrollBar() : scrollArea->verticalScrollBar();
 
+    // Qt's QGraphicsViewPrivate::recalculateContentSize() calls setRange(),
+    // which emits rangeChanged synchronously, and only AFTER that emission
+    // assigns the new pageStep/singleStep (which emit no signal of their own).
+    // A direct handler reading source->pageStep() inside rangeChanged would
+    // therefore always latch the PREVIOUS pageStep - the QScrollBar default 10
+    // on the very first recompute, collapsing the handle to minimum length and
+    // leaving it at mid-track (the start-of-app scrollbar bug; only the next
+    // range change, e.g. a zoom, fixed it). Copy the steps with a queued
+    // connection so the read happens after the emitter's stack unwinds.
     connect(source, &QScrollBar::rangeChanged, this, [this](int min, int max) {
         setRange(min, max);
         setVisible(max > 0);
         updatePosition();
     });
+    connect(source, &QScrollBar::rangeChanged, this, [this, source](int, int) {
+        setPageStep(source->pageStep());
+        setSingleStep(source->singleStep());
+    }, Qt::QueuedConnection);
     connect(source, &QScrollBar::valueChanged, this, &QScrollBar::setValue);
     connect(source, &QScrollBar::valueChanged, this, &OverlayScrollBar::restartHideTimer);
     connect(this, &QScrollBar::valueChanged, source, &QScrollBar::setValue);
@@ -98,11 +111,6 @@ void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
     setPageStep(source->pageStep());
     setSingleStep(source->singleStep());
     setVisible(source->maximum() > 0);
-
-    connect(source, &QScrollBar::rangeChanged, this, [this, source] {
-        setPageStep(source->pageStep());
-        setSingleStep(source->singleStep());
-    });
 
     // 视口需开启鼠标跟踪，未按键的 MouseMove 才会到达 eventFilter，
     // 否则鼠标在视口内移动无法重置自动隐藏计时
