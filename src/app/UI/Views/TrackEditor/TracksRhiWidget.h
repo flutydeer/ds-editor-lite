@@ -31,6 +31,7 @@ class QWheelEvent;
 
 class TracksRhiWidget final : public EditorRhiWidget, public ITrackPastePreviewHost {
     Q_OBJECT
+    Q_PROPERTY(QColor backgroundColor READ backgroundColor WRITE setBackgroundColor)
     Q_PROPERTY(QColor barLineColor READ barLineColor WRITE setBarLineColor)
     Q_PROPERTY(QColor beatLineColor READ beatLineColor WRITE setBeatLineColor)
     Q_PROPERTY(QColor commonLineColor READ commonLineColor WRITE setCommonLineColor)
@@ -41,6 +42,9 @@ class TracksRhiWidget final : public EditorRhiWidget, public ITrackPastePreviewH
     Q_PROPERTY(QColor selectedTrackColor READ selectedTrackColor WRITE setSelectedTrackColor)
     Q_PROPERTY(QColor clipSelectedBorderColor READ clipSelectedBorderColor WRITE
                    setClipSelectedBorderColor)
+    Q_PROPERTY(QColor rubberBandBorderColor READ rubberBandBorderColor WRITE
+                   setRubberBandBorderColor)
+    Q_PROPERTY(QColor rubberBandFillColor READ rubberBandFillColor WRITE setRubberBandFillColor)
     Q_PROPERTY(QColor dropHighlightColor READ dropHighlightColor WRITE setDropHighlightColor)
     Q_PROPERTY(QColor dropIndicatorColor READ dropIndicatorColor WRITE setDropIndicatorColor)
 
@@ -177,6 +181,8 @@ private:
     void updateExternalDropScrollState(const QPointF &viewportPosition);
     void onExternalDropScrollFrame(double dtMs);
 
+    QColor backgroundColor() const;
+    void setBackgroundColor(const QColor &color);
     QColor barLineColor() const;
     void setBarLineColor(const QColor &color);
     QColor beatLineColor() const;
@@ -191,6 +197,10 @@ private:
     void setSelectedTrackColor(const QColor &color);
     QColor clipSelectedBorderColor() const;
     void setClipSelectedBorderColor(const QColor &color);
+    QColor rubberBandBorderColor() const;
+    void setRubberBandBorderColor(const QColor &color);
+    QColor rubberBandFillColor() const;
+    void setRubberBandFillColor(const QColor &color);
     QColor dropHighlightColor() const;
     void setDropHighlightColor(const QColor &color);
     QColor dropIndicatorColor() const;
@@ -223,6 +233,7 @@ private:
     QPointF m_dropDragStartPos;
     bool m_dropScrollDistanceReached = false;
 
+    QColor m_backgroundColor{30, 32, 36};
     QColor m_barLineColor{8, 9, 10};
     QColor m_beatLineColor{22, 25, 28};
     QColor m_commonLineColor{28, 32, 36};
@@ -230,6 +241,8 @@ private:
     QColor m_lastPlayPosIndicatorColor{160, 160, 160};
     QColor m_selectedTrackColor{0x31, 0x35, 0x3F};
     QColor m_clipSelectedBorderColor{255, 255, 255};
+    QColor m_rubberBandBorderColor{155, 186, 255, 200};
+    QColor m_rubberBandFillColor{155, 186, 255, 64};
     // External drop overlay colors (theme-injected via QSS)
     QColor m_dropHighlightColor{0xA9, 0xC4, 0xFF, 0x50};
     QColor m_dropIndicatorColor{200, 200, 200};

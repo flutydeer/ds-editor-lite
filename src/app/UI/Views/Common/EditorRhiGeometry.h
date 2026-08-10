@@ -21,6 +21,9 @@ namespace EditorRhiGeometry {
                     const QColor &color, float coverage = 1.0f);
     void appendRoundedRect(QVector<EditorRhiSolidVertex> &vertices, const QRectF &physicalRect,
                            double radius, const QColor &color);
+    void appendRoundedRectStroke(QVector<EditorRhiSolidVertex> &vertices,
+                                 const QRectF &physicalRect, double radius, double width,
+                                 const QColor &color, double feather = 1.0);
     void appendPixelAlignedVerticalLine(QVector<EditorRhiSolidVertex> &vertices, double physicalX,
                                         double top, double bottom, const QColor &color);
     void appendPixelAlignedHorizontalLine(QVector<EditorRhiSolidVertex> &vertices,

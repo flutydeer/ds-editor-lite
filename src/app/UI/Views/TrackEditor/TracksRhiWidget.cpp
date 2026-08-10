@@ -41,6 +41,13 @@
 using namespace TracksEditorGlobal;
 
 namespace {
+    QColor blendColor(const QColor &from, const QColor &to, double ratio) {
+        ratio = std::clamp(ratio, 0.0, 1.0);
+        return QColor(static_cast<int>(from.red() + (to.red() - from.red()) * ratio),
+                      static_cast<int>(from.green() + (to.green() - from.green()) * ratio),
+                      static_cast<int>(from.blue() + (to.blue() - from.blue()) * ratio));
+    }
+
     class TimelineEmitter final : public ITimelinePainter {
     public:
         using Callback = std::function<void(int, const QColor &)>;
@@ -67,18 +74,25 @@ namespace {
         }
 
     private:
-        void drawBar(QPainter *, const int tick, int) override {
-            m_callback(tick, m_bar);
-        }
-
-        void drawBeat(QPainter *, const int tick, int, int) override {
-            m_callback(tick, m_beat);
-        }
-
-        void drawSubdivision(QPainter *painter, const int tick, int, int) override {
-            auto color = m_common;
+        QColor withPainterOpacity(const QColor &source, const QPainter *painter) const {
+            auto color = source;
             color.setAlphaF(color.alphaF() * painter->opacity());
-            m_callback(tick, color);
+            return color;
+        }
+
+        void drawBar(QPainter *painter, const int tick, int) override {
+            m_callback(tick, withPainterOpacity(m_bar, painter));
+        }
+
+        void drawBeat(QPainter *painter, const int tick, int, int) override {
+            m_callback(tick, withPainterOpacity(m_beat, painter));
+        }
+
+        void drawSubdivision(QPainter *painter, const int tick, const int level,
+                             const int levelCount) override {
+            const auto ratio =
+                levelCount > 1 ? static_cast<double>(level) / (levelCount - 1) : 0.0;
+            m_callback(tick, withPainterOpacity(blendColor(m_beat, m_common, ratio), painter));
         }
 
         QColor m_bar;
@@ -629,7 +643,7 @@ void TracksRhiWidget::onDevicePixelRatioChanged() {
 void TracksRhiWidget::rebuildSnapshot() {
     const auto dpr = devicePixelRatioF();
     EditorRhiFrameData frame;
-    frame.clearColor = QColor(30, 32, 36);
+    frame.clearColor = m_backgroundColor;
     frame.physicalCameraOffset =
         QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr;
     m_glyphAtlas.beginFrame();
@@ -638,9 +652,12 @@ void TracksRhiWidget::rebuildSnapshot() {
     appendPlaybackIndicators(frame, dpr);
     appendDropOverlay(frame, dpr);
     if (m_dragMode == DragMode::RectSelect) {
-        const QRectF rect(m_rubberBandStart * dpr, m_rubberBandEnd * dpr);
-        auto fill = QColor(155, 186, 255, 64);
-        EditorRhiGeometry::appendRect(frame.solidVertices, rect.normalized(), fill);
+        const auto rect = QRectF(m_rubberBandStart * dpr, m_rubberBandEnd * dpr).normalized();
+        const auto radius = std::min({6.0 * dpr, rect.width() * 0.5, rect.height() * 0.5});
+        EditorRhiGeometry::appendRoundedRect(frame.solidVertices, rect, radius,
+                                             m_rubberBandFillColor);
+        EditorRhiGeometry::appendRoundedRectStroke(frame.solidVertices, rect, radius, 1.5 * dpr,
+                                                   m_rubberBandBorderColor);
     }
     frame.textureBatches = m_glyphAtlas.textureBatches();
     submitFrame(std::move(frame));
@@ -679,7 +696,7 @@ void TracksRhiWidget::appendGrid(EditorRhiFrameData &frame, const double dpr) co
             QRectF(0, top * dpr, sceneWidth * dpr, trackHeight * scaleY() * dpr),
             m_selectedTrackColor);
     }
-    for (int row = 0; row <= appModel->tracks().size(); ++row) {
+    for (int row = 1; row <= appModel->tracks().size(); ++row) {
         const auto y = row * trackHeight * scaleY() * dpr;
         EditorRhiGeometry::appendPixelAlignedHorizontalLine(frame.solidVertices, y, 0.0,
                                                             sceneWidth * dpr, m_commonLineColor);
@@ -812,9 +829,12 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
 void TracksRhiWidget::appendPlaybackIndicators(EditorRhiFrameData &frame, const double dpr) const {
     // One extra row for the virtual append slot at the bottom of the canvas
     const auto height = (appModel->tracks().size() + 1) * trackHeight * scaleY() * dpr;
-    EditorRhiGeometry::appendPixelAlignedVerticalLine(
-        frame.solidVertices, m_viewport.tickToSceneX(m_lastPlaybackPosition) * dpr, 0.0, height,
-        m_lastPlayPosIndicatorColor);
+    const auto lastX = m_viewport.tickToSceneX(m_lastPlaybackPosition) * dpr;
+    for (double top = 0.0; top < height; top += 6.0 * dpr) {
+        EditorRhiGeometry::appendPixelAlignedVerticalLine(
+            frame.solidVertices, lastX, top, std::min(top + 4.0 * dpr, height),
+            m_lastPlayPosIndicatorColor);
+    }
     EditorRhiGeometry::appendPixelAlignedVerticalLine(
         frame.solidVertices, m_viewport.tickToSceneX(m_playbackPosition) * dpr, 0.0, height,
         m_playPosIndicatorColor);
@@ -1108,6 +1128,15 @@ QColor TracksRhiWidget::barLineColor() const {
     return m_barLineColor;
 }
 
+QColor TracksRhiWidget::backgroundColor() const {
+    return m_backgroundColor;
+}
+
+void TracksRhiWidget::setBackgroundColor(const QColor &color) {
+    m_backgroundColor = color;
+    scheduleSnapshot();
+}
+
 void TracksRhiWidget::setBarLineColor(const QColor &color) {
     m_barLineColor = color;
     scheduleSnapshot();
@@ -1164,5 +1193,23 @@ QColor TracksRhiWidget::clipSelectedBorderColor() const {
 
 void TracksRhiWidget::setClipSelectedBorderColor(const QColor &color) {
     m_clipSelectedBorderColor = color;
+    scheduleSnapshot();
+}
+
+QColor TracksRhiWidget::rubberBandBorderColor() const {
+    return m_rubberBandBorderColor;
+}
+
+void TracksRhiWidget::setRubberBandBorderColor(const QColor &color) {
+    m_rubberBandBorderColor = color;
+    scheduleSnapshot();
+}
+
+QColor TracksRhiWidget::rubberBandFillColor() const {
+    return m_rubberBandFillColor;
+}
+
+void TracksRhiWidget::setRubberBandFillColor(const QColor &color) {
+    m_rubberBandFillColor = color;
     scheduleSnapshot();
 }

@@ -33,6 +33,45 @@ namespace {
         vertices.append(vertex(b, color, coverageB));
         vertices.append(vertex(c, color, coverageC));
     }
+
+    QVector<QPointF> roundedRectContour(const QRectF &rect, const double radius) {
+        constexpr int segmentsPerCorner = 8;
+        constexpr auto pi = std::numbers::pi_v<double>;
+        const auto r = std::clamp(radius, 0.0, std::min(rect.width(), rect.height()) * 0.5);
+        const std::array centers{
+            QPointF(rect.left() + r, rect.top() + r),
+            QPointF(rect.right() - r, rect.top() + r),
+            QPointF(rect.right() - r, rect.bottom() - r),
+            QPointF(rect.left() + r, rect.bottom() - r),
+        };
+        const std::array startAngles{pi, -pi * 0.5, 0.0, pi * 0.5};
+
+        QVector<QPointF> result;
+        result.reserve(centers.size() * (segmentsPerCorner + 1));
+        for (qsizetype corner = 0; corner < centers.size(); ++corner) {
+            for (int segment = 0; segment <= segmentsPerCorner; ++segment) {
+                const auto angle =
+                    startAngles[corner] + segment * pi * 0.5 / segmentsPerCorner;
+                result.append(centers[corner] + QPointF(std::cos(angle), std::sin(angle)) * r);
+            }
+        }
+        return result;
+    }
+
+    void appendContourBand(QVector<EditorRhiSolidVertex> &vertices,
+                           const QVector<QPointF> &outer, const QVector<QPointF> &inner,
+                           const QColor &color, const float outerCoverage,
+                           const float innerCoverage) {
+        if (outer.size() != inner.size() || outer.size() < 3)
+            return;
+        for (qsizetype index = 0; index < outer.size(); ++index) {
+            const auto next = (index + 1) % outer.size();
+            appendTriangle(vertices, outer[index], outer[next], inner[next], color, outerCoverage,
+                           outerCoverage, innerCoverage);
+            appendTriangle(vertices, outer[index], inner[next], inner[index], color, outerCoverage,
+                           innerCoverage, innerCoverage);
+        }
+    }
 }
 
 void EditorRhiGeometry::appendRect(QVector<EditorRhiSolidVertex> &vertices,
@@ -59,31 +98,59 @@ void EditorRhiGeometry::appendRoundedRect(QVector<EditorRhiSolidVertex> &vertice
         appendRect(vertices, physicalRect, color);
         return;
     }
-    appendRect(vertices, physicalRect.adjusted(r, 0.0, -r, 0.0), color);
-    appendRect(vertices, QRectF(physicalRect.left(), physicalRect.top() + r, r,
-                               physicalRect.height() - 2.0 * r), color);
-    appendRect(vertices, QRectF(physicalRect.right() - r, physicalRect.top() + r, r,
-                               physicalRect.height() - 2.0 * r), color);
-
-    constexpr int segments = 6;
-    constexpr auto pi = std::numbers::pi_v<double>;
-    const std::array centers{
-        QPointF(physicalRect.left() + r, physicalRect.top() + r),
-        QPointF(physicalRect.right() - r, physicalRect.top() + r),
-        QPointF(physicalRect.right() - r, physicalRect.bottom() - r),
-        QPointF(physicalRect.left() + r, physicalRect.bottom() - r),
-    };
-    const std::array startAngles{pi, -pi * 0.5, 0.0, pi * 0.5};
-    for (qsizetype corner = 0; corner < centers.size(); ++corner) {
-        for (int i = 0; i < segments; ++i) {
-            const auto a = startAngles[corner] + i * pi * 0.5 / segments;
-            const auto b = startAngles[corner] + (i + 1) * pi * 0.5 / segments;
-            appendTriangle(vertices, centers[corner],
-                           centers[corner] + QPointF(std::cos(a), std::sin(a)) * r,
-                           centers[corner] + QPointF(std::cos(b), std::sin(b)) * r, color, 1.0f,
-                           1.0f, 1.0f);
-        }
+    constexpr double feather = 0.75;
+    const auto innerRect = physicalRect.adjusted(feather, feather, -feather, -feather);
+    if (innerRect.isEmpty()) {
+        appendRect(vertices, physicalRect, color);
+        return;
     }
+    const auto inner = roundedRectContour(innerRect, std::max(0.0, r - feather));
+    const auto outer = roundedRectContour(physicalRect.adjusted(-feather, -feather, feather, feather),
+                                          r + feather);
+    const auto center = innerRect.center();
+    for (qsizetype index = 0; index < inner.size(); ++index) {
+        const auto next = (index + 1) % inner.size();
+        appendTriangle(vertices, center, inner[index], inner[next], color, 1.0f, 1.0f, 1.0f);
+    }
+    appendContourBand(vertices, outer, inner, color, 0.0f, 1.0f);
+}
+
+void EditorRhiGeometry::appendRoundedRectStroke(QVector<EditorRhiSolidVertex> &vertices,
+                                                const QRectF &physicalRect, const double radius,
+                                                const double width, const QColor &color,
+                                                const double feather) {
+    if (physicalRect.isEmpty() || width <= 0.0 || color.alpha() == 0)
+        return;
+    const auto halfWidth = width * 0.5;
+    const auto fadeWidth = std::max(0.5, feather);
+    const auto outerFade = roundedRectContour(
+        physicalRect.adjusted(-halfWidth - fadeWidth, -halfWidth - fadeWidth,
+                              halfWidth + fadeWidth, halfWidth + fadeWidth),
+        radius + halfWidth + fadeWidth);
+    const auto outer = roundedRectContour(
+        physicalRect.adjusted(-halfWidth, -halfWidth, halfWidth, halfWidth), radius + halfWidth);
+    const auto innerRect =
+        physicalRect.adjusted(halfWidth, halfWidth, -halfWidth, -halfWidth);
+    if (innerRect.isEmpty()) {
+        appendRoundedRect(vertices, physicalRect, radius, color);
+        return;
+    }
+    const auto inner = roundedRectContour(innerRect, std::max(0.0, radius - halfWidth));
+    const auto innerFadeRect = innerRect.adjusted(fadeWidth, fadeWidth, -fadeWidth, -fadeWidth);
+    if (innerFadeRect.isEmpty()) {
+        appendContourBand(vertices, outerFade, outer, color, 0.0f, 1.0f);
+        const auto center = innerRect.center();
+        for (qsizetype index = 0; index < inner.size(); ++index) {
+            const auto next = (index + 1) % inner.size();
+            appendTriangle(vertices, center, inner[index], inner[next], color, 1.0f, 1.0f, 1.0f);
+        }
+        return;
+    }
+    const auto innerFade =
+        roundedRectContour(innerFadeRect, std::max(0.0, radius - halfWidth - fadeWidth));
+    appendContourBand(vertices, outerFade, outer, color, 0.0f, 1.0f);
+    appendContourBand(vertices, outer, inner, color, 1.0f, 1.0f);
+    appendContourBand(vertices, inner, innerFade, color, 1.0f, 0.0f);
 }
 
 void EditorRhiGeometry::appendPixelAlignedVerticalLine(QVector<EditorRhiSolidVertex> &vertices,
