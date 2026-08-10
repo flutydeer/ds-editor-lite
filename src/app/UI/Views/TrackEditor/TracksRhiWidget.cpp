@@ -184,6 +184,8 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
             &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::clipSelectionChanged, this, &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::activeClipIdChanged, this, &TracksRhiWidget::scheduleSnapshot);
+    connect(appStatus, &AppStatus::pianoRollVisibleRectChanged, this,
+            &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::projectEditableLengthChanged, this,
             &TracksRhiWidget::setSceneLength);
     m_positionThrottle.setSingleShot(true);
