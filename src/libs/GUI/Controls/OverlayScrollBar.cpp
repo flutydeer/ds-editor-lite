@@ -183,7 +183,9 @@ void OverlayScrollBar::leaveEvent(QEvent *event) {
 }
 
 bool OverlayScrollBar::eventFilter(QObject *watched, QEvent *event) {
-    if (watched == m_scrollArea->viewport()) {
+    if (watched == m_geometryHost && event->type() == QEvent::Resize) {
+        updatePosition();
+    } else if (watched == m_scrollArea->viewport()) {
         if (event->type() == QEvent::Resize)
             updatePosition();
         else if (event->type() == QEvent::Enter || event->type() == QEvent::MouseMove)
@@ -322,6 +324,19 @@ void OverlayScrollBar::setCompanion(OverlayScrollBar *companion) {
         return;
     m_companion = companion;
     updatePosition();
+}
+
+void OverlayScrollBar::setGeometryHost(QWidget *host) {
+    if (m_geometryHost == host && parentWidget() == host)
+        return;
+    if (m_geometryHost)
+        m_geometryHost->removeEventFilter(this);
+    m_geometryHost = host;
+    setParent(host);
+    if (host) {
+        host->installEventFilter(this);
+        updatePosition();
+    }
 }
 
 bool OverlayScrollBar::willShow() const {

@@ -10,6 +10,7 @@
 
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/Menu.h>
+#include <lite/GUI/Controls/OverlayScrollBar.h>
 #include <lite/GUI/Utils/IconUtils.h>
 #include <lite/Support/SystemUtils.h>
 
@@ -110,7 +111,7 @@ void ComboBox::initUi() {
     const auto styledItemDelegate = new QStyledItemDelegate();
     setItemDelegate(styledItemDelegate);
 
-    const auto container = dynamic_cast<QWidget *>(view()->parent());
+    auto *container = dynamic_cast<QWidget *>(view()->parent());
     container->setWindowFlags(Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
     container->setAttribute(Qt::WA_TranslucentBackground, true);
     container->setAttribute(Qt::WA_WindowPropagation);
@@ -121,4 +122,9 @@ void ComboBox::initUi() {
         setProperty("dwmBorder", true);
     }
 #endif
+
+    // 弹出层复用 Overlay 滚动条（数据源 = QListView，几何宿主 = 弹出层容器，
+    // 使滚动条钉在容器右壁而不是跟着视口内缩）
+    if (const auto bar = OverlayScrollBar::install(view(), Qt::Vertical); bar)
+        bar->setGeometryHost(container);
 }

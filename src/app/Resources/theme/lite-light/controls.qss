@@ -159,13 +159,13 @@ QComboBox QAbstractItemView {
     background-color: ${surface.popup};
     selection-background-color: ${control.fill.hover};
     border-radius: 6px;
-    padding: 4px 0px 4px 4px;
+    padding: 4px 4px 4px 4px;
 }
 
 /* Windows 11 DWM native border mode (no custom border needed) */
 QComboBox[dwmBorder="true"] QAbstractItemView {
     border: none;
-    padding: 4px 0px 4px 4px;
+    padding: 4px 4px 4px 4px;
 }
 
 QComboBox QAbstractItemView:item {

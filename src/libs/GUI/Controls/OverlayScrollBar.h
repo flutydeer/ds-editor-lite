@@ -25,6 +25,11 @@ public:
     /// tails recede at the bottom-right corner instead of overlapping.
     void setCompanion(OverlayScrollBar *companion);
 
+    /// Reparents the bar onto a different geometry host (e.g. a popup container)
+    /// while keeping the scroll area as the data source. Position follows the
+    /// host widget's coordinate space instead of the scroll area's.
+    void setGeometryHost(QWidget *host);
+
     static OverlayScrollBar *install(QAbstractScrollArea *scrollArea,
                                      Qt::Orientation orientation = Qt::Horizontal);
 
@@ -67,6 +72,7 @@ private:
     bool m_rangeVisible = true;
     bool m_idleVisible = false;
     OverlayScrollBar *m_companion = nullptr;
+    QWidget *m_geometryHost = nullptr;
     bool m_targetHighlightVisible = false;
     bool m_targetGeometryVisible = false;
 };
