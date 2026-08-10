@@ -18,6 +18,9 @@ public:
 
     void attachTo(QAbstractScrollArea *scrollArea);
     void updatePosition();
+    /** 是否允许根据 range 自动显示/隐藏（默认 true）。设为 false 时强制隐藏，
+     * 且后续 rangeChanged 不会再次显示该条。 */
+    void setRangeVisible(bool visible);
 
     static OverlayScrollBar *install(QAbstractScrollArea *scrollArea,
                                      Qt::Orientation orientation = Qt::Horizontal);
@@ -56,6 +59,7 @@ private:
     QPoint m_lastCursorPos;
     bool m_hovered = false;
     bool m_pressed = false;
+    bool m_rangeVisible = true;
     bool m_idleVisible = false;
     bool m_targetHighlightVisible = false;
     bool m_targetGeometryVisible = false;

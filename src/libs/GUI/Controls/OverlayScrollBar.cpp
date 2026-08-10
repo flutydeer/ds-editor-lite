@@ -96,13 +96,16 @@ void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
     // connection so the read happens after the emitter's stack unwinds.
     connect(source, &QScrollBar::rangeChanged, this, [this](int min, int max) {
         setRange(min, max);
-        setVisible(max > 0);
+        setVisible(m_rangeVisible && max > 0);
         updatePosition();
     });
-    connect(source, &QScrollBar::rangeChanged, this, [this, source](int, int) {
-        setPageStep(source->pageStep());
-        setSingleStep(source->singleStep());
-    }, Qt::QueuedConnection);
+    connect(
+        source, &QScrollBar::rangeChanged, this,
+        [this, source](int, int) {
+            setPageStep(source->pageStep());
+            setSingleStep(source->singleStep());
+        },
+        Qt::QueuedConnection);
     connect(source, &QScrollBar::valueChanged, this, &QScrollBar::setValue);
     connect(source, &QScrollBar::valueChanged, this, &OverlayScrollBar::restartHideTimer);
     connect(this, &QScrollBar::valueChanged, source, &QScrollBar::setValue);
@@ -110,7 +113,7 @@ void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
     setRange(source->minimum(), source->maximum());
     setPageStep(source->pageStep());
     setSingleStep(source->singleStep());
-    setVisible(source->maximum() > 0);
+    setVisible(m_rangeVisible && source->maximum() > 0);
 
     // 视口需开启鼠标跟踪，未按键的 MouseMove 才会到达 eventFilter，
     // 否则鼠标在视口内移动无法重置自动隐藏计时
@@ -306,6 +309,12 @@ void OverlayScrollBar::setHandleColor(const QColor &color) {
         return;
     m_handleColor = color;
     update();
+}
+
+void OverlayScrollBar::setRangeVisible(bool visible) {
+    m_rangeVisible = visible;
+    setVisible(visible && maximum() > 0);
+    updatePosition();
 }
 
 void OverlayScrollBar::updatePosition() {

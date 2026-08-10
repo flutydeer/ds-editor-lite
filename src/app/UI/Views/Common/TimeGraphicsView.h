@@ -197,8 +197,6 @@ private:
 
     OverlayScrollBar *m_hScrollBar = nullptr;
     OverlayScrollBar *m_vScrollBar = nullptr;
-    bool m_hScrollBarEnabled = true;
-    bool m_vScrollBarEnabled = true;
 
     TimeGraphicsScene *m_scene;
     TimeGridView *m_gridItem = nullptr;

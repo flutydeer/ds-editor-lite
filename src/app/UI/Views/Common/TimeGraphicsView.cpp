@@ -53,17 +53,7 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     m_hScrollBar = OverlayScrollBar::install(this, Qt::Horizontal);
     m_vScrollBar = OverlayScrollBar::install(this, Qt::Vertical);
     // OverlayScrollBar 的可见性由内部 rangeChanged 逻辑自动控制；
-    // 显式关闭（如参数编辑器）时需在每次范围变化后强制保持隐藏。
-    const auto keepBarVisibility = [this](OverlayScrollBar *bar, Qt::Orientation orientation) {
-        connect(bar, &QScrollBar::rangeChanged, this, [this, bar, orientation](int, int) {
-            const bool enabled = orientation == Qt::Horizontal ? m_hScrollBarEnabled
-                                                               : m_vScrollBarEnabled;
-            if (!enabled)
-                bar->setVisible(false);
-        });
-    };
-    keepBarVisibility(m_hScrollBar, Qt::Horizontal);
-    keepBarVisibility(m_vScrollBar, Qt::Vertical);
+    // 显式关闭（如参数编辑器）时用 setRangeVisible(false) 保持隐藏。
 
     m_scaleXAnimation.setTargetObject(this);
     m_scaleXAnimation.setPropertyName("scaleX");
@@ -320,15 +310,9 @@ void TimeGraphicsView::setDragBehavior(DragBehavior dragBehaviour) {
 }
 
 void TimeGraphicsView::setScrollBarVisibility(Qt::Orientation orientation, bool visibility) {
-    if (orientation == Qt::Horizontal) {
-        m_hScrollBarEnabled = visibility;
-        if (m_hScrollBar)
-            m_hScrollBar->setVisible(visibility);
-    } else {
-        m_vScrollBarEnabled = visibility;
-        if (m_vScrollBar)
-            m_vScrollBar->setVisible(visibility);
-    }
+    auto *bar = orientation == Qt::Horizontal ? m_hScrollBar : m_vScrollBar;
+    if (bar)
+        bar->setRangeVisible(visibility);
 }
 
 void TimeGraphicsView::notifyVisibleRectChanged() {
