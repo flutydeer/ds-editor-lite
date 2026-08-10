@@ -27,6 +27,9 @@ public:
     void setViewportSize(const QSizeF &size);
     void setScaleBounds(double minX, double maxX, double minY, double maxY);
     void setEnsureContentFillsViewport(bool horizontal, bool vertical);
+    // Left margin in screen pixels before the content start, kept inside the
+    // scene so the playhead indicator never clips at the left viewport edge.
+    void setLeftMarginPx(double px);
 
     [[nodiscard]] State state() const;
     bool restoreState(const State &state);
@@ -73,6 +76,7 @@ private:
     double m_pixelsPerQuarterNote = 64.0;
     double m_startTick = 0.0;
     double m_endTick = 0.0;
+    double m_leftMarginPx = 0.0;
     double m_unitCount = 0.0;
     double m_unitHeight = 1.0;
     QSizeF m_viewportSize;

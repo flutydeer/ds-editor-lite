@@ -187,7 +187,7 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
             // Keep the grabbed material under the cursor: the ms offset from
             // the visible start to the grab point is held constant, and the
             // unchanged realtime window is re-projected at the new position
-            const double cursorTick = curPos.x() / scaleX() /
+            const double cursorTick = (curPos.x() - m_scene->leftMarginPx()) / scaleX() /
                                       TracksEditorGlobal::pixelsPerQuarterNote *
                                       AppGlobal::ticksPerQuarterNote;
             const int desiredLeft =
@@ -709,7 +709,7 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
             const double visibleMs = timeline.tickToMs(m_mouseDownStart + m_mouseDownClipStart);
             m_materialStartMs = visibleMs - m_dragTrimMs;
             m_visibleEndMs = visibleMs + m_dragPlayLengthMs;
-            const double grabTick = scenePos.x() / scaleX() /
+            const double grabTick = (scenePos.x() - m_scene->leftMarginPx()) / scaleX() /
                                     TracksEditorGlobal::pixelsPerQuarterNote *
                                     AppGlobal::ticksPerQuarterNote;
             m_grabOffsetMs = timeline.tickToMs(grabTick) - visibleMs;

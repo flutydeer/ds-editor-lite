@@ -64,6 +64,16 @@ void EditorViewportController::setEnsureContentFillsViewport(const bool horizont
     notify(true);
 }
 
+// RHI path: viewport scene coordinates are real pixels, so the margin is a
+// plain pixel offset (independent of zoom), mirroring TimeGraphicsScene.
+void EditorViewportController::setLeftMarginPx(const double px) {
+    if (!std::isfinite(px) || px < 0.0 || qFuzzyCompare(px, m_leftMarginPx))
+        return;
+    const auto previous = state();
+    m_leftMarginPx = px;
+    restoreState(previous);
+}
+
 EditorViewportController::State EditorViewportController::state() const {
     return {
         .centerTick = (startTick() + endTick()) * 0.5,
@@ -190,11 +200,11 @@ QSizeF EditorViewportController::viewportSize() const {
 }
 
 double EditorViewportController::tickToSceneX(const double tick) const {
-    return (tick - m_startTick) * pixelsPerTick();
+    return (tick - m_startTick) * pixelsPerTick() + m_leftMarginPx;
 }
 
 double EditorViewportController::sceneXToTick(const double x) const {
-    return m_startTick + x / std::max(0.000001, pixelsPerTick());
+    return m_startTick + (x - m_leftMarginPx) / std::max(0.000001, pixelsPerTick());
 }
 
 double EditorViewportController::unitToSceneY(const double unit) const {
@@ -244,7 +254,7 @@ double EditorViewportController::effectiveMinimumScaleY() const {
 }
 
 double EditorViewportController::contentWidth() const {
-    return std::max(0.0, (m_endTick - m_startTick) * pixelsPerTick());
+    return std::max(0.0, (m_endTick - m_startTick) * pixelsPerTick()) + m_leftMarginPx;
 }
 
 double EditorViewportController::contentHeight() const {

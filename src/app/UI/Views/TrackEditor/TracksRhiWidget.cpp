@@ -267,6 +267,10 @@ void TracksRhiWidget::setSceneLength(const int tick) {
     updateAutoPageTurnAvailability();
 }
 
+void TracksRhiWidget::setLeftMarginPx(const double px) {
+    m_viewport.setLeftMarginPx(px);
+}
+
 void TracksRhiWidget::setPlaybackPosition(const double tick) {
     m_pendingPlaybackPosition = tick;
     if (!m_positionThrottle.isActive())

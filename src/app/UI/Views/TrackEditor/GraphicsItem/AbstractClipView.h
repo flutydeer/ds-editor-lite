@@ -67,6 +67,7 @@ protected:
     void setCanResizeLength(bool on);
     [[nodiscard]] double tickToSceneX(double tick) const;
     [[nodiscard]] double sceneXToItemX(double x) const;
+    [[nodiscard]] double leftMarginPx() const;
 
 private:
     Q_DECLARE_PRIVATE(AbstractClipView)

@@ -691,6 +691,17 @@ void TimeGraphicsView::setPixelsPerQuarterNote(int px) {
     m_sceneLastPlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
 }
 
+void TimeGraphicsView::setLeftMarginPx(int px) {
+    m_scene->setLeftMarginPx(px);
+    // Reposition the indicators and grid against the shifted origin, and let
+    // the ruler/lanes resync their time range.
+    m_scenePlayPosIndicator->setPosition(m_playbackPosition);
+    m_sceneLastPlayPosIndicator->setPosition(m_lastPlaybackPosition);
+    if (m_gridItem)
+        m_gridItem->update();
+    notifyVisibleRectChanged();
+}
+
 void TimeGraphicsView::setAutoTurnPage(bool on) {
     m_autoTurnPage = on;
     if (m_autoTurnPage && m_autoPageTurnAvailable && m_playbackPosition > endTick())
@@ -875,11 +886,13 @@ void TimeGraphicsView::pageAdd() {
 }
 
 double TimeGraphicsView::sceneXToTick(double pos) const {
-    return AppGlobal::ticksPerQuarterNote * pos / scaleX() / m_pixelsPerQuarterNote;
+    return AppGlobal::ticksPerQuarterNote * (pos - m_scene->leftMarginPx()) / scaleX() /
+           m_pixelsPerQuarterNote;
 }
 
 double TimeGraphicsView::tickToSceneX(double tick) const {
-    return tick * scaleX() * m_pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
+    return tick * scaleX() * m_pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote +
+           m_scene->leftMarginPx();
 }
 
 QColor TimeGraphicsView::barLineColor() const {

@@ -67,6 +67,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
                         DeveloperOption::EditorRenderBackend::RhiExperimental;
     if (useRhi) {
         m_rhiView = new TracksRhiWidget;
+        m_rhiView->setLeftMarginPx(TracksEditorGlobal::trackViewLeftMargin);
         m_rhiView->setSceneLength(appStatus->projectEditableLength);
     } else {
         createLegacyBackend();
@@ -207,6 +208,7 @@ TrackEditorView::~TrackEditorView() {
 void TrackEditorView::createLegacyBackend() {
     m_tracksScene = new TracksGraphicsScene;
     m_graphicsView = new TracksGraphicsView(m_tracksScene);
+    m_graphicsView->setLeftMarginPx(TracksEditorGlobal::trackViewLeftMargin);
     m_graphicsView->centerOn(0, 0);
     m_graphicsView->setSceneLength(appStatus->projectEditableLength);
     m_gridItem = new TrackEditorBackgroundView;

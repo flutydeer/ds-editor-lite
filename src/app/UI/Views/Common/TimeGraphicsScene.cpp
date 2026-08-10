@@ -46,8 +46,19 @@ void TimeGraphicsScene::setPixelsPerQuarterNote(int px) {
     m_pixelsPerQuarterNote = px;
 }
 
+void TimeGraphicsScene::setLeftMarginPx(const int px) {
+    if (m_leftMarginPx == px)
+        return;
+    m_leftMarginPx = px;
+    updateSceneRect();
+}
+
+int TimeGraphicsScene::leftMarginPx() const {
+    return m_leftMarginPx;
+}
+
 void TimeGraphicsScene::updateSceneRect() {
-    auto scaledWidth = m_sceneSize.width() * scaleX();
+    auto scaledWidth = m_sceneSize.width() * scaleX() + m_leftMarginPx;
     auto scaledHeight = m_sceneSize.height() * scaleY();
     setSceneRect(0, 0, scaledWidth, scaledHeight);
 }

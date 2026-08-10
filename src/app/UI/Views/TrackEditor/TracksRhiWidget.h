@@ -58,6 +58,9 @@ public:
     [[nodiscard]] double scaleY() const;
     [[nodiscard]] double startTick() const;
     [[nodiscard]] double endTick() const;
+    // Left margin in screen pixels before tick 0, forwarded to the viewport
+    // controller so the playhead indicator never clips at the left edge.
+    void setLeftMarginPx(double px);
     void showTrackPastePreview(const TrackPastePreviewData &data, int previewTick,
                                int baseTrackIndex) override;
     void clearTrackPastePreview() override;

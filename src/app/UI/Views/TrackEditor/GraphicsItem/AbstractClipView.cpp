@@ -4,6 +4,7 @@
 #include "Global/AppGlobal.h"
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "UI/Views/Common/TimeGraphicsScene.h"
 #include <lite/GUI/Controls/Menu.h>
 #include "UI/Utils/AppColorPalette.h"
 
@@ -323,7 +324,8 @@ void AbstractClipView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 void AbstractClipView::updateRectAndPos() {
     Q_D(AbstractClipView);
     const auto x = (d->m_start + d->m_clipStart) * scaleX() * pixelsPerQuarterNote /
-                   AppGlobal::ticksPerQuarterNote;
+                       AppGlobal::ticksPerQuarterNote +
+                   leftMarginPx();
     const auto y = d->m_trackIndex * trackHeight * scaleY();
     const auto w = d->m_clipLen * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
     const auto h = trackHeight * scaleY();
@@ -338,7 +340,13 @@ void AbstractClipView::setCanResizeLength(const bool on) {
 }
 
 double AbstractClipView::tickToSceneX(const double tick) const {
-    return tick * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
+    return tick * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote +
+           leftMarginPx();
+}
+
+double AbstractClipView::leftMarginPx() const {
+    const auto scene = dynamic_cast<const TimeGraphicsScene *>(this->scene());
+    return scene ? scene->leftMarginPx() : 0.0;
 }
 
 double AbstractClipView::sceneXToItemX(const double x) const {

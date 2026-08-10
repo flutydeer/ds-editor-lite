@@ -22,6 +22,13 @@ public:
     void addCommonItem(IScalableItem *item);
     void removeCommonItem(IScalableItem *item);
 
+    // Left margin in screen pixels before tick 0. Scene coordinates are
+    // zoom-scaled already, so the margin is stored as plain pixels (never
+    // divided by scaleX) to keep its on-screen width constant at any zoom.
+    // Every tick<->x mapping in this subsystem must offset by leftMarginPx().
+    void setLeftMarginPx(int px);
+    [[nodiscard]] int leftMarginPx() const;
+
     void addTimeGrid(TimeGridView *item);
     void addTimeIndicator(TimeIndicatorView *item);
     void setPixelsPerQuarterNote(int px);
@@ -42,6 +49,7 @@ private:
     QSizeF m_sceneSize = QSizeF(1920, 1080);
     QList<IScalableItem *> m_items;
     int m_pixelsPerQuarterNote = 32;
+    int m_leftMarginPx = 0;
 };
 
 #endif // TIMEGRAPHICSSCENE_H

@@ -1,4 +1,5 @@
 #include "TimeIndicatorView.h"
+#include "TimeGraphicsScene.h"
 #include "Global/AppGlobal.h"
 
 TimeIndicatorView::TimeIndicatorView(QObject *parent) : QObject(parent) {
@@ -37,5 +38,7 @@ void TimeIndicatorView::updateLengthAndPos() {
 }
 
 double TimeIndicatorView::tickToItemX(double tick) const {
-    return tick * scaleX() * m_pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote;
+    const auto scene = dynamic_cast<const TimeGraphicsScene *>(this->scene());
+    return tick * scaleX() * m_pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote +
+           (scene ? scene->leftMarginPx() : 0.0);
 }

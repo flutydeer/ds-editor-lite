@@ -68,6 +68,9 @@ public:
     [[nodiscard]] double endTick() const;
     void setOffset(int tick);
     void setPixelsPerQuarterNote(int px);
+    // Left margin in screen pixels before tick 0. Forwarded to the scene so
+    // the playhead indicator/triangle never clip at the left viewport edge.
+    void setLeftMarginPx(int px);
     void setAutoTurnPage(bool on);
     void setViewportStartTick(double tick);
     void setViewportCenterAtTick(double tick);

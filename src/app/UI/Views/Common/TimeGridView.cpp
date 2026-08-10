@@ -1,4 +1,5 @@
 #include "TimeGridView.h"
+#include "TimeGraphicsScene.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Global/AppGlobal.h"
@@ -128,11 +129,18 @@ void TimeGridView::setCommonLineColor(const QColor &color) {
 }
 
 double TimeGridView::sceneXToTick(double pos) const {
-    return AppGlobal::ticksPerQuarterNote * pos / scaleX() / pixelsPerQuarterNote();
+    return AppGlobal::ticksPerQuarterNote * (pos - leftMarginPx()) / scaleX() /
+           pixelsPerQuarterNote();
 }
 
 double TimeGridView::tickToSceneX(double tick) const {
-    return tick * scaleX() * pixelsPerQuarterNote() / AppGlobal::ticksPerQuarterNote;
+    return tick * scaleX() * pixelsPerQuarterNote() / AppGlobal::ticksPerQuarterNote +
+           leftMarginPx();
+}
+
+double TimeGridView::leftMarginPx() const {
+    const auto scene = dynamic_cast<const TimeGraphicsScene *>(this->scene());
+    return scene ? scene->leftMarginPx() : 0.0;
 }
 
 double TimeGridView::sceneXToItemX(double x) const {
