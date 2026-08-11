@@ -202,6 +202,12 @@ MainWindow::MainWindow() {
 #if defined(WITH_DIRECT_MANIPULATION)
     connect(appOptions, &AppOptions::optionsChanged, [&](AppOptionsGlobal::Option option) {
         if (option == AppOptionsGlobal::Option::Appearance) {
+            // While the embedded options modal is open, DM must stay off: openAppOptions()
+            // unregisters it and restoreBackgroundInteraction() re-registers on close. Any
+            // Appearance change here (e.g. the animation level) would otherwise re-register
+            // DM mid-modal and let it hijack the panel's wheel events.
+            if (m_modalHost && m_modalHost->isOpen())
+                return;
             if (appOptions->appearance()->enableDirectManipulation) {
                 registerDirectManipulation();
             } else {

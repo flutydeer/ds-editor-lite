@@ -8,8 +8,12 @@
 
 ## 现状问题清单（重构要解决的根子）
 
-1. **0 时长仍走动画路径** —— 本次补丁已处理。根子：`duration==0` 是执行器被动推导出的特例，
-   而不是主动选择的「瞬时执行」模式。
+1. **动画关闭（duration==0）需显式瞬时路径** —— 7eb87b49 已把 eventFilter 在 duration==0 时直接
+   `setValue`。注意：探针实测 Qt 6.11 的 0 时长动画会**同步落点并结束**，本身不卡死；真正造成
+   「内嵌设置页无法滚动、必须重开对话框」的根因是 **`MainWindow` 的 Appearance `optionsChanged`
+   挂钩在模态打开时重新注册 Direct Manipulation**（DM 劫持主窗 WM_MOUSEWHEEL，内嵌面板是主窗
+   子级故滚轮永远到不了）——已于 2026-08-11 用 `m_modalHost->isOpen()` 守卫修复。此处仍保留
+   instant-mode 作为设计目标：`duration==0` 应是执行器主动选择的「瞬时执行」，而非被动特例。
 2. **滚轮来源判定两套实现** —— TimeGraphicsView::isMouseEventFromWheel()（120 倍数 + 400ms 单锁）
    vs SmoothScroller::m_stepWindow（6 项滑动窗口）。同一概念、两套语义，未来必然再次分叉出 bug。
 3. **动画重定向逻辑（heat）重复** —— SmoothScroller::updateAnimationDuration() 与
