@@ -1,5 +1,6 @@
 #include "TracksRhiWidget.h"
 
+#include "AudioClipDragState.h"
 #include "ClipResizeUtils.h"
 #include "SingingClipPreviewLayout.h"
 #include "Controller/EditorViewController.h"
@@ -1263,6 +1264,15 @@ void TracksRhiWidget::beginClipDrag(const ClipSnapshot &clip, const QMouseEvent 
     m_mouseDownProperties = Clip::ClipCommonProperties(*modelClip);
     m_mouseDownTrackIndex = appModel->tracks().indexOf(track);
     m_dragPreview = DragPreview{clip.id, m_mouseDownTrackIndex, m_mouseDownProperties};
+    m_audioDragState.reset();
+    if (const auto *audioClip = qobject_cast<const AudioClip *>(modelClip);
+        audioClip && audioClip->hasRealTimeAnchor()) {
+        const auto &timeline = appModel->timeline();
+        m_audioDragState = AudioClipDragState::begin(
+            audioClip->trimStartMs(), audioClip->playLengthMs(), audioClip->materialLengthMs(),
+            m_mouseDownProperties.start + m_mouseDownProperties.clipStart,
+            m_viewport.sceneXToTick(m_mouseDownScene.x()), timeline);
+    }
     m_dragMoved = false;
     appStatus->currentEditObject = AppStatus::EditObjectType::Clip;
 }
@@ -1281,20 +1291,31 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
     const auto originalLeft = m_mouseDownProperties.start + m_mouseDownProperties.clipStart;
     const auto originalRight = originalLeft + m_mouseDownProperties.clipLen;
     if (m_dragMode == DragMode::Move) {
-        const auto left = snap(originalLeft + deltaTicks);
-        properties.start = left - properties.clipStart;
+        if (m_audioDragState) {
+            const auto desiredLeft = m_audioDragState->visibleStartForCursor(
+                m_viewport.sceneXToTick(scene.x()), appModel->timeline());
+            m_audioDragState->moveTo(snap(desiredLeft), properties, appModel->timeline());
+        } else {
+            const auto left = snap(originalLeft + deltaTicks);
+            properties.start = left - properties.clipStart;
+        }
         const auto track = trackIndexAt(position);
         if (track >= 0)
             m_dragPreview->trackIndex = track;
     } else if (m_dragMode == DragMode::ResizeLeft) {
         const auto left = snap(originalLeft + deltaTicks);
-        if (left < originalRight) {
+        if (m_audioDragState) {
+            m_audioDragState->resizeLeftTo(left, originalRight, properties, appModel->timeline());
+        } else if (left < originalRight) {
             properties.clipStart = std::max(0, left - properties.start);
             properties.clipLen = originalRight - (properties.start + properties.clipStart);
         }
     } else if (m_dragMode == DragMode::ResizeRight) {
         const auto right = snap(originalRight + deltaTicks);
-        if (const auto *clip = appModel->findClipById(m_dragPreview->clipId)) {
+        if (m_audioDragState) {
+            m_audioDragState->resizeRightTo(right, originalLeft, properties,
+                                            appModel->timeline());
+        } else if (const auto *clip = appModel->findClipById(m_dragPreview->clipId)) {
             const auto *singing = qobject_cast<const SingingClip *>(clip);
             auto contentLength = properties.length;
             if (singing) {
@@ -1316,12 +1337,15 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
 void TracksRhiWidget::commitDrag() {
     if (m_dragPreview && m_dragMoved) {
         auto properties = m_dragPreview->properties;
-        if (const auto audio =
-                qobject_cast<AudioClip *>(appModel->findClipById(m_dragPreview->clipId)))
+        if (m_audioDragState)
+            m_audioDragState->writeTruth(properties);
+        else if (const auto audio =
+                     qobject_cast<AudioClip *>(appModel->findClipById(m_dragPreview->clipId)))
             AudioClip::preserveUnchangedTruth(properties, m_mouseDownProperties);
         trackController->onClipPropertyChanged(properties, m_dragPreview->trackIndex);
     }
     m_dragPreview.reset();
+    m_audioDragState.reset();
     m_dragMode = DragMode::None;
     m_dragMoved = false;
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
@@ -1329,6 +1353,7 @@ void TracksRhiWidget::commitDrag() {
 
 void TracksRhiWidget::discardDrag() {
     m_dragPreview.reset();
+    m_audioDragState.reset();
     m_dragMode = DragMode::None;
     m_dragMoved = false;
     appStatus->currentEditObject = AppStatus::EditObjectType::None;

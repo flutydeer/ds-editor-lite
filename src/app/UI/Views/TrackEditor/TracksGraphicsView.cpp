@@ -1,5 +1,6 @@
 #include "TracksGraphicsView.h"
 
+#include "AudioClipDragState.h"
 #include "ClipResizeUtils.h"
 #include "TracksGraphicsScene.h"
 #include "Controller/EditorViewController.h"
@@ -184,18 +185,20 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
     const auto &timeline = appModel->timeline();
     if (m_mouseMoveBehavior == Move) {
         m_movedBeforeMouseUp = true;
-        if (m_dragUsesRealtimeTruth) {
-            // Keep the grabbed material under the cursor: the ms offset from
-            // the visible start to the grab point is held constant, and the
-            // unchanged realtime window is re-projected at the new position
+        if (m_audioDragState) {
             const double cursorTick = (curPos.x() - m_scene->leftMarginPx()) / scaleX() /
                                       TracksEditorGlobal::pixelsPerQuarterNote *
                                       AppGlobal::ticksPerQuarterNote;
             const int desiredLeft =
-                qRound(timeline.msToTick(timeline.tickToMs(cursorTick) - m_grabOffsetMs));
+                m_audioDragState->visibleStartForCursor(cursorTick, timeline);
             left = TimelineSnapUtils::snapNearest(
                 desiredLeft, snapStep(m_tempQuantizeOff, desiredLeft), timeline);
-            applyRealtimeTruthPreview(left);
+            Clip::ClipCommonProperties properties(*m_currentEditingClip);
+            m_audioDragState->moveTo(left, properties, timeline);
+            m_currentEditingClip->setStart(properties.start);
+            m_currentEditingClip->setClipStart(properties.clipStart);
+            m_currentEditingClip->setClipLen(properties.clipLen);
+            m_currentEditingClip->setLength(properties.length);
         } else {
             left = TimelineSnapUtils::snapNearest(m_mouseDownStart + m_mouseDownClipStart + delta,
                                                   quantize, timeline);
@@ -213,19 +216,16 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
         m_movedBeforeMouseUp = true;
         left = TimelineSnapUtils::snapNearest(m_mouseDownStart + m_mouseDownClipStart + delta,
                                               quantize, timeline);
-        if (m_dragUsesRealtimeTruth) {
-            // The material and the right edge stay fixed in wall-clock time;
-            // the left edge redefines the trim
-            if (left >= m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen)
+        if (m_audioDragState) {
+            Clip::ClipCommonProperties properties(*m_currentEditingClip);
+            if (!m_audioDragState->resizeLeftTo(
+                    left, m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen,
+                    properties, timeline))
                 return;
-            double newTrim = timeline.tickToMs(left) - m_materialStartMs;
-            if (newTrim < 0) {
-                newTrim = 0;
-                left = qRound(timeline.msToTick(m_materialStartMs));
-            }
-            m_dragTrimMs = newTrim;
-            m_dragPlayLengthMs = m_visibleEndMs - timeline.tickToMs(left);
-            applyRealtimeTruthPreview(left);
+            m_currentEditingClip->setStart(properties.start);
+            m_currentEditingClip->setClipStart(properties.clipStart);
+            m_currentEditingClip->setClipLen(properties.clipLen);
+            m_currentEditingClip->setLength(properties.length);
             return;
         }
         start = m_mouseDownStart;
@@ -249,19 +249,15 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
         const int right = TimelineSnapUtils::snapNearest(m_mouseDownStart + m_mouseDownClipStart +
                                                              m_mouseDownClipLen + delta,
                                                          quantize, timeline);
-        if (m_dragUsesRealtimeTruth) {
-            // The visible start and the trim stay fixed; the right edge
-            // redefines the audible length, capped at the end of the material
+        if (m_audioDragState) {
             const int visibleStart = m_mouseDownStart + m_mouseDownClipStart;
-            if (right <= visibleStart)
+            Clip::ClipCommonProperties properties(*m_currentEditingClip);
+            if (!m_audioDragState->resizeRightTo(right, visibleStart, properties, timeline))
                 return;
-            const double visibleMs = m_materialStartMs + m_dragTrimMs;
-            double newPlayLen = timeline.tickToMs(right) - visibleMs;
-            if (newPlayLen <= 0)
-                return;
-            newPlayLen = qMin(newPlayLen, m_dragMaterialLengthMs - m_dragTrimMs);
-            m_dragPlayLengthMs = newPlayLen;
-            applyRealtimeTruthPreview(visibleStart);
+            m_currentEditingClip->setStart(properties.start);
+            m_currentEditingClip->setClipStart(properties.clipStart);
+            m_currentEditingClip->setClipLen(properties.clipLen);
+            m_currentEditingClip->setLength(properties.length);
             return;
         }
         clipLen = right - (m_mouseDownStart + m_mouseDownClipStart);
@@ -542,13 +538,8 @@ void TracksGraphicsView::discardAction() {
 void TracksGraphicsView::commitAction() {
     if (m_currentEditingClip && m_movedBeforeMouseUp) {
         Clip::ClipCommonProperties args(*m_currentEditingClip);
-        if (m_dragUsesRealtimeTruth) {
-            // Carry the gesture's exact ms truth so the commit reproduces the
-            // preview instead of re-deriving the window from rounded ticks
-            args.trimStartMs = m_dragTrimMs;
-            args.playLengthMs = m_dragPlayLengthMs;
-            args.materialLengthMs = m_dragMaterialLengthMs;
-        }
+        if (m_audioDragState)
+            m_audioDragState->writeTruth(args);
         const int newTrackIndex = m_currentEditingClip->trackIndex();
         trackController->onClipPropertyChanged(args, newTrackIndex);
     }
@@ -559,7 +550,7 @@ void TracksGraphicsView::commitAction() {
 void TracksGraphicsView::resetEditState() {
     m_mouseMoveBehavior = None;
     m_movedBeforeMouseUp = false;
-    m_dragUsesRealtimeTruth = false;
+    m_audioDragState.reset();
     m_currentEditingClip = nullptr;
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
     disarmEdgeAutoScroll();
@@ -629,16 +620,6 @@ void TracksGraphicsView::showTrackPastePreview(const TrackPastePreviewData &data
     }
 }
 
-void TracksGraphicsView::applyRealtimeTruthPreview(const int visibleStartTick) const {
-    const auto caches =
-        AudioClip::deriveTickCaches(m_dragTrimMs, m_dragPlayLengthMs, m_dragMaterialLengthMs,
-                                    visibleStartTick, appModel->timeline());
-    m_currentEditingClip->setStart(caches.start);
-    m_currentEditingClip->setClipStart(caches.clipStart);
-    m_currentEditingClip->setClipLen(caches.clipLen);
-    m_currentEditingClip->setLength(caches.length);
-}
-
 void TracksGraphicsView::syncClipSelectionToAppStatus() const {
     const auto ids = selectedClipsId();
     appStatus->selectedClips = ids;
@@ -688,25 +669,18 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
     m_mouseDownColorIndex = m_currentEditingClip->colorIndex();
     m_movedBeforeMouseUp = false;
 
-    // Anchored audio clips drag in ms truth: capture the realtime window and
-    // where inside it the user grabbed, so the material can stay under the
-    // cursor and the preview geometry can be derived exactly like the commit
-    m_dragUsesRealtimeTruth = false;
+    m_audioDragState.reset();
     if (clipItem->clipType() == IClip::Audio) {
         const auto audioClip = dynamic_cast<AudioClip *>(appModel->findClipById(clipItem->id()));
         if (audioClip && audioClip->hasRealTimeAnchor()) {
             const auto &timeline = appModel->timeline();
-            m_dragUsesRealtimeTruth = true;
-            m_dragTrimMs = audioClip->trimStartMs();
-            m_dragPlayLengthMs = audioClip->playLengthMs();
-            m_dragMaterialLengthMs = audioClip->materialLengthMs();
-            const double visibleMs = timeline.tickToMs(m_mouseDownStart + m_mouseDownClipStart);
-            m_materialStartMs = visibleMs - m_dragTrimMs;
-            m_visibleEndMs = visibleMs + m_dragPlayLengthMs;
             const double grabTick = (scenePos.x() - m_scene->leftMarginPx()) / scaleX() /
                                     TracksEditorGlobal::pixelsPerQuarterNote *
                                     AppGlobal::ticksPerQuarterNote;
-            m_grabOffsetMs = timeline.tickToMs(grabTick) - visibleMs;
+            m_audioDragState = AudioClipDragState::begin(
+                audioClip->trimStartMs(), audioClip->playLengthMs(),
+                audioClip->materialLengthMs(), m_mouseDownStart + m_mouseDownClipStart, grabTick,
+                timeline);
         }
     }
 

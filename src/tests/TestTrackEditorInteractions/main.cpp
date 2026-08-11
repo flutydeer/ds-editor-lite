@@ -1,5 +1,9 @@
+#include "UI/Views/TrackEditor/AudioClipDragState.h"
 #include "UI/Views/TrackEditor/ClipResizeUtils.h"
 #include "UI/Views/TrackEditor/SingingClipPreviewLayout.h"
+
+#include <lite/MusicBase/Timeline.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 
 #include <QCoreApplication>
 #include <QTextStream>
@@ -68,6 +72,69 @@ int main(int argc, char *argv[]) {
            "device-pixel scaling must preserve the logical preview layout");
     expect(!SingingClipPreview::computeLayout(preview, {}).valid(),
            "an empty note range must not produce a preview layout");
+
+    const Timeline timeline({
+        {0,    120.0},
+        {4800, 60.0 },
+        {9600, 150.0},
+    });
+    constexpr double trimStartMs = 500.0;
+    constexpr double playLengthMs = 2500.0;
+    constexpr double materialLengthMs = 5000.0;
+    constexpr int visibleStartTick = 4700;
+    constexpr int grabTick = 5100;
+    const auto initialCaches = AudioClip::deriveTickCaches(
+        trimStartMs, playLengthMs, materialLengthMs, visibleStartTick, timeline);
+    Clip::ClipCommonProperties draggedAudio;
+    draggedAudio.start = initialCaches.start;
+    draggedAudio.clipStart = initialCaches.clipStart;
+    draggedAudio.clipLen = initialCaches.clipLen;
+    draggedAudio.length = initialCaches.length;
+
+    auto moveState = AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
+                                               visibleStartTick, grabTick, timeline);
+    constexpr int cursorTick = 10500;
+    const auto movedVisibleStart = moveState.visibleStartForCursor(cursorTick, timeline);
+    moveState.moveTo(movedVisibleStart, draggedAudio, timeline);
+    expect(draggedAudio.start + draggedAudio.clipStart == movedVisibleStart,
+           "audio move must preserve the cursor's realtime grab offset across tempo changes");
+    moveState.writeTruth(draggedAudio);
+    expect(closeTo(draggedAudio.trimStartMs, trimStartMs) &&
+               closeTo(draggedAudio.playLengthMs, playLengthMs) &&
+               closeTo(draggedAudio.materialLengthMs, materialLengthMs),
+           "audio move must preserve all realtime truth values");
+
+    auto leftState = AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
+                                               visibleStartTick, grabTick, timeline);
+    draggedAudio.start = initialCaches.start;
+    draggedAudio.clipStart = initialCaches.clipStart;
+    draggedAudio.clipLen = initialCaches.clipLen;
+    draggedAudio.length = initialCaches.length;
+    constexpr int newLeftTick = 5200;
+    expect(leftState.resizeLeftTo(newLeftTick, visibleStartTick + initialCaches.clipLen,
+                                  draggedAudio, timeline),
+           "audio left trim must accept an edge before the original right edge");
+    leftState.writeTruth(draggedAudio);
+    const double materialStartMs = timeline.tickToMs(visibleStartTick) - trimStartMs;
+    const double originalEndMs = timeline.tickToMs(visibleStartTick) + playLengthMs;
+    expect(closeTo(draggedAudio.trimStartMs, timeline.tickToMs(newLeftTick) - materialStartMs),
+           "audio left trim must keep the material origin fixed in realtime");
+    expect(closeTo(draggedAudio.playLengthMs, originalEndMs - timeline.tickToMs(newLeftTick)),
+           "audio left trim must keep the original right edge fixed in realtime");
+
+    auto rightState = AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
+                                                visibleStartTick, grabTick, timeline);
+    draggedAudio.start = initialCaches.start;
+    draggedAudio.clipStart = initialCaches.clipStart;
+    draggedAudio.clipLen = initialCaches.clipLen;
+    draggedAudio.length = initialCaches.length;
+    const auto beyondMaterialTick =
+        qRound(timeline.msToTick(materialStartMs + materialLengthMs + 1000.0));
+    expect(rightState.resizeRightTo(beyondMaterialTick, visibleStartTick, draggedAudio, timeline),
+           "audio right trim must accept an edge beyond the material boundary");
+    rightState.writeTruth(draggedAudio);
+    expect(closeTo(draggedAudio.playLengthMs, materialLengthMs - trimStartMs),
+           "audio right trim must stop at the material boundary in realtime");
 
     if (g_failures == 0) {
         QTextStream(stdout) << "All TrackEditorInteractions tests passed" << Qt::endl;

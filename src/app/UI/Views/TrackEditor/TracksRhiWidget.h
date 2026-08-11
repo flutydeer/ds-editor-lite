@@ -2,6 +2,7 @@
 #define TRACKSRHIWIDGET_H
 
 #include "AudioWaveformSampler.h"
+#include "AudioClipDragState.h"
 #include "Interface/EditorViewState.h"
 #include "TrackEditorContextMenuController.h"
 #include "TracksGraphicsScene.h"
@@ -234,6 +235,7 @@ private:
     QPointF m_rubberBandStart;
     QPointF m_rubberBandEnd;
     std::optional<DragPreview> m_dragPreview;
+    std::optional<AudioClipDragState> m_audioDragState;
     Clip::ClipCommonProperties m_mouseDownProperties;
     int m_mouseDownTrackIndex = -1;
     bool m_dragMoved = false;
