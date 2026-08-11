@@ -1,6 +1,7 @@
 #include <lite/GUI/Controls/OverlayScrollBar.h>
 
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
+#include "UI/Views/Common/EditorViewportController.h"
 
 #include <QGraphicsView>
 #include <QScrollBar>
@@ -116,6 +117,23 @@ int main(int argc, char *argv[]) {
     flush();
     expect(!rhiHorizontal->isVisible() && !rhiVertical->isVisible(),
            "subpixel layout noise must not create a false RHI scroll range");
+
+    EditorViewportController viewport;
+    viewport.setEnsureContentFillsViewport(false, false);
+    viewport.setContentTickRange(0, 20000);
+    viewport.setVerticalContent(20, 72);
+    viewport.setViewportSize(QSizeF(800, 300));
+    viewport.scrollBy(QPointF(300, 400));
+    viewport.setViewportSize(QSizeF(1000, 500));
+    expect(qFuzzyCompare(viewport.horizontalOffset(), 300.0) &&
+               qFuzzyCompare(viewport.verticalOffset(), 400.0),
+           "resizing an RHI viewport must preserve its top-left scroll offset");
+
+    viewport.scrollBy(QPointF(100000, 100000));
+    viewport.setViewportSize(QSizeF(1900, 1300));
+    expect(qFuzzyCompare(viewport.horizontalOffset(), 766.6666666666666) &&
+               qFuzzyCompare(viewport.verticalOffset(), 140.0),
+           "resizing must clamp preserved offsets to the new scroll range");
 
     if (g_failures == 0) {
         QTextStream(stdout) << "All ScrollBarInterplay tests passed" << Qt::endl;

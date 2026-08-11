@@ -4,6 +4,7 @@ lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
         ../../app/UI/Views/Common/EditorRhiScrollBarController.cpp
+        ../../app/UI/Views/Common/EditorViewportController.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

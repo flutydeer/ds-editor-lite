@@ -39,9 +39,15 @@ void EditorViewportController::setVerticalContent(const double unitCount, const 
 void EditorViewportController::setViewportSize(const QSizeF &size) {
     if (size == m_viewportSize)
         return;
-    const auto previous = state();
+    const auto previousScaleX = m_scaleX;
+    const auto previousScaleY = m_scaleY;
+    const auto previousOffset = QPointF(m_offsetX, m_offsetY);
     m_viewportSize = QSizeF(std::max(0.0, size.width()), std::max(0.0, size.height()));
-    restoreState(previous);
+    normalize(true);
+    m_offsetX = previousOffset.x();
+    m_offsetY = previousOffset.y();
+    normalize(false);
+    notify(!qFuzzyCompare(previousScaleX, m_scaleX) || !qFuzzyCompare(previousScaleY, m_scaleY));
 }
 
 void EditorViewportController::setScaleBounds(const double minX, const double maxX,
