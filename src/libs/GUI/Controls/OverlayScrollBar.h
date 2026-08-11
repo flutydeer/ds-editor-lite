@@ -17,6 +17,7 @@ public:
     explicit OverlayScrollBar(Qt::Orientation orientation, QWidget *parent = nullptr);
 
     void attachTo(QAbstractScrollArea *scrollArea);
+    void attachToViewport(QWidget *viewport);
     void updatePosition();
     /** Whether the bar may auto-show/hide based on range (default true). When set to
      * false it is force-hidden and later rangeChanged will not show it again. */
@@ -32,6 +33,8 @@ public:
 
     static OverlayScrollBar *install(QAbstractScrollArea *scrollArea,
                                      Qt::Orientation orientation = Qt::Horizontal);
+    static OverlayScrollBar *installOn(QWidget *viewport,
+                                       Qt::Orientation orientation = Qt::Horizontal);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -52,10 +55,11 @@ private:
     void onHideTimeout();
     void pollCursor();
     void updateAnimationSettings();
+    void setViewport(QWidget *viewport);
     [[nodiscard]] QColor handleColor() const;
     void setHandleColor(const QColor &color);
 
-    QAbstractScrollArea *m_scrollArea = nullptr;
+    QWidget *m_viewport = nullptr;
     QVariantAnimation *m_animation = nullptr;
     QVariantAnimation *m_geometryAnimation = nullptr;
     QVariantAnimation *m_visibilityAnimation = nullptr;

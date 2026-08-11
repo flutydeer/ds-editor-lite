@@ -14,6 +14,7 @@
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
+#include "UI/Views/Common/EditorRhiScrollBarController.h"
 #include "Modules/Inference/EditSessionManager.h"
 
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
@@ -162,6 +163,25 @@ public:
                          [this] { cancelInlineEdit(); });
     }
 
+    void initializeScrollBars() {
+        scrollBars = new EditorRhiScrollBarController(q, q);
+        QObject::connect(scrollBars, &EditorRhiScrollBarController::offsetChangeRequested, q,
+                         [this](const QPointF &offset) {
+                             cameraX = offset.x();
+                             cameraY = offset.y();
+                             viewportChanged(false);
+                         });
+    }
+
+    void updateScrollBars() const {
+        if (!scrollBars)
+            return;
+        const auto contentSize = clip ? QSizeF(sceneWidth(), sceneHeight()) : QSizeF(q->size());
+        scrollBars->setMetrics(contentSize, QPointF(cameraX, cameraY),
+                               QSizeF(std::max(1, q->width() / 10),
+                                      std::max(1.0, noteHeight * scaleY)));
+    }
+
     void setDataContext(SingingClip *newClip) {
         finishInlineEditing();
         cancelPitchEdit();
@@ -184,10 +204,11 @@ public:
                                  }
                              });
             QObject::connect(clip, &SingingClip::propertyChanged, q,
-                             [this] { scheduleSnapshot(); });
+                             [this] { viewportChanged(false); });
         }
         loadAnchorCurvesFromModel();
         initializeCamera();
+        updateScrollBars();
         updateAutoPageTurnAvailability();
         scheduleSnapshot();
     }
@@ -221,6 +242,7 @@ public:
             clampCamera();
             q->notifyViewportChanged();
         }
+        updateScrollBars();
         scheduleSnapshot();
     }
 
@@ -2401,6 +2423,7 @@ public:
     QColor rubberBandBorderColor{155, 186, 255, 200};
     QColor rubberBandFillColor{155, 186, 255, 64};
     InlineTextEditOverlay *inlineEditor = nullptr;
+    EditorRhiScrollBarController *scrollBars = nullptr;
     InlineEditField inlineEditField = InlineEditField::None;
     int inlineEditingNoteId = -1;
 };
@@ -2409,6 +2432,7 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     : EditorRhiWidget(QStringLiteral("PianoRollRhi"), parent), d(std::make_unique<Private>(this)) {
     setObjectName(QStringLiteral("PianoRollRhiWidget"));
     setMouseTracking(true);
+    d->initializeScrollBars();
     d->initializeInlineEditor();
     connect(this, &EditorRhiWidget::backendFailed, this,
             [this](const QString &) { d->requestFallback(); });
@@ -2773,6 +2797,7 @@ void PianoRollRhiWidget::onDevicePixelRatioChanged() {
 }
 
 void PianoRollRhiWidget::notifyViewportChanged() {
+    d->updateScrollBars();
     emit timeRangeChanged(startTick(), endTick());
     emit keyRangeChanged(topKeyIndex(), bottomKeyIndex());
     emit scaleChanged(scaleX(), scaleY());

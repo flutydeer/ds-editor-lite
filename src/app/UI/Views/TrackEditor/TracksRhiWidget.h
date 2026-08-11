@@ -27,6 +27,7 @@ class QDropEvent;
 class QHideEvent;
 class QKeyEvent;
 class QMouseEvent;
+class EditorRhiScrollBarController;
 class QResizeEvent;
 class QShowEvent;
 class QWheelEvent;
@@ -175,6 +176,7 @@ private:
     void updateCursor(const QPointF &position);
     void handleAutoPageTurn();
     void updateAutoPageTurnAvailability();
+    void updateScrollBars();
     [[nodiscard]] Clip::ClipCommonProperties previewOrModelProperties(const Clip *clip) const;
 
     // --- External file drag-and-drop (Phase 1) ---
@@ -214,6 +216,7 @@ private:
 
     EditorViewportController m_viewport;
     EditorGlyphAtlas m_glyphAtlas;
+    EditorRhiScrollBarController *m_scrollBars = nullptr;
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;
     QVector<ClipSnapshot> m_clipSnapshots;
     QVector<ClipSnapshot> m_pastePreviewSnapshots;

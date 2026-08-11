@@ -75,8 +75,6 @@ OverlayScrollBar::OverlayScrollBar(Qt::Orientation orientation, QWidget *parent)
 }
 
 void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
-    m_scrollArea = scrollArea;
-
     const bool horizontal = orientation() == Qt::Horizontal;
     if (horizontal)
         scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -117,10 +115,19 @@ void OverlayScrollBar::attachTo(QAbstractScrollArea *scrollArea) {
 
     // 视口需开启鼠标跟踪，未按键的 MouseMove 才会到达 eventFilter，
     // 否则鼠标在视口内移动无法重置自动隐藏计时
-    auto *viewport = scrollArea->viewport();
-    viewport->setMouseTracking(true);
-    viewport->installEventFilter(this);
-    m_lastCursorPos = QCursor::pos();
+    setViewport(scrollArea->viewport());
+}
+
+void OverlayScrollBar::attachToViewport(QWidget *viewport) {
+    setViewport(viewport);
+    connect(this, &QScrollBar::rangeChanged, this, [this](int, const int maximum) {
+        setVisible(m_rangeVisible && maximum > 0);
+        updatePosition();
+        if (maximum > 0)
+            restartHideTimer();
+    });
+    connect(this, &QScrollBar::valueChanged, this, &OverlayScrollBar::restartHideTimer);
+    setVisible(m_rangeVisible && maximum() > 0);
 }
 
 void OverlayScrollBar::paintEvent(QPaintEvent *event) {
@@ -185,7 +192,7 @@ void OverlayScrollBar::leaveEvent(QEvent *event) {
 bool OverlayScrollBar::eventFilter(QObject *watched, QEvent *event) {
     if (watched == m_geometryHost && event->type() == QEvent::Resize) {
         updatePosition();
-    } else if (watched == m_scrollArea->viewport()) {
+    } else if (watched == m_viewport) {
         if (event->type() == QEvent::Resize)
             updatePosition();
         else if (event->type() == QEvent::Enter || event->type() == QEvent::MouseMove)
@@ -257,14 +264,13 @@ void OverlayScrollBar::onHideTimeout() {
 }
 
 void OverlayScrollBar::pollCursor() {
-    if (!m_scrollArea || !m_scrollArea->isVisible())
+    if (!m_viewport || !m_viewport->isVisible())
         return;
     const QPoint pos = QCursor::pos();
     if (pos == m_lastCursorPos)
         return;
     m_lastCursorPos = pos;
-    auto *viewport = m_scrollArea->viewport();
-    if (viewport->rect().contains(viewport->mapFromGlobal(pos)))
+    if (m_viewport->rect().contains(m_viewport->mapFromGlobal(pos)))
         restartHideTimer();
 }
 
@@ -352,19 +358,22 @@ void OverlayScrollBar::updatePosition() {
 }
 
 void OverlayScrollBar::updateLayout() {
-    if (!m_scrollArea)
+    if (!m_viewport || !parentWidget())
         return;
 
-    auto viewport = m_scrollArea->viewport();
-    auto mapped = viewport->mapTo(parentWidget(), QPoint(0, 0));
+    const auto mapped = m_viewport == parentWidget()
+                            ? QPoint(0, 0)
+                            : m_viewport->mapTo(parentWidget(), QPoint(0, 0));
     const bool companionShown = m_companion && m_companion->willShow();
     if (orientation() == Qt::Horizontal) {
-        const int width = companionShown ? viewport->width() - kBarThickness : viewport->width();
-        setGeometry(mapped.x(), mapped.y() + viewport->height() - kBarThickness, width,
+        const int width =
+            companionShown ? m_viewport->width() - kBarThickness : m_viewport->width();
+        setGeometry(mapped.x(), mapped.y() + m_viewport->height() - kBarThickness, width,
                     kBarThickness);
     } else {
-        const int height = companionShown ? viewport->height() - kBarThickness : viewport->height();
-        setGeometry(mapped.x() + viewport->width() - kBarThickness, mapped.y(), kBarThickness,
+        const int height =
+            companionShown ? m_viewport->height() - kBarThickness : m_viewport->height();
+        setGeometry(mapped.x() + m_viewport->width() - kBarThickness, mapped.y(), kBarThickness,
                     height);
     }
     raise();
@@ -376,4 +385,24 @@ OverlayScrollBar *OverlayScrollBar::install(QAbstractScrollArea *scrollArea,
     bar->attachTo(scrollArea);
     bar->updatePosition();
     return bar;
+}
+
+OverlayScrollBar *OverlayScrollBar::installOn(QWidget *viewport, Qt::Orientation orientation) {
+    auto *bar = new OverlayScrollBar(orientation, viewport);
+    bar->attachToViewport(viewport);
+    bar->updatePosition();
+    return bar;
+}
+
+void OverlayScrollBar::setViewport(QWidget *viewport) {
+    if (m_viewport == viewport)
+        return;
+    if (m_viewport)
+        m_viewport->removeEventFilter(this);
+    m_viewport = viewport;
+    if (!m_viewport)
+        return;
+    m_viewport->setMouseTracking(true);
+    m_viewport->installEventFilter(this);
+    m_lastCursorPos = QCursor::pos();
 }

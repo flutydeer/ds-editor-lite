@@ -11,6 +11,7 @@
 #include "UI/Utils/ITimelinePainter.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
+#include "UI/Views/Common/EditorRhiScrollBarController.h"
 
 #include <lite/MusicBase/TimelineSnapUtils.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -145,6 +146,13 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     // One extra unit for the virtual append slot at the bottom of the canvas
     m_viewport.setVerticalContent(appModel->tracks().size() + 1, trackHeight);
 
+    m_scrollBars = new EditorRhiScrollBarController(this, this);
+    connect(m_scrollBars, &EditorRhiScrollBarController::offsetChangeRequested, this,
+            [this](const QPointF &offset) {
+                m_viewport.scrollBy({offset.x() - m_viewport.horizontalOffset(),
+                                     offset.y() - m_viewport.verticalOffset()});
+    });
+
     connect(&m_viewport, &EditorViewportController::scaleChanged, this,
             &TracksRhiWidget::scaleChanged);
     connect(&m_viewport, &EditorViewportController::timeRangeChanged, this,
@@ -156,8 +164,10 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
                 emit verticalOffsetChanged(vertical);
                 emit visibleRectChanged(logicalVisibleRect());
             });
-    connect(&m_viewport, &EditorViewportController::viewportChanged, this,
-            &TracksRhiWidget::scheduleSnapshot);
+    connect(&m_viewport, &EditorViewportController::viewportChanged, this, [this] {
+        updateScrollBars();
+        scheduleSnapshot();
+    });
     connect(&m_edgeAutoScroller, &EdgeAutoScroller::frame, this,
             &TracksRhiWidget::onExternalDropScrollFrame);
 
@@ -204,7 +214,10 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
         scheduleSnapshot();
     });
     rebuildModelConnections();
-    QTimer::singleShot(0, this, &TracksRhiWidget::updateAutoPageTurnAvailability);
+    QTimer::singleShot(0, this, [this] {
+        updateScrollBars();
+        updateAutoPageTurnAvailability();
+    });
 }
 
 TracksRhiWidget::~TracksRhiWidget() = default;
@@ -352,6 +365,17 @@ void TracksRhiWidget::onWheelVerScroll(QWheelEvent *event) {
 
 void TracksRhiWidget::setVerticalOffset(const double value) {
     m_viewport.scrollBy({0.0, value - m_viewport.verticalOffset()});
+}
+
+void TracksRhiWidget::updateScrollBars() {
+    if (!m_scrollBars)
+        return;
+    m_scrollBars->setMetrics(
+        QSizeF(m_viewport.tickToSceneX(appStatus->projectEditableLength),
+               m_viewport.unitToSceneY(appModel->tracks().size() + 1)),
+        QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()),
+        QSizeF(std::max(1, width() / 10),
+               std::max(1, qRound(trackHeight * m_viewport.verticalScale()))));
 }
 
 void TracksRhiWidget::scheduleSnapshot() {

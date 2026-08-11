@@ -1,9 +1,12 @@
 #include <lite/GUI/Controls/OverlayScrollBar.h>
 
+#include "UI/Views/Common/EditorRhiScrollBarController.h"
+
 #include <QGraphicsView>
 #include <QScrollBar>
 #include <QTextStream>
 #include <QApplication>
+#include <QWidget>
 
 // Reproduces the piano-roll startup sequence: the custom bar is attached while
 // the view is 0x0, then the view is resized, shown, and given a scene.
@@ -76,6 +79,43 @@ int main(int argc, char *argv[]) {
     expect(bar->maximum() == source->maximum(), "bar range must follow a zoom");
     expect(bar->pageStep() == source->pageStep(), "bar pageStep must follow a zoom");
     probe("after zoom", source, bar);
+
+    QWidget rhiViewport;
+    rhiViewport.resize(900, 500);
+    EditorRhiScrollBarController rhiBars(&rhiViewport, &rhiViewport);
+    QPointF requestedOffset(-1, -1);
+    QObject::connect(&rhiBars, &EditorRhiScrollBarController::offsetChangeRequested,
+                     &rhiViewport,
+                     [&requestedOffset](const QPointF &offset) { requestedOffset = offset; });
+    rhiBars.setMetrics(QSizeF(1800, 1000), QPointF(0, 0), QSizeF(90, 50));
+    rhiViewport.show();
+    flush();
+
+    auto *rhiHorizontal = rhiBars.horizontalBar();
+    auto *rhiVertical = rhiBars.verticalBar();
+    expect(rhiHorizontal->maximum() == 900 && rhiHorizontal->pageStep() == 900,
+           "RHI horizontal metrics must describe one visible page");
+    expect(rhiVertical->maximum() == 500 && rhiVertical->pageStep() == 500,
+           "RHI vertical metrics must describe one visible page");
+    expect(rhiHorizontal->isVisible() && rhiVertical->isVisible(),
+           "RHI bars with overflow must be visible");
+    expect(rhiHorizontal->width() == 884 && rhiVertical->height() == 484,
+           "companion RHI bars must leave the bottom-right corner unobstructed");
+
+    rhiHorizontal->setValue(450);
+    flush();
+    expect(requestedOffset == QPointF(450, 0),
+           "dragging an RHI bar must request the corresponding camera offset");
+
+    rhiBars.setMetrics(QSizeF(900, 500), QPointF(0, 0));
+    flush();
+    expect(!rhiHorizontal->isVisible() && !rhiVertical->isVisible(),
+           "RHI bars without overflow must be hidden");
+
+    rhiBars.setMetrics(QSizeF(900.4, 500.4), QPointF(0, 0));
+    flush();
+    expect(!rhiHorizontal->isVisible() && !rhiVertical->isVisible(),
+           "subpixel layout noise must not create a false RHI scroll range");
 
     if (g_failures == 0) {
         QTextStream(stdout) << "All ScrollBarInterplay tests passed" << Qt::endl;
