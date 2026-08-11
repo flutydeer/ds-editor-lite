@@ -97,11 +97,21 @@ bool SmoothScroller::eventFilter(QObject *watched, QEvent *event) {
     endValue = qBound(bar->minimum(), endValue, bar->maximum());
 
     if (bar->value() != endValue) {
-        anim->stop();
-        anim->setStartValue(bar->value());
-        anim->setEndValue(endValue);
-        *logical = endValue;
-        anim->start();
+        if (getEffectiveAnimationTime(kBaseMs, AnimationGlobal::Full) == 0) {
+            // Animation disabled: apply the target instantly. Do NOT start a
+            // zero-duration QPropertyAnimation here — it defers application to
+            // a later animation-driver tick and leaves the wheel event consumed
+            // while the scrollbar (and any OverlayScrollBar mirror) never moves.
+            anim->stop();
+            *logical = std::nullopt;
+            bar->setValue(endValue);
+        } else {
+            anim->stop();
+            anim->setStartValue(bar->value());
+            anim->setEndValue(endValue);
+            *logical = endValue;
+            anim->start();
+        }
     }
     return true; // consume the wheel event
 }
