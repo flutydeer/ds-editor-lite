@@ -3,6 +3,8 @@
 #include "Modules/FillLyric/Controls/CellList.h"
 #include "Modules/FillLyric/Controls/LyricCell.h"
 
+#include <algorithm>
+
 #include <QFileDialog>
 #include <QMessageBox>
 
@@ -27,24 +29,9 @@ namespace FillLyric {
                        const QStringList &priorityLanguages, const LyricTabConfig &config,
                        QWidget *parent)
         : QWidget(parent), m_g2pService(std::move(singer), languageService) {
-
         m_priorityLanguages = priorityLanguages;
         for (const auto &langNote : langNotes)
             m_langNotes.append(new LangNote(langNote));
-
-        QList<LangNote> inputNotes;
-        for (const auto &note : m_langNotes)
-            inputNotes.append(*note);
-
-        const auto g2pResults = m_g2pService.convert(inputNotes, toStdVector(m_priorityLanguages));
-        for (int i = 0; i < g2pResults.size(); i++) {
-            if (m_langNotes[i]->language == QStringLiteral("unknown"))
-                m_langNotes[i]->language = g2pResults[i].language;
-            if (m_langNotes[i]->g2pId == kUnknownG2pId || m_langNotes[i]->g2pId.isEmpty())
-                m_langNotes[i]->g2pId = g2pResults[i].g2pId;
-            m_langNotes[i]->syllable = g2pResults[i].pronunciation;
-            m_langNotes[i]->candidates = g2pResults[i].candidates;
-        }
 
         m_lyricBaseWidget = new LyricBaseWidget(config, toStdVector(m_priorityLanguages), this);
         m_lyricExtWidget =
@@ -71,13 +58,15 @@ namespace FillLyric {
 
         connect(m_lyricBaseWidget, &LyricBaseWidget::lyricPrevRequested, this, [this] {
             m_lyricExtWidget->setVisible(!m_lyricExtWidget->isVisible());
+            if (m_lyricExtWidget->isVisible() && !m_previewInitialized)
+                initializeOriginalNotesPreview();
             m_lyricBaseWidget->setToTableVisible(m_lyricExtWidget->isVisible());
             m_lyricBaseWidget->setLyricPrevText(m_lyricExtWidget->isVisible() ? tr("Fold Preview")
                                                                               : tr("Lyric Prev"));
             if (m_lyricExtWidget->isVisible()) {
                 Q_EMIT this->expandWindowRight();
             } else {
-                Q_EMIT this->shrinkWindowRight(m_lyricBaseWidget->width() + 20);
+                Q_EMIT this->shrinkWindowRight();
             }
             modifyOption();
         });
@@ -116,6 +105,46 @@ namespace FillLyric {
         m_langNotes.clear();
     }
 
+    void LyricTab::ensureOriginalNotesG2p() {
+        if (m_originalNotesG2pReady)
+            return;
+
+        QList<LangNote> inputNotes;
+        inputNotes.reserve(m_langNotes.size());
+        for (const auto &note : m_langNotes)
+            inputNotes.append(*note);
+
+        const auto g2pResults =
+            m_g2pService.convert(inputNotes, toStdVector(m_priorityLanguages));
+        const int resultCount = std::min(static_cast<int>(m_langNotes.size()),
+                                         static_cast<int>(g2pResults.size()));
+        for (int i = 0; i < resultCount; i++) {
+            if (m_langNotes[i]->language == QStringLiteral("unknown"))
+                m_langNotes[i]->language = g2pResults[i].language;
+            if (m_langNotes[i]->g2pId == kUnknownG2pId || m_langNotes[i]->g2pId.isEmpty())
+                m_langNotes[i]->g2pId = g2pResults[i].g2pId;
+            m_langNotes[i]->syllable = g2pResults[i].pronunciation;
+            m_langNotes[i]->candidates = g2pResults[i].candidates;
+        }
+        m_originalNotesG2pReady = true;
+    }
+
+    void LyricTab::initializeOriginalNotesPreview() {
+        ensureOriginalNotesG2p();
+
+        QList<LangNote> langNotes;
+        for (const auto &langNote : m_langNotes) {
+            if (m_lyricBaseWidget->skipSlur() &&
+                (langNote->g2pId == kSlurLyric || langNote->lyric == "-"))
+                continue;
+            langNotes.append(*langNote);
+        }
+
+        m_notesCount = static_cast<int>(langNotes.size());
+        m_lyricExtWidget->wrapView()->init({langNotes});
+        m_previewInitialized = true;
+    }
+
     void LyricTab::setLangNotes(const bool warn) {
         const bool skipSlurRes = m_lyricBaseWidget->skipSlur();
 
@@ -130,16 +159,16 @@ namespace FillLyric {
 
         if (!warn || setLangNotes) {
             QStringList lyrics;
-            QList<LangNote> langNotes;
             for (const auto &langNote : m_langNotes) {
                 if (skipSlurRes && (langNote->g2pId == kSlurLyric || langNote->lyric == "-"))
                     continue;
-                langNotes.append(*langNote);
                 lyrics.append(langNote->lyric);
             }
-            m_notesCount = static_cast<int>(langNotes.size());
+            m_notesCount = static_cast<int>(lyrics.size());
             m_lyricBaseWidget->setLyricText(lyrics.join(" "));
-            m_lyricExtWidget->wrapView()->init({langNotes});
+            m_previewInitialized = false;
+            if (m_lyricExtWidget->isVisible())
+                initializeOriginalNotesPreview();
         } else {
             m_lyricBaseWidget->setSkipSlur(!skipSlurRes);
             modifyOption();
@@ -187,15 +216,16 @@ namespace FillLyric {
         return m_lyricBaseWidget->skipSlur();
     }
 
-    void LyricTab::onBtnInsertTextClicked() const {
+    void LyricTab::onBtnInsertTextClicked() {
         const QString text = m_lyricBaseWidget->lyricText();
         if (text.isEmpty())
             return;
         m_lyricExtWidget->wrapView()->init(
             LyricSplitter::splitAuto(text, toStdVector(m_priorityLanguages)));
+        m_previewInitialized = true;
     }
 
-    void LyricTab::onBtnToTableClicked() const {
+    void LyricTab::onBtnToTableClicked() {
         const QString text = m_lyricBaseWidget->lyricText();
         const auto splitRes = m_lyricBaseWidget->splitLyric(text);
 
@@ -203,8 +233,10 @@ namespace FillLyric {
             nullptr, tr("Preview Lyric"), tr("Split the lyric into Preview window?"),
             QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
 
-        if (res == QMessageBox::Yes)
+        if (res == QMessageBox::Yes) {
             m_lyricExtWidget->wrapView()->init(splitRes);
+            m_previewInitialized = true;
+        }
     }
 
     void LyricTab::modifyOption() {

@@ -15,6 +15,18 @@
 
 #include <QKeyEvent>
 #include <QScreen>
+#include <QStyle>
+
+namespace {
+    constexpr int kLyricTabIndex = 0;
+    constexpr int kSplitterTabIndex = 1;
+    constexpr int kTaggerTabIndex = 2;
+    constexpr int kRuleTestTabIndex = 3;
+    constexpr int kLyricBaseStretch = 1;
+    constexpr int kLyricPreviewStretch = 2;
+    constexpr int kLyricCompactPadding = 20;
+    constexpr int kMinimumLyricCompactWidth = 300;
+}
 
 LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier singer,
                          const QStringList &priorityLanguages, QWidget *parent)
@@ -32,17 +44,20 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier
     m_mainLayout = new QVBoxLayout();
     m_tabWidget = new QTabWidget();
 
+    const bool lyricExtVisible = appOptions->fillLyric()->extVisible;
+    m_lyricPreviewVisible = lyricExtVisible;
+
     m_lyricWidget = new FillLyric::LyricTab(
         m_langNotes, std::move(singer), SynthrtEngine::instance().languageService(),
         priorityLanguages,
-        {appOptions->fillLyric()->baseVisible, appOptions->fillLyric()->extVisible,
+        {appOptions->fillLyric()->baseVisible, lyricExtVisible,
          appOptions->fillLyric()->textEditFontSize, appOptions->fillLyric()->skipSlur,
          appOptions->fillLyric()->splitMode, appOptions->fillLyric()->viewFontSize,
          appOptions->fillLyric()->exportLanguage});
 
-
-    if (!appOptions->fillLyric()->extVisible) {
-        shrinkWindowRight(300);
+    m_lyricCompactWidth = lyricCompactWidthFor(width());
+    if (!lyricExtVisible) {
+        shrinkWindowRight(m_lyricCompactWidth);
     }
 
     // Apply saved Split/Tag config to engines
@@ -53,17 +68,6 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier
     FillLyric::TextTagger::setCustomRules(appOptions->fillLyric()->customTaggerRules);
     FillLyric::TextTagger::setRuleOrder(appOptions->fillLyric()->taggerOrder);
 
-    // Splitter config tab
-    m_splitterConfigTab = new FillLyric::SplitterConfigTab(this);
-    m_splitterConfigTab->loadFromOption(appOptions->fillLyric());
-
-    // Tagger config tab
-    m_taggerConfigTab = new FillLyric::TaggerConfigTab(this);
-    m_taggerConfigTab->loadFromOption(appOptions->fillLyric());
-
-    // Rule test tab
-    m_ruleTestTab = new FillLyric::RuleTestTab(this);
-
     // m_g2pPage = new G2pPage(this);
 
     m_btnOk = new AccentButton(tr("&Import"), this);
@@ -72,10 +76,14 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier
     m_btnCancel = new Button(tr("&Cancel"), this);
     setNegativeButton(m_btnCancel);
 
+    m_splitterConfigPage = new QWidget(m_tabWidget);
+    m_taggerConfigPage = new QWidget(m_tabWidget);
+    m_ruleTestPage = new QWidget(m_tabWidget);
+
     m_tabWidget->addTab(m_lyricWidget, tr("Lyric"));
-    m_tabWidget->addTab(m_splitterConfigTab, tr("Splitter"));
-    m_tabWidget->addTab(m_taggerConfigTab, tr("Tagger"));
-    m_tabWidget->addTab(m_ruleTestTab, tr("Test"));
+    m_tabWidget->addTab(m_splitterConfigPage, tr("Splitter"));
+    m_tabWidget->addTab(m_taggerConfigPage, tr("Tagger"));
+    m_tabWidget->addTab(m_ruleTestPage, tr("Test"));
     // m_tabWidget->addTab(m_g2pPage, tr("G2p"));
     m_tabWidget->addTab(new QWidget, tr("Help"));
 
@@ -86,37 +94,88 @@ LyricDialog::LyricDialog(SingingClip *clip, QList<Note *> note, SingerIdentifier
     connect(m_btnOk, &QPushButton::clicked, this, &QDialog::accept);
     connect(m_btnCancel, &QPushButton::clicked, this, &QDialog::reject);
 
-    connect(m_lyricWidget, &FillLyric::LyricTab::shrinkWindowRight, this,
-            &LyricDialog::shrinkWindowRight);
-    connect(m_lyricWidget, &FillLyric::LyricTab::expandWindowRight, this,
-            &LyricDialog::expandWindowRight);
+    connect(m_lyricWidget, &FillLyric::LyricTab::shrinkWindowRight, this, [this] {
+        m_lyricPreviewVisible = false;
+        m_lyricCompactWidth = lyricCompactWidthFor(width());
+        if (m_tabWidget->currentIndex() == kLyricTabIndex)
+            shrinkWindowRight(m_lyricCompactWidth);
+    });
+    connect(m_lyricWidget, &FillLyric::LyricTab::expandWindowRight, this, [this] {
+        m_lyricPreviewVisible = true;
+        if (m_tabWidget->currentIndex() == kLyricTabIndex)
+            expandWindowRight();
+    });
 
     connect(m_lyricWidget, &FillLyric::LyricTab::modifyOptionSignal, this,
             &LyricDialog::_on_modifyOption);
 
-    connect(m_splitterConfigTab, &FillLyric::SplitterConfigTab::configChanged, m_lyricWidget,
-            [this]() {
-                // Re-split when splitter config changes
-                m_lyricWidget->setLangNotes(false);
-            });
-
-    connect(m_taggerConfigTab, &FillLyric::TaggerConfigTab::configChanged, m_lyricWidget, [this]() {
-        // Re-split when tagger config changes
-        m_lyricWidget->setLangNotes(false);
-    });
-
-    // Jump between config tabs and test tab
-    connect(m_splitterConfigTab, &FillLyric::SplitterConfigTab::jumpToTestRequested, this,
-            [this]() { m_tabWidget->setCurrentWidget(m_ruleTestTab); });
-    connect(m_taggerConfigTab, &FillLyric::TaggerConfigTab::jumpToTestRequested, this,
-            [this]() { m_tabWidget->setCurrentWidget(m_ruleTestTab); });
-    connect(m_ruleTestTab, &FillLyric::RuleTestTab::jumpToSplitterRequested, this,
-            [this]() { m_tabWidget->setCurrentWidget(m_splitterConfigTab); });
-    connect(m_ruleTestTab, &FillLyric::RuleTestTab::jumpToTaggerRequested, this,
-            [this]() { m_tabWidget->setCurrentWidget(m_taggerConfigTab); });
+    connect(m_tabWidget, &QTabWidget::currentChanged, this, &LyricDialog::onCurrentTabChanged);
 }
 
 LyricDialog::~LyricDialog() = default;
+
+void LyricDialog::ensureTabInitialized(const int index) {
+    if (index == kSplitterTabIndex && !m_splitterConfigTab) {
+        auto *layout = new QVBoxLayout(m_splitterConfigPage);
+        layout->setContentsMargins({});
+        m_splitterConfigTab = new FillLyric::SplitterConfigTab(m_splitterConfigPage);
+        m_splitterConfigTab->loadFromOption(appOptions->fillLyric());
+        layout->addWidget(m_splitterConfigTab);
+
+        connect(m_splitterConfigTab, &FillLyric::SplitterConfigTab::configChanged, m_lyricWidget,
+                [this] { m_lyricWidget->setLangNotes(false); });
+        connect(m_splitterConfigTab, &FillLyric::SplitterConfigTab::jumpToTestRequested, this,
+                [this] { m_tabWidget->setCurrentIndex(kRuleTestTabIndex); });
+    } else if (index == kTaggerTabIndex && !m_taggerConfigTab) {
+        auto *layout = new QVBoxLayout(m_taggerConfigPage);
+        layout->setContentsMargins({});
+        m_taggerConfigTab = new FillLyric::TaggerConfigTab(m_taggerConfigPage);
+        m_taggerConfigTab->loadFromOption(appOptions->fillLyric());
+        layout->addWidget(m_taggerConfigTab);
+
+        connect(m_taggerConfigTab, &FillLyric::TaggerConfigTab::configChanged, m_lyricWidget,
+                [this] { m_lyricWidget->setLangNotes(false); });
+        connect(m_taggerConfigTab, &FillLyric::TaggerConfigTab::jumpToTestRequested, this,
+                [this] { m_tabWidget->setCurrentIndex(kRuleTestTabIndex); });
+    } else if (index == kRuleTestTabIndex && !m_ruleTestTab) {
+        auto *layout = new QVBoxLayout(m_ruleTestPage);
+        layout->setContentsMargins({});
+        m_ruleTestTab = new FillLyric::RuleTestTab(m_ruleTestPage);
+        layout->addWidget(m_ruleTestTab);
+
+        connect(m_ruleTestTab, &FillLyric::RuleTestTab::jumpToSplitterRequested, this,
+                [this] { m_tabWidget->setCurrentIndex(kSplitterTabIndex); });
+        connect(m_ruleTestTab, &FillLyric::RuleTestTab::jumpToTaggerRequested, this,
+                [this] { m_tabWidget->setCurrentIndex(kTaggerTabIndex); });
+    } else {
+        return;
+    }
+}
+
+void LyricDialog::onCurrentTabChanged(const int index) {
+    if (index == kLyricTabIndex) {
+        if (m_lyricPreviewVisible)
+            expandWindowRight();
+        else
+            shrinkWindowRight(m_lyricCompactWidth);
+    } else {
+        expandWindowRight();
+    }
+
+    ensureTabInitialized(index);
+}
+
+int LyricDialog::lyricCompactWidthFor(const int expandedWidth) const {
+    const auto bodyMargins = body()->contentsMargins();
+    const int layoutSpacing = qMax(
+        0, m_lyricWidget->style()->pixelMetric(QStyle::PM_LayoutHorizontalSpacing, nullptr,
+                                               m_lyricWidget));
+    const int contentWidth =
+        expandedWidth - bodyMargins.left() - bodyMargins.right() - layoutSpacing;
+    const int totalStretch = kLyricBaseStretch + kLyricPreviewStretch;
+    return qMax(kMinimumLyricCompactWidth,
+                contentWidth * kLyricBaseStretch / totalStretch + kLyricCompactPadding);
+}
 
 void LyricDialog::setLangNotes() const {
     m_lyricWidget->setLangNotes(false);

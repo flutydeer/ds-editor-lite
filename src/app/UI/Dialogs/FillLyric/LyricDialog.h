@@ -45,6 +45,9 @@ protected:
 
 private:
     void noteToPhonic();
+    void ensureTabInitialized(int index);
+    void onCurrentTabChanged(int index);
+    int lyricCompactWidthFor(int expandedWidth) const;
 
     void shrinkWindowRight(const int &newWidth);
     void expandWindowRight();
@@ -57,9 +60,13 @@ private:
     QTabWidget *m_tabWidget;
 
     FillLyric::LyricTab *m_lyricWidget;
-    FillLyric::SplitterConfigTab *m_splitterConfigTab;
-    FillLyric::TaggerConfigTab *m_taggerConfigTab;
-    FillLyric::RuleTestTab *m_ruleTestTab;
+    QWidget *m_splitterConfigPage = nullptr;
+    QWidget *m_taggerConfigPage = nullptr;
+    QWidget *m_ruleTestPage = nullptr;
+
+    FillLyric::SplitterConfigTab *m_splitterConfigTab = nullptr;
+    FillLyric::TaggerConfigTab *m_taggerConfigTab = nullptr;
+    FillLyric::RuleTestTab *m_ruleTestTab = nullptr;
     // G2pPage *m_g2pPage;
 
     AccentButton *m_btnOk;
@@ -68,6 +75,8 @@ private:
     QList<Note *> m_notes;
     QList<LangNote> m_langNotes;
     LyricResult m_noteResult;
+    bool m_lyricPreviewVisible = true;
+    int m_lyricCompactWidth = 0;
 };
 
 #endif // DS_EDITOR_LITE_LYRICDIALOG_H
