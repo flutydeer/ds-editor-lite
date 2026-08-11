@@ -582,9 +582,8 @@ void TracksRhiWidget::updateExternalDropScrollState(const QPointF &viewportPosit
         m_dropScrollDistanceReached = true;
     }
     const QRectF viewportRect(QPointF(0, 0), size());
-    const auto velocity =
-        EdgeAutoScroller::velocity(viewportPosition, viewportRect, Qt::Vertical,
-                                   m_edgeAutoScroller.config());
+    const auto velocity = EdgeAutoScroller::velocity(viewportPosition, viewportRect, Qt::Vertical,
+                                                     m_edgeAutoScroller.config());
     const bool inHotZone = !velocity.isNull();
     if (inHotZone && !m_edgeAutoScroller.isRunning())
         m_edgeAutoScroller.start();
@@ -600,8 +599,7 @@ void TracksRhiWidget::onExternalDropScrollFrame(const double dtMs) {
     }
     const auto pointerPos = QPointF(mapFromGlobal(QCursor::pos()));
     const QRectF viewportRect(QPointF(0, 0), size());
-    const auto step = m_edgeAutoScroller.computeStep(pointerPos, viewportRect, Qt::Vertical,
-                                                     dtMs);
+    const auto step = m_edgeAutoScroller.computeStep(pointerPos, viewportRect, Qt::Vertical, dtMs);
     if (step.y() != 0)
         m_viewport.scrollBy({0.0, static_cast<double>(step.y())});
     const auto clamped = EdgeAutoScroller::clampToRect(pointerPos, viewportRect);
@@ -617,14 +615,14 @@ void TracksRhiWidget::appendDropOverlay(EditorRhiFrameData &frame, const double 
     const auto sceneWidth = m_viewport.tickToSceneX(appStatus->projectEditableLength);
     const auto trackHeightPx = trackHeight * scaleY();
     const auto top = slot.trackIndex * trackHeightPx;
-    EditorRhiGeometry::appendRect(
-        frame.solidVertices,
-        QRectF(0, top * dpr, sceneWidth * dpr, trackHeightPx * dpr), m_dropHighlightColor);
+    EditorRhiGeometry::appendRect(frame.solidVertices,
+                                  QRectF(0, top * dpr, sceneWidth * dpr, trackHeightPx * dpr),
+                                  m_dropHighlightColor);
     EditorRhiGeometry::appendPixelAlignedHorizontalLine(frame.solidVertices, top * dpr, 0.0,
                                                         sceneWidth * dpr, m_dropIndicatorColor);
-    EditorRhiGeometry::appendPixelAlignedHorizontalLine(
-        frame.solidVertices, (top + trackHeightPx) * dpr, 0.0, sceneWidth * dpr,
-        m_dropIndicatorColor);
+    EditorRhiGeometry::appendPixelAlignedHorizontalLine(frame.solidVertices,
+                                                        (top + trackHeightPx) * dpr, 0.0,
+                                                        sceneWidth * dpr, m_dropIndicatorColor);
     const auto contentHeight = (appModel->tracks().size() + 1) * trackHeightPx * dpr;
     EditorRhiGeometry::appendPixelAlignedVerticalLine(
         frame.solidVertices, m_viewport.tickToSceneX(slot.snappedTick) * dpr, 0.0, contentHeight,
@@ -672,6 +670,7 @@ void TracksRhiWidget::onRhiReady() {
 }
 
 void TracksRhiWidget::onDevicePixelRatioChanged() {
+    EditorRhiWidget::onDevicePixelRatioChanged();
     m_glyphAtlas.clear();
     scheduleSnapshot();
 }

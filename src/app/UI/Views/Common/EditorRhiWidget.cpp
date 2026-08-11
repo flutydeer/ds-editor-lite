@@ -98,17 +98,16 @@ public:
         }
 
         fallbackTexture.reset(rhi->newTexture(QRhiTexture::RGBA8, QSize(1, 1)));
-        sampler.reset(rhi->newSampler(QRhiSampler::Linear, QRhiSampler::Linear,
-                                      QRhiSampler::None, QRhiSampler::ClampToEdge,
-                                      QRhiSampler::ClampToEdge));
+        sampler.reset(rhi->newSampler(QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
+                                      QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
         if (!fallbackTexture->create() || !sampler->create()) {
             fail(QStringLiteral("failed to create text sampler resources"));
             return;
         }
         fallbackTextBindings.reset(rhi->newShaderResourceBindings());
         fallbackTextBindings->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(
-                0, QRhiShaderResourceBinding::VertexStage, uniformBuffer.get()),
+            QRhiShaderResourceBinding::uniformBuffer(0, QRhiShaderResourceBinding::VertexStage,
+                                                     uniformBuffer.get()),
             QRhiShaderResourceBinding::sampledTexture(1, QRhiShaderResourceBinding::FragmentStage,
                                                       fallbackTexture.get(), sampler.get()),
         });
@@ -126,21 +125,17 @@ public:
             return;
 
         resourcesReady = true;
-        qInfo().noquote()
-            << QStringLiteral("[%1] initialized backend=%2 sampleCount=1 depthStencil=none")
-                   .arg(diagnosticsTag, QString::fromUtf8(rhi->backendName()));
+        qInfo().noquote() << QStringLiteral(
+                                 "[%1] initialized backend=%2 sampleCount=1 depthStencil=none")
+                                 .arg(diagnosticsTag, QString::fromUtf8(rhi->backendName()));
         q->onRhiReady();
     }
 
     bool createPipelines() {
-        const auto solidVertex =
-            loadShader(QStringLiteral(":/editor_rhi/solid.vert.qsb"));
-        const auto solidFragment =
-            loadShader(QStringLiteral(":/editor_rhi/solid.frag.qsb"));
-        const auto textureVertex =
-            loadShader(QStringLiteral(":/editor_rhi/texture.vert.qsb"));
-        const auto textureFragment =
-            loadShader(QStringLiteral(":/editor_rhi/texture.frag.qsb"));
+        const auto solidVertex = loadShader(QStringLiteral(":/editor_rhi/solid.vert.qsb"));
+        const auto solidFragment = loadShader(QStringLiteral(":/editor_rhi/solid.frag.qsb"));
+        const auto textureVertex = loadShader(QStringLiteral(":/editor_rhi/texture.vert.qsb"));
+        const auto textureFragment = loadShader(QStringLiteral(":/editor_rhi/texture.frag.qsb"));
         if (!solidVertex.isValid() || !solidFragment.isValid() || !textureVertex.isValid() ||
             !textureFragment.isValid()) {
             fail(QStringLiteral("failed to load editor RHI shaders"));
@@ -203,8 +198,17 @@ public:
     }
 
     void render(QRhiCommandBuffer *cb) {
-        if (!resourcesReady || !renderTarget || !cb)
+        if (!resourcesReady || !cb)
             return;
+        if (colorTexture != q->colorTexture() || !renderTarget) {
+            // Qt recreates the color buffer on resize / DPI change without
+            // re-entering initialize(), so detect the swap here and rebuild the
+            // render target lazily.
+            colorTexture = q->colorTexture();
+            rebuildRenderTarget();
+            if (!renderTarget)
+                return;
+        }
 
         QElapsedTimer uploadTimer;
         uploadTimer.start();
@@ -213,7 +217,8 @@ public:
             updates = rhi->nextResourceUpdateBatch();
 
         ensureBuffer(solidBuffer, solidBufferCapacity,
-                     frame.solidVertices.size() * static_cast<qsizetype>(sizeof(EditorRhiSolidVertex)));
+                     frame.solidVertices.size() *
+                         static_cast<qsizetype>(sizeof(EditorRhiSolidVertex)));
         double uploadedBytes = 0.0;
         if (frameDirty && solidBuffer && !frame.solidVertices.isEmpty()) {
             const auto bytes = frame.solidVertices.size() * sizeof(EditorRhiSolidVertex);
@@ -301,6 +306,31 @@ public:
         frameDirty = true;
     }
 
+    void rebuildRenderTarget() {
+        renderTarget.reset();
+        renderPassDescriptor.reset();
+        if (!rhi || !colorTexture)
+            return;
+        const QRhiTextureRenderTargetDescription targetDescription{
+            QRhiColorAttachment(colorTexture)};
+        renderTarget.reset(rhi->newTextureRenderTarget(targetDescription));
+        if (renderTarget) {
+            renderPassDescriptor.reset(renderTarget->newCompatibleRenderPassDescriptor());
+            renderTarget->setRenderPassDescriptor(renderPassDescriptor.get());
+            createPipelines(); // 旧 pipeline 引用旧 descriptor，必须重建
+            if (!renderTarget->create()) {
+                renderTarget.reset();
+                renderPassDescriptor.reset();
+                fail(QStringLiteral("failed to recreate render target after buffer swap"));
+            }
+        }
+    }
+
+    void invalidateTextures() {
+        textureResources.clear();
+        frameDirty = true;
+    }
+
     void ensureTextureResources(TextureResources &resources, const EditorRhiTextureBatch &batch,
                                 QRhiResourceUpdateBatch *updates, double &uploadedBytes) {
         if (batch.image.isNull())
@@ -323,11 +353,11 @@ public:
         if (!resources.bindings) {
             resources.bindings.reset(rhi->newShaderResourceBindings());
             resources.bindings->setBindings({
-                QRhiShaderResourceBinding::uniformBuffer(
-                    0, QRhiShaderResourceBinding::VertexStage, uniformBuffer.get()),
-                QRhiShaderResourceBinding::sampledTexture(
-                    1, QRhiShaderResourceBinding::FragmentStage, resources.texture.get(),
-                    sampler.get()),
+                QRhiShaderResourceBinding::uniformBuffer(0, QRhiShaderResourceBinding::VertexStage,
+                                                         uniformBuffer.get()),
+                QRhiShaderResourceBinding::sampledTexture(1,
+                                                          QRhiShaderResourceBinding::FragmentStage,
+                                                          resources.texture.get(), sampler.get()),
             });
             if (!resources.bindings->create()) {
                 fail(QStringLiteral("failed to create glyph atlas bindings"));
@@ -361,15 +391,15 @@ public:
 
         if (!appOptions->developer()->enableDiagnostics || cpuSamples.size() < kStatsWindow)
             return;
-        qInfo().noquote()
-            << QStringLiteral("[%1Stats] frames=%2 cpuMs=%3 uploadMs=%4 encodeMs=%5 "
-                              "submitMs=%6 intervalMs=%7 vertices=%8 uploadBytes=%9 draws=%10")
-                   .arg(diagnosticsTag)
-                   .arg(cpuSamples.size())
-                   .arg(statsTriple(cpuSamples), statsTriple(uploadSamples),
-                        statsTriple(encodeSamples), statsTriple(submitSamples),
-                        statsTriple(intervalSamples), statsTriple(vertexSamples),
-                        statsTriple(uploadByteSamples), statsTriple(drawCallSamples));
+        qInfo().noquote() << QStringLiteral(
+                                 "[%1Stats] frames=%2 cpuMs=%3 uploadMs=%4 encodeMs=%5 "
+                                 "submitMs=%6 intervalMs=%7 vertices=%8 uploadBytes=%9 draws=%10")
+                                 .arg(diagnosticsTag)
+                                 .arg(cpuSamples.size())
+                                 .arg(statsTriple(cpuSamples), statsTriple(uploadSamples),
+                                      statsTriple(encodeSamples), statsTriple(submitSamples),
+                                      statsTriple(intervalSamples), statsTriple(vertexSamples),
+                                      statsTriple(uploadByteSamples), statsTriple(drawCallSamples));
         cpuSamples.clear();
         uploadSamples.clear();
         encodeSamples.clear();
@@ -385,8 +415,8 @@ public:
             return;
         failureRequested = true;
         qCritical().noquote() << QStringLiteral("[%1] %2").arg(diagnosticsTag, reason);
-        QMetaObject::invokeMethod(q, [this, reason] { emit q->backendFailed(reason); },
-                                  Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            q, [this, reason] { emit q->backendFailed(reason); }, Qt::QueuedConnection);
     }
 
     void release() {
@@ -498,4 +528,5 @@ void EditorRhiWidget::onFrameSubmitted() {
 }
 
 void EditorRhiWidget::onDevicePixelRatioChanged() {
+    d->invalidateTextures();
 }

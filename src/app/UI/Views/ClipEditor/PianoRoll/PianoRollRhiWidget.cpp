@@ -2764,6 +2764,7 @@ void PianoRollRhiWidget::onRhiReady() {
 }
 
 void PianoRollRhiWidget::onDevicePixelRatioChanged() {
+    EditorRhiWidget::onDevicePixelRatioChanged();
     d->glyphAtlas.clear();
     d->scheduleSnapshot();
 }

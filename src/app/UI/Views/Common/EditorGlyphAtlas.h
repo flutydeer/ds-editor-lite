@@ -3,10 +3,16 @@
 
 #include "EditorRhiWidget.h"
 
+#include <QColor>
 #include <QFont>
+#include <QFontMetricsF>
 #include <QHash>
-#include <QRawFont>
+#include <QImage>
+#include <QRect>
 #include <QRectF>
+#include <QSize>
+#include <QString>
+#include <QVector>
 
 #include <memory>
 #include <vector>
@@ -23,10 +29,10 @@ public:
     [[nodiscard]] double hitRate() const;
 
 private:
-    struct GlyphEntry {
+    struct Block {
         int pageId = -1;
-        QRect rect;
-        QPointF bearing;
+        QRect rect;        // 页内分配区域（含 padding），坐标在页内像素网格上
+        QRect contentRect; // 页内实际文本内容区域（不含 padding）
         quint64 lastUse = 0;
     };
 
@@ -41,11 +47,13 @@ private:
         QVector<EditorRhiTextVertex> vertices;
     };
 
-    GlyphEntry *ensureGlyph(const QRawFont &font, quint32 glyphIndex);
-    Page *allocatePageFor(const QSize &glyphSize);
+    Block *ensureBlock(const QFont &font, const QString &text);
+    Page *allocatePageFor(const QSize &blockSize);
     Page *createPage();
     void clearPage(Page &page);
-    [[nodiscard]] QString glyphKey(const QRawFont &font, quint32 glyphIndex) const;
+    [[nodiscard]] QString blockKey(const QFont &font, const QString &text) const;
+    [[nodiscard]] static QSize measureTextPixels(const QFont &font, const QString &text,
+                                                 int padding);
     static void appendTexturedRect(QVector<EditorRhiTextVertex> &vertices, const QRectF &target,
                                    const QRectF &sourcePixels, const QSize &textureSize,
                                    const QColor &color);
@@ -57,7 +65,7 @@ private:
     quint64 m_hitCount = 0;
     quint64 m_missCount = 0;
     std::vector<std::unique_ptr<Page>> m_pages;
-    QHash<QString, GlyphEntry> m_glyphs;
+    QHash<QString, Block> m_blocks;
 };
 
 #endif // EDITORGLYPHATLAS_H

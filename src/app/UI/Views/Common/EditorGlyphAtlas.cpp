@@ -1,11 +1,23 @@
 #include "EditorGlyphAtlas.h"
 
-#include <QGlyphRun>
+#include <QFontInfo>
 #include <QPainter>
-#include <QRawFont>
-#include <QTextLayout>
+#include <QTextOption>
 
 #include <algorithm>
+#include <cmath>
+
+namespace {
+    constexpr int kBlockPadding = 1;
+}
+
+QSize EditorGlyphAtlas::measureTextPixels(const QFont &font, const QString &text,
+                                          const int padding) {
+    QFontMetricsF metrics(font);
+    const auto width = static_cast<int>(std::ceil(metrics.horizontalAdvance(text)));
+    const auto height = static_cast<int>(std::ceil(metrics.height()));
+    return QSize(width + 2 * padding, height + 2 * padding);
+}
 
 EditorGlyphAtlas::EditorGlyphAtlas(const QSize pageSize, const int maximumPages)
     : m_pageSize(pageSize.expandedTo(QSize(64, 64))), m_maximumPages(std::max(1, maximumPages)) {
@@ -19,7 +31,7 @@ void EditorGlyphAtlas::beginFrame() {
 
 void EditorGlyphAtlas::clear() {
     m_pages.clear();
-    m_glyphs.clear();
+    m_blocks.clear();
     m_nextPageId = 0;
     m_hitCount = 0;
     m_missCount = 0;
@@ -31,45 +43,32 @@ void EditorGlyphAtlas::appendText(const QString &text, const QFont &physicalFont
     if (text.isEmpty() || color.alpha() == 0)
         return;
 
-    QTextLayout layout(text, physicalFont);
-    layout.beginLayout();
-    const auto line = layout.createLine();
-    layout.endLayout();
-    if (!line.isValid())
+    auto *block = ensureBlock(physicalFont, text);
+    if (!block || block->rect.isEmpty())
         return;
+    auto pageIterator = std::find_if(m_pages.begin(), m_pages.end(),
+                                     [block](const auto &p) { return p->id == block->pageId; });
+    if (pageIterator == m_pages.end())
+        return;
+    auto &page = **pageIterator;
+    page.lastUse = m_useCounter;
+    block->lastUse = m_useCounter;
 
-    const auto runs = line.glyphRuns();
-    for (const auto &run : runs) {
-        const auto rawFont = run.rawFont();
-        const auto glyphIndexes = run.glyphIndexes();
-        const auto positions = run.positions();
-        const auto count = std::min(glyphIndexes.size(), positions.size());
-        for (qsizetype i = 0; i < count; ++i) {
-            auto *entry = ensureGlyph(rawFont, glyphIndexes.at(i));
-            if (!entry || entry->rect.isEmpty())
-                continue;
-            auto pageIterator =
-                std::find_if(m_pages.begin(), m_pages.end(),
-                             [entry](const auto &p) { return p->id == entry->pageId; });
-            if (pageIterator == m_pages.end())
-                continue;
-            auto &page = **pageIterator;
-            page.lastUse = m_useCounter;
-            entry->lastUse = m_useCounter;
-
-            QRectF target(physicalTopLeft + positions.at(i) + entry->bearing, entry->rect.size());
-            QRectF source(entry->rect);
-            if (!physicalClip.isEmpty()) {
-                const auto clipped = target.intersected(physicalClip);
-                if (clipped.isEmpty())
-                    continue;
-                const auto delta = clipped.topLeft() - target.topLeft();
-                source = QRectF(source.topLeft() + delta, clipped.size());
-                target = clipped;
-            }
-            appendTexturedRect(page.vertices, target, source, page.image.size(), color);
-        }
+    // Snap the quad to the device-pixel grid so each source texel maps 1:1 to a
+    // destination pixel. Combined with a Linear sampler this removes the
+    // interpolation blur the old fractional glyph quads produced.
+    const QPointF snappedTopLeft(std::round(physicalTopLeft.x()), std::round(physicalTopLeft.y()));
+    QRectF target(snappedTopLeft, block->contentRect.size());
+    QRectF source(block->contentRect);
+    if (!physicalClip.isEmpty()) {
+        const auto clipped = target.intersected(physicalClip);
+        if (clipped.isEmpty())
+            return;
+        const auto delta = clipped.topLeft() - target.topLeft();
+        source = QRectF(source.topLeft() + delta, clipped.size());
+        target = clipped;
     }
+    appendTexturedRect(page.vertices, target, source, page.image.size(), color);
 }
 
 QVector<EditorRhiTextureBatch> EditorGlyphAtlas::textureBatches() const {
@@ -88,65 +87,57 @@ double EditorGlyphAtlas::hitRate() const {
     return total > 0 ? static_cast<double>(m_hitCount) / static_cast<double>(total) : 1.0;
 }
 
-EditorGlyphAtlas::GlyphEntry *EditorGlyphAtlas::ensureGlyph(const QRawFont &font,
-                                                            const quint32 glyphIndex) {
-    const auto key = glyphKey(font, glyphIndex);
-    const auto existing = m_glyphs.find(key);
-    if (existing != m_glyphs.end()) {
+EditorGlyphAtlas::Block *EditorGlyphAtlas::ensureBlock(const QFont &font, const QString &text) {
+    const auto key = blockKey(font, text);
+    const auto existing = m_blocks.find(key);
+    if (existing != m_blocks.end()) {
         ++m_hitCount;
         existing->lastUse = m_useCounter;
         return &existing.value();
     }
     ++m_missCount;
 
-    auto alpha = font.alphaMapForGlyph(glyphIndex, QRawFont::PixelAntialiasing);
-    if (alpha.isNull())
+    const auto blockSize = measureTextPixels(font, text, kBlockPadding);
+    if (blockSize.width() + 2 > m_pageSize.width() || blockSize.width() > m_pageSize.width() ||
+        blockSize.height() > m_pageSize.height())
         return nullptr;
-    if (alpha.format() != QImage::Format_Alpha8)
-        alpha = alpha.convertToFormat(QImage::Format_Alpha8);
-
-    const auto bounds = font.boundingRect(glyphIndex);
-    auto *page = allocatePageFor(alpha.size());
+    auto *page = allocatePageFor(blockSize);
     if (!page)
         return nullptr;
-    if (page->cursorX + alpha.width() + 1 > m_pageSize.width()) {
-        page->cursorX = 1;
-        page->cursorY += page->rowHeight + 1;
-        page->rowHeight = 0;
-    }
-    if (page->cursorY + alpha.height() + 1 > m_pageSize.height())
-        return nullptr;
 
-    const QRect target(page->cursorX, page->cursorY, alpha.width(), alpha.height());
-    QImage rgba(alpha.size(), QImage::Format_RGBA8888_Premultiplied);
-    rgba.fill(Qt::white);
-    rgba.setAlphaChannel(alpha);
-    QPainter painter(&page->image);
-    painter.setCompositionMode(QPainter::CompositionMode_Source);
-    painter.drawImage(target.topLeft(), rgba);
-    painter.end();
+    const QRect targetBlock(page->cursorX, page->cursorY, blockSize.width(), blockSize.height());
+    const auto contentRect =
+        targetBlock.adjusted(kBlockPadding, kBlockPadding, -kBlockPadding, -kBlockPadding);
+    const QColor white(Qt::white);
+    {
+        QPainter painter(&page->image);
+        painter.setCompositionMode(QPainter::CompositionMode_Source);
+        painter.fillRect(targetBlock, QColor(0, 0, 0, 0));
+        painter.setPen(white);
+        painter.setFont(font);
+        const QTextOption option(Qt::AlignLeft | Qt::AlignVCenter);
+        painter.drawText(QRectF(contentRect), text, option);
+    }
     ++page->generation;
-    page->cursorX += alpha.width() + 1;
-    page->rowHeight = std::max(page->rowHeight, alpha.height());
+    page->cursorX += blockSize.width() + 1;
+    page->rowHeight = std::max(page->rowHeight, blockSize.height());
     page->lastUse = m_useCounter;
 
-    GlyphEntry entry;
-    entry.pageId = page->id;
-    entry.rect = target;
-    entry.bearing = bounds.topLeft();
-    entry.lastUse = m_useCounter;
-    const auto inserted = m_glyphs.insert(key, entry);
+    Block block;
+    block.pageId = page->id;
+    block.rect = targetBlock;
+    block.contentRect = contentRect;
+    block.lastUse = m_useCounter;
+    const auto inserted = m_blocks.insert(key, block);
     return &inserted.value();
 }
 
-EditorGlyphAtlas::Page *EditorGlyphAtlas::allocatePageFor(const QSize &glyphSize) {
-    if (glyphSize.width() + 2 > m_pageSize.width() || glyphSize.height() + 2 > m_pageSize.height())
-        return nullptr;
+EditorGlyphAtlas::Page *EditorGlyphAtlas::allocatePageFor(const QSize &blockSize) {
     for (const auto &page : m_pages) {
-        const auto fitsCurrentRow = page->cursorX + glyphSize.width() + 1 <= m_pageSize.width() &&
-                                    page->cursorY + glyphSize.height() + 1 <= m_pageSize.height();
+        const auto fitsCurrentRow = page->cursorX + blockSize.width() + 1 <= m_pageSize.width() &&
+                                    page->cursorY + blockSize.height() + 1 <= m_pageSize.height();
         const auto fitsNextRow =
-            page->cursorY + page->rowHeight + glyphSize.height() + 2 <= m_pageSize.height();
+            page->cursorY + page->rowHeight + blockSize.height() + 2 <= m_pageSize.height();
         if (fitsCurrentRow || fitsNextRow)
             return page.get();
     }
@@ -173,9 +164,9 @@ EditorGlyphAtlas::Page *EditorGlyphAtlas::createPage() {
 }
 
 void EditorGlyphAtlas::clearPage(Page &page) {
-    for (auto iterator = m_glyphs.begin(); iterator != m_glyphs.end();) {
+    for (auto iterator = m_blocks.begin(); iterator != m_blocks.end();) {
         if (iterator->pageId == page.id)
-            iterator = m_glyphs.erase(iterator);
+            iterator = m_blocks.erase(iterator);
         else
             ++iterator;
     }
@@ -188,11 +179,12 @@ void EditorGlyphAtlas::clearPage(Page &page) {
     ++page.generation;
 }
 
-QString EditorGlyphAtlas::glyphKey(const QRawFont &font, const quint32 glyphIndex) const {
+QString EditorGlyphAtlas::blockKey(const QFont &font, const QString &text) const {
+    const auto info = QFontInfo(font);
     return QStringLiteral("%1\n%2\n%3\n%4")
-        .arg(font.familyName(), font.styleName())
-        .arg(font.pixelSize(), 0, 'f', 3)
-        .arg(glyphIndex);
+        .arg(info.family(), info.styleName())
+        .arg(static_cast<double>(font.pixelSize()), 0, 'f', 3)
+        .arg(text);
 }
 
 void EditorGlyphAtlas::appendTexturedRect(QVector<EditorRhiTextVertex> &vertices,
