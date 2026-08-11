@@ -1,5 +1,6 @@
 #include "SpeakerMixList.h"
 #include "SpeakerMixBar.h"
+#include "UI/Controls/SmoothScroller.h"
 #include <lite/GUI/Controls/ColorDot.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include "UI/Utils/SpeakerMixColorResolver.h"
@@ -49,6 +50,11 @@ SpeakerMixList::SpeakerMixList(const QString &packageName, const QStringList &sp
     setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    {
+        // 鼠标滚轮 OutCubic 动画（触控板直通）
+        auto *smoothScroller = new SmoothScroller(this);
+        smoothScroller->attachTo(this);
+    }
 
     connect(model(), &QAbstractItemModel::rowsMoved, this, &SpeakerMixList::onItemOrderChanged);
     connect(m_mixBar, &SpeakerMixBar::valuesChanged, this, &SpeakerMixList::syncRowsFromBar);

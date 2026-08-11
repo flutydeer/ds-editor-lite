@@ -37,8 +37,7 @@ namespace {
             QStyledItemDelegate::initStyleOption(option, index);
             if (const auto foreground = index.data(Qt::ForegroundRole);
                 foreground.canConvert<QBrush>())
-                option->palette.setBrush(QPalette::HighlightedText,
-                                         foreground.value<QBrush>());
+                option->palette.setBrush(QPalette::HighlightedText, foreground.value<QBrush>());
         }
     };
 }
@@ -199,7 +198,8 @@ LogWindow::LogWindow(QWidget *parent) : Window(parent) {
     for (const auto level : {Log::Debug, Log::Info, Log::Warning, Log::Error, Log::Fatal})
         m_cbLevel->addItem({}, level);
     connect(m_cbLevel, &QComboBox::currentIndexChanged, this, [this](const int index) {
-        m_proxyModel->setMinimumLevel(static_cast<Log::LogLevel>(m_cbLevel->itemData(index).toInt()));
+        m_proxyModel->setMinimumLevel(
+            static_cast<Log::LogLevel>(m_cbLevel->itemData(index).toInt()));
     });
 
     m_cbTag = new QComboBox;
@@ -211,8 +211,7 @@ LogWindow::LogWindow(QWidget *parent) : Window(parent) {
 
     m_leSearch = new QLineEdit;
     m_leSearch->setClearButtonEnabled(true);
-    connect(m_leSearch, &QLineEdit::textChanged, m_proxyModel,
-            &LogFilterProxyModel::setSearchText);
+    connect(m_leSearch, &QLineEdit::textChanged, m_proxyModel, &LogFilterProxyModel::setSearchText);
 
     m_btnClear = new QPushButton;
     connect(m_btnClear, &QPushButton::clicked, m_model, &LogWindowModel::clear);
@@ -242,15 +241,14 @@ LogWindow::LogWindow(QWidget *parent) : Window(parent) {
     m_tableView->horizontalHeader()->setHighlightSections(false);
     // Right-click menu: copy selected rows / message text only
     m_tableView->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(m_tableView, &QTableView::customContextMenuRequested, this,
-            [this](const QPoint &pos) {
-                if (!m_tableView->selectionModel()->hasSelection())
-                    return;
-                QMenu menu(m_tableView);
-                menu.addAction(tr("Copy"), QKeySequence::Copy, this, &LogWindow::copySelectedRows);
-                menu.addAction(tr("Copy Message Only"), this, &LogWindow::copySelectedMessages);
-                menu.exec(m_tableView->viewport()->mapToGlobal(pos));
-            });
+    connect(m_tableView, &QTableView::customContextMenuRequested, this, [this](const QPoint &pos) {
+        if (!m_tableView->selectionModel()->hasSelection())
+            return;
+        QMenu menu(m_tableView);
+        menu.addAction(tr("Copy"), QKeySequence::Copy, this, &LogWindow::copySelectedRows);
+        menu.addAction(tr("Copy Message Only"), this, &LogWindow::copySelectedMessages);
+        menu.exec(m_tableView->viewport()->mapToGlobal(pos));
+    });
     m_tableView->setColumnWidth(LogWindowModel::TimeColumn, 100);
     m_tableView->setColumnWidth(LogWindowModel::LevelColumn, 48);
     m_tableView->setColumnWidth(LogWindowModel::TagColumn, 180);
@@ -262,11 +260,10 @@ LogWindow::LogWindow(QWidget *parent) : Window(parent) {
     m_tableView->setObjectName("logTableView");
 
     // Repaint existing rows so per-level colors pick up the new theme
-    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
-            [this](const QString &) {
-                m_proxyModel->invalidateFilters();
-                m_tableView->viewport()->update();
-            });
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this, [this](const QString &) {
+        m_proxyModel->invalidateFilters();
+        m_tableView->viewport()->update();
+    });
 
     // Scrolling away from the bottom pauses following; reaching the bottom resumes it.
     // The checkbox mirrors the state and can toggle it explicitly.

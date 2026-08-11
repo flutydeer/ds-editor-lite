@@ -6,6 +6,7 @@
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Modules/Audio/AudioContext.h"
+#include "UI/Controls/SmoothScroller.h"
 #include <lite/GUI/Controls/Button.h>
 
 #include <TalcsWidgets/AudioFileDialog.h>
@@ -40,6 +41,11 @@ AudioResourcePage::AudioResourcePage(const QList<int> &missingClipIds,
     m_tree->setRootIsDecorated(false);
     m_tree->setSelectionMode(QAbstractItemView::SingleSelection);
     m_tree->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    {
+        // 鼠标滚轮 OutCubic 动画（触控板直通）
+        auto *smoothScroller = new SmoothScroller(this);
+        smoothScroller->attachTo(m_tree);
+    }
 
     for (const auto clipId : missingClipIds)
         addRow(clipId, RowStatus::Missing);
@@ -64,8 +70,7 @@ AudioResourcePage::AudioResourcePage(const QList<int> &missingClipIds,
     layout->setContentsMargins({});
     setLayout(layout);
 
-    connect(m_tree, &QTreeWidget::itemSelectionChanged, this,
-            [this] { updateActionButtons(); });
+    connect(m_tree, &QTreeWidget::itemSelectionChanged, this, [this] { updateActionButtons(); });
     connect(m_btnRelocate, &Button::clicked, this, &AudioResourcePage::onRelocateClicked);
     connect(m_btnConfirm, &Button::clicked, this, &AudioResourcePage::onConfirmClicked);
 

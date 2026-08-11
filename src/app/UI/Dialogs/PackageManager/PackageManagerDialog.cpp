@@ -6,6 +6,7 @@
 #include <lite/Tasking/TaskManager.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/LineEdit.h>
+#include "UI/Controls/SmoothScroller.h"
 #include "UI/Dialogs/PackageManager/PackageDetailsContent.h"
 #include "UI/Dialogs/PackageManager/PackageDetailsHeader.h"
 #include "UI/Dialogs/PackageManager/PackageFilterProxyModel.h"
@@ -100,8 +101,7 @@ void PackageManagerDialog::onVerifyPackageRequested(const PackageInfo &package) 
             line += tr("\n  Actual: %1").arg(QString::fromStdString(item.actualValue));
         }
         if (!item.recommendation.empty()) {
-            line += tr("\n  Recommendation: %1")
-                        .arg(QString::fromStdString(item.recommendation));
+            line += tr("\n  Recommendation: %1").arg(QString::fromStdString(item.recommendation));
         }
         lines.append(line);
     }
@@ -129,22 +129,21 @@ void PackageManagerDialog::initUi() {
     proxyModel->setSourceModel(listModel);
     listView->setModel(proxyModel);
 
-    connect(listView->selectionModel(), &QItemSelectionModel::currentChanged,
-            this, &PackageManagerDialog::onSelectionChanged);
+    connect(listView->selectionModel(), &QItemSelectionModel::currentChanged, this,
+            &PackageManagerDialog::onSelectionChanged);
 
-    connect(leSearch, &QLineEdit::textChanged,
-            proxyModel, &PackageFilterProxyModel::setFilterString);
+    connect(leSearch, &QLineEdit::textChanged, proxyModel,
+            &PackageFilterProxyModel::setFilterString);
 
     // Repaint existing items so the delegate picks up the new theme colors
-    connect(ThemeManager::instance(), &ThemeManager::themeChanged, listView, [this] {
-        listView->viewport()->update();
-    });
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, listView,
+            [this] { listView->viewport()->update(); });
 
     if (appStatus->inferEngineEnvStatus != AppStatus::ModuleStatus::Ready) {
         btnInstall->setEnabled(false);
         connect(appStatus, &AppStatus::moduleStatusChanged, this,
                 &PackageManagerDialog::onModuleStatusChanged);
-    }  else
+    } else
         onInferenceModuleReady();
 
     resize(1280, 768);
@@ -186,6 +185,11 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     listView->setItemDelegate(new PackageItemDelegate(listView));
     listView->setContentsMargins({});
+    {
+        // 鼠标滚轮 OutCubic 动画（触控板直通）
+        auto *smoothScroller = new SmoothScroller(this);
+        smoothScroller->attachTo(listView);
+    }
 
     auto layout = new QVBoxLayout;
     layout->addLayout(actionBar);
@@ -226,6 +230,11 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
     detailsPanelContent->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     detailsPanelContent->setWidget(contentWidget);
     detailsPanelContent->viewport()->setContentsMargins({});
+    {
+        // 鼠标滚轮 OutCubic 动画（触控板直通）
+        auto *smoothScroller = new SmoothScroller(this);
+        smoothScroller->attachTo(detailsPanelContent);
+    }
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(detailsHeader);

@@ -7,6 +7,7 @@
 #include <QTimer>
 
 #include <lite/GUI/Controls/OverlayScrollBar.h>
+#include "UI/Controls/SmoothScroller.h"
 
 IOptionPage::IOptionPage(QWidget *parent) : QScrollArea(parent) {
     setAttribute(Qt::WA_StyledBackground);
@@ -14,6 +15,9 @@ IOptionPage::IOptionPage(QWidget *parent) : QScrollArea(parent) {
     // Overlay scrollbar: the native bar is disabled (no space reserved), so
     // scrollbar visibility never changes the content/card width.
     OverlayScrollBar::install(this, Qt::Vertical);
+    // 鼠标滚轮 OutCubic 动画（触控板直通，判定见 SmoothScroller）。
+    auto *smoothScroller = new SmoothScroller(this);
+    smoothScroller->attachTo(this);
 }
 
 void IOptionPage::initializePage() {

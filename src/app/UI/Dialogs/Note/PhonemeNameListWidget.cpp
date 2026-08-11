@@ -7,12 +7,18 @@
 #include "UI/Views/Common/LanguageComboBox.h"
 
 #include <lite/GUI/Controls/Menu.h>
+#include "UI/Controls/SmoothScroller.h"
 
 PhonemeNameListWidget::PhonemeNameListWidget(QWidget *parent) : QListWidget(parent) {
     setSelectionMode(QAbstractItemView::NoSelection);
     setContextMenuPolicy(Qt::CustomContextMenu);
     setMinimumWidth(400);
     setVerticalScrollMode(ScrollPerPixel);
+    {
+        // 鼠标滚轮 OutCubic 动画（触控板直通）
+        auto *smoothScroller = new SmoothScroller(this);
+        smoothScroller->attachTo(this);
+    }
     connect(this, &QListWidget::customContextMenuRequested, this,
             &PhonemeNameListWidget::onCustomContextMenuRequested);
 

@@ -10,6 +10,8 @@
 
 #include <synthrt/G2P/Core/Manager.h>
 
+#include "UI/Controls/SmoothScroller.h"
+
 namespace LangSetting {
     static QPair<QString, QString> extractConfig(const QString &g2pId) {
         const auto firstColonIndex = g2pId.indexOf(':');
@@ -42,6 +44,10 @@ namespace LangSetting {
         this->setDragDropOverwriteMode(false);
 
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+        // 鼠标滚轮 OutCubic 动画（触控板直通，判定见 SmoothScroller）
+        auto *smoothScroller = new SmoothScroller(this);
+        smoothScroller->attachTo(this);
 
         // TODO g2pMgr->g2ps() bug
         // for (const auto &g2pId : langOrder) {

@@ -26,6 +26,7 @@
 
 #include <lite/GUI/Controls/SvsExpressionSpinBox.h>
 #include <lite/GUI/Controls/ComboBox.h>
+#include "UI/Controls/SmoothScroller.h"
 
 #include <Modules/Audio/AudioExporter_p.h>
 
@@ -203,6 +204,11 @@ namespace Audio::Internal {
         mixingLayout->addRow(tr("&Source"), m_sourceComboBox);
         m_sourceListWidget = new QListWidget;
         m_sourceListWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
+        {
+            // 鼠标滚轮 OutCubic 动画（触控板直通）
+            auto *smoothScroller = new SmoothScroller(this);
+            smoothScroller->attachTo(m_sourceListWidget);
+        }
         for (const auto &trackName : projectTrackList()) {
             auto item = new QListWidgetItem(trackName);
             item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
@@ -770,8 +776,8 @@ namespace Audio::Internal {
                         QApplication::beep();
                         break;
                     case AudioExporter::R_Abort:
-                        mainPromptLabel->setText(
-                            tr("Export aborted with %Ln warning(s)", nullptr, warningList->count()));
+                        mainPromptLabel->setText(tr("Export aborted with %Ln warning(s)", nullptr,
+                                                    warningList->count()));
                         QApplication::beep();
                         keepPartialFileCheckBox->setVisible(true);
                         break;
