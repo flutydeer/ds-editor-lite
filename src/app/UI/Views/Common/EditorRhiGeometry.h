@@ -19,6 +19,9 @@ struct EditorRhiSolidVertex {
 namespace EditorRhiGeometry {
     void appendRect(QVector<EditorRhiSolidVertex> &vertices, const QRectF &physicalRect,
                     const QColor &color, float coverage = 1.0f);
+    void appendClippedTriangles(QVector<EditorRhiSolidVertex> &vertices,
+                                const QVector<EditorRhiSolidVertex> &triangles,
+                                const QRectF &physicalClipRect);
     void appendRoundedRect(QVector<EditorRhiSolidVertex> &vertices, const QRectF &physicalRect,
                            double radius, const QColor &color);
     void appendRoundedRectStroke(QVector<EditorRhiSolidVertex> &vertices,

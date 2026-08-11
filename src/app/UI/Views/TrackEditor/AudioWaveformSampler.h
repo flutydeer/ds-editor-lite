@@ -11,6 +11,8 @@
 #include <QString>
 #include <QVector>
 
+#include <optional>
+
 namespace talcs {
     class AbstractAudioFormatIO;
 }
@@ -47,9 +49,35 @@ public:
     AudioWaveformSampler &operator=(const AudioWaveformSampler &) = delete;
 
     void setPath(const QString &path);
+    void invalidate();
     [[nodiscard]] Result sample(const Request &request);
 
 private:
+    struct CacheKey {
+        const AudioInfoModel *audioInfo = nullptr;
+        const Timeline *timeline = nullptr;
+        const void *peakCacheData = nullptr;
+        const void *peakCacheMipmapData = nullptr;
+        int materialStartTick = 0;
+        int visibleStartTick = 0;
+        int chunkSize = 0;
+        int mipmapScale = 0;
+        int sampleRate = 0;
+        int channels = 0;
+        long long frames = 0;
+        qsizetype peakCacheSize = 0;
+        qsizetype peakCacheMipmapSize = 0;
+        QRectF previewSceneRect;
+        QRectF visibleSceneRect;
+        double horizontalScale = 1.0;
+        double pixelsPerQuarterNote = 64.0;
+        double leftMarginPx = 0.0;
+        double devicePixelRatio = 1.0;
+
+        bool operator==(const CacheKey &) const = default;
+    };
+
+    [[nodiscard]] static CacheKey makeCacheKey(const Request &request);
     [[nodiscard]] bool ensureIO();
     void resetIO();
     [[nodiscard]] double tickToSamplePos(const Request &request, double tick) const;
@@ -64,6 +92,8 @@ private:
     QString m_path;
     talcs::AbstractAudioFormatIO *m_io = nullptr;
     QVector<float> m_ioBuffer;
+    std::optional<CacheKey> m_cacheKey;
+    Result m_cachedResult;
 };
 
 #endif // AUDIOWAVEFORMSAMPLER_H

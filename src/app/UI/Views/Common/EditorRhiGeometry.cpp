@@ -112,6 +112,76 @@ namespace {
                            0.0f, 0.0f);
         }
     }
+
+    enum class ClipEdge { Left, Right, Top, Bottom };
+
+    bool isInside(const EditorRhiSolidVertex &value, const ClipEdge edge, const QRectF &rect) {
+        switch (edge) {
+            case ClipEdge::Left:
+                return value.x >= rect.left();
+            case ClipEdge::Right:
+                return value.x <= rect.right();
+            case ClipEdge::Top:
+                return value.y >= rect.top();
+            case ClipEdge::Bottom:
+                return value.y <= rect.bottom();
+        }
+        return false;
+    }
+
+    EditorRhiSolidVertex interpolate(const EditorRhiSolidVertex &from,
+                                     const EditorRhiSolidVertex &to, const double amount) {
+        const auto t = static_cast<float>(std::clamp(amount, 0.0, 1.0));
+        const auto mix = [t](const float a, const float b) { return a + (b - a) * t; };
+        return {
+            mix(from.x, to.x),
+            mix(from.y, to.y),
+            mix(from.r, to.r),
+            mix(from.g, to.g),
+            mix(from.b, to.b),
+            mix(from.a, to.a),
+            mix(from.coverage, to.coverage),
+        };
+    }
+
+    EditorRhiSolidVertex intersection(const EditorRhiSolidVertex &from,
+                                      const EditorRhiSolidVertex &to, const ClipEdge edge,
+                                      const QRectF &rect) {
+        const auto vertical = edge == ClipEdge::Left || edge == ClipEdge::Right;
+        const auto boundary = vertical ? (edge == ClipEdge::Left ? rect.left() : rect.right())
+                                       : (edge == ClipEdge::Top ? rect.top() : rect.bottom());
+        const auto fromCoordinate = vertical ? from.x : from.y;
+        const auto toCoordinate = vertical ? to.x : to.y;
+        const auto delta = toCoordinate - fromCoordinate;
+        const auto amount = std::abs(delta) > 0.000001 ? (boundary - fromCoordinate) / delta : 0.0;
+        auto result = interpolate(from, to, amount);
+        if (vertical)
+            result.x = static_cast<float>(boundary);
+        else
+            result.y = static_cast<float>(boundary);
+        return result;
+    }
+
+    qsizetype clipPolygon(const std::array<EditorRhiSolidVertex, 8> &polygon,
+                          const qsizetype polygonSize, const ClipEdge edge, const QRectF &rect,
+                          std::array<EditorRhiSolidVertex, 8> &result) {
+        if (polygonSize == 0)
+            return 0;
+        auto resultSize = qsizetype(0);
+        auto previous = polygon[polygonSize - 1];
+        auto previousInside = isInside(previous, edge, rect);
+        for (qsizetype index = 0; index < polygonSize; ++index) {
+            const auto &current = polygon[index];
+            const auto currentInside = isInside(current, edge, rect);
+            if (currentInside != previousInside)
+                result[resultSize++] = intersection(previous, current, edge, rect);
+            if (currentInside)
+                result[resultSize++] = current;
+            previous = current;
+            previousInside = currentInside;
+        }
+        return resultSize;
+    }
 }
 
 void EditorRhiGeometry::appendRect(QVector<EditorRhiSolidVertex> &vertices,
@@ -125,6 +195,36 @@ void EditorRhiGeometry::appendRect(QVector<EditorRhiSolidVertex> &vertices,
     const auto bottomRight = physicalRect.bottomRight();
     appendTriangle(vertices, topLeft, topRight, bottomRight, color, coverage, coverage, coverage);
     appendTriangle(vertices, topLeft, bottomRight, bottomLeft, color, coverage, coverage, coverage);
+}
+
+void EditorRhiGeometry::appendClippedTriangles(QVector<EditorRhiSolidVertex> &vertices,
+                                               const QVector<EditorRhiSolidVertex> &triangles,
+                                               const QRectF &physicalClipRect) {
+    const auto clipRect = physicalClipRect.normalized();
+    if (clipRect.isEmpty() || triangles.size() < 3)
+        return;
+
+    vertices.reserve(vertices.size() + triangles.size());
+    for (qsizetype index = 0; index + 2 < triangles.size(); index += 3) {
+        std::array<EditorRhiSolidVertex, 8> buffers[2];
+        auto *polygon = &buffers[0];
+        auto *clipped = &buffers[1];
+        (*polygon)[0] = triangles[index];
+        (*polygon)[1] = triangles[index + 1];
+        (*polygon)[2] = triangles[index + 2];
+        auto polygonSize = qsizetype(3);
+        for (const auto edge : {ClipEdge::Left, ClipEdge::Right, ClipEdge::Top, ClipEdge::Bottom}) {
+            polygonSize = clipPolygon(*polygon, polygonSize, edge, clipRect, *clipped);
+            std::swap(polygon, clipped);
+            if (polygonSize < 3)
+                break;
+        }
+        for (qsizetype vertexIndex = 1; vertexIndex + 1 < polygonSize; ++vertexIndex) {
+            vertices.append((*polygon)[0]);
+            vertices.append((*polygon)[vertexIndex]);
+            vertices.append((*polygon)[vertexIndex + 1]);
+        }
+    }
 }
 
 void EditorRhiGeometry::appendRoundedRect(QVector<EditorRhiSolidVertex> &vertices,

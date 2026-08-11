@@ -28,11 +28,13 @@ void AudioClipView::setPath(const QString &path) {
 
 void AudioClipView::setTimeline(const Timeline &timeline) {
     m_timeline = timeline;
+    m_waveformSampler.invalidate();
     update();
 }
 
 void AudioClipView::setAudioInfo(const AudioInfoModel &info) {
     m_audioInfo = info;
+    m_waveformSampler.invalidate();
     update();
 }
 

@@ -25,6 +25,12 @@ void AudioWaveformSampler::setPath(const QString &path) {
         return;
     resetIO();
     m_path = path;
+    invalidate();
+}
+
+void AudioWaveformSampler::invalidate() {
+    m_cacheKey.reset();
+    m_cachedResult = {};
 }
 
 AudioWaveformSampler::Result AudioWaveformSampler::sample(const Request &request) {
@@ -32,8 +38,13 @@ AudioWaveformSampler::Result AudioWaveformSampler::sample(const Request &request
         request.visibleSceneRect.isEmpty() || request.horizontalScale <= 0.0 ||
         request.pixelsPerQuarterNote <= 0.0 || request.devicePixelRatio <= 0.0 ||
         request.audioInfo->sampleRate <= 0 || request.audioInfo->chunkSize <= 0) {
+        invalidate();
         return {};
     }
+
+    const auto cacheKey = makeCacheKey(request);
+    if (m_cacheKey == cacheKey)
+        return m_cachedResult;
 
     const auto ticksPerScenePixel =
         AppGlobal::ticksPerQuarterNote / (request.horizontalScale * request.pixelsPerQuarterNote);
@@ -50,7 +61,34 @@ AudioWaveformSampler::Result AudioWaveformSampler::sample(const Request &request
         result = sampleSubChunkPeakMode(request);
     else
         result = sampleCurveMode(request);
+    m_cacheKey = cacheKey;
+    m_cachedResult = result;
     return result;
+}
+
+AudioWaveformSampler::CacheKey AudioWaveformSampler::makeCacheKey(const Request &request) {
+    const auto &info = *request.audioInfo;
+    return {
+        .audioInfo = request.audioInfo,
+        .timeline = request.timeline,
+        .peakCacheData = info.peakCache.constData(),
+        .peakCacheMipmapData = info.peakCacheMipmap.constData(),
+        .materialStartTick = request.materialStartTick,
+        .visibleStartTick = request.visibleStartTick,
+        .chunkSize = info.chunkSize,
+        .mipmapScale = info.mipmapScale,
+        .sampleRate = info.sampleRate,
+        .channels = info.channels,
+        .frames = info.frames,
+        .peakCacheSize = info.peakCache.size(),
+        .peakCacheMipmapSize = info.peakCacheMipmap.size(),
+        .previewSceneRect = request.previewSceneRect,
+        .visibleSceneRect = request.visibleSceneRect,
+        .horizontalScale = request.horizontalScale,
+        .pixelsPerQuarterNote = request.pixelsPerQuarterNote,
+        .leftMarginPx = request.leftMarginPx,
+        .devicePixelRatio = request.devicePixelRatio,
+    };
 }
 
 bool AudioWaveformSampler::ensureIO() {

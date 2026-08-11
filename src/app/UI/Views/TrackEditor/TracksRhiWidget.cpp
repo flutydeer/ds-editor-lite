@@ -176,6 +176,8 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
         scheduleSnapshot();
     });
     connect(appModel, &AppModel::timelineChanged, this, [this] {
+        for (const auto &sampler : m_audioWaveformSamplers)
+            sampler->invalidate();
         updateAutoPageTurnAvailability();
         scheduleSnapshot();
     });
@@ -708,7 +710,11 @@ void TracksRhiWidget::rebuildModelConnections() {
         });
         for (const auto *clip : track->clips()) {
             disconnect(clip, nullptr, this, nullptr);
-            connect(clip, &Clip::propertyChanged, this, &TracksRhiWidget::scheduleSnapshot);
+            connect(clip, &Clip::propertyChanged, this, [this, clip] {
+                if (const auto sampler = m_audioWaveformSamplers.value(clip->id()))
+                    sampler->invalidate();
+                scheduleSnapshot();
+            });
             if (const auto *singing = qobject_cast<const SingingClip *>(clip)) {
                 connect(singing, &SingingClip::defaultLanguageChanged, this,
                         &TracksRhiWidget::scheduleSnapshot);
@@ -751,19 +757,18 @@ void TracksRhiWidget::appendGrid(EditorRhiFrameData &frame, const double dpr) co
 
 void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
     m_clipSnapshots.clear();
-    QSet<int> audioClipIds;
+    QSet<int> sampledAudioClipIds;
     const auto visiblePhysical = QRectF(m_viewport.visibleSceneRect().topLeft() * dpr,
                                         m_viewport.visibleSceneRect().size() * dpr)
                                      .adjusted(-width() * dpr, 0, width() * dpr, 0);
     const auto &tracks = appModel->tracks();
     for (int trackIndex = 0; trackIndex < tracks.size(); ++trackIndex) {
         for (const auto *clip : tracks.at(trackIndex)->clips()) {
-            if (clip->clipType() == IClip::Audio)
-                audioClipIds.insert(clip->id());
             auto snapshot = buildClipSnapshot(clip, trackIndex, dpr);
             if (!visiblePhysical.intersects(snapshot.physicalRect))
                 continue;
             if (const auto audio = qobject_cast<const AudioClip *>(clip)) {
+                sampledAudioClipIds.insert(snapshot.id);
                 auto &sampler = m_audioWaveformSamplers[snapshot.id];
                 if (!sampler)
                     sampler = std::make_shared<AudioWaveformSampler>();
@@ -781,7 +786,7 @@ void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
     }
     for (auto iterator = m_audioWaveformSamplers.begin();
          iterator != m_audioWaveformSamplers.end();) {
-        if (audioClipIds.contains(iterator.key()))
+        if (sampledAudioClipIds.contains(iterator.key()))
             ++iterator;
         else
             iterator = m_audioWaveformSamplers.erase(iterator);
@@ -927,13 +932,10 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
         const auto waveformColor = clip.selected ? selectedFill : fill;
         const auto physicalCameraOffset =
             QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr;
-        const auto cameraCorrection =
-            physicalCameraOffset - QPointF(std::round(m_viewport.horizontalOffset()),
-                                           std::round(m_viewport.verticalOffset())) *
-                                       dpr;
-        const auto physicalWaveformPoint = [dpr, cameraCorrection](const QPointF &point) {
-            return point * dpr + cameraCorrection + QPointF(0.0, -0.5);
+        const auto physicalWaveformPoint = [dpr](const QPointF &point) {
+            return point * dpr + QPointF(0.0, -0.5);
         };
+        QVector<EditorRhiSolidVertex> waveformVertices;
         if (clip.waveform.geometry == AudioWaveformSampler::Geometry::FilledPeaks) {
             QVector<QPointF> top;
             QVector<QPointF> bottom;
@@ -943,7 +945,7 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
                 top.append(physicalWaveformPoint({point.x, point.yMax}));
                 bottom.append(physicalWaveformPoint({point.x, point.yMin}));
             }
-            EditorRhiGeometry::appendAntialiasedWaveform(frame.solidVertices, top, bottom, preview,
+            EditorRhiGeometry::appendAntialiasedWaveform(waveformVertices, top, bottom, preview,
                                                          waveformColor, 0.75);
 
             auto flatRunStart = -1;
@@ -959,7 +961,7 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
                     const auto runEnd = physicalWaveformPoint(
                         {clip.waveform.peaks[index - 1].x, clip.waveform.peaks[index - 1].yMax});
                     EditorRhiGeometry::appendPixelAlignedHorizontalLine(
-                        frame.solidVertices, runStart.y(), runStart.x(), runEnd.x(), waveformColor);
+                        waveformVertices, runStart.y(), runStart.x(), runEnd.x(), waveformColor);
                     flatRunStart = -1;
                 }
             }
@@ -969,7 +971,7 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
                 const auto runEnd = physicalWaveformPoint(
                     {clip.waveform.peaks.constLast().x, clip.waveform.peaks.constLast().yMax});
                 EditorRhiGeometry::appendPixelAlignedHorizontalLine(
-                    frame.solidVertices, runStart.y(), runStart.x(), runEnd.x(), waveformColor);
+                    waveformVertices, runStart.y(), runStart.x(), runEnd.x(), waveformColor);
             }
         } else if (clip.waveform.geometry == AudioWaveformSampler::Geometry::VerticalPeaks) {
             auto cosmeticLineOffset = 0.0;
@@ -990,7 +992,7 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
                 const auto lineX = std::floor(top.x() - physicalCameraOffset.x()) +
                                    physicalCameraOffset.x() + cosmeticLineOffset;
                 EditorRhiGeometry::appendRect(
-                    frame.solidVertices,
+                    waveformVertices,
                     QRectF(lineX, lineTop, 1.0, std::max(1.0, lineBottom - lineTop)),
                     waveformColor);
             }
@@ -999,16 +1001,17 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
             curve.reserve(clip.waveform.curve.size());
             for (const auto &point : clip.waveform.curve)
                 curve.append(physicalWaveformPoint(point));
-            EditorRhiGeometry::appendAntialiasedHairline(frame.solidVertices, curve, waveformColor);
+            EditorRhiGeometry::appendAntialiasedHairline(waveformVertices, curve, waveformColor);
             const auto radius = clip.waveform.sampleDotRadius * dpr;
             for (const auto &point : clip.waveform.sampleDots) {
                 const auto center = physicalWaveformPoint(point);
                 EditorRhiGeometry::appendRoundedRect(
-                    frame.solidVertices,
+                    waveformVertices,
                     QRectF(center.x() - radius, center.y() - radius, radius * 2.0, radius * 2.0),
                     radius, waveformColor);
             }
         }
+        EditorRhiGeometry::appendClippedTriangles(frame.solidVertices, waveformVertices, preview);
     }
 }
 
@@ -1074,9 +1077,6 @@ AudioWaveformSampler::Result TracksRhiWidget::sampleAudioWaveform(AudioWaveformS
                clip.physicalRect.width(), clip.physicalRect.height() - 20.0 * dpr);
     const auto previewScene = QRectF(previewPhysical.left() / dpr, previewPhysical.top() / dpr,
                                      previewPhysical.width() / dpr, previewPhysical.height() / dpr);
-    auto waveformVisibleRect = m_viewport.visibleSceneRect();
-    waveformVisibleRect.moveTo(std::round(waveformVisibleRect.left()),
-                               std::round(waveformVisibleRect.top()));
     const auto &timeline = appModel->timeline();
     return sampler.sample({
         .audioInfo = &audioInfo,
@@ -1084,7 +1084,7 @@ AudioWaveformSampler::Result TracksRhiWidget::sampleAudioWaveform(AudioWaveformS
         .materialStartTick = clip.contentStartTick,
         .visibleStartTick = clip.visibleStartTick,
         .previewSceneRect = previewScene,
-        .visibleSceneRect = waveformVisibleRect,
+        .visibleSceneRect = m_viewport.visibleSceneRect(),
         .horizontalScale = scaleX(),
         .pixelsPerQuarterNote = pixelsPerQuarterNote,
         .leftMarginPx = m_leftMarginPx,
