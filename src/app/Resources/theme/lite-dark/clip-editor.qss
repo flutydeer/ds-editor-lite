@@ -172,6 +172,10 @@ PianoRollGraphicsView, PianoRollRhiWidget {
     qproperty-barLineColor: ${editor.grid.bar};
     qproperty-beatLineColor: ${editor.grid.beat};
     qproperty-commonLineColor: ${editor.grid.subdivision};
+    qproperty-playPosIndicatorColor: ${editor.playhead};
+    qproperty-lastPlayPosIndicatorColor: ${editor.lastPlayhead};
+    qproperty-rubberBandBorderColor: ${editor.selection.border};
+    qproperty-rubberBandFillColor: ${editor.selection.fill};
 }
 
 PianoRollGraphicsView {

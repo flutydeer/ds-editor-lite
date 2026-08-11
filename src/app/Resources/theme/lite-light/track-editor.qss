@@ -208,6 +208,16 @@ TracksGraphicsView {
 
 /* TracksRhiWidget */
 TracksRhiWidget {
+    qproperty-backgroundColor: ${editor.canvasAlternate};
+    qproperty-barLineColor: ${editor.grid.bar};
+    qproperty-beatLineColor: ${editor.grid.beat};
+    qproperty-commonLineColor: ${editor.grid.subdivision};
+    qproperty-playPosIndicatorColor: ${editor.playhead};
+    qproperty-lastPlayPosIndicatorColor: ${editor.lastPlayhead};
+    qproperty-selectedTrackColor: ${surface.raised};
+    qproperty-clipSelectedBorderColor: ${text.emphasis};
+    qproperty-rubberBandBorderColor: ${editor.selection.border};
+    qproperty-rubberBandFillColor: ${editor.selection.fill};
     qproperty-dropHighlightColor: ${selection.hoverFill};
     qproperty-dropIndicatorColor: ${editor.playhead};
 }

@@ -5,6 +5,7 @@
 #include "Controller/TrackController.h"
 #include "Global/AppGlobal.h"
 #include "Global/TracksEditorGlobal.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/ITimelinePainter.h"
@@ -24,8 +25,10 @@
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QFontMetricsF>
 #include <QHideEvent>
 #include <QKeyEvent>
+#include <QLocale>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
@@ -41,6 +44,40 @@
 using namespace TracksEditorGlobal;
 
 namespace {
+    constexpr double kRasterLineOpacity = 0.25;
+
+    QColor withOpacity(const QColor &source, const double opacity) {
+        auto color = source;
+        color.setAlphaF(color.alphaF() * opacity);
+        return color;
+    }
+
+    QString commonClipTitle(const Clip::ClipCommonProperties &properties, const int id,
+                            const double scaleX, const double scaleY) {
+        const auto showDebug = appOptions->developer()->showClipDebugInfo;
+        const auto control =
+            (showDebug ? QStringLiteral("id: %1 ").arg(id) : QString()) +
+            QStringLiteral("%1 %2dB %3 ")
+                .arg(properties.name, QLocale().toString(properties.gain),
+                     properties.mute ? QStringLiteral("M") : QString());
+        if (!showDebug)
+            return control;
+        return control + QStringLiteral("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
+                             .arg(properties.start)
+                             .arg(properties.length)
+                             .arg(properties.clipStart)
+                             .arg(properties.clipLen)
+                             .arg(scaleX)
+                             .arg(scaleY);
+    }
+
+    QColor blendColor(const QColor &from, const QColor &to, double ratio) {
+        ratio = std::clamp(ratio, 0.0, 1.0);
+        return QColor(static_cast<int>(from.red() + (to.red() - from.red()) * ratio),
+                      static_cast<int>(from.green() + (to.green() - from.green()) * ratio),
+                      static_cast<int>(from.blue() + (to.blue() - from.blue()) * ratio));
+    }
+
     class TimelineEmitter final : public ITimelinePainter {
     public:
         using Callback = std::function<void(int, const QColor &)>;
@@ -67,18 +104,25 @@ namespace {
         }
 
     private:
-        void drawBar(QPainter *, const int tick, int) override {
-            m_callback(tick, m_bar);
-        }
-
-        void drawBeat(QPainter *, const int tick, int, int) override {
-            m_callback(tick, m_beat);
-        }
-
-        void drawSubdivision(QPainter *painter, const int tick, int, int) override {
-            auto color = m_common;
+        QColor withPainterOpacity(const QColor &source, const QPainter *painter) const {
+            auto color = source;
             color.setAlphaF(color.alphaF() * painter->opacity());
-            m_callback(tick, color);
+            return color;
+        }
+
+        void drawBar(QPainter *painter, const int tick, int) override {
+            m_callback(tick, withPainterOpacity(m_bar, painter));
+        }
+
+        void drawBeat(QPainter *painter, const int tick, int, int) override {
+            m_callback(tick, withPainterOpacity(m_beat, painter));
+        }
+
+        void drawSubdivision(QPainter *painter, const int tick, const int level,
+                             const int levelCount) override {
+            const auto ratio =
+                levelCount > 1 ? static_cast<double>(level) / (levelCount - 1) : 0.0;
+            m_callback(tick, withPainterOpacity(blendColor(m_beat, m_common, ratio), painter));
         }
 
         QColor m_bar;
@@ -87,9 +131,6 @@ namespace {
         Callback m_callback;
     };
 
-    QRectF insetRect(const QRectF &rect, const double inset) {
-        return rect.adjusted(inset, inset, -inset, -inset);
-    }
 }
 
 TracksRhiWidget::TracksRhiWidget(QWidget *parent)
@@ -143,8 +184,17 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
             &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::clipSelectionChanged, this, &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::activeClipIdChanged, this, &TracksRhiWidget::scheduleSnapshot);
+    connect(appStatus, &AppStatus::pianoRollVisibleRectChanged, this,
+            &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::projectEditableLengthChanged, this,
             &TracksRhiWidget::setSceneLength);
+    connect(appOptions, &AppOptions::optionsChanged, this,
+            [this](const AppOptionsGlobal::Option option) {
+                if (option == AppOptionsGlobal::DeveloperOptions ||
+                    option == AppOptionsGlobal::All) {
+                    scheduleSnapshot();
+                }
+            });
     m_positionThrottle.setSingleShot(true);
     m_positionThrottle.setInterval(33);
     connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
@@ -629,7 +679,7 @@ void TracksRhiWidget::onDevicePixelRatioChanged() {
 void TracksRhiWidget::rebuildSnapshot() {
     const auto dpr = devicePixelRatioF();
     EditorRhiFrameData frame;
-    frame.clearColor = QColor(30, 32, 36);
+    frame.clearColor = m_backgroundColor;
     frame.physicalCameraOffset =
         QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr;
     m_glyphAtlas.beginFrame();
@@ -638,9 +688,12 @@ void TracksRhiWidget::rebuildSnapshot() {
     appendPlaybackIndicators(frame, dpr);
     appendDropOverlay(frame, dpr);
     if (m_dragMode == DragMode::RectSelect) {
-        const QRectF rect(m_rubberBandStart * dpr, m_rubberBandEnd * dpr);
-        auto fill = QColor(155, 186, 255, 64);
-        EditorRhiGeometry::appendRect(frame.solidVertices, rect.normalized(), fill);
+        const auto rect = QRectF(m_rubberBandStart * dpr, m_rubberBandEnd * dpr).normalized();
+        const auto radius = std::min({6.0 * dpr, rect.width() * 0.5, rect.height() * 0.5});
+        EditorRhiGeometry::appendRoundedRect(frame.solidVertices, rect, radius,
+                                             m_rubberBandFillColor);
+        EditorRhiGeometry::appendRoundedRectStroke(frame.solidVertices, rect, radius, 1.5 * dpr,
+                                                   m_rubberBandBorderColor);
     }
     frame.textureBatches = m_glyphAtlas.textureBatches();
     submitFrame(std::move(frame));
@@ -658,6 +711,8 @@ void TracksRhiWidget::rebuildModelConnections() {
             disconnect(clip, nullptr, this, nullptr);
             connect(clip, &Clip::propertyChanged, this, &TracksRhiWidget::scheduleSnapshot);
             if (const auto *singing = qobject_cast<const SingingClip *>(clip)) {
+                connect(singing, &SingingClip::defaultLanguageChanged, this,
+                        &TracksRhiWidget::scheduleSnapshot);
                 connect(singing, &SingingClip::noteChanged, this,
                         &TracksRhiWidget::scheduleSnapshot);
                 connect(singing, &SingingClip::voiceContextChanged, this,
@@ -670,8 +725,6 @@ void TracksRhiWidget::rebuildModelConnections() {
 void TracksRhiWidget::appendGrid(EditorRhiFrameData &frame, const double dpr) const {
     const auto visible = m_viewport.visibleSceneRect();
     const auto sceneWidth = m_viewport.tickToSceneX(appStatus->projectEditableLength);
-    // One extra row for the virtual append slot at the bottom of the canvas
-    const auto sceneHeight = (appModel->tracks().size() + 1) * trackHeight * scaleY();
     if (appStatus->selectedTrackIndex >= 0) {
         const auto top = appStatus->selectedTrackIndex * trackHeight * scaleY();
         EditorRhiGeometry::appendRect(
@@ -679,19 +732,21 @@ void TracksRhiWidget::appendGrid(EditorRhiFrameData &frame, const double dpr) co
             QRectF(0, top * dpr, sceneWidth * dpr, trackHeight * scaleY() * dpr),
             m_selectedTrackColor);
     }
-    for (int row = 0; row <= appModel->tracks().size(); ++row) {
+    for (int row = 1; row <= appModel->tracks().size(); ++row) {
         const auto y = row * trackHeight * scaleY() * dpr;
-        EditorRhiGeometry::appendPixelAlignedHorizontalLine(frame.solidVertices, y, 0.0,
-                                                            sceneWidth * dpr, m_commonLineColor);
+        EditorRhiGeometry::appendPixelAlignedHorizontalLine(
+            frame.solidVertices, y, 0.0, sceneWidth * dpr,
+            withOpacity(m_commonLineColor, kRasterLineOpacity));
     }
 
     TimelineEmitter emitter;
     emitter.emitLines(appModel->timeline(), 128, m_viewport.startTick(), m_viewport.endTick(),
                       visible.width(), m_barLineColor, m_beatLineColor, m_commonLineColor,
-                      [this, &frame, dpr, sceneHeight](const int tick, const QColor &color) {
+                      [this, &frame, dpr, visible](const int tick, const QColor &color) {
                           EditorRhiGeometry::appendPixelAlignedVerticalLine(
-                              frame.solidVertices, m_viewport.tickToSceneX(tick) * dpr, 0.0,
-                              sceneHeight * dpr, color);
+                              frame.solidVertices, m_viewport.tickToSceneX(tick) * dpr,
+                              visible.top() * dpr, visible.bottom() * dpr,
+                              withOpacity(color, kRasterLineOpacity));
                       });
 }
 
@@ -719,55 +774,67 @@ void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
 void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &clip,
                                  const double dpr) {
     const auto &palette = *AppColorPalette::instance();
-    auto fill = clip.selected ? palette.clipBackgroundSelected(clip.colorIndex)
-                              : palette.clipBackground(clip.colorIndex);
+    auto fill = palette.clipBackground(clip.colorIndex);
+    auto selectedFill = palette.clipBackgroundSelected(clip.colorIndex);
     auto transparent = palette.clipBackgroundTransparent(clip.colorIndex);
     auto foreground = palette.clipForeground(clip.colorIndex);
-    auto border = clip.selected ? m_clipSelectedBorderColor : palette.clipBorder(clip.colorIndex);
+    auto border = clip.selected ? m_clipSelectedBorderColor : fill;
     if (clip.pastePreview) {
         constexpr double opacity = 0.35;
-        for (auto *color : {&fill, &transparent, &foreground, &border})
+        for (auto *color : {&fill, &selectedFill, &transparent, &foreground, &border})
             color->setAlphaF(color->alphaF() * opacity);
     }
     const auto radius = 4.0 * dpr;
+    const auto titleHeight = 20.0 * dpr;
+    const QRectF preview(clip.physicalRect.left(), clip.physicalRect.top() + titleHeight,
+                         clip.physicalRect.width(), clip.physicalRect.height() - titleHeight);
+    const auto hasPreview = preview.height() >= 32.0 * dpr;
+    const auto bodyColor = hasPreview ? transparent : (clip.selected ? selectedFill : fill);
     EditorRhiGeometry::appendRoundedRect(frame.solidVertices, clip.physicalRect, radius,
-                                         clip.physicalRect.height() >= 36.0 * dpr ? transparent
-                                                                                  : fill);
-    if (clip.selected || clip.active) {
-        EditorRhiGeometry::appendRoundedRect(frame.solidVertices, clip.physicalRect, radius,
-                                             border);
-        EditorRhiGeometry::appendRoundedRect(frame.solidVertices,
-                                             insetRect(clip.physicalRect, 1.25 * dpr),
-                                             std::max(0.0, radius - 1.25 * dpr), fill);
-    }
-    const auto titleHeight = std::min(24.0 * dpr, clip.physicalRect.height());
-    if (clip.physicalRect.height() >= 36.0 * dpr) {
-        EditorRhiGeometry::appendRoundedRect(
-            frame.solidVertices,
-            QRectF(clip.physicalRect.left(), clip.physicalRect.top(), clip.physicalRect.width(),
-                   titleHeight + radius),
-            radius, fill);
+                                         bodyColor);
+    if (hasPreview) {
+        const auto titleBottom = clip.physicalRect.top() + titleHeight - 1.2 * dpr - 0.75;
+        const QRectF titleRect(clip.physicalRect.left(), clip.physicalRect.top(),
+                               clip.physicalRect.width(),
+                               std::max(0.0, titleBottom - clip.physicalRect.top()));
+        const auto titleColor = clip.selected ? selectedFill : fill;
+        EditorRhiGeometry::appendRoundedRect(frame.solidVertices, titleRect, radius, titleColor);
         EditorRhiGeometry::appendRect(frame.solidVertices,
-                                      QRectF(clip.physicalRect.left(),
-                                             clip.physicalRect.top() + titleHeight,
-                                             clip.physicalRect.width(), radius),
-                                      fill);
+                                      QRectF(titleRect.left(), titleRect.top() + radius,
+                                             titleRect.width(), titleRect.height() - radius),
+                                      titleColor);
+    }
+    if (clip.selected || clip.active) {
+        EditorRhiGeometry::appendRoundedRectStroke(frame.solidVertices, clip.physicalRect, radius,
+                                                   1.2 * dpr, border, 0.5);
     }
 
     QFont font = this->font();
-    font.setPixelSize(std::max(8, qRound(12.0 * dpr)));
-    const auto textLeft = std::max(clip.physicalRect.left() + 5.0 * dpr,
-                                   m_viewport.horizontalOffset() * dpr + 4.0 * dpr);
-    m_glyphAtlas.appendText(clip.title, font,
-                            QPointF(textLeft, clip.physicalRect.top() + 3.0 * dpr), foreground,
-                            QRectF(clip.physicalRect.left() + 2.0 * dpr, clip.physicalRect.top(),
-                                   clip.physicalRect.width() - 4.0 * dpr, titleHeight));
+    const auto logicalPixelSize =
+        font.pixelSize() > 0 ? font.pixelSize() : font.pointSizeF() * logicalDpiY() / 72.0;
+    font.setPixelSize(std::max(1, qRound(logicalPixelSize * dpr)));
+    const QFontMetricsF metrics(font);
+    const auto rawLeft = clip.physicalRect.left() - 0.6 * dpr;
+    const auto rawRight = clip.physicalRect.right() + 0.6 * dpr;
+    const auto visibleLeft = m_viewport.horizontalOffset() * dpr;
+    const auto titleLeft = visibleLeft < rawLeft ? clip.physicalRect.left() : visibleLeft + 0.6 * dpr;
+    const auto titleWidth = rawRight - std::max(rawLeft, visibleLeft) - 2.4 * dpr;
+    constexpr double iconWidth = 4.0;
+    if (metrics.horizontalAdvance(clip.title) + iconWidth * dpr <= titleWidth &&
+        metrics.height() <= titleHeight) {
+        const auto textTop = hasPreview
+                                 ? clip.physicalRect.top()
+                                 : clip.physicalRect.top() +
+                                       (clip.physicalRect.height() - metrics.height()) * 0.5;
+        const QRectF textClip(titleLeft + iconWidth * dpr, clip.physicalRect.top(),
+                              titleWidth - iconWidth * dpr,
+                              std::min(titleHeight, clip.physicalRect.height()));
+        m_glyphAtlas.appendText(clip.title, font,
+                                QPointF(titleLeft + iconWidth * dpr, textTop), foreground,
+                                textClip);
+    }
 
-    const QRectF preview(clip.physicalRect.left() + dpr,
-                         clip.physicalRect.top() + titleHeight + dpr,
-                         clip.physicalRect.width() - 2.0 * dpr,
-                         clip.physicalRect.height() - titleHeight - 2.0 * dpr);
-    if (preview.width() < 8.0 || preview.height() < 8.0)
+    if (!hasPreview || preview.width() < 16.0 * dpr || preview.height() < 32.0 * dpr)
         return;
     if (clip.type == IClip::Singing && !clip.notes.isEmpty()) {
         auto low = 127;
@@ -777,17 +844,75 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
             high = std::max(high, note.key);
         }
         const auto noteHeight = std::min(16.0 * dpr, preview.height() / (high - low + 1));
+        const auto contentTop =
+            preview.top() + std::max(0.0, preview.height() - (high - low + 1) * noteHeight) * 0.5;
+        const auto noteColor = clip.selected ? selectedFill : fill;
         for (const auto &note : clip.notes) {
             const auto start = std::max(clip.visibleStartTick, clip.contentStartTick + note.start);
             const auto end =
                 std::min(clip.visibleEndTick, clip.contentStartTick + note.start + note.length);
             if (end <= start)
                 continue;
-            const auto left = m_viewport.tickToSceneX(start) * dpr;
-            const auto right = m_viewport.tickToSceneX(end) * dpr;
-            const auto top = preview.top() + (high - note.key) * noteHeight;
+            const auto left =
+                std::max(preview.left(), m_viewport.tickToSceneX(start) * dpr);
+            const auto right =
+                std::min(preview.right(), m_viewport.tickToSceneX(end) * dpr);
+            const auto top = contentTop + (high - note.key) * noteHeight;
             EditorRhiGeometry::appendRect(frame.solidVertices,
-                                          QRectF(left, top, right - left, noteHeight), fill);
+                                          QRectF(left, top, right - left, noteHeight), noteColor);
+        }
+
+        const QRectF pianoRollRect = appStatus->pianoRollVisibleRect;
+        if (clip.active && !pianoRollRect.isNull() && !pianoRollRect.isEmpty()) {
+            const auto overlayStart = std::max(
+                pianoRollRect.left() + clip.contentStartTick,
+                static_cast<double>(clip.visibleStartTick));
+            const auto overlayEnd = std::min(
+                pianoRollRect.right() + clip.contentStartTick,
+                static_cast<double>(clip.visibleEndTick));
+            if (overlayEnd > overlayStart) {
+                const auto overlayTop =
+                    contentTop + (high - pianoRollRect.bottom()) * noteHeight;
+                const auto overlayBottom =
+                    contentTop + (high - pianoRollRect.top()) * noteHeight;
+                const QRectF overlay(m_viewport.tickToSceneX(overlayStart) * dpr, overlayTop,
+                                     (m_viewport.tickToSceneX(overlayEnd) -
+                                      m_viewport.tickToSceneX(overlayStart)) *
+                                         dpr,
+                                     overlayBottom - overlayTop);
+                const auto overlayColor = palette.clipBorder(clip.colorIndex);
+                if (preview.contains(overlay)) {
+                    EditorRhiGeometry::appendRoundedRectStroke(
+                        frame.solidVertices, overlay, radius, 1.2 * dpr, overlayColor);
+                } else if (preview.intersects(overlay)) {
+                    const auto clipped = preview.intersected(overlay);
+                    const auto lineWidth = 1.2 * dpr;
+                    if (overlay.left() >= preview.left() && overlay.left() <= preview.right())
+                        EditorRhiGeometry::appendRect(
+                            frame.solidVertices,
+                            QRectF(overlay.left() - lineWidth * 0.5, clipped.top(), lineWidth,
+                                   clipped.height()),
+                            overlayColor);
+                    if (overlay.right() >= preview.left() && overlay.right() <= preview.right())
+                        EditorRhiGeometry::appendRect(
+                            frame.solidVertices,
+                            QRectF(overlay.right() - lineWidth * 0.5, clipped.top(), lineWidth,
+                                   clipped.height()),
+                            overlayColor);
+                    if (overlay.top() >= preview.top() && overlay.top() <= preview.bottom())
+                        EditorRhiGeometry::appendRect(
+                            frame.solidVertices,
+                            QRectF(clipped.left(), overlay.top() - lineWidth * 0.5,
+                                   clipped.width(), lineWidth),
+                            overlayColor);
+                    if (overlay.bottom() >= preview.top() && overlay.bottom() <= preview.bottom())
+                        EditorRhiGeometry::appendRect(
+                            frame.solidVertices,
+                            QRectF(clipped.left(), overlay.bottom() - lineWidth * 0.5,
+                                   clipped.width(), lineWidth),
+                            overlayColor);
+                }
+            }
         }
     } else if (clip.type == IClip::Audio && !clip.peaks.isEmpty()) {
         const auto count = clip.peaks.size();
@@ -810,14 +935,18 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
 }
 
 void TracksRhiWidget::appendPlaybackIndicators(EditorRhiFrameData &frame, const double dpr) const {
-    // One extra row for the virtual append slot at the bottom of the canvas
-    const auto height = (appModel->tracks().size() + 1) * trackHeight * scaleY() * dpr;
+    const auto visible = m_viewport.visibleSceneRect();
+    const auto top = visible.top() * dpr;
+    const auto bottom = visible.bottom() * dpr;
+    const auto lastX = m_viewport.tickToSceneX(m_lastPlaybackPosition) * dpr;
+    for (auto dashTop = top; dashTop < bottom; dashTop += 6.0 * dpr) {
+        EditorRhiGeometry::appendPixelAlignedVerticalLine(
+            frame.solidVertices, lastX, dashTop, std::min(dashTop + 4.0 * dpr, bottom),
+            withOpacity(m_lastPlayPosIndicatorColor, kRasterLineOpacity));
+    }
     EditorRhiGeometry::appendPixelAlignedVerticalLine(
-        frame.solidVertices, m_viewport.tickToSceneX(m_lastPlaybackPosition) * dpr, 0.0, height,
-        m_lastPlayPosIndicatorColor);
-    EditorRhiGeometry::appendPixelAlignedVerticalLine(
-        frame.solidVertices, m_viewport.tickToSceneX(m_playbackPosition) * dpr, 0.0, height,
-        m_playPosIndicatorColor);
+        frame.solidVertices, m_viewport.tickToSceneX(m_playbackPosition) * dpr, top, bottom,
+        withOpacity(m_playPosIndicatorColor, kRasterLineOpacity));
 }
 
 TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *clip,
@@ -843,14 +972,15 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
     result.physicalRect = QRectF(left, displayTrack * trackHeight * scaleY() * dpr, right - left,
                                  trackHeight * scaleY() * dpr)
                               .adjusted(0.6 * dpr, 1.2 * dpr, -0.6 * dpr, -1.2 * dpr);
-    result.title = props.name;
+    result.title = commonClipTitle(props, clip->id(), scaleX(), scaleY());
     if (const auto singing = qobject_cast<const SingingClip *>(clip)) {
         const auto singerName = singing->singerInfo().name();
         const auto speakerName = SpeakerMixDisplayUtils::speakerDisplayName(
             singing->singerInfo(), singing->speakerInfo(), singing->speakerMixData());
-        result.title += QStringLiteral("  %1%2").arg(
+        result.title += QStringLiteral("%1%2 %3 ").arg(
             singerName.isEmpty() ? tr("(No singer)") : singerName,
-            speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName);
+            speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName,
+            singing->defaultLanguage());
         for (const auto *note : singing->notes())
             result.notes.append({note->localStart(), note->length(), note->keyIndex()});
     } else if (const auto audio = qobject_cast<const AudioClip *>(clip)) {
@@ -890,7 +1020,7 @@ void TracksRhiWidget::showTrackPastePreview(const TrackPastePreviewData &data,
         snapshot.contentStartTick = properties.start;
         snapshot.visibleStartTick = properties.start + properties.clipStart;
         snapshot.visibleEndTick = snapshot.visibleStartTick + properties.clipLen;
-        snapshot.title = properties.name;
+        snapshot.title = commonClipTitle(properties, -1, scaleX(), scaleY());
         snapshot.pastePreview = true;
         const auto left = m_viewport.tickToSceneX(snapshot.visibleStartTick) * dpr;
         const auto right = m_viewport.tickToSceneX(snapshot.visibleEndTick) * dpr;
@@ -903,9 +1033,10 @@ void TracksRhiWidget::showTrackPastePreview(const TrackPastePreviewData &data,
             const auto speakerName = SpeakerMixDisplayUtils::speakerDisplayName(
                 targetTrack->singerInfo(), targetTrack->speakerInfo(),
                 targetTrack->speakerMixData());
-            snapshot.title += QStringLiteral("  %1%2").arg(
+            snapshot.title += QStringLiteral("%1%2 %3 ").arg(
                 singerName.isEmpty() ? tr("(No singer)") : singerName,
-                speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName);
+                speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName,
+                clip.defaultLanguage);
             for (const auto &note : clip.notes)
                 snapshot.notes.append({note.start, note.length, note.key});
         } else if (clip.type == IClip::Audio) {
@@ -1108,6 +1239,15 @@ QColor TracksRhiWidget::barLineColor() const {
     return m_barLineColor;
 }
 
+QColor TracksRhiWidget::backgroundColor() const {
+    return m_backgroundColor;
+}
+
+void TracksRhiWidget::setBackgroundColor(const QColor &color) {
+    m_backgroundColor = color;
+    scheduleSnapshot();
+}
+
 void TracksRhiWidget::setBarLineColor(const QColor &color) {
     m_barLineColor = color;
     scheduleSnapshot();
@@ -1164,5 +1304,23 @@ QColor TracksRhiWidget::clipSelectedBorderColor() const {
 
 void TracksRhiWidget::setClipSelectedBorderColor(const QColor &color) {
     m_clipSelectedBorderColor = color;
+    scheduleSnapshot();
+}
+
+QColor TracksRhiWidget::rubberBandBorderColor() const {
+    return m_rubberBandBorderColor;
+}
+
+void TracksRhiWidget::setRubberBandBorderColor(const QColor &color) {
+    m_rubberBandBorderColor = color;
+    scheduleSnapshot();
+}
+
+QColor TracksRhiWidget::rubberBandFillColor() const {
+    return m_rubberBandFillColor;
+}
+
+void TracksRhiWidget::setRubberBandFillColor(const QColor &color) {
+    m_rubberBandFillColor = color;
     scheduleSnapshot();
 }

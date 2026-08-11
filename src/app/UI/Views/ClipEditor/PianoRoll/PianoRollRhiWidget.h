@@ -46,6 +46,13 @@ class PianoRollRhiWidget final : public EditorRhiWidget,
     Q_PROPERTY(QColor barLineColor READ barLineColor WRITE setBarLineColor)
     Q_PROPERTY(QColor beatLineColor READ beatLineColor WRITE setBeatLineColor)
     Q_PROPERTY(QColor commonLineColor READ commonLineColor WRITE setCommonLineColor)
+    Q_PROPERTY(
+        QColor playPosIndicatorColor READ playPosIndicatorColor WRITE setPlayPosIndicatorColor)
+    Q_PROPERTY(QColor lastPlayPosIndicatorColor READ lastPlayPosIndicatorColor WRITE
+                   setLastPlayPosIndicatorColor)
+    Q_PROPERTY(
+        QColor rubberBandBorderColor READ rubberBandBorderColor WRITE setRubberBandBorderColor)
+    Q_PROPERTY(QColor rubberBandFillColor READ rubberBandFillColor WRITE setRubberBandFillColor)
 
 public:
     explicit PianoRollRhiWidget(QWidget *parent = nullptr);
@@ -150,6 +157,14 @@ private:
     void setBeatLineColor(const QColor &color);
     QColor commonLineColor() const;
     void setCommonLineColor(const QColor &color);
+    QColor playPosIndicatorColor() const;
+    void setPlayPosIndicatorColor(const QColor &color);
+    QColor lastPlayPosIndicatorColor() const;
+    void setLastPlayPosIndicatorColor(const QColor &color);
+    QColor rubberBandBorderColor() const;
+    void setRubberBandBorderColor(const QColor &color);
+    QColor rubberBandFillColor() const;
+    void setRubberBandFillColor(const QColor &color);
 };
 
 #endif // PIANOROLLRHIWIDGET_H
