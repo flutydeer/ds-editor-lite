@@ -138,8 +138,14 @@ EditorGlyphAtlas::Page *EditorGlyphAtlas::allocatePageFor(const QSize &blockSize
                                     page->cursorY + blockSize.height() + 1 <= m_pageSize.height();
         const auto fitsNextRow =
             page->cursorY + page->rowHeight + blockSize.height() + 2 <= m_pageSize.height();
-        if (fitsCurrentRow || fitsNextRow)
+        if (fitsCurrentRow)
             return page.get();
+        if (fitsNextRow) {
+            page->cursorX = 1;
+            page->cursorY += page->rowHeight + 1;
+            page->rowHeight = 0;
+            return page.get();
+        }
     }
     if (m_pages.size() < m_maximumPages)
         return createPage();
