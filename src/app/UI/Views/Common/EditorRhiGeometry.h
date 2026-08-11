@@ -19,6 +19,9 @@ struct EditorRhiSolidVertex {
 namespace EditorRhiGeometry {
     void appendRect(QVector<EditorRhiSolidVertex> &vertices, const QRectF &physicalRect,
                     const QColor &color, float coverage = 1.0f);
+    void appendClippedTriangles(QVector<EditorRhiSolidVertex> &vertices,
+                                const QVector<EditorRhiSolidVertex> &triangles,
+                                const QRectF &physicalClipRect);
     void appendRoundedRect(QVector<EditorRhiSolidVertex> &vertices, const QRectF &physicalRect,
                            double radius, const QColor &color);
     void appendRoundedRectStroke(QVector<EditorRhiSolidVertex> &vertices,
@@ -26,13 +29,20 @@ namespace EditorRhiGeometry {
                                  const QColor &color, double feather = 1.0);
     void appendPixelAlignedVerticalLine(QVector<EditorRhiSolidVertex> &vertices, double physicalX,
                                         double top, double bottom, const QColor &color);
-    void appendPixelAlignedHorizontalLine(QVector<EditorRhiSolidVertex> &vertices,
-                                          double physicalY, double left, double right,
-                                          const QColor &color);
+    void appendPixelAlignedHorizontalLine(QVector<EditorRhiSolidVertex> &vertices, double physicalY,
+                                          double left, double right, const QColor &color);
     void appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &vertices,
                                  const QVector<QPointF> &physicalPoints, double width,
                                  const QColor &color, double feather = 1.0,
                                  double miterLimit = 3.0);
+    void appendAntialiasedHairline(QVector<EditorRhiSolidVertex> &vertices,
+                                   const QVector<QPointF> &physicalPoints, const QColor &color,
+                                   double feather = 1.0, double miterLimit = 3.0);
+    void appendAntialiasedWaveform(QVector<EditorRhiSolidVertex> &vertices,
+                                   const QVector<QPointF> &physicalTop,
+                                   const QVector<QPointF> &physicalBottom,
+                                   const QRectF &physicalClipRect, const QColor &color,
+                                   double feather = 1.0);
 }
 
 #endif // EDITORRHIGEOMETRY_H
