@@ -2,12 +2,13 @@
 #define GETPRONUNCIATIONTASK_H
 
 #include "Modules/Inference/Models/NoteInferenceSnapshot.h"
+#include "Modules/Inference/Models/PronunciationFetchResult.h"
 #include <lite/ProjectModel/Voice/SingerInfo.h>
 #include <lite/Tasking/Task.h>
 
 #include <QStringList>
 
-class GetPronunciationTask : public Task {
+class GetPronunciationTask final : public Task {
     Q_OBJECT
 
 public:
@@ -17,11 +18,12 @@ public:
     int clipId() const;
     quint64 clipRevision() const;
     QList<int> noteIds() const;
-    QStringList result;
+    QList<PronunciationFetchResult> result;
 
 private:
     void runTask() override;
-    QStringList getPronunciations(const QList<NoteInferenceSnapshot> &notes) const;
+    QList<PronunciationFetchResult>
+        getPronunciationResults(const QList<NoteInferenceSnapshot> &notes) const;
     int m_clipId = -1;
     quint64 m_clipRevision = 0;
     SingerInfo m_singerInfo;

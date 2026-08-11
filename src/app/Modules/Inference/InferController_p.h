@@ -8,6 +8,7 @@
 #include "Modules/Inference/EditSessionManager.h"
 #include "Modules/Inference/Models/InferenceTaskContext.h"
 #include "Modules/Inference/Models/PhonemeNameResult.h"
+#include "Modules/Inference/Models/PronunciationFetchResult.h"
 #include "Tasks/InferAcousticTask.h"
 #include "Tasks/InferAcousticCacheProbeTask.h"
 #include "Tasks/InferDurationTask.h"
@@ -80,7 +81,7 @@ public:
 
     struct PendingPronunciationApply {
         InferenceTaskContext context;
-        QStringList pronunciations;
+        QList<PronunciationFetchResult> pronunciations;
     };
 
     struct PendingPhonemeNameApply {
@@ -89,13 +90,13 @@ public:
     };
 
     PendingApplyResult tryApplyPronunciation(const InferenceTaskContext &context,
-                                             const QStringList &pronunciations,
+                                             const QList<PronunciationFetchResult> &pronunciations,
                                              const QString &phase);
     PendingApplyResult tryApplyPhonemeName(const InferenceTaskContext &context,
                                            const QList<PhonemeNameResult> &phonemeNames,
                                            const QString &phase);
     void storePendingPronunciationApply(const InferenceTaskContext &context,
-                                        const QStringList &pronunciations);
+                                        const QList<PronunciationFetchResult> &pronunciations);
     void storePendingPhonemeNameApply(const InferenceTaskContext &context,
                                       const QList<PhonemeNameResult> &phonemeNames);
     void flushPendingApplies(const EditSession &session, EditSessionEndReason reason);

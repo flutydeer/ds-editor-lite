@@ -198,8 +198,8 @@ namespace InferControllerHelper {
         return result;
     }
 
-    void updatePronunciation(const QList<Note *> &notes, const QList<QString> &args,
-                             SingingClip &clip) {
+    void updatePronunciation(const QList<Note *> &notes,
+                             const QList<PronunciationFetchResult> &args, SingingClip &clip) {
         if (notes.count() != args.count()) {
             qCCritical(logInferHelper)
                 << "updateNotesPronunciation() note count != args count:" << notes.count()
@@ -208,7 +208,8 @@ namespace InferControllerHelper {
         }
         int i = 0;
         for (const auto note : notes) {
-            note->setPronunciation(Note::Original, args[i]);
+            note->setPronunciation(Note::Original, args[i].pronunciation);
+            note->setPronCandidates(args[i].candidates);
             i++;
         }
         clip.notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);

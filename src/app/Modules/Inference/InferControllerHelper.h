@@ -4,6 +4,7 @@
 #include <lite/ProjectModel/AppModel/Params.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Models/PhonemeNameResult.h"
+#include "Models/PronunciationFetchResult.h"
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 #include "Tasks/InferAcousticTask.h"
 #include "Tasks/InferDurationTask.h"
@@ -38,8 +39,8 @@ namespace InferControllerHelper {
     QList<InferPiece *> getParamDirtyPiecesAndUpdateInput(ParamInfo::Name name, SingingClip &clip);
 
     // Update original param methods
-    void updatePronunciation(const QList<Note *> &notes, const QList<QString> &args,
-                             SingingClip &clip);
+    void updatePronunciation(const QList<Note *> &notes,
+                             const QList<PronunciationFetchResult> &args, SingingClip &clip);
     void updatePhoneName(const QList<Note *> &notes, const QList<PhonemeNameResult> &args,
                          SingingClip &clip);
     void updatePhoneOffset(const QList<Note *> &notes, const QList<InferInputNote> &args,

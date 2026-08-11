@@ -79,6 +79,13 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
     if (!m_owner || !clip)
         return;
 
+    // Right-click on the pronunciation glyph opens a dedicated quick-switch
+    // menu with only the candidate pronunciations for that note.
+    if (context.pronunciationTarget) {
+        showPronunciationOnlyMenu(context, clip);
+        return;
+    }
+
     Menu menu(m_owner);
     QAction *previewAction = nullptr;
     if (context.target == PianoRollMenuContext::Target::Anchor) {
@@ -115,6 +122,11 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
         connect(remove, &QAction::triggered, this,
                 [anchorHost] { anchorHost->deleteSelectedAnchors(); });
     } else if (context.target == PianoRollMenuContext::Target::Note) {
+        // For polyphonic characters, g2p returns multiple candidate
+        // pronunciations; surface them at the top of the note context menu
+        // so the user can switch pronunciation with a single click.
+        appendPronunciationCandidateActions(menu, clip, context.noteId);
+
         const auto singerInfo = clip->singerInfo();
         const bool hasLanguages = singerInfo.resolutionState() == ResolutionState::Resolved &&
                                   !singerInfo.languages().isEmpty();
@@ -247,6 +259,53 @@ void PianoRollContextMenuController::deleteSelection(const QList<int> &noteIds) 
 
 void PianoRollContextMenuController::selectAll() const {
     clipController->onSelectAllNotes();
+}
+
+bool PianoRollContextMenuController::appendPronunciationCandidateActions(Menu &menu,
+                                                                         SingingClip *clip,
+                                                                         const int noteId) const {
+    if (!clip || noteId < 0)
+        return false;
+    auto *note = clip->findNoteById(noteId);
+    if (!note)
+        return false;
+
+    auto candidates = note->pronCandidates();
+    for (int i = candidates.size() - 1; i >= 0; i--) {
+        if (candidates[i].trimmed().isEmpty())
+            candidates.removeAt(i);
+    }
+    candidates.removeDuplicates();
+    if (candidates.size() < 2)
+        return false;
+
+    const auto pronunciation = note->pronunciation();
+    const QString current =
+        pronunciation.isEdited() ? pronunciation.edited : pronunciation.original;
+    auto *pronGroup = new QActionGroup(&menu);
+    pronGroup->setExclusive(true);
+    for (const auto &candidate : candidates) {
+        auto *action = menu.addAction(candidate, this, [this, noteId, candidate] {
+            clipController->onNotePronunciationEdited(noteId, candidate);
+        });
+        action->setCheckable(true);
+        action->setChecked(candidate == current);
+        pronGroup->addAction(action);
+    }
+    menu.addSeparator();
+    return true;
+}
+
+void PianoRollContextMenuController::showPronunciationOnlyMenu(const PianoRollMenuContext &context,
+                                                               SingingClip *clip) const {
+    if (!m_owner || !clip)
+        return;
+
+    Menu menu(m_owner);
+    // If the note has no switchable candidates, do not show an empty menu.
+    if (!appendPronunciationCandidateActions(menu, clip, context.noteId))
+        return;
+    menu.exec(context.globalPos);
 }
 
 void PianoRollContextMenuController::openPhonemeEditor(SingingClip *clip, const int noteId) const {

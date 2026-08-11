@@ -91,19 +91,21 @@ QList<int> GetPronunciationTask::noteIds() const {
 void GetPronunciationTask::runTask() {
     qDebug() << "Running pronunciation task"
              << "clipId:" << clipId() << "taskId:" << id();
-    result = getPronunciations(m_notes);
+    result = getPronunciationResults(m_notes);
     qInfo() << "Pronunciation task finished taskId:" << id() << "terminate:" << terminated();
 }
 
-QStringList
-    GetPronunciationTask::getPronunciations(const QList<NoteInferenceSnapshot> &notes) const {
+QList<PronunciationFetchResult>
+    GetPronunciationTask::getPronunciationResults(const QList<NoteInferenceSnapshot> &notes) const {
     // Pre-fill with original lyric: when the language module is not ready or
     // G2P fails later, the original lyric is kept as the pronunciation
     // (ds-session.md §206: G2P failure preserves lyric; no G2P fallback).
-    QStringList pronResult;
+    QList<PronunciationFetchResult> pronResult;
     pronResult.resize(notes.count());
-    for (int i = 0; i < notes.count(); i++)
-        pronResult[i] = notes.at(i).lyric;
+    for (int i = 0; i < notes.count(); i++) {
+        pronResult[i].pronunciation = notes.at(i).lyric;
+        pronResult[i].candidates = {notes.at(i).lyric};
+    }
 
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
         qCCritical(logInferPron) << "Language module not ready yet; keeping original lyric";
@@ -137,7 +139,8 @@ QStringList
     for (int i = 0; i < notes.count(); i++) {
         const auto &note = notes.at(i);
         if (isSkippedNote(note)) {
-            pronResult[i] = note.lyric.trimmed();
+            pronResult[i].pronunciation = note.lyric.trimmed();
+            pronResult[i].candidates = {note.lyric.trimmed()};
             continue;
         }
 
@@ -175,7 +178,7 @@ QStringList
                 << "G2P language ready failed for lang='" << language
                 << "': " << fromUtf8(readyExp.error().message()) << ". Keeping original lyric.";
             for (const auto &entry : entries)
-                pronResult[entry.first] = fromUtf8(entry.second);
+                pronResult[entry.first].candidates = {fromUtf8(entry.second)};
             continue;
         }
 
@@ -188,7 +191,7 @@ QStringList
                 << "G2P conversion failed for lang='" << language
                 << "': " << fromUtf8(exp.error().message()) << ". Keeping original lyric.";
             for (const auto &entry : entries)
-                pronResult[entry.first] = fromUtf8(entry.second);
+                pronResult[entry.first].candidates = {fromUtf8(entry.second)};
             continue;
         }
 
@@ -198,16 +201,24 @@ QStringList
         // with D11 precise error reporting).
         if (outcomes.size() != entries.size()) {
             qCWarning(logInferPron).nospace()
-                << "convertG2p returned " << outcomes.size() << " outcomes for "
-                << entries.size() << " requests; keeping original lyric for all convert notes";
-            for (const auto &entry : entries)
-                pronResult[entry.first] = fromUtf8(entry.second);
+                << "convertG2p returned " << outcomes.size() << " outcomes for " << entries.size()
+                << " requests; keeping original lyric for all convert notes";
+            for (const auto &entry : entries) {
+                auto &res = pronResult[entry.first];
+                res.pronunciation = fromUtf8(entry.second);
+                res.candidates = {fromUtf8(entry.second)};
+            }
             continue;
         }
 
         for (size_t i = 0; i < outcomes.size(); i++) {
             const auto noteIdx = entries[i].first;
-            pronResult[noteIdx] = fromUtf8(outcomes[i].pronunciation);
+            auto &res = pronResult[noteIdx];
+            res.pronunciation = fromUtf8(outcomes[i].pronunciation);
+            res.candidates.clear();
+            res.candidates.reserve(static_cast<qsizetype>(outcomes[i].candidates.size()));
+            for (const auto &candidate : outcomes[i].candidates)
+                res.candidates.append(fromUtf8(candidate));
 
             // Failure diagnostics (non-blocking): on per-lyric failure LangCore
             // already sets pronunciation=lyric (the only allowed behavior per
@@ -224,7 +235,8 @@ QStringList
                     << " errorType=" << outcomes[i].errorType << " ("
                     << qPrintable(g2pErrorTypeName(outcomes[i].errorType)) << ") lyric='"
                     << qPrintable(fromUtf8(inputs[i].lyric)) << "' pronunciation='"
-                    << qPrintable(fromUtf8(outcomes[i].pronunciation)) << "'";
+                    << qPrintable(fromUtf8(outcomes[i].pronunciation))
+                    << "' candidateCount=" << outcomes[i].candidates.size();
             }
         }
     }

@@ -238,6 +238,24 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
         const auto scenePos = mapToScene(event->pos());
         context.globalTick = qRound(sceneXToTick(scenePos.x())) + d->m_offset;
         context.keyIndex = 127 - qFloor(scenePos.y() / noteHeight);
+        // The pronunciation glyph sits below the note rect, outside notes():
+        // hit-test it first and drive the menu entirely from its own id.
+        if (auto *pronView = d->pronViewAt(event->pos()); pronView && pronView->id() >= 0) {
+            const auto noteId = pronView->id();
+            auto *noteView = d->findNoteViewById(noteId);
+            if (noteView && !noteView->isSelected())
+                d->m_selectionModel->selectOnly(noteView);
+            context.target = PianoRollMenuContext::Target::Note;
+            context.noteId = noteId;
+            context.selectedNoteIds = selectedNotesId();
+            if (const auto *note = d->m_clip->findNoteById(noteId))
+                context.noteLanguage = note->language();
+            context.phonemeEditorEnabled = context.selectedNoteIds.size() == 1;
+            context.pronunciationTarget = true;
+            emit contextMenuRequested(context);
+            event->accept();
+            return;
+        }
         if (auto *noteView = d->noteViewAt(event->pos())) {
             if (!noteView->isSelected())
                 d->m_selectionModel->selectOnly(noteView);

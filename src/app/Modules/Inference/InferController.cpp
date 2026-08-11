@@ -769,7 +769,8 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
 }
 
 InferControllerPrivate::PendingApplyResult InferControllerPrivate::tryApplyPronunciation(
-    const InferenceTaskContext &context, const QStringList &pronunciations, const QString &phase) {
+    const InferenceTaskContext &context, const QList<PronunciationFetchResult> &pronunciations,
+    const QString &phase) {
     InferenceApplyGate::Options options;
     options.phase = phase;
     options.expectedNoteCount = pronunciations.count();
@@ -853,8 +854,8 @@ InferControllerPrivate::PendingApplyResult
     return PendingApplyResult::Dropped;
 }
 
-void InferControllerPrivate::storePendingPronunciationApply(const InferenceTaskContext &context,
-                                                            const QStringList &pronunciations) {
+void InferControllerPrivate::storePendingPronunciationApply(
+    const InferenceTaskContext &context, const QList<PronunciationFetchResult> &pronunciations) {
     const bool replaced = m_pendingPronunciationApplies.contains(context.clipId);
     m_pendingPronunciationApplies.insert(context.clipId, {context, pronunciations});
     InferenceApplyGate::logDecision(context, "pending-store", InferenceApplyGate::Decision::Defer,

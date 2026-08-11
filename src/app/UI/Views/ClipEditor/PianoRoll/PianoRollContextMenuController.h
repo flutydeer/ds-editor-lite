@@ -9,6 +9,7 @@
 
 class SingingClip;
 class QWidget;
+class Menu;
 
 enum class PianoRollAnchorMode { None, Linear, Hermite, Mixed };
 
@@ -23,6 +24,7 @@ struct PianoRollMenuContext {
     QList<int> selectedNoteIds;
     QString noteLanguage;
     bool phonemeEditorEnabled = false;
+    bool pronunciationTarget = false;
     PianoRollAnchorMode anchorMode = PianoRollAnchorMode::None;
     bool anchorInterpolationEnabled = false;
 };
@@ -69,6 +71,8 @@ public:
     void selectAll() const;
 
 private:
+    bool appendPronunciationCandidateActions(Menu &menu, SingingClip *clip, int noteId) const;
+    void showPronunciationOnlyMenu(const PianoRollMenuContext &context, SingingClip *clip) const;
     void openPhonemeEditor(SingingClip *clip, int noteId) const;
 
     QWidget *m_owner = nullptr;

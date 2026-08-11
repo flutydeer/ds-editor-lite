@@ -2721,6 +2721,9 @@ void PianoRollRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
         context.selectedNoteIds = appStatus->selectedNotes.get();
         context.noteLanguage = note->language();
         context.phonemeEditorEnabled = context.selectedNoteIds.size() == 1;
+        // Right-click on the pronunciation strip opens the quick-switch menu.
+        if (d->pronunciationAt(event->pos()) == note)
+            context.pronunciationTarget = true;
     } else {
         context.target = PianoRollMenuContext::Target::Background;
     }
