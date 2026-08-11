@@ -7,7 +7,7 @@
 #include <QScreen>
 #include <QVBoxLayout>
 
-QWidget *Toast::m_globalContext = nullptr;
+QPointer<QWidget> Toast::m_globalContext;
 
 ToastWidget::ToastWidget(const QString &text, QWidget *parent) : QWidget(parent) {
     m_lbMessage = new QLabel(text);
@@ -129,8 +129,7 @@ bool Toast::eventFilter(QObject *watched, QEvent *event) {
 QPoint Toast::targetPos() const {
     const auto contextGeometry = m_globalContext->geometry();
     const auto toastWidth = m_toastWidget ? m_toastWidget->geometry().width() : 0;
-    return contextGeometry.center() -
-           QPoint(toastWidth / 2, contextGeometry.height() / 2 - 96);
+    return contextGeometry.center() - QPoint(toastWidth / 2, contextGeometry.height() / 2 - 96);
 }
 
 void Toast::showNextToast() {

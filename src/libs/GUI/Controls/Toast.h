@@ -5,6 +5,7 @@
 #include <lite/GUI/Animation/IAnimatable.h>
 #include <lite/ADT/Queue.h>
 
+#include <QPointer>
 #include <QWidget>
 #include <QTimer>
 #include <QPropertyAnimation>
@@ -62,7 +63,7 @@ private:
 
     bool m_isShowingToast = false;
     const int animationDurationBase = 300;
-    static QWidget *m_globalContext;
+    static QPointer<QWidget> m_globalContext;
     ToastWidget *m_toastWidget = nullptr;
     Queue<QString> m_queue;
     QTimer m_keepOnScreenTimer;
