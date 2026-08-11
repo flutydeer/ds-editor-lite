@@ -1,5 +1,7 @@
 #include "TracksRhiWidget.h"
 
+#include "ClipResizeUtils.h"
+#include "SingingClipPreviewLayout.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
@@ -151,7 +153,7 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
             [this](const QPointF &offset) {
                 m_viewport.scrollBy({offset.x() - m_viewport.horizontalOffset(),
                                      offset.y() - m_viewport.verticalOffset()});
-    });
+            });
 
     connect(&m_viewport, &EditorViewportController::scaleChanged, this,
             &TracksRhiWidget::scaleChanged);
@@ -370,12 +372,11 @@ void TracksRhiWidget::setVerticalOffset(const double value) {
 void TracksRhiWidget::updateScrollBars() {
     if (!m_scrollBars)
         return;
-    m_scrollBars->setMetrics(
-        QSizeF(m_viewport.tickToSceneX(appStatus->projectEditableLength),
-               m_viewport.unitToSceneY(appModel->tracks().size() + 1)),
-        QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()),
-        QSizeF(std::max(1, width() / 10),
-               std::max(1, qRound(trackHeight * m_viewport.verticalScale()))));
+    m_scrollBars->setMetrics(QSizeF(m_viewport.tickToSceneX(appStatus->projectEditableLength),
+                                    m_viewport.unitToSceneY(appModel->tracks().size() + 1)),
+                             QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()),
+                             QSizeF(std::max(1, width() / 10),
+                                    std::max(1, qRound(trackHeight * m_viewport.verticalScale()))));
 }
 
 void TracksRhiWidget::scheduleSnapshot() {
@@ -483,7 +484,24 @@ void TracksRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
     if (const auto *hit = hitTest(event->position())) {
         trackController->setActiveClip(hit->id);
         editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
-        editorViewController->centerPianoRollAt(playbackController->position(), 60);
+        double targetTick = playbackController->position();
+        double targetKey = 60.0;
+        if (hit->type == IClip::Singing && !hit->notes.isEmpty()) {
+            const auto dpr = devicePixelRatioF();
+            const auto physicalPosition = m_viewport.viewportToScene(event->position()) * dpr;
+            const auto preview = clipPreviewRect(*hit, dpr);
+            QList<int> keys;
+            keys.reserve(hit->notes.size());
+            for (const auto &note : hit->notes)
+                keys.append(note.key);
+            const auto layout = SingingClipPreview::computeLayout(
+                preview, keys, SingingClipPreview::maximumNoteHeight * dpr);
+            if (preview.contains(physicalPosition) && layout.valid()) {
+                targetTick = tickAt(event->position());
+                targetKey = layout.keyIndexAt(physicalPosition.y());
+            }
+        }
+        editorViewController->centerPianoRollAt(targetTick, targetKey);
     } else {
         const auto trackIndex = trackIndexAt(event->position());
         if (trackIndex >= 0) {
@@ -832,8 +850,7 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
     }
     const auto radius = 4.0 * dpr;
     const auto titleHeight = 20.0 * dpr;
-    const QRectF preview(clip.physicalRect.left(), clip.physicalRect.top() + titleHeight,
-                         clip.physicalRect.width(), clip.physicalRect.height() - titleHeight);
+    const auto preview = clipPreviewRect(clip, dpr);
     const auto hasPreview = preview.height() >= 32.0 * dpr;
     const auto bodyColor = hasPreview ? transparent : (clip.selected ? selectedFill : fill);
     EditorRhiGeometry::appendRoundedRect(frame.solidVertices, clip.physicalRect, radius, bodyColor);
@@ -881,15 +898,15 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
     if (!hasPreview || preview.width() < 16.0 * dpr || preview.height() < 32.0 * dpr)
         return;
     if (clip.type == IClip::Singing && !clip.notes.isEmpty()) {
-        auto low = 127;
-        auto high = 0;
-        for (const auto &note : clip.notes) {
-            low = std::min(low, note.key);
-            high = std::max(high, note.key);
-        }
-        const auto noteHeight = std::min(16.0 * dpr, preview.height() / (high - low + 1));
-        const auto contentTop =
-            preview.top() + std::max(0.0, preview.height() - (high - low + 1) * noteHeight) * 0.5;
+        QList<int> keys;
+        keys.reserve(clip.notes.size());
+        for (const auto &note : clip.notes)
+            keys.append(note.key);
+        const auto layout = SingingClipPreview::computeLayout(
+            preview, keys, SingingClipPreview::maximumNoteHeight * dpr);
+        const auto noteHeight = layout.noteHeight;
+        const auto high = layout.highestKeyIndex;
+        const auto contentTop = layout.contentTop;
         const auto noteColor = clip.selected ? selectedFill : fill;
         for (const auto &note : clip.notes) {
             const auto start = std::max(clip.visibleStartTick, clip.contentStartTick + note.start);
@@ -1092,6 +1109,12 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
     return result;
 }
 
+QRectF TracksRhiWidget::clipPreviewRect(const ClipSnapshot &clip, const double dpr) {
+    constexpr double titleHeight = 20.0;
+    return {clip.physicalRect.left(), clip.physicalRect.top() + titleHeight * dpr,
+            clip.physicalRect.width(), clip.physicalRect.height() - titleHeight * dpr};
+}
+
 AudioWaveformSampler::Result TracksRhiWidget::sampleAudioWaveform(AudioWaveformSampler &sampler,
                                                                   const AudioInfoModel &audioInfo,
                                                                   const ClipSnapshot &clip,
@@ -1271,8 +1294,19 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
         }
     } else if (m_dragMode == DragMode::ResizeRight) {
         const auto right = snap(originalRight + deltaTicks);
-        if (right > originalLeft)
-            properties.clipLen = right - originalLeft;
+        if (const auto *clip = appModel->findClipById(m_dragPreview->clipId)) {
+            const auto *singing = qobject_cast<const SingingClip *>(clip);
+            auto contentLength = properties.length;
+            if (singing) {
+                contentLength = AppGlobal::ticksPerWholeNote;
+                if (singing->notes().count() > 0) {
+                    const auto *lastNote = *singing->notes().rbegin();
+                    contentLength = lastNote->localStart() + lastNote->length();
+                }
+            }
+            ClipResizeUtils::updateRightEdge(properties, right - originalLeft, singing != nullptr,
+                                             contentLength);
+        }
     }
     m_dragPreview->properties = properties;
     m_dragMoved = true;

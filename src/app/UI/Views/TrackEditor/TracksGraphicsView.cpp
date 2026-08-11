@@ -1,5 +1,6 @@
 #include "TracksGraphicsView.h"
 
+#include "ClipResizeUtils.h"
 #include "TracksGraphicsScene.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/PlaybackController.h"
@@ -267,19 +268,12 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
         if (clipLen <= 0)
             return;
 
-        const auto curClipStart = m_currentEditingClip->clipStart();
-        const auto curLength = m_currentEditingClip->length();
-        if (!m_currentEditingClip->canResizeLength()) { // Audio Clip
-            if (curClipStart + clipLen >= curLength)
-                m_currentEditingClip->setClipLen(curLength - curClipStart);
-            else
-                m_currentEditingClip->setClipLen(clipLen);
-        } else { // Singing Clip
-            auto targetLen = curClipStart + clipLen;
-            if (targetLen < m_currentEditingClip->contentLength())
-                targetLen = m_currentEditingClip->contentLength();
-            m_currentEditingClip->setLength(targetLen);
-            m_currentEditingClip->setClipLen(clipLen);
+        Clip::ClipCommonProperties properties(*m_currentEditingClip);
+        if (ClipResizeUtils::updateRightEdge(properties, clipLen,
+                                             m_currentEditingClip->canResizeLength(),
+                                             m_currentEditingClip->contentLength())) {
+            m_currentEditingClip->setLength(properties.length);
+            m_currentEditingClip->setClipLen(properties.clipLen);
         }
     }
 }

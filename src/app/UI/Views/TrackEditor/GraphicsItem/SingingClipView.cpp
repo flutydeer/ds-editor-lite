@@ -247,11 +247,10 @@ void SingingClipView::drawPianoRollOverlay(QPainter *painter, const double noteH
                              AbstractClipView::clipCornerRadius);
 }
 
-SingingClipView::NoteLayout
+SingingClipPreview::Layout
     SingingClipView::computeNoteLayout(const QRectF &previewRect,
                                        const QVector<AppStatus::NoteEditPreview> *extraNotes,
                                        const QList<int> *excludedIds) const {
-    NoteLayout layout;
     // 预览几何索引（id → keyIndex）：被预览覆盖的音符用预览值参与统计（替换语义），
     // 保证预览期布局 == 提交后布局（m_notes 更新后同 id 音符即预览几何）
     QHash<int, int> previewKeys;
@@ -259,35 +258,21 @@ SingingClipView::NoteLayout
         for (const auto &p : *extraNotes)
             previewKeys.insert(p.id, p.keyIndex);
     }
+    QList<int> keys;
     for (const auto note : m_notes) {
         if (excludedIds && excludedIds->contains(note->id))
             continue;
-        const auto keyIndex = previewKeys.value(note->id, note->keyIndex);
-        if (keyIndex < layout.lowestKeyIndex)
-            layout.lowestKeyIndex = keyIndex;
-        if (keyIndex > layout.highestKeyIndex)
-            layout.highestKeyIndex = keyIndex;
+        keys.append(previewKeys.value(note->id, note->keyIndex));
     }
     // 正在绘制的新音符（id=-1，尚不在 m_notes 中）追加纳入音域
     if (extraNotes) {
         for (const auto &p : *extraNotes) {
             if (p.id != -1)
                 continue;
-            if (p.keyIndex < layout.lowestKeyIndex)
-                layout.lowestKeyIndex = p.keyIndex;
-            if (p.keyIndex > layout.highestKeyIndex)
-                layout.highestKeyIndex = p.keyIndex;
+            keys.append(p.keyIndex);
         }
     }
-    const int divideCount = layout.highestKeyIndex - layout.lowestKeyIndex + 1;
-    layout.noteHeight = previewRect.height() / divideCount;
-    if (layout.noteHeight > maxNoteHeight)
-        layout.noteHeight = maxNoteHeight;
-    // 内容总高小于预览区时垂直居中，避免贴顶绘制（音域窄 / 纵向放大时留白均匀）
-    const double contentHeight = divideCount * layout.noteHeight;
-    layout.contentTop =
-        previewRect.top() + std::max(0.0, previewRect.height() - contentHeight) * 0.5;
-    return layout;
+    return SingingClipPreview::computeLayout(previewRect, keys);
 }
 
 double SingingClipView::keyIndexAtScenePos(const QPointF &scenePos) const {
@@ -300,8 +285,7 @@ double SingingClipView::keyIndexAtScenePos(const QPointF &scenePos) const {
     const double localY = mapFromScene(scenePos).y();
     if (localY < preview.top() || localY > preview.bottom())
         return -1.0;
-    // 逆映射：y = -(keyIndex - highestKeyIndex) * noteHeight + contentTop
-    return layout.highestKeyIndex - (localY - layout.contentTop) / layout.noteHeight;
+    return layout.keyIndexAt(localY);
 }
 
 QString SingingClipView::clipTypeName() const {

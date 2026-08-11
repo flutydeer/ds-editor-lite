@@ -159,6 +159,7 @@ private:
     void appendDropOverlay(EditorRhiFrameData &frame, double dpr) const;
     [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex,
                                                  double dpr) const;
+    [[nodiscard]] static QRectF clipPreviewRect(const ClipSnapshot &clip, double dpr);
     [[nodiscard]] AudioWaveformSampler::Result sampleAudioWaveform(AudioWaveformSampler &sampler,
                                                                    const AudioInfoModel &audioInfo,
                                                                    const ClipSnapshot &clip,
