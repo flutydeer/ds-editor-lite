@@ -38,6 +38,7 @@ public slots:
     void onEditSessionEnded(const EditSession &session, EditSessionEndReason reason);
     void onInferOptionChanged(AppOptionsGlobal::Option option);
     void onPlaybackStatusChanged(PlaybackGlobal::PlaybackStatus status);
+    void onPlaybackPositionChanged(double tick);
 
 protected:
     void handleModelChanged() override;
@@ -101,7 +102,8 @@ public:
     void clearAllPendingApplies(const QString &reason);
     void clearPendingForClip(int clipId, const QString &reason);
 
-    void notifyNextPipeline(const QList<InferPipeline *> &pipelines, int index);
+    void refreshPlaybackWindow(double pos);
+    void suspendPendingAcousticPipelines();
 
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
 

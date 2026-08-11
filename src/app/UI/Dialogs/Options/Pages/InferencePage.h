@@ -49,6 +49,7 @@ private:
     DoubleSeekBarSpinboxGroup *m_dsDepthSlider;
     SwitchButton *m_swRunVocoderOnCpu;
     SwitchButton *m_autoStartInfer;
+    SeekBarSpinboxGroup *m_playbackWindowSlider;
     SeekBarSpinboxGroup *m_smoothSlider;
     QTreeView *m_treeView;
     Button *m_btnOpenCacheFolder;

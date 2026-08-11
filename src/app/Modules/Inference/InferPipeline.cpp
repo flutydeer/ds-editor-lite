@@ -145,6 +145,10 @@ void InferPipeline::notifyPlaybackStarted() {
     emit playbackStarted();
 }
 
+void InferPipeline::notifyPlaybackSuspended() {
+    emit playbackSuspended();
+}
+
 void InferPipeline::initStates() {
     finalState = new QFinalState();
     inferDurationState = new InferDurationState(*this);
@@ -303,6 +307,8 @@ void InferPipeline::initProbeAcousticCacheTransitions() {
 void InferPipeline::initAwaitingInferAcousticTransitions() {
     awaitingInferAcousticState->addTransition(this, &InferPipeline::playbackStarted,
                                               inferAcousticState);
+    awaitingInferAcousticState->addTransition(this, &InferPipeline::playbackSuspended,
+                                              probeAcousticCacheState);
     awaitingInferAcousticState->addTransition(this, &InferPipeline::lazyInferAcousticTurnedOff,
                                               inferAcousticState);
     awaitingInferAcousticState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
@@ -319,6 +325,8 @@ void InferPipeline::initAcousticTransitions() {
                                       updateAcousticState);
     inferAcousticState->addTransition(inferAcousticState, &InferAcousticState::dropped, finalState);
     inferAcousticState->addTransition(this, &InferPipeline::pieceRemoved, finalState);
+    inferAcousticState->addTransition(this, &InferPipeline::playbackSuspended,
+                                      probeAcousticCacheState);
     inferAcousticState->addTransition(this, &InferPipeline::expressivenessChanged, inferPitchState);
     inferAcousticState->addTransition(this, &InferPipeline::pitchChanged, inferVarianceState);
     inferAcousticState->addTransition(this, &InferPipeline::varianceChanged, inferAcousticState);

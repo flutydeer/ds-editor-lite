@@ -73,6 +73,7 @@ public slots:
     void onTimelineChanged();
 
     void notifyPlaybackStarted();
+    void notifyPlaybackSuspended();
 
 signals:
     void dropped(const QString &reason, int pieceId, const QString &taskType);
@@ -99,6 +100,7 @@ private:
     // Events
     Q_SIGNAL void pieceRemoved();
     Q_SIGNAL void playbackStarted();
+    Q_SIGNAL void playbackSuspended();
     Q_SIGNAL void appModelUnlocked();
 
     void initStates();

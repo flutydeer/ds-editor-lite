@@ -148,6 +148,8 @@ InferController::InferController(QObject *parent)
             &InferControllerPrivate::onInferOptionChanged);
     connect(playbackController, &PlaybackController::playbackStatusChanged, d,
             &InferControllerPrivate::onPlaybackStatusChanged);
+    connect(playbackController, &PlaybackController::positionChanged, d,
+            &InferControllerPrivate::onPlaybackPositionChanged);
 }
 
 InferController::~InferController() = default;
@@ -287,14 +289,66 @@ void InferControllerPrivate::onInferOptionChanged(const AppOptionsGlobal::Option
 
 void InferControllerPrivate::onPlaybackStatusChanged(const PlaybackGlobal::PlaybackStatus status) {
     if (status == PlaybackGlobal::Playing) {
-        auto awaitingPipelines = Linq::where(m_inferPipelines, [](const InferPipeline *p) {
-            return p->piece().acousticInferStatus == Pending;
-        });
+        // Playing: only start pending pieces inside the lookahead window, instead of
+        // enqueuing everything behind the playhead at once
+        const auto pos = static_cast<double>(playbackController->position());
+        refreshPlaybackWindow(pos);
+    } else { // Paused / Stopped
+        // Paused/Stopped: let the currently running acoustic task finish,
+        // then put remaining Running/Pending pipelines back to probe-wait state
+        // so they stop queueing
+        suspendPendingAcousticPipelines();
+    }
+}
 
-        std::sort(awaitingPipelines.begin(), awaitingPipelines.end(),
-                  makePlaybackPriorityComparator<InferPipeline>());
+void InferControllerPrivate::onPlaybackPositionChanged(double tick) {
+    // As the playhead advances, newly entering pending pieces are pulled into the window
+    if (playbackController->playbackStatus() != PlaybackGlobal::Playing)
+        return;
+    refreshPlaybackWindow(tick);
+}
 
-        notifyNextPipeline(awaitingPipelines, 0);
+void InferControllerPrivate::refreshPlaybackWindow(const double pos) {
+    if (m_autoStartAcousticInfer)
+        return; // auto-start mode bypasses playback-window scheduling
+
+    // Lookahead window: covers [pos, pos + windowSeconds] in wall-clock time. Converted
+    // to ticks via the timeline because inference engine operates on seconds, not ticks.
+    const double windowTicks =
+        appModel->timeline().secToTick(appOptions->inference()->playbackLookaheadSeconds);
+
+    QList<InferPipeline *> inWindow;
+    for (const auto pipeline : std::as_const(m_inferPipelines)) {
+        if (pipeline->piece().acousticInferStatus != Pending)
+            continue;
+        const auto range = pieceGlobalRange(pipeline->clipId(), pipeline->pieceId());
+        if (!range.isValid())
+            continue;
+        if (range.end <= pos || range.start >= pos + windowTicks)
+            continue;
+        inWindow.append(pipeline);
+    }
+    std::sort(inWindow.begin(), inWindow.end(), makePlaybackPriorityComparator<InferPipeline>());
+
+    // Window holds a bounded set of pieces, so trigger them synchronously
+    // rather than chaining QTimer::singleShot.
+    for (const auto pipeline : inWindow) {
+        if (m_inferPipelines.contains(pipeline) && pipeline->piece().acousticInferStatus == Pending)
+            pipeline->notifyPlaybackStarted();
+    }
+}
+
+void InferControllerPrivate::suspendPendingAcousticPipelines() {
+    // Keep the currently running acoustic task and let it finish naturally;
+    // the other Running/Pending pipelines get playbackSuspended back to probe state.
+    const auto currentPieceId =
+        m_inferAcousticTasks.current ? m_inferAcousticTasks.current->pieceId() : -1;
+    for (const auto pipeline : std::as_const(m_inferPipelines)) {
+        if (pipeline->pieceId() == currentPieceId)
+            continue; // let the current piece finish in TaskQueue
+        const auto status = pipeline->piece().acousticInferStatus;
+        if (status == Running || status == Pending)
+            pipeline->notifyPlaybackSuspended();
     }
 }
 
@@ -1003,17 +1057,4 @@ void InferControllerPrivate::cancelPieceRelatedTasks(int pieceId) {
     m_inferVarianceTasks.cancelIf(pred);
     m_inferAcousticTasks.cancelIf(pred);
     m_inferAcousticCacheProbeTasks.cancelIf(pred);
-}
-
-void InferControllerPrivate::notifyNextPipeline(const QList<InferPipeline *> &pipelines,
-                                                int index) {
-    if (index >= pipelines.size())
-        return;
-
-    auto pipeline = pipelines[index];
-    if (m_inferPipelines.contains(pipeline) && pipeline->piece().acousticInferStatus == Pending)
-        pipeline->notifyPlaybackStarted();
-
-    QTimer::singleShot(0, this,
-                       [this, pipelines, index] { notifyNextPipeline(pipelines, index + 1); });
 }

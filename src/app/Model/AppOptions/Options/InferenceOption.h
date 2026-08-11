@@ -26,6 +26,9 @@ public:
     LITE_OPTION_ITEM(double, depth, 1.0)
     LITE_OPTION_ITEM(bool, runVocoderOnCpu, false)
     LITE_OPTION_ITEM(bool, autoStartInfer, true) // TODO: Rename to lazy acoustic inference?
+    // Lookahead window for playback-driven inference, in seconds. Converted to ticks via the
+    // timeline at runtime because inference engine operates on wall-clock time, not ticks.
+    LITE_OPTION_ITEM(double, playbackLookaheadSeconds, 20.0)
     LITE_OPTION_ITEM(QString, cacheDirectory,
                      QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() +
                          "/Cache")

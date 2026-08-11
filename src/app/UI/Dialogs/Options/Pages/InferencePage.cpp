@@ -41,9 +41,8 @@ enum CustomRole {
 };
 
 InferencePage::InferencePage(QWidget *parent)
-    : IOptionPage(parent)
-    , m_gpuDetectionWatcher(new QFutureWatcher<QList<GpuInfo>>(this))
-    , m_cacheScanWatcher(new QFutureWatcher<InferCacheUtils::CacheStats>(this)) {
+    : IOptionPage(parent), m_gpuDetectionWatcher(new QFutureWatcher<QList<GpuInfo>>(this)),
+      m_cacheScanWatcher(new QFutureWatcher<InferCacheUtils::CacheStats>(this)) {
     connect(m_gpuDetectionWatcher, &QFutureWatcher<QList<GpuInfo>>::finished, this, [this] {
         const auto detectedProvider = m_activeGpuProvider;
         m_activeGpuProvider.clear();
@@ -151,8 +150,8 @@ void InferencePage::applyGpuList(const QList<GpuInfo> &deviceList) {
 void InferencePage::startCacheScan() {
     m_lblCacheStats->setText(tr("Scanning..."));
     m_btnScanCache->setEnabled(false);
-    m_cacheScanWatcher->setFuture(QtConcurrent::run(
-        InferCacheUtils::scanCache, appOptions->inference()->cacheDirectory));
+    m_cacheScanWatcher->setFuture(
+        QtConcurrent::run(InferCacheUtils::scanCache, appOptions->inference()->cacheDirectory));
 }
 
 void InferencePage::applyCacheScanResult(const InferCacheUtils::CacheStats &stats) {
@@ -178,11 +177,12 @@ void InferencePage::confirmCleanCache() {
             return !active.contains(QFileInfo(path).absoluteFilePath().toLower());
         });
 
-    auto *dlg = new MessageDialog(
-        tr("Clean Up Cache"),
-        tr("This will delete %L1 cache file(s) not used by the current project. Files used by undo history and current playback will be kept.")
-            .arg(deletableCount),
-        this);
+    auto *dlg =
+        new MessageDialog(tr("Clean Up Cache"),
+                          tr("This will delete %L1 cache file(s) not used by the current project. "
+                             "Files used by undo history and current playback will be kept.")
+                              .arg(deletableCount),
+                          this);
     dlg->addButton(tr("Cancel"), 0);
     dlg->addAccentButton(tr("Clean Up"), 1);
     if (dlg->exec() != 1)
@@ -268,9 +268,9 @@ QWidget *InferencePage::createContentWidget() {
     m_cbSamplingSteps->setFixedWidth(100);
     m_cbSamplingSteps->setValidator(new QIntValidator(1, 1000));
     const QLocale numberLocale;
-    m_cbSamplingSteps->addItems(
-        {numberLocale.toString(1), numberLocale.toString(5), numberLocale.toString(10),
-         numberLocale.toString(20), numberLocale.toString(50), numberLocale.toString(100)});
+    m_cbSamplingSteps->addItems({numberLocale.toString(1), numberLocale.toString(5),
+                                 numberLocale.toString(10), numberLocale.toString(20),
+                                 numberLocale.toString(50), numberLocale.toString(100)});
     m_cbSamplingSteps->setCurrentText(numberLocale.toString(option->samplingSteps));
     connect(m_cbSamplingSteps, &ComboBox::currentTextChanged, this, &InferencePage::modifyOption);
 
@@ -279,13 +279,11 @@ QWidget *InferencePage::createContentWidget() {
     constexpr double kDsDepthMax = 1.0;
     constexpr double kDsDepthSingleStep = 0.01;
 
-    m_dsDepthSlider = new DoubleSeekBarSpinboxGroup(kDsDepthMin, kDsDepthMax, kDsDepthSingleStep,
-                                                    option->depth);
+    m_dsDepthSlider =
+        new DoubleSeekBarSpinboxGroup(kDsDepthMin, kDsDepthMax, kDsDepthSingleStep, option->depth);
     m_dsDepthSlider->seekbar->setFixedWidth(256);
     connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::valueChanged, this,
-            [&](const double value) {
-                appOptions->inference()->depth = value;
-            });
+            [&](const double value) { appOptions->inference()->depth = value; });
     connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::editFinished, this,
             &InferencePage::modifyOption);
 
@@ -304,13 +302,20 @@ QWidget *InferencePage::createContentWidget() {
     m_autoStartInfer = new SwitchButton(appOptions->inference()->autoStartInfer);
     connect(m_autoStartInfer, &SwitchButton::toggled, this, &InferencePage::modifyOption);
 
+    // Render - playback lookahead window (seconds)
+    m_playbackWindowSlider = new SeekBarSpinboxGroup(1, 60, 1, option->playbackLookaheadSeconds);
+    m_playbackWindowSlider->seekbar->setFixedWidth(256);
+    connect(m_playbackWindowSlider, &SeekBarSpinboxGroup::valueChanged, this,
+            [&](const double value) { appOptions->inference()->playbackLookaheadSeconds = value; });
+    connect(m_playbackWindowSlider, &SeekBarSpinboxGroup::editFinished, this,
+            &InferencePage::modifyOption);
+
     // Render - pitch smooth kernel size
     m_smoothSlider = new SeekBarSpinboxGroup(0, 50, 1, option->pitch_smooth_kernel_size);
     m_smoothSlider->seekbar->setFixedWidth(256);
 
-    connect(m_smoothSlider, &SeekBarSpinboxGroup::valueChanged, this, [&](const double value) {
-        appOptions->inference()->pitch_smooth_kernel_size = value;
-    });
+    connect(m_smoothSlider, &SeekBarSpinboxGroup::valueChanged, this,
+            [&](const double value) { appOptions->inference()->pitch_smooth_kernel_size = value; });
     connect(m_smoothSlider, &SeekBarSpinboxGroup::editFinished, this, &InferencePage::modifyOption);
 
 
@@ -320,15 +325,18 @@ QWidget *InferencePage::createContentWidget() {
     renderCard->addItem(tr("Run Vocoder on CPU"), tr("For compatibility with legacy vocoders"),
                         m_swRunVocoderOnCpu);
     renderCard->addItem(tr("Auto Start Infer"), m_autoStartInfer);
+    renderCard->addItem(tr("Playback Lookahead Window"),
+                        tr("Only infer pieces within the lookahead window ahead of the playhead. "
+                           "Effective when Auto Start Infer is off"),
+                        {m_playbackWindowSlider->seekbar, m_playbackWindowSlider->spinbox});
     renderCard->addItem(tr("Pitch Smooth Kernel Size"),
                         tr("Smooth the pitch curve with a sinusoidal kernel"),
                         {m_smoothSlider->seekbar, m_smoothSlider->spinbox});
 
     // Cache
     m_btnOpenCacheFolder = new Button(tr("Open Folder..."), this);
-    connect(m_btnOpenCacheFolder, &Button::clicked, this, [this] {
-        QM::reveal(appOptions->inference()->cacheDirectory);
-    });
+    connect(m_btnOpenCacheFolder, &Button::clicked, this,
+            [this] { QM::reveal(appOptions->inference()->cacheDirectory); });
 
     m_lblCacheStats = new QLabel(tr("Scanning..."));
     m_lblCacheStats->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -368,9 +376,8 @@ QWidget *InferencePage::createContentWidget() {
         const auto singerCat = su.moduleCategory("singer");
         // TODO(Task 6/7): singer category may be null until packages are opened;
         // SynthrtEngine::singers() will provide singer snapshots instead.
-        const auto &singers = singerCat
-            ? singerCat->as<srt::svs::SingerCategory>()->singers()
-            : std::vector<srt::svs::SingerSpec *>{};
+        const auto &singers = singerCat ? singerCat->as<srt::svs::SingerCategory>()->singers()
+                                        : std::vector<srt::svs::SingerSpec *>{};
 
         const auto languageManager = UiLanguageManager::instance();
         const auto locale =
