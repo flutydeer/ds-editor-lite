@@ -1,6 +1,7 @@
 #ifndef TRACKSRHIWIDGET_H
 #define TRACKSRHIWIDGET_H
 
+#include "AudioWaveformSampler.h"
 #include "Interface/EditorViewState.h"
 #include "TrackEditorContextMenuController.h"
 #include "TracksGraphicsScene.h"
@@ -15,6 +16,7 @@
 #include <QTimer>
 #include <QUrl>
 
+#include <memory>
 #include <optional>
 
 class QContextMenuEvent;
@@ -42,8 +44,8 @@ class TracksRhiWidget final : public EditorRhiWidget, public ITrackPastePreviewH
     Q_PROPERTY(QColor selectedTrackColor READ selectedTrackColor WRITE setSelectedTrackColor)
     Q_PROPERTY(QColor clipSelectedBorderColor READ clipSelectedBorderColor WRITE
                    setClipSelectedBorderColor)
-    Q_PROPERTY(QColor rubberBandBorderColor READ rubberBandBorderColor WRITE
-                   setRubberBandBorderColor)
+    Q_PROPERTY(
+        QColor rubberBandBorderColor READ rubberBandBorderColor WRITE setRubberBandBorderColor)
     Q_PROPERTY(QColor rubberBandFillColor READ rubberBandFillColor WRITE setRubberBandFillColor)
     Q_PROPERTY(QColor dropHighlightColor READ dropHighlightColor WRITE setDropHighlightColor)
     Q_PROPERTY(QColor dropIndicatorColor READ dropIndicatorColor WRITE setDropIndicatorColor)
@@ -138,7 +140,7 @@ private:
         bool active = false;
         bool pastePreview = false;
         QVector<NoteSnapshot> notes;
-        QVector<std::tuple<short, short>> peaks;
+        AudioWaveformSampler::Result waveform;
     };
 
     struct DragPreview {
@@ -156,6 +158,10 @@ private:
     void appendDropOverlay(EditorRhiFrameData &frame, double dpr) const;
     [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex,
                                                  double dpr) const;
+    [[nodiscard]] AudioWaveformSampler::Result sampleAudioWaveform(AudioWaveformSampler &sampler,
+                                                                   const AudioInfoModel &audioInfo,
+                                                                   const ClipSnapshot &clip,
+                                                                   double dpr) const;
     [[nodiscard]] const ClipSnapshot *hitTest(const QPointF &viewportPosition) const;
     [[nodiscard]] double wheelDelta(const QWheelEvent *event, bool preferHorizontal) const;
     [[nodiscard]] int trackIndexAt(const QPointF &viewportPosition) const;
@@ -208,6 +214,7 @@ private:
 
     EditorViewportController m_viewport;
     EditorGlyphAtlas m_glyphAtlas;
+    QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;
     QVector<ClipSnapshot> m_clipSnapshots;
     QVector<ClipSnapshot> m_pastePreviewSnapshots;
     bool m_snapshotScheduled = false;
@@ -217,6 +224,7 @@ private:
     QTimer m_positionThrottle;
     bool m_autoTurnPage = true;
     bool m_autoPageTurnAvailable = false;
+    double m_leftMarginPx = 0.0;
     DragMode m_dragMode = DragMode::None;
     QPointF m_mouseDownScene;
     QPointF m_rubberBandStart;

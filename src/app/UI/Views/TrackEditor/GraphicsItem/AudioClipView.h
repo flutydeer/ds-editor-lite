@@ -2,16 +2,12 @@
 #define AUDIOCLIPGRAPHICSITEM_H
 
 #include "AbstractClipView.h"
+#include "Global/AppGlobal.h"
+#include "UI/Utils/WaveformRenderUtils.h"
+#include "UI/Views/TrackEditor/AudioWaveformSampler.h"
+
 #include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/AppModel/AudioInfoModel.h>
-#include "Global/AppGlobal.h"
-
-#include <QVector>
-#include "UI/Utils/WaveformRenderUtils.h"
-
-namespace talcs {
-class AbstractAudioFormatIO;
-}
 
 // Graphics item that displays an audio clip's waveform in the track editor.
 //
@@ -44,38 +40,18 @@ public:
     [[nodiscard]] int contentLength() const override;
 
 private:
-    enum RenderResolution { High, Low };
-
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) override;
     [[nodiscard]] QString clipTypeName() const override;
     [[nodiscard]] QString iconPath() const override;
-
-    bool ensureIO();
-    void resetIO();
-
-    static double sincInterpolate(const QVector<float> &samples, qint64 offset,
-                                  qint64 totalFrames, double position, int halfKernel = 16);
-
-    double tickToSamplePos(double absTick) const;
-    double samplePosToTick(double samplePos) const;
-
-    void drawPeakMode(QPainter *painter, const QRectF &previewRect, const QColor &color);
-    void drawSubChunkPeakMode(QPainter *painter, const QRectF &previewRect, const QColor &color);
-    void drawWaveformCurve(QPainter *painter, const QRectF &previewRect, const QColor &color);
 
     AppGlobal::AudioLoadStatus m_status = AppGlobal::Init;
     AudioInfoModel m_audioInfo;
     QString m_errorMessage;
     Timeline m_timeline;
-    RenderResolution m_resolution = High;
     QString m_path;
 
     WaveformRenderUtils::Mode m_renderMode = WaveformRenderUtils::FilledMode;
-
-    talcs::AbstractAudioFormatIO *m_io = nullptr;
-    QVector<float> m_ioBuffer;
+    AudioWaveformSampler m_waveformSampler;
 };
-
-
 
 #endif // AUDIOCLIPGRAPHICSITEM_H

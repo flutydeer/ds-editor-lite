@@ -33,6 +33,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QResizeEvent>
+#include <QSet>
 #include <QShowEvent>
 #include <QTimer>
 #include <QWheelEvent>
@@ -55,11 +56,10 @@ namespace {
     QString commonClipTitle(const Clip::ClipCommonProperties &properties, const int id,
                             const double scaleX, const double scaleY) {
         const auto showDebug = appOptions->developer()->showClipDebugInfo;
-        const auto control =
-            (showDebug ? QStringLiteral("id: %1 ").arg(id) : QString()) +
-            QStringLiteral("%1 %2dB %3 ")
-                .arg(properties.name, QLocale().toString(properties.gain),
-                     properties.mute ? QStringLiteral("M") : QString());
+        const auto control = (showDebug ? QStringLiteral("id: %1 ").arg(id) : QString()) +
+                             QStringLiteral("%1 %2dB %3 ")
+                                 .arg(properties.name, QLocale().toString(properties.gain),
+                                      properties.mute ? QStringLiteral("M") : QString());
         if (!showDebug)
             return control;
         return control + QStringLiteral("s: %1 l: %2 cs: %3 cl: %4 sx: %5 sy: %6")
@@ -120,8 +120,7 @@ namespace {
 
         void drawSubdivision(QPainter *painter, const int tick, const int level,
                              const int levelCount) override {
-            const auto ratio =
-                levelCount > 1 ? static_cast<double>(level) / (levelCount - 1) : 0.0;
+            const auto ratio = levelCount > 1 ? static_cast<double>(level) / (levelCount - 1) : 0.0;
             m_callback(tick, withPainterOpacity(blendColor(m_beat, m_common, ratio), painter));
         }
 
@@ -318,6 +317,7 @@ void TracksRhiWidget::setSceneLength(const int tick) {
 }
 
 void TracksRhiWidget::setLeftMarginPx(const double px) {
+    m_leftMarginPx = px;
     m_viewport.setLeftMarginPx(px);
 }
 
@@ -751,15 +751,26 @@ void TracksRhiWidget::appendGrid(EditorRhiFrameData &frame, const double dpr) co
 
 void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
     m_clipSnapshots.clear();
+    QSet<int> audioClipIds;
     const auto visiblePhysical = QRectF(m_viewport.visibleSceneRect().topLeft() * dpr,
                                         m_viewport.visibleSceneRect().size() * dpr)
                                      .adjusted(-width() * dpr, 0, width() * dpr, 0);
     const auto &tracks = appModel->tracks();
     for (int trackIndex = 0; trackIndex < tracks.size(); ++trackIndex) {
         for (const auto *clip : tracks.at(trackIndex)->clips()) {
+            if (clip->clipType() == IClip::Audio)
+                audioClipIds.insert(clip->id());
             auto snapshot = buildClipSnapshot(clip, trackIndex, dpr);
             if (!visiblePhysical.intersects(snapshot.physicalRect))
                 continue;
+            if (const auto audio = qobject_cast<const AudioClip *>(clip)) {
+                auto &sampler = m_audioWaveformSamplers[snapshot.id];
+                if (!sampler)
+                    sampler = std::make_shared<AudioWaveformSampler>();
+                sampler->setPath(audio->path());
+                snapshot.waveform =
+                    sampleAudioWaveform(*sampler, audio->audioInfo(), snapshot, dpr);
+            }
             m_clipSnapshots.append(std::move(snapshot));
             appendClip(frame, m_clipSnapshots.constLast(), dpr);
         }
@@ -767,6 +778,13 @@ void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
     for (const auto &preview : m_pastePreviewSnapshots) {
         if (visiblePhysical.intersects(preview.physicalRect))
             appendClip(frame, preview, dpr);
+    }
+    for (auto iterator = m_audioWaveformSamplers.begin();
+         iterator != m_audioWaveformSamplers.end();) {
+        if (audioClipIds.contains(iterator.key()))
+            ++iterator;
+        else
+            iterator = m_audioWaveformSamplers.erase(iterator);
     }
 }
 
@@ -789,8 +807,7 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
                          clip.physicalRect.width(), clip.physicalRect.height() - titleHeight);
     const auto hasPreview = preview.height() >= 32.0 * dpr;
     const auto bodyColor = hasPreview ? transparent : (clip.selected ? selectedFill : fill);
-    EditorRhiGeometry::appendRoundedRect(frame.solidVertices, clip.physicalRect, radius,
-                                         bodyColor);
+    EditorRhiGeometry::appendRoundedRect(frame.solidVertices, clip.physicalRect, radius, bodyColor);
     if (hasPreview) {
         const auto titleBottom = clip.physicalRect.top() + titleHeight - 1.2 * dpr - 0.75;
         const QRectF titleRect(clip.physicalRect.left(), clip.physicalRect.top(),
@@ -816,21 +833,20 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
     const auto rawLeft = clip.physicalRect.left() - 0.6 * dpr;
     const auto rawRight = clip.physicalRect.right() + 0.6 * dpr;
     const auto visibleLeft = m_viewport.horizontalOffset() * dpr;
-    const auto titleLeft = visibleLeft < rawLeft ? clip.physicalRect.left() : visibleLeft + 0.6 * dpr;
+    const auto titleLeft =
+        visibleLeft < rawLeft ? clip.physicalRect.left() : visibleLeft + 0.6 * dpr;
     const auto titleWidth = rawRight - std::max(rawLeft, visibleLeft) - 2.4 * dpr;
     constexpr double iconWidth = 4.0;
     if (metrics.horizontalAdvance(clip.title) + iconWidth * dpr <= titleWidth &&
         metrics.height() <= titleHeight) {
-        const auto textTop = hasPreview
-                                 ? clip.physicalRect.top()
-                                 : clip.physicalRect.top() +
-                                       (clip.physicalRect.height() - metrics.height()) * 0.5;
+        const auto textTop = hasPreview ? clip.physicalRect.top()
+                                        : clip.physicalRect.top() +
+                                              (clip.physicalRect.height() - metrics.height()) * 0.5;
         const QRectF textClip(titleLeft + iconWidth * dpr, clip.physicalRect.top(),
                               titleWidth - iconWidth * dpr,
                               std::min(titleHeight, clip.physicalRect.height()));
-        m_glyphAtlas.appendText(clip.title, font,
-                                QPointF(titleLeft + iconWidth * dpr, textTop), foreground,
-                                textClip);
+        m_glyphAtlas.appendText(clip.title, font, QPointF(titleLeft + iconWidth * dpr, textTop),
+                                foreground, textClip);
     }
 
     if (!hasPreview || preview.width() < 16.0 * dpr || preview.height() < 32.0 * dpr)
@@ -852,10 +868,8 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
                 std::min(clip.visibleEndTick, clip.contentStartTick + note.start + note.length);
             if (end <= start)
                 continue;
-            const auto left =
-                std::max(preview.left(), m_viewport.tickToSceneX(start) * dpr);
-            const auto right =
-                std::min(preview.right(), m_viewport.tickToSceneX(end) * dpr);
+            const auto left = std::max(preview.left(), m_viewport.tickToSceneX(start) * dpr);
+            const auto right = std::min(preview.right(), m_viewport.tickToSceneX(end) * dpr);
             const auto top = contentTop + (high - note.key) * noteHeight;
             EditorRhiGeometry::appendRect(frame.solidVertices,
                                           QRectF(left, top, right - left, noteHeight), noteColor);
@@ -863,72 +877,137 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
 
         const QRectF pianoRollRect = appStatus->pianoRollVisibleRect;
         if (clip.active && !pianoRollRect.isNull() && !pianoRollRect.isEmpty()) {
-            const auto overlayStart = std::max(
-                pianoRollRect.left() + clip.contentStartTick,
-                static_cast<double>(clip.visibleStartTick));
-            const auto overlayEnd = std::min(
-                pianoRollRect.right() + clip.contentStartTick,
-                static_cast<double>(clip.visibleEndTick));
+            const auto overlayStart = std::max(pianoRollRect.left() + clip.contentStartTick,
+                                               static_cast<double>(clip.visibleStartTick));
+            const auto overlayEnd = std::min(pianoRollRect.right() + clip.contentStartTick,
+                                             static_cast<double>(clip.visibleEndTick));
             if (overlayEnd > overlayStart) {
-                const auto overlayTop =
-                    contentTop + (high - pianoRollRect.bottom()) * noteHeight;
-                const auto overlayBottom =
-                    contentTop + (high - pianoRollRect.top()) * noteHeight;
-                const QRectF overlay(m_viewport.tickToSceneX(overlayStart) * dpr, overlayTop,
-                                     (m_viewport.tickToSceneX(overlayEnd) -
-                                      m_viewport.tickToSceneX(overlayStart)) *
-                                         dpr,
-                                     overlayBottom - overlayTop);
+                const auto overlayTop = contentTop + (high - pianoRollRect.bottom()) * noteHeight;
+                const auto overlayBottom = contentTop + (high - pianoRollRect.top()) * noteHeight;
+                const QRectF overlay(
+                    m_viewport.tickToSceneX(overlayStart) * dpr, overlayTop,
+                    (m_viewport.tickToSceneX(overlayEnd) - m_viewport.tickToSceneX(overlayStart)) *
+                        dpr,
+                    overlayBottom - overlayTop);
                 const auto overlayColor = palette.clipBorder(clip.colorIndex);
                 if (preview.contains(overlay)) {
-                    EditorRhiGeometry::appendRoundedRectStroke(
-                        frame.solidVertices, overlay, radius, 1.2 * dpr, overlayColor);
+                    EditorRhiGeometry::appendRoundedRectStroke(frame.solidVertices, overlay, radius,
+                                                               1.2 * dpr, overlayColor);
                 } else if (preview.intersects(overlay)) {
                     const auto clipped = preview.intersected(overlay);
                     const auto lineWidth = 1.2 * dpr;
                     if (overlay.left() >= preview.left() && overlay.left() <= preview.right())
-                        EditorRhiGeometry::appendRect(
-                            frame.solidVertices,
-                            QRectF(overlay.left() - lineWidth * 0.5, clipped.top(), lineWidth,
-                                   clipped.height()),
-                            overlayColor);
+                        EditorRhiGeometry::appendRect(frame.solidVertices,
+                                                      QRectF(overlay.left() - lineWidth * 0.5,
+                                                             clipped.top(), lineWidth,
+                                                             clipped.height()),
+                                                      overlayColor);
                     if (overlay.right() >= preview.left() && overlay.right() <= preview.right())
-                        EditorRhiGeometry::appendRect(
-                            frame.solidVertices,
-                            QRectF(overlay.right() - lineWidth * 0.5, clipped.top(), lineWidth,
-                                   clipped.height()),
-                            overlayColor);
+                        EditorRhiGeometry::appendRect(frame.solidVertices,
+                                                      QRectF(overlay.right() - lineWidth * 0.5,
+                                                             clipped.top(), lineWidth,
+                                                             clipped.height()),
+                                                      overlayColor);
                     if (overlay.top() >= preview.top() && overlay.top() <= preview.bottom())
-                        EditorRhiGeometry::appendRect(
-                            frame.solidVertices,
-                            QRectF(clipped.left(), overlay.top() - lineWidth * 0.5,
-                                   clipped.width(), lineWidth),
-                            overlayColor);
+                        EditorRhiGeometry::appendRect(frame.solidVertices,
+                                                      QRectF(clipped.left(),
+                                                             overlay.top() - lineWidth * 0.5,
+                                                             clipped.width(), lineWidth),
+                                                      overlayColor);
                     if (overlay.bottom() >= preview.top() && overlay.bottom() <= preview.bottom())
-                        EditorRhiGeometry::appendRect(
-                            frame.solidVertices,
-                            QRectF(clipped.left(), overlay.bottom() - lineWidth * 0.5,
-                                   clipped.width(), lineWidth),
-                            overlayColor);
+                        EditorRhiGeometry::appendRect(frame.solidVertices,
+                                                      QRectF(clipped.left(),
+                                                             overlay.bottom() - lineWidth * 0.5,
+                                                             clipped.width(), lineWidth),
+                                                      overlayColor);
                 }
             }
         }
-    } else if (clip.type == IClip::Audio && !clip.peaks.isEmpty()) {
-        const auto count = clip.peaks.size();
-        const auto center = preview.center().y();
-        const auto halfHeight = preview.height() * 0.48;
-        const auto firstPixel = std::max(0, qRound(clip.physicalRect.left()));
-        const auto lastPixel = std::max(firstPixel + 1, qRound(clip.physicalRect.right()));
-        for (int x = firstPixel; x < lastPixel; ++x) {
-            const auto ratio =
-                (x - clip.physicalRect.left()) / std::max(1.0, clip.physicalRect.width());
-            const auto index =
-                std::clamp<qsizetype>(qRound(ratio * static_cast<double>(count - 1)), 0, count - 1);
-            const auto [minimum, maximum] = clip.peaks.at(index);
-            const auto top = center - maximum / 32768.0 * halfHeight;
-            const auto bottom = center - minimum / 32768.0 * halfHeight;
-            EditorRhiGeometry::appendPixelAlignedVerticalLine(frame.solidVertices, x, top, bottom,
-                                                              fill);
+    } else if (clip.type == IClip::Audio) {
+        const auto waveformColor = clip.selected ? selectedFill : fill;
+        const auto physicalCameraOffset =
+            QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr;
+        const auto cameraCorrection =
+            physicalCameraOffset - QPointF(std::round(m_viewport.horizontalOffset()),
+                                           std::round(m_viewport.verticalOffset())) *
+                                       dpr;
+        const auto physicalWaveformPoint = [dpr, cameraCorrection](const QPointF &point) {
+            return point * dpr + cameraCorrection + QPointF(0.0, -0.5);
+        };
+        if (clip.waveform.geometry == AudioWaveformSampler::Geometry::FilledPeaks) {
+            QVector<QPointF> top;
+            QVector<QPointF> bottom;
+            top.reserve(clip.waveform.peaks.size());
+            bottom.reserve(clip.waveform.peaks.size());
+            for (const auto &point : clip.waveform.peaks) {
+                top.append(physicalWaveformPoint({point.x, point.yMax}));
+                bottom.append(physicalWaveformPoint({point.x, point.yMin}));
+            }
+            EditorRhiGeometry::appendAntialiasedWaveform(frame.solidVertices, top, bottom, preview,
+                                                         waveformColor, 0.75);
+
+            auto flatRunStart = -1;
+            for (auto index = 0; index < clip.waveform.peaks.size(); ++index) {
+                const auto &point = clip.waveform.peaks[index];
+                const auto flat = std::abs(point.yMax - point.yMin) < 0.5;
+                if (flat && flatRunStart < 0) {
+                    flatRunStart = index;
+                } else if (!flat && flatRunStart >= 0) {
+                    const auto runStart =
+                        physicalWaveformPoint({clip.waveform.peaks[flatRunStart].x,
+                                               clip.waveform.peaks[flatRunStart].yMax});
+                    const auto runEnd = physicalWaveformPoint(
+                        {clip.waveform.peaks[index - 1].x, clip.waveform.peaks[index - 1].yMax});
+                    EditorRhiGeometry::appendPixelAlignedHorizontalLine(
+                        frame.solidVertices, runStart.y(), runStart.x(), runEnd.x(), waveformColor);
+                    flatRunStart = -1;
+                }
+            }
+            if (flatRunStart >= 0) {
+                const auto runStart = physicalWaveformPoint(
+                    {clip.waveform.peaks[flatRunStart].x, clip.waveform.peaks[flatRunStart].yMax});
+                const auto runEnd = physicalWaveformPoint(
+                    {clip.waveform.peaks.constLast().x, clip.waveform.peaks.constLast().yMax});
+                EditorRhiGeometry::appendPixelAlignedHorizontalLine(
+                    frame.solidVertices, runStart.y(), runStart.x(), runEnd.x(), waveformColor);
+            }
+        } else if (clip.waveform.geometry == AudioWaveformSampler::Geometry::VerticalPeaks) {
+            auto cosmeticLineOffset = 0.0;
+            if (!clip.waveform.peaks.isEmpty()) {
+                const auto firstPhysicalX =
+                    physicalWaveformPoint({clip.waveform.peaks.constFirst().x, 0.0}).x();
+                const auto firstScreenX = firstPhysicalX - physicalCameraOffset.x();
+                const auto pixelPhase = firstScreenX - std::floor(firstScreenX);
+                // Preserve QPainter's aliased cosmetic-pen phase after the RHI camera transform.
+                cosmeticLineOffset = pixelPhase < 0.5 ? -0.5 : 0.0;
+            }
+            for (const auto &point : clip.waveform.peaks) {
+                const auto top = physicalWaveformPoint({point.x, std::min(point.yMin, point.yMax)});
+                const auto bottom =
+                    physicalWaveformPoint({point.x, std::max(point.yMin, point.yMax)});
+                const auto lineTop = top.y() - 0.5;
+                const auto lineBottom = bottom.y() + 0.5;
+                const auto lineX = std::floor(top.x() - physicalCameraOffset.x()) +
+                                   physicalCameraOffset.x() + cosmeticLineOffset;
+                EditorRhiGeometry::appendRect(
+                    frame.solidVertices,
+                    QRectF(lineX, lineTop, 1.0, std::max(1.0, lineBottom - lineTop)),
+                    waveformColor);
+            }
+        } else if (clip.waveform.geometry == AudioWaveformSampler::Geometry::Curve) {
+            QVector<QPointF> curve;
+            curve.reserve(clip.waveform.curve.size());
+            for (const auto &point : clip.waveform.curve)
+                curve.append(physicalWaveformPoint(point));
+            EditorRhiGeometry::appendAntialiasedHairline(frame.solidVertices, curve, waveformColor);
+            const auto radius = clip.waveform.sampleDotRadius * dpr;
+            for (const auto &point : clip.waveform.sampleDots) {
+                const auto center = physicalWaveformPoint(point);
+                EditorRhiGeometry::appendRoundedRect(
+                    frame.solidVertices,
+                    QRectF(center.x() - radius, center.y() - radius, radius * 2.0, radius * 2.0),
+                    radius, waveformColor);
+            }
         }
     }
 }
@@ -951,7 +1030,6 @@ void TracksRhiWidget::appendPlaybackIndicators(EditorRhiFrameData &frame, const 
 TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *clip,
                                                                  const int trackIndex,
                                                                  const double dpr) const {
-    const auto track = appModel->tracks().at(trackIndex);
     const auto props = previewOrModelProperties(clip);
     const auto displayTrack = m_dragPreview && m_dragPreview->clipId == clip->id()
                                   ? m_dragPreview->trackIndex
@@ -976,19 +1054,42 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
         const auto singerName = singing->singerInfo().name();
         const auto speakerName = SpeakerMixDisplayUtils::speakerDisplayName(
             singing->singerInfo(), singing->speakerInfo(), singing->speakerMixData());
-        result.title += QStringLiteral("%1%2 %3 ").arg(
-            singerName.isEmpty() ? tr("(No singer)") : singerName,
-            speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName,
-            singing->defaultLanguage());
+        result.title +=
+            QStringLiteral("%1%2 %3 ")
+                .arg(singerName.isEmpty() ? tr("(No singer)") : singerName,
+                     speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName,
+                     singing->defaultLanguage());
         for (const auto *note : singing->notes())
             result.notes.append({note->localStart(), note->length(), note->keyIndex()});
-    } else if (const auto audio = qobject_cast<const AudioClip *>(clip)) {
-        result.peaks = audio->audioInfo().peakCacheMipmap.isEmpty()
-                           ? audio->audioInfo().peakCache.toVector()
-                           : audio->audioInfo().peakCacheMipmap.toVector();
     }
-    Q_UNUSED(track);
     return result;
+}
+
+AudioWaveformSampler::Result TracksRhiWidget::sampleAudioWaveform(AudioWaveformSampler &sampler,
+                                                                  const AudioInfoModel &audioInfo,
+                                                                  const ClipSnapshot &clip,
+                                                                  const double dpr) const {
+    const auto previewPhysical =
+        QRectF(clip.physicalRect.left(), clip.physicalRect.top() + 20.0 * dpr,
+               clip.physicalRect.width(), clip.physicalRect.height() - 20.0 * dpr);
+    const auto previewScene = QRectF(previewPhysical.left() / dpr, previewPhysical.top() / dpr,
+                                     previewPhysical.width() / dpr, previewPhysical.height() / dpr);
+    auto waveformVisibleRect = m_viewport.visibleSceneRect();
+    waveformVisibleRect.moveTo(std::round(waveformVisibleRect.left()),
+                               std::round(waveformVisibleRect.top()));
+    const auto &timeline = appModel->timeline();
+    return sampler.sample({
+        .audioInfo = &audioInfo,
+        .timeline = &timeline,
+        .materialStartTick = clip.contentStartTick,
+        .visibleStartTick = clip.visibleStartTick,
+        .previewSceneRect = previewScene,
+        .visibleSceneRect = waveformVisibleRect,
+        .horizontalScale = scaleX(),
+        .pixelsPerQuarterNote = pixelsPerQuarterNote,
+        .leftMarginPx = m_leftMarginPx,
+        .devicePixelRatio = dpr,
+    });
 }
 
 void TracksRhiWidget::showTrackPastePreview(const TrackPastePreviewData &data,
@@ -1032,16 +1133,17 @@ void TracksRhiWidget::showTrackPastePreview(const TrackPastePreviewData &data,
             const auto speakerName = SpeakerMixDisplayUtils::speakerDisplayName(
                 targetTrack->singerInfo(), targetTrack->speakerInfo(),
                 targetTrack->speakerMixData());
-            snapshot.title += QStringLiteral("%1%2 %3 ").arg(
-                singerName.isEmpty() ? tr("(No singer)") : singerName,
-                speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName,
-                clip.defaultLanguage);
+            snapshot.title +=
+                QStringLiteral("%1%2 %3 ")
+                    .arg(singerName.isEmpty() ? tr("(No singer)") : singerName,
+                         speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName,
+                         clip.defaultLanguage);
             for (const auto &note : clip.notes)
                 snapshot.notes.append({note.start, note.length, note.key});
         } else if (clip.type == IClip::Audio) {
-            snapshot.peaks = clip.audioInfo.peakCacheMipmap.isEmpty()
-                                 ? clip.audioInfo.peakCache.toVector()
-                                 : clip.audioInfo.peakCacheMipmap.toVector();
+            AudioWaveformSampler sampler;
+            sampler.setPath(clip.audioPath);
+            snapshot.waveform = sampleAudioWaveform(sampler, clip.audioInfo, snapshot, dpr);
         }
         m_pastePreviewSnapshots.append(std::move(snapshot));
     }
