@@ -4,7 +4,7 @@
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "UI/Controls/G2pListWidget.h"
-#include "UI/Controls/SmoothScroller.h"
+#include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Controls/AccentButton.h>
 
 #include <QVBoxLayout>
@@ -17,7 +17,7 @@ ExtractPitchParamDialog::ExtractPitchParamDialog(const QList<AudioClip *> &clips
     clipList = new QListWidget;
     clipList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     {
-        // 鼠标滚轮 OutCubic 动画（触控板直通）
+        // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(clipList);
     }

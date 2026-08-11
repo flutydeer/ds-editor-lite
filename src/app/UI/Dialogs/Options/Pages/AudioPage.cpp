@@ -25,6 +25,8 @@
 #include <lite/GUI/Controls/SvsExpressionDoubleSpinBox.h>
 #include <lite/GUI/Controls/ComboBox.h>
 
+#include <QAbstractItemView>
+
 #include <Model/AppOptions/AppOptions.h>
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
@@ -71,6 +73,9 @@ QWidget *AudioPage::createContentWidget() {
     m_deviceControlPanelButton = new QPushButton(tr("Control &Panel"));
     m_bufferSizeComboBox = new ComboBox;
     m_sampleRateComboBox = new ComboBox;
+    // Scroll the popup list per pixel (pairs with global smooth scrolling;
+    // per-line scrolling feels like jumping a lot)
+    m_sampleRateComboBox->view()->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     m_hotPlugModeComboBox = new ComboBox;
     m_hotPlugModeComboBox->addItem(tr("Notify when any device added or removed"),
                                    talcs::OutputContext::Omni);

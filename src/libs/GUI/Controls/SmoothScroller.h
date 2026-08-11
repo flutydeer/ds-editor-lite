@@ -14,14 +14,15 @@ class QAbstractScrollArea;
 class QScrollBar;
 class QWheelEvent;
 
-/// 平滑滚动器：拦截托管滚动区视口的滚轮事件，用 OutCubic 动画驱动 scrollbar 值。
-/// 鼠标滚轮（angleDelta 为 120 整数倍）→ 动画；触控板（非整倍数/像素平滑）→ 直通。
+/// Smoothly scrolls a managed scroll area: intercepts wheel events on its viewport
+/// and drives the scrollbar value via an OutCubic animation. Real mouse wheels
+/// (angleDelta multiples of 120) animate; touchpads (fractional/pixel deltas) pass through.
 class SmoothScroller : public QObject, public IAnimatable {
     Q_OBJECT
 
 public:
     explicit SmoothScroller(QObject *parent = nullptr);
-    /// 绑定滚动区（安装到其 viewport 的事件过滤器）。
+    /// Binds a scroll area (installs this object as an event filter on its viewport).
     void attachTo(QAbstractScrollArea *area);
 
 protected:
@@ -35,11 +36,14 @@ private:
     QAbstractScrollArea *m_area = nullptr;
     QPropertyAnimation m_hAnim;
     QPropertyAnimation m_vAnim;
-    // 动画进行中的逻辑目标（下一轮滚轮叠加于此，而非打断点），溢出后清除。
+    // Logical scroll target while an animation is running; a new wheel event
+    // stacks on top of it instead of restarting from the interrupted position.
+    // Cleared when the animation finishes.
     std::optional<int> m_logicalH;
     std::optional<int> m_logicalV;
-    // 判定滑动窗口：最近 kWindowSize 个事件出现任一非 120 倍数即转触控板直通，
-    // 直到该事件滑出窗口（期间默认鼠标动画，与编辑区方向一致）。
+    // Sliding window of recent wheel steps: any non-120-multiple event latches
+    // touchpad mode (pass-through) until that event falls out of the window.
+    // Defaults to mouse animation on an empty window, mirroring the editor view.
     QVector<bool> m_stepWindow;
     static constexpr int kWindowSize = 6;
     static constexpr int kBaseMs = 250;

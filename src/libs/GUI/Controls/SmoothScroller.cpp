@@ -1,6 +1,8 @@
 #include "SmoothScroller.h"
 
 #include <QAbstractScrollArea>
+#include <QAbstractItemView>
+#include <QApplication>
 #include <QEvent>
 #include <QScrollBar>
 #include <QWheelEvent>
@@ -23,9 +25,9 @@ void SmoothScroller::attachTo(QAbstractScrollArea *area) {
     viewport->setMouseTracking(true);
     m_hAnim.setTargetObject(area->horizontalScrollBar());
     m_vAnim.setTargetObject(area->verticalScrollBar());
-    // 端到端 install 后既有 OverlayScrollBar 不受影响：滚轮动画驱动的是
-    // QAbstractItemView/QScrollArea 的 scrollbar value，OverlayScrollBar 的
-    // valueChanged 联动是 1:1 镜像，天然跟随动画值变化。
+    // Existing OverlayScrollBars are unaffected end-to-end: the animation drives
+    // the QAbstractItemView/QScrollArea scrollbar value, and OverlayScrollBar
+    // mirrors that value 1:1 through its valueChanged connection.
 }
 
 bool SmoothScroller::eventFilter(QObject *watched, QEvent *event) {
@@ -35,7 +37,12 @@ bool SmoothScroller::eventFilter(QObject *watched, QEvent *event) {
 
     auto *wheelEvent = static_cast<QWheelEvent *>(event);
 
-    // 记录步进到滑动窗口
+    // Pass through wheel events carrying modifiers: Ctrl zooms fonts
+    // (PhonicTextEdit / LyricWrapView) and Shift/Alt are handled by the widget itself.
+    if (wheelEvent->modifiers() != Qt::NoModifier)
+        return QObject::eventFilter(watched, event);
+
+    // Record this step into the sliding window
     const auto &d = wheelEvent->angleDelta();
     const auto step = (qAbs(d.x()) == 0 && qAbs(d.y()) % 120 == 0) ||
                       (qAbs(d.x()) % 120 == 0 && qAbs(d.y()) == 0);
@@ -43,21 +50,43 @@ bool SmoothScroller::eventFilter(QObject *watched, QEvent *event) {
         m_stepWindow.removeFirst();
     m_stepWindow.append(step);
 
-    // 窗口内出现任一非 120 倍数事件 → 触控板（直通），直到该事件滑出窗口。
-    // 与编辑区同方向：默认鼠标动画（空窗口 all_of 恒真），检测到触控板特征才短暂锁直通。
+    // Any non-120-multiple event in the window means touchpad: pass through until that
+    // event falls out of the window. Default mouse animation on an empty window
+    // (all_of on an empty window is true), same direction as the editor view.
     if (!std::all_of(m_stepWindow.cbegin(), m_stepWindow.cend(), [](bool v) { return v; })) {
-        return QObject::eventFilter(watched, event); // 不消费，原生滚动
+        return QObject::eventFilter(watched, event); // do not consume; native scrolling
     }
 
-    // 鼠标滚轮：动画驱动 scrollbar value
+    // Mouse wheel: animate the scrollbar value
     const auto delta = wheelEvent->angleDelta();
     const bool horizontal = (qAbs(delta.x()) > qAbs(delta.y()));
     auto *bar = horizontal ? m_area->horizontalScrollBar() : m_area->verticalScrollBar();
     if (!bar || bar->maximum() <= bar->minimum())
-        return QObject::eventFilter(watched, event); // 无滚动范围，原生处理
+        return QObject::eventFilter(watched, event); // no range; native handling
 
-    const double perStep =
+    // Per-line item views (ScrollPerItem, e.g. ComboBox's default popup list /
+    // QListWidget) pass through untouched: cheap per-line scrolling suits long
+    // lists and needs no animation.
+    if (!horizontal && qobject_cast<QAbstractItemView *>(m_area) &&
+        static_cast<QAbstractItemView *>(m_area)->verticalScrollMode() ==
+            QAbstractItemView::ScrollPerItem) {
+        return QObject::eventFilter(watched, event); // do not consume; native per-line scroll
+    }
+    // Pixel-scrolling views (ScrollPerPixel item views / QScrollArea):
+    // perStep is "system wheel lines x row height" pixels (default 3 lines), matching
+    // the native per-tick displacement so animated and unanimated scrolling stay aligned.
+    // Views without rows (QScrollArea) fall back to viewport x 0.15.
+    double perStep =
         (horizontal ? m_area->viewport()->width() : m_area->viewport()->height()) * 0.15;
+    if (!horizontal) {
+        if (auto *itemView = qobject_cast<QAbstractItemView *>(m_area);
+            itemView && itemView->verticalScrollMode() == QAbstractItemView::ScrollPerPixel) {
+            const int rowHeight = itemView->sizeHintForRow(0);
+            const int scrollLines = QApplication::wheelScrollLines(); // -1 = page scroll
+            if (rowHeight > 0 && scrollLines > 0)
+                perStep = rowHeight * scrollLines;
+        }
+    }
     QPropertyAnimation *anim = horizontal ? &m_hAnim : &m_vAnim;
     std::optional<int> *logical = horizontal ? &m_logicalH : &m_logicalV;
 
@@ -74,7 +103,7 @@ bool SmoothScroller::eventFilter(QObject *watched, QEvent *event) {
         *logical = endValue;
         anim->start();
     }
-    return true; // 消费滚轮事件
+    return true; // consume the wheel event
 }
 
 void SmoothScroller::updateAnimationDuration() {

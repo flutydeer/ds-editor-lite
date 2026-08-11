@@ -1,6 +1,6 @@
 #include "SpeakerMixList.h"
 #include "SpeakerMixBar.h"
-#include "UI/Controls/SmoothScroller.h"
+#include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Controls/ColorDot.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include "UI/Utils/SpeakerMixColorResolver.h"
@@ -51,7 +51,7 @@ SpeakerMixList::SpeakerMixList(const QString &packageName, const QStringList &sp
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     {
-        // 鼠标滚轮 OutCubic 动画（触控板直通）
+        // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(this);
     }

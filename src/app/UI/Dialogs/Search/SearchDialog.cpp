@@ -4,7 +4,7 @@
 #include "Controller/EditorViewController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
-#include "UI/Controls/SmoothScroller.h"
+#include <lite/GUI/Controls/SmoothScroller.h>
 
 #include <QApplication>
 #include <QButtonGroup>
@@ -25,7 +25,8 @@ SearchDialog::SearchDialog(SingingClip *singingClip, QWidget *parent)
     resultListWidget = new QListWidget();
     resultListWidget->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     {
-        // 鼠标滚轮 OutCubic 动画（触控板直通），不拦截 Shift+Ctrl 等修饰键。
+        // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through.
+        // Modifier combinations (Shift/Ctrl/...) are left untouched.
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(resultListWidget);
     }

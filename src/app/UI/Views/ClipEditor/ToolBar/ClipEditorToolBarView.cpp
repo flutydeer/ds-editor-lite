@@ -31,6 +31,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QSignalBlocker>
+#include <QAbstractItemView>
 
 #include <optional>
 
@@ -110,6 +111,9 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_cbPianoRollQuantize = new ComboBox(true);
     d->m_cbPianoRollQuantize->setObjectName("cbPianoRollQuantize");
     d->m_cbPianoRollQuantize->addItems(QuantizeOptions::strings());
+    // Scroll the popup list per pixel (pairs with global smooth scrolling;
+    // per-line scrolling feels like jumping a lot)
+    d->m_cbPianoRollQuantize->view()->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     d->m_cbPianoRollQuantize->setCurrentIndex(quantizeIndex(appStatus->pianoRollQuantize));
     d->m_cbPianoRollQuantize->setFixedHeight(d->m_contentHeight);
     d->m_cbPianoRollQuantize->setToolTip(tr("Piano Roll Quantize"));

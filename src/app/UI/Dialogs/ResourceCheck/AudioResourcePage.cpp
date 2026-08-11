@@ -6,7 +6,7 @@
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Modules/Audio/AudioContext.h"
-#include "UI/Controls/SmoothScroller.h"
+#include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Controls/Button.h>
 
 #include <TalcsWidgets/AudioFileDialog.h>
@@ -42,7 +42,7 @@ AudioResourcePage::AudioResourcePage(const QList<int> &missingClipIds,
     m_tree->setSelectionMode(QAbstractItemView::SingleSelection);
     m_tree->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     {
-        // 鼠标滚轮 OutCubic 动画（触控板直通）
+        // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(m_tree);
     }

@@ -10,6 +10,8 @@
 
 #include "Modules/FillLyric/Utils/G2pService.h"
 
+#include <lite/GUI/Controls/SmoothScroller.h>
+
 #include <QFile>
 
 namespace FillLyric {
@@ -34,6 +36,11 @@ namespace FillLyric {
         setAlignment(Qt::AlignLeft | Qt::AlignTop);
         setRenderHint(QPainter::Antialiasing, true);
         this->installEventFilter(this);
+
+        // Animate mouse-wheel scrolling with OutCubic; touchpad passes through.
+        // Ctrl+wheel (custom font-size zoom) is deliberately left untouched.
+        auto *smoothScroller = new SmoothScroller(this);
+        smoothScroller->attachTo(this);
 
         auto *noteCountTimer = new QTimer(this);
         noteCountTimer->setSingleShot(true);

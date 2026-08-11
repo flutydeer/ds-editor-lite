@@ -6,7 +6,7 @@
 #include <lite/Tasking/TaskManager.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/LineEdit.h>
-#include "UI/Controls/SmoothScroller.h"
+#include <lite/GUI/Controls/SmoothScroller.h>
 #include "UI/Dialogs/PackageManager/PackageDetailsContent.h"
 #include "UI/Dialogs/PackageManager/PackageDetailsHeader.h"
 #include "UI/Dialogs/PackageManager/PackageFilterProxyModel.h"
@@ -186,7 +186,7 @@ QWidget *PackageManagerDialog::buildPackagePanel() {
     listView->setItemDelegate(new PackageItemDelegate(listView));
     listView->setContentsMargins({});
     {
-        // 鼠标滚轮 OutCubic 动画（触控板直通）
+        // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(listView);
     }
@@ -231,7 +231,7 @@ QWidget *PackageManagerDialog::buildDetailsPanel() {
     detailsPanelContent->setWidget(contentWidget);
     detailsPanelContent->viewport()->setContentsMargins({});
     {
-        // 鼠标滚轮 OutCubic 动画（触控板直通）
+        // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(detailsPanelContent);
     }

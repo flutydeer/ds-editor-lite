@@ -52,6 +52,7 @@ if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event)) {
 | ✅ | IOptionPage（Options 各页基类，已有 OverlayScrollBar） | src/app/UI/Dialogs/Options/Pages/IOptionPage.cpp | QScrollArea |
 | ✅ | ExtractPitchParamDialog.clipList | src/app/UI/Dialogs/Extractor/ExtractPitchParamDialog.cpp | QListWidget |
 | ✅ | AudioResourcePage.m_tree | src/app/UI/Dialogs/ResourceCheck/AudioResourcePage.cpp | QTreeWidget |
+| ✅ | ComboBox 弹出层列表 | src/libs/GUI/Controls/ComboBox.cpp initUi \) | QListView |
 
 **排除 TrackListView**（src/app/UI/Views/TrackEditor/TrackListView.cpp）：它的 `wheelEvent` 会发射 `wheelVerScroll` 信号给 `m_graphicsView` / `m_rhiView`（编辑区），滚动已由编辑区动画处理，再挂 SmoothScroller 会冲突。
 
@@ -89,9 +90,9 @@ Qt 在 Windows 由 `WM_MOUSEWHEEL` 产生 QWheelEvent，消息不携带来源信
 
 ### 5. 组件形态：QObject + eventFilter，不进继承体系
 
-不新增 widget 基类（避免 QtMultiple）也不改 `OverlayScrollBar`（那是外观层）。`SmoothScroller` 是独立 QObject，`event->type()==QWheelEvent` 时接管。放置路径：`src/app/UI/Controls/` 与 `TrackListView` 同级（或 `src/libs/GUI/Controls`）。倾向 app 层，因为它依赖的"手感/DOM"是应用语义。
+不新增 widget 基类（避免 QtMultiple）也不改 `OverlayScrollBar`（那是外观层）。`SmoothScroller` 是独立 QObject，`event->type()==QWheelEvent` 时接管。放置位置：**`src/libs/GUI/Controls/`**（最终落地，从 app/UI/Controls 移入）——它不依赖任何 app 代码，只依赖 Qt + `lite/GUI/Animation/IAnimatable`，作为通用控件放 libs 供 ComboBox 与 app 视图共用。app 侧以 `<lite/GUI/Controls/SmoothScroller.h>` 引用。
 
-## 实现要点（已落地的实现在 `src/app/UI/Controls/SmoothScroller.h/.cpp`）
+## 实现要点（已落地的实现在 `src/libs/GUI/Controls/SmoothScroller.h/.cpp`）
 
 ### SmoothScroller 类（最终签名）
 
@@ -137,8 +138,8 @@ private:
 ## 边界与副作用检查
 
 - **TimeGraphicsView 挂不挂**：不挂（已有动画，且 eventFilter 在 viewport 上会跟内部滚动打架）。SmoothScroller 应跳过 `QGraphicsView`。
-- **ComboBox 弹出层**：已有 OverlayScrollBar 做外观；弹出层的 QListView 是否动画需确认，倾向保持现状手感（后续再说）。
-- **popup 内 QListView（自定义 Popup）**：先不强制，避免 popup 打开/关闭延迟感。
+- **ComboBox 弹出层**：已挂（`src/libs/GUI/Controls/ComboBox.cpp initUi`）。数据源/几何均沿用同一 `view()`，与 OverlayScrollBar 共存不冲突。
+- **自定义 Popup 内 QListView（TrackEditor 等）**：暂无挂（避免 popup 打开/关闭延迟感）。
 - **qApp 过滤器 vs per-viewport 过滤器**：最终采用 per-viewport（per-area），不装 qApp。原因：qApp 会影响全局并必须排除 TimeGraphicsView 等，耦合大。
 
 ## Pitfalls（写入本文件，防止后人踩）
@@ -157,5 +158,4 @@ private:
 
 ## 待确认（后续迭代）
 
-- ComboBox 弹出层可滚动列表是否纳入（当前保持现状）。
 - 自定义 Popup 内 QListView（TrackEditor 等）暂未挂（避免 popup 延迟感）。

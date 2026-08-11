@@ -26,7 +26,7 @@
 
 #include <lite/GUI/Controls/SvsExpressionSpinBox.h>
 #include <lite/GUI/Controls/ComboBox.h>
-#include "UI/Controls/SmoothScroller.h"
+#include <lite/GUI/Controls/SmoothScroller.h>
 
 #include <Modules/Audio/AudioExporter_p.h>
 
@@ -205,7 +205,7 @@ namespace Audio::Internal {
         m_sourceListWidget = new QListWidget;
         m_sourceListWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
         {
-            // 鼠标滚轮 OutCubic 动画（触控板直通）
+            // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through
             auto *smoothScroller = new SmoothScroller(this);
             smoothScroller->attachTo(m_sourceListWidget);
         }

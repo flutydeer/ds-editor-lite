@@ -11,6 +11,7 @@
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Controls/OverlayScrollBar.h>
+#include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Utils/IconUtils.h>
 #include <lite/Support/SystemUtils.h>
 
@@ -127,4 +128,9 @@ void ComboBox::initUi() {
     // 使滚动条钉在容器右壁而不是跟着视口内缩）
     if (const auto bar = OverlayScrollBar::install(view(), Qt::Vertical); bar)
         bar->setGeometryHost(container);
+
+    // Smooth-scroll the popup list: animate mouse-wheel with OutCubic, touchpad passes through.
+    // SmoothScroller attaches to view()'s viewport, reusing the same view as OverlayScrollBar.
+    auto *smoothScroller = new SmoothScroller(this);
+    smoothScroller->attachTo(view());
 }

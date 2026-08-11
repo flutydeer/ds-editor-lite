@@ -7,7 +7,7 @@
 #include "UI/Views/Common/LanguageComboBox.h"
 
 #include <lite/GUI/Controls/Menu.h>
-#include "UI/Controls/SmoothScroller.h"
+#include <lite/GUI/Controls/SmoothScroller.h>
 
 PhonemeNameListWidget::PhonemeNameListWidget(QWidget *parent) : QListWidget(parent) {
     setSelectionMode(QAbstractItemView::NoSelection);
@@ -15,7 +15,7 @@ PhonemeNameListWidget::PhonemeNameListWidget(QWidget *parent) : QListWidget(pare
     setMinimumWidth(400);
     setVerticalScrollMode(ScrollPerPixel);
     {
-        // 鼠标滚轮 OutCubic 动画（触控板直通）
+        // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(this);
     }

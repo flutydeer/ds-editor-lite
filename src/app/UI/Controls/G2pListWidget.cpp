@@ -10,7 +10,7 @@
 
 #include <synthrt/G2P/Core/Manager.h>
 
-#include "UI/Controls/SmoothScroller.h"
+#include <lite/GUI/Controls/SmoothScroller.h>
 
 namespace LangSetting {
     static QPair<QString, QString> extractConfig(const QString &g2pId) {
@@ -45,7 +45,8 @@ namespace LangSetting {
 
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-        // 鼠标滚轮 OutCubic 动画（触控板直通，判定见 SmoothScroller）
+        // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through (see
+        // SmoothScroller)
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(this);
 
