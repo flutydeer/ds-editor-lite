@@ -14,8 +14,8 @@ OptionsCardItem::OptionsCardItem(QWidget *parent) : QWidget(parent) {
     m_lbDesc = new QLabel;
     m_lbDesc->setObjectName("desc");
     m_lbDesc->setVisible(false);
-    m_lbDesc->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    // TODO: word warp
+    m_lbDesc->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_lbDesc->setWordWrap(true);
 
     const auto titleDescLayout = new QVBoxLayout;
     titleDescLayout->addWidget(m_lbTitle);
