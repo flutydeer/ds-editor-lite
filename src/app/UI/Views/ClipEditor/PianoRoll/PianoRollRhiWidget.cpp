@@ -15,6 +15,8 @@
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
+#include "UI/Views/Common/EditorScrollUtils.h"
+#include "UI/Views/Common/EditorWheelUtils.h"
 #include "Modules/Inference/EditSessionManager.h"
 
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
@@ -55,7 +57,6 @@ using namespace ClipEditorGlobal;
 namespace {
     constexpr float kPitchLineWidth = 1.5f;
     constexpr float kNoteBorderWidth = 1.5f;
-    constexpr double kRasterLineOpacity = 0.25;
 
     using Vertex = EditorRhiSolidVertex;
 
@@ -65,12 +66,6 @@ namespace {
                                 from.greenF() + (to.greenF() - from.greenF()) * t,
                                 from.blueF() + (to.blueF() - from.blueF()) * t,
                                 from.alphaF() + (to.alphaF() - from.alphaF()) * t);
-    }
-
-    QColor withOpacity(const QColor &source, const double opacity) {
-        auto color = source;
-        color.setAlphaF(color.alphaF() * opacity);
-        return color;
     }
 
     class TimelineLineEmitter final : public ITimelinePainter {
@@ -177,9 +172,9 @@ public:
         if (!scrollBars)
             return;
         const auto contentSize = clip ? QSizeF(sceneWidth(), sceneHeight()) : QSizeF(q->size());
-        scrollBars->setMetrics(contentSize, QPointF(cameraX, cameraY),
-                               QSizeF(std::max(1, q->width() / 10),
-                                      std::max(1.0, noteHeight * scaleY)));
+        scrollBars->setMetrics(
+            contentSize, QPointF(cameraX, cameraY),
+            QSizeF(std::max(1, q->width() / 10), std::max(1.0, noteHeight * scaleY)));
     }
 
     void setDataContext(SingingClip *newClip) {
@@ -192,7 +187,6 @@ public:
             QObject::disconnect(clip, nullptr, q, nullptr);
 
         clip = newClip;
-        cameraInitialized = false;
         if (clip) {
             QObject::connect(clip, &SingingClip::noteChanged, q, [this] { scheduleSnapshot(); });
             QObject::connect(clip, &SingingClip::paramChanged, q,
@@ -207,7 +201,9 @@ public:
                              [this] { viewportChanged(false); });
         }
         loadAnchorCurvesFromModel();
-        initializeCamera();
+        viewportPositionPending = clip && !q->isVisible();
+        if (clip && !viewportPositionPending)
+            initializeCamera();
         updateScrollBars();
         updateAutoPageTurnAvailability();
         scheduleSnapshot();
@@ -217,16 +213,18 @@ public:
         if (!clip || q->width() <= 0 || q->height() <= 0)
             return;
 
-        scaleX = std::max(1.0, minimumScaleX());
-        scaleY = std::max(1.0, minimumScaleY());
+        const auto initialViewport = !cameraInitialized;
+        scaleX = std::max(initialViewport ? 1.0 : scaleX, minimumScaleX());
+        scaleY = std::max(initialViewport ? 1.0 : scaleY, minimumScaleY());
         cameraX = 0.0;
-        cameraY = 0.0;
+        if (initialViewport)
+            cameraY = std::max(0, qRound((sceneHeight() - q->height()) * 0.5));
         if (clip->notes().count() > 0) {
             const auto *firstNote = *clip->notes().begin();
             const auto visibleTicks = q->width() / pixelsPerTick();
-            cameraX = (firstNote->localStart() - visibleTicks * 0.3) * pixelsPerTick();
+            cameraX = qRound((firstNote->localStart() - visibleTicks * 0.3) * pixelsPerTick());
             const auto noteCenterY = (126.5 - firstNote->keyIndex()) * noteHeight * scaleY;
-            cameraY = noteCenterY - q->height() * 0.5;
+            cameraY = qRound(noteCenterY - q->height() * 0.5);
         }
         clampCamera();
         cameraInitialized = true;
@@ -235,7 +233,8 @@ public:
 
     void resize() {
         if (!cameraInitialized) {
-            initializeCamera();
+            if (q->isVisible())
+                initializeCamera();
         } else {
             scaleX = std::max(scaleX, minimumScaleX());
             scaleY = std::max(scaleY, minimumScaleY());
@@ -244,6 +243,15 @@ public:
         }
         updateScrollBars();
         scheduleSnapshot();
+    }
+
+    void show() {
+        if (viewportPositionPending) {
+            viewportPositionPending = false;
+            initializeCamera();
+            updateScrollBars();
+            scheduleSnapshot();
+        }
     }
 
     void setTrackColorIndex(const int index) {
@@ -387,7 +395,7 @@ public:
     void horizontalScale(QWheelEvent *event) {
         if (!clip)
             return;
-        const auto delta = wheelDelta(event, false);
+        const auto delta = EditorWheelUtils::wheelDelta(event, Qt::Vertical);
         if (qFuzzyIsNull(delta))
             return;
         const auto oldScale = scaleX;
@@ -403,7 +411,7 @@ public:
     void verticalScale(QWheelEvent *event) {
         if (!clip)
             return;
-        const auto delta = wheelDelta(event, true);
+        const auto delta = EditorWheelUtils::wheelDelta(event, Qt::Horizontal);
         if (qFuzzyIsNull(delta))
             return;
         const auto oldScale = scaleY;
@@ -417,14 +425,21 @@ public:
     }
 
     void horizontalScroll(QWheelEvent *event) {
-        const auto delta = wheelDelta(event, false);
-        cameraX += -q->width() * 0.2 * delta / 120.0;
+        const auto delta = EditorWheelUtils::wheelDelta(event, Qt::Vertical);
+        (void) wheelInputState.isMouseWheel(event);
+        cameraX = EditorWheelUtils::scrollTarget(static_cast<int>(cameraX), q->width(), 0.2, delta);
         viewportChanged(false);
     }
 
     void verticalScroll(QWheelEvent *event) {
-        const auto delta = wheelDelta(event, false);
-        cameraY += -q->height() * 0.15 * delta / 120.0;
+        const auto delta = EditorWheelUtils::wheelDelta(event, Qt::Vertical);
+        const auto fromWheel = wheelInputState.isMouseWheel(event);
+        if (fromWheel)
+            verticalTouchPadScroll.reset();
+        cameraY = fromWheel ? EditorWheelUtils::scrollTarget(static_cast<int>(cameraY), q->height(),
+                                                             0.15, delta)
+                            : verticalTouchPadScroll.scrollTarget(static_cast<int>(cameraY),
+                                                                  q->height(), 0.15, delta);
         viewportChanged(false);
     }
 
@@ -1530,6 +1545,7 @@ public:
 
     void rebuildSnapshot() {
         vertices.clear();
+        drawList.clear();
         dpr = q->devicePixelRatioF();
         glyphAtlas.beginFrame();
 
@@ -1552,22 +1568,17 @@ public:
         }
         EditorRhiFrameData frame;
         frame.clearColor = q->whiteKeyColor();
-        frame.physicalCameraOffset = QPointF(cameraX, cameraY) * dpr;
+        frame.physicalCameraOffset = physicalCameraOffset();
         frame.solidVertices = vertices;
+        drawList.finish(vertices.size());
+        frame.drawList = drawList;
         frame.textureBatches = glyphAtlas.textureBatches();
         q->submitFrame(std::move(frame));
     }
 
 private:
-    static double wheelDelta(const QWheelEvent *event, const bool preferHorizontal) {
-        const auto angle = event->angleDelta();
-        if (preferHorizontal && angle.x() != 0)
-            return angle.x();
-        if (angle.y() != 0)
-            return angle.y();
-        const auto pixel = event->pixelDelta();
-        const auto value = preferHorizontal && pixel.x() != 0 ? pixel.x() : pixel.y();
-        return value * 4.0;
+    QPointF physicalCameraOffset() const {
+        return QPointF(cameraX, cameraY) * dpr;
     }
 
     double pixelsPerTick() const {
@@ -1604,8 +1615,8 @@ private:
     }
 
     void clampCamera() {
-        cameraX = std::clamp(cameraX, 0.0, std::max(0.0, sceneWidth() - q->width()));
-        cameraY = std::clamp(cameraY, 0.0, std::max(0.0, sceneHeight() - q->height()));
+        cameraX = EditorScrollUtils::boundedOffset(cameraX, sceneWidth(), q->width());
+        cameraY = EditorScrollUtils::boundedOffset(cameraY, sceneHeight(), q->height());
     }
 
     void viewportChanged(const bool scaleChanged) {
@@ -1643,14 +1654,14 @@ private:
 
     void appendPixelAlignedVerticalLine(const double x, const double top, const double bottom,
                                         const QColor &color) {
-        const auto left = std::round(x * dpr);
-        appendPhysicalRect(left, top * dpr, left + 1.0, bottom * dpr, color);
+        EditorRhiGeometry::appendAntialiasedVerticalLine(vertices, x * dpr, top * dpr, bottom * dpr,
+                                                         dpr, color, cameraX * dpr);
     }
 
     void appendPixelAlignedHorizontalLine(const double y, const double left, const double right,
                                           const QColor &color) {
-        const auto top = std::round(y * dpr);
-        appendPhysicalRect(left * dpr, top, right * dpr, top + 1.0, color);
+        EditorRhiGeometry::appendAntialiasedHorizontalLine(vertices, y * dpr, left * dpr,
+                                                           right * dpr, dpr, color, cameraY * dpr);
     }
 
     void appendLine(const QPointF &from, const QPointF &to, const double logicalWidth,
@@ -1686,16 +1697,15 @@ private:
         appendLogicalRect(QRectF(left, sceneTop, right - left, sceneBottom - sceneTop), white);
 
         const auto firstKey =
-            std::min(127, static_cast<int>(std::floor(127.0 - sceneTop / (noteHeight * scaleY))));
+            std::min(127, static_cast<int>(std::ceil(127.0 - sceneTop / (noteHeight * scaleY))));
         const auto lastKey =
             std::max(0, static_cast<int>(std::floor(127.0 - sceneBottom / (noteHeight * scaleY))));
         for (int key = firstKey; key >= lastKey; --key) {
             const auto y = (127 - key) * noteHeight * scaleY;
-            if (!PianoPaintUtils::isWhiteKey(key))
-                appendLogicalRect(QRectF(left, y, right - left, noteHeight * scaleY), black);
+            appendLogicalRect(QRectF(left, y, right - left, noteHeight * scaleY),
+                              PianoPaintUtils::isWhiteKey(key) ? white : black);
             if ((key + 1) % 12 == 0)
-                appendPixelAlignedHorizontalLine(y, left, right,
-                                                 withOpacity(octave, kRasterLineOpacity));
+                appendPixelAlignedHorizontalLine(y, left, right, octave);
         }
     }
 
@@ -1711,8 +1721,7 @@ private:
             appModel->timeline(), appStatus->pianoRollQuantize, globalStart, globalEnd, width, bar,
             beat, common, [this, sceneTop, sceneBottom](const int tick, const QColor &color) {
                 const auto x = (tick - clip->start()) * pixelsPerTick();
-                appendPixelAlignedVerticalLine(x, sceneTop, sceneBottom,
-                                               withOpacity(color, kRasterLineOpacity));
+                appendPixelAlignedVerticalLine(x, sceneTop, sceneBottom, color);
             });
     }
 
@@ -1742,35 +1751,34 @@ private:
             return;
 
         QFont font;
-        font.setPixelSize(std::max(1, qRound(q->noteFontPixelSize() * dpr)));
+        font.setPixelSize(std::max(1, q->noteFontPixelSize()));
         const QFontMetricsF metrics(font);
         const auto padded =
             rect.adjusted(kNoteBorderWidth, kNoteBorderWidth, -kNoteBorderWidth, -kNoteBorderWidth);
         const auto textRect = padded.adjusted(2.0, 0.0, -2.0, 0.0);
         const auto textWidth =
             std::max(metrics.horizontalAdvance(lyric), metrics.horizontalAdvance(pronunciation));
-        if (textWidth >= textRect.width() * dpr || metrics.height() >= textRect.height() * dpr)
+        if (textWidth >= textRect.width() || metrics.height() >= textRect.height())
             return;
 
         const auto physicalTextRect = QRectF(textRect.topLeft() * dpr, textRect.size() * dpr);
         const auto textTop =
-            physicalTextRect.top() + (physicalTextRect.height() - metrics.height()) * 0.5;
-        glyphAtlas.appendText(lyric, font, QPointF(physicalTextRect.left(), textTop), foreground,
-                              physicalTextRect);
+            physicalTextRect.top() + (physicalTextRect.height() - metrics.height() * dpr) * 0.5;
+        const auto lyricSpan = glyphAtlas.appendText(
+            lyric, font, QPointF(physicalTextRect.left(), textTop), foreground, physicalTextRect,
+            dpr, physicalCameraOffset(), q->physicalWindowOffset());
+        drawList.appendTexture(lyricSpan, vertices.size());
 
         if (pronunciation.isEmpty() || editingPronunciation)
             return;
         QFont pronunciationFont = q->font();
-        const auto logicalPixelSize =
-            pronunciationFont.pixelSize() > 0
-                ? pronunciationFont.pixelSize()
-                : pronunciationFont.pointSizeF() * q->logicalDpiY() / 72.0;
-        pronunciationFont.setPixelSize(std::max(1, qRound(logicalPixelSize * dpr)));
         const QRectF pronunciationRect(
             (rect.left() + kNoteBorderWidth + 2.0) * dpr, rect.bottom() * dpr,
             (rect.width() - kNoteBorderWidth * 2.0 - 4.0) * dpr, 20.0 * dpr);
-        glyphAtlas.appendText(pronunciation, pronunciationFont, pronunciationRect.topLeft(),
-                              pronunciationColor, pronunciationRect);
+        const auto pronunciationSpan = glyphAtlas.appendText(
+            pronunciation, pronunciationFont, pronunciationRect.topLeft(), pronunciationColor,
+            pronunciationRect, dpr, physicalCameraOffset(), q->physicalWindowOffset());
+        drawList.appendTexture(pronunciationSpan, vertices.size());
     }
 
     void appendNotes(const double localStart, const double localEnd) {
@@ -2257,12 +2265,10 @@ private:
         const auto lastX = (lastPlaybackPosition - clip->start()) * pixelsPerTick();
         const auto currentX = (playbackPosition - clip->start()) * pixelsPerTick();
         for (auto top = sceneTop; top < sceneBottom; top += 6.0) {
-            appendPixelAlignedVerticalLine(
-                lastX, top, std::min(top + 4.0, sceneBottom),
-                withOpacity(q->lastPlayPosIndicatorColor(), kRasterLineOpacity));
+            appendPixelAlignedVerticalLine(lastX, top, std::min(top + 4.0, sceneBottom),
+                                           q->lastPlayPosIndicatorColor());
         }
-        appendPixelAlignedVerticalLine(currentX, sceneTop, sceneBottom,
-                                       withOpacity(q->playPosIndicatorColor(), kRasterLineOpacity));
+        appendPixelAlignedVerticalLine(currentX, sceneTop, sceneBottom, q->playPosIndicatorColor());
     }
 
     void appendRubberBand() {
@@ -2333,6 +2339,7 @@ public:
     PianoRollRhiWidget *q;
     QPointer<SingingClip> clip;
     bool cameraInitialized = false;
+    bool viewportPositionPending = false;
     bool snapshotScheduled = false;
     bool fallbackRequested = false;
     int trackColorIndex = 0;
@@ -2400,6 +2407,9 @@ public:
     QVector<Vertex> vertices;
     TimelineLineEmitter timelineEmitter;
     EditorGlyphAtlas glyphAtlas;
+    EditorRhiDrawList drawList;
+    EditorWheelUtils::InputState wheelInputState;
+    EditorWheelUtils::ScrollAccumulator verticalTouchPadScroll;
 
     int noteFontPixelSize = 13;
     QColor whiteKeyColor{38, 40, 44};
@@ -2566,6 +2576,7 @@ void PianoRollRhiWidget::setLastPlaybackPosition(const double tick) {
 
 void PianoRollRhiWidget::showEvent(QShowEvent *event) {
     EditorRhiWidget::showEvent(event);
+    d->show();
     d->updateAutoPageTurnAvailability();
 }
 

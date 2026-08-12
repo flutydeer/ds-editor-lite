@@ -23,8 +23,12 @@ public:
 
     void beginFrame();
     void clear();
-    void appendText(const QString &text, const QFont &physicalFont, const QPointF &physicalTopLeft,
-                    const QColor &color, const QRectF &physicalClip = {});
+    EditorRhiTextureDrawSpan appendText(const QString &text, const QFont &logicalFont,
+                                        const QPointF &physicalTopLeft, const QColor &color,
+                                        const QRectF &physicalClip = {},
+                                        double devicePixelRatio = 1.0,
+                                        const QPointF &physicalCameraOffset = {},
+                                        const QPointF &physicalWindowOffset = {});
     [[nodiscard]] QVector<EditorRhiTextureBatch> textureBatches() const;
     [[nodiscard]] double hitRate() const;
 
@@ -42,18 +46,20 @@ private:
         int cursorX = 1;
         int cursorY = 1;
         int rowHeight = 0;
-        quint64 generation = 1;
+        quint64 generation = 0;
         quint64 lastUse = 0;
         QVector<EditorRhiTextVertex> vertices;
     };
 
-    Block *ensureBlock(const QFont &font, const QString &text);
+    Block *ensureBlock(const QFont &font, const QString &text, double devicePixelRatio,
+                       const QPointF &physicalPhase);
     Page *allocatePageFor(const QSize &blockSize);
     Page *createPage();
     void clearPage(Page &page);
-    [[nodiscard]] QString blockKey(const QFont &font, const QString &text) const;
+    [[nodiscard]] QString blockKey(const QFont &font, const QString &text, double devicePixelRatio,
+                                   const QPointF &physicalPhase) const;
     [[nodiscard]] static QSize measureTextPixels(const QFont &font, const QString &text,
-                                                 int padding);
+                                                 int padding, double devicePixelRatio);
     static void appendTexturedRect(QVector<EditorRhiTextVertex> &vertices, const QRectF &target,
                                    const QRectF &sourcePixels, const QSize &textureSize,
                                    const QColor &color);
@@ -61,6 +67,7 @@ private:
     QSize m_pageSize;
     int m_maximumPages = 4;
     int m_nextPageId = 0;
+    quint64 m_generationCounter = 0;
     quint64 m_useCounter = 0;
     quint64 m_hitCount = 0;
     quint64 m_missCount = 0;

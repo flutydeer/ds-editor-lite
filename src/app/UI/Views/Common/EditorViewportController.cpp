@@ -1,5 +1,7 @@
 #include "EditorViewportController.h"
 
+#include "EditorScrollUtils.h"
+
 #include "Global/AppGlobal.h"
 
 #include <algorithm>
@@ -75,9 +77,9 @@ void EditorViewportController::setEnsureContentFillsViewport(const bool horizont
 void EditorViewportController::setLeftMarginPx(const double px) {
     if (!std::isfinite(px) || px < 0.0 || qFuzzyCompare(px, m_leftMarginPx))
         return;
-    const auto previous = state();
     m_leftMarginPx = px;
-    restoreState(previous);
+    normalize(false);
+    notify(false);
 }
 
 EditorViewportController::State EditorViewportController::state() const {
@@ -229,9 +231,9 @@ void EditorViewportController::normalize(const bool scaleChanged) {
     Q_UNUSED(scaleChanged);
     m_scaleX = std::clamp(m_scaleX, effectiveMinimumScaleX(), m_maxScaleX);
     m_scaleY = std::clamp(m_scaleY, effectiveMinimumScaleY(), m_maxScaleY);
-    m_offsetX = std::clamp(m_offsetX, 0.0, std::max(0.0, contentWidth() - m_viewportSize.width()));
+    m_offsetX = EditorScrollUtils::boundedOffset(m_offsetX, contentWidth(), m_viewportSize.width());
     m_offsetY =
-        std::clamp(m_offsetY, 0.0, std::max(0.0, contentHeight() - m_viewportSize.height()));
+        EditorScrollUtils::boundedOffset(m_offsetY, contentHeight(), m_viewportSize.height());
 }
 
 void EditorViewportController::notify(const bool emitScaleChanged) {

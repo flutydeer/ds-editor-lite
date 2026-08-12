@@ -46,6 +46,18 @@ namespace {
         blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
         pipeline->setTargetBlends({blend});
     }
+
+    void configureTextBlend(QRhiGraphicsPipeline *pipeline) {
+        QRhiGraphicsPipeline::TargetBlend blend;
+        blend.colorWrite =
+            QRhiGraphicsPipeline::R | QRhiGraphicsPipeline::G | QRhiGraphicsPipeline::B;
+        blend.enable = true;
+        blend.srcColor = QRhiGraphicsPipeline::ConstantColor;
+        blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcColor;
+        blend.srcAlpha = QRhiGraphicsPipeline::Zero;
+        blend.dstAlpha = QRhiGraphicsPipeline::One;
+        pipeline->setTargetBlends({blend});
+    }
 }
 
 class EditorRhiWidget::Private {
@@ -116,9 +128,10 @@ public:
             return;
         }
 
+        QImage fallbackImage(1, 1, QImage::Format_RGBA8888_Premultiplied);
+        fallbackImage.fill(Qt::transparent);
         auto initialUpdates = rhi->nextResourceUpdateBatch();
-        initialUpdates->uploadTexture(fallbackTexture.get(),
-                                      QImage(1, 1, QImage::Format_RGBA8888_Premultiplied));
+        initialUpdates->uploadTexture(fallbackTexture.get(), fallbackImage);
         pendingUpdates.reset(initialUpdates);
 
         if (!createPipelines())
@@ -165,11 +178,6 @@ public:
             return false;
         }
 
-        textPipeline.reset(rhi->newGraphicsPipeline());
-        textPipeline->setShaderStages({
-            {QRhiShaderStage::Vertex,   textureVertex  },
-            {QRhiShaderStage::Fragment, textureFragment}
-        });
         QRhiVertexInputLayout textLayout;
         textLayout.setBindings({{sizeof(EditorRhiTextVertex)}});
         textLayout.setAttributes({
@@ -177,12 +185,19 @@ public:
             {0, 1, QRhiVertexInputAttribute::Float2, offsetof(EditorRhiTextVertex, u)},
             {0, 2, QRhiVertexInputAttribute::Float4, offsetof(EditorRhiTextVertex, r)},
         });
+
+        textPipeline.reset(rhi->newGraphicsPipeline());
+        textPipeline->setShaderStages({
+            {QRhiShaderStage::Vertex,   textureVertex  },
+            {QRhiShaderStage::Fragment, textureFragment}
+        });
         textPipeline->setVertexInputLayout(textLayout);
         textPipeline->setShaderResourceBindings(fallbackTextBindings.get());
         textPipeline->setRenderPassDescriptor(renderPassDescriptor.get());
         textPipeline->setSampleCount(1);
-        textPipeline->setFlags(QRhiGraphicsPipeline::UsesScissor);
-        configurePremultipliedBlend(textPipeline.get());
+        configureTextBlend(textPipeline.get());
+        textPipeline->setFlags(QRhiGraphicsPipeline::UsesScissor |
+                               QRhiGraphicsPipeline::UsesBlendConstants);
         if (!textPipeline->create()) {
             fail(QStringLiteral("failed to create text pipeline"));
             return false;
@@ -251,28 +266,49 @@ public:
         cb->setScissor(QRhiScissor(0, 0, outputSize.width(), outputSize.height()));
 
         int drawCalls = 0;
-        if (solidBuffer && !frame.solidVertices.isEmpty()) {
+        const auto drawSolid = [&](const qsizetype vertexOffset, const qsizetype vertexCount) {
+            if (!solidBuffer || vertexCount <= 0)
+                return;
             cb->setGraphicsPipeline(solidPipeline.get());
             cb->setShaderResources(solidBindings.get());
-            const QRhiCommandBuffer::VertexInput binding(solidBuffer.get(), 0);
+            const auto byteOffset =
+                static_cast<quint32>(vertexOffset * sizeof(EditorRhiSolidVertex));
+            const QRhiCommandBuffer::VertexInput binding(solidBuffer.get(), byteOffset);
             cb->setVertexInput(0, 1, &binding);
-            cb->draw(static_cast<quint32>(frame.solidVertices.size()));
+            cb->draw(static_cast<quint32>(vertexCount));
             ++drawCalls;
-        }
-        for (const auto &batch : frame.textureBatches) {
-            if (batch.vertices.isEmpty())
-                continue;
-            const auto iterator = textureResources.constFind(batch.pageId);
+        };
+        const auto drawTexture = [&](const int pageId, const qsizetype vertexOffset,
+                                     const qsizetype vertexCount, const QColor &color) {
+            if (vertexCount <= 0)
+                return;
+            const auto iterator = textureResources.constFind(pageId);
             if (iterator == textureResources.cend() || !iterator.value() ||
                 !iterator.value()->vertexBuffer || !iterator.value()->bindings) {
-                continue;
+                return;
             }
+            const auto byteOffset =
+                static_cast<quint32>(vertexOffset * sizeof(EditorRhiTextVertex));
+            const QRhiCommandBuffer::VertexInput binding(iterator.value()->vertexBuffer.get(),
+                                                         byteOffset);
+
             cb->setGraphicsPipeline(textPipeline.get());
             cb->setShaderResources(iterator.value()->bindings.get());
-            const QRhiCommandBuffer::VertexInput binding(iterator.value()->vertexBuffer.get(), 0);
+            cb->setBlendConstants(color);
             cb->setVertexInput(0, 1, &binding);
-            cb->draw(static_cast<quint32>(batch.vertices.size()));
+            cb->draw(static_cast<quint32>(vertexCount));
             ++drawCalls;
+        };
+        if (!frame.drawList.commands.isEmpty()) {
+            for (const auto &command : frame.drawList.commands) {
+                if (command.type == EditorRhiDrawCommand::Type::Solid)
+                    drawSolid(command.vertexOffset, command.vertexCount);
+                else
+                    drawTexture(command.pageId, command.vertexOffset, command.vertexCount,
+                                command.color);
+            }
+        } else {
+            drawSolid(0, frame.solidVertices.size());
         }
         cb->endPass();
         const auto encodeMs = encodeTimer.nsecsElapsed() / 1000000.0;
@@ -496,6 +532,11 @@ void EditorRhiWidget::submitFrame(EditorRhiFrameData frame) {
 
 const EditorRhiFrameData &EditorRhiWidget::frameData() const {
     return d->frame;
+}
+
+QPointF EditorRhiWidget::physicalWindowOffset() const {
+    const auto *topLevel = window();
+    return topLevel ? mapTo(topLevel, QPointF()) * devicePixelRatioF() : QPointF();
 }
 
 void EditorRhiWidget::requestBackendFailure(const QString &reason) {

@@ -2,6 +2,7 @@
 
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
 #include "UI/Views/Common/EditorViewportController.h"
+#include "UI/Views/Common/EditorWheelUtils.h"
 
 #include <QGraphicsView>
 #include <QScrollBar>
@@ -20,10 +21,10 @@ namespace {
     int g_failures = 0;
 
     void probe(const char *label, const QScrollBar *source, OverlayScrollBar *bar) {
-        QTextStream(stdout)
-            << "[" << label << "] src page=" << source->pageStep()
-            << " src max=" << source->maximum() << " | bar page=" << bar->pageStep()
-            << " bar max=" << bar->maximum() << " bar value=" << bar->value() << Qt::endl;
+        QTextStream(stdout) << "[" << label << "] src page=" << source->pageStep()
+                            << " src max=" << source->maximum() << " | bar page=" << bar->pageStep()
+                            << " bar max=" << bar->maximum() << " bar value=" << bar->value()
+                            << Qt::endl;
     }
 
     void expect(const bool condition, const char *message) {
@@ -85,8 +86,7 @@ int main(int argc, char *argv[]) {
     rhiViewport.resize(900, 500);
     EditorRhiScrollBarController rhiBars(&rhiViewport, &rhiViewport);
     QPointF requestedOffset(-1, -1);
-    QObject::connect(&rhiBars, &EditorRhiScrollBarController::offsetChangeRequested,
-                     &rhiViewport,
+    QObject::connect(&rhiBars, &EditorRhiScrollBarController::offsetChangeRequested, &rhiViewport,
                      [&requestedOffset](const QPointF &offset) { requestedOffset = offset; });
     rhiBars.setMetrics(QSizeF(1800, 1000), QPointF(0, 0), QSizeF(90, 50));
     rhiViewport.show();
@@ -118,20 +118,59 @@ int main(int argc, char *argv[]) {
     expect(!rhiHorizontal->isVisible() && !rhiVertical->isVisible(),
            "subpixel layout noise must not create a false RHI scroll range");
 
+    auto wheelOffset = 0;
+    for (int i = 0; i < 5; ++i)
+        wheelOffset = EditorWheelUtils::scrollTarget(wheelOffset, 192, 0.15, -120.0);
+    expect(wheelOffset == 140,
+           "RHI wheel scrolling must retain the legacy integer target semantics");
+
+    EditorWheelUtils::ScrollAccumulator touchPadScroll;
+    wheelOffset = 0;
+    for (const auto delta : {-7.0, -206.0, -168.0, -149.0, -111.0, -91.0, -69.0, -60.0, -46.0,
+                             -36.0, -28.0, -22.0, -14.0, -8.0, -2.0}) {
+        wheelOffset = touchPadScroll.scrollTarget(wheelOffset, 325, 0.15, delta);
+    }
+    expect(wheelOffset == 406,
+           "touchpad scrolling must retain fractional wheel deltas across an event burst");
+
+    QWheelEvent angleWheel(QPointF(10, 10), QPointF(10, 10), {}, QPoint(120, -240), Qt::NoButton,
+                           Qt::NoModifier, Qt::NoScrollPhase, false);
+    expect(EditorWheelUtils::wheelDelta(&angleWheel, Qt::Horizontal) == 120.0 &&
+               EditorWheelUtils::wheelDelta(&angleWheel, Qt::Vertical) == -240.0,
+           "shared wheel delta extraction must select the requested angle axis");
+    QWheelEvent pixelWheel(QPointF(10, 10), QPointF(10, 10), QPoint(3, -5), {}, Qt::NoButton,
+                           Qt::NoModifier, Qt::ScrollUpdate, false);
+    expect(EditorWheelUtils::wheelDelta(&pixelWheel, Qt::Horizontal) == 12.0 &&
+               EditorWheelUtils::wheelDelta(&pixelWheel, Qt::Vertical) == -20.0,
+           "shared wheel delta extraction must preserve pixel-only touchpad input");
+    EditorWheelUtils::InputState pixelInputState;
+    expect(!pixelInputState.isMouseWheel(&pixelWheel),
+           "pixel-only wheel events must use touchpad accumulation semantics");
+
+    EditorViewportController marginViewport;
+    marginViewport.setContentTickRange(0, 20000);
+    marginViewport.setLeftMarginPx(10);
+    marginViewport.setContentTickRange(0, 20000);
+    marginViewport.setViewportSize(QSizeF(800, 300));
+    expect(qFuzzyIsNull(marginViewport.horizontalOffset()) &&
+               qFuzzyCompare(marginViewport.tickToSceneX(0), 10.0) &&
+               qFuzzyCompare(marginViewport.startTick(), -75.0),
+           "initializing an RHI margin must keep it visible before tick zero");
+
     EditorViewportController viewport;
     viewport.setEnsureContentFillsViewport(false, false);
     viewport.setContentTickRange(0, 20000);
     viewport.setVerticalContent(20, 72);
     viewport.setViewportSize(QSizeF(800, 300));
-    viewport.scrollBy(QPointF(300, 400));
+    viewport.scrollBy(QPointF(300.25, 400.25));
     viewport.setViewportSize(QSizeF(1000, 500));
     expect(qFuzzyCompare(viewport.horizontalOffset(), 300.0) &&
                qFuzzyCompare(viewport.verticalOffset(), 400.0),
-           "resizing an RHI viewport must preserve its top-left scroll offset");
+           "RHI viewport offsets must use the integer coordinates exposed by legacy scrollbars");
 
     viewport.scrollBy(QPointF(100000, 100000));
     viewport.setViewportSize(QSizeF(1900, 1300));
-    expect(qFuzzyCompare(viewport.horizontalOffset(), 766.6666666666666) &&
+    expect(qFuzzyCompare(viewport.horizontalOffset(), 767.0) &&
                qFuzzyCompare(viewport.verticalOffset(), 140.0),
            "resizing must clamp preserved offsets to the new scroll range");
 

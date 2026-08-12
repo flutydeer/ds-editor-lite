@@ -9,6 +9,7 @@
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
 #include "UI/Views/Common/EditorViewportController.h"
+#include "UI/Views/Common/EditorWheelUtils.h"
 #include "UI/Views/Common/EdgeAutoScroller.h"
 
 #include <lite/History/HistoryFocus.h>
@@ -141,6 +142,7 @@ private:
         bool selected = false;
         bool active = false;
         bool pastePreview = false;
+        bool audioMissing = false;
         QVector<NoteSnapshot> notes;
         AudioWaveformSampler::Result waveform;
     };
@@ -166,7 +168,6 @@ private:
                                                                    const ClipSnapshot &clip,
                                                                    double dpr) const;
     [[nodiscard]] const ClipSnapshot *hitTest(const QPointF &viewportPosition) const;
-    [[nodiscard]] double wheelDelta(const QWheelEvent *event, bool preferHorizontal) const;
     [[nodiscard]] int trackIndexAt(const QPointF &viewportPosition) const;
     [[nodiscard]] int tickAt(const QPointF &viewportPosition) const;
     [[nodiscard]] int snapTick(int tick) const;
@@ -218,6 +219,8 @@ private:
 
     EditorViewportController m_viewport;
     EditorGlyphAtlas m_glyphAtlas;
+    EditorWheelUtils::InputState m_wheelInputState;
+    EditorWheelUtils::ScrollAccumulator m_verticalTouchPadScroll;
     EditorRhiScrollBarController *m_scrollBars = nullptr;
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;
     QVector<ClipSnapshot> m_clipSnapshots;

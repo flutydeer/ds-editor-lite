@@ -1,5 +1,7 @@
 #include "EditorRhiScrollBarController.h"
 
+#include "EditorScrollUtils.h"
+
 #include <lite/GUI/Controls/OverlayScrollBar.h>
 
 #include <QWidget>
@@ -34,8 +36,9 @@ void EditorRhiScrollBarController::setMetrics(const QSizeF &contentSize, const Q
         bar->setPageStep(std::max(1, viewportLength));
         bar->setSingleStep(std::max(
             1, qRound(requestedSingleStep > 0.0 ? requestedSingleStep : viewportLength / 10.0)));
-        bar->setRange(0, qRound(std::max(0.0, contentLength - viewportLength)));
-        bar->setValue(qRound(currentOffset));
+        bar->setRange(0, EditorScrollUtils::rangeMaximum(contentLength, viewportLength));
+        bar->setValue(
+            EditorScrollUtils::boundedOffset(currentOffset, contentLength, viewportLength));
     };
 
     m_updating = true;

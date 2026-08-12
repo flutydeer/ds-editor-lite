@@ -28,11 +28,74 @@ struct EditorRhiTextureBatch {
     QVector<EditorRhiTextVertex> vertices;
 };
 
+struct EditorRhiTextureDrawSpan {
+    int pageId = -1;
+    qsizetype vertexOffset = 0;
+    qsizetype vertexCount = 0;
+    QColor color;
+
+    [[nodiscard]] bool isValid() const {
+        return pageId >= 0 && vertexOffset >= 0 && vertexCount > 0;
+    }
+};
+
+struct EditorRhiDrawCommand {
+    enum class Type { Solid, Texture };
+
+    Type type = Type::Solid;
+    int pageId = -1;
+    qsizetype vertexOffset = 0;
+    qsizetype vertexCount = 0;
+    QColor color;
+};
+
+struct EditorRhiDrawList {
+    void clear() {
+        commands.clear();
+        committedSolidVertexCount = 0;
+    }
+
+    void appendTexture(const EditorRhiTextureDrawSpan &span, const qsizetype solidVertexCount) {
+        if (!span.isValid())
+            return;
+        appendPendingSolid(solidVertexCount);
+        if (!commands.isEmpty()) {
+            auto &last = commands.last();
+            if (last.type == EditorRhiDrawCommand::Type::Texture && last.pageId == span.pageId &&
+                last.color == span.color &&
+                last.vertexOffset + last.vertexCount == span.vertexOffset) {
+                last.vertexCount += span.vertexCount;
+                return;
+            }
+        }
+        commands.append({EditorRhiDrawCommand::Type::Texture, span.pageId, span.vertexOffset,
+                         span.vertexCount, span.color});
+    }
+
+    void finish(const qsizetype solidVertexCount) {
+        appendPendingSolid(solidVertexCount);
+    }
+
+    QVector<EditorRhiDrawCommand> commands;
+
+private:
+    void appendPendingSolid(const qsizetype solidVertexCount) {
+        const auto count = solidVertexCount - committedSolidVertexCount;
+        if (count <= 0)
+            return;
+        commands.append({EditorRhiDrawCommand::Type::Solid, -1, committedSolidVertexCount, count});
+        committedSolidVertexCount = solidVertexCount;
+    }
+
+    qsizetype committedSolidVertexCount = 0;
+};
+
 struct EditorRhiFrameData {
     QColor clearColor = Qt::black;
     QPointF physicalCameraOffset;
     QVector<EditorRhiSolidVertex> solidVertices;
     QVector<EditorRhiTextureBatch> textureBatches;
+    EditorRhiDrawList drawList;
 };
 
 class EditorRhiWidget : public QRhiWidget {
@@ -48,6 +111,7 @@ signals:
 protected:
     void submitFrame(EditorRhiFrameData frame);
     [[nodiscard]] const EditorRhiFrameData &frameData() const;
+    [[nodiscard]] QPointF physicalWindowOffset() const;
     void requestBackendFailure(const QString &reason);
 
     void initialize(QRhiCommandBuffer *cb) final;

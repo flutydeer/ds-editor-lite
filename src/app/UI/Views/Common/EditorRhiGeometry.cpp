@@ -37,7 +37,8 @@ namespace {
         vertices.append(vertex(c, color, coverageC));
     }
 
-    QVector<QPointF> roundedRectContour(const QRectF &rect, const double radius) {
+    QVector<QPointF> roundedRectContour(const QRectF &rect, const double radius,
+                                        const bool roundBottomCorners = true) {
         constexpr int segmentsPerCorner = 8;
         constexpr auto pi = std::numbers::pi_v<double>;
         const auto r = std::clamp(radius, 0.0, std::min(rect.width(), rect.height()) * 0.5);
@@ -52,6 +53,12 @@ namespace {
         QVector<QPointF> result;
         result.reserve(centers.size() * (segmentsPerCorner + 1));
         for (qsizetype corner = 0; corner < centers.size(); ++corner) {
+            if (!roundBottomCorners && corner >= 2) {
+                const auto point = corner == 2 ? rect.bottomRight() : rect.bottomLeft();
+                for (int segment = 0; segment <= segmentsPerCorner; ++segment)
+                    result.append(point);
+                continue;
+            }
             for (int segment = 0; segment <= segmentsPerCorner; ++segment) {
                 const auto angle = startAngles[corner] + segment * pi * 0.5 / segmentsPerCorner;
                 result.append(centers[corner] + QPointF(std::cos(angle), std::sin(angle)) * r);
@@ -72,6 +79,64 @@ namespace {
             appendTriangle(vertices, outer[index], inner[next], inner[index], color, outerCoverage,
                            innerCoverage, innerCoverage);
         }
+    }
+
+    struct PixelCoverageSpan {
+        double start;
+        double end;
+        float coverage;
+    };
+
+    QVector<PixelCoverageSpan> pixelCoverageSpans(const double start, const double end) {
+        QVector<PixelCoverageSpan> result;
+        if (end <= start)
+            return result;
+
+        const auto firstPixel = std::floor(start);
+        const auto lastPixel = std::ceil(end) - 1.0;
+        if (firstPixel == lastPixel) {
+            result.append({firstPixel, firstPixel + 1.0,
+                           static_cast<float>(std::clamp(end - start, 0.0, 1.0))});
+            return result;
+        }
+
+        result.append({firstPixel, firstPixel + 1.0,
+                       static_cast<float>(std::clamp(firstPixel + 1.0 - start, 0.0, 1.0))});
+        if (lastPixel > firstPixel + 1.0)
+            result.append({firstPixel + 1.0, lastPixel, 1.0f});
+        result.append({lastPixel, lastPixel + 1.0,
+                       static_cast<float>(std::clamp(end - lastPixel, 0.0, 1.0))});
+        return result;
+    }
+
+    void appendRoundedRectFill(QVector<EditorRhiSolidVertex> &vertices, const QRectF &physicalRect,
+                               const double radius, const QColor &color,
+                               const bool roundBottomCorners) {
+        if (physicalRect.isEmpty() || color.alpha() == 0)
+            return;
+        const auto r =
+            std::clamp(radius, 0.0, std::min(physicalRect.width(), physicalRect.height()) * 0.5);
+        if (r <= 0.0) {
+            EditorRhiGeometry::appendRect(vertices, physicalRect, color);
+            return;
+        }
+        constexpr double feather = 0.75;
+        const auto innerRect = physicalRect.adjusted(feather, feather, -feather, -feather);
+        if (innerRect.isEmpty()) {
+            EditorRhiGeometry::appendRect(vertices, physicalRect, color);
+            return;
+        }
+        const auto inner =
+            roundedRectContour(innerRect, std::max(0.0, r - feather), roundBottomCorners);
+        const auto outer =
+            roundedRectContour(physicalRect.adjusted(-feather, -feather, feather, feather),
+                               r + feather, roundBottomCorners);
+        const auto center = innerRect.center();
+        for (qsizetype index = 0; index < inner.size(); ++index) {
+            const auto next = (index + 1) % inner.size();
+            appendTriangle(vertices, center, inner[index], inner[next], color, 1.0f, 1.0f, 1.0f);
+        }
+        appendContourBand(vertices, outer, inner, color, 0.0f, 1.0f);
     }
 
     QVector<QPointF> offsetPolyline(const QVector<QPointF> &points, const double distance,
@@ -230,29 +295,13 @@ void EditorRhiGeometry::appendClippedTriangles(QVector<EditorRhiSolidVertex> &ve
 void EditorRhiGeometry::appendRoundedRect(QVector<EditorRhiSolidVertex> &vertices,
                                           const QRectF &physicalRect, const double radius,
                                           const QColor &color) {
-    if (physicalRect.isEmpty() || color.alpha() == 0)
-        return;
-    const auto r =
-        std::clamp(radius, 0.0, std::min(physicalRect.width(), physicalRect.height()) * 0.5);
-    if (r <= 0.0) {
-        appendRect(vertices, physicalRect, color);
-        return;
-    }
-    constexpr double feather = 0.75;
-    const auto innerRect = physicalRect.adjusted(feather, feather, -feather, -feather);
-    if (innerRect.isEmpty()) {
-        appendRect(vertices, physicalRect, color);
-        return;
-    }
-    const auto inner = roundedRectContour(innerRect, std::max(0.0, r - feather));
-    const auto outer = roundedRectContour(
-        physicalRect.adjusted(-feather, -feather, feather, feather), r + feather);
-    const auto center = innerRect.center();
-    for (qsizetype index = 0; index < inner.size(); ++index) {
-        const auto next = (index + 1) % inner.size();
-        appendTriangle(vertices, center, inner[index], inner[next], color, 1.0f, 1.0f, 1.0f);
-    }
-    appendContourBand(vertices, outer, inner, color, 0.0f, 1.0f);
+    appendRoundedRectFill(vertices, physicalRect, radius, color, true);
+}
+
+void EditorRhiGeometry::appendTopRoundedRect(QVector<EditorRhiSolidVertex> &vertices,
+                                             const QRectF &physicalRect, const double radius,
+                                             const QColor &color) {
+    appendRoundedRectFill(vertices, physicalRect, radius, color, false);
 }
 
 void EditorRhiGeometry::appendRoundedRectStroke(QVector<EditorRhiSolidVertex> &vertices,
@@ -304,6 +353,42 @@ void EditorRhiGeometry::appendPixelAlignedHorizontalLine(QVector<EditorRhiSolidV
                                                          const double right, const QColor &color) {
     const auto y = std::round(physicalY);
     appendRect(vertices, QRectF(left, y, right - left, 1.0), color);
+}
+
+void EditorRhiGeometry::appendAntialiasedVerticalLine(QVector<EditorRhiSolidVertex> &vertices,
+                                                      const double physicalX, const double top,
+                                                      const double bottom,
+                                                      const double physicalWidth,
+                                                      const QColor &color,
+                                                      const double physicalCameraX) {
+    if (bottom <= top || physicalWidth <= 0.0 || color.alpha() == 0)
+        return;
+    const auto viewportCenter = physicalX - physicalCameraX;
+    const auto lineStart = viewportCenter - physicalWidth * 0.5;
+    const auto lineEnd = viewportCenter + physicalWidth * 0.5;
+    for (const auto &span : pixelCoverageSpans(lineStart, lineEnd)) {
+        appendRect(vertices,
+                   QRectF(span.start + physicalCameraX, top, span.end - span.start, bottom - top),
+                   color, span.coverage);
+    }
+}
+
+void EditorRhiGeometry::appendAntialiasedHorizontalLine(QVector<EditorRhiSolidVertex> &vertices,
+                                                        const double physicalY, const double left,
+                                                        const double right,
+                                                        const double physicalWidth,
+                                                        const QColor &color,
+                                                        const double physicalCameraY) {
+    if (right <= left || physicalWidth <= 0.0 || color.alpha() == 0)
+        return;
+    const auto viewportCenter = physicalY - physicalCameraY;
+    const auto lineStart = viewportCenter - physicalWidth * 0.5;
+    const auto lineEnd = viewportCenter + physicalWidth * 0.5;
+    for (const auto &span : pixelCoverageSpans(lineStart, lineEnd)) {
+        appendRect(vertices,
+                   QRectF(left, span.start + physicalCameraY, right - left, span.end - span.start),
+                   color, span.coverage);
+    }
 }
 
 void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &vertices,

@@ -2,6 +2,7 @@
 #define TIMEGRAPHICSVIEW_H
 
 #include "EdgeAutoScroller.h"
+#include "EditorWheelUtils.h"
 #include "RubberBandView.h"
 #include <lite/GUI/Animation/IAnimatable.h>
 #include <lite/GUI/Base/IScalable.h>
@@ -192,8 +193,8 @@ private:
     int m_baseSceneLength = 0;
     int m_sceneLengthExtension = 0;
 
-    QTimer m_timer;
-    bool m_touchPadLock = false;
+    EditorWheelUtils::InputState m_wheelInputState;
+    EditorWheelUtils::ScrollAccumulator m_verticalTouchPadScroll;
 
     OverlayScrollBar *m_hScrollBar = nullptr;
     OverlayScrollBar *m_vScrollBar = nullptr;
