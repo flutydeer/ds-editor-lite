@@ -82,6 +82,54 @@ int main(int argc, char *argv[]) {
                "hairline geometry must not contain degenerate triangles");
     }
 
+    QVector<EditorRhiSolidVertex> joinedHairline;
+    EditorRhiGeometry::appendAntialiasedHairline(joinedHairline,
+                                                 {
+                                                     {2.0, 5.0},
+                                                     {5.0, 3.0},
+                                                     {8.0, 5.0}
+    },
+                                                 QColor(255, 255, 255));
+    expect(joinedHairline.size() == 84,
+           "a joined hairline must contain four triangles per segment and two round caps");
+    for (qsizetype index = 0; index + 2 < joinedHairline.size(); index += 3) {
+        expect(twiceTriangleArea(joinedHairline[index], joinedHairline[index + 1],
+                                 joinedHairline[index + 2]) > 1e-6,
+               "joined hairline geometry must not contain degenerate triangles");
+    }
+
+    QVector<EditorRhiSolidVertex> deduplicatedHairline;
+    EditorRhiGeometry::appendAntialiasedHairline(deduplicatedHairline,
+                                                 {
+                                                     {2.0, 5.0},
+                                                     {2.0, 5.0},
+                                                     {8.0, 5.0}
+    },
+                                                 QColor(255, 255, 255));
+    expect(deduplicatedHairline.size() == hairline.size(),
+           "duplicate hairline points must be removed before tessellation");
+    if (deduplicatedHairline.size() == hairline.size()) {
+        for (qsizetype index = 0; index < hairline.size(); ++index) {
+            expect(equalVertex(deduplicatedHairline[index], hairline[index]),
+                   "duplicate removal must preserve the generated hairline vertices");
+        }
+    }
+
+    QVector<EditorRhiSolidVertex> circle;
+    const QPointF circleCenter(4.0, 5.0);
+    EditorRhiGeometry::appendAntialiasedCircle(circle, circleCenter, 3.0, QColor(255, 255, 255));
+    expect(circle.size() == 288, "a circle must contain 32 non-degenerate antialiased segments");
+    for (qsizetype index = 0; index + 2 < circle.size(); index += 3) {
+        expect(twiceTriangleArea(circle[index], circle[index + 1], circle[index + 2]) > 1e-6,
+               "circle geometry must not contain degenerate triangles");
+    }
+    for (const auto &value : circle) {
+        expect(std::hypot(value.x - circleCenter.x(), value.y - circleCenter.y()) <= 3.7501,
+               "circle vertices must stay inside the feathered radius");
+        expect(value.coverage == 0.0f || value.coverage == 1.0f,
+               "circle coverage must preserve the opaque core and transparent feather edge");
+    }
+
     if (g_failures == 0) {
         QTextStream(stdout) << "All EditorRhiGeometry tests passed" << Qt::endl;
         return 0;
