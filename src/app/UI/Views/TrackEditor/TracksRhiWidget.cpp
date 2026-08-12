@@ -777,6 +777,10 @@ void TracksRhiWidget::rebuildModelConnections() {
                 connect(singing, &SingingClip::voiceContextChanged, this,
                         &TracksRhiWidget::scheduleSnapshot);
             }
+            if (const auto *audio = qobject_cast<const AudioClip *>(clip)) {
+                connect(audio, &AudioClip::pathStatusChanged, this,
+                        &TracksRhiWidget::scheduleSnapshot);
+            }
         }
     }
 }
