@@ -146,6 +146,15 @@ int main(int argc, char *argv[]) {
     EditorWheelUtils::InputState pixelInputState;
     expect(!pixelInputState.isMouseWheel(&pixelWheel),
            "pixel-only wheel events must use touchpad accumulation semantics");
+    QWheelEvent combinedWheel(QPointF(10, 10), QPointF(10, 10), QPoint(3, -5),
+                              QPoint(120, -240), Qt::NoButton, Qt::NoModifier, Qt::ScrollUpdate,
+                              false);
+    expect(EditorWheelUtils::wheelDelta(&combinedWheel, Qt::Horizontal) == 12.0 &&
+               EditorWheelUtils::wheelDelta(&combinedWheel, Qt::Vertical) == -20.0,
+           "precision touchpad events must prefer pixel displacement over angle deltas");
+    EditorWheelUtils::InputState combinedInputState;
+    expect(!combinedInputState.isMouseWheel(&combinedWheel),
+           "events with pixel displacement must retain touchpad input semantics");
 
     EditorViewportController marginViewport;
     marginViewport.setContentTickRange(0, 20000);

@@ -10,14 +10,15 @@
 namespace EditorWheelUtils {
 
     inline double wheelDelta(const QWheelEvent *event, const Qt::Orientation axis) {
+        const auto pixelDelta = event->pixelDelta();
+        if (!pixelDelta.isNull()) {
+            const auto pixelValue = axis == Qt::Horizontal ? pixelDelta.x() : pixelDelta.y();
+            return pixelValue * 4.0;
+        }
+
         const auto angleDelta = event->angleDelta();
         const auto angleValue = axis == Qt::Horizontal ? angleDelta.x() : angleDelta.y();
-        if (angleValue != 0)
-            return angleValue;
-
-        const auto pixelDelta = event->pixelDelta();
-        const auto pixelValue = axis == Qt::Horizontal ? pixelDelta.x() : pixelDelta.y();
-        return pixelValue * 4.0;
+        return angleValue;
     }
 
     inline int scrollTarget(const int startValue, const int viewportLength,
@@ -73,7 +74,7 @@ namespace EditorWheelUtils {
                 m_unlockTimer.start();
                 return false;
             }
-            if (deltaX == 0 && deltaY == 0 && !event->pixelDelta().isNull()) {
+            if (!event->pixelDelta().isNull()) {
                 m_touchPadLocked = true;
                 m_unlockTimer.start();
                 return false;
