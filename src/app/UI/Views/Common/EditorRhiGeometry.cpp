@@ -1,7 +1,5 @@
 #include "EditorRhiGeometry.h"
 
-#include <QLineF>
-
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -269,14 +267,53 @@ void EditorRhiGeometry::appendClippedTriangles(QVector<EditorRhiSolidVertex> &ve
     if (clipRect.isEmpty() || triangles.size() < 3)
         return;
 
+    auto minimumX = triangles.constFirst().x;
+    auto maximumX = minimumX;
+    auto minimumY = triangles.constFirst().y;
+    auto maximumY = minimumY;
+    for (const auto &value : triangles) {
+        minimumX = std::min(minimumX, value.x);
+        maximumX = std::max(maximumX, value.x);
+        minimumY = std::min(minimumY, value.y);
+        maximumY = std::max(maximumY, value.y);
+    }
+    if (maximumX < clipRect.left() || minimumX > clipRect.right() || maximumY < clipRect.top() ||
+        minimumY > clipRect.bottom()) {
+        return;
+    }
     vertices.reserve(vertices.size() + triangles.size());
+    if (triangles.size() % 3 == 0 && minimumX >= clipRect.left() && maximumX <= clipRect.right() &&
+        minimumY >= clipRect.top() && maximumY <= clipRect.bottom()) {
+        vertices.append(triangles);
+        return;
+    }
+
     for (qsizetype index = 0; index + 2 < triangles.size(); index += 3) {
+        const auto &a = triangles[index];
+        const auto &b = triangles[index + 1];
+        const auto &c = triangles[index + 2];
+        const auto minimumX = std::min({a.x, b.x, c.x});
+        const auto maximumX = std::max({a.x, b.x, c.x});
+        const auto minimumY = std::min({a.y, b.y, c.y});
+        const auto maximumY = std::max({a.y, b.y, c.y});
+        if (maximumX < clipRect.left() || minimumX > clipRect.right() ||
+            maximumY < clipRect.top() || minimumY > clipRect.bottom()) {
+            continue;
+        }
+        if (minimumX >= clipRect.left() && maximumX <= clipRect.right() &&
+            minimumY >= clipRect.top() && maximumY <= clipRect.bottom()) {
+            vertices.append(a);
+            vertices.append(b);
+            vertices.append(c);
+            continue;
+        }
+
         std::array<EditorRhiSolidVertex, 8> buffers[2];
         auto *polygon = &buffers[0];
         auto *clipped = &buffers[1];
-        (*polygon)[0] = triangles[index];
-        (*polygon)[1] = triangles[index + 1];
-        (*polygon)[2] = triangles[index + 2];
+        (*polygon)[0] = a;
+        (*polygon)[1] = b;
+        (*polygon)[2] = c;
         auto polygonSize = qsizetype(3);
         for (const auto edge : {ClipEdge::Left, ClipEdge::Right, ClipEdge::Top, ClipEdge::Bottom}) {
             polygonSize = clipPolygon(*polygon, polygonSize, edge, clipRect, *clipped);
@@ -401,7 +438,8 @@ void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &v
     QVector<QPointF> points;
     points.reserve(physicalPoints.size());
     for (const auto &point : physicalPoints) {
-        if (points.isEmpty() || QLineF(points.constLast(), point).length() > 0.001)
+        const auto delta = points.isEmpty() ? QPointF() : point - points.constLast();
+        if (points.isEmpty() || QPointF::dotProduct(delta, delta) > 0.000001)
             points.append(point);
     }
     if (points.size() < 2)
@@ -409,16 +447,20 @@ void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &v
 
     const auto innerHalfWidth = width * 0.5;
     const auto outerHalfWidth = innerHalfWidth + std::max(0.5, feather);
+    QVector<QPointF> segmentNormals;
+    segmentNormals.reserve(points.size() - 1);
+    for (qsizetype i = 0; i + 1 < points.size(); ++i)
+        segmentNormals.append(normalForSegment(points[i], points[i + 1]));
     QVector<QPointF> joins(points.size());
     QVector<double> joinScales(points.size(), 1.0);
     for (qsizetype i = 0; i < points.size(); ++i) {
         if (i == 0) {
-            joins[i] = normalForSegment(points[0], points[1]);
+            joins[i] = segmentNormals.constFirst();
         } else if (i + 1 == points.size()) {
-            joins[i] = normalForSegment(points[i - 1], points[i]);
+            joins[i] = segmentNormals.constLast();
         } else {
-            const auto previousNormal = normalForSegment(points[i - 1], points[i]);
-            const auto nextNormal = normalForSegment(points[i], points[i + 1]);
+            const auto &previousNormal = segmentNormals[i - 1];
+            const auto &nextNormal = segmentNormals[i];
             auto join = normalized(previousNormal + nextNormal);
             auto denominator = QPointF::dotProduct(join, nextNormal);
             if (join.isNull() || std::abs(denominator) < 0.0001) {
@@ -451,25 +493,33 @@ void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &v
                          points[i] - normal * innerHalfWidth, points[i] - normal * outerHalfWidth});
     }
 
+    constexpr auto capSegmentCount = 10;
+    const auto verticesPerSegment = innerHalfWidth > 0.0 ? 18 : 12;
+    const auto verticesPerCapSegment = innerHalfWidth > 0.0 ? 9 : 3;
+    vertices.reserve(vertices.size() + (sections.size() - 1) * verticesPerSegment +
+                     2 * capSegmentCount * verticesPerCapSegment);
     for (qsizetype i = 0; i + 1 < sections.size(); ++i) {
         const auto &a = sections[i];
         const auto &b = sections[i + 1];
         appendTriangle(vertices, a.outerLeft, b.outerLeft, b.innerLeft, color, 0.0f, 0.0f, 1.0f);
         appendTriangle(vertices, a.outerLeft, b.innerLeft, a.innerLeft, color, 0.0f, 1.0f, 1.0f);
-        appendTriangle(vertices, a.innerLeft, b.innerLeft, b.innerRight, color, 1.0f, 1.0f, 1.0f);
-        appendTriangle(vertices, a.innerLeft, b.innerRight, a.innerRight, color, 1.0f, 1.0f, 1.0f);
+        if (innerHalfWidth > 0.0) {
+            appendTriangle(vertices, a.innerLeft, b.innerLeft, b.innerRight, color, 1.0f, 1.0f,
+                           1.0f);
+            appendTriangle(vertices, a.innerLeft, b.innerRight, a.innerRight, color, 1.0f, 1.0f,
+                           1.0f);
+        }
         appendTriangle(vertices, a.innerRight, b.innerRight, b.outerRight, color, 1.0f, 1.0f, 0.0f);
         appendTriangle(vertices, a.innerRight, b.outerRight, a.outerRight, color, 1.0f, 0.0f, 0.0f);
     }
 
     const auto appendRoundCap = [&](const QPointF &center, const QPointF &direction,
                                     const bool start) {
-        constexpr int segmentCount = 10;
         const auto baseAngle = std::atan2(direction.y(), direction.x());
         constexpr auto pi = std::numbers::pi_v<double>;
         const auto firstAngle = baseAngle + (start ? pi * 0.5 : -pi * 0.5);
-        const auto angleStep = pi / segmentCount * (start ? 1.0 : -1.0);
-        for (int i = 0; i < segmentCount; ++i) {
+        const auto angleStep = pi / capSegmentCount * (start ? 1.0 : -1.0);
+        for (int i = 0; i < capSegmentCount; ++i) {
             const auto angleA = firstAngle + i * angleStep;
             const auto angleB = angleA + angleStep;
             const QPointF innerA =
@@ -480,9 +530,13 @@ void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &v
                 center + QPointF(std::cos(angleA), std::sin(angleA)) * outerHalfWidth;
             const QPointF outerB =
                 center + QPointF(std::cos(angleB), std::sin(angleB)) * outerHalfWidth;
-            appendTriangle(vertices, center, innerA, innerB, color, 1.0f, 1.0f, 1.0f);
-            appendTriangle(vertices, innerA, outerA, outerB, color, 1.0f, 0.0f, 0.0f);
-            appendTriangle(vertices, innerA, outerB, innerB, color, 1.0f, 0.0f, 1.0f);
+            if (innerHalfWidth > 0.0) {
+                appendTriangle(vertices, center, innerA, innerB, color, 1.0f, 1.0f, 1.0f);
+                appendTriangle(vertices, innerA, outerA, outerB, color, 1.0f, 0.0f, 0.0f);
+                appendTriangle(vertices, innerA, outerB, innerB, color, 1.0f, 0.0f, 1.0f);
+            } else {
+                appendTriangle(vertices, center, outerA, outerB, color, 1.0f, 0.0f, 0.0f);
+            }
         }
     };
     appendRoundCap(points.first(), normalized(points.first() - points.at(1)), true);
