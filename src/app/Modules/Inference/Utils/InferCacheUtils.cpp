@@ -9,11 +9,26 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QHash>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QRegularExpression>
 
 namespace InferCacheUtils {
 
     namespace {
+        QMutex cacheLockRegistryMutex;
+        QHash<QString, QWeakPointer<QMutex>> cacheLocks;
+
+        QSharedPointer<QMutex> mutexForCacheKey(const QString &key) {
+            QMutexLocker registryLocker(&cacheLockRegistryMutex);
+            auto mutex = cacheLocks.value(key).toStrongRef();
+            if (!mutex) {
+                mutex = QSharedPointer<QMutex>::create();
+                cacheLocks.insert(key, mutex.toWeakRef());
+            }
+            return mutex;
+        }
 
         const QRegularExpression kCacheFilePattern(
             QStringLiteral("^infer-(acoustic|duration|pitch|variance)-(input|output)-"
@@ -28,8 +43,15 @@ namespace InferCacheUtils {
         QString normalizePath(const QString &path) {
             return QFileInfo(path).absoluteFilePath().toLower();
         }
-
     } // namespace
+
+    CacheWriteGuard::CacheWriteGuard(const QString &key) : m_mutex(mutexForCacheKey(key)) {
+        m_mutex->lock();
+    }
+
+    CacheWriteGuard::~CacheWriteGuard() {
+        m_mutex->unlock();
+    }
 
     CacheStats scanCache(const QString &cacheDir) {
         CacheStats stats;

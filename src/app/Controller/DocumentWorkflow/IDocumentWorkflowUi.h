@@ -8,6 +8,7 @@
 class QWidget;
 
 enum class SaveDecision { Save, Discard, Cancel };
+enum class ExternalModificationDecision { Overwrite, SaveAs, Cancel };
 
 class IDocumentWorkflowUi {
 public:
@@ -16,6 +17,8 @@ public:
     [[nodiscard]] virtual QWidget *documentWorkflowParentWidget() = 0;
     [[nodiscard]] virtual SaveDecision askDocumentSaveDecision() = 0;
     [[nodiscard]] virtual QString chooseDocumentSavePath(const QString &suggestedPath) = 0;
+    [[nodiscard]] virtual ExternalModificationDecision
+        askExternalModificationDecision(const QString &path) = 0;
     [[nodiscard]] virtual bool confirmOpenWithoutPackageMetadata() = 0;
     virtual void showDocumentWorkflowError(const ProjectOperationError &error) = 0;
     virtual void showDocumentWorkflowBusy() = 0;

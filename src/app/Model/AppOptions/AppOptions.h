@@ -13,12 +13,14 @@
 #include "Options/InferenceOption.h"
 #include "Options/WindowOption.h"
 #include "Global/AppOptionsGlobal.h"
+#include "Utils/FileRevision.h"
 
 class AppOptions : public QObject {
     Q_OBJECT
 
 public:
     explicit AppOptions(QObject *parent = nullptr);
+    explicit AppOptions(QString configDirectory, QObject *parent = nullptr);
     ~AppOptions() override;
 
     LITE_SINGLETON_DECLARE_INSTANCE(AppOptions)
@@ -53,6 +55,7 @@ private:
 
     QString fileName = "appConfig.json";
     QString m_configPath;
+    FileRevision m_fileRevision;
 
     void notifyOptionsChanged(AppOptionsGlobal::Option option);
 };

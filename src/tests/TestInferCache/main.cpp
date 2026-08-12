@@ -3,8 +3,11 @@
 #include <QByteArray>
 #include <QCoreApplication>
 #include <QFile>
+#include <QSemaphore>
 #include <QTextStream>
 #include <QTemporaryDir>
+
+#include <thread>
 
 namespace {
     bool expect(const bool condition, const char *message) {
@@ -58,11 +61,58 @@ namespace {
         ok &= expect(second.deletedCount == 0, "second clean deletes nothing");
         return ok;
     }
+
+    bool testKeyedWriteLocks() {
+        bool ok = true;
+        QSemaphore firstEntered;
+        QSemaphore releaseFirst;
+        QSemaphore secondEntered;
+        std::thread first([&] {
+            InferCacheUtils::CacheWriteGuard guard(QStringLiteral("shared"));
+            firstEntered.release(2);
+            releaseFirst.acquire();
+        });
+        std::thread second([&] {
+            firstEntered.acquire();
+            InferCacheUtils::CacheWriteGuard guard(QStringLiteral("shared"));
+            secondEntered.release();
+        });
+        ok &= expect(firstEntered.tryAcquire(1, 1000), "first shared-key writer must enter");
+        ok &= expect(!secondEntered.tryAcquire(1, 100),
+                     "same cache key must serialize concurrent writers");
+        releaseFirst.release();
+        first.join();
+        second.join();
+        ok &= expect(secondEntered.tryAcquire(1), "second shared-key writer must eventually enter");
+
+        QSemaphore distinctFirstEntered;
+        QSemaphore releaseDistinctFirst;
+        QSemaphore distinctSecondEntered;
+        std::thread distinctFirst([&] {
+            InferCacheUtils::CacheWriteGuard guard(QStringLiteral("first"));
+            distinctFirstEntered.release(2);
+            releaseDistinctFirst.acquire();
+        });
+        std::thread distinctSecond([&] {
+            distinctFirstEntered.acquire();
+            InferCacheUtils::CacheWriteGuard guard(QStringLiteral("second"));
+            distinctSecondEntered.release();
+        });
+        ok &= expect(distinctFirstEntered.tryAcquire(1, 1000),
+                     "first distinct-key writer must enter");
+        ok &= expect(distinctSecondEntered.tryAcquire(1, 1000),
+                     "different cache keys must remain concurrent");
+        releaseDistinctFirst.release();
+        distinctFirst.join();
+        distinctSecond.join();
+        return ok;
+    }
 } // namespace
 
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     bool ok = true;
     ok &= testScanAndClean();
+    ok &= testKeyedWriteLocks();
     return ok ? 0 : 1;
 }

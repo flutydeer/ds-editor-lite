@@ -10,6 +10,7 @@
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
+#include "Modules/Inference/Utils/InferCacheUtils.h"
 #include <lite/Support/JsonUtils.h>
 #include <lite/Support/StringUtils.h>
 
@@ -19,6 +20,9 @@
 #include <QDebug>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QSaveFile>
+#include <QTemporaryFile>
 
 namespace Ac = srt::svs::Api::Acoustic::L1;
 namespace Vo = srt::svs::Api::Vocoder::L1;
@@ -109,21 +113,23 @@ void InferAcousticTask::runTask() {
 
     const auto cache = lookupCache(m_input);
     m_inputHash = cache.inputHash;
-    if (!QFile::exists(cache.inputCachePath))
-        JsonUtils::save(cache.inputCachePath, cache.model.serialize());
+    InferCacheUtils::CacheWriteGuard cacheGuard(QStringLiteral("acoustic:%1").arg(m_inputHash));
+    const auto lockedCache = lookupCache(m_input);
+    if (!QFile::exists(lockedCache.inputCachePath))
+        JsonUtils::save(lockedCache.inputCachePath, lockedCache.model.serialize());
 
     QString errorMessage;
-    if (cache.hit) {
-        qInfo() << "Use cached acoustic inference result:" << cache.outputCachePath;
-        m_result = cache.outputCachePath;
+    if (lockedCache.hit) {
+        qInfo() << "Use cached acoustic inference result:" << lockedCache.outputCachePath;
+        m_result = lockedCache.outputCachePath;
     } else {
         qDebug() << "acoustic inference cache not found. Running inference...";
         if (isTerminateRequested()) {
             abort();
             return;
         }
-        if (runInference(cache.model, cache.outputCachePath, errorMessage)) {
-            m_result = cache.outputCachePath;
+        if (runInference(lockedCache.model, lockedCache.outputCachePath, errorMessage)) {
+            m_result = lockedCache.outputCachePath;
         } else {
             qCritical() << "Task failed:" << errorMessage;
             return;
@@ -285,25 +291,62 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
         }
         const auto &audioRawData = result->audioData;
 
-        const auto outputPathStr = StringUtils::qstr_to_native(outputPath);
+        QTemporaryFile temporaryFile(
+            QFileInfo(outputPath).dir().filePath(QStringLiteral(".infer-acoustic-XXXXXX.wav")));
+        temporaryFile.setAutoRemove(false);
+        if (!temporaryFile.open()) {
+            error = temporaryFile.errorString();
+            return false;
+        }
+        const auto temporaryPath = temporaryFile.fileName();
+        temporaryFile.close();
+        const auto outputPathStr = StringUtils::qstr_to_native(temporaryPath);
 
         if (isTerminateRequested()) {
             abort();
+            QFile::remove(temporaryPath);
             return false;
         }
 
-        SndfileHandle audioFile(outputPathStr.c_str(), SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_FLOAT,
-                                1, 44100);
-        if (audioFile.error() != SF_ERR_NO_ERROR) {
-            qDebug() << "Failed to run acoustic inference: " << audioFile.strError() << '\n';
+        {
+            SndfileHandle audioFile(outputPathStr.c_str(), SFM_WRITE,
+                                    SF_FORMAT_WAV | SF_FORMAT_FLOAT, 1, 44100);
+            if (audioFile.error() != SF_ERR_NO_ERROR) {
+                qDebug() << "Failed to run acoustic inference: " << audioFile.strError() << '\n';
+                QFile::remove(temporaryPath);
+                return false;
+            }
+            const auto audioData = reinterpret_cast<const float *>(audioRawData.data());
+            const auto audioSize = static_cast<sf_count_t>(audioRawData.size() / sizeof(float));
+            if (audioFile.write(audioData, audioSize) != audioSize) {
+                qDebug() << "Failed to run acoustic inference: " << audioFile.strError() << '\n';
+                QFile::remove(temporaryPath);
+                return false;
+            }
+        }
+        QFile temporaryInput(temporaryPath);
+        QSaveFile outputFile(outputPath);
+        if (!temporaryInput.open(QIODevice::ReadOnly) || !outputFile.open(QIODevice::WriteOnly)) {
+            QFile::remove(temporaryPath);
+            error = tr("Failed to prepare acoustic cache file");
             return false;
         }
-        const auto audioData = reinterpret_cast<const float *>(audioRawData.data());
-        const auto audioSize = static_cast<sf_count_t>(audioRawData.size() / sizeof(float));
-        if (audioFile.write(audioData, audioSize) != audioSize) {
-            qDebug() << "Failed to run acoustic inference: " << audioFile.strError() << '\n';
+        QByteArray buffer(1024 * 1024, Qt::Uninitialized);
+        bool copySucceeded = true;
+        while (!temporaryInput.atEnd()) {
+            const auto bytesRead = temporaryInput.read(buffer.data(), buffer.size());
+            if (bytesRead <= 0 || outputFile.write(buffer.constData(), bytesRead) != bytesRead) {
+                copySucceeded = false;
+                break;
+            }
+        }
+        temporaryInput.close();
+        if (!copySucceeded || !outputFile.commit()) {
+            QFile::remove(temporaryPath);
+            error = tr("Failed to commit acoustic cache file");
             return false;
         }
+        QFile::remove(temporaryPath);
     }
     return true;
 }

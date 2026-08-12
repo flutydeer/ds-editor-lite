@@ -8,9 +8,13 @@
 #include <QStandardPaths>
 #include <QDir>
 
-AppOptions::AppOptions(QObject *parent) : QObject(parent) {
-    const QDir configDir(
-        QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());
+AppOptions::AppOptions(QObject *parent) : AppOptions({}, parent) {
+}
+
+AppOptions::AppOptions(QString configDirectory, QObject *parent) : QObject(parent) {
+    const QDir configDir(configDirectory.isEmpty()
+                             ? QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+                             : std::move(configDirectory));
     if (!configDir.exists()) {
         if (configDir.mkpath("."))
             Log::d(CLASS_NAME, "Successfully created config directory");
@@ -31,7 +35,9 @@ AppOptions::AppOptions(QObject *parent) : QObject(parent) {
             m_developerOption.load(obj.value(m_developerOption.key()).toObject());
             m_windowOption.load(obj.value(m_windowOption.key()).toObject());
         }
-    saveAndNotify(AppOptionsGlobal::All);
+    QString revisionError;
+    if (!FileRevisionUtils::capture(m_configPath, m_fileRevision, &revisionError))
+        Log::e(CLASS_NAME, "Failed to capture config revision: " + revisionError);
 }
 
 AppOptions::~AppOptions() = default;
@@ -44,17 +50,29 @@ QString AppOptions::configPath() const {
 
 bool AppOptions::saveAndNotify(const AppOptionsGlobal::Option option) {
     const QJsonObject obj{
-        {m_generalOption.key(),    m_generalOption.value()   },
-        {m_audioOption.key(),      m_audioOption.value()     },
-        {m_appearanceOption.key(), m_appearanceOption.value()},
+        {m_generalOption.key(),     m_generalOption.value()    },
+        {m_audioOption.key(),       m_audioOption.value()      },
+        {m_appearanceOption.key(),  m_appearanceOption.value() },
         {m_g2pLanguageOption.key(), m_g2pLanguageOption.value()},
-        {m_fillLyricOption.key(),  m_fillLyricOption.value() },
-        {m_inferenceOption.key(),  m_inferenceOption.value() },
-        {m_developerOption.key(),  m_developerOption.value() },
-        {m_windowOption.key(),     m_windowOption.value()    }
+        {m_fillLyricOption.key(),   m_fillLyricOption.value()  },
+        {m_inferenceOption.key(),   m_inferenceOption.value()  },
+        {m_developerOption.key(),   m_developerOption.value()  },
+        {m_windowOption.key(),      m_windowOption.value()     }
     };
 
+    QString revisionError;
+    if (!FileRevisionUtils::matchesCurrent(m_configPath, m_fileRevision, &revisionError)) {
+        Log::e(CLASS_NAME,
+               revisionError.isEmpty()
+                   ? "Config file changed outside the application; refusing to overwrite"
+                   : "Failed to verify config revision: " + revisionError);
+        notifyOptionsChanged(option);
+        return false;
+    }
+
     const auto success = JsonUtils::save(m_configPath, obj);
+    if (success && !FileRevisionUtils::capture(m_configPath, m_fileRevision, &revisionError))
+        Log::e(CLASS_NAME, "Failed to refresh config revision: " + revisionError);
     notifyOptionsChanged(option);
     return success;
 }

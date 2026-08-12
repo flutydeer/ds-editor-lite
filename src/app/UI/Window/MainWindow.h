@@ -62,6 +62,7 @@ public:
     QWidget *documentWorkflowParentWidget() override;
     SaveDecision askDocumentSaveDecision() override;
     QString chooseDocumentSavePath(const QString &suggestedPath) override;
+    ExternalModificationDecision askExternalModificationDecision(const QString &path) override;
     bool confirmOpenWithoutPackageMetadata() override;
     void showDocumentWorkflowError(const ProjectOperationError &error) override;
     void showDocumentWorkflowBusy() override;

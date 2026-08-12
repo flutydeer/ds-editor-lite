@@ -7,6 +7,7 @@
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
+#include "Modules/Inference/Utils/InferCacheUtils.h"
 #include <lite/Support/JsonUtils.h>
 #include <lite/Support/Linq.h>
 #include "InferTaskCommon.h"
@@ -77,6 +78,7 @@ void InferVarianceTask::runTask() {
     GenericInferModel model;
     const auto input = m_input.toEngineModel();
     m_inputHash = input.hashData();
+    InferCacheUtils::CacheWriteGuard cacheGuard(QStringLiteral("variance:%1").arg(m_inputHash));
     const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
     if (!cacheDir.exists())
         cacheDir.mkpath(".");

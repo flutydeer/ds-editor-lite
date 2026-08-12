@@ -62,6 +62,7 @@ void DocumentWorkflowController::initializeNewDocument() {
     appModel->replaceProject(newModel.takeProjectData());
     appStatus->loopSettings.set(LoopSettings());
     updateProjectIdentity({});
+    m_projectRevision.reset();
     historyManager->reset(HistoryManager::ResetState::Saved);
     activateFirstClip();
 }
@@ -218,6 +219,10 @@ void DocumentWorkflowController::initializeStateMachine() {
                          [this] { return m_saveResult == SaveResult::SucceededAndResume; });
     addGuardedTransition(m_savingState, this, SIGNAL(saveCompleted()), m_idleState,
                          [this] { return m_saveResult == SaveResult::SucceededAndFinish; });
+    addGuardedTransition(m_savingState, this, SIGNAL(saveCompleted()), m_awaitingSavePathState,
+                         [this] { return m_saveResult == SaveResult::RetryWithNewPath; });
+    addGuardedTransition(m_savingState, this, SIGNAL(saveCompleted()), m_idleState,
+                         [this] { return m_saveResult == SaveResult::Canceled; });
     addGuardedTransition(m_savingState, this, SIGNAL(saveCompleted()), m_awaitingSaveDecisionState,
                          [this] { return m_saveResult == SaveResult::FailedAndResume; });
     addGuardedTransition(m_savingState, this, SIGNAL(saveCompleted()), m_failedState,
@@ -310,6 +315,11 @@ void DocumentWorkflowController::validatePendingRequest() {
             emit validationCompleted();
             return;
         }
+        if (m_pending.operation == DocumentOperation::Open) {
+            FileRevision revision;
+            if (FileRevisionUtils::capture(m_pending.filePath, revision))
+                m_pending.sourceRevision = std::move(revision);
+        }
     }
 
     const bool needsGuard = m_pending.termination.has_value() ||
@@ -384,11 +394,38 @@ void DocumentWorkflowController::askSavePath() {
 }
 
 void DocumentWorkflowController::performSave() {
+    const bool overwritesCurrentProject =
+        !m_projectPath.isEmpty() && m_projectRevision &&
+        DocumentWorkflowPathUtils::projectPathsEqual(
+            DocumentWorkflowPathUtils::normalizedProjectPath(m_savePath),
+            DocumentWorkflowPathUtils::normalizedProjectPath(m_projectPath));
+    QString revisionError;
+    if (overwritesCurrentProject &&
+        !FileRevisionUtils::matchesCurrent(m_projectPath, *m_projectRevision, &revisionError)) {
+        const auto decision = m_ui ? m_ui->askExternalModificationDecision(m_projectPath)
+                                   : ExternalModificationDecision::Cancel;
+        if (decision == ExternalModificationDecision::SaveAs) {
+            m_saveResult = SaveResult::RetryWithNewPath;
+            emit saveCompleted();
+            return;
+        }
+        if (decision == ExternalModificationDecision::Cancel) {
+            m_saveResult = SaveResult::Canceled;
+            emit saveCompleted();
+            return;
+        }
+    }
+
     QString errorMessage;
     DspxProjectConverterUi converter;
     if (converter.save(m_savePath, appModel, errorMessage)) {
         historyManager->setSavePoint();
         updateProjectIdentity(m_savePath);
+        FileRevision revision;
+        if (FileRevisionUtils::capture(m_savePath, revision, &revisionError))
+            m_projectRevision = std::move(revision);
+        else
+            m_projectRevision.reset();
         m_lastProjectFolder = QFileInfo(m_savePath).dir().path();
         addRecentProjectFile(m_savePath);
         if (m_resumeAfterSave) {
@@ -570,9 +607,11 @@ void DocumentWorkflowController::commitReplace(ReplaceProjectPayload &&payload) 
 
     if (payload.sourceKind == ProjectSourceKind::Native) {
         updateProjectIdentity(payload.sourcePath);
+        m_projectRevision = m_pending.sourceRevision;
         addRecentProjectFile(payload.sourcePath);
     } else {
         updateProjectIdentity({}, payload.displayName);
+        m_projectRevision.reset();
     }
     if (!payload.sourcePath.isEmpty())
         m_lastProjectFolder = QFileInfo(payload.sourcePath).dir().path();

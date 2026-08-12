@@ -434,6 +434,23 @@ QString MainWindow::chooseDocumentSavePath(const QString &suggestedPath) {
                                         tr("DiffScope Project File (*.dspx)"));
 }
 
+ExternalModificationDecision MainWindow::askExternalModificationDecision(const QString &path) {
+    MessageDialog dialog(tr("Project changed on disk"),
+                         tr("The project was changed outside DS Editor Lite:\n%1").arg(path));
+    dialog.setTitle(tr("Project changed on disk"));
+    dialog.addAccentButton(tr("Overwrite"), 1);
+    dialog.addButton(tr("Save As"), 2);
+    dialog.addButton(tr("Cancel"), 0);
+    switch (dialog.exec()) {
+        case 1:
+            return ExternalModificationDecision::Overwrite;
+        case 2:
+            return ExternalModificationDecision::SaveAs;
+        default:
+            return ExternalModificationDecision::Cancel;
+    }
+}
+
 bool MainWindow::confirmOpenWithoutPackageMetadata() {
     MessageDialog dialog(tr("Package scan failed"),
                          tr("Singer package metadata is not available. Open the project anyway?"));

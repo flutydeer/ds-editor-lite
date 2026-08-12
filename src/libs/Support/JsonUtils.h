@@ -7,6 +7,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <QSaveFile>
 
 class JsonUtils {
 public:
@@ -95,7 +96,7 @@ inline bool JsonUtils::load(const QString &filename, QJsonObject &jsonObj) {
 }
 
 inline bool JsonUtils::save(const QString &filename, const QJsonObject &jsonObj) {
-    QFile file(filename);
+    QSaveFile file(filename);
     if (!file.open(QIODevice::WriteOnly)) {
         Log::e("JsonUtils", "Failed to open file for writing: " + filename);
         return false;
@@ -103,7 +104,16 @@ inline bool JsonUtils::save(const QString &filename, const QJsonObject &jsonObj)
 
     QJsonDocument doc;
     doc.setObject(jsonObj);
-    file.write(doc.toJson());
+    const auto data = doc.toJson();
+    if (file.write(data) != data.size()) {
+        Log::e("JsonUtils", "Failed to write all data to file: " + filename);
+        file.cancelWriting();
+        return false;
+    }
+    if (!file.commit()) {
+        Log::e("JsonUtils", "Failed to commit file: " + filename);
+        return false;
+    }
     return true;
 }
 

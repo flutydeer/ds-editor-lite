@@ -23,6 +23,7 @@
 #include <QDebug>
 #include <QCoreApplication>
 #include <QFile>
+#include <QSaveFile>
 #include <QJsonArray>
 
 #include <algorithm>
@@ -308,6 +309,7 @@ namespace {
             SpeakerInfo speaker;
             bool valid = false;
         };
+
         QList<RawSource> rawSources;
         rawSources.reserve(sourcesArray.size());
         for (const auto &sourceValue : sourcesArray) {
@@ -337,9 +339,8 @@ namespace {
                 dropped.append(r.speaker.id());
         }
         if (!dropped.isEmpty()) {
-            qWarning().noquote()
-                << "[DspxProjectConverter] Singer" << effectiveSinger.singerId()
-                << "dropped legacy speakers:" << dropped.join(", ");
+            qWarning().noquote() << "[DspxProjectConverter] Singer" << effectiveSinger.singerId()
+                                 << "dropped legacy speakers:" << dropped.join(", ");
         }
 
         // 仅保留 valid sources
@@ -358,9 +359,10 @@ namespace {
 
         // 重建 weights: original explicit (N-1) → full (N) → filter (M) → explicit (M-1)
         const auto remapWeights = [&validIndices](const QVector<double> &explicitWeights) {
-            const int originalCount = validIndices.isEmpty()
-                ? 0
-                : *std::max_element(validIndices.begin(), validIndices.end()) + 1;
+            const int originalCount =
+                validIndices.isEmpty()
+                    ? 0
+                    : *std::max_element(validIndices.begin(), validIndices.end()) + 1;
             // explicit weights size 应为 originalCount - 1
             if (explicitWeights.size() != originalCount - 1)
                 return QVector<double>();
@@ -1046,8 +1048,8 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
         }
         // opendspx::TimeSignature::index is the measure number the signature
         // takes effect at; it maps directly onto TimeSignature::barIndex.
-        timeSignatures.append(TimeSignature(signature.index, signature.numerator,
-                                            signature.denominator));
+        timeSignatures.append(
+            TimeSignature(signature.index, signature.numerator, signature.denominator));
     }
     model->setTimeline(Timeline(std::move(tempos), std::move(timeSignatures)));
     auto masterControl = TrackControl();
@@ -1235,8 +1237,9 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 audioClipRef->control.gain = clip->gain();
                 audioClipRef->control.mute = clip->mute();
                 audioClipRef->path = audioClip->path().toStdString();
-                // On save, recompute relativeDir against the save target and merge locating info into
-                // a local workspace copy (model untouched), so fallback-resolved paths persist on save
+                // On save, recompute relativeDir against the save target and merge locating info
+                // into a local workspace copy (model untouched), so fallback-resolved paths persist
+                // on save
                 auto pathInfo = audioClip->pathInfo();
                 pathInfo.relativeDir =
                     DiffscopeAudioWorkspace::relativeDirFor(audioClip->path(), path);
@@ -1317,26 +1320,6 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         std::stringstream ss(std::ios::out);
         opendspx::Serializer::serialize(ss, model_, errors, opendspx::Serializer::CheckError);
 
-        QFile file(filePath);
-        if (!file.open(QIODevice::WriteOnly)) {
-            msg += QCoreApplication::translate("DspxProjectConverter",
-                                               "Failed to open file for writing: %1")
-                       .arg(filePath);
-            return false;
-        }
-
-        auto jsonData = QByteArray::fromStdString(ss.str());
-
-        const qint64 written = file.write(jsonData);
-        file.close();
-
-        if (written != jsonData.size()) {
-            msg += QCoreApplication::translate("DspxProjectConverter",
-                                               "Failed to write all data to file: %1")
-                       .arg(filePath);
-            return false;
-        }
-
         if (!errors.empty()) {
             QTextStream stream(&msg, QIODeviceBase::WriteOnly | QIODeviceBase::Text);
             stream << QCoreApplication::translate("DspxProjectConverter",
@@ -1366,6 +1349,29 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 }
                 stream << "\n";
             }
+            return false;
+        }
+
+        const auto jsonData = QByteArray::fromStdString(ss.str());
+        QSaveFile file(filePath);
+        if (!file.open(QIODevice::WriteOnly)) {
+            msg += QCoreApplication::translate("DspxProjectConverter",
+                                               "Failed to open file for writing: %1")
+                       .arg(filePath);
+            return false;
+        }
+
+        if (file.write(jsonData) != jsonData.size()) {
+            msg += QCoreApplication::translate("DspxProjectConverter",
+                                               "Failed to write all data to file: %1")
+                       .arg(filePath);
+            file.cancelWriting();
+            return false;
+        }
+        if (!file.commit()) {
+            msg += QCoreApplication::translate("DspxProjectConverter",
+                                               "Failed to commit project file: %1")
+                       .arg(filePath);
             return false;
         }
 
