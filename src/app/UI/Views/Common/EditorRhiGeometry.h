@@ -41,8 +41,9 @@ namespace EditorRhiGeometry {
                                          const QColor &color, double physicalCameraY = 0.0);
     void appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &vertices,
                                  const QVector<QPointF> &physicalPoints, double width,
-                                 const QColor &color, double feather = 1.0,
-                                 double miterLimit = 3.0);
+                                 const QColor &color, double feather = 1.0, double miterLimit = 3.0,
+                                 Qt::PenCapStyle capStyle = Qt::RoundCap,
+                                 Qt::PenJoinStyle joinStyle = Qt::MiterJoin);
     void appendAntialiasedHairline(QVector<EditorRhiSolidVertex> &vertices,
                                    const QVector<QPointF> &physicalPoints, const QColor &color,
                                    double feather = 1.0, double miterLimit = 3.0);

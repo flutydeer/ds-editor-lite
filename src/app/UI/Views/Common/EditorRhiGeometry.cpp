@@ -394,47 +394,28 @@ void EditorRhiGeometry::appendAntialiasedHorizontalLine(QVector<EditorRhiSolidVe
 void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &vertices,
                                                 const QVector<QPointF> &physicalPoints,
                                                 const double width, const QColor &color,
-                                                const double feather, const double miterLimit) {
+                                                const double feather, const double miterLimit,
+                                                const Qt::PenCapStyle capStyle,
+                                                const Qt::PenJoinStyle joinStyle) {
     if (physicalPoints.size() < 2 || width < 0.0 || color.alpha() == 0)
         return;
 
+    auto closed = QLineF(physicalPoints.first(), physicalPoints.last()).length() <= 0.001;
     QVector<QPointF> points;
     points.reserve(physicalPoints.size());
     for (const auto &point : physicalPoints) {
         if (points.isEmpty() || QLineF(points.constLast(), point).length() > 0.001)
             points.append(point);
     }
+    if (closed && points.size() > 2 && QLineF(points.first(), points.last()).length() <= 0.001)
+        points.removeLast();
     if (points.size() < 2)
         return;
+    closed = closed && points.size() > 2;
 
-    const auto innerHalfWidth = width * 0.5;
-    const auto outerHalfWidth = innerHalfWidth + std::max(0.5, feather);
-    QVector<QPointF> joins(points.size());
-    QVector<double> joinScales(points.size(), 1.0);
-    for (qsizetype i = 0; i < points.size(); ++i) {
-        if (i == 0) {
-            joins[i] = normalForSegment(points[0], points[1]);
-        } else if (i + 1 == points.size()) {
-            joins[i] = normalForSegment(points[i - 1], points[i]);
-        } else {
-            const auto previousNormal = normalForSegment(points[i - 1], points[i]);
-            const auto nextNormal = normalForSegment(points[i], points[i + 1]);
-            auto join = normalized(previousNormal + nextNormal);
-            auto denominator = QPointF::dotProduct(join, nextNormal);
-            if (join.isNull() || std::abs(denominator) < 0.0001) {
-                join = nextNormal;
-                denominator = 1.0;
-            }
-            const auto scale = 1.0 / std::abs(denominator);
-            if (scale > miterLimit) {
-                joins[i] = nextNormal;
-                joinScales[i] = 1.0;
-            } else {
-                joins[i] = join;
-                joinScales[i] = scale;
-            }
-        }
-    }
+    const auto fadeWidth = std::max(0.5, feather);
+    const auto innerHalfWidth = width > 0.0 ? std::max(0.0, width * 0.5 - fadeWidth * 0.5) : 0.0;
+    const auto outerHalfWidth = width > 0.0 ? width * 0.5 + fadeWidth * 0.5 : fadeWidth;
 
     struct Section {
         QPointF outerLeft;
@@ -444,16 +425,99 @@ void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &v
     };
 
     QVector<Section> sections;
-    sections.reserve(points.size());
-    for (qsizetype i = 0; i < points.size(); ++i) {
-        const auto normal = joins[i] * joinScales[i];
-        sections.append({points[i] + normal * outerHalfWidth, points[i] + normal * innerHalfWidth,
-                         points[i] - normal * innerHalfWidth, points[i] - normal * outerHalfWidth});
+    sections.reserve(points.size() * 2);
+    const auto appendEndpoint = [&](const QPointF &point, const QPointF &direction,
+                                    const QPointF &normal, const bool start) {
+        const auto capExtension = capStyle == Qt::SquareCap ? width * 0.5 : 0.0;
+        const auto sign = start ? -1.0 : 1.0;
+        auto innerCenter = point + direction * sign * capExtension;
+        auto outerCenter = innerCenter;
+        if (capStyle != Qt::RoundCap && width > 0.0) {
+            innerCenter -= direction * sign * fadeWidth * 0.5;
+            outerCenter += direction * sign * fadeWidth * 0.5;
+        }
+        sections.append(
+            {outerCenter + normal * outerHalfWidth, innerCenter + normal * innerHalfWidth,
+             innerCenter - normal * innerHalfWidth, outerCenter - normal * outerHalfWidth});
+    };
+    const auto appendJoin = [&](const QPointF &point, const QPointF &previousDirection,
+                                const QPointF &nextDirection) {
+        const QPointF previousNormal(-previousDirection.y(), previousDirection.x());
+        const QPointF nextNormal(-nextDirection.y(), nextDirection.x());
+        const auto turn = std::atan2(previousDirection.x() * nextDirection.y() -
+                                         previousDirection.y() * nextDirection.x(),
+                                     QPointF::dotProduct(previousDirection, nextDirection));
+        auto miterNormal = normalized(previousNormal + nextNormal);
+        auto denominator = QPointF::dotProduct(miterNormal, nextNormal);
+        if (miterNormal.isNull() || std::abs(denominator) < 0.0001) {
+            miterNormal = nextNormal;
+            denominator = 1.0;
+        }
+        const auto miterScale = 1.0 / std::abs(denominator);
+        const auto appendMiter = [&] {
+            const auto outerNormal = miterNormal * (outerHalfWidth * miterScale);
+            const auto innerNormal = miterNormal * (innerHalfWidth * miterScale);
+            sections.append({point + outerNormal, point + innerNormal, point - innerNormal,
+                             point - outerNormal});
+        };
+        if (std::abs(turn) < 0.0001 || (joinStyle == Qt::MiterJoin && miterScale <= miterLimit)) {
+            appendMiter();
+            return;
+        }
+
+        const auto boundedMiterScale = std::min(miterScale, std::max(1.0, miterLimit));
+        const auto outerMiter = miterNormal * (outerHalfWidth * boundedMiterScale);
+        const auto innerMiter = miterNormal * (innerHalfWidth * boundedMiterScale);
+        const auto roundJoin = joinStyle == Qt::RoundJoin;
+        const auto segmentCount =
+            roundJoin ? std::max(1, static_cast<int>(std::ceil(std::abs(turn) /
+                                                               (std::numbers::pi_v<double> / 8.0))))
+                      : 1;
+        const auto outerOnRight = turn > 0.0;
+        const auto firstOuterDirection = outerOnRight ? -previousNormal : previousNormal;
+        for (int segment = 0; segment <= segmentCount; ++segment) {
+            const auto angle = turn * segment / segmentCount;
+            const auto cosine = std::cos(angle);
+            const auto sine = std::sin(angle);
+            const QPointF outerDirection(
+                firstOuterDirection.x() * cosine - firstOuterDirection.y() * sine,
+                firstOuterDirection.x() * sine + firstOuterDirection.y() * cosine);
+            if (outerOnRight) {
+                sections.append({point + outerMiter, point + innerMiter,
+                                 point + outerDirection * innerHalfWidth,
+                                 point + outerDirection * outerHalfWidth});
+            } else {
+                sections.append({point + outerDirection * outerHalfWidth,
+                                 point + outerDirection * innerHalfWidth, point - innerMiter,
+                                 point - outerMiter});
+            }
+        }
+    };
+
+    if (closed) {
+        for (qsizetype i = 0; i < points.size(); ++i) {
+            const auto previous = (i + points.size() - 1) % points.size();
+            const auto next = (i + 1) % points.size();
+            appendJoin(points[i], normalized(points[i] - points[previous]),
+                       normalized(points[next] - points[i]));
+        }
+    } else {
+        const auto firstDirection = normalized(points[1] - points[0]);
+        appendEndpoint(points[0], firstDirection, QPointF(-firstDirection.y(), firstDirection.x()),
+                       true);
+        for (qsizetype i = 1; i + 1 < points.size(); ++i) {
+            appendJoin(points[i], normalized(points[i] - points[i - 1]),
+                       normalized(points[i + 1] - points[i]));
+        }
+        const auto lastDirection = normalized(points.last() - points[points.size() - 2]);
+        appendEndpoint(points.last(), lastDirection, QPointF(-lastDirection.y(), lastDirection.x()),
+                       false);
     }
 
-    for (qsizetype i = 0; i + 1 < sections.size(); ++i) {
+    const auto sectionCount = closed ? sections.size() : sections.size() - 1;
+    for (qsizetype i = 0; i < sectionCount; ++i) {
         const auto &a = sections[i];
-        const auto &b = sections[i + 1];
+        const auto &b = sections[(i + 1) % sections.size()];
         appendTriangle(vertices, a.outerLeft, b.outerLeft, b.innerLeft, color, 0.0f, 0.0f, 1.0f);
         appendTriangle(vertices, a.outerLeft, b.innerLeft, a.innerLeft, color, 0.0f, 1.0f, 1.0f);
         appendTriangle(vertices, a.innerLeft, b.innerLeft, b.innerRight, color, 1.0f, 1.0f, 1.0f);
@@ -462,13 +526,27 @@ void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &v
         appendTriangle(vertices, a.innerRight, b.outerRight, a.outerRight, color, 1.0f, 0.0f, 0.0f);
     }
 
-    const auto appendRoundCap = [&](const QPointF &center, const QPointF &direction,
-                                    const bool start) {
-        constexpr int segmentCount = 10;
+    if (closed)
+        return;
+
+    const auto appendFlatCap = [&](const Section &section) {
+        appendTriangle(vertices, section.outerLeft, section.innerLeft, section.innerRight, color,
+                       0.0f, 1.0f, 1.0f);
+        appendTriangle(vertices, section.outerLeft, section.innerRight, section.outerRight, color,
+                       0.0f, 1.0f, 0.0f);
+    };
+    if (capStyle != Qt::RoundCap) {
+        appendFlatCap(sections.first());
+        appendFlatCap(sections.last());
+        return;
+    }
+
+    const auto appendRoundCap = [&](const QPointF &center, const QPointF &direction) {
+        constexpr int segmentCount = 12;
         const auto baseAngle = std::atan2(direction.y(), direction.x());
         constexpr auto pi = std::numbers::pi_v<double>;
-        const auto firstAngle = baseAngle + (start ? pi * 0.5 : -pi * 0.5);
-        const auto angleStep = pi / segmentCount * (start ? 1.0 : -1.0);
+        const auto firstAngle = baseAngle - pi * 0.5;
+        const auto angleStep = pi / segmentCount;
         for (int i = 0; i < segmentCount; ++i) {
             const auto angleA = firstAngle + i * angleStep;
             const auto angleB = angleA + angleStep;
@@ -485,8 +563,8 @@ void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &v
             appendTriangle(vertices, innerA, outerB, innerB, color, 1.0f, 0.0f, 1.0f);
         }
     };
-    appendRoundCap(points.first(), normalized(points.first() - points.at(1)), true);
-    appendRoundCap(points.last(), normalized(points.last() - points.at(points.size() - 2)), false);
+    appendRoundCap(points.first(), normalized(points.first() - points.at(1)));
+    appendRoundCap(points.last(), normalized(points.last() - points.at(points.size() - 2)));
 }
 
 void EditorRhiGeometry::appendAntialiasedHairline(QVector<EditorRhiSolidVertex> &vertices,
