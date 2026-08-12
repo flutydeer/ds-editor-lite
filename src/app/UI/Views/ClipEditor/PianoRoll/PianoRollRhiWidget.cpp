@@ -122,6 +122,7 @@ namespace {
 class PianoRollRhiWidget::Private {
 public:
     enum class InlineEditField { None, Lyric, Pronunciation };
+    enum class Interaction { None, Move, ResizeLeft, ResizeRight, Draw, RectSelect };
 
     struct AnchorDragInfo {
         AnchorNode *node = nullptr;
@@ -569,6 +570,35 @@ public:
                 return note;
         }
         return nullptr;
+    }
+
+    bool noteEditingEnabled() const {
+        return editMode == Select || editMode == IntervalSelect || editMode == DrawNote;
+    }
+
+    Interaction noteInteractionAt(const Note *note, const QPointF &viewportPosition) const {
+        if (!note)
+            return Interaction::None;
+        const auto rect = noteViewportRect(note);
+        const auto relativeX = viewportPosition.x() - rect.left();
+        if (relativeX >= 0 && relativeX <= AppGlobal::resizeTolerance)
+            return Interaction::ResizeLeft;
+        if (relativeX >= rect.width() - AppGlobal::resizeTolerance &&
+            relativeX <= rect.width()) {
+            return Interaction::ResizeRight;
+        }
+        return Interaction::Move;
+    }
+
+    void updateNoteCursor(const QPointF &viewportPosition) const {
+        if (!noteEditingEnabled()) {
+            q->setCursor(Qt::ArrowCursor);
+            return;
+        }
+        const auto interaction = noteInteractionAt(noteAt(viewportPosition), viewportPosition);
+        const auto resizing =
+            interaction == Interaction::ResizeLeft || interaction == Interaction::ResizeRight;
+        q->setCursor(resizing ? Qt::SizeHorCursor : Qt::ArrowCursor);
     }
 
     void eraseNoteAt(const QPointF &viewportPosition) {
@@ -1511,6 +1541,8 @@ public:
             clearSplitPreview();
             return;
         }
+        if (!noteEditingEnabled())
+            return;
         if (editMode == DrawNote && !note) {
             interaction = Interaction::Draw;
             drawStart = snapLocalTick(localTickAt(event->position()));
@@ -1550,15 +1582,9 @@ public:
         interactionKey = note->keyIndex();
         mouseDownTick = localTickAt(event->position());
         mouseDownKey = keyAt(event->position());
-        const auto noteLeft = note->localStart() * pixelsPerTick() - cameraX;
-        const auto noteRight = (note->localStart() + note->length()) * pixelsPerTick() - cameraX;
-        constexpr double resizeTolerance = 6.0;
-        if (std::abs(event->position().x() - noteLeft) <= resizeTolerance)
-            interaction = Interaction::ResizeLeft;
-        else if (std::abs(event->position().x() - noteRight) <= resizeTolerance)
-            interaction = Interaction::ResizeRight;
-        else
-            interaction = Interaction::Move;
+        interaction = noteInteractionAt(note, event->position());
+        if (interaction == Interaction::ResizeLeft || interaction == Interaction::ResizeRight)
+            q->setCursor(Qt::SizeHorCursor);
         scheduleSnapshot();
     }
 
@@ -1568,6 +1594,8 @@ public:
             hoveredKey = key;
             emit q->keyHovered(key);
         }
+        if (event->buttons() == Qt::NoButton)
+            updateNoteCursor(event->position());
         if (editMode == EditPitchAnchor) {
             anchorCursorInView = true;
             mouseMoveAnchor(event);
@@ -1648,6 +1676,7 @@ public:
         interactionNoteId = -1;
         interactionDeltaTick = 0;
         interactionDeltaKey = 0;
+        updateNoteCursor(event->position());
         scheduleSnapshot();
     }
 
@@ -2548,7 +2577,6 @@ public:
     bool fallbackRequested = false;
     int trackColorIndex = 0;
     PianoRollEditMode editMode = Select;
-    enum class Interaction { None, Move, ResizeLeft, ResizeRight, Draw, RectSelect };
     Interaction interaction = Interaction::None;
     int interactionNoteId = -1;
     int interactionStart = 0;
@@ -2736,6 +2764,7 @@ bool PianoRollRhiWidget::revealFocus(const HistoryFocus &focus, bool) {
 
 void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
     if (d->editMode != mode) {
+        setCursor(Qt::ArrowCursor);
         d->disarmEdgeAutoScroll();
         d->finishNoteErase(EditSessionEndReason::Discard);
         d->finishInlineEditing();
@@ -2912,6 +2941,7 @@ void PianoRollRhiWidget::keyPressEvent(QKeyEvent *event) {
 }
 
 void PianoRollRhiWidget::leaveEvent(QEvent *event) {
+    unsetCursor();
     if (d->hoveredKey >= 0) {
         d->hoveredKey = -1;
         emit keyHoverCleared();
