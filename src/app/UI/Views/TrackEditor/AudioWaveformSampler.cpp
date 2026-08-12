@@ -14,6 +14,9 @@ namespace {
     constexpr int kSincHalfKernel = 16;
     constexpr double kCurveThreshold = 4.0;
     constexpr int kCurveOversample = 3;
+    constexpr auto kPi = std::numbers::pi_v<double>;
+    const auto kWindowStepSin = std::sin(kPi / kSincHalfKernel);
+    const auto kWindowStepCos = std::cos(kPi / kSincHalfKernel);
 }
 
 AudioWaveformSampler::~AudioWaveformSampler() {
@@ -339,6 +342,20 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleCurveMode(const Request
     result.curve.reserve(pointCount);
     const auto halfHeight = request.previewSceneRect.height() * 0.5;
     const auto centerY = request.previewSceneRect.top() + halfHeight;
+    auto linearlySpacedSamples = true;
+    const auto firstTick =
+        (request.previewSceneRect.left() + deviceStart / deviceScale - request.leftMarginPx) *
+        ticksPerScenePixel;
+    const auto lastTick =
+        (request.previewSceneRect.left() + deviceEnd / deviceScale - request.leftMarginPx) *
+        ticksPerScenePixel;
+    const auto tempo = request.timeline->tempoAt(firstTick);
+    for (const auto &tempoPoint : request.timeline->tempos()) {
+        if (tempoPoint.pos > firstTick && tempoPoint.pos <= lastTick && tempoPoint.value != tempo) {
+            linearlySpacedSamples = false;
+            break;
+        }
+    }
     for (auto index = 0; index < pointCount; ++index) {
         const auto deviceX = deviceStart + static_cast<double>(index) / kCurveOversample;
         const auto localX = deviceX / deviceScale;
@@ -346,7 +363,9 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleCurveMode(const Request
             continue;
         const auto sceneX = request.previewSceneRect.left() + localX;
         const auto samplePos =
-            tickToSamplePos(request, (sceneX - request.leftMarginPx) * ticksPerScenePixel);
+            linearlySpacedSamples && pointCount > 1
+                ? firstSamplePos + (lastSamplePos - firstSamplePos) * index / (pointCount - 1)
+                : tickToSamplePos(request, (sceneX - request.leftMarginPx) * ticksPerScenePixel);
         const auto value = sincInterpolate(monoSamples, sampleStart, info.frames, samplePos);
         result.curve.append({sceneX, centerY - value * halfHeight});
     }
@@ -382,23 +401,32 @@ double AudioWaveformSampler::sincInterpolate(const QVector<float> &samples, cons
     const auto center = static_cast<qint64>(std::floor(position));
     const auto fraction = position - center;
     auto result = 0.0;
-    constexpr auto pi = std::numbers::pi_v<double>;
+    // Integer tap offsets only flip the sinc numerator's sign; advance the Lanczos
+    // window phase recursively to avoid evaluating two sine functions per tap.
+    const auto sincNumerator = std::sin(kPi * fraction);
+    const auto windowFractionAngle = kPi * fraction / kSincHalfKernel;
+    auto windowSin = -std::sin(windowFractionAngle);
+    auto windowCos = -std::cos(windowFractionAngle);
     for (auto index = -kSincHalfKernel; index <= kSincHalfKernel; ++index) {
         const auto sampleIndex = center + index;
-        if (sampleIndex < 0 || sampleIndex >= totalFrames)
-            continue;
-        const auto bufferIndex = static_cast<int>(sampleIndex - offset);
-        if (bufferIndex < 0 || bufferIndex >= samples.size())
-            continue;
-        const auto x = fraction - index;
-        auto sinc = 1.0;
-        auto window = 1.0;
-        if (std::abs(x) >= 1e-9) {
-            sinc = std::sin(pi * x) / (pi * x);
-            const auto windowX = x / kSincHalfKernel;
-            window = std::abs(windowX) < 1.0 ? std::sin(pi * windowX) / (pi * windowX) : 0.0;
+        if (sampleIndex >= 0 && sampleIndex < totalFrames) {
+            const auto bufferIndex = static_cast<int>(sampleIndex - offset);
+            if (bufferIndex >= 0 && bufferIndex < samples.size()) {
+                const auto x = fraction - index;
+                auto sinc = 1.0;
+                auto window = 1.0;
+                if (std::abs(x) >= 1e-9) {
+                    const auto signedNumerator = index % 2 == 0 ? sincNumerator : -sincNumerator;
+                    sinc = signedNumerator / (kPi * x);
+                    const auto windowX = x / kSincHalfKernel;
+                    window = std::abs(windowX) < 1.0 ? windowSin / (kPi * windowX) : 0.0;
+                }
+                result += samples[bufferIndex] * sinc * window;
+            }
         }
-        result += samples[bufferIndex] * sinc * window;
+        const auto previousWindowSin = windowSin;
+        windowSin = previousWindowSin * kWindowStepCos - windowCos * kWindowStepSin;
+        windowCos = windowCos * kWindowStepCos + previousWindowSin * kWindowStepSin;
     }
     return result;
 }
