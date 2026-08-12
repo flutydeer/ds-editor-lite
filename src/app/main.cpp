@@ -1,21 +1,17 @@
 #include "ApplicationContext.h"
 #include "Bootstrap/AppEnvironment.h"
 #include "Bootstrap/CrashHandler.h"
-#include "Bootstrap/ExternalOpenRequestQueue.h"
+#include "Bootstrap/DocumentManager.h"
 #include "Bootstrap/LoggingBootstrap.h"
 #include "Bootstrap/Restarter.h"
 #include "Bootstrap/SessionAwareApplication.h"
 #include "Bootstrap/SingleInstanceCoordinator.h"
 #include "Bootstrap/StartupArguments.h"
-#include "Bootstrap/WindowPlacement.h"
-#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
-#include "DocumentSession.h"
 #include "Model/AppOptions/AppOptions.h"
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
-#include "UI/Window/MainWindow.h"
 #include "Utils/UiLanguageManager.h"
 
 #include <QDir>
@@ -31,6 +27,7 @@ int main(int argc, char *argv[]) {
 
     AppEnvironment::preInit();
     SessionAwareApplication a(argc, argv);
+    a.setQuitOnLastWindowClosed(false);
     AppEnvironment::postInit();
     const auto startupPaths = StartupArguments::projectFilePaths();
     SingleInstanceRequest startupRequest{
@@ -86,19 +83,11 @@ int main(int argc, char *argv[]) {
 
         packageManager->initialize(appOptions->general()->packageSearchPaths);
 
-        DocumentSession session;
-        MainWindow w(&session);
-        WindowPlacement windowPlacement(w);
-        windowPlacement.restoreOrPlace(appOptions->window()->mainWindowGeometry());
-        ExternalOpenRequestQueue requestQueue(session.workflow(), &w);
-        requestQueue.enqueue(startupRequest);
-        coordinator.setRequestHandler([&requestQueue](const SingleInstanceRequest &request) {
-            requestQueue.enqueue(request);
+        DocumentManager documentManager;
+        documentManager.handleRequest(startupRequest);
+        coordinator.setRequestHandler([&documentManager](const SingleInstanceRequest &request) {
+            documentManager.handleRequest(request);
         });
-        w.show();
-#if defined(WITH_DIRECT_MANIPULATION)
-        w.registerDirectManipulation();
-#endif
 
         const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
         qInfo() << "App launched in" << time << "ms";
@@ -106,9 +95,6 @@ int main(int argc, char *argv[]) {
         CrashHandler crashHandler;
         result = a.exec();
         coordinator.stopAcceptingRequests();
-        appOptions->window()->setMainWindowGeometry(windowPlacement.saveGeometry());
-        if (!appOptions->saveAndNotify(AppOptionsGlobal::Window))
-            qWarning("Failed to save main-window placement");
     }
     coordinator.shutdown();
     return Restarter(QDir::currentPath()).restartOrExit(result);

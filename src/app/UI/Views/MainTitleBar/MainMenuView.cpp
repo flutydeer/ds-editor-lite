@@ -100,6 +100,19 @@ void MainMenuView::openRecentProject(const QString &filePath) {
     d->onOpenRecentProject(filePath);
 }
 
+void MainMenuView::setWindowShortcutsActive(const bool active) {
+    Q_D(MainMenuView);
+    const auto context = active ? Qt::ApplicationShortcut : Qt::WidgetShortcut;
+    const QList actions{d->actionNew,         d->actionOpen,       d->actionSave,
+                        d->actionSaveAs,      d->actionUndo,       d->actionRedo,
+                        d->actionOctaveUp,    d->actionOctaveDown, d->actionFillLyrics,
+                        d->actionSearchLyrics};
+    for (auto *action : actions) {
+        if (action)
+            action->setShortcutContext(context);
+    }
+}
+
 void MainMenuView::changeEvent(QEvent *event) {
     QMenuBar::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
@@ -107,7 +120,7 @@ void MainMenuView::changeEvent(QEvent *event) {
 }
 
 void MainMenuViewPrivate::onNew() const {
-    documentWorkflowController->requestNew();
+    m_mainWindow->requestNewDocument();
 }
 
 void MainMenuViewPrivate::onOpen() {
@@ -140,7 +153,7 @@ void MainMenuViewPrivate::onOpen() {
         qDebug() << "User cancelled open";
         return;
     }
-    documentWorkflowController->requestOpen(fileName);
+    m_mainWindow->requestOpenDocument(fileName);
 }
 
 void MainMenuViewPrivate::onOpenRecentProject(const QString &filePath) {
@@ -149,7 +162,7 @@ void MainMenuViewPrivate::onOpenRecentProject(const QString &filePath) {
         Toast::show(tr("File does not exist: %1").arg(filePath));
         return;
     }
-    documentWorkflowController->requestOpen(filePath);
+    m_mainWindow->requestOpenDocument(filePath);
 }
 
 void MainMenuViewPrivate::onClearRecentProjects() {
@@ -189,7 +202,7 @@ void MainMenuViewPrivate::refreshRecentProjectsMenu() {
 }
 
 void MainMenuViewPrivate::openFileWithSavePrompt(const QString &filePath) {
-    documentWorkflowController->requestOpen(filePath);
+    m_mainWindow->requestOpenDocument(filePath);
 }
 
 void MainMenuViewPrivate::onImportMidiFile() {
@@ -386,7 +399,7 @@ void MainMenuViewPrivate::onQuantize() {
 
 void MainMenuViewPrivate::exitApp() {
     qDebug() << "MainMenuViewPrivate::exitApp";
-    m_mainWindow->close();
+    m_mainWindow->quit();
 }
 
 void MainMenuViewPrivate::enterClipEditorState() {

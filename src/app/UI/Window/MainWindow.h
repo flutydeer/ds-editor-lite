@@ -4,7 +4,6 @@
 #include <QAction>
 #include <QMainWindow>
 #include <QPointer>
-#include <QTimer>
 
 #include "Global/AppOptionsGlobal.h"
 #include "Interface/IMainWindow.h"
@@ -12,11 +11,11 @@
 #include "Controller/DocumentWorkflow/IDocumentWorkflowUi.h"
 #include "UI/Views/BottomPanelView.h"
 
+#include <functional>
 
 class QSplitter;
 class MainTitleBar;
 class MainMenuView;
-class TaskDialog;
 class LogWindow;
 class TrackEditorView;
 class ClipEditorView;
@@ -67,14 +66,16 @@ public:
     bool confirmOpenWithoutPackageMetadata() override;
     void showDocumentWorkflowError(const ProjectOperationError &error) override;
     void showDocumentWorkflowBusy() override;
+    void requestNewDocument();
+    void requestOpenDocument(const QString &path);
+    void completeDocumentClose();
+    void setProjectPathValidator(std::function<bool(const QString &)> validator);
 #if defined(WITH_DIRECT_MANIPULATION)
     void registerDirectManipulation();
     void unregisterDirectManipulation();
 #endif
 
 public slots:
-    void onAllDone();
-
     // 内嵌式设置面板（EmbeddedModalHost 承载，带遮罩/动画）
     void openAppOptions(AppOptionsGlobal::Option option);
     void closeAppOptions();
@@ -85,6 +86,14 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
     void dropEvent(QDropEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
+
+signals:
+    void newDocumentRequested();
+    void openDocumentRequested(const QString &path);
+    void documentCloseRequested();
+    void documentClosed();
+    void applicationCloseRequested(bool restart);
+    void windowActivated();
 
 private slots:
     void onSplitterMoved(int pos, int index);
@@ -97,14 +106,10 @@ private:
     bool eventFilter(QObject *watched, QEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
     static void emulateLeaveEvent(QWidget *widget);
-    static void restartApp();
     void updateShutdownBlockReason();
 
-    bool m_restartRequested = false;
-    bool m_isCloseRequested = false;
-    bool m_isAllDone = false;
     bool m_isDirectManipulationRegistered = false;
-    bool m_documentCloseApproved = false;
+    bool m_documentClosed = false;
     DocumentSession *m_session = nullptr;
 
     MainTitleBar *m_titleBar;
@@ -113,9 +118,6 @@ private:
     BottomPanelView *m_bottomPanelView;
     QSplitter *m_splitter;
     QByteArray m_splitterState;
-
-    QTimer m_waitDoneDialogDelayTimer;
-    TaskDialog *m_waitDoneDialog = nullptr;
 
     bool m_bottomPanelDetached = false;
     bool m_useNativeFrame = false;
@@ -140,6 +142,7 @@ private:
     // under the cursor, so focus must live inside the modal for scrolling to
     // reach the settings pages.
     QPointer<QWidget> m_focusBeforeModal;
+    std::function<bool(const QString &)> m_projectPathValidator;
 
     void suspendBackgroundInteraction();
     void restoreBackgroundInteraction();

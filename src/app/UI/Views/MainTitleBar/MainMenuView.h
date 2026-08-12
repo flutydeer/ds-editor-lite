@@ -21,6 +21,7 @@ public:
     [[nodiscard]] QAction *actionSave();
     [[nodiscard]] QAction *actionSaveAs();
     void openRecentProject(const QString &filePath);
+    void setWindowShortcutsActive(bool active);
 
 protected:
     void changeEvent(QEvent *event) override;
