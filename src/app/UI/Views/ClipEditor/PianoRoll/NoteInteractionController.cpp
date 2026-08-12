@@ -3,6 +3,7 @@
 #include "PianoRollGraphicsView.h"
 #include "NoteView.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/Common/EditorResizeUtils.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Controller/ClipController.h"
 #include "Modules/Inference/EditSessionManager.h"
@@ -41,8 +42,6 @@ void NoteInteractionController::resetMoveDeltaKeyRange() {
 void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
                                                        const QPointF scenePos, const int keyIndex,
                                                        NoteView *noteItem) {
-    const auto resizeTolerance = AppGlobal::resizeTolerance;
-
     // If note is editing lyric, don't allow moving or resizing
     if (noteItem->isEditingLyric()) {
         m_mouseMoveBehavior = None;
@@ -69,9 +68,11 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
 
     const auto rPos = noteItem->mapFromScene(scenePos);
     const auto rx = rPos.x();
-    if (rx >= 0 && rx <= resizeTolerance) {
+    const auto edge = EditorResizeUtils::horizontalEdgeAt(
+        rx, noteItem->rect().width(), AppGlobal::resizeTolerance);
+    if (edge == EditorResizeUtils::HorizontalEdge::Left) {
         m_mouseMoveBehavior = ResizeLeft;
-    } else if (rx >= noteItem->rect().width() - resizeTolerance && rx <= noteItem->rect().width()) {
+    } else if (edge == EditorResizeUtils::HorizontalEdge::Right) {
         m_mouseMoveBehavior = ResizeRight;
     } else {
         m_mouseMoveBehavior = Move;

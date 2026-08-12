@@ -1,6 +1,7 @@
 #include "UI/Views/TrackEditor/AudioClipDragState.h"
 #include "UI/Views/TrackEditor/ClipResizeUtils.h"
 #include "UI/Views/TrackEditor/SingingClipPreviewLayout.h"
+#include "UI/Views/Common/EditorResizeUtils.h"
 #include "Global/AppGlobal.h"
 
 #include <lite/MusicBase/Timeline.h>
@@ -29,6 +30,14 @@ namespace {
 
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
+
+    using EditorResizeUtils::HorizontalEdge;
+    expect(EditorResizeUtils::horizontalEdgeAt(4.0, 100.0, 6.0) == HorizontalEdge::Left &&
+               EditorResizeUtils::horizontalEdgeAt(96.0, 100.0, 6.0) == HorizontalEdge::Right &&
+               EditorResizeUtils::horizontalEdgeAt(50.0, 100.0, 6.0) == HorizontalEdge::None,
+           "note and clip resize handles must share the same horizontal edge hit test");
+    expect(EditorResizeUtils::horizontalEdgeAt(5.0, 8.0, 6.0) == HorizontalEdge::Left,
+           "overlapping resize handles must retain left-edge precedence");
 
     Clip::ClipCommonProperties singing;
     singing.length = 1920;

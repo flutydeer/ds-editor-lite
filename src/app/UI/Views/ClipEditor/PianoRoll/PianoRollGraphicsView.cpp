@@ -11,6 +11,7 @@
 #include "PianoRollSelectionModel.h"
 #include "PianoRollGraphicsView_p.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorOverlayView.h"
+#include "UI/Views/Common/EditorResizeUtils.h"
 #include "PitchEditorView.h"
 #include "PronunciationView.h"
 #include "PianoRollEditHandler.h"
@@ -1519,14 +1520,10 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
 
     const auto rPos = noteView->mapFromScene(scenePos);
     const auto rx = rPos.x();
-    if (rx >= 0 && rx <= AppGlobal::resizeTolerance) {
-        q->setCursor(Qt::SizeHorCursor);
-    } else if (rx >= noteView->rect().width() - AppGlobal::resizeTolerance &&
-               rx <= noteView->rect().width()) {
-        q->setCursor(Qt::SizeHorCursor);
-    } else {
-        q->setCursor(Qt::ArrowCursor);
-    }
+    const auto edge = EditorResizeUtils::horizontalEdgeAt(
+        rx, noteView->rect().width(), AppGlobal::resizeTolerance);
+    q->setCursor(edge == EditorResizeUtils::HorizontalEdge::None ? Qt::ArrowCursor
+                                                                : Qt::SizeHorCursor);
 }
 
 void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {

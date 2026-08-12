@@ -5,6 +5,7 @@
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Views/Common/TimeGraphicsScene.h"
+#include "UI/Views/Common/EditorResizeUtils.h"
 #include <lite/GUI/Controls/Menu.h>
 #include "UI/Utils/AppColorPalette.h"
 
@@ -312,11 +313,10 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
 
 void AbstractClipView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
     const auto rx = event->pos().rx();
-    if (rx >= 0 && rx <= AppGlobal::resizeTolerance ||
-        rx >= rect().width() - AppGlobal::resizeTolerance && rx <= rect().width())
-        setCursor(Qt::SizeHorCursor);
-    else
-        setCursor(Qt::ArrowCursor);
+    const auto edge =
+        EditorResizeUtils::horizontalEdgeAt(rx, rect().width(), AppGlobal::resizeTolerance);
+    setCursor(edge == EditorResizeUtils::HorizontalEdge::None ? Qt::ArrowCursor
+                                                              : Qt::SizeHorCursor);
 
     QGraphicsRectItem::hoverMoveEvent(event);
 }
