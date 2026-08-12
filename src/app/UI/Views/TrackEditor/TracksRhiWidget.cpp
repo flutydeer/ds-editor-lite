@@ -1341,11 +1341,10 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
             const auto *singing = qobject_cast<const SingingClip *>(clip);
             auto contentLength = properties.length;
             if (singing) {
-                contentLength = AppGlobal::ticksPerWholeNote;
-                if (singing->notes().count() > 0) {
-                    const auto *lastNote = *singing->notes().rbegin();
-                    contentLength = lastNote->localStart() + lastNote->length();
-                }
+                contentLength = ClipResizeUtils::furthestContentEnd(
+                    singing->notes().begin(), singing->notes().end(),
+                    AppGlobal::ticksPerWholeNote,
+                    [](const Note *note) { return note->localStart() + note->length(); });
             }
             ClipResizeUtils::updateRightEdge(properties, right - originalLeft, singing != nullptr,
                                              contentLength);

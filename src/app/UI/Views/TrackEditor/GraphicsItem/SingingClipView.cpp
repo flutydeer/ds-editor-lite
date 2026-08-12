@@ -8,6 +8,7 @@
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Utils/AppColorPalette.h"
+#include "UI/Views/TrackEditor/ClipResizeUtils.h"
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/Support/MathUtils.h>
 #include "Global/AppGlobal.h"
@@ -75,10 +76,9 @@ void SingingClipView::loadPreviewNotes(const QVector<std::tuple<int, int, int>> 
 }
 
 int SingingClipView::contentLength() const {
-    if (m_notes.isEmpty())
-        return AppGlobal::ticksPerWholeNote;
-    const auto lastNote = m_notes.last();
-    return lastNote->rStart + lastNote->length;
+    return ClipResizeUtils::furthestContentEnd(
+        m_notes.cbegin(), m_notes.cend(), AppGlobal::ticksPerWholeNote,
+        [](const NoteViewModel *note) { return note->rStart + note->length; });
 }
 
 void SingingClipView::onNoteListChanged(const SingingClip::NoteChangeType type,

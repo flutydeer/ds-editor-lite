@@ -1,6 +1,7 @@
 #include "UI/Views/TrackEditor/AudioClipDragState.h"
 #include "UI/Views/TrackEditor/ClipResizeUtils.h"
 #include "UI/Views/TrackEditor/SingingClipPreviewLayout.h"
+#include "Global/AppGlobal.h"
 
 #include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -8,6 +9,7 @@
 #include <QCoreApplication>
 #include <QTextStream>
 
+#include <array>
 #include <cmath>
 
 namespace {
@@ -51,6 +53,23 @@ int main(int argc, char *argv[]) {
            "audio resize must stop at the material boundary");
     expect(!ClipResizeUtils::updateRightEdge(audio, 0, false, 2000),
            "a non-positive visible length must be rejected");
+
+    struct ContentSpan {
+        int start;
+        int length;
+    };
+    const std::array overlappingContent = {ContentSpan{0, 1200}, ContentSpan{800, 100}};
+    const auto contentEnd = ClipResizeUtils::furthestContentEnd(
+        overlappingContent.cbegin(), overlappingContent.cend(), AppGlobal::ticksPerWholeNote,
+        [](const ContentSpan &span) { return span.start + span.length; });
+    expect(contentEnd == 1200,
+           "overlapping singing notes must retain the furthest endpoint, not the latest start");
+    const std::array<ContentSpan, 0> emptyContent;
+    expect(ClipResizeUtils::furthestContentEnd(
+               emptyContent.cbegin(), emptyContent.cend(), AppGlobal::ticksPerWholeNote,
+               [](const ContentSpan &span) { return span.start + span.length; }) ==
+               AppGlobal::ticksPerWholeNote,
+           "an empty singing clip must retain the default editable content length");
 
     const QRectF preview(10.0, 20.0, 200.0, 80.0);
     const auto layout = SingingClipPreview::computeLayout(preview, {60, 64, 67});
