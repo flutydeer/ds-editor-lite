@@ -355,24 +355,16 @@ void TracksRhiWidget::onWheelVerScale(QWheelEvent *event) {
 }
 
 void TracksRhiWidget::onWheelHorScroll(QWheelEvent *event) {
-    (void) m_wheelInputState.isMouseWheel(event);
-    const auto target =
-        EditorWheelUtils::scrollTarget(static_cast<int>(m_viewport.horizontalOffset()), width(),
-                                       0.2, EditorWheelUtils::horizontalScrollDelta(event));
+    const auto target = EditorWheelUtils::scrollTarget(
+        static_cast<int>(m_viewport.horizontalOffset()), width(), 0.2, event,
+        EditorWheelUtils::horizontalScrollAxis(event));
     m_viewport.scrollBy({target - m_viewport.horizontalOffset(), 0.0});
 }
 
 void TracksRhiWidget::onWheelVerScroll(QWheelEvent *event) {
-    const auto fromWheel = m_wheelInputState.isMouseWheel(event);
-    if (fromWheel)
-        m_verticalTouchPadScroll.reset();
     const auto startValue = static_cast<int>(m_viewport.verticalOffset());
     const auto target =
-        fromWheel
-            ? EditorWheelUtils::scrollTarget(startValue, height(), 0.15,
-                                             EditorWheelUtils::wheelDelta(event, Qt::Vertical))
-            : m_verticalTouchPadScroll.scrollTarget(
-                  startValue, height(), 0.15, EditorWheelUtils::wheelDelta(event, Qt::Vertical));
+        EditorWheelUtils::scrollTarget(startValue, height(), 0.15, event, Qt::Vertical);
     m_viewport.scrollBy({0.0, target - m_viewport.verticalOffset()});
 }
 

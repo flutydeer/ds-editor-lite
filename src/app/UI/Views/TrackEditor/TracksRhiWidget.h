@@ -219,8 +219,6 @@ private:
 
     EditorViewportController m_viewport;
     EditorGlyphAtlas m_glyphAtlas;
-    EditorWheelUtils::InputState m_wheelInputState;
-    EditorWheelUtils::ScrollAccumulator m_verticalTouchPadScroll;
     EditorRhiScrollBarController *m_scrollBars = nullptr;
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;
     QVector<ClipSnapshot> m_clipSnapshots;

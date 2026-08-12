@@ -390,10 +390,11 @@ void TimeGraphicsView::onWheelVerScale(QWheelEvent *event) {
 }
 
 void TimeGraphicsView::onWheelHorScroll(QWheelEvent *event) {
-    const auto deltaY = EditorWheelUtils::horizontalScrollDelta(event);
+    const auto fromWheel = isMouseEventFromWheel(event);
     auto startValue = horizontalBarValue();
-    auto endValue = EditorWheelUtils::scrollTarget(startValue, viewport()->width(), 0.2, deltaY);
-    if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event))
+    auto endValue = EditorWheelUtils::scrollTarget(startValue, viewport()->width(), 0.2, event,
+                                                   EditorWheelUtils::horizontalScrollAxis(event));
+    if (isDirectManipulationEnabled() || !fromWheel)
         setHorizontalBarValue(endValue);
     else {
         horizontalBarAnimateTo(endValue);
@@ -401,15 +402,10 @@ void TimeGraphicsView::onWheelHorScroll(QWheelEvent *event) {
 }
 
 void TimeGraphicsView::onWheelVerScroll(QWheelEvent *event) {
-    const auto deltaY = EditorWheelUtils::wheelDelta(event, Qt::Vertical);
     const auto fromWheel = isMouseEventFromWheel(event);
-    if (fromWheel)
-        m_verticalTouchPadScroll.reset();
     const auto startValue = verticalBarValue();
-    const auto endValue =
-        fromWheel
-            ? EditorWheelUtils::scrollTarget(startValue, viewport()->height(), 0.15, deltaY)
-            : m_verticalTouchPadScroll.scrollTarget(startValue, viewport()->height(), 0.15, deltaY);
+    const auto endValue = EditorWheelUtils::scrollTarget(startValue, viewport()->height(), 0.15,
+                                                         event, Qt::Vertical);
     if (isDirectManipulationEnabled() || !fromWheel) {
         setVerticalBarValue(endValue);
     } else {

@@ -425,21 +425,14 @@ public:
     }
 
     void horizontalScroll(QWheelEvent *event) {
-        const auto delta = EditorWheelUtils::horizontalScrollDelta(event);
-        (void) wheelInputState.isMouseWheel(event);
-        cameraX = EditorWheelUtils::scrollTarget(static_cast<int>(cameraX), q->width(), 0.2, delta);
+        cameraX = EditorWheelUtils::scrollTarget(static_cast<int>(cameraX), q->width(), 0.2, event,
+                                                 EditorWheelUtils::horizontalScrollAxis(event));
         viewportChanged(false);
     }
 
     void verticalScroll(QWheelEvent *event) {
-        const auto delta = EditorWheelUtils::wheelDelta(event, Qt::Vertical);
-        const auto fromWheel = wheelInputState.isMouseWheel(event);
-        if (fromWheel)
-            verticalTouchPadScroll.reset();
-        cameraY = fromWheel ? EditorWheelUtils::scrollTarget(static_cast<int>(cameraY), q->height(),
-                                                             0.15, delta)
-                            : verticalTouchPadScroll.scrollTarget(static_cast<int>(cameraY),
-                                                                  q->height(), 0.15, delta);
+        cameraY = EditorWheelUtils::scrollTarget(static_cast<int>(cameraY), q->height(), 0.15, event,
+                                                 Qt::Vertical);
         viewportChanged(false);
     }
 
@@ -2408,9 +2401,6 @@ public:
     TimelineLineEmitter timelineEmitter;
     EditorGlyphAtlas glyphAtlas;
     EditorRhiDrawList drawList;
-    EditorWheelUtils::InputState wheelInputState;
-    EditorWheelUtils::ScrollAccumulator verticalTouchPadScroll;
-
     int noteFontPixelSize = 13;
     QColor whiteKeyColor{38, 40, 44};
     QColor blackKeyColor{31, 33, 37};

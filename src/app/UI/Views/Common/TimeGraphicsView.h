@@ -194,7 +194,6 @@ private:
     int m_sceneLengthExtension = 0;
 
     EditorWheelUtils::InputState m_wheelInputState;
-    EditorWheelUtils::ScrollAccumulator m_verticalTouchPadScroll;
 
     OverlayScrollBar *m_hScrollBar = nullptr;
     OverlayScrollBar *m_vScrollBar = nullptr;
