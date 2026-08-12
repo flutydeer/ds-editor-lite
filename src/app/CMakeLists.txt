@@ -7,7 +7,7 @@ else()
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS
-    Core Widgets Concurrent StateMachine LinguistTools GuiPrivate ShaderTools
+    Core Widgets Network Concurrent StateMachine LinguistTools GuiPrivate ShaderTools
 )
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
@@ -51,6 +51,7 @@ lite_add_application(${PROJECT_NAME}
     QT_LINKS_PRIVATE
         Core
         Widgets
+        Network
         Concurrent
         StateMachine
     LINKS_PRIVATE

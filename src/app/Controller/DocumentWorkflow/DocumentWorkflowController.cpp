@@ -30,18 +30,6 @@
 namespace {
     constexpr int maxRecentProjectFiles = 10;
 
-    QString normalizedProjectPath(const QString &path) {
-        return QDir::cleanPath(QFileInfo(path).absoluteFilePath());
-    }
-
-    bool projectPathsEqual(const QString &lhs, const QString &rhs) {
-#ifdef Q_OS_WIN
-        return QString::compare(lhs, rhs, Qt::CaseInsensitive) == 0;
-#else
-        return lhs == rhs;
-#endif
-    }
-
     void addGuardedTransition(QState *source, QObject *sender, const char *signal,
                               QAbstractState *target, std::function<bool()> guard) {
         const auto transition = new ConditionalTransition(sender, signal, std::move(guard));
@@ -155,12 +143,13 @@ void DocumentWorkflowController::clearRecentProjectFiles() {
 
 void DocumentWorkflowController::removeRecentProjectFile(const QString &filePath) {
     auto files = appOptions->general()->recentProjectFiles;
-    const auto normalizedPath = normalizedProjectPath(filePath);
+    const auto normalizedPath = DocumentWorkflowPathUtils::normalizedProjectPath(filePath);
     const auto oldSize = files.size();
     files.erase(std::remove_if(files.begin(), files.end(),
                                [&](const QString &path) {
-                                   return projectPathsEqual(normalizedProjectPath(path),
-                                                            normalizedPath);
+                                   return DocumentWorkflowPathUtils::projectPathsEqual(
+                                       DocumentWorkflowPathUtils::normalizedProjectPath(path),
+                                       normalizedPath);
                                }),
                 files.end());
     if (files.size() == oldSize)
@@ -637,11 +626,12 @@ void DocumentWorkflowController::addRecentProjectFile(const QString &path) {
     if (QFileInfo(path).suffix().compare("dspx", Qt::CaseInsensitive) != 0)
         return;
     auto files = appOptions->general()->recentProjectFiles;
-    const auto normalizedPath = normalizedProjectPath(path);
+    const auto normalizedPath = DocumentWorkflowPathUtils::normalizedProjectPath(path);
     files.erase(std::remove_if(files.begin(), files.end(),
                                [&](const QString &file) {
-                                   return projectPathsEqual(normalizedProjectPath(file),
-                                                            normalizedPath);
+                                   return DocumentWorkflowPathUtils::projectPathsEqual(
+                                       DocumentWorkflowPathUtils::normalizedProjectPath(file),
+                                       normalizedPath);
                                }),
                 files.end());
     files.prepend(normalizedPath);

@@ -2,6 +2,7 @@
 
 #include "Controller/AppController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowPathUtils.h"
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Utils/IconUtils.h>
@@ -41,18 +42,6 @@ namespace {
 
     QString elidePath(const QString &path, int width, const QFont &font) {
         return QFontMetrics(font).elidedText(path, Qt::ElideMiddle, width);
-    }
-
-    QString normalizedProjectPath(const QString &path) {
-        return QDir::cleanPath(QFileInfo(path).absoluteFilePath());
-    }
-
-    bool projectPathsEqual(const QString &lhs, const QString &rhs) {
-#ifdef Q_OS_WIN
-        return QString::compare(lhs, rhs, Qt::CaseInsensitive) == 0;
-#else
-        return lhs == rhs;
-#endif
     }
 
     class RecentFileMoreButton : public QToolButton {
@@ -407,8 +396,10 @@ void FilePopupWidget::refreshRecentFiles() {
         for (qsizetype i = 0; i < count; ++i) {
             const auto &filePath = recentFiles.at(i);
             const bool isCurrent =
-                !currentPath.isEmpty() && projectPathsEqual(normalizedProjectPath(filePath),
-                                                            normalizedProjectPath(currentPath));
+                !currentPath.isEmpty() &&
+                DocumentWorkflowPathUtils::projectPathsEqual(
+                    DocumentWorkflowPathUtils::normalizedProjectPath(filePath),
+                    DocumentWorkflowPathUtils::normalizedProjectPath(currentPath));
             auto *itemWidget = createRecentFileItem(filePath, isCurrent);
             m_recentItems.append(itemWidget);
             m_listLayout->addWidget(itemWidget);
