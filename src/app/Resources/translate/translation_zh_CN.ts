@@ -3240,6 +3240,12 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <translation>新建(&amp;N)</translation>
     </message>
     <message>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="540"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="840"/>
+        <source>New Window</source>
+        <translation>新建窗口</translation>
+    </message>
+    <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="523"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="818"/>
         <source>&amp;Open...</source>
@@ -3521,6 +3527,26 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 </context>
 <context>
     <name>MainWindow</name>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="414"/>
+        <source>Open Project</source>
+        <translation>打开工程</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="414"/>
+        <source>Where do you want to open this project?</source>
+        <translation>要在哪里打开此工程？</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="415"/>
+        <source>Open in Current Window</source>
+        <translation>在当前窗口打开</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Window/MainWindow.cpp" line="416"/>
+        <source>Open in New Window</source>
+        <translation>在新窗口打开</translation>
+    </message>
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="428"/>
         <source>DiffScope Project File (*.dspx)</source>

@@ -120,7 +120,11 @@ void MainMenuView::changeEvent(QEvent *event) {
 }
 
 void MainMenuViewPrivate::onNew() const {
-    m_mainWindow->requestNewDocument();
+    documentWorkflowController->requestNew();
+}
+
+void MainMenuViewPrivate::onNewWindow() const {
+    m_mainWindow->requestNewWindow();
 }
 
 void MainMenuViewPrivate::onOpen() {
@@ -533,6 +537,10 @@ void MainMenuViewPrivate::initFileActions() {
     actionNew->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionNew, &QAction::triggered, this, [this] { onNew(); });
 
+    actionNewWindow = new QAction(tr("New Window"), this);
+    setMenuIcon(actionNewWindow, QStringLiteral(":/svg/icons/window_apps_16_filled.svg"));
+    connect(actionNewWindow, &QAction::triggered, this, [this] { onNewWindow(); });
+
     actionOpen = new QAction(tr("&Open..."));
     setMenuIcon(actionOpen, QStringLiteral(":/svg/icons/folder_open_16_regular.svg"));
     actionOpen->setShortcut(QKeySequence("Ctrl+O"));
@@ -680,6 +688,7 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
     Q_Q(MainMenuView);
     menuFile = new Menu(tr("&File"), q);
     menuFile->addAction(actionNew);
+    menuFile->addAction(actionNewWindow);
     menuFile->addAction(actionOpen);
 
     menuRecentProjects = new Menu(tr("Recent Projects"), q);
@@ -828,6 +837,7 @@ void MainMenuViewPrivate::retranslateUi() {
     m_undoName = historyManager->undoActionName();
     m_redoName = historyManager->redoActionName();
     actionNew->setText(tr("&New"));
+    actionNewWindow->setText(tr("New Window"));
     actionOpen->setText(tr("&Open..."));
     actionClearRecentProjects->setText(tr("Clear Recent Projects"));
     actionSave->setText(tr("&Save"));

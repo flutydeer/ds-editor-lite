@@ -25,6 +25,11 @@ class QAction;
 class QShortcut;
 class DocumentSession;
 
+enum class OpenDocumentMode {
+    CurrentWindow,
+    NewWindow,
+};
+
 namespace QWK {
     class WidgetWindowAgent;
 }
@@ -66,7 +71,7 @@ public:
     bool confirmOpenWithoutPackageMetadata() override;
     void showDocumentWorkflowError(const ProjectOperationError &error) override;
     void showDocumentWorkflowBusy() override;
-    void requestNewDocument();
+    void requestNewWindow();
     void requestOpenDocument(const QString &path);
     void completeDocumentClose();
     void setProjectPathValidator(std::function<bool(const QString &)> validator);
@@ -88,8 +93,8 @@ protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
 
 signals:
-    void newDocumentRequested();
-    void openDocumentRequested(const QString &path);
+    void newWindowRequested();
+    void openDocumentRequested(const QString &path, OpenDocumentMode mode);
     void documentCloseRequested();
     void documentClosed();
     void applicationCloseRequested(bool restart);

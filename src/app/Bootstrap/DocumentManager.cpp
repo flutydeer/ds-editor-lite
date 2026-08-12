@@ -57,9 +57,7 @@ MainWindow *DocumentManager::createUntitledWindow() {
 MainWindow *DocumentManager::openProject(const QString &path) {
     if (path.isEmpty())
         return nullptr;
-    auto owner = m_registry.ownerForPath(path);
-    if (!owner)
-        owner = m_pendingSaveRegistry.ownerForPath(path);
+    const auto owner = ownerForPath(path);
     if (owner) {
         if (auto *entry = entryForOwner(owner)) {
             activateWindow(entry->window.get());
@@ -92,9 +90,14 @@ MainWindow *DocumentManager::createWindow(const QString &reservedPath) {
     auto *workflow = session->workflow();
     entry->placement = std::make_unique<WindowPlacement>(*window);
 
-    connect(window, &MainWindow::newDocumentRequested, this, [this] { createUntitledWindow(); });
+    connect(window, &MainWindow::newWindowRequested, this, [this] { createUntitledWindow(); });
     connect(window, &MainWindow::openDocumentRequested, this,
-            [this](const QString &path) { openProject(path); });
+            [this, window](const QString &path, const OpenDocumentMode mode) {
+                if (mode == OpenDocumentMode::CurrentWindow)
+                    openProjectInWindow(window, path);
+                else
+                    openProject(path);
+            });
     connect(window, &MainWindow::applicationCloseRequested, this,
             &DocumentManager::requestApplicationClose);
     connect(window, &MainWindow::documentCloseRequested, this,
@@ -105,9 +108,7 @@ MainWindow *DocumentManager::createWindow(const QString &reservedPath) {
     connect(window, &MainWindow::windowActivated, this,
             [this, window] { m_lastActiveWindow = window; });
     window->setProjectPathValidator([this, rawEntry = entry.get()](const QString &path) {
-        auto owner = m_registry.ownerForPath(path);
-        if (!owner)
-            owner = m_pendingSaveRegistry.ownerForPath(path);
+        const auto owner = ownerForPath(path);
         if (!owner || owner == rawEntry)
             return m_pendingSaveRegistry.update(rawEntry, path);
         if (auto *existing = entryForOwner(owner))
@@ -124,6 +125,7 @@ MainWindow *DocumentManager::createWindow(const QString &reservedPath) {
                 if (busy)
                     return;
                 reconcileIdentity(rawEntry);
+                m_pendingOpenRegistry.release(rawEntry);
                 m_pendingSaveRegistry.release(rawEntry);
                 if (m_pendingCloseWindow != window || !m_closeApprovalPending)
                     return;
@@ -176,6 +178,27 @@ MainWindow *DocumentManager::createWindow(const QString &reservedPath) {
     return window;
 }
 
+MainWindow *DocumentManager::openProjectInWindow(MainWindow *window, const QString &path) {
+    auto *entry = entryForWindow(window);
+    if (!entry || path.isEmpty())
+        return nullptr;
+
+    if (const auto owner = ownerForPath(path)) {
+        if (auto *existing = entryForOwner(owner)) {
+            activateWindow(existing->window.get());
+            return existing->window.get();
+        }
+    }
+
+    auto *workflow = entry->session->workflow();
+    if (workflow->busy() || !m_pendingOpenRegistry.reserve(entry, path))
+        return nullptr;
+
+    entry->session->activate();
+    workflow->requestOpen(path);
+    return window;
+}
+
 DocumentManager::Entry *DocumentManager::entryForWindow(const MainWindow *window) const {
     const auto it = std::find_if(m_entries.begin(), m_entries.end(), [window](const auto &entry) {
         return entry->window.get() == window;
@@ -187,6 +210,14 @@ DocumentManager::Entry *DocumentManager::entryForOwner(const void *owner) const 
     const auto it = std::find_if(m_entries.begin(), m_entries.end(),
                                  [owner](const auto &entry) { return entry.get() == owner; });
     return it == m_entries.end() ? nullptr : it->get();
+}
+
+const void *DocumentManager::ownerForPath(const QString &path) const {
+    if (auto owner = m_registry.ownerForPath(path))
+        return owner;
+    if (auto owner = m_pendingOpenRegistry.ownerForPath(path))
+        return owner;
+    return m_pendingSaveRegistry.ownerForPath(path);
 }
 
 void DocumentManager::activateWindow(MainWindow *window) {
@@ -300,6 +331,7 @@ void DocumentManager::removeWindow(MainWindow *window) {
 
     auto *entry = it->get();
     m_registry.release(entry);
+    m_pendingOpenRegistry.release(entry);
     m_pendingSaveRegistry.release(entry);
     m_playbackArbiter.removeSession(entry->session.get());
     m_shutdownApprovedWindows.remove(window);

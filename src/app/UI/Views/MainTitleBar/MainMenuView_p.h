@@ -37,6 +37,7 @@ public:
     void rebuildIcons();
 
     QAction *actionNew = nullptr;
+    QAction *actionNewWindow = nullptr;
     QAction *actionOpen = nullptr;
     QAction *actionClearRecentProjects = nullptr;
     QAction *actionImportMidi = nullptr;
@@ -87,6 +88,7 @@ public:
     AppGlobal::PanelType m_panelType = AppGlobal::Generic;
 
     void onNew() const;
+    void onNewWindow() const;
     void onOpen();
     void onOpenRecentProject(const QString &filePath);
     void onClearRecentProjects();

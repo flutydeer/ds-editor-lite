@@ -4,6 +4,7 @@
 #define packageManager PackageManager::instance()
 
 #include <condition_variable>
+#include <atomic>
 #include <cstdint>
 #include <mutex>
 
@@ -38,6 +39,8 @@ public:
     // its settings) so the library does not depend on AppOptions.
     void initialize(const QStringList &searchPaths);
 
+    [[nodiscard]] ModuleStatus moduleStatus() const;
+
     [[nodiscard]]
     Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         refreshInstalledPackages(const QStringList &searchPaths);
@@ -56,6 +59,7 @@ private:
     static QString srtErrorToString(const srt::core::Error &error);
 
     std::once_flag m_initialized{};
+    std::atomic<ModuleStatus> m_moduleStatus = ModuleStatus::Loading;
     mutable std::mutex m_refreshMutex;
     std::condition_variable m_refreshCompleted;
     bool m_refreshing = false;

@@ -402,12 +402,25 @@ void MainWindow::restart() {
     emit applicationCloseRequested(true);
 }
 
-void MainWindow::requestNewDocument() {
-    emit newDocumentRequested();
+void MainWindow::requestNewWindow() {
+    emit newWindowRequested();
 }
 
 void MainWindow::requestOpenDocument(const QString &path) {
-    emit openDocumentRequested(path);
+    if (path.isEmpty())
+        return;
+
+    constexpr int openInCurrentWindow = 1;
+    constexpr int openInNewWindow = 2;
+    MessageDialog dialog(tr("Open Project"), tr("Where do you want to open this project?"), this);
+    dialog.addAccentButton(tr("Open in Current Window"), openInCurrentWindow);
+    dialog.addButton(tr("Open in New Window"), openInNewWindow);
+    dialog.addButton(tr("Cancel"), 0);
+    const auto result = dialog.exec();
+    if (result == openInCurrentWindow)
+        emit openDocumentRequested(path, OpenDocumentMode::CurrentWindow);
+    else if (result == openInNewWindow)
+        emit openDocumentRequested(path, OpenDocumentMode::NewWindow);
 }
 
 void MainWindow::completeDocumentClose() {

@@ -33,8 +33,10 @@ private:
     struct Entry;
 
     MainWindow *createWindow(const QString &reservedPath = {});
+    MainWindow *openProjectInWindow(MainWindow *window, const QString &path);
     Entry *entryForWindow(const MainWindow *window) const;
     Entry *entryForOwner(const void *owner) const;
+    [[nodiscard]] const void *ownerForPath(const QString &path) const;
     void activateWindow(MainWindow *window);
     void reconcileIdentity(Entry *entry);
     void requestDocumentClose(MainWindow *window);
@@ -47,6 +49,7 @@ private:
 
     std::vector<std::unique_ptr<Entry>> m_entries;
     OpenDocumentRegistry m_registry;
+    OpenDocumentRegistry m_pendingOpenRegistry;
     OpenDocumentRegistry m_pendingSaveRegistry;
     PlaybackArbiter m_playbackArbiter;
     QPointer<MainWindow> m_lastActiveWindow;
