@@ -135,6 +135,26 @@ bool EditorViewportController::centerAt(const double tick, const double unit) {
     return true;
 }
 
+bool EditorViewportController::ensureVisible(const QRectF &rect, const double xMargin,
+                                             const double yMargin) {
+    const auto bounds = rect.normalized();
+    if (!bounds.isValid() || !std::isfinite(bounds.left()) || !std::isfinite(bounds.top()) ||
+        !std::isfinite(bounds.right()) || !std::isfinite(bounds.bottom()) ||
+        !std::isfinite(xMargin) || !std::isfinite(yMargin)) {
+        return false;
+    }
+
+    const auto previousOffset = QPointF(m_offsetX, m_offsetY);
+    m_offsetX = EditorScrollUtils::ensureVisibleOffset(
+        m_offsetX, m_viewportSize.width(), bounds.left(), bounds.right(), xMargin);
+    m_offsetY = EditorScrollUtils::ensureVisibleOffset(
+        m_offsetY, m_viewportSize.height(), bounds.top(), bounds.bottom(), yMargin);
+    normalize(false);
+    if (QPointF(m_offsetX, m_offsetY) != previousOffset)
+        notify(false);
+    return true;
+}
+
 bool EditorViewportController::setStartTick(const double tick) {
     if (!std::isfinite(tick))
         return false;

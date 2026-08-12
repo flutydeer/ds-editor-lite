@@ -162,6 +162,8 @@ private:
     void appendDropOverlay(EditorRhiFrameData &frame, double dpr) const;
     [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex,
                                                  double dpr) const;
+    [[nodiscard]] QRectF clipPhysicalRect(const Clip::ClipCommonProperties &properties,
+                                          int trackIndex, double dpr) const;
     [[nodiscard]] static QRectF clipPreviewRect(const ClipSnapshot &clip, double dpr);
     [[nodiscard]] AudioWaveformSampler::Result sampleAudioWaveform(AudioWaveformSampler &sampler,
                                                                    const AudioInfoModel &audioInfo,
@@ -173,6 +175,7 @@ private:
     [[nodiscard]] int snapTick(int tick) const;
     void beginClipDrag(const ClipSnapshot &clip, const QMouseEvent *event);
     void updateDrag(const QPointF &position, Qt::KeyboardModifiers modifiers);
+    void updateRubberBandSelection(const QPointF &position);
     void commitDrag();
     void discardDrag();
     void syncSelection(const QList<int> &ids, int preferredTrack = -1) const;
@@ -180,7 +183,14 @@ private:
     void handleAutoPageTurn();
     void updateAutoPageTurnAvailability();
     void updateScrollBars();
+    [[nodiscard]] int effectiveSceneLength() const;
+    void setSceneLengthExtension(int ticks);
     [[nodiscard]] Clip::ClipCommonProperties previewOrModelProperties(const Clip *clip) const;
+    [[nodiscard]] Qt::Orientations dragAutoScrollAxes() const;
+    void prepareDragAutoScroll(const QPointF &pressPosition);
+    void disarmDragAutoScroll();
+    void updateDragAutoScrollState(const QPointF &pointerPosition);
+    void onDragAutoScrollFrame(double dtMs);
 
     // --- External file drag-and-drop (Phase 1) ---
     // Resolves the drop slot at the given viewport position, hitting either a
@@ -219,8 +229,6 @@ private:
 
     EditorViewportController m_viewport;
     EditorGlyphAtlas m_glyphAtlas;
-    EditorWheelUtils::InputState m_wheelInputState;
-    EditorWheelUtils::ScrollAccumulator m_verticalTouchPadScroll;
     EditorRhiScrollBarController *m_scrollBars = nullptr;
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;
     QVector<ClipSnapshot> m_clipSnapshots;
@@ -233,6 +241,8 @@ private:
     bool m_autoTurnPage = true;
     bool m_autoPageTurnAvailable = false;
     double m_leftMarginPx = 0.0;
+    int m_baseSceneLength = 0;
+    int m_sceneLengthExtension = 0;
     DragMode m_dragMode = DragMode::None;
     QPointF m_mouseDownScene;
     QPointF m_rubberBandStart;

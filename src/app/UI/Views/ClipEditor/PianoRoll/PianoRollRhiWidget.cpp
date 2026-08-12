@@ -12,6 +12,8 @@
 #include "UI/Utils/ITimelinePainter.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
+#include "UI/Views/Common/EdgeAutoScroller.h"
+#include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
@@ -29,8 +31,10 @@
 #include <lite/Support/MathUtils.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
-#include <QEvent>
+#include <QApplication>
 #include <QContextMenuEvent>
+#include <QCursor>
+#include <QEvent>
 #include <QFontMetricsF>
 #include <QHash>
 #include <QHideEvent>
@@ -119,6 +123,7 @@ namespace {
 class PianoRollRhiWidget::Private {
 public:
     enum class InlineEditField { None, Lyric, Pronunciation };
+    enum class Interaction { None, Move, ResizeLeft, ResizeRight, Draw, RectSelect };
 
     struct AnchorDragInfo {
         AnchorNode *node = nullptr;
@@ -139,6 +144,8 @@ public:
     };
 
     explicit Private(PianoRollRhiWidget *q) : q(q) {
+        QObject::connect(&edgeAutoScroller, &EdgeAutoScroller::frame, q,
+                         [this](const double dtMs) { onEdgeAutoScrollFrame(dtMs); });
     }
 
     ~Private() {
@@ -178,6 +185,8 @@ public:
     }
 
     void setDataContext(SingingClip *newClip) {
+        disarmEdgeAutoScroll();
+        finishNoteErase(EditSessionEndReason::Discard);
         finishInlineEditing();
         cancelPitchEdit();
         cancelAnchorEdit(false);
@@ -329,7 +338,7 @@ public:
     }
 
     void handleAutoPageTurn() {
-        if (!autoPageTurn || !autoPageTurnAvailable || !clip ||
+        if (!autoPageTurn || !autoPageTurnAvailable || !clip || edgeAutoScroller.isRunning() ||
             appStatus->currentEditObject != AppStatus::EditObjectType::None ||
             interaction != Interaction::None || pitchEditing || anchorDragging || anchorSelecting) {
             return;
@@ -368,6 +377,13 @@ public:
             return HistoryFocusVisibility::Unavailable;
         if (focus.containerId >= 0 && focus.containerId != clip->id())
             return HistoryFocusVisibility::ContextSwitchRequired;
+        QList<int> resolvedIds;
+        const auto bounds = focusSceneRect(focus, &resolvedIds);
+        if (!resolvedIds.isEmpty()) {
+            const QRectF viewport(QPointF(cameraX, cameraY), q->size());
+            return viewport.intersects(bounds) ? HistoryFocusVisibility::Visible
+                                               : HistoryFocusVisibility::ScrollRequired;
+        }
         const auto tickOffset = focus.ticksAreLocal ? clip->start() : 0.0;
         const auto tickVisible =
             focus.tickEnd + tickOffset >= startTick() && focus.tickStart + tickOffset <= endTick();
@@ -383,13 +399,9 @@ public:
         if (focus.containerId >= 0 && focus.containerId != clip->id())
             return false;
         QList<int> selected;
-        for (const auto id : focus.objectIds)
-            if (clip->findNoteById(id))
-                selected.append(id);
+        const auto bounds = focusSceneRect(focus, &selected);
         appStatus->selectedNotes = selected;
-        const auto tickOffset = focus.ticksAreLocal ? clip->start() : 0.0;
-        return centerAt((focus.tickStart + focus.tickEnd) * 0.5 + tickOffset,
-                        (focus.valueStart + focus.valueEnd) * 0.5);
+        return ensureSceneRectVisible(bounds, 24.0, 24.0);
     }
 
     void horizontalScale(QWheelEvent *event) {
@@ -425,22 +437,96 @@ public:
     }
 
     void horizontalScroll(QWheelEvent *event) {
-        const auto delta = EditorWheelUtils::horizontalScrollDelta(event);
-        (void) wheelInputState.isMouseWheel(event);
-        cameraX = EditorWheelUtils::scrollTarget(static_cast<int>(cameraX), q->width(), 0.2, delta);
+        cameraX = EditorWheelUtils::scrollTarget(static_cast<int>(cameraX), q->width(), 0.2, event,
+                                                 EditorWheelUtils::horizontalScrollAxis(event));
         viewportChanged(false);
     }
 
     void verticalScroll(QWheelEvent *event) {
-        const auto delta = EditorWheelUtils::wheelDelta(event, Qt::Vertical);
-        const auto fromWheel = wheelInputState.isMouseWheel(event);
-        if (fromWheel)
-            verticalTouchPadScroll.reset();
-        cameraY = fromWheel ? EditorWheelUtils::scrollTarget(static_cast<int>(cameraY), q->height(),
-                                                             0.15, delta)
-                            : verticalTouchPadScroll.scrollTarget(static_cast<int>(cameraY),
-                                                                  q->height(), 0.15, delta);
+        cameraY = EditorWheelUtils::scrollTarget(static_cast<int>(cameraY), q->height(), 0.15, event,
+                                                 Qt::Vertical);
         viewportChanged(false);
+    }
+
+    QPointF scenePositionAt(const QPointF &viewportPosition) const {
+        return viewportPosition + QPointF(cameraX, cameraY);
+    }
+
+    Qt::Orientations edgeAutoScrollAxes() const {
+        if (noteErasing || anchorDragging || anchorSelecting || interaction == Interaction::Move ||
+            (interaction == Interaction::RectSelect && editMode != IntervalSelect)) {
+            return Qt::Horizontal | Qt::Vertical;
+        }
+        if (interaction == Interaction::ResizeLeft || interaction == Interaction::ResizeRight ||
+            interaction == Interaction::Draw ||
+            (interaction == Interaction::RectSelect && editMode == IntervalSelect)) {
+            return Qt::Horizontal;
+        }
+        return {};
+    }
+
+    void prepareEdgeAutoScroll(const QPointF &pressPosition) {
+        edgeAutoScroller.prepareDrag(pressPosition);
+    }
+
+    void disarmEdgeAutoScroll() {
+        edgeAutoScroller.stopDrag();
+    }
+
+    void updateEdgeAutoScrollState(const QPointF &pointerPosition) {
+        const auto axes = edgeAutoScrollAxes();
+        if (!axes) {
+            disarmEdgeAutoScroll();
+            return;
+        }
+
+        const QRectF viewportRect(QPointF(), q->size());
+        edgeAutoScroller.setDragAxes(axes);
+        edgeAutoScroller.updateDragState(pointerPosition, viewportRect,
+                                         QApplication::startDragDistance());
+    }
+
+    void continueEdgeDragAt(const QPointF &viewportPosition,
+                            const Qt::KeyboardModifiers modifiers) {
+        if (editMode == EditPitchAnchor) {
+            if (anchorDragging)
+                updateAnchorDrag(viewportPosition);
+            else if (anchorSelecting)
+                updateAnchorSelection(viewportPosition);
+            return;
+        }
+        if (noteErasing) {
+            eraseNoteAt(viewportPosition);
+            return;
+        }
+        if (interaction == Interaction::Draw) {
+            updateDrawNote(viewportPosition);
+        } else if (interaction == Interaction::RectSelect) {
+            updateRubberBandSelection(viewportPosition);
+        } else if (interaction != Interaction::None) {
+            updateInteractionDelta(viewportPosition, modifiers);
+            scheduleSnapshot();
+        }
+    }
+
+    void onEdgeAutoScrollFrame(const double dtMs) {
+        if (!edgeAutoScroller.isDragArmed() || QGuiApplication::mouseButtons() == Qt::NoButton ||
+            !q->isVisible()) {
+            disarmEdgeAutoScroll();
+            return;
+        }
+
+        const QPointF pointerPosition(q->mapFromGlobal(QCursor::pos()));
+        const QRectF viewportRect(QPointF(), q->size());
+        const auto step = edgeAutoScroller.computeDragStep(pointerPosition, viewportRect, dtMs);
+        if (!step.isNull()) {
+            cameraX += step.x();
+            cameraY += step.y();
+            viewportChanged(false);
+        }
+        continueEdgeDragAt(EdgeAutoScroller::clampToRect(pointerPosition, viewportRect),
+                           QGuiApplication::queryKeyboardModifiers());
+        updateEdgeAutoScrollState(pointerPosition);
     }
 
     int keyAt(const QPointF &viewportPosition) const {
@@ -460,11 +546,75 @@ public:
         const auto key = keyAt(viewportPosition);
         for (auto iterator = clip->notes().rbegin(); iterator != clip->notes().rend(); ++iterator) {
             auto *note = *iterator;
+            if (erasedNoteIds.contains(note->id()))
+                continue;
             if (note->keyIndex() == key && tick >= note->localStart() &&
                 tick <= note->localStart() + note->length())
                 return note;
         }
         return nullptr;
+    }
+
+    bool noteEditingEnabled() const {
+        return editMode == Select || editMode == IntervalSelect || editMode == DrawNote;
+    }
+
+    Interaction noteInteractionAt(const Note *note, const QPointF &viewportPosition) const {
+        if (!note)
+            return Interaction::None;
+        const auto rect = noteViewportRect(note);
+        const auto relativeX = viewportPosition.x() - rect.left();
+        const auto edge = EditorResizeUtils::horizontalEdgeAt(
+            relativeX, rect.width(), AppGlobal::resizeTolerance);
+        if (edge == EditorResizeUtils::HorizontalEdge::Left)
+            return Interaction::ResizeLeft;
+        if (edge == EditorResizeUtils::HorizontalEdge::Right)
+            return Interaction::ResizeRight;
+        return Interaction::Move;
+    }
+
+    void updateNoteCursor(const QPointF &viewportPosition) const {
+        if (!noteEditingEnabled()) {
+            q->setCursor(Qt::ArrowCursor);
+            return;
+        }
+        const auto interaction = noteInteractionAt(noteAt(viewportPosition), viewportPosition);
+        const auto resizing =
+            interaction == Interaction::ResizeLeft || interaction == Interaction::ResizeRight;
+        q->setCursor(resizing ? Qt::SizeHorCursor : Qt::ArrowCursor);
+    }
+
+    void eraseNoteAt(const QPointF &viewportPosition) {
+        auto *note = noteAt(viewportPosition);
+        if (!note || erasedNoteIds.contains(note->id()))
+            return;
+        if (noteEraseSessionId == 0 && !editSessionManager->hasActiveTransaction()) {
+            noteEraseSessionId = editSessionManager->beginTransaction(
+                AppStatus::EditObjectType::Note, clip ? clip->id() : -1, {}, {}, {}, {}, true);
+        }
+        appStatus->currentEditObject = AppStatus::EditObjectType::Note;
+        erasedNoteIds.append(note->id());
+        appStatus->pianoRollNoteErasePreview = erasedNoteIds;
+        editSessionManager->addNoteIds({note->id()});
+        scheduleSnapshot();
+    }
+
+    void finishNoteErase(const EditSessionEndReason reason) {
+        if (!noteErasing && erasedNoteIds.isEmpty() && noteEraseSessionId == 0)
+            return;
+        if (reason == EditSessionEndReason::Commit && !erasedNoteIds.isEmpty())
+            clipController->onRemoveNotes(erasedNoteIds);
+        appStatus->pianoRollNoteErasePreview = {};
+        erasedNoteIds.clear();
+        noteErasing = false;
+        if (noteEraseSessionId != 0 && editSessionManager->hasActiveTransaction() &&
+            editSessionManager->activeSession().sessionId == noteEraseSessionId) {
+            editSessionManager->endTransaction(noteEraseSessionId, reason);
+        }
+        noteEraseSessionId = 0;
+        if (!editSessionManager->hasActiveTransaction())
+            appStatus->currentEditObject = AppStatus::EditObjectType::None;
+        scheduleSnapshot();
     }
 
     void clearSplitPreview() {
@@ -532,9 +682,7 @@ public:
     QRectF noteViewportRect(const Note *note) const {
         if (!note)
             return {};
-        return {note->localStart() * pixelsPerTick() - cameraX,
-                (127 - note->keyIndex()) * noteHeight * scaleY - cameraY,
-                note->length() * pixelsPerTick(), noteHeight * scaleY};
+        return noteSceneRect(note).translated(-cameraX, -cameraY);
     }
 
     Note *pronunciationAt(const QPointF &viewportPosition) const {
@@ -1202,12 +1350,12 @@ public:
     }
 
     void updateAnchorSelection(const QPointF &viewportPosition) {
-        anchorSelectionRect.setBottomRight(viewportPosition);
+        anchorSelectionRect.setBottomRight(scenePositionAt(viewportPosition));
         const auto rect = anchorSelectionRect.normalized();
         clearAnchorSelection();
         for (auto *curve : anchorCurves) {
             for (auto *node : curve->nodes().toList()) {
-                if (rect.contains(anchorNodeViewportPosition(node)))
+                if (rect.contains(anchorNodeScenePosition(node)))
                     selectedAnchorNodes.append(node);
             }
         }
@@ -1221,10 +1369,9 @@ public:
                     {node, findAnchorOwner(node), nullptr, node->pos(), node->value()});
             }
         }
-        const auto deltaTick =
-            static_cast<int>((viewportPosition.x() - anchorDragStart.x()) / pixelsPerTick());
-        const auto deltaValue =
-            anchorPointAt(viewportPosition).y() - anchorPointAt(anchorDragStart).y();
+        const auto current = anchorPointAt(viewportPosition);
+        const auto deltaTick = current.x() - anchorDragStartPoint.x();
+        const auto deltaValue = current.y() - anchorDragStartPoint.y();
         for (auto &info : anchorDragInfos) {
             if (!info.sourceCurve)
                 continue;
@@ -1247,24 +1394,27 @@ public:
                 } else {
                     if (!selectedAnchorNodes.contains(node))
                         selectAnchorNode(node);
-                    anchorDragStart = event->position();
+                    anchorDragStartPoint = anchorPointAt(event->position());
+                    anchorDragPressViewportPos = event->position();
                     anchorDragging = false;
                     anchorDragInfos.clear();
                 }
             } else {
                 createAnchorAt(event->position());
-                anchorDragStart = event->position();
+                anchorDragStartPoint = anchorPointAt(event->position());
+                anchorDragPressViewportPos = event->position();
                 anchorDragging = false;
                 anchorDragInfos.clear();
             }
         } else if (node) {
             selectAnchorNode(node);
             enterAnchorEditing(currentAnchorCurve, node);
-            anchorDragStart = event->position();
+            anchorDragStartPoint = anchorPointAt(event->position());
+            anchorDragPressViewportPos = event->position();
             anchorDragging = false;
             anchorDragInfos.clear();
         } else {
-            anchorSelectionRect = QRectF(event->position(), QSizeF());
+            anchorSelectionRect = QRectF(scenePositionAt(event->position()), QSizeF());
             anchorSelecting = true;
         }
         scheduleSnapshot();
@@ -1273,7 +1423,8 @@ public:
     void mouseMoveAnchor(QMouseEvent *event) {
         if (event->buttons().testFlag(Qt::LeftButton)) {
             if (anchorEditing && !selectedAnchorNodes.isEmpty()) {
-                if (!anchorDragging && QLineF(anchorDragStart, event->position()).length() > 3.0) {
+                if (!anchorDragging &&
+                    QLineF(anchorDragPressViewportPos, event->position()).length() > 3.0) {
                     anchorDragging = true;
                 }
                 if (anchorDragging)
@@ -1349,6 +1500,8 @@ public:
     void mousePress(QMouseEvent *event) {
         if (!clip || event->button() != Qt::LeftButton)
             return;
+        if (noteErasing)
+            finishNoteErase(EditSessionEndReason::Discard);
         if (editMode == EditPitchAnchor) {
             mousePressAnchor(event);
             return;
@@ -1359,8 +1512,8 @@ public:
         }
         auto *note = noteAt(event->position());
         if (editMode == EraseNote) {
-            if (note)
-                clipController->onRemoveNotes({note->id()});
+            noteErasing = true;
+            eraseNoteAt(event->position());
             return;
         }
         if (editMode == SplitNote) {
@@ -1371,6 +1524,8 @@ public:
             clearSplitPreview();
             return;
         }
+        if (!noteEditingEnabled())
+            return;
         if (editMode == DrawNote && !note) {
             interaction = Interaction::Draw;
             drawStart = snapLocalTick(localTickAt(event->position()));
@@ -1381,7 +1536,7 @@ public:
         }
         if (!note) {
             interaction = Interaction::RectSelect;
-            rubberBandStart = event->position();
+            rubberBandStart = scenePositionAt(event->position());
             rubberBandEnd = rubberBandStart;
             rubberBandBaseSelection = event->modifiers().testFlag(Qt::ControlModifier)
                                           ? appStatus->selectedNotes.get()
@@ -1410,15 +1565,9 @@ public:
         interactionKey = note->keyIndex();
         mouseDownTick = localTickAt(event->position());
         mouseDownKey = keyAt(event->position());
-        const auto noteLeft = note->localStart() * pixelsPerTick() - cameraX;
-        const auto noteRight = (note->localStart() + note->length()) * pixelsPerTick() - cameraX;
-        constexpr double resizeTolerance = 6.0;
-        if (std::abs(event->position().x() - noteLeft) <= resizeTolerance)
-            interaction = Interaction::ResizeLeft;
-        else if (std::abs(event->position().x() - noteRight) <= resizeTolerance)
-            interaction = Interaction::ResizeRight;
-        else
-            interaction = Interaction::Move;
+        interaction = noteInteractionAt(note, event->position());
+        if (interaction == Interaction::ResizeLeft || interaction == Interaction::ResizeRight)
+            q->setCursor(Qt::SizeHorCursor);
         scheduleSnapshot();
     }
 
@@ -1428,6 +1577,8 @@ public:
             hoveredKey = key;
             emit q->keyHovered(key);
         }
+        if (event->buttons() == Qt::NoButton)
+            updateNoteCursor(event->position());
         if (editMode == EditPitchAnchor) {
             anchorCursorInView = true;
             mouseMoveAnchor(event);
@@ -1441,30 +1592,35 @@ public:
             updatePitchEdit(event->position());
             return;
         }
-        if (interaction == Interaction::Draw) {
-            drawEnd = std::max(drawStart + 1, snapLocalTick(localTickAt(event->position())));
-            scheduleSnapshot();
-        } else if (interaction == Interaction::RectSelect) {
-            rubberBandEnd = event->position();
-            auto selected = rubberBandBaseSelection;
-            auto selection = QRectF(rubberBandStart, rubberBandEnd).normalized();
-            if (editMode == IntervalSelect) {
-                selection.setTop(0.0);
-                selection.setBottom(q->height());
-            }
-            for (const auto *note : clip->notes()) {
-                const QRectF rect(note->localStart() * pixelsPerTick() - cameraX,
-                                  (127 - note->keyIndex()) * noteHeight * scaleY - cameraY,
-                                  note->length() * pixelsPerTick(), noteHeight * scaleY);
-                if (selection.intersects(rect) && !selected.contains(note->id()))
-                    selected.append(note->id());
-            }
-            appStatus->selectedNotes = selected;
-            scheduleSnapshot();
-        } else if (interaction != Interaction::None) {
-            updateInteractionDelta(event->position(), event->modifiers());
-            scheduleSnapshot();
+        if (noteErasing) {
+            eraseNoteAt(event->position());
+            return;
         }
+        continueEdgeDragAt(event->position(), event->modifiers());
+    }
+
+    void updateDrawNote(const QPointF &viewportPosition) {
+        drawEnd = std::max(drawStart + 1, snapLocalTick(localTickAt(viewportPosition)));
+        scheduleSnapshot();
+    }
+
+    void updateRubberBandSelection(const QPointF &viewportPosition) {
+        rubberBandEnd = scenePositionAt(viewportPosition);
+        auto selected = rubberBandBaseSelection;
+        auto selection = QRectF(rubberBandStart, rubberBandEnd).normalized();
+        if (editMode == IntervalSelect) {
+            selection.setTop(0.0);
+            selection.setBottom(sceneHeight());
+        }
+        for (const auto *note : clip->notes()) {
+            const QRectF rect(note->localStart() * pixelsPerTick(),
+                              (127 - note->keyIndex()) * noteHeight * scaleY,
+                              note->length() * pixelsPerTick(), noteHeight * scaleY);
+            if (selection.intersects(rect) && !selected.contains(note->id()))
+                selected.append(note->id());
+        }
+        appStatus->selectedNotes = selected;
+        scheduleSnapshot();
     }
 
     void mouseRelease(QMouseEvent *event) {
@@ -1476,6 +1632,10 @@ public:
         }
         if (pitchEditing) {
             commitPitchEdit(event->position());
+            return;
+        }
+        if (noteErasing) {
+            finishNoteErase(EditSessionEndReason::Commit);
             return;
         }
         if (interaction == Interaction::Draw) {
@@ -1499,6 +1659,7 @@ public:
         interactionNoteId = -1;
         interactionDeltaTick = 0;
         interactionDeltaKey = 0;
+        updateNoteCursor(event->position());
         scheduleSnapshot();
     }
 
@@ -1577,6 +1738,61 @@ public:
     }
 
 private:
+    QRectF noteSceneRect(const Note *note) const {
+        if (!note)
+            return {};
+        return {note->localStart() * pixelsPerTick(),
+                (127 - note->keyIndex()) * noteHeight * scaleY,
+                note->length() * pixelsPerTick(), noteHeight * scaleY};
+    }
+
+    QRectF focusSceneRect(const HistoryFocus &focus, QList<int> *resolvedIds = nullptr) const {
+        QRectF bounds;
+        for (const auto id : focus.objectIds) {
+            if (const auto *note = clip->findNoteById(id)) {
+                if (resolvedIds)
+                    resolvedIds->append(id);
+                const auto rect = noteSceneRect(note);
+                bounds = bounds.isNull() ? rect : bounds.united(rect);
+            }
+        }
+        if (!bounds.isNull())
+            return bounds;
+
+        const auto localStart =
+            focus.ticksAreLocal ? focus.tickStart : focus.tickStart - clip->start();
+        const auto localEnd = focus.ticksAreLocal ? focus.tickEnd : focus.tickEnd - clip->start();
+        const auto keyHeight = noteHeight * scaleY;
+        const auto top = (127.0 - focus.valueEnd) * keyHeight;
+        const auto bottom = (127.0 - focus.valueStart) * keyHeight + keyHeight;
+        return {localStart * pixelsPerTick(), top,
+                std::max(1.0, (localEnd - localStart) * pixelsPerTick()),
+                std::max(keyHeight, bottom - top)};
+    }
+
+    bool ensureSceneRectVisible(const QRectF &rect, const double xMargin, const double yMargin) {
+        const auto bounds = rect.normalized();
+        if (!bounds.isValid() || !std::isfinite(bounds.left()) ||
+            !std::isfinite(bounds.top()) || !std::isfinite(bounds.right()) ||
+            !std::isfinite(bounds.bottom())) {
+            return false;
+        }
+        const auto targetX = EditorScrollUtils::boundedOffset(
+            EditorScrollUtils::ensureVisibleOffset(cameraX, q->width(), bounds.left(),
+                                                   bounds.right(), xMargin),
+            sceneWidth(), q->width());
+        const auto targetY = EditorScrollUtils::boundedOffset(
+            EditorScrollUtils::ensureVisibleOffset(cameraY, q->height(), bounds.top(),
+                                                   bounds.bottom(), yMargin),
+            sceneHeight(), q->height());
+        if (cameraX == targetX && cameraY == targetY)
+            return true;
+        cameraX = targetX;
+        cameraY = targetY;
+        viewportChanged(false);
+        return true;
+    }
+
     QPointF physicalCameraOffset() const {
         return QPointF(cameraX, cameraY) * dpr;
     }
@@ -1798,6 +2014,8 @@ private:
                                   editMode == ErasePitch || editMode == FreezePitch;
         const auto selectedNotes = appStatus->selectedNotes.get();
         for (const auto *note : clip->notes()) {
+            if (erasedNoteIds.contains(note->id()))
+                continue;
             auto noteStart = note->localStart();
             auto noteLength = note->length();
             auto noteKey = note->keyIndex();
@@ -2213,8 +2431,7 @@ private:
     void appendAnchorSelectionRect() {
         if (!anchorSelecting)
             return;
-        const auto viewportRect = anchorSelectionRect.normalized();
-        const auto sceneRect = viewportRect.translated(cameraX, cameraY);
+        const auto sceneRect = anchorSelectionRect.normalized();
         auto fill = q->anchorPreviewColor();
         fill.setAlpha(64);
         auto border = q->anchorPreviewColor();
@@ -2274,13 +2491,12 @@ private:
     void appendRubberBand() {
         if (interaction != Interaction::RectSelect)
             return;
-        auto viewportRect = QRectF(rubberBandStart, rubberBandEnd).normalized();
+        auto sceneRect = QRectF(rubberBandStart, rubberBandEnd).normalized();
         const auto intervalSelect = editMode == IntervalSelect;
         if (intervalSelect) {
-            viewportRect.setTop(0.0);
-            viewportRect.setBottom(q->height());
+            sceneRect.setTop(0.0);
+            sceneRect.setBottom(sceneHeight());
         }
-        const auto sceneRect = viewportRect.translated(cameraX, cameraY);
         if (intervalSelect) {
             appendLogicalRect(sceneRect, q->rubberBandFillColor());
             appendLine(sceneRect.topLeft(), sceneRect.bottomLeft(), 1.5,
@@ -2344,7 +2560,6 @@ public:
     bool fallbackRequested = false;
     int trackColorIndex = 0;
     PianoRollEditMode editMode = Select;
-    enum class Interaction { None, Move, ResizeLeft, ResizeRight, Draw, RectSelect };
     Interaction interaction = Interaction::None;
     int interactionNoteId = -1;
     int interactionStart = 0;
@@ -2374,6 +2589,9 @@ public:
     QPoint pitchPreviousPos;
     QList<DrawCurve *> pitchPreviewCurves;
     DrawCurve *pitchEditingCurve = nullptr;
+    bool noteErasing = false;
+    QList<int> erasedNoteIds;
+    quint64 noteEraseSessionId = 0;
     QList<AnchorCurve *> anchorCurves;
     quint64 anchorEditSessionId = 0;
     bool anchorCommitting = false;
@@ -2387,7 +2605,8 @@ public:
     QList<AnchorDragInfo> anchorDragInfos;
     QRectF anchorSelectionRect;
     QPointF anchorPreviewPosition;
-    QPointF anchorDragStart;
+    QPoint anchorDragStartPoint;
+    QPointF anchorDragPressViewportPos;
     AnchorCurve *anchorPreviewCurve = nullptr;
     AnchorCurve *anchorMergeCandidateCurve = nullptr;
     AnchorNode *anchorMergeEndpointNode = nullptr;
@@ -2408,9 +2627,7 @@ public:
     TimelineLineEmitter timelineEmitter;
     EditorGlyphAtlas glyphAtlas;
     EditorRhiDrawList drawList;
-    EditorWheelUtils::InputState wheelInputState;
-    EditorWheelUtils::ScrollAccumulator verticalTouchPadScroll;
-
+    EdgeAutoScroller edgeAutoScroller;
     int noteFontPixelSize = 13;
     QColor whiteKeyColor{38, 40, 44};
     QColor blackKeyColor{31, 33, 37};
@@ -2460,6 +2677,7 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
 }
 
 PianoRollRhiWidget::~PianoRollRhiWidget() {
+    d->finishNoteErase(EditSessionEndReason::Discard);
     d->cancelPitchEdit(false);
     d->finishAnchorEditSession(EditSessionEndReason::Discard);
 }
@@ -2526,6 +2744,9 @@ bool PianoRollRhiWidget::revealFocus(const HistoryFocus &focus, bool) {
 
 void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
     if (d->editMode != mode) {
+        setCursor(Qt::ArrowCursor);
+        d->disarmEdgeAutoScroll();
+        d->finishNoteErase(EditSessionEndReason::Discard);
         d->finishInlineEditing();
         d->cancelPitchEdit();
         if (d->editMode == EditPitchAnchor)
@@ -2581,6 +2802,8 @@ void PianoRollRhiWidget::showEvent(QShowEvent *event) {
 }
 
 void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
+    d->disarmEdgeAutoScroll();
+    d->finishNoteErase(EditSessionEndReason::Discard);
     EditorRhiWidget::hideEvent(event);
     d->updateAutoPageTurnAvailability();
 }
@@ -2608,17 +2831,21 @@ void PianoRollRhiWidget::wheelEvent(QWheelEvent *event) {
 
 void PianoRollRhiWidget::mousePressEvent(QMouseEvent *event) {
     setFocus(Qt::MouseFocusReason);
+    if (event->button() == Qt::LeftButton)
+        d->prepareEdgeAutoScroll(event->position());
     d->mousePress(event);
     event->accept();
 }
 
 void PianoRollRhiWidget::mouseMoveEvent(QMouseEvent *event) {
     d->mouseMove(event);
+    d->updateEdgeAutoScrollState(event->position());
     event->accept();
 }
 
 void PianoRollRhiWidget::mouseReleaseEvent(QMouseEvent *event) {
     d->mouseRelease(event);
+    d->disarmEdgeAutoScroll();
     event->accept();
 }
 
@@ -2626,7 +2853,9 @@ void PianoRollRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
     if (d->clip && d->editMode == EditPitchAnchor && event->button() == Qt::LeftButton) {
         setFocus(Qt::MouseFocusReason);
         d->createAnchorAt(event->position());
-        d->anchorDragStart = event->position();
+        d->anchorDragStartPoint = d->anchorPointAt(event->position());
+        d->anchorDragPressViewportPos = event->position();
+        d->prepareEdgeAutoScroll(event->position());
         d->anchorDragging = false;
         d->anchorDragInfos.clear();
         d->scheduleSnapshot();
@@ -2654,6 +2883,7 @@ void PianoRollRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
             d->drawEnd =
                 d->drawStart + TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
             d->drawKey = d->keyAt(event->position());
+            d->prepareEdgeAutoScroll(event->position());
             d->scheduleSnapshot();
             event->accept();
             return;
@@ -2663,11 +2893,18 @@ void PianoRollRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
 }
 
 void PianoRollRhiWidget::keyPressEvent(QKeyEvent *event) {
+    if (event->key() == Qt::Key_Escape)
+        d->disarmEdgeAutoScroll();
     if (d->editMode == EditPitchAnchor && d->keyPressAnchor(event)) {
         event->accept();
         return;
     }
     if (event->key() == Qt::Key_Escape) {
+        if (d->noteErasing) {
+            d->finishNoteErase(EditSessionEndReason::Discard);
+            event->accept();
+            return;
+        }
         if (d->pitchEditing) {
             d->cancelPitchEdit();
             event->accept();
@@ -2685,6 +2922,7 @@ void PianoRollRhiWidget::keyPressEvent(QKeyEvent *event) {
 }
 
 void PianoRollRhiWidget::leaveEvent(QEvent *event) {
+    unsetCursor();
     if (d->hoveredKey >= 0) {
         d->hoveredKey = -1;
         emit keyHoverCleared();

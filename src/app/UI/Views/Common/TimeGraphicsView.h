@@ -123,6 +123,7 @@ protected:
     // once the pointer has travelled past startDragDistance() and enters the
     // hot zone, and stops on disarm/release/cancel.
     void armEdgeAutoScroll(Qt::Orientations axes);
+    void armEdgeAutoScroll(Qt::Orientations axes, const QPoint &pressPos);
     void disarmEdgeAutoScroll();
     [[nodiscard]] bool isEdgeAutoScrollActive() const;
     // Per-frame hook, called after the viewport has been scrolled. The base
@@ -184,17 +185,12 @@ private:
 
     // Edge auto scroll state
     EdgeAutoScroller m_edgeAutoScroller;
-    Qt::Orientations m_edgeAutoScrollAxes;
-    bool m_edgeAutoScrollArmed = false;
-    bool m_edgeAutoScrollDistanceReached = false;
-    QPoint m_edgeAutoScrollPressPos;
 
     // Scene length = external base + temporary drag extension
     int m_baseSceneLength = 0;
     int m_sceneLengthExtension = 0;
 
     EditorWheelUtils::InputState m_wheelInputState;
-    EditorWheelUtils::ScrollAccumulator m_verticalTouchPadScroll;
 
     OverlayScrollBar *m_hScrollBar = nullptr;
     OverlayScrollBar *m_vScrollBar = nullptr;

@@ -11,6 +11,7 @@
 #include "PianoRollSelectionModel.h"
 #include "PianoRollGraphicsView_p.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorOverlayView.h"
+#include "UI/Views/Common/EditorResizeUtils.h"
 #include "PitchEditorView.h"
 #include "PronunciationView.h"
 #include "PianoRollEditHandler.h"
@@ -400,6 +401,22 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
             d->m_currentHandler->mousePressEvent(event);
     } else
         TimeGraphicsView::mousePressEvent(event);
+
+    if (event->button() == Qt::LeftButton) {
+        Qt::Orientations axes;
+        const auto behavior = d->m_interactionController->mouseMoveBehavior();
+        if (behavior != NoteInteractionController::None) {
+            axes = behavior == NoteInteractionController::Move
+                       ? (Qt::Horizontal | Qt::Vertical)
+                       : Qt::Orientations(Qt::Horizontal);
+        } else if (d->m_currentHandler) {
+            axes = d->m_currentHandler->edgeAutoScrollAxes();
+            if (!axes && d->m_editMode == EditPitchAnchor)
+                axes = Qt::Horizontal | Qt::Vertical;
+        }
+        if (axes)
+            armEdgeAutoScroll(axes, event->pos());
+    }
     event->ignore();
 }
 
@@ -632,6 +649,7 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
                 dynamic_cast<DrawNoteHandler *>(d->m_handlers.value(DrawNote, nullptr))) {
             drawHandler->prepareForDrawingNote(tick, keyIndex, noteLength);
             d->m_currentHandler = drawHandler;
+            armEdgeAutoScroll(Qt::Horizontal, event->pos());
         }
     }
 }
@@ -1502,14 +1520,10 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
 
     const auto rPos = noteView->mapFromScene(scenePos);
     const auto rx = rPos.x();
-    if (rx >= 0 && rx <= AppGlobal::resizeTolerance) {
-        q->setCursor(Qt::SizeHorCursor);
-    } else if (rx >= noteView->rect().width() - AppGlobal::resizeTolerance &&
-               rx <= noteView->rect().width()) {
-        q->setCursor(Qt::SizeHorCursor);
-    } else {
-        q->setCursor(Qt::ArrowCursor);
-    }
+    const auto edge = EditorResizeUtils::horizontalEdgeAt(
+        rx, noteView->rect().width(), AppGlobal::resizeTolerance);
+    q->setCursor(edge == EditorResizeUtils::HorizontalEdge::None ? Qt::ArrowCursor
+                                                                : Qt::SizeHorCursor);
 }
 
 void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {

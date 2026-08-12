@@ -1,5 +1,5 @@
 //
-// Edge auto scroll for TimeGraphicsView-based editors.
+// Edge auto scroll for editor views.
 //
 // Pure computation (speed curve, sub-pixel accumulation, pointer clamping) is
 // kept free of any widget dependency so it can be unit-tested with injected
@@ -74,6 +74,16 @@ public:
                        const QRectF &viewportRect, Qt::Orientations axes, double dtMs);
     void resetAccumulator();
 
+    // --- Drag session ---
+
+    void prepareDrag(const QPointF &pressPos, Qt::Orientations axes = {});
+    void setDragAxes(Qt::Orientations axes);
+    void updateDragState(const QPointF &pointerPos, const QRectF &viewportRect,
+                         int startDragDistance);
+    QPoint computeDragStep(const QPointF &pointerPos, const QRectF &viewportRect, double dtMs);
+    void stopDrag();
+    [[nodiscard]] bool isDragArmed() const;
+
     // --- Runner ---
 
     void start();
@@ -89,6 +99,10 @@ private:
     QPointF m_accumulator;
     QTimer m_timer;
     QElapsedTimer m_elapsed;
+    QPointF m_dragPressPos;
+    Qt::Orientations m_dragAxes;
+    bool m_dragArmed = false;
+    bool m_dragDistanceReached = false;
 };
 
 #endif // EDGEAUTOSCROLLER_H

@@ -118,21 +118,6 @@ int main(int argc, char *argv[]) {
     expect(!rhiHorizontal->isVisible() && !rhiVertical->isVisible(),
            "subpixel layout noise must not create a false RHI scroll range");
 
-    auto wheelOffset = 0;
-    for (int i = 0; i < 5; ++i)
-        wheelOffset = EditorWheelUtils::scrollTarget(wheelOffset, 192, 0.15, -120.0);
-    expect(wheelOffset == 140,
-           "RHI wheel scrolling must retain the legacy integer target semantics");
-
-    EditorWheelUtils::ScrollAccumulator touchPadScroll;
-    wheelOffset = 0;
-    for (const auto delta : {-7.0, -206.0, -168.0, -149.0, -111.0, -91.0, -69.0, -60.0, -46.0,
-                             -36.0, -28.0, -22.0, -14.0, -8.0, -2.0}) {
-        wheelOffset = touchPadScroll.scrollTarget(wheelOffset, 325, 0.15, delta);
-    }
-    expect(wheelOffset == 406,
-           "touchpad scrolling must retain fractional wheel deltas across an event burst");
-
     QWheelEvent angleWheel(QPointF(10, 10), QPointF(10, 10), {}, QPoint(120, -240), Qt::NoButton,
                            Qt::NoModifier, Qt::NoScrollPhase, false);
     expect(EditorWheelUtils::wheelDelta(&angleWheel, Qt::Horizontal) == 120.0 &&
@@ -143,27 +128,34 @@ int main(int argc, char *argv[]) {
     expect(EditorWheelUtils::wheelDelta(&pixelWheel, Qt::Horizontal) == 12.0 &&
                EditorWheelUtils::wheelDelta(&pixelWheel, Qt::Vertical) == -20.0,
            "shared wheel delta extraction must preserve pixel-only touchpad input");
+    expect(EditorWheelUtils::scrollTarget(100, 192, 0.15, &pixelWheel, Qt::Horizontal) == 97 &&
+               EditorWheelUtils::scrollTarget(100, 192, 0.15, &pixelWheel, Qt::Vertical) == 105,
+           "touchpad scrolling must apply pixel displacement directly");
     EditorWheelUtils::InputState pixelInputState;
     expect(!pixelInputState.isMouseWheel(&pixelWheel),
-           "pixel-only wheel events must use touchpad accumulation semantics");
-    QWheelEvent combinedWheel(QPointF(10, 10), QPointF(10, 10), QPoint(3, -5),
-                              QPoint(120, -240), Qt::NoButton, Qt::NoModifier, Qt::ScrollUpdate,
+           "pixel-only wheel events must use touchpad direct-scroll semantics");
+    QWheelEvent combinedWheel(QPointF(10, 10), QPointF(10, 10), QPoint(0, -120),
+                              QPoint(0, -120), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase,
                               false);
-    expect(EditorWheelUtils::wheelDelta(&combinedWheel, Qt::Horizontal) == 12.0 &&
-               EditorWheelUtils::wheelDelta(&combinedWheel, Qt::Vertical) == -20.0,
-           "precision touchpad events must prefer pixel displacement over angle deltas");
+    expect(EditorWheelUtils::wheelDelta(&combinedWheel, Qt::Vertical) == -120.0,
+           "mouse wheels with both delta forms must retain their angle-step magnitude");
+    expect(EditorWheelUtils::scrollTarget(100, 192, 0.15, &combinedWheel, Qt::Vertical) == 128,
+           "one mouse wheel event must retain the legacy viewport-relative distance");
     EditorWheelUtils::InputState combinedInputState;
-    expect(!combinedInputState.isMouseWheel(&combinedWheel),
-           "events with pixel displacement must retain touchpad input semantics");
-    QWheelEvent horizontalTouchPad(QPointF(10, 10), QPointF(10, 10), QPoint(5, 0),
-                                   QPoint(0, -120), Qt::NoButton, Qt::NoModifier,
-                                   Qt::ScrollUpdate, false);
+    expect(combinedInputState.isMouseWheel(&combinedWheel),
+           "a discrete mouse wheel must not be reclassified by an auxiliary pixel delta");
+    QWheelEvent horizontalTouchPad(QPointF(10, 10), QPointF(10, 10), QPoint(5, 0), {},
+                                   Qt::NoButton, Qt::NoModifier, Qt::ScrollUpdate, false);
     expect(EditorWheelUtils::dominantAxis(&horizontalTouchPad) == Qt::Horizontal &&
-               EditorWheelUtils::horizontalScrollDelta(&horizontalTouchPad) == 20.0,
+               EditorWheelUtils::scrollTarget(100, 192, 0.2, &horizontalTouchPad,
+                                              EditorWheelUtils::horizontalScrollAxis(
+                                                  &horizontalTouchPad)) == 95,
            "unmodified horizontal touchpad gestures must retain their natural scroll axis");
     QWheelEvent shiftedWheel(QPointF(10, 10), QPointF(10, 10), {}, QPoint(0, -120), Qt::NoButton,
                              Qt::ShiftModifier, Qt::NoScrollPhase, false);
-    expect(EditorWheelUtils::horizontalScrollDelta(&shiftedWheel) == -120.0,
+    expect(EditorWheelUtils::scrollTarget(100, 200, 0.2, &shiftedWheel,
+                                          EditorWheelUtils::horizontalScrollAxis(&shiftedWheel)) ==
+               140,
            "Shift-wheel gestures must continue mapping the vertical wheel to horizontal scroll");
 
     EditorViewportController marginViewport;
@@ -192,6 +184,28 @@ int main(int argc, char *argv[]) {
     expect(qFuzzyCompare(viewport.horizontalOffset(), 767.0) &&
                qFuzzyCompare(viewport.verticalOffset(), 140.0),
            "resizing must clamp preserved offsets to the new scroll range");
+
+    EditorViewportController focusViewport;
+    focusViewport.setEnsureContentFillsViewport(false, false);
+    focusViewport.setContentTickRange(0, 30000);
+    focusViewport.setVerticalContent(20, 72);
+    focusViewport.setViewportSize(QSizeF(800, 300));
+    focusViewport.scrollBy(QPointF(300, 400));
+    int focusViewportChanges = 0;
+    QObject::connect(&focusViewport, &EditorViewportController::viewportChanged, &rhiViewport,
+                     [&focusViewportChanges] { ++focusViewportChanges; });
+    expect(focusViewport.ensureVisible(QRectF(500, 500, 100, 50), 24, 24) &&
+               qFuzzyCompare(focusViewport.horizontalOffset(), 300.0) &&
+               qFuzzyCompare(focusViewport.verticalOffset(), 400.0) && focusViewportChanges == 0,
+           "revealing an already visible RHI focus must not move or notify the viewport");
+    expect(focusViewport.ensureVisible(QRectF(1050, 680, 100, 40), 24, 24) &&
+               qFuzzyCompare(focusViewport.horizontalOffset(), 374.0) &&
+               qFuzzyCompare(focusViewport.verticalOffset(), 444.0) && focusViewportChanges == 1,
+           "revealing an obscured RHI focus must scroll only the minimum required distance");
+    expect(focusViewport.ensureVisible(QRectF(320, 420, 10, 10), 24, 24) &&
+               qFuzzyCompare(focusViewport.horizontalOffset(), 296.0) &&
+               qFuzzyCompare(focusViewport.verticalOffset(), 396.0) && focusViewportChanges == 2,
+           "revealing toward the leading edges must preserve the requested margin");
 
     if (g_failures == 0) {
         QTextStream(stdout) << "All ScrollBarInterplay tests passed" << Qt::endl;

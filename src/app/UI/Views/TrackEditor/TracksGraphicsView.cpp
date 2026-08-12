@@ -18,6 +18,7 @@
 #include "Modules/Inference/EditSessionManager.h"
 #include <lite/GUI/Controls/AccentButton.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
+#include "UI/Views/Common/EditorResizeUtils.h"
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QDragEnterEvent>
@@ -646,12 +647,13 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
     }
     const auto rPos = clipItem->mapFromScene(scenePos);
     const auto rx = rPos.x();
-    if (rx >= 0 && rx <= AppGlobal::resizeTolerance) {
+    const auto edge = EditorResizeUtils::horizontalEdgeAt(
+        rx, clipItem->rect().width(), AppGlobal::resizeTolerance);
+    if (edge == EditorResizeUtils::HorizontalEdge::Left) {
         m_mouseMoveBehavior = ResizeLeft;
         clearSelections();
         clipItem->setSelected(true);
-    } else if (rx >= clipItem->rect().width() - AppGlobal::resizeTolerance &&
-               rx <= clipItem->rect().width()) {
+    } else if (edge == EditorResizeUtils::HorizontalEdge::Right) {
         m_mouseMoveBehavior = ResizeRight;
         clearSelections();
         clipItem->setSelected(true);
@@ -694,7 +696,8 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
 
     // Moving allows both axes (track change); resizing is horizontal only
     armEdgeAutoScroll(m_mouseMoveBehavior == Move ? (Qt::Horizontal | Qt::Vertical)
-                                                  : Qt::Orientations(Qt::Horizontal));
+                                                  : Qt::Orientations(Qt::Horizontal),
+                      event->pos());
 }
 
 AbstractClipView *TracksGraphicsView::findClipById(const int id) const {

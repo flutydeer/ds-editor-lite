@@ -14,6 +14,7 @@
 #include "UI/Utils/ITimelinePainter.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
+#include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
 #include "UI/Views/Common/EditorWheelUtils.h"
 
@@ -27,6 +28,7 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QContextMenuEvent>
+#include <QCursor>
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
@@ -139,7 +141,8 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     m_viewport.setPixelsPerQuarterNote(pixelsPerQuarterNote);
     m_viewport.setScaleBounds(0.0001, 10000.0, 0.575, 8.0);
     m_viewport.setEnsureContentFillsViewport(true, false);
-    m_viewport.setContentTickRange(0.0, appStatus->projectEditableLength);
+    m_baseSceneLength = std::max(0, appStatus->projectEditableLength.get());
+    m_viewport.setContentTickRange(0.0, effectiveSceneLength());
     // One extra unit for the virtual append slot at the bottom of the canvas
     m_viewport.setVerticalContent(appModel->tracks().size() + 1, trackHeight);
 
@@ -165,8 +168,12 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
         updateScrollBars();
         scheduleSnapshot();
     });
-    connect(&m_edgeAutoScroller, &EdgeAutoScroller::frame, this,
-            &TracksRhiWidget::onExternalDropScrollFrame);
+    connect(&m_edgeAutoScroller, &EdgeAutoScroller::frame, this, [this](const double dtMs) {
+        if (m_externalDragActive)
+            onExternalDropScrollFrame(dtMs);
+        else
+            onDragAutoScrollFrame(dtMs);
+    });
 
     connect(appModel, &AppModel::modelChanged, this, [this] {
         rebuildModelConnections();
@@ -289,9 +296,7 @@ bool TracksRhiWidget::revealFocus(const HistoryFocus &focus, bool) {
     if (!selectedIds.isEmpty()) {
         syncSelection(selectedIds);
         trackController->setActiveClip(selectedIds.first());
-        const auto centerTick = m_viewport.sceneXToTick(bounds.center().x());
-        const auto centerTrack = bounds.center().y() / (trackHeight * scaleY()) - 0.5;
-        return centerAt(centerTick, centerTrack);
+        return m_viewport.ensureVisible(bounds, 24.0, 24.0);
     }
     int trackIndex = focus.trackIndex;
     if (focus.trackId >= 0)
@@ -300,7 +305,12 @@ bool TracksRhiWidget::revealFocus(const HistoryFocus &focus, bool) {
         trackIndex = qRound((focus.valueStart + focus.valueEnd) * 0.5);
     if (trackIndex < 0)
         return false;
-    return centerAt((focus.tickStart + focus.tickEnd) * 0.5, trackIndex);
+    const auto left = m_viewport.tickToSceneX(focus.tickStart);
+    const auto right = m_viewport.tickToSceneX(focus.tickEnd);
+    return m_viewport.ensureVisible(
+        QRectF(left, m_viewport.unitToSceneY(trackIndex), std::max(1.0, right - left),
+               trackHeight * scaleY()),
+        24.0, 24.0);
 }
 
 QRectF TracksRhiWidget::logicalVisibleRect() const {
@@ -324,8 +334,21 @@ double TracksRhiWidget::endTick() const {
 }
 
 void TracksRhiWidget::setSceneLength(const int tick) {
-    m_viewport.setContentTickRange(0.0, std::max(0, tick));
+    m_baseSceneLength = std::max(0, tick);
+    m_viewport.setContentTickRange(0.0, effectiveSceneLength());
     updateAutoPageTurnAvailability();
+}
+
+int TracksRhiWidget::effectiveSceneLength() const {
+    return m_baseSceneLength + m_sceneLengthExtension;
+}
+
+void TracksRhiWidget::setSceneLengthExtension(const int ticks) {
+    const auto extension = std::max(0, ticks);
+    if (m_sceneLengthExtension == extension)
+        return;
+    m_sceneLengthExtension = extension;
+    m_viewport.setContentTickRange(0.0, effectiveSceneLength());
 }
 
 void TracksRhiWidget::setLeftMarginPx(const double px) {
@@ -355,24 +378,16 @@ void TracksRhiWidget::onWheelVerScale(QWheelEvent *event) {
 }
 
 void TracksRhiWidget::onWheelHorScroll(QWheelEvent *event) {
-    (void) m_wheelInputState.isMouseWheel(event);
-    const auto target =
-        EditorWheelUtils::scrollTarget(static_cast<int>(m_viewport.horizontalOffset()), width(),
-                                       0.2, EditorWheelUtils::horizontalScrollDelta(event));
+    const auto target = EditorWheelUtils::scrollTarget(
+        static_cast<int>(m_viewport.horizontalOffset()), width(), 0.2, event,
+        EditorWheelUtils::horizontalScrollAxis(event));
     m_viewport.scrollBy({target - m_viewport.horizontalOffset(), 0.0});
 }
 
 void TracksRhiWidget::onWheelVerScroll(QWheelEvent *event) {
-    const auto fromWheel = m_wheelInputState.isMouseWheel(event);
-    if (fromWheel)
-        m_verticalTouchPadScroll.reset();
     const auto startValue = static_cast<int>(m_viewport.verticalOffset());
     const auto target =
-        fromWheel
-            ? EditorWheelUtils::scrollTarget(startValue, height(), 0.15,
-                                             EditorWheelUtils::wheelDelta(event, Qt::Vertical))
-            : m_verticalTouchPadScroll.scrollTarget(
-                  startValue, height(), 0.15, EditorWheelUtils::wheelDelta(event, Qt::Vertical));
+        EditorWheelUtils::scrollTarget(startValue, height(), 0.15, event, Qt::Vertical);
     m_viewport.scrollBy({0.0, target - m_viewport.verticalOffset()});
 }
 
@@ -383,7 +398,7 @@ void TracksRhiWidget::setVerticalOffset(const double value) {
 void TracksRhiWidget::updateScrollBars() {
     if (!m_scrollBars)
         return;
-    m_scrollBars->setMetrics(QSizeF(m_viewport.tickToSceneX(appStatus->projectEditableLength),
+    m_scrollBars->setMetrics(QSizeF(m_viewport.tickToSceneX(effectiveSceneLength()),
                                     m_viewport.unitToSceneY(appModel->tracks().size() + 1)),
                              QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()),
                              QSizeF(std::max(1, width() / 10),
@@ -412,6 +427,12 @@ void TracksRhiWidget::showEvent(QShowEvent *event) {
 }
 
 void TracksRhiWidget::hideEvent(QHideEvent *event) {
+    if (m_dragMode != DragMode::None)
+        discardDrag();
+    else
+        disarmDragAutoScroll();
+    if (m_externalDragActive)
+        endExternalDropOverlay();
     EditorRhiWidget::hideEvent(event);
     updateAutoPageTurnAvailability();
 }
@@ -434,6 +455,7 @@ void TracksRhiWidget::wheelEvent(QWheelEvent *event) {
 
 void TracksRhiWidget::mousePressEvent(QMouseEvent *event) {
     setFocus(Qt::MouseFocusReason);
+    disarmDragAutoScroll();
     if (event->button() != Qt::LeftButton) {
         EditorRhiWidget::mousePressEvent(event);
         return;
@@ -460,26 +482,20 @@ void TracksRhiWidget::mousePressEvent(QMouseEvent *event) {
         m_rubberBandStart = m_viewport.viewportToScene(event->position());
         m_rubberBandEnd = m_rubberBandStart;
     }
+    prepareDragAutoScroll(event->position());
     scheduleSnapshot();
     event->accept();
 }
 
 void TracksRhiWidget::mouseMoveEvent(QMouseEvent *event) {
     if (m_dragMode == DragMode::RectSelect) {
-        m_rubberBandEnd = m_viewport.viewportToScene(event->position());
-        const auto dpr = devicePixelRatioF();
-        const QRectF selection(m_rubberBandStart * dpr, m_rubberBandEnd * dpr);
-        QList<int> ids;
-        for (const auto &clip : m_clipSnapshots)
-            if (selection.normalized().intersects(clip.physicalRect))
-                ids.append(clip.id);
-        syncSelection(ids);
-        scheduleSnapshot();
+        updateRubberBandSelection(event->position());
     } else if (m_dragMode != DragMode::None) {
         updateDrag(event->position(), event->modifiers());
     } else {
         updateCursor(event->position());
     }
+    updateDragAutoScrollState(event->position());
     event->accept();
 }
 
@@ -490,9 +506,88 @@ void TracksRhiWidget::mouseReleaseEvent(QMouseEvent *event) {
         } else if (m_dragMode != DragMode::None) {
             commitDrag();
         }
+        disarmDragAutoScroll();
+        setSceneLengthExtension(0);
         scheduleSnapshot();
     }
     event->accept();
+}
+
+void TracksRhiWidget::updateRubberBandSelection(const QPointF &position) {
+    m_rubberBandEnd = m_viewport.viewportToScene(position);
+    const auto dpr = devicePixelRatioF();
+    const QRectF selection = QRectF(m_rubberBandStart * dpr, m_rubberBandEnd * dpr).normalized();
+    QList<int> ids;
+    const auto &tracks = appModel->tracks();
+    for (int trackIndex = 0; trackIndex < tracks.size(); ++trackIndex) {
+        for (const auto *clip : tracks.at(trackIndex)->clips()) {
+            if (selection.intersects(
+                    clipPhysicalRect(previewOrModelProperties(clip), trackIndex, dpr))) {
+                ids.append(clip->id());
+            }
+        }
+    }
+    syncSelection(ids);
+    scheduleSnapshot();
+}
+
+Qt::Orientations TracksRhiWidget::dragAutoScrollAxes() const {
+    if (m_dragMode == DragMode::Move || m_dragMode == DragMode::RectSelect)
+        return Qt::Horizontal | Qt::Vertical;
+    if (m_dragMode == DragMode::ResizeLeft || m_dragMode == DragMode::ResizeRight)
+        return Qt::Horizontal;
+    return {};
+}
+
+void TracksRhiWidget::prepareDragAutoScroll(const QPointF &pressPosition) {
+    m_edgeAutoScroller.prepareDrag(pressPosition);
+}
+
+void TracksRhiWidget::disarmDragAutoScroll() {
+    m_edgeAutoScroller.stopDrag();
+}
+
+void TracksRhiWidget::updateDragAutoScrollState(const QPointF &pointerPosition) {
+    const auto axes = dragAutoScrollAxes();
+    if (!axes) {
+        disarmDragAutoScroll();
+        return;
+    }
+
+    const QRectF viewportRect(QPointF(), size());
+    m_edgeAutoScroller.setDragAxes(axes);
+    m_edgeAutoScroller.updateDragState(pointerPosition, viewportRect,
+                                       QApplication::startDragDistance());
+}
+
+void TracksRhiWidget::onDragAutoScrollFrame(const double dtMs) {
+    if (!m_edgeAutoScroller.isDragArmed() || QGuiApplication::mouseButtons() == Qt::NoButton ||
+        !isVisible()) {
+        disarmDragAutoScroll();
+        return;
+    }
+
+    const QPointF pointerPosition(mapFromGlobal(QCursor::pos()));
+    const QRectF viewportRect(QPointF(), size());
+    const auto step = m_edgeAutoScroller.computeDragStep(pointerPosition, viewportRect, dtMs);
+    if (step.x() > 0 &&
+        (m_dragMode == DragMode::Move || m_dragMode == DragMode::ResizeRight)) {
+        const auto maximumOffset =
+            std::max(0.0, m_viewport.tickToSceneX(effectiveSceneLength()) - width());
+        if (m_viewport.horizontalOffset() >= maximumOffset - 1.0) {
+            const auto visibleTicks = std::max(1, qRound(endTick() - startTick()));
+            setSceneLengthExtension(m_sceneLengthExtension + visibleTicks);
+        }
+    }
+    if (!step.isNull())
+        m_viewport.scrollBy(step);
+
+    const auto clamped = EdgeAutoScroller::clampToRect(pointerPosition, viewportRect);
+    if (m_dragMode == DragMode::RectSelect)
+        updateRubberBandSelection(clamped);
+    else if (m_dragMode != DragMode::None)
+        updateDrag(clamped, QGuiApplication::queryKeyboardModifiers());
+    updateDragAutoScrollState(pointerPosition);
 }
 
 void TracksRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
@@ -558,6 +653,7 @@ void TracksRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
 void TracksRhiWidget::dragEnterEvent(QDragEnterEvent *event) {
     if (event->mimeData()->hasUrls()) {
         event->acceptProposedAction();
+        m_edgeAutoScroller.stopDrag();
         m_externalDragActive = true;
         m_dropScrollDistanceReached = false;
         m_dropDragStartPos = event->position();
@@ -627,7 +723,7 @@ void TracksRhiWidget::endExternalDropOverlay() {
     m_externalDragActive = false;
     m_dropSlot.reset();
     m_dropScrollDistanceReached = false;
-    m_edgeAutoScroller.stop();
+    m_edgeAutoScroller.stopDrag();
     scheduleSnapshot();
 }
 
@@ -671,7 +767,7 @@ void TracksRhiWidget::appendDropOverlay(EditorRhiFrameData &frame, const double 
     if (!m_externalDragActive || !m_dropSlot)
         return;
     const auto slot = *m_dropSlot;
-    const auto sceneWidth = m_viewport.tickToSceneX(appStatus->projectEditableLength);
+    const auto sceneWidth = m_viewport.tickToSceneX(effectiveSceneLength());
     const auto trackHeightPx = trackHeight * scaleY();
     const auto top = slot.trackIndex * trackHeightPx;
     EditorRhiGeometry::appendRect(frame.solidVertices,
@@ -791,7 +887,7 @@ void TracksRhiWidget::rebuildModelConnections() {
 
 void TracksRhiWidget::appendGrid(EditorRhiFrameData &frame, const double dpr) const {
     const auto visible = m_viewport.visibleSceneRect();
-    const auto sceneWidth = m_viewport.tickToSceneX(appStatus->projectEditableLength);
+    const auto sceneWidth = m_viewport.tickToSceneX(effectiveSceneLength());
     if (appStatus->selectedTrackIndex >= 0) {
         const auto top = appStatus->selectedTrackIndex * trackHeight * scaleY();
         EditorRhiGeometry::appendRect(
@@ -1124,11 +1220,7 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
     result.visibleEndTick = result.visibleStartTick + props.clipLen;
     result.selected = appStatus->selectedClips.get().contains(clip->id());
     result.active = appStatus->activeClipId == clip->id();
-    const auto left = m_viewport.tickToSceneX(props.start + props.clipStart) * dpr;
-    const auto right = m_viewport.tickToSceneX(props.start + props.clipStart + props.clipLen) * dpr;
-    result.physicalRect = QRectF(left, displayTrack * trackHeight * scaleY() * dpr, right - left,
-                                 trackHeight * scaleY() * dpr)
-                              .adjusted(0.6 * dpr, 1.2 * dpr, -0.6 * dpr, -1.2 * dpr);
+    result.physicalRect = clipPhysicalRect(props, displayTrack, dpr);
     result.title = commonClipTitle(props, clip->id(), scaleX(), scaleY());
     if (const auto audio = qobject_cast<const AudioClip *>(clip))
         result.audioMissing = audio->pathStatus() == AudioClip::PathStatus::Missing;
@@ -1145,6 +1237,16 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
             result.notes.append({note->localStart(), note->length(), note->keyIndex()});
     }
     return result;
+}
+
+QRectF TracksRhiWidget::clipPhysicalRect(const Clip::ClipCommonProperties &properties,
+                                         const int trackIndex, const double dpr) const {
+    const auto left = m_viewport.tickToSceneX(properties.start + properties.clipStart) * dpr;
+    const auto right =
+        m_viewport.tickToSceneX(properties.start + properties.clipStart + properties.clipLen) * dpr;
+    return QRectF(left, trackIndex * trackHeight * scaleY() * dpr, right - left,
+                  trackHeight * scaleY() * dpr)
+        .adjusted(0.6 * dpr, 1.2 * dpr, -0.6 * dpr, -1.2 * dpr);
 }
 
 QRectF TracksRhiWidget::clipPreviewRect(const ClipSnapshot &clip, const double dpr) {
@@ -1281,9 +1383,11 @@ void TracksRhiWidget::beginClipDrag(const ClipSnapshot &clip, const QMouseEvent 
     const auto physicalScene = m_viewport.viewportToScene(event->position()) * devicePixelRatioF();
     const auto relativeX = physicalScene.x() - clip.physicalRect.left();
     const auto tolerance = AppGlobal::resizeTolerance * devicePixelRatioF();
-    if (relativeX <= tolerance)
+    const auto edge =
+        EditorResizeUtils::horizontalEdgeAt(relativeX, clip.physicalRect.width(), tolerance);
+    if (edge == EditorResizeUtils::HorizontalEdge::Left)
         m_dragMode = DragMode::ResizeLeft;
-    else if (relativeX >= clip.physicalRect.width() - tolerance)
+    else if (edge == EditorResizeUtils::HorizontalEdge::Right)
         m_dragMode = DragMode::ResizeRight;
     else
         m_dragMode = DragMode::Move;
@@ -1381,6 +1485,8 @@ void TracksRhiWidget::commitDrag() {
     m_dragMode = DragMode::None;
     m_dragMoved = false;
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
+    disarmDragAutoScroll();
+    setSceneLengthExtension(0);
 }
 
 void TracksRhiWidget::discardDrag() {
@@ -1389,6 +1495,8 @@ void TracksRhiWidget::discardDrag() {
     m_dragMode = DragMode::None;
     m_dragMoved = false;
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
+    disarmDragAutoScroll();
+    setSceneLengthExtension(0);
     scheduleSnapshot();
 }
 
@@ -1407,9 +1515,10 @@ void TracksRhiWidget::updateCursor(const QPointF &position) {
     const auto physical = m_viewport.viewportToScene(position).x() * devicePixelRatioF();
     const auto relative = physical - clip->physicalRect.left();
     const auto tolerance = AppGlobal::resizeTolerance * devicePixelRatioF();
-    setCursor(relative <= tolerance || relative >= clip->physicalRect.width() - tolerance
-                  ? Qt::SizeHorCursor
-                  : Qt::ArrowCursor);
+    const auto edge =
+        EditorResizeUtils::horizontalEdgeAt(relative, clip->physicalRect.width(), tolerance);
+    setCursor(edge == EditorResizeUtils::HorizontalEdge::None ? Qt::ArrowCursor
+                                                              : Qt::SizeHorCursor);
 }
 
 void TracksRhiWidget::setAutoPageTurn(const bool enabled) {
@@ -1419,7 +1528,7 @@ void TracksRhiWidget::setAutoPageTurn(const bool enabled) {
 }
 
 void TracksRhiWidget::handleAutoPageTurn() {
-    if (!m_autoTurnPage || !m_autoPageTurnAvailable ||
+    if (!m_autoTurnPage || !m_autoPageTurnAvailable || m_edgeAutoScroller.isRunning() ||
         appStatus->currentEditObject != AppStatus::EditObjectType::None) {
         return;
     }

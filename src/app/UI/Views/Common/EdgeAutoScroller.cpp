@@ -124,6 +124,57 @@ void EdgeAutoScroller::resetAccumulator() {
     m_accumulator = QPointF();
 }
 
+void EdgeAutoScroller::prepareDrag(const QPointF &pressPos, const Qt::Orientations axes) {
+    stopDrag();
+    m_dragPressPos = pressPos;
+    setDragAxes(axes);
+}
+
+void EdgeAutoScroller::setDragAxes(const Qt::Orientations axes) {
+    m_dragAxes = axes;
+    m_dragArmed = !!axes;
+    if (!m_dragArmed) {
+        m_dragDistanceReached = false;
+        stop();
+    }
+}
+
+void EdgeAutoScroller::updateDragState(const QPointF &pointerPos, const QRectF &viewportRect,
+                                       const int startDragDistance) {
+    if (!m_dragArmed)
+        return;
+    if (!m_dragDistanceReached) {
+        if ((pointerPos - m_dragPressPos).manhattanLength() < startDragDistance)
+            return;
+        m_dragDistanceReached = true;
+    }
+
+    const auto dragVelocity =
+        velocity(pointerPos, m_dragPressPos, viewportRect, m_dragAxes, m_config);
+    if (!dragVelocity.isNull())
+        start();
+    else
+        stop();
+}
+
+QPoint EdgeAutoScroller::computeDragStep(const QPointF &pointerPos, const QRectF &viewportRect,
+                                         const double dtMs) {
+    if (!m_dragArmed)
+        return {};
+    return computeStep(pointerPos, m_dragPressPos, viewportRect, m_dragAxes, dtMs);
+}
+
+void EdgeAutoScroller::stopDrag() {
+    m_dragArmed = false;
+    m_dragDistanceReached = false;
+    m_dragAxes = {};
+    stop();
+}
+
+bool EdgeAutoScroller::isDragArmed() const {
+    return m_dragArmed;
+}
+
 void EdgeAutoScroller::start() {
     if (m_timer.isActive())
         return;

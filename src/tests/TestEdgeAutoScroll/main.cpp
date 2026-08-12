@@ -249,6 +249,28 @@ int main(int argc, char *argv[]) {
                "computeStep scrolls right after crossing into the right zone");
     }
 
+    // --- Shared drag-session lifecycle ---
+    {
+        EdgeAutoScroller scroller;
+        const QPointF press(400, 300);
+        scroller.prepareDrag(press, bothAxes);
+        expect(scroller.isDragArmed() && !scroller.isRunning(),
+               "preparing a drag arms its axes without starting the timer");
+
+        scroller.updateDragState(QPointF(405, 300), vp, 10);
+        expect(!scroller.isRunning(), "movement below the drag threshold must not start scrolling");
+
+        scroller.updateDragState(QPointF(790, 300), vp, 10);
+        expect(scroller.isRunning(), "entering a hot zone after the threshold starts scrolling");
+        const auto step = scroller.computeDragStep(QPointF(790, 300), vp, 16);
+        expect(step.x() > 0 && step.y() == 0,
+               "drag-session steps reuse the stored press position and axes");
+
+        scroller.stopDrag();
+        expect(!scroller.isDragArmed() && !scroller.isRunning(),
+               "stopping a drag clears both session and runner state");
+    }
+
     // --- Pointer clamping ---
     {
         const auto c1 = EdgeAutoScroller::clampToRect(QPointF(-100, 300), vp);
