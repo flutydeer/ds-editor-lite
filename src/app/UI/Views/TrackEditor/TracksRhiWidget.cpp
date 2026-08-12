@@ -427,7 +427,12 @@ void TracksRhiWidget::showEvent(QShowEvent *event) {
 }
 
 void TracksRhiWidget::hideEvent(QHideEvent *event) {
-    disarmDragAutoScroll();
+    if (m_dragMode != DragMode::None)
+        discardDrag();
+    else
+        disarmDragAutoScroll();
+    if (m_externalDragActive)
+        endExternalDropOverlay();
     EditorRhiWidget::hideEvent(event);
     updateAutoPageTurnAvailability();
 }
