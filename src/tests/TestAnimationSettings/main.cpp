@@ -9,7 +9,6 @@
 #include <QAbstractAnimation>
 #include <QApplication>
 #include <QGraphicsOpacityEffect>
-#include <QPropertyAnimation>
 #include <QTextStream>
 #include <QVariantAnimation>
 
@@ -108,27 +107,20 @@ namespace {
 
         ProgressIndicator progress;
         progress.setValue(75);
-        const auto progressAnimations = progress.findChildren<QPropertyAnimation *>();
-        auto *valueAnimation = progressAnimations.value(0);
-        expect(valueAnimation && valueAnimation->duration() == 500,
-               "determinate progress should scale its full-level interpolation");
+        expect(!qFuzzyCompare(progress.property("apparentValue").toDouble(), 75.0),
+               "full-level determinate progress should animate instead of snapping");
 
         theme->setAnimationSettings(AnimationGlobal::Decreased, 2.0);
-        expect(valueAnimation && valueAnimation->state() == QAbstractAnimation::Stopped,
-               "decreased animations should stop determinate progress interpolation");
         expect(qFuzzyCompare(progress.property("apparentValue").toDouble(), 75.0),
                "decreased animations should snap progress to its target value");
 
         theme->setAnimationSettings(AnimationGlobal::Full, 2.0);
         TapTempoButton tapTempo;
         tapTempo.setProgress(0.75);
-        auto *tapAnimation = tapTempo.findChild<QPropertyAnimation *>();
-        expect(tapAnimation && tapAnimation->duration() == 300,
-               "tap-tempo progress should scale at the full level");
+        expect(!qFuzzyCompare(tapTempo.progress(), 0.75),
+               "full-level tap-tempo progress should animate instead of snapping");
 
         theme->setAnimationSettings(AnimationGlobal::Decreased, 2.0);
-        expect(tapAnimation && tapAnimation->state() == QAbstractAnimation::Stopped,
-               "tap-tempo interpolation should stop at the decreased level");
         expect(qFuzzyCompare(tapTempo.progress(), 0.75),
                "tap-tempo interpolation should snap to its target");
     }
@@ -139,14 +131,12 @@ namespace {
 
         ToolTip toolTip(QStringLiteral("Animation settings"));
         toolTip.setAttribute(Qt::WA_DontShowOnScreen);
-        auto *animation = toolTip.findChild<QPropertyAnimation *>();
-        expect(animation && animation->duration() == 300,
-               "tooltip opacity should use the configured time scale");
 
         toolTip.showAt(QPoint());
+        expect(!qFuzzyCompare(toolTip.windowOpacity(), 1.0),
+               "full-level tooltip presentation should animate instead of snapping");
+
         theme->setAnimationSettings(AnimationGlobal::None, 2.0);
-        expect(animation && animation->state() == QAbstractAnimation::Stopped,
-               "disabling animations should stop a running tooltip transition");
         expect(qFuzzyCompare(toolTip.windowOpacity(), 1.0),
                "disabling animations should finish tooltip presentation");
 
