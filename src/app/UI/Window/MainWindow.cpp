@@ -11,6 +11,7 @@
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/TrackController.h"
 #include "Controller/UndoRedoController.h"
+#include "DocumentSession.h"
 #include "Modules/Import/DocumentImportController.h"
 #include "Modules/Import/ExternalFileClassifier.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -66,7 +67,10 @@
 #  include <QWDMHCore/DirectManipulationSystem.h>
 #endif
 
-MainWindow::MainWindow() {
+MainWindow::MainWindow(DocumentSession *session) : m_session(session) {
+    if (m_session)
+        m_session->activate();
+    setProperty("documentSession", QVariant::fromValue(static_cast<QObject *>(m_session)));
     setAcceptDrops(true);
 
     m_useNativeFrame = appOptions->appearance()->useNativeFrame;
@@ -231,6 +235,12 @@ MainWindow::~MainWindow() {
 #endif
     editorViewController->setView(nullptr);
     ThemeManager::instance()->removeWindow(this);
+}
+
+bool MainWindow::event(QEvent *event) {
+    if (m_session)
+        m_session->activate();
+    return QMainWindow::event(event);
 }
 
 void MainWindow::updateDiagnosticFilter() {

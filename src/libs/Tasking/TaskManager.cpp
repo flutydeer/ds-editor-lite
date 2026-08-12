@@ -5,6 +5,9 @@
 
 #include "Task.h"
 
+#include <QMutexLocker>
+#include <QPointer>
+
 void BackgroundWorker::terminateTask(Task *task) {
     task->terminate();
 }
@@ -44,6 +47,21 @@ Task *TaskManager::findTaskById(const int id) {
     return nullptr;
 }
 
+QList<Task *> TaskManager::tasksForDocument(const QUuid &documentId) const {
+    Q_D(const TaskManager);
+    QList<Task *> result;
+    for (auto *task : d->m_tasks) {
+        if (task->documentId() == documentId)
+            result.append(task);
+    }
+    return result;
+}
+
+void TaskManager::setDocumentIdProvider(std::function<QUuid()> provider) {
+    Q_D(TaskManager);
+    d->documentIdProvider = std::move(provider);
+}
+
 void TaskManager::wait() {
     Q_D(TaskManager);
     d->m_worker.wait();
@@ -51,6 +69,14 @@ void TaskManager::wait() {
 
 void TaskManager::addTask(Task *task) {
     Q_D(TaskManager);
+    if (task->documentId().isNull() && d->documentIdProvider)
+        task->setDocumentId(d->documentIdProvider());
+    connect(
+        task, &Task::finished, this, [d] { d->completionCondition.wakeAll(); },
+        Qt::DirectConnection);
+    connect(
+        task, &QObject::destroyed, this, [d] { d->completionCondition.wakeAll(); },
+        Qt::DirectConnection);
     qDebug() << "addTask:" << task->id() << task->status().title;
     const auto index = d->m_tasks.count();
     d->m_tasks.append(task);
@@ -97,6 +123,25 @@ void TaskManager::terminateAllTasks() {
     Q_D(TaskManager);
     for (const auto &task : d->m_tasks)
         BackgroundWorker::terminateTask(task);
+}
+
+void TaskManager::terminateTasks(const QUuid &documentId) {
+    for (auto *task : tasksForDocument(documentId))
+        BackgroundWorker::terminateTask(task);
+}
+
+void TaskManager::waitForDocument(const QUuid &documentId) {
+    Q_D(TaskManager);
+    QList<QPointer<Task>> pending;
+    for (auto *task : tasksForDocument(documentId))
+        pending.append(task);
+
+    QMutexLocker locker(&d->completionMutex);
+    while (std::any_of(pending.cbegin(), pending.cend(), [](const QPointer<Task> &task) {
+        return task && task->started() && !task->stopped();
+    })) {
+        d->completionCondition.wait(&d->completionMutex, 50);
+    }
 }
 
 void TaskManager::onWorkerWaitDone() {

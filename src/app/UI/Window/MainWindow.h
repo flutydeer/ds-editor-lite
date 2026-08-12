@@ -24,6 +24,7 @@ class EmbeddedModalHost;
 class AppOptionsDialog;
 class QAction;
 class QShortcut;
+class DocumentSession;
 
 namespace QWK {
     class WidgetWindowAgent;
@@ -36,7 +37,7 @@ class MainWindow final : public QMainWindow,
     Q_OBJECT
 
 public:
-    explicit MainWindow();
+    explicit MainWindow(DocumentSession *session = nullptr);
     ~MainWindow() override;
     void updateWindowTitle() override;
     void quit() override;
@@ -79,6 +80,7 @@ public slots:
     void closeAppOptions();
 
 protected:
+    bool event(QEvent *event) override;
     void changeEvent(QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void dropEvent(QDropEvent *event) override;
@@ -103,6 +105,7 @@ private:
     bool m_isAllDone = false;
     bool m_isDirectManipulationRegistered = false;
     bool m_documentCloseApproved = false;
+    DocumentSession *m_session = nullptr;
 
     MainTitleBar *m_titleBar;
     MainMenuView *m_mainMenu = nullptr;

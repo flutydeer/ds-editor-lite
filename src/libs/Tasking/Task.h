@@ -8,6 +8,7 @@
 #include <QObject>
 #include <QRunnable>
 #include <QReadWriteLock>
+#include <QUuid>
 
 #include "TaskGlobal.h"
 #include <lite/Core/UniqueObject.h>
@@ -32,6 +33,7 @@ public:
         TaskAbortRequested = 1 << 1,
         TaskStopped = 1 << 2,
     };
+
     using FlagType = std::underlying_type_t<Flags>;
 
     explicit Task(QObject *parent = nullptr) : QObject(parent) {
@@ -66,6 +68,10 @@ public:
         m_priority.store(priority, std::memory_order_release);
     }
 
+    [[nodiscard]] QUuid documentId() const {
+        return m_documentId;
+    }
+
     [[nodiscard]] const TaskStatus &status() const {
         return m_status;
     }
@@ -90,6 +96,10 @@ protected:
 
 private:
     friend class TaskManager;
+
+    void setDocumentId(const QUuid &documentId) {
+        m_documentId = documentId;
+    }
 
     bool checkFlag(const FlagType flag) const {
         return m_taskFlags.load(std::memory_order_acquire) & flag;
@@ -124,6 +134,7 @@ private:
     TaskStatus m_status;
     mutable QReadWriteLock m_statusLock;
     std::atomic<FlagType> m_taskFlags{0};
+    QUuid m_documentId;
 };
 
 #endif // TASK_H

@@ -4,6 +4,9 @@
 #define taskManager TaskManager::instance()
 
 #include <QThreadPool>
+#include <QUuid>
+
+#include <functional>
 
 class Task;
 class TaskManagerPrivate;
@@ -27,6 +30,8 @@ public:
 public:
     [[nodiscard]] const QList<Task *> &tasks() const;
     Task *findTaskById(int id);
+    QList<Task *> tasksForDocument(const QUuid &documentId) const;
+    void setDocumentIdProvider(std::function<QUuid()> provider);
 
 signals:
     void allDone();
@@ -40,7 +45,9 @@ public slots:
     void startAllTasks();
     static void terminateTask(Task *task);
     void terminateAllTasks();
+    void terminateTasks(const QUuid &documentId);
     void wait();
+    void waitForDocument(const QUuid &documentId);
 
 private slots:
     void onWorkerWaitDone();
