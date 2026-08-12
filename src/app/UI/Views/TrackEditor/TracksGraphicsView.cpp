@@ -694,7 +694,8 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
 
     // Moving allows both axes (track change); resizing is horizontal only
     armEdgeAutoScroll(m_mouseMoveBehavior == Move ? (Qt::Horizontal | Qt::Vertical)
-                                                  : Qt::Orientations(Qt::Horizontal));
+                                                  : Qt::Orientations(Qt::Horizontal),
+                      event->pos());
 }
 
 AbstractClipView *TracksGraphicsView::findClipById(const int id) const {

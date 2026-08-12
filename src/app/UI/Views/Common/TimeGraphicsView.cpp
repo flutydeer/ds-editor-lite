@@ -529,12 +529,11 @@ void TimeGraphicsView::mousePressEvent(QMouseEvent *event) {
             m_isDraggingContent = true;
             if (m_dragBehavior == DragBehavior::RectSelect) {
                 m_rubberBand.setSelectMode(RubberBandView::SelectMode::RectSelect);
-                armEdgeAutoScroll(Qt::Horizontal | Qt::Vertical);
+                armEdgeAutoScroll(Qt::Horizontal | Qt::Vertical, event->pos());
             } else {
                 m_rubberBand.setSelectMode(RubberBandView::SelectMode::BeamSelect);
-                armEdgeAutoScroll(Qt::Horizontal);
+                armEdgeAutoScroll(Qt::Horizontal, event->pos());
             }
-            m_edgeAutoScrollPressPos = event->pos();
             m_rubberBand.mouseDown(mapToScene(event->pos()));
             m_rubberBandAdded = false;
         }
@@ -703,11 +702,9 @@ void TimeGraphicsView::updateAutoPageTurnAvailability() {
 }
 
 void TimeGraphicsView::armEdgeAutoScroll(Qt::Orientations axes) {
+    const auto pointerPos = viewport()->mapFromGlobal(QCursor::pos());
     if (!m_edgeAutoScrollArmed) {
-        m_edgeAutoScrollAxes = axes;
-        m_edgeAutoScrollArmed = !!axes;
-        m_edgeAutoScrollDistanceReached = false;
-        m_edgeAutoScrollPressPos = viewport()->mapFromGlobal(QCursor::pos());
+        armEdgeAutoScroll(axes, pointerPos);
         return;
     }
     // Already armed (callers may re-arm on every move event): refresh the axes
@@ -715,7 +712,14 @@ void TimeGraphicsView::armEdgeAutoScroll(Qt::Orientations axes) {
     // also covers subclasses whose mouseMoveEvent returns before reaching the
     // base class implementation.
     m_edgeAutoScrollAxes = axes;
-    updateEdgeAutoScrollState(viewport()->mapFromGlobal(QCursor::pos()));
+    updateEdgeAutoScrollState(pointerPos);
+}
+
+void TimeGraphicsView::armEdgeAutoScroll(const Qt::Orientations axes, const QPoint &pressPos) {
+    m_edgeAutoScrollAxes = axes;
+    m_edgeAutoScrollArmed = !!axes;
+    m_edgeAutoScrollDistanceReached = false;
+    m_edgeAutoScrollPressPos = pressPos;
 }
 
 void TimeGraphicsView::disarmEdgeAutoScroll() {

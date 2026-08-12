@@ -123,6 +123,7 @@ protected:
     // once the pointer has travelled past startDragDistance() and enters the
     // hot zone, and stops on disarm/release/cancel.
     void armEdgeAutoScroll(Qt::Orientations axes);
+    void armEdgeAutoScroll(Qt::Orientations axes, const QPoint &pressPos);
     void disarmEdgeAutoScroll();
     [[nodiscard]] bool isEdgeAutoScrollActive() const;
     // Per-frame hook, called after the viewport has been scrolled. The base

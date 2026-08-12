@@ -400,6 +400,22 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
             d->m_currentHandler->mousePressEvent(event);
     } else
         TimeGraphicsView::mousePressEvent(event);
+
+    if (event->button() == Qt::LeftButton) {
+        Qt::Orientations axes;
+        const auto behavior = d->m_interactionController->mouseMoveBehavior();
+        if (behavior != NoteInteractionController::None) {
+            axes = behavior == NoteInteractionController::Move
+                       ? (Qt::Horizontal | Qt::Vertical)
+                       : Qt::Orientations(Qt::Horizontal);
+        } else if (d->m_currentHandler) {
+            axes = d->m_currentHandler->edgeAutoScrollAxes();
+            if (!axes && d->m_editMode == EditPitchAnchor)
+                axes = Qt::Horizontal | Qt::Vertical;
+        }
+        if (axes)
+            armEdgeAutoScroll(axes, event->pos());
+    }
     event->ignore();
 }
 
@@ -632,6 +648,7 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
                 dynamic_cast<DrawNoteHandler *>(d->m_handlers.value(DrawNote, nullptr))) {
             drawHandler->prepareForDrawingNote(tick, keyIndex, noteLength);
             d->m_currentHandler = drawHandler;
+            armEdgeAutoScroll(Qt::Horizontal, event->pos());
         }
     }
 }
