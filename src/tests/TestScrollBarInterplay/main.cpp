@@ -155,6 +155,16 @@ int main(int argc, char *argv[]) {
     EditorWheelUtils::InputState combinedInputState;
     expect(!combinedInputState.isMouseWheel(&combinedWheel),
            "events with pixel displacement must retain touchpad input semantics");
+    QWheelEvent horizontalTouchPad(QPointF(10, 10), QPointF(10, 10), QPoint(5, 0),
+                                   QPoint(0, -120), Qt::NoButton, Qt::NoModifier,
+                                   Qt::ScrollUpdate, false);
+    expect(EditorWheelUtils::dominantAxis(&horizontalTouchPad) == Qt::Horizontal &&
+               EditorWheelUtils::horizontalScrollDelta(&horizontalTouchPad) == 20.0,
+           "unmodified horizontal touchpad gestures must retain their natural scroll axis");
+    QWheelEvent shiftedWheel(QPointF(10, 10), QPointF(10, 10), {}, QPoint(0, -120), Qt::NoButton,
+                             Qt::ShiftModifier, Qt::NoScrollPhase, false);
+    expect(EditorWheelUtils::horizontalScrollDelta(&shiftedWheel) == -120.0,
+           "Shift-wheel gestures must continue mapping the vertical wheel to horizontal scroll");
 
     EditorViewportController marginViewport;
     marginViewport.setContentTickRange(0, 20000);

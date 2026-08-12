@@ -155,6 +155,20 @@ int main(int argc, char *argv[]) {
     expect(closeTo(draggedAudio.playLengthMs, materialLengthMs - trimStartMs),
            "audio right trim must stop at the material boundary in realtime");
 
+    auto rejectedState = AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
+                                                   visibleStartTick, grabTick, timeline);
+    auto lastValidProperties = draggedAudio;
+    expect(rejectedState.resizeRightTo(visibleStartTick + 100, visibleStartTick,
+                                       lastValidProperties, timeline),
+           "audio resize state must accept a valid edge before testing rejection");
+    auto rejectedProperties = lastValidProperties;
+    expect(!rejectedState.resizeRightTo(visibleStartTick, visibleStartTick, rejectedProperties,
+                                        timeline) &&
+               rejectedProperties.start == lastValidProperties.start &&
+               rejectedProperties.clipStart == lastValidProperties.clipStart &&
+               rejectedProperties.clipLen == lastValidProperties.clipLen,
+           "a rejected audio resize must leave the last valid projected properties intact");
+
     if (g_failures == 0) {
         QTextStream(stdout) << "All TrackEditorInteractions tests passed" << Qt::endl;
         return 0;

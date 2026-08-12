@@ -425,7 +425,7 @@ public:
     }
 
     void horizontalScroll(QWheelEvent *event) {
-        const auto delta = EditorWheelUtils::wheelDelta(event, Qt::Vertical);
+        const auto delta = EditorWheelUtils::horizontalScrollDelta(event);
         (void) wheelInputState.isMouseWheel(event);
         cameraX = EditorWheelUtils::scrollTarget(static_cast<int>(cameraX), q->width(), 0.2, delta);
         viewportChanged(false);
@@ -2597,8 +2597,12 @@ void PianoRollRhiWidget::wheelEvent(QWheelEvent *event) {
         onWheelVerScale(event);
     else if (event->modifiers() == Qt::ShiftModifier)
         onWheelHorScroll(event);
-    else if (event->modifiers() == Qt::NoModifier)
-        onWheelVerScroll(event);
+    else if (event->modifiers() == Qt::NoModifier) {
+        if (EditorWheelUtils::dominantAxis(event) == Qt::Horizontal)
+            onWheelHorScroll(event);
+        else
+            onWheelVerScroll(event);
+    }
     event->accept();
 }
 

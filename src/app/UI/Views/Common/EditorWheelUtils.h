@@ -21,6 +21,19 @@ namespace EditorWheelUtils {
         return angleValue;
     }
 
+    inline Qt::Orientation dominantAxis(const QWheelEvent *event) {
+        return qAbs(wheelDelta(event, Qt::Horizontal)) >
+                       qAbs(wheelDelta(event, Qt::Vertical))
+                   ? Qt::Horizontal
+                   : Qt::Vertical;
+    }
+
+    inline double horizontalScrollDelta(const QWheelEvent *event) {
+        const auto sourceAxis =
+            event->modifiers() == Qt::ShiftModifier ? Qt::Vertical : Qt::Horizontal;
+        return wheelDelta(event, sourceAxis);
+    }
+
     inline int scrollTarget(const int startValue, const int viewportLength,
                             const double viewportFraction, const double wheelDelta) {
         return static_cast<int>(startValue -

@@ -358,7 +358,7 @@ void TracksRhiWidget::onWheelHorScroll(QWheelEvent *event) {
     (void) m_wheelInputState.isMouseWheel(event);
     const auto target =
         EditorWheelUtils::scrollTarget(static_cast<int>(m_viewport.horizontalOffset()), width(),
-                                       0.2, EditorWheelUtils::wheelDelta(event, Qt::Vertical));
+                                       0.2, EditorWheelUtils::horizontalScrollDelta(event));
     m_viewport.scrollBy({target - m_viewport.horizontalOffset(), 0.0});
 }
 
@@ -423,8 +423,12 @@ void TracksRhiWidget::wheelEvent(QWheelEvent *event) {
         onWheelVerScale(event);
     else if (event->modifiers() == Qt::ShiftModifier)
         onWheelHorScroll(event);
-    else
-        onWheelVerScroll(event);
+    else if (event->modifiers() == Qt::NoModifier) {
+        if (EditorWheelUtils::dominantAxis(event) == Qt::Horizontal)
+            onWheelHorScroll(event);
+        else
+            onWheelVerScroll(event);
+    }
     event->accept();
 }
 
@@ -1313,6 +1317,7 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
     };
     const auto originalLeft = m_mouseDownProperties.start + m_mouseDownProperties.clipStart;
     const auto originalRight = originalLeft + m_mouseDownProperties.clipLen;
+    auto updateAccepted = true;
     if (m_dragMode == DragMode::Move) {
         if (m_audioDragState) {
             const auto desiredLeft = m_audioDragState->visibleStartForCursor(
@@ -1328,15 +1333,18 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
     } else if (m_dragMode == DragMode::ResizeLeft) {
         const auto left = snap(originalLeft + deltaTicks);
         if (m_audioDragState) {
-            m_audioDragState->resizeLeftTo(left, originalRight, properties, appModel->timeline());
+            updateAccepted =
+                m_audioDragState->resizeLeftTo(left, originalRight, properties, appModel->timeline());
         } else if (left < originalRight) {
             properties.clipStart = std::max(0, left - properties.start);
             properties.clipLen = originalRight - (properties.start + properties.clipStart);
-        }
+        } else
+            updateAccepted = false;
     } else if (m_dragMode == DragMode::ResizeRight) {
         const auto right = snap(originalRight + deltaTicks);
         if (m_audioDragState) {
-            m_audioDragState->resizeRightTo(right, originalLeft, properties, appModel->timeline());
+            updateAccepted = m_audioDragState->resizeRightTo(right, originalLeft, properties,
+                                                             appModel->timeline());
         } else if (const auto *clip = appModel->findClipById(m_dragPreview->clipId)) {
             const auto *singing = qobject_cast<const SingingClip *>(clip);
             auto contentLength = properties.length;
@@ -1346,10 +1354,13 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
                     AppGlobal::ticksPerWholeNote,
                     [](const Note *note) { return note->localStart() + note->length(); });
             }
-            ClipResizeUtils::updateRightEdge(properties, right - originalLeft, singing != nullptr,
-                                             contentLength);
-        }
+            updateAccepted = ClipResizeUtils::updateRightEdge(
+                properties, right - originalLeft, singing != nullptr, contentLength);
+        } else
+            updateAccepted = false;
     }
+    if (!updateAccepted)
+        return;
     m_dragPreview->properties = properties;
     m_dragMoved = true;
     scheduleSnapshot();

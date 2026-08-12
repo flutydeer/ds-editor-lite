@@ -390,7 +390,7 @@ void TimeGraphicsView::onWheelVerScale(QWheelEvent *event) {
 }
 
 void TimeGraphicsView::onWheelHorScroll(QWheelEvent *event) {
-    const auto deltaY = EditorWheelUtils::wheelDelta(event, Qt::Vertical);
+    const auto deltaY = EditorWheelUtils::horizontalScrollDelta(event);
     auto startValue = horizontalBarValue();
     auto endValue = EditorWheelUtils::scrollTarget(startValue, viewport()->width(), 0.2, deltaY);
     if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event))
@@ -501,7 +501,10 @@ void TimeGraphicsView::wheelEvent(QWheelEvent *event) {
     } else if (event->modifiers() == Qt::ShiftModifier) {
         onWheelHorScroll(event);
     } else if (event->modifiers() == Qt::NoModifier) {
-        onWheelVerScroll(event);
+        if (EditorWheelUtils::dominantAxis(event) == Qt::Horizontal)
+            onWheelHorScroll(event);
+        else
+            onWheelVerScroll(event);
     }
     notifyVisibleRectChanged();
 }
