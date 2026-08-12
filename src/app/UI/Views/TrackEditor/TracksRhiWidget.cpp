@@ -293,9 +293,7 @@ bool TracksRhiWidget::revealFocus(const HistoryFocus &focus, bool) {
     if (!selectedIds.isEmpty()) {
         syncSelection(selectedIds);
         trackController->setActiveClip(selectedIds.first());
-        const auto centerTick = m_viewport.sceneXToTick(bounds.center().x());
-        const auto centerTrack = bounds.center().y() / (trackHeight * scaleY()) - 0.5;
-        return centerAt(centerTick, centerTrack);
+        return m_viewport.ensureVisible(bounds, 24.0, 24.0);
     }
     int trackIndex = focus.trackIndex;
     if (focus.trackId >= 0)
@@ -304,7 +302,12 @@ bool TracksRhiWidget::revealFocus(const HistoryFocus &focus, bool) {
         trackIndex = qRound((focus.valueStart + focus.valueEnd) * 0.5);
     if (trackIndex < 0)
         return false;
-    return centerAt((focus.tickStart + focus.tickEnd) * 0.5, trackIndex);
+    const auto left = m_viewport.tickToSceneX(focus.tickStart);
+    const auto right = m_viewport.tickToSceneX(focus.tickEnd);
+    return m_viewport.ensureVisible(
+        QRectF(left, m_viewport.unitToSceneY(trackIndex), std::max(1.0, right - left),
+               trackHeight * scaleY()),
+        24.0, 24.0);
 }
 
 QRectF TracksRhiWidget::logicalVisibleRect() const {

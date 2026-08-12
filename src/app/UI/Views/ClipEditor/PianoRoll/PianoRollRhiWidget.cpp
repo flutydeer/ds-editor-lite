@@ -375,6 +375,13 @@ public:
             return HistoryFocusVisibility::Unavailable;
         if (focus.containerId >= 0 && focus.containerId != clip->id())
             return HistoryFocusVisibility::ContextSwitchRequired;
+        QList<int> resolvedIds;
+        const auto bounds = focusSceneRect(focus, &resolvedIds);
+        if (!resolvedIds.isEmpty()) {
+            const QRectF viewport(QPointF(cameraX, cameraY), q->size());
+            return viewport.intersects(bounds) ? HistoryFocusVisibility::Visible
+                                               : HistoryFocusVisibility::ScrollRequired;
+        }
         const auto tickOffset = focus.ticksAreLocal ? clip->start() : 0.0;
         const auto tickVisible =
             focus.tickEnd + tickOffset >= startTick() && focus.tickStart + tickOffset <= endTick();
@@ -390,13 +397,9 @@ public:
         if (focus.containerId >= 0 && focus.containerId != clip->id())
             return false;
         QList<int> selected;
-        for (const auto id : focus.objectIds)
-            if (clip->findNoteById(id))
-                selected.append(id);
+        const auto bounds = focusSceneRect(focus, &selected);
         appStatus->selectedNotes = selected;
-        const auto tickOffset = focus.ticksAreLocal ? clip->start() : 0.0;
-        return centerAt((focus.tickStart + focus.tickEnd) * 0.5 + tickOffset,
-                        (focus.valueStart + focus.valueEnd) * 0.5);
+        return ensureSceneRectVisible(bounds, 24.0, 24.0);
     }
 
     void horizontalScale(QWheelEvent *event) {
@@ -666,9 +669,7 @@ public:
     QRectF noteViewportRect(const Note *note) const {
         if (!note)
             return {};
-        return {note->localStart() * pixelsPerTick() - cameraX,
-                (127 - note->keyIndex()) * noteHeight * scaleY - cameraY,
-                note->length() * pixelsPerTick(), noteHeight * scaleY};
+        return noteSceneRect(note).translated(-cameraX, -cameraY);
     }
 
     Note *pronunciationAt(const QPointF &viewportPosition) const {
@@ -1725,6 +1726,61 @@ public:
     }
 
 private:
+    QRectF noteSceneRect(const Note *note) const {
+        if (!note)
+            return {};
+        return {note->localStart() * pixelsPerTick(),
+                (127 - note->keyIndex()) * noteHeight * scaleY,
+                note->length() * pixelsPerTick(), noteHeight * scaleY};
+    }
+
+    QRectF focusSceneRect(const HistoryFocus &focus, QList<int> *resolvedIds = nullptr) const {
+        QRectF bounds;
+        for (const auto id : focus.objectIds) {
+            if (const auto *note = clip->findNoteById(id)) {
+                if (resolvedIds)
+                    resolvedIds->append(id);
+                const auto rect = noteSceneRect(note);
+                bounds = bounds.isNull() ? rect : bounds.united(rect);
+            }
+        }
+        if (!bounds.isNull())
+            return bounds;
+
+        const auto localStart =
+            focus.ticksAreLocal ? focus.tickStart : focus.tickStart - clip->start();
+        const auto localEnd = focus.ticksAreLocal ? focus.tickEnd : focus.tickEnd - clip->start();
+        const auto keyHeight = noteHeight * scaleY;
+        const auto top = (127.0 - focus.valueEnd) * keyHeight;
+        const auto bottom = (127.0 - focus.valueStart) * keyHeight + keyHeight;
+        return {localStart * pixelsPerTick(), top,
+                std::max(1.0, (localEnd - localStart) * pixelsPerTick()),
+                std::max(keyHeight, bottom - top)};
+    }
+
+    bool ensureSceneRectVisible(const QRectF &rect, const double xMargin, const double yMargin) {
+        const auto bounds = rect.normalized();
+        if (!bounds.isValid() || !std::isfinite(bounds.left()) ||
+            !std::isfinite(bounds.top()) || !std::isfinite(bounds.right()) ||
+            !std::isfinite(bounds.bottom())) {
+            return false;
+        }
+        const auto targetX = EditorScrollUtils::boundedOffset(
+            EditorScrollUtils::ensureVisibleOffset(cameraX, q->width(), bounds.left(),
+                                                   bounds.right(), xMargin),
+            sceneWidth(), q->width());
+        const auto targetY = EditorScrollUtils::boundedOffset(
+            EditorScrollUtils::ensureVisibleOffset(cameraY, q->height(), bounds.top(),
+                                                   bounds.bottom(), yMargin),
+            sceneHeight(), q->height());
+        if (cameraX == targetX && cameraY == targetY)
+            return true;
+        cameraX = targetX;
+        cameraY = targetY;
+        viewportChanged(false);
+        return true;
+    }
+
     QPointF physicalCameraOffset() const {
         return QPointF(cameraX, cameraY) * dpr;
     }

@@ -185,6 +185,28 @@ int main(int argc, char *argv[]) {
                qFuzzyCompare(viewport.verticalOffset(), 140.0),
            "resizing must clamp preserved offsets to the new scroll range");
 
+    EditorViewportController focusViewport;
+    focusViewport.setEnsureContentFillsViewport(false, false);
+    focusViewport.setContentTickRange(0, 30000);
+    focusViewport.setVerticalContent(20, 72);
+    focusViewport.setViewportSize(QSizeF(800, 300));
+    focusViewport.scrollBy(QPointF(300, 400));
+    int focusViewportChanges = 0;
+    QObject::connect(&focusViewport, &EditorViewportController::viewportChanged, &rhiViewport,
+                     [&focusViewportChanges] { ++focusViewportChanges; });
+    expect(focusViewport.ensureVisible(QRectF(500, 500, 100, 50), 24, 24) &&
+               qFuzzyCompare(focusViewport.horizontalOffset(), 300.0) &&
+               qFuzzyCompare(focusViewport.verticalOffset(), 400.0) && focusViewportChanges == 0,
+           "revealing an already visible RHI focus must not move or notify the viewport");
+    expect(focusViewport.ensureVisible(QRectF(1050, 680, 100, 40), 24, 24) &&
+               qFuzzyCompare(focusViewport.horizontalOffset(), 374.0) &&
+               qFuzzyCompare(focusViewport.verticalOffset(), 444.0) && focusViewportChanges == 1,
+           "revealing an obscured RHI focus must scroll only the minimum required distance");
+    expect(focusViewport.ensureVisible(QRectF(320, 420, 10, 10), 24, 24) &&
+               qFuzzyCompare(focusViewport.horizontalOffset(), 296.0) &&
+               qFuzzyCompare(focusViewport.verticalOffset(), 396.0) && focusViewportChanges == 2,
+           "revealing toward the leading edges must preserve the requested margin");
+
     if (g_failures == 0) {
         QTextStream(stdout) << "All ScrollBarInterplay tests passed" << Qt::endl;
         return 0;

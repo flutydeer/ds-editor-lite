@@ -35,6 +35,7 @@ public:
     bool restoreState(const State &state);
     bool setScale(double horizontal, double vertical, const QPointF &anchor);
     bool centerAt(double tick, double unit);
+    bool ensureVisible(const QRectF &rect, double xMargin, double yMargin);
     bool setStartTick(double tick);
     void scrollBy(const QPointF &deltaPixels);
     void zoomHorizontal(double wheelDelta, double anchorX);
