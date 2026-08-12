@@ -100,19 +100,6 @@ void MainMenuView::openRecentProject(const QString &filePath) {
     d->onOpenRecentProject(filePath);
 }
 
-void MainMenuView::setWindowShortcutsActive(const bool active) {
-    Q_D(MainMenuView);
-    const auto context = active ? Qt::ApplicationShortcut : Qt::WidgetShortcut;
-    const QList actions{d->actionNew,         d->actionOpen,       d->actionSave,
-                        d->actionSaveAs,      d->actionUndo,       d->actionRedo,
-                        d->actionOctaveUp,    d->actionOctaveDown, d->actionFillLyrics,
-                        d->actionSearchLyrics};
-    for (auto *action : actions) {
-        if (action)
-            action->setShortcutContext(context);
-    }
-}
-
 void MainMenuView::changeEvent(QEvent *event) {
     QMenuBar::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
@@ -121,10 +108,6 @@ void MainMenuView::changeEvent(QEvent *event) {
 
 void MainMenuViewPrivate::onNew() const {
     documentWorkflowController->requestNew();
-}
-
-void MainMenuViewPrivate::onNewWindow() const {
-    m_mainWindow->requestNewWindow();
 }
 
 void MainMenuViewPrivate::onOpen() {
@@ -157,7 +140,7 @@ void MainMenuViewPrivate::onOpen() {
         qDebug() << "User cancelled open";
         return;
     }
-    m_mainWindow->requestOpenDocument(fileName);
+    documentWorkflowController->requestOpen(fileName);
 }
 
 void MainMenuViewPrivate::onOpenRecentProject(const QString &filePath) {
@@ -166,7 +149,7 @@ void MainMenuViewPrivate::onOpenRecentProject(const QString &filePath) {
         Toast::show(tr("File does not exist: %1").arg(filePath));
         return;
     }
-    m_mainWindow->requestOpenDocument(filePath);
+    documentWorkflowController->requestOpen(filePath);
 }
 
 void MainMenuViewPrivate::onClearRecentProjects() {
@@ -206,7 +189,7 @@ void MainMenuViewPrivate::refreshRecentProjectsMenu() {
 }
 
 void MainMenuViewPrivate::openFileWithSavePrompt(const QString &filePath) {
-    m_mainWindow->requestOpenDocument(filePath);
+    documentWorkflowController->requestOpen(filePath);
 }
 
 void MainMenuViewPrivate::onImportMidiFile() {
@@ -403,7 +386,7 @@ void MainMenuViewPrivate::onQuantize() {
 
 void MainMenuViewPrivate::exitApp() {
     qDebug() << "MainMenuViewPrivate::exitApp";
-    m_mainWindow->quit();
+    m_mainWindow->close();
 }
 
 void MainMenuViewPrivate::enterClipEditorState() {
@@ -536,10 +519,6 @@ void MainMenuViewPrivate::initFileActions() {
     actionNew->setShortcut(QKeySequence("Ctrl+N"));
     actionNew->setShortcutContext(Qt::ApplicationShortcut);
     connect(actionNew, &QAction::triggered, this, [this] { onNew(); });
-
-    actionNewWindow = new QAction(tr("New Window"), this);
-    setMenuIcon(actionNewWindow, QStringLiteral(":/svg/icons/window_apps_16_filled.svg"));
-    connect(actionNewWindow, &QAction::triggered, this, [this] { onNewWindow(); });
 
     actionOpen = new QAction(tr("&Open..."));
     setMenuIcon(actionOpen, QStringLiteral(":/svg/icons/folder_open_16_regular.svg"));
@@ -688,7 +667,6 @@ Menu *MainMenuViewPrivate::buildFileMenu() {
     Q_Q(MainMenuView);
     menuFile = new Menu(tr("&File"), q);
     menuFile->addAction(actionNew);
-    menuFile->addAction(actionNewWindow);
     menuFile->addAction(actionOpen);
 
     menuRecentProjects = new Menu(tr("Recent Projects"), q);
@@ -837,7 +815,6 @@ void MainMenuViewPrivate::retranslateUi() {
     m_undoName = historyManager->undoActionName();
     m_redoName = historyManager->redoActionName();
     actionNew->setText(tr("&New"));
-    actionNewWindow->setText(tr("New Window"));
     actionOpen->setText(tr("&Open..."));
     actionClearRecentProjects->setText(tr("Clear Recent Projects"));
     actionSave->setText(tr("&Save"));

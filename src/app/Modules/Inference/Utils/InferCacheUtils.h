@@ -2,24 +2,11 @@
 #define INFERCACHEUTILS_H
 
 #include <QSet>
-#include <QSharedPointer>
 #include <QString>
 
 #include <QList>
 
-class QMutex;
-
 namespace InferCacheUtils {
-    class CacheWriteGuard final {
-    public:
-        explicit CacheWriteGuard(const QString &key);
-        ~CacheWriteGuard();
-
-        Q_DISABLE_COPY_MOVE(CacheWriteGuard)
-
-    private:
-        QSharedPointer<QMutex> m_mutex;
-    };
 
     struct CacheFileInfo {
         QString fileName;

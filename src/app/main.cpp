@@ -1,19 +1,22 @@
-#include "ApplicationContext.h"
+#include "AppContext.h"
 #include "Bootstrap/AppEnvironment.h"
 #include "Bootstrap/CrashHandler.h"
-#include "Bootstrap/DocumentManager.h"
+#include "Bootstrap/ExternalOpenRequestQueue.h"
 #include "Bootstrap/LoggingBootstrap.h"
 #include "Bootstrap/Restarter.h"
-#include "Bootstrap/SessionAwareApplication.h"
 #include "Bootstrap/SingleInstanceCoordinator.h"
 #include "Bootstrap/StartupArguments.h"
+#include "Bootstrap/WindowPlacement.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
+#include "UI/Window/MainWindow.h"
 #include "Utils/UiLanguageManager.h"
 
+#include <QApplication>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QMessageBox>
@@ -26,8 +29,7 @@ int main(int argc, char *argv[]) {
     mstimer.start();
 
     AppEnvironment::preInit();
-    SessionAwareApplication a(argc, argv);
-    a.setQuitOnLastWindowClosed(false);
+    QApplication a(argc, argv);
     AppEnvironment::postInit();
     const auto startupPaths = StartupArguments::projectFilePaths();
     SingleInstanceRequest startupRequest{
@@ -66,8 +68,8 @@ int main(int argc, char *argv[]) {
         if (initialThemeId.isEmpty())
             initialThemeId = options->appearance()->themeId;
 
-        // Application services outlive all document sessions and windows.
-        ApplicationContext applicationContext(std::move(options));
+        // Construct AppContext — creates ALL business singletons in dependency order.
+        AppContext appContext(std::move(options));
 
         if (!ThemeManager::instance()->initialize(initialThemeId)) {
             const auto error = ThemeLoader::lastError();
@@ -83,11 +85,18 @@ int main(int argc, char *argv[]) {
 
         packageManager->initialize(appOptions->general()->packageSearchPaths);
 
-        DocumentManager documentManager;
-        documentManager.handleRequest(startupRequest);
-        coordinator.setRequestHandler([&documentManager](const SingleInstanceRequest &request) {
-            documentManager.handleRequest(request);
+        MainWindow w;
+        WindowPlacement windowPlacement(w);
+        windowPlacement.restoreOrPlace(appOptions->window()->mainWindowGeometry());
+        ExternalOpenRequestQueue requestQueue(documentWorkflowController, &w);
+        requestQueue.enqueue(startupRequest);
+        coordinator.setRequestHandler([&requestQueue](const SingleInstanceRequest &request) {
+            requestQueue.enqueue(request);
         });
+        w.show();
+#if defined(WITH_DIRECT_MANIPULATION)
+        w.registerDirectManipulation();
+#endif
 
         const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
         qInfo() << "App launched in" << time << "ms";
@@ -95,6 +104,9 @@ int main(int argc, char *argv[]) {
         CrashHandler crashHandler;
         result = a.exec();
         coordinator.stopAcceptingRequests();
+        appOptions->window()->setMainWindowGeometry(windowPlacement.saveGeometry());
+        if (!appOptions->saveAndNotify(AppOptionsGlobal::Window))
+            qWarning("Failed to save main-window placement");
     }
     coordinator.shutdown();
     return Restarter(QDir::currentPath()).restartOrExit(result);

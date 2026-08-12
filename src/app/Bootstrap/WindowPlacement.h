@@ -17,7 +17,6 @@ public:
     ~WindowPlacement() override;
 
     void restoreOrPlace(const QByteArray &geometry);
-    void placeCascaded(const QRect &anchorGeometry);
     [[nodiscard]] QByteArray saveGeometry() const;
 
 protected:

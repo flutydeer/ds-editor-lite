@@ -2,10 +2,6 @@
 #define TASKMANAGER_P_H
 
 #include <QThreadPool>
-#include <QMutex>
-#include <QWaitCondition>
-
-#include <functional>
 
 class Task;
 
@@ -32,9 +28,6 @@ public:
     QThreadPool *threadPool = QThreadPool::globalInstance();
     BackgroundWorker m_worker;
     QThread m_thread;
-    std::function<QUuid()> documentIdProvider;
-    QMutex completionMutex;
-    QWaitCondition completionCondition;
 
 private:
     TaskManager *q_ptr;

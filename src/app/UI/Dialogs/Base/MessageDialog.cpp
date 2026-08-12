@@ -24,15 +24,12 @@ void MessageDialog::addButton(const QString &text, int buttonId) {
 
 void MessageDialog::addAccentButton(const QString &text, int buttonId) {
     auto *button = new AccentButton(text, this);
-    button->setDefault(true);
-    button->setAutoDefault(true);
     buttonBar()->addButton(button);
 
     buttons[buttonId] = button;
 
     connect(button, &QPushButton::clicked, this,
             [this, buttonId] { handleButtonClicked(buttonId); });
-    button->setFocus(Qt::OtherFocusReason);
 }
 
 void MessageDialog::handleButtonClicked(const int buttonId) {

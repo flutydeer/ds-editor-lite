@@ -40,7 +40,6 @@
 #include <Model/AppOptions/AppOptions.h>
 #include "Global/AppGlobal.h"
 #include "AppContext.h"
-#include <lite/Core/SingletonRegistry.h>
 #include "UI/Controls/LevelMeterManager.h"
 
 #define DEVICE_LOCKER                                                                              \
@@ -55,20 +54,37 @@ public:
     ~AudioFormatIOObject() override = default;
 };
 
+static AudioContext *m_instance = nullptr;
+
 static AudioExporter *m_exporter = nullptr;
 
+static qint64 tickToSample(const double tick) {
+    const auto sr =
+        m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
+    // Piecewise mapping over the tempo map: anchor on the governing tempo
+    // point and extrapolate linearly inside the segment. With a single tempo
+    // point this reduces exactly to the old constant-tempo formula.
+    const auto &timeline = appModel->timeline();
+    const int refTick =
+        timeline.nearestTickWithTempoTo(static_cast<int>(std::floor(qMax(0.0, tick))));
+    const auto tempo = timeline.tempoAt(refTick);
+    const auto refSamples = timeline.tickToMs(refTick) / 1000.0 * sr;
+    return static_cast<qint64>(refSamples + (tick - refTick) * 60.0 * sr / tempo /
+                                                AppGlobal::ticksPerQuarterNote);
+}
+
+static double sampleToTick(const qint64 sample) {
+    const auto sr =
+        m_instance->preMixer()->isOpen() ? m_instance->preMixer()->sampleRate() : 48000.0;
+    return appModel->timeline().msToTick(static_cast<double>(sample) / sr * 1000.0);
+}
+
 AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
+    m_instance = this;
+
     AudioSystem::outputSystem()->context()->preMixer()->addSource(preMixer());
 
-    setTimeConverter([this](const int tick) {
-        const auto sr = preMixer()->isOpen() ? preMixer()->sampleRate() : 48000.0;
-        const auto &timeline = appModel->timeline();
-        const int refTick = timeline.nearestTickWithTempoTo(qMax(0, tick));
-        const auto tempo = timeline.tempoAt(refTick);
-        const auto refSamples = timeline.tickToMs(refTick) / 1000.0 * sr;
-        return static_cast<qint64>(refSamples + (tick - refTick) * 60.0 * sr / tempo /
-                                                    AppGlobal::ticksPerQuarterNote);
-    });
+    setTimeConverter(&tickToSample);
 
     const auto formatManager = new talcs::FormatManager(this);
     formatManager->addEntry(new talcs::StandardFormatEntry);
@@ -81,9 +97,7 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     connect(transport(), &talcs::TransportAudioSource::positionAboutToChange, this,
             [this](const qint64 positionSample) {
                 m_transportPositionFlag = false;
-                const auto sr = preMixer()->isOpen() ? preMixer()->sampleRate() : 48000.0;
-                playbackController->setPosition(appModel->timeline().msToTick(
-                    static_cast<double>(positionSample) / sr * 1000.0));
+                playbackController->setPosition(sampleToTick(positionSample));
                 m_transportPositionFlag = true;
             });
 
@@ -120,11 +134,11 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
                         break;
                 }
             });
-    connect(appModel, &AppModel::trackMoved, this,
-            [this](const qsizetype from, const qsizetype to) {
-                DEVICE_LOCKER;
-                handleTrackMoved(static_cast<int>(from), static_cast<int>(to));
-            });
+    connect(appModel, &AppModel::trackMoved, this, [this](const qsizetype from,
+                                                          const qsizetype to) {
+        DEVICE_LOCKER;
+        handleTrackMoved(static_cast<int>(from), static_cast<int>(to));
+    });
 
     connect(appModel, &AppModel::timelineChanged, this, [this] {
         DEVICE_LOCKER;
@@ -197,14 +211,14 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 }
 
 AudioContext::~AudioContext() {
-    AudioSystem::outputSystem()->context()->preMixer()->removeSource(preMixer());
     for (const auto trackSynthesizer : m_trackSynthDict.values()) {
         delete trackSynthesizer;
     }
+    m_instance = nullptr;
 }
 
 AudioContext *AudioContext::instance() {
-    return SingletonRegistry::instance<AudioContext>();
+    return m_instance;
 }
 
 Track *AudioContext::getTrackFromContext(const talcs::DspxTrackContext *trackContext) const {
@@ -291,7 +305,7 @@ void AudioContext::handlePlaybackStatusChanged(const PlaybackStatus status) {
 
 void AudioContext::handlePlaybackPositionChanged(const double positionTick) const {
     if (m_transportPositionFlag)
-        transport()->setPosition(timeConverter()(static_cast<int>(positionTick)));
+        transport()->setPosition(tickToSample(positionTick));
 }
 
 void AudioContext::tickLevelMeters() {
@@ -302,7 +316,8 @@ void AudioContext::tickLevelMeters() {
         if (!m_trackLevelMeterValue.contains(track))
             return;
         auto &pair = m_trackLevelMeterValue[track];
-        if (notPlaying && (pair.first->targetValue() > -96 || pair.second->targetValue() > -96)) {
+        if (notPlaying && (pair.first->targetValue() > -96 ||
+                           pair.second->targetValue() > -96)) {
             pair.first->setTargetValue(-96);
             pair.second->setTargetValue(-96);
         }
@@ -330,15 +345,15 @@ void AudioContext::tickLevelMeters() {
 
     if (notPlaying) {
         bool allAtFloor = true;
-        for (auto it = m_trackLevelMeterValue.constBegin(); it != m_trackLevelMeterValue.constEnd();
-             ++it) {
+        for (auto it = m_trackLevelMeterValue.constBegin();
+             it != m_trackLevelMeterValue.constEnd(); ++it) {
             if (it->first->currentValue() > -96 || it->second->currentValue() > -96) {
                 allAtFloor = false;
                 break;
             }
         }
-        if (allAtFloor && m_masterLevelMeterValueL &&
-            m_masterLevelMeterValueL->currentValue() <= -96) {
+        if (allAtFloor &&
+            m_masterLevelMeterValueL && m_masterLevelMeterValueL->currentValue() <= -96) {
             m_levelMeterActive = false;
             return;
         }
@@ -538,12 +553,10 @@ void AudioContext::handleTimeChanged() const {
 
 void AudioContext::updateLoopingRange() const {
     const auto &settings = appStatus->loopSettings.get();
-    if (settings.enabled) {
-        const auto convert = timeConverter();
-        transport()->setLoopingRange(convert(settings.start), convert(settings.end()));
-    } else {
+    if (settings.enabled)
+        transport()->setLoopingRange(tickToSample(settings.start), tickToSample(settings.end()));
+    else
         transport()->setLoopingRange(-1, -1);
-    }
 }
 
 void AudioContext::updateSmoothedValue(std::shared_ptr<talcs::SmoothedFloat> &sm, float dBL) {

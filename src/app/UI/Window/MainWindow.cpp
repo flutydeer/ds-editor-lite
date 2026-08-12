@@ -11,7 +11,6 @@
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/TrackController.h"
 #include "Controller/UndoRedoController.h"
-#include "DocumentSession.h"
 #include "Modules/Import/DocumentImportController.h"
 #include "Modules/Import/ExternalFileClassifier.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -19,6 +18,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/History/HistoryManager.h>
 #include <lite/PackageManager/PackageManager.h>
+#include <lite/Tasking/TaskManager.h>
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/SilentSplitter.h>
@@ -26,6 +26,7 @@
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
 #include "UI/Dialogs/Base/MessageDialog.h"
+#include "UI/Dialogs/Base/TaskDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Dialogs/ResourceCheck/AudioResourcePage.h"
 #include "UI/Dialogs/ResourceCheck/ResourceCheckDialog.h"
@@ -53,7 +54,6 @@
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QMimeData>
-#include <QMessageBox>
 #include <QProcess>
 #include <QShortcut>
 #include <QSplitter>
@@ -66,10 +66,7 @@
 #  include <QWDMHCore/DirectManipulationSystem.h>
 #endif
 
-MainWindow::MainWindow(DocumentSession *session) : m_session(session) {
-    if (m_session)
-        m_session->activate();
-    setProperty("documentSession", QVariant::fromValue(static_cast<QObject *>(m_session)));
+MainWindow::MainWindow() {
     setAcceptDrops(true);
 
     m_useNativeFrame = appOptions->appearance()->useNativeFrame;
@@ -130,6 +127,13 @@ MainWindow::MainWindow(DocumentSession *session) : m_session(session) {
             &MainWindow::updateWindowTitle);
     connect(historyManager, &HistoryManager::savePointChanged, this,
             &MainWindow::updateWindowTitle);
+    connect(documentWorkflowController, &DocumentWorkflowController::terminationApproved, this,
+            [this](const TerminationMode mode) {
+                m_restartRequested = mode == TerminationMode::Restart;
+                m_documentCloseApproved = true;
+                QTimer::singleShot(0, this, [this] { close(); });
+            });
+
     connect(appOptions, &AppOptions::optionsChanged, this,
             [this](const AppOptionsGlobal::Option option) {
                 if (option == AppOptionsGlobal::DeveloperOptions || option == AppOptionsGlobal::All)
@@ -141,6 +145,8 @@ MainWindow::MainWindow(DocumentSession *session) : m_session(session) {
             });
     updateDiagnosticFilter();
     updateLogWindowVisible();
+
+    connect(taskManager, &TaskManager::allDone, this, &MainWindow::onAllDone);
 
     connect(audioDecodingController, &AudioDecodingController::resolveSessionFinished, this,
             [this](const QList<int> &missingClipIds, const QList<int> &unconfirmedClipIds, int) {
@@ -194,7 +200,7 @@ MainWindow::MainWindow(DocumentSession *session) : m_session(session) {
 
     ThemeManager::instance()->addWindow(this);
 #if defined(WITH_DIRECT_MANIPULATION)
-    connect(appOptions, &AppOptions::optionsChanged, this, [this](AppOptionsGlobal::Option option) {
+    connect(appOptions, &AppOptions::optionsChanged, [&](AppOptionsGlobal::Option option) {
         if (option == AppOptionsGlobal::Option::Appearance) {
             // While the embedded options modal is open, DM must stay off: openAppOptions()
             // unregisters it and restoreBackgroundInteraction() re-registers on close. Any
@@ -225,20 +231,6 @@ MainWindow::~MainWindow() {
 #endif
     editorViewController->setView(nullptr);
     ThemeManager::instance()->removeWindow(this);
-}
-
-bool MainWindow::event(QEvent *event) {
-    if (m_session)
-        m_session->activate();
-    if (event->type() == QEvent::WindowActivate) {
-        m_mainMenu->setWindowShortcutsActive(true);
-        Dialog::setGlobalContext(this);
-        Toast::setGlobalContext(this);
-        emit windowActivated();
-    } else if (event->type() == QEvent::WindowDeactivate) {
-        m_mainMenu->setWindowShortcutsActive(false);
-    }
-    return QMainWindow::event(event);
 }
 
 void MainWindow::updateDiagnosticFilter() {
@@ -395,44 +387,11 @@ void MainWindow::restoreBackgroundInteraction() {
 }
 
 void MainWindow::quit() {
-    emit applicationCloseRequested(false);
+    documentWorkflowController->requestTermination(TerminationMode::Exit);
 }
 
 void MainWindow::restart() {
-    emit applicationCloseRequested(true);
-}
-
-void MainWindow::requestNewWindow() {
-    emit newWindowRequested();
-}
-
-void MainWindow::requestOpenDocument(const QString &path) {
-    if (path.isEmpty())
-        return;
-
-    constexpr int openInCurrentWindow = 1;
-    constexpr int openInNewWindow = 2;
-    MessageDialog dialog(tr("Open Project"), tr("Where do you want to open this project?"), this);
-    dialog.addAccentButton(tr("Open in Current Window"), openInCurrentWindow);
-    dialog.addButton(tr("Open in New Window"), openInNewWindow);
-    dialog.addButton(tr("Cancel"), 0);
-    const auto result = dialog.exec();
-    if (result == openInCurrentWindow)
-        emit openDocumentRequested(path, OpenDocumentMode::CurrentWindow);
-    else if (result == openInNewWindow)
-        emit openDocumentRequested(path, OpenDocumentMode::NewWindow);
-}
-
-void MainWindow::completeDocumentClose() {
-    if (m_documentClosed)
-        return;
-    m_documentClosed = true;
-    hide();
-    emit documentClosed();
-}
-
-void MainWindow::setProjectPathValidator(std::function<bool(const QString &)> validator) {
-    m_projectPathValidator = std::move(validator);
+    documentWorkflowController->requestTermination(TerminationMode::Restart);
 }
 
 QWidget *MainWindow::documentWorkflowParentWidget() {
@@ -471,31 +430,8 @@ SaveDecision MainWindow::askDocumentSaveDecision() {
 }
 
 QString MainWindow::chooseDocumentSavePath(const QString &suggestedPath) {
-    const auto path = QFileDialog::getSaveFileName(this, tr("Save project"), suggestedPath,
-                                                   tr("DiffScope Project File (*.dspx)"));
-    if (!path.isEmpty() && m_projectPathValidator && !m_projectPathValidator(path)) {
-        QMessageBox::warning(this, tr("Project already open"),
-                             tr("This project is already open in another window."));
-        return {};
-    }
-    return path;
-}
-
-ExternalModificationDecision MainWindow::askExternalModificationDecision(const QString &path) {
-    MessageDialog dialog(tr("Project changed on disk"),
-                         tr("The project was changed outside DS Editor Lite:\n%1").arg(path));
-    dialog.setTitle(tr("Project changed on disk"));
-    dialog.addAccentButton(tr("Overwrite"), 1);
-    dialog.addButton(tr("Save As"), 2);
-    dialog.addButton(tr("Cancel"), 0);
-    switch (dialog.exec()) {
-        case 1:
-            return ExternalModificationDecision::Overwrite;
-        case 2:
-            return ExternalModificationDecision::SaveAs;
-        default:
-            return ExternalModificationDecision::Cancel;
-    }
+    return QFileDialog::getSaveFileName(this, tr("Save project"), suggestedPath,
+                                        tr("DiffScope Project File (*.dspx)"));
 }
 
 bool MainWindow::confirmOpenWithoutPackageMetadata() {
@@ -684,6 +620,13 @@ bool MainWindow::finalizeFocus(const HistoryFocus &focus) {
 void MainWindow::clearFocusPreview() {
 }
 
+void MainWindow::onAllDone() {
+    if (m_isCloseRequested) {
+        m_isAllDone = true;
+        close();
+    }
+}
+
 void MainWindow::onSplitterMoved(int pos, int index) {
     const auto sizes = m_splitter->sizes();
     if (sizes.size() < 2)
@@ -817,8 +760,46 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     if (m_bottomPanelDetached)
         attachBottomPanel();
 
-    event->ignore();
-    emit documentCloseRequested();
+    if (!m_documentCloseApproved) {
+        event->ignore();
+        documentWorkflowController->requestTermination(TerminationMode::Exit);
+        return;
+    }
+    if (m_isAllDone) {
+        if (m_waitDoneDialog)
+            m_waitDoneDialog->forceClose();
+        if (m_restartRequested)
+            restartApp();
+        QMainWindow::closeEvent(event);
+    } else if (m_isCloseRequested) {
+        qDebug() << "Waiting for all tasks done...";
+        event->ignore();
+    } else {
+        m_isCloseRequested = true;
+        qDebug() << "Terminating background tasks...";
+        m_waitDoneDialog = new TaskDialog(nullptr, false, false, this);
+        m_waitDoneDialog->setTitle(tr("%1 is exiting...").arg(qApp->applicationDisplayName()));
+        m_waitDoneDialog->setMessage(tr("Terminating background tasks..."));
+
+        m_waitDoneDialogDelayTimer.setSingleShot(true);
+        m_waitDoneDialogDelayTimer.setInterval(500);
+        connect(&m_waitDoneDialogDelayTimer, &QTimer::timeout, this, [this] {
+            if (m_waitDoneDialog)
+                m_waitDoneDialog->show();
+        });
+        m_waitDoneDialogDelayTimer.start();
+
+        taskManager->terminateAllTasks();
+        auto thread = new QThread;
+        taskManager->moveToThread(thread);
+        connect(thread, &QThread::started, taskManager, &TaskManager::wait);
+        thread->start();
+        // Keep the window alive until background tasks have been terminated
+        // (TaskManager::allDone -> onAllDone -> close()). Accepting here would
+        // close the window and quit the event loop before onAllDone runs, so
+        // restartApp() (the "Restart Now" path) would never be reached.
+        event->ignore();
+    }
 }
 
 #if defined(WITH_DIRECT_MANIPULATION)
@@ -893,6 +874,10 @@ void MainWindow::emulateLeaveEvent(QWidget *widget) {
     });
 }
 
+void MainWindow::restartApp() {
+    qApp->setProperty("restart", true);
+}
+
 void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
     if (event->mimeData()->hasUrls()) {
         for (const QUrl &url : event->mimeData()->urls()) {
@@ -923,7 +908,7 @@ void MainWindow::dropEvent(QDropEvent *event) {
     }
 
     if (projectPaths.size() == 1 && importPaths.isEmpty()) {
-        requestOpenDocument(projectPaths.first());
+        documentWorkflowController->requestOpen(projectPaths.first());
         return;
     }
     // Mixing a project with other files rejects the whole batch inside the

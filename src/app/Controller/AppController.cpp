@@ -31,20 +31,6 @@
 #include <algorithm>
 #include <cmath>
 
-namespace {
-    AppStatus::ModuleStatus appPackageModuleStatus(const PackageManager::ModuleStatus status) {
-        switch (status) {
-            case PackageManager::ModuleStatus::Loading:
-                return AppStatus::ModuleStatus::Loading;
-            case PackageManager::ModuleStatus::Ready:
-                return AppStatus::ModuleStatus::Ready;
-            case PackageManager::ModuleStatus::Error:
-                return AppStatus::ModuleStatus::Error;
-        }
-        return AppStatus::ModuleStatus::Unknown;
-    }
-}
-
 AppController::AppController(QObject *parent)
     : QObject(parent), d_ptr(new AppControllerPrivate(this)) {
     Q_D(AppController);
@@ -215,11 +201,19 @@ void AppControllerPrivate::initializeModules() {
 
     // Map the package library's own scan-lifecycle signal onto AppStatus, which
     // the library no longer references directly.
-    auto *documentStatus = appStatus;
-    documentStatus->packageModuleStatus = appPackageModuleStatus(packageManager->moduleStatus());
-    connect(packageManager, &PackageManager::moduleStatusChanged, documentStatus,
-            [documentStatus](PackageManager::ModuleStatus status) {
-                documentStatus->packageModuleStatus = appPackageModuleStatus(status);
+    connect(packageManager, &PackageManager::moduleStatusChanged, appStatus,
+            [](PackageManager::ModuleStatus status) {
+                appStatus->packageModuleStatus = [status] {
+                    switch (status) {
+                        case PackageManager::ModuleStatus::Loading:
+                            return AppStatus::ModuleStatus::Loading;
+                        case PackageManager::ModuleStatus::Ready:
+                            return AppStatus::ModuleStatus::Ready;
+                        case PackageManager::ModuleStatus::Error:
+                            return AppStatus::ModuleStatus::Error;
+                    }
+                    return AppStatus::ModuleStatus::Unknown;
+                }();
             });
 
     connect(appModel, &AppModel::modelChanged, audioDecodingController,

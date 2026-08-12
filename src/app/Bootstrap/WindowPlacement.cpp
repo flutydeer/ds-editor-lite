@@ -10,7 +10,6 @@
 #include <utility>
 
 namespace {
-    constexpr int cascadeOffset = 28;
     constexpr QSize largeDefaultSize{1536, 816};
     constexpr QSize compactDefaultSize{1366, 768};
 
@@ -27,16 +26,6 @@ namespace {
             return 0;
         return static_cast<qint64>(intersection.width()) * intersection.height();
     }
-}
-
-void WindowPlacement::placeCascaded(const QRect &anchorGeometry) {
-    auto geometry = anchorGeometry.translated(cascadeOffset, cascadeOffset);
-    auto *screen = screenForGeometry(geometry);
-    const auto available = availableGeometry(screen);
-    if (available.isValid())
-        geometry = constrainedGeometry(geometry, available);
-    m_window.setGeometry(geometry);
-    scheduleCorrection();
 }
 
 WindowPlacement::WindowPlacement(QWidget &window) : m_window(window) {

@@ -6,7 +6,6 @@
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
-#include "Modules/Inference/Utils/InferCacheUtils.h"
 #include <lite/ProjectModel/Utils/PhonemeHeadLayout.h>
 #include <lite/Support/JsonUtils.h>
 #include "InferTaskCommon.h"
@@ -82,7 +81,6 @@ void InferDurationTask::runTask() {
     GenericInferModel model;
     const auto input = m_input.toEngineModel();
     m_inputHash = input.hashData();
-    InferCacheUtils::CacheWriteGuard cacheGuard(QStringLiteral("duration:%1").arg(m_inputHash));
     const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
     if (!cacheDir.exists())
         cacheDir.mkpath(".");
@@ -333,8 +331,9 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
             continue;
 
         // Skip consecutive SP and AP phonemes.
-        while (phoneIndex < outputPhones.size() && (outputPhones.at(phoneIndex).token == "SP" ||
-                                                    outputPhones.at(phoneIndex).token == "AP")) {
+        while (phoneIndex < outputPhones.size() &&
+               (outputPhones.at(phoneIndex).token == "SP" ||
+                outputPhones.at(phoneIndex).token == "AP")) {
             phoneIndex++;
         }
 
@@ -350,8 +349,9 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
             const auto &outputPhone = outputPhones.at(phoneIndex);
             if (outputPhone.token != phonemeName.name) {
                 qCritical() << "Duration output phoneme mapping mismatch. clipId:" << clipId()
-                            << "pieceId:" << pieceId() << "taskId:" << id() << "noteId:" << note.id
-                            << "expected:" << phonemeName.name << "actual:" << outputPhone.token;
+                            << "pieceId:" << pieceId() << "taskId:" << id()
+                            << "noteId:" << note.id << "expected:" << phonemeName.name
+                            << "actual:" << outputPhone.token;
                 return false;
             }
             if (phonemeName.isOnset)
@@ -364,15 +364,16 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
 
         if (!std::is_sorted(noteOffsets.cbegin(), noteOffsets.cend())) {
             qCritical() << "Duration output produced unordered phoneme offsets. clipId:" << clipId()
-                        << "pieceId:" << pieceId() << "taskId:" << id() << "noteId:" << note.id
-                        << "offsets:" << noteOffsets;
+                        << "pieceId:" << pieceId() << "taskId:" << id()
+                        << "noteId:" << note.id << "offsets:" << noteOffsets;
             return false;
         }
         note.phonemeOffsets = noteOffsets;
     }
 
-    while (phoneIndex < outputPhones.size() && (outputPhones.at(phoneIndex).token == "SP" ||
-                                                outputPhones.at(phoneIndex).token == "AP")) {
+    while (phoneIndex < outputPhones.size() &&
+           (outputPhones.at(phoneIndex).token == "SP" ||
+            outputPhones.at(phoneIndex).token == "AP")) {
         phoneIndex++;
     }
     if (phoneIndex != outputPhones.size()) {
@@ -382,7 +383,8 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
         return false;
     }
 
-    if (!result.notes.isEmpty() && !result.notes.first().isRest && !result.notes.first().isSlur) {
+    if (!result.notes.isEmpty() && !result.notes.first().isRest &&
+        !result.notes.first().isSlur) {
         const auto headLayout =
             PhonemeHeadLayout::calculate(result.paddingStartMs, result.headAvailableLengthMs,
                                          result.notes.first().phonemeOffsets);

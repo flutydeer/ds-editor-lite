@@ -4,6 +4,7 @@
 #include <QAction>
 #include <QMainWindow>
 #include <QPointer>
+#include <QTimer>
 
 #include "Global/AppOptionsGlobal.h"
 #include "Interface/IMainWindow.h"
@@ -11,11 +12,11 @@
 #include "Controller/DocumentWorkflow/IDocumentWorkflowUi.h"
 #include "UI/Views/BottomPanelView.h"
 
-#include <functional>
 
 class QSplitter;
 class MainTitleBar;
 class MainMenuView;
+class TaskDialog;
 class LogWindow;
 class TrackEditorView;
 class ClipEditorView;
@@ -23,12 +24,6 @@ class EmbeddedModalHost;
 class AppOptionsDialog;
 class QAction;
 class QShortcut;
-class DocumentSession;
-
-enum class OpenDocumentMode {
-    CurrentWindow,
-    NewWindow,
-};
 
 namespace QWK {
     class WidgetWindowAgent;
@@ -41,7 +36,7 @@ class MainWindow final : public QMainWindow,
     Q_OBJECT
 
 public:
-    explicit MainWindow(DocumentSession *session = nullptr);
+    explicit MainWindow();
     ~MainWindow() override;
     void updateWindowTitle() override;
     void quit() override;
@@ -67,38 +62,26 @@ public:
     QWidget *documentWorkflowParentWidget() override;
     SaveDecision askDocumentSaveDecision() override;
     QString chooseDocumentSavePath(const QString &suggestedPath) override;
-    ExternalModificationDecision askExternalModificationDecision(const QString &path) override;
     bool confirmOpenWithoutPackageMetadata() override;
     void showDocumentWorkflowError(const ProjectOperationError &error) override;
     void showDocumentWorkflowBusy() override;
-    void requestNewWindow();
-    void requestOpenDocument(const QString &path);
-    void completeDocumentClose();
-    void setProjectPathValidator(std::function<bool(const QString &)> validator);
 #if defined(WITH_DIRECT_MANIPULATION)
     void registerDirectManipulation();
     void unregisterDirectManipulation();
 #endif
 
 public slots:
+    void onAllDone();
+
     // 内嵌式设置面板（EmbeddedModalHost 承载，带遮罩/动画）
     void openAppOptions(AppOptionsGlobal::Option option);
     void closeAppOptions();
 
 protected:
-    bool event(QEvent *event) override;
     void changeEvent(QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void dropEvent(QDropEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
-
-signals:
-    void newWindowRequested();
-    void openDocumentRequested(const QString &path, OpenDocumentMode mode);
-    void documentCloseRequested();
-    void documentClosed();
-    void applicationCloseRequested(bool restart);
-    void windowActivated();
 
 private slots:
     void onSplitterMoved(int pos, int index);
@@ -111,11 +94,14 @@ private:
     bool eventFilter(QObject *watched, QEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
     static void emulateLeaveEvent(QWidget *widget);
+    static void restartApp();
     void updateShutdownBlockReason();
 
+    bool m_restartRequested = false;
+    bool m_isCloseRequested = false;
+    bool m_isAllDone = false;
     bool m_isDirectManipulationRegistered = false;
-    bool m_documentClosed = false;
-    DocumentSession *m_session = nullptr;
+    bool m_documentCloseApproved = false;
 
     MainTitleBar *m_titleBar;
     MainMenuView *m_mainMenu = nullptr;
@@ -123,6 +109,9 @@ private:
     BottomPanelView *m_bottomPanelView;
     QSplitter *m_splitter;
     QByteArray m_splitterState;
+
+    QTimer m_waitDoneDialogDelayTimer;
+    TaskDialog *m_waitDoneDialog = nullptr;
 
     bool m_bottomPanelDetached = false;
     bool m_useNativeFrame = false;
@@ -147,7 +136,6 @@ private:
     // under the cursor, so focus must live inside the modal for scrolling to
     // reach the settings pages.
     QPointer<QWidget> m_focusBeforeModal;
-    std::function<bool(const QString &)> m_projectPathValidator;
 
     void suspendBackgroundInteraction();
     void restoreBackgroundInteraction();

@@ -37,27 +37,20 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(PackageManager)
 
 void PackageManager::initialize(const QStringList &searchPaths) {
     std::call_once(m_initialized, [this, searchPaths]() {
-        m_moduleStatus = ModuleStatus::Loading;
         Q_EMIT moduleStatusChanged(ModuleStatus::Loading);
         auto task = new GetInstalledPackagesTask(searchPaths);
         connect(task, &GetInstalledPackagesTask::finished, this, [this, task]() {
             taskManager->removeTask(task);
             if (task->result) {
-                m_moduleStatus = ModuleStatus::Ready;
                 Q_EMIT moduleStatusChanged(ModuleStatus::Ready);
             } else {
                 qCritical() << "Package scan failed:" << task->result.getError().message;
-                m_moduleStatus = ModuleStatus::Error;
                 Q_EMIT moduleStatusChanged(ModuleStatus::Error);
             }
             delete task;
         });
         taskManager->addAndStartTask(task);
     });
-}
-
-PackageManager::ModuleStatus PackageManager::moduleStatus() const {
-    return m_moduleStatus.load();
 }
 
 Expected<GetInstalledPackagesResult, GetInstalledPackagesError>

@@ -4,7 +4,6 @@
 #define documentWorkflowController DocumentWorkflowController::instance()
 
 #include "ProjectLoadTypes.h"
-#include "Utils/FileRevision.h"
 #include <lite/Core/Singleton.h>
 
 #include <QObject>
@@ -84,20 +83,12 @@ private:
     };
     enum class SaveDecisionResult { SaveWithPath, SaveWithoutPath, Discard, Cancel };
     enum class SavePathResult { Selected, Canceled };
-    enum class SaveResult {
-        SucceededAndResume,
-        SucceededAndFinish,
-        RetryWithNewPath,
-        Canceled,
-        FailedAndResume,
-        Failed
-    };
+    enum class SaveResult { SucceededAndResume, SucceededAndFinish, FailedAndResume, Failed };
 
     struct PendingRequest {
         quint64 requestId = 0;
         std::optional<DocumentOperation> operation;
         std::optional<TerminationMode> termination;
-        std::optional<FileRevision> sourceRevision;
         QString filePath;
     };
 
@@ -148,7 +139,6 @@ private:
     QString m_projectPath;
     // An empty name and path represent an untitled project; projectName() translates its label.
     QString m_projectName;
-    std::optional<FileRevision> m_projectRevision;
     QString m_lastProjectFolder;
     std::optional<TerminationMode> m_terminationAfterCancellation;
     quint64 m_nextRequestId = 0;
