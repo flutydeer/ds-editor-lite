@@ -13,6 +13,7 @@
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "UI/Views/Common/EdgeAutoScroller.h"
+#include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
@@ -465,14 +466,11 @@ public:
     }
 
     void prepareEdgeAutoScroll(const QPointF &pressPosition) {
-        disarmEdgeAutoScroll();
-        edgeAutoScrollPressPos = pressPosition;
+        edgeAutoScroller.prepareDrag(pressPosition);
     }
 
     void disarmEdgeAutoScroll() {
-        edgeAutoScrollArmed = false;
-        edgeAutoScrollDistanceReached = false;
-        edgeAutoScroller.stop();
+        edgeAutoScroller.stopDrag();
     }
 
     void updateEdgeAutoScrollState(const QPointF &pointerPosition) {
@@ -482,24 +480,10 @@ public:
             return;
         }
 
-        edgeAutoScrollAxesValue = axes;
-        edgeAutoScrollArmed = true;
-        if (!edgeAutoScrollDistanceReached) {
-            if ((pointerPosition - edgeAutoScrollPressPos).manhattanLength() <
-                QApplication::startDragDistance()) {
-                return;
-            }
-            edgeAutoScrollDistanceReached = true;
-        }
-
         const QRectF viewportRect(QPointF(), q->size());
-        const auto velocity = EdgeAutoScroller::velocity(
-            pointerPosition, edgeAutoScrollPressPos, viewportRect, edgeAutoScrollAxesValue,
-            edgeAutoScroller.config());
-        if (!velocity.isNull())
-            edgeAutoScroller.start();
-        else
-            edgeAutoScroller.stop();
+        edgeAutoScroller.setDragAxes(axes);
+        edgeAutoScroller.updateDragState(pointerPosition, viewportRect,
+                                         QApplication::startDragDistance());
     }
 
     void continueEdgeDragAt(const QPointF &viewportPosition,
@@ -526,7 +510,7 @@ public:
     }
 
     void onEdgeAutoScrollFrame(const double dtMs) {
-        if (!edgeAutoScrollArmed || QGuiApplication::mouseButtons() == Qt::NoButton ||
+        if (!edgeAutoScroller.isDragArmed() || QGuiApplication::mouseButtons() == Qt::NoButton ||
             !q->isVisible()) {
             disarmEdgeAutoScroll();
             return;
@@ -534,8 +518,7 @@ public:
 
         const QPointF pointerPosition(q->mapFromGlobal(QCursor::pos()));
         const QRectF viewportRect(QPointF(), q->size());
-        const auto step = edgeAutoScroller.computeStep(pointerPosition, edgeAutoScrollPressPos,
-                                                       viewportRect, edgeAutoScrollAxesValue, dtMs);
+        const auto step = edgeAutoScroller.computeDragStep(pointerPosition, viewportRect, dtMs);
         if (!step.isNull()) {
             cameraX += step.x();
             cameraY += step.y();
@@ -581,12 +564,12 @@ public:
             return Interaction::None;
         const auto rect = noteViewportRect(note);
         const auto relativeX = viewportPosition.x() - rect.left();
-        if (relativeX >= 0 && relativeX <= AppGlobal::resizeTolerance)
+        const auto edge = EditorResizeUtils::horizontalEdgeAt(
+            relativeX, rect.width(), AppGlobal::resizeTolerance);
+        if (edge == EditorResizeUtils::HorizontalEdge::Left)
             return Interaction::ResizeLeft;
-        if (relativeX >= rect.width() - AppGlobal::resizeTolerance &&
-            relativeX <= rect.width()) {
+        if (edge == EditorResizeUtils::HorizontalEdge::Right)
             return Interaction::ResizeRight;
-        }
         return Interaction::Move;
     }
 
@@ -2645,10 +2628,6 @@ public:
     EditorGlyphAtlas glyphAtlas;
     EditorRhiDrawList drawList;
     EdgeAutoScroller edgeAutoScroller;
-    Qt::Orientations edgeAutoScrollAxesValue;
-    QPointF edgeAutoScrollPressPos;
-    bool edgeAutoScrollArmed = false;
-    bool edgeAutoScrollDistanceReached = false;
     int noteFontPixelSize = 13;
     QColor whiteKeyColor{38, 40, 44};
     QColor blackKeyColor{31, 33, 37};
@@ -2698,6 +2677,7 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
 }
 
 PianoRollRhiWidget::~PianoRollRhiWidget() {
+    d->finishNoteErase(EditSessionEndReason::Discard);
     d->cancelPitchEdit(false);
     d->finishAnchorEditSession(EditSessionEndReason::Discard);
 }
@@ -2823,6 +2803,7 @@ void PianoRollRhiWidget::showEvent(QShowEvent *event) {
 
 void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
     d->disarmEdgeAutoScroll();
+    d->finishNoteErase(EditSessionEndReason::Discard);
     EditorRhiWidget::hideEvent(event);
     d->updateAutoPageTurnAvailability();
 }

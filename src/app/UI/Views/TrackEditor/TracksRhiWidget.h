@@ -162,6 +162,8 @@ private:
     void appendDropOverlay(EditorRhiFrameData &frame, double dpr) const;
     [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex,
                                                  double dpr) const;
+    [[nodiscard]] QRectF clipPhysicalRect(const Clip::ClipCommonProperties &properties,
+                                          int trackIndex, double dpr) const;
     [[nodiscard]] static QRectF clipPreviewRect(const ClipSnapshot &clip, double dpr);
     [[nodiscard]] AudioWaveformSampler::Result sampleAudioWaveform(AudioWaveformSampler &sampler,
                                                                    const AudioInfoModel &audioInfo,
@@ -250,11 +252,6 @@ private:
     Clip::ClipCommonProperties m_mouseDownProperties;
     int m_mouseDownTrackIndex = -1;
     bool m_dragMoved = false;
-    EdgeAutoScroller m_dragAutoScroller;
-    Qt::Orientations m_dragAutoScrollAxes;
-    QPointF m_dragAutoScrollPressPos;
-    bool m_dragAutoScrollArmed = false;
-    bool m_dragAutoScrollDistanceReached = false;
 
     // External file drag-and-drop state (Phase 1)
     bool m_externalDragActive = false;

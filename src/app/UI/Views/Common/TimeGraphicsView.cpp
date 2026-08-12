@@ -546,7 +546,7 @@ void TimeGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     if (m_isDraggingContent) {
         updateRubberBandSelection(mapToScene(event->pos()));
     }
-    if (m_edgeAutoScrollArmed)
+    if (m_edgeAutoScroller.isDragArmed())
         updateEdgeAutoScrollState(event->pos());
     QGraphicsView::mouseMoveEvent(event);
 }
@@ -703,7 +703,7 @@ void TimeGraphicsView::updateAutoPageTurnAvailability() {
 
 void TimeGraphicsView::armEdgeAutoScroll(Qt::Orientations axes) {
     const auto pointerPos = viewport()->mapFromGlobal(QCursor::pos());
-    if (!m_edgeAutoScrollArmed) {
+    if (!m_edgeAutoScroller.isDragArmed()) {
         armEdgeAutoScroll(axes, pointerPos);
         return;
     }
@@ -711,21 +711,16 @@ void TimeGraphicsView::armEdgeAutoScroll(Qt::Orientations axes) {
     // and re-evaluate the hot zone, keeping the press position intact. This
     // also covers subclasses whose mouseMoveEvent returns before reaching the
     // base class implementation.
-    m_edgeAutoScrollAxes = axes;
+    m_edgeAutoScroller.setDragAxes(axes);
     updateEdgeAutoScrollState(pointerPos);
 }
 
 void TimeGraphicsView::armEdgeAutoScroll(const Qt::Orientations axes, const QPoint &pressPos) {
-    m_edgeAutoScrollAxes = axes;
-    m_edgeAutoScrollArmed = !!axes;
-    m_edgeAutoScrollDistanceReached = false;
-    m_edgeAutoScrollPressPos = pressPos;
+    m_edgeAutoScroller.prepareDrag(pressPos, axes);
 }
 
 void TimeGraphicsView::disarmEdgeAutoScroll() {
-    m_edgeAutoScrollArmed = false;
-    m_edgeAutoScrollDistanceReached = false;
-    m_edgeAutoScroller.stop();
+    m_edgeAutoScroller.stopDrag();
 }
 
 bool TimeGraphicsView::isEdgeAutoScrollActive() const {
@@ -733,34 +728,21 @@ bool TimeGraphicsView::isEdgeAutoScrollActive() const {
 }
 
 void TimeGraphicsView::updateEdgeAutoScrollState(const QPoint &viewportPos) {
-    if (!m_edgeAutoScrollArmed)
-        return;
-
-    if (!m_edgeAutoScrollDistanceReached) {
-        const auto delta = viewportPos - m_edgeAutoScrollPressPos;
-        if (delta.manhattanLength() < QApplication::startDragDistance())
-            return;
-        m_edgeAutoScrollDistanceReached = true;
-    }
-
     const QRectF vpRect(QPointF(0, 0), viewport()->size());
-    const auto v = EdgeAutoScroller::velocity(viewportPos, m_edgeAutoScrollPressPos, vpRect,
-                                              m_edgeAutoScrollAxes, m_edgeAutoScroller.config());
-    const bool inHotZone = !v.isNull();
-    if (inHotZone && !m_edgeAutoScroller.isRunning()) {
+    const auto wasRunning = m_edgeAutoScroller.isRunning();
+    m_edgeAutoScroller.updateDragState(viewportPos, vpRect, QApplication::startDragDistance());
+    if (!wasRunning && m_edgeAutoScroller.isRunning()) {
         // Direct scroll bar writes must not fight the bar animations
         m_hBarAnimation.stop();
         m_vBarAnimation.stop();
-        m_edgeAutoScroller.start();
-    } else if (!inHotZone && m_edgeAutoScroller.isRunning()) {
-        m_edgeAutoScroller.stop();
     }
 }
 
 void TimeGraphicsView::onEdgeAutoScrollTimerFrame(double dtMs) {
     // Safety net: stop if the mouse button was released without us seeing the
     // event (e.g. release outside the window swallowed by a popup).
-    if (!m_edgeAutoScrollArmed || QGuiApplication::mouseButtons() == Qt::NoButton || !isVisible()) {
+    if (!m_edgeAutoScroller.isDragArmed() || QGuiApplication::mouseButtons() == Qt::NoButton ||
+        !isVisible()) {
         disarmEdgeAutoScroll();
         return;
     }
@@ -768,8 +750,7 @@ void TimeGraphicsView::onEdgeAutoScrollTimerFrame(double dtMs) {
     const auto pointerPos = QPointF(viewport()->mapFromGlobal(QCursor::pos()));
     const QRectF vpRect(QPointF(0, 0), viewport()->size());
 
-    const auto step = m_edgeAutoScroller.computeStep(pointerPos, QPointF(m_edgeAutoScrollPressPos),
-                                                     vpRect, m_edgeAutoScrollAxes, dtMs);
+    const auto step = m_edgeAutoScroller.computeDragStep(pointerPos, vpRect, dtMs);
     if (step.x() != 0)
         setHorizontalBarValue(horizontalBarValue() + step.x());
     if (step.y() != 0)

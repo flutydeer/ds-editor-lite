@@ -185,10 +185,6 @@ private:
 
     // Edge auto scroll state
     EdgeAutoScroller m_edgeAutoScroller;
-    Qt::Orientations m_edgeAutoScrollAxes;
-    bool m_edgeAutoScrollArmed = false;
-    bool m_edgeAutoScrollDistanceReached = false;
-    QPoint m_edgeAutoScrollPressPos;
 
     // Scene length = external base + temporary drag extension
     int m_baseSceneLength = 0;
