@@ -6,6 +6,6 @@ layout(location = 1) in vec4 vColor;
 layout(location = 0) out vec4 fragColor;
 
 void main() {
-    float coverage = texture(atlas, vTexCoord).a;
-    fragColor = vColor * coverage;
+    vec3 coverage = texture(atlas, vTexCoord).rgb;
+    fragColor = vec4(coverage * vColor.a, 0.0);
 }

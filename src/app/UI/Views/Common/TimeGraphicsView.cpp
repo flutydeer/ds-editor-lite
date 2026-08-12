@@ -12,6 +12,7 @@
 #include "TimeGraphicsScene.h"
 #include "TimeGridView.h"
 #include "TimeIndicatorView.h"
+#include "EditorWheelUtils.h"
 #include "Controller/PlaybackController.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -19,10 +20,6 @@
 #include "Global/AppGlobal.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/GUI/Controls/OverlayScrollBar.h>
-
-#if defined(Q_OS_MAC) && QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-#  define SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
-#endif
 
 static inline bool isDirectManipulationEnabled() {
 #if defined(WITH_DIRECT_MANIPULATION)
@@ -92,12 +89,6 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
 
     initializeAnimation();
     updateAnimationDuration();
-
-#ifndef SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
-    m_timer.setInterval(400);
-    m_timer.setSingleShot(true);
-    connect(&m_timer, &QTimer::timeout, this, [this]() { m_touchPadLock = false; });
-#endif
 
     connect(this, &TimeGraphicsView::visibleRectChanged,
             [this](const QRectF &rect) { m_scene->setVisibleRect(rect); });
@@ -327,7 +318,7 @@ void TimeGraphicsView::onWheelHorScale(QWheelEvent *event) {
     auto cursorPos = event->position().toPoint();
     auto scenePos = mapToScene(cursorPos);
 
-    auto deltaY = event->angleDelta().y();
+    const auto deltaY = EditorWheelUtils::wheelDelta(event, Qt::Vertical);
 
     auto targetScaleX = scaleX();
     if (deltaY > 0)
@@ -364,7 +355,7 @@ void TimeGraphicsView::onWheelVerScale(QWheelEvent *event) {
     auto cursorPos = event->position().toPoint();
     auto scenePos = mapToScene(cursorPos);
 
-    auto deltaX = event->angleDelta().x();
+    const auto deltaX = EditorWheelUtils::wheelDelta(event, Qt::Horizontal);
     auto targetScaleY = scaleY();
     if (deltaX > 0)
         targetScaleY = scaleY() * (1 + m_vZoomingStep * deltaX / 120);
@@ -399,10 +390,9 @@ void TimeGraphicsView::onWheelVerScale(QWheelEvent *event) {
 }
 
 void TimeGraphicsView::onWheelHorScroll(QWheelEvent *event) {
-    auto deltaY = event->angleDelta().y();
-    auto scrollLength = -1 * viewport()->width() * 0.2 * deltaY / 120;
+    const auto deltaY = EditorWheelUtils::horizontalScrollDelta(event);
     auto startValue = horizontalBarValue();
-    auto endValue = static_cast<int>(startValue + scrollLength);
+    auto endValue = EditorWheelUtils::scrollTarget(startValue, viewport()->width(), 0.2, deltaY);
     if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event))
         setHorizontalBarValue(endValue);
     else {
@@ -411,13 +401,18 @@ void TimeGraphicsView::onWheelHorScroll(QWheelEvent *event) {
 }
 
 void TimeGraphicsView::onWheelVerScroll(QWheelEvent *event) {
-    auto deltaY = event->angleDelta().y();
-    if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event)) {
-        QGraphicsView::wheelEvent(event);
+    const auto deltaY = EditorWheelUtils::wheelDelta(event, Qt::Vertical);
+    const auto fromWheel = isMouseEventFromWheel(event);
+    if (fromWheel)
+        m_verticalTouchPadScroll.reset();
+    const auto startValue = verticalBarValue();
+    const auto endValue =
+        fromWheel
+            ? EditorWheelUtils::scrollTarget(startValue, viewport()->height(), 0.15, deltaY)
+            : m_verticalTouchPadScroll.scrollTarget(startValue, viewport()->height(), 0.15, deltaY);
+    if (isDirectManipulationEnabled() || !fromWheel) {
+        setVerticalBarValue(endValue);
     } else {
-        auto scrollLength = -1 * viewport()->height() * 0.15 * deltaY / 120;
-        auto startValue = verticalBarValue();
-        auto endValue = static_cast<int>(startValue + scrollLength);
         verticalBarAnimateTo(endValue);
     }
 }
@@ -506,7 +501,10 @@ void TimeGraphicsView::wheelEvent(QWheelEvent *event) {
     } else if (event->modifiers() == Qt::ShiftModifier) {
         onWheelHorScroll(event);
     } else if (event->modifiers() == Qt::NoModifier) {
-        onWheelVerScroll(event);
+        if (EditorWheelUtils::dominantAxis(event) == Qt::Horizontal)
+            onWheelHorScroll(event);
+        else
+            onWheelVerScroll(event);
     }
     notifyVisibleRectChanged();
 }
@@ -596,28 +594,7 @@ void TimeGraphicsView::changeEvent(QEvent *event) {
 }
 
 bool TimeGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
-#ifdef SUPPORTS_MOUSEWHEEL_DETECT_NATIVE
-    return event->deviceType() == QInputDevice::DeviceType::Mouse;
-#else
-    auto deltaX = event->angleDelta().x();
-    auto deltaY = event->angleDelta().y();
-    auto absDx = qAbs(deltaX);
-    auto absDy = qAbs(deltaY);
-    if (m_touchPadLock) {
-        m_timer.start();
-        return false;
-    }
-
-    // touchpad lock off
-    // event might from wheel
-    if ((absDx == 0 && absDy % 120 == 0) || (absDx % 120 == 0 && absDy == 0))
-        return true;
-
-    // event might from touchpad
-    m_touchPadLock = true;
-    m_timer.start();
-    return false;
-#endif
+    return m_wheelInputState.isMouseWheel(event);
 }
 
 void TimeGraphicsView::updateAnimationDuration() {

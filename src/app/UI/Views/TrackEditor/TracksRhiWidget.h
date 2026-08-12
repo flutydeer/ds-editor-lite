@@ -2,12 +2,14 @@
 #define TRACKSRHIWIDGET_H
 
 #include "AudioWaveformSampler.h"
+#include "AudioClipDragState.h"
 #include "Interface/EditorViewState.h"
 #include "TrackEditorContextMenuController.h"
 #include "TracksGraphicsScene.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
 #include "UI/Views/Common/EditorViewportController.h"
+#include "UI/Views/Common/EditorWheelUtils.h"
 #include "UI/Views/Common/EdgeAutoScroller.h"
 
 #include <lite/History/HistoryFocus.h>
@@ -27,6 +29,7 @@ class QDropEvent;
 class QHideEvent;
 class QKeyEvent;
 class QMouseEvent;
+class EditorRhiScrollBarController;
 class QResizeEvent;
 class QShowEvent;
 class QWheelEvent;
@@ -139,6 +142,7 @@ private:
         bool selected = false;
         bool active = false;
         bool pastePreview = false;
+        bool audioMissing = false;
         QVector<NoteSnapshot> notes;
         AudioWaveformSampler::Result waveform;
     };
@@ -158,12 +162,12 @@ private:
     void appendDropOverlay(EditorRhiFrameData &frame, double dpr) const;
     [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex,
                                                  double dpr) const;
+    [[nodiscard]] static QRectF clipPreviewRect(const ClipSnapshot &clip, double dpr);
     [[nodiscard]] AudioWaveformSampler::Result sampleAudioWaveform(AudioWaveformSampler &sampler,
                                                                    const AudioInfoModel &audioInfo,
                                                                    const ClipSnapshot &clip,
                                                                    double dpr) const;
     [[nodiscard]] const ClipSnapshot *hitTest(const QPointF &viewportPosition) const;
-    [[nodiscard]] double wheelDelta(const QWheelEvent *event, bool preferHorizontal) const;
     [[nodiscard]] int trackIndexAt(const QPointF &viewportPosition) const;
     [[nodiscard]] int tickAt(const QPointF &viewportPosition) const;
     [[nodiscard]] int snapTick(int tick) const;
@@ -175,6 +179,7 @@ private:
     void updateCursor(const QPointF &position);
     void handleAutoPageTurn();
     void updateAutoPageTurnAvailability();
+    void updateScrollBars();
     [[nodiscard]] Clip::ClipCommonProperties previewOrModelProperties(const Clip *clip) const;
 
     // --- External file drag-and-drop (Phase 1) ---
@@ -214,6 +219,9 @@ private:
 
     EditorViewportController m_viewport;
     EditorGlyphAtlas m_glyphAtlas;
+    EditorWheelUtils::InputState m_wheelInputState;
+    EditorWheelUtils::ScrollAccumulator m_verticalTouchPadScroll;
+    EditorRhiScrollBarController *m_scrollBars = nullptr;
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;
     QVector<ClipSnapshot> m_clipSnapshots;
     QVector<ClipSnapshot> m_pastePreviewSnapshots;
@@ -230,6 +238,7 @@ private:
     QPointF m_rubberBandStart;
     QPointF m_rubberBandEnd;
     std::optional<DragPreview> m_dragPreview;
+    std::optional<AudioClipDragState> m_audioDragState;
     Clip::ClipCommonProperties m_mouseDownProperties;
     int m_mouseDownTrackIndex = -1;
     bool m_dragMoved = false;

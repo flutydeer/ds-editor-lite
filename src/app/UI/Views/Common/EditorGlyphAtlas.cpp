@@ -6,16 +6,26 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace {
     constexpr int kBlockPadding = 1;
+    constexpr double kQtFixedPointScale = 64.0;
+
+    double qtFixedPointPhase(const double value) {
+        // QPainter converts glyph positions with QFixed::fromReal, a signed 26.6
+        // fixed-point conversion that truncates toward zero.
+        const auto fixedValue = std::trunc(value * kQtFixedPointScale) / kQtFixedPointScale;
+        return fixedValue - std::floor(fixedValue);
+    }
 }
 
-QSize EditorGlyphAtlas::measureTextPixels(const QFont &font, const QString &text,
-                                          const int padding) {
+QSize EditorGlyphAtlas::measureTextPixels(const QFont &font, const QString &text, const int padding,
+                                          const double devicePixelRatio) {
     QFontMetricsF metrics(font);
-    const auto width = static_cast<int>(std::ceil(metrics.horizontalAdvance(text)));
-    const auto height = static_cast<int>(std::ceil(metrics.height()));
+    const auto width =
+        static_cast<int>(std::ceil(metrics.horizontalAdvance(text) * devicePixelRatio));
+    const auto height = static_cast<int>(std::ceil(metrics.height() * devicePixelRatio));
     return QSize(width + 2 * padding, height + 2 * padding);
 }
 
@@ -37,38 +47,47 @@ void EditorGlyphAtlas::clear() {
     m_missCount = 0;
 }
 
-void EditorGlyphAtlas::appendText(const QString &text, const QFont &physicalFont,
-                                  const QPointF &physicalTopLeft, const QColor &color,
-                                  const QRectF &physicalClip) {
-    if (text.isEmpty() || color.alpha() == 0)
-        return;
+EditorRhiTextureDrawSpan EditorGlyphAtlas::appendText(
+    const QString &text, const QFont &logicalFont, const QPointF &physicalTopLeft,
+    const QColor &color, const QRectF &physicalClip, const double devicePixelRatio,
+    const QPointF &physicalCameraOffset, const QPointF &physicalWindowOffset) {
+    if (text.isEmpty() || color.alpha() == 0 || !std::isfinite(devicePixelRatio) ||
+        devicePixelRatio <= 0.0) {
+        return {};
+    }
 
-    auto *block = ensureBlock(physicalFont, text);
+    const auto viewportTopLeft = physicalTopLeft - physicalCameraOffset;
+    // QPainter chooses glyph coverage from the final device position. Include the widget's
+    // physical window origin for that phase, while keeping the RHI quad in viewport coordinates.
+    const auto windowTopLeft = viewportTopLeft + physicalWindowOffset;
+    const QPointF physicalPhase(qtFixedPointPhase(windowTopLeft.x()),
+                                qtFixedPointPhase(windowTopLeft.y()));
+    const QPointF alignedViewportTopLeft(std::floor(viewportTopLeft.x()),
+                                         std::floor(viewportTopLeft.y()));
+    auto *block = ensureBlock(logicalFont, text, devicePixelRatio, physicalPhase);
     if (!block || block->rect.isEmpty())
-        return;
+        return {};
     auto pageIterator = std::find_if(m_pages.begin(), m_pages.end(),
                                      [block](const auto &p) { return p->id == block->pageId; });
     if (pageIterator == m_pages.end())
-        return;
+        return {};
     auto &page = **pageIterator;
     page.lastUse = m_useCounter;
     block->lastUse = m_useCounter;
 
-    // Snap the quad to the device-pixel grid so each source texel maps 1:1 to a
-    // destination pixel. Combined with a Linear sampler this removes the
-    // interpolation blur the old fractional glyph quads produced.
-    const QPointF snappedTopLeft(std::round(physicalTopLeft.x()), std::round(physicalTopLeft.y()));
-    QRectF target(snappedTopLeft, block->contentRect.size());
+    QRectF target(alignedViewportTopLeft + physicalCameraOffset, block->contentRect.size());
     QRectF source(block->contentRect);
     if (!physicalClip.isEmpty()) {
         const auto clipped = target.intersected(physicalClip);
         if (clipped.isEmpty())
-            return;
+            return {};
         const auto delta = clipped.topLeft() - target.topLeft();
         source = QRectF(source.topLeft() + delta, clipped.size());
         target = clipped;
     }
+    const auto vertexOffset = page.vertices.size();
     appendTexturedRect(page.vertices, target, source, page.image.size(), color);
+    return {page.id, vertexOffset, page.vertices.size() - vertexOffset, color};
 }
 
 QVector<EditorRhiTextureBatch> EditorGlyphAtlas::textureBatches() const {
@@ -87,8 +106,10 @@ double EditorGlyphAtlas::hitRate() const {
     return total > 0 ? static_cast<double>(m_hitCount) / static_cast<double>(total) : 1.0;
 }
 
-EditorGlyphAtlas::Block *EditorGlyphAtlas::ensureBlock(const QFont &font, const QString &text) {
-    const auto key = blockKey(font, text);
+EditorGlyphAtlas::Block *EditorGlyphAtlas::ensureBlock(const QFont &font, const QString &text,
+                                                       const double devicePixelRatio,
+                                                       const QPointF &physicalPhase) {
+    const auto key = blockKey(font, text, devicePixelRatio, physicalPhase);
     const auto existing = m_blocks.find(key);
     if (existing != m_blocks.end()) {
         ++m_hitCount;
@@ -97,9 +118,11 @@ EditorGlyphAtlas::Block *EditorGlyphAtlas::ensureBlock(const QFont &font, const 
     }
     ++m_missCount;
 
-    const auto blockSize = measureTextPixels(font, text, kBlockPadding);
-    if (blockSize.width() + 2 > m_pageSize.width() || blockSize.width() > m_pageSize.width() ||
-        blockSize.height() > m_pageSize.height())
+    auto blockSize = measureTextPixels(font, text, kBlockPadding, devicePixelRatio);
+    const auto phaseWidth = qFuzzyIsNull(physicalPhase.x()) ? 0 : 1;
+    const auto phaseHeight = qFuzzyIsNull(physicalPhase.y()) ? 0 : 1;
+    blockSize += QSize(phaseWidth, phaseHeight);
+    if (blockSize.width() + 2 > m_pageSize.width() || blockSize.height() + 2 > m_pageSize.height())
         return nullptr;
     auto *page = allocatePageFor(blockSize);
     if (!page)
@@ -108,17 +131,43 @@ EditorGlyphAtlas::Block *EditorGlyphAtlas::ensureBlock(const QFont &font, const 
     const QRect targetBlock(page->cursorX, page->cursorY, blockSize.width(), blockSize.height());
     const auto contentRect =
         targetBlock.adjusted(kBlockPadding, kBlockPadding, -kBlockPadding, -kBlockPadding);
-    const QColor white(Qt::white);
+    QImage rasterizedText(blockSize, QImage::Format_RGB32);
+    rasterizedText.setDevicePixelRatio(devicePixelRatio);
+    rasterizedText.fill(Qt::white);
+    {
+        QPainter painter(&rasterizedText);
+        painter.setRenderHint(QPainter::TextAntialiasing, true);
+        painter.setPen(Qt::black);
+        painter.setFont(font);
+        const QTextOption option(Qt::AlignLeft | Qt::AlignVCenter);
+        painter.drawText(QRectF((kBlockPadding + physicalPhase.x()) / devicePixelRatio,
+                                (kBlockPadding + physicalPhase.y()) / devicePixelRatio,
+                                (contentRect.width() - phaseWidth) / devicePixelRatio,
+                                (contentRect.height() - phaseHeight) / devicePixelRatio),
+                         text, option);
+    }
+    QImage coverage(blockSize, QImage::Format_RGBA8888_Premultiplied);
+    coverage.fill(Qt::transparent);
+    for (int y = 0; y < blockSize.height(); ++y) {
+        auto *target = coverage.scanLine(y);
+        for (int x = 0; x < blockSize.width(); ++x) {
+            const auto source = rasterizedText.pixel(x, y);
+            const auto red = 255 - qRed(source);
+            const auto green = 255 - qGreen(source);
+            const auto blue = 255 - qBlue(source);
+            const auto alpha = std::max({red, green, blue});
+            target[x * 4] = static_cast<uchar>(red);
+            target[x * 4 + 1] = static_cast<uchar>(green);
+            target[x * 4 + 2] = static_cast<uchar>(blue);
+            target[x * 4 + 3] = static_cast<uchar>(alpha);
+        }
+    }
     {
         QPainter painter(&page->image);
         painter.setCompositionMode(QPainter::CompositionMode_Source);
-        painter.fillRect(targetBlock, QColor(0, 0, 0, 0));
-        painter.setPen(white);
-        painter.setFont(font);
-        const QTextOption option(Qt::AlignLeft | Qt::AlignVCenter);
-        painter.drawText(QRectF(contentRect), text, option);
+        painter.drawImage(targetBlock.topLeft(), coverage);
     }
-    ++page->generation;
+    page->generation = ++m_generationCounter;
     page->cursorX += blockSize.width() + 1;
     page->rowHeight = std::max(page->rowHeight, blockSize.height());
     page->lastUse = m_useCounter;
@@ -138,16 +187,29 @@ EditorGlyphAtlas::Page *EditorGlyphAtlas::allocatePageFor(const QSize &blockSize
                                     page->cursorY + blockSize.height() + 1 <= m_pageSize.height();
         const auto fitsNextRow =
             page->cursorY + page->rowHeight + blockSize.height() + 2 <= m_pageSize.height();
-        if (fitsCurrentRow || fitsNextRow)
+        if (fitsCurrentRow)
             return page.get();
+        if (fitsNextRow) {
+            page->cursorX = 1;
+            page->cursorY += page->rowHeight + 1;
+            page->rowHeight = 0;
+            return page.get();
+        }
     }
     if (m_pages.size() < m_maximumPages)
         return createPage();
 
-    const auto leastRecentlyUsed =
-        std::min_element(m_pages.begin(), m_pages.end(), [](const auto &left, const auto &right) {
-            return left->lastUse < right->lastUse;
+    const auto leastRecentlyUsed = std::min_element(
+        m_pages.begin(), m_pages.end(), [this](const auto &left, const auto &right) {
+            const auto leftUse =
+                left->lastUse == m_useCounter ? std::numeric_limits<quint64>::max() : left->lastUse;
+            const auto rightUse = right->lastUse == m_useCounter
+                                      ? std::numeric_limits<quint64>::max()
+                                      : right->lastUse;
+            return leftUse < rightUse;
         });
+    if (leastRecentlyUsed == m_pages.end() || (*leastRecentlyUsed)->lastUse == m_useCounter)
+        return nullptr;
     clearPage(**leastRecentlyUsed);
     return leastRecentlyUsed->get();
 }
@@ -176,14 +238,18 @@ void EditorGlyphAtlas::clearPage(Page &page) {
     page.rowHeight = 0;
     page.vertices.clear();
     page.lastUse = m_useCounter;
-    ++page.generation;
+    page.generation = ++m_generationCounter;
 }
 
-QString EditorGlyphAtlas::blockKey(const QFont &font, const QString &text) const {
+QString EditorGlyphAtlas::blockKey(const QFont &font, const QString &text,
+                                   const double devicePixelRatio,
+                                   const QPointF &physicalPhase) const {
     const auto info = QFontInfo(font);
-    return QStringLiteral("%1\n%2\n%3\n%4")
-        .arg(info.family(), info.styleName())
-        .arg(static_cast<double>(font.pixelSize()), 0, 'f', 3)
+    return QStringLiteral("%1\n%2\n%3\n%4\n%5\n%6\n%7")
+        .arg(info.family(), info.styleName(), font.toString())
+        .arg(devicePixelRatio, 0, 'f', 6)
+        .arg(physicalPhase.x(), 0, 'f', 6)
+        .arg(physicalPhase.y(), 0, 'f', 6)
         .arg(text);
 }
 

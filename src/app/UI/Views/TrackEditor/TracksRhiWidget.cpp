@@ -1,5 +1,8 @@
 #include "TracksRhiWidget.h"
 
+#include "AudioClipDragState.h"
+#include "ClipResizeUtils.h"
+#include "SingingClipPreviewLayout.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
@@ -11,6 +14,8 @@
 #include "UI/Utils/ITimelinePainter.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
+#include "UI/Views/Common/EditorRhiScrollBarController.h"
+#include "UI/Views/Common/EditorWheelUtils.h"
 
 #include <lite/MusicBase/TimelineSnapUtils.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -20,6 +25,7 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QApplication>
+#include <QCoreApplication>
 #include <QContextMenuEvent>
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
@@ -45,14 +51,6 @@
 using namespace TracksEditorGlobal;
 
 namespace {
-    constexpr double kRasterLineOpacity = 0.25;
-
-    QColor withOpacity(const QColor &source, const double opacity) {
-        auto color = source;
-        color.setAlphaF(color.alphaF() * opacity);
-        return color;
-    }
-
     QString commonClipTitle(const Clip::ClipCommonProperties &properties, const int id,
                             const double scaleX, const double scaleY) {
         const auto showDebug = appOptions->developer()->showClipDebugInfo;
@@ -145,6 +143,13 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     // One extra unit for the virtual append slot at the bottom of the canvas
     m_viewport.setVerticalContent(appModel->tracks().size() + 1, trackHeight);
 
+    m_scrollBars = new EditorRhiScrollBarController(this, this);
+    connect(m_scrollBars, &EditorRhiScrollBarController::offsetChangeRequested, this,
+            [this](const QPointF &offset) {
+                m_viewport.scrollBy({offset.x() - m_viewport.horizontalOffset(),
+                                     offset.y() - m_viewport.verticalOffset()});
+            });
+
     connect(&m_viewport, &EditorViewportController::scaleChanged, this,
             &TracksRhiWidget::scaleChanged);
     connect(&m_viewport, &EditorViewportController::timeRangeChanged, this,
@@ -156,8 +161,10 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
                 emit verticalOffsetChanged(vertical);
                 emit visibleRectChanged(logicalVisibleRect());
             });
-    connect(&m_viewport, &EditorViewportController::viewportChanged, this,
-            &TracksRhiWidget::scheduleSnapshot);
+    connect(&m_viewport, &EditorViewportController::viewportChanged, this, [this] {
+        updateScrollBars();
+        scheduleSnapshot();
+    });
     connect(&m_edgeAutoScroller, &EdgeAutoScroller::frame, this,
             &TracksRhiWidget::onExternalDropScrollFrame);
 
@@ -204,7 +211,10 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
         scheduleSnapshot();
     });
     rebuildModelConnections();
-    QTimer::singleShot(0, this, &TracksRhiWidget::updateAutoPageTurnAvailability);
+    QTimer::singleShot(0, this, [this] {
+        updateScrollBars();
+        updateAutoPageTurnAvailability();
+    });
 }
 
 TracksRhiWidget::~TracksRhiWidget() = default;
@@ -335,23 +345,49 @@ void TracksRhiWidget::setLastPlaybackPosition(const double tick) {
 }
 
 void TracksRhiWidget::onWheelHorScale(QWheelEvent *event) {
-    m_viewport.zoomHorizontal(wheelDelta(event, false), event->position().x());
+    m_viewport.zoomHorizontal(EditorWheelUtils::wheelDelta(event, Qt::Vertical),
+                              event->position().x());
 }
 
 void TracksRhiWidget::onWheelVerScale(QWheelEvent *event) {
-    m_viewport.zoomVertical(wheelDelta(event, true), event->position().y());
+    m_viewport.zoomVertical(EditorWheelUtils::wheelDelta(event, Qt::Horizontal),
+                            event->position().y());
 }
 
 void TracksRhiWidget::onWheelHorScroll(QWheelEvent *event) {
-    m_viewport.scrollBy({-width() * 0.2 * wheelDelta(event, false) / 120.0, 0.0});
+    (void) m_wheelInputState.isMouseWheel(event);
+    const auto target =
+        EditorWheelUtils::scrollTarget(static_cast<int>(m_viewport.horizontalOffset()), width(),
+                                       0.2, EditorWheelUtils::horizontalScrollDelta(event));
+    m_viewport.scrollBy({target - m_viewport.horizontalOffset(), 0.0});
 }
 
 void TracksRhiWidget::onWheelVerScroll(QWheelEvent *event) {
-    m_viewport.scrollBy({0.0, -height() * 0.15 * wheelDelta(event, false) / 120.0});
+    const auto fromWheel = m_wheelInputState.isMouseWheel(event);
+    if (fromWheel)
+        m_verticalTouchPadScroll.reset();
+    const auto startValue = static_cast<int>(m_viewport.verticalOffset());
+    const auto target =
+        fromWheel
+            ? EditorWheelUtils::scrollTarget(startValue, height(), 0.15,
+                                             EditorWheelUtils::wheelDelta(event, Qt::Vertical))
+            : m_verticalTouchPadScroll.scrollTarget(
+                  startValue, height(), 0.15, EditorWheelUtils::wheelDelta(event, Qt::Vertical));
+    m_viewport.scrollBy({0.0, target - m_viewport.verticalOffset()});
 }
 
 void TracksRhiWidget::setVerticalOffset(const double value) {
     m_viewport.scrollBy({0.0, value - m_viewport.verticalOffset()});
+}
+
+void TracksRhiWidget::updateScrollBars() {
+    if (!m_scrollBars)
+        return;
+    m_scrollBars->setMetrics(QSizeF(m_viewport.tickToSceneX(appStatus->projectEditableLength),
+                                    m_viewport.unitToSceneY(appModel->tracks().size() + 1)),
+                             QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()),
+                             QSizeF(std::max(1, width() / 10),
+                                    std::max(1, qRound(trackHeight * m_viewport.verticalScale()))));
 }
 
 void TracksRhiWidget::scheduleSnapshot() {
@@ -387,8 +423,12 @@ void TracksRhiWidget::wheelEvent(QWheelEvent *event) {
         onWheelVerScale(event);
     else if (event->modifiers() == Qt::ShiftModifier)
         onWheelHorScroll(event);
-    else
-        onWheelVerScroll(event);
+    else if (event->modifiers() == Qt::NoModifier) {
+        if (EditorWheelUtils::dominantAxis(event) == Qt::Horizontal)
+            onWheelHorScroll(event);
+        else
+            onWheelVerScroll(event);
+    }
     event->accept();
 }
 
@@ -459,7 +499,24 @@ void TracksRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
     if (const auto *hit = hitTest(event->position())) {
         trackController->setActiveClip(hit->id);
         editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
-        editorViewController->centerPianoRollAt(playbackController->position(), 60);
+        double targetTick = playbackController->position();
+        double targetKey = 60.0;
+        if (hit->type == IClip::Singing && !hit->notes.isEmpty()) {
+            const auto dpr = devicePixelRatioF();
+            const auto physicalPosition = m_viewport.viewportToScene(event->position()) * dpr;
+            const auto preview = clipPreviewRect(*hit, dpr);
+            QList<int> keys;
+            keys.reserve(hit->notes.size());
+            for (const auto &note : hit->notes)
+                keys.append(note.key);
+            const auto layout = SingingClipPreview::computeLayout(
+                preview, keys, SingingClipPreview::maximumNoteHeight * dpr);
+            if (preview.contains(physicalPosition) && layout.valid()) {
+                targetTick = tickAt(event->position());
+                targetKey = layout.keyIndexAt(physicalPosition.y());
+            }
+        }
+        editorViewController->centerPianoRollAt(targetTick, targetKey);
     } else {
         const auto trackIndex = trackIndexAt(event->position());
         if (trackIndex >= 0) {
@@ -696,6 +753,7 @@ void TracksRhiWidget::rebuildSnapshot() {
         EditorRhiGeometry::appendRoundedRectStroke(frame.solidVertices, rect, radius, 1.5 * dpr,
                                                    m_rubberBandBorderColor);
     }
+    frame.drawList.finish(frame.solidVertices.size());
     frame.textureBatches = m_glyphAtlas.textureBatches();
     submitFrame(std::move(frame));
 }
@@ -723,6 +781,10 @@ void TracksRhiWidget::rebuildModelConnections() {
                 connect(singing, &SingingClip::voiceContextChanged, this,
                         &TracksRhiWidget::scheduleSnapshot);
             }
+            if (const auto *audio = qobject_cast<const AudioClip *>(clip)) {
+                connect(audio, &AudioClip::pathStatusChanged, this,
+                        &TracksRhiWidget::scheduleSnapshot);
+            }
         }
     }
 }
@@ -739,19 +801,19 @@ void TracksRhiWidget::appendGrid(EditorRhiFrameData &frame, const double dpr) co
     }
     for (int row = 1; row <= appModel->tracks().size(); ++row) {
         const auto y = row * trackHeight * scaleY() * dpr;
-        EditorRhiGeometry::appendPixelAlignedHorizontalLine(
-            frame.solidVertices, y, 0.0, sceneWidth * dpr,
-            withOpacity(m_commonLineColor, kRasterLineOpacity));
+        EditorRhiGeometry::appendAntialiasedHorizontalLine(frame.solidVertices, y, 0.0,
+                                                           sceneWidth * dpr, dpr, m_commonLineColor,
+                                                           m_viewport.verticalOffset() * dpr);
     }
 
     TimelineEmitter emitter;
     emitter.emitLines(appModel->timeline(), 128, m_viewport.startTick(), m_viewport.endTick(),
                       visible.width(), m_barLineColor, m_beatLineColor, m_commonLineColor,
                       [this, &frame, dpr, visible](const int tick, const QColor &color) {
-                          EditorRhiGeometry::appendPixelAlignedVerticalLine(
+                          EditorRhiGeometry::appendAntialiasedVerticalLine(
                               frame.solidVertices, m_viewport.tickToSceneX(tick) * dpr,
-                              visible.top() * dpr, visible.bottom() * dpr,
-                              withOpacity(color, kRasterLineOpacity));
+                              visible.top() * dpr, visible.bottom() * dpr, dpr, color,
+                              m_viewport.horizontalOffset() * dpr);
                       });
 }
 
@@ -768,13 +830,15 @@ void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
             if (!visiblePhysical.intersects(snapshot.physicalRect))
                 continue;
             if (const auto audio = qobject_cast<const AudioClip *>(clip)) {
-                sampledAudioClipIds.insert(snapshot.id);
-                auto &sampler = m_audioWaveformSamplers[snapshot.id];
-                if (!sampler)
-                    sampler = std::make_shared<AudioWaveformSampler>();
-                sampler->setPath(audio->path());
-                snapshot.waveform =
-                    sampleAudioWaveform(*sampler, audio->audioInfo(), snapshot, dpr);
+                if (!snapshot.audioMissing) {
+                    sampledAudioClipIds.insert(snapshot.id);
+                    auto &sampler = m_audioWaveformSamplers[snapshot.id];
+                    if (!sampler)
+                        sampler = std::make_shared<AudioWaveformSampler>();
+                    sampler->setPath(audio->path());
+                    snapshot.waveform =
+                        sampleAudioWaveform(*sampler, audio->audioInfo(), snapshot, dpr);
+                }
             }
             m_clipSnapshots.append(std::move(snapshot));
             appendClip(frame, m_clipSnapshots.constLast(), dpr);
@@ -808,22 +872,17 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
     }
     const auto radius = 4.0 * dpr;
     const auto titleHeight = 20.0 * dpr;
-    const QRectF preview(clip.physicalRect.left(), clip.physicalRect.top() + titleHeight,
-                         clip.physicalRect.width(), clip.physicalRect.height() - titleHeight);
+    const auto preview = clipPreviewRect(clip, dpr);
     const auto hasPreview = preview.height() >= 32.0 * dpr;
     const auto bodyColor = hasPreview ? transparent : (clip.selected ? selectedFill : fill);
     EditorRhiGeometry::appendRoundedRect(frame.solidVertices, clip.physicalRect, radius, bodyColor);
     if (hasPreview) {
-        const auto titleBottom = clip.physicalRect.top() + titleHeight - 1.2 * dpr - 0.75;
+        const auto titleBottom = clip.physicalRect.top() + titleHeight - 1.2 * dpr;
         const QRectF titleRect(clip.physicalRect.left(), clip.physicalRect.top(),
                                clip.physicalRect.width(),
                                std::max(0.0, titleBottom - clip.physicalRect.top()));
         const auto titleColor = clip.selected ? selectedFill : fill;
-        EditorRhiGeometry::appendRoundedRect(frame.solidVertices, titleRect, radius, titleColor);
-        EditorRhiGeometry::appendRect(frame.solidVertices,
-                                      QRectF(titleRect.left(), titleRect.top() + radius,
-                                             titleRect.width(), titleRect.height() - radius),
-                                      titleColor);
+        EditorRhiGeometry::appendTopRoundedRect(frame.solidVertices, titleRect, radius, titleColor);
     }
     if (clip.selected || clip.active) {
         EditorRhiGeometry::appendRoundedRectStroke(frame.solidVertices, clip.physicalRect, radius,
@@ -831,9 +890,6 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
     }
 
     QFont font = this->font();
-    const auto logicalPixelSize =
-        font.pixelSize() > 0 ? font.pixelSize() : font.pointSizeF() * logicalDpiY() / 72.0;
-    font.setPixelSize(std::max(1, qRound(logicalPixelSize * dpr)));
     const QFontMetricsF metrics(font);
     const auto rawLeft = clip.physicalRect.left() - 0.6 * dpr;
     const auto rawRight = clip.physicalRect.right() + 0.6 * dpr;
@@ -842,30 +898,34 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
         visibleLeft < rawLeft ? clip.physicalRect.left() : visibleLeft + 0.6 * dpr;
     const auto titleWidth = rawRight - std::max(rawLeft, visibleLeft) - 2.4 * dpr;
     constexpr double iconWidth = 4.0;
-    if (metrics.horizontalAdvance(clip.title) + iconWidth * dpr <= titleWidth &&
-        metrics.height() <= titleHeight) {
-        const auto textTop = hasPreview ? clip.physicalRect.top()
-                                        : clip.physicalRect.top() +
-                                              (clip.physicalRect.height() - metrics.height()) * 0.5;
+    if (metrics.horizontalAdvance(clip.title) * dpr + iconWidth * dpr <= titleWidth &&
+        metrics.height() * dpr <= titleHeight) {
+        const auto textTop = hasPreview
+                                 ? clip.physicalRect.top()
+                                 : clip.physicalRect.top() +
+                                       (clip.physicalRect.height() - metrics.height() * dpr) * 0.5;
         const QRectF textClip(titleLeft + iconWidth * dpr, clip.physicalRect.top(),
                               titleWidth - iconWidth * dpr,
                               std::min(titleHeight, clip.physicalRect.height()));
-        m_glyphAtlas.appendText(clip.title, font, QPointF(titleLeft + iconWidth * dpr, textTop),
-                                foreground, textClip);
+        const auto textSpan = m_glyphAtlas.appendText(
+            clip.title, font, QPointF(titleLeft + iconWidth * dpr, textTop), foreground, textClip,
+            dpr, QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr,
+            physicalWindowOffset());
+        frame.drawList.appendTexture(textSpan, frame.solidVertices.size());
     }
 
     if (!hasPreview || preview.width() < 16.0 * dpr || preview.height() < 32.0 * dpr)
         return;
     if (clip.type == IClip::Singing && !clip.notes.isEmpty()) {
-        auto low = 127;
-        auto high = 0;
-        for (const auto &note : clip.notes) {
-            low = std::min(low, note.key);
-            high = std::max(high, note.key);
-        }
-        const auto noteHeight = std::min(16.0 * dpr, preview.height() / (high - low + 1));
-        const auto contentTop =
-            preview.top() + std::max(0.0, preview.height() - (high - low + 1) * noteHeight) * 0.5;
+        QList<int> keys;
+        keys.reserve(clip.notes.size());
+        for (const auto &note : clip.notes)
+            keys.append(note.key);
+        const auto layout = SingingClipPreview::computeLayout(
+            preview, keys, SingingClipPreview::maximumNoteHeight * dpr);
+        const auto noteHeight = layout.noteHeight;
+        const auto high = layout.highestKeyIndex;
+        const auto contentTop = layout.contentTop;
         const auto noteColor = clip.selected ? selectedFill : fill;
         for (const auto &note : clip.notes) {
             const auto start = std::max(clip.visibleStartTick, clip.contentStartTick + note.start);
@@ -930,6 +990,23 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
         }
     } else if (clip.type == IClip::Audio) {
         const auto waveformColor = clip.selected ? selectedFill : fill;
+        if (clip.audioMissing) {
+            auto textColor = waveformColor;
+            textColor.setAlphaF(textColor.alphaF() * 0.5);
+            const auto text = QCoreApplication::translate("AudioClipView", "File missing");
+            const QFont font = this->font();
+            const QFontMetricsF metrics(font);
+            const QSizeF textSize(std::ceil(metrics.horizontalAdvance(text) * dpr),
+                                  std::ceil(metrics.height() * dpr));
+            const auto topLeft =
+                preview.center() - QPointF(textSize.width() * 0.5, textSize.height() * 0.5);
+            const auto textSpan = m_glyphAtlas.appendText(
+                text, font, topLeft, textColor, preview, dpr,
+                QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr,
+                physicalWindowOffset());
+            frame.drawList.appendTexture(textSpan, frame.solidVertices.size());
+            return;
+        }
         const auto physicalCameraOffset =
             QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr;
         const auto physicalWaveformPoint = [dpr](const QPointF &point) {
@@ -1021,13 +1098,13 @@ void TracksRhiWidget::appendPlaybackIndicators(EditorRhiFrameData &frame, const 
     const auto bottom = visible.bottom() * dpr;
     const auto lastX = m_viewport.tickToSceneX(m_lastPlaybackPosition) * dpr;
     for (auto dashTop = top; dashTop < bottom; dashTop += 6.0 * dpr) {
-        EditorRhiGeometry::appendPixelAlignedVerticalLine(
-            frame.solidVertices, lastX, dashTop, std::min(dashTop + 4.0 * dpr, bottom),
-            withOpacity(m_lastPlayPosIndicatorColor, kRasterLineOpacity));
+        EditorRhiGeometry::appendAntialiasedVerticalLine(
+            frame.solidVertices, lastX, dashTop, std::min(dashTop + 4.0 * dpr, bottom), dpr,
+            m_lastPlayPosIndicatorColor, m_viewport.horizontalOffset() * dpr);
     }
-    EditorRhiGeometry::appendPixelAlignedVerticalLine(
-        frame.solidVertices, m_viewport.tickToSceneX(m_playbackPosition) * dpr, top, bottom,
-        withOpacity(m_playPosIndicatorColor, kRasterLineOpacity));
+    EditorRhiGeometry::appendAntialiasedVerticalLine(
+        frame.solidVertices, m_viewport.tickToSceneX(m_playbackPosition) * dpr, top, bottom, dpr,
+        m_playPosIndicatorColor, m_viewport.horizontalOffset() * dpr);
 }
 
 TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *clip,
@@ -1053,6 +1130,8 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
                                  trackHeight * scaleY() * dpr)
                               .adjusted(0.6 * dpr, 1.2 * dpr, -0.6 * dpr, -1.2 * dpr);
     result.title = commonClipTitle(props, clip->id(), scaleX(), scaleY());
+    if (const auto audio = qobject_cast<const AudioClip *>(clip))
+        result.audioMissing = audio->pathStatus() == AudioClip::PathStatus::Missing;
     if (const auto singing = qobject_cast<const SingingClip *>(clip)) {
         const auto singerName = singing->singerInfo().name();
         const auto speakerName = SpeakerMixDisplayUtils::speakerDisplayName(
@@ -1066,6 +1145,12 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
             result.notes.append({note->localStart(), note->length(), note->keyIndex()});
     }
     return result;
+}
+
+QRectF TracksRhiWidget::clipPreviewRect(const ClipSnapshot &clip, const double dpr) {
+    constexpr double titleHeight = 20.0;
+    return {clip.physicalRect.left(), clip.physicalRect.top() + titleHeight * dpr,
+            clip.physicalRect.width(), clip.physicalRect.height() - titleHeight * dpr};
 }
 
 AudioWaveformSampler::Result TracksRhiWidget::sampleAudioWaveform(AudioWaveformSampler &sampler,
@@ -1166,16 +1251,6 @@ const TracksRhiWidget::ClipSnapshot *
     return nullptr;
 }
 
-double TracksRhiWidget::wheelDelta(const QWheelEvent *event, const bool preferHorizontal) const {
-    const auto angle = event->angleDelta();
-    if (preferHorizontal && angle.x() != 0)
-        return angle.x();
-    if (angle.y() != 0)
-        return angle.y();
-    const auto pixel = event->pixelDelta();
-    return (preferHorizontal && pixel.x() != 0 ? pixel.x() : pixel.y()) * 4.0;
-}
-
 int TracksRhiWidget::trackIndexAt(const QPointF &viewportPosition) const {
     const auto unit = m_viewport.sceneYToUnit(m_viewport.viewportToScene(viewportPosition).y());
     const auto index = static_cast<int>(std::floor(unit));
@@ -1216,6 +1291,15 @@ void TracksRhiWidget::beginClipDrag(const ClipSnapshot &clip, const QMouseEvent 
     m_mouseDownProperties = Clip::ClipCommonProperties(*modelClip);
     m_mouseDownTrackIndex = appModel->tracks().indexOf(track);
     m_dragPreview = DragPreview{clip.id, m_mouseDownTrackIndex, m_mouseDownProperties};
+    m_audioDragState.reset();
+    if (const auto *audioClip = qobject_cast<const AudioClip *>(modelClip);
+        audioClip && audioClip->hasRealTimeAnchor()) {
+        const auto &timeline = appModel->timeline();
+        m_audioDragState = AudioClipDragState::begin(
+            audioClip->trimStartMs(), audioClip->playLengthMs(), audioClip->materialLengthMs(),
+            m_mouseDownProperties.start + m_mouseDownProperties.clipStart,
+            m_viewport.sceneXToTick(m_mouseDownScene.x()), timeline);
+    }
     m_dragMoved = false;
     appStatus->currentEditObject = AppStatus::EditObjectType::Clip;
 }
@@ -1233,23 +1317,50 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
     };
     const auto originalLeft = m_mouseDownProperties.start + m_mouseDownProperties.clipStart;
     const auto originalRight = originalLeft + m_mouseDownProperties.clipLen;
+    auto updateAccepted = true;
     if (m_dragMode == DragMode::Move) {
-        const auto left = snap(originalLeft + deltaTicks);
-        properties.start = left - properties.clipStart;
+        if (m_audioDragState) {
+            const auto desiredLeft = m_audioDragState->visibleStartForCursor(
+                m_viewport.sceneXToTick(scene.x()), appModel->timeline());
+            m_audioDragState->moveTo(snap(desiredLeft), properties, appModel->timeline());
+        } else {
+            const auto left = snap(originalLeft + deltaTicks);
+            properties.start = left - properties.clipStart;
+        }
         const auto track = trackIndexAt(position);
         if (track >= 0)
             m_dragPreview->trackIndex = track;
     } else if (m_dragMode == DragMode::ResizeLeft) {
         const auto left = snap(originalLeft + deltaTicks);
-        if (left < originalRight) {
+        if (m_audioDragState) {
+            updateAccepted =
+                m_audioDragState->resizeLeftTo(left, originalRight, properties, appModel->timeline());
+        } else if (left < originalRight) {
             properties.clipStart = std::max(0, left - properties.start);
             properties.clipLen = originalRight - (properties.start + properties.clipStart);
-        }
+        } else
+            updateAccepted = false;
     } else if (m_dragMode == DragMode::ResizeRight) {
         const auto right = snap(originalRight + deltaTicks);
-        if (right > originalLeft)
-            properties.clipLen = right - originalLeft;
+        if (m_audioDragState) {
+            updateAccepted = m_audioDragState->resizeRightTo(right, originalLeft, properties,
+                                                             appModel->timeline());
+        } else if (const auto *clip = appModel->findClipById(m_dragPreview->clipId)) {
+            const auto *singing = qobject_cast<const SingingClip *>(clip);
+            auto contentLength = properties.length;
+            if (singing) {
+                contentLength = ClipResizeUtils::furthestContentEnd(
+                    singing->notes().begin(), singing->notes().end(),
+                    AppGlobal::ticksPerWholeNote,
+                    [](const Note *note) { return note->localStart() + note->length(); });
+            }
+            updateAccepted = ClipResizeUtils::updateRightEdge(
+                properties, right - originalLeft, singing != nullptr, contentLength);
+        } else
+            updateAccepted = false;
     }
+    if (!updateAccepted)
+        return;
     m_dragPreview->properties = properties;
     m_dragMoved = true;
     scheduleSnapshot();
@@ -1258,12 +1369,15 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
 void TracksRhiWidget::commitDrag() {
     if (m_dragPreview && m_dragMoved) {
         auto properties = m_dragPreview->properties;
-        if (const auto audio =
-                qobject_cast<AudioClip *>(appModel->findClipById(m_dragPreview->clipId)))
+        if (m_audioDragState)
+            m_audioDragState->writeTruth(properties);
+        else if (const auto audio =
+                     qobject_cast<AudioClip *>(appModel->findClipById(m_dragPreview->clipId)))
             AudioClip::preserveUnchangedTruth(properties, m_mouseDownProperties);
         trackController->onClipPropertyChanged(properties, m_dragPreview->trackIndex);
     }
     m_dragPreview.reset();
+    m_audioDragState.reset();
     m_dragMode = DragMode::None;
     m_dragMoved = false;
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
@@ -1271,6 +1385,7 @@ void TracksRhiWidget::commitDrag() {
 
 void TracksRhiWidget::discardDrag() {
     m_dragPreview.reset();
+    m_audioDragState.reset();
     m_dragMode = DragMode::None;
     m_dragMoved = false;
     appStatus->currentEditObject = AppStatus::EditObjectType::None;

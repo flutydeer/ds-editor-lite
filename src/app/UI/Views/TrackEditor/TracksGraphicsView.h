@@ -2,6 +2,7 @@
 #define DATASET_TOOLS_TRACKSGRAPHICSVIEW_H
 
 #include "Interface/IAtomicAction.h"
+#include "AudioClipDragState.h"
 #include "TrackEditorContextMenuController.h"
 #include "TracksGraphicsScene.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
@@ -71,7 +72,6 @@ private:
                                Qt::KeyboardModifiers modifiers) override;
     void updateClipDragAt(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
     void prepareForMovingOrResizingClip(const QMouseEvent *event, AbstractClipView *clipItem);
-    void applyRealtimeTruthPreview(int visibleStartTick) const;
     AbstractClipView *findClipById(int id) const;
     void clearSelections() const;
     void resetActiveClips() const;
@@ -118,16 +118,7 @@ private:
     int m_mouseDownTrackIndex = -1;
     int m_mouseDownColorIndex = 0;
     bool m_tempQuantizeOff = false;
-    // Realtime-truth drag state for anchored audio clips: the gesture is
-    // tracked in wall-clock ms and the tick geometry is re-derived every
-    // frame, so the preview always matches what the commit will produce
-    bool m_dragUsesRealtimeTruth = false;
-    double m_dragTrimMs = 0;
-    double m_dragPlayLengthMs = 0;
-    double m_dragMaterialLengthMs = 0;
-    double m_grabOffsetMs = 0;    // Move: ms from the visible start to the grab point
-    double m_materialStartMs = 0; // wall-clock position of the material origin
-    double m_visibleEndMs = 0;    // wall-clock position of the mouse-down right edge
+    std::optional<AudioClipDragState> m_audioDragState;
     AbstractClipView *m_currentEditingClip = nullptr;
     QList<AbstractClipView *> m_pastePreviewClipViews;
 

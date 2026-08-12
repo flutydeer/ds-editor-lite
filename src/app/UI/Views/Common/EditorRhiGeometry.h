@@ -24,6 +24,8 @@ namespace EditorRhiGeometry {
                                 const QRectF &physicalClipRect);
     void appendRoundedRect(QVector<EditorRhiSolidVertex> &vertices, const QRectF &physicalRect,
                            double radius, const QColor &color);
+    void appendTopRoundedRect(QVector<EditorRhiSolidVertex> &vertices, const QRectF &physicalRect,
+                              double radius, const QColor &color);
     void appendRoundedRectStroke(QVector<EditorRhiSolidVertex> &vertices,
                                  const QRectF &physicalRect, double radius, double width,
                                  const QColor &color, double feather = 1.0);
@@ -31,6 +33,12 @@ namespace EditorRhiGeometry {
                                         double top, double bottom, const QColor &color);
     void appendPixelAlignedHorizontalLine(QVector<EditorRhiSolidVertex> &vertices, double physicalY,
                                           double left, double right, const QColor &color);
+    void appendAntialiasedVerticalLine(QVector<EditorRhiSolidVertex> &vertices, double physicalX,
+                                       double top, double bottom, double physicalWidth,
+                                       const QColor &color, double physicalCameraX = 0.0);
+    void appendAntialiasedHorizontalLine(QVector<EditorRhiSolidVertex> &vertices, double physicalY,
+                                         double left, double right, double physicalWidth,
+                                         const QColor &color, double physicalCameraY = 0.0);
     void appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &vertices,
                                  const QVector<QPointF> &physicalPoints, double width,
                                  const QColor &color, double feather = 1.0,
