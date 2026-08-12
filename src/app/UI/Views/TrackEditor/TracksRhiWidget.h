@@ -173,6 +173,7 @@ private:
     [[nodiscard]] int snapTick(int tick) const;
     void beginClipDrag(const ClipSnapshot &clip, const QMouseEvent *event);
     void updateDrag(const QPointF &position, Qt::KeyboardModifiers modifiers);
+    void updateRubberBandSelection(const QPointF &position);
     void commitDrag();
     void discardDrag();
     void syncSelection(const QList<int> &ids, int preferredTrack = -1) const;
@@ -180,7 +181,14 @@ private:
     void handleAutoPageTurn();
     void updateAutoPageTurnAvailability();
     void updateScrollBars();
+    [[nodiscard]] int effectiveSceneLength() const;
+    void setSceneLengthExtension(int ticks);
     [[nodiscard]] Clip::ClipCommonProperties previewOrModelProperties(const Clip *clip) const;
+    [[nodiscard]] Qt::Orientations dragAutoScrollAxes() const;
+    void prepareDragAutoScroll(const QPointF &pressPosition);
+    void disarmDragAutoScroll();
+    void updateDragAutoScrollState(const QPointF &pointerPosition);
+    void onDragAutoScrollFrame(double dtMs);
 
     // --- External file drag-and-drop (Phase 1) ---
     // Resolves the drop slot at the given viewport position, hitting either a
@@ -231,6 +239,8 @@ private:
     bool m_autoTurnPage = true;
     bool m_autoPageTurnAvailable = false;
     double m_leftMarginPx = 0.0;
+    int m_baseSceneLength = 0;
+    int m_sceneLengthExtension = 0;
     DragMode m_dragMode = DragMode::None;
     QPointF m_mouseDownScene;
     QPointF m_rubberBandStart;
@@ -240,6 +250,11 @@ private:
     Clip::ClipCommonProperties m_mouseDownProperties;
     int m_mouseDownTrackIndex = -1;
     bool m_dragMoved = false;
+    EdgeAutoScroller m_dragAutoScroller;
+    Qt::Orientations m_dragAutoScrollAxes;
+    QPointF m_dragAutoScrollPressPos;
+    bool m_dragAutoScrollArmed = false;
+    bool m_dragAutoScrollDistanceReached = false;
 
     // External file drag-and-drop state (Phase 1)
     bool m_externalDragActive = false;
