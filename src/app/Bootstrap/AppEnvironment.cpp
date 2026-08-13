@@ -2,6 +2,7 @@
 
 #include "Utils/ApplicationLocale.h"
 #include "Utils/FontManager.h"
+#include <lite/ProductMetadata.h>
 #include <lite/Support/Log.h>
 #include <lite/Support/SystemUtils.h>
 
@@ -28,9 +29,14 @@ namespace AppEnvironment {
 
     void postInit() {
         QApplication::setEffectEnabled(Qt::UI_AnimateTooltip, false);
-        QApplication::setOrganizationName("OpenVPI");
-        QApplication::setApplicationName("DS Editor Lite");
-        QApplication::setApplicationDisplayName("DS Editor Lite");
+        QApplication::setOrganizationName(
+            QString::fromLatin1(LiteProductMetadata::Publisher));
+        QApplication::setApplicationName(
+            QString::fromLatin1(LiteProductMetadata::ProductName));
+        QApplication::setApplicationDisplayName(
+            QString::fromLatin1(LiteProductMetadata::ProductName));
+        QApplication::setApplicationVersion(
+            QString::fromLatin1(LiteProductMetadata::Version));
         QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
         if (QSysInfo::productType() != "windows")
             QApplication::setStyle(QStyleFactory::create("windows"));

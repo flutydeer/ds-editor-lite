@@ -1,0 +1,11 @@
+#pragma once
+
+namespace LiteProductMetadata {
+
+    inline constexpr char ProductName[] = "@LITE_PRODUCT_NAME@";
+    inline constexpr char Version[] = "@LITE_PRODUCT_VERSION@";
+    inline constexpr char Publisher[] = "@LITE_PRODUCT_PUBLISHER@";
+    inline constexpr char Copyright[] = "@LITE_PRODUCT_COPYRIGHT@";
+    inline constexpr char ProductUrl[] = "@LITE_PRODUCT_URL@";
+
+} // namespace LiteProductMetadata

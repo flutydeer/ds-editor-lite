@@ -1,0 +1,10 @@
+{
+  "productName": "@LITE_PRODUCT_NAME@",
+  "version": "@LITE_PRODUCT_VERSION@",
+  "publisher": "@LITE_PRODUCT_PUBLISHER@",
+  "copyright": "@LITE_PRODUCT_COPYRIGHT@",
+  "productUrl": "@LITE_PRODUCT_URL@",
+  "executableBaseName": "@LITE_EXECUTABLE_BASENAME@",
+  "windowsAppId": "@LITE_WINDOWS_APP_ID@",
+  "macosBundleId": "@LITE_MACOS_BUNDLE_ID@"
+}

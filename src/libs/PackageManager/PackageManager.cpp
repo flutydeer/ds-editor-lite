@@ -74,8 +74,15 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         std::vector<fs::path> searchPaths;
         for (const auto &pathQt : searchPathsQt) {
             const auto path = StringUtils::qstr_to_path(pathQt);
-            if (!fs::exists(path) || !fs::is_directory(path)) {
-                result.failedPackages.emplace_back(pathQt, tr("Path is not a valid directory"));
+            std::error_code error;
+            const bool exists = fs::exists(path, error);
+            const bool isDirectory = exists && fs::is_directory(path, error);
+            if (error || !isDirectory) {
+                const auto message = error
+                                         ? tr("Unable to access directory: %1")
+                                               .arg(QString::fromStdString(error.message()))
+                                         : tr("Path is not a valid directory");
+                result.failedPackages.emplace_back(pathQt, message);
                 continue;
             }
             searchPaths.push_back(path);

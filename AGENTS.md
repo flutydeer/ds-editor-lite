@@ -94,6 +94,25 @@ vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./ins
 
 Tests are gated behind `-DLITE_BUILD_TESTS=ON` (enabled by default in the `debug` preset). They live in `src/tests/`.
 
+### Windows installer
+
+- `cmake/ProductMetadata.cmake` is the single source of truth for the product name, version, publisher, copyright, URL, executable name, and installer AppId. Do not duplicate these values in C++, PowerShell, or Inno Setup templates.
+- Build the Windows x64 DirectML installer only through `packaging/windows/build-installer.ps1`. The script initializes the VS x64 and Qt environments, runs vcpkg and the CMake configure/build/install stages, and invokes Inno Setup 7.
+- Supply the VC++ Redistributable through `-VcRedistPath` or the `VC_REDIST_X64` environment variable. Do not commit it to the repository.
+- To check packaging prerequisites only:
+
+```powershell
+.\packaging\windows\build-installer.ps1 -CheckPrerequisites
+```
+
+- To run the complete packaging workflow:
+
+```powershell
+.\packaging\windows\build-installer.ps1 -VcRedistPath D:\SDK\VC_redist\VC_redist.x64.exe
+```
+
+- When asked to package a Windows installer, agents must use `.agents/skills/windows-installer/SKILL.md` instead of assembling a separate build or Inno Setup command sequence.
+
 ## Repository structure
 
 ```

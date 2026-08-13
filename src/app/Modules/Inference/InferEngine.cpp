@@ -169,7 +169,21 @@ bool InferEngine::initialize(QString &error) {
     const auto inferenceDriverDir = pluginRootDir / _TSTR("srt-driver") / _TSTR("inferencedrivers");
     const auto inferenceInterpreterDir = diffsingerPluginDir / _TSTR("inferenceinterpreters");
 
-    const auto packagePathsQt = appOptions->general()->packageSearchPaths;
+    QStringList packagePathsQt;
+    for (const auto &pathQt : appOptions->general()->packageSearchPaths) {
+        const auto path = StringUtils::qstr_to_path(pathQt);
+        std::error_code error;
+        const bool exists = std::filesystem::exists(path, error);
+        const bool isDirectory = exists && std::filesystem::is_directory(path, error);
+        if (error || !isDirectory) {
+            qWarning().noquote()
+                << QStringLiteral("Skipping inaccessible package search path '%1': %2")
+                       .arg(pathQt, error ? QString::fromStdString(error.message())
+                                            : QStringLiteral("not a directory"));
+            continue;
+        }
+        packagePathsQt.append(pathQt);
+    }
     const auto g2pPackageDir = pluginRootDir / _TSTR("srt-g2p") / _TSTR("G2pPackages");
     const QStringList g2pPackagePaths{StringUtils::path_to_qstr(g2pPackageDir)};
     if (!SynthrtEngine::instance().initialize(packagePathsQt, g2pPackagePaths, ep, index)) {

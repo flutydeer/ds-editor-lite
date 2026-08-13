@@ -1,0 +1,76 @@
+#define AppName "@APP_NAME@"
+#define AppVersion "@APP_VERSION@"
+#define AppPublisher "@APP_PUBLISHER@"
+#define AppCopyright "@APP_COPYRIGHT@"
+#define AppUrl "@APP_URL@"
+#define AppExeName "@APP_EXE_NAME@"
+#define AppId "@APP_ID@"
+#define StageDir "@STAGE_DIR@"
+#define OutputDir "@OUTPUT_DIR@"
+#define OutputBaseFilename "@OUTPUT_BASE_FILENAME@"
+#define VcRedistPath "@VC_REDIST_PATH@"
+
+[Setup]
+AppId={#AppId}
+AppName={#AppName}
+AppVersion={#AppVersion}
+AppPublisher={#AppPublisher}
+AppPublisherURL={#AppUrl}
+AppSupportURL={#AppUrl}
+AppUpdatesURL={#AppUrl}
+VersionInfoCompany={#AppPublisher}
+VersionInfoCopyright={#AppCopyright}
+VersionInfoDescription={#AppName} Setup
+VersionInfoProductName={#AppName}
+VersionInfoProductVersion={#AppVersion}
+VersionInfoTextVersion={#AppVersion}
+DefaultDirName={autopf}\{#AppPublisher}\{#AppName}
+DefaultGroupName={#AppName}
+DisableProgramGroupPage=yes
+PrivilegesRequired=admin
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+OutputDir={#OutputDir}
+OutputBaseFilename={#OutputBaseFilename}
+Compression=lzma2/ultra64
+SolidCompression=yes
+WizardStyle=modern dynamic
+UninstallDisplayIcon={app}\{#AppExeName}
+#if "@SIGN_TOOL_NAME@" != ""
+SignTool=@SIGN_TOOL_NAME@
+SignedUninstaller=yes
+#endif
+
+[Languages]
+Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+[Files]
+Source: "{#StageDir}\bin\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#VcRedistPath}"; DestDir: "{tmp}"; DestName: "vc_redist.x64.exe"; Flags: deleteafterinstall
+
+[Icons]
+Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
+
+[Run]
+Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing Microsoft Visual C++ Runtime..."; Flags: waituntilterminated; Check: NeedsVcRuntime
+
+[Code]
+function NeedsVcRuntime: Boolean;
+var
+  Installed: Cardinal;
+begin
+  Result := True;
+  if RegQueryDWordValue(
+       HKLM64,
+       'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64',
+       'Installed',
+       Installed) then
+  begin
+    Result := Installed <> 1;
+  end;
+end;

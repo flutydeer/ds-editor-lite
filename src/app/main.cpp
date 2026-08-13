@@ -15,6 +15,7 @@
 #include <lite/GUI/Theme/ThemeLoader.h>
 #include "UI/Window/MainWindow.h"
 #include "Utils/UiLanguageManager.h"
+#include <lite/ProductMetadata.h>
 
 #include <QApplication>
 #include <QDir>
@@ -46,12 +47,14 @@ int main(int argc, char *argv[]) {
             QString error;
             if (coordinator.forwardRequest(startupRequest, error))
                 return EXIT_SUCCESS;
-            QMessageBox::critical(nullptr, QObject::tr("DS Editor Lite"), error);
+            QMessageBox::critical(
+                nullptr, QString::fromLatin1(LiteProductMetadata::ProductName), error);
             return EXIT_FAILURE;
         }
         case SingleInstanceCoordinator::StartResult::Error:
-            QMessageBox::critical(nullptr, QObject::tr("DS Editor Lite"),
-                                  coordinator.errorString());
+            QMessageBox::critical(
+                nullptr, QString::fromLatin1(LiteProductMetadata::ProductName),
+                coordinator.errorString());
             return EXIT_FAILURE;
         case SingleInstanceCoordinator::StartResult::Primary:
             break;

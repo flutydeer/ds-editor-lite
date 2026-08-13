@@ -35,6 +35,22 @@
         "LITE_BUILD_TESTS": "OFF",
         "QT_NO_PRIVATE_MODULE_WARNING": "ON"
       }
+    },
+    {
+      "name": "package-dml-release",
+      "displayName": "Package DML Release",
+      "description": "Configure a Release build for the Windows x64 DML installer staging directory.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/PackageDmlRelease",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/dist/stage/dml",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "LITE_BUILD_TESTS": "OFF",
+        "LITE_INSTALL": "ON",
+        "QT_NO_PRIVATE_MODULE_WARNING": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -52,6 +68,15 @@
       "displayName": "Build Release",
       "description": "Build the Release application target.",
       "configurePreset": "release",
+      "targets": [
+        "DsEditorLite"
+      ]
+    },
+    {
+      "name": "package-dml-release",
+      "displayName": "Build Package DML Release",
+      "description": "Build the Release application target for the Windows x64 DML installer.",
+      "configurePreset": "package-dml-release",
       "targets": [
         "DsEditorLite"
       ]

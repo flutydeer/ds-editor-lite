@@ -47,6 +47,7 @@ _workingDir*
 cache
 .vs
 out/
+dist/
 CMakeSettings.json
 /vcpkg
 /data
