@@ -19,15 +19,9 @@ namespace talcs {
 
 class AudioWaveformSampler final {
 public:
-    enum class Geometry { None, FilledPeaks, VerticalPeaks, Curve };
-
-    struct Result {
-        Geometry geometry = Geometry::None;
-        QVector<WaveformRenderUtils::PeakPoint> peaks;
-        QVector<QPointF> curve;
-        QVector<QPointF> sampleDots;
-        double sampleDotRadius = 0.0;
-    };
+    using Geometry = WaveformRenderUtils::Geometry;
+    using Result = WaveformRenderUtils::SampledWaveform;
+    using AmplitudeScale = WaveformRenderUtils::AmplitudeScale;
 
     struct Request {
         const AudioInfoModel *audioInfo = nullptr;
@@ -40,6 +34,7 @@ public:
         double pixelsPerQuarterNote = 64.0;
         double leftMarginPx = 0.0;
         double devicePixelRatio = 1.0;
+        AmplitudeScale amplitudeScale = AmplitudeScale::Linear;
     };
 
     AudioWaveformSampler() = default;
@@ -73,6 +68,7 @@ private:
         double pixelsPerQuarterNote = 64.0;
         double leftMarginPx = 0.0;
         double devicePixelRatio = 1.0;
+        AmplitudeScale amplitudeScale = AmplitudeScale::Linear;
 
         bool operator==(const CacheKey &) const = default;
     };

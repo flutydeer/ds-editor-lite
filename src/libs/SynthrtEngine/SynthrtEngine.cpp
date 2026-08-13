@@ -231,8 +231,7 @@ bool SynthrtEngine::waitForSession(int timeoutMs) const {
     // refreshVoicebanks() error rather than wait out the full timeout.
     std::unique_lock lock(m_sessionReadyMutex);
     return m_sessionReadyCv.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this] {
-        return m_sessionInitialized ||
-               m_initializationDone.load(std::memory_order_acquire);
+        return m_sessionInitialized || m_initializationDone.load(std::memory_order_acquire);
     });
 }
 
@@ -271,11 +270,11 @@ void SynthrtEngine::shutdown() noexcept {
 
 fs::path SynthrtEngine::pluginRoot() {
 #if defined(Q_OS_MAC)
-    return MacOSUtils::getMainBundlePath() / _TSTR("Contents/PlugIns");
+    return MacOSUtils::getMainBundlePath() / "Contents/PlugIns";
 #elif defined(Q_OS_WIN)
-    return stdc::system::application_directory() / _TSTR("plugins");
+    return stdc::system::application_directory() / "plugins";
 #else
-    return stdc::system::application_directory().parent_path() / _TSTR("lib/plugins");
+    return stdc::system::application_directory().parent_path() / "lib/plugins";
 #endif
 }
 
@@ -320,6 +319,7 @@ bool SynthrtEngine::initialize(const QStringList &voicebankPaths,
     // snapshot error to detect that initialization failed before Stage 1.
     struct InitDoneGuard {
         SynthrtEngine &engine;
+
         ~InitDoneGuard() {
             engine.m_initializationDone.store(true, std::memory_order_release);
             {
@@ -360,10 +360,10 @@ bool SynthrtEngine::initialize(const QStringList &voicebankPaths,
     }
 
     // --- 2. Derive G2P plugin paths from the shared plugin root ---
-    const auto srtG2pDir = pluginsDir / _TSTR("srt-g2p");
+    const auto srtG2pDir = pluginsDir / "srt-g2p";
     std::vector<fs::path> g2pPluginPaths;
-    g2pPluginPaths.emplace_back(srtG2pDir / _TSTR("G2ps"));
-    g2pPluginPaths.emplace_back(srtG2pDir / _TSTR("dict"));
+    g2pPluginPaths.emplace_back(srtG2pDir / "G2ps");
+    g2pPluginPaths.emplace_back(srtG2pDir / "dict");
 
     // --- 3. Register G2P plugin search paths (before ONNX driver init) ---
     // PluginFactory::addPluginPath scans subdirectories for plugin.json and
@@ -481,9 +481,9 @@ bool SynthrtEngine::initializeRuntime(const fs::path &pluginRoot, const QString 
     }
 
     if (auto *plugins = m_runtime.services().get<srt::core::PluginFactory>()) {
-        const auto singerProviderDir = pluginRoot / _TSTR("diffsinger/singerproviders");
-        const auto inferenceDriverDir = pluginRoot / _TSTR("srt-driver/inferencedrivers");
-        const auto interpreterDir = pluginRoot / _TSTR("diffsinger/inferenceinterpreters");
+        const auto singerProviderDir = pluginRoot / "diffsinger/singerproviders";
+        const auto inferenceDriverDir = pluginRoot / "srt-driver/inferencedrivers";
+        const auto interpreterDir = pluginRoot / "diffsinger/inferenceinterpreters";
         plugins->addPluginPath("srt.svs.singer-provider.diffsinger", singerProviderDir);
         plugins->addPluginPath("srt.driver.InferenceDriver", inferenceDriverDir);
         plugins->addPluginPath("srt.svs.interpreter.acoustic", interpreterDir);
@@ -512,9 +512,9 @@ void SynthrtEngine::initializeExtractors(const fs::path &pluginRoot) {
     }
 
     plugins->addPluginPath(srt::extract::kPitchExtractorPluginIid,
-                           pluginRoot / _TSTR("srt-extract/PitchExtractor"));
+                           pluginRoot / "srt-extract/PitchExtractor");
     plugins->addPluginPath(srt::extract::kMidiExtractorPluginIid,
-                           pluginRoot / _TSTR("srt-extract/MidiExtractor"));
+                           pluginRoot / "srt-extract/MidiExtractor");
 
     const bool hasRmvpe = plugins->plugin<srt::extract::PitchExtractorPlugin>("rmvpe") != nullptr;
     const bool hasGame = plugins->plugin<srt::extract::MidiExtractorPlugin>("game") != nullptr;
