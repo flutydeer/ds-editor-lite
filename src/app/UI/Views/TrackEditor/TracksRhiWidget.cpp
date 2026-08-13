@@ -1003,7 +1003,7 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
                                        (clip.physicalRect.height() - metrics.height() * dpr) * 0.5;
         const QRectF textClip(titleLeft + iconWidth * dpr, clip.physicalRect.top(),
                               titleWidth - iconWidth * dpr,
-                              std::min(titleHeight, clip.physicalRect.height()));
+                              hasPreview ? titleHeight : clip.physicalRect.height());
         const auto textSpan = m_glyphAtlas.appendText(
             clip.title, font, QPointF(titleLeft + iconWidth * dpr, textTop), foreground, textClip,
             dpr, QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr,
