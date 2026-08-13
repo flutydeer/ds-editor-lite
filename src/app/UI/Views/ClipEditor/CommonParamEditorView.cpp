@@ -1,6 +1,7 @@
 #include "CommonParamEditorView.h"
 
 #include "ClipEditorGlobal.h"
+#include "CurveRenderUtils.h"
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -530,20 +531,17 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
                                             const QList<DrawCurve *> &curves) const {
     auto drawCurve = [painter, this](const DrawCurve &curve) {
         const auto dpr = painter->device()->devicePixelRatio();
-
-        const int start = curve.localStart();
-        const int startIndex =
-            start >= startTick()
-                ? 0
-                : (MathUtils::roundDown(static_cast<int>(startTick()), curve.step) - start) /
-                      curve.step;
-
-        // TODO: 重新设计计算方法
-        if (startIndex >= curve.values().count())
+        const auto pixelsPerTick = std::abs(tickToItemX(1.0) - tickToItemX(0.0));
+        const auto indices =
+            CurveRenderUtils::sampleCurve(curve, startTick(), endTick(), pixelsPerTick, dpr)
+                .pointIndices;
+        if (indices.isEmpty())
             return;
 
-        const auto x = tickToItemX(start + startIndex * curve.step);
-        const auto y = valueToItemY(curve.values().at(startIndex));
+        const auto start = curve.localStart();
+        const auto firstIndex = indices.first();
+        const auto x = tickToItemX(start + firstIndex * curve.step);
+        const auto y = valueToItemY(curve.values().at(firstIndex));
         const QPointF visibleFirstPoint(x, y);
 
         if (m_showDebugInfo) {
@@ -552,33 +550,12 @@ void CommonParamEditorView::drawCurveBorder(QPainter *painter,
             painter->drawText(firstPos, QString("#%1").arg(curve.id()));
         }
 
-        int pointCount = 0;
         QPainterPath curvePath;
         curvePath.moveTo(visibleFirstPoint);
-
-        const double startTick = start;
-        const double tempEndTick = endTick();
-        const double step = curve.step;
-        const double startX = tickToItemX(startTick);
-        const double endX = tickToItemX(tempEndTick);
-        const double interval = (endX - startX) / ((tempEndTick - startTick) / step);
-
-        double lastLineToX = visibleFirstPoint.x();
-        bool breakFlag = false;
-        for (int i = startIndex; i < curve.values().count(); i++) {
-            const auto pos = start + curve.step * i;
-            const auto value = curve.values().at(i);
-            if (pos > tempEndTick)
-                breakFlag = true;
-            const double currentX = startX + i * interval;
-            if (qAbs(lastLineToX - currentX) > dpr) {
-                curvePath.lineTo(currentX, valueToItemY(value));
-                lastLineToX = currentX;
-            }
-            pointCount++;
-
-            if (breakFlag)
-                break;
+        for (auto index = 1; index < indices.size(); ++index) {
+            const auto valueIndex = indices.at(index);
+            curvePath.lineTo(tickToItemX(start + valueIndex * curve.step),
+                             valueToItemY(curve.values().at(valueIndex)));
         }
         painter->drawPath(curvePath);
     };
@@ -595,20 +572,16 @@ void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
                                              const QList<DrawCurve *> &curves) const {
     auto drawCurve = [painter, this](const DrawCurve &curve) {
         const auto dpr = painter->device()->devicePixelRatio();
-
-        const int start = curve.localStart();
-        const int startIndex =
-            start >= startTick()
-                ? 0
-                : (MathUtils::roundDown(static_cast<int>(startTick()), curve.step) - start) /
-                      curve.step;
-
-        // TODO: 重新设计计算方法
-        if (startIndex >= curve.values().count())
+        const auto pixelsPerTick = std::abs(tickToItemX(1.0) - tickToItemX(0.0));
+        const auto samples =
+            CurveRenderUtils::sampleCurve(curve, startTick(), endTick(), pixelsPerTick, dpr);
+        if (samples.pointIndices.isEmpty())
             return;
 
-        const auto visibleFirstPoint = QPointF(tickToItemX(start + startIndex * curve.step),
-                                               valueToItemY(curve.values().at(startIndex)));
+        const auto start = curve.localStart();
+        const auto firstIndex = samples.pointIndices.first();
+        const auto visibleFirstPoint = QPointF(tickToItemX(start + firstIndex * curve.step),
+                                               valueToItemY(curve.values().at(firstIndex)));
 
         const auto fillFromBottom =
             m_properties->displayMode == ParamProperties::DisplayMode::FillFromBottom;
@@ -619,34 +592,12 @@ void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
         fillPath.moveTo(visibleFirstPoint.x(), baseValue);
         fillPath.lineTo(visibleFirstPoint);
 
-        const double startTick = start;
-        const double tempEndTick = endTick();
-        const double step = curve.step;
-        const double startX = tickToItemX(startTick);
-        const double endX = tickToItemX(tempEndTick);
-        const double interval = (endX - startX) / ((tempEndTick - startTick) / step);
-
-        double lastX = 0;
-
-        double lastLineToX = startX;
-        bool breakFlag = false;
-        for (int i = startIndex; i < curve.values().count(); i++) {
-            const auto pos = start + curve.step * i;
-            const auto value = curve.values().at(i);
-            if (pos > tempEndTick)
-                breakFlag = true;
-            const double x = startX + i * interval;
-            // 只有在视图上两点距离达到一个像素以上时才绘制
-            // TODO: 使用峰值模式来绘制
-            if (qAbs(lastLineToX - x) > dpr) {
-                fillPath.lineTo(x, valueToItemY(value));
-                lastLineToX = x;
-            }
-            lastX = x;
-
-            if (breakFlag)
-                break;
+        for (auto index = 1; index < samples.pointIndices.size(); ++index) {
+            const auto valueIndex = samples.pointIndices.at(index);
+            fillPath.lineTo(tickToItemX(start + valueIndex * curve.step),
+                            valueToItemY(curve.values().at(valueIndex)));
         }
+        const auto lastX = tickToItemX(start + samples.lastVisitedIndex * curve.step);
         fillPath.lineTo(lastX, baseValue);
         painter->drawPath(fillPath);
     };

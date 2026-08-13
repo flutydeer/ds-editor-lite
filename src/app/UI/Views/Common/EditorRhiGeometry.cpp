@@ -567,6 +567,51 @@ void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &v
     appendRoundCap(points.last(), normalized(points.last() - points.at(points.size() - 2)));
 }
 
+void EditorRhiGeometry::appendAntialiasedDashedStroke(
+    QVector<EditorRhiSolidVertex> &vertices, const QVector<QPointF> &physicalPoints,
+    const double width, const QColor &color, const double dashLength, const double gapLength,
+    const double feather, const double miterLimit, const Qt::PenCapStyle capStyle,
+    const Qt::PenJoinStyle joinStyle) {
+    if (physicalPoints.size() < 2 || dashLength <= 0.0 || gapLength <= 0.0)
+        return;
+
+    auto drawing = true;
+    auto remaining = dashLength;
+    QVector<QPointF> dash{physicalPoints.first()};
+    for (int index = 0; index + 1 < physicalPoints.size(); ++index) {
+        auto cursor = physicalPoints.at(index);
+        const auto end = physicalPoints.at(index + 1);
+        auto segment = end - cursor;
+        auto segmentLength = std::hypot(segment.x(), segment.y());
+        while (segmentLength > 0.001) {
+            const auto advance = std::min(remaining, segmentLength);
+            const auto next = cursor + segment * (advance / segmentLength);
+            if (drawing) {
+                if (dash.isEmpty())
+                    dash.append(cursor);
+                dash.append(next);
+            }
+            cursor = next;
+            segment = end - cursor;
+            segmentLength = std::hypot(segment.x(), segment.y());
+            remaining -= advance;
+            if (remaining <= 0.001) {
+                if (drawing && dash.size() >= 2) {
+                    appendAntialiasedStroke(vertices, dash, width, color, feather, miterLimit,
+                                            capStyle, joinStyle);
+                }
+                dash.clear();
+                drawing = !drawing;
+                remaining = drawing ? dashLength : gapLength;
+            }
+        }
+    }
+    if (drawing && dash.size() >= 2) {
+        appendAntialiasedStroke(vertices, dash, width, color, feather, miterLimit, capStyle,
+                                joinStyle);
+    }
+}
+
 void EditorRhiGeometry::appendAntialiasedHairline(QVector<EditorRhiSolidVertex> &vertices,
                                                   const QVector<QPointF> &physicalPoints,
                                                   const QColor &color, const double feather,

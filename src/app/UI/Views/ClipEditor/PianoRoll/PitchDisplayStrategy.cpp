@@ -17,19 +17,6 @@ namespace {
             {static_cast<double>(nodes.first()->pos()), static_cast<double>(nodes.last()->pos())});
     }
 
-    QList<AnchorNode *> sourceNodesForDisplay(AnchorCurve *curve,
-                                              const AnchorEditor::AnchorOverlayState &state) {
-        auto nodes = curve->nodes().toList();
-        if (!state.dragging)
-            return nodes;
-
-        for (const auto &info : state.dragNodeInfos) {
-            if (info.sourceCurve == curve && info.targetCurve)
-                nodes.removeOne(info.node);
-        }
-        return nodes;
-    }
-
     QList<PitchDisplayInterval> normalized(QList<PitchDisplayInterval> intervals) {
         for (auto &interval : intervals) {
             if (interval.endTick < interval.startTick)
@@ -59,6 +46,72 @@ namespace {
     }
 }
 
+PitchDisplayMode PitchDisplayStrategy::displayModeForEditMode(
+    const EditorViewGlobal::PianoRollEditMode editMode) {
+    if (editMode == EditorViewGlobal::DrawPitch || editMode == EditorViewGlobal::ErasePitch ||
+        editMode == EditorViewGlobal::FreezePitch) {
+        return PitchDisplayMode::Draw;
+    }
+    if (editMode == EditorViewGlobal::EditPitchAnchor)
+        return PitchDisplayMode::Anchor;
+    return PitchDisplayMode::Final;
+}
+
+QList<PitchDisplayLayer>
+    PitchDisplayStrategy::displayLayers(const PitchDisplayMode mode,
+                                        const QList<DrawCurve *> &editedCurves,
+                                        const QList<PitchDisplayInterval> &anchorCoverage) {
+    if (mode == PitchDisplayMode::Final) {
+        return {
+            {PitchDisplayCurveSource::Merged,
+             PitchDisplayColorRole::Edited,
+             210, anchorCoverage,
+             {}}
+        };
+    }
+    if (mode == PitchDisplayMode::Draw) {
+        const auto editedOrAnchorCoverage =
+            combineCoverage(drawCurveCoverage(editedCurves), anchorCoverage);
+        return {
+            {PitchDisplayCurveSource::Original,
+             PitchDisplayColorRole::Original,
+             255, {},
+             editedOrAnchorCoverage},
+            {PitchDisplayCurveSource::Edited,
+             PitchDisplayColorRole::Edited,
+             230, {},
+             anchorCoverage        },
+        };
+    }
+    return {
+        {PitchDisplayCurveSource::Merged, PitchDisplayColorRole::Edited, 80, {}, anchorCoverage}
+    };
+}
+
+AnchorDisplayOpacity PitchDisplayStrategy::anchorOpacity(const PitchDisplayMode mode) {
+    if (mode == PitchDisplayMode::Final)
+        return {220, 180};
+    if (mode == PitchDisplayMode::Draw)
+        return {80, 60};
+    return {255, 200};
+}
+
+int PitchDisplayStrategy::anchorPreviewAlpha() {
+    return 128;
+}
+
+int PitchDisplayStrategy::anchorInteractionPreviewAlpha() {
+    return 160;
+}
+
+int PitchDisplayStrategy::anchorSelectionFillAlpha() {
+    return 64;
+}
+
+int PitchDisplayStrategy::anchorSelectionBorderAlpha() {
+    return 200;
+}
+
 QList<PitchDisplayInterval>
     PitchDisplayStrategy::drawCurveCoverage(const QList<DrawCurve *> &curves) {
     QList<PitchDisplayInterval> result;
@@ -71,12 +124,28 @@ QList<PitchDisplayInterval>
     return normalized(result);
 }
 
+QList<AnchorNode *>
+    PitchDisplayStrategy::anchorCurveNodes(AnchorCurve *curve,
+                                           const AnchorEditor::AnchorOverlayState &state) {
+    if (!curve)
+        return {};
+    auto nodes = curve->nodes().toList();
+    if (!state.dragging)
+        return nodes;
+
+    for (const auto &info : state.dragNodeInfos) {
+        if (info.sourceCurve == curve && info.targetCurve)
+            nodes.removeOne(info.node);
+    }
+    return nodes;
+}
+
 QList<PitchDisplayInterval>
     PitchDisplayStrategy::anchorCoverage(const AnchorEditor::AnchorOverlayState &state) {
     QList<PitchDisplayInterval> result;
     for (auto *curve : state.visibleCurves) {
         if (curve)
-            appendNodeCoverage(result, sourceNodesForDisplay(curve, state));
+            appendNodeCoverage(result, anchorCurveNodes(curve, state));
     }
 
     if (state.dragging) {

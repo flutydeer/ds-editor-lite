@@ -55,30 +55,28 @@ void PitchEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *o
     painter->setRenderHint(QPainter::Antialiasing, true);
     painter->setBrush(Qt::NoBrush);
 
-    const auto editedCoverage = PitchDisplayStrategy::drawCurveCoverage(editedCurves());
     const auto anchorCoverage = m_anchorState ? PitchDisplayStrategy::anchorCoverage(*m_anchorState)
                                               : QList<PitchDisplayInterval>();
-    const auto editedOrAnchorCoverage =
-        PitchDisplayStrategy::combineCoverage(editedCoverage, anchorCoverage);
-
-    if (m_displayMode == PitchDisplayMode::Final) {
-        auto finalColor = editedCurveColor();
-        finalColor.setAlpha(std::min(finalColor.alpha(), 210));
-        drawCurveLayer(painter, m_mergedCurves, finalColor, anchorCoverage, {});
-        return;
+    const auto layers =
+        PitchDisplayStrategy::displayLayers(m_displayMode, editedCurves(), anchorCoverage);
+    for (const auto &layer : layers) {
+        const QList<DrawCurve *> *curves = nullptr;
+        switch (layer.curveSource) {
+            case PitchDisplayCurveSource::Original:
+                curves = &originalCurves();
+                break;
+            case PitchDisplayCurveSource::Edited:
+                curves = &editedCurves();
+                break;
+            case PitchDisplayCurveSource::Merged:
+                curves = &m_mergedCurves;
+                break;
+        }
+        auto color = layer.colorRole == PitchDisplayColorRole::Original ? originalCurveColor()
+                                                                        : editedCurveColor();
+        color.setAlpha(std::min(color.alpha(), layer.maximumAlpha));
+        drawCurveLayer(painter, *curves, color, layer.hiddenCoverage, layer.dashedCoverage);
     }
-
-    if (m_displayMode == PitchDisplayMode::Draw) {
-        drawCurveLayer(painter, originalCurves(), originalCurveColor(), {}, editedOrAnchorCoverage);
-        auto focusColor = editedCurveColor();
-        focusColor.setAlpha(std::min(focusColor.alpha(), 230));
-        drawCurveLayer(painter, editedCurves(), focusColor, {}, anchorCoverage);
-        return;
-    }
-
-    auto baseColor = editedCurveColor();
-    baseColor.setAlpha(std::min(baseColor.alpha(), 80));
-    drawCurveLayer(painter, m_mergedCurves, baseColor, {}, anchorCoverage);
 }
 
 void PitchEditorView::drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option,

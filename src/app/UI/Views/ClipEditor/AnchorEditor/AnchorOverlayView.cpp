@@ -19,7 +19,7 @@ void AnchorOverlayView::setOverlayState(const AnchorEditor::AnchorOverlayState *
     m_state = state;
 }
 
-void AnchorOverlayView::setDisplayMode(const DisplayMode mode) {
+void AnchorOverlayView::setDisplayMode(const PitchDisplayMode mode) {
     if (m_displayMode == mode)
         return;
     m_displayMode = mode;
@@ -117,16 +117,9 @@ void AnchorOverlayView::drawAnchorCurves(QPainter *painter) const {
     constexpr double hoverRadius = 6.0;
     QColor normalColor = m_anchorColor;
     QColor curveColor = m_anchorCurveColor;
-    if (m_displayMode == DisplayMode::Final) {
-        normalColor.setAlpha(std::min(normalColor.alpha(), 220));
-        curveColor.setAlpha(std::min(curveColor.alpha(), 180));
-    } else if (m_displayMode == DisplayMode::Draw) {
-        normalColor.setAlpha(std::min(normalColor.alpha(), 80));
-        curveColor.setAlpha(std::min(curveColor.alpha(), 60));
-    } else {
-        normalColor.setAlpha(std::min(normalColor.alpha(), 255));
-        curveColor.setAlpha(std::min(curveColor.alpha(), 200));
-    }
+    const auto opacity = PitchDisplayStrategy::anchorOpacity(m_displayMode);
+    normalColor.setAlpha(std::min(normalColor.alpha(), opacity.nodeMaximumAlpha));
+    curveColor.setAlpha(std::min(curveColor.alpha(), opacity.curveMaximumAlpha));
     const QColor selectedColor = m_anchorSelectedColor;
 
     auto drawNodeAt = [&](double x, double y, AnchorNode *node) {
@@ -153,26 +146,7 @@ void AnchorOverlayView::drawAnchorCurves(QPainter *painter) const {
     auto valueToLocalY = [this](int value) { return sceneYToItemY(valueToSceneY(value)); };
 
     auto drawCurve = [&](AnchorCurve *curve) {
-        auto allNodes = curve->nodes().toList();
-        if (allNodes.isEmpty())
-            return;
-
-        QList<AnchorNode *> nodes;
-        if (m_state->dragging && !m_state->dragNodeInfos.isEmpty()) {
-            for (auto *node : allNodes) {
-                bool skip = false;
-                for (const auto &info : m_state->dragNodeInfos) {
-                    if (info.node == node && info.targetCurve && info.sourceCurve == curve) {
-                        skip = true;
-                        break;
-                    }
-                }
-                if (!skip)
-                    nodes.append(node);
-            }
-        } else {
-            nodes = allNodes;
-        }
+        const auto nodes = PitchDisplayStrategy::anchorCurveNodes(curve, *m_state);
         if (nodes.isEmpty())
             return;
 
@@ -250,7 +224,7 @@ void AnchorOverlayView::drawPreviewCurve(QPainter *painter) const {
     }
 
     QColor previewColor = m_anchorPreviewColor;
-    previewColor.setAlpha(128);
+    previewColor.setAlpha(PitchDisplayStrategy::anchorPreviewAlpha());
     QPen pen(previewColor, 1.5, Qt::DashLine);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
@@ -281,7 +255,7 @@ void AnchorOverlayView::drawMergePreviewCurve(QPainter *painter) const {
         return;
 
     QColor mergePreviewColor = m_anchorPreviewColor;
-    mergePreviewColor.setAlpha(160);
+    mergePreviewColor.setAlpha(PitchDisplayStrategy::anchorInteractionPreviewAlpha());
     QPen pen(mergePreviewColor, 1.5, Qt::DashLine);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
@@ -306,7 +280,7 @@ void AnchorOverlayView::drawDragPreviewCurve(QPainter *painter) const {
     auto valueToLocalY = [this](int value) { return sceneYToItemY(valueToSceneY(value)); };
 
     QColor dragPreviewColor = m_anchorPreviewColor;
-    dragPreviewColor.setAlpha(160);
+    dragPreviewColor.setAlpha(PitchDisplayStrategy::anchorInteractionPreviewAlpha());
     QPen pen(dragPreviewColor, 1.5, Qt::DashLine);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
@@ -354,9 +328,9 @@ void AnchorOverlayView::drawSelectionRect(QPainter *painter) const {
 
     const auto radius = std::min({6.0, localRect.width() / 2, localRect.height() / 2});
     QColor selectionBorderColor = m_anchorPreviewColor;
-    selectionBorderColor.setAlpha(200);
+    selectionBorderColor.setAlpha(PitchDisplayStrategy::anchorSelectionBorderAlpha());
     QColor selectionFillColor = m_anchorPreviewColor;
-    selectionFillColor.setAlpha(64);
+    selectionFillColor.setAlpha(PitchDisplayStrategy::anchorSelectionFillAlpha());
     painter->setPen(QPen(selectionBorderColor, 1.5));
     painter->setBrush(selectionFillColor);
     painter->drawRoundedRect(localRect, radius, radius);

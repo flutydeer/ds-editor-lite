@@ -11,7 +11,9 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/ITimelinePainter.h"
+#include "UI/Views/ClipEditor/AnchorEditor/AnchorEditController.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/ClipEditor/CurveRenderUtils.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "UI/Views/Common/EdgeAutoScroller.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
@@ -71,24 +73,6 @@ namespace {
                                 from.greenF() + (to.greenF() - from.greenF()) * t,
                                 from.blueF() + (to.blueF() - from.blueF()) * t,
                                 from.alphaF() + (to.alphaF() - from.alphaF()) * t);
-    }
-
-    PitchDisplayMode pitchDisplayMode(const PianoRollEditMode mode) {
-        if (mode == DrawPitch || mode == ErasePitch || mode == FreezePitch)
-            return PitchDisplayMode::Draw;
-        if (mode == EditPitchAnchor)
-            return PitchDisplayMode::Anchor;
-        return PitchDisplayMode::Final;
-    }
-
-    QList<DrawCurve *> drawCurves(const QList<Curve *> &curves) {
-        QList<DrawCurve *> result;
-        result.reserve(curves.size());
-        for (auto *curve : curves) {
-            if (curve && curve->type() == Curve::Draw)
-                result.append(static_cast<DrawCurve *>(curve));
-        }
-        return result;
     }
 
     QList<PitchDisplayInterval> clippedCoverage(const QList<PitchDisplayInterval> &coverage,
@@ -201,14 +185,6 @@ class PianoRollRhiWidget::Private {
 public:
     enum class InlineEditField { None, Lyric, Pronunciation };
     enum class Interaction { None, Move, ResizeLeft, ResizeRight, Draw, RectSelect };
-
-    struct AnchorDragInfo {
-        AnchorNode *node = nullptr;
-        AnchorCurve *sourceCurve = nullptr;
-        AnchorCurve *targetCurve = nullptr;
-        int startTick = 0;
-        int startValue = 0;
-    };
 
     struct PastePreviewNote {
         int localStart = 0;
@@ -2202,183 +2178,92 @@ private:
         }
     }
 
+    AnchorEditor::AnchorOverlayState anchorOverlayState() const {
+        AnchorEditor::AnchorOverlayState state;
+        state.anchorVisible = !anchorCurves.isEmpty();
+        state.anchorEditActive = editMode == EditPitchAnchor;
+        state.editing = anchorEditing;
+        state.currentCurve = currentAnchorCurve;
+        state.selectedNodes = selectedAnchorNodes;
+        state.hoveredNode = hoveredAnchorNode;
+        state.previewScenePos = scenePositionAt(anchorPreviewPosition);
+        state.previewTick = anchorPointAt(anchorPreviewPosition).x();
+        state.showPreview = showAnchorPreview;
+        state.previewCurve = anchorPreviewCurve;
+        state.dragStartScenePos = scenePositionAt(anchorDragPressViewportPos);
+        state.dragging = anchorDragging;
+        state.dragNodeInfos = anchorDragInfos;
+        state.selectionSceneRect = anchorSelectionRect;
+        state.selecting = anchorSelecting;
+        state.visibleCurves = anchorCurves;
+        state.cursorInView = anchorCursorInView;
+        state.mergeCandidateCurve = anchorMergeCandidateCurve;
+        state.mergeEndpointNode = anchorMergeEndpointNode;
+        state.showMergePreview = showAnchorMergePreview;
+        return state;
+    }
+
     void appendPitch(const double localStart, const double localEnd) {
         const auto *pitch = clip->params.getParamByName(ParamInfo::Pitch);
         if (!pitch)
             return;
-        const auto original = drawCurves(pitch->curves(Param::Original));
-        const auto edited =
-            pitchEditing ? pitchPreviewCurves : drawCurves(pitch->curves(Param::Edited));
-        const auto anchorCoverage = pitchAnchorCoverage();
-        const auto mode = pitchDisplayMode(editMode);
-        if (mode == PitchDisplayMode::Final) {
-            const auto merged = AppModelUtils::mergeCurves(original, edited);
-            auto color = q->paramEditedCurveColor();
-            color.setAlpha(std::min(color.alpha(), 210));
-            appendPitchLayer(merged, localStart, localEnd, color, anchorCoverage, {});
-            qDeleteAll(merged);
-            return;
-        }
+        const auto original = AppModelUtils::getDrawCurves(pitch->curves(Param::Original));
+        const auto edited = pitchEditing
+                                ? pitchPreviewCurves
+                                : AppModelUtils::getDrawCurves(pitch->curves(Param::Edited));
+        const auto anchorCoverage = PitchDisplayStrategy::anchorCoverage(anchorOverlayState());
+        const auto mode = PitchDisplayStrategy::displayModeForEditMode(editMode);
+        const auto layers = PitchDisplayStrategy::displayLayers(mode, edited, anchorCoverage);
 
-        if (mode == PitchDisplayMode::Draw) {
-            const auto editedCoverage = PitchDisplayStrategy::drawCurveCoverage(edited);
-            const auto editedOrAnchorCoverage =
-                PitchDisplayStrategy::combineCoverage(editedCoverage, anchorCoverage);
-            appendPitchLayer(original, localStart, localEnd, q->paramOriginalCurveColor(), {},
-                             editedOrAnchorCoverage);
-            auto color = q->paramEditedCurveColor();
-            color.setAlpha(std::min(color.alpha(), 230));
-            appendPitchLayer(edited, localStart, localEnd, color, {}, anchorCoverage);
-            return;
+        QList<DrawCurve *> merged;
+        if (std::any_of(layers.cbegin(), layers.cend(), [](const PitchDisplayLayer &layer) {
+                return layer.curveSource == PitchDisplayCurveSource::Merged;
+            })) {
+            merged = AppModelUtils::mergeCurves(original, edited);
         }
-
-        const auto merged = AppModelUtils::mergeCurves(original, edited);
-        auto color = q->paramEditedCurveColor();
-        color.setAlpha(std::min(color.alpha(), 80));
-        appendPitchLayer(merged, localStart, localEnd, color, {}, anchorCoverage);
+        for (const auto &layer : layers) {
+            const QList<DrawCurve *> *curves = nullptr;
+            switch (layer.curveSource) {
+                case PitchDisplayCurveSource::Original:
+                    curves = &original;
+                    break;
+                case PitchDisplayCurveSource::Edited:
+                    curves = &edited;
+                    break;
+                case PitchDisplayCurveSource::Merged:
+                    curves = &merged;
+                    break;
+            }
+            auto color = layer.colorRole == PitchDisplayColorRole::Original
+                             ? q->paramOriginalCurveColor()
+                             : q->paramEditedCurveColor();
+            color.setAlpha(std::min(color.alpha(), layer.maximumAlpha));
+            appendPitchLayer(*curves, localStart, localEnd, color, layer.hiddenCoverage,
+                             layer.dashedCoverage);
+        }
         qDeleteAll(merged);
-    }
-
-    QList<PitchDisplayInterval> pitchAnchorCoverage() const {
-        QList<PitchDisplayInterval> result;
-        const auto appendNodes = [&result](const QList<AnchorNode *> &nodes) {
-            if (nodes.size() >= 2)
-                result.append({static_cast<double>(nodes.first()->pos()),
-                               static_cast<double>(nodes.last()->pos())});
-        };
-
-        for (auto *curve : anchorCurves) {
-            auto nodes = curve->nodes().toList();
-            if (anchorDragging) {
-                for (const auto &info : anchorDragInfos) {
-                    if (info.sourceCurve == curve && info.targetCurve)
-                        nodes.removeOne(info.node);
-                }
-            }
-            appendNodes(nodes);
-        }
-
-        if (anchorDragging) {
-            QSet<AnchorCurve *> targets;
-            for (const auto &info : anchorDragInfos) {
-                if (info.targetCurve)
-                    targets.insert(info.targetCurve);
-            }
-            for (auto *target : targets) {
-                auto nodes = target->nodes().toList();
-                for (const auto &info : anchorDragInfos) {
-                    if (info.targetCurve != target)
-                        continue;
-                    const auto position =
-                        std::lower_bound(nodes.begin(), nodes.end(), info.node,
-                                         [](const AnchorNode *left, const AnchorNode *right) {
-                                             return left->pos() < right->pos();
-                                         });
-                    nodes.insert(position, info.node);
-                }
-                appendNodes(nodes);
-            }
-        }
-
-        if (showAnchorMergePreview && currentAnchorCurve && anchorMergeCandidateCurve) {
-            auto nodes = currentAnchorCurve->nodes().toList();
-            nodes.append(anchorMergeCandidateCurve->nodes().toList());
-            std::sort(nodes.begin(), nodes.end(),
-                      [](const AnchorNode *left, const AnchorNode *right) {
-                          return left->pos() < right->pos();
-                      });
-            appendNodes(nodes);
-        } else if (showAnchorPreview && anchorPreviewCurve && anchorCursorInView) {
-            auto nodes = anchorPreviewCurve->nodes().toList();
-            const auto tick = anchorPointAt(anchorPreviewPosition).x();
-            if (!nodes.isEmpty()) {
-                result.append({static_cast<double>(std::min(nodes.first()->pos(), tick)),
-                               static_cast<double>(std::max(nodes.last()->pos(), tick))});
-            }
-        }
-
-        return PitchDisplayStrategy::combineCoverage(result, {});
     }
 
     QVector<QPointF> pitchCurvePoints(const DrawCurve &curve, const double localStart,
                                       const double localEnd) const {
         const auto &values = curve.values();
-        if (values.size() < 2)
-            return {};
         const auto start = curve.localStart();
-        const auto startIndex =
-            start >= localStart
-                ? 0
-                : (MathUtils::roundDown(static_cast<int>(localStart), curve.step) - start) /
-                      curve.step;
-        if (startIndex < 0 || startIndex >= values.size())
+        const auto indices =
+            CurveRenderUtils::sampleCurve(curve, localStart, localEnd, pixelsPerTick(), dpr)
+                .pointIndices;
+        if (indices.isEmpty())
             return {};
 
         QVector<QPointF> points;
-        points.reserve(values.size() - startIndex);
-        const auto firstTick = start + startIndex * curve.step;
-        const auto firstValue = MathUtils::clip(values.at(startIndex), 0, 12700);
-        const auto firstX = firstTick * pixelsPerTick();
-        const auto firstY = (12700 - firstValue + 50) * scaleY * noteHeight / 100.0;
-        points.append(QPointF(firstX, firstY) * dpr);
-        auto lastAcceptedX = firstX;
-        for (int i = startIndex; i < values.size(); ++i) {
-            const auto tick = start + i * curve.step;
-            const auto breakAfterPoint = tick > localEnd;
+        points.reserve(indices.size());
+        for (const auto index : indices) {
+            const auto tick = start + index * curve.step;
             const auto x = tick * pixelsPerTick();
-            const auto value = MathUtils::clip(values.at(i), 0, 12700);
+            const auto value = MathUtils::clip(values.at(index), 0, 12700);
             const auto y = (12700 - value + 50) * scaleY * noteHeight / 100.0;
-            if (std::abs(x - lastAcceptedX) > dpr) {
-                points.append(QPointF(x, y) * dpr);
-                lastAcceptedX = x;
-            }
-            if (breakAfterPoint)
-                break;
+            points.append(QPointF(x, y) * dpr);
         }
         return points;
-    }
-
-    void appendDashedStroke(QVector<EditorRhiSolidVertex> &stroke, const QVector<QPointF> &points,
-                            const double width, const QColor &color, const double dashLength,
-                            const double gapLength, const Qt::PenCapStyle capStyle,
-                            const Qt::PenJoinStyle joinStyle) const {
-        if (points.size() < 2 || dashLength <= 0.0 || gapLength <= 0.0)
-            return;
-        auto drawing = true;
-        auto remaining = dashLength;
-        QVector<QPointF> dash{points.first()};
-        for (int i = 0; i + 1 < points.size(); ++i) {
-            auto cursor = points.at(i);
-            const auto end = points.at(i + 1);
-            auto segment = end - cursor;
-            auto segmentLength = std::hypot(segment.x(), segment.y());
-            while (segmentLength > 0.001) {
-                const auto advance = std::min(remaining, segmentLength);
-                const auto next = cursor + segment * (advance / segmentLength);
-                if (drawing) {
-                    if (dash.isEmpty())
-                        dash.append(cursor);
-                    dash.append(next);
-                }
-                cursor = next;
-                segment = end - cursor;
-                segmentLength = std::hypot(segment.x(), segment.y());
-                remaining -= advance;
-                if (remaining <= 0.001) {
-                    if (drawing && dash.size() >= 2) {
-                        EditorRhiGeometry::appendAntialiasedStroke(stroke, dash, width, color, 1.0,
-                                                                   3.0, capStyle, joinStyle);
-                    }
-                    dash.clear();
-                    drawing = !drawing;
-                    remaining = drawing ? dashLength : gapLength;
-                }
-            }
-        }
-        if (drawing && dash.size() >= 2) {
-            EditorRhiGeometry::appendAntialiasedStroke(stroke, dash, width, color, 1.0, 3.0,
-                                                       capStyle, joinStyle);
-        }
     }
 
     void appendStrokeCoverage(const QVector<EditorRhiSolidVertex> &stroke,
@@ -2423,9 +2308,9 @@ private:
             }
             if (!dashed.isEmpty()) {
                 QVector<EditorRhiSolidVertex> stroke;
-                appendDashedStroke(stroke, points, kPitchLineWidth * dpr, color,
-                                    4.0 * kPitchLineWidth * dpr, 3.0 * kPitchLineWidth * dpr,
-                                    Qt::FlatCap, Qt::RoundJoin);
+                EditorRhiGeometry::appendAntialiasedDashedStroke(
+                    stroke, points, kPitchLineWidth * dpr, color, 4.0 * kPitchLineWidth * dpr,
+                    3.0 * kPitchLineWidth * dpr, 1.0, 3.0, Qt::FlatCap, Qt::RoundJoin);
                 appendStrokeCoverage(stroke, dashed);
             }
         }
@@ -2491,9 +2376,9 @@ private:
             EditorRhiGeometry::appendAntialiasedStroke(stroke, points, kPitchLineWidth * dpr, color,
                                                        1.0, 3.0, Qt::SquareCap, Qt::BevelJoin);
         } else {
-            appendDashedStroke(stroke, points, kPitchLineWidth * dpr, color,
-                               4.0 * kPitchLineWidth * dpr, 2.0 * kPitchLineWidth * dpr,
-                               Qt::SquareCap, Qt::BevelJoin);
+            EditorRhiGeometry::appendAntialiasedDashedStroke(
+                stroke, points, kPitchLineWidth * dpr, color, 4.0 * kPitchLineWidth * dpr,
+                2.0 * kPitchLineWidth * dpr, 1.0, 3.0, Qt::SquareCap, Qt::BevelJoin);
         }
         vertices.reserve(vertices.size() + stroke.size());
         for (const auto &vertex : stroke)
@@ -2521,17 +2406,12 @@ private:
         EditorRhiGeometry::appendAntialiasedStroke(vertices, ring, 1.5 * dpr, color, 1.0, 3.0);
     }
 
-    void appendAnchorCurve(const AnchorCurve *curve, const double localStart, const double localEnd,
-                           const QColor &curveColor, const QColor &nodeColor, const bool active) {
+    void appendAnchorCurve(AnchorCurve *curve, const double localStart, const double localEnd,
+                           const QColor &curveColor, const QColor &nodeColor, const bool active,
+                           const AnchorEditor::AnchorOverlayState &state) {
         if (!curve)
             return;
-        auto nodes = curve->nodes().toList();
-        if (anchorDragging && !anchorDragInfos.isEmpty()) {
-            for (const auto &info : anchorDragInfos) {
-                if (info.sourceCurve == curve && info.targetCurve)
-                    nodes.removeOne(info.node);
-            }
-        }
+        const auto nodes = PitchDisplayStrategy::anchorCurveNodes(curve, state);
         appendAnchorStroke(nodes, localStart, localEnd, curveColor);
         for (auto *node : nodes) {
             const auto selected = active && selectedAnchorNodes.contains(node);
@@ -2547,7 +2427,7 @@ private:
 
         if (showAnchorMergePreview && currentAnchorCurve && anchorMergeCandidateCurve) {
             auto previewColor = q->anchorPreviewColor();
-            previewColor.setAlpha(160);
+            previewColor.setAlpha(PitchDisplayStrategy::anchorInteractionPreviewAlpha());
             auto nodes = currentAnchorCurve->nodes().toList();
             nodes.append(anchorMergeCandidateCurve->nodes().toList());
             std::sort(nodes.begin(), nodes.end(),
@@ -2561,7 +2441,7 @@ private:
             return;
 
         auto previewColor = q->anchorPreviewColor();
-        previewColor.setAlpha(128);
+        previewColor.setAlpha(PitchDisplayStrategy::anchorPreviewAlpha());
         auto nodes = anchorPreviewCurve->nodes().toList();
         const auto point = anchorPointAt(anchorPreviewPosition);
         AnchorNode virtualNode(point.x(), point.y());
@@ -2616,7 +2496,7 @@ private:
                 targets.insert(info.targetCurve);
         }
         auto previewColor = q->anchorPreviewColor();
-        previewColor.setAlpha(160);
+        previewColor.setAlpha(PitchDisplayStrategy::anchorInteractionPreviewAlpha());
         for (auto *target : targets) {
             auto nodes = target->nodes().toList();
             QList<AnchorNode *> dragged;
@@ -2641,9 +2521,9 @@ private:
             return;
         const auto sceneRect = anchorSelectionRect.normalized();
         auto fill = q->anchorPreviewColor();
-        fill.setAlpha(64);
+        fill.setAlpha(PitchDisplayStrategy::anchorSelectionFillAlpha());
         auto border = q->anchorPreviewColor();
-        border.setAlpha(200);
+        border.setAlpha(PitchDisplayStrategy::anchorSelectionBorderAlpha());
         appendLogicalRect(sceneRect, fill);
         appendLine(sceneRect.topLeft(), sceneRect.topRight(), 1.5, border);
         appendLine(sceneRect.topRight(), sceneRect.bottomRight(), 1.5, border);
@@ -2652,26 +2532,20 @@ private:
     }
 
     void appendAnchors(const double localStart, const double localEnd) {
-        const auto mode = pitchDisplayMode(editMode);
+        const auto mode = PitchDisplayStrategy::displayModeForEditMode(editMode);
         const auto active = mode == PitchDisplayMode::Anchor;
         auto nodeColor = q->anchorColor();
         auto curveColor = q->anchorCurveColor();
-        if (mode == PitchDisplayMode::Final) {
-            nodeColor.setAlpha(std::min(nodeColor.alpha(), 220));
-            curveColor.setAlpha(std::min(curveColor.alpha(), 180));
-        } else if (mode == PitchDisplayMode::Draw) {
-            nodeColor.setAlpha(std::min(nodeColor.alpha(), 80));
-            curveColor.setAlpha(std::min(curveColor.alpha(), 60));
-        } else {
-            nodeColor.setAlpha(std::min(nodeColor.alpha(), 255));
-            curveColor.setAlpha(std::min(curveColor.alpha(), 200));
-        }
+        const auto opacity = PitchDisplayStrategy::anchorOpacity(mode);
+        nodeColor.setAlpha(std::min(nodeColor.alpha(), opacity.nodeMaximumAlpha));
+        curveColor.setAlpha(std::min(curveColor.alpha(), opacity.curveMaximumAlpha));
         if (active) {
             appendAnchorPreview(localStart, localEnd);
             appendAnchorDragPreview(localStart, localEnd);
         }
-        for (const auto *curve : anchorCurves)
-            appendAnchorCurve(curve, localStart, localEnd, curveColor, nodeColor, active);
+        const auto state = anchorOverlayState();
+        for (auto *curve : anchorCurves)
+            appendAnchorCurve(curve, localStart, localEnd, curveColor, nodeColor, active, state);
         if (active)
             appendAnchorSelectionRect();
     }
@@ -2819,7 +2693,7 @@ public:
     AnchorCurve *currentAnchorCurve = nullptr;
     QList<AnchorNode *> selectedAnchorNodes;
     AnchorNode *hoveredAnchorNode = nullptr;
-    QList<AnchorDragInfo> anchorDragInfos;
+    QList<AnchorEditor::DragNodeInfo> anchorDragInfos;
     QRectF anchorSelectionRect;
     QPointF anchorPreviewPosition;
     QPoint anchorDragStartPoint;

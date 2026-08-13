@@ -10,7 +10,7 @@ ParamAnchorOverlayView::ParamAnchorOverlayView(AnchorEditor::AnchorEditControlle
                                                ValueMapper valueToSceneY, ValueMapper sceneYToValue)
     : AnchorOverlayView(std::move(valueToSceneY), std::move(sceneYToValue)),
       m_controller(controller) {
-    setDisplayMode(DisplayMode::Anchor);
+    setDisplayMode(PitchDisplayMode::Anchor);
     setVisible(false);
 }
 

@@ -7,6 +7,7 @@
 #include "PianoRollGraphicsViewHelper.h"
 #include "PianoRollCoord.h"
 #include "PianoRollContextMenuController.h"
+#include "PitchDisplayStrategy.h"
 #include "NoteInteractionController.h"
 #include "PianoRollSelectionModel.h"
 #include "PianoRollGraphicsView_p.h"
@@ -1066,17 +1067,9 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     d->m_editMode = mode;
     d->m_currentHandler = d->m_handlers.value(mode, nullptr);
 
-    auto displayMode = PitchDisplayMode::Final;
-    if (mode == DrawPitch || mode == ErasePitch || mode == FreezePitch)
-        displayMode = PitchDisplayMode::Draw;
-    else if (mode == EditPitchAnchor)
-        displayMode = PitchDisplayMode::Anchor;
+    const auto displayMode = PitchDisplayStrategy::displayModeForEditMode(mode);
     d->m_pitchEditor->setDisplayMode(displayMode);
-    const auto anchorDisplayMode =
-        displayMode == PitchDisplayMode::Draw     ? AnchorOverlayView::DisplayMode::Draw
-        : displayMode == PitchDisplayMode::Anchor ? AnchorOverlayView::DisplayMode::Anchor
-                                                  : AnchorOverlayView::DisplayMode::Final;
-    d->m_anchorEditor->setDisplayMode(anchorDisplayMode);
+    d->m_anchorEditor->setDisplayMode(displayMode);
 
     if (d->m_currentHandler) {
         d->m_currentHandler->activate();

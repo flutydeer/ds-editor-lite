@@ -2,6 +2,7 @@
 #define ANCHOROVERLAYVIEW_H
 
 #include "AnchorEditController.h"
+#include "UI/Views/ClipEditor/PianoRoll/PitchDisplayStrategy.h"
 #include "UI/Views/Common/TimeOverlayView.h"
 
 #include <QColor>
@@ -15,13 +16,12 @@ class AnchorOverlayView : public TimeOverlayView {
     Q_OBJECT
 
 public:
-    enum class DisplayMode { Final, Draw, Anchor };
     using ValueMapper = std::function<double(double)>;
 
     AnchorOverlayView(ValueMapper valueToSceneY, ValueMapper sceneYToValue);
 
     void setOverlayState(const AnchorEditor::AnchorOverlayState *state);
-    void setDisplayMode(DisplayMode mode);
+    void setDisplayMode(PitchDisplayMode mode);
     void setValueMappers(ValueMapper valueToSceneY, ValueMapper sceneYToValue);
     [[nodiscard]] double valueToSceneY(double value) const;
     [[nodiscard]] double sceneYToValue(double y) const;
@@ -49,7 +49,7 @@ private:
                                                 double devicePixelRatio) const;
 
     const AnchorEditor::AnchorOverlayState *m_state = nullptr;
-    DisplayMode m_displayMode = DisplayMode::Final;
+    PitchDisplayMode m_displayMode = PitchDisplayMode::Final;
     ValueMapper m_valueToSceneY;
     ValueMapper m_sceneYToValue;
 
