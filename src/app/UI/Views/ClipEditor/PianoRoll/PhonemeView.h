@@ -10,6 +10,7 @@
 #include <QWidget>
 #include <QTimer>
 #include <QMap>
+#include <QPixmap>
 
 #include <memory>
 
@@ -163,8 +164,12 @@ private:
     };
 
     QMap<InferPiece *, PieceWaveform> m_pieceWaveforms;
+    QPixmap m_waveformCache;
+    bool m_waveformCacheDirty = true;
     void clearPieceWaveforms();
+    void invalidateWaveformCache();
     void drawWaveforms(QPainter *painter);
+    void renderWaveforms(QPainter *painter);
     void loadWaveformAsync(InferPiece *piece);
 };
 
