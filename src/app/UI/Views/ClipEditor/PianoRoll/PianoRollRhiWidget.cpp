@@ -1657,7 +1657,7 @@ public:
     }
 
     void updateDrawNote(const QPointF &viewportPosition) {
-        drawEnd = std::max(drawStart + 1, snapLocalTick(localTickAt(viewportPosition)));
+        drawEnd = std::max(drawEnd, snapLocalTick(localTickAt(viewportPosition)));
         scheduleSnapshot();
     }
 
