@@ -91,6 +91,7 @@ AudioWaveformSampler::CacheKey AudioWaveformSampler::makeCacheKey(const Request 
         .pixelsPerQuarterNote = request.pixelsPerQuarterNote,
         .leftMarginPx = request.leftMarginPx,
         .devicePixelRatio = request.devicePixelRatio,
+        .amplitudeScale = request.amplitudeScale,
     };
 }
 
@@ -196,8 +197,12 @@ AudioWaveformSampler::Result AudioWaveformSampler::samplePeakMode(const Request 
         }
 
         result.peaks.append({request.previewSceneRect.left() + localX,
-                             centerY - minimum * halfHeight / 32767.0,
-                             centerY - maximum * halfHeight / 32767.0});
+                             centerY - WaveformRenderUtils::mapAmplitude(minimum / 32767.0,
+                                                                         request.amplitudeScale) *
+                                           halfHeight,
+                             centerY - WaveformRenderUtils::mapAmplitude(maximum / 32767.0,
+                                                                         request.amplitudeScale) *
+                                           halfHeight});
     }
     return result;
 }
@@ -278,8 +283,12 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleSubChunkPeakMode(const 
             minimum = std::min(minimum, mono);
             maximum = std::max(maximum, mono);
         }
-        result.peaks.append({request.previewSceneRect.left() + localX,
-                             centerY - minimum * halfHeight, centerY - maximum * halfHeight});
+        result.peaks.append(
+            {request.previewSceneRect.left() + localX,
+             centerY -
+                 WaveformRenderUtils::mapAmplitude(minimum, request.amplitudeScale) * halfHeight,
+             centerY -
+                 WaveformRenderUtils::mapAmplitude(maximum, request.amplitudeScale) * halfHeight});
     }
     return result;
 }
@@ -367,7 +376,9 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleCurveMode(const Request
                 ? firstSamplePos + (lastSamplePos - firstSamplePos) * index / (pointCount - 1)
                 : tickToSamplePos(request, (sceneX - request.leftMarginPx) * ticksPerScenePixel);
         const auto value = sincInterpolate(monoSamples, sampleStart, info.frames, samplePos);
-        result.curve.append({sceneX, centerY - value * halfHeight});
+        result.curve.append(
+            {sceneX, centerY - WaveformRenderUtils::mapAmplitude(value, request.amplitudeScale) *
+                                   halfHeight});
     }
 
     const auto samplesPerLogicalPixel =
@@ -391,7 +402,10 @@ AudioWaveformSampler::Result AudioWaveformSampler::sampleCurveMode(const Request
         if (sceneX < request.previewSceneRect.left() || sceneX > request.previewSceneRect.right()) {
             continue;
         }
-        result.sampleDots.append({sceneX, centerY - monoSamples[bufferIndex] * halfHeight});
+        result.sampleDots.append(
+            {sceneX, centerY - WaveformRenderUtils::mapAmplitude(monoSamples[bufferIndex],
+                                                                 request.amplitudeScale) *
+                                   halfHeight});
     }
     return result;
 }

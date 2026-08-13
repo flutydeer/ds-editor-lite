@@ -5,7 +5,6 @@
 
 #include <QCoreApplication>
 #include <QPainter>
-#include <QPainterPath>
 
 using namespace TracksEditorGlobal;
 
@@ -93,42 +92,11 @@ void AudioClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRect
         .devicePixelRatio = painter->deviceTransform().m11(),
     });
 
-    if (waveform.geometry == AudioWaveformSampler::Geometry::FilledPeaks ||
-        waveform.geometry == AudioWaveformSampler::Geometry::VerticalPeaks) {
-        QVector<WaveformRenderUtils::PeakPoint> localPeaks;
-        localPeaks.reserve(waveform.peaks.size());
-        for (const auto &point : waveform.peaks) {
-            const auto minimum = mapFromScene(QPointF(point.x, point.yMin));
-            const auto maximum = mapFromScene(QPointF(point.x, point.yMax));
-            localPeaks.append({minimum.x(), minimum.y(), maximum.y()});
-        }
-        const auto mode = waveform.geometry == AudioWaveformSampler::Geometry::FilledPeaks
-                              ? m_renderMode
-                              : WaveformRenderUtils::LineMode;
-        WaveformRenderUtils::renderWaveform(painter, color, mode, localPeaks);
+    bool invertible = false;
+    const auto sceneToItem = sceneTransform().inverted(&invertible);
+    if (!invertible)
         return;
-    }
-
-    if (waveform.geometry != AudioWaveformSampler::Geometry::Curve || waveform.curve.isEmpty())
-        return;
-    painter->setRenderHint(QPainter::Antialiasing, true);
-    QPen pen(color);
-    pen.setWidthF(0.0);
-    painter->setPen(pen);
-    QPainterPath path;
-    path.moveTo(mapFromScene(waveform.curve.constFirst()));
-    for (auto index = 1; index < waveform.curve.size(); ++index)
-        path.lineTo(mapFromScene(waveform.curve[index]));
-    painter->drawPath(path);
-
-    if (waveform.sampleDots.isEmpty())
-        return;
-    painter->setBrush(color);
-    painter->setPen(Qt::NoPen);
-    for (const auto &point : waveform.sampleDots) {
-        painter->drawEllipse(mapFromScene(point), waveform.sampleDotRadius,
-                             waveform.sampleDotRadius);
-    }
+    WaveformRenderUtils::renderWaveform(painter, color, m_renderMode, waveform, sceneToItem);
 }
 
 QString AudioClipView::clipTypeName() const {

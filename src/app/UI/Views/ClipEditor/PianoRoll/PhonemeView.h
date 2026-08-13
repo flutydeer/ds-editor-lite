@@ -10,12 +10,15 @@
 #include <QWidget>
 #include <QTimer>
 #include <QMap>
+#include <QPixmap>
+
+#include <memory>
 
 class Note;
 class Phoneme;
 class ToolTip;
 class InferPiece;
-class WaveformPainter;
+class AudioWaveformSampler;
 
 class PhonemeView final : public QWidget {
     Q_OBJECT
@@ -154,14 +157,19 @@ private:
     int calculatePhonemeLengthInMs(const PhonemeViewModel &phoneme) const;
 
     struct PieceWaveform {
-        WaveformPainter *painter = nullptr;
+        std::shared_ptr<AudioWaveformSampler> sampler;
+        AudioInfoModel audioInfo;
         int globalStartTick = 0;
         int globalEndTick = 0;
     };
 
     QMap<InferPiece *, PieceWaveform> m_pieceWaveforms;
+    QPixmap m_waveformCache;
+    bool m_waveformCacheDirty = true;
     void clearPieceWaveforms();
+    void invalidateWaveformCache();
     void drawWaveforms(QPainter *painter);
+    void renderWaveforms(QPainter *painter);
     void loadWaveformAsync(InferPiece *piece);
 };
 
