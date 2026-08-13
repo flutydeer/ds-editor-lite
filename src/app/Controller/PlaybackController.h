@@ -9,6 +9,8 @@
 
 #include <QObject>
 
+#include <functional>
+
 using namespace PlaybackGlobal;
 
 class PlaybackControllerPrivate;
@@ -29,6 +31,7 @@ public:
 
     [[nodiscard]] double position() const;
     [[nodiscard]] double lastPosition() const;
+    void setPlaybackStartGuard(std::function<bool()> guard);
 
     signals:
     void positionChanged(double tick);

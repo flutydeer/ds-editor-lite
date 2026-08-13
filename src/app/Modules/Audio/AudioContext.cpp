@@ -114,6 +114,7 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
             &AudioContext::handlePlaybackStatusChanged);
     connect(playbackController, &PlaybackController::positionChanged, this,
             &AudioContext::handlePlaybackPositionChanged);
+    playbackController->setPlaybackStartGuard([this] { return ensurePlaybackDeviceStarted(); });
 
     connect(appModel, &AppModel::modelChanged, this, [this] {
         DEVICE_LOCKER;
@@ -211,6 +212,7 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 }
 
 AudioContext::~AudioContext() {
+    playbackController->setPlaybackStartGuard({});
     for (const auto trackSynthesizer : m_trackSynthDict.values()) {
         delete trackSynthesizer;
     }
@@ -265,7 +267,6 @@ void AudioContext::handleInferPieceFailed() {
 }
 
 void AudioContext::handlePlaybackStatusChanged(const PlaybackStatus status) {
-    const auto device = AudioSystem::outputSystem()->context()->device();
     switch (status) {
         case Stopped:
             transport()->pause();
@@ -276,10 +277,6 @@ void AudioContext::handlePlaybackStatusChanged(const PlaybackStatus status) {
                 m_levelMeterTickTime.start();
                 tickLevelMeters();
             }
-            if (!device || !device->isOpen())
-                QMessageBox::critical(nullptr, {}, tr("Cannot open audio device!"));
-            if (device && !device->isStarted())
-                device->start(AudioSystem::outputSystem()->context()->playback());
             if (m_lastStatus == Stopped) {
                 if (AudioSettings::playheadBehavior() == KeepAtCurrentButPlayFromStart)
                     playbackController->setPosition(playbackController->lastPosition());
@@ -301,6 +298,17 @@ void AudioContext::handlePlaybackStatusChanged(const PlaybackStatus status) {
             break;
     }
     m_lastStatus = status;
+}
+
+bool AudioContext::ensurePlaybackDeviceStarted() const {
+    const auto outputContext = AudioSystem::outputSystem()->context();
+    const auto device = outputContext->device();
+    if (device && device->isOpen() &&
+        (device->isStarted() || device->start(outputContext->playback()))) {
+        return true;
+    }
+    QMessageBox::critical(nullptr, {}, tr("Cannot open audio device!"));
+    return false;
 }
 
 void AudioContext::handlePlaybackPositionChanged(const double positionTick) const {

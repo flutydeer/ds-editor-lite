@@ -48,6 +48,11 @@ double PlaybackController::lastPosition() const {
     return d->m_lastPlayPosition;
 }
 
+void PlaybackController::setPlaybackStartGuard(std::function<bool()> guard) {
+    Q_D(PlaybackController);
+    d->m_playbackStartGuard = std::move(guard);
+}
+
 void PlaybackController::play() {
     Q_D(PlaybackController);
     if (appStatus->currentEditObject != AppStatus::EditObjectType::None) {
@@ -55,11 +60,13 @@ void PlaybackController::play() {
         Toast::show(tr("Please release mouse button before playing"));
         return;
     }
+    if (d->m_playbackStartGuard && !d->m_playbackStartGuard())
+        return;
     d->m_playbackStatus = Playing;
     d->m_visualPositionAnchor = d->m_position;
     d->m_visualPositionClock.restart();
-    d->m_visualPositionTimer.start();
     emit playbackStatusChanged(Playing);
+    d->m_visualPositionTimer.start();
     emit visualPositionChanged(d->m_position);
 }
 

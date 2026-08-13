@@ -4,6 +4,8 @@
 #include <QElapsedTimer>
 #include <QTimer>
 
+#include <functional>
+
 class PlaybackControllerPrivate : public QObject {
     Q_OBJECT
     Q_DECLARE_PUBLIC(PlaybackController)
@@ -19,6 +21,7 @@ public:
     double m_visualPositionAnchor = 0;
     QElapsedTimer m_visualPositionClock;
     QTimer m_visualPositionTimer;
+    std::function<bool()> m_playbackStartGuard;
 
 private:
     PlaybackController *q_ptr;
