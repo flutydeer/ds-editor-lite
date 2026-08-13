@@ -528,9 +528,12 @@ void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &v
         return;
     const auto vertexColor = premultipliedColor(color);
 
-    const auto pointsNearlyEqual = [](const QPointF &a, const QPointF &b) {
+    const auto squaredDistance = [](const QPointF &a, const QPointF &b) {
         const auto delta = a - b;
-        return QPointF::dotProduct(delta, delta) <= 0.000001;
+        return QPointF::dotProduct(delta, delta);
+    };
+    const auto pointsNearlyEqual = [&squaredDistance](const QPointF &a, const QPointF &b) {
+        return squaredDistance(a, b) <= 0.000001;
     };
     auto closed = pointsNearlyEqual(physicalPoints.constFirst(), physicalPoints.constLast());
     auto hasNearDuplicate = false;
@@ -540,30 +543,59 @@ void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &v
             break;
         }
     }
-    QVector<QPointF> distinctPoints;
+    QVector<QPointF> filteredPointsStorage;
     const auto needsDistinctPoints = hasNearDuplicate || closed;
     if (needsDistinctPoints) {
-        distinctPoints.reserve(physicalPoints.size());
+        filteredPointsStorage.reserve(physicalPoints.size());
         for (const auto &point : physicalPoints) {
-            if (distinctPoints.isEmpty()) {
-                distinctPoints.append(point);
+            if (filteredPointsStorage.isEmpty()) {
+                filteredPointsStorage.append(point);
                 continue;
             }
-            if (!pointsNearlyEqual(point, distinctPoints.constLast()))
-                distinctPoints.append(point);
+            if (!pointsNearlyEqual(point, filteredPointsStorage.constLast()))
+                filteredPointsStorage.append(point);
         }
-        if (closed && distinctPoints.size() > 2 &&
-            pointsNearlyEqual(distinctPoints.constFirst(), distinctPoints.constLast()))
-            distinctPoints.removeLast();
+        if (closed && filteredPointsStorage.size() > 2 &&
+            pointsNearlyEqual(filteredPointsStorage.constFirst(),
+                              filteredPointsStorage.constLast()))
+            filteredPointsStorage.removeLast();
     }
-    const auto &points = needsDistinctPoints ? distinctPoints : physicalPoints;
-    if (points.size() < 2)
+    auto usesFilteredPoints = needsDistinctPoints;
+    const auto &filteredPoints = usesFilteredPoints ? filteredPointsStorage : physicalPoints;
+    if (filteredPoints.size() < 2)
         return;
-    closed = closed && points.size() > 2;
+    closed = closed && filteredPoints.size() > 2;
 
     const auto fadeWidth = std::max(0.5, feather);
     const auto innerHalfWidth = width > 0.0 ? std::max(0.0, width * 0.5 - fadeWidth * 0.5) : 0.0;
     const auto outerHalfWidth = width > 0.0 ? width * 0.5 + fadeWidth * 0.5 : fadeWidth;
+    const auto capExtension = capStyle == Qt::SquareCap ? width * 0.5 : 0.0;
+
+    // Avoid overlapping a feathered cap with a subpixel join at the path endpoint.
+    const auto endpointJoinDistance = std::max(0.0, fadeWidth * 0.5 - capExtension);
+    if (!closed && width > 0.0 && capStyle != Qt::RoundCap && endpointJoinDistance > 0.0 &&
+        filteredPoints.size() > 2) {
+        const auto endpointJoinDistanceSquared = endpointJoinDistance * endpointJoinDistance;
+        if (squaredDistance(filteredPoints[0], filteredPoints[1]) <= endpointJoinDistanceSquared ||
+            squaredDistance(filteredPoints[filteredPoints.size() - 2], filteredPoints.last()) <=
+                endpointJoinDistanceSquared) {
+            if (!usesFilteredPoints) {
+                filteredPointsStorage = filteredPoints;
+                usesFilteredPoints = true;
+            }
+            while (filteredPointsStorage.size() > 2 &&
+                   squaredDistance(filteredPointsStorage[0], filteredPointsStorage[1]) <=
+                       endpointJoinDistanceSquared) {
+                filteredPointsStorage.removeAt(1);
+            }
+            while (filteredPointsStorage.size() > 2 &&
+                   squaredDistance(filteredPointsStorage[filteredPointsStorage.size() - 2],
+                                   filteredPointsStorage.last()) <= endpointJoinDistanceSquared) {
+                filteredPointsStorage.removeAt(filteredPointsStorage.size() - 2);
+            }
+        }
+    }
+    const auto &points = usesFilteredPoints ? filteredPointsStorage : physicalPoints;
 
     if (width == 0.0 && !closed && capStyle == Qt::RoundCap && joinStyle == Qt::MiterJoin) {
         QVector<QPointF> segmentNormals;
@@ -665,7 +697,6 @@ void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &v
     sections.reserve(points.size() * 2);
     const auto appendEndpoint = [&](const QPointF &point, const QPointF &direction,
                                     const QPointF &normal, const bool start) {
-        const auto capExtension = capStyle == Qt::SquareCap ? width * 0.5 : 0.0;
         const auto sign = start ? -1.0 : 1.0;
         auto innerCenter = point + direction * sign * capExtension;
         auto outerCenter = innerCenter;

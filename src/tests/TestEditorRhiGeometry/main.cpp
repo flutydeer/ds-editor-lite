@@ -115,6 +115,44 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    const QVector<QPointF> shortEndpointSegments{
+        {2.0,  5.0},
+        {2.25, 5.0},
+        {7.75, 5.0},
+        {8.0,  5.0}
+    };
+    const QVector<QPointF> simplifiedEndpointSegments{
+        {2.0, 5.0},
+        {8.0, 5.0}
+    };
+    QVector<EditorRhiSolidVertex> adjustedFlatCap;
+    EditorRhiGeometry::appendAntialiasedStroke(adjustedFlatCap, shortEndpointSegments, 1.5,
+                                               QColor(255, 255, 255), 1.0, 3.0, Qt::FlatCap,
+                                               Qt::RoundJoin);
+    QVector<EditorRhiSolidVertex> simplifiedFlatCap;
+    EditorRhiGeometry::appendAntialiasedStroke(simplifiedFlatCap, simplifiedEndpointSegments, 1.5,
+                                               QColor(255, 255, 255), 1.0, 3.0, Qt::FlatCap,
+                                               Qt::RoundJoin);
+    expect(adjustedFlatCap.size() == simplifiedFlatCap.size(),
+           "flat caps must merge endpoint joins inside their antialiasing region");
+    if (adjustedFlatCap.size() == simplifiedFlatCap.size()) {
+        for (qsizetype index = 0; index < adjustedFlatCap.size(); ++index) {
+            expect(equalVertex(adjustedFlatCap[index], simplifiedFlatCap[index]),
+                   "merged flat-cap endpoint joins must preserve the simplified stroke geometry");
+        }
+    }
+
+    QVector<EditorRhiSolidVertex> shortSquareCap;
+    EditorRhiGeometry::appendAntialiasedStroke(shortSquareCap, shortEndpointSegments, 1.5,
+                                               QColor(255, 255, 255), 1.0, 3.0, Qt::SquareCap,
+                                               Qt::RoundJoin);
+    QVector<EditorRhiSolidVertex> simplifiedSquareCap;
+    EditorRhiGeometry::appendAntialiasedStroke(simplifiedSquareCap, simplifiedEndpointSegments, 1.5,
+                                               QColor(255, 255, 255), 1.0, 3.0, Qt::SquareCap,
+                                               Qt::RoundJoin);
+    expect(shortSquareCap.size() > simplifiedSquareCap.size(),
+           "square caps must preserve endpoint joins outside their antialiasing region");
+
     QVector<EditorRhiSolidVertex> circle;
     const QPointF circleCenter(4.0, 5.0);
     EditorRhiGeometry::appendAntialiasedCircle(circle, circleCenter, 3.0, QColor(255, 255, 255));
