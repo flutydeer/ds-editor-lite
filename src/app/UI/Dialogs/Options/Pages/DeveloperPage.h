@@ -17,6 +17,8 @@ protected:
     QWidget *createContentWidget() override;
 
 private:
+    void syncFromOptions();
+
     SwitchButton *m_swEnableDiagnostics;
     SwitchButton *m_swShowLogWindow;
     SwitchButton *m_swShowTimelineDebugInfo;

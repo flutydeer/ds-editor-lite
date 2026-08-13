@@ -7,10 +7,18 @@
 #include <lite/GUI/Controls/OptionListCard.h>
 #include <lite/GUI/Controls/SwitchButton.h>
 
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 
 DeveloperPage::DeveloperPage(QWidget *parent) : IOptionPage(parent) {
     initializePage();
+    connect(appOptions, &AppOptions::optionsChanged, this,
+            [this](const AppOptionsGlobal::Option option) {
+                if (option == AppOptionsGlobal::DeveloperOptions ||
+                    option == AppOptionsGlobal::All) {
+                    syncFromOptions();
+                }
+            });
 }
 
 void DeveloperPage::modifyOption() {
@@ -24,6 +32,26 @@ void DeveloperPage::modifyOption() {
     option->editorRenderBackend = static_cast<DeveloperOption::EditorRenderBackend>(
         m_cbxEditorRenderBackend->currentData().toInt());
     appOptions->saveAndNotify(AppOptionsGlobal::DeveloperOptions);
+}
+
+void DeveloperPage::syncFromOptions() {
+    const auto option = appOptions->developer();
+    const QSignalBlocker diagnosticsBlocker(m_swEnableDiagnostics);
+    const QSignalBlocker logWindowBlocker(m_swShowLogWindow);
+    const QSignalBlocker timelineDebugInfoBlocker(m_swShowTimelineDebugInfo);
+    const QSignalBlocker clipDebugInfoBlocker(m_swShowClipDebugInfo);
+    const QSignalBlocker panelDetachBlocker(m_swEnablePanelDetach);
+    const QSignalBlocker embeddedOptionsDialogBlocker(m_swEnableEmbeddedOptionsDialog);
+    const QSignalBlocker renderBackendBlocker(m_cbxEditorRenderBackend);
+
+    m_swEnableDiagnostics->setValue(option->enableDiagnostics);
+    m_swShowLogWindow->setValue(option->showLogWindow);
+    m_swShowTimelineDebugInfo->setValue(option->showTimelineDebugInfo);
+    m_swShowClipDebugInfo->setValue(option->showClipDebugInfo);
+    m_swEnablePanelDetach->setValue(option->enablePanelDetach);
+    m_swEnableEmbeddedOptionsDialog->setValue(option->enableEmbeddedOptionsDialog);
+    m_cbxEditorRenderBackend->setCurrentIndex(
+        m_cbxEditorRenderBackend->findData(static_cast<int>(option->editorRenderBackend)));
 }
 
 QWidget *DeveloperPage::createContentWidget() {
