@@ -2067,8 +2067,7 @@ private:
         const auto normalForeground = palette->noteForeground(trackColorIndex);
         const auto overlappedForeground = palette->noteForegroundOverlapped(trackColorIndex);
         const auto editingForeground = palette->noteForegroundEditingPitch(trackColorIndex);
-        const auto editingPitch = editMode == DrawPitch || editMode == EditPitchAnchor ||
-                                  editMode == ErasePitch || editMode == FreezePitch;
+        const auto editingPitch = EditorViewGlobal::isPitchEditMode(editMode);
         const auto selectedNotes = appStatus->selectedNotes.get();
         for (const auto *note : clip->notes()) {
             if (erasedNoteIds.contains(note->id()))

@@ -69,12 +69,10 @@ void PitchDisplayStrategy::MergedCurveCache::invalidate() {
 
 PitchDisplayMode PitchDisplayStrategy::displayModeForEditMode(
     const EditorViewGlobal::PianoRollEditMode editMode) {
-    if (editMode == EditorViewGlobal::DrawPitch || editMode == EditorViewGlobal::ErasePitch ||
-        editMode == EditorViewGlobal::FreezePitch) {
-        return PitchDisplayMode::Draw;
-    }
     if (editMode == EditorViewGlobal::EditPitchAnchor)
         return PitchDisplayMode::Anchor;
+    if (EditorViewGlobal::isPitchEditMode(editMode))
+        return PitchDisplayMode::Draw;
     return PitchDisplayMode::Final;
 }
 

@@ -17,6 +17,11 @@ namespace EditorViewGlobal {
         FreezePitch
     };
 
+    [[nodiscard]] constexpr bool isPitchEditMode(const PianoRollEditMode mode) noexcept {
+        return mode == DrawPitch || mode == EditPitchAnchor || mode == ErasePitch ||
+               mode == FreezePitch;
+    }
+
 } // namespace EditorViewGlobal
 
 struct TrackPanelViewState {

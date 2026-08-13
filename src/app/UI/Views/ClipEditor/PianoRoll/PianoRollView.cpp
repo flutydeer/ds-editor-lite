@@ -6,6 +6,7 @@
 #include "PianoRollContextMenuController.h"
 #include "PianoRollRhiWidget.h"
 #include "PhonemeView.h"
+#include "Controller/ClipController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
@@ -216,7 +217,7 @@ void PianoRollView::fallbackToLegacy() {
     failedView->deleteLater();
     connectLegacyBackend();
     m_graphicsView->setDataContext(m_clip);
-    m_graphicsView->setEditMode(m_editMode);
+    onEditModeChanged(m_editMode);
     QTimer::singleShot(0, this, [this, state] {
         setViewScale(state.horizontalScale, state.verticalScale);
         centerAt(state.centerTick, state.centerKeyIndex);
@@ -251,6 +252,8 @@ void PianoRollView::onEditModeChanged(const PianoRollEditMode mode) const {
         m_rhiView->setEditMode(mode);
     else
         m_graphicsView->setEditMode(mode);
+    if (EditorViewGlobal::isPitchEditMode(mode))
+        clipController->selectNotes({}, true);
 }
 
 void PianoRollView::setTrackColorIndex(int index) const {

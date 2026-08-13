@@ -40,6 +40,19 @@ namespace {
                "anchor mode must use the anchor pitch presentation");
     }
 
+    void testPitchEditModeClassification() {
+        using namespace EditorViewGlobal;
+        expect(!isPitchEditMode(Select), "selection mode must not edit pitch");
+        expect(!isPitchEditMode(IntervalSelect), "interval selection mode must not edit pitch");
+        expect(!isPitchEditMode(DrawNote), "note drawing mode must not edit pitch");
+        expect(!isPitchEditMode(EraseNote), "note erase mode must not edit pitch");
+        expect(!isPitchEditMode(SplitNote), "note split mode must not edit pitch");
+        expect(isPitchEditMode(DrawPitch), "pitch drawing mode must edit pitch");
+        expect(isPitchEditMode(EditPitchAnchor), "pitch anchor mode must edit pitch");
+        expect(isPitchEditMode(ErasePitch), "pitch erase mode must edit pitch");
+        expect(isPitchEditMode(FreezePitch), "pitch freeze mode must edit pitch");
+    }
+
     void testDisplayLayers() {
         DrawCurve edited;
         edited.setLocalStart(10);
@@ -140,6 +153,7 @@ namespace {
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     testDisplayModeMapping();
+    testPitchEditModeClassification();
     testDisplayLayers();
     testAnchorCoverage();
     testCurveSampling();
