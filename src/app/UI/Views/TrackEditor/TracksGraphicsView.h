@@ -73,6 +73,8 @@ private:
     void updateClipDragAt(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
     void prepareForMovingOrResizingClip(const QMouseEvent *event, AbstractClipView *clipItem);
     AbstractClipView *findClipById(int id) const;
+    bool updateClipSelection(AbstractClipView *clipItem, bool toggle) const;
+    void applyClipSelection(const QList<int> &selected) const;
     void clearSelections() const;
     void resetActiveClips() const;
     void resetEditState();
