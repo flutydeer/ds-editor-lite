@@ -4,6 +4,7 @@
 
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/Utils/AppModelUtils.h>
 
 #include <QSet>
 
@@ -44,6 +45,26 @@ namespace {
         }
         return result;
     }
+}
+
+PitchDisplayStrategy::MergedCurveCache::~MergedCurveCache() {
+    invalidate();
+}
+
+const QList<DrawCurve *> &
+    PitchDisplayStrategy::MergedCurveCache::mergedCurves(const QList<DrawCurve *> &originalCurves,
+                                                         const QList<DrawCurve *> &editedCurves) {
+    if (!m_valid) {
+        m_curves = AppModelUtils::mergeCurves(originalCurves, editedCurves);
+        m_valid = true;
+    }
+    return m_curves;
+}
+
+void PitchDisplayStrategy::MergedCurveCache::invalidate() {
+    qDeleteAll(m_curves);
+    m_curves.clear();
+    m_valid = false;
 }
 
 PitchDisplayMode PitchDisplayStrategy::displayModeForEditMode(

@@ -2,7 +2,6 @@
 
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditController.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include <lite/ProjectModel/Utils/AppModelUtils.h>
 #include <lite/Support/MathUtils.h>
 
 #include <QPainter>
@@ -14,15 +13,12 @@ PitchEditorView::PitchEditorView() : CommonParamEditorView(m_properties) {
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
 }
 
-PitchEditorView::~PitchEditorView() {
-    qDeleteAll(m_mergedCurves);
-}
+PitchEditorView::~PitchEditorView() = default;
 
 void PitchEditorView::setDisplayMode(const PitchDisplayMode mode) {
     if (m_displayMode == mode)
         return;
     m_displayMode = mode;
-    rebuildMergedCurves();
     update();
 }
 
@@ -33,18 +29,17 @@ void PitchEditorView::setAnchorOverlayState(const AnchorEditor::AnchorOverlaySta
 
 void PitchEditorView::loadOriginal(const QList<DrawCurve *> &curves) {
     CommonParamEditorView::loadOriginal(curves);
-    rebuildMergedCurves();
+    m_mergedCurveCache.invalidate();
 }
 
 void PitchEditorView::loadEdited(const QList<DrawCurve *> &curves) {
     CommonParamEditorView::loadEdited(curves);
-    rebuildMergedCurves();
+    m_mergedCurveCache.invalidate();
 }
 
 void PitchEditorView::clearParams() {
     CommonParamEditorView::clearParams();
-    qDeleteAll(m_mergedCurves);
-    m_mergedCurves.clear();
+    m_mergedCurveCache.invalidate();
 }
 
 void PitchEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
@@ -69,7 +64,7 @@ void PitchEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *o
                 curves = &editedCurves();
                 break;
             case PitchDisplayCurveSource::Merged:
-                curves = &m_mergedCurves;
+                curves = &m_mergedCurveCache.mergedCurves(originalCurves(), editedCurves());
                 break;
         }
         auto color = layer.colorRole == PitchDisplayColorRole::Original ? originalCurveColor()
@@ -137,11 +132,6 @@ void PitchEditorView::drawCurveLayer(QPainter *painter, const QList<DrawCurve *>
         drawCurveBorder(painter, curves);
         painter->restore();
     }
-}
-
-void PitchEditorView::rebuildMergedCurves() {
-    qDeleteAll(m_mergedCurves);
-    m_mergedCurves = AppModelUtils::mergeCurves(originalCurves(), editedCurves());
 }
 
 double PitchEditorView::valueToSceneY(const double value) const {

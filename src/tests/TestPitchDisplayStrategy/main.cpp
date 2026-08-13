@@ -109,6 +109,32 @@ namespace {
         expect(clipped.pointIndices == QVector<int>({2, 3, 4, 5}) && clipped.lastVisitedIndex == 5,
                "sampling must retain one accepted point beyond the visible end");
     }
+
+    void testMergedCurveCache() {
+        DrawCurve original;
+        original.setLocalStart(0);
+        original.setValues({100, 100, 100});
+        DrawCurve edited;
+        edited.setLocalStart(0);
+        edited.setValues({200, 200, 200});
+        const QList<DrawCurve *> originalCurves{&original};
+        const QList<DrawCurve *> editedCurves{&edited};
+
+        PitchDisplayStrategy::MergedCurveCache cache;
+        const auto &initial = cache.mergedCurves(originalCurves, editedCurves);
+        expect(initial.size() == 1 && initial.first()->values().first() == 200,
+               "merged curve cache must build the current pitch data");
+
+        edited.setValues({300, 300, 300});
+        const auto &cached = cache.mergedCurves(originalCurves, editedCurves);
+        expect(cached.first()->values().first() == 200,
+               "merged curve cache must reuse data between snapshots");
+
+        cache.invalidate();
+        const auto &rebuilt = cache.mergedCurves(originalCurves, editedCurves);
+        expect(rebuilt.first()->values().first() == 300,
+               "merged curve cache must rebuild after pitch data changes");
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -117,5 +143,6 @@ int main(int argc, char *argv[]) {
     testDisplayLayers();
     testAnchorCoverage();
     testCurveSampling();
+    testMergedCurveCache();
     return failures == 0 ? 0 : 1;
 }

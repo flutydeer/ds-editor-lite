@@ -32,10 +32,9 @@ private:
     void drawCurveLayer(QPainter *painter, const QList<DrawCurve *> &curves, const QColor &color,
                         const QList<PitchDisplayInterval> &hiddenCoverage,
                         const QList<PitchDisplayInterval> &dashedCoverage) const;
-    void rebuildMergedCurves();
 
     PitchParamProperties m_properties;
-    QList<DrawCurve *> m_mergedCurves;
+    PitchDisplayStrategy::MergedCurveCache m_mergedCurveCache;
     const AnchorEditor::AnchorOverlayState *m_anchorState = nullptr;
     PitchDisplayMode m_displayMode = PitchDisplayMode::Final;
 };

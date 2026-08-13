@@ -51,6 +51,24 @@ struct AnchorDisplayOpacity {
 };
 
 namespace PitchDisplayStrategy {
+    class MergedCurveCache {
+    public:
+        MergedCurveCache() = default;
+        ~MergedCurveCache();
+
+        MergedCurveCache(const MergedCurveCache &) = delete;
+        MergedCurveCache &operator=(const MergedCurveCache &) = delete;
+
+        [[nodiscard]] const QList<DrawCurve *> &
+            mergedCurves(const QList<DrawCurve *> &originalCurves,
+                         const QList<DrawCurve *> &editedCurves);
+        void invalidate();
+
+    private:
+        QList<DrawCurve *> m_curves;
+        bool m_valid = false;
+    };
+
     [[nodiscard]] PitchDisplayMode
         displayModeForEditMode(EditorViewGlobal::PianoRollEditMode editMode);
     [[nodiscard]] QList<PitchDisplayLayer>

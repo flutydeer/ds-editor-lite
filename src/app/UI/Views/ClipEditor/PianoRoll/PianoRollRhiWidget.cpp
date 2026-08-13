@@ -245,6 +245,7 @@ public:
         cancelAnchorEdit(false);
         clearSplitPreview();
         clearPastePreview();
+        mergedPitchCurveCache.invalidate();
         if (clip)
             QObject::disconnect(clip, nullptr, q, nullptr);
 
@@ -254,6 +255,7 @@ public:
             QObject::connect(clip, &SingingClip::paramChanged, q,
                              [this](const ParamInfo::Name name, Param::Type) {
                                  if (name == ParamInfo::Pitch) {
+                                     mergedPitchCurveCache.invalidate();
                                      if (!anchorCommitting)
                                          loadAnchorCurvesFromModel();
                                      scheduleSnapshot();
@@ -900,6 +902,7 @@ public:
         qDeleteAll(pitchPreviewCurves);
         pitchPreviewCurves.clear();
         pitchEditingCurve = nullptr;
+        mergedPitchCurveCache.invalidate();
     }
 
     void finishPitchEdit(const EditSessionEndReason reason) {
@@ -1021,6 +1024,7 @@ public:
             }
         }
 
+        mergedPitchCurveCache.invalidate();
         pitchPreviousPos = current;
         scheduleSnapshot();
     }
@@ -2215,11 +2219,11 @@ private:
         const auto mode = PitchDisplayStrategy::displayModeForEditMode(editMode);
         const auto layers = PitchDisplayStrategy::displayLayers(mode, edited, anchorCoverage);
 
-        QList<DrawCurve *> merged;
+        const QList<DrawCurve *> *merged = nullptr;
         if (std::any_of(layers.cbegin(), layers.cend(), [](const PitchDisplayLayer &layer) {
                 return layer.curveSource == PitchDisplayCurveSource::Merged;
             })) {
-            merged = AppModelUtils::mergeCurves(original, edited);
+            merged = &mergedPitchCurveCache.mergedCurves(original, edited);
         }
         for (const auto &layer : layers) {
             const QList<DrawCurve *> *curves = nullptr;
@@ -2231,7 +2235,7 @@ private:
                     curves = &edited;
                     break;
                 case PitchDisplayCurveSource::Merged:
-                    curves = &merged;
+                    curves = merged;
                     break;
             }
             auto color = layer.colorRole == PitchDisplayColorRole::Original
@@ -2241,7 +2245,6 @@ private:
             appendPitchLayer(*curves, localStart, localEnd, color, layer.hiddenCoverage,
                              layer.dashedCoverage);
         }
-        qDeleteAll(merged);
     }
 
     QVector<QPointF> pitchCurvePoints(const DrawCurve &curve, const double localStart,
@@ -2680,6 +2683,7 @@ public:
     QPoint pitchPreviousPos;
     QList<DrawCurve *> pitchPreviewCurves;
     DrawCurve *pitchEditingCurve = nullptr;
+    PitchDisplayStrategy::MergedCurveCache mergedPitchCurveCache;
     bool noteErasing = false;
     QList<int> erasedNoteIds;
     quint64 noteEraseSessionId = 0;
