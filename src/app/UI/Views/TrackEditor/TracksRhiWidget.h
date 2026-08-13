@@ -178,6 +178,7 @@ private:
     void updateRubberBandSelection(const QPointF &position);
     void commitDrag();
     void discardDrag();
+    bool updateClipSelection(const ClipSnapshot &clip, bool toggle) const;
     void syncSelection(const QList<int> &ids, int preferredTrack = -1) const;
     void updateCursor(const QPointF &position);
     void handleAutoPageTurn();
