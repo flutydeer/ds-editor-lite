@@ -2,9 +2,11 @@
 #define WAVEFORMRENDERUTILS_H
 
 #include <QColor>
+#include <QPointF>
 #include <QVector>
 
 class QPainter;
+class QTransform;
 
 namespace WaveformRenderUtils {
 
@@ -13,10 +15,20 @@ enum Mode {
     FilledMode,
 };
 
+enum class Geometry { None, FilledPeaks, VerticalPeaks, Curve };
+
 struct PeakPoint {
     double x;
     double yMin;
     double yMax;
+};
+
+struct SampledWaveform {
+    Geometry geometry = Geometry::None;
+    QVector<PeakPoint> peaks;
+    QVector<QPointF> curve;
+    QVector<QPointF> sampleDots;
+    double sampleDotRadius = 0.0;
 };
 
 /// Render a waveform from a vector of per-pixel peak points.
@@ -27,6 +39,11 @@ struct PeakPoint {
 /// before calling this function — this function manages its own rendering state.
 void renderWaveform(QPainter *painter, const QColor &color, Mode mode,
                     const QVector<PeakPoint> &peaks);
+
+void renderWaveform(QPainter *painter, const QColor &color, Mode mode,
+                    const SampledWaveform &waveform);
+void renderWaveform(QPainter *painter, const QColor &color, Mode mode,
+                    const SampledWaveform &waveform, const QTransform &transform);
 
 } // namespace WaveformRenderUtils
 

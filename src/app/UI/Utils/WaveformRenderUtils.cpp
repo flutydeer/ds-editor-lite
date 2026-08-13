@@ -2,7 +2,9 @@
 
 #include <QLineF>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPolygonF>
+#include <QTransform>
 #include <QtMath>
 
 #include <cmath>
@@ -69,6 +71,66 @@ void renderWaveform(QPainter *painter, const QColor &color, const Mode mode,
             lines.append(QLineF(p.x, p.yMin, p.x, p.yMax));
         painter->drawLines(lines);
     }
+}
+
+void renderWaveform(QPainter *painter, const QColor &color, const Mode mode,
+                    const SampledWaveform &waveform) {
+    if (waveform.geometry == Geometry::FilledPeaks ||
+        waveform.geometry == Geometry::VerticalPeaks) {
+        renderWaveform(painter, color,
+                       waveform.geometry == Geometry::FilledPeaks ? mode : LineMode,
+                       waveform.peaks);
+        return;
+    }
+
+    if (waveform.geometry != Geometry::Curve || waveform.curve.isEmpty())
+        return;
+
+    painter->setRenderHint(QPainter::Antialiasing, true);
+    QPen pen(color);
+    pen.setWidthF(0.0);
+    painter->setPen(pen);
+    painter->setBrush(Qt::NoBrush);
+
+    QPainterPath path;
+    path.moveTo(waveform.curve.constFirst());
+    for (auto index = 1; index < waveform.curve.size(); ++index)
+        path.lineTo(waveform.curve[index]);
+    painter->drawPath(path);
+
+    if (waveform.sampleDots.isEmpty())
+        return;
+    painter->setBrush(color);
+    painter->setPen(Qt::NoPen);
+    for (const auto &point : waveform.sampleDots)
+        painter->drawEllipse(point, waveform.sampleDotRadius, waveform.sampleDotRadius);
+}
+
+void renderWaveform(QPainter *painter, const QColor &color, const Mode mode,
+                    const SampledWaveform &waveform, const QTransform &transform) {
+    if (transform.isIdentity()) {
+        renderWaveform(painter, color, mode, waveform);
+        return;
+    }
+
+    SampledWaveform mapped;
+    mapped.geometry = waveform.geometry;
+    mapped.peaks.reserve(waveform.peaks.size());
+    for (const auto &point : waveform.peaks) {
+        const auto minimum = transform.map(QPointF(point.x, point.yMin));
+        const auto maximum = transform.map(QPointF(point.x, point.yMax));
+        mapped.peaks.append({minimum.x(), minimum.y(), maximum.y()});
+    }
+    mapped.curve.reserve(waveform.curve.size());
+    for (const auto &point : waveform.curve)
+        mapped.curve.append(transform.map(point));
+    mapped.sampleDots.reserve(waveform.sampleDots.size());
+    for (const auto &point : waveform.sampleDots)
+        mapped.sampleDots.append(transform.map(point));
+    const auto origin = transform.map(QPointF());
+    mapped.sampleDotRadius =
+        QLineF(origin, transform.map(QPointF(waveform.sampleDotRadius, 0.0))).length();
+    renderWaveform(painter, color, mode, mapped);
 }
 
 } // namespace WaveformRenderUtils
