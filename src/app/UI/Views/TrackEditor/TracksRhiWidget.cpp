@@ -49,6 +49,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <limits>
 
 using namespace TracksEditorGlobal;
 
@@ -1109,6 +1110,7 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
             return point * dpr + QPointF(0.0, -0.5);
         };
         QVector<EditorRhiSolidVertex> waveformVertices;
+        auto waveformWrittenDirectly = false;
         if (clip.waveform.geometry == AudioWaveformSampler::Geometry::FilledPeaks) {
             QVector<QPointF> top;
             QVector<QPointF> bottom;
@@ -1172,19 +1174,42 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
         } else if (clip.waveform.geometry == AudioWaveformSampler::Geometry::Curve) {
             QVector<QPointF> curve;
             curve.reserve(clip.waveform.curve.size());
+            QVector<QPointF> dotCenters;
+            dotCenters.reserve(clip.waveform.sampleDots.size());
+            auto minimumX = std::numeric_limits<double>::max();
+            auto maximumX = std::numeric_limits<double>::lowest();
+            auto minimumY = std::numeric_limits<double>::max();
+            auto maximumY = std::numeric_limits<double>::lowest();
+            const auto appendPoint = [&](QVector<QPointF> &points, const QPointF &point) {
+                const auto physicalPoint = physicalWaveformPoint(point);
+                points.append(physicalPoint);
+                minimumX = std::min(minimumX, physicalPoint.x());
+                maximumX = std::max(maximumX, physicalPoint.x());
+                minimumY = std::min(minimumY, physicalPoint.y());
+                maximumY = std::max(maximumY, physicalPoint.y());
+            };
             for (const auto &point : clip.waveform.curve)
-                curve.append(physicalWaveformPoint(point));
-            EditorRhiGeometry::appendAntialiasedHairline(waveformVertices, curve, waveformColor);
+                appendPoint(curve, point);
+            for (const auto &point : clip.waveform.sampleDots)
+                appendPoint(dotCenters, point);
             const auto radius = clip.waveform.sampleDotRadius * dpr;
-            for (const auto &point : clip.waveform.sampleDots) {
-                const auto center = physicalWaveformPoint(point);
-                EditorRhiGeometry::appendRoundedRect(
-                    waveformVertices,
-                    QRectF(center.x() - radius, center.y() - radius, radius * 2.0, radius * 2.0),
-                    radius, waveformColor);
+            const auto hasPoints = !curve.isEmpty() || !dotCenters.isEmpty();
+            // Hairline joins use a 3x miter limit; sample dots add a 0.75 px feather.
+            const auto geometryMargin = std::max(3.0, radius + 0.75);
+            waveformWrittenDirectly = hasPoints && minimumX - geometryMargin >= preview.left() &&
+                                      maximumX + geometryMargin <= preview.right() &&
+                                      minimumY - geometryMargin >= preview.top() &&
+                                      maximumY + geometryMargin <= preview.bottom();
+            auto &targetVertices = waveformWrittenDirectly ? frame.solidVertices : waveformVertices;
+            EditorRhiGeometry::appendAntialiasedHairline(targetVertices, curve, waveformColor);
+            for (const auto &center : dotCenters) {
+                EditorRhiGeometry::appendAntialiasedCircle(targetVertices, center, radius,
+                                                           waveformColor);
             }
         }
-        EditorRhiGeometry::appendClippedTriangles(frame.solidVertices, waveformVertices, preview);
+        if (!waveformWrittenDirectly)
+            EditorRhiGeometry::appendClippedTriangles(frame.solidVertices, waveformVertices,
+                                                      preview);
     }
 }
 

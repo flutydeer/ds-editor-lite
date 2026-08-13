@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <exception>
 #include <type_traits>
 
 #include <QObject>
@@ -116,7 +117,14 @@ private:
         } while (!m_taskFlags.compare_exchange_weak(expected, desired, std::memory_order_acq_rel,
                                                     std::memory_order_acquire));
 
-        runTask();
+        try {
+            runTask();
+        } catch (const std::exception &error) {
+            qCritical("Unhandled exception in task '%s': %s", qPrintable(m_status.title),
+                      error.what());
+        } catch (...) {
+            qCritical("Unhandled non-standard exception in task '%s'", qPrintable(m_status.title));
+        }
         setFlag(TaskStopped);
         emit finished();
     }

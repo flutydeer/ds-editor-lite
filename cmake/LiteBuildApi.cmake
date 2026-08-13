@@ -108,7 +108,7 @@ function(lite_deploy_application _target)
         qm_add_copy_command(${_target}
             SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Modules/FillLyric/configs/
             DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${_target}>/MacOS/configs
-            SKIP_INSTALL
+            ${_install_copy_args}
         )
     else()
         qm_add_copy_command(${_target}
@@ -119,7 +119,7 @@ function(lite_deploy_application _target)
         qm_add_copy_command(${_target}
             SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Modules/FillLyric/configs/
             DESTINATION configs
-            SKIP_INSTALL
+            ${_install_copy_args}
         )
     endif()
 
@@ -174,6 +174,18 @@ function(lite_deploy_application _target)
     endif()
 
     if(LITE_INSTALL AND _deploy_tool AND WIN32)
+        install(CODE "
+            file(GLOB _lite_runtime_dlls \"$<TARGET_FILE_DIR:${_target}>/*.dll\")
+            if(NOT _lite_runtime_dlls)
+                message(FATAL_ERROR \"No runtime DLLs found next to $<TARGET_FILE_NAME:${_target}>\")
+            endif()
+            file(INSTALL
+                DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${LITE_INSTALL_RUNTIME_DIR}\"
+                TYPE FILE
+                FILES \${_lite_runtime_dlls}
+            )
+        ")
+
         install(CODE "
             execute_process(
                 COMMAND \"${_deploy_tool}\"

@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.17)
 
+include(cmake/ProductMetadata.cmake)
+
 project(lite
-    VERSION 0.0.0.1
+    VERSION ${LITE_PRODUCT_VERSION}
     LANGUAGES C CXX
-    DESCRIPTION "DS Editor Lite"
-    HOMEPAGE_URL "https://github.com/flutydeer/ds-editor-lite"
+    DESCRIPTION "${LITE_PRODUCT_NAME}"
+    HOMEPAGE_URL "${LITE_PRODUCT_URL}"
 )
 
 # ----------------------------------
@@ -41,6 +43,19 @@ set(LITE_VERSION ${PROJECT_VERSION})
 set(LITE_DESCRIPTION ${PROJECT_DESCRIPTION})
 set(LITE_HOMEPAGE_URL ${PROJECT_HOMEPAGE_URL})
 set(LITE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(LITE_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/include")
+
+file(MAKE_DIRECTORY "${LITE_GENERATED_INCLUDE_DIR}/lite")
+configure_file(
+    cmake/ProductMetadata.h.in
+    "${LITE_GENERATED_INCLUDE_DIR}/lite/ProductMetadata.h"
+    @ONLY
+)
+configure_file(
+    cmake/product-metadata.json.in
+    "${CMAKE_CURRENT_BINARY_DIR}/product-metadata.json"
+    @ONLY
+)
 
 # ----------------------------------
 # Initialize QMSetup (Required)

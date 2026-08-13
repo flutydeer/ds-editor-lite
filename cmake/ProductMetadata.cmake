@@ -1,0 +1,8 @@
+set(LITE_PRODUCT_NAME "DS Editor Lite")
+set(LITE_PRODUCT_VERSION "0.0.0.1")
+set(LITE_PRODUCT_PUBLISHER "OpenVPI")
+set(LITE_PRODUCT_COPYRIGHT "Copyright (C) 2022-2026 OpenVPI")
+set(LITE_PRODUCT_URL "https://github.com/flutydeer/ds-editor-lite")
+set(LITE_EXECUTABLE_BASENAME "DsEditorLite")
+set(LITE_WINDOWS_APP_ID "b499f848-b305-45c7-80d7-672c2126b907")
+set(LITE_MACOS_BUNDLE_ID "com.dseditor.lite")

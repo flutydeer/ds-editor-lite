@@ -24,6 +24,9 @@ namespace EditorRhiGeometry {
                                 const QRectF &physicalClipRect);
     void appendRoundedRect(QVector<EditorRhiSolidVertex> &vertices, const QRectF &physicalRect,
                            double radius, const QColor &color);
+    void appendAntialiasedCircle(QVector<EditorRhiSolidVertex> &vertices,
+                                 const QPointF &physicalCenter, double physicalRadius,
+                                 const QColor &color);
     void appendTopRoundedRect(QVector<EditorRhiSolidVertex> &vertices, const QRectF &physicalRect,
                               double radius, const QColor &color);
     void appendRoundedRectStroke(QVector<EditorRhiSolidVertex> &vertices,

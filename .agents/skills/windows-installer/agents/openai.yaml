@@ -1,0 +1,4 @@
+interface:
+  display_name: "DS Editor Lite Windows 安装包"
+  short_description: "构建并验证 Windows x64 DirectML 内测安装包"
+  default_prompt: "使用 $windows-installer 检查依赖并构建 DS Editor Lite Windows x64 DirectML 安装包。"
