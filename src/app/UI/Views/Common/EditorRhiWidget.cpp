@@ -1,40 +1,17 @@
 #include "EditorRhiWidget.h"
 
-#include "Model/AppOptions/AppOptions.h"
-
-#include <QElapsedTimer>
 #include <QEvent>
 #include <QFile>
 #include <QMatrix4x4>
 #include <QMetaObject>
-#include <QTimer>
 #include <rhi/qrhi.h>
 
 #include <algorithm>
 
 namespace {
-    constexpr int kStatsWindow = 120;
-
     QShader loadShader(const QString &path) {
         QFile file(path);
         return file.open(QIODevice::ReadOnly) ? QShader::fromSerialized(file.readAll()) : QShader();
-    }
-
-    double percentile(const QVector<double> &values, const double ratio) {
-        if (values.isEmpty())
-            return 0.0;
-        auto sorted = values;
-        std::sort(sorted.begin(), sorted.end());
-        const auto index = static_cast<qsizetype>(std::clamp(ratio, 0.0, 1.0) *
-                                                  static_cast<double>(sorted.size() - 1));
-        return sorted.at(index);
-    }
-
-    QString statsTriple(const QVector<double> &values) {
-        return QStringLiteral("%1/%2/%3")
-            .arg(percentile(values, 0.50), 0, 'f', 3)
-            .arg(percentile(values, 0.95), 0, 'f', 3)
-            .arg(percentile(values, 0.99), 0, 'f', 3);
     }
 
     void configurePremultipliedBlend(QRhiGraphicsPipeline *pipeline) {
@@ -73,7 +50,6 @@ public:
 
     Private(EditorRhiWidget *q, QString diagnosticsTag)
         : q(q), diagnosticsTag(std::move(diagnosticsTag)) {
-        clock.start();
     }
 
     void initialize() {
@@ -208,7 +184,6 @@ public:
     void submit(EditorRhiFrameData newFrame) {
         frame = std::move(newFrame);
         frameDirty = true;
-        updateRequestedNs = clock.nsecsElapsed();
         q->update();
     }
 
@@ -225,8 +200,6 @@ public:
                 return;
         }
 
-        QElapsedTimer uploadTimer;
-        uploadTimer.start();
         auto *updates = pendingUpdates.release();
         if (!updates)
             updates = rhi->nextResourceUpdateBatch();
@@ -234,19 +207,17 @@ public:
         ensureBuffer(solidBuffer, solidBufferCapacity,
                      frame.solidVertices.size() *
                          static_cast<qsizetype>(sizeof(EditorRhiSolidVertex)));
-        double uploadedBytes = 0.0;
         if (frameDirty && solidBuffer && !frame.solidVertices.isEmpty()) {
             const auto bytes = frame.solidVertices.size() * sizeof(EditorRhiSolidVertex);
             updates->updateDynamicBuffer(solidBuffer.get(), 0, static_cast<quint32>(bytes),
                                          frame.solidVertices.constData());
-            uploadedBytes += bytes;
         }
 
         for (const auto &batch : frame.textureBatches) {
             auto &resources = textureResources[batch.pageId];
             if (!resources)
                 resources = std::make_shared<TextureResources>();
-            ensureTextureResources(*resources, batch, updates, uploadedBytes);
+            ensureTextureResources(*resources, batch, updates);
         }
 
         const auto outputSize = renderTarget->pixelSize();
@@ -257,15 +228,10 @@ public:
                              static_cast<float>(-frame.physicalCameraOffset.y()));
         const auto matrix = rhi->clipSpaceCorrMatrix() * projection;
         updates->updateDynamicBuffer(uniformBuffer.get(), 0, 64, matrix.constData());
-        const auto uploadMs = uploadTimer.nsecsElapsed() / 1000000.0;
-
-        QElapsedTimer encodeTimer;
-        encodeTimer.start();
         cb->beginPass(renderTarget.get(), frame.clearColor, {1.0f, 0}, updates);
         cb->setViewport(QRhiViewport(0, 0, outputSize.width(), outputSize.height()));
         cb->setScissor(QRhiScissor(0, 0, outputSize.width(), outputSize.height()));
 
-        int drawCalls = 0;
         const auto drawSolid = [&](const qsizetype vertexOffset, const qsizetype vertexCount) {
             if (!solidBuffer || vertexCount <= 0)
                 return;
@@ -276,7 +242,6 @@ public:
             const QRhiCommandBuffer::VertexInput binding(solidBuffer.get(), byteOffset);
             cb->setVertexInput(0, 1, &binding);
             cb->draw(static_cast<quint32>(vertexCount));
-            ++drawCalls;
         };
         const auto drawTexture = [&](const int pageId, const qsizetype vertexOffset,
                                      const qsizetype vertexCount, const QColor &color) {
@@ -297,7 +262,6 @@ public:
             cb->setBlendConstants(color);
             cb->setVertexInput(0, 1, &binding);
             cb->draw(static_cast<quint32>(vertexCount));
-            ++drawCalls;
         };
         if (!frame.drawList.commands.isEmpty()) {
             for (const auto &command : frame.drawList.commands) {
@@ -311,17 +275,7 @@ public:
             drawSolid(0, frame.solidVertices.size());
         }
         cb->endPass();
-        const auto encodeMs = encodeTimer.nsecsElapsed() / 1000000.0;
         frameDirty = false;
-
-        if (appOptions->developer()->enableDiagnostics) {
-            uploadSamples.append(uploadMs);
-            encodeSamples.append(encodeMs);
-            cpuSamples.append(uploadMs + encodeMs);
-            vertexSamples.append(frame.solidVertices.size());
-            uploadByteSamples.append(uploadedBytes);
-            drawCallSamples.append(drawCalls);
-        }
     }
 
     void ensureBuffer(std::unique_ptr<QRhiBuffer> &buffer, qsizetype &capacity,
@@ -368,7 +322,7 @@ public:
     }
 
     void ensureTextureResources(TextureResources &resources, const EditorRhiTextureBatch &batch,
-                                QRhiResourceUpdateBatch *updates, double &uploadedBytes) {
+                                QRhiResourceUpdateBatch *updates) {
         if (batch.image.isNull())
             return;
         if (!resources.texture || resources.size != batch.image.size()) {
@@ -383,7 +337,6 @@ public:
         }
         if (resources.generation != batch.generation) {
             updates->uploadTexture(resources.texture.get(), batch.image);
-            uploadedBytes += batch.image.sizeInBytes();
             resources.generation = batch.generation;
         }
         if (!resources.bindings) {
@@ -407,43 +360,11 @@ public:
             updates->updateDynamicBuffer(resources.vertexBuffer.get(), 0,
                                          static_cast<quint32>(required),
                                          batch.vertices.constData());
-            uploadedBytes += required;
         }
     }
 
     void submitted() {
-        const auto now = clock.nsecsElapsed();
-        if (lastSubmittedNs != 0) {
-            const auto interval = (now - lastSubmittedNs) / 1000000.0;
-            if (interval <= 500.0 && appOptions->developer()->enableDiagnostics)
-                intervalSamples.append(interval);
-        }
-        lastSubmittedNs = now;
-        if (updateRequestedNs != 0 && appOptions->developer()->enableDiagnostics) {
-            submitSamples.append((now - updateRequestedNs) / 1000000.0);
-            updateRequestedNs = 0;
-        }
         q->onFrameSubmitted();
-
-        if (!appOptions->developer()->enableDiagnostics || cpuSamples.size() < kStatsWindow)
-            return;
-        qInfo().noquote() << QStringLiteral(
-                                 "[%1Stats] frames=%2 cpuMs=%3 uploadMs=%4 encodeMs=%5 "
-                                 "submitMs=%6 intervalMs=%7 vertices=%8 uploadBytes=%9 draws=%10")
-                                 .arg(diagnosticsTag)
-                                 .arg(cpuSamples.size())
-                                 .arg(statsTriple(cpuSamples), statsTriple(uploadSamples),
-                                      statsTriple(encodeSamples), statsTriple(submitSamples),
-                                      statsTriple(intervalSamples), statsTriple(vertexSamples),
-                                      statsTriple(uploadByteSamples), statsTriple(drawCallSamples));
-        cpuSamples.clear();
-        uploadSamples.clear();
-        encodeSamples.clear();
-        submitSamples.clear();
-        intervalSamples.clear();
-        vertexSamples.clear();
-        uploadByteSamples.clear();
-        drawCallSamples.clear();
     }
 
     void fail(const QString &reason) {
@@ -495,18 +416,6 @@ public:
     std::unique_ptr<QRhiGraphicsPipeline> textPipeline;
     std::unique_ptr<QRhiResourceUpdateBatch> pendingUpdates;
     QHash<int, std::shared_ptr<TextureResources>> textureResources;
-
-    QElapsedTimer clock;
-    qint64 updateRequestedNs = 0;
-    qint64 lastSubmittedNs = 0;
-    QVector<double> cpuSamples;
-    QVector<double> uploadSamples;
-    QVector<double> encodeSamples;
-    QVector<double> submitSamples;
-    QVector<double> intervalSamples;
-    QVector<double> vertexSamples;
-    QVector<double> uploadByteSamples;
-    QVector<double> drawCallSamples;
 };
 
 EditorRhiWidget::EditorRhiWidget(QString diagnosticsTag, QWidget *parent)
