@@ -411,17 +411,21 @@ public:
         if (viewportLength <= 0.0)
             return;
 
+        const auto previousCameraX = cameraX;
         if (playbackPosition > viewportEnd) {
             const auto targetStart = playbackPosition - viewportLength;
             if (targetStart > viewportEnd)
                 cameraX = (playbackPosition - clip->start()) * pixelsPerTick();
             else
                 cameraX += q->width();
-            viewportChanged(false);
         } else if (playbackPosition < viewportStart) {
             cameraX = (playbackPosition - clip->start()) * pixelsPerTick();
-            viewportChanged(false);
+        } else {
+            return;
         }
+        clampCamera();
+        if (!qFuzzyIsNull(cameraX - previousCameraX))
+            viewportChanged(false);
     }
 
     void updateAutoPageTurnAvailability() {
@@ -1768,7 +1772,7 @@ public:
     }
 
     void rebuildSnapshot() {
-        auto frame = std::move(recycledFrame);
+        auto frame = q->acquireFrame();
         vertices = std::move(frame.solidVertices);
         vertices.clear();
         drawList = std::move(frame.drawList);
@@ -1799,7 +1803,7 @@ public:
         frame.solidVertices = std::move(vertices);
         frame.drawList = std::move(drawList);
         glyphAtlas.populateTextureBatches(frame.textureBatches);
-        recycledFrame = q->submitFrame(std::move(frame));
+        q->submitFrame(std::move(frame));
         updatePlaybackOverlay();
     }
 
@@ -2724,7 +2728,6 @@ public:
     double dpr = 1.0;
     QVector<Vertex> vertices;
     QVector<Vertex> playbackOverlayVertices;
-    EditorRhiFrameData recycledFrame;
     TimelineLineEmitter timelineEmitter;
     EditorGlyphAtlas glyphAtlas;
     EditorRhiDrawList drawList;

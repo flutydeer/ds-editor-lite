@@ -181,12 +181,14 @@ public:
         return true;
     }
 
-    EditorRhiFrameData submit(EditorRhiFrameData newFrame) {
-        auto previousFrame = std::move(frame);
+    EditorRhiFrameData acquireFrame() {
+        return std::move(frame);
+    }
+
+    void submit(EditorRhiFrameData newFrame) {
         frame = std::move(newFrame);
         frameDirty = true;
         q->update();
-        return previousFrame;
     }
 
     QVector<EditorRhiSolidVertex> submitOverlay(QVector<EditorRhiSolidVertex> newVertices) {
@@ -465,17 +467,17 @@ EditorRhiWidget::EditorRhiWidget(QString diagnosticsTag, QWidget *parent)
 
 EditorRhiWidget::~EditorRhiWidget() = default;
 
-EditorRhiFrameData EditorRhiWidget::submitFrame(EditorRhiFrameData frame) {
-    return d->submit(std::move(frame));
+EditorRhiFrameData EditorRhiWidget::acquireFrame() {
+    return d->acquireFrame();
+}
+
+void EditorRhiWidget::submitFrame(EditorRhiFrameData frame) {
+    d->submit(std::move(frame));
 }
 
 QVector<EditorRhiSolidVertex>
     EditorRhiWidget::submitOverlay(QVector<EditorRhiSolidVertex> vertices) {
     return d->submitOverlay(std::move(vertices));
-}
-
-const EditorRhiFrameData &EditorRhiWidget::frameData() const {
-    return d->frame;
 }
 
 QPointF EditorRhiWidget::physicalWindowOffset() const {

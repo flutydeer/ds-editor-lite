@@ -827,7 +827,7 @@ void TracksRhiWidget::onDevicePixelRatioChanged() {
 
 void TracksRhiWidget::rebuildSnapshot() {
     const auto dpr = devicePixelRatioF();
-    auto frame = std::move(m_recycledFrame);
+    auto frame = acquireFrame();
     frame.solidVertices.clear();
     frame.drawList.clear();
     frame.clearColor = m_backgroundColor;
@@ -848,7 +848,7 @@ void TracksRhiWidget::rebuildSnapshot() {
     }
     frame.drawList.finish(frame.solidVertices.size());
     m_glyphAtlas.populateTextureBatches(frame.textureBatches);
-    m_recycledFrame = submitFrame(std::move(frame));
+    submitFrame(std::move(frame));
     updatePlaybackOverlay();
 }
 
