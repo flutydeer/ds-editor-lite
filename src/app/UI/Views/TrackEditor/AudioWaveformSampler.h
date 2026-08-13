@@ -21,6 +21,7 @@ class AudioWaveformSampler final {
 public:
     using Geometry = WaveformRenderUtils::Geometry;
     using Result = WaveformRenderUtils::SampledWaveform;
+    using AmplitudeScale = WaveformRenderUtils::AmplitudeScale;
 
     struct Request {
         const AudioInfoModel *audioInfo = nullptr;
@@ -33,6 +34,7 @@ public:
         double pixelsPerQuarterNote = 64.0;
         double leftMarginPx = 0.0;
         double devicePixelRatio = 1.0;
+        AmplitudeScale amplitudeScale = AmplitudeScale::Linear;
     };
 
     AudioWaveformSampler() = default;
@@ -66,6 +68,7 @@ private:
         double pixelsPerQuarterNote = 64.0;
         double leftMarginPx = 0.0;
         double devicePixelRatio = 1.0;
+        AmplitudeScale amplitudeScale = AmplitudeScale::Linear;
 
         bool operator==(const CacheKey &) const = default;
     };

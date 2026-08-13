@@ -17,6 +17,8 @@ enum Mode {
 
 enum class Geometry { None, FilledPeaks, VerticalPeaks, Curve };
 
+enum class AmplitudeScale { Linear, Logarithmic };
+
 struct PeakPoint {
     double x;
     double yMin;
@@ -30,6 +32,8 @@ struct SampledWaveform {
     QVector<QPointF> sampleDots;
     double sampleDotRadius = 0.0;
 };
+
+[[nodiscard]] double mapAmplitude(double value, AmplitudeScale scale);
 
 /// Render a waveform from a vector of per-pixel peak points.
 /// Supports two modes:

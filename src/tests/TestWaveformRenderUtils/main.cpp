@@ -6,6 +6,8 @@
 #include <QTextStream>
 #include <QTransform>
 
+#include <cmath>
+
 namespace {
     int g_failures = 0;
 
@@ -32,6 +34,24 @@ int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     QImage image(128, 64, QImage::Format_ARGB32_Premultiplied);
     const QColor color(80, 140, 255);
+
+    const auto logarithmicQuarter =
+        WaveformRenderUtils::mapAmplitude(0.25, WaveformRenderUtils::AmplitudeScale::Logarithmic);
+    const auto expectedLogarithmicQuarter = std::log(1.0 + 15.0 * 0.25) / std::log(16.0);
+    expect(std::abs(WaveformRenderUtils::mapAmplitude(0.25,
+                                                      WaveformRenderUtils::AmplitudeScale::Linear) -
+                    0.25) < 1e-12,
+           "linear amplitude mapping must preserve accompaniment levels");
+    expect(std::abs(logarithmicQuarter - expectedLogarithmicQuarter) < 1e-12,
+           "logarithmic amplitude mapping must preserve the phoneme visual scale");
+    expect(std::abs(WaveformRenderUtils::mapAmplitude(
+                        -0.25, WaveformRenderUtils::AmplitudeScale::Logarithmic) +
+                    logarithmicQuarter) < 1e-12,
+           "logarithmic amplitude mapping must remain symmetric");
+    expect(std::abs(WaveformRenderUtils::mapAmplitude(
+                        1.0, WaveformRenderUtils::AmplitudeScale::Logarithmic) -
+                    1.0) < 1e-12,
+           "logarithmic amplitude mapping must preserve full scale");
 
     WaveformRenderUtils::SampledWaveform waveform;
     waveform.geometry = WaveformRenderUtils::Geometry::FilledPeaks;

@@ -942,6 +942,7 @@ void PhonemeView::renderWaveforms(QPainter *painter) {
             .pixelsPerQuarterNote = TracksEditorGlobal::pixelsPerQuarterNote,
             .leftMarginPx = leftMarginPx,
             .devicePixelRatio = painter->device()->devicePixelRatioF(),
+            .amplitudeScale = AudioWaveformSampler::AmplitudeScale::Logarithmic,
         });
         WaveformRenderUtils::renderWaveform(painter, waveformColor,
                                             WaveformRenderUtils::FilledMode, waveform);

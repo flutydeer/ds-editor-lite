@@ -11,6 +11,15 @@
 
 namespace WaveformRenderUtils {
 
+double mapAmplitude(const double value, const AmplitudeScale scale) {
+    if (scale == AmplitudeScale::Linear || value == 0.0)
+        return value;
+
+    constexpr double strength = 15.0;
+    static const double normalization = 1.0 / std::log1p(strength);
+    return std::copysign(std::log1p(strength * std::abs(value)) * normalization, value);
+}
+
 void renderWaveform(QPainter *painter, const QColor &color, const Mode mode,
                     const QVector<PeakPoint> &peaks) {
     if (peaks.isEmpty())
