@@ -109,7 +109,10 @@ signals:
     void backendFailed(const QString &reason);
 
 protected:
-    void submitFrame(EditorRhiFrameData frame);
+    // Replaced CPU data is returned so producers can reuse its allocated storage.
+    [[nodiscard]] EditorRhiFrameData submitFrame(EditorRhiFrameData frame);
+    [[nodiscard]] QVector<EditorRhiSolidVertex>
+        submitOverlay(QVector<EditorRhiSolidVertex> vertices);
     [[nodiscard]] const EditorRhiFrameData &frameData() const;
     [[nodiscard]] QPointF physicalWindowOffset() const;
     void requestBackendFailure(const QString &reason);

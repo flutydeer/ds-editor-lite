@@ -29,7 +29,7 @@ public:
                                         double devicePixelRatio = 1.0,
                                         const QPointF &physicalCameraOffset = {},
                                         const QPointF &physicalWindowOffset = {});
-    [[nodiscard]] QVector<EditorRhiTextureBatch> textureBatches() const;
+    void populateTextureBatches(QVector<EditorRhiTextureBatch> &batches) const;
     [[nodiscard]] double hitRate() const;
 
 private:

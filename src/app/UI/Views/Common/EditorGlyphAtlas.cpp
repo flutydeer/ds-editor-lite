@@ -90,15 +90,23 @@ EditorRhiTextureDrawSpan EditorGlyphAtlas::appendText(
     return {page.id, vertexOffset, page.vertices.size() - vertexOffset, color};
 }
 
-QVector<EditorRhiTextureBatch> EditorGlyphAtlas::textureBatches() const {
-    QVector<EditorRhiTextureBatch> result;
-    result.reserve(m_pages.size());
+void EditorGlyphAtlas::populateTextureBatches(QVector<EditorRhiTextureBatch> &batches) const {
+    const auto batchCount = std::count_if(m_pages.cbegin(), m_pages.cend(),
+                                          [](const auto &page) {
+                                              return !page->vertices.isEmpty();
+                                          });
+    batches.resize(batchCount);
+    auto batchIndex = qsizetype(0);
     for (const auto &page : m_pages) {
         if (page->vertices.isEmpty())
             continue;
-        result.append({page->id, page->generation, page->image, page->vertices});
+        auto &batch = batches[batchIndex++];
+        batch.pageId = page->id;
+        batch.generation = page->generation;
+        batch.image = page->image;
+        batch.vertices.resize(page->vertices.size());
+        std::copy(page->vertices.cbegin(), page->vertices.cend(), batch.vertices.begin());
     }
-    return result;
 }
 
 double EditorGlyphAtlas::hitRate() const {
