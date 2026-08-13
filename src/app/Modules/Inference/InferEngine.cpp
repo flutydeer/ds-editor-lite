@@ -164,10 +164,10 @@ bool InferEngine::initialize(QString &error) {
     }
 
     const auto pluginRootDir = SynthrtEngine::pluginRoot();
-    const auto diffsingerPluginDir = pluginRootDir / _TSTR("diffsinger");
-    const auto singerProviderDir = diffsingerPluginDir / _TSTR("singerproviders");
-    const auto inferenceDriverDir = pluginRootDir / _TSTR("srt-driver") / _TSTR("inferencedrivers");
-    const auto inferenceInterpreterDir = diffsingerPluginDir / _TSTR("inferenceinterpreters");
+    const auto diffsingerPluginDir = pluginRootDir / "diffsinger";
+    const auto singerProviderDir = diffsingerPluginDir / "singerproviders";
+    const auto inferenceDriverDir = pluginRootDir / "srt-driver" / "inferencedrivers";
+    const auto inferenceInterpreterDir = diffsingerPluginDir / "inferenceinterpreters";
 
     QStringList packagePathsQt;
     for (const auto &pathQt : appOptions->general()->packageSearchPaths) {
@@ -176,15 +176,15 @@ bool InferEngine::initialize(QString &error) {
         const bool exists = std::filesystem::exists(path, error);
         const bool isDirectory = exists && std::filesystem::is_directory(path, error);
         if (error || !isDirectory) {
-            qWarning().noquote()
-                << QStringLiteral("Skipping inaccessible package search path '%1': %2")
-                       .arg(pathQt, error ? QString::fromStdString(error.message())
-                                            : QStringLiteral("not a directory"));
+            qWarning().noquote() << QStringLiteral(
+                                        "Skipping inaccessible package search path '%1': %2")
+                                        .arg(pathQt, error ? QString::fromStdString(error.message())
+                                                           : QStringLiteral("not a directory"));
             continue;
         }
         packagePathsQt.append(pathQt);
     }
-    const auto g2pPackageDir = pluginRootDir / _TSTR("srt-g2p") / _TSTR("G2pPackages");
+    const auto g2pPackageDir = pluginRootDir / "srt-g2p" / "G2pPackages";
     const QStringList g2pPackagePaths{StringUtils::path_to_qstr(g2pPackageDir)};
     if (!SynthrtEngine::instance().initialize(packagePathsQt, g2pPackagePaths, ep, index)) {
         error = QStringLiteral("Failed to initialize SynthrtEngine");
@@ -194,9 +194,8 @@ bool InferEngine::initialize(QString &error) {
     m_paths.singerProvider = StringUtils::path_to_qstr(singerProviderDir);
     m_paths.inferenceDriver = StringUtils::path_to_qstr(inferenceDriverDir);
     m_paths.inferenceInterpreter = StringUtils::path_to_qstr(inferenceInterpreterDir);
-    const auto runtimeDir = inferenceDriverDir / _TSTR("srt-onnxdriver") / _TSTR("runtimes") /
-                            _TSTR("onnx") /
-                            (ep == QStringLiteral("CUDA") ? _TSTR("cuda") : _TSTR("default"));
+    const auto runtimeDir = inferenceDriverDir / "srt-onnxdriver" / "runtimes" / "onnx" /
+                            (ep == QStringLiteral("CUDA") ? "cuda" : "default");
     m_paths.inferenceRuntime = StringUtils::path_to_qstr(runtimeDir);
 
     if (ep == QStringLiteral("DirectML") || ep == QStringLiteral("CUDA")) {
@@ -249,8 +248,8 @@ std::shared_ptr<ds::session::ModelSetHandle>
     if (!exp) {
         if (exp.error().code() != srt::core::ErrorCode::StaleModelSet) {
             qCritical().noquote().nospace()
-                << "acquireSingerSession: ensureModelSet failed for " << identifier
-                << ": " << QString::fromUtf8(exp.error().messageWithLocation());
+                << "acquireSingerSession: ensureModelSet failed for " << identifier << ": "
+                << QString::fromUtf8(exp.error().messageWithLocation());
             return {};
         }
         // StaleModelSet — discard the failed result and retry once.
@@ -259,8 +258,8 @@ std::shared_ptr<ds::session::ModelSetHandle>
         exp = session.ensureModelSet(identifier);
         if (!exp) {
             qCritical().noquote().nospace()
-                << "acquireSingerSession: ensureModelSet retry failed for " << identifier
-                << ": " << QString::fromUtf8(exp.error().messageWithLocation());
+                << "acquireSingerSession: ensureModelSet retry failed for " << identifier << ": "
+                << QString::fromUtf8(exp.error().messageWithLocation());
             return {};
         }
     }
