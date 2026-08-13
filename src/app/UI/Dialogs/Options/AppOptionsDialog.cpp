@@ -43,31 +43,12 @@ AppOptionsDialog::AppOptionsDialog(QWidget *parent, const bool standalone)
     m_sidebar->setFixedWidth(m_tabList->minimumWidth() + sidebarLayout->contentsMargins().left()
                              + sidebarLayout->contentsMargins().right());
 
-    m_generalPage = new GeneralPage;
-    m_audioPage = new AudioPage;
-    m_midiPage = new MidiPage;
-    m_appearancePage = new AppearancePage;
-    m_inferencePage = new InferencePage;
-    m_developerPage = new DeveloperPage;
-
     m_pageContent = new QStackedWidget;
-    m_pageContent->addWidget(m_generalPage);
-    m_pageContent->addWidget(m_audioPage);
-    m_pageContent->addWidget(m_midiPage);
-    m_pageContent->addWidget(m_appearancePage);
-    m_pageContent->addWidget(m_inferencePage);
-    m_pageContent->addWidget(m_developerPage);
     m_pageContent->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Expanding);
     m_pageContent->setMinimumWidth(600);
 
-    m_pages.append(m_generalPage);
-    m_pages.append(m_audioPage);
-    m_pages.append(m_midiPage);
-    m_pages.append(m_appearancePage);
-    m_pages.append(m_inferencePage);
-    m_pages.append(m_developerPage);
-
     retranslateUi();
+    m_pages.resize(m_tabList->count());
 
     const auto body = new QWidget;
     body->setContentsMargins({});
@@ -108,8 +89,44 @@ int AppOptionsDialog::showStandaloneDialog(const AppOptionsGlobal::Option option
     return result;
 }
 
-void AppOptionsDialog::onSelectionChanged(const int index) const {
-    m_pageContent->setCurrentWidget(m_pages.at(index));
+void AppOptionsDialog::onSelectionChanged(const int index) {
+    if (auto *page = ensurePage(index))
+        m_pageContent->setCurrentWidget(page);
+}
+
+IOptionPage *AppOptionsDialog::ensurePage(const int index) {
+    if (index < 0 || index >= m_pages.size())
+        return nullptr;
+    if (m_pages.at(index))
+        return m_pages.at(index);
+
+    IOptionPage *page = nullptr;
+    switch (static_cast<AppOptionsGlobal::Option>(index + 1)) {
+        case AppOptionsGlobal::General:
+            page = new GeneralPage;
+            break;
+        case AppOptionsGlobal::Audio:
+            page = new AudioPage;
+            break;
+        case AppOptionsGlobal::Midi:
+            page = new MidiPage;
+            break;
+        case AppOptionsGlobal::Appearance:
+            page = new AppearancePage;
+            break;
+        case AppOptionsGlobal::Inference:
+            page = new InferencePage;
+            break;
+        case AppOptionsGlobal::DeveloperOptions:
+            page = new DeveloperPage;
+            break;
+        default:
+            return nullptr;
+    }
+
+    m_pages[index] = page;
+    m_pageContent->addWidget(page);
+    return page;
 }
 
 void AppOptionsDialog::selectOption(const AppOptionsGlobal::Option option) {
