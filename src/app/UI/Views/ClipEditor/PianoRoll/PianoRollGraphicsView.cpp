@@ -1391,8 +1391,6 @@ void PianoRollGraphicsViewPrivate::setPitchEditMode(const bool on, const bool is
     m_isEditPitchMode = on;
     for (const auto note : noteViews)
         note->setEditingPitch(on);
-    if (on)
-        q->clearNoteSelections();
     m_pitchEditor->setTransparentMouseEvents(!on);
     m_pitchEditor->setEraseMode(isErase);
 }
