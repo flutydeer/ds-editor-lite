@@ -57,12 +57,14 @@
 
 **修复内容**（10 个文件，281 行新增）：
 
-- **播放位置更新节流**：`TimeGraphicsView` / `TimelineView` 的播放位置 setter 从"直接赋值 + update()"改为 `m_pendingPosition` + **33ms 单次定时器**（`m_positionThrottle`），自动翻页逻辑同样走节流路径
+- **播放位置更新节流**：`TimeGraphicsView` / `TimelineView` 的播放位置 setter 从"直接赋值 + update()"改为 `m_pendingPosition` + **33ms 单次定时器**（`m_positionThrottle`），自动翻页逻辑同样走节流路径（这是该提交引入时的取值）
 - **WaveformPainter pixmap 缓存修复**：缓存改为按 `devicePixelRatio` + 像素尺寸校验重建（修复缓存被 setter 清空后 `paint()` 画空白的问题）
 - **CommonParamEditorView 曲线删除泄漏修复**：移除曲线时同时 `delete` 曲线对象
 - 提交附带 MainWindow 的临时诊断事件过滤器（`EventDiagFilter`，测量事件间隙与 paint 阻塞时间，标注 "remove after investigation"）——**至今仍保留在 `MainWindow.cpp` 中，属于待清理的遗留代码**
 
 **效果**：播放中冻结问题解决；剩余待优化项目由本次综合修复覆盖，不再单独跟踪。
+
+后续波形采样和渲染完成统一、音素波形增加视口像素缓存后，所有播放头视图改为共享 `PlaybackGlobal::positionUpdateIntervalMs`，当前取值为 8ms。单次定时器仍负责合并音频后端的密集位置事件，但不再把 UI 播放头限制在约 30Hz。
 
 ## 设计约束（主线程 / 工作线程职责划分）
 

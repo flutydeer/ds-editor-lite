@@ -5,6 +5,7 @@
 #include <QWheelEvent>
 
 #include "Controller/PlaybackController.h"
+#include "Global/PlaybackGlobal.h"
 #include "Utils/FontManager.h"
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -45,7 +46,7 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     connect(&m_pieceUpdateThrottle, &QTimer::timeout, this, qOverload<>(&QWidget::update));
 
     m_positionThrottle.setSingleShot(true);
-    m_positionThrottle.setInterval(33);
+    m_positionThrottle.setInterval(PlaybackGlobal::positionUpdateIntervalMs);
     connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
         m_position = m_pendingPosition;
         update();

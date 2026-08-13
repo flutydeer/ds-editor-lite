@@ -4,6 +4,7 @@
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
 #include "Global/AppGlobal.h"
+#include "Global/PlaybackGlobal.h"
 #include "Global/TracksEditorGlobal.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
@@ -45,7 +46,7 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
             &PhonemeView::setLastPosition);
 
     m_positionThrottle.setSingleShot(true);
-    m_positionThrottle.setInterval(33);
+    m_positionThrottle.setInterval(PlaybackGlobal::positionUpdateIntervalMs);
     connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
         m_position = m_pendingPosition;
         update();

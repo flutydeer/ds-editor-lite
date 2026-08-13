@@ -7,6 +7,7 @@
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
 #include "Global/AppGlobal.h"
+#include "Global/PlaybackGlobal.h"
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -212,7 +213,7 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
                 }
             });
     m_positionThrottle.setSingleShot(true);
-    m_positionThrottle.setInterval(33);
+    m_positionThrottle.setInterval(PlaybackGlobal::positionUpdateIntervalMs);
     connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
         m_playbackPosition = m_pendingPlaybackPosition;
         handleAutoPageTurn();

@@ -1,6 +1,7 @@
 #include "InfoLaneView.h"
 
 #include "Controller/PlaybackController.h"
+#include "Global/PlaybackGlobal.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include <QContextMenuEvent>
@@ -39,7 +40,7 @@ InfoLaneView::InfoLaneView(QWidget *parent) : QWidget(parent) {
     connect(appModel, &AppModel::timelineChanged, this, applyTimeline);
 
     m_positionThrottle.setSingleShot(true);
-    m_positionThrottle.setInterval(33);
+    m_positionThrottle.setInterval(PlaybackGlobal::positionUpdateIntervalMs);
     connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
         m_position = m_pendingPosition;
         update();

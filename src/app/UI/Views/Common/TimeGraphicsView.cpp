@@ -18,6 +18,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Global/AppGlobal.h"
+#include "Global/PlaybackGlobal.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/GUI/Controls/OverlayScrollBar.h>
 
@@ -128,7 +129,7 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
             &TimeGraphicsView::updateAutoPageTurnAvailability);
 
     m_positionThrottle.setSingleShot(true);
-    m_positionThrottle.setInterval(33);
+    m_positionThrottle.setInterval(PlaybackGlobal::positionUpdateIntervalMs);
     connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
         double tick = m_pendingPosition;
         m_playbackPosition = tick;

@@ -7,6 +7,7 @@
 #include "PronunciationView.h"
 #include "Controller/ClipController.h"
 #include "Global/AppGlobal.h"
+#include "Global/PlaybackGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Utils/AppColorPalette.h"
@@ -2761,7 +2762,7 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
             [this] { d->scheduleSnapshot(); });
     connect(appStatus, &AppStatus::noteSelectionChanged, this, [this] { d->scheduleSnapshot(); });
     d->positionThrottle.setSingleShot(true);
-    d->positionThrottle.setInterval(33);
+    d->positionThrottle.setInterval(PlaybackGlobal::positionUpdateIntervalMs);
     connect(&d->positionThrottle, &QTimer::timeout, this,
             [this] { d->applyPendingPlaybackPosition(); });
     connect(appModel, &AppModel::timelineChanged, this, [this] {
