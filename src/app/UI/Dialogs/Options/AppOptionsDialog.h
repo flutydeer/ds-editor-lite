@@ -5,12 +5,6 @@
 
 #include "Global/AppOptionsGlobal.h"
 
-class AudioPage;
-class MidiPage;
-class AppearancePage;
-class GeneralPage;
-class InferencePage;
-class DeveloperPage;
 class IOptionPage;
 class QListWidget;
 class QStackedWidget;
@@ -39,9 +33,10 @@ protected:
     void changeEvent(QEvent *event) override;
 
 private slots:
-    void onSelectionChanged(int index) const;
+    void onSelectionChanged(int index);
 
 private:
+    IOptionPage *ensurePage(int index);
     void retranslateUi();
 
     QListWidget *m_tabList = nullptr;
@@ -49,12 +44,6 @@ private:
     QWidget *m_sidebar = nullptr;
     bool m_standalone = false;
 
-    GeneralPage *m_generalPage = nullptr;
-    AudioPage *m_audioPage = nullptr;
-    MidiPage *m_midiPage = nullptr;
-    AppearancePage *m_appearancePage = nullptr;
-    InferencePage *m_inferencePage = nullptr;
-    DeveloperPage *m_developerPage = nullptr;
     QList<IOptionPage *> m_pages;
 };
 
