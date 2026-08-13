@@ -176,7 +176,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
                 m_timeSignatureLaneHeader->setVisible(visible);
                 m_timeSignatureLane->setVisible(visible);
             });
-    connect(playbackController, &PlaybackController::positionChanged, this,
+    connect(playbackController, &PlaybackController::visualPositionChanged, this,
             &TrackEditorView::onPositionChanged);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &TrackEditorView::onLastPositionChanged);

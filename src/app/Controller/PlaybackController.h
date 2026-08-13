@@ -32,6 +32,7 @@ public:
 
     signals:
     void positionChanged(double tick);
+    void visualPositionChanged(double tick);
     void lastPositionChanged(double tick);
     void playbackStatusChanged(PlaybackStatus status);
 
@@ -47,6 +48,8 @@ public slots:
     void onModelChanged();
 
 private:
+    void updateVisualPosition();
+
     Q_DECLARE_PRIVATE(PlaybackController)
     PlaybackControllerPrivate *d_ptr;
 };

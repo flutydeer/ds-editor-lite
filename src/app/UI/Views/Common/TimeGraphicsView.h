@@ -206,8 +206,6 @@ private:
     bool m_autoPageTurnAvailable = false;
     double m_playbackPosition = 0;
     double m_lastPlaybackPosition = 0;
-    double m_pendingPosition = 0;
-    QTimer m_positionThrottle;
 
     QColor m_barLineColor = {8, 9, 10};
     QColor m_beatLineColor = {22, 25, 28};
