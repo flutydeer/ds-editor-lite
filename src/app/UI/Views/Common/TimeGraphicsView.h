@@ -158,6 +158,8 @@ private:
 
     bool isMouseEventFromWheel(QWheelEvent *event);
     void updateAnimationDuration();
+    void updatePlaybackIndicatorGeometry();
+    void updatePlaybackIndicatorColor();
     void updateRubberBandSelection(const QPointF &scenePos);
     void onEdgeAutoScrollTimerFrame(double dtMs);
     void updateEdgeAutoScrollState(const QPoint &viewportPos);
@@ -197,8 +199,8 @@ private:
 
     TimeGraphicsScene *m_scene;
     TimeGridView *m_gridItem = nullptr;
-    TimeIndicatorView *m_scenePlayPosIndicator = nullptr;
     TimeIndicatorView *m_sceneLastPlayPosIndicator = nullptr;
+    QWidget *m_playbackIndicatorOverlay = nullptr;
 
     int m_offset = 0;
     int m_pixelsPerQuarterNote = 64;

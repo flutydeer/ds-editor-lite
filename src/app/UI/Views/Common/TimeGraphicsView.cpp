@@ -33,13 +33,7 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
                                    QWidget *parent)
     : QGraphicsView(parent), m_scene(scene) {
     setRenderHint(QPainter::Antialiasing);
-    // Full viewport repaint: with partial updates the fast-scrubbing playhead
-    // indicator leaves ghost lines behind (the antialiased 1px ink extends
-    // past Qt's computed damage rect, so old positions never get erased).
-    // TODO: rework to repaint only the indicator's swept span (a route via
-    // scene->invalidate() was tried and did not clear the ghosts) or use
-    // SmartViewportUpdate with a custom damage tracking, to drop CPU cost.
-    setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
+    setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
     setAttribute(Qt::WA_AcceptTouchEvents);
     setAttribute(Qt::WA_Hover);
     setMinimumHeight(150);
@@ -97,14 +91,6 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     connect(m_scene, &TimeGraphicsScene::baseSizeChanged, this,
             &TimeGraphicsView::adjustScaleXToFillView);
 
-    m_scenePlayPosIndicator = new TimeIndicatorView;
-    m_scenePlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
-    QPen curPlayPosPen;
-    curPlayPosPen.setWidth(1);
-    curPlayPosPen.setColor(m_playPosIndicatorColor);
-    m_scenePlayPosIndicator->setPen(curPlayPosPen);
-    m_scene->addTimeIndicator(m_scenePlayPosIndicator);
-
     m_sceneLastPlayPosIndicator = new TimeIndicatorView;
     m_sceneLastPlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
     QPen lastPlayPosPen;
@@ -116,6 +102,12 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
         m_scene->addTimeIndicator(m_sceneLastPlayPosIndicator);
 
     setScene(m_scene);
+    m_playbackIndicatorOverlay = new QWidget(viewport());
+    m_playbackIndicatorOverlay->setObjectName(QStringLiteral("playbackIndicatorOverlay"));
+    m_playbackIndicatorOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_playbackIndicatorOverlay->setAutoFillBackground(true);
+    updatePlaybackIndicatorColor();
+    updatePlaybackIndicatorGeometry();
     setEnsureSceneFillViewX(true);
 
     connect(this, &TimeGraphicsView::scaleChanged, this,
@@ -282,6 +274,7 @@ void TimeGraphicsView::setScrollBarVisibility(Qt::Orientation orientation, bool 
 }
 
 void TimeGraphicsView::notifyVisibleRectChanged() {
+    updatePlaybackIndicatorGeometry();
     emit visibleRectChanged(visibleRect());
 }
 
@@ -595,6 +588,7 @@ void TimeGraphicsView::updateAnimationDuration() {
 }
 
 void TimeGraphicsView::afterSetScale() {
+    updatePlaybackIndicatorGeometry();
     emit scaleChanged(scaleX(), scaleY());
 }
 
@@ -619,22 +613,22 @@ void TimeGraphicsView::setOffset(int tick) {
     if (m_gridItem)
         m_gridItem->setOffset(tick);
     m_sceneLastPlayPosIndicator->setOffset(tick);
-    m_scenePlayPosIndicator->setOffset(tick);
+    updatePlaybackIndicatorGeometry();
     emit timeRangeChanged(startTick(), endTick());
 }
 
 void TimeGraphicsView::setPixelsPerQuarterNote(int px) {
     m_pixelsPerQuarterNote = px;
-    m_scenePlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
     m_sceneLastPlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
+    updatePlaybackIndicatorGeometry();
 }
 
 void TimeGraphicsView::setLeftMarginPx(int px) {
     m_scene->setLeftMarginPx(px);
     // Reposition the indicators and grid against the shifted origin, and let
     // the ruler/lanes resync their time range.
-    m_scenePlayPosIndicator->setPosition(m_playbackPosition);
     m_sceneLastPlayPosIndicator->setPosition(m_lastPlaybackPosition);
+    updatePlaybackIndicatorGeometry();
     if (m_gridItem)
         m_gridItem->update();
     notifyVisibleRectChanged();
@@ -743,8 +737,7 @@ void TimeGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
 
 void TimeGraphicsView::setPlaybackPosition(double tick) {
     m_playbackPosition = tick;
-    if (m_scenePlayPosIndicator != nullptr)
-        m_scenePlayPosIndicator->setPosition(tick);
+    updatePlaybackIndicatorGeometry();
 
     if (!m_autoTurnPage || !m_autoPageTurnAvailable ||
         appStatus->currentEditObject != AppStatus::EditObjectType::None) {
@@ -840,6 +833,32 @@ double TimeGraphicsView::tickToSceneX(double tick) const {
            m_scene->leftMarginPx();
 }
 
+void TimeGraphicsView::updatePlaybackIndicatorGeometry() {
+    if (!m_playbackIndicatorOverlay || !viewport())
+        return;
+
+    const auto sceneX = tickToSceneX(m_playbackPosition - m_offset);
+    const auto viewportX = mapFromScene(QPointF(sceneX, 0.0)).x();
+    if (viewportX < 0 || viewportX >= viewport()->width()) {
+        m_playbackIndicatorOverlay->hide();
+        return;
+    }
+
+    m_playbackIndicatorOverlay->setGeometry(viewportX, 0, 1, viewport()->height());
+    if (m_playbackIndicatorOverlay->isHidden()) {
+        m_playbackIndicatorOverlay->show();
+        m_playbackIndicatorOverlay->raise();
+    }
+}
+
+void TimeGraphicsView::updatePlaybackIndicatorColor() {
+    if (!m_playbackIndicatorOverlay)
+        return;
+    auto palette = m_playbackIndicatorOverlay->palette();
+    palette.setColor(QPalette::Window, m_playPosIndicatorColor);
+    m_playbackIndicatorOverlay->setPalette(palette);
+}
+
 QColor TimeGraphicsView::barLineColor() const {
     return m_barLineColor;
 }
@@ -878,12 +897,7 @@ void TimeGraphicsView::setPlayPosIndicatorColor(const QColor &color) {
     if (m_playPosIndicatorColor == color)
         return;
     m_playPosIndicatorColor = color;
-    if (m_scenePlayPosIndicator) {
-        auto pen = m_scenePlayPosIndicator->pen();
-        pen.setColor(color);
-        m_scenePlayPosIndicator->setPen(pen);
-        m_scenePlayPosIndicator->update();
-    }
+    updatePlaybackIndicatorColor();
 }
 
 QColor TimeGraphicsView::lastPlayPosIndicatorColor() const {
