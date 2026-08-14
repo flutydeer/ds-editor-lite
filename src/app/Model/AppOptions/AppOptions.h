@@ -7,6 +7,7 @@
 #include "Options/AppearanceOption.h"
 #include "Options/AudioOption.h"
 #include "Options/DeveloperOption.h"
+#include "Options/DsspOption.h"
 #include "Options/G2pLanguageOption.h"
 #include "Options/FillLyricOption.h"
 #include "Options/GeneralOption.h"
@@ -37,6 +38,7 @@ public:
     InferenceOption *inference();
     DeveloperOption *developer();
     WindowOption *window();
+    DsspOption *dssp();
 
 signals:
     void optionsChanged(AppOptionsGlobal::Option option);
@@ -50,6 +52,7 @@ private:
     InferenceOption m_inferenceOption;
     DeveloperOption m_developerOption;
     WindowOption m_windowOption;
+    DsspOption m_dsspOption;
 
     QString fileName = "appConfig.json";
     QString m_configPath;

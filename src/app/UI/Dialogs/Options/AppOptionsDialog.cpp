@@ -10,6 +10,7 @@
 #include "Pages/AppearancePage.h"
 #include "Pages/AudioPage.h"
 #include "Pages/DeveloperPage.h"
+#include "Pages/DsspPage.h"
 #include "Pages/GeneralPage.h"
 #include "Pages/InferencePage.h"
 #include "Pages/MidiPage.h"
@@ -120,6 +121,9 @@ IOptionPage *AppOptionsDialog::ensurePage(const int index) {
         case AppOptionsGlobal::DeveloperOptions:
             page = new DeveloperPage;
             break;
+        case AppOptionsGlobal::Dssp:
+            page = new DsspPage;
+            break;
         default:
             return nullptr;
     }
@@ -147,8 +151,9 @@ void AppOptionsDialog::retranslateUi() {
     if (m_standalone)
         window()->setWindowTitle(tr("Options"));
 
-    const QStringList pageNames = {tr("General"),    tr("Audio"),     tr("MIDI"),
-                                   tr("Appearance"), tr("Inference"), tr("Developer Options")};
+    const QStringList pageNames = {tr("General"),       tr("Audio"),     tr("MIDI"),
+                                   tr("Appearance"),    tr("Inference"), tr("Developer Options"),
+                                   tr("DSSP Service")};
     const QSignalBlocker blocker(m_tabList);
     const auto currentRow = m_tabList->currentRow();
     if (m_tabList->count() != pageNames.size()) {

@@ -14,6 +14,7 @@
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/EditSessionManager.h"
+#include "Modules/Dssp/DsspController.h"
 #include "Modules/Extractors/PitchExtractController.h"
 #include "Modules/Extractors/MidiExtractController.h"
 #include "Controller/AppController.h"
@@ -114,6 +115,10 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     // L6: InferController connects to AppOptions, AppStatus, EditSessionManager, PlaybackController
     m_inferController = SingletonRegistry::create<InferController>();
 
+    // L6.5: DSSP HTTP service. Created after the inference environment (so it is
+    // torn down first) and started/stopped from its own settings.
+    m_dsspController = SingletonRegistry::create<DsspController>();
+
     // Audio system (replaces old AudioSystemContext)
     m_audio = std::make_unique<AudioSystemContext>();
 
@@ -160,6 +165,10 @@ AppContext::~AppContext() {
 #if defined(WITH_DIRECT_MANIPULATION)
     m_directManip.reset();
 #endif
+
+    // L6.5 (reverse): stop the HTTP service and join its workers before the
+    // inference runtime is destroyed.
+    SingletonRegistry::destroy(m_dsspController);
 
     // L6
     SingletonRegistry::destroy(m_inferController);
@@ -225,6 +234,7 @@ template <> PlaybackController *AppContext::instance() { return s_self ? s_self-
 template <> ProjectStatusController *AppContext::instance() { return s_self ? s_self->m_projectStatusController : nullptr; }
 template <> ProjectPackageResolver *AppContext::instance() { return s_self ? s_self->m_projectPackageResolver : nullptr; }
 template <> InferController *AppContext::instance() { return s_self ? s_self->m_inferController : nullptr; }
+template <> DsspController *AppContext::instance() { return s_self ? s_self->m_dsspController : nullptr; }
 template <> AppController *AppContext::instance() { return s_self ? s_self->m_appController : nullptr; }
 template <> DocumentWorkflowController *AppContext::instance() { return s_self ? s_self->m_documentWorkflowController : nullptr; }
 template <> LevelMeterManager *AppContext::instance() { return s_self ? s_self->m_levelMeterManager : nullptr; }

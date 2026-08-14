@@ -775,6 +775,10 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
     setMenuIcon(actionDeveloperOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
     connect(actionDeveloperOptions, &QAction::triggered, this,
             [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::DeveloperOptions); });
+    auto *actionDsspOptions = new QAction(tr("DSSP &Service..."), this);
+    setMenuIcon(actionDsspOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
+    connect(actionDsspOptions, &QAction::triggered, this,
+            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Dssp); });
 
     menuOptions = new Menu(tr("&Options"), q);
     menuOptions->addAction(actionGeneralOptions);
@@ -785,6 +789,7 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
     menuOptions->addAction(actionInferenceOptions);
     menuOptions->addSeparator();
     menuOptions->addAction(actionDeveloperOptions);
+    menuOptions->addAction(actionDsspOptions);
     return menuOptions;
 }
 

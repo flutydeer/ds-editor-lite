@@ -30,6 +30,7 @@ AppOptions::AppOptions(QObject *parent) : QObject(parent) {
             m_inferenceOption.load(obj.value(m_inferenceOption.key()).toObject());
             m_developerOption.load(obj.value(m_developerOption.key()).toObject());
             m_windowOption.load(obj.value(m_windowOption.key()).toObject());
+            m_dsspOption.load(obj.value(m_dsspOption.key()).toObject());
         }
     saveAndNotify(AppOptionsGlobal::All);
 }
@@ -51,7 +52,8 @@ bool AppOptions::saveAndNotify(const AppOptionsGlobal::Option option) {
         {m_fillLyricOption.key(),  m_fillLyricOption.value() },
         {m_inferenceOption.key(),  m_inferenceOption.value() },
         {m_developerOption.key(),  m_developerOption.value() },
-        {m_windowOption.key(),     m_windowOption.value()    }
+        {m_windowOption.key(),     m_windowOption.value()    },
+        {m_dsspOption.key(),       m_dsspOption.value()      }
     };
 
     const auto success = JsonUtils::save(m_configPath, obj);
@@ -93,4 +95,8 @@ DeveloperOption *AppOptions::developer() {
 
 WindowOption *AppOptions::window() {
     return &m_windowOption;
+}
+
+DsspOption *AppOptions::dssp() {
+    return &m_dsspOption;
 }

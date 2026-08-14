@@ -30,6 +30,7 @@ class InferController;
 class AppController;
 class DocumentWorkflowController;
 class LevelMeterManager;
+class DsspController;
 
 struct AudioSystemContext;
 
@@ -84,6 +85,10 @@ public:
 
     // L6: Inference controller
     InferController *m_inferController = nullptr;
+
+    // L6.5: DSSP HTTP service (uses the SynthrtEngine session directly;
+    // destroyed before the inference environment on teardown)
+    DsspController *m_dsspController = nullptr;
 
     // Audio system (existing, moved here)
     std::unique_ptr<AudioSystemContext> m_audio;
