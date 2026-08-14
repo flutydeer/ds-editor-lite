@@ -103,10 +103,13 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 
     connect(transport(), &talcs::TransportAudioSource::playbackStatusChanged, this,
             [this](auto status) {
-                if (status == talcs::TransportAudioSource::Paused &&
-                    playbackController->playbackStatus() == PlaybackGlobal::Stopped) {
-                    if (AudioSettings::playheadBehavior() == ReturnToStart)
-                        playbackController->setPosition(playbackController->lastPosition());
+                if (status != talcs::TransportAudioSource::Paused)
+                    return;
+                if (playbackController->playbackStatus() == PlaybackGlobal::Playing) {
+                    playbackController->pause();
+                } else if (playbackController->playbackStatus() == PlaybackGlobal::Stopped &&
+                           AudioSettings::playheadBehavior() == ReturnToStart) {
+                    playbackController->setPosition(playbackController->lastPosition());
                 }
             });
 
