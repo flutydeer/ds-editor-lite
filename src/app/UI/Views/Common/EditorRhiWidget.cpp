@@ -6,9 +6,17 @@
 #include <QMetaObject>
 #include <rhi/qrhi.h>
 
+#ifdef Q_OS_WIN
+#  include <qt_windows.h>
+#endif
+
 #include <algorithm>
 
 namespace {
+#ifdef Q_OS_WIN
+    constexpr auto windowInputSuppressedProperty = "_ds_editorRhiInputSuppressed";
+#endif
+
     QShader loadShader(const QString &path) {
         QFile file(path);
         return file.open(QIODevice::ReadOnly) ? QShader::fromSerialized(file.readAll()) : QShader();
@@ -448,6 +456,7 @@ public:
     std::unique_ptr<QRhiGraphicsPipeline> textPipeline;
     std::unique_ptr<QRhiResourceUpdateBatch> pendingUpdates;
     QHash<int, std::shared_ptr<TextureResources>> textureResources;
+    bool inputSuppressed = false;
 };
 
 EditorRhiWidget::EditorRhiWidget(QString diagnosticsTag, QWidget *parent)
@@ -457,6 +466,8 @@ EditorRhiWidget::EditorRhiWidget(QString diagnosticsTag, QWidget *parent)
     setAttribute(Qt::WA_DontCreateNativeAncestors);
     setAttribute(Qt::WA_NativeWindow);
     setApi(QRhiWidget::Api::Direct3D11);
+    if (parent)
+        d->inputSuppressed = parent->window()->property(windowInputSuppressedProperty).toBool();
 #endif
     setSampleCount(1);
     setColorBufferFormat(QRhiWidget::TextureFormat::RGBA8);
@@ -469,6 +480,25 @@ EditorRhiWidget::EditorRhiWidget(QString diagnosticsTag, QWidget *parent)
 }
 
 EditorRhiWidget::~EditorRhiWidget() = default;
+
+void EditorRhiWidget::setWindowInputSuppressed(QWidget *window, const bool suppressed) {
+#ifdef Q_OS_WIN
+    if (!window)
+        return;
+    auto *root = window->window();
+    root->setProperty(windowInputSuppressedProperty, suppressed);
+    const auto surfaces = root->findChildren<EditorRhiWidget *>();
+    for (auto *surface : surfaces)
+        surface->setInputSuppressed(suppressed);
+#else
+    Q_UNUSED(window)
+    Q_UNUSED(suppressed)
+#endif
+}
+
+void EditorRhiWidget::setInputSuppressed(const bool suppressed) {
+    d->inputSuppressed = suppressed;
+}
 
 EditorRhiFrameData EditorRhiWidget::acquireFrame() {
     return d->acquireFrame();
@@ -509,6 +539,19 @@ bool EditorRhiWidget::event(QEvent *event) {
     if (event->type() == QEvent::DevicePixelRatioChange)
         onDevicePixelRatioChanged();
     return result;
+}
+
+bool EditorRhiWidget::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
+#ifdef Q_OS_WIN
+    if (d->inputSuppressed) {
+        const auto *nativeMessage = static_cast<MSG *>(message);
+        if (nativeMessage && nativeMessage->message == WM_NCHITTEST && result) {
+            *result = HTTRANSPARENT;
+            return true;
+        }
+    }
+#endif
+    return QRhiWidget::nativeEvent(eventType, message, result);
 }
 
 void EditorRhiWidget::onRhiReady() {

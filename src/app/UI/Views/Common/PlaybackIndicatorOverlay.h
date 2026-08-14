@@ -21,6 +21,8 @@ public:
                                       Surface surface = Surface::SharedWidget);
     ~PlaybackIndicatorOverlay() override;
 
+    static void setWindowIndicatorsSuppressed(QWidget *window, bool suppressed);
+
     void setPosition(qreal x);
     void setColor(const QColor &color);
     void setIndicatorVisible(bool visible);
@@ -33,6 +35,7 @@ private:
     [[nodiscard]] QRect indicatorRect(qreal position) const;
     [[nodiscard]] bool isPositionVisible(qreal position) const;
     [[nodiscard]] bool usesNativeCompositor() const;
+    void setSuppressed(bool suppressed);
     void updateGeometry();
 #ifdef Q_OS_WIN
     void ensureNativeWindow();
@@ -44,6 +47,7 @@ private:
     qreal m_position = 0.0;
     QColor m_color = {200, 200, 200};
     bool m_indicatorVisible = true;
+    bool m_suppressed = false;
 #ifdef Q_OS_WIN
     std::unique_ptr<NativePlaybackIndicatorWindow> m_nativeWindow;
 #endif

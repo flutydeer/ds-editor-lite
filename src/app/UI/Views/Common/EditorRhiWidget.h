@@ -105,6 +105,8 @@ public:
     explicit EditorRhiWidget(QString diagnosticsTag, QWidget *parent = nullptr);
     ~EditorRhiWidget() override;
 
+    static void setWindowInputSuppressed(QWidget *window, bool suppressed);
+
 signals:
     void backendFailed(const QString &reason);
 
@@ -121,12 +123,15 @@ protected:
     void render(QRhiCommandBuffer *cb) final;
     void releaseResources() final;
     bool event(QEvent *event) override;
+    bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 
     virtual void onRhiReady();
     virtual void onFrameSubmitted();
     virtual void onDevicePixelRatioChanged();
 
 private:
+    void setInputSuppressed(bool suppressed);
+
     class Private;
     std::unique_ptr<Private> d;
 };

@@ -32,6 +32,8 @@
 #include "UI/Dialogs/ResourceCheck/ResourceCheckDialog.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
+#include "UI/Views/Common/EditorRhiWidget.h"
+#include "UI/Views/Common/PlaybackIndicatorOverlay.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
 #include "UI/Views/MainTitleBar/FilePopupWidget.h"
@@ -337,6 +339,8 @@ void MainWindow::closeAppOptions() {
 }
 
 void MainWindow::suspendBackgroundInteraction() {
+    PlaybackIndicatorOverlay::setWindowIndicatorsSuppressed(this, true);
+    EditorRhiWidget::setWindowInputSuppressed(this, true);
     const auto insideModal = [this](const QObject *object) {
         for (const QObject *p = object; p; p = p->parent())
             if (p == m_modalHost)
@@ -362,6 +366,8 @@ void MainWindow::suspendBackgroundInteraction() {
 }
 
 void MainWindow::restoreBackgroundInteraction() {
+    EditorRhiWidget::setWindowInputSuppressed(this, false);
+    PlaybackIndicatorOverlay::setWindowIndicatorsSuppressed(this, false);
     // Skip actions that were destroyed while the modal was open (see
     // m_suspendedActions); QPointer turns them into null automatically.
     for (const auto &action : std::as_const(m_suspendedActions)) {

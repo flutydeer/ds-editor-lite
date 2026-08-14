@@ -101,6 +101,10 @@ namespace {
 }
 #endif
 
+namespace {
+    constexpr auto windowSuppressedProperty = "_ds_playbackIndicatorsSuppressed";
+}
+
 PlaybackIndicatorOverlay::PlaybackIndicatorOverlay(const Shape shape, QWidget *parent,
                                                    const Surface surface)
     : QWidget(parent), m_shape(shape), m_surface(surface) {
@@ -113,6 +117,7 @@ PlaybackIndicatorOverlay::PlaybackIndicatorOverlay(const Shape shape, QWidget *p
     setFocusPolicy(Qt::NoFocus);
     setAutoFillBackground(false);
     if (parent) {
+        m_suppressed = parent->window()->property(windowSuppressedProperty).toBool();
         parent->installEventFilter(this);
         if (usesNativeCompositor() && parent->window() != parent)
             parent->window()->installEventFilter(this);
@@ -134,9 +139,24 @@ PlaybackIndicatorOverlay::~PlaybackIndicatorOverlay() {
 #endif
 }
 
+void PlaybackIndicatorOverlay::setWindowIndicatorsSuppressed(QWidget *window,
+                                                             const bool suppressed) {
+    if (!window)
+        return;
+    auto *root = window->window();
+    root->setProperty(windowSuppressedProperty, suppressed);
+    const auto overlays = root->findChildren<PlaybackIndicatorOverlay *>();
+    for (auto *overlay : overlays)
+        overlay->setSuppressed(suppressed);
+}
+
 void PlaybackIndicatorOverlay::setPosition(const qreal x) {
     if (m_position == x)
         return;
+    if (m_suppressed) {
+        m_position = x;
+        return;
+    }
     const auto oldRect = indicatorRect(m_position);
     m_position = x;
     if (usesNativeCompositor()) {
@@ -200,7 +220,7 @@ void PlaybackIndicatorOverlay::paintEvent(QPaintEvent *event) {
     Q_UNUSED(event)
     if (usesNativeCompositor())
         return;
-    if (!m_indicatorVisible || !isPositionVisible(m_position))
+    if (m_suppressed || !m_indicatorVisible || !isPositionVisible(m_position))
         return;
 
     QPainter painter(this);
@@ -256,6 +276,17 @@ bool PlaybackIndicatorOverlay::usesNativeCompositor() const {
     return m_surface == Surface::NativeCompositor;
 }
 
+void PlaybackIndicatorOverlay::setSuppressed(const bool suppressed) {
+    if (m_suppressed == suppressed)
+        return;
+    const auto dirtyRect = indicatorRect(m_position);
+    m_suppressed = suppressed;
+    if (usesNativeCompositor())
+        updateGeometry();
+    else
+        update(dirtyRect);
+}
+
 void PlaybackIndicatorOverlay::updateGeometry() {
     const auto parent = parentWidget();
     if (!parent)
@@ -267,7 +298,7 @@ void PlaybackIndicatorOverlay::updateGeometry() {
 
 #ifdef Q_OS_WIN
     ensureNativeWindow();
-    if (!m_nativeWindow || !m_nativeWindow->handle || !m_indicatorVisible ||
+    if (!m_nativeWindow || !m_nativeWindow->handle || m_suppressed || !m_indicatorVisible ||
         !isPositionVisible(m_position) || !parent->isVisible()) {
         hideNativeWindow();
         return;
