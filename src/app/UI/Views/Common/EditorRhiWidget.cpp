@@ -453,6 +453,9 @@ public:
 EditorRhiWidget::EditorRhiWidget(QString diagnosticsTag, QWidget *parent)
     : QRhiWidget(parent), d(std::make_unique<Private>(this, std::move(diagnosticsTag))) {
 #ifdef Q_OS_WIN
+    // Isolate the D3D surface from unrelated backing-store flushes in the top-level widget.
+    setAttribute(Qt::WA_DontCreateNativeAncestors);
+    setAttribute(Qt::WA_NativeWindow);
     setApi(QRhiWidget::Api::Direct3D11);
 #endif
     setSampleCount(1);
