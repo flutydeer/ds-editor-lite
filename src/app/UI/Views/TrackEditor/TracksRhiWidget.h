@@ -28,7 +28,6 @@ class QDropEvent;
 class QHideEvent;
 class QKeyEvent;
 class QMouseEvent;
-class PlaybackIndicatorOverlay;
 class EditorRhiScrollBarController;
 class QResizeEvent;
 class QShowEvent;
@@ -234,9 +233,7 @@ private:
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;
     QVector<ClipSnapshot> m_clipSnapshots;
     QVector<ClipSnapshot> m_pastePreviewSnapshots;
-#ifdef Q_OS_WIN
-    PlaybackIndicatorOverlay *m_playbackIndicatorOverlay = nullptr;
-#else
+#ifndef Q_OS_WIN
     QVector<EditorRhiSolidVertex> m_playbackOverlayVertices;
     std::optional<int> m_playbackOverlayPixel;
 #endif

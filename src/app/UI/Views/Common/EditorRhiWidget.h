@@ -118,6 +118,11 @@ protected:
         submitOverlay(QVector<EditorRhiSolidVertex> vertices);
     [[nodiscard]] QPointF physicalWindowOffset() const;
     void requestBackendFailure(const QString &reason);
+#ifdef Q_OS_WIN
+    void setPlaybackIndicatorPosition(qreal position);
+    void setPlaybackIndicatorColor(const QColor &color);
+    void setPlaybackIndicatorVisible(bool visible);
+#endif
 
     void initialize(QRhiCommandBuffer *cb) final;
     void render(QRhiCommandBuffer *cb) final;

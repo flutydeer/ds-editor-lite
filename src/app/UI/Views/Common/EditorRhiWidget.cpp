@@ -7,10 +7,12 @@
 #include <rhi/qrhi.h>
 
 #ifdef Q_OS_WIN
+#  include "WindowsPlaybackIndicatorCompositor.h"
 #  include <qt_windows.h>
 #endif
 
 #include <algorithm>
+#include <cmath>
 
 namespace {
 #ifdef Q_OS_WIN
@@ -60,7 +62,7 @@ public:
         : q(q), diagnosticsTag(std::move(diagnosticsTag)) {
     }
 
-    void initialize() {
+    void initialize(QRhiCommandBuffer *commandBuffer) {
         release();
         rhi = q->rhi();
         colorTexture = q->colorTexture();
@@ -121,6 +123,16 @@ public:
         if (!createPipelines())
             return;
 
+#ifdef Q_OS_WIN
+        QString compositorError;
+        if (!playbackIndicatorCompositor.initialize(rhi, commandBuffer,
+                                                    static_cast<quintptr>(q->winId()),
+                                                    playbackIndicatorColor, &compositorError)) {
+            fail(QStringLiteral("failed to initialize playback compositor: %1")
+                     .arg(compositorError));
+            return;
+        }
+#endif
         resourcesReady = true;
         qInfo().noquote() << QStringLiteral(
                                  "[%1] initialized backend=%2 sampleCount=1 depthStencil=none")
@@ -210,6 +222,16 @@ public:
     void render(QRhiCommandBuffer *cb) {
         if (!resourcesReady || !cb)
             return;
+#ifdef Q_OS_WIN
+        if (playbackIndicatorCompositor.hasPendingContentUpdate()) {
+            QString compositorError;
+            if (!playbackIndicatorCompositor.prepare(cb, &compositorError)) {
+                fail(QStringLiteral("failed to update playback compositor: %1")
+                         .arg(compositorError));
+                return;
+            }
+        }
+#endif
         if (colorTexture != q->colorTexture() || !renderTarget) {
             // Qt recreates the color buffer on resize / DPI change without
             // re-entering initialize(), so detect the swap here and rebuild the
@@ -235,8 +257,7 @@ public:
         }
 
         ensureBuffer(overlayBuffer, overlayBufferCapacity,
-                     overlayVertices.size() *
-                         static_cast<qsizetype>(sizeof(EditorRhiSolidVertex)),
+                     overlayVertices.size() * static_cast<qsizetype>(sizeof(EditorRhiSolidVertex)),
                      overlayDirty);
         if (overlayDirty && overlayBuffer && !overlayVertices.isEmpty()) {
             const auto bytes = overlayVertices.size() * sizeof(EditorRhiSolidVertex);
@@ -412,6 +433,9 @@ public:
 
     void release() {
         resourcesReady = false;
+#ifdef Q_OS_WIN
+        playbackIndicatorCompositor.release();
+#endif
         textureResources.clear();
         textPipeline.reset();
         solidPipeline.reset();
@@ -430,6 +454,46 @@ public:
         colorTexture = nullptr;
         rhi = nullptr;
     }
+
+#ifdef Q_OS_WIN
+    void updatePlaybackIndicator() {
+        if (failureRequested || !playbackIndicatorCompositor.isReady())
+            return;
+        const auto dpr = std::max<qreal>(1.0, q->devicePixelRatioF());
+        const auto physicalWidth = q->width() * dpr;
+        const auto physicalX = playbackIndicatorPosition * dpr;
+        const auto inViewport = std::isfinite(playbackIndicatorPosition) &&
+                                physicalX >= -2.0 * dpr && physicalX <= physicalWidth + 2.0 * dpr;
+        QString compositorError;
+        if (!playbackIndicatorCompositor.setGeometry(
+                physicalX, dpr, q->height() * dpr,
+                playbackIndicatorVisible && q->isVisible() && inViewport, &compositorError)) {
+            fail(QStringLiteral("failed to move playback compositor: %1").arg(compositorError));
+        }
+    }
+
+    void setPlaybackIndicatorPosition(const qreal position) {
+        if (playbackIndicatorPosition == position)
+            return;
+        playbackIndicatorPosition = position;
+        updatePlaybackIndicator();
+    }
+
+    void setPlaybackIndicatorColor(const QColor &color) {
+        if (playbackIndicatorColor == color)
+            return;
+        playbackIndicatorColor = color;
+        if (playbackIndicatorCompositor.setColor(color) && playbackIndicatorCompositor.isReady())
+            q->update();
+    }
+
+    void setPlaybackIndicatorVisible(const bool visible) {
+        if (playbackIndicatorVisible == visible)
+            return;
+        playbackIndicatorVisible = visible;
+        updatePlaybackIndicator();
+    }
+#endif
 
     EditorRhiWidget *q;
     QString diagnosticsTag;
@@ -457,6 +521,12 @@ public:
     std::unique_ptr<QRhiResourceUpdateBatch> pendingUpdates;
     QHash<int, std::shared_ptr<TextureResources>> textureResources;
     bool inputSuppressed = false;
+#ifdef Q_OS_WIN
+    WindowsPlaybackIndicatorCompositor playbackIndicatorCompositor;
+    qreal playbackIndicatorPosition = 0.0;
+    QColor playbackIndicatorColor{200, 200, 200};
+    bool playbackIndicatorVisible = false;
+#endif
 };
 
 EditorRhiWidget::EditorRhiWidget(QString diagnosticsTag, QWidget *parent)
@@ -522,8 +592,8 @@ void EditorRhiWidget::requestBackendFailure(const QString &reason) {
     d->fail(reason);
 }
 
-void EditorRhiWidget::initialize(QRhiCommandBuffer *) {
-    d->initialize();
+void EditorRhiWidget::initialize(QRhiCommandBuffer *commandBuffer) {
+    d->initialize(commandBuffer);
 }
 
 void EditorRhiWidget::render(QRhiCommandBuffer *cb) {
@@ -538,8 +608,28 @@ bool EditorRhiWidget::event(QEvent *event) {
     const auto result = QRhiWidget::event(event);
     if (event->type() == QEvent::DevicePixelRatioChange)
         onDevicePixelRatioChanged();
+#ifdef Q_OS_WIN
+    if (event->type() == QEvent::DevicePixelRatioChange || event->type() == QEvent::Resize ||
+        event->type() == QEvent::Show || event->type() == QEvent::Hide) {
+        d->updatePlaybackIndicator();
+    }
+#endif
     return result;
 }
+
+#ifdef Q_OS_WIN
+void EditorRhiWidget::setPlaybackIndicatorPosition(const qreal position) {
+    d->setPlaybackIndicatorPosition(position);
+}
+
+void EditorRhiWidget::setPlaybackIndicatorColor(const QColor &color) {
+    d->setPlaybackIndicatorColor(color);
+}
+
+void EditorRhiWidget::setPlaybackIndicatorVisible(const bool visible) {
+    d->setPlaybackIndicatorVisible(visible);
+}
+#endif
 
 bool EditorRhiWidget::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
 #ifdef Q_OS_WIN

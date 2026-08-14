@@ -26,7 +26,7 @@ find_package(SndFile CONFIG REQUIRED)
 
 set(_platform_links)
 if(WIN32)
-    list(APPEND _platform_links dwmapi.lib icu)
+    list(APPEND _platform_links d3d11.lib dcomp.lib dwmapi.lib dxgi.lib icu)
 elseif(NOT APPLE)
     find_package(ICU COMPONENTS uc REQUIRED)
     list(APPEND _platform_links ICU::uc)

@@ -17,7 +17,6 @@
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
 #include "UI/Views/Common/EditorWheelUtils.h"
-#include "UI/Views/Common/PlaybackIndicatorOverlay.h"
 
 #include <lite/MusicBase/TimelineSnapUtils.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -302,10 +301,9 @@ bool TracksRhiWidget::revealFocus(const HistoryFocus &focus, bool) {
         return false;
     const auto left = m_viewport.tickToSceneX(focus.tickStart);
     const auto right = m_viewport.tickToSceneX(focus.tickEnd);
-    return m_viewport.ensureVisible(
-        QRectF(left, m_viewport.unitToSceneY(trackIndex), std::max(1.0, right - left),
-               trackHeight * scaleY()),
-        24.0, 24.0);
+    return m_viewport.ensureVisible(QRectF(left, m_viewport.unitToSceneY(trackIndex),
+                                           std::max(1.0, right - left), trackHeight * scaleY()),
+                                    24.0, 24.0);
 }
 
 QRectF TracksRhiWidget::logicalVisibleRect() const {
@@ -374,9 +372,9 @@ void TracksRhiWidget::onWheelVerScale(QWheelEvent *event) {
 }
 
 void TracksRhiWidget::onWheelHorScroll(QWheelEvent *event) {
-    const auto target = EditorWheelUtils::scrollTarget(
-        static_cast<int>(m_viewport.horizontalOffset()), width(), 0.2, event,
-        EditorWheelUtils::horizontalScrollAxis(event));
+    const auto target =
+        EditorWheelUtils::scrollTarget(static_cast<int>(m_viewport.horizontalOffset()), width(),
+                                       0.2, event, EditorWheelUtils::horizontalScrollAxis(event));
     m_viewport.scrollBy({target - m_viewport.horizontalOffset(), 0.0});
 }
 
@@ -566,8 +564,7 @@ void TracksRhiWidget::onDragAutoScrollFrame(const double dtMs) {
     const QPointF pointerPosition(mapFromGlobal(QCursor::pos()));
     const QRectF viewportRect(QPointF(), size());
     const auto step = m_edgeAutoScroller.computeDragStep(pointerPosition, viewportRect, dtMs);
-    if (step.x() > 0 &&
-        (m_dragMode == DragMode::Move || m_dragMode == DragMode::ResizeRight)) {
+    if (step.x() > 0 && (m_dragMode == DragMode::Move || m_dragMode == DragMode::ResizeRight)) {
         const auto maximumOffset =
             std::max(0.0, m_viewport.tickToSceneX(effectiveSceneLength()) - width());
         if (m_viewport.horizontalOffset() >= maximumOffset - 1.0) {
@@ -818,12 +815,7 @@ void TracksRhiWidget::leaveEvent(QEvent *event) {
 
 void TracksRhiWidget::onRhiReady() {
 #ifdef Q_OS_WIN
-    if (!m_playbackIndicatorOverlay) {
-        m_playbackIndicatorOverlay =
-            new PlaybackIndicatorOverlay(PlaybackIndicatorOverlay::Shape::Line, this,
-                                         PlaybackIndicatorOverlay::Surface::NativeCompositor);
-        m_playbackIndicatorOverlay->setColor(m_playPosIndicatorColor);
-    }
+    setPlaybackIndicatorColor(m_playPosIndicatorColor);
 #endif
     scheduleSnapshot();
     updatePlaybackOverlay(true);
@@ -1236,11 +1228,9 @@ void TracksRhiWidget::appendLastPlaybackIndicator(EditorRhiFrameData &frame,
 void TracksRhiWidget::updatePlaybackOverlay(const bool force) {
 #ifdef Q_OS_WIN
     Q_UNUSED(force)
-    if (!m_playbackIndicatorOverlay)
-        return;
-    m_playbackIndicatorOverlay->setIndicatorVisible(width() > 0 && height() > 0);
-    m_playbackIndicatorOverlay->setPosition(m_viewport.tickToSceneX(m_playbackPosition) -
-                                            m_viewport.horizontalOffset());
+    setPlaybackIndicatorVisible(width() > 0 && height() > 0);
+    setPlaybackIndicatorPosition(m_viewport.tickToSceneX(m_playbackPosition) -
+                                 m_viewport.horizontalOffset());
 #else
     const auto dpr = devicePixelRatioF();
     const auto visible = m_viewport.visibleSceneRect();
@@ -1498,8 +1488,8 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
     } else if (m_dragMode == DragMode::ResizeLeft) {
         const auto left = snap(originalLeft + deltaTicks);
         if (m_audioDragState) {
-            updateAccepted =
-                m_audioDragState->resizeLeftTo(left, originalRight, properties, appModel->timeline());
+            updateAccepted = m_audioDragState->resizeLeftTo(left, originalRight, properties,
+                                                            appModel->timeline());
         } else if (left < originalRight) {
             properties.clipStart = std::max(0, left - properties.start);
             properties.clipLen = originalRight - (properties.start + properties.clipStart);
@@ -1515,12 +1505,11 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
             auto contentLength = properties.length;
             if (singing) {
                 contentLength = ClipResizeUtils::furthestContentEnd(
-                    singing->notes().begin(), singing->notes().end(),
-                    AppGlobal::ticksPerWholeNote,
+                    singing->notes().begin(), singing->notes().end(), AppGlobal::ticksPerWholeNote,
                     [](const Note *note) { return note->localStart() + note->length(); });
             }
-            updateAccepted = ClipResizeUtils::updateRightEdge(
-                properties, right - originalLeft, singing != nullptr, contentLength);
+            updateAccepted = ClipResizeUtils::updateRightEdge(properties, right - originalLeft,
+                                                              singing != nullptr, contentLength);
         } else
             updateAccepted = false;
     }
@@ -1664,8 +1653,7 @@ QColor TracksRhiWidget::playPosIndicatorColor() const {
 void TracksRhiWidget::setPlayPosIndicatorColor(const QColor &color) {
     m_playPosIndicatorColor = color;
 #ifdef Q_OS_WIN
-    if (m_playbackIndicatorOverlay)
-        m_playbackIndicatorOverlay->setColor(color);
+    setPlaybackIndicatorColor(color);
 #else
     updatePlaybackOverlay(true);
 #endif

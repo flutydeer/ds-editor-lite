@@ -2,24 +2,15 @@
 #define PLAYBACKINDICATOROVERLAY_H
 
 #include <QColor>
-#include <QPointer>
 #include <QWidget>
-
-#include <memory>
-
-#ifdef Q_OS_WIN
-class NativePlaybackIndicatorWindow;
-#endif
 
 class PlaybackIndicatorOverlay final : public QWidget {
     Q_OBJECT
 
 public:
     enum class Shape { Line, Triangle };
-    enum class Surface { SharedWidget, NativeCompositor };
 
-    explicit PlaybackIndicatorOverlay(Shape shape, QWidget *parent = nullptr,
-                                      Surface surface = Surface::SharedWidget);
+    explicit PlaybackIndicatorOverlay(Shape shape, QWidget *parent = nullptr);
     ~PlaybackIndicatorOverlay() override;
 
     static void setWindowIndicatorsSuppressed(QWidget *window, bool suppressed);
@@ -35,27 +26,16 @@ protected:
 private:
     [[nodiscard]] QRect indicatorRect(qreal position) const;
     [[nodiscard]] bool isPositionVisible(qreal position) const;
-    [[nodiscard]] bool usesNativeCompositor() const;
     void setSuppressed(bool suppressed);
     void scheduleRefresh();
-    void updateObservedWindow();
     void updateGeometry();
-#ifdef Q_OS_WIN
-    void ensureNativeWindow();
-    void hideNativeWindow() const;
-#endif
 
     Shape m_shape;
-    Surface m_surface;
     qreal m_position = 0.0;
     QColor m_color = {200, 200, 200};
     bool m_indicatorVisible = true;
     bool m_suppressed = false;
     bool m_refreshPending = false;
-    QPointer<QWidget> m_observedWindow;
-#ifdef Q_OS_WIN
-    std::unique_ptr<NativePlaybackIndicatorWindow> m_nativeWindow;
-#endif
 };
 
 #endif // PLAYBACKINDICATOROVERLAY_H

@@ -22,7 +22,6 @@
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
 #include "UI/Views/Common/EditorScrollUtils.h"
 #include "UI/Views/Common/EditorWheelUtils.h"
-#include "UI/Views/Common/PlaybackIndicatorOverlay.h"
 #include "Modules/Inference/EditSessionManager.h"
 
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
@@ -385,13 +384,11 @@ public:
     void updatePlaybackOverlay(const bool force = false) {
 #ifdef Q_OS_WIN
         Q_UNUSED(force)
-        if (!playbackIndicatorOverlay)
-            return;
         const bool hasContent = clip && q->width() > 0 && q->height() > 0;
-        playbackIndicatorOverlay->setIndicatorVisible(hasContent);
+        q->setPlaybackIndicatorVisible(hasContent);
         if (hasContent) {
-            playbackIndicatorOverlay->setPosition(
-                (playbackPosition - clip->start()) * pixelsPerTick() - cameraX);
+            q->setPlaybackIndicatorPosition((playbackPosition - clip->start()) * pixelsPerTick() -
+                                            cameraX);
         }
 #else
         std::optional<int> physicalPixel;
@@ -534,8 +531,8 @@ public:
     }
 
     void verticalScroll(QWheelEvent *event) {
-        cameraY = EditorWheelUtils::scrollTarget(static_cast<int>(cameraY), q->height(), 0.15, event,
-                                                 Qt::Vertical);
+        cameraY = EditorWheelUtils::scrollTarget(static_cast<int>(cameraY), q->height(), 0.15,
+                                                 event, Qt::Vertical);
         viewportChanged(false);
     }
 
@@ -655,8 +652,8 @@ public:
             return Interaction::None;
         const auto rect = noteViewportRect(note);
         const auto relativeX = viewportPosition.x() - rect.left();
-        const auto edge = EditorResizeUtils::horizontalEdgeAt(
-            relativeX, rect.width(), AppGlobal::resizeTolerance);
+        const auto edge = EditorResizeUtils::horizontalEdgeAt(relativeX, rect.width(),
+                                                              AppGlobal::resizeTolerance);
         if (edge == EditorResizeUtils::HorizontalEdge::Left)
             return Interaction::ResizeLeft;
         if (edge == EditorResizeUtils::HorizontalEdge::Right)
@@ -1838,8 +1835,8 @@ private:
         if (!note)
             return {};
         return {note->localStart() * pixelsPerTick(),
-                (127 - note->keyIndex()) * noteHeight * scaleY,
-                note->length() * pixelsPerTick(), noteHeight * scaleY};
+                (127 - note->keyIndex()) * noteHeight * scaleY, note->length() * pixelsPerTick(),
+                noteHeight * scaleY};
     }
 
     QRectF focusSceneRect(const HistoryFocus &focus, QList<int> *resolvedIds = nullptr) const {
@@ -1868,9 +1865,8 @@ private:
 
     bool ensureSceneRectVisible(const QRectF &rect, const double xMargin, const double yMargin) {
         const auto bounds = rect.normalized();
-        if (!bounds.isValid() || !std::isfinite(bounds.left()) ||
-            !std::isfinite(bounds.top()) || !std::isfinite(bounds.right()) ||
-            !std::isfinite(bounds.bottom())) {
+        if (!bounds.isValid() || !std::isfinite(bounds.left()) || !std::isfinite(bounds.top()) ||
+            !std::isfinite(bounds.right()) || !std::isfinite(bounds.bottom())) {
             return false;
         }
         const auto targetX = EditorScrollUtils::boundedOffset(
@@ -2753,9 +2749,7 @@ public:
     bool autoPageTurnAvailable = false;
     double dpr = 1.0;
     QVector<Vertex> vertices;
-#ifdef Q_OS_WIN
-    PlaybackIndicatorOverlay *playbackIndicatorOverlay = nullptr;
-#else
+#ifndef Q_OS_WIN
     QVector<Vertex> playbackOverlayVertices;
     std::optional<int> playbackOverlayPixel;
 #endif
@@ -3172,12 +3166,7 @@ void PianoRollRhiWidget::deleteSelectedAnchors() {
 
 void PianoRollRhiWidget::onRhiReady() {
 #ifdef Q_OS_WIN
-    if (!d->playbackIndicatorOverlay) {
-        d->playbackIndicatorOverlay =
-            new PlaybackIndicatorOverlay(PlaybackIndicatorOverlay::Shape::Line, this,
-                                         PlaybackIndicatorOverlay::Surface::NativeCompositor);
-        d->playbackIndicatorOverlay->setColor(playPosIndicatorColor());
-    }
+    setPlaybackIndicatorColor(playPosIndicatorColor());
 #endif
     d->scheduleSnapshot();
     d->updatePlaybackOverlay(true);
@@ -3367,8 +3356,7 @@ QColor PianoRollRhiWidget::playPosIndicatorColor() const {
 void PianoRollRhiWidget::setPlayPosIndicatorColor(const QColor &color) {
     d->playPosIndicatorColor = color;
 #ifdef Q_OS_WIN
-    if (d->playbackIndicatorOverlay)
-        d->playbackIndicatorOverlay->setColor(color);
+    setPlaybackIndicatorColor(color);
 #else
     d->updatePlaybackOverlay(true);
 #endif
