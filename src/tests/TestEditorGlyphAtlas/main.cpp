@@ -33,7 +33,8 @@ int main(int argc, char *argv[]) {
     atlas.appendText(text, font, QPointF(0, 0), Qt::white);
     atlas.appendText(distinctText, font, QPointF(0, 20), Qt::white);
 
-    const auto batches = atlas.textureBatches();
+    QVector<EditorRhiTextureBatch> batches;
+    atlas.populateTextureBatches(batches);
     expect(batches.size() == 1, "two small blocks must share one atlas page");
     if (batches.size() == 1) {
         bool hasCoverage = false;
@@ -71,7 +72,8 @@ int main(int argc, char *argv[]) {
     EditorGlyphAtlas fractionalAtlas(QSize(128, 128), 1);
     fractionalAtlas.beginFrame();
     fractionalAtlas.appendText(text, font, QPointF(0, 0), Qt::white, {}, 1.25);
-    const auto fractionalBatches = fractionalAtlas.textureBatches();
+    QVector<EditorRhiTextureBatch> fractionalBatches;
+    fractionalAtlas.populateTextureBatches(fractionalBatches);
     expect(fractionalBatches.size() == 1 && fractionalBatches.front().vertices.size() == 6,
            "fractional DPR text must emit one atlas quad");
     if (fractionalBatches.size() == 1 && fractionalBatches.front().vertices.size() == 6) {
@@ -85,7 +87,8 @@ int main(int argc, char *argv[]) {
         fractionalAtlas.clear();
         fractionalAtlas.beginFrame();
         fractionalAtlas.appendText(distinctText, font, QPointF(0, 0), Qt::white, {}, 1.25);
-        const auto clearedBatches = fractionalAtlas.textureBatches();
+        QVector<EditorRhiTextureBatch> clearedBatches;
+        fractionalAtlas.populateTextureBatches(clearedBatches);
         expect(clearedBatches.size() == 1 && clearedBatches.front().generation > previousGeneration,
                "clearing an atlas must force a replacement texture upload");
     }
@@ -95,7 +98,8 @@ int main(int argc, char *argv[]) {
     phaseAtlas.appendText(text, font, QPointF(10.1, 10), Qt::white);
     phaseAtlas.appendText(text, font, QPointF(10.109, 10), Qt::white);
     phaseAtlas.appendText(text, font, QPointF(10.3, 10), Qt::white);
-    const auto phaseBatches = phaseAtlas.textureBatches();
+    QVector<EditorRhiTextureBatch> phaseBatches;
+    phaseAtlas.populateTextureBatches(phaseBatches);
     expect(phaseBatches.size() == 1 && phaseBatches.front().vertices.size() == 18,
            "Qt fixed-point phases must emit all requested atlas quads");
     if (phaseBatches.size() == 1 && phaseBatches.front().vertices.size() == 18) {
@@ -113,7 +117,8 @@ int main(int argc, char *argv[]) {
     cameraAtlas.beginFrame();
     cameraAtlas.appendText(text, font, QPointF(20.4, 30.2), Qt::white, {}, 1.0, QPointF(10, 20));
     cameraAtlas.appendText(text, font, QPointF(21.4, 31.2), Qt::white, {}, 1.0, QPointF(11, 21));
-    const auto cameraBatches = cameraAtlas.textureBatches();
+    QVector<EditorRhiTextureBatch> cameraBatches;
+    cameraAtlas.populateTextureBatches(cameraBatches);
     expect(cameraBatches.size() == 1 && cameraBatches.front().vertices.size() == 12,
            "equal viewport phases must emit two atlas quads");
     if (cameraBatches.size() == 1 && cameraBatches.front().vertices.size() == 12) {
@@ -175,10 +180,12 @@ int main(int argc, char *argv[]) {
     EditorGlyphAtlas saturatedAtlas(QSize(64, 64), 1);
     saturatedAtlas.beginFrame();
     qsizetype previousVertexCount = 0;
+    QVector<EditorRhiTextureBatch> saturatedBatches;
     for (int i = 0; i < 100; ++i) {
         saturatedAtlas.appendText(QString::number(i), font, QPointF(0, i * 20), Qt::white);
         qsizetype vertexCount = 0;
-        for (const auto &batch : saturatedAtlas.textureBatches())
+        saturatedAtlas.populateTextureBatches(saturatedBatches);
+        for (const auto &batch : saturatedBatches)
             vertexCount += batch.vertices.size();
         expect(vertexCount >= previousVertexCount,
                "an atlas page referenced by the current frame must not be evicted");

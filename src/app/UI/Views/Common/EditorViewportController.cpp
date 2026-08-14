@@ -158,17 +158,21 @@ bool EditorViewportController::ensureVisible(const QRectF &rect, const double xM
 bool EditorViewportController::setStartTick(const double tick) {
     if (!std::isfinite(tick))
         return false;
+    const auto previousOffset = QPointF(m_offsetX, m_offsetY);
     m_offsetX = tickToSceneX(tick);
     normalize(false);
-    notify(false);
+    if (QPointF(m_offsetX, m_offsetY) != previousOffset)
+        notify(false);
     return true;
 }
 
 void EditorViewportController::scrollBy(const QPointF &deltaPixels) {
+    const auto previousOffset = QPointF(m_offsetX, m_offsetY);
     m_offsetX += deltaPixels.x();
     m_offsetY += deltaPixels.y();
     normalize(false);
-    notify(false);
+    if (QPointF(m_offsetX, m_offsetY) != previousOffset)
+        notify(false);
 }
 
 void EditorViewportController::zoomHorizontal(const double wheelDelta, const double anchorX) {

@@ -205,11 +205,23 @@ public:
         return true;
     }
 
+    EditorRhiFrameData acquireFrame() {
+        return std::move(frame);
+    }
+
     void submit(EditorRhiFrameData newFrame) {
         frame = std::move(newFrame);
         frameDirty = true;
         updateRequestedNs = clock.nsecsElapsed();
         q->update();
+    }
+
+    QVector<EditorRhiSolidVertex> submitOverlay(QVector<EditorRhiSolidVertex> newVertices) {
+        auto previousVertices = std::move(overlayVertices);
+        overlayVertices = std::move(newVertices);
+        overlayDirty = true;
+        q->update();
+        return previousVertices;
     }
 
     void render(QRhiCommandBuffer *cb) {
@@ -233,12 +245,24 @@ public:
 
         ensureBuffer(solidBuffer, solidBufferCapacity,
                      frame.solidVertices.size() *
-                         static_cast<qsizetype>(sizeof(EditorRhiSolidVertex)));
+                         static_cast<qsizetype>(sizeof(EditorRhiSolidVertex)),
+                     frameDirty);
         double uploadedBytes = 0.0;
         if (frameDirty && solidBuffer && !frame.solidVertices.isEmpty()) {
             const auto bytes = frame.solidVertices.size() * sizeof(EditorRhiSolidVertex);
             updates->updateDynamicBuffer(solidBuffer.get(), 0, static_cast<quint32>(bytes),
                                          frame.solidVertices.constData());
+            uploadedBytes += bytes;
+        }
+
+        ensureBuffer(overlayBuffer, overlayBufferCapacity,
+                     overlayVertices.size() *
+                         static_cast<qsizetype>(sizeof(EditorRhiSolidVertex)),
+                     overlayDirty);
+        if (overlayDirty && overlayBuffer && !overlayVertices.isEmpty()) {
+            const auto bytes = overlayVertices.size() * sizeof(EditorRhiSolidVertex);
+            updates->updateDynamicBuffer(overlayBuffer.get(), 0, static_cast<quint32>(bytes),
+                                         overlayVertices.constData());
             uploadedBytes += bytes;
         }
 
@@ -266,14 +290,15 @@ public:
         cb->setScissor(QRhiScissor(0, 0, outputSize.width(), outputSize.height()));
 
         int drawCalls = 0;
-        const auto drawSolid = [&](const qsizetype vertexOffset, const qsizetype vertexCount) {
-            if (!solidBuffer || vertexCount <= 0)
+        const auto drawSolid = [&](QRhiBuffer *buffer, const qsizetype vertexOffset,
+                                   const qsizetype vertexCount) {
+            if (!buffer || vertexCount <= 0)
                 return;
             cb->setGraphicsPipeline(solidPipeline.get());
             cb->setShaderResources(solidBindings.get());
             const auto byteOffset =
                 static_cast<quint32>(vertexOffset * sizeof(EditorRhiSolidVertex));
-            const QRhiCommandBuffer::VertexInput binding(solidBuffer.get(), byteOffset);
+            const QRhiCommandBuffer::VertexInput binding(buffer, byteOffset);
             cb->setVertexInput(0, 1, &binding);
             cb->draw(static_cast<quint32>(vertexCount));
             ++drawCalls;
@@ -302,17 +327,19 @@ public:
         if (!frame.drawList.commands.isEmpty()) {
             for (const auto &command : frame.drawList.commands) {
                 if (command.type == EditorRhiDrawCommand::Type::Solid)
-                    drawSolid(command.vertexOffset, command.vertexCount);
+                    drawSolid(solidBuffer.get(), command.vertexOffset, command.vertexCount);
                 else
                     drawTexture(command.pageId, command.vertexOffset, command.vertexCount,
                                 command.color);
             }
         } else {
-            drawSolid(0, frame.solidVertices.size());
+            drawSolid(solidBuffer.get(), 0, frame.solidVertices.size());
         }
+        drawSolid(overlayBuffer.get(), 0, overlayVertices.size());
         cb->endPass();
         const auto encodeMs = encodeTimer.nsecsElapsed() / 1000000.0;
         frameDirty = false;
+        overlayDirty = false;
 
         if (appOptions->developer()->enableDiagnostics) {
             uploadSamples.append(uploadMs);
@@ -325,7 +352,7 @@ public:
     }
 
     void ensureBuffer(std::unique_ptr<QRhiBuffer> &buffer, qsizetype &capacity,
-                      const qsizetype requiredBytes) {
+                      const qsizetype requiredBytes, bool &dirty) {
         if (requiredBytes <= 0 || requiredBytes <= capacity)
             return;
         qsizetype newCapacity = std::max<qsizetype>(4096, capacity);
@@ -339,7 +366,7 @@ public:
             return;
         }
         capacity = newCapacity;
-        frameDirty = true;
+        dirty = true;
     }
 
     void rebuildRenderTarget() {
@@ -402,7 +429,7 @@ public:
         }
         const auto required =
             batch.vertices.size() * static_cast<qsizetype>(sizeof(EditorRhiTextVertex));
-        ensureBuffer(resources.vertexBuffer, resources.vertexCapacity, required);
+        ensureBuffer(resources.vertexBuffer, resources.vertexCapacity, required, frameDirty);
         if (frameDirty && resources.vertexBuffer && !batch.vertices.isEmpty()) {
             updates->updateDynamicBuffer(resources.vertexBuffer.get(), 0,
                                          static_cast<quint32>(required),
@@ -464,11 +491,13 @@ public:
         solidBindings.reset();
         sampler.reset();
         fallbackTexture.reset();
+        overlayBuffer.reset();
         solidBuffer.reset();
         uniformBuffer.reset();
         pendingUpdates.reset();
         renderTarget.reset();
         renderPassDescriptor.reset();
+        overlayBufferCapacity = 0;
         solidBufferCapacity = 0;
         colorTexture = nullptr;
         rhi = nullptr;
@@ -477,15 +506,19 @@ public:
     EditorRhiWidget *q;
     QString diagnosticsTag;
     EditorRhiFrameData frame;
+    QVector<EditorRhiSolidVertex> overlayVertices;
     bool frameDirty = true;
+    bool overlayDirty = true;
     bool resourcesReady = false;
     bool failureRequested = false;
     QRhi *rhi = nullptr;
     QRhiTexture *colorTexture = nullptr;
+    qsizetype overlayBufferCapacity = 0;
     qsizetype solidBufferCapacity = 0;
     std::unique_ptr<QRhiTextureRenderTarget> renderTarget;
     std::unique_ptr<QRhiRenderPassDescriptor> renderPassDescriptor;
     std::unique_ptr<QRhiBuffer> uniformBuffer;
+    std::unique_ptr<QRhiBuffer> overlayBuffer;
     std::unique_ptr<QRhiBuffer> solidBuffer;
     std::unique_ptr<QRhiShaderResourceBindings> solidBindings;
     std::unique_ptr<QRhiGraphicsPipeline> solidPipeline;
@@ -526,12 +559,17 @@ EditorRhiWidget::EditorRhiWidget(QString diagnosticsTag, QWidget *parent)
 
 EditorRhiWidget::~EditorRhiWidget() = default;
 
+EditorRhiFrameData EditorRhiWidget::acquireFrame() {
+    return d->acquireFrame();
+}
+
 void EditorRhiWidget::submitFrame(EditorRhiFrameData frame) {
     d->submit(std::move(frame));
 }
 
-const EditorRhiFrameData &EditorRhiWidget::frameData() const {
-    return d->frame;
+QVector<EditorRhiSolidVertex>
+    EditorRhiWidget::submitOverlay(QVector<EditorRhiSolidVertex> vertices) {
+    return d->submitOverlay(std::move(vertices));
 }
 
 QPointF EditorRhiWidget::physicalWindowOffset() const {
