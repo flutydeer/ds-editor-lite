@@ -1,6 +1,7 @@
 #include "TracksRhiWidget.h"
 
 #include "AudioClipDragState.h"
+#include "ClipSelectionUtils.h"
 #include "ClipResizeUtils.h"
 #include "SingingClipPreviewLayout.h"
 #include "Controller/EditorViewController.h"
@@ -457,26 +458,18 @@ void TracksRhiWidget::wheelEvent(QWheelEvent *event) {
 void TracksRhiWidget::mousePressEvent(QMouseEvent *event) {
     setFocus(Qt::MouseFocusReason);
     disarmDragAutoScroll();
+    const auto *hit = hitTest(event->position());
     if (event->button() != Qt::LeftButton) {
+        if (hit) {
+            updateClipSelection(*hit, false);
+            scheduleSnapshot();
+        }
         EditorRhiWidget::mousePressEvent(event);
         return;
     }
-    const auto *hit = hitTest(event->position());
     if (hit) {
-        auto selected = appStatus->selectedClips.get();
-        if (event->modifiers() == Qt::ControlModifier) {
-            if (selected.contains(hit->id))
-                selected.removeAll(hit->id);
-            else
-                selected.append(hit->id);
-        } else if (!selected.contains(hit->id)) {
-            selected = {hit->id};
-        }
-        syncSelection(selected, hit->trackIndex);
-        if (selected.contains(hit->id)) {
-            trackController->setActiveClip(hit->id);
+        if (updateClipSelection(*hit, event->modifiers() == Qt::ControlModifier))
             beginClipDrag(*hit, event);
-        }
     } else {
         syncSelection({});
         m_dragMode = DragMode::RectSelect;
@@ -632,8 +625,7 @@ void TracksRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
     context.snappedTick = TimelineSnapUtils::snapDown(context.rawTick, snapStep(context.rawTick),
                                                       appModel->timeline());
     if (const auto *hit = hitTest(event->pos())) {
-        if (!appStatus->selectedClips.get().contains(hit->id))
-            syncSelection({hit->id}, hit->trackIndex);
+        updateClipSelection(*hit, false);
         context.trackIndex = hit->trackIndex;
         context.clipId = hit->id;
         context.selectedClipIds = appStatus->selectedClips.get();
@@ -1523,6 +1515,16 @@ void TracksRhiWidget::discardDrag() {
     disarmDragAutoScroll();
     setSceneLengthExtension(0);
     scheduleSnapshot();
+}
+
+bool TracksRhiWidget::updateClipSelection(const ClipSnapshot &clip, const bool toggle) const {
+    const auto selected =
+        ClipSelectionUtils::selectionForPress(appStatus->selectedClips.get(), clip.id, toggle);
+    syncSelection(selected, clip.trackIndex);
+    if (!selected.contains(clip.id))
+        return false;
+    trackController->setActiveClip(clip.id);
+    return true;
 }
 
 void TracksRhiWidget::syncSelection(const QList<int> &ids, const int preferredTrack) const {

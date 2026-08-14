@@ -1,4 +1,5 @@
 #include "UI/Views/TrackEditor/AudioClipDragState.h"
+#include "UI/Views/TrackEditor/ClipSelectionUtils.h"
 #include "UI/Views/TrackEditor/ClipResizeUtils.h"
 #include "UI/Views/TrackEditor/SingingClipPreviewLayout.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
@@ -38,6 +39,14 @@ int main(int argc, char *argv[]) {
            "note and clip resize handles must share the same horizontal edge hit test");
     expect(EditorResizeUtils::horizontalEdgeAt(5.0, 8.0, 6.0) == HorizontalEdge::Left,
            "overlapping resize handles must retain left-edge precedence");
+
+    expect(ClipSelectionUtils::selectionForPress({1}, 2, false) == QList<int>{2},
+           "pressing an unselected clip must replace the previous selection");
+    expect(ClipSelectionUtils::selectionForPress({1, 2}, 2, false) == (QList<int>{1, 2}),
+           "pressing a selected clip must preserve its multi-selection");
+    expect(ClipSelectionUtils::selectionForPress({1}, 2, true) == (QList<int>{1, 2}) &&
+               ClipSelectionUtils::selectionForPress({1}, 1, true).isEmpty(),
+           "toggle presses must add or remove the target clip");
 
     Clip::ClipCommonProperties singing;
     singing.length = 1920;

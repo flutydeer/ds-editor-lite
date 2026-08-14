@@ -1,6 +1,7 @@
 #include "TracksGraphicsView.h"
 
 #include "AudioClipDragState.h"
+#include "ClipSelectionUtils.h"
 #include "ClipResizeUtils.h"
 #include "TracksGraphicsScene.h"
 #include "Controller/EditorViewController.h"
@@ -137,14 +138,13 @@ void TracksGraphicsView::mousePressEvent(QMouseEvent *event) {
     if (const auto item = itemAt(event->pos())) {
         if (const auto clipItem = dynamic_cast<AbstractClipView *>(item)) {
             qDebug() << "TracksGraphicsView::mousePressEvent mouse down on clip";
-            if (selectedClipItems().count() <= 1 || !selectedClipItems().contains(clipItem))
-                clearSelections();
-            clipItem->setSelected(true);
-            trackController->setActiveClip(clipItem->id());
+            const auto toggle =
+                event->button() == Qt::LeftButton && event->modifiers() == Qt::ControlModifier;
+            const auto selected = updateClipSelection(clipItem, toggle);
             if (event->button() != Qt::LeftButton) {
                 m_mouseMoveBehavior = None;
                 setCursor(Qt::ArrowCursor);
-            } else {
+            } else if (selected) {
                 prepareForMovingOrResizingClip(event, clipItem);
             }
         } else {
@@ -637,26 +637,16 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
                                                         AbstractClipView *clipItem) {
     const auto scenePos = mapToScene(event->pos());
 
-    const bool ctrlDown = event->modifiers() == Qt::ControlModifier;
-    if (!ctrlDown) {
-        if (selectedClipItems().count() <= 1 || !selectedClipItems().contains(clipItem))
-            clearSelections();
-        clipItem->setSelected(true);
-    } else {
-        clipItem->setSelected(!clipItem->isSelected());
-    }
     const auto rPos = clipItem->mapFromScene(scenePos);
     const auto rx = rPos.x();
-    const auto edge = EditorResizeUtils::horizontalEdgeAt(
-        rx, clipItem->rect().width(), AppGlobal::resizeTolerance);
+    const auto edge = EditorResizeUtils::horizontalEdgeAt(rx, clipItem->rect().width(),
+                                                          AppGlobal::resizeTolerance);
     if (edge == EditorResizeUtils::HorizontalEdge::Left) {
         m_mouseMoveBehavior = ResizeLeft;
-        clearSelections();
-        clipItem->setSelected(true);
+        applyClipSelection({clipItem->id()});
     } else if (edge == EditorResizeUtils::HorizontalEdge::Right) {
         m_mouseMoveBehavior = ResizeRight;
-        clearSelections();
-        clipItem->setSelected(true);
+        applyClipSelection({clipItem->id()});
     } else {
         m_mouseMoveBehavior = Move;
     }
@@ -708,10 +698,27 @@ AbstractClipView *TracksGraphicsView::findClipById(const int id) const {
     return nullptr;
 }
 
-void TracksGraphicsView::clearSelections() const {
-    for (const auto item : m_scene->items())
-        if (item->isSelected())
+bool TracksGraphicsView::updateClipSelection(AbstractClipView *clipItem, const bool toggle) const {
+    const auto selected =
+        ClipSelectionUtils::selectionForPress(selectedClipsId(), clipItem->id(), toggle);
+    applyClipSelection(selected);
+    if (!selected.contains(clipItem->id()))
+        return false;
+    trackController->setActiveClip(clipItem->id());
+    return true;
+}
+
+void TracksGraphicsView::applyClipSelection(const QList<int> &selected) const {
+    for (const auto item : m_scene->items()) {
+        if (const auto clip = dynamic_cast<AbstractClipView *>(item))
+            clip->setSelected(selected.contains(clip->id()));
+        else if (item->isSelected())
             item->setSelected(false);
+    }
+}
+
+void TracksGraphicsView::clearSelections() const {
+    applyClipSelection({});
     syncClipSelectionToAppStatus();
 }
 
