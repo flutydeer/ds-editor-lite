@@ -4,7 +4,10 @@
 #include "UI/Utils/ITimelinePainter.h"
 
 #include <QColor>
+#include <QPixmap>
 #include <QWidget>
+
+class PlaybackIndicatorOverlay;
 
 // A horizontally-synced strip below the timeline ruler that displays one kind
 // of project-wide info (time signature, tempo, markers, ...) as small chips
@@ -67,12 +70,16 @@ protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    void changeEvent(QEvent *event) override;
 
 private:
     [[nodiscard]] QRectF chipRect(int index) const;
     void setHoveredChip(int index);
     void setPosition(double tick);
     void setLastPosition(double tick);
+    void updatePlaybackIndicator();
+    void updateContent();
+    void renderContent(QPainter *painter);
 
     // Theme color accessors (QSS-overridable via qproperty-*)
     [[nodiscard]] QColor textColor() const;
@@ -107,6 +114,9 @@ private:
     int m_hoveredChip = -1;
     double m_position = 0;
     double m_lastPosition = 0;
+    PlaybackIndicatorOverlay *m_playbackIndicatorOverlay = nullptr;
+    QPixmap m_contentCache;
+    bool m_contentCacheDirty = true;
 };
 
 #endif // INFOLANEVIEW_H

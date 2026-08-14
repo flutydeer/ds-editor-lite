@@ -13,6 +13,7 @@
 #include "TimeGridView.h"
 #include "TimeIndicatorView.h"
 #include "EditorWheelUtils.h"
+#include "PlaybackIndicatorOverlay.h"
 #include "Controller/PlaybackController.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -102,10 +103,8 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
         m_scene->addTimeIndicator(m_sceneLastPlayPosIndicator);
 
     setScene(m_scene);
-    m_playbackIndicatorOverlay = new QWidget(viewport());
-    m_playbackIndicatorOverlay->setObjectName(QStringLiteral("playbackIndicatorOverlay"));
-    m_playbackIndicatorOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
-    m_playbackIndicatorOverlay->setAutoFillBackground(true);
+    m_playbackIndicatorOverlay =
+        new PlaybackIndicatorOverlay(PlaybackIndicatorOverlay::Shape::Line, viewport());
     updatePlaybackIndicatorColor();
     updatePlaybackIndicatorGeometry();
     setEnsureSceneFillViewX(true);
@@ -838,25 +837,14 @@ void TimeGraphicsView::updatePlaybackIndicatorGeometry() {
         return;
 
     const auto sceneX = tickToSceneX(m_playbackPosition - m_offset);
-    const auto viewportX = mapFromScene(QPointF(sceneX, 0.0)).x();
-    if (viewportX < 0 || viewportX >= viewport()->width()) {
-        m_playbackIndicatorOverlay->hide();
-        return;
-    }
-
-    m_playbackIndicatorOverlay->setGeometry(viewportX, 0, 1, viewport()->height());
-    if (m_playbackIndicatorOverlay->isHidden()) {
-        m_playbackIndicatorOverlay->show();
-        m_playbackIndicatorOverlay->raise();
-    }
+    const auto viewportX = viewportTransform().map(QPointF(sceneX, 0.0)).x();
+    m_playbackIndicatorOverlay->setPosition(viewportX);
 }
 
 void TimeGraphicsView::updatePlaybackIndicatorColor() {
     if (!m_playbackIndicatorOverlay)
         return;
-    auto palette = m_playbackIndicatorOverlay->palette();
-    palette.setColor(QPalette::Window, m_playPosIndicatorColor);
-    m_playbackIndicatorOverlay->setPalette(palette);
+    m_playbackIndicatorOverlay->setColor(m_playPosIndicatorColor);
 }
 
 QColor TimeGraphicsView::barLineColor() const {

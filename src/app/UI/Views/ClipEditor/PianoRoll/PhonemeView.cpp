@@ -14,6 +14,7 @@
 #include "Modules/Inference/Utils/InferenceApplyGate.h"
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/WaveformRenderUtils.h"
+#include "UI/Views/Common/PlaybackIndicatorOverlay.h"
 #include "UI/Views/TrackEditor/AudioWaveformSampler.h"
 #include <lite/GUI/Controls/ToolTip.h>
 #include <lite/Support/Linq.h>
@@ -24,7 +25,6 @@
 
 Q_LOGGING_CATEGORY(logPhonemeView, "phoneme.view")
 
-#include <QElapsedTimer>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPointer>
@@ -37,6 +37,9 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground, true);
     setObjectName("PhonemeView");
     installEventFilter(this);
+    m_playbackIndicatorOverlay =
+        new PlaybackIndicatorOverlay(PlaybackIndicatorOverlay::Shape::Line, this);
+    m_playbackIndicatorOverlay->setColor(m_positionLineColor);
 
     connect(appModel, &AppModel::timelineChanged, this, &PhonemeView::onTimelineChanged);
     connect(playbackController, &PlaybackController::visualPositionChanged, this,
@@ -56,13 +59,13 @@ void PhonemeView::updateNoteTime(Note *note) {
     MathUtils::binaryInsert(m_notes, note);
     resetPhonemeList();
     buildPhonemeList();
-    update();
+    updateContent();
 }
 
 void PhonemeView::reset() {
     m_notes.clear();
     resetPhonemeList();
-    update();
+    updateContent();
 }
 
 void PhonemeView::setTimeRange(const double startTick, const double endTick) {
@@ -73,17 +76,18 @@ void PhonemeView::setTimeRange(const double startTick, const double endTick) {
     m_resizeToleranceInTick = ticksPerPixel * AppGlobal::resizeTolerance;
     if (rangeChanged)
         invalidateWaveformCache();
-    update();
+    updatePlaybackIndicator();
+    updateContent();
 }
 
 void PhonemeView::setPosition(const double tick) {
     m_position = tick;
-    update();
+    updatePlaybackIndicator();
 }
 
 void PhonemeView::setLastPosition(const double tick) {
     m_lastPosition = tick;
-    update();
+    updateContent();
 }
 
 void PhonemeView::onTimelineChanged() {
@@ -104,13 +108,13 @@ void PhonemeView::onTimelineChanged() {
             it->globalEndTick = it.key()->localEndTick(appModel->timeline()) + clipOffset;
         }
         invalidateWaveformCache();
-        update();
+        updateContent();
     }
 }
 
 void PhonemeView::onClipPropertyChanged() {
     moveToSingingClipState(m_clip);
-    update();
+    updateContent();
 }
 
 void PhonemeView::onNoteChanged(const SingingClip::NoteChangeType type,
@@ -139,7 +143,7 @@ void PhonemeView::onNoteChanged(const SingingClip::NoteChangeType type,
 
     resetPhonemeList();
     buildPhonemeList();
-    update();
+    updateContent();
 }
 
 void PhonemeView::wheelEvent(QWheelEvent *event) {
@@ -151,11 +155,32 @@ void PhonemeView::wheelEvent(QWheelEvent *event) {
 }
 
 void PhonemeView::paintEvent(QPaintEvent *event) {
-    QElapsedTimer timer;
-    timer.start();
-
     QWidget::paintEvent(event);
+    const auto devicePixelRatio = devicePixelRatioF();
+    const QSize pixelSize(qCeil(width() * devicePixelRatio),
+                          qCeil(height() * devicePixelRatio));
+    if (pixelSize.isEmpty())
+        return;
+
+    const bool geometryChanged =
+        m_contentCache.isNull() || m_contentCache.size() != pixelSize ||
+        !qFuzzyCompare(m_contentCache.devicePixelRatioF(), devicePixelRatio);
+    if (geometryChanged) {
+        m_contentCache = QPixmap(pixelSize);
+        m_contentCache.setDevicePixelRatio(devicePixelRatio);
+    }
+    if (geometryChanged || m_contentCacheDirty) {
+        m_contentCache.fill(Qt::transparent);
+        QPainter cachePainter(&m_contentCache);
+        renderContent(cachePainter);
+        m_contentCacheDirty = false;
+    }
+
     QPainter painter(this);
+    painter.drawPixmap(QPointF(), m_contentCache);
+}
+
+void PhonemeView::renderContent(QPainter &painter) {
     painter.setRenderHint(QPainter::Antialiasing);
     QPen pen;
 
@@ -168,7 +193,6 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     auto originalColor = m_textColor;
     auto editedColor = AppColorPalette::instance()->phonemeEdited(NoteView::trackColorIndex());
     auto fillColor = AppColorPalette::instance()->phonemeFill(NoteView::trackColorIndex());
-    auto positionLineColor = m_positionLineColor;
     auto noteBoundaryColor = m_noteBoundaryColor;
 
     drawWaveforms(&painter);
@@ -291,16 +315,11 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
     painter.setPen(pen);
     auto lastX = tickToX(m_lastPosition);
     painter.drawLine(QLineF(lastX, 0, lastX, rect().height()));
+}
 
-    // Draw playback indicator
-    painter.setRenderHint(QPainter::Antialiasing);
-    pen.setStyle(Qt::SolidLine);
-    auto penWidth = 1.0;
-    pen.setWidthF(penWidth);
-    pen.setColor(positionLineColor);
-    painter.setPen(pen);
-    auto x = tickToX(m_position);
-    painter.drawLine(QLineF(x, 0, x, rect().height()));
+void PhonemeView::updateContent() {
+    m_contentCacheDirty = true;
+    update();
 }
 
 void PhonemeView::mousePressEvent(QMouseEvent *event) {
@@ -403,7 +422,7 @@ void PhonemeView::mouseMoveEvent(QMouseEvent *event) {
         }
     }
 
-    update();
+    updateContent();
 }
 
 void PhonemeView::mouseReleaseEvent(QMouseEvent *event) {
@@ -436,11 +455,11 @@ void PhonemeView::updateHoverEffects() {
         setCursor(Qt::SizeHorCursor);
         phoneme->hoverOnControlBar = true;
         clearHoverEffects(phoneme);
-        update();
+        updateContent();
     } else {
         setCursor(Qt::ArrowCursor);
         clearHoverEffects();
-        update();
+        updateContent();
     }
 }
 
@@ -455,11 +474,19 @@ bool PhonemeView::eventFilter(QObject *object, QEvent *event) {
         } else if (event->type() == QEvent::HoverLeave) {
             setCursor(Qt::ArrowCursor);
             clearHoverEffects();
-            update();
+            updateContent();
         }
     }
 
     return QWidget::eventFilter(object, event);
+}
+
+void PhonemeView::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange ||
+        event->type() == QEvent::PaletteChange) {
+        updateContent();
+    }
 }
 
 void PhonemeView::moveToSingingClipState(SingingClip *clip) {
@@ -490,7 +517,7 @@ void PhonemeView::moveToSingingClipState(SingingClip *clip) {
 
     resetPhonemeList();
     buildPhonemeList();
-    update();
+    updateContent();
 }
 
 void PhonemeView::moveToNullClipState() {
@@ -502,7 +529,7 @@ void PhonemeView::moveToNullClipState() {
 
     clearPieceWaveforms();
     resetPhonemeList();
-    update();
+    updateContent();
 }
 
 double PhonemeView::tickToX(const double tick) const {
@@ -524,6 +551,15 @@ double PhonemeView::ticksPerPixel() const {
 
 bool PhonemeView::canEdit() const {
     return ticksPerPixel() < m_canEditTicksPerPixelThreshold;
+}
+
+void PhonemeView::updatePlaybackIndicator() {
+    if (!m_playbackIndicatorOverlay)
+        return;
+    const bool hasTimeRange = m_endTick > m_startTick && width() > 0;
+    m_playbackIndicatorOverlay->setIndicatorVisible(hasTimeRange && canEdit());
+    if (hasTimeRange)
+        m_playbackIndicatorOverlay->setPosition(tickToX(m_position));
 }
 
 PhonemeView::PhonemeViewModel *PhonemeView::phonemeAtTick(const double tick) {
@@ -729,7 +765,7 @@ void PhonemeView::onPiecesChanged(const PieceList &pieces, const PieceList &newP
     }
     if (waveformChanged)
         invalidateWaveformCache();
-    update();
+    updateContent();
 }
 
 void PhonemeView::onPieceStatusChanged(InferPiece *piece, InferStatus status) {
@@ -739,7 +775,7 @@ void PhonemeView::onPieceStatusChanged(InferPiece *piece, InferStatus status) {
         if (m_pieceWaveforms.contains(piece)) {
             m_pieceWaveforms.remove(piece);
             invalidateWaveformCache();
-            update();
+            updateContent();
         }
     }
 }
@@ -782,7 +818,7 @@ void PhonemeView::onWaveformReady(const int clipId, const int pieceId, const qui
 
     m_pieceWaveforms[piece] = wf;
     invalidateWaveformCache();
-    update();
+    updateContent();
 }
 
 void PhonemeView::loadWaveformAsync(InferPiece *piece) {
@@ -880,8 +916,7 @@ void PhonemeView::drawWaveforms(QPainter *painter) {
         return;
 
     const auto devicePixelRatio = painter->device()->devicePixelRatioF();
-    const QSize pixelSize(qCeil(width() * devicePixelRatio),
-                          qCeil(height() * devicePixelRatio));
+    const QSize pixelSize(qCeil(width() * devicePixelRatio), qCeil(height() * devicePixelRatio));
     const bool cacheGeometryChanged =
         m_waveformCache.isNull() || m_waveformCache.size() != pixelSize ||
         !qFuzzyCompare(m_waveformCache.devicePixelRatioF(), devicePixelRatio);
@@ -949,6 +984,7 @@ void PhonemeView::clearPieceWaveforms() {
 
 void PhonemeView::invalidateWaveformCache() {
     m_waveformCacheDirty = true;
+    m_contentCacheDirty = true;
 }
 
 QColor PhonemeView::hintTextColor() const {
@@ -959,7 +995,7 @@ void PhonemeView::setHintTextColor(const QColor &color) {
     if (m_hintTextColor == color)
         return;
     m_hintTextColor = color;
-    update();
+    updateContent();
 }
 
 QColor PhonemeView::textColor() const {
@@ -970,7 +1006,7 @@ void PhonemeView::setTextColor(const QColor &color) {
     if (m_textColor == color)
         return;
     m_textColor = color;
-    update();
+    updateContent();
 }
 
 QColor PhonemeView::positionLineColor() const {
@@ -981,7 +1017,8 @@ void PhonemeView::setPositionLineColor(const QColor &color) {
     if (m_positionLineColor == color)
         return;
     m_positionLineColor = color;
-    update();
+    if (m_playbackIndicatorOverlay)
+        m_playbackIndicatorOverlay->setColor(color);
 }
 
 QColor PhonemeView::lastPositionLineColor() const {
@@ -992,7 +1029,7 @@ void PhonemeView::setLastPositionLineColor(const QColor &color) {
     if (m_lastPositionLineColor == color)
         return;
     m_lastPositionLineColor = color;
-    update();
+    updateContent();
 }
 
 QColor PhonemeView::noteBoundaryColor() const {
@@ -1003,7 +1040,7 @@ void PhonemeView::setNoteBoundaryColor(const QColor &color) {
     if (m_noteBoundaryColor == color)
         return;
     m_noteBoundaryColor = color;
-    update();
+    updateContent();
 }
 
 QColor PhonemeView::waveformColor() const {
@@ -1015,5 +1052,5 @@ void PhonemeView::setWaveformColor(const QColor &color) {
         return;
     m_waveformColor = color;
     invalidateWaveformCache();
-    update();
+    updateContent();
 }

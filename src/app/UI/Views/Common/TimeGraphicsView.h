@@ -19,6 +19,7 @@ class TimeIndicatorView;
 class OverlayScrollBar;
 class QHideEvent;
 class QShowEvent;
+class PlaybackIndicatorOverlay;
 
 class TimeGraphicsView : public QGraphicsView, public IScalable, public IAnimatable {
     Q_OBJECT
@@ -200,7 +201,7 @@ private:
     TimeGraphicsScene *m_scene;
     TimeGridView *m_gridItem = nullptr;
     TimeIndicatorView *m_sceneLastPlayPosIndicator = nullptr;
-    QWidget *m_playbackIndicatorOverlay = nullptr;
+    PlaybackIndicatorOverlay *m_playbackIndicatorOverlay = nullptr;
 
     int m_offset = 0;
     int m_pixelsPerQuarterNote = 64;

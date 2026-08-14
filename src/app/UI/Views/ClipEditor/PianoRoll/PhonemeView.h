@@ -18,6 +18,7 @@ class Phoneme;
 class ToolTip;
 class InferPiece;
 class AudioWaveformSampler;
+class PlaybackIndicatorOverlay;
 
 class PhonemeView final : public QWidget {
     Q_OBJECT
@@ -93,6 +94,7 @@ private:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     bool eventFilter(QObject *object, QEvent *event) override;
+    void changeEvent(QEvent *event) override;
 
     void moveToSingingClipState(SingingClip *clip);
     void moveToNullClipState();
@@ -103,6 +105,9 @@ private:
     double xToTick(double x) const;
     [[nodiscard]] double ticksPerPixel() const;
     [[nodiscard]] bool canEdit() const;
+    void updatePlaybackIndicator();
+    void updateContent();
+    void renderContent(QPainter &painter);
 
     // Theme color accessors (QSS-overridable via qproperty-*)
     [[nodiscard]] QColor hintTextColor() const;
@@ -131,6 +136,7 @@ private:
     double m_resizeToleranceInTick = 0;
     double m_position = 0;
     double m_lastPosition = 0;
+    PlaybackIndicatorOverlay *m_playbackIndicatorOverlay = nullptr;
     QList<Note *> m_notes;
     QList<PhonemeViewModel *> m_phonemes;
     MouseMoveBehavior m_mouseMoveBehavior = None;
@@ -162,6 +168,8 @@ private:
     QMap<InferPiece *, PieceWaveform> m_pieceWaveforms;
     QPixmap m_waveformCache;
     bool m_waveformCacheDirty = true;
+    QPixmap m_contentCache;
+    bool m_contentCacheDirty = true;
     void clearPieceWaveforms();
     void invalidateWaveformCache();
     void drawWaveforms(QPainter *painter);

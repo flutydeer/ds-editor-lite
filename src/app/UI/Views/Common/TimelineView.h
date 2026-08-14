@@ -5,6 +5,7 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <QMap>
+#include <QPixmap>
 #include <lite/ProjectModel/InferenceData/InferStatus.h>
 #include "UI/Utils/ITimelinePainter.h"
 
@@ -17,6 +18,7 @@ struct PieceColorTransition {
 class SingingClip;
 class InferPiece;
 class LoopSettings;
+class PlaybackIndicatorOverlay;
 
 class TimelineView : public QWidget, public ITimelinePainter {
     Q_OBJECT
@@ -62,6 +64,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    void changeEvent(QEvent *event) override;
 
     enum MouseMoveBehavior { SetPosition, SelectLoopRange };
 
@@ -80,6 +83,9 @@ private:
     double tickToX(double tick) const;
     double xToTick(double x) const;
     void updateCursor(const QPoint &pos);
+    void updatePlaybackIndicator();
+    void updateContent();
+    void renderContent(QPainter *painter);
 
     // Theme color accessors (QSS-overridable via qproperty-*)
     [[nodiscard]] QColor playheadColor() const;
@@ -119,6 +125,9 @@ private:
     double m_endTick = 0;
     int m_textPaddingLeft = 2;
     double m_position = 0;
+    PlaybackIndicatorOverlay *m_playbackIndicatorOverlay = nullptr;
+    QPixmap m_contentCache;
+    bool m_contentCacheDirty = true;
     QList<InferPiece *> m_pieces;
     SingingClip *m_clip = nullptr;
     // Piece status colors: Pending, Running, Success, Failed (indexed by status)

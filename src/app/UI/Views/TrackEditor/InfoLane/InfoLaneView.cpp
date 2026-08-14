@@ -1,6 +1,7 @@
 #include "InfoLaneView.h"
 
 #include "Controller/PlaybackController.h"
+#include "UI/Views/Common/PlaybackIndicatorOverlay.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include <QContextMenuEvent>
@@ -29,10 +30,13 @@ namespace {
 InfoLaneView::InfoLaneView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setMouseTracking(true);
+    m_playbackIndicatorOverlay =
+        new PlaybackIndicatorOverlay(PlaybackIndicatorOverlay::Shape::Line, this);
+    m_playbackIndicatorOverlay->setColor(m_playheadColor);
 
     const auto applyTimeline = [this] {
         setTimeline(appModel->timeline());
-        update();
+        updateContent();
     };
     applyTimeline();
     connect(appModel, &AppModel::modelChanged, this, applyTimeline);
@@ -49,13 +53,14 @@ InfoLaneView::InfoLaneView(QWidget *parent) : QWidget(parent) {
 void InfoLaneView::setTimeRange(const double startTick, const double endTick) {
     m_startTick = startTick;
     m_endTick = endTick;
-    update();
+    updatePlaybackIndicator();
+    updateContent();
 }
 
 void InfoLaneView::setChips(QList<Chip> chips) {
     m_chips = std::move(chips);
     m_hoveredChip = -1;
-    update();
+    updateContent();
 }
 
 const QList<InfoLaneView::Chip> &InfoLaneView::chips() const {
@@ -115,17 +120,17 @@ void InfoLaneView::setHoveredChip(const int index) {
     if (m_hoveredChip == index)
         return;
     m_hoveredChip = index;
-    update();
+    updateContent();
 }
 
 void InfoLaneView::setPosition(const double tick) {
     m_position = tick;
-    update();
+    updatePlaybackIndicator();
 }
 
 void InfoLaneView::setLastPosition(const double tick) {
     m_lastPosition = tick;
-    update();
+    updateContent();
 }
 
 void InfoLaneView::drawBar(QPainter *painter, const int tick, const int bar) {
@@ -153,27 +158,49 @@ void InfoLaneView::drawSubdivision(QPainter *painter, const int tick, const int 
 
 void InfoLaneView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
+    const auto devicePixelRatio = devicePixelRatioF();
+    const QSize pixelSize(qCeil(width() * devicePixelRatio), qCeil(height() * devicePixelRatio));
+    if (pixelSize.isEmpty())
+        return;
+
+    const bool geometryChanged =
+        m_contentCache.isNull() || m_contentCache.size() != pixelSize ||
+        !qFuzzyCompare(m_contentCache.devicePixelRatioF(), devicePixelRatio);
+    if (geometryChanged) {
+        m_contentCache = QPixmap(pixelSize);
+        m_contentCache.setDevicePixelRatio(devicePixelRatio);
+    }
+    if (geometryChanged || m_contentCacheDirty) {
+        m_contentCache.fill(Qt::transparent);
+        QPainter cachePainter(&m_contentCache);
+        renderContent(&cachePainter);
+        m_contentCacheDirty = false;
+    }
 
     QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
-    drawTimeline(&painter, m_startTick, m_endTick, rect().width());
+    painter.drawPixmap(QPointF(), m_contentCache);
+}
+
+void InfoLaneView::renderContent(QPainter *painter) {
+    painter->setRenderHint(QPainter::Antialiasing);
+    drawTimeline(painter, m_startTick, m_endTick, rect().width());
     for (int i = 0; i < m_chips.size(); i++) {
         const auto chipArea = chipRect(i);
         if (chipArea.right() < 0 || chipArea.left() > width())
             continue;
 
         if (i == m_hoveredChip)
-            painter.fillRect(chipArea, m_hoverFillColor);
-        painter.fillRect(QRectF(chipArea.left(), 0, markerWidth, height()), m_markerColor);
+            painter->fillRect(chipArea, m_hoverFillColor);
+        painter->fillRect(QRectF(chipArea.left(), 0, markerWidth, height()), m_markerColor);
 
         const QRectF textArea(chipArea.left() + textLeftPadding, 0,
                               chipArea.width() - textLeftPadding, height());
         if (textArea.width() < 4)
             continue;
-        const auto text = fontMetrics().elidedText(m_chips.at(i).text, Qt::ElideRight,
-                                                   qFloor(textArea.width()));
-        painter.setPen(m_textColor);
-        painter.drawText(textArea, Qt::AlignLeft | Qt::AlignVCenter, text);
+        const auto text =
+            fontMetrics().elidedText(m_chips.at(i).text, Qt::ElideRight, qFloor(textArea.width()));
+        painter->setPen(m_textColor);
+        painter->drawText(textArea, Qt::AlignLeft | Qt::AlignVCenter, text);
     }
 
     // Playhead lines on top, continuing the canvas indicators through the lane
@@ -184,11 +211,24 @@ void InfoLaneView::paintEvent(QPaintEvent *event) {
             return;
         QPen pen(color);
         pen.setStyle(style);
-        painter.setPen(pen);
-        painter.drawLine(QLineF(x, 0, x, height()));
+        painter->setPen(pen);
+        painter->drawLine(QLineF(x, 0, x, height()));
     };
     drawPlayheadLine(m_lastPosition, m_lastPlayheadColor, Qt::DashLine);
-    drawPlayheadLine(m_position, m_playheadColor, Qt::SolidLine);
+}
+
+void InfoLaneView::updateContent() {
+    m_contentCacheDirty = true;
+    update();
+}
+
+void InfoLaneView::updatePlaybackIndicator() {
+    if (!m_playbackIndicatorOverlay)
+        return;
+    const bool hasTimeRange = m_endTick > m_startTick;
+    m_playbackIndicatorOverlay->setIndicatorVisible(hasTimeRange);
+    if (hasTimeRange)
+        m_playbackIndicatorOverlay->setPosition(tickToX(m_position));
 }
 
 void InfoLaneView::wheelEvent(QWheelEvent *event) {
@@ -232,6 +272,14 @@ void InfoLaneView::leaveEvent(QEvent *event) {
     QWidget::leaveEvent(event);
 }
 
+void InfoLaneView::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange ||
+        event->type() == QEvent::PaletteChange) {
+        updateContent();
+    }
+}
+
 QColor InfoLaneView::textColor() const {
     return m_textColor;
 }
@@ -240,7 +288,7 @@ void InfoLaneView::setTextColor(const QColor &color) {
     if (m_textColor == color)
         return;
     m_textColor = color;
-    update();
+    updateContent();
 }
 
 QColor InfoLaneView::markerColor() const {
@@ -251,7 +299,7 @@ void InfoLaneView::setMarkerColor(const QColor &color) {
     if (m_markerColor == color)
         return;
     m_markerColor = color;
-    update();
+    updateContent();
 }
 
 QColor InfoLaneView::hoverFillColor() const {
@@ -262,7 +310,7 @@ void InfoLaneView::setHoverFillColor(const QColor &color) {
     if (m_hoverFillColor == color)
         return;
     m_hoverFillColor = color;
-    update();
+    updateContent();
 }
 
 QColor InfoLaneView::barLineColor() const {
@@ -273,7 +321,7 @@ void InfoLaneView::setBarLineColor(const QColor &color) {
     if (m_barLineColor == color)
         return;
     m_barLineColor = color;
-    update();
+    updateContent();
 }
 
 QColor InfoLaneView::beatLineColor() const {
@@ -284,7 +332,7 @@ void InfoLaneView::setBeatLineColor(const QColor &color) {
     if (m_beatLineColor == color)
         return;
     m_beatLineColor = color;
-    update();
+    updateContent();
 }
 
 QColor InfoLaneView::commonLineColor() const {
@@ -295,7 +343,7 @@ void InfoLaneView::setCommonLineColor(const QColor &color) {
     if (m_commonLineColor == color)
         return;
     m_commonLineColor = color;
-    update();
+    updateContent();
 }
 
 QColor InfoLaneView::playheadColor() const {
@@ -306,7 +354,8 @@ void InfoLaneView::setPlayheadColor(const QColor &color) {
     if (m_playheadColor == color)
         return;
     m_playheadColor = color;
-    update();
+    if (m_playbackIndicatorOverlay)
+        m_playbackIndicatorOverlay->setColor(color);
 }
 
 QColor InfoLaneView::lastPlayheadColor() const {
@@ -317,5 +366,5 @@ void InfoLaneView::setLastPlayheadColor(const QColor &color) {
     if (m_lastPlayheadColor == color)
         return;
     m_lastPlayheadColor = color;
-    update();
+    updateContent();
 }

@@ -3,7 +3,9 @@
 #include <QPainter>
 #include <numbers>
 #include <QWheelEvent>
+#include <QtMath>
 
+#include "PlaybackIndicatorOverlay.h"
 #include "Controller/PlaybackController.h"
 #include "Utils/FontManager.h"
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
@@ -34,19 +36,22 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("TimelineView");
     setMouseTracking(true);
+    m_playbackIndicatorOverlay =
+        new PlaybackIndicatorOverlay(PlaybackIndicatorOverlay::Shape::Triangle, this);
+    m_playbackIndicatorOverlay->setColor(m_playheadColor);
     const auto applyTimeline = [this] {
         setTimeline(appModel->timeline());
-        update();
+        updateContent();
     };
     applyTimeline();
 
     m_pieceUpdateThrottle.setSingleShot(true);
     m_pieceUpdateThrottle.setInterval(16);
-    connect(&m_pieceUpdateThrottle, &QTimer::timeout, this, qOverload<>(&QWidget::update));
+    connect(&m_pieceUpdateThrottle, &QTimer::timeout, this, &TimelineView::updateContent);
 
     m_pulseTimer.setInterval(16);
     m_pulseTimer.setSingleShot(false);
-    connect(&m_pulseTimer, &QTimer::timeout, this, qOverload<>(&QWidget::update));
+    connect(&m_pulseTimer, &QTimer::timeout, this, &TimelineView::updateContent);
 
     connect(this, &TimelineView::setLastPositionTriggered, playbackController, [=](double tick) {
         playbackController->setLastPosition(tick);
@@ -59,7 +64,7 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     connect(appStatus, &AppStatus::loopSettingsChanged, this, &TimelineView::onLoopSettingsChanged);
     connect(appOptions, &AppOptions::optionsChanged, this, [this](AppOptionsGlobal::Option option) {
         if (option == AppOptionsGlobal::DeveloperOptions)
-            update();
+            updateContent();
     });
 }
 
@@ -70,17 +75,18 @@ void TimelineView::setCanEditLoop(bool canEdit) {
 void TimelineView::setTimeRange(double startTick, double endTick) {
     m_startTick = startTick;
     m_endTick = endTick;
-    update();
+    updatePlaybackIndicator();
+    updateContent();
 }
 
 void TimelineView::setPosition(double tick) {
     m_position = tick;
-    update();
+    updatePlaybackIndicator();
 }
 
 void TimelineView::setQuantize(int quantize) {
     ITimelinePainter::setQuantize(quantize);
-    update();
+    updateContent();
 }
 
 void TimelineView::setDataContext(SingingClip *clip) {
@@ -94,48 +100,58 @@ void TimelineView::setDataContext(SingingClip *clip) {
         m_pieces = clip->pieces();
     }
     m_clip = clip;
-    update();
+    updateContent();
 }
 
 void TimelineView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
+    const auto devicePixelRatio = devicePixelRatioF();
+    const QSize pixelSize(qCeil(width() * devicePixelRatio), qCeil(height() * devicePixelRatio));
+    if (pixelSize.isEmpty())
+        return;
+
+    const bool geometryChanged =
+        m_contentCache.isNull() || m_contentCache.size() != pixelSize ||
+        !qFuzzyCompare(m_contentCache.devicePixelRatioF(), devicePixelRatio);
+    if (geometryChanged) {
+        m_contentCache = QPixmap(pixelSize);
+        m_contentCache.setDevicePixelRatio(devicePixelRatio);
+    }
+    if (geometryChanged || m_contentCacheDirty) {
+        m_contentCache.fill(Qt::transparent);
+        QPainter cachePainter(&m_contentCache);
+        renderContent(&cachePainter);
+        m_contentCacheDirty = false;
+    }
+
     QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
+    painter.drawPixmap(QPointF(), m_contentCache);
+    if (m_pulseTimer.isActive() && m_transitions.isEmpty())
+        updatePulseTimer();
+}
+
+void TimelineView::renderContent(QPainter *painter) {
+    painter->setRenderHint(QPainter::Antialiasing);
 
     // Draw background
 
     // Draw loop background first (under everything)
-    drawLoopBackground(&painter);
+    drawLoopBackground(painter);
 
     // Draw graduates
-    drawTimeline(&painter, m_startTick, m_endTick, rect().width());
+    drawTimeline(painter, m_startTick, m_endTick, rect().width());
 
     // Draw Pieces
     if (m_clip)
-        drawPieces(&painter);
+        drawPieces(painter);
 
     // Draw loop markers (on top)
-    drawLoopMarkers(&painter);
+    drawLoopMarkers(painter);
+}
 
-    // Draw playback indicator
-    auto penWidth = 2.0;
-    auto color = m_playheadColor;
-    QPen pen;
-    pen.setWidthF(penWidth);
-    pen.setColor(color);
-    pen.setCapStyle(Qt::RoundCap);
-    painter.setPen(pen);
-    painter.setBrush(color);
-
-    auto centerX = tickToX(m_position);
-    double w = 12;
-    double h = 1.73205 * w / 2;
-    auto marginTop = rect().height() - h - penWidth;
-    auto p1 = QPointF(centerX - w / 2, marginTop);
-    auto p2 = QPointF(centerX + w / 2, marginTop);
-    auto p3 = QPointF(centerX, marginTop + h);
-    QPointF points[3]{p1, p2, p3};
-    painter.drawPolygon(points, 3);
+void TimelineView::updateContent() {
+    m_contentCacheDirty = true;
+    update();
 }
 
 namespace {
@@ -325,6 +341,14 @@ void TimelineView::leaveEvent(QEvent *event) {
     QWidget::leaveEvent(event);
 }
 
+void TimelineView::changeEvent(QEvent *event) {
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange ||
+        event->type() == QEvent::PaletteChange) {
+        updateContent();
+    }
+}
+
 void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
     for (const auto piece : m_pieces) {
         disconnect(piece, nullptr, this, nullptr);
@@ -351,12 +375,12 @@ void TimelineView::onPiecesChanged(const QList<InferPiece *> &pieces) {
     }
     m_pieces = pieces;
     updatePulseTimer();
-    update();
+    updateContent();
 }
 
 void TimelineView::onLoopSettingsChanged(const LoopSettings &settings) {
     Q_UNUSED(settings)
-    update();
+    updateContent();
 }
 
 void TimelineView::drawPieces(QPainter *painter) const {
@@ -464,9 +488,20 @@ void TimelineView::drawPieceDebugOverlay(QPainter *painter, const InferPiece *pi
 }
 
 double TimelineView::tickToX(double tick) const {
+    if (m_endTick <= m_startTick)
+        return 0;
     auto ratio = (tick - m_startTick) / (m_endTick - m_startTick);
     auto x = rect().width() * ratio;
     return x;
+}
+
+void TimelineView::updatePlaybackIndicator() {
+    if (!m_playbackIndicatorOverlay)
+        return;
+    const bool hasTimeRange = m_endTick > m_startTick;
+    m_playbackIndicatorOverlay->setIndicatorVisible(hasTimeRange);
+    if (hasTimeRange)
+        m_playbackIndicatorOverlay->setPosition(tickToX(m_position));
 }
 
 double TimelineView::xToTick(double x) const {
@@ -595,7 +630,8 @@ void TimelineView::setPlayheadColor(const QColor &color) {
     if (m_playheadColor == color)
         return;
     m_playheadColor = color;
-    update();
+    if (m_playbackIndicatorOverlay)
+        m_playbackIndicatorOverlay->setColor(color);
 }
 
 QColor TimelineView::barScaleColor() const {
@@ -606,7 +642,7 @@ void TimelineView::setBarScaleColor(const QColor &color) {
     if (m_barScaleColor == color)
         return;
     m_barScaleColor = color;
-    update();
+    updateContent();
 }
 
 QColor TimelineView::barTickColor() const {
@@ -617,7 +653,7 @@ void TimelineView::setBarTickColor(const QColor &color) {
     if (m_barTickColor == color)
         return;
     m_barTickColor = color;
-    update();
+    updateContent();
 }
 
 QColor TimelineView::beatScaleColor() const {
@@ -628,7 +664,7 @@ void TimelineView::setBeatScaleColor(const QColor &color) {
     if (m_beatScaleColor == color)
         return;
     m_beatScaleColor = color;
-    update();
+    updateContent();
 }
 
 QColor TimelineView::beatTickColor() const {
@@ -639,7 +675,7 @@ void TimelineView::setBeatTickColor(const QColor &color) {
     if (m_beatTickColor == color)
         return;
     m_beatTickColor = color;
-    update();
+    updateContent();
 }
 
 QColor TimelineView::subdivisionFromColor() const {
@@ -650,7 +686,7 @@ void TimelineView::setSubdivisionFromColor(const QColor &color) {
     if (m_subdivisionFromColor == color)
         return;
     m_subdivisionFromColor = color;
-    update();
+    updateContent();
 }
 
 QColor TimelineView::subdivisionToColor() const {
@@ -661,7 +697,7 @@ void TimelineView::setSubdivisionToColor(const QColor &color) {
     if (m_subdivisionToColor == color)
         return;
     m_subdivisionToColor = color;
-    update();
+    updateContent();
 }
 
 QColor TimelineView::loopMarkerColor() const {
@@ -672,7 +708,7 @@ void TimelineView::setLoopMarkerColor(const QColor &color) {
     if (m_loopMarkerColor == color)
         return;
     m_loopMarkerColor = color;
-    update();
+    updateContent();
 }
 
 QColor TimelineView::loopMarkerDisabledColor() const {
@@ -683,7 +719,7 @@ void TimelineView::setLoopMarkerDisabledColor(const QColor &color) {
     if (m_loopMarkerDisabledColor == color)
         return;
     m_loopMarkerDisabledColor = color;
-    update();
+    updateContent();
 }
 
 QColor TimelineView::piecePendingColor() const {
@@ -694,7 +730,7 @@ void TimelineView::setPiecePendingColor(const QColor &color) {
     if (m_piecesColors[0] == color)
         return;
     m_piecesColors[0] = color;
-    update();
+    updateContent();
 }
 
 QColor TimelineView::pieceRunningColor() const {
@@ -705,7 +741,7 @@ void TimelineView::setPieceRunningColor(const QColor &color) {
     if (m_piecesColors[1] == color)
         return;
     m_piecesColors[1] = color;
-    update();
+    updateContent();
 }
 
 QColor TimelineView::pieceSuccessColor() const {
@@ -716,7 +752,7 @@ void TimelineView::setPieceSuccessColor(const QColor &color) {
     if (m_piecesColors[2] == color)
         return;
     m_piecesColors[2] = color;
-    update();
+    updateContent();
 }
 
 QColor TimelineView::pieceFailedColor() const {
@@ -727,7 +763,7 @@ void TimelineView::setPieceFailedColor(const QColor &color) {
     if (m_piecesColors[3] == color)
         return;
     m_piecesColors[3] = color;
-    update();
+    updateContent();
 }
 
 void TimelineView::updatePulseTimer() {
@@ -738,10 +774,11 @@ void TimelineView::updatePulseTimer() {
             break;
         }
     }
-    if (hasRunning && !m_pulseTimer.isActive()) {
+    const bool needsAnimation = hasRunning || !m_transitions.isEmpty();
+    if (needsAnimation && !m_pulseTimer.isActive()) {
         m_pulseElapsed.start();
         m_pulseTimer.start();
-    } else if (!hasRunning && m_pulseTimer.isActive()) {
+    } else if (!needsAnimation && m_pulseTimer.isActive()) {
         m_pulseTimer.stop();
     }
 }
@@ -769,5 +806,5 @@ void TimelineView::setPieceRunningColorHigh(const QColor &color) {
     if (m_runningColorHigh == color)
         return;
     m_runningColorHigh = color;
-    update();
+    updateContent();
 }
