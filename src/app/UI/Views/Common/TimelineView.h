@@ -145,10 +145,8 @@ private:
     int m_loopRegionHeight = 10;
     int m_loopHandleWidth = 8;
     QTimer m_pieceUpdateThrottle;
-    QTimer m_positionThrottle;
     QTimer m_pulseTimer;
     QElapsedTimer m_pulseElapsed;
-    double m_pendingPosition = 0;
     mutable QMap<int, PieceColorTransition> m_transitions;
     QMap<int, InferStatus> m_previousStatus;
     void updatePulseTimer();

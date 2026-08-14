@@ -39,17 +39,11 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     installEventFilter(this);
 
     connect(appModel, &AppModel::timelineChanged, this, &PhonemeView::onTimelineChanged);
-    connect(playbackController, &PlaybackController::positionChanged, this,
+    connect(playbackController, &PlaybackController::visualPositionChanged, this,
             &PhonemeView::setPosition);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &PhonemeView::setLastPosition);
 
-    m_positionThrottle.setSingleShot(true);
-    m_positionThrottle.setInterval(33);
-    connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
-        m_position = m_pendingPosition;
-        update();
-    });
     m_lastPosition = playbackController->lastPosition();
 }
 
@@ -83,9 +77,8 @@ void PhonemeView::setTimeRange(const double startTick, const double endTick) {
 }
 
 void PhonemeView::setPosition(const double tick) {
-    m_pendingPosition = tick;
-    if (!m_positionThrottle.isActive())
-        m_positionThrottle.start();
+    m_position = tick;
+    update();
 }
 
 void PhonemeView::setLastPosition(const double tick) {

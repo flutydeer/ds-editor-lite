@@ -127,35 +127,6 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     connect(appModel, &AppModel::timelineChanged, this,
             &TimeGraphicsView::updateAutoPageTurnAvailability);
 
-    m_positionThrottle.setSingleShot(true);
-    m_positionThrottle.setInterval(33);
-    connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
-        double tick = m_pendingPosition;
-        m_playbackPosition = tick;
-        if (m_scenePlayPosIndicator != nullptr)
-            m_scenePlayPosIndicator->setPosition(tick);
-
-        if (!m_autoTurnPage || !m_autoPageTurnAvailable ||
-            appStatus->currentEditObject != AppStatus::EditObjectType::None)
-            return;
-        // Do not auto turn pages while edge auto scroll drives the viewport
-        if (isEdgeAutoScrollActive())
-            return;
-
-        auto viewWidth = viewport()->width();
-        auto hBarValue = horizontalBarValue();
-        auto targetEndTick = sceneXToTick(hBarValue + viewWidth) + m_offset;
-        auto tickRange = targetEndTick - sceneXToTick(hBarValue) - m_offset;
-
-        if (m_playbackPosition > targetEndTick) {
-            if (m_playbackPosition > targetEndTick + tickRange)
-                setViewportStartTick(m_playbackPosition);
-            else
-                pageAdd();
-        } else if (m_playbackPosition < startTick())
-            setViewportStartTick(m_playbackPosition);
-    });
-
     connect(&m_edgeAutoScroller, &EdgeAutoScroller::frame, this,
             &TimeGraphicsView::onEdgeAutoScrollTimerFrame);
     QTimer::singleShot(0, this, &TimeGraphicsView::updateAutoPageTurnAvailability);
@@ -771,9 +742,30 @@ void TimeGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
 }
 
 void TimeGraphicsView::setPlaybackPosition(double tick) {
-    m_pendingPosition = tick;
-    if (!m_positionThrottle.isActive())
-        m_positionThrottle.start();
+    m_playbackPosition = tick;
+    if (m_scenePlayPosIndicator != nullptr)
+        m_scenePlayPosIndicator->setPosition(tick);
+
+    if (!m_autoTurnPage || !m_autoPageTurnAvailable ||
+        appStatus->currentEditObject != AppStatus::EditObjectType::None) {
+        return;
+    }
+    if (isEdgeAutoScrollActive())
+        return;
+
+    const auto viewWidth = viewport()->width();
+    const auto hBarValue = horizontalBarValue();
+    const auto targetEndTick = sceneXToTick(hBarValue + viewWidth) + m_offset;
+    const auto tickRange = targetEndTick - sceneXToTick(hBarValue) - m_offset;
+
+    if (m_playbackPosition > targetEndTick) {
+        if (m_playbackPosition > targetEndTick + tickRange)
+            setViewportStartTick(m_playbackPosition);
+        else
+            pageAdd();
+    } else if (m_playbackPosition < startTick()) {
+        setViewportStartTick(m_playbackPosition);
+    }
 }
 
 void TimeGraphicsView::setLastPlaybackPosition(double tick) {

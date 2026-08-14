@@ -44,13 +44,6 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
     m_pieceUpdateThrottle.setInterval(16);
     connect(&m_pieceUpdateThrottle, &QTimer::timeout, this, qOverload<>(&QWidget::update));
 
-    m_positionThrottle.setSingleShot(true);
-    m_positionThrottle.setInterval(33);
-    connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
-        m_position = m_pendingPosition;
-        update();
-    });
-
     m_pulseTimer.setInterval(16);
     m_pulseTimer.setSingleShot(false);
     connect(&m_pulseTimer, &QTimer::timeout, this, qOverload<>(&QWidget::update));
@@ -59,7 +52,7 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
         playbackController->setLastPosition(tick);
         playbackController->setPosition(tick);
     });
-    connect(playbackController, &PlaybackController::positionChanged, this,
+    connect(playbackController, &PlaybackController::visualPositionChanged, this,
             &TimelineView::setPosition);
     connect(appModel, &AppModel::modelChanged, this, applyTimeline);
     connect(appModel, &AppModel::timelineChanged, this, applyTimeline);
@@ -81,9 +74,8 @@ void TimelineView::setTimeRange(double startTick, double endTick) {
 }
 
 void TimelineView::setPosition(double tick) {
-    m_pendingPosition = tick;
-    if (!m_positionThrottle.isActive())
-        m_positionThrottle.start();
+    m_position = tick;
+    update();
 }
 
 void TimelineView::setQuantize(int quantize) {
