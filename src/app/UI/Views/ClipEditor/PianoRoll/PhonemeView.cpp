@@ -490,7 +490,7 @@ bool PhonemeView::eventFilter(QObject *object, QEvent *event) {
 void PhonemeView::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
     if (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange ||
-        event->type() == QEvent::PaletteChange) {
+        event->type() == QEvent::PaletteChange || event->type() == QEvent::LanguageChange) {
         updateContent();
     }
 }
