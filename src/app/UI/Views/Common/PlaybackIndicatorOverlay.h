@@ -36,6 +36,7 @@ private:
     [[nodiscard]] bool isPositionVisible(qreal position) const;
     [[nodiscard]] bool usesNativeCompositor() const;
     void setSuppressed(bool suppressed);
+    void scheduleRefresh();
     void updateGeometry();
 #ifdef Q_OS_WIN
     void ensureNativeWindow();
@@ -48,6 +49,7 @@ private:
     QColor m_color = {200, 200, 200};
     bool m_indicatorVisible = true;
     bool m_suppressed = false;
+    bool m_refreshPending = false;
 #ifdef Q_OS_WIN
     std::unique_ptr<NativePlaybackIndicatorWindow> m_nativeWindow;
 #endif

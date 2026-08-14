@@ -736,28 +736,27 @@ void TimeGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
 
 void TimeGraphicsView::setPlaybackPosition(double tick) {
     m_playbackPosition = tick;
-    updatePlaybackIndicatorGeometry();
 
-    if (!m_autoTurnPage || !m_autoPageTurnAvailable ||
-        appStatus->currentEditObject != AppStatus::EditObjectType::None) {
-        return;
-    }
-    if (isEdgeAutoScrollActive())
-        return;
+    if (m_autoTurnPage && m_autoPageTurnAvailable &&
+        appStatus->currentEditObject == AppStatus::EditObjectType::None &&
+        !isEdgeAutoScrollActive()) {
+        const auto viewWidth = viewport()->width();
+        const auto hBarValue = horizontalBarValue();
+        const auto targetEndTick = sceneXToTick(hBarValue + viewWidth) + m_offset;
+        const auto tickRange = targetEndTick - sceneXToTick(hBarValue) - m_offset;
 
-    const auto viewWidth = viewport()->width();
-    const auto hBarValue = horizontalBarValue();
-    const auto targetEndTick = sceneXToTick(hBarValue + viewWidth) + m_offset;
-    const auto tickRange = targetEndTick - sceneXToTick(hBarValue) - m_offset;
-
-    if (m_playbackPosition > targetEndTick) {
-        if (m_playbackPosition > targetEndTick + tickRange)
+        if (m_playbackPosition > targetEndTick) {
+            if (m_playbackPosition > targetEndTick + tickRange) {
+                setViewportStartTick(m_playbackPosition);
+            } else {
+                pageAdd();
+            }
+        } else if (m_playbackPosition < startTick()) {
             setViewportStartTick(m_playbackPosition);
-        else
-            pageAdd();
-    } else if (m_playbackPosition < startTick()) {
-        setViewportStartTick(m_playbackPosition);
+        }
     }
+
+    updatePlaybackIndicatorGeometry();
 }
 
 void TimeGraphicsView::setLastPlaybackPosition(double tick) {

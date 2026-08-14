@@ -157,13 +157,25 @@ void PlaybackIndicatorOverlay::setPosition(const qreal x) {
         m_position = x;
         return;
     }
-    const auto oldRect = indicatorRect(m_position);
+    const auto oldPosition = m_position;
+    const auto oldPositionVisible = isPositionVisible(oldPosition);
+    const auto oldRect = indicatorRect(oldPosition);
     m_position = x;
-    if (usesNativeCompositor()) {
+    const auto positionVisible = isPositionVisible(m_position);
+    const auto availableWidth =
+        usesNativeCompositor() && parentWidget() ? parentWidget()->width() : width();
+    const auto crossesViewport = oldPositionVisible && positionVisible && availableWidth > 0 &&
+                                 std::abs(m_position - oldPosition) > availableWidth / 2.0;
+    const auto needsDeferredRefresh = (!oldPositionVisible && positionVisible) || crossesViewport;
+
+    if (usesNativeCompositor())
         updateGeometry();
-        return;
-    }
-    update(oldRect.united(indicatorRect(m_position)));
+    else
+        update(oldRect.united(indicatorRect(m_position)));
+
+    // Page turns can repaint the parent after moving the indicator back to the viewport.
+    if (needsDeferredRefresh)
+        scheduleRefresh();
 }
 
 void PlaybackIndicatorOverlay::setColor(const QColor &color) {
@@ -206,12 +218,14 @@ bool PlaybackIndicatorOverlay::eventFilter(QObject *watched, QEvent *event) {
                    event->type() == QEvent::Show || event->type() == QEvent::WindowStateChange ||
                    event->type() == QEvent::DevicePixelRatioChange) {
             updateGeometry();
+            scheduleRefresh();
         }
     } else if (watchedParent && (event->type() == QEvent::Resize || event->type() == QEvent::Show ||
                                  event->type() == QEvent::DevicePixelRatioChange)) {
         raise();
         updateGeometry();
         update();
+        scheduleRefresh();
     }
     return QWidget::eventFilter(watched, event);
 }
@@ -285,6 +299,23 @@ void PlaybackIndicatorOverlay::setSuppressed(const bool suppressed) {
         updateGeometry();
     else
         update(dirtyRect);
+}
+
+void PlaybackIndicatorOverlay::scheduleRefresh() {
+    if (m_refreshPending)
+        return;
+    m_refreshPending = true;
+    QMetaObject::invokeMethod(
+        this,
+        [this] {
+            m_refreshPending = false;
+            updateGeometry();
+            if (!usesNativeCompositor()) {
+                raise();
+                update();
+            }
+        },
+        Qt::QueuedConnection);
 }
 
 void PlaybackIndicatorOverlay::updateGeometry() {

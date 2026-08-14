@@ -190,20 +190,9 @@ void PhonemeView::renderContent(QPainter &painter) {
     painter.setRenderHint(QPainter::Antialiasing);
     QPen pen;
 
-    const auto drawLastPlaybackPosition = [&] {
-        painter.setRenderHint(QPainter::Antialiasing);
-        pen.setStyle(Qt::DashLine);
-        pen.setWidthF(1.0);
-        pen.setColor(m_lastPositionLineColor);
-        painter.setPen(pen);
-        const auto lastX = tickToX(m_lastPosition);
-        painter.drawLine(QLineF(lastX, 0, lastX, rect().height()));
-    };
-
     if (!canEdit()) {
         painter.setPen(m_hintTextColor);
         painter.drawText(rect(), tr("Zoom in to edit phonemes"), QTextOption(Qt::AlignCenter));
-        drawLastPlaybackPosition();
         return;
     }
 
@@ -324,7 +313,14 @@ void PhonemeView::renderContent(QPainter &painter) {
         }
     }
 
-    drawLastPlaybackPosition();
+    // Draw last playback position (dashed)
+    painter.setRenderHint(QPainter::Antialiasing);
+    pen.setStyle(Qt::DashLine);
+    pen.setWidthF(1.0);
+    pen.setColor(m_lastPositionLineColor);
+    painter.setPen(pen);
+    auto lastX = tickToX(m_lastPosition);
+    painter.drawLine(QLineF(lastX, 0, lastX, rect().height()));
 }
 
 void PhonemeView::updateContent() {
@@ -567,7 +563,7 @@ void PhonemeView::updatePlaybackIndicator() {
     if (!m_playbackIndicatorOverlay)
         return;
     const bool hasTimeRange = m_endTick > m_startTick && width() > 0;
-    m_playbackIndicatorOverlay->setIndicatorVisible(hasTimeRange);
+    m_playbackIndicatorOverlay->setIndicatorVisible(hasTimeRange && canEdit());
     if (hasTimeRange)
         m_playbackIndicatorOverlay->setPosition(tickToX(m_position));
 }
