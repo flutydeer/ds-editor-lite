@@ -32,6 +32,7 @@ class PhonemeView final : public QWidget {
 public:
     explicit PhonemeView(QWidget *parent = nullptr);
     void setDataContext(SingingClip *clip);
+    void setTrackColorIndex(int index);
 
     class PhonemeViewModel {
     public:
@@ -136,6 +137,7 @@ private:
     double m_resizeToleranceInTick = 0;
     double m_position = 0;
     double m_lastPosition = 0;
+    int m_trackColorIndex = 0;
     PlaybackIndicatorOverlay *m_playbackIndicatorOverlay = nullptr;
     QList<Note *> m_notes;
     QList<PhonemeViewModel *> m_phonemes;

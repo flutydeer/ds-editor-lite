@@ -259,6 +259,7 @@ void PianoRollView::onEditModeChanged(const PianoRollEditMode mode) const {
 void PianoRollView::setTrackColorIndex(int index) const {
     m_trackColorIndex = index;
     m_keyboardView->setTrackColorIndex(index);
+    m_phonemeView->setTrackColorIndex(index);
     if (m_rhiView)
         m_rhiView->setTrackColorIndex(index);
 }

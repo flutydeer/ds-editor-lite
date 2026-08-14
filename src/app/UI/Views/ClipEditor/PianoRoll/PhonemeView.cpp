@@ -1,6 +1,5 @@
 #include "PhonemeView.h"
 
-#include "NoteView.h"
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
 #include "Global/AppGlobal.h"
@@ -52,6 +51,13 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
 
 void PhonemeView::setDataContext(SingingClip *clip) {
     clip == nullptr ? moveToNullClipState() : moveToSingingClipState(clip);
+}
+
+void PhonemeView::setTrackColorIndex(const int index) {
+    if (m_trackColorIndex == index)
+        return;
+    m_trackColorIndex = index;
+    updateContent();
 }
 
 void PhonemeView::updateNoteTime(Note *note) {
@@ -191,8 +197,8 @@ void PhonemeView::renderContent(QPainter &painter) {
     }
 
     auto originalColor = m_textColor;
-    auto editedColor = AppColorPalette::instance()->phonemeEdited(NoteView::trackColorIndex());
-    auto fillColor = AppColorPalette::instance()->phonemeFill(NoteView::trackColorIndex());
+    auto editedColor = AppColorPalette::instance()->phonemeEdited(m_trackColorIndex);
+    auto fillColor = AppColorPalette::instance()->phonemeFill(m_trackColorIndex);
     auto noteBoundaryColor = m_noteBoundaryColor;
 
     drawWaveforms(&painter);
