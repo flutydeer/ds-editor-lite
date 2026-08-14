@@ -39,7 +39,7 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     installEventFilter(this);
 
     connect(appModel, &AppModel::timelineChanged, this, &PhonemeView::onTimelineChanged);
-    connect(playbackController, &PlaybackController::visualPositionChanged, this,
+    connect(playbackController, &PlaybackController::positionChanged, this,
             &PhonemeView::setPosition);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &PhonemeView::setLastPosition);

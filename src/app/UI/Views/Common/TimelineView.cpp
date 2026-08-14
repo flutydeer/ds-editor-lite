@@ -52,7 +52,7 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
         playbackController->setLastPosition(tick);
         playbackController->setPosition(tick);
     });
-    connect(playbackController, &PlaybackController::visualPositionChanged, this,
+    connect(playbackController, &PlaybackController::positionChanged, this,
             &TimelineView::setPosition);
     connect(appModel, &AppModel::modelChanged, this, applyTimeline);
     connect(appModel, &AppModel::timelineChanged, this, applyTimeline);

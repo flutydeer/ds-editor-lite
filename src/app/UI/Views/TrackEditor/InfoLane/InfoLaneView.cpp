@@ -40,7 +40,7 @@ InfoLaneView::InfoLaneView(QWidget *parent) : QWidget(parent) {
 
     m_position = playbackController->position();
     m_lastPosition = playbackController->lastPosition();
-    connect(playbackController, &PlaybackController::visualPositionChanged, this,
+    connect(playbackController, &PlaybackController::positionChanged, this,
             &InfoLaneView::setPosition);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &InfoLaneView::setLastPosition);
