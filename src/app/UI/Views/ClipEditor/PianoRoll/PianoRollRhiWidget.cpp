@@ -22,6 +22,7 @@
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
 #include "UI/Views/Common/EditorScrollUtils.h"
 #include "UI/Views/Common/EditorWheelUtils.h"
+#include "UI/Views/Common/PlaybackIndicatorOverlay.h"
 #include "Modules/Inference/EditSessionManager.h"
 
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
@@ -381,15 +382,40 @@ public:
             updatePlaybackOverlay();
     }
 
-    void updatePlaybackOverlay() {
-        playbackOverlayVertices.clear();
+    void updatePlaybackOverlay(const bool force = false) {
+#ifdef Q_OS_WIN
+        Q_UNUSED(force)
+        if (!playbackIndicatorOverlay)
+            return;
+        const bool hasContent = clip && q->width() > 0 && q->height() > 0;
+        playbackIndicatorOverlay->setIndicatorVisible(hasContent);
+        if (hasContent) {
+            playbackIndicatorOverlay->setPosition(
+                (playbackPosition - clip->start()) * pixelsPerTick() - cameraX);
+        }
+#else
+        std::optional<int> physicalPixel;
+        double physicalSceneX = 0.0;
+        const auto physicalCameraX = cameraX * dpr;
         if (clip && q->width() > 0 && q->height() > 0) {
-            const auto currentX = (playbackPosition - clip->start()) * pixelsPerTick() * dpr;
+            physicalSceneX = (playbackPosition - clip->start()) * pixelsPerTick() * dpr;
+            const auto candidate = qRound(physicalSceneX - physicalCameraX);
+            if (candidate >= -2 && candidate <= qRound(q->width() * dpr) + 2)
+                physicalPixel = candidate;
+        }
+        if (!force && physicalPixel == playbackOverlayPixel)
+            return;
+        playbackOverlayPixel = physicalPixel;
+
+        playbackOverlayVertices.clear();
+        if (physicalPixel) {
+            const auto currentX = physicalCameraX + *physicalPixel;
             EditorRhiGeometry::appendAntialiasedVerticalLine(
                 playbackOverlayVertices, currentX, cameraY * dpr, (cameraY + q->height()) * dpr,
                 dpr, q->playPosIndicatorColor(), cameraX * dpr);
         }
         playbackOverlayVertices = q->submitOverlay(std::move(playbackOverlayVertices));
+#endif
     }
 
     void setAutoPageTurn(const bool enabled) {
@@ -1804,7 +1830,7 @@ public:
         frame.drawList = std::move(drawList);
         glyphAtlas.populateTextureBatches(frame.textureBatches);
         q->submitFrame(std::move(frame));
-        updatePlaybackOverlay();
+        updatePlaybackOverlay(true);
     }
 
 private:
@@ -2727,7 +2753,12 @@ public:
     bool autoPageTurnAvailable = false;
     double dpr = 1.0;
     QVector<Vertex> vertices;
+#ifdef Q_OS_WIN
+    PlaybackIndicatorOverlay *playbackIndicatorOverlay = nullptr;
+#else
     QVector<Vertex> playbackOverlayVertices;
+    std::optional<int> playbackOverlayPixel;
+#endif
     TimelineLineEmitter timelineEmitter;
     EditorGlyphAtlas glyphAtlas;
     EditorRhiDrawList drawList;
@@ -3140,7 +3171,16 @@ void PianoRollRhiWidget::deleteSelectedAnchors() {
 }
 
 void PianoRollRhiWidget::onRhiReady() {
+#ifdef Q_OS_WIN
+    if (!d->playbackIndicatorOverlay) {
+        d->playbackIndicatorOverlay =
+            new PlaybackIndicatorOverlay(PlaybackIndicatorOverlay::Shape::Line, this,
+                                         PlaybackIndicatorOverlay::Surface::NativeCompositor);
+        d->playbackIndicatorOverlay->setColor(playPosIndicatorColor());
+    }
+#endif
     d->scheduleSnapshot();
+    d->updatePlaybackOverlay(true);
 }
 
 void PianoRollRhiWidget::onDevicePixelRatioChanged() {
@@ -3326,7 +3366,12 @@ QColor PianoRollRhiWidget::playPosIndicatorColor() const {
 
 void PianoRollRhiWidget::setPlayPosIndicatorColor(const QColor &color) {
     d->playPosIndicatorColor = color;
-    d->updatePlaybackOverlay();
+#ifdef Q_OS_WIN
+    if (d->playbackIndicatorOverlay)
+        d->playbackIndicatorOverlay->setColor(color);
+#else
+    d->updatePlaybackOverlay(true);
+#endif
 }
 
 QColor PianoRollRhiWidget::lastPlayPosIndicatorColor() const {

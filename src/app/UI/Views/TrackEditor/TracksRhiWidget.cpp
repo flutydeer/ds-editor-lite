@@ -17,6 +17,7 @@
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
 #include "UI/Views/Common/EditorWheelUtils.h"
+#include "UI/Views/Common/PlaybackIndicatorOverlay.h"
 
 #include <lite/MusicBase/TimelineSnapUtils.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -816,7 +817,16 @@ void TracksRhiWidget::leaveEvent(QEvent *event) {
 }
 
 void TracksRhiWidget::onRhiReady() {
+#ifdef Q_OS_WIN
+    if (!m_playbackIndicatorOverlay) {
+        m_playbackIndicatorOverlay =
+            new PlaybackIndicatorOverlay(PlaybackIndicatorOverlay::Shape::Line, this,
+                                         PlaybackIndicatorOverlay::Surface::NativeCompositor);
+        m_playbackIndicatorOverlay->setColor(m_playPosIndicatorColor);
+    }
+#endif
     scheduleSnapshot();
+    updatePlaybackOverlay(true);
 }
 
 void TracksRhiWidget::onDevicePixelRatioChanged() {
@@ -849,7 +859,7 @@ void TracksRhiWidget::rebuildSnapshot() {
     frame.drawList.finish(frame.solidVertices.size());
     m_glyphAtlas.populateTextureBatches(frame.textureBatches);
     submitFrame(std::move(frame));
-    updatePlaybackOverlay();
+    updatePlaybackOverlay(true);
 }
 
 void TracksRhiWidget::rebuildModelConnections() {
@@ -1223,15 +1233,35 @@ void TracksRhiWidget::appendLastPlaybackIndicator(EditorRhiFrameData &frame,
     }
 }
 
-void TracksRhiWidget::updatePlaybackOverlay() {
+void TracksRhiWidget::updatePlaybackOverlay(const bool force) {
+#ifdef Q_OS_WIN
+    Q_UNUSED(force)
+    if (!m_playbackIndicatorOverlay)
+        return;
+    m_playbackIndicatorOverlay->setIndicatorVisible(width() > 0 && height() > 0);
+    m_playbackIndicatorOverlay->setPosition(m_viewport.tickToSceneX(m_playbackPosition) -
+                                            m_viewport.horizontalOffset());
+#else
     const auto dpr = devicePixelRatioF();
     const auto visible = m_viewport.visibleSceneRect();
+    const auto physicalOffset = m_viewport.horizontalOffset() * dpr;
+    const auto physicalSceneX = m_viewport.tickToSceneX(m_playbackPosition) * dpr;
+    const auto candidate = qRound(physicalSceneX - physicalOffset);
+    std::optional<int> physicalPixel;
+    if (candidate >= -2 && candidate <= qRound(width() * dpr) + 2)
+        physicalPixel = candidate;
+    if (!force && physicalPixel == m_playbackOverlayPixel)
+        return;
+    m_playbackOverlayPixel = physicalPixel;
+
     m_playbackOverlayVertices.clear();
-    EditorRhiGeometry::appendAntialiasedVerticalLine(
-        m_playbackOverlayVertices, m_viewport.tickToSceneX(m_playbackPosition) * dpr,
-        visible.top() * dpr, visible.bottom() * dpr, dpr, m_playPosIndicatorColor,
-        m_viewport.horizontalOffset() * dpr);
+    if (physicalPixel) {
+        EditorRhiGeometry::appendAntialiasedVerticalLine(
+            m_playbackOverlayVertices, physicalOffset + *physicalPixel, visible.top() * dpr,
+            visible.bottom() * dpr, dpr, m_playPosIndicatorColor, physicalOffset);
+    }
     m_playbackOverlayVertices = submitOverlay(std::move(m_playbackOverlayVertices));
+#endif
 }
 
 TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *clip,
@@ -1633,7 +1663,12 @@ QColor TracksRhiWidget::playPosIndicatorColor() const {
 
 void TracksRhiWidget::setPlayPosIndicatorColor(const QColor &color) {
     m_playPosIndicatorColor = color;
-    updatePlaybackOverlay();
+#ifdef Q_OS_WIN
+    if (m_playbackIndicatorOverlay)
+        m_playbackIndicatorOverlay->setColor(color);
+#else
+    updatePlaybackOverlay(true);
+#endif
 }
 
 QColor TracksRhiWidget::lastPlayPosIndicatorColor() const {

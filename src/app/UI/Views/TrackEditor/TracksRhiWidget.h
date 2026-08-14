@@ -28,6 +28,7 @@ class QDropEvent;
 class QHideEvent;
 class QKeyEvent;
 class QMouseEvent;
+class PlaybackIndicatorOverlay;
 class EditorRhiScrollBarController;
 class QResizeEvent;
 class QShowEvent;
@@ -158,7 +159,7 @@ private:
     void appendClips(EditorRhiFrameData &frame, double dpr);
     void appendClip(EditorRhiFrameData &frame, const ClipSnapshot &clip, double dpr);
     void appendLastPlaybackIndicator(EditorRhiFrameData &frame, double dpr) const;
-    void updatePlaybackOverlay();
+    void updatePlaybackOverlay(bool force = false);
     void appendDropOverlay(EditorRhiFrameData &frame, double dpr) const;
     [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex,
                                                  double dpr) const;
@@ -233,7 +234,12 @@ private:
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;
     QVector<ClipSnapshot> m_clipSnapshots;
     QVector<ClipSnapshot> m_pastePreviewSnapshots;
+#ifdef Q_OS_WIN
+    PlaybackIndicatorOverlay *m_playbackIndicatorOverlay = nullptr;
+#else
     QVector<EditorRhiSolidVertex> m_playbackOverlayVertices;
+    std::optional<int> m_playbackOverlayPixel;
+#endif
     bool m_snapshotScheduled = false;
     double m_playbackPosition = 0.0;
     double m_lastPlaybackPosition = 0.0;
