@@ -73,7 +73,7 @@ public:
             !checkResult(compositionDevice->CreateSurface(1, 1, DXGI_FORMAT_R8G8B8A8_UNORM,
                                                           DXGI_ALPHA_MODE_PREMULTIPLIED,
                                                           lineSurface.GetAddressOf()),
-                         QStringLiteral("CreateSurface"), error) ||
+                         QStringLiteral("CreateSurface(playback indicator)"), error) ||
             !checkResult(lineVisual->SetContent(lineSurface.Get()), QStringLiteral("SetContent"),
                          error) ||
             !checkResult(lineVisual->SetTransform(lineScale.Get()), QStringLiteral("SetTransform"),
@@ -84,13 +84,9 @@ public:
         }
 
         color = initialColor;
-        contentDirty = true;
+        lineContentDirty = true;
         ready = true;
         if (!prepare(commandBuffer, error)) {
-            release();
-            return false;
-        }
-        if (!checkResult(compositionDevice->Commit(), QStringLiteral("Commit"), error)) {
             release();
             return false;
         }
@@ -104,7 +100,7 @@ public:
         }
         lineAttached = false;
         ready = false;
-        contentDirty = false;
+        lineContentDirty = false;
         physicalX = 0.0f;
         physicalWidth = 0.0f;
         physicalHeight = 0.0f;
@@ -119,7 +115,7 @@ public:
     }
 
     bool prepare(QRhiCommandBuffer *commandBuffer, QString *error) {
-        if (!ready || !contentDirty)
+        if (!ready || !lineContentDirty)
             return true;
         if (!commandBuffer) {
             if (error)
@@ -127,12 +123,22 @@ public:
             return false;
         }
 
+        if (lineContentDirty && !drawSurface(commandBuffer, lineSurface.Get(), color,
+                                             QStringLiteral("playback indicator"), error)) {
+            return false;
+        }
+        lineContentDirty = false;
+        return checkResult(compositionDevice->Commit(), QStringLiteral("Commit"), error);
+    }
+
+    bool drawSurface(QRhiCommandBuffer *commandBuffer, IDCompositionSurface *compositionSurface,
+                     const QColor &surfaceColor, const QString &description, QString *error) {
         ComPtr<IDXGISurface> surface;
         POINT updateOffset{};
-        const auto beginResult = lineSurface->BeginDraw(
+        const auto beginResult = compositionSurface->BeginDraw(
             nullptr, __uuidof(IDXGISurface), reinterpret_cast<void **>(surface.GetAddressOf()),
             &updateOffset);
-        if (!checkResult(beginResult, QStringLiteral("IDCompositionSurface::BeginDraw"), error))
+        if (!checkResult(beginResult, QStringLiteral("BeginDraw(%1)").arg(description), error))
             return false;
 
         HRESULT drawResult = S_OK;
@@ -144,25 +150,23 @@ public:
             drawResult = device->CreateRenderTargetView(resource.Get(), nullptr,
                                                         renderTarget.GetAddressOf());
         if (SUCCEEDED(drawResult)) {
-            const auto alpha = static_cast<float>(color.alphaF());
+            const auto alpha = static_cast<float>(surfaceColor.alphaF());
             const float clearColor[] = {
-                static_cast<float>(color.redF()) * alpha,
-                static_cast<float>(color.greenF()) * alpha,
-                static_cast<float>(color.blueF()) * alpha,
+                static_cast<float>(surfaceColor.redF()) * alpha,
+                static_cast<float>(surfaceColor.greenF()) * alpha,
+                static_cast<float>(surfaceColor.blueF()) * alpha,
                 alpha,
             };
             context->ClearRenderTargetView(renderTarget.Get(), clearColor);
             context->Flush();
         }
         commandBuffer->endExternal();
-        const auto endResult = lineSurface->EndDraw();
-        if (!checkResult(drawResult, QStringLiteral("draw playback indicator surface"), error) ||
-            !checkResult(endResult, QStringLiteral("IDCompositionSurface::EndDraw"), error)) {
+        const auto endResult = compositionSurface->EndDraw();
+        if (!checkResult(drawResult, QStringLiteral("draw %1 surface").arg(description), error) ||
+            !checkResult(endResult, QStringLiteral("EndDraw(%1)").arg(description), error)) {
             return false;
         }
-
-        contentDirty = false;
-        return checkResult(compositionDevice->Commit(), QStringLiteral("Commit"), error);
+        return true;
     }
 
     bool setGeometry(const qreal x, const qreal width, const qreal height, const bool visible,
@@ -173,6 +177,7 @@ public:
         const auto nextWidth = static_cast<float>(std::max<qreal>(0.0, width));
         const auto nextHeight = static_cast<float>(std::max<qreal>(0.0, height));
         const auto nextVisible = visible && nextWidth > 0.0f && nextHeight > 0.0f;
+        const auto wasAttached = lineAttached;
         bool dirty = false;
 
         if (changed(physicalX, nextX)) {
@@ -205,7 +210,8 @@ public:
             lineAttached = nextVisible;
             dirty = true;
         }
-        return !dirty || checkResult(compositionDevice->Commit(), QStringLiteral("Commit"), error);
+        return !dirty || (!wasAttached && !lineAttached) ||
+               checkResult(compositionDevice->Commit(), QStringLiteral("Commit"), error);
     }
 
     ComPtr<ID3D11Device> device;
@@ -221,7 +227,7 @@ public:
     float physicalWidth = 0.0f;
     float physicalHeight = 0.0f;
     bool ready = false;
-    bool contentDirty = false;
+    bool lineContentDirty = false;
     bool lineAttached = false;
 };
 
@@ -246,14 +252,14 @@ bool WindowsPlaybackIndicatorCompositor::isReady() const {
 }
 
 bool WindowsPlaybackIndicatorCompositor::hasPendingContentUpdate() const {
-    return d->contentDirty;
+    return d->lineContentDirty;
 }
 
 bool WindowsPlaybackIndicatorCompositor::setColor(const QColor &color) {
     if (d->color == color)
         return false;
     d->color = color;
-    d->contentDirty = true;
+    d->lineContentDirty = true;
     return true;
 }
 

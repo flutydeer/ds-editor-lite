@@ -16,7 +16,7 @@ public:
     ~WindowsPlaybackIndicatorCompositor();
 
     bool initialize(QRhi *rhi, QRhiCommandBuffer *commandBuffer, quintptr windowId,
-                    const QColor &color, QString *error);
+                    const QColor &indicatorColor, QString *error);
     void release();
 
     [[nodiscard]] bool isReady() const;

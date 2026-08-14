@@ -5,6 +5,7 @@
 
 #include <QColor>
 #include <QImage>
+#include <QRect>
 #include <QRhiWidget>
 #include <QVector>
 
@@ -106,6 +107,8 @@ public:
     ~EditorRhiWidget() override;
 
     static void setWindowInputSuppressed(QWidget *window, bool suppressed);
+    static void setWindowModalVisualState(QWidget *window, bool active, const QRect &panelRect,
+                                          qreal panelCornerRadius, const QColor &backdropColor);
 
 signals:
     void backendFailed(const QString &reason);
@@ -136,6 +139,8 @@ protected:
 
 private:
     void setInputSuppressed(bool suppressed);
+    void setModalVisualState(bool active, const QRect &panelRect, qreal panelCornerRadius,
+                             const QColor &backdropColor);
 
     class Private;
     std::unique_ptr<Private> d;

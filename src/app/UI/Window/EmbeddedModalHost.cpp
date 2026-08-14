@@ -7,6 +7,10 @@
 
 #include <lite/GUI/Theme/ThemeManager.h>
 
+namespace {
+    constexpr qreal modalPanelCornerRadius = 8.0;
+}
+
 EmbeddedModalHost::EmbeddedModalHost(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_TranslucentBackground);
     hide();
@@ -36,6 +40,7 @@ void EmbeddedModalHost::open(QWidget *content, const QSize &panelSize) {
         }
         if (m_content)
             m_content->setFocus();
+        emit visualStateChanged();
         return;
     }
 
@@ -51,6 +56,7 @@ void EmbeddedModalHost::open(QWidget *content, const QSize &panelSize) {
     show();
     raise();
     emit opened();
+    emit visualStateChanged();
     if (m_content)
         m_content->setFocus();
 }
@@ -61,11 +67,24 @@ void EmbeddedModalHost::closePanel() {
     m_open = false;
     m_escShortcut->setEnabled(false);
     hide();
+    emit visualStateChanged();
     emit closed();
 }
 
 bool EmbeddedModalHost::isOpen() const {
     return m_open;
+}
+
+QRect EmbeddedModalHost::panelGeometry() const {
+    return m_panel->geometry();
+}
+
+qreal EmbeddedModalHost::panelCornerRadius() const {
+    return modalPanelCornerRadius;
+}
+
+QColor EmbeddedModalHost::backdropColor() const {
+    return m_backdropColor;
 }
 
 void EmbeddedModalHost::paintEvent(QPaintEvent *event) {
@@ -83,6 +102,8 @@ void EmbeddedModalHost::resizeEvent(QResizeEvent *event) {
     // Keep the panel centered while the window changes size (including
     // maximize/restore); moving a hidden panel is harmless.
     anchorPanelToCenter();
+    if (m_open)
+        emit visualStateChanged();
 }
 
 void EmbeddedModalHost::mousePressEvent(QMouseEvent *event) {
@@ -105,6 +126,7 @@ void EmbeddedModalHost::applyTheme() {
     m_backdropColor = color.isValid() ? color : QColor(0, 0, 0, 96);
     if (m_open)
         update();
+    emit visualStateChanged();
 }
 
 // Recomputes the centered position and moves the panel there (used on open

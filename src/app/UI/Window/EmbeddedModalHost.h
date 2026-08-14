@@ -29,10 +29,14 @@ public:
     // Hides the panel and emits closed() immediately.
     void closePanel();
     [[nodiscard]] bool isOpen() const;
+    [[nodiscard]] QRect panelGeometry() const;
+    [[nodiscard]] qreal panelCornerRadius() const;
+    [[nodiscard]] QColor backdropColor() const;
 
 signals:
     void opened();
     void closed();
+    void visualStateChanged();
 
 protected:
     void paintEvent(QPaintEvent *event) override;

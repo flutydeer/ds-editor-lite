@@ -4,6 +4,9 @@
 #include <QFile>
 #include <QMatrix4x4>
 #include <QMetaObject>
+#include <QPainterPath>
+#include <QRegion>
+#include <QVariant>
 #include <rhi/qrhi.h>
 
 #ifdef Q_OS_WIN
@@ -17,6 +20,10 @@
 namespace {
 #ifdef Q_OS_WIN
     constexpr auto windowInputSuppressedProperty = "_ds_editorRhiInputSuppressed";
+    constexpr auto windowModalActiveProperty = "_ds_editorRhiModalActive";
+    constexpr auto windowModalPanelRectProperty = "_ds_editorRhiModalPanelRect";
+    constexpr auto windowModalPanelRadiusProperty = "_ds_editorRhiModalPanelRadius";
+    constexpr auto windowModalBackdropColorProperty = "_ds_editorRhiModalBackdropColor";
 #endif
 
     QShader loadShader(const QString &path) {
@@ -125,13 +132,14 @@ public:
 
 #ifdef Q_OS_WIN
         QString compositorError;
-        if (!playbackIndicatorCompositor.initialize(rhi, commandBuffer,
-                                                    static_cast<quintptr>(q->winId()),
-                                                    playbackIndicatorColor, &compositorError)) {
+        if (!playbackIndicatorCompositor.initialize(
+                rhi, commandBuffer, static_cast<quintptr>(q->winId()),
+                effectivePlaybackIndicatorColor(), &compositorError)) {
             fail(QStringLiteral("failed to initialize playback compositor: %1")
                      .arg(compositorError));
             return;
         }
+        updatePlaybackIndicator();
 #endif
         resourcesReady = true;
         qInfo().noquote() << QStringLiteral(
@@ -461,9 +469,11 @@ public:
             return;
         const auto dpr = std::max<qreal>(1.0, q->devicePixelRatioF());
         const auto physicalWidth = q->width() * dpr;
-        const auto physicalX = playbackIndicatorPosition * dpr;
+        const auto physicalCenter = playbackIndicatorPosition * dpr;
+        const auto physicalX = physicalCenter - 0.5 * dpr;
         const auto inViewport = std::isfinite(playbackIndicatorPosition) &&
-                                physicalX >= -2.0 * dpr && physicalX <= physicalWidth + 2.0 * dpr;
+                                physicalCenter >= -2.0 * dpr &&
+                                physicalCenter <= physicalWidth + 2.0 * dpr;
         QString compositorError;
         if (!playbackIndicatorCompositor.setGeometry(
                 physicalX, dpr, q->height() * dpr,
@@ -479,12 +489,31 @@ public:
         updatePlaybackIndicator();
     }
 
+    [[nodiscard]] QColor effectivePlaybackIndicatorColor() const {
+        if (!modalVisualActive || modalBackdropColor.alpha() <= 0)
+            return playbackIndicatorColor;
+        const auto backdropAlpha = modalBackdropColor.alphaF();
+        const auto blendChannel = [&](const int foreground, const int backdrop) {
+            return qRound(foreground * (1.0 - backdropAlpha) + backdrop * backdropAlpha);
+        };
+        return QColor(blendChannel(playbackIndicatorColor.red(), modalBackdropColor.red()),
+                      blendChannel(playbackIndicatorColor.green(), modalBackdropColor.green()),
+                      blendChannel(playbackIndicatorColor.blue(), modalBackdropColor.blue()),
+                      playbackIndicatorColor.alpha());
+    }
+
+    void updatePlaybackIndicatorColor() {
+        if (playbackIndicatorCompositor.setColor(effectivePlaybackIndicatorColor()) &&
+            playbackIndicatorCompositor.isReady()) {
+            q->update();
+        }
+    }
+
     void setPlaybackIndicatorColor(const QColor &color) {
         if (playbackIndicatorColor == color)
             return;
         playbackIndicatorColor = color;
-        if (playbackIndicatorCompositor.setColor(color) && playbackIndicatorCompositor.isReady())
-            q->update();
+        updatePlaybackIndicatorColor();
     }
 
     void setPlaybackIndicatorVisible(const bool visible) {
@@ -492,6 +521,62 @@ public:
             return;
         playbackIndicatorVisible = visible;
         updatePlaybackIndicator();
+    }
+
+    void restoreOriginalMask() {
+        if (!modalMaskOwned)
+            return;
+        if (hadOriginalMask)
+            q->setMask(originalMask);
+        else
+            q->clearMask();
+        originalMask = {};
+        hadOriginalMask = false;
+        modalMaskOwned = false;
+    }
+
+    void updateModalMask() {
+        if (!modalVisualActive || !modalMaskOwned)
+            return;
+        auto *topLevel = q->window();
+        if (!topLevel)
+            return;
+
+        const QRect localPanelRect(q->mapFrom(topLevel, modalPanelRect.topLeft()),
+                                   modalPanelRect.size());
+        if (!localPanelRect.intersects(q->rect())) {
+            if (hadOriginalMask)
+                q->setMask(originalMask);
+            else
+                q->clearMask();
+            return;
+        }
+
+        QPainterPath panelPath;
+        panelPath.addRoundedRect(QRectF(localPanelRect), modalPanelCornerRadius,
+                                 modalPanelCornerRadius);
+        const QRegion panelRegion(panelPath.toFillPolygon().toPolygon(), Qt::WindingFill);
+        const QRegion baseRegion = hadOriginalMask ? originalMask : QRegion(q->rect());
+        q->setMask(baseRegion.subtracted(panelRegion));
+    }
+
+    void setModalVisualState(const bool active, const QRect &panelRect,
+                             const qreal panelCornerRadius, const QColor &backdropColor) {
+        modalPanelRect = panelRect;
+        this->modalPanelCornerRadius = std::max<qreal>(0.0, panelCornerRadius);
+        modalBackdropColor = backdropColor;
+
+        if (active && !modalMaskOwned) {
+            originalMask = q->mask();
+            hadOriginalMask = !originalMask.isEmpty();
+            modalMaskOwned = true;
+        }
+        modalVisualActive = active;
+        if (modalVisualActive)
+            updateModalMask();
+        else
+            restoreOriginalMask();
+        updatePlaybackIndicatorColor();
     }
 #endif
 
@@ -526,6 +611,13 @@ public:
     qreal playbackIndicatorPosition = 0.0;
     QColor playbackIndicatorColor{200, 200, 200};
     bool playbackIndicatorVisible = false;
+    QRect modalPanelRect;
+    qreal modalPanelCornerRadius = 0.0;
+    QColor modalBackdropColor{0, 0, 0, 96};
+    QRegion originalMask;
+    bool modalVisualActive = false;
+    bool modalMaskOwned = false;
+    bool hadOriginalMask = false;
 #endif
 };
 
@@ -536,8 +628,16 @@ EditorRhiWidget::EditorRhiWidget(QString diagnosticsTag, QWidget *parent)
     setAttribute(Qt::WA_DontCreateNativeAncestors);
     setAttribute(Qt::WA_NativeWindow);
     setApi(QRhiWidget::Api::Direct3D11);
-    if (parent)
-        d->inputSuppressed = parent->window()->property(windowInputSuppressedProperty).toBool();
+    if (parent) {
+        auto *root = parent->window();
+        d->inputSuppressed = root->property(windowInputSuppressedProperty).toBool();
+        const auto backdropValue = root->property(windowModalBackdropColorProperty);
+        d->setModalVisualState(root->property(windowModalActiveProperty).toBool(),
+                               root->property(windowModalPanelRectProperty).toRect(),
+                               root->property(windowModalPanelRadiusProperty).toReal(),
+                               backdropValue.canConvert<QColor>() ? backdropValue.value<QColor>()
+                                                                  : d->modalBackdropColor);
+    }
 #endif
     setSampleCount(1);
     setColorBufferFormat(QRhiWidget::TextureFormat::RGBA8);
@@ -566,8 +666,45 @@ void EditorRhiWidget::setWindowInputSuppressed(QWidget *window, const bool suppr
 #endif
 }
 
+void EditorRhiWidget::setWindowModalVisualState(QWidget *window, const bool active,
+                                                const QRect &panelRect,
+                                                const qreal panelCornerRadius,
+                                                const QColor &backdropColor) {
+#ifdef Q_OS_WIN
+    if (!window)
+        return;
+    auto *root = window->window();
+    root->setProperty(windowModalActiveProperty, active);
+    root->setProperty(windowModalPanelRectProperty, panelRect);
+    root->setProperty(windowModalPanelRadiusProperty, panelCornerRadius);
+    root->setProperty(windowModalBackdropColorProperty, backdropColor);
+    const auto surfaces = root->findChildren<EditorRhiWidget *>();
+    for (auto *surface : surfaces)
+        surface->setModalVisualState(active, panelRect, panelCornerRadius, backdropColor);
+#else
+    Q_UNUSED(window)
+    Q_UNUSED(active)
+    Q_UNUSED(panelRect)
+    Q_UNUSED(panelCornerRadius)
+    Q_UNUSED(backdropColor)
+#endif
+}
+
 void EditorRhiWidget::setInputSuppressed(const bool suppressed) {
     d->inputSuppressed = suppressed;
+}
+
+void EditorRhiWidget::setModalVisualState(const bool active, const QRect &panelRect,
+                                          const qreal panelCornerRadius,
+                                          const QColor &backdropColor) {
+#ifdef Q_OS_WIN
+    d->setModalVisualState(active, panelRect, panelCornerRadius, backdropColor);
+#else
+    Q_UNUSED(active)
+    Q_UNUSED(panelRect)
+    Q_UNUSED(panelCornerRadius)
+    Q_UNUSED(backdropColor)
+#endif
 }
 
 EditorRhiFrameData EditorRhiWidget::acquireFrame() {
@@ -609,8 +746,13 @@ bool EditorRhiWidget::event(QEvent *event) {
     if (event->type() == QEvent::DevicePixelRatioChange)
         onDevicePixelRatioChanged();
 #ifdef Q_OS_WIN
-    if (event->type() == QEvent::DevicePixelRatioChange || event->type() == QEvent::Resize ||
-        event->type() == QEvent::Show || event->type() == QEvent::Hide) {
+    const auto eventType = event->type();
+    if (eventType == QEvent::Move || eventType == QEvent::Resize ||
+        eventType == QEvent::DevicePixelRatioChange) {
+        d->updateModalMask();
+    }
+    if (eventType == QEvent::DevicePixelRatioChange || eventType == QEvent::Resize ||
+        eventType == QEvent::Show || eventType == QEvent::Hide) {
         d->updatePlaybackIndicator();
     }
 #endif

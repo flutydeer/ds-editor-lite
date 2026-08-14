@@ -5,10 +5,6 @@
 
 #include <cmath>
 
-namespace {
-    constexpr auto windowSuppressedProperty = "_ds_playbackIndicatorsSuppressed";
-}
-
 PlaybackIndicatorOverlay::PlaybackIndicatorOverlay(const Shape shape, QWidget *parent)
     : QWidget(parent), m_shape(shape) {
     setObjectName(QStringLiteral("playbackIndicatorOverlay"));
@@ -16,7 +12,6 @@ PlaybackIndicatorOverlay::PlaybackIndicatorOverlay(const Shape shape, QWidget *p
     setFocusPolicy(Qt::NoFocus);
     setAutoFillBackground(false);
     if (parent) {
-        m_suppressed = parent->window()->property(windowSuppressedProperty).toBool();
         parent->installEventFilter(this);
     }
     show();
@@ -26,24 +21,9 @@ PlaybackIndicatorOverlay::PlaybackIndicatorOverlay(const Shape shape, QWidget *p
 
 PlaybackIndicatorOverlay::~PlaybackIndicatorOverlay() = default;
 
-void PlaybackIndicatorOverlay::setWindowIndicatorsSuppressed(QWidget *window,
-                                                             const bool suppressed) {
-    if (!window)
-        return;
-    auto *root = window->window();
-    root->setProperty(windowSuppressedProperty, suppressed);
-    const auto overlays = root->findChildren<PlaybackIndicatorOverlay *>();
-    for (auto *overlay : overlays)
-        overlay->setSuppressed(suppressed);
-}
-
 void PlaybackIndicatorOverlay::setPosition(const qreal x) {
     if (m_position == x)
         return;
-    if (m_suppressed) {
-        m_position = x;
-        return;
-    }
     const auto oldPosition = m_position;
     const auto oldPositionVisible = isPositionVisible(oldPosition);
     const auto oldRect = indicatorRect(oldPosition);
@@ -85,7 +65,7 @@ bool PlaybackIndicatorOverlay::eventFilter(QObject *watched, QEvent *event) {
 
 void PlaybackIndicatorOverlay::paintEvent(QPaintEvent *event) {
     Q_UNUSED(event)
-    if (m_suppressed || !m_indicatorVisible || !isPositionVisible(m_position))
+    if (!m_indicatorVisible || !isPositionVisible(m_position))
         return;
 
     QPainter painter(this);
@@ -133,14 +113,6 @@ bool PlaybackIndicatorOverlay::isPositionVisible(const qreal position) const {
         return false;
     const qreal margin = m_shape == Shape::Line ? 1.0 : 8.0;
     return position >= -margin && position < width() + margin;
-}
-
-void PlaybackIndicatorOverlay::setSuppressed(const bool suppressed) {
-    if (m_suppressed == suppressed)
-        return;
-    const auto dirtyRect = indicatorRect(m_position);
-    m_suppressed = suppressed;
-    update(dirtyRect);
 }
 
 void PlaybackIndicatorOverlay::scheduleRefresh() {

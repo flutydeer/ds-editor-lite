@@ -139,6 +139,7 @@ private:
 
     void suspendBackgroundInteraction();
     void restoreBackgroundInteraction();
+    void updateEmbeddedModalVisualState();
 };
 
 

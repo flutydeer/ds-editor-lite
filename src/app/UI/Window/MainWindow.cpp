@@ -33,7 +33,6 @@
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
-#include "UI/Views/Common/PlaybackIndicatorOverlay.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
 #include "UI/Views/MainTitleBar/FilePopupWidget.h"
@@ -309,6 +308,8 @@ void MainWindow::openAppOptions(const AppOptionsGlobal::Option option) {
         m_modalHost->setGeometry(rect());
         connect(m_modalHost, &EmbeddedModalHost::closed, this,
                 &MainWindow::restoreBackgroundInteraction);
+        connect(m_modalHost, &EmbeddedModalHost::visualStateChanged, this,
+                &MainWindow::updateEmbeddedModalVisualState);
     }
     if (!m_appOptionsDialog)
         m_appOptionsDialog = new AppOptionsDialog(this);
@@ -338,8 +339,20 @@ void MainWindow::closeAppOptions() {
         m_modalHost->closePanel();
 }
 
+void MainWindow::updateEmbeddedModalVisualState() {
+    if (!m_modalHost || !m_modalHost->isOpen()) {
+        const auto backdropColor = m_modalHost ? m_modalHost->backdropColor() : QColor(0, 0, 0, 96);
+        EditorRhiWidget::setWindowModalVisualState(this, false, {}, 0.0, backdropColor);
+        return;
+    }
+
+    auto panelRect = m_modalHost->panelGeometry();
+    panelRect.moveTopLeft(m_modalHost->mapTo(this, panelRect.topLeft()));
+    EditorRhiWidget::setWindowModalVisualState(
+        this, true, panelRect, m_modalHost->panelCornerRadius(), m_modalHost->backdropColor());
+}
+
 void MainWindow::suspendBackgroundInteraction() {
-    PlaybackIndicatorOverlay::setWindowIndicatorsSuppressed(this, true);
     EditorRhiWidget::setWindowInputSuppressed(this, true);
     const auto insideModal = [this](const QObject *object) {
         for (const QObject *p = object; p; p = p->parent())
@@ -366,8 +379,8 @@ void MainWindow::suspendBackgroundInteraction() {
 }
 
 void MainWindow::restoreBackgroundInteraction() {
+    updateEmbeddedModalVisualState();
     EditorRhiWidget::setWindowInputSuppressed(this, false);
-    PlaybackIndicatorOverlay::setWindowIndicatorsSuppressed(this, false);
     // Skip actions that were destroyed while the modal was open (see
     // m_suspendedActions); QPointer turns them into null automatically.
     for (const auto &action : std::as_const(m_suspendedActions)) {
