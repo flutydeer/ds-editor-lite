@@ -2,6 +2,7 @@
 #define PLAYBACKINDICATOROVERLAY_H
 
 #include <QColor>
+#include <QPointer>
 #include <QWidget>
 
 #include <memory>
@@ -37,6 +38,7 @@ private:
     [[nodiscard]] bool usesNativeCompositor() const;
     void setSuppressed(bool suppressed);
     void scheduleRefresh();
+    void updateObservedWindow();
     void updateGeometry();
 #ifdef Q_OS_WIN
     void ensureNativeWindow();
@@ -50,6 +52,7 @@ private:
     bool m_indicatorVisible = true;
     bool m_suppressed = false;
     bool m_refreshPending = false;
+    QPointer<QWidget> m_observedWindow;
 #ifdef Q_OS_WIN
     std::unique_ptr<NativePlaybackIndicatorWindow> m_nativeWindow;
 #endif

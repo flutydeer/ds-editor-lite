@@ -16,6 +16,7 @@
 class NativePlaybackIndicatorWindow {
 public:
     HWND handle = nullptr;
+    HWND owner = nullptr;
     QColor color = {200, 200, 200};
     HDC memoryDc = nullptr;
     HBITMAP bitmap = nullptr;
@@ -119,8 +120,7 @@ PlaybackIndicatorOverlay::PlaybackIndicatorOverlay(const Shape shape, QWidget *p
     if (parent) {
         m_suppressed = parent->window()->property(windowSuppressedProperty).toBool();
         parent->installEventFilter(this);
-        if (usesNativeCompositor() && parent->window() != parent)
-            parent->window()->installEventFilter(this);
+        updateObservedWindow();
     }
     if (usesNativeCompositor()) {
 #ifdef Q_OS_WIN
@@ -208,7 +208,7 @@ void PlaybackIndicatorOverlay::setIndicatorVisible(const bool visible) {
 bool PlaybackIndicatorOverlay::eventFilter(QObject *watched, QEvent *event) {
     const auto parent = parentWidget();
     const auto watchedParent = watched == parent;
-    const auto watchedWindow = parent && watched == parent->window();
+    const auto watchedWindow = watched == m_observedWindow;
     if (usesNativeCompositor() && (watchedParent || watchedWindow)) {
         if (event->type() == QEvent::Hide) {
 #ifdef Q_OS_WIN
@@ -216,7 +216,8 @@ bool PlaybackIndicatorOverlay::eventFilter(QObject *watched, QEvent *event) {
 #endif
         } else if (event->type() == QEvent::Move || event->type() == QEvent::Resize ||
                    event->type() == QEvent::Show || event->type() == QEvent::WindowStateChange ||
-                   event->type() == QEvent::DevicePixelRatioChange) {
+                   event->type() == QEvent::DevicePixelRatioChange ||
+                   event->type() == QEvent::ParentWindowChange) {
             updateGeometry();
             scheduleRefresh();
         }
@@ -318,6 +319,20 @@ void PlaybackIndicatorOverlay::scheduleRefresh() {
         Qt::QueuedConnection);
 }
 
+void PlaybackIndicatorOverlay::updateObservedWindow() {
+    if (!usesNativeCompositor())
+        return;
+    const auto parent = parentWidget();
+    auto *window = parent ? parent->window() : nullptr;
+    if (m_observedWindow == window)
+        return;
+    if (m_observedWindow)
+        m_observedWindow->removeEventFilter(this);
+    m_observedWindow = window;
+    if (m_observedWindow && m_observedWindow != parent)
+        m_observedWindow->installEventFilter(this);
+}
+
 void PlaybackIndicatorOverlay::updateGeometry() {
     const auto parent = parentWidget();
     if (!parent)
@@ -328,6 +343,7 @@ void PlaybackIndicatorOverlay::updateGeometry() {
     }
 
 #ifdef Q_OS_WIN
+    updateObservedWindow();
     ensureNativeWindow();
     if (!m_nativeWindow || !m_nativeWindow->handle || m_suppressed || !m_indicatorVisible ||
         !isPositionVisible(m_position) || !parent->isVisible()) {
@@ -397,16 +413,21 @@ void PlaybackIndicatorOverlay::updateGeometry() {
 
 #ifdef Q_OS_WIN
 void PlaybackIndicatorOverlay::ensureNativeWindow() {
-    if (m_nativeWindow && m_nativeWindow->handle)
-        return;
     const auto parent = parentWidget();
     if (!parent || !ensureNativeIndicatorClass())
         return;
 
-    auto state = std::make_unique<NativePlaybackIndicatorWindow>();
-    state->color = m_color;
     const auto parentWindow = reinterpret_cast<HWND>(parent->winId());
     const auto ownerWindow = GetAncestor(parentWindow, GA_ROOT);
+    if (m_nativeWindow && m_nativeWindow->handle && IsWindow(m_nativeWindow->handle) &&
+        m_nativeWindow->owner == ownerWindow) {
+        return;
+    }
+
+    m_nativeWindow.reset();
+    auto state = std::make_unique<NativePlaybackIndicatorWindow>();
+    state->color = m_color;
+    state->owner = ownerWindow;
     state->handle =
         CreateWindowExW(WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT,
                         nativeIndicatorClassName, L"", WS_POPUP, 0, 0, 1, 1, ownerWindow, nullptr,
