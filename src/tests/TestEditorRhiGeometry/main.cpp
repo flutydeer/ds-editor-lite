@@ -153,6 +153,25 @@ int main(int argc, char *argv[]) {
     expect(shortSquareCap.size() > simplifiedSquareCap.size(),
            "square caps must preserve endpoint joins outside their antialiasing region");
 
+    const QColor overlayColor(12, 34, 56, 192);
+    QVector<EditorRhiOverlayRect> overlayRects;
+    EditorRhiGeometry::appendAntialiasedVerticalOverlay(overlayRects, 4.25, 2.0, 12.0, 1.0,
+                                                        overlayColor);
+    expect(overlayRects.size() == 2,
+           "a subpixel vertical overlay must split coverage across adjacent pixels");
+    if (overlayRects.size() == 2) {
+        expect(overlayRects[0].physicalViewportRect == QRectF(3.0, 2.0, 1.0, 10.0) &&
+                   overlayRects[0].color == overlayColor && overlayRects[0].coverage == 0.25f,
+               "the leading overlay pixel must preserve its rectangle, color, and coverage");
+        expect(overlayRects[1].physicalViewportRect == QRectF(4.0, 2.0, 1.0, 10.0) &&
+                   overlayRects[1].color == overlayColor && overlayRects[1].coverage == 0.75f,
+               "the trailing overlay pixel must preserve its rectangle, color, and coverage");
+    }
+    QVector<EditorRhiOverlayRect> hiddenOverlayRects;
+    EditorRhiGeometry::appendAntialiasedVerticalOverlay(hiddenOverlayRects, 4.25, 2.0, 12.0, 1.0,
+                                                        Qt::transparent);
+    expect(hiddenOverlayRects.isEmpty(), "transparent overlays must not produce draw rectangles");
+
     QVector<EditorRhiSolidVertex> circle;
     const QPointF circleCenter(4.0, 5.0);
     EditorRhiGeometry::appendAntialiasedCircle(circle, circleCenter, 3.0, QColor(255, 255, 255));
