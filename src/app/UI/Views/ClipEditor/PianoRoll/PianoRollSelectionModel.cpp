@@ -6,6 +6,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Global/AppGlobal.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/Common/EditorSelectionUtils.h"
 #include <lite/Support/Linq.h>
 
 #include <QDebug>
@@ -42,19 +43,8 @@ void PianoRollSelectionModel::applyNoteSelection(NoteView *noteView,
     if (!noteView)
         return;
 
-    if (mode == NoteSelectionMode::Plain) {
-        m_selectionAnchorId = noteView->id();
-        const auto selectedItems = selectedNoteItems();
-        if (selectedItems.count() <= 1 || !selectedItems.contains(noteView))
-            selectOnly(noteView);
-        else
-            noteView->setSelected(true);
-        return;
-    }
-
-    if (mode == NoteSelectionMode::Toggle) {
-        m_selectionAnchorId = noteView->id();
-        noteView->setSelected(!noteView->isSelected());
+    if (mode == NoteSelectionMode::Plain || mode == NoteSelectionMode::Toggle) {
+        applyPressSelection(noteView, mode == NoteSelectionMode::Toggle);
         return;
     }
 
@@ -65,6 +55,25 @@ void PianoRollSelectionModel::applyNoteSelection(NoteView *noteView,
         return;
     }
     selectRange(anchor, noteView, mode == NoteSelectionMode::AddRange);
+}
+
+void PianoRollSelectionModel::applyPressSelection(NoteView *noteView, const bool toggle) {
+    const auto noteId = noteView ? noteView->id() : -1;
+    if (noteView)
+        m_selectionAnchorId = noteId;
+    else
+        clearSelectionAnchor();
+
+    QList<int> currentSelection;
+    for (const auto *selected : selectedNoteItems())
+        currentSelection.append(selected->id());
+    const auto selection =
+        EditorSelectionUtils::selectionForPress(currentSelection, noteId, toggle);
+    for (auto *item : m_noteViews) {
+        const auto selected = selection.contains(item->id());
+        if (item->isSelected() != selected)
+            item->setSelected(selected);
+    }
 }
 
 void PianoRollSelectionModel::selectOnly(NoteView *noteView) {
