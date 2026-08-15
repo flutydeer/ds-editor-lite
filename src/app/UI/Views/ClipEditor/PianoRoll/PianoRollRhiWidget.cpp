@@ -768,6 +768,17 @@ public:
         return nullptr;
     }
 
+    struct NoteContextTarget {
+        Note *note = nullptr;
+        bool pronunciation = false;
+    };
+
+    NoteContextTarget noteContextTargetAt(const QPointF &viewportPosition) const {
+        if (auto *note = pronunciationAt(viewportPosition))
+            return {note, true};
+        return {noteAt(viewportPosition), false};
+    }
+
     QRect inlineAnchorRect(const QRectF &source) const {
         const auto viewportRect = q->rect();
         QRect anchorRect = source.toAlignedRect();
@@ -1587,7 +1598,7 @@ public:
             return;
         if (event->button() != Qt::LeftButton) {
             if (!EditorViewGlobal::isPitchEditMode(editMode))
-                updateNoteSelection(noteAt(event->position()), false);
+                updateNoteSelection(noteContextTargetAt(event->position()).note, false);
             return;
         }
         if (noteErasing)
@@ -3098,7 +3109,8 @@ void PianoRollRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
         return;
     }
 
-    if (auto *note = d->noteAt(event->pos())) {
+    const auto target = d->noteContextTargetAt(event->pos());
+    if (auto *note = target.note) {
         d->updateNoteSelection(note, false);
         context.target = PianoRollMenuContext::Target::Note;
         context.noteId = note->id();
@@ -3106,8 +3118,7 @@ void PianoRollRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
         context.noteLanguage = note->language();
         context.phonemeEditorEnabled = context.selectedNoteIds.size() == 1;
         // Right-click on the pronunciation strip opens the quick-switch menu.
-        if (d->pronunciationAt(event->pos()) == note)
-            context.pronunciationTarget = true;
+        context.pronunciationTarget = target.pronunciation;
     } else {
         context.target = PianoRollMenuContext::Target::Background;
     }
