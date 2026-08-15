@@ -1227,13 +1227,12 @@ void TracksRhiWidget::appendLastPlaybackIndicator(EditorRhiFrameData &frame,
 
 void TracksRhiWidget::updatePlaybackOverlay() {
     const auto dpr = devicePixelRatioF();
-    const auto visible = m_viewport.visibleSceneRect();
-    m_playbackOverlayVertices.clear();
-    EditorRhiGeometry::appendAntialiasedVerticalLine(
-        m_playbackOverlayVertices, m_viewport.tickToSceneX(m_playbackPosition) * dpr,
-        visible.top() * dpr, visible.bottom() * dpr, dpr, m_playPosIndicatorColor,
-        m_viewport.horizontalOffset() * dpr);
-    m_playbackOverlayVertices = submitOverlay(std::move(m_playbackOverlayVertices));
+    m_playbackOverlayRects.clear();
+    EditorRhiGeometry::appendAntialiasedVerticalOverlay(
+        m_playbackOverlayRects,
+        (m_viewport.tickToSceneX(m_playbackPosition) - m_viewport.horizontalOffset()) * dpr, 0.0,
+        height() * dpr, dpr, m_playPosIndicatorColor);
+    m_playbackOverlayRects = submitOverlay(std::move(m_playbackOverlayRects));
 }
 
 TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *clip,

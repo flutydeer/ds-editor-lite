@@ -101,6 +101,10 @@ qt_add_shaders(${PROJECT_NAME} "editor_rhi_shaders"
         UI/Views/Common/shaders/solid.frag
         UI/Views/Common/shaders/texture.vert
         UI/Views/Common/shaders/texture.frag
+        UI/Views/Common/shaders/scene.vert
+        UI/Views/Common/shaders/scene.frag
+        UI/Views/Common/shaders/overlay.vert
+        UI/Views/Common/shaders/overlay.frag
 )
 
 if(APPLE)

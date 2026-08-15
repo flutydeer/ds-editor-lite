@@ -235,7 +235,7 @@ private:
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;
     QVector<ClipSnapshot> m_clipSnapshots;
     QVector<ClipSnapshot> m_pastePreviewSnapshots;
-    QVector<EditorRhiSolidVertex> m_playbackOverlayVertices;
+    QVector<EditorRhiOverlayRect> m_playbackOverlayRects;
     bool m_snapshotScheduled = false;
     double m_playbackPosition = 0.0;
     double m_lastPlaybackPosition = 0.0;

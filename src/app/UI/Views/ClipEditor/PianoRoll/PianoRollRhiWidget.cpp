@@ -382,14 +382,14 @@ public:
     }
 
     void updatePlaybackOverlay() {
-        playbackOverlayVertices.clear();
+        playbackOverlayRects.clear();
         if (clip && q->width() > 0 && q->height() > 0) {
             const auto currentX = (playbackPosition - clip->start()) * pixelsPerTick() * dpr;
-            EditorRhiGeometry::appendAntialiasedVerticalLine(
-                playbackOverlayVertices, currentX, cameraY * dpr, (cameraY + q->height()) * dpr,
-                dpr, q->playPosIndicatorColor(), cameraX * dpr);
+            EditorRhiGeometry::appendAntialiasedVerticalOverlay(
+                playbackOverlayRects, currentX - cameraX * dpr, 0.0, q->height() * dpr, dpr,
+                q->playPosIndicatorColor());
         }
-        playbackOverlayVertices = q->submitOverlay(std::move(playbackOverlayVertices));
+        playbackOverlayRects = q->submitOverlay(std::move(playbackOverlayRects));
     }
 
     void setAutoPageTurn(const bool enabled) {
@@ -2727,7 +2727,7 @@ public:
     bool autoPageTurnAvailable = false;
     double dpr = 1.0;
     QVector<Vertex> vertices;
-    QVector<Vertex> playbackOverlayVertices;
+    QVector<EditorRhiOverlayRect> playbackOverlayRects;
     TimelineLineEmitter timelineEmitter;
     EditorGlyphAtlas glyphAtlas;
     EditorRhiDrawList drawList;

@@ -500,6 +500,21 @@ void EditorRhiGeometry::appendAntialiasedVerticalLine(QVector<EditorRhiSolidVert
     }
 }
 
+void EditorRhiGeometry::appendAntialiasedVerticalOverlay(QVector<EditorRhiOverlayRect> &rects,
+                                                         const double physicalViewportX,
+                                                         const double top, const double bottom,
+                                                         const double physicalWidth,
+                                                         const QColor &color) {
+    if (bottom <= top || physicalWidth <= 0.0 || color.alpha() == 0)
+        return;
+    const auto lineStart = physicalViewportX - physicalWidth * 0.5;
+    const auto lineEnd = physicalViewportX + physicalWidth * 0.5;
+    for (const auto &span : pixelCoverageSpans(lineStart, lineEnd)) {
+        rects.append(
+            {QRectF(span.start, top, span.end - span.start, bottom - top), color, span.coverage});
+    }
+}
+
 void EditorRhiGeometry::appendAntialiasedHorizontalLine(QVector<EditorRhiSolidVertex> &vertices,
                                                         const double physicalY, const double left,
                                                         const double right,
