@@ -4,17 +4,17 @@
 #define inferEngine InferEngine::instance()
 
 #include <memory>
-#include <mutex>
 
 #include <lite/Core/Singleton.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
-#include <QHash>
 #include <QReadWriteLock>
 #include <QObject>
 
 #include <synthrt/Core/Core/Runtime.h>
 #include <diffsinger/Session/ModelSetHandle.h>
+
+#include "SingerSessionCache.h"
 
 class GenericInferModel;
 class InferParam;
@@ -75,14 +75,7 @@ private:
     bool m_disposed = false;
     InferEnginePaths m_paths;
 
-    // Cache of ModelSetHandle per SingerIdentifier. Uses weak_ptr so handles
-    // can be released when all task references are gone, but consecutive/parallel
-    // tasks for the same singer can reuse the underlying ModelSet (and its
-    // cached ONNX sessions) instead of recreating them each time.
-    // This restores the caching behavior of the old SingerModelSession map
-    // (m_singerSessions) that was lost during the VoicebankSession migration.
-    mutable std::mutex m_singerHandlesMutex;
-    mutable QHash<SingerIdentifier, std::weak_ptr<ds::session::ModelSetHandle>> m_singerHandles;
+    mutable SingerSessionCache<ds::session::ModelSetHandle> m_singerSessions;
 };
 
 
