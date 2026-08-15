@@ -118,7 +118,15 @@ void PlaybackController::requestVisualPositionUpdate() {
     const auto &timeline = appModel->timeline();
     const auto anchorMs = timeline.tickToMs(d->m_visualPositionAnchor);
     const auto elapsedMs = d->m_visualPositionClock.nsecsElapsed() / 1000000.0;
-    emit visualPositionChanged(timeline.msToTick(anchorMs + elapsedMs));
+    auto visualMs = anchorMs + elapsedMs;
+    const auto &loopSettings = appStatus->loopSettings.get();
+    if (loopSettings.enabled && loopSettings.length > 0) {
+        const auto loopStartMs = timeline.tickToMs(loopSettings.start);
+        const auto loopDurationMs = timeline.tickToMs(loopSettings.end()) - loopStartMs;
+        if (loopDurationMs > 0.0 && visualMs >= loopStartMs + loopDurationMs)
+            visualMs = loopStartMs + std::fmod(visualMs - loopStartMs, loopDurationMs);
+    }
+    emit visualPositionChanged(timeline.msToTick(visualMs));
 }
 
 void PlaybackController::updateVisualPositionTimerInterval() {

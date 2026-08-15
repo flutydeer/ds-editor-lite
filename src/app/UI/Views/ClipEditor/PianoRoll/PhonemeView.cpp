@@ -39,7 +39,7 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
     installEventFilter(this);
 
     connect(appModel, &AppModel::timelineChanged, this, &PhonemeView::onTimelineChanged);
-    connect(playbackController, &PlaybackController::positionChanged, this,
+    connect(playbackController, &PlaybackController::visualPositionChanged, this,
             &PhonemeView::setPosition);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &PhonemeView::setLastPosition);
@@ -77,8 +77,12 @@ void PhonemeView::setTimeRange(const double startTick, const double endTick) {
 }
 
 void PhonemeView::setPosition(const double tick) {
+    const auto oldX = tickToX(m_position);
     m_position = tick;
-    update();
+    const auto newX = tickToX(m_position);
+    update(QRectF(oldX - 2, 0, 4, height()).toAlignedRect());
+    if (qRound(oldX) != qRound(newX))
+        update(QRectF(newX - 2, 0, 4, height()).toAlignedRect());
 }
 
 void PhonemeView::setLastPosition(const double tick) {

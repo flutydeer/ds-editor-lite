@@ -21,6 +21,8 @@ PianoRollEditorView::PianoRollEditorView(QWidget *parent) : OverlaySplitter(Qt::
     setStretchFactor(1, 1);
 
     const auto paramGraphicsView = m_paramEditorView->graphicsView();
+    // The piano roll owns page turning and forwards its horizontal position to this view.
+    paramGraphicsView->setAutoTurnPage(false);
     connect(playbackController, &PlaybackController::visualPositionChanged, this,
             [=](const double tick) {
                 m_pianoRollView->setPlaybackPosition(tick);

@@ -40,7 +40,7 @@ InfoLaneView::InfoLaneView(QWidget *parent) : QWidget(parent) {
 
     m_position = playbackController->position();
     m_lastPosition = playbackController->lastPosition();
-    connect(playbackController, &PlaybackController::positionChanged, this,
+    connect(playbackController, &PlaybackController::visualPositionChanged, this,
             &InfoLaneView::setPosition);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &InfoLaneView::setLastPosition);
@@ -119,8 +119,12 @@ void InfoLaneView::setHoveredChip(const int index) {
 }
 
 void InfoLaneView::setPosition(const double tick) {
+    const auto oldX = tickToX(m_position);
     m_position = tick;
-    update();
+    const auto newX = tickToX(m_position);
+    update(QRectF(oldX - 2, 0, 4, height()).toAlignedRect());
+    if (qRound(oldX) != qRound(newX))
+        update(QRectF(newX - 2, 0, 4, height()).toAlignedRect());
 }
 
 void InfoLaneView::setLastPosition(const double tick) {

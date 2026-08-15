@@ -52,7 +52,7 @@ TimelineView::TimelineView(QWidget *parent) : QWidget(parent) {
         playbackController->setLastPosition(tick);
         playbackController->setPosition(tick);
     });
-    connect(playbackController, &PlaybackController::positionChanged, this,
+    connect(playbackController, &PlaybackController::visualPositionChanged, this,
             &TimelineView::setPosition);
     connect(appModel, &AppModel::modelChanged, this, applyTimeline);
     connect(appModel, &AppModel::timelineChanged, this, applyTimeline);
@@ -74,8 +74,15 @@ void TimelineView::setTimeRange(double startTick, double endTick) {
 }
 
 void TimelineView::setPosition(double tick) {
+    const auto oldX = tickToX(m_position);
     m_position = tick;
-    update();
+    const auto newX = tickToX(m_position);
+    const auto playheadRect = [this](const double x) {
+        return QRectF(x - 8, height() - 14, 16, 14).toAlignedRect();
+    };
+    update(playheadRect(oldX));
+    if (qRound(oldX) != qRound(newX))
+        update(playheadRect(newX));
 }
 
 void TimelineView::setQuantize(int quantize) {
