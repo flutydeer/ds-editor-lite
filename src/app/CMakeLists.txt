@@ -11,7 +11,6 @@ find_package(Qt6 REQUIRED COMPONENTS
 )
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
-find_package(nlohmann_json CONFIG REQUIRED)
 find_package(zstd CONFIG REQUIRED)
 find_package(opendspx CONFIG REQUIRED)
 find_package(re2 CONFIG REQUIRED)
