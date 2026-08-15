@@ -61,6 +61,32 @@ C:\Program Files\OpenVPI\DS Editor Lite
 6. 仅将 staging 的 `bin` 目录交给 Inno Setup 7，排除头文件、导入库和 CMake 包文件。
 7. 输出安装包路径和 SHA-256。
 
+## 绿色版（便携 zip）
+
+`package-dml-green` preset（RelWithDebInfo）配合
+`packaging\windows\build-green-zip.ps1` 产出解压即用的便携 zip，内置 PDB
+符号，崩溃可追踪。
+
+```powershell
+.\packaging\windows\build-green-zip.ps1
+```
+
+或复用已有构建产物、只重新打包：
+
+```powershell
+.\packaging\windows\build-green-zip.ps1 -NoBuild
+```
+
+特性：
+
+- RelWithDebInfo，优化 + 调试符号；MSVC `/Zi` 的 PDB 直接产出在 `out\bin`。
+- 直接压缩 `build\GreenDmlRelease\out\bin`（不走 CMake install，保住 PDB）。
+- zip 会校验 DsEditorLite.exe 与至少一个 PDB 存在，否则报错退出。
+- 文件名为 `DsEditorLite-<yyyyMMdd-HHmm>-win-x64-dml-green.zip`（时间戳，**不含版本号**）。
+- 建议用 **pwsh**（PowerShell 7）运行；从 git-bash 调 Windows PowerShell 5.1
+  会出现 `Get-FileHash is not recognized` 环境问题。
+- 产物目录：`dist\green\`，脚本输出路径、大小与 SHA-256。
+
 ## 产品元数据
 
 产品名称、版本、发布者、版权、URL、可执行文件名、安装器 AppId 和 macOS BundleId
