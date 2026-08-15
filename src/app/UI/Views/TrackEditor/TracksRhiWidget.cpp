@@ -458,6 +458,8 @@ void TracksRhiWidget::mousePressEvent(QMouseEvent *event) {
         if (hit) {
             updateClipSelection(*hit, false);
             scheduleSnapshot();
+        } else {
+            syncSelection({});
         }
         EditorRhiWidget::mousePressEvent(event);
         return;
@@ -1388,6 +1390,8 @@ void TracksRhiWidget::beginClipDrag(const ClipSnapshot &clip, const QMouseEvent 
         m_dragMode = DragMode::ResizeRight;
     else
         m_dragMode = DragMode::Move;
+    if (m_dragMode == DragMode::ResizeLeft || m_dragMode == DragMode::ResizeRight)
+        syncSelection({clip.id}, clip.trackIndex);
     m_mouseDownScene = m_viewport.viewportToScene(event->position());
     m_mouseDownProperties = Clip::ClipCommonProperties(*modelClip);
     m_mouseDownTrackIndex = appModel->tracks().indexOf(track);
@@ -1500,8 +1504,9 @@ void TracksRhiWidget::discardDrag() {
 bool TracksRhiWidget::updateClipSelection(const ClipSnapshot &clip, const bool toggle) const {
     const auto selected =
         EditorSelectionUtils::selectionForPress(appStatus->selectedClips.get(), clip.id, toggle);
-    syncSelection(selected, clip.trackIndex);
-    if (!selected.contains(clip.id))
+    const auto targetSelected = selected.contains(clip.id);
+    syncSelection(selected, targetSelected ? clip.trackIndex : -1);
+    if (!targetSelected)
         return false;
     trackController->setActiveClip(clip.id);
     return true;
@@ -1509,8 +1514,14 @@ bool TracksRhiWidget::updateClipSelection(const ClipSnapshot &clip, const bool t
 
 void TracksRhiWidget::syncSelection(const QList<int> &ids, const int preferredTrack) const {
     appStatus->selectedClips = ids;
-    if (preferredTrack >= 0)
-        appStatus->selectedTrackIndex = preferredTrack;
+    auto trackIndex = preferredTrack;
+    if (trackIndex < 0 && !ids.isEmpty()) {
+        Track *track = nullptr;
+        if (appModel->findClipById(ids.constFirst(), track) && track)
+            trackIndex = appModel->tracks().indexOf(track);
+    }
+    if (trackIndex >= 0)
+        appStatus->selectedTrackIndex = trackIndex;
 }
 
 void TracksRhiWidget::updateCursor(const QPointF &position) {
