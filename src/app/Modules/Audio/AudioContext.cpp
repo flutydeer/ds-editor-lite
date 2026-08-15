@@ -306,6 +306,14 @@ void AudioContext::handlePlaybackStatusChanged(const PlaybackStatus status) {
 void AudioContext::handlePlaybackPositionChanged(const double positionTick) const {
     if (m_transportPositionFlag)
         transport()->setPosition(tickToSample(positionTick));
+    // Stop playback once the playhead passes the end of the project (the last
+    // clip's end). Only act while actually playing so that scrubbing the
+    // playhead never fires a spurious stop.
+    if (playbackController->playbackStatus() != PlaybackGlobal::Playing)
+        return;
+    const int projectEndTick = appModel->projectLengthInTicks();
+    if (projectEndTick > 0 && positionTick >= projectEndTick)
+        playbackController->stop();
 }
 
 void AudioContext::tickLevelMeters() {
