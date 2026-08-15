@@ -1,6 +1,7 @@
 #include "PianoRollRhiWidget.h"
 
 #include "NoteView.h"
+#include "NoteDrawUtils.h"
 #include "PianoPaintUtils.h"
 #include "PitchDisplayStrategy.h"
 #include "PianoRollGraphicsViewHelper.h"
@@ -1667,7 +1668,9 @@ public:
     }
 
     void updateDrawNote(const QPointF &viewportPosition) {
-        drawEnd = std::max(drawEnd, snapLocalTick(localTickAt(viewportPosition)));
+        const auto step = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+        const auto snappedEnd = snapLocalTick(localTickAt(viewportPosition));
+        drawEnd = drawStart + NoteDrawUtils::lengthForSnappedEnd(drawStart, snappedEnd, step);
         scheduleSnapshot();
     }
 
@@ -1706,9 +1709,7 @@ public:
             return;
         }
         if (interaction == Interaction::Draw) {
-            const auto step = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-            PianoRollGraphicsViewHelper::drawNote(drawStart, std::max(step, drawEnd - drawStart),
-                                                  drawKey);
+            PianoRollGraphicsViewHelper::drawNote(drawStart, drawEnd - drawStart, drawKey);
         } else if (interaction != Interaction::None && interaction != Interaction::RectSelect &&
                    interactionNoteId >= 0) {
             updateInteractionDelta(event->position(), event->modifiers());
