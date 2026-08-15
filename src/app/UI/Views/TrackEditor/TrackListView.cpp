@@ -5,8 +5,10 @@
 #include "Global/TracksEditorGlobal.h"
 #include "TrackAppendSlotView.h"
 
+#include <QDrag>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QPainter>
 #include <QScrollBar>
 #include <QScroller>
 #include <QTimer>
@@ -65,6 +67,7 @@ void TrackListView::setAppendSlotHeight(const int height) {
 
 void TrackListView::mousePressEvent(QMouseEvent *event) {
     // Check if the click is in the drag area (track index label)
+    m_dragStartPosition = event->pos();
     m_canStartDrag = isInDragArea(event->pos());
     QListWidget::mousePressEvent(event);
     event->ignore();
@@ -100,7 +103,33 @@ void TrackListView::dragMoveEvent(QDragMoveEvent *event) {
 void TrackListView::startDrag(Qt::DropActions supportedActions) {
     // Save scroll position before drag starts
     m_scrollPosBeforeDrag = verticalScrollBar()->value();
-    QListWidget::startDrag(supportedActions);
+
+    const auto indexes = selectedIndexes();
+    if (indexes.isEmpty())
+        return;
+
+    auto *mimeData = model()->mimeData(indexes);
+    if (!mimeData)
+        return;
+
+    auto *drag = new QDrag(this);
+    drag->setMimeData(mimeData);
+    const auto dragRow = indexes.first().row();
+    if (const auto *dragItem = item(dragRow)) {
+        const auto rowRect = visualItemRect(dragItem);
+        const auto rowPixmap = viewport()->grab(rowRect);
+        QPixmap dragPixmap(rowPixmap.size());
+        dragPixmap.setDevicePixelRatio(rowPixmap.devicePixelRatio());
+        dragPixmap.fill(Qt::transparent);
+        {
+            QPainter painter(&dragPixmap);
+            painter.setOpacity(0.65);
+            painter.drawPixmap(QPoint{}, rowPixmap);
+        }
+        drag->setPixmap(dragPixmap);
+        drag->setHotSpot(m_dragStartPosition - rowRect.topLeft());
+    }
+    drag->exec(supportedActions & ~Qt::CopyAction, Qt::MoveAction);
 }
 
 void TrackListView::dropEvent(QDropEvent *event) {

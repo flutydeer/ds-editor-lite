@@ -37,6 +37,7 @@ private:
     bool isInDragArea(const QPoint &pos) const;
 
     int m_scrollPosBeforeDrag = 0;
+    QPoint m_dragStartPosition;
     bool m_canStartDrag = false;
     // Disabled, non-selectable, non-draggable placeholder row mirroring the
     // canvas append slot. Always the last row.
