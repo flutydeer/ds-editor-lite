@@ -1,10 +1,10 @@
 #include "TracksGraphicsView.h"
 
 #include "AudioClipDragState.h"
-#include "ClipSelectionUtils.h"
 #include "ClipResizeUtils.h"
 #include "TracksGraphicsScene.h"
 #include "Controller/EditorViewController.h"
+#include "UI/Views/Common/EditorSelectionUtils.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
@@ -700,7 +700,7 @@ AbstractClipView *TracksGraphicsView::findClipById(const int id) const {
 
 bool TracksGraphicsView::updateClipSelection(AbstractClipView *clipItem, const bool toggle) const {
     const auto selected =
-        ClipSelectionUtils::selectionForPress(selectedClipsId(), clipItem->id(), toggle);
+        EditorSelectionUtils::selectionForPress(selectedClipsId(), clipItem->id(), toggle);
     applyClipSelection(selected);
     if (!selected.contains(clipItem->id()))
         return false;
