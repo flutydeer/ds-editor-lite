@@ -47,7 +47,6 @@ private:
     int m_scrollPosBeforeDrag = 0;
     QPoint m_dragStartPosition;
     int m_dragRow = -1;
-    int m_dropInsertionIndex = -1;
     bool m_canStartDrag = false;
     QWidget *m_dropIndicator = nullptr;
     // Disabled, non-selectable, non-draggable placeholder row mirroring the

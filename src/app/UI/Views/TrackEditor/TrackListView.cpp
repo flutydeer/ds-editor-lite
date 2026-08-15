@@ -155,7 +155,7 @@ void TrackListView::startDrag(Qt::DropActions supportedActions) {
 }
 
 void TrackListView::dropEvent(QDropEvent *event) {
-    const auto dropRow = m_dropInsertionIndex;
+    const auto dropRow = dropInsertionIndex(event->position().toPoint());
     const auto moved = moveDraggedTrack(dropRow);
     clearDropIndicator();
 
@@ -195,7 +195,6 @@ bool TrackListView::setDropInsertionIndex(const int insertionIndex) {
         return false;
     }
 
-    m_dropInsertionIndex = insertionIndex;
     updateDropIndicator(insertionIndex);
     return true;
 }
@@ -243,7 +242,6 @@ void TrackListView::updateDropIndicator(const int insertionIndex) {
 }
 
 void TrackListView::clearDropIndicator() {
-    m_dropInsertionIndex = -1;
     if (m_dropIndicator)
         m_dropIndicator->hide();
 }
