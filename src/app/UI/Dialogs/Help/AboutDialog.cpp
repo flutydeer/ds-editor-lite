@@ -62,6 +62,9 @@ AboutDialog::AboutDialog(QWidget *parent) : QMessageBox(parent) {
                 .arg(appName, copyrightInfo, buildInfo, aboutInfo, licenseInfo));
     setIcon(QMessageBox::Information);
 
+    // Let users select/copy the build details (and still click the license link).
+    setTextInteractionFlags(Qt::TextBrowserInteraction);
+
     const double ratio = screen()->logicalDotsPerInch() / QM::unitDpi();
 
     const QIcon icon = qApp->windowIcon();
