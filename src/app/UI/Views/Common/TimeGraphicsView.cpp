@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QCursor>
 #include <QHideEvent>
+#include <QPainter>
 #include <QScrollBar>
 #include <QShowEvent>
 #include <QWheelEvent>
@@ -33,13 +34,7 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
                                    QWidget *parent)
     : QGraphicsView(parent), m_scene(scene) {
     setRenderHint(QPainter::Antialiasing);
-    // Full viewport repaint: with partial updates the fast-scrubbing playhead
-    // indicator leaves ghost lines behind (the antialiased 1px ink extends
-    // past Qt's computed damage rect, so old positions never get erased).
-    // TODO: rework to repaint only the indicator's swept span (a route via
-    // scene->invalidate() was tried and did not clear the ghosts) or use
-    // SmartViewportUpdate with a custom damage tracking, to drop CPU cost.
-    setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
+    setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
     setAttribute(Qt::WA_AcceptTouchEvents);
     setAttribute(Qt::WA_Hover);
     setMinimumHeight(150);
@@ -96,14 +91,6 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
             [this](double sx, double sy) { m_scene->setScaleXY(sx, sy); });
     connect(m_scene, &TimeGraphicsScene::baseSizeChanged, this,
             &TimeGraphicsView::adjustScaleXToFillView);
-
-    m_scenePlayPosIndicator = new TimeIndicatorView;
-    m_scenePlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
-    QPen curPlayPosPen;
-    curPlayPosPen.setWidth(1);
-    curPlayPosPen.setColor(m_playPosIndicatorColor);
-    m_scenePlayPosIndicator->setPen(curPlayPosPen);
-    m_scene->addTimeIndicator(m_scenePlayPosIndicator);
 
     m_sceneLastPlayPosIndicator = new TimeIndicatorView;
     m_sceneLastPlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
@@ -282,6 +269,7 @@ void TimeGraphicsView::setScrollBarVisibility(Qt::Orientation orientation, bool 
 }
 
 void TimeGraphicsView::notifyVisibleRectChanged() {
+    viewport()->update();
     emit visibleRectChanged(visibleRect());
 }
 
@@ -476,6 +464,19 @@ void TimeGraphicsView::wheelEvent(QWheelEvent *event) {
     notifyVisibleRectChanged();
 }
 
+void TimeGraphicsView::drawForeground(QPainter *painter, const QRectF &rect) {
+    QGraphicsView::drawForeground(painter, rect);
+
+    QPen pen(m_playPosIndicatorColor);
+    pen.setWidthF(1.0);
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing);
+    painter->setPen(pen);
+    const auto x = tickToSceneX(m_playbackPosition - m_offset);
+    painter->drawLine(QLineF(x, rect.top(), x, rect.bottom()));
+    painter->restore();
+}
+
 void TimeGraphicsView::resizeEvent(QResizeEvent *event) {
     if (scene()) {
         if (m_ensureSceneFillViewX) {
@@ -595,6 +596,7 @@ void TimeGraphicsView::updateAnimationDuration() {
 }
 
 void TimeGraphicsView::afterSetScale() {
+    viewport()->update();
     emit scaleChanged(scaleX(), scaleY());
 }
 
@@ -619,21 +621,18 @@ void TimeGraphicsView::setOffset(int tick) {
     if (m_gridItem)
         m_gridItem->setOffset(tick);
     m_sceneLastPlayPosIndicator->setOffset(tick);
-    m_scenePlayPosIndicator->setOffset(tick);
+    viewport()->update();
     emit timeRangeChanged(startTick(), endTick());
 }
 
 void TimeGraphicsView::setPixelsPerQuarterNote(int px) {
     m_pixelsPerQuarterNote = px;
-    m_scenePlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
     m_sceneLastPlayPosIndicator->setPixelsPerQuarterNote(m_pixelsPerQuarterNote);
+    viewport()->update();
 }
 
 void TimeGraphicsView::setLeftMarginPx(int px) {
     m_scene->setLeftMarginPx(px);
-    // Reposition the indicators and grid against the shifted origin, and let
-    // the ruler/lanes resync their time range.
-    m_scenePlayPosIndicator->setPosition(m_playbackPosition);
     m_sceneLastPlayPosIndicator->setPosition(m_lastPlaybackPosition);
     if (m_gridItem)
         m_gridItem->update();
@@ -742,30 +741,54 @@ void TimeGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
 }
 
 void TimeGraphicsView::setPlaybackPosition(double tick) {
+    const auto oldTick = m_playbackPosition;
     m_playbackPosition = tick;
-    if (m_scenePlayPosIndicator != nullptr)
-        m_scenePlayPosIndicator->setPosition(tick);
 
-    if (!m_autoTurnPage || !m_autoPageTurnAvailable ||
-        appStatus->currentEditObject != AppStatus::EditObjectType::None) {
-        return;
-    }
-    if (isEdgeAutoScrollActive())
-        return;
+    const bool canTurnPage =
+        m_autoTurnPage && m_autoPageTurnAvailable &&
+        appStatus->currentEditObject == AppStatus::EditObjectType::None &&
+        !isEdgeAutoScrollActive();
+    if (canTurnPage) {
+        const auto viewWidth = viewport()->width();
+        const auto hBarValue = horizontalBarValue();
+        const auto targetEndTick = sceneXToTick(hBarValue + viewWidth) + m_offset;
+        const auto tickRange = targetEndTick - sceneXToTick(hBarValue) - m_offset;
 
-    const auto viewWidth = viewport()->width();
-    const auto hBarValue = horizontalBarValue();
-    const auto targetEndTick = sceneXToTick(hBarValue + viewWidth) + m_offset;
-    const auto tickRange = targetEndTick - sceneXToTick(hBarValue) - m_offset;
-
-    if (m_playbackPosition > targetEndTick) {
-        if (m_playbackPosition > targetEndTick + tickRange)
+        if (m_playbackPosition > targetEndTick) {
+            if (m_playbackPosition > targetEndTick + tickRange)
+                setViewportStartTick(m_playbackPosition);
+            else
+                pageAdd();
+        } else if (m_playbackPosition < startTick()) {
             setViewportStartTick(m_playbackPosition);
-        else
-            pageAdd();
-    } else if (m_playbackPosition < startTick()) {
-        setViewportStartTick(m_playbackPosition);
+        }
     }
+
+    updatePlaybackIndicator(oldTick);
+}
+
+QRect TimeGraphicsView::playbackIndicatorViewportRect(double tick) const {
+    if (!viewport())
+        return {};
+
+    const auto sceneX = tickToSceneX(tick - m_offset);
+    const auto viewportX = viewportTransform().map(QPointF(sceneX, 0)).x();
+    if (!std::isfinite(viewportX))
+        return {};
+
+    constexpr qreal updateMargin = 2.0;
+    return QRectF(viewportX - updateMargin, 0, updateMargin * 2, viewport()->height())
+        .toAlignedRect()
+        .intersected(viewport()->rect());
+}
+
+void TimeGraphicsView::updatePlaybackIndicator(double oldTick) {
+    const auto oldRect = playbackIndicatorViewportRect(oldTick);
+    const auto newRect = playbackIndicatorViewportRect(m_playbackPosition);
+    if (!oldRect.isEmpty())
+        viewport()->update(oldRect);
+    if (!newRect.isEmpty() && newRect != oldRect)
+        viewport()->update(newRect);
 }
 
 void TimeGraphicsView::setLastPlaybackPosition(double tick) {
@@ -878,12 +901,7 @@ void TimeGraphicsView::setPlayPosIndicatorColor(const QColor &color) {
     if (m_playPosIndicatorColor == color)
         return;
     m_playPosIndicatorColor = color;
-    if (m_scenePlayPosIndicator) {
-        auto pen = m_scenePlayPosIndicator->pen();
-        pen.setColor(color);
-        m_scenePlayPosIndicator->setPen(pen);
-        m_scenePlayPosIndicator->update();
-    }
+    updatePlaybackIndicator(m_playbackPosition);
 }
 
 QColor TimeGraphicsView::lastPlayPosIndicatorColor() const {

@@ -27,7 +27,7 @@ PianoRollEditorView::PianoRollEditorView(QWidget *parent) : OverlaySplitter(Qt::
             [=](const double tick) {
                 m_pianoRollView->setPlaybackPosition(tick);
             });
-    connect(playbackController, &PlaybackController::positionChanged, this,
+    connect(playbackController, &PlaybackController::visualPositionChanged, this,
             [=](const double tick) {
                 paramGraphicsView->setPlaybackPosition(tick);
             });
