@@ -1,5 +1,7 @@
-#include "UI/Views/ClipEditor/PianoRoll/NoteDrawUtils.h"
+#include "UI/Views/ClipEditor/PianoRoll/NoteEditUtils.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
+
+#include <lite/MusicBase/Timeline.h>
 
 #include <QCoreApplication>
 #include <QTextStream>
@@ -20,13 +22,25 @@ int main(int argc, char *argv[]) {
 
     constexpr int startTick = 480;
     constexpr int quantize = 120;
-    expect(NoteDrawUtils::lengthForSnappedEnd(startTick, 960, quantize) == 480,
+    expect(NoteEditUtils::lengthForSnappedEnd(startTick, 960, quantize) == 480,
            "dragging right must extend a note to the current snapped endpoint");
-    expect(NoteDrawUtils::lengthForSnappedEnd(startTick, 720, quantize) == 240,
+    expect(NoteEditUtils::lengthForSnappedEnd(startTick, 720, quantize) == 240,
            "dragging back left must shorten a previously extended note");
-    expect(NoteDrawUtils::lengthForSnappedEnd(startTick, 480, quantize) == quantize &&
-               NoteDrawUtils::lengthForSnappedEnd(startTick, 240, quantize) == quantize,
+    expect(NoteEditUtils::lengthForSnappedEnd(startTick, 480, quantize) == quantize &&
+               NoteEditUtils::lengthForSnappedEnd(startTick, 240, quantize) == quantize,
            "drawing at or before the start must retain one quantization step");
+
+    const Timeline timeline;
+    constexpr int clipStart = 100;
+    expect(NoteEditUtils::snapLocalDown(310.0, clipStart, quantize, timeline) == 140 &&
+               NoteEditUtils::snapLocalNearest(310.0, clipStart, quantize, timeline) == 260,
+           "draw/left-resize and right-resize must retain their legacy absolute snap policies");
+    expect(NoteEditUtils::moveDelta(179.9, quantize) == 120 &&
+               NoteEditUtils::moveDelta(181.0, quantize) == 240,
+           "note movement must snap the pointer delta instead of the note's absolute start");
+    expect(NoteEditUtils::leftResizeDelta(480, 240, 700, quantize) == 120 &&
+               NoteEditUtils::rightResizeDelta(480, 240, 500, quantize) == -120,
+           "note resizing must retain at least one quantization step");
 
     using EditorSelectionUtils::OrderedSelectionModel;
     constexpr auto ctrlShift = Qt::ControlModifier | Qt::ShiftModifier;
