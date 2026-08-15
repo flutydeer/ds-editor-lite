@@ -14,7 +14,9 @@
 #include "TempoComboBox.h"
 #include "TimeSignatureComboBox.h"
 #include "Global/AppGlobal.h"
+#include "UI/Views/BottomPanelView.h"
 #include "UI/Views/Common/EditorShortcutUtils.h"
+#include "UI/Window/MainWindow.h"
 
 #include <QColor>
 #include <QEvent>
@@ -106,8 +108,13 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     });
     m_btnPlayPause->setFixedSize(0, 0);
 
-    EditorShortcutUtils::addApplication(this, QKeySequence(Qt::Key_Space), m_btnPlayPause,
-                                        &QPushButton::click);
+    EditorShortcutUtils::addApplication(
+        this, QKeySequence(Qt::Key_Space),
+        [](const QWidget *window) {
+            return qobject_cast<const MainWindow *>(window) ||
+                   qobject_cast<const BottomPanelView *>(window);
+        },
+        m_btnPlayPause, &QPushButton::click);
 
     m_btnLoop = new QPushButton;
     m_btnLoop->setObjectName("btnLoop");

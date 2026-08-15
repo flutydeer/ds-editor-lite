@@ -95,11 +95,12 @@ int main(int argc, char *argv[]) {
 
     int applicationActivationCount = 0;
     int toolClickCount = 0;
-    auto *applicationShortcut =
-        EditorShortcutUtils::addApplication(&owner, QKeySequence(Qt::Key_Space), &owner,
-                                            [&applicationActivationCount] {
-                                                ++applicationActivationCount;
-                                            });
+    auto *applicationShortcut = EditorShortcutUtils::addApplication(
+        &owner, QKeySequence(Qt::Key_Space),
+        [&owner, &detachedWindow](const QWidget *window) {
+            return window == &owner || window == &detachedWindow;
+        },
+        &owner, [&applicationActivationCount] { ++applicationActivationCount; });
     QObject::connect(dockedToolButton, &QPushButton::clicked, &owner,
                      [&toolClickCount] { ++toolClickCount; });
     QObject::connect(toolButton, &QPushButton::clicked, &owner,
@@ -131,6 +132,24 @@ int main(int argc, char *argv[]) {
            "application shortcut must preserve space in text input");
     expect(applicationActivationCount == 2,
            "application shortcut must stay disabled while editing text");
+
+    QWidget unrelatedWindow;
+    auto *unrelatedLayout = new QVBoxLayout(&unrelatedWindow);
+    auto *unrelatedControl = new SpaceKeyWidget;
+    unrelatedControl->setFocusPolicy(Qt::StrongFocus);
+    unrelatedLayout->addWidget(unrelatedControl);
+    unrelatedWindow.show();
+    unrelatedWindow.activateWindow();
+    unrelatedControl->setFocus();
+    application.processEvents();
+    QTest::keyClick(unrelatedControl, Qt::Key_Space);
+    application.processEvents();
+    expect(applicationActivationCount == 2,
+           "application shortcut must preserve unrelated window key handling");
+    expect(unrelatedControl->spacePressCount == 1,
+           "unrelated window controls must receive their own space key press");
+    unrelatedWindow.close();
+    application.processEvents();
 
     applicationShortcut->setEnabled(false);
     owner.activateWindow();

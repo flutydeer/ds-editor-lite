@@ -14,6 +14,7 @@
 #include <QTextEdit>
 #include <QWidget>
 
+#include <functional>
 #include <utility>
 
 namespace EditorShortcutUtils {
@@ -36,8 +37,10 @@ namespace EditorShortcutUtils {
 
         class ApplicationShortcutOverrideFilter final : public QObject {
         public:
-            explicit ApplicationShortcutOverrideFilter(QShortcut *shortcut)
-                : QObject(shortcut), m_shortcut(shortcut) {
+            ApplicationShortcutOverrideFilter(
+                QShortcut *shortcut, std::function<bool(const QWidget *)> isWindowAllowed)
+                : QObject(shortcut), m_shortcut(shortcut),
+                  m_isWindowAllowed(std::move(isWindowAllowed)) {
                 qApp->installEventFilter(this);
             }
 
@@ -52,7 +55,8 @@ namespace EditorShortcutUtils {
                 if (!m_shortcut->keys().contains(QKeySequence(keyEvent->keyCombination())))
                     return false;
 
-                if (isTextInput(QApplication::focusWidget()) ||
+                if (!m_isWindowAllowed(QApplication::activeWindow()) ||
+                    isTextInput(QApplication::focusWidget()) ||
                     QApplication::activePopupWidget() || QApplication::activeModalWidget() ||
                     qobject_cast<QDialog *>(QApplication::activeWindow())) {
                     event->accept();
@@ -65,6 +69,7 @@ namespace EditorShortcutUtils {
 
         private:
             QShortcut *m_shortcut;
+            std::function<bool(const QWidget *)> m_isWindowAllowed;
         };
 
     } // namespace Detail
@@ -78,12 +83,13 @@ namespace EditorShortcutUtils {
         return shortcut;
     }
 
-    template <typename Receiver, typename Slot>
-    QShortcut *addApplication(QWidget *owner, const QKeySequence &key, Receiver *receiver,
-                              Slot &&slot) {
+    template <typename WindowPredicate, typename Receiver, typename Slot>
+    QShortcut *addApplication(QWidget *owner, const QKeySequence &key,
+                              WindowPredicate &&isWindowAllowed, Receiver *receiver, Slot &&slot) {
         auto *shortcut = new QShortcut(key, owner);
         shortcut->setContext(Qt::ApplicationShortcut);
-        new Detail::ApplicationShortcutOverrideFilter(shortcut);
+        new Detail::ApplicationShortcutOverrideFilter(
+            shortcut, std::forward<WindowPredicate>(isWindowAllowed));
         QObject::connect(shortcut, &QShortcut::activated, receiver, std::forward<Slot>(slot));
         return shortcut;
     }
