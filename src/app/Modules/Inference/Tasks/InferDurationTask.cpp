@@ -206,6 +206,7 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
         abort();
         return false;
     }
+    InferRunSerializationGuard runGuard;
     auto exp = inferenceDuration->start(input);
     if (!exp) {
         qCritical().noquote().nospace() << "inferDuration: Failed to start duration inference for "

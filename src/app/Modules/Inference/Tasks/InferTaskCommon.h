@@ -75,6 +75,23 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
                        const InferSpeakerMix &speakerMix,
                        const std::map<std::string, std::string> &speakerMapping, QString &error)
     -> std::vector<srt::svs::Api::Common::L1::InputWordInfo>;
+// Serializes ONNX inference Run() calls globally when the DirectML EP is
+// active. DML's command recorder is not safe under concurrent Run() across
+// sessions (drive-level access violation), so inference tasks (duration/pitch/
+// variance/acoustic) must not overlap under DirectML. Is a no-op for other
+// execution providers (CUDA keeps the existing parallel execution).
+class InferRunSerializationGuard final {
+public:
+    InferRunSerializationGuard();
+    ~InferRunSerializationGuard();
+
+    InferRunSerializationGuard(const InferRunSerializationGuard &) = delete;
+    InferRunSerializationGuard &operator=(const InferRunSerializationGuard &) = delete;
+
+private:
+    bool m_locked = false;
+};
+
 
 auto convertInputParams(const QList<InferParam> &params)
     -> std::vector<srt::svs::Api::Common::L1::InputParameterInfo>;

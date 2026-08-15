@@ -189,6 +189,7 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
         abort();
         return false;
     }
+    InferRunSerializationGuard runGuard;
     auto exp = inferencePitch->start(input);
     if (!exp) {
         qCritical().noquote().nospace() << "inferPitch: Failed to start pitch inference for "

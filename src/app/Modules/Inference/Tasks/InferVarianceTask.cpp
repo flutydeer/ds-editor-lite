@@ -197,6 +197,7 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
         abort();
         return false;
     }
+    InferRunSerializationGuard runGuard;
     auto exp = inferenceVariance->start(input);
     if (!exp) {
         qCritical().noquote().nospace() << "inferVariance: Failed to start variance inference for "
