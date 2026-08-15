@@ -49,6 +49,7 @@
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "LITE_BUILD_TESTS": "OFF",
         "LITE_ENABLE_FILE_LOG": "ON",
+        "LITE_ENABLE_CUDA": "OFF",
         "LITE_INSTALL": "ON",
         "QT_NO_PRIVATE_MODULE_WARNING": "ON"
       }

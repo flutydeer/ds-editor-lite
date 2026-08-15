@@ -230,17 +230,23 @@ QWidget *InferencePage::createContentWidget() {
     // Device - Execution Provider
     constexpr int epIndexCpu = 0;
     constexpr int epIndexDirectML = 1;
+#ifdef ONNXRUNTIME_ENABLE_CUDA
     constexpr int epIndexCuda = 2;
+#endif
     m_cbExecutionProvider = new ComboBox();
     m_cbExecutionProvider->insertItem(epIndexCpu, "CPU");
     m_cbExecutionProvider->insertItem(epIndexDirectML, "DirectML");
+#ifdef ONNXRUNTIME_ENABLE_CUDA
     m_cbExecutionProvider->insertItem(epIndexCuda, "CUDA");
+#endif
     if (option->executionProvider == "CPU")
         m_cbExecutionProvider->setCurrentIndex(epIndexCpu);
     else if (option->executionProvider == "DirectML")
         m_cbExecutionProvider->setCurrentIndex(epIndexDirectML);
+#ifdef ONNXRUNTIME_ENABLE_CUDA
     else if (option->executionProvider == "CUDA")
         m_cbExecutionProvider->setCurrentIndex(epIndexCuda);
+#endif
 
     // Device - GPU
     m_cbDeviceList = new ComboBox();

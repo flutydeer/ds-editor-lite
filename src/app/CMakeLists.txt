@@ -46,7 +46,6 @@ lite_add_application(${PROJECT_NAME}
     DEFINES_PRIVATE
         QT_MESSAGELOGCONTEXT
         NOMINMAX
-        ONNXRUNTIME_ENABLE_CUDA
         ONNXRUNTIME_ENABLE_DML
     FEATURES_PRIVATE cxx_std_20
     QT_LINKS_PRIVATE
@@ -148,6 +147,12 @@ endif()
 if(LITE_ENABLE_FILE_LOG)
     qm_configure_target(${PROJECT_NAME}
         DEFINES_PRIVATE LITE_ENABLE_FILE_LOG
+    )
+endif()
+
+if(LITE_ENABLE_CUDA)
+    qm_configure_target(${PROJECT_NAME}
+        DEFINES_PRIVATE ONNXRUNTIME_ENABLE_CUDA
     )
 endif()
 
