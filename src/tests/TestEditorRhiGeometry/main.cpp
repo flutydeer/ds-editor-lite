@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QTextStream>
 
+#include <algorithm>
 #include <cmath>
 
 namespace {
@@ -67,6 +68,21 @@ int main(int argc, char *argv[]) {
         expect(value.coverage >= 0.5f && value.coverage <= 0.7f,
                "clipping must interpolate coverage without leaving the source range");
     }
+
+    QVector<EditorRhiSolidVertex> roundedStroke;
+    EditorRhiGeometry::appendRoundedRectStroke(roundedStroke, QRectF(2.0, -2.0, 6.0, 8.0), 2.0,
+                                               1.2, QColor(255, 255, 255));
+    QVector<EditorRhiSolidVertex> clippedRoundedStroke;
+    EditorRhiGeometry::appendClippedTriangles(clippedRoundedStroke, roundedStroke, clipRect);
+    expect(!clippedRoundedStroke.isEmpty(),
+           "a partially visible rounded stroke must retain visible geometry");
+    for (const auto &value : clippedRoundedStroke) {
+        expect(clipRect.contains(QPointF(value.x, value.y)),
+               "clipped rounded-stroke vertices must stay inside the clip rectangle");
+    }
+    expect(std::any_of(clippedRoundedStroke.cbegin(), clippedRoundedStroke.cend(),
+                       [](const EditorRhiSolidVertex &value) { return value.coverage == 0.0f; }),
+           "clipping must preserve rounded-stroke antialiasing coverage");
 
     QVector<EditorRhiSolidVertex> hairline;
     EditorRhiGeometry::appendAntialiasedHairline(hairline,

@@ -1042,37 +1042,11 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
                         dpr,
                     overlayBottom - overlayTop);
                 const auto overlayColor = palette.clipBorder(clip.colorIndex);
-                if (preview.contains(overlay)) {
-                    EditorRhiGeometry::appendRoundedRectStroke(frame.solidVertices, overlay, radius,
-                                                               1.2 * dpr, overlayColor);
-                } else if (preview.intersects(overlay)) {
-                    const auto clipped = preview.intersected(overlay);
-                    const auto lineWidth = 1.2 * dpr;
-                    if (overlay.left() >= preview.left() && overlay.left() <= preview.right())
-                        EditorRhiGeometry::appendRect(frame.solidVertices,
-                                                      QRectF(overlay.left() - lineWidth * 0.5,
-                                                             clipped.top(), lineWidth,
-                                                             clipped.height()),
-                                                      overlayColor);
-                    if (overlay.right() >= preview.left() && overlay.right() <= preview.right())
-                        EditorRhiGeometry::appendRect(frame.solidVertices,
-                                                      QRectF(overlay.right() - lineWidth * 0.5,
-                                                             clipped.top(), lineWidth,
-                                                             clipped.height()),
-                                                      overlayColor);
-                    if (overlay.top() >= preview.top() && overlay.top() <= preview.bottom())
-                        EditorRhiGeometry::appendRect(frame.solidVertices,
-                                                      QRectF(clipped.left(),
-                                                             overlay.top() - lineWidth * 0.5,
-                                                             clipped.width(), lineWidth),
-                                                      overlayColor);
-                    if (overlay.bottom() >= preview.top() && overlay.bottom() <= preview.bottom())
-                        EditorRhiGeometry::appendRect(frame.solidVertices,
-                                                      QRectF(clipped.left(),
-                                                             overlay.bottom() - lineWidth * 0.5,
-                                                             clipped.width(), lineWidth),
-                                                      overlayColor);
-                }
+                QVector<EditorRhiSolidVertex> overlayVertices;
+                EditorRhiGeometry::appendRoundedRectStroke(overlayVertices, overlay, radius,
+                                                           1.2 * dpr, overlayColor);
+                EditorRhiGeometry::appendClippedTriangles(frame.solidVertices, overlayVertices,
+                                                          preview);
             }
         }
     } else if (clip.type == IClip::Audio) {
