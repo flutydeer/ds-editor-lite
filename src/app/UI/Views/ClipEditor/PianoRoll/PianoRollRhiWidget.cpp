@@ -17,6 +17,7 @@
 #include "UI/Views/ClipEditor/CurveRenderUtils.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "UI/Views/Common/EdgeAutoScroller.h"
+#include "UI/Views/Common/EditorSelectionUtils.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
@@ -1573,9 +1574,22 @@ public:
         scheduleSnapshot();
     }
 
+    bool updateNoteSelection(const Note *note, const bool toggle) const {
+        const auto noteId = note ? note->id() : -1;
+        const auto selected = EditorSelectionUtils::selectionForPress(
+            appStatus->selectedNotes.get(), noteId, toggle);
+        appStatus->selectedNotes = selected;
+        return note && selected.contains(noteId);
+    }
+
     void mousePress(QMouseEvent *event) {
-        if (!clip || event->button() != Qt::LeftButton)
+        if (!clip)
             return;
+        if (event->button() != Qt::LeftButton) {
+            if (!EditorViewGlobal::isPitchEditMode(editMode))
+                updateNoteSelection(noteAt(event->position()), false);
+            return;
+        }
         if (noteErasing)
             finishNoteErase(EditSessionEndReason::Discard);
         if (editMode == EditPitchAnchor) {
@@ -1618,17 +1632,7 @@ public:
             return;
         }
 
-        auto selected = appStatus->selectedNotes.get();
-        if (event->modifiers().testFlag(Qt::ControlModifier)) {
-            if (selected.contains(note->id()))
-                selected.removeAll(note->id());
-            else
-                selected.append(note->id());
-        } else if (!selected.contains(note->id())) {
-            selected = {note->id()};
-        }
-        appStatus->selectedNotes = selected;
-        if (!selected.contains(note->id()))
+        if (!updateNoteSelection(note, event->modifiers().testFlag(Qt::ControlModifier)))
             return;
 
         interactionNoteId = note->id();
@@ -3095,8 +3099,7 @@ void PianoRollRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
     }
 
     if (auto *note = d->noteAt(event->pos())) {
-        if (!appStatus->selectedNotes.get().contains(note->id()))
-            appStatus->selectedNotes = QList<int>{note->id()};
+        d->updateNoteSelection(note, false);
         context.target = PianoRollMenuContext::Target::Note;
         context.noteId = note->id();
         context.selectedNoteIds = appStatus->selectedNotes.get();

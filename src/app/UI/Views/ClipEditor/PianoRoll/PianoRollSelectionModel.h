@@ -23,6 +23,7 @@ public:
     [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
     [[nodiscard]] QList<NoteView *> orderedNoteItems() const;
     void applyNoteSelection(NoteView *noteView, NoteSelectionMode mode);
+    void applyPressSelection(NoteView *noteView, bool toggle);
     void selectOnly(NoteView *noteView);
     void clearSelectionAnchor();
     void invalidateSelectionAnchor(int noteId);
