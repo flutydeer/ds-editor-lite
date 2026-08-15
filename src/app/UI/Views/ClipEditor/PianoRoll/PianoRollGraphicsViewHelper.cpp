@@ -18,6 +18,12 @@
 #include <lite/Support/MathUtils.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
+QString PianoRollGraphicsViewHelper::defaultLyricForNewNote(const SingingClip *clip) {
+    const auto language = clip ? clip->effectiveDefaultLanguage()
+                               : appOptions->general()->defaultSingingLanguage;
+    return appOptions->general()->defaultLyricForLanguage(language);
+}
+
 void PianoRollGraphicsViewHelper::drawNote(const int rStart, const int length, const int keyIndex) {
     qDebug() << "Note drawn rStart:" << rStart << "len:" << length << "key:" << keyIndex;
     const auto singingClip = dynamic_cast<SingingClip *>(clipController->clip());
@@ -26,10 +32,8 @@ void PianoRollGraphicsViewHelper::drawNote(const int rStart, const int length, c
     note->setLocalStart(rStart);
     note->setLength(length);
     note->setKeyIndex(keyIndex);
-    // keep language auto (empty), resolved at inference; pick the default lyric by the effective
-    // language
-    note->setLyric(
-        appOptions->general()->defaultLyricForLanguage(singingClip->effectiveDefaultLanguage()));
+    // keep language auto (empty), resolved at inference
+    note->setLyric(defaultLyricForNewNote(singingClip));
     note->setPronunciation(Pronunciation("", ""));
     clipController->onInsertNote(note);
     clipController->selectNotes(QList({note->id()}), true);

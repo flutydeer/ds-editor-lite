@@ -4,6 +4,7 @@
 #include <lite/ProjectModel/AppModel/Params.h>
 
 #include <QList>
+#include <QString>
 
 class PitchEditorView;
 class EditPitchAnchorHandler;
@@ -16,6 +17,7 @@ class NoteView;
 class SingingClip;
 
 namespace PianoRollGraphicsViewHelper {
+    QString defaultLyricForNewNote(const SingingClip *clip);
     void drawNote(int rStart, int length, int keyIndex);
     void splitNote(int noteId, int tick);
     void editPitch(const QList<DrawCurve *> &curves);

@@ -1565,6 +1565,14 @@ public:
         return false;
     }
 
+    void beginDrawNote(const QPointF &viewportPosition) {
+        interaction = Interaction::Draw;
+        drawStart = snapLocalTick(localTickAt(viewportPosition));
+        drawEnd = drawStart + TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+        drawKey = keyAt(viewportPosition);
+        scheduleSnapshot();
+    }
+
     void mousePress(QMouseEvent *event) {
         if (!clip || event->button() != Qt::LeftButton)
             return;
@@ -1595,11 +1603,7 @@ public:
         if (!noteEditingEnabled())
             return;
         if (editMode == DrawNote && !note) {
-            interaction = Interaction::Draw;
-            drawStart = snapLocalTick(localTickAt(event->position()));
-            drawEnd = drawStart + TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-            drawKey = keyAt(event->position());
-            scheduleSnapshot();
+            beginDrawNote(event->position());
             return;
         }
         if (!note) {
@@ -2142,10 +2146,14 @@ private:
         if (interaction == Interaction::Draw && drawEnd > drawStart) {
             const QRectF rect(drawStart * pixelsPerTick(), (127 - drawKey) * noteHeight * scaleY,
                               (drawEnd - drawStart) * pixelsPerTick(), noteHeight * scaleY);
-            if (scaleX < 0.3)
+            if (scaleX < 0.3) {
                 appendCompactNoteShape(rect, selectedFill);
-            else
+            } else {
                 appendFullNoteShape(rect, selectedFill, selectedBorder);
+                appendNoteText(
+                    rect, PianoRollGraphicsViewHelper::defaultLyricForNewNote(clip), {},
+                    normalForeground, q->pronunciationTextColor(), false, false);
+            }
         }
     }
 
@@ -2979,13 +2987,8 @@ void PianoRollRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
             return;
         }
         if (d->editMode == Select) {
-            d->interaction = Private::Interaction::Draw;
-            d->drawStart = d->snapLocalTick(d->localTickAt(event->position()));
-            d->drawEnd =
-                d->drawStart + TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-            d->drawKey = d->keyAt(event->position());
+            d->beginDrawNote(event->position());
             d->prepareEdgeAutoScroll(event->position());
-            d->scheduleSnapshot();
             event->accept();
             return;
         }
