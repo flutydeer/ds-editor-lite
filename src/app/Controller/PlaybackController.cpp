@@ -8,10 +8,6 @@
 
 PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(this)) {
     Q_D(PlaybackController);
-    d->m_visualPositionTimer.setInterval(positionUpdateIntervalMs);
-    d->m_visualPositionTimer.setTimerType(Qt::PreciseTimer);
-    connect(&d->m_visualPositionTimer, &QTimer::timeout, this,
-            &PlaybackController::updateVisualPosition);
     connect(appModel, &AppModel::timelineChanged, this, [d, this] {
         d->m_visualPositionAnchor = d->m_position;
         d->m_visualPositionClock.restart();
@@ -66,14 +62,12 @@ void PlaybackController::play() {
     d->m_visualPositionAnchor = d->m_position;
     d->m_visualPositionClock.restart();
     emit playbackStatusChanged(Playing);
-    d->m_visualPositionTimer.start();
     emit visualPositionChanged(d->m_position);
 }
 
 void PlaybackController::pause() {
     Q_D(PlaybackController);
     d->m_playbackStatus = Paused;
-    d->m_visualPositionTimer.stop();
     emit playbackStatusChanged(Paused);
     emit visualPositionChanged(d->m_position);
 }
@@ -81,7 +75,6 @@ void PlaybackController::pause() {
 void PlaybackController::stop() {
     Q_D(PlaybackController);
     d->m_playbackStatus = Stopped;
-    d->m_visualPositionTimer.stop();
     emit playbackStatusChanged(Stopped);
     emit visualPositionChanged(d->m_position);
 }
@@ -102,20 +95,21 @@ void PlaybackController::setLastPosition(const double tick) {
     emit lastPositionChanged(tick);
 }
 
-void PlaybackController::sampleRateChanged(const double sr) {
-    Q_D(PlaybackController);
-    d->m_sampleRate = sr;
-}
-
-void PlaybackController::onModelChanged() {
-}
-
-void PlaybackController::updateVisualPosition() {
+void PlaybackController::requestVisualPositionUpdate() {
     Q_D(PlaybackController);
     if (d->m_playbackStatus != Playing || !d->m_visualPositionClock.isValid())
         return;
 
     const auto &timeline = appModel->timeline();
     const auto anchorMs = timeline.tickToMs(d->m_visualPositionAnchor);
-    emit visualPositionChanged(timeline.msToTick(anchorMs + d->m_visualPositionClock.elapsed()));
+    const auto elapsedMs = d->m_visualPositionClock.nsecsElapsed() / 1000000.0;
+    emit visualPositionChanged(timeline.msToTick(anchorMs + elapsedMs));
+}
+
+void PlaybackController::sampleRateChanged(const double sr) {
+    Q_D(PlaybackController);
+    d->m_sampleRate = sr;
+}
+
+void PlaybackController::onModelChanged() {
 }

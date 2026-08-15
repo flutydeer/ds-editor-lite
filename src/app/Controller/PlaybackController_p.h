@@ -2,7 +2,6 @@
 #define PLAYBACKCONTROLLER_P_H
 
 #include <QElapsedTimer>
-#include <QTimer>
 
 #include <functional>
 
@@ -20,7 +19,6 @@ public:
     PlaybackStatus m_playbackStatus = Stopped;
     double m_visualPositionAnchor = 0;
     QElapsedTimer m_visualPositionClock;
-    QTimer m_visualPositionTimer;
     std::function<bool()> m_playbackStartGuard;
 
 private:

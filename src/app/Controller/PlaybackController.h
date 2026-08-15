@@ -46,13 +46,12 @@ public slots:
 
     void setPosition(double tick);
     void setLastPosition(double tick);
+    void requestVisualPositionUpdate();
 
     void sampleRateChanged(double sr);
     void onModelChanged();
 
 private:
-    void updateVisualPosition();
-
     Q_DECLARE_PRIVATE(PlaybackController)
     PlaybackControllerPrivate *d_ptr;
 };
