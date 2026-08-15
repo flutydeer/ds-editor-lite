@@ -1,9 +1,15 @@
 #ifndef EDITORWHEELUTILS_H
 #define EDITORWHEELUTILS_H
 
+#include <QApplication>
 #include <QInputDevice>
+#include <QPointer>
 #include <QTimer>
+#include <QWidget>
 #include <QWheelEvent>
+
+#include <functional>
+#include <utility>
 
 namespace EditorWheelUtils {
 
@@ -40,6 +46,54 @@ namespace EditorWheelUtils {
             return static_cast<int>(startValue - axisValue(event->pixelDelta(), axis));
         return static_cast<int>(startValue - viewportLength * viewportFraction *
                                                  axisValue(event->angleDelta(), axis) / 120.0);
+    }
+
+    namespace Detail {
+
+        class ChildWheelEventFilter final : public QObject {
+        public:
+            ChildWheelEventFilter(QWidget *target, QObject *parent,
+                                  std::function<void(QWheelEvent *)> handler)
+                : QObject(parent), m_target(target), m_handler(std::move(handler)) {
+                qApp->installEventFilter(this);
+            }
+
+        protected:
+            bool eventFilter(QObject *watched, QEvent *event) override {
+                if (event->type() != QEvent::Wheel || !m_target)
+                    return false;
+
+                auto *source = qobject_cast<QWidget *>(watched);
+                if (!source || source == m_target || source->window() != m_target->window() ||
+                    !m_target->isAncestorOf(source)) {
+                    return false;
+                }
+
+                auto *wheelEvent = static_cast<QWheelEvent *>(event);
+                QWheelEvent mappedEvent(
+                    m_target->mapFromGlobal(wheelEvent->globalPosition()),
+                    wheelEvent->globalPosition(), wheelEvent->pixelDelta(), wheelEvent->angleDelta(),
+                    wheelEvent->buttons(), wheelEvent->modifiers(), wheelEvent->phase(),
+                    wheelEvent->inverted(), wheelEvent->source(), wheelEvent->pointingDevice());
+                mappedEvent.ignore();
+                m_handler(&mappedEvent);
+                if (!mappedEvent.isAccepted())
+                    return false;
+
+                event->accept();
+                return true;
+            }
+
+        private:
+            QPointer<QWidget> m_target;
+            std::function<void(QWheelEvent *)> m_handler;
+        };
+
+    } // namespace Detail
+
+    inline void forwardChildWheelEvents(QWidget *target, QObject *owner,
+                                        std::function<void(QWheelEvent *)> handler) {
+        new Detail::ChildWheelEventFilter(target, owner, std::move(handler));
     }
 
     class InputState final {

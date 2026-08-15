@@ -158,6 +158,30 @@ int main(int argc, char *argv[]) {
                140,
            "Shift-wheel gestures must continue mapping the vertical wheel to horizontal scroll");
 
+    QWidget wheelTarget;
+    wheelTarget.resize(300, 200);
+    QWidget wheelChild(&wheelTarget);
+    wheelChild.setGeometry(40, 30, 100, 80);
+    QWidget wheelGrandchild(&wheelChild);
+    wheelGrandchild.setGeometry(10, 15, 40, 30);
+    wheelTarget.show();
+    flush();
+    int forwardedWheelEvents = 0;
+    QPointF forwardedWheelPosition;
+    EditorWheelUtils::forwardChildWheelEvents(
+        &wheelTarget, &wheelTarget, [&](QWheelEvent *event) {
+            ++forwardedWheelEvents;
+            forwardedWheelPosition = event->position();
+            event->accept();
+        });
+    const QPoint targetWheelPosition(65, 55);
+    const auto globalWheelPosition = wheelTarget.mapToGlobal(targetWheelPosition);
+    QWheelEvent childWheel(QPointF(15, 10), globalWheelPosition, {}, QPoint(0, -120),
+                           Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+    QApplication::sendEvent(&wheelGrandchild, &childWheel);
+    expect(forwardedWheelEvents == 1 && forwardedWheelPosition == QPointF(targetWheelPosition),
+           "wheel input from an embedded editor control must be forwarded in target coordinates");
+
     EditorViewportController marginViewport;
     marginViewport.setContentTickRange(0, 20000);
     marginViewport.setLeftMarginPx(10);
