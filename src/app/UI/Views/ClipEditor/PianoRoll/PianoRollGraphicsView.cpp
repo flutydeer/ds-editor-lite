@@ -235,8 +235,7 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
 
     PianoRollMenuContext context;
     context.globalPos = event->globalPos();
-    if (d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote ||
-        d->m_editMode == EraseNote || d->m_editMode == SplitNote) {
+    if (!EditorViewGlobal::isPitchEditMode(d->m_editMode)) {
         const auto scenePos = mapToScene(event->pos());
         context.globalTick = qRound(sceneXToTick(scenePos.x())) + d->m_offset;
         context.keyIndex = 127 - qFloor(scenePos.y() / noteHeight);
@@ -347,17 +346,12 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     d->m_selectionModel->setSelecting(true);
     d->m_selectionModel->setSelectionChangeBarrier(true);
     if (event->button() != Qt::LeftButton &&
-        (d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote ||
-         d->m_editMode == EraseNote || d->m_editMode == SplitNote)) {
+        !EditorViewGlobal::isPitchEditMode(d->m_editMode)) {
         d->m_interactionController->setMouseMoveBehavior(NoteInteractionController::None);
-        if (const auto noteView = d->noteViewAt(event->pos())) {
-            d->m_selectionModel->applyNoteSelection(
-                noteView, PianoRollSelectionModel::NoteSelectionMode::Plain);
-        } else {
-            d->m_selectionModel->clearSelectionAnchor();
-            clearNoteSelections();
+        const auto noteView = d->noteViewAt(event->pos());
+        d->m_selectionModel->applyPressSelection(noteView, false);
+        if (!noteView)
             TimeGraphicsView::mousePressEvent(event);
-        }
         event->ignore();
         return;
     }
