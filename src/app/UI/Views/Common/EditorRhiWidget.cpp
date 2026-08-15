@@ -570,8 +570,6 @@ public:
             submitSamples.append((now - updateRequestedNs) / 1000000.0);
             updateRequestedNs = 0;
         }
-        q->onFrameSubmitted();
-
         if (!appOptions->developer()->enableDiagnostics || cpuSamples.size() < kStatsWindow)
             return;
         qInfo().noquote() << QStringLiteral(
@@ -733,9 +731,6 @@ bool EditorRhiWidget::event(QEvent *event) {
 }
 
 void EditorRhiWidget::onRhiReady() {
-}
-
-void EditorRhiWidget::onFrameSubmitted() {
 }
 
 void EditorRhiWidget::onDevicePixelRatioChanged() {

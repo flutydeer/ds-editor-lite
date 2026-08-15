@@ -117,7 +117,6 @@ protected:
     void dropEvent(QDropEvent *event) override;
     void leaveEvent(QEvent *event) override;
     void onRhiReady() override;
-    void onFrameSubmitted() override;
     void onDevicePixelRatioChanged() override;
 
 private:

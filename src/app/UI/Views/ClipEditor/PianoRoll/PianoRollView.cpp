@@ -302,10 +302,6 @@ int PianoRollView::horizontalBarValue() const {
     return m_rhiView ? m_rhiView->horizontalBarValue() : m_graphicsView->horizontalBarValue();
 }
 
-bool PianoRollView::isRhiBackendActive() const {
-    return m_rhiView != nullptr;
-}
-
 void PianoRollView::onWheelHorScale(QWheelEvent *event) const {
     if (m_rhiView)
         m_rhiView->onWheelHorScale(event);

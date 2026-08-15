@@ -177,15 +177,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
                 m_timeSignatureLane->setVisible(visible);
             });
     connect(playbackController, &PlaybackController::visualPositionChanged, this,
-            [this](const double tick) {
-                if (m_rhiView)
-                    onPositionChanged(tick);
-            });
-    connect(playbackController, &PlaybackController::positionChanged, this,
-            [this](const double tick) {
-                if (m_graphicsView)
-                    onPositionChanged(tick);
-            });
+            &TrackEditorView::onPositionChanged);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &TrackEditorView::onLastPositionChanged);
     connect(appModel, &AppModel::modelChanged, this, &TrackEditorView::onModelChanged);

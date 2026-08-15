@@ -36,7 +36,6 @@ public:
     bool revealFocus(const HistoryFocus &focus, bool animated = true) const;
     [[nodiscard]] double scaleX() const;
     [[nodiscard]] int horizontalBarValue() const;
-    [[nodiscard]] bool isRhiBackendActive() const;
 
 public slots:
     void onEditModeChanged(ClipEditorGlobal::PianoRollEditMode mode) const;

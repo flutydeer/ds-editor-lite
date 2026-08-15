@@ -6,8 +6,18 @@
 #include <lite/GUI/Controls/Toast.h>
 #include "Global/AppGlobal.h"
 
+#include <QGuiApplication>
+#include <QScreen>
+#include <QWindow>
+
+#include <chrono>
+#include <cmath>
+
 PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(this)) {
     Q_D(PlaybackController);
+    d->m_visualPositionTimer.setTimerType(Qt::PreciseTimer);
+    connect(&d->m_visualPositionTimer, &QChronoTimer::timeout, this,
+            &PlaybackController::requestVisualPositionUpdate);
     connect(appModel, &AppModel::timelineChanged, this, [d, this] {
         d->m_visualPositionAnchor = d->m_position;
         d->m_visualPositionClock.restart();
@@ -62,12 +72,15 @@ void PlaybackController::play() {
     d->m_visualPositionAnchor = d->m_position;
     d->m_visualPositionClock.restart();
     emit playbackStatusChanged(Playing);
+    updateVisualPositionTimerInterval();
+    d->m_visualPositionTimer.start();
     emit visualPositionChanged(d->m_position);
 }
 
 void PlaybackController::pause() {
     Q_D(PlaybackController);
     d->m_playbackStatus = Paused;
+    d->m_visualPositionTimer.stop();
     emit playbackStatusChanged(Paused);
     emit visualPositionChanged(d->m_position);
 }
@@ -75,6 +88,7 @@ void PlaybackController::pause() {
 void PlaybackController::stop() {
     Q_D(PlaybackController);
     d->m_playbackStatus = Stopped;
+    d->m_visualPositionTimer.stop();
     emit playbackStatusChanged(Stopped);
     emit visualPositionChanged(d->m_position);
 }
@@ -100,10 +114,24 @@ void PlaybackController::requestVisualPositionUpdate() {
     if (d->m_playbackStatus != Playing || !d->m_visualPositionClock.isValid())
         return;
 
+    updateVisualPositionTimerInterval();
     const auto &timeline = appModel->timeline();
     const auto anchorMs = timeline.tickToMs(d->m_visualPositionAnchor);
     const auto elapsedMs = d->m_visualPositionClock.nsecsElapsed() / 1000000.0;
     emit visualPositionChanged(timeline.msToTick(anchorMs + elapsedMs));
+}
+
+void PlaybackController::updateVisualPositionTimerInterval() {
+    Q_D(PlaybackController);
+    const auto *window = QGuiApplication::focusWindow();
+    const auto *screen = window ? window->screen() : QGuiApplication::primaryScreen();
+    auto refreshRate = screen ? screen->refreshRate() : 60.0;
+    if (!std::isfinite(refreshRate) || refreshRate <= 0.0)
+        refreshRate = 60.0;
+    const auto interval =
+        std::chrono::nanoseconds(qMax<qint64>(1, qRound64(1000000000.0 / refreshRate)));
+    if (d->m_visualPositionTimer.interval() != interval)
+        d->m_visualPositionTimer.setInterval(interval);
 }
 
 void PlaybackController::sampleRateChanged(const double sr) {

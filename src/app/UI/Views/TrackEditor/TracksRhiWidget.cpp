@@ -812,15 +812,6 @@ void TracksRhiWidget::onRhiReady() {
     scheduleSnapshot();
 }
 
-void TracksRhiWidget::onFrameSubmitted() {
-    EditorRhiWidget::onFrameSubmitted();
-    if (playbackController->playbackStatus() != Playing)
-        return;
-    QMetaObject::invokeMethod(playbackController,
-                              &PlaybackController::requestVisualPositionUpdate,
-                              Qt::QueuedConnection);
-}
-
 void TracksRhiWidget::onDevicePixelRatioChanged() {
     EditorRhiWidget::onDevicePixelRatioChanged();
     m_glyphAtlas.clear();

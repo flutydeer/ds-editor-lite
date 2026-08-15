@@ -122,7 +122,6 @@ protected:
     bool event(QEvent *event) override;
 
     virtual void onRhiReady();
-    virtual void onFrameSubmitted();
     virtual void onDevicePixelRatioChanged();
 
 private:
