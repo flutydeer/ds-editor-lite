@@ -9,6 +9,8 @@
 
 #include <QObject>
 
+#include <functional>
+
 using namespace PlaybackGlobal;
 
 class PlaybackControllerPrivate;
@@ -29,9 +31,11 @@ public:
 
     [[nodiscard]] double position() const;
     [[nodiscard]] double lastPosition() const;
+    void setPlaybackStartGuard(std::function<bool()> guard);
 
     signals:
     void positionChanged(double tick);
+    void visualPositionChanged(double tick);
     void lastPositionChanged(double tick);
     void playbackStatusChanged(PlaybackStatus status);
 
@@ -47,6 +51,9 @@ public slots:
     void onModelChanged();
 
 private:
+    void requestVisualPositionUpdate();
+    void updateVisualPositionTimerInterval();
+
     Q_DECLARE_PRIVATE(PlaybackController)
     PlaybackControllerPrivate *d_ptr;
 };

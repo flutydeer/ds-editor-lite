@@ -654,9 +654,7 @@ void MainWindow::detachBottomPanel() {
     m_bottomPanelDetached = true;
     m_detachSplitterState = m_splitter->saveState();
 
-    m_splitter->widget(1)->setParent(nullptr);
-
-    m_bottomPanelView->setWindowFlags(Qt::Window);
+    m_bottomPanelView->setParent(nullptr, Qt::Window);
     m_bottomPanelView->titleBar()->setDetached(true, m_useNativeFrame);
 
     if (!m_useNativeFrame) {
@@ -737,10 +735,10 @@ void MainWindow::attachBottomPanel() {
 
     m_bottomPanelView->hide();
     m_bottomPanelView->titleBar()->setDetached(false, m_useNativeFrame);
-    m_bottomPanelView->setWindowFlags({});
+    m_bottomPanelView->setParent(m_splitter, Qt::Widget);
     m_bottomPanelView->setMinimumWidth(0);
 
-    m_splitter->addWidget(m_bottomPanelView);
+    m_splitter->insertWidget(1, m_bottomPanelView);
     ThemeManager::instance()->removeStyleRoot(m_bottomPanelView);
     m_splitter->restoreState(m_detachSplitterState);
     m_bottomPanelView->show();

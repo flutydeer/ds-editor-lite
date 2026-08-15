@@ -18,6 +18,7 @@ class TimeGridView;
 class TimeIndicatorView;
 class OverlayScrollBar;
 class QHideEvent;
+class QPainter;
 class QShowEvent;
 
 class TimeGraphicsView : public QGraphicsView, public IScalable, public IAnimatable {
@@ -104,6 +105,7 @@ protected:
     void dragLeaveEvent(QDragLeaveEvent *event) override;
     bool event(QEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
+    void drawForeground(QPainter *painter, const QRectF &rect) override;
     void resizeEvent(QResizeEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
@@ -162,6 +164,8 @@ private:
     void onEdgeAutoScrollTimerFrame(double dtMs);
     void updateEdgeAutoScrollState(const QPoint &viewportPos);
     void updateAutoPageTurnAvailability();
+    [[nodiscard]] QRect playbackIndicatorViewportRect(double tick) const;
+    void updatePlaybackIndicator(double oldTick);
 
     double m_hZoomingStep = 0.4;
     double m_vZoomingStep = 0.3;
@@ -197,7 +201,6 @@ private:
 
     TimeGraphicsScene *m_scene;
     TimeGridView *m_gridItem = nullptr;
-    TimeIndicatorView *m_scenePlayPosIndicator = nullptr;
     TimeIndicatorView *m_sceneLastPlayPosIndicator = nullptr;
 
     int m_offset = 0;
@@ -206,8 +209,6 @@ private:
     bool m_autoPageTurnAvailable = false;
     double m_playbackPosition = 0;
     double m_lastPlaybackPosition = 0;
-    double m_pendingPosition = 0;
-    QTimer m_positionThrottle;
 
     QColor m_barLineColor = {8, 9, 10};
     QColor m_beatLineColor = {22, 25, 28};

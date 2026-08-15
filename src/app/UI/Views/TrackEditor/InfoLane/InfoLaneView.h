@@ -4,7 +4,6 @@
 #include "UI/Utils/ITimelinePainter.h"
 
 #include <QColor>
-#include <QTimer>
 #include <QWidget>
 
 // A horizontally-synced strip below the timeline ruler that displays one kind
@@ -107,9 +106,7 @@ private:
     QList<Chip> m_chips;
     int m_hoveredChip = -1;
     double m_position = 0;
-    double m_pendingPosition = 0;
     double m_lastPosition = 0;
-    QTimer m_positionThrottle;
 };
 
 #endif // INFOLANEVIEW_H

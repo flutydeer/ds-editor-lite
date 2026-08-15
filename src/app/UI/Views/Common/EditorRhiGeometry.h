@@ -16,6 +16,12 @@ struct EditorRhiSolidVertex {
     float coverage = 1.0f;
 };
 
+struct EditorRhiOverlayRect {
+    QRectF physicalViewportRect;
+    QColor color;
+    float coverage = 1.0f;
+};
+
 namespace EditorRhiGeometry {
     void appendRect(QVector<EditorRhiSolidVertex> &vertices, const QRectF &physicalRect,
                     const QColor &color, float coverage = 1.0f);
@@ -39,6 +45,9 @@ namespace EditorRhiGeometry {
     void appendAntialiasedVerticalLine(QVector<EditorRhiSolidVertex> &vertices, double physicalX,
                                        double top, double bottom, double physicalWidth,
                                        const QColor &color, double physicalCameraX = 0.0);
+    void appendAntialiasedVerticalOverlay(QVector<EditorRhiOverlayRect> &rects,
+                                          double physicalViewportX, double top, double bottom,
+                                          double physicalWidth, const QColor &color);
     void appendAntialiasedHorizontalLine(QVector<EditorRhiSolidVertex> &vertices, double physicalY,
                                          double left, double right, double physicalWidth,
                                          const QColor &color, double physicalCameraY = 0.0);

@@ -79,6 +79,7 @@ private:
 
     void handlePlaybackStatusChanged(PlaybackStatus status);
     void handlePlaybackPositionChanged(double positionTick) const;
+    bool ensurePlaybackDeviceStarted() const;
     void tickLevelMeters();
 
     void handleModelChanged();

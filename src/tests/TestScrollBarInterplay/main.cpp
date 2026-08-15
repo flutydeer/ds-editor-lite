@@ -207,6 +207,22 @@ int main(int argc, char *argv[]) {
                qFuzzyCompare(focusViewport.verticalOffset(), 396.0) && focusViewportChanges == 2,
            "revealing toward the leading edges must preserve the requested margin");
 
+    EditorViewportController boundedViewport;
+    boundedViewport.setEnsureContentFillsViewport(false, false);
+    boundedViewport.setContentTickRange(0, 100000);
+    boundedViewport.setVerticalContent(2, 100);
+    boundedViewport.setViewportSize(QSizeF(800, 300));
+    int boundedViewportChanges = 0;
+    QObject::connect(&boundedViewport, &EditorViewportController::viewportChanged, &rhiViewport,
+                     [&boundedViewportChanges] { ++boundedViewportChanges; });
+    boundedViewport.setStartTick(1000000);
+    expect(boundedViewportChanges == 1,
+           "scrolling to the content boundary must notify the viewport once");
+    boundedViewport.setStartTick(1000000);
+    boundedViewport.scrollBy(QPointF(100, 100));
+    expect(boundedViewportChanges == 1,
+           "repeated scrolling beyond a clamped boundary must not notify the viewport");
+
     if (g_failures == 0) {
         QTextStream(stdout) << "All ScrollBarInterplay tests passed" << Qt::endl;
         return 0;

@@ -15,7 +15,6 @@
 #include <lite/History/HistoryFocus.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 
-#include <QTimer>
 #include <QUrl>
 
 #include <memory>
@@ -158,7 +157,8 @@ private:
     void appendGrid(EditorRhiFrameData &frame, double dpr) const;
     void appendClips(EditorRhiFrameData &frame, double dpr);
     void appendClip(EditorRhiFrameData &frame, const ClipSnapshot &clip, double dpr);
-    void appendPlaybackIndicators(EditorRhiFrameData &frame, double dpr) const;
+    void appendLastPlaybackIndicator(EditorRhiFrameData &frame, double dpr) const;
+    void updatePlaybackOverlay();
     void appendDropOverlay(EditorRhiFrameData &frame, double dpr) const;
     [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex,
                                                  double dpr) const;
@@ -234,11 +234,10 @@ private:
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;
     QVector<ClipSnapshot> m_clipSnapshots;
     QVector<ClipSnapshot> m_pastePreviewSnapshots;
+    QVector<EditorRhiOverlayRect> m_playbackOverlayRects;
     bool m_snapshotScheduled = false;
     double m_playbackPosition = 0.0;
-    double m_pendingPlaybackPosition = 0.0;
     double m_lastPlaybackPosition = 0.0;
-    QTimer m_positionThrottle;
     bool m_autoTurnPage = true;
     bool m_autoPageTurnAvailable = false;
     double m_leftMarginPx = 0.0;

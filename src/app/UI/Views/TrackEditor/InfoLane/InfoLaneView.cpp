@@ -38,16 +38,9 @@ InfoLaneView::InfoLaneView(QWidget *parent) : QWidget(parent) {
     connect(appModel, &AppModel::modelChanged, this, applyTimeline);
     connect(appModel, &AppModel::timelineChanged, this, applyTimeline);
 
-    m_positionThrottle.setSingleShot(true);
-    m_positionThrottle.setInterval(33);
-    connect(&m_positionThrottle, &QTimer::timeout, this, [this] {
-        m_position = m_pendingPosition;
-        update();
-    });
     m_position = playbackController->position();
-    m_pendingPosition = m_position;
     m_lastPosition = playbackController->lastPosition();
-    connect(playbackController, &PlaybackController::positionChanged, this,
+    connect(playbackController, &PlaybackController::visualPositionChanged, this,
             &InfoLaneView::setPosition);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &InfoLaneView::setLastPosition);
@@ -126,9 +119,12 @@ void InfoLaneView::setHoveredChip(const int index) {
 }
 
 void InfoLaneView::setPosition(const double tick) {
-    m_pendingPosition = tick;
-    if (!m_positionThrottle.isActive())
-        m_positionThrottle.start();
+    const auto oldX = tickToX(m_position);
+    m_position = tick;
+    const auto newX = tickToX(m_position);
+    update(QRectF(oldX - 2, 0, 4, height()).toAlignedRect());
+    if (qRound(oldX) != qRound(newX))
+        update(QRectF(newX - 2, 0, 4, height()).toAlignedRect());
 }
 
 void InfoLaneView::setLastPosition(const double tick) {

@@ -375,15 +375,21 @@ public:
     }
 
     void setPlaybackPosition(const double tick) {
-        pendingPlaybackPosition = tick;
-        if (!positionThrottle.isActive())
-            positionThrottle.start();
+        playbackPosition = tick;
+        handleAutoPageTurn();
+        if (!snapshotScheduled)
+            updatePlaybackOverlay();
     }
 
-    void applyPendingPlaybackPosition() {
-        playbackPosition = pendingPlaybackPosition;
-        handleAutoPageTurn();
-        scheduleSnapshot();
+    void updatePlaybackOverlay() {
+        playbackOverlayRects.clear();
+        if (clip && q->width() > 0 && q->height() > 0) {
+            const auto currentX = (playbackPosition - clip->start()) * pixelsPerTick() * dpr;
+            EditorRhiGeometry::appendAntialiasedVerticalOverlay(
+                playbackOverlayRects, currentX - cameraX * dpr, 0.0, q->height() * dpr, dpr,
+                q->playPosIndicatorColor());
+        }
+        playbackOverlayRects = q->submitOverlay(std::move(playbackOverlayRects));
     }
 
     void setAutoPageTurn(const bool enabled) {
@@ -405,17 +411,21 @@ public:
         if (viewportLength <= 0.0)
             return;
 
+        const auto previousCameraX = cameraX;
         if (playbackPosition > viewportEnd) {
             const auto targetStart = playbackPosition - viewportLength;
             if (targetStart > viewportEnd)
                 cameraX = (playbackPosition - clip->start()) * pixelsPerTick();
             else
                 cameraX += q->width();
-            viewportChanged(false);
         } else if (playbackPosition < viewportStart) {
             cameraX = (playbackPosition - clip->start()) * pixelsPerTick();
-            viewportChanged(false);
+        } else {
+            return;
         }
+        clampCamera();
+        if (!qFuzzyIsNull(cameraX - previousCameraX))
+            viewportChanged(false);
     }
 
     void updateAutoPageTurnAvailability() {
@@ -1762,7 +1772,10 @@ public:
     }
 
     void rebuildSnapshot() {
+        auto frame = q->acquireFrame();
+        vertices = std::move(frame.solidVertices);
         vertices.clear();
+        drawList = std::move(frame.drawList);
         drawList.clear();
         dpr = q->devicePixelRatioF();
         glyphAtlas.beginFrame();
@@ -1780,18 +1793,18 @@ public:
             appendPitch(localStart, localEnd);
             appendAnchors(localStart, localEnd);
             appendClipMask(localStart, localEnd, sceneTop, sceneBottom);
-            appendPlaybackIndicators(sceneTop, sceneBottom);
+            appendLastPlaybackIndicator(sceneTop, sceneBottom);
             appendRubberBand();
             appendSplitPreview();
         }
-        EditorRhiFrameData frame;
         frame.clearColor = q->whiteKeyColor();
         frame.physicalCameraOffset = physicalCameraOffset();
-        frame.solidVertices = vertices;
         drawList.finish(vertices.size());
-        frame.drawList = drawList;
-        frame.textureBatches = glyphAtlas.textureBatches();
+        frame.solidVertices = std::move(vertices);
+        frame.drawList = std::move(drawList);
+        glyphAtlas.populateTextureBatches(frame.textureBatches);
         q->submitFrame(std::move(frame));
+        updatePlaybackOverlay();
     }
 
 private:
@@ -2571,14 +2584,12 @@ private:
         }
     }
 
-    void appendPlaybackIndicators(const double sceneTop, const double sceneBottom) {
+    void appendLastPlaybackIndicator(const double sceneTop, const double sceneBottom) {
         const auto lastX = (lastPlaybackPosition - clip->start()) * pixelsPerTick();
-        const auto currentX = (playbackPosition - clip->start()) * pixelsPerTick();
         for (auto top = sceneTop; top < sceneBottom; top += 6.0) {
             appendPixelAlignedVerticalLine(lastX, top, std::min(top + 4.0, sceneBottom),
                                            q->lastPlayPosIndicatorColor());
         }
-        appendPixelAlignedVerticalLine(currentX, sceneTop, sceneBottom, q->playPosIndicatorColor());
     }
 
     void appendRubberBand() {
@@ -2711,13 +2722,12 @@ public:
     double cameraX = 0.0;
     double cameraY = 0.0;
     double playbackPosition = 0.0;
-    double pendingPlaybackPosition = 0.0;
     double lastPlaybackPosition = 0.0;
-    QTimer positionThrottle;
     bool autoPageTurn = true;
     bool autoPageTurnAvailable = false;
     double dpr = 1.0;
     QVector<Vertex> vertices;
+    QVector<EditorRhiOverlayRect> playbackOverlayRects;
     TimelineLineEmitter timelineEmitter;
     EditorGlyphAtlas glyphAtlas;
     EditorRhiDrawList drawList;
@@ -2760,10 +2770,6 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, this,
             [this] { d->scheduleSnapshot(); });
     connect(appStatus, &AppStatus::noteSelectionChanged, this, [this] { d->scheduleSnapshot(); });
-    d->positionThrottle.setSingleShot(true);
-    d->positionThrottle.setInterval(33);
-    connect(&d->positionThrottle, &QTimer::timeout, this,
-            [this] { d->applyPendingPlaybackPosition(); });
     connect(appModel, &AppModel::timelineChanged, this, [this] {
         d->updateAutoPageTurnAvailability();
         d->scheduleSnapshot();
@@ -3320,7 +3326,7 @@ QColor PianoRollRhiWidget::playPosIndicatorColor() const {
 
 void PianoRollRhiWidget::setPlayPosIndicatorColor(const QColor &color) {
     d->playPosIndicatorColor = color;
-    d->scheduleSnapshot();
+    d->updatePlaybackOverlay();
 }
 
 QColor PianoRollRhiWidget::lastPlayPosIndicatorColor() const {

@@ -58,6 +58,16 @@ namespace {
         blend.dstAlpha = QRhiGraphicsPipeline::One;
         pipeline->setTargetBlends({blend});
     }
+
+    void configureOverlayBlend(QRhiGraphicsPipeline *pipeline) {
+        QRhiGraphicsPipeline::TargetBlend blend;
+        blend.enable = true;
+        blend.srcColor = QRhiGraphicsPipeline::ConstantColor;
+        blend.dstColor = QRhiGraphicsPipeline::OneMinusConstantAlpha;
+        blend.srcAlpha = QRhiGraphicsPipeline::ConstantAlpha;
+        blend.dstAlpha = QRhiGraphicsPipeline::OneMinusConstantAlpha;
+        pipeline->setTargetBlends({blend});
+    }
 }
 
 class EditorRhiWidget::Private {
@@ -84,20 +94,13 @@ public:
             fail(QStringLiteral("QRhi or color texture is unavailable"));
             return;
         }
-
-        const QRhiTextureRenderTargetDescription targetDescription{
-            QRhiColorAttachment(colorTexture)};
-        renderTarget.reset(rhi->newTextureRenderTarget(targetDescription));
-        renderPassDescriptor.reset(renderTarget->newCompatibleRenderPassDescriptor());
-        renderTarget->setRenderPassDescriptor(renderPassDescriptor.get());
-        if (!renderTarget->create()) {
-            fail(QStringLiteral("failed to create color-only render target"));
+        if (!createRenderTargets())
             return;
-        }
 
         uniformBuffer.reset(rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, 64));
-        if (!uniformBuffer->create()) {
-            fail(QStringLiteral("failed to create camera uniform buffer"));
+        blitUniformBuffer.reset(rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, 16));
+        if (!uniformBuffer->create() || !blitUniformBuffer->create()) {
+            fail(QStringLiteral("failed to create editor uniform buffers"));
             return;
         }
 
@@ -108,11 +111,19 @@ public:
             fail(QStringLiteral("failed to create solid shader bindings"));
             return;
         }
+        overlayBindings.reset(rhi->newShaderResourceBindings());
+        if (!overlayBindings->create()) {
+            fail(QStringLiteral("failed to create overlay shader bindings"));
+            return;
+        }
 
         fallbackTexture.reset(rhi->newTexture(QRhiTexture::RGBA8, QSize(1, 1)));
         sampler.reset(rhi->newSampler(QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
                                       QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
-        if (!fallbackTexture->create() || !sampler->create()) {
+        sceneSampler.reset(rhi->newSampler(QRhiSampler::Nearest, QRhiSampler::Nearest,
+                                           QRhiSampler::None, QRhiSampler::ClampToEdge,
+                                           QRhiSampler::ClampToEdge));
+        if (!fallbackTexture->create() || !sampler->create() || !sceneSampler->create()) {
             fail(QStringLiteral("failed to create text sampler resources"));
             return;
         }
@@ -127,11 +138,15 @@ public:
             fail(QStringLiteral("failed to create text shader bindings"));
             return;
         }
+        if (!createSceneBindings())
+            return;
 
         QImage fallbackImage(1, 1, QImage::Format_RGBA8888_Premultiplied);
         fallbackImage.fill(Qt::transparent);
         auto initialUpdates = rhi->nextResourceUpdateBatch();
         initialUpdates->uploadTexture(fallbackTexture.get(), fallbackImage);
+        const qint32 flip = rhi->isYUpInFramebuffer() ? 0 : 1;
+        initialUpdates->updateDynamicBuffer(blitUniformBuffer.get(), 0, sizeof(flip), &flip);
         pendingUpdates.reset(initialUpdates);
 
         if (!createPipelines())
@@ -139,7 +154,8 @@ public:
 
         resourcesReady = true;
         qInfo().noquote() << QStringLiteral(
-                                 "[%1] initialized backend=%2 sampleCount=1 depthStencil=none")
+                                 "[%1] initialized backend=%2 sampleCount=1 depthStencil=none "
+                                 "sceneCache=enabled")
                                  .arg(diagnosticsTag, QString::fromUtf8(rhi->backendName()));
         q->onRhiReady();
     }
@@ -149,17 +165,22 @@ public:
         const auto solidFragment = loadShader(QStringLiteral(":/editor_rhi/solid.frag.qsb"));
         const auto textureVertex = loadShader(QStringLiteral(":/editor_rhi/texture.vert.qsb"));
         const auto textureFragment = loadShader(QStringLiteral(":/editor_rhi/texture.frag.qsb"));
+        const auto sceneVertex = loadShader(QStringLiteral(":/editor_rhi/scene.vert.qsb"));
+        const auto sceneFragment = loadShader(QStringLiteral(":/editor_rhi/scene.frag.qsb"));
+        const auto overlayVertex = loadShader(QStringLiteral(":/editor_rhi/overlay.vert.qsb"));
+        const auto overlayFragment = loadShader(QStringLiteral(":/editor_rhi/overlay.frag.qsb"));
         if (!solidVertex.isValid() || !solidFragment.isValid() || !textureVertex.isValid() ||
-            !textureFragment.isValid()) {
+            !textureFragment.isValid() || !sceneVertex.isValid() || !sceneFragment.isValid() ||
+            !overlayVertex.isValid() || !overlayFragment.isValid()) {
             fail(QStringLiteral("failed to load editor RHI shaders"));
             return false;
         }
 
-        solidPipeline.reset(rhi->newGraphicsPipeline());
-        solidPipeline->setShaderStages({
-            {QRhiShaderStage::Vertex,   solidVertex  },
-            {QRhiShaderStage::Fragment, solidFragment}
-        });
+        solidPipeline.reset();
+        textPipeline.reset();
+        overlayPipeline.reset();
+        scenePipeline.reset();
+
         QRhiVertexInputLayout solidLayout;
         solidLayout.setBindings({{sizeof(EditorRhiSolidVertex)}});
         solidLayout.setAttributes({
@@ -167,9 +188,15 @@ public:
             {0, 1, QRhiVertexInputAttribute::Float4, offsetof(EditorRhiSolidVertex, r)       },
             {0, 2, QRhiVertexInputAttribute::Float,  offsetof(EditorRhiSolidVertex, coverage)},
         });
+
+        solidPipeline.reset(rhi->newGraphicsPipeline());
+        solidPipeline->setShaderStages({
+            {QRhiShaderStage::Vertex,   solidVertex  },
+            {QRhiShaderStage::Fragment, solidFragment}
+        });
         solidPipeline->setVertexInputLayout(solidLayout);
         solidPipeline->setShaderResourceBindings(solidBindings.get());
-        solidPipeline->setRenderPassDescriptor(renderPassDescriptor.get());
+        solidPipeline->setRenderPassDescriptor(sceneRenderPassDescriptor.get());
         solidPipeline->setSampleCount(1);
         solidPipeline->setFlags(QRhiGraphicsPipeline::UsesScissor);
         configurePremultipliedBlend(solidPipeline.get());
@@ -193,7 +220,7 @@ public:
         });
         textPipeline->setVertexInputLayout(textLayout);
         textPipeline->setShaderResourceBindings(fallbackTextBindings.get());
-        textPipeline->setRenderPassDescriptor(renderPassDescriptor.get());
+        textPipeline->setRenderPassDescriptor(sceneRenderPassDescriptor.get());
         textPipeline->setSampleCount(1);
         configureTextBlend(textPipeline.get());
         textPipeline->setFlags(QRhiGraphicsPipeline::UsesScissor |
@@ -202,7 +229,90 @@ public:
             fail(QStringLiteral("failed to create text pipeline"));
             return false;
         }
+
+        overlayPipeline.reset(rhi->newGraphicsPipeline());
+        overlayPipeline->setShaderStages({
+            {QRhiShaderStage::Vertex,   overlayVertex  },
+            {QRhiShaderStage::Fragment, overlayFragment}
+        });
+        overlayPipeline->setVertexInputLayout({});
+        overlayPipeline->setShaderResourceBindings(overlayBindings.get());
+        overlayPipeline->setRenderPassDescriptor(renderPassDescriptor.get());
+        overlayPipeline->setSampleCount(1);
+        overlayPipeline->setFlags(QRhiGraphicsPipeline::UsesBlendConstants);
+        configureOverlayBlend(overlayPipeline.get());
+        if (!overlayPipeline->create()) {
+            fail(QStringLiteral("failed to create overlay pipeline"));
+            return false;
+        }
+
+        scenePipeline.reset(rhi->newGraphicsPipeline());
+        scenePipeline->setShaderStages({
+            {QRhiShaderStage::Vertex,   sceneVertex  },
+            {QRhiShaderStage::Fragment, sceneFragment}
+        });
+        scenePipeline->setVertexInputLayout({});
+        scenePipeline->setShaderResourceBindings(sceneBindings.get());
+        scenePipeline->setRenderPassDescriptor(renderPassDescriptor.get());
+        scenePipeline->setSampleCount(1);
+        if (!scenePipeline->create()) {
+            fail(QStringLiteral("failed to create scene compositing pipeline"));
+            return false;
+        }
         return true;
+    }
+
+    bool createRenderTargets() {
+        if (!rhi || !colorTexture)
+            return false;
+
+        const QRhiTextureRenderTargetDescription targetDescription{
+            QRhiColorAttachment(colorTexture)};
+        renderTarget.reset(rhi->newTextureRenderTarget(targetDescription));
+        renderPassDescriptor.reset(renderTarget->newCompatibleRenderPassDescriptor());
+        renderTarget->setRenderPassDescriptor(renderPassDescriptor.get());
+        if (!renderTarget->create()) {
+            fail(QStringLiteral("failed to create color-only render target"));
+            return false;
+        }
+
+        const auto outputSize = colorTexture->pixelSize();
+        sceneTexture.reset(
+            rhi->newTexture(QRhiTexture::RGBA8, outputSize, 1, QRhiTexture::RenderTarget));
+        if (!sceneTexture->create()) {
+            fail(QStringLiteral("failed to create scene cache texture"));
+            return false;
+        }
+        const QRhiTextureRenderTargetDescription sceneDescription{
+            QRhiColorAttachment(sceneTexture.get())};
+        sceneRenderTarget.reset(rhi->newTextureRenderTarget(sceneDescription));
+        sceneRenderPassDescriptor.reset(sceneRenderTarget->newCompatibleRenderPassDescriptor());
+        sceneRenderTarget->setRenderPassDescriptor(sceneRenderPassDescriptor.get());
+        if (!sceneRenderTarget->create()) {
+            fail(QStringLiteral("failed to create scene cache render target"));
+            return false;
+        }
+        frameDirty = true;
+        return true;
+    }
+
+    bool createSceneBindings() {
+        sceneBindings.reset(rhi->newShaderResourceBindings());
+        sceneBindings->setBindings({
+            QRhiShaderResourceBinding::uniformBuffer(0, QRhiShaderResourceBinding::VertexStage,
+                                                     blitUniformBuffer.get()),
+            QRhiShaderResourceBinding::sampledTexture(1, QRhiShaderResourceBinding::FragmentStage,
+                                                      sceneTexture.get(), sceneSampler.get()),
+        });
+        if (!sceneBindings->create()) {
+            fail(QStringLiteral("failed to create scene cache bindings"));
+            return false;
+        }
+        return true;
+    }
+
+    EditorRhiFrameData acquireFrame() {
+        return std::move(frame);
     }
 
     void submit(EditorRhiFrameData newFrame) {
@@ -212,16 +322,22 @@ public:
         q->update();
     }
 
+    QVector<EditorRhiOverlayRect> submitOverlay(QVector<EditorRhiOverlayRect> newRects) {
+        auto previousRects = std::move(overlayRects);
+        overlayRects = std::move(newRects);
+        q->update();
+        return previousRects;
+    }
+
     void render(QRhiCommandBuffer *cb) {
         if (!resourcesReady || !cb)
             return;
-        if (colorTexture != q->colorTexture() || !renderTarget) {
+        if (colorTexture != q->colorTexture() || !renderTarget || !sceneRenderTarget) {
             // Qt recreates the color buffer on resize / DPI change without
             // re-entering initialize(), so detect the swap here and rebuild the
-            // render target lazily.
+            // render targets lazily.
             colorTexture = q->colorTexture();
-            rebuildRenderTarget();
-            if (!renderTarget)
+            if (!rebuildRenderTargets())
                 return;
         }
 
@@ -233,7 +349,8 @@ public:
 
         ensureBuffer(solidBuffer, solidBufferCapacity,
                      frame.solidVertices.size() *
-                         static_cast<qsizetype>(sizeof(EditorRhiSolidVertex)));
+                         static_cast<qsizetype>(sizeof(EditorRhiSolidVertex)),
+                     frameDirty);
         double uploadedBytes = 0.0;
         if (frameDirty && solidBuffer && !frame.solidVertices.isEmpty()) {
             const auto bytes = frame.solidVertices.size() * sizeof(EditorRhiSolidVertex);
@@ -250,30 +367,29 @@ public:
         }
 
         const auto outputSize = renderTarget->pixelSize();
-        QMatrix4x4 projection;
-        projection.ortho(0.0f, static_cast<float>(outputSize.width()),
-                         static_cast<float>(outputSize.height()), 0.0f, -1.0f, 1.0f);
-        projection.translate(static_cast<float>(-frame.physicalCameraOffset.x()),
-                             static_cast<float>(-frame.physicalCameraOffset.y()));
-        const auto matrix = rhi->clipSpaceCorrMatrix() * projection;
-        updates->updateDynamicBuffer(uniformBuffer.get(), 0, 64, matrix.constData());
+        if (frameDirty) {
+            QMatrix4x4 projection;
+            projection.ortho(0.0f, static_cast<float>(outputSize.width()),
+                             static_cast<float>(outputSize.height()), 0.0f, -1.0f, 1.0f);
+            projection.translate(static_cast<float>(-frame.physicalCameraOffset.x()),
+                                 static_cast<float>(-frame.physicalCameraOffset.y()));
+            const auto matrix = rhi->clipSpaceCorrMatrix() * projection;
+            updates->updateDynamicBuffer(uniformBuffer.get(), 0, 64, matrix.constData());
+        }
         const auto uploadMs = uploadTimer.nsecsElapsed() / 1000000.0;
 
         QElapsedTimer encodeTimer;
         encodeTimer.start();
-        cb->beginPass(renderTarget.get(), frame.clearColor, {1.0f, 0}, updates);
-        cb->setViewport(QRhiViewport(0, 0, outputSize.width(), outputSize.height()));
-        cb->setScissor(QRhiScissor(0, 0, outputSize.width(), outputSize.height()));
-
         int drawCalls = 0;
-        const auto drawSolid = [&](const qsizetype vertexOffset, const qsizetype vertexCount) {
-            if (!solidBuffer || vertexCount <= 0)
+        const auto drawSolid = [&](QRhiGraphicsPipeline *pipeline, QRhiBuffer *buffer,
+                                   const qsizetype vertexOffset, const qsizetype vertexCount) {
+            if (!pipeline || !buffer || vertexCount <= 0)
                 return;
-            cb->setGraphicsPipeline(solidPipeline.get());
+            cb->setGraphicsPipeline(pipeline);
             cb->setShaderResources(solidBindings.get());
             const auto byteOffset =
                 static_cast<quint32>(vertexOffset * sizeof(EditorRhiSolidVertex));
-            const QRhiCommandBuffer::VertexInput binding(solidBuffer.get(), byteOffset);
+            const QRhiCommandBuffer::VertexInput binding(buffer, byteOffset);
             cb->setVertexInput(0, 1, &binding);
             cb->draw(static_cast<quint32>(vertexCount));
             ++drawCalls;
@@ -299,16 +415,51 @@ public:
             cb->draw(static_cast<quint32>(vertexCount));
             ++drawCalls;
         };
-        if (!frame.drawList.commands.isEmpty()) {
-            for (const auto &command : frame.drawList.commands) {
-                if (command.type == EditorRhiDrawCommand::Type::Solid)
-                    drawSolid(command.vertexOffset, command.vertexCount);
-                else
-                    drawTexture(command.pageId, command.vertexOffset, command.vertexCount,
-                                command.color);
+
+        if (frameDirty) {
+            const auto sceneSize = sceneRenderTarget->pixelSize();
+            cb->beginPass(sceneRenderTarget.get(), frame.clearColor, {1.0f, 0}, updates);
+            updates = nullptr;
+            cb->setViewport(QRhiViewport(0, 0, sceneSize.width(), sceneSize.height()));
+            cb->setScissor(QRhiScissor(0, 0, sceneSize.width(), sceneSize.height()));
+            if (!frame.drawList.commands.isEmpty()) {
+                for (const auto &command : frame.drawList.commands) {
+                    if (command.type == EditorRhiDrawCommand::Type::Solid)
+                        drawSolid(solidPipeline.get(), solidBuffer.get(), command.vertexOffset,
+                                  command.vertexCount);
+                    else
+                        drawTexture(command.pageId, command.vertexOffset, command.vertexCount,
+                                    command.color);
+                }
+            } else {
+                drawSolid(solidPipeline.get(), solidBuffer.get(), 0, frame.solidVertices.size());
             }
-        } else {
-            drawSolid(0, frame.solidVertices.size());
+            cb->endPass();
+        }
+
+        cb->beginPass(renderTarget.get(), frame.clearColor, {1.0f, 0}, updates);
+        cb->setViewport(QRhiViewport(0, 0, outputSize.width(), outputSize.height()));
+        cb->setGraphicsPipeline(scenePipeline.get());
+        cb->setShaderResources(sceneBindings.get());
+        cb->draw(3);
+        ++drawCalls;
+        cb->setGraphicsPipeline(overlayPipeline.get());
+        cb->setShaderResources(overlayBindings.get());
+        const QRectF outputRect(0.0, 0.0, outputSize.width(), outputSize.height());
+        for (const auto &overlay : overlayRects) {
+            const auto rect = overlay.physicalViewportRect.intersected(outputRect);
+            const auto alpha = std::clamp(overlay.color.alphaF() * overlay.coverage, 0.0f, 1.0f);
+            if (rect.isEmpty() || alpha <= 0.0)
+                continue;
+            const auto blendColor =
+                QColor::fromRgbF(overlay.color.redF() * alpha, overlay.color.greenF() * alpha,
+                                 overlay.color.blueF() * alpha, alpha);
+            cb->setViewport(QRhiViewport(static_cast<float>(rect.x()), static_cast<float>(rect.y()),
+                                         static_cast<float>(rect.width()),
+                                         static_cast<float>(rect.height())));
+            cb->setBlendConstants(blendColor);
+            cb->draw(3);
+            ++drawCalls;
         }
         cb->endPass();
         const auto encodeMs = encodeTimer.nsecsElapsed() / 1000000.0;
@@ -325,7 +476,7 @@ public:
     }
 
     void ensureBuffer(std::unique_ptr<QRhiBuffer> &buffer, qsizetype &capacity,
-                      const qsizetype requiredBytes) {
+                      const qsizetype requiredBytes, bool &dirty) {
         if (requiredBytes <= 0 || requiredBytes <= capacity)
             return;
         qsizetype newCapacity = std::max<qsizetype>(4096, capacity);
@@ -339,27 +490,23 @@ public:
             return;
         }
         capacity = newCapacity;
-        frameDirty = true;
+        dirty = true;
     }
 
-    void rebuildRenderTarget() {
+    bool rebuildRenderTargets() {
+        scenePipeline.reset();
+        overlayPipeline.reset();
+        textPipeline.reset();
+        solidPipeline.reset();
+        sceneBindings.reset();
+        sceneRenderTarget.reset();
+        sceneRenderPassDescriptor.reset();
+        sceneTexture.reset();
         renderTarget.reset();
         renderPassDescriptor.reset();
         if (!rhi || !colorTexture)
-            return;
-        const QRhiTextureRenderTargetDescription targetDescription{
-            QRhiColorAttachment(colorTexture)};
-        renderTarget.reset(rhi->newTextureRenderTarget(targetDescription));
-        if (renderTarget) {
-            renderPassDescriptor.reset(renderTarget->newCompatibleRenderPassDescriptor());
-            renderTarget->setRenderPassDescriptor(renderPassDescriptor.get());
-            createPipelines(); // 旧 pipeline 引用旧 descriptor，必须重建
-            if (!renderTarget->create()) {
-                renderTarget.reset();
-                renderPassDescriptor.reset();
-                fail(QStringLiteral("failed to recreate render target after buffer swap"));
-            }
-        }
+            return false;
+        return createRenderTargets() && createSceneBindings() && createPipelines();
     }
 
     void invalidateTextures() {
@@ -402,7 +549,7 @@ public:
         }
         const auto required =
             batch.vertices.size() * static_cast<qsizetype>(sizeof(EditorRhiTextVertex));
-        ensureBuffer(resources.vertexBuffer, resources.vertexCapacity, required);
+        ensureBuffer(resources.vertexBuffer, resources.vertexCapacity, required, frameDirty);
         if (frameDirty && resources.vertexBuffer && !batch.vertices.isEmpty()) {
             updates->updateDynamicBuffer(resources.vertexBuffer.get(), 0,
                                          static_cast<quint32>(required),
@@ -423,8 +570,6 @@ public:
             submitSamples.append((now - updateRequestedNs) / 1000000.0);
             updateRequestedNs = 0;
         }
-        q->onFrameSubmitted();
-
         if (!appOptions->developer()->enableDiagnostics || cpuSamples.size() < kStatsWindow)
             return;
         qInfo().noquote() << QStringLiteral(
@@ -458,15 +603,24 @@ public:
     void release() {
         resourcesReady = false;
         textureResources.clear();
+        scenePipeline.reset();
+        overlayPipeline.reset();
         textPipeline.reset();
         solidPipeline.reset();
+        sceneBindings.reset();
         fallbackTextBindings.reset();
+        overlayBindings.reset();
         solidBindings.reset();
+        sceneSampler.reset();
         sampler.reset();
         fallbackTexture.reset();
         solidBuffer.reset();
+        blitUniformBuffer.reset();
         uniformBuffer.reset();
         pendingUpdates.reset();
+        sceneRenderTarget.reset();
+        sceneRenderPassDescriptor.reset();
+        sceneTexture.reset();
         renderTarget.reset();
         renderPassDescriptor.reset();
         solidBufferCapacity = 0;
@@ -477,6 +631,7 @@ public:
     EditorRhiWidget *q;
     QString diagnosticsTag;
     EditorRhiFrameData frame;
+    QVector<EditorRhiOverlayRect> overlayRects;
     bool frameDirty = true;
     bool resourcesReady = false;
     bool failureRequested = false;
@@ -485,12 +640,21 @@ public:
     qsizetype solidBufferCapacity = 0;
     std::unique_ptr<QRhiTextureRenderTarget> renderTarget;
     std::unique_ptr<QRhiRenderPassDescriptor> renderPassDescriptor;
+    std::unique_ptr<QRhiTexture> sceneTexture;
+    std::unique_ptr<QRhiTextureRenderTarget> sceneRenderTarget;
+    std::unique_ptr<QRhiRenderPassDescriptor> sceneRenderPassDescriptor;
     std::unique_ptr<QRhiBuffer> uniformBuffer;
+    std::unique_ptr<QRhiBuffer> blitUniformBuffer;
     std::unique_ptr<QRhiBuffer> solidBuffer;
     std::unique_ptr<QRhiShaderResourceBindings> solidBindings;
+    std::unique_ptr<QRhiShaderResourceBindings> overlayBindings;
+    std::unique_ptr<QRhiShaderResourceBindings> sceneBindings;
     std::unique_ptr<QRhiGraphicsPipeline> solidPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> overlayPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> scenePipeline;
     std::unique_ptr<QRhiTexture> fallbackTexture;
     std::unique_ptr<QRhiSampler> sampler;
+    std::unique_ptr<QRhiSampler> sceneSampler;
     std::unique_ptr<QRhiShaderResourceBindings> fallbackTextBindings;
     std::unique_ptr<QRhiGraphicsPipeline> textPipeline;
     std::unique_ptr<QRhiResourceUpdateBatch> pendingUpdates;
@@ -526,12 +690,16 @@ EditorRhiWidget::EditorRhiWidget(QString diagnosticsTag, QWidget *parent)
 
 EditorRhiWidget::~EditorRhiWidget() = default;
 
+EditorRhiFrameData EditorRhiWidget::acquireFrame() {
+    return d->acquireFrame();
+}
+
 void EditorRhiWidget::submitFrame(EditorRhiFrameData frame) {
     d->submit(std::move(frame));
 }
 
-const EditorRhiFrameData &EditorRhiWidget::frameData() const {
-    return d->frame;
+QVector<EditorRhiOverlayRect> EditorRhiWidget::submitOverlay(QVector<EditorRhiOverlayRect> rects) {
+    return d->submitOverlay(std::move(rects));
 }
 
 QPointF EditorRhiWidget::physicalWindowOffset() const {
@@ -563,9 +731,6 @@ bool EditorRhiWidget::event(QEvent *event) {
 }
 
 void EditorRhiWidget::onRhiReady() {
-}
-
-void EditorRhiWidget::onFrameSubmitted() {
 }
 
 void EditorRhiWidget::onDevicePixelRatioChanged() {
