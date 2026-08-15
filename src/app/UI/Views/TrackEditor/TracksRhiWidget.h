@@ -4,6 +4,7 @@
 #include "AudioWaveformSampler.h"
 #include "AudioClipDragState.h"
 #include "Interface/EditorViewState.h"
+#include "Model/AppStatus/EditorPreview.h"
 #include "TrackEditorContextMenuController.h"
 #include "TracksGraphicsScene.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
@@ -21,6 +22,7 @@
 #include <optional>
 
 class QContextMenuEvent;
+class QEvent;
 class QDragEnterEvent;
 class QDragLeaveEvent;
 class QDragMoveEvent;
@@ -29,6 +31,7 @@ class QHideEvent;
 class QKeyEvent;
 class QMouseEvent;
 class EditorRhiScrollBarController;
+enum class EditSessionEndReason;
 class QResizeEvent;
 class QShowEvent;
 class QWheelEvent;
@@ -101,6 +104,7 @@ signals:
     void externalDropRequested(const TrackDropSlot &slot, const QList<QUrl> &urls);
 
 protected:
+    bool event(QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;
     void hideEvent(QHideEvent *event) override;
@@ -122,11 +126,7 @@ protected:
 private:
     enum class DragMode { None, Move, ResizeLeft, ResizeRight, RectSelect };
 
-    struct NoteSnapshot {
-        int start = 0;
-        int length = 0;
-        int key = 60;
-    };
+    using NoteSnapshot = EditorPreview::Note;
 
     struct ClipSnapshot {
         int id = -1;
@@ -178,6 +178,7 @@ private:
     void updateRubberBandSelection(const QPointF &position);
     void commitDrag();
     void discardDrag();
+    void finishDragSession(EditSessionEndReason reason);
     bool updateClipSelection(const ClipSnapshot &clip, bool toggle) const;
     void syncSelection(const QList<int> &ids, int preferredTrack = -1) const;
     void updateCursor(const QPointF &position);
@@ -251,7 +252,9 @@ private:
     std::optional<AudioClipDragState> m_audioDragState;
     Clip::ClipCommonProperties m_mouseDownProperties;
     int m_mouseDownTrackIndex = -1;
+    int m_mouseDownColorIndex = -1;
     bool m_dragMoved = false;
+    quint64 m_dragSessionId = 0;
 
     // External file drag-and-drop state (Phase 1)
     bool m_externalDragActive = false;

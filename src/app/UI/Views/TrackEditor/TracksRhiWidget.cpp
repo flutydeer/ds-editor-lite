@@ -11,6 +11,7 @@
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Inference/EditSessionManager.h"
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/ITimelinePainter.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
@@ -34,6 +35,7 @@
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QEvent>
 #include <QFontMetricsF>
 #include <QHideEvent>
 #include <QKeyEvent>
@@ -204,6 +206,10 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     connect(appStatus, &AppStatus::activeClipIdChanged, this, &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::pianoRollVisibleRectChanged, this,
             &TracksRhiWidget::scheduleSnapshot);
+    connect(appStatus, &AppStatus::pianoRollNoteEditPreviewChanged, this,
+            &TracksRhiWidget::scheduleSnapshot);
+    connect(appStatus, &AppStatus::pianoRollNoteErasePreviewChanged, this,
+            &TracksRhiWidget::scheduleSnapshot);
     connect(appStatus, &AppStatus::projectEditableLengthChanged, this,
             &TracksRhiWidget::setSceneLength);
     connect(appOptions, &AppOptions::optionsChanged, this,
@@ -220,7 +226,9 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     });
 }
 
-TracksRhiWidget::~TracksRhiWidget() = default;
+TracksRhiWidget::~TracksRhiWidget() {
+    finishDragSession(EditSessionEndReason::Discard);
+}
 
 TrackPanelViewState TracksRhiWidget::viewState() const {
     const auto state = m_viewport.state();
@@ -418,6 +426,12 @@ void TracksRhiWidget::resizeEvent(QResizeEvent *event) {
     emit sizeChanged(event->size());
 }
 
+bool TracksRhiWidget::event(QEvent *event) {
+    if (event->type() == QEvent::WindowDeactivate)
+        discardDrag();
+    return EditorRhiWidget::event(event);
+}
+
 void TracksRhiWidget::showEvent(QShowEvent *event) {
     EditorRhiWidget::showEvent(event);
     updateAutoPageTurnAvailability();
@@ -591,12 +605,9 @@ void TracksRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
             const auto dpr = devicePixelRatioF();
             const auto physicalPosition = m_viewport.viewportToScene(event->position()) * dpr;
             const auto preview = clipPreviewRect(*hit, dpr);
-            QList<int> keys;
-            keys.reserve(hit->notes.size());
-            for (const auto &note : hit->notes)
-                keys.append(note.key);
             const auto layout = SingingClipPreview::computeLayout(
-                preview, keys, SingingClipPreview::maximumNoteHeight * dpr);
+                preview, SingingClipPreview::keyIndices(hit->notes),
+                SingingClipPreview::maximumNoteHeight * dpr);
             if (preview.contains(physicalPosition) && layout.valid()) {
                 targetTick = tickAt(event->position());
                 targetKey = layout.keyIndexAt(physicalPosition.y());
@@ -1006,25 +1017,22 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
     if (!hasPreview || preview.width() < 16.0 * dpr || preview.height() < 32.0 * dpr)
         return;
     if (clip.type == IClip::Singing && !clip.notes.isEmpty()) {
-        QList<int> keys;
-        keys.reserve(clip.notes.size());
-        for (const auto &note : clip.notes)
-            keys.append(note.key);
-        const auto layout = SingingClipPreview::computeLayout(
-            preview, keys, SingingClipPreview::maximumNoteHeight * dpr);
+        const auto layout =
+            SingingClipPreview::computeLayout(preview, SingingClipPreview::keyIndices(clip.notes),
+                                              SingingClipPreview::maximumNoteHeight * dpr);
         const auto noteHeight = layout.noteHeight;
         const auto high = layout.highestKeyIndex;
         const auto contentTop = layout.contentTop;
         const auto noteColor = clip.selected ? selectedFill : fill;
         for (const auto &note : clip.notes) {
-            const auto start = std::max(clip.visibleStartTick, clip.contentStartTick + note.start);
+            const auto start = std::max(clip.visibleStartTick, clip.contentStartTick + note.rStart);
             const auto end =
-                std::min(clip.visibleEndTick, clip.contentStartTick + note.start + note.length);
+                std::min(clip.visibleEndTick, clip.contentStartTick + note.rStart + note.length);
             if (end <= start)
                 continue;
             const auto left = std::max(preview.left(), m_viewport.tickToSceneX(start) * dpr);
             const auto right = std::min(preview.right(), m_viewport.tickToSceneX(end) * dpr);
-            const auto top = contentTop + (high - note.key) * noteHeight;
+            const auto top = contentTop + (high - note.keyIndex) * noteHeight;
             EditorRhiGeometry::appendRect(frame.solidVertices,
                                           QRectF(left, top, right - left, noteHeight), noteColor);
         }
@@ -1232,8 +1240,12 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
                 .arg(singerName.isEmpty() ? tr("(No singer)") : singerName,
                      speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName,
                      singing->defaultLanguage());
-        for (const auto *note : singing->notes())
-            result.notes.append({note->localStart(), note->length(), note->keyIndex()});
+        for (const auto *note : singing->notes()) {
+            result.notes.append({note->id(), note->localStart(), note->length(), note->keyIndex()});
+        }
+        result.notes = SingingClipPreview::projectNotes(result.notes, result.active,
+                                                        appStatus->pianoRollNoteEditPreview.get(),
+                                                        appStatus->pianoRollNoteErasePreview.get());
     }
     return result;
 }
@@ -1325,7 +1337,7 @@ void TracksRhiWidget::showTrackPastePreview(const TrackPastePreviewData &data,
                          speakerName.isEmpty() ? QString() : QStringLiteral(" / ") + speakerName,
                          clip.defaultLanguage);
             for (const auto &note : clip.notes)
-                snapshot.notes.append({note.start, note.length, note.key});
+                snapshot.notes.append({-1, note.start, note.length, note.key});
         } else if (clip.type == IClip::Audio) {
             AudioWaveformSampler sampler;
             sampler.setPath(clip.audioPath);
@@ -1395,6 +1407,7 @@ void TracksRhiWidget::beginClipDrag(const ClipSnapshot &clip, const QMouseEvent 
     m_mouseDownScene = m_viewport.viewportToScene(event->position());
     m_mouseDownProperties = Clip::ClipCommonProperties(*modelClip);
     m_mouseDownTrackIndex = appModel->tracks().indexOf(track);
+    m_mouseDownColorIndex = track->colorIndex();
     m_dragPreview = DragPreview{clip.id, m_mouseDownTrackIndex, m_mouseDownProperties};
     m_audioDragState.reset();
     if (const auto *audioClip = qobject_cast<const AudioClip *>(modelClip);
@@ -1406,6 +1419,11 @@ void TracksRhiWidget::beginClipDrag(const ClipSnapshot &clip, const QMouseEvent 
             m_viewport.sceneXToTick(m_mouseDownScene.x()), timeline);
     }
     m_dragMoved = false;
+    auto clipIds = appStatus->selectedClips.get();
+    if (clipIds.isEmpty())
+        clipIds.append(clip.id);
+    m_dragSessionId =
+        editSessionManager->beginTransaction(AppStatus::EditObjectType::Clip, clip.id, clipIds);
     appStatus->currentEditObject = AppStatus::EditObjectType::Clip;
 }
 
@@ -1433,18 +1451,19 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
             properties.start = left - properties.clipStart;
         }
         const auto track = trackIndexAt(position);
-        if (track >= 0)
+        if (track >= 0) {
             m_dragPreview->trackIndex = track;
+            editorViewController->previewActiveClipTrackColor(
+                appModel->tracks().at(track)->colorIndex());
+        }
     } else if (m_dragMode == DragMode::ResizeLeft) {
         const auto left = snap(originalLeft + deltaTicks);
         if (m_audioDragState) {
             updateAccepted =
                 m_audioDragState->resizeLeftTo(left, originalRight, properties, appModel->timeline());
-        } else if (left < originalRight) {
-            properties.clipStart = std::max(0, left - properties.start);
-            properties.clipLen = originalRight - (properties.start + properties.clipStart);
-        } else
-            updateAccepted = false;
+        } else {
+            updateAccepted = ClipResizeUtils::updateLeftEdge(properties, left);
+        }
     } else if (m_dragMode == DragMode::ResizeRight) {
         const auto right = snap(originalRight + deltaTicks);
         if (m_audioDragState) {
@@ -1472,7 +1491,8 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
 }
 
 void TracksRhiWidget::commitDrag() {
-    if (m_dragPreview && m_dragMoved) {
+    const auto committed = m_dragPreview && m_dragMoved;
+    if (committed) {
         auto properties = m_dragPreview->properties;
         if (m_audioDragState)
             m_audioDragState->writeTruth(properties);
@@ -1480,25 +1500,43 @@ void TracksRhiWidget::commitDrag() {
                      qobject_cast<AudioClip *>(appModel->findClipById(m_dragPreview->clipId)))
             AudioClip::preserveUnchangedTruth(properties, m_mouseDownProperties);
         trackController->onClipPropertyChanged(properties, m_dragPreview->trackIndex);
+    } else if (m_mouseDownColorIndex >= 0) {
+        editorViewController->previewActiveClipTrackColor(m_mouseDownColorIndex);
     }
+    finishDragSession(committed ? EditSessionEndReason::Commit : EditSessionEndReason::Discard);
     m_dragPreview.reset();
     m_audioDragState.reset();
     m_dragMode = DragMode::None;
     m_dragMoved = false;
-    appStatus->currentEditObject = AppStatus::EditObjectType::None;
+    m_mouseDownTrackIndex = -1;
+    m_mouseDownColorIndex = -1;
     disarmDragAutoScroll();
     setSceneLengthExtension(0);
 }
 
 void TracksRhiWidget::discardDrag() {
+    if (m_mouseDownColorIndex >= 0)
+        editorViewController->previewActiveClipTrackColor(m_mouseDownColorIndex);
+    finishDragSession(EditSessionEndReason::Discard);
     m_dragPreview.reset();
     m_audioDragState.reset();
     m_dragMode = DragMode::None;
     m_dragMoved = false;
-    appStatus->currentEditObject = AppStatus::EditObjectType::None;
+    m_mouseDownTrackIndex = -1;
+    m_mouseDownColorIndex = -1;
     disarmDragAutoScroll();
     setSceneLengthExtension(0);
     scheduleSnapshot();
+}
+
+void TracksRhiWidget::finishDragSession(const EditSessionEndReason reason) {
+    if (m_dragSessionId != 0 && editSessionManager->hasActiveTransaction() &&
+        editSessionManager->activeSession().sessionId == m_dragSessionId) {
+        editSessionManager->endTransaction(m_dragSessionId, reason);
+    }
+    m_dragSessionId = 0;
+    if (!editSessionManager->hasActiveTransaction())
+        appStatus->currentEditObject = AppStatus::EditObjectType::None;
 }
 
 bool TracksRhiWidget::updateClipSelection(const ClipSnapshot &clip, const bool toggle) const {
