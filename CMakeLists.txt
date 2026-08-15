@@ -82,3 +82,10 @@ endif()
 # Add source modules
 # ----------------------------------
 add_subdirectory(src)
+
+if(LITE_INSTALL)
+    if(MSVC)
+        set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION "")
+        include(InstallRequiredSystemLibraries)
+    endif()
+endif()

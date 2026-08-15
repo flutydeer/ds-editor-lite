@@ -30,9 +30,9 @@
 namespace {
     using namespace SpeakerMixModel;
 
-    class JsonNlohmann {
+    class JsonStdc {
     public:
-        static nlohmann::json fromQJsonValue(const QJsonValue &v) {
+        static stdc::JsonValue fromQJsonValue(const QJsonValue &v) {
             if (v.isString())
                 return v.toString().toStdString();
 
@@ -43,14 +43,14 @@ namespace {
                 return v.toDouble();
 
             if (v.isArray()) {
-                nlohmann::json ret = nlohmann::json::array();
+                stdc::JsonArray ret;
                 std::ranges::transform(v.toArray(), std::back_inserter(ret),
-                                       &JsonNlohmann::fromQJsonValue);
+                                       &JsonStdc::fromQJsonValue);
                 return ret;
             }
 
             if (v.isObject()) {
-                nlohmann::json ret = nlohmann::json::object();
+                stdc::JsonObject ret;
                 for (auto [key, value] : v.toObject().asKeyValueRange()) {
                     ret[key.toString().toStdString()] = fromQJsonValue(value);
                 }
@@ -60,26 +60,28 @@ namespace {
             return {};
         }
 
-        static QJsonValue toQJsonValue(const nlohmann::json &v) {
-            if (v.is_string())
-                return QString::fromStdString(v.get<std::string>());
+        static QJsonValue toQJsonValue(const stdc::JsonValue &v) {
+            if (v.isString())
+                return QString::fromStdString(v.toString());
 
-            if (v.is_boolean())
-                return v.get<bool>();
+            if (v.isBool())
+                return v.toBool();
 
-            if (v.is_number())
-                return v.get<double>();
+            // An integer and a double are separate types here, but QJsonValue keeps only one
+            if (v.isNumber())
+                return v.toDouble();
 
-            if (v.is_array()) {
+            if (v.isArray()) {
                 QJsonArray ret;
-                std::ranges::transform(v, std::back_inserter(ret), &JsonNlohmann::toQJsonValue);
+                std::ranges::transform(v.toArray(), std::back_inserter(ret),
+                                       &JsonStdc::toQJsonValue);
                 return ret;
             }
 
-            if (v.is_object()) {
+            if (v.isObject()) {
                 QJsonObject ret;
-                for (auto it = v.begin(); it != v.end(); ++it) {
-                    ret[it.key().c_str()] = toQJsonValue(it.value());
+                for (const auto &[key, value] : v.toObject()) {
+                    ret[QString::fromStdString(key)] = toQJsonValue(value);
                 }
                 return ret;
             }
@@ -98,7 +100,7 @@ namespace {
         auto it = workspace.find(kDsWorkspaceKey);
         if (it == workspace.end())
             return {};
-        return JsonNlohmann::toQJsonValue(it->second).toObject();
+        return JsonStdc::toQJsonValue(it->second).toObject();
     }
 
     // Write a QJsonObject into the "ds-editor-lite" key of an opendspx Workspace, preserving other
@@ -106,7 +108,7 @@ namespace {
     void writeDsWorkspace(opendspx::Workspace &workspace, const QJsonObject &obj) {
         if (obj.isEmpty())
             return;
-        workspace[kDsWorkspaceKey] = JsonNlohmann::fromQJsonValue(obj);
+        workspace[kDsWorkspaceKey] = JsonStdc::fromQJsonValue(obj);
     }
 
     // ---- Identifier helpers ----
@@ -489,7 +491,7 @@ namespace {
                                               const SpeakerInfo &speakerInfo) {
         auto singer = std::make_shared<opendspx::SingleSinger>();
         singer->id = encodeDspxSingerId(singerInfo.identifier()).toStdString();
-        singer->extra = JsonNlohmann::fromQJsonValue(encodeSingerExtra(speakerInfo));
+        singer->extra = JsonStdc::fromQJsonValue(encodeSingerExtra(speakerInfo));
         writeDsWorkspace(singer->workspace, encodeSingerSourceWorkspace(singerInfo, speakerInfo));
         return singer;
     }
@@ -576,7 +578,7 @@ namespace {
         if (singerInfo.isEmpty())
             return std::nullopt;
 
-        const auto extra = JsonNlohmann::toQJsonValue(single->extra).toObject();
+        const auto extra = JsonStdc::toQJsonValue(single->extra).toObject();
         QString speakerId;
         if (extra.contains("speaker")) {
             speakerId = extra["speaker"].toString();
@@ -876,7 +878,7 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
             QMap<QString, QJsonObject> workspace;
             for (const auto &[key, value] : dspxNote.workspace) {
                 workspace[QString::fromStdString(key)] =
-                    JsonNlohmann::toQJsonValue(value).toObject();
+                    JsonStdc::toQJsonValue(value).toObject();
             }
             note->setWorkspace(workspace);
             const auto dsWorkspace = dsWorkspaceFrom(dspxNote.workspace);
@@ -908,7 +910,7 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                 QMap<QString, QJsonObject> workspace;
                 for (const auto &[key, value] : castClip->workspace) {
                     workspace[QString::fromStdString(key)] =
-                        JsonNlohmann::toQJsonValue(value).toObject();
+                        JsonStdc::toQJsonValue(value).toObject();
                 }
                 clip->workspace() = workspace;
 
@@ -968,7 +970,7 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                 QMap<QString, QJsonObject> workspace;
                 for (const auto &[key, value] : castClip->workspace) {
                     workspace[QString::fromStdString(key)] =
-                        JsonNlohmann::toQJsonValue(value).toObject();
+                        JsonStdc::toQJsonValue(value).toObject();
                 }
                 clip->workspace() = workspace;
                 clip->setPathInfo(DiffscopeAudioWorkspace::read(workspace));
@@ -1059,7 +1061,7 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
 
     const auto &workspace = dspxModel.content.workspace;
     if (workspace.contains("loop"))
-        loopSettings.deserialize(JsonNlohmann::toQJsonValue(workspace.at("loop")).toObject());
+        loopSettings.deserialize(JsonStdc::toQJsonValue(workspace.at("loop")).toObject());
     else
         loopSettings = LoopSettings();
 
@@ -1167,7 +1169,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             dsWorkspace["phoneme"] = workspacePhoneme;
             workspace[kDsWorkspaceKey] = dsWorkspace;
             for (const auto &[key, value] : workspace.asKeyValueRange()) {
-                note.workspace[key.toStdString()] = JsonNlohmann::fromQJsonValue(value);
+                note.workspace[key.toStdString()] = JsonStdc::fromQJsonValue(value);
             }
             notes.push_back(note);
         }
@@ -1188,7 +1190,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
 
                 // Preserve existing workspace keys
                 for (const auto &[key, value] : clip->workspace().asKeyValueRange()) {
-                    singClip->workspace[key.toStdString()] = JsonNlohmann::fromQJsonValue(value);
+                    singClip->workspace[key.toStdString()] = JsonStdc::fromQJsonValue(value);
                 }
 
                 // Write clip DS workspace (flags/speaker/language)
@@ -1244,7 +1246,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 DiffscopeAudioWorkspace::write(workspace, pathInfo, audioClip->path());
                 for (const auto &[key, value] : workspace.asKeyValueRange()) {
                     audioClipRef->workspace[key.toStdString()] =
-                        JsonNlohmann::fromQJsonValue(value);
+                        JsonStdc::fromQJsonValue(value);
                 }
                 track.clips.push_back(audioClipRef);
             }
@@ -1309,7 +1311,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     encodeTracks(model, dspxModel);
 
     const auto loopSettings = loopSettingsToSave();
-    dspxModel.content.workspace["loop"] = JsonNlohmann::fromQJsonValue(loopSettings.serialize());
+    dspxModel.content.workspace["loop"] = JsonStdc::fromQJsonValue(loopSettings.serialize());
 
     auto saveModelToFile = [](const opendspx::Model &model_, const QString &filePath,
                               QString &msg) -> bool {

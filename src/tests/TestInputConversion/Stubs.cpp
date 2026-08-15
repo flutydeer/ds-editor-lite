@@ -6,10 +6,25 @@
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/Core/IdGenerator.h>
 
+#include "Model/AppOptions/AppOptions.h"
+
 // IdGenerator singleton stub (avoids pulling in AppContext / full singleton impl)
 IdGenerator *IdGenerator::instance() {
     static IdGenerator obj;
     return &obj;
+}
+
+// AppOptions stubs: InferTaskCommon.cpp defines InferRunSerializationGuard, whose
+// constructor reads appOptions->inference()->executionProvider. Only the InferXxxTask
+// translation units construct that guard and this test links none of them, so these
+// definitions exist to satisfy the linker and are never called. Defining AppOptions for
+// real would pull in every Option class plus AppContext.
+AppOptions *AppOptions::instance() {
+    return nullptr;
+}
+
+InferenceOption *AppOptions::inference() {
+    return nullptr;
 }
 
 // InferPiece stubs: only the virtual clipId (vtable entry) and the constructor
