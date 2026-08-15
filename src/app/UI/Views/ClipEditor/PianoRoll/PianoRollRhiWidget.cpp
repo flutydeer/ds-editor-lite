@@ -241,6 +241,7 @@ public:
 
     void setDataContext(SingingClip *newClip) {
         disarmEdgeAutoScroll();
+        noteSelection.clearAnchor();
         finishNoteErase(EditSessionEndReason::Discard);
         finishInlineEditing();
         cancelPitchEdit();
@@ -467,7 +468,7 @@ public:
             return false;
         QList<int> selected;
         const auto bounds = focusSceneRect(focus, &selected);
-        appStatus->selectedNotes = selected;
+        syncNoteSelection(selected);
         return ensureSceneRectVisible(bounds, 24.0, 24.0);
     }
 
@@ -620,6 +621,32 @@ public:
                 return note;
         }
         return nullptr;
+    }
+
+    QList<int> orderedNoteIds() const {
+        QList<const Note *> ordered;
+        if (clip) {
+            ordered.reserve(clip->notes().count());
+            for (const auto *note : clip->notes())
+                ordered.append(note);
+        }
+        std::sort(ordered.begin(), ordered.end(), [](const Note *left, const Note *right) {
+            if (left->localStart() != right->localStart())
+                return left->localStart() < right->localStart();
+            return left->id() < right->id();
+        });
+
+        QList<int> result;
+        result.reserve(ordered.size());
+        for (const auto *note : ordered)
+            result.append(note->id());
+        return result;
+    }
+
+    void syncNoteSelection(const QList<int> &selection) {
+        noteSelection.synchronize(selection);
+        if (appStatus->selectedNotes.get() != selection)
+            clipController->selectNotes(selection, true);
     }
 
     bool noteEditingEnabled() const {
@@ -1585,12 +1612,13 @@ public:
         scheduleSnapshot();
     }
 
-    bool updateNoteSelection(const Note *note, const bool toggle) const {
+    EditorSelectionUtils::PressResult
+        updateNoteSelection(const Note *note, const EditorSelectionUtils::SelectionMode mode) {
         const auto noteId = note ? note->id() : -1;
-        const auto selected = EditorSelectionUtils::selectionForPress(
-            appStatus->selectedNotes.get(), noteId, toggle);
-        appStatus->selectedNotes = selected;
-        return note && selected.contains(noteId);
+        const auto result =
+            noteSelection.press(appStatus->selectedNotes.get(), orderedNoteIds(), noteId, mode);
+        syncNoteSelection(result.selection);
+        return result;
     }
 
     void mousePress(QMouseEvent *event) {
@@ -1598,7 +1626,8 @@ public:
             return;
         if (event->button() != Qt::LeftButton) {
             if (!EditorViewGlobal::isPitchEditMode(editMode))
-                updateNoteSelection(noteContextTargetAt(event->position()).note, false);
+                (void) updateNoteSelection(noteContextTargetAt(event->position()).note,
+                                           EditorSelectionUtils::SelectionMode::Plain);
             return;
         }
         if (noteErasing)
@@ -1632,18 +1661,21 @@ public:
             return;
         }
         if (!note) {
+            noteSelection.clearAnchor();
             interaction = Interaction::RectSelect;
             rubberBandStart = scenePositionAt(event->position());
             rubberBandEnd = rubberBandStart;
             rubberBandBaseSelection = event->modifiers().testFlag(Qt::ControlModifier)
                                           ? appStatus->selectedNotes.get()
                                           : QList<int>();
-            appStatus->selectedNotes = rubberBandBaseSelection;
+            syncNoteSelection(rubberBandBaseSelection);
             scheduleSnapshot();
             return;
         }
 
-        if (!updateNoteSelection(note, event->modifiers().testFlag(Qt::ControlModifier)))
+        const auto selectionResult = updateNoteSelection(
+            note, EditorSelectionUtils::selectionModeForModifiers(event->modifiers()));
+        if (!selectionResult.targetSelected)
             return;
 
         interactionNoteId = note->id();
@@ -1653,6 +1685,8 @@ public:
         mouseDownTick = localTickAt(event->position());
         mouseDownKey = keyAt(event->position());
         interaction = noteInteractionAt(note, event->position());
+        collapseSelectionOnRelease = selectionResult.collapseToTargetOnRelease;
+        interactionMoved = false;
         if (interaction == Interaction::ResizeLeft || interaction == Interaction::ResizeRight)
             q->setCursor(Qt::SizeHorCursor);
         scheduleSnapshot();
@@ -1708,7 +1742,7 @@ public:
             if (selection.intersects(rect) && !selected.contains(note->id()))
                 selected.append(note->id());
         }
-        appStatus->selectedNotes = selected;
+        syncNoteSelection(selected);
         scheduleSnapshot();
     }
 
@@ -1731,7 +1765,7 @@ public:
             PianoRollGraphicsViewHelper::drawNote(drawStart, drawEnd - drawStart, drawKey);
         } else if (interaction != Interaction::None && interaction != Interaction::RectSelect &&
                    interactionNoteId >= 0) {
-            updateInteractionDelta(event->position(), event->modifiers());
+            updateInteractionDelta(event->position(), event->modifiers(), false);
             if (interaction == Interaction::Move) {
                 if (interactionDeltaTick != 0 || interactionDeltaKey != 0)
                     clipController->onMoveNotes(appStatus->selectedNotes.get(),
@@ -1741,18 +1775,26 @@ public:
             } else if (interaction == Interaction::ResizeRight && interactionDeltaTick != 0) {
                 clipController->onResizeNotesRight({interactionNoteId}, interactionDeltaTick);
             }
+            syncNoteSelection(EditorSelectionUtils::OrderedSelectionModel::finalizeClick(
+                appStatus->selectedNotes.get(), interactionNoteId, interactionMoved,
+                collapseSelectionOnRelease));
         }
         interaction = Interaction::None;
         interactionNoteId = -1;
         interactionDeltaTick = 0;
         interactionDeltaKey = 0;
+        interactionMoved = false;
+        collapseSelectionOnRelease = false;
         updateNoteCursor(event->position());
         scheduleSnapshot();
     }
 
-    void updateInteractionDelta(const QPointF &position, const Qt::KeyboardModifiers modifiers) {
+    void updateInteractionDelta(const QPointF &position, const Qt::KeyboardModifiers modifiers,
+                                const bool markMoved = true) {
         if (interaction == Interaction::None || interaction == Interaction::Draw)
             return;
+        if (markMoved)
+            interactionMoved = true;
         const auto rawDelta = localTickAt(position) - mouseDownTick;
         const auto target = modifiers.testFlag(Qt::AltModifier)
                                 ? interactionStart + qRound(rawDelta)
@@ -2688,6 +2730,7 @@ public:
     bool fallbackRequested = false;
     int trackColorIndex = 0;
     PianoRollEditMode editMode = Select;
+    EditorSelectionUtils::OrderedSelectionModel noteSelection;
     Interaction interaction = Interaction::None;
     int interactionNoteId = -1;
     int interactionStart = 0;
@@ -2695,6 +2738,8 @@ public:
     int interactionKey = 60;
     int interactionDeltaTick = 0;
     int interactionDeltaKey = 0;
+    bool interactionMoved = false;
+    bool collapseSelectionOnRelease = false;
     double mouseDownTick = 0.0;
     int mouseDownKey = 60;
     int drawStart = 0;
@@ -2793,7 +2838,11 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
             [this](const QString &) { d->requestFallback(); });
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, this,
             [this] { d->scheduleSnapshot(); });
-    connect(appStatus, &AppStatus::noteSelectionChanged, this, [this] { d->scheduleSnapshot(); });
+    connect(appStatus, &AppStatus::noteSelectionChanged, this, [this](const QList<int> &selection) {
+        d->noteSelection.synchronize(selection);
+        d->scheduleSnapshot();
+    });
+    d->noteSelection.synchronize(appStatus->selectedNotes.get());
     connect(appModel, &AppModel::timelineChanged, this, [this] {
         d->updateAutoPageTurnAvailability();
         d->scheduleSnapshot();
@@ -3111,7 +3160,7 @@ void PianoRollRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
 
     const auto target = d->noteContextTargetAt(event->pos());
     if (auto *note = target.note) {
-        d->updateNoteSelection(note, false);
+        (void) d->updateNoteSelection(note, EditorSelectionUtils::SelectionMode::Plain);
         context.target = PianoRollMenuContext::Target::Note;
         context.noteId = note->id();
         context.selectedNoteIds = appStatus->selectedNotes.get();
