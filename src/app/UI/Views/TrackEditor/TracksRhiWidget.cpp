@@ -1,10 +1,10 @@
 #include "TracksRhiWidget.h"
 
 #include "AudioClipDragState.h"
-#include "ClipSelectionUtils.h"
 #include "ClipResizeUtils.h"
 #include "SingingClipPreviewLayout.h"
 #include "Controller/EditorViewController.h"
+#include "UI/Views/Common/EditorSelectionUtils.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
 #include "Global/AppGlobal.h"
@@ -1499,7 +1499,7 @@ void TracksRhiWidget::discardDrag() {
 
 bool TracksRhiWidget::updateClipSelection(const ClipSnapshot &clip, const bool toggle) const {
     const auto selected =
-        ClipSelectionUtils::selectionForPress(appStatus->selectedClips.get(), clip.id, toggle);
+        EditorSelectionUtils::selectionForPress(appStatus->selectedClips.get(), clip.id, toggle);
     syncSelection(selected, clip.trackIndex);
     if (!selected.contains(clip.id))
         return false;
