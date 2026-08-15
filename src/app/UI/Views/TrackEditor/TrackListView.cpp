@@ -51,14 +51,9 @@ bool TrackListView::moveTrackRow(const int from, const int to) {
         return true;
     if (from < 0 || from >= trackCount() || to < 0 || to >= trackCount())
         return false;
-    auto *item = takeItem(from);
-    if (!item)
-        return false;
-    auto *widget = itemWidget(item);
-    insertItem(to, item);
-    if (widget)
-        setItemWidget(item, widget);
-    return true;
+
+    const auto destination = to > from ? to + 1 : to;
+    return model()->moveRow({}, from, {}, destination);
 }
 
 void TrackListView::setAppendSlotHeight(const int height) {
