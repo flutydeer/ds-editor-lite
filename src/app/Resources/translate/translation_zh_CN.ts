@@ -2258,6 +2258,11 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <translation>配置文件</translation>
     </message>
     <message>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="72"/>
+        <source>Log Folder</source>
+        <translation>日志目录</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="105"/>
         <source>Package Search Paths (needs restart)</source>
         <translation>包搜索路径（需要重启）</translation>
@@ -2268,10 +2273,9 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <translation>GAME 模型目录</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="67"/>
-        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="69"/>
-        <source>App Config</source>
-        <translation>应用配置</translation>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="68"/>
+        <source>App Data</source>
+        <translation>应用数据</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="45"/>
@@ -3517,6 +3521,11 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="860"/>
         <source>&amp;Help</source>
         <translation>帮助(&amp;H)</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="811"/>
+        <source>Open Log Folder...</source>
+        <translation>打开日志目录...</translation>
     </message>
 </context>
 <context>

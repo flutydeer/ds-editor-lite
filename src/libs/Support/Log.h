@@ -52,6 +52,7 @@ public:
     static void setConsoleLogLevel(LogLevel level);
     static void setConsoleTagFilter(const QStringList &tags);
     static void setLogDirectory(const QString &directory);
+    static QString logDirectory();
 
     static void d(const QString &tag, const QString &msg);
     static void i(const QString &tag, const QString &msg);

@@ -11,6 +11,7 @@
 #include <lite/GUI/Controls/PathEditor.h>
 #include "UI/Views/Common/LanguageComboBox.h"
 #include "Global/AppOptionsGlobal.h"
+#include "Utils/AppLogDirectory.h"
 #include "Utils/UiLanguageManager.h"
 
 #include <QLabel>
@@ -64,9 +65,13 @@ QWidget *GeneralPage::createContentWidget() {
     connect(m_btnOpenConfigFolder, &Button::clicked, this,
             [=] { QM::reveal(appOptions->configPath()); });
 
-    const auto configFileCard = new OptionListCard(tr("App Config"));
-    configFileCard->addItem(tr("Config File"), m_btnOpenConfigFolder);
-    configFileCard->setTitle(tr("App Config"));
+    m_btnOpenLogFolder = new Button(tr("Open Folder..."), this);
+    connect(m_btnOpenLogFolder, &Button::clicked, this,
+            [] { AppLogDirectory::openLogDirectory(); });
+
+    const auto appDataCard = new OptionListCard(tr("App Data"));
+    appDataCard->addItem(tr("Config File"), m_btnOpenConfigFolder);
+    appDataCard->addItem(tr("Log Folder"), m_btnOpenLogFolder);
 
     const auto langKey = option->defaultSingingLanguage;
     m_cbDefaultSingingLanguage = new LanguageComboBox(langKey);
@@ -132,7 +137,7 @@ QWidget *GeneralPage::createContentWidget() {
 
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(applicationCard);
-    mainLayout->addWidget(configFileCard);
+    mainLayout->addWidget(appDataCard);
     mainLayout->addWidget(singingCard);
     mainLayout->addWidget(packagePathsCard);
     mainLayout->addWidget(modelCard);

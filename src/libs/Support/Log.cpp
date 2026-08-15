@@ -204,6 +204,12 @@ void Log::setLogDirectory(const QString &directory) {
         e(QStringLiteral("Log"), "Unable to open log file: " + logFilePath);
 }
 
+QString Log::logDirectory() {
+    const auto self = instance();
+    QMutexLocker lock(&self->m_mutex);
+    return self->m_logDirectory;
+}
+
 void Log::d(const QString &tag, const QString &msg) {
     instance()->log(LogMessage(timeStr(), Debug, tag, msg));
 }

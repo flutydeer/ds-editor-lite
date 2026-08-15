@@ -14,6 +14,7 @@ project(lite
 # ----------------------------------
 option(LITE_BUILD_TESTS "Build test targets" OFF)
 option(LITE_ENABLE_BREAKPAD "Enable breakpad for crash reporting" OFF)
+option(LITE_ENABLE_FILE_LOG "Enable file logging (used by packaged builds)" OFF)
 option(LITE_INSTALL "Install the project" OFF)
 
 # ----------------------------------

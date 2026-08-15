@@ -23,9 +23,10 @@ namespace LoggingBootstrap {
             if (!appDataDir.mkpath("."))
                 qFatal() << "Failed to create app data directory";
         }
-        // Log::setLogDirectory(
-        //     QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() +
-        //     "/Logs");
+#ifdef LITE_ENABLE_FILE_LOG
+        Log::setLogDirectory(
+            QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() + "/Logs");
+#endif
         Log::setConsoleLogLevel(Log::Debug);
         // Log::setConsoleTagFilter({"InferPipeline"});
         Log::logSystemInfo();

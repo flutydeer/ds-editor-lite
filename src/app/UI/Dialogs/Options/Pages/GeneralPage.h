@@ -24,6 +24,7 @@ protected:
 private:
     ComboBox *m_cbUiLanguage;
     Button *m_btnOpenConfigFolder;
+    Button *m_btnOpenLogFolder;
     LanguageComboBox *m_cbDefaultSingingLanguage;
     LineEdit *m_leDefaultLyric;
     QString m_previousLanguage;

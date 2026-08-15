@@ -141,6 +141,12 @@ if(LITE_ENABLE_BREAKPAD)
     )
 endif()
 
+if(LITE_ENABLE_FILE_LOG)
+    qm_configure_target(${PROJECT_NAME}
+        DEFINES_PRIVATE LITE_ENABLE_FILE_LOG
+    )
+endif()
+
 if(WIN32)
     find_package(Qt6 REQUIRED COMPONENTS CorePrivate GuiPrivate)
     find_package(QtWin32DirectManipulateHelper CONFIG QUIET)
