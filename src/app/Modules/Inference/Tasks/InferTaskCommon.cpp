@@ -3,7 +3,6 @@
 #include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
 
 #include <utility>
-#include "Model/AppOptions/AppOptions.h"
 
 #include <QCoreApplication>
 
@@ -19,30 +18,6 @@ namespace {
     // so this does not become a bottleneck.
     std::mutex g_modelLoadMutex;
 
-    // Serializes ONNX inference Run() calls under the DirectML EP. DML's
-    // DmlCommandRecorder is not thread-safe across sessions: concurrent Run()
-    // from different inference tasks (e.g. two pieces' pipelines running in
-    // parallel on the task thread pool) crashes in the graphics driver.
-    // This lock is only acquired when the user selected DirectML, keeping the
-    // CUDA parallel execution intact. See InferRunSerializationGuard in the
-    // header.
-    std::mutex g_inferRunSerializationMutex;
-}
-
-InferRunSerializationGuard::InferRunSerializationGuard() {
-    if (appOptions->inference()->executionProvider == QStringLiteral("DirectML")) {
-        g_inferRunSerializationMutex.lock();
-        m_locked = true;
-    }
-}
-
-InferRunSerializationGuard::~InferRunSerializationGuard() {
-    if (m_locked)
-        g_inferRunSerializationMutex.unlock();
-}
-
-
-namespace {
     bool mapSpeakerName(const std::string &speakerName,
                         const std::map<std::string, std::string> &speakerMapping,
                         std::string &mappedSpeakerName) {
