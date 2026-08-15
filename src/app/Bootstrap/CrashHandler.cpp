@@ -7,6 +7,10 @@
 #  include <QBreakpadHandler.h>
 #endif
 
+#ifdef _WIN32
+#  include <Windows.h>
+#endif
+
 CrashHandler::CrashHandler() {
 #ifdef LITE_ENABLE_BREAKPAD
     m_handler = std::make_unique<QBreakpadHandler>();
@@ -14,7 +18,7 @@ CrashHandler::CrashHandler() {
                            QStringLiteral("/Dumps"));
 
     QBreakpadHandler::UniqueExtraHandler = []() {
-        // Do something when crash occurs.
+        ::MessageBoxW(nullptr, L"Crash detected", L"Error", MB_OK | MB_ICONERROR);
     };
 #endif
 }
