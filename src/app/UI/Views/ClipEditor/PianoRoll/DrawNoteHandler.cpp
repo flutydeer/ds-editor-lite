@@ -2,6 +2,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include "NoteView.h"
+#include "NoteDrawUtils.h"
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
 #include "PianoRollGraphicsView_p.h"
@@ -77,9 +78,8 @@ void DrawNoteHandler::updateDrawingAt(const QPoint &viewportPos) {
         TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
     const auto snappedTick =
         TimelineSnapUtils::snapDown(tick, quantizedTickLength, appModel->timeline());
-    const auto targetLength = snappedTick - d->m_offset - m_currentDrawingNote->rStart();
-    if (targetLength >= quantizedTickLength)
-        m_currentDrawingNote->setLength(targetLength);
+    m_currentDrawingNote->setLength(NoteDrawUtils::lengthForSnappedEnd(
+        m_currentDrawingNote->rStart(), snappedTick - d->m_offset, quantizedTickLength));
     publishDrawingPreview();
 }
 
