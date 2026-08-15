@@ -180,6 +180,7 @@
         "editor.grid.subdivision": "{neutral.50}",
         "editor.playhead": "{neutral.600}",
         "editor.lastPlayhead": "{neutral.500}",
+        "editor.dropIndicator": "{neutral.600}",
         "editor.loop": "{accent.500}",
         "editor.loopDisabled": "{neutral.450}",
         "editor.selection.border": "{accent.alpha78}",

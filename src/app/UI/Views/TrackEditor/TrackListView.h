@@ -5,6 +5,7 @@
 
 class QWheelEvent;
 class QListWidgetItem;
+class QDragLeaveEvent;
 
 class TrackListView : public QListWidget {
     Q_OBJECT
@@ -30,15 +31,25 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
+    void dragLeaveEvent(QDragLeaveEvent *event) override;
     void dropEvent(QDropEvent *event) override;
     void startDrag(Qt::DropActions supportedActions) override;
 
 private:
     bool isInDragArea(const QPoint &pos) const;
+    int dropInsertionIndex(const QPoint &pos) const;
+    bool isValidDropInsertionIndex(int insertionIndex) const;
+    bool setDropInsertionIndex(int insertionIndex);
+    bool moveDraggedTrack(int insertionIndex);
+    void updateDropIndicator(int insertionIndex);
+    void clearDropIndicator();
 
     int m_scrollPosBeforeDrag = 0;
     QPoint m_dragStartPosition;
+    int m_dragRow = -1;
+    int m_dropInsertionIndex = -1;
     bool m_canStartDrag = false;
+    QWidget *m_dropIndicator = nullptr;
     // Disabled, non-selectable, non-draggable placeholder row mirroring the
     // canvas append slot. Always the last row.
     QListWidgetItem *m_appendSlotItem = nullptr;
