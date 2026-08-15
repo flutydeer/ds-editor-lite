@@ -1,6 +1,7 @@
 #include "AboutDialog.h"
 
 #include <lite/BuildInfo.h>
+#include <lite/ProductMetadata.h>
 
 #include <QMCore/qmsystem.h>
 
@@ -15,10 +16,8 @@ AboutDialog::AboutDialog(QWidget *parent) : QMessageBox(parent) {
     const QString appName = qApp->applicationName();
 
     const QString copyrightInfo =
-        QApplication::translate("Application",
-                                "<p>Based on Qt version %1.<br>"
-                                "Copyright 2019-%2 Team OpenVPI. All rights reserved.</p>")
-            .arg(QStringLiteral(QT_VERSION_STR), QStringLiteral(LITE_BUILD_YEAR));
+        QApplication::translate("Application", "<p>Based on Qt version %1.<br>%2</p>")
+            .arg(QStringLiteral(QT_VERSION_STR), QString::fromUtf8(LiteProductMetadata::Copyright));
 
     const QString buildInfo =
         QApplication::translate("Application", "<h3>Build Information</h3>"
