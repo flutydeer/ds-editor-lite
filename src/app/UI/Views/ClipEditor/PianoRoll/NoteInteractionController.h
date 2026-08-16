@@ -130,8 +130,8 @@ public:
 
     // Action handlers
     void handleNotesMoved(int deltaTick, int deltaKey) const;
-    static void handleNoteLeftResized(int noteId, int deltaTick);
-    static void handleNoteRightResized(int noteId, int deltaTick);
+    static void handleNoteLeftResized(int noteId, int deltaTick, int minimumLength);
+    static void handleNoteRightResized(int noteId, int deltaTick, int minimumLength);
 
     // Note manipulation
     void moveSelectedNotes(int startOffset, int keyOffset) const;
@@ -161,7 +161,6 @@ private:
     int m_deltaTick = 0;
     int m_deltaKey = 0;
     bool m_movedBeforeMouseUp = false;
-    bool m_preserveSelectionOnClickRelease = false;
     int m_moveMaxDeltaKey = 127;
     int m_moveMinDeltaKey = 0;
 

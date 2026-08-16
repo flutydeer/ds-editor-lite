@@ -48,17 +48,7 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
         return;
     }
 
-    const auto modifiers = event->modifiers();
-    const auto ctrlDown = modifiers.testFlag(Qt::ControlModifier);
-    const auto shiftDown = modifiers.testFlag(Qt::ShiftModifier);
-    auto selectionMode = PianoRollSelectionModel::NoteSelectionMode::Plain;
-    if (shiftDown)
-        selectionMode = ctrlDown ? PianoRollSelectionModel::NoteSelectionMode::AddRange
-                                 : PianoRollSelectionModel::NoteSelectionMode::ReplaceRange;
-    else if (ctrlDown)
-        selectionMode = PianoRollSelectionModel::NoteSelectionMode::Toggle;
-    m_preserveSelectionOnClickRelease = ctrlDown || shiftDown;
-    m_selectionModel->applyNoteSelection(noteItem, selectionMode);
+    (void) m_selectionModel->applyNoteSelection(noteItem, event->modifiers());
 
     if (!noteItem->isSelected()) {
         m_mouseMoveBehavior = None;
@@ -87,9 +77,7 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
 }
 
 void NoteInteractionController::finalizeClickSelection() const {
-    if (!m_currentEditingNote || m_movedBeforeMouseUp || m_preserveSelectionOnClickRelease)
-        return;
-    m_selectionModel->selectOnly(m_currentEditingNote);
+    m_selectionModel->finalizePressSelection(m_movedBeforeMouseUp);
 }
 
 void NoteInteractionController::handleNotesMoved(const int deltaTick, const int deltaKey) const {
@@ -100,18 +88,20 @@ void NoteInteractionController::handleNotesMoved(const int deltaTick, const int 
     clipController->onMoveNotes(noteIds, deltaTick, deltaKey);
 }
 
-void NoteInteractionController::handleNoteLeftResized(const int noteId, const int deltaTick) {
+void NoteInteractionController::handleNoteLeftResized(const int noteId, const int deltaTick,
+                                                       const int minimumLength) {
     qDebug() << "Note left resized id:" << noteId << "dt:" << deltaTick;
     QList<int> notes;
     notes.append(noteId);
-    clipController->onResizeNotesLeft(notes, deltaTick);
+    clipController->onResizeNotesLeft(notes, deltaTick, minimumLength);
 }
 
-void NoteInteractionController::handleNoteRightResized(const int noteId, const int deltaTick) {
+void NoteInteractionController::handleNoteRightResized(const int noteId, const int deltaTick,
+                                                        const int minimumLength) {
     qDebug() << "Note right resized id:" << noteId << "dt:" << deltaTick;
     QList<int> notes;
     notes.append(noteId);
-    clipController->onResizeNotesRight(notes, deltaTick);
+    clipController->onResizeNotesRight(notes, deltaTick, minimumLength);
 }
 
 void NoteInteractionController::moveSelectedNotes(const int startOffset,
@@ -163,7 +153,6 @@ void NoteInteractionController::reset() {
     m_deltaTick = 0;
     m_deltaKey = 0;
     m_movedBeforeMouseUp = false;
-    m_preserveSelectionOnClickRelease = false;
     m_moveMaxDeltaKey = 127;
     m_moveMinDeltaKey = 0;
     m_currentEditingNote = nullptr;

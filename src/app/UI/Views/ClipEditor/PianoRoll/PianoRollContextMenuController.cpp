@@ -223,8 +223,8 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
                 if (previewHost)
                     previewHost->showPianoRollPastePreview(previewData, previewTick);
             });
-            connect(paste, &QAction::triggered, this, [payload, context] {
-                clipController->pasteNotesWithParams(payload->info(), context.globalTick);
+            connect(paste, &QAction::triggered, this, [payload, previewTick] {
+                clipController->pasteNotesWithParams(payload->info(), previewTick);
             });
         }
     }

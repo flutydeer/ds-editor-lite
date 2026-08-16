@@ -1,6 +1,9 @@
 #include "UI/Views/Common/EditorRhiGeometry.h"
+#include "UI/Views/Common/EditorItemGeometry.h"
 
 #include <QCoreApplication>
+#include <QImage>
+#include <QPainter>
 #include <QTextStream>
 
 #include <algorithm>
@@ -30,6 +33,100 @@ namespace {
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     const QRectF clipRect(0.0, 0.0, 10.0, 10.0);
+
+    const QRectF ordinaryNoteModelRect(2.0, 3.0, 10.0, 8.0);
+    const auto ordinaryNoteRect = EditorItemGeometry::notePaintRect(ordinaryNoteModelRect);
+    expect(ordinaryNoteRect == QRectF(3.5, 4.5, 7.0, 5.0),
+           "rounded item padding must preserve ordinary geometry");
+
+    const QRectF minimumNoteModelRect(4.0, 3.0, 0.25, 8.0);
+    const auto minimumNoteRect = EditorItemGeometry::notePaintRect(minimumNoteModelRect);
+    expect(minimumNoteRect == QRectF(3.625, 4.5, 1.0, 5.0) &&
+               minimumNoteRect.center().x() == minimumNoteModelRect.center().x(),
+           "a subpixel note must use a centered one-pixel visual body");
+    const QRectF minimumClipModelRect(4.0, 3.0, 0.25, 8.0);
+    const auto minimumClipRect = EditorItemGeometry::clipPaintRect(minimumClipModelRect);
+    const QRectF expectedMinimumClipRect(
+        3.625, 3.0 + EditorItemGeometry::clipVerticalPadding, 1.0,
+        8.0 - EditorItemGeometry::clipVerticalPadding * 2.0);
+    expect(minimumClipRect == expectedMinimumClipRect &&
+               minimumClipRect.center().x() == minimumClipModelRect.center().x(),
+           "a subpixel clip must use a centered one-pixel visual body");
+
+    const QRectF zoomedNoteModelRect(4.0, 3.0, 20.0, 8.0);
+    const auto zoomedNoteRect = EditorItemGeometry::notePaintRect(zoomedNoteModelRect);
+    expect(zoomedNoteRect.width() ==
+               zoomedNoteModelRect.width() - EditorItemGeometry::noteBorderWidth * 2.0,
+           "a zoomed one-tick note must use its scaled model width instead of the visual minimum");
+    const QRectF zoomedClipModelRect(4.0, 3.0, 20.0, 8.0);
+    const auto zoomedClipRect = EditorItemGeometry::clipPaintRect(zoomedClipModelRect);
+    expect(zoomedClipRect.width() ==
+               zoomedClipModelRect.width() - EditorItemGeometry::clipHorizontalPadding * 2.0,
+           "a zoomed one-tick clip must use its scaled model width instead of the visual minimum");
+    const auto highDpiNoteRect =
+        EditorItemGeometry::notePaintRect(QRectF(8.0, 6.0, 0.5, 16.0), 2.0);
+    expect(highDpiNoteRect ==
+               QRectF(minimumNoteRect.topLeft() * 2.0, minimumNoteRect.size() * 2.0),
+           "minimum visual geometry must scale with the device pixel ratio");
+
+    expect(EditorItemGeometry::notePaintRect(QRectF(4.0, 3.0, 0.0, 8.0))
+               .isEmpty(),
+           "visual styling must not revive zero-width model geometry");
+    expect(EditorItemGeometry::adaptiveCornerRadius(minimumNoteRect,
+                                                    EditorItemGeometry::noteCornerRadius) == 0.5 &&
+               EditorItemGeometry::adaptiveCornerRadius(
+                   minimumClipRect, EditorItemGeometry::clipCornerRadius) == 0.5 &&
+               EditorItemGeometry::adaptiveCornerRadius(QRectF(0.0, 0.0, 4.0, 20.0), 6.0) ==
+                   2.0,
+           "rounded item corners must adapt to the available width and height");
+
+    QVector<EditorRhiSolidVertex> minimumRoundedClip;
+    EditorRhiGeometry::appendRoundedRect(
+        minimumRoundedClip, minimumClipRect,
+        EditorItemGeometry::adaptiveCornerRadius(minimumClipRect,
+                                                 EditorItemGeometry::clipCornerRadius),
+        QColor(255, 255, 255));
+    expect(minimumRoundedClip.size() > 6,
+           "a narrow rounded item must not fall back to a square rectangle");
+    expect(std::any_of(minimumRoundedClip.cbegin(), minimumRoundedClip.cend(),
+                       [](const EditorRhiSolidVertex &value) { return value.coverage == 0.0f; }),
+           "a narrow rounded item must retain antialiased corner coverage");
+
+    QImage legacyClipImage(32, 80, QImage::Format_ARGB32_Premultiplied);
+    legacyClipImage.fill(Qt::transparent);
+    const auto legacyClipRect =
+        EditorItemGeometry::clipPaintRect(QRectF(14.0, 4.0, 0.25, 72.0));
+    const auto legacyClipRadius = EditorItemGeometry::adaptiveCornerRadius(
+        legacyClipRect, EditorItemGeometry::clipCornerRadius);
+    {
+        QPainter painter(&legacyClipImage);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setPen(QPen(Qt::white, EditorItemGeometry::clipBorderWidth));
+        painter.setBrush(Qt::white);
+        painter.drawRoundedRect(legacyClipRect, legacyClipRadius, legacyClipRadius);
+    }
+    QRect legacyClipPixels;
+    for (auto y = 0; y < legacyClipImage.height(); ++y) {
+        for (auto x = 0; x < legacyClipImage.width(); ++x) {
+            if (qAlpha(legacyClipImage.pixel(x, y)) != 0)
+                legacyClipPixels |= QRect(x, y, 1, 1);
+        }
+    }
+    expect(legacyClipPixels.width() >= 2 && legacyClipPixels.width() <= 4,
+           "the Legacy narrow clip must remain visible without overlapping corner flares");
+
+    QVector<EditorRhiSolidVertex> minimumRoundedNote;
+    EditorRhiGeometry::appendRoundedRect(
+        minimumRoundedNote, minimumNoteRect,
+        EditorItemGeometry::adaptiveCornerRadius(minimumNoteRect,
+                                                 EditorItemGeometry::noteCornerRadius),
+        Qt::white);
+    expect(minimumRoundedNote.size() > 6 &&
+               std::any_of(minimumRoundedNote.cbegin(), minimumRoundedNote.cend(),
+                           [](const EditorRhiSolidVertex &value) {
+                               return value.coverage == 0.0f;
+                           }),
+           "a minimum-width RHI note must retain antialiased rounded corners");
 
     const QVector<EditorRhiSolidVertex> inside{
         {1.0f, 1.0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f},

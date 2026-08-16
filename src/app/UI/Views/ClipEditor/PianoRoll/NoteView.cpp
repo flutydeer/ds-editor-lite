@@ -4,6 +4,7 @@
 #include "Global/AppGlobal.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/AbstractGraphicsRectItem.h"
+#include "UI/Views/Common/EditorItemGeometry.h"
 #include "UI/Utils/AppColorPalette.h"
 
 #include <QGraphicsSceneContextMenuEvent>
@@ -160,17 +161,15 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     const auto foregroundColorEditingPitch = p.noteForegroundEditingPitch(ci);
     const auto foregroundColorOverlapped = p.noteForegroundOverlapped(ci);
 
-    constexpr auto penWidth = 1.5f;
+    constexpr auto penWidth = EditorItemGeometry::noteBorderWidth;
     constexpr int padding = 2;
 
     QPen pen;
 
-    auto rect = boundingRect();
-    auto left = rect.left() + penWidth;
-    auto top = rect.top() + penWidth;
-    auto width = rect.width() - penWidth * 2;
-    auto height = rect.height() - penWidth * 2;
-    auto paddedRect = QRectF(left, top, width, height);
+    const auto rect = boundingRect();
+    const auto paddedRect = EditorItemGeometry::notePaintRect(rect);
+    const auto cornerRadius = EditorItemGeometry::adaptiveCornerRadius(
+        paddedRect, EditorItemGeometry::noteCornerRadius);
 
     auto drawRectOnly = [&] {
         if (m_pronView)
@@ -220,7 +219,7 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
         pen.setWidthF(penWidth);
         painter->setPen(pen);
         painter->setBrush(backgroundColor);
-        painter->drawRoundedRect(paddedRect, 2, 2);
+        painter->drawRoundedRect(paddedRect, cornerRadius, cornerRadius);
 
         pen.setColor(foregroundColor);
         painter->setPen(pen);

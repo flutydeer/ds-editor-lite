@@ -14,9 +14,9 @@ public:
     [[nodiscard]] int visibleStartForCursor(double cursorTick, const Timeline &timeline) const;
     void moveTo(int visibleStartTick, Clip::ClipCommonProperties &properties,
                 const Timeline &timeline) const;
-    bool resizeLeftTo(int leftTick, int originalRightTick,
+    bool resizeLeftTo(int leftTick, int originalRightTick, int minimumVisibleLength,
                       Clip::ClipCommonProperties &properties, const Timeline &timeline);
-    bool resizeRightTo(int rightTick, int visibleStartTick,
+    bool resizeRightTo(int rightTick, int visibleStartTick, int minimumVisibleLength,
                        Clip::ClipCommonProperties &properties, const Timeline &timeline);
     void writeTruth(Clip::ClipCommonProperties &properties) const;
 
