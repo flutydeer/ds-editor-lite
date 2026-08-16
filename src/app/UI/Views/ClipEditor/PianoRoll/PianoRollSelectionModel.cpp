@@ -38,12 +38,13 @@ QList<NoteView *> PianoRollSelectionModel::orderedNoteItems() const {
 }
 
 EditorSelectionUtils::PressResult
-    PianoRollSelectionModel::applyNoteSelection(NoteView *noteView, const NoteSelectionMode mode) {
+    PianoRollSelectionModel::applyNoteSelection(NoteView *noteView,
+                                                const Qt::KeyboardModifiers modifiers) {
     if (!noteView)
         return {};
 
     const auto result =
-        m_orderedSelection.press(selectedNoteIds(), orderedNoteIds(), noteView->id(), mode);
+        m_orderedSelection.press(selectedNoteIds(), orderedNoteIds(), noteView->id(), modifiers);
     applySelection(result.selection);
     return result;
 }
@@ -51,11 +52,20 @@ EditorSelectionUtils::PressResult
 EditorSelectionUtils::PressResult PianoRollSelectionModel::applyPressSelection(NoteView *noteView,
                                                                                const bool toggle) {
     const auto noteId = noteView ? noteView->id() : -1;
-    const auto result =
-        m_orderedSelection.press(selectedNoteIds(), orderedNoteIds(), noteId,
-                                 toggle ? NoteSelectionMode::Toggle : NoteSelectionMode::Plain);
+    m_orderedSelection.cancelPress();
+    const auto result = m_orderedSelection.applyPress(selectedNoteIds(), orderedNoteIds(), noteId,
+                                                      toggle ? NoteSelectionMode::Toggle
+                                                             : NoteSelectionMode::Plain);
     applySelection(result.selection);
     return result;
+}
+
+void PianoRollSelectionModel::finalizePressSelection(const bool pointerMoved) {
+    applySelection(m_orderedSelection.release(selectedNoteIds(), pointerMoved));
+}
+
+void PianoRollSelectionModel::cancelPressSelection() {
+    m_orderedSelection.cancelPress();
 }
 
 QList<int> PianoRollSelectionModel::selectedNoteIds() const {
@@ -82,12 +92,14 @@ void PianoRollSelectionModel::applySelection(const QList<int> &selection) const 
 
 void PianoRollSelectionModel::selectOnly(NoteView *noteView) {
     const auto noteId = noteView ? noteView->id() : -1;
+    m_orderedSelection.cancelPress();
     m_orderedSelection.selectOnly(noteId);
     applySelection(noteView ? QList<int>{noteId} : QList<int>());
 }
 
 void PianoRollSelectionModel::clearSelectionAnchor() {
     m_orderedSelection.clearAnchor();
+    m_orderedSelection.cancelPress();
 }
 
 void PianoRollSelectionModel::invalidateSelectionAnchor(const int noteId) {

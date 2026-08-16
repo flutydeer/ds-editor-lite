@@ -24,10 +24,12 @@ public:
 
     [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
     [[nodiscard]] QList<NoteView *> orderedNoteItems() const;
-    [[nodiscard]] EditorSelectionUtils::PressResult applyNoteSelection(NoteView *noteView,
-                                                                       NoteSelectionMode mode);
+    [[nodiscard]] EditorSelectionUtils::PressResult
+        applyNoteSelection(NoteView *noteView, Qt::KeyboardModifiers modifiers);
     [[nodiscard]] EditorSelectionUtils::PressResult applyPressSelection(NoteView *noteView,
                                                                         bool toggle);
+    void finalizePressSelection(bool pointerMoved);
+    void cancelPressSelection();
     void selectOnly(NoteView *noteView);
     void clearSelectionAnchor();
     void invalidateSelectionAnchor(int noteId);

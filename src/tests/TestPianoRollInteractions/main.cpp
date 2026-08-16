@@ -3,8 +3,11 @@
 
 #include <lite/MusicBase/Timeline.h>
 
-#include <QCoreApplication>
+#include <QApplication>
+#include <QMouseEvent>
 #include <QTextStream>
+#include <QWidget>
+#include <QtTest/QTest>
 
 namespace {
     int g_failures = 0;
@@ -15,10 +18,33 @@ namespace {
         QTextStream(stderr) << "FAILED: " << message << Qt::endl;
         ++g_failures;
     }
+
+    class NoteSelectionEventProbe final : public QWidget {
+    public:
+        QList<int> selection;
+        EditorSelectionUtils::OrderedSelectionModel model;
+
+    protected:
+        void mousePressEvent(QMouseEvent *event) override {
+            const auto index =
+                qBound(0, qFloor(event->position().x() / 20.0), m_ordered.size() - 1);
+            const auto result =
+                model.press(selection, m_ordered, m_ordered.at(index), event->modifiers());
+            selection = result.selection;
+        }
+
+        void mouseReleaseEvent(QMouseEvent *event) override {
+            Q_UNUSED(event)
+            selection = model.release(selection, false);
+        }
+
+    private:
+        const QList<int> m_ordered{10, 20, 30, 40, 50};
+    };
 }
 
 int main(int argc, char *argv[]) {
-    QCoreApplication app(argc, argv);
+    QApplication app(argc, argv);
 
     constexpr int startTick = 480;
     constexpr int quantize = 120;
@@ -48,22 +74,25 @@ int main(int argc, char *argv[]) {
     OrderedSelectionModel selection;
     auto result = selection.press({}, orderedNotes, 20, Qt::NoModifier);
     expect(result.selection == QList<int>{20} && result.targetSelected &&
-               result.collapseToTargetOnRelease && selection.anchorId() == 20,
+               selection.anchorId() == 20,
            "plain note press must establish the range anchor and select the target");
+    result.selection = selection.release(result.selection, false);
 
     result = selection.press(result.selection, orderedNotes, 40, Qt::ShiftModifier);
-    expect(result.selection == (QList<int>{20, 30, 40}) && !result.collapseToTargetOnRelease &&
-               selection.anchorId() == 20,
+    expect(result.selection == (QList<int>{20, 30, 40}) && selection.anchorId() == 20,
            "Shift press must replace selection with the ordered anchor range");
+    result.selection = selection.release(result.selection, false);
 
     result = selection.press({20, 50}, orderedNotes, 40, ctrlShift);
     expect(result.selection == (QList<int>{20, 30, 40, 50}) && selection.anchorId() == 20,
            "Ctrl+Shift press must add the anchor range to the existing selection");
+    result.selection = selection.release(result.selection, false);
 
     result = selection.press(result.selection, orderedNotes, 30, Qt::ControlModifier);
     expect(result.selection == (QList<int>{20, 40, 50}) && !result.targetSelected &&
                selection.anchorId() == 30,
            "Ctrl press must toggle the target and update the anchor");
+    result.selection = selection.release(result.selection, false);
 
     selection.synchronize(result.selection);
     expect(selection.anchorId() == 50,
@@ -71,18 +100,45 @@ int main(int argc, char *argv[]) {
     result = selection.press(result.selection, orderedNotes, 10, Qt::ShiftModifier);
     expect(result.selection == orderedNotes,
            "reverse Shift range must use the synchronized anchor and temporal order");
+    result.selection = selection.release(result.selection, false);
 
     selection.clearAnchor();
     result = selection.press({20, 30}, orderedNotes, 40, Qt::ShiftModifier);
     expect(result.selection == QList<int>{40} && selection.anchorId() == 40,
            "Shift press without a valid anchor must fall back to a plain single selection");
+    result.selection = selection.release(result.selection, false);
 
-    expect(OrderedSelectionModel::finalizeClick({10, 20, 30}, 20, false, true) == QList<int>{20} &&
-               OrderedSelectionModel::finalizeClick({10, 20, 30}, 20, true, true) ==
-                   (QList<int>{10, 20, 30}) &&
-               OrderedSelectionModel::finalizeClick({10, 20, 30}, 20, false, false) ==
-                   (QList<int>{10, 20, 30}),
+    OrderedSelectionModel clickSelection;
+    (void) clickSelection.press({10, 20, 30}, orderedNotes, 20, Qt::NoModifier);
+    const auto collapsed = clickSelection.release({10, 20, 30}, false);
+    (void) clickSelection.press({10, 20, 30}, orderedNotes, 20, Qt::NoModifier);
+    const auto dragged = clickSelection.release({10, 20, 30}, true);
+    (void) clickSelection.press({10, 20, 30}, orderedNotes, 20, Qt::ControlModifier);
+    const auto modified = clickSelection.release({10, 20, 30}, false);
+    (void) clickSelection.press({10, 20, 30}, orderedNotes, 20, Qt::AltModifier);
+    const auto altClick = clickSelection.release({10, 20, 30}, false);
+    expect(collapsed == QList<int>{20} && dragged == (QList<int>{10, 20, 30}) &&
+               modified == (QList<int>{10, 20, 30}) && altClick == QList<int>{20},
            "click release must collapse only an unmoved plain press");
+
+    NoteSelectionEventProbe eventProbe;
+    eventProbe.resize(100, 20);
+    eventProbe.show();
+    app.processEvents();
+    QTest::mouseClick(&eventProbe, Qt::LeftButton, Qt::NoModifier, QPoint(25, 10));
+    QTest::mouseClick(&eventProbe, Qt::LeftButton, Qt::ControlModifier, QPoint(65, 10));
+    expect(eventProbe.selection == (QList<int>{20, 40}),
+           "a real Ctrl+mouse gesture must preserve both notes after release");
+    QTest::mouseClick(&eventProbe, Qt::LeftButton, Qt::ControlModifier | Qt::ShiftModifier,
+                      QPoint(5, 10));
+    expect(eventProbe.selection == (QList<int>{10, 20, 30, 40}),
+           "a real Ctrl+Shift+mouse gesture must add the anchor range after release");
+    QTest::mouseClick(&eventProbe, Qt::LeftButton, Qt::ShiftModifier, QPoint(85, 10));
+    expect(eventProbe.selection == (QList<int>{40, 50}),
+           "a real Shift+mouse gesture must preserve the anchor range after release");
+    QTest::mouseClick(&eventProbe, Qt::LeftButton, Qt::ControlModifier, QPoint(65, 10));
+    expect(eventProbe.selection == QList<int>{50},
+           "a real Ctrl+mouse gesture must keep a toggled-off note deselected after release");
 
     expect(EditorSelectionUtils::selectionForPress({1, 2}, 2, false) == (QList<int>{1, 2}),
            "context-pressing a selected note must preserve its multi-selection");

@@ -10,7 +10,6 @@ namespace EditorSelectionUtils {
     struct PressResult {
         QList<int> selection;
         bool targetSelected = false;
-        bool collapseToTargetOnRelease = false;
     };
 
     inline QList<int> selectionForPress(const QList<int> &currentSelection, const int itemId,
@@ -47,6 +46,12 @@ namespace EditorSelectionUtils {
             m_anchorId = -1;
         }
 
+        void cancelPress() {
+            m_pressedItemId = -1;
+            m_pressModifiers = Qt::NoModifier;
+            m_pressActive = false;
+        }
+
         void invalidateAnchor(const int itemId) {
             if (m_anchorId == itemId)
                 clearAnchor();
@@ -66,19 +71,21 @@ namespace EditorSelectionUtils {
 
         PressResult press(const QList<int> &currentSelection, const QList<int> &orderedItems,
                           const int itemId, const Qt::KeyboardModifiers modifiers) {
-            return press(currentSelection, orderedItems, itemId,
-                         selectionModeForModifiers(modifiers));
+            m_pressedItemId = itemId;
+            m_pressModifiers = modifiers;
+            m_pressActive = itemId >= 0;
+            return applyPress(currentSelection, orderedItems, itemId,
+                              selectionModeForModifiers(modifiers));
         }
 
-        PressResult press(const QList<int> &currentSelection, const QList<int> &orderedItems,
-                          const int itemId, const SelectionMode mode) {
+        PressResult applyPress(const QList<int> &currentSelection, const QList<int> &orderedItems,
+                               const int itemId, const SelectionMode mode) {
             if (itemId < 0) {
                 clearAnchor();
                 return {};
             }
 
             PressResult result;
-            result.collapseToTargetOnRelease = mode == SelectionMode::Plain;
             if (mode == SelectionMode::Plain || mode == SelectionMode::Toggle) {
                 m_anchorId = itemId;
                 result.selection =
@@ -111,16 +118,24 @@ namespace EditorSelectionUtils {
             return result;
         }
 
-        [[nodiscard]] static QList<int> finalizeClick(const QList<int> &currentSelection,
-                                                      const int itemId, const bool pointerMoved,
-                                                      const bool collapseToTargetOnRelease) {
-            if (itemId < 0 || pointerMoved || !collapseToTargetOnRelease)
-                return currentSelection;
-            return {itemId};
+        [[nodiscard]] QList<int> release(const QList<int> &currentSelection,
+                                         const bool pointerMoved) {
+            auto selection = currentSelection;
+            const auto preserveSelection = m_pressModifiers.testFlag(Qt::ControlModifier) ||
+                                           m_pressModifiers.testFlag(Qt::ShiftModifier);
+            if (m_pressActive && !pointerMoved && !preserveSelection &&
+                currentSelection.contains(m_pressedItemId)) {
+                selection = {m_pressedItemId};
+            }
+            cancelPress();
+            return selection;
         }
 
     private:
         int m_anchorId = -1;
+        int m_pressedItemId = -1;
+        Qt::KeyboardModifiers m_pressModifiers = Qt::NoModifier;
+        bool m_pressActive = false;
     };
 }
 

@@ -943,6 +943,7 @@ bool PianoRollGraphicsView::revealFocus(const HistoryFocus &focus, const bool an
 
 void PianoRollGraphicsView::discardAction() {
     Q_D(PianoRollGraphicsView);
+    d->m_selectionModel->cancelPressSelection();
     appStatus->pianoRollNoteEditPreview = {};
     appStatus->pianoRollNoteErasePreview = {};
     d->m_pitchEditor->discardAction();

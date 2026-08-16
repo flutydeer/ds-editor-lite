@@ -48,10 +48,7 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
         return;
     }
 
-    const auto modifiers = event->modifiers();
-    const auto result = m_selectionModel->applyNoteSelection(
-        noteItem, EditorSelectionUtils::selectionModeForModifiers(modifiers));
-    m_collapseSelectionOnClickRelease = result.collapseToTargetOnRelease;
+    (void) m_selectionModel->applyNoteSelection(noteItem, event->modifiers());
 
     if (!noteItem->isSelected()) {
         m_mouseMoveBehavior = None;
@@ -80,9 +77,7 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
 }
 
 void NoteInteractionController::finalizeClickSelection() const {
-    if (!m_currentEditingNote || m_movedBeforeMouseUp || !m_collapseSelectionOnClickRelease)
-        return;
-    m_selectionModel->selectOnly(m_currentEditingNote);
+    m_selectionModel->finalizePressSelection(m_movedBeforeMouseUp);
 }
 
 void NoteInteractionController::handleNotesMoved(const int deltaTick, const int deltaKey) const {
@@ -156,7 +151,6 @@ void NoteInteractionController::reset() {
     m_deltaTick = 0;
     m_deltaKey = 0;
     m_movedBeforeMouseUp = false;
-    m_collapseSelectionOnClickRelease = false;
     m_moveMaxDeltaKey = 127;
     m_moveMinDeltaKey = 0;
     m_currentEditingNote = nullptr;

@@ -161,7 +161,6 @@ private:
     int m_deltaTick = 0;
     int m_deltaKey = 0;
     bool m_movedBeforeMouseUp = false;
-    bool m_collapseSelectionOnClickRelease = false;
     int m_moveMaxDeltaKey = 127;
     int m_moveMinDeltaKey = 0;
 
