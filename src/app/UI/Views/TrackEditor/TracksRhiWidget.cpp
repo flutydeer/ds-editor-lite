@@ -16,6 +16,7 @@
 #include "UI/Utils/ITimelinePainter.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
+#include "UI/Views/Common/EditorItemGeometry.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
 #include "UI/Views/Common/EditorWheelUtils.h"
@@ -528,7 +529,7 @@ void TracksRhiWidget::updateRubberBandSelection(const QPointF &position) {
     for (int trackIndex = 0; trackIndex < tracks.size(); ++trackIndex) {
         for (const auto *clip : tracks.at(trackIndex)->clips()) {
             if (selection.intersects(
-                    clipPhysicalRect(previewOrModelProperties(clip), trackIndex, dpr))) {
+                    clipModelPhysicalRect(previewOrModelProperties(clip), trackIndex, dpr))) {
                 ids.append(clip->id());
             }
         }
@@ -849,7 +850,7 @@ void TracksRhiWidget::rebuildSnapshot() {
     appendDropOverlay(frame, dpr);
     if (m_dragMode == DragMode::RectSelect) {
         const auto rect = QRectF(m_rubberBandStart * dpr, m_rubberBandEnd * dpr).normalized();
-        const auto radius = std::min({6.0 * dpr, rect.width() * 0.5, rect.height() * 0.5});
+        const auto radius = EditorItemGeometry::adaptiveCornerRadius(rect, 6.0 * dpr);
         EditorRhiGeometry::appendRoundedRect(frame.solidVertices, rect, radius,
                                              m_rubberBandFillColor);
         EditorRhiGeometry::appendRoundedRectStroke(frame.solidVertices, rect, radius, 1.5 * dpr,
@@ -930,7 +931,7 @@ void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
     for (int trackIndex = 0; trackIndex < tracks.size(); ++trackIndex) {
         for (const auto *clip : tracks.at(trackIndex)->clips()) {
             auto snapshot = buildClipSnapshot(clip, trackIndex, dpr);
-            if (!visiblePhysical.intersects(snapshot.physicalRect))
+            if (!visiblePhysical.intersects(snapshot.paintPhysicalRect))
                 continue;
             if (const auto audio = qobject_cast<const AudioClip *>(clip)) {
                 if (!snapshot.audioMissing) {
@@ -948,7 +949,7 @@ void TracksRhiWidget::appendClips(EditorRhiFrameData &frame, const double dpr) {
         }
     }
     for (const auto &preview : m_pastePreviewSnapshots) {
-        if (visiblePhysical.intersects(preview.physicalRect))
+        if (visiblePhysical.intersects(preview.paintPhysicalRect))
             appendClip(frame, preview, dpr);
     }
     for (auto iterator = m_audioWaveformSamplers.begin();
@@ -973,43 +974,49 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
         for (auto *color : {&fill, &selectedFill, &transparent, &foreground, &border})
             color->setAlphaF(color->alphaF() * opacity);
     }
-    const auto radius = 4.0 * dpr;
+    const auto &paintRect = clip.paintPhysicalRect;
+    const auto radius = EditorItemGeometry::adaptiveCornerRadius(
+        paintRect, EditorItemGeometry::clipCornerRadius * dpr);
     const auto titleHeight = 20.0 * dpr;
     const auto preview = clipPreviewRect(clip, dpr);
     const auto hasPreview = preview.height() >= 32.0 * dpr;
     const auto bodyColor = hasPreview ? transparent : (clip.selected ? selectedFill : fill);
-    EditorRhiGeometry::appendRoundedRect(frame.solidVertices, clip.physicalRect, radius, bodyColor);
+    EditorRhiGeometry::appendRoundedRect(frame.solidVertices, paintRect, radius, bodyColor);
     if (hasPreview) {
-        const auto titleBottom = clip.physicalRect.top() + titleHeight - 1.2 * dpr;
-        const QRectF titleRect(clip.physicalRect.left(), clip.physicalRect.top(),
-                               clip.physicalRect.width(),
-                               std::max(0.0, titleBottom - clip.physicalRect.top()));
+        const auto titleBottom =
+            paintRect.top() + titleHeight - EditorItemGeometry::clipVerticalPadding * dpr;
+        const QRectF titleRect(paintRect.left(), paintRect.top(), paintRect.width(),
+                               std::max(0.0, titleBottom - paintRect.top()));
         const auto titleColor = clip.selected ? selectedFill : fill;
         EditorRhiGeometry::appendTopRoundedRect(frame.solidVertices, titleRect, radius, titleColor);
     }
     if (clip.selected || clip.active) {
-        EditorRhiGeometry::appendRoundedRectStroke(frame.solidVertices, clip.physicalRect, radius,
-                                                   1.2 * dpr, border, 0.5);
+        EditorRhiGeometry::appendRoundedRectStroke(
+            frame.solidVertices, paintRect, radius,
+            EditorItemGeometry::clipBorderWidth * dpr, border, 0.5);
     }
 
     QFont font = this->font();
     const QFontMetricsF metrics(font);
-    const auto rawLeft = clip.physicalRect.left() - 0.6 * dpr;
-    const auto rawRight = clip.physicalRect.right() + 0.6 * dpr;
+    const auto rawLeft = clip.modelPhysicalRect.left();
+    const auto rawRight = clip.modelPhysicalRect.right();
     const auto visibleLeft = m_viewport.horizontalOffset() * dpr;
     const auto titleLeft =
-        visibleLeft < rawLeft ? clip.physicalRect.left() : visibleLeft + 0.6 * dpr;
-    const auto titleWidth = rawRight - std::max(rawLeft, visibleLeft) - 2.4 * dpr;
+        visibleLeft < rawLeft
+            ? paintRect.left()
+            : visibleLeft + EditorItemGeometry::clipHorizontalPadding * dpr;
+    const auto titleWidth = rawRight - std::max(rawLeft, visibleLeft) -
+                            EditorItemGeometry::clipBorderWidth * 2.0 * dpr;
     constexpr double iconWidth = 4.0;
     if (metrics.horizontalAdvance(clip.title) * dpr + iconWidth * dpr <= titleWidth &&
         metrics.height() * dpr <= titleHeight) {
         const auto textTop = hasPreview
-                                 ? clip.physicalRect.top()
-                                 : clip.physicalRect.top() +
-                                       (clip.physicalRect.height() - metrics.height() * dpr) * 0.5;
-        const QRectF textClip(titleLeft + iconWidth * dpr, clip.physicalRect.top(),
+                                 ? paintRect.top()
+                                 : paintRect.top() +
+                                       (paintRect.height() - metrics.height() * dpr) * 0.5;
+        const QRectF textClip(titleLeft + iconWidth * dpr, paintRect.top(),
                               titleWidth - iconWidth * dpr,
-                              hasPreview ? titleHeight : clip.physicalRect.height());
+                              hasPreview ? titleHeight : paintRect.height());
         const auto textSpan = m_glyphAtlas.appendText(
             clip.title, font, QPointF(titleLeft + iconWidth * dpr, textTop), foreground, textClip,
             dpr, QPointF(m_viewport.horizontalOffset(), m_viewport.verticalOffset()) * dpr,
@@ -1230,7 +1237,8 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
     result.visibleEndTick = result.visibleStartTick + props.clipLen;
     result.selected = appStatus->selectedClips.get().contains(clip->id());
     result.active = appStatus->activeClipId == clip->id();
-    result.physicalRect = clipPhysicalRect(props, displayTrack, dpr);
+    result.modelPhysicalRect = clipModelPhysicalRect(props, displayTrack, dpr);
+    result.paintPhysicalRect = EditorItemGeometry::clipPaintRect(result.modelPhysicalRect, dpr);
     result.title = commonClipTitle(props, clip->id(), scaleX(), scaleY());
     if (const auto audio = qobject_cast<const AudioClip *>(clip))
         result.audioMissing = audio->pathStatus() == AudioClip::PathStatus::Missing;
@@ -1253,29 +1261,26 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
     return result;
 }
 
-QRectF TracksRhiWidget::clipPhysicalRect(const Clip::ClipCommonProperties &properties,
-                                         const int trackIndex, const double dpr) const {
+QRectF TracksRhiWidget::clipModelPhysicalRect(const Clip::ClipCommonProperties &properties,
+                                              const int trackIndex, const double dpr) const {
     const auto left = m_viewport.tickToSceneX(properties.start + properties.clipStart) * dpr;
     const auto right =
         m_viewport.tickToSceneX(properties.start + properties.clipStart + properties.clipLen) * dpr;
-    return QRectF(left, trackIndex * trackHeight * scaleY() * dpr, right - left,
-                  trackHeight * scaleY() * dpr)
-        .adjusted(0.6 * dpr, 1.2 * dpr, -0.6 * dpr, -1.2 * dpr);
+    return {left, trackIndex * trackHeight * scaleY() * dpr, right - left,
+            trackHeight * scaleY() * dpr};
 }
 
 QRectF TracksRhiWidget::clipPreviewRect(const ClipSnapshot &clip, const double dpr) {
     constexpr double titleHeight = 20.0;
-    return {clip.physicalRect.left(), clip.physicalRect.top() + titleHeight * dpr,
-            clip.physicalRect.width(), clip.physicalRect.height() - titleHeight * dpr};
+    return {clip.paintPhysicalRect.left(), clip.paintPhysicalRect.top() + titleHeight * dpr,
+            clip.paintPhysicalRect.width(), clip.paintPhysicalRect.height() - titleHeight * dpr};
 }
 
 AudioWaveformSampler::Result TracksRhiWidget::sampleAudioWaveform(AudioWaveformSampler &sampler,
                                                                   const AudioInfoModel &audioInfo,
                                                                   const ClipSnapshot &clip,
                                                                   const double dpr) const {
-    const auto previewPhysical =
-        QRectF(clip.physicalRect.left(), clip.physicalRect.top() + 20.0 * dpr,
-               clip.physicalRect.width(), clip.physicalRect.height() - 20.0 * dpr);
+    const auto previewPhysical = clipPreviewRect(clip, dpr);
     const auto previewScene = QRectF(previewPhysical.left() / dpr, previewPhysical.top() / dpr,
                                      previewPhysical.width() / dpr, previewPhysical.height() / dpr);
     const auto &timeline = appModel->timeline();
@@ -1323,11 +1328,9 @@ void TracksRhiWidget::showTrackPastePreview(const TrackPastePreviewData &data,
         snapshot.visibleEndTick = snapshot.visibleStartTick + properties.clipLen;
         snapshot.title = commonClipTitle(properties, -1, scaleX(), scaleY());
         snapshot.pastePreview = true;
-        const auto left = m_viewport.tickToSceneX(snapshot.visibleStartTick) * dpr;
-        const auto right = m_viewport.tickToSceneX(snapshot.visibleEndTick) * dpr;
-        snapshot.physicalRect = QRectF(left, targetTrackIndex * trackHeight * scaleY() * dpr,
-                                       right - left, trackHeight * scaleY() * dpr)
-                                    .adjusted(0.6 * dpr, 1.2 * dpr, -0.6 * dpr, -1.2 * dpr);
+        snapshot.modelPhysicalRect = clipModelPhysicalRect(properties, targetTrackIndex, dpr);
+        snapshot.paintPhysicalRect =
+            EditorItemGeometry::clipPaintRect(snapshot.modelPhysicalRect, dpr);
 
         if (clip.type == IClip::Singing) {
             const auto singerName = targetTrack->singerInfo().name();
@@ -1362,7 +1365,7 @@ const TracksRhiWidget::ClipSnapshot *
     TracksRhiWidget::hitTest(const QPointF &viewportPosition) const {
     const auto physicalScene = m_viewport.viewportToScene(viewportPosition) * devicePixelRatioF();
     for (auto iterator = m_clipSnapshots.crbegin(); iterator != m_clipSnapshots.crend(); ++iterator)
-        if (iterator->physicalRect.contains(physicalScene))
+        if (iterator->modelPhysicalRect.contains(physicalScene))
             return &*iterator;
     return nullptr;
 }
@@ -1395,10 +1398,10 @@ void TracksRhiWidget::beginClipDrag(const ClipSnapshot &clip, const QMouseEvent 
     if (!modelClip || !track)
         return;
     const auto physicalScene = m_viewport.viewportToScene(event->position()) * devicePixelRatioF();
-    const auto relativeX = physicalScene.x() - clip.physicalRect.left();
+    const auto relativeX = physicalScene.x() - clip.modelPhysicalRect.left();
     const auto tolerance = AppGlobal::resizeTolerance * devicePixelRatioF();
     const auto edge =
-        EditorResizeUtils::horizontalEdgeAt(relativeX, clip.physicalRect.width(), tolerance);
+        EditorResizeUtils::horizontalEdgeAt(relativeX, clip.modelPhysicalRect.width(), tolerance);
     if (edge == EditorResizeUtils::HorizontalEdge::Left)
         m_dragMode = DragMode::ResizeLeft;
     else if (edge == EditorResizeUtils::HorizontalEdge::Right)
@@ -1579,10 +1582,10 @@ void TracksRhiWidget::updateCursor(const QPointF &position) {
         return;
     }
     const auto physical = m_viewport.viewportToScene(position).x() * devicePixelRatioF();
-    const auto relative = physical - clip->physicalRect.left();
+    const auto relative = physical - clip->modelPhysicalRect.left();
     const auto tolerance = AppGlobal::resizeTolerance * devicePixelRatioF();
     const auto edge =
-        EditorResizeUtils::horizontalEdgeAt(relative, clip->physicalRect.width(), tolerance);
+        EditorResizeUtils::horizontalEdgeAt(relative, clip->modelPhysicalRect.width(), tolerance);
     setCursor(edge == EditorResizeUtils::HorizontalEdge::None ? Qt::ArrowCursor
                                                               : Qt::SizeHorCursor);
 }

@@ -17,6 +17,7 @@
 #include "UI/Views/ClipEditor/CurveRenderUtils.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "UI/Views/Common/EdgeAutoScroller.h"
+#include "UI/Views/Common/EditorItemGeometry.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorRhiGeometry.h"
@@ -66,7 +67,6 @@ using namespace ClipEditorGlobal;
 
 namespace {
     constexpr float kPitchLineWidth = 1.5f;
-    constexpr float kNoteBorderWidth = 1.5f;
 
     using Vertex = EditorRhiSolidVertex;
 
@@ -2213,21 +2213,23 @@ private:
     }
 
     void appendFullNoteShape(const QRectF &rect, const QColor &fill, const QColor &border) {
-        const auto padded =
-            rect.adjusted(kNoteBorderWidth, kNoteBorderWidth, -kNoteBorderWidth, -kNoteBorderWidth);
-        if (padded.isEmpty())
+        if (rect.isEmpty())
             return;
-        const auto physical = QRectF(padded.topLeft() * dpr, padded.size() * dpr);
-        EditorRhiGeometry::appendRoundedRect(vertices, physical, 2.0 * dpr, fill);
-        EditorRhiGeometry::appendRoundedRectStroke(vertices, physical, 2.0 * dpr,
-                                                   kNoteBorderWidth * dpr, border, 0.5);
+        const auto rawPhysical = QRectF(rect.topLeft() * dpr, rect.size() * dpr);
+        const auto physical = EditorItemGeometry::notePaintRect(rawPhysical, dpr);
+        const auto radius = EditorItemGeometry::adaptiveCornerRadius(
+            physical, EditorItemGeometry::noteCornerRadius * dpr);
+        EditorRhiGeometry::appendRoundedRect(vertices, physical, radius, fill);
+        EditorRhiGeometry::appendRoundedRectStroke(
+            vertices, physical, radius, EditorItemGeometry::noteBorderWidth * dpr, border, 0.5);
     }
 
     void appendCompactNoteShape(const QRectF &rect, const QColor &fill) {
-        const auto width = std::max(2.0, rect.width() - kNoteBorderWidth);
-        const auto height = std::max(2.0, rect.height() - kNoteBorderWidth);
-        appendLogicalRect(QRectF(rect.left() + kNoteBorderWidth * 0.5,
-                                 rect.top() + kNoteBorderWidth * 0.5, width, height),
+        const auto width = std::max(2.0, rect.width() - EditorItemGeometry::noteBorderWidth);
+        const auto height = std::max(2.0, rect.height() - EditorItemGeometry::noteBorderWidth);
+        appendLogicalRect(QRectF(rect.left() + EditorItemGeometry::noteBorderWidth * 0.5,
+                                 rect.top() + EditorItemGeometry::noteBorderWidth * 0.5, width,
+                                 height),
                           fill);
     }
 
@@ -2240,8 +2242,7 @@ private:
         QFont font;
         font.setPixelSize(std::max(1, q->noteFontPixelSize()));
         const QFontMetricsF metrics(font);
-        const auto padded =
-            rect.adjusted(kNoteBorderWidth, kNoteBorderWidth, -kNoteBorderWidth, -kNoteBorderWidth);
+        const auto padded = EditorItemGeometry::notePaintRect(rect);
         const auto textRect = padded.adjusted(2.0, 0.0, -2.0, 0.0);
         const auto textWidth =
             std::max(metrics.horizontalAdvance(lyric), metrics.horizontalAdvance(pronunciation));
@@ -2260,8 +2261,8 @@ private:
             return;
         QFont pronunciationFont = q->font();
         const QRectF pronunciationRect(
-            (rect.left() + kNoteBorderWidth + 2.0) * dpr, rect.bottom() * dpr,
-            (rect.width() - kNoteBorderWidth * 2.0 - 4.0) * dpr, 20.0 * dpr);
+            (rect.left() + EditorItemGeometry::noteBorderWidth + 2.0) * dpr, rect.bottom() * dpr,
+            (rect.width() - EditorItemGeometry::noteBorderWidth * 2.0 - 4.0) * dpr, 20.0 * dpr);
         const auto pronunciationSpan = glyphAtlas.appendText(
             pronunciation, pronunciationFont, pronunciationRect.topLeft(), pronunciationColor,
             pronunciationRect, dpr, physicalCameraOffset(), q->physicalWindowOffset());
@@ -2815,7 +2816,7 @@ private:
         } else {
             const auto physicalRect = QRectF(sceneRect.topLeft() * dpr, sceneRect.size() * dpr);
             const auto radius =
-                std::min({6.0 * dpr, physicalRect.width() * 0.5, physicalRect.height() * 0.5});
+                EditorItemGeometry::adaptiveCornerRadius(physicalRect, 6.0 * dpr);
             EditorRhiGeometry::appendRoundedRect(vertices, physicalRect, radius,
                                                  q->rubberBandFillColor());
             EditorRhiGeometry::appendRoundedRectStroke(vertices, physicalRect, radius, 1.5 * dpr,

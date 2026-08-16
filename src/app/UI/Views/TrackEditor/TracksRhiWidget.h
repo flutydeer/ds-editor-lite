@@ -136,7 +136,8 @@ private:
         int contentStartTick = 0;
         int visibleStartTick = 0;
         int visibleEndTick = 0;
-        QRectF physicalRect;
+        QRectF modelPhysicalRect;
+        QRectF paintPhysicalRect;
         QString title;
         bool selected = false;
         bool active = false;
@@ -162,8 +163,8 @@ private:
     void appendDropOverlay(EditorRhiFrameData &frame, double dpr) const;
     [[nodiscard]] ClipSnapshot buildClipSnapshot(const Clip *clip, int trackIndex,
                                                  double dpr) const;
-    [[nodiscard]] QRectF clipPhysicalRect(const Clip::ClipCommonProperties &properties,
-                                          int trackIndex, double dpr) const;
+    [[nodiscard]] QRectF clipModelPhysicalRect(const Clip::ClipCommonProperties &properties,
+                                               int trackIndex, double dpr) const;
     [[nodiscard]] static QRectF clipPreviewRect(const ClipSnapshot &clip, double dpr);
     [[nodiscard]] AudioWaveformSampler::Result sampleAudioWaveform(AudioWaveformSampler &sampler,
                                                                    const AudioInfoModel &audioInfo,

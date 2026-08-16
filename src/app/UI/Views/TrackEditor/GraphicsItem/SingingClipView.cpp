@@ -6,6 +6,7 @@
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Utils/AppColorPalette.h"
+#include "UI/Views/Common/EditorItemGeometry.h"
 #include "UI/Views/TrackEditor/ClipResizeUtils.h"
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/Support/MathUtils.h>
@@ -216,8 +217,9 @@ void SingingClipView::drawPianoRollOverlay(QPainter *painter, const double noteH
     QPen pen(borderColor, 1.2);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
-    painter->drawRoundedRect(overlayRect, AbstractClipView::clipCornerRadius,
-                             AbstractClipView::clipCornerRadius);
+    const auto radius = EditorItemGeometry::adaptiveCornerRadius(
+        overlayRect, EditorItemGeometry::clipCornerRadius);
+    painter->drawRoundedRect(overlayRect, radius, radius);
 }
 
 QVector<EditorPreview::Note> SingingClipView::effectiveNotes(const bool includeActiveEdits) const {

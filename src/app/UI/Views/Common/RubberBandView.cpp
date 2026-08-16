@@ -1,5 +1,6 @@
 #include "RubberBandView.h"
 
+#include "EditorItemGeometry.h"
 #include "TimeGraphicsScene.h"
 
 #include <QPainter>
@@ -60,11 +61,7 @@ void RubberBandView::paint(QPainter *painter, const QStyleOptionGraphicsItem *op
     const auto backgroundColor = m_fillColor;
     const auto penWidth = 1.5f;
     const auto radiusBase = 6;
-    const auto radiusX =
-        boundingRect().width() / 2 >= radiusBase ? radiusBase : boundingRect().width() / 2;
-    const auto radiusY =
-        boundingRect().height() / 2 >= radiusBase ? radiusBase : boundingRect().height() / 2;
-    const auto radius = std::min(radiusX, radiusY);
+    const auto radius = EditorItemGeometry::adaptiveCornerRadius(boundingRect(), radiusBase);
 
     QPen pen;
     pen.setWidthF(penWidth);
