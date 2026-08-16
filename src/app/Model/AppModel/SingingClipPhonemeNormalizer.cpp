@@ -47,7 +47,8 @@ namespace {
         return !std::is_sorted(offsets.cbegin(), offsets.cend());
     }
 
-    SingingClipPhonemeNormalizer::GroupStates captureGroupStates(const SingingClip &clip) {
+    SingingClipPhonemeNormalizer::GroupStates captureGroupStates(const SingingClip &clip,
+                                                                 const Timeline &timeline) {
         SingingClipPhonemeNormalizer::GroupStates result;
         const auto notes = clip.notes().toList();
         for (int i = 0; i < notes.count(); ++i) {
@@ -59,6 +60,8 @@ namespace {
             state.rootPlusCount = Note::trailingPlusCount(root->lyric());
             for (const auto &phoneme : root->phonemeNameSeq().result())
                 state.rootOnsets.append(phoneme.isOnset);
+            const auto rootStartMs =
+                timeline.tickToMs(clip.start() + root->localStart());
             auto groupEndTick = root->localStart() + root->length();
             bool hasPlus = false;
             int groupEnd = i + 1;
@@ -70,8 +73,10 @@ namespace {
                 if (marker->localStart() > groupEndTick)
                     break;
 
-                state.members.append(
-                    {marker, marker->lyric().trimmed(), marker->localStart() - root->localStart()});
+                const auto markerStartMs =
+                    timeline.tickToMs(clip.start() + marker->localStart());
+                state.members.append({marker, marker->lyric().trimmed(),
+                                      qRound(markerStartMs - rootStartMs)});
                 hasPlus = hasPlus || marker->isPlus();
                 groupEndTick =
                     std::max(groupEndTick, marker->localStart() + marker->length());
@@ -160,7 +165,7 @@ namespace {
         }
 
         if (previousGroupStates) {
-            const auto currentGroupStates = captureGroupStates(clip);
+            const auto currentGroupStates = captureGroupStates(clip, timeline);
             appendChangedGroupRoots(clip, *previousGroupStates, currentGroupStates, result,
                                     resultSet);
         }
@@ -219,7 +224,13 @@ namespace {
 
 SingingClipPhonemeNormalizer::GroupStates
     SingingClipPhonemeNormalizer::captureGroupStates(const SingingClip &clip) {
-    return ::captureGroupStates(clip);
+    return ::captureGroupStates(clip, appModel->timeline());
+}
+
+SingingClipPhonemeNormalizer::GroupStates
+    SingingClipPhonemeNormalizer::captureGroupStates(const SingingClip &clip,
+                                                     const Timeline &timeline) {
+    return ::captureGroupStates(clip, timeline);
 }
 
 QList<Note *> SingingClipPhonemeNormalizer::collectInvalidEditedOffsetNotes(SingingClip &clip) {
@@ -235,6 +246,12 @@ QList<SingingClipPhonemeNormalizer::ResetRecord>
     SingingClipPhonemeNormalizer::normalizeEditedOffsets(
         SingingClip &clip, const GroupStates &previousGroupStates) {
     return normalizeEditedOffsetsWithTimeline(clip, appModel->timeline(), &previousGroupStates);
+}
+
+QList<SingingClipPhonemeNormalizer::ResetRecord>
+    SingingClipPhonemeNormalizer::normalizeEditedOffsets(
+        SingingClip &clip, const GroupStates &previousGroupStates, const Timeline &timeline) {
+    return normalizeEditedOffsetsWithTimeline(clip, timeline, &previousGroupStates);
 }
 
 void SingingClipPhonemeNormalizer::restoreEditedOffsets(const QList<ResetRecord> &records) {

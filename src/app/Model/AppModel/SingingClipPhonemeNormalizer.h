@@ -8,6 +8,7 @@
 class AppModel;
 class Note;
 class SingingClip;
+class Timeline;
 
 class SingingClipPhonemeNormalizer {
 public:
@@ -21,7 +22,7 @@ public:
     public:
         Note *note = nullptr;
         QString lyric;
-        int relativeStart = 0;
+        int relativeStartMs = 0;
 
         bool operator==(const GroupMemberState &other) const = default;
     };
@@ -38,10 +39,14 @@ public:
     using GroupStates = QHash<Note *, GroupState>;
 
     static GroupStates captureGroupStates(const SingingClip &clip);
+    static GroupStates captureGroupStates(const SingingClip &clip, const Timeline &timeline);
     static QList<Note *> collectInvalidEditedOffsetNotes(SingingClip &clip);
     static QList<ResetRecord> normalizeEditedOffsets(SingingClip &clip);
     static QList<ResetRecord> normalizeEditedOffsets(SingingClip &clip,
                                                       const GroupStates &previousGroupStates);
+    static QList<ResetRecord> normalizeEditedOffsets(SingingClip &clip,
+                                                      const GroupStates &previousGroupStates,
+                                                      const Timeline &timeline);
     static QList<Note *> notesFromResetRecords(const QList<ResetRecord> &records);
     static void restoreEditedOffsets(const QList<ResetRecord> &records);
     static void normalizeEditedOffsets(AppModel &model);

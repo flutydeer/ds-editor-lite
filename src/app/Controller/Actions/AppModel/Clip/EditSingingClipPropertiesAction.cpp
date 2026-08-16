@@ -16,6 +16,8 @@ EditSingingClipPropertiesAction *
 }
 
 void EditSingingClipPropertiesAction::execute() {
+    const auto previousGroupStates =
+        SingingClipPhonemeNormalizer::captureGroupStates(*m_clip);
     m_track->removeClip(m_clip);
     m_clip->setName(m_newArgs.name);
     m_clip->setStart(m_newArgs.start);
@@ -23,7 +25,15 @@ void EditSingingClipPropertiesAction::execute() {
     m_clip->setLength(m_newArgs.length);
     m_clip->setClipLen(m_newArgs.clipLen);
     m_track->insertClip(m_clip);
+    m_resetRecords = previousGroupStates.isEmpty()
+                         ? QList<SingingClipPhonemeNormalizer::ResetRecord>{}
+                         : SingingClipPhonemeNormalizer::normalizeEditedOffsets(
+                               *m_clip, previousGroupStates);
     m_clip->notifyPropertyChanged();
+    if (!m_resetRecords.isEmpty())
+        m_clip->notifyNoteChanged(
+            SingingClip::EditedPhonemeOffsetChange,
+            SingingClipPhonemeNormalizer::notesFromResetRecords(m_resetRecords));
 }
 
 void EditSingingClipPropertiesAction::undo() {
@@ -34,5 +44,10 @@ void EditSingingClipPropertiesAction::undo() {
     m_clip->setLength(m_oldArgs.length);
     m_clip->setClipLen(m_oldArgs.clipLen);
     m_track->insertClip(m_clip);
+    SingingClipPhonemeNormalizer::restoreEditedOffsets(m_resetRecords);
     m_clip->notifyPropertyChanged();
+    if (!m_resetRecords.isEmpty())
+        m_clip->notifyNoteChanged(
+            SingingClip::EditedPhonemeOffsetChange,
+            SingingClipPhonemeNormalizer::notesFromResetRecords(m_resetRecords));
 }

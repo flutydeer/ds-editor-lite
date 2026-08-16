@@ -3,6 +3,7 @@
 
 #include <lite/ProjectModel/AppModel/Clip.h>
 #include <lite/History/IAction.h>
+#include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 class Track;
 
@@ -17,6 +18,7 @@ public:
 private:
     Clip::ClipCommonProperties m_oldArgs;
     Clip::ClipCommonProperties m_newArgs;
+    QList<SingingClipPhonemeNormalizer::ResetRecord> m_resetRecords;
     Clip *m_clip = nullptr;
     Track *m_oldTrack = nullptr;
     Track *m_newTrack = nullptr;

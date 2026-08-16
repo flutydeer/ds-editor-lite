@@ -214,6 +214,41 @@ namespace {
                    !root->phonemeOffsetSeq().isEdited(),
                "changing onset allocation invalidates root allocation offsets");
     }
+
+    void testTempoAwareGroupState() {
+        auto root = new Note;
+        configureNote(*root, 0, "international+");
+        Phonemes rootPhonemes;
+        rootPhonemes.nameSeq.edited = internationalPhones();
+        rootPhonemes.offsetSeq.edited = {0, 100, 200, 500, 900, 1000, 1500};
+        root->setPhonemes(rootPhonemes);
+        auto plus = new Note;
+        configureNote(*plus, 480, "+");
+        auto doublePlus = new Note;
+        configureNote(*doublePlus, 960, "++");
+        SingingClip clip({root, plus, doublePlus});
+
+        Timeline timeline;
+        timeline.addTempo({960, 60.0});
+        auto previousGroupStates =
+            SingingClipPhonemeNormalizer::captureGroupStates(clip, timeline);
+        clip.setStart(720);
+        const auto movedRecords = SingingClipPhonemeNormalizer::normalizeEditedOffsets(
+            clip, previousGroupStates, timeline);
+        expect(movedRecords.size() == 1 && movedRecords.first().note == root &&
+                   !root->phonemeOffsetSeq().isEdited(),
+               "moving a complete group across a tempo boundary invalidates millisecond offsets");
+
+        SingingClipPhonemeNormalizer::restoreEditedOffsets(movedRecords);
+        previousGroupStates =
+            SingingClipPhonemeNormalizer::captureGroupStates(clip, timeline);
+        timeline.addTempo({1200, 90.0});
+        const auto tempoRecords = SingingClipPhonemeNormalizer::normalizeEditedOffsets(
+            clip, previousGroupStates, timeline);
+        expect(tempoRecords.size() == 1 && tempoRecords.first().note == root &&
+                   !root->phonemeOffsetSeq().isEdited(),
+               "tempo changes inside a stationary group invalidate millisecond offsets");
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -223,6 +258,7 @@ int main(int argc, char *argv[]) {
     testDetachedMarkersStayOrphaned();
     testEditingEligibility();
     testRelativeTimingChangeInvalidatesEditedOffsets();
+    testTempoAwareGroupState();
     if (failures == 0)
         QTextStream(stdout) << "All PhonemeDistribution tests passed" << Qt::endl;
     return failures == 0 ? 0 : 1;
