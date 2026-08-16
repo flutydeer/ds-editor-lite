@@ -406,6 +406,7 @@ public:
     }
 
     void setHorizontalBarValue(const int value) {
+        wheel.stop();
         viewport.setOffset({static_cast<double>(value), verticalOffset()});
     }
 
@@ -447,12 +448,14 @@ public:
             return;
 
         if (playbackPosition > viewportEnd) {
+            wheel.stop();
             const auto targetStart = playbackPosition - viewportLength;
             if (targetStart > viewportEnd)
                 viewport.setStartTick(playbackPosition - clip->start());
             else
                 viewport.scrollBy({static_cast<double>(q->width()), 0.0});
         } else if (playbackPosition < viewportStart) {
+            wheel.stop();
             viewport.setStartTick(playbackPosition - clip->start());
         } else {
             return;
@@ -1716,6 +1719,7 @@ public:
     void mousePress(QMouseEvent *event) {
         if (!clip)
             return;
+        wheel.stop();
         viewport.stopAnimation();
         if (event->button() != Qt::LeftButton) {
             if (!EditorViewGlobal::isPitchEditMode(editMode))

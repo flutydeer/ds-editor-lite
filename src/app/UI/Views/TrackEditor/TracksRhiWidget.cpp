@@ -656,6 +656,7 @@ void TracksRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
 
 void TracksRhiWidget::dragEnterEvent(QDragEnterEvent *event) {
     if (event->mimeData()->hasUrls()) {
+        m_wheelController->stop();
         event->acceptProposedAction();
         m_edgeAutoScroller.stopDrag();
         m_externalDragActive = true;
@@ -1607,8 +1608,10 @@ void TracksRhiWidget::handleAutoPageTurn() {
     if (range <= 0.0)
         return;
     if (m_playbackPosition > end) {
+        m_wheelController->stop();
         m_viewport.setStartTick(m_playbackPosition > end + range ? m_playbackPosition : end);
     } else if (m_playbackPosition < start) {
+        m_wheelController->stop();
         m_viewport.setStartTick(m_playbackPosition);
     }
 }
