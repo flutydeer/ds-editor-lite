@@ -2,7 +2,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include "NoteView.h"
-#include "NoteDrawUtils.h"
+#include "NoteEditUtils.h"
 #include "PianoRollGraphicsScene.h"
 #include "PianoRollGraphicsView.h"
 #include "PianoRollGraphicsView_p.h"
@@ -72,13 +72,13 @@ void DrawNoteHandler::continueDragAt(const QPoint &viewportPos) {
 
 void DrawNoteHandler::updateDrawingAt(const QPoint &viewportPos) {
     const auto scenePos = q->mapToScene(viewportPos);
-    const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x())) + d->m_offset;
+    const auto globalTick = q->sceneXToTick(scenePos.x()) + d->m_offset;
     const auto quantizedTickLength =
         TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-    const auto snappedTick =
-        TimelineSnapUtils::snapDown(tick, quantizedTickLength, appModel->timeline());
-    m_currentDrawingNote->setLength(NoteDrawUtils::lengthForSnappedEnd(
-        m_currentDrawingNote->rStart(), snappedTick - d->m_offset, quantizedTickLength));
+    const auto snappedTick = NoteEditUtils::snapLocalDown(
+        globalTick, d->m_offset, quantizedTickLength, appModel->timeline());
+    m_currentDrawingNote->setLength(NoteEditUtils::lengthForSnappedEnd(
+        m_currentDrawingNote->rStart(), snappedTick, quantizedTickLength));
     publishDrawingPreview();
 }
 
@@ -132,8 +132,8 @@ void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,
     const auto quantizedTickLength =
         TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
     const auto snappedTick =
-        TimelineSnapUtils::snapDown(tick, quantizedTickLength, appModel->timeline());
-    qDebug() << "Draw note at:" << snappedTick;
+        NoteEditUtils::snapLocalDown(tick, d->m_offset, quantizedTickLength, appModel->timeline());
+    qDebug() << "Draw note at:" << snappedTick + d->m_offset;
 
     if (!m_currentDrawingNote) {
         m_currentDrawingNote = new NoteView(-1);
@@ -148,7 +148,7 @@ void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,
     appStatus->currentEditObject = AppStatus::EditObjectType::Note;
     m_currentDrawingNote->setLyric(
         PianoRollGraphicsViewHelper::defaultLyricForNewNote(singingClip));
-    m_currentDrawingNote->setRStart(snappedTick - d->m_offset);
+    m_currentDrawingNote->setRStart(snappedTick);
     const int length = initialLength >= 0
                            ? initialLength
                            : TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);

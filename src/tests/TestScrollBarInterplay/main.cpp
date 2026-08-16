@@ -1,9 +1,12 @@
 #include <lite/GUI/Controls/OverlayScrollBar.h>
 
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
+#include "UI/Views/Common/EditorViewportAnimation.h"
 #include "UI/Views/Common/EditorViewportController.h"
 #include "UI/Views/Common/EditorWheelUtils.h"
+#include "UI/Views/Common/TimeGraphicsScene.h"
 
+#include <QGraphicsRectItem>
 #include <QGraphicsView>
 #include <QScrollBar>
 #include <QTextStream>
@@ -19,6 +22,21 @@
 // collapsing the handle to its 20px minimum and leaving it at mid-track.
 namespace {
     int g_failures = 0;
+
+    class SceneAwareScalableItem final : public QGraphicsRectItem, public IScalableItem {
+    public:
+        bool scaleInitializedInScene = false;
+        bool visibleRectInitializedInScene = false;
+
+    protected:
+        void afterSetScale() override {
+            scaleInitializedInScene = scene() != nullptr;
+        }
+
+        void afterSetVisibleRect() override {
+            visibleRectInitializedInScene = scene() != nullptr;
+        }
+    };
 
     void probe(const char *label, const QScrollBar *source, OverlayScrollBar *bar) {
         QTextStream(stdout) << "[" << label << "] src page=" << source->pageStep()
@@ -37,6 +55,14 @@ namespace {
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
+
+    TimeGraphicsScene timeScene;
+    SceneAwareScalableItem sceneAwareItem;
+    timeScene.addCommonItem(&sceneAwareItem);
+    expect(sceneAwareItem.scaleInitializedInScene &&
+               sceneAwareItem.visibleRectInitializedInScene,
+           "scene-dependent item geometry must initialize after scene attachment");
+    timeScene.removeCommonItem(&sceneAwareItem);
 
     QGraphicsView view;
     view.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -206,6 +232,13 @@ int main(int argc, char *argv[]) {
                qFuzzyCompare(focusViewport.horizontalOffset(), 296.0) &&
                qFuzzyCompare(focusViewport.verticalOffset(), 396.0) && focusViewportChanges == 2,
            "revealing toward the leading edges must preserve the requested margin");
+    expect(focusViewport.ensureVisible(QRectF(1500, 900, 100, 40), 24, 24, true) &&
+               focusViewport.logicalVisibleSceneRect().topLeft() == QPointF(824, 664),
+           "an animated RHI focus reveal must publish its logical destination");
+    expect(focusViewport.ensureVisible(QRectF(1500, 900, 100, 40), 24, 24, false) &&
+               qFuzzyCompare(focusViewport.horizontalOffset(), 824.0) &&
+               qFuzzyCompare(focusViewport.verticalOffset(), 664.0),
+           "a non-animated RHI focus reveal must reach the same destination");
 
     EditorViewportController boundedViewport;
     boundedViewport.setEnsureContentFillsViewport(false, false);
@@ -222,6 +255,18 @@ int main(int argc, char *argv[]) {
     boundedViewport.scrollBy(QPointF(100, 100));
     expect(boundedViewportChanges == 1,
            "repeated scrolling beyond a clamped boundary must not notify the viewport");
+
+    QPointF animatedOffset(10, 20);
+    EditorViewportAnimation viewportAnimation(
+        [&animatedOffset](const QPointF &offset) { animatedOffset = offset; });
+    viewportAnimation.setAnimationLevel(AnimationGlobal::Full);
+    viewportAnimation.moveTo(animatedOffset, QPointF(100, 200), true);
+    expect(viewportAnimation.isRunning() &&
+               viewportAnimation.logicalOffset(animatedOffset) == QPointF(100, 200),
+           "an animated RHI viewport move must expose its logical destination immediately");
+    viewportAnimation.moveTo(animatedOffset, QPointF(100, 200), false);
+    expect(!viewportAnimation.isRunning() && animatedOffset == QPointF(100, 200),
+           "a non-animated RHI viewport move must apply the same destination immediately");
 
     if (g_failures == 0) {
         QTextStream(stdout) << "All ScrollBarInterplay tests passed" << Qt::endl;

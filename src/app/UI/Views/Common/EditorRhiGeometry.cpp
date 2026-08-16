@@ -167,7 +167,18 @@ namespace {
         constexpr double feather = 0.75;
         const auto innerRect = physicalRect.adjusted(feather, feather, -feather, -feather);
         if (innerRect.isEmpty()) {
-            EditorRhiGeometry::appendRect(vertices, physicalRect, color);
+            const auto contour = roundedRectContour(physicalRect, r, roundBottomCorners);
+            const auto outer =
+                roundedRectContour(physicalRect.adjusted(-feather, -feather, feather, feather),
+                                   r + feather, roundBottomCorners);
+            const auto center = physicalRect.center();
+            const auto vertexColor = premultipliedColor(color);
+            for (qsizetype index = 0; index < contour.size(); ++index) {
+                const auto next = (index + 1) % contour.size();
+                appendTriangle(vertices, center, contour[index], contour[next], vertexColor, 1.0f,
+                               1.0f, 1.0f);
+            }
+            appendContourBand(vertices, outer, contour, vertexColor, 0.0f, 1.0f);
             return;
         }
         const auto inner =
@@ -439,12 +450,15 @@ void EditorRhiGeometry::appendRoundedRectStroke(QVector<EditorRhiSolidVertex> &v
     const auto halfWidth = width * 0.5;
     const auto fadeWidth = std::max(0.5, feather);
     const auto outerFade =
-        roundedRectContour(physicalRect.adjusted(-halfWidth - fadeWidth, -halfWidth - fadeWidth,
+        roundedRectContour(physicalRect.adjusted(-halfWidth - fadeWidth,
+                                                 -halfWidth - fadeWidth,
                                                  halfWidth + fadeWidth, halfWidth + fadeWidth),
                            radius + halfWidth + fadeWidth);
-    const auto outer = roundedRectContour(
-        physicalRect.adjusted(-halfWidth, -halfWidth, halfWidth, halfWidth), radius + halfWidth);
-    const auto innerRect = physicalRect.adjusted(halfWidth, halfWidth, -halfWidth, -halfWidth);
+    const auto outer = roundedRectContour(physicalRect.adjusted(-halfWidth, -halfWidth, halfWidth,
+                                                               halfWidth),
+                                          radius + halfWidth);
+    const auto innerRect =
+        physicalRect.adjusted(halfWidth, halfWidth, -halfWidth, -halfWidth);
     if (innerRect.isEmpty()) {
         appendRoundedRect(vertices, physicalRect, radius, color);
         return;

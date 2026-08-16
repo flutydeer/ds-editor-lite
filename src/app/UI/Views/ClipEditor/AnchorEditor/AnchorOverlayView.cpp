@@ -2,6 +2,7 @@
 
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/Common/EditorItemGeometry.h"
 
 #include <QLineF>
 #include <QPainter>
@@ -326,7 +327,7 @@ void AnchorOverlayView::drawSelectionRect(QPainter *painter) const {
     const double y2 = sceneYToItemY(rect.bottom());
     QRectF localRect(QPointF(x1, y1), QPointF(x2, y2));
 
-    const auto radius = std::min({6.0, localRect.width() / 2, localRect.height() / 2});
+    const auto radius = EditorItemGeometry::adaptiveCornerRadius(localRect, 6.0);
     QColor selectionBorderColor = m_anchorPreviewColor;
     selectionBorderColor.setAlpha(PitchDisplayStrategy::anchorSelectionBorderAlpha());
     QColor selectionFillColor = m_anchorPreviewColor;

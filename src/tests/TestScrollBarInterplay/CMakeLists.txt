@@ -4,7 +4,9 @@ lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
         ../../app/UI/Views/Common/EditorRhiScrollBarController.cpp
+        ../../app/UI/Views/Common/EditorViewportAnimation.cpp
         ../../app/UI/Views/Common/EditorViewportController.cpp
+        ../../app/UI/Views/Common/TimeGraphicsScene.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

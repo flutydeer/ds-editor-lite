@@ -1,6 +1,8 @@
 #ifndef EDITORVIEWPORTCONTROLLER_H
 #define EDITORVIEWPORTCONTROLLER_H
 
+#include "EditorViewportAnimation.h"
+
 #include <QObject>
 #include <QPointF>
 #include <QRectF>
@@ -34,10 +36,11 @@ public:
     [[nodiscard]] State state() const;
     bool restoreState(const State &state);
     bool setScale(double horizontal, double vertical, const QPointF &anchor);
-    bool centerAt(double tick, double unit);
-    bool ensureVisible(const QRectF &rect, double xMargin, double yMargin);
+    bool centerAt(double tick, double unit, bool animated = false);
+    bool ensureVisible(const QRectF &rect, double xMargin, double yMargin, bool animated = false);
     bool setStartTick(double tick);
     void scrollBy(const QPointF &deltaPixels);
+    void stopAnimation();
     void zoomHorizontal(double wheelDelta, double anchorX);
     void zoomVertical(double wheelDelta, double anchorY);
 
@@ -50,6 +53,7 @@ public:
     [[nodiscard]] double horizontalOffset() const;
     [[nodiscard]] double verticalOffset() const;
     [[nodiscard]] QRectF visibleSceneRect() const;
+    [[nodiscard]] QRectF logicalVisibleSceneRect() const;
     [[nodiscard]] QSizeF viewportSize() const;
 
     [[nodiscard]] double tickToSceneX(double tick) const;
@@ -68,6 +72,7 @@ signals:
 private:
     void normalize(bool scaleChanged);
     void notify(bool emitScaleChanged);
+    void applyOffset(const QPointF &offset);
     [[nodiscard]] double effectiveMinimumScaleX() const;
     [[nodiscard]] double effectiveMinimumScaleY() const;
     [[nodiscard]] double contentWidth() const;
@@ -91,6 +96,7 @@ private:
     double m_offsetY = 0.0;
     bool m_fillX = true;
     bool m_fillY = true;
+    EditorViewportAnimation m_offsetAnimation;
 };
 
 #endif // EDITORVIEWPORTCONTROLLER_H

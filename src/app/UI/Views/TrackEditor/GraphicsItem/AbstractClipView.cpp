@@ -5,6 +5,7 @@
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Views/Common/TimeGraphicsScene.h"
+#include "UI/Views/Common/EditorItemGeometry.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include <lite/GUI/Controls/Menu.h>
 #include "UI/Utils/AppColorPalette.h"
@@ -176,15 +177,9 @@ void AbstractClipView::loadCommonProperties(const Clip::ClipCommonProperties &ar
 
 QRectF AbstractClipViewPrivate::previewRect() const {
     Q_Q(const AbstractClipView);
-    constexpr auto penWidth = 1.2f;
-    constexpr auto verticalPadding = 1.2f;
-    const auto rect = q->rect();
-    const auto left = rect.left() + penWidth / 2;
-    const auto top = rect.top() + titleHeight + verticalPadding;
-    const auto width = rect.width() - penWidth;
-    const auto height = rect.height() - titleHeight - verticalPadding * 2;
-    const auto paddedRect = QRectF(left, top, width, height);
-    return paddedRect;
+    auto result = EditorItemGeometry::clipPaintRect(q->rect());
+    result.setTop(result.top() + titleHeight);
+    return result;
 }
 
 QRectF AbstractClipView::previewRect() const {
@@ -218,15 +213,11 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     const auto colorPrimaryDarker = palette.clipBorder(ci);
     const auto colorPrimaryLighter = palette.clipBackgroundSelected(ci);
     const auto colorForeground = palette.clipForeground(ci);
-    auto penWidth = 1.2f;
-    auto verticalPadding = 1.2f;
+    constexpr auto penWidth = EditorItemGeometry::clipBorderWidth;
 
-    auto left = rect().left() + penWidth / 2;
-    auto top = rect().top() + verticalPadding;
-    auto width = rect().width() - penWidth;
-    auto height = rect().height() - verticalPadding * 2;
-    auto paddedRect = QRectF(left, top, width, height);
-    const auto radius = clipCornerRadius;
+    const auto paddedRect = EditorItemGeometry::clipPaintRect(rect());
+    const auto radius = EditorItemGeometry::adaptiveCornerRadius(
+        paddedRect, EditorItemGeometry::clipCornerRadius);
 
     double iconWidth = 4;
     double textPadding = 0;

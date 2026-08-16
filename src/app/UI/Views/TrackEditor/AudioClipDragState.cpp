@@ -33,12 +33,11 @@ void AudioClipDragState::moveTo(const int visibleStartTick,
 }
 
 bool AudioClipDragState::resizeLeftTo(const int leftTick, const int originalRightTick,
+                                      const int minimumVisibleLength,
                                       Clip::ClipCommonProperties &properties,
                                       const Timeline &timeline) {
-    if (leftTick >= originalRightTick)
-        return false;
-
-    int visibleStartTick = leftTick;
+    int visibleStartTick =
+        qMin(leftTick, originalRightTick - qMax(1, minimumVisibleLength));
     double trimStartMs = timeline.tickToMs(visibleStartTick) - m_materialStartMs;
     if (trimStartMs < 0.0) {
         trimStartMs = 0.0;
@@ -55,15 +54,14 @@ bool AudioClipDragState::resizeLeftTo(const int leftTick, const int originalRigh
 }
 
 bool AudioClipDragState::resizeRightTo(const int rightTick, const int visibleStartTick,
+                                       const int minimumVisibleLength,
                                        Clip::ClipCommonProperties &properties,
                                        const Timeline &timeline) {
-    if (rightTick <= visibleStartTick)
-        return false;
-
+    const auto visibleEndTick = qMax(rightTick, visibleStartTick + qMax(1, minimumVisibleLength));
     const double visibleStartMs = m_materialStartMs + m_trimStartMs;
     const double availableLengthMs = m_materialLengthMs - m_trimStartMs;
     const double playLengthMs =
-        qMin(timeline.tickToMs(rightTick) - visibleStartMs, availableLengthMs);
+        qMin(timeline.tickToMs(visibleEndTick) - visibleStartMs, availableLengthMs);
     if (playLengthMs <= 0.0)
         return false;
 

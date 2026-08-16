@@ -1,6 +1,8 @@
 #ifndef APPSTATUS_H
 #define APPSTATUS_H
 
+#include "EditorPreview.h"
+
 #define appStatus AppStatus::instance()
 
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
@@ -51,13 +53,7 @@ public:
     Property<QRectF> pianoRollVisibleRect;
 
     // 钢琴卷帘编辑进行中（未提交）的音符实时几何；空列表 = 无编辑
-    struct NoteEditPreview {
-        int id = -1;
-        int rStart = 0;
-        int length = 0;
-        int keyIndex = 0;
-        friend bool operator==(const NoteEditPreview &lhs, const NoteEditPreview &rhs) = default;
-    };
+    using NoteEditPreview = EditorPreview::Note;
 
     Property<QVector<NoteEditPreview>> pianoRollNoteEditPreview;
 
