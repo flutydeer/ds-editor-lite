@@ -1060,7 +1060,7 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     Q_D(PianoRollGraphicsView);
     if (d->m_editMode != mode) {
         d->finishInlineEditing();
-        commitAction();
+        discardAction();
     }
 
     if (d->m_currentHandler)
