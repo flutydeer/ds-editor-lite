@@ -2,6 +2,7 @@
 #define NOTEEDITUTILS_H
 
 #include <lite/MusicBase/TimelineSnapUtils.h>
+#include <lite/ProjectModel/Utils/NoteResizeUtils.h>
 
 #include <algorithm>
 
@@ -24,18 +25,19 @@ namespace NoteEditUtils {
 
     inline int leftResizeDelta(const int originalStart, const int originalLength,
                                const int snappedLocalTick, const int minimumLength) {
-        return std::min(snappedLocalTick - originalStart, originalLength - minimumLength);
+        return NoteResizeUtils::clampLeftDelta(originalLength, snappedLocalTick - originalStart,
+                                               minimumLength);
     }
 
     inline int rightResizeDelta(const int originalStart, const int originalLength,
                                 const int snappedLocalTick, const int minimumLength) {
-        return std::max(snappedLocalTick - originalStart - originalLength,
-                        minimumLength - originalLength);
+        return NoteResizeUtils::clampRightDelta(
+            originalLength, snappedLocalTick - originalStart - originalLength, minimumLength);
     }
 
     inline int lengthForSnappedEnd(const int startTick, const int snappedEndTick,
                                    const int minimumLength) {
-        return std::max(minimumLength, snappedEndTick - startTick);
+        return std::max(std::max(1, minimumLength), snappedEndTick - startTick);
     }
 }
 

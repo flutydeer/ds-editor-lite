@@ -2,11 +2,13 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include "ClipController_p.h"
+
 #include "TrackController.h"
 #include "Actions/AppModel/Note/NoteActions.h"
 #include "Actions/AppModel/Param/ParamsActions.h"
 #include "Global/ControllerGlobal.h"
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/Utils/NoteResizeUtils.h>
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/History/HistoryManager.h>
 #include <lite/GUI/Controls/Toast.h>
@@ -195,11 +197,18 @@ void ClipController::onResizeNotesLeft(const QList<int> &notesId, const int delt
     Q_D(const ClipController);
     const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToEdit;
-    for (const auto id : notesId)
-        notesToEdit.append(singingClip->findNoteById(id));
+    auto safeDeltaTick = deltaTick;
+    for (const auto id : notesId) {
+        if (auto *note = singingClip->findNoteById(id)) {
+            notesToEdit.append(note);
+            safeDeltaTick = NoteResizeUtils::clampLeftDelta(note->length(), safeDeltaTick);
+        }
+    }
+    if (notesToEdit.isEmpty())
+        return;
 
     const auto a = new NoteActions;
-    a->editNotesStartAndLength(notesToEdit, deltaTick, singingClip);
+    a->editNotesStartAndLength(notesToEdit, safeDeltaTick, singingClip);
     a->execute();
     historyManager->record(a);
 }
@@ -208,11 +217,18 @@ void ClipController::onResizeNotesRight(const QList<int> &notesId, const int del
     Q_D(const ClipController);
     const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToEdit;
-    for (const auto id : notesId)
-        notesToEdit.append(singingClip->findNoteById(id));
+    auto safeDeltaTick = deltaTick;
+    for (const auto id : notesId) {
+        if (auto *note = singingClip->findNoteById(id)) {
+            notesToEdit.append(note);
+            safeDeltaTick = NoteResizeUtils::clampRightDelta(note->length(), safeDeltaTick);
+        }
+    }
+    if (notesToEdit.isEmpty())
+        return;
 
     const auto a = new NoteActions;
-    a->editNotesLength(notesToEdit, deltaTick, singingClip);
+    a->editNotesLength(notesToEdit, safeDeltaTick, singingClip);
     a->execute();
     historyManager->record(a);
 }

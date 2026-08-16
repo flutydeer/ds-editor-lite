@@ -52,11 +52,11 @@ int main(int argc, char *argv[]) {
     singing.length = 1920;
     singing.clipStart = 120;
     singing.clipLen = 960;
-    expect(ClipResizeUtils::updateRightEdge(singing, 3000, true, 1800),
+    expect(ClipResizeUtils::updateRightEdge(singing, 3000, 120, true, 1800),
            "a positive singing clip resize must be accepted");
     expect(singing.clipLen == 3000 && singing.length == 3120,
            "expanding a singing clip must extend its editable content length");
-    expect(ClipResizeUtils::updateRightEdge(singing, 600, true, 1800),
+    expect(ClipResizeUtils::updateRightEdge(singing, 600, 120, true, 1800),
            "shrinking a singing clip must be accepted");
     expect(singing.clipLen == 600 && singing.length == 1800,
            "shrinking must retain enough content length for existing notes");
@@ -71,19 +71,28 @@ int main(int argc, char *argv[]) {
     expect(ClipResizeUtils::updateLeftEdge(leftResize, 50) && leftResize.clipStart == 0 &&
                leftResize.clipLen == 800,
            "left resize must stop at the content origin");
-    expect(!ClipResizeUtils::updateLeftEdge(leftResize, 900),
-           "left resize must reject a non-positive visible length");
+    expect(ClipResizeUtils::updateLeftEdge(leftResize, 1200, 120) &&
+               leftResize.clipStart == 680 && leftResize.clipLen == 120,
+           "left resize crossing the right edge must clamp to one grid step");
 
     Clip::ClipCommonProperties audio;
     audio.length = 2000;
     audio.clipStart = 500;
     audio.clipLen = 500;
-    expect(ClipResizeUtils::updateRightEdge(audio, 3000, false, 2000),
+    expect(ClipResizeUtils::updateRightEdge(audio, 3000, 120, false, 2000),
            "a positive audio clip resize must be accepted");
     expect(audio.clipLen == 1500 && audio.length == 2000,
            "audio resize must stop at the material boundary");
-    expect(!ClipResizeUtils::updateRightEdge(audio, 0, false, 2000),
-           "a non-positive visible length must be rejected");
+    expect(ClipResizeUtils::updateRightEdge(audio, -500, 120, false, 2000) &&
+               audio.clipLen == 120,
+           "right resize crossing the left edge must clamp to one grid step");
+
+    Clip::ClipCommonProperties unsnapped;
+    unsnapped.length = 1000;
+    unsnapped.clipLen = 500;
+    expect(ClipResizeUtils::updateRightEdge(unsnapped, -100, 1, true, 0) &&
+               unsnapped.clipLen == 1,
+           "unsnapped right resize must retain a positive one-tick length");
 
     struct ContentSpan {
         int start;
@@ -183,7 +192,7 @@ int main(int argc, char *argv[]) {
     draggedAudio.clipLen = initialCaches.clipLen;
     draggedAudio.length = initialCaches.length;
     constexpr int newLeftTick = 5200;
-    expect(leftState.resizeLeftTo(newLeftTick, visibleStartTick + initialCaches.clipLen,
+    expect(leftState.resizeLeftTo(newLeftTick, visibleStartTick + initialCaches.clipLen, 1,
                                   draggedAudio, timeline),
            "audio left trim must accept an edge before the original right edge");
     leftState.writeTruth(draggedAudio);
@@ -202,25 +211,20 @@ int main(int argc, char *argv[]) {
     draggedAudio.length = initialCaches.length;
     const auto beyondMaterialTick =
         qRound(timeline.msToTick(materialStartMs + materialLengthMs + 1000.0));
-    expect(rightState.resizeRightTo(beyondMaterialTick, visibleStartTick, draggedAudio, timeline),
+    expect(rightState.resizeRightTo(beyondMaterialTick, visibleStartTick, 1, draggedAudio,
+                                    timeline),
            "audio right trim must accept an edge beyond the material boundary");
     rightState.writeTruth(draggedAudio);
     expect(closeTo(draggedAudio.playLengthMs, materialLengthMs - trimStartMs),
            "audio right trim must stop at the material boundary in realtime");
 
-    auto rejectedState = AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
-                                                   visibleStartTick, grabTick, timeline);
-    auto lastValidProperties = draggedAudio;
-    expect(rejectedState.resizeRightTo(visibleStartTick + 100, visibleStartTick,
-                                       lastValidProperties, timeline),
-           "audio resize state must accept a valid edge before testing rejection");
-    auto rejectedProperties = lastValidProperties;
-    expect(!rejectedState.resizeRightTo(visibleStartTick, visibleStartTick, rejectedProperties,
-                                        timeline) &&
-               rejectedProperties.start == lastValidProperties.start &&
-               rejectedProperties.clipStart == lastValidProperties.clipStart &&
-               rejectedProperties.clipLen == lastValidProperties.clipLen,
-           "a rejected audio resize must leave the last valid projected properties intact");
+    auto crossedState = AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
+                                                  visibleStartTick, grabTick, timeline);
+    auto crossedProperties = draggedAudio;
+    expect(crossedState.resizeRightTo(visibleStartTick - 1000, visibleStartTick, 120,
+                                      crossedProperties, timeline) &&
+               crossedProperties.clipLen >= 1,
+           "audio resize crossing the opposite edge must clamp instead of freezing");
 
     if (g_failures == 0) {
         QTextStream(stdout) << "All TrackEditorInteractions tests passed" << Qt::endl;

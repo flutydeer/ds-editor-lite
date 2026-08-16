@@ -3223,6 +3223,11 @@ void PianoRollRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
     if (!d->clip)
         return;
 
+    if (EditorViewGlobal::isPitchEditMode(d->editMode) && d->editMode != EditPitchAnchor) {
+        event->accept();
+        return;
+    }
+
     PianoRollMenuContext context;
     context.globalPos = event->globalPos();
     context.globalTick = qRound(d->localTickAt(event->pos())) + d->clip->start();

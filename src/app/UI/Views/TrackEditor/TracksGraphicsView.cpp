@@ -196,10 +196,7 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
                 desiredLeft, snapStep(m_tempQuantizeOff, desiredLeft), timeline);
             Clip::ClipCommonProperties properties(*m_currentEditingClip);
             m_audioDragState->moveTo(left, properties, timeline);
-            m_currentEditingClip->setStart(properties.start);
-            m_currentEditingClip->setClipStart(properties.clipStart);
-            m_currentEditingClip->setClipLen(properties.clipLen);
-            m_currentEditingClip->setLength(properties.length);
+            m_currentEditingClip->loadCommonProperties(properties);
         } else {
             left = TimelineSnapUtils::snapNearest(m_mouseDownStart + m_mouseDownClipStart + delta,
                                                   quantize, timeline);
@@ -221,19 +218,15 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
             Clip::ClipCommonProperties properties(*m_currentEditingClip);
             if (!m_audioDragState->resizeLeftTo(
                     left, m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen,
-                    properties, timeline))
+                    quantize, properties, timeline))
                 return;
-            m_currentEditingClip->setStart(properties.start);
-            m_currentEditingClip->setClipStart(properties.clipStart);
-            m_currentEditingClip->setClipLen(properties.clipLen);
-            m_currentEditingClip->setLength(properties.length);
+            m_currentEditingClip->loadCommonProperties(properties);
             return;
         }
         Clip::ClipCommonProperties properties(*m_currentEditingClip);
-        if (!ClipResizeUtils::updateLeftEdge(properties, left))
+        if (!ClipResizeUtils::updateLeftEdge(properties, left, quantize))
             return;
-        m_currentEditingClip->setClipStart(properties.clipStart);
-        m_currentEditingClip->setClipLen(properties.clipLen);
+        m_currentEditingClip->loadCommonProperties(properties);
     } else if (m_mouseMoveBehavior == ResizeRight) {
         m_movedBeforeMouseUp = true;
         const int right = TimelineSnapUtils::snapNearest(m_mouseDownStart + m_mouseDownClipStart +
@@ -242,24 +235,18 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
         if (m_audioDragState) {
             const int visibleStart = m_mouseDownStart + m_mouseDownClipStart;
             Clip::ClipCommonProperties properties(*m_currentEditingClip);
-            if (!m_audioDragState->resizeRightTo(right, visibleStart, properties, timeline))
+            if (!m_audioDragState->resizeRightTo(right, visibleStart, quantize, properties,
+                                                 timeline))
                 return;
-            m_currentEditingClip->setStart(properties.start);
-            m_currentEditingClip->setClipStart(properties.clipStart);
-            m_currentEditingClip->setClipLen(properties.clipLen);
-            m_currentEditingClip->setLength(properties.length);
+            m_currentEditingClip->loadCommonProperties(properties);
             return;
         }
         clipLen = right - (m_mouseDownStart + m_mouseDownClipStart);
-        if (clipLen <= 0)
-            return;
-
         Clip::ClipCommonProperties properties(*m_currentEditingClip);
-        if (ClipResizeUtils::updateRightEdge(properties, clipLen,
+        if (ClipResizeUtils::updateRightEdge(properties, clipLen, quantize,
                                              m_currentEditingClip->canResizeLength(),
                                              m_currentEditingClip->contentLength())) {
-            m_currentEditingClip->setLength(properties.length);
-            m_currentEditingClip->setClipLen(properties.clipLen);
+            m_currentEditingClip->loadCommonProperties(properties);
         }
     }
 }
@@ -349,6 +336,7 @@ void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
         context.rawTick, snapStep(false, context.rawTick), appModel->timeline());
     context.trackIndex = trackIndex;
     if (dynamic_cast<const TrackEditorBackgroundView *>(item)) {
+        clearSelections();
         context.target = TrackEditorMenuContext::Target::Background;
     } else if (const auto *clip = dynamic_cast<const AbstractClipView *>(item)) {
         context.clipId = clip->id();
@@ -513,10 +501,12 @@ void TracksGraphicsView::updateDropOverlayGeometry() {
 void TracksGraphicsView::discardAction() {
     cancelRequested = true;
     if (m_currentEditingClip && m_movedBeforeMouseUp) {
-        m_currentEditingClip->setStart(m_mouseDownStart);
-        m_currentEditingClip->setClipStart(m_mouseDownClipStart);
-        m_currentEditingClip->setLength(m_mouseDownLength);
-        m_currentEditingClip->setClipLen(m_mouseDownClipLen);
+        auto properties = Clip::ClipCommonProperties(*m_currentEditingClip);
+        properties.start = m_mouseDownStart;
+        properties.clipStart = m_mouseDownClipStart;
+        properties.length = m_mouseDownLength;
+        properties.clipLen = m_mouseDownClipLen;
+        m_currentEditingClip->loadCommonProperties(properties);
         m_currentEditingClip->setTrackIndex(m_mouseDownTrackIndex);
         m_currentEditingClip->setColorIndex(m_mouseDownColorIndex);
         editorViewController->previewActiveClipTrackColor(m_mouseDownColorIndex);
@@ -698,12 +688,19 @@ bool TracksGraphicsView::updateClipSelection(AbstractClipView *clipItem, const b
 }
 
 void TracksGraphicsView::applyClipSelection(const QList<int> &selected) const {
+    bool changed = false;
     for (const auto item : m_scene->items()) {
-        if (const auto clip = dynamic_cast<AbstractClipView *>(item))
-            clip->setSelected(selected.contains(clip->id()));
-        else if (item->isSelected())
+        if (const auto clip = dynamic_cast<AbstractClipView *>(item)) {
+            const auto shouldSelect = selected.contains(clip->id());
+            changed |= clip->isSelected() != shouldSelect;
+            clip->setSelected(shouldSelect);
+        } else if (item->isSelected()) {
+            changed = true;
             item->setSelected(false);
+        }
     }
+    if (changed)
+        viewport()->update();
 }
 
 void TracksGraphicsView::clearSelections() const {

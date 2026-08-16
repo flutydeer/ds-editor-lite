@@ -67,6 +67,9 @@ int main(int argc, char *argv[]) {
     expect(NoteEditUtils::leftResizeDelta(480, 240, 700, quantize) == 120 &&
                NoteEditUtils::rightResizeDelta(480, 240, 500, quantize) == -120,
            "note resizing must retain at least one quantization step");
+    expect(NoteEditUtils::leftResizeDelta(480, 240, 2000, 0) == 239 &&
+               NoteEditUtils::rightResizeDelta(480, 240, -1000, 0) == -239,
+           "note resizing must retain one tick even when an invalid minimum is supplied");
 
     using EditorSelectionUtils::OrderedSelectionModel;
     constexpr auto ctrlShift = Qt::ControlModifier | Qt::ShiftModifier;

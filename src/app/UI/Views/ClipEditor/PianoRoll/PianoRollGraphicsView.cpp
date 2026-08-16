@@ -349,7 +349,11 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton &&
         !EditorViewGlobal::isPitchEditMode(d->m_editMode)) {
         d->m_interactionController->setMouseMoveBehavior(NoteInteractionController::None);
-        const auto noteView = d->noteViewAt(event->pos());
+        auto *noteView = d->noteViewAt(event->pos());
+        if (!noteView) {
+            if (const auto *pronView = d->pronViewAt(event->pos()))
+                noteView = d->findNoteViewById(pronView->id());
+        }
         (void) d->m_selectionModel->applyPressSelection(noteView, false);
         if (!noteView)
             TimeGraphicsView::mousePressEvent(event);
