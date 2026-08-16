@@ -25,8 +25,11 @@ namespace NoteEditUtils {
 
     inline int leftResizeDelta(const int originalStart, const int originalLength,
                                const int snappedLocalTick, const int minimumLength) {
-        return NoteResizeUtils::clampLeftDelta(originalLength, snappedLocalTick - originalStart,
-                                               minimumLength);
+        const auto requestedDelta = snappedLocalTick - originalStart;
+        const auto lengthSafeDelta =
+            NoteResizeUtils::clampLeftDelta(originalLength, requestedDelta, minimumLength);
+        // Do not resize the left edge past clip start (tick 0 inside the clip)
+        return NoteResizeUtils::clampLeftMoveDelta(lengthSafeDelta, originalStart);
     }
 
     inline int rightResizeDelta(const int originalStart, const int originalLength,

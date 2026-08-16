@@ -41,6 +41,7 @@
 #include <lite/MusicBase/TimelineSnapUtils.h>
 #include <climits>
 #include <cmath>
+#include <limits>
 
 #include <QDebug>
 #include <QGraphicsLineItem>
@@ -510,7 +511,12 @@ void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
 
     // TODO: Optimize note moving and resizing
     if (d->m_interactionController->mouseMoveBehavior() == NoteInteractionController::Move) {
-        const auto startOffset = NoteEditUtils::moveDelta(deltaX, quantizedTickLength);
+        auto startOffset = NoteEditUtils::moveDelta(deltaX, quantizedTickLength);
+        int minLocalStart = std::numeric_limits<int>::max();
+        for (const auto *note : d->m_selectionModel->selectedNoteItems())
+            minLocalStart = std::min(minLocalStart, note->rStart());
+        if (minLocalStart != std::numeric_limits<int>::max())
+            startOffset = NoteResizeUtils::clampLeftMoveDelta(startOffset, minLocalStart);
         auto keyOffset = keyIndex - d->m_interactionController->mouseDownKeyIndex();
         if (keyOffset > d->m_interactionController->moveMaxDeltaKey())
             keyOffset = d->m_interactionController->moveMaxDeltaKey();

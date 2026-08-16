@@ -70,6 +70,14 @@ int main(int argc, char *argv[]) {
     expect(NoteEditUtils::leftResizeDelta(480, 240, 2000, 0) == 239 &&
                NoteEditUtils::rightResizeDelta(480, 240, -1000, 0) == -239,
            "note resizing must retain one tick even when an invalid minimum is supplied");
+    expect(NoteEditUtils::leftResizeDelta(0, 240, -999, quantize) == 0 &&
+               NoteEditUtils::leftResizeDelta(240, 240, 120, quantize) == -120,
+           "resizing the left edge must clamp at clip start (tick 0)");
+    expect(NoteResizeUtils::clampLeftMoveDelta(-480, 240) == -240 &&
+               NoteResizeUtils::clampLeftMoveDelta(-480, 0) == 0 &&
+               NoteResizeUtils::clampLeftMoveDelta(150, 480) == 150 &&
+               NoteResizeUtils::clampLeftMoveDelta(0, 0) == 0,
+           "moving notes must never push a local start below zero");
     constexpr int alternateQuantize = 80;
     expect(NoteResizeUtils::clampLeftDelta(240, 240, quantize) == 120 &&
                NoteResizeUtils::clampRightDelta(240, -240, quantize) == -120 &&

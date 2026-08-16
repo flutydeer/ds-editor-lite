@@ -15,6 +15,11 @@ namespace NoteResizeUtils {
         return std::max(requestedDelta,
                         std::max(1, minimumLength) - originalLength);
     }
+
+    inline int clampLeftMoveDelta(const int requestedDelta, const int minLocalStart) {
+        // Do not allow a note to be moved to the left of clip start (tick 0 inside the clip)
+        return std::max(requestedDelta, -minLocalStart);
+    }
 }
 
 #endif // NOTERESIZEUTILS_H
