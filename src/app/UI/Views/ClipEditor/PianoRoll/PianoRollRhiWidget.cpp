@@ -1,7 +1,7 @@
 #include "PianoRollRhiWidget.h"
 
 #include "NoteView.h"
-#include "NoteEditUtils.h"
+#include "NoteDrawUtils.h"
 #include "PianoPaintUtils.h"
 #include "PitchDisplayStrategy.h"
 #include "PianoRollGraphicsViewHelper.h"
@@ -17,7 +17,6 @@
 #include "UI/Views/ClipEditor/CurveRenderUtils.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "UI/Views/Common/EdgeAutoScroller.h"
-#include "UI/Views/Common/EditorSelectionUtils.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
@@ -241,11 +240,7 @@ public:
 
     void setDataContext(SingingClip *newClip) {
         disarmEdgeAutoScroll();
-        noteSelection.clearAnchor();
-        discardNoteInteraction();
         finishNoteErase(EditSessionEndReason::Discard);
-        appStatus->pianoRollNoteEditPreview = {};
-        appStatus->pianoRollNoteErasePreview = {};
         finishInlineEditing();
         cancelPitchEdit();
         cancelAnchorEdit(false);
@@ -471,7 +466,7 @@ public:
             return false;
         QList<int> selected;
         const auto bounds = focusSceneRect(focus, &selected);
-        syncNoteSelection(selected);
+        appStatus->selectedNotes = selected;
         return ensureSceneRectVisible(bounds, 24.0, 24.0);
     }
 
@@ -626,32 +621,6 @@ public:
         return nullptr;
     }
 
-    QList<int> orderedNoteIds() const {
-        QList<const Note *> ordered;
-        if (clip) {
-            ordered.reserve(clip->notes().count());
-            for (const auto *note : clip->notes())
-                ordered.append(note);
-        }
-        std::sort(ordered.begin(), ordered.end(), [](const Note *left, const Note *right) {
-            if (left->localStart() != right->localStart())
-                return left->localStart() < right->localStart();
-            return left->id() < right->id();
-        });
-
-        QList<int> result;
-        result.reserve(ordered.size());
-        for (const auto *note : ordered)
-            result.append(note->id());
-        return result;
-    }
-
-    void syncNoteSelection(const QList<int> &selection) {
-        noteSelection.synchronize(selection);
-        if (appStatus->selectedNotes.get() != selection)
-            clipController->selectNotes(selection, true);
-    }
-
     bool noteEditingEnabled() const {
         return editMode == Select || editMode == IntervalSelect || editMode == DrawNote;
     }
@@ -798,17 +767,6 @@ public:
         return nullptr;
     }
 
-    struct NoteContextTarget {
-        Note *note = nullptr;
-        bool pronunciation = false;
-    };
-
-    NoteContextTarget noteContextTargetAt(const QPointF &viewportPosition) const {
-        if (auto *note = pronunciationAt(viewportPosition))
-            return {note, true};
-        return {noteAt(viewportPosition), false};
-    }
-
     QRect inlineAnchorRect(const QRectF &source) const {
         const auto viewportRect = q->rect();
         QRect anchorRect = source.toAlignedRect();
@@ -926,6 +884,13 @@ public:
             return;
         clipController->selectNotes({ordered.at(target)->id()}, true);
         startLyricEdit(ordered.at(target));
+    }
+
+    int snapLocalTick(const double localTick) const {
+        const auto step = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+        const auto globalTick = qRound(localTick) + (clip ? clip->start() : 0);
+        return TimelineSnapUtils::snapNearest(globalTick, step, appModel->timeline()) -
+               (clip ? clip->start() : 0);
     }
 
     QPoint pitchPointAt(const QPointF &viewportPosition) const {
@@ -1600,113 +1565,19 @@ public:
         return false;
     }
 
-    void beginNoteEditSession(const QList<int> &noteIds, const bool wholeClipScope = false) {
-        if (!clip || noteEditSessionId != 0)
-            return;
-        noteEditSessionId = editSessionManager->beginTransaction(
-            AppStatus::EditObjectType::Note, clip->id(), {}, noteIds, {}, {}, wholeClipScope);
-        appStatus->currentEditObject = AppStatus::EditObjectType::Note;
-    }
-
-    void finishNoteEditSession(const EditSessionEndReason reason) {
-        if (noteEditSessionId != 0 && editSessionManager->hasActiveTransaction() &&
-            editSessionManager->activeSession().sessionId == noteEditSessionId) {
-            editSessionManager->endTransaction(noteEditSessionId, reason);
-        }
-        noteEditSessionId = 0;
-        if (!editSessionManager->hasActiveTransaction())
-            appStatus->currentEditObject = AppStatus::EditObjectType::None;
-    }
-
-    void publishNoteEditPreview() const {
-        QVector<AppStatus::NoteEditPreview> preview;
-        if (!clip) {
-            appStatus->pianoRollNoteEditPreview = preview;
-            return;
-        }
-
-        if (interaction == Interaction::Draw) {
-            preview.append({-1, drawStart, drawEnd - drawStart, drawKey});
-        } else if (interaction == Interaction::Move) {
-            for (const auto id : appStatus->selectedNotes.get()) {
-                if (const auto *note = clip->findNoteById(id)) {
-                    preview.append({id, note->localStart() + interactionDeltaTick, note->length(),
-                                    note->keyIndex() + interactionDeltaKey});
-                }
-            }
-        } else if (interaction == Interaction::ResizeLeft ||
-                   interaction == Interaction::ResizeRight) {
-            if (const auto *note = clip->findNoteById(interactionNoteId)) {
-                const auto start = interaction == Interaction::ResizeLeft
-                                       ? note->localStart() + interactionDeltaTick
-                                       : note->localStart();
-                preview.append({note->id(), start,
-                                note->length() + (interaction == Interaction::ResizeLeft
-                                                      ? -interactionDeltaTick
-                                                      : interactionDeltaTick),
-                                note->keyIndex()});
-            }
-        }
-        appStatus->pianoRollNoteEditPreview = preview;
-    }
-
-    void resetNoteInteraction() {
-        interaction = Interaction::None;
-        interactionNoteId = -1;
-        interactionDeltaTick = 0;
-        interactionDeltaKey = 0;
-        interactionMoved = false;
-        collapseSelectionOnRelease = false;
-        drawStart = 0;
-        drawEnd = 0;
-    }
-
-    void discardNoteInteraction() {
-        if (interaction == Interaction::None && noteEditSessionId == 0) {
-            return;
-        }
-        appStatus->pianoRollNoteEditPreview = {};
-        resetNoteInteraction();
-        finishNoteEditSession(EditSessionEndReason::Discard);
-        scheduleSnapshot();
-    }
-
     void beginDrawNote(const QPointF &viewportPosition) {
-        discardNoteInteraction();
-        syncNoteSelection({});
-        noteSelection.clearAnchor();
         interaction = Interaction::Draw;
-        const auto step = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-        drawStart = NoteEditUtils::snapLocalDown(localTickAt(viewportPosition) + clip->start(),
-                                                 clip->start(), step, appModel->timeline());
-        drawEnd = drawStart + step;
+        drawStart = snapLocalTick(localTickAt(viewportPosition));
+        drawEnd = drawStart + TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
         drawKey = keyAt(viewportPosition);
-        beginNoteEditSession({}, true);
-        publishNoteEditPreview();
         scheduleSnapshot();
-    }
-
-    EditorSelectionUtils::PressResult
-        updateNoteSelection(const Note *note, const EditorSelectionUtils::SelectionMode mode) {
-        const auto noteId = note ? note->id() : -1;
-        const auto result =
-            noteSelection.press(appStatus->selectedNotes.get(), orderedNoteIds(), noteId, mode);
-        syncNoteSelection(result.selection);
-        return result;
     }
 
     void mousePress(QMouseEvent *event) {
-        if (!clip)
+        if (!clip || event->button() != Qt::LeftButton)
             return;
-        if (event->button() != Qt::LeftButton) {
-            if (!EditorViewGlobal::isPitchEditMode(editMode))
-                (void) updateNoteSelection(noteContextTargetAt(event->position()).note,
-                                           EditorSelectionUtils::SelectionMode::Plain);
-            return;
-        }
         if (noteErasing)
             finishNoteErase(EditSessionEndReason::Discard);
-        discardNoteInteraction();
         if (editMode == EditPitchAnchor) {
             mousePressAnchor(event);
             return;
@@ -1731,34 +1602,33 @@ public:
         }
         if (!noteEditingEnabled())
             return;
-        if (editMode == DrawNote) {
-            syncNoteSelection({});
-            noteSelection.clearAnchor();
-            if (const auto *pronunciationNote = pronunciationAt(event->position())) {
-                syncNoteSelection({pronunciationNote->id()});
-                return;
-            }
-            if (!note) {
-                beginDrawNote(event->position());
-                return;
-            }
+        if (editMode == DrawNote && !note) {
+            beginDrawNote(event->position());
+            return;
         }
         if (!note) {
-            noteSelection.clearAnchor();
             interaction = Interaction::RectSelect;
             rubberBandStart = scenePositionAt(event->position());
             rubberBandEnd = rubberBandStart;
             rubberBandBaseSelection = event->modifiers().testFlag(Qt::ControlModifier)
                                           ? appStatus->selectedNotes.get()
                                           : QList<int>();
-            syncNoteSelection(rubberBandBaseSelection);
+            appStatus->selectedNotes = rubberBandBaseSelection;
             scheduleSnapshot();
             return;
         }
 
-        const auto selectionResult = updateNoteSelection(
-            note, EditorSelectionUtils::selectionModeForModifiers(event->modifiers()));
-        if (!selectionResult.targetSelected)
+        auto selected = appStatus->selectedNotes.get();
+        if (event->modifiers().testFlag(Qt::ControlModifier)) {
+            if (selected.contains(note->id()))
+                selected.removeAll(note->id());
+            else
+                selected.append(note->id());
+        } else if (!selected.contains(note->id())) {
+            selected = {note->id()};
+        }
+        appStatus->selectedNotes = selected;
+        if (!selected.contains(note->id()))
             return;
 
         interactionNoteId = note->id();
@@ -1768,8 +1638,6 @@ public:
         mouseDownTick = localTickAt(event->position());
         mouseDownKey = keyAt(event->position());
         interaction = noteInteractionAt(note, event->position());
-        collapseSelectionOnRelease = selectionResult.collapseToTargetOnRelease;
-        interactionMoved = false;
         if (interaction == Interaction::ResizeLeft || interaction == Interaction::ResizeRight)
             q->setCursor(Qt::SizeHorCursor);
         scheduleSnapshot();
@@ -1805,11 +1673,8 @@ public:
 
     void updateDrawNote(const QPointF &viewportPosition) {
         const auto step = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-        const auto snappedEnd =
-            NoteEditUtils::snapLocalDown(localTickAt(viewportPosition) + clip->start(),
-                                         clip->start(), step, appModel->timeline());
-        drawEnd = drawStart + NoteEditUtils::lengthForSnappedEnd(drawStart, snappedEnd, step);
-        publishNoteEditPreview();
+        const auto snappedEnd = snapLocalTick(localTickAt(viewportPosition));
+        drawEnd = drawStart + NoteDrawUtils::lengthForSnappedEnd(drawStart, snappedEnd, step);
         scheduleSnapshot();
     }
 
@@ -1828,7 +1693,7 @@ public:
             if (selection.intersects(rect) && !selected.contains(note->id()))
                 selected.append(note->id());
         }
-        syncNoteSelection(selected);
+        appStatus->selectedNotes = selected;
         scheduleSnapshot();
     }
 
@@ -1849,29 +1714,23 @@ public:
         }
         if (interaction == Interaction::Draw) {
             PianoRollGraphicsViewHelper::drawNote(drawStart, drawEnd - drawStart, drawKey);
-            appStatus->pianoRollNoteEditPreview = {};
-            finishNoteEditSession(EditSessionEndReason::Commit);
         } else if (interaction != Interaction::None && interaction != Interaction::RectSelect &&
                    interactionNoteId >= 0) {
-            if (interactionMoved && interaction == Interaction::Move) {
+            updateInteractionDelta(event->position(), event->modifiers());
+            if (interaction == Interaction::Move) {
                 if (interactionDeltaTick != 0 || interactionDeltaKey != 0)
                     clipController->onMoveNotes(appStatus->selectedNotes.get(),
                                                 interactionDeltaTick, interactionDeltaKey);
-            } else if (interactionMoved && interaction == Interaction::ResizeLeft &&
-                       interactionDeltaTick != 0) {
+            } else if (interaction == Interaction::ResizeLeft && interactionDeltaTick != 0) {
                 clipController->onResizeNotesLeft({interactionNoteId}, interactionDeltaTick);
-            } else if (interactionMoved && interaction == Interaction::ResizeRight &&
-                       interactionDeltaTick != 0) {
+            } else if (interaction == Interaction::ResizeRight && interactionDeltaTick != 0) {
                 clipController->onResizeNotesRight({interactionNoteId}, interactionDeltaTick);
             }
-            syncNoteSelection(EditorSelectionUtils::OrderedSelectionModel::finalizeClick(
-                appStatus->selectedNotes.get(), interactionNoteId, interactionMoved,
-                collapseSelectionOnRelease));
-            appStatus->pianoRollNoteEditPreview = {};
-            finishNoteEditSession(interactionMoved ? EditSessionEndReason::Commit
-                                                   : EditSessionEndReason::Discard);
         }
-        resetNoteInteraction();
+        interaction = Interaction::None;
+        interactionNoteId = -1;
+        interactionDeltaTick = 0;
+        interactionDeltaKey = 0;
         updateNoteCursor(event->position());
         scheduleSnapshot();
     }
@@ -1879,19 +1738,14 @@ public:
     void updateInteractionDelta(const QPointF &position, const Qt::KeyboardModifiers modifiers) {
         if (interaction == Interaction::None || interaction == Interaction::Draw)
             return;
-        if (!interactionMoved) {
-            interactionMoved = true;
-            const auto ids = interaction == Interaction::Move ? appStatus->selectedNotes.get()
-                                                              : QList<int>{interactionNoteId};
-            beginNoteEditSession(ids);
-        }
-        const auto step = TimelineSnapUtils::quantizeStep(appStatus->pianoRollQuantize,
-                                                          modifiers == Qt::AltModifier);
         const auto rawDelta = localTickAt(position) - mouseDownTick;
+        const auto target = modifiers.testFlag(Qt::AltModifier)
+                                ? interactionStart + qRound(rawDelta)
+                                : snapLocalTick(interactionStart + rawDelta);
+        interactionDeltaTick = target - interactionStart;
         interactionDeltaKey = keyAt(position) - mouseDownKey;
 
         if (interaction == Interaction::Move) {
-            interactionDeltaTick = NoteEditUtils::moveDelta(rawDelta, step);
             int minimumKey = 127;
             int maximumKey = 0;
             bool found = false;
@@ -1906,17 +1760,10 @@ public:
                 interactionDeltaKey =
                     std::clamp(interactionDeltaKey, -minimumKey, 127 - maximumKey);
         } else if (interaction == Interaction::ResizeLeft) {
-            const auto snappedTick = NoteEditUtils::snapLocalDown(
-                localTickAt(position) + clip->start(), clip->start(), step, appModel->timeline());
-            interactionDeltaTick = NoteEditUtils::leftResizeDelta(
-                interactionStart, interactionLength, snappedTick, step);
+            interactionDeltaTick = std::min(interactionDeltaTick, interactionLength - 1);
         } else if (interaction == Interaction::ResizeRight) {
-            const auto snappedTick = NoteEditUtils::snapLocalNearest(
-                localTickAt(position) + clip->start(), clip->start(), step, appModel->timeline());
-            interactionDeltaTick = NoteEditUtils::rightResizeDelta(
-                interactionStart, interactionLength, snappedTick, step);
+            interactionDeltaTick = std::max(interactionDeltaTick, 1 - interactionLength);
         }
-        publishNoteEditPreview();
     }
 
     void scheduleSnapshot() {
@@ -2826,7 +2673,6 @@ public:
     bool fallbackRequested = false;
     int trackColorIndex = 0;
     PianoRollEditMode editMode = Select;
-    EditorSelectionUtils::OrderedSelectionModel noteSelection;
     Interaction interaction = Interaction::None;
     int interactionNoteId = -1;
     int interactionStart = 0;
@@ -2834,9 +2680,6 @@ public:
     int interactionKey = 60;
     int interactionDeltaTick = 0;
     int interactionDeltaKey = 0;
-    bool interactionMoved = false;
-    bool collapseSelectionOnRelease = false;
-    quint64 noteEditSessionId = 0;
     double mouseDownTick = 0.0;
     int mouseDownKey = 60;
     int drawStart = 0;
@@ -2935,11 +2778,7 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
             [this](const QString &) { d->requestFallback(); });
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, this,
             [this] { d->scheduleSnapshot(); });
-    connect(appStatus, &AppStatus::noteSelectionChanged, this, [this](const QList<int> &selection) {
-        d->noteSelection.synchronize(selection);
-        d->scheduleSnapshot();
-    });
-    d->noteSelection.synchronize(appStatus->selectedNotes.get());
+    connect(appStatus, &AppStatus::noteSelectionChanged, this, [this] { d->scheduleSnapshot(); });
     connect(appModel, &AppModel::timelineChanged, this, [this] {
         d->updateAutoPageTurnAvailability();
         d->scheduleSnapshot();
@@ -2947,7 +2786,6 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
 }
 
 PianoRollRhiWidget::~PianoRollRhiWidget() {
-    d->discardNoteInteraction();
     d->finishNoteErase(EditSessionEndReason::Discard);
     d->cancelPitchEdit(false);
     d->finishAnchorEditSession(EditSessionEndReason::Discard);
@@ -3017,7 +2855,6 @@ void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
     if (d->editMode != mode) {
         setCursor(Qt::ArrowCursor);
         d->disarmEdgeAutoScroll();
-        d->discardNoteInteraction();
         d->finishNoteErase(EditSessionEndReason::Discard);
         d->finishInlineEditing();
         d->cancelPitchEdit();
@@ -3073,21 +2910,8 @@ void PianoRollRhiWidget::showEvent(QShowEvent *event) {
     d->updateAutoPageTurnAvailability();
 }
 
-bool PianoRollRhiWidget::event(QEvent *event) {
-    if (event->type() == QEvent::WindowDeactivate) {
-        d->disarmEdgeAutoScroll();
-        d->discardNoteInteraction();
-        d->finishNoteErase(EditSessionEndReason::Discard);
-        d->cancelPitchEdit();
-        if (d->editMode == EditPitchAnchor)
-            d->cancelAnchorEdit();
-    }
-    return EditorRhiWidget::event(event);
-}
-
 void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
     d->disarmEdgeAutoScroll();
-    d->discardNoteInteraction();
     d->finishNoteErase(EditSessionEndReason::Discard);
     EditorRhiWidget::hideEvent(event);
     d->updateAutoPageTurnAvailability();
@@ -3190,7 +3014,11 @@ void PianoRollRhiWidget::keyPressEvent(QKeyEvent *event) {
             event->accept();
             return;
         }
-        d->discardNoteInteraction();
+        d->interaction = Private::Interaction::None;
+        d->interactionNoteId = -1;
+        d->interactionDeltaTick = 0;
+        d->interactionDeltaKey = 0;
+        d->scheduleSnapshot();
         event->accept();
         return;
     }
@@ -3266,16 +3094,17 @@ void PianoRollRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
         return;
     }
 
-    const auto target = d->noteContextTargetAt(event->pos());
-    if (auto *note = target.note) {
-        (void) d->updateNoteSelection(note, EditorSelectionUtils::SelectionMode::Plain);
+    if (auto *note = d->noteAt(event->pos())) {
+        if (!appStatus->selectedNotes.get().contains(note->id()))
+            appStatus->selectedNotes = QList<int>{note->id()};
         context.target = PianoRollMenuContext::Target::Note;
         context.noteId = note->id();
         context.selectedNoteIds = appStatus->selectedNotes.get();
         context.noteLanguage = note->language();
         context.phonemeEditorEnabled = context.selectedNoteIds.size() == 1;
         // Right-click on the pronunciation strip opens the quick-switch menu.
-        context.pronunciationTarget = target.pronunciation;
+        if (d->pronunciationAt(event->pos()) == note)
+            context.pronunciationTarget = true;
     } else {
         context.target = PianoRollMenuContext::Target::Background;
     }

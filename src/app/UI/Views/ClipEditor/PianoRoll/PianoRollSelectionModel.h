@@ -1,8 +1,6 @@
 #ifndef PIANOROLLSELECTIONMODEL_H
 #define PIANOROLLSELECTIONMODEL_H
 
-#include "UI/Views/Common/EditorSelectionUtils.h"
-
 #include <QList>
 #include <QObject>
 #include <QHash>
@@ -16,7 +14,7 @@ class PianoRollSelectionModel : public QObject {
     Q_OBJECT
 
 public:
-    using NoteSelectionMode = EditorSelectionUtils::SelectionMode;
+    enum class NoteSelectionMode { Plain, Toggle, ReplaceRange, AddRange };
 
     explicit PianoRollSelectionModel(PianoRollGraphicsView *view, QList<NoteView *> &noteViews,
                                      QHash<int, NoteView *> &noteViewIndex, QList<Note *> &notes,
@@ -24,10 +22,7 @@ public:
 
     [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
     [[nodiscard]] QList<NoteView *> orderedNoteItems() const;
-    [[nodiscard]] EditorSelectionUtils::PressResult applyNoteSelection(NoteView *noteView,
-                                                                       NoteSelectionMode mode);
-    [[nodiscard]] EditorSelectionUtils::PressResult applyPressSelection(NoteView *noteView,
-                                                                        bool toggle);
+    void applyNoteSelection(NoteView *noteView, NoteSelectionMode mode);
     void selectOnly(NoteView *noteView);
     void clearSelectionAnchor();
     void invalidateSelectionAnchor(int noteId);
@@ -86,13 +81,12 @@ signals:
     void selectionChanged();
 
 private:
-    [[nodiscard]] QList<int> selectedNoteIds() const;
-    [[nodiscard]] QList<int> orderedNoteIds() const;
-    void applySelection(const QList<int> &selection) const;
+    [[nodiscard]] NoteView *selectionAnchor() const;
+    void selectRange(NoteView *anchor, NoteView *target, bool additive) const;
 
     bool m_selecting = false;
     bool m_selectionChangeBarrier = false;
-    EditorSelectionUtils::OrderedSelectionModel m_orderedSelection;
+    int m_selectionAnchorId = -1;
     QList<NoteView *> m_pastePreviewViews;
     QList<NoteView *> m_noteViewsToErase;
 

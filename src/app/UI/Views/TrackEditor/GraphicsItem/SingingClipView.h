@@ -53,9 +53,12 @@ private:
     void drawPreviewArea(QPainter *painter, const QRectF &previewRect, QColor color) override;
     void drawPianoRollOverlay(QPainter *painter, double noteHeight, int highestKeyIndex,
                               double contentTop);
-    [[nodiscard]] QVector<EditorPreview::Note> effectiveNotes(bool includeActiveEdits) const;
-    [[nodiscard]] static SingingClipPreview::Layout
-        computeNoteLayout(const QRectF &previewRect, const QVector<EditorPreview::Note> &notes);
+    // extraNotes：钢琴卷帘编辑中（未提交）的音符实时几何，全部参与音域统计，
+    // 保证预览期布局与提交后布局一致（操作中无跳变）；excludedIds：擦除中（未提交）被移除的音符
+    [[nodiscard]] SingingClipPreview::Layout
+        computeNoteLayout(const QRectF &previewRect,
+                          const QVector<AppStatus::NoteEditPreview> *extraNotes = nullptr,
+                          const QList<int> *excludedIds = nullptr) const;
     [[nodiscard]] QString clipTypeName() const override;
     [[nodiscard]] QString iconPath() const override;
 

@@ -18,7 +18,6 @@ namespace ClipResizeUtils {
         return furthestEnd;
     }
 
-    bool updateLeftEdge(Clip::ClipCommonProperties &properties, int requestedVisibleStart);
     bool updateRightEdge(Clip::ClipCommonProperties &properties, int requestedClipLength,
                          bool lengthResizable, int contentLength);
 }

@@ -1,7 +1,9 @@
 #include "SingingClipView.h"
 
 #include <QFile>
+#include <QHash>
 #include <QPainter>
+#include <QSet>
 
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -140,11 +142,21 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
     painter->setPen(Qt::NoPen);
     painter->setBrush(color);
 
-    const auto notes = effectiveNotes(true);
-    const auto layout = computeNoteLayout(previewRect, notes);
+    // 钢琴卷帘编辑进行中的音符用实时几何覆盖绘制（id 匹配）
+    const QVector<AppStatus::NoteEditPreview> previewList = appStatus->pianoRollNoteEditPreview;
+    // 擦除进行中（未提交）被移除的音符 id
+    const QList<int> eraseList = appStatus->pianoRollNoteErasePreview;
+
+    const auto layout = computeNoteLayout(previewRect, &previewList, &eraseList);
     const auto noteHeight = layout.noteHeight;
     const auto highestKeyIndex = layout.highestKeyIndex;
     const auto contentTop = layout.contentTop;
+
+    QHash<int, AppStatus::NoteEditPreview> previewMap;
+    previewMap.reserve(previewList.size());
+    for (const auto &p : previewList)
+        previewMap.insert(p.id, p);
+    QSet<int> eraseSet(eraseList.cbegin(), eraseList.cend());
 
     const auto clipLeft = start() + clipStart();
     const auto clipRight = clipLeft + clipLen();
@@ -169,10 +181,25 @@ void SingingClipView::drawPreviewArea(QPainter *painter, const QRectF &previewRe
         painter->drawRect(QRectF(left, top, width, noteHeight));
     };
 
-    for (const auto &note : notes) {
-        if (start() + note.rStart >= clipRight)
+    for (const auto &note : m_notes) {
+        if (eraseSet.contains(note->id))
+            continue;
+        auto rStart = note->rStart;
+        auto length = note->length;
+        auto keyIndex = note->keyIndex;
+        if (const auto it = previewMap.constFind(note->id); it != previewMap.cend()) {
+            rStart = it->rStart;
+            length = it->length;
+            keyIndex = it->keyIndex;
+        }
+        if (start() + rStart >= clipRight)
             break;
-        drawNoteAt(note.rStart, note.length, note.keyIndex);
+        drawNoteAt(rStart, length, keyIndex);
+    }
+    // 正在绘制的新音符（DrawNote 工具，id=-1，尚未写入 model）
+    for (const auto &p : previewList) {
+        if (p.id == -1)
+            drawNoteAt(p.rStart, p.length, p.keyIndex);
     }
 
     drawPianoRollOverlay(painter, noteHeight, highestKeyIndex, contentTop);
@@ -220,27 +247,39 @@ void SingingClipView::drawPianoRollOverlay(QPainter *painter, const double noteH
                              AbstractClipView::clipCornerRadius);
 }
 
-QVector<EditorPreview::Note> SingingClipView::effectiveNotes(const bool includeActiveEdits) const {
-    QVector<EditorPreview::Note> notes;
-    notes.reserve(m_notes.size());
-    for (const auto *note : m_notes)
-        notes.append({note->id, note->rStart, note->length, note->keyIndex});
-    return SingingClipPreview::projectNotes(notes, includeActiveEdits && activeClip(),
-                                            appStatus->pianoRollNoteEditPreview.get(),
-                                            appStatus->pianoRollNoteErasePreview.get());
-}
-
 SingingClipPreview::Layout
     SingingClipView::computeNoteLayout(const QRectF &previewRect,
-                                       const QVector<EditorPreview::Note> &notes) {
-    return SingingClipPreview::computeLayout(previewRect, SingingClipPreview::keyIndices(notes));
+                                       const QVector<AppStatus::NoteEditPreview> *extraNotes,
+                                       const QList<int> *excludedIds) const {
+    // 预览几何索引（id → keyIndex）：被预览覆盖的音符用预览值参与统计（替换语义），
+    // 保证预览期布局 == 提交后布局（m_notes 更新后同 id 音符即预览几何）
+    QHash<int, int> previewKeys;
+    if (extraNotes) {
+        for (const auto &p : *extraNotes)
+            previewKeys.insert(p.id, p.keyIndex);
+    }
+    QList<int> keys;
+    for (const auto note : m_notes) {
+        if (excludedIds && excludedIds->contains(note->id))
+            continue;
+        keys.append(previewKeys.value(note->id, note->keyIndex));
+    }
+    // 正在绘制的新音符（id=-1，尚不在 m_notes 中）追加纳入音域
+    if (extraNotes) {
+        for (const auto &p : *extraNotes) {
+            if (p.id != -1)
+                continue;
+            keys.append(p.keyIndex);
+        }
+    }
+    return SingingClipPreview::computeLayout(previewRect, keys);
 }
 
 double SingingClipView::keyIndexAtScenePos(const QPointF &scenePos) const {
     const auto preview = previewRect();
     if (preview.height() < 32 || m_notes.isEmpty())
         return -1.0;
-    const auto layout = computeNoteLayout(preview, effectiveNotes(false));
+    const auto layout = computeNoteLayout(preview);
     if (!layout.valid())
         return -1.0;
     const double localY = mapFromScene(scenePos).y();

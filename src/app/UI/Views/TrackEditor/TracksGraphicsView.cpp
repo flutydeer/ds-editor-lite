@@ -1,10 +1,10 @@
 #include "TracksGraphicsView.h"
 
 #include "AudioClipDragState.h"
+#include "ClipSelectionUtils.h"
 #include "ClipResizeUtils.h"
 #include "TracksGraphicsScene.h"
 #include "Controller/EditorViewController.h"
-#include "UI/Views/Common/EditorSelectionUtils.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
@@ -229,11 +229,22 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
             m_currentEditingClip->setLength(properties.length);
             return;
         }
-        Clip::ClipCommonProperties properties(*m_currentEditingClip);
-        if (!ClipResizeUtils::updateLeftEdge(properties, left))
+        start = m_mouseDownStart;
+        const int clipStart = left - start;
+        clipLen = m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen - left;
+        if (clipLen <= 0)
             return;
-        m_currentEditingClip->setClipStart(properties.clipStart);
-        m_currentEditingClip->setClipLen(properties.clipLen);
+
+        if (clipStart < 0) {
+            m_currentEditingClip->setClipStart(0);
+            m_currentEditingClip->setClipLen(m_mouseDownClipStart + m_mouseDownClipLen);
+        } else if (clipStart <= m_mouseDownClipStart + m_mouseDownClipLen) {
+            m_currentEditingClip->setClipStart(clipStart);
+            m_currentEditingClip->setClipLen(clipLen);
+        } else {
+            m_currentEditingClip->setClipStart(m_mouseDownClipStart + m_mouseDownClipLen);
+            m_currentEditingClip->setClipLen(0);
+        }
     } else if (m_mouseMoveBehavior == ResizeRight) {
         m_movedBeforeMouseUp = true;
         const int right = TimelineSnapUtils::snapNearest(m_mouseDownStart + m_mouseDownClipStart +
@@ -689,7 +700,7 @@ AbstractClipView *TracksGraphicsView::findClipById(const int id) const {
 
 bool TracksGraphicsView::updateClipSelection(AbstractClipView *clipItem, const bool toggle) const {
     const auto selected =
-        EditorSelectionUtils::selectionForPress(selectedClipsId(), clipItem->id(), toggle);
+        ClipSelectionUtils::selectionForPress(selectedClipsId(), clipItem->id(), toggle);
     applyClipSelection(selected);
     if (!selected.contains(clipItem->id()))
         return false;

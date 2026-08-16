@@ -3,16 +3,6 @@
 #include <algorithm>
 
 namespace ClipResizeUtils {
-    bool updateLeftEdge(Clip::ClipCommonProperties &properties, const int requestedVisibleStart) {
-        const auto visibleEnd = properties.start + properties.clipStart + properties.clipLen;
-        if (requestedVisibleStart >= visibleEnd)
-            return false;
-
-        properties.clipStart = std::max(0, requestedVisibleStart - properties.start);
-        properties.clipLen = visibleEnd - (properties.start + properties.clipStart);
-        return true;
-    }
-
     bool updateRightEdge(Clip::ClipCommonProperties &properties, const int requestedClipLength,
                          const bool lengthResizable, const int contentLength) {
         if (requestedClipLength <= 0)
