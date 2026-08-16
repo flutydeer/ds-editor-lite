@@ -132,7 +132,8 @@ void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,
     const auto quantizedTickLength =
         TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
     const auto snappedTick =
-        NoteEditUtils::snapLocalDown(tick, d->m_offset, quantizedTickLength, appModel->timeline());
+        std::max(0, NoteEditUtils::snapLocalDown(tick, d->m_offset, quantizedTickLength,
+                                                 appModel->timeline()));
     qDebug() << "Draw note at:" << snappedTick + d->m_offset;
 
     if (!m_currentDrawingNote) {

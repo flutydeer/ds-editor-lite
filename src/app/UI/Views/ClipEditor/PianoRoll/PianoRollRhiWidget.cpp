@@ -1712,8 +1712,10 @@ public:
         noteSelection.clearAnchor();
         interaction = Interaction::Draw;
         const auto step = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-        drawStart = NoteEditUtils::snapLocalDown(localTickAt(viewportPosition) + clip->start(),
-                                                 clip->start(), step, appModel->timeline());
+        const auto snappedStart =
+            NoteEditUtils::snapLocalDown(localTickAt(viewportPosition) + clip->start(),
+                                         clip->start(), step, appModel->timeline());
+        drawStart = std::max(0, snappedStart);
         drawEnd = drawStart + step;
         drawKey = keyAt(viewportPosition);
         beginNoteEditSession({}, true);
@@ -1938,17 +1940,22 @@ public:
             interactionDeltaTick = NoteEditUtils::moveDelta(rawDelta, step);
             int minimumKey = 127;
             int maximumKey = 0;
+            int minimumStart = INT_MAX;
             bool found = false;
             for (const auto id : appStatus->selectedNotes.get()) {
                 if (const auto *selectedNote = clip->findNoteById(id)) {
                     minimumKey = std::min(minimumKey, selectedNote->keyIndex());
                     maximumKey = std::max(maximumKey, selectedNote->keyIndex());
+                    minimumStart = std::min(minimumStart, selectedNote->localStart());
                     found = true;
                 }
             }
-            if (found)
+            if (found) {
                 interactionDeltaKey =
                     std::clamp(interactionDeltaKey, -minimumKey, 127 - maximumKey);
+                interactionDeltaTick =
+                    NoteResizeUtils::clampLeftMoveDelta(interactionDeltaTick, minimumStart);
+            }
         } else if (interaction == Interaction::ResizeLeft) {
             const auto snappedTick = NoteEditUtils::snapLocalDown(
                 localTickAt(position) + clip->start(), clip->start(), step, appModel->timeline());

@@ -22,6 +22,9 @@
 #include <QMimeData>
 #include <QPair>
 
+#include <algorithm>
+#include <limits>
+
 ClipController::ClipController(QObject *parent)
     : QObject(parent), d_ptr(new ClipControllerPrivate(this)) {
 }
@@ -184,11 +187,20 @@ void ClipController::onMoveNotes(const QList<int> &notesId, const int deltaTick,
     Q_D(ClipController);
     const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToEdit;
-    for (const auto id : notesId)
-        notesToEdit.append(singingClip->findNoteById(id));
+    int minLocalStart = std::numeric_limits<int>::max();
+    for (const auto id : notesId) {
+        if (auto *note = singingClip->findNoteById(id)) {
+            notesToEdit.append(note);
+            minLocalStart = std::min(minLocalStart, note->localStart());
+        }
+    }
+    if (notesToEdit.isEmpty())
+        return;
 
+    // Do not allow any note to be moved to the left of clip start (tick 0 inside the clip)
+    const auto safeDeltaTick = NoteResizeUtils::clampLeftMoveDelta(deltaTick, minLocalStart);
     const auto a = new NoteActions;
-    a->editNotePosition(notesToEdit, deltaTick, deltaKey, singingClip);
+    a->editNotePosition(notesToEdit, safeDeltaTick, deltaKey, singingClip);
     a->execute();
     historyManager->record(a);
 }
@@ -199,16 +211,20 @@ void ClipController::onResizeNotesLeft(const QList<int> &notesId, const int delt
     const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToEdit;
     auto safeDeltaTick = deltaTick;
+    int minLocalStart = std::numeric_limits<int>::max();
     for (const auto id : notesId) {
         if (auto *note = singingClip->findNoteById(id)) {
             notesToEdit.append(note);
             safeDeltaTick =
                 NoteResizeUtils::clampLeftDelta(note->length(), safeDeltaTick, minimumLength);
+            minLocalStart = std::min(minLocalStart, note->localStart());
         }
     }
     if (notesToEdit.isEmpty())
         return;
 
+    // Do not resize the left edge past clip start (tick 0 inside the clip)
+    safeDeltaTick = NoteResizeUtils::clampLeftMoveDelta(safeDeltaTick, minLocalStart);
     const auto a = new NoteActions;
     a->editNotesStartAndLength(notesToEdit, safeDeltaTick, singingClip);
     a->execute();
