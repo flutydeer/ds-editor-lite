@@ -604,6 +604,8 @@ void PhonemeView::buildPhonemeList() {
             if (nextNote->overlapped())
                 break;
             const auto nextStart = nextNote->globalStart();
+            if (nextStart > noteEndTick)
+                break;
             noteEndTick = std::max(noteEndTick, nextStart + nextNote->length());
         }
 
