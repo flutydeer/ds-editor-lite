@@ -42,12 +42,13 @@ namespace {
         }
     };
 
-    void sendWheelEvent(QWidget *target) {
+    bool sendWheelEvent(QWidget *target) {
         const QPointF position(target->rect().center());
         const QPointF globalPosition(target->mapToGlobal(position.toPoint()));
         QWheelEvent event(position, globalPosition, {}, QPoint(0, -120), Qt::NoButton,
                           Qt::NoModifier, Qt::NoScrollPhase, false);
         QApplication::sendEvent(target, &event);
+        return event.isAccepted();
     }
 
     class SceneAwareScalableItem final : public QGraphicsRectItem, public IScalableItem {
@@ -360,32 +361,45 @@ int main(int argc, char *argv[]) {
            "native touchpad zoom must share the same target bounds and anchor application");
 
     WheelProbe wheelParent;
-    wheelParent.resize(300, 200);
+    wheelParent.resize(300, 240);
     QWidget wheelContainer(&wheelParent);
-    wheelContainer.setGeometry(0, 0, 300, 200);
+    wheelContainer.setGeometry(0, 0, 300, 240);
     Button wheelButton(&wheelContainer);
     wheelButton.setGeometry(10, 10, 80, 30);
     wheelButton.setWheelEventPolicy(WheelEventPolicy::Consume);
     ComboBox wheelComboBox(WheelEventPolicy::Consume, &wheelContainer);
     wheelComboBox.setGeometry(10, 50, 120, 30);
     wheelComboBox.addItems({"First", "Second"});
+    ComboBox defaultWheelComboBox(&wheelContainer);
+    defaultWheelComboBox.setGeometry(10, 90, 120, 30);
+    defaultWheelComboBox.addItems({"First", "Second"});
+    ComboBox passWheelComboBox(WheelEventPolicy::Pass, &wheelContainer);
+    passWheelComboBox.setGeometry(10, 130, 120, 30);
+    passWheelComboBox.addItems({"First", "Second"});
+    ComboBox handleWheelComboBox(WheelEventPolicy::Handle, &wheelContainer);
+    handleWheelComboBox.setGeometry(10, 170, 120, 30);
+    handleWheelComboBox.addItems({"First", "Second"});
     wheelParent.show();
     flush();
-    sendWheelEvent(&wheelButton);
-    sendWheelEvent(&wheelComboBox);
-    expect(wheelParent.receivedWheelEvents == 0 && wheelComboBox.currentIndex() == 0,
-           "buttons and combo boxes must consume wheel input without changing selection");
+    const auto buttonIgnored = !sendWheelEvent(&wheelButton);
+    const auto comboBoxIgnored = !sendWheelEvent(&wheelComboBox);
+    const auto defaultComboBoxIgnored = !sendWheelEvent(&defaultWheelComboBox);
+    expect(wheelParent.receivedWheelEvents == 0 && buttonIgnored && comboBoxIgnored &&
+               defaultComboBoxIgnored && wheelComboBox.currentIndex() == 0 &&
+               defaultWheelComboBox.currentIndex() == 0,
+           "default and consume policies must preserve ignored wheel input without changing "
+           "selection");
     wheelButton.setWheelEventPolicy(WheelEventPolicy::Pass);
-    wheelComboBox.setWheelEventPolicy(WheelEventPolicy::Pass);
-    sendWheelEvent(&wheelButton);
-    expect(wheelParent.receivedWheelEvents == 1,
+    const auto buttonPassed = sendWheelEvent(&wheelButton);
+    expect(wheelParent.receivedWheelEvents == 1 && buttonPassed,
            "buttons must support forwarding wheel input to their parent");
-    sendWheelEvent(&wheelComboBox);
-    expect(wheelParent.receivedWheelEvents == 2 && wheelComboBox.currentIndex() == 0,
+    const auto comboBoxPassed = sendWheelEvent(&passWheelComboBox);
+    expect(wheelParent.receivedWheelEvents == 2 && comboBoxPassed &&
+               passWheelComboBox.currentIndex() == 0,
            "combo boxes must support forwarding wheel input to their parent");
-    wheelComboBox.setWheelEventPolicy(WheelEventPolicy::Handle);
-    sendWheelEvent(&wheelComboBox);
-    expect(wheelParent.receivedWheelEvents == 2 && wheelComboBox.currentIndex() == 1,
+    const auto comboBoxHandled = sendWheelEvent(&handleWheelComboBox);
+    expect(wheelParent.receivedWheelEvents == 2 && comboBoxHandled &&
+               handleWheelComboBox.currentIndex() == 1,
            "combo boxes must retain explicit wheel selection handling");
 
     EditorViewportController marginViewport;

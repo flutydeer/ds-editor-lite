@@ -31,7 +31,7 @@ protected:
             case WheelEventPolicy::Handle:
                 return false;
             case WheelEventPolicy::Consume:
-                event->accept();
+                event->ignore();
                 return true;
             case WheelEventPolicy::Pass:
                 forwardToParent(source, event);
