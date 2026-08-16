@@ -5,6 +5,8 @@
 #include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 
+#include <algorithm>
+
 namespace {
     using PhonemeRange = PhonemeDistribution::PhonemeRange;
 
@@ -38,6 +40,19 @@ namespace {
         const auto rootStartMs = timeline.tickToMs(clipStartTick + root.start);
         const auto noteStartMs = timeline.tickToMs(clipStartTick + note.start);
         return qRound(noteStartMs - rootStartMs);
+    }
+
+    int continuousGroupEnd(const QStringList &lyrics, const QList<InferInputNote> &notes,
+                           const int rootIndex) {
+        auto groupEndTick = notes.at(rootIndex).start + notes.at(rootIndex).length;
+        int groupEnd = rootIndex + 1;
+        for (; groupEnd < notes.size() && isMarkerLyric(lyrics.at(groupEnd)); ++groupEnd) {
+            const auto &marker = notes.at(groupEnd);
+            if (marker.start > groupEndTick)
+                break;
+            groupEndTick = std::max(groupEndTick, marker.start + marker.length);
+        }
+        return groupEnd;
     }
 }
 
@@ -111,9 +126,7 @@ namespace PhonemeDistribution {
                 continue;
             }
 
-            int groupEnd = rootIndex + 1;
-            while (groupEnd < notes.size() && isMarkerLyric(lyrics.at(groupEnd)))
-                ++groupEnd;
+            const auto groupEnd = continuousGroupEnd(lyrics, notes, rootIndex);
 
             const auto groupLyrics = lyrics.mid(rootIndex, groupEnd - rootIndex);
             const auto storedNames = notes.at(rootIndex).phonemeNames;
@@ -153,9 +166,7 @@ namespace PhonemeDistribution {
                 continue;
             }
 
-            int groupEnd = rootIndex + 1;
-            while (groupEnd < notes.size() && isMarkerLyric(lyrics.at(groupEnd)))
-                ++groupEnd;
+            const auto groupEnd = continuousGroupEnd(lyrics, notes, rootIndex);
 
             const auto &root = notes.at(rootIndex);
             bool offsetsReady = true;

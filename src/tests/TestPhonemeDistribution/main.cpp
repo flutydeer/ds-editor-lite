@@ -115,6 +115,35 @@ namespace {
                "allocation notes receive no persisted offsets");
     }
 
+    void testDetachedMarkersStayOrphaned() {
+        Note root;
+        configureNote(root, 0, "international+");
+        Phonemes rootPhonemes;
+        rootPhonemes.nameSeq.edited = internationalPhones();
+        rootPhonemes.offsetSeq.edited = {-100, 0, 100, 500, 900, 1000, 1500};
+        root.setPhonemes(rootPhonemes);
+        Note plus;
+        configureNote(plus, 600, "+");
+        Note doublePlus;
+        configureNote(doublePlus, 1080, "++");
+
+        QList<InferInputNote> inferenceNotes{
+            InferInputNote(root), InferInputNote(plus), InferInputNote(doublePlus)};
+        const QStringList lyrics{root.lyric(), plus.lyric(), doublePlus.lyric()};
+        const Timeline timeline;
+        PhonemeDistribution::distributeForInference(lyrics, inferenceNotes, timeline, 0);
+
+        expect(inferenceNotes.at(0).phonemeNames == rootPhonemes.nameSeq.edited &&
+                   inferenceNotes.at(1).phonemeNames.isEmpty() &&
+                   inferenceNotes.at(2).phonemeNames.isEmpty(),
+               "detached allocation markers do not consume root phonemes");
+        const auto stored =
+            PhonemeDistribution::collectForStorage(lyrics, inferenceNotes, timeline, 0);
+        expect(stored.at(0) == rootPhonemes.offsetSeq.edited && stored.at(1).isEmpty() &&
+                   stored.at(2).isEmpty(),
+               "detached allocation markers do not merge offsets into the root");
+    }
+
     void testEditingEligibility() {
         Note word;
         configureNote(word, 0, "word");
@@ -191,6 +220,7 @@ int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     testRanges();
     testStorageAndInferenceRoundTrip();
+    testDetachedMarkersStayOrphaned();
     testEditingEligibility();
     testRelativeTimingChangeInvalidatesEditedOffsets();
     if (failures == 0)
