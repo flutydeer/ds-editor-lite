@@ -62,6 +62,9 @@ public:
     bool lineFeed() const;
     void setLineFeed(const bool &lineFeed);
     bool isSlur() const;
+    static bool isPlusLyric(const QString &lyric);
+    bool isPlus() const;
+    bool canEditPhonemes() const;
 
     QMap<QString, QJsonObject> workspace() const;
     void setWorkspace(const QMap<QString, QJsonObject> &workspace);

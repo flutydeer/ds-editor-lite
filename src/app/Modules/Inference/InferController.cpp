@@ -961,8 +961,7 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
     m_getPhoneTasks.cancelIf([clipId](const auto t) { return t->clipId() == clipId; });
 
     auto task = new GetPhonemeNameTask(clip.id(), clip.inferenceRevision(),
-                                       buildNoteInferenceSnapshots(clip), clip.singerInfo(),
-                                       appModel->timeline());
+                                       buildNoteInferenceSnapshots(clip), clip.singerInfo());
     connect(task, &Task::finished, this, [task, this] { handleGetPhoneTaskFinished(*task); });
     m_getPhoneTasks.add(task);
 }

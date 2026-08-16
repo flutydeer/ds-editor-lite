@@ -171,6 +171,19 @@ bool Note::isSlur() const {
     return m_lyric.trimmed() == "-";
 }
 
+bool Note::isPlusLyric(const QString &lyric) {
+    const auto trimmed = lyric.trimmed();
+    return !trimmed.isEmpty() && trimmed.count('+') == trimmed.length();
+}
+
+bool Note::isPlus() const {
+    return isPlusLyric(m_lyric);
+}
+
+bool Note::canEditPhonemes() const {
+    return !isSlur() && !isPlus();
+}
+
 QMap<QString, QJsonObject> Note::workspace() const {
     auto result = m_workspace;
     auto objLite = result.value("ds-editor-lite");

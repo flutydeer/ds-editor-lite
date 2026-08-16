@@ -7,6 +7,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include "Models/InferInputNote.h"
+#include "Tasks/PhonemeDistribution.h"
 #include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
 #include "Models/SpeakerMixValidator.h"
 #include <lite/ProjectModel/Utils/AppModelUtils.h>
@@ -62,6 +63,12 @@ namespace InferControllerHelper {
             input.requiredHeadLengthMs = headLayout.requiredHeadLengthMs;
             input.maximumHeadLengthMs = headLayout.maximumHeadLengthMs;
             input.notes = buildInferInputNotes(piece.notes);
+            QStringList lyrics;
+            lyrics.reserve(piece.notes.size());
+            for (const auto note : piece.notes)
+                lyrics.append(note->lyric());
+            PhonemeDistribution::distributeForInference(lyrics, input.notes, input.timeline,
+                                                        input.clipStartTick);
 
             const auto spk = resolveSpeakerForPiece(piece);
             input.speaker = spk.speaker;
@@ -226,10 +233,15 @@ namespace InferControllerHelper {
         int i = 0;
         // Update regardless of whether phoneme names are successfully retrieved
         for (const auto note : notes) {
+            if (note->isSlur() || PhonemeDistribution::isPlusLyric(note->lyric())) {
+                note->setPhonemes({});
+                ++i;
+                continue;
+            }
             if (note->phonemeNameSeq().result().count() != args[i].phonemeNames.count())
                 note->setPhonemeOffsetSeq(Note::Original, {});
             note->setPhonemeNameSeq(Note::Original, args[i].phonemeNames);
-            i++;
+            ++i;
         }
         clip.notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
     }
@@ -242,10 +254,28 @@ namespace InferControllerHelper {
                 << args.count() << "clipId:" << clip.id();
             return;
         }
-        int i = 0;
-        for (const auto note : notes) {
-            note->setPhonemeOffsetSeq(Note::Original, args[i].phonemeOffsets);
-            i++;
+        QStringList lyrics;
+        lyrics.reserve(notes.size());
+        for (const auto note : notes)
+            lyrics.append(note->lyric());
+        const auto storedOffsets = PhonemeDistribution::collectForStorage(
+            lyrics, args, appModel->timeline(), clip.start());
+
+        for (int i = 0; i < notes.size(); ++i) {
+            const auto note = notes.at(i);
+            if (note->isSlur() || PhonemeDistribution::isPlusLyric(note->lyric())) {
+                note->setPhonemeOffsetSeq({});
+                continue;
+            }
+            if (storedOffsets.at(i).size() != note->phonemeNameSeq().result().size()) {
+                qCCritical(logInferHelper)
+                    << "updatePhoneOffset() merged offset count does not match stored names"
+                    << "noteId:" << note->id() << "offsetCount:" << storedOffsets.at(i).size()
+                    << "nameCount:" << note->phonemeNameSeq().result().size();
+                note->setPhonemeOffsetSeq(Note::Original, {});
+                continue;
+            }
+            note->setPhonemeOffsetSeq(Note::Original, storedOffsets.at(i));
         }
         clip.notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
     }
