@@ -248,7 +248,10 @@ public:
     void initializeScrollBars() {
         scrollBars = new EditorRhiScrollBarController(q, q);
         QObject::connect(scrollBars, &EditorRhiScrollBarController::offsetChangeRequested, q,
-                         [this](const QPointF &offset) { viewport.setOffset(offset); });
+                         [this](const QPointF &offset) {
+                             wheel.stop();
+                             viewport.setOffset(offset);
+                         });
     }
 
     void updateScrollBars() const {

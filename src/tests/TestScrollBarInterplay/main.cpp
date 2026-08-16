@@ -10,9 +10,11 @@
 
 #include <QGraphicsRectItem>
 #include <QGraphicsView>
+#include <QEventLoop>
 #include <QScrollBar>
 #include <QTextStream>
 #include <QApplication>
+#include <QTimer>
 #include <QWheelEvent>
 #include <QWidget>
 
@@ -315,6 +317,21 @@ int main(int argc, char *argv[]) {
     expect(resizedWheelScroll.logicalScrollValue(Qt::Vertical) == 30.0,
            "range changes must re-clamp a pending wheel target before applying the next step");
     resizedWheelScroll.stop();
+
+    double scrollbarValue = 90.0;
+    WheelInputController scrollbarWheelScroll;
+    scrollbarWheelScroll.setAnimationLevel(AnimationGlobal::Full);
+    scrollbarWheelScroll.setTimeScale(1.0);
+    configureScrollTarget(scrollbarWheelScroll, Qt::Vertical, scrollbarValue, 100.0, 20.0);
+    scrollbarWheelScroll.handleWheel(&wheelTowardEnd);
+    scrollbarWheelScroll.stop();
+    scrollbarValue = 25.0;
+    QEventLoop scrollbarWait;
+    QTimer::singleShot(300, &scrollbarWait, &QEventLoop::quit);
+    scrollbarWait.exec();
+    expect(qFuzzyCompare(scrollbarValue, 25.0) &&
+               !scrollbarWheelScroll.logicalScrollValue(Qt::Vertical).has_value(),
+           "external scrollbar input must remain authoritative after stopping wheel motion");
 
     double zoomValue = 1.0;
     double zoomAnchor = -1.0;

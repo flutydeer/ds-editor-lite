@@ -157,6 +157,7 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     m_scrollBars = new EditorRhiScrollBarController(this, this);
     connect(m_scrollBars, &EditorRhiScrollBarController::offsetChangeRequested, this,
             [this](const QPointF &offset) {
+                m_wheelController->stop();
                 m_viewport.scrollBy({offset.x() - m_viewport.horizontalOffset(),
                                      offset.y() - m_viewport.verticalOffset()});
             });
