@@ -223,8 +223,20 @@ int main(int argc, char *argv[]) {
     auto crossedProperties = draggedAudio;
     expect(crossedState.resizeRightTo(visibleStartTick - 1000, visibleStartTick, 120,
                                       crossedProperties, timeline) &&
-               crossedProperties.clipLen >= 1,
-           "audio resize crossing the opposite edge must clamp instead of freezing");
+               crossedProperties.clipLen == 120,
+           "audio right resize crossing the opposite edge must clamp to one grid step");
+
+    auto crossedLeftState = AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
+                                                      visibleStartTick, grabTick, timeline);
+    crossedProperties.start = initialCaches.start;
+    crossedProperties.clipStart = initialCaches.clipStart;
+    crossedProperties.clipLen = initialCaches.clipLen;
+    crossedProperties.length = initialCaches.length;
+    const auto originalRightTick = visibleStartTick + initialCaches.clipLen;
+    expect(crossedLeftState.resizeLeftTo(originalRightTick + 1000, originalRightTick, 120,
+                                         crossedProperties, timeline) &&
+               crossedProperties.clipLen == 120,
+           "audio left resize crossing the opposite edge must clamp to one grid step");
 
     if (g_failures == 0) {
         QTextStream(stdout) << "All TrackEditorInteractions tests passed" << Qt::endl;
