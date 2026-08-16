@@ -229,6 +229,8 @@ private:
     void setDropIndicatorColor(const QColor &color);
 
     EditorViewportController m_viewport;
+    EditorWheelUtils::ScrollAccumulator m_horizontalWheelScroll;
+    EditorWheelUtils::ScrollAccumulator m_verticalWheelScroll;
     EditorGlyphAtlas m_glyphAtlas;
     EditorRhiScrollBarController *m_scrollBars = nullptr;
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;

@@ -351,8 +351,8 @@ void TimeGraphicsView::onWheelVerScale(QWheelEvent *event) {
 void TimeGraphicsView::onWheelHorScroll(QWheelEvent *event) {
     const auto fromWheel = isMouseEventFromWheel(event);
     auto startValue = horizontalBarValue();
-    auto endValue = EditorWheelUtils::scrollTarget(startValue, viewport()->width(), 0.2, event,
-                                                   EditorWheelUtils::horizontalScrollAxis(event));
+    auto endValue = m_horizontalWheelScroll.scrollTarget(
+        startValue, viewport()->width(), 0.2, event, EditorWheelUtils::horizontalScrollAxis(event));
     if (isDirectManipulationEnabled() || !fromWheel)
         setHorizontalBarValue(endValue);
     else {
@@ -363,8 +363,8 @@ void TimeGraphicsView::onWheelHorScroll(QWheelEvent *event) {
 void TimeGraphicsView::onWheelVerScroll(QWheelEvent *event) {
     const auto fromWheel = isMouseEventFromWheel(event);
     const auto startValue = verticalBarValue();
-    const auto endValue = EditorWheelUtils::scrollTarget(startValue, viewport()->height(), 0.15,
-                                                         event, Qt::Vertical);
+    const auto endValue = m_verticalWheelScroll.scrollTarget(startValue, viewport()->height(), 0.15,
+                                                             event, Qt::Vertical);
     if (isDirectManipulationEnabled() || !fromWheel) {
         setVerticalBarValue(endValue);
     } else {

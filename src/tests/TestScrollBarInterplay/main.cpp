@@ -149,35 +149,66 @@ int main(int argc, char *argv[]) {
     expect(EditorWheelUtils::wheelDelta(&pixelWheel, Qt::Horizontal) == 12.0 &&
                EditorWheelUtils::wheelDelta(&pixelWheel, Qt::Vertical) == -20.0,
            "shared wheel delta extraction must preserve pixel-only touchpad input");
-    expect(EditorWheelUtils::scrollTarget(100, 192, 0.15, &pixelWheel, Qt::Horizontal) == 97 &&
-               EditorWheelUtils::scrollTarget(100, 192, 0.15, &pixelWheel, Qt::Vertical) == 105,
+    EditorWheelUtils::ScrollAccumulator pixelHorizontalScroll;
+    EditorWheelUtils::ScrollAccumulator pixelVerticalScroll;
+    expect(pixelHorizontalScroll.scrollTarget(100, 192, 0.15, &pixelWheel, Qt::Horizontal) == 97 &&
+               pixelVerticalScroll.scrollTarget(100, 192, 0.15, &pixelWheel, Qt::Vertical) == 105,
            "touchpad scrolling must apply pixel displacement directly");
     EditorWheelUtils::InputState pixelInputState;
     expect(!pixelInputState.isMouseWheel(&pixelWheel),
            "pixel-only wheel events must use touchpad direct-scroll semantics");
-    QWheelEvent combinedWheel(QPointF(10, 10), QPointF(10, 10), QPoint(0, -120),
-                              QPoint(0, -120), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase,
-                              false);
+    QWheelEvent combinedWheel(QPointF(10, 10), QPointF(10, 10), QPoint(0, -120), QPoint(0, -120),
+                              Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
     expect(EditorWheelUtils::wheelDelta(&combinedWheel, Qt::Vertical) == -120.0,
            "mouse wheels with both delta forms must retain their angle-step magnitude");
-    expect(EditorWheelUtils::scrollTarget(100, 192, 0.15, &combinedWheel, Qt::Vertical) == 128,
+    EditorWheelUtils::ScrollAccumulator combinedScroll;
+    expect(combinedScroll.scrollTarget(100, 192, 0.15, &combinedWheel, Qt::Vertical) == 128,
            "one mouse wheel event must retain the legacy viewport-relative distance");
     EditorWheelUtils::InputState combinedInputState;
     expect(combinedInputState.isMouseWheel(&combinedWheel),
            "a discrete mouse wheel must not be reclassified by an auxiliary pixel delta");
-    QWheelEvent horizontalTouchPad(QPointF(10, 10), QPointF(10, 10), QPoint(5, 0), {},
-                                   Qt::NoButton, Qt::NoModifier, Qt::ScrollUpdate, false);
+    QWheelEvent horizontalTouchPad(QPointF(10, 10), QPointF(10, 10), QPoint(5, 0), {}, Qt::NoButton,
+                                   Qt::NoModifier, Qt::ScrollUpdate, false);
+    EditorWheelUtils::ScrollAccumulator touchPadHorizontalScroll;
     expect(EditorWheelUtils::dominantAxis(&horizontalTouchPad) == Qt::Horizontal &&
-               EditorWheelUtils::scrollTarget(100, 192, 0.2, &horizontalTouchPad,
-                                              EditorWheelUtils::horizontalScrollAxis(
-                                                  &horizontalTouchPad)) == 95,
+               touchPadHorizontalScroll.scrollTarget(
+                   100, 192, 0.2, &horizontalTouchPad,
+                   EditorWheelUtils::horizontalScrollAxis(&horizontalTouchPad)) == 95,
            "unmodified horizontal touchpad gestures must retain their natural scroll axis");
     QWheelEvent shiftedWheel(QPointF(10, 10), QPointF(10, 10), {}, QPoint(0, -120), Qt::NoButton,
                              Qt::ShiftModifier, Qt::NoScrollPhase, false);
-    expect(EditorWheelUtils::scrollTarget(100, 200, 0.2, &shiftedWheel,
-                                          EditorWheelUtils::horizontalScrollAxis(&shiftedWheel)) ==
-               140,
+    EditorWheelUtils::ScrollAccumulator shiftedScroll;
+    expect(shiftedScroll.scrollTarget(100, 200, 0.2, &shiftedWheel,
+                                      EditorWheelUtils::horizontalScrollAxis(&shiftedWheel)) == 140,
            "Shift-wheel gestures must continue mapping the vertical wheel to horizontal scroll");
+
+    QWheelEvent fineWheelDown(QPointF(10, 10), QPointF(10, 10), {}, QPoint(0, -1), Qt::NoButton,
+                              Qt::NoModifier, Qt::ScrollUpdate, false);
+    QWheelEvent fineWheelUp(QPointF(10, 10), QPointF(10, 10), {}, QPoint(0, 1), Qt::NoButton,
+                            Qt::NoModifier, Qt::ScrollUpdate, false);
+    EditorWheelUtils::ScrollAccumulator fineDownScroll;
+    EditorWheelUtils::ScrollAccumulator fineUpScroll;
+    auto fineDownOffset = 100;
+    auto fineUpOffset = 100;
+    for (int i = 0; i < 4; ++i) {
+        fineDownOffset =
+            fineDownScroll.scrollTarget(fineDownOffset, 240, 0.15, &fineWheelDown, Qt::Vertical);
+        fineUpOffset =
+            fineUpScroll.scrollTarget(fineUpOffset, 240, 0.15, &fineWheelUp, Qt::Vertical);
+    }
+    expect(fineDownOffset - 100 == 100 - fineUpOffset && fineDownOffset > 100,
+           "fine angle deltas must accumulate symmetrically in both directions");
+
+    EditorWheelUtils::ScrollAccumulator reversingScroll;
+    auto reversingOffset = 100;
+    for (int i = 0; i < 2; ++i)
+        reversingOffset =
+            reversingScroll.scrollTarget(reversingOffset, 240, 0.15, &fineWheelDown, Qt::Vertical);
+    for (int i = 0; i < 4; ++i)
+        reversingOffset =
+            reversingScroll.scrollTarget(reversingOffset, 240, 0.15, &fineWheelUp, Qt::Vertical);
+    expect(reversingOffset == 99,
+           "reversing a fine wheel gesture must discard the opposite-direction remainder");
 
     WheelProbe wheelParent;
     wheelParent.resize(300, 200);

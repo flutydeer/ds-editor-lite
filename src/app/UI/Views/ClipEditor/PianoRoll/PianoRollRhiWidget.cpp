@@ -503,14 +503,15 @@ public:
     }
 
     void horizontalScroll(QWheelEvent *event) {
-        cameraX = EditorWheelUtils::scrollTarget(static_cast<int>(cameraX), q->width(), 0.2, event,
-                                                 EditorWheelUtils::horizontalScrollAxis(event));
+        cameraX =
+            horizontalWheelScroll.scrollTarget(static_cast<int>(cameraX), q->width(), 0.2, event,
+                                               EditorWheelUtils::horizontalScrollAxis(event));
         viewportChanged(false);
     }
 
     void verticalScroll(QWheelEvent *event) {
-        cameraY = EditorWheelUtils::scrollTarget(static_cast<int>(cameraY), q->height(), 0.15, event,
-                                                 Qt::Vertical);
+        cameraY = verticalWheelScroll.scrollTarget(static_cast<int>(cameraY), q->height(), 0.15,
+                                                   event, Qt::Vertical);
         viewportChanged(false);
     }
 
@@ -2730,6 +2731,8 @@ public:
     double scaleY = 1.0;
     double cameraX = 0.0;
     double cameraY = 0.0;
+    EditorWheelUtils::ScrollAccumulator horizontalWheelScroll;
+    EditorWheelUtils::ScrollAccumulator verticalWheelScroll;
     double playbackPosition = 0.0;
     double lastPlaybackPosition = 0.0;
     bool autoPageTurn = true;

@@ -194,6 +194,8 @@ private:
     int m_baseSceneLength = 0;
     int m_sceneLengthExtension = 0;
 
+    EditorWheelUtils::ScrollAccumulator m_horizontalWheelScroll;
+    EditorWheelUtils::ScrollAccumulator m_verticalWheelScroll;
     EditorWheelUtils::InputState m_wheelInputState;
 
     OverlayScrollBar *m_hScrollBar = nullptr;

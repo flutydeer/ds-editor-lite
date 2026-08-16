@@ -5,6 +5,8 @@
 #include <QTimer>
 #include <QWheelEvent>
 
+#include <cmath>
+
 namespace EditorWheelUtils {
 
     inline double axisValue(const QPoint &delta, const Qt::Orientation axis) {
@@ -33,14 +35,42 @@ namespace EditorWheelUtils {
         return event->modifiers() == Qt::ShiftModifier ? Qt::Vertical : Qt::Horizontal;
     }
 
-    inline int scrollTarget(const int startValue, const int viewportLength,
-                            const double viewportFraction, const QWheelEvent *event,
-                            const Qt::Orientation axis) {
-        if (usesPixelDelta(event))
-            return static_cast<int>(startValue - axisValue(event->pixelDelta(), axis));
-        return static_cast<int>(startValue - viewportLength * viewportFraction *
-                                                 axisValue(event->angleDelta(), axis) / 120.0);
-    }
+    class ScrollAccumulator final {
+    public:
+        [[nodiscard]] int scrollTarget(const int startValue, const int viewportLength,
+                                       const double viewportFraction, const QWheelEvent *event,
+                                       const Qt::Orientation axis) {
+            if (event->phase() == Qt::ScrollBegin)
+                reset();
+
+            if (usesPixelDelta(event)) {
+                reset();
+                return startValue - axisValue(event->pixelDelta(), axis);
+            }
+
+            const auto wholeStep = static_cast<int>(viewportLength * viewportFraction);
+            const auto offset = -wholeStep * axisValue(event->angleDelta(), axis) / 120.0;
+            if (!qFuzzyIsNull(m_remainder) && !qFuzzyIsNull(offset) &&
+                std::signbit(m_remainder) != std::signbit(offset)) {
+                reset();
+            }
+            m_remainder += offset;
+            const auto wholeOffset = static_cast<int>(m_remainder);
+            m_remainder -= wholeOffset;
+            const auto target = startValue + wholeOffset;
+
+            if (event->phase() == Qt::ScrollEnd)
+                reset();
+            return target;
+        }
+
+        void reset() {
+            m_remainder = 0.0;
+        }
+
+    private:
+        double m_remainder = 0.0;
+    };
 
     class InputState final {
     public:
