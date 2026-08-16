@@ -2,6 +2,7 @@
 #define TRACKCONTROLWIDGET_H
 
 #include "Global/AppGlobal.h"
+#include <lite/GUI/Controls/WheelEventPolicy.h>
 #include <lite/ProjectModel/Interface/ITrack.h>
 #include <lite/ProjectModel/AppModel/TrackControl.h>
 #include "UI/Controls/TwoLevelComboBox.h"
@@ -23,7 +24,7 @@ class QHBoxLayout;
 class QVBoxLayout;
 class ComboBox;
 
-class TrackControlView final : public QWidget, public ITrack {
+class TrackControlView final : public QWidget, public ITrack, private WheelEventPolicySupport {
     Q_OBJECT
 
 public:
@@ -52,6 +53,8 @@ signals:
 
 protected:
     void changeEvent(QEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
 
 private:
     void contextMenuEvent(QContextMenuEvent *event) override;

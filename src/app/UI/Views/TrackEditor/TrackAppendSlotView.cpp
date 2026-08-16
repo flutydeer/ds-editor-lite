@@ -2,7 +2,8 @@
 
 #include <QPainter>
 
-TrackAppendSlotView::TrackAppendSlotView(QWidget *parent) : QWidget(parent) {
+TrackAppendSlotView::TrackAppendSlotView(QWidget *parent)
+    : QWidget(parent), WheelEventPolicySupport(WheelEventPolicy::Pass) {
     setObjectName(QStringLiteral("trackAppendSlotView"));
 }
 
@@ -22,4 +23,10 @@ void TrackAppendSlotView::paintEvent(QPaintEvent *) {
     painter.setRenderHint(QPainter::Antialiasing, false);
     painter.setPen(QPen(m_lineColor, 1));
     painter.drawLine(0, 0, width(), 0);
+}
+
+void TrackAppendSlotView::wheelEvent(QWheelEvent *event) {
+    if (processWheelEventPolicy(this, event))
+        return;
+    QWidget::wheelEvent(event);
 }

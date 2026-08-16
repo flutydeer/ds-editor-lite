@@ -50,7 +50,8 @@ namespace {
 }
 
 TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget *parent)
-    : QWidget(parent), ITrack(track->id()), m_track(track) {
+    : QWidget(parent), ITrack(track->id()), WheelEventPolicySupport(WheelEventPolicy::Pass),
+      m_track(track) {
     m_item = item;
     setAttribute(Qt::WA_StyledBackground);
 
@@ -158,6 +159,9 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     controlWidgetLayout->setSpacing(0);
 
     m_levelMeter = new LevelMeter();
+    lbTrackIndex->installEventFilter(this);
+    leTrackName->installEventFilter(this);
+    m_levelMeter->installEventFilter(this);
 
     mainLayout = new QHBoxLayout;
     mainLayout->setObjectName("TrackControlPanel");
@@ -194,6 +198,21 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
 
     connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
             [this] { updateTrackColor(); });
+}
+
+void TrackControlView::wheelEvent(QWheelEvent *event) {
+    if (processWheelEventPolicy(this, event))
+        return;
+    QWidget::wheelEvent(event);
+}
+
+bool TrackControlView::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QEvent::Wheel &&
+        (watched == lbTrackIndex || watched == leTrackName || watched == m_levelMeter)) {
+        if (processWheelEventPolicy(this, static_cast<QWheelEvent *>(event)))
+            return true;
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 int TrackControlView::trackIndex() const {
