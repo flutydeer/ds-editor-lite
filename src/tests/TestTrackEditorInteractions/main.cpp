@@ -71,9 +71,17 @@ int main(int argc, char *argv[]) {
     expect(ClipResizeUtils::updateLeftEdge(leftResize, 50) && leftResize.clipStart == 0 &&
                leftResize.clipLen == 800,
            "left resize must stop at the content origin");
-    expect(ClipResizeUtils::updateLeftEdge(leftResize, 1200, 120) &&
-               leftResize.clipStart == 680 && leftResize.clipLen == 120,
-           "left resize crossing the right edge must clamp to one grid step");
+
+    constexpr std::array gridSteps{60, 120, 240};
+    for (const auto gridStep : gridSteps) {
+        Clip::ClipCommonProperties crossedLeft;
+        crossedLeft.start = 100;
+        crossedLeft.clipStart = 200;
+        crossedLeft.clipLen = 600;
+        expect(ClipResizeUtils::updateLeftEdge(crossedLeft, 1200, gridStep) &&
+                   crossedLeft.clipLen == gridStep,
+               "left resize crossing the right edge must use the supplied grid step");
+    }
 
     Clip::ClipCommonProperties audio;
     audio.length = 2000;
@@ -83,9 +91,15 @@ int main(int argc, char *argv[]) {
            "a positive audio clip resize must be accepted");
     expect(audio.clipLen == 1500 && audio.length == 2000,
            "audio resize must stop at the material boundary");
-    expect(ClipResizeUtils::updateRightEdge(audio, -500, 120, false, 2000) &&
-               audio.clipLen == 120,
-           "right resize crossing the left edge must clamp to one grid step");
+    for (const auto gridStep : gridSteps) {
+        Clip::ClipCommonProperties crossedRight;
+        crossedRight.length = 2000;
+        crossedRight.clipStart = 500;
+        crossedRight.clipLen = 500;
+        expect(ClipResizeUtils::updateRightEdge(crossedRight, -500, gridStep, false, 2000) &&
+                   crossedRight.clipLen == gridStep,
+               "right resize crossing the left edge must use the supplied grid step");
+    }
 
     Clip::ClipCommonProperties unsnapped;
     unsnapped.length = 1000;
@@ -218,25 +232,31 @@ int main(int argc, char *argv[]) {
     expect(closeTo(draggedAudio.playLengthMs, materialLengthMs - trimStartMs),
            "audio right trim must stop at the material boundary in realtime");
 
-    auto crossedState = AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
-                                                  visibleStartTick, grabTick, timeline);
-    auto crossedProperties = draggedAudio;
-    expect(crossedState.resizeRightTo(visibleStartTick - 1000, visibleStartTick, 120,
-                                      crossedProperties, timeline) &&
-               crossedProperties.clipLen == 120,
-           "audio right resize crossing the opposite edge must clamp to one grid step");
-
-    auto crossedLeftState = AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
-                                                      visibleStartTick, grabTick, timeline);
-    crossedProperties.start = initialCaches.start;
-    crossedProperties.clipStart = initialCaches.clipStart;
-    crossedProperties.clipLen = initialCaches.clipLen;
-    crossedProperties.length = initialCaches.length;
     const auto originalRightTick = visibleStartTick + initialCaches.clipLen;
-    expect(crossedLeftState.resizeLeftTo(originalRightTick + 1000, originalRightTick, 120,
-                                         crossedProperties, timeline) &&
-               crossedProperties.clipLen == 120,
-           "audio left resize crossing the opposite edge must clamp to one grid step");
+    for (const auto gridStep : gridSteps) {
+        auto crossedState = AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
+                                                      visibleStartTick, grabTick, timeline);
+        Clip::ClipCommonProperties crossedProperties;
+        crossedProperties.start = initialCaches.start;
+        crossedProperties.clipStart = initialCaches.clipStart;
+        crossedProperties.clipLen = initialCaches.clipLen;
+        crossedProperties.length = initialCaches.length;
+        expect(crossedState.resizeRightTo(visibleStartTick - 1000, visibleStartTick, gridStep,
+                                          crossedProperties, timeline) &&
+                   crossedProperties.clipLen == gridStep,
+               "audio right resize crossing the opposite edge must use the supplied grid step");
+
+        auto crossedLeftState = AudioClipDragState::begin(
+            trimStartMs, playLengthMs, materialLengthMs, visibleStartTick, grabTick, timeline);
+        crossedProperties.start = initialCaches.start;
+        crossedProperties.clipStart = initialCaches.clipStart;
+        crossedProperties.clipLen = initialCaches.clipLen;
+        crossedProperties.length = initialCaches.length;
+        expect(crossedLeftState.resizeLeftTo(originalRightTick + 1000, originalRightTick,
+                                             gridStep, crossedProperties, timeline) &&
+                   crossedProperties.clipLen == gridStep,
+               "audio left resize crossing the opposite edge must use the supplied grid step");
+    }
 
     if (g_failures == 0) {
         QTextStream(stdout) << "All TrackEditorInteractions tests passed" << Qt::endl;

@@ -181,9 +181,15 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
     int left;
     int clipLen;
     const int delta = qRound(dx);
-    const int quantize =
-        snapStep(m_tempQuantizeOff, m_mouseDownStart + m_mouseDownClipStart + delta);
     const auto &timeline = appModel->timeline();
+    const auto snapStepFor = [this](const int value) {
+        return snapStep(m_tempQuantizeOff, value);
+    };
+    const auto snap = [&timeline, &snapStepFor](const int value) {
+        return TimelineSnapUtils::snapNearest(value, snapStepFor(value), timeline);
+    };
+    const auto originalLeft = m_mouseDownStart + m_mouseDownClipStart;
+    const auto originalRight = originalLeft + m_mouseDownClipLen;
     if (m_mouseMoveBehavior == Move) {
         m_movedBeforeMouseUp = true;
         if (m_audioDragState) {
@@ -192,14 +198,12 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
                                       AppGlobal::ticksPerQuarterNote;
             const int desiredLeft =
                 m_audioDragState->visibleStartForCursor(cursorTick, timeline);
-            left = TimelineSnapUtils::snapNearest(
-                desiredLeft, snapStep(m_tempQuantizeOff, desiredLeft), timeline);
+            left = snap(desiredLeft);
             Clip::ClipCommonProperties properties(*m_currentEditingClip);
             m_audioDragState->moveTo(left, properties, timeline);
             m_currentEditingClip->loadCommonProperties(properties);
         } else {
-            left = TimelineSnapUtils::snapNearest(m_mouseDownStart + m_mouseDownClipStart + delta,
-                                                  quantize, timeline);
+            left = snap(originalLeft + delta);
             start = left - m_mouseDownClipStart;
             m_currentEditingClip->setStart(start);
         }
@@ -212,38 +216,37 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
         }
     } else if (m_mouseMoveBehavior == ResizeLeft) {
         m_movedBeforeMouseUp = true;
-        left = TimelineSnapUtils::snapNearest(m_mouseDownStart + m_mouseDownClipStart + delta,
-                                              quantize, timeline);
+        const auto requestedLeft = originalLeft + delta;
+        const auto minimumLength = snapStepFor(requestedLeft);
+        left = snap(requestedLeft);
         if (m_audioDragState) {
             Clip::ClipCommonProperties properties(*m_currentEditingClip);
-            if (!m_audioDragState->resizeLeftTo(
-                    left, m_mouseDownStart + m_mouseDownClipStart + m_mouseDownClipLen,
-                    quantize, properties, timeline))
+            if (!m_audioDragState->resizeLeftTo(left, originalRight, minimumLength, properties,
+                                                timeline))
                 return;
             m_currentEditingClip->loadCommonProperties(properties);
             return;
         }
         Clip::ClipCommonProperties properties(*m_currentEditingClip);
-        if (!ClipResizeUtils::updateLeftEdge(properties, left, quantize))
+        if (!ClipResizeUtils::updateLeftEdge(properties, left, minimumLength))
             return;
         m_currentEditingClip->loadCommonProperties(properties);
     } else if (m_mouseMoveBehavior == ResizeRight) {
         m_movedBeforeMouseUp = true;
-        const int right = TimelineSnapUtils::snapNearest(m_mouseDownStart + m_mouseDownClipStart +
-                                                             m_mouseDownClipLen + delta,
-                                                         quantize, timeline);
+        const auto requestedRight = originalRight + delta;
+        const auto minimumLength = snapStepFor(requestedRight);
+        const auto right = snap(requestedRight);
         if (m_audioDragState) {
-            const int visibleStart = m_mouseDownStart + m_mouseDownClipStart;
             Clip::ClipCommonProperties properties(*m_currentEditingClip);
-            if (!m_audioDragState->resizeRightTo(right, visibleStart, quantize, properties,
+            if (!m_audioDragState->resizeRightTo(right, originalLeft, minimumLength, properties,
                                                  timeline))
                 return;
             m_currentEditingClip->loadCommonProperties(properties);
             return;
         }
-        clipLen = right - (m_mouseDownStart + m_mouseDownClipStart);
+        clipLen = right - originalLeft;
         Clip::ClipCommonProperties properties(*m_currentEditingClip);
-        if (ClipResizeUtils::updateRightEdge(properties, clipLen, quantize,
+        if (ClipResizeUtils::updateRightEdge(properties, clipLen, minimumLength,
                                              m_currentEditingClip->canResizeLength(),
                                              m_currentEditingClip->contentLength())) {
             m_currentEditingClip->loadCommonProperties(properties);
