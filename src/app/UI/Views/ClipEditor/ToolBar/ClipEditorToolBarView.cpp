@@ -103,12 +103,12 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
             d->refreshSingerComboPresentation();
     });
 
-    d->m_cbClipLanguage = new LanguageComboBox("unknown", true);
+    d->m_cbClipLanguage = new LanguageComboBox("unknown", WheelEventPolicy::Handle);
     d->m_cbClipLanguage->setObjectName("cbClipLanguage");
     d->m_cbClipLanguage->installEventFilter(new ToolTipFilter(d->m_cbClipLanguage, 500));
     d->m_cbClipLanguage->setToolTip(tr("Clip Default Language"));
 
-    d->m_cbPianoRollQuantize = new ComboBox(true);
+    d->m_cbPianoRollQuantize = new ComboBox(WheelEventPolicy::Handle);
     d->m_cbPianoRollQuantize->setObjectName("cbPianoRollQuantize");
     d->m_cbPianoRollQuantize->addItems(QuantizeOptions::strings());
     // Scroll the popup list per pixel (pairs with global smooth scrolling;

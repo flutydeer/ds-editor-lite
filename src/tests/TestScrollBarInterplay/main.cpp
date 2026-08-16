@@ -1,3 +1,5 @@
+#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/OverlayScrollBar.h>
 
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
@@ -19,6 +21,25 @@
 // collapsing the handle to its 20px minimum and leaving it at mid-track.
 namespace {
     int g_failures = 0;
+
+    class WheelProbe final : public QWidget {
+    public:
+        int receivedWheelEvents = 0;
+
+    protected:
+        void wheelEvent(QWheelEvent *event) override {
+            ++receivedWheelEvents;
+            event->accept();
+        }
+    };
+
+    void sendWheelEvent(QWidget *target) {
+        const QPointF position(target->rect().center());
+        const QPointF globalPosition(target->mapToGlobal(position.toPoint()));
+        QWheelEvent event(position, globalPosition, {}, QPoint(0, -120), Qt::NoButton,
+                          Qt::NoModifier, Qt::NoScrollPhase, false);
+        QApplication::sendEvent(target, &event);
+    }
 
     void probe(const char *label, const QScrollBar *source, OverlayScrollBar *bar) {
         QTextStream(stdout) << "[" << label << "] src page=" << source->pageStep()
@@ -158,29 +179,34 @@ int main(int argc, char *argv[]) {
                140,
            "Shift-wheel gestures must continue mapping the vertical wheel to horizontal scroll");
 
-    QWidget wheelTarget;
-    wheelTarget.resize(300, 200);
-    QWidget wheelChild(&wheelTarget);
-    wheelChild.setGeometry(40, 30, 100, 80);
-    QWidget wheelGrandchild(&wheelChild);
-    wheelGrandchild.setGeometry(10, 15, 40, 30);
-    wheelTarget.show();
+    WheelProbe wheelParent;
+    wheelParent.resize(300, 200);
+    QWidget wheelContainer(&wheelParent);
+    wheelContainer.setGeometry(0, 0, 300, 200);
+    Button wheelButton(&wheelContainer);
+    wheelButton.setGeometry(10, 10, 80, 30);
+    wheelButton.setWheelEventPolicy(WheelEventPolicy::Consume);
+    ComboBox wheelComboBox(WheelEventPolicy::Consume, &wheelContainer);
+    wheelComboBox.setGeometry(10, 50, 120, 30);
+    wheelComboBox.addItems({"First", "Second"});
+    wheelParent.show();
     flush();
-    int forwardedWheelEvents = 0;
-    QPointF forwardedWheelPosition;
-    EditorWheelUtils::forwardChildWheelEvents(
-        &wheelTarget, &wheelTarget, [&](QWheelEvent *event) {
-            ++forwardedWheelEvents;
-            forwardedWheelPosition = event->position();
-            event->accept();
-        });
-    const QPoint targetWheelPosition(65, 55);
-    const auto globalWheelPosition = wheelTarget.mapToGlobal(targetWheelPosition);
-    QWheelEvent childWheel(QPointF(15, 10), globalWheelPosition, {}, QPoint(0, -120),
-                           Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
-    QApplication::sendEvent(&wheelGrandchild, &childWheel);
-    expect(forwardedWheelEvents == 1 && forwardedWheelPosition == QPointF(targetWheelPosition),
-           "wheel input from an embedded editor control must be forwarded in target coordinates");
+    sendWheelEvent(&wheelButton);
+    sendWheelEvent(&wheelComboBox);
+    expect(wheelParent.receivedWheelEvents == 0 && wheelComboBox.currentIndex() == 0,
+           "buttons and combo boxes must consume wheel input without changing selection");
+    wheelButton.setWheelEventPolicy(WheelEventPolicy::Pass);
+    wheelComboBox.setWheelEventPolicy(WheelEventPolicy::Pass);
+    sendWheelEvent(&wheelButton);
+    expect(wheelParent.receivedWheelEvents == 1,
+           "buttons must support forwarding wheel input to their parent");
+    sendWheelEvent(&wheelComboBox);
+    expect(wheelParent.receivedWheelEvents == 2 && wheelComboBox.currentIndex() == 0,
+           "combo boxes must support forwarding wheel input to their parent");
+    wheelComboBox.setWheelEventPolicy(WheelEventPolicy::Handle);
+    sendWheelEvent(&wheelComboBox);
+    expect(wheelParent.receivedWheelEvents == 2 && wheelComboBox.currentIndex() == 1,
+           "combo boxes must retain explicit wheel selection handling");
 
     EditorViewportController marginViewport;
     marginViewport.setContentTickRange(0, 20000);

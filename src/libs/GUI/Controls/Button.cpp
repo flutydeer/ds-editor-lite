@@ -23,3 +23,9 @@ void Button::mousePressEvent(QMouseEvent *event) {
     QPushButton::mousePressEvent(event);
     event->ignore();
 }
+
+void Button::wheelEvent(QWheelEvent *event) {
+    if (processWheelEventPolicy(this, event))
+        return;
+    QPushButton::wheelEvent(event);
+}

@@ -21,7 +21,7 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     lbForegroundParam = new QLabel(tr("Foreground:"));
     lbForegroundParam->setObjectName("lbForegroundParam");
 
-    cbForegroundParam = new ComboBox(true);
+    cbForegroundParam = new ComboBox(WheelEventPolicy::Handle);
     cbForegroundParam->setObjectName("cbForegroundParam");
     cbForegroundParam->addItems(paramUtils->names());
     cbForegroundParam->removeItem(0); // Remove pitch
@@ -32,7 +32,7 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     lbBackgroundParam = new QLabel(tr("Background:"));
     lbBackgroundParam->setObjectName("lbBackgroundParam");
 
-    cbBackgroundParam = new ComboBox(true);
+    cbBackgroundParam = new ComboBox(WheelEventPolicy::Handle);
     cbBackgroundParam->setObjectName("cbBackgroundParam");
     cbBackgroundParam->addItems(paramUtils->names());
     cbBackgroundParam->removeItem(0);                              // Remove pitch

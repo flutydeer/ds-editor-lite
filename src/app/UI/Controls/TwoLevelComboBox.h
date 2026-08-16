@@ -5,6 +5,7 @@
 #include <lite/ProjectModel/Voice/SingerInfo.h>
 
 #include <lite/GUI/Controls/Menu.h>
+#include <lite/GUI/Controls/WheelEventPolicy.h>
 #include <QToolButton>
 
 class QAction;
@@ -18,7 +19,7 @@ struct ComboBoxItemData {
 };
 Q_DECLARE_METATYPE(ComboBoxItemData)
 
-class TwoLevelComboBox : public QToolButton {
+class TwoLevelComboBox : public QToolButton, public WheelEventPolicySupport {
     Q_OBJECT
 
 public:
@@ -66,6 +67,7 @@ signals:
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
 
 private slots:
     void onActionTriggered(const QAction *action);

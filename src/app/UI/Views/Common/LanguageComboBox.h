@@ -10,7 +10,8 @@ class LanguageComboBox : public ComboBox {
     Q_OBJECT
 
 public:
-    explicit LanguageComboBox(const QString &langKey, bool scrollWheelChangeSelection = false,
+    explicit LanguageComboBox(const QString &langKey,
+                              WheelEventPolicy wheelEventPolicy = WheelEventPolicy::Consume,
                               QWidget *parent = nullptr);
 
     [[nodiscard]] QString currentLanguage() const;

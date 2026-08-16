@@ -4,7 +4,6 @@
 #include "TrackControlView.h"
 #include "Global/TracksEditorGlobal.h"
 #include "TrackAppendSlotView.h"
-#include "UI/Views/Common/EditorWheelUtils.h"
 
 #include <QDrag>
 #include <QDragMoveEvent>
@@ -23,8 +22,6 @@ TrackListView::TrackListView(QWidget *parent) : QListWidget(parent) {
     setVerticalScrollMode(ScrollPerPixel);
     setSelectionMode(SingleSelection);
     QScroller::grabGesture(this, QScroller::TouchGesture);
-    EditorWheelUtils::forwardChildWheelEvents(viewport(), this,
-                                              [this](QWheelEvent *event) { wheelEvent(event); });
 
     // Enable drag and drop for track reordering
     setDragEnabled(true);

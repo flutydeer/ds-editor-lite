@@ -52,6 +52,12 @@ void TwoLevelComboBox::paintEvent(QPaintEvent *event) {
     painter.drawPixmap(arrowRect.topLeft(), arrowPixmap);
 }
 
+void TwoLevelComboBox::wheelEvent(QWheelEvent *event) {
+    if (processWheelEventPolicy(this, event))
+        return;
+    QToolButton::wheelEvent(event);
+}
+
 QSize TwoLevelComboBox::sizeHint() const {
     QStyleOptionToolButton opt;
     opt.initFrom(this);

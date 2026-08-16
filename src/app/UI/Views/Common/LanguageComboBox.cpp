@@ -27,9 +27,9 @@ namespace {
     }
 }
 
-LanguageComboBox::LanguageComboBox(const QString &langKey, bool scrollWheelChangeSelection,
-                                   QWidget *parent)
-    : ComboBox(scrollWheelChangeSelection, parent) {
+LanguageComboBox::LanguageComboBox(const QString &langKey,
+                                   const WheelEventPolicy wheelEventPolicy, QWidget *parent)
+    : ComboBox(wheelEventPolicy, parent) {
     setLanguageCodes(AppGlobal::languageNames, langKey);
     connect(this, &QComboBox::currentIndexChanged, this, [this](int index) {
         if (index >= 0)

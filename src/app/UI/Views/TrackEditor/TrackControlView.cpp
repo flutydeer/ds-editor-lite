@@ -65,6 +65,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     btnMute->setChecked(false);
     btnMute->setFixedSize(m_buttonSize, m_buttonSize);
     btnMute->setContentsMargins(0, 0, 0, 0);
+    btnMute->setWheelEventPolicy(WheelEventPolicy::Pass);
     connect(btnMute, &QPushButton::clicked, this, [&] { changeTrackProperty(); });
 
     btnSolo = new Button("S");
@@ -72,6 +73,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     btnSolo->setCheckable(true);
     btnSolo->setChecked(false);
     btnSolo->setFixedSize(m_buttonSize, m_buttonSize);
+    btnSolo->setWheelEventPolicy(WheelEventPolicy::Pass);
     connect(btnSolo, &QPushButton::clicked, this, [&] { changeTrackProperty(); });
 
     leTrackName = new InlineEditLabel();
@@ -91,6 +93,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     cbSinger = new TwoLevelComboBox;
     cbSinger->setObjectName("cbSinger");
     cbSinger->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    cbSinger->setWheelEventPolicy(WheelEventPolicy::Pass);
     if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready) {
         cbSinger->setItems(packageManager->installedPackages().successfulPackages);
     } else {
@@ -134,7 +137,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     connect(cbSinger, &TwoLevelComboBox::itemsPopulated, this,
             &TrackControlView::refreshSingerComboPresentation);
 
-    cbLanguage = new LanguageComboBox("unknown");
+    cbLanguage = new LanguageComboBox("unknown", WheelEventPolicy::Pass);
     cbLanguage->setObjectName("cbLanguage");
     connect(cbLanguage, &LanguageComboBox::currentLanguageChanged, this,
             [this](const QString &language) {

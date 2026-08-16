@@ -15,7 +15,7 @@ QuantizeDialog::QuantizeDialog(QWidget *parent) : OKCancelDialog(parent) {
     setWindowTitle(tr("Quantize"));
     setTitle(tr("Quantize"));
 
-    m_cbQuantize = new ComboBox(true);
+    m_cbQuantize = new ComboBox(WheelEventPolicy::Handle);
     m_cbQuantize->addItems(QuantizeOptions::strings());
 
     m_chkStart = new QCheckBox(tr("Quantize start position"));

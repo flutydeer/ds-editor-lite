@@ -2,11 +2,12 @@
 #define BUTTON_H
 
 #include <lite/GUI/Utils/DropShadow.h>
+#include <lite/GUI/Controls/WheelEventPolicy.h>
 
 #include <QGraphicsDropShadowEffect>
 #include <QPushButton>
 
-class Button : public QPushButton {
+class Button : public QPushButton, public WheelEventPolicySupport {
     Q_OBJECT
     DROP_SHADOW_EFFECT
 
@@ -18,6 +19,7 @@ public:
 private:
     void initUi();
     void mousePressEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
 };
 
 #endif // BUTTON_H

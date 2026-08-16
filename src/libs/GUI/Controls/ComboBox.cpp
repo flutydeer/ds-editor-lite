@@ -27,12 +27,11 @@ namespace {
     };
 }
 
-ComboBox::ComboBox(QWidget *parent) : CComboBox(parent) {
-    initUi();
+ComboBox::ComboBox(QWidget *parent) : ComboBox(WheelEventPolicy::Consume, parent) {
 }
 
-ComboBox::ComboBox(const bool scrollWheelChangeSelection, QWidget *parent)
-    : CComboBox(parent), m_scrollWheelChangeSelection(scrollWheelChangeSelection) {
+ComboBox::ComboBox(const WheelEventPolicy wheelEventPolicy, QWidget *parent)
+    : CComboBox(parent), WheelEventPolicySupport(wheelEventPolicy) {
     initUi();
 }
 
@@ -66,10 +65,9 @@ void ComboBox::paintEvent(QPaintEvent *event) {
 }
 
 void ComboBox::wheelEvent(QWheelEvent *event) {
-    if (m_scrollWheelChangeSelection)
-        CComboBox::wheelEvent(event);
-    else
-        event->ignore();
+    if (processWheelEventPolicy(this, event))
+        return;
+    QComboBox::wheelEvent(event);
 }
 
 Menu *ComboBox::createContextMenu(QWidget *parent) {
