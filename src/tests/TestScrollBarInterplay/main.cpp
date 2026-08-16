@@ -4,7 +4,9 @@
 #include "UI/Views/Common/EditorViewportAnimation.h"
 #include "UI/Views/Common/EditorViewportController.h"
 #include "UI/Views/Common/EditorWheelUtils.h"
+#include "UI/Views/Common/TimeGraphicsScene.h"
 
+#include <QGraphicsRectItem>
 #include <QGraphicsView>
 #include <QScrollBar>
 #include <QTextStream>
@@ -20,6 +22,21 @@
 // collapsing the handle to its 20px minimum and leaving it at mid-track.
 namespace {
     int g_failures = 0;
+
+    class SceneAwareScalableItem final : public QGraphicsRectItem, public IScalableItem {
+    public:
+        bool scaleInitializedInScene = false;
+        bool visibleRectInitializedInScene = false;
+
+    protected:
+        void afterSetScale() override {
+            scaleInitializedInScene = scene() != nullptr;
+        }
+
+        void afterSetVisibleRect() override {
+            visibleRectInitializedInScene = scene() != nullptr;
+        }
+    };
 
     void probe(const char *label, const QScrollBar *source, OverlayScrollBar *bar) {
         QTextStream(stdout) << "[" << label << "] src page=" << source->pageStep()
@@ -38,6 +55,14 @@ namespace {
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
+
+    TimeGraphicsScene timeScene;
+    SceneAwareScalableItem sceneAwareItem;
+    timeScene.addCommonItem(&sceneAwareItem);
+    expect(sceneAwareItem.scaleInitializedInScene &&
+               sceneAwareItem.visibleRectInitializedInScene,
+           "scene-dependent item geometry must initialize after scene attachment");
+    timeScene.removeCommonItem(&sceneAwareItem);
 
     QGraphicsView view;
     view.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);

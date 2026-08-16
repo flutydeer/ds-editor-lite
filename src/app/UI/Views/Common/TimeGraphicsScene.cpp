@@ -18,11 +18,11 @@ void TimeGraphicsScene::setSceneBaseSize(const QSizeF &size) {
 }
 
 void TimeGraphicsScene::addCommonItem(IScalableItem *item) {
-    item->setScaleXY(scaleX(), scaleY());
-    item->setVisibleRect(visibleRect());
     if (auto graphicsItem = dynamic_cast<QGraphicsItem *>(item)) {
         addItem(graphicsItem);
         m_items.append(item);
+        item->setScaleXY(scaleX(), scaleY());
+        item->setVisibleRect(visibleRect());
     } else
         qCritical() << "TimeGraphicsScene::addScalableItem: item is not QGraphicsItem";
 }
