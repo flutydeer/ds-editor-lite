@@ -21,7 +21,7 @@
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
-#include "UI/Views/Common/EditorScrollUtils.h"
+#include "UI/Views/Common/EditorViewportController.h"
 #include "UI/Views/Common/EditorWheelUtils.h"
 #include "Modules/Inference/EditSessionManager.h"
 
@@ -197,7 +197,15 @@ public:
         bool overlapped = false;
     };
 
-    explicit Private(PianoRollRhiWidget *q) : q(q) {
+    explicit Private(PianoRollRhiWidget *q) : q(q), viewport(q) {
+        viewport.setPixelsPerQuarterNote(pixelsPerQuarterNote);
+        viewport.setScaleBounds(0.01, 5.0, 0.5, 8.0);
+        viewport.setEnsureContentFillsViewport(true, true);
+        viewport.setVerticalContent(128.0, noteHeight);
+        QObject::connect(&viewport, &EditorViewportController::viewportChanged, q, [this] {
+            this->q->notifyViewportChanged();
+            scheduleSnapshot();
+        });
         QObject::connect(&edgeAutoScroller, &EdgeAutoScroller::frame, q,
                          [this](const double dtMs) { onEdgeAutoScrollFrame(dtMs); });
     }
@@ -205,6 +213,22 @@ public:
     ~Private() {
         clearPitchPreview();
         qDeleteAll(anchorCurves);
+    }
+
+    [[nodiscard]] double horizontalScale() const {
+        return viewport.horizontalScale();
+    }
+
+    [[nodiscard]] double verticalScale() const {
+        return viewport.verticalScale();
+    }
+
+    [[nodiscard]] double horizontalOffset() const {
+        return viewport.horizontalOffset();
+    }
+
+    [[nodiscard]] double verticalOffset() const {
+        return viewport.verticalOffset();
     }
 
     void initializeInlineEditor() {
@@ -222,20 +246,16 @@ public:
     void initializeScrollBars() {
         scrollBars = new EditorRhiScrollBarController(q, q);
         QObject::connect(scrollBars, &EditorRhiScrollBarController::offsetChangeRequested, q,
-                         [this](const QPointF &offset) {
-                             cameraX = offset.x();
-                             cameraY = offset.y();
-                             viewportChanged(false);
-                         });
+                         [this](const QPointF &offset) { viewport.setOffset(offset); });
     }
 
     void updateScrollBars() const {
         if (!scrollBars)
             return;
         const auto contentSize = clip ? QSizeF(sceneWidth(), sceneHeight()) : QSizeF(q->size());
-        scrollBars->setMetrics(
-            contentSize, QPointF(cameraX, cameraY),
-            QSizeF(std::max(1, q->width() / 10), std::max(1.0, noteHeight * scaleY)));
+        scrollBars->setMetrics(contentSize, viewport.offset(),
+                               QSizeF(std::max(1, q->width() / 10),
+                                      std::max(1.0, noteHeight * verticalScale())));
     }
 
     void setDataContext(SingingClip *newClip) {
@@ -251,6 +271,7 @@ public:
             QObject::disconnect(clip, nullptr, q, nullptr);
 
         clip = newClip;
+        viewport.setContentTickRange(0.0, clip ? clip->length() : 0.0);
         if (clip) {
             QObject::connect(clip, &SingingClip::noteChanged, q, [this] { scheduleSnapshot(); });
             QObject::connect(clip, &SingingClip::paramChanged, q,
@@ -262,8 +283,11 @@ public:
                                      scheduleSnapshot();
                                  }
                              });
-            QObject::connect(clip, &SingingClip::propertyChanged, q,
-                             [this] { viewportChanged(false); });
+            QObject::connect(clip, &SingingClip::propertyChanged, q, [this] {
+                viewport.setContentTickRange(0.0, clip->length());
+                q->notifyViewportChanged();
+                scheduleSnapshot();
+            });
         }
         loadAnchorCurvesFromModel();
         viewportPositionPending = clip && !q->isVisible();
@@ -279,35 +303,32 @@ public:
             return;
 
         const auto initialViewport = !cameraInitialized;
-        scaleX = std::max(initialViewport ? 1.0 : scaleX, minimumScaleX());
-        scaleY = std::max(initialViewport ? 1.0 : scaleY, minimumScaleY());
-        cameraX = 0.0;
+        viewport.setScale(initialViewport ? 1.0 : horizontalScale(),
+                          initialViewport ? 1.0 : verticalScale(), {});
+        auto targetOffset = viewport.offset();
+        targetOffset.setX(0.0);
         if (initialViewport)
-            cameraY = std::max(0, qRound((sceneHeight() - q->height()) * 0.5));
+            targetOffset.setY(std::max(0, qRound((sceneHeight() - q->height()) * 0.5)));
         if (clip->notes().count() > 0) {
             const auto *firstNote = *clip->notes().begin();
             const auto visibleTicks = q->width() / pixelsPerTick();
-            cameraX = qRound((firstNote->localStart() - visibleTicks * 0.3) * pixelsPerTick());
-            const auto noteCenterY = (126.5 - firstNote->keyIndex()) * noteHeight * scaleY;
-            cameraY = qRound(noteCenterY - q->height() * 0.5);
+            targetOffset.setX(
+                qRound((firstNote->localStart() - visibleTicks * 0.3) * pixelsPerTick()));
+            const auto noteCenterY =
+                (126.5 - firstNote->keyIndex()) * noteHeight * verticalScale();
+            targetOffset.setY(qRound(noteCenterY - q->height() * 0.5));
         }
-        clampCamera();
+        viewport.setOffset(targetOffset);
         cameraInitialized = true;
         q->notifyViewportChanged();
     }
 
     void resize() {
+        viewport.setViewportSize(q->size());
         if (!cameraInitialized) {
             if (q->isVisible())
                 initializeCamera();
-        } else {
-            scaleX = std::max(scaleX, minimumScaleX());
-            scaleY = std::max(scaleY, minimumScaleY());
-            clampCamera();
-            q->notifyViewportChanged();
         }
-        updateScrollBars();
-        scheduleSnapshot();
     }
 
     void show() {
@@ -325,19 +346,19 @@ public:
     }
 
     double startTick() const {
-        return (clip ? clip->start() : 0) + visibleLocalStartTick();
+        return (clip ? clip->start() : 0) + viewport.startTick();
     }
 
     double endTick() const {
-        return (clip ? clip->start() : 0) + visibleLocalEndTick();
+        return (clip ? clip->start() : 0) + viewport.endTick();
     }
 
     double topKeyIndex() const {
-        return 127.0 - cameraY / (noteHeight * scaleY);
+        return 127.0 - viewport.topUnit();
     }
 
     double bottomKeyIndex() const {
-        return 127.0 - (cameraY + q->height()) / (noteHeight * scaleY);
+        return 127.0 - viewport.bottomUnit();
     }
 
     double centerKeyIndex() const {
@@ -347,32 +368,23 @@ public:
     bool centerAt(const double tick, const double keyIndex) {
         if (!clip || !std::isfinite(tick) || !std::isfinite(keyIndex))
             return false;
-        cameraX = (tick - clip->start()) * pixelsPerTick() - q->width() * 0.5;
-        cameraY = (127.0 - keyIndex + 0.5) * noteHeight * scaleY - q->height() * 0.5;
-        viewportChanged(false);
-        return true;
+        return viewport.centerAt(tick - clip->start(), 126.5 - keyIndex);
     }
 
     bool setViewScale(const double horizontal, const double vertical) {
         if (!std::isfinite(horizontal) || !std::isfinite(vertical) || horizontal <= 0.0 ||
             vertical <= 0.0)
             return false;
-        const auto centerTickValue = (startTick() + endTick()) * 0.5;
-        const auto centerKey = centerKeyIndex();
-        scaleX = std::clamp(horizontal, minimumScaleX(), 5.0);
-        scaleY = std::clamp(vertical, minimumScaleY(), 8.0);
-        centerAt(centerTickValue, centerKey);
-        scheduleSnapshot();
-        return true;
+        return viewport.setScale(horizontal, vertical,
+                                 QPointF(q->width() * 0.5, q->height() * 0.5));
     }
 
     int horizontalBarValue() const {
-        return qRound(cameraX);
+        return qRound(horizontalOffset());
     }
 
     void setHorizontalBarValue(const int value) {
-        cameraX = value;
-        viewportChanged(false);
+        viewport.setOffset({static_cast<double>(value), verticalOffset()});
     }
 
     void setPlaybackPosition(const double tick) {
@@ -385,10 +397,10 @@ public:
     void updatePlaybackOverlay() {
         playbackOverlayRects.clear();
         if (clip && q->width() > 0 && q->height() > 0) {
-            const auto currentX = (playbackPosition - clip->start()) * pixelsPerTick() * dpr;
+            const auto currentX = viewport.tickToSceneX(playbackPosition - clip->start()) * dpr;
             EditorRhiGeometry::appendAntialiasedVerticalOverlay(
-                playbackOverlayRects, currentX - cameraX * dpr, 0.0, q->height() * dpr, dpr,
-                q->playPosIndicatorColor());
+                playbackOverlayRects, currentX - horizontalOffset() * dpr, 0.0,
+                q->height() * dpr, dpr, q->playPosIndicatorColor());
         }
         playbackOverlayRects = q->submitOverlay(std::move(playbackOverlayRects));
     }
@@ -412,21 +424,17 @@ public:
         if (viewportLength <= 0.0)
             return;
 
-        const auto previousCameraX = cameraX;
         if (playbackPosition > viewportEnd) {
             const auto targetStart = playbackPosition - viewportLength;
             if (targetStart > viewportEnd)
-                cameraX = (playbackPosition - clip->start()) * pixelsPerTick();
+                viewport.setStartTick(playbackPosition - clip->start());
             else
-                cameraX += q->width();
+                viewport.scrollBy({static_cast<double>(q->width()), 0.0});
         } else if (playbackPosition < viewportStart) {
-            cameraX = (playbackPosition - clip->start()) * pixelsPerTick();
+            viewport.setStartTick(playbackPosition - clip->start());
         } else {
             return;
         }
-        clampCamera();
-        if (!qFuzzyIsNull(cameraX - previousCameraX))
-            viewportChanged(false);
     }
 
     void updateAutoPageTurnAvailability() {
@@ -446,9 +454,9 @@ public:
         QList<int> resolvedIds;
         const auto bounds = focusSceneRect(focus, &resolvedIds);
         if (!resolvedIds.isEmpty()) {
-            const QRectF viewport(QPointF(cameraX, cameraY), q->size());
-            return viewport.intersects(bounds) ? HistoryFocusVisibility::Visible
-                                               : HistoryFocusVisibility::ScrollRequired;
+            return viewport.visibleSceneRect().intersects(bounds)
+                       ? HistoryFocusVisibility::Visible
+                       : HistoryFocusVisibility::ScrollRequired;
         }
         const auto tickOffset = focus.ticksAreLocal ? clip->start() : 0.0;
         const auto tickVisible =
@@ -473,50 +481,32 @@ public:
     void horizontalScale(QWheelEvent *event) {
         if (!clip)
             return;
-        const auto delta = EditorWheelUtils::wheelDelta(event, Qt::Vertical);
-        if (qFuzzyIsNull(delta))
-            return;
-        const auto oldScale = scaleX;
-        auto target = delta > 0 ? oldScale * (1.0 + 0.4 * delta / 120.0)
-                                : oldScale / (1.0 + 0.4 * -delta / 120.0);
-        target = std::clamp(target, minimumScaleX(), 5.0);
-        const auto anchor = event->position().x();
-        cameraX = (cameraX + anchor) * target / oldScale - anchor;
-        scaleX = target;
-        viewportChanged(true);
+        viewport.zoomHorizontal(EditorWheelUtils::wheelDelta(event, Qt::Vertical),
+                                event->position().x());
     }
 
     void verticalScale(QWheelEvent *event) {
         if (!clip)
             return;
-        const auto delta = EditorWheelUtils::wheelDelta(event, Qt::Horizontal);
-        if (qFuzzyIsNull(delta))
-            return;
-        const auto oldScale = scaleY;
-        auto target = delta > 0 ? oldScale * (1.0 + 0.3 * delta / 120.0)
-                                : oldScale / (1.0 + 0.3 * -delta / 120.0);
-        target = std::clamp(target, minimumScaleY(), 8.0);
-        const auto anchor = event->position().y();
-        cameraY = (cameraY + anchor) * target / oldScale - anchor;
-        scaleY = target;
-        viewportChanged(true);
+        viewport.zoomVertical(EditorWheelUtils::wheelDelta(event, Qt::Horizontal),
+                              event->position().y());
     }
 
     void horizontalScroll(QWheelEvent *event) {
-        cameraX =
-            horizontalWheelScroll.scrollTarget(static_cast<int>(cameraX), q->width(), 0.2, event,
-                                               EditorWheelUtils::horizontalScrollAxis(event));
-        viewportChanged(false);
+        const auto target = horizontalWheelScroll.scrollTarget(
+            static_cast<int>(horizontalOffset()), q->width(), 0.2, event,
+            EditorWheelUtils::horizontalScrollAxis(event));
+        viewport.setOffset({static_cast<double>(target), verticalOffset()});
     }
 
     void verticalScroll(QWheelEvent *event) {
-        cameraY = verticalWheelScroll.scrollTarget(static_cast<int>(cameraY), q->height(), 0.15,
-                                                   event, Qt::Vertical);
-        viewportChanged(false);
+        const auto target = verticalWheelScroll.scrollTarget(
+            static_cast<int>(verticalOffset()), q->height(), 0.15, event, Qt::Vertical);
+        viewport.setOffset({horizontalOffset(), static_cast<double>(target)});
     }
 
     QPointF scenePositionAt(const QPointF &viewportPosition) const {
-        return viewportPosition + QPointF(cameraX, cameraY);
+        return viewport.viewportToScene(viewportPosition);
     }
 
     Qt::Orientations edgeAutoScrollAxes() const {
@@ -586,11 +576,8 @@ public:
         const QPointF pointerPosition(q->mapFromGlobal(QCursor::pos()));
         const QRectF viewportRect(QPointF(), q->size());
         const auto step = edgeAutoScroller.computeDragStep(pointerPosition, viewportRect, dtMs);
-        if (!step.isNull()) {
-            cameraX += step.x();
-            cameraY += step.y();
-            viewportChanged(false);
-        }
+        if (!step.isNull())
+            viewport.scrollBy(step);
         continueEdgeDragAt(EdgeAutoScroller::clampToRect(pointerPosition, viewportRect),
                            QGuiApplication::queryKeyboardModifiers());
         updateEdgeAutoScrollState(pointerPosition);
@@ -598,12 +585,13 @@ public:
 
     int keyAt(const QPointF &viewportPosition) const {
         const auto row =
-            static_cast<int>(std::floor((cameraY + viewportPosition.y()) / (noteHeight * scaleY)));
+            static_cast<int>(std::floor(viewport.sceneYToUnit(
+                viewport.viewportToScene(viewportPosition).y())));
         return std::clamp(127 - row, 0, 127);
     }
 
     double localTickAt(const QPointF &viewportPosition) const {
-        return (cameraX + viewportPosition.x()) / std::max(0.0001, pixelsPerTick());
+        return viewport.sceneXToTick(viewport.viewportToScene(viewportPosition).x());
     }
 
     Note *noteAt(const QPointF &viewportPosition) const {
@@ -749,7 +737,7 @@ public:
     QRectF noteViewportRect(const Note *note) const {
         if (!note)
             return {};
-        return noteSceneRect(note).translated(-cameraX, -cameraY);
+        return noteSceneRect(note).translated(-viewport.offset());
     }
 
     Note *pronunciationAt(const QPointF &viewportPosition) const {
@@ -897,8 +885,8 @@ public:
     QPoint pitchPointAt(const QPointF &viewportPosition) const {
         const auto tick = std::max(
             0, MathUtils::round(static_cast<int>(localTickAt(viewportPosition)), DrawCurve().step));
-        const auto sceneY = cameraY + viewportPosition.y();
-        const auto value = qRound((127.5 - sceneY / (noteHeight * scaleY)) * 100.0);
+        const auto sceneY = viewport.viewportToScene(viewportPosition).y();
+        const auto value = qRound((127.5 - viewport.sceneYToUnit(sceneY)) * 100.0);
         return {tick, std::clamp(value, 0, 12700)};
     }
 
@@ -1058,14 +1046,15 @@ public:
 
     QPoint anchorPointAt(const QPointF &viewportPosition) const {
         const auto tick = std::max(0, static_cast<int>(localTickAt(viewportPosition)));
-        const auto sceneY = cameraY + viewportPosition.y();
-        const auto value = qRound((127.5 - sceneY / (noteHeight * scaleY)) * 100.0);
+        const auto sceneY = viewport.viewportToScene(viewportPosition).y();
+        const auto value = qRound((127.5 - viewport.sceneYToUnit(sceneY)) * 100.0);
         return {tick, std::clamp(value, 0, 12700)};
     }
 
     QPointF anchorNodeViewportPosition(const AnchorNode *node) const {
-        return {node->pos() * pixelsPerTick() - cameraX,
-                (12700 - node->value() + 50) * scaleY * noteHeight / 100.0 - cameraY};
+        return {viewport.tickToSceneX(node->pos()) - horizontalOffset(),
+                viewport.unitToSceneY((12700 - node->value() + 50) / 100.0) -
+                    verticalOffset()};
     }
 
     void finishAnchorEditSession(const EditSessionEndReason reason) {
@@ -1688,9 +1677,10 @@ public:
             selection.setBottom(sceneHeight());
         }
         for (const auto *note : clip->notes()) {
-            const QRectF rect(note->localStart() * pixelsPerTick(),
-                              (127 - note->keyIndex()) * noteHeight * scaleY,
-                              note->length() * pixelsPerTick(), noteHeight * scaleY);
+            const QRectF rect(viewport.tickToSceneX(note->localStart()),
+                              viewport.unitToSceneY(127 - note->keyIndex()),
+                              note->length() * pixelsPerTick(),
+                              noteHeight * verticalScale());
             if (selection.intersects(rect) && !selected.contains(note->id()))
                 selected.append(note->id());
         }
@@ -1787,10 +1777,10 @@ public:
         glyphAtlas.beginFrame();
 
         if (clip && q->width() > 0 && q->height() > 0) {
-            const auto localStart = visibleLocalStartTick();
-            const auto localEnd = visibleLocalEndTick();
-            const auto sceneTop = cameraY;
-            const auto sceneBottom = cameraY + q->height();
+            const auto localStart = viewport.startTick();
+            const auto localEnd = viewport.endTick();
+            const auto sceneTop = verticalOffset();
+            const auto sceneBottom = verticalOffset() + q->height();
 
             appendBackground(localStart, localEnd, sceneTop, sceneBottom);
             appendTimeline(localStart, localEnd, sceneTop, sceneBottom);
@@ -1817,9 +1807,9 @@ private:
     QRectF noteSceneRect(const Note *note) const {
         if (!note)
             return {};
-        return {note->localStart() * pixelsPerTick(),
-                (127 - note->keyIndex()) * noteHeight * scaleY,
-                note->length() * pixelsPerTick(), noteHeight * scaleY};
+        return {viewport.tickToSceneX(note->localStart()),
+                viewport.unitToSceneY(127 - note->keyIndex()),
+                note->length() * pixelsPerTick(), noteHeight * verticalScale()};
     }
 
     QRectF focusSceneRect(const HistoryFocus &focus, QList<int> *resolvedIds = nullptr) const {
@@ -1838,7 +1828,7 @@ private:
         const auto localStart =
             focus.ticksAreLocal ? focus.tickStart : focus.tickStart - clip->start();
         const auto localEnd = focus.ticksAreLocal ? focus.tickEnd : focus.tickEnd - clip->start();
-        const auto keyHeight = noteHeight * scaleY;
+        const auto keyHeight = noteHeight * verticalScale();
         const auto top = (127.0 - focus.valueEnd) * keyHeight;
         const auto bottom = (127.0 - focus.valueStart) * keyHeight + keyHeight;
         return {localStart * pixelsPerTick(), top,
@@ -1853,69 +1843,23 @@ private:
             !std::isfinite(bounds.bottom())) {
             return false;
         }
-        const auto targetX = EditorScrollUtils::boundedOffset(
-            EditorScrollUtils::ensureVisibleOffset(cameraX, q->width(), bounds.left(),
-                                                   bounds.right(), xMargin),
-            sceneWidth(), q->width());
-        const auto targetY = EditorScrollUtils::boundedOffset(
-            EditorScrollUtils::ensureVisibleOffset(cameraY, q->height(), bounds.top(),
-                                                   bounds.bottom(), yMargin),
-            sceneHeight(), q->height());
-        if (cameraX == targetX && cameraY == targetY)
-            return true;
-        cameraX = targetX;
-        cameraY = targetY;
-        viewportChanged(false);
-        return true;
+        return viewport.ensureVisible(bounds, xMargin, yMargin);
     }
 
     QPointF physicalCameraOffset() const {
-        return QPointF(cameraX, cameraY) * dpr;
+        return viewport.offset() * dpr;
     }
 
     double pixelsPerTick() const {
-        return pixelsPerQuarterNote * scaleX / AppGlobal::ticksPerQuarterNote;
+        return pixelsPerQuarterNote * horizontalScale() / AppGlobal::ticksPerQuarterNote;
     }
 
     double sceneWidth() const {
-        return clip ? clip->length() * pixelsPerTick() : q->width();
+        return clip ? viewport.tickToSceneX(clip->length()) : q->width();
     }
 
     double sceneHeight() const {
-        return 128.0 * noteHeight * scaleY;
-    }
-
-    double minimumScaleX() const {
-        if (!clip || clip->length() <= 0 || q->width() <= 0)
-            return 0.01;
-        const auto baseWidth = clip->length() * pixelsPerQuarterNote /
-                               static_cast<double>(AppGlobal::ticksPerQuarterNote);
-        return std::min(5.0, q->width() / std::max(1.0, baseWidth));
-    }
-
-    double minimumScaleY() const {
-        const auto fillScale = q->height() / (128.0 * noteHeight);
-        return std::clamp(fillScale, 0.5, 8.0);
-    }
-
-    double visibleLocalStartTick() const {
-        return cameraX / std::max(0.0001, pixelsPerTick());
-    }
-
-    double visibleLocalEndTick() const {
-        return (cameraX + q->width()) / std::max(0.0001, pixelsPerTick());
-    }
-
-    void clampCamera() {
-        cameraX = EditorScrollUtils::boundedOffset(cameraX, sceneWidth(), q->width());
-        cameraY = EditorScrollUtils::boundedOffset(cameraY, sceneHeight(), q->height());
-    }
-
-    void viewportChanged(const bool scaleChanged) {
-        clampCamera();
-        q->notifyViewportChanged();
-        Q_UNUSED(scaleChanged);
-        scheduleSnapshot();
+        return viewport.unitToSceneY(128.0);
     }
 
     void appendVertex(const double x, const double y, const QColor &color,
@@ -1947,13 +1891,14 @@ private:
     void appendPixelAlignedVerticalLine(const double x, const double top, const double bottom,
                                         const QColor &color) {
         EditorRhiGeometry::appendAntialiasedVerticalLine(vertices, x * dpr, top * dpr, bottom * dpr,
-                                                         dpr, color, cameraX * dpr);
+                                                         dpr, color, horizontalOffset() * dpr);
     }
 
     void appendPixelAlignedHorizontalLine(const double y, const double left, const double right,
                                           const QColor &color) {
         EditorRhiGeometry::appendAntialiasedHorizontalLine(vertices, y * dpr, left * dpr,
-                                                           right * dpr, dpr, color, cameraY * dpr);
+                                                           right * dpr, dpr, color,
+                                                           verticalOffset() * dpr);
     }
 
     void appendLine(const QPointF &from, const QPointF &to, const double logicalWidth,
@@ -1989,12 +1934,13 @@ private:
         appendLogicalRect(QRectF(left, sceneTop, right - left, sceneBottom - sceneTop), white);
 
         const auto firstKey =
-            std::min(127, static_cast<int>(std::ceil(127.0 - sceneTop / (noteHeight * scaleY))));
+            std::min(127, static_cast<int>(std::ceil(127.0 - viewport.sceneYToUnit(sceneTop))));
         const auto lastKey =
-            std::max(0, static_cast<int>(std::floor(127.0 - sceneBottom / (noteHeight * scaleY))));
+            std::max(0,
+                     static_cast<int>(std::floor(127.0 - viewport.sceneYToUnit(sceneBottom))));
         for (int key = firstKey; key >= lastKey; --key) {
-            const auto y = (127 - key) * noteHeight * scaleY;
-            appendLogicalRect(QRectF(left, y, right - left, noteHeight * scaleY),
+            const auto y = viewport.unitToSceneY(127 - key);
+            appendLogicalRect(QRectF(left, y, right - left, noteHeight * verticalScale()),
                               PianoPaintUtils::isWhiteKey(key) ? white : black);
             if ((key + 1) % 12 == 0)
                 appendPixelAlignedHorizontalLine(y, left, right, octave);
@@ -2109,9 +2055,9 @@ private:
                 continue;
             if (noteStart > localEnd)
                 continue;
-            const auto rect =
-                QRectF(noteStart * pixelsPerTick(), (127 - noteKey) * noteHeight * scaleY,
-                       noteLength * pixelsPerTick(), noteHeight * scaleY);
+            const auto rect = QRectF(viewport.tickToSceneX(noteStart),
+                                     viewport.unitToSceneY(127 - noteKey),
+                                     noteLength * pixelsPerTick(), noteHeight * verticalScale());
             const auto overlapped = note->overlapped();
             const auto fill = selected       ? selectedFill
                               : overlapped   ? overlappedFill
@@ -2125,7 +2071,7 @@ private:
                                     : overlapped   ? overlappedForeground
                                     : editingPitch ? editingForeground
                                                    : normalForeground;
-            if (scaleX < 0.3) {
+            if (horizontalScale() < 0.3) {
                 appendCompactNoteShape(rect, selected       ? selectedFill
                                              : overlapped   ? overlappedBorder
                                              : editingPitch ? editingBorder
@@ -2145,9 +2091,11 @@ private:
                            editingLyric, editingPronunciation);
         }
         if (interaction == Interaction::Draw && drawEnd > drawStart) {
-            const QRectF rect(drawStart * pixelsPerTick(), (127 - drawKey) * noteHeight * scaleY,
-                              (drawEnd - drawStart) * pixelsPerTick(), noteHeight * scaleY);
-            if (scaleX < 0.3) {
+            const QRectF rect(viewport.tickToSceneX(drawStart),
+                              viewport.unitToSceneY(127 - drawKey),
+                              (drawEnd - drawStart) * pixelsPerTick(),
+                              noteHeight * verticalScale());
+            if (horizontalScale() < 0.3) {
                 appendCompactNoteShape(rect, selectedFill);
             } else {
                 appendFullNoteShape(rect, selectedFill, selectedBorder);
@@ -2187,13 +2135,13 @@ private:
             const auto noteEnd = note.localStart + note.length;
             if (noteEnd < localStart || note.localStart > localEnd)
                 continue;
-            const QRectF rect(note.localStart * pixelsPerTick(),
-                              (127 - note.keyIndex) * noteHeight * scaleY,
-                              note.length * pixelsPerTick(), noteHeight * scaleY);
+            const QRectF rect(viewport.tickToSceneX(note.localStart),
+                              viewport.unitToSceneY(127 - note.keyIndex),
+                              note.length * pixelsPerTick(), noteHeight * verticalScale());
             const auto noteFill = note.overlapped ? overlappedFill : fill;
             const auto noteBorder = note.overlapped ? overlappedBorder : border;
             const auto noteForeground = note.overlapped ? overlappedForeground : foreground;
-            if (scaleX < 0.3) {
+            if (horizontalScale() < 0.3) {
                 appendCompactNoteShape(rect, note.overlapped ? noteBorder : noteFill);
                 continue;
             }
@@ -2285,7 +2233,7 @@ private:
             const auto tick = start + index * curve.step;
             const auto x = tick * pixelsPerTick();
             const auto value = MathUtils::clip(values.at(index), 0, 12700);
-            const auto y = (12700 - value + 50) * scaleY * noteHeight / 100.0;
+            const auto y = viewport.unitToSceneY((12700 - value + 50) / 100.0);
             points.append(QPointF(x, y) * dpr);
         }
         return points;
@@ -2296,7 +2244,7 @@ private:
         for (const auto &interval : coverage) {
             const auto left = interval.startTick * pixelsPerTick() * dpr;
             const auto right = interval.endTick * pixelsPerTick() * dpr;
-            const QRectF clipRect(left, (cameraY - 4.0) * dpr, right - left,
+            const QRectF clipRect(left, (verticalOffset() - 4.0) * dpr, right - left,
                                   (q->height() + 8.0) * dpr);
             EditorRhiGeometry::appendClippedTriangles(vertices, stroke, clipRect);
         }
@@ -2343,7 +2291,7 @@ private:
 
     QPointF anchorNodeScenePosition(const AnchorNode *node) const {
         return {node->pos() * pixelsPerTick(),
-                (12700 - node->value() + 50) * scaleY * noteHeight / 100.0};
+                viewport.unitToSceneY((12700 - node->value() + 50) / 100.0)};
     }
 
     void appendAnchorStroke(const QList<AnchorNode *> &nodes, const double localStart,
@@ -2374,7 +2322,7 @@ private:
             while (sceneX <= endSceneX) {
                 const auto tick = sceneX / pixelsPerTick();
                 const auto value = std::clamp(interpolator.evaluate(tick), 0.0, 12700.0);
-                const auto sceneY = (12700.0 - value + 50.0) * scaleY * noteHeight / 100.0;
+                const auto sceneY = viewport.unitToSceneY((12700.0 - value + 50.0) / 100.0);
                 const auto point = QPointF(sceneX, sceneY) * dpr;
                 if (points.isEmpty() || QLineF(points.constLast(), point).length() > 0.01)
                     points.append(point);
@@ -2389,7 +2337,8 @@ private:
 
             const auto value = std::clamp(interpolator.evaluate(endTick), 0.0, 12700.0);
             const auto endpoint =
-                QPointF(endSceneX, (12700.0 - value + 50.0) * scaleY * noteHeight / 100.0) * dpr;
+                QPointF(endSceneX, viewport.unitToSceneY((12700.0 - value + 50.0) / 100.0)) *
+                dpr;
             if (points.isEmpty() || QLineF(points.constLast(), endpoint).length() > 0.01)
                 points.append(endpoint);
         }
@@ -2642,9 +2591,9 @@ private:
         constexpr double forkAngle = 45.0;
         constexpr double lineWidth = 2.0;
         const auto x = splitPreviewTick * pixelsPerTick();
-        const auto noteTop = (127 - note->keyIndex()) * noteHeight * scaleY;
+        const auto noteTop = viewport.unitToSceneY(127 - note->keyIndex());
         const auto lineTop = noteTop - extensionLength;
-        const auto lineBottom = noteTop + noteHeight * scaleY + extensionLength;
+        const auto lineBottom = noteTop + noteHeight * verticalScale() + extensionLength;
         const auto forkAngleRad = forkAngle * std::numbers::pi / 180.0;
         const auto forkOffsetX = forkLength * std::sin(forkAngleRad);
         const auto forkOffsetY = forkLength * std::cos(forkAngleRad);
@@ -2727,10 +2676,7 @@ public:
     AnchorNode *anchorMergeEndpointNode = nullptr;
     bool showAnchorPreview = false;
     bool showAnchorMergePreview = false;
-    double scaleX = 1.0;
-    double scaleY = 1.0;
-    double cameraX = 0.0;
-    double cameraY = 0.0;
+    EditorViewportController viewport;
     EditorWheelUtils::ScrollAccumulator horizontalWheelScroll;
     EditorWheelUtils::ScrollAccumulator verticalWheelScroll;
     double playbackPosition = 0.0;
@@ -2823,11 +2769,11 @@ double PianoRollRhiWidget::centerKeyIndex() const {
 }
 
 double PianoRollRhiWidget::scaleX() const {
-    return d->scaleX;
+    return d->horizontalScale();
 }
 
 double PianoRollRhiWidget::scaleY() const {
-    return d->scaleY;
+    return d->verticalScale();
 }
 
 int PianoRollRhiWidget::horizontalBarValue() const {

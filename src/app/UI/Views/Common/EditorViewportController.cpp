@@ -166,13 +166,20 @@ bool EditorViewportController::setStartTick(const double tick) {
     return true;
 }
 
-void EditorViewportController::scrollBy(const QPointF &deltaPixels) {
+bool EditorViewportController::setOffset(const QPointF &offset) {
+    if (!std::isfinite(offset.x()) || !std::isfinite(offset.y()))
+        return false;
     const auto previousOffset = QPointF(m_offsetX, m_offsetY);
-    m_offsetX += deltaPixels.x();
-    m_offsetY += deltaPixels.y();
+    m_offsetX = offset.x();
+    m_offsetY = offset.y();
     normalize(false);
     if (QPointF(m_offsetX, m_offsetY) != previousOffset)
         notify(false);
+    return true;
+}
+
+void EditorViewportController::scrollBy(const QPointF &deltaPixels) {
+    setOffset(QPointF(m_offsetX, m_offsetY) + deltaPixels);
 }
 
 void EditorViewportController::zoomHorizontal(const double wheelDelta, const double anchorX) {
@@ -221,6 +228,10 @@ double EditorViewportController::horizontalOffset() const {
 
 double EditorViewportController::verticalOffset() const {
     return m_offsetY;
+}
+
+QPointF EditorViewportController::offset() const {
+    return {m_offsetX, m_offsetY};
 }
 
 QRectF EditorViewportController::visibleSceneRect() const {

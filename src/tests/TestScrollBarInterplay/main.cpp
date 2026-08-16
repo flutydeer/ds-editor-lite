@@ -260,6 +260,26 @@ int main(int argc, char *argv[]) {
                qFuzzyCompare(viewport.verticalOffset(), 400.0),
            "RHI viewport offsets must use the integer coordinates exposed by legacy scrollbars");
 
+    EditorViewportController pianoViewport;
+    pianoViewport.setPixelsPerQuarterNote(64.0);
+    pianoViewport.setScaleBounds(0.01, 5.0, 0.5, 8.0);
+    pianoViewport.setEnsureContentFillsViewport(true, true);
+    pianoViewport.setContentTickRange(0.0, 9600.0);
+    pianoViewport.setVerticalContent(128.0, 12.0);
+    pianoViewport.setViewportSize(QSizeF(800.0, 360.0));
+    pianoViewport.setScale(1.25, 2.0, QPointF(400.0, 180.0));
+    pianoViewport.centerAt(4800.0, 66.5);
+    const auto pianoCenter = pianoViewport.state();
+    expect(qFuzzyCompare(pianoCenter.centerTick, 4800.0) &&
+               qFuzzyCompare(pianoCenter.centerUnit, 66.5) &&
+               qFuzzyCompare(127.0 - pianoCenter.centerUnit, 60.5),
+           "the shared RHI viewport must represent piano-roll tick and descending-key centers");
+    pianoViewport.setScale(2.0, 3.0, QPointF(400.0, 180.0));
+    const auto zoomedPianoCenter = pianoViewport.state();
+    expect(qFuzzyCompare(zoomedPianoCenter.centerTick, pianoCenter.centerTick) &&
+               qFuzzyCompare(zoomedPianoCenter.centerUnit, pianoCenter.centerUnit),
+           "piano-roll zooming through the shared viewport must preserve its center anchor");
+
     viewport.scrollBy(QPointF(100000, 100000));
     viewport.setViewportSize(QSizeF(1900, 1300));
     expect(qFuzzyCompare(viewport.horizontalOffset(), 767.0) &&

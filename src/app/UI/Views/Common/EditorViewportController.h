@@ -37,6 +37,7 @@ public:
     bool centerAt(double tick, double unit);
     bool ensureVisible(const QRectF &rect, double xMargin, double yMargin);
     bool setStartTick(double tick);
+    bool setOffset(const QPointF &offset);
     void scrollBy(const QPointF &deltaPixels);
     void zoomHorizontal(double wheelDelta, double anchorX);
     void zoomVertical(double wheelDelta, double anchorY);
@@ -49,6 +50,7 @@ public:
     [[nodiscard]] double bottomUnit() const;
     [[nodiscard]] double horizontalOffset() const;
     [[nodiscard]] double verticalOffset() const;
+    [[nodiscard]] QPointF offset() const;
     [[nodiscard]] QRectF visibleSceneRect() const;
     [[nodiscard]] QSizeF viewportSize() const;
 
