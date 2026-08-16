@@ -5,6 +5,7 @@ lite_add_test(${PROJECT_NAME}
         main.cpp
         ../../app/Modules/Inference/Models/InferInputNote.cpp
         ../../app/Modules/Inference/Tasks/PhonemeDistribution.cpp
+        ../../app/Model/AppModel/SingingClipPhonemeNormalizer.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

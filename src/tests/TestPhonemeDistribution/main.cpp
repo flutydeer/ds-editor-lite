@@ -1,8 +1,10 @@
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Inference/Tasks/PhonemeDistribution.h"
+#include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 #include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QCoreApplication>
 #include <QTextStream>
@@ -124,6 +126,32 @@ namespace {
         expect(!slur.canEditPhonemes() && !plus.canEditPhonemes(),
                "slur and allocation notes cannot edit phonemes");
     }
+
+    void testRelativeTimingChangeInvalidatesEditedOffsets() {
+        auto root = new Note;
+        configureNote(*root, 0, "international+");
+        Phonemes rootPhonemes;
+        rootPhonemes.nameSeq.edited = internationalPhones();
+        rootPhonemes.offsetSeq.edited = {0, 100, 200, 500, 900, 1000, 1500};
+        root->setPhonemes(rootPhonemes);
+        auto plus = new Note;
+        configureNote(*plus, 480, "+");
+        auto doublePlus = new Note;
+        configureNote(*doublePlus, 960, "++");
+        SingingClip clip({root, plus, doublePlus});
+
+        const auto resetRecords = SingingClipPhonemeNormalizer::normalizeEditedOffsets(
+            clip, QHash<Note *, int>{{plus, 120}});
+        expect(resetRecords.size() == 1 && resetRecords.first().note == root &&
+                   !root->phonemeOffsetSeq().isEdited(),
+               "moving one allocation note invalidates root-relative edited offsets");
+
+        SingingClipPhonemeNormalizer::restoreEditedOffsets(resetRecords);
+        const auto unchangedRecords = SingingClipPhonemeNormalizer::normalizeEditedOffsets(
+            clip, QHash<Note *, int>{{root, 120}, {plus, 120}, {doublePlus, 120}});
+        expect(unchangedRecords.isEmpty() && root->phonemeOffsetSeq().isEdited(),
+               "moving the complete allocation group preserves relative edited offsets");
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -131,6 +159,7 @@ int main(int argc, char *argv[]) {
     testRanges();
     testStorageAndInferenceRoundTrip();
     testEditingEligibility();
+    testRelativeTimingChangeInvalidatesEditedOffsets();
     if (failures == 0)
         QTextStream(stdout) << "All PhonemeDistribution tests passed" << Qt::endl;
     return failures == 0 ? 0 : 1;

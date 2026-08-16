@@ -2,6 +2,7 @@
 #define SINGINGCLIPPHONEMENORMALIZER_H
 
 #include <QList>
+#include <QHash>
 
 class AppModel;
 class Note;
@@ -17,6 +18,8 @@ public:
 
     static QList<Note *> collectInvalidEditedOffsetNotes(SingingClip &clip);
     static QList<ResetRecord> normalizeEditedOffsets(SingingClip &clip);
+    static QList<ResetRecord> normalizeEditedOffsets(SingingClip &clip,
+                                                      const QHash<Note *, int> &startDeltas);
     static QList<Note *> notesFromResetRecords(const QList<ResetRecord> &records);
     static void restoreEditedOffsets(const QList<ResetRecord> &records);
     static void normalizeEditedOffsets(AppModel &model);

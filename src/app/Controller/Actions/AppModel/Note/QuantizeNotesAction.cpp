@@ -4,13 +4,28 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 void QuantizeNotesAction::execute() {
+    QHash<Note *, int> startDeltas;
+    for (const auto &change : m_changes) {
+        if (const auto delta = change.newStart - change.oldStart; delta != 0)
+            startDeltas.insert(change.note, delta);
+    }
+    if (startDeltas.isEmpty()) {
+        m_resetRecords.clear();
+    } else {
+        m_resetRecords =
+            SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip, startDeltas);
+    }
+
     for (const auto &change : m_changes) {
         m_clip->removeNote(change.note);
         change.note->setLocalStart(change.newStart);
         change.note->setLength(change.newLength);
         m_clip->insertNote(change.note);
     }
-    m_resetRecords = SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip);
+    m_resetRecords.append(startDeltas.isEmpty()
+                              ? SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip)
+                              : SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip,
+                                                                                     startDeltas));
     m_clip->notifyNoteChanged(SingingClip::TimeKeyPropertyChange, notes());
     if (!m_resetRecords.isEmpty())
         m_clip->notifyNoteChanged(SingingClip::EditedPhonemeOffsetChange,

@@ -47,6 +47,36 @@ namespace {
         return !std::is_sorted(offsets.cbegin(), offsets.cend());
     }
 
+    void appendRelativeTimingAffectedRoots(const QList<Note *> &notes,
+                                           const QHash<Note *, int> &startDeltas,
+                                           QList<Note *> &result, QSet<Note *> &resultSet) {
+        if (startDeltas.isEmpty())
+            return;
+
+        for (int i = 0; i < notes.count(); ++i) {
+            const auto root = notes.at(i);
+            if (!root || root->isSlur() || root->isPlus())
+                continue;
+
+            const auto rootDelta = startDeltas.value(root);
+            bool hasPlus = false;
+            bool relativeTimingChanged = false;
+            int groupEnd = i + 1;
+            for (; groupEnd < notes.count(); ++groupEnd) {
+                const auto marker = notes.at(groupEnd);
+                if (!marker || (!marker->isSlur() && !marker->isPlus()))
+                    break;
+                hasPlus = hasPlus || marker->isPlus();
+                relativeTimingChanged =
+                    relativeTimingChanged || startDeltas.value(marker) != rootDelta;
+            }
+
+            if (hasPlus && relativeTimingChanged && root->phonemeOffsetSeq().isEdited())
+                appendUnique(result, resultSet, root);
+            i = groupEnd - 1;
+        }
+    }
+
     double minimumEditedOffset(const Note &note) {
         const auto &offsets = note.phonemeOffsetSeq().edited;
         return *std::min_element(offsets.cbegin(), offsets.cend());
@@ -94,7 +124,8 @@ namespace {
         return earliestStartTick < leftBoundaryGlobalTick;
     }
 
-    QList<Note *> collectInvalidEditedOffsetNotes(SingingClip &clip, const Timeline &timeline) {
+    QList<Note *> collectInvalidEditedOffsetNotes(SingingClip &clip, const Timeline &timeline,
+                                                  const QHash<Note *, int> &startDeltas) {
         QList<Note *> result;
         QSet<Note *> resultSet;
 
@@ -105,6 +136,7 @@ namespace {
 
         const auto sliceResult = SingingClipSlicer::slice(timeline, clip.notes().toList());
         for (const auto &segment : sliceResult.segments) {
+            appendRelativeTimingAffectedRoots(segment.notes, startDeltas, result, resultSet);
             const auto effectiveNotes = buildEffectiveNotes(segment.notes);
             for (int i = 0; i < effectiveNotes.count(); ++i) {
                 const auto &effective = effectiveNotes.at(i);
@@ -136,9 +168,10 @@ namespace {
     }
 
     QList<SingingClipPhonemeNormalizer::ResetRecord>
-        normalizeEditedOffsetsWithTimeline(SingingClip &clip, const Timeline &timeline) {
+        normalizeEditedOffsetsWithTimeline(SingingClip &clip, const Timeline &timeline,
+                                           const QHash<Note *, int> &startDeltas = {}) {
         QList<SingingClipPhonemeNormalizer::ResetRecord> records;
-        const auto notes = collectInvalidEditedOffsetNotes(clip, timeline);
+        const auto notes = collectInvalidEditedOffsetNotes(clip, timeline, startDeltas);
         for (const auto note : notes) {
             if (!note || !note->phonemeOffsetSeq().isEdited())
                 continue;
@@ -154,12 +187,18 @@ namespace {
 }
 
 QList<Note *> SingingClipPhonemeNormalizer::collectInvalidEditedOffsetNotes(SingingClip &clip) {
-    return ::collectInvalidEditedOffsetNotes(clip, appModel->timeline());
+    return ::collectInvalidEditedOffsetNotes(clip, appModel->timeline(), {});
 }
 
 QList<SingingClipPhonemeNormalizer::ResetRecord>
     SingingClipPhonemeNormalizer::normalizeEditedOffsets(SingingClip &clip) {
     return normalizeEditedOffsetsWithTimeline(clip, appModel->timeline());
+}
+
+QList<SingingClipPhonemeNormalizer::ResetRecord>
+    SingingClipPhonemeNormalizer::normalizeEditedOffsets(
+        SingingClip &clip, const QHash<Note *, int> &startDeltas) {
+    return normalizeEditedOffsetsWithTimeline(clip, appModel->timeline(), startDeltas);
 }
 
 void SingingClipPhonemeNormalizer::restoreEditedOffsets(const QList<ResetRecord> &records) {
