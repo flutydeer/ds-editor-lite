@@ -4,7 +4,7 @@
 #include <lite/ProjectConverters/MidiConverter.h>
 #include <lite/Tasking/Task.h>
 
-#include <opendspxconverter/midi/midiintermediatedata.h>
+#include <opendspx/converter/midi/midiintermediatedata.h>
 
 #include <QByteArray>
 

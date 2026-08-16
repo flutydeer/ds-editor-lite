@@ -1,6 +1,6 @@
 #include "MidiReprocessTask.h"
 
-#include <opendspxconverter/midi/midiconverter.h>
+#include <opendspx/converter/midi/midiconverter.h>
 
 #include <QCoreApplication>
 

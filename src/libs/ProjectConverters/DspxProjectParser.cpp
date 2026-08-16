@@ -1,7 +1,7 @@
 #include <lite/ProjectConverters/DspxProjectParser.h>
 
 #include <opendspx/model.h>
-#include <opendspxserializer/serializer.h>
+#include <opendspx/serializer/serializer.h>
 
 #include <exception>
 #include <sstream>

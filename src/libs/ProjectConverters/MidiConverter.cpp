@@ -10,8 +10,8 @@
 #include <opendspx/timeline.h>
 #include <opendspx/model.h>
 
-#include <opendspxconverter/midi/midiconverter.h>
-#include <opendspxconverter/midi/midiintermediatedata.h>
+#include <opendspx/converter/midi/midiconverter.h>
+#include <opendspx/converter/midi/midiintermediatedata.h>
 
 #include <QFile>
 #include <QCoreApplication>
