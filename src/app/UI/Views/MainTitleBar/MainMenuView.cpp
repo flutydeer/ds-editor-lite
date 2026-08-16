@@ -32,6 +32,7 @@
 #include "Global/AppOptionsGlobal.h"
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include <lite/GUI/Utils/IconUtils.h>
+#include "UI/Dialogs/Help/AboutDialog.h"
 #include "UI/Dialogs/Help/DiscoverDiffScopeDialog.h"
 #include "Utils/AppLogDirectory.h"
 
@@ -797,7 +798,10 @@ Menu *MainMenuViewPrivate::buildHelpMenu() {
             [=] { Toast::show(tr("You are already up to date")); });
     actionAbout = new QAction(tr("About..."), this);
     setMenuIcon(actionAbout, QStringLiteral(":/svg/icons/info_16_regular.svg"));
-    connect(actionAbout, &QAction::triggered, this, [] { Toast::show(tr("About")); });
+    connect(actionAbout, &QAction::triggered, this, [this] {
+        AboutDialog dlg(m_mainWindow);
+        dlg.exec();
+    });
 
     actionDiscoverDiffScope = new QAction(tr("Discover DiffScope"), this);
     connect(actionDiscoverDiffScope, &QAction::triggered, this, [] {
