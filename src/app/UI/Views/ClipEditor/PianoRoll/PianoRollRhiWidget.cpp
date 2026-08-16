@@ -387,6 +387,7 @@ public:
     bool centerAt(const double tick, const double keyIndex) {
         if (!clip || !std::isfinite(tick) || !std::isfinite(keyIndex))
             return false;
+        wheel.stop();
         return viewport.centerAt(tick - clip->start(),
                                  PianoRollCoord::keyIndexToCenterY(keyIndex, 1.0));
     }
@@ -395,6 +396,7 @@ public:
         if (!std::isfinite(horizontal) || !std::isfinite(vertical) || horizontal <= 0.0 ||
             vertical <= 0.0)
             return false;
+        wheel.stop();
         return viewport.setScale(horizontal, vertical,
                                  QPointF(q->width() * 0.5, q->height() * 0.5));
     }

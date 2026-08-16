@@ -240,10 +240,18 @@ TrackPanelViewState TracksRhiWidget::viewState() const {
 }
 
 bool TracksRhiWidget::centerAt(const double tick, const double trackIndex) {
+    if (!std::isfinite(tick) || !std::isfinite(trackIndex))
+        return false;
+    m_wheelController->stop();
     return m_viewport.centerAt(tick, trackIndex + 0.5);
 }
 
 bool TracksRhiWidget::setViewScale(const double horizontalScale, const double verticalScale) {
+    if (!std::isfinite(horizontalScale) || !std::isfinite(verticalScale) ||
+        horizontalScale <= 0.0 || verticalScale <= 0.0) {
+        return false;
+    }
+    m_wheelController->stop();
     const auto state = viewState();
     if (!m_viewport.setScale(horizontalScale, verticalScale,
                              QPointF(width() * 0.5, height() * 0.5))) {
