@@ -2,6 +2,8 @@
 
 #include "NoteView.h"
 #include "NoteEditUtils.h"
+#include "NoteLyricPresentation.h"
+#include "NoteLyricToolTip.h"
 #include "PianoPaintUtils.h"
 #include "PianoRollCoord.h"
 #include "PitchDisplayStrategy.h"
@@ -206,6 +208,7 @@ public:
         viewport.setEnsureContentFillsViewport(true, true);
         viewport.setVerticalContent(128.0, noteHeight);
         QObject::connect(&viewport, &EditorViewportController::viewportChanged, q, [this] {
+            hideLyricToolTip();
             this->q->notifyViewportChanged();
             scheduleSnapshot();
         });
@@ -246,6 +249,10 @@ public:
                          [this] { cancelInlineEdit(); });
     }
 
+    void initializeLyricToolTip() {
+        lyricToolTip = new NoteLyricToolTip(q);
+    }
+
     void initializeScrollBars() {
         scrollBars = new EditorRhiScrollBarController(q, q);
         QObject::connect(scrollBars, &EditorRhiScrollBarController::offsetChangeRequested, q,
@@ -265,6 +272,7 @@ public:
     }
 
     void setDataContext(SingingClip *newClip) {
+        hideLyricToolTip();
         wheel.stop();
         viewport.stopAnimation();
         disarmEdgeAutoScroll();
@@ -285,7 +293,10 @@ public:
         clip = newClip;
         viewport.setContentTickRange(0.0, clip ? clip->length() : 0.0);
         if (clip) {
-            QObject::connect(clip, &SingingClip::noteChanged, q, [this] { scheduleSnapshot(); });
+            QObject::connect(clip, &SingingClip::noteChanged, q, [this] {
+                hideLyricToolTip();
+                scheduleSnapshot();
+            });
             QObject::connect(clip, &SingingClip::paramChanged, q,
                              [this](const ParamInfo::Name name, Param::Type) {
                                  if (name == ParamInfo::Pitch) {
@@ -343,6 +354,7 @@ public:
     }
 
     void resize() {
+        hideLyricToolTip();
         viewport.setViewportSize(q->size());
         if (!cameraInitialized) {
             if (q->isVisible())
@@ -689,6 +701,34 @@ public:
         q->setCursor(resizing ? Qt::SizeHorCursor : Qt::ArrowCursor);
     }
 
+    QFont lyricFont() const {
+        QFont font;
+        font.setPixelSize(std::max(1, q->noteFontPixelSize()));
+        return font;
+    }
+
+    void updateLyricToolTip(const QPointF &viewportPosition) {
+        auto *note = noteAt(viewportPosition);
+        if (!note || (inlineEditor && inlineEditor->isEditing())) {
+            hideLyricToolTip();
+            return;
+        }
+
+        const auto font = lyricFont();
+        const auto layout = NoteLyricPresentation::layout(noteViewportRect(note), note->lyric(),
+                                                          font, horizontalScale());
+        if (!layout.elided) {
+            hideLyricToolTip();
+            return;
+        }
+        lyricToolTip->showAt(layout.textRect, note->lyric(), font);
+    }
+
+    void hideLyricToolTip() const {
+        if (lyricToolTip)
+            lyricToolTip->hide();
+    }
+
     void eraseNoteAt(const QPointF &viewportPosition) {
         auto *note = noteAt(viewportPosition);
         if (!note || erasedNoteIds.contains(note->id()))
@@ -835,6 +875,7 @@ public:
             inlineEditor->isEditing()) {
             return;
         }
+        hideLyricToolTip();
         finishInlineEditing();
         inlineEditField = InlineEditField::Lyric;
         inlineEditingNoteId = note->id();
@@ -856,6 +897,7 @@ public:
             inlineEditingNoteId == note->id() && inlineEditor->isEditing()) {
             return;
         }
+        hideLyricToolTip();
         finishInlineEditing();
         inlineEditField = InlineEditField::Pronunciation;
         inlineEditingNoteId = note->id();
@@ -1719,6 +1761,7 @@ public:
     void mousePress(QMouseEvent *event) {
         if (!clip)
             return;
+        hideLyricToolTip();
         wheel.stop();
         viewport.stopAnimation();
         if (event->button() != Qt::LeftButton) {
@@ -1804,6 +1847,10 @@ public:
         }
         if (event->buttons() == Qt::NoButton)
             updateNoteCursor(event->position());
+        if (event->buttons() == Qt::NoButton)
+            updateLyricToolTip(event->position());
+        else
+            hideLyricToolTip();
         if (editMode == EditPitchAnchor) {
             anchorCursorInView = true;
             mouseMoveAnchor(event);
@@ -2181,26 +2228,26 @@ private:
         if (editingLyric)
             return;
 
-        QFont font;
-        font.setPixelSize(std::max(1, q->noteFontPixelSize()));
+        const auto font = lyricFont();
         const QFontMetricsF metrics(font);
-        const auto padded = EditorItemGeometry::notePaintRect(rect);
-        const auto textRect = padded.adjusted(2.0, 0.0, -2.0, 0.0);
-        const auto textWidth =
-            std::max(metrics.horizontalAdvance(lyric), metrics.horizontalAdvance(pronunciation));
-        if (textWidth >= textRect.width() || metrics.height() >= textRect.height())
-            return;
+        const auto layout = NoteLyricPresentation::layout(rect, lyric, font, horizontalScale());
 
-        const auto physicalTextRect = QRectF(textRect.topLeft() * dpr, textRect.size() * dpr);
+        const auto physicalTextRect =
+            QRectF(layout.textRect.topLeft() * dpr, layout.textRect.size() * dpr);
         const auto textTop =
             physicalTextRect.top() + (physicalTextRect.height() - metrics.height() * dpr) * 0.5;
-        const auto lyricSpan = glyphAtlas.appendText(
-            lyric, font, QPointF(physicalTextRect.left(), textTop), foreground, physicalTextRect,
-            dpr, physicalCameraOffset(), q->physicalWindowOffset());
-        drawList.appendTexture(lyricSpan, vertices.size());
+        if (layout.isVisible()) {
+            const auto lyricSpan = glyphAtlas.appendText(
+                layout.displayText, font, QPointF(physicalTextRect.left(), textTop), foreground,
+                physicalTextRect, dpr, physicalCameraOffset(), q->physicalWindowOffset());
+            drawList.appendTexture(lyricSpan, vertices.size());
+        }
 
-        if (pronunciation.isEmpty() || editingPronunciation)
+        if (pronunciation.isEmpty() || editingPronunciation ||
+            metrics.horizontalAdvance(pronunciation) >= layout.textRect.width() ||
+            metrics.height() >= layout.textRect.height()) {
             return;
+        }
         QFont pronunciationFont = q->font();
         const QRectF pronunciationRect(
             (rect.left() + EditorItemGeometry::noteBorderWidth + 2.0) * dpr, rect.bottom() * dpr,
@@ -2263,7 +2310,7 @@ private:
                                     : overlapped   ? overlappedForeground
                                     : editingPitch ? editingForeground
                                                    : normalForeground;
-            if (horizontalScale() < 0.3) {
+            if (NoteLyricPresentation::usesCompactRendering(horizontalScale())) {
                 appendCompactNoteShape(rect, selected       ? selectedFill
                                              : overlapped   ? overlappedBorder
                                              : editingPitch ? editingBorder
@@ -2287,7 +2334,7 @@ private:
                               viewport.unitToSceneY(127 - drawKey),
                               (drawEnd - drawStart) * pixelsPerTick(),
                               noteHeight * verticalScale());
-            if (horizontalScale() < 0.3) {
+            if (NoteLyricPresentation::usesCompactRendering(horizontalScale())) {
                 appendCompactNoteShape(rect, selectedFill);
             } else {
                 appendFullNoteShape(rect, selectedFill, selectedBorder);
@@ -2333,7 +2380,7 @@ private:
             const auto noteFill = note.overlapped ? overlappedFill : fill;
             const auto noteBorder = note.overlapped ? overlappedBorder : border;
             const auto noteForeground = note.overlapped ? overlappedForeground : foreground;
-            if (horizontalScale() < 0.3) {
+            if (NoteLyricPresentation::usesCompactRendering(horizontalScale())) {
                 appendCompactNoteShape(rect, note.overlapped ? noteBorder : noteFill);
                 continue;
             }
@@ -2907,6 +2954,7 @@ public:
     QColor rubberBandBorderColor{155, 186, 255, 200};
     QColor rubberBandFillColor{155, 186, 255, 64};
     InlineTextEditOverlay *inlineEditor = nullptr;
+    NoteLyricToolTip *lyricToolTip = nullptr;
     EditorRhiScrollBarController *scrollBars = nullptr;
     InlineEditField inlineEditField = InlineEditField::None;
     int inlineEditingNoteId = -1;
@@ -2918,6 +2966,7 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     setMouseTracking(true);
     d->initializeScrollBars();
     d->initializeInlineEditor();
+    d->initializeLyricToolTip();
     connect(this, &EditorRhiWidget::backendFailed, this,
             [this](const QString &) { d->requestFallback(); });
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, this,
@@ -3001,6 +3050,7 @@ bool PianoRollRhiWidget::revealFocus(const HistoryFocus &focus, const bool anima
 }
 
 void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
+    d->hideLyricToolTip();
     if (d->editMode != mode) {
         setCursor(Qt::ArrowCursor);
         d->disarmEdgeAutoScroll();
@@ -3062,6 +3112,7 @@ void PianoRollRhiWidget::showEvent(QShowEvent *event) {
 
 bool PianoRollRhiWidget::event(QEvent *event) {
     if (event->type() == QEvent::WindowDeactivate) {
+        d->hideLyricToolTip();
         d->disarmEdgeAutoScroll();
         d->discardNoteInteraction();
         d->finishNoteErase(EditSessionEndReason::Discard);
@@ -3077,6 +3128,7 @@ bool PianoRollRhiWidget::event(QEvent *event) {
 }
 
 void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
+    d->hideLyricToolTip();
     d->disarmEdgeAutoScroll();
     d->discardNoteInteraction();
     d->finishNoteErase(EditSessionEndReason::Discard);
@@ -3090,6 +3142,7 @@ void PianoRollRhiWidget::resizeEvent(QResizeEvent *event) {
 }
 
 void PianoRollRhiWidget::wheelEvent(QWheelEvent *event) {
+    d->hideLyricToolTip();
     if (!d->wheel.handleWheel(event))
         EditorRhiWidget::wheelEvent(event);
 }
@@ -3116,6 +3169,7 @@ void PianoRollRhiWidget::mouseReleaseEvent(QMouseEvent *event) {
 }
 
 void PianoRollRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
+    d->hideLyricToolTip();
     if (d->clip && d->editMode == EditPitchAnchor && event->button() == Qt::LeftButton) {
         setFocus(Qt::MouseFocusReason);
         d->createAnchorAt(event->position());
@@ -3180,6 +3234,7 @@ void PianoRollRhiWidget::keyPressEvent(QKeyEvent *event) {
 
 void PianoRollRhiWidget::leaveEvent(QEvent *event) {
     unsetCursor();
+    d->hideLyricToolTip();
     if (d->hoveredKey >= 0) {
         d->hoveredKey = -1;
         emit keyHoverCleared();
@@ -3330,6 +3385,7 @@ int PianoRollRhiWidget::noteFontPixelSize() const {
 void PianoRollRhiWidget::setNoteFontPixelSize(const int size) {
     if (d->noteFontPixelSize == size)
         return;
+    d->hideLyricToolTip();
     d->noteFontPixelSize = size;
     d->glyphAtlas.clear();
     d->scheduleSnapshot();

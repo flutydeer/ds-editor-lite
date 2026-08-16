@@ -1,9 +1,12 @@
 #include "UI/Views/ClipEditor/PianoRoll/NoteEditUtils.h"
+#include "UI/Views/ClipEditor/PianoRoll/NoteLyricPresentation.h"
+#include "UI/Views/ClipEditor/PianoRoll/NoteLyricToolTip.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
 
 #include <lite/MusicBase/Timeline.h>
 
 #include <QApplication>
+#include <QFontMetricsF>
 #include <QMouseEvent>
 #include <QTextStream>
 #include <QWidget>
@@ -86,6 +89,36 @@ int main(int argc, char *argv[]) {
                NoteResizeUtils::clampLeftDelta(240, 240, 1) == 239 &&
                NoteResizeUtils::clampRightDelta(240, -240, 1) == -239,
            "the model commit guard must retain the supplied dynamic minimum length");
+
+    QFont lyricFont;
+    lyricFont.setPixelSize(13);
+    const QFontMetricsF lyricMetrics(lyricFont);
+    const QString longLyric = QStringLiteral("extraordinary");
+    const auto fullLyricWidth = lyricMetrics.horizontalAdvance(longLyric);
+    const auto noteTextHeight = lyricMetrics.height() + 4.0;
+    const auto wideLayout = NoteLyricPresentation::layout(
+        QRectF(0.0, 0.0, fullLyricWidth + 12.0, noteTextHeight), longLyric, lyricFont, 1.0);
+    expect(wideLayout.displayText == longLyric && !wideLayout.elided,
+           "a lyric that fits must remain unchanged");
+
+    const QRectF narrowNoteRect(0.0, 0.0, fullLyricWidth * 0.55, noteTextHeight);
+    const auto narrowLayout =
+        NoteLyricPresentation::layout(narrowNoteRect, longLyric, lyricFont, 1.0);
+    expect(narrowLayout.isVisible() && narrowLayout.elided && narrowLayout.displayText != longLyric,
+           "a long lyric must be right-elided instead of disappearing");
+    const auto compactLayout = NoteLyricPresentation::layout(
+        narrowNoteRect, longLyric, lyricFont, NoteLyricPresentation::compactScaleThreshold - 0.01);
+    expect(!compactLayout.isVisible() && !compactLayout.elided,
+           "compact note rendering must suppress lyrics and tooltip eligibility");
+
+    QWidget lyricToolTipHost;
+    lyricToolTipHost.resize(240, 40);
+    NoteLyricToolTip lyricToolTip(&lyricToolTipHost);
+    lyricToolTip.showAt(narrowLayout.textRect, longLyric, lyricFont);
+    expect(lyricToolTip.testAttribute(Qt::WA_TransparentForMouseEvents) &&
+               lyricToolTip.text() == longLyric && !lyricToolTip.isHidden() &&
+               lyricToolTip.width() > narrowLayout.textRect.width(),
+           "the expanded lyric tooltip must be visual-only and expose the full lyric");
 
     using EditorSelectionUtils::OrderedSelectionModel;
     constexpr auto ctrlShift = Qt::ControlModifier | Qt::ShiftModifier;

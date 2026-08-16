@@ -196,6 +196,14 @@ PianoRollRhiWidget {
     qproperty-splitLineColor: ${editor.splitLine};
 }
 
+QLabel#noteLyricToolTip {
+    padding: 2px 4px;
+    background: ${tooltip.background};
+    border: 1px solid ${tooltip.border};
+    border-radius: 4px;
+    color: ${tooltip.text};
+}
+
 PianoRollView>QLabel#lbNullClipTip {
     color: ${control.foreground.disabled};
 }

@@ -26,6 +26,7 @@ class PianoRollEditHandler;
 class PianoRollSelectionModel;
 class NoteInteractionController;
 class InlineTextEditOverlay;
+class NoteLyricToolTip;
 enum class EditSessionEndReason;
 
 using namespace ClipEditorGlobal;
@@ -59,6 +60,7 @@ public:
     PianoRollSelectionModel *m_selectionModel = nullptr;
     NoteInteractionController *m_interactionController = nullptr;
     InlineTextEditOverlay *m_inlineEditor = nullptr;
+    NoteLyricToolTip *m_lyricToolTip = nullptr;
     InlineEditField m_inlineEditField = InlineEditField::None;
     int m_inlineEditingNoteId = -1;
     void restoreHandler();
@@ -93,6 +95,8 @@ public:
     void onHoverEnter(QHoverEvent *event);
     void onHoverLeave(QHoverEvent *event);
     void onHoverMove(const QHoverEvent *event);
+    void updateLyricToolTip(const QPoint &position);
+    void hideLyricToolTip();
 
 public slots:
     void onClipPropertyChanged();
