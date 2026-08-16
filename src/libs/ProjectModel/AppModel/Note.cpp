@@ -78,7 +78,7 @@ QString Note::lyric() const {
 }
 
 void Note::setLyric(const QString &lyric) {
-    m_lyric = lyric;
+    m_lyric = lyric.trimmed();
 }
 
 Pronunciation Note::pronunciation() const {
@@ -168,7 +168,7 @@ void Note::setLineFeed(const bool &lineFeed) {
 }
 
 bool Note::isSlur() const {
-    return m_lyric.contains('-');
+    return m_lyric.trimmed() == "-";
 }
 
 QMap<QString, QJsonObject> Note::workspace() const {
@@ -242,7 +242,7 @@ bool Note::deserialize(const QJsonObject &obj) {
     m_length = obj["length"].toInt();
     m_keyIndex = obj["keyIndex"].toInt();
     m_centShift = obj["centShift"].toInt();
-    m_lyric = obj["lyric"].toString();
+    m_lyric = obj["lyric"].toString().trimmed();
     m_language = obj["language"].toString(); // missing/empty -> auto; "unknown" kept as terminal
     m_lineFeed = obj["lineFeed"].toBool();
 
