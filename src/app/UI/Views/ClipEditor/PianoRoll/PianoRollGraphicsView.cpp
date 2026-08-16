@@ -1045,7 +1045,8 @@ double PianoRollGraphicsView::bottomKeyIndex() const {
 }
 
 double PianoRollGraphicsView::centerKeyIndex() const {
-    return (topKeyIndex() + bottomKeyIndex()) / 2;
+    return PianoRollCoord::centerYToKeyIndex(visibleRect().center().y(),
+                                             scaleY() * noteHeight);
 }
 
 void PianoRollGraphicsView::setViewportCenterAt(const double tick, const double keyIndex,
@@ -1056,10 +1057,9 @@ void PianoRollGraphicsView::setViewportCenterAt(const double tick, const double 
 
 void PianoRollGraphicsView::setViewportCenterAtKeyIndex(const double keyIndex,
                                                         const bool animated) {
-    const auto keyIndexRange = topKeyIndex() - bottomKeyIndex();
-    const auto keyIndexStart = keyIndex + keyIndexRange / 2 + 0.5;
-    const auto vBarValue =
-        qRound(PianoRollCoord::keyIndexToSceneY(keyIndexStart, scaleY() * noteHeight));
+    const auto centerY =
+        PianoRollCoord::keyIndexToCenterY(keyIndex, scaleY() * noteHeight);
+    const auto vBarValue = qRound(centerY - viewport()->height() * 0.5);
     if (animated)
         verticalBarAnimateTo(vBarValue);
     else

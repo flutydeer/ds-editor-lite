@@ -3,6 +3,7 @@
 #include "NoteView.h"
 #include "NoteEditUtils.h"
 #include "PianoPaintUtils.h"
+#include "PianoRollCoord.h"
 #include "PitchDisplayStrategy.h"
 #include "PianoRollGraphicsViewHelper.h"
 #include "PronunciationView.h"
@@ -326,8 +327,8 @@ public:
             const auto visibleTicks = q->width() / pixelsPerTick();
             targetOffset.setX(
                 qRound((firstNote->localStart() - visibleTicks * 0.3) * pixelsPerTick()));
-            const auto noteCenterY =
-                (126.5 - firstNote->keyIndex()) * noteHeight * verticalScale();
+            const auto noteCenterY = PianoRollCoord::keyIndexToCenterY(
+                firstNote->keyIndex(), noteHeight * verticalScale());
             targetOffset.setY(qRound(noteCenterY - q->height() * 0.5));
         }
         cameraInitialized = true;
@@ -380,13 +381,14 @@ public:
     }
 
     double centerKeyIndex() const {
-        return (topKeyIndex() + bottomKeyIndex()) * 0.5;
+        return PianoRollCoord::centerYToKeyIndex(viewport.state().centerUnit, 1.0);
     }
 
     bool centerAt(const double tick, const double keyIndex) {
         if (!clip || !std::isfinite(tick) || !std::isfinite(keyIndex))
             return false;
-        return viewport.centerAt(tick - clip->start(), 126.5 - keyIndex);
+        return viewport.centerAt(tick - clip->start(),
+                                 PianoRollCoord::keyIndexToCenterY(keyIndex, 1.0));
     }
 
     bool setViewScale(const double horizontal, const double vertical) {

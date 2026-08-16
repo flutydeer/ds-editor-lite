@@ -7,6 +7,7 @@
 #include "UI/Views/Common/EditorViewportAnimation.h"
 #include "UI/Views/Common/EditorViewportController.h"
 #include "UI/Views/Common/TimeGraphicsScene.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 
 #include <QGraphicsRectItem>
 #include <QGraphicsView>
@@ -416,12 +417,15 @@ int main(int argc, char *argv[]) {
     pianoViewport.setVerticalContent(128.0, 12.0);
     pianoViewport.setViewportSize(QSizeF(800.0, 360.0));
     pianoViewport.setScale(1.25, 2.0, QPointF(400.0, 180.0));
-    pianoViewport.centerAt(4800.0, 66.5);
+    constexpr double targetKeyIndex = 60.0;
+    const auto targetCenterUnit = PianoRollCoord::keyIndexToCenterY(targetKeyIndex, 1.0);
+    pianoViewport.centerAt(4800.0, targetCenterUnit);
     const auto pianoCenter = pianoViewport.state();
     expect(qFuzzyCompare(pianoCenter.centerTick, 4800.0) &&
-               qFuzzyCompare(pianoCenter.centerUnit, 66.5) &&
-               qFuzzyCompare(127.0 - pianoCenter.centerUnit, 60.5),
-           "the shared RHI viewport must represent piano-roll tick and descending-key centers");
+               qFuzzyCompare(pianoCenter.centerUnit, 67.5) &&
+               qFuzzyCompare(PianoRollCoord::centerYToKeyIndex(pianoCenter.centerUnit, 1.0),
+                             targetKeyIndex),
+           "piano-roll key centers must round-trip through the shared RHI viewport");
     pianoViewport.setScale(2.0, 3.0, QPointF(400.0, 180.0));
     const auto zoomedPianoCenter = pianoViewport.state();
     expect(qFuzzyCompare(zoomedPianoCenter.centerTick, pianoCenter.centerTick) &&

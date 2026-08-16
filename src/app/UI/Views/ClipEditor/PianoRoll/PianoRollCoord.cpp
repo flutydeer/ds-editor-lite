@@ -11,6 +11,14 @@ double PianoRollCoord::sceneYToKeyIndexDouble(const double y, const double keyHe
     return 127 - y / keyHeight;
 }
 
+double PianoRollCoord::keyIndexToCenterY(const double index, const double keyHeight) {
+    return keyIndexToSceneY(index, keyHeight) + keyHeight * 0.5;
+}
+
+double PianoRollCoord::centerYToKeyIndex(const double y, const double keyHeight) {
+    return sceneYToKeyIndexDouble(y, keyHeight) + 0.5;
+}
+
 int PianoRollCoord::sceneYToKeyIndexInt(const double y, const double keyHeight) {
     const auto keyIndexD = 127 - y / keyHeight;
     auto keyIndex = static_cast<int>(keyIndexD) + 1;
