@@ -185,6 +185,10 @@ TrackListView::item:selected {
     background: ${selection.inactiveFill}
 }
 
+TrackListView QWidget#trackDropIndicator {
+    background: ${editor.dropIndicator};
+}
+
 /* TrackSplitter */
 TrackEditorView>OverlaySplitter#trackSplitter {
     border-radius: 6px;

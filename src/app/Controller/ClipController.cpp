@@ -424,7 +424,7 @@ void ClipController::onFillLyric(QWidget *parent) {
     int slurCount = 0;
     QList<Note *> inputNotes;
     for (const auto &note : selectedNotes) {
-        if (note->lyric() == '-')
+        if (note->isSlur())
             slurCount++;
         const auto inputNote = new Note();
         inputNote->setLyric(note->lyric());
@@ -470,7 +470,7 @@ void ClipController::onFillLyric(QWidget *parent) {
     int skipCount = 0;
     for (int i = 0; i < notesToEdit.size(); i++) {
         auto arg = Note::WordProperties::fromNote(*selectedNotes[i]);
-        if (lyricRes.skipSlur && arg.lyric == '-') {
+        if (lyricRes.skipSlur && selectedNotes[i]->isSlur()) {
             args.append(arg);
             skipCount++;
             continue;

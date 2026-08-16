@@ -4,7 +4,7 @@
 #include <lite/ProjectModel/AppModel/Curve.h>
 #include <lite/ADT/OverlappableSerialList.h>
 
-#include <opendspxinterpolator/interpolator.h>
+#include <opendspx/interpolator/interpolator.h>
 
 class AnchorNode : public Overlappable, public UniqueObject {
 public:

@@ -71,7 +71,6 @@ public:
     QAction *actionDeveloperOptions = nullptr;
     QAction *actionCheckForUpdates = nullptr;
     QAction *actionAbout = nullptr;
-    QAction *actionDiscoverDiffScope = nullptr;
     QAction *actionOpenLogFolder = nullptr;
 
     Menu *menuFile = nullptr;

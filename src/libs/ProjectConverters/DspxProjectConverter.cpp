@@ -8,7 +8,7 @@
 #include <opendspx/model.h>
 #include <opendspx/singlesinger.h>
 #include <opendspx/mixedsinger.h>
-#include <opendspxserializer/serializer.h>
+#include <opendspx/serializer/serializer.h>
 
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/Note.h>
@@ -108,7 +108,7 @@ namespace {
     void writeDsWorkspace(opendspx::Workspace &workspace, const QJsonObject &obj) {
         if (obj.isEmpty())
             return;
-        workspace[kDsWorkspaceKey] = JsonStdc::fromQJsonValue(obj);
+        workspace[kDsWorkspaceKey] = JsonStdc::fromQJsonValue(obj).toObject();
     }
 
     // ---- Identifier helpers ----
@@ -310,6 +310,7 @@ namespace {
             SpeakerInfo speaker;
             bool valid = false;
         };
+
         QList<RawSource> rawSources;
         rawSources.reserve(sourcesArray.size());
         for (const auto &sourceValue : sourcesArray) {
@@ -339,9 +340,8 @@ namespace {
                 dropped.append(r.speaker.id());
         }
         if (!dropped.isEmpty()) {
-            qWarning().noquote()
-                << "[DspxProjectConverter] Singer" << effectiveSinger.singerId()
-                << "dropped legacy speakers:" << dropped.join(", ");
+            qWarning().noquote() << "[DspxProjectConverter] Singer" << effectiveSinger.singerId()
+                                 << "dropped legacy speakers:" << dropped.join(", ");
         }
 
         // 仅保留 valid sources
@@ -360,9 +360,10 @@ namespace {
 
         // 重建 weights: original explicit (N-1) → full (N) → filter (M) → explicit (M-1)
         const auto remapWeights = [&validIndices](const QVector<double> &explicitWeights) {
-            const int originalCount = validIndices.isEmpty()
-                ? 0
-                : *std::max_element(validIndices.begin(), validIndices.end()) + 1;
+            const int originalCount =
+                validIndices.isEmpty()
+                    ? 0
+                    : *std::max_element(validIndices.begin(), validIndices.end()) + 1;
             // explicit weights size 应为 originalCount - 1
             if (explicitWeights.size() != originalCount - 1)
                 return QVector<double>();
@@ -877,8 +878,7 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                               QString::fromStdString(dspxNote.pronunciation.edited)));
             QMap<QString, QJsonObject> workspace;
             for (const auto &[key, value] : dspxNote.workspace) {
-                workspace[QString::fromStdString(key)] =
-                    JsonStdc::toQJsonValue(value).toObject();
+                workspace[QString::fromStdString(key)] = JsonStdc::toQJsonValue(value).toObject();
             }
             note->setWorkspace(workspace);
             const auto dsWorkspace = dsWorkspaceFrom(dspxNote.workspace);
@@ -1048,8 +1048,8 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
         }
         // opendspx::TimeSignature::index is the measure number the signature
         // takes effect at; it maps directly onto TimeSignature::barIndex.
-        timeSignatures.append(TimeSignature(signature.index, signature.numerator,
-                                            signature.denominator));
+        timeSignatures.append(
+            TimeSignature(signature.index, signature.numerator, signature.denominator));
     }
     model->setTimeline(Timeline(std::move(tempos), std::move(timeSignatures)));
     auto masterControl = TrackControl();
@@ -1169,7 +1169,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             dsWorkspace["phoneme"] = workspacePhoneme;
             workspace[kDsWorkspaceKey] = dsWorkspace;
             for (const auto &[key, value] : workspace.asKeyValueRange()) {
-                note.workspace[key.toStdString()] = JsonStdc::fromQJsonValue(value);
+                note.workspace[key.toStdString()] = JsonStdc::fromQJsonValue(value).toObject();
             }
             notes.push_back(note);
         }
@@ -1190,7 +1190,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
 
                 // Preserve existing workspace keys
                 for (const auto &[key, value] : clip->workspace().asKeyValueRange()) {
-                    singClip->workspace[key.toStdString()] = JsonStdc::fromQJsonValue(value);
+                    singClip->workspace[key.toStdString()] =
+                        JsonStdc::fromQJsonValue(value).toObject();
                 }
 
                 // Write clip DS workspace (flags/speaker/language)
@@ -1237,8 +1238,9 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 audioClipRef->control.gain = clip->gain();
                 audioClipRef->control.mute = clip->mute();
                 audioClipRef->path = audioClip->path().toStdString();
-                // On save, recompute relativeDir against the save target and merge locating info into
-                // a local workspace copy (model untouched), so fallback-resolved paths persist on save
+                // On save, recompute relativeDir against the save target and merge locating info
+                // into a local workspace copy (model untouched), so fallback-resolved paths persist
+                // on save
                 auto pathInfo = audioClip->pathInfo();
                 pathInfo.relativeDir =
                     DiffscopeAudioWorkspace::relativeDirFor(audioClip->path(), path);
@@ -1246,7 +1248,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 DiffscopeAudioWorkspace::write(workspace, pathInfo, audioClip->path());
                 for (const auto &[key, value] : workspace.asKeyValueRange()) {
                     audioClipRef->workspace[key.toStdString()] =
-                        JsonStdc::fromQJsonValue(value);
+                        JsonStdc::fromQJsonValue(value).toObject();
                 }
                 track.clips.push_back(audioClipRef);
             }
@@ -1311,7 +1313,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     encodeTracks(model, dspxModel);
 
     const auto loopSettings = loopSettingsToSave();
-    dspxModel.content.workspace["loop"] = JsonStdc::fromQJsonValue(loopSettings.serialize());
+    dspxModel.content.workspace["loop"] =
+        JsonStdc::fromQJsonValue(loopSettings.serialize()).toObject();
 
     auto saveModelToFile = [](const opendspx::Model &model_, const QString &filePath,
                               QString &msg) -> bool {

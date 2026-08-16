@@ -40,7 +40,6 @@ lite_add_application(${PROJECT_NAME}
         Resources/lite_res.qrc
     INCLUDE_PRIVATE
         .
-        ${LITE_GENERATED_INCLUDE_DIR}
         ${INTERVAL_TREE_INCLUDE_DIRS}
     DEFINES_PRIVATE
         QT_MESSAGELOGCONTEXT

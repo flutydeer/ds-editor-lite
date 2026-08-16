@@ -32,7 +32,7 @@
 #include "Global/AppOptionsGlobal.h"
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include <lite/GUI/Utils/IconUtils.h>
-#include "UI/Dialogs/Help/DiscoverDiffScopeDialog.h"
+#include "UI/Dialogs/Help/AboutDialog.h"
 #include "Utils/AppLogDirectory.h"
 
 #include <QFile>
@@ -797,11 +797,8 @@ Menu *MainMenuViewPrivate::buildHelpMenu() {
             [=] { Toast::show(tr("You are already up to date")); });
     actionAbout = new QAction(tr("About..."), this);
     setMenuIcon(actionAbout, QStringLiteral(":/svg/icons/info_16_regular.svg"));
-    connect(actionAbout, &QAction::triggered, this, [] { Toast::show(tr("About")); });
-
-    actionDiscoverDiffScope = new QAction(tr("Discover DiffScope"), this);
-    connect(actionDiscoverDiffScope, &QAction::triggered, this, [] {
-        DiscoverDiffScopeDialog dlg;
+    connect(actionAbout, &QAction::triggered, this, [this] {
+        AboutDialog dlg(m_mainWindow);
         dlg.exec();
     });
 
@@ -813,7 +810,6 @@ Menu *MainMenuViewPrivate::buildHelpMenu() {
     menuHelp = new Menu(tr("&Help"), q);
     menuHelp->addAction(actionCheckForUpdates);
     menuHelp->addAction(actionAbout);
-    menuHelp->addAction(actionDiscoverDiffScope);
     menuHelp->addAction(actionOpenLogFolder);
     return menuHelp;
 }
@@ -856,7 +852,6 @@ void MainMenuViewPrivate::retranslateUi() {
     actionDeveloperOptions->setText(tr("&Developer Options..."));
     actionCheckForUpdates->setText(tr("Check for updates"));
     actionAbout->setText(tr("About..."));
-    actionDiscoverDiffScope->setText(tr("Discover DiffScope"));
     actionOpenLogFolder->setText(tr("Open Log Folder..."));
 
     menuFile->setTitle(tr("&File"));

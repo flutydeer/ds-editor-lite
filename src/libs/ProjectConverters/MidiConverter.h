@@ -3,7 +3,7 @@
 
 #include <lite/ProjectConverters/IProjectConverter.h>
 
-#include <opendspxconverter/midi/midiintermediatedata.h>
+#include <opendspx/converter/midi/midiintermediatedata.h>
 
 #include <QByteArray>
 #include <QList>
