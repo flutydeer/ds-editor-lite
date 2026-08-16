@@ -23,9 +23,11 @@ void NoteLyricToolTip::showAt(const QRectF &textRect, const QString &text, const
     setText(text);
     ensurePolished();
     const auto hint = sizeHint().expandedTo(QSize(1, 1));
+    const auto maximumX = std::max(0, parentWidget()->width() - hint.width());
     const auto maximumY = std::max(0, parentWidget()->height() - hint.height());
+    const auto x = std::clamp(qRound(textRect.left()), 0, maximumX);
     const auto y = std::clamp(qRound(textRect.center().y() - hint.height() * 0.5), 0, maximumY);
-    setGeometry(qRound(textRect.left()), y, hint.width(), hint.height());
+    setGeometry(x, y, hint.width(), hint.height());
     raise();
     show();
 }

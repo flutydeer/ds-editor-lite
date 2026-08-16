@@ -119,6 +119,13 @@ int main(int argc, char *argv[]) {
                lyricToolTip.text() == longLyric && !lyricToolTip.isHidden() &&
                lyricToolTip.width() > narrowLayout.textRect.width(),
            "the expanded lyric tooltip must be visual-only and expose the full lyric");
+    lyricToolTip.showAt(narrowLayout.textRect.translated(220.0, 0.0), longLyric, lyricFont);
+    expect(lyricToolTip.geometry().right() <= lyricToolTipHost.rect().right(),
+           "a lyric tooltip near the right edge must remain inside its viewport");
+    lyricToolTipHost.resize(20, 40);
+    lyricToolTip.showAt(narrowLayout.textRect, longLyric, lyricFont);
+    expect(lyricToolTip.x() == 0,
+           "a lyric tooltip wider than its viewport must stay anchored to the left edge");
 
     using EditorSelectionUtils::OrderedSelectionModel;
     constexpr auto ctrlShift = Qt::ControlModifier | Qt::ShiftModifier;
