@@ -995,18 +995,22 @@ void PianoRollGraphicsView::commitAction() {
         if (d->m_interactionController->movedBeforeMouseUp() &&
             d->m_interactionController->currentEditingNote()) {
             d->m_interactionController->resetSelectedNotesOffset();
+            const auto minimumLength = TimelineSnapUtils::quantizeStep(
+                appStatus->pianoRollQuantize, d->m_interactionController->tempQuantizeOff());
             NoteInteractionController::handleNoteLeftResized(
                 d->m_interactionController->currentEditingNote()->id(),
-                d->m_interactionController->deltaTick());
+                d->m_interactionController->deltaTick(), minimumLength);
         }
     } else if (d->m_interactionController->mouseMoveBehavior() ==
                NoteInteractionController::ResizeRight) {
         if (d->m_interactionController->movedBeforeMouseUp() &&
             d->m_interactionController->currentEditingNote()) {
             d->m_interactionController->resetSelectedNotesOffset();
+            const auto minimumLength = TimelineSnapUtils::quantizeStep(
+                appStatus->pianoRollQuantize, d->m_interactionController->tempQuantizeOff());
             NoteInteractionController::handleNoteRightResized(
                 d->m_interactionController->currentEditingNote()->id(),
-                d->m_interactionController->deltaTick());
+                d->m_interactionController->deltaTick(), minimumLength);
         }
     }
     // model 写入完成后才清空预览，避免轨道先画旧几何再跳变

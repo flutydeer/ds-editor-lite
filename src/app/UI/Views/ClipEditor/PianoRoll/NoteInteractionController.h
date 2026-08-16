@@ -130,8 +130,8 @@ public:
 
     // Action handlers
     void handleNotesMoved(int deltaTick, int deltaKey) const;
-    static void handleNoteLeftResized(int noteId, int deltaTick);
-    static void handleNoteRightResized(int noteId, int deltaTick);
+    static void handleNoteLeftResized(int noteId, int deltaTick, int minimumLength);
+    static void handleNoteRightResized(int noteId, int deltaTick, int minimumLength);
 
     // Note manipulation
     void moveSelectedNotes(int startOffset, int keyOffset) const;

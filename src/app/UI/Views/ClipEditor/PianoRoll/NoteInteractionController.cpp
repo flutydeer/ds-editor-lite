@@ -88,18 +88,20 @@ void NoteInteractionController::handleNotesMoved(const int deltaTick, const int 
     clipController->onMoveNotes(noteIds, deltaTick, deltaKey);
 }
 
-void NoteInteractionController::handleNoteLeftResized(const int noteId, const int deltaTick) {
+void NoteInteractionController::handleNoteLeftResized(const int noteId, const int deltaTick,
+                                                       const int minimumLength) {
     qDebug() << "Note left resized id:" << noteId << "dt:" << deltaTick;
     QList<int> notes;
     notes.append(noteId);
-    clipController->onResizeNotesLeft(notes, deltaTick);
+    clipController->onResizeNotesLeft(notes, deltaTick, minimumLength);
 }
 
-void NoteInteractionController::handleNoteRightResized(const int noteId, const int deltaTick) {
+void NoteInteractionController::handleNoteRightResized(const int noteId, const int deltaTick,
+                                                        const int minimumLength) {
     qDebug() << "Note right resized id:" << noteId << "dt:" << deltaTick;
     QList<int> notes;
     notes.append(noteId);
-    clipController->onResizeNotesRight(notes, deltaTick);
+    clipController->onResizeNotesRight(notes, deltaTick, minimumLength);
 }
 
 void NoteInteractionController::moveSelectedNotes(const int startOffset,

@@ -193,7 +193,8 @@ void ClipController::onMoveNotes(const QList<int> &notesId, const int deltaTick,
     historyManager->record(a);
 }
 
-void ClipController::onResizeNotesLeft(const QList<int> &notesId, const int deltaTick) const {
+void ClipController::onResizeNotesLeft(const QList<int> &notesId, const int deltaTick,
+                                       const int minimumLength) const {
     Q_D(const ClipController);
     const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToEdit;
@@ -201,7 +202,8 @@ void ClipController::onResizeNotesLeft(const QList<int> &notesId, const int delt
     for (const auto id : notesId) {
         if (auto *note = singingClip->findNoteById(id)) {
             notesToEdit.append(note);
-            safeDeltaTick = NoteResizeUtils::clampLeftDelta(note->length(), safeDeltaTick);
+            safeDeltaTick =
+                NoteResizeUtils::clampLeftDelta(note->length(), safeDeltaTick, minimumLength);
         }
     }
     if (notesToEdit.isEmpty())
@@ -213,7 +215,8 @@ void ClipController::onResizeNotesLeft(const QList<int> &notesId, const int delt
     historyManager->record(a);
 }
 
-void ClipController::onResizeNotesRight(const QList<int> &notesId, const int deltaTick) const {
+void ClipController::onResizeNotesRight(const QList<int> &notesId, const int deltaTick,
+                                        const int minimumLength) const {
     Q_D(const ClipController);
     const auto singingClip = static_cast<SingingClip *>(d->m_clip);
     QList<Note *> notesToEdit;
@@ -221,7 +224,8 @@ void ClipController::onResizeNotesRight(const QList<int> &notesId, const int del
     for (const auto id : notesId) {
         if (auto *note = singingClip->findNoteById(id)) {
             notesToEdit.append(note);
-            safeDeltaTick = NoteResizeUtils::clampRightDelta(note->length(), safeDeltaTick);
+            safeDeltaTick =
+                NoteResizeUtils::clampRightDelta(note->length(), safeDeltaTick, minimumLength);
         }
     }
     if (notesToEdit.isEmpty())

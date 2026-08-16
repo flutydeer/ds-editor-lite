@@ -70,6 +70,14 @@ int main(int argc, char *argv[]) {
     expect(NoteEditUtils::leftResizeDelta(480, 240, 2000, 0) == 239 &&
                NoteEditUtils::rightResizeDelta(480, 240, -1000, 0) == -239,
            "note resizing must retain one tick even when an invalid minimum is supplied");
+    constexpr int alternateQuantize = 80;
+    expect(NoteResizeUtils::clampLeftDelta(240, 240, quantize) == 120 &&
+               NoteResizeUtils::clampRightDelta(240, -240, quantize) == -120 &&
+               NoteResizeUtils::clampLeftDelta(240, 240, alternateQuantize) == 160 &&
+               NoteResizeUtils::clampRightDelta(240, -240, alternateQuantize) == -160 &&
+               NoteResizeUtils::clampLeftDelta(240, 240, 1) == 239 &&
+               NoteResizeUtils::clampRightDelta(240, -240, 1) == -239,
+           "the model commit guard must retain the supplied dynamic minimum length");
 
     using EditorSelectionUtils::OrderedSelectionModel;
     constexpr auto ctrlShift = Qt::ControlModifier | Qt::ShiftModifier;

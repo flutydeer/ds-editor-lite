@@ -1689,6 +1689,7 @@ public:
         interactionNoteId = -1;
         interactionDeltaTick = 0;
         interactionDeltaKey = 0;
+        interactionMinimumLength = 1;
         interactionMoved = false;
         drawStart = 0;
         drawEnd = 0;
@@ -1901,10 +1902,12 @@ public:
                                                 interactionDeltaTick, interactionDeltaKey);
             } else if (interactionMoved && interaction == Interaction::ResizeLeft &&
                        interactionDeltaTick != 0) {
-                clipController->onResizeNotesLeft({interactionNoteId}, interactionDeltaTick);
+                clipController->onResizeNotesLeft({interactionNoteId}, interactionDeltaTick,
+                                                  interactionMinimumLength);
             } else if (interactionMoved && interaction == Interaction::ResizeRight &&
                        interactionDeltaTick != 0) {
-                clipController->onResizeNotesRight({interactionNoteId}, interactionDeltaTick);
+                clipController->onResizeNotesRight({interactionNoteId}, interactionDeltaTick,
+                                                   interactionMinimumLength);
             }
             appStatus->pianoRollNoteEditPreview = {};
             finishNoteEditSession(interactionMoved ? EditSessionEndReason::Commit
@@ -1927,6 +1930,7 @@ public:
         }
         const auto step = TimelineSnapUtils::quantizeStep(appStatus->pianoRollQuantize,
                                                           modifiers == Qt::AltModifier);
+        interactionMinimumLength = step;
         const auto rawDelta = localTickAt(position) - mouseDownTick;
         interactionDeltaKey = keyAt(position) - mouseDownKey;
 
@@ -2873,6 +2877,7 @@ public:
     int interactionKey = 60;
     int interactionDeltaTick = 0;
     int interactionDeltaKey = 0;
+    int interactionMinimumLength = 1;
     bool interactionMoved = false;
     quint64 noteEditSessionId = 0;
     double mouseDownTick = 0.0;
