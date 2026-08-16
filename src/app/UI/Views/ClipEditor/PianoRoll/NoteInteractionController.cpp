@@ -49,16 +49,9 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
     }
 
     const auto modifiers = event->modifiers();
-    const auto ctrlDown = modifiers.testFlag(Qt::ControlModifier);
-    const auto shiftDown = modifiers.testFlag(Qt::ShiftModifier);
-    auto selectionMode = PianoRollSelectionModel::NoteSelectionMode::Plain;
-    if (shiftDown)
-        selectionMode = ctrlDown ? PianoRollSelectionModel::NoteSelectionMode::AddRange
-                                 : PianoRollSelectionModel::NoteSelectionMode::ReplaceRange;
-    else if (ctrlDown)
-        selectionMode = PianoRollSelectionModel::NoteSelectionMode::Toggle;
-    m_preserveSelectionOnClickRelease = ctrlDown || shiftDown;
-    m_selectionModel->applyNoteSelection(noteItem, selectionMode);
+    const auto result = m_selectionModel->applyNoteSelection(
+        noteItem, EditorSelectionUtils::selectionModeForModifiers(modifiers));
+    m_collapseSelectionOnClickRelease = result.collapseToTargetOnRelease;
 
     if (!noteItem->isSelected()) {
         m_mouseMoveBehavior = None;
@@ -87,7 +80,7 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
 }
 
 void NoteInteractionController::finalizeClickSelection() const {
-    if (!m_currentEditingNote || m_movedBeforeMouseUp || m_preserveSelectionOnClickRelease)
+    if (!m_currentEditingNote || m_movedBeforeMouseUp || !m_collapseSelectionOnClickRelease)
         return;
     m_selectionModel->selectOnly(m_currentEditingNote);
 }
@@ -163,7 +156,7 @@ void NoteInteractionController::reset() {
     m_deltaTick = 0;
     m_deltaKey = 0;
     m_movedBeforeMouseUp = false;
-    m_preserveSelectionOnClickRelease = false;
+    m_collapseSelectionOnClickRelease = false;
     m_moveMaxDeltaKey = 127;
     m_moveMinDeltaKey = 0;
     m_currentEditingNote = nullptr;

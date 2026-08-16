@@ -37,70 +37,61 @@ QList<NoteView *> PianoRollSelectionModel::orderedNoteItems() const {
     return orderedItems;
 }
 
-void PianoRollSelectionModel::applyNoteSelection(NoteView *noteView,
-                                                 const NoteSelectionMode mode) {
+EditorSelectionUtils::PressResult
+    PianoRollSelectionModel::applyNoteSelection(NoteView *noteView, const NoteSelectionMode mode) {
     if (!noteView)
-        return;
+        return {};
 
-    if (mode == NoteSelectionMode::Plain) {
-        m_selectionAnchorId = noteView->id();
-        const auto selectedItems = selectedNoteItems();
-        if (selectedItems.count() <= 1 || !selectedItems.contains(noteView))
-            selectOnly(noteView);
-        else
-            noteView->setSelected(true);
-        return;
-    }
+    const auto result =
+        m_orderedSelection.press(selectedNoteIds(), orderedNoteIds(), noteView->id(), mode);
+    applySelection(result.selection);
+    return result;
+}
 
-    if (mode == NoteSelectionMode::Toggle) {
-        m_selectionAnchorId = noteView->id();
-        noteView->setSelected(!noteView->isSelected());
-        return;
-    }
+EditorSelectionUtils::PressResult PianoRollSelectionModel::applyPressSelection(NoteView *noteView,
+                                                                               const bool toggle) {
+    const auto noteId = noteView ? noteView->id() : -1;
+    const auto result =
+        m_orderedSelection.press(selectedNoteIds(), orderedNoteIds(), noteId,
+                                 toggle ? NoteSelectionMode::Toggle : NoteSelectionMode::Plain);
+    applySelection(result.selection);
+    return result;
+}
 
-    const auto anchor = selectionAnchor();
-    if (!anchor) {
-        m_selectionAnchorId = noteView->id();
-        selectOnly(noteView);
-        return;
+QList<int> PianoRollSelectionModel::selectedNoteIds() const {
+    QList<int> result;
+    for (const auto *selected : selectedNoteItems())
+        result.append(selected->id());
+    return result;
+}
+
+QList<int> PianoRollSelectionModel::orderedNoteIds() const {
+    QList<int> result;
+    for (const auto *item : orderedNoteItems())
+        result.append(item->id());
+    return result;
+}
+
+void PianoRollSelectionModel::applySelection(const QList<int> &selection) const {
+    for (auto *item : m_noteViews) {
+        const auto selected = selection.contains(item->id());
+        if (item->isSelected() != selected)
+            item->setSelected(selected);
     }
-    selectRange(anchor, noteView, mode == NoteSelectionMode::AddRange);
 }
 
 void PianoRollSelectionModel::selectOnly(NoteView *noteView) {
-    m_selectionAnchorId = noteView ? noteView->id() : -1;
-    m_view->clearNoteSelections(noteView);
-    if (noteView)
-        noteView->setSelected(true);
+    const auto noteId = noteView ? noteView->id() : -1;
+    m_orderedSelection.selectOnly(noteId);
+    applySelection(noteView ? QList<int>{noteId} : QList<int>());
 }
 
 void PianoRollSelectionModel::clearSelectionAnchor() {
-    m_selectionAnchorId = -1;
+    m_orderedSelection.clearAnchor();
 }
 
 void PianoRollSelectionModel::invalidateSelectionAnchor(const int noteId) {
-    if (m_selectionAnchorId == noteId)
-        clearSelectionAnchor();
-}
-
-NoteView *PianoRollSelectionModel::selectionAnchor() const {
-    return m_noteViewIndex.value(m_selectionAnchorId, nullptr);
-}
-
-void PianoRollSelectionModel::selectRange(NoteView *anchor, NoteView *target,
-                                          const bool additive) const {
-    const auto orderedItems = orderedNoteItems();
-    const auto anchorIndex = orderedItems.indexOf(anchor);
-    const auto targetIndex = orderedItems.indexOf(target);
-    if (anchorIndex < 0 || targetIndex < 0)
-        return;
-
-    if (!additive)
-        m_view->clearNoteSelections();
-    const auto first = qMin(anchorIndex, targetIndex);
-    const auto last = qMax(anchorIndex, targetIndex);
-    for (auto index = first; index <= last; ++index)
-        orderedItems.at(index)->setSelected(true);
+    m_orderedSelection.invalidateAnchor(noteId);
 }
 
 void PianoRollSelectionModel::updateSceneSelectionState() {
@@ -118,11 +109,10 @@ void PianoRollSelectionModel::updateSceneSelectionState() {
         selectedNoteViews.append(noteView);
     }
 
-    const auto anchor = selectionAnchor();
-    if (selectedNoteViews.isEmpty())
-        clearSelectionAnchor();
-    else if (!selectedNoteViews.contains(anchor))
-        m_selectionAnchorId = selectedNoteViews.constLast()->id();
+    QList<int> selectedIds;
+    for (const auto *noteView : selectedNoteViews)
+        selectedIds.append(noteView->id());
+    m_orderedSelection.synchronize(selectedIds);
     m_selectionChangeBarrier = false;
 }
 

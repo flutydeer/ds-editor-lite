@@ -1,8 +1,8 @@
 #include "UI/Views/TrackEditor/AudioClipDragState.h"
-#include "UI/Views/TrackEditor/ClipSelectionUtils.h"
 #include "UI/Views/TrackEditor/ClipResizeUtils.h"
 #include "UI/Views/TrackEditor/SingingClipPreviewLayout.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
+#include "UI/Views/Common/EditorSelectionUtils.h"
 #include "Global/AppGlobal.h"
 
 #include <lite/MusicBase/Timeline.h>
@@ -40,12 +40,12 @@ int main(int argc, char *argv[]) {
     expect(EditorResizeUtils::horizontalEdgeAt(5.0, 8.0, 6.0) == HorizontalEdge::Left,
            "overlapping resize handles must retain left-edge precedence");
 
-    expect(ClipSelectionUtils::selectionForPress({1}, 2, false) == QList<int>{2},
+    expect(EditorSelectionUtils::selectionForPress({1}, 2, false) == QList<int>{2},
            "pressing an unselected clip must replace the previous selection");
-    expect(ClipSelectionUtils::selectionForPress({1, 2}, 2, false) == (QList<int>{1, 2}),
+    expect(EditorSelectionUtils::selectionForPress({1, 2}, 2, false) == (QList<int>{1, 2}),
            "pressing a selected clip must preserve its multi-selection");
-    expect(ClipSelectionUtils::selectionForPress({1}, 2, true) == (QList<int>{1, 2}) &&
-               ClipSelectionUtils::selectionForPress({1}, 1, true).isEmpty(),
+    expect(EditorSelectionUtils::selectionForPress({1}, 2, true) == (QList<int>{1, 2}) &&
+               EditorSelectionUtils::selectionForPress({1}, 1, true).isEmpty(),
            "toggle presses must add or remove the target clip");
 
     Clip::ClipCommonProperties singing;
@@ -60,6 +60,19 @@ int main(int argc, char *argv[]) {
            "shrinking a singing clip must be accepted");
     expect(singing.clipLen == 600 && singing.length == 1800,
            "shrinking must retain enough content length for existing notes");
+
+    Clip::ClipCommonProperties leftResize;
+    leftResize.start = 100;
+    leftResize.clipStart = 200;
+    leftResize.clipLen = 600;
+    expect(ClipResizeUtils::updateLeftEdge(leftResize, 500) && leftResize.clipStart == 400 &&
+               leftResize.clipLen == 400,
+           "left resize must preserve the visible right edge");
+    expect(ClipResizeUtils::updateLeftEdge(leftResize, 50) && leftResize.clipStart == 0 &&
+               leftResize.clipLen == 800,
+           "left resize must stop at the content origin");
+    expect(!ClipResizeUtils::updateLeftEdge(leftResize, 900),
+           "left resize must reject a non-positive visible length");
 
     Clip::ClipCommonProperties audio;
     audio.length = 2000;
@@ -109,6 +122,28 @@ int main(int argc, char *argv[]) {
            "device-pixel scaling must preserve the logical preview layout");
     expect(!SingingClipPreview::computeLayout(preview, {}).valid(),
            "an empty note range must not produce a preview layout");
+
+    const QVector<EditorPreview::Note> modelNotes{
+        {1, 0,   240, 60},
+        {2, 480, 240, 64},
+        {3, 960, 240, 67},
+    };
+    const QVector<EditorPreview::Note> editedNotes{
+        {2,  1200, 480, 72},
+        {-1, 360,  240, 55},
+    };
+    const QVector<EditorPreview::Note> expectedNotes{
+        {1,  0,    240, 60},
+        {-1, 360,  240, 55},
+        {2,  1200, 480, 72},
+    };
+    const auto projectedNotes = SingingClipPreview::projectNotes(modelNotes, editedNotes, {3});
+    expect(projectedNotes == expectedNotes,
+           "track previews must share replacement, insertion, erasure, and temporal ordering");
+    expect(SingingClipPreview::keyIndices(projectedNotes) == (QList<int>{60, 55, 72}),
+           "preview layout keys must come from the projected note geometry");
+    expect(SingingClipPreview::projectNotes(modelNotes, false, editedNotes, {3}) == modelNotes,
+           "piano-roll edits must not leak into inactive clip previews");
 
     const Timeline timeline({
         {0,    120.0},
