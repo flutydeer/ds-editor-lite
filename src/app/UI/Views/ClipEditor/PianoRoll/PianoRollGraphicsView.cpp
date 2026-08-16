@@ -692,6 +692,12 @@ void PianoRollGraphicsView::showEvent(QShowEvent *event) {
     d->m_initialViewportPositionPending = false;
 }
 
+void PianoRollGraphicsView::hideEvent(QHideEvent *event) {
+    Q_D(PianoRollGraphicsView);
+    d->hideLyricToolTip();
+    TimeGraphicsView::hideEvent(event);
+}
+
 int PianoRollGraphicsView::noteFontPixelSize() const {
     return m_noteFontPixelSize;
 }
