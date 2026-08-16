@@ -275,12 +275,12 @@ HistoryFocusVisibility TracksRhiWidget::focusVisibility(const HistoryFocus &focu
     }
     if (focusRect.isNull())
         return HistoryFocusVisibility::ContextSwitchRequired;
-    return m_viewport.visibleSceneRect().intersects(focusRect)
+    return m_viewport.logicalVisibleSceneRect().intersects(focusRect)
                ? HistoryFocusVisibility::Visible
                : HistoryFocusVisibility::ScrollRequired;
 }
 
-bool TracksRhiWidget::revealFocus(const HistoryFocus &focus, bool) {
+bool TracksRhiWidget::revealFocus(const HistoryFocus &focus, const bool animated) {
     if (!focus.isValid() || focus.kind != HistoryFocusKind::TrackClips)
         return false;
     QList<int> selectedIds;
@@ -300,7 +300,7 @@ bool TracksRhiWidget::revealFocus(const HistoryFocus &focus, bool) {
     if (!selectedIds.isEmpty()) {
         syncSelection(selectedIds);
         trackController->setActiveClip(selectedIds.first());
-        return m_viewport.ensureVisible(bounds, 24.0, 24.0);
+        return m_viewport.ensureVisible(bounds, 24.0, 24.0, animated);
     }
     int trackIndex = focus.trackIndex;
     if (focus.trackId >= 0)
@@ -314,11 +314,11 @@ bool TracksRhiWidget::revealFocus(const HistoryFocus &focus, bool) {
     return m_viewport.ensureVisible(
         QRectF(left, m_viewport.unitToSceneY(trackIndex), std::max(1.0, right - left),
                trackHeight * scaleY()),
-        24.0, 24.0);
+        24.0, 24.0, animated);
 }
 
 QRectF TracksRhiWidget::logicalVisibleRect() const {
-    return m_viewport.visibleSceneRect();
+    return m_viewport.logicalVisibleSceneRect();
 }
 
 double TracksRhiWidget::scaleX() const {
@@ -466,6 +466,7 @@ void TracksRhiWidget::wheelEvent(QWheelEvent *event) {
 
 void TracksRhiWidget::mousePressEvent(QMouseEvent *event) {
     setFocus(Qt::MouseFocusReason);
+    m_viewport.stopAnimation();
     disarmDragAutoScroll();
     const auto *hit = hitTest(event->position());
     if (event->button() != Qt::LeftButton) {

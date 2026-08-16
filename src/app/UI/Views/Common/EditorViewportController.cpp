@@ -7,13 +7,16 @@
 #include <algorithm>
 #include <cmath>
 
-EditorViewportController::EditorViewportController(QObject *parent) : QObject(parent) {
+EditorViewportController::EditorViewportController(QObject *parent)
+    : QObject(parent),
+      m_offsetAnimation([this](const QPointF &offset) { applyOffset(offset); }) {
 }
 
 void EditorViewportController::setPixelsPerQuarterNote(const double value) {
     if (!std::isfinite(value) || value <= 0.0 || qFuzzyCompare(value, m_pixelsPerQuarterNote))
         return;
     const auto previous = state();
+    stopAnimation();
     m_pixelsPerQuarterNote = value;
     restoreState(previous);
 }
@@ -22,6 +25,7 @@ void EditorViewportController::setContentTickRange(const double startTick, const
     if (!std::isfinite(startTick) || !std::isfinite(endTick) || endTick < startTick)
         return;
     const auto previous = state();
+    stopAnimation();
     m_startTick = startTick;
     m_endTick = endTick;
     restoreState(previous);
@@ -33,6 +37,7 @@ void EditorViewportController::setVerticalContent(const double unitCount, const 
         return;
     }
     const auto previous = state();
+    stopAnimation();
     m_unitCount = unitCount;
     m_unitHeight = unitHeight;
     restoreState(previous);
@@ -41,6 +46,7 @@ void EditorViewportController::setVerticalContent(const double unitCount, const 
 void EditorViewportController::setViewportSize(const QSizeF &size) {
     if (size == m_viewportSize)
         return;
+    stopAnimation();
     const auto previousScaleX = m_scaleX;
     const auto previousScaleY = m_scaleY;
     const auto previousOffset = QPointF(m_offsetX, m_offsetY);
@@ -56,6 +62,7 @@ void EditorViewportController::setScaleBounds(const double minX, const double ma
                                               const double minY, const double maxY) {
     if (minX <= 0.0 || minY <= 0.0 || maxX < minX || maxY < minY)
         return;
+    stopAnimation();
     m_minScaleX = minX;
     m_maxScaleX = maxX;
     m_minScaleY = minY;
@@ -66,6 +73,7 @@ void EditorViewportController::setScaleBounds(const double minX, const double ma
 
 void EditorViewportController::setEnsureContentFillsViewport(const bool horizontal,
                                                              const bool vertical) {
+    stopAnimation();
     m_fillX = horizontal;
     m_fillY = vertical;
     normalize(true);
@@ -77,6 +85,7 @@ void EditorViewportController::setEnsureContentFillsViewport(const bool horizont
 void EditorViewportController::setLeftMarginPx(const double px) {
     if (!std::isfinite(px) || px < 0.0 || qFuzzyCompare(px, m_leftMarginPx))
         return;
+    stopAnimation();
     m_leftMarginPx = px;
     normalize(false);
     notify(false);
@@ -97,6 +106,7 @@ bool EditorViewportController::restoreState(const State &state) {
         state.horizontalScale <= 0.0 || state.verticalScale <= 0.0) {
         return false;
     }
+    stopAnimation();
     m_scaleX = state.horizontalScale;
     m_scaleY = state.verticalScale;
     normalize(true);
@@ -113,6 +123,7 @@ bool EditorViewportController::setScale(const double horizontal, const double ve
         vertical <= 0.0) {
         return false;
     }
+    stopAnimation();
     const auto anchorTick = sceneXToTick(m_offsetX + anchor.x());
     const auto anchorUnit = sceneYToUnit(m_offsetY + anchor.y());
     m_scaleX = horizontal;
@@ -125,18 +136,21 @@ bool EditorViewportController::setScale(const double horizontal, const double ve
     return true;
 }
 
-bool EditorViewportController::centerAt(const double tick, const double unit) {
+bool EditorViewportController::centerAt(const double tick, const double unit,
+                                        const bool animated) {
     if (!std::isfinite(tick) || !std::isfinite(unit))
         return false;
-    m_offsetX = tickToSceneX(tick) - m_viewportSize.width() * 0.5;
-    m_offsetY = unitToSceneY(unit) - m_viewportSize.height() * 0.5;
-    normalize(false);
-    notify(false);
+    auto target = QPointF(tickToSceneX(tick) - m_viewportSize.width() * 0.5,
+                          unitToSceneY(unit) - m_viewportSize.height() * 0.5);
+    target.setX(EditorScrollUtils::boundedOffset(target.x(), contentWidth(), m_viewportSize.width()));
+    target.setY(
+        EditorScrollUtils::boundedOffset(target.y(), contentHeight(), m_viewportSize.height()));
+    m_offsetAnimation.moveTo({m_offsetX, m_offsetY}, target, animated);
     return true;
 }
 
 bool EditorViewportController::ensureVisible(const QRectF &rect, const double xMargin,
-                                             const double yMargin) {
+                                             const double yMargin, const bool animated) {
     const auto bounds = rect.normalized();
     if (!bounds.isValid() || !std::isfinite(bounds.left()) || !std::isfinite(bounds.top()) ||
         !std::isfinite(bounds.right()) || !std::isfinite(bounds.bottom()) ||
@@ -144,20 +158,24 @@ bool EditorViewportController::ensureVisible(const QRectF &rect, const double xM
         return false;
     }
 
-    const auto previousOffset = QPointF(m_offsetX, m_offsetY);
-    m_offsetX = EditorScrollUtils::ensureVisibleOffset(
-        m_offsetX, m_viewportSize.width(), bounds.left(), bounds.right(), xMargin);
-    m_offsetY = EditorScrollUtils::ensureVisibleOffset(
-        m_offsetY, m_viewportSize.height(), bounds.top(), bounds.bottom(), yMargin);
-    normalize(false);
-    if (QPointF(m_offsetX, m_offsetY) != previousOffset)
-        notify(false);
+    const auto currentOffset = QPointF(m_offsetX, m_offsetY);
+    const auto logicalOffset = m_offsetAnimation.logicalOffset(currentOffset);
+    auto target = QPointF(
+        EditorScrollUtils::ensureVisibleOffset(logicalOffset.x(), m_viewportSize.width(),
+                                               bounds.left(), bounds.right(), xMargin),
+        EditorScrollUtils::ensureVisibleOffset(logicalOffset.y(), m_viewportSize.height(),
+                                               bounds.top(), bounds.bottom(), yMargin));
+    target.setX(EditorScrollUtils::boundedOffset(target.x(), contentWidth(), m_viewportSize.width()));
+    target.setY(
+        EditorScrollUtils::boundedOffset(target.y(), contentHeight(), m_viewportSize.height()));
+    m_offsetAnimation.moveTo(currentOffset, target, animated);
     return true;
 }
 
 bool EditorViewportController::setStartTick(const double tick) {
     if (!std::isfinite(tick))
         return false;
+    stopAnimation();
     const auto previousOffset = QPointF(m_offsetX, m_offsetY);
     m_offsetX = tickToSceneX(tick);
     normalize(false);
@@ -167,6 +185,7 @@ bool EditorViewportController::setStartTick(const double tick) {
 }
 
 void EditorViewportController::scrollBy(const QPointF &deltaPixels) {
+    stopAnimation();
     const auto previousOffset = QPointF(m_offsetX, m_offsetY);
     m_offsetX += deltaPixels.x();
     m_offsetY += deltaPixels.y();
@@ -227,6 +246,10 @@ QRectF EditorViewportController::visibleSceneRect() const {
     return {QPointF(m_offsetX, m_offsetY), m_viewportSize};
 }
 
+QRectF EditorViewportController::logicalVisibleSceneRect() const {
+    return {m_offsetAnimation.logicalOffset({m_offsetX, m_offsetY}), m_viewportSize};
+}
+
 QSizeF EditorViewportController::viewportSize() const {
     return m_viewportSize;
 }
@@ -258,6 +281,19 @@ void EditorViewportController::normalize(const bool scaleChanged) {
     m_offsetX = EditorScrollUtils::boundedOffset(m_offsetX, contentWidth(), m_viewportSize.width());
     m_offsetY =
         EditorScrollUtils::boundedOffset(m_offsetY, contentHeight(), m_viewportSize.height());
+}
+
+void EditorViewportController::applyOffset(const QPointF &offset) {
+    const auto previousOffset = QPointF(m_offsetX, m_offsetY);
+    m_offsetX = offset.x();
+    m_offsetY = offset.y();
+    normalize(false);
+    if (QPointF(m_offsetX, m_offsetY) != previousOffset)
+        notify(false);
+}
+
+void EditorViewportController::stopAnimation() {
+    m_offsetAnimation.stop();
 }
 
 void EditorViewportController::notify(const bool emitScaleChanged) {

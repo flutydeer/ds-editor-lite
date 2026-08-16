@@ -23,6 +23,7 @@
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
 #include "UI/Views/Common/EditorScrollUtils.h"
+#include "UI/Views/Common/EditorViewportAnimation.h"
 #include "UI/Views/Common/EditorWheelUtils.h"
 #include "Modules/Inference/EditSessionManager.h"
 
@@ -198,7 +199,12 @@ public:
         bool overlapped = false;
     };
 
-    explicit Private(PianoRollRhiWidget *q) : q(q) {
+    explicit Private(PianoRollRhiWidget *q)
+        : q(q), cameraAnimation([this](const QPointF &offset) {
+              cameraX = offset.x();
+              cameraY = offset.y();
+              viewportChanged(false);
+          }) {
         QObject::connect(&edgeAutoScroller, &EdgeAutoScroller::frame, q,
                          [this](const double dtMs) { onEdgeAutoScrollFrame(dtMs); });
     }
@@ -224,6 +230,7 @@ public:
         scrollBars = new EditorRhiScrollBarController(q, q);
         QObject::connect(scrollBars, &EditorRhiScrollBarController::offsetChangeRequested, q,
                          [this](const QPointF &offset) {
+                             cameraAnimation.stop();
                              cameraX = offset.x();
                              cameraY = offset.y();
                              viewportChanged(false);
@@ -240,6 +247,7 @@ public:
     }
 
     void setDataContext(SingingClip *newClip) {
+        cameraAnimation.stop();
         disarmEdgeAutoScroll();
         noteSelection.clearAnchor();
         discardNoteInteraction();
@@ -284,6 +292,7 @@ public:
             return;
 
         const auto initialViewport = !cameraInitialized;
+        const auto previousCameraY = cameraY;
         scaleX = std::max(initialViewport ? 1.0 : scaleX, minimumScaleX());
         scaleY = std::max(initialViewport ? 1.0 : scaleY, minimumScaleY());
         cameraX = 0.0;
@@ -298,10 +307,19 @@ public:
         }
         clampCamera();
         cameraInitialized = true;
-        q->notifyViewportChanged();
+        if (initialViewport) {
+            q->notifyViewportChanged();
+            return;
+        }
+
+        const auto target = QPointF(cameraX, cameraY);
+        cameraY = EditorScrollUtils::boundedOffset(previousCameraY, sceneHeight(), q->height());
+        viewportChanged(false);
+        cameraAnimation.moveTo({cameraX, cameraY}, target, true);
     }
 
     void resize() {
+        cameraAnimation.stop();
         if (!cameraInitialized) {
             if (q->isVisible())
                 initializeCamera();
@@ -352,6 +370,7 @@ public:
     bool centerAt(const double tick, const double keyIndex) {
         if (!clip || !std::isfinite(tick) || !std::isfinite(keyIndex))
             return false;
+        cameraAnimation.stop();
         cameraX = (tick - clip->start()) * pixelsPerTick() - q->width() * 0.5;
         cameraY = (127.0 - keyIndex + 0.5) * noteHeight * scaleY - q->height() * 0.5;
         viewportChanged(false);
@@ -362,6 +381,7 @@ public:
         if (!std::isfinite(horizontal) || !std::isfinite(vertical) || horizontal <= 0.0 ||
             vertical <= 0.0)
             return false;
+        cameraAnimation.stop();
         const auto centerTickValue = (startTick() + endTick()) * 0.5;
         const auto centerKey = centerKeyIndex();
         scaleX = std::clamp(horizontal, minimumScaleX(), 5.0);
@@ -376,6 +396,7 @@ public:
     }
 
     void setHorizontalBarValue(const int value) {
+        cameraAnimation.stop();
         cameraX = value;
         viewportChanged(false);
     }
@@ -417,6 +438,7 @@ public:
         if (viewportLength <= 0.0)
             return;
 
+        cameraAnimation.stop();
         const auto previousCameraX = cameraX;
         if (playbackPosition > viewportEnd) {
             const auto targetStart = playbackPosition - viewportLength;
@@ -451,20 +473,27 @@ public:
         QList<int> resolvedIds;
         const auto bounds = focusSceneRect(focus, &resolvedIds);
         if (!resolvedIds.isEmpty()) {
-            const QRectF viewport(QPointF(cameraX, cameraY), q->size());
+            const QRectF viewport(cameraAnimation.logicalOffset({cameraX, cameraY}), q->size());
             return viewport.intersects(bounds) ? HistoryFocusVisibility::Visible
                                                : HistoryFocusVisibility::ScrollRequired;
         }
         const auto tickOffset = focus.ticksAreLocal ? clip->start() : 0.0;
+        const auto logical = cameraAnimation.logicalOffset({cameraX, cameraY});
+        const auto visibleStartTick = clip->start() + logical.x() / std::max(0.0001, pixelsPerTick());
+        const auto visibleEndTick =
+            clip->start() + (logical.x() + q->width()) / std::max(0.0001, pixelsPerTick());
         const auto tickVisible =
-            focus.tickEnd + tickOffset >= startTick() && focus.tickStart + tickOffset <= endTick();
-        const auto keyVisible =
-            focus.valueEnd >= bottomKeyIndex() && focus.valueStart <= topKeyIndex();
+            focus.tickEnd + tickOffset >= visibleStartTick &&
+            focus.tickStart + tickOffset <= visibleEndTick;
+        const auto topKey = 127.0 - logical.y() / (noteHeight * scaleY);
+        const auto bottomKey =
+            127.0 - (logical.y() + q->height()) / (noteHeight * scaleY);
+        const auto keyVisible = focus.valueEnd >= bottomKey && focus.valueStart <= topKey;
         return tickVisible && keyVisible ? HistoryFocusVisibility::Visible
                                          : HistoryFocusVisibility::ScrollRequired;
     }
 
-    bool revealFocus(const HistoryFocus &focus) {
+    bool revealFocus(const HistoryFocus &focus, const bool animated) {
         if (focusVisibility(focus) == HistoryFocusVisibility::Unavailable || !clip)
             return false;
         if (focus.containerId >= 0 && focus.containerId != clip->id())
@@ -472,7 +501,7 @@ public:
         QList<int> selected;
         const auto bounds = focusSceneRect(focus, &selected);
         syncNoteSelection(selected);
-        return ensureSceneRectVisible(bounds, 24.0, 24.0);
+        return ensureSceneRectVisible(bounds, 24.0, 24.0, animated);
     }
 
     void horizontalScale(QWheelEvent *event) {
@@ -481,6 +510,7 @@ public:
         const auto delta = EditorWheelUtils::wheelDelta(event, Qt::Vertical);
         if (qFuzzyIsNull(delta))
             return;
+        cameraAnimation.stop();
         const auto oldScale = scaleX;
         auto target = delta > 0 ? oldScale * (1.0 + 0.4 * delta / 120.0)
                                 : oldScale / (1.0 + 0.4 * -delta / 120.0);
@@ -497,6 +527,7 @@ public:
         const auto delta = EditorWheelUtils::wheelDelta(event, Qt::Horizontal);
         if (qFuzzyIsNull(delta))
             return;
+        cameraAnimation.stop();
         const auto oldScale = scaleY;
         auto target = delta > 0 ? oldScale * (1.0 + 0.3 * delta / 120.0)
                                 : oldScale / (1.0 + 0.3 * -delta / 120.0);
@@ -508,12 +539,14 @@ public:
     }
 
     void horizontalScroll(QWheelEvent *event) {
+        cameraAnimation.stop();
         cameraX = EditorWheelUtils::scrollTarget(static_cast<int>(cameraX), q->width(), 0.2, event,
                                                  EditorWheelUtils::horizontalScrollAxis(event));
         viewportChanged(false);
     }
 
     void verticalScroll(QWheelEvent *event) {
+        cameraAnimation.stop();
         cameraY = EditorWheelUtils::scrollTarget(static_cast<int>(cameraY), q->height(), 0.15, event,
                                                  Qt::Vertical);
         viewportChanged(false);
@@ -591,6 +624,7 @@ public:
         const QRectF viewportRect(QPointF(), q->size());
         const auto step = edgeAutoScroller.computeDragStep(pointerPosition, viewportRect, dtMs);
         if (!step.isNull()) {
+            cameraAnimation.stop();
             cameraX += step.x();
             cameraY += step.y();
             viewportChanged(false);
@@ -1707,6 +1741,7 @@ public:
     void mousePress(QMouseEvent *event) {
         if (!clip)
             return;
+        cameraAnimation.stop();
         if (event->button() != Qt::LeftButton) {
             if (!EditorViewGlobal::isPitchEditMode(editMode))
                 updateContextNoteSelection(noteContextTargetAt(event->position()).note);
@@ -2003,26 +2038,25 @@ private:
                 std::max(keyHeight, bottom - top)};
     }
 
-    bool ensureSceneRectVisible(const QRectF &rect, const double xMargin, const double yMargin) {
+    bool ensureSceneRectVisible(const QRectF &rect, const double xMargin, const double yMargin,
+                                const bool animated) {
         const auto bounds = rect.normalized();
         if (!bounds.isValid() || !std::isfinite(bounds.left()) ||
             !std::isfinite(bounds.top()) || !std::isfinite(bounds.right()) ||
             !std::isfinite(bounds.bottom())) {
             return false;
         }
+        const auto current = QPointF(cameraX, cameraY);
+        const auto logical = cameraAnimation.logicalOffset(current);
         const auto targetX = EditorScrollUtils::boundedOffset(
-            EditorScrollUtils::ensureVisibleOffset(cameraX, q->width(), bounds.left(),
+            EditorScrollUtils::ensureVisibleOffset(logical.x(), q->width(), bounds.left(),
                                                    bounds.right(), xMargin),
             sceneWidth(), q->width());
         const auto targetY = EditorScrollUtils::boundedOffset(
-            EditorScrollUtils::ensureVisibleOffset(cameraY, q->height(), bounds.top(),
+            EditorScrollUtils::ensureVisibleOffset(logical.y(), q->height(), bounds.top(),
                                                    bounds.bottom(), yMargin),
             sceneHeight(), q->height());
-        if (cameraX == targetX && cameraY == targetY)
-            return true;
-        cameraX = targetX;
-        cameraY = targetY;
-        viewportChanged(false);
+        cameraAnimation.moveTo(current, QPointF(targetX, targetY), animated);
         return true;
     }
 
@@ -2891,6 +2925,7 @@ public:
     double scaleY = 1.0;
     double cameraX = 0.0;
     double cameraY = 0.0;
+    EditorViewportAnimation cameraAnimation;
     double playbackPosition = 0.0;
     double lastPlaybackPosition = 0.0;
     bool autoPageTurn = true;
@@ -3013,8 +3048,8 @@ HistoryFocusVisibility PianoRollRhiWidget::focusVisibility(const HistoryFocus &f
     return d->focusVisibility(focus);
 }
 
-bool PianoRollRhiWidget::revealFocus(const HistoryFocus &focus, bool) {
-    return d->revealFocus(focus);
+bool PianoRollRhiWidget::revealFocus(const HistoryFocus &focus, const bool animated) {
+    return d->revealFocus(focus, animated);
 }
 
 void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
