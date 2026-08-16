@@ -137,7 +137,7 @@ namespace {
 }
 
 TracksRhiWidget::TracksRhiWidget(QWidget *parent)
-    : EditorRhiWidget(QStringLiteral("TracksRhi"), parent), m_viewport(this),
+    : EditorRhiWidget(QStringLiteral("TracksRhi"), parent), m_viewport(nullptr),
       m_glyphAtlas(QSize(1024, 1024), 4) {
     setObjectName(QStringLiteral("TracksRhiWidget"));
     setMouseTracking(true);
