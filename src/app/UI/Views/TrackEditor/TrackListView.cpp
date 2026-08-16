@@ -5,8 +5,10 @@
 #include "Global/TracksEditorGlobal.h"
 #include "TrackAppendSlotView.h"
 
+#include <QDrag>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QPainter>
 #include <QScrollBar>
 #include <QScroller>
 #include <QTimer>
@@ -24,9 +26,16 @@ TrackListView::TrackListView(QWidget *parent) : QListWidget(parent) {
     // Enable drag and drop for track reordering
     setDragEnabled(true);
     viewport()->setAcceptDrops(true);
-    setDropIndicatorShown(true);
+    setDropIndicatorShown(false);
     setDragDropMode(QAbstractItemView::InternalMove);
     setDefaultDropAction(Qt::MoveAction);
+
+    m_dropIndicator = new QWidget(viewport());
+    m_dropIndicator->setObjectName("trackDropIndicator");
+    m_dropIndicator->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_dropIndicator->setAttribute(Qt::WA_StyledBackground);
+    m_dropIndicator->setAutoFillBackground(true);
+    m_dropIndicator->hide();
 
     // Enable auto-scroll during drag operations
     setAutoScroll(true);
@@ -51,14 +60,9 @@ bool TrackListView::moveTrackRow(const int from, const int to) {
         return true;
     if (from < 0 || from >= trackCount() || to < 0 || to >= trackCount())
         return false;
-    auto *item = takeItem(from);
-    if (!item)
-        return false;
-    auto *widget = itemWidget(item);
-    insertItem(to, item);
-    if (widget)
-        setItemWidget(item, widget);
-    return true;
+
+    const auto destination = to > from ? to + 1 : to;
+    return model()->moveRow({}, from, {}, destination);
 }
 
 void TrackListView::setAppendSlotHeight(const int height) {
@@ -70,6 +74,7 @@ void TrackListView::setAppendSlotHeight(const int height) {
 
 void TrackListView::mousePressEvent(QMouseEvent *event) {
     // Check if the click is in the drag area (track index label)
+    m_dragStartPosition = event->pos();
     m_canStartDrag = isInDragArea(event->pos());
     QListWidget::mousePressEvent(event);
     event->ignore();
@@ -100,55 +105,145 @@ void TrackListView::wheelEvent(QWheelEvent *event) {
 
 void TrackListView::dragMoveEvent(QDragMoveEvent *event) {
     QListWidget::dragMoveEvent(event);
+
+    if (!setDropInsertionIndex(dropInsertionIndex(event->position().toPoint()))) {
+        event->ignore();
+        return;
+    }
+
+    event->setDropAction(Qt::MoveAction);
+    event->accept();
+}
+
+void TrackListView::dragLeaveEvent(QDragLeaveEvent *event) {
+    QListWidget::dragLeaveEvent(event);
+    clearDropIndicator();
 }
 
 void TrackListView::startDrag(Qt::DropActions supportedActions) {
     // Save scroll position before drag starts
     m_scrollPosBeforeDrag = verticalScrollBar()->value();
-    QListWidget::startDrag(supportedActions);
+
+    const auto indexes = selectedIndexes();
+    if (indexes.isEmpty())
+        return;
+
+    auto *mimeData = model()->mimeData(indexes);
+    if (!mimeData)
+        return;
+
+    auto *drag = new QDrag(this);
+    drag->setMimeData(mimeData);
+    m_dragRow = indexes.first().row();
+    if (const auto *dragItem = item(m_dragRow)) {
+        const auto rowRect = visualItemRect(dragItem);
+        const auto rowPixmap = viewport()->grab(rowRect);
+        QPixmap dragPixmap(rowPixmap.size());
+        dragPixmap.setDevicePixelRatio(rowPixmap.devicePixelRatio());
+        dragPixmap.fill(Qt::transparent);
+        {
+            QPainter painter(&dragPixmap);
+            painter.setOpacity(0.65);
+            painter.drawPixmap(QPoint{}, rowPixmap);
+        }
+        drag->setPixmap(dragPixmap);
+        drag->setHotSpot(m_dragStartPosition - rowRect.topLeft());
+    }
+    drag->exec(supportedActions & ~Qt::CopyAction, Qt::MoveAction);
+    m_dragRow = -1;
+    clearDropIndicator();
 }
 
 void TrackListView::dropEvent(QDropEvent *event) {
-    const auto selectedItems = selectedIndexes();
-    if (selectedItems.isEmpty()) {
+    const auto dropRow = dropInsertionIndex(event->position().toPoint());
+    const auto moved = moveDraggedTrack(dropRow);
+    clearDropIndicator();
+
+    if (!moved) {
         event->ignore();
         return;
     }
 
-    const auto dragRow = selectedItems.first().row();
-    auto dropRow = indexAt(event->position().toPoint()).row();
-    const auto dropIndicator = dropIndicatorPosition();
-
-    // The append-slot placeholder row is not a valid drop target; dropping on
-    // it (or past the last real track) appends to the end of the list.
-    if (dropRow < 0 || dropRow >= trackCount()) {
-        dropRow = trackCount();
-    } else if (dropIndicator == BelowItem) {
-        dropRow++;
-    } else if (dropIndicator == AboveItem && dragRow < dropRow) {
-        dropRow++;
-    }
-
-    if (dragRow == dropRow || (dragRow + 1 == dropRow && dragRow < trackCount() - 1)) {
-        event->ignore();
-        return;
-    }
-
-    // Save current scroll position before the move operation
-    const int currentScrollPos = verticalScrollBar()->value();
-    // Moving downward removes the source row first, so the destination index shifts up by one.
-    const auto finalRow = dropRow > dragRow ? dropRow - 1 : dropRow;
-
-    event->setDropAction(Qt::IgnoreAction);
+    event->setDropAction(Qt::MoveAction);
     event->accept();
+}
 
-    TrackController::onMoveTrack(dragRow, dropRow);
+int TrackListView::dropInsertionIndex(const QPoint &pos) const {
+    const auto count = trackCount();
+    if (m_dragRow < 0 || count == 0)
+        return -1;
 
-    // Restore scroll position after the model update
+    const auto targetItem = itemAt(pos);
+    if (!targetItem) {
+        const auto lastTrackRect = visualItemRect(item(count - 1));
+        return pos.y() >= lastTrackRect.center().y() ? count : -1;
+    }
+
+    const auto targetRow = row(targetItem);
+    if (targetRow == count)
+        return count;
+    if (targetRow < 0 || targetRow > count)
+        return -1;
+
+    const auto targetRect = visualItemRect(targetItem);
+    return pos.y() < targetRect.center().y() ? targetRow : targetRow + 1;
+}
+
+bool TrackListView::setDropInsertionIndex(const int insertionIndex) {
+    if (!isValidDropInsertionIndex(insertionIndex)) {
+        clearDropIndicator();
+        return false;
+    }
+
+    updateDropIndicator(insertionIndex);
+    return true;
+}
+
+bool TrackListView::isValidDropInsertionIndex(const int insertionIndex) const {
+    return m_dragRow >= 0 && m_dragRow < trackCount() && insertionIndex >= 0 &&
+           insertionIndex <= trackCount() && insertionIndex != m_dragRow &&
+           insertionIndex != m_dragRow + 1;
+}
+
+bool TrackListView::moveDraggedTrack(const int insertionIndex) {
+    if (!isValidDropInsertionIndex(insertionIndex))
+        return false;
+
+    const auto dragRow = m_dragRow;
+    const auto currentScrollPos = verticalScrollBar()->value();
+    // Moving downward removes the source row first, so the destination index shifts up by one.
+    const auto finalRow = insertionIndex > dragRow ? insertionIndex - 1 : insertionIndex;
+
+    TrackController::onMoveTrack(dragRow, insertionIndex);
+
     QTimer::singleShot(0, this, [this, currentScrollPos, finalRow]() {
         setCurrentRow(finalRow);
         verticalScrollBar()->setValue(currentScrollPos);
     });
+    return true;
+}
+
+void TrackListView::updateDropIndicator(const int insertionIndex) {
+    const auto count = trackCount();
+    if (!m_dropIndicator || insertionIndex < 0 || insertionIndex > count || count == 0) {
+        clearDropIndicator();
+        return;
+    }
+
+    const auto boundary = insertionIndex == count
+                              ? visualItemRect(item(count - 1)).bottom() + 1
+                              : visualItemRect(item(insertionIndex)).top();
+    constexpr auto indicatorHeight = 2;
+    const auto top = qBound(0, boundary - indicatorHeight / 2,
+                            viewport()->height() - indicatorHeight);
+    m_dropIndicator->setGeometry(0, top, viewport()->width(), indicatorHeight);
+    m_dropIndicator->raise();
+    m_dropIndicator->show();
+}
+
+void TrackListView::clearDropIndicator() {
+    if (m_dropIndicator)
+        m_dropIndicator->hide();
 }
 
 bool TrackListView::isInDragArea(const QPoint &pos) const {
