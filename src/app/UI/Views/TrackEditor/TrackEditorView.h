@@ -86,6 +86,7 @@ private:
     TrackEditorContextMenuController *m_contextMenuController = nullptr;
     QSplitter *m_splitter = nullptr;
     QVBoxLayout *m_trackTimelineAndViewLayout = nullptr;
+    bool m_syncingVerticalScroll = false;
 
     class ViewModel {
     public:

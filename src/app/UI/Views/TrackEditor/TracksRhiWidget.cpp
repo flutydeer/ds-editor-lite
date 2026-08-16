@@ -17,7 +17,7 @@
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
-#include "UI/Views/Common/EditorWheelUtils.h"
+#include "UI/Views/Common/EditorWheelController.h"
 
 #include <lite/MusicBase/TimelineSnapUtils.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -41,6 +41,7 @@
 #include <QMetaObject>
 #include <QMimeData>
 #include <QMouseEvent>
+#include <QNativeGestureEvent>
 #include <QPainter>
 #include <QResizeEvent>
 #include <QSet>
@@ -148,6 +149,7 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     m_viewport.setContentTickRange(0.0, effectiveSceneLength());
     // One extra unit for the virtual append slot at the bottom of the canvas
     m_viewport.setVerticalContent(appModel->tracks().size() + 1, trackHeight);
+    m_wheelController = std::make_unique<EditorWheelController>(&m_viewport, this);
 
     m_scrollBars = new EditorRhiScrollBarController(this, this);
     connect(m_scrollBars, &EditorRhiScrollBarController::offsetChangeRequested, this,
@@ -365,30 +367,23 @@ void TracksRhiWidget::setLastPlaybackPosition(const double tick) {
 }
 
 void TracksRhiWidget::onWheelHorScale(QWheelEvent *event) {
-    m_viewport.zoomHorizontal(EditorWheelUtils::wheelDelta(event, Qt::Vertical),
-                              event->position().x());
+    m_wheelController->horizontalScale(event);
 }
 
 void TracksRhiWidget::onWheelVerScale(QWheelEvent *event) {
-    m_viewport.zoomVertical(EditorWheelUtils::wheelDelta(event, Qt::Horizontal),
-                            event->position().y());
+    m_wheelController->verticalScale(event);
 }
 
 void TracksRhiWidget::onWheelHorScroll(QWheelEvent *event) {
-    const auto target = m_horizontalWheelScroll.scrollTarget(
-        static_cast<int>(m_viewport.horizontalOffset()), width(), 0.2, event,
-        EditorWheelUtils::horizontalScrollAxis(event));
-    m_viewport.scrollBy({target - m_viewport.horizontalOffset(), 0.0});
+    m_wheelController->horizontalScroll(event);
 }
 
 void TracksRhiWidget::onWheelVerScroll(QWheelEvent *event) {
-    const auto startValue = static_cast<int>(m_viewport.verticalOffset());
-    const auto target =
-        m_verticalWheelScroll.scrollTarget(startValue, height(), 0.15, event, Qt::Vertical);
-    m_viewport.scrollBy({0.0, target - m_viewport.verticalOffset()});
+    m_wheelController->verticalScroll(event);
 }
 
 void TracksRhiWidget::setVerticalOffset(const double value) {
+    m_wheelController->stop();
     m_viewport.scrollBy({0.0, value - m_viewport.verticalOffset()});
 }
 
@@ -435,22 +430,20 @@ void TracksRhiWidget::hideEvent(QHideEvent *event) {
 }
 
 void TracksRhiWidget::wheelEvent(QWheelEvent *event) {
-    if (event->modifiers() == Qt::ControlModifier)
-        onWheelHorScale(event);
-    else if (event->modifiers() == Qt::AltModifier)
-        onWheelVerScale(event);
-    else if (event->modifiers() == Qt::ShiftModifier)
-        onWheelHorScroll(event);
-    else if (event->modifiers() == Qt::NoModifier) {
-        if (EditorWheelUtils::dominantAxis(event) == Qt::Horizontal)
-            onWheelHorScroll(event);
-        else
-            onWheelVerScroll(event);
+    if (!m_wheelController->handleWheel(event))
+        EditorRhiWidget::wheelEvent(event);
+}
+
+bool TracksRhiWidget::event(QEvent *event) {
+    if (event->type() == QEvent::NativeGesture &&
+        m_wheelController->handleNativeGesture(static_cast<QNativeGestureEvent *>(event))) {
+        return true;
     }
-    event->accept();
+    return EditorRhiWidget::event(event);
 }
 
 void TracksRhiWidget::mousePressEvent(QMouseEvent *event) {
+    m_wheelController->stop();
     setFocus(Qt::MouseFocusReason);
     disarmDragAutoScroll();
     const auto *hit = hitTest(event->position());

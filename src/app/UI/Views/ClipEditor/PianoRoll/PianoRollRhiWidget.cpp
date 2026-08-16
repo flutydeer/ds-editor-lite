@@ -22,7 +22,7 @@
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
 #include "UI/Views/Common/EditorViewportController.h"
-#include "UI/Views/Common/EditorWheelUtils.h"
+#include "UI/Views/Common/EditorWheelController.h"
 #include "Modules/Inference/EditSessionManager.h"
 
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
@@ -46,6 +46,7 @@
 #include <QLineF>
 #include <QMetaObject>
 #include <QMouseEvent>
+#include <QNativeGestureEvent>
 #include <QPainter>
 #include <QResizeEvent>
 #include <QSet>
@@ -197,7 +198,7 @@ public:
         bool overlapped = false;
     };
 
-    explicit Private(PianoRollRhiWidget *q) : q(q), viewport(q) {
+    explicit Private(PianoRollRhiWidget *q) : q(q), viewport(q), wheel(&viewport, q) {
         viewport.setPixelsPerQuarterNote(pixelsPerQuarterNote);
         viewport.setScaleBounds(0.01, 5.0, 0.5, 8.0);
         viewport.setEnsureContentFillsViewport(true, true);
@@ -481,28 +482,21 @@ public:
     void horizontalScale(QWheelEvent *event) {
         if (!clip)
             return;
-        viewport.zoomHorizontal(EditorWheelUtils::wheelDelta(event, Qt::Vertical),
-                                event->position().x());
+        wheel.horizontalScale(event);
     }
 
     void verticalScale(QWheelEvent *event) {
         if (!clip)
             return;
-        viewport.zoomVertical(EditorWheelUtils::wheelDelta(event, Qt::Horizontal),
-                              event->position().y());
+        wheel.verticalScale(event);
     }
 
     void horizontalScroll(QWheelEvent *event) {
-        const auto target = horizontalWheelScroll.scrollTarget(
-            static_cast<int>(horizontalOffset()), q->width(), 0.2, event,
-            EditorWheelUtils::horizontalScrollAxis(event));
-        viewport.setOffset({static_cast<double>(target), verticalOffset()});
+        wheel.horizontalScroll(event);
     }
 
     void verticalScroll(QWheelEvent *event) {
-        const auto target = verticalWheelScroll.scrollTarget(
-            static_cast<int>(verticalOffset()), q->height(), 0.15, event, Qt::Vertical);
-        viewport.setOffset({horizontalOffset(), static_cast<double>(target)});
+        wheel.verticalScroll(event);
     }
 
     QPointF scenePositionAt(const QPointF &viewportPosition) const {
@@ -2677,8 +2671,7 @@ public:
     bool showAnchorPreview = false;
     bool showAnchorMergePreview = false;
     EditorViewportController viewport;
-    EditorWheelUtils::ScrollAccumulator horizontalWheelScroll;
-    EditorWheelUtils::ScrollAccumulator verticalWheelScroll;
+    EditorWheelController wheel;
     double playbackPosition = 0.0;
     double lastPlaybackPosition = 0.0;
     bool autoPageTurn = true;
@@ -2872,22 +2865,20 @@ void PianoRollRhiWidget::resizeEvent(QResizeEvent *event) {
 }
 
 void PianoRollRhiWidget::wheelEvent(QWheelEvent *event) {
-    if (event->modifiers() == Qt::ControlModifier)
-        onWheelHorScale(event);
-    else if (event->modifiers() == Qt::AltModifier)
-        onWheelVerScale(event);
-    else if (event->modifiers() == Qt::ShiftModifier)
-        onWheelHorScroll(event);
-    else if (event->modifiers() == Qt::NoModifier) {
-        if (EditorWheelUtils::dominantAxis(event) == Qt::Horizontal)
-            onWheelHorScroll(event);
-        else
-            onWheelVerScroll(event);
+    if (!d->wheel.handleWheel(event))
+        EditorRhiWidget::wheelEvent(event);
+}
+
+bool PianoRollRhiWidget::event(QEvent *event) {
+    if (d->clip && event->type() == QEvent::NativeGesture &&
+        d->wheel.handleNativeGesture(static_cast<QNativeGestureEvent *>(event))) {
+        return true;
     }
-    event->accept();
+    return EditorRhiWidget::event(event);
 }
 
 void PianoRollRhiWidget::mousePressEvent(QMouseEvent *event) {
+    d->wheel.stop();
     setFocus(Qt::MouseFocusReason);
     if (event->button() == Qt::LeftButton)
         d->prepareEdgeAutoScroll(event->position());

@@ -245,7 +245,7 @@ void TimelineView::drawSubdivision(QPainter *painter, int tick, int level, int l
 
 void TimelineView::wheelEvent(QWheelEvent *event) {
     emit wheelHorScale(event);
-    QWidget::wheelEvent(event);
+    event->accept();
 }
 
 void TimelineView::mousePressEvent(QMouseEvent *event) {

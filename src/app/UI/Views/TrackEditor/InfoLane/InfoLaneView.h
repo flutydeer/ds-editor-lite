@@ -38,6 +38,7 @@ public slots:
 
 signals:
     void wheelHorScale(QWheelEvent *event);
+    void wheelVerScale(QWheelEvent *event);
     void wheelHorScroll(QWheelEvent *event);
     void wheelVerScroll(QWheelEvent *event);
 

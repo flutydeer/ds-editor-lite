@@ -198,10 +198,14 @@ void InfoLaneView::paintEvent(QPaintEvent *event) {
 void InfoLaneView::wheelEvent(QWheelEvent *event) {
     if (event->modifiers() == Qt::ControlModifier)
         emit wheelHorScale(event);
+    else if (event->modifiers() == Qt::AltModifier)
+        emit wheelVerScale(event);
     else if (event->modifiers() == Qt::ShiftModifier)
         emit wheelHorScroll(event);
-    else
+    else if (event->modifiers() == Qt::NoModifier)
         emit wheelVerScroll(event);
+    else
+        event->ignore();
 }
 
 void InfoLaneView::mouseDoubleClickEvent(QMouseEvent *event) {

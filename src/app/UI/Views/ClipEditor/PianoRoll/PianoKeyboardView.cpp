@@ -95,11 +95,8 @@ void PianoKeyboardView::paintEvent(QPaintEvent *event) {
 }
 
 void PianoKeyboardView::wheelEvent(QWheelEvent *e) {
-    const auto angleDelta = e->angleDelta().transposed();
-    const auto event =
-        new QWheelEvent(e->position(), e->globalPosition(), e->pixelDelta(), angleDelta,
-                        e->buttons(), e->modifiers(), e->phase(), e->inverted());
-    emit wheelScroll(event);
+    emit wheelScroll(e);
+    e->accept();
 }
 
 void PianoKeyboardView::enterEvent(QEnterEvent *event) {

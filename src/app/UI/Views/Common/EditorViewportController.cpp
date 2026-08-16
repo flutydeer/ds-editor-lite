@@ -182,22 +182,6 @@ void EditorViewportController::scrollBy(const QPointF &deltaPixels) {
     setOffset(QPointF(m_offsetX, m_offsetY) + deltaPixels);
 }
 
-void EditorViewportController::zoomHorizontal(const double wheelDelta, const double anchorX) {
-    if (qFuzzyIsNull(wheelDelta))
-        return;
-    const auto factor =
-        wheelDelta > 0.0 ? 1.0 + 0.4 * wheelDelta / 120.0 : 1.0 / (1.0 + 0.4 * -wheelDelta / 120.0);
-    setScale(m_scaleX * factor, m_scaleY, {anchorX, m_viewportSize.height() * 0.5});
-}
-
-void EditorViewportController::zoomVertical(const double wheelDelta, const double anchorY) {
-    if (qFuzzyIsNull(wheelDelta))
-        return;
-    const auto factor =
-        wheelDelta > 0.0 ? 1.0 + 0.3 * wheelDelta / 120.0 : 1.0 / (1.0 + 0.3 * -wheelDelta / 120.0);
-    setScale(m_scaleX, m_scaleY * factor, {m_viewportSize.width() * 0.5, anchorY});
-}
-
 double EditorViewportController::horizontalScale() const {
     return m_scaleX;
 }
@@ -232,6 +216,21 @@ double EditorViewportController::verticalOffset() const {
 
 QPointF EditorViewportController::offset() const {
     return {m_offsetX, m_offsetY};
+}
+
+double EditorViewportController::maximumOffset(const Qt::Orientation orientation) const {
+    return orientation == Qt::Horizontal
+               ? EditorScrollUtils::rangeMaximum(contentWidth(), m_viewportSize.width())
+               : EditorScrollUtils::rangeMaximum(contentHeight(), m_viewportSize.height());
+}
+
+double EditorViewportController::boundedScale(const Qt::Orientation orientation,
+                                              const double requested) const {
+    if (!std::isfinite(requested) || requested <= 0.0)
+        return orientation == Qt::Horizontal ? m_scaleX : m_scaleY;
+    return orientation == Qt::Horizontal
+               ? std::clamp(requested, effectiveMinimumScaleX(), m_maxScaleX)
+               : std::clamp(requested, effectiveMinimumScaleY(), m_maxScaleY);
 }
 
 QRectF EditorViewportController::visibleSceneRect() const {

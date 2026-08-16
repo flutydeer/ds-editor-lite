@@ -9,7 +9,6 @@
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
 #include "UI/Views/Common/EditorViewportController.h"
-#include "UI/Views/Common/EditorWheelUtils.h"
 #include "UI/Views/Common/EdgeAutoScroller.h"
 
 #include <lite/History/HistoryFocus.h>
@@ -25,10 +24,12 @@ class QDragEnterEvent;
 class QDragLeaveEvent;
 class QDragMoveEvent;
 class QDropEvent;
+class QEvent;
 class QHideEvent;
 class QKeyEvent;
 class QMouseEvent;
 class EditorRhiScrollBarController;
+class EditorWheelController;
 class QResizeEvent;
 class QShowEvent;
 class QWheelEvent;
@@ -101,6 +102,7 @@ signals:
     void externalDropRequested(const TrackDropSlot &slot, const QList<QUrl> &urls);
 
 protected:
+    bool event(QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;
     void hideEvent(QHideEvent *event) override;
@@ -229,8 +231,7 @@ private:
     void setDropIndicatorColor(const QColor &color);
 
     EditorViewportController m_viewport;
-    EditorWheelUtils::ScrollAccumulator m_horizontalWheelScroll;
-    EditorWheelUtils::ScrollAccumulator m_verticalWheelScroll;
+    std::unique_ptr<EditorWheelController> m_wheelController;
     EditorGlyphAtlas m_glyphAtlas;
     EditorRhiScrollBarController *m_scrollBars = nullptr;
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;

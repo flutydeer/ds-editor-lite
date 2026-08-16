@@ -243,12 +243,16 @@ void TrackEditorView::connectLegacyBackend() {
             &TracksGraphicsView::onWheelHorScale);
     connect(m_tempoLane, &InfoLaneView::wheelHorScale, m_graphicsView,
             &TracksGraphicsView::onWheelHorScale);
+    connect(m_tempoLane, &InfoLaneView::wheelVerScale, m_graphicsView,
+            &TracksGraphicsView::onWheelVerScale);
     connect(m_tempoLane, &InfoLaneView::wheelHorScroll, m_graphicsView,
             &TracksGraphicsView::onWheelHorScroll);
     connect(m_tempoLane, &InfoLaneView::wheelVerScroll, m_graphicsView,
             &TracksGraphicsView::onWheelVerScroll);
     connect(m_timeSignatureLane, &InfoLaneView::wheelHorScale, m_graphicsView,
             &TracksGraphicsView::onWheelHorScale);
+    connect(m_timeSignatureLane, &InfoLaneView::wheelVerScale, m_graphicsView,
+            &TracksGraphicsView::onWheelVerScale);
     connect(m_timeSignatureLane, &InfoLaneView::wheelHorScroll, m_graphicsView,
             &TracksGraphicsView::onWheelHorScroll);
     connect(m_timeSignatureLane, &InfoLaneView::wheelVerScroll, m_graphicsView,
@@ -257,10 +261,23 @@ void TrackEditorView::connectLegacyBackend() {
             &TracksGraphicsView::onWheelVerScale);
     connect(m_trackListView, &TrackListView::wheelVerScroll, m_graphicsView,
             &TracksGraphicsView::onWheelVerScroll);
-    connect(m_graphicsView->verticalScrollBar(), &QScrollBar::valueChanged,
-            m_trackListView->verticalScrollBar(), &QScrollBar::setValue);
-    connect(m_trackListView->verticalScrollBar(), &QScrollBar::valueChanged,
-            m_graphicsView->verticalScrollBar(), &QScrollBar::setValue);
+    connect(m_graphicsView->verticalScrollBar(), &QScrollBar::valueChanged, this,
+            [this](const int value) {
+                if (m_syncingVerticalScroll)
+                    return;
+                m_syncingVerticalScroll = true;
+                m_trackListView->verticalScrollBar()->setValue(value);
+                m_syncingVerticalScroll = false;
+            });
+    connect(m_trackListView->verticalScrollBar(), &QScrollBar::valueChanged, this,
+            [this](const int value) {
+                if (m_syncingVerticalScroll)
+                    return;
+                m_syncingVerticalScroll = true;
+                m_graphicsView->stopViewportAnimations();
+                m_graphicsView->setVerticalBarValue(value);
+                m_syncingVerticalScroll = false;
+            });
     connect(appStatus, &AppStatus::projectEditableLengthChanged, m_graphicsView,
             &TracksGraphicsView::setSceneLength);
     connect(m_graphicsView, &TracksGraphicsView::autoPageTurnAvailabilityChanged, this,
@@ -286,12 +303,16 @@ void TrackEditorView::connectRhiBackend() {
     connect(m_timeline, &TimelineView::wheelHorScale, m_rhiView, &TracksRhiWidget::onWheelHorScale);
     connect(m_tempoLane, &InfoLaneView::wheelHorScale, m_rhiView,
             &TracksRhiWidget::onWheelHorScale);
+    connect(m_tempoLane, &InfoLaneView::wheelVerScale, m_rhiView,
+            &TracksRhiWidget::onWheelVerScale);
     connect(m_tempoLane, &InfoLaneView::wheelHorScroll, m_rhiView,
             &TracksRhiWidget::onWheelHorScroll);
     connect(m_tempoLane, &InfoLaneView::wheelVerScroll, m_rhiView,
             &TracksRhiWidget::onWheelVerScroll);
     connect(m_timeSignatureLane, &InfoLaneView::wheelHorScale, m_rhiView,
             &TracksRhiWidget::onWheelHorScale);
+    connect(m_timeSignatureLane, &InfoLaneView::wheelVerScale, m_rhiView,
+            &TracksRhiWidget::onWheelVerScale);
     connect(m_timeSignatureLane, &InfoLaneView::wheelHorScroll, m_rhiView,
             &TracksRhiWidget::onWheelHorScroll);
     connect(m_timeSignatureLane, &InfoLaneView::wheelVerScroll, m_rhiView,
@@ -300,10 +321,21 @@ void TrackEditorView::connectRhiBackend() {
             &TracksRhiWidget::onWheelVerScale);
     connect(m_trackListView, &TrackListView::wheelVerScroll, m_rhiView,
             &TracksRhiWidget::onWheelVerScroll);
-    connect(m_rhiView, &TracksRhiWidget::verticalOffsetChanged,
-            m_trackListView->verticalScrollBar(), &QScrollBar::setValue);
-    connect(m_trackListView->verticalScrollBar(), &QScrollBar::valueChanged, m_rhiView,
-            &TracksRhiWidget::setVerticalOffset);
+    connect(m_rhiView, &TracksRhiWidget::verticalOffsetChanged, this, [this](const double value) {
+        if (m_syncingVerticalScroll)
+            return;
+        m_syncingVerticalScroll = true;
+        m_trackListView->verticalScrollBar()->setValue(qRound(value));
+        m_syncingVerticalScroll = false;
+    });
+    connect(m_trackListView->verticalScrollBar(), &QScrollBar::valueChanged, this,
+            [this](const int value) {
+                if (m_syncingVerticalScroll)
+                    return;
+                m_syncingVerticalScroll = true;
+                m_rhiView->setVerticalOffset(value);
+                m_syncingVerticalScroll = false;
+            });
     connect(appStatus, &AppStatus::projectEditableLengthChanged, m_rhiView,
             &TracksRhiWidget::setSceneLength);
     connect(m_rhiView, &EditorRhiWidget::backendFailed, this,

@@ -8,27 +8,19 @@
 #include <QShowEvent>
 #include <QWheelEvent>
 
+#include <algorithm>
 #include <cmath>
 
 #include "TimeGraphicsScene.h"
 #include "TimeGridView.h"
 #include "TimeIndicatorView.h"
-#include "EditorWheelUtils.h"
+#include "EditorWheelController.h"
 #include "Controller/PlaybackController.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "Model/AppStatus/AppStatus.h"
-#include "Model/AppOptions/AppOptions.h"
 #include "Global/AppGlobal.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/GUI/Controls/OverlayScrollBar.h>
-
-static inline bool isDirectManipulationEnabled() {
-#if defined(WITH_DIRECT_MANIPULATION)
-    return appOptions->appearance()->enableDirectManipulation;
-#else
-    return false;
-#endif
-}
 
 TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlaybackPosition,
                                    QWidget *parent)
@@ -51,14 +43,6 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     // OverlayScrollBar visibility is controlled internally by rangeChanged; use
     // setRangeVisible(false) to keep it hidden (e.g. the parameter editor).
 
-    m_scaleXAnimation.setTargetObject(this);
-    m_scaleXAnimation.setPropertyName("scaleX");
-    m_scaleXAnimation.setEasingCurve(QEasingCurve::OutCubic);
-
-    m_scaleYAnimation.setTargetObject(this);
-    m_scaleYAnimation.setPropertyName("scaleY");
-    m_scaleYAnimation.setEasingCurve(QEasingCurve::OutCubic);
-
     m_hBarAnimation.setTargetObject(this);
     m_hBarAnimation.setPropertyName("horizontalScrollBarValue");
     m_hBarAnimation.setEasingCurve(QEasingCurve::OutCubic);
@@ -66,6 +50,65 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     m_vBarAnimation.setTargetObject(this);
     m_vBarAnimation.setPropertyName("verticalScrollBarValue");
     m_vBarAnimation.setEasingCurve(QEasingCurve::OutCubic);
+
+    m_wheelInput.setDiscreteAnimationEnabled(isEditorWheelAnimationEnabled);
+    const auto installScrollTarget = [this](const Qt::Orientation orientation,
+                                            const double viewportFraction) {
+        m_wheelInput.setScrollTarget(
+            orientation, {
+                             .value =
+                                 [this, orientation] {
+                                     return orientation == Qt::Horizontal ? horizontalBarValue()
+                                                                          : verticalBarValue();
+                                 },
+                             .setValue =
+                                 [this, orientation](const double value) {
+                                     if (orientation == Qt::Horizontal)
+                                         setHorizontalBarValue(qRound(value));
+                                     else
+                                         setVerticalBarValue(qRound(value));
+                                 },
+                             .boundedValue =
+                                 [this, orientation](const double value) {
+                                     const auto *bar = orientation == Qt::Horizontal
+                                                           ? horizontalScrollBar()
+                                                           : verticalScrollBar();
+                                     return static_cast<double>(
+                                         qBound(bar->minimum(), qRound(value), bar->maximum()));
+                                 },
+                             .step =
+                                 [this, orientation, viewportFraction] {
+                                     return (orientation == Qt::Horizontal ? viewport()->width()
+                                                                           : viewport()->height()) *
+                                            viewportFraction;
+                                 },
+                             .canScroll = [] { return true; },
+                         });
+    };
+    installScrollTarget(Qt::Horizontal, 0.2);
+    installScrollTarget(Qt::Vertical, 0.15);
+    m_wheelInput.setZoomTarget(
+        Qt::Horizontal,
+        {
+            .value = [this] { return scaleX(); },
+            .setValueAt =
+                [this](const double value, const double anchor) {
+                    setScaleAt(Qt::Horizontal, value, anchor);
+                },
+            .boundedValue =
+                [this](const double value) { return boundedScale(Qt::Horizontal, value); },
+            .step = 0.4,
+        });
+    m_wheelInput.setZoomTarget(
+        Qt::Vertical,
+        {
+            .value = [this] { return scaleY(); },
+            .setValueAt = [this](const double value,
+                                 const double anchor) { setScaleAt(Qt::Vertical, value, anchor); },
+            .boundedValue =
+                [this](const double value) { return boundedScale(Qt::Vertical, value); },
+            .step = 0.3,
+        });
 
     const auto clearLogicalViewport = [this] {
         if (m_hBarAnimation.state() == QAbstractAnimation::Running ||
@@ -211,12 +254,18 @@ QRectF TimeGraphicsView::visibleRect() const {
 
 QRectF TimeGraphicsView::logicalVisibleRect() const {
     const auto rect = visibleRect();
-    if ((!m_logicalHorizontalBarValue.has_value() && !m_logicalVerticalBarValue.has_value()) ||
-        scaleX() <= 0 || scaleY() <= 0)
+    const auto wheelHorizontal = m_wheelInput.logicalScrollValue(Qt::Horizontal);
+    const auto wheelVertical = m_wheelInput.logicalScrollValue(Qt::Vertical);
+    if ((!m_logicalHorizontalBarValue.has_value() && !m_logicalVerticalBarValue.has_value() &&
+         !wheelHorizontal.has_value() && !wheelVertical.has_value()) ||
+        scaleX() <= 0 || scaleY() <= 0) {
         return rect;
+    }
 
-    const auto horizontalValue = m_logicalHorizontalBarValue.value_or(horizontalBarValue());
-    const auto verticalValue = m_logicalVerticalBarValue.value_or(verticalBarValue());
+    const auto horizontalValue =
+        m_logicalHorizontalBarValue.value_or(wheelHorizontal.value_or(horizontalBarValue()));
+    const auto verticalValue =
+        m_logicalVerticalBarValue.value_or(wheelVertical.value_or(verticalBarValue()));
     return rect.translated((horizontalValue - horizontalBarValue()) / scaleX(),
                            (verticalValue - verticalBarValue()) / scaleY());
 }
@@ -274,102 +323,24 @@ void TimeGraphicsView::notifyVisibleRectChanged() {
 }
 
 void TimeGraphicsView::onWheelHorScale(QWheelEvent *event) {
-    auto cursorPos = event->position().toPoint();
-    auto scenePos = mapToScene(cursorPos);
-
-    const auto deltaY = EditorWheelUtils::wheelDelta(event, Qt::Vertical);
-
-    auto targetScaleX = scaleX();
-    if (deltaY > 0)
-        targetScaleX = scaleX() * (1 + m_hZoomingStep * deltaY / 120);
-    else if (deltaY < 0)
-        targetScaleX = scaleX() / (1 + m_hZoomingStep * -deltaY / 120);
-
-    if (targetScaleX > m_scaleXMax)
-        targetScaleX = m_scaleXMax;
-
-    auto scaledSceneWidth = sceneRect().width() * (targetScaleX / scaleX());
-    if (scaledSceneWidth < viewport()->width()) {
-        auto targetSceneWidth = viewport()->width();
-        targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
-    }
-
-    auto ratio = targetScaleX / scaleX();
-    auto targetSceneX = scenePos.x() * ratio;
-    auto targetValue = qRound(targetSceneX - cursorPos.x());
-    if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event)) {
-        setScaleX(targetScaleX);
-        setHorizontalBarValue(targetValue);
-    } else {
-        m_scaleXAnimation.stop();
-        m_scaleXAnimation.setStartValue(scaleX());
-        m_scaleXAnimation.setEndValue(targetScaleX);
-        m_scaleXAnimation.start();
-
-        horizontalBarAnimateTo(targetValue);
-    }
+    stopProgrammaticViewportAnimations();
+    m_wheelInput.handleWheel(event, WheelInputController::Action::HorizontalZoom, Qt::Vertical);
 }
 
 void TimeGraphicsView::onWheelVerScale(QWheelEvent *event) {
-    auto cursorPos = event->position().toPoint();
-    auto scenePos = mapToScene(cursorPos);
-
-    const auto deltaX = EditorWheelUtils::wheelDelta(event, Qt::Horizontal);
-    auto targetScaleY = scaleY();
-    if (deltaX > 0)
-        targetScaleY = scaleY() * (1 + m_vZoomingStep * deltaX / 120);
-    else if (deltaX < 0)
-        targetScaleY = scaleY() / (1 + m_vZoomingStep * -deltaX / 120);
-
-    if (targetScaleY < m_scaleYMin)
-        targetScaleY = m_scaleYMin;
-    else if (targetScaleY > m_scaleYMax)
-        targetScaleY = m_scaleYMax;
-
-    auto scaledSceneHeight = sceneRect().height() * (targetScaleY / scaleY());
-    if (m_ensureSceneFillViewY && scaledSceneHeight < viewport()->height()) {
-        auto targetSceneHeight = viewport()->height();
-        targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
-    }
-
-    auto ratio = targetScaleY / scaleY();
-    auto targetSceneY = scenePos.y() * ratio;
-    auto targetValue = qRound(targetSceneY - cursorPos.y());
-    if (isDirectManipulationEnabled() || !isMouseEventFromWheel(event)) {
-        setScaleY(targetScaleY);
-        setVerticalBarValue(targetValue);
-    } else {
-        m_scaleYAnimation.stop();
-        m_scaleYAnimation.setStartValue(scaleY());
-        m_scaleYAnimation.setEndValue(targetScaleY);
-        m_scaleYAnimation.start();
-
-        verticalBarAnimateTo(targetValue);
-    }
+    stopProgrammaticViewportAnimations();
+    m_wheelInput.handleWheel(event, WheelInputController::Action::VerticalZoom, Qt::Vertical);
 }
 
 void TimeGraphicsView::onWheelHorScroll(QWheelEvent *event) {
-    const auto fromWheel = isMouseEventFromWheel(event);
-    auto startValue = horizontalBarValue();
-    auto endValue = m_horizontalWheelScroll.scrollTarget(
-        startValue, viewport()->width(), 0.2, event, EditorWheelUtils::horizontalScrollAxis(event));
-    if (isDirectManipulationEnabled() || !fromWheel)
-        setHorizontalBarValue(endValue);
-    else {
-        horizontalBarAnimateTo(endValue);
-    }
+    stopProgrammaticViewportAnimations();
+    const auto sourceAxis = event->modifiers() == Qt::ShiftModifier ? Qt::Vertical : Qt::Horizontal;
+    m_wheelInput.handleWheel(event, WheelInputController::Action::HorizontalScroll, sourceAxis);
 }
 
 void TimeGraphicsView::onWheelVerScroll(QWheelEvent *event) {
-    const auto fromWheel = isMouseEventFromWheel(event);
-    const auto startValue = verticalBarValue();
-    const auto endValue = m_verticalWheelScroll.scrollTarget(startValue, viewport()->height(), 0.15,
-                                                             event, Qt::Vertical);
-    if (isDirectManipulationEnabled() || !fromWheel) {
-        setVerticalBarValue(endValue);
-    } else {
-        verticalBarAnimateTo(endValue);
-    }
+    stopProgrammaticViewportAnimations();
+    m_wheelInput.handleWheel(event, WheelInputController::Action::VerticalScroll, Qt::Vertical);
 }
 
 void TimeGraphicsView::adjustScaleXToFillView() {
@@ -406,40 +377,15 @@ void TimeGraphicsView::dragLeaveEvent(QDragLeaveEvent *event) {
 }
 
 bool TimeGraphicsView::event(QEvent *event) {
-    // Touchpad smooth zooming
     if (event->type() == QEvent::NativeGesture) {
-        auto gestureEvent = static_cast<QNativeGestureEvent *>(event);
-
+        const auto *gestureEvent = static_cast<QNativeGestureEvent *>(event);
         if (gestureEvent->gestureType() == Qt::ZoomNativeGesture) {
-            stopViewportAnimations();
-            auto cursorGlobalPos = gestureEvent->globalPosition().toPoint();
-            auto cursorPos = mapFromGlobal(cursorGlobalPos);
-            auto scenePos = mapToScene(cursorPos);
-
-            auto multiplier = gestureEvent->value() + 1;
-
-            // Prevent negative zoom factors
-            if (multiplier <= 0) {
-                return true;
+            stopProgrammaticViewportAnimations();
+            const auto factor = gestureEvent->value() + 1.0;
+            if (factor > 0.0) {
+                const auto anchor = mapFromGlobal(gestureEvent->globalPosition().toPoint()).x();
+                m_wheelInput.zoomByFactor(Qt::Horizontal, factor, anchor);
             }
-
-            auto targetScaleX = scaleX() * multiplier;
-
-            targetScaleX = qMin(targetScaleX, scaleXMax());
-
-            auto scaledSceneWidth = sceneRect().width() * (targetScaleX / scaleX());
-            if (scaledSceneWidth < viewport()->width()) {
-                auto targetSceneWidth = viewport()->width();
-                targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
-            }
-
-            auto ratio = targetScaleX / scaleX();
-            auto targetSceneX = scenePos.x() * ratio;
-            auto targetValue = qRound(targetSceneX - cursorPos.x());
-
-            setScaleX(targetScaleX);
-            setHorizontalBarValue(targetValue);
-
             return true;
         }
     }
@@ -448,20 +394,9 @@ bool TimeGraphicsView::event(QEvent *event) {
 }
 
 void TimeGraphicsView::wheelEvent(QWheelEvent *event) {
-    stopViewportAnimations();
-    if (event->modifiers() == Qt::ControlModifier) {
-        onWheelHorScale(event);
-    } else if (event->modifiers() == Qt::AltModifier) {
-        onWheelVerScale(event);
-    } else if (event->modifiers() == Qt::ShiftModifier) {
-        onWheelHorScroll(event);
-    } else if (event->modifiers() == Qt::NoModifier) {
-        if (EditorWheelUtils::dominantAxis(event) == Qt::Horizontal)
-            onWheelHorScroll(event);
-        else
-            onWheelVerScroll(event);
-    }
-    notifyVisibleRectChanged();
+    stopProgrammaticViewportAnimations();
+    if (!m_wheelInput.handleWheel(event))
+        event->ignore();
 }
 
 void TimeGraphicsView::drawForeground(QPainter *painter, const QRectF &rect) {
@@ -560,8 +495,53 @@ void TimeGraphicsView::changeEvent(QEvent *event) {
         updateAutoPageTurnAvailability();
 }
 
-bool TimeGraphicsView::isMouseEventFromWheel(QWheelEvent *event) {
-    return m_wheelInputState.isMouseWheel(event);
+void TimeGraphicsView::stopProgrammaticViewportAnimations() {
+    m_hBarAnimation.stop();
+    m_vBarAnimation.stop();
+    m_logicalHorizontalBarValue.reset();
+    m_logicalVerticalBarValue.reset();
+}
+
+double TimeGraphicsView::boundedScale(const Qt::Orientation orientation,
+                                      const double requested) const {
+    if (!std::isfinite(requested) || requested <= 0.0)
+        return orientation == Qt::Horizontal ? scaleX() : scaleY();
+
+    if (orientation == Qt::Horizontal) {
+        auto minimum = 0.0001;
+        if (m_ensureSceneFillViewX && scaleX() > 0.0 && sceneRect().width() > 0.0) {
+            const auto unscaledWidth = sceneRect().width() / scaleX();
+            if (unscaledWidth > 0.0)
+                minimum = viewport()->width() / unscaledWidth;
+        }
+        return std::clamp(requested, std::min(minimum, m_scaleXMax), m_scaleXMax);
+    }
+
+    auto minimum = m_scaleYMin;
+    if (m_ensureSceneFillViewY && scaleY() > 0.0 && sceneRect().height() > 0.0) {
+        const auto unscaledHeight = sceneRect().height() / scaleY();
+        if (unscaledHeight > 0.0)
+            minimum = std::max(minimum, viewport()->height() / unscaledHeight);
+    }
+    return std::clamp(requested, std::min(minimum, m_scaleYMax), m_scaleYMax);
+}
+
+void TimeGraphicsView::setScaleAt(const Qt::Orientation orientation, const double value,
+                                  const double anchor) {
+    if (orientation == Qt::Horizontal) {
+        const QPoint cursor(qRound(anchor), viewport()->height() / 2);
+        const auto scenePosition = mapToScene(cursor);
+        const auto ratio = value / scaleX();
+        setScaleX(value);
+        setHorizontalBarValue(qRound(scenePosition.x() * ratio - cursor.x()));
+        return;
+    }
+
+    const QPoint cursor(viewport()->width() / 2, qRound(anchor));
+    const auto scenePosition = mapToScene(cursor);
+    const auto ratio = value / scaleY();
+    setScaleY(value);
+    setVerticalBarValue(qRound(scenePosition.y() * ratio - cursor.y()));
 }
 
 void TimeGraphicsView::updateAnimationDuration() {
@@ -585,10 +565,6 @@ void TimeGraphicsView::updateAnimationDuration() {
         animation.start();
     };
 
-    updateAnimation(m_scaleXAnimation, scaleX(),
-                    [this](const QVariant &value) { setScaleX(value.toDouble()); });
-    updateAnimation(m_scaleYAnimation, scaleY(),
-                    [this](const QVariant &value) { setScaleY(value.toDouble()); });
     updateAnimation(m_hBarAnimation, horizontalBarValue(),
                     [this](const QVariant &value) { setHorizontalBarValue(value.toInt()); });
     updateAnimation(m_vBarAnimation, verticalBarValue(),
@@ -839,12 +815,8 @@ bool TimeGraphicsView::setViewportScale(double horizontalScale, double verticalS
 }
 
 void TimeGraphicsView::stopViewportAnimations() {
-    m_scaleXAnimation.stop();
-    m_scaleYAnimation.stop();
-    m_hBarAnimation.stop();
-    m_vBarAnimation.stop();
-    m_logicalHorizontalBarValue.reset();
-    m_logicalVerticalBarValue.reset();
+    stopProgrammaticViewportAnimations();
+    m_wheelInput.stop();
 }
 
 void TimeGraphicsView::pageAdd() {

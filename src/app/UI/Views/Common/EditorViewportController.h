@@ -39,8 +39,6 @@ public:
     bool setStartTick(double tick);
     bool setOffset(const QPointF &offset);
     void scrollBy(const QPointF &deltaPixels);
-    void zoomHorizontal(double wheelDelta, double anchorX);
-    void zoomVertical(double wheelDelta, double anchorY);
 
     [[nodiscard]] double horizontalScale() const;
     [[nodiscard]] double verticalScale() const;
@@ -51,6 +49,8 @@ public:
     [[nodiscard]] double horizontalOffset() const;
     [[nodiscard]] double verticalOffset() const;
     [[nodiscard]] QPointF offset() const;
+    [[nodiscard]] double maximumOffset(Qt::Orientation orientation) const;
+    [[nodiscard]] double boundedScale(Qt::Orientation orientation, double requested) const;
     [[nodiscard]] QRectF visibleSceneRect() const;
     [[nodiscard]] QSizeF viewportSize() const;
 

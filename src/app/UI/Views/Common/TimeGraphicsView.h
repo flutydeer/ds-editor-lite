@@ -2,10 +2,10 @@
 #define TIMEGRAPHICSVIEW_H
 
 #include "EdgeAutoScroller.h"
-#include "EditorWheelUtils.h"
 #include "RubberBandView.h"
 #include <lite/GUI/Animation/IAnimatable.h>
 #include <lite/GUI/Base/IScalable.h>
+#include <lite/GUI/Controls/WheelInputController.h>
 
 #include <QGraphicsView>
 #include <QPropertyAnimation>
@@ -158,7 +158,9 @@ private:
     using QGraphicsView::setHorizontalScrollBarPolicy;
     using QGraphicsView::setVerticalScrollBarPolicy;
 
-    bool isMouseEventFromWheel(QWheelEvent *event);
+    void stopProgrammaticViewportAnimations();
+    [[nodiscard]] double boundedScale(Qt::Orientation orientation, double requested) const;
+    void setScaleAt(Qt::Orientation orientation, double value, double anchor);
     void updateAnimationDuration();
     void updateRubberBandSelection(const QPointF &scenePos);
     void onEdgeAutoScrollTimerFrame(double dtMs);
@@ -167,8 +169,6 @@ private:
     [[nodiscard]] QRect playbackIndicatorViewportRect(double tick) const;
     void updatePlaybackIndicator(double oldTick);
 
-    double m_hZoomingStep = 0.4;
-    double m_vZoomingStep = 0.3;
     double m_scaleXMax = 3; // 3x
     double m_scaleYMin = 0.5;
     double m_scaleYMax = 8;
@@ -178,12 +178,11 @@ private:
     bool m_isDraggingContent = false;
     bool m_rubberBandAdded = false;
 
-    QPropertyAnimation m_scaleXAnimation;
-    QPropertyAnimation m_scaleYAnimation;
     QPropertyAnimation m_hBarAnimation;
     QPropertyAnimation m_vBarAnimation;
     std::optional<int> m_logicalHorizontalBarValue;
     std::optional<int> m_logicalVerticalBarValue;
+    WheelInputController m_wheelInput;
 
     RubberBandView m_rubberBand;
 
@@ -193,10 +192,6 @@ private:
     // Scene length = external base + temporary drag extension
     int m_baseSceneLength = 0;
     int m_sceneLengthExtension = 0;
-
-    EditorWheelUtils::ScrollAccumulator m_horizontalWheelScroll;
-    EditorWheelUtils::ScrollAccumulator m_verticalWheelScroll;
-    EditorWheelUtils::InputState m_wheelInputState;
 
     OverlayScrollBar *m_hScrollBar = nullptr;
     OverlayScrollBar *m_vScrollBar = nullptr;
