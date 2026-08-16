@@ -171,6 +171,13 @@ bool Note::isSlur() const {
     return m_lyric.trimmed() == "-";
 }
 
+int Note::trailingPlusCount(const QString &lyric) {
+    int count = 0;
+    for (int i = lyric.length() - 1; i >= 0 && lyric.at(i) == '+'; --i)
+        ++count;
+    return count;
+}
+
 bool Note::isPlusLyric(const QString &lyric) {
     const auto trimmed = lyric.trimmed();
     return !trimmed.isEmpty() && trimmed.count('+') == trimmed.length();

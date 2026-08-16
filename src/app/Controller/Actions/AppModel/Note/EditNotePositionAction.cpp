@@ -4,15 +4,8 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 void EditNotePositionAction::execute() {
-    QHash<Note *, int> startDeltas;
-    if (m_deltaTick != 0) {
-        for (const auto note : m_notes)
-            startDeltas.insert(note, m_deltaTick);
-        m_resetRecords =
-            SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip, startDeltas);
-    } else {
-        m_resetRecords.clear();
-    }
+    const auto previousGroupStates =
+        SingingClipPhonemeNormalizer::captureGroupStates(*m_clip);
 
     for (const auto &note : m_notes) {
         m_clip->removeNote(note);
@@ -20,10 +13,8 @@ void EditNotePositionAction::execute() {
         note->setKeyIndex(note->keyIndex() + m_deltaKey);
         m_clip->insertNote(note);
     }
-    m_resetRecords.append(startDeltas.isEmpty()
-                              ? SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip)
-                              : SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip,
-                                                                                     startDeltas));
+    m_resetRecords =
+        SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip, previousGroupStates);
     m_clip->notifyNoteChanged(SingingClip::TimeKeyPropertyChange, m_notes);
     if (!m_resetRecords.isEmpty())
         m_clip->notifyNoteChanged(

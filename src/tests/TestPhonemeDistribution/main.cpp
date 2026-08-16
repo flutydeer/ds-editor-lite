@@ -140,17 +140,50 @@ namespace {
         configureNote(*doublePlus, 960, "++");
         SingingClip clip({root, plus, doublePlus});
 
-        const auto resetRecords = SingingClipPhonemeNormalizer::normalizeEditedOffsets(
-            clip, QHash<Note *, int>{{plus, 120}});
+        auto previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip);
+        clip.removeNote(plus);
+        plus->setLocalStart(600);
+        clip.insertNote(plus);
+        const auto resetRecords =
+            SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousGroupStates);
         expect(resetRecords.size() == 1 && resetRecords.first().note == root &&
                    !root->phonemeOffsetSeq().isEdited(),
                "moving one allocation note invalidates root-relative edited offsets");
 
         SingingClipPhonemeNormalizer::restoreEditedOffsets(resetRecords);
-        const auto unchangedRecords = SingingClipPhonemeNormalizer::normalizeEditedOffsets(
-            clip, QHash<Note *, int>{{root, 120}, {plus, 120}, {doublePlus, 120}});
+        clip.removeNote(plus);
+        plus->setLocalStart(480);
+        clip.insertNote(plus);
+        previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip);
+        for (const auto note : QList<Note *>{root, plus, doublePlus}) {
+            clip.removeNote(note);
+            note->setLocalStart(note->localStart() + 120);
+            clip.insertNote(note);
+        }
+        const auto unchangedRecords =
+            SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousGroupStates);
         expect(unchangedRecords.isEmpty() && root->phonemeOffsetSeq().isEdited(),
                "moving the complete allocation group preserves relative edited offsets");
+
+        previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip);
+        clip.removeNote(plus);
+        const auto membershipRecords =
+            SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousGroupStates);
+        expect(membershipRecords.size() == 1 && membershipRecords.first().note == root &&
+                   !root->phonemeOffsetSeq().isEdited(),
+               "removing an allocation note invalidates the root allocation offsets");
+        SingingClipPhonemeNormalizer::restoreEditedOffsets(membershipRecords);
+        clip.insertNote(plus);
+
+        previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip);
+        auto changedPhonemes = root->phonemes();
+        changedPhonemes.nameSeq.edited[3].isOnset = false;
+        root->setPhonemes(changedPhonemes);
+        const auto onsetRecords =
+            SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousGroupStates);
+        expect(onsetRecords.size() == 1 && onsetRecords.first().note == root &&
+                   !root->phonemeOffsetSeq().isEdited(),
+               "changing onset allocation invalidates root allocation offsets");
     }
 }
 

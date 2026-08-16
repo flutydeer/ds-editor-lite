@@ -3,6 +3,7 @@
 
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/History/IAction.h>
+#include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 class SingingClip;
 
@@ -18,6 +19,7 @@ private:
     QList<Note *> m_notes;
     QList<Note::WordProperties> m_oldArgs;
     QList<Note::WordProperties> m_newArgs;
+    QList<SingingClipPhonemeNormalizer::ResetRecord> m_resetRecords;
     SingingClip *m_clip = nullptr;
     bool m_pronunciationOnly = false;
 };

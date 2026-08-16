@@ -8,13 +8,6 @@
 namespace {
     using PhonemeRange = PhonemeDistribution::PhonemeRange;
 
-    int trailingPlusCount(const QString &lyric) {
-        int count = 0;
-        for (int i = lyric.length() - 1; i >= 0 && lyric.at(i) == '+'; --i)
-            ++count;
-        return count;
-    }
-
     QList<PhonemeRange> splitSyllables(const QList<PhonemeName> &phonemes) {
         QList<PhonemeRange> syllables;
         int syllableStart = 0;
@@ -74,7 +67,7 @@ namespace PhonemeDistribution {
 
             const bool isLastTarget = i == allocationTargets.size() - 1;
             const int quota =
-                target == 0 ? 1 + trailingPlusCount(lyrics.first())
+                target == 0 ? 1 + Note::trailingPlusCount(lyrics.first())
                             : static_cast<int>(lyrics.at(target).trimmed().size());
             const int remainingSyllables =
                 static_cast<int>(syllables.size()) - syllableIndex;
