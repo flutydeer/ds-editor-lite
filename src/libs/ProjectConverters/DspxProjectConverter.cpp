@@ -1317,26 +1317,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         std::stringstream ss(std::ios::out);
         opendspx::Serializer::serialize(ss, model_, errors, opendspx::Serializer::CheckError);
 
-        QFile file(filePath);
-        if (!file.open(QIODevice::WriteOnly)) {
-            msg += QCoreApplication::translate("DspxProjectConverter",
-                                               "Failed to open file for writing: %1")
-                       .arg(filePath);
-            return false;
-        }
-
-        auto jsonData = QByteArray::fromStdString(ss.str());
-
-        const qint64 written = file.write(jsonData);
-        file.close();
-
-        if (written != jsonData.size()) {
-            msg += QCoreApplication::translate("DspxProjectConverter",
-                                               "Failed to write all data to file: %1")
-                       .arg(filePath);
-            return false;
-        }
-
+        // Reject the write entirely when serialization fails validation, so an
+        // invalid model can never leave a partially-written file on disk.
         if (!errors.empty()) {
             QTextStream stream(&msg, QIODeviceBase::WriteOnly | QIODeviceBase::Text);
             stream << QCoreApplication::translate("DspxProjectConverter",
@@ -1366,6 +1348,26 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                 }
                 stream << "\n";
             }
+            return false;
+        }
+
+        QFile file(filePath);
+        if (!file.open(QIODevice::WriteOnly)) {
+            msg += QCoreApplication::translate("DspxProjectConverter",
+                                               "Failed to open file for writing: %1")
+                       .arg(filePath);
+            return false;
+        }
+
+        auto jsonData = QByteArray::fromStdString(ss.str());
+
+        const qint64 written = file.write(jsonData);
+        file.close();
+
+        if (written != jsonData.size()) {
+            msg += QCoreApplication::translate("DspxProjectConverter",
+                                               "Failed to write all data to file: %1")
+                       .arg(filePath);
             return false;
         }
 
