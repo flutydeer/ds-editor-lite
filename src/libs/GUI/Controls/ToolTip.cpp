@@ -131,8 +131,9 @@ bool ToolTip::animationEnabled() const {
     return m_animationEnabled;
 }
 
-QPoint ToolTip::clampToScreen(const QPoint &screenPos) const {
-    const auto screen = QApplication::screenAt(screenPos);
+QPoint ToolTip::clampToScreen(const QPoint &screenPos, const QScreen *screen) const {
+    if (!screen)
+        screen = QApplication::screenAt(screenPos);
     if (!screen)
         return screenPos;
 
@@ -161,7 +162,11 @@ QPoint ToolTip::clampToScreen(const QPoint &screenPos) const {
 }
 
 void ToolTip::showAt(const QPoint &screenPos) {
-    move(clampToScreen(screenPos));
+    showAt(screenPos, QApplication::screenAt(screenPos));
+}
+
+void ToolTip::showAt(const QPoint &screenPos, const QScreen *screen) {
+    move(clampToScreen(screenPos, screen));
 
     if (m_animationEnabled && m_opacityAnimation->duration() > 0) {
         m_opacityAnimation->stop();
@@ -181,7 +186,7 @@ void ToolTip::showAbove(const QRect &screenRect) {
     const auto contentWidth = width() - margins.left() - margins.right();
     const auto x = screenRect.center().x() - contentWidth / 2 - margins.left();
     const auto y = screenRect.top() - anchorGap - height() + margins.bottom();
-    showAt({x, y});
+    showAt({x, y}, QApplication::screenAt(screenRect.center()));
 }
 
 void ToolTip::moveTo(const QPoint &screenPos) {
