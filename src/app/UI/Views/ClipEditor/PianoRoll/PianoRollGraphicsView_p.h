@@ -9,6 +9,7 @@
 #include <QPointF>
 #include <QPointer>
 #include <QColor>
+#include <QString>
 
 class ClipRangeOverlay;
 class AnchorOverlayView;
@@ -62,14 +63,13 @@ public:
     InlineTextEditOverlay *m_inlineEditor = nullptr;
     ToolTip *m_lyricToolTip = nullptr;
     int m_lyricToolTipNoteId = -1;
+    QString m_lyricToolTipText;
     InlineEditField m_inlineEditField = InlineEditField::None;
     int m_inlineEditingNoteId = -1;
     void restoreHandler();
 
     PianoRollEditMode m_editMode = Select;
 
-    bool m_mouseDown = false;
-    Qt::MouseButton m_mouseDownButton = Qt::NoButton;
     bool m_isEditPitchMode = false;
     bool m_initialViewportPositionPending = false;
 

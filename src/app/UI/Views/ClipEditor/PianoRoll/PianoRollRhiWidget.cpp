@@ -56,6 +56,7 @@
 #include <QResizeEvent>
 #include <QSet>
 #include <QShowEvent>
+#include <QTextDocument>
 #include <QTimer>
 #include <QWheelEvent>
 
@@ -723,18 +724,20 @@ public:
         }
 
         const auto lyric = note->lyric();
-        if (lyricToolTipNoteId == note->id() && lyricToolTip->title() == lyric &&
+        if (lyricToolTipNoteId == note->id() && lyricToolTipText == lyric &&
             lyricToolTip->isVisible()) {
             return;
         }
 
         lyricToolTipNoteId = note->id();
-        lyricToolTip->setTitle(lyric);
+        lyricToolTipText = lyric;
+        lyricToolTip->setTitle(Qt::convertFromPlainText(lyric));
         lyricToolTip->showAt(QCursor::pos());
     }
 
     void hideLyricToolTip() {
         lyricToolTipNoteId = -1;
+        lyricToolTipText.clear();
         if (lyricToolTip && lyricToolTip->isVisible())
             lyricToolTip->hideWithAnimation();
     }
@@ -2966,6 +2969,7 @@ public:
     InlineTextEditOverlay *inlineEditor = nullptr;
     ToolTip *lyricToolTip = nullptr;
     int lyricToolTipNoteId = -1;
+    QString lyricToolTipText;
     EditorRhiScrollBarController *scrollBars = nullptr;
     InlineEditField inlineEditField = InlineEditField::None;
     int inlineEditingNoteId = -1;

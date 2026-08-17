@@ -54,6 +54,7 @@
 #include <QKeyEvent>
 #include <QScrollBar>
 #include <QShowEvent>
+#include <QTextDocument>
 
 namespace Helper = PianoRollGraphicsViewHelper;
 
@@ -457,7 +458,7 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     }
 
     // Update hover key index for piano keyboard when mouse is over the grid
-    if (!d->m_mouseDown) {
+    if (!d->m_interactionController->isMouseDown()) {
         const auto scenePos = mapToScene(event->position().toPoint());
         const auto keyIndex =
             PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), scaleY() * noteHeight);
@@ -1520,7 +1521,7 @@ void PianoRollGraphicsViewPrivate::onHoverLeave(QHoverEvent *event) {
 
 void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
     Q_Q(PianoRollGraphicsView);
-    if (m_mouseDown) {
+    if (m_interactionController->isMouseDown()) {
         hideLyricToolTip();
         return;
     }
@@ -1570,18 +1571,20 @@ void PianoRollGraphicsViewPrivate::updateLyricToolTip(const QPoint &position) {
     }
 
     const auto lyric = noteView->lyric();
-    if (m_lyricToolTipNoteId == noteView->id() && m_lyricToolTip->title() == lyric &&
+    if (m_lyricToolTipNoteId == noteView->id() && m_lyricToolTipText == lyric &&
         m_lyricToolTip->isVisible()) {
         return;
     }
 
     m_lyricToolTipNoteId = noteView->id();
-    m_lyricToolTip->setTitle(lyric);
+    m_lyricToolTipText = lyric;
+    m_lyricToolTip->setTitle(Qt::convertFromPlainText(lyric));
     m_lyricToolTip->showAt(QCursor::pos());
 }
 
 void PianoRollGraphicsViewPrivate::hideLyricToolTip() {
     m_lyricToolTipNoteId = -1;
+    m_lyricToolTipText.clear();
     if (m_lyricToolTip && m_lyricToolTip->isVisible())
         m_lyricToolTip->hideWithAnimation();
 }
