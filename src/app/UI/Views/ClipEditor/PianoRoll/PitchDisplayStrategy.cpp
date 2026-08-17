@@ -84,8 +84,8 @@ QList<PitchDisplayLayer>
         return {
             {PitchDisplayCurveSource::Merged,
              PitchDisplayColorRole::Edited,
-             210, anchorCoverage,
-             {}}
+             168, anchorCoverage,
+             {}}  // translucent so the lyric below stays legible
         };
     }
     if (mode == PitchDisplayMode::Draw) {

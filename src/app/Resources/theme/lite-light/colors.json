@@ -185,6 +185,7 @@
         "editor.loopDisabled": "{neutral.450}",
         "editor.selection.border": "{accent.alpha78}",
         "editor.selection.fill": "{accent.alpha25}",
+        "editor.selectedBorder": "{text.secondary}",
         "editor.splitLine": "{feedback.errorStrong}",
         "editor.trackHover": "{neutral.black04}",
 
@@ -194,7 +195,7 @@
 
         "curve.guide": "{neutral.400}",
         "curve.original": "{neutral.black38}",
-        "curve.edited": "{neutral.900}",
+        "curve.edited": "{neutral.600}",
         "curve.anchor": "{neutral.750}",
         "curve.anchorSelected": "{accent.500}",
 
@@ -223,7 +224,7 @@
 
         "piano.roll.blackRow": "{neutral.50}",
         "piano.roll.octaveDivider": "{neutral.150}",
-        "piano.roll.noteSelectedBorder": "{text.emphasis}",
+        "piano.roll.noteSelectedBorder": "{editor.selectedBorder}",
         "piano.roll.pronunciation": "{text.secondary}",
         "piano.roll.overlay": "{overlay.scrim}",
         "piano.roll.background": "{transparent.default}",

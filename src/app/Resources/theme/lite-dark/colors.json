@@ -176,6 +176,7 @@
         "editor.loopDisabled": "{neutral.500}",
         "editor.selection.border": "{accent.alpha78}",
         "editor.selection.fill": "{accent.alpha25}",
+        "editor.selectedBorder": "{text.secondary}",
         "editor.splitLine": "{feedback.errorStrong}",
         "editor.trackHover": "{neutral.750}",
 
@@ -214,7 +215,7 @@
 
         "piano.roll.blackRow": "oklch(27% 0.0135 265)",
         "piano.roll.octaveDivider": "{neutral.850}",
-        "piano.roll.noteSelectedBorder": "{text.emphasis}",
+        "piano.roll.noteSelectedBorder": "{editor.selectedBorder}",
         "piano.roll.pronunciation": "{text.secondary}",
         "piano.roll.overlay": "{overlay.scrim}",
         "piano.roll.background": "{transparent.default}",

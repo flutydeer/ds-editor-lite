@@ -57,8 +57,15 @@ private:
     Q_DISABLE_COPY_MOVE(AppColorPalette)
 
     int normalizedIndex(int index) const;
+    void rebuildEditColors();
+    bool isLight() const;
+    QColor lightestNeutral() const;
+    double selectedLightnessDelta() const;
 
     QList<QColor> m_palette;
+    QList<QColor> m_noteEditFill;
+    QList<QColor> m_noteEditBorder;
+    QList<QColor> m_noteEditForeground;
 };
 
 #endif // APPCOLORPALETTE_H

@@ -206,7 +206,7 @@ TracksGraphicsView {
     border: none;
     background: ${editor.canvasAlternate};
     qproperty-selectedTrackColor: ${surface.raised};
-    qproperty-clipSelectedBorderColor: ${text.emphasis};
+    qproperty-clipSelectedBorderColor: ${editor.selectedBorder};
     qproperty-dropHighlightColor: ${selection.hoverFill};
     qproperty-dropIndicatorColor: ${editor.playhead};
 }
@@ -220,7 +220,7 @@ TracksRhiWidget {
     qproperty-playPosIndicatorColor: ${editor.playhead};
     qproperty-lastPlayPosIndicatorColor: ${editor.lastPlayhead};
     qproperty-selectedTrackColor: ${surface.raised};
-    qproperty-clipSelectedBorderColor: ${text.emphasis};
+    qproperty-clipSelectedBorderColor: ${editor.selectedBorder};
     qproperty-rubberBandBorderColor: ${editor.selection.border};
     qproperty-rubberBandFillColor: ${editor.selection.fill};
     qproperty-dropHighlightColor: ${selection.hoverFill};
