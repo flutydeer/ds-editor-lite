@@ -802,15 +802,14 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                                              LoopSettings &loopSettings, QString &errMsg,
                                              ImportMode mode) {
     Q_UNUSED(mode);
-    auto decodeCurves = [&](const std::vector<opendspx::ParamCurveRef> &dspxCurveRefs,
-                            const int offset) {
+    auto decodeCurves = [&](const std::vector<opendspx::ParamCurveRef> &dspxCurveRefs) {
         QVector<Curve *> curves;
         for (const opendspx::ParamCurveRef &dspxCurveRef : dspxCurveRefs) {
             if (dspxCurveRef->type == opendspx::ParamCurve::Type::Free) {
                 const auto castCurveRef =
                     std::static_pointer_cast<opendspx::ParamCurveFree>(dspxCurveRef);
                 const auto curve = new DrawCurve;
-                curve->setLocalStart(castCurveRef->start - offset);
+                curve->setLocalStart(castCurveRef->start);
                 curve->step = castCurveRef->step;
                 curve->setValues(QList(castCurveRef->values.begin(), castCurveRef->values.end()));
                 curves.append(curve);
@@ -818,7 +817,7 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                 const auto castCurveRef =
                     std::static_pointer_cast<opendspx::ParamCurveAnchor>(dspxCurveRef);
                 const auto curve = new AnchorCurve;
-                curve->setLocalStart(castCurveRef->start - offset);
+                curve->setLocalStart(castCurveRef->start);
                 for (const auto &[interp, x, y] : castCurveRef->nodes) {
                     const auto node = new AnchorNode(x, y);
                     node->setInterpMode(AnchorNode::None);
@@ -837,37 +836,33 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
         return curves;
     };
 
-    auto decodeSingingParam = [&](const opendspx::Param &dspxParam, const int offset,
-                                  SingingClip *clip) {
+    auto decodeSingingParam = [&](const opendspx::Param &dspxParam, SingingClip *clip) {
         Param param;
-        param.setCurves(Param::Original, decodeCurves(dspxParam.original, offset), clip);
-        param.setCurves(Param::Edited, decodeCurves(dspxParam.edited, offset), clip);
-        param.setCurves(Param::Envelope, decodeCurves(dspxParam.transform, offset), clip);
+        param.setCurves(Param::Original, decodeCurves(dspxParam.original), clip);
+        param.setCurves(Param::Edited, decodeCurves(dspxParam.edited), clip);
+        param.setCurves(Param::Envelope, decodeCurves(dspxParam.transform), clip);
         return param;
     };
 
-    auto decodeSingingParams = [&](const opendspx::Params &dspxParams, const int offset,
-                                   SingingClip *clip) {
+    auto decodeSingingParams = [&](const opendspx::Params &dspxParams, SingingClip *clip) {
         ParamInfo params(clip);
         auto dspxParams_ = dspxParams;
-        params.pitch = std::move(decodeSingingParam(dspxParams_["pitch"], offset, clip));
-        params.expressiveness =
-            std::move(decodeSingingParam(dspxParams_["expressiveness"], offset, clip));
-        params.energy = std::move(decodeSingingParam(dspxParams_["energy"], offset, clip));
-        params.breathiness =
-            std::move(decodeSingingParam(dspxParams_["breathiness"], offset, clip));
-        params.voicing = std::move(decodeSingingParam(dspxParams_["voicing"], offset, clip));
-        params.tension = std::move(decodeSingingParam(dspxParams_["tension"], offset, clip));
-        params.gender = std::move(decodeSingingParam(dspxParams_["gender"], offset, clip));
-        params.velocity = std::move(decodeSingingParam(dspxParams_["velocity"], offset, clip));
+        params.pitch = std::move(decodeSingingParam(dspxParams_["pitch"], clip));
+        params.expressiveness = std::move(decodeSingingParam(dspxParams_["expressiveness"], clip));
+        params.energy = std::move(decodeSingingParam(dspxParams_["energy"], clip));
+        params.breathiness = std::move(decodeSingingParam(dspxParams_["breathiness"], clip));
+        params.voicing = std::move(decodeSingingParam(dspxParams_["voicing"], clip));
+        params.tension = std::move(decodeSingingParam(dspxParams_["tension"], clip));
+        params.gender = std::move(decodeSingingParam(dspxParams_["gender"], clip));
+        params.velocity = std::move(decodeSingingParam(dspxParams_["velocity"], clip));
         return params;
     };
 
-    auto decodeNotes = [&](const std::vector<opendspx::Note> &dspxNotes, const int offset) {
+    auto decodeNotes = [&](const std::vector<opendspx::Note> &dspxNotes) {
         QList<Note *> notes;
         for (const opendspx::Note &dspxNote : dspxNotes) {
             const auto note = new Note;
-            note->setLocalStart(dspxNote.pos - offset);
+            note->setLocalStart(dspxNote.pos);
             note->setLength(dspxNote.length);
             note->setKeyIndex(dspxNote.keyNum);
             note->setCentShift(dspxNote.centShift);
@@ -903,10 +898,10 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                 clip->setClipLen(castClip->time.clipLen);
                 clip->setGain(castClip->control.gain);
                 clip->setMute(castClip->control.mute);
-                auto notes = decodeNotes(castClip->notes, start);
+                auto notes = decodeNotes(castClip->notes);
                 for (const auto &note : notes)
                     clip->insertNote(note);
-                clip->params = std::move(decodeSingingParams(castClip->params, start, clip));
+                clip->params = std::move(decodeSingingParams(castClip->params, clip));
                 QMap<QString, QJsonObject> workspace;
                 for (const auto &[key, value] : castClip->workspace) {
                     workspace[QString::fromStdString(key)] =
@@ -1101,7 +1096,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             if (dsCurve->type() == Curve::CurveType::Draw) {
                 const auto castCurve = dynamic_cast<DrawCurve *>(dsCurve);
                 const auto curve = std::make_shared<opendspx::ParamCurveFree>();
-                curve->start = castCurve->globalStart();
+                curve->start = castCurve->localStart();
                 curve->step = castCurve->step;
                 for (const auto v : castCurve->values()) {
                     curve->values.push_back(v);
@@ -1110,7 +1105,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             } else if (dsCurve->type() == Curve::CurveType::Anchor) {
                 const auto castCurve = dynamic_cast<AnchorCurve *>(dsCurve);
                 const auto curve = std::make_shared<opendspx::ParamCurveAnchor>();
-                curve->start = dsCurve->globalStart();
+                curve->start = dsCurve->localStart();
                 for (const auto dsNode : castCurve->nodes()) {
                     opendspx::AnchorNode node;
                     node.x = dsNode->pos();
@@ -1154,7 +1149,7 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
                            std::vector<opendspx::Note> &notes) {
         for (const auto dsNote : dsNotes) {
             opendspx::Note note;
-            note.pos = dsNote->globalStart();
+            note.pos = dsNote->localStart();
             note.length = dsNote->length();
             note.keyNum = dsNote->keyIndex();
             note.centShift = dsNote->centShift();
