@@ -30,6 +30,7 @@
 #include "Modules/Inference/EditSessionManager.h"
 
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
+#include <lite/GUI/Controls/ToolTip.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -45,7 +46,6 @@
 #include <QEvent>
 #include <QFontMetricsF>
 #include <QHash>
-#include <QHelpEvent>
 #include <QHideEvent>
 #include <QKeyEvent>
 #include <QLineF>
@@ -57,7 +57,6 @@
 #include <QSet>
 #include <QShowEvent>
 #include <QTimer>
-#include <QToolTip>
 #include <QWheelEvent>
 
 #include <algorithm>
@@ -248,6 +247,11 @@ public:
                          });
         QObject::connect(inlineEditor, &InlineTextEditOverlay::editCancelled, q,
                          [this] { cancelInlineEdit(); });
+    }
+
+    void initializeLyricToolTip() {
+        lyricToolTip = new ToolTip(QString(), q);
+        lyricToolTip->setAnimationEnabled(false);
     }
 
     void initializeScrollBars() {
@@ -706,28 +710,33 @@ public:
 
     void updateLyricToolTip(const QPointF &viewportPosition) {
         auto *note = noteAt(viewportPosition);
-        int noteId = -1;
-        QString text;
-        if (note && !(inlineEditor && inlineEditor->isEditing())) {
-            const auto layout = NoteLyricPresentation::layout(
-                noteViewportRect(note), note->lyric(), lyricFont(), horizontalScale());
-            if (layout.elided) {
-                noteId = note->id();
-                text = note->lyric();
-            }
+        if (!note || (inlineEditor && inlineEditor->isEditing())) {
+            hideLyricToolTip();
+            return;
         }
 
-        if (lyricToolTipNoteId == noteId && q->toolTip() == text)
+        const auto layout = NoteLyricPresentation::layout(
+            noteViewportRect(note), note->lyric(), lyricFont(), horizontalScale());
+        if (!layout.elided) {
+            hideLyricToolTip();
             return;
-        QToolTip::hideText();
-        lyricToolTipNoteId = noteId;
-        q->setToolTip(text);
+        }
+
+        const auto lyric = note->lyric();
+        if (lyricToolTipNoteId == note->id() && lyricToolTip->title() == lyric &&
+            lyricToolTip->isVisible()) {
+            return;
+        }
+
+        lyricToolTipNoteId = note->id();
+        lyricToolTip->setTitle(lyric);
+        lyricToolTip->showAt(QCursor::pos());
     }
 
     void hideLyricToolTip() {
         lyricToolTipNoteId = -1;
-        q->setToolTip({});
-        QToolTip::hideText();
+        if (lyricToolTip && lyricToolTip->isVisible())
+            lyricToolTip->hideWithAnimation();
     }
 
     void eraseNoteAt(const QPointF &viewportPosition) {
@@ -2955,6 +2964,7 @@ public:
     QColor rubberBandBorderColor{155, 186, 255, 200};
     QColor rubberBandFillColor{155, 186, 255, 64};
     InlineTextEditOverlay *inlineEditor = nullptr;
+    ToolTip *lyricToolTip = nullptr;
     int lyricToolTipNoteId = -1;
     EditorRhiScrollBarController *scrollBars = nullptr;
     InlineEditField inlineEditField = InlineEditField::None;
@@ -2967,6 +2977,7 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     setMouseTracking(true);
     d->initializeScrollBars();
     d->initializeInlineEditor();
+    d->initializeLyricToolTip();
     connect(this, &EditorRhiWidget::backendFailed, this,
             [this](const QString &) { d->requestFallback(); });
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, this,
@@ -3120,8 +3131,6 @@ bool PianoRollRhiWidget::event(QEvent *event) {
         if (d->editMode == EditPitchAnchor)
             d->cancelAnchorEdit();
     }
-    if (event->type() == QEvent::ToolTip)
-        d->updateLyricToolTip(static_cast<QHelpEvent *>(event)->pos());
     if (d->clip && event->type() == QEvent::NativeGesture &&
         d->wheel.handleNativeGesture(static_cast<QNativeGestureEvent *>(event))) {
         return true;

@@ -34,6 +34,7 @@ public:
     void setKeyIndex(int keyIndex);
     [[nodiscard]] QString lyric() const;
     void setLyric(const QString &lyric);
+    [[nodiscard]] bool isLyricElided() const;
     void setPronunciation(const QString &pronunciation, bool edited);
     [[nodiscard]] bool editingPitch() const;
     void setEditingPitch(bool on);
@@ -57,8 +58,6 @@ public:
 
 private:
     [[nodiscard]] QFont lyricFont() const;
-    [[nodiscard]] bool isLyricElided() const;
-    void updateLyricToolTip();
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     void updateRectAndPos() override;
     void adjustPronView() const;
