@@ -13,6 +13,13 @@ class Menu;
 
 enum class PianoRollAnchorMode { None, Linear, Hermite, Mixed };
 
+namespace PianoRollMenuUtils {
+    inline bool canEditPhonemes(const QString &lyric) {
+        const auto normalizedLyric = lyric.trimmed();
+        return normalizedLyric != QStringLiteral("AP") && normalizedLyric != QStringLiteral("SP");
+    }
+}
+
 struct PianoRollMenuContext {
     enum class Target { Background, Note, Anchor };
 
@@ -23,7 +30,6 @@ struct PianoRollMenuContext {
     int noteId = -1;
     QList<int> selectedNoteIds;
     QString noteLanguage;
-    bool phonemeEditorEnabled = false;
     bool pronunciationTarget = false;
     PianoRollAnchorMode anchorMode = PianoRollAnchorMode::None;
     bool anchorInterpolationEnabled = false;

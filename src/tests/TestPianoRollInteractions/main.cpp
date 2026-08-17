@@ -1,4 +1,5 @@
 #include "UI/Views/ClipEditor/PianoRoll/NoteEditUtils.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
 
 #include <lite/MusicBase/Timeline.h>
@@ -86,6 +87,11 @@ int main(int argc, char *argv[]) {
                NoteResizeUtils::clampLeftDelta(240, 240, 1) == 239 &&
                NoteResizeUtils::clampRightDelta(240, -240, 1) == -239,
            "the model commit guard must retain the supplied dynamic minimum length");
+
+    expect(!PianoRollMenuUtils::canEditPhonemes(QStringLiteral("AP")) &&
+               !PianoRollMenuUtils::canEditPhonemes(QStringLiteral(" SP ")) &&
+               PianoRollMenuUtils::canEditPhonemes(QStringLiteral("la")),
+           "AP and SP notes must not expose phoneme editing");
 
     using EditorSelectionUtils::OrderedSelectionModel;
     constexpr auto ctrlShift = Qt::ControlModifier | Qt::ShiftModifier;
