@@ -16,7 +16,7 @@ public:
     int key = -1;
     bool isRest = false;
     bool isSlur = false;
-    bool isPlus = false;
+    bool isSyllabification = false;
     QString languageDictId;
     QList<PhonemeName> phonemeNames;
     QList<int> phonemeOffsets;

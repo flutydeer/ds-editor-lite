@@ -1,5 +1,5 @@
 #include "Modules/Inference/Models/InferInputNote.h"
-#include "Modules/Inference/Tasks/PhonemeDistribution.h"
+#include "Modules/Inference/Tasks/Syllabification.h"
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 #include <lite/MusicBase/Timeline.h>
@@ -42,25 +42,24 @@ namespace {
 
     void testRanges() {
         const auto phones = internationalPhones();
-        const auto ranges = PhonemeDistribution::phonemeRangesForNotes(
-            {"international+", "+", "++"}, phones);
+        const auto ranges =
+            Syllabification::phonemeRangesForNotes({"international+", "+", "++"}, phones);
         expect(ranges.size() == 3, "one range is returned for every note");
         expect(ranges.at(0).start == 0 && ranges.at(0).count == 3,
-               "the word trailing plus assigns two onset groups to the root");
+               "a trailing syllabification symbol assigns two syllables to the lyric-group root");
         expect(ranges.at(1).start == 3 && ranges.at(1).count == 2,
-               "the first plus note consumes one onset group");
+               "the first syllabification note consumes one syllable");
         expect(ranges.at(2).start == 5 && ranges.at(2).count == 2,
-               "the last plus note greedily consumes all remaining groups");
+               "the last syllabification note greedily consumes all remaining syllables");
 
-        const auto withSlur = PhonemeDistribution::phonemeRangesForNotes(
-            {"international+", "-", "+", "++"}, phones);
+        const auto withSlur =
+            Syllabification::phonemeRangesForNotes({"international+", "-", "+", "++"}, phones);
         expect(withSlur.at(1).count == 0 && withSlur.at(2).start == 3,
-               "slurs do not consume an onset group");
+               "slur notes do not consume a syllable");
 
-        const auto single =
-            PhonemeDistribution::phonemeRangesForNotes({"international+"}, phones);
+        const auto single = Syllabification::phonemeRangesForNotes({"international+"}, phones);
         expect(single.at(0).count == phones.size(),
-               "a group without allocation notes retains every phoneme on the root");
+               "a lyric group without syllabification notes retains every phoneme on its root");
     }
 
     void testStorageAndInferenceRoundTrip() {
@@ -75,11 +74,11 @@ namespace {
         fetched[0].success = true;
         fetched[1].phonemeNames = {phone("stale", true)};
         fetched[2].phonemeNames = {phone("stale", true)};
-        PhonemeDistribution::keepPhonemesOnGroupRoots(snapshots, fetched);
+        Syllabification::keepPhonemesOnLyricGroupRoots(snapshots, fetched);
         expect(fetched.at(0).phonemeNames == phones,
-               "the fetched sequence stays intact on the group root");
+               "the fetched sequence stays intact on the lyric-group root");
         expect(fetched.at(1).phonemeNames.isEmpty() && fetched.at(2).phonemeNames.isEmpty(),
-               "allocation notes never retain fetched phonemes");
+               "syllabification notes never retain fetched phonemes");
 
         Note root;
         configureNote(root, 0, "international+");
@@ -87,32 +86,33 @@ namespace {
         rootPhonemes.nameSeq.edited = phones;
         rootPhonemes.offsetSeq.edited = {-100, 0, 100, 500, 900, 1000, 1500};
         root.setPhonemes(rootPhonemes);
-        Note plus;
-        configureNote(plus, 480, "+");
-        Note doublePlus;
-        configureNote(doublePlus, 960, "++");
+        Note syllabificationNote;
+        configureNote(syllabificationNote, 480, "+");
+        Note doubleSyllabificationNote;
+        configureNote(doubleSyllabificationNote, 960, "++");
 
-        QList<InferInputNote> inferenceNotes{
-            InferInputNote(root), InferInputNote(plus), InferInputNote(doublePlus)};
-        const QStringList lyrics{root.lyric(), plus.lyric(), doublePlus.lyric()};
+        QList<InferInputNote> inferenceNotes{InferInputNote(root),
+                                             InferInputNote(syllabificationNote),
+                                             InferInputNote(doubleSyllabificationNote)};
+        const QStringList lyrics{root.lyric(), syllabificationNote.lyric(),
+                                 doubleSyllabificationNote.lyric()};
         const Timeline timeline;
-        PhonemeDistribution::distributeForInference(lyrics, inferenceNotes, timeline, 0);
+        Syllabification::distributeForInference(lyrics, inferenceNotes, timeline, 0);
 
         expect(inferenceNotes.at(0).phonemeNames.size() == 3 &&
                    inferenceNotes.at(1).phonemeNames.size() == 2 &&
                    inferenceNotes.at(2).phonemeNames.size() == 2,
-               "the inference snapshot receives the onset-based allocation");
+               "the inference snapshot receives the syllabified phoneme ranges");
         expect(inferenceNotes.at(0).phonemeOffsets == QList<int>({-100, 0, 100}) &&
                    inferenceNotes.at(1).phonemeOffsets == QList<int>({0, 400}) &&
                    inferenceNotes.at(2).phonemeOffsets == QList<int>({0, 500}),
-               "stored group offsets become note-relative inference offsets");
+               "stored lyric-group offsets become note-relative inference offsets");
 
-        const auto stored =
-            PhonemeDistribution::collectForStorage(lyrics, inferenceNotes, timeline, 0);
+        const auto stored = Syllabification::collectForStorage(lyrics, inferenceNotes, timeline, 0);
         expect(stored.at(0) == rootPhonemes.offsetSeq.edited,
-               "distributed offsets merge back into the complete root sequence");
+               "distributed offsets merge back into the complete lyric-group root sequence");
         expect(stored.at(1).isEmpty() && stored.at(2).isEmpty(),
-               "allocation notes receive no persisted offsets");
+               "syllabification notes receive no persisted offsets");
     }
 
     void testDetachedMarkersStayOrphaned() {
@@ -122,26 +122,27 @@ namespace {
         rootPhonemes.nameSeq.edited = internationalPhones();
         rootPhonemes.offsetSeq.edited = {-100, 0, 100, 500, 900, 1000, 1500};
         root.setPhonemes(rootPhonemes);
-        Note plus;
-        configureNote(plus, 600, "+");
-        Note doublePlus;
-        configureNote(doublePlus, 1080, "++");
+        Note syllabificationNote;
+        configureNote(syllabificationNote, 600, "+");
+        Note doubleSyllabificationNote;
+        configureNote(doubleSyllabificationNote, 1080, "++");
 
-        QList<InferInputNote> inferenceNotes{
-            InferInputNote(root), InferInputNote(plus), InferInputNote(doublePlus)};
-        const QStringList lyrics{root.lyric(), plus.lyric(), doublePlus.lyric()};
+        QList<InferInputNote> inferenceNotes{InferInputNote(root),
+                                             InferInputNote(syllabificationNote),
+                                             InferInputNote(doubleSyllabificationNote)};
+        const QStringList lyrics{root.lyric(), syllabificationNote.lyric(),
+                                 doubleSyllabificationNote.lyric()};
         const Timeline timeline;
-        PhonemeDistribution::distributeForInference(lyrics, inferenceNotes, timeline, 0);
+        Syllabification::distributeForInference(lyrics, inferenceNotes, timeline, 0);
 
         expect(inferenceNotes.at(0).phonemeNames == rootPhonemes.nameSeq.edited &&
                    inferenceNotes.at(1).phonemeNames.isEmpty() &&
                    inferenceNotes.at(2).phonemeNames.isEmpty(),
-               "detached allocation markers do not consume root phonemes");
-        const auto stored =
-            PhonemeDistribution::collectForStorage(lyrics, inferenceNotes, timeline, 0);
+               "detached syllabification notes do not consume root phonemes");
+        const auto stored = Syllabification::collectForStorage(lyrics, inferenceNotes, timeline, 0);
         expect(stored.at(0) == rootPhonemes.offsetSeq.edited && stored.at(1).isEmpty() &&
                    stored.at(2).isEmpty(),
-               "detached allocation markers do not merge offsets into the root");
+               "detached syllabification notes do not merge offsets into the root");
     }
 
     void testEditingEligibility() {
@@ -149,11 +150,11 @@ namespace {
         configureNote(word, 0, "word");
         Note slur;
         configureNote(slur, 480, "-");
-        Note plus;
-        configureNote(plus, 960, "++");
+        Note syllabificationNote;
+        configureNote(syllabificationNote, 960, "++");
         expect(word.canEditPhonemes(), "ordinary notes can edit phonemes");
-        expect(!slur.canEditPhonemes() && !plus.canEditPhonemes(),
-               "slur and allocation notes cannot edit phonemes");
+        expect(!slur.canEditPhonemes() && !syllabificationNote.canEditPhonemes(),
+               "slur and syllabification notes cannot edit phonemes");
     }
 
     void testRelativeTimingChangeInvalidatesEditedOffsets() {
@@ -163,28 +164,29 @@ namespace {
         rootPhonemes.nameSeq.edited = internationalPhones();
         rootPhonemes.offsetSeq.edited = {0, 100, 200, 500, 900, 1000, 1500};
         root->setPhonemes(rootPhonemes);
-        auto plus = new Note;
-        configureNote(*plus, 480, "+");
-        auto doublePlus = new Note;
-        configureNote(*doublePlus, 960, "++");
-        SingingClip clip({root, plus, doublePlus});
+        auto syllabificationNote = new Note;
+        configureNote(*syllabificationNote, 480, "+");
+        auto doubleSyllabificationNote = new Note;
+        configureNote(*doubleSyllabificationNote, 960, "++");
+        SingingClip clip({root, syllabificationNote, doubleSyllabificationNote});
 
         auto previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip);
-        clip.removeNote(plus);
-        plus->setLocalStart(600);
-        clip.insertNote(plus);
+        clip.removeNote(syllabificationNote);
+        syllabificationNote->setLocalStart(600);
+        clip.insertNote(syllabificationNote);
         const auto resetRecords =
             SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousGroupStates);
         expect(resetRecords.size() == 1 && resetRecords.first().note == root &&
                    !root->phonemeOffsetSeq().isEdited(),
-               "moving one allocation note invalidates root-relative edited offsets");
+               "moving one syllabification note invalidates root-relative edited offsets");
 
         SingingClipPhonemeNormalizer::restoreEditedOffsets(resetRecords);
-        clip.removeNote(plus);
-        plus->setLocalStart(480);
-        clip.insertNote(plus);
+        clip.removeNote(syllabificationNote);
+        syllabificationNote->setLocalStart(480);
+        clip.insertNote(syllabificationNote);
         previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip);
-        for (const auto note : QList<Note *>{root, plus, doublePlus}) {
+        for (const auto note :
+             QList<Note *>{root, syllabificationNote, doubleSyllabificationNote}) {
             clip.removeNote(note);
             note->setLocalStart(note->localStart() + 120);
             clip.insertNote(note);
@@ -192,46 +194,45 @@ namespace {
         const auto unchangedRecords =
             SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousGroupStates);
         expect(unchangedRecords.isEmpty() && root->phonemeOffsetSeq().isEdited(),
-               "moving the complete allocation group preserves relative edited offsets");
+               "moving the complete lyric group preserves relative edited offsets");
 
         previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip);
-        clip.removeNote(plus);
+        clip.removeNote(syllabificationNote);
         const auto membershipRecords =
             SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousGroupStates);
         expect(membershipRecords.size() == 1 && membershipRecords.first().note == root &&
                    !root->phonemeOffsetSeq().isEdited(),
-               "removing an allocation note invalidates the root allocation offsets");
+               "removing a syllabification note invalidates the lyric-group root offsets");
         SingingClipPhonemeNormalizer::restoreEditedOffsets(membershipRecords);
-        clip.insertNote(plus);
+        clip.insertNote(syllabificationNote);
 
         previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip);
         auto changedPhonemes = root->phonemes();
         changedPhonemes.nameSeq.edited[3].isOnset = false;
         root->setPhonemes(changedPhonemes);
-        const auto onsetRecords =
+        const auto onsetChangeRecords =
             SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousGroupStates);
-        expect(onsetRecords.size() == 1 && onsetRecords.first().note == root &&
+        expect(onsetChangeRecords.size() == 1 && onsetChangeRecords.first().note == root &&
                    !root->phonemeOffsetSeq().isEdited(),
-               "changing onset allocation invalidates root allocation offsets");
+               "changing onset markers invalidates lyric-group root offsets");
     }
 
-    void testTempoAwareGroupState() {
+    void testTempoAwareLyricGroupState() {
         auto root = new Note;
         configureNote(*root, 0, "international+");
         Phonemes rootPhonemes;
         rootPhonemes.nameSeq.edited = internationalPhones();
         rootPhonemes.offsetSeq.edited = {0, 100, 200, 500, 900, 1000, 1500};
         root->setPhonemes(rootPhonemes);
-        auto plus = new Note;
-        configureNote(*plus, 480, "+");
-        auto doublePlus = new Note;
-        configureNote(*doublePlus, 960, "++");
-        SingingClip clip({root, plus, doublePlus});
+        auto syllabificationNote = new Note;
+        configureNote(*syllabificationNote, 480, "+");
+        auto doubleSyllabificationNote = new Note;
+        configureNote(*doubleSyllabificationNote, 960, "++");
+        SingingClip clip({root, syllabificationNote, doubleSyllabificationNote});
 
         Timeline timeline;
         timeline.addTempo({960, 60.0});
-        auto previousGroupStates =
-            SingingClipPhonemeNormalizer::captureGroupStates(clip, timeline);
+        auto previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip, timeline);
         clip.setStart(720);
         const auto movedRecords = SingingClipPhonemeNormalizer::normalizeEditedOffsets(
             clip, previousGroupStates, timeline);
@@ -240,8 +241,7 @@ namespace {
                "moving a complete group across a tempo boundary invalidates millisecond offsets");
 
         SingingClipPhonemeNormalizer::restoreEditedOffsets(movedRecords);
-        previousGroupStates =
-            SingingClipPhonemeNormalizer::captureGroupStates(clip, timeline);
+        previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip, timeline);
         timeline.addTempo({1200, 90.0});
         const auto tempoRecords = SingingClipPhonemeNormalizer::normalizeEditedOffsets(
             clip, previousGroupStates, timeline);
@@ -258,8 +258,8 @@ int main(int argc, char *argv[]) {
     testDetachedMarkersStayOrphaned();
     testEditingEligibility();
     testRelativeTimingChangeInvalidatesEditedOffsets();
-    testTempoAwareGroupState();
+    testTempoAwareLyricGroupState();
     if (failures == 0)
-        QTextStream(stdout) << "All PhonemeDistribution tests passed" << Qt::endl;
+        QTextStream(stdout) << "All Syllabification tests passed" << Qt::endl;
     return failures == 0 ? 0 : 1;
 }

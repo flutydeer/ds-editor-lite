@@ -7,7 +7,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include "Models/InferInputNote.h"
-#include "Tasks/PhonemeDistribution.h"
+#include "Tasks/Syllabification.h"
 #include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
 #include "Models/SpeakerMixValidator.h"
 #include <lite/ProjectModel/Utils/AppModelUtils.h>
@@ -67,8 +67,8 @@ namespace InferControllerHelper {
             lyrics.reserve(piece.notes.size());
             for (const auto note : piece.notes)
                 lyrics.append(note->lyric());
-            PhonemeDistribution::distributeForInference(lyrics, input.notes, input.timeline,
-                                                        input.clipStartTick);
+            Syllabification::distributeForInference(lyrics, input.notes, input.timeline,
+                                                    input.clipStartTick);
 
             const auto spk = resolveSpeakerForPiece(piece);
             input.speaker = spk.speaker;
@@ -233,7 +233,7 @@ namespace InferControllerHelper {
         int i = 0;
         // Update regardless of whether phoneme names are successfully retrieved
         for (const auto note : notes) {
-            if (note->isSlur() || PhonemeDistribution::isPlusLyric(note->lyric())) {
+            if (note->isSlur() || Syllabification::isSyllabificationLyric(note->lyric())) {
                 note->setPhonemes({});
                 ++i;
                 continue;
@@ -258,12 +258,12 @@ namespace InferControllerHelper {
         lyrics.reserve(notes.size());
         for (const auto note : notes)
             lyrics.append(note->lyric());
-        const auto storedOffsets = PhonemeDistribution::collectForStorage(
-            lyrics, args, appModel->timeline(), clip.start());
+        const auto storedOffsets =
+            Syllabification::collectForStorage(lyrics, args, appModel->timeline(), clip.start());
 
         for (int i = 0; i < notes.size(); ++i) {
             const auto note = notes.at(i);
-            if (note->isSlur() || PhonemeDistribution::isPlusLyric(note->lyric())) {
+            if (note->isSlur() || Syllabification::isSyllabificationLyric(note->lyric())) {
                 note->setPhonemeOffsetSeq({});
                 continue;
             }

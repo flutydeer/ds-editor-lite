@@ -53,21 +53,21 @@ namespace {
         const auto notes = clip.notes().toList();
         for (int i = 0; i < notes.count(); ++i) {
             const auto root = notes.at(i);
-            if (!root || root->isSlur() || root->isPlus() || root->overlapped())
+            if (!root || root->isSlur() || root->isSyllabification() || root->overlapped())
                 continue;
 
             SingingClipPhonemeNormalizer::GroupState state;
-            state.rootPlusCount = Note::trailingPlusCount(root->lyric());
+            state.rootSyllabificationCount = Note::trailingSyllabificationCount(root->lyric());
             for (const auto &phoneme : root->phonemeNameSeq().result())
                 state.rootOnsets.append(phoneme.isOnset);
             const auto rootStartMs =
                 timeline.tickToMs(clip.start() + root->localStart());
             auto groupEndTick = root->localStart() + root->length();
-            bool hasPlus = false;
+            bool hasSyllabification = false;
             int groupEnd = i + 1;
             for (; groupEnd < notes.count(); ++groupEnd) {
                 const auto marker = notes.at(groupEnd);
-                if (!marker || (!marker->isSlur() && !marker->isPlus()) ||
+                if (!marker || (!marker->isSlur() && !marker->isSyllabification()) ||
                     marker->overlapped())
                     break;
                 if (marker->localStart() > groupEndTick)
@@ -77,12 +77,12 @@ namespace {
                     timeline.tickToMs(clip.start() + marker->localStart());
                 state.members.append({marker, marker->lyric().trimmed(),
                                       qRound(markerStartMs - rootStartMs)});
-                hasPlus = hasPlus || marker->isPlus();
+                hasSyllabification = hasSyllabification || marker->isSyllabification();
                 groupEndTick =
                     std::max(groupEndTick, marker->localStart() + marker->length());
             }
 
-            if (hasPlus)
+            if (hasSyllabification)
                 result.insert(root, state);
             i = groupEnd - 1;
         }

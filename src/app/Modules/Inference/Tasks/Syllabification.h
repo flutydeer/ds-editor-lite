@@ -1,5 +1,5 @@
-#ifndef PHONEMEDISTRIBUTION_H
-#define PHONEMEDISTRIBUTION_H
+#ifndef SYLLABIFICATION_H
+#define SYLLABIFICATION_H
 
 #include "Modules/Inference/Models/NoteInferenceSnapshot.h"
 #include "Modules/Inference/Models/PhonemeNameResult.h"
@@ -9,17 +9,17 @@
 class InferInputNote;
 class Timeline;
 
-namespace PhonemeDistribution {
+namespace Syllabification {
     struct PhonemeRange {
         int start = 0;
         int count = 0;
     };
 
-    bool isPlusLyric(const QString &lyric);
+    bool isSyllabificationLyric(const QString &lyric);
     QList<PhonemeRange> phonemeRangesForNotes(const QStringList &lyrics,
                                               const QList<PhonemeName> &phonemes);
-    void keepPhonemesOnGroupRoots(const QList<NoteInferenceSnapshot> &notes,
-                                  QList<PhonemeNameResult> &results);
+    void keepPhonemesOnLyricGroupRoots(const QList<NoteInferenceSnapshot> &notes,
+                                       QList<PhonemeNameResult> &results);
     void distributeForInference(const QStringList &lyrics, QList<InferInputNote> &notes,
                                 const Timeline &timeline, int clipStartTick);
     QList<QList<int>> collectForStorage(const QStringList &lyrics,
@@ -27,4 +27,4 @@ namespace PhonemeDistribution {
                                         const Timeline &timeline, int clipStartTick);
 }
 
-#endif // PHONEMEDISTRIBUTION_H
+#endif // SYLLABIFICATION_H

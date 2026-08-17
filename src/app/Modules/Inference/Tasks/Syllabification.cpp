@@ -1,4 +1,4 @@
-#include "PhonemeDistribution.h"
+#include "Syllabification.h"
 
 #include "Modules/Inference/Models/InferInputNote.h"
 
@@ -8,7 +8,7 @@
 #include <algorithm>
 
 namespace {
-    using PhonemeRange = PhonemeDistribution::PhonemeRange;
+    using PhonemeRange = Syllabification::PhonemeRange;
 
     QList<PhonemeRange> splitSyllables(const QList<PhonemeName> &phonemes) {
         QList<PhonemeRange> syllables;
@@ -31,8 +31,8 @@ namespace {
         return syllables;
     }
 
-    bool isMarkerLyric(const QString &lyric) {
-        return lyric.trimmed() == "-" || PhonemeDistribution::isPlusLyric(lyric);
+    bool isLyricGroupMarker(const QString &lyric) {
+        return Note::isSlurLyric(lyric) || Syllabification::isSyllabificationLyric(lyric);
     }
 
     int noteStartDeltaMs(const InferInputNote &root, const InferInputNote &note,
@@ -42,23 +42,23 @@ namespace {
         return qRound(noteStartMs - rootStartMs);
     }
 
-    int continuousGroupEnd(const QStringList &lyrics, const QList<InferInputNote> &notes,
-                           const int rootIndex) {
-        auto groupEndTick = notes.at(rootIndex).start + notes.at(rootIndex).length;
-        int groupEnd = rootIndex + 1;
-        for (; groupEnd < notes.size() && isMarkerLyric(lyrics.at(groupEnd)); ++groupEnd) {
-            const auto &marker = notes.at(groupEnd);
-            if (marker.start > groupEndTick)
+    int lyricGroupEnd(const QStringList &lyrics, const QList<InferInputNote> &notes,
+                      const int rootIndex) {
+        auto lyricGroupEndTick = notes.at(rootIndex).start + notes.at(rootIndex).length;
+        int end = rootIndex + 1;
+        for (; end < notes.size() && isLyricGroupMarker(lyrics.at(end)); ++end) {
+            const auto &marker = notes.at(end);
+            if (marker.start > lyricGroupEndTick)
                 break;
-            groupEndTick = std::max(groupEndTick, marker.start + marker.length);
+            lyricGroupEndTick = std::max(lyricGroupEndTick, marker.start + marker.length);
         }
-        return groupEnd;
+        return end;
     }
 }
 
-namespace PhonemeDistribution {
-    bool isPlusLyric(const QString &lyric) {
-        return Note::isPlusLyric(lyric);
+namespace Syllabification {
+    bool isSyllabificationLyric(const QString &lyric) {
+        return Note::isSyllabificationLyric(lyric);
     }
 
     QList<PhonemeRange> phonemeRangesForNotes(const QStringList &lyrics,
@@ -67,25 +67,23 @@ namespace PhonemeDistribution {
         if (lyrics.isEmpty() || phonemes.isEmpty())
             return result;
 
-        QList<int> allocationTargets{0};
+        QList<int> syllabificationTargets{0};
         for (int i = 1; i < lyrics.size(); ++i) {
-            if (isPlusLyric(lyrics.at(i)))
-                allocationTargets.append(i);
+            if (isSyllabificationLyric(lyrics.at(i)))
+                syllabificationTargets.append(i);
         }
 
         const auto syllables = splitSyllables(phonemes);
         int syllableIndex = 0;
-        for (int i = 0; i < allocationTargets.size(); ++i) {
-            const auto target = allocationTargets.at(i);
+        for (int i = 0; i < syllabificationTargets.size(); ++i) {
+            const auto target = syllabificationTargets.at(i);
             if (syllableIndex >= syllables.size())
                 break;
 
-            const bool isLastTarget = i == allocationTargets.size() - 1;
-            const int quota =
-                target == 0 ? 1 + Note::trailingPlusCount(lyrics.first())
-                            : static_cast<int>(lyrics.at(target).trimmed().size());
-            const int remainingSyllables =
-                static_cast<int>(syllables.size()) - syllableIndex;
+            const bool isLastTarget = i == syllabificationTargets.size() - 1;
+            const int quota = target == 0 ? 1 + Note::trailingSyllabificationCount(lyrics.first())
+                                          : static_cast<int>(lyrics.at(target).trimmed().size());
+            const int remainingSyllables = static_cast<int>(syllables.size()) - syllableIndex;
             const int takenSyllables =
                 isLastTarget ? remainingSyllables : std::min(quota, remainingSyllables);
             if (takenSyllables <= 0)
@@ -99,13 +97,13 @@ namespace PhonemeDistribution {
         return result;
     }
 
-    void keepPhonemesOnGroupRoots(const QList<NoteInferenceSnapshot> &notes,
-                                  QList<PhonemeNameResult> &results) {
+    void keepPhonemesOnLyricGroupRoots(const QList<NoteInferenceSnapshot> &notes,
+                                       QList<PhonemeNameResult> &results) {
         if (notes.size() != results.size())
             return;
 
         for (int i = 0; i < notes.size(); ++i) {
-            if (!isMarkerLyric(notes.at(i).lyric))
+            if (!isLyricGroupMarker(notes.at(i).lyric))
                 continue;
             results[i].phonemeNames.clear();
             results[i].success = true;
@@ -119,23 +117,23 @@ namespace PhonemeDistribution {
 
         int rootIndex = 0;
         while (rootIndex < notes.size()) {
-            if (isMarkerLyric(lyrics.at(rootIndex))) {
+            if (isLyricGroupMarker(lyrics.at(rootIndex))) {
                 notes[rootIndex].phonemeNames.clear();
                 notes[rootIndex].phonemeOffsets.clear();
                 ++rootIndex;
                 continue;
             }
 
-            const auto groupEnd = continuousGroupEnd(lyrics, notes, rootIndex);
+            const auto end = lyricGroupEnd(lyrics, notes, rootIndex);
 
-            const auto groupLyrics = lyrics.mid(rootIndex, groupEnd - rootIndex);
+            const auto lyricGroupLyrics = lyrics.mid(rootIndex, end - rootIndex);
             const auto storedNames = notes.at(rootIndex).phonemeNames;
             const auto storedOffsets = notes.at(rootIndex).phonemeOffsets;
-            const auto ranges = phonemeRangesForNotes(groupLyrics, storedNames);
+            const auto ranges = phonemeRangesForNotes(lyricGroupLyrics, storedNames);
             const bool offsetsReady = storedOffsets.size() == storedNames.size();
             const auto root = notes.at(rootIndex);
 
-            for (int i = rootIndex; i < groupEnd; ++i) {
+            for (int i = rootIndex; i < end; ++i) {
                 const auto range = ranges.at(i - rootIndex);
                 auto &note = notes[i];
                 note.phonemeNames = storedNames.mid(range.start, range.count);
@@ -148,7 +146,7 @@ namespace PhonemeDistribution {
                 for (int k = range.start; k < range.start + range.count; ++k)
                     note.phonemeOffsets.append(storedOffsets.at(k) - deltaMs);
             }
-            rootIndex = groupEnd;
+            rootIndex = end;
         }
     }
 
@@ -161,17 +159,17 @@ namespace PhonemeDistribution {
 
         int rootIndex = 0;
         while (rootIndex < notes.size()) {
-            if (isMarkerLyric(lyrics.at(rootIndex))) {
+            if (isLyricGroupMarker(lyrics.at(rootIndex))) {
                 ++rootIndex;
                 continue;
             }
 
-            const auto groupEnd = continuousGroupEnd(lyrics, notes, rootIndex);
+            const auto end = lyricGroupEnd(lyrics, notes, rootIndex);
 
             const auto &root = notes.at(rootIndex);
             bool offsetsReady = true;
             QList<int> storedOffsets;
-            for (int i = rootIndex; i < groupEnd; ++i) {
+            for (int i = rootIndex; i < end; ++i) {
                 const auto &note = notes.at(i);
                 if (note.phonemeNames.size() != note.phonemeOffsets.size()) {
                     offsetsReady = false;
@@ -185,7 +183,7 @@ namespace PhonemeDistribution {
             }
             if (offsetsReady)
                 result[rootIndex] = storedOffsets;
-            rootIndex = groupEnd;
+            rootIndex = end;
         }
         return result;
     }

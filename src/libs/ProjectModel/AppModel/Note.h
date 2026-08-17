@@ -61,10 +61,11 @@ public:
     QString effectiveLanguage() const;
     bool lineFeed() const;
     void setLineFeed(const bool &lineFeed);
+    static bool isSlurLyric(const QString &lyric);
     bool isSlur() const;
-    static int trailingPlusCount(const QString &lyric);
-    static bool isPlusLyric(const QString &lyric);
-    bool isPlus() const;
+    static int trailingSyllabificationCount(const QString &lyric);
+    static bool isSyllabificationLyric(const QString &lyric);
+    bool isSyllabification() const;
     bool canEditPhonemes() const;
 
     QMap<QString, QJsonObject> workspace() const;

@@ -167,28 +167,32 @@ void Note::setLineFeed(const bool &lineFeed) {
     m_lineFeed = lineFeed;
 }
 
-bool Note::isSlur() const {
-    return m_lyric.trimmed() == "-";
+bool Note::isSlurLyric(const QString &lyric) {
+    return lyric.trimmed() == "-";
 }
 
-int Note::trailingPlusCount(const QString &lyric) {
+bool Note::isSlur() const {
+    return isSlurLyric(m_lyric);
+}
+
+int Note::trailingSyllabificationCount(const QString &lyric) {
     int count = 0;
     for (int i = lyric.length() - 1; i >= 0 && lyric.at(i) == '+'; --i)
         ++count;
     return count;
 }
 
-bool Note::isPlusLyric(const QString &lyric) {
+bool Note::isSyllabificationLyric(const QString &lyric) {
     const auto trimmed = lyric.trimmed();
     return !trimmed.isEmpty() && trimmed.count('+') == trimmed.length();
 }
 
-bool Note::isPlus() const {
-    return isPlusLyric(m_lyric);
+bool Note::isSyllabification() const {
+    return isSyllabificationLyric(m_lyric);
 }
 
 bool Note::canEditPhonemes() const {
-    return !isSlur() && !isPlus();
+    return !isSlur() && !isSyllabification();
 }
 
 QMap<QString, QJsonObject> Note::workspace() const {

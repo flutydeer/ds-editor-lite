@@ -12,6 +12,7 @@
 
 #include <synthrt/G2P/Base/LangCommon.h>
 
+#include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/Support/VersionUtils.h>
 #include <lite/Language/G2pConvertRunner.h>
 #include <lite/Language/G2pInputAdapter.h>
@@ -123,9 +124,9 @@ QList<PronunciationFetchResult>
 
     auto isSkippedNote = [](const NoteInferenceSnapshot &note) {
         const auto lyric = note.lyric.trimmed();
-        if (lyric == "SP" || lyric == "AP" || lyric == "-")
+        if (lyric == "SP" || lyric == "AP" || Note::isSlurLyric(lyric))
             return true;
-        return lyric.count('+') == lyric.length();
+        return lyric.isEmpty() || Note::isSyllabificationLyric(lyric);
     };
 
     // B1b-3: Group non-skipped notes by language (preserving first-seen order).

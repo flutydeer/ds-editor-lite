@@ -588,7 +588,7 @@ void PhonemeView::buildPhonemeList() {
 
     for (int i = 0; i < m_notes.count(); ++i) {
         const auto note = m_notes.at(i);
-        if (note->isSlur() || note->isPlus())
+        if (note->isSlur() || note->isSyllabification())
             continue;
         if (note->overlapped())
             continue;
@@ -596,10 +596,10 @@ void PhonemeView::buildPhonemeList() {
         const auto noteStartTick = note->globalStart();
         auto noteEndTick = noteStartTick + note->length();
 
-        int groupEnd = i + 1;
-        for (; groupEnd < m_notes.count(); ++groupEnd) {
-            const auto nextNote = m_notes.at(groupEnd);
-            if (!nextNote->isSlur() && !nextNote->isPlus())
+        int lyricGroupEnd = i + 1;
+        for (; lyricGroupEnd < m_notes.count(); ++lyricGroupEnd) {
+            const auto nextNote = m_notes.at(lyricGroupEnd);
+            if (!nextNote->isSlur() && !nextNote->isSyllabification())
                 break;
             if (nextNote->overlapped())
                 break;
@@ -654,7 +654,7 @@ void PhonemeView::buildPhonemeList() {
         }
 
         lastNoteEndTick = noteEndTick;
-        i = groupEnd - 1;
+        i = lyricGroupEnd - 1;
     }
 }
 

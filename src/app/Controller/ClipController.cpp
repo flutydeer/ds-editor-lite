@@ -387,7 +387,7 @@ void ClipController::onNoteLyricEdited(const int noteId, const QString &lyric) {
 
     auto arg = Note::WordProperties::fromNote(*note);
     arg.lyric = lyric;
-    if (lyric.trimmed() == "-" || Note::isPlusLyric(lyric))
+    if (Note::isSlurLyric(lyric) || Note::isSyllabificationLyric(lyric))
         arg.phonemes = {};
     auto a = new NoteActions;
     a->editNotesWordProperties({note}, {arg}, singingClip);
@@ -519,7 +519,7 @@ void ClipController::onFillLyric(QWidget *parent) {
             break;
         }
         arg.lyric = noteRes[i - skipCount].lyric;
-        if (arg.lyric.trimmed() == "-" || Note::isPlusLyric(arg.lyric))
+        if (Note::isSlurLyric(arg.lyric) || Note::isSyllabificationLyric(arg.lyric))
             arg.phonemes = {};
         // arg.language = noteRes[i - skipCount].language;
         arg.pronunciation =

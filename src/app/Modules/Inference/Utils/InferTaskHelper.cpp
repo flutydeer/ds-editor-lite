@@ -79,11 +79,12 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
 
     auto firstNote = notes.first();
     if (firstNote.isSlur)
-        qCCritical(logInferBuildWords) << "buildWords: first note of a segment cannot be a slur."
-                                       << "clipId:" << input.clipId << "noteId:" << firstNote.id;
-    if (firstNote.isPlus)
         qCCritical(logInferBuildWords)
-            << "buildWords: first note of a segment cannot be an orphan plus note."
+            << "buildWords: first note of a segment cannot be a slur note."
+            << "clipId:" << input.clipId << "noteId:" << firstNote.id;
+    if (firstNote.isSyllabification)
+        qCCritical(logInferBuildWords)
+            << "buildWords: first note of a segment cannot be an orphan syllabification note."
             << "clipId:" << input.clipId << "noteId:" << firstNote.id;
 
     // 如果第一个音符不是休止符，则填充 SP 音符
@@ -145,7 +146,7 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
         bool hasGap = false;
         QList<InferPhoneme> stashedNextPhones;
         if (noteIndex < notes.size() - 1) {
-            // 如果当前音符之后有转音，则一直往后查找，直到能计算出当前 word 的长度
+            // 如果当前音符之后有连音，则一直往后查找，直到能计算出当前 word 的长度
             bool reachLast = false;
             while (notes.at(noteIndex + 1).isSlur) {
                 const auto &nextNote = notes.at(noteIndex + 1);
@@ -159,7 +160,7 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
                 }
             }
             if (!reachLast) {
-                // 找到下一个非转音音符
+                // 找到下一个非连音音符
                 const auto &nextNonSlurNote = notes.at(noteIndex + 1);
                 auto nextNoteStartMs = noteStartSeconds(nextNonSlurNote);
                 gapLen = nextNoteStartMs - (wordStart + wordLen);

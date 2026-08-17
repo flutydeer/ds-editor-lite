@@ -29,7 +29,7 @@ public:
 
     class GroupState {
     public:
-        int rootPlusCount = 0;
+        int rootSyllabificationCount = 0;
         QList<bool> rootOnsets;
         QList<GroupMemberState> members;
 

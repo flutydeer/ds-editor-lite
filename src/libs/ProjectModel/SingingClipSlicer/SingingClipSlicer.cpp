@@ -27,7 +27,7 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
     // 1. Non-rest note (AP/SP), needs SP note padding
     // Note:  |          SP          |        Lyric           |
     // Phone: | SP | ph1 | ... | phn | (onset ph) |    ...    |
-    // Minimum = base amount + header phoneme count (all phonemes before the beat point) *
+    // Minimum = base amount + header phoneme count (all phonemes before the onset) *
     // additional base
     //
     // If the note has no header phonemes, the minimum degrades to base amount
@@ -131,12 +131,13 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
 
             if (!buffer.isEmpty()) {
                 const auto firstNote = buffer.first();
-                firstNoteIsInvalid = firstNote->isSlur() || firstNote->isPlus();
+                firstNoteIsInvalid = firstNote->isSlur() || firstNote->isSyllabification();
             }
 
             // Check for missing phoneme info
             for (const auto &note : buffer) {
-                auto isCommonNote = !isRestNote(*note) && !note->isSlur() && !note->isPlus();
+                auto isCommonNote =
+                    !isRestNote(*note) && !note->isSlur() && !note->isSyllabification();
                 if (isCommonNote && note->phonemes().nameSeq.result().isEmpty()) {
                     hasMissingPhonemeInfo = true;
                     break;
@@ -144,7 +145,7 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
             }
 
             // Skip the segment if the complete phrase has missing phoneme info
-            // or if the first note is a slur or orphan +
+            // or if the first note is a slur or orphan syllabification note
             if (hasMissingPhonemeInfo || firstNoteIsInvalid) {
                 buffer.clear();
                 continue;
