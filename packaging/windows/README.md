@@ -61,31 +61,35 @@ C:\Program Files\OpenVPI\DS Editor Lite
 6. 仅将 staging 的 `bin` 目录交给 Inno Setup 7，排除头文件、导入库和 CMake 包文件。
 7. 输出安装包路径和 SHA-256。
 
-## 绿色版（便携 zip）
+## 便携版（zip）
 
-`package-dml-green` preset（RelWithDebInfo）配合
-`packaging\windows\build-green-zip.ps1` 产出解压即用的便携 zip，内置 PDB
+`package-dml-portable` preset（RelWithDebInfo）配合
+`packaging\windows\build-portable.ps1` 产出解压即用的便携 zip，内置 PDB
 符号，崩溃可追踪。
 
 ```powershell
-.\packaging\windows\build-green-zip.ps1
+.\packaging\windows\build-portable.ps1
 ```
 
 或复用已有构建产物、只重新打包：
 
 ```powershell
-.\packaging\windows\build-green-zip.ps1 -NoBuild
+.\packaging\windows\build-portable.ps1 -NoBuild
 ```
 
 特性：
 
 - RelWithDebInfo，优化 + 调试符号；MSVC `/Zi` 的 PDB 直接产出在 `out\bin`。
-- 直接压缩 `build\GreenDmlRelease\out\bin`（不走 CMake install，保住 PDB）。
+- 必须经 CMake install 到 staging（**不从 build 输出目录直接打包**），再压缩
+  staging 的 `bin` 树。install 自带 app 与 Qt 的 PDB（`LITE_INSTALL_PDB` +
+  windeployqt `--pdb`）；脚本随后从 `vcpkg\installed\x64-windows\bin` 按名补齐
+  各 vcpkg 依赖的 PDB（此逻辑刻意留在打包脚本里，不进 CMake，保持构建系统
+  不感知 vcpkg）。
 - zip 会校验 DsEditorLite.exe 与至少一个 PDB 存在，否则报错退出。
-- 文件名为 `DsEditorLite-<yyyyMMdd-HHmm>-win-x64-dml-green.zip`（时间戳，**不含版本号**）。
+- 文件名为 `DsEditorLite-<yyyyMMdd-HHmm>-win-x64-dml-portable.zip`（时间戳，**不含版本号**）。
 - 建议用 **pwsh**（PowerShell 7）运行；从 git-bash 调 Windows PowerShell 5.1
   会出现 `Get-FileHash is not recognized` 环境问题。
-- 产物目录：`dist\green\`，脚本输出路径、大小与 SHA-256。
+- 产物目录：`dist\portable\`，脚本输出路径、大小与 SHA-256。
 
 ## 产品元数据
 

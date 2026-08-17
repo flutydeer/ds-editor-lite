@@ -55,15 +55,15 @@
       }
     },
     {
-      "name": "package-dml-green",
-      "displayName": "Package DML Green RelWithDebInfo",
-      "description": "Configure a RelWithDebInfo build for the Windows x64 DML portable zip (green version, PDB included).",
+      "name": "package-dml-portable",
+      "displayName": "Package DML Portable RelWithDebInfo",
+      "description": "Configure a RelWithDebInfo build for the Windows x64 DML portable zip (portable version, PDB included).",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/GreenDmlRelease",
+      "binaryDir": "${sourceDir}/build/PortableDmlRelease",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/dist/stage/green",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/dist/stage/portable",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "LITE_BUILD_TESTS": "OFF",
         "LITE_ENABLE_FILE_LOG": "ON",
@@ -102,10 +102,10 @@
       ]
     },
     {
-      "name": "package-dml-green",
-      "displayName": "Build Package DML Green RelWithDebInfo",
+      "name": "package-dml-portable",
+      "displayName": "Build Package DML Portable RelWithDebInfo",
       "description": "Build the RelWithDebInfo application target for the Windows x64 DML portable zip.",
-      "configurePreset": "package-dml-green",
+      "configurePreset": "package-dml-portable",
       "targets": [
         "DsEditorLite"
       ]

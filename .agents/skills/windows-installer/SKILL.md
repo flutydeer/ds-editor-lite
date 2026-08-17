@@ -34,16 +34,18 @@ description: 为 DS Editor Lite 构建、检查或排查 Windows x64 DirectML In
 - 产品元数据只修改 `cmake/ProductMetadata.cmake`。AppId 一经发布不得更换。
 - 不安装生成的安装包，除非用户明确授权修改本机安装状态。
 
-## 绿色版（便携 zip）
+## 便携版（zip）
 
 用户要求"绿色版/便携版/zip 解压即用/带 PDB 可追踪"时，使用
-`packaging\windows\build-green-zip.ps1`（**不使用** build-installer.ps1）：
-- 构建 `package-dml-green` preset（`CMAKE_BUILD_TYPE=RelWithDebInfo`，
+`packaging\windows\build-portable.ps1`（**不使用** build-installer.ps1）：
+- 构建 `package-dml-portable` preset（`CMAKE_BUILD_TYPE=RelWithDebInfo`，
   `LITE_ENABLE_CUDA=OFF`，`LITE_ENABLE_FILE_LOG=ON`，独立目录
-  `build\GreenDmlRelease`）。
-- 从 `build\GreenDmlRelease\out\bin` 直接打 zip（不走 CMake install，保住 PDB）。
-- 文件名 `DsEditorLite-<yyyyMMdd-HHmm>-win-x64-dml-green.zip`，时间戳命名，
+  `build\PortableDmlRelease`）。
+- 必须经 CMake install 到 staging（**不从 build 输出目录直接打包**），再压缩
+  staging 的 `bin` 树成 zip。脚本随后补齐 vcpkg 依赖的 PDB；Qt 与 app 的 PDB
+  由 install 自带（windeployqt `--pdb` + `LITE_INSTALL_PDB`）。
+- 文件名 `DsEditorLite-<yyyyMMdd-HHmm>-win-x64-dml-portable.zip`，时间戳命名，
   **不含版本号**。
 - 用 **pwsh**（PowerShell 7）运行；git-bash 调 Windows PowerShell 5.1 会报
   `Get-FileHash is not recognized`。
-- 细节见 `packaging/windows/README.md`「绿色版（便携 zip）」一节。
+- 细节见 `packaging/windows/README.md`「便携版（zip）」一节。
