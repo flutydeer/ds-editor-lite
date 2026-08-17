@@ -176,5 +176,5 @@ edited offset，让自动结果重新生效；相关 Action 在撤销时恢复�
 2. 检查相邻 piece 的参数、波形和音频范围只相接或保留间隔，绝不重叠。
 3. 把非首 piece 的首音素拖到最左边界并继续向左，确认预览和提交都阻止越界。
 4. 重推理并复用缓存，确认 piece 起点不漂移。
-5. 覆盖首 piece、无 header、SP/AP、转音与已有合法 edited offset。
+5. 覆盖首 piece、无 header、SP/AP、连音与已有合法 edited offset。
 6. 运行标准 CMake 构建；不要用 CTest 代替真实应用验证。
