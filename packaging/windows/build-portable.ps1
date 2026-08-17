@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$OutputDir = "dist\green",
+    [string]$OutputDir = "dist\portable",
     [switch]$SkipVcpkgInstall,
     [switch]$NoBuild
 )
@@ -128,50 +128,85 @@ if (-not $NoBuild) {
         Initialize-BuildEnvironment
     }
 
-    Invoke-Step "Configure CMake preset package-dml-green" {
-        Invoke-Process "cmake" @("--preset", "package-dml-green")
+    Invoke-Step "Configure CMake preset package-dml-portable" {
+        Invoke-Process "cmake" @("--preset", "package-dml-portable")
     }
 
-    Invoke-Step "Build package-dml-green" {
-        Invoke-Process "cmake" @("--build", "--preset", "package-dml-green")
+    Invoke-Step "Build package-dml-portable" {
+        Invoke-Process "cmake" @("--build", "--preset", "package-dml-portable")
     }
 }
 
-# The green zip is packaged directly from the build output directory, which
-# already contains the deployed Qt runtime, plugins, resources and PDB symbols
-# (RelWithDebInfo). This keeps the PDBs next to the binaries so crashes can be
-# traced after the user unzips and runs the app.
-$OutBinDir = Join-Path $RepoRoot "build\GreenDmlRelease\out\bin"
-if (-not (Test-Path -LiteralPath $OutBinDir)) {
-    throw "Build output directory not found: $OutBinDir"
-}
-if (-not (Test-Path -LiteralPath (Join-Path $OutBinDir "DsEditorLite.exe"))) {
-    throw "DsEditorLite.exe not found in $OutBinDir"
-}
-$PdbCount = (Get-ChildItem -LiteralPath $OutBinDir -Filter "*.pdb").Count
-if ($PdbCount -eq 0) {
-    throw "No PDB symbols found in $OutBinDir - build was not RelWithDebInfo?"
+# The portable zip is produced from a real CMake install (not the raw build
+# output): `cmake --install` lays down the app, the deployed Qt runtime,
+# plugins, resources, and the app's + Qt's PDB symbols (windeployqt --pdb +
+# LITE_INSTALL_PDB). We then add the vcpkg dependencies' PDBs, which vcpkg's
+# applocal deploy does not copy, and zip the runnable `bin` tree.
+$BuildDir = Join-Path $RepoRoot "build\PortableDmlRelease"
+if (-not (Test-Path -LiteralPath (Join-Path $BuildDir "out\bin\DsEditorLite.exe"))) {
+    throw "Build output not found in $BuildDir (run without -NoBuild first)."
 }
 
 $ResolvedOutputDir = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $OutputDir))
 New-Item -ItemType Directory -Force -Path $ResolvedOutputDir | Out-Null
+$StageDir = Join-Path $ResolvedOutputDir "stage"
+$AppDir = Join-Path $StageDir "bin"
+
+Invoke-Step "Install to a clean staging tree" {
+    if (Test-Path -LiteralPath $StageDir) {
+        Remove-Item -LiteralPath $StageDir -Recurse -Force
+    }
+    Invoke-Process "cmake" @("--install", $BuildDir, "--prefix", $StageDir)
+    if (-not (Test-Path -LiteralPath (Join-Path $AppDir "DsEditorLite.exe"))) {
+        throw "DsEditorLite.exe not found after install in $AppDir"
+    }
+}
+
+# windeployqt (--pdb) and LITE_INSTALL_PDB already installed the Qt and app
+# PDBs. vcpkg ships each dependency's PDB next to its DLL but its applocal
+# deploy copies only the DLLs, so for every installed DLL pull the same-named
+# PDB from the vcpkg release bin. Kept here (packaging), not in CMake, so the
+# build system stays vcpkg-agnostic.
+Invoke-Step "Copy vcpkg dependency PDBs" {
+    $vcpkgBin = Join-Path $RepoRoot "vcpkg\installed\x64-windows\bin"
+    if (-not (Test-Path -LiteralPath $vcpkgBin -PathType Container)) {
+        throw "vcpkg release bin not found: $vcpkgBin"
+    }
+    $copied = 0
+    Get-ChildItem -LiteralPath $AppDir -Recurse -Filter "*.dll" | ForEach-Object {
+        $pdbName = [System.IO.Path]::GetFileNameWithoutExtension($_.Name) + ".pdb"
+        $src = Join-Path $vcpkgBin $pdbName
+        $dst = Join-Path $_.DirectoryName $pdbName
+        if ((Test-Path -LiteralPath $src -PathType Leaf) -and
+            -not (Test-Path -LiteralPath $dst -PathType Leaf)) {
+            Copy-Item -LiteralPath $src -Destination $dst
+            $copied++
+        }
+    }
+    Write-Host "Copied $copied vcpkg dependency PDB(s)."
+}
+
+$PdbCount = (Get-ChildItem -LiteralPath $AppDir -Recurse -Filter "*.pdb").Count
+if ($PdbCount -eq 0) {
+    throw "No PDB symbols in the installed tree - build was not RelWithDebInfo?"
+}
 
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmm"
-$ZipBaseName = "DsEditorLite-$Timestamp-win-x64-dml-green"
+$ZipBaseName = "DsEditorLite-$Timestamp-win-x64-dml-portable"
 $ZipPath = Join-Path $ResolvedOutputDir "$ZipBaseName.zip"
 
-Invoke-Step "Package green zip" {
+Invoke-Step "Package portable zip" {
     $tempZip = Join-Path $ResolvedOutputDir ".$ZipBaseName.tmp.zip"
     if (Test-Path -LiteralPath $tempZip) {
         Remove-Item -LiteralPath $tempZip -Force
     }
-    Compress-Archive -Path (Join-Path $OutBinDir "*\") -DestinationPath $tempZip -CompressionLevel Optimal
+    Compress-Archive -Path (Join-Path $AppDir "*") -DestinationPath $tempZip -CompressionLevel Optimal
     Move-Item -LiteralPath $tempZip -Destination $ZipPath -Force
 }
 
 $ZipSize = (Get-Item -LiteralPath $ZipPath).Length
 $ZipHash = (Get-FileHash -LiteralPath $ZipPath -Algorithm SHA256).Hash
 Write-Host ""
-Write-Host "Green zip created: $ZipPath" -ForegroundColor Green
+Write-Host "Portable zip created: $ZipPath" -ForegroundColor Green
 Write-Host "Size: $([math]::Round($ZipSize / 1MB, 1)) MB"
 Write-Host "SHA-256: $ZipHash"

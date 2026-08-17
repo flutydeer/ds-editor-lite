@@ -9,6 +9,9 @@ set(LITE_POST_CONFIGURE_COMMANDS _lite_common_configure_target)
 set(LITE_BUILD_INFO_HEADER_PATH lite/BuildInfo.h)
 set(LITE_BUILD_INFO_HEADER_PREFIX LITE)
 
+# Install the application's debug symbols
+set(LITE_INSTALL_PDB ON)
+
 # Dependency Configurations
 set(TALCS_DSPX ON)
 set(TALCS_WIDGETS ON)

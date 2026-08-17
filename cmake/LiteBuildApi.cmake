@@ -81,6 +81,7 @@ function(lite_deploy_application _target)
                 --no-system-d3d-compiler
                 --no-compiler-runtime
                 --no-opengl-sw
+                --pdb # Also deploy the Qt modules' .pdb files
                 "$<TARGET_FILE:${_target}>"
             COMMENT "Deploy Qt"
         )
@@ -195,6 +196,7 @@ function(lite_deploy_application _target)
                     --no-system-d3d-compiler
                     --no-compiler-runtime
                     --no-opengl-sw
+                    --pdb
                     --force
                     --verbose 0
                     \"\${CMAKE_INSTALL_PREFIX}/${LITE_INSTALL_RUNTIME_DIR}/$<TARGET_FILE_NAME:${_target}>\"
