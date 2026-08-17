@@ -18,8 +18,8 @@ EditSingingClipPropertiesAction *
 }
 
 void EditSingingClipPropertiesAction::execute() {
-    const auto previousGroupStates =
-        SingingClipPhonemeNormalizer::captureGroupStates(*m_clip);
+    const auto previousWordStates =
+        SingingClipPhonemeNormalizer::captureWordStates(*m_clip);
     m_track->removeClip(m_clip);
     auto newArgs = m_newArgs;
     // opendspx requires clip.pos = start + clipStart to stay non-negative.
@@ -30,10 +30,10 @@ void EditSingingClipPropertiesAction::execute() {
     m_clip->setLength(newArgs.length);
     m_clip->setClipLen(newArgs.clipLen);
     m_track->insertClip(m_clip);
-    m_resetRecords = previousGroupStates.isEmpty()
+    m_resetRecords = previousWordStates.isEmpty()
                          ? QList<SingingClipPhonemeNormalizer::ResetRecord>{}
                          : SingingClipPhonemeNormalizer::normalizeEditedOffsets(
-                               *m_clip, previousGroupStates);
+                               *m_clip, previousWordStates);
     m_clip->notifyPropertyChanged();
     if (!m_resetRecords.isEmpty())
         m_clip->notifyNoteChanged(

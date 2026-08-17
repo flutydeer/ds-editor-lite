@@ -71,7 +71,7 @@ void GetPhonemeNameTask::processNotes() {
     newStatus.message = tr("Processing: %1").arg(m_previewText);
     setStatus(newStatus);
     result = getPhonemeNames();
-    Syllabification::keepPhonemesOnLyricGroupRoots(m_inputs, result);
+    Syllabification::keepPhonemesOnWordRoots(m_inputs, result);
 }
 
 QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {

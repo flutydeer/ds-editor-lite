@@ -25,13 +25,13 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 
 ## 音节分配规则（syllabification，`+`，已确认）
 
-以 "international" 为例，G2P 返回带卡拍标记的音素序列，卡拍音素标记每个 onset group（卡拍组）的起点：
+以 "international" 为例，G2P 返回带卡拍标记的音素序列，卡拍标记用于划分 syllable：
 
 - 单音符 → 所有音素集中在一个音符上
-- word + `+` → 第 1 个音符取第 1 个 onset group，`+` 取剩余全部
-- word + `+` + `+` → 每个 `+` 依次取下一个 onset group，最后一个 `+` 贪婪取剩余全部
+- word + `+` → 第 1 个音符取第 1 个 syllable，`+` 取剩余全部
+- word + `+` + `+` → 每个 `+` 依次取下一个 syllable，最后一个 `+` 贪婪取剩余全部
 - `-` 是连音符，不影响配额（用于连音）
-- `++` 取 2 个 onset group → `+` 的数量对应消耗的组数
+- `++` 取 2 个 syllable → `+` 的数量对应消耗的 syllable 数
 - 溢出 → 标记错误
 
 ## 已完成
@@ -80,17 +80,17 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 
 ### 阶段 4：音节分配逻辑（syllabification，`+`，29b5f939）
 
-在 `getPhonemeNames()` 之后执行 `Syllabification` 后处理，识别 word+`+` 序列，按 onset group 拆分并分配音素。
+在 `getPhonemeNames()` 之后执行 `Syllabification` 后处理，识别 word+`+` 序列，按 syllable 拆分并分配音素。
 
 **分配规则**：
-- 单词音符默认取第 1 个 onset group；末尾 `+` 可增加（如 `word+` 取前 2 个 onset group）
-- 纯 `+` 音符按 `+` 数量消耗对应 onset group，最后一个 `+` 贪婪取剩余全部
+- 单词音符默认取第 1 个 syllable；末尾 `+` 可增加（如 `word+` 取前 2 个 syllable）
+- 纯 `+` 音符按 `+` 数量消耗对应 syllable，最后一个 `+` 贪婪取剩余全部
 - `-` 连音符不消耗配额，跳过
 - 溢出时标空
 
 **改动**：
-- `Syllabification.h/.cpp` — 提供音节分配识别、onset group 拆分和推理前后转换
-- `GetPhonemeNameTask.cpp` — 在音素名生成后保留 lyric group 根音符上的完整音素序列
+- `Syllabification.h/.cpp` — 提供音节分配识别、syllable 拆分和推理前后转换
+- `GetPhonemeNameTask.cpp` — 在音素名生成后保留 word 根音符上的完整音素序列
 - `GetPronunciationTask.cpp` — G2P 输入剥掉歌词尾部 `+`；纯 `+` 和 `-` 音符跳过不送入 G2P
 - `InferControllerHelper.cpp` — `updatePhoneName` 中 names 数量变化时清空 offsets
 - `PhonemeView.cpp` — 防御性边界检查：offsets 索引不超过 offsets 长度
@@ -116,7 +116,7 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 ### 编辑器英语适配
 
 - 英语音符的 pronunciation view 隐藏（音素序列对用户无参考价值，已在音符下方 phoneme view 展示）
-- 音节分配的 onset group 溢出时，UI 上应有可视化的错误提示
+- 音节分配的 syllable 溢出时，UI 上应有可视化的错误提示
 
 ### 架构改进
 
@@ -141,7 +141,7 @@ nextHeaderStartInMs > curTailEndInMs
 → gap > headerMinLength + tailLength
 ```
 
-Slicer 的阈值实际上不是固定值：`headerMinLength = padBaseLength + headerPhonemeCount * padUnitAdditionalLength`，会随下一个音符的卡拍前音素数量变化。但对于音节分配音符（`+`），`Syllabification` 分配的 onset group 来自 `splitOnsetGroups`（按 onset 切分），每组总是以卡拍音素开头，因此 `headerPhonemeCount` 恒为 0。所以这里可以简化为固定阈值：
+Slicer 的阈值实际上不是固定值：`headerMinLength = padBaseLength + headerPhonemeCount * padUnitAdditionalLength`，会随下一个音符的卡拍前音素数量变化。但分配给纯音节分配音符（`+`）的后续 syllable 以卡拍音素开头，因此 `headerPhonemeCount` 恒为 0。这里可以简化为固定阈值：
 
 - `tailLength`（当前音符）= `padBaseLength` = 100ms
 - `headerMinLength`（`+` 音符，headerPhonemeCount = 0）= `padBaseLength` = 100ms
@@ -159,7 +159,7 @@ gapThresholdTicks = round(200ms * ticksPerQuarterNote * tempo / 60000)
 
 **改动 1**：增加 include（`AppGlobal.h`、`SingingClipSlicerGlobal.h`、`AppModel.h`）
 
-**改动 2**：在 `Syllabification` 的 lyric group 收集逻辑中计算 tick 域阈值
+**改动 2**：在 `Syllabification` 的 word 收集逻辑中计算 tick 域阈值
 
 ```cpp
 const double tempo = appModel->tempo();

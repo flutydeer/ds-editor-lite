@@ -10,28 +10,28 @@
 namespace {
     using PhonemeRange = Syllabification::PhonemeRange;
 
-    QList<PhonemeRange> splitOnsetGroups(const QList<PhonemeName> &phonemes) {
-        QList<PhonemeRange> onsetGroups;
-        int onsetGroupStart = 0;
+    QList<PhonemeRange> splitSyllables(const QList<PhonemeName> &phonemes) {
+        QList<PhonemeRange> syllables;
+        int syllableStart = 0;
         bool hasOnset = false;
 
         for (int i = 0; i < phonemes.size(); ++i) {
             const auto &phoneme = phonemes.at(i);
             if (phoneme.isOnset && hasOnset) {
-                onsetGroups.append({onsetGroupStart, i - onsetGroupStart});
-                onsetGroupStart = i;
+                syllables.append({syllableStart, i - syllableStart});
+                syllableStart = i;
             }
             if (phoneme.isOnset)
                 hasOnset = true;
         }
 
         if (!phonemes.isEmpty())
-            onsetGroups.append(
-                {onsetGroupStart, static_cast<int>(phonemes.size()) - onsetGroupStart});
-        return onsetGroups;
+            syllables.append(
+                {syllableStart, static_cast<int>(phonemes.size()) - syllableStart});
+        return syllables;
     }
 
-    bool isLyricGroupMarker(const QString &lyric) {
+    bool isWordContinuationLyric(const QString &lyric) {
         return Note::isSlurLyric(lyric) || Syllabification::isSyllabificationLyric(lyric);
     }
 
@@ -42,15 +42,16 @@ namespace {
         return qRound(noteStartMs - rootStartMs);
     }
 
-    int lyricGroupEnd(const QStringList &lyrics, const QList<InferInputNote> &notes,
-                      const int rootIndex) {
-        auto lyricGroupEndTick = notes.at(rootIndex).start + notes.at(rootIndex).length;
+    int wordEnd(const QStringList &lyrics, const QList<InferInputNote> &notes,
+                const int rootIndex) {
+        auto wordEndTick = notes.at(rootIndex).start + notes.at(rootIndex).length;
         int end = rootIndex + 1;
-        for (; end < notes.size() && isLyricGroupMarker(lyrics.at(end)); ++end) {
-            const auto &marker = notes.at(end);
-            if (marker.start > lyricGroupEndTick)
+        for (; end < notes.size() && isWordContinuationLyric(lyrics.at(end)); ++end) {
+            const auto &continuationNote = notes.at(end);
+            if (continuationNote.start > wordEndTick)
                 break;
-            lyricGroupEndTick = std::max(lyricGroupEndTick, marker.start + marker.length);
+            wordEndTick =
+                std::max(wordEndTick, continuationNote.start + continuationNote.length);
         }
         return end;
     }
@@ -73,38 +74,38 @@ namespace Syllabification {
                 syllabificationTargets.append(i);
         }
 
-        const auto onsetGroups = splitOnsetGroups(phonemes);
-        int onsetGroupIndex = 0;
+        const auto syllables = splitSyllables(phonemes);
+        int syllableIndex = 0;
         for (int i = 0; i < syllabificationTargets.size(); ++i) {
             const auto target = syllabificationTargets.at(i);
-            if (onsetGroupIndex >= onsetGroups.size())
+            if (syllableIndex >= syllables.size())
                 break;
 
             const bool isLastTarget = i == syllabificationTargets.size() - 1;
             const int quota = target == 0 ? 1 + Note::trailingSyllabificationCount(lyrics.first())
                                           : static_cast<int>(lyrics.at(target).trimmed().size());
-            const int remainingOnsetGroups =
-                static_cast<int>(onsetGroups.size()) - onsetGroupIndex;
-            const int takenOnsetGroups =
-                isLastTarget ? remainingOnsetGroups : std::min(quota, remainingOnsetGroups);
-            if (takenOnsetGroups <= 0)
+            const int remainingSyllables =
+                static_cast<int>(syllables.size()) - syllableIndex;
+            const int takenSyllables =
+                isLastTarget ? remainingSyllables : std::min(quota, remainingSyllables);
+            if (takenSyllables <= 0)
                 continue;
 
-            const auto first = onsetGroups.at(onsetGroupIndex);
-            const auto last = onsetGroups.at(onsetGroupIndex + takenOnsetGroups - 1);
+            const auto first = syllables.at(syllableIndex);
+            const auto last = syllables.at(syllableIndex + takenSyllables - 1);
             result[target] = {first.start, last.start + last.count - first.start};
-            onsetGroupIndex += takenOnsetGroups;
+            syllableIndex += takenSyllables;
         }
         return result;
     }
 
-    void keepPhonemesOnLyricGroupRoots(const QList<NoteInferenceSnapshot> &notes,
-                                       QList<PhonemeNameResult> &results) {
+    void keepPhonemesOnWordRoots(const QList<NoteInferenceSnapshot> &notes,
+                                 QList<PhonemeNameResult> &results) {
         if (notes.size() != results.size())
             return;
 
         for (int i = 0; i < notes.size(); ++i) {
-            if (!isLyricGroupMarker(notes.at(i).lyric))
+            if (!isWordContinuationLyric(notes.at(i).lyric))
                 continue;
             results[i].phonemeNames.clear();
             results[i].success = true;
@@ -118,19 +119,19 @@ namespace Syllabification {
 
         int rootIndex = 0;
         while (rootIndex < notes.size()) {
-            if (isLyricGroupMarker(lyrics.at(rootIndex))) {
+            if (isWordContinuationLyric(lyrics.at(rootIndex))) {
                 notes[rootIndex].phonemeNames.clear();
                 notes[rootIndex].phonemeOffsets.clear();
                 ++rootIndex;
                 continue;
             }
 
-            const auto end = lyricGroupEnd(lyrics, notes, rootIndex);
+            const auto end = wordEnd(lyrics, notes, rootIndex);
 
-            const auto lyricGroupLyrics = lyrics.mid(rootIndex, end - rootIndex);
+            const auto wordLyrics = lyrics.mid(rootIndex, end - rootIndex);
             const auto storedNames = notes.at(rootIndex).phonemeNames;
             const auto storedOffsets = notes.at(rootIndex).phonemeOffsets;
-            const auto ranges = phonemeRangesForNotes(lyricGroupLyrics, storedNames);
+            const auto ranges = phonemeRangesForNotes(wordLyrics, storedNames);
             const bool offsetsReady = storedOffsets.size() == storedNames.size();
             const auto root = notes.at(rootIndex);
 
@@ -160,12 +161,12 @@ namespace Syllabification {
 
         int rootIndex = 0;
         while (rootIndex < notes.size()) {
-            if (isLyricGroupMarker(lyrics.at(rootIndex))) {
+            if (isWordContinuationLyric(lyrics.at(rootIndex))) {
                 ++rootIndex;
                 continue;
             }
 
-            const auto end = lyricGroupEnd(lyrics, notes, rootIndex);
+            const auto end = wordEnd(lyrics, notes, rootIndex);
 
             const auto &root = notes.at(rootIndex);
             bool offsetsReady = true;

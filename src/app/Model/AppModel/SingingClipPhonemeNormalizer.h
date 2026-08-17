@@ -18,34 +18,34 @@ public:
         QList<int> editedOffsets;
     };
 
-    class GroupMemberState {
+    class WordMemberState {
     public:
         Note *note = nullptr;
         QString lyric;
         int relativeStartMs = 0;
 
-        bool operator==(const GroupMemberState &other) const = default;
+        bool operator==(const WordMemberState &other) const = default;
     };
 
-    class GroupState {
+    class WordState {
     public:
         int rootSyllabificationCount = 0;
         QList<bool> rootOnsets;
-        QList<GroupMemberState> members;
+        QList<WordMemberState> members;
 
-        bool operator==(const GroupState &other) const = default;
+        bool operator==(const WordState &other) const = default;
     };
 
-    using GroupStates = QHash<Note *, GroupState>;
+    using WordStates = QHash<Note *, WordState>;
 
-    static GroupStates captureGroupStates(const SingingClip &clip);
-    static GroupStates captureGroupStates(const SingingClip &clip, const Timeline &timeline);
+    static WordStates captureWordStates(const SingingClip &clip);
+    static WordStates captureWordStates(const SingingClip &clip, const Timeline &timeline);
     static QList<Note *> collectInvalidEditedOffsetNotes(SingingClip &clip);
     static QList<ResetRecord> normalizeEditedOffsets(SingingClip &clip);
     static QList<ResetRecord> normalizeEditedOffsets(SingingClip &clip,
-                                                      const GroupStates &previousGroupStates);
+                                                      const WordStates &previousWordStates);
     static QList<ResetRecord> normalizeEditedOffsets(SingingClip &clip,
-                                                      const GroupStates &previousGroupStates,
+                                                      const WordStates &previousWordStates,
                                                       const Timeline &timeline);
     static QList<Note *> notesFromResetRecords(const QList<ResetRecord> &records);
     static void restoreEditedOffsets(const QList<ResetRecord> &records);

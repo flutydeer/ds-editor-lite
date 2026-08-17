@@ -10,7 +10,7 @@
 - Phoneme 层：保存实际送入 G2P、Duration、Pitch、Variance、Acoustic 的音素序列和 offset。
 
 最近的 phoneme offset normalizer 已经把失效的手动音素时长清理逻辑收口到模型层，但
-rest、音节分配和 word grouping 的语义仍然分散。下一步应先整理低风险的 rest 判断，
+rest、音节分配和 word layout 的语义仍然分散。下一步应先整理低风险的 rest 判断，
 再为音节分配和 word layout 留出正确抽象位置。
 
 ## 当前代码观察
@@ -35,10 +35,10 @@ rest、音节分配和 word grouping 的语义仍然分散。下一步应先整�
 
 - `Note::isSyllabificationLyric()` 判断歌词是否完全由 `+` 构成。
 - `Note::trailingSyllabificationCount()` 解析 `lyric+` / `lyric++` 这类尾随音节分配符号。
-- `Syllabification::phonemeRangesForNotes()` 会把英语等多音节内容的 onset groups（卡拍组）分配给主歌词音符和后续纯音节分配音符。
+- `Syllabification::phonemeRangesForNotes()` 会把英语等多音节内容的 syllables 分配给主歌词音符和后续纯音节分配音符。
 
 `Note` 可以集中判断单个歌词 token，但完整音节分配不是简单的 Note 类型。`+`、`++`、
-`lyric+`、`lyric++` 语义不同，跨音符的 lyric group 和 onset group 分配应留在独立模块中。
+`lyric+`、`lyric++` 语义不同，跨音符的 word 组织和 syllable 分配应留在独立模块中。
 
 ### Slicer 应保持 deterministic
 
@@ -81,7 +81,7 @@ rest、音节分配和 word grouping 的语义仍然分散。下一步应先整�
 
 ### Phase 2：新增 lyric token parser，但不改变行为
 
-目标：把音节分配、连音和休止的字符串解析集中起来，为 word grouping 做准备。
+目标：把音节分配、连音和休止的字符串解析集中起来，为 word layout 做准备。
 
 建议新增轻量结构，例如：
 
@@ -112,7 +112,7 @@ public:
 - 音节分配结果保持不变。
 - rest 仍以 Phase 1 的 `Note::isRest()` 为 Note 层来源。
 
-### Phase 3：建立 word grouping / layout
+### Phase 3：建立 word layout
 
 目标：明确 Note 序列如何转换为 word / syllable / phoneme 布局，减少 slicer、phoneme editor、inference input 各自推断。
 
@@ -121,22 +121,22 @@ public:
 - authored rest word
 - generated gap rest word
 - generated padding rest word
-- lexical word group
-- syllabification continuation group
-- slur continuation group
-- 每个 group 对应的 note 范围
-- 每个 group 是否需要 G2P / duration / acoustic input
+- lexical word
+- syllabification continuation notes
+- slur continuation notes
+- 每个 word 对应的 note 范围
+- 每个 word 是否需要 G2P / duration / acoustic input
 
 原则：
 
 - layout 可以消费 slicer 的 deterministic segment。
 - layout 不改变 slicer 分片。
 - layout 不依赖 edited phoneme offset 来决定 segment。
-- edited offset 只用于 phoneme timing validation，不用于 word grouping 决策。
+- edited offset 只用于 phoneme timing validation，不用于 word layout 决策。
 
 验收点：
 
-- `GetPhonemeNameTask` 的音节分配逻辑可以逐步迁移到 word grouping。
+- `GetPhonemeNameTask` 的音节分配逻辑可以逐步迁移到 word layout。
 - `InferTaskHelper::buildWords()` 可以消费更明确的 word layout，减少内部临时推断。
 - PhonemeView / Normalizer 后续可共享同一套 effective note / word 边界。
 

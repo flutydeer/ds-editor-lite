@@ -7,14 +7,14 @@
 #include <utility>
 
 namespace {
-    class ClipGroupStates {
+    class ClipWordStates {
     public:
         SingingClip *clip = nullptr;
-        SingingClipPhonemeNormalizer::GroupStates states;
+        SingingClipPhonemeNormalizer::WordStates states;
     };
 
-    QList<ClipGroupStates> captureGroupStates(AppModel &model) {
-        QList<ClipGroupStates> result;
+    QList<ClipWordStates> captureWordStates(AppModel &model) {
+        QList<ClipWordStates> result;
         const auto &timeline = model.timeline();
         for (const auto track : model.tracks()) {
             for (const auto clip : track->clips()) {
@@ -22,7 +22,7 @@ namespace {
                     continue;
                 auto singingClip = static_cast<SingingClip *>(clip);
                 auto states =
-                    SingingClipPhonemeNormalizer::captureGroupStates(*singingClip, timeline);
+                    SingingClipPhonemeNormalizer::captureWordStates(*singingClip, timeline);
                 if (!states.isEmpty())
                     result.append({singingClip, std::move(states)});
             }
@@ -41,13 +41,13 @@ EditTemposAction *EditTemposAction::build(const QList<Tempo> &oldTempos,
 }
 
 void EditTemposAction::execute() {
-    const auto previousGroupStates = captureGroupStates(*m_model);
+    const auto previousWordStates = captureWordStates(*m_model);
     auto timeline = m_model->timeline();
     timeline.setTempos(m_newTempos);
     m_model->setTimeline(std::move(timeline));
 
     m_resetRecords.clear();
-    for (const auto &previous : previousGroupStates) {
+    for (const auto &previous : previousWordStates) {
         auto records = SingingClipPhonemeNormalizer::normalizeEditedOffsets(
             *previous.clip, previous.states, m_model->timeline());
         if (records.isEmpty())

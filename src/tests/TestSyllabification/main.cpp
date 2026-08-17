@@ -46,20 +46,20 @@ namespace {
             Syllabification::phonemeRangesForNotes({"international+", "+", "++"}, phones);
         expect(ranges.size() == 3, "one range is returned for every note");
         expect(ranges.at(0).start == 0 && ranges.at(0).count == 3,
-               "a trailing syllabification symbol assigns two onset groups to the lyric-group root");
+               "a trailing syllabification symbol assigns two syllables to the word root");
         expect(ranges.at(1).start == 3 && ranges.at(1).count == 2,
-               "the first syllabification note consumes one onset group");
+               "the first syllabification note consumes one syllable");
         expect(ranges.at(2).start == 5 && ranges.at(2).count == 2,
-               "the last syllabification note greedily consumes all remaining onset groups");
+               "the last syllabification note greedily consumes all remaining syllables");
 
         const auto withSlur =
             Syllabification::phonemeRangesForNotes({"international+", "-", "+", "++"}, phones);
         expect(withSlur.at(1).count == 0 && withSlur.at(2).start == 3,
-               "slur notes do not consume an onset group");
+               "slur notes do not consume a syllable");
 
         const auto single = Syllabification::phonemeRangesForNotes({"international+"}, phones);
         expect(single.at(0).count == phones.size(),
-               "a lyric group without syllabification notes retains every phoneme on its root");
+               "a word without syllabification notes retains every phoneme on its root");
     }
 
     void testStorageAndInferenceRoundTrip() {
@@ -74,9 +74,9 @@ namespace {
         fetched[0].success = true;
         fetched[1].phonemeNames = {phone("stale", true)};
         fetched[2].phonemeNames = {phone("stale", true)};
-        Syllabification::keepPhonemesOnLyricGroupRoots(snapshots, fetched);
+        Syllabification::keepPhonemesOnWordRoots(snapshots, fetched);
         expect(fetched.at(0).phonemeNames == phones,
-               "the fetched sequence stays intact on the lyric-group root");
+               "the fetched sequence stays intact on the word root");
         expect(fetched.at(1).phonemeNames.isEmpty() && fetched.at(2).phonemeNames.isEmpty(),
                "syllabification notes never retain fetched phonemes");
 
@@ -106,16 +106,16 @@ namespace {
         expect(inferenceNotes.at(0).phonemeOffsets == QList<int>({-100, 0, 100}) &&
                    inferenceNotes.at(1).phonemeOffsets == QList<int>({0, 400}) &&
                    inferenceNotes.at(2).phonemeOffsets == QList<int>({0, 500}),
-               "stored lyric-group offsets become note-relative inference offsets");
+               "stored word offsets become note-relative inference offsets");
 
         const auto stored = Syllabification::collectForStorage(lyrics, inferenceNotes, timeline, 0);
         expect(stored.at(0) == rootPhonemes.offsetSeq.edited,
-               "distributed offsets merge back into the complete lyric-group root sequence");
+               "distributed offsets merge back into the complete word root sequence");
         expect(stored.at(1).isEmpty() && stored.at(2).isEmpty(),
                "syllabification notes receive no persisted offsets");
     }
 
-    void testDetachedMarkersStayOrphaned() {
+    void testDetachedSyllabificationNotesStayOrphaned() {
         Note root;
         configureNote(root, 0, "international+");
         Phonemes rootPhonemes;
@@ -170,12 +170,12 @@ namespace {
         configureNote(*doubleSyllabificationNote, 960, "++");
         SingingClip clip({root, syllabificationNote, doubleSyllabificationNote});
 
-        auto previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip);
+        auto previousWordStates = SingingClipPhonemeNormalizer::captureWordStates(clip);
         clip.removeNote(syllabificationNote);
         syllabificationNote->setLocalStart(600);
         clip.insertNote(syllabificationNote);
         const auto resetRecords =
-            SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousGroupStates);
+            SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousWordStates);
         expect(resetRecords.size() == 1 && resetRecords.first().note == root &&
                    !root->phonemeOffsetSeq().isEdited(),
                "moving one syllabification note invalidates root-relative edited offsets");
@@ -184,7 +184,7 @@ namespace {
         clip.removeNote(syllabificationNote);
         syllabificationNote->setLocalStart(480);
         clip.insertNote(syllabificationNote);
-        previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip);
+        previousWordStates = SingingClipPhonemeNormalizer::captureWordStates(clip);
         for (const auto note :
              QList<Note *>{root, syllabificationNote, doubleSyllabificationNote}) {
             clip.removeNote(note);
@@ -192,32 +192,32 @@ namespace {
             clip.insertNote(note);
         }
         const auto unchangedRecords =
-            SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousGroupStates);
+            SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousWordStates);
         expect(unchangedRecords.isEmpty() && root->phonemeOffsetSeq().isEdited(),
-               "moving the complete lyric group preserves relative edited offsets");
+               "moving the complete word preserves relative edited offsets");
 
-        previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip);
+        previousWordStates = SingingClipPhonemeNormalizer::captureWordStates(clip);
         clip.removeNote(syllabificationNote);
         const auto membershipRecords =
-            SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousGroupStates);
+            SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousWordStates);
         expect(membershipRecords.size() == 1 && membershipRecords.first().note == root &&
                    !root->phonemeOffsetSeq().isEdited(),
-               "removing a syllabification note invalidates the lyric-group root offsets");
+               "removing a syllabification note invalidates the word root offsets");
         SingingClipPhonemeNormalizer::restoreEditedOffsets(membershipRecords);
         clip.insertNote(syllabificationNote);
 
-        previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip);
+        previousWordStates = SingingClipPhonemeNormalizer::captureWordStates(clip);
         auto changedPhonemes = root->phonemes();
         changedPhonemes.nameSeq.edited[3].isOnset = false;
         root->setPhonemes(changedPhonemes);
         const auto onsetChangeRecords =
-            SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousGroupStates);
+            SingingClipPhonemeNormalizer::normalizeEditedOffsets(clip, previousWordStates);
         expect(onsetChangeRecords.size() == 1 && onsetChangeRecords.first().note == root &&
                    !root->phonemeOffsetSeq().isEdited(),
-               "changing onset markers invalidates lyric-group root offsets");
+               "changing onset markers invalidates word root offsets");
     }
 
-    void testTempoAwareLyricGroupState() {
+    void testTempoAwareWordState() {
         auto root = new Note;
         configureNote(*root, 0, "international+");
         Phonemes rootPhonemes;
@@ -232,22 +232,22 @@ namespace {
 
         Timeline timeline;
         timeline.addTempo({960, 60.0});
-        auto previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip, timeline);
+        auto previousWordStates = SingingClipPhonemeNormalizer::captureWordStates(clip, timeline);
         clip.setStart(720);
         const auto movedRecords = SingingClipPhonemeNormalizer::normalizeEditedOffsets(
-            clip, previousGroupStates, timeline);
+            clip, previousWordStates, timeline);
         expect(movedRecords.size() == 1 && movedRecords.first().note == root &&
                    !root->phonemeOffsetSeq().isEdited(),
-               "moving a complete group across a tempo boundary invalidates millisecond offsets");
+               "moving a complete word across a tempo boundary invalidates millisecond offsets");
 
         SingingClipPhonemeNormalizer::restoreEditedOffsets(movedRecords);
-        previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(clip, timeline);
+        previousWordStates = SingingClipPhonemeNormalizer::captureWordStates(clip, timeline);
         timeline.addTempo({1200, 90.0});
         const auto tempoRecords = SingingClipPhonemeNormalizer::normalizeEditedOffsets(
-            clip, previousGroupStates, timeline);
+            clip, previousWordStates, timeline);
         expect(tempoRecords.size() == 1 && tempoRecords.first().note == root &&
                    !root->phonemeOffsetSeq().isEdited(),
-               "tempo changes inside a stationary group invalidate millisecond offsets");
+               "tempo changes inside a stationary word invalidate millisecond offsets");
     }
 }
 
@@ -255,10 +255,10 @@ int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     testRanges();
     testStorageAndInferenceRoundTrip();
-    testDetachedMarkersStayOrphaned();
+    testDetachedSyllabificationNotesStayOrphaned();
     testEditingEligibility();
     testRelativeTimingChangeInvalidatesEditedOffsets();
-    testTempoAwareLyricGroupState();
+    testTempoAwareWordState();
     if (failures == 0)
         QTextStream(stdout) << "All Syllabification tests passed" << Qt::endl;
     return failures == 0 ? 0 : 1;

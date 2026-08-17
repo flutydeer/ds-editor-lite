@@ -18,8 +18,8 @@ namespace Syllabification {
     bool isSyllabificationLyric(const QString &lyric);
     QList<PhonemeRange> phonemeRangesForNotes(const QStringList &lyrics,
                                               const QList<PhonemeName> &phonemes);
-    void keepPhonemesOnLyricGroupRoots(const QList<NoteInferenceSnapshot> &notes,
-                                       QList<PhonemeNameResult> &results);
+    void keepPhonemesOnWordRoots(const QList<NoteInferenceSnapshot> &notes,
+                                 QList<PhonemeNameResult> &results);
     void distributeForInference(const QStringList &lyrics, QList<InferInputNote> &notes,
                                 const Timeline &timeline, int clipStartTick);
     QList<QList<int>> collectForStorage(const QStringList &lyrics,
