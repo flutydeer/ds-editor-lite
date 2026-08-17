@@ -1563,6 +1563,7 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
 }
 
 void PianoRollGraphicsViewPrivate::updateLyricToolTip(const QPoint &position) {
+    Q_Q(PianoRollGraphicsView);
     auto *noteView = noteViewAt(position);
     if (!noteView || noteView->id() < 0 || !noteView->isLyricElided() ||
         (m_inlineEditor && m_inlineEditor->isEditing())) {
@@ -1579,7 +1580,8 @@ void PianoRollGraphicsViewPrivate::updateLyricToolTip(const QPoint &position) {
     m_lyricToolTipNoteId = noteView->id();
     m_lyricToolTipText = lyric;
     m_lyricToolTip->setTitle(Qt::convertFromPlainText(lyric));
-    m_lyricToolTip->showAt(QCursor::pos());
+    const auto noteRect = q->mapFromScene(noteView->sceneBoundingRect()).boundingRect();
+    m_lyricToolTip->showAbove({q->viewport()->mapToGlobal(noteRect.topLeft()), noteRect.size()});
 }
 
 void PianoRollGraphicsViewPrivate::hideLyricToolTip() {

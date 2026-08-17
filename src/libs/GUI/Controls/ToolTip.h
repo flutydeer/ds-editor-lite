@@ -30,6 +30,7 @@ public:
     void setAnimationEnabled(bool on);
     [[nodiscard]] bool animationEnabled() const;
     void showAt(const QPoint &screenPos);
+    void showAbove(const QRect &screenRect);
     void moveTo(const QPoint &screenPos);
     void hideWithAnimation();
 

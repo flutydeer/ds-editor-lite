@@ -732,7 +732,8 @@ public:
         lyricToolTipNoteId = note->id();
         lyricToolTipText = lyric;
         lyricToolTip->setTitle(Qt::convertFromPlainText(lyric));
-        lyricToolTip->showAt(QCursor::pos());
+        const auto noteRect = noteViewportRect(note).toAlignedRect();
+        lyricToolTip->showAbove({q->mapToGlobal(noteRect.topLeft()), noteRect.size()});
     }
 
     void hideLyricToolTip() {

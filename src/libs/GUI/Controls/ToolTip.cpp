@@ -7,6 +7,10 @@
 
 #include <lite/GUI/Controls/ToolTip.h>
 
+namespace {
+    constexpr int anchorGap = 4;
+}
+
 ToolTip::ToolTip(const QString &title, QWidget *parent) : QFrame(parent) {
     m_lbTitle = new QLabel(title);
     m_lbTitle->setObjectName("toolTipTitle");
@@ -169,6 +173,15 @@ void ToolTip::showAt(const QPoint &screenPos) {
     }
 
     show();
+}
+
+void ToolTip::showAbove(const QRect &screenRect) {
+    adjustSize();
+    const auto margins = layout()->contentsMargins();
+    const auto contentWidth = width() - margins.left() - margins.right();
+    const auto x = screenRect.center().x() - contentWidth / 2 - margins.left();
+    const auto y = screenRect.top() - anchorGap - height() + margins.bottom();
+    showAt({x, y});
 }
 
 void ToolTip::moveTo(const QPoint &screenPos) {
