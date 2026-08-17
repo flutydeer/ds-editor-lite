@@ -264,9 +264,11 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             context.target = PianoRollMenuContext::Target::Note;
             context.noteId = noteId;
             context.selectedNoteIds = selectedNotesId();
-            if (const auto *note = d->m_clip->findNoteById(noteId))
+            if (const auto *note = d->m_clip->findNoteById(noteId)) {
                 context.noteLanguage = note->language();
-            context.phonemeEditorEnabled = context.selectedNoteIds.size() == 1;
+                context.phonemeEditorEnabled =
+                    context.selectedNoteIds.size() == 1 && note->canEditPhonemes();
+            }
             context.pronunciationTarget = true;
             emit contextMenuRequested(context);
             event->accept();
@@ -281,7 +283,8 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             context.noteId = noteView->id();
             context.selectedNoteIds = selectedNotesId();
             context.noteLanguage = note->language();
-            context.phonemeEditorEnabled = context.selectedNoteIds.size() == 1;
+            context.phonemeEditorEnabled =
+                context.selectedNoteIds.size() == 1 && note->canEditPhonemes();
         } else {
             context.target = PianoRollMenuContext::Target::Background;
         }

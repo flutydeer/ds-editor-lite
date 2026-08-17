@@ -312,7 +312,7 @@ void PianoRollContextMenuController::openPhonemeEditor(SingingClip *clip, const 
     if (!clip)
         return;
     auto *note = clip->findNoteById(noteId);
-    if (!note)
+    if (!note || !note->canEditPhonemes())
         return;
     auto *dialog = new PhonemeEditorDialog(note, m_owner);
     connect(dialog, &PhonemeEditorDialog::accepted, this, [dialog, noteId] {

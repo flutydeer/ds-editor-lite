@@ -9,7 +9,7 @@ InferInputNote::InferInputNote(const Note &note) {
     key = note.keyIndex();
     isRest = note.lyric() == "SP" || note.lyric() == "AP";
     isSlur = note.isSlur();
-    isPlus = !note.lyric().isEmpty() && note.lyric().count('+') == note.lyric().length();
+    isPlus = note.isPlus();
     languageDictId = note.effectiveLanguage();
     phonemeNames = note.phonemeNameSeq().result();
     phonemeOffsets = note.phonemeOffsetSeq().result();
