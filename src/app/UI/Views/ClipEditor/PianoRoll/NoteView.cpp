@@ -78,6 +78,7 @@ QString NoteView::lyric() const {
 
 void NoteView::setLyric(const QString &lyric) {
     m_lyric = lyric;
+    updateLyricToolTip();
     update();
 }
 
@@ -263,6 +264,7 @@ void NoteView::updateRectAndPos() {
     if (m_pronView)
         adjustPronView();
 
+    updateLyricToolTip();
     update();
 }
 
@@ -273,7 +275,10 @@ void NoteView::adjustPronView() const {
 
 void NoteView::initUi() {
     setFlag(ItemIsSelectable);
-    fontPixelSize.onChanged([this](int) { update(); });
+    fontPixelSize.onChanged([this](int) {
+        updateLyricToolTip();
+        update();
+    });
 }
 
 QFont NoteView::lyricFont() const {
@@ -282,10 +287,15 @@ QFont NoteView::lyricFont() const {
     return font;
 }
 
+void NoteView::updateLyricToolTip() {
+    setToolTip(isLyricElided() ? m_lyric : QString());
+}
+
 void NoteView::setEditingLyric(const bool editing) {
     if (m_editingLyric == editing)
         return;
     m_editingLyric = editing;
+    updateLyricToolTip();
     update();
 }
 

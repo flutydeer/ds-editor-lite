@@ -1,6 +1,5 @@
 #include "UI/Views/ClipEditor/PianoRoll/NoteEditUtils.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteLyricPresentation.h"
-#include "UI/Views/ClipEditor/PianoRoll/NoteLyricToolTip.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
 
 #include <lite/MusicBase/Timeline.h>
@@ -110,22 +109,6 @@ int main(int argc, char *argv[]) {
         narrowNoteRect, longLyric, lyricFont, NoteLyricPresentation::compactScaleThreshold - 0.01);
     expect(!compactLayout.isVisible() && !compactLayout.elided,
            "compact note rendering must suppress lyrics and tooltip eligibility");
-
-    QWidget lyricToolTipHost;
-    lyricToolTipHost.resize(240, 40);
-    NoteLyricToolTip lyricToolTip(&lyricToolTipHost);
-    lyricToolTip.showAt(narrowLayout.textRect, longLyric, lyricFont);
-    expect(lyricToolTip.testAttribute(Qt::WA_TransparentForMouseEvents) &&
-               lyricToolTip.text() == longLyric && !lyricToolTip.isHidden() &&
-               lyricToolTip.width() > narrowLayout.textRect.width(),
-           "the expanded lyric tooltip must be visual-only and expose the full lyric");
-    lyricToolTip.showAt(narrowLayout.textRect.translated(220.0, 0.0), longLyric, lyricFont);
-    expect(lyricToolTip.geometry().right() <= lyricToolTipHost.rect().right(),
-           "a lyric tooltip near the right edge must remain inside its viewport");
-    lyricToolTipHost.resize(20, 40);
-    lyricToolTip.showAt(narrowLayout.textRect, longLyric, lyricFont);
-    expect(lyricToolTip.x() == 0,
-           "a lyric tooltip wider than its viewport must stay anchored to the left edge");
 
     using EditorSelectionUtils::OrderedSelectionModel;
     constexpr auto ctrlShift = Qt::ControlModifier | Qt::ShiftModifier;
