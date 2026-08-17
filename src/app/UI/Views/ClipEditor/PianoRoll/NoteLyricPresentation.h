@@ -53,6 +53,19 @@ namespace NoteLyricPresentation {
         result.elided = result.displayText != lyric;
         return result;
     }
+
+    inline bool isElidedInRect(const Layout &layout, const QString &lyric, const QFont &font,
+                               const QRectF &visibleRect) {
+        if (layout.elided || !layout.isVisible())
+            return layout.elided;
+
+        const QFontMetricsF metrics(font);
+        const QRectF textBounds(
+            layout.textRect.left(),
+            layout.textRect.top() + (layout.textRect.height() - metrics.height()) * 0.5,
+            metrics.horizontalAdvance(lyric), metrics.height());
+        return !visibleRect.contains(textBounds);
+    }
 }
 
 #endif // NOTELYRICPRESENTATION_H

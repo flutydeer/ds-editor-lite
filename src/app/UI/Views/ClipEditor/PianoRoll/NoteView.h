@@ -9,6 +9,7 @@
 
 #include <QColor>
 #include <QFont>
+#include <QRectF>
 
 class PronunciationView;
 
@@ -34,7 +35,7 @@ public:
     void setKeyIndex(int keyIndex);
     [[nodiscard]] QString lyric() const;
     void setLyric(const QString &lyric);
-    [[nodiscard]] bool isLyricElided() const;
+    [[nodiscard]] bool isLyricElided(const QRectF &visibleSceneRect) const;
     void setPronunciation(const QString &pronunciation, bool edited);
     [[nodiscard]] bool editingPitch() const;
     void setEditingPitch(bool on);

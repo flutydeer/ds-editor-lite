@@ -716,9 +716,12 @@ public:
             return;
         }
 
-        const auto layout = NoteLyricPresentation::layout(
-            noteViewportRect(note), note->lyric(), lyricFont(), horizontalScale());
-        if (!layout.elided) {
+        const auto noteRect = noteViewportRect(note);
+        const QRectF visibleRect(QPointF(), QSizeF(q->size()));
+        const auto font = lyricFont();
+        const auto layout =
+            NoteLyricPresentation::layout(noteRect, note->lyric(), font, horizontalScale());
+        if (!NoteLyricPresentation::isElidedInRect(layout, note->lyric(), font, visibleRect)) {
             hideLyricToolTip();
             return;
         }
@@ -732,8 +735,9 @@ public:
         lyricToolTipNoteId = note->id();
         lyricToolTipText = lyric;
         lyricToolTip->setTitle(Qt::convertFromPlainText(lyric));
-        const auto noteRect = noteViewportRect(note).toAlignedRect();
-        lyricToolTip->showAbove({q->mapToGlobal(noteRect.topLeft()), noteRect.size()});
+        const auto visibleNoteRect = noteRect.intersected(visibleRect).toAlignedRect();
+        lyricToolTip->showAbove(
+            {q->mapToGlobal(visibleNoteRect.topLeft()), visibleNoteRect.size()});
     }
 
     void hideLyricToolTip() {

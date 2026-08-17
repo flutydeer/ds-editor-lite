@@ -99,6 +99,14 @@ int main(int argc, char *argv[]) {
         QRectF(0.0, 0.0, fullLyricWidth + 12.0, noteTextHeight), longLyric, lyricFont, 1.0);
     expect(wideLayout.displayText == longLyric && !wideLayout.elided,
            "a lyric that fits must remain unchanged");
+    expect(!NoteLyricPresentation::isElidedInRect(wideLayout, longLyric, lyricFont,
+                                                   wideLayout.textRect),
+           "a fully visible lyric must not be tooltip-eligible");
+    const auto clippedTextRect =
+        wideLayout.textRect.adjusted(fullLyricWidth * 0.5, 0.0, 0.0, 0.0);
+    expect(NoteLyricPresentation::isElidedInRect(wideLayout, longLyric, lyricFont,
+                                                  clippedTextRect),
+           "a lyric clipped by the viewport must remain tooltip-eligible");
 
     const QRectF narrowNoteRect(0.0, 0.0, fullLyricWidth * 0.55, noteTextHeight);
     const auto narrowLayout =

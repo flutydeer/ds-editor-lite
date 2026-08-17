@@ -81,10 +81,13 @@ void NoteView::setLyric(const QString &lyric) {
     update();
 }
 
-bool NoteView::isLyricElided() const {
+bool NoteView::isLyricElided(const QRectF &visibleSceneRect) const {
     if (m_editingLyric)
         return false;
-    return NoteLyricPresentation::layout(boundingRect(), m_lyric, lyricFont(), scaleX()).elided;
+    const auto font = lyricFont();
+    const auto layout = NoteLyricPresentation::layout(boundingRect(), m_lyric, font, scaleX());
+    return NoteLyricPresentation::isElidedInRect(layout, m_lyric, font,
+                                                 mapRectFromScene(visibleSceneRect));
 }
 
 void NoteView::setPronunciation(const QString &pronunciation, const bool edited) {
