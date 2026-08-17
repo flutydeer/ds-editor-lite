@@ -9,6 +9,8 @@
 #include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Controls/SmoothScroller.h>
 
+#include <QSignalBlocker>
+
 PhonemeNameListWidget::PhonemeNameListWidget(QWidget *parent) : QListWidget(parent) {
     setSelectionMode(QAbstractItemView::NoSelection);
     setContextMenuPolicy(Qt::CustomContextMenu);
@@ -133,13 +135,14 @@ void PhonemeNameListWidget::updateItemWidget(int row) {
     }
 
     QModelIndex index = m_model->index(row);
-    widget->blockSignals(true);
+    const QSignalBlocker languageBlocker(widget->cbLanguage());
+    const QSignalBlocker nameBlocker(widget->leName());
+    const QSignalBlocker onsetBlocker(widget->cbIsOnset());
     widget->cbLanguage()->setCurrentLanguage(
         m_model->data(index, PhonemeNameListModel::LanguageRole).toString());
     widget->leName()->setText(m_model->data(index, PhonemeNameListModel::NameRole).toString());
     widget->cbIsOnset()->setChecked(
         m_model->data(index, PhonemeNameListModel::IsOnsetRole).toBool());
-    widget->blockSignals(false);
 }
 
 void PhonemeNameListWidget::onCustomContextMenuRequested(const QPoint &pos) {
