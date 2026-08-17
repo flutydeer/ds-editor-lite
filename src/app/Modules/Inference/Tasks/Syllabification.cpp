@@ -10,25 +10,25 @@
 namespace {
     using PhonemeRange = Syllabification::PhonemeRange;
 
-    QList<PhonemeRange> splitSyllables(const QList<PhonemeName> &phonemes) {
-        QList<PhonemeRange> syllables;
-        int syllableStart = 0;
+    QList<PhonemeRange> splitOnsetGroups(const QList<PhonemeName> &phonemes) {
+        QList<PhonemeRange> onsetGroups;
+        int onsetGroupStart = 0;
         bool hasOnset = false;
 
         for (int i = 0; i < phonemes.size(); ++i) {
             const auto &phoneme = phonemes.at(i);
             if (phoneme.isOnset && hasOnset) {
-                syllables.append({syllableStart, i - syllableStart});
-                syllableStart = i;
+                onsetGroups.append({onsetGroupStart, i - onsetGroupStart});
+                onsetGroupStart = i;
             }
             if (phoneme.isOnset)
                 hasOnset = true;
         }
 
         if (!phonemes.isEmpty())
-            syllables.append(
-                {syllableStart, static_cast<int>(phonemes.size()) - syllableStart});
-        return syllables;
+            onsetGroups.append(
+                {onsetGroupStart, static_cast<int>(phonemes.size()) - onsetGroupStart});
+        return onsetGroups;
     }
 
     bool isLyricGroupMarker(const QString &lyric) {
@@ -73,26 +73,27 @@ namespace Syllabification {
                 syllabificationTargets.append(i);
         }
 
-        const auto syllables = splitSyllables(phonemes);
-        int syllableIndex = 0;
+        const auto onsetGroups = splitOnsetGroups(phonemes);
+        int onsetGroupIndex = 0;
         for (int i = 0; i < syllabificationTargets.size(); ++i) {
             const auto target = syllabificationTargets.at(i);
-            if (syllableIndex >= syllables.size())
+            if (onsetGroupIndex >= onsetGroups.size())
                 break;
 
             const bool isLastTarget = i == syllabificationTargets.size() - 1;
             const int quota = target == 0 ? 1 + Note::trailingSyllabificationCount(lyrics.first())
                                           : static_cast<int>(lyrics.at(target).trimmed().size());
-            const int remainingSyllables = static_cast<int>(syllables.size()) - syllableIndex;
-            const int takenSyllables =
-                isLastTarget ? remainingSyllables : std::min(quota, remainingSyllables);
-            if (takenSyllables <= 0)
+            const int remainingOnsetGroups =
+                static_cast<int>(onsetGroups.size()) - onsetGroupIndex;
+            const int takenOnsetGroups =
+                isLastTarget ? remainingOnsetGroups : std::min(quota, remainingOnsetGroups);
+            if (takenOnsetGroups <= 0)
                 continue;
 
-            const auto first = syllables.at(syllableIndex);
-            const auto last = syllables.at(syllableIndex + takenSyllables - 1);
+            const auto first = onsetGroups.at(onsetGroupIndex);
+            const auto last = onsetGroups.at(onsetGroupIndex + takenOnsetGroups - 1);
             result[target] = {first.start, last.start + last.count - first.start};
-            syllableIndex += takenSyllables;
+            onsetGroupIndex += takenOnsetGroups;
         }
         return result;
     }

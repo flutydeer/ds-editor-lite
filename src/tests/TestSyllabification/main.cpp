@@ -46,16 +46,16 @@ namespace {
             Syllabification::phonemeRangesForNotes({"international+", "+", "++"}, phones);
         expect(ranges.size() == 3, "one range is returned for every note");
         expect(ranges.at(0).start == 0 && ranges.at(0).count == 3,
-               "a trailing syllabification symbol assigns two syllables to the lyric-group root");
+               "a trailing syllabification symbol assigns two onset groups to the lyric-group root");
         expect(ranges.at(1).start == 3 && ranges.at(1).count == 2,
-               "the first syllabification note consumes one syllable");
+               "the first syllabification note consumes one onset group");
         expect(ranges.at(2).start == 5 && ranges.at(2).count == 2,
-               "the last syllabification note greedily consumes all remaining syllables");
+               "the last syllabification note greedily consumes all remaining onset groups");
 
         const auto withSlur =
             Syllabification::phonemeRangesForNotes({"international+", "-", "+", "++"}, phones);
         expect(withSlur.at(1).count == 0 && withSlur.at(2).start == 3,
-               "slur notes do not consume a syllable");
+               "slur notes do not consume an onset group");
 
         const auto single = Syllabification::phonemeRangesForNotes({"international+"}, phones);
         expect(single.at(0).count == phones.size(),
