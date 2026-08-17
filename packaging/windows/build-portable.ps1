@@ -36,6 +36,18 @@ function Invoke-Process {
     }
 }
 
+function Get-ProductMetadata {
+    param([Parameter(Mandatory = $true)][string]$DestinationPath)
+
+    $generator = Join-Path $RepoRoot "cmake\GenerateProductMetadata.cmake"
+    Invoke-Process "cmake" @(
+        "-DOUTPUT_PATH=$DestinationPath",
+        "-P",
+        $generator
+    )
+    return Get-Content -LiteralPath $DestinationPath -Raw | ConvertFrom-Json
+}
+
 function Find-VisualStudio {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
     if (Test-Path -LiteralPath $vswhere -PathType Leaf) {
@@ -123,6 +135,13 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $ScriptDir "..\.."))
 Set-Location $RepoRoot
 
+$ResolvedOutputDir = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $OutputDir))
+New-Item -ItemType Directory -Force -Path $ResolvedOutputDir | Out-Null
+
+$MetadataPath = Join-Path $ResolvedOutputDir "product-metadata.json"
+$ProductMetadata = Get-ProductMetadata -DestinationPath $MetadataPath
+$ExecutableName = "$($ProductMetadata.executableBaseName).exe"
+
 if (-not $NoBuild) {
     Invoke-Step "Initialize Visual Studio and Qt environment" {
         Initialize-BuildEnvironment
@@ -143,12 +162,10 @@ if (-not $NoBuild) {
 # LITE_INSTALL_PDB). We then add the vcpkg dependencies' PDBs, which vcpkg's
 # applocal deploy does not copy, and zip the runnable `bin` tree.
 $BuildDir = Join-Path $RepoRoot "build\PortableDmlRelease"
-if (-not (Test-Path -LiteralPath (Join-Path $BuildDir "out\bin\DsEditorLite.exe"))) {
+if (-not (Test-Path -LiteralPath (Join-Path $BuildDir "out\bin\$ExecutableName"))) {
     throw "Build output not found in $BuildDir (run without -NoBuild first)."
 }
 
-$ResolvedOutputDir = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $OutputDir))
-New-Item -ItemType Directory -Force -Path $ResolvedOutputDir | Out-Null
 $StageDir = Join-Path $ResolvedOutputDir "stage"
 $AppDir = Join-Path $StageDir "bin"
 
@@ -157,8 +174,8 @@ Invoke-Step "Install to a clean staging tree" {
         Remove-Item -LiteralPath $StageDir -Recurse -Force
     }
     Invoke-Process "cmake" @("--install", $BuildDir, "--prefix", $StageDir)
-    if (-not (Test-Path -LiteralPath (Join-Path $AppDir "DsEditorLite.exe"))) {
-        throw "DsEditorLite.exe not found after install in $AppDir"
+    if (-not (Test-Path -LiteralPath (Join-Path $AppDir "$ExecutableName"))) {
+        throw "$ExecutableName not found after install in $AppDir"
     }
 }
 
