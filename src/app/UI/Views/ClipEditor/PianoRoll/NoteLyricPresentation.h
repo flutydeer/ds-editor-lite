@@ -39,7 +39,7 @@ namespace NoteLyricPresentation {
         Layout result;
         result.textRect = textRect(noteRect);
         if (lyric.isEmpty() || usesCompactRendering(horizontalScale) ||
-            result.textRect.width() <= 0.0 || result.textRect.height() <= 0.0) {
+            result.textRect.height() <= 0.0) {
             return result;
         }
 

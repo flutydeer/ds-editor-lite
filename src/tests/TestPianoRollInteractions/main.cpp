@@ -105,6 +105,10 @@ int main(int argc, char *argv[]) {
         NoteLyricPresentation::layout(narrowNoteRect, longLyric, lyricFont, 1.0);
     expect(narrowLayout.isVisible() && narrowLayout.elided && narrowLayout.displayText != longLyric,
            "a long lyric must be right-elided instead of disappearing");
+    const auto ultraShortLayout = NoteLyricPresentation::layout(
+        QRectF(0.0, 0.0, 7.0, noteTextHeight), longLyric, lyricFont, 1.0);
+    expect(!ultraShortLayout.isVisible() && ultraShortLayout.elided,
+           "a lyric with no drawable width must remain eligible for its tooltip");
     const auto compactLayout = NoteLyricPresentation::layout(
         narrowNoteRect, longLyric, lyricFont, NoteLyricPresentation::compactScaleThreshold - 0.01);
     expect(!compactLayout.isVisible() && !compactLayout.elided,
