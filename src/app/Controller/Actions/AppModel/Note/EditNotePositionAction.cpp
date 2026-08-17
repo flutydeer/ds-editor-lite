@@ -4,13 +4,17 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 void EditNotePositionAction::execute() {
+    const auto previousGroupStates =
+        SingingClipPhonemeNormalizer::captureGroupStates(*m_clip);
+
     for (const auto &note : m_notes) {
         m_clip->removeNote(note);
         note->setLocalStart(note->localStart() + m_deltaTick);
         note->setKeyIndex(note->keyIndex() + m_deltaKey);
         m_clip->insertNote(note);
     }
-    m_resetRecords = SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip);
+    m_resetRecords =
+        SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip, previousGroupStates);
     m_clip->notifyNoteChanged(SingingClip::TimeKeyPropertyChange, m_notes);
     if (!m_resetRecords.isEmpty())
         m_clip->notifyNoteChanged(

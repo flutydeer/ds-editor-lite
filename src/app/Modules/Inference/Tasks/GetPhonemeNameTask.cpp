@@ -2,7 +2,6 @@
 #include "PhonemeDistribution.h"
 
 #include "Global/AppGlobal.h"
-#include <lite/ProjectModel/SingingClipSlicer/SingingClipSlicerGlobal.h>
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 
@@ -17,9 +16,9 @@ Q_LOGGING_CATEGORY(logInferPhoneme, "infer.phoneme_name")
 
 GetPhonemeNameTask::GetPhonemeNameTask(const int clipId, const quint64 clipRevision,
                                        const QList<NoteInferenceSnapshot> &notes,
-                                       const SingerInfo &singerInfo, const Timeline &timeline)
-    : m_clipSingerInfo(singerInfo), m_clipId(clipId), m_clipRevision(clipRevision), m_inputs(notes),
-      m_timeline(timeline) {
+                                       const SingerInfo &singerInfo)
+    : m_clipSingerInfo(singerInfo), m_clipId(clipId), m_clipRevision(clipRevision),
+      m_inputs(notes) {
     for (int i = 0; i < notes.count(); i++) {
         const auto &note = notes.at(i);
         m_previewText.append(note.lyric);
@@ -71,15 +70,12 @@ void GetPhonemeNameTask::processNotes() {
     newStatus.message = tr("Processing: %1").arg(m_previewText);
     setStatus(newStatus);
     result = getPhonemeNames();
-    distributePhonemes();
+    PhonemeDistribution::keepPhonemesOnGroupRoots(m_inputs, result);
 }
 
 QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
     if (appStatus->languageModuleStatus != AppStatus::ModuleStatus::Ready) {
-        // Language module not ready — use fallback empty result.
-        // Returning an equal-length list (each PhonemeNameResult defaults to
-        // success=false) ensures distributePhonemes' result[i] access does
-        // not go out of bounds.
+        // Keep the fallback result index-aligned with the input notes.
         qCCritical(logInferPhoneme) << "Language module not ready yet, using fallback";
         m_success.store(false, std::memory_order_release);
         return QList<PhonemeNameResult>(m_inputs.size());
@@ -121,7 +117,9 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
             restPhoneme.isOnset = true;
             result.phonemeNames.append(restPhoneme);
             result.success = true;
-        } else if (input.pronunciation == "-" || input.pronunciation.isEmpty()) {
+        } else if (input.lyric.trimmed() == "-" ||
+                   PhonemeDistribution::isPlusLyric(input.lyric) ||
+                   input.pronunciation == "-" || input.pronunciation.isEmpty()) {
             result.success = true;
         } else {
             if (failedS2pLanguages.contains(input.language)) {
@@ -181,10 +179,4 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
 
     m_success.store(allSuccess, std::memory_order_release);
     return results;
-}
-
-void GetPhonemeNameTask::distributePhonemes() {
-    const double gapThresholdMs = 2.0 * SingingClipSlicerGlobal::padBaseLength;
-    const int gapThresholdTicks = static_cast<int>(std::round(m_timeline.msToTick(gapThresholdMs)));
-    distributePhonemesToNotes(m_inputs, result, gapThresholdTicks);
 }

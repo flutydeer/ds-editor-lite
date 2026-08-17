@@ -9,6 +9,7 @@
 #include <QAbstractAnimation>
 #include <QApplication>
 #include <QGraphicsOpacityEffect>
+#include <QScreen>
 #include <QTextStream>
 #include <QVariantAnimation>
 
@@ -149,6 +150,23 @@ namespace {
         expect(!toolTip.isVisible(), "an immediate tooltip hide should hide the widget");
     }
 
+    void testToolTipAnchorScreenClamping() {
+        const auto *screen = QApplication::primaryScreen();
+        expect(screen, "the tooltip anchor test requires a screen");
+        if (!screen)
+            return;
+
+        ToolTip toolTip(QStringLiteral("Anchored tooltip"));
+        toolTip.setAttribute(Qt::WA_DontShowOnScreen);
+        toolTip.setAnimationEnabled(false);
+        const auto available = screen->availableGeometry();
+        toolTip.showAbove({available.topLeft(), QSize(8, 8)});
+
+        const auto geometry = toolTip.frameGeometry();
+        expect(geometry.left() >= available.left() && geometry.top() >= available.top(),
+               "an anchored tooltip must remain on the anchor's screen at its top-left edge");
+    }
+
 } // namespace
 
 int main(int argc, char *argv[]) {
@@ -158,6 +176,7 @@ int main(int argc, char *argv[]) {
     testDialogTitleBarRuntimeUpdate();
     testProgressAndTapTempoLevels();
     testToolTipImmediateCompletion();
+    testToolTipAnchorScreenClamping();
 
     ThemeManager::instance()->setAnimationSettings(AnimationGlobal::Full, 1.0);
     if (g_failures == 0) {

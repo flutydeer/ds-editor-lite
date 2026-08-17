@@ -588,7 +588,7 @@ void PhonemeView::buildPhonemeList() {
 
     for (int i = 0; i < m_notes.count(); ++i) {
         const auto note = m_notes.at(i);
-        if (note->isSlur())
+        if (note->isSlur() || note->isPlus())
             continue;
         if (note->overlapped())
             continue;
@@ -596,18 +596,17 @@ void PhonemeView::buildPhonemeList() {
         const auto noteStartTick = note->globalStart();
         auto noteEndTick = noteStartTick + note->length();
 
-        // Find consecutive slur notes and extend the end tick
-        for (int j = i + 1; j < m_notes.count(); ++j) {
-            const auto nextNote = m_notes.at(j);
-            if (!nextNote->isSlur())
+        int groupEnd = i + 1;
+        for (; groupEnd < m_notes.count(); ++groupEnd) {
+            const auto nextNote = m_notes.at(groupEnd);
+            if (!nextNote->isSlur() && !nextNote->isPlus())
                 break;
             if (nextNote->overlapped())
                 break;
-            // Check if the slur note is continuous (no gap)
             const auto nextStart = nextNote->globalStart();
             if (nextStart > noteEndTick)
                 break;
-            noteEndTick = nextStart + nextNote->length();
+            noteEndTick = std::max(noteEndTick, nextStart + nextNote->length());
         }
 
         // Insert Sil phoneme if there is a gap between notes
@@ -626,7 +625,7 @@ void PhonemeView::buildPhonemeList() {
                 model->type = PhonemeViewModel::Normal;
                 model->noteId = note->id();
                 model->noteStart = note->globalStart();
-                model->noteLength = note->length();
+                model->noteLength = noteEndTick - noteStartTick;
                 model->noteLanguage = note->effectiveLanguage();
                 model->nameEdited = names.isEdited();
                 model->offsetEdited = offsets.isEdited();
@@ -655,6 +654,7 @@ void PhonemeView::buildPhonemeList() {
         }
 
         lastNoteEndTick = noteEndTick;
+        i = groupEnd - 1;
     }
 }
 

@@ -1,5 +1,6 @@
 #include "NoteView.h"
 
+#include "NoteLyricPresentation.h"
 #include "PronunciationView.h"
 #include "Global/AppGlobal.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
@@ -78,6 +79,15 @@ QString NoteView::lyric() const {
 void NoteView::setLyric(const QString &lyric) {
     m_lyric = lyric;
     update();
+}
+
+bool NoteView::isLyricElided(const QRectF &visibleSceneRect) const {
+    if (m_editingLyric)
+        return false;
+    const auto font = lyricFont();
+    const auto layout = NoteLyricPresentation::layout(boundingRect(), m_lyric, font, scaleX());
+    return NoteLyricPresentation::isElidedInRect(layout, m_lyric, font,
+                                                 mapRectFromScene(visibleSceneRect));
 }
 
 void NoteView::setPronunciation(const QString &pronunciation, const bool edited) {
@@ -162,8 +172,6 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
     const auto foregroundColorOverlapped = p.noteForegroundOverlapped(ci);
 
     constexpr auto penWidth = EditorItemGeometry::noteBorderWidth;
-    constexpr int padding = 2;
-
     QPen pen;
 
     const auto rect = boundingRect();
@@ -223,35 +231,24 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
 
         pen.setColor(foregroundColor);
         painter->setPen(pen);
-        auto font = QFont();
-        font.setPixelSize(fontPixelSize);
+        const auto font = lyricFont();
         painter->setFont(font);
-        auto textRectLeft = paddedRect.left() + padding;
-        auto textRectTop = paddedRect.top();
-        auto textRectWidth = paddedRect.width() - 2 * padding;
-        auto textRectHeight = paddedRect.height();
-        auto textRect = QRectF(textRectLeft, textRectTop, textRectWidth, textRectHeight);
+        const auto layout = NoteLyricPresentation::layout(rect, m_lyric, font, scaleX());
 
         auto fontMetrics = painter->fontMetrics();
         auto textHeight = fontMetrics.height();
-        auto lyricTextWidth = fontMetrics.horizontalAdvance(m_lyric);
         auto pronTextWidth = fontMetrics.horizontalAdvance(m_pronunciation);
         QTextOption textOption(Qt::AlignVCenter);
         textOption.setWrapMode(QTextOption::NoWrap);
 
-        if (!m_editingLyric && qMax(lyricTextWidth, pronTextWidth) < textRectWidth &&
-            textHeight < textRectHeight) {
-            painter->drawText(textRect, m_lyric, textOption);
-            if (m_pronView) {
-                m_pronView->setTextVisible(true);
-            }
-        } else {
-            if (m_pronView)
-                m_pronView->setTextVisible(false);
-        }
+        if (!m_editingLyric && layout.isVisible())
+            painter->drawText(layout.textRect, layout.displayText, textOption);
+        if (m_pronView)
+            m_pronView->setTextVisible(!m_editingLyric && pronTextWidth < layout.textRect.width() &&
+                                       textHeight < layout.textRect.height());
     };
 
-    if (scaleX() < 0.3)
+    if (NoteLyricPresentation::usesCompactRendering(scaleX()))
         drawRectOnly();
     else
         drawFullNote();
@@ -280,6 +277,12 @@ void NoteView::adjustPronView() const {
 void NoteView::initUi() {
     setFlag(ItemIsSelectable);
     fontPixelSize.onChanged([this](int) { update(); });
+}
+
+QFont NoteView::lyricFont() const {
+    QFont font;
+    font.setPixelSize(fontPixelSize);
+    return font;
 }
 
 void NoteView::setEditingLyric(const bool editing) {

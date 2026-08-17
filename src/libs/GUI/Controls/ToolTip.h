@@ -9,6 +9,7 @@ class QLabel;
 class QVBoxLayout;
 class QPropertyAnimation;
 class QGraphicsDropShadowEffect;
+class QScreen;
 
 class ToolTip : public QFrame, public IAnimatable {
     Q_OBJECT
@@ -30,6 +31,7 @@ public:
     void setAnimationEnabled(bool on);
     [[nodiscard]] bool animationEnabled() const;
     void showAt(const QPoint &screenPos);
+    void showAbove(const QRect &screenRect);
     void moveTo(const QPoint &screenPos);
     void hideWithAnimation();
 
@@ -54,7 +56,9 @@ protected:
     bool m_animationEnabled = true;
 
     void updateMessage();
-    [[nodiscard]] QPoint clampToScreen(const QPoint &screenPos) const;
+    void showAt(const QPoint &screenPos, const QScreen *screen);
+    [[nodiscard]] QPoint clampToScreen(const QPoint &screenPos,
+                                       const QScreen *screen = nullptr) const;
     [[nodiscard]] QColor shadowColor() const;
     void setShadowColor(const QColor &color);
     void updateAnimationSettings();

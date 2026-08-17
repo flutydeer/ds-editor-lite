@@ -8,6 +8,8 @@
 #include <lite/Core/UniqueObject.h>
 
 #include <QColor>
+#include <QFont>
+#include <QRectF>
 
 class PronunciationView;
 
@@ -33,6 +35,7 @@ public:
     void setKeyIndex(int keyIndex);
     [[nodiscard]] QString lyric() const;
     void setLyric(const QString &lyric);
+    [[nodiscard]] bool isLyricElided(const QRectF &visibleSceneRect) const;
     void setPronunciation(const QString &pronunciation, bool edited);
     [[nodiscard]] bool editingPitch() const;
     void setEditingPitch(bool on);
@@ -55,6 +58,7 @@ public:
     [[nodiscard]] bool isEditingLyric() const;
 
 private:
+    [[nodiscard]] QFont lyricFont() const;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     void updateRectAndPos() override;
     void adjustPronView() const;

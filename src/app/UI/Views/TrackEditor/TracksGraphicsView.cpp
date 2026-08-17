@@ -22,6 +22,8 @@
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
+#include <algorithm>
+
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
@@ -198,12 +200,14 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
                                       AppGlobal::ticksPerQuarterNote;
             const int desiredLeft =
                 m_audioDragState->visibleStartForCursor(cursorTick, timeline);
-            left = snap(desiredLeft);
+            // Never allow the visible left edge to go past tick 0 (a negative
+            // clip pos is rejected by opendspx).
+            left = snap(std::max(0, desiredLeft));
             Clip::ClipCommonProperties properties(*m_currentEditingClip);
             m_audioDragState->moveTo(left, properties, timeline);
             m_currentEditingClip->loadCommonProperties(properties);
         } else {
-            left = snap(originalLeft + delta);
+            left = snap(std::max(0, originalLeft + delta));
             start = left - m_mouseDownClipStart;
             m_currentEditingClip->setStart(start);
         }

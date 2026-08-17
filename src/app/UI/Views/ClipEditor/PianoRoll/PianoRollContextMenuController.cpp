@@ -176,9 +176,7 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
                 [this] { clipController->onFillLyric(m_owner); });
 
         auto *editPhonemes = menu.addAction(tr("Edit Phonemes..."));
-        const auto *note = clip->findNoteById(context.noteId);
-        editPhonemes->setEnabled(context.selectedNoteIds.size() == 1 && note &&
-                                 PianoRollMenuUtils::canEditPhonemes(note->lyric()));
+        editPhonemes->setEnabled(context.phonemeEditorEnabled);
         connect(editPhonemes, &QAction::triggered, this,
                 [this, clip, noteId = context.noteId] { openPhonemeEditor(clip, noteId); });
         menu.addSeparator();
@@ -314,7 +312,7 @@ void PianoRollContextMenuController::openPhonemeEditor(SingingClip *clip, const 
     if (!clip)
         return;
     auto *note = clip->findNoteById(noteId);
-    if (!note || !PianoRollMenuUtils::canEditPhonemes(note->lyric()))
+    if (!note || !note->canEditPhonemes())
         return;
     auto *dialog = new PhonemeEditorDialog(note, m_owner);
     connect(dialog, &PhonemeEditorDialog::accepted, this, [dialog, noteId] {

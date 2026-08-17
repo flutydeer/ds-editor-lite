@@ -49,6 +49,10 @@ MoveClipToTrackAction *MoveClipToTrackAction::build(const Clip::ClipCommonProper
 }
 
 void MoveClipToTrackAction::execute() {
+    SingingClipPhonemeNormalizer::GroupStates previousGroupStates;
+    if (m_clip->clipType() == IClip::Singing)
+        previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(
+            *static_cast<SingingClip *>(m_clip));
     m_oldTrack->removeClip(m_clip);
     applyArgs(m_clip, m_newArgs);
     m_newTrack->insertClip(m_clip);
@@ -56,8 +60,20 @@ void MoveClipToTrackAction::execute() {
         const auto singingClip = static_cast<SingingClip *>(m_clip);
         singingClip->setTrackVoiceContext(m_newTrack->singerInfo(), m_newTrack->speakerInfo(),
                                           m_newTrack->speakerMixData());
+        m_resetRecords = previousGroupStates.isEmpty()
+                             ? QList<SingingClipPhonemeNormalizer::ResetRecord>{}
+                             : SingingClipPhonemeNormalizer::normalizeEditedOffsets(
+                                   *singingClip, previousGroupStates);
+    } else {
+        m_resetRecords.clear();
     }
     m_clip->notifyPropertyChanged();
+    if (!m_resetRecords.isEmpty()) {
+        const auto singingClip = static_cast<SingingClip *>(m_clip);
+        singingClip->notifyNoteChanged(
+            SingingClip::EditedPhonemeOffsetChange,
+            SingingClipPhonemeNormalizer::notesFromResetRecords(m_resetRecords));
+    }
     m_oldTrack->notifyClipChanged(Track::Removed, m_clip);
     m_newTrack->notifyClipChanged(Track::Inserted, m_clip);
 }
@@ -70,8 +86,15 @@ void MoveClipToTrackAction::undo() {
         const auto singingClip = static_cast<SingingClip *>(m_clip);
         singingClip->setTrackVoiceContext(m_oldTrack->singerInfo(), m_oldTrack->speakerInfo(),
                                           m_oldTrack->speakerMixData());
+        SingingClipPhonemeNormalizer::restoreEditedOffsets(m_resetRecords);
     }
     m_clip->notifyPropertyChanged();
+    if (!m_resetRecords.isEmpty()) {
+        const auto singingClip = static_cast<SingingClip *>(m_clip);
+        singingClip->notifyNoteChanged(
+            SingingClip::EditedPhonemeOffsetChange,
+            SingingClipPhonemeNormalizer::notesFromResetRecords(m_resetRecords));
+    }
     m_newTrack->notifyClipChanged(Track::Removed, m_clip);
     m_oldTrack->notifyClipChanged(Track::Inserted, m_clip);
 }

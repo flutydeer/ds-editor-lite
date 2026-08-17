@@ -1,10 +1,11 @@
 #include "UI/Views/ClipEditor/PianoRoll/NoteEditUtils.h"
-#include "UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.h"
+#include "UI/Views/ClipEditor/PianoRoll/NoteLyricPresentation.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
 
 #include <lite/MusicBase/Timeline.h>
 
 #include <QApplication>
+#include <QFontMetricsF>
 #include <QMouseEvent>
 #include <QTextStream>
 #include <QWidget>
@@ -88,10 +89,38 @@ int main(int argc, char *argv[]) {
                NoteResizeUtils::clampRightDelta(240, -240, 1) == -239,
            "the model commit guard must retain the supplied dynamic minimum length");
 
-    expect(!PianoRollMenuUtils::canEditPhonemes(QStringLiteral("AP")) &&
-               !PianoRollMenuUtils::canEditPhonemes(QStringLiteral(" SP ")) &&
-               PianoRollMenuUtils::canEditPhonemes(QStringLiteral("la")),
-           "AP and SP notes must not expose phoneme editing");
+    QFont lyricFont;
+    lyricFont.setPixelSize(13);
+    const QFontMetricsF lyricMetrics(lyricFont);
+    const QString longLyric = QStringLiteral("extraordinary");
+    const auto fullLyricWidth = lyricMetrics.horizontalAdvance(longLyric);
+    const auto noteTextHeight = lyricMetrics.height() + 4.0;
+    const auto wideLayout = NoteLyricPresentation::layout(
+        QRectF(0.0, 0.0, fullLyricWidth + 12.0, noteTextHeight), longLyric, lyricFont, 1.0);
+    expect(wideLayout.displayText == longLyric && !wideLayout.elided,
+           "a lyric that fits must remain unchanged");
+    expect(!NoteLyricPresentation::isElidedInRect(wideLayout, longLyric, lyricFont,
+                                                   wideLayout.textRect),
+           "a fully visible lyric must not be tooltip-eligible");
+    const auto clippedTextRect =
+        wideLayout.textRect.adjusted(fullLyricWidth * 0.5, 0.0, 0.0, 0.0);
+    expect(NoteLyricPresentation::isElidedInRect(wideLayout, longLyric, lyricFont,
+                                                  clippedTextRect),
+           "a lyric clipped by the viewport must remain tooltip-eligible");
+
+    const QRectF narrowNoteRect(0.0, 0.0, fullLyricWidth * 0.55, noteTextHeight);
+    const auto narrowLayout =
+        NoteLyricPresentation::layout(narrowNoteRect, longLyric, lyricFont, 1.0);
+    expect(narrowLayout.isVisible() && narrowLayout.elided && narrowLayout.displayText != longLyric,
+           "a long lyric must be right-elided instead of disappearing");
+    const auto ultraShortLayout = NoteLyricPresentation::layout(
+        QRectF(0.0, 0.0, 7.0, noteTextHeight), longLyric, lyricFont, 1.0);
+    expect(!ultraShortLayout.isVisible() && ultraShortLayout.elided,
+           "a lyric with no drawable width must remain eligible for its tooltip");
+    const auto compactLayout = NoteLyricPresentation::layout(
+        narrowNoteRect, longLyric, lyricFont, NoteLyricPresentation::compactScaleThreshold - 0.01);
+    expect(!compactLayout.isVisible() && !compactLayout.elided,
+           "compact note rendering must suppress lyrics and tooltip eligibility");
 
     using EditorSelectionUtils::OrderedSelectionModel;
     constexpr auto ctrlShift = Qt::ControlModifier | Qt::ShiftModifier;

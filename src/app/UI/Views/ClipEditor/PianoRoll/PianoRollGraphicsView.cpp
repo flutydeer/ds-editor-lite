@@ -36,6 +36,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
+#include <lite/GUI/Controls/ToolTip.h>
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
@@ -44,13 +45,16 @@
 #include <limits>
 
 #include <QDebug>
+#include <QCursor>
 #include <QGraphicsLineItem>
 #include <QGraphicsPathItem>
+#include <QHideEvent>
 #include <QPainterPath>
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QScrollBar>
 #include <QShowEvent>
+#include <QTextDocument>
 
 namespace Helper = PianoRollGraphicsViewHelper;
 
@@ -79,6 +83,8 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
             &PianoRollGraphicsViewPrivate::onInlineNavigationRequested);
     connect(d->m_inlineEditor, &InlineTextEditOverlay::editCancelled, d,
             &PianoRollGraphicsViewPrivate::onInlineEditCancelled);
+    d->m_lyricToolTip = new ToolTip(QString(), viewport());
+    d->m_lyricToolTip->setAnimationEnabled(false);
 
     d->m_selectionModel =
         new PianoRollSelectionModel(this, d->noteViews, d->noteViewIndex, d->m_notes, this);
@@ -161,7 +167,12 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
             &PianoRollGraphicsViewPrivate::finishInlineEditing);
     connect(this, &TimeGraphicsView::sizeChanged, d,
             &PianoRollGraphicsViewPrivate::finishInlineEditing);
-
+    connect(this, &TimeGraphicsView::scaleChanged, d,
+            &PianoRollGraphicsViewPrivate::hideLyricToolTip);
+    connect(this, &TimeGraphicsView::visibleRectChanged, d,
+            &PianoRollGraphicsViewPrivate::hideLyricToolTip);
+    connect(this, &TimeGraphicsView::sizeChanged, d,
+            &PianoRollGraphicsViewPrivate::hideLyricToolTip);
     connect(appStatus, &AppStatus::noteSelectionChanged, d,
             &PianoRollGraphicsViewPrivate::onNoteSelectionChanged);
 }
@@ -175,6 +186,7 @@ PianoRollGraphicsView::~PianoRollGraphicsView() {
 
 void PianoRollGraphicsView::setDataContext(SingingClip *clip) {
     Q_D(PianoRollGraphicsView);
+    d->hideLyricToolTip();
     // 切换 clip 时清空编辑预览，避免残留到新 clip
     appStatus->pianoRollNoteEditPreview = {};
     appStatus->pianoRollNoteErasePreview = {};
@@ -220,6 +232,7 @@ bool PianoRollGraphicsView::event(QEvent *event) {
             discardAction();
         }
     } else if (event->type() == QEvent::WindowDeactivate) {
+        d->hideLyricToolTip();
         discardAction();
     } else if (event->type() == QEvent::HoverEnter)
         d->onHoverEnter(dynamic_cast<QHoverEvent *>(event));
@@ -251,8 +264,11 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             context.target = PianoRollMenuContext::Target::Note;
             context.noteId = noteId;
             context.selectedNoteIds = selectedNotesId();
-            if (const auto *note = d->m_clip->findNoteById(noteId))
+            if (const auto *note = d->m_clip->findNoteById(noteId)) {
                 context.noteLanguage = note->language();
+                context.phonemeEditorEnabled =
+                    context.selectedNoteIds.size() == 1 && note->canEditPhonemes();
+            }
             context.pronunciationTarget = true;
             emit contextMenuRequested(context);
             event->accept();
@@ -267,6 +283,8 @@ void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
             context.noteId = noteView->id();
             context.selectedNoteIds = selectedNotesId();
             context.noteLanguage = note->language();
+            context.phonemeEditorEnabled =
+                context.selectedNoteIds.size() == 1 && note->canEditPhonemes();
         } else {
             context.target = PianoRollMenuContext::Target::Background;
         }
@@ -335,6 +353,7 @@ void PianoRollGraphicsView::deleteSelectedAnchors() {
 
 void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     Q_D(PianoRollGraphicsView);
+    d->hideLyricToolTip();
     if (d->m_interactionController->isMouseDown()) {
         qWarning() << "Ignored mousePressEvent" << event
                    << "because there is already one mouse button pressed";
@@ -442,7 +461,7 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
     }
 
     // Update hover key index for piano keyboard when mouse is over the grid
-    if (!d->m_mouseDown) {
+    if (!d->m_interactionController->isMouseDown()) {
         const auto scenePos = mapToScene(event->position().toPoint());
         const auto keyIndex =
             PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), scaleY() * noteHeight);
@@ -611,6 +630,7 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
 void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     // Disable double-click event to prevent deselecting notes when double-clicking on scrollbar
     Q_D(PianoRollGraphicsView);
+    d->hideLyricToolTip();
     if (!(d->m_editMode == Select || d->m_editMode == IntervalSelect || d->m_editMode == DrawNote ||
           d->m_editMode == EditPitchAnchor))
         return;
@@ -677,12 +697,19 @@ void PianoRollGraphicsView::showEvent(QShowEvent *event) {
     d->m_initialViewportPositionPending = false;
 }
 
+void PianoRollGraphicsView::hideEvent(QHideEvent *event) {
+    Q_D(PianoRollGraphicsView);
+    d->hideLyricToolTip();
+    TimeGraphicsView::hideEvent(event);
+}
+
 int PianoRollGraphicsView::noteFontPixelSize() const {
     return m_noteFontPixelSize;
 }
 
 void PianoRollGraphicsView::setNoteFontPixelSize(const int size) {
     Q_D(PianoRollGraphicsView);
+    d->hideLyricToolTip();
     m_noteFontPixelSize = size;
     for (const auto noteView : d->noteViews)
         noteView->fontPixelSize = size;
@@ -1066,6 +1093,7 @@ void PianoRollGraphicsView::setViewportCenterAtKeyIndex(const double keyIndex,
 
 void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     Q_D(PianoRollGraphicsView);
+    d->hideLyricToolTip();
     if (d->m_editMode != mode) {
         d->finishInlineEditing();
         discardAction();
@@ -1113,6 +1141,7 @@ void PianoRollGraphicsViewPrivate::restoreHandler() {
 
 void PianoRollGraphicsViewPrivate::onNoteChanged(const SingingClip::NoteChangeType type,
                                                  const QList<Note *> &notes) {
+    hideLyricToolTip();
     finishInlineEditing();
     if (type == SingingClip::Insert)
         for (const auto &note : notes)
@@ -1160,6 +1189,7 @@ void PianoRollGraphicsViewPrivate::onStartEditingNoteLyric(NoteView *noteView) {
         m_inlineEditor->isEditing())
         return;
 
+    hideLyricToolTip();
     finishInlineEditing();
 
     m_inlineEditField = InlineEditField::Lyric;
@@ -1261,6 +1291,7 @@ void PianoRollGraphicsViewPrivate::onStartEditingPronunciation(PronunciationView
         m_inlineEditingNoteId == pronView->id() && m_inlineEditor->isEditing())
         return;
 
+    hideLyricToolTip();
     finishInlineEditing();
     const auto note = m_clip->findNoteById(pronView->id());
     if (!note)
@@ -1487,12 +1518,19 @@ void PianoRollGraphicsViewPrivate::onHoverLeave(QHoverEvent *event) {
     Q_Q(PianoRollGraphicsView);
     if (m_currentHandler)
         m_currentHandler->hoverLeaveEvent(event);
+    hideLyricToolTip();
     emit q->keyHoverCleared();
 }
 
 void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
     Q_Q(PianoRollGraphicsView);
-    if (m_isEditPitchMode || m_mouseDown)
+    if (m_interactionController->isMouseDown()) {
+        hideLyricToolTip();
+        return;
+    }
+
+    updateLyricToolTip(event->position().toPoint());
+    if (m_isEditPitchMode)
         return;
 
     // Update keyboard hover based on mouse position
@@ -1527,8 +1565,40 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
                                                                 : Qt::SizeHorCursor);
 }
 
+void PianoRollGraphicsViewPrivate::updateLyricToolTip(const QPoint &position) {
+    Q_Q(PianoRollGraphicsView);
+    auto *noteView = noteViewAt(position);
+    if (!noteView || noteView->id() < 0 || !noteView->isLyricElided(q->visibleRect()) ||
+        (m_inlineEditor && m_inlineEditor->isEditing())) {
+        hideLyricToolTip();
+        return;
+    }
+
+    const auto lyric = noteView->lyric();
+    if (m_lyricToolTipNoteId == noteView->id() && m_lyricToolTipText == lyric &&
+        m_lyricToolTip->isVisible()) {
+        return;
+    }
+
+    m_lyricToolTipNoteId = noteView->id();
+    m_lyricToolTipText = lyric;
+    m_lyricToolTip->setTitle(Qt::convertFromPlainText(lyric));
+    const auto noteRect = q->mapFromScene(noteView->sceneBoundingRect())
+                              .boundingRect()
+                              .intersected(q->viewport()->rect());
+    m_lyricToolTip->showAbove({q->viewport()->mapToGlobal(noteRect.topLeft()), noteRect.size()});
+}
+
+void PianoRollGraphicsViewPrivate::hideLyricToolTip() {
+    m_lyricToolTipNoteId = -1;
+    m_lyricToolTipText.clear();
+    if (m_lyricToolTip && m_lyricToolTip->isVisible())
+        m_lyricToolTip->hideWithAnimation();
+}
+
 void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
     Q_Q(PianoRollGraphicsView);
+    hideLyricToolTip();
     m_offset = m_clip->start();
     q->setOffset(m_offset);
     q->setSceneLength(m_clip->length());

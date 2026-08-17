@@ -22,11 +22,6 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
         return lyric == "AP" || lyric == "SP";
     };
 
-    auto isPlusNote = [](const Note &note) {
-        const auto &lyric = note.lyric();
-        return !lyric.isEmpty() && lyric.count('+') == lyric.length();
-    };
-
     // Calculate minimum available header length based on note, two cases:
     //
     // 1. Non-rest note (AP/SP), needs SP note padding
@@ -136,12 +131,12 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
 
             if (!buffer.isEmpty()) {
                 const auto firstNote = buffer.first();
-                firstNoteIsInvalid = firstNote->isSlur() || isPlusNote(*firstNote);
+                firstNoteIsInvalid = firstNote->isSlur() || firstNote->isPlus();
             }
 
             // Check for missing phoneme info
             for (const auto &note : buffer) {
-                auto isCommonNote = !isRestNote(*note) && !note->isSlur() && !isPlusNote(*note);
+                auto isCommonNote = !isRestNote(*note) && !note->isSlur() && !note->isPlus();
                 if (isCommonNote && note->phonemes().nameSeq.result().isEmpty()) {
                     hasMissingPhonemeInfo = true;
                     break;

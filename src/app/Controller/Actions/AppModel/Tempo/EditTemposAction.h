@@ -2,12 +2,14 @@
 #define EDITTEMPOSACTION_H
 
 #include <lite/History/IAction.h>
+#include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 #include <lite/MusicBase/Tempo.h>
 
 #include <QList>
 
 class AppModel;
+class SingingClip;
 
 // Replaces the whole tempo sequence of the project timeline. Used by project
 // import when the source contains more than a single tempo point.
@@ -19,8 +21,15 @@ public:
     void undo() override;
 
 private:
+    class ClipResetRecords {
+    public:
+        SingingClip *clip = nullptr;
+        QList<SingingClipPhonemeNormalizer::ResetRecord> records;
+    };
+
     QList<Tempo> m_oldTempos;
     QList<Tempo> m_newTempos;
+    QList<ClipResetRecords> m_resetRecords;
     AppModel *m_model = nullptr;
 };
 
