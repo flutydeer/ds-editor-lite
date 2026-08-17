@@ -1453,9 +1453,12 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
         if (m_audioDragState) {
             const auto desiredLeft = m_audioDragState->visibleStartForCursor(
                 m_viewport.sceneXToTick(scene.x()), appModel->timeline());
-            m_audioDragState->moveTo(snap(desiredLeft), properties, appModel->timeline());
+            m_audioDragState->moveTo(snap(std::max(0, desiredLeft)), properties,
+                                     appModel->timeline());
         } else {
-            const auto left = snap(originalLeft + deltaTicks);
+            // Never allow the visible left edge to go past tick 0 (a negative
+            // clip pos is rejected by opendspx).
+            const auto left = snap(std::max(0, originalLeft + deltaTicks));
             properties.start = left - properties.clipStart;
         }
         const auto track = trackIndexAt(position);

@@ -4,18 +4,23 @@
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 
+#include <algorithm>
+
 namespace {
     void applyArgs(Clip *clip, const Clip::ClipCommonProperties &args) {
-        clip->setName(args.name);
-        clip->setStart(args.start);
-        clip->setClipStart(args.clipStart);
-        clip->setLength(args.length);
-        clip->setClipLen(args.clipLen);
+        // opendspx requires clip.pos = start + clipStart to stay non-negative.
+        auto safeArgs = Clip::ClipCommonProperties(args);
+        safeArgs.start = std::max(safeArgs.start, -safeArgs.clipStart);
+        clip->setName(safeArgs.name);
+        clip->setStart(safeArgs.start);
+        clip->setClipStart(safeArgs.clipStart);
+        clip->setLength(safeArgs.length);
+        clip->setClipLen(safeArgs.clipLen);
         if (clip->clipType() == IClip::Audio) {
             // The tick snapshot may predate a tempo change; the ms truth
             // carried in the args re-derives the caches under the current map
-            static_cast<AudioClip *>(clip)->applyRealTimeAnchorFromProperties(
-                args, appModel->timeline());
+            static_cast<AudioClip *>(clip)->applyRealTimeAnchorFromProperties(safeArgs,
+                                                                              appModel->timeline());
         }
     }
 }
