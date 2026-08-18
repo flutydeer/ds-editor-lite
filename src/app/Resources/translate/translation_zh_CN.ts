@@ -4360,6 +4360,21 @@ type: %L1</source>
         <source>Create the first keyframe from the current fixed speaker mix.</source>
         <translation>从当前固定声线混合创建第一个关键帧。</translation>
     </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="364"/>
+        <source>Unsupported parameter</source>
+        <translation>参数不受支持</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="365"/>
+        <source>The selected voicebank does not support %1.</source>
+        <translation>当前选择的声库不支持%1。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="366"/>
+        <source>Edit Anyway</source>
+        <translation>仍然编辑</translation>
+    </message>
 </context>
 <context>
     <name>ParamUtils</name>

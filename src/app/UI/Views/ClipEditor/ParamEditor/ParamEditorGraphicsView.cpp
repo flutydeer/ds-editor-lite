@@ -246,6 +246,14 @@ ParamEditorEditMode ParamEditorGraphicsView::editMode() const {
     return m_editMode;
 }
 
+void ParamEditorGraphicsView::setForegroundBaseCurveVisible(const bool visible) {
+    m_foreground->setBaseCurveVisible(visible);
+}
+
+void ParamEditorGraphicsView::setBackgroundBaseCurveVisible(const bool visible) {
+    m_background->setBaseCurveVisible(visible);
+}
+
 void ParamEditorGraphicsView::setForeground(const ParamInfo::Name name,
                                             const ParamProperties &properties) {
     if (m_editMode == ParamEditorEditMode::Anchor)

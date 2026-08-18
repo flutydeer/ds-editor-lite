@@ -82,6 +82,13 @@ void CommonParamEditorView::setEraseMode(const bool on) {
     update();
 }
 
+void CommonParamEditorView::setBaseCurveVisible(const bool visible) {
+    if (m_baseCurveVisible == visible)
+        return;
+    m_baseCurveVisible = visible;
+    update();
+}
+
 const QList<DrawCurve *> &CommonParamEditorView::editedCurves() const {
     return m_drawCurvesEdited;
 }
@@ -230,7 +237,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
     const auto effectiveEdited = AppModelUtils::mergeCurves({}, editedLayers);
     if (m_properties->displayMode == ParamProperties::DisplayMode::CurveOnly) {
         painter->setBrush(Qt::NoBrush);
-        if (!m_drawCurvesOriginal.isEmpty()) {
+        if (m_baseCurveVisible && !m_drawCurvesOriginal.isEmpty()) {
             pen.setColor(m_originalCurveColor);
             painter->setPen(pen);
             drawCurveBorder(painter, m_drawCurvesOriginal);
@@ -261,7 +268,8 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
 
         DrawCurveList base;
         DrawCurve *baseCurve = nullptr;
-        if (m_properties->valueType == ParamProperties::ValueType::Relative) {
+        if (m_baseCurveVisible &&
+            m_properties->valueType == ParamProperties::ValueType::Relative) {
             const int start = MathUtils::roundDown(qRound(startTick()), 5);
             const int end = MathUtils::round(qRound(endTick()), 5) + 5;
             baseCurve = new DrawCurve(-1);
@@ -269,7 +277,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
             for (int i = start; i <= end; i += 5)
                 baseCurve->appendValue(m_properties->defaultValue);
             base.append(baseCurve);
-        } else {
+        } else if (m_baseCurveVisible) {
             base = m_drawCurvesOriginal;
         }
         auto curves = AppModelUtils::mergeCurves(base, effectiveEdited);

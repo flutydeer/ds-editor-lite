@@ -6,6 +6,7 @@
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 
 #include <QWidget>
+#include <QSet>
 
 #include <optional>
 
@@ -27,7 +28,7 @@ public:
 
 public slots:
     void onForegroundChanged(ParamInfo::Name name);
-    void onBackgroundChanged(ParamInfo::Name name) const;
+    void onBackgroundChanged(ParamInfo::Name name);
 
 protected:
     void changeEvent(QEvent *event) override;
@@ -36,6 +37,7 @@ private slots:
     void onPreviousKeyframe() const;
     void onNextKeyframe() const;
     void onSpeakerMixEdited(const SpeakerMixModel::SpeakerMixData &data) const;
+    void onEmptyStateAction();
     void onEnableDynamicMix();
     void onBypassDynamicMix() const;
     void onResumeDynamicMix() const;
@@ -43,11 +45,17 @@ private slots:
     void refreshSpeakerMixToolBar();
 
 private:
+    enum class EmptyStateKind { None, SpeakerMix, UnsupportedParameter };
+    enum class EmptyStateAction { None, EnableDynamicMix, EditUnsupportedParameter };
+
     void refreshSpeakerMixEmptyState(const SpeakerMixModel::SpeakerMixData &data);
-    void setSpeakerMixEmptyState(const QString &title, const QString &message,
-                                 const std::optional<QString> &actionText);
-    void hideSpeakerMixEmptyState();
-    void updateSpeakerMixEmptyStateGeometry();
+    void refreshParameterSupportState();
+    void setEmptyState(EmptyStateKind kind, const QString &title, const QString &message,
+                       const std::optional<QString> &actionText,
+                       EmptyStateAction action = EmptyStateAction::None,
+                       ParamInfo::Name parameter = ParamInfo::Unknown);
+    void hideEmptyState();
+    void updateEmptyStateGeometry();
     static bool hasFixedMixBase(const SpeakerMixModel::SpeakerMixData &data);
     static SpeakerMixModel::SpeakerMixData
         dataWithDynamicEnabled(const SpeakerMixModel::SpeakerMixData &data);
@@ -58,12 +66,18 @@ private:
     ParamEditorGraphicsView *m_graphicsView;
     ParamEditorInfoArea *m_infoArea;
     ParamEditorToolBarView *m_toolBar;
-    QWidget *m_speakerMixEmptyState = nullptr;
-    QVBoxLayout *m_speakerMixEmptyLayout = nullptr;
-    QLabel *m_speakerMixEmptyTitle = nullptr;
-    QLabel *m_speakerMixEmptyMessage = nullptr;
-    Button *m_enableDynamicMixButton = nullptr;
-    QString m_speakerMixEmptyMessageText;
+    QWidget *m_emptyState = nullptr;
+    QVBoxLayout *m_emptyStateLayout = nullptr;
+    QLabel *m_emptyStateTitle = nullptr;
+    QLabel *m_emptyStateMessage = nullptr;
+    Button *m_emptyStateActionButton = nullptr;
+    QString m_emptyStateMessageText;
+    EmptyStateKind m_emptyStateKind = EmptyStateKind::None;
+    EmptyStateAction m_emptyStateAction = EmptyStateAction::None;
+    ParamInfo::Name m_emptyStateParameter = ParamInfo::Unknown;
+    ParamInfo::Name m_foregroundParam = ParamInfo::Breathiness;
+    ParamInfo::Name m_backgroundParam = ParamInfo::Tension;
+    QSet<ParamInfo::Name> m_warnedUnsupportedParameters;
 };
 
 #endif // PARAMEDITORVIEW_H
