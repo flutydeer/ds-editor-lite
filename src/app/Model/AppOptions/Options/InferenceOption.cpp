@@ -18,6 +18,15 @@ void InferenceOption::load(const QJsonObject &object) {
     load_executionProvider(object);
     load_selectedGpuIndex(object);
     load_selectedGpuId(object);
+    if (executionProvider == QStringLiteral("CUDA") && !cudaExecutionProviderAvailable()) {
+        executionProvider = defaultExecutionProvider();
+        selectedGpuIndex = -1;
+        selectedGpuId.clear();
+        qWarning().noquote() << QStringLiteral(
+                                    "CUDA execution provider is unavailable in this build; falling "
+                                    "back to '%1'.")
+                                    .arg(executionProvider);
+    }
     load_samplingSteps(object);
     load_depth(object);
     load_runVocoderOnCpu(object);
@@ -34,6 +43,5 @@ void InferenceOption::save(QJsonObject &object) {
               serialize_runVocoderOnCpu(),
               serialize_autoStartInfer(),
               serialize_cacheDirectory(),
-              serialize_pitch_smooth_kernel_size()
-    };
+              serialize_pitch_smooth_kernel_size()};
 }
