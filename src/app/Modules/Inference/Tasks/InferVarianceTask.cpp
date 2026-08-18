@@ -8,9 +8,9 @@
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
 #include <lite/Support/JsonUtils.h>
-#include <lite/Support/Linq.h>
 #include "InferTaskCommon.h"
 
+#include <QCryptographicHash>
 #include <QDebug>
 #include <QDir>
 #include <utility>
@@ -76,7 +76,9 @@ void InferVarianceTask::runTask() {
 
     GenericInferModel model;
     const auto input = m_input.toEngineModel();
-    m_inputHash = input.hashData();
+    auto cacheKey = input.hashData().toUtf8();
+    cacheKey.append(":variance-output-v2");
+    m_inputHash = QCryptographicHash::hash(cacheKey, QCryptographicHash::Sha1).toHex();
     const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
     if (!cacheDir.exists())
         cacheDir.mkpath(".");
@@ -103,14 +105,7 @@ void InferVarianceTask::runTask() {
         }
         if (QList<InferParam> outParams; runInference(input, outParams, errorMessage)) {
             model = input;
-            for (auto &param : model.params) {
-                for (auto &outParam : outParams) {
-                    if (param.tag == outParam.tag) {
-                        param = outParam;
-                        break;
-                    }
-                }
-            }
+            model.params = std::move(outParams);
         } else {
             qCritical() << "Task failed:" << errorMessage;
             return;
@@ -312,21 +307,18 @@ GenericInferModel InferVarianceTask::InferVarianceInput::toEngineModel() const {
 }
 
 bool InferVarianceTask::processOutput(const GenericInferModel &model) {
-    const auto breathiness = Linq::where(model.params, L_PRED(p, p.tag == "breathiness")).first();
-    m_result.breathiness = m_input.resampleFramesToCurve(breathiness.values, breathiness.interval);
+    const auto curveFor = [this, &model](const QString &tag) {
+        for (const auto &param : model.params) {
+            if (param.tag == tag)
+                return m_input.resampleFramesToCurve(param.values, param.interval);
+        }
+        return InferParamCurve{};
+    };
 
-    const auto tension = Linq::where(model.params, L_PRED(p, p.tag == "tension")).first();
-    m_result.tension = m_input.resampleFramesToCurve(tension.values, tension.interval);
-
-    const auto voicing = Linq::where(model.params, L_PRED(p, p.tag == "voicing")).first();
-    m_result.voicing = m_input.resampleFramesToCurve(voicing.values, voicing.interval);
-
-    const auto energy = Linq::where(model.params, L_PRED(p, p.tag == "energy")).first();
-    m_result.energy = m_input.resampleFramesToCurve(energy.values, energy.interval);
-
-    const auto mouthOpening =
-        Linq::where(model.params, L_PRED(p, p.tag == "mouth_opening")).first();
-    m_result.mouthOpening =
-        m_input.resampleFramesToCurve(mouthOpening.values, mouthOpening.interval);
+    m_result.breathiness = curveFor(QStringLiteral("breathiness"));
+    m_result.tension = curveFor(QStringLiteral("tension"));
+    m_result.voicing = curveFor(QStringLiteral("voicing"));
+    m_result.energy = curveFor(QStringLiteral("energy"));
+    m_result.mouthOpening = curveFor(QStringLiteral("mouth_opening"));
     return true;
 }
