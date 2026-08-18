@@ -76,13 +76,13 @@
         "surface.popup": "{neutral.0}",
         "surface.sidebar": "{neutral.0}",
 
-        "text.primary": "{neutral.900}",
+        "text.primary": "{neutral.850}",
         "text.secondary": "{neutral.700}",
         "text.emphasis": "{neutral.1000}",
         "text.onAccent": "{accent.ink}",
         "text.link": "{accent.500}",
 
-        "icon.primary": "{neutral.900}",
+        "icon.primary": "{neutral.850}",
         "icon.secondary": "{neutral.700}",
         "icon.disabled": "{neutral.black38}",
         "icon.onAccent": "{neutral.0}",
