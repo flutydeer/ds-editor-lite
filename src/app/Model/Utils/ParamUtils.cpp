@@ -1,5 +1,34 @@
 #include "Model/Utils/ParamUtils.h"
 
+namespace {
+    QString acousticParameterTag(const ParamInfo::Name name) {
+        switch (name) {
+            case ParamInfo::Energy:
+                return QStringLiteral("energy");
+            case ParamInfo::Breathiness:
+                return QStringLiteral("breathiness");
+            case ParamInfo::Voicing:
+                return QStringLiteral("voicing");
+            case ParamInfo::Tension:
+                return QStringLiteral("tension");
+            case ParamInfo::MouthOpening:
+                return QStringLiteral("mouth_opening");
+            case ParamInfo::Gender:
+                return QStringLiteral("gender");
+            case ParamInfo::Velocity:
+                return QStringLiteral("velocity");
+            case ParamInfo::ToneShift:
+                return QStringLiteral("tone_shift");
+            case ParamInfo::Pitch:
+            case ParamInfo::Expressiveness:
+            case ParamInfo::SpeakerMix:
+            case ParamInfo::Unknown:
+                return {};
+        }
+        return {};
+    }
+}
+
 ParamUtils::ParamUtils(QObject *parent) : QObject(parent) {
 }
 
@@ -46,4 +75,15 @@ const ParamProperties *ParamUtils::getPropertiesByName(const ParamInfo::Name nam
             return &defaultProperties;
     }
     return &defaultProperties;
+}
+
+bool ParamUtils::isSupportedBySinger(const ParamInfo::Name name, const SingerInfo &singer) const {
+    const auto parameter = acousticParameterTag(name);
+    if (parameter.isEmpty())
+        return true;
+
+    const auto &capability = singer.capability();
+    if (!capability || !capability->acousticParameters)
+        return true;
+    return capability->acousticParameters->contains(parameter);
 }

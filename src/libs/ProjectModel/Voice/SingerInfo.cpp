@@ -6,6 +6,7 @@ bool SingerCapabilitySummary::operator==(const SingerCapabilitySummary &other) c
     return mixableSpeakers == other.mixableSpeakers &&
            speakerConsistency == other.speakerConsistency &&
            speakerWarnings == other.speakerWarnings &&
+           acousticParameters == other.acousticParameters &&
            effectivePhonemes == other.effectivePhonemes &&
            phonemeConsistency == other.phonemeConsistency &&
            phonemeWarnings == other.phonemeWarnings &&
@@ -225,10 +226,11 @@ QString SingerInfo::toString() const {
     QString capStr = QStringLiteral("(none)");
     if (d->capability) {
         capStr = QStringLiteral(
-                     "mixableSpeakers=[%1], speakerConsistency=%2, "
-                     "effectivePhonemesCount=%3, phonemeConsistency=%4, phonemeDegraded=%5")
+                     "mixableSpeakers=[%1], speakerConsistency=%2, acousticParameters=[%3], "
+                     "effectivePhonemesCount=%4, phonemeConsistency=%5, phonemeDegraded=%6")
                      .arg(d->capability->mixableSpeakers.join(", "))
                      .arg(SingerCapabilitySummary::consistencyText(d->capability->speakerConsistency))
+                     .arg(d->capability->acousticParameters.value_or(QStringList()).join(", "))
                      .arg(d->capability->effectivePhonemes.size())
                      .arg(SingerCapabilitySummary::consistencyText(d->capability->phonemeConsistency))
                      .arg(d->capability->phonemeDegraded);

@@ -6,6 +6,7 @@
 #include <lite/ProjectModel/AppModel/Params.h>
 #include <lite/Core/Singleton.h>
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
+#include <lite/ProjectModel/Voice/SingerInfo.h>
 
 #include <QObject>
 
@@ -24,6 +25,7 @@ public:
     [[nodiscard]] QStringList names() const;
     [[nodiscard]] QString nameFromType(ParamInfo::Name name) const;
     [[nodiscard]] const ParamProperties *getPropertiesByName(ParamInfo::Name name) const;
+    [[nodiscard]] bool isSupportedBySinger(ParamInfo::Name name, const SingerInfo &singer) const;
 
 private:
     // Names and keys

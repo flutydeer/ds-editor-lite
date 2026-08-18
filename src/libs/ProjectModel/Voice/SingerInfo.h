@@ -39,6 +39,8 @@ struct SingerCapabilitySummary {
     int speakerConsistency = 0;              ///< 0=Ideal, 1=Degraded, 2=Inconsistent
     QStringList speakerWarnings;
 
+    std::optional<QStringList> acousticParameters; ///< nullopt when support cannot be determined
+
     QList<QString> effectivePhonemes;        ///< non-vocoder stage intersection
     int phonemeConsistency = 0;
     QStringList phonemeWarnings;

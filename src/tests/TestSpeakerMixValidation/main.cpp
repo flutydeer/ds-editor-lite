@@ -147,6 +147,7 @@ namespace {
         cap.mixableSpeakers = {"S1", "S2"};
         cap.speakerConsistency = 1; // Degraded
         cap.speakerWarnings = {"w1"};
+        cap.acousticParameters = QStringList{"breathiness", "voicing"};
         cap.effectivePhonemes = {"a", "e"};
         cap.phonemeConsistency = 0;
         cap.phonemeDegraded = true;
@@ -160,6 +161,9 @@ namespace {
                      "B2: mixableSpeakers populated");
         ok &= expect(c->speakerConsistency == 1, "B2: speakerConsistency Degraded");
         ok &= expect(c->speakerWarnings == QStringList{"w1"}, "B2: speakerWarnings");
+        ok &= expect(c->acousticParameters.value_or(QStringList()) ==
+                         QStringList{"breathiness", "voicing"},
+                     "B2: acousticParameters");
         ok &= expect(c->effectivePhonemes == QStringList{"a", "e"}, "B2: effectivePhonemes");
         ok &= expect(c->phonemeDegraded == true, "B2: phonemeDegraded");
         ok &= expect(c->effectiveLanguages == QStringList{"zh"}, "B2: effectiveLanguages");
