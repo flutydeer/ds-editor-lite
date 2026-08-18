@@ -258,6 +258,8 @@ void TwoLevelComboBox::setCurrentData(const SingerInfo &singer, const SpeakerInf
     }
     m_inheritWasSelected = false;
     for (const auto &itemData : m_itemDataList) {
+        if (itemData.isInheritItem)
+            continue;
         if (itemData.singer == singer && itemData.speaker == speaker) {
             m_currentItem = itemData;
             updateDisplayText();
