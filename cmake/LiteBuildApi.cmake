@@ -187,6 +187,8 @@ function(lite_deploy_application _target)
             )
         ")
 
+        # Do not force replacement here. Qt 6.11's PE dependency cache can keep an
+        # existing app-local system DLL mapped while windeployqt tries to replace it.
         install(CODE "
             execute_process(
                 COMMAND \"${_deploy_tool}\"
@@ -197,10 +199,10 @@ function(lite_deploy_application _target)
                     --no-compiler-runtime
                     --no-opengl-sw
                     --pdb
-                    --force
                     --verbose 0
                     \"\${CMAKE_INSTALL_PREFIX}/${LITE_INSTALL_RUNTIME_DIR}/$<TARGET_FILE_NAME:${_target}>\"
                 WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}/${LITE_INSTALL_RUNTIME_DIR}\"
+                COMMAND_ERROR_IS_FATAL ANY
             )
         ")
     endif()
