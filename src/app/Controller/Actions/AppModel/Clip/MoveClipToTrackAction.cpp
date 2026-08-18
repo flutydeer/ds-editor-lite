@@ -49,9 +49,9 @@ MoveClipToTrackAction *MoveClipToTrackAction::build(const Clip::ClipCommonProper
 }
 
 void MoveClipToTrackAction::execute() {
-    SingingClipPhonemeNormalizer::GroupStates previousGroupStates;
+    SingingClipPhonemeNormalizer::WordStates previousWordStates;
     if (m_clip->clipType() == IClip::Singing)
-        previousGroupStates = SingingClipPhonemeNormalizer::captureGroupStates(
+        previousWordStates = SingingClipPhonemeNormalizer::captureWordStates(
             *static_cast<SingingClip *>(m_clip));
     m_oldTrack->removeClip(m_clip);
     applyArgs(m_clip, m_newArgs);
@@ -60,10 +60,10 @@ void MoveClipToTrackAction::execute() {
         const auto singingClip = static_cast<SingingClip *>(m_clip);
         singingClip->setTrackVoiceContext(m_newTrack->singerInfo(), m_newTrack->speakerInfo(),
                                           m_newTrack->speakerMixData());
-        m_resetRecords = previousGroupStates.isEmpty()
+        m_resetRecords = previousWordStates.isEmpty()
                              ? QList<SingingClipPhonemeNormalizer::ResetRecord>{}
                              : SingingClipPhonemeNormalizer::normalizeEditedOffsets(
-                                   *singingClip, previousGroupStates);
+                                   *singingClip, previousWordStates);
     } else {
         m_resetRecords.clear();
     }

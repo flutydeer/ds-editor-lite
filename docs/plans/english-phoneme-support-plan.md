@@ -1,5 +1,5 @@
 # 英语音素支持 — 设计讨论记录
-> 状态：✅ 阶段 1–5 已完成；剩余待做：编辑器英语适配、Onset Marker 规则引擎通用化、`+` 音符连续性判断优化（均未实施，2026-08-06 复核）
+> 状态：✅ 阶段 1–5 已完成；剩余待做：编辑器英语适配、卡拍标记规则引擎通用化、音节分配音符（`+`）连续性判断优化（均未实施，2026-08-06 复核）
 
 ## 开始时间
 2026-05-02
@@ -18,27 +18,27 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 
 - `InferController.cpp` — 顶层编排，维护 6 个任务队列
 - `GetPronunciationTask.cpp` — G2P：lyric → pronunciation（调用 `LangCore::Manager::convert()`）
-- `GetPhonemeNameTask.cpp` — S2P + onset marking：pronunciation → phoneme names
+- `GetPhonemeNameTask.cpp` — S2P + 卡拍标记：pronunciation → phoneme names
 - `S2pMgr.cpp` — 音节→音素字典管理器（按歌手+语言查字典文件）
 - `Phonemes.h` — 数据模型：`PhonemeName`（含 `isOnset` 字段）、`PhonemeNameSeq`、`Phonemes`
-- `Modules/Language/OnsetMarker/` — onset 标记接口和实现
+- `Modules/Language/OnsetMarker/` — 卡拍标记接口和实现
 
-## "+" 分配规则（已确认）
+## 音节分配规则（syllabification，`+`，已确认）
 
-以 "international" 为例，g2p 返回带卡拍标记的音素序列，卡拍音素标记每组音素的起点：
+以 "international" 为例，G2P 返回带卡拍标记的音素序列，卡拍标记用于划分 syllable：
 
 - 单音符 → 所有音素集中在一个音符上
-- word + `+` → 第1个音符取第1组，`+` 取剩余全部
-- word + `+` + `+` → 每个 `+` 依次取下一组，最后一个 `+` 贪婪取剩余全部
-- `-` 是延音符，不影响配额（用于转音）
-- `++` 取 2 组 → `+` 的数量对应消耗的组数
+- word + `+` → 第 1 个音符取第 1 个 syllable，`+` 取剩余全部
+- word + `+` + `+` → 每个 `+` 依次取下一个 syllable，最后一个 `+` 贪婪取剩余全部
+- `-` 是连音符，不影响配额（用于连音）
+- `++` 取 2 个 syllable → `+` 的数量对应消耗的 syllable 数
 - 溢出 → 标记错误
 
 ## 已完成
 
-### 阶段 1：Onset Marker 接口（d06a712a）
+### 阶段 1：Onset Marker（卡拍标记）接口（d06a712a）
 
-将 `GetPhonemeNameTask` 中硬编码的 isOnset 标记逻辑抽取为可扩展接口。
+将 `GetPhonemeNameTask` 中硬编码的 `isOnset` 标记逻辑抽取为可扩展接口。
 
 **新增文件**（`Modules/Language/OnsetMarker/`）：
 - `IOnsetMarker.h` — 接口：`mark(QStringList phonemeNames, QString language) → QList<PhonemeName>`
@@ -49,7 +49,7 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 **改动**：
 - `GetPhonemeNameTask.cpp` — 用 `OnsetMarkerMgr::instance()->marker(language)->mark(...)` 替换硬编码逻辑，移除 2 音素硬限制和 TODO 注释
 
-### 阶段 2：基于规则 DSL 的通用 Onset Marker（177c4af6）
+### 阶段 2：基于规则 DSL 的通用卡拍标记（177c4af6）
 
 参考 `MakeDiffSinger/variance-temp-solution/add_ph_num_advanced.py` 中的设计，实现通用的基于规则的卡拍标记引擎。
 
@@ -78,28 +78,29 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 
 **已知问题**：~~英文歌词后追加音符时崩溃~~（已在阶段4中修复）。
 
-### 阶段 4："+" 音素分配逻辑（29b5f939）
+### 阶段 4：音节分配逻辑（syllabification，`+`，29b5f939）
 
-在 `getPhonemeNames()` 之后插入后处理步骤 `distributePhonemes()`，识别 word+`+` 序列，按卡拍组拆分并分配音素。
+在 `getPhonemeNames()` 之后执行 `Syllabification` 后处理，识别 word+`+` 序列，按 syllable 拆分并分配音素。
 
 **分配规则**：
-- 单词音符默认取第1组；末尾 `+` 可增加（如 `word+` 取前2组）
-- 纯 `+` 音符按 `+` 数量消耗对应组数，最后一个 `+` 贪婪取剩余全部
-- `-` 延音符不消耗配额，跳过
+- 单词音符默认取第 1 个 syllable；末尾 `+` 可增加（如 `word+` 取前 2 个 syllable）
+- 纯 `+` 音符按 `+` 数量消耗对应 syllable，最后一个 `+` 贪婪取剩余全部
+- `-` 连音符不消耗配额，跳过
 - 溢出时标空
 
 **改动**：
-- `GetPhonemeNameTask.h/.cpp` — 新增 `distributePhonemes()`、`isPlusNote()`；在 `processNotes()` 末尾调用
+- `Syllabification.h/.cpp` — 提供音节分配识别、syllable 拆分和推理前后转换
+- `GetPhonemeNameTask.cpp` — 在音素名生成后保留 word 根音符上的完整音素序列
 - `GetPronunciationTask.cpp` — G2P 输入剥掉歌词尾部 `+`；纯 `+` 和 `-` 音符跳过不送入 G2P
 - `InferControllerHelper.cpp` — `updatePhoneName` 中 names 数量变化时清空 offsets
 - `PhonemeView.cpp` — 防御性边界检查：offsets 索引不超过 offsets 长度
 
 ## 设计原则
 
-- onset 标记规则按语言注册，通过 `OnsetMarkerMgr` 查找
+- 卡拍标记规则按语言注册，通过 `OnsetMarkerMgr` 查找
 - 新增语言只需提供音素分类表和卡拍规则即可
 - 规则引擎通用化，支持 Trie + 通配符 + 贪心匹配，将来可自定义
-- "+" 分配逻辑是语言无关的，在 onset 标记之后统一处理
+- 音节分配逻辑（`+`）是语言无关的，在卡拍标记之后统一处理
 
 ### 阶段 5：按语言提供默认歌词（53ba03d2）
 
@@ -115,20 +116,20 @@ lyric → G2P → pronunciation → (按语言分支) → 音素名列表 → On
 ### 编辑器英语适配
 
 - 英语音符的 pronunciation view 隐藏（音素序列对用户无参考价值，已在音符下方 phoneme view 展示）
-- `+` 音素组溢出时，UI 上应有可视化的错误提示
+- 音节分配的 syllable 溢出时，UI 上应有可视化的错误提示
 
 ### 架构改进
 
 - 语言分支目前硬编码 `"eng"` 特判跳过 S2P，将来需要通用机制（如检查 S2P 字典是否存在，或在语言配置中标记）
 - phoneme 配置目前在 `OnsetMarkerMgr` 构造时同步加载，将来需改为异步以缩短应用启动时间
 
-### `+` 音符连续性判断优化
+### 音节分配音符（`+`）连续性判断优化
 
-当前简化实现：`distributePhonemes` 只看 `m_inputs` 列表顺序来配对 word 和 `+` 音符，不检查时间间隙。孤立 `+`（segment 开头）由 slicer 丢弃整个 segment。
+当前简化实现：`Syllabification` 只看音符列表顺序来配对 word 和 `+` 音符，不检查时间间隙。孤立的音节分配音符（segment 开头的 `+`）由 slicer 丢弃整个 segment。
 
 **问题**：如果 `+` 音符被移远（但中间没有其他音符），列表中它仍然紧跟在 word 后面，会被配对分走音素。只有间隙大到 slicer 分成不同 segment 时，`+` 才会变成 segment 开头被丢弃。
 
-**方案**：在收集 `+`/`-` 音符的内循环中加入时间间隙检查，与 slicer 使用相同的分片阈值，间隙超过阈值时断开配对。
+**方案**：在收集音节分配音符（`+`）和连音符（`-`）的内循环中加入时间间隙检查，与 slicer 使用相同的分片阈值，间隙超过阈值时断开配对。
 
 #### 阈值推导
 
@@ -140,7 +141,7 @@ nextHeaderStartInMs > curTailEndInMs
 → gap > headerMinLength + tailLength
 ```
 
-Slicer 的阈值实际上不是固定值：`headerMinLength = padBaseLength + headerPhonemeCount * padUnitAdditionalLength`，会随下一个音符的 pre-onset 音素数量变化。但对于 `+` 音符，`distributePhonemes` 分配的音素组来自 `splitSyllables`（按 onset 切分），每组总是以 onset 开头，因此 `headerPhonemeCount` 恒为 0。所以这里可以简化为固定阈值：
+Slicer 的阈值实际上不是固定值：`headerMinLength = padBaseLength + headerPhonemeCount * padUnitAdditionalLength`，会随下一个音符的卡拍前音素数量变化。但分配给纯音节分配音符（`+`）的后续 syllable 以卡拍音素开头，因此 `headerPhonemeCount` 恒为 0。这里可以简化为固定阈值：
 
 - `tailLength`（当前音符）= `padBaseLength` = 100ms
 - `headerMinLength`（`+` 音符，headerPhonemeCount = 0）= `padBaseLength` = 100ms
@@ -158,7 +159,7 @@ gapThresholdTicks = round(200ms * ticksPerQuarterNote * tempo / 60000)
 
 **改动 1**：增加 include（`AppGlobal.h`、`SingingClipSlicerGlobal.h`、`AppModel.h`）
 
-**改动 2**：在 `distributePhonemes()` 开头计算 tick 域阈值
+**改动 2**：在 `Syllabification` 的 word 收集逻辑中计算 tick 域阈值
 
 ```cpp
 const double tempo = appModel->tempo();
@@ -177,10 +178,10 @@ auto tickGap = [this](int a, int b) -> int {
 };
 ```
 
-**改动 4**：修改收集 `+`/`-` 音符的内循环，增加 `prevIdx` 跟踪链中上一个音符，gap 检查在类型判断之前执行
+**改动 4**：修改收集音节分配音符（`+`）和连音符（`-`）的内循环，增加 `prevIdx` 跟踪链中上一个音符，gap 检查在类型判断之前执行
 
 ```cpp
-QList<int> plusIndices;
+QList<int> syllabificationIndices;
 int j = i + 1;
 int prevIdx = i;
 while (j < count) {
@@ -190,8 +191,8 @@ while (j < count) {
     if (tickGap(prevIdx, j) > gapThresholdTicks)
         break;
 
-    if (isPlusNote(nextLyric)) {
-        plusIndices.append(j);
+    if (Note::isSyllabificationLyric(nextLyric)) {
+        syllabificationIndices.append(j);
         prevIdx = j;
         j++;
     } else if (nextPron == "-") {
@@ -205,8 +206,8 @@ while (j < count) {
 
 #### 边界情况
 
-- `+` 紧邻 word（无间隙）：gap=0 ≤ threshold，正常配对
-- `+` 远离 word，中间无其他音符：gap > threshold，`+` 变成孤立，被清空
-- `word → - → +`，word-to-`-` 间隙大：在 `-` 处断开，`+` 后续作为孤立处理
+- 音节分配音符（`+`）紧邻 word（无间隙）：gap=0 ≤ threshold，正常配对
+- 音节分配音符（`+`）远离 word，中间无其他音符：gap > threshold，`+` 变成孤立，被清空
+- `word → - → +`，word-to-`-` 间隙大：在连音符（`-`）处断开，`+` 后续作为孤立处理
 - `word → - → +`，`-`-to-`+` 间隙大：`-` 通过检查，`+` 未通过，变孤立
-- 多个 `+`，中间某个间隙大：前面的 `+` 正常收集，断开处之后的 `+` 变孤立
+- 多个音节分配音符（`+`）之间存在较大间隙：前面的 `+` 正常收集，断开处之后的 `+` 变孤立

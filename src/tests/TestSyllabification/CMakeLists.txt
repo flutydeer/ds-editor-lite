@@ -1,10 +1,10 @@
-project(TestPhonemeDistribution)
+project(TestSyllabification)
 
 lite_add_test(${PROJECT_NAME}
     SOURCES
         main.cpp
         ../../app/Modules/Inference/Models/InferInputNote.cpp
-        ../../app/Modules/Inference/Tasks/PhonemeDistribution.cpp
+        ../../app/Modules/Inference/Tasks/Syllabification.cpp
         ../../app/Model/AppModel/SingingClipPhonemeNormalizer.cpp
 )
 

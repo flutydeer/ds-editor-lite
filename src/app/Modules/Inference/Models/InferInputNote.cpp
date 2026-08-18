@@ -9,7 +9,7 @@ InferInputNote::InferInputNote(const Note &note) {
     key = note.keyIndex();
     isRest = note.lyric() == "SP" || note.lyric() == "AP";
     isSlur = note.isSlur();
-    isPlus = note.isPlus();
+    isSyllabification = note.isSyllabification();
     languageDictId = note.effectiveLanguage();
     phonemeNames = note.phonemeNameSeq().result();
     phonemeOffsets = note.phonemeOffsetSeq().result();
@@ -22,11 +22,11 @@ bool operator==(const InferInputNote &lhs, const InferInputNote &rhs) {
     const bool keyEqual = lhs.key == rhs.key;
     const bool isRestEqual = lhs.isRest == rhs.isRest;
     const bool isSlurEqual = lhs.isSlur == rhs.isSlur;
-    const bool isPlusEqual = lhs.isPlus == rhs.isPlus;
+    const bool isSyllabificationEqual = lhs.isSyllabification == rhs.isSyllabification;
     const bool phonemeNamesEqual = lhs.phonemeNames == rhs.phonemeNames;
     const bool phonemeOffsetsEqual = lhs.phonemeOffsets == rhs.phonemeOffsets;
     return idEqual && startEqual && lengthEqual && keyEqual && isRestEqual && isSlurEqual &&
-           isPlusEqual && phonemeNamesEqual && phonemeOffsetsEqual;
+           isSyllabificationEqual && phonemeNamesEqual && phonemeOffsetsEqual;
 }
 
 bool operator!=(const InferInputNote &lhs, const InferInputNote &rhs) {

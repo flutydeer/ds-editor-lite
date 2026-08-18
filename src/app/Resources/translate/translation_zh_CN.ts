@@ -4477,7 +4477,7 @@ type: %L1</source>
     <message>
         <location filename="../../UI/Dialogs/Note/PhonemeEditorDialog.cpp" line="151"/>
         <source>At least one phoneme must be set as onset</source>
-        <translation>至少需要一个音素设置为起音</translation>
+        <translation>至少需要将一个音素标记为卡拍</translation>
     </message>
 </context>
 <context>
@@ -4485,7 +4485,7 @@ type: %L1</source>
     <message>
         <location filename="../../UI/Dialogs/Note/PhonemeNameItemView.cpp" line="14"/>
         <source>Onset</source>
-        <translation>起音</translation>
+        <translation>卡拍</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Note/PhonemeNameItemView.cpp" line="17"/>

@@ -25,16 +25,16 @@ namespace {
         QJsonArray array;
         for (const auto &note : notes) {
             array.append(QJsonObject{
-                {"id",             note.id                            },
-                {"start",          note.start                         },
-                {"length",         note.length                        },
-                {"key",            note.key                           },
-                {"isRest",         note.isRest                        },
-                {"isSlur",         note.isSlur                        },
-                {"isPlus",         note.isPlus                        },
-                {"languageDictId", note.languageDictId                },
-                {"phonemeNames",   phonemeNameArray(note.phonemeNames)},
-                {"phonemeOffsets", intArray(note.phonemeOffsets)      },
+                {"id",                note.id                            },
+                {"start",             note.start                         },
+                {"length",            note.length                        },
+                {"key",               note.key                           },
+                {"isRest",            note.isRest                        },
+                {"isSlur",            note.isSlur                        },
+                {"isSyllabification", note.isSyllabification             },
+                {"languageDictId",    note.languageDictId                },
+                {"phonemeNames",      phonemeNameArray(note.phonemeNames)},
+                {"phonemeOffsets",    intArray(note.phonemeOffsets)      },
             });
         }
         return array;

@@ -4,8 +4,8 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 void QuantizeNotesAction::execute() {
-    const auto previousGroupStates =
-        SingingClipPhonemeNormalizer::captureGroupStates(*m_clip);
+    const auto previousWordStates =
+        SingingClipPhonemeNormalizer::captureWordStates(*m_clip);
 
     for (const auto &change : m_changes) {
         m_clip->removeNote(change.note);
@@ -14,7 +14,7 @@ void QuantizeNotesAction::execute() {
         m_clip->insertNote(change.note);
     }
     m_resetRecords =
-        SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip, previousGroupStates);
+        SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip, previousWordStates);
     m_clip->notifyNoteChanged(SingingClip::TimeKeyPropertyChange, notes());
     if (!m_resetRecords.isEmpty())
         m_clip->notifyNoteChanged(SingingClip::EditedPhonemeOffsetChange,

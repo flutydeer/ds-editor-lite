@@ -27,8 +27,8 @@ EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(const QList<Note *> &
 }
 
 void EditNoteWordPropertiesAction::execute() {
-    const auto previousGroupStates =
-        SingingClipPhonemeNormalizer::captureGroupStates(*m_clip);
+    const auto previousWordStates =
+        SingingClipPhonemeNormalizer::captureWordStates(*m_clip);
     qsizetype i = 0;
     for (const auto note : m_notes) {
         auto [lyric, language, pronunciation, pronCandidates, phonemes] = m_newArgs.at(i);
@@ -40,7 +40,7 @@ void EditNoteWordPropertiesAction::execute() {
         i++;
     }
     m_resetRecords =
-        SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip, previousGroupStates);
+        SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip, previousWordStates);
     m_clip->notifyNoteChanged(
         m_pronunciationOnly ? SingingClip::EditedPronunciationOnly
                             : SingingClip::EditedWordPropertyChange,

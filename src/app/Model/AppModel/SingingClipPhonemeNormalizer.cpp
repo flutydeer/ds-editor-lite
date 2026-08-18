@@ -47,51 +47,53 @@ namespace {
         return !std::is_sorted(offsets.cbegin(), offsets.cend());
     }
 
-    SingingClipPhonemeNormalizer::GroupStates captureGroupStates(const SingingClip &clip,
+    SingingClipPhonemeNormalizer::WordStates captureWordStates(const SingingClip &clip,
                                                                  const Timeline &timeline) {
-        SingingClipPhonemeNormalizer::GroupStates result;
+        SingingClipPhonemeNormalizer::WordStates result;
         const auto notes = clip.notes().toList();
         for (int i = 0; i < notes.count(); ++i) {
             const auto root = notes.at(i);
-            if (!root || root->isSlur() || root->isPlus() || root->overlapped())
+            if (!root || root->isSlur() || root->isSyllabification() || root->overlapped())
                 continue;
 
-            SingingClipPhonemeNormalizer::GroupState state;
-            state.rootPlusCount = Note::trailingPlusCount(root->lyric());
+            SingingClipPhonemeNormalizer::WordState state;
+            state.rootSyllabificationCount = Note::trailingSyllabificationCount(root->lyric());
             for (const auto &phoneme : root->phonemeNameSeq().result())
                 state.rootOnsets.append(phoneme.isOnset);
             const auto rootStartMs =
                 timeline.tickToMs(clip.start() + root->localStart());
-            auto groupEndTick = root->localStart() + root->length();
-            bool hasPlus = false;
-            int groupEnd = i + 1;
-            for (; groupEnd < notes.count(); ++groupEnd) {
-                const auto marker = notes.at(groupEnd);
-                if (!marker || (!marker->isSlur() && !marker->isPlus()) ||
-                    marker->overlapped())
+            auto wordEndTick = root->localStart() + root->length();
+            bool hasSyllabification = false;
+            int wordEnd = i + 1;
+            for (; wordEnd < notes.count(); ++wordEnd) {
+                const auto continuationNote = notes.at(wordEnd);
+                if (!continuationNote ||
+                    (!continuationNote->isSlur() && !continuationNote->isSyllabification()) ||
+                    continuationNote->overlapped())
                     break;
-                if (marker->localStart() > groupEndTick)
+                if (continuationNote->localStart() > wordEndTick)
                     break;
 
-                const auto markerStartMs =
-                    timeline.tickToMs(clip.start() + marker->localStart());
-                state.members.append({marker, marker->lyric().trimmed(),
-                                      qRound(markerStartMs - rootStartMs)});
-                hasPlus = hasPlus || marker->isPlus();
-                groupEndTick =
-                    std::max(groupEndTick, marker->localStart() + marker->length());
+                const auto continuationStartMs =
+                    timeline.tickToMs(clip.start() + continuationNote->localStart());
+                state.members.append({continuationNote, continuationNote->lyric().trimmed(),
+                                      qRound(continuationStartMs - rootStartMs)});
+                hasSyllabification =
+                    hasSyllabification || continuationNote->isSyllabification();
+                wordEndTick = std::max(
+                    wordEndTick, continuationNote->localStart() + continuationNote->length());
             }
 
-            if (hasPlus)
+            if (hasSyllabification)
                 result.insert(root, state);
-            i = groupEnd - 1;
+            i = wordEnd - 1;
         }
         return result;
     }
 
-    void appendChangedGroupRoots(const SingingClip &clip,
-                                 const SingingClipPhonemeNormalizer::GroupStates &previousStates,
-                                 const SingingClipPhonemeNormalizer::GroupStates &currentStates,
+    void appendChangedWordRoots(const SingingClip &clip,
+                                 const SingingClipPhonemeNormalizer::WordStates &previousStates,
+                                 const SingingClipPhonemeNormalizer::WordStates &currentStates,
                                  QList<Note *> &result, QSet<Note *> &resultSet) {
         for (const auto root : clip.notes()) {
             if (!root || !root->phonemeOffsetSeq().isEdited())
@@ -155,7 +157,7 @@ namespace {
 
     QList<Note *> collectInvalidEditedOffsetNotes(
         SingingClip &clip, const Timeline &timeline,
-        const SingingClipPhonemeNormalizer::GroupStates *previousGroupStates) {
+        const SingingClipPhonemeNormalizer::WordStates *previousWordStates) {
         QList<Note *> result;
         QSet<Note *> resultSet;
 
@@ -164,9 +166,9 @@ namespace {
                 appendUnique(result, resultSet, note);
         }
 
-        if (previousGroupStates) {
-            const auto currentGroupStates = captureGroupStates(clip, timeline);
-            appendChangedGroupRoots(clip, *previousGroupStates, currentGroupStates, result,
+        if (previousWordStates) {
+            const auto currentWordStates = captureWordStates(clip, timeline);
+            appendChangedWordRoots(clip, *previousWordStates, currentWordStates, result,
                                     resultSet);
         }
 
@@ -204,10 +206,10 @@ namespace {
 
     QList<SingingClipPhonemeNormalizer::ResetRecord>
         normalizeEditedOffsetsWithTimeline(SingingClip &clip, const Timeline &timeline,
-                                           const SingingClipPhonemeNormalizer::GroupStates
-                                               *previousGroupStates = nullptr) {
+                                           const SingingClipPhonemeNormalizer::WordStates
+                                               *previousWordStates = nullptr) {
         QList<SingingClipPhonemeNormalizer::ResetRecord> records;
-        const auto notes = collectInvalidEditedOffsetNotes(clip, timeline, previousGroupStates);
+        const auto notes = collectInvalidEditedOffsetNotes(clip, timeline, previousWordStates);
         for (const auto note : notes) {
             if (!note || !note->phonemeOffsetSeq().isEdited())
                 continue;
@@ -222,15 +224,15 @@ namespace {
     }
 }
 
-SingingClipPhonemeNormalizer::GroupStates
-    SingingClipPhonemeNormalizer::captureGroupStates(const SingingClip &clip) {
-    return ::captureGroupStates(clip, appModel->timeline());
+SingingClipPhonemeNormalizer::WordStates
+    SingingClipPhonemeNormalizer::captureWordStates(const SingingClip &clip) {
+    return ::captureWordStates(clip, appModel->timeline());
 }
 
-SingingClipPhonemeNormalizer::GroupStates
-    SingingClipPhonemeNormalizer::captureGroupStates(const SingingClip &clip,
+SingingClipPhonemeNormalizer::WordStates
+    SingingClipPhonemeNormalizer::captureWordStates(const SingingClip &clip,
                                                      const Timeline &timeline) {
-    return ::captureGroupStates(clip, timeline);
+    return ::captureWordStates(clip, timeline);
 }
 
 QList<Note *> SingingClipPhonemeNormalizer::collectInvalidEditedOffsetNotes(SingingClip &clip) {
@@ -244,14 +246,14 @@ QList<SingingClipPhonemeNormalizer::ResetRecord>
 
 QList<SingingClipPhonemeNormalizer::ResetRecord>
     SingingClipPhonemeNormalizer::normalizeEditedOffsets(
-        SingingClip &clip, const GroupStates &previousGroupStates) {
-    return normalizeEditedOffsetsWithTimeline(clip, appModel->timeline(), &previousGroupStates);
+        SingingClip &clip, const WordStates &previousWordStates) {
+    return normalizeEditedOffsetsWithTimeline(clip, appModel->timeline(), &previousWordStates);
 }
 
 QList<SingingClipPhonemeNormalizer::ResetRecord>
     SingingClipPhonemeNormalizer::normalizeEditedOffsets(
-        SingingClip &clip, const GroupStates &previousGroupStates, const Timeline &timeline) {
-    return normalizeEditedOffsetsWithTimeline(clip, timeline, &previousGroupStates);
+        SingingClip &clip, const WordStates &previousWordStates, const Timeline &timeline) {
+    return normalizeEditedOffsetsWithTimeline(clip, timeline, &previousWordStates);
 }
 
 void SingingClipPhonemeNormalizer::restoreEditedOffsets(const QList<ResetRecord> &records) {

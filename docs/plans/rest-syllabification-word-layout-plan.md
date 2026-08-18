@@ -1,4 +1,4 @@
-# Rest / Plus / Word Layout 整理计划
+# Rest / Syllabification / Word Layout 整理计划
 > 状态：⬜ 未实施（Phase 1–4 均为计划；代码中 `isRestNote` 仍分散在 SingingClipSlicer / SingingClipPhonemeNormalizer，尚未统一到 `Note::isRest()`。2026-08-06 复核）
 
 ## 背景
@@ -6,10 +6,12 @@
 当前应用从音符编辑到推理输入之间已经有多层语义：
 
 - Note 层：保存音符时间、音高、歌词文本、发音/音素结果。
-- Word / lyric 层：决定多个音符如何组成一个词、音节或延续关系。
+- Word / lyric 层：决定多个音符如何组成一个词，以及如何建立音节分配或连音关系。
 - Phoneme 层：保存实际送入 G2P、Duration、Pitch、Variance、Acoustic 的音素序列和 offset。
 
-最近的 phoneme offset normalizer 已经把失效的手动音素时长清理逻辑收口到模型层，但 rest、plus、word grouping 的语义仍然分散。下一步应先整理低风险的 rest 判断，再为 plus 和 word layout 留出正确抽象位置。
+最近的 phoneme offset normalizer 已经把失效的手动音素时长清理逻辑收口到模型层，但
+rest、音节分配和 word layout 的语义仍然分散。下一步应先整理低风险的 rest 判断，
+再为音节分配和 word layout 留出正确抽象位置。
 
 ## 当前代码观察
 
@@ -19,7 +21,7 @@
 
 - `SingingClipSlicer.cpp` 内部 lambda `isRestNote`
 - `InferInputNote.cpp` 构造 `isRest`
-- `GetPronunciationTask.cpp` 跳过 rest / slur
+- `GetPronunciationTask.cpp` 跳过休止和连音音符
 - `GetPhonemeNameTask.cpp` 跳过 rest，并把 rest pronunciation 转为 phoneme
 - `SingingClipPhonemeNormalizer.cpp` 内部 lambda `isRestNote`
 - `InferTaskHelper.cpp` 通过 `InferInputNote::isRest` 处理推理 word
@@ -27,15 +29,16 @@
 
 这些判断的目标大体一致，但入口分散，后续维护容易出现规则偏差。
 
-### Plus 不应先收口到 Note 层
+### 音节分配语义不应全部收口到 Note 层
 
-当前 plus 逻辑主要在 `GetPhonemeNameTask`：
+当前音节分配逻辑主要在 `Syllabification`：
 
-- `isPlusNote()` 只判断歌词是否完全由 `+` 构成。
-- `checkTrailingPlus()` 支持 `lyric+` / `lyric++` 这类尾随 plus。
-- `distributePhonemes()` 会把英文等多音节 phoneme groups 分配给主歌词音符和后续纯 plus 音符。
+- `Note::isSyllabificationLyric()` 判断歌词是否完全由 `+` 构成。
+- `Note::trailingSyllabificationCount()` 解析 `lyric+` / `lyric++` 这类尾随音节分配符号。
+- `Syllabification::phonemeRangesForNotes()` 会把英语等多音节内容的 syllables 分配给主歌词音符和后续纯音节分配音符。
 
-因此 plus 不是简单的 Note 类型。`+`、`++`、`lyric+`、`lyric++` 语义不同，直接添加 `Note::isPlus()` 会过早固化错误抽象。
+`Note` 可以集中判断单个歌词 token，但完整音节分配不是简单的 Note 类型。`+`、`++`、
+`lyric+`、`lyric++` 语义不同，跨音符的 word 组织和 syllable 分配应留在独立模块中。
 
 ### Slicer 应保持 deterministic
 
@@ -72,13 +75,13 @@
 
 - 行为不变。
 - 所有 Note 层 rest 判断统一走 `Note::isRest()`。
-- 不引入 plus 相关抽象。
+- 不引入音节分配相关抽象。
 - 运行 `clang-format -i`。
 - Debug 构建 `DsEditorLite` 通过。
 
 ### Phase 2：新增 lyric token parser，但不改变行为
 
-目标：把 plus、slur、rest 的字符串解析集中起来，为 word grouping 做准备。
+目标：把音节分配、连音和休止的字符串解析集中起来，为 word layout 做准备。
 
 建议新增轻量结构，例如：
 
@@ -87,8 +90,8 @@ class LyricToken {
 public:
     QString raw;
     QString text;
-    int trailingPlusCount = 0;
-    bool isAllPlus = false;
+    int trailingSyllabificationCount = 0;
+    bool isSyllabification = false;
     bool isSlur = false;
     bool isRest = false;
 };
@@ -97,19 +100,19 @@ public:
 实施原则：
 
 - parser 只负责解析字符串，不负责语言学解释。
-- `lyric+` 应解析为 `text = "lyric"`，`trailingPlusCount = 1`。
-- 纯 `+` / `++` 应解析为 `isAllPlus = true`，并保留 plus 数量。
+- `lyric+` 应解析为 `text = "lyric"`，`trailingSyllabificationCount = 1`。
+- 纯 `+` / `++` 应解析为 `isSyllabification = true`，并保留 `+` 的数量。
 - `SP` / `AP` 应解析为 rest。
-- `-` 或当前 slur 规则应单独标记，不和 plus 混用。
-- 初期只替换局部重复解析，不改变 `GetPhonemeNameTask::distributePhonemes()` 的行为。
+- `-` 的连音规则应单独标记，不和音节分配混用。
+- 初期只替换局部重复解析，不改变 `Syllabification` 的行为。
 
 验收点：
 
-- `GetPhonemeNameTask` 中的 `isPlusNote()` / `checkTrailingPlus()` 可迁移到 parser。
-- plus 分配结果保持不变。
+- `Note::isSyllabificationLyric()` / `Note::trailingSyllabificationCount()` 可迁移到 parser。
+- 音节分配结果保持不变。
 - rest 仍以 Phase 1 的 `Note::isRest()` 为 Note 层来源。
 
-### Phase 3：建立 word grouping / layout
+### Phase 3：建立 word layout
 
 目标：明确 Note 序列如何转换为 word / syllable / phoneme 布局，减少 slicer、phoneme editor、inference input 各自推断。
 
@@ -118,22 +121,22 @@ public:
 - authored rest word
 - generated gap rest word
 - generated padding rest word
-- lexical word group
-- pure plus continuation group
-- slur continuation group
-- 每个 group 对应的 note 范围
-- 每个 group 是否需要 G2P / duration / acoustic input
+- lexical word
+- syllabification continuation notes
+- slur continuation notes
+- 每个 word 对应的 note 范围
+- 每个 word 是否需要 G2P / duration / acoustic input
 
 原则：
 
 - layout 可以消费 slicer 的 deterministic segment。
 - layout 不改变 slicer 分片。
 - layout 不依赖 edited phoneme offset 来决定 segment。
-- edited offset 只用于 phoneme timing validation，不用于 word grouping 决策。
+- edited offset 只用于 phoneme timing validation，不用于 word layout 决策。
 
 验收点：
 
-- `GetPhonemeNameTask` 的 plus 分配可以逐步迁移到 word grouping。
+- `GetPhonemeNameTask` 的音节分配逻辑可以逐步迁移到 word layout。
 - `InferTaskHelper::buildWords()` 可以消费更明确的 word layout，减少内部临时推断。
 - PhonemeView / Normalizer 后续可共享同一套 effective note / word 边界。
 
@@ -156,8 +159,8 @@ public:
 
 ## 明确不做
 
-- Phase 1 不处理 plus。
-- 不新增 `Note::isPlus()`。
+- Phase 1 不处理音节分配。
+- 不把跨音符的音节分配 layout 收口到 `Note`。
 - 不让 slicer 依赖 edited phoneme offset。
 - 不把 authored rest 和 generated gap/padding rest 在 word 层完全混为一谈。
 
@@ -170,4 +173,4 @@ public:
 - 范围小。
 - 行为变化风险低。
 - 能立刻减少重复判断。
-- 不会提前固化 plus 的复杂语义。
+- 不会提前固化音节分配的复杂语义。

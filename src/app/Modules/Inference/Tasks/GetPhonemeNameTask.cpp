@@ -1,10 +1,11 @@
 #include "GetPhonemeNameTask.h"
-#include "PhonemeDistribution.h"
+#include "Syllabification.h"
 
 #include "Global/AppGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 
+#include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/Support/VersionUtils.h>
 
 #include <QDebug>
@@ -70,7 +71,7 @@ void GetPhonemeNameTask::processNotes() {
     newStatus.message = tr("Processing: %1").arg(m_previewText);
     setStatus(newStatus);
     result = getPhonemeNames();
-    PhonemeDistribution::keepPhonemesOnGroupRoots(m_inputs, result);
+    Syllabification::keepPhonemesOnWordRoots(m_inputs, result);
 }
 
 QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
@@ -116,8 +117,8 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
             restPhoneme.language = input.language;
             result.phonemeNames.append(restPhoneme);
             result.success = true;
-        } else if (input.lyric.trimmed() == "-" ||
-                   PhonemeDistribution::isPlusLyric(input.lyric) ||
+        } else if (Note::isSlurLyric(input.lyric) ||
+                   Syllabification::isSyllabificationLyric(input.lyric) ||
                    input.pronunciation == "-" || input.pronunciation.isEmpty()) {
             result.success = true;
         } else {
