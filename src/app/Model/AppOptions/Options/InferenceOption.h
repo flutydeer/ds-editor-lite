@@ -5,21 +5,31 @@
 
 #include <QStandardPaths>
 
-#if defined(Q_OS_WIN)
-#  define LITE_DEFAULT_EXECUTION_PROVIDER "DirectML"
-#else
-#  define LITE_DEFAULT_EXECUTION_PROVIDER "CPU"
-#endif
-
 class InferenceOption final : public IOption {
 public:
     explicit InferenceOption() : IOption("inference") {
     }
 
+    [[nodiscard]] static QString defaultExecutionProvider() {
+#if defined(Q_OS_WIN)
+        return QStringLiteral("DirectML");
+#else
+        return QStringLiteral("CPU");
+#endif
+    }
+
+    [[nodiscard]] static constexpr bool cudaExecutionProviderAvailable() noexcept {
+#if defined(ONNXRUNTIME_ENABLE_CUDA)
+        return true;
+#else
+        return false;
+#endif
+    }
+
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
 
-    LITE_OPTION_ITEM(QString, executionProvider, LITE_DEFAULT_EXECUTION_PROVIDER)
+    LITE_OPTION_ITEM(QString, executionProvider, defaultExecutionProvider())
     LITE_OPTION_ITEM(int, selectedGpuIndex, 0)
     LITE_OPTION_ITEM(QString, selectedGpuId, "")
     LITE_OPTION_ITEM(int, samplingSteps, 20)
@@ -35,8 +45,5 @@ public:
 
     LITE_OPTION_ITEM(int, pitch_smooth_kernel_size, 0)
 };
-
-
-#undef LITE_DEFAULT_EXECUTION_PROVIDER
 
 #endif // INFERENCEOPTION_H
