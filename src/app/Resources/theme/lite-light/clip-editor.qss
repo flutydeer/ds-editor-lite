@@ -279,7 +279,7 @@ ParamEditorToolBarView>ComboBox#cbBackgroundParam:hover {
     color: ${text.emphasis};
 }
 
-ParamEditorToolBarView>Button#btnSwap {
+ParamEditorToolBarView>ToolButton#btnSwap {
     border: none;
     background: transparent;
 }

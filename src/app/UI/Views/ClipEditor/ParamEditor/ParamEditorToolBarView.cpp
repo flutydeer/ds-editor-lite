@@ -1,8 +1,10 @@
 #include "ParamEditorToolBarView.h"
 
 #include "Model/AppOptions/AppOptions.h"
-#include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/IconLabel.h>
+#include <lite/GUI/Controls/ToolButton.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "Model/Utils/ParamUtils.h"
 #include "ParamEditToolBarView.h"
@@ -10,7 +12,6 @@
 
 #include <QEvent>
 #include <QHBoxLayout>
-#include <QLabel>
 #include <QSignalBlocker>
 #include <QStackedWidget>
 
@@ -18,19 +19,34 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     setAttribute(Qt::WA_StyledBackground);
     setFixedHeight(ClipEditorGlobal::paramEditorToolBarHeight);
 
-    lbForegroundParam = new QLabel(tr("Foreground:"));
+    lbForegroundParam = new IconLabel;
     lbForegroundParam->setObjectName("lbForegroundParam");
+    lbForegroundParam->setToolTip(tr("Foreground"));
+    lbForegroundParam->setIcon(QStringLiteral(":/svg/icons/edit_16_regular.svg"));
+    lbForegroundParam->setColorToken(QStringLiteral("text.secondary"));
 
     cbForegroundParam = new ComboBox(WheelEventPolicy::Handle);
     cbForegroundParam->setObjectName("cbForegroundParam");
     cbForegroundParam->addItems(paramUtils->names());
     cbForegroundParam->removeItem(0); // Remove pitch
 
-    m_btnSwap = new Button(tr("Swap"));
+    m_btnSwap = new ToolButton;
     m_btnSwap->setObjectName("btnSwap");
+    m_btnSwap->setActionIcon(QStringLiteral(":/svg/icons/arrow_swap_20_regular.svg"),
+                             QSize(20, 20));
+    m_btnSwap->setActionIconHoverColor(
+        ThemeManager::instance()->semanticColor(QStringLiteral("text.emphasis")));
+    m_btnSwap->setToolTip(tr("Swap"));
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this, [this] {
+        m_btnSwap->setActionIconHoverColor(
+            ThemeManager::instance()->semanticColor(QStringLiteral("text.emphasis")));
+    });
 
-    lbBackgroundParam = new QLabel(tr("Background:"));
+    lbBackgroundParam = new IconLabel;
     lbBackgroundParam->setObjectName("lbBackgroundParam");
+    lbBackgroundParam->setToolTip(tr("Background"));
+    lbBackgroundParam->setIcon(QStringLiteral(":/svg/icons/eye_16_regular.svg"));
+    lbBackgroundParam->setColorToken(QStringLiteral("text.secondary"));
 
     cbBackgroundParam = new ComboBox(WheelEventPolicy::Handle);
     cbBackgroundParam->setObjectName("cbBackgroundParam");
@@ -72,7 +88,7 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
             &ParamEditorToolBarView::onForegroundSelectionChanged);
     connect(cbBackgroundParam, &ComboBox::currentIndexChanged, this,
             &ParamEditorToolBarView::onBackgroundSelectionChanged);
-    connect(m_btnSwap, &Button::clicked, this, &ParamEditorToolBarView::onSwap);
+    connect(m_btnSwap, &QPushButton::clicked, this, &ParamEditorToolBarView::onSwap);
     connect(m_paramEditToolBar, &ParamEditToolBarView::editModeChanged, this,
             &ParamEditorToolBarView::editModeChanged);
     connect(m_speakerMixToolBar, &SpeakerMixToolBarView::previousKeyframe, this,
@@ -133,9 +149,9 @@ void ParamEditorToolBarView::changeEvent(QEvent *event) {
 }
 
 void ParamEditorToolBarView::retranslateUi() {
-    lbForegroundParam->setText(tr("Foreground:"));
-    lbBackgroundParam->setText(tr("Background:"));
-    m_btnSwap->setText(tr("Swap"));
+    lbForegroundParam->setToolTip(tr("Foreground"));
+    lbBackgroundParam->setToolTip(tr("Background"));
+    m_btnSwap->setToolTip(tr("Swap"));
 
     const auto foregroundIndex = cbForegroundParam->currentIndex();
     const QSignalBlocker foregroundBlocker(cbForegroundParam);

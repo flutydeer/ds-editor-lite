@@ -56,6 +56,7 @@
         <file>svg/icons/save_edit_20_regular.svg</file>
         <file>svg/icons/arrow_undo_16_regular.svg</file>
         <file>svg/icons/arrow_redo_16_regular.svg</file>
+        <file>svg/icons/arrow_swap_20_regular.svg</file>
         <file>svg/icons/cut_20_filled.svg</file>
         <file>svg/icons/cut_16_regular.svg</file>
         <file>svg/icons/copy_16_filled.svg</file>
@@ -132,6 +133,7 @@
         <file>svg/icons/cursor_24_filled.svg</file>
         <file>svg/icons/edit_16_regular.svg</file>
         <file>svg/icons/edit_24_filled.svg</file>
+        <file>svg/icons/eye_16_regular.svg</file>
         <file>svg/icons/eraser_24_filled.svg</file>
         <file>svg/icons/beam_24_filled.svg</file>
         <file>svg/icons/draw_shape_24_filled.svg</file>

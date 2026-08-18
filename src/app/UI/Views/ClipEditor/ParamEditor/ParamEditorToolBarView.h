@@ -8,8 +8,8 @@
 #include <QWidget>
 
 class ComboBox;
-class Button;
-class QLabel;
+class ToolButton;
+class IconLabel;
 class QStackedWidget;
 class SingingClip;
 class ParamEditToolBarView;
@@ -44,11 +44,11 @@ private:
     void retranslateUi();
 
     SingingClip *m_clip = nullptr;
-    QLabel *lbForegroundParam;
+    IconLabel *lbForegroundParam;
     ComboBox *cbForegroundParam;
-    QLabel *lbBackgroundParam;
+    IconLabel *lbBackgroundParam;
     ComboBox *cbBackgroundParam;
-    Button *m_btnSwap = nullptr;
+    ToolButton *m_btnSwap = nullptr;
     QStackedWidget *m_toolBarStack = nullptr;
     ParamEditToolBarView *m_paramEditToolBar = nullptr;
     SpeakerMixToolBarView *m_speakerMixToolBar = nullptr;
