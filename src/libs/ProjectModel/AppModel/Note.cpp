@@ -192,7 +192,8 @@ bool Note::isSyllabification() const {
 }
 
 bool Note::canEditPhonemes() const {
-    return !isSlur() && !isSyllabification();
+    return m_lyric != QStringLiteral("AP") && m_lyric != QStringLiteral("SP") && !isSlur() &&
+           !isSyllabification();
 }
 
 QMap<QString, QJsonObject> Note::workspace() const {

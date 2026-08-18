@@ -29,7 +29,7 @@ namespace {
 
     QList<PhonemeName> internationalPhones() {
         return {
-            phone("ih", true), phone("n", false), phone("t", true), phone("er", true),
+            phone("ih", true), phone("n", false), phone("t", true),  phone("er", true),
             phone("n", false), phone("ae", true), phone("sh", true),
         };
     }
@@ -152,9 +152,15 @@ namespace {
         configureNote(slur, 480, "-");
         Note syllabificationNote;
         configureNote(syllabificationNote, 960, "++");
+        Note breath;
+        configureNote(breath, 1440, "AP");
+        Note pause;
+        configureNote(pause, 1920, " SP ");
         expect(word.canEditPhonemes(), "ordinary notes can edit phonemes");
         expect(!slur.canEditPhonemes() && !syllabificationNote.canEditPhonemes(),
                "slur and syllabification notes cannot edit phonemes");
+        expect(!breath.canEditPhonemes() && !pause.canEditPhonemes(),
+               "AP and SP notes cannot edit phonemes");
     }
 
     void testRelativeTimingChangeInvalidatesEditedOffsets() {

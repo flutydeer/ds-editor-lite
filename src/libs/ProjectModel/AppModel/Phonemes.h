@@ -9,7 +9,7 @@ class PhonemeName : public ISerializable {
 public:
     QString language;
     QString name;
-    bool isOnset;
+    bool isOnset = false;
 
     QJsonObject serialize() const override;
     bool deserialize(const QJsonObject &obj) override;

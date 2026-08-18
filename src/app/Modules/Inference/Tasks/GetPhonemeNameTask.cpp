@@ -115,6 +115,7 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
             PhonemeName restPhoneme;
             restPhoneme.name = input.pronunciation;
             restPhoneme.language = input.language;
+            restPhoneme.isOnset = true;
             result.phonemeNames.append(restPhoneme);
             result.success = true;
         } else if (Note::isSlurLyric(input.lyric) ||
