@@ -168,7 +168,7 @@ void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
             QString singerText = singer.name();
             if (singer.speakers().size() == 1) {
                 const auto spk = singer.speakers().first();
-                addItem(spk.id(), singer, spk);
+                addItem(singerText, singer, spk);
                 continue;
             }
             if (singer.speakers().isEmpty()) {
