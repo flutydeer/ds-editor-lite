@@ -26,7 +26,7 @@ public:
     void clearParams();
     void cancelEdit();
     void setEraseMode(bool on);
-    void setBaseCurveVisible(bool visible);
+    void setCurveVisibility(bool baseVisible, bool editedVisible);
     [[nodiscard]] const QList<DrawCurve *> &editedCurves() const;
     [[nodiscard]] double sceneYForValue(double value) const;
     [[nodiscard]] double valueAtSceneY(double y) const;
@@ -80,6 +80,7 @@ private:
     EditType m_editType = None;
     bool m_eraseMode = false;
     bool m_baseCurveVisible = true;
+    bool m_editedCurvesVisible = true;
     bool m_newCurveCreated = false;
     bool m_mouseMoved = false;
     QList<DrawCurve *> m_drawCurvesEdited;

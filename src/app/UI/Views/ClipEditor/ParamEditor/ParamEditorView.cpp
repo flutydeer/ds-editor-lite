@@ -110,7 +110,7 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     connect(mixView, &SpeakerMixEditorView::speakerMixEdited, this,
             &ParamEditorView::onSpeakerMixEdited);
     connect(appModel, &AppModel::modelChanged, this, [this] {
-        m_warnedUnsupportedParameters.clear();
+        m_acknowledgedUnsupportedParameters.clear();
         hideEmptyState();
     });
 }
@@ -212,8 +212,13 @@ void ParamEditorView::onSpeakerMixEdited(const SpeakerMixData &data) const {
 
 void ParamEditorView::onEmptyStateAction() {
     const auto action = m_emptyStateAction;
+    const auto parameter = m_emptyStateParameter;
+    if (action == EmptyStateAction::EditUnsupportedParameter && parameter != ParamInfo::Unknown)
+        m_acknowledgedUnsupportedParameters.insert(parameter);
     hideEmptyState();
-    if (action == EmptyStateAction::EnableDynamicMix)
+    if (action == EmptyStateAction::EditUnsupportedParameter)
+        refreshParameterSupportState();
+    else if (action == EmptyStateAction::EnableDynamicMix)
         onEnableDynamicMix();
 }
 
@@ -348,8 +353,15 @@ void ParamEditorView::refreshParameterSupportState() {
         return !m_clip || paramUtils->isSupportedBySinger(name, m_clip->singerInfo());
     };
     const bool foregroundSupported = isSupported(m_foregroundParam);
-    m_graphicsView->setForegroundBaseCurveVisible(foregroundSupported);
-    m_graphicsView->setBackgroundBaseCurveVisible(isSupported(m_backgroundParam));
+    const bool foregroundAcknowledged =
+        m_acknowledgedUnsupportedParameters.contains(m_foregroundParam);
+    const bool backgroundSupported = isSupported(m_backgroundParam);
+    const bool backgroundAcknowledged =
+        m_acknowledgedUnsupportedParameters.contains(m_backgroundParam);
+    m_graphicsView->setForegroundCurveVisibility(
+        foregroundSupported, foregroundSupported || foregroundAcknowledged);
+    m_graphicsView->setBackgroundCurveVisibility(
+        backgroundSupported, backgroundSupported || backgroundAcknowledged);
 
     if (m_foregroundParam == ParamInfo::SpeakerMix)
         return;
@@ -365,18 +377,11 @@ void ParamEditorView::refreshParameterSupportState() {
                       tr("Edit Anyway"), EmptyStateAction::EditUnsupportedParameter,
                       m_foregroundParam);
     };
-    if (m_emptyStateKind == EmptyStateKind::UnsupportedParameter &&
-        m_emptyStateParameter == m_foregroundParam && m_emptyState->isVisible()) {
-        showUnsupportedState();
-        return;
-    }
-
-    if (m_warnedUnsupportedParameters.contains(m_foregroundParam)) {
+    if (foregroundAcknowledged) {
         hideEmptyState();
         return;
     }
 
-    m_warnedUnsupportedParameters.insert(m_foregroundParam);
     showUnsupportedState();
 }
 

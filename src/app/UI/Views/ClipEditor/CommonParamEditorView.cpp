@@ -82,10 +82,12 @@ void CommonParamEditorView::setEraseMode(const bool on) {
     update();
 }
 
-void CommonParamEditorView::setBaseCurveVisible(const bool visible) {
-    if (m_baseCurveVisible == visible)
+void CommonParamEditorView::setCurveVisibility(const bool baseVisible,
+                                               const bool editedVisible) {
+    if (m_baseCurveVisible == baseVisible && m_editedCurvesVisible == editedVisible)
         return;
-    m_baseCurveVisible = visible;
+    m_baseCurveVisible = baseVisible;
+    m_editedCurvesVisible = editedVisible;
     update();
 }
 
@@ -232,8 +234,11 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
     constexpr auto penWidth = 1.5;
     QPen pen;
     pen.setWidthF(penWidth);
-    auto editedLayers = m_drawCurvesEdited;
-    editedLayers.append(m_anchorCurvesEdited);
+    QList<DrawCurve *> editedLayers;
+    if (m_editedCurvesVisible) {
+        editedLayers = m_drawCurvesEdited;
+        editedLayers.append(m_anchorCurvesEdited);
+    }
     const auto effectiveEdited = AppModelUtils::mergeCurves({}, editedLayers);
     if (m_properties->displayMode == ParamProperties::DisplayMode::CurveOnly) {
         painter->setBrush(Qt::NoBrush);
