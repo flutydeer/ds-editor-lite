@@ -359,10 +359,9 @@ void ParamEditorView::refreshParameterSupportState() {
         return;
     }
 
-    const auto parameterName = paramUtils->nameFromType(m_foregroundParam);
-    const auto showUnsupportedState = [this, &parameterName] {
-        setEmptyState(EmptyStateKind::UnsupportedParameter, tr("Unsupported parameter"),
-                      tr("The selected voicebank does not support %1.").arg(parameterName),
+    const auto showUnsupportedState = [this] {
+        setEmptyState(EmptyStateKind::UnsupportedParameter, {},
+                      tr("The selected singer does not support this parameter."),
                       tr("Edit Anyway"), EmptyStateAction::EditUnsupportedParameter,
                       m_foregroundParam);
     };
@@ -390,6 +389,7 @@ void ParamEditorView::setEmptyState(const EmptyStateKind kind, const QString &ti
     m_emptyStateAction = actionText ? action : EmptyStateAction::None;
     m_emptyStateParameter = parameter;
     m_emptyStateTitle->setText(title);
+    m_emptyStateTitle->setVisible(!title.isEmpty());
     m_emptyStateMessageText = message;
     m_emptyStateMessage->setText(message);
     if (actionText)

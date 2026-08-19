@@ -4362,16 +4362,11 @@ type: %L1</source>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="364"/>
-        <source>Unsupported parameter</source>
-        <translation>参数不受支持</translation>
+        <source>The selected singer does not support this parameter.</source>
+        <translation>当前选择的歌手不支持此参数</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="365"/>
-        <source>The selected voicebank does not support %1.</source>
-        <translation>当前选择的声库不支持%1。</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="366"/>
         <source>Edit Anyway</source>
         <translation>仍然编辑</translation>
     </message>
