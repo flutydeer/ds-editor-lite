@@ -396,18 +396,15 @@ void ParamEditorGraphicsView::onEditDiscarded() {
 bool ParamEditorGraphicsView::event(QEvent *event) {
     if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
         const auto key = static_cast<QKeyEvent *>(event)->key();
-        if (m_editMode == ParamEditorEditMode::Anchor && !m_speakerMixMode) {
-            if (key == Qt::Key_Escape) {
-                m_anchorController.exitEditing();
-                disarmEdgeAutoScroll();
-                event->accept();
-                return true;
+        if (m_editMode == ParamEditorEditMode::Anchor && !m_speakerMixMode &&
+            AnchorEditor::AnchorEditController::handlesKey(key)) {
+            if (event->type() == QEvent::KeyPress) {
+                m_anchorController.handleKeyPress(key);
+                if (key == Qt::Key_Escape)
+                    disarmEdgeAutoScroll();
             }
-            if (key == Qt::Key_Delete) {
-                m_anchorController.deleteSelectedNodes();
-                event->accept();
-                return true;
-            }
+            event->accept();
+            return true;
         } else if (key == Qt::Key_Escape) {
             discardAction();
         }

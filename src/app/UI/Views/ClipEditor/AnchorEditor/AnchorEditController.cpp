@@ -239,6 +239,22 @@ namespace AnchorEditor {
         notifyChanged();
     }
 
+    bool AnchorEditController::handlesKey(const int key) {
+        return key == Qt::Key_Escape || key == Qt::Key_Delete || key == Qt::Key_Backspace;
+    }
+
+    bool AnchorEditController::handleKeyPress(const int key) {
+        if (key == Qt::Key_Escape) {
+            exitEditing();
+            return true;
+        }
+        if (key == Qt::Key_Delete || key == Qt::Key_Backspace) {
+            deleteSelectedNodes();
+            return true;
+        }
+        return false;
+    }
+
     Qt::Orientations AnchorEditController::edgeAutoScrollAxes() const {
         if ((m_state.editing && m_state.dragging) || m_state.selecting)
             return Qt::Horizontal | Qt::Vertical;

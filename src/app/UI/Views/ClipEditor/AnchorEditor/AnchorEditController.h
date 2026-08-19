@@ -96,6 +96,8 @@ namespace AnchorEditor {
         void hoverLeave();
         void cancel();
         void exitEditing();
+        [[nodiscard]] static bool handlesKey(int key);
+        bool handleKeyPress(int key);
 
         [[nodiscard]] Qt::Orientations edgeAutoScrollAxes() const;
         void continueDragAtScene(const QPointF &scenePos);

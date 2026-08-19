@@ -228,7 +228,13 @@ bool PianoRollGraphicsView::event(QEvent *event) {
     Q_D(PianoRollGraphicsView);
     if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
         const auto key = dynamic_cast<QKeyEvent *>(event)->key();
-        if (key == Qt::Key_Escape) {
+        if (d->m_editMode == EditPitchAnchor &&
+            AnchorEditor::AnchorEditController::handlesKey(key)) {
+            if (event->type() == QEvent::ShortcutOverride) {
+                event->accept();
+                return true;
+            }
+        } else if (key == Qt::Key_Escape) {
             discardAction();
         }
     } else if (event->type() == QEvent::WindowDeactivate) {

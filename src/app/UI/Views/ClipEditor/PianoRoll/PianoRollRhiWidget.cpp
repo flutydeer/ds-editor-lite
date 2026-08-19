@@ -1245,10 +1245,7 @@ public:
     }
 
     bool keyPressAnchor(QKeyEvent *event) {
-        if (event->key() != Qt::Key_Escape)
-            return false;
-        anchorController.exitEditing();
-        return true;
+        return anchorController.handleKeyPress(event->key());
     }
 
     void beginNoteEditSession(const QList<int> &noteIds, const bool wholeClipScope = false) {
@@ -2674,6 +2671,14 @@ void PianoRollRhiWidget::showEvent(QShowEvent *event) {
 }
 
 bool PianoRollRhiWidget::event(QEvent *event) {
+    if (d->clip && d->editMode == EditPitchAnchor &&
+        event->type() == QEvent::ShortcutOverride) {
+        const auto key = static_cast<QKeyEvent *>(event)->key();
+        if (AnchorEditor::AnchorEditController::handlesKey(key)) {
+            event->accept();
+            return true;
+        }
+    }
     if (event->type() == QEvent::WindowDeactivate) {
         d->hideLyricToolTip();
         d->disarmEdgeAutoScroll();
