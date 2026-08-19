@@ -88,7 +88,7 @@ void ClipController::pasteNotesWithParams(const NotesParamsInfo &info, int tick)
     int minStart = srcNotes.first()->localStart();
     for (const auto note : srcNotes)
         minStart = qMin(minStart, note->localStart());
-    const auto offset = localTick - minStart;
+    const auto offset = NoteResizeUtils::clampLeftMoveDelta(localTick - minStart, minStart);
 
     QList<Note *> newNotes;
     for (const auto srcNote : srcNotes) {

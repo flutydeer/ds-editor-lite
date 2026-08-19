@@ -80,6 +80,12 @@ int main(int argc, char *argv[]) {
                NoteResizeUtils::clampLeftMoveDelta(150, 480) == 150 &&
                NoteResizeUtils::clampLeftMoveDelta(0, 0) == 0,
            "moving notes must never push a local start below zero");
+    constexpr int localPasteTarget = -7680;
+    constexpr int copiedMinStart = 120;
+    const auto pasteOffset = NoteResizeUtils::clampLeftMoveDelta(
+        localPasteTarget - copiedMinStart, copiedMinStart);
+    expect(copiedMinStart + pasteOffset == 0,
+           "pasting before a clip must clamp the earliest note to clip start");
     constexpr int alternateQuantize = 80;
     expect(NoteResizeUtils::clampLeftDelta(240, 240, quantize) == 120 &&
                NoteResizeUtils::clampRightDelta(240, -240, quantize) == -120 &&
