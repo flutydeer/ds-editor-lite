@@ -95,7 +95,7 @@ namespace {
         auto next = Note::WordProperties::fromNote(*note);
         next.pronunciation.edited = QStringLiteral("ma");
         EditNoteWordPropertiesAction action({note}, {next}, &clip,
-                                            {.replacePronunciation = true});
+                                            {{.replacePronunciation = true}});
         action.execute();
 
         expect(note->pronunciation().edited == QStringLiteral("ma"),
@@ -135,7 +135,7 @@ namespace {
         auto next = Note::WordProperties::fromNote(*note);
         next.pronunciation.edited = QStringLiteral("mi");
         EditNoteWordPropertiesAction action({note}, {next}, &clip,
-                                            {.replacePronunciation = true});
+                                            {{.replacePronunciation = true}});
         action.execute();
 
         expect(note->pronunciation().edited == QStringLiteral("mi"),
@@ -146,22 +146,34 @@ namespace {
 
     void testEqualFillLyricReplacementsArePreserved() {
         const auto oldPhonemes = phonemes("l", "a", "k", "a");
-        auto *note = makeNote(QStringLiteral("la"), QStringLiteral("custom"), oldPhonemes);
-        note->setPronCandidates({QStringLiteral("shared")});
-        SingingClip clip({note});
+        auto *revisedNote =
+            makeNote(QStringLiteral("la"), QStringLiteral("custom"), oldPhonemes);
+        revisedNote->setPronCandidates({QStringLiteral("shared")});
+        auto *unrevisedNote =
+            makeNote(QStringLiteral("la"), QStringLiteral("custom"), oldPhonemes);
+        unrevisedNote->setLocalStart(480);
+        unrevisedNote->setPronCandidates({QStringLiteral("shared")});
+        SingingClip clip({revisedNote, unrevisedNote});
 
-        auto next = Note::WordProperties::fromNote(*note);
-        next.lyric = QStringLiteral("mi");
+        auto revised = Note::WordProperties::fromNote(*revisedNote);
+        revised.lyric = QStringLiteral("mi");
+        auto unrevised = Note::WordProperties::fromNote(*unrevisedNote);
+        unrevised.lyric = QStringLiteral("mi");
         EditNoteWordPropertiesAction action(
-            {note}, {next}, &clip,
-            {.replacePronunciation = true, .replacePronCandidates = true});
+            {revisedNote, unrevisedNote}, {revised, unrevised}, &clip,
+            {{.replacePronunciation = true, .replacePronCandidates = true},
+             {.replacePronCandidates = true}});
         action.execute();
 
-        expect(note->pronunciation().edited == QStringLiteral("custom") &&
-                   note->pronCandidates() == next.pronCandidates,
+        expect(revisedNote->pronunciation().edited == QStringLiteral("custom") &&
+                   revisedNote->pronCandidates() == revised.pronCandidates,
                "fill lyric must preserve explicitly supplied value-equal replacements");
-        expect(phonemesEmpty(note->phonemes()),
-               "fill lyric must still reset phonemes after changing the lyric");
+        expect(unrevisedNote->pronunciation().edited.isEmpty() &&
+                   unrevisedNote->pronCandidates() == unrevised.pronCandidates,
+               "fill lyric must reset an unrevised pronunciation for each changed note");
+        expect(phonemesEmpty(revisedNote->phonemes()) &&
+                   phonemesEmpty(unrevisedNote->phonemes()),
+               "fill lyric must reset phonemes for every changed lyric");
     }
 }
 

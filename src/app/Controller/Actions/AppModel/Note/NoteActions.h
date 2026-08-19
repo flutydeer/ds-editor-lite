@@ -30,7 +30,7 @@ public:
     // Edit lyrics, pronunciations and phonemes
     void editNotesWordProperties(const QList<Note *> &notes,
                                  const QList<Note::WordProperties> &args, SingingClip *clip,
-                                 WordPropertyEditOptions options = {});
+                                 const QList<WordPropertyEditOptions> &options = {});
     void editNotePhonemeOffset(Note *note, const QList<int> &offsets, SingingClip *clip);
 
     // Split note

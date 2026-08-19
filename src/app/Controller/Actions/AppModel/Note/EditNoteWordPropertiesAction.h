@@ -17,7 +17,7 @@ public:
     explicit EditNoteWordPropertiesAction(const QList<Note *> &notes,
                                           const QList<Note::WordProperties> &args,
                                           SingingClip *clip,
-                                          WordPropertyEditOptions options = {});
+                                          const QList<WordPropertyEditOptions> &options = {});
     void execute() override;
     void undo() override;
 

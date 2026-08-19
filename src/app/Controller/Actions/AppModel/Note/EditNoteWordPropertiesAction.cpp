@@ -29,7 +29,8 @@ namespace {
 EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(const QList<Note *> &notes,
                                                            const QList<Note::WordProperties> &args,
                                                            SingingClip *clip,
-                                                           const WordPropertyEditOptions options) {
+                                                           const QList<WordPropertyEditOptions>
+                                                               &options) {
     m_notes = notes;
     m_newArgs = args;
     m_clip = clip;
@@ -40,7 +41,9 @@ EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(const QList<Note *> &
     for (int i = 0; i < notes.count(); i++) {
         const auto properties = Note::WordProperties::fromNote(*notes.at(i));
         m_oldArgs.append(properties);
-        applyCascadeResets(properties, m_newArgs[i], options);
+        const auto noteOptions =
+            i < options.count() ? options.at(i) : WordPropertyEditOptions{};
+        applyCascadeResets(properties, m_newArgs[i], noteOptions);
         if (properties.lyric != m_newArgs.at(i).lyric ||
             properties.language != m_newArgs.at(i).language) {
             m_pronunciationOnly = false;

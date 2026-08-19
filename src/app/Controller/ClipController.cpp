@@ -409,7 +409,7 @@ void ClipController::onNotePronunciationEdited(const int noteId, const QString &
     arg.pronunciation.edited = pronunciation;
     auto a = new NoteActions;
     a->editNotesWordProperties({note}, {arg}, singingClip,
-                               {.replacePronunciation = true});
+                               {{.replacePronunciation = true}});
     a->execute();
     historyManager->record(a);
 }
@@ -507,11 +507,13 @@ void ClipController::onFillLyric(QWidget *parent) {
     }
 
     QList<Note::WordProperties> args;
+    QList<WordPropertyEditOptions> editOptions;
     int skipCount = 0;
     for (int i = 0; i < notesToEdit.size(); i++) {
         auto arg = Note::WordProperties::fromNote(*selectedNotes[i]);
         if (lyricRes.skipSlur && selectedNotes[i]->isSlur()) {
             args.append(arg);
+            editOptions.append(WordPropertyEditOptions{});
             skipCount++;
             continue;
         }
@@ -523,16 +525,17 @@ void ClipController::onFillLyric(QWidget *parent) {
         if (Note::isSlurLyric(arg.lyric) || Note::isSyllabificationLyric(arg.lyric))
             arg.phonemes = {};
         // arg.language = noteRes[i - skipCount].language;
+        const auto &noteResult = noteRes[i - skipCount];
         arg.pronunciation =
-            Pronunciation(noteRes[i - skipCount].syllable, noteRes[i - skipCount].syllableRevised);
-        arg.pronCandidates = noteRes[i - skipCount].candidates;
+            Pronunciation(noteResult.syllable, noteResult.syllableRevised);
+        arg.pronCandidates = noteResult.candidates;
         args.append(arg);
+        editOptions.append({.replacePronunciation = noteResult.revised,
+                            .replacePronCandidates = true});
     }
     auto a = new NoteActions;
     a->editNotesWordProperties({notesToEdit.begin(), notesToEdit.begin() + args.size()}, args,
-                               singingClip,
-                               {.replacePronunciation = true,
-                                .replacePronCandidates = true});
+                               singingClip, editOptions);
     a->execute();
     historyManager->record(a);
 }
