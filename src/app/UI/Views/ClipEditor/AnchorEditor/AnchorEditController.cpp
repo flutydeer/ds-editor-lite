@@ -1,4 +1,5 @@
 #include "AnchorEditController.h"
+#include "AnchorEditUtils.h"
 
 #include <QHash>
 #include <QSet>
@@ -45,6 +46,7 @@ namespace AnchorEditor {
         if (m_mutationActive)
             discardMutation();
         clearInteractionState(true);
+        m_provisionalCurve = nullptr;
         replaceOwnedCurves(curves, m_curves);
         m_state.visibleCurves = m_curves;
         notifyCurvesChanged();
@@ -74,7 +76,7 @@ namespace AnchorEditor {
                 if (m_state.showMergePreview && node == m_state.mergeEndpointNode) {
                     if (beginMutation()) {
                         mergeCurves(m_state.mergeCandidateCurve);
-                        commitMutation();
+                        commitMutationIfReady();
                         notifyCurvesChanged();
                     }
                 } else {
@@ -88,7 +90,7 @@ namespace AnchorEditor {
                 createAnchorAt(scenePos);
                 m_state.dragStartScenePos = scenePos;
                 m_state.dragging = false;
-                commitMutation();
+                commitMutationIfReady();
                 notifyCurvesChanged();
             }
         } else if (node) {
@@ -150,12 +152,12 @@ namespace AnchorEditor {
                 removeOverlappingNodes(finalCurve, info.node);
             }
             for (auto *curve : sourcesToCleanup)
-                cleanupEmptyCurve(curve);
+                cleanupIncompleteCurve(curve);
             if (!m_state.selectedNodes.isEmpty())
                 m_state.currentCurve = findOwnerCurve(m_state.selectedNodes.first());
             m_state.dragNodeInfos.clear();
             updatePreview(scenePos);
-            commitMutation();
+            commitMutationIfReady();
             notifyChanged();
             return true;
         }
@@ -189,7 +191,7 @@ namespace AnchorEditor {
             createAnchorAt(scenePos);
             m_state.dragStartScenePos = scenePos;
             m_state.dragging = false;
-            commitMutation();
+            commitMutationIfReady();
             notifyCurvesChanged();
         }
     }
@@ -308,7 +310,7 @@ namespace AnchorEditor {
             if (!nodes.isEmpty() && nodes.last() != node)
                 node->setInterpMode(mode);
         }
-        commitMutation();
+        commitMutationIfReady();
         notifyCurvesChanged();
     }
 
@@ -321,18 +323,27 @@ namespace AnchorEditor {
             if (auto *curve = findOwnerCurve(node))
                 nodesByCurve[curve].append(node);
         }
+        const bool discardingOnlyProvisional =
+            m_provisionalCurve && nodesByCurve.size() == 1 &&
+            nodesByCurve.contains(m_provisionalCurve);
         clearSelection();
         for (auto it = nodesByCurve.begin(); it != nodesByCurve.end(); ++it) {
             auto *curve = it.key();
             for (auto *node : it.value()) {
                 curve->removeNode(node);
+                if (m_state.hoveredNode == node)
+                    m_state.hoveredNode = nullptr;
                 delete node;
             }
             const auto remaining = curve->nodes().toList();
-            if (remaining.isEmpty()) {
+            if (remaining.size() < 2) {
                 m_curves.removeOne(curve);
                 if (m_state.currentCurve == curve)
                     m_state.currentCurve = nullptr;
+                if (m_state.hoveredNode && remaining.contains(m_state.hoveredNode))
+                    m_state.hoveredNode = nullptr;
+                if (m_provisionalCurve == curve)
+                    m_provisionalCurve = nullptr;
                 delete curve;
             } else {
                 remaining.last()->setInterpMode(AnchorNode::None);
@@ -340,7 +351,12 @@ namespace AnchorEditor {
         }
         if (!m_state.currentCurve)
             exitEditingState();
-        commitMutation();
+        if (discardingOnlyProvisional) {
+            discardMutation();
+            notifyChanged();
+            return;
+        }
+        commitMutationIfReady();
         notifyCurvesChanged();
     }
 
@@ -432,12 +448,19 @@ namespace AnchorEditor {
         }
     }
 
-    void AnchorEditController::cleanupEmptyCurve(AnchorCurve *curve) {
-        if (!curve || !curve->nodes().toList().isEmpty())
+    void AnchorEditController::cleanupIncompleteCurve(AnchorCurve *curve) {
+        if (!curve || AnchorEditor::isCompleteAnchorCurve(curve))
             return;
         m_curves.removeOne(curve);
         if (m_state.currentCurve == curve)
             m_state.currentCurve = nullptr;
+        for (auto *node : curve->nodes().toList()) {
+            m_state.selectedNodes.removeOne(node);
+            if (m_state.hoveredNode == node)
+                m_state.hoveredNode = nullptr;
+        }
+        if (m_provisionalCurve == curve)
+            m_provisionalCurve = nullptr;
         delete curve;
         if (!m_state.currentCurve)
             exitEditingState();
@@ -485,7 +508,8 @@ namespace AnchorEditor {
         } else {
             curve = anchorCurveAt(tick);
         }
-        if (!curve) {
+        const bool createdCurve = !curve;
+        if (createdCurve) {
             curve = new AnchorCurve;
             m_curves.append(curve);
         }
@@ -522,6 +546,10 @@ namespace AnchorEditor {
             node->setInterpMode(mode);
         }
         curve->insertNode(node);
+        if (createdCurve)
+            m_provisionalCurve = curve;
+        if (m_provisionalCurve == curve && AnchorEditor::isCompleteAnchorCurve(curve))
+            m_provisionalCurve = nullptr;
         enterEditingState(curve, node);
         m_state.hoveredNode = node;
         m_state.showPreview = false;
@@ -644,9 +672,20 @@ namespace AnchorEditor {
         return true;
     }
 
+    void AnchorEditController::commitMutationIfReady() {
+        if (m_provisionalCurve) {
+            if (!AnchorEditor::isCompleteAnchorCurve(m_provisionalCurve))
+                return;
+            m_provisionalCurve = nullptr;
+        }
+        commitMutation();
+    }
+
     void AnchorEditController::commitMutation() {
         if (!m_mutationActive)
             return;
+        removeIncompleteCurves();
+        m_provisionalCurve = nullptr;
         m_state.visibleCurves = m_curves;
         m_publishing = true;
         if (m_callbacks.publish)
@@ -666,10 +705,17 @@ namespace AnchorEditor {
         m_curves = m_backupCurves;
         m_backupCurves.clear();
         m_mutationActive = false;
+        m_provisionalCurve = nullptr;
         m_state.visibleCurves = m_curves;
         ++m_curveRevision;
         if (m_callbacks.finishEdit)
             m_callbacks.finishEdit(EditFinishReason::Discard);
+    }
+
+    void AnchorEditController::removeIncompleteCurves() {
+        const auto curves = m_curves;
+        for (auto *curve : curves)
+            cleanupIncompleteCurve(curve);
     }
 
     void AnchorEditController::clearInteractionState(const bool leaveEditing) {
@@ -704,7 +750,7 @@ namespace AnchorEditor {
         destination.clear();
         destination.reserve(source.size());
         for (const auto *curve : source) {
-            if (curve)
+            if (AnchorEditor::isCompleteAnchorCurve(curve))
                 destination.append(new AnchorCurve(*curve));
         }
     }
