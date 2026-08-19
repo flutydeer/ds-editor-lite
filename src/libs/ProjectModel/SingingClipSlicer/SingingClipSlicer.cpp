@@ -62,7 +62,7 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
     auto getTailLength = [=](const Note &note) -> double {
         if (isRestNote(note))
             return 0.0;
-        return SingingClipSlicerGlobal::tailPaddingLengthMax;
+        return padBaseLength;
     };
 
     // Filter out overlapped notes before processing

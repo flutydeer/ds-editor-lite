@@ -79,7 +79,7 @@ void NoteActions::addClipExtensionToFit(const int contentEnd, SingingClip *clip,
 
     const auto oldProperties = Clip::ClipCommonProperties(*clip);
     auto newProperties = oldProperties;
-    if (!SingingClipRangeUtils::extendRightToFit(newProperties, appModel->timeline(), contentEnd))
+    if (!SingingClipRangeUtils::extendRightToFit(newProperties, contentEnd))
         return;
 
     addAction(EditSingingClipPropertiesAction::build(oldProperties, newProperties, clip, track));

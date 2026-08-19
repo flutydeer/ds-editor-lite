@@ -85,16 +85,15 @@ int main(int argc, char *argv[]) {
     const auto overrunsVisibleRange =
         NotePasteUtils::plan(pasteTarget, 2020, 2040, copiedBounds);
     const auto paddedPasteEnd =
-        SingingClipRangeUtils::paddedContentEnd(pasteTarget, timeline,
-                                                overrunsVisibleRange.pastedEnd);
+        SingingClipRangeUtils::paddedContentEnd(overrunsVisibleRange.pastedEnd);
     expect(overrunsVisibleRange.pastedEnd == 1560 &&
-               SingingClipRangeUtils::extendRightToFit(pasteTarget, timeline,
+               SingingClipRangeUtils::extendRightToFit(pasteTarget,
                                                        overrunsVisibleRange.pastedEnd) &&
                pasteTarget.clipStart + pasteTarget.clipLen == paddedPasteEnd &&
                pasteTarget.length == paddedPasteEnd,
            "inserting beyond the visible right edge must extend both clip ranges with tail room");
     const auto extendedPasteTarget = pasteTarget;
-    expect(!SingingClipRangeUtils::extendRightToFit(pasteTarget, timeline,
+    expect(!SingingClipRangeUtils::extendRightToFit(pasteTarget,
                                                     overrunsVisibleRange.pastedEnd) &&
                pasteTarget.clipLen == extendedPasteTarget.clipLen &&
                pasteTarget.length == extendedPasteTarget.length,
@@ -106,17 +105,13 @@ int main(int argc, char *argv[]) {
     manuallyTrimmed.clipLen = 600;
     manuallyTrimmed.length = 1200;
     constexpr int touchingContentEnd = 800;
-    const auto paddedTouchingEnd =
-        SingingClipRangeUtils::paddedContentEnd(manuallyTrimmed, timeline, touchingContentEnd);
-    expect(SingingClipRangeUtils::extendRightToFit(manuallyTrimmed, timeline,
-                                                   touchingContentEnd) &&
+    const auto paddedTouchingEnd = SingingClipRangeUtils::paddedContentEnd(touchingContentEnd);
+    expect(SingingClipRangeUtils::extendRightToFit(manuallyTrimmed, touchingContentEnd) &&
                manuallyTrimmed.clipStart + manuallyTrimmed.clipLen == paddedTouchingEnd &&
                manuallyTrimmed.length == 1200,
            "editing a note touching a manually trimmed edge must restore the tail margin");
-    const auto contentEndMs = timeline.tickToMs(4000 + touchingContentEnd);
-    const auto paddedEndMs = timeline.tickToMs(4000 + paddedTouchingEnd);
-    expect(paddedEndMs - contentEndMs >= SingingClipSlicerGlobal::tailPaddingLengthMax,
-           "adaptive clip room must cover the slicer's maximum tail padding in realtime");
+    expect(paddedTouchingEnd - touchingContentEnd == SingingClipRangeUtils::tailPaddingTicks,
+           "adaptive clip room must use the fixed tick padding");
 
     Clip::ClipCommonProperties leftResize;
     leftResize.start = 100;
