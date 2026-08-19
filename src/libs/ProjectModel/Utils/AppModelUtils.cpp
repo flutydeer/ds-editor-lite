@@ -8,6 +8,42 @@
 #include <lite/ProjectModel/AppModel/Note.h>
 
 #include <algorithm>
+#include <numeric>
+
+namespace {
+    DrawCurve *resampleCurve(const DrawCurve &curve, const int step) {
+        if (curve.step == step)
+            return new DrawCurve(curve);
+
+        auto *result = new DrawCurve(curve);
+        result->step = step;
+
+        QList<int> values;
+        values.reserve((curve.localEndTick() - curve.localStart()) / step);
+        for (int tick = curve.localStart(); tick < curve.localEndTick(); tick += step) {
+            const auto offset = tick - curve.localStart();
+            const auto leftIndex = offset / curve.step;
+            if (leftIndex >= curve.values().size() - 1) {
+                values.append(curve.values().last());
+                continue;
+            }
+
+            const auto remainder = offset % curve.step;
+            if (remainder == 0) {
+                values.append(curve.values().at(leftIndex));
+                continue;
+            }
+
+            const auto leftValue = curve.values().at(leftIndex);
+            const auto rightValue = curve.values().at(leftIndex + 1);
+            values.append(qRound(leftValue +
+                                 (rightValue - leftValue) * static_cast<double>(remainder) /
+                                     curve.step));
+        }
+        result->setValues(values);
+        return result;
+    }
+}
 
 void AppModelUtils::copyNotes(const NoteList &source, NoteList &target) {
     target.clear();
@@ -92,7 +128,7 @@ bool AppModelUtils::overwriteDrawCurveRange(DrawCurveList &target, const DrawCur
 
     DrawCurveList replacements;
     for (const auto *curve : source) {
-        if (!curve || curve->isEmpty())
+        if (!curve || curve->isEmpty() || curve->step <= 0)
             continue;
 
         const auto firstIndex =
@@ -113,10 +149,37 @@ bool AppModelUtils::overwriteDrawCurveRange(DrawCurveList &target, const DrawCur
     if (replacements.isEmpty())
         return false;
 
-    auto result = mergeCurves(target, replacements);
-    qDeleteAll(target);
-    qDeleteAll(replacements);
-    target = std::move(result);
+    while (!replacements.isEmpty()) {
+        auto *replacement = replacements.takeFirst();
+        const auto overlapped =
+            curvesIn(target, replacement->localStart(), replacement->localEndTick());
+        if (overlapped.isEmpty()) {
+            MathUtils::binaryInsert(target, replacement);
+            continue;
+        }
+
+        auto commonStep = replacement->step;
+        for (const auto *curve : overlapped) {
+            commonStep = std::gcd(commonStep, curve->step);
+            commonStep = std::gcd(commonStep, curve->localStart() - replacement->localStart());
+        }
+
+        DrawCurveList normalizedTarget;
+        for (const auto *curve : overlapped)
+            normalizedTarget.append(resampleCurve(*curve, commonStep));
+        DrawCurveList normalizedReplacement{resampleCurve(*replacement, commonStep)};
+        auto merged = mergeCurves(normalizedTarget, normalizedReplacement);
+
+        qDeleteAll(normalizedTarget);
+        qDeleteAll(normalizedReplacement);
+        delete replacement;
+        for (auto *curve : overlapped) {
+            target.removeOne(curve);
+            delete curve;
+        }
+        for (auto *curve : merged)
+            MathUtils::binaryInsert(target, curve);
+    }
     return true;
 }
 

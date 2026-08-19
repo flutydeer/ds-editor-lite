@@ -14,9 +14,10 @@ namespace {
         ++failures;
     }
 
-    DrawCurve *curve(const int start, const QList<int> &values) {
+    DrawCurve *curve(const int start, const QList<int> &values, const int step = 5) {
         auto *result = new DrawCurve;
         result->setLocalStart(start);
+        result->step = step;
         result->setValues(values);
         return result;
     }
@@ -41,6 +42,28 @@ namespace {
         qDeleteAll(target);
     }
 
+    void testDifferentSampleSteps() {
+        QList<DrawCurve *> source{curve(0, {100, 110, 120, 130, 140})};
+        QList<DrawCurve *> target{curve(0, QList<int>(25, 900), 1)};
+
+        expect(AppModelUtils::overwriteDrawCurveRange(target, source, 5, 20),
+               "curves with different sample steps must be merged");
+        expect(target.size() == 1 && target.first()->localStart() == 0 &&
+                   target.first()->step == 1 && target.first()->values().size() == 25,
+               "the finer target sample grid must be preserved");
+        if (target.size() == 1 && target.first()->values().size() == 25) {
+            const auto &values = target.first()->values();
+            expect(values.mid(0, 5) == QList<int>(5, 900) &&
+                       values.mid(20, 5) == QList<int>(5, 900),
+                   "values outside the brushed interval must remain unchanged");
+            expect(values.at(5) == 110 && values.at(10) == 120 && values.at(15) == 130,
+                   "generated samples in the brushed interval must be copied");
+        }
+
+        qDeleteAll(source);
+        qDeleteAll(target);
+    }
+
     void testSourceGapsStaySeparate() {
         QList<DrawCurve *> source{curve(0, {100, 110}), curve(20, {200, 210})};
         QList<DrawCurve *> target;
@@ -59,6 +82,7 @@ namespace {
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     testOverwriteInterval();
+    testDifferentSampleSteps();
     testSourceGapsStaySeparate();
     return failures == 0 ? 0 : 1;
 }
