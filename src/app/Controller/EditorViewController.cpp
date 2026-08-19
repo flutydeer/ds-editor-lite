@@ -108,6 +108,13 @@ void EditorViewController::setActivePanel(AppGlobal::PanelType panel) {
     setActiveContext(panel, EditorInteraction::defaultTargetForPanel(panel));
 }
 
+void EditorViewController::activatePanelContext(const AppGlobal::PanelType panel) {
+    const auto target = panel == AppGlobal::ClipEditor
+                            ? m_lastClipEditTarget
+                            : EditorInteraction::defaultTargetForPanel(panel);
+    setActiveContext(panel, target);
+}
+
 void EditorViewController::syncPanelVisibility(const bool trackPanelVisible,
                                                const bool bottomPanelVisible,
                                                const AppGlobal::PanelType bottomPanelType) {
@@ -118,7 +125,7 @@ void EditorViewController::syncPanelVisibility(const bool trackPanelVisible,
         return;
     }
     if (!trackPanelVisible && m_activePanel != bottomPanelType)
-        setActivePanel(bottomPanelType);
+        activatePanelContext(bottomPanelType);
 }
 
 void EditorViewController::syncEditTargetVisibility(const EditorInteraction::Target target,
@@ -191,6 +198,11 @@ bool EditorViewController::eventFilter(QObject *watched, QEvent *event) {
 
 void EditorViewController::setActiveContext(const AppGlobal::PanelType panel,
                                             const EditorInteraction::Target target) {
+    if (panel == AppGlobal::ClipEditor &&
+        (target == EditorInteraction::Target::PianoRoll ||
+         target == EditorInteraction::Target::Parameters)) {
+        m_lastClipEditTarget = target;
+    }
     if (m_activePanel != panel) {
         m_activePanel = panel;
         for (const auto registeredPanel : std::as_const(m_panels))

@@ -285,6 +285,12 @@ void MainWindow::changeEvent(QEvent *event) {
     QMainWindow::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
         updateWindowTitle();
+    else if (event->type() == QEvent::ActivationChange && isActiveWindow() &&
+             m_bottomPanelDetached) {
+        editorViewController->activatePanelContext(m_trackEditorView->isVisible()
+                                                       ? AppGlobal::TracksEditor
+                                                       : AppGlobal::Generic);
+    }
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
@@ -750,6 +756,10 @@ void MainWindow::attachBottomPanel() {
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == m_bottomPanelView && event->type() == QEvent::WindowActivate) {
+        editorViewController->activatePanelContext(m_bottomPanelView->panelType());
+        return false;
+    }
     if (watched == m_bottomPanelView && event->type() == QEvent::Close) {
         event->ignore();
         attachBottomPanel();

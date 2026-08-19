@@ -50,6 +50,7 @@ public:
     void registerPanel(IPanel *panel);
     void unregisterPanel(IPanel *panel);
     void setActivePanel(AppGlobal::PanelType panel);
+    void activatePanelContext(AppGlobal::PanelType panel);
     void syncPanelVisibility(bool trackPanelVisible, bool bottomPanelVisible,
                              AppGlobal::PanelType bottomPanelType);
     void syncEditTargetVisibility(EditorInteraction::Target target, bool visible,
@@ -85,6 +86,7 @@ private:
     QList<InteractionArea> m_interactionAreas;
     AppGlobal::PanelType m_activePanel = AppGlobal::TracksEditor;
     EditorInteraction::Target m_activeEditTarget = EditorInteraction::Target::Tracks;
+    EditorInteraction::Target m_lastClipEditTarget = EditorInteraction::Target::PianoRoll;
 };
 
 #endif // EDITORVIEWCONTROLLER_H

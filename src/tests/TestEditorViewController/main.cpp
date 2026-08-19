@@ -488,6 +488,12 @@ namespace {
                    controller->activeEditTarget() == EditorInteraction::Target::Parameters,
                "showing both panels must preserve the focused visual editor");
 
+        controller->activatePanelContext(AppGlobal::TracksEditor);
+        controller->activatePanelContext(AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::ClipEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Parameters,
+               "reactivating the bottom window must restore its last focused visual editor");
+
         controller->syncPanelVisibility(true, false, AppGlobal::ClipEditor);
         expect(controller->activePanel() == AppGlobal::TracksEditor &&
                    controller->activeEditTarget() == EditorInteraction::Target::Tracks &&
@@ -501,9 +507,9 @@ namespace {
 
         controller->syncPanelVisibility(false, true, AppGlobal::ClipEditor);
         expect(controller->activePanel() == AppGlobal::ClipEditor &&
-                   controller->activeEditTarget() == EditorInteraction::Target::PianoRoll &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Parameters &&
                    !trackPanel.panelActive() && bottomPanel.panelActive(),
-               "hiding tracks must transfer focus and commands to the visible bottom page");
+               "hiding tracks must restore the last focused region of the visible bottom page");
 
         QCoreApplication::sendEvent(&parameterArea, &parameterPress);
         controller->syncPanelVisibility(false, true, AppGlobal::ClipEditor);
