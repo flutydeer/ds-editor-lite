@@ -2,6 +2,7 @@
 #define PIANOROLLVIEW_H
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "Interface/EditorInteraction.h"
 #include "Interface/EditorViewState.h"
 
 #include <lite/History/HistoryFocus.h>
@@ -59,7 +60,7 @@ private:
     void connectLegacyBackend();
     void connectRhiBackend();
     void fallbackToLegacy();
-    void registerEditorShortcuts();
+    void executeEditCommand(EditorInteraction::Command command) const;
     void updateAutoPageTurnButtonView(bool available);
     void updatePianoRollVisibleRect() const;
     [[nodiscard]] double startTick() const;

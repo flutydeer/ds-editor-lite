@@ -7,9 +7,7 @@
 #include "Modules/Import/DocumentImportController.h"
 #include "Modules/ProjectFormats/IProjectFormatHandler.h"
 #include "Modules/ProjectFormats/ProjectFormatRegistry.h"
-#include "Controller/ClipboardController.h"
 #include "Controller/ClipController.h"
-#include "Controller/TrackController.h"
 #include "Global/ControllerGlobal.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -20,6 +18,7 @@
 #include <QDialog>
 #include <QGuiApplication>
 #include <QMimeData>
+#include <QShortcut>
 #include "Modules/Extractors/MidiExtractController.h"
 #include "Modules/Extractors/PitchExtractController.h"
 #include <lite/History/HistoryManager.h>
@@ -33,6 +32,8 @@
 #include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include <lite/GUI/Utils/IconUtils.h>
 #include "UI/Dialogs/Help/AboutDialog.h"
+#include "UI/Views/BottomPanelView.h"
+#include "UI/Views/Common/EditorShortcutUtils.h"
 #include "Utils/AppLogDirectory.h"
 
 #include <QFile>
@@ -51,13 +52,14 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
 
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    connect(editorViewController, &EditorViewController::activePanelChanged, this,
-            [=](AppGlobal::PanelType panel) { d->onActivatedPanelChanged(panel); });
+    connect(editorViewController, &EditorViewController::activeEditTargetChanged, this,
+            [=](const EditorInteraction::Target target) { d->onActiveEditTargetChanged(target); });
 
     connect(QGuiApplication::clipboard(), &QClipboard::dataChanged, this,
             [this] { d_ptr->updatePasteActionState(); });
 
     d->initActions();
+    d->onActiveEditTargetChanged(editorViewController->activeEditTarget());
     connect(documentWorkflowController, &DocumentWorkflowController::busyChanged, this,
             [d](const bool busy) {
                 d->actionNew->setEnabled(!busy);
@@ -268,58 +270,40 @@ void MainMenuViewPrivate::onUndoRedoChanged(bool canUndo, const QString &undoNam
     actionRedo->setText(tr("&Redo") + " " + redoName);
 }
 
-void MainMenuViewPrivate::onActivatedPanelChanged(AppGlobal::PanelType panel) {
-    Q_Q(MainMenuView);
-    m_panelType = panel;
-    if (panel == AppGlobal::ClipEditor) {
+void MainMenuViewPrivate::onActiveEditTargetChanged(const EditorInteraction::Target target) {
+    if (m_editTarget == target)
+        return;
+
+    if (m_editTarget == EditorInteraction::Target::PianoRoll)
+        exitClipEditorState();
+    else if (m_editTarget == EditorInteraction::Target::Tracks)
         exitTracksEditorState();
+
+    m_editTarget = target;
+    if (target == EditorInteraction::Target::PianoRoll)
         enterClipEditorState();
-    } else if (panel == AppGlobal::TracksEditor) {
-        exitClipEditorState();
+    else if (target == EditorInteraction::Target::Tracks)
         enterTracksEditorState();
-    } else {
-        exitClipEditorState();
-        exitTracksEditorState();
-    }
 }
 
 void MainMenuViewPrivate::onSelectAll() {
-    Q_Q(MainMenuView);
-    qDebug() << "MainMenuView::onSelectAll";
-    if (m_panelType == AppGlobal::ClipEditor)
-        clipController->onSelectAllNotes();
-    else if (m_panelType == AppGlobal::TracksEditor)
-        qDebug() << "MainMenuView::onSelectAll: not implemented for TracksEditor";
+    editorViewController->requestEditCommand(EditorInteraction::Command::SelectAll);
 }
 
 void MainMenuViewPrivate::onDelete() {
-    Q_Q(MainMenuView);
-    qDebug() << "MainMenuView::onDelete";
-    if (m_panelType == AppGlobal::ClipEditor)
-        clipController->onDeleteSelectedNotes();
-    else if (m_panelType == AppGlobal::TracksEditor)
-        trackController->onRemoveClips(appStatus->selectedClips.get());
+    editorViewController->requestEditCommand(EditorInteraction::Command::DeleteSelection);
 }
 
 void MainMenuViewPrivate::onCut() {
-    if (m_panelType == AppGlobal::ClipEditor)
-        clipboardController->cut();
-    else if (m_panelType == AppGlobal::TracksEditor)
-        trackController->cutSelectedClips();
+    editorViewController->requestEditCommand(EditorInteraction::Command::Cut);
 }
 
 void MainMenuViewPrivate::onCopy() {
-    if (m_panelType == AppGlobal::ClipEditor)
-        clipboardController->copy();
-    else if (m_panelType == AppGlobal::TracksEditor)
-        trackController->copySelectedClips();
+    editorViewController->requestEditCommand(EditorInteraction::Command::Copy);
 }
 
 void MainMenuViewPrivate::onPaste() {
-    if (m_panelType == AppGlobal::ClipEditor)
-        clipboardController->paste();
-    else if (m_panelType == AppGlobal::TracksEditor)
-        clipboardController->paste();
+    editorViewController->requestEditCommand(EditorInteraction::Command::Paste);
 }
 
 void MainMenuViewPrivate::onExtractPitchParam() {
@@ -471,12 +455,13 @@ void MainMenuViewPrivate::enterTracksEditorState() {
     updatePasteActionState();
     actionSelectAll->setEnabled(true);
 
-    connect(appStatus, &AppStatus::clipSelectionChanged, q, [this](const QList<int> &clips) {
-        const auto hasSelection = !clips.isEmpty();
-        actionCut->setEnabled(hasSelection);
-        actionCopy->setEnabled(hasSelection);
-        actionDelete->setEnabled(hasSelection);
-    });
+    m_clipSelectionConnection =
+        connect(appStatus, &AppStatus::clipSelectionChanged, q, [this](const QList<int> &clips) {
+            const auto hasSelection = !clips.isEmpty();
+            actionCut->setEnabled(hasSelection);
+            actionCopy->setEnabled(hasSelection);
+            actionDelete->setEnabled(hasSelection);
+        });
 
     actionOctaveUp->setEnabled(false);
     actionOctaveDown->setEnabled(false);
@@ -484,7 +469,8 @@ void MainMenuViewPrivate::enterTracksEditorState() {
 }
 
 void MainMenuViewPrivate::exitTracksEditorState() {
-    disconnect(appStatus, &AppStatus::clipSelectionChanged, nullptr, nullptr);
+    disconnect(m_clipSelectionConnection);
+    m_clipSelectionConnection = {};
 
     actionCut->setEnabled(false);
     actionCopy->setEnabled(false);
@@ -499,10 +485,10 @@ void MainMenuViewPrivate::updatePasteActionState() {
         actionPaste->setEnabled(false);
         return;
     }
-    if (m_panelType == AppGlobal::ClipEditor)
+    if (m_editTarget == EditorInteraction::Target::PianoRoll)
         actionPaste->setEnabled(mimeData->hasFormat(
             ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams)));
-    else if (m_panelType == AppGlobal::TracksEditor)
+    else if (m_editTarget == EditorInteraction::Target::Tracks)
         actionPaste->setEnabled(
             mimeData->hasFormat(ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip)));
     else
@@ -512,6 +498,7 @@ void MainMenuViewPrivate::updatePasteActionState() {
 void MainMenuViewPrivate::initActions() {
     initFileActions();
     initEditActions();
+    initEditShortcuts();
 }
 
 void MainMenuViewPrivate::initFileActions() {
@@ -662,6 +649,34 @@ void MainMenuViewPrivate::initEditActions() {
     actionQuantize->setShortcutContext(Qt::WidgetShortcut);
     actionQuantize->setEnabled(false);
     connect(actionQuantize, &QAction::triggered, this, [this] { onQuantize(); });
+}
+
+void MainMenuViewPrivate::initEditShortcuts() {
+    Q_Q(MainMenuView);
+    const auto isEditorWindow = [](const QWidget *window) {
+        return qobject_cast<const MainWindow *>(window) ||
+               qobject_cast<const BottomPanelView *>(window);
+    };
+    const auto addShortcut = [q, isEditorWindow](const QKeySequence &key,
+                                                 const EditorInteraction::Command command) {
+        auto *shortcut = EditorShortcutUtils::addApplication(
+            q, key, isEditorWindow, editorViewController,
+            [command] { editorViewController->requestEditCommand(command); });
+        const auto updateEnabled = [shortcut](const EditorInteraction::Target target) {
+            shortcut->setEnabled(target == EditorInteraction::Target::Tracks ||
+                                 target == EditorInteraction::Target::PianoRoll);
+        };
+        QObject::connect(editorViewController, &EditorViewController::activeEditTargetChanged,
+                         shortcut, updateEnabled);
+        updateEnabled(editorViewController->activeEditTarget());
+    };
+
+    addShortcut(QKeySequence::Cut, EditorInteraction::Command::Cut);
+    addShortcut(QKeySequence::Copy, EditorInteraction::Command::Copy);
+    addShortcut(QKeySequence::Paste, EditorInteraction::Command::Paste);
+    addShortcut(QKeySequence::SelectAll, EditorInteraction::Command::SelectAll);
+    addShortcut(QKeySequence::Delete, EditorInteraction::Command::DeleteSelection);
+    addShortcut(QKeySequence(Qt::Key_Backspace), EditorInteraction::Command::DeleteSelection);
 }
 
 Menu *MainMenuViewPrivate::buildFileMenu() {

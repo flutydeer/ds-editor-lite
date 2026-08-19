@@ -4,6 +4,7 @@
 #include "Interface/IPanel.h"
 
 #include <QCoreApplication>
+#include <QEvent>
 #include <QTextStream>
 
 #include <cmath>
@@ -354,6 +355,92 @@ namespace {
         controller->unregisterPanel(&trackPanel);
     }
 
+    void testInteractionRouting(EditorViewController *controller) {
+        controller->setActivePanel(AppGlobal::TracksEditor);
+
+        QObject trackArea;
+        QObject trackChild(&trackArea);
+        QObject bottomArea;
+        QObject pianoRollChild(&bottomArea);
+        QObject parameterArea(&bottomArea);
+        QObject parameterChild(&parameterArea);
+
+        controller->registerInteractionArea(&trackArea, AppGlobal::TracksEditor,
+                                            EditorInteraction::Target::Tracks);
+        controller->registerInteractionArea(&bottomArea, AppGlobal::ClipEditor,
+                                            EditorInteraction::Target::PianoRoll);
+        controller->registerInteractionArea(&parameterArea, AppGlobal::ClipEditor,
+                                            EditorInteraction::Target::Parameters);
+
+        int panelSignalCount = 0;
+        int targetSignalCount = 0;
+        const auto panelConnection =
+            QObject::connect(controller, &EditorViewController::activePanelChanged,
+                             [&panelSignalCount] { ++panelSignalCount; });
+        const auto targetConnection =
+            QObject::connect(controller, &EditorViewController::activeEditTargetChanged,
+                             [&targetSignalCount] { ++targetSignalCount; });
+
+        QEvent pianoPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&pianoRollChild, &pianoPress);
+        expect(controller->activePanel() == AppGlobal::ClipEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::PianoRoll,
+               "a bottom-panel descendant must activate piano-roll editing");
+        expect(panelSignalCount == 1 && targetSignalCount == 1,
+               "a context change must emit each state transition once");
+
+        QEvent repeatedPianoPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&pianoRollChild, &repeatedPianoPress);
+        expect(panelSignalCount == 1 && targetSignalCount == 1,
+               "repeated presses in one context must not duplicate state signals");
+
+        QEvent parameterPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&parameterChild, &parameterPress);
+        expect(controller->activePanel() == AppGlobal::ClipEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Parameters,
+               "the nearest nested interaction area must win within the bottom panel");
+        expect(panelSignalCount == 1 && targetSignalCount == 2,
+               "switching between bottom edit areas must preserve the panel border");
+
+        QEvent trackFocus(QEvent::FocusIn);
+        QCoreApplication::sendEvent(&trackChild, &trackFocus);
+        expect(controller->activePanel() == AppGlobal::TracksEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Tracks,
+               "focus entering a registered track descendant must activate track editing");
+
+        EditorInteraction::Target commandTarget = EditorInteraction::Target::None;
+        EditorInteraction::Command requestedCommand = EditorInteraction::Command::Cut;
+        int commandCount = 0;
+        const auto commandConnection = QObject::connect(
+            controller, &EditorViewController::editCommandRequested,
+            [&commandTarget, &requestedCommand, &commandCount](
+                const EditorInteraction::Target target, const EditorInteraction::Command command) {
+                commandTarget = target;
+                requestedCommand = command;
+                ++commandCount;
+            });
+        controller->requestEditCommand(EditorInteraction::Command::SelectAll);
+        expect(commandCount == 1 && commandTarget == EditorInteraction::Target::Tracks &&
+                   requestedCommand == EditorInteraction::Command::SelectAll,
+               "edit commands must carry the current interaction target");
+
+        controller->updateInteractionArea(&bottomArea, AppGlobal::Generic,
+                                          EditorInteraction::Target::None);
+        QEvent genericPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&pianoRollChild, &genericPress);
+        expect(controller->activePanel() == AppGlobal::Generic &&
+                   controller->activeEditTarget() == EditorInteraction::Target::None,
+               "a dynamic generic bottom page must deactivate editor commands");
+
+        QObject::disconnect(commandConnection);
+        QObject::disconnect(targetConnection);
+        QObject::disconnect(panelConnection);
+        controller->unregisterInteractionArea(&parameterArea);
+        controller->unregisterInteractionArea(&bottomArea);
+        controller->unregisterInteractionArea(&trackArea);
+        controller->setActivePanel(AppGlobal::TracksEditor);
+    }
+
 } // namespace
 
 int main(int argc, char *argv[]) {
@@ -363,6 +450,7 @@ int main(int argc, char *argv[]) {
     testNoView(controller);
     testForwardingAndSnapshots(controller);
     testActivePanels(controller);
+    testInteractionRouting(controller);
 
     controller->setView(nullptr);
     if (g_failures == 0) {

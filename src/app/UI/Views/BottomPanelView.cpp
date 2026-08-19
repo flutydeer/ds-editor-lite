@@ -10,15 +10,20 @@ BottomPanelView::BottomPanelView(QWidget *parent) : TabPanelView(AppGlobal::Clip
     registerPage(new MixConsoleView);
 
     setPanelType(currentPagePanelType());
+    editorViewController->registerInteractionArea(
+        this, panelType(), EditorInteraction::defaultTargetForPanel(panelType()));
     connect(this, &TabPanelView::currentPageChanged, this,
             [this](const QString &, const AppGlobal::PanelType panelType) {
                 setPanelType(panelType);
+                editorViewController->updateInteractionArea(
+                    this, panelType, EditorInteraction::defaultTargetForPanel(panelType));
                 editorViewController->setActivePanel(panelType);
             });
     editorViewController->registerPanel(this);
 }
 
 BottomPanelView::~BottomPanelView() {
+    editorViewController->unregisterInteractionArea(this);
     editorViewController->unregisterPanel(this);
 }
 

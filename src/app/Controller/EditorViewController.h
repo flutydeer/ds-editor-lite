@@ -4,11 +4,13 @@
 #define editorViewController EditorViewController::instance()
 
 #include "Global/AppGlobal.h"
+#include "Interface/EditorInteraction.h"
 #include "Interface/EditorViewState.h"
 #include <lite/History/HistoryFocus.h>
 #include <lite/Core/Singleton.h>
 
 #include <QObject>
+#include <QPointer>
 #include <optional>
 
 class IEditorView;
@@ -48,14 +50,37 @@ public:
     void registerPanel(IPanel *panel);
     void unregisterPanel(IPanel *panel);
     void setActivePanel(AppGlobal::PanelType panel);
+    [[nodiscard]] AppGlobal::PanelType activePanel() const;
+
+    void registerInteractionArea(QObject *area, AppGlobal::PanelType panel,
+                                 EditorInteraction::Target target);
+    void updateInteractionArea(QObject *area, AppGlobal::PanelType panel,
+                               EditorInteraction::Target target);
+    void unregisterInteractionArea(QObject *area);
+    [[nodiscard]] EditorInteraction::Target activeEditTarget() const;
+    void requestEditCommand(EditorInteraction::Command command);
 
 signals:
     void activePanelChanged(AppGlobal::PanelType panel);
+    void activeEditTargetChanged(EditorInteraction::Target target);
+    void editCommandRequested(EditorInteraction::Target target, EditorInteraction::Command command);
 
 private:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+    void setActiveContext(AppGlobal::PanelType panel, EditorInteraction::Target target);
+    void setActiveEditTarget(EditorInteraction::Target target);
+
+    struct InteractionArea {
+        QPointer<QObject> object;
+        AppGlobal::PanelType panel = AppGlobal::Generic;
+        EditorInteraction::Target target = EditorInteraction::Target::None;
+    };
+
     IEditorView *m_view = nullptr;
     QList<IPanel *> m_panels;
+    QList<InteractionArea> m_interactionAreas;
     AppGlobal::PanelType m_activePanel = AppGlobal::TracksEditor;
+    EditorInteraction::Target m_activeEditTarget = EditorInteraction::Target::Tracks;
 };
 
 #endif // EDITORVIEWCONTROLLER_H

@@ -2,6 +2,7 @@
 #define MAINMENUVIEW_P_H
 
 #include "Global/AppGlobal.h"
+#include "Interface/EditorInteraction.h"
 
 #include <QColor>
 #include <QHash>
@@ -84,7 +85,8 @@ public:
     QString m_undoName;
     QString m_redoName;
 
-    AppGlobal::PanelType m_panelType = AppGlobal::Generic;
+    EditorInteraction::Target m_editTarget = EditorInteraction::Target::None;
+    QMetaObject::Connection m_clipSelectionConnection;
 
     void onNew() const;
     void onOpen();
@@ -100,7 +102,7 @@ public:
     void onUndoRedoChanged(bool canUndo, const QString &undoName, bool canRedo,
                            const QString &redoName);
 
-    void onActivatedPanelChanged(AppGlobal::PanelType panel);
+    void onActiveEditTargetChanged(EditorInteraction::Target target);
     void onSelectAll();
     void onDelete();
     void onCut();
@@ -121,6 +123,7 @@ public:
     void initActions();
     void initFileActions();
     void initEditActions();
+    void initEditShortcuts();
 
     Menu *buildFileMenu();
     Menu *buildEditMenu();
