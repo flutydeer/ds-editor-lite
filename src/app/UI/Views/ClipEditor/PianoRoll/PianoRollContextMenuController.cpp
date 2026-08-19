@@ -16,6 +16,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/Utils/NotePasteUtils.h>
 
 #include <QActionGroup>
 #include <QClipboard>
@@ -217,8 +218,12 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
         if (payload) {
             const auto previewData = makePreviewData(payload->info());
             const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
-            const auto previewTick =
+            const auto snappedTick =
                 TimelineSnapUtils::snapNearest(context.globalTick, quantize, appModel->timeline());
+            const auto previewTick =
+                clip->start() + NotePasteUtils::resolveLocalAnchor(
+                                    Clip::ClipCommonProperties(*clip), context.globalTick,
+                                    snappedTick);
             connect(paste, &QAction::hovered, this, [previewHost, previewData, previewTick] {
                 if (previewHost)
                     previewHost->showPianoRollPastePreview(previewData, previewTick);

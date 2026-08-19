@@ -4,7 +4,6 @@ lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
         ../../app/UI/Views/TrackEditor/AudioClipDragState.cpp
-        ../../app/UI/Views/TrackEditor/ClipResizeUtils.cpp
         ../../app/UI/Views/TrackEditor/SingingClipPreviewLayout.cpp
 )
 

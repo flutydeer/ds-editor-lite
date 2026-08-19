@@ -9,6 +9,7 @@
 #include "QuantizeNotesAction.h"
 #include "RemoveNoteAction.h"
 #include "SplitNoteAction.h"
+#include "Controller/Actions/AppModel/Clip/EditSingingClipPropertiesAction.h"
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QCoreApplication>
@@ -53,6 +54,16 @@ namespace {
 
 void NoteActions::insertNotes(const QList<Note *> &notes, SingingClip *clip) {
     setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Insert note(s)"));
+    addAction(new InsertNoteAction(notes, clip));
+    const auto focus = noteFocus(notes, clip);
+    setFocusTransition({focus, focus});
+}
+
+void NoteActions::pasteNotes(const QList<Note *> &notes, SingingClip *clip, Track *track,
+                             const Clip::ClipCommonProperties &newClipProperties) {
+    setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Insert note(s)"));
+    addAction(EditSingingClipPropertiesAction::build(Clip::ClipCommonProperties(*clip),
+                                                     newClipProperties, clip, track));
     addAction(new InsertNoteAction(notes, clip));
     const auto focus = noteFocus(notes, clip);
     setFocusTransition({focus, focus});

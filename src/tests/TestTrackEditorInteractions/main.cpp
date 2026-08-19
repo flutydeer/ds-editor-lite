@@ -1,5 +1,6 @@
 #include "UI/Views/TrackEditor/AudioClipDragState.h"
-#include "UI/Views/TrackEditor/ClipResizeUtils.h"
+#include <lite/ProjectModel/Utils/ClipResizeUtils.h>
+#include <lite/ProjectModel/Utils/NotePasteUtils.h>
 #include "UI/Views/TrackEditor/SingingClipPreviewLayout.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
@@ -60,6 +61,26 @@ int main(int argc, char *argv[]) {
            "shrinking a singing clip must be accepted");
     expect(singing.clipLen == 600 && singing.length == 1800,
            "shrinking must retain enough content length for existing notes");
+
+    Clip::ClipCommonProperties pasteTarget;
+    pasteTarget.start = 960;
+    pasteTarget.clipStart = 240;
+    pasteTarget.length = 1200;
+    pasteTarget.clipLen = 960;
+    const NotePasteUtils::SourceBounds copiedBounds{120, 600};
+    const auto beforeVisibleRange = NotePasteUtils::plan(pasteTarget, 1100, 1080, copiedBounds);
+    expect(beforeVisibleRange.localAnchor == 240 && beforeVisibleRange.offset == 120 &&
+               beforeVisibleRange.pastedEnd == 720,
+           "pasting in trimmed content must anchor the first note at the visible left edge");
+    const auto insideVisibleRange = NotePasteUtils::plan(pasteTarget, 1490, 1440, copiedBounds);
+    expect(insideVisibleRange.localAnchor == 480 && insideVisibleRange.offset == 360,
+           "pasting inside the visible range must use the snapped playback position");
+    const auto overrunsVisibleRange =
+        NotePasteUtils::plan(pasteTarget, 2020, 2040, copiedBounds);
+    expect(overrunsVisibleRange.pastedEnd == 1560 &&
+               NotePasteUtils::extendClipToFit(pasteTarget, overrunsVisibleRange.pastedEnd) &&
+               pasteTarget.clipLen == 1320 && pasteTarget.length == 1560,
+           "pasting beyond the visible right edge must extend both clip ranges to the note end");
 
     Clip::ClipCommonProperties leftResize;
     leftResize.start = 100;
