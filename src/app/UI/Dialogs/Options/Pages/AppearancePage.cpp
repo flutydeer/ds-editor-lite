@@ -98,7 +98,7 @@ QWidget *AppearancePage::createContentWidget() {
             &AppearancePage::changeInterfaceFont);
 
     const auto fontCard = new OptionListCard(tr("Font"));
-    fontCard->addItem(tr("Interface font"), tr("Takes effect immediately"), m_cbxInterfaceFont);
+    fontCard->addItem(tr("Interface font"), m_cbxInterfaceFont);
 
     m_swUseNativeFrame = new SwitchButton(option->useNativeFrame);
     connect(m_swUseNativeFrame, &SwitchButton::toggled, this, [this] {
