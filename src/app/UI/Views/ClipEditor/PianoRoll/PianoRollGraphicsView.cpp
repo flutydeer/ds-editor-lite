@@ -187,6 +187,7 @@ PianoRollGraphicsView::~PianoRollGraphicsView() {
 void PianoRollGraphicsView::setDataContext(SingingClip *clip) {
     Q_D(PianoRollGraphicsView);
     d->hideLyricToolTip();
+    setSceneLengthExtension(0);
     // 切换 clip 时清空编辑预览，避免残留到新 clip
     appStatus->pianoRollNoteEditPreview = {};
     appStatus->pianoRollNoteErasePreview = {};
@@ -568,6 +569,18 @@ void PianoRollGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportP
     if (cancelRequested)
         return;
 
+    const auto behavior = d->m_interactionController->mouseMoveBehavior();
+    const auto noteCanExtendRight =
+        behavior == NoteInteractionController::Move ||
+        behavior == NoteInteractionController::ResizeRight ||
+        dynamic_cast<DrawNoteHandler *>(d->m_currentHandler);
+    const auto hBar = horizontalScrollBar();
+    if (noteCanExtendRight && clampedViewportPos.x() >= viewport()->rect().right() - 1 &&
+        hBar->value() >= hBar->maximum()) {
+        const auto visibleTickSpan = std::max(1, qRound(endTick() - startTick()));
+        setSceneLengthExtension(sceneLengthExtension() + visibleTickSpan);
+    }
+
     if (d->m_interactionController->mouseMoveBehavior() != NoteInteractionController::None &&
         d->m_interactionController->isMouseDown()) {
         updateNoteDragAt(clampedViewportPos, modifiers);
@@ -613,6 +626,7 @@ void PianoRollGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
         if (!cancelRequested) {
             if (d->m_currentHandler->mouseReleaseEvent(event)) {
                 cancelRequested = false;
+                setSceneLengthExtension(0);
                 TimeGraphicsView::mouseReleaseEvent(event);
                 return;
             }
@@ -984,6 +998,7 @@ void PianoRollGraphicsView::discardAction() {
     d->m_pitchEditor->discardAction();
     cancelRequested = true;
     disarmEdgeAutoScroll();
+    setSceneLengthExtension(0);
     if (d->m_currentHandler) {
         d->m_currentHandler->discard();
     }
@@ -1047,6 +1062,7 @@ void PianoRollGraphicsView::commitAction() {
     // model 写入完成后才清空预览，避免轨道先画旧几何再跳变
     appStatus->pianoRollNoteEditPreview = {};
     appStatus->pianoRollNoteErasePreview = {};
+    setSceneLengthExtension(0);
     d->m_interactionController->setMouseMoveBehavior(NoteInteractionController::None);
     d->m_interactionController->setDeltaTick(0);
     d->m_interactionController->setDeltaKey(0);
