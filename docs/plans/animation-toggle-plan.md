@@ -366,3 +366,32 @@ git add -A && git commit -m "Replace animation level setting with on/off toggle"
 新增：无（仅删除 AnimationGlobal.h）
 修改：AppearanceOption.{h,cpp}、AppController.cpp、ThemeManager.{h,cpp}、IAnimatable.h、AppearancePage.{h,cpp}、translation_zh_CN.ts、TestAnimationSettings/main.cpp、上述 15 类控件 {h,cpp}（ProgressIndicator 只 h）
 删除：src/libs/GUI/Animation/AnimationGlobal.h
+
+---
+
+## 遗留问题（2026-08-20）：Direct Manipulation 细流导致的"关闭动画后滚轮仍平滑"
+
+> 状态：🧊 暂缓（用户裁定），分析存档。未改代码。
+
+### 现象
+动画开关关闭后，轨道窗/钢琴卷帘滚轮仍是平滑细流而非"格跳"。日志探针（临时 qDebug，已全部撤销）实锤：`Motion START` 0 次、`duration=0`、`phase=2(ScrollUpdate)`、`ang=-2..-26` 毫秒级细粒度事件——**App 层没有任何 QPropertyAnimation 在跑**。
+
+### 根因链条（分析定稿）
+1. **QWDMH 第三方依赖在供给"顺滑"**：vcpkg `qt-win32-direct-manipulate-helper`（QWDMHCore）封装 WinRT `IDirectManipulationViewport`。
+   - `MainWindow` 根据外观设置 `enableDirectManipulation` 决定是否 `registerWindow()`（MainWindow.cpp:211-214、804-815；底部面板 :710-711）。
+2. **QWDMH 把滚轮变成高频连续细流**：`DirectManipulationSystem.cpp:43-64 OnContentUpdated` 每次内容变换取增量 `dx/dy`（约几像素/事件），`:31-41 sendWheelEvent` 合成 **`QWheelEvent(phase=Qt::ScrollUpdate)`** 发到窗口。这就是细流的来源。
+3. **关键联动**：`EditorWheelController.cpp:12-18` `isEditorWheelAnimationEnabled() = (WITH_DIRECT_MANIPULATION ? !enableDirectManipulation : true)` 喂给 `setDiscreteAnimationEnabled(...)`。DM 开启 → 返回 `false` → `animate = discrete && m_discreteAnimationEnabled() && getEffectiveAnimationTime(...) > 0` **恒为 false**，滚轮永远走"直接应用细流"，从不启动动画。
+4. **结论**：DM 场景下"顺滑"由 DM 供给，动画开关管不到它；只有关闭 `enableDirectManipulation`，滚轮回到普通离散步进，动画开关才真正控制"平滑↔跳变"。这解释了"RHI/Legacy 两种后端都有"——共用同一条 DM → wheel → 直放链路。
+
+### 可选解决方向（暂缓，仅记录）
+- **A**（曾被暂缓的那版）：动画关时把 DM 的 ScrollUpdate 细流按整档切块累积 → 变"格跳"；需区分触控板 pixel delta 保持顺滑。
+- **B**：动画关时 unregister DM + 走普通离散跳变；代价连触控板一起变粗略。
+- **C**：维持现状，语义定为"触控板/DM 天然顺滑，开关只管离散输入"。
+- 触控板保护需求已确认：无论开关，触控板（pixel delta）保持顺滑跟手。
+
+### 被撤销的临时探针点位（备案，日后免重挖）
+- `ThemeManager::setAnimationSettings`（push enable/scale）
+- `TimeGraphicsView::updateAnimationDuration`（duration 值）+ `set{Vertical,Horizontal}BarValue`（值步进）
+- `WheelInputController::handleScroll/handleZoom`（`animate` 决策 + 事件属性）+ `startMotion`（确认 0 次）
+- `EditorViewportController::applyOffset`（每次 offset 变化，3-15px/事件证明是直放）
+
