@@ -24,6 +24,7 @@
 #include <lite/GUI/Controls/SvsExpressionSpinBox.h>
 #include <lite/GUI/Controls/SvsExpressionDoubleSpinBox.h>
 #include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/WheelEventPolicy.h>
 
 #include <QAbstractItemView>
 
@@ -93,6 +94,9 @@ QWidget *AudioPage::createContentWidget() {
     m_deviceGainSpinBox->setDecimals(1);
     m_deviceGainSpinBox->setRange(-96, 6);
     m_deviceGainSpinBox->setSpecialValueText("-INF");
+    // Prevent accidental value changes while scrolling the settings page.
+    m_deviceGainSpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
+    m_deviceGainSpinBox->setFocusPolicy(Qt::StrongFocus);
 
     m_devicePanSlider = new SVS::SeekBar;
     m_devicePanSlider->setFixedWidth(256);
@@ -100,6 +104,9 @@ QWidget *AudioPage::createContentWidget() {
     m_devicePanSlider->setInterval(1);
     m_devicePanSpinBox = new SVS::ExpressionSpinBox;
     m_devicePanSpinBox->setRange(-100, 100);
+    // Prevent accidental value changes while scrolling the settings page.
+    m_devicePanSpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
+    m_devicePanSpinBox->setFocusPolicy(Qt::StrongFocus);
 
     m_audioOutputCard = new OptionListCard(tr("Audio Driver and Device"));
     m_driverItem = m_audioOutputCard->addItem(tr("Audio d&river"), m_driverComboBox);
@@ -130,6 +137,9 @@ QWidget *AudioPage::createContentWidget() {
 
     m_fileBufferingReadAheadSizeSpinBox = new SVS::ExpressionSpinBox;
     m_fileBufferingReadAheadSizeSpinBox->setRange(0, std::numeric_limits<int>::max());
+    // Prevent accidental value changes while scrolling the settings page.
+    m_fileBufferingReadAheadSizeSpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
+    m_fileBufferingReadAheadSizeSpinBox->setFocusPolicy(Qt::StrongFocus);
     m_fileCard = new OptionListCard(tr("File Caching"));
     m_fileBufferItem = m_fileCard->addItem(tr("&File reading buffer size (samples)"),
                                            m_fileBufferingReadAheadSizeSpinBox);

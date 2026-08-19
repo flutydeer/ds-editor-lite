@@ -1,13 +1,15 @@
 #ifndef EXPRESSIONSPINBOX_H
 #define EXPRESSIONSPINBOX_H
 
+#include <lite/GUI/Controls/WheelEventPolicy.h>
+
 #include <QSpinBox>
 
 class Menu;
 
 namespace SVS {
 
-    class ExpressionSpinBox : public QSpinBox {
+    class ExpressionSpinBox : public QSpinBox, public WheelEventPolicySupport {
         Q_OBJECT
     public:
         explicit ExpressionSpinBox(QWidget *parent = nullptr);
@@ -29,6 +31,7 @@ namespace SVS {
         void paintEvent(QPaintEvent *event) override;
         void mousePressEvent(QMouseEvent *event) override;
         void contextMenuEvent(QContextMenuEvent *event) override;
+        void wheelEvent(QWheelEvent *event) override;
         QValidator::State validate(QString &input, int &pos) const override;
         void fixup(QString &str) const override;
     };

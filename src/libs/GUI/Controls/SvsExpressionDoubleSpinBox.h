@@ -1,13 +1,15 @@
 #ifndef EXPRESSIONDOUBLESPINBOX_H
 #define EXPRESSIONDOUBLESPINBOX_H
 
+#include <lite/GUI/Controls/WheelEventPolicy.h>
+
 #include <QDoubleSpinBox>
 
 class Menu;
 
 namespace SVS {
 
-    class ExpressionDoubleSpinBox : public QDoubleSpinBox {
+    class ExpressionDoubleSpinBox : public QDoubleSpinBox, public WheelEventPolicySupport {
         Q_OBJECT
     public:
         explicit ExpressionDoubleSpinBox(QWidget *parent = nullptr);
@@ -29,6 +31,7 @@ namespace SVS {
         void paintEvent(QPaintEvent *event) override;
         void mousePressEvent(QMouseEvent *event) override;
         void contextMenuEvent(QContextMenuEvent *event) override;
+        void wheelEvent(QWheelEvent *event) override;
     };
 
 }

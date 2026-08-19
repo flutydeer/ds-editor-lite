@@ -15,6 +15,7 @@
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include <lite/GUI/Controls/SwitchButton.h>
 #include <lite/GUI/Controls/Toast.h>
+#include <lite/GUI/Controls/WheelEventPolicy.h>
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
 #include "Utils/UiLanguageManager.h"
@@ -258,6 +259,8 @@ QWidget *InferencePage::createContentWidget() {
     // Render - Sampling Steps
     m_cbSamplingSteps = new ComboBox();
     m_cbSamplingSteps->setEditable(true);
+    // Prevent wheel-scroll over this editable combo from grabbing focus.
+    m_cbSamplingSteps->setFocusPolicy(Qt::StrongFocus);
     m_cbSamplingSteps->setFixedWidth(100);
     m_cbSamplingSteps->setValidator(new QIntValidator(1, 1000));
     const QLocale numberLocale;
@@ -275,6 +278,9 @@ QWidget *InferencePage::createContentWidget() {
     m_dsDepthSlider =
         new DoubleSeekBarSpinboxGroup(kDsDepthMin, kDsDepthMax, kDsDepthSingleStep, option->depth);
     m_dsDepthSlider->seekbar->setFixedWidth(256);
+    // Prevent accidental value changes while scrolling the settings page.
+    m_dsDepthSlider->spinbox->setWheelEventPolicy(WheelEventPolicy::Consume);
+    m_dsDepthSlider->spinbox->setFocusPolicy(Qt::StrongFocus);
     connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::valueChanged, this,
             [&](const double value) { appOptions->inference()->depth = value; });
     connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::editFinished, this,
@@ -298,6 +304,9 @@ QWidget *InferencePage::createContentWidget() {
     // Render - playback lookahead window (seconds)
     m_playbackWindowSlider = new SeekBarSpinboxGroup(1, 60, 1, option->playbackLookaheadSeconds);
     m_playbackWindowSlider->seekbar->setFixedWidth(256);
+    // Prevent accidental value changes while scrolling the settings page.
+    m_playbackWindowSlider->spinbox->setWheelEventPolicy(WheelEventPolicy::Consume);
+    m_playbackWindowSlider->spinbox->setFocusPolicy(Qt::StrongFocus);
     connect(m_playbackWindowSlider, &SeekBarSpinboxGroup::valueChanged, this,
             [&](const double value) { appOptions->inference()->playbackLookaheadSeconds = value; });
     connect(m_playbackWindowSlider, &SeekBarSpinboxGroup::editFinished, this,
@@ -306,6 +315,9 @@ QWidget *InferencePage::createContentWidget() {
     // Render - pitch smooth kernel size
     m_smoothSlider = new SeekBarSpinboxGroup(0, 50, 1, option->pitch_smooth_kernel_size);
     m_smoothSlider->seekbar->setFixedWidth(256);
+    // Prevent accidental value changes while scrolling the settings page.
+    m_smoothSlider->spinbox->setWheelEventPolicy(WheelEventPolicy::Consume);
+    m_smoothSlider->spinbox->setFocusPolicy(Qt::StrongFocus);
 
     connect(m_smoothSlider, &SeekBarSpinboxGroup::valueChanged, this,
             [&](const double value) { appOptions->inference()->pitch_smooth_kernel_size = value; });

@@ -130,4 +130,10 @@ namespace SVS {
         event->accept();
     }
 
+    void ExpressionDoubleSpinBox::wheelEvent(QWheelEvent *event) {
+        if (processWheelEventPolicy(this, event))
+            return;
+        QDoubleSpinBox::wheelEvent(event);
+    }
+
 }

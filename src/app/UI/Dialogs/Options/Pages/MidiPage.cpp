@@ -24,6 +24,7 @@
 #include <lite/GUI/Controls/OptionsCardItem.h>
 #include <lite/GUI/Controls/SwitchButton.h>
 #include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/WheelEventPolicy.h>
 
 #include <Modules/Audio/AudioSystem.h>
 
@@ -58,6 +59,9 @@ QWidget *MidiPage::createContentWidget() {
     m_amplitudeSpinBox->setDecimals(1);
     m_amplitudeSpinBox->setRange(-96, 0);
     m_amplitudeSpinBox->setSpecialValueText("-INF");
+    // Prevent accidental value changes while scrolling the settings page.
+    m_amplitudeSpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
+    m_amplitudeSpinBox->setFocusPolicy(Qt::StrongFocus);
 
     m_attackSlider = new SVS::SeekBar;
     m_attackSlider->setFixedWidth(256);
@@ -66,6 +70,9 @@ QWidget *MidiPage::createContentWidget() {
     m_attackSlider->setRange(0, 100);
     m_attackSpinBox = new SVS::ExpressionSpinBox;
     m_attackSpinBox->setRange(0, 100);
+    // Prevent accidental value changes while scrolling the settings page.
+    m_attackSpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
+    m_attackSpinBox->setFocusPolicy(Qt::StrongFocus);
 
     m_decaySlider = new SVS::SeekBar;
     m_decaySlider->setFixedWidth(256);
@@ -74,6 +81,9 @@ QWidget *MidiPage::createContentWidget() {
     m_decaySlider->setRange(0, 1000);
     m_decaySpinBox = new SVS::ExpressionSpinBox;
     m_decaySpinBox->setRange(0, 1000);
+    // Prevent accidental value changes while scrolling the settings page.
+    m_decaySpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
+    m_decaySpinBox->setFocusPolicy(Qt::StrongFocus);
 
     m_decayRatioSlider = new SVS::SeekBar;
     m_decayRatioSlider->setFixedWidth(256);
@@ -81,6 +91,9 @@ QWidget *MidiPage::createContentWidget() {
     m_decayRatioSlider->setRange(0, 1);
     m_decayRatioSpinBox = new SVS::ExpressionDoubleSpinBox;
     m_decayRatioSpinBox->setRange(0, 1);
+    // Prevent accidental value changes while scrolling the settings page.
+    m_decayRatioSpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
+    m_decayRatioSpinBox->setFocusPolicy(Qt::StrongFocus);
 
     m_releaseSlider = new SVS::SeekBar;
     m_releaseSlider->setFixedWidth(256);
@@ -89,10 +102,16 @@ QWidget *MidiPage::createContentWidget() {
     m_releaseSlider->setRange(0, 100);
     m_releaseSpinBox = new SVS::ExpressionSpinBox;
     m_releaseSpinBox->setRange(0, 100);
+    // Prevent accidental value changes while scrolling the settings page.
+    m_releaseSpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
+    m_releaseSpinBox->setFocusPolicy(Qt::StrongFocus);
 
     m_frequencyOfASpinBox = new SVS::ExpressionDoubleSpinBox;
     m_frequencyOfASpinBox->setRange(440.0 * std::pow(2, -1.0 / 24.0),
                                     440.0 * std::pow(2, 1.0 / 24.0));
+    // Prevent accidental value changes while scrolling the settings page.
+    m_frequencyOfASpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
+    m_frequencyOfASpinBox->setFocusPolicy(Qt::StrongFocus);
     m_adjustByProjectSwitch = new SwitchButton;
 
     m_synthesizerTestButton = new QPushButton(tr("&Preview"));
