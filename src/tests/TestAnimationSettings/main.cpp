@@ -31,15 +31,13 @@ namespace {
             initializeAnimation();
         }
 
-        [[nodiscard]] int effectiveDuration(
-            int duration,
-            AnimationGlobal::AnimationLevels minimumLevel = AnimationGlobal::Decreased) const {
-            return getEffectiveAnimationTime(duration, minimumLevel);
+        [[nodiscard]] int effectiveDuration(int duration) const {
+            return getEffectiveAnimationTime(duration);
         }
 
     protected:
-        void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override {
-            Q_UNUSED(level)
+        void afterSetAnimationEnabled(bool enabled) override {
+            Q_UNUSED(enabled)
         }
 
         void afterSetTimeScale(double scale) override {
@@ -49,35 +47,25 @@ namespace {
 
     void testEffectiveDurationPolicy() {
         auto *theme = ThemeManager::instance();
-        theme->setAnimationSettings(AnimationGlobal::Full, 2.0);
+        theme->setAnimationSettings(true, 2.0);
         AnimationProbe probe;
 
         expect(probe.effectiveDuration(100) == 200,
-               "full animations should use the configured time scale");
-        expect(probe.effectiveDuration(100, AnimationGlobal::Full) == 200,
-               "full-only animations should run at the full level");
+               "enabled animations should use the configured time scale");
 
-        theme->setAnimationSettings(AnimationGlobal::Decreased, 0.5);
-        expect(probe.effectiveDuration(100) == 50,
-               "lightweight animations should remain enabled at the decreased level");
-        expect(probe.effectiveDuration(100, AnimationGlobal::Full) == 0,
-               "full-only animations should be immediate at the decreased level");
-
-        theme->setAnimationSettings(AnimationGlobal::None, 2.0);
-        expect(probe.effectiveDuration(100) == 0,
-               "all decorative animations should be immediate at the none level");
+        theme->setAnimationSettings(false, 2.0);
+        expect(probe.effectiveDuration(100) == 0, "disabled animations should be immediate");
     }
 
     void testDialogTitleBarRuntimeUpdate() {
         auto *theme = ThemeManager::instance();
-        theme->setAnimationSettings(AnimationGlobal::Full, 2.0);
+        theme->setAnimationSettings(true, 2.0);
 
         QWidget window;
         window.setAttribute(Qt::WA_DontShowOnScreen);
         DialogTitleBar titleBar(&window);
         auto *animation = titleBar.findChild<QVariantAnimation *>();
-        auto *opacityEffect =
-            qobject_cast<QGraphicsOpacityEffect *>(titleBar.graphicsEffect());
+        auto *opacityEffect = qobject_cast<QGraphicsOpacityEffect *>(titleBar.graphicsEffect());
         expect(animation && opacityEffect, "dialog title bar should expose its opacity animation");
         if (!animation || !opacityEffect)
             return;
@@ -87,57 +75,57 @@ namespace {
         expect(animation->duration() == 600,
                "dialog deactivation should scale the 300 ms transition");
         expect(animation->state() == QAbstractAnimation::Running,
-               "dialog deactivation should animate at the full level");
+               "dialog deactivation should animate while enabled");
 
-        theme->setAnimationSettings(AnimationGlobal::None, 2.0);
+        theme->setAnimationSettings(false, 2.0);
         expect(animation->state() == QAbstractAnimation::Stopped,
                "disabling animations should stop an active title transition");
         expect(qFuzzyCompare(opacityEffect->opacity(), 0.5),
                "disabling animations should snap the title to its inactive endpoint");
 
-        theme->setAnimationSettings(AnimationGlobal::Decreased, 0.5);
+        theme->setAnimationSettings(true, 1.0);
         QEvent activateEvent(QEvent::WindowActivate);
         QApplication::sendEvent(&window, &activateEvent);
-        expect(animation->duration() == 50,
-               "lightweight title opacity should remain scaled at the decreased level");
+        expect(animation->duration() == 100,
+               "re-enabling animations should restore the unscaled title transition");
     }
 
     void testProgressAndTapTempoLevels() {
         auto *theme = ThemeManager::instance();
-        theme->setAnimationSettings(AnimationGlobal::Full, 2.0);
+        theme->setAnimationSettings(true, 2.0);
 
         ProgressIndicator progress;
         progress.setValue(75);
         expect(!qFuzzyCompare(progress.property("apparentValue").toDouble(), 75.0),
-               "full-level determinate progress should animate instead of snapping");
+               "determinate progress should animate instead of snapping when enabled");
 
-        theme->setAnimationSettings(AnimationGlobal::Decreased, 2.0);
+        theme->setAnimationSettings(false, 2.0);
         expect(qFuzzyCompare(progress.property("apparentValue").toDouble(), 75.0),
-               "decreased animations should snap progress to its target value");
+               "progress should snap to its target when animation is disabled");
 
-        theme->setAnimationSettings(AnimationGlobal::Full, 2.0);
+        theme->setAnimationSettings(true, 2.0);
         TapTempoButton tapTempo;
         tapTempo.setProgress(0.75);
         expect(!qFuzzyCompare(tapTempo.progress(), 0.75),
-               "full-level tap-tempo progress should animate instead of snapping");
+               "tap-tempo should animate instead of snapping when animation is enabled");
 
-        theme->setAnimationSettings(AnimationGlobal::Decreased, 2.0);
+        theme->setAnimationSettings(false, 2.0);
         expect(qFuzzyCompare(tapTempo.progress(), 0.75),
-               "tap-tempo interpolation should snap to its target");
+               "tap-tempo should snap to its target when animation is disabled");
     }
 
     void testToolTipImmediateCompletion() {
         auto *theme = ThemeManager::instance();
-        theme->setAnimationSettings(AnimationGlobal::Full, 2.0);
+        theme->setAnimationSettings(true, 2.0);
 
         ToolTip toolTip(QStringLiteral("Animation settings"));
         toolTip.setAttribute(Qt::WA_DontShowOnScreen);
 
         toolTip.showAt(QPoint());
         expect(!qFuzzyCompare(toolTip.windowOpacity(), 1.0),
-               "full-level tooltip presentation should animate instead of snapping");
+               "tooltip presentation should animate when enabled");
 
-        theme->setAnimationSettings(AnimationGlobal::None, 2.0);
+        theme->setAnimationSettings(false, 2.0);
         expect(qFuzzyCompare(toolTip.windowOpacity(), 1.0),
                "disabling animations should finish tooltip presentation");
 
@@ -178,7 +166,7 @@ int main(int argc, char *argv[]) {
     testToolTipImmediateCompletion();
     testToolTipAnchorScreenClamping();
 
-    ThemeManager::instance()->setAnimationSettings(AnimationGlobal::Full, 1.0);
+    ThemeManager::instance()->setAnimationSettings(true, 1.0);
     if (g_failures == 0) {
         QTextStream(stdout) << "All animation settings tests passed" << Qt::endl;
         return 0;

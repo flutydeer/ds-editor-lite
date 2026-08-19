@@ -46,11 +46,9 @@ bool ThemeManager::applyTheme(const QString &themeId) {
 
 bool ThemeManager::applyThemePreference(const QString &themePreferenceId) {
     const auto normalizedThemeId = normalizedThemePreferenceId(themePreferenceId);
-    const auto shouldFollowSystem =
-        normalizedThemeId == ThemeIds::systemThemePreferenceId();
-    const auto themeId = shouldFollowSystem
-                             ? systemThemeId()
-                             : ThemeIds::themeIdForPreference(normalizedThemeId);
+    const auto shouldFollowSystem = normalizedThemeId == ThemeIds::systemThemePreferenceId();
+    const auto themeId =
+        shouldFollowSystem ? systemThemeId() : ThemeIds::themeIdForPreference(normalizedThemeId);
     if (!applyThemeInternal(themeId, shouldFollowSystem ? ColorSchemePolicy::FollowSystem
                                                         : ColorSchemePolicy::Explicit)) {
         return false;
@@ -251,12 +249,12 @@ void ThemeManager::onSystemThemeColorChanged() {
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 void ThemeManager::applyAnimationSettings(IAnimatable *object) const {
-    object->setAnimationLevel(m_animationLevel);
+    object->setAnimationEnabled(m_animationEnabled);
     object->setTimeScale(m_animationTimeScale);
 }
 
-void ThemeManager::setAnimationSettings(AnimationGlobal::AnimationLevels level, double timeScale) {
-    m_animationLevel = level;
+void ThemeManager::setAnimationSettings(bool enabled, double timeScale) {
+    m_animationEnabled = enabled;
     m_animationTimeScale = timeScale;
     for (auto *object : m_subscribers)
         applyAnimationSettings(object);

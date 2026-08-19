@@ -210,8 +210,8 @@ bool MainTitleBar::eventFilter(QObject *watched, QEvent *event) {
     return QWidget::eventFilter(watched, event);
 }
 
-void MainTitleBar::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
-    Q_UNUSED(level)
+void MainTitleBar::afterSetAnimationEnabled(bool enabled) {
+    Q_UNUSED(enabled)
     updateAnimationSettings();
 }
 

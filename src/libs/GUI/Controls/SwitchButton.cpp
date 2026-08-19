@@ -169,7 +169,7 @@ void SwitchButton::setThumbOnColor(const QColor &color) {
 }
 
 void SwitchButton::updateAnimationDuration() {
-    const auto valueDuration = getEffectiveAnimationTime(400, AnimationGlobal::Full);
+    const auto valueDuration = getEffectiveAnimationTime(400);
     const auto hoverDuration = getEffectiveAnimationTime(200);
 
     auto updateAnimation = [](QPropertyAnimation &animation, int duration, int currentValue,
@@ -216,7 +216,7 @@ bool SwitchButton::eventFilter(QObject *object, QEvent *event) {
     return QObject::eventFilter(object, event);
 }
 
-void SwitchButton::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+void SwitchButton::afterSetAnimationEnabled(bool enabled) {
     updateAnimationDuration();
 }
 

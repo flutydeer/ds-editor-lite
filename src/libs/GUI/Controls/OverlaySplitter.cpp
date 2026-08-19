@@ -260,8 +260,8 @@ void SplitterOverlayGrip::setHighlightVisible(bool visible) {
     m_animation->start();
 }
 
-void SplitterOverlayGrip::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
-    Q_UNUSED(level)
+void SplitterOverlayGrip::afterSetAnimationEnabled(bool enabled) {
+    Q_UNUSED(enabled)
     updateAnimationSettings();
 }
 

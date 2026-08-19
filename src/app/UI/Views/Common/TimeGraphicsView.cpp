@@ -546,7 +546,7 @@ void TimeGraphicsView::setScaleAt(const Qt::Orientation orientation, const doubl
 
 void TimeGraphicsView::updateAnimationDuration() {
     constexpr int animationDurationBase = 250;
-    const auto duration = getEffectiveAnimationTime(animationDurationBase, AnimationGlobal::Full);
+    const auto duration = getEffectiveAnimationTime(animationDurationBase);
 
     auto updateAnimation = [duration](QPropertyAnimation &animation, const QVariant &currentValue,
                                       const auto &applyValue) {
@@ -576,7 +576,7 @@ void TimeGraphicsView::afterSetScale() {
     emit scaleChanged(scaleX(), scaleY());
 }
 
-void TimeGraphicsView::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
+void TimeGraphicsView::afterSetAnimationEnabled(bool enabled) {
     updateAnimationDuration();
 }
 

@@ -44,7 +44,7 @@ bool EditorViewportAnimation::isRunning() const {
     return m_animation.state() == QAbstractAnimation::Running;
 }
 
-void EditorViewportAnimation::afterSetAnimationLevel(AnimationGlobal::AnimationLevels) {
+void EditorViewportAnimation::afterSetAnimationEnabled(bool) {
     updateDuration();
 }
 
@@ -58,7 +58,7 @@ void EditorViewportAnimation::updateDuration() {
     const auto running = isRunning();
     const auto current = running ? m_animation.currentValue().toPointF() : QPointF();
     m_animation.stop();
-    m_animation.setDuration(getEffectiveAnimationTime(durationBase, AnimationGlobal::Full));
+    m_animation.setDuration(getEffectiveAnimationTime(durationBase));
     if (!running)
         return;
     if (m_animation.duration() <= 0) {

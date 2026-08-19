@@ -114,7 +114,7 @@ protected:
     void hideEvent(QHideEvent *event) override;
     void changeEvent(QEvent *event) override;
     void afterSetScale() override;
-    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetAnimationEnabled(bool enabled) override;
     void afterSetTimeScale(double scale) override;
 
     [[nodiscard]] double sceneXToTick(double pos) const;

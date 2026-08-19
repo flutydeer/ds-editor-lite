@@ -58,8 +58,8 @@ void Toast::show(const QString &message) {
         instance()->showNextToast();
 }
 
-void Toast::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
-    Q_UNUSED(level)
+void Toast::afterSetAnimationEnabled(bool enabled) {
+    Q_UNUSED(enabled)
     updateAnimationSettings();
 }
 
@@ -193,8 +193,7 @@ void Toast::destroyCurrentToast() {
 
 void Toast::updateAnimationSettings() {
     const auto opacityDuration = getEffectiveAnimationTime(animationDurationBase);
-    const auto positionDuration =
-        getEffectiveAnimationTime(animationDurationBase, AnimationGlobal::Full);
+    const auto positionDuration = getEffectiveAnimationTime(animationDurationBase);
 
     const auto opacityRunning = m_opacityAnimation.state() == QAbstractAnimation::Running;
     const auto opacityEndValue = m_opacityAnimation.endValue().toDouble();

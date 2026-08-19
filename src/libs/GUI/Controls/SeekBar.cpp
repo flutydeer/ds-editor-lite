@@ -242,8 +242,8 @@ void SeekBar::setThumbBorderRatio(const int ratio) {
     update();
 }
 
-void SeekBar::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
-    Q_UNUSED(level)
+void SeekBar::afterSetAnimationEnabled(bool enabled) {
+    Q_UNUSED(enabled)
     updateAnimationSettings();
 }
 

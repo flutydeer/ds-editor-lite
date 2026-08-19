@@ -83,7 +83,7 @@ namespace SVS {
         void mousePressEvent(QMouseEvent *event) override;
         void mouseReleaseEvent(QMouseEvent *event) override;
         void keyPressEvent(QKeyEvent *event) override;
-        void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+        void afterSetAnimationEnabled(bool enabled) override;
         void afterSetTimeScale(double scale) override;
 
         explicit SeekBar(QWidget *parent, SeekBarPrivate &d);

@@ -34,7 +34,7 @@ signals:
 protected:
     void paintEvent(QPaintEvent *event) override;
     bool eventFilter(QObject *object, QEvent *event) override;
-    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetAnimationEnabled(bool enabled) override;
     void afterSetTimeScale(double scale) override;
 
 private:

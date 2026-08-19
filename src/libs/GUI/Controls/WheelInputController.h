@@ -80,7 +80,7 @@ public:
     [[nodiscard]] std::optional<double> logicalScrollValue(Qt::Orientation orientation) const;
 
 protected:
-    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetAnimationEnabled(bool enabled) override;
     void afterSetTimeScale(double scale) override;
 
 private:

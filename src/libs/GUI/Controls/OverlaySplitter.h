@@ -58,7 +58,7 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetAnimationEnabled(bool enabled) override;
     void afterSetTimeScale(double scale) override;
 
 private:

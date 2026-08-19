@@ -16,10 +16,10 @@ public:
     bool useNativeFrame = false;
 #endif
     bool enableDirectManipulation = true;
-    // animationLevel and themeId are stored as opaque persisted strings; the
-    // UI/animation and theme systems own the AnimationLevels enum and the theme
-    // vocabulary respectively and convert at the boundary.
-    QString animationLevel = QStringLiteral("full");
+    // themeId is stored as an opaque persisted string; the theme system owns
+    // the vocabulary and converts at the boundary. Animation is a plain on/off
+    // toggle; a missing or unparseable value defaults to enabled.
+    bool animationEnabled = true;
     double animationTimeScale = 1;
     QString themeId = QStringLiteral("system");
     // Empty string means the platform-default UI font (see FontManager).
@@ -32,7 +32,7 @@ protected:
 private:
     const QString useNativeFrameKey = "useNativeFrame";
     const QString enableDirectManipulationKey = "enableDirectManipulation";
-    const QString animationLevelKey = "animationLevel";
+    const QString animationEnabledKey = "animationEnabled";
     const QString animationTimeScaleKey = "animationTimeScale";
     const QString themeIdKey = "themeId";
     const QString uiFontFamilyKey = "uiFontFamily";

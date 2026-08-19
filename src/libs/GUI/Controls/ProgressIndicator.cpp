@@ -527,7 +527,7 @@ void ProgressIndicator::setApparentCurrentTaskValue(const double x) {
 
 void ProgressIndicator::updateAnimationDurations() {
     constexpr int animationDurationBase = 250;
-    const auto duration = getEffectiveAnimationTime(animationDurationBase, AnimationGlobal::Full);
+    const auto duration = getEffectiveAnimationTime(animationDurationBase);
 
     auto updateAnimation = [duration](QPropertyAnimation &animation, double currentValue,
                                       const auto &applyValue) {

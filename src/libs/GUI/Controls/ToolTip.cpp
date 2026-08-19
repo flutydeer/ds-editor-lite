@@ -206,8 +206,8 @@ void ToolTip::hideWithAnimation() {
     }
 }
 
-void ToolTip::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
-    Q_UNUSED(level)
+void ToolTip::afterSetAnimationEnabled(bool enabled) {
+    Q_UNUSED(enabled)
     updateAnimationSettings();
 }
 

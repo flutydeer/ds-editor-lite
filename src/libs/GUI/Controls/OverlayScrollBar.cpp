@@ -289,8 +289,8 @@ void OverlayScrollBar::updateGeometryAnimation() {
     m_geometryAnimation->start();
 }
 
-void OverlayScrollBar::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
-    Q_UNUSED(level)
+void OverlayScrollBar::afterSetAnimationEnabled(bool enabled) {
+    Q_UNUSED(enabled)
     updateAnimationSettings();
 }
 

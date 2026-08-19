@@ -100,8 +100,8 @@ void TapTempoButton::paintEvent(QPaintEvent *event) {
     }
 }
 
-void TapTempoButton::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
-    Q_UNUSED(level)
+void TapTempoButton::afterSetAnimationEnabled(bool enabled) {
+    Q_UNUSED(enabled)
     updateAnimationSettings();
 }
 
@@ -114,7 +114,7 @@ void TapTempoButton::updateAnimationSettings() {
     const auto running = m_progressAnimation.state() == QAbstractAnimation::Running;
     const auto targetProgress = m_progressAnimation.endValue().toDouble();
     m_progressAnimation.stop();
-    m_progressAnimation.setDuration(getEffectiveAnimationTime(150, AnimationGlobal::Full));
+    m_progressAnimation.setDuration(getEffectiveAnimationTime(150));
     if (!running)
         return;
     if (m_progressAnimation.duration() == 0) {

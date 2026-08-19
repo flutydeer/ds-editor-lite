@@ -24,7 +24,6 @@
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/DecodeAudioTask.h"
 #include <lite/GUI/Theme/ThemeManager.h>
-#include <lite/GUI/Animation/AnimationGlobal.h>
 #include <lite/Support/Log.h>
 
 #include "Actions/AppModel/MasterControl/MasterControlActions.h"
@@ -176,8 +175,7 @@ void AppControllerPrivate::initializeModules() {
     const auto pushAppearance = [] {
         const auto appearance = appOptions->appearance();
         auto *theme = ThemeManager::instance();
-        theme->setAnimationSettings(AnimationGlobal::fromString(appearance->animationLevel),
-                                    appearance->animationTimeScale);
+        theme->setAnimationSettings(appearance->animationEnabled, appearance->animationTimeScale);
         theme->updateThemePreference(appearance->themeId);
         FontManager::instance().applyInterfaceFont(appearance->uiFontFamily);
     };

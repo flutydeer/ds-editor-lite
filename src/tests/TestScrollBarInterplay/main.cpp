@@ -101,8 +101,7 @@ int main(int argc, char *argv[]) {
     TimeGraphicsScene timeScene;
     SceneAwareScalableItem sceneAwareItem;
     timeScene.addCommonItem(&sceneAwareItem);
-    expect(sceneAwareItem.scaleInitializedInScene &&
-               sceneAwareItem.visibleRectInitializedInScene,
+    expect(sceneAwareItem.scaleInitializedInScene && sceneAwareItem.visibleRectInitializedInScene,
            "scene-dependent item geometry must initialize after scene attachment");
     timeScene.removeCommonItem(&sceneAwareItem);
 
@@ -199,7 +198,7 @@ int main(int argc, char *argv[]) {
     double pixelHorizontalValue = 100.0;
     double pixelVerticalValue = 100.0;
     WheelInputController pixelScroll;
-    pixelScroll.setAnimationLevel(AnimationGlobal::None);
+    pixelScroll.setAnimationEnabled(false);
     configureScrollTarget(pixelScroll, Qt::Horizontal, pixelHorizontalValue, 1000.0, 28.0);
     configureScrollTarget(pixelScroll, Qt::Vertical, pixelVerticalValue, 1000.0, 28.0);
     pixelScroll.handleWheel(&pixelWheel, WheelInputController::Action::HorizontalScroll,
@@ -217,7 +216,7 @@ int main(int argc, char *argv[]) {
            "mouse wheels with both delta forms must retain their angle-step magnitude");
     double combinedValue = 100.0;
     WheelInputController combinedScroll;
-    combinedScroll.setAnimationLevel(AnimationGlobal::None);
+    combinedScroll.setAnimationEnabled(false);
     configureScrollTarget(combinedScroll, Qt::Vertical, combinedValue, 1000.0, 28.0);
     combinedScroll.handleWheel(&combinedWheel, WheelInputController::Action::VerticalScroll,
                                Qt::Vertical);
@@ -230,7 +229,7 @@ int main(int argc, char *argv[]) {
                                    Qt::NoModifier, Qt::ScrollUpdate, false);
     double touchPadHorizontalValue = 100.0;
     WheelInputController touchPadHorizontalScroll;
-    touchPadHorizontalScroll.setAnimationLevel(AnimationGlobal::None);
+    touchPadHorizontalScroll.setAnimationEnabled(false);
     configureScrollTarget(touchPadHorizontalScroll, Qt::Horizontal, touchPadHorizontalValue, 1000.0,
                           38.0);
     touchPadHorizontalScroll.handleWheel(&horizontalTouchPad);
@@ -241,7 +240,7 @@ int main(int argc, char *argv[]) {
                              Qt::ShiftModifier, Qt::NoScrollPhase, false);
     double shiftedValue = 100.0;
     WheelInputController shiftedScroll;
-    shiftedScroll.setAnimationLevel(AnimationGlobal::None);
+    shiftedScroll.setAnimationEnabled(false);
     configureScrollTarget(shiftedScroll, Qt::Horizontal, shiftedValue, 1000.0, 40.0);
     shiftedScroll.handleWheel(&shiftedWheel);
     expect(shiftedValue == 140.0,
@@ -253,8 +252,8 @@ int main(int argc, char *argv[]) {
                             Qt::NoModifier, Qt::ScrollUpdate, false);
     WheelInputController fineDownScroll;
     WheelInputController fineUpScroll;
-    fineDownScroll.setAnimationLevel(AnimationGlobal::None);
-    fineUpScroll.setAnimationLevel(AnimationGlobal::None);
+    fineDownScroll.setAnimationEnabled(false);
+    fineUpScroll.setAnimationEnabled(false);
     double fineDownOffset = 100.0;
     double fineUpOffset = 100.0;
     configureScrollTarget(fineDownScroll, Qt::Vertical, fineDownOffset, 1000.0, 36.0);
@@ -269,7 +268,7 @@ int main(int argc, char *argv[]) {
            "fine angle deltas must accumulate symmetrically in both directions");
 
     WheelInputController reversingScroll;
-    reversingScroll.setAnimationLevel(AnimationGlobal::None);
+    reversingScroll.setAnimationEnabled(false);
     double reversingOffset = 100.0;
     configureScrollTarget(reversingScroll, Qt::Vertical, reversingOffset, 1000.0, 36.0);
     for (int i = 0; i < 2; ++i)
@@ -283,7 +282,7 @@ int main(int argc, char *argv[]) {
 
     double boundedValue = 90.0;
     WheelInputController boundedWheelScroll;
-    boundedWheelScroll.setAnimationLevel(AnimationGlobal::Full);
+    boundedWheelScroll.setAnimationEnabled(true);
     boundedWheelScroll.setTimeScale(1.0);
     configureScrollTarget(boundedWheelScroll, Qt::Vertical, boundedValue, 100.0, 20.0);
     QWheelEvent wheelTowardEnd(QPointF(10, 10), QPointF(10, 10), {}, QPoint(0, -120), Qt::NoButton,
@@ -300,7 +299,7 @@ int main(int argc, char *argv[]) {
     double resizedValue = 90.0;
     double resizedMaximum = 100.0;
     WheelInputController resizedWheelScroll;
-    resizedWheelScroll.setAnimationLevel(AnimationGlobal::Full);
+    resizedWheelScroll.setAnimationEnabled(true);
     resizedWheelScroll.setTimeScale(1.0);
     resizedWheelScroll.setScrollTarget(
         Qt::Vertical, {
@@ -322,7 +321,7 @@ int main(int argc, char *argv[]) {
 
     double scrollbarValue = 90.0;
     WheelInputController scrollbarWheelScroll;
-    scrollbarWheelScroll.setAnimationLevel(AnimationGlobal::Full);
+    scrollbarWheelScroll.setAnimationEnabled(true);
     scrollbarWheelScroll.setTimeScale(1.0);
     configureScrollTarget(scrollbarWheelScroll, Qt::Vertical, scrollbarValue, 100.0, 20.0);
     scrollbarWheelScroll.handleWheel(&wheelTowardEnd);
@@ -338,7 +337,7 @@ int main(int argc, char *argv[]) {
     double zoomValue = 1.0;
     double zoomAnchor = -1.0;
     WheelInputController zoomInput;
-    zoomInput.setAnimationLevel(AnimationGlobal::None);
+    zoomInput.setAnimationEnabled(false);
     zoomInput.setZoomTarget(
         Qt::Horizontal,
         {
@@ -507,7 +506,7 @@ int main(int argc, char *argv[]) {
     QPointF animatedOffset(10, 20);
     EditorViewportAnimation viewportAnimation(
         [&animatedOffset](const QPointF &offset) { animatedOffset = offset; });
-    viewportAnimation.setAnimationLevel(AnimationGlobal::Full);
+    viewportAnimation.setAnimationEnabled(true);
     viewportAnimation.moveTo(animatedOffset, QPointF(100, 200), true);
     expect(viewportAnimation.isRunning() &&
                viewportAnimation.logicalOffset(animatedOffset) == QPointF(100, 200),

@@ -158,8 +158,8 @@ protected:
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
 
-    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override {
-        Q_UNUSED(level)
+    void afterSetAnimationEnabled(bool enabled) override {
+        Q_UNUSED(enabled)
         updateAnimationDurations();
     }
 

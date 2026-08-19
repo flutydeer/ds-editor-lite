@@ -520,8 +520,8 @@ namespace SVS {
         d->resetOnDoubleClick = a;
     }
 
-    void SeekBar::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
-        Q_UNUSED(level)
+    void SeekBar::afterSetAnimationEnabled(bool enabled) {
+        Q_UNUSED(enabled)
         updateAnimationSettings();
     }
 

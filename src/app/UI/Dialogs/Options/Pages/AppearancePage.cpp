@@ -19,7 +19,6 @@
 #include <lite/GUI/Theme/ThemeLoader.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Theme/ThemeIds.h>
-#include <lite/GUI/Animation/AnimationGlobal.h>
 
 AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
     initializePage();
@@ -31,8 +30,7 @@ void AppearancePage::modifyOption() {
 #if defined(WITH_DIRECT_MANIPULATION)
     option->enableDirectManipulation = m_swEnableDirectManipulation->value();
 #endif
-    option->animationLevel = AnimationGlobal::toString(
-        static_cast<AnimationGlobal::AnimationLevels>(m_cbxAnimationLevel->currentIndex()));
+    option->animationEnabled = m_swAnimationEnabled->value();
     option->animationTimeScale = QLocale().toDouble(m_leAnimationTimeScale->text());
     appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
 }
@@ -113,11 +111,8 @@ QWidget *AppearancePage::createContentWidget() {
     windowCard->addItem(tr("Use native frame"), tr("App needs a restart to take effect"),
                         m_swUseNativeFrame);
 
-    m_cbxAnimationLevel = new ComboBox;
-    m_cbxAnimationLevel->addItems(animationLevelsName);
-    m_cbxAnimationLevel->setCurrentIndex(AnimationGlobal::fromString(option->animationLevel));
-    connect(m_cbxAnimationLevel, &ComboBox::currentIndexChanged, this,
-            &AppearancePage::modifyOption);
+    m_swAnimationEnabled = new SwitchButton(option->animationEnabled);
+    connect(m_swAnimationEnabled, &SwitchButton::toggled, this, &AppearancePage::modifyOption);
 
     m_leAnimationTimeScale = new LineEdit;
     const auto doubleValidator = new QDoubleValidator(m_leAnimationTimeScale);
@@ -128,7 +123,7 @@ QWidget *AppearancePage::createContentWidget() {
             &AppearancePage::modifyOption);
 
     const auto animationCard = new OptionListCard(tr("Animation"));
-    animationCard->addItem(tr("Level"), m_cbxAnimationLevel);
+    animationCard->addItem(tr("Enable animations"), m_swAnimationEnabled);
     animationCard->addItem(tr("Duration scale"), m_leAnimationTimeScale);
 
 #if defined(WITH_DIRECT_MANIPULATION)

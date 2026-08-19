@@ -206,8 +206,8 @@ std::optional<double>
     return scrollMotion(orientation).logicalValue;
 }
 
-void WheelInputController::afterSetAnimationLevel(const AnimationGlobal::AnimationLevels level) {
-    Q_UNUSED(level)
+void WheelInputController::afterSetAnimationEnabled(bool enabled) {
+    Q_UNUSED(enabled)
     updateAnimationDuration();
 }
 
@@ -288,7 +288,7 @@ bool WheelInputController::handleScroll(QWheelEvent *event, const Qt::Orientatio
         discrete && motion.logicalValue.has_value() ? *motion.logicalValue : currentValue);
     const auto endValue = target.boundedValue(baseValue + offset);
     const auto animate = discrete && m_discreteAnimationEnabled() &&
-                         getEffectiveAnimationTime(kAnimationDuration, AnimationGlobal::Full) > 0;
+                         getEffectiveAnimationTime(kAnimationDuration) > 0;
     if (!animate) {
         stopMotion(motion, false);
         target.setValue(endValue);
@@ -324,7 +324,7 @@ bool WheelInputController::handleZoom(QWheelEvent *event, const Qt::Orientation 
         m_verticalZoomAnchor = event->position().y();
 
     const auto animate = discrete && m_discreteAnimationEnabled() &&
-                         getEffectiveAnimationTime(kAnimationDuration, AnimationGlobal::Full) > 0;
+                         getEffectiveAnimationTime(kAnimationDuration) > 0;
     if (!animate) {
         stopMotion(motion, false);
         target.setValueAt(endValue, targetAxis == Qt::Horizontal ? m_horizontalZoomAnchor
@@ -354,7 +354,7 @@ void WheelInputController::stopMotion(Motion &motion, const bool resetRemainder)
 }
 
 void WheelInputController::updateAnimationDuration() {
-    const auto duration = getEffectiveAnimationTime(kAnimationDuration, AnimationGlobal::Full);
+    const auto duration = getEffectiveAnimationTime(kAnimationDuration);
     const auto update = [duration](Motion &motion, const auto &applyValue) {
         const auto running = motion.animation.state() == QAbstractAnimation::Running;
         const auto endValue = motion.animation.endValue();

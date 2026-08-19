@@ -46,7 +46,7 @@ public:
     static void show(const QString &message);
 
 protected:
-    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetAnimationEnabled(bool enabled) override;
     void afterSetTimeScale(double scale) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
 

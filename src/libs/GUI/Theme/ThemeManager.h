@@ -9,7 +9,6 @@
 #include <QString>
 
 #include <lite/Core/Singleton.h>
-#include <lite/GUI/Animation/AnimationGlobal.h>
 
 class IAnimatable;
 
@@ -56,7 +55,7 @@ public:
     // Theme preference and animation settings are pushed in by app code (which
     // reads AppOptions), so the theme system carries no settings dependency.
     void updateThemePreference(const QString &preferredThemeId);
-    void setAnimationSettings(AnimationGlobal::AnimationLevels level, double timeScale);
+    void setAnimationSettings(bool enabled, double timeScale);
 
     // The app owns its color palette; the theme system just loads the palette
     // colors and exposes them here. AppColorPalette (app) pulls on themeChanged.
@@ -85,7 +84,7 @@ private:
 
     // --- Animation ---
     QList<IAnimatable *> m_subscribers;
-    AnimationGlobal::AnimationLevels m_animationLevel = AnimationGlobal::Full;
+    bool m_animationEnabled = true;
     double m_animationTimeScale = 1;
 
     // --- Palette (loaded from the theme; the app pulls it) ---

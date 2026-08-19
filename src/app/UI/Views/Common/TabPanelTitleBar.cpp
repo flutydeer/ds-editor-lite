@@ -369,8 +369,8 @@ void TabPanelTitleBar::retranslateUi() {
         m_btnHide->setToolTip(tr("Hide"));
 }
 
-void TabPanelTitleBar::afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) {
-    Q_UNUSED(level)
+void TabPanelTitleBar::afterSetAnimationEnabled(bool enabled) {
+    Q_UNUSED(enabled)
     updateAnimationSettings();
 }
 

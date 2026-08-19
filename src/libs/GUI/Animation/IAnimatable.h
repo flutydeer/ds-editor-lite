@@ -2,28 +2,26 @@
 #define IANIMATABLE_H
 
 #include <lite/GUI/Theme/ThemeManager.h>
-#include <lite/GUI/Animation/AnimationGlobal.h>
 
 class IAnimatable {
 public:
     IAnimatable();
     virtual ~IAnimatable();
-    [[nodiscard]] AnimationGlobal::AnimationLevels animationLevel() const;
-    void setAnimationLevel(AnimationGlobal::AnimationLevels level);
+    [[nodiscard]] bool animationEnabled() const;
+    void setAnimationEnabled(bool enabled);
     [[nodiscard]] double animationTimeScale() const;
     void setTimeScale(double scale);
 
 protected:
     [[nodiscard]] int getScaledAnimationTime(int ms) const;
-    [[nodiscard]] int getEffectiveAnimationTime(
-        int ms, AnimationGlobal::AnimationLevels minimumLevel = AnimationGlobal::Decreased) const;
+    [[nodiscard]] int getEffectiveAnimationTime(int ms) const;
 
-    virtual void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) = 0;
+    virtual void afterSetAnimationEnabled(bool enabled) = 0;
     virtual void afterSetTimeScale(double scale) = 0;
     void initializeAnimation();
 
 private:
-    AnimationGlobal::AnimationLevels m_level = AnimationGlobal::Full;
+    bool m_enabled = true;
     double m_scale = 1.0;
     bool m_initialized = false;
 };
@@ -36,14 +34,14 @@ inline IAnimatable::~IAnimatable() {
     ThemeManager::instance()->removeAnimationObserver(this);
 }
 
-inline AnimationGlobal::AnimationLevels IAnimatable::animationLevel() const {
-    return m_level;
+inline bool IAnimatable::animationEnabled() const {
+    return m_enabled;
 }
 
-inline void IAnimatable::setAnimationLevel(AnimationGlobal::AnimationLevels level) {
-    m_level = level;
+inline void IAnimatable::setAnimationEnabled(bool enabled) {
+    m_enabled = enabled;
     if (m_initialized)
-        afterSetAnimationLevel(level);
+        afterSetAnimationEnabled(enabled);
 }
 
 inline double IAnimatable::animationTimeScale() const {
@@ -60,19 +58,15 @@ inline int IAnimatable::getScaledAnimationTime(int ms) const {
     return static_cast<int>(ms * m_scale);
 }
 
-inline int
-    IAnimatable::getEffectiveAnimationTime(int ms,
-                                           AnimationGlobal::AnimationLevels minimumLevel) const {
-    if (m_level == AnimationGlobal::None ||
-        (minimumLevel == AnimationGlobal::Full && m_level != AnimationGlobal::Full)) {
+inline int IAnimatable::getEffectiveAnimationTime(int ms) const {
+    if (!m_enabled)
         return 0;
-    }
     return getScaledAnimationTime(ms);
 }
 
 inline void IAnimatable::initializeAnimation() {
     m_initialized = true;
-    afterSetAnimationLevel(animationLevel());
+    afterSetAnimationEnabled(animationEnabled());
     afterSetTimeScale(animationTimeScale());
 }
 

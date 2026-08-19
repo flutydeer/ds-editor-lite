@@ -35,7 +35,7 @@ signals:
     void closeTriggered();
 
 protected:
-    void afterSetAnimationLevel(AnimationGlobal::AnimationLevels level) override;
+    void afterSetAnimationEnabled(bool enabled) override;
     void afterSetTimeScale(double scale) override;
 
 private:
