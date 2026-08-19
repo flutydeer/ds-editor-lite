@@ -28,6 +28,51 @@
 
 namespace fs = std::filesystem;
 
+namespace {
+    const ds::bank::InferenceInfo *findInference(const ds::bank::PackageManifest &manifest,
+                                                 const ds::bank::StageCapability &stage) {
+        for (const auto &inference : manifest.inferences()) {
+            if (inference.id == stage.stageId && inference.className == stage.className)
+                return &inference;
+        }
+        return nullptr;
+    }
+
+    QStringList toQStringList(const std::vector<std::string> &values) {
+        QStringList result;
+        result.reserve(static_cast<QStringList::size_type>(values.size()));
+        for (const auto &value : values)
+            result.append(QString::fromStdString(value));
+        return result;
+    }
+
+    std::optional<QStringList>
+        acousticParameters(const ds::bank::PackageManifest &owningManifest,
+                           const std::vector<ds::bank::PackageManifest> &manifests,
+                           const ds::bank::SingerCapabilityReport &report) {
+        for (const auto &stage : report.stages) {
+            if (stage.className != "ai.svs.AcousticInference")
+                continue;
+
+            if (const auto *inference = findInference(owningManifest, stage))
+                return toQStringList(inference->parameters);
+
+            const ds::bank::InferenceInfo *match = nullptr;
+            for (const auto &manifest : manifests) {
+                const auto *candidate = findInference(manifest, stage);
+                if (!candidate)
+                    continue;
+                if (match && match->parameters != candidate->parameters)
+                    return std::nullopt;
+                match = candidate;
+            }
+            if (match)
+                return toQStringList(match->parameters);
+        }
+        return std::nullopt;
+    }
+}
+
 PackageManager::PackageManager(QObject *parent) : QObject(parent) {
 }
 
@@ -223,6 +268,8 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                     summary.speakerConsistency = static_cast<int>(report.speakerConsistency);
                     for (const auto &w : report.speakerWarnings)
                         summary.speakerWarnings.append(QString::fromStdString(w));
+                    summary.acousticParameters =
+                        acousticParameters(*manifest, snapshot->manifests, report);
 
                     for (const auto &ph : report.effectivePhonemes)
                         summary.effectivePhonemes.append(QString::fromStdString(ph));
