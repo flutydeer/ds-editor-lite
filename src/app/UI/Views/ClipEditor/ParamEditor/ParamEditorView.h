@@ -4,9 +4,9 @@
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/AppModel/Params.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
+#include "UnsupportedParameterPromptState.h"
 
 #include <QWidget>
-#include <QSet>
 
 #include <optional>
 
@@ -77,7 +77,7 @@ private:
     ParamInfo::Name m_emptyStateParameter = ParamInfo::Unknown;
     ParamInfo::Name m_foregroundParam = ParamInfo::Breathiness;
     ParamInfo::Name m_backgroundParam = ParamInfo::Tension;
-    QSet<ParamInfo::Name> m_acknowledgedUnsupportedParameters;
+    UnsupportedParameterPromptState m_unsupportedParameterPromptState;
 };
 
 #endif // PARAMEDITORVIEW_H

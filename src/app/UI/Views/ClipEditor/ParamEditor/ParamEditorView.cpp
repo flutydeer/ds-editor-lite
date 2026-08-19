@@ -110,7 +110,7 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     connect(mixView, &SpeakerMixEditorView::speakerMixEdited, this,
             &ParamEditorView::onSpeakerMixEdited);
     connect(appModel, &AppModel::modelChanged, this, [this] {
-        m_acknowledgedUnsupportedParameters.clear();
+        m_unsupportedParameterPromptState.resetForProject();
         hideEmptyState();
     });
 }
@@ -214,7 +214,7 @@ void ParamEditorView::onEmptyStateAction() {
     const auto action = m_emptyStateAction;
     const auto parameter = m_emptyStateParameter;
     if (action == EmptyStateAction::EditUnsupportedParameter && parameter != ParamInfo::Unknown)
-        m_acknowledgedUnsupportedParameters.insert(parameter);
+        m_unsupportedParameterPromptState.acknowledge(parameter);
     hideEmptyState();
     if (action == EmptyStateAction::EditUnsupportedParameter)
         refreshParameterSupportState();
@@ -353,20 +353,15 @@ void ParamEditorView::refreshParameterSupportState() {
         return !m_clip || paramUtils->isSupportedBySinger(name, m_clip->singerInfo());
     };
     const bool foregroundSupported = isSupported(m_foregroundParam);
-    const bool foregroundAcknowledged =
-        m_acknowledgedUnsupportedParameters.contains(m_foregroundParam);
     const bool backgroundSupported = isSupported(m_backgroundParam);
-    const bool backgroundAcknowledged =
-        m_acknowledgedUnsupportedParameters.contains(m_backgroundParam);
-    m_graphicsView->setForegroundCurveVisibility(
-        foregroundSupported, foregroundSupported || foregroundAcknowledged);
-    m_graphicsView->setBackgroundCurveVisibility(
-        backgroundSupported, backgroundSupported || backgroundAcknowledged);
+    m_graphicsView->setForegroundBaseCurveVisible(foregroundSupported);
+    m_graphicsView->setBackgroundBaseCurveVisible(backgroundSupported);
 
     if (m_foregroundParam == ParamInfo::SpeakerMix)
         return;
 
-    if (foregroundSupported) {
+    if (!m_unsupportedParameterPromptState.shouldPrompt(m_foregroundParam,
+                                                        foregroundSupported)) {
         hideEmptyState();
         return;
     }
@@ -377,11 +372,6 @@ void ParamEditorView::refreshParameterSupportState() {
                       tr("Edit Anyway"), EmptyStateAction::EditUnsupportedParameter,
                       m_foregroundParam);
     };
-    if (foregroundAcknowledged) {
-        hideEmptyState();
-        return;
-    }
-
     showUnsupportedState();
 }
 

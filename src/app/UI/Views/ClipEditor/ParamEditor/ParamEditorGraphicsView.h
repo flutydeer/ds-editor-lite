@@ -50,8 +50,8 @@ public:
     void commitAction() override;
     void setEditMode(ParamEditorEditMode mode);
     [[nodiscard]] ParamEditorEditMode editMode() const;
-    void setForegroundCurveVisibility(bool baseVisible, bool editedVisible);
-    void setBackgroundCurveVisibility(bool baseVisible, bool editedVisible);
+    void setForegroundBaseCurveVisible(bool visible);
+    void setBackgroundBaseCurveVisible(bool visible);
 
 public slots:
     void setForeground(ParamInfo::Name name, const ParamProperties &properties);

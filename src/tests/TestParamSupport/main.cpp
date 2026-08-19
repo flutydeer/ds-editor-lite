@@ -1,4 +1,5 @@
 #include "Model/Utils/ParamUtils.h"
+#include "UI/Views/ClipEditor/ParamEditor/UnsupportedParameterPromptState.h"
 
 #include <QCoreApplication>
 #include <QTextStream>
@@ -53,6 +54,32 @@ namespace {
         return expect(!paramUtils->isSupportedBySinger(ParamInfo::Energy, singer),
                       "known empty acoustic parameters disable acoustic controls");
     }
+
+    bool testPromptStateResetsForEveryProjectOpen() {
+        UnsupportedParameterPromptState state;
+        bool ok = true;
+        ok &= expect(state.shouldPrompt(ParamInfo::Energy, false),
+                     "first unsupported parameter prompts on project open");
+        ok &= expect(state.shouldPrompt(ParamInfo::Tension, false),
+                     "each unsupported parameter prompts independently");
+        ok &= expect(!state.shouldPrompt(ParamInfo::Breathiness, true),
+                     "supported parameter does not prompt");
+
+        state.acknowledge(ParamInfo::Energy);
+        ok &= expect(!state.shouldPrompt(ParamInfo::Energy, false),
+                     "acknowledged parameter does not prompt again in the same project");
+        ok &= expect(state.shouldPrompt(ParamInfo::Tension, false),
+                     "acknowledging one parameter does not suppress another");
+
+        state.resetForProject();
+        ok &= expect(state.shouldPrompt(ParamInfo::Energy, false),
+                     "reopening a project resets acknowledged parameters");
+        state.acknowledge(ParamInfo::Energy);
+        state.resetForProject();
+        ok &= expect(state.shouldPrompt(ParamInfo::Energy, false),
+                     "every subsequent project open resets acknowledged parameters");
+        return ok;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -61,5 +88,6 @@ int main(int argc, char *argv[]) {
     ok &= testKnownCapabilities();
     ok &= testUnknownCapabilitiesAreConservative();
     ok &= testKnownEmptyCapabilities();
+    ok &= testPromptStateResetsForEveryProjectOpen();
     return ok ? 0 : 1;
 }
