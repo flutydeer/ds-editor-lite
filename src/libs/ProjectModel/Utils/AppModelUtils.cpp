@@ -7,6 +7,8 @@
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 
+#include <algorithm>
+
 void AppModelUtils::copyNotes(const NoteList &source, NoteList &target) {
     target.clear();
     for (const auto &note : source) {
@@ -79,6 +81,43 @@ DrawCurveList AppModelUtils::mergeCurves(const DrawCurveList &original,
         MathUtils::binaryInsert(result, newCurve);
     }
     return result;
+}
+
+bool AppModelUtils::overwriteDrawCurveRange(DrawCurveList &target, const DrawCurveList &source,
+                                            int startTick, int endTick) {
+    if (startTick > endTick)
+        std::swap(startTick, endTick);
+    if (startTick == endTick)
+        return false;
+
+    DrawCurveList replacements;
+    for (const auto *curve : source) {
+        if (!curve || curve->isEmpty())
+            continue;
+
+        const auto firstIndex =
+            std::clamp((startTick - curve->localStart() + curve->step - 1) / curve->step, 0,
+                       static_cast<int>(curve->values().size()));
+        const auto lastIndex =
+            std::clamp((endTick - curve->localStart() + curve->step - 1) / curve->step, 0,
+                       static_cast<int>(curve->values().size()));
+        if (firstIndex >= lastIndex)
+            continue;
+
+        auto *replacement = new DrawCurve;
+        replacement->step = curve->step;
+        replacement->setLocalStart(curve->localStart() + firstIndex * curve->step);
+        replacement->setValues(curve->values().mid(firstIndex, lastIndex - firstIndex));
+        replacements.append(replacement);
+    }
+    if (replacements.isEmpty())
+        return false;
+
+    auto result = mergeCurves(target, replacements);
+    qDeleteAll(target);
+    qDeleteAll(replacements);
+    target = std::move(result);
+    return true;
 }
 
 DrawCurve AppModelUtils::getResultCurve(const DrawCurve &original, const DrawCurveList &edited) {
