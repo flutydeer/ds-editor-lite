@@ -242,6 +242,8 @@ void TrackEditorView::connectLegacyBackend() {
             &TrackEditorBackgroundView::onTrackCountChanged);
     connect(appStatus, &AppStatus::selectedTrackIndexChanged, m_gridItem,
             &TrackEditorBackgroundView::onTrackSelectionChanged);
+    connect(appStatus, &AppStatus::clipSelectionChanged, m_graphicsView,
+            &TracksGraphicsView::setClipSelection);
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeline,
             &TimelineView::setTimeRange);
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_tempoLane,
@@ -296,6 +298,7 @@ void TrackEditorView::connectLegacyBackend() {
     connect(m_graphicsView, &TracksGraphicsView::externalDropRequested, this,
             &TrackEditorView::handleExternalDrop);
     m_graphicsView->setAutoTurnPage(appStatus->trackAutoPageTurnEnabled);
+    m_graphicsView->setClipSelection(appStatus->selectedClips.get());
 }
 
 void TrackEditorView::connectRhiBackend() {
@@ -399,6 +402,7 @@ void TrackEditorView::populateLegacyClipItems() {
         for (auto *clip : trackViewModel->dsTrack->clips())
             onClipInserted(clip, trackViewModel, trackIndex);
     }
+    m_graphicsView->setClipSelection(appStatus->selectedClips.get());
 }
 
 double TrackEditorView::activeScaleY() const {
@@ -564,6 +568,8 @@ void TrackEditorView::onModelChanged() {
         onTrackInserted(track, index);
         index++;
     }
+    if (m_graphicsView)
+        m_graphicsView->setClipSelection(appStatus->selectedClips.get());
     emit trackCountChanged(m_viewModel.tracks.count());
 }
 
