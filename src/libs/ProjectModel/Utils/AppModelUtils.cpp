@@ -11,37 +11,42 @@
 #include <numeric>
 
 namespace {
-    DrawCurve *resampleCurve(const DrawCurve &curve, const int step) {
-        if (curve.step == step)
+    int curveValueAt(const DrawCurve &curve, const int tick) {
+        const auto offset = tick - curve.localStart();
+        const auto leftIndex = offset / curve.step;
+        if (leftIndex >= curve.values().size() - 1)
+            return curve.values().last();
+
+        const auto remainder = offset % curve.step;
+        if (remainder == 0)
+            return curve.values().at(leftIndex);
+
+        const auto leftValue = curve.values().at(leftIndex);
+        const auto rightValue = curve.values().at(leftIndex + 1);
+        return qRound(leftValue + (rightValue - leftValue) * static_cast<double>(remainder) /
+                                      curve.step);
+    }
+
+    DrawCurve *resampleCurve(const DrawCurve &curve, const int startTick, const int endTick,
+                             const int step) {
+        if (curve.localStart() == startTick && curve.localEndTick() == endTick &&
+            curve.step == step)
             return new DrawCurve(curve);
 
         auto *result = new DrawCurve(curve);
         result->step = step;
+        result->setLocalStart(startTick);
 
         QList<int> values;
-        values.reserve((curve.localEndTick() - curve.localStart()) / step);
-        for (int tick = curve.localStart(); tick < curve.localEndTick(); tick += step) {
-            const auto offset = tick - curve.localStart();
-            const auto leftIndex = offset / curve.step;
-            if (leftIndex >= curve.values().size() - 1) {
-                values.append(curve.values().last());
-                continue;
-            }
-
-            const auto remainder = offset % curve.step;
-            if (remainder == 0) {
-                values.append(curve.values().at(leftIndex));
-                continue;
-            }
-
-            const auto leftValue = curve.values().at(leftIndex);
-            const auto rightValue = curve.values().at(leftIndex + 1);
-            values.append(qRound(leftValue +
-                                 (rightValue - leftValue) * static_cast<double>(remainder) /
-                                     curve.step));
-        }
+        values.reserve((endTick - startTick) / step);
+        for (int tick = startTick; tick < endTick; tick += step)
+            values.append(curveValueAt(curve, tick));
         result->setValues(values);
         return result;
+    }
+
+    DrawCurve *resampleCurve(const DrawCurve &curve, const int step) {
+        return resampleCurve(curve, curve.localStart(), curve.localEndTick(), step);
     }
 }
 
@@ -131,20 +136,15 @@ bool AppModelUtils::overwriteDrawCurveRange(DrawCurveList &target, const DrawCur
         if (!curve || curve->isEmpty() || curve->step <= 0)
             continue;
 
-        const auto firstIndex =
-            std::clamp((startTick - curve->localStart() + curve->step - 1) / curve->step, 0,
-                       static_cast<int>(curve->values().size()));
-        const auto lastIndex =
-            std::clamp((endTick - curve->localStart() + curve->step - 1) / curve->step, 0,
-                       static_cast<int>(curve->values().size()));
-        if (firstIndex >= lastIndex)
+        const auto replacementStart = std::max(startTick, curve->localStart());
+        const auto replacementEnd = std::min(endTick, curve->localEndTick());
+        if (replacementStart >= replacementEnd)
             continue;
 
-        auto *replacement = new DrawCurve;
-        replacement->step = curve->step;
-        replacement->setLocalStart(curve->localStart() + firstIndex * curve->step);
-        replacement->setValues(curve->values().mid(firstIndex, lastIndex - firstIndex));
-        replacements.append(replacement);
+        auto replacementStep = std::gcd(curve->step, replacementStart - curve->localStart());
+        replacementStep = std::gcd(replacementStep, replacementEnd - replacementStart);
+        replacements.append(
+            resampleCurve(*curve, replacementStart, replacementEnd, replacementStep));
     }
     if (replacements.isEmpty())
         return false;

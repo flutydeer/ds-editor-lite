@@ -64,6 +64,21 @@ namespace {
         qDeleteAll(target);
     }
 
+    void testUnalignedSourceSamples() {
+        QList<DrawCurve *> source{curve(0, {0, 30, 60, 90, 120}, 3)};
+        QList<DrawCurve *> target;
+
+        expect(AppModelUtils::overwriteDrawCurveRange(target, source, 5, 10),
+               "a source grid not aligned to the brush must be copied");
+        expect(target.size() == 1 && target.first()->localStart() == 5 &&
+                   target.first()->step == 1 &&
+                   target.first()->values() == QList<int>({50, 60, 70, 80, 90}),
+               "replacement samples must remain under the brushed interval");
+
+        qDeleteAll(source);
+        qDeleteAll(target);
+    }
+
     void testSourceGapsStaySeparate() {
         QList<DrawCurve *> source{curve(0, {100, 110}), curve(20, {200, 210})};
         QList<DrawCurve *> target;
@@ -83,6 +98,7 @@ int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     testOverwriteInterval();
     testDifferentSampleSteps();
+    testUnalignedSourceSamples();
     testSourceGapsStaySeparate();
     return failures == 0 ? 0 : 1;
 }
