@@ -9,6 +9,9 @@ namespace SingingClipSlicerGlobal {
     // 头部填充SP长度基础量(ms)
     constexpr double padBaseLength = 100;
 
+    // 末尾填充SP的最大长度(ms)
+    constexpr double tailPaddingLengthMax = padBaseLength;
+
     // 头部填充SP长度增量基数(ms)
     constexpr double padUnitAdditionalLength = 100;
 }

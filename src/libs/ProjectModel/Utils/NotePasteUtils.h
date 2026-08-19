@@ -1,7 +1,7 @@
 #ifndef NOTEPASTEUTILS_H
 #define NOTEPASTEUTILS_H
 
-#include <lite/ProjectModel/Utils/ClipResizeUtils.h>
+#include <lite/ProjectModel/AppModel/Clip.h>
 
 #include <algorithm>
 
@@ -35,12 +35,6 @@ namespace NotePasteUtils {
         return {localAnchor, offset, source.end + offset};
     }
 
-    inline bool extendClipToFit(Clip::ClipCommonProperties &target, const int pastedEnd) {
-        if (pastedEnd <= target.clipStart + target.clipLen)
-            return false;
-        return ClipResizeUtils::updateRightEdge(target, pastedEnd - target.clipStart, 1, true,
-                                                std::max(target.length, pastedEnd));
-    }
 }
 
 #endif // NOTEPASTEUTILS_H

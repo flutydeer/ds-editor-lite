@@ -10,9 +10,15 @@
 #include "RemoveNoteAction.h"
 #include "SplitNoteAction.h"
 #include "Controller/Actions/AppModel/Clip/EditSingingClipPropertiesAction.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/Utils/ClipResizeUtils.h>
+#include <lite/ProjectModel/Utils/SingingClipRangeUtils.h>
 
 #include <QCoreApplication>
+#include <QHash>
+#include <QSet>
 
 #include <limits>
 
@@ -50,20 +56,44 @@ namespace {
         return focus;
     }
 
+    template <typename EndPosition>
+    int projectedContentEnd(const SingingClip *clip, EndPosition endPosition) {
+        return ClipResizeUtils::furthestContentEnd(clip->notes().begin(), clip->notes().end(), 0,
+                                                  std::move(endPosition));
+    }
+
+    QSet<const Note *> noteSet(const QList<Note *> &notes) {
+        QSet<const Note *> result;
+        for (const auto note : notes) {
+            if (note)
+                result.insert(note);
+        }
+        return result;
+    }
+
 } // namespace
 
-void NoteActions::insertNotes(const QList<Note *> &notes, SingingClip *clip) {
-    setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Insert note(s)"));
-    addAction(new InsertNoteAction(notes, clip));
-    const auto focus = noteFocus(notes, clip);
-    setFocusTransition({focus, focus});
+void NoteActions::addClipExtensionToFit(const int contentEnd, SingingClip *clip, Track *track) {
+    if (!clip || !track)
+        return;
+
+    const auto oldProperties = Clip::ClipCommonProperties(*clip);
+    auto newProperties = oldProperties;
+    if (!SingingClipRangeUtils::extendRightToFit(newProperties, appModel->timeline(), contentEnd))
+        return;
+
+    addAction(EditSingingClipPropertiesAction::build(oldProperties, newProperties, clip, track));
 }
 
-void NoteActions::pasteNotes(const QList<Note *> &notes, SingingClip *clip, Track *track,
-                             const Clip::ClipCommonProperties &newClipProperties) {
+void NoteActions::insertNotes(const QList<Note *> &notes, SingingClip *clip, Track *track) {
     setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Insert note(s)"));
-    addAction(EditSingingClipPropertiesAction::build(Clip::ClipCommonProperties(*clip),
-                                                     newClipProperties, clip, track));
+    auto contentEnd = projectedContentEnd(
+        clip, [](const Note *note) { return note->localStart() + note->length(); });
+    for (const auto note : notes) {
+        if (note)
+            contentEnd = std::max(contentEnd, note->localStart() + note->length());
+    }
+    addClipExtensionToFit(contentEnd, clip, track);
     addAction(new InsertNoteAction(notes, clip));
     const auto focus = noteFocus(notes, clip);
     setFocusTransition({focus, focus});
@@ -77,22 +107,42 @@ void NoteActions::removeNotes(const QList<Note *> &notes, SingingClip *clip) {
 }
 
 void NoteActions::editNotesStartAndLength(const QList<Note *> &notes, const int delta,
-                                          SingingClip *clip) {
+                                          SingingClip *clip, Track *track) {
     setTranslatableName("NoteActions",
                         QT_TRANSLATE_NOOP("NoteActions", "Edit note start and length"));
+    addClipExtensionToFit(projectedContentEnd(
+                              clip, [](const Note *note) {
+                                  return note->localStart() + note->length();
+                              }),
+                          clip, track);
     addAction(new EditNoteStartAndLengthAction(notes, delta, clip));
     setFocusTransition({noteFocus(notes, clip), noteFocus(notes, clip, delta, 0, 0, true)});
 }
 
-void NoteActions::editNotesLength(const QList<Note *> &notes, const int delta, SingingClip *clip) {
+void NoteActions::editNotesLength(const QList<Note *> &notes, const int delta, SingingClip *clip,
+                                  Track *track) {
     setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Edit note length"));
+    const auto edited = noteSet(notes);
+    addClipExtensionToFit(projectedContentEnd(
+                              clip, [&](const Note *note) {
+                                  return note->localStart() + note->length() +
+                                         (edited.contains(note) ? delta : 0);
+                              }),
+                          clip, track);
     addAction(new EditNotesLengthAction(notes, delta, clip));
     setFocusTransition({noteFocus(notes, clip), noteFocus(notes, clip, 0, 0, delta)});
 }
 
 void NoteActions::editNotePosition(const QList<Note *> &notes, const int deltaTick,
-                                   const int deltaKey, SingingClip *clip) {
+                                   const int deltaKey, SingingClip *clip, Track *track) {
     setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Edit note position"));
+    const auto edited = noteSet(notes);
+    addClipExtensionToFit(projectedContentEnd(
+                              clip, [&](const Note *note) {
+                                  return note->localStart() + note->length() +
+                                         (edited.contains(note) ? deltaTick : 0);
+                              }),
+                          clip, track);
     addAction(new EditNotePositionAction(notes, deltaTick, deltaKey, clip));
     setFocusTransition({noteFocus(notes, clip), noteFocus(notes, clip, deltaTick, deltaKey)});
 }
@@ -132,7 +182,7 @@ void NoteActions::splitNote(Note *originalNote, Note *newNote, int newLength, Si
 
 void NoteActions::quantizeNotes(const QList<Note *> &notes,
                                 const QList<QPair<int, int>> &newStartLengths,
-                                SingingClip *clip) {
+                                SingingClip *clip, Track *track) {
     setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Quantize notes"));
     QList<QuantizeNotesAction::Change> changes;
     changes.reserve(notes.size());
@@ -148,6 +198,17 @@ void NoteActions::quantizeNotes(const QList<Note *> &notes,
         change.newLength = newStartLengths.at(i).second;
         changes.append(change);
     }
+    QHash<const Note *, QPair<int, int>> projectedGeometry;
+    for (const auto &change : changes)
+        projectedGeometry.insert(change.note, {change.newStart, change.newLength});
+    addClipExtensionToFit(projectedContentEnd(
+                              clip, [&](const Note *note) {
+                                  const auto geometry = projectedGeometry.constFind(note);
+                                  return geometry == projectedGeometry.cend()
+                                             ? note->localStart() + note->length()
+                                             : geometry->first + geometry->second;
+                              }),
+                          clip, track);
     addAction(new QuantizeNotesAction(std::move(changes), clip));
 
     const auto before = noteFocus(notes, clip);
