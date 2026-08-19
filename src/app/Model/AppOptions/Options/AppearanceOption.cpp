@@ -20,6 +20,8 @@ void AppearanceOption::load(const QJsonObject &object) {
             saved == QStringLiteral("dark"))
             themeId = saved;
     }
+    if (object.contains(uiFontFamilyKey))
+        uiFontFamily = object.value(uiFontFamilyKey).toString().trimmed();
 }
 
 void AppearanceOption::save(QJsonObject &object) {
@@ -28,6 +30,5 @@ void AppearanceOption::save(QJsonObject &object) {
     object.insert(animationLevelKey, animationLevel);
     object.insert(animationTimeScaleKey, animationTimeScale);
     object.insert(themeIdKey, themeId);
+    object.insert(uiFontFamilyKey, uiFontFamily);
 }
-
-

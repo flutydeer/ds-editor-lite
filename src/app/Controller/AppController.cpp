@@ -11,6 +11,7 @@
 #include "Interface/IMainWindow.h"
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppOptions/AppOptions.h"
+#include "Utils/FontManager.h"
 #include "Global/AppGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/PackageManager/PackageManager.h>
@@ -178,6 +179,7 @@ void AppControllerPrivate::initializeModules() {
         theme->setAnimationSettings(AnimationGlobal::fromString(appearance->animationLevel),
                                     appearance->animationTimeScale);
         theme->updateThemePreference(appearance->themeId);
+        FontManager::instance().applyInterfaceFont(appearance->uiFontFamily);
     };
     pushAppearance();
     connect(appOptions, &AppOptions::optionsChanged, ThemeManager::instance(),

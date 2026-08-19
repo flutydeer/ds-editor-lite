@@ -13,6 +13,13 @@ class FontManager {
 public:
     static FontManager &instance();
 
+    // Apply a global interface font. Passing an empty family restores the
+    // platform-default UI font. Hot-swappable at runtime (no restart).
+    void applyInterfaceFont(const QString &family);
+
+    // Get the platform-default UI font family
+    const QString &fallbackFontFamily() const;
+
     // Get the music UI font (Sarasa-UI-Music-Regular) with fallback
     QFont musicUIFont(int pixelSize = 13) const;
 

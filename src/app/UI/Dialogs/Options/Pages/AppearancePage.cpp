@@ -5,7 +5,11 @@
 #include <QSignalBlocker>
 #include <QVBoxLayout>
 
+#include <QAbstractItemView>
+#include <QFontDatabase>
+
 #include "Model/AppOptions/AppOptions.h"
+#include "Utils/FontManager.h"
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/LineEdit.h>
 #include <lite/GUI/Controls/CardView.h>
@@ -52,6 +56,13 @@ void AppearancePage::changeTheme(const int index) {
     appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
 }
 
+void AppearancePage::changeInterfaceFont(const int index) {
+    // Index 0 is the "Default" item (empty family restores platform default).
+    const auto family = index <= 0 ? QString() : m_cbxInterfaceFont->itemData(index).toString();
+    appOptions->appearance()->uiFontFamily = family;
+    appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
+}
+
 QWidget *AppearancePage::createContentWidget() {
     const auto widget = new QWidget;
     const auto option = appOptions->appearance();
@@ -65,6 +76,29 @@ QWidget *AppearancePage::createContentWidget() {
 
     const auto themeCard = new OptionListCard(tr("Theme"));
     themeCard->addItem(tr("Color theme"), m_cbxTheme);
+
+    m_cbxInterfaceFont = new ComboBox;
+    // Item 0 is "Default" (restores the platform-default UI font).
+    m_cbxInterfaceFont->addItem(tr("Default"), QString());
+    m_fontFamilies = QFontDatabase::families();
+    // Windows reserves the "System" font family for its own UI; selecting it
+    // as a regular app font has no visible effect. Filter it out to keep the
+    // list usable and to avoid confusion with the theme's "System" option.
+    m_fontFamilies.removeAll(QStringLiteral("System"));
+    for (const auto &family : m_fontFamilies)
+        m_cbxInterfaceFont->addItem(family, family);
+    const auto savedFamily = option->uiFontFamily;
+    if (savedFamily.isEmpty() || !m_fontFamilies.contains(savedFamily))
+        m_cbxInterfaceFont->setCurrentIndex(0);
+    else
+        m_cbxInterfaceFont->setCurrentIndex(m_cbxInterfaceFont->findData(savedFamily));
+    // Pixel-per-pixel scrolling for the long font list.
+    m_cbxInterfaceFont->view()->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    connect(m_cbxInterfaceFont, &ComboBox::currentIndexChanged, this,
+            &AppearancePage::changeInterfaceFont);
+
+    const auto fontCard = new OptionListCard(tr("Font"));
+    fontCard->addItem(tr("Interface font"), tr("Takes effect immediately"), m_cbxInterfaceFont);
 
     m_swUseNativeFrame = new SwitchButton(option->useNativeFrame);
     connect(m_swUseNativeFrame, &SwitchButton::toggled, this, [this] {
@@ -107,6 +141,7 @@ QWidget *AppearancePage::createContentWidget() {
 
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(themeCard);
+    mainLayout->addWidget(fontCard);
     mainLayout->addWidget(windowCard);
     mainLayout->addWidget(animationCard);
 #if defined(WITH_DIRECT_MANIPULATION)

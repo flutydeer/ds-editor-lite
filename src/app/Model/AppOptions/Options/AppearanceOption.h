@@ -22,6 +22,9 @@ public:
     QString animationLevel = QStringLiteral("full");
     double animationTimeScale = 1;
     QString themeId = QStringLiteral("system");
+    // Empty string means the platform-default UI font (see FontManager).
+    // The font setting is hot-swappable; no restart required.
+    QString uiFontFamily;
 
 protected:
     void save(QJsonObject &object) override;
@@ -32,6 +35,7 @@ private:
     const QString animationLevelKey = "animationLevel";
     const QString animationTimeScaleKey = "animationTimeScale";
     const QString themeIdKey = "themeId";
+    const QString uiFontFamilyKey = "uiFontFamily";
 };
 
 #endif // APPEARANCEOPTION_H

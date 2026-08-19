@@ -45,7 +45,7 @@ namespace AppEnvironment {
         CMenu::setDefaultCornerPreference(CMenu::Round);
         CComboBox::setDefaultCornerPreference(CComboBox::Round);
 
-        auto f = SystemUtils::isWindows() ? QFont("Microsoft Yahei UI") : QFont();
+        auto f = QFont();
         f.setHintingPreference(QFont::PreferNoHinting);
         f.setPixelSize(13);
         QApplication::setFont(f);
