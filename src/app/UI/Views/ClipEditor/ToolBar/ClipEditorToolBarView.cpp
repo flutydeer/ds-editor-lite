@@ -278,7 +278,10 @@ PianoRollEditMode ClipEditorToolBarView::editMode() const {
 }
 
 bool ClipEditorToolBarView::supportsEditMode(const PianoRollEditMode mode) const {
-    return mode >= Select && mode <= FreezePitch;
+    Q_D(const ClipEditorToolBarView);
+    if (mode < Select || mode > FreezePitch)
+        return false;
+    return mode != FreezePitch || (d->m_btnPitchFreeze && d->m_btnPitchFreeze->isEnabled());
 }
 
 bool ClipEditorToolBarView::setEditMode(const PianoRollEditMode mode) {
