@@ -14,6 +14,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
+#include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
@@ -83,20 +84,14 @@ void PianoRollGraphicsViewHelper::splitNote(const int noteId, const int tick) {
 }
 
 void PianoRollGraphicsViewHelper::editPitch(const QList<DrawCurve *> &curves) {
-    QList<Curve *> list;
-    for (const auto curve : curves)
-        list.append(curve);
-
     auto *clip = dynamic_cast<SingingClip *>(clipController->clip());
-    if (clip) {
-        const auto &existing = clip->params.getParamByName(ParamInfo::Pitch)->curves(Param::Edited);
-        for (auto *curve : existing) {
-            if (curve->type() == Curve::Anchor)
-                list.append(new AnchorCurve(*dynamic_cast<AnchorCurve *>(curve)));
-        }
-    }
+    if (!clip)
+        return;
 
+    const auto &existing = clip->params.getParamByName(ParamInfo::Pitch)->curves(Param::Edited);
+    auto list = AnchorEditor::replaceDrawCurves(existing, curves);
     clipController->onParamEdited(ParamInfo::Pitch, list);
+    qDeleteAll(list);
 }
 
 NoteView *PianoRollGraphicsViewHelper::buildNoteView(const Note &note) {

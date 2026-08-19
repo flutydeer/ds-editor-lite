@@ -210,6 +210,30 @@ namespace {
         qDeleteAll(existing);
     }
 
+    void testCompositionRejectsSinglePointDrawCurves() {
+        auto *anchor = makeCurve({
+            {10, 20},
+            {20, 40}
+        });
+        auto *singlePoint = new DrawCurve;
+        singlePoint->setLocalStart(30);
+        singlePoint->setValues({60});
+        auto *draw = new DrawCurve;
+        draw->setLocalStart(40);
+        draw->setValues({70, 80});
+
+        auto result = AnchorEditor::replaceDrawCurves({anchor}, {singlePoint, draw});
+        expect(result.size() == 2 && result.first()->type() == Curve::Draw &&
+                   static_cast<DrawCurve *>(result.first())->values() == QList<int>({70, 80}) &&
+                   result.last()->type() == Curve::Anchor,
+               "draw replacement must reject single-point curves and preserve valid curves");
+
+        qDeleteAll(result);
+        delete draw;
+        delete singlePoint;
+        delete anchor;
+    }
+
     void testSelectionAndLastNodeMenu() {
         AnchorEditor::AnchorEditController controller;
         controller.setCoordinateMapper(mapper());
@@ -378,6 +402,7 @@ int main(int argc, char *argv[]) {
     testDragCancelRestoresSnapshot();
     testSelectionDeleteAndInterpolation();
     testCompositionPreservesOtherCurveKind();
+    testCompositionRejectsSinglePointDrawCurves();
     testSelectionAndLastNodeMenu();
     testBoundaryClippingAndRejectedMutation();
     testTransferAndMerge();
