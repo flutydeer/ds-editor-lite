@@ -59,6 +59,7 @@ public:
 };
 
 class PianoRollContextMenuController final : public QObject {
+    Q_OBJECT
 public:
     explicit PianoRollContextMenuController(QWidget *owner);
 

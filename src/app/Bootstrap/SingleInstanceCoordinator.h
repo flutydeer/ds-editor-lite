@@ -13,6 +13,7 @@ class QThread;
 class SingleInstanceIpcWorker;
 
 class SingleInstanceCoordinator final : public QObject {
+    Q_OBJECT
 public:
     enum class StartResult { Primary, Secondary, Error };
 

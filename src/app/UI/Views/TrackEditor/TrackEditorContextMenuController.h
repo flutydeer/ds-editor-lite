@@ -52,6 +52,7 @@ public:
 };
 
 class TrackEditorContextMenuController final : public QObject {
+    Q_OBJECT
 public:
     explicit TrackEditorContextMenuController(QWidget *owner);
 
