@@ -17,6 +17,7 @@ class ParamEditorGraphicsView;
 class ParamEditorToolBarView;
 class Button;
 class QLabel;
+class QResizeEvent;
 class QVBoxLayout;
 
 class ParamEditorView final : public QWidget {
@@ -34,6 +35,7 @@ public slots:
 
 protected:
     void changeEvent(QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private slots:
     void onPreviousKeyframe() const;

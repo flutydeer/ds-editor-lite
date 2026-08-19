@@ -52,6 +52,8 @@ public:
     void setActivePanel(AppGlobal::PanelType panel);
     void syncPanelVisibility(bool trackPanelVisible, bool bottomPanelVisible,
                              AppGlobal::PanelType bottomPanelType);
+    void syncEditTargetVisibility(EditorInteraction::Target target, bool visible,
+                                  AppGlobal::PanelType fallbackPanel);
     [[nodiscard]] AppGlobal::PanelType activePanel() const;
 
     void registerInteractionArea(QObject *area, AppGlobal::PanelType panel,

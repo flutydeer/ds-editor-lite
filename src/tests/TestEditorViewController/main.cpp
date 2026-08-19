@@ -494,7 +494,22 @@ namespace {
         expect(controller->activeEditTarget() == EditorInteraction::Target::Parameters,
                "visibility sync must preserve a focused parameter editor");
 
+        controller->syncEditTargetVisibility(EditorInteraction::Target::Parameters, true,
+                                             AppGlobal::ClipEditor);
+        expect(controller->activeEditTarget() == EditorInteraction::Target::Parameters,
+               "a visible parameter editor must retain its edit target");
+        controller->syncEditTargetVisibility(EditorInteraction::Target::Parameters, false,
+                                             AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::ClipEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::PianoRoll,
+               "collapsing the parameter editor must transfer commands to the piano roll");
+
         controller->setActivePanel(AppGlobal::TracksEditor);
+        controller->syncEditTargetVisibility(EditorInteraction::Target::Parameters, false,
+                                             AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::TracksEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Tracks,
+               "collapsing an unfocused edit target must not steal focus");
         bottomPanel.setPanelType(AppGlobal::Generic);
         controller->syncPanelVisibility(false, true, AppGlobal::Generic);
         expect(controller->activePanel() == AppGlobal::Generic &&

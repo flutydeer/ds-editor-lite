@@ -121,6 +121,13 @@ void EditorViewController::syncPanelVisibility(const bool trackPanelVisible,
         setActivePanel(bottomPanelType);
 }
 
+void EditorViewController::syncEditTargetVisibility(const EditorInteraction::Target target,
+                                                    const bool visible,
+                                                    const AppGlobal::PanelType fallbackPanel) {
+    if (!visible && m_activeEditTarget == target)
+        setActivePanel(fallbackPanel);
+}
+
 AppGlobal::PanelType EditorViewController::activePanel() const {
     return m_activePanel;
 }

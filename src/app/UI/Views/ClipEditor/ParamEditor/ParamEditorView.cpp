@@ -23,6 +23,7 @@
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QResizeEvent>
 #include <QVBoxLayout>
 
 using namespace SpeakerMixModel;
@@ -158,6 +159,13 @@ void ParamEditorView::changeEvent(QEvent *event) {
         refreshSpeakerMixToolBar();
         refreshParameterSupportState();
     }
+}
+
+void ParamEditorView::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+    editorViewController->syncEditTargetVisibility(
+        EditorInteraction::Target::Parameters, event->size().height() > 0,
+        AppGlobal::ClipEditor);
 }
 
 void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) {
