@@ -1,5 +1,5 @@
 #include "UI/Views/TrackEditor/AudioClipDragState.h"
-#include "UI/Views/TrackEditor/ClipResizeUtils.h"
+#include <lite/ProjectModel/Utils/ClipResizeUtils.h>
 #include "UI/Views/TrackEditor/SingingClipPreviewLayout.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"

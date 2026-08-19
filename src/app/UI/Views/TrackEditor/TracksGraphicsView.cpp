@@ -1,7 +1,7 @@
 #include "TracksGraphicsView.h"
 
 #include "AudioClipDragState.h"
-#include "ClipResizeUtils.h"
+#include <lite/ProjectModel/Utils/ClipResizeUtils.h>
 #include "TracksGraphicsScene.h"
 #include "Controller/EditorViewController.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"

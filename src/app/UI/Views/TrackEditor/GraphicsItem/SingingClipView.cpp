@@ -7,7 +7,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Views/Common/EditorItemGeometry.h"
-#include "UI/Views/TrackEditor/ClipResizeUtils.h"
+#include <lite/ProjectModel/Utils/ClipResizeUtils.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/Support/MathUtils.h>
 #include "Global/AppGlobal.h"
