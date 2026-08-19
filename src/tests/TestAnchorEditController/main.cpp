@@ -239,7 +239,10 @@ namespace {
         selectionController.loadFromModel({source});
         selectionController.setEditActive(true);
         selectionController.doubleClickAt({100, 800}, Qt::LeftButton);
+        const auto provisionalRevision = selectionController.curveRevision();
         selectionController.pressAt({300, 800}, Qt::LeftButton);
+        expect(selectionController.curveRevision() > provisionalRevision,
+               "discarding a provisional curve must invalidate rendered curve state");
         selectionController.setSelectedInterpolation(AnchorNode::Linear);
         expect(selectionController.curves().size() == 1 && selectionPublishes == 1,
                "switching to an existing curve must discard the provisional curve and commit");

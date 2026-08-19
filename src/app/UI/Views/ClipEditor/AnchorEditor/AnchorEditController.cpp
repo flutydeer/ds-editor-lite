@@ -489,6 +489,7 @@ namespace AnchorEditor {
         m_state.mergeCandidateCurve = nullptr;
         m_state.mergeEndpointNode = nullptr;
         delete curve;
+        ++m_curveRevision;
     }
 
     void AnchorEditController::enterEditingState(AnchorCurve *curve, AnchorNode *node) {
