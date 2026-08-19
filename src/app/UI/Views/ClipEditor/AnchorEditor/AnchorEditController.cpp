@@ -451,6 +451,12 @@ namespace AnchorEditor {
     void AnchorEditController::cleanupIncompleteCurve(AnchorCurve *curve) {
         if (!curve || AnchorEditor::isCompleteAnchorCurve(curve))
             return;
+        if (curve == m_provisionalCurve) {
+            discardProvisionalCurve();
+            if (!m_state.currentCurve)
+                exitEditingState();
+            return;
+        }
         m_curves.removeOne(curve);
         if (m_state.currentCurve == curve)
             m_state.currentCurve = nullptr;
@@ -459,11 +465,30 @@ namespace AnchorEditor {
             if (m_state.hoveredNode == node)
                 m_state.hoveredNode = nullptr;
         }
-        if (m_provisionalCurve == curve)
-            m_provisionalCurve = nullptr;
         delete curve;
         if (!m_state.currentCurve)
             exitEditingState();
+    }
+
+    void AnchorEditController::discardProvisionalCurve() {
+        auto *curve = m_provisionalCurve;
+        if (!curve)
+            return;
+        m_provisionalCurve = nullptr;
+        m_curves.removeOne(curve);
+        if (m_state.currentCurve == curve)
+            m_state.currentCurve = nullptr;
+        for (auto *node : curve->nodes().toList()) {
+            m_state.selectedNodes.removeOne(node);
+            if (m_state.hoveredNode == node)
+                m_state.hoveredNode = nullptr;
+        }
+        m_state.showPreview = false;
+        m_state.previewCurve = nullptr;
+        m_state.showMergePreview = false;
+        m_state.mergeCandidateCurve = nullptr;
+        m_state.mergeEndpointNode = nullptr;
+        delete curve;
     }
 
     void AnchorEditController::enterEditingState(AnchorCurve *curve, AnchorNode *node) {
@@ -485,8 +510,11 @@ namespace AnchorEditor {
     }
 
     void AnchorEditController::selectNode(AnchorNode *node) {
+        auto *owner = findOwnerCurve(node);
+        if (m_provisionalCurve && owner != m_provisionalCurve)
+            discardProvisionalCurve();
         m_state.selectedNodes = {node};
-        m_state.currentCurve = findOwnerCurve(node);
+        m_state.currentCurve = owner;
     }
 
     void AnchorEditController::clearSelection() {
@@ -508,6 +536,8 @@ namespace AnchorEditor {
         } else {
             curve = anchorCurveAt(tick);
         }
+        if (m_provisionalCurve && curve != m_provisionalCurve)
+            discardProvisionalCurve();
         const bool createdCurve = !curve;
         if (createdCurve) {
             curve = new AnchorCurve;

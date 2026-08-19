@@ -1305,8 +1305,11 @@ public:
     }
 
     void selectAnchorNode(AnchorNode *node) {
+        auto *owner = findAnchorOwner(node);
+        if (provisionalAnchorCurve && owner != provisionalAnchorCurve)
+            discardProvisionalAnchorCurve();
         selectedAnchorNodes = {node};
-        currentAnchorCurve = findAnchorOwner(node);
+        currentAnchorCurve = owner;
     }
 
     void enterAnchorEditing(AnchorCurve *curve, AnchorNode *node = nullptr) {
@@ -1327,6 +1330,12 @@ public:
     void cleanupIncompleteAnchorCurve(AnchorCurve *curve) {
         if (!curve || AnchorEditor::isCompleteAnchorCurve(curve))
             return;
+        if (curve == provisionalAnchorCurve) {
+            discardProvisionalAnchorCurve();
+            if (!currentAnchorCurve)
+                exitAnchorEditing();
+            return;
+        }
         anchorCurves.removeOne(curve);
         if (currentAnchorCurve == curve)
             currentAnchorCurve = nullptr;
@@ -1339,11 +1348,30 @@ public:
             anchorPreviewCurve = nullptr;
         if (anchorMergeCandidateCurve == curve)
             anchorMergeCandidateCurve = nullptr;
-        if (provisionalAnchorCurve == curve)
-            provisionalAnchorCurve = nullptr;
         delete curve;
         if (!currentAnchorCurve)
             exitAnchorEditing();
+    }
+
+    void discardProvisionalAnchorCurve() {
+        auto *curve = provisionalAnchorCurve;
+        if (!curve)
+            return;
+        provisionalAnchorCurve = nullptr;
+        anchorCurves.removeOne(curve);
+        if (currentAnchorCurve == curve)
+            currentAnchorCurve = nullptr;
+        for (auto *node : curve->nodes().toList()) {
+            selectedAnchorNodes.removeOne(node);
+            if (hoveredAnchorNode == node)
+                hoveredAnchorNode = nullptr;
+        }
+        showAnchorPreview = false;
+        anchorPreviewCurve = nullptr;
+        showAnchorMergePreview = false;
+        anchorMergeCandidateCurve = nullptr;
+        anchorMergeEndpointNode = nullptr;
+        delete curve;
     }
 
     void cleanupIncompleteAnchorCurves() {
@@ -1414,6 +1442,8 @@ public:
         } else {
             curve = anchorCurveAt(point.x());
         }
+        if (provisionalAnchorCurve && curve != provisionalAnchorCurve)
+            discardProvisionalAnchorCurve();
         const bool createdCurve = !curve;
         if (createdCurve) {
             curve = new AnchorCurve;

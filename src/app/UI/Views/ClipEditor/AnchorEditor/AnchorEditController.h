@@ -114,6 +114,7 @@ namespace AnchorEditor {
                                                         AnchorNode *exclude = nullptr);
         void removeOverlappingNodes(AnchorCurve *curve, AnchorNode *keep);
         void cleanupIncompleteCurve(AnchorCurve *curve);
+        void discardProvisionalCurve();
 
         void enterEditingState(AnchorCurve *curve, AnchorNode *node = nullptr);
         void exitEditingState();

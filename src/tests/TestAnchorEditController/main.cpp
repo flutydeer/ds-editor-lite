@@ -221,6 +221,54 @@ namespace {
         delete source;
     }
 
+    void testSwitchingAwayFromProvisionalAllowsCommit() {
+        auto *source = makeCurve({
+            {30, 20},
+            {40, 40}
+        });
+
+        AnchorEditor::AnchorEditController selectionController;
+        selectionController.setCoordinateMapper(mapper());
+        int selectionPublishes = 0;
+        selectionController.setHostCallbacks({
+            [] { return true; },
+            [&](const QList<AnchorCurve *> &) { ++selectionPublishes; },
+            [](AnchorEditor::EditFinishReason) {},
+            [] {},
+        });
+        selectionController.loadFromModel({source});
+        selectionController.setEditActive(true);
+        selectionController.doubleClickAt({100, 800}, Qt::LeftButton);
+        selectionController.pressAt({300, 800}, Qt::LeftButton);
+        selectionController.setSelectedInterpolation(AnchorNode::Linear);
+        expect(selectionController.curves().size() == 1 && selectionPublishes == 1,
+               "switching to an existing curve must discard the provisional curve and commit");
+        if (!selectionController.curves().isEmpty()) {
+            expect(selectionController.curves().first()->nodes().toList().first()->interpMode() ==
+                       AnchorNode::Linear,
+                   "the selected existing curve must remain editable after a provisional curve");
+        }
+
+        AnchorEditor::AnchorEditController insertionController;
+        insertionController.setCoordinateMapper(mapper());
+        int insertionPublishes = 0;
+        insertionController.setHostCallbacks({
+            [] { return true; },
+            [&](const QList<AnchorCurve *> &) { ++insertionPublishes; },
+            [](AnchorEditor::EditFinishReason) {},
+            [] {},
+        });
+        insertionController.loadFromModel({source});
+        insertionController.setEditActive(true);
+        insertionController.doubleClickAt({100, 800}, Qt::LeftButton);
+        insertionController.doubleClickAt({350, 700}, Qt::LeftButton);
+        expect(insertionController.curves().size() == 1 &&
+                   insertionController.curves().first()->nodes().toList().size() == 3 &&
+                   insertionPublishes == 1,
+               "adding to an existing curve must replace and commit the provisional curve");
+        delete source;
+    }
+
     void testDeleteToOneRemovesWholeCurve() {
         AnchorEditor::AnchorEditController controller;
         controller.setCoordinateMapper(mapper());
@@ -512,6 +560,7 @@ int main(int argc, char *argv[]) {
     testCreateAndPublishingReentry();
     testProvisionalAnchorExitDiscardsWithoutPublishing();
     testCreateClearsOverlappingPreview();
+    testSwitchingAwayFromProvisionalAllowsCommit();
     testDragCancelRestoresSnapshot();
     testSelectionDeleteAndInterpolation();
     testDeleteToOneRemovesWholeCurve();
