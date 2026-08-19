@@ -22,7 +22,7 @@ QList<Curve *> AnchorEditor::replaceDrawCurves(const QList<Curve *> &existing,
                                                const QList<DrawCurve *> &replacementDrawCurves) {
     QList<Curve *> result;
     for (const auto *curve : replacementDrawCurves) {
-        if (curve)
+        if (curve && curve->values().size() >= 2)
             result.append(new DrawCurve(*curve));
     }
     for (const auto *curve : existing) {
