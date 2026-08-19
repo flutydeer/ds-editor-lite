@@ -108,6 +108,19 @@ void EditorViewController::setActivePanel(AppGlobal::PanelType panel) {
     setActiveContext(panel, EditorInteraction::defaultTargetForPanel(panel));
 }
 
+void EditorViewController::syncPanelVisibility(const bool trackPanelVisible,
+                                               const bool bottomPanelVisible,
+                                               const AppGlobal::PanelType bottomPanelType) {
+    if (!trackPanelVisible && !bottomPanelVisible)
+        return;
+    if (!bottomPanelVisible) {
+        setActivePanel(AppGlobal::TracksEditor);
+        return;
+    }
+    if (!trackPanelVisible && m_activePanel != bottomPanelType)
+        setActivePanel(bottomPanelType);
+}
+
 AppGlobal::PanelType EditorViewController::activePanel() const {
     return m_activePanel;
 }

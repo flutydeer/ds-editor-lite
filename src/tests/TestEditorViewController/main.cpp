@@ -454,6 +454,59 @@ namespace {
         controller->setActivePanel(AppGlobal::TracksEditor);
     }
 
+    void testPanelVisibilityRouting(EditorViewController *controller) {
+        controller->setActivePanel(AppGlobal::TracksEditor);
+        FakePanel trackPanel(AppGlobal::TracksEditor);
+        FakePanel bottomPanel(AppGlobal::ClipEditor);
+        controller->registerPanel(&trackPanel);
+        controller->registerPanel(&bottomPanel);
+
+        QObject parameterArea;
+        controller->registerInteractionArea(&parameterArea, AppGlobal::ClipEditor,
+                                            EditorInteraction::Target::Parameters);
+        QEvent parameterPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&parameterArea, &parameterPress);
+
+        controller->syncPanelVisibility(true, true, AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::ClipEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Parameters,
+               "showing both panels must preserve the focused visual editor");
+
+        controller->syncPanelVisibility(true, false, AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::TracksEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Tracks &&
+                   trackPanel.panelActive() && !bottomPanel.panelActive(),
+               "hiding the bottom panel must transfer focus and commands to tracks");
+
+        controller->syncPanelVisibility(true, true, AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::TracksEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Tracks,
+               "reopening the bottom panel must not steal track focus");
+
+        controller->syncPanelVisibility(false, true, AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::ClipEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::PianoRoll &&
+                   !trackPanel.panelActive() && bottomPanel.panelActive(),
+               "hiding tracks must transfer focus and commands to the visible bottom page");
+
+        QCoreApplication::sendEvent(&parameterArea, &parameterPress);
+        controller->syncPanelVisibility(false, true, AppGlobal::ClipEditor);
+        expect(controller->activeEditTarget() == EditorInteraction::Target::Parameters,
+               "visibility sync must preserve a focused parameter editor");
+
+        controller->setActivePanel(AppGlobal::TracksEditor);
+        bottomPanel.setPanelType(AppGlobal::Generic);
+        controller->syncPanelVisibility(false, true, AppGlobal::Generic);
+        expect(controller->activePanel() == AppGlobal::Generic &&
+                   controller->activeEditTarget() == EditorInteraction::Target::None,
+               "a visible non-editor bottom page must disable edit commands");
+
+        controller->unregisterInteractionArea(&parameterArea);
+        controller->unregisterPanel(&bottomPanel);
+        controller->unregisterPanel(&trackPanel);
+        controller->setActivePanel(AppGlobal::TracksEditor);
+    }
+
 } // namespace
 
 int main(int argc, char *argv[]) {
@@ -464,6 +517,7 @@ int main(int argc, char *argv[]) {
     testForwardingAndSnapshots(controller);
     testActivePanels(controller);
     testInteractionRouting(controller);
+    testPanelVisibilityRouting(controller);
 
     controller->setView(nullptr);
     if (g_failures == 0) {

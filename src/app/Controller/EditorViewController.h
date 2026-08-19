@@ -50,6 +50,8 @@ public:
     void registerPanel(IPanel *panel);
     void unregisterPanel(IPanel *panel);
     void setActivePanel(AppGlobal::PanelType panel);
+    void syncPanelVisibility(bool trackPanelVisible, bool bottomPanelVisible,
+                             AppGlobal::PanelType bottomPanelType);
     [[nodiscard]] AppGlobal::PanelType activePanel() const;
 
     void registerInteractionArea(QObject *area, AppGlobal::PanelType panel,
