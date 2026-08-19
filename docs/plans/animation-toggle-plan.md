@@ -1,7 +1,6 @@
 # 动画三档改开关实现方案（Animation Toggle）
 
-> 状态：📋 方案（未实施）
-> 2026-08-20 排查完成，待用户确认后按本文实施。
+> 状态：✅ 已实施并提交（`f6090d5b`，构建+单测通过）。待用户验收。2026-08-20
 
 ## Goal
 
@@ -305,6 +304,8 @@ void testEffectiveDurationPolicy() {
 - `testDialogTitleBarRuntimeUpdate`、`testProgressAndTapTempoLevels`、`testToolTipImmediateCompletion` 把 `setAnimationSettings(AnimationGlobal::X, ...)` 改成 `setAnimationSettings(bool,...)`
 - `AnimationProbe` 覆盖 `afterSetAnimationEnabled(bool)` 空实现
 - 结尾 `setAnimationSettings(AnimationGlobal::Full, 1.0)` → `setAnimationSettings(true, 1.0)`
+
+**Step 5** — 补充（实施中发现）：`src/tests/TestScrollBarInterplay/main.cpp` 也在用 `setAnimationLevel(AnimationGlobal::None/Full)`（对 WheelInputController / EditorViewportAnimation 设开关语义），需同步替换为 `setAnimationEnabled(false/true)`。方案初版遗漏，grep 兜底检查时发现并一并处理。
 
 ### Task 9：构建 + 单测验证
 
