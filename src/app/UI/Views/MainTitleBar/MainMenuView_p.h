@@ -118,6 +118,8 @@ public:
     void exitClipEditorState();
     void enterTracksEditorState();
     void exitTracksEditorState();
+    void enterParametersEditorState();
+    void exitParametersEditorState();
     void updatePasteActionState();
 
     void initActions();

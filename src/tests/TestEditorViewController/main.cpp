@@ -231,6 +231,22 @@ namespace {
         controller->clearFocusPreview();
     }
 
+    void testCommandCapabilities() {
+        using EditorInteraction::Command;
+        using EditorInteraction::Target;
+        expect(EditorInteraction::supportsCommand(Target::Tracks, Command::Cut) &&
+                   EditorInteraction::supportsCommand(Target::PianoRoll, Command::SelectAll),
+               "track and piano-roll editors must expose their complete edit command set");
+        expect(EditorInteraction::supportsCommand(Target::Parameters, Command::DeleteSelection) &&
+                   !EditorInteraction::supportsCommand(Target::Parameters, Command::Cut) &&
+                   !EditorInteraction::supportsCommand(Target::Parameters, Command::Copy) &&
+                   !EditorInteraction::supportsCommand(Target::Parameters, Command::Paste) &&
+                   !EditorInteraction::supportsCommand(Target::Parameters, Command::SelectAll),
+               "the parameter editor must expose only its implemented delete command");
+        expect(!EditorInteraction::supportsCommand(Target::None, Command::DeleteSelection),
+               "a non-editor target must not expose edit commands");
+    }
+
     void testForwardingAndSnapshots(EditorViewController *controller) {
         FakeEditorView view;
         view.state = sampleState();
@@ -529,6 +545,7 @@ int main(int argc, char *argv[]) {
     auto *controller = editorViewController;
 
     testNoView(controller);
+    testCommandCapabilities();
     testForwardingAndSnapshots(controller);
     testActivePanels(controller);
     testInteractionRouting(controller);

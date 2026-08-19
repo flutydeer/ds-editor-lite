@@ -9,6 +9,13 @@ namespace EditorInteraction {
 
     enum class Command { Cut, Copy, Paste, SelectAll, DeleteSelection };
 
+    [[nodiscard]] constexpr bool supportsCommand(const Target target,
+                                                 const Command command) noexcept {
+        if (target == Target::Parameters)
+            return command == Command::DeleteSelection;
+        return target == Target::Tracks || target == Target::PianoRoll;
+    }
+
     [[nodiscard]] constexpr Target
         defaultTargetForPanel(const AppGlobal::PanelType panel) noexcept {
         switch (panel) {

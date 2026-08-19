@@ -278,12 +278,16 @@ void MainMenuViewPrivate::onActiveEditTargetChanged(const EditorInteraction::Tar
         exitClipEditorState();
     else if (m_editTarget == EditorInteraction::Target::Tracks)
         exitTracksEditorState();
+    else if (m_editTarget == EditorInteraction::Target::Parameters)
+        exitParametersEditorState();
 
     m_editTarget = target;
     if (target == EditorInteraction::Target::PianoRoll)
         enterClipEditorState();
     else if (target == EditorInteraction::Target::Tracks)
         enterTracksEditorState();
+    else if (target == EditorInteraction::Target::Parameters)
+        enterParametersEditorState();
 }
 
 void MainMenuViewPrivate::onSelectAll() {
@@ -479,6 +483,26 @@ void MainMenuViewPrivate::exitTracksEditorState() {
     actionSelectAll->setEnabled(false);
 }
 
+void MainMenuViewPrivate::enterParametersEditorState() {
+    using EditorInteraction::Command;
+    using EditorInteraction::Target;
+    actionCut->setEnabled(EditorInteraction::supportsCommand(Target::Parameters, Command::Cut));
+    actionCopy->setEnabled(EditorInteraction::supportsCommand(Target::Parameters, Command::Copy));
+    actionPaste->setEnabled(EditorInteraction::supportsCommand(Target::Parameters, Command::Paste));
+    actionSelectAll->setEnabled(
+        EditorInteraction::supportsCommand(Target::Parameters, Command::SelectAll));
+    actionDelete->setEnabled(
+        EditorInteraction::supportsCommand(Target::Parameters, Command::DeleteSelection));
+}
+
+void MainMenuViewPrivate::exitParametersEditorState() {
+    actionCut->setEnabled(false);
+    actionCopy->setEnabled(false);
+    actionPaste->setEnabled(false);
+    actionSelectAll->setEnabled(false);
+    actionDelete->setEnabled(false);
+}
+
 void MainMenuViewPrivate::updatePasteActionState() {
     const auto mimeData = QGuiApplication::clipboard()->mimeData();
     if (!mimeData) {
@@ -662,8 +686,8 @@ void MainMenuViewPrivate::initEditShortcuts() {
         auto *shortcut = EditorShortcutUtils::addApplication(
             q, key, isEditorWindow, editorViewController,
             [command] { editorViewController->requestEditCommand(command); });
-        const auto updateEnabled = [shortcut](const EditorInteraction::Target target) {
-            shortcut->setEnabled(target != EditorInteraction::Target::None);
+        const auto updateEnabled = [shortcut, command](const EditorInteraction::Target target) {
+            shortcut->setEnabled(EditorInteraction::supportsCommand(target, command));
         };
         QObject::connect(editorViewController, &EditorViewController::activeEditTargetChanged,
                          shortcut, updateEnabled);
