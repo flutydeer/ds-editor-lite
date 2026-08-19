@@ -10,6 +10,8 @@
 
 #include <memory>
 
+class QResizeEvent;
+
 struct EditorRhiTextVertex {
     float x = 0.0f;
     float y = 0.0f;
@@ -120,6 +122,7 @@ protected:
     void render(QRhiCommandBuffer *cb) final;
     void releaseResources() final;
     bool event(QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
     virtual void onRhiReady();
     virtual void onDevicePixelRatioChanged();

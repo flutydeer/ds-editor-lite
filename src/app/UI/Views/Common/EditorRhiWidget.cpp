@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QMatrix4x4>
 #include <QMetaObject>
+#include <QResizeEvent>
 #include <QTimer>
 #include <rhi/qrhi.h>
 
@@ -14,6 +15,7 @@
 
 namespace {
     constexpr int kStatsWindow = 120;
+    constexpr int kResizeSettleDelayMs = 150;
 
     QShader loadShader(const QString &path) {
         QFile file(path);
@@ -84,6 +86,19 @@ public:
     Private(EditorRhiWidget *q, QString diagnosticsTag)
         : q(q), diagnosticsTag(std::move(diagnosticsTag)) {
         clock.start();
+        resizeSettleTimer.setSingleShot(true);
+        resizeSettleTimer.setInterval(kResizeSettleDelayMs);
+        QObject::connect(&resizeSettleTimer, &QTimer::timeout, q,
+                         [this] { this->q->setFixedColorBufferSize({}); });
+    }
+
+    void beginResize(const QSize &oldSize) {
+        if (!q->isVisible() || oldSize.isEmpty())
+            return;
+        // Keep the last complete backing texture while resize events are still arriving.
+        if (q->fixedColorBufferSize().isEmpty())
+            q->setFixedColorBufferSize(oldSize * q->devicePixelRatioF());
+        resizeSettleTimer.start();
     }
 
     void initialize() {
@@ -367,10 +382,11 @@ public:
         }
 
         const auto outputSize = renderTarget->pixelSize();
+        const auto viewportSize = q->size() * q->devicePixelRatioF();
         if (frameDirty) {
             QMatrix4x4 projection;
-            projection.ortho(0.0f, static_cast<float>(outputSize.width()),
-                             static_cast<float>(outputSize.height()), 0.0f, -1.0f, 1.0f);
+            projection.ortho(0.0f, static_cast<float>(viewportSize.width()),
+                             static_cast<float>(viewportSize.height()), 0.0f, -1.0f, 1.0f);
             projection.translate(static_cast<float>(-frame.physicalCameraOffset.x()),
                                  static_cast<float>(-frame.physicalCameraOffset.y()));
             const auto matrix = rhi->clipSpaceCorrMatrix() * projection;
@@ -446,8 +462,14 @@ public:
         cb->setGraphicsPipeline(overlayPipeline.get());
         cb->setShaderResources(overlayBindings.get());
         const QRectF outputRect(0.0, 0.0, outputSize.width(), outputSize.height());
+        const auto outputScaleX = static_cast<qreal>(outputSize.width()) / viewportSize.width();
+        const auto outputScaleY = static_cast<qreal>(outputSize.height()) / viewportSize.height();
         for (const auto &overlay : overlayRects) {
-            const auto rect = overlay.physicalViewportRect.intersected(outputRect);
+            const auto &viewportRect = overlay.physicalViewportRect;
+            const auto rect =
+                QRectF(viewportRect.x() * outputScaleX, viewportRect.y() * outputScaleY,
+                       viewportRect.width() * outputScaleX, viewportRect.height() * outputScaleY)
+                    .intersected(outputRect);
             const auto alpha = std::clamp(overlay.color.alphaF() * overlay.coverage, 0.0f, 1.0f);
             if (rect.isEmpty() || alpha <= 0.0)
                 continue;
@@ -671,6 +693,7 @@ public:
     QVector<double> vertexSamples;
     QVector<double> uploadByteSamples;
     QVector<double> drawCallSamples;
+    QTimer resizeSettleTimer;
 };
 
 EditorRhiWidget::EditorRhiWidget(QString diagnosticsTag, QWidget *parent)
@@ -728,6 +751,11 @@ bool EditorRhiWidget::event(QEvent *event) {
     if (event->type() == QEvent::DevicePixelRatioChange)
         onDevicePixelRatioChanged();
     return result;
+}
+
+void EditorRhiWidget::resizeEvent(QResizeEvent *event) {
+    d->beginResize(event->oldSize());
+    QRhiWidget::resizeEvent(event);
 }
 
 void EditorRhiWidget::onRhiReady() {
