@@ -2,17 +2,21 @@
 #define NOTEACTIONS_H
 
 #include <lite/History/ActionSequence.h>
+#include <lite/ProjectModel/AppModel/Clip.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 
 #include <QPair>
 
 class SingingClip;
+class Track;
 
 class NoteActions : public ActionSequence {
     Q_OBJECT
 
 public:
     void insertNotes(const QList<Note *> &notes, SingingClip *clip);
+    void pasteNotes(const QList<Note *> &notes, SingingClip *clip, Track *track,
+                    const Clip::ClipCommonProperties &newClipProperties);
     void removeNotes(const QList<Note *> &notes, SingingClip *clip);
 
     // Resize from left

@@ -3,11 +3,14 @@
 
 #include "ClipController_p.h"
 
+#include "EditorViewController.h"
 #include "TrackController.h"
 #include "Actions/AppModel/Note/NoteActions.h"
 #include "Actions/AppModel/Param/ParamsActions.h"
 #include "Global/ControllerGlobal.h"
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/Utils/NotePasteUtils.h>
 #include <lite/ProjectModel/Utils/NoteResizeUtils.h>
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/History/HistoryManager.h>
@@ -69,31 +72,35 @@ void ClipController::cutSelectedNotesWithParams() {
 }
 
 void ClipController::pasteNotesWithParams(const NotesParamsInfo &info, int tick) {
-    Q_D(ClipController);
-    if (!d->m_clip || d->m_clip->clipType() != Clip::Singing)
+    Track *targetTrack = nullptr;
+    auto *targetClip = appModel->findClipById(appStatus->activeClipId.get(), targetTrack);
+    if (!targetClip || targetClip->clipType() != Clip::Singing || !targetTrack)
         return;
 
     const auto &srcNotes = info.selectedNotes;
     if (srcNotes.isEmpty())
         return;
 
-    const auto singingClip = static_cast<SingingClip *>(d->m_clip);
+    auto *singingClip = static_cast<SingingClip *>(targetClip);
 
     const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
     const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantize, appModel->timeline());
 
-    const auto clipStart = singingClip->start();
-    const auto localTick = snappedTick - clipStart;
-
     int minStart = srcNotes.first()->localStart();
-    for (const auto note : srcNotes)
+    int maxEnd = minStart + srcNotes.first()->length();
+    for (const auto note : srcNotes) {
         minStart = qMin(minStart, note->localStart());
-    const auto offset = NoteResizeUtils::clampLeftMoveDelta(localTick - minStart, minStart);
+        maxEnd = qMax(maxEnd, note->localStart() + note->length());
+    }
+
+    auto clipProperties = Clip::ClipCommonProperties(*singingClip);
+    const auto pastePlan = NotePasteUtils::plan(
+        clipProperties, tick, snappedTick, {.start = minStart, .end = maxEnd});
 
     QList<Note *> newNotes;
     for (const auto srcNote : srcNotes) {
         auto note = new Note(singingClip);
-        note->setLocalStart(srcNote->localStart() + offset);
+        note->setLocalStart(srcNote->localStart() + pastePlan.offset);
         note->setLength(srcNote->length());
         note->setKeyIndex(srcNote->keyIndex());
         note->setCentShift(srcNote->centShift());
@@ -110,10 +117,17 @@ void ClipController::pasteNotesWithParams(const NotesParamsInfo &info, int tick)
         newNotes.append(note);
     }
 
+    const auto extendsClip = NotePasteUtils::extendClipToFit(clipProperties, pastePlan.pastedEnd);
     const auto a = new NoteActions;
-    a->insertNotes(newNotes, singingClip);
+    if (extendsClip)
+        a->pasteNotes(newNotes, singingClip, targetTrack, clipProperties);
+    else
+        a->insertNotes(newNotes, singingClip);
+    const auto focus = a->focusTransition();
     a->execute();
     historyManager->record(a);
+    if (focus)
+        editorViewController->revealFocus(focus->after);
     emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
