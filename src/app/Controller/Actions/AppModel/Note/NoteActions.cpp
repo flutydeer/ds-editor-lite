@@ -88,10 +88,11 @@ void NoteActions::editNotePosition(const QList<Note *> &notes, const int deltaTi
 
 void NoteActions::editNotesWordProperties(const QList<Note *> &notes,
                                           const QList<Note::WordProperties> &args,
-                                          SingingClip *clip) {
+                                          SingingClip *clip,
+                                          const WordPropertyEditOptions options) {
     setTranslatableName("NoteActions",
                         QT_TRANSLATE_NOOP("NoteActions", "Edit note word properties"));
-    addAction(new EditNoteWordPropertiesAction(notes, args, clip));
+    addAction(new EditNoteWordPropertiesAction(notes, args, clip, options));
     const auto focus = noteFocus(notes, clip);
     setFocusTransition({focus, focus});
 }

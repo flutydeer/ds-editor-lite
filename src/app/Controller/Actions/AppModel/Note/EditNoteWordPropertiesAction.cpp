@@ -4,24 +4,16 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 namespace {
-    bool phonemesEqual(const Phonemes &left, const Phonemes &right) {
-        return left.nameSeq.original == right.nameSeq.original &&
-               left.nameSeq.edited == right.nameSeq.edited &&
-               left.offsetSeq.original == right.offsetSeq.original &&
-               left.offsetSeq.edited == right.offsetSeq.edited;
-    }
-
-    void applyCascadeResets(const Note::WordProperties &previous, Note::WordProperties &next) {
+    void applyCascadeResets(const Note::WordProperties &previous, Note::WordProperties &next,
+                            const WordPropertyEditOptions &options) {
         next.lyric = next.lyric.trimmed();
         const bool wordInputChanged =
             previous.lyric != next.lyric || previous.language != next.language;
-        const bool pronunciationReplaced =
-            previous.pronunciation.edited != next.pronunciation.edited;
 
         if (wordInputChanged) {
-            if (!pronunciationReplaced)
+            if (!options.replacePronunciation)
                 next.pronunciation.edited.clear();
-            if (previous.pronCandidates == next.pronCandidates)
+            if (!options.replacePronCandidates)
                 next.pronCandidates.clear();
         }
 
@@ -29,14 +21,15 @@ namespace {
         appliedPronunciation.edited = next.pronunciation.edited;
         const bool phonemeInputChanged =
             wordInputChanged || previous.pronunciation.result() != appliedPronunciation.result();
-        if (phonemeInputChanged && phonemesEqual(previous.phonemes, next.phonemes))
+        if (phonemeInputChanged)
             next.phonemes = {};
     }
 }
 
 EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(const QList<Note *> &notes,
                                                            const QList<Note::WordProperties> &args,
-                                                           SingingClip *clip) {
+                                                           SingingClip *clip,
+                                                           const WordPropertyEditOptions options) {
     m_notes = notes;
     m_newArgs = args;
     m_clip = clip;
@@ -47,7 +40,7 @@ EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(const QList<Note *> &
     for (int i = 0; i < notes.count(); i++) {
         const auto properties = Note::WordProperties::fromNote(*notes.at(i));
         m_oldArgs.append(properties);
-        applyCascadeResets(properties, m_newArgs[i]);
+        applyCascadeResets(properties, m_newArgs[i], options);
         if (properties.lyric != m_newArgs.at(i).lyric ||
             properties.language != m_newArgs.at(i).language) {
             m_pronunciationOnly = false;

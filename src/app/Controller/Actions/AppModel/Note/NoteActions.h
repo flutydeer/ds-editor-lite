@@ -1,6 +1,8 @@
 #ifndef NOTEACTIONS_H
 #define NOTEACTIONS_H
 
+#include "EditNoteWordPropertiesAction.h"
+
 #include <lite/History/ActionSequence.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 
@@ -27,7 +29,8 @@ public:
 
     // Edit lyrics, pronunciations and phonemes
     void editNotesWordProperties(const QList<Note *> &notes,
-                                 const QList<Note::WordProperties> &args, SingingClip *clip);
+                                 const QList<Note::WordProperties> &args, SingingClip *clip,
+                                 WordPropertyEditOptions options = {});
     void editNotePhonemeOffset(Note *note, const QList<int> &offsets, SingingClip *clip);
 
     // Split note

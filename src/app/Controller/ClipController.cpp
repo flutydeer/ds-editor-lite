@@ -408,7 +408,8 @@ void ClipController::onNotePronunciationEdited(const int noteId, const QString &
     auto arg = Note::WordProperties::fromNote(*note);
     arg.pronunciation.edited = pronunciation;
     auto a = new NoteActions;
-    a->editNotesWordProperties({note}, {arg}, singingClip);
+    a->editNotesWordProperties({note}, {arg}, singingClip,
+                               {.replacePronunciation = true});
     a->execute();
     historyManager->record(a);
 }
@@ -529,7 +530,9 @@ void ClipController::onFillLyric(QWidget *parent) {
     }
     auto a = new NoteActions;
     a->editNotesWordProperties({notesToEdit.begin(), notesToEdit.begin() + args.size()}, args,
-                               singingClip);
+                               singingClip,
+                               {.replacePronunciation = true,
+                                .replacePronCandidates = true});
     a->execute();
     historyManager->record(a);
 }

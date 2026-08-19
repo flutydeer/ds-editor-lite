@@ -94,7 +94,8 @@ namespace {
 
         auto next = Note::WordProperties::fromNote(*note);
         next.pronunciation.edited = QStringLiteral("ma");
-        EditNoteWordPropertiesAction action({note}, {next}, &clip);
+        EditNoteWordPropertiesAction action({note}, {next}, &clip,
+                                            {.replacePronunciation = true});
         action.execute();
 
         expect(note->pronunciation().edited == QStringLiteral("ma"),
@@ -133,7 +134,8 @@ namespace {
 
         auto next = Note::WordProperties::fromNote(*note);
         next.pronunciation.edited = QStringLiteral("mi");
-        EditNoteWordPropertiesAction action({note}, {next}, &clip);
+        EditNoteWordPropertiesAction action({note}, {next}, &clip,
+                                            {.replacePronunciation = true});
         action.execute();
 
         expect(note->pronunciation().edited == QStringLiteral("mi"),
@@ -142,25 +144,24 @@ namespace {
                "an unchanged effective pronunciation must preserve edited phonemes");
     }
 
-    void testExplicitLowerPropertyReplacementsArePreserved() {
+    void testEqualFillLyricReplacementsArePreserved() {
         const auto oldPhonemes = phonemes("l", "a", "k", "a");
-        const auto newPhonemes = phonemes("m", "i", "m", "ee");
         auto *note = makeNote(QStringLiteral("la"), QStringLiteral("custom"), oldPhonemes);
+        note->setPronCandidates({QStringLiteral("shared")});
         SingingClip clip({note});
 
         auto next = Note::WordProperties::fromNote(*note);
         next.lyric = QStringLiteral("mi");
-        next.pronunciation.edited = QStringLiteral("mee");
-        next.pronCandidates = {QStringLiteral("mi"), QStringLiteral("mee")};
-        next.phonemes = newPhonemes;
-        EditNoteWordPropertiesAction action({note}, {next}, &clip);
+        EditNoteWordPropertiesAction action(
+            {note}, {next}, &clip,
+            {.replacePronunciation = true, .replacePronCandidates = true});
         action.execute();
 
-        expect(note->pronunciation().edited == QStringLiteral("mee") &&
+        expect(note->pronunciation().edited == QStringLiteral("custom") &&
                    note->pronCandidates() == next.pronCandidates,
-               "a lyric edit must preserve an explicitly supplied pronunciation result");
-        expect(phonemesEqual(note->phonemes(), newPhonemes),
-               "an upstream edit must preserve explicitly supplied replacement phonemes");
+               "fill lyric must preserve explicitly supplied value-equal replacements");
+        expect(phonemesEmpty(note->phonemes()),
+               "fill lyric must still reset phonemes after changing the lyric");
     }
 }
 
@@ -170,7 +171,7 @@ int main(int argc, char *argv[]) {
     testPronunciationChangeResetsPhonemes();
     testUnchangedUpperPropertiesPreservePhonemes();
     testEquivalentPronunciationPreservesPhonemes();
-    testExplicitLowerPropertyReplacementsArePreserved();
+    testEqualFillLyricReplacementsArePreserved();
     if (failures == 0)
         QTextStream(stdout) << "All word property cascade tests passed" << Qt::endl;
     return failures == 0 ? 0 : 1;

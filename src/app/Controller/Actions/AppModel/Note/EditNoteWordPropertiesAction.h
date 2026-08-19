@@ -7,11 +7,17 @@
 
 class SingingClip;
 
+struct WordPropertyEditOptions {
+    bool replacePronunciation = false;
+    bool replacePronCandidates = false;
+};
+
 class EditNoteWordPropertiesAction final : public IAction {
 public:
     explicit EditNoteWordPropertiesAction(const QList<Note *> &notes,
                                           const QList<Note::WordProperties> &args,
-                                          SingingClip *clip);
+                                          SingingClip *clip,
+                                          WordPropertyEditOptions options = {});
     void execute() override;
     void undo() override;
 
