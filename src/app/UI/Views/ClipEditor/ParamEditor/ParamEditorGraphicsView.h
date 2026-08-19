@@ -54,6 +54,7 @@ public:
     void setBackgroundBaseCurveVisible(bool visible);
 
 public slots:
+    void deleteSelection();
     void setForeground(ParamInfo::Name name, const ParamProperties &properties);
     void setBackground(ParamInfo::Name name, const ParamProperties &properties);
     void updateForeground(Param::Type type, const Param &param);

@@ -28,6 +28,7 @@ class PianoRollView final : public QWidget {
 
 public:
     explicit PianoRollView(QWidget *parent = nullptr);
+    ~PianoRollView() override;
     void setDataContext(SingingClip *clip) const;
     void setTrackColorIndex(int index) const;
     [[nodiscard]] PianoRollViewState viewState() const;

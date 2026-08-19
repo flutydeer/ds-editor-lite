@@ -663,8 +663,7 @@ void MainMenuViewPrivate::initEditShortcuts() {
             q, key, isEditorWindow, editorViewController,
             [command] { editorViewController->requestEditCommand(command); });
         const auto updateEnabled = [shortcut](const EditorInteraction::Target target) {
-            shortcut->setEnabled(target == EditorInteraction::Target::Tracks ||
-                                 target == EditorInteraction::Target::PianoRoll);
+            shortcut->setEnabled(target != EditorInteraction::Target::None);
         };
         QObject::connect(editorViewController, &EditorViewController::activeEditTargetChanged,
                          shortcut, updateEnabled);

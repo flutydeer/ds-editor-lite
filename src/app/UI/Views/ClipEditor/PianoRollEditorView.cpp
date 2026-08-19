@@ -1,6 +1,5 @@
 #include "PianoRollEditorView.h"
 
-#include "Controller/EditorViewController.h"
 #include "Controller/PlaybackController.h"
 #include "ParamEditor/ParamEditorGraphicsView.h"
 #include "ParamEditor/ParamEditorView.h"
@@ -15,8 +14,6 @@ PianoRollEditorView::PianoRollEditorView(QWidget *parent) : OverlaySplitter(Qt::
     m_paramEditorView = new ParamEditorView;
     addWidget(m_pianoRollView);
     addWidget(m_paramEditorView);
-    editorViewController->registerInteractionArea(m_paramEditorView, AppGlobal::ClipEditor,
-                                                  EditorInteraction::Target::Parameters);
 
     setCollapsible(0, false);
     // 让参数面板在剪辑编辑器调整高度时尽量保持高度不变，优先调整钢琴卷帘区域的高度
@@ -50,10 +47,6 @@ PianoRollEditorView::PianoRollEditorView(QWidget *parent) : OverlaySplitter(Qt::
             &PianoRollView::onWheelHorScale);
     connect(paramGraphicsView, &ParamEditorGraphicsView::wheelHorScroll, m_pianoRollView,
             &PianoRollView::onWheelHorScroll);
-}
-
-PianoRollEditorView::~PianoRollEditorView() {
-    editorViewController->unregisterInteractionArea(m_paramEditorView);
 }
 
 PianoRollView *PianoRollEditorView::pianoRollView() const {

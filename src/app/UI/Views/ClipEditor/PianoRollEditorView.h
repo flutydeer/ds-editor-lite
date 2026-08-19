@@ -12,7 +12,6 @@ class PianoRollEditorView : public OverlaySplitter {
     Q_OBJECT
 public:
     explicit PianoRollEditorView(QWidget *parent = nullptr);
-    ~PianoRollEditorView() override;
     [[nodiscard]] PianoRollView *pianoRollView() const;
     [[nodiscard]] ParamEditorView *paramEditorView() const;
     void setDataContext(SingingClip *clip) const;

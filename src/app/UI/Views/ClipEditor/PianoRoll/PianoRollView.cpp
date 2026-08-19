@@ -26,6 +26,8 @@
 PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setMinimumHeight(128);
+    editorViewController->registerInteractionArea(this, AppGlobal::ClipEditor,
+                                                  EditorInteraction::Target::PianoRoll);
     m_contextMenuController = new PianoRollContextMenuController(this);
 
     const auto useRhi = appOptions->developer()->editorRenderBackend ==
@@ -119,6 +121,10 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
                 else if (isVisible())
                     updatePianoRollVisibleRect();
             });
+}
+
+PianoRollView::~PianoRollView() {
+    editorViewController->unregisterInteractionArea(this);
 }
 
 void PianoRollView::executeEditCommand(const EditorInteraction::Command command) const {

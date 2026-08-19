@@ -4,6 +4,7 @@
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/AppModel/Params.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
+#include "Interface/EditorInteraction.h"
 #include "UnsupportedParameterPromptState.h"
 
 #include <QWidget>
@@ -23,6 +24,7 @@ class ParamEditorView final : public QWidget {
 
 public:
     explicit ParamEditorView(QWidget *parent = nullptr);
+    ~ParamEditorView() override;
     void setDataContext(SingingClip *clip);
     [[nodiscard]] ParamEditorGraphicsView *graphicsView() const;
 
@@ -61,6 +63,7 @@ private:
         dataWithDynamicEnabled(const SpeakerMixModel::SpeakerMixData &data);
     static SpeakerMixModel::SpeakerMixData
         dataWithDynamicStopped(const SpeakerMixModel::SpeakerMixData &data);
+    void executeEditCommand(EditorInteraction::Command command) const;
 
     SingingClip *m_clip = nullptr;
     ParamEditorGraphicsView *m_graphicsView;

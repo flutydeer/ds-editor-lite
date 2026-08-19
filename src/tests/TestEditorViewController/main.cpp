@@ -360,14 +360,20 @@ namespace {
 
         QObject trackArea;
         QObject trackChild(&trackArea);
-        QObject bottomArea;
-        QObject pianoRollChild(&bottomArea);
-        QObject parameterArea(&bottomArea);
+        QObject bottomContainer;
+        QObject titleBarArea(&bottomContainer);
+        QObject titleBarChild(&titleBarArea);
+        QObject pianoRollArea(&bottomContainer);
+        QObject pianoRollChild(&pianoRollArea);
+        QObject parameterArea(&bottomContainer);
         QObject parameterChild(&parameterArea);
+        QObject separator(&bottomContainer);
 
         controller->registerInteractionArea(&trackArea, AppGlobal::TracksEditor,
                                             EditorInteraction::Target::Tracks);
-        controller->registerInteractionArea(&bottomArea, AppGlobal::ClipEditor,
+        controller->registerInteractionArea(&titleBarArea, AppGlobal::ClipEditor,
+                                            EditorInteraction::Target::PianoRoll);
+        controller->registerInteractionArea(&pianoRollArea, AppGlobal::ClipEditor,
                                             EditorInteraction::Target::PianoRoll);
         controller->registerInteractionArea(&parameterArea, AppGlobal::ClipEditor,
                                             EditorInteraction::Target::Parameters);
@@ -381,26 +387,32 @@ namespace {
             QObject::connect(controller, &EditorViewController::activeEditTargetChanged,
                              [&targetSignalCount] { ++targetSignalCount; });
 
-        QEvent pianoPress(QEvent::MouseButtonPress);
-        QCoreApplication::sendEvent(&pianoRollChild, &pianoPress);
+        QEvent titleBarPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&titleBarChild, &titleBarPress);
         expect(controller->activePanel() == AppGlobal::ClipEditor &&
                    controller->activeEditTarget() == EditorInteraction::Target::PianoRoll,
-               "a bottom-panel descendant must activate piano-roll editing");
+               "the visible piano-roll toolbar must activate note editing");
         expect(panelSignalCount == 1 && targetSignalCount == 1,
                "a context change must emit each state transition once");
 
-        QEvent repeatedPianoPress(QEvent::MouseButtonPress);
-        QCoreApplication::sendEvent(&pianoRollChild, &repeatedPianoPress);
+        QEvent pianoPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&pianoRollChild, &pianoPress);
         expect(panelSignalCount == 1 && targetSignalCount == 1,
-               "repeated presses in one context must not duplicate state signals");
+               "moving within the visual note editor must not duplicate state signals");
 
         QEvent parameterPress(QEvent::MouseButtonPress);
         QCoreApplication::sendEvent(&parameterChild, &parameterPress);
         expect(controller->activePanel() == AppGlobal::ClipEditor &&
                    controller->activeEditTarget() == EditorInteraction::Target::Parameters,
-               "the nearest nested interaction area must win within the bottom panel");
+               "the visual parameter editor must activate parameter editing independently");
         expect(panelSignalCount == 1 && targetSignalCount == 2,
                "switching between bottom edit areas must preserve the panel border");
+
+        QEvent separatorPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&separator, &separatorPress);
+        expect(controller->activeEditTarget() == EditorInteraction::Target::Parameters &&
+                   targetSignalCount == 2,
+               "unassigned container space must not inherit a sibling editor target");
 
         QEvent trackFocus(QEvent::FocusIn);
         QCoreApplication::sendEvent(&trackChild, &trackFocus);
@@ -424,10 +436,10 @@ namespace {
                    requestedCommand == EditorInteraction::Command::SelectAll,
                "edit commands must carry the current interaction target");
 
-        controller->updateInteractionArea(&bottomArea, AppGlobal::Generic,
+        controller->updateInteractionArea(&titleBarArea, AppGlobal::Generic,
                                           EditorInteraction::Target::None);
         QEvent genericPress(QEvent::MouseButtonPress);
-        QCoreApplication::sendEvent(&pianoRollChild, &genericPress);
+        QCoreApplication::sendEvent(&titleBarChild, &genericPress);
         expect(controller->activePanel() == AppGlobal::Generic &&
                    controller->activeEditTarget() == EditorInteraction::Target::None,
                "a dynamic generic bottom page must deactivate editor commands");
@@ -436,7 +448,8 @@ namespace {
         QObject::disconnect(targetConnection);
         QObject::disconnect(panelConnection);
         controller->unregisterInteractionArea(&parameterArea);
-        controller->unregisterInteractionArea(&bottomArea);
+        controller->unregisterInteractionArea(&pianoRollArea);
+        controller->unregisterInteractionArea(&titleBarArea);
         controller->unregisterInteractionArea(&trackArea);
         controller->setActivePanel(AppGlobal::TracksEditor);
     }
