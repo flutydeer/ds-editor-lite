@@ -1129,9 +1129,12 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, false);
         d->m_pitchEditor->setTransparentMouseEvents(true);
-    } else if (mode == ErasePitch || mode == FreezePitch) { // TODO: Implement freeze auto pitch
+    } else if (mode == ErasePitch) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, true);
+    } else if (mode == FreezePitch) {
+        setDragBehavior(DragBehavior::None);
+        d->setPitchEditMode(true, false, true);
     }
 }
 
@@ -1424,7 +1427,8 @@ void PianoRollGraphicsViewPrivate::updateNoteWord(const Note *note) const {
     Helper::updateNoteWord(*noteView, *note);
 }
 
-void PianoRollGraphicsViewPrivate::setPitchEditMode(const bool on, const bool isErase) {
+void PianoRollGraphicsViewPrivate::setPitchEditMode(const bool on, const bool isErase,
+                                                    const bool isFreeze) {
     Q_Q(PianoRollGraphicsView);
     if (on)
         q->setCursor(Qt::ArrowCursor);
@@ -1434,6 +1438,7 @@ void PianoRollGraphicsViewPrivate::setPitchEditMode(const bool on, const bool is
         note->setEditingPitch(on);
     m_pitchEditor->setTransparentMouseEvents(!on);
     m_pitchEditor->setEraseMode(isErase);
+    m_pitchEditor->setFreezeMode(isFreeze);
 }
 
 NoteView *PianoRollGraphicsViewPrivate::noteViewAt(const QPoint &pos) {

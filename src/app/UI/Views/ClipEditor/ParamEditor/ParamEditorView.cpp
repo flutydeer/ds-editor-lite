@@ -26,6 +26,13 @@
 
 using namespace SpeakerMixModel;
 
+namespace {
+    bool supportsFreezeBrush(const ParamInfo::Name name) {
+        return name == ParamInfo::Energy || name == ParamInfo::Breathiness ||
+               name == ParamInfo::Voicing || name == ParamInfo::Tension;
+    }
+}
+
 ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     const auto option = appOptions->general();
     const auto foregroundParam = option->defaultForegroundParam;
@@ -116,16 +123,24 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
 }
 
 void ParamEditorView::setDataContext(SingingClip *clip) {
-    if (m_clip)
+    if (m_clip) {
         disconnect(m_clip, &SingingClip::voiceContextChanged, this, nullptr);
+        disconnect(m_clip, &SingingClip::paramChanged, this, nullptr);
+    }
     m_clip = clip;
     m_graphicsView->setDataContext(clip);
-    if (m_clip)
+    if (m_clip) {
         connect(m_clip, &SingingClip::voiceContextChanged, this,
                 [this](const VoiceContextChange &) {
                     refreshSpeakerMixToolBar();
                     refreshParameterSupportState();
                 });
+        connect(m_clip, &SingingClip::paramChanged, this,
+                [this](const ParamInfo::Name name, const Param::Type type) {
+                    if (name == m_foregroundParam && type == Param::Original)
+                        refreshParameterSupportState();
+                });
+    }
     refreshSpeakerMixToolBar();
     refreshParameterSupportState();
 }
@@ -155,6 +170,7 @@ void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) {
             mixView->setSpeakerMixData(m_clip->speakerMixData());
         }
         refreshSpeakerMixToolBar();
+        refreshParameterSupportState();
         return;
     }
     qDebug() << "foreground changed" << paramUtils->nameFromType(name);
@@ -356,6 +372,13 @@ void ParamEditorView::refreshParameterSupportState() {
     const bool backgroundSupported = isSupported(m_backgroundParam);
     m_graphicsView->setForegroundBaseCurveVisible(foregroundSupported);
     m_graphicsView->setBackgroundBaseCurveVisible(backgroundSupported);
+
+    const auto *foreground = m_clip && supportsFreezeBrush(m_foregroundParam)
+                                 ? m_clip->params.getParamByName(m_foregroundParam)
+                                 : nullptr;
+    const bool freezeEnabled = foregroundSupported && m_clip && !m_clip->singerInfo().isEmpty() &&
+                               foreground && !foreground->curves(Param::Original).isEmpty();
+    m_toolBar->setFreezeEnabled(freezeEnabled);
 
     if (m_foregroundParam == ParamInfo::SpeakerMix)
         return;

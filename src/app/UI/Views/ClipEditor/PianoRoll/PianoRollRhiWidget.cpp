@@ -1059,7 +1059,9 @@ public:
         pitchMouseMoved = false;
         pitchNewCurveCreated = false;
         pitchEditingCurve = nullptr;
-        if (editMode == ErasePitch) {
+        if (editMode == FreezePitch) {
+            pitchEditType = PitchEditType::Freeze;
+        } else if (editMode == ErasePitch) {
             pitchEditType = PitchEditType::Erase;
         } else if ((pitchEditingCurve = pitchCurveAt(pitchMouseDownPos.x()))) {
             pitchEditType = PitchEditType::DrawOnCurve;
@@ -1104,7 +1106,12 @@ public:
         const auto endTick = std::max(pitchPreviousPos.x(), current.x());
         const auto overlapped = AppModelUtils::curvesIn(pitchPreviewCurves, startTick, endTick);
 
-        if (pitchEditType == PitchEditType::Erase) {
+        if (pitchEditType == PitchEditType::Freeze) {
+            const auto *pitch = clip->params.getParamByName(ParamInfo::Pitch);
+            const auto original = AppModelUtils::getDrawCurves(pitch->curves(Param::Original));
+            AppModelUtils::overwriteDrawCurveRange(pitchPreviewCurves, original, startTick,
+                                                   endTick);
+        } else if (pitchEditType == PitchEditType::Erase) {
             for (auto *curve : overlapped) {
                 if (curve->localStart() >= startTick && curve->localEndTick() <= endTick) {
                     pitchPreviewCurves.removeOne(curve);
@@ -1794,7 +1801,7 @@ public:
             mousePressAnchor(event);
             return;
         }
-        if (editMode == DrawPitch || editMode == ErasePitch) {
+        if (editMode == DrawPitch || editMode == ErasePitch || editMode == FreezePitch) {
             beginPitchEdit(event->position());
             return;
         }
@@ -2903,7 +2910,7 @@ public:
     QPointF rubberBandEnd;
     QList<int> rubberBandBaseSelection;
     QList<PastePreviewNote> pastePreviewNotes;
-    enum class PitchEditType { None, DrawOnCurve, DrawOnInterval, Erase };
+    enum class PitchEditType { None, DrawOnCurve, DrawOnInterval, Erase, Freeze };
     PitchEditType pitchEditType = PitchEditType::None;
     bool pitchEditing = false;
     bool pitchMouseMoved = false;

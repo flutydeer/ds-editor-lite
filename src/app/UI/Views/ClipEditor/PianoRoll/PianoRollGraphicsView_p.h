@@ -83,7 +83,7 @@ public:
 
     void updatePitch(Param::Type paramType, const Param &param) const;
 
-    void setPitchEditMode(bool on, bool isErase);
+    void setPitchEditMode(bool on, bool isErase, bool isFreeze = false);
     [[nodiscard]] NoteView *noteViewAt(const QPoint &pos);
     [[nodiscard]] PronunciationView *pronViewAt(const QPoint &pos);
     [[nodiscard]] NoteView *findNoteViewById(int id) const;

@@ -122,6 +122,10 @@ void ParamEditorToolBarView::setSpeakerMixDynamicState(const SpeakerMixDynamicUi
     m_speakerMixToolBar->setDynamicState(state);
 }
 
+void ParamEditorToolBarView::setFreezeEnabled(const bool enabled) {
+    m_paramEditToolBar->setFreezeEnabled(enabled);
+}
+
 void ParamEditorToolBarView::onForegroundSelectionChanged(const int index) {
     const auto name = static_cast<ParamInfo::Name>(index + 1);
     setSpeakerMixMode(name == ParamInfo::SpeakerMix);
