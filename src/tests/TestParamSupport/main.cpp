@@ -21,18 +21,37 @@ namespace {
     }
 
     bool testKnownCapabilities() {
-        const auto singer = singerWithParameters({"breathiness", "voicing", "velocity"});
+        const auto singer =
+            singerWithParameters({"breathiness", "voicing", "velocity", "mouth_opening"});
         bool ok = true;
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Breathiness, singer),
                      "declared parameter is supported");
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Velocity, singer),
                      "second declared parameter is supported");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::MouthOpening, singer),
+                     "declared mouth opening parameter is supported");
         ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::Energy, singer),
                      "missing parameter is unsupported");
         ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::ToneShift, singer),
                      "missing relative parameter is unsupported");
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Expressiveness, singer),
                      "non-acoustic parameter remains available");
+        return ok;
+    }
+
+    bool testVarianceBackedParameters() {
+        const auto singer = singerWithParameters({"mouth_opening", "velocity"});
+        bool ok = true;
+        ok &= expect(ParamInfo::hasOriginalParam(ParamInfo::MouthOpening),
+                     "mouth opening has a variance-generated original curve");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::MouthOpening, singer),
+                     "mouth opening support follows the singer capability");
+        ok &= expect(!ParamInfo::hasOriginalParam(ParamInfo::Velocity),
+                     "a singer-supported parameter without a variance curve cannot be baked");
+
+        const auto unsupportedSinger = singerWithParameters({"velocity"});
+        ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::MouthOpening, unsupportedSinger),
+                     "mouth opening is unavailable when the singer does not support it");
         return ok;
     }
 
@@ -86,6 +105,7 @@ int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     bool ok = true;
     ok &= testKnownCapabilities();
+    ok &= testVarianceBackedParameters();
     ok &= testUnknownCapabilitiesAreConservative();
     ok &= testKnownEmptyCapabilities();
     ok &= testPromptStateResetsForEveryProjectOpen();

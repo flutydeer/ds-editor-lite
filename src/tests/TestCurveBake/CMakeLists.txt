@@ -1,4 +1,4 @@
-project(TestFixedBrushCurve)
+project(TestCurveBake)
 
 lite_add_test(${PROJECT_NAME} SOURCES main.cpp)
 

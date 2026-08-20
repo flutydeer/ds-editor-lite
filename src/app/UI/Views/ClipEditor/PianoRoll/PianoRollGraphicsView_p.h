@@ -39,7 +39,7 @@ class PianoRollGraphicsViewPrivate : public QObject {
 public:
     enum class InlineEditField { None, Lyric, Pronunciation };
 
-    explicit PianoRollGraphicsViewPrivate(PianoRollGraphicsView *p) : q_ptr(p) {};
+    explicit PianoRollGraphicsViewPrivate(PianoRollGraphicsView *p) : q_ptr(p){};
     SingingClip *m_clip = nullptr;
     int m_offset = 0;
     QList<Note *> m_notes;
@@ -83,7 +83,7 @@ public:
 
     void updatePitch(Param::Type paramType, const Param &param) const;
 
-    void setPitchEditMode(bool on, bool isErase, bool isFreeze = false);
+    void setPitchEditMode(bool on, bool isErase, bool isBake = false);
     [[nodiscard]] NoteView *noteViewAt(const QPoint &pos);
     [[nodiscard]] PronunciationView *pronViewAt(const QPoint &pos);
     [[nodiscard]] NoteView *findNoteViewById(int id) const;

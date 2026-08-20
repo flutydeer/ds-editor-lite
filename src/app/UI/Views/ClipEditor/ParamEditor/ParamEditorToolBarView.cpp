@@ -122,8 +122,8 @@ void ParamEditorToolBarView::setSpeakerMixDynamicState(const SpeakerMixDynamicUi
     m_speakerMixToolBar->setDynamicState(state);
 }
 
-void ParamEditorToolBarView::setFreezeEnabled(const bool enabled) {
-    m_paramEditToolBar->setFreezeEnabled(enabled);
+void ParamEditorToolBarView::setBakeEnabled(const bool enabled) {
+    m_paramEditToolBar->setBakeEnabled(enabled);
 }
 
 void ParamEditorToolBarView::onForegroundSelectionChanged(const int index) {

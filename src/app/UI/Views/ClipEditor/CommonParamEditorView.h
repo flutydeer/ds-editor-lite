@@ -26,7 +26,7 @@ public:
     void clearParams();
     void cancelEdit();
     void setEraseMode(bool on);
-    void setFreezeMode(bool on);
+    void setBakeMode(bool on);
     void setBaseCurveVisible(bool visible);
     [[nodiscard]] const QList<DrawCurve *> &editedCurves() const;
     [[nodiscard]] double sceneYForValue(double value) const;
@@ -71,7 +71,7 @@ private:
 
     bool m_showDebugInfo = false;
 
-    enum EditType { DrawOnInterval, DrawOnCurve, Erase, Freeze, None };
+    enum EditType { DrawOnInterval, DrawOnCurve, Erase, Bake, None };
 
     bool m_mouseDown = false;
     Qt::MouseButton m_mouseDownButton = Qt::NoButton;
@@ -80,7 +80,7 @@ private:
     DrawCurve *m_editingCurve = nullptr;
     EditType m_editType = None;
     bool m_eraseMode = false;
-    bool m_freezeMode = false;
+    bool m_bakeMode = false;
     bool m_baseCurveVisible = true;
     bool m_newCurveCreated = false;
     bool m_mouseMoved = false;

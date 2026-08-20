@@ -238,7 +238,7 @@ void ParamEditorGraphicsView::setEditMode(const ParamEditorEditMode mode) {
     m_editMode = mode;
     const bool anchorActive = mode == ParamEditorEditMode::Anchor && !m_speakerMixMode;
     m_foreground->setEraseMode(mode == ParamEditorEditMode::Erase);
-    m_foreground->setFreezeMode(mode == ParamEditorEditMode::Freeze);
+    m_foreground->setBakeMode(mode == ParamEditorEditMode::Bake);
     m_anchorOverlay->setInteractive(anchorActive);
     m_anchorController.setEditActive(anchorActive);
 }

@@ -23,8 +23,8 @@ namespace {
 
         const auto leftValue = curve.values().at(leftIndex);
         const auto rightValue = curve.values().at(leftIndex + 1);
-        return qRound(leftValue + (rightValue - leftValue) * static_cast<double>(remainder) /
-                                      curve.step);
+        return qRound(leftValue +
+                      (rightValue - leftValue) * static_cast<double>(remainder) / curve.step);
     }
 
     DrawCurve *resampleCurve(const DrawCurve &curve, const int startTick, const int endTick,
@@ -124,8 +124,8 @@ DrawCurveList AppModelUtils::mergeCurves(const DrawCurveList &original,
     return result;
 }
 
-bool AppModelUtils::overwriteDrawCurveRange(DrawCurveList &target, const DrawCurveList &source,
-                                            int startTick, int endTick) {
+bool AppModelUtils::bakeDrawCurveRange(DrawCurveList &target, const DrawCurveList &source,
+                                       int startTick, int endTick) {
     if (startTick > endTick)
         std::swap(startTick, endTick);
     if (startTick == endTick)

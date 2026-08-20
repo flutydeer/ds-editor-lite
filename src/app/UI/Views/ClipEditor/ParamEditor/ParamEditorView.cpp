@@ -26,13 +26,6 @@
 
 using namespace SpeakerMixModel;
 
-namespace {
-    bool supportsFreezeBrush(const ParamInfo::Name name) {
-        return name == ParamInfo::Energy || name == ParamInfo::Breathiness ||
-               name == ParamInfo::Voicing || name == ParamInfo::Tension;
-    }
-}
-
 ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     const auto option = appOptions->general();
     const auto foregroundParam = option->defaultForegroundParam;
@@ -110,8 +103,7 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
             &ParamEditorView::onResumeDynamicMix);
     connect(m_toolBar, &ParamEditorToolBarView::stopDynamicMix, this,
             &ParamEditorView::onStopDynamicMix);
-    connect(m_emptyStateActionButton, &Button::clicked, this,
-            &ParamEditorView::onEmptyStateAction);
+    connect(m_emptyStateActionButton, &Button::clicked, this, &ParamEditorView::onEmptyStateAction);
 
     auto *mixView = m_graphicsView->speakerMixView();
     connect(mixView, &SpeakerMixEditorView::speakerMixEdited, this,
@@ -373,27 +365,25 @@ void ParamEditorView::refreshParameterSupportState() {
     m_graphicsView->setForegroundBaseCurveVisible(foregroundSupported);
     m_graphicsView->setBackgroundBaseCurveVisible(backgroundSupported);
 
-    const auto *foreground = m_clip && supportsFreezeBrush(m_foregroundParam)
+    const auto *foreground = m_clip && ParamInfo::hasOriginalParam(m_foregroundParam)
                                  ? m_clip->params.getParamByName(m_foregroundParam)
                                  : nullptr;
-    const bool freezeEnabled = foregroundSupported && m_clip && !m_clip->singerInfo().isEmpty() &&
-                               foreground && !foreground->curves(Param::Original).isEmpty();
-    m_toolBar->setFreezeEnabled(freezeEnabled);
+    const bool bakeEnabled = foregroundSupported && m_clip && !m_clip->singerInfo().isEmpty() &&
+                             foreground && !foreground->curves(Param::Original).isEmpty();
+    m_toolBar->setBakeEnabled(bakeEnabled);
 
     if (m_foregroundParam == ParamInfo::SpeakerMix)
         return;
 
-    if (!m_unsupportedParameterPromptState.shouldPrompt(m_foregroundParam,
-                                                        foregroundSupported)) {
+    if (!m_unsupportedParameterPromptState.shouldPrompt(m_foregroundParam, foregroundSupported)) {
         hideEmptyState();
         return;
     }
 
     const auto showUnsupportedState = [this] {
         setEmptyState(EmptyStateKind::UnsupportedParameter, {},
-                      tr("The selected singer does not support this parameter."),
-                      tr("Edit Anyway"), EmptyStateAction::EditUnsupportedParameter,
-                      m_foregroundParam);
+                      tr("The selected singer does not support this parameter."), tr("Edit Anyway"),
+                      EmptyStateAction::EditUnsupportedParameter, m_foregroundParam);
     };
     showUnsupportedState();
 }

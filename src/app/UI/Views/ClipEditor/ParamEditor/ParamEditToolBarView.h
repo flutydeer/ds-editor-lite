@@ -13,7 +13,7 @@ class ParamEditToolBarView final : public QWidget {
 
 public:
     explicit ParamEditToolBarView(QWidget *parent = nullptr);
-    void setFreezeEnabled(bool enabled);
+    void setBakeEnabled(bool enabled);
 
 signals:
     void editModeChanged(ParamEditorEditMode mode);
@@ -26,7 +26,7 @@ private:
 
     Button *m_btnDraw = nullptr;
     Button *m_btnErase = nullptr;
-    Button *m_btnFreeze = nullptr;
+    Button *m_btnBake = nullptr;
     Button *m_btnAnchor = nullptr;
     QButtonGroup *m_editModeGroup = nullptr;
 };

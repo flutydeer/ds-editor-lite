@@ -268,9 +268,9 @@ public:
         if (!scrollBars)
             return;
         const auto contentSize = clip ? QSizeF(sceneWidth(), sceneHeight()) : QSizeF(q->size());
-        scrollBars->setMetrics(contentSize, viewport.offset(),
-                               QSizeF(std::max(1, q->width() / 10),
-                                      std::max(1.0, noteHeight * verticalScale())));
+        scrollBars->setMetrics(
+            contentSize, viewport.offset(),
+            QSizeF(std::max(1, q->width() / 10), std::max(1.0, noteHeight * verticalScale())));
     }
 
     void setDataContext(SingingClip *newClip) {
@@ -436,8 +436,8 @@ public:
         if (clip && q->width() > 0 && q->height() > 0) {
             const auto currentX = viewport.tickToSceneX(playbackPosition - clip->start()) * dpr;
             EditorRhiGeometry::appendAntialiasedVerticalOverlay(
-                playbackOverlayRects, currentX - horizontalOffset() * dpr, 0.0,
-                q->height() * dpr, dpr, q->playPosIndicatorColor());
+                playbackOverlayRects, currentX - horizontalOffset() * dpr, 0.0, q->height() * dpr,
+                dpr, q->playPosIndicatorColor());
         }
         playbackOverlayRects = q->submitOverlay(std::move(playbackOverlayRects));
     }
@@ -501,9 +501,8 @@ public:
         const auto logical = viewport.logicalVisibleSceneRect();
         const auto visibleStartTick = clip->start() + viewport.sceneXToTick(logical.left());
         const auto visibleEndTick = clip->start() + viewport.sceneXToTick(logical.right());
-        const auto tickVisible =
-            focus.tickEnd + tickOffset >= visibleStartTick &&
-            focus.tickStart + tickOffset <= visibleEndTick;
+        const auto tickVisible = focus.tickEnd + tickOffset >= visibleStartTick &&
+                                 focus.tickStart + tickOffset <= visibleEndTick;
         const auto topKey = 127.0 - viewport.sceneYToUnit(logical.top());
         const auto bottomKey = 127.0 - viewport.sceneYToUnit(logical.bottom());
         const auto keyVisible = focus.valueEnd >= bottomKey && focus.valueStart <= topKey;
@@ -622,9 +621,8 @@ public:
     }
 
     int keyAt(const QPointF &viewportPosition) const {
-        const auto row =
-            static_cast<int>(std::floor(viewport.sceneYToUnit(
-                viewport.viewportToScene(viewportPosition).y())));
+        const auto row = static_cast<int>(
+            std::floor(viewport.sceneYToUnit(viewport.viewportToScene(viewportPosition).y())));
         return std::clamp(127 - row, 0, 127);
     }
 
@@ -683,8 +681,8 @@ public:
             return Interaction::None;
         const auto rect = noteViewportRect(note);
         const auto relativeX = viewportPosition.x() - rect.left();
-        const auto edge = EditorResizeUtils::horizontalEdgeAt(
-            relativeX, rect.width(), AppGlobal::resizeTolerance);
+        const auto edge = EditorResizeUtils::horizontalEdgeAt(relativeX, rect.width(),
+                                                              AppGlobal::resizeTolerance);
         if (edge == EditorResizeUtils::HorizontalEdge::Left)
             return Interaction::ResizeLeft;
         if (edge == EditorResizeUtils::HorizontalEdge::Right)
@@ -1059,8 +1057,8 @@ public:
         pitchMouseMoved = false;
         pitchNewCurveCreated = false;
         pitchEditingCurve = nullptr;
-        if (editMode == FreezePitch) {
-            pitchEditType = PitchEditType::Freeze;
+        if (editMode == BakePitch) {
+            pitchEditType = PitchEditType::Bake;
         } else if (editMode == ErasePitch) {
             pitchEditType = PitchEditType::Erase;
         } else if ((pitchEditingCurve = pitchCurveAt(pitchMouseDownPos.x()))) {
@@ -1106,11 +1104,10 @@ public:
         const auto endTick = std::max(pitchPreviousPos.x(), current.x());
         const auto overlapped = AppModelUtils::curvesIn(pitchPreviewCurves, startTick, endTick);
 
-        if (pitchEditType == PitchEditType::Freeze) {
+        if (pitchEditType == PitchEditType::Bake) {
             const auto *pitch = clip->params.getParamByName(ParamInfo::Pitch);
             const auto original = AppModelUtils::getDrawCurves(pitch->curves(Param::Original));
-            AppModelUtils::overwriteDrawCurveRange(pitchPreviewCurves, original, startTick,
-                                                   endTick);
+            AppModelUtils::bakeDrawCurveRange(pitchPreviewCurves, original, startTick, endTick);
         } else if (pitchEditType == PitchEditType::Erase) {
             for (auto *curve : overlapped) {
                 if (curve->localStart() >= startTick && curve->localEndTick() <= endTick) {
@@ -1174,8 +1171,7 @@ public:
 
     QPointF anchorNodeViewportPosition(const AnchorNode *node) const {
         return {viewport.tickToSceneX(node->pos()) - horizontalOffset(),
-                viewport.unitToSceneY((12700 - node->value() + 50) / 100.0) -
-                    verticalOffset()};
+                viewport.unitToSceneY((12700 - node->value() + 50) / 100.0) - verticalOffset()};
     }
 
     void finishAnchorEditSession(const EditSessionEndReason reason) {
@@ -1801,7 +1797,7 @@ public:
             mousePressAnchor(event);
             return;
         }
-        if (editMode == DrawPitch || editMode == ErasePitch || editMode == FreezePitch) {
+        if (editMode == DrawPitch || editMode == ErasePitch || editMode == BakePitch) {
             beginPitchEdit(event->position());
             return;
         }
@@ -1917,8 +1913,7 @@ public:
         for (const auto *note : clip->notes()) {
             const QRectF rect(viewport.tickToSceneX(note->localStart()),
                               viewport.unitToSceneY(127 - note->keyIndex()),
-                              note->length() * pixelsPerTick(),
-                              noteHeight * verticalScale());
+                              note->length() * pixelsPerTick(), noteHeight * verticalScale());
             if (selection.intersects(rect) && !selected.contains(note->id()))
                 selected.append(note->id());
         }
@@ -2070,8 +2065,8 @@ private:
         if (!note)
             return {};
         return {viewport.tickToSceneX(note->localStart()),
-                viewport.unitToSceneY(127 - note->keyIndex()),
-                note->length() * pixelsPerTick(), noteHeight * verticalScale()};
+                viewport.unitToSceneY(127 - note->keyIndex()), note->length() * pixelsPerTick(),
+                noteHeight * verticalScale()};
     }
 
     QRectF focusSceneRect(const HistoryFocus &focus, QList<int> *resolvedIds = nullptr) const {
@@ -2101,9 +2096,8 @@ private:
     bool ensureSceneRectVisible(const QRectF &rect, const double xMargin, const double yMargin,
                                 const bool animated) {
         const auto bounds = rect.normalized();
-        if (!bounds.isValid() || !std::isfinite(bounds.left()) ||
-            !std::isfinite(bounds.top()) || !std::isfinite(bounds.right()) ||
-            !std::isfinite(bounds.bottom())) {
+        if (!bounds.isValid() || !std::isfinite(bounds.left()) || !std::isfinite(bounds.top()) ||
+            !std::isfinite(bounds.right()) || !std::isfinite(bounds.bottom())) {
             return false;
         }
         return viewport.ensureVisible(bounds, xMargin, yMargin, animated);
@@ -2159,9 +2153,8 @@ private:
 
     void appendPixelAlignedHorizontalLine(const double y, const double left, const double right,
                                           const QColor &color) {
-        EditorRhiGeometry::appendAntialiasedHorizontalLine(vertices, y * dpr, left * dpr,
-                                                           right * dpr, dpr, color,
-                                                           verticalOffset() * dpr);
+        EditorRhiGeometry::appendAntialiasedHorizontalLine(
+            vertices, y * dpr, left * dpr, right * dpr, dpr, color, verticalOffset() * dpr);
     }
 
     void appendLine(const QPointF &from, const QPointF &to, const double logicalWidth,
@@ -2199,8 +2192,7 @@ private:
         const auto firstKey =
             std::min(127, static_cast<int>(std::ceil(127.0 - viewport.sceneYToUnit(sceneTop))));
         const auto lastKey =
-            std::max(0,
-                     static_cast<int>(std::floor(127.0 - viewport.sceneYToUnit(sceneBottom))));
+            std::max(0, static_cast<int>(std::floor(127.0 - viewport.sceneYToUnit(sceneBottom))));
         for (int key = firstKey; key >= lastKey; --key) {
             const auto y = viewport.unitToSceneY(127 - key);
             appendLogicalRect(QRectF(left, y, right - left, noteHeight * verticalScale()),
@@ -2319,9 +2311,9 @@ private:
                 continue;
             if (noteStart > localEnd)
                 continue;
-            const auto rect = QRectF(viewport.tickToSceneX(noteStart),
-                                     viewport.unitToSceneY(127 - noteKey),
-                                     noteLength * pixelsPerTick(), noteHeight * verticalScale());
+            const auto rect =
+                QRectF(viewport.tickToSceneX(noteStart), viewport.unitToSceneY(127 - noteKey),
+                       noteLength * pixelsPerTick(), noteHeight * verticalScale());
             const auto overlapped = note->overlapped();
             const auto fill = selected       ? selectedFill
                               : overlapped   ? overlappedFill
@@ -2355,17 +2347,15 @@ private:
                            editingLyric, editingPronunciation);
         }
         if (interaction == Interaction::Draw && drawEnd > drawStart) {
-            const QRectF rect(viewport.tickToSceneX(drawStart),
-                              viewport.unitToSceneY(127 - drawKey),
-                              (drawEnd - drawStart) * pixelsPerTick(),
-                              noteHeight * verticalScale());
+            const QRectF rect(
+                viewport.tickToSceneX(drawStart), viewport.unitToSceneY(127 - drawKey),
+                (drawEnd - drawStart) * pixelsPerTick(), noteHeight * verticalScale());
             if (NoteLyricPresentation::usesCompactRendering(horizontalScale())) {
                 appendCompactNoteShape(rect, selectedFill);
             } else {
                 appendFullNoteShape(rect, selectedFill, selectedBorder);
-                appendNoteText(
-                    rect, PianoRollGraphicsViewHelper::defaultLyricForNewNote(clip), {},
-                    normalForeground, q->pronunciationTextColor(), false, false);
+                appendNoteText(rect, PianoRollGraphicsViewHelper::defaultLyricForNewNote(clip), {},
+                               normalForeground, q->pronunciationTextColor(), false, false);
             }
         }
     }
@@ -2601,8 +2591,7 @@ private:
 
             const auto value = std::clamp(interpolator.evaluate(endTick), 0.0, 12700.0);
             const auto endpoint =
-                QPointF(endSceneX, viewport.unitToSceneY((12700.0 - value + 50.0) / 100.0)) *
-                dpr;
+                QPointF(endSceneX, viewport.unitToSceneY((12700.0 - value + 50.0) / 100.0)) * dpr;
             if (points.isEmpty() || QLineF(points.constLast(), endpoint).length() > 0.01)
                 points.append(endpoint);
         }
@@ -2832,8 +2821,7 @@ private:
                        q->rubberBandBorderColor());
         } else {
             const auto physicalRect = QRectF(sceneRect.topLeft() * dpr, sceneRect.size() * dpr);
-            const auto radius =
-                EditorItemGeometry::adaptiveCornerRadius(physicalRect, 6.0 * dpr);
+            const auto radius = EditorItemGeometry::adaptiveCornerRadius(physicalRect, 6.0 * dpr);
             EditorRhiGeometry::appendRoundedRect(vertices, physicalRect, radius,
                                                  q->rubberBandFillColor());
             EditorRhiGeometry::appendRoundedRectStroke(vertices, physicalRect, radius, 1.5 * dpr,
@@ -2910,7 +2898,7 @@ public:
     QPointF rubberBandEnd;
     QList<int> rubberBandBaseSelection;
     QList<PastePreviewNote> pastePreviewNotes;
-    enum class PitchEditType { None, DrawOnCurve, DrawOnInterval, Erase, Freeze };
+    enum class PitchEditType { None, DrawOnCurve, DrawOnInterval, Erase, Bake };
     PitchEditType pitchEditType = PitchEditType::None;
     bool pitchEditing = false;
     bool pitchMouseMoved = false;

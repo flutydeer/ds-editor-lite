@@ -80,12 +80,12 @@ void CommonParamEditorView::cancelEdit() {
 void CommonParamEditorView::setEraseMode(const bool on) {
     m_eraseMode = on;
     if (on)
-        m_freezeMode = false;
+        m_bakeMode = false;
     update();
 }
 
-void CommonParamEditorView::setFreezeMode(const bool on) {
-    m_freezeMode = on;
+void CommonParamEditorView::setBakeMode(const bool on) {
+    m_bakeMode = on;
     if (on)
         m_eraseMode = false;
     update();
@@ -277,8 +277,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
 
         DrawCurveList base;
         DrawCurve *baseCurve = nullptr;
-        if (m_baseCurveVisible &&
-            m_properties->valueType == ParamProperties::ValueType::Relative) {
+        if (m_baseCurveVisible && m_properties->valueType == ParamProperties::ValueType::Relative) {
             const int start = MathUtils::roundDown(qRound(startTick()), 5);
             const int end = MathUtils::round(qRound(endTick()), 5) + 5;
             baseCurve = new DrawCurve(-1);
@@ -390,8 +389,8 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     const auto value = static_cast<int>(sceneYToValue(scenePos.y()));
 
     if (event->button() == Qt::LeftButton) {
-        if (m_freezeMode) {
-            m_editType = Freeze;
+        if (m_bakeMode) {
+            m_editType = Bake;
         } else if (m_eraseMode) {
             m_editType = Erase;
         } else {
@@ -405,7 +404,7 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
             }
         }
     } else if (event->button() == Qt::RightButton) {
-        m_editType = m_eraseMode || m_freezeMode ? None : Erase;
+        m_editType = m_eraseMode || m_bakeMode ? None : Erase;
     } else {
         m_editType = None;
     }
@@ -441,9 +440,9 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         startTick = curPos.x();
     }
 
-    if (m_editType == Freeze) {
-        AppModelUtils::overwriteDrawCurveRange(m_drawCurvesEdited, m_drawCurvesOriginal, startTick,
-                                               endTick);
+    if (m_editType == Bake) {
+        AppModelUtils::bakeDrawCurveRange(m_drawCurvesEdited, m_drawCurvesOriginal, startTick,
+                                          endTick);
     } else {
         auto overlappedCurves = AppModelUtils::curvesIn(m_drawCurvesEdited, startTick, endTick);
         if (m_editType == Erase) {

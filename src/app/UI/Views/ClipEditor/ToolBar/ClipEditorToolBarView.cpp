@@ -148,9 +148,10 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
                            tr("Draw Pitch"), Qt::Key_G, pitchPencilDesc);
     d->m_btnPitchEraser = d->buildToolButton(
         "btnPitchEraser", ":svg/icons/pitch_erase_24_filled.svg", tr("Erase Pitch"), Qt::Key_H);
-    const auto freezePitchDesc = tr("Copy automatic pitch inference results to edited pitch");
-    d->m_btnPitchFreeze = d->buildToolButton("btnPitchFreeze", ":svg/icons/pitch_brush.svg",
-                                             tr("Freeze Pitch"), Qt::Key_J, freezePitchDesc);
+    const auto bakePitchDesc =
+        tr("Bake automatic pitch inference results into the edited pitch curve");
+    d->m_btnPitchBake = d->buildToolButton("btnPitchBake", ":svg/icons/pitch_brush.svg",
+                                           tr("Bake Pitch"), Qt::Key_J, bakePitchDesc);
 
     d->m_btnAutoPageTurn = d->buildToolButton(
         "btnAutoPageTurn", ":svg/icons/arrow_right_16_regular.svg", tr("Auto Page Turn"));
@@ -180,7 +181,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_toolButtonGroup->addButton(d->m_btnPitchAnchor);
     d->m_toolButtonGroup->addButton(d->m_btnPitchPencil);
     d->m_toolButtonGroup->addButton(d->m_btnPitchEraser);
-    d->m_toolButtonGroup->addButton(d->m_btnPitchFreeze);
+    d->m_toolButtonGroup->addButton(d->m_btnPitchBake);
     connect(d->m_toolButtonGroup, &QButtonGroup::buttonToggled, d,
             &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
 
@@ -203,7 +204,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     toolButtonLayout->addWidget(d->m_btnPitchAnchor);
     toolButtonLayout->addWidget(d->m_btnPitchPencil);
     toolButtonLayout->addWidget(d->m_btnPitchEraser);
-    toolButtonLayout->addWidget(d->m_btnPitchFreeze);
+    toolButtonLayout->addWidget(d->m_btnPitchBake);
     toolButtonLayout->setSpacing(1);
     toolButtonLayout->setContentsMargins({});
 
@@ -279,9 +280,9 @@ PianoRollEditMode ClipEditorToolBarView::editMode() const {
 
 bool ClipEditorToolBarView::supportsEditMode(const PianoRollEditMode mode) const {
     Q_D(const ClipEditorToolBarView);
-    if (mode < Select || mode > FreezePitch)
+    if (mode < Select || mode > BakePitch)
         return false;
-    return mode != FreezePitch || (d->m_btnPitchFreeze && d->m_btnPitchFreeze->isEnabled());
+    return mode != BakePitch || (d->m_btnPitchBake && d->m_btnPitchBake->isEnabled());
 }
 
 bool ClipEditorToolBarView::setEditMode(const PianoRollEditMode mode) {
@@ -315,12 +316,12 @@ bool ClipEditorToolBarView::setEditMode(const PianoRollEditMode mode) {
         case ErasePitch:
             button = d->m_btnPitchEraser;
             break;
-        case FreezePitch:
-            button = d->m_btnPitchFreeze;
+        case BakePitch:
+            button = d->m_btnPitchBake;
             break;
     }
 
-    if (!button || (mode == FreezePitch && !button->isEnabled()))
+    if (!button || (mode == BakePitch && !button->isEnabled()))
         return false;
     button->setChecked(true);
     return true;
@@ -348,8 +349,8 @@ void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(const QAbstractB
         m_editMode = EditPitchAnchor;
     } else if (button == m_btnPitchEraser) {
         m_editMode = ErasePitch;
-    } else if (button == m_btnPitchFreeze) {
-        m_editMode = FreezePitch;
+    } else if (button == m_btnPitchBake) {
+        m_editMode = BakePitch;
     } else {
         return;
     }
@@ -463,12 +464,12 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
         connect(m_singingClip, &SingingClip::voiceContextChanged, this,
                 [this](const VoiceContextChange &) {
                     refreshSingerComboPresentation();
-                    refreshPitchFreezeAvailability();
+                    refreshPitchBakeAvailability();
                 });
         connect(m_singingClip, &SingingClip::paramChanged, this,
                 [this](const ParamInfo::Name name, const Param::Type type) {
                     if (name == ParamInfo::Pitch && type == Param::Original)
-                        refreshPitchFreezeAvailability();
+                        refreshPitchBakeAvailability();
                 });
 
         connect(m_cbClipLanguage, &LanguageComboBox::currentLanguageChanged, this,
@@ -489,16 +490,16 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
                    &ClipEditorToolBarViewPrivate::onLanguageEdited);
         m_cbClipLanguage->setLanguages({}, QStringLiteral("unknown"));
     }
-    refreshPitchFreezeAvailability();
+    refreshPitchBakeAvailability();
 }
 
-void ClipEditorToolBarViewPrivate::refreshPitchFreezeAvailability() const {
+void ClipEditorToolBarViewPrivate::refreshPitchBakeAvailability() const {
     const auto *pitch = m_singingClip && !m_singingClip->singerInfo().isEmpty()
                             ? m_singingClip->params.getParamByName(ParamInfo::Pitch)
                             : nullptr;
     const bool available = pitch && !pitch->curves(Param::Original).isEmpty();
-    m_btnPitchFreeze->setEnabled(available);
-    if (!available && m_btnPitchFreeze->isChecked())
+    m_btnPitchBake->setEnabled(available);
+    if (!available && m_btnPitchBake->isChecked())
         m_btnPitchPencil->setChecked(true);
 }
 
@@ -680,8 +681,9 @@ void ClipEditorToolBarViewPrivate::retranslateUi() const {
     setToolTip(m_btnPitchPencil, ClipEditorToolBarView::tr("Draw Pitch"),
                ClipEditorToolBarView::tr("Left drag: Draw\nRight drag: Erase"));
     setToolTip(m_btnPitchEraser, ClipEditorToolBarView::tr("Erase Pitch"));
-    setToolTip(m_btnPitchFreeze, ClipEditorToolBarView::tr("Freeze Pitch"),
-               ClipEditorToolBarView::tr("Copy automatic pitch inference results to edited pitch"));
+    setToolTip(m_btnPitchBake, ClipEditorToolBarView::tr("Bake Pitch"),
+               ClipEditorToolBarView::tr(
+                   "Bake automatic pitch inference results into the edited pitch curve"));
     refreshSingerComboPresentation();
 }
 

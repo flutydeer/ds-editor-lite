@@ -1173,13 +1173,13 @@ Right drag: Erase</source>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="153"/>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="681"/>
-        <source>Freeze Pitch</source>
-        <translation>固定音高</translation>
+        <source>Bake Pitch</source>
+        <translation>固化音高</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="151"/>
-        <source>Copy automatic pitch inference results to edited pitch</source>
-        <translation>复制自动音高推理结果到已编辑音高</translation>
+        <source>Bake automatic pitch inference results into the edited pitch curve</source>
+        <translation>将自动音高推理结果固化到已编辑音高曲线</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="109"/>
@@ -4312,8 +4312,8 @@ type: %L1</source>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="76"/>
-        <source>Freeze</source>
-        <translation>固定</translation>
+        <source>Bake</source>
+        <translation>固化</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="64"/>

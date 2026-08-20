@@ -24,9 +24,9 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
                                      QStringLiteral(":/svg/icons/draw_shape_24_filled.svg"));
     m_btnErase =
         createEditModeButton("btnParamErase", QStringLiteral(":/svg/icons/eraser_24_filled.svg"));
-    m_btnFreeze =
-        createEditModeButton("btnParamFreeze", QStringLiteral(":/svg/icons/brush_24_filled.svg"));
-    m_btnFreeze->setEnabled(false);
+    m_btnBake =
+        createEditModeButton("btnParamBake", QStringLiteral(":/svg/icons/brush_24_filled.svg"));
+    m_btnBake->setEnabled(false);
     m_btnAnchor = createEditModeButton("btnParamAnchor",
                                        QStringLiteral(":/svg/icons/pitch_anchor_24_filled.svg"));
 
@@ -34,14 +34,14 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
     m_editModeGroup->setExclusive(true);
     m_editModeGroup->addButton(m_btnDraw, static_cast<int>(ParamEditorEditMode::Draw));
     m_editModeGroup->addButton(m_btnErase, static_cast<int>(ParamEditorEditMode::Erase));
-    m_editModeGroup->addButton(m_btnFreeze, static_cast<int>(ParamEditorEditMode::Freeze));
+    m_editModeGroup->addButton(m_btnBake, static_cast<int>(ParamEditorEditMode::Bake));
     m_editModeGroup->addButton(m_btnAnchor, static_cast<int>(ParamEditorEditMode::Anchor));
     m_btnDraw->setChecked(true);
 
     auto *layout = new QHBoxLayout;
     layout->addWidget(m_btnDraw);
     layout->addWidget(m_btnErase);
-    layout->addWidget(m_btnFreeze);
+    layout->addWidget(m_btnBake);
     layout->addWidget(m_btnAnchor);
     layout->setSpacing(4);
     layout->setContentsMargins({});
@@ -57,9 +57,9 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
     retranslateUi();
 }
 
-void ParamEditToolBarView::setFreezeEnabled(const bool enabled) {
-    m_btnFreeze->setEnabled(enabled);
-    if (!enabled && m_btnFreeze->isChecked())
+void ParamEditToolBarView::setBakeEnabled(const bool enabled) {
+    m_btnBake->setEnabled(enabled);
+    if (!enabled && m_btnBake->isChecked())
         m_btnDraw->setChecked(true);
 }
 
@@ -72,6 +72,6 @@ void ParamEditToolBarView::changeEvent(QEvent *event) {
 void ParamEditToolBarView::retranslateUi() {
     m_btnDraw->setToolTip(tr("Draw"));
     m_btnErase->setToolTip(tr("Erase"));
-    m_btnFreeze->setToolTip(tr("Freeze"));
+    m_btnBake->setToolTip(tr("Bake"));
     m_btnAnchor->setToolTip(tr("Anchor"));
 }

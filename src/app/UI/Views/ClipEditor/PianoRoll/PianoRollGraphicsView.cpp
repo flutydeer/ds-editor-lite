@@ -364,8 +364,7 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     cancelRequested = false;
     d->m_selectionModel->setSelecting(true);
     d->m_selectionModel->setSelectionChangeBarrier(true);
-    if (event->button() != Qt::LeftButton &&
-        !EditorViewGlobal::isPitchEditMode(d->m_editMode)) {
+    if (event->button() != Qt::LeftButton && !EditorViewGlobal::isPitchEditMode(d->m_editMode)) {
         d->m_interactionController->setMouseMoveBehavior(NoteInteractionController::None);
         auto *noteView = d->noteViewAt(event->pos());
         if (!noteView) {
@@ -424,9 +423,8 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
         Qt::Orientations axes;
         const auto behavior = d->m_interactionController->mouseMoveBehavior();
         if (behavior != NoteInteractionController::None) {
-            axes = behavior == NoteInteractionController::Move
-                       ? (Qt::Horizontal | Qt::Vertical)
-                       : Qt::Orientations(Qt::Horizontal);
+            axes = behavior == NoteInteractionController::Move ? (Qt::Horizontal | Qt::Vertical)
+                                                               : Qt::Orientations(Qt::Horizontal);
         } else if (d->m_currentHandler) {
             axes = d->m_currentHandler->edgeAutoScrollAxes();
             if (!axes && d->m_editMode == EditPitchAnchor)
@@ -1070,8 +1068,7 @@ double PianoRollGraphicsView::bottomKeyIndex() const {
 }
 
 double PianoRollGraphicsView::centerKeyIndex() const {
-    return PianoRollCoord::centerYToKeyIndex(visibleRect().center().y(),
-                                             scaleY() * noteHeight);
+    return PianoRollCoord::centerYToKeyIndex(visibleRect().center().y(), scaleY() * noteHeight);
 }
 
 void PianoRollGraphicsView::setViewportCenterAt(const double tick, const double keyIndex,
@@ -1082,8 +1079,7 @@ void PianoRollGraphicsView::setViewportCenterAt(const double tick, const double 
 
 void PianoRollGraphicsView::setViewportCenterAtKeyIndex(const double keyIndex,
                                                         const bool animated) {
-    const auto centerY =
-        PianoRollCoord::keyIndexToCenterY(keyIndex, scaleY() * noteHeight);
+    const auto centerY = PianoRollCoord::keyIndexToCenterY(keyIndex, scaleY() * noteHeight);
     const auto vBarValue = qRound(centerY - viewport()->height() * 0.5);
     if (animated)
         verticalBarAnimateTo(vBarValue);
@@ -1132,7 +1128,7 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     } else if (mode == ErasePitch) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, true);
-    } else if (mode == FreezePitch) {
+    } else if (mode == BakePitch) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, false, true);
     }
@@ -1428,7 +1424,7 @@ void PianoRollGraphicsViewPrivate::updateNoteWord(const Note *note) const {
 }
 
 void PianoRollGraphicsViewPrivate::setPitchEditMode(const bool on, const bool isErase,
-                                                    const bool isFreeze) {
+                                                    const bool isBake) {
     Q_Q(PianoRollGraphicsView);
     if (on)
         q->setCursor(Qt::ArrowCursor);
@@ -1438,7 +1434,7 @@ void PianoRollGraphicsViewPrivate::setPitchEditMode(const bool on, const bool is
         note->setEditingPitch(on);
     m_pitchEditor->setTransparentMouseEvents(!on);
     m_pitchEditor->setEraseMode(isErase);
-    m_pitchEditor->setFreezeMode(isFreeze);
+    m_pitchEditor->setBakeMode(isBake);
 }
 
 NoteView *PianoRollGraphicsViewPrivate::noteViewAt(const QPoint &pos) {
@@ -1564,10 +1560,10 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
 
     const auto rPos = noteView->mapFromScene(scenePos);
     const auto rx = rPos.x();
-    const auto edge = EditorResizeUtils::horizontalEdgeAt(
-        rx, noteView->rect().width(), AppGlobal::resizeTolerance);
+    const auto edge = EditorResizeUtils::horizontalEdgeAt(rx, noteView->rect().width(),
+                                                          AppGlobal::resizeTolerance);
     q->setCursor(edge == EditorResizeUtils::HorizontalEdge::None ? Qt::ArrowCursor
-                                                                : Qt::SizeHorCursor);
+                                                                 : Qt::SizeHorCursor);
 }
 
 void PianoRollGraphicsViewPrivate::updateLyricToolTip(const QPoint &position) {
