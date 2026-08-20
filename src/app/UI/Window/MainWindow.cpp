@@ -285,6 +285,12 @@ void MainWindow::changeEvent(QEvent *event) {
     QMainWindow::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
         updateWindowTitle();
+    else if (event->type() == QEvent::ActivationChange && isActiveWindow() &&
+             m_bottomPanelDetached) {
+        editorViewController->activatePanelContext(m_trackEditorView->isVisible()
+                                                       ? AppGlobal::TracksEditor
+                                                       : AppGlobal::Generic);
+    }
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
@@ -483,8 +489,8 @@ bool MainWindow::restoreEditorViewState(const EditorViewState &state) {
         return false;
     }
 
-    setEditorPanelVisibility(state.layout.trackPanelVisible, state.layout.bottomPanelVisible);
     m_bottomPanelView->setCurrentPageId(state.layout.bottomPanelPageId);
+    setEditorPanelVisibility(state.layout.trackPanelVisible, state.layout.bottomPanelVisible);
     m_trackEditorView->setViewScale(state.trackPanel.horizontalScale,
                                     state.trackPanel.verticalScale);
     m_trackEditorView->centerAt(state.trackPanel.centerTick, state.trackPanel.centerTrackIndex);
@@ -534,8 +540,7 @@ bool MainWindow::setEditorPanelVisibility(const bool trackPanelVisible,
         }
     }
 
-    appStatus->trackPanelCollapsed = !trackPanelVisible;
-    appStatus->bottomPanelCollapsed = !bottomPanelVisible;
+    updatePanelVisibilityState(trackPanelVisible, bottomPanelVisible);
     return true;
 }
 
@@ -635,16 +640,21 @@ void MainWindow::onSplitterMoved(int pos, int index) {
     qDebug() << "MainWindow::onSplitterMoved"
              << "size 0:" << sizes.at(0) << "size 1:" << sizes.at(1);
     if (sizes.at(0) == 0) {
-        appStatus->trackPanelCollapsed = true;
-        appStatus->bottomPanelCollapsed = false;
+        updatePanelVisibilityState(false, true);
     } else if (sizes.at(1) == 0) {
-        appStatus->trackPanelCollapsed = false;
-        appStatus->bottomPanelCollapsed = true;
+        updatePanelVisibilityState(true, false);
     } else {
         m_splitterState = m_splitter->saveState();
-        appStatus->trackPanelCollapsed = false;
-        appStatus->bottomPanelCollapsed = false;
+        updatePanelVisibilityState(true, true);
     }
+}
+
+void MainWindow::updatePanelVisibilityState(const bool trackPanelVisible,
+                                            const bool bottomPanelVisible) {
+    appStatus->trackPanelCollapsed = !trackPanelVisible;
+    appStatus->bottomPanelCollapsed = !bottomPanelVisible;
+    editorViewController->syncPanelVisibility(trackPanelVisible, bottomPanelVisible,
+                                              m_bottomPanelView->panelType());
 }
 
 void MainWindow::detachBottomPanel() {
@@ -746,6 +756,10 @@ void MainWindow::attachBottomPanel() {
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == m_bottomPanelView && event->type() == QEvent::WindowActivate) {
+        editorViewController->activatePanelContext(m_bottomPanelView->panelType());
+        return false;
+    }
     if (watched == m_bottomPanelView && event->type() == QEvent::Close) {
         event->ignore();
         attachBottomPanel();

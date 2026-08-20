@@ -47,6 +47,7 @@ public:
 
     void commit();
     void discard();
+    void deleteSelection();
 
     const QList<SpeakerMixSpeaker> &speakers() const;
     const QList<SpeakerMixKeyframe> &keyframes() const;

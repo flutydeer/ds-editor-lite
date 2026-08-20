@@ -333,11 +333,7 @@ void SpeakerMixEditorView::keyPressEvent(QKeyEvent *event) {
     }
 
     if (event->key() == Qt::Key_Delete) {
-        const auto before = workingMixData();
-        deleteSelectedKeyframe();
-        if (workingMixData() != before)
-            commit();
-        update();
+        deleteSelection();
         event->accept();
         return;
     }
@@ -374,16 +370,20 @@ void SpeakerMixEditorView::contextMenuEvent(QGraphicsSceneContextMenuEvent *even
 
     auto *deleteAction = menu->addAction(tr("Delete"));
     deleteAction->setEnabled(!isInitial);
-    connect(deleteAction, &QAction::triggered, this, [this] {
-        const auto before = workingMixData();
-        deleteSelectedKeyframe();
-        if (workingMixData() != before)
-            commit();
-        update();
-    });
+    connect(deleteAction, &QAction::triggered, this, &SpeakerMixEditorView::deleteSelection);
 
     menu->exec(event->screenPos());
     menu->deleteLater();
+}
+
+void SpeakerMixEditorView::deleteSelection() {
+    if (!m_editable)
+        return;
+    const auto before = workingMixData();
+    deleteSelectedKeyframe();
+    if (workingMixData() != before)
+        commit();
+    update();
 }
 
 QList<double> SpeakerMixEditorView::interpolateWeights(const double tick) const {
