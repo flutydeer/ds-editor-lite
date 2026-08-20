@@ -44,6 +44,9 @@ public:
     void clearTrackPastePreview() override;
     [[nodiscard]] int snapStep(bool snapOff, int atTick = 0) const;
 
+public slots:
+    void setClipSelection(const QList<int> &selected) const;
+
 signals:
     void contextMenuRequested(const TrackEditorMenuContext &context);
     // Emitted when an external file drag is dropped on the canvas. Phase 1

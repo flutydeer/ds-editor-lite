@@ -4,6 +4,7 @@
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/AppModel/Params.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
+#include "Interface/EditorInteraction.h"
 #include "UnsupportedParameterPromptState.h"
 
 #include <QWidget>
@@ -16,6 +17,7 @@ class ParamEditorGraphicsView;
 class ParamEditorToolBarView;
 class Button;
 class QLabel;
+class QResizeEvent;
 class QVBoxLayout;
 
 class ParamEditorView final : public QWidget {
@@ -23,6 +25,7 @@ class ParamEditorView final : public QWidget {
 
 public:
     explicit ParamEditorView(QWidget *parent = nullptr);
+    ~ParamEditorView() override;
     void setDataContext(SingingClip *clip);
     [[nodiscard]] ParamEditorGraphicsView *graphicsView() const;
 
@@ -32,6 +35,7 @@ public slots:
 
 protected:
     void changeEvent(QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private slots:
     void onPreviousKeyframe() const;
@@ -61,6 +65,7 @@ private:
         dataWithDynamicEnabled(const SpeakerMixModel::SpeakerMixData &data);
     static SpeakerMixModel::SpeakerMixData
         dataWithDynamicStopped(const SpeakerMixModel::SpeakerMixData &data);
+    void executeEditCommand(EditorInteraction::Command command) const;
 
     SingingClip *m_clip = nullptr;
     ParamEditorGraphicsView *m_graphicsView;

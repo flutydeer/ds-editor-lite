@@ -8,6 +8,7 @@
 #include <lite/GUI/Controls/Button.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
+#include "Controller/EditorViewController.h"
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -22,11 +23,14 @@
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QResizeEvent>
 #include <QVBoxLayout>
 
 using namespace SpeakerMixModel;
 
 ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
+    editorViewController->registerInteractionArea(this, AppGlobal::ClipEditor,
+                                                  EditorInteraction::Target::Parameters);
     const auto option = appOptions->general();
     const auto foregroundParam = option->defaultForegroundParam;
     const auto backgroundParam = option->defaultBackgroundParam;
@@ -105,6 +109,12 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
             &ParamEditorView::onStopDynamicMix);
     connect(m_emptyStateActionButton, &Button::clicked, this,
             &ParamEditorView::onEmptyStateAction);
+    connect(
+        editorViewController, &EditorViewController::editCommandRequested, this,
+        [this](const EditorInteraction::Target target, const EditorInteraction::Command command) {
+            if (target == EditorInteraction::Target::Parameters)
+                executeEditCommand(command);
+        });
 
     auto *mixView = m_graphicsView->speakerMixView();
     connect(mixView, &SpeakerMixEditorView::speakerMixEdited, this,
@@ -113,6 +123,15 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
         m_unsupportedParameterPromptState.resetForProject();
         hideEmptyState();
     });
+}
+
+ParamEditorView::~ParamEditorView() {
+    editorViewController->unregisterInteractionArea(this);
+}
+
+void ParamEditorView::executeEditCommand(const EditorInteraction::Command command) const {
+    if (command == EditorInteraction::Command::DeleteSelection)
+        m_graphicsView->deleteSelection();
 }
 
 void ParamEditorView::setDataContext(SingingClip *clip) {
@@ -140,6 +159,13 @@ void ParamEditorView::changeEvent(QEvent *event) {
         refreshSpeakerMixToolBar();
         refreshParameterSupportState();
     }
+}
+
+void ParamEditorView::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+    editorViewController->syncEditTargetVisibility(
+        EditorInteraction::Target::Parameters, event->size().height() > 0,
+        AppGlobal::ClipEditor);
 }
 
 void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) {

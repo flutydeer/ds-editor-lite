@@ -7,11 +7,11 @@
 #include "PianoRollRhiWidget.h"
 #include "PhonemeView.h"
 #include "Controller/ClipController.h"
+#include "Controller/EditorViewController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 #include "UI/Views/Common/TimelineView.h"
-#include "UI/Views/Common/EditorShortcutUtils.h"
 
 #include <QLabel>
 #include <QEvent>
@@ -26,6 +26,8 @@
 PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setMinimumHeight(128);
+    editorViewController->registerInteractionArea(this, AppGlobal::ClipEditor,
+                                                  EditorInteraction::Target::PianoRoll);
     m_contextMenuController = new PianoRollContextMenuController(this);
 
     const auto useRhi = appOptions->developer()->editorRenderBackend ==
@@ -104,7 +106,12 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
         connectRhiBackend();
     else
         connectLegacyBackend();
-    registerEditorShortcuts();
+    connect(
+        editorViewController, &EditorViewController::editCommandRequested, this,
+        [this](const EditorInteraction::Target target, const EditorInteraction::Command command) {
+            if (target == EditorInteraction::Target::PianoRoll)
+                executeEditCommand(command);
+        });
     // 底部面板折叠（docked 模式为 splitter 高度归零，不触发 hideEvent）时
     // 使轨道侧叠加层失效；展开且本视图可见时恢复
     connect(appStatus, &AppStatus::bottomPanelCollapseStateChanged, this,
@@ -116,28 +123,35 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
             });
 }
 
-void PianoRollView::registerEditorShortcuts() {
-    using EditorShortcutUtils::add;
-    add(this, QKeySequence::Cut, m_contextMenuController,
-        &PianoRollContextMenuController::cutSelection);
-    add(this, QKeySequence::Copy, m_contextMenuController,
-        &PianoRollContextMenuController::copySelection);
-    add(this, QKeySequence::Paste, m_contextMenuController,
-        &PianoRollContextMenuController::pasteSelection);
-    add(this, QKeySequence::SelectAll, m_contextMenuController,
-        &PianoRollContextMenuController::selectAll);
-    const auto remove = [this] {
-        if (m_editMode == EditPitchAnchor) {
-            if (m_rhiView)
-                m_rhiView->deleteSelectedAnchors();
-            else if (m_graphicsView)
-                m_graphicsView->deleteSelectedAnchors();
-        } else {
-            m_contextMenuController->deleteSelection();
-        }
-    };
-    add(this, QKeySequence::Delete, this, remove);
-    add(this, QKeySequence(Qt::Key_Backspace), this, remove);
+PianoRollView::~PianoRollView() {
+    editorViewController->unregisterInteractionArea(this);
+}
+
+void PianoRollView::executeEditCommand(const EditorInteraction::Command command) const {
+    switch (command) {
+        case EditorInteraction::Command::Cut:
+            m_contextMenuController->cutSelection();
+            break;
+        case EditorInteraction::Command::Copy:
+            m_contextMenuController->copySelection();
+            break;
+        case EditorInteraction::Command::Paste:
+            m_contextMenuController->pasteSelection();
+            break;
+        case EditorInteraction::Command::SelectAll:
+            m_contextMenuController->selectAll();
+            break;
+        case EditorInteraction::Command::DeleteSelection:
+            if (m_editMode == EditPitchAnchor) {
+                if (m_rhiView)
+                    m_rhiView->deleteSelectedAnchors();
+                else if (m_graphicsView)
+                    m_graphicsView->deleteSelectedAnchors();
+            } else {
+                m_contextMenuController->deleteSelection();
+            }
+            break;
+    }
 }
 
 void PianoRollView::createLegacyBackend() {

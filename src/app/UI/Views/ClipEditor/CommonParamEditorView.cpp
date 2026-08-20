@@ -410,15 +410,10 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     m_mouseMoved = true;
     const auto scenePos = event->scenePos();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
-    if (tick < 0) {
+    if (tick < 0)
         tick = 0;
-        qDebug() << "mouseMoveEvent: Negative tick, clipped to 0";
-    }
     const auto value = static_cast<int>(sceneYToValue(scenePos.y()));
     const auto curPos = QPoint(tick, value);
-    qDebug() << "Draw at tick:" << tick << "value:"
-             << m_properties->valueToString(value, m_properties->hasUnit(),
-                                            m_properties->displayPrecision);
 
     int startTick;
     int endTick;

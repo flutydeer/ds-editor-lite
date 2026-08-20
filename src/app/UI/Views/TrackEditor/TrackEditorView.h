@@ -3,6 +3,7 @@
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include "Interface/EditorInteraction.h"
 #include "Interface/EditorViewState.h"
 #include <lite/History/HistoryFocus.h>
 #include "TracksGraphicsScene.h"
@@ -62,13 +63,12 @@ private slots:
     static void onRemoveTrackTriggered(int id);
 
 private:
-    bool eventFilter(QObject *watched, QEvent *event) override;
     void changeEvent(QEvent *event) override;
     void createLegacyBackend();
     void connectLegacyBackend();
     void connectRhiBackend();
     void fallbackToLegacy();
-    void registerEditorShortcuts();
+    void executeEditCommand(EditorInteraction::Command command) const;
     void populateLegacyClipItems();
     void handleExternalDrop(const TrackDropSlot &slot, const QList<QUrl> &urls);
     [[nodiscard]] double activeScaleY() const;

@@ -98,6 +98,10 @@ void TracksGraphicsView::setClipSelectedBorderColor(const QColor &color) {
             clip->update();
 }
 
+void TracksGraphicsView::setClipSelection(const QList<int> &selected) const {
+    applyClipSelection(selected);
+}
+
 int TracksGraphicsView::snapStep(const bool snapOff, const int atTick) const {
     if (snapOff)
         return 1;
