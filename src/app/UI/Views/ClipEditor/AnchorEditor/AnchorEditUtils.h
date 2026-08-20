@@ -8,6 +8,7 @@ class Curve;
 class DrawCurve;
 
 namespace AnchorEditor {
+    [[nodiscard]] bool isCompleteAnchorCurve(const AnchorCurve *curve);
     [[nodiscard]] QList<Curve *> replaceAnchors(const QList<Curve *> &existing,
                                                 const QList<AnchorCurve *> &replacementAnchors);
     [[nodiscard]] QList<Curve *> replaceDrawCurves(const QList<Curve *> &existing,
