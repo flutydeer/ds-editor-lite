@@ -11,6 +11,13 @@
 #include <numeric>
 
 namespace {
+    int alignedTickAtOrAfter(const int tick, const int origin, const int step) {
+        auto remainder = (tick - origin) % step;
+        if (remainder < 0)
+            remainder += step;
+        return remainder == 0 ? tick : tick + step - remainder;
+    }
+
     int curveValueAt(const DrawCurve &curve, const int tick) {
         const auto offset = tick - curve.localStart();
         const auto leftIndex = offset / curve.step;
@@ -35,7 +42,7 @@ namespace {
 
         auto *result = new DrawCurve(curve);
         result->step = step;
-        result->setLocalStart(startTick);
+        result->Curve::setLocalStart(startTick);
 
         QList<int> values;
         values.reserve((endTick - startTick) / step);
@@ -170,18 +177,20 @@ bool AppModelUtils::eraseDrawCurveRange(DrawCurveList &target, int startTick, in
 
 DrawCurve AppModelUtils::getResultCurve(const DrawCurve &original, const DrawCurveList &edited) {
     DrawCurve result = original;
+    if (result.isEmpty() || result.step <= 0)
+        return result;
+
     DrawCurveList curvesToMerge;
     for (const auto &curve : edited) {
-        if (curve->isOverlappedWith(&result)) {
-            const auto newCurve = new DrawCurve(*curve);
-            // 截断多余的部分
-            if (curve->localStart() >= original.localStart() &&
-                curve->localEndTick() <= original.localEndTick()) {
-                // original 曲线区间覆盖整条手绘曲线，无需截断
-            } else
-                newCurve->clip(original.localStart(), original.localEndTick());
-            curvesToMerge.append(newCurve);
-        }
+        if (!curve || curve->isEmpty() || curve->step <= 0 || !curve->isOverlappedWith(&result))
+            continue;
+
+        const auto clippedStart = std::max(curve->localStart(), original.localStart());
+        const auto clippedEnd = std::min(curve->localEndTick(), original.localEndTick());
+        const auto alignedStart =
+            alignedTickAtOrAfter(clippedStart, original.localStart(), original.step);
+        if (alignedStart < clippedEnd)
+            curvesToMerge.append(resampleCurve(*curve, alignedStart, clippedEnd, original.step));
     }
     for (const auto &curve : curvesToMerge) {
         result.mergeWithOtherPriority(*curve);

@@ -330,6 +330,83 @@ namespace {
         qDeleteAll(initial);
     }
 
+    void testImportedCurveGridAlignment(const Backend backend, const DrawCurveList &generated) {
+        auto *imported = curve(0, QList<int>(10, 321));
+        imported->step = 3;
+        DrawCurveList initial{imported};
+        const QList<QPoint> stroke{
+            {5,  700},
+            {10, 720}
+        };
+        const auto pencil = runStroke(backend, Tool::Pencil, stroke, generated, initial);
+        const auto bake = runStroke(backend, Tool::Bake, stroke, generated, initial);
+
+        expect(hasSameShape(pencil.persisted, bake.persisted) && bake.persisted.size() == 1 &&
+                   bake.persisted.first().step == 3,
+               "pencil and bake must share an imported curve's sampling grid");
+        if (bake.persisted.size() == 1) {
+            const auto &values = bake.persisted.first().values;
+            const auto generatedAt6 = DrawCurveEditUtils::generatedValueAt(generated, 6);
+            const auto generatedAt9 = DrawCurveEditUtils::generatedValueAt(generated, 9);
+            expect(values.size() == 10 && values.at(0) == 321 && values.at(1) == 321 &&
+                       values.at(4) == 321,
+                   "editing an imported curve must preserve samples outside the stroke");
+            expect(generatedAt6 && generatedAt9 && values.at(2) == *generatedAt6 &&
+                       values.at(3) == *generatedAt9,
+                   "bake samples must stay on the imported curve's phase");
+        }
+
+        DrawCurveList committed;
+        for (const auto &item : bake.persisted) {
+            auto *restored = curve(item.start, item.values);
+            restored->step = item.step;
+            committed.append(restored);
+        }
+        const auto inferenceInput = AppModelUtils::getResultCurve(*generated.first(), committed);
+        expect(inferenceInput.step == generated.first()->step &&
+                   inferenceInput.values().size() == generated.first()->values().size(),
+               "imported curve edits must merge into inference input without grid corruption");
+        qDeleteAll(committed);
+        qDeleteAll(initial);
+
+        auto *crossedImported = curve(20, QList<int>(10, 321));
+        crossedImported->step = 3;
+        DrawCurveList crossedInitial{crossedImported};
+        const QList<QPoint> crossingStroke{
+            {0,  700},
+            {30, 720}
+        };
+        const auto crossingPencil =
+            runStroke(backend, Tool::Pencil, crossingStroke, generated, crossedInitial);
+        const auto crossingBake =
+            runStroke(backend, Tool::Bake, crossingStroke, generated, crossedInitial);
+        expect(hasSameShape(crossingPencil.persisted, crossingBake.persisted) &&
+                   crossingBake.persisted.size() == 1 &&
+                   crossingBake.persisted.first().step == DrawCurve().step &&
+                   crossingBake.persisted.first().start == 0 &&
+                   crossingBake.persisted.first().end == 50,
+               "crossing an imported grid must use the shared pencil normalization path");
+        qDeleteAll(crossedInitial);
+
+        auto *shortImported = curve(0, {321, 322});
+        shortImported->Curve::setLocalStart(4);
+        shortImported->step = 3;
+        DrawCurveList shortInitial{shortImported};
+        const QList<QPoint> oneSampleStroke{
+            {0, 700},
+            {5, 720}
+        };
+        const auto shortPencil =
+            runStroke(backend, Tool::Pencil, oneSampleStroke, generated, shortInitial);
+        const auto shortBake =
+            runStroke(backend, Tool::Bake, oneSampleStroke, generated, shortInitial);
+        expect(hasSameShape(shortPencil.persisted, shortBake.persisted) &&
+                   shortBake.persisted.size() == 1 && shortBake.persisted.first().start == 4 &&
+                   shortBake.persisted.first().end == 10 && shortBake.persisted.first().step == 3,
+               "a phase-incompatible tail must survive a filtered one-sample stroke");
+        qDeleteAll(shortInitial);
+    }
+
     void testEraserRangeRegression(const Backend backend, const DrawCurveList &generated) {
         DrawCurveList initial{curve(0, QList<int>(24, 321))};
         const auto erased = runStroke(backend, Tool::Eraser,
@@ -353,7 +430,9 @@ namespace {
                  QList<QPoint>{{30, 700}, {0, 720} }
         }) {
             const auto baked = runStroke(backend, Tool::Bake, stroke, generated);
-            expect(baked.persisted.size() == 2 && hasStandardGrid(baked.persisted),
+            expect(baked.persisted.size() == 2 && hasStandardGrid(baked.persisted) &&
+                       baked.persisted.first().start == 0 && baked.persisted.first().end == 10 &&
+                       baked.persisted.last().start == 20 && baked.persisted.last().end == 30,
                    "bake must use the shared pencil path separately across generated gaps");
         }
         qDeleteAll(generated);
@@ -400,6 +479,7 @@ namespace {
             testShortestValidStrokes(backend, generated);
             testSparseFastStroke(backend, generated);
             testExistingCurveOverwrite(backend, generated);
+            testImportedCurveGridAlignment(backend, generated);
             testEraserRangeRegression(backend, generated);
             testGeneratedGapsStaySeparate(backend);
         }
