@@ -2740,6 +2740,7 @@ void PianoRollRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
     d->hideLyricToolTip();
     if (d->clip && d->editMode == EditPitchAnchor && event->button() == Qt::LeftButton) {
         setFocus(Qt::MouseFocusReason);
+        d->prepareEdgeAutoScroll(event->position());
         d->anchorController.doubleClickAt(d->scenePositionAt(event->position()), event->button());
         event->accept();
         return;
