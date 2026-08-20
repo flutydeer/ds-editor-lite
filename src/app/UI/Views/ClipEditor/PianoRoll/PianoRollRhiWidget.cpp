@@ -2013,11 +2013,13 @@ public:
     }
 
     void scheduleSnapshot() {
-        if (snapshotScheduled)
+        if (q->isResizeActive() || snapshotScheduled)
             return;
         snapshotScheduled = true;
         QTimer::singleShot(0, q, [this] {
             snapshotScheduled = false;
+            if (q->isResizeActive())
+                return;
             rebuildSnapshot();
         });
     }
@@ -3383,6 +3385,10 @@ void PianoRollRhiWidget::onRhiReady() {
 void PianoRollRhiWidget::onDevicePixelRatioChanged() {
     EditorRhiWidget::onDevicePixelRatioChanged();
     d->glyphAtlas.clear();
+    d->scheduleSnapshot();
+}
+
+void PianoRollRhiWidget::onResizeSettled() {
     d->scheduleSnapshot();
 }
 

@@ -417,11 +417,13 @@ void TracksRhiWidget::updateScrollBars() {
 }
 
 void TracksRhiWidget::scheduleSnapshot() {
-    if (m_snapshotScheduled)
+    if (isResizeActive() || m_snapshotScheduled)
         return;
     m_snapshotScheduled = true;
     QTimer::singleShot(0, this, [this] {
         m_snapshotScheduled = false;
+        if (isResizeActive())
+            return;
         rebuildSnapshot();
     });
 }
@@ -832,6 +834,10 @@ void TracksRhiWidget::onRhiReady() {
 void TracksRhiWidget::onDevicePixelRatioChanged() {
     EditorRhiWidget::onDevicePixelRatioChanged();
     m_glyphAtlas.clear();
+    scheduleSnapshot();
+}
+
+void TracksRhiWidget::onResizeSettled() {
     scheduleSnapshot();
 }
 

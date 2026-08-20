@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QMatrix4x4>
 #include <QMetaObject>
+#include <QPaintEvent>
 #include <QResizeEvent>
 #include <QTimer>
 #include <rhi/qrhi.h>
@@ -88,17 +89,23 @@ public:
         clock.start();
         resizeSettleTimer.setSingleShot(true);
         resizeSettleTimer.setInterval(kResizeSettleDelayMs);
-        QObject::connect(&resizeSettleTimer, &QTimer::timeout, q,
-                         [this] { this->q->setFixedColorBufferSize({}); });
+        QObject::connect(&resizeSettleTimer, &QTimer::timeout, q, [this] {
+            resizeActive = false;
+            this->q->onResizeSettled();
+            // Let the final snapshot land before recreating the color buffer at native size.
+            QTimer::singleShot(0, this->q, [this] { this->q->setFixedColorBufferSize({}); });
+        });
     }
 
-    void beginResize(const QSize &oldSize) {
-        if (!q->isVisible() || oldSize.isEmpty())
-            return;
+    bool beginResize(const QSize &oldSize) {
+        if (!resourcesReady || !q->isVisible() || oldSize.isEmpty())
+            return false;
         // Keep the last complete backing texture while resize events are still arriving.
         if (q->fixedColorBufferSize().isEmpty())
             q->setFixedColorBufferSize(oldSize * q->devicePixelRatioF());
+        resizeActive = true;
         resizeSettleTimer.start();
+        return true;
     }
 
     void initialize() {
@@ -656,6 +663,7 @@ public:
     QVector<EditorRhiOverlayRect> overlayRects;
     bool frameDirty = true;
     bool resourcesReady = false;
+    bool resizeActive = false;
     bool failureRequested = false;
     QRhi *rhi = nullptr;
     QRhiTexture *colorTexture = nullptr;
@@ -730,6 +738,10 @@ QPointF EditorRhiWidget::physicalWindowOffset() const {
     return topLevel ? mapTo(topLevel, QPointF()) * devicePixelRatioF() : QPointF();
 }
 
+bool EditorRhiWidget::isResizeActive() const {
+    return d->resizeActive;
+}
+
 void EditorRhiWidget::requestBackendFailure(const QString &reason) {
     d->fail(reason);
 }
@@ -753,8 +765,20 @@ bool EditorRhiWidget::event(QEvent *event) {
     return result;
 }
 
+void EditorRhiWidget::paintEvent(QPaintEvent *event) {
+    if (d->resizeActive) {
+        event->accept();
+        return;
+    }
+    QRhiWidget::paintEvent(event);
+}
+
 void EditorRhiWidget::resizeEvent(QResizeEvent *event) {
-    d->beginResize(event->oldSize());
+    if (!event->size().isEmpty() && d->beginResize(event->oldSize())) {
+        // QRhiWidget renders synchronously here; the retained texture is composited until settle.
+        QWidget::resizeEvent(event);
+        return;
+    }
     QRhiWidget::resizeEvent(event);
 }
 
@@ -763,4 +787,7 @@ void EditorRhiWidget::onRhiReady() {
 
 void EditorRhiWidget::onDevicePixelRatioChanged() {
     d->invalidateTextures();
+}
+
+void EditorRhiWidget::onResizeSettled() {
 }
