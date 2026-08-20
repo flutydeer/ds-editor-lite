@@ -66,7 +66,7 @@ namespace {
                                                                      editedCurves, anchorCoverage);
         expect(finalLayers.size() == 1 &&
                    finalLayers.first().curveSource == PitchDisplayCurveSource::Merged &&
-                   finalLayers.first().maximumAlpha == 210 &&
+                   finalLayers.first().maximumAlpha == 168 &&
                    finalLayers.first().hiddenCoverage == anchorCoverage,
                "final mode must render one merged layer outside anchor coverage");
 

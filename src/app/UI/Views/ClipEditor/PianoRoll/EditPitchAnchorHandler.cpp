@@ -69,15 +69,7 @@ void EditPitchAnchorHandler::hoverLeaveEvent(QHoverEvent *event) {
 }
 
 bool EditPitchAnchorHandler::keyPressEvent(QKeyEvent *event) {
-    if (event->key() == Qt::Key_Escape) {
-        m_controller.exitEditing();
-        return true;
-    }
-    if (event->key() == Qt::Key_Delete) {
-        m_controller.deleteSelectedNodes();
-        return true;
-    }
-    return false;
+    return m_controller.handleKeyPress(event->key());
 }
 
 void EditPitchAnchorHandler::commit() {

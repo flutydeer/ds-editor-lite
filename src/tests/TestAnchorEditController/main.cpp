@@ -306,6 +306,52 @@ namespace {
         delete source;
     }
 
+    void testKeyboardCommands() {
+        AnchorEditor::AnchorEditController controller;
+        controller.setCoordinateMapper(mapper());
+        auto *source = makeCurve({
+            {10, 20},
+            {20, 40},
+            {30, 60}
+        });
+        controller.setHostCallbacks({
+            [] { return true; },
+            [](const QList<AnchorCurve *> &) {},
+            [](AnchorEditor::EditFinishReason) {},
+            [] {},
+        });
+        controller.loadFromModel({source});
+        controller.setEditActive(true);
+
+        expect(AnchorEditor::AnchorEditController::handlesKey(Qt::Key_Backspace),
+               "Backspace must be an anchor edit key");
+        expect(AnchorEditor::AnchorEditController::handlesKey(Qt::Key_Delete),
+               "Delete must be an anchor edit key");
+        expect(AnchorEditor::AnchorEditController::handlesKey(Qt::Key_Escape),
+               "Escape must be an anchor edit key");
+        expect(!AnchorEditor::AnchorEditController::handlesKey(Qt::Key_A),
+               "unrelated keys must not be anchor edit keys");
+
+        controller.pressAt({200, 600}, Qt::LeftButton);
+        expect(controller.handleKeyPress(Qt::Key_Backspace), "Backspace must be handled");
+        expect(controller.curves().first()->nodes().toList().size() == 2,
+               "Backspace must delete the selected anchor");
+
+        controller.loadFromModel({source});
+        controller.pressAt({200, 600}, Qt::LeftButton);
+        expect(controller.handleKeyPress(Qt::Key_Delete), "Delete must be handled");
+        expect(controller.curves().first()->nodes().toList().size() == 2,
+               "Delete must delete the selected anchor");
+
+        controller.loadFromModel({source});
+        controller.pressAt({200, 600}, Qt::LeftButton);
+        expect(controller.handleKeyPress(Qt::Key_Escape), "Escape must be handled");
+        expect(!controller.state().editing && controller.state().selectedNodes.isEmpty(),
+               "Escape must leave anchor editing");
+        expect(!controller.handleKeyPress(Qt::Key_A), "unrelated keys must remain unhandled");
+        delete source;
+    }
+
     void testCompositionPreservesOtherCurveKind() {
         auto *draw = new DrawCurve;
         draw->setLocalStart(0);
@@ -566,6 +612,7 @@ int main(int argc, char *argv[]) {
     testSwitchingAwayFromProvisionalAllowsCommit();
     testDragCancelRestoresSnapshot();
     testSelectionDeleteAndInterpolation();
+    testKeyboardCommands();
     testDeleteToOneRemovesWholeCurve();
     testCompositionPreservesOtherCurveKind();
     testCompositionRejectsSinglePointDrawCurves();
