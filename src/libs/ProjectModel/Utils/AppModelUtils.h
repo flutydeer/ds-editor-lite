@@ -18,6 +18,7 @@ namespace AppModelUtils {
     void copyCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target);
     DrawCurveList curvesIn(const DrawCurveList &container, int startTick, int endTick);
     DrawCurveList mergeCurves(const DrawCurveList &original, const DrawCurveList &edited);
+    bool eraseDrawCurveRange(DrawCurveList &target, int startTick, int endTick);
     bool bakeDrawCurveRange(DrawCurveList &target, const DrawCurveList &source, int startTick,
                             int endTick);
     // 合并自动参数和手绘参数

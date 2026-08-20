@@ -1126,28 +1126,15 @@ public:
         pitchMouseMoved = true;
         const auto startTick = std::min(pitchPreviousPos.x(), current.x());
         const auto endTick = std::max(pitchPreviousPos.x(), current.x());
-        const auto overlapped = AppModelUtils::curvesIn(pitchPreviewCurves, startTick, endTick);
 
-        if (pitchEditType == PitchEditType::Bake) {
+        if (pitchEditType == PitchEditType::Erase) {
+            AppModelUtils::eraseDrawCurveRange(pitchPreviewCurves, startTick, endTick);
+        } else if (pitchEditType == PitchEditType::Bake) {
             const auto *pitch = clip->params.getParamByName(ParamInfo::Pitch);
             const auto original = AppModelUtils::getDrawCurves(pitch->curves(Param::Original));
             AppModelUtils::bakeDrawCurveRange(pitchPreviewCurves, original, startTick, endTick);
-        } else if (pitchEditType == PitchEditType::Erase) {
-            for (auto *curve : overlapped) {
-                if (curve->localStart() >= startTick && curve->localEndTick() <= endTick) {
-                    pitchPreviewCurves.removeOne(curve);
-                    delete curve;
-                } else if (curve->localStart() < startTick && curve->localEndTick() > endTick) {
-                    auto *rightCurve = new DrawCurve;
-                    rightCurve->setLocalStart(endTick);
-                    rightCurve->setValues(curve->mid(endTick));
-                    curve->eraseTailFrom(startTick);
-                    MathUtils::binaryInsert(pitchPreviewCurves, rightCurve);
-                } else {
-                    curve->erase(startTick, endTick);
-                }
-            }
         } else {
+            const auto overlapped = AppModelUtils::curvesIn(pitchPreviewCurves, startTick, endTick);
             if (!pitchNewCurveCreated && pitchEditType == PitchEditType::DrawOnInterval) {
                 pitchEditingCurve = new DrawCurve;
                 pitchEditingCurve->setLocalStart(pitchMouseDownPos.x());

@@ -48,6 +48,29 @@ namespace {
     DrawCurve *resampleCurve(const DrawCurve &curve, const int step) {
         return resampleCurve(curve, curve.localStart(), curve.localEndTick(), step);
     }
+
+    void mergeAdjacentDrawCurves(DrawCurveList &curves) {
+        for (qsizetype i = 0; i + 1 < curves.size();) {
+            auto *left = curves.at(i);
+            auto *right = curves.at(i + 1);
+            if (!left || !right || left->isEmpty() || right->isEmpty() || left->step <= 0 ||
+                right->step <= 0 || left->localEndTick() != right->localStart()) {
+                ++i;
+                continue;
+            }
+
+            const auto commonStep = std::gcd(left->step, right->step);
+            auto *merged = resampleCurve(*left, commonStep);
+            const auto *normalizedRight = resampleCurve(*right, commonStep);
+            merged->insertValues(merged->values().size(), normalizedRight->values());
+
+            curves[i] = merged;
+            curves.removeAt(i + 1);
+            delete left;
+            delete right;
+            delete normalizedRight;
+        }
+    }
 }
 
 void AppModelUtils::copyNotes(const NoteList &source, NoteList &target) {
@@ -124,6 +147,49 @@ DrawCurveList AppModelUtils::mergeCurves(const DrawCurveList &original,
     return result;
 }
 
+bool AppModelUtils::eraseDrawCurveRange(DrawCurveList &target, int startTick, int endTick) {
+    if (startTick > endTick)
+        std::swap(startTick, endTick);
+    if (startTick == endTick)
+        return false;
+
+    const auto overlapped = curvesIn(target, startTick, endTick);
+    for (auto *curve : overlapped) {
+        if (!curve || curve->isEmpty() || curve->step <= 0)
+            continue;
+
+        const auto curveStart = curve->localStart();
+        const auto curveEnd = curve->localEndTick();
+        auto commonStep = curve->step;
+        if (startTick > curveStart && startTick < curveEnd)
+            commonStep = std::gcd(commonStep, startTick - curveStart);
+        if (endTick > curveStart && endTick < curveEnd)
+            commonStep = std::gcd(commonStep, endTick - curveStart);
+        if (commonStep != curve->step) {
+            auto *normalized = resampleCurve(*curve, commonStep);
+            target[target.indexOf(curve)] = normalized;
+            delete curve;
+            curve = normalized;
+        }
+
+        if (curve->localStart() >= startTick && curve->localEndTick() <= endTick) {
+            target.removeOne(curve);
+            delete curve;
+        } else if (curve->localStart() < startTick && curve->localEndTick() > endTick) {
+            auto *rightCurve = new DrawCurve;
+            rightCurve->step = curve->step;
+            rightCurve->setClip(curve->Curve::clip());
+            rightCurve->setLocalStart(endTick);
+            rightCurve->setValues(curve->mid(endTick));
+            curve->eraseTailFrom(startTick);
+            MathUtils::binaryInsert(target, rightCurve);
+        } else {
+            curve->erase(startTick, endTick);
+        }
+    }
+    return !overlapped.isEmpty();
+}
+
 bool AppModelUtils::bakeDrawCurveRange(DrawCurveList &target, const DrawCurveList &source,
                                        int startTick, int endTick) {
     if (startTick > endTick)
@@ -149,37 +215,11 @@ bool AppModelUtils::bakeDrawCurveRange(DrawCurveList &target, const DrawCurveLis
     if (replacements.isEmpty())
         return false;
 
-    while (!replacements.isEmpty()) {
-        auto *replacement = replacements.takeFirst();
-        const auto overlapped =
-            curvesIn(target, replacement->localStart(), replacement->localEndTick());
-        if (overlapped.isEmpty()) {
-            MathUtils::binaryInsert(target, replacement);
-            continue;
-        }
-
-        auto commonStep = replacement->step;
-        for (const auto *curve : overlapped) {
-            commonStep = std::gcd(commonStep, curve->step);
-            commonStep = std::gcd(commonStep, curve->localStart() - replacement->localStart());
-        }
-
-        DrawCurveList normalizedTarget;
-        for (const auto *curve : overlapped)
-            normalizedTarget.append(resampleCurve(*curve, commonStep));
-        DrawCurveList normalizedReplacement{resampleCurve(*replacement, commonStep)};
-        auto merged = mergeCurves(normalizedTarget, normalizedReplacement);
-
-        qDeleteAll(normalizedTarget);
-        qDeleteAll(normalizedReplacement);
-        delete replacement;
-        for (auto *curve : overlapped) {
-            target.removeOne(curve);
-            delete curve;
-        }
-        for (auto *curve : merged)
-            MathUtils::binaryInsert(target, curve);
+    for (auto *replacement : replacements) {
+        eraseDrawCurveRange(target, replacement->localStart(), replacement->localEndTick());
+        MathUtils::binaryInsert(target, replacement);
     }
+    mergeAdjacentDrawCurves(target);
     return true;
 }
 

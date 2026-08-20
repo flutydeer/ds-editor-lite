@@ -22,6 +22,14 @@ namespace {
         return result;
     }
 
+    void bakeSparseMouseMoves(DrawCurveList &target, const DrawCurveList &source,
+                              const QList<int> &eventTicks) {
+        for (qsizetype i = 1; i < eventTicks.size(); ++i) {
+            AppModelUtils::bakeDrawCurveRange(target, source, eventTicks.at(i - 1),
+                                              eventTicks.at(i));
+        }
+    }
+
     void testBakeInterval() {
         QList<DrawCurve *> source{curve(0, {100, 110, 120, 130, 140})};
         QList<DrawCurve *> target{curve(0, {900, 900, 900, 900, 900})};
@@ -92,6 +100,40 @@ namespace {
         qDeleteAll(source);
         qDeleteAll(target);
     }
+
+    void testSparsePitchMouseMovesStayContinuous() {
+        QList<int> values;
+        for (int i = 0; i < 20; ++i)
+            values.append(6000 + i * 3);
+        DrawCurveList source{curve(0, values)};
+        DrawCurveList target;
+
+        bakeSparseMouseMoves(target, source, {0, 35, 100});
+
+        expect(target.size() == 1 && target.first()->localStart() == 0 &&
+                   target.first()->localEndTick() == 100 && target.first()->values() == values,
+               "sparse pitch mouse moves must produce one continuous baked curve");
+
+        qDeleteAll(source);
+        qDeleteAll(target);
+    }
+
+    void testSparseParameterMouseMovesStayContinuous() {
+        QList<int> values;
+        for (int i = 0; i < 20; ++i)
+            values.append(-50000 + i * 125);
+        DrawCurveList source{curve(0, values)};
+        DrawCurveList target{curve(0, QList<int>(20, 0))};
+
+        bakeSparseMouseMoves(target, source, {100, 55, 0});
+
+        expect(target.size() == 1 && target.first()->localStart() == 0 &&
+                   target.first()->localEndTick() == 100 && target.first()->values() == values,
+               "sparse parameter mouse moves must produce one continuous baked curve");
+
+        qDeleteAll(source);
+        qDeleteAll(target);
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -100,5 +142,7 @@ int main(int argc, char *argv[]) {
     testDifferentSampleSteps();
     testUnalignedSourceSamples();
     testSourceGapsStaySeparate();
+    testSparsePitchMouseMovesStayContinuous();
+    testSparseParameterMouseMovesStayContinuous();
     return failures == 0 ? 0 : 1;
 }

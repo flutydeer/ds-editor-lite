@@ -435,51 +435,32 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         startTick = curPos.x();
     }
 
-    if (m_editType == Bake) {
+    if (m_editType == Erase) {
+        AppModelUtils::eraseDrawCurveRange(m_drawCurvesEdited, startTick, endTick);
+    } else if (m_editType == Bake) {
         AppModelUtils::bakeDrawCurveRange(m_drawCurvesEdited, m_drawCurvesOriginal, startTick,
                                           endTick);
     } else {
         auto overlappedCurves = AppModelUtils::curvesIn(m_drawCurvesEdited, startTick, endTick);
-        if (m_editType == Erase) {
-            for (auto curve : overlappedCurves) {
-                if (curve->localStart() >= startTick && curve->localEndTick() <= endTick) {
-                    // 区间覆盖整条曲线，直接移除该曲线
-                    qDebug() << "Erase: Remove curve #" << curve->id();
-                    m_drawCurvesEdited.removeOne(curve);
-                    delete curve;
-                } else if (curve->localStart() < startTick && curve->localEndTick() > endTick) {
-                    // 区间在曲线内，将曲线切成两段
-                    const auto newCurve = new DrawCurve;
-                    newCurve->setLocalStart(endTick);
-                    auto rightPoints = curve->mid(endTick);
-                    newCurve->setValues(rightPoints); // 将区间右端点之后的点移动到新曲线上
-                    curve->eraseTailFrom(startTick);
-                    MathUtils::binaryInsert(m_drawCurvesEdited, newCurve);
-                } else {
-                    curve->erase(startTick, endTick);
-                }
-            }
-        } else {
-            // Draw
-            // 在空白处绘制，如果未创建新曲线，则创建一条并将其设为正在编辑的曲线
-            if (!m_newCurveCreated && m_editType == DrawOnInterval) {
-                m_editingCurve = new DrawCurve;
-                m_editingCurve->setLocalStart(m_mouseDownPos.x());
-                m_editingCurve->appendValue(m_mouseDownPos.y());
-                MathUtils::binaryInsert(m_drawCurvesEdited, m_editingCurve);
-                qDebug() << "Create new curve: #" << m_editingCurve->id();
-                m_newCurveCreated = true;
-            }
+        // Draw
+        // 在空白处绘制，如果未创建新曲线，则创建一条并将其设为正在编辑的曲线
+        if (!m_newCurveCreated && m_editType == DrawOnInterval) {
+            m_editingCurve = new DrawCurve;
+            m_editingCurve->setLocalStart(m_mouseDownPos.x());
+            m_editingCurve->appendValue(m_mouseDownPos.y());
+            MathUtils::binaryInsert(m_drawCurvesEdited, m_editingCurve);
+            qDebug() << "Create new curve: #" << m_editingCurve->id();
+            m_newCurveCreated = true;
+        }
 
-            drawLine(m_prevPos, curPos, *m_editingCurve);
-            for (auto curve : overlappedCurves) {
-                if (curve == m_editingCurve)
-                    continue;
+        drawLine(m_prevPos, curPos, *m_editingCurve);
+        for (auto curve : overlappedCurves) {
+            if (curve == m_editingCurve)
+                continue;
 
-                m_editingCurve->mergeWithCurrentPriority(*curve);
-                m_drawCurvesEdited.removeOne(curve);
-                delete curve;
-            }
+            m_editingCurve->mergeWithCurrentPriority(*curve);
+            m_drawCurvesEdited.removeOne(curve);
+            delete curve;
         }
     }
 
