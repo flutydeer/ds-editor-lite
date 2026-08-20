@@ -3,6 +3,11 @@ project(TestParamResample)
 lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
+        ../../app/Modules/Inference/Utils/PitchRouting.cpp
+)
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+        ../../app
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX QT_MESSAGELOGCONTEXT)

@@ -7,6 +7,7 @@
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
 #include "Modules/Inference/Tasks/InferTaskCommon.h"
+#include "Modules/Inference/Utils/PitchRouting.h"
 
 #include <QCoreApplication>
 #include <QTextStream>
@@ -110,7 +111,9 @@ namespace {
     bool testConvertInputWordsSpeakerNotFound() {
         bool ok = true;
         const auto words = makeSingleWord(0);
-        const std::map<std::string, std::string> mapping{{"S1", "M1"}};
+        const std::map<std::string, std::string> mapping{
+            {"S1", "M1"}
+        };
 
         QString error;
         const auto result = convertInputWords(words, "S2", {}, mapping, error);
@@ -139,7 +142,9 @@ namespace {
     bool testConvertInputSpeakersNotFound() {
         bool ok = true;
         const auto mix = buildMix("S1", 0.6, "S2", 0.4);
-        const std::map<std::string, std::string> mapping{{"S1", "M1"}};
+        const std::map<std::string, std::string> mapping{
+            {"S1", "M1"}
+        };
 
         QString error;
         const auto result = convertInputSpeakers(mix, mapping, error);
@@ -199,6 +204,33 @@ namespace {
         return ok;
     }
 
+    bool testVocoderPitchStaysHostOnlyAndAffectsCacheKey() {
+        bool ok = true;
+        InferParam acousticPitch;
+        acousticPitch.tag = "pitch";
+        acousticPitch.values = {72.0};
+
+        InferParam vocoderPitch;
+        vocoderPitch.tag = QString::fromLatin1(PitchRouting::VocoderPitchTag);
+        vocoderPitch.values = {60.0};
+
+        const auto converted = convertInputParams({acousticPitch, vocoderPitch});
+        ok &= expect(converted.size() == 1,
+                     "host-only vocoder pitch must not reach the acoustic model");
+        ok &= expect(converted.at(0).tag == Co::Tags::Pitch,
+                     "acoustic model must receive the shifted pitch");
+        ok &= expect(converted.at(0).values == std::vector<double>{72.0},
+                     "acoustic pitch value must stay shifted");
+
+        GenericInferModel first;
+        first.params = {acousticPitch, vocoderPitch};
+        auto second = first;
+        second.params[1].values = {61.0};
+        ok &= expect(first.hashData() != second.hashData(),
+                     "original vocoder pitch must participate in the acoustic cache key");
+        return ok;
+    }
+
     // B-12: tone passthrough - tone=60 and tone=0
     bool testConvertInputWordsTonePassthrough() {
         bool ok = true;
@@ -255,6 +287,7 @@ int main(int argc, char *argv[]) {
     ok &= testConvertInputSpeakersEmptyMapping();
     ok &= testConvertInputParamsRetakeSet();
     ok &= testConvertInputParamsRetakeEmpty();
+    ok &= testVocoderPitchStaysHostOnlyAndAffectsCacheKey();
     ok &= testConvertInputWordsTonePassthrough();
     ok &= testConvertInputWordsSpeakerMix();
 

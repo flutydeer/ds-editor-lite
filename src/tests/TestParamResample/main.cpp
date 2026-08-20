@@ -1,5 +1,6 @@
 #include <lite/MusicBase/Timeline.h>
 #include <lite/Support/MathUtils.h>
+#include "Modules/Inference/Utils/PitchRouting.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -80,5 +81,19 @@ int main(int argc, char *argv[]) {
     const auto boundaryValues =
         MathUtils::resample(values, curveSeconds(stepped, startTick, pointCount), boundaryTargets);
     expect(boundaryValues.size() == 2, "tempo-boundary targets must not be truncated");
+
+    expect(PitchRouting::applyToneShift({60.0, 61.0}, {1200.0, -50.0}) ==
+               QList<double>({72.0, 60.5}),
+           "tone shift must be added to MIDI pitch in cents");
+    expect(PitchRouting::applyToneShift({60.0}, {100.0, 200.0}).isEmpty(),
+           "mismatched pitch and tone-shift samples must fail");
+
+    const auto f0 = PitchRouting::midiPitchToF0({69.0, 81.0}, 1.0, 4, 0.5);
+    expect(f0.size() == 4, "vocoder f0 must use the requested frame count");
+    expect(std::abs(f0.at(0) - 440.0f) < 0.01f, "MIDI 69 must map to 440 Hz");
+    expect(std::abs(f0.at(1) - 622.25397f) < 0.01f,
+           "vocoder f0 must interpolate the original pitch timeline");
+    expect(std::abs(f0.at(2) - 880.0f) < 0.01f && std::abs(f0.at(3) - 880.0f) < 0.01f,
+           "vocoder f0 must clamp the original pitch at the tail");
     return 0;
 }
