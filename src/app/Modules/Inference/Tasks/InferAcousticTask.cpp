@@ -285,25 +285,6 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             return false;
         }
 
-        const auto vocoderSpec = inferenceVocoder->spec();
-        const auto vocoderConfig =
-            vocoderSpec ? vocoderSpec->configuration().as<Vo::VocoderConfiguration>() : nullptr;
-        if (!vocoderConfig) {
-            error = tr("Vocoder configuration is unavailable");
-            qCritical() << "inferAcoustic:" << error;
-            return false;
-        }
-
-        bool pitchDiffers = acousticPitch->values.size() != vocoderPitch->values.size();
-        for (qsizetype i = 0; !pitchDiffers && i < acousticPitch->values.size(); ++i) {
-            pitchDiffers = !qFuzzyCompare(acousticPitch->values.at(i), vocoderPitch->values.at(i));
-        }
-        if (pitchDiffers && !vocoderConfig->pitchControllable) {
-            error = tr("Tone shift requires a pitch-controllable vocoder");
-            qCritical() << "inferAcoustic:" << error;
-            return false;
-        }
-
         const auto originalF0Values = PitchRouting::midiPitchToF0(
             vocoderPitch->values, vocoderPitch->interval,
             static_cast<qsizetype>(acousticF0->elementCount()), acousticFrameWidth);

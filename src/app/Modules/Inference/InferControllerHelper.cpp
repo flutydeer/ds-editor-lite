@@ -87,6 +87,12 @@ namespace InferControllerHelper {
             return result;
         }
 
+        InferParamCurve toneShiftSnapshot(const InferPiece &piece) {
+            if (!paramUtils->isSupportedBySinger(ParamInfo::ToneShift, piece.clip->singerInfo()))
+                return {};
+            return curveSnapshot(piece.inputToneShift, 1.0);
+        }
+
         template <typename F>
         InferParamCurve curveTransformedSnapshot(const DrawCurve &curve, const double scale,
                                                  F unaryOp) {
@@ -139,7 +145,7 @@ namespace InferControllerHelper {
         VarianceInput input;
         populateBaseInput(input, piece, identifier);
         input.pitch = curveSnapshot(piece.inputPitch, 100.0);
-        input.toneShift = curveSnapshot(piece.inputToneShift, 1.0);
+        input.toneShift = toneShiftSnapshot(piece);
         return input;
     }
 
@@ -156,7 +162,7 @@ namespace InferControllerHelper {
         input.gender = curveSnapshot(piece.inputGender, 1000.0);
         input.velocity = curveTransformedSnapshot(piece.inputVelocity, 1000.0,
                                                   [](double x) { return std::exp2(x); });
-        input.toneShift = curveSnapshot(piece.inputToneShift, 1.0);
+        input.toneShift = toneShiftSnapshot(piece);
         input.depth = appOptions->inference()->depth;
         return input;
     }
