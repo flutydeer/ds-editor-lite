@@ -637,8 +637,6 @@ void MainWindow::onSplitterMoved(int pos, int index) {
     if (sizes.size() < 2)
         return;
 
-    qDebug() << "MainWindow::onSplitterMoved"
-             << "size 0:" << sizes.at(0) << "size 1:" << sizes.at(1);
     if (sizes.at(0) == 0) {
         updatePanelVisibilityState(false, true);
     } else if (sizes.at(1) == 0) {
