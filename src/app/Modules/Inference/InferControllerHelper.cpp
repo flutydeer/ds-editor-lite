@@ -139,6 +139,7 @@ namespace InferControllerHelper {
         VarianceInput input;
         populateBaseInput(input, piece, identifier);
         input.pitch = curveSnapshot(piece.inputPitch, 100.0);
+        input.toneShift = curveSnapshot(piece.inputToneShift, 1.0);
         return input;
     }
 

@@ -4,12 +4,15 @@
 
 #include <diffsinger/Infer/dsinfer/Api/Inferences/Acoustic/1/AcousticApiL1.h>
 #include <diffsinger/Infer/dsinfer/Api/Inferences/Vocoder/1/VocoderApiL1.h>
+#include <synthrt/Core/Tensor/Tensor.h>
+#include <synthrt/SVS/InferenceContrib.h>
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
+#include "Modules/Inference/Utils/PitchRouting.h"
 #include <lite/Support/JsonUtils.h>
 #include <lite/Support/StringUtils.h>
 
@@ -19,6 +22,8 @@
 #include <QDebug>
 #include <QDir>
 #include <QFile>
+
+#include <algorithm>
 
 namespace Ac = srt::svs::Api::Acoustic::L1;
 namespace Vo = srt::svs::Api::Vocoder::L1;
@@ -143,6 +148,19 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
     }
 
     const auto &identifier = model.identifier;
+    const auto paramWithTag = [&model](const QString &tag) -> const InferParam * {
+        const auto it = std::find_if(model.params.cbegin(), model.params.cend(),
+                                     [&tag](const auto &param) { return param.tag == tag; });
+        return it == model.params.cend() ? nullptr : &*it;
+    };
+    const auto vocoderPitch = paramWithTag(QString::fromLatin1(PitchRouting::VocoderPitchTag));
+    const auto acousticPitch = paramWithTag(QStringLiteral("pitch"));
+    if (!vocoderPitch || vocoderPitch->values.isEmpty() || !acousticPitch) {
+        error = tr("Pitch routing data is missing");
+        qCritical() << "inferAcoustic:" << error;
+        return false;
+    }
+
     std::string speakerName = model.speaker.toStdString();
     const auto input = srt::core::NO<Ac::AcousticStartInput>::create();
     input->parameters = convertInputParams(model.params);
@@ -156,7 +174,8 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
     }
     // Infer acoustic
     srt::core::NO<srt::core::ITensor> mel;
-    srt::core::NO<srt::core::ITensor> f0;
+    srt::core::NO<srt::core::ITensor> acousticF0;
+    double acousticFrameWidth = 0;
     {
         auto acousticExp = m_activeInference.acquire(handle, ds::infer::StageKind::Acoustic);
         if (!acousticExp) {
@@ -172,6 +191,17 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             qCritical() << "inferAcoustic: Acoustic inference not found for" << identifier;
             return false;
         }
+
+        const auto acousticSpec = inferenceAcoustic->spec();
+        const auto acousticConfig =
+            acousticSpec ? acousticSpec->configuration().as<Ac::AcousticConfiguration>() : nullptr;
+        if (!acousticConfig || acousticConfig->sampleRate <= 0 || acousticConfig->hopSize <= 0) {
+            error = tr("Acoustic model frame configuration is invalid");
+            qCritical() << "inferAcoustic:" << error;
+            return false;
+        }
+        acousticFrameWidth = static_cast<double>(acousticConfig->hopSize) /
+                             static_cast<double>(acousticConfig->sampleRate);
 
         if (!acousticModel.importOptions) {
             qCritical() << "inferAcoustic: Import options not found";
@@ -231,7 +261,13 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             return false;
         }
         mel = result->mel;
-        f0 = result->f0;
+        acousticF0 = result->f0;
+        if (!acousticF0 || acousticF0->dataType() != srt::core::ITensor::Float ||
+            acousticF0->elementCount() == 0) {
+            error = tr("Acoustic model returned invalid f0 data");
+            qCritical() << "inferAcoustic:" << error;
+            return false;
+        }
     }
     // Run vocoder
     {
@@ -248,9 +284,49 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             qCritical() << "inferAcoustic: Vocoder inference not found for" << identifier;
             return false;
         }
+
+        const auto vocoderSpec = inferenceVocoder->spec();
+        const auto vocoderConfig =
+            vocoderSpec ? vocoderSpec->configuration().as<Vo::VocoderConfiguration>() : nullptr;
+        if (!vocoderConfig) {
+            error = tr("Vocoder configuration is unavailable");
+            qCritical() << "inferAcoustic:" << error;
+            return false;
+        }
+
+        bool pitchDiffers = acousticPitch->values.size() != vocoderPitch->values.size();
+        for (qsizetype i = 0; !pitchDiffers && i < acousticPitch->values.size(); ++i) {
+            pitchDiffers = !qFuzzyCompare(acousticPitch->values.at(i), vocoderPitch->values.at(i));
+        }
+        if (pitchDiffers && !vocoderConfig->pitchControllable) {
+            error = tr("Tone shift requires a pitch-controllable vocoder");
+            qCritical() << "inferAcoustic:" << error;
+            return false;
+        }
+
+        const auto originalF0Values = PitchRouting::midiPitchToF0(
+            vocoderPitch->values, vocoderPitch->interval,
+            static_cast<qsizetype>(acousticF0->elementCount()), acousticFrameWidth);
+        if (originalF0Values.size() != static_cast<qsizetype>(acousticF0->elementCount())) {
+            error = tr("Failed to align the original pitch for the vocoder");
+            qCritical() << "inferAcoustic:" << error;
+            return false;
+        }
+        auto originalF0Exp =
+            srt::core::Tensor::create(srt::core::ITensor::Float, acousticF0->shape());
+        if (!originalF0Exp) {
+            error = tr("Failed to create the vocoder f0 tensor");
+            qCritical().noquote().nospace()
+                << "inferAcoustic: " << error << ": " << originalF0Exp.error().message();
+            return false;
+        }
+        auto originalF0 = originalF0Exp.take();
+        std::copy(originalF0Values.cbegin(), originalF0Values.cend(),
+                  originalF0->mutableData<float>());
+
         const auto vocoderInput = srt::core::NO<Vo::VocoderStartInput>::create();
         vocoderInput->mel = mel;
-        vocoderInput->f0 = f0;
+        vocoderInput->f0 = originalF0;
 
         srt::core::NO<Vo::VocoderResult> result;
         // Start inference
@@ -363,7 +439,13 @@ GenericInferModel InferAcousticTask::InferAcousticInput::toEngineModel() const {
 
     InferParam pitch = param;
     pitch.tag = "pitch";
-    pitch.values = resampleCurveToFrames(this->pitch, frames, interval);
+    const auto originalPitch = resampleCurveToFrames(this->pitch, frames, interval);
+    pitch.values = PitchRouting::applyToneShift(
+        originalPitch, resampleCurveToFrames(this->toneShift, frames, interval));
+
+    InferParam vocoderPitch = param;
+    vocoderPitch.tag = QString::fromLatin1(PitchRouting::VocoderPitchTag);
+    vocoderPitch.values = originalPitch;
 
     InferParam breathiness = param;
     breathiness.tag = "breathiness";
@@ -393,18 +475,14 @@ GenericInferModel InferAcousticTask::InferAcousticInput::toEngineModel() const {
     velocity.tag = "velocity";
     velocity.values = resampleCurveToFrames(this->velocity, frames, interval);
 
-    InferParam toneShift = param;
-    toneShift.tag = "tone_shift";
-    toneShift.values = resampleCurveToFrames(this->toneShift, frames, interval);
-
     GenericInferModel model;
     model.speaker = speaker;
     const auto effectiveMix =
         speakerMix.isEmpty() ? InferSpeakerMixModel::staticSpeakerMix(speaker) : speakerMix;
     model.speakerMix = InferSpeakerMixModel::fitToFrames(effectiveMix, frames, interval);
     model.words = words;
-    model.params = {pitch,        breathiness, tension,  voicing,  energy,
-                    mouthOpening, gender,      velocity, toneShift};
+    model.params = {pitch,  vocoderPitch, breathiness, tension, voicing,
+                    energy, mouthOpening, gender,      velocity};
     model.steps = steps;
     model.depth = static_cast<float>(depth);
     model.identifier = identifier;

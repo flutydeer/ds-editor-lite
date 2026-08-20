@@ -21,6 +21,7 @@ public:
     class InferVarianceInput : public InferInputBase {
     public:
         InferParamCurve pitch;
+        InferParamCurve toneShift;
 
         bool operator==(const InferVarianceInput &other) const;
         [[nodiscard]] QString semanticSignature() const;

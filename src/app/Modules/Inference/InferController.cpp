@@ -539,6 +539,7 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
             }
             break;
         case ParamInfo::Pitch:
+        case ParamInfo::ToneShift:
             for (const auto &piece : dirtyPieces) {
                 auto pred = L_PRED(t, t->pieceId() == piece->id());
                 m_inferVarianceTasks.cancelIf(pred);
@@ -559,7 +560,6 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
         case ParamInfo::MouthOpening:
         case ParamInfo::Gender:
         case ParamInfo::Velocity:
-        case ParamInfo::ToneShift:
             for (const auto &piece : dirtyPieces) {
                 auto pred = L_PRED(t, t->pieceId() == piece->id());
                 m_inferAcousticTasks.cancelIf(pred);

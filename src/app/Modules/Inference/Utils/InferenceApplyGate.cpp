@@ -83,10 +83,10 @@ namespace {
             case ParamInfo::Voicing:
             case ParamInfo::Tension:
             case ParamInfo::MouthOpening:
+            case ParamInfo::ToneShift:
                 return isVariance || isAcoustic;
             case ParamInfo::Gender:
             case ParamInfo::Velocity:
-            case ParamInfo::ToneShift:
                 return isAcoustic;
             case ParamInfo::SpeakerMix:
             case ParamInfo::Unknown:
@@ -203,7 +203,8 @@ namespace InferenceApplyGate {
                 return drop("piece-singer-speaker-mismatch", currentRevision);
             }
             if (options.checkSingerSpeaker && shouldCheckSpeakerMixSignature(context) &&
-                InferSpeakerMixModel::effectiveSpeakerMixForPiece(*piece).signature() != context.speakerMixSignature) {
+                InferSpeakerMixModel::effectiveSpeakerMixForPiece(*piece).signature() !=
+                    context.speakerMixSignature) {
                 return drop("piece-speaker-mix-mismatch", currentRevision);
             }
         }

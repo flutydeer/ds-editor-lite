@@ -7,6 +7,7 @@
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Models/InferInputNote.h"
 #include "Modules/Inference/Utils/InferTaskHelper.h"
+#include "Modules/Inference/Utils/PitchRouting.h"
 #include <lite/Support/JsonUtils.h>
 #include "InferTaskCommon.h"
 
@@ -253,7 +254,8 @@ void InferVarianceTask::buildPreviewText() {
 QString InferVarianceTask::InferVarianceInput::semanticSignature() const {
     return InferInputBase::semanticSignature(
         "variance", QJsonObject{
-                        {"pitch", InferInputBase::paramCurveObject(pitch)}
+                        {"pitch",     InferInputBase::paramCurveObject(pitch)    },
+                        {"toneShift", InferInputBase::paramCurveObject(toneShift)},
     });
 }
 
@@ -274,7 +276,9 @@ GenericInferModel InferVarianceTask::InferVarianceInput::toEngineModel() const {
 
     InferParam pitch = param;
     pitch.tag = "pitch";
-    pitch.values = resampleCurveToFrames(this->pitch, frames, interval);
+    pitch.values =
+        PitchRouting::applyToneShift(resampleCurveToFrames(this->pitch, frames, interval),
+                                     resampleCurveToFrames(this->toneShift, frames, interval));
 
     InferParam breathiness = param;
     breathiness.tag = "breathiness";
