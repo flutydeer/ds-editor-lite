@@ -15,6 +15,7 @@
 #include "UI/Utils/AppColorPalette.h"
 #include "UI/Utils/ITimelinePainter.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditController.h"
+#include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/ClipEditor/CurveRenderUtils.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
@@ -273,6 +274,18 @@ public:
             QSizeF(std::max(1, q->width() / 10), std::max(1.0, noteHeight * verticalScale())));
     }
 
+    int effectiveSceneLength() const {
+        return (clip ? clip->length() : 0) + sceneLengthExtension;
+    }
+
+    void setSceneLengthExtension(const int ticks) {
+        const auto extension = std::max(0, ticks);
+        if (sceneLengthExtension == extension)
+            return;
+        sceneLengthExtension = extension;
+        viewport.setContentTickRange(0.0, effectiveSceneLength());
+    }
+
     void setDataContext(SingingClip *newClip) {
         hideLyricToolTip();
         wheel.stop();
@@ -293,7 +306,8 @@ public:
             QObject::disconnect(clip, nullptr, q, nullptr);
 
         clip = newClip;
-        viewport.setContentTickRange(0.0, clip ? clip->length() : 0.0);
+        sceneLengthExtension = 0;
+        viewport.setContentTickRange(0.0, effectiveSceneLength());
         if (clip) {
             QObject::connect(clip, &SingingClip::noteChanged, q, [this] {
                 hideLyricToolTip();
@@ -309,7 +323,7 @@ public:
                                  }
                              });
             QObject::connect(clip, &SingingClip::propertyChanged, q, [this] {
-                viewport.setContentTickRange(0.0, clip->length());
+                viewport.setContentTickRange(0.0, effectiveSceneLength());
                 q->notifyViewportChanged();
                 scheduleSnapshot();
             });
@@ -613,6 +627,16 @@ public:
         const QPointF pointerPosition(q->mapFromGlobal(QCursor::pos()));
         const QRectF viewportRect(QPointF(), q->size());
         const auto step = edgeAutoScroller.computeDragStep(pointerPosition, viewportRect, dtMs);
+        if (step.x() > 0 && (interaction == Interaction::Move ||
+                             interaction == Interaction::ResizeRight ||
+                             interaction == Interaction::Draw)) {
+            const auto maximumOffset =
+                std::max(0.0, viewport.tickToSceneX(effectiveSceneLength()) - q->width());
+            if (viewport.horizontalOffset() >= maximumOffset - 1.0) {
+                const auto visibleTicks = std::max(1, qRound(endTick() - startTick()));
+                setSceneLengthExtension(sceneLengthExtension + visibleTicks);
+            }
+        }
         if (!step.isNull())
             viewport.scrollBy(step);
         continueEdgeDragAt(EdgeAutoScroller::clampToRect(pointerPosition, viewportRect),
@@ -1198,6 +1222,7 @@ public:
         anchorSelecting = false;
         anchorCursorInView = true;
         currentAnchorCurve = nullptr;
+        provisionalAnchorCurve = nullptr;
         selectedAnchorNodes.clear();
         hoveredAnchorNode = nullptr;
         anchorDragInfos.clear();
@@ -1220,8 +1245,11 @@ public:
         if (!pitch)
             return;
         for (const auto *curve : pitch->curves(Param::Edited)) {
-            if (curve->type() == Curve::Anchor)
-                anchorCurves.append(new AnchorCurve(*static_cast<const AnchorCurve *>(curve)));
+            if (curve->type() == Curve::Anchor) {
+                const auto *anchor = static_cast<const AnchorCurve *>(curve);
+                if (AnchorEditor::isCompleteAnchorCurve(anchor))
+                    anchorCurves.append(new AnchorCurve(*anchor));
+            }
         }
     }
 
@@ -1303,8 +1331,11 @@ public:
     }
 
     void selectAnchorNode(AnchorNode *node) {
+        auto *owner = findAnchorOwner(node);
+        if (provisionalAnchorCurve && owner != provisionalAnchorCurve)
+            discardProvisionalAnchorCurve();
         selectedAnchorNodes = {node};
-        currentAnchorCurve = findAnchorOwner(node);
+        currentAnchorCurve = owner;
     }
 
     void enterAnchorEditing(AnchorCurve *curve, AnchorNode *node = nullptr) {
@@ -1322,15 +1353,57 @@ public:
         clearAnchorSelection();
     }
 
-    void cleanupEmptyAnchorCurve(AnchorCurve *curve) {
-        if (!curve || !curve->nodes().toList().isEmpty())
+    void cleanupIncompleteAnchorCurve(AnchorCurve *curve) {
+        if (!curve || AnchorEditor::isCompleteAnchorCurve(curve))
             return;
+        if (curve == provisionalAnchorCurve) {
+            discardProvisionalAnchorCurve();
+            if (!currentAnchorCurve)
+                exitAnchorEditing();
+            return;
+        }
         anchorCurves.removeOne(curve);
         if (currentAnchorCurve == curve)
             currentAnchorCurve = nullptr;
+        for (auto *node : curve->nodes().toList()) {
+            selectedAnchorNodes.removeOne(node);
+            if (hoveredAnchorNode == node)
+                hoveredAnchorNode = nullptr;
+        }
+        if (anchorPreviewCurve == curve)
+            anchorPreviewCurve = nullptr;
+        if (anchorMergeCandidateCurve == curve)
+            anchorMergeCandidateCurve = nullptr;
         delete curve;
         if (!currentAnchorCurve)
             exitAnchorEditing();
+    }
+
+    void discardProvisionalAnchorCurve() {
+        auto *curve = provisionalAnchorCurve;
+        if (!curve)
+            return;
+        provisionalAnchorCurve = nullptr;
+        anchorCurves.removeOne(curve);
+        if (currentAnchorCurve == curve)
+            currentAnchorCurve = nullptr;
+        for (auto *node : curve->nodes().toList()) {
+            selectedAnchorNodes.removeOne(node);
+            if (hoveredAnchorNode == node)
+                hoveredAnchorNode = nullptr;
+        }
+        showAnchorPreview = false;
+        anchorPreviewCurve = nullptr;
+        showAnchorMergePreview = false;
+        anchorMergeCandidateCurve = nullptr;
+        anchorMergeEndpointNode = nullptr;
+        delete curve;
+    }
+
+    void cleanupIncompleteAnchorCurves() {
+        const auto curves = anchorCurves;
+        for (auto *curve : curves)
+            cleanupIncompleteAnchorCurve(curve);
     }
 
     void removeOverlappingAnchorNodes(AnchorCurve *curve, AnchorNode *keep) {
@@ -1353,6 +1426,14 @@ public:
     void commitAnchorEdit() {
         if (!clip)
             return;
+        if (provisionalAnchorCurve) {
+            if (!AnchorEditor::isCompleteAnchorCurve(provisionalAnchorCurve)) {
+                scheduleSnapshot();
+                return;
+            }
+            provisionalAnchorCurve = nullptr;
+        }
+        cleanupIncompleteAnchorCurves();
         beginAnchorEditSession();
 
         QList<Curve *> combined;
@@ -1387,7 +1468,10 @@ public:
         } else {
             curve = anchorCurveAt(point.x());
         }
-        if (!curve) {
+        if (provisionalAnchorCurve && curve != provisionalAnchorCurve)
+            discardProvisionalAnchorCurve();
+        const bool createdCurve = !curve;
+        if (createdCurve) {
             curve = new AnchorCurve;
             anchorCurves.append(curve);
         }
@@ -1421,6 +1505,10 @@ public:
             node->setInterpMode(mode);
         }
         curve->insertNode(node);
+        if (createdCurve)
+            provisionalAnchorCurve = curve;
+        if (provisionalAnchorCurve == curve && AnchorEditor::isCompleteAnchorCurve(curve))
+            provisionalAnchorCurve = nullptr;
         enterAnchorEditing(curve, node);
         commitAnchorEdit();
     }
@@ -1433,22 +1521,28 @@ public:
             if (auto *curve = findAnchorOwner(node))
                 byCurve[curve].append(node);
         }
+        const bool discardingOnlyProvisional =
+            provisionalAnchorCurve && byCurve.size() == 1 &&
+            byCurve.contains(provisionalAnchorCurve);
+        if (discardingOnlyProvisional) {
+            loadAnchorCurvesFromModel();
+            scheduleSnapshot();
+            return;
+        }
         clearAnchorSelection();
         for (auto it = byCurve.begin(); it != byCurve.end(); ++it) {
             auto *curve = it.key();
             for (auto *node : it.value()) {
                 curve->removeNode(node);
+                if (hoveredAnchorNode == node)
+                    hoveredAnchorNode = nullptr;
                 delete node;
             }
             const auto remaining = curve->nodes().toList();
-            if (remaining.isEmpty()) {
-                anchorCurves.removeOne(curve);
-                if (currentAnchorCurve == curve)
-                    currentAnchorCurve = nullptr;
-                delete curve;
-            } else {
+            if (remaining.size() < 2)
+                cleanupIncompleteAnchorCurve(curve);
+            else
                 remaining.last()->setInterpMode(AnchorNode::None);
-            }
         }
         if (!currentAnchorCurve)
             exitAnchorEditing();
@@ -1634,7 +1728,7 @@ public:
                 removeOverlappingAnchorNodes(finalCurve, info.node);
             }
             for (auto *curve : sourcesToCleanup)
-                cleanupEmptyAnchorCurve(curve);
+                cleanupIncompleteAnchorCurve(curve);
             if (!selectedAnchorNodes.isEmpty())
                 currentAnchorCurve = findAnchorOwner(selectedAnchorNodes.first());
             anchorDragInfos.clear();
@@ -1655,12 +1749,18 @@ public:
             }
             anchorSelectionRect = {};
         }
-        finishAnchorEditSession(EditSessionEndReason::Discard);
+        if (!provisionalAnchorCurve)
+            finishAnchorEditSession(EditSessionEndReason::Discard);
         scheduleSnapshot();
     }
 
     bool keyPressAnchor(QKeyEvent *event) {
         if (event->key() == Qt::Key_Escape && anchorEditing) {
+            if (provisionalAnchorCurve) {
+                loadAnchorCurvesFromModel();
+                scheduleSnapshot();
+                return true;
+            }
             if (anchorDragging)
                 loadAnchorCurvesFromModel();
             else
@@ -1723,6 +1823,7 @@ public:
     }
 
     void resetNoteInteraction() {
+        setSceneLengthExtension(0);
         interaction = Interaction::None;
         interactionNoteId = -1;
         interactionDeltaTick = 0;
@@ -2112,7 +2213,7 @@ private:
     }
 
     double sceneWidth() const {
-        return clip ? viewport.tickToSceneX(clip->length()) : q->width();
+        return clip ? viewport.tickToSceneX(effectiveSceneLength()) : q->width();
     }
 
     double sceneHeight() const {
@@ -2891,6 +2992,7 @@ public:
     int drawStart = 0;
     int drawEnd = 0;
     int drawKey = 60;
+    int sceneLengthExtension = 0;
     int hoveredKey = -1;
     int splitPreviewNoteId = -1;
     int splitPreviewTick = 0;
@@ -2915,6 +3017,7 @@ public:
     QList<AnchorCurve *> anchorCurves;
     quint64 anchorEditSessionId = 0;
     bool anchorCommitting = false;
+    AnchorCurve *provisionalAnchorCurve = nullptr;
     bool anchorEditing = false;
     bool anchorDragging = false;
     bool anchorSelecting = false;
@@ -3284,7 +3387,10 @@ void PianoRollRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
         auto *node = d->anchorNodeAt(event->pos());
         if (!node) {
             if (d->anchorEditing) {
-                d->exitAnchorEditing();
+                if (d->provisionalAnchorCurve)
+                    d->loadAnchorCurvesFromModel();
+                else
+                    d->exitAnchorEditing();
                 d->scheduleSnapshot();
             }
             event->accept();

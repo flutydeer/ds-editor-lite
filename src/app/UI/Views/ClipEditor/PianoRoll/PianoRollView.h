@@ -2,6 +2,7 @@
 #define PIANOROLLVIEW_H
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "Interface/EditorInteraction.h"
 #include "Interface/EditorViewState.h"
 
 #include <lite/History/HistoryFocus.h>
@@ -27,6 +28,7 @@ class PianoRollView final : public QWidget {
 
 public:
     explicit PianoRollView(QWidget *parent = nullptr);
+    ~PianoRollView() override;
     void setDataContext(SingingClip *clip) const;
     void setTrackColorIndex(int index) const;
     [[nodiscard]] PianoRollViewState viewState() const;
@@ -59,7 +61,7 @@ private:
     void connectLegacyBackend();
     void connectRhiBackend();
     void fallbackToLegacy();
-    void registerEditorShortcuts();
+    void executeEditCommand(EditorInteraction::Command command) const;
     void updateAutoPageTurnButtonView(bool available);
     void updatePianoRollVisibleRect() const;
     [[nodiscard]] double startTick() const;

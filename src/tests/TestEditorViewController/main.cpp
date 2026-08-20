@@ -4,6 +4,7 @@
 #include "Interface/IPanel.h"
 
 #include <QCoreApplication>
+#include <QEvent>
 #include <QTextStream>
 
 #include <cmath>
@@ -230,6 +231,22 @@ namespace {
         controller->clearFocusPreview();
     }
 
+    void testCommandCapabilities() {
+        using EditorInteraction::Command;
+        using EditorInteraction::Target;
+        expect(EditorInteraction::supportsCommand(Target::Tracks, Command::Cut) &&
+                   EditorInteraction::supportsCommand(Target::PianoRoll, Command::SelectAll),
+               "track and piano-roll editors must expose their complete edit command set");
+        expect(EditorInteraction::supportsCommand(Target::Parameters, Command::DeleteSelection) &&
+                   !EditorInteraction::supportsCommand(Target::Parameters, Command::Cut) &&
+                   !EditorInteraction::supportsCommand(Target::Parameters, Command::Copy) &&
+                   !EditorInteraction::supportsCommand(Target::Parameters, Command::Paste) &&
+                   !EditorInteraction::supportsCommand(Target::Parameters, Command::SelectAll),
+               "the parameter editor must expose only its implemented delete command");
+        expect(!EditorInteraction::supportsCommand(Target::None, Command::DeleteSelection),
+               "a non-editor target must not expose edit commands");
+    }
+
     void testForwardingAndSnapshots(EditorViewController *controller) {
         FakeEditorView view;
         view.state = sampleState();
@@ -354,6 +371,179 @@ namespace {
         controller->unregisterPanel(&trackPanel);
     }
 
+    void testInteractionRouting(EditorViewController *controller) {
+        controller->setActivePanel(AppGlobal::TracksEditor);
+
+        QObject trackArea;
+        QObject trackChild(&trackArea);
+        QObject bottomContainer;
+        QObject titleBarArea(&bottomContainer);
+        QObject titleBarChild(&titleBarArea);
+        QObject pianoRollArea(&bottomContainer);
+        QObject pianoRollChild(&pianoRollArea);
+        QObject parameterArea(&bottomContainer);
+        QObject parameterChild(&parameterArea);
+        QObject separator(&bottomContainer);
+
+        controller->registerInteractionArea(&trackArea, AppGlobal::TracksEditor,
+                                            EditorInteraction::Target::Tracks);
+        controller->registerInteractionArea(&titleBarArea, AppGlobal::ClipEditor,
+                                            EditorInteraction::Target::PianoRoll);
+        controller->registerInteractionArea(&pianoRollArea, AppGlobal::ClipEditor,
+                                            EditorInteraction::Target::PianoRoll);
+        controller->registerInteractionArea(&parameterArea, AppGlobal::ClipEditor,
+                                            EditorInteraction::Target::Parameters);
+
+        int panelSignalCount = 0;
+        int targetSignalCount = 0;
+        const auto panelConnection =
+            QObject::connect(controller, &EditorViewController::activePanelChanged,
+                             [&panelSignalCount] { ++panelSignalCount; });
+        const auto targetConnection =
+            QObject::connect(controller, &EditorViewController::activeEditTargetChanged,
+                             [&targetSignalCount] { ++targetSignalCount; });
+
+        QEvent titleBarPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&titleBarChild, &titleBarPress);
+        expect(controller->activePanel() == AppGlobal::ClipEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::PianoRoll,
+               "the visible piano-roll toolbar must activate note editing");
+        expect(panelSignalCount == 1 && targetSignalCount == 1,
+               "a context change must emit each state transition once");
+
+        QEvent pianoPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&pianoRollChild, &pianoPress);
+        expect(panelSignalCount == 1 && targetSignalCount == 1,
+               "moving within the visual note editor must not duplicate state signals");
+
+        QEvent parameterPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&parameterChild, &parameterPress);
+        expect(controller->activePanel() == AppGlobal::ClipEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Parameters,
+               "the visual parameter editor must activate parameter editing independently");
+        expect(panelSignalCount == 1 && targetSignalCount == 2,
+               "switching between bottom edit areas must preserve the panel border");
+
+        QEvent separatorPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&separator, &separatorPress);
+        expect(controller->activeEditTarget() == EditorInteraction::Target::Parameters &&
+                   targetSignalCount == 2,
+               "unassigned container space must not inherit a sibling editor target");
+
+        QEvent trackFocus(QEvent::FocusIn);
+        QCoreApplication::sendEvent(&trackChild, &trackFocus);
+        expect(controller->activePanel() == AppGlobal::TracksEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Tracks,
+               "focus entering a registered track descendant must activate track editing");
+
+        EditorInteraction::Target commandTarget = EditorInteraction::Target::None;
+        EditorInteraction::Command requestedCommand = EditorInteraction::Command::Cut;
+        int commandCount = 0;
+        const auto commandConnection = QObject::connect(
+            controller, &EditorViewController::editCommandRequested,
+            [&commandTarget, &requestedCommand, &commandCount](
+                const EditorInteraction::Target target, const EditorInteraction::Command command) {
+                commandTarget = target;
+                requestedCommand = command;
+                ++commandCount;
+            });
+        controller->requestEditCommand(EditorInteraction::Command::SelectAll);
+        expect(commandCount == 1 && commandTarget == EditorInteraction::Target::Tracks &&
+                   requestedCommand == EditorInteraction::Command::SelectAll,
+               "edit commands must carry the current interaction target");
+
+        controller->updateInteractionArea(&titleBarArea, AppGlobal::Generic,
+                                          EditorInteraction::Target::None);
+        QEvent genericPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&titleBarChild, &genericPress);
+        expect(controller->activePanel() == AppGlobal::Generic &&
+                   controller->activeEditTarget() == EditorInteraction::Target::None,
+               "a dynamic generic bottom page must deactivate editor commands");
+
+        QObject::disconnect(commandConnection);
+        QObject::disconnect(targetConnection);
+        QObject::disconnect(panelConnection);
+        controller->unregisterInteractionArea(&parameterArea);
+        controller->unregisterInteractionArea(&pianoRollArea);
+        controller->unregisterInteractionArea(&titleBarArea);
+        controller->unregisterInteractionArea(&trackArea);
+        controller->setActivePanel(AppGlobal::TracksEditor);
+    }
+
+    void testPanelVisibilityRouting(EditorViewController *controller) {
+        controller->setActivePanel(AppGlobal::TracksEditor);
+        FakePanel trackPanel(AppGlobal::TracksEditor);
+        FakePanel bottomPanel(AppGlobal::ClipEditor);
+        controller->registerPanel(&trackPanel);
+        controller->registerPanel(&bottomPanel);
+
+        QObject parameterArea;
+        controller->registerInteractionArea(&parameterArea, AppGlobal::ClipEditor,
+                                            EditorInteraction::Target::Parameters);
+        QEvent parameterPress(QEvent::MouseButtonPress);
+        QCoreApplication::sendEvent(&parameterArea, &parameterPress);
+
+        controller->syncPanelVisibility(true, true, AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::ClipEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Parameters,
+               "showing both panels must preserve the focused visual editor");
+
+        controller->activatePanelContext(AppGlobal::TracksEditor);
+        controller->activatePanelContext(AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::ClipEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Parameters,
+               "reactivating the bottom window must restore its last focused visual editor");
+
+        controller->syncPanelVisibility(true, false, AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::TracksEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Tracks &&
+                   trackPanel.panelActive() && !bottomPanel.panelActive(),
+               "hiding the bottom panel must transfer focus and commands to tracks");
+
+        controller->syncPanelVisibility(true, true, AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::TracksEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Tracks,
+               "reopening the bottom panel must not steal track focus");
+
+        controller->syncPanelVisibility(false, true, AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::ClipEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Parameters &&
+                   !trackPanel.panelActive() && bottomPanel.panelActive(),
+               "hiding tracks must restore the last focused region of the visible bottom page");
+
+        QCoreApplication::sendEvent(&parameterArea, &parameterPress);
+        controller->syncPanelVisibility(false, true, AppGlobal::ClipEditor);
+        expect(controller->activeEditTarget() == EditorInteraction::Target::Parameters,
+               "visibility sync must preserve a focused parameter editor");
+
+        controller->syncEditTargetVisibility(EditorInteraction::Target::Parameters, true,
+                                             AppGlobal::ClipEditor);
+        expect(controller->activeEditTarget() == EditorInteraction::Target::Parameters,
+               "a visible parameter editor must retain its edit target");
+        controller->syncEditTargetVisibility(EditorInteraction::Target::Parameters, false,
+                                             AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::ClipEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::PianoRoll,
+               "collapsing the parameter editor must transfer commands to the piano roll");
+
+        controller->setActivePanel(AppGlobal::TracksEditor);
+        controller->syncEditTargetVisibility(EditorInteraction::Target::Parameters, false,
+                                             AppGlobal::ClipEditor);
+        expect(controller->activePanel() == AppGlobal::TracksEditor &&
+                   controller->activeEditTarget() == EditorInteraction::Target::Tracks,
+               "collapsing an unfocused edit target must not steal focus");
+        bottomPanel.setPanelType(AppGlobal::Generic);
+        controller->syncPanelVisibility(false, true, AppGlobal::Generic);
+        expect(controller->activePanel() == AppGlobal::Generic &&
+                   controller->activeEditTarget() == EditorInteraction::Target::None,
+               "a visible non-editor bottom page must disable edit commands");
+
+        controller->unregisterInteractionArea(&parameterArea);
+        controller->unregisterPanel(&bottomPanel);
+        controller->unregisterPanel(&trackPanel);
+        controller->setActivePanel(AppGlobal::TracksEditor);
+    }
+
 } // namespace
 
 int main(int argc, char *argv[]) {
@@ -361,8 +551,11 @@ int main(int argc, char *argv[]) {
     auto *controller = editorViewController;
 
     testNoView(controller);
+    testCommandCapabilities();
     testForwardingAndSnapshots(controller);
     testActivePanels(controller);
+    testInteractionRouting(controller);
+    testPanelVisibilityRouting(controller);
 
     controller->setView(nullptr);
     if (g_failures == 0) {

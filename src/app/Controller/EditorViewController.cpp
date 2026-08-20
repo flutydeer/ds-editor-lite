@@ -3,12 +3,21 @@
 #include "Interface/IEditorView.h"
 #include "Interface/IPanel.h"
 
+#include <QCoreApplication>
+#include <QEvent>
+
+#include <algorithm>
 #include <utility>
 
 EditorViewController::EditorViewController(QObject *parent) : QObject(parent) {
+    if (qApp)
+        qApp->installEventFilter(this);
 }
 
-EditorViewController::~EditorViewController() = default;
+EditorViewController::~EditorViewController() {
+    if (qApp)
+        qApp->removeEventFilter(this);
+}
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(EditorViewController)
 
@@ -96,8 +105,116 @@ void EditorViewController::unregisterPanel(IPanel *panel) {
 }
 
 void EditorViewController::setActivePanel(AppGlobal::PanelType panel) {
-    for (const auto registeredPanel : std::as_const(m_panels))
-        registeredPanel->setPanelActive(registeredPanel->panelType() == panel);
-    m_activePanel = panel;
-    emit activePanelChanged(panel);
+    setActiveContext(panel, EditorInteraction::defaultTargetForPanel(panel));
+}
+
+void EditorViewController::activatePanelContext(const AppGlobal::PanelType panel) {
+    const auto target = panel == AppGlobal::ClipEditor
+                            ? m_lastClipEditTarget
+                            : EditorInteraction::defaultTargetForPanel(panel);
+    setActiveContext(panel, target);
+}
+
+void EditorViewController::syncPanelVisibility(const bool trackPanelVisible,
+                                               const bool bottomPanelVisible,
+                                               const AppGlobal::PanelType bottomPanelType) {
+    if (!trackPanelVisible && !bottomPanelVisible)
+        return;
+    if (!bottomPanelVisible) {
+        setActivePanel(AppGlobal::TracksEditor);
+        return;
+    }
+    if (!trackPanelVisible && m_activePanel != bottomPanelType)
+        activatePanelContext(bottomPanelType);
+}
+
+void EditorViewController::syncEditTargetVisibility(const EditorInteraction::Target target,
+                                                    const bool visible,
+                                                    const AppGlobal::PanelType fallbackPanel) {
+    if (!visible && m_activeEditTarget == target)
+        setActivePanel(fallbackPanel);
+}
+
+AppGlobal::PanelType EditorViewController::activePanel() const {
+    return m_activePanel;
+}
+
+void EditorViewController::registerInteractionArea(QObject *area, const AppGlobal::PanelType panel,
+                                                   const EditorInteraction::Target target) {
+    if (!area)
+        return;
+    updateInteractionArea(area, panel, target);
+}
+
+void EditorViewController::updateInteractionArea(QObject *area, const AppGlobal::PanelType panel,
+                                                 const EditorInteraction::Target target) {
+    if (!area)
+        return;
+    m_interactionAreas.erase(
+        std::remove_if(m_interactionAreas.begin(), m_interactionAreas.end(),
+                       [](const InteractionArea &entry) { return entry.object.isNull(); }),
+        m_interactionAreas.end());
+    for (auto &entry : m_interactionAreas) {
+        if (entry.object == area) {
+            entry.panel = panel;
+            entry.target = target;
+            return;
+        }
+    }
+    m_interactionAreas.append({area, panel, target});
+}
+
+void EditorViewController::unregisterInteractionArea(QObject *area) {
+    m_interactionAreas.erase(std::remove_if(m_interactionAreas.begin(), m_interactionAreas.end(),
+                                            [area](const InteractionArea &entry) {
+                                                return entry.object.isNull() ||
+                                                       entry.object == area;
+                                            }),
+                             m_interactionAreas.end());
+}
+
+EditorInteraction::Target EditorViewController::activeEditTarget() const {
+    return m_activeEditTarget;
+}
+
+void EditorViewController::requestEditCommand(const EditorInteraction::Command command) {
+    emit editCommandRequested(m_activeEditTarget, command);
+}
+
+bool EditorViewController::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() != QEvent::MouseButtonPress && event->type() != QEvent::FocusIn)
+        return QObject::eventFilter(watched, event);
+
+    for (auto *object = watched; object; object = object->parent()) {
+        for (const auto &entry : std::as_const(m_interactionAreas)) {
+            if (entry.object == object) {
+                setActiveContext(entry.panel, entry.target);
+                return QObject::eventFilter(watched, event);
+            }
+        }
+    }
+    return QObject::eventFilter(watched, event);
+}
+
+void EditorViewController::setActiveContext(const AppGlobal::PanelType panel,
+                                            const EditorInteraction::Target target) {
+    if (panel == AppGlobal::ClipEditor &&
+        (target == EditorInteraction::Target::PianoRoll ||
+         target == EditorInteraction::Target::Parameters)) {
+        m_lastClipEditTarget = target;
+    }
+    if (m_activePanel != panel) {
+        m_activePanel = panel;
+        for (const auto registeredPanel : std::as_const(m_panels))
+            registeredPanel->setPanelActive(registeredPanel->panelType() == panel);
+        emit activePanelChanged(panel);
+    }
+    setActiveEditTarget(target);
+}
+
+void EditorViewController::setActiveEditTarget(const EditorInteraction::Target target) {
+    if (m_activeEditTarget == target)
+        return;
+    m_activeEditTarget = target;
+    emit activeEditTargetChanged(target);
 }

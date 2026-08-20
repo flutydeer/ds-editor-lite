@@ -16,20 +16,19 @@ class NoteActions : public ActionSequence {
     Q_OBJECT
 
 public:
-    void insertNotes(const QList<Note *> &notes, SingingClip *clip);
-    void pasteNotes(const QList<Note *> &notes, SingingClip *clip, Track *track,
-                    const Clip::ClipCommonProperties &newClipProperties);
+    void insertNotes(const QList<Note *> &notes, SingingClip *clip, Track *track);
     void removeNotes(const QList<Note *> &notes, SingingClip *clip);
 
     // Resize from left
-    void editNotesStartAndLength(const QList<Note *> &notes, int delta, SingingClip *clip);
+    void editNotesStartAndLength(const QList<Note *> &notes, int delta, SingingClip *clip,
+                                 Track *track);
 
     // Resize from right
-    void editNotesLength(const QList<Note *> &notes, int delta, SingingClip *clip);
+    void editNotesLength(const QList<Note *> &notes, int delta, SingingClip *clip, Track *track);
 
     // Move notes
     void editNotePosition(const QList<Note *> &notes, int deltaTick, int deltaKey,
-                          SingingClip *clip);
+                          SingingClip *clip, Track *track);
 
     // Edit lyrics, pronunciations and phonemes
     void editNotesWordProperties(const QList<Note *> &notes,
@@ -42,7 +41,11 @@ public:
 
     // Quantize: set absolute start/length values (per-note, not a uniform delta)
     void quantizeNotes(const QList<Note *> &notes,
-                       const QList<QPair<int, int>> &newStartLengths, SingingClip *clip);
+                       const QList<QPair<int, int>> &newStartLengths, SingingClip *clip,
+                       Track *track);
+
+private:
+    void addClipExtensionToFit(int contentEnd, SingingClip *clip, Track *track);
 };
 
 

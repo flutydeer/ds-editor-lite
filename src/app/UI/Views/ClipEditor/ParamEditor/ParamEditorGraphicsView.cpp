@@ -405,7 +405,7 @@ bool ParamEditorGraphicsView::event(QEvent *event) {
                 return true;
             }
             if (key == Qt::Key_Delete) {
-                m_anchorController.deleteSelectedNodes();
+                deleteSelection();
                 event->accept();
                 return true;
             }
@@ -421,6 +421,14 @@ bool ParamEditorGraphicsView::event(QEvent *event) {
         }
     }
     return TimeGraphicsView::event(event);
+}
+
+void ParamEditorGraphicsView::deleteSelection() {
+    if (m_speakerMixMode) {
+        m_speakerMixView->deleteSelection();
+    } else if (m_editMode == ParamEditorEditMode::Anchor) {
+        m_anchorController.deleteSelectedNodes();
+    }
 }
 
 void ParamEditorGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,

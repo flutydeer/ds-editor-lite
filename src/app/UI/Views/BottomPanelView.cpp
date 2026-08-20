@@ -2,6 +2,7 @@
 
 #include "Controller/EditorViewController.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
+#include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Views/MixConsole/MixConsoleView.h"
 
 BottomPanelView::BottomPanelView(QWidget *parent) : TabPanelView(AppGlobal::ClipEditor, parent) {
@@ -10,15 +11,20 @@ BottomPanelView::BottomPanelView(QWidget *parent) : TabPanelView(AppGlobal::Clip
     registerPage(new MixConsoleView);
 
     setPanelType(currentPagePanelType());
+    editorViewController->registerInteractionArea(
+        titleBar(), panelType(), EditorInteraction::defaultTargetForPanel(panelType()));
     connect(this, &TabPanelView::currentPageChanged, this,
             [this](const QString &, const AppGlobal::PanelType panelType) {
                 setPanelType(panelType);
+                editorViewController->updateInteractionArea(
+                    titleBar(), panelType, EditorInteraction::defaultTargetForPanel(panelType));
                 editorViewController->setActivePanel(panelType);
             });
     editorViewController->registerPanel(this);
 }
 
 BottomPanelView::~BottomPanelView() {
+    editorViewController->unregisterInteractionArea(titleBar());
     editorViewController->unregisterPanel(this);
 }
 

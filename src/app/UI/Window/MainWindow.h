@@ -90,6 +90,7 @@ private slots:
 
 private:
     bool navigateToFocus(const HistoryFocus &focus, bool animated);
+    void updatePanelVisibilityState(bool trackPanelVisible, bool bottomPanelVisible);
     void closeEvent(QCloseEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
