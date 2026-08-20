@@ -115,7 +115,8 @@ namespace AnchorEditor {
         [[nodiscard]] static AnchorNode *findNodeAtTick(AnchorCurve *curve, int tick,
                                                         AnchorNode *exclude = nullptr);
         void removeOverlappingNodes(AnchorCurve *curve, AnchorNode *keep);
-        void cleanupEmptyCurve(AnchorCurve *curve);
+        void cleanupIncompleteCurve(AnchorCurve *curve);
+        void discardProvisionalCurve();
 
         void enterEditingState(AnchorCurve *curve, AnchorNode *node = nullptr);
         void exitEditingState();
@@ -129,8 +130,10 @@ namespace AnchorEditor {
         void updateSelectionRectAt(const QPointF &scenePos);
 
         bool beginMutation();
+        void commitMutationIfReady();
         void commitMutation();
         void discardMutation();
+        void removeIncompleteCurves();
         void clearInteractionState(bool leaveEditing);
         void notifyChanged();
         void notifyCurvesChanged();
@@ -142,6 +145,7 @@ namespace AnchorEditor {
         AnchorOverlayState m_state;
         QList<AnchorCurve *> m_curves;
         QList<AnchorCurve *> m_backupCurves;
+        AnchorCurve *m_provisionalCurve = nullptr;
         bool m_mutationActive = false;
         bool m_publishing = false;
         quint64 m_curveRevision = 0;

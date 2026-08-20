@@ -287,6 +287,18 @@ public:
                                       std::max(1.0, noteHeight * verticalScale())));
     }
 
+    int effectiveSceneLength() const {
+        return (clip ? clip->length() : 0) + sceneLengthExtension;
+    }
+
+    void setSceneLengthExtension(const int ticks) {
+        const auto extension = std::max(0, ticks);
+        if (sceneLengthExtension == extension)
+            return;
+        sceneLengthExtension = extension;
+        viewport.setContentTickRange(0.0, effectiveSceneLength());
+    }
+
     void setDataContext(SingingClip *newClip) {
         hideLyricToolTip();
         wheel.stop();
@@ -307,7 +319,8 @@ public:
             QObject::disconnect(clip, nullptr, q, nullptr);
 
         clip = newClip;
-        viewport.setContentTickRange(0.0, clip ? clip->length() : 0.0);
+        sceneLengthExtension = 0;
+        viewport.setContentTickRange(0.0, effectiveSceneLength());
         if (clip) {
             QObject::connect(clip, &SingingClip::noteChanged, q, [this] {
                 hideLyricToolTip();
@@ -322,7 +335,7 @@ public:
                                  }
                              });
             QObject::connect(clip, &SingingClip::propertyChanged, q, [this] {
-                viewport.setContentTickRange(0.0, clip->length());
+                viewport.setContentTickRange(0.0, effectiveSceneLength());
                 q->notifyViewportChanged();
                 scheduleSnapshot();
             });
@@ -628,6 +641,16 @@ public:
         const QPointF pointerPosition(q->mapFromGlobal(QCursor::pos()));
         const QRectF viewportRect(QPointF(), q->size());
         const auto step = edgeAutoScroller.computeDragStep(pointerPosition, viewportRect, dtMs);
+        if (step.x() > 0 && (interaction == Interaction::Move ||
+                             interaction == Interaction::ResizeRight ||
+                             interaction == Interaction::Draw)) {
+            const auto maximumOffset =
+                std::max(0.0, viewport.tickToSceneX(effectiveSceneLength()) - q->width());
+            if (viewport.horizontalOffset() >= maximumOffset - 1.0) {
+                const auto visibleTicks = std::max(1, qRound(endTick() - startTick()));
+                setSceneLengthExtension(sceneLengthExtension + visibleTicks);
+            }
+        }
         if (!step.isNull())
             viewport.scrollBy(step);
         continueEdgeDragAt(EdgeAutoScroller::clampToRect(pointerPosition, viewportRect),
@@ -1299,6 +1322,7 @@ public:
     }
 
     void resetNoteInteraction() {
+        setSceneLengthExtension(0);
         interaction = Interaction::None;
         interactionNoteId = -1;
         interactionDeltaTick = 0;
@@ -1689,7 +1713,7 @@ private:
     }
 
     double sceneWidth() const {
-        return clip ? viewport.tickToSceneX(clip->length()) : q->width();
+        return clip ? viewport.tickToSceneX(effectiveSceneLength()) : q->width();
     }
 
     double sceneHeight() const {
@@ -2454,6 +2478,7 @@ public:
     int drawStart = 0;
     int drawEnd = 0;
     int drawKey = 60;
+    int sceneLengthExtension = 0;
     int hoveredKey = -1;
     int splitPreviewNoteId = -1;
     int splitPreviewTick = 0;
