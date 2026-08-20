@@ -7,6 +7,8 @@ bool SingerCapabilitySummary::operator==(const SingerCapabilitySummary &other) c
            speakerConsistency == other.speakerConsistency &&
            speakerWarnings == other.speakerWarnings &&
            acousticParameters == other.acousticParameters &&
+           pitchUsesExpressiveness == other.pitchUsesExpressiveness &&
+           vocoderPitchControllable == other.vocoderPitchControllable &&
            effectivePhonemes == other.effectivePhonemes &&
            phonemeConsistency == other.phonemeConsistency &&
            phonemeWarnings == other.phonemeWarnings &&

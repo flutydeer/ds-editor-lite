@@ -9,10 +9,13 @@
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <filesystem>
+#include <fstream>
+#include <sstream>
 
 #include <stdcorelib/path.h>
 #include <stdcorelib/system.h>
 
+#include <synthrt/Core/Support/JSON.h>
 #include <diffsinger/Bank/PackageManifest.h>
 #include <diffsinger/Bank/SingerManifest.h>
 
@@ -30,9 +33,10 @@ namespace fs = std::filesystem;
 
 namespace {
     const ds::bank::InferenceInfo *findInference(const ds::bank::PackageManifest &manifest,
-                                                 const ds::bank::StageCapability &stage) {
+                                                 const std::string &id,
+                                                 const std::string &className) {
         for (const auto &inference : manifest.inferences()) {
-            if (inference.id == stage.stageId && inference.className == stage.className)
+            if (inference.id == id && inference.className == className)
                 return &inference;
         }
         return nullptr;
@@ -46,30 +50,134 @@ namespace {
         return result;
     }
 
+    std::vector<const ds::bank::InferenceInfo *>
+        stageCandidates(const ds::bank::PackageManifest &owningManifest,
+                        const std::vector<ds::bank::PackageManifest> &manifests,
+                        const std::string &id, const std::string &className) {
+        if (const auto *inference = findInference(owningManifest, id, className))
+            return {inference};
+
+        std::vector<const ds::bank::InferenceInfo *> candidates;
+        for (const auto &manifest : manifests) {
+            if (const auto *inference = findInference(manifest, id, className))
+                candidates.push_back(inference);
+        }
+        return candidates;
+    }
+
+    std::vector<const ds::bank::InferenceInfo *>
+        reportedStageCandidates(const ds::bank::PackageManifest &owningManifest,
+                                const std::vector<ds::bank::PackageManifest> &manifests,
+                                const ds::bank::SingerCapabilityReport &report,
+                                const std::string &className) {
+        for (const auto &stage : report.stages) {
+            if (stage.className == className)
+                return stageCandidates(owningManifest, manifests, stage.stageId, className);
+        }
+        return {};
+    }
+
+    std::vector<const ds::bank::InferenceInfo *>
+        importedStageCandidates(const ds::bank::PackageManifest &owningManifest,
+                                const std::vector<ds::bank::PackageManifest> &manifests,
+                                const ds::bank::SingerManifest &singer,
+                                const std::string &className) {
+        std::vector<const ds::bank::InferenceInfo *> candidates;
+        for (const auto &stageImport : singer.imports()) {
+            if (const auto *inference =
+                    findInference(owningManifest, stageImport.inferenceId, className)) {
+                candidates.push_back(inference);
+            }
+        }
+        if (!candidates.empty())
+            return candidates;
+
+        for (const auto &stageImport : singer.imports()) {
+            for (const auto &manifest : manifests) {
+                if (const auto *inference =
+                        findInference(manifest, stageImport.inferenceId, className)) {
+                    candidates.push_back(inference);
+                }
+            }
+        }
+        return candidates;
+    }
+
     std::optional<QStringList>
         acousticParameters(const ds::bank::PackageManifest &owningManifest,
                            const std::vector<ds::bank::PackageManifest> &manifests,
                            const ds::bank::SingerCapabilityReport &report) {
-        for (const auto &stage : report.stages) {
-            if (stage.className != "ai.svs.AcousticInference")
-                continue;
-
-            if (const auto *inference = findInference(owningManifest, stage))
-                return toQStringList(inference->parameters);
-
-            const ds::bank::InferenceInfo *match = nullptr;
-            for (const auto &manifest : manifests) {
-                const auto *candidate = findInference(manifest, stage);
-                if (!candidate)
-                    continue;
-                if (match && match->parameters != candidate->parameters)
-                    return std::nullopt;
-                match = candidate;
-            }
-            if (match)
-                return toQStringList(match->parameters);
+        const auto candidates = reportedStageCandidates(
+            owningManifest, manifests, report, "ai.svs.AcousticInference");
+        std::optional<QStringList> result;
+        for (const auto *candidate : candidates) {
+            const auto parameters = toQStringList(candidate->parameters);
+            if (result && *result != parameters)
+                return std::nullopt;
+            result = parameters;
         }
-        return std::nullopt;
+        return result;
+    }
+
+    std::optional<bool> configurationFlag(const ds::bank::InferenceInfo &inference,
+                                          const std::string &name, const bool defaultValue) {
+        std::ifstream file(inference.configPath);
+        if (!file.is_open())
+            return std::nullopt;
+
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        std::string parseError;
+        const auto root = srt::core::JsonValue::fromJson(buffer.str(), true, &parseError);
+        if (!parseError.empty() || !root.isObject())
+            return std::nullopt;
+
+        const auto &rootObject = root.toObject();
+        const auto configurationIt = rootObject.find("configuration");
+        if (configurationIt == rootObject.end() || !configurationIt->second.isObject())
+            return std::nullopt;
+
+        const auto &configuration = configurationIt->second.toObject();
+        const auto valueIt = configuration.find(name);
+        if (valueIt == configuration.end())
+            return defaultValue;
+        if (!valueIt->second.isBool())
+            return std::nullopt;
+        return valueIt->second.toBool();
+    }
+
+    std::optional<bool>
+        consistentConfigurationFlag(const std::vector<const ds::bank::InferenceInfo *> &candidates,
+                                    const std::string &name, const bool defaultValue) {
+        std::optional<bool> result;
+        for (const auto *candidate : candidates) {
+            const auto value = configurationFlag(*candidate, name, defaultValue);
+            if (!value || (result && *result != *value))
+                return std::nullopt;
+            result = value;
+        }
+        return result;
+    }
+
+    std::optional<bool>
+        reportedStageFlag(const ds::bank::PackageManifest &owningManifest,
+                          const std::vector<ds::bank::PackageManifest> &manifests,
+                          const ds::bank::SingerCapabilityReport &report,
+                          const std::string &className, const std::string &name,
+                          const bool defaultValue) {
+        return consistentConfigurationFlag(
+            reportedStageCandidates(owningManifest, manifests, report, className), name,
+            defaultValue);
+    }
+
+    std::optional<bool> importedStageFlag(const ds::bank::PackageManifest &owningManifest,
+                                          const std::vector<ds::bank::PackageManifest> &manifests,
+                                          const ds::bank::SingerManifest &singer,
+                                          const std::string &className, const std::string &name,
+                                          const bool defaultValue) {
+        return consistentConfigurationFlag(
+            importedStageCandidates(owningManifest, manifests, singer, className), name,
+            defaultValue);
     }
 }
 
@@ -199,10 +307,12 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
 
                 QList<LanguageInfo> languageInfos;
                 QList<SpeakerInfo> speakerInfos;
+                const ds::bank::SingerManifest *singerManifest = nullptr;
                 for (const auto &singer : manifest->singers()) {
                     if (singer.singerId() != singerSnapshot.ref.singerId) {
                         continue;
                     }
+                    singerManifest = &singer;
                     for (const auto &lang : singer.languages()) {
                         LanguageInfo langInfo(QString::fromStdString(lang.languageId()),
                                               QString::fromStdString(lang.name()),
@@ -270,6 +380,14 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                         summary.speakerWarnings.append(QString::fromStdString(w));
                     summary.acousticParameters =
                         acousticParameters(*manifest, snapshot->manifests, report);
+                    summary.pitchUsesExpressiveness = reportedStageFlag(
+                        *manifest, snapshot->manifests, report, "ai.svs.PitchInference",
+                        "useExpressiveness", true);
+                    if (singerManifest) {
+                        summary.vocoderPitchControllable = importedStageFlag(
+                            *manifest, snapshot->manifests, *singerManifest,
+                            "ai.svs.VocoderInference", "pitchControllable", false);
+                    }
 
                     for (const auto &ph : report.effectivePhonemes)
                         summary.effectivePhonemes.append(QString::fromStdString(ph));
