@@ -348,7 +348,6 @@ void TimeGraphicsView::adjustScaleXToFillView() {
         auto targetSceneWidth = viewport()->width();
         auto targetScaleX = targetSceneWidth / (sceneRect().width() / scaleX());
         setScaleX(targetScaleX);
-        qDebug() << "Scene width < viewport width, adjust scaleX to" << targetScaleX;
     }
 }
 
@@ -357,7 +356,6 @@ void TimeGraphicsView::adjustScaleYToFillView() {
         auto targetSceneHeight = viewport()->height();
         auto targetScaleY = targetSceneHeight / (sceneRect().height() / scaleY());
         setScaleY(targetScaleY);
-        qDebug() << "Scene height < viewport height, adjust scaleY to" << targetScaleY;
     }
 }
 

@@ -27,7 +27,16 @@
 
 #include <algorithm>
 
+namespace stdc {
+
+    using JsonValue = json::Value;
+    using JsonArray = json::Array;
+    using JsonObject = json::Object;
+
+}
+
 namespace {
+
     using namespace SpeakerMixModel;
 
     class JsonStdc {

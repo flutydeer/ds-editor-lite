@@ -28,6 +28,13 @@
 #include <algorithm>
 #include <limits>
 
+namespace {
+    Track *owningTrack(SingingClip *clip) {
+        Track *track = nullptr;
+        return clip && appModel->findClipById(clip->id(), track) == clip ? track : nullptr;
+    }
+}
+
 ClipController::ClipController(QObject *parent)
     : QObject(parent), d_ptr(new ClipControllerPrivate(this)) {
 }
@@ -117,12 +124,8 @@ void ClipController::pasteNotesWithParams(const NotesParamsInfo &info, int tick)
         newNotes.append(note);
     }
 
-    const auto extendsClip = NotePasteUtils::extendClipToFit(clipProperties, pastePlan.pastedEnd);
     const auto a = new NoteActions;
-    if (extendsClip)
-        a->pasteNotes(newNotes, singingClip, targetTrack, clipProperties);
-    else
-        a->insertNotes(newNotes, singingClip);
+    a->insertNotes(newNotes, singingClip, targetTrack);
     const auto focus = a->focusTransition();
     a->execute();
     historyManager->record(a);
@@ -177,7 +180,7 @@ void ClipController::onInsertNote(Note *note) {
     const auto a = new NoteActions;
     QList<Note *> notes;
     notes.append(note);
-    a->insertNotes(notes, singingClip);
+    a->insertNotes(notes, singingClip, owningTrack(singingClip));
     a->execute();
     historyManager->record(a);
     emit hasSelectedNotesChanged(hasSelectedNotes());
@@ -214,7 +217,8 @@ void ClipController::onMoveNotes(const QList<int> &notesId, const int deltaTick,
     // Do not allow any note to be moved to the left of clip start (tick 0 inside the clip)
     const auto safeDeltaTick = NoteResizeUtils::clampLeftMoveDelta(deltaTick, minLocalStart);
     const auto a = new NoteActions;
-    a->editNotePosition(notesToEdit, safeDeltaTick, deltaKey, singingClip);
+    a->editNotePosition(notesToEdit, safeDeltaTick, deltaKey, singingClip,
+                        owningTrack(singingClip));
     a->execute();
     historyManager->record(a);
 }
@@ -240,7 +244,8 @@ void ClipController::onResizeNotesLeft(const QList<int> &notesId, const int delt
     // Do not resize the left edge past clip start (tick 0 inside the clip)
     safeDeltaTick = NoteResizeUtils::clampLeftMoveDelta(safeDeltaTick, minLocalStart);
     const auto a = new NoteActions;
-    a->editNotesStartAndLength(notesToEdit, safeDeltaTick, singingClip);
+    a->editNotesStartAndLength(notesToEdit, safeDeltaTick, singingClip,
+                               owningTrack(singingClip));
     a->execute();
     historyManager->record(a);
 }
@@ -262,7 +267,7 @@ void ClipController::onResizeNotesRight(const QList<int> &notesId, const int del
         return;
 
     const auto a = new NoteActions;
-    a->editNotesLength(notesToEdit, safeDeltaTick, singingClip);
+    a->editNotesLength(notesToEdit, safeDeltaTick, singingClip, owningTrack(singingClip));
     a->execute();
     historyManager->record(a);
 }
@@ -358,7 +363,7 @@ void ClipController::onQuantizeNotes(const int quantize, const bool quantizeStar
         return;
 
     const auto a = new NoteActions;
-    a->quantizeNotes(notes, newStartLengths, singingClip);
+    a->quantizeNotes(notes, newStartLengths, singingClip, owningTrack(singingClip));
     a->execute();
     historyManager->record(a);
 }

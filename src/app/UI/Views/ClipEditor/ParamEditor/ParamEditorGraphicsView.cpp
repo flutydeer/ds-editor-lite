@@ -238,6 +238,7 @@ void ParamEditorGraphicsView::setEditMode(const ParamEditorEditMode mode) {
     m_editMode = mode;
     const bool anchorActive = mode == ParamEditorEditMode::Anchor && !m_speakerMixMode;
     m_foreground->setEraseMode(mode == ParamEditorEditMode::Erase);
+    m_foreground->setBakeMode(mode == ParamEditorEditMode::Bake);
     m_anchorOverlay->setInteractive(anchorActive);
     m_anchorController.setEditActive(anchorActive);
 }
@@ -396,18 +397,15 @@ void ParamEditorGraphicsView::onEditDiscarded() {
 bool ParamEditorGraphicsView::event(QEvent *event) {
     if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
         const auto key = static_cast<QKeyEvent *>(event)->key();
-        if (m_editMode == ParamEditorEditMode::Anchor && !m_speakerMixMode) {
-            if (key == Qt::Key_Escape) {
-                m_anchorController.exitEditing();
-                disarmEdgeAutoScroll();
-                event->accept();
-                return true;
+        if (m_editMode == ParamEditorEditMode::Anchor && !m_speakerMixMode &&
+            AnchorEditor::AnchorEditController::handlesKey(key)) {
+            if (event->type() == QEvent::KeyPress) {
+                m_anchorController.handleKeyPress(key);
+                if (key == Qt::Key_Escape)
+                    disarmEdgeAutoScroll();
             }
-            if (key == Qt::Key_Delete) {
-                m_anchorController.deleteSelectedNodes();
-                event->accept();
-                return true;
-            }
+            event->accept();
+            return true;
         } else if (key == Qt::Key_Escape) {
             discardAction();
         }
@@ -420,6 +418,14 @@ bool ParamEditorGraphicsView::event(QEvent *event) {
         }
     }
     return TimeGraphicsView::event(event);
+}
+
+void ParamEditorGraphicsView::deleteSelection() {
+    if (m_speakerMixMode) {
+        m_speakerMixView->deleteSelection();
+    } else if (m_editMode == ParamEditorEditMode::Anchor) {
+        m_anchorController.deleteSelectedNodes();
+    }
 }
 
 void ParamEditorGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,

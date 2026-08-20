@@ -30,11 +30,9 @@
 #include "AppContext.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "UI/Views/Common/TimelineView.h"
-#include "UI/Views/Common/EditorShortcutUtils.h"
 
 #include <QFileDialog>
 #include <QHBoxLayout>
-#include <QMouseEvent>
 #include <QScrollBar>
 #include <QSignalBlocker>
 #include <lite/GUI/Controls/OverlaySplitter.h>
@@ -151,7 +149,8 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     setLayout(mainLayout);
     setPanelActive(true);
     editorViewController->registerPanel(this);
-    installEventFilter(this);
+    editorViewController->registerInteractionArea(this, AppGlobal::TracksEditor,
+                                                  EditorInteraction::Target::Tracks);
 
     connect(m_trackListView, &QListWidget::currentRowChanged, this,
             &TrackEditorView::setSelectedTrackIndex);
@@ -165,7 +164,12 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
         connectRhiBackend();
     else
         connectLegacyBackend();
-    registerEditorShortcuts();
+    connect(
+        editorViewController, &EditorViewController::editCommandRequested, this,
+        [this](const EditorInteraction::Target target, const EditorInteraction::Command command) {
+            if (target == EditorInteraction::Target::Tracks)
+                executeEditCommand(command);
+        });
     connect(trackListHeader, &TrackListHeaderView::tempoLaneToggled, this,
             [this](const bool visible) {
                 m_tempoLaneHeader->setVisible(visible);
@@ -185,23 +189,28 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     connect(appModel, &AppModel::trackMoved, this, &TrackEditorView::onTrackMoved);
 }
 
-void TrackEditorView::registerEditorShortcuts() {
-    using EditorShortcutUtils::add;
-    add(this, QKeySequence::Cut, m_contextMenuController,
-        &TrackEditorContextMenuController::cutSelection);
-    add(this, QKeySequence::Copy, m_contextMenuController,
-        &TrackEditorContextMenuController::copySelection);
-    add(this, QKeySequence::Paste, m_contextMenuController,
-        &TrackEditorContextMenuController::pasteSelection);
-    add(this, QKeySequence::SelectAll, m_contextMenuController,
-        &TrackEditorContextMenuController::selectAll);
-    add(this, QKeySequence::Delete, m_contextMenuController,
-        [this] { m_contextMenuController->deleteSelection(); });
-    add(this, QKeySequence(Qt::Key_Backspace), m_contextMenuController,
-        [this] { m_contextMenuController->deleteSelection(); });
+void TrackEditorView::executeEditCommand(const EditorInteraction::Command command) const {
+    switch (command) {
+        case EditorInteraction::Command::Cut:
+            m_contextMenuController->cutSelection();
+            break;
+        case EditorInteraction::Command::Copy:
+            m_contextMenuController->copySelection();
+            break;
+        case EditorInteraction::Command::Paste:
+            m_contextMenuController->pasteSelection();
+            break;
+        case EditorInteraction::Command::SelectAll:
+            m_contextMenuController->selectAll();
+            break;
+        case EditorInteraction::Command::DeleteSelection:
+            m_contextMenuController->deleteSelection();
+            break;
+    }
 }
 
 TrackEditorView::~TrackEditorView() {
+    editorViewController->unregisterInteractionArea(this);
     editorViewController->unregisterPanel(this);
 }
 
@@ -233,6 +242,8 @@ void TrackEditorView::connectLegacyBackend() {
             &TrackEditorBackgroundView::onTrackCountChanged);
     connect(appStatus, &AppStatus::selectedTrackIndexChanged, m_gridItem,
             &TrackEditorBackgroundView::onTrackSelectionChanged);
+    connect(appStatus, &AppStatus::clipSelectionChanged, m_graphicsView,
+            &TracksGraphicsView::setClipSelection);
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_timeline,
             &TimelineView::setTimeRange);
     connect(m_graphicsView, &TimeGraphicsView::timeRangeChanged, m_tempoLane,
@@ -287,6 +298,7 @@ void TrackEditorView::connectLegacyBackend() {
     connect(m_graphicsView, &TracksGraphicsView::externalDropRequested, this,
             &TrackEditorView::handleExternalDrop);
     m_graphicsView->setAutoTurnPage(appStatus->trackAutoPageTurnEnabled);
+    m_graphicsView->setClipSelection(appStatus->selectedClips.get());
 }
 
 void TrackEditorView::connectRhiBackend() {
@@ -390,6 +402,7 @@ void TrackEditorView::populateLegacyClipItems() {
         for (auto *clip : trackViewModel->dsTrack->clips())
             onClipInserted(clip, trackViewModel, trackIndex);
     }
+    m_graphicsView->setClipSelection(appStatus->selectedClips.get());
 }
 
 double TrackEditorView::activeScaleY() const {
@@ -555,6 +568,8 @@ void TrackEditorView::onModelChanged() {
         onTrackInserted(track, index);
         index++;
     }
+    if (m_graphicsView)
+        m_graphicsView->setClipSelection(appStatus->selectedClips.get());
     emit trackCountChanged(m_viewModel.tracks.count());
 }
 
@@ -678,14 +693,6 @@ void TrackEditorView::updateAutoPageTurnButtonView(const bool available) {
 
 void TrackEditorView::onRemoveTrackTriggered(const int id) {
     trackController->onRemoveTrack(id);
-}
-
-bool TrackEditorView::eventFilter(QObject *watched, QEvent *event) {
-    if (event->type() == QMouseEvent::MouseButtonPress) {
-        editorViewController->setActivePanel(AppGlobal::TracksEditor);
-    }
-
-    return QWidget::eventFilter(watched, event);
 }
 
 TrackViewModel *TrackEditorView::ViewModel::findTrack(const Track *dsTrack) {

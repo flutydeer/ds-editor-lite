@@ -8,7 +8,7 @@
 - `PianoRollGraphicsView`（公开 Widget）接收所有 Qt 输入事件
 - `PianoRollGraphicsViewPrivate`（Pimpl）持有全部可变状态
 - `PianoRollEditHandler`（抽象策略基类）— 6 个具体 Handler 注册在 `QHash<PianoRollEditMode, Handler*>` 中
-- 3 个音高模式（`DrawPitch`、`ErasePitch`、`FreezePitch`）**没有 Handler**，通过 `PitchEditorView` 的 `setTransparentMouseEvents` 机制直接处理事件
+- 3 个音高模式（`DrawPitch`、`ErasePitch`、`BakePitch`）**没有 Handler**，通过 `PitchEditorView` 的 `setTransparentMouseEvents` 机制直接处理事件
 
 ### Handler 注册表
 
@@ -22,7 +22,7 @@
 | `EditPitchAnchor` | `EditPitchAnchorHandler` | |
 | `DrawPitch` | 无（`nullptr`） | 依赖 `PitchEditorView` Z 序 |
 | `ErasePitch` | 无（`nullptr`） | 依赖 `PitchEditorView` Z 序 |
-| `FreezePitch` | 无（`nullptr`） | 未实现 |
+| `BakePitch` | 无（`nullptr`） | 依赖 `PitchEditorView` Z 序 |
 
 ### 模式切换信号链
 

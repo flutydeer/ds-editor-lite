@@ -14,12 +14,12 @@ namespace EditorViewGlobal {
         DrawPitch,
         EditPitchAnchor,
         ErasePitch,
-        FreezePitch
+        BakePitch
     };
 
     [[nodiscard]] constexpr bool isPitchEditMode(const PianoRollEditMode mode) noexcept {
         return mode == DrawPitch || mode == EditPitchAnchor || mode == ErasePitch ||
-               mode == FreezePitch;
+               mode == BakePitch;
     }
 
 } // namespace EditorViewGlobal

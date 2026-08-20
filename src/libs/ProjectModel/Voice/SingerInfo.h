@@ -28,9 +28,9 @@ enum class ResolutionState {
 /// SingerCapabilitySummary - lite-side mirror of synthrt SingerCapabilityReport.
 ///
 /// nullopt for pure G2P packages or legacy singers without inference.
-/// Carries parse-time mixable speakers / effective phonemes / languages
-/// analysis so the host UI can surface mixability at voicebank load time
-/// (without invoking PackageParser or running inference).
+/// Carries parse-time stage capabilities and mixable speakers / effective
+/// phonemes / languages analysis so the host UI can surface support at
+/// voicebank load time (without running inference).
 ///
 /// consistency fields use int (0=Ideal, 1=Degraded, 2=Inconsistent) to avoid
 /// cross-DLL enum export coupling with synthrt ConsistencyLevel.
@@ -40,6 +40,8 @@ struct SingerCapabilitySummary {
     QStringList speakerWarnings;
 
     std::optional<QStringList> acousticParameters; ///< nullopt when support cannot be determined
+    std::optional<bool> pitchUsesExpressiveness;
+    std::optional<bool> vocoderPitchControllable;
 
     QList<QString> effectivePhonemes;        ///< non-vocoder stage intersection
     int phonemeConsistency = 0;

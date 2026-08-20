@@ -1,6 +1,7 @@
 #include "UI/Views/TrackEditor/AudioClipDragState.h"
 #include <lite/ProjectModel/Utils/ClipResizeUtils.h>
 #include <lite/ProjectModel/Utils/NotePasteUtils.h>
+#include <lite/ProjectModel/Utils/SingingClipRangeUtils.h>
 #include "UI/Views/TrackEditor/SingingClipPreviewLayout.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
@@ -49,6 +50,12 @@ int main(int argc, char *argv[]) {
                EditorSelectionUtils::selectionForPress({1}, 1, true).isEmpty(),
            "toggle presses must add or remove the target clip");
 
+    const Timeline timeline({
+        {0,    120.0},
+        {4800, 60.0 },
+        {9600, 150.0},
+    });
+
     Clip::ClipCommonProperties singing;
     singing.length = 1920;
     singing.clipStart = 120;
@@ -77,10 +84,34 @@ int main(int argc, char *argv[]) {
            "pasting inside the visible range must use the snapped playback position");
     const auto overrunsVisibleRange =
         NotePasteUtils::plan(pasteTarget, 2020, 2040, copiedBounds);
+    const auto paddedPasteEnd =
+        SingingClipRangeUtils::paddedContentEnd(overrunsVisibleRange.pastedEnd);
     expect(overrunsVisibleRange.pastedEnd == 1560 &&
-               NotePasteUtils::extendClipToFit(pasteTarget, overrunsVisibleRange.pastedEnd) &&
-               pasteTarget.clipLen == 1320 && pasteTarget.length == 1560,
-           "pasting beyond the visible right edge must extend both clip ranges to the note end");
+               SingingClipRangeUtils::extendRightToFit(pasteTarget,
+                                                       overrunsVisibleRange.pastedEnd) &&
+               pasteTarget.clipStart + pasteTarget.clipLen == paddedPasteEnd &&
+               pasteTarget.length == paddedPasteEnd,
+           "inserting beyond the visible right edge must extend both clip ranges with tail room");
+    const auto extendedPasteTarget = pasteTarget;
+    expect(!SingingClipRangeUtils::extendRightToFit(pasteTarget,
+                                                    overrunsVisibleRange.pastedEnd) &&
+               pasteTarget.clipLen == extendedPasteTarget.clipLen &&
+               pasteTarget.length == extendedPasteTarget.length,
+           "an existing tail margin must not grow again for unchanged note geometry");
+
+    Clip::ClipCommonProperties manuallyTrimmed;
+    manuallyTrimmed.start = 4000;
+    manuallyTrimmed.clipStart = 200;
+    manuallyTrimmed.clipLen = 600;
+    manuallyTrimmed.length = 1200;
+    constexpr int touchingContentEnd = 800;
+    const auto paddedTouchingEnd = SingingClipRangeUtils::paddedContentEnd(touchingContentEnd);
+    expect(SingingClipRangeUtils::extendRightToFit(manuallyTrimmed, touchingContentEnd) &&
+               manuallyTrimmed.clipStart + manuallyTrimmed.clipLen == paddedTouchingEnd &&
+               manuallyTrimmed.length == 1200,
+           "editing a note touching a manually trimmed edge must restore the tail margin");
+    expect(paddedTouchingEnd - touchingContentEnd == SingingClipRangeUtils::tailPaddingTicks,
+           "adaptive clip room must use the fixed tick padding");
 
     Clip::ClipCommonProperties leftResize;
     leftResize.start = 100;
@@ -189,11 +220,6 @@ int main(int argc, char *argv[]) {
     expect(SingingClipPreview::projectNotes(modelNotes, false, editedNotes, {3}) == modelNotes,
            "piano-roll edits must not leak into inactive clip previews");
 
-    const Timeline timeline({
-        {0,    120.0},
-        {4800, 60.0 },
-        {9600, 150.0},
-    });
     constexpr double trimStartMs = 500.0;
     constexpr double playLengthMs = 2500.0;
     constexpr double materialLengthMs = 5000.0;

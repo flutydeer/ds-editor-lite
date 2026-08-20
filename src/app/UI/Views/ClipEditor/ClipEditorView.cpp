@@ -15,7 +15,6 @@
 
 #include <QLabel>
 #include <QEvent>
-#include <QMouseEvent>
 #include <QRectF>
 #include <QVBoxLayout>
 
@@ -66,8 +65,6 @@ ClipEditorView::ClipEditorView(QWidget *parent) : TabPanelPage(parent) {
     mainLayout->setSpacing(0);
     mainLayout->setContentsMargins({1, 0, 1, 1});
     setLayout(mainLayout);
-
-    installEventFilter(this);
 
     connect(m_toolbarView, &ClipEditorToolBarView::editModeChanged,
             m_pianoRollEditorView->pianoRollView(), &PianoRollView::onEditModeChanged);
@@ -163,12 +160,6 @@ void ClipEditorView::onActiveClipChanged(const int clipId) {
     if (hadActiveClip != m_hasActiveClip) {
         emit toolBarVisibilityChanged();
     }
-}
-
-bool ClipEditorView::eventFilter(QObject *watched, QEvent *event) {
-    if (event->type() == QMouseEvent::MouseButtonPress)
-        editorViewController->setActivePanel(AppGlobal::ClipEditor);
-    return QWidget::eventFilter(watched, event);
 }
 
 void ClipEditorView::moveToSingingClipState(SingingClip *clip) const {

@@ -73,12 +73,55 @@ namespace {
         });
         controller.setEditActive(true);
         controller.doubleClickAt({100, 800}, Qt::LeftButton);
-        expect(begins == 1 && commits == 1, "create must be one transaction");
+        expect(begins == 1 && commits == 0,
+               "the first anchor must stay provisional until it forms a curve");
+        controller.doubleClickAt({200, 600}, Qt::LeftButton);
+        expect(begins == 1 && commits == 1,
+               "the second anchor must commit the provisional transaction");
         expect(controller.curves().size() == 1, "reentrant load must be ignored while publishing");
         if (controller.curves().isEmpty())
             return;
         expect(controller.curves().first()->nodes().toList().first()->pos() == 10,
                "created anchor tick must use mapper");
+        expect(controller.curves().first()->nodes().toList().size() == 2,
+               "the committed anchor curve must contain both nodes");
+    }
+
+    void testProvisionalAnchorExitDiscardsWithoutPublishing() {
+        AnchorEditor::AnchorEditController controller;
+        controller.setCoordinateMapper(mapper());
+        int begins = 0;
+        int publishes = 0;
+        int discards = 0;
+        controller.setHostCallbacks({
+            [&] {
+                ++begins;
+                return true;
+            },
+            [&](const QList<AnchorCurve *> &) { ++publishes; },
+            [&](const AnchorEditor::EditFinishReason reason) {
+                if (reason == AnchorEditor::EditFinishReason::Discard)
+                    ++discards;
+            },
+            [] {},
+        });
+        controller.setEditActive(true);
+
+        controller.doubleClickAt({100, 800}, Qt::LeftButton);
+        expect(controller.curves().size() == 1, "the provisional anchor must remain visible");
+        controller.exitEditing();
+        expect(controller.curves().isEmpty(), "Escape-style exit must remove the provisional anchor");
+        expect(begins == 1 && publishes == 0 && discards == 1,
+               "discarding a provisional anchor must not publish history");
+
+        controller.doubleClickAt({100, 800}, Qt::LeftButton);
+        AnchorEditor::MenuInfo info;
+        expect(!controller.prepareMenu({500, 500}, info),
+               "a background context action must not open an anchor menu");
+        expect(controller.curves().isEmpty(),
+               "background right-click-style exit must remove the provisional anchor");
+        expect(begins == 2 && publishes == 0 && discards == 2,
+               "both provisional exit paths must discard without publishing");
     }
 
     void testCreateClearsOverlappingPreview() {
@@ -178,6 +221,137 @@ namespace {
         delete source;
     }
 
+    void testSwitchingAwayFromProvisionalAllowsCommit() {
+        auto *source = makeCurve({
+            {30, 20},
+            {40, 40}
+        });
+
+        AnchorEditor::AnchorEditController selectionController;
+        selectionController.setCoordinateMapper(mapper());
+        int selectionPublishes = 0;
+        selectionController.setHostCallbacks({
+            [] { return true; },
+            [&](const QList<AnchorCurve *> &) { ++selectionPublishes; },
+            [](AnchorEditor::EditFinishReason) {},
+            [] {},
+        });
+        selectionController.loadFromModel({source});
+        selectionController.setEditActive(true);
+        selectionController.doubleClickAt({100, 800}, Qt::LeftButton);
+        const auto provisionalRevision = selectionController.curveRevision();
+        selectionController.pressAt({300, 800}, Qt::LeftButton);
+        expect(selectionController.curveRevision() > provisionalRevision,
+               "discarding a provisional curve must invalidate rendered curve state");
+        selectionController.setSelectedInterpolation(AnchorNode::Linear);
+        expect(selectionController.curves().size() == 1 && selectionPublishes == 1,
+               "switching to an existing curve must discard the provisional curve and commit");
+        if (!selectionController.curves().isEmpty()) {
+            expect(selectionController.curves().first()->nodes().toList().first()->interpMode() ==
+                       AnchorNode::Linear,
+                   "the selected existing curve must remain editable after a provisional curve");
+        }
+
+        AnchorEditor::AnchorEditController insertionController;
+        insertionController.setCoordinateMapper(mapper());
+        int insertionPublishes = 0;
+        insertionController.setHostCallbacks({
+            [] { return true; },
+            [&](const QList<AnchorCurve *> &) { ++insertionPublishes; },
+            [](AnchorEditor::EditFinishReason) {},
+            [] {},
+        });
+        insertionController.loadFromModel({source});
+        insertionController.setEditActive(true);
+        insertionController.doubleClickAt({100, 800}, Qt::LeftButton);
+        insertionController.doubleClickAt({350, 700}, Qt::LeftButton);
+        expect(insertionController.curves().size() == 1 &&
+                   insertionController.curves().first()->nodes().toList().size() == 3 &&
+                   insertionPublishes == 1,
+               "adding to an existing curve must replace and commit the provisional curve");
+        delete source;
+    }
+
+    void testDeleteToOneRemovesWholeCurve() {
+        AnchorEditor::AnchorEditController controller;
+        controller.setCoordinateMapper(mapper());
+        auto *source = makeCurve({
+            {10, 20},
+            {20, 40}
+        });
+        int publishes = 0;
+        int publishedCurveCount = -1;
+        int commits = 0;
+        controller.setHostCallbacks({
+            [] { return true; },
+            [&](const QList<AnchorCurve *> &curves) {
+                ++publishes;
+                publishedCurveCount = curves.size();
+            },
+            [&](const AnchorEditor::EditFinishReason reason) {
+                if (reason == AnchorEditor::EditFinishReason::Commit)
+                    ++commits;
+            },
+            [] {},
+        });
+        controller.loadFromModel({source});
+        controller.setEditActive(true);
+        controller.pressAt({200, 600}, Qt::LeftButton);
+        controller.deleteSelectedNodes();
+
+        expect(controller.curves().isEmpty(),
+               "deleting a two-node curve down to one must remove the remaining node");
+        expect(publishes == 1 && publishedCurveCount == 0 && commits == 1,
+               "removing the whole curve must be committed as one history entry");
+        delete source;
+    }
+
+    void testKeyboardCommands() {
+        AnchorEditor::AnchorEditController controller;
+        controller.setCoordinateMapper(mapper());
+        auto *source = makeCurve({
+            {10, 20},
+            {20, 40},
+            {30, 60}
+        });
+        controller.setHostCallbacks({
+            [] { return true; },
+            [](const QList<AnchorCurve *> &) {},
+            [](AnchorEditor::EditFinishReason) {},
+            [] {},
+        });
+        controller.loadFromModel({source});
+        controller.setEditActive(true);
+
+        expect(AnchorEditor::AnchorEditController::handlesKey(Qt::Key_Backspace),
+               "Backspace must be an anchor edit key");
+        expect(AnchorEditor::AnchorEditController::handlesKey(Qt::Key_Delete),
+               "Delete must be an anchor edit key");
+        expect(AnchorEditor::AnchorEditController::handlesKey(Qt::Key_Escape),
+               "Escape must be an anchor edit key");
+        expect(!AnchorEditor::AnchorEditController::handlesKey(Qt::Key_A),
+               "unrelated keys must not be anchor edit keys");
+
+        controller.pressAt({200, 600}, Qt::LeftButton);
+        expect(controller.handleKeyPress(Qt::Key_Backspace), "Backspace must be handled");
+        expect(controller.curves().first()->nodes().toList().size() == 2,
+               "Backspace must delete the selected anchor");
+
+        controller.loadFromModel({source});
+        controller.pressAt({200, 600}, Qt::LeftButton);
+        expect(controller.handleKeyPress(Qt::Key_Delete), "Delete must be handled");
+        expect(controller.curves().first()->nodes().toList().size() == 2,
+               "Delete must delete the selected anchor");
+
+        controller.loadFromModel({source});
+        controller.pressAt({200, 600}, Qt::LeftButton);
+        expect(controller.handleKeyPress(Qt::Key_Escape), "Escape must be handled");
+        expect(!controller.state().editing && controller.state().selectedNodes.isEmpty(),
+               "Escape must leave anchor editing");
+        expect(!controller.handleKeyPress(Qt::Key_A), "unrelated keys must remain unhandled");
+        delete source;
+    }
+
     void testCompositionPreservesOtherCurveKind() {
         auto *draw = new DrawCurve;
         draw->setLocalStart(0);
@@ -232,6 +406,30 @@ namespace {
         delete draw;
         delete singlePoint;
         delete anchor;
+    }
+
+    void testCompositionRejectsIncompleteAnchorCurves() {
+        auto *single = makeCurve({
+            {10, 20}
+        });
+        auto *complete = makeCurve({
+            {20, 40},
+            {30, 60}
+        });
+
+        auto anchorResult = AnchorEditor::replaceAnchors({}, {single, complete});
+        expect(anchorResult.size() == 1 && anchorResult.first()->type() == Curve::Anchor,
+               "anchor replacement must reject incomplete curves");
+
+        QList<Curve *> existing{single, complete};
+        auto drawResult = AnchorEditor::replaceDrawCurves(existing, {});
+        expect(drawResult.size() == 1 && drawResult.first()->type() == Curve::Anchor,
+               "draw replacement must not preserve incomplete anchor curves");
+
+        qDeleteAll(anchorResult);
+        qDeleteAll(drawResult);
+        delete complete;
+        delete single;
     }
 
     void testSelectionAndLastNodeMenu() {
@@ -311,18 +509,28 @@ namespace {
         controller.pressAt({200, 600}, Qt::LeftButton);
         controller.moveAt({450, 400}, Qt::LeftButton);
         controller.releaseAt({450, 400}, Qt::LeftButton);
-        expect(controller.curves().size() == 2, "cross-curve transfer must retain both curves");
-        expect(controller.curves().at(0)->nodes().toList().size() == 1,
-               "cross-curve transfer must remove the source node");
-        expect(controller.curves().at(1)->nodes().toList().size() == 3,
+        expect(controller.curves().size() == 1,
+               "cross-curve transfer must remove an incomplete source curve");
+        expect(controller.curves().first()->nodes().toList().size() == 3,
                "cross-curve transfer must insert the target node");
 
-        controller.exitEditing();
-        controller.pressAt({100, 800}, Qt::LeftButton);
-        controller.hoverMoveAt({400, 400});
-        expect(controller.state().showMergePreview, "adjacent endpoint must offer merge preview");
-        controller.pressAt({400, 400}, Qt::LeftButton);
-        expect(controller.curves().size() == 1, "endpoint merge must combine adjacent curves");
+        AnchorEditor::AnchorEditController mergeController;
+        mergeController.setCoordinateMapper(mapper());
+        mergeController.setHostCallbacks({
+            [] { return true; },
+            [](const QList<AnchorCurve *> &) {},
+            [](AnchorEditor::EditFinishReason) {},
+            [] {},
+        });
+        mergeController.loadFromModel({left, right});
+        mergeController.setEditActive(true);
+        mergeController.pressAt({100, 800}, Qt::LeftButton);
+        mergeController.hoverMoveAt({400, 400});
+        expect(mergeController.state().showMergePreview,
+               "adjacent endpoint must offer merge preview");
+        mergeController.pressAt({400, 400}, Qt::LeftButton);
+        expect(mergeController.curves().size() == 1,
+               "endpoint merge must combine adjacent curves");
         delete left;
         delete right;
     }
@@ -343,8 +551,9 @@ namespace {
         controller.setEditActive(true);
         events.clear();
         controller.doubleClickAt({100, 800}, Qt::LeftButton);
-        expect(events == QStringList({"begin", "publish", "finish", "state"}),
-               "mutation callbacks must follow begin-publish-finish-state order");
+        controller.doubleClickAt({200, 600}, Qt::LeftButton);
+        expect(events == QStringList({"begin", "state", "publish", "finish", "state"}),
+               "provisional creation must publish only after the second anchor");
     }
 
     void testAnchorSamplesOverrideDrawOnlyInTheirInterval() {
@@ -398,11 +607,16 @@ int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
     testLoadOwnsCopies();
     testCreateAndPublishingReentry();
+    testProvisionalAnchorExitDiscardsWithoutPublishing();
     testCreateClearsOverlappingPreview();
+    testSwitchingAwayFromProvisionalAllowsCommit();
     testDragCancelRestoresSnapshot();
     testSelectionDeleteAndInterpolation();
+    testKeyboardCommands();
+    testDeleteToOneRemovesWholeCurve();
     testCompositionPreservesOtherCurveKind();
     testCompositionRejectsSinglePointDrawCurves();
+    testCompositionRejectsIncompleteAnchorCurves();
     testSelectionAndLastNodeMenu();
     testBoundaryClippingAndRejectedMutation();
     testTransferAndMerge();

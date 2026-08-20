@@ -148,6 +148,8 @@ namespace {
         cap.speakerConsistency = 1; // Degraded
         cap.speakerWarnings = {"w1"};
         cap.acousticParameters = QStringList{"breathiness", "voicing"};
+        cap.pitchUsesExpressiveness = false;
+        cap.vocoderPitchControllable = true;
         cap.effectivePhonemes = {"a", "e"};
         cap.phonemeConsistency = 0;
         cap.phonemeDegraded = true;
@@ -164,6 +166,8 @@ namespace {
         ok &= expect(c->acousticParameters.value_or(QStringList()) ==
                          QStringList{"breathiness", "voicing"},
                      "B2: acousticParameters");
+        ok &= expect(c->pitchUsesExpressiveness == false, "B2: pitchUsesExpressiveness");
+        ok &= expect(c->vocoderPitchControllable == true, "B2: vocoderPitchControllable");
         ok &= expect(c->effectivePhonemes == QStringList{"a", "e"}, "B2: effectivePhonemes");
         ok &= expect(c->phonemeDegraded == true, "B2: phonemeDegraded");
         ok &= expect(c->effectiveLanguages == QStringList{"zh"}, "B2: effectiveLanguages");

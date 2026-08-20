@@ -1,11 +1,24 @@
 #include <lite/GUI/Controls/OverlaySplitter.h>
 
 #include <QApplication>
+#include <QResizeEvent>
 #include <QTextStream>
 
 namespace {
 
     int g_failures = 0;
+
+    class ResizeProbe final : public QWidget {
+    public:
+        int zeroHeightResizeCount = 0;
+
+    protected:
+        void resizeEvent(QResizeEvent *event) override {
+            QWidget::resizeEvent(event);
+            if (event->size().height() == 0)
+                ++zeroHeightResizeCount;
+        }
+    };
 
     bool expect(const bool condition, const char *message) {
         if (condition)
@@ -40,13 +53,21 @@ int main(int argc, char *argv[]) {
     auto *splitter = new OverlaySplitter(Qt::Vertical, &firstHost);
     splitter->setGeometry(firstHost.rect());
     splitter->addWidget(new QWidget);
-    splitter->addWidget(new QWidget);
+    auto *collapsiblePane = new ResizeProbe;
+    splitter->addWidget(collapsiblePane);
     splitter->show();
     processVisibilityEvents();
 
     auto *grip = findGrip(&firstHost);
     expect(grip, "showing a two-pane splitter must create its overlay grip");
     expect(grip && grip->isVisible(), "the grip must be visible with the splitter");
+
+    splitter->setSizes({1, 0});
+    processVisibilityEvents();
+    expect(collapsiblePane->height() == 0 && collapsiblePane->zeroHeightResizeCount > 0,
+           "collapsing a pane must expose its zero-height resize transition");
+    splitter->setSizes({1, 1});
+    processVisibilityEvents();
 
     splitter->hide();
     processVisibilityEvents();
