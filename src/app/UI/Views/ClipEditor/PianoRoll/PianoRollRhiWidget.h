@@ -116,7 +116,6 @@ protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
     void onRhiReady() override;
     void onDevicePixelRatioChanged() override;
-    void onResizeSettled() override;
 
 private:
     class Private;

@@ -10,9 +10,6 @@
 
 #include <memory>
 
-class QPaintEvent;
-class QResizeEvent;
-
 struct EditorRhiTextVertex {
     float x = 0.0f;
     float y = 0.0f;
@@ -117,19 +114,15 @@ protected:
     void submitFrame(EditorRhiFrameData frame);
     [[nodiscard]] QVector<EditorRhiOverlayRect> submitOverlay(QVector<EditorRhiOverlayRect> rects);
     [[nodiscard]] QPointF physicalWindowOffset() const;
-    [[nodiscard]] bool isResizeActive() const;
     void requestBackendFailure(const QString &reason);
 
     void initialize(QRhiCommandBuffer *cb) final;
     void render(QRhiCommandBuffer *cb) final;
     void releaseResources() final;
     bool event(QEvent *event) override;
-    void paintEvent(QPaintEvent *event) override;
-    void resizeEvent(QResizeEvent *event) override;
 
     virtual void onRhiReady();
     virtual void onDevicePixelRatioChanged();
-    virtual void onResizeSettled();
 
 private:
     class Private;

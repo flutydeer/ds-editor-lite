@@ -122,7 +122,6 @@ protected:
     void leaveEvent(QEvent *event) override;
     void onRhiReady() override;
     void onDevicePixelRatioChanged() override;
-    void onResizeSettled() override;
 
 private:
     enum class DragMode { None, Move, ResizeLeft, ResizeRight, RectSelect };
