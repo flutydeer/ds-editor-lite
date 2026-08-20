@@ -1575,9 +1575,18 @@ public:
             return;
         snapshotScheduled = true;
         QTimer::singleShot(0, q, [this] {
+            if (!snapshotScheduled)
+                return;
             snapshotScheduled = false;
             rebuildSnapshot();
         });
+    }
+
+    void flushSnapshot() {
+        if (!snapshotScheduled)
+            return;
+        snapshotScheduled = false;
+        rebuildSnapshot();
     }
 
     void rebuildSnapshot() {
@@ -2678,8 +2687,9 @@ void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
 }
 
 void PianoRollRhiWidget::resizeEvent(QResizeEvent *event) {
-    EditorRhiWidget::resizeEvent(event);
     d->resize();
+    d->flushSnapshot();
+    EditorRhiWidget::resizeEvent(event);
 }
 
 void PianoRollRhiWidget::wheelEvent(QWheelEvent *event) {

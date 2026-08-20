@@ -154,6 +154,7 @@ private:
     };
 
     void rebuildSnapshot();
+    void flushSnapshot();
     void rebuildModelConnections();
     void appendGrid(EditorRhiFrameData &frame, double dpr) const;
     void appendClips(EditorRhiFrameData &frame, double dpr);

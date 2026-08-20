@@ -87,9 +87,16 @@ public:
     }
 
     void initialize() {
+        auto *newRhi = q->rhi();
+        auto *newColorTexture = q->colorTexture();
+        if (resourcesReady && rhi == newRhi && colorTexture == newColorTexture &&
+            resizeRenderTargets()) {
+            return;
+        }
+
         release();
-        rhi = q->rhi();
-        colorTexture = q->colorTexture();
+        rhi = newRhi;
+        colorTexture = newColorTexture;
         if (!rhi || !colorTexture) {
             fail(QStringLiteral("QRhi or color texture is unavailable"));
             return;
@@ -290,6 +297,26 @@ public:
         sceneRenderTarget->setRenderPassDescriptor(sceneRenderPassDescriptor.get());
         if (!sceneRenderTarget->create()) {
             fail(QStringLiteral("failed to create scene cache render target"));
+            return false;
+        }
+        frameDirty = true;
+        return true;
+    }
+
+    bool resizeRenderTargets() {
+        if (!colorTexture || !renderTarget || !sceneTexture || !sceneRenderTarget)
+            return false;
+
+        const auto outputSize = colorTexture->pixelSize();
+        if (sceneTexture->pixelSize() != outputSize) {
+            sceneTexture->setPixelSize(outputSize);
+            if (!sceneTexture->create()) {
+                fail(QStringLiteral("failed to resize scene cache texture"));
+                return false;
+            }
+        }
+        if (!renderTarget->create() || !sceneRenderTarget->create()) {
+            fail(QStringLiteral("failed to resize editor render targets"));
             return false;
         }
         frameDirty = true;

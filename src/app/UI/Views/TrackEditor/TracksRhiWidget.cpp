@@ -421,15 +421,25 @@ void TracksRhiWidget::scheduleSnapshot() {
         return;
     m_snapshotScheduled = true;
     QTimer::singleShot(0, this, [this] {
+        if (!m_snapshotScheduled)
+            return;
         m_snapshotScheduled = false;
         rebuildSnapshot();
     });
 }
 
+void TracksRhiWidget::flushSnapshot() {
+    if (!m_snapshotScheduled)
+        return;
+    m_snapshotScheduled = false;
+    rebuildSnapshot();
+}
+
 void TracksRhiWidget::resizeEvent(QResizeEvent *event) {
-    EditorRhiWidget::resizeEvent(event);
     m_viewport.setViewportSize(event->size());
     emit sizeChanged(event->size());
+    flushSnapshot();
+    EditorRhiWidget::resizeEvent(event);
 }
 
 bool TracksRhiWidget::event(QEvent *event) {
