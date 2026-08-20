@@ -408,7 +408,6 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     if (cancelRequested || m_editType == None || transparentMouseEvents() || m_mouseDown == false)
         return;
 
-    m_mouseMoved = true;
     const auto scenePos = event->scenePos();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     if (tick < 0)
@@ -419,8 +418,9 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     const auto [startTick, endTick] =
         DrawCurveEditUtils::strokeTickRange(m_prevPos.x(), curPos.x());
 
+    bool changed = false;
     if (m_editType == Erase) {
-        AppModelUtils::eraseDrawCurveRange(m_drawCurvesEdited, startTick, endTick);
+        changed = AppModelUtils::eraseDrawCurveRange(m_drawCurvesEdited, startTick, endTick);
     } else {
         const DrawCurveEditUtils::ValueProvider valueAtTick =
             m_editType == Bake
@@ -432,10 +432,11 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
                           return std::optional<int>(
                               qRound(MathUtils::linearValueAt(previous, current, sampleTick)));
                       });
-        DrawCurveEditUtils::updateStroke(m_drawCurvesEdited, m_drawStroke, m_prevPos, curPos,
-                                         valueAtTick);
+        changed = DrawCurveEditUtils::updateStroke(m_drawCurvesEdited, m_drawStroke, m_prevPos,
+                                                   curPos, valueAtTick);
     }
 
+    m_mouseMoved = m_mouseMoved || changed;
     m_prevPos = curPos;
     update();
 }

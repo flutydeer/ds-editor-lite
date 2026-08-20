@@ -12,16 +12,16 @@ namespace {
         QList<int> values;
     };
 
-    int alignedTickAtOrAfter(const int tick, const int origin, const int step) {
+    int alignedTickAtOrBefore(const int tick, const int origin, const int step) {
         auto remainder = (tick - origin) % step;
         if (remainder < 0)
             remainder += step;
-        return remainder == 0 ? tick : tick + step - remainder;
+        return tick - remainder;
     }
 
     std::optional<int> valueAt(const DrawCurve &curve, const int tick) {
         if (curve.isEmpty() || curve.step <= 0 || tick < curve.localStart() ||
-            tick > curve.localEndTick())
+            tick >= curve.localEndTick())
             return std::nullopt;
 
         const auto offset = tick - curve.localStart();
@@ -48,18 +48,41 @@ namespace {
         return lineEnd >= curve->localStart() && curve->localEndTick() >= line.startTick;
     }
 
-    std::optional<DrawCurve> curveOnGrid(const DrawCurve &source, const int origin,
-                                         const int step) {
-        const auto startTick = alignedTickAtOrAfter(source.localStart(), origin, step);
-        if (startTick >= source.localEndTick())
-            return std::nullopt;
+    bool hasStandardGrid(const DrawCurve &curve) {
+        const auto step = DrawCurve().step;
+        return curve.step == step && curve.localStart() % step == 0;
+    }
 
-        DrawCurve result(-1);
-        result.step = step;
-        result.Curve::setLocalStart(startTick);
-        for (auto tick = startTick; tick < source.localEndTick(); tick += step)
-            result.appendValue(*valueAt(source, tick));
+    DrawCurve *curveOnStandardGrid(const DrawCurve &source) {
+        if (source.isEmpty() || source.step <= 0)
+            return nullptr;
+
+        const auto step = DrawCurve().step;
+        auto *result = new DrawCurve(source);
+        result->step = step;
+        const auto startTick = alignedTickAtOrBefore(source.localStart(), 0, step);
+        result->setLocalStart(startTick);
+
+        QList<int> values;
+        for (auto tick = startTick; tick < source.localEndTick(); tick += step) {
+            values.append(tick < source.localStart() ? source.values().first()
+                                                     : *valueAt(source, tick));
+        }
+        result->setValues(values);
         return result;
+    }
+
+    DrawCurve *ensureStandardGrid(QList<DrawCurve *> &curves, DrawCurve *curve) {
+        if (!curve || hasStandardGrid(*curve))
+            return curve;
+        auto *normalized = curveOnStandardGrid(*curve);
+        if (!normalized)
+            return curve;
+
+        curves.removeOne(curve);
+        MathUtils::binaryInsert(curves, normalized);
+        delete curve;
+        return normalized;
     }
 }
 
@@ -90,13 +113,9 @@ bool DrawCurveEditUtils::updateStroke(QList<DrawCurve *> &curves, StrokeState &s
         return false;
 
     const auto [startTick, endTick] = strokeTickRange(previousPosition.x(), currentPosition.x());
-    const auto step = state.editingCurve ? state.editingCurve->step : DrawCurve().step;
-    if (step <= 0)
-        return false;
+    const auto step = DrawCurve().step;
 
-    const auto sampleStart =
-        state.editingCurve ? alignedTickAtOrAfter(startTick, state.editingCurve->localStart(), step)
-                           : startTick;
+    const auto sampleStart = startTick;
     QList<LineRun> runs;
     for (auto tick = sampleStart; tick < endTick; tick += step) {
         const auto value = valueAtTick(tick);
@@ -109,6 +128,7 @@ bool DrawCurveEditUtils::updateStroke(QList<DrawCurve *> &curves, StrokeState &s
     if (runs.isEmpty())
         return false;
 
+    state.editingCurve = ensureStandardGrid(curves, state.editingCurve);
     const auto forward = previousPosition.x() < currentPosition.x();
     bool changed = false;
     for (qsizetype i = 0; i < runs.size(); ++i) {
@@ -151,30 +171,19 @@ bool DrawCurveEditUtils::updateStroke(QList<DrawCurve *> &curves, StrokeState &s
 
         DrawCurve line(-1);
         line.step = step;
-        line.Curve::setLocalStart(run.startTick);
+        line.setLocalStart(run.startTick);
         line.setValues(run.values);
         editingCurve->mergeWithOtherPriority(line);
 
         for (auto *curve : overlapped) {
             if (curve == editingCurve)
                 continue;
-            bool merged = false;
-            if (curve->step == editingCurve->step &&
-                (curve->localStart() - editingCurve->localStart()) % editingCurve->step == 0) {
-                editingCurve->mergeWithCurrentPriority(*curve);
-                merged = true;
-            } else if (auto normalized =
-                           curveOnGrid(*curve, editingCurve->localStart(), editingCurve->step);
-                       normalized && normalized->isOverlappedWith(editingCurve)) {
-                editingCurve->mergeWithCurrentPriority(*normalized);
-                merged = true;
-            }
-            const auto fullyCovered = curve->localStart() >= editingCurve->localStart() &&
-                                      curve->localEndTick() <= editingCurve->localEndTick();
-            if (merged || fullyCovered) {
-                curves.removeOne(curve);
-                delete curve;
-            }
+            auto *mergeCurve = ensureStandardGrid(curves, curve);
+            if (!mergeCurve->isOverlappedWith(editingCurve))
+                continue;
+            editingCurve->mergeWithCurrentPriority(*mergeCurve);
+            curves.removeOne(mergeCurve);
+            delete mergeCurve;
         }
         state.editingCurve = editingCurve;
         changed = true;

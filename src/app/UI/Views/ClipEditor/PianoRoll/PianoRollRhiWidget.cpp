@@ -1095,12 +1095,12 @@ public:
             return;
         if (current.x() == pitchPreviousPos.x())
             return;
-        pitchMouseMoved = true;
         const auto [startTick, endTick] =
             DrawCurveEditUtils::strokeTickRange(pitchPreviousPos.x(), current.x());
 
+        bool changed = false;
         if (pitchEditType == PitchEditType::Erase) {
-            AppModelUtils::eraseDrawCurveRange(pitchPreviewCurves, startTick, endTick);
+            changed = AppModelUtils::eraseDrawCurveRange(pitchPreviewCurves, startTick, endTick);
         } else {
             DrawCurveEditUtils::ValueProvider valueAtTick;
             if (pitchEditType == PitchEditType::Bake) {
@@ -1115,10 +1115,11 @@ public:
                         qRound(MathUtils::linearValueAt(previous, current, sampleTick)));
                 };
             }
-            DrawCurveEditUtils::updateStroke(pitchPreviewCurves, pitchDrawStroke, pitchPreviousPos,
-                                             current, valueAtTick);
+            changed = DrawCurveEditUtils::updateStroke(pitchPreviewCurves, pitchDrawStroke,
+                                                       pitchPreviousPos, current, valueAtTick);
         }
 
+        pitchMouseMoved = pitchMouseMoved || changed;
         mergedPitchCurveCache.invalidate();
         pitchPreviousPos = current;
         scheduleSnapshot();

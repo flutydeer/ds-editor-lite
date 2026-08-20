@@ -150,8 +150,9 @@ namespace {
 
             const auto [startTick, endTick] =
                 DrawCurveEditUtils::strokeTickRange(m_previous.x(), current.x());
+            bool changed = false;
             if (m_tool == Tool::Eraser) {
-                AppModelUtils::eraseDrawCurveRange(m_preview, startTick, endTick);
+                changed = AppModelUtils::eraseDrawCurveRange(m_preview, startTick, endTick);
             } else {
                 const DrawCurveEditUtils::ValueProvider provider =
                     m_tool == Tool::Bake
@@ -163,11 +164,11 @@ namespace {
                                   return std::optional<int>(
                                       qRound(MathUtils::linearValueAt(previous, current, tick)));
                               });
-                DrawCurveEditUtils::updateStroke(m_preview, m_stroke, m_previous, current,
-                                                 provider);
+                changed = DrawCurveEditUtils::updateStroke(m_preview, m_stroke, m_previous, current,
+                                                           provider);
             }
             m_previous = current;
-            m_moved = true;
+            m_moved = m_moved || changed;
         }
 
         void commit() {
@@ -342,18 +343,15 @@ namespace {
         const auto bake = runStroke(backend, Tool::Bake, stroke, generated, initial);
 
         expect(hasSameShape(pencil.persisted, bake.persisted) && bake.persisted.size() == 1 &&
-                   bake.persisted.first().step == 3,
-               "pencil and bake must share an imported curve's sampling grid");
+                   bake.persisted.first().step == DrawCurve().step,
+               "pencil and bake must normalize an imported curve to the standard grid");
         if (bake.persisted.size() == 1) {
             const auto &values = bake.persisted.first().values;
-            const auto generatedAt6 = DrawCurveEditUtils::generatedValueAt(generated, 6);
-            const auto generatedAt9 = DrawCurveEditUtils::generatedValueAt(generated, 9);
-            expect(values.size() == 10 && values.at(0) == 321 && values.at(1) == 321 &&
-                       values.at(4) == 321,
+            const auto generatedAt5 = DrawCurveEditUtils::generatedValueAt(generated, 5);
+            expect(values.size() == 6 && values.at(0) == 321 && values.at(2) == 321,
                    "editing an imported curve must preserve samples outside the stroke");
-            expect(generatedAt6 && generatedAt9 && values.at(2) == *generatedAt6 &&
-                       values.at(3) == *generatedAt9,
-                   "bake samples must stay on the imported curve's phase");
+            expect(generatedAt5 && values.at(1) == *generatedAt5,
+                   "bake samples must use the standard five-tick phase");
         }
 
         DrawCurveList committed;
@@ -388,23 +386,28 @@ namespace {
                "crossing an imported grid must use the shared pencil normalization path");
         qDeleteAll(crossedInitial);
 
-        auto *shortImported = curve(0, {321, 322});
-        shortImported->Curve::setLocalStart(4);
-        shortImported->step = 3;
-        DrawCurveList shortInitial{shortImported};
-        const QList<QPoint> oneSampleStroke{
-            {0, 700},
-            {5, 720}
+        auto *leftImported = curve(0, QList<int>(5, 111));
+        leftImported->step = 4;
+        auto *rightImported = curve(20, QList<int>(10, 321));
+        rightImported->step = 3;
+        DrawCurveList adjacentInitial{leftImported, rightImported};
+        const QList<QPoint> backwardCrossingStroke{
+            {25, 700},
+            {10, 720}
         };
-        const auto shortPencil =
-            runStroke(backend, Tool::Pencil, oneSampleStroke, generated, shortInitial);
-        const auto shortBake =
-            runStroke(backend, Tool::Bake, oneSampleStroke, generated, shortInitial);
-        expect(hasSameShape(shortPencil.persisted, shortBake.persisted) &&
-                   shortBake.persisted.size() == 1 && shortBake.persisted.first().start == 4 &&
-                   shortBake.persisted.first().end == 10 && shortBake.persisted.first().step == 3,
-               "a phase-incompatible tail must survive a filtered one-sample stroke");
-        qDeleteAll(shortInitial);
+        const auto adjacentPencil =
+            runStroke(backend, Tool::Pencil, backwardCrossingStroke, generated, adjacentInitial);
+        const auto adjacentBake =
+            runStroke(backend, Tool::Bake, backwardCrossingStroke, generated, adjacentInitial);
+        expect(hasSameShape(adjacentPencil.persisted, adjacentBake.persisted) &&
+                   adjacentBake.persisted.size() == 1 &&
+                   adjacentBake.persisted.first().start == 0 &&
+                   adjacentBake.persisted.first().end == 50 &&
+                   adjacentBake.persisted.first().step == DrawCurve().step &&
+                   adjacentBake.persisted.first().values.first() == 111 &&
+                   adjacentBake.persisted.first().values.last() == 321,
+               "crossing adjacent legacy grids must preserve untouched prefixes and tails");
+        qDeleteAll(adjacentInitial);
     }
 
     void testEraserRangeRegression(const Backend backend, const DrawCurveList &generated) {
@@ -435,6 +438,28 @@ namespace {
                        baked.persisted.last().start == 20 && baked.persisted.last().end == 30,
                    "bake must use the shared pencil path separately across generated gaps");
         }
+
+        const auto gapOnly = runStroke(backend, Tool::Bake,
+                                       {
+                                           {10, 700},
+                                           {20, 720}
+        },
+                                       generated);
+        expect(!gapOnly.commitAttempted && gapOnly.preview.isEmpty() && gapOnly.persisted.isEmpty(),
+               "a bake stroke entirely inside a generated gap must not commit");
+
+        auto *legacyEdited = curve(10, QList<int>(4, 321));
+        legacyEdited->step = 3;
+        DrawCurveList legacyInitial{legacyEdited};
+        const auto legacyGapOnly = runStroke(backend, Tool::Bake,
+                                             {
+                                                 {10, 700},
+                                                 {20, 720}
+        },
+                                             generated, legacyInitial);
+        expect(!legacyGapOnly.commitAttempted && legacyGapOnly.preview == snapshot(legacyInitial),
+               "a no-op bake stroke must not normalize or commit untouched legacy curves");
+        qDeleteAll(legacyInitial);
         qDeleteAll(generated);
     }
 
