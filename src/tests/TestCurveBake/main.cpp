@@ -295,6 +295,18 @@ namespace {
         const auto dense = runStroke(backend, Tool::Bake, denseStroke, generated);
         expect(hasSameShape(bake.persisted, dense.persisted),
                "sparse and dense bake events must produce the same five-tick shape");
+
+        DrawCurveList committed;
+        for (const auto &item : dense.persisted) {
+            auto *restored = curve(item.start, item.values);
+            restored->step = item.step;
+            committed.append(restored);
+        }
+        const auto inferenceInput = AppModelUtils::getResultCurve(*generated.first(), committed);
+        expect(inferenceInput.step == DrawCurve().step &&
+                   inferenceInput.values().size() == generated.first()->values().size(),
+               "dense bake commits must merge into the generated curve without QList assertions");
+        qDeleteAll(committed);
     }
 
     void testExistingCurveOverwrite(const Backend backend, const DrawCurveList &generated) {
