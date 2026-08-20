@@ -1,7 +1,7 @@
 #include "Model/Utils/ParamUtils.h"
 
 namespace {
-    QString acousticParameterTag(const ParamInfo::Name name) {
+    QString acousticModelParameterTag(const ParamInfo::Name name) {
         switch (name) {
             case ParamInfo::Energy:
                 return QStringLiteral("energy");
@@ -17,10 +17,9 @@ namespace {
                 return QStringLiteral("gender");
             case ParamInfo::Velocity:
                 return QStringLiteral("velocity");
-            case ParamInfo::ToneShift:
-                return QStringLiteral("tone_shift");
             case ParamInfo::Pitch:
             case ParamInfo::Expressiveness:
+            case ParamInfo::ToneShift:
             case ParamInfo::SpeakerMix:
             case ParamInfo::Unknown:
                 return {};
@@ -78,7 +77,7 @@ const ParamProperties *ParamUtils::getPropertiesByName(const ParamInfo::Name nam
 }
 
 bool ParamUtils::isSupportedBySinger(const ParamInfo::Name name, const SingerInfo &singer) const {
-    const auto parameter = acousticParameterTag(name);
+    const auto parameter = acousticModelParameterTag(name);
     if (parameter.isEmpty())
         return true;
 

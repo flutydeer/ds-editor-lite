@@ -20,19 +20,33 @@ namespace {
         return singer;
     }
 
-    bool testKnownCapabilities() {
+    bool testSupportFollowsSynthesisPath() {
         const auto singer = singerWithParameters({"breathiness", "voicing", "velocity"});
         bool ok = true;
-        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Breathiness, singer),
-                     "declared parameter is supported");
-        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Velocity, singer),
-                     "second declared parameter is supported");
-        ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::Energy, singer),
-                     "missing parameter is unsupported");
-        ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::ToneShift, singer),
-                     "missing relative parameter is unsupported");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Pitch, singer),
+                     "pitch directly controls acoustic f0");
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Expressiveness, singer),
-                     "non-acoustic parameter remains available");
+                     "expressiveness is handled by pitch inference");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Breathiness, singer),
+                     "declared acoustic control is supported");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Voicing, singer),
+                     "second declared acoustic control is supported");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Velocity, singer),
+                     "declared transition control is supported");
+        ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::Energy, singer),
+                     "missing acoustic control is unsupported");
+        ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::Tension, singer),
+                     "second missing acoustic control is unsupported");
+        ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::MouthOpening, singer),
+                     "missing mouth opening control is unsupported");
+        ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::Gender, singer),
+                     "missing transition control is unsupported");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::ToneShift, singer),
+                     "tone shift always transforms acoustic f0");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::SpeakerMix, singer),
+                     "speaker mix uses its own capability validation");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Unknown, singer),
+                     "unknown selection does not show an unsupported prompt");
         return ok;
     }
 
@@ -51,8 +65,12 @@ namespace {
 
     bool testKnownEmptyCapabilities() {
         const auto singer = singerWithParameters({});
-        return expect(!paramUtils->isSupportedBySinger(ParamInfo::Energy, singer),
-                      "known empty acoustic parameters disable acoustic controls");
+        bool ok = true;
+        ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::Energy, singer),
+                     "known empty acoustic parameters disable acoustic controls");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::ToneShift, singer),
+                     "known empty acoustic parameters do not disable f0 transforms");
+        return ok;
     }
 
     bool testPromptStateResetsForEveryProjectOpen() {
@@ -85,7 +103,7 @@ namespace {
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     bool ok = true;
-    ok &= testKnownCapabilities();
+    ok &= testSupportFollowsSynthesisPath();
     ok &= testUnknownCapabilitiesAreConservative();
     ok &= testKnownEmptyCapabilities();
     ok &= testPromptStateResetsForEveryProjectOpen();
