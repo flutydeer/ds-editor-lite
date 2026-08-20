@@ -87,6 +87,9 @@ int main(int argc, char *argv[]) {
            "tone shift must be added to MIDI pitch in cents");
     expect(PitchRouting::applyToneShift({60.0}, {100.0, 200.0}).isEmpty(),
            "mismatched pitch and tone-shift samples must fail");
+    expect(PitchRouting::applyToneShift({0.0, -1.0, 60.0}, {1200.0, 1200.0, 1200.0}) ==
+               QList<double>({0.0, -1.0, 72.0}),
+           "tone shift must preserve non-positive unvoiced pitch samples");
 
     const auto f0 = PitchRouting::midiPitchToF0({69.0, 81.0}, 1.0, 4, 0.5);
     expect(f0.size() == 4, "vocoder f0 must use the requested frame count");
@@ -95,5 +98,8 @@ int main(int argc, char *argv[]) {
            "vocoder f0 must interpolate the original pitch timeline");
     expect(std::abs(f0.at(2) - 880.0f) < 0.01f && std::abs(f0.at(3) - 880.0f) < 0.01f,
            "vocoder f0 must clamp the original pitch at the tail");
+    expect(PitchRouting::midiPitchToF0({0.0, -1.0, 69.0}, 1.0, 3, 1.0) ==
+               QList<float>({0.0f, 0.0f, 440.0f}),
+           "vocoder f0 must preserve non-positive unvoiced pitch samples");
     return 0;
 }

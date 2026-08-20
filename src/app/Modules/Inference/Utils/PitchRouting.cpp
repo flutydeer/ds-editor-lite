@@ -2,6 +2,7 @@
 
 #include <lite/Support/MathUtils.h>
 
+#include <algorithm>
 #include <cmath>
 
 QList<double> PitchRouting::applyToneShift(QList<double> pitch,
@@ -9,8 +10,10 @@ QList<double> PitchRouting::applyToneShift(QList<double> pitch,
     if (pitch.size() != toneShiftCents.size())
         return {};
 
-    for (qsizetype i = 0; i < pitch.size(); ++i)
-        pitch[i] += toneShiftCents.at(i) / 100.0;
+    for (qsizetype i = 0; i < pitch.size(); ++i) {
+        if (pitch.at(i) > 0)
+            pitch[i] += toneShiftCents.at(i) / 100.0;
+    }
     return pitch;
 }
 
@@ -39,7 +42,16 @@ QList<float> PitchRouting::midiPitchToF0(const QList<double> &pitch,
 
     QList<float> result;
     result.reserve(resampled.size());
-    for (const auto midiPitch : resampled)
+    for (qsizetype i = 0; i < resampled.size(); ++i) {
+        const auto sourceIndex = std::clamp<qsizetype>(
+            static_cast<qsizetype>(std::llround(targetPositions.at(i) / sourceIntervalSeconds)), 0,
+            pitch.size() - 1);
+        const auto midiPitch = resampled.at(i);
+        if (pitch.at(sourceIndex) <= 0 || midiPitch <= 0) {
+            result.append(0);
+            continue;
+        }
         result.append(static_cast<float>(440.0 * std::exp2((midiPitch - 69.0) / 12.0)));
+    }
     return result;
 }
