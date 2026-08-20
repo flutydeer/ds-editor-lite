@@ -2,6 +2,7 @@
 #define PITCHEDITORGRAPHICSITEM_H
 
 #include "Interface/IAtomicAction.h"
+#include "UI/Views/ClipEditor/DrawCurveEditUtils.h"
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include "UI/Views/Common/TimeOverlayView.h"
 
@@ -67,22 +68,19 @@ private:
     void drawCurvePolygon(QPainter *painter, const QList<DrawCurve *> &curves) const;
     void drawEditedCurveBorders(QPainter *painter, const QPen &pen) const;
     [[nodiscard]] QPainterPath anchorCoveragePath() const;
-    static void drawLine(const QPoint &p1, const QPoint &p2, DrawCurve &curve);
-
     bool m_showDebugInfo = false;
 
-    enum EditType { DrawOnInterval, DrawOnCurve, Erase, Bake, None };
+    enum EditType { Draw, Erase, Bake, None };
 
     bool m_mouseDown = false;
     Qt::MouseButton m_mouseDownButton = Qt::NoButton;
     QPoint m_mouseDownPos; // x: tick, y: value
     QPoint m_prevPos;
-    DrawCurve *m_editingCurve = nullptr;
+    DrawCurveEditUtils::StrokeState m_drawStroke;
     EditType m_editType = None;
     bool m_eraseMode = false;
     bool m_bakeMode = false;
     bool m_baseCurveVisible = true;
-    bool m_newCurveCreated = false;
     bool m_mouseMoved = false;
     QList<DrawCurve *> m_drawCurvesEdited;
     QList<DrawCurve *> m_anchorCurvesEdited;
@@ -90,8 +88,6 @@ private:
     QList<DrawCurve *> m_drawCurvesEditedBak;
 
     [[nodiscard]] double valueToItemY(double value) const;
-    DrawCurve *curveAt(double tick);
-
     const int paddingTopBottom = 2;
     const ParamProperties *m_properties;
 

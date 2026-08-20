@@ -49,28 +49,6 @@ namespace {
         return resampleCurve(curve, curve.localStart(), curve.localEndTick(), step);
     }
 
-    void mergeAdjacentDrawCurves(DrawCurveList &curves) {
-        for (qsizetype i = 0; i + 1 < curves.size();) {
-            auto *left = curves.at(i);
-            auto *right = curves.at(i + 1);
-            if (!left || !right || left->isEmpty() || right->isEmpty() || left->step <= 0 ||
-                right->step <= 0 || left->localEndTick() != right->localStart()) {
-                ++i;
-                continue;
-            }
-
-            const auto commonStep = std::gcd(left->step, right->step);
-            auto *merged = resampleCurve(*left, commonStep);
-            const auto *normalizedRight = resampleCurve(*right, commonStep);
-            merged->insertValues(merged->values().size(), normalizedRight->values());
-
-            curves[i] = merged;
-            curves.removeAt(i + 1);
-            delete left;
-            delete right;
-            delete normalizedRight;
-        }
-    }
 }
 
 void AppModelUtils::copyNotes(const NoteList &source, NoteList &target) {
@@ -188,41 +166,6 @@ bool AppModelUtils::eraseDrawCurveRange(DrawCurveList &target, int startTick, in
         }
     }
     return !overlapped.isEmpty();
-}
-
-bool AppModelUtils::bakeDrawCurveRange(DrawCurveList &target, const DrawCurveList &source,
-                                       int startTick, int endTick) {
-    if (startTick > endTick)
-        std::swap(startTick, endTick);
-    if (startTick == endTick)
-        return false;
-
-    DrawCurveList replacements;
-    for (const auto *curve : source) {
-        if (!curve || curve->isEmpty() || curve->step <= 0)
-            continue;
-
-        const auto replacementStart = std::max(startTick, curve->localStart());
-        const auto replacementEnd = std::min(endTick, curve->localEndTick());
-        if (replacementStart >= replacementEnd)
-            continue;
-
-        auto replacementStep = std::gcd(curve->step, replacementStart - curve->localStart());
-        replacementStep = std::gcd(replacementStep, replacementEnd - replacementStart);
-        if (replacementStep == replacementEnd - replacementStart)
-            replacementStep = 1;
-        replacements.append(
-            resampleCurve(*curve, replacementStart, replacementEnd, replacementStep));
-    }
-    if (replacements.isEmpty())
-        return false;
-
-    for (auto *replacement : replacements) {
-        eraseDrawCurveRange(target, replacement->localStart(), replacement->localEndTick());
-        MathUtils::binaryInsert(target, replacement);
-    }
-    mergeAdjacentDrawCurves(target);
-    return true;
 }
 
 DrawCurve AppModelUtils::getResultCurve(const DrawCurve &original, const DrawCurveList &edited) {

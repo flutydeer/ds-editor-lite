@@ -1,8 +1,17 @@
+#include "Controller/Actions/AppModel/Param/ReplaceParamAction.h"
+#include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
+#include "UI/Views/ClipEditor/DrawCurveEditUtils.h"
+
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/Utils/AppModelUtils.h>
+#include <lite/Support/MathUtils.h>
 
 #include <QCoreApplication>
+#include <QMouseEvent>
 #include <QTextStream>
+
+#include <algorithm>
 
 namespace {
     int failures = 0;
@@ -14,151 +23,395 @@ namespace {
         ++failures;
     }
 
-    DrawCurve *curve(const int start, const QList<int> &values, const int step = 5) {
+    DrawCurve *curve(const int start, const QList<int> &values) {
         auto *result = new DrawCurve;
         result->setLocalStart(start);
-        result->step = step;
         result->setValues(values);
         return result;
     }
 
-    void bakeSparseMouseMoves(DrawCurveList &target, const DrawCurveList &source,
-                              const QList<int> &eventTicks) {
-        for (qsizetype i = 1; i < eventTicks.size(); ++i) {
-            AppModelUtils::bakeDrawCurveRange(target, source, eventTicks.at(i - 1),
-                                              eventTicks.at(i));
+    struct CurveSnapshot {
+        int start = 0;
+        int end = 0;
+        int step = 0;
+        QList<int> values;
+
+        friend bool operator==(const CurveSnapshot &, const CurveSnapshot &) = default;
+    };
+
+    QList<CurveSnapshot> snapshot(const QList<DrawCurve *> &curves) {
+        QList<CurveSnapshot> result;
+        for (const auto *item : curves) {
+            if (item)
+                result.append(
+                    {item->localStart(), item->localEndTick(), item->step, item->values()});
+        }
+        return result;
+    }
+
+    QList<CurveSnapshot> snapshot(const QList<Curve *> &curves) {
+        QList<CurveSnapshot> result;
+        for (const auto *item : curves) {
+            if (item && item->type() == Curve::Draw) {
+                const auto *drawCurve = static_cast<const DrawCurve *>(item);
+                result.append({drawCurve->localStart(), drawCurve->localEndTick(), drawCurve->step,
+                               drawCurve->values()});
+            }
+        }
+        return result;
+    }
+
+    bool hasStandardGrid(const QList<CurveSnapshot> &curves) {
+        return std::all_of(curves.cbegin(), curves.cend(),
+                           [](const CurveSnapshot &item) { return item.step == DrawCurve().step; });
+    }
+
+    bool hasSameShape(const QList<CurveSnapshot> &left, const QList<CurveSnapshot> &right) {
+        if (left.size() != right.size())
+            return false;
+        for (qsizetype i = 0; i < left.size(); ++i) {
+            if (left.at(i).start != right.at(i).start || left.at(i).end != right.at(i).end ||
+                left.at(i).step != right.at(i).step ||
+                left.at(i).values.size() != right.at(i).values.size())
+                return false;
+        }
+        return true;
+    }
+
+    enum class Backend { GraphicsView, Rhi };
+    enum class Tool { Pencil, Eraser, Bake };
+
+    struct StrokeResult {
+        bool commitAttempted = false;
+        QList<CurveSnapshot> preview;
+        QList<CurveSnapshot> persisted;
+    };
+
+    class CurveStrokeEventProbe final : public QObject {
+    public:
+        CurveStrokeEventProbe(const Backend backend, const Tool tool,
+                              const DrawCurveList &generated, const DrawCurveList &initial)
+            : m_backend(backend), m_tool(tool), m_generated(generated) {
+            AppModelUtils::copyCurves(initial, m_preview);
+        }
+
+        ~CurveStrokeEventProbe() override {
+            qDeleteAll(m_preview);
+            qDeleteAll(m_persisted);
+        }
+
+        StrokeResult result() const {
+            return {m_commitAttempted, snapshot(m_preview), snapshot(m_persisted)};
+        }
+
+    protected:
+        bool event(QEvent *event) override {
+            if (event->type() == QEvent::MouseButtonPress) {
+                const auto *mouseEvent = static_cast<QMouseEvent *>(event);
+                if (mouseEvent->button() == Qt::LeftButton) {
+                    m_pressed = true;
+                    m_mouseDown = pointAt(*mouseEvent);
+                    m_previous = m_mouseDown;
+                    m_moved = false;
+                    if (m_tool != Tool::Eraser)
+                        m_stroke = DrawCurveEditUtils::beginStroke(m_preview, m_mouseDown);
+                }
+                return true;
+            }
+            if (event->type() == QEvent::MouseMove) {
+                const auto *mouseEvent = static_cast<QMouseEvent *>(event);
+                if (m_pressed && mouseEvent->buttons().testFlag(Qt::LeftButton))
+                    updateStroke(pointAt(*mouseEvent));
+                return true;
+            }
+            if (event->type() == QEvent::MouseButtonRelease) {
+                const auto *mouseEvent = static_cast<QMouseEvent *>(event);
+                if (m_pressed && mouseEvent->button() == Qt::LeftButton) {
+                    if (m_backend == Backend::Rhi)
+                        updateStroke(pointAt(*mouseEvent));
+                    if (m_moved)
+                        commit();
+                    m_pressed = false;
+                }
+                return true;
+            }
+            return QObject::event(event);
+        }
+
+    private:
+        static QPoint pointAt(const QMouseEvent &event) {
+            return {MathUtils::round(qRound(event.position().x()), DrawCurve().step),
+                    qRound(event.position().y())};
+        }
+
+        void updateStroke(const QPoint &current) {
+            if (current.x() == m_previous.x())
+                return;
+
+            const auto [startTick, endTick] =
+                DrawCurveEditUtils::strokeTickRange(m_previous.x(), current.x());
+            if (m_tool == Tool::Eraser) {
+                AppModelUtils::eraseDrawCurveRange(m_preview, startTick, endTick);
+            } else {
+                const DrawCurveEditUtils::ValueProvider provider =
+                    m_tool == Tool::Bake
+                        ? DrawCurveEditUtils::ValueProvider([this](const int tick) {
+                              return DrawCurveEditUtils::generatedValueAt(m_generated, tick);
+                          })
+                        : DrawCurveEditUtils::ValueProvider(
+                              [previous = m_previous, current](const int tick) {
+                                  return std::optional<int>(
+                                      qRound(MathUtils::linearValueAt(previous, current, tick)));
+                              });
+                DrawCurveEditUtils::updateStroke(m_preview, m_stroke, m_previous, current,
+                                                 provider);
+            }
+            m_previous = current;
+            m_moved = true;
+        }
+
+        void commit() {
+            const auto replacement = AnchorEditor::replaceDrawCurves({}, m_preview);
+            for (const auto *item : replacement) {
+                if (item->type() == Curve::Draw)
+                    m_persisted.append(new DrawCurve(*static_cast<const DrawCurve *>(item)));
+            }
+            qDeleteAll(replacement);
+            m_commitAttempted = true;
+        }
+
+        Backend m_backend;
+        Tool m_tool;
+        const DrawCurveList &m_generated;
+        DrawCurveList m_preview;
+        DrawCurveList m_persisted;
+        DrawCurveEditUtils::StrokeState m_stroke;
+        QPoint m_mouseDown;
+        QPoint m_previous;
+        bool m_pressed = false;
+        bool m_moved = false;
+        bool m_commitAttempted = false;
+    };
+
+    void sendMouseEvent(QObject &target, const QEvent::Type type, const QPoint &point,
+                        const Qt::MouseButton button, const Qt::MouseButtons buttons) {
+        QMouseEvent event(type, QPointF(point), button, buttons, Qt::NoModifier);
+        QCoreApplication::sendEvent(&target, &event);
+    }
+
+    StrokeResult runStroke(const Backend backend, const Tool tool, const QList<QPoint> &eventPoints,
+                           const DrawCurveList &generated, const DrawCurveList &initial = {}) {
+        expect(!eventPoints.isEmpty(), "a test stroke must contain at least one event");
+        if (eventPoints.isEmpty())
+            return {};
+
+        CurveStrokeEventProbe probe(backend, tool, generated, initial);
+        sendMouseEvent(probe, QEvent::MouseButtonPress, eventPoints.first(), Qt::LeftButton,
+                       Qt::LeftButton);
+        for (qsizetype i = 1; i < eventPoints.size(); ++i)
+            sendMouseEvent(probe, QEvent::MouseMove, eventPoints.at(i), Qt::NoButton,
+                           Qt::LeftButton);
+        sendMouseEvent(probe, QEvent::MouseButtonRelease, eventPoints.last(), Qt::LeftButton,
+                       Qt::NoButton);
+        return probe.result();
+    }
+
+    void expectPencilBakeAlignment(const Backend backend, const QList<QPoint> &eventPoints,
+                                   const DrawCurveList &generated,
+                                   const DrawCurveList &initial = {}) {
+        const auto pencil = runStroke(backend, Tool::Pencil, eventPoints, generated, initial);
+        const auto bake = runStroke(backend, Tool::Bake, eventPoints, generated, initial);
+
+        expect(pencil.commitAttempted == bake.commitAttempted,
+               "pencil and bake must make the same commit decision");
+        expect(hasSameShape(pencil.preview, bake.preview),
+               "pencil and bake previews must have identical curve shape");
+        expect(hasSameShape(pencil.persisted, bake.persisted),
+               "pencil and bake commits must have identical curve shape");
+        expect(hasStandardGrid(bake.preview) && hasStandardGrid(bake.persisted),
+               "new baked curves must stay on the standard five-tick grid");
+    }
+
+    void testSingleClickAndOneSampleInterval(const Backend backend,
+                                             const DrawCurveList &generated) {
+        const auto click = runStroke(backend, Tool::Bake,
+                                     {
+                                         {10, 700}
+        },
+                                     generated);
+        expect(!click.commitAttempted && click.preview.isEmpty() && click.persisted.isEmpty(),
+               "a single bake point must not be committed");
+        expectPencilBakeAlignment(backend,
+                                  {
+                                      {10, 700}
+        },
+                                  generated);
+
+        const auto oneSample = runStroke(backend, Tool::Bake,
+                                         {
+                                             {0, 700},
+                                             {5, 710}
+        },
+                                         generated);
+        expect(oneSample.commitAttempted && oneSample.preview.size() == 1 &&
+                   oneSample.preview.first().values.size() == 1 && oneSample.persisted.isEmpty(),
+               "a one-sample bake interval must be filtered by the normal pencil commit path");
+        expectPencilBakeAlignment(backend,
+                                  {
+                                      {0, 700},
+                                      {5, 710}
+        },
+                                  generated);
+    }
+
+    void testShortestValidStrokes(const Backend backend, const DrawCurveList &generated) {
+        const QList<QList<QPoint>> strokes{
+            {{0, 700},  {10, 720}},
+            {{10, 700}, {5, 720} }
+        };
+        for (const auto &stroke : strokes) {
+            const auto bake = runStroke(backend, Tool::Bake, stroke, generated);
+            expect(bake.persisted.size() == 1 && bake.persisted.first().values.size() == 2,
+                   "the shortest valid bake stroke must persist exactly like pencil");
+            expectPencilBakeAlignment(backend, stroke, generated);
         }
     }
 
-    void testBakeInterval() {
-        QList<DrawCurve *> source{curve(0, {100, 110, 120, 130, 140})};
-        QList<DrawCurve *> target{curve(0, {900, 900, 900, 900, 900})};
+    void testSparseFastStroke(const Backend backend, const DrawCurveList &generated) {
+        const QList<QPoint> sparseStroke{
+            {0,   700},
+            {35,  760},
+            {100, 820}
+        };
+        const auto bake = runStroke(backend, Tool::Bake, sparseStroke, generated);
+        expect(bake.persisted.size() == 1 && bake.persisted.first().start == 0 &&
+                   bake.persisted.first().end == 100 && bake.persisted.first().values.size() == 20,
+               "sparse bake mouse events must be interpolated without gaps");
+        expectPencilBakeAlignment(backend, sparseStroke, generated);
 
-        expect(AppModelUtils::bakeDrawCurveRange(target, source, 20, 5),
-               "source data in a reversed bake range must be copied");
-        expect(target.size() == 1 && target.first()->localStart() == 0 &&
-                   target.first()->values() == QList<int>({900, 110, 120, 130, 900}),
-               "only the baked interval must overwrite edited values");
-
-        QList<DrawCurve *> emptySource;
-        expect(!AppModelUtils::bakeDrawCurveRange(target, emptySource, 0, 25),
-               "a range without generated data must remain unchanged");
-        expect(target.first()->values() == QList<int>({900, 110, 120, 130, 900}),
-               "missing generated data must preserve edited values");
-
-        qDeleteAll(source);
-        qDeleteAll(target);
+        QList<QPoint> denseStroke;
+        for (int tick = 0; tick <= 100; tick += 5)
+            denseStroke.append({tick, 700 + tick});
+        const auto dense = runStroke(backend, Tool::Bake, denseStroke, generated);
+        expect(hasSameShape(bake.persisted, dense.persisted),
+               "sparse and dense bake events must produce the same five-tick shape");
     }
 
-    void testDifferentSampleSteps() {
-        QList<DrawCurve *> source{curve(0, {100, 110, 120, 130, 140})};
-        QList<DrawCurve *> target{curve(0, QList<int>(25, 900), 1)};
+    void testExistingCurveOverwrite(const Backend backend, const DrawCurveList &generated) {
+        DrawCurveList initial{curve(0, QList<int>(24, 321))};
+        const QList<QPoint> stroke{
+            {20, 700},
+            {55, 760},
+            {85, 820}
+        };
+        const auto bake = runStroke(backend, Tool::Bake, stroke, generated, initial);
+        const auto pencil = runStroke(backend, Tool::Pencil, stroke, generated, initial);
 
-        expect(AppModelUtils::bakeDrawCurveRange(target, source, 5, 20),
-               "curves with different sample steps must be merged");
-        expect(target.size() == 1 && target.first()->localStart() == 0 &&
-                   target.first()->step == 1 && target.first()->values().size() == 25,
-               "the finer target sample grid must be preserved");
-        if (target.size() == 1 && target.first()->values().size() == 25) {
-            const auto &values = target.first()->values();
-            expect(values.mid(0, 5) == QList<int>(5, 900) &&
-                       values.mid(20, 5) == QList<int>(5, 900),
-                   "values outside the baked interval must remain unchanged");
-            expect(values.at(5) == 110 && values.at(10) == 120 && values.at(15) == 130,
-                   "generated samples in the baked interval must be copied");
+        expect(hasSameShape(pencil.preview, bake.preview) &&
+                   hasSameShape(pencil.persisted, bake.persisted),
+               "overwriting an existing curve must share pencil range and merge semantics");
+        expect(bake.persisted.size() == 1 && bake.persisted.first().start == 0 &&
+                   bake.persisted.first().end == 120 && bake.persisted.first().step == 5,
+               "bake overwrite must preserve the standard existing curve shape");
+        expect(bake.persisted != pencil.persisted,
+               "bake and pencil must differ only in the values supplied to the shared path");
+        qDeleteAll(initial);
+    }
+
+    void testEraserRangeRegression(const Backend backend, const DrawCurveList &generated) {
+        DrawCurveList initial{curve(0, QList<int>(24, 321))};
+        const auto erased = runStroke(backend, Tool::Eraser,
+                                      {
+                                          {10,  0},
+                                          {55,  0},
+                                          {100, 0}
+        },
+                                      generated, initial);
+        expect(erased.persisted.size() == 2 && erased.persisted.first().start == 0 &&
+                   erased.persisted.first().end == 10 && erased.persisted.last().start == 100 &&
+                   erased.persisted.last().end == 120,
+               "sparse eraser events must continue to cover every adjacent-event interval");
+        qDeleteAll(initial);
+    }
+
+    void testGeneratedGapsStaySeparate(const Backend backend) {
+        DrawCurveList generated{curve(0, {100, 110}), curve(20, {200, 210})};
+        for (const auto &stroke : {
+                 QList<QPoint>{{0, 700},  {30, 720}},
+                 QList<QPoint>{{30, 700}, {0, 720} }
+        }) {
+            const auto baked = runStroke(backend, Tool::Bake, stroke, generated);
+            expect(baked.persisted.size() == 2 && hasStandardGrid(baked.persisted),
+                   "bake must use the shared pencil path separately across generated gaps");
         }
-
-        qDeleteAll(source);
-        qDeleteAll(target);
+        qDeleteAll(generated);
     }
 
-    void testUnalignedSourceSamples() {
-        QList<DrawCurve *> source{curve(0, {0, 30, 60, 90, 120}, 3)};
-        QList<DrawCurve *> target;
+    void testUndoRedo(const Backend backend, const ParamInfo::Name paramName,
+                      const DrawCurveList &generated) {
+        const auto baked = runStroke(backend, Tool::Bake,
+                                     {
+                                         {0,   700},
+                                         {35,  760},
+                                         {100, 820}
+        },
+                                     generated);
+        expect(!baked.persisted.isEmpty(), "undo/redo setup must produce a persisted bake curve");
 
-        expect(AppModelUtils::bakeDrawCurveRange(target, source, 5, 10),
-               "a source grid not aligned to the bake range must be copied");
-        expect(target.size() == 1 && target.first()->localStart() == 5 &&
-                   target.first()->step == 1 &&
-                   target.first()->values() == QList<int>({50, 60, 70, 80, 90}),
-               "replacement samples must remain inside the baked interval");
+        SingingClip clip;
+        auto *oldCurve = curve(0, QList<int>(20, 111));
+        clip.params.getParamByName(paramName)->setCurves(Param::Edited, {oldCurve}, &clip);
 
-        qDeleteAll(source);
-        qDeleteAll(target);
+        QList<Curve *> replacement;
+        for (const auto &item : baked.persisted)
+            replacement.append(curve(item.start, item.values));
+        ReplaceParamAction action(paramName, Param::Edited, replacement, &clip);
+        qDeleteAll(replacement);
+
+        action.execute();
+        const auto after = snapshot(clip.params.getParamByName(paramName)->curves(Param::Edited));
+        expect(after == baked.persisted, "executing a bake action must store the baked curves");
+        action.undo();
+        const auto undone = snapshot(clip.params.getParamByName(paramName)->curves(Param::Edited));
+        expect(undone.size() == 1 && undone.first().values == QList<int>(20, 111),
+               "undo must restore the pre-bake edited curve");
+        action.execute();
+        expect(snapshot(clip.params.getParamByName(paramName)->curves(Param::Edited)) == after,
+               "redo must restore the same five-tick baked curve");
+
+        delete oldCurve;
     }
 
-    void testSourceGapsStaySeparate() {
-        QList<DrawCurve *> source{curve(0, {100, 110}), curve(20, {200, 210})};
-        QList<DrawCurve *> target;
-
-        expect(AppModelUtils::bakeDrawCurveRange(target, source, 0, 30),
-               "all generated segments in the bake range must be copied");
-        expect(target.size() == 2 && target.first()->localStart() == 0 &&
-                   target.last()->localStart() == 20,
-               "gaps in generated data must not be filled");
-
-        qDeleteAll(source);
-        qDeleteAll(target);
-    }
-
-    void testSingleStepBakePersists() {
-        DrawCurveList source{curve(0, {100, 110, 120})};
-        DrawCurveList target;
-
-        expect(AppModelUtils::bakeDrawCurveRange(target, source, 5, 10),
-               "a one-step bake range must copy generated data");
-        expect(target.size() == 1 && target.first()->localStart() == 5 &&
-                   target.first()->localEndTick() == 10 && target.first()->step == 1 &&
-                   target.first()->values() == QList<int>({110, 112, 114, 116, 118}),
-               "a one-step bake range must contain enough samples to survive commit");
-
-        qDeleteAll(source);
-        qDeleteAll(target);
-    }
-
-    void testSparsePitchMouseMovesStayContinuous() {
-        QList<int> values;
-        for (int i = 0; i < 20; ++i)
-            values.append(6000 + i * 3);
-        DrawCurveList source{curve(0, values)};
-        DrawCurveList target;
-
-        bakeSparseMouseMoves(target, source, {0, 35, 100});
-
-        expect(target.size() == 1 && target.first()->localStart() == 0 &&
-                   target.first()->localEndTick() == 100 && target.first()->values() == values,
-               "sparse pitch mouse moves must produce one continuous baked curve");
-
-        qDeleteAll(source);
-        qDeleteAll(target);
-    }
-
-    void testSparseParameterMouseMovesStayContinuous() {
-        QList<int> values;
-        for (int i = 0; i < 20; ++i)
-            values.append(-50000 + i * 125);
-        DrawCurveList source{curve(0, values)};
-        DrawCurveList target{curve(0, QList<int>(20, 0))};
-
-        bakeSparseMouseMoves(target, source, {100, 55, 0});
-
-        expect(target.size() == 1 && target.first()->localStart() == 0 &&
-                   target.first()->localEndTick() == 100 && target.first()->values() == values,
-               "sparse parameter mouse moves must produce one continuous baked curve");
-
-        qDeleteAll(source);
-        qDeleteAll(target);
+    void runAlignmentSuite(const DrawCurveList &generated) {
+        for (const auto backend : {Backend::GraphicsView, Backend::Rhi}) {
+            testSingleClickAndOneSampleInterval(backend, generated);
+            testShortestValidStrokes(backend, generated);
+            testSparseFastStroke(backend, generated);
+            testExistingCurveOverwrite(backend, generated);
+            testEraserRangeRegression(backend, generated);
+            testGeneratedGapsStaySeparate(backend);
+        }
     }
 }
 
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
-    testBakeInterval();
-    testDifferentSampleSteps();
-    testUnalignedSourceSamples();
-    testSourceGapsStaySeparate();
-    testSingleStepBakePersists();
-    testSparsePitchMouseMovesStayContinuous();
-    testSparseParameterMouseMovesStayContinuous();
+
+    QList<int> pitchValues;
+    QList<int> parameterValues;
+    for (int i = 0; i < 32; ++i) {
+        pitchValues.append(6000 + i * 7);
+        parameterValues.append(-50000 + i * 125);
+    }
+    DrawCurveList pitchGenerated{curve(0, pitchValues)};
+    DrawCurveList parameterGenerated{curve(0, parameterValues)};
+
+    runAlignmentSuite(pitchGenerated);
+    runAlignmentSuite(parameterGenerated);
+    testUndoRedo(Backend::Rhi, ParamInfo::Pitch, pitchGenerated);
+    testUndoRedo(Backend::GraphicsView, ParamInfo::Breathiness, parameterGenerated);
+
+    qDeleteAll(pitchGenerated);
+    qDeleteAll(parameterGenerated);
     return failures == 0 ? 0 : 1;
 }

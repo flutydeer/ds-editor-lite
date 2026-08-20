@@ -18,6 +18,7 @@
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/ClipEditor/CurveRenderUtils.h"
+#include "UI/Views/ClipEditor/DrawCurveEditUtils.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "UI/Views/Common/EdgeAutoScroller.h"
 #include "UI/Views/Common/EditorItemGeometry.h"
@@ -1026,18 +1027,10 @@ public:
         return {tick, std::clamp(value, 0, 12700)};
     }
 
-    DrawCurve *pitchCurveAt(const int tick) const {
-        for (auto *curve : pitchPreviewCurves) {
-            if (curve->localStart() <= tick && curve->localEndTick() > tick)
-                return curve;
-        }
-        return nullptr;
-    }
-
     void clearPitchPreview() {
         qDeleteAll(pitchPreviewCurves);
         pitchPreviewCurves.clear();
-        pitchEditingCurve = nullptr;
+        pitchDrawStroke = {};
         mergedPitchCurveCache.invalidate();
     }
 
@@ -1057,7 +1050,6 @@ public:
         clearPitchPreview();
         pitchEditing = false;
         pitchMouseMoved = false;
-        pitchNewCurveCreated = false;
         pitchEditType = PitchEditType::None;
         finishPitchEdit(EditSessionEndReason::Discard);
         if (update)
@@ -1079,16 +1071,12 @@ public:
         pitchMouseDownPos = pitchPointAt(viewportPosition);
         pitchPreviousPos = pitchMouseDownPos;
         pitchMouseMoved = false;
-        pitchNewCurveCreated = false;
-        pitchEditingCurve = nullptr;
-        if (editMode == BakePitch) {
-            pitchEditType = PitchEditType::Bake;
-        } else if (editMode == ErasePitch) {
+        if (editMode == ErasePitch) {
             pitchEditType = PitchEditType::Erase;
-        } else if ((pitchEditingCurve = pitchCurveAt(pitchMouseDownPos.x()))) {
-            pitchEditType = PitchEditType::DrawOnCurve;
         } else {
-            pitchEditType = PitchEditType::DrawOnInterval;
+            pitchDrawStroke =
+                DrawCurveEditUtils::beginStroke(pitchPreviewCurves, pitchMouseDownPos);
+            pitchEditType = editMode == BakePitch ? PitchEditType::Bake : PitchEditType::Draw;
         }
 
         pitchEditSessionId = editSessionManager->beginTransaction(
@@ -1096,22 +1084,6 @@ public:
         appStatus->currentEditObject = AppStatus::EditObjectType::Param;
         pitchEditing = true;
         scheduleSnapshot();
-    }
-
-    static void drawPitchLine(const QPoint &p1, const QPoint &p2, DrawCurve &curve) {
-        if (p1.x() == p2.x())
-            return;
-
-        const auto startPoint = p1.x() < p2.x() ? p1 : p2;
-        const auto endPoint = p1.x() < p2.x() ? p2 : p1;
-        DrawCurve line(-1);
-        line.setLocalStart(startPoint.x());
-        const auto pointCount = (endPoint.x() - startPoint.x()) / curve.step;
-        for (int i = 0; i < pointCount; ++i) {
-            const auto tick = startPoint.x() + i * curve.step;
-            line.appendValue(qRound(MathUtils::linearValueAt(startPoint, endPoint, tick)));
-        }
-        curve.mergeWithOtherPriority(line);
     }
 
     void updatePitchEdit(const QPointF &viewportPosition) {
@@ -1124,33 +1096,27 @@ public:
         if (current.x() == pitchPreviousPos.x())
             return;
         pitchMouseMoved = true;
-        const auto startTick = std::min(pitchPreviousPos.x(), current.x());
-        const auto endTick = std::max(pitchPreviousPos.x(), current.x());
+        const auto [startTick, endTick] =
+            DrawCurveEditUtils::strokeTickRange(pitchPreviousPos.x(), current.x());
 
         if (pitchEditType == PitchEditType::Erase) {
             AppModelUtils::eraseDrawCurveRange(pitchPreviewCurves, startTick, endTick);
-        } else if (pitchEditType == PitchEditType::Bake) {
-            const auto *pitch = clip->params.getParamByName(ParamInfo::Pitch);
-            const auto original = AppModelUtils::getDrawCurves(pitch->curves(Param::Original));
-            AppModelUtils::bakeDrawCurveRange(pitchPreviewCurves, original, startTick, endTick);
         } else {
-            const auto overlapped = AppModelUtils::curvesIn(pitchPreviewCurves, startTick, endTick);
-            if (!pitchNewCurveCreated && pitchEditType == PitchEditType::DrawOnInterval) {
-                pitchEditingCurve = new DrawCurve;
-                pitchEditingCurve->setLocalStart(pitchMouseDownPos.x());
-                pitchEditingCurve->appendValue(pitchMouseDownPos.y());
-                MathUtils::binaryInsert(pitchPreviewCurves, pitchEditingCurve);
-                pitchNewCurveCreated = true;
+            DrawCurveEditUtils::ValueProvider valueAtTick;
+            if (pitchEditType == PitchEditType::Bake) {
+                const auto *pitch = clip->params.getParamByName(ParamInfo::Pitch);
+                const auto original = AppModelUtils::getDrawCurves(pitch->curves(Param::Original));
+                valueAtTick = [original](const int sampleTick) {
+                    return DrawCurveEditUtils::generatedValueAt(original, sampleTick);
+                };
+            } else {
+                valueAtTick = [previous = pitchPreviousPos, current](const int sampleTick) {
+                    return std::optional<int>(
+                        qRound(MathUtils::linearValueAt(previous, current, sampleTick)));
+                };
             }
-
-            drawPitchLine(pitchPreviousPos, current, *pitchEditingCurve);
-            for (auto *curve : overlapped) {
-                if (curve == pitchEditingCurve)
-                    continue;
-                pitchEditingCurve->mergeWithCurrentPriority(*curve);
-                pitchPreviewCurves.removeOne(curve);
-                delete curve;
-            }
+            DrawCurveEditUtils::updateStroke(pitchPreviewCurves, pitchDrawStroke, pitchPreviousPos,
+                                             current, valueAtTick);
         }
 
         mergedPitchCurveCache.invalidate();
@@ -1167,7 +1133,6 @@ public:
         clearPitchPreview();
         pitchEditing = false;
         pitchMouseMoved = false;
-        pitchNewCurveCreated = false;
         pitchEditType = PitchEditType::None;
         finishPitchEdit(EditSessionEndReason::Commit);
         scheduleSnapshot();
@@ -2987,16 +2952,15 @@ public:
     QPointF rubberBandEnd;
     QList<int> rubberBandBaseSelection;
     QList<PastePreviewNote> pastePreviewNotes;
-    enum class PitchEditType { None, DrawOnCurve, DrawOnInterval, Erase, Bake };
+    enum class PitchEditType { None, Draw, Erase, Bake };
     PitchEditType pitchEditType = PitchEditType::None;
     bool pitchEditing = false;
     bool pitchMouseMoved = false;
-    bool pitchNewCurveCreated = false;
     quint64 pitchEditSessionId = 0;
     QPoint pitchMouseDownPos;
     QPoint pitchPreviousPos;
     QList<DrawCurve *> pitchPreviewCurves;
-    DrawCurve *pitchEditingCurve = nullptr;
+    DrawCurveEditUtils::StrokeState pitchDrawStroke;
     PitchDisplayStrategy::MergedCurveCache mergedPitchCurveCache;
     bool noteErasing = false;
     QList<int> erasedNoteIds;
