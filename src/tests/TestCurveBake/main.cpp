@@ -101,6 +101,21 @@ namespace {
         qDeleteAll(target);
     }
 
+    void testSingleStepBakePersists() {
+        DrawCurveList source{curve(0, {100, 110, 120})};
+        DrawCurveList target;
+
+        expect(AppModelUtils::bakeDrawCurveRange(target, source, 5, 10),
+               "a one-step bake range must copy generated data");
+        expect(target.size() == 1 && target.first()->localStart() == 5 &&
+                   target.first()->localEndTick() == 10 && target.first()->step == 1 &&
+                   target.first()->values() == QList<int>({110, 112, 114, 116, 118}),
+               "a one-step bake range must contain enough samples to survive commit");
+
+        qDeleteAll(source);
+        qDeleteAll(target);
+    }
+
     void testSparsePitchMouseMovesStayContinuous() {
         QList<int> values;
         for (int i = 0; i < 20; ++i)
@@ -142,6 +157,7 @@ int main(int argc, char *argv[]) {
     testDifferentSampleSteps();
     testUnalignedSourceSamples();
     testSourceGapsStaySeparate();
+    testSingleStepBakePersists();
     testSparsePitchMouseMovesStayContinuous();
     testSparseParameterMouseMovesStayContinuous();
     return failures == 0 ? 0 : 1;

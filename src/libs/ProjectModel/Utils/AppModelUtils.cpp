@@ -209,6 +209,8 @@ bool AppModelUtils::bakeDrawCurveRange(DrawCurveList &target, const DrawCurveLis
 
         auto replacementStep = std::gcd(curve->step, replacementStart - curve->localStart());
         replacementStep = std::gcd(replacementStep, replacementEnd - replacementStart);
+        if (replacementStep == replacementEnd - replacementStart)
+            replacementStep = 1;
         replacements.append(
             resampleCurve(*curve, replacementStart, replacementEnd, replacementStep));
     }
