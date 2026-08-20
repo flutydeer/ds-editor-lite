@@ -135,16 +135,24 @@ void ParamEditorView::executeEditCommand(const EditorInteraction::Command comman
 }
 
 void ParamEditorView::setDataContext(SingingClip *clip) {
-    if (m_clip)
+    if (m_clip) {
         disconnect(m_clip, &SingingClip::voiceContextChanged, this, nullptr);
+        disconnect(m_clip, &SingingClip::paramChanged, this, nullptr);
+    }
     m_clip = clip;
     m_graphicsView->setDataContext(clip);
-    if (m_clip)
+    if (m_clip) {
         connect(m_clip, &SingingClip::voiceContextChanged, this,
                 [this](const VoiceContextChange &) {
                     refreshSpeakerMixToolBar();
                     refreshParameterSupportState();
                 });
+        connect(m_clip, &SingingClip::paramChanged, this,
+                [this](const ParamInfo::Name name, const Param::Type type) {
+                    if (name == m_foregroundParam && type == Param::Original)
+                        refreshParameterSupportState();
+                });
+    }
     refreshSpeakerMixToolBar();
     refreshParameterSupportState();
 }
@@ -181,6 +189,7 @@ void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) {
             mixView->setSpeakerMixData(m_clip->speakerMixData());
         }
         refreshSpeakerMixToolBar();
+        refreshParameterSupportState();
         return;
     }
     qDebug() << "foreground changed" << paramUtils->nameFromType(name);
@@ -383,20 +392,25 @@ void ParamEditorView::refreshParameterSupportState() {
     m_graphicsView->setForegroundBaseCurveVisible(foregroundSupported);
     m_graphicsView->setBackgroundBaseCurveVisible(backgroundSupported);
 
+    const auto *foreground = m_clip && ParamInfo::hasOriginalParam(m_foregroundParam)
+                                 ? m_clip->params.getParamByName(m_foregroundParam)
+                                 : nullptr;
+    const bool bakeEnabled = foregroundSupported && m_clip && !m_clip->singerInfo().isEmpty() &&
+                             foreground && !foreground->curves(Param::Original).isEmpty();
+    m_toolBar->setBakeEnabled(bakeEnabled);
+
     if (m_foregroundParam == ParamInfo::SpeakerMix)
         return;
 
-    if (!m_unsupportedParameterPromptState.shouldPrompt(m_foregroundParam,
-                                                        foregroundSupported)) {
+    if (!m_unsupportedParameterPromptState.shouldPrompt(m_foregroundParam, foregroundSupported)) {
         hideEmptyState();
         return;
     }
 
     const auto showUnsupportedState = [this] {
         setEmptyState(EmptyStateKind::UnsupportedParameter, {},
-                      tr("The selected singer does not support this parameter."),
-                      tr("Edit Anyway"), EmptyStateAction::EditUnsupportedParameter,
-                      m_foregroundParam);
+                      tr("The selected singer does not support this parameter."), tr("Edit Anyway"),
+                      EmptyStateAction::EditUnsupportedParameter, m_foregroundParam);
     };
     showUnsupportedState();
 }

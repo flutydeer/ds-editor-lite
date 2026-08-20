@@ -33,8 +33,8 @@ namespace {
                "drawing mode must use the draw pitch presentation");
         expect(PitchDisplayStrategy::displayModeForEditMode(ErasePitch) == PitchDisplayMode::Draw,
                "erase mode must use the draw pitch presentation");
-        expect(PitchDisplayStrategy::displayModeForEditMode(FreezePitch) == PitchDisplayMode::Draw,
-               "freeze mode must use the draw pitch presentation");
+        expect(PitchDisplayStrategy::displayModeForEditMode(BakePitch) == PitchDisplayMode::Draw,
+               "bake mode must use the draw pitch presentation");
         expect(PitchDisplayStrategy::displayModeForEditMode(EditPitchAnchor) ==
                    PitchDisplayMode::Anchor,
                "anchor mode must use the anchor pitch presentation");
@@ -50,7 +50,7 @@ namespace {
         expect(isPitchEditMode(DrawPitch), "pitch drawing mode must edit pitch");
         expect(isPitchEditMode(EditPitchAnchor), "pitch anchor mode must edit pitch");
         expect(isPitchEditMode(ErasePitch), "pitch erase mode must edit pitch");
-        expect(isPitchEditMode(FreezePitch), "pitch freeze mode must edit pitch");
+        expect(isPitchEditMode(BakePitch), "pitch bake mode must edit pitch");
     }
 
     void testDisplayLayers() {

@@ -79,6 +79,15 @@ void CommonParamEditorView::cancelEdit() {
 
 void CommonParamEditorView::setEraseMode(const bool on) {
     m_eraseMode = on;
+    if (on)
+        m_bakeMode = false;
+    update();
+}
+
+void CommonParamEditorView::setBakeMode(const bool on) {
+    m_bakeMode = on;
+    if (on)
+        m_eraseMode = false;
     update();
 }
 
@@ -163,10 +172,9 @@ void CommonParamEditorView::commitAction() {
         emit editCompleted(editedCurves());
     }
 
-    m_editingCurve = nullptr;
+    m_drawStroke = {};
     m_editType = None;
     m_mouseMoved = false;
-    m_newCurveCreated = false;
     cancelRequested = false;
     for (const auto curve : m_drawCurvesEditedBak)
         delete curve;
@@ -268,8 +276,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
 
         DrawCurveList base;
         DrawCurve *baseCurve = nullptr;
-        if (m_baseCurveVisible &&
-            m_properties->valueType == ParamProperties::ValueType::Relative) {
+        if (m_baseCurveVisible && m_properties->valueType == ParamProperties::ValueType::Relative) {
             const int start = MathUtils::roundDown(qRound(startTick()), 5);
             const int end = MathUtils::round(qRound(endTick()), 5) + 5;
             baseCurve = new DrawCurve(-1);
@@ -380,34 +387,27 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
     }
     const auto value = static_cast<int>(sceneYToValue(scenePos.y()));
 
+    m_mouseDownPos = QPoint(tick, value);
+    m_prevPos = m_mouseDownPos;
+
     if (event->button() == Qt::LeftButton) {
         if (m_eraseMode) {
             m_editType = Erase;
         } else {
-            if (const auto curve = curveAt(tick)) {
-                m_editingCurve = curve;
-                m_editType = DrawOnCurve;
-                qDebug() << "Edit exist curve: #" << curve->id();
-            } else {
-                m_editingCurve = nullptr;
-                m_editType = DrawOnInterval;
-            }
+            m_drawStroke = DrawCurveEditUtils::beginStroke(m_drawCurvesEdited, m_mouseDownPos);
+            m_editType = m_bakeMode ? Bake : Draw;
         }
     } else if (event->button() == Qt::RightButton) {
-        m_editType = m_eraseMode ? None : Erase;
+        m_editType = m_eraseMode || m_bakeMode ? None : Erase;
     } else {
         m_editType = None;
     }
-
-    m_mouseDownPos = QPoint(tick, value);
-    m_prevPos = m_mouseDownPos;
 }
 
 void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     if (cancelRequested || m_editType == None || transparentMouseEvents() || m_mouseDown == false)
         return;
 
-    m_mouseMoved = true;
     const auto scenePos = event->scenePos();
     auto tick = MathUtils::round(static_cast<int>(sceneXToTick(scenePos.x())), 5);
     if (tick < 0)
@@ -415,63 +415,28 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     const auto value = static_cast<int>(sceneYToValue(scenePos.y()));
     const auto curPos = QPoint(tick, value);
 
-    int startTick;
-    int endTick;
-    if (m_prevPos.x() < curPos.x()) {
-        startTick = m_prevPos.x();
-        endTick = curPos.x();
-    } else {
-        endTick = m_prevPos.x();
-        startTick = curPos.x();
-    }
+    const auto [startTick, endTick] =
+        DrawCurveEditUtils::strokeTickRange(m_prevPos.x(), curPos.x());
 
-    auto overlappedCurves = AppModelUtils::curvesIn(m_drawCurvesEdited, startTick, endTick);
+    bool changed = false;
     if (m_editType == Erase) {
-        if (!overlappedCurves.isEmpty()) {
-            for (auto curve : overlappedCurves) {
-                if (curve->localStart() >= startTick && curve->localEndTick() <= endTick) {
-                    // 区间覆盖整条曲线，直接移除该曲线
-                    qDebug() << "Erase: Remove curve #" << curve->id();
-                    m_drawCurvesEdited.removeOne(curve);
-                    delete curve;
-                } else if (curve->localStart() < startTick && curve->localEndTick() > endTick) {
-                    // 区间在曲线内，将曲线切成两段
-                    const auto newCurve = new DrawCurve;
-                    newCurve->setLocalStart(endTick);
-                    auto rightPoints = curve->mid(endTick);
-                    newCurve->setValues(rightPoints); // 将区间右端点之后的点移动到新曲线上
-                    curve->eraseTailFrom(startTick);
-                    MathUtils::binaryInsert(m_drawCurvesEdited, newCurve);
-                } else {
-                    curve->erase(startTick, endTick);
-                }
-            }
-        }
+        changed = AppModelUtils::eraseDrawCurveRange(m_drawCurvesEdited, startTick, endTick);
     } else {
-        // Draw
-        // 在空白处绘制，如果未创建新曲线，则创建一条并将其设为正在编辑的曲线
-        if (!m_newCurveCreated && m_editType == DrawOnInterval) {
-            m_editingCurve = new DrawCurve;
-            m_editingCurve->setLocalStart(m_mouseDownPos.x());
-            m_editingCurve->appendValue(m_mouseDownPos.y());
-            MathUtils::binaryInsert(m_drawCurvesEdited, m_editingCurve);
-            qDebug() << "Create new curve: #" << m_editingCurve->id();
-            m_newCurveCreated = true;
-        }
-
-        drawLine(m_prevPos, curPos, *m_editingCurve);
-        if (!overlappedCurves.isEmpty()) {
-            for (auto curve : overlappedCurves) {
-                if (curve == m_editingCurve)
-                    continue;
-
-                m_editingCurve->mergeWithCurrentPriority(*curve);
-                m_drawCurvesEdited.removeOne(curve);
-                delete curve;
-            }
-        }
+        const DrawCurveEditUtils::ValueProvider valueAtTick =
+            m_editType == Bake
+                ? DrawCurveEditUtils::ValueProvider([this](const int sampleTick) {
+                      return DrawCurveEditUtils::generatedValueAt(m_drawCurvesOriginal, sampleTick);
+                  })
+                : DrawCurveEditUtils::ValueProvider(
+                      [previous = m_prevPos, current = curPos](const int sampleTick) {
+                          return std::optional<int>(
+                              qRound(MathUtils::linearValueAt(previous, current, sampleTick)));
+                      });
+        changed = DrawCurveEditUtils::updateStroke(m_drawCurvesEdited, m_drawStroke, m_prevPos,
+                                                   curPos, valueAtTick);
     }
 
+    m_mouseMoved = m_mouseMoved || changed;
     m_prevPos = curPos;
     update();
 }
@@ -488,13 +453,14 @@ void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 bool CommonParamEditorView::cancelEditState() {
-    const bool hadEdit = m_mouseDown || m_editType != None || m_mouseMoved || m_newCurveCreated ||
-                         !m_drawCurvesEditedBak.isEmpty();
+    const bool hadEdit = m_mouseDown || m_editType != None || m_mouseMoved ||
+                         m_drawStroke.newCurveCreated || !m_drawCurvesEditedBak.isEmpty();
     if (!hadEdit)
         return false;
 
-    const bool shouldRestoreBackup =
-        m_editType != None || m_mouseMoved || m_newCurveCreated || !m_drawCurvesEditedBak.isEmpty();
+    const bool shouldRestoreBackup = m_editType != None || m_mouseMoved ||
+                                     m_drawStroke.newCurveCreated ||
+                                     !m_drawCurvesEditedBak.isEmpty();
     if (shouldRestoreBackup) {
         for (const auto curve : m_drawCurvesEdited)
             delete curve;
@@ -502,10 +468,9 @@ bool CommonParamEditorView::cancelEditState() {
         m_drawCurvesEditedBak.clear();
     }
 
-    m_editingCurve = nullptr;
+    m_drawStroke = {};
     m_editType = None;
     m_mouseMoved = false;
-    m_newCurveCreated = false;
     cancelRequested = true;
     m_mouseDown = false;
     m_mouseDownButton = Qt::NoButton;
@@ -521,13 +486,6 @@ void CommonParamEditorView::updateRectAndPos() {
 
 double CommonParamEditorView::valueToItemY(const double value) const {
     return sceneYToItemY(valueToSceneY(value));
-}
-
-DrawCurve *CommonParamEditorView::curveAt(const double tick) {
-    for (const auto curve : m_drawCurvesEdited)
-        if (curve->localStart() <= tick && curve->localEndTick() > tick)
-            return curve;
-    return nullptr;
 }
 
 void CommonParamEditorView::drawCurveBorder(QPainter *painter,
@@ -612,29 +570,4 @@ void CommonParamEditorView::drawCurvePolygon(QPainter *painter,
             break;
         drawCurve(*curve);
     }
-}
-
-void CommonParamEditorView::drawLine(const QPoint &p1, const QPoint &p2, DrawCurve &curve) {
-    if (p1.x() == p2.x())
-        return;
-
-    QPoint startPoint;
-    QPoint endPoint;
-    if (p1.x() < p2.x()) {
-        startPoint = p1;
-        endPoint = p2;
-    } else {
-        startPoint = p2;
-        endPoint = p1;
-    }
-    auto line = DrawCurve(-1);
-    const auto start = startPoint.x();
-    line.setLocalStart(start);
-    const int linePointCount = (endPoint.x() - startPoint.x()) / curve.step;
-    for (int i = 0; i < linePointCount; i++) {
-        const auto tick = start + i * curve.step;
-        const auto value = MathUtils::linearValueAt(startPoint, endPoint, tick);
-        line.appendValue(qRound(value));
-    }
-    curve.mergeWithOtherPriority(line);
 }

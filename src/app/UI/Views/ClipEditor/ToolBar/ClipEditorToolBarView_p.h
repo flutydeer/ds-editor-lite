@@ -32,6 +32,7 @@ public:
     void moveToAudioClipState() const;
     void refreshSingerComboPresentation() const;
     void refreshLanguageComboPresentation() const;
+    void refreshPitchBakeAvailability() const;
     void populatePresetMenus() const;
     void retranslateUi() const;
     void onPresetApplied(const QString &presetId) const;
@@ -78,7 +79,7 @@ public:
     Button *m_btnPitchPencil = nullptr;
     Button *m_btnPitchAnchor = nullptr;
     Button *m_btnPitchEraser = nullptr;
-    // Button *m_btnFreezePitch = nullptr;
+    Button *m_btnPitchBake = nullptr;
 
     TwoLevelComboBox *m_cbSinger = nullptr;
     LanguageComboBox *m_cbClipLanguage = nullptr;
