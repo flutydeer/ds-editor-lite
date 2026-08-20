@@ -4,6 +4,9 @@
 #include <QCoreApplication>
 #include <QTextStream>
 
+#include <optional>
+#include <utility>
+
 namespace {
     bool expect(const bool condition, const char *message) {
         if (condition)
@@ -12,21 +15,27 @@ namespace {
         return false;
     }
 
-    SingerInfo singerWithParameters(const QStringList &parameters) {
+    SingerInfo singerWithCapabilities(
+        std::optional<QStringList> acousticParameters = std::nullopt,
+        std::optional<bool> pitchUsesExpressiveness = std::nullopt,
+        std::optional<bool> vocoderPitchControllable = std::nullopt) {
         SingerInfo singer({"singer", "package", QVersionNumber(1, 0)}, "Test Singer");
         SingerCapabilitySummary capability;
-        capability.acousticParameters = parameters;
+        capability.acousticParameters = std::move(acousticParameters);
+        capability.pitchUsesExpressiveness = pitchUsesExpressiveness;
+        capability.vocoderPitchControllable = vocoderPitchControllable;
         singer.setCapability(capability);
         return singer;
     }
 
     bool testSupportFollowsSynthesisPath() {
-        const auto singer = singerWithParameters({"breathiness", "voicing", "velocity"});
+        const auto singer = singerWithCapabilities(
+            QStringList{"breathiness", "voicing", "velocity"}, true, true);
         bool ok = true;
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Pitch, singer),
                      "pitch directly controls acoustic f0");
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Expressiveness, singer),
-                     "expressiveness is handled by pitch inference");
+                     "pitch model declares expressiveness support");
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Breathiness, singer),
                      "declared acoustic control is supported");
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Voicing, singer),
@@ -42,7 +51,7 @@ namespace {
         ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::Gender, singer),
                      "missing transition control is unsupported");
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::ToneShift, singer),
-                     "tone shift always transforms acoustic f0");
+                     "vocoder declares pitch control support");
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::SpeakerMix, singer),
                      "speaker mix uses its own capability validation");
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Unknown, singer),
@@ -52,7 +61,7 @@ namespace {
 
     bool testUnknownCapabilitiesAreConservative() {
         SingerInfo withoutReport({"singer", "package", QVersionNumber(1, 0)}, "Legacy Singer");
-        SingerInfo withoutParameters = singerWithParameters({});
+        SingerInfo withoutParameters = singerWithCapabilities(QStringList{});
         withoutParameters.setCapability(SingerCapabilitySummary{});
 
         bool ok = true;
@@ -60,16 +69,40 @@ namespace {
                      "missing capability report does not disable editing");
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Energy, withoutParameters),
                      "unknown acoustic parameters do not disable editing");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Expressiveness, withoutParameters),
+                     "unknown pitch configuration does not disable editing");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::ToneShift, withoutParameters),
+                     "unknown vocoder configuration does not disable editing");
         return ok;
     }
 
     bool testKnownEmptyCapabilities() {
-        const auto singer = singerWithParameters({});
+        const auto singer = singerWithCapabilities(QStringList{}, false, false);
         bool ok = true;
         ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::Energy, singer),
                      "known empty acoustic parameters disable acoustic controls");
-        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::ToneShift, singer),
-                     "known empty acoustic parameters do not disable f0 transforms");
+        ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::Expressiveness, singer),
+                     "pitch model without expressiveness disables its control");
+        ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::ToneShift, singer),
+                     "vocoder without pitch control disables tone shift");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Pitch, singer),
+                     "base pitch remains supported");
+        return ok;
+    }
+
+    bool testIndependentCapabilitySources() {
+        const auto disabled = singerWithCapabilities(
+            QStringList{"expressiveness", "tone_shift"}, false, false);
+        const auto enabled = singerWithCapabilities(QStringList{}, true, true);
+        bool ok = true;
+        ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::Expressiveness, disabled),
+                     "acoustic parameter tags do not enable expressiveness");
+        ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::ToneShift, disabled),
+                     "acoustic parameter tags do not enable tone shift");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Expressiveness, enabled),
+                     "pitch configuration enables expressiveness independently");
+        ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::ToneShift, enabled),
+                     "vocoder configuration enables tone shift independently");
         return ok;
     }
 
@@ -106,6 +139,7 @@ int main(int argc, char *argv[]) {
     ok &= testSupportFollowsSynthesisPath();
     ok &= testUnknownCapabilitiesAreConservative();
     ok &= testKnownEmptyCapabilities();
+    ok &= testIndependentCapabilitySources();
     ok &= testPromptStateResetsForEveryProjectOpen();
     return ok ? 0 : 1;
 }

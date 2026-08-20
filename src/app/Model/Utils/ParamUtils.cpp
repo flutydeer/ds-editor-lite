@@ -77,11 +77,27 @@ const ParamProperties *ParamUtils::getPropertiesByName(const ParamInfo::Name nam
 }
 
 bool ParamUtils::isSupportedBySinger(const ParamInfo::Name name, const SingerInfo &singer) const {
-    const auto parameter = acousticModelParameterTag(name);
-    if (parameter.isEmpty())
-        return true;
-
     const auto &capability = singer.capability();
+    switch (name) {
+        case ParamInfo::Expressiveness:
+            return !capability || capability->pitchUsesExpressiveness.value_or(true);
+        case ParamInfo::ToneShift:
+            return !capability || capability->vocoderPitchControllable.value_or(true);
+        case ParamInfo::Pitch:
+        case ParamInfo::SpeakerMix:
+        case ParamInfo::Unknown:
+            return true;
+        case ParamInfo::Energy:
+        case ParamInfo::Breathiness:
+        case ParamInfo::Voicing:
+        case ParamInfo::Tension:
+        case ParamInfo::MouthOpening:
+        case ParamInfo::Gender:
+        case ParamInfo::Velocity:
+            break;
+    }
+
+    const auto parameter = acousticModelParameterTag(name);
     if (!capability || !capability->acousticParameters)
         return true;
     return capability->acousticParameters->contains(parameter);
