@@ -1571,15 +1571,13 @@ public:
     }
 
     void scheduleSnapshot() {
-        if (q->isResizeActive() || snapshotScheduled)
+        if (snapshotScheduled)
             return;
         snapshotScheduled = true;
         QTimer::singleShot(0, q, [this] {
             if (!snapshotScheduled)
                 return;
             snapshotScheduled = false;
-            if (q->isResizeActive())
-                return;
             rebuildSnapshot();
         });
     }
@@ -2690,8 +2688,7 @@ void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
 
 void PianoRollRhiWidget::resizeEvent(QResizeEvent *event) {
     d->resize();
-    if (!isResizeActive())
-        d->flushSnapshot();
+    d->flushSnapshot();
     EditorRhiWidget::resizeEvent(event);
 }
 
@@ -2876,10 +2873,6 @@ void PianoRollRhiWidget::onRhiReady() {
 void PianoRollRhiWidget::onDevicePixelRatioChanged() {
     EditorRhiWidget::onDevicePixelRatioChanged();
     d->glyphAtlas.clear();
-    d->scheduleSnapshot();
-}
-
-void PianoRollRhiWidget::onResizeSettled() {
     d->scheduleSnapshot();
 }
 

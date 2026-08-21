@@ -2,19 +2,11 @@
 
 #include "Model/AppOptions/AppOptions.h"
 
-#ifdef Q_OS_WIN
-#  include <Windows.h>
-#  include <WinUser.h>
-#endif
-
-#include <QAbstractNativeEventFilter>
-#include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QEvent>
 #include <QFile>
 #include <QMatrix4x4>
 #include <QMetaObject>
-#include <QResizeEvent>
 #include <QTimer>
 #include <rhi/qrhi.h>
 
@@ -78,7 +70,7 @@ namespace {
     }
 }
 
-class EditorRhiWidget::Private final : public QAbstractNativeEventFilter {
+class EditorRhiWidget::Private {
 public:
     struct TextureResources {
         quint64 generation = 0;
@@ -92,59 +84,6 @@ public:
     Private(EditorRhiWidget *q, QString diagnosticsTag)
         : q(q), diagnosticsTag(std::move(diagnosticsTag)) {
         clock.start();
-#ifdef Q_OS_WIN
-        QCoreApplication::instance()->installNativeEventFilter(this);
-#endif
-    }
-
-    ~Private() override {
-#ifdef Q_OS_WIN
-        if (auto *app = QCoreApplication::instance())
-            app->removeNativeEventFilter(this);
-#endif
-    }
-
-    bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *) override {
-#ifdef Q_OS_WIN
-        if (eventType != "windows_generic_MSG")
-            return false;
-        const auto *msg = static_cast<const MSG *>(message);
-        if (msg->message != WM_ENTERSIZEMOVE && msg->message != WM_EXITSIZEMOVE)
-            return false;
-        const auto *topLevel = q->window();
-        if (!topLevel || msg->hwnd != reinterpret_cast<HWND>(topLevel->winId()))
-            return false;
-        if (msg->message == WM_ENTERSIZEMOVE)
-            beginResize();
-        else
-            endResize();
-#else
-        Q_UNUSED(eventType);
-        Q_UNUSED(message);
-#endif
-        return false;
-    }
-
-    void beginResize() {
-        if (resizeActive || !resourcesReady || !colorTexture || !q->isVisible())
-            return;
-        const auto retainedSize = colorTexture->pixelSize();
-        if (retainedSize.isEmpty())
-            return;
-        previousFixedColorBufferSize = q->fixedColorBufferSize();
-        resizeActive = true;
-        q->setFixedColorBufferSize(retainedSize);
-    }
-
-    void endResize() {
-        if (!resizeActive)
-            return;
-        resizeActive = false;
-        q->onResizeSettled();
-        QTimer::singleShot(0, q, [this] {
-            if (!resizeActive)
-                q->setFixedColorBufferSize(previousFixedColorBufferSize);
-        });
     }
 
     void initialize() {
@@ -411,8 +350,6 @@ public:
     }
 
     QVector<EditorRhiOverlayRect> submitOverlay(QVector<EditorRhiOverlayRect> newRects) {
-        if (resizeActive)
-            return newRects;
         auto previousRects = std::move(overlayRects);
         overlayRects = std::move(newRects);
         q->update();
@@ -724,9 +661,7 @@ public:
     QVector<EditorRhiOverlayRect> overlayRects;
     bool frameDirty = true;
     bool resourcesReady = false;
-    bool resizeActive = false;
     bool failureRequested = false;
-    QSize previousFixedColorBufferSize;
     QRhi *rhi = nullptr;
     QRhiTexture *colorTexture = nullptr;
     qsizetype solidBufferCapacity = 0;
@@ -799,10 +734,6 @@ QPointF EditorRhiWidget::physicalWindowOffset() const {
     return topLevel ? mapTo(topLevel, QPointF()) * devicePixelRatioF() : QPointF();
 }
 
-bool EditorRhiWidget::isResizeActive() const {
-    return d->resizeActive;
-}
-
 void EditorRhiWidget::requestBackendFailure(const QString &reason) {
     d->fail(reason);
 }
@@ -826,16 +757,9 @@ bool EditorRhiWidget::event(QEvent *event) {
     return result;
 }
 
-void EditorRhiWidget::resizeEvent(QResizeEvent *event) {
-    QRhiWidget::resizeEvent(event);
-}
-
 void EditorRhiWidget::onRhiReady() {
 }
 
 void EditorRhiWidget::onDevicePixelRatioChanged() {
     d->invalidateTextures();
-}
-
-void EditorRhiWidget::onResizeSettled() {
 }
