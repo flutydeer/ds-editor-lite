@@ -722,6 +722,7 @@ void SpeakerMixEditorView::endIntervalSelection() {
 void SpeakerMixEditorView::startDrag(const QPointF &scenePos) {
     m_state.dragging = false;
     m_state.dragStartScenePos = scenePos;
+    m_state.dragSplitResolved = false;
     m_state.altDrag = false;
 
     if (m_state.selectedKeyframeIndex >= 0) {
@@ -749,7 +750,16 @@ void SpeakerMixEditorView::updateDrag(const QPointF &scenePos) {
 
     const int ki = m_state.selectedKeyframeIndex;
     auto &kf = m_keyframes[ki];
-    const int si = m_state.dragSplitIndex;
+    int si = m_state.dragSplitIndex;
+
+    if (si >= 0 && !m_state.dragSplitResolved && !qFuzzyIsNull(delta.y())) {
+        const QVector<double> dragStartFullWeights = SpeakerMixUtils::storedWeightsToFull(
+            toVector(m_state.dragStartWeights.weights), m_speakers.size());
+        si = SpeakerMixUtils::resolveOverlappingSplitIndex(dragStartFullWeights, si, delta.y());
+        m_state.dragSplitIndex = si;
+        m_state.selectedSplitIndex = si;
+        m_state.dragSplitResolved = true;
+    }
 
     if (si < 0) {
         if (m_state.dragStartTick == 0)
@@ -800,6 +810,7 @@ void SpeakerMixEditorView::endDrag() {
     }
     m_state.dragging = false;
     m_state.dragSplitIndex = -1;
+    m_state.dragSplitResolved = false;
     hideSplitDragToolTip();
     if (changed)
         commit();

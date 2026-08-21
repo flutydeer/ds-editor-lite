@@ -145,6 +145,7 @@ private:
         SpeakerMixKeyframe dragStartWeights;
         int dragStartTick = 0;
         int dragSplitIndex = -1;
+        bool dragSplitResolved = false;
         bool altDrag = false;
 
         bool selecting = false;
