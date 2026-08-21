@@ -73,6 +73,7 @@ private:
     int m_draggingIndex;
     int m_dragOffset;
     bool m_isDragging;
+    bool m_dragSplitResolved;
     bool m_readOnly;
 
     const int m_trackHeight = 40;

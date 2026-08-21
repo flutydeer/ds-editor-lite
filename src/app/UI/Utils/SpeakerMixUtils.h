@@ -12,6 +12,8 @@ namespace SpeakerMixUtils {
 
     double cumulativeWeightAtSplit(const QVector<double> &fullWeights, int splitIndex);
     double snapCumulativeToPercent(double cumulative, double total = 1.0);
+    int resolveOverlappingSplitIndex(const QVector<double> &fullWeights, int splitIndex,
+                                     double dragDelta, double total = 1.0);
 
     QVector<double> adjacentDragWeights(const QVector<double> &dragStartFullWeights, int splitIndex,
                                         double newCumulative, double total = 1.0);

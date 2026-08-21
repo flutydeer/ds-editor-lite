@@ -150,6 +150,23 @@ namespace SpeakerMixUtils {
         return std::clamp(std::round(percent) / 100.0 * total, 0.0, total);
     }
 
+    int resolveOverlappingSplitIndex(const QVector<double> &fullWeights, const int splitIndex,
+                                     const double dragDelta, const double total) {
+        const QVector<double> normalized = normalizeFullWeights(fullWeights, total);
+        if (splitIndex < 0 || splitIndex >= normalized.size() - 1 || qFuzzyIsNull(dragDelta))
+            return splitIndex;
+
+        int firstSplit = splitIndex;
+        while (firstSplit > 0 && qFuzzyIsNull(normalized[firstSplit]))
+            --firstSplit;
+
+        int lastSplit = splitIndex;
+        while (lastSplit < normalized.size() - 2 && qFuzzyIsNull(normalized[lastSplit + 1]))
+            ++lastSplit;
+
+        return dragDelta < 0 ? firstSplit : lastSplit;
+    }
+
     QVector<double> adjacentDragWeights(const QVector<double> &dragStartFullWeights,
                                         const int splitIndex, const double newCumulative,
                                         const double total) {

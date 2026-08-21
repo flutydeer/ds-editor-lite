@@ -1,6 +1,7 @@
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
+#include "UI/Utils/SpeakerMixUtils.h"
 
 #include <QCoreApplication>
 #include <QTextStream>
@@ -81,6 +82,30 @@ namespace {
                                "full weights append implicit remainder");
         ok &= expectVectorNear(fullWeightsFromExplicitWeights({0.8, 0.8}), {0.5, 0.5, 0.0},
                                "overflow explicit weights normalize with zero remainder");
+        return ok;
+    }
+
+    bool testOverlappingSplitResolution() {
+        bool ok = true;
+
+        const QVector<double> leadingZeros{0.0, 0.0, 0.4, 0.6};
+        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(leadingZeros, 0, 0.1) == 1,
+                     "positive drag chooses last leading overlapping split");
+        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(leadingZeros, 1, -0.1) == 0,
+                     "negative drag chooses first leading overlapping split");
+
+        const QVector<double> trailingZeros{0.4, 0.6, 0.0, 0.0};
+        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(trailingZeros, 2, -0.1) == 1,
+                     "negative drag chooses first trailing overlapping split");
+        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(trailingZeros, 1, 0.1) == 2,
+                     "positive drag chooses last trailing overlapping split");
+
+        const QVector<double> separateSplits{0.2, 0.3, 0.5};
+        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(separateSplits, 1, -0.1) == 1,
+                     "separate split keeps its index");
+        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(separateSplits, 1, 0.0) == 1,
+                     "stationary drag keeps its index");
+
         return ok;
     }
 
@@ -279,6 +304,7 @@ int main(int argc, char *argv[]) {
 
     bool ok = true;
     ok &= testWeightConversions();
+    ok &= testOverlappingSplitResolution();
     ok &= testNormalizeSpeakerMixData();
     ok &= testDynamicStatePredicates();
     ok &= testStaticAndFixedInferenceMix();

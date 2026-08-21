@@ -6,6 +6,7 @@ lite_add_test(${PROJECT_NAME}
         ../../libs/ProjectModel/AppModel/SpeakerMixData.cpp
         ../../libs/ProjectModel/InferenceData/InferSpeakerMix.cpp
         ../../libs/ProjectModel/Voice/SpeakerInfo.cpp
+        ../../app/UI/Utils/SpeakerMixUtils.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

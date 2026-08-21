@@ -9,7 +9,7 @@
 
 SpeakerMixBar::SpeakerMixBar(QWidget *parent)
     : QWidget(parent), m_draggingIndex(-1), m_dragOffset(0), m_isDragging(false),
-      m_readOnly(false) {
+      m_dragSplitResolved(false), m_readOnly(false) {
     setFixedHeight(m_trackHeight + 2 * m_margin);
     setMinimumWidth(300);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -62,6 +62,7 @@ void SpeakerMixBar::setReadOnly(const bool readOnly) {
     if (m_readOnly) {
         m_isDragging = false;
         m_draggingIndex = -1;
+        m_dragSplitResolved = false;
         unsetCursor();
     }
     update();
@@ -222,6 +223,7 @@ void SpeakerMixBar::mousePressEvent(QMouseEvent *event) {
             const int handleCenterX = valueToPixel(m_dividers[m_draggingIndex]);
             m_dragOffset = event->pos().x() - handleCenterX;
             m_dragStartValues = m_values;
+            m_dragSplitResolved = false;
             setCursor(Qt::SizeHorCursor);
             update();
         }
@@ -239,6 +241,19 @@ void SpeakerMixBar::mouseMoveEvent(QMouseEvent *event) {
         // where the user grabbed it rather than jumping to cursor center.
         const int adjustedX = event->pos().x() - m_dragOffset;
         const double newValue = pixelToSnappedValue(adjustedX);
+
+        if (!m_dragSplitResolved) {
+            const int initialSplitIndex = m_draggingIndex - 1;
+            const double initialValue =
+                SpeakerMixUtils::cumulativeWeightAtSplit(m_dragStartValues, initialSplitIndex);
+            if (!qFuzzyIsNull(newValue - initialValue)) {
+                m_draggingIndex = SpeakerMixUtils::resolveOverlappingSplitIndex(
+                                      m_dragStartValues, initialSplitIndex,
+                                      newValue - initialValue, 100.0) +
+                                  1;
+                m_dragSplitResolved = true;
+            }
+        }
 
         const bool proportional = event->modifiers().testFlag(Qt::AltModifier);
         const int splitIndex = m_draggingIndex - 1;
@@ -261,6 +276,7 @@ void SpeakerMixBar::mouseReleaseEvent(QMouseEvent *event) {
     if (m_isDragging) {
         m_isDragging = false;
         m_draggingIndex = -1;
+        m_dragSplitResolved = false;
         setCursor(Qt::ArrowCursor);
         update();
     }
