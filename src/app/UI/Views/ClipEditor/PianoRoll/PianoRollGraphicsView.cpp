@@ -2,6 +2,7 @@
 
 #include "ClipRangeOverlay.h"
 #include "NoteEditUtils.h"
+#include "NoteLyricToolTipController.h"
 #include "NoteView.h"
 #include "PianoRollBackground.h"
 #include "PianoRollGraphicsScene.h"
@@ -36,7 +37,6 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
-#include <lite/GUI/Controls/ToolTip.h>
 #include <lite/Support/Linq.h>
 #include <lite/Support/MathUtils.h>
 #include <lite/MusicBase/TimelineSnapUtils.h>
@@ -45,7 +45,6 @@
 #include <limits>
 
 #include <QDebug>
-#include <QCursor>
 #include <QGraphicsLineItem>
 #include <QGraphicsPathItem>
 #include <QHideEvent>
@@ -54,7 +53,6 @@
 #include <QKeyEvent>
 #include <QScrollBar>
 #include <QShowEvent>
-#include <QTextDocument>
 
 namespace Helper = PianoRollGraphicsViewHelper;
 
@@ -83,8 +81,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
             &PianoRollGraphicsViewPrivate::onInlineNavigationRequested);
     connect(d->m_inlineEditor, &InlineTextEditOverlay::editCancelled, d,
             &PianoRollGraphicsViewPrivate::onInlineEditCancelled);
-    d->m_lyricToolTip = new ToolTip(QString(), viewport());
-    d->m_lyricToolTip->setAnimationEnabled(false);
+    d->m_lyricToolTip = std::make_unique<NoteLyricToolTipController>(viewport());
 
     d->m_selectionModel =
         new PianoRollSelectionModel(this, d->noteViews, d->noteViewIndex, d->m_notes, this);
@@ -1595,26 +1592,16 @@ void PianoRollGraphicsViewPrivate::updateLyricToolTip(const QPoint &position) {
         return;
     }
 
-    const auto lyric = noteView->lyric();
-    if (m_lyricToolTipNoteId == noteView->id() && m_lyricToolTipText == lyric &&
-        m_lyricToolTip->isVisible()) {
-        return;
-    }
-
-    m_lyricToolTipNoteId = noteView->id();
-    m_lyricToolTipText = lyric;
-    m_lyricToolTip->setTitle(Qt::convertFromPlainText(lyric));
     const auto noteRect = q->mapFromScene(noteView->sceneBoundingRect())
                               .boundingRect()
                               .intersected(q->viewport()->rect());
-    m_lyricToolTip->showAbove({q->viewport()->mapToGlobal(noteRect.topLeft()), noteRect.size()});
+    m_lyricToolTip->showFor(noteView->id(), noteView->lyric(),
+                            {q->viewport()->mapToGlobal(noteRect.topLeft()), noteRect.size()});
 }
 
 void PianoRollGraphicsViewPrivate::hideLyricToolTip() {
-    m_lyricToolTipNoteId = -1;
-    m_lyricToolTipText.clear();
-    if (m_lyricToolTip && m_lyricToolTip->isVisible())
-        m_lyricToolTip->hideWithAnimation();
+    if (m_lyricToolTip)
+        m_lyricToolTip->hide();
 }
 
 void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {

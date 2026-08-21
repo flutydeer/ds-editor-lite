@@ -3,6 +3,7 @@
 #include "NoteView.h"
 #include "NoteEditUtils.h"
 #include "NoteLyricPresentation.h"
+#include "NoteLyricToolTipController.h"
 #include "PianoPaintUtils.h"
 #include "PianoRollCoord.h"
 #include "PitchDisplayStrategy.h"
@@ -32,7 +33,6 @@
 #include "Modules/Inference/EditSessionManager.h"
 
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
-#include <lite/GUI/Controls/ToolTip.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -57,7 +57,6 @@
 #include <QResizeEvent>
 #include <QSet>
 #include <QShowEvent>
-#include <QTextDocument>
 #include <QTimer>
 #include <QWheelEvent>
 
@@ -266,8 +265,7 @@ public:
     }
 
     void initializeLyricToolTip() {
-        lyricToolTip = new ToolTip(QString(), q);
-        lyricToolTip->setAnimationEnabled(false);
+        lyricToolTip = std::make_unique<NoteLyricToolTipController>(q);
     }
 
     void initializeScrollBars() {
@@ -762,25 +760,14 @@ public:
             return;
         }
 
-        const auto lyric = note->lyric();
-        if (lyricToolTipNoteId == note->id() && lyricToolTipText == lyric &&
-            lyricToolTip->isVisible()) {
-            return;
-        }
-
-        lyricToolTipNoteId = note->id();
-        lyricToolTipText = lyric;
-        lyricToolTip->setTitle(Qt::convertFromPlainText(lyric));
         const auto visibleNoteRect = noteRect.intersected(visibleRect).toAlignedRect();
-        lyricToolTip->showAbove(
-            {q->mapToGlobal(visibleNoteRect.topLeft()), visibleNoteRect.size()});
+        lyricToolTip->showFor(note->id(), note->lyric(),
+                              {q->mapToGlobal(visibleNoteRect.topLeft()), visibleNoteRect.size()});
     }
 
     void hideLyricToolTip() {
-        lyricToolTipNoteId = -1;
-        lyricToolTipText.clear();
-        if (lyricToolTip && lyricToolTip->isVisible())
-            lyricToolTip->hideWithAnimation();
+        if (lyricToolTip)
+            lyricToolTip->hide();
     }
 
     void eraseNoteAt(const QPointF &viewportPosition) {
@@ -2487,9 +2474,7 @@ public:
     QColor rubberBandBorderColor{155, 186, 255, 200};
     QColor rubberBandFillColor{155, 186, 255, 64};
     InlineTextEditOverlay *inlineEditor = nullptr;
-    ToolTip *lyricToolTip = nullptr;
-    int lyricToolTipNoteId = -1;
-    QString lyricToolTipText;
+    std::unique_ptr<NoteLyricToolTipController> lyricToolTip;
     EditorRhiScrollBarController *scrollBars = nullptr;
     InlineEditField inlineEditField = InlineEditField::None;
     int inlineEditingNoteId = -1;
