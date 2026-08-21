@@ -79,7 +79,8 @@ void SplitNoteHandler::hoverMoveEvent(QHoverEvent *event) {
 }
 
 void SplitNoteHandler::updateIndicator(NoteView *noteView, int tick) {
-    const auto quantizedTickLength = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+    const auto quantizedTickLength = TimelineSnapUtils::quantizeStep(
+        appStatus->pianoRollQuantize, !appStatus->pianoRollQuantizeEnabled);
     const auto snappedTick =
         TimelineSnapUtils::snapNearest(tick, quantizedTickLength, appModel->timeline());
     const auto splitPos = snappedTick - d->m_offset;

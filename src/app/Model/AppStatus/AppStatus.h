@@ -43,6 +43,7 @@ public:
 
     // Project
     Property<int> pianoRollQuantize = 16;
+    Property<bool> pianoRollQuantizeEnabled = true;
     Property<int> projectEditableLength = AppGlobal::ticksPerWholeNote * 100;
     Property<int> selectedTrackIndex = -1;
     Property<int> activeClipId = -1;
@@ -80,6 +81,7 @@ signals:
 
     // Project
     void pianoRollQuantizeChanged(int quantize);
+    void pianoRollQuantizeEnabledChanged(bool enabled);
     void projectEditableLengthChanged(int newLength);
     void selectedTrackIndexChanged(int trackIndex);
     void activeClipIdChanged(int newId);

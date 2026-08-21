@@ -641,9 +641,9 @@ public:
         const QPointF pointerPosition(q->mapFromGlobal(QCursor::pos()));
         const QRectF viewportRect(QPointF(), q->size());
         const auto step = edgeAutoScroller.computeDragStep(pointerPosition, viewportRect, dtMs);
-        if (step.x() > 0 && (interaction == Interaction::Move ||
-                             interaction == Interaction::ResizeRight ||
-                             interaction == Interaction::Draw)) {
+        if (step.x() > 0 &&
+            (interaction == Interaction::Move || interaction == Interaction::ResizeRight ||
+             interaction == Interaction::Draw)) {
             const auto maximumOffset =
                 std::max(0.0, viewport.tickToSceneX(effectiveSceneLength()) - q->width());
             if (viewport.horizontalOffset() >= maximumOffset - 1.0) {
@@ -836,8 +836,8 @@ public:
             return;
         }
 
-        const auto quantizedTickLength =
-            TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+        const auto quantizedTickLength = TimelineSnapUtils::quantizeStep(
+            appStatus->pianoRollQuantize, !appStatus->pianoRollQuantizeEnabled);
         const auto globalTick = localTickAt(viewportPosition) + clip->start();
         const auto snappedGlobalTick =
             TimelineSnapUtils::snapNearest(globalTick, quantizedTickLength, appModel->timeline());
@@ -1188,10 +1188,10 @@ public:
         anchorEditSessionId = 0;
         if (sessionId != 0 && editSessionManager->hasActiveTransaction() &&
             editSessionManager->activeSession().sessionId == sessionId) {
-            editSessionManager->endTransaction(
-                sessionId, reason == AnchorEditor::EditFinishReason::Commit
-                               ? EditSessionEndReason::Commit
-                               : EditSessionEndReason::Discard);
+            editSessionManager->endTransaction(sessionId,
+                                               reason == AnchorEditor::EditFinishReason::Commit
+                                                   ? EditSessionEndReason::Commit
+                                                   : EditSessionEndReason::Discard);
         }
         if (!editSessionManager->hasActiveTransaction())
             appStatus->currentEditObject = AppStatus::EditObjectType::None;
@@ -1306,7 +1306,8 @@ public:
         syncNoteSelection({});
         noteSelection.clearAnchor();
         interaction = Interaction::Draw;
-        const auto step = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+        const auto step = TimelineSnapUtils::quantizeStep(appStatus->pianoRollQuantize,
+                                                          !appStatus->pianoRollQuantizeEnabled);
         const auto snappedStart =
             NoteEditUtils::snapLocalDown(localTickAt(viewportPosition) + clip->start(),
                                          clip->start(), step, appModel->timeline());
@@ -1449,7 +1450,8 @@ public:
     }
 
     void updateDrawNote(const QPointF &viewportPosition) {
-        const auto step = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+        const auto step = TimelineSnapUtils::quantizeStep(appStatus->pianoRollQuantize,
+                                                          !appStatus->pianoRollQuantizeEnabled);
         const auto snappedEnd =
             NoteEditUtils::snapLocalDown(localTickAt(viewportPosition) + clip->start(),
                                          clip->start(), step, appModel->timeline());
@@ -1530,8 +1532,8 @@ public:
                                                               : QList<int>{interactionNoteId};
             beginNoteEditSession(ids);
         }
-        const auto step = TimelineSnapUtils::quantizeStep(appStatus->pianoRollQuantize,
-                                                          modifiers == Qt::AltModifier);
+        const bool snapOff = !appStatus->pianoRollQuantizeEnabled || modifiers == Qt::AltModifier;
+        const auto step = TimelineSnapUtils::quantizeStep(appStatus->pianoRollQuantize, snapOff);
         interactionMinimumLength = step;
         const auto rawDelta = localTickAt(position) - mouseDownTick;
         interactionDeltaKey = keyAt(position) - mouseDownKey;
@@ -2644,8 +2646,7 @@ void PianoRollRhiWidget::showEvent(QShowEvent *event) {
 }
 
 bool PianoRollRhiWidget::event(QEvent *event) {
-    if (d->clip && d->editMode == EditPitchAnchor &&
-        event->type() == QEvent::ShortcutOverride) {
+    if (d->clip && d->editMode == EditPitchAnchor && event->type() == QEvent::ShortcutOverride) {
         const auto key = static_cast<QKeyEvent *>(event)->key();
         if (AnchorEditor::AnchorEditController::handlesKey(key)) {
             event->accept();

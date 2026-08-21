@@ -20,8 +20,8 @@
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
 QString PianoRollGraphicsViewHelper::defaultLyricForNewNote(const SingingClip *clip) {
-    const auto language = clip ? clip->effectiveDefaultLanguage()
-                               : appOptions->general()->defaultSingingLanguage;
+    const auto language =
+        clip ? clip->effectiveDefaultLanguage() : appOptions->general()->defaultSingingLanguage;
     return appOptions->general()->defaultLyricForLanguage(language);
 }
 
@@ -49,8 +49,8 @@ void PianoRollGraphicsViewHelper::splitNote(const int noteId, const int tick) {
     if (!note)
         return;
 
-    const auto quantizedTickLength =
-        TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+    const auto quantizedTickLength = TimelineSnapUtils::quantizeStep(
+        appStatus->pianoRollQuantize, !appStatus->pianoRollQuantizeEnabled);
     const auto snappedTick =
         TimelineSnapUtils::snapNearest(tick, quantizedTickLength, appModel->timeline());
     const auto splitPos = snappedTick - singingClip->start();

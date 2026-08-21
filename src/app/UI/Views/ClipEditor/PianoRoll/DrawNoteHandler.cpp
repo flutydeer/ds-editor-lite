@@ -73,8 +73,8 @@ void DrawNoteHandler::continueDragAt(const QPoint &viewportPos) {
 void DrawNoteHandler::updateDrawingAt(const QPoint &viewportPos) {
     const auto scenePos = q->mapToScene(viewportPos);
     const auto globalTick = q->sceneXToTick(scenePos.x()) + d->m_offset;
-    const auto quantizedTickLength =
-        TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+    const auto quantizedTickLength = TimelineSnapUtils::quantizeStep(
+        appStatus->pianoRollQuantize, !appStatus->pianoRollQuantizeEnabled);
     const auto snappedTick = NoteEditUtils::snapLocalDown(
         globalTick, d->m_offset, quantizedTickLength, appModel->timeline());
     m_currentDrawingNote->setLength(NoteEditUtils::lengthForSnappedEnd(
@@ -129,8 +129,8 @@ void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,
                                             const int initialLength) {
     d->finishInlineEditing();
 
-    const auto quantizedTickLength =
-        TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+    const auto quantizedTickLength = TimelineSnapUtils::quantizeStep(
+        appStatus->pianoRollQuantize, !appStatus->pianoRollQuantizeEnabled);
     const auto snappedTick =
         std::max(0, NoteEditUtils::snapLocalDown(tick, d->m_offset, quantizedTickLength,
                                                  appModel->timeline()));
@@ -152,7 +152,8 @@ void DrawNoteHandler::prepareForDrawingNote(const int tick, const int keyIndex,
     m_currentDrawingNote->setRStart(snappedTick);
     const int length = initialLength >= 0
                            ? initialLength
-                           : TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+                           : TimelineSnapUtils::quantizeStep(appStatus->pianoRollQuantize,
+                                                             !appStatus->pianoRollQuantizeEnabled);
     m_currentDrawingNote->setLength(length);
     m_currentDrawingNote->setKeyIndex(keyIndex);
     q->scene()->addCommonItem(m_currentDrawingNote);

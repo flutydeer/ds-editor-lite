@@ -19,6 +19,8 @@ AppStatus::AppStatus(QObject *parent) : QObject(parent) {
 
     // Project
     pianoRollQuantize.onChanged([this](auto value) { emit pianoRollQuantizeChanged(value); });
+    pianoRollQuantizeEnabled.onChanged(
+        [this](auto value) { emit pianoRollQuantizeEnabledChanged(value); });
     projectEditableLength.onChanged(
         [this](auto value) { emit projectEditableLengthChanged(value); });
     selectedTrackIndex.onChanged([this](auto value) { emit selectedTrackIndexChanged(value); });

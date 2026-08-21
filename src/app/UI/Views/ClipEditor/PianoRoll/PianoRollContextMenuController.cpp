@@ -217,13 +217,13 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
         paste->setEnabled(payload != nullptr);
         if (payload) {
             const auto previewData = makePreviewData(payload->info());
-            const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+            const auto quantize = TimelineSnapUtils::quantizeStep(
+                appStatus->pianoRollQuantize, !appStatus->pianoRollQuantizeEnabled);
             const auto snappedTick =
                 TimelineSnapUtils::snapNearest(context.globalTick, quantize, appModel->timeline());
-            const auto previewTick =
-                clip->start() + NotePasteUtils::resolveLocalAnchor(
-                                    Clip::ClipCommonProperties(*clip), context.globalTick,
-                                    snappedTick);
+            const auto previewTick = clip->start() + NotePasteUtils::resolveLocalAnchor(
+                                                         Clip::ClipCommonProperties(*clip),
+                                                         context.globalTick, snappedTick);
             connect(paste, &QAction::hovered, this, [previewHost, previewData, previewTick] {
                 if (previewHost)
                     previewHost->showPianoRollPastePreview(previewData, previewTick);

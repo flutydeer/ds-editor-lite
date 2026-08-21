@@ -505,10 +505,8 @@ void PianoRollGraphicsView::updateNoteDragAt(const QPoint &viewportPos,
                                              const Qt::KeyboardModifiers modifiers) {
     Q_D(PianoRollGraphicsView);
 
-    if (modifiers == Qt::AltModifier)
-        d->m_interactionController->setTempQuantizeOff(true);
-    else
-        d->m_interactionController->setTempQuantizeOff(false);
+    const bool quantizeOff = !appStatus->pianoRollQuantizeEnabled || modifiers == Qt::AltModifier;
+    d->m_interactionController->setTempQuantizeOff(quantizeOff);
 
     const auto scenePos = mapToScene(viewportPos);
     const auto quantizedTickLength = TimelineSnapUtils::quantizeStep(
@@ -574,10 +572,9 @@ void PianoRollGraphicsView::onEdgeAutoScrollFrame(const QPoint &clampedViewportP
         return;
 
     const auto behavior = d->m_interactionController->mouseMoveBehavior();
-    const auto noteCanExtendRight =
-        behavior == NoteInteractionController::Move ||
-        behavior == NoteInteractionController::ResizeRight ||
-        dynamic_cast<DrawNoteHandler *>(d->m_currentHandler);
+    const auto noteCanExtendRight = behavior == NoteInteractionController::Move ||
+                                    behavior == NoteInteractionController::ResizeRight ||
+                                    dynamic_cast<DrawNoteHandler *>(d->m_currentHandler);
     const auto hBar = horizontalScrollBar();
     if (noteCanExtendRight && clampedViewportPos.x() >= viewport()->rect().right() - 1 &&
         hBar->value() >= hBar->maximum()) {
@@ -683,7 +680,8 @@ void PianoRollGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
         const auto keyIndex =
             PianoRollCoord::sceneYToKeyIndexInt(scenePos.y(), scaleY() * noteHeight);
 
-        const int noteLength = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
+        const int noteLength = TimelineSnapUtils::quantizeStep(
+            appStatus->pianoRollQuantize, !appStatus->pianoRollQuantizeEnabled);
 
         d->m_interactionController->setMouseDown(true, Qt::LeftButton);
         d->m_interactionController->setMouseDownPos(scenePos);

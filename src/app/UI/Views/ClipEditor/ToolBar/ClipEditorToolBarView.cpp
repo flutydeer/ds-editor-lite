@@ -110,20 +110,35 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
 
     d->m_cbPianoRollQuantize = new ComboBox(WheelEventPolicy::Handle);
     d->m_cbPianoRollQuantize->setObjectName("cbPianoRollQuantize");
-    d->m_cbPianoRollQuantize->addItems(QuantizeOptions::strings());
+    QStringList quantizeItems{tr("(No Quantize)")};
+    quantizeItems.append(QuantizeOptions::strings());
+    d->m_cbPianoRollQuantize->addItems(quantizeItems);
     // Scroll the popup list per pixel (pairs with global smooth scrolling;
     // per-line scrolling feels like jumping a lot)
     d->m_cbPianoRollQuantize->view()->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
-    d->m_cbPianoRollQuantize->setCurrentIndex(quantizeIndex(appStatus->pianoRollQuantize));
     d->m_cbPianoRollQuantize->setFixedHeight(d->m_contentHeight);
     d->m_cbPianoRollQuantize->setToolTip(tr("Piano Roll Quantize"));
-    connect(d->m_cbPianoRollQuantize, &QComboBox::currentIndexChanged, this,
-            [](int index) { appStatus->pianoRollQuantize = QuantizeOptions::values().at(index); });
+    connect(d->m_cbPianoRollQuantize, &QComboBox::currentIndexChanged, this, [](int index) {
+        if (index <= 0) {
+            appStatus->pianoRollQuantizeEnabled = false;
+            return;
+        }
+        appStatus->pianoRollQuantizeEnabled = true;
+        appStatus->pianoRollQuantize = QuantizeOptions::values().at(index - 1);
+    });
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, d->m_cbPianoRollQuantize,
             [combo = d->m_cbPianoRollQuantize](int quantize) {
                 const QSignalBlocker blocker(combo);
-                combo->setCurrentIndex(quantizeIndex(quantize));
+                combo->setCurrentIndex(1 + quantizeIndex(quantize));
             });
+    connect(appStatus, &AppStatus::pianoRollQuantizeEnabledChanged, d->m_cbPianoRollQuantize,
+            [combo = d->m_cbPianoRollQuantize](const bool enabled) {
+                const QSignalBlocker blocker(combo);
+                combo->setCurrentIndex(enabled ? 1 + quantizeIndex(appStatus->pianoRollQuantize)
+                                               : 0);
+            });
+    d->m_cbPianoRollQuantize->setCurrentIndex(
+        appStatus->pianoRollQuantizeEnabled ? 1 + quantizeIndex(appStatus->pianoRollQuantize) : 0);
 
 
     d->m_btnArrow =
