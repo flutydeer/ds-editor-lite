@@ -2334,7 +2334,7 @@ private:
     }
 
     void appendLastPlaybackIndicator(const double sceneTop, const double sceneBottom) {
-        if (playbackController->playbackStatus() != PlaybackGlobal::Playing)
+        if (playbackController->playbackStatus() == PlaybackGlobal::Stopped)
             return;
         const auto lastX = (lastPlaybackPosition - clip->start()) * pixelsPerTick();
         for (auto top = sceneTop; top < sceneBottom; top += 6.0) {

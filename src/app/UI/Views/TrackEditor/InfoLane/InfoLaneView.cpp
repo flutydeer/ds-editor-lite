@@ -193,7 +193,7 @@ void InfoLaneView::paintEvent(QPaintEvent *event) {
         painter.setPen(pen);
         painter.drawLine(QLineF(x, 0, x, height()));
     };
-    if (playbackController->playbackStatus() == PlaybackGlobal::Playing)
+    if (playbackController->playbackStatus() != PlaybackGlobal::Stopped)
         drawPlayheadLine(m_lastPosition, m_lastPlayheadColor, Qt::DashLine);
     drawPlayheadLine(m_position, m_playheadColor, Qt::SolidLine);
 }

@@ -1201,7 +1201,7 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
 
 void TracksRhiWidget::appendLastPlaybackIndicator(EditorRhiFrameData &frame,
                                                   const double dpr) const {
-    if (playbackController->playbackStatus() != PlaybackGlobal::Playing)
+    if (playbackController->playbackStatus() == PlaybackGlobal::Stopped)
         return;
     const auto visible = m_viewport.visibleSceneRect();
     const auto top = visible.top() * dpr;

@@ -144,11 +144,11 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     m_sceneLastPlayPosIndicator->setPen(lastPlayPosPen);
     if (showLastPlaybackPosition) {
         m_scene->addTimeIndicator(m_sceneLastPlayPosIndicator);
-        m_sceneLastPlayPosIndicator->setVisible(playbackController->playbackStatus() ==
-                                                PlaybackGlobal::Playing);
+        m_sceneLastPlayPosIndicator->setVisible(playbackController->playbackStatus() !=
+                                                PlaybackGlobal::Stopped);
         connect(playbackController, &PlaybackController::playbackStatusChanged, this,
                 [this](const PlaybackGlobal::PlaybackStatus status) {
-                    m_sceneLastPlayPosIndicator->setVisible(status == PlaybackGlobal::Playing);
+                    m_sceneLastPlayPosIndicator->setVisible(status != PlaybackGlobal::Stopped);
                 });
     }
 

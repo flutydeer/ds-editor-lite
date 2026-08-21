@@ -289,7 +289,7 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
         }
     }
 
-    if (playbackController->playbackStatus() == PlaybackGlobal::Playing) {
+    if (playbackController->playbackStatus() != PlaybackGlobal::Stopped) {
         // Draw last playback position (dashed)
         painter.setRenderHint(QPainter::Antialiasing);
         pen.setStyle(Qt::DashLine);
