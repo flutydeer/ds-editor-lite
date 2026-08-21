@@ -42,6 +42,10 @@ namespace NoteLyricPresentation {
             result.textRect.height() <= 0.0) {
             return result;
         }
+        if (result.textRect.width() <= 0.0) {
+            result.elided = true;
+            return result;
+        }
 
         const QFontMetricsF metrics(font);
         if (metrics.height() >= result.textRect.height())

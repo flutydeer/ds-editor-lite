@@ -117,6 +117,11 @@ int main(int argc, char *argv[]) {
         QRectF(0.0, 0.0, 7.0, noteTextHeight), longLyric, lyricFont, 1.0);
     expect(!ultraShortLayout.isVisible() && ultraShortLayout.elided,
            "a lyric with no drawable width must remain eligible for its tooltip");
+    const auto negativeWidthLayout = NoteLyricPresentation::layout(
+        QRectF(0.0, 0.0, 6.0, noteTextHeight), QStringLiteral("啦"), lyricFont, 1.0);
+    expect(negativeWidthLayout.textRect.width() < 0.0 && !negativeWidthLayout.isVisible() &&
+               negativeWidthLayout.elided,
+           "an ultra-short note must not draw a one-character lyric outside its bounds");
     const auto compactLayout = NoteLyricPresentation::layout(
         narrowNoteRect, longLyric, lyricFont, NoteLyricPresentation::compactScaleThreshold - 0.01);
     expect(!compactLayout.isVisible() && !compactLayout.elided,
