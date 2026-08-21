@@ -44,6 +44,8 @@ InfoLaneView::InfoLaneView(QWidget *parent) : QWidget(parent) {
             &InfoLaneView::setPosition);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &InfoLaneView::setLastPosition);
+    connect(playbackController, &PlaybackController::playbackStatusChanged, this,
+            [this] { update(); });
 }
 
 void InfoLaneView::setTimeRange(const double startTick, const double endTick) {
@@ -191,7 +193,8 @@ void InfoLaneView::paintEvent(QPaintEvent *event) {
         painter.setPen(pen);
         painter.drawLine(QLineF(x, 0, x, height()));
     };
-    drawPlayheadLine(m_lastPosition, m_lastPlayheadColor, Qt::DashLine);
+    if (playbackController->playbackStatus() == PlaybackGlobal::Playing)
+        drawPlayheadLine(m_lastPosition, m_lastPlayheadColor, Qt::DashLine);
     drawPlayheadLine(m_position, m_playheadColor, Qt::SolidLine);
 }
 
