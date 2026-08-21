@@ -417,13 +417,15 @@ void TracksRhiWidget::updateScrollBars() {
 }
 
 void TracksRhiWidget::scheduleSnapshot() {
-    if (m_snapshotScheduled)
+    if (isResizeActive() || m_snapshotScheduled)
         return;
     m_snapshotScheduled = true;
     QTimer::singleShot(0, this, [this] {
         if (!m_snapshotScheduled)
             return;
         m_snapshotScheduled = false;
+        if (isResizeActive())
+            return;
         rebuildSnapshot();
     });
 }
@@ -438,7 +440,8 @@ void TracksRhiWidget::flushSnapshot() {
 void TracksRhiWidget::resizeEvent(QResizeEvent *event) {
     m_viewport.setViewportSize(event->size());
     emit sizeChanged(event->size());
-    flushSnapshot();
+    if (!isResizeActive())
+        flushSnapshot();
     EditorRhiWidget::resizeEvent(event);
 }
 
@@ -870,6 +873,10 @@ void TracksRhiWidget::rebuildSnapshot() {
     m_glyphAtlas.populateTextureBatches(frame.textureBatches);
     submitFrame(std::move(frame));
     updatePlaybackOverlay();
+}
+
+void TracksRhiWidget::onResizeSettled() {
+    scheduleSnapshot();
 }
 
 void TracksRhiWidget::rebuildModelConnections() {
