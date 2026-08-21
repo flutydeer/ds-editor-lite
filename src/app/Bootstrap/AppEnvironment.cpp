@@ -23,8 +23,11 @@ namespace AppEnvironment {
         qputenv("QT_ENABLE_HIGHDPI_SCALING", "1");
         QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
             Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
-        if (QSysInfo::productType() == "windows")
+        if (QSysInfo::productType() == "windows") {
+            // QWindowKit otherwise flushes the old RHI frame before Qt handles the new client size.
+            qputenv("QWK_DISABLE_FLICKER_WORKAROUND", "1");
             QGuiApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
+        }
     }
 
     void postInit() {
