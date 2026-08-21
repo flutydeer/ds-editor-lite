@@ -153,10 +153,6 @@ public:
             return;
 
         resourcesReady = true;
-        qInfo().noquote() << QStringLiteral(
-                                 "[%1] initialized backend=%2 sampleCount=1 depthStencil=none "
-                                 "sceneCache=enabled")
-                                 .arg(diagnosticsTag, QString::fromUtf8(rhi->backendName()));
         q->onRhiReady();
     }
 
