@@ -752,7 +752,7 @@ void SpeakerMixEditorView::updateDrag(const QPointF &scenePos) {
     auto &kf = m_keyframes[ki];
     int si = m_state.dragSplitIndex;
 
-    if (si >= 0 && !m_state.dragSplitResolved && !qFuzzyIsNull(delta.y())) {
+    if (si >= 0 && !m_state.dragSplitResolved && std::abs(delta.y()) > kDragThreshold) {
         const QVector<double> dragStartFullWeights = SpeakerMixUtils::storedWeightsToFull(
             toVector(m_state.dragStartWeights.weights), m_speakers.size());
         si = SpeakerMixUtils::resolveOverlappingSplitIndex(dragStartFullWeights, si, delta.y());

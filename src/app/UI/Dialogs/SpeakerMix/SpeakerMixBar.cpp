@@ -246,10 +246,10 @@ void SpeakerMixBar::mouseMoveEvent(QMouseEvent *event) {
             const int initialSplitIndex = m_draggingIndex - 1;
             const double initialValue =
                 SpeakerMixUtils::cumulativeWeightAtSplit(m_dragStartValues, initialSplitIndex);
-            if (!qFuzzyIsNull(newValue - initialValue)) {
+            const int dragDelta = adjustedX - valueToPixel(initialValue);
+            if (dragDelta != 0) {
                 m_draggingIndex = SpeakerMixUtils::resolveOverlappingSplitIndex(
-                                      m_dragStartValues, initialSplitIndex,
-                                      newValue - initialValue, 100.0) +
+                                      m_dragStartValues, initialSplitIndex, dragDelta, 100.0) +
                                   1;
                 m_dragSplitResolved = true;
             }
