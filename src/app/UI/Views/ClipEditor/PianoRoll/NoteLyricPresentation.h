@@ -42,7 +42,9 @@ namespace NoteLyricPresentation {
             result.textRect.height() <= 0.0) {
             return result;
         }
-        if (result.textRect.width() <= 0.0) {
+        const auto availableWidth =
+            static_cast<int>(std::floor(std::max(0.0, result.textRect.width())));
+        if (availableWidth <= 0) {
             result.elided = true;
             return result;
         }
@@ -51,8 +53,6 @@ namespace NoteLyricPresentation {
         if (metrics.height() >= result.textRect.height())
             return result;
 
-        const auto availableWidth =
-            static_cast<int>(std::floor(std::max(0.0, result.textRect.width())));
         result.displayText = metrics.elidedText(lyric, Qt::ElideRight, availableWidth);
         result.elided = result.displayText != lyric;
         return result;
