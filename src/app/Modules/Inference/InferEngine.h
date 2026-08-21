@@ -10,6 +10,7 @@
 
 #include <QReadWriteLock>
 #include <QObject>
+#include <QSet>
 
 #include <synthrt/Core/Core/Runtime.h>
 #include <diffsinger/Session/ModelSetHandle.h>
@@ -55,6 +56,7 @@ public:
     // shape the 4 DiffSinger tasks consume.
     std::shared_ptr<ds::session::ModelSetHandle>
         acquireSingerSession(const SingerIdentifier &identifier) const;
+    void retainSingerSessions(const QSet<SingerIdentifier> &identifiers);
 
     // Kicks off asynchronous initialization; called by the owner after
     // construction.

@@ -44,6 +44,8 @@ public slots:
 protected:
     void handleModelChanged() override;
     void handleTempoChanged() override;
+    void handleTrackInserted(Track *track) override;
+    void handleTrackRemoved(Track *track) override;
     void handleSingingClipInserted(SingingClip *clip) override;
     void handleSingingClipRemoved(SingingClip *clip) override;
     void handlePiecesChanged(const PieceList &newPieces, const PieceList &discardedPieces,
@@ -55,6 +57,7 @@ protected:
 
 public:
     void handleLanguageModuleStatusChanged(AppStatus::ModuleStatus status);
+    void syncSingerSessions();
     void handleGetPronTaskFinished(GetPronunciationTask &task);
     void handleGetPhoneTaskFinished(GetPhonemeNameTask &task);
 

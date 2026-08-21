@@ -1,4 +1,5 @@
 #include "InferController.h"
+#include "InferEngine.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "InferController_p.h"
 
@@ -150,6 +151,7 @@ InferController::InferController(QObject *parent)
             &InferControllerPrivate::onPlaybackStatusChanged);
     connect(playbackController, &PlaybackController::positionChanged, d,
             &InferControllerPrivate::onPlaybackPositionChanged);
+    d->syncSingerSessions();
 }
 
 InferController::~InferController() = default;
@@ -354,6 +356,7 @@ void InferControllerPrivate::suspendPendingAcousticPipelines() {
 
 void InferControllerPrivate::handleModelChanged() {
     qInfo() << "Reset inference state for model change";
+    syncSingerSessions();
     editSessionManager->clear();
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
     clearAllPendingApplies("pending-cleared-model-changed");
@@ -420,8 +423,22 @@ void InferControllerPrivate::handleTempoChanged() {
     }
 }
 
+void InferControllerPrivate::handleTrackInserted(Track *track) {
+    ModelChangeHandler::handleTrackInserted(track);
+    connect(track, &Track::voiceContextChanged, this,
+            [this] { syncSingerSessions(); });
+    syncSingerSessions();
+}
+
+void InferControllerPrivate::handleTrackRemoved(Track *track) {
+    disconnect(track, &Track::voiceContextChanged, this, nullptr);
+    ModelChangeHandler::handleTrackRemoved(track);
+    syncSingerSessions();
+}
+
 void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipInserted(clip);
+    syncSingerSessions();
 
     if (!clip->pieces().isEmpty()) {
         // Cross-track move: keep existing pipelines only when their singer/speaker context is
@@ -443,6 +460,7 @@ void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
 
 void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {
     ModelChangeHandler::handleSingingClipRemoved(clip);
+    syncSingerSessions();
 
     if (appModel->findClipById(clip->id())) {
         // Cross-track move: inference pipelines continue running,
@@ -586,6 +604,7 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
     if (!clip)
         return;
 
+    syncSingerSessions();
     const bool singerChanged = change.before.singer != change.after.singer;
     const bool speakerChanged = change.before.speaker != change.after.speaker;
     if (singerChanged || speakerChanged) {
@@ -629,6 +648,26 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
         for (const auto pipeline : pipelines)
             pipeline->onExpressivenessChanged();
     }
+}
+
+void InferControllerPrivate::syncSingerSessions() {
+    QSet<SingerIdentifier> identifiers;
+    for (const auto track : appModel->tracks()) {
+        const auto trackIdentifier = track->singerIdentifier();
+        if (!trackIdentifier.isEmpty()) {
+            identifiers.insert(trackIdentifier);
+        }
+        for (const auto clip : track->clips()) {
+            if (clip->clipType() != IClip::Singing) {
+                continue;
+            }
+            const auto identifier = static_cast<SingingClip *>(clip)->singerIdentifier();
+            if (!identifier.isEmpty()) {
+                identifiers.insert(identifier);
+            }
+        }
+    }
+    inferEngine->retainSingerSessions(identifiers);
 }
 
 void InferControllerPrivate::handleLanguageModuleStatusChanged(

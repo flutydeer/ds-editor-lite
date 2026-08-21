@@ -23,6 +23,8 @@
 #include <QStandardPaths>
 #include <QString>
 
+#include <algorithm>
+
 #include "Tasks/InferTaskCommon.h"
 #include "Utils/CudaGpuUtils.h"
 
@@ -48,6 +50,19 @@ static void log_report_callback(const int level, const srt::core::LogContext &ct
             Log::d(ctx.category, message_qstr);
             break;
     }
+}
+
+static bool packageIsSelected(const ds::session::LoadedVoicebankInfo &package,
+                              const QSet<SingerIdentifier> &identifiers) {
+    const auto packageId = QString::fromStdString(package.packageId);
+    const auto packageVersion =
+        QVersionNumber::fromString(QString::fromStdString(package.version.toString()));
+    return std::any_of(identifiers.cbegin(), identifiers.cend(),
+                       [&packageId, &packageVersion](const SingerIdentifier &identifier) {
+                           return identifier.packageId == packageId &&
+                                  QVersionNumber::compare(identifier.packageVersion,
+                                                          packageVersion) == 0;
+                       });
 }
 
 InferEngine::InferEngine(QObject *parent) : QObject(parent) {
@@ -238,6 +253,30 @@ std::shared_ptr<ds::session::ModelSetHandle>
         }
         return *exp;
     });
+}
+
+void InferEngine::retainSingerSessions(const QSet<SingerIdentifier> &identifiers) {
+    QReadLocker lock(&m_engineRwLock);
+    m_singerSessions.retainOnly(identifiers);
+    if (!m_initialized || m_disposed) {
+        return;
+    }
+
+    auto &session = SynthrtEngine::instance().session();
+    for (const auto &package : session.loadedVoicebanks()) {
+        if (packageIsSelected(package, identifiers)) {
+            continue;
+        }
+
+        auto result = session.unloadVoicebank(package.packageId, package.version);
+        if (!result && result.error().code() != srt::core::ErrorCode::PackageInUse &&
+            result.error().code() != srt::core::ErrorCode::RuntimePackageNotLoaded) {
+            qWarning().noquote().nospace()
+                << "retainSingerSessions: failed to unload package "
+                << QString::fromStdString(package.packageId) << ": "
+                << QString::fromUtf8(result.error().messageWithLocation());
+        }
+    }
 }
 
 void InferEngine::dispose() {
