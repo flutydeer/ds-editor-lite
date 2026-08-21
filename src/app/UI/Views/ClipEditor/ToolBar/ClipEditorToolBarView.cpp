@@ -504,18 +504,17 @@ void ClipEditorToolBarViewPrivate::refreshPitchBakeAvailability() const {
 }
 
 void ClipEditorToolBarViewPrivate::onSingerEdited() const {
-    if (m_singingClip) {
-        if (m_cbSinger->isInheritSelected()) {
-            m_singingClip->useTrackSingerAndSpeaker();
-            m_cbSinger->setCurrentData(m_singingClip->singerInfo(), m_singingClip->speakerInfo(),
-                                       true);
-        } else {
-            const auto singerInfo = m_cbSinger->currentSinger();
-            const auto speakerInfo = m_cbSinger->currentSpeaker();
-            m_singingClip->setOwnSingerAndSpeaker(singerInfo, speakerInfo);
-        }
-        m_cbSinger->setToolTip(m_cbSinger->currentText());
+    if (!m_singingClip)
+        return;
+
+    if (m_cbSinger->isInheritSelected()) {
+        m_singingClip->useTrackSingerAndSpeaker();
+    } else {
+        const auto singerInfo = m_cbSinger->currentSinger();
+        const auto speakerInfo = m_cbSinger->currentSpeaker();
+        m_singingClip->setOwnSingerAndSpeaker(singerInfo, speakerInfo);
     }
+    refreshSingerComboPresentation();
 }
 
 void ClipEditorToolBarViewPrivate::refreshSingerComboPresentation() const {

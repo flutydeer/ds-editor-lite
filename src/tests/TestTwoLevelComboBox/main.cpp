@@ -32,6 +32,11 @@ int main(int argc, char *argv[]) {
     bool success = true;
     comboBox.setCurrentData(singer, speaker, true);
     success &= expect(comboBox.isInheritSelected(), "inherit item should be selected explicitly");
+    const auto inheritedMixText = QStringLiteral("Singer / Custom Mix");
+    comboBox.setDisplayTextOverride(inheritedMixText);
+    success &= expect(comboBox.currentText() ==
+                          QStringLiteral("Follow Track (%1)").arg(inheritedMixText),
+                      "inherited mix text should retain the Follow Track prefix");
 
     comboBox.setCurrentData(singer, speaker, false);
     const auto dynamicMixText = QStringLiteral("Singer / Dynamic Mix");
