@@ -14,6 +14,29 @@
 
 namespace {
     constexpr int kStatsWindow = 120;
+    constexpr int kSceneTextureSizeQuantum = 256;
+
+    struct SceneUniformData {
+        qint32 flip = 0;
+        float scaleX = 1.0f;
+        float scaleY = 1.0f;
+        float padding = 0.0f;
+    };
+
+    int sceneTextureDimension(const int current, const int required, const int maximum) {
+        if (current >= required)
+            return current;
+        const auto rounded =
+            ((required + kSceneTextureSizeQuantum - 1) / kSceneTextureSizeQuantum) *
+            kSceneTextureSizeQuantum;
+        return std::min(rounded, maximum);
+    }
+
+    QSize sceneTextureSize(QRhi *rhi, const QSize &current, const QSize &required) {
+        const auto maximum = rhi->resourceLimit(QRhi::TextureSizeMax);
+        return {sceneTextureDimension(current.width(), required.width(), maximum),
+                sceneTextureDimension(current.height(), required.height(), maximum)};
+    }
 
     QShader loadShader(const QString &path) {
         QFile file(path);
@@ -152,8 +175,6 @@ public:
         fallbackImage.fill(Qt::transparent);
         auto initialUpdates = rhi->nextResourceUpdateBatch();
         initialUpdates->uploadTexture(fallbackTexture.get(), fallbackImage);
-        const qint32 flip = rhi->isYUpInFramebuffer() ? 0 : 1;
-        initialUpdates->updateDynamicBuffer(blitUniformBuffer.get(), 0, sizeof(flip), &flip);
         pendingUpdates.reset(initialUpdates);
 
         if (!createPipelines())
@@ -284,8 +305,9 @@ public:
         }
 
         const auto outputSize = colorTexture->pixelSize();
+        const auto cacheSize = sceneTextureSize(rhi, {}, outputSize);
         sceneTexture.reset(
-            rhi->newTexture(QRhiTexture::RGBA8, outputSize, 1, QRhiTexture::RenderTarget));
+            rhi->newTexture(QRhiTexture::RGBA8, cacheSize, 1, QRhiTexture::RenderTarget));
         if (!sceneTexture->create()) {
             fail(QStringLiteral("failed to create scene cache texture"));
             return false;
@@ -308,15 +330,20 @@ public:
             return false;
 
         const auto outputSize = colorTexture->pixelSize();
-        if (sceneTexture->pixelSize() != outputSize) {
-            sceneTexture->setPixelSize(outputSize);
+        const auto cacheSize = sceneTextureSize(rhi, sceneTexture->pixelSize(), outputSize);
+        if (sceneTexture->pixelSize() != cacheSize) {
+            sceneTexture->setPixelSize(cacheSize);
             if (!sceneTexture->create()) {
-                fail(QStringLiteral("failed to resize scene cache texture"));
+                fail(QStringLiteral("failed to grow scene cache texture"));
+                return false;
+            }
+            if (!sceneRenderTarget->create()) {
+                fail(QStringLiteral("failed to resize scene cache render target"));
                 return false;
             }
         }
-        if (!renderTarget->create() || !sceneRenderTarget->create()) {
-            fail(QStringLiteral("failed to resize editor render targets"));
+        if (!renderTarget->create()) {
+            fail(QStringLiteral("failed to resize editor output render target"));
             return false;
         }
         frameDirty = true;
@@ -394,6 +421,14 @@ public:
         }
 
         const auto outputSize = renderTarget->pixelSize();
+        const auto sceneSize = sceneRenderTarget->pixelSize();
+        const SceneUniformData sceneUniform{
+            rhi->isYUpInFramebuffer() ? 0 : 1,
+            static_cast<float>(outputSize.width()) / sceneSize.width(),
+            static_cast<float>(outputSize.height()) / sceneSize.height(),
+        };
+        updates->updateDynamicBuffer(blitUniformBuffer.get(), 0, sizeof(sceneUniform),
+                                     &sceneUniform);
         if (frameDirty) {
             QMatrix4x4 projection;
             projection.ortho(0.0f, static_cast<float>(outputSize.width()),
@@ -444,11 +479,10 @@ public:
         };
 
         if (frameDirty) {
-            const auto sceneSize = sceneRenderTarget->pixelSize();
             cb->beginPass(sceneRenderTarget.get(), frame.clearColor, {1.0f, 0}, updates);
             updates = nullptr;
-            cb->setViewport(QRhiViewport(0, 0, sceneSize.width(), sceneSize.height()));
-            cb->setScissor(QRhiScissor(0, 0, sceneSize.width(), sceneSize.height()));
+            cb->setViewport(QRhiViewport(0, 0, outputSize.width(), outputSize.height()));
+            cb->setScissor(QRhiScissor(0, 0, outputSize.width(), outputSize.height()));
             if (!frame.drawList.commands.isEmpty()) {
                 for (const auto &command : frame.drawList.commands) {
                     if (command.type == EditorRhiDrawCommand::Type::Solid)
