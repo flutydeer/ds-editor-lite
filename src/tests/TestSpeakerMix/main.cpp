@@ -100,6 +100,24 @@ namespace {
         ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(trailingZeros, 1, 0.1) == 2,
                      "positive drag chooses last trailing overlapping split");
 
+        const QVector<double> threeLeadingZeros{0.0, 0.0, 0.0, 0.4, 0.6};
+        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(threeLeadingZeros, 1, -0.1) == 0,
+                     "negative drag chooses first of three leading overlapping splits");
+        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(threeLeadingZeros, 1, 0.1) == 2,
+                     "positive drag chooses last of three leading overlapping splits");
+
+        const QVector<double> threeTrailingZeros{0.4, 0.6, 0.0, 0.0, 0.0};
+        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(threeTrailingZeros, 2, -0.1) == 1,
+                     "negative drag chooses first of three trailing overlapping splits");
+        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(threeTrailingZeros, 2, 0.1) == 3,
+                     "positive drag chooses last of three trailing overlapping splits");
+
+        const QVector<double> interiorZeros{0.2, 0.0, 0.0, 0.0, 0.8};
+        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(interiorZeros, 2, -0.1) == 0,
+                     "negative drag chooses first of four interior overlapping splits");
+        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(interiorZeros, 2, 0.1) == 3,
+                     "positive drag chooses last of four interior overlapping splits");
+
         const QVector<double> separateSplits{0.2, 0.3, 0.5};
         ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(separateSplits, 1, -0.1) == 1,
                      "separate split keeps its index");
