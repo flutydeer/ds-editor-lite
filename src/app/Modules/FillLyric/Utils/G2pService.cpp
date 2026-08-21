@@ -2,6 +2,7 @@
 
 #include <QLoggingCategory>
 
+#include <algorithm>
 #include <map>
 #include <utility>
 #include <vector>
@@ -24,6 +25,30 @@ namespace FillLyric {
 
         QString fromUtf8(const std::string &value) {
             return QString::fromUtf8(value.data(), static_cast<qsizetype>(value.size()));
+        }
+
+        /// Candidates from the g2p engine may be the split phoneme tokens of the
+        /// pronunciation itself (dict step) rather than true alternative
+        /// pronunciations; collapse them to the whole pronunciation so the
+        /// UI never offers single phonemes as switchable candidates.
+        QStringList normalizePronunciationCandidates(const QString &pronunciation,
+                                                     QStringList candidates) {
+            if (pronunciation.isEmpty())
+                return candidates;
+            const auto pronTokens = pronunciation.split(u' ', Qt::SkipEmptyParts);
+            if (pronTokens.isEmpty())
+                return candidates;
+            for (auto &c : candidates)
+                c = c.trimmed();
+            candidates.removeAll(QString());
+            const bool allArePronTokens =
+                !candidates.isEmpty() &&
+                std::all_of(candidates.cbegin(), candidates.cend(), [&](const QString &c) {
+                    return c.contains(u' ') ? c == pronunciation : pronTokens.contains(c);
+                });
+            if (allArePronTokens)
+                return {pronunciation};
+            return candidates;
         }
     }
 
@@ -111,23 +136,23 @@ namespace FillLyric {
             const auto langStd = toUtf8(language);
             auto readyExp = session.ensureLanguageReady(packageId, version, langStd);
             if (!readyExp) {
-                qCWarning(logFillG2p) << "G2P language ready failed for language" << language
-                                      << ":" << fromUtf8(readyExp.error().message());
+                qCWarning(logFillG2p) << "G2P language ready failed for language" << language << ":"
+                                      << fromUtf8(readyExp.error().message());
                 continue; // Keep original lyric for this language
             }
 
             auto exp = session.convertG2p(m_singer, langStd, inputs);
             if (!exp) {
-                qCWarning(logFillG2p) << "Failed to convert G2P for language" << language
-                                      << ":" << fromUtf8(exp.error().message());
+                qCWarning(logFillG2p) << "Failed to convert G2P for language" << language << ":"
+                                      << fromUtf8(exp.error().message());
                 continue; // Keep original lyric for this language
             }
 
             const auto &outcomes = *exp;
             if (outcomes.size() != entries.size()) {
-                qCWarning(logFillG2p) << "convertG2p returned" << outcomes.size()
-                                      << "outcomes for" << entries.size()
-                                      << "requests; keeping original lyric for unmatched notes";
+                qCWarning(logFillG2p)
+                    << "convertG2p returned" << outcomes.size() << "outcomes for" << entries.size()
+                    << "requests; keeping original lyric for unmatched notes";
             }
 
             const auto coveredCount = std::min(outcomes.size(), entries.size());
@@ -142,11 +167,13 @@ namespace FillLyric {
                 const auto &outcome = outcomes[i];
                 result.g2pId = fromUtf8(outcome.g2pId);
                 result.pronunciation = fromUtf8(outcome.pronunciation);
-                result.candidates.clear();
-                result.candidates.reserve(static_cast<qsizetype>(outcome.candidates.size()));
+                QStringList rawCandidates;
+                rawCandidates.reserve(static_cast<qsizetype>(outcome.candidates.size()));
                 for (const auto &candidate : outcome.candidates) {
-                    result.candidates.append(fromUtf8(candidate));
+                    rawCandidates.append(fromUtf8(candidate));
                 }
+                result.candidates =
+                    normalizePronunciationCandidates(result.pronunciation, rawCandidates);
             }
         }
 
