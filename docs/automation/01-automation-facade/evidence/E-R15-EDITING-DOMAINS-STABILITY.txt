@@ -1,0 +1,22 @@
+Evidence ID: E-R15-EDITING-DOMAINS-STABILITY
+Round: 15
+Scope: corrected editing-domain contract suite, pre-fix stability
+
+Build: passed
+Catalog operations exercised: 40
+Scenarios per run: 42
+Assertions per run: 257
+Passing scenarios per run: 37
+Failing assertions per run: 9
+Run durations: 3.10 s, 3.09 s, 3.08 s
+Flaky observations: 0
+
+Stable product-defect groups:
+1. tracks.move records adjacent insertion no-ops and rejects insertion at list end.
+2. clips.set_properties accepts a material range beyond the clip length.
+3. notes.set_phoneme_offsets accepts mismatched counts and unsorted offsets.
+4. parameters.replace accepts a non-positive Draw step.
+5. notes.quantize mutates the iterated note list and the isolated child times out.
+
+The corrected overlap cases passed validation, commit, revision, query, and undo checks.
+The quantize case ran in an isolated child process, so its timeout did not block the suite.

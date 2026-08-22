@@ -81,3 +81,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R14-RUNTIME-DOMAINS-STABILITY` | 14 | 运行时域扩展与 Query 缺陷稳定性摘要 | `e9a0757d57b8bffb17b9ed38d24187c60e863da4e8bbb67603d429c9d8996eeb` |
+
+## 追加证据 12
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R15-EDITING-DOMAINS-STABILITY` | 15 | 编辑域修正规格后的缺陷稳定性摘要 | `cda2743ff02e049a315a825876ac18807efc4b2c8c1cb03ce9437688591d45b8` |
