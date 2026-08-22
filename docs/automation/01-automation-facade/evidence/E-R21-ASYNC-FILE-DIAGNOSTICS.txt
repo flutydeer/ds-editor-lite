@@ -1,0 +1,12 @@
+Evidence ID: E-R21-ASYNC-FILE-DIAGNOSTICS
+Round: 21
+Scope: async and file-domain diagnostics
+
+Scenarios: 34
+Passing scenarios: 31
+Assertions: 139
+Failures: 4
+
+Diagnostics showed that document import succeeded, but the test draft contained the default
+track from its constructor; its purported empty draft was also nonempty. The two Query errors
+had correct codes and empty operation IDs.

@@ -1,0 +1,11 @@
+Evidence ID: E-R22-ASYNC-FILE-FIXTURE
+Round: 22
+Scope: corrected document-import fixture
+
+Scenarios: 34
+Passing scenarios: 32
+Assertions: 139
+Failures: 2
+
+The corrected draft explicitly had no tracks and reused the active timeline. All document
+import checks then passed. Only format-list and audio-preview Query errors lacked operation IDs.

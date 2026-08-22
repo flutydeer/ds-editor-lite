@@ -1,0 +1,11 @@
+Evidence ID: E-R23-ASYNC-FILE-STALE-QUERY
+Round: 23
+Scope: dispatcher control and stale-object isolation
+
+Scenarios: 34
+Passing scenarios: 32
+Assertions: 140
+Failures: 2
+
+A direct dispatcher control proved centralized decoration worked. The format-list and audio
+preview Facades still failed because their object files predated the dispatcher template fix.
