@@ -1,5 +1,7 @@
 #include "AppContext.h"
 
+#include "Automation/CoreRuntime.h"
+
 #include <lite/Core/SingletonRegistry.h>
 
 // Business singletons — all headers included here
@@ -85,6 +87,7 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     TaskManager::instance(); // force early construction on the main thread
     m_historyManager = SingletonRegistry::create<HistoryManager>();
     m_packageManager = SingletonRegistry::create<PackageManager>();
+    m_coreRuntime = std::make_unique<Automation::CoreRuntime>(m_appModel, m_historyManager);
 
     // L3: Runtime host must outlive the inference facade.
     m_synthrtEngine = SingletonRegistry::create<SynthrtEngine>();
@@ -189,6 +192,7 @@ AppContext::~AppContext() {
 
     // L1 (reverse)
     SingletonRegistry::destroy(m_packageManager);
+    m_coreRuntime.reset();
     SingletonRegistry::destroy(m_historyManager);
 
     // L0 (reverse)
@@ -228,3 +232,6 @@ template <> InferController *AppContext::instance() { return s_self ? s_self->m_
 template <> AppController *AppContext::instance() { return s_self ? s_self->m_appController : nullptr; }
 template <> DocumentWorkflowController *AppContext::instance() { return s_self ? s_self->m_documentWorkflowController : nullptr; }
 template <> LevelMeterManager *AppContext::instance() { return s_self ? s_self->m_levelMeterManager : nullptr; }
+template <> Automation::CoreRuntime *AppContext::instance() {
+    return s_self ? s_self->m_coreRuntime.get() : nullptr;
+}

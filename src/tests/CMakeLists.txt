@@ -3,6 +3,7 @@
 # for the whole test tree here rather than linking each lib into every test.
 include_directories(${LITE_BUILD_INCLUDE_DIR})
 
+add_subdirectory(TestAutomationCore)
 #add_subdirectory(TestAnchoredCurve)
 add_subdirectory(TestElasticAnimation)
 add_subdirectory(TestExpected)
