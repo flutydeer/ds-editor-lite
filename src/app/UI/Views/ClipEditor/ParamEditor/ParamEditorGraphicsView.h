@@ -23,6 +23,8 @@ class ParamEditorGraphicsView final : public TimeGraphicsView, public IAtomicAct
                    setParamOriginalCurveColor)
     Q_PROPERTY(
         QColor paramEditedCurveColor READ paramEditedCurveColor WRITE setParamEditedCurveColor)
+    Q_PROPERTY(bool paramUseTrackColorForEditedCurve READ paramUseTrackColorForEditedCurve WRITE
+                   setParamUseTrackColorForEditedCurve)
     Q_PROPERTY(QColor paramBackgroundLayerColor READ paramBackgroundLayerColor WRITE
                    setParamBackgroundLayerColor)
     Q_PROPERTY(QColor anchorColor READ anchorColor WRITE setAnchorColor)
@@ -89,6 +91,8 @@ private:
     void setParamOriginalCurveColor(const QColor &color);
     [[nodiscard]] QColor paramEditedCurveColor() const;
     void setParamEditedCurveColor(const QColor &color);
+    [[nodiscard]] bool paramUseTrackColorForEditedCurve() const;
+    void setParamUseTrackColorForEditedCurve(bool on);
     [[nodiscard]] QColor paramBackgroundLayerColor() const;
     void setParamBackgroundLayerColor(const QColor &color);
     [[nodiscard]] QColor anchorColor() const;

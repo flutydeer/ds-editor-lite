@@ -44,6 +44,9 @@ public:
     [[nodiscard]] QColor backgroundLayerColor() const;
     void setBackgroundLayerColor(const QColor &color);
 
+    [[nodiscard]] bool useTrackColorForEditedCurve() const;
+    void setUseTrackColorForEditedCurve(bool on);
+
 signals:
     void editStarted();
     void editCommitted();
@@ -57,6 +60,7 @@ protected:
                                QWidget *widget);
     [[nodiscard]] const QList<DrawCurve *> &originalCurves() const;
     void drawCurveBorder(QPainter *painter, const QList<DrawCurve *> &curves) const;
+    [[nodiscard]] QColor resolvedEditedCurveColor() const;
 
 private:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -96,6 +100,7 @@ private:
     QColor m_originalCurveColor = {255, 255, 255, 96};
     QColor m_editedCurveColor = {255, 255, 255};
     QColor m_backgroundLayerColor = {41, 44, 54};
+    bool m_useTrackColorForEditedCurve = false;
 };
 
 #endif // PITCHEDITORGRAPHICSITEM_H

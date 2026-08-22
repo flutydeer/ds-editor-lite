@@ -122,6 +122,15 @@ void ParamEditorGraphicsView::setParamEditedCurveColor(const QColor &color) {
     m_background->setEditedCurveColor(color);
 }
 
+bool ParamEditorGraphicsView::paramUseTrackColorForEditedCurve() const {
+    return m_foreground->useTrackColorForEditedCurve();
+}
+
+void ParamEditorGraphicsView::setParamUseTrackColorForEditedCurve(bool on) {
+    m_foreground->setUseTrackColorForEditedCurve(on);
+    m_background->setUseTrackColorForEditedCurve(on);
+}
+
 QColor ParamEditorGraphicsView::paramBackgroundLayerColor() const {
     return m_foreground->backgroundLayerColor();
 }

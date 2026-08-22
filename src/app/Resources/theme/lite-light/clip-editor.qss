@@ -168,7 +168,7 @@ PianoRollGraphicsView, PianoRollRhiWidget {
     qproperty-pronunciationTextColor: ${piano.roll.pronunciation};
     qproperty-clipRangeOverlayColor: ${piano.roll.overlay};
     qproperty-paramOriginalCurveColor: ${curve.original};
-    qproperty-paramEditedCurveColor: ${curve.edited};
+    qproperty-paramEditedCurveColor: ${pitch.curveEdited};
     qproperty-barLineColor: ${editor.grid.bar};
     qproperty-beatLineColor: ${editor.grid.beat};
     qproperty-commonLineColor: ${editor.grid.subdivision};
@@ -207,6 +207,7 @@ ParamEditorGraphicsView {
     qproperty-paramGraduateColor: ${curve.guide};
     qproperty-paramOriginalCurveColor: ${curve.original};
     qproperty-paramEditedCurveColor: ${curve.edited};
+    qproperty-paramUseTrackColorForEditedCurve: true;
     qproperty-paramBackgroundLayerColor: ${editor.canvasAlternate};
     qproperty-anchorColor: ${curve.anchor};
     qproperty-anchorSelectedColor: ${curve.anchorSelected};

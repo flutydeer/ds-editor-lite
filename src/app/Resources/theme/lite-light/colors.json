@@ -195,7 +195,8 @@
 
         "curve.guide": "{neutral.400}",
         "curve.original": "{neutral.black38}",
-        "curve.edited": "{neutral.600}",
+        "curve.edited": "{accent.500}",
+        "pitch.curveEdited": "{neutral.600}",
         "curve.anchor": "{neutral.750}",
         "curve.anchorSelected": "{accent.500}",
 

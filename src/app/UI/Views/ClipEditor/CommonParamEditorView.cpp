@@ -158,6 +158,23 @@ void CommonParamEditorView::setBackgroundLayerColor(const QColor &color) {
     update();
 }
 
+bool CommonParamEditorView::useTrackColorForEditedCurve() const {
+    return m_useTrackColorForEditedCurve;
+}
+
+void CommonParamEditorView::setUseTrackColorForEditedCurve(const bool on) {
+    if (m_useTrackColorForEditedCurve == on)
+        return;
+    m_useTrackColorForEditedCurve = on;
+    update();
+}
+
+QColor CommonParamEditorView::resolvedEditedCurveColor() const {
+    if (!m_useTrackColorForEditedCurve)
+        return m_editedCurveColor;
+    return AppColorPalette::instance()->paramLine(NoteView::trackColorIndex());
+}
+
 void CommonParamEditorView::discardAction() {
     if (!cancelEditState()) {
         return;
@@ -251,7 +268,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
             drawCurveBorder(painter, m_drawCurvesOriginal);
         }
         if (!effectiveEdited.isEmpty()) {
-            auto editedColor = m_editedCurveColor;
+            auto editedColor = resolvedEditedCurveColor();
             editedColor.setAlpha(foreground ? 230 : 60);
             pen.setColor(editedColor);
             drawEditedCurveBorders(painter, pen);
@@ -306,7 +323,7 @@ void CommonParamEditorView::paint(QPainter *painter, const QStyleOptionGraphicsI
         // 绘制已编辑描边
         if (foreground && !effectiveEdited.isEmpty()) {
             painter->setBrush(Qt::NoBrush);
-            pen.setColor(m_editedCurveColor);
+            pen.setColor(resolvedEditedCurveColor());
             drawEditedCurveBorders(painter, pen);
         }
         delete baseCurve;
