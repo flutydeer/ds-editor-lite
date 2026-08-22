@@ -1,0 +1,13 @@
+Evidence ID: E-R32-FULL-CTEST-FIRST
+Round: 32
+Scope: first complete CTest run after the clean UTF-8 all-target build
+
+Registered tests: 45
+Passed: 45
+Failed: 0
+Pass rate: 100 percent
+Total real time: 5.09 seconds
+Per-test timeout: 120 seconds
+
+All automation contract, architecture, domain, task-race, application, and legacy regression
+targets completed normally. No timeout, crash, debug-error dialog, or Qt platform failure occurred.
