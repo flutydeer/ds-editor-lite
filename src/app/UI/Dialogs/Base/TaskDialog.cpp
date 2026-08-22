@@ -13,9 +13,15 @@ TaskDialog::TaskDialog(Task *task, const bool cancellable, const bool canHide, Q
 }
 
 void TaskDialog::onCanceled() {
-    if (m_task)
+    if (m_cancelCallback)
+        m_cancelCallback();
+    else if (m_task)
         taskManager->terminateTask(m_task);
     ProgressDialog::onCanceled();
+}
+
+void TaskDialog::setCancelCallback(std::function<void()> callback) {
+    m_cancelCallback = std::move(callback);
 }
 
 void TaskDialog::onStatusUpdated(const TaskStatus &status) const {

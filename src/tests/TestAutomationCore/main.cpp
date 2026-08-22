@@ -149,6 +149,82 @@ namespace {
         Automation::AudioExportConfigDto m_config;
         std::shared_ptr<FakeAudioExportState> m_state;
     };
+
+    struct FakePitchExtractionState {
+        int startCount = 0;
+        int cancelCount = 0;
+        bool canceled = false;
+        Automation::ExtractionJobCallbacks callbacks;
+        std::function<void(Automation::PitchExtractionBackendResult)> completed;
+    };
+
+    class FakePitchExtractionJob final : public Automation::IPitchExtractionJob {
+    public:
+        explicit FakePitchExtractionJob(std::shared_ptr<FakePitchExtractionState> state)
+            : m_state(std::move(state)) {
+        }
+
+        void start(
+            Automation::ExtractionJobCallbacks callbacks,
+            std::function<void(Automation::PitchExtractionBackendResult)> completed) override {
+            ++m_state->startCount;
+            m_state->callbacks = std::move(callbacks);
+            m_state->completed = std::move(completed);
+            if (m_state->callbacks.progress) {
+                m_state->callbacks.progress(
+                    {.minimum = 0, .maximum = 100, .value = 25, .indeterminate = false},
+                    QStringLiteral("extracting pitch"));
+            }
+        }
+
+        void cancel() override {
+            if (m_state->canceled)
+                return;
+            m_state->canceled = true;
+            ++m_state->cancelCount;
+        }
+
+    private:
+        std::shared_ptr<FakePitchExtractionState> m_state;
+    };
+
+    struct FakeMidiExtractionState {
+        int startCount = 0;
+        int cancelCount = 0;
+        bool canceled = false;
+        Automation::ExtractionJobCallbacks callbacks;
+        std::function<void(Automation::MidiExtractionBackendResult)> completed;
+    };
+
+    class FakeMidiExtractionJob final : public Automation::IMidiExtractionJob {
+    public:
+        explicit FakeMidiExtractionJob(std::shared_ptr<FakeMidiExtractionState> state)
+            : m_state(std::move(state)) {
+        }
+
+        void
+            start(Automation::ExtractionJobCallbacks callbacks,
+                  std::function<void(Automation::MidiExtractionBackendResult)> completed) override {
+            ++m_state->startCount;
+            m_state->callbacks = std::move(callbacks);
+            m_state->completed = std::move(completed);
+            if (m_state->callbacks.progress) {
+                m_state->callbacks.progress(
+                    {.minimum = 0, .maximum = 100, .value = 50, .indeterminate = false},
+                    QStringLiteral("extracting MIDI"));
+            }
+        }
+
+        void cancel() override {
+            if (m_state->canceled)
+                return;
+            m_state->canceled = true;
+            ++m_state->cancelCount;
+        }
+
+    private:
+        std::shared_ptr<FakeMidiExtractionState> m_state;
+    };
 }
 
 int main(int argc, char *argv[]) {
@@ -174,6 +250,8 @@ int main(int argc, char *argv[]) {
                          QStringLiteral("format_unsupported") &&
                      Automation::errorCodeName(Automation::AutomationErrorCode::OverwriteDenied) ==
                          QStringLiteral("overwrite_denied") &&
+                     Automation::errorCodeName(Automation::AutomationErrorCode::InferenceError) ==
+                         QStringLiteral("inference_error") &&
                      Automation::errorCodeName(Automation::AutomationErrorCode::Unsupported) ==
                          QStringLiteral("unsupported"),
                  "file error codes must keep stable external names");
@@ -466,11 +544,37 @@ int main(int argc, char *argv[]) {
     audioExportServices.schedule = [&scheduledAudioExport](std::function<void()> execute) {
         scheduledAudioExport = std::move(execute);
     };
+    QList<std::shared_ptr<FakePitchExtractionState>> pitchExtractionStates;
+    QList<std::shared_ptr<FakeMidiExtractionState>> midiExtractionStates;
+    QList<std::function<void()>> scheduledExtractions;
+    Automation::ExtractionRuntimeServices extractionServices;
+    extractionServices.preparePitch =
+        [&pitchExtractionStates](Automation::PitchExtractionInput input) {
+            input.modelPath = QStringLiteral("fake-rmvpe.onnx");
+            auto state = std::make_shared<FakePitchExtractionState>();
+            pitchExtractionStates.append(state);
+            return Automation::AutomationResult<Automation::PreparedPitchExtraction>(
+                {std::move(input), std::make_shared<FakePitchExtractionJob>(std::move(state))});
+        };
+    extractionServices.prepareMidi =
+        [&midiExtractionStates](Automation::MidiExtractionInput input) {
+            input.modelPath = QStringLiteral("fake-game");
+            input.defaultLanguage = QStringLiteral("cmn");
+            input.defaultLyric = QStringLiteral("啦");
+            auto state = std::make_shared<FakeMidiExtractionState>();
+            midiExtractionStates.append(state);
+            return Automation::AutomationResult<Automation::PreparedMidiExtraction>(
+                {std::move(input), std::make_shared<FakeMidiExtractionJob>(std::move(state))});
+        };
+    extractionServices.schedule = [&scheduledExtractions](std::function<void()> execute) {
+        scheduledExtractions.append(std::move(execute));
+    };
     Automation::CoreRuntime runtime(&model, history, std::move(documentServices),
                                     std::move(playbackServices), std::move(editorServices),
                                     std::move(settingsServices), std::move(presetServices),
                                     std::move(packageServices), std::move(inferenceServices),
-                                    std::move(fileServices), std::move(audioExportServices));
+                                    std::move(fileServices), std::move(audioExportServices),
+                                    std::move(extractionServices));
     const auto state = runtime.facade().getEditorState(runtime.windowId());
     const auto capabilities = runtime.facade().getEditorCapabilities();
     ok &= expect(state && state.get().document == runtime.documentVersion(),
@@ -478,7 +582,7 @@ int main(int argc, char *argv[]) {
     ok &= expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                      capabilities.get().maxConcurrentWindows == 1,
                  "capabilities must declare the single document/window boundary");
-    ok &= expect(capabilities && capabilities.get().operationIds.size() == 109 &&
+    ok &= expect(capabilities && capabilities.get().operationIds.size() == 111 &&
                      capabilities.get().operationIds.contains(QStringLiteral("history.undo")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tempos.set")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tracks.insert")) &&
@@ -499,6 +603,10 @@ int main(int argc, char *argv[]) {
                          QStringLiteral("exports.midi.start")) &&
                      capabilities.get().operationIds.contains(
                          QStringLiteral("exports.audio.start")) &&
+                     capabilities.get().operationIds.contains(
+                         QStringLiteral("extract.pitch.start")) &&
+                     capabilities.get().operationIds.contains(
+                         QStringLiteral("extract.midi.start")) &&
                      capabilities.get().operationIds.contains(
                          QStringLiteral("editor.set_piano_roll_edit_mode")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("documents.save")),
@@ -1083,6 +1191,182 @@ int main(int argc, char *argv[]) {
                      model.tracks().size() == tracksBeforeBatch,
                  "batch import must undo as one history entry");
 
+    Automation::ClipDraftDto extractionAudioDraft;
+    extractionAudioDraft.type = Automation::ClipDraftDto::Type::Audio;
+    extractionAudioDraft.properties.name = QStringLiteral("extraction.wav");
+    extractionAudioDraft.properties.start = 0;
+    extractionAudioDraft.properties.length = 960;
+    extractionAudioDraft.properties.clipLen = 960;
+    extractionAudioDraft.audioPath = QStringLiteral("D:/extraction.wav");
+    const auto insertExtractionAudio = runtime.project().insertClips(
+        commandContext(runtime), {
+                                     {.trackId = trackId, .clip = extractionAudioDraft}
+    });
+    const auto extractionAudioId =
+        insertExtractionAudio
+            ? Automation::ClipId(insertExtractionAudio.get().affectedObjects.first().value)
+            : Automation::ClipId();
+    ok &= expect(insertExtractionAudio && model.findClipById(extractionAudioId.value()),
+                 "extraction tests require an addressable audio clip");
+
+    const auto wrongPitchAudio =
+        runtime.extractions().startPitch(commandContext(runtime, true), clipId, clipId);
+    const auto wrongMidiAudio =
+        runtime.extractions().startMidi(commandContext(runtime, true), clipId);
+    ok &= expect(
+        !wrongPitchAudio &&
+            wrongPitchAudio.getError().code == Automation::AutomationErrorCode::WrongObjectType &&
+            !wrongMidiAudio &&
+            wrongMidiAudio.getError().code == Automation::AutomationErrorCode::WrongObjectType,
+        "extraction commands must resolve typed clip IDs before preparing jobs");
+
+    const auto tasksBeforePitchValidation = runtime.automationTasks().size();
+    const auto pitchValidation =
+        runtime.extractions().startPitch(commandContext(runtime, true), extractionAudioId, clipId);
+    const auto validationPitchState = pitchExtractionStates.last();
+    ok &= expect(pitchValidation && pitchValidation.get().validatedOnly &&
+                     pitchValidation.get().taskId.isNull() &&
+                     runtime.automationTasks().size() == tasksBeforePitchValidation &&
+                     validationPitchState->startCount == 0 && scheduledExtractions.isEmpty(),
+                 "pitch extraction validation must not allocate or start an automation task");
+
+    auto pitchContext = commandContext(runtime);
+    pitchContext.idempotencyKey = QStringLiteral("594dd2bc-f341-42bf-aeb0-6ed95965f776");
+    const auto pitchBase = runtime.documentVersion();
+    const auto pitchAccepted =
+        runtime.extractions().startPitch(pitchContext, extractionAudioId, clipId);
+    const auto pitchState = pitchExtractionStates.last();
+    if (!scheduledExtractions.isEmpty())
+        scheduledExtractions.takeFirst()();
+    if (pitchState->completed) {
+        pitchState->completed({
+            .state = Automation::ExtractionBackendState::Succeeded,
+            .segments = {{singingClip->start() + 40, {61.0, 61.5}}},
+        });
+    }
+    const auto pitchReplay =
+        runtime.extractions().startPitch(pitchContext, extractionAudioId, clipId);
+    const auto pitchTask = pitchAccepted
+                               ? runtime.tasks().getTask(runtime.documentVersion().documentId,
+                                                         pitchAccepted.get().taskId)
+                               : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                                     Automation::AutomationError{});
+    const auto extractedPitch = runtime.parameters().getParameter(
+        runtime.documentVersion().documentId, clipId, ParamInfo::Pitch, Param::Edited);
+    ok &= expect(pitchAccepted && pitchReplay && pitchReplay.get() == pitchAccepted.get() &&
+                     pitchState->startCount == 1 && pitchTask &&
+                     pitchTask.get().state == Automation::AutomationTaskState::Succeeded &&
+                     pitchTask.get().progress.value == 25 && pitchTask.get().mutation &&
+                     pitchTask.get().mutation->current.revision == pitchBase.revision + 1 &&
+                     extractedPitch && extractedPitch.get().curves.size() == 1 &&
+                     extractedPitch.get().curves.first().values == QList<int>({6100, 6150}),
+                 "pitch extraction must replay one task and commit one parameter revision");
+
+    const auto tracksBeforeMidiExtraction = model.tracks().size();
+    const auto midiBase = runtime.documentVersion();
+    const auto midiAccepted =
+        runtime.extractions().startMidi(commandContext(runtime), extractionAudioId);
+    const auto midiState = midiExtractionStates.last();
+    if (!scheduledExtractions.isEmpty())
+        scheduledExtractions.takeFirst()();
+    if (midiState->completed) {
+        midiState->completed({
+            .state = Automation::ExtractionBackendState::Succeeded,
+            .notes = {{64, 20, 240}, {67, 300, 360}},
+        });
+    }
+    const auto midiTask = midiAccepted
+                              ? runtime.tasks().getTask(runtime.documentVersion().documentId,
+                                                        midiAccepted.get().taskId)
+                              : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                                    Automation::AutomationError{});
+    auto *midiTrack = model.tracks().isEmpty() ? nullptr : model.tracks().last();
+    auto *midiClip = midiTrack && midiTrack->clips().count() > 0
+                         ? dynamic_cast<SingingClip *>(midiTrack->clips().toList().first())
+                         : nullptr;
+    ok &= expect(midiAccepted && midiState->startCount == 1 && midiTask &&
+                     midiTask.get().state == Automation::AutomationTaskState::Succeeded &&
+                     midiTask.get().mutation &&
+                     midiTask.get().mutation->current.revision == midiBase.revision + 1 &&
+                     model.tracks().size() == tracksBeforeMidiExtraction + 1 && midiClip &&
+                     midiClip->notes().count() == 2 &&
+                     midiClip->notes().toList().first()->lyric() == QStringLiteral("啦"),
+                 "MIDI extraction must commit one typed track with captured language defaults");
+
+    const auto queuedPitch =
+        runtime.extractions().startPitch(commandContext(runtime), extractionAudioId, clipId);
+    const auto queuedPitchState = pitchExtractionStates.last();
+    const auto queuedPitchCancel =
+        runtime.tasks().cancelTask(commandContext(runtime), queuedPitch.get().taskId);
+    if (!scheduledExtractions.isEmpty())
+        scheduledExtractions.takeFirst()();
+    const auto queuedPitchTask =
+        runtime.tasks().getTask(runtime.documentVersion().documentId, queuedPitch.get().taskId);
+    ok &= expect(queuedPitch && queuedPitchCancel && queuedPitchState->cancelCount == 1 &&
+                     queuedPitchState->startCount == 0 && queuedPitchTask &&
+                     queuedPitchTask.get().state == Automation::AutomationTaskState::Canceled,
+                 "queued extraction cancellation must prevent backend execution");
+
+    const auto runningMidi =
+        runtime.extractions().startMidi(commandContext(runtime), extractionAudioId);
+    const auto runningMidiState = midiExtractionStates.last();
+    if (!scheduledExtractions.isEmpty())
+        scheduledExtractions.takeFirst()();
+    const auto runningMidiCancel =
+        runtime.tasks().cancelTask(commandContext(runtime), runningMidi.get().taskId);
+    if (runningMidiState->completed) {
+        runningMidiState->completed({.state = Automation::ExtractionBackendState::Canceled});
+    }
+    const auto runningMidiTask =
+        runtime.tasks().getTask(runtime.documentVersion().documentId, runningMidi.get().taskId);
+    ok &=
+        expect(runningMidi && runningMidiCancel && runningMidiState->startCount == 1 &&
+                   runningMidiState->cancelCount == 1 && runningMidiTask &&
+                   runningMidiTask.get().state == Automation::AutomationTaskState::Canceled,
+               "running extraction cancellation must terminate the job and retain its task result");
+
+    const auto failedMidi =
+        runtime.extractions().startMidi(commandContext(runtime), extractionAudioId);
+    const auto failedMidiState = midiExtractionStates.last();
+    if (!scheduledExtractions.isEmpty())
+        scheduledExtractions.takeFirst()();
+    if (failedMidiState->completed) {
+        failedMidiState->completed({
+            .state = Automation::ExtractionBackendState::Failed,
+            .errorCode = Automation::AutomationErrorCode::InferenceError,
+            .errorMessage = QStringLiteral("simulated extraction failure"),
+        });
+    }
+    const auto failedMidiTask =
+        runtime.tasks().getTask(runtime.documentVersion().documentId, failedMidi.get().taskId);
+    ok &= expect(failedMidi && failedMidiTask &&
+                     failedMidiTask.get().state == Automation::AutomationTaskState::Failed &&
+                     failedMidiTask.get().error &&
+                     failedMidiTask.get().error->code ==
+                         Automation::AutomationErrorCode::InferenceError,
+                 "extraction backend failures must remain queryable with a stable error code");
+
+    const auto stalePitch =
+        runtime.extractions().startPitch(commandContext(runtime), extractionAudioId, clipId);
+    const auto stalePitchState = pitchExtractionStates.last();
+    if (!scheduledExtractions.isEmpty())
+        scheduledExtractions.takeFirst()();
+    const auto interveningEdit = runtime.timeline().setTempo(commandContext(runtime), 1920, 123.0);
+    if (stalePitchState->completed) {
+        stalePitchState->completed({
+            .state = Automation::ExtractionBackendState::Succeeded,
+            .segments = {{singingClip->start() + 40, {70.0}}},
+        });
+    }
+    const auto stalePitchTask =
+        runtime.tasks().getTask(runtime.documentVersion().documentId, stalePitch.get().taskId);
+    ok &= expect(stalePitch && interveningEdit && stalePitchTask &&
+                     stalePitchTask.get().state == Automation::AutomationTaskState::Failed &&
+                     stalePitchTask.get().error &&
+                     stalePitchTask.get().error->code ==
+                         Automation::AutomationErrorCode::RevisionConflict,
+                 "extraction completion must reject writeback after an intervening edit");
+
     auto saveContext = commandContext(runtime);
     saveContext.idempotencyKey = QStringLiteral("7e1f1564-5335-43b8-a464-50db58c1ef2c");
     const auto beforeSave = runtime.documentVersion();
@@ -1099,7 +1383,7 @@ int main(int argc, char *argv[]) {
 
     int cancelCount = 0;
     const auto task = runtime.automationTasks().createTask(
-        QStringLiteral("parameters.extract_pitch"), runtime.documentVersion(),
+        QStringLiteral("extract.pitch.start"), runtime.documentVersion(),
         Automation::ObjectRef{Automation::ObjectKind::Clip, clipId.value()},
         [&cancelCount] { ++cancelCount; });
     ok &= expect(runtime.automationTasks().markRunning(task.taskId),
@@ -1133,7 +1417,7 @@ int main(int argc, char *argv[]) {
                  "cancel-after-terminal must return the stable terminal result");
 
     const auto committingTask = runtime.automationTasks().createTask(
-        QStringLiteral("parameters.extract_pitch"), runtime.documentVersion());
+        QStringLiteral("extract.pitch.start"), runtime.documentVersion());
     runtime.automationTasks().markRunning(committingTask.taskId);
     const auto beganCommit = runtime.automationTasks().beginCommitting(committingTask.taskId);
     const auto lateCancel =
@@ -1149,6 +1433,12 @@ int main(int argc, char *argv[]) {
         commandContext(runtime), replacedAudioConfig, {});
     auto replacedAudioExecution = std::move(scheduledAudioExport);
     scheduledAudioExport = {};
+    const auto replacedPitchAccepted =
+        runtime.extractions().startPitch(commandContext(runtime), extractionAudioId, clipId);
+    const auto replacedPitchState = pitchExtractionStates.last();
+    std::function<void()> replacedPitchExecution;
+    if (!scheduledExtractions.isEmpty())
+        replacedPitchExecution = scheduledExtractions.takeFirst();
 
     AppModel replacementModel;
     replacementModel.newProject();
@@ -1172,20 +1462,23 @@ int main(int argc, char *argv[]) {
         QStringLiteral("replacement.dspx"), true);
     if (replacedAudioExecution)
         replacedAudioExecution();
+    if (replacedPitchExecution)
+        replacedPitchExecution();
     const auto replacedDocument = runtime.documents().getDocument(runtime.documentVersion().documentId);
     const auto staleDocument = runtime.documents().getDocument(oldTaskDocument);
-    ok &= expect(replacedAudioAccepted && replacement && replacement.get().changed &&
-                     replacement.get().previous.documentId == oldTaskDocument &&
-                     replacement.get().current == runtime.documentVersion() &&
-                     runtime.automationTasks().size() == 0 &&
-                     runtime.documentVersion().documentId != oldTaskDocument &&
-                     runtime.documentVersion().revision == 0 &&
-                     audioExportState->executeCount == 2 &&
-                     appliedLoopSettings == replacementLoop && replacedDocument &&
-                     replacedDocument.get().path == QStringLiteral("D:/replacement.dspx") &&
-                     !staleDocument && staleDocument.getError().code ==
-                                           Automation::AutomationErrorCode::DocumentChanged,
-                 "document replacement must atomically rotate identity and invalidate old tasks");
+    ok &= expect(
+        replacedAudioAccepted && replacedPitchAccepted && replacement &&
+            replacement.get().changed && replacement.get().previous.documentId == oldTaskDocument &&
+            replacement.get().current == runtime.documentVersion() &&
+            runtime.automationTasks().size() == 0 &&
+            runtime.documentVersion().documentId != oldTaskDocument &&
+            runtime.documentVersion().revision == 0 && audioExportState->executeCount == 2 &&
+            replacedPitchState->cancelCount == 1 && replacedPitchState->startCount == 0 &&
+            appliedLoopSettings == replacementLoop && replacedDocument &&
+            replacedDocument.get().path == QStringLiteral("D:/replacement.dspx") &&
+            !staleDocument &&
+            staleDocument.getError().code == Automation::AutomationErrorCode::DocumentChanged,
+        "document replacement must atomically rotate identity and invalidate old tasks");
 
     Automation::InferenceMutationRequest inferenceRequest;
     inferenceRequest.kind = Automation::InferenceMutationKind::ResetStage;

@@ -5,6 +5,7 @@
 #include "DocumentSessionResolver.h"
 #include "DocumentAutomationFacade.h"
 #include "EditorAutomationFacade.h"
+#include "ExtractionAutomationFacade.h"
 #include "FileAutomationFacade.h"
 #include "HistoryAutomationFacade.h"
 #include "InferenceAutomationFacade.h"
@@ -25,8 +26,7 @@ namespace Automation {
 
     class CoreRuntime final {
     public:
-        CoreRuntime(AppModel *model,
-                    HistoryManager *historyManager,
+        CoreRuntime(AppModel *model, HistoryManager *historyManager,
                     DocumentRuntimeServices documentServices = {},
                     PlaybackRuntimeServices playbackServices = {},
                     EditorRuntimeServices editorServices = {},
@@ -35,7 +35,8 @@ namespace Automation {
                     PackageRuntimeServices packageServices = {},
                     InferenceRuntimeServices inferenceServices = {},
                     FileRuntimeServices fileServices = {},
-                    AudioExportRuntimeServices audioExportServices = {});
+                    AudioExportRuntimeServices audioExportServices = {},
+                    ExtractionRuntimeServices extractionServices = {});
 
         [[nodiscard]] DocumentVersion documentVersion() const;
         [[nodiscard]] const WindowId &windowId() const;
@@ -47,6 +48,7 @@ namespace Automation {
         AutomationDispatcher &dispatcher();
         AudioExportAutomationFacade &audioExports();
         DocumentAutomationFacade &documents();
+        ExtractionAutomationFacade &extractions();
         FileAutomationFacade &files();
         HistoryAutomationFacade &history();
         InferenceAutomationFacade &inference();
@@ -74,7 +76,10 @@ namespace Automation {
         CommandCommitter m_committer;
         DocumentObjectResolver m_objectResolver;
         AutomationTaskManager m_taskManager;
+        ParameterAutomationFacade m_parameterFacade;
+        ProjectAutomationFacade m_projectFacade;
         AudioExportAutomationFacade m_audioExportFacade;
+        ExtractionAutomationFacade m_extractionFacade;
         DocumentAutomationFacade m_documentFacade;
         EditorAutomationFacade m_facade;
         FileAutomationFacade m_fileFacade;
@@ -82,10 +87,8 @@ namespace Automation {
         InferenceAutomationFacade m_inferenceFacade;
         NoteAutomationFacade m_noteFacade;
         PackageAutomationFacade m_packageFacade;
-        ParameterAutomationFacade m_parameterFacade;
         PlaybackAutomationFacade m_playbackFacade;
         PresetAutomationFacade m_presetFacade;
-        ProjectAutomationFacade m_projectFacade;
         SettingsAutomationFacade m_settingsFacade;
         TaskAutomationFacade m_taskFacade;
         TimelineAutomationFacade m_timelineFacade;

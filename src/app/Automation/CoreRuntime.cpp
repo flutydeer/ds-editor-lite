@@ -2,48 +2,47 @@
 
 namespace Automation {
     namespace {
-        DocumentRuntimeServices bindAudioExportLifecycle(
-            DocumentRuntimeServices services, AudioExportAutomationFacade *audioExports) {
+        DocumentRuntimeServices bindGenerationLifecycle(DocumentRuntimeServices services,
+                                                        AudioExportAutomationFacade *audioExports,
+                                                        ExtractionAutomationFacade *extractions) {
             auto existing = std::move(services.beforeReplaceGeneration);
-            services.beforeReplaceGeneration =
-                [existing = std::move(existing), audioExports](const DocumentId &documentId) {
-                    if (existing)
-                        existing(documentId);
-                    audioExports->discardDocumentGeneration(documentId);
-                };
+            services.beforeReplaceGeneration = [existing = std::move(existing), audioExports,
+                                                extractions](const DocumentId &documentId) {
+                if (existing)
+                    existing(documentId);
+                audioExports->discardDocumentGeneration(documentId);
+                extractions->discardDocumentGeneration(documentId);
+            };
             return services;
         }
     }
 
-    CoreRuntime::CoreRuntime(AppModel *model, HistoryManager *historyManager,
-                             DocumentRuntimeServices documentServices,
-                             PlaybackRuntimeServices playbackServices,
-                             EditorRuntimeServices editorServices,
-                             SettingsRuntimeServices settingsServices,
-                             PresetRuntimeServices presetServices,
-                             PackageRuntimeServices packageServices,
-                             InferenceRuntimeServices inferenceServices,
-                             FileRuntimeServices fileServices,
-                             AudioExportRuntimeServices audioExportServices)
+    CoreRuntime::CoreRuntime(
+        AppModel *model, HistoryManager *historyManager, DocumentRuntimeServices documentServices,
+        PlaybackRuntimeServices playbackServices, EditorRuntimeServices editorServices,
+        SettingsRuntimeServices settingsServices, PresetRuntimeServices presetServices,
+        PackageRuntimeServices packageServices, InferenceRuntimeServices inferenceServices,
+        FileRuntimeServices fileServices, AudioExportRuntimeServices audioExportServices,
+        ExtractionRuntimeServices extractionServices)
         : m_session(model, historyManager), m_documentResolver(m_session),
           m_dispatcher(m_documentResolver, m_windowContext, m_catalog),
+          m_parameterFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
+          m_projectFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
           m_audioExportFacade(m_catalog, m_dispatcher, m_documentResolver, m_taskManager,
                               std::move(audioExportServices)),
+          m_extractionFacade(m_catalog, m_dispatcher, m_taskManager, m_objectResolver,
+                             m_parameterFacade, m_projectFacade, std::move(extractionServices)),
           m_documentFacade(m_catalog, m_dispatcher, m_committer, m_taskManager,
-                           bindAudioExportLifecycle(std::move(documentServices),
-                                                    &m_audioExportFacade)),
-          m_facade(m_session, m_windowContext, m_catalog, m_dispatcher,
-                   std::move(editorServices)),
+                           bindGenerationLifecycle(std::move(documentServices),
+                                                   &m_audioExportFacade, &m_extractionFacade)),
+          m_facade(m_session, m_windowContext, m_catalog, m_dispatcher, std::move(editorServices)),
           m_fileFacade(m_catalog, m_dispatcher, std::move(fileServices)),
           m_historyFacade(m_catalog, m_dispatcher, m_committer),
-          m_inferenceFacade(m_catalog, m_dispatcher, m_committer,
-                            std::move(inferenceServices)),
+          m_inferenceFacade(m_catalog, m_dispatcher, m_committer, std::move(inferenceServices)),
           m_noteFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
           m_packageFacade(m_catalog, m_dispatcher, std::move(packageServices)),
-          m_parameterFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
           m_playbackFacade(m_catalog, m_dispatcher, std::move(playbackServices)),
           m_presetFacade(m_catalog, m_dispatcher, std::move(presetServices)),
-          m_projectFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
           m_settingsFacade(m_catalog, m_dispatcher, std::move(settingsServices)),
           m_taskFacade(m_catalog, m_dispatcher, m_taskManager),
           m_timelineFacade(m_catalog, m_dispatcher, m_committer) {
@@ -83,6 +82,10 @@ namespace Automation {
 
     DocumentAutomationFacade &CoreRuntime::documents() {
         return m_documentFacade;
+    }
+
+    ExtractionAutomationFacade &CoreRuntime::extractions() {
+        return m_extractionFacade;
     }
 
     FileAutomationFacade &CoreRuntime::files() {
@@ -139,6 +142,7 @@ namespace Automation {
 
     DocumentVersion CoreRuntime::replaceDocumentGeneration(QString path, QString projectName) {
         m_audioExportFacade.discardDocumentGeneration(m_session.documentId());
+        m_extractionFacade.discardDocumentGeneration(m_session.documentId());
         m_taskManager.discardDocumentGeneration(m_session.documentId());
         return m_session.replaceGeneration(std::move(path), std::move(projectName));
     }

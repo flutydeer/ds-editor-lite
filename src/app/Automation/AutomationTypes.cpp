@@ -36,6 +36,8 @@ namespace Automation {
                 return QStringLiteral("overwrite_denied");
             case AutomationErrorCode::IoError:
                 return QStringLiteral("io_error");
+            case AutomationErrorCode::InferenceError:
+                return QStringLiteral("inference_error");
             case AutomationErrorCode::Unsupported:
                 return QStringLiteral("unsupported");
             case AutomationErrorCode::InternalError:
