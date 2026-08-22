@@ -1,6 +1,8 @@
 #ifndef PIANOROLLGRAPHICSVIEW_P_H
 #define PIANOROLLGRAPHICSVIEW_P_H
 
+#include "NoteLyricToolTipController.h"
+
 #include <lite/ProjectModel/AppModel/Params.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
@@ -27,7 +29,6 @@ class PianoRollEditHandler;
 class PianoRollSelectionModel;
 class NoteInteractionController;
 class InlineTextEditOverlay;
-class ToolTip;
 enum class EditSessionEndReason;
 
 using namespace ClipEditorGlobal;
@@ -61,9 +62,7 @@ public:
     PianoRollSelectionModel *m_selectionModel = nullptr;
     NoteInteractionController *m_interactionController = nullptr;
     InlineTextEditOverlay *m_inlineEditor = nullptr;
-    ToolTip *m_lyricToolTip = nullptr;
-    int m_lyricToolTipNoteId = -1;
-    QString m_lyricToolTipText;
+    std::unique_ptr<NoteLyricToolTipController> m_lyricToolTip;
     InlineEditField m_inlineEditField = InlineEditField::None;
     int m_inlineEditingNoteId = -1;
     void restoreHandler();
