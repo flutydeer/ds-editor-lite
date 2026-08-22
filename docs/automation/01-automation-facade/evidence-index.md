@@ -75,3 +75,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R13-EDITING-DOMAINS-FAIL` | 13 | 编辑域首次契约失败与测试规格复核摘要 | `d66ee8abff6b66fcf0de45dd1ff80b6c162c6d5fd053c3e6a2026155898ed5d4` |
+
+## 追加证据 11
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R14-RUNTIME-DOMAINS-STABILITY` | 14 | 运行时域扩展与 Query 缺陷稳定性摘要 | `e9a0757d57b8bffb17b9ed38d24187c60e863da4e8bbb67603d429c9d8996eeb` |
