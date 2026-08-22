@@ -1,0 +1,13 @@
+Evidence ID: E-R17-QUERY-FIX-PASS
+Round: 17
+Scope: forced query call-site rebuild and full runtime-domain verification
+
+Forced query call-site rebuild: passed
+Runs: 3
+Scenarios per run: 86
+Assertions per run: 214
+Failures per run: 0
+Flaky observations: 0
+
+All handler-originated Query errors retained their expected error code and carried the
+catalog operation ID after the centralized dispatcher fix.
