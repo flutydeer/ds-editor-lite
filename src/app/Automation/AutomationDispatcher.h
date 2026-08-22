@@ -21,8 +21,7 @@ namespace Automation {
             std::function<AutomationResult<MutationResult>(DocumentSession &, bool validateOnly)>;
 
         AutomationDispatcher(IDocumentSessionResolver &documentResolver,
-                             SingleWindowContext &windowContext,
-                             const OperationCatalog &catalog);
+                             SingleWindowContext &windowContext, const OperationCatalog &catalog);
 
         template <typename T, typename Handler>
         AutomationResult<T> dispatchApplicationQuery(const OperationId &operationId,
@@ -68,8 +67,7 @@ namespace Automation {
 
         template <typename T, typename Handler>
         AutomationResult<T> dispatchDocumentQuery(const OperationId &operationId,
-                                                  const DocumentId &documentId,
-                                                  Handler &&handler) {
+                                                  const DocumentId &documentId, Handler &&handler) {
             return runSerialized([&]() -> AutomationResult<T> {
                 const auto descriptor = requireDescriptor(operationId, OperationKind::Query);
                 if (!descriptor)
@@ -88,18 +86,16 @@ namespace Automation {
 
         template <typename T, typename Handler>
         AutomationResult<T> dispatchGuiQuery(const OperationId &operationId,
-                                             const WindowId &windowId,
-                                             Handler &&handler) {
+                                             const WindowId &windowId, Handler &&handler) {
             return runSerialized([&]() -> AutomationResult<T> {
                 const auto descriptor = requireDescriptor(operationId, OperationKind::Query);
                 if (!descriptor)
                     return descriptor.getError();
                 if (descriptor.get()->hostAvailability != HostAvailability::GuiOnly) {
-                    return decorateError(
-                        AutomationError::invalidArgument(
-                            QStringLiteral("operation_id"),
-                            QStringLiteral("Operation is not a GUI-only query")),
-                        operationId);
+                    return decorateError(AutomationError::invalidArgument(
+                                             QStringLiteral("operation_id"),
+                                             QStringLiteral("Operation is not a GUI-only query")),
+                                         operationId);
                 }
 
                 const auto validated = m_windowContext.validateWindow(windowId);
@@ -151,11 +147,10 @@ namespace Automation {
                     return descriptor.getError();
                 if (descriptor.get()->hostAvailability != HostAvailability::GuiOnly ||
                     descriptor.get()->documentPolicy != DocumentPolicy::None) {
-                    return decorateError(
-                        AutomationError::invalidArgument(
-                            QStringLiteral("operation_id"),
-                            QStringLiteral("Operation is not a GUI-only command")),
-                        operationId);
+                    return decorateError(AutomationError::invalidArgument(
+                                             QStringLiteral("operation_id"),
+                                             QStringLiteral("Operation is not a GUI-only command")),
+                                         operationId);
                 }
                 const auto validated = m_windowContext.validateWindow(context.windowId);
                 if (!validated)
@@ -209,27 +204,41 @@ namespace Automation {
         }
 
         AutomationResult<MutationResult>
-        dispatchDocumentCommand(const OperationId &operationId,
-                                const CommandContext &context,
-                                const QByteArray &requestFingerprint,
-                                const DocumentCommandHandler &handler);
+            dispatchDocumentCommand(const OperationId &operationId, const CommandContext &context,
+                                    const QByteArray &requestFingerprint,
+                                    const DocumentCommandHandler &handler);
+
+        template <typename T>
+        bool releaseDocumentIdempotency(const OperationId &operationId,
+                                        const CommandContext &context,
+                                        const QByteArray &requestFingerprint, const T &result) {
+            if (context.validateOnly || context.idempotencyKey.isEmpty())
+                return false;
+            return runSerialized([&] {
+                auto resolved = m_documentResolver.resolveDocument(context.expected.documentId);
+                if (!resolved)
+                    return false;
+                auto &session = resolved.get().get();
+                return session.idempotencyStore().release(
+                    operationId, context.idempotencyKey,
+                    effectiveFingerprint(context, requestFingerprint), result);
+            });
+        }
 
         template <typename T, typename Handler>
-        AutomationResult<T> dispatchDocumentCommandResult(
-            const OperationId &operationId,
-            const CommandContext &context,
-            const QByteArray &requestFingerprint,
-            Handler &&handler) {
+        AutomationResult<T> dispatchDocumentCommandResult(const OperationId &operationId,
+                                                          const CommandContext &context,
+                                                          const QByteArray &requestFingerprint,
+                                                          Handler &&handler) {
             return runSerialized([&]() -> AutomationResult<T> {
                 const auto descriptor = requireDescriptor(operationId, OperationKind::Command);
                 if (!descriptor)
                     return descriptor.getError();
                 if (descriptor.get()->documentPolicy == DocumentPolicy::None) {
-                    return decorateError(
-                        AutomationError::invalidArgument(
-                            QStringLiteral("operation_id"),
-                            QStringLiteral("Operation is not a document command")),
-                        operationId);
+                    return decorateError(AutomationError::invalidArgument(
+                                             QStringLiteral("operation_id"),
+                                             QStringLiteral("Operation is not a document command")),
+                                         operationId);
                 }
 
                 auto resolved = m_documentResolver.resolveDocument(context.expected.documentId);
@@ -260,9 +269,8 @@ namespace Automation {
 
                 if (session.revision() != context.expected.revision) {
                     return decorateError(
-                        AutomationError::revisionConflict(session.documentId(),
-                                                          context.expected.revision,
-                                                          session.revision()),
+                        AutomationError::revisionConflict(
+                            session.documentId(), context.expected.revision, session.revision()),
                         operationId);
                 }
 
@@ -297,9 +305,8 @@ namespace Automation {
         }
 
         AutomationResult<const OperationDescriptor *>
-        requireDescriptor(const OperationId &operationId, OperationKind expectedKind) const;
-        static AutomationError decorateError(AutomationError error,
-                                               const OperationId &operationId);
+            requireDescriptor(const OperationId &operationId, OperationKind expectedKind) const;
+        static AutomationError decorateError(AutomationError error, const OperationId &operationId);
         static QByteArray effectiveFingerprint(const CommandContext &context,
                                                const QByteArray &requestFingerprint);
 

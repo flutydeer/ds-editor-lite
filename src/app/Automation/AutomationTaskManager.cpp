@@ -19,14 +19,23 @@ namespace Automation {
         return snapshot;
     }
 
+    bool AutomationTaskManager::setUnsuccessfulCallback(const TaskId &taskId,
+                                                        UnsuccessfulCallback callback) {
+        const QMutexLocker locker(&m_mutex);
+        auto it = m_records.find(taskId);
+        if (it == m_records.end() || isTerminal(it->snapshot.state))
+            return false;
+        it->unsuccessful = std::move(callback);
+        return true;
+    }
+
     AutomationResult<AutomationTaskSnapshot>
-    AutomationTaskManager::get(const DocumentId &documentId, const TaskId &taskId) const {
+        AutomationTaskManager::get(const DocumentId &documentId, const TaskId &taskId) const {
         const QMutexLocker locker(&m_mutex);
         return findLocked(documentId, taskId);
     }
 
-    QList<AutomationTaskSnapshot>
-    AutomationTaskManager::list(const DocumentId &documentId) const {
+    QList<AutomationTaskSnapshot> AutomationTaskManager::list(const DocumentId &documentId) const {
         const QMutexLocker locker(&m_mutex);
         QList<AutomationTaskSnapshot> result;
         for (const auto &record : m_records) {
@@ -40,7 +49,7 @@ namespace Automation {
     }
 
     AutomationResult<AutomationTaskSnapshot>
-    AutomationTaskManager::requestCancel(const DocumentId &documentId, const TaskId &taskId) {
+        AutomationTaskManager::requestCancel(const DocumentId &documentId, const TaskId &taskId) {
         CancelCallback cancelCallback;
         AutomationTaskSnapshot snapshot;
         {
@@ -66,22 +75,31 @@ namespace Automation {
     }
 
     AutomationResult<bool> AutomationTaskManager::beginCommitting(const TaskId &taskId) {
-        const QMutexLocker locker(&m_mutex);
-        auto it = m_records.find(taskId);
-        if (it == m_records.end())
-            return AutomationError::taskNotFound(taskId);
-        if (it->snapshot.state == AutomationTaskState::CancelRequested) {
-            it->snapshot.state = AutomationTaskState::Canceled;
-            it->snapshot.cancelable = false;
-            return false;
+        UnsuccessfulCallback unsuccessful;
+        std::optional<AutomationTaskSnapshot> snapshot;
+        {
+            const QMutexLocker locker(&m_mutex);
+            auto it = m_records.find(taskId);
+            if (it == m_records.end())
+                return AutomationError::taskNotFound(taskId);
+            if (it->snapshot.state == AutomationTaskState::CancelRequested) {
+                it->snapshot.state = AutomationTaskState::Canceled;
+                it->snapshot.cancelable = false;
+                unsuccessful = std::move(it->unsuccessful);
+                snapshot = it->snapshot;
+            } else {
+                if (it->snapshot.state != AutomationTaskState::Queued &&
+                    it->snapshot.state != AutomationTaskState::Running) {
+                    return notCancelable(taskId);
+                }
+                it->snapshot.state = AutomationTaskState::Committing;
+                it->snapshot.cancelable = false;
+                return true;
+            }
         }
-        if (it->snapshot.state != AutomationTaskState::Queued &&
-            it->snapshot.state != AutomationTaskState::Running) {
-            return notCancelable(taskId);
-        }
-        it->snapshot.state = AutomationTaskState::Committing;
-        it->snapshot.cancelable = false;
-        return true;
+        if (unsuccessful)
+            unsuccessful(*snapshot);
+        return false;
     }
 
     bool AutomationTaskManager::markRunning(const TaskId &taskId) {
@@ -94,8 +112,7 @@ namespace Automation {
     }
 
     bool AutomationTaskManager::updateProgress(const TaskId &taskId,
-                                               AutomationTaskProgress progress,
-                                               QString message) {
+                                               AutomationTaskProgress progress, QString message) {
         const QMutexLocker locker(&m_mutex);
         auto it = m_records.find(taskId);
         if (it == m_records.end() || isTerminal(it->snapshot.state) ||
@@ -115,36 +132,53 @@ namespace Automation {
         it->snapshot.cancelable = false;
         it->snapshot.mutation = std::move(mutation);
         it->snapshot.error.reset();
+        it->unsuccessful = {};
         return true;
     }
 
     bool AutomationTaskManager::fail(const TaskId &taskId, AutomationError error) {
-        const QMutexLocker locker(&m_mutex);
-        auto it = m_records.find(taskId);
-        if (it == m_records.end() || isTerminal(it->snapshot.state))
-            return false;
-        it->snapshot.state = AutomationTaskState::Failed;
-        it->snapshot.cancelable = false;
-        it->snapshot.error = std::move(error);
+        UnsuccessfulCallback unsuccessful;
+        AutomationTaskSnapshot snapshot;
+        {
+            const QMutexLocker locker(&m_mutex);
+            auto it = m_records.find(taskId);
+            if (it == m_records.end() || isTerminal(it->snapshot.state))
+                return false;
+            it->snapshot.state = AutomationTaskState::Failed;
+            it->snapshot.cancelable = false;
+            it->snapshot.error = std::move(error);
+            unsuccessful = std::move(it->unsuccessful);
+            snapshot = it->snapshot;
+        }
+        if (unsuccessful)
+            unsuccessful(snapshot);
         return true;
     }
 
     bool AutomationTaskManager::cancel(const TaskId &taskId) {
-        const QMutexLocker locker(&m_mutex);
-        auto it = m_records.find(taskId);
-        if (it == m_records.end() || isTerminal(it->snapshot.state) ||
-            it->snapshot.state == AutomationTaskState::Committing)
-            return false;
-        it->snapshot.state = AutomationTaskState::Canceled;
-        it->snapshot.cancelable = false;
+        UnsuccessfulCallback unsuccessful;
+        AutomationTaskSnapshot snapshot;
+        {
+            const QMutexLocker locker(&m_mutex);
+            auto it = m_records.find(taskId);
+            if (it == m_records.end() || isTerminal(it->snapshot.state) ||
+                it->snapshot.state == AutomationTaskState::Committing) {
+                return false;
+            }
+            it->snapshot.state = AutomationTaskState::Canceled;
+            it->snapshot.cancelable = false;
+            unsuccessful = std::move(it->unsuccessful);
+            snapshot = it->snapshot;
+        }
+        if (unsuccessful)
+            unsuccessful(snapshot);
         return true;
     }
 
     bool AutomationTaskManager::isCancellationRequested(const TaskId &taskId) const {
         const QMutexLocker locker(&m_mutex);
         const auto it = m_records.constFind(taskId);
-        return it != m_records.cend() &&
-               it->snapshot.state == AutomationTaskState::CancelRequested;
+        return it != m_records.cend() && it->snapshot.state == AutomationTaskState::CancelRequested;
     }
 
     void AutomationTaskManager::discardDocumentGeneration(const DocumentId &documentId) {
@@ -173,8 +207,8 @@ namespace Automation {
     }
 
     bool AutomationTaskManager::isTerminal(const AutomationTaskState state) {
-        return state == AutomationTaskState::Succeeded ||
-               state == AutomationTaskState::Failed || state == AutomationTaskState::Canceled;
+        return state == AutomationTaskState::Succeeded || state == AutomationTaskState::Failed ||
+               state == AutomationTaskState::Canceled;
     }
 
     AutomationError AutomationTaskManager::notCancelable(const TaskId &taskId) {
@@ -186,7 +220,8 @@ namespace Automation {
     }
 
     AutomationResult<AutomationTaskSnapshot>
-    AutomationTaskManager::findLocked(const DocumentId &documentId, const TaskId &taskId) const {
+        AutomationTaskManager::findLocked(const DocumentId &documentId,
+                                          const TaskId &taskId) const {
         const auto it = m_records.constFind(taskId);
         if (it == m_records.cend())
             return AutomationError::taskNotFound(taskId);

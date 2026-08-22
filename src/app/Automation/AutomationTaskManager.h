@@ -59,9 +59,9 @@ namespace Automation {
     class AutomationTaskManager final {
     public:
         using CancelCallback = std::function<void()>;
+        using UnsuccessfulCallback = std::function<void(const AutomationTaskSnapshot &)>;
 
-        AutomationTaskSnapshot createTask(OperationId operationId,
-                                          DocumentVersion baseDocument,
+        AutomationTaskSnapshot createTask(OperationId operationId, DocumentVersion baseDocument,
                                           std::optional<ObjectRef> target = std::nullopt,
                                           CancelCallback cancel = {});
 
@@ -72,9 +72,9 @@ namespace Automation {
         AutomationResult<AutomationTaskSnapshot> requestCancel(const DocumentId &documentId,
                                                                const TaskId &taskId);
         AutomationResult<bool> beginCommitting(const TaskId &taskId);
+        bool setUnsuccessfulCallback(const TaskId &taskId, UnsuccessfulCallback callback);
         bool markRunning(const TaskId &taskId);
-        bool updateProgress(const TaskId &taskId,
-                            AutomationTaskProgress progress,
+        bool updateProgress(const TaskId &taskId, AutomationTaskProgress progress,
                             QString message = {});
         bool succeed(const TaskId &taskId, MutationResult mutation);
         bool fail(const TaskId &taskId, AutomationError error);
@@ -88,6 +88,7 @@ namespace Automation {
         struct Record {
             AutomationTaskSnapshot snapshot;
             CancelCallback cancel;
+            UnsuccessfulCallback unsuccessful;
         };
 
         static bool isTerminal(AutomationTaskState state);

@@ -5,6 +5,7 @@ namespace Automation {
     void IdempotencyStore::clear() {
         const QMutexLocker locker(&m_mutex);
         m_entries.clear();
+        m_pendingReleases.clear();
     }
 
     qsizetype IdempotencyStore::size() const {

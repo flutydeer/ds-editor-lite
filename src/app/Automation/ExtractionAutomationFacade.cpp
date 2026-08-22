@@ -95,10 +95,10 @@ namespace Automation {
         ExtractionAutomationFacade::startPitch(const CommandContext &context,
                                                const ClipId audioClipId, const ClipId singingClipId,
                                                ExtractionObserver observer) {
+        const auto requestFingerprint = pitchFingerprint(audioClipId, singingClipId);
         return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
-            OperationIds::extract::pitch::start, context,
-            pitchFingerprint(audioClipId, singingClipId),
-            [this, audioClipId, singingClipId, source = context.source,
+            OperationIds::extract::pitch::start, context, requestFingerprint,
+            [this, context, requestFingerprint, audioClipId, singingClipId, source = context.source,
              observer = std::move(observer)](DocumentSession &session,
                                              const bool validateOnly) mutable {
                 auto resolvedAudio = m_objects.audioClip(session, audioClipId);
@@ -158,6 +158,20 @@ namespace Automation {
                                                locked->cancel();
                                        });
                 m_jobs.insert(task.taskId, {session.version(), job});
+                const TaskAcceptedResult accepted{
+                    .taskId = task.taskId,
+                    .document = session.version(),
+                };
+                if (!context.idempotencyKey.isEmpty()) {
+                    const auto bound = m_tasks.setUnsuccessfulCallback(
+                        task.taskId, [this, context, requestFingerprint,
+                                      accepted](const AutomationTaskSnapshot &) {
+                            m_dispatcher.releaseDocumentIdempotency(
+                                OperationIds::extract::pitch::start, context, requestFingerprint,
+                                accepted);
+                        });
+                    Q_ASSERT(bound);
+                }
                 auto execute = [this, taskId = task.taskId, base = session.version(),
                                 input = std::move(prepared.get().input), job = std::move(job),
                                 observer = std::move(observer)]() mutable {
@@ -168,19 +182,18 @@ namespace Automation {
                     m_services.schedule(std::move(execute));
                 else
                     execute();
-                return AutomationResult<TaskAcceptedResult>({
-                    .taskId = task.taskId,
-                    .document = session.version(),
-                });
+                return AutomationResult<TaskAcceptedResult>(accepted);
             });
     }
 
     AutomationResult<TaskAcceptedResult> ExtractionAutomationFacade::startMidi(
         const CommandContext &context, const ClipId audioClipId, ExtractionObserver observer) {
+        const auto requestFingerprint = midiFingerprint(audioClipId);
         return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
-            OperationIds::extract::midi::start, context, midiFingerprint(audioClipId),
-            [this, audioClipId, source = context.source, observer = std::move(observer)](
-                DocumentSession &session, const bool validateOnly) mutable {
+            OperationIds::extract::midi::start, context, requestFingerprint,
+            [this, context, requestFingerprint, audioClipId, source = context.source,
+             observer = std::move(observer)](DocumentSession &session,
+                                             const bool validateOnly) mutable {
                 auto resolvedAudio = m_objects.audioClip(session, audioClipId);
                 if (!resolvedAudio)
                     return AutomationResult<TaskAcceptedResult>(resolvedAudio.getError());
@@ -221,6 +234,20 @@ namespace Automation {
                                                locked->cancel();
                                        });
                 m_jobs.insert(task.taskId, {session.version(), job});
+                const TaskAcceptedResult accepted{
+                    .taskId = task.taskId,
+                    .document = session.version(),
+                };
+                if (!context.idempotencyKey.isEmpty()) {
+                    const auto bound = m_tasks.setUnsuccessfulCallback(
+                        task.taskId, [this, context, requestFingerprint,
+                                      accepted](const AutomationTaskSnapshot &) {
+                            m_dispatcher.releaseDocumentIdempotency(
+                                OperationIds::extract::midi::start, context, requestFingerprint,
+                                accepted);
+                        });
+                    Q_ASSERT(bound);
+                }
                 auto execute = [this, taskId = task.taskId, base = session.version(),
                                 input = std::move(prepared.get().input), job = std::move(job),
                                 observer = std::move(observer)]() mutable {
@@ -231,10 +258,7 @@ namespace Automation {
                     m_services.schedule(std::move(execute));
                 else
                     execute();
-                return AutomationResult<TaskAcceptedResult>({
-                    .taskId = task.taskId,
-                    .document = session.version(),
-                });
+                return AutomationResult<TaskAcceptedResult>(accepted);
             });
     }
 

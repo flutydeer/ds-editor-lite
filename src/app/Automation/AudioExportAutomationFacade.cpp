@@ -128,8 +128,7 @@ namespace Automation {
                     QStringLiteral("policy.allow_no_files"),
                     QStringLiteral("Audio export would not create any files"));
             }
-            if ((preview.warningFlags & AudioExportDuplicatedFile) &&
-                !policy.allowDuplicatePaths) {
+            if ((preview.warningFlags & AudioExportDuplicatedFile) && !policy.allowDuplicatePaths) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("policy.allow_duplicate_paths"),
                     QStringLiteral("Audio export contains duplicate target paths"));
@@ -250,8 +249,8 @@ namespace Automation {
     }
 
     AutomationResult<AudioExportPreviewDto>
-    AudioExportAutomationFacade::preview(const DocumentId &documentId,
-                                         const AudioExportConfigDto &config) {
+        AudioExportAutomationFacade::preview(const DocumentId &documentId,
+                                             const AudioExportConfigDto &config) {
         return m_dispatcher.dispatchDocumentQuery<AudioExportPreviewDto>(
             OperationIds::exports::audio::preview, documentId,
             [this, config](DocumentSession &session) {
@@ -267,16 +266,14 @@ namespace Automation {
             });
     }
 
-    AutomationResult<TaskAcceptedResult>
-    AudioExportAutomationFacade::start(const CommandContext &context,
-                                       const AudioExportConfigDto &config,
-                                       const AudioExportPolicyDto &policy,
-                                       AudioExportObserver observer) {
+    AutomationResult<TaskAcceptedResult> AudioExportAutomationFacade::start(
+        const CommandContext &context, const AudioExportConfigDto &config,
+        const AudioExportPolicyDto &policy, AudioExportObserver observer) {
+        const auto requestFingerprint = fingerprint(config, policy);
         return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
-            OperationIds::exports::audio::start, context, fingerprint(config, policy),
-            [this, config, policy,
-             observer = std::move(observer)](DocumentSession &session,
-                                             const bool validateOnly) mutable {
+            OperationIds::exports::audio::start, context, requestFingerprint,
+            [this, context, requestFingerprint, config, policy, observer = std::move(observer)](
+                DocumentSession &session, const bool validateOnly) mutable {
                 const auto valid = validateConfig(config);
                 if (!valid)
                     return AutomationResult<TaskAcceptedResult>(valid.getError());
@@ -307,6 +304,21 @@ namespace Automation {
                 record->state = state;
                 m_jobs.insert(task.taskId, record);
 
+                const TaskAcceptedResult accepted{
+                    .taskId = task.taskId,
+                    .document = session.version(),
+                };
+                if (!context.idempotencyKey.isEmpty()) {
+                    const auto bound = m_tasks.setUnsuccessfulCallback(
+                        task.taskId, [this, context, requestFingerprint,
+                                      accepted](const AutomationTaskSnapshot &) {
+                            m_dispatcher.releaseDocumentIdempotency(
+                                OperationIds::exports::audio::start, context, requestFingerprint,
+                                accepted);
+                        });
+                    Q_ASSERT(bound);
+                }
+
                 auto execute = [this, taskId = task.taskId, base = session.version(), config,
                                 observer = std::move(observer), state]() mutable {
                     executeTask(taskId, base, std::move(config), std::move(observer), state);
@@ -315,15 +327,12 @@ namespace Automation {
                     m_services.schedule(execute);
                 else
                     execute();
-                return AutomationResult<TaskAcceptedResult>({
-                    .taskId = task.taskId,
-                    .document = session.version(),
-                });
+                return AutomationResult<TaskAcceptedResult>(accepted);
             });
     }
 
     AutomationResult<ApplicationMutationResult>
-    AudioExportAutomationFacade::cleanup(const CommandContext &context, const TaskId &taskId) {
+        AudioExportAutomationFacade::cleanup(const CommandContext &context, const TaskId &taskId) {
         return m_dispatcher.dispatchDocumentCommandResult<ApplicationMutationResult>(
             OperationIds::exports::audio::cleanup, context, taskId.toString().toUtf8(),
             [this, taskId](DocumentSession &session, const bool validateOnly) {
@@ -360,9 +369,11 @@ namespace Automation {
             });
     }
 
-    void AudioExportAutomationFacade::executeTask(
-        const TaskId &taskId, const DocumentVersion baseDocument, AudioExportConfigDto config,
-        AudioExportObserver observer, const std::shared_ptr<PendingJobState> &state) {
+    void AudioExportAutomationFacade::executeTask(const TaskId &taskId,
+                                                  const DocumentVersion baseDocument,
+                                                  AudioExportConfigDto config,
+                                                  AudioExportObserver observer,
+                                                  const std::shared_ptr<PendingJobState> &state) {
         if (m_tasks.isCancellationRequested(taskId)) {
             m_tasks.cancel(taskId);
             return;
@@ -376,8 +387,8 @@ namespace Automation {
             m_tasks.fail(taskId, taskError(unavailable(), taskId));
             return;
         }
-        auto created = m_services.createJob(resolved.get().get().model(),
-                                            resolved.get().get().path(), config);
+        auto created =
+            m_services.createJob(resolved.get().get().model(), resolved.get().get().path(), config);
         if (!created) {
             m_tasks.fail(taskId, taskError(created.getError(), taskId));
             return;
@@ -400,17 +411,16 @@ namespace Automation {
         AudioExportObserver taskObserver;
         taskObserver.progress = [this, taskId, callback = std::move(observer.progress)](
                                     const double progress, const int sourceIndex) {
-            m_tasks.updateProgress(
-                taskId,
-                {.minimum = 0,
-                 .maximum = 100,
-                 .value = std::clamp(static_cast<int>(progress * 100.0), 0, 100),
-                 .indeterminate = false});
+            m_tasks.updateProgress(taskId,
+                                   {.minimum = 0,
+                                    .maximum = 100,
+                                    .value = std::clamp(static_cast<int>(progress * 100.0), 0, 100),
+                                    .indeterminate = false});
             if (callback)
                 callback(progress, sourceIndex);
         };
-        taskObserver.clipping = [&warnings, callback = std::move(observer.clipping)](
-                                    const int sourceIndex) {
+        taskObserver.clipping = [&warnings,
+                                 callback = std::move(observer.clipping)](const int sourceIndex) {
             warnings.append(
                 sourceIndex < 0
                     ? QStringLiteral("Clipping detected")
@@ -435,9 +445,8 @@ namespace Automation {
             AutomationError error;
             error.code = AutomationErrorCode::IoError;
             error.taskId = taskId;
-            error.message = result.errorMessage.isEmpty()
-                                ? QStringLiteral("Audio export failed")
-                                : result.errorMessage;
+            error.message = result.errorMessage.isEmpty() ? QStringLiteral("Audio export failed")
+                                                          : result.errorMessage;
             m_tasks.fail(taskId, std::move(error));
             return;
         }
@@ -461,7 +470,7 @@ namespace Automation {
     }
 
     AutomationResult<std::reference_wrapper<DocumentSession>>
-    AudioExportAutomationFacade::resolveVersion(const DocumentVersion &version) const {
+        AudioExportAutomationFacade::resolveVersion(const DocumentVersion &version) const {
         auto resolved = m_documentResolver.resolveDocument(version.documentId);
         if (!resolved)
             return resolved.getError();
