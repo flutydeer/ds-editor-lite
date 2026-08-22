@@ -4,10 +4,12 @@
 #include "ExtractionAutomationFacade.h"
 
 class AppOptions;
+class TaskManager;
 
 namespace Automation {
 
-    ExtractionRuntimeServices createExtractionAutomationServices(AppOptions *options);
+    ExtractionRuntimeServices createExtractionAutomationServices(AppOptions *options,
+                                                                 TaskManager *taskRuntime);
 
 } // namespace Automation
 

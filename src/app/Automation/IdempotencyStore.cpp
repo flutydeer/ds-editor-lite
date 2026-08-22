@@ -12,13 +12,4 @@ namespace Automation {
         return m_entries.size();
     }
 
-    QString IdempotencyStore::compoundKey(const OperationId &operationId, const QString &key) {
-        QString result;
-        result.reserve(operationId.size() + key.size() + 1);
-        result.append(operationId);
-        result.append(QChar::Null);
-        result.append(key);
-        return result;
-    }
-
 } // namespace Automation

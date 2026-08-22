@@ -3,6 +3,7 @@
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Controller/EditorViewController.h"
 #include "Controller/TrackController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -125,11 +126,10 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_cbPianoRollQuantize->setToolTip(tr("Piano Roll Quantize"));
     connect(d->m_cbPianoRollQuantize, &QComboBox::currentIndexChanged, this, [](int index) {
         if (index <= 0) {
-            appStatus->pianoRollQuantizeEnabled = false;
+            editorViewController->setPianoRollQuantize(appStatus->pianoRollQuantize, false);
             return;
         }
-        appStatus->pianoRollQuantizeEnabled = true;
-        appStatus->pianoRollQuantize = QuantizeOptions::values().at(index - 1);
+        editorViewController->setPianoRollQuantize(QuantizeOptions::values().at(index - 1), true);
     });
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, d->m_cbPianoRollQuantize,
             [combo = d->m_cbPianoRollQuantize](int quantize) {
@@ -176,7 +176,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_btnAutoPageTurn = d->buildToolButton(
         "btnAutoPageTurn", ":svg/icons/arrow_right_16_regular.svg", tr("Auto Page Turn"));
     connect(d->m_btnAutoPageTurn, &QPushButton::toggled, this,
-            [](const bool checked) { appStatus->pianoRollAutoPageTurnEnabled = checked; });
+            [](const bool checked) { editorViewController->setPianoRollAutoPageTurn(checked); });
     connect(appStatus, &AppStatus::pianoRollAutoPageTurnEnabledChanged, this,
             [btn = d->m_btnAutoPageTurn](const bool enabled) { btn->setChecked(enabled); });
     connect(appStatus, &AppStatus::pianoRollAutoPageTurnAvailabilityChanged, this,

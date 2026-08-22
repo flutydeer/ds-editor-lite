@@ -344,7 +344,7 @@ void DocumentImportController::commitBatch() {
     }
     if (firstClipId >= 0) {
         const auto firstId = firstClipId;
-        appStatus->selectedClips = QList<int>{firstId};
+        trackController->setSelectedClips({firstId});
         trackController->setActiveClip(firstId);
     }
     for (auto *clip : audioClipsForHash)

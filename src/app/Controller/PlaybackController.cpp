@@ -14,6 +14,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <utility>
 
 PlaybackController::PlaybackController() : d_ptr(new PlaybackControllerPrivate(this)) {
     Q_D(PlaybackController);
@@ -146,6 +147,60 @@ void PlaybackController::setLastPosition(const double tick) {
              .source = Automation::InvocationSource::TrustedGui},
             tick);
     }
+}
+
+void PlaybackController::setLoopSettings(const LoopSettings &settings) {
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+        runtime->playback().setLoop({.expected = runtime->documentVersion(),
+                                     .source = Automation::InvocationSource::TrustedGui},
+                                    settings);
+    }
+}
+
+bool PlaybackController::beginLoopSettingsEdit() {
+    Q_D(PlaybackController);
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime || !d->m_loopPreviewHandler)
+        return false;
+    const auto snapshot = runtime->playback().getPlayback(runtime->documentVersion().documentId);
+    if (!snapshot)
+        return false;
+    d->m_loopEditVersion = runtime->documentVersion();
+    d->m_loopEditOriginal = snapshot.get().loop;
+    return true;
+}
+
+void PlaybackController::previewLoopSettings(const LoopSettings &settings) {
+    Q_D(PlaybackController);
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime || !d->m_loopEditVersion ||
+        runtime->documentVersion().documentId != d->m_loopEditVersion->documentId) {
+        d->m_loopEditVersion.reset();
+        return;
+    }
+    d->m_loopPreviewHandler(settings);
+}
+
+void PlaybackController::commitLoopSettingsEdit(const LoopSettings &settings) {
+    Q_D(PlaybackController);
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime || !d->m_loopEditVersion ||
+        runtime->documentVersion().documentId != d->m_loopEditVersion->documentId) {
+        d->m_loopEditVersion.reset();
+        return;
+    }
+
+    const auto expected = *d->m_loopEditVersion;
+    const auto original = d->m_loopEditOriginal;
+    d->m_loopEditVersion.reset();
+    d->m_loopPreviewHandler(original);
+    runtime->playback().setLoop(
+        {.expected = expected, .source = Automation::InvocationSource::TrustedGui}, settings);
+}
+
+void PlaybackController::setLoopPreviewHandler(std::function<void(const LoopSettings &)> handler) {
+    Q_D(PlaybackController);
+    d->m_loopPreviewHandler = std::move(handler);
 }
 
 void PlaybackController::applyLastPosition(const double tick) {

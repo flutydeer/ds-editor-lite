@@ -40,6 +40,13 @@ namespace {
                 .source = Automation::InvocationSource::TrustedGui};
     }
 
+    Automation::GuiDocumentCommandContext
+        guiDocumentContext(const Automation::CoreRuntime &runtime) {
+        return {.expected = runtime.documentVersion(),
+                .windowId = runtime.windowId(),
+                .source = Automation::InvocationSource::TrustedGui};
+    }
+
     Automation::ClipPropertiesDto clipPropertiesDto(
         const Clip::ClipCommonProperties &properties) {
         return {
@@ -122,10 +129,34 @@ void TrackController::addAudioClipToNewTrack(const QString &filePath) {
 }
 
 void TrackController::setActiveClip(const int clipId) {
-    if (clipId != appStatus->activeClipId) {
-        appStatus->selectedNotes = QList<int>();
-        appStatus->activeClipId = clipId;
-    }
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    const auto id = clipId >= 0 ? std::optional(Automation::ClipId(clipId)) : std::nullopt;
+    runtime->facade().setActiveClip(guiDocumentContext(*runtime), id);
+}
+
+void TrackController::setSelectedTrackIndex(const int trackIndex) {
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    std::optional<Automation::TrackId> trackId;
+    if (trackIndex >= 0 && trackIndex < appModel->tracks().size())
+        trackId = Automation::TrackId(appModel->tracks().at(trackIndex)->id());
+    else if (trackIndex >= 0)
+        return;
+    runtime->facade().setSelectedTrack(guiDocumentContext(*runtime), trackId);
+}
+
+void TrackController::setSelectedClips(const QList<int> &clipIds) {
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    QList<Automation::ClipId> ids;
+    ids.reserve(clipIds.size());
+    for (const auto id : clipIds)
+        ids.append(Automation::ClipId(id));
+    runtime->facade().setSelectedClips(guiDocumentContext(*runtime), ids);
 }
 
 void TrackController::changeTrackProperty(const Track::TrackProperties &args) {

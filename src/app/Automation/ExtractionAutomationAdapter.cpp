@@ -109,8 +109,8 @@ namespace Automation {
             : public IPitchExtractionJob,
               public std::enable_shared_from_this<PitchExtractionJobAdapter> {
         public:
-            explicit PitchExtractionJobAdapter(PitchExtractionInput input)
-                : m_input(std::move(input)) {
+            PitchExtractionJobAdapter(PitchExtractionInput input, TaskManager *taskRuntime)
+                : m_input(std::move(input)), m_taskManager(taskRuntime) {
             }
 
             void start(ExtractionJobCallbacks callbacks,
@@ -133,7 +133,7 @@ namespace Automation {
                 QObject::connect(
                     task, &Task::finished, connectionContext,
                     [self, task, completed = std::move(completed)]() mutable {
-                        taskManager->removeTask(task);
+                        self->m_taskManager->removeTask(task);
                         PitchExtractionBackendResult result;
                         if (task->success()) {
                             result.state = ExtractionBackendState::Succeeded;
@@ -159,7 +159,7 @@ namespace Automation {
                 }
                 if (callbacks.progress)
                     callbacks.progress(progressFromStatus(task->status()), task->status().message);
-                taskManager->addAndStartTask(task);
+                m_taskManager->addAndStartTask(task);
             }
 
             void cancel() override {
@@ -170,6 +170,7 @@ namespace Automation {
 
         private:
             PitchExtractionInput m_input;
+            TaskManager *m_taskManager = nullptr;
             ExtractPitchTask *m_task = nullptr;
             bool m_canceled = false;
         };
@@ -178,8 +179,8 @@ namespace Automation {
             : public IMidiExtractionJob,
               public std::enable_shared_from_this<MidiExtractionJobAdapter> {
         public:
-            explicit MidiExtractionJobAdapter(MidiExtractionInput input)
-                : m_input(std::move(input)) {
+            MidiExtractionJobAdapter(MidiExtractionInput input, TaskManager *taskRuntime)
+                : m_input(std::move(input)), m_taskManager(taskRuntime) {
             }
 
             void start(ExtractionJobCallbacks callbacks,
@@ -202,7 +203,7 @@ namespace Automation {
                 QObject::connect(
                     task, &Task::finished, connectionContext,
                     [self, task, completed = std::move(completed)]() mutable {
-                        taskManager->removeTask(task);
+                        self->m_taskManager->removeTask(task);
                         MidiExtractionBackendResult result;
                         if (task->success()) {
                             result.state = ExtractionBackendState::Succeeded;
@@ -227,7 +228,7 @@ namespace Automation {
                 }
                 if (callbacks.progress)
                     callbacks.progress(progressFromStatus(task->status()), task->status().message);
-                taskManager->addAndStartTask(task);
+                m_taskManager->addAndStartTask(task);
             }
 
             void cancel() override {
@@ -238,16 +239,19 @@ namespace Automation {
 
         private:
             MidiExtractionInput m_input;
+            TaskManager *m_taskManager = nullptr;
             ExtractMidiTask *m_task = nullptr;
             bool m_canceled = false;
         };
     }
 
-    ExtractionRuntimeServices createExtractionAutomationServices(AppOptions *options) {
+    ExtractionRuntimeServices createExtractionAutomationServices(AppOptions *options,
+                                                                 TaskManager *taskRuntime) {
         ExtractionRuntimeServices services;
         services.preparePitch =
-            [options](PitchExtractionInput input) -> AutomationResult<PreparedPitchExtraction> {
-            if (!options || !options->general()) {
+            [options,
+             taskRuntime](PitchExtractionInput input) -> AutomationResult<PreparedPitchExtraction> {
+            if (!options || !options->general() || !taskRuntime) {
                 AutomationError error;
                 error.code = AutomationErrorCode::ModuleNotReady;
                 error.message = QStringLiteral("Application options are unavailable");
@@ -261,12 +265,13 @@ namespace Automation {
                                       QStringLiteral("RMVPE model"));
             if (!valid)
                 return valid.getError();
-            auto job = std::make_shared<PitchExtractionJobAdapter>(input);
+            auto job = std::make_shared<PitchExtractionJobAdapter>(input, taskRuntime);
             return PreparedPitchExtraction{std::move(input), std::move(job)};
         };
         services.prepareMidi =
-            [options](MidiExtractionInput input) -> AutomationResult<PreparedMidiExtraction> {
-            if (!options || !options->general()) {
+            [options,
+             taskRuntime](MidiExtractionInput input) -> AutomationResult<PreparedMidiExtraction> {
+            if (!options || !options->general() || !taskRuntime) {
                 AutomationError error;
                 error.code = AutomationErrorCode::ModuleNotReady;
                 error.message = QStringLiteral("Application options are unavailable");
@@ -282,7 +287,7 @@ namespace Automation {
                 return valid.getError();
             input.defaultLanguage = options->general()->defaultSingingLanguage;
             input.defaultLyric = options->general()->defaultLyricForLanguage(input.defaultLanguage);
-            auto job = std::make_shared<MidiExtractionJobAdapter>(input);
+            auto job = std::make_shared<MidiExtractionJobAdapter>(input, taskRuntime);
             return PreparedMidiExtraction{std::move(input), std::move(job)};
         };
         services.schedule = [](std::function<void()> execute) {

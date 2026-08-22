@@ -47,6 +47,7 @@ namespace Automation {
         }
 
         void hashNoteDraft(QCryptographicHash &hash, const NoteDraftDto &note) {
+            hashString(hash, note.clientRef);
             hashInteger(hash, note.localStart);
             hashInteger(hash, note.length);
             hashInteger(hash, note.keyIndex);
@@ -86,8 +87,7 @@ namespace Automation {
             return hash.result();
         }
 
-        QByteArray wordEditsFingerprint(const ClipId clipId,
-                                        const QList<NoteWordEditDto> &edits) {
+        QByteArray wordEditsFingerprint(const ClipId clipId, const QList<NoteWordEditDto> &edits) {
             QCryptographicHash hash(QCryptographicHash::Sha256);
             hashInteger(hash, clipId.value());
             hashInteger(hash, edits.size());
@@ -130,8 +130,8 @@ namespace Automation {
             next.pronunciation = edit.pronunciation;
             next.pronCandidates = edit.pronunciationCandidates;
             next.phonemes = edit.phonemes;
-            const bool wordInputChanged = previous.lyric != next.lyric ||
-                                          previous.language != next.language;
+            const bool wordInputChanged =
+                previous.lyric != next.lyric || previous.language != next.language;
             if (wordInputChanged) {
                 if (!edit.replacePronunciation)
                     next.pronunciation.edited.clear();
@@ -170,13 +170,12 @@ namespace Automation {
                                                AutomationDispatcher &dispatcher,
                                                CommandCommitter &committer,
                                                DocumentObjectResolver &objects)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_committer(committer),
-          m_objects(objects) {
+        : m_catalog(catalog), m_dispatcher(dispatcher), m_committer(committer), m_objects(objects) {
         registerOperations();
     }
 
     AutomationResult<QList<NoteSnapshotDto>>
-    NoteAutomationFacade::getNotes(const DocumentId &documentId, const ClipId clipId) {
+        NoteAutomationFacade::getNotes(const DocumentId &documentId, const ClipId clipId) {
         return m_dispatcher.dispatchDocumentQuery<QList<NoteSnapshotDto>>(
             QStringLiteral("notes.get"), documentId, [this, clipId](DocumentSession &session) {
                 auto resolved = m_objects.singingClip(session, clipId);
@@ -192,8 +191,8 @@ namespace Automation {
     }
 
     AutomationResult<MutationResult>
-    NoteAutomationFacade::insertNotes(const CommandContext &context, const ClipId clipId,
-                                      const QList<NoteDraftDto> &notes) {
+        NoteAutomationFacade::insertNotes(const CommandContext &context, const ClipId clipId,
+                                          const QList<NoteDraftDto> &notes) {
         return m_dispatcher.dispatchDocumentCommand(
             QStringLiteral("notes.insert"), context, insertFingerprint(clipId, notes),
             [this, clipId, notes](DocumentSession &session, const bool validateOnly) {
@@ -203,9 +202,13 @@ namespace Automation {
                 for (const auto &note : notes) {
                     if (!validNoteDraft(note)) {
                         return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                            QStringLiteral("notes"), QStringLiteral("Note geometry or key is invalid")));
+                            QStringLiteral("notes"),
+                            QStringLiteral("Note geometry or key is invalid")));
                     }
                 }
+                auto clientRefValidation = validateClientRefs(notes);
+                if (!clientRefValidation)
+                    return AutomationResult<MutationResult>(clientRefValidation.getError());
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, !notes.isEmpty()));
@@ -217,15 +220,17 @@ namespace Automation {
                 ownedNotes.reserve(static_cast<size_t>(notes.size()));
                 QList<Note *> rawNotes;
                 QList<ObjectRef> affected;
+                QList<CreatedObjectRef> createdObjects;
                 for (const auto &draft : notes) {
-                    auto note = buildNote(draft, clip);
+                    auto note = buildNote(draft, clip, &createdObjects);
                     rawNotes.append(note.get());
                     affected.append({ObjectKind::Note, note->id()});
                     ownedNotes.push_back(std::move(note));
                 }
                 auto actions = std::make_unique<NoteActions>();
                 actions->insertNotes(rawNotes, clip, resolved.get().track);
-                auto result = m_committer.commit(session, std::move(actions), affected);
+                auto result = m_committer.commit(session, std::move(actions), affected,
+                                                 std::move(createdObjects));
                 if (result) {
                     for (auto &note : ownedNotes)
                         note.release();
@@ -235,15 +240,16 @@ namespace Automation {
     }
 
     AutomationResult<MutationResult>
-    NoteAutomationFacade::removeNotes(const CommandContext &context, const ClipId clipId,
-                                      QList<NoteId> noteIds) {
-        std::sort(noteIds.begin(), noteIds.end(),
-                  [](const NoteId left, const NoteId right) { return left.value() < right.value(); });
+        NoteAutomationFacade::removeNotes(const CommandContext &context, const ClipId clipId,
+                                          QList<NoteId> noteIds) {
+        std::sort(noteIds.begin(), noteIds.end(), [](const NoteId left, const NoteId right) {
+            return left.value() < right.value();
+        });
         const bool duplicates = hasDuplicateIds(noteIds);
         return m_dispatcher.dispatchDocumentCommand(
             QStringLiteral("notes.remove"), context, noteIdsFingerprint(clipId, noteIds),
             [this, clipId, noteIds = std::move(noteIds), duplicates](DocumentSession &session,
-                                                                    const bool validateOnly) {
+                                                                     const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
                 if (!clipResult)
                     return AutomationResult<MutationResult>(clipResult.getError());
@@ -270,12 +276,14 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult>
-    NoteAutomationFacade::moveNotes(const CommandContext &context, const ClipId clipId,
-                                    QList<NoteId> noteIds, const int deltaTick,
-                                    const int deltaKey) {
-        std::sort(noteIds.begin(), noteIds.end(),
-                  [](const NoteId left, const NoteId right) { return left.value() < right.value(); });
+    AutomationResult<MutationResult> NoteAutomationFacade::moveNotes(const CommandContext &context,
+                                                                     const ClipId clipId,
+                                                                     QList<NoteId> noteIds,
+                                                                     const int deltaTick,
+                                                                     const int deltaKey) {
+        std::sort(noteIds.begin(), noteIds.end(), [](const NoteId left, const NoteId right) {
+            return left.value() < right.value();
+        });
         const bool duplicates = hasDuplicateIds(noteIds);
         return m_dispatcher.dispatchDocumentCommand(
             QStringLiteral("notes.move"), context,
@@ -298,10 +306,9 @@ namespace Automation {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("note_ids"), QStringLiteral("Note IDs must be unique")));
                 }
-                const auto safeDeltaTick = notes.isEmpty()
-                                                   ? 0
-                                                   : NoteResizeUtils::clampLeftMoveDelta(
-                                                         deltaTick, minimumStart);
+                const auto safeDeltaTick =
+                    notes.isEmpty() ? 0
+                                    : NoteResizeUtils::clampLeftMoveDelta(deltaTick, minimumStart);
                 for (const auto *note : notes) {
                     const auto targetKey = note->keyIndex() + deltaKey;
                     if (targetKey < 0 || targetKey > 127) {
@@ -325,11 +332,13 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult> NoteAutomationFacade::resizeNotesLeft(
-        const CommandContext &context, const ClipId clipId, QList<NoteId> noteIds,
-        const int deltaTick, const int minimumLength) {
-        std::sort(noteIds.begin(), noteIds.end(),
-                  [](const NoteId left, const NoteId right) { return left.value() < right.value(); });
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::resizeNotesLeft(const CommandContext &context, const ClipId clipId,
+                                              QList<NoteId> noteIds, const int deltaTick,
+                                              const int minimumLength) {
+        std::sort(noteIds.begin(), noteIds.end(), [](const NoteId left, const NoteId right) {
+            return left.value() < right.value();
+        });
         const bool duplicates = hasDuplicateIds(noteIds);
         return m_dispatcher.dispatchDocumentCommand(
             QStringLiteral("notes.resize_left"), context,
@@ -354,8 +363,8 @@ namespace Automation {
                 }
                 int safeDelta = deltaTick;
                 for (const auto *note : notes)
-                    safeDelta = NoteResizeUtils::clampLeftDelta(note->length(), safeDelta,
-                                                               minimumLength);
+                    safeDelta =
+                        NoteResizeUtils::clampLeftDelta(note->length(), safeDelta, minimumLength);
                 if (!notes.isEmpty())
                     safeDelta = NoteResizeUtils::clampLeftMoveDelta(safeDelta, minimumStart);
                 const bool changed = !notes.isEmpty() && safeDelta != 0;
@@ -366,18 +375,20 @@ namespace Automation {
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
                 auto actions = std::make_unique<NoteActions>();
-                actions->editNotesStartAndLength(
-                    notes, safeDelta, static_cast<SingingClip *>(clipResult.get().clip),
-                    clipResult.get().track);
+                actions->editNotesStartAndLength(notes, safeDelta,
+                                                 static_cast<SingingClip *>(clipResult.get().clip),
+                                                 clipResult.get().track);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
 
-    AutomationResult<MutationResult> NoteAutomationFacade::resizeNotesRight(
-        const CommandContext &context, const ClipId clipId, QList<NoteId> noteIds,
-        const int deltaTick, const int minimumLength) {
-        std::sort(noteIds.begin(), noteIds.end(),
-                  [](const NoteId left, const NoteId right) { return left.value() < right.value(); });
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::resizeNotesRight(const CommandContext &context, const ClipId clipId,
+                                               QList<NoteId> noteIds, const int deltaTick,
+                                               const int minimumLength) {
+        std::sort(noteIds.begin(), noteIds.end(), [](const NoteId left, const NoteId right) {
+            return left.value() < right.value();
+        });
         const bool duplicates = hasDuplicateIds(noteIds);
         return m_dispatcher.dispatchDocumentCommand(
             QStringLiteral("notes.resize_right"), context,
@@ -400,8 +411,8 @@ namespace Automation {
                 }
                 int safeDelta = deltaTick;
                 for (const auto *note : notes)
-                    safeDelta = NoteResizeUtils::clampRightDelta(note->length(), safeDelta,
-                                                                minimumLength);
+                    safeDelta =
+                        NoteResizeUtils::clampRightDelta(note->length(), safeDelta, minimumLength);
                 const bool changed = !notes.isEmpty() && safeDelta != 0;
                 const auto affected = noteRefs(noteIds);
                 if (validateOnly)
@@ -417,15 +428,16 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult>
-    NoteAutomationFacade::splitNote(const CommandContext &context, const ClipId clipId,
-                                    const NoteId noteId, const NoteDraftDto &newNote,
-                                    const int newLength) {
+    AutomationResult<MutationResult> NoteAutomationFacade::splitNote(const CommandContext &context,
+                                                                     const ClipId clipId,
+                                                                     const NoteId noteId,
+                                                                     const NoteDraftDto &newNote,
+                                                                     const int newLength) {
         return m_dispatcher.dispatchDocumentCommand(
             QStringLiteral("notes.split"), context,
             splitFingerprint(clipId, noteId, newNote, newLength),
-            [this, clipId, noteId, newNote,
-             newLength](DocumentSession &session, const bool validateOnly) {
+            [this, clipId, noteId, newNote, newLength](DocumentSession &session,
+                                                       const bool validateOnly) {
                 auto resolved = m_objects.note(session, clipId, noteId);
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
@@ -436,22 +448,27 @@ namespace Automation {
                 }
                 if (validateOnly)
                     return AutomationResult<MutationResult>(m_committer.preview(session, true));
-                auto note = buildNote(newNote, resolved.get().clip);
+                QList<CreatedObjectRef> createdObjects;
+                auto note = buildNote(newNote, resolved.get().clip, &createdObjects);
                 const auto createdId = note->id();
                 auto actions = std::make_unique<NoteActions>();
                 actions->splitNote(resolved.get().note, note.get(), newLength, resolved.get().clip);
                 auto result = m_committer.commit(
                     session, std::move(actions),
-                    {{ObjectKind::Note, noteId.value()}, {ObjectKind::Note, createdId}});
+                    {
+                        {ObjectKind::Note, noteId.value()},
+                        {ObjectKind::Note, createdId     }
+                },
+                    std::move(createdObjects));
                 if (result)
                     note.release();
                 return result;
             });
     }
 
-    AutomationResult<MutationResult> NoteAutomationFacade::setPhonemeOffsets(
-        const CommandContext &context, const ClipId clipId, const NoteId noteId,
-        const QList<int> &offsets) {
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::setPhonemeOffsets(const CommandContext &context, const ClipId clipId,
+                                                const NoteId noteId, const QList<int> &offsets) {
         return m_dispatcher.dispatchDocumentCommand(
             QStringLiteral("notes.set_phoneme_offsets"), context,
             noteIdsFingerprint(clipId, {noteId}, offsets),
@@ -460,7 +477,9 @@ namespace Automation {
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
                 const bool changed = resolved.get().note->phonemeOffsetSeq().edited != offsets;
-                const auto affected = QList<ObjectRef>{{ObjectKind::Note, noteId.value()}};
+                const auto affected = QList<ObjectRef>{
+                    {ObjectKind::Note, noteId.value()}
+                };
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, changed, affected));
@@ -472,16 +491,17 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult> NoteAutomationFacade::quantizeNotes(
-        const CommandContext &context, const ClipId clipId, QList<NoteId> noteIds,
-        const int quantize, const bool quantizeStart, const bool quantizeLength) {
-        std::sort(noteIds.begin(), noteIds.end(),
-                  [](const NoteId left, const NoteId right) { return left.value() < right.value(); });
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::quantizeNotes(const CommandContext &context, const ClipId clipId,
+                                            QList<NoteId> noteIds, const int quantize,
+                                            const bool quantizeStart, const bool quantizeLength) {
+        std::sort(noteIds.begin(), noteIds.end(), [](const NoteId left, const NoteId right) {
+            return left.value() < right.value();
+        });
         const bool duplicates = hasDuplicateIds(noteIds);
         return m_dispatcher.dispatchDocumentCommand(
             QStringLiteral("notes.quantize"), context,
-            noteIdsFingerprint(clipId, noteIds,
-                               {quantize, quantizeStart, quantizeLength}),
+            noteIdsFingerprint(clipId, noteIds, {quantize, quantizeStart, quantizeLength}),
             [this, clipId, noteIds = std::move(noteIds), quantize, quantizeStart, duplicates,
              quantizeLength](DocumentSession &session, const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
@@ -532,17 +552,18 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult> NoteAutomationFacade::setWordProperties(
-        const CommandContext &context, const ClipId clipId, QList<NoteWordEditDto> edits) {
-        std::sort(edits.begin(), edits.end(), [](const NoteWordEditDto &left,
-                                                const NoteWordEditDto &right) {
-            return left.noteId.value() < right.noteId.value();
-        });
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::setWordProperties(const CommandContext &context, const ClipId clipId,
+                                                QList<NoteWordEditDto> edits) {
+        std::sort(edits.begin(), edits.end(),
+                  [](const NoteWordEditDto &left, const NoteWordEditDto &right) {
+                      return left.noteId.value() < right.noteId.value();
+                  });
         return m_dispatcher.dispatchDocumentCommand(
             QStringLiteral("notes.set_word_properties"), context,
             wordEditsFingerprint(clipId, edits),
             [this, clipId, edits = std::move(edits)](DocumentSession &session,
-                                                    const bool validateOnly) {
+                                                     const bool validateOnly) {
                 QList<NoteId> ids;
                 ids.reserve(edits.size());
                 for (const auto &edit : edits)
@@ -575,8 +596,8 @@ namespace Automation {
                         continue;
                     changedNotes.append(note);
                     properties.append(normalized);
-                    options.append({edit.replacePronunciation,
-                                    edit.replacePronunciationCandidates});
+                    options.append(
+                        {edit.replacePronunciation, edit.replacePronunciationCandidates});
                     changedIds.append(edit.noteId);
                 }
                 const auto affected = noteRefs(changedIds);
@@ -586,9 +607,9 @@ namespace Automation {
                 if (changedNotes.isEmpty())
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
                 auto actions = std::make_unique<NoteActions>();
-                actions->editNotesWordProperties(
-                    changedNotes, properties, static_cast<SingingClip *>(clipResult.get().clip),
-                    options);
+                actions->editNotesWordProperties(changedNotes, properties,
+                                                 static_cast<SingingClip *>(clipResult.get().clip),
+                                                 options);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
@@ -634,8 +655,7 @@ namespace Automation {
         };
         addMutation(QStringLiteral("notes.insert"),
                     QStringLiteral("automation.InsertNotesCommand.v1"));
-        addMutation(QStringLiteral("notes.move"),
-                    QStringLiteral("automation.MoveNotesCommand.v1"));
+        addMutation(QStringLiteral("notes.move"), QStringLiteral("automation.MoveNotesCommand.v1"));
         addMutation(QStringLiteral("notes.quantize"),
                     QStringLiteral("automation.QuantizeNotesCommand.v1"));
         addMutation(QStringLiteral("notes.remove"),

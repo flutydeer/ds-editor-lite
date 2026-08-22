@@ -6,9 +6,9 @@
 namespace Automation {
 
     AutomationResult<MutationResult>
-    CommandCommitter::commit(DocumentSession &session,
-                             std::unique_ptr<ActionSequence> actions,
-                             QList<ObjectRef> affectedObjects) {
+        CommandCommitter::commit(DocumentSession &session, std::unique_ptr<ActionSequence> actions,
+                                 QList<ObjectRef> affectedObjects,
+                                 QList<CreatedObjectRef> createdObjects) {
         if (!actions) {
             return AutomationError::invalidArgument(QStringLiteral("actions"),
                                                     QStringLiteral("Action sequence is required"));
@@ -18,6 +18,7 @@ namespace Automation {
         result.previous = session.version();
         result.current = result.previous;
         result.affectedObjects = std::move(affectedObjects);
+        result.createdObjects = std::move(createdObjects);
         if (actions->count() == 0)
             return result;
 
@@ -36,8 +37,7 @@ namespace Automation {
         return result;
     }
 
-    MutationResult CommandCommitter::commitStateChange(DocumentSession &session,
-                                                       const bool changed,
+    MutationResult CommandCommitter::commitStateChange(DocumentSession &session, const bool changed,
                                                        const std::function<void()> &apply,
                                                        QList<ObjectRef> affectedObjects) {
         MutationResult result;
@@ -52,9 +52,10 @@ namespace Automation {
         return result;
     }
 
-    MutationResult CommandCommitter::commitDerivedStateChange(
-        DocumentSession &session, const bool changed, const std::function<void()> &apply,
-        QList<ObjectRef> affectedObjects) {
+    MutationResult CommandCommitter::commitDerivedStateChange(DocumentSession &session,
+                                                              const bool changed,
+                                                              const std::function<void()> &apply,
+                                                              QList<ObjectRef> affectedObjects) {
         MutationResult result;
         result.previous = session.version();
         result.current = result.previous;
@@ -66,8 +67,7 @@ namespace Automation {
         return result;
     }
 
-    MutationResult CommandCommitter::preview(const DocumentSession &session,
-                                             const bool wouldChange,
+    MutationResult CommandCommitter::preview(const DocumentSession &session, const bool wouldChange,
                                              QList<ObjectRef> affectedObjects) const {
         MutationResult result;
         result.previous = session.version();

@@ -110,6 +110,38 @@ namespace Automation {
         }
 
         template <typename T, typename Handler>
+        AutomationResult<T> dispatchGuiDocumentQuery(const OperationId &operationId,
+                                                     const DocumentId &documentId,
+                                                     const WindowId &windowId, Handler &&handler) {
+            return runSerialized([&]() -> AutomationResult<T> {
+                const auto descriptor = requireDescriptor(operationId, OperationKind::Query);
+                if (!descriptor)
+                    return descriptor.getError();
+                if (descriptor.get()->hostAvailability != HostAvailability::GuiOnly ||
+                    descriptor.get()->documentPolicy == DocumentPolicy::None) {
+                    return decorateError(
+                        AutomationError::invalidArgument(
+                            QStringLiteral("operation_id"),
+                            QStringLiteral("Operation is not a GUI document query")),
+                        operationId);
+                }
+
+                auto resolved = m_documentResolver.resolveDocument(documentId);
+                if (!resolved)
+                    return decorateError(resolved.getError(), operationId);
+                auto &session = resolved.get().get();
+                if (session.lifecycleState() != DocumentLifecycleState::Active)
+                    return decorateError(AutomationError::documentBusy(session.documentId()),
+                                         operationId);
+
+                const auto validated = m_windowContext.validateWindow(windowId);
+                if (!validated)
+                    return decorateError(validated.getError(), operationId);
+                return std::forward<Handler>(handler)(session);
+            });
+        }
+
+        template <typename T, typename Handler>
         AutomationResult<T> dispatchGuiCommand(const OperationId &operationId,
                                                const GuiCommandContext &context,
                                                Handler &&handler) {
@@ -129,6 +161,47 @@ namespace Automation {
                 if (!validated)
                     return decorateError(validated.getError(), operationId);
                 auto result = std::forward<Handler>(handler)(context.validateOnly);
+                if (!result)
+                    return decorateError(result.getError(), operationId);
+                return result;
+            });
+        }
+
+        template <typename T, typename Handler>
+        AutomationResult<T> dispatchGuiDocumentCommand(const OperationId &operationId,
+                                                       const GuiDocumentCommandContext &context,
+                                                       Handler &&handler) {
+            return runSerialized([&]() -> AutomationResult<T> {
+                const auto descriptor = requireDescriptor(operationId, OperationKind::Command);
+                if (!descriptor)
+                    return descriptor.getError();
+                if (descriptor.get()->hostAvailability != HostAvailability::GuiOnly ||
+                    descriptor.get()->documentPolicy == DocumentPolicy::None) {
+                    return decorateError(
+                        AutomationError::invalidArgument(
+                            QStringLiteral("operation_id"),
+                            QStringLiteral("Operation is not a GUI document command")),
+                        operationId);
+                }
+
+                auto resolved = m_documentResolver.resolveDocument(context.expected.documentId);
+                if (!resolved)
+                    return decorateError(resolved.getError(), operationId);
+                auto &session = resolved.get().get();
+                if (session.lifecycleState() != DocumentLifecycleState::Active)
+                    return decorateError(AutomationError::documentBusy(session.documentId()),
+                                         operationId);
+                if (session.revision() != context.expected.revision) {
+                    return decorateError(
+                        AutomationError::revisionConflict(
+                            session.documentId(), context.expected.revision, session.revision()),
+                        operationId);
+                }
+
+                const auto validated = m_windowContext.validateWindow(context.windowId);
+                if (!validated)
+                    return decorateError(validated.getError(), operationId);
+                auto result = std::forward<Handler>(handler)(session, context.validateOnly);
                 if (!result)
                     return decorateError(result.getError(), operationId);
                 return result;
@@ -168,14 +241,15 @@ namespace Automation {
                                          operationId);
 
                 const auto fingerprint = effectiveFingerprint(context, requestFingerprint);
+                if (!context.idempotencyKey.isEmpty() &&
+                    descriptor.get()->idempotency != IdempotencyPolicy::DocumentGeneration) {
+                    return decorateError(
+                        AutomationError::invalidArgument(
+                            QStringLiteral("idempotency_key"),
+                            QStringLiteral("Operation does not support document idempotency")),
+                        operationId);
+                }
                 if (!context.validateOnly && !context.idempotencyKey.isEmpty()) {
-                    if (descriptor.get()->idempotency != IdempotencyPolicy::DocumentGeneration) {
-                        return decorateError(
-                            AutomationError::invalidArgument(
-                                QStringLiteral("idempotency_key"),
-                                QStringLiteral("Operation does not support document idempotency")),
-                            operationId);
-                    }
                     auto replay = session.idempotencyStore().replay<T>(
                         operationId, context.idempotencyKey, fingerprint);
                     if (!replay)

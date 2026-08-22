@@ -14,6 +14,7 @@ class AppModel;
 class DecodeAudioTask;
 class AudioClip;
 class TrackControl;
+class AppContext;
 
 class AppController final : public QObject {
     Q_OBJECT
@@ -35,7 +36,6 @@ public slots:
 
     bool exportMidiFile(const QString &filePath);
 
-
     static void onSetTempo(double tempo);
     // Inserts a tempo point at tick, or edits the existing point there.
     void onSetTempoAt(int tick, double tempo);
@@ -51,6 +51,10 @@ public slots:
                            const QString &redoActionName);
 
 private:
+    friend class AppContext;
+
+    bool applyQuit();
+    bool applyRestart();
     Q_DECLARE_PRIVATE(AppController)
     // QScopedPointer<AppControllerPrivate> d_ptr;
     AppControllerPrivate *d_ptr;

@@ -375,7 +375,7 @@ void MainMenuViewPrivate::onQuantize() {
 
 void MainMenuViewPrivate::exitApp() {
     qDebug() << "MainMenuViewPrivate::exitApp";
-    m_mainWindow->close();
+    appController->quit();
 }
 
 void MainMenuViewPrivate::enterClipEditorState() {

@@ -1,6 +1,7 @@
 #ifndef CORERUNTIME_H
 #define CORERUNTIME_H
 
+#include "ApplicationAutomationFacade.h"
 #include "AudioExportAutomationFacade.h"
 #include "DocumentSessionResolver.h"
 #include "DocumentAutomationFacade.h"
@@ -36,7 +37,8 @@ namespace Automation {
                     InferenceRuntimeServices inferenceServices = {},
                     FileRuntimeServices fileServices = {},
                     AudioExportRuntimeServices audioExportServices = {},
-                    ExtractionRuntimeServices extractionServices = {});
+                    ExtractionRuntimeServices extractionServices = {},
+                    ApplicationRuntimeServices applicationServices = {});
 
         [[nodiscard]] DocumentVersion documentVersion() const;
         [[nodiscard]] const WindowId &windowId() const;
@@ -46,6 +48,7 @@ namespace Automation {
         OperationCatalog &catalog();
         const OperationCatalog &catalog() const;
         AutomationDispatcher &dispatcher();
+        ApplicationAutomationFacade &application();
         AudioExportAutomationFacade &audioExports();
         DocumentAutomationFacade &documents();
         ExtractionAutomationFacade &extractions();
@@ -63,9 +66,7 @@ namespace Automation {
         AutomationTaskManager &automationTasks();
         TimelineAutomationFacade &timeline();
 
-        DocumentVersion replaceDocumentGeneration(QString path, QString projectName);
         bool setDocumentBusy(const DocumentId &documentId, bool busy);
-        bool setDocumentIdentity(const DocumentId &documentId, QString path, QString projectName);
 
     private:
         DocumentSession m_session;
@@ -76,6 +77,7 @@ namespace Automation {
         CommandCommitter m_committer;
         DocumentObjectResolver m_objectResolver;
         AutomationTaskManager m_taskManager;
+        ApplicationAutomationFacade m_applicationFacade;
         ParameterAutomationFacade m_parameterFacade;
         ProjectAutomationFacade m_projectFacade;
         AudioExportAutomationFacade m_audioExportFacade;

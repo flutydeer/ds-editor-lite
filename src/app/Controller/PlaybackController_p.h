@@ -1,10 +1,13 @@
 #ifndef PLAYBACKCONTROLLER_P_H
 #define PLAYBACKCONTROLLER_P_H
 
+#include "Automation/AutomationTypes.h"
+
 #include <QChronoTimer>
 #include <QElapsedTimer>
 
 #include <functional>
+#include <optional>
 
 class PlaybackControllerPrivate : public QObject {
     Q_OBJECT
@@ -22,6 +25,9 @@ public:
     QElapsedTimer m_visualPositionClock;
     QChronoTimer m_visualPositionTimer;
     std::function<bool()> m_playbackStartGuard;
+    std::function<void(const LoopSettings &)> m_loopPreviewHandler;
+    std::optional<Automation::DocumentVersion> m_loopEditVersion;
+    LoopSettings m_loopEditOriginal;
 
 private:
     PlaybackController *q_ptr;

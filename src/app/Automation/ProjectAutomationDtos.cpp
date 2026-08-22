@@ -9,6 +9,7 @@
 #include <QDataStream>
 #include <QIODevice>
 #include <QJsonDocument>
+#include <QSet>
 
 #include <array>
 #include <cmath>
@@ -16,8 +17,8 @@
 namespace Automation {
     namespace {
         constexpr std::array kParamNames{
-            ParamInfo::Pitch,       ParamInfo::Expressiveness, ParamInfo::Energy,
-            ParamInfo::Breathiness, ParamInfo::Voicing,        ParamInfo::Tension,
+            ParamInfo::Pitch,        ParamInfo::Expressiveness, ParamInfo::Energy,
+            ParamInfo::Breathiness,  ParamInfo::Voicing,        ParamInfo::Tension,
             ParamInfo::MouthOpening, ParamInfo::Gender,         ParamInfo::Velocity,
             ParamInfo::ToneShift,
         };
@@ -29,8 +30,7 @@ namespace Automation {
                 result.type = CurveDraftDto::Type::Anchor;
                 const auto &anchor = static_cast<const AnchorCurve &>(curve);
                 for (const auto *node : anchor.nodes()) {
-                    result.nodes.append(
-                        {node->pos(), node->value(), node->interpMode()});
+                    result.nodes.append({node->pos(), node->value(), node->interpMode()});
                 }
                 return result;
             }
@@ -78,6 +78,49 @@ namespace Automation {
             hash.addData(encoded);
         }
 
+        void appendCreatedObject(QList<CreatedObjectRef> *createdObjects, const QString &clientRef,
+                                 const ObjectKind kind, const int id) {
+            if (createdObjects && !clientRef.isEmpty())
+                createdObjects->append({
+                    clientRef, {kind, id}
+                });
+        }
+
+        void collectClientRefs(const NoteDraftDto &draft, QStringList &clientRefs) {
+            if (!draft.clientRef.isEmpty())
+                clientRefs.append(draft.clientRef);
+        }
+
+        void collectClientRefs(const ClipDraftDto &draft, QStringList &clientRefs) {
+            if (!draft.clientRef.isEmpty())
+                clientRefs.append(draft.clientRef);
+            for (const auto &note : draft.notes)
+                collectClientRefs(note, clientRefs);
+        }
+
+        void collectClientRefs(const TrackDraftDto &draft, QStringList &clientRefs,
+                               const bool includeClips = true) {
+            if (!draft.clientRef.isEmpty())
+                clientRefs.append(draft.clientRef);
+            if (!includeClips)
+                return;
+            for (const auto &clip : draft.clips)
+                collectClientRefs(clip, clientRefs);
+        }
+
+        AutomationResult<AutomationUnit> validateUniqueClientRefs(const QStringList &clientRefs) {
+            QSet<QString> seen;
+            for (const auto &clientRef : clientRefs) {
+                if (seen.contains(clientRef)) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("client_ref"),
+                        QStringLiteral("Client references must be unique within a request"));
+                }
+                seen.insert(clientRef);
+            }
+            return AutomationUnit{};
+        }
+
         void addInteger(QCryptographicHash &hash, const qint64 value) {
             hash.addData(QByteArray::number(value));
             hash.addData(";", 1);
@@ -98,8 +141,7 @@ namespace Automation {
             }
         }
 
-        void addSpeakerMix(QCryptographicHash &hash,
-                           const SpeakerMixModel::SpeakerMixData &input) {
+        void addSpeakerMix(QCryptographicHash &hash, const SpeakerMixModel::SpeakerMixData &input) {
             const auto data = SpeakerMixModel::normalizeSpeakerMixData(input);
             addInteger(hash, static_cast<int>(data.mode));
             addInteger(hash, data.dynamicBypassed);
@@ -122,6 +164,7 @@ namespace Automation {
         }
 
         void addClipDraft(QCryptographicHash &hash, const ClipDraftDto &draft) {
+            addString(hash, draft.clientRef);
             addInteger(hash, static_cast<int>(draft.type));
             addString(hash, draft.properties.name);
             addInteger(hash, draft.properties.start);
@@ -155,6 +198,7 @@ namespace Automation {
             }
             addInteger(hash, draft.notes.size());
             for (const auto &note : draft.notes) {
+                addString(hash, note.clientRef);
                 addInteger(hash, note.localStart);
                 addInteger(hash, note.length);
                 addInteger(hash, note.keyIndex);
@@ -165,7 +209,8 @@ namespace Automation {
                 addString(hash, note.pronunciation.edited);
                 for (const auto &candidate : note.pronunciationCandidates)
                     addString(hash, candidate);
-                hash.addData(QJsonDocument(note.phonemes.serialize()).toJson(QJsonDocument::Compact));
+                hash.addData(
+                    QJsonDocument(note.phonemes.serialize()).toJson(QJsonDocument::Compact));
                 addInteger(hash, note.lineFeed);
                 addJsonMap(hash, note.workspace);
             }
@@ -192,8 +237,8 @@ namespace Automation {
 
     TrackPropertiesDto trackPropertiesDto(const Track &track) {
         const auto control = track.control();
-        return {TrackId(track.id()), track.name(), control.gain(), control.pan(), control.mute(),
-                control.solo()};
+        return {TrackId(track.id()), track.name(),   control.gain(),
+                control.pan(),       control.mute(), control.solo()};
     }
 
     ClipPropertiesDto clipPropertiesDto(const Clip &clip) {
@@ -237,8 +282,10 @@ namespace Automation {
         return captureCurveDraft(curve);
     }
 
-    std::unique_ptr<Note> buildNote(const NoteDraftDto &draft, SingingClip *clip) {
+    std::unique_ptr<Note> buildNote(const NoteDraftDto &draft, SingingClip *clip,
+                                    QList<CreatedObjectRef> *createdObjects) {
         auto note = std::make_unique<Note>(clip);
+        appendCreatedObject(createdObjects, draft.clientRef, ObjectKind::Note, note->id());
         note->setLocalStart(draft.localStart);
         note->setLength(draft.length);
         note->setKeyIndex(draft.keyIndex);
@@ -332,10 +379,12 @@ namespace Automation {
     }
 
     std::unique_ptr<Clip> buildClip(const ClipDraftDto &draft, const Track *targetTrack,
-                                    const Timeline &timeline) {
+                                    const Timeline &timeline,
+                                    QList<CreatedObjectRef> *createdObjects) {
         std::unique_ptr<Clip> result;
         if (draft.type == ClipDraftDto::Type::Audio) {
             auto audio = std::make_unique<AudioClip>();
+            appendCreatedObject(createdObjects, draft.clientRef, ObjectKind::Clip, audio->id());
             audio->setPath(draft.audioPath);
             audio->setPathInfo(draft.audioPathInfo);
             audio->setPathStatus(draft.audioPathStatus);
@@ -348,9 +397,10 @@ namespace Automation {
             result = std::move(audio);
         } else {
             auto singing = std::make_unique<SingingClip>();
+            appendCreatedObject(createdObjects, draft.clientRef, ObjectKind::Clip, singing->id());
             singing->setDefaultLanguage(draft.defaultLanguage);
             for (const auto &noteDraft : draft.notes) {
-                auto note = buildNote(noteDraft, singing.get());
+                auto note = buildNote(noteDraft, singing.get(), createdObjects);
                 singing->insertNote(note.release());
             }
             if (targetTrack) {
@@ -386,8 +436,10 @@ namespace Automation {
         return result;
     }
 
-    std::unique_ptr<Track> buildTrack(const TrackDraftDto &draft, const Timeline &timeline) {
+    std::unique_ptr<Track> buildTrack(const TrackDraftDto &draft, const Timeline &timeline,
+                                      QList<CreatedObjectRef> *createdObjects) {
         auto result = std::make_unique<Track>();
+        appendCreatedObject(createdObjects, draft.clientRef, ObjectKind::Track, result->id());
         result->setName(draft.name);
         result->setColorIndex(draft.colorIndex);
         TrackControl control;
@@ -399,19 +451,20 @@ namespace Automation {
         result->setDefaultLanguage(draft.defaultLanguage);
         result->setVoiceContext(draft.singerInfo, draft.speakerInfo, draft.speakerMixData);
         for (const auto &clipDraft : draft.clips) {
-            auto clip = buildClip(clipDraft, result.get(), timeline);
+            auto clip = buildClip(clipDraft, result.get(), timeline, createdObjects);
             result->insertClip(clip.release());
         }
         return result;
     }
 
-    ProjectModelData buildProjectModelData(const DocumentDraftDto &draft) {
+    ProjectModelData buildProjectModelData(const DocumentDraftDto &draft,
+                                           QList<CreatedObjectRef> *createdObjects) {
         ProjectModelData result;
         result.timeline = draft.timeline;
         result.masterControl = draft.masterControl;
         result.tracks.reserve(static_cast<size_t>(draft.tracks.size()));
         for (const auto &trackDraft : draft.tracks)
-            result.tracks.push_back(buildTrack(trackDraft, draft.timeline));
+            result.tracks.push_back(buildTrack(trackDraft, draft.timeline, createdObjects));
         return result;
     }
 
@@ -434,6 +487,7 @@ namespace Automation {
 
     QByteArray fingerprint(const TrackDraftDto &draft) {
         QCryptographicHash hash(QCryptographicHash::Sha256);
+        addString(hash, draft.clientRef);
         addString(hash, draft.name);
         addInteger(hash, draft.colorIndex);
         addDouble(hash, draft.gain);
@@ -531,13 +585,14 @@ namespace Automation {
             if (draft.hasRealTimeAnchor &&
                 (properties.trimStartMs < 0 || properties.playLengthMs < 0 ||
                  properties.materialLengthMs < 0 ||
-                 properties.trimStartMs + properties.playLengthMs >
-                     properties.materialLengthMs)) {
+                 properties.trimStartMs + properties.playLengthMs > properties.materialLengthMs)) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("clip.audio_timing"),
                     QStringLiteral("Audio real-time anchor is invalid"));
             }
-            return AutomationUnit{};
+            QStringList clientRefs;
+            collectClientRefs(draft, clientRefs);
+            return validateUniqueClientRefs(clientRefs);
         }
         for (const auto &note : draft.notes) {
             if (note.localStart < 0 || note.length <= 0 || note.keyIndex < 0 ||
@@ -562,7 +617,9 @@ namespace Automation {
                 }
             }
         }
-        return AutomationUnit{};
+        QStringList clientRefs;
+        collectClientRefs(draft, clientRefs);
+        return validateUniqueClientRefs(clientRefs);
     }
 
     AutomationResult<AutomationUnit> validate(const TrackDraftDto &draft) {
@@ -575,7 +632,9 @@ namespace Automation {
             if (!result)
                 return result;
         }
-        return AutomationUnit{};
+        QStringList clientRefs;
+        collectClientRefs(draft, clientRefs);
+        return validateUniqueClientRefs(clientRefs);
     }
 
     AutomationResult<AutomationUnit> validate(const DocumentDraftDto &draft) {
@@ -590,8 +649,7 @@ namespace Automation {
             }
         }
         for (const auto &signature : draft.timeline.timeSignatures()) {
-            if (signature.barIndex < 0 || signature.numerator <= 0 ||
-                signature.denominator <= 0) {
+            if (signature.barIndex < 0 || signature.numerator <= 0 || signature.denominator <= 0) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("document.time_signatures"),
                     QStringLiteral("Time signature is invalid"));
@@ -599,16 +657,44 @@ namespace Automation {
         }
         if (!std::isfinite(draft.masterControl.gain()) ||
             !std::isfinite(draft.masterControl.pan())) {
-            return AutomationError::invalidArgument(
-                QStringLiteral("document.master_control"),
-                QStringLiteral("Master control is invalid"));
+            return AutomationError::invalidArgument(QStringLiteral("document.master_control"),
+                                                    QStringLiteral("Master control is invalid"));
         }
         for (const auto &track : draft.tracks) {
             auto result = validate(track);
             if (!result)
                 return result;
         }
-        return AutomationUnit{};
+        QStringList clientRefs;
+        for (const auto &track : draft.tracks)
+            collectClientRefs(track, clientRefs);
+        return validateUniqueClientRefs(clientRefs);
+    }
+
+    AutomationResult<AutomationUnit> validateClientRefs(const QList<NoteDraftDto> &notes) {
+        QStringList clientRefs;
+        clientRefs.reserve(notes.size());
+        for (const auto &note : notes)
+            collectClientRefs(note, clientRefs);
+        return validateUniqueClientRefs(clientRefs);
+    }
+
+    AutomationResult<AutomationUnit> validateClientRefs(const QList<ClipInsertDto> &clips) {
+        QStringList clientRefs;
+        for (const auto &item : clips)
+            collectClientRefs(item.clip, clientRefs);
+        return validateUniqueClientRefs(clientRefs);
+    }
+
+    AutomationResult<AutomationUnit> validateClientRefs(const BatchImportDraftDto &batch) {
+        QStringList clientRefs;
+        for (const auto &item : batch.items) {
+            if (!item.existingTrackId)
+                collectClientRefs(item.newTrack, clientRefs, false);
+            for (const auto &clip : item.clips)
+                collectClientRefs(clip, clientRefs);
+        }
+        return validateUniqueClientRefs(clientRefs);
     }
 
 } // namespace Automation

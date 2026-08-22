@@ -45,6 +45,7 @@
 
 #include <QCoreApplication>
 #include <QMetaObject>
+#include <QSysInfo>
 #include <QThread>
 
 #if defined(WITH_DIRECT_MANIPULATION)
@@ -98,8 +99,8 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     documentServices.applyLoopSettings = [status = m_appStatus](const LoopSettings &settings) {
         status->loopSettings.set(settings);
     };
-    documentServices.saveProject = [](const QString &path, AppModel *model, QString &error) {
-        DspxProjectConverterUi converter;
+    documentServices.saveProject = [this](const QString &path, AppModel *model, QString &error) {
+        DspxProjectConverterUi converter(m_appStatus->loopSettings);
         return converter.save(path, model, error);
     };
     Automation::PlaybackRuntimeServices playbackServices;
@@ -120,6 +121,7 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         }
         result.position = m_playbackController->position();
         result.lastPosition = m_playbackController->lastPosition();
+        result.loop = m_appStatus->loopSettings;
         return result;
     };
     playbackServices.canStart = [this] {
@@ -144,10 +146,25 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         if (m_playbackController)
             m_playbackController->applyLastPosition(tick);
     };
+    playbackServices.setLoop = [status = m_appStatus](const LoopSettings &settings) {
+        status->loopSettings.set(settings);
+    };
     Automation::EditorRuntimeServices editorServices;
     editorServices.captureView = [this] {
         return m_editorViewController ? m_editorViewController->captureState()
                                       : std::optional<EditorViewState>();
+    };
+    editorServices.captureStableState = [this] {
+        return Automation::EditorStableState{
+            .selectedTrackIndex = m_appStatus->selectedTrackIndex,
+            .activeClipId = m_appStatus->activeClipId,
+            .selectedClipIds = m_appStatus->selectedClips,
+            .selectedNoteIds = m_appStatus->selectedNotes,
+            .pianoRollQuantize = m_appStatus->pianoRollQuantize,
+            .pianoRollQuantizeEnabled = m_appStatus->pianoRollQuantizeEnabled,
+            .trackAutoPageTurnEnabled = m_appStatus->trackAutoPageTurnEnabled,
+            .pianoRollAutoPageTurnEnabled = m_appStatus->pianoRollAutoPageTurnEnabled,
+        };
     };
     editorServices.restoreView = [this](const EditorViewState &state) {
         return m_editorViewController && m_editorViewController->applyRestoreState(state);
@@ -180,15 +197,64 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
             return m_editorViewController &&
                    m_editorViewController->applyPianoRollEditMode(mode);
         };
+    editorServices.setActiveClip = [this](const int clipId) {
+        if (m_appStatus->activeClipId == clipId)
+            return;
+        m_appStatus->selectedNotes = QList<int>();
+        m_appStatus->activeClipId = clipId;
+    };
+    editorServices.setSelectedTrackIndex = [this](const int trackIndex) {
+        m_appStatus->selectedTrackIndex = trackIndex;
+    };
+    editorServices.setSelectedClips = [this](const QList<int> &clipIds) {
+        m_appStatus->selectedClips = clipIds;
+    };
+    editorServices.setSelectedNotes = [this](const int clipId, const QList<int> &noteIds) {
+        if (m_appStatus->activeClipId != clipId) {
+            m_appStatus->selectedNotes = QList<int>();
+            m_appStatus->activeClipId = clipId;
+        }
+        m_appStatus->selectedNotes = noteIds;
+    };
+    editorServices.setPianoRollQuantize = [this](const int quantize, const bool enabled) {
+        m_appStatus->pianoRollQuantize = quantize;
+        m_appStatus->pianoRollQuantizeEnabled = enabled;
+    };
+    editorServices.setAutoPageTurn = [this](const Automation::EditorAutoPageTarget target,
+                                            const bool enabled) {
+        if (target == Automation::EditorAutoPageTarget::TrackPanel)
+            m_appStatus->trackAutoPageTurnEnabled = enabled;
+        else
+            m_appStatus->pianoRollAutoPageTurnEnabled = enabled;
+    };
+    editorServices.revealFocus = [this](const HistoryFocus &focus, const bool finalize) {
+        return m_editorViewController && m_editorViewController->applyRevealFocus(focus, finalize);
+    };
+    Automation::ApplicationRuntimeServices applicationServices;
+    applicationServices.info = [] {
+        return Automation::ApplicationInfoDto{
+            .name = QCoreApplication::applicationName(),
+            .version = QCoreApplication::applicationVersion(),
+            .platform = QSysInfo::prettyProductName(),
+        };
+    };
+    applicationServices.requestTermination =
+        [this](const Automation::ApplicationTerminationMode mode) {
+            if (!m_appController)
+                return false;
+            return mode == Automation::ApplicationTerminationMode::Exit
+                       ? m_appController->applyQuit()
+                       : m_appController->applyRestart();
+        };
     m_coreRuntime = std::make_unique<Automation::CoreRuntime>(
         m_appModel, m_historyManager, std::move(documentServices), std::move(playbackServices),
         std::move(editorServices), Automation::createAppOptionsAutomationServices(m_appOptions),
         Automation::createAppOptionsPresetAutomationServices(m_appOptions),
         Automation::createPackageAutomationServices(m_packageManager),
-        Automation::createInferenceAutomationServices(),
-        Automation::createFileAutomationServices(),
+        Automation::createInferenceAutomationServices(), Automation::createFileAutomationServices(),
         Automation::createAudioExportAutomationServices(),
-        Automation::createExtractionAutomationServices(m_appOptions));
+        Automation::createExtractionAutomationServices(m_appOptions, TaskManager::instance()),
+        std::move(applicationServices));
 
     // L3: Runtime host must outlive the inference facade.
     m_synthrtEngine = SingletonRegistry::create<SynthrtEngine>();
@@ -211,6 +277,8 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
 
     // L5: Controllers with construction-time deps
     m_playbackController = SingletonRegistry::create<PlaybackController>();
+    m_playbackController->setLoopPreviewHandler(
+        [status = m_appStatus](const LoopSettings &settings) { status->loopSettings.set(settings); });
     m_projectStatusController = SingletonRegistry::create<ProjectStatusController>();
     // ProjectPackageResolver connects to AppModel + PackageManager + AppStatus
     m_projectPackageResolver = SingletonRegistry::create<ProjectPackageResolver>();

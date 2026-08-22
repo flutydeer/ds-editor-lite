@@ -22,11 +22,11 @@ namespace Automation {
                 return std::optional<T>{};
 
             const QMutexLocker locker(&m_mutex);
-            const auto it = m_entries.constFind(compoundKey(operationId, key));
+            const auto it = m_entries.constFind(key);
             if (it == m_entries.cend())
                 return std::optional<T>{};
 
-            if (it->fingerprint != fingerprint) {
+            if (it->operationId != operationId || it->fingerprint != fingerprint) {
                 AutomationError error;
                 error.code = AutomationErrorCode::IdempotencyConflict;
                 error.operationId = operationId;
@@ -62,10 +62,9 @@ namespace Automation {
                 return AutomationUnit{};
 
             const QMutexLocker locker(&m_mutex);
-            const auto lookupKey = compoundKey(operationId, key);
-            const auto it = m_entries.constFind(lookupKey);
+            const auto it = m_entries.constFind(key);
             if (it != m_entries.cend()) {
-                if (it->fingerprint == fingerprint &&
+                if (it->operationId == operationId && it->fingerprint == fingerprint &&
                     it->resultType == std::type_index(typeid(T))) {
                     return AutomationUnit{};
                 }
@@ -78,10 +77,11 @@ namespace Automation {
             }
 
             Entry entry;
+            entry.operationId = operationId;
             entry.fingerprint = std::move(fingerprint);
             entry.resultType = std::type_index(typeid(T));
             entry.result = std::move(result);
-            m_entries.insert(lookupKey, std::move(entry));
+            m_entries.insert(key, std::move(entry));
             return AutomationUnit{};
         }
 
@@ -90,13 +90,11 @@ namespace Automation {
 
     private:
         struct Entry {
+            OperationId operationId;
             QByteArray fingerprint;
             std::type_index resultType{typeid(void)};
             std::any result;
         };
-
-        static QString compoundKey(const OperationId &operationId, const QString &key);
-
         mutable QMutex m_mutex;
         QHash<QString, Entry> m_entries;
     };

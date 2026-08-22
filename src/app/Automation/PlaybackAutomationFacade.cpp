@@ -1,6 +1,10 @@
 #include "PlaybackAutomationFacade.h"
 
+#include <lite/History/ActionSequence.h>
+
 #include <cmath>
+#include <memory>
+#include <utility>
 
 namespace Automation {
     namespace {
@@ -20,12 +24,47 @@ namespace Automation {
             result.validatedOnly = validateOnly;
             return result;
         }
+
+        class SetLoopSettingsAction final : public IAction {
+        public:
+            SetLoopSettingsAction(LoopSettings previous, LoopSettings current,
+                                  std::function<void(const LoopSettings &)> apply)
+                : m_previous(std::move(previous)), m_current(std::move(current)),
+                  m_apply(std::move(apply)) {
+            }
+
+            void execute() override {
+                m_apply(m_current);
+            }
+
+            void undo() override {
+                m_apply(m_previous);
+            }
+
+        private:
+            LoopSettings m_previous;
+            LoopSettings m_current;
+            std::function<void(const LoopSettings &)> m_apply;
+        };
+
+        class SetLoopSettingsActions final : public ActionSequence {
+        public:
+            SetLoopSettingsActions(LoopSettings previous, LoopSettings current,
+                                   std::function<void(const LoopSettings &)> apply) {
+                setTranslatableName("SetLoopSettingsActions",
+                                    QT_TRANSLATE_NOOP("SetLoopSettingsActions", "Edit loop"));
+                addAction(new SetLoopSettingsAction(std::move(previous), std::move(current),
+                                                    std::move(apply)));
+            }
+        };
     }
 
     PlaybackAutomationFacade::PlaybackAutomationFacade(OperationCatalog &catalog,
                                                        AutomationDispatcher &dispatcher,
+                                                       CommandCommitter &committer,
                                                        PlaybackRuntimeServices services)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_services(std::move(services)) {
+        : m_catalog(catalog), m_dispatcher(dispatcher), m_committer(committer),
+          m_services(std::move(services)) {
         registerOperations();
     }
 
@@ -41,6 +80,7 @@ namespace Automation {
                 result.state = host.state;
                 result.position = host.position;
                 result.lastPosition = host.lastPosition;
+                result.loop = host.loop;
                 result.document = session.version();
                 return AutomationResult<PlaybackSnapshotDto>(std::move(result));
             });
@@ -143,6 +183,73 @@ namespace Automation {
             });
     }
 
+    AutomationResult<MutationResult>
+        PlaybackAutomationFacade::setLoop(const CommandContext &context,
+                                          const LoopSettings &settings) {
+        const auto fingerprint = QByteArray::number(settings.enabled) + ':' +
+                                 QByteArray::number(settings.start) + ':' +
+                                 QByteArray::number(settings.length);
+        return m_dispatcher.dispatchDocumentCommand(
+            QStringLiteral("playback.set_loop"), context, fingerprint,
+            [this, settings](DocumentSession &session, const bool validateOnly) {
+                if (settings.start < 0 || settings.length < 0 ||
+                    (settings.enabled && settings.length == 0)) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("loop"), QStringLiteral("Loop range is invalid")));
+                }
+                return commitLoop(session, settings, validateOnly);
+            });
+    }
+
+    AutomationResult<MutationResult>
+        PlaybackAutomationFacade::setLoopEnabled(const CommandContext &context,
+                                                 const bool enabled) {
+        return m_dispatcher.dispatchDocumentCommand(
+            QStringLiteral("playback.set_loop_enabled"), context, QByteArray::number(enabled),
+            [this, enabled](DocumentSession &session, const bool validateOnly) {
+                if (!m_services.snapshot || !m_services.setLoop)
+                    return AutomationResult<MutationResult>(
+                        unavailable(QStringLiteral("Playback host is unavailable")));
+                auto settings = m_services.snapshot().loop;
+                if (enabled && settings.length <= 0) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("enabled"),
+                        QStringLiteral("Loop range must be initialized before enabling")));
+                }
+                settings.enabled = enabled;
+                return commitLoop(session, settings, validateOnly);
+            });
+    }
+
+    AutomationResult<MutationResult>
+        PlaybackAutomationFacade::clearLoop(const CommandContext &context) {
+        return m_dispatcher.dispatchDocumentCommand(
+            QStringLiteral("playback.clear_loop"), context, {},
+            [this](DocumentSession &session, const bool validateOnly) {
+                if (!m_services.snapshot || !m_services.setLoop)
+                    return AutomationResult<MutationResult>(
+                        unavailable(QStringLiteral("Playback host is unavailable")));
+                const LoopSettings cleared;
+                return commitLoop(session, cleared, validateOnly);
+            });
+    }
+
+    AutomationResult<MutationResult>
+        PlaybackAutomationFacade::commitLoop(DocumentSession &session, const LoopSettings &settings,
+                                             const bool validateOnly) {
+        if (!m_services.snapshot || !m_services.setLoop)
+            return unavailable(QStringLiteral("Playback host is unavailable"));
+        const auto previous = m_services.snapshot().loop;
+        const bool changed = previous != settings;
+        if (validateOnly)
+            return m_committer.preview(session, changed);
+        if (!changed)
+            return m_committer.unchanged(session);
+        auto actions =
+            std::make_unique<SetLoopSettingsActions>(previous, settings, m_services.setLoop);
+        return m_committer.commit(session, std::move(actions));
+    }
+
     void PlaybackAutomationFacade::registerOperations() {
         const auto add = [this](OperationDescriptor descriptor) {
             const auto result = m_catalog.add(std::move(descriptor));
@@ -164,7 +271,8 @@ namespace Automation {
             .exposure = ExposurePolicy::InternalOnly,
             .idempotency = IdempotencyPolicy::Unsupported,
         });
-        const auto addCommand = [&add](const QString &id, const QString &contract) {
+        const auto addCommand = [&add](const QString &id, const QString &contract,
+                                       const bool persistent = false) {
             add({
                 .id = id,
                 .category = QStringLiteral("playback"),
@@ -172,20 +280,27 @@ namespace Automation {
                 .syncMode = SyncMode::Synchronous,
                 .inputContract = contract,
                 .outputContract = QStringLiteral("automation.MutationResult.v1"),
-                .documentPolicy = DocumentPolicy::Read,
-                .revisionPolicy = RevisionPolicy::Check,
-                .historyPolicy = HistoryPolicy::None,
+                .documentPolicy = persistent ? DocumentPolicy::Write : DocumentPolicy::Read,
+                .revisionPolicy = persistent ? RevisionPolicy::Increment : RevisionPolicy::Check,
+                .historyPolicy = persistent ? HistoryPolicy::Record : HistoryPolicy::None,
                 .fileAccess = FileAccessPolicy::None,
                 .hostAvailability = HostAvailability::Core,
                 .safety = SafetyClass::Reversible,
                 .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::Unsupported,
+                .idempotency = persistent ? IdempotencyPolicy::DocumentGeneration
+                                          : IdempotencyPolicy::Unsupported,
             });
         };
         addCommand(QStringLiteral("playback.pause"),
                    QStringLiteral("automation.PlaybackStateCommand.v1"));
+        addCommand(QStringLiteral("playback.clear_loop"),
+                   QStringLiteral("automation.EmptyCommand.v1"), true);
         addCommand(QStringLiteral("playback.play"),
                    QStringLiteral("automation.PlaybackStateCommand.v1"));
+        addCommand(QStringLiteral("playback.set_loop"),
+                   QStringLiteral("automation.PlaybackLoopCommand.v1"), true);
+        addCommand(QStringLiteral("playback.set_loop_enabled"),
+                   QStringLiteral("automation.PlaybackLoopEnabledCommand.v1"), true);
         addCommand(QStringLiteral("playback.set_last_position"),
                    QStringLiteral("automation.PlaybackPositionCommand.v1"));
         addCommand(QStringLiteral("playback.set_position"),

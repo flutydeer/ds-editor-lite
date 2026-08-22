@@ -53,7 +53,7 @@ namespace Automation {
     }
 
     AutomationResult<DocumentSnapshotDto>
-    DocumentAutomationFacade::getDocument(const DocumentId &documentId) {
+        DocumentAutomationFacade::getDocument(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<DocumentSnapshotDto>(
             QStringLiteral("documents.get"), documentId, [](DocumentSession &session) {
                 auto *history = session.history();
@@ -68,8 +68,9 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult> DocumentAutomationFacade::commitNewDocument(
-        const CommandContext &context, const DocumentDraftDto &document) {
+    AutomationResult<MutationResult>
+        DocumentAutomationFacade::commitNewDocument(const CommandContext &context,
+                                                    const DocumentDraftDto &document) {
         return replaceDocument(QStringLiteral("documents.commit_new"), context, document, {}, {},
                                true);
     }
@@ -86,10 +87,9 @@ namespace Automation {
         const DocumentDraftDto &document, const QString &path, const QString &projectName,
         const bool savedBaseline) {
         return m_dispatcher.dispatchDocumentCommand(
-            operationId, context,
-            replaceFingerprint(document, path, projectName, savedBaseline),
-            [this, document, path, projectName,
-             savedBaseline](DocumentSession &session, const bool validateOnly) {
+            operationId, context, replaceFingerprint(document, path, projectName, savedBaseline),
+            [this, document, path, projectName, savedBaseline](DocumentSession &session,
+                                                               const bool validateOnly) {
                 auto validation = validate(document);
                 if (!validation)
                     return AutomationResult<MutationResult>(validation.getError());
@@ -101,7 +101,8 @@ namespace Automation {
                     preview.validatedOnly = true;
                     return AutomationResult<MutationResult>(std::move(preview));
                 }
-                auto prepared = buildProjectModelData(document);
+                QList<CreatedObjectRef> createdObjects;
+                auto prepared = buildProjectModelData(document, &createdObjects);
                 auto *model = session.model();
                 auto *history = session.history();
                 if (!model || !history)
@@ -122,6 +123,7 @@ namespace Automation {
                                              : HistoryManager::ResetState::Unsaved);
                 result.current = session.replaceGeneration(path, projectName);
                 result.changed = true;
+                result.createdObjects = std::move(createdObjects);
                 return AutomationResult<MutationResult>(std::move(result));
             });
     }
@@ -132,8 +134,8 @@ namespace Automation {
         return m_dispatcher.dispatchDocumentCommand(
             QStringLiteral("documents.commit_import"), context,
             importFingerprint(document, importTempo, importTimeSignature),
-            [this, document, importTempo,
-             importTimeSignature](DocumentSession &session, const bool validateOnly) {
+            [this, document, importTempo, importTimeSignature](DocumentSession &session,
+                                                               const bool validateOnly) {
                 auto validation = validate(document);
                 if (!validation)
                     return AutomationResult<MutationResult>(validation.getError());
@@ -143,15 +145,16 @@ namespace Automation {
                         missingRuntime(QStringLiteral("Document model is unavailable")));
                 const bool timelineChanged =
                     (importTempo && model->timeline().tempos() != document.timeline.tempos()) ||
-                    (importTimeSignature && model->timeline().timeSignatures() !=
-                                                document.timeline.timeSignatures());
+                    (importTimeSignature &&
+                     model->timeline().timeSignatures() != document.timeline.timeSignatures());
                 const bool changed = timelineChanged || !document.tracks.isEmpty();
                 if (validateOnly)
                     return AutomationResult<MutationResult>(m_committer.preview(session, changed));
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
 
-                auto prepared = buildProjectModelData(document);
+                QList<CreatedObjectRef> createdObjects;
+                auto prepared = buildProjectModelData(document, &createdObjects);
                 QList<ObjectRef> affected;
                 affected.reserve(static_cast<qsizetype>(prepared.tracks.size()));
                 for (const auto &track : prepared.tracks) {
@@ -160,12 +163,13 @@ namespace Automation {
                 }
                 auto actions = std::make_unique<ImportProjectActions>(
                     std::move(prepared), importTempo, importTimeSignature, model);
-                return m_committer.commit(session, std::move(actions), affected);
+                return m_committer.commit(session, std::move(actions), affected,
+                                          std::move(createdObjects));
             });
     }
 
     AutomationResult<MutationResult>
-    DocumentAutomationFacade::saveDocument(const CommandContext &context, const QString &path) {
+        DocumentAutomationFacade::saveDocument(const CommandContext &context, const QString &path) {
         return m_dispatcher.dispatchDocumentCommand(
             QStringLiteral("documents.save"), context, path.toUtf8(),
             [this, path](DocumentSession &session, const bool validateOnly) {

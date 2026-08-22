@@ -42,6 +42,8 @@ public slots:
     static void onMoveTrack(qsizetype fromIndex, qsizetype toIndex);
     static void addAudioClipToNewTrack(const QString &filePath);
     static void setActiveClip(int clipId);
+    static void setSelectedTrackIndex(int trackIndex);
+    static void setSelectedClips(const QList<int> &clipIds);
     static void changeTrackProperty(const Track::TrackProperties &args);
     static void changeTrackColor(int trackId, int colorIndex);
     static void changeTrackDefaultLanguage(int trackId, const QString &language);

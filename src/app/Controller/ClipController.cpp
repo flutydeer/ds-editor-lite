@@ -38,6 +38,13 @@ namespace {
                 .source = Automation::InvocationSource::TrustedGui};
     }
 
+    Automation::GuiDocumentCommandContext
+        guiDocumentContext(const Automation::CoreRuntime &runtime) {
+        return {.expected = runtime.documentVersion(),
+                .windowId = runtime.windowId(),
+                .source = Automation::InvocationSource::TrustedGui};
+    }
+
     Automation::NoteWordEditDto wordEditDto(const Note &note) {
         const auto properties = Note::WordProperties::fromNote(note);
         return {
@@ -292,21 +299,40 @@ void ClipController::onAdjustPhonemeOffset(const int noteId, const QList<int> &o
 
 void ClipController::selectNotes(const QList<int> &notesId, const bool unselectOther) {
     Q_D(ClipController);
+    auto *runtime = automationRuntime();
+    if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
+        return;
     auto selectedNotes = appStatus->selectedNotes.get();
     if (unselectOther)
         selectedNotes.clear();
 
     selectedNotes.append(notesId);
-    appStatus->selectedNotes = selectedNotes;
-    emit hasSelectedNotesChanged(hasSelectedNotes());
+    QList<Automation::NoteId> ids;
+    ids.reserve(selectedNotes.size());
+    for (const auto id : selectedNotes)
+        ids.append(Automation::NoteId(id));
+    const auto result = runtime->facade().setSelectedNotes(
+        guiDocumentContext(*runtime), Automation::ClipId(d->m_clip->id()), ids);
+    if (result)
+        emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
 void ClipController::unselectNotes(const QList<int> &notesId) {
+    Q_D(ClipController);
+    auto *runtime = automationRuntime();
+    if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
+        return;
     auto selectedNotes = appStatus->selectedNotes.get();
     for (const auto id : notesId)
         selectedNotes.removeIf([=](const int note) { return note == id; });
-    appStatus->selectedNotes = selectedNotes;
-    emit hasSelectedNotesChanged(hasSelectedNotes());
+    QList<Automation::NoteId> ids;
+    ids.reserve(selectedNotes.size());
+    for (const auto id : selectedNotes)
+        ids.append(Automation::NoteId(id));
+    const auto result = runtime->facade().setSelectedNotes(
+        guiDocumentContext(*runtime), Automation::ClipId(d->m_clip->id()), ids);
+    if (result)
+        emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
 void ClipController::onParamEdited(const ParamInfo::Name name, const QList<Curve *> &curves) const {
@@ -432,17 +458,22 @@ void ClipController::onDeleteSelectedNotes() {
     const auto ids = appStatus->selectedNotes.get();
     onRemoveNotes(ids);
     if (!ids.isEmpty())
-        emit hasSelectedNotesChanged(false);
+        selectNotes({}, true);
 }
 
 void ClipController::onSelectAllNotes() {
     Q_D(const ClipController);
+    auto *runtime = automationRuntime();
+    if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
+        return;
     const auto singingClip = static_cast<SingingClip *>(d->m_clip);
-    QList<int> notesId;
+    QList<Automation::NoteId> noteIds;
     for (const auto note : singingClip->notes())
-        notesId.append(note->id());
-    emit hasSelectedNotesChanged(true);
-    appStatus->selectedNotes = notesId;
+        noteIds.append(Automation::NoteId(note->id()));
+    const auto result = runtime->facade().setSelectedNotes(
+        guiDocumentContext(*runtime), Automation::ClipId(singingClip->id()), noteIds);
+    if (result)
+        emit hasSelectedNotesChanged(!noteIds.isEmpty());
 }
 
 void ClipController::onFillLyric(QWidget *parent) {

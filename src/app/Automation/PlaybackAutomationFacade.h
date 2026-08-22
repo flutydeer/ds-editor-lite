@@ -2,6 +2,9 @@
 #define PLAYBACKAUTOMATIONFACADE_H
 
 #include "AutomationDispatcher.h"
+#include "CommandCommitter.h"
+
+#include <lite/ProjectModel/AppModel/LoopSettings.h>
 
 #include <functional>
 
@@ -17,6 +20,7 @@ namespace Automation {
         PlaybackState state = PlaybackState::Stopped;
         double position = 0.0;
         double lastPosition = 0.0;
+        LoopSettings loop;
     };
 
     struct PlaybackSnapshotDto : PlaybackHostSnapshot {
@@ -31,12 +35,13 @@ namespace Automation {
         std::function<void()> stop;
         std::function<void(double)> setPosition;
         std::function<void(double)> setLastPosition;
+        std::function<void(const LoopSettings &)> setLoop;
     };
 
     class PlaybackAutomationFacade final {
     public:
-        PlaybackAutomationFacade(OperationCatalog &catalog,
-                                 AutomationDispatcher &dispatcher,
+        PlaybackAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
+                                 CommandCommitter &committer,
                                  PlaybackRuntimeServices services = {});
 
         AutomationResult<PlaybackSnapshotDto> getPlayback(const DocumentId &documentId);
@@ -47,15 +52,23 @@ namespace Automation {
                                                      double tick);
         AutomationResult<MutationResult> setLastPosition(const CommandContext &context,
                                                          double tick);
+        AutomationResult<MutationResult> setLoop(const CommandContext &context,
+                                                 const LoopSettings &settings);
+        AutomationResult<MutationResult> setLoopEnabled(const CommandContext &context,
+                                                        bool enabled);
+        AutomationResult<MutationResult> clearLoop(const CommandContext &context);
 
     private:
         AutomationResult<MutationResult> setState(const OperationId &operationId,
                                                   const CommandContext &context,
                                                   PlaybackState state);
+        AutomationResult<MutationResult>
+            commitLoop(DocumentSession &session, const LoopSettings &settings, bool validateOnly);
         void registerOperations();
 
         OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
+        CommandCommitter &m_committer;
         PlaybackRuntimeServices m_services;
     };
 

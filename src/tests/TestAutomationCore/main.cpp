@@ -1,6 +1,7 @@
 #include "Automation/AutomationDispatcher.h"
 #include "Automation/CoreRuntime.h"
 #include "Automation/ProjectAutomationDtos.h"
+#include "OperationManifest.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -32,13 +33,12 @@ namespace {
         }
 
         Automation::AutomationResult<std::reference_wrapper<Automation::DocumentSession>>
-        resolveDocument(const Automation::DocumentId &documentId) override {
+            resolveDocument(const Automation::DocumentId &documentId) override {
             if (documentId == m_first.documentId())
                 return std::ref(m_first);
             if (documentId == m_second.documentId())
                 return std::ref(m_second);
-            return Automation::AutomationError::documentChanged(documentId,
-                                                                m_first.documentId());
+            return Automation::AutomationError::documentChanged(documentId, m_first.documentId());
         }
 
     private:
@@ -102,8 +102,7 @@ namespace {
         int executeCount = 0;
         int cleanupCount = 0;
         bool canceled = false;
-        Automation::AudioExportBackendState result =
-            Automation::AudioExportBackendState::Succeeded;
+        Automation::AudioExportBackendState result = Automation::AudioExportBackendState::Succeeded;
     };
 
     class FakeAudioExportJob final : public Automation::IAudioExportJob {
@@ -117,22 +116,19 @@ namespace {
             return {
                 .baseDirectory = m_config.fileDirectory,
                 .filePaths = {QDir(m_config.fileDirectory).absoluteFilePath(m_config.fileName)},
-                .warningFlags = m_config.fileType >= 2
-                                    ? Automation::AudioExportLossyFormat
-                                    : 0,
+                .warningFlags = m_config.fileType >= 2 ? Automation::AudioExportLossyFormat : 0,
             };
         }
 
         Automation::AudioExportBackendResult
-        execute(const Automation::AudioExportObserver &observer) override {
+            execute(const Automation::AudioExportObserver &observer) override {
             ++m_state->executeCount;
             if (observer.progress)
                 observer.progress(0.5, -1);
             if (m_state->canceled)
                 return {.state = Automation::AudioExportBackendState::Canceled};
             return {.state = m_state->result,
-                    .errorMessage = m_state->result ==
-                                            Automation::AudioExportBackendState::Failed
+                    .errorMessage = m_state->result == Automation::AudioExportBackendState::Failed
                                         ? QStringLiteral("simulated audio export failure")
                                         : QString()};
         }
@@ -241,20 +237,24 @@ int main(int argc, char *argv[]) {
     ok &= expect(catalog.add(commandDescriptor()).isPresent(), "command descriptor must register");
     ok &= expect(!catalog.add(commandDescriptor()).isPresent(),
                  "duplicate operation ID must be rejected");
-    ok &= expect(Automation::errorCodeName(Automation::AutomationErrorCode::PathRequired) ==
-                         QStringLiteral("path_required") &&
-                     Automation::errorCodeName(Automation::AutomationErrorCode::FileNotFound) ==
-                         QStringLiteral("file_not_found") &&
-                     Automation::errorCodeName(
-                         Automation::AutomationErrorCode::FormatUnsupported) ==
-                         QStringLiteral("format_unsupported") &&
-                     Automation::errorCodeName(Automation::AutomationErrorCode::OverwriteDenied) ==
-                         QStringLiteral("overwrite_denied") &&
-                     Automation::errorCodeName(Automation::AutomationErrorCode::InferenceError) ==
-                         QStringLiteral("inference_error") &&
-                     Automation::errorCodeName(Automation::AutomationErrorCode::Unsupported) ==
-                         QStringLiteral("unsupported"),
-                 "file error codes must keep stable external names");
+    auto otherCommand = commandDescriptor();
+    otherCommand.id = QStringLiteral("test.other_command");
+    ok &= expect(catalog.add(std::move(otherCommand)).isPresent(),
+                 "second command descriptor must register");
+    ok &=
+        expect(Automation::errorCodeName(Automation::AutomationErrorCode::PathRequired) ==
+                       QStringLiteral("path_required") &&
+                   Automation::errorCodeName(Automation::AutomationErrorCode::FileNotFound) ==
+                       QStringLiteral("file_not_found") &&
+                   Automation::errorCodeName(Automation::AutomationErrorCode::FormatUnsupported) ==
+                       QStringLiteral("format_unsupported") &&
+                   Automation::errorCodeName(Automation::AutomationErrorCode::OverwriteDenied) ==
+                       QStringLiteral("overwrite_denied") &&
+                   Automation::errorCodeName(Automation::AutomationErrorCode::InferenceError) ==
+                       QStringLiteral("inference_error") &&
+                   Automation::errorCodeName(Automation::AutomationErrorCode::Unsupported) ==
+                       QStringLiteral("unsupported"),
+               "file error codes must keep stable external names");
 
     Automation::AutomationDispatcher dispatcher(resolver, window, catalog);
     auto secondQuery = dispatcher.dispatchDocumentQuery<Automation::Revision>(
@@ -294,26 +294,30 @@ int main(int argc, char *argv[]) {
 
     const auto conflict = dispatcher.dispatchDocumentCommand(
         QStringLiteral("test.command"), context, QByteArrayLiteral("different"), handler);
-    ok &= expect(!conflict &&
-                     conflict.getError().code == Automation::AutomationErrorCode::IdempotencyConflict,
+    ok &= expect(!conflict && conflict.getError().code ==
+                                  Automation::AutomationErrorCode::IdempotencyConflict,
                  "same key with another request must fail with idempotency conflict");
+    const auto operationConflict = dispatcher.dispatchDocumentCommand(
+        QStringLiteral("test.other_command"), context, QByteArrayLiteral("payload"), handler);
+    ok &= expect(!operationConflict && operationConflict.getError().code ==
+                                           Automation::AutomationErrorCode::IdempotencyConflict,
+                 "the same idempotency key cannot be reused by another operation");
 
     const auto oldDocumentId = first.documentId();
     first.replaceGeneration({}, QStringLiteral("Replacement"));
     ok &= expect(first.idempotencyStore().size() == 0,
                  "replacing the generation must clear idempotency records");
     const auto stale = dispatcher.dispatchDocumentQuery<Automation::Revision>(
-        QStringLiteral("test.query"), oldDocumentId,
-        [](Automation::DocumentSession &session) {
+        QStringLiteral("test.query"), oldDocumentId, [](Automation::DocumentSession &session) {
             return Automation::AutomationResult<Automation::Revision>(session.revision());
         });
-    ok &= expect(!stale && stale.getError().code == Automation::AutomationErrorCode::DocumentChanged,
-                 "old document ID must fail after generation replacement");
+    ok &=
+        expect(!stale && stale.getError().code == Automation::AutomationErrorCode::DocumentChanged,
+               "old document ID must fail after generation replacement");
 
     const auto invalidWindow = window.validateWindow(Automation::WindowId::create());
-    ok &= expect(!invalidWindow &&
-                     invalidWindow.getError().code ==
-                         Automation::AutomationErrorCode::HostCapabilityUnavailable,
+    ok &= expect(!invalidWindow && invalidWindow.getError().code ==
+                                       Automation::AutomationErrorCode::HostCapabilityUnavailable,
                  "single-window host must reject another window ID");
 
     AppModel model;
@@ -350,29 +354,35 @@ int main(int argc, char *argv[]) {
     playbackServices.setLastPosition = [&playbackHost](const double tick) {
         playbackHost.lastPosition = tick;
     };
+    playbackServices.setLoop = [&playbackHost](const LoopSettings &settings) {
+        playbackHost.loop = settings;
+    };
     EditorViewState editorViewState;
+    Automation::EditorStableState editorStableState;
+    bool editorRevealApplied = false;
     Automation::EditorRuntimeServices editorServices;
     editorServices.captureView = [&editorViewState] {
         return std::optional<EditorViewState>(editorViewState);
     };
+    editorServices.captureStableState = [&editorStableState] { return editorStableState; };
     editorServices.restoreView = [&editorViewState](const EditorViewState &state) {
         editorViewState = state;
         return true;
     };
     editorServices.centerTrackPanel = [&editorViewState](const double tick,
-                                                        const double trackIndex) {
+                                                         const double trackIndex) {
         editorViewState.trackPanel.centerTick = tick;
         editorViewState.trackPanel.centerTrackIndex = trackIndex;
         return true;
     };
     editorServices.setTrackPanelScale = [&editorViewState](const double horizontal,
-                                                          const double vertical) {
+                                                           const double vertical) {
         editorViewState.trackPanel.horizontalScale = horizontal;
         editorViewState.trackPanel.verticalScale = vertical;
         return true;
     };
     editorServices.setPanelVisibility = [&editorViewState](const bool trackVisible,
-                                                          const bool bottomVisible) {
+                                                           const bool bottomVisible) {
         editorViewState.layout.trackPanelVisible = trackVisible;
         editorViewState.layout.bottomPanelVisible = bottomVisible;
         return true;
@@ -381,14 +391,13 @@ int main(int argc, char *argv[]) {
         editorViewState.layout.bottomPanelPageId = pageId;
         return true;
     };
-    editorServices.centerPianoRoll = [&editorViewState](const double tick,
-                                                       const double keyIndex) {
+    editorServices.centerPianoRoll = [&editorViewState](const double tick, const double keyIndex) {
         editorViewState.pianoRoll.centerTick = tick;
         editorViewState.pianoRoll.centerKeyIndex = keyIndex;
         return true;
     };
     editorServices.setPianoRollScale = [&editorViewState](const double horizontal,
-                                                         const double vertical) {
+                                                          const double vertical) {
         editorViewState.pianoRoll.horizontalScale = horizontal;
         editorViewState.pianoRoll.verticalScale = vertical;
         return true;
@@ -397,11 +406,41 @@ int main(int argc, char *argv[]) {
         editorViewState.pianoRoll.editMode = mode;
         return true;
     };
+    editorServices.setActiveClip = [&editorStableState](const int clipId) {
+        if (editorStableState.activeClipId != clipId)
+            editorStableState.selectedNoteIds.clear();
+        editorStableState.activeClipId = clipId;
+    };
+    editorServices.setSelectedTrackIndex = [&editorStableState](const int index) {
+        editorStableState.selectedTrackIndex = index;
+    };
+    editorServices.setSelectedClips = [&editorStableState](const QList<int> &ids) {
+        editorStableState.selectedClipIds = ids;
+    };
+    editorServices.setSelectedNotes = [&editorStableState](const int clipId,
+                                                           const QList<int> &ids) {
+        editorStableState.activeClipId = clipId;
+        editorStableState.selectedNoteIds = ids;
+    };
+    editorServices.setPianoRollQuantize = [&editorStableState](const int quantize,
+                                                               const bool enabled) {
+        editorStableState.pianoRollQuantize = quantize;
+        editorStableState.pianoRollQuantizeEnabled = enabled;
+    };
+    editorServices.setAutoPageTurn = [&editorStableState](const auto target, const bool enabled) {
+        if (target == Automation::EditorAutoPageTarget::TrackPanel)
+            editorStableState.trackAutoPageTurnEnabled = enabled;
+        else
+            editorStableState.pianoRollAutoPageTurnEnabled = enabled;
+    };
+    editorServices.revealFocus = [&editorRevealApplied](const HistoryFocus &, const bool) {
+        editorRevealApplied = true;
+        return true;
+    };
     Automation::SettingsSnapshotDto applicationSettings;
     applicationSettings.general.uiLanguage = QStringLiteral("system");
     applicationSettings.general.defaultSingingLanguage = QStringLiteral("cmn");
-    applicationSettings.general.defaultLyrics.insert(QStringLiteral("cmn"),
-                                                      QStringLiteral("啦"));
+    applicationSettings.general.defaultLyrics.insert(QStringLiteral("cmn"), QStringLiteral("啦"));
     applicationSettings.appearance.themeId = QStringLiteral("system");
     applicationSettings.inference.executionProvider = QStringLiteral("CPU");
     applicationSettings.inference.cacheDirectory = QStringLiteral("cache");
@@ -418,8 +457,7 @@ int main(int argc, char *argv[]) {
     int settingsWriteCount = 0;
     Automation::SettingsRuntimeServices settingsServices;
     settingsServices.snapshot = [&applicationSettings] { return applicationSettings; };
-    settingsServices.applyGeneral = [&applicationSettings,
-                                     &settingsWriteCount](const auto &value) {
+    settingsServices.applyGeneral = [&applicationSettings, &settingsWriteCount](const auto &value) {
         applicationSettings.general = value;
         ++settingsWriteCount;
         return true;
@@ -443,7 +481,7 @@ int main(int argc, char *argv[]) {
         return true;
     };
     settingsServices.applyG2pLanguage = [&applicationSettings,
-                                        &settingsWriteCount](const auto &value) {
+                                         &settingsWriteCount](const auto &value) {
         applicationSettings.g2pLanguage = value;
         ++settingsWriteCount;
         return true;
@@ -454,14 +492,12 @@ int main(int argc, char *argv[]) {
         ++settingsWriteCount;
         return true;
     };
-    settingsServices.applyWindow = [&applicationSettings,
-                                    &settingsWriteCount](const auto &value) {
+    settingsServices.applyWindow = [&applicationSettings, &settingsWriteCount](const auto &value) {
         applicationSettings.window = value;
         ++settingsWriteCount;
         return true;
     };
-    settingsServices.applyAudio = [&applicationSettings,
-                                   &settingsWriteCount](const auto &value) {
+    settingsServices.applyAudio = [&applicationSettings, &settingsWriteCount](const auto &value) {
         applicationSettings.audio = value;
         ++settingsWriteCount;
         return true;
@@ -478,38 +514,40 @@ int main(int argc, char *argv[]) {
     };
     Automation::PackageRuntimeServices packageServices;
     packageServices.installedPackages = [] {
-        return QList<Automation::PackageDto>{{
-            .id = QStringLiteral("voice.package"),
-            .version = QVersionNumber(1, 0),
-            .path = QStringLiteral("packages/voice.package"),
-        }};
+        return QList<Automation::PackageDto>{
+            {
+             .id = QStringLiteral("voice.package"),
+             .version = QVersionNumber(1, 0),
+             .path = QStringLiteral("packages/voice.package"),
+             }
+        };
     };
     packageServices.validatePackage = [](const QString &) {
         return Automation::AutomationResult<Automation::PackageValidationReportDto>(
             Automation::PackageValidationReportDto{});
     };
     int packageResolveApplyCount = 0;
-    packageServices.resolveDocumentVoices = [&packageResolveApplyCount](AppModel *, const bool apply) {
+    packageServices.resolveDocumentVoices = [&packageResolveApplyCount](AppModel *,
+                                                                        const bool apply) {
         if (apply)
             ++packageResolveApplyCount;
         return 1;
     };
     int inferenceApplyCount = 0;
     Automation::InferenceRuntimeServices inferenceServices;
-    inferenceServices.prepareMutation = [&inferenceApplyCount](
-                                            AppModel *,
-                                            const Automation::InferenceMutationRequest &request) {
-        Automation::PreparedInferenceMutation prepared;
-        prepared.changed = true;
-        prepared.advancesRevision =
-            request.kind != Automation::InferenceMutationKind::ApplyAcoustic;
-        prepared.affectedObjects.append({Automation::ObjectKind::Clip, 1});
-        prepared.apply = [&inferenceApplyCount](Automation::InferenceMutationSideEffects &) {
-            ++inferenceApplyCount;
+    inferenceServices.prepareMutation =
+        [&inferenceApplyCount](AppModel *, const Automation::InferenceMutationRequest &request) {
+            Automation::PreparedInferenceMutation prepared;
+            prepared.changed = true;
+            prepared.advancesRevision =
+                request.kind != Automation::InferenceMutationKind::ApplyAcoustic;
+            prepared.affectedObjects.append({Automation::ObjectKind::Clip, 1});
+            prepared.apply = [&inferenceApplyCount](Automation::InferenceMutationSideEffects &) {
+                ++inferenceApplyCount;
+            };
+            return Automation::AutomationResult<Automation::PreparedInferenceMutation>(
+                std::move(prepared));
         };
-        return Automation::AutomationResult<Automation::PreparedInferenceMutation>(
-            std::move(prepared));
-    };
     int midiExportCount = 0;
     Automation::FileRuntimeServices fileServices;
     fileServices.listProjectFormats = [] {
@@ -523,7 +561,7 @@ int main(int argc, char *argv[]) {
         };
     };
     fileServices.exportMidi = [&midiExportCount](AppModel *, const QString &path,
-                                                QString &errorMessage) {
+                                                 QString &errorMessage) {
         ++midiExportCount;
         if (path.endsWith(QStringLiteral("fail.mid"))) {
             errorMessage = QStringLiteral("simulated export failure");
@@ -537,8 +575,7 @@ int main(int argc, char *argv[]) {
     audioExportServices.createJob =
         [&audioExportState](AppModel *, const QString &,
                             const Automation::AudioExportConfigDto &config) {
-            return Automation::AutomationResult<
-                std::shared_ptr<Automation::IAudioExportJob>>(
+            return Automation::AutomationResult<std::shared_ptr<Automation::IAudioExportJob>>(
                 std::make_shared<FakeAudioExportJob>(config, audioExportState));
         };
     audioExportServices.schedule = [&scheduledAudioExport](std::function<void()> execute) {
@@ -569,48 +606,50 @@ int main(int argc, char *argv[]) {
     extractionServices.schedule = [&scheduledExtractions](std::function<void()> execute) {
         scheduledExtractions.append(std::move(execute));
     };
+    int terminationRequestCount = 0;
+    Automation::ApplicationTerminationMode lastTerminationMode =
+        Automation::ApplicationTerminationMode::Exit;
+    Automation::ApplicationRuntimeServices applicationServices;
+    applicationServices.info = [] {
+        return Automation::ApplicationInfoDto{
+            .name = QStringLiteral("DS Editor Lite"),
+            .version = QStringLiteral("test"),
+            .platform = QStringLiteral("test"),
+        };
+    };
+    applicationServices.requestTermination = [&terminationRequestCount,
+                                              &lastTerminationMode](const auto mode) {
+        ++terminationRequestCount;
+        lastTerminationMode = mode;
+        return true;
+    };
     Automation::CoreRuntime runtime(&model, history, std::move(documentServices),
                                     std::move(playbackServices), std::move(editorServices),
                                     std::move(settingsServices), std::move(presetServices),
                                     std::move(packageServices), std::move(inferenceServices),
                                     std::move(fileServices), std::move(audioExportServices),
-                                    std::move(extractionServices));
-    const auto state = runtime.facade().getEditorState(runtime.windowId());
+                                    std::move(extractionServices), std::move(applicationServices));
+    const auto state =
+        runtime.facade().getEditorState(runtime.documentVersion().documentId, runtime.windowId());
     const auto capabilities = runtime.facade().getEditorCapabilities();
     ok &= expect(state && state.get().document == runtime.documentVersion(),
                  "editor state must include the current document version");
+    const auto wrongDocumentState =
+        runtime.facade().getEditorState(Automation::DocumentId::create(), runtime.windowId());
+    const auto wrongWindowState = runtime.facade().getEditorState(
+        runtime.documentVersion().documentId, Automation::WindowId::create());
+    ok &= expect(!wrongDocumentState &&
+                     wrongDocumentState.getError().code ==
+                         Automation::AutomationErrorCode::DocumentChanged &&
+                     !wrongWindowState &&
+                     wrongWindowState.getError().code ==
+                         Automation::AutomationErrorCode::HostCapabilityUnavailable,
+                 "editor state queries must route by explicit document and window IDs");
     ok &= expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                      capabilities.get().maxConcurrentWindows == 1,
                  "capabilities must declare the single document/window boundary");
-    ok &= expect(capabilities && capabilities.get().operationIds.size() == 111 &&
-                     capabilities.get().operationIds.contains(QStringLiteral("history.undo")) &&
-                     capabilities.get().operationIds.contains(QStringLiteral("tempos.set")) &&
-                     capabilities.get().operationIds.contains(QStringLiteral("tracks.insert")) &&
-                     capabilities.get().operationIds.contains(QStringLiteral("notes.insert")) &&
-                     capabilities.get().operationIds.contains(QStringLiteral("parameters.replace")) &&
-                     capabilities.get().operationIds.contains(QStringLiteral("imports.commit_batch")) &&
-                     capabilities.get().operationIds.contains(QStringLiteral("operations.cancel")) &&
-                     capabilities.get().operationIds.contains(QStringLiteral("playback.play")) &&
-                     capabilities.get().operationIds.contains(
-                         QStringLiteral("settings.update_audio")) &&
-                     capabilities.get().operationIds.contains(
-                         QStringLiteral("speaker_mix_presets.save")) &&
-                     capabilities.get().operationIds.contains(QStringLiteral("packages.validate")) &&
-                     capabilities.get().operationIds.contains(
-                         QStringLiteral("inference.apply_phoneme_names")) &&
-                     capabilities.get().operationIds.contains(QStringLiteral("formats.list")) &&
-                     capabilities.get().operationIds.contains(
-                         QStringLiteral("exports.midi.start")) &&
-                     capabilities.get().operationIds.contains(
-                         QStringLiteral("exports.audio.start")) &&
-                     capabilities.get().operationIds.contains(
-                         QStringLiteral("extract.pitch.start")) &&
-                     capabilities.get().operationIds.contains(
-                         QStringLiteral("extract.midi.start")) &&
-                     capabilities.get().operationIds.contains(
-                         QStringLiteral("editor.set_piano_roll_edit_mode")) &&
-                     capabilities.get().operationIds.contains(QStringLiteral("documents.save")),
-                 "capabilities must be derived from every registered operation");
+    ok &= expect(capabilities && capabilities.get().operationIds == automationOperationManifest(),
+                 "Catalog and the exact operation test manifest must match");
 
     const auto formats = runtime.files().listFormats();
     ok &= expect(formats && formats.get().size() == 1 && formats.get().first().canExport,
@@ -625,43 +664,38 @@ int main(int argc, char *argv[]) {
     const auto midiExport = runtime.files().exportMidi(midiContext, midiPath, false);
     const auto midiReplay = runtime.files().exportMidi(midiContext, midiPath, false);
     ok &= expect(exportDirectory.isValid() && midiPreview && midiPreview.get().validatedOnly &&
-                     !midiPreview.get().wroteFile &&
-                     midiExport && midiReplay && midiExport.get() == midiReplay.get() &&
-                     midiExportCount == 1,
+                     !midiPreview.get().wroteFile && midiExport && midiReplay &&
+                     midiExport.get() == midiReplay.get() && midiExportCount == 1,
                  "MIDI export must preview without writing and replay idempotently");
     const auto midiConflict = runtime.files().exportMidi(
         midiContext, exportDirectory.filePath(QStringLiteral("another.mid")), false);
     const auto missingMidiPath = runtime.files().exportMidi(commandContext(runtime), {}, false);
-    const auto relativeMidiPath = runtime.files().exportMidi(
-        commandContext(runtime), QStringLiteral("relative.mid"), false);
+    const auto relativeMidiPath =
+        runtime.files().exportMidi(commandContext(runtime), QStringLiteral("relative.mid"), false);
     const auto unsupportedMidiPath = runtime.files().exportMidi(
         commandContext(runtime), exportDirectory.filePath(QStringLiteral("automation.wav")), false);
     const auto absentMidiDirectory = runtime.files().exportMidi(
-        commandContext(runtime),
-        exportDirectory.filePath(QStringLiteral("absent/automation.mid")), false);
-    ok &= expect(!midiConflict &&
-                     midiConflict.getError().code ==
-                         Automation::AutomationErrorCode::IdempotencyConflict &&
-                     !missingMidiPath &&
-                     missingMidiPath.getError().code ==
-                         Automation::AutomationErrorCode::PathRequired &&
-                     !relativeMidiPath &&
-                     relativeMidiPath.getError().code ==
-                         Automation::AutomationErrorCode::InvalidArgument &&
-                     !unsupportedMidiPath &&
-                     unsupportedMidiPath.getError().code ==
-                         Automation::AutomationErrorCode::FormatUnsupported &&
-                     !absentMidiDirectory &&
-                     absentMidiDirectory.getError().code ==
-                         Automation::AutomationErrorCode::FileNotFound,
-                 "MIDI export must expose stable idempotency and path validation errors");
-    const auto existingMidiPath =
-        exportDirectory.filePath(QStringLiteral("existing.mid"));
+        commandContext(runtime), exportDirectory.filePath(QStringLiteral("absent/automation.mid")),
+        false);
+    ok &= expect(
+        !midiConflict &&
+            midiConflict.getError().code == Automation::AutomationErrorCode::IdempotencyConflict &&
+            !missingMidiPath &&
+            missingMidiPath.getError().code == Automation::AutomationErrorCode::PathRequired &&
+            !relativeMidiPath &&
+            relativeMidiPath.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+            !unsupportedMidiPath &&
+            unsupportedMidiPath.getError().code ==
+                Automation::AutomationErrorCode::FormatUnsupported &&
+            !absentMidiDirectory &&
+            absentMidiDirectory.getError().code == Automation::AutomationErrorCode::FileNotFound,
+        "MIDI export must expose stable idempotency and path validation errors");
+    const auto existingMidiPath = exportDirectory.filePath(QStringLiteral("existing.mid"));
     QFile existingMidi(existingMidiPath);
     const auto createdExistingMidi = existingMidi.open(QIODevice::WriteOnly);
     existingMidi.close();
-    const auto overwriteDenied = runtime.files().exportMidi(
-        commandContext(runtime), existingMidiPath, false);
+    const auto overwriteDenied =
+        runtime.files().exportMidi(commandContext(runtime), existingMidiPath, false);
     const auto failedMidiExport = runtime.files().exportMidi(
         commandContext(runtime), exportDirectory.filePath(QStringLiteral("fail.mid")), false);
     ok &= expect(createdExistingMidi && !overwriteDenied &&
@@ -675,35 +709,33 @@ int main(int argc, char *argv[]) {
     Automation::AudioExportConfigDto audioExportConfig;
     audioExportConfig.fileName = QStringLiteral("automation.wav");
     audioExportConfig.fileDirectory = exportDirectory.path();
-    const auto audioPreview = runtime.audioExports().preview(
-        runtime.documentVersion().documentId, audioExportConfig);
+    const auto audioPreview =
+        runtime.audioExports().preview(runtime.documentVersion().documentId, audioExportConfig);
     auto audioValidateContext = commandContext(runtime, true);
-    audioValidateContext.idempotencyKey =
-        QStringLiteral("12d0198d-57d7-4454-84c8-19fdce34e457");
-    const auto audioValidation = runtime.audioExports().start(
-        audioValidateContext, audioExportConfig, {});
+    audioValidateContext.idempotencyKey = QStringLiteral("12d0198d-57d7-4454-84c8-19fdce34e457");
+    const auto audioValidation =
+        runtime.audioExports().start(audioValidateContext, audioExportConfig, {});
     auto audioContext = commandContext(runtime);
     audioContext.idempotencyKey = audioValidateContext.idempotencyKey;
     const auto audioAccepted = runtime.audioExports().start(audioContext, audioExportConfig, {});
     const auto audioReplayed = runtime.audioExports().start(audioContext, audioExportConfig, {});
-    ok &= expect(audioPreview && audioPreview.get().filePaths.size() == 1 &&
-                     audioValidation && audioValidation.get().validatedOnly &&
-                     audioValidation.get().taskId.isNull() && audioAccepted && audioReplayed &&
-                     audioAccepted.get() == audioReplayed.get() && scheduledAudioExport,
-                 "audio export must preview, validate without a task, and replay one accepted task");
+    ok &=
+        expect(audioPreview && audioPreview.get().filePaths.size() == 1 && audioValidation &&
+                   audioValidation.get().validatedOnly && audioValidation.get().taskId.isNull() &&
+                   audioAccepted && audioReplayed && audioAccepted.get() == audioReplayed.get() &&
+                   scheduledAudioExport,
+               "audio export must preview, validate without a task, and replay one accepted task");
     const auto audioVersion = runtime.documentVersion();
     scheduledAudioExport();
     scheduledAudioExport = {};
     const auto completedAudioTask =
-        runtime.tasks().getTask(runtime.documentVersion().documentId,
-                                audioAccepted.get().taskId);
-    const auto cleanedAudioTask = runtime.audioExports().cleanup(
-        commandContext(runtime), audioAccepted.get().taskId);
-    const auto repeatedAudioCleanup = runtime.audioExports().cleanup(
-        commandContext(runtime), audioAccepted.get().taskId);
+        runtime.tasks().getTask(runtime.documentVersion().documentId, audioAccepted.get().taskId);
+    const auto cleanedAudioTask =
+        runtime.audioExports().cleanup(commandContext(runtime), audioAccepted.get().taskId);
+    const auto repeatedAudioCleanup =
+        runtime.audioExports().cleanup(commandContext(runtime), audioAccepted.get().taskId);
     ok &= expect(completedAudioTask &&
-                     completedAudioTask.get().state ==
-                         Automation::AutomationTaskState::Succeeded &&
+                     completedAudioTask.get().state == Automation::AutomationTaskState::Succeeded &&
                      completedAudioTask.get().progress.value == 50 &&
                      audioExportState->executeCount == 1 &&
                      runtime.documentVersion() == audioVersion && cleanedAudioTask &&
@@ -717,62 +749,58 @@ int main(int argc, char *argv[]) {
         runtime.documentVersion().documentId, unsupportedAudioConfig);
     auto mismatchedAudioConfig = audioExportConfig;
     mismatchedAudioConfig.fileName = QStringLiteral("automation.mp3");
-    const auto mismatchedAudio = runtime.audioExports().preview(
-        runtime.documentVersion().documentId, mismatchedAudioConfig);
+    const auto mismatchedAudio =
+        runtime.audioExports().preview(runtime.documentVersion().documentId, mismatchedAudioConfig);
     auto escapingAudioConfig = audioExportConfig;
     escapingAudioConfig.fileName = QStringLiteral("../escaping.wav");
-    const auto escapingAudio = runtime.audioExports().start(
-        commandContext(runtime), escapingAudioConfig, {});
+    const auto escapingAudio =
+        runtime.audioExports().start(commandContext(runtime), escapingAudioConfig, {});
     auto lossyAudioConfig = audioExportConfig;
     lossyAudioConfig.fileName = QStringLiteral("automation.ogg");
     lossyAudioConfig.fileType = 2;
-    const auto rejectedLossyAudio = runtime.audioExports().start(
-        commandContext(runtime), lossyAudioConfig, {});
-    ok &= expect(!unsupportedAudio &&
-                     unsupportedAudio.getError().code ==
-                         Automation::AutomationErrorCode::Unsupported &&
-                     !mismatchedAudio &&
-                     mismatchedAudio.getError().code ==
-                         Automation::AutomationErrorCode::FormatUnsupported &&
-                     !escapingAudio &&
-                     escapingAudio.getError().code ==
-                         Automation::AutomationErrorCode::InvalidArgument &&
-                     !rejectedLossyAudio &&
-                     rejectedLossyAudio.getError().code ==
-                         Automation::AutomationErrorCode::InvalidArgument,
-                 "audio export must reject deferred modes, unsafe paths, and implicit warnings");
+    const auto rejectedLossyAudio =
+        runtime.audioExports().start(commandContext(runtime), lossyAudioConfig, {});
+    ok &= expect(
+        !unsupportedAudio &&
+            unsupportedAudio.getError().code == Automation::AutomationErrorCode::Unsupported &&
+            !mismatchedAudio &&
+            mismatchedAudio.getError().code == Automation::AutomationErrorCode::FormatUnsupported &&
+            !escapingAudio &&
+            escapingAudio.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+            !rejectedLossyAudio &&
+            rejectedLossyAudio.getError().code == Automation::AutomationErrorCode::InvalidArgument,
+        "audio export must reject deferred modes, unsafe paths, and implicit warnings");
 
     auto canceledAudioConfig = audioExportConfig;
     canceledAudioConfig.fileName = QStringLiteral("canceled.wav");
-    const auto canceledAudioAccepted = runtime.audioExports().start(
-        commandContext(runtime), canceledAudioConfig, {});
-    const auto audioCancel = runtime.tasks().cancelTask(
-        commandContext(runtime), canceledAudioAccepted.get().taskId);
+    const auto canceledAudioAccepted =
+        runtime.audioExports().start(commandContext(runtime), canceledAudioConfig, {});
+    const auto audioCancel =
+        runtime.tasks().cancelTask(commandContext(runtime), canceledAudioAccepted.get().taskId);
     scheduledAudioExport();
     scheduledAudioExport = {};
-    const auto canceledAudioTask = runtime.tasks().getTask(
-        runtime.documentVersion().documentId, canceledAudioAccepted.get().taskId);
+    const auto canceledAudioTask = runtime.tasks().getTask(runtime.documentVersion().documentId,
+                                                           canceledAudioAccepted.get().taskId);
     ok &= expect(audioCancel && canceledAudioTask &&
-                     canceledAudioTask.get().state ==
-                         Automation::AutomationTaskState::Canceled &&
+                     canceledAudioTask.get().state == Automation::AutomationTaskState::Canceled &&
                      audioExportState->executeCount == 1,
                  "queued audio export cancellation must prevent backend execution");
 
     audioExportState->result = Automation::AudioExportBackendState::Failed;
     auto failedAudioConfig = audioExportConfig;
     failedAudioConfig.fileName = QStringLiteral("failed.wav");
-    const auto failedAudioAccepted = runtime.audioExports().start(
-        commandContext(runtime), failedAudioConfig, {});
+    const auto failedAudioAccepted =
+        runtime.audioExports().start(commandContext(runtime), failedAudioConfig, {});
     scheduledAudioExport();
     scheduledAudioExport = {};
-    const auto failedAudioTask = runtime.tasks().getTask(
-        runtime.documentVersion().documentId, failedAudioAccepted.get().taskId);
-    ok &= expect(failedAudioTask &&
-                     failedAudioTask.get().state == Automation::AutomationTaskState::Failed &&
-                     failedAudioTask.get().error &&
-                     failedAudioTask.get().error->code == Automation::AutomationErrorCode::IoError &&
-                     audioExportState->executeCount == 2,
-                 "audio export backend failures must remain queryable as stable task errors");
+    const auto failedAudioTask = runtime.tasks().getTask(runtime.documentVersion().documentId,
+                                                         failedAudioAccepted.get().taskId);
+    ok &= expect(
+        failedAudioTask && failedAudioTask.get().state == Automation::AutomationTaskState::Failed &&
+            failedAudioTask.get().error &&
+            failedAudioTask.get().error->code == Automation::AutomationErrorCode::IoError &&
+            audioExportState->executeCount == 2,
+        "audio export backend failures must remain queryable as stable task errors");
     audioExportState->result = Automation::AudioExportBackendState::Succeeded;
 
     Automation::InferenceMutationRequest acousticRequest;
@@ -790,8 +818,7 @@ int main(int argc, char *argv[]) {
     const auto playbackVersion = runtime.documentVersion();
     const auto playbackPreview =
         runtime.playback().setPosition(commandContext(runtime, true), 960.0);
-    const auto playbackPosition =
-        runtime.playback().setPosition(commandContext(runtime), 960.0);
+    const auto playbackPosition = runtime.playback().setPosition(commandContext(runtime), 960.0);
     const auto playbackPlay = runtime.playback().play(commandContext(runtime));
     const auto playbackSnapshot =
         runtime.playback().getPlayback(runtime.documentVersion().documentId);
@@ -808,6 +835,34 @@ int main(int argc, char *argv[]) {
                      blockedPlayback.getError().code == Automation::AutomationErrorCode::Busy,
                  "playback start must report an in-progress editor gesture");
     playbackCanStart = true;
+    const LoopSettings loopSettings(true, 480, 960);
+    const auto loopPreview =
+        runtime.playback().setLoop(commandContext(runtime, true), loopSettings);
+    const auto loopUpdate = runtime.playback().setLoop(commandContext(runtime), loopSettings);
+    const auto loopSnapshot = runtime.playback().getPlayback(runtime.documentVersion().documentId);
+    const auto invalidLoop =
+        runtime.playback().setLoop(commandContext(runtime), LoopSettings(true, 0, 0));
+    auto invalidLoopStaleContext = commandContext(runtime);
+    ++invalidLoopStaleContext.expected.revision;
+    const auto invalidLoopWithStaleRevision =
+        runtime.playback().setLoop(invalidLoopStaleContext, LoopSettings(true, 0, 0));
+    const auto loopUndo = runtime.history().undo(commandContext(runtime));
+    const auto loopAfterUndo = runtime.playback().getPlayback(runtime.documentVersion().documentId);
+    const auto loopRedo = runtime.history().redo(commandContext(runtime));
+    const auto loopAfterRedo = runtime.playback().getPlayback(runtime.documentVersion().documentId);
+    ok &= expect(
+        loopPreview && loopPreview.get().validatedOnly && loopPreview.get().changed && loopUpdate &&
+            loopUpdate.get().changed && loopSnapshot && loopSnapshot.get().loop == loopSettings &&
+            !invalidLoop &&
+            invalidLoop.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+            !invalidLoopWithStaleRevision &&
+            invalidLoopWithStaleRevision.getError().code ==
+                Automation::AutomationErrorCode::RevisionConflict &&
+            loopUndo && loopUndo.get().changed && loopAfterUndo &&
+            loopAfterUndo.get().loop == LoopSettings() && loopRedo && loopRedo.get().changed &&
+            loopAfterRedo && loopAfterRedo.get().loop == loopSettings &&
+            runtime.documentVersion().revision == playbackVersion.revision + 3,
+        "persisted loop commands must validate, record history, and advance revision");
 
     Automation::GuiCommandContext guiContext{
         .windowId = runtime.windowId(),
@@ -817,16 +872,33 @@ int main(int argc, char *argv[]) {
     guiPreviewContext.validateOnly = true;
     const auto editorPreview = runtime.facade().centerPianoRoll(guiPreviewContext, 1440.0, 72.0);
     const auto editorCenter = runtime.facade().centerPianoRoll(guiContext, 1440.0, 72.0);
-    const auto editorMode = runtime.facade().setPianoRollEditMode(
-        guiContext, EditorViewGlobal::DrawNote);
+    const auto editorMode =
+        runtime.facade().setPianoRollEditMode(guiContext, EditorViewGlobal::DrawNote);
+    const auto editorQuantize = runtime.facade().setPianoRollQuantize(guiContext, 24, true);
+    const auto editorAutoPage = runtime.facade().setAutoPageTurn(
+        guiContext, Automation::EditorAutoPageTarget::PianoRoll, false);
     ok &= expect(editorPreview && editorPreview.get().validatedOnly && editorCenter && editorMode &&
+                     editorQuantize && editorAutoPage &&
                      editorViewState.pianoRoll.centerTick == 1440.0 &&
                      editorViewState.pianoRoll.centerKeyIndex == 72.0 &&
-                     editorViewState.pianoRoll.editMode == EditorViewGlobal::DrawNote,
+                     editorViewState.pianoRoll.editMode == EditorViewGlobal::DrawNote &&
+                     editorStableState.pianoRollQuantize == 24 &&
+                     !editorStableState.pianoRollAutoPageTurnEnabled,
                  "GUI editor commands must validate and route through the single window context");
+    const auto applicationInfo = runtime.application().getInfo();
+    auto terminationPreviewContext = guiContext;
+    terminationPreviewContext.validateOnly = true;
+    const auto terminationPreview = runtime.application().requestTermination(
+        terminationPreviewContext, Automation::ApplicationTerminationMode::Restart);
+    const auto termination = runtime.application().requestTermination(
+        guiContext, Automation::ApplicationTerminationMode::Restart);
+    ok &= expect(applicationInfo && applicationInfo.get().version == QStringLiteral("test") &&
+                     terminationPreview && terminationPreview.get().validatedOnly && termination &&
+                     terminationRequestCount == 1 &&
+                     lastTerminationMode == Automation::ApplicationTerminationMode::Restart,
+                 "application lifecycle commands must remain host-mediated and validate-only safe");
     guiContext.windowId = Automation::WindowId::create();
-    const auto unknownEditorWindow =
-        runtime.facade().setPanelVisibility(guiContext, true, false);
+    const auto unknownEditorWindow = runtime.facade().setPanelVisibility(guiContext, true, false);
     ok &= expect(!unknownEditorWindow &&
                      unknownEditorWindow.getError().code ==
                          Automation::AutomationErrorCode::HostCapabilityUnavailable,
@@ -843,15 +915,15 @@ int main(int argc, char *argv[]) {
     const auto settingsUpdate = runtime.settings().updateGeneral({}, generalSettings);
     const auto settingsNoOp = runtime.settings().updateGeneral({}, generalSettings);
     ok &= expect(settingsPreview && settingsPreview.get().validatedOnly &&
-                     settingsPreview.get().changed && settingsUpdate && settingsUpdate.get().changed &&
-                     settingsNoOp && !settingsNoOp.get().changed && settingsWriteCount == 1,
+                     settingsPreview.get().changed && settingsUpdate &&
+                     settingsUpdate.get().changed && settingsNoOp && !settingsNoOp.get().changed &&
+                     settingsWriteCount == 1,
                  "application settings must support validation and no-op persistence");
     auto invalidAppearance = applicationSettings.appearance;
     invalidAppearance.animationTimeScale = 0.0;
     const auto rejectedAppearance = runtime.settings().updateAppearance({}, invalidAppearance);
-    ok &= expect(!rejectedAppearance &&
-                     rejectedAppearance.getError().code ==
-                         Automation::AutomationErrorCode::InvalidArgument,
+    ok &= expect(!rejectedAppearance && rejectedAppearance.getError().code ==
+                                            Automation::AutomationErrorCode::InvalidArgument,
                  "application settings must reject invalid category values");
     const auto recentAdd = runtime.settings().addRecentProjectFile({}, QStringLiteral("a.dspx"));
     const auto recentDuplicate =
@@ -876,10 +948,10 @@ int main(int argc, char *argv[]) {
     const auto presetPreview =
         runtime.presets().saveSpeakerMixPreset(settingsPreviewContext, preset);
     const auto presetSave = runtime.presets().saveSpeakerMixPreset({}, preset);
-    const auto presetDelete = presetSave
-                                  ? runtime.presets().deleteSpeakerMixPreset({}, presetSave.get().id)
-                                  : Automation::AutomationResult<Automation::ApplicationMutationResult>(
-                                        Automation::AutomationError{});
+    const auto presetDelete =
+        presetSave ? runtime.presets().deleteSpeakerMixPreset({}, presetSave.get().id)
+                   : Automation::AutomationResult<Automation::ApplicationMutationResult>(
+                         Automation::AutomationError{});
     ok &= expect(presetPreview && presetPreview.get().id.isEmpty() && presetWriteCount == 2 &&
                      presetSave && !presetSave.get().id.isEmpty() && presetDelete &&
                      presetDelete.get().changed && speakerMixPresets.isEmpty(),
@@ -890,28 +962,31 @@ int main(int argc, char *argv[]) {
     const auto packageResolveVersion = runtime.documentVersion();
     const auto packageResolvePreview =
         runtime.packages().resolveDocumentVoices(commandContext(runtime, true));
-    const auto packageResolve =
-        runtime.packages().resolveDocumentVoices(commandContext(runtime));
+    const auto packageResolve = runtime.packages().resolveDocumentVoices(commandContext(runtime));
     ok &= expect(installedPackages && installedPackages.get().size() == 1 && packageValidation &&
                      !packageValidation.get().hasErrors && !invalidPackageValidation &&
                      invalidPackageValidation.getError().code ==
-                         Automation::AutomationErrorCode::InvalidArgument && packageResolvePreview &&
-                     packageResolvePreview.get().validatedOnly && packageResolve &&
-                     packageResolve.get().changed && packageResolveApplyCount == 1 &&
+                         Automation::AutomationErrorCode::InvalidArgument &&
+                     packageResolvePreview && packageResolvePreview.get().validatedOnly &&
+                     packageResolve && packageResolve.get().changed &&
+                     packageResolveApplyCount == 1 &&
                      runtime.documentVersion() == packageResolveVersion,
                  "package operations must expose typed reports and guarded cache resolution");
 
+    const auto timelineBaseVersion = runtime.documentVersion();
     Automation::CommandContext setTempoContext;
-    setTempoContext.expected = runtime.documentVersion();
+    setTempoContext.expected = timelineBaseVersion;
     const auto setTempo = runtime.timeline().setTempo(setTempoContext, 960, 150.0);
     ok &= expect(setTempo && setTempo.get().changed &&
-                     setTempo.get().current.revision == 1 && hasTempoAt(model, 960, 150.0),
+                     setTempo.get().current.revision == timelineBaseVersion.revision + 1 &&
+                     hasTempoAt(model, 960, 150.0),
                  "timeline mutation must commit one action and one revision");
 
     Automation::CommandContext noOpContext;
     noOpContext.expected = runtime.documentVersion();
     const auto noOp = runtime.timeline().setTempo(noOpContext, 960, 150.0);
-    ok &= expect(noOp && !noOp.get().changed && runtime.documentVersion().revision == 1,
+    ok &= expect(noOp && !noOp.get().changed &&
+                     runtime.documentVersion().revision == timelineBaseVersion.revision + 1,
                  "legal no-op must not record history or advance revision");
 
     Automation::CommandContext validateContext;
@@ -919,16 +994,16 @@ int main(int argc, char *argv[]) {
     validateContext.validateOnly = true;
     const auto preview = runtime.timeline().setTempo(validateContext, 960, 160.0);
     ok &= expect(preview && preview.get().validatedOnly && preview.get().changed &&
-                     preview.get().current.revision == 2 &&
-                     runtime.documentVersion().revision == 1 && hasTempoAt(model, 960, 150.0),
+                     preview.get().current.revision == timelineBaseVersion.revision + 2 &&
+                     runtime.documentVersion().revision == timelineBaseVersion.revision + 1 &&
+                     hasTempoAt(model, 960, 150.0),
                  "validate-only must predict the result without changing model or revision");
 
     Automation::CommandContext staleContext;
-    staleContext.expected = {runtime.documentVersion().documentId, 0};
+    staleContext.expected = timelineBaseVersion;
     const auto staleMutation = runtime.timeline().setTempo(staleContext, 960, 160.0);
-    ok &= expect(!staleMutation &&
-                     staleMutation.getError().code ==
-                         Automation::AutomationErrorCode::RevisionConflict,
+    ok &= expect(!staleMutation && staleMutation.getError().code ==
+                                       Automation::AutomationErrorCode::RevisionConflict,
                  "revision validation must precede domain mutation");
 
     const auto historyState = runtime.history().getState(runtime.documentVersion().documentId);
@@ -938,41 +1013,54 @@ int main(int argc, char *argv[]) {
     Automation::CommandContext undoContext;
     undoContext.expected = runtime.documentVersion();
     const auto undo = runtime.history().undo(undoContext);
-    ok &= expect(undo && undo.get().changed && undo.get().current.revision == 2 &&
+    ok &= expect(undo && undo.get().changed &&
+                     undo.get().current.revision == timelineBaseVersion.revision + 2 &&
                      !hasTempoAt(model, 960, 150.0),
                  "undo must use the same revision-owning commit path");
 
     Automation::CommandContext redoContext;
     redoContext.expected = runtime.documentVersion();
     const auto redo = runtime.history().redo(redoContext);
-    ok &= expect(redo && redo.get().changed && redo.get().current.revision == 3 &&
+    ok &= expect(redo && redo.get().changed &&
+                     redo.get().current.revision == timelineBaseVersion.revision + 3 &&
                      hasTempoAt(model, 960, 150.0),
                  "redo must use the same revision-owning commit path");
 
     Automation::CommandContext emptyRedoContext;
     emptyRedoContext.expected = runtime.documentVersion();
     const auto emptyRedo = runtime.history().redo(emptyRedoContext);
-    ok &= expect(emptyRedo && !emptyRedo.get().changed && runtime.documentVersion().revision == 3,
+    ok &= expect(emptyRedo && !emptyRedo.get().changed &&
+                     runtime.documentVersion().revision == timelineBaseVersion.revision + 3,
                  "empty redo must be a successful no-op");
 
     history->reset();
 
     Automation::TrackDraftDto trackDraft;
+    trackDraft.clientRef = QStringLiteral("track-main");
     trackDraft.name = QStringLiteral("Automation Track");
     trackDraft.gain = 1.0;
     trackDraft.defaultLanguage = QStringLiteral("unknown");
 
-    const auto trackPreview = runtime.project().insertTrack(commandContext(runtime, true), 0,
-                                                            trackDraft);
-    ok &= expect(trackPreview && trackPreview.get().validatedOnly && trackPreview.get().changed &&
-                     trackPreview.get().current.revision == runtime.documentVersion().revision + 1 &&
-                     model.tracks().isEmpty(),
-                 "track validate-only must not allocate or insert a track");
+    const auto trackPreview =
+        runtime.project().insertTrack(commandContext(runtime, true), 0, trackDraft);
+    ok &=
+        expect(trackPreview && trackPreview.get().validatedOnly && trackPreview.get().changed &&
+                   trackPreview.get().current.revision == runtime.documentVersion().revision + 1 &&
+                   trackPreview.get().createdObjects.isEmpty() && model.tracks().isEmpty(),
+               "track validate-only must not allocate IDs or insert a track");
 
     const auto insertTrack = runtime.project().insertTrack(commandContext(runtime), 0, trackDraft);
     ok &= expect(insertTrack && insertTrack.get().changed &&
-                     insertTrack.get().affectedObjects.size() == 1 && model.tracks().size() == 1,
-                 "track insertion must commit once and return the new track ID");
+                     insertTrack.get().affectedObjects.size() == 1 &&
+                     insertTrack.get().createdObjects ==
+                         QList<Automation::CreatedObjectRef>{
+                             {
+                              QStringLiteral("track-main"),
+                              insertTrack.get().affectedObjects.first(),
+                              }
+    } &&
+                     model.tracks().size() == 1,
+                 "track insertion must commit once and bind client_ref to the new track ID");
     const auto trackId = insertTrack
                              ? Automation::TrackId(insertTrack.get().affectedObjects.first().value)
                              : Automation::TrackId();
@@ -984,21 +1072,20 @@ int main(int argc, char *argv[]) {
     wrongDocumentContext.expected = {Automation::DocumentId::create(), 999};
     const auto wrongDocument =
         runtime.project().setTrackColor(wrongDocumentContext, Automation::TrackId(999999), 1);
-    ok &= expect(!wrongDocument &&
-                     wrongDocument.getError().code ==
-                         Automation::AutomationErrorCode::DocumentChanged,
+    ok &= expect(!wrongDocument && wrongDocument.getError().code ==
+                                       Automation::AutomationErrorCode::DocumentChanged,
                  "document ID validation must precede revision and object validation");
 
     Automation::CommandContext staleObjectContext = commandContext(runtime);
     staleObjectContext.expected.revision -= 1;
     const auto staleObject =
         runtime.project().setTrackColor(staleObjectContext, Automation::TrackId(999999), 1);
-    ok &= expect(!staleObject &&
-                     staleObject.getError().code ==
-                         Automation::AutomationErrorCode::RevisionConflict,
+    ok &= expect(!staleObject && staleObject.getError().code ==
+                                     Automation::AutomationErrorCode::RevisionConflict,
                  "revision validation must precede object validation");
 
     Automation::ClipDraftDto clipDraft;
+    clipDraft.clientRef = QStringLiteral("clip-main");
     clipDraft.type = Automation::ClipDraftDto::Type::Singing;
     clipDraft.properties.name = QStringLiteral("Automation Clip");
     clipDraft.properties.start = 0;
@@ -1008,10 +1095,17 @@ int main(int argc, char *argv[]) {
     clipDraft.properties.gain = 1.0;
     clipDraft.defaultLanguage = QStringLiteral("unknown");
     const auto insertClip = runtime.project().insertClips(
-        commandContext(runtime), {{.trackId = trackId, .clip = clipDraft}});
-    ok &= expect(insertClip && insertClip.get().changed &&
-                     insertClip.get().affectedObjects.size() == 1 && track->clips().count() == 1,
-                 "singing clip insertion must commit through the project facade");
+        commandContext(runtime), {
+                                     {.trackId = trackId, .clip = clipDraft}
+    });
+    ok &= expect(
+        insertClip && insertClip.get().changed && insertClip.get().affectedObjects.size() == 1 &&
+            insertClip.get().createdObjects ==
+                QList<Automation::CreatedObjectRef>{
+                    {QStringLiteral("clip-main"), insertClip.get().affectedObjects.first()}
+    } &&
+            track->clips().count() == 1,
+        "singing clip insertion must bind client_ref through the project facade");
     const auto clipId = insertClip
                             ? Automation::ClipId(insertClip.get().affectedObjects.first().value)
                             : Automation::ClipId();
@@ -1021,38 +1115,104 @@ int main(int argc, char *argv[]) {
 
     const auto wrongClipType =
         runtime.project().confirmAudioClipPath(commandContext(runtime), clipId);
-    ok &= expect(!wrongClipType &&
-                     wrongClipType.getError().code ==
-                         Automation::AutomationErrorCode::WrongObjectType,
+    ok &= expect(!wrongClipType && wrongClipType.getError().code ==
+                                       Automation::AutomationErrorCode::WrongObjectType,
                  "typed object resolution must distinguish missing and wrong-type clips");
 
     Automation::NoteDraftDto noteDraft;
+    noteDraft.clientRef = QStringLiteral("note-main");
     noteDraft.localStart = 0;
     noteDraft.length = 480;
     noteDraft.keyIndex = 60;
     noteDraft.lyric = QStringLiteral("la");
-    const auto notePreview = runtime.notes().insertNotes(commandContext(runtime, true), clipId,
-                                                        {noteDraft});
-    ok &= expect(notePreview && notePreview.get().validatedOnly &&
+    const auto notePreview =
+        runtime.notes().insertNotes(commandContext(runtime, true), clipId, {noteDraft});
+    ok &=
+        expect(notePreview && notePreview.get().validatedOnly &&
+                   notePreview.get().createdObjects.isEmpty() && singingClip->notes().count() == 0,
+               "note validate-only must not allocate IDs or attach notes");
+
+    const auto beforeDuplicateNoteRefs = runtime.documentVersion();
+    const auto duplicateNoteRefs =
+        runtime.notes().insertNotes(commandContext(runtime), clipId, {noteDraft, noteDraft});
+    ok &= expect(!duplicateNoteRefs &&
+                     duplicateNoteRefs.getError().code ==
+                         Automation::AutomationErrorCode::InvalidArgument &&
+                     duplicateNoteRefs.getError().fieldPath == QStringLiteral("client_ref") &&
+                     runtime.documentVersion() == beforeDuplicateNoteRefs &&
                      singingClip->notes().count() == 0,
-                 "note validate-only must not allocate or attach notes");
+                 "duplicate client_ref values must fail before allocation or partial commit");
 
     const auto insertNote =
         runtime.notes().insertNotes(commandContext(runtime), clipId, {noteDraft});
-    ok &= expect(insertNote && insertNote.get().changed &&
-                     insertNote.get().affectedObjects.size() == 1 &&
-                     singingClip->notes().count() == 1,
-                 "note insertion must return the inserted note ID");
+    ok &= expect(
+        insertNote && insertNote.get().changed && insertNote.get().affectedObjects.size() == 1 &&
+            insertNote.get().createdObjects ==
+                QList<Automation::CreatedObjectRef>{
+                    {QStringLiteral("note-main"), insertNote.get().affectedObjects.first()}
+    } &&
+            singingClip->notes().count() == 1,
+        "note insertion must return the client_ref binding and inserted note ID");
     const auto noteId = insertNote
                             ? Automation::NoteId(insertNote.get().affectedObjects.first().value)
                             : Automation::NoteId();
     auto *note = singingClip->findNoteById(noteId.value());
+    const auto projectAfterCreate =
+        runtime.project().getProject(runtime.documentVersion().documentId);
+    const auto notesAfterCreate =
+        runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    ok &=
+        expect(projectAfterCreate && !projectAfterCreate.get().tracks.isEmpty() &&
+                   projectAfterCreate.get().tracks.first().data.clientRef.isEmpty() &&
+                   !projectAfterCreate.get().tracks.first().clips.isEmpty() &&
+                   projectAfterCreate.get().tracks.first().clips.first().data.clientRef.isEmpty() &&
+                   notesAfterCreate && !notesAfterCreate.get().isEmpty() &&
+                   notesAfterCreate.get().first().data.clientRef.isEmpty(),
+               "client_ref metadata must not persist in document snapshots");
+
+    Automation::GuiDocumentCommandContext guiDocumentContext{
+        .expected = runtime.documentVersion(),
+        .windowId = runtime.windowId(),
+        .source = Automation::InvocationSource::Test,
+    };
+    const auto selectTrack = runtime.facade().setSelectedTrack(guiDocumentContext, trackId);
+    const auto selectClip = runtime.facade().setSelectedClips(guiDocumentContext, {clipId});
+    const auto selectNote = runtime.facade().setSelectedNotes(guiDocumentContext, clipId, {noteId});
+    Automation::EditorRevealDto revealTarget{
+        .kind = Automation::EditorRevealKind::PianoRollNotes,
+        .objectIds = {noteId.value()},
+        .containerId = clipId.value(),
+        .tickStart = 0.0,
+        .tickEnd = 480.0,
+        .valueStart = 60.0,
+        .valueEnd = 60.0,
+        .ticksAreLocal = true,
+    };
+    const auto revealNote = runtime.facade().reveal(guiDocumentContext, revealTarget);
+    const auto selectedEditorState =
+        runtime.facade().getEditorState(runtime.documentVersion().documentId, runtime.windowId());
+    ok &= expect(selectTrack && selectClip && selectNote && revealNote && editorRevealApplied &&
+                     editorStableState.selectedTrackIndex == 0 &&
+                     editorStableState.selectedClipIds == QList<int>{clipId.value()} &&
+                     editorStableState.activeClipId == clipId.value() &&
+                     editorStableState.selectedNoteIds == QList<int>{noteId.value()} &&
+                     selectedEditorState &&
+                     selectedEditorState.get().selection.selectedTrackId == trackId &&
+                     runtime.documentVersion() == guiDocumentContext.expected,
+                 "selection and reveal must use explicit document and window routing without "
+                 "revision changes");
+    auto staleGuiDocumentContext = guiDocumentContext;
+    staleGuiDocumentContext.expected.revision -= 1;
+    const auto staleSelection =
+        runtime.facade().setSelectedClips(staleGuiDocumentContext, {Automation::ClipId(999999)});
+    ok &= expect(!staleSelection && staleSelection.getError().code ==
+                                        Automation::AutomationErrorCode::RevisionConflict,
+                 "GUI document commands must validate revision before object IDs");
 
     const auto beforeNoteNoOp = runtime.documentVersion();
     const auto noteNoOp =
         runtime.notes().moveNotes(commandContext(runtime), clipId, {noteId}, 0, 0);
-    ok &= expect(noteNoOp && !noteNoOp.get().changed &&
-                     runtime.documentVersion() == beforeNoteNoOp,
+    ok &= expect(noteNoOp && !noteNoOp.get().changed && runtime.documentVersion() == beforeNoteNoOp,
                  "zero-distance note movement must be a successful no-op");
 
     const auto moveNote =
@@ -1086,22 +1246,21 @@ int main(int argc, char *argv[]) {
     auto copiedClipDraft = Automation::clipDraftDto(*singingClip);
     copiedClipDraft.properties.start = 2400;
     const auto insertCopiedClip = runtime.project().insertClips(
-        commandContext(runtime), {{.trackId = trackId, .clip = copiedClipDraft}});
+        commandContext(runtime), {
+                                     {.trackId = trackId, .clip = copiedClipDraft}
+    });
     const auto copiedClipId =
-        insertCopiedClip
-            ? Automation::ClipId(insertCopiedClip.get().affectedObjects.first().value)
-            : Automation::ClipId();
+        insertCopiedClip ? Automation::ClipId(insertCopiedClip.get().affectedObjects.first().value)
+                         : Automation::ClipId();
     auto *copiedClip = dynamic_cast<SingingClip *>(model.findClipById(copiedClipId.value()));
-    const auto copiedParameter = copiedClip
-                                     ? runtime.parameters().getParameter(
-                                           runtime.documentVersion().documentId, copiedClipId,
-                                           ParamInfo::Pitch, Param::Edited)
-                                     : Automation::AutomationResult<
-                                           Automation::ParameterSnapshotDto>(
-                                           Automation::AutomationError::notFound(
-                                               {Automation::ObjectKind::Clip,
-                                                copiedClipId.value()},
-                                               QStringLiteral("Copied clip was not found")));
+    const auto copiedParameter =
+        copiedClip
+            ? runtime.parameters().getParameter(runtime.documentVersion().documentId, copiedClipId,
+                                                ParamInfo::Pitch, Param::Edited)
+            : Automation::AutomationResult<Automation::ParameterSnapshotDto>(
+                  Automation::AutomationError::notFound(
+                      {Automation::ObjectKind::Clip, copiedClipId.value()},
+                      QStringLiteral("Copied clip was not found")));
     ok &= expect(insertCopiedClip && copiedClip && copiedClip->notes().count() == 1 &&
                      copiedParameter && copiedParameter.get().curves.size() == 1 &&
                      copiedParameter.get().curves.first().values == curveDraft.values,
@@ -1112,33 +1271,35 @@ int main(int argc, char *argv[]) {
                      model.findClipById(copiedClipId.value()) == nullptr,
                  "a copied clip insertion must undo as one history entry");
 
-    const auto selectOwnVoice = runtime.parameters().selectClipSingleSpeaker(
-        commandContext(runtime), clipId, {}, {});
+    const auto selectOwnVoice =
+        runtime.parameters().selectClipSingleSpeaker(commandContext(runtime), clipId, {}, {});
     ok &= expect(selectOwnVoice && selectOwnVoice.get().changed &&
                      !singingClip->usesTrackVoiceContext(),
                  "clip voice selection must switch from inherited to owned context");
     const auto useTrackVoice =
         runtime.parameters().useTrackVoiceContext(commandContext(runtime), clipId);
-    ok &= expect(useTrackVoice && useTrackVoice.get().changed &&
-                     singingClip->usesTrackVoiceContext(),
-                 "clip voice context must switch back to track inheritance through the facade");
+    ok &=
+        expect(useTrackVoice && useTrackVoice.get().changed && singingClip->usesTrackVoiceContext(),
+               "clip voice context must switch back to track inheritance through the facade");
 
     const auto setLanguage = runtime.project().setSingingClipDefaultLanguage(
         commandContext(runtime), clipId, QStringLiteral("en"));
     const auto languageVersion = runtime.documentVersion();
     const auto languageNoOp = runtime.project().setSingingClipDefaultLanguage(
         commandContext(runtime), clipId, QStringLiteral("en"));
-    ok &= expect(setLanguage && setLanguage.get().changed && singingClip->defaultLanguage() == "en" &&
-                     languageNoOp && !languageNoOp.get().changed &&
-                     runtime.documentVersion() == languageVersion,
+    ok &= expect(setLanguage && setLanguage.get().changed &&
+                     singingClip->defaultLanguage() == "en" && languageNoOp &&
+                     !languageNoOp.get().changed && runtime.documentVersion() == languageVersion,
                  "non-history document state must still advance revision exactly once");
 
     Automation::BatchImportDraftDto batchImport;
     batchImport.timeline = model.timeline();
     Automation::BatchImportItemDraftDto batchItem;
+    batchItem.newTrack.clientRef = QStringLiteral("batch-track");
     batchItem.newTrack.name = QStringLiteral("Imported Audio");
     batchItem.newTrack.defaultLanguage = QStringLiteral("unknown");
     Automation::ClipDraftDto audioDraft;
+    audioDraft.clientRef = QStringLiteral("batch-clip");
     audioDraft.type = Automation::ClipDraftDto::Type::Audio;
     audioDraft.properties.name = QStringLiteral("audio.wav");
     audioDraft.properties.length = 480;
@@ -1152,15 +1313,22 @@ int main(int argc, char *argv[]) {
     const auto beforeBatch = runtime.documentVersion();
     const auto batchResult =
         runtime.project().commitBatchImport(commandContext(runtime), batchImport);
-    const auto audioId =
-        batchResult && batchResult.get().affectedObjects.size() == 2
-            ? Automation::ClipId(batchResult.get().affectedObjects.at(1).value)
-            : Automation::ClipId();
+    const auto audioId = batchResult && batchResult.get().affectedObjects.size() == 2
+                             ? Automation::ClipId(batchResult.get().affectedObjects.at(1).value)
+                             : Automation::ClipId();
     auto *audioClip = dynamic_cast<AudioClip *>(model.findClipById(audioId.value()));
-    ok &= expect(batchPreview && batchPreview.get().validatedOnly && batchResult &&
-                     batchResult.get().current.revision == beforeBatch.revision + 1 &&
-                     model.tracks().size() == tracksBeforeBatch + 1 && audioClip,
-                 "prepared batch import must validate without allocation and commit once");
+    ok &= expect(
+        batchPreview && batchPreview.get().validatedOnly &&
+            batchPreview.get().createdObjects.isEmpty() && batchResult &&
+            batchResult.get().current.revision == beforeBatch.revision + 1 &&
+            batchResult.get().createdObjects.size() == 2 &&
+            batchResult.get().createdObjects.at(0).clientRef == QStringLiteral("batch-track") &&
+            batchResult.get().createdObjects.at(0).object.kind == Automation::ObjectKind::Track &&
+            batchResult.get().createdObjects.at(1).clientRef == QStringLiteral("batch-clip") &&
+            batchResult.get().createdObjects.at(1).object ==
+                Automation::ObjectRef{Automation::ObjectKind::Clip, audioId.value()} &&
+            model.tracks().size() == tracksBeforeBatch + 1 && audioClip,
+        "prepared batch import must bind client refs and commit once");
 
     if (audioClip) {
         const auto cacheRevision = runtime.documentVersion();
@@ -1187,7 +1355,8 @@ int main(int argc, char *argv[]) {
     }
 
     const auto undoBatch = runtime.history().undo(commandContext(runtime));
-    ok &= expect(undoBatch && undoBatch.get().changed && model.findClipById(audioId.value()) == nullptr &&
+    ok &= expect(undoBatch && undoBatch.get().changed &&
+                     model.findClipById(audioId.value()) == nullptr &&
                      model.tracks().size() == tracksBeforeBatch,
                  "batch import must undo as one history entry");
 
@@ -1374,12 +1543,14 @@ int main(int argc, char *argv[]) {
         saveContext, QStringLiteral("D:/automation-contract-test.dspx"));
     const auto saveReplay = runtime.documents().saveDocument(
         saveContext, QStringLiteral("D:/automation-contract-test.dspx"));
-    const auto savedDocument = runtime.documents().getDocument(runtime.documentVersion().documentId);
-    ok &= expect(save && saveReplay && save.get() == saveReplay.get() && save.get().changed &&
-                     runtime.documentVersion() == beforeSave && saveCount == 1 && savedDocument &&
-                     savedDocument.get().path == QStringLiteral("D:/automation-contract-test.dspx") &&
-                     savedDocument.get().saved,
-                 "save must preserve revision, update identity, set savepoint, and replay idempotently");
+    const auto savedDocument =
+        runtime.documents().getDocument(runtime.documentVersion().documentId);
+    ok &= expect(
+        save && saveReplay && save.get() == saveReplay.get() && save.get().changed &&
+            runtime.documentVersion() == beforeSave && saveCount == 1 && savedDocument &&
+            savedDocument.get().path == QStringLiteral("D:/automation-contract-test.dspx") &&
+            savedDocument.get().saved,
+        "save must preserve revision, update identity, set savepoint, and replay idempotently");
 
     int cancelCount = 0;
     const auto task = runtime.automationTasks().createTask(
@@ -1391,23 +1562,23 @@ int main(int argc, char *argv[]) {
 
     const auto cancelPreview =
         runtime.tasks().cancelTask(commandContext(runtime, true), task.taskId);
-    const auto runningTask = runtime.tasks().getTask(runtime.documentVersion().documentId,
-                                                     task.taskId);
-    ok &= expect(cancelPreview && cancelPreview.get().validatedOnly &&
-                     cancelPreview.get().state == Automation::AutomationTaskState::CancelRequested &&
-                     runningTask && runningTask.get().state == Automation::AutomationTaskState::Running &&
-                     cancelCount == 0,
-                 "task cancel validate-only must predict without invoking cancellation");
+    const auto runningTask =
+        runtime.tasks().getTask(runtime.documentVersion().documentId, task.taskId);
+    ok &= expect(
+        cancelPreview && cancelPreview.get().validatedOnly &&
+            cancelPreview.get().state == Automation::AutomationTaskState::CancelRequested &&
+            runningTask && runningTask.get().state == Automation::AutomationTaskState::Running &&
+            cancelCount == 0,
+        "task cancel validate-only must predict without invoking cancellation");
 
     const auto canceledRequest = runtime.tasks().cancelTask(commandContext(runtime), task.taskId);
     const auto repeatedCancel = runtime.tasks().cancelTask(commandContext(runtime), task.taskId);
-    ok &= expect(canceledRequest && repeatedCancel &&
-                     canceledRequest.get().state ==
-                         Automation::AutomationTaskState::CancelRequested &&
-                     repeatedCancel.get().state ==
-                         Automation::AutomationTaskState::CancelRequested &&
-                     cancelCount == 1,
-                 "task cancellation must be idempotent and invoke its callback once");
+    ok &= expect(
+        canceledRequest && repeatedCancel &&
+            canceledRequest.get().state == Automation::AutomationTaskState::CancelRequested &&
+            repeatedCancel.get().state == Automation::AutomationTaskState::CancelRequested &&
+            cancelCount == 1,
+        "task cancellation must be idempotent and invoke its callback once");
     ok &= expect(runtime.automationTasks().cancel(task.taskId),
                  "task worker must be able to acknowledge cancellation");
     const auto terminalCancel = runtime.tasks().cancelTask(commandContext(runtime), task.taskId);
@@ -1429,8 +1600,8 @@ int main(int argc, char *argv[]) {
 
     auto replacedAudioConfig = audioExportConfig;
     replacedAudioConfig.fileName = QStringLiteral("replaced.wav");
-    const auto replacedAudioAccepted = runtime.audioExports().start(
-        commandContext(runtime), replacedAudioConfig, {});
+    const auto replacedAudioAccepted =
+        runtime.audioExports().start(commandContext(runtime), replacedAudioConfig, {});
     auto replacedAudioExecution = std::move(scheduledAudioExport);
     scheduledAudioExport = {};
     const auto replacedPitchAccepted =
@@ -1444,18 +1615,29 @@ int main(int argc, char *argv[]) {
     replacementModel.newProject();
     const auto replacementData = replacementModel.takeProjectData();
     const LoopSettings replacementLoop(true, 480, 960);
-    const auto replacementDraft =
-        Automation::documentDraftDto(replacementData, replacementLoop);
+    const auto replacementDraft = Automation::documentDraftDto(replacementData, replacementLoop);
     const auto oldTaskDocument = runtime.documentVersion().documentId;
     const auto tasksBeforeReplacement = runtime.automationTasks().size();
+    auto replacementWithIdempotency = commandContext(runtime, true);
+    replacementWithIdempotency.idempotencyKey =
+        QStringLiteral("b82a540d-c0ec-4aac-b240-a691c25713e1");
+    const auto rejectedReplacementIdempotency = runtime.documents().commitOpenedDocument(
+        replacementWithIdempotency, replacementDraft, QStringLiteral("D:/replacement.dspx"),
+        QStringLiteral("replacement.dspx"), true);
     const auto replacementPreview = runtime.documents().commitOpenedDocument(
         commandContext(runtime, true), replacementDraft, QStringLiteral("D:/replacement.dspx"),
         QStringLiteral("replacement.dspx"), true);
-    ok &= expect(replacementPreview && replacementPreview.get().validatedOnly &&
-                     replacementPreview.get().current.documentId.isNull() &&
-                     runtime.documentVersion().documentId == oldTaskDocument &&
-                     runtime.automationTasks().size() == tasksBeforeReplacement,
-                 "document replace validate-only must not allocate an ID or alter the active session");
+    ok &= expect(
+        !rejectedReplacementIdempotency &&
+            rejectedReplacementIdempotency.getError().code ==
+                Automation::AutomationErrorCode::InvalidArgument &&
+            rejectedReplacementIdempotency.getError().fieldPath ==
+                QStringLiteral("idempotency_key") &&
+            replacementPreview && replacementPreview.get().validatedOnly &&
+            replacementPreview.get().current.documentId.isNull() &&
+            runtime.documentVersion().documentId == oldTaskDocument &&
+            runtime.automationTasks().size() == tasksBeforeReplacement,
+        "document replace validate-only must not allocate an ID or alter the active session");
 
     const auto replacement = runtime.documents().commitOpenedDocument(
         commandContext(runtime), replacementDraft, QStringLiteral("D:/replacement.dspx"),
@@ -1464,7 +1646,8 @@ int main(int argc, char *argv[]) {
         replacedAudioExecution();
     if (replacedPitchExecution)
         replacedPitchExecution();
-    const auto replacedDocument = runtime.documents().getDocument(runtime.documentVersion().documentId);
+    const auto replacedDocument =
+        runtime.documents().getDocument(runtime.documentVersion().documentId);
     const auto staleDocument = runtime.documents().getDocument(oldTaskDocument);
     ok &= expect(
         replacedAudioAccepted && replacedPitchAccepted && replacement &&
@@ -1486,8 +1669,8 @@ int main(int argc, char *argv[]) {
     inferenceRequest.pieceId = Automation::PieceId(2);
     inferenceRequest.stage = Automation::InferenceStage::Pitch;
     const auto inferenceVersion = runtime.documentVersion();
-    const auto inferencePreview = runtime.inference().applyMutation(
-        commandContext(runtime, true), inferenceRequest);
+    const auto inferencePreview =
+        runtime.inference().applyMutation(commandContext(runtime, true), inferenceRequest);
     const auto inferenceApply =
         runtime.inference().applyMutation(commandContext(runtime), inferenceRequest);
     ok &= expect(inferencePreview && inferencePreview.get().mutation.validatedOnly &&

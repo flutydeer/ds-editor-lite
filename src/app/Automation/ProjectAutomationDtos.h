@@ -52,6 +52,7 @@ namespace Automation {
     };
 
     struct NoteDraftDto {
+        QString clientRef;
         int localStart = 0;
         int length = 0;
         int keyIndex = 60;
@@ -96,6 +97,7 @@ namespace Automation {
             Audio,
         };
 
+        QString clientRef;
         Type type = Type::Singing;
         ClipPropertiesDto properties;
         QMap<QString, QJsonObject> workspace;
@@ -116,6 +118,7 @@ namespace Automation {
     };
 
     struct TrackDraftDto {
+        QString clientRef;
         QString name;
         int colorIndex = 0;
         double gain = 0.0;
@@ -161,15 +164,19 @@ namespace Automation {
     [[nodiscard]] DocumentDraftDto documentDraftDto(const ProjectModelData &data,
                                                     const LoopSettings &loopSettings = {});
 
-    [[nodiscard]] std::unique_ptr<Note> buildNote(const NoteDraftDto &draft,
-                                                 SingingClip *clip);
+    [[nodiscard]] std::unique_ptr<Note>
+        buildNote(const NoteDraftDto &draft, SingingClip *clip,
+                  QList<CreatedObjectRef> *createdObjects = nullptr);
     [[nodiscard]] std::unique_ptr<Curve> buildCurve(const CurveDraftDto &draft);
-    [[nodiscard]] std::unique_ptr<Clip> buildClip(const ClipDraftDto &draft,
-                                                 const Track *targetTrack,
-                                                 const Timeline &timeline);
-    [[nodiscard]] std::unique_ptr<Track> buildTrack(const TrackDraftDto &draft,
-                                                   const Timeline &timeline);
-    [[nodiscard]] ProjectModelData buildProjectModelData(const DocumentDraftDto &draft);
+    [[nodiscard]] std::unique_ptr<Clip>
+        buildClip(const ClipDraftDto &draft, const Track *targetTrack, const Timeline &timeline,
+                  QList<CreatedObjectRef> *createdObjects = nullptr);
+    [[nodiscard]] std::unique_ptr<Track>
+        buildTrack(const TrackDraftDto &draft, const Timeline &timeline,
+                   QList<CreatedObjectRef> *createdObjects = nullptr);
+    [[nodiscard]] ProjectModelData
+        buildProjectModelData(const DocumentDraftDto &draft,
+                              QList<CreatedObjectRef> *createdObjects = nullptr);
 
     [[nodiscard]] QByteArray fingerprint(const TrackPropertiesDto &properties);
     [[nodiscard]] QByteArray fingerprint(const ClipPropertiesDto &properties);
@@ -181,6 +188,12 @@ namespace Automation {
     [[nodiscard]] AutomationResult<AutomationUnit> validate(const ClipDraftDto &draft);
     [[nodiscard]] AutomationResult<AutomationUnit> validate(const TrackDraftDto &draft);
     [[nodiscard]] AutomationResult<AutomationUnit> validate(const DocumentDraftDto &draft);
+    [[nodiscard]] AutomationResult<AutomationUnit>
+        validateClientRefs(const QList<NoteDraftDto> &notes);
+    [[nodiscard]] AutomationResult<AutomationUnit>
+        validateClientRefs(const QList<ClipInsertDto> &clips);
+    [[nodiscard]] AutomationResult<AutomationUnit>
+        validateClientRefs(const BatchImportDraftDto &batch);
 
 } // namespace Automation
 

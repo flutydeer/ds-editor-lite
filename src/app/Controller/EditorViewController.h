@@ -40,6 +40,9 @@ public:
     bool centerPianoRollAt(double tick, double keyIndex) const;
     bool setPianoRollScale(double horizontalScale, double verticalScale) const;
     bool setPianoRollEditMode(EditorViewGlobal::PianoRollEditMode mode) const;
+    bool setPianoRollQuantize(int quantize, bool enabled) const;
+    bool setTrackAutoPageTurn(bool enabled) const;
+    bool setPianoRollAutoPageTurn(bool enabled) const;
 
     void refreshActiveClipTrackPresentation() const;
     void previewActiveClipTrackColor(int colorIndex) const;
@@ -82,6 +85,7 @@ private:
     bool applyCenterPianoRollAt(double tick, double keyIndex) const;
     bool applyPianoRollScale(double horizontalScale, double verticalScale) const;
     bool applyPianoRollEditMode(EditorViewGlobal::PianoRollEditMode mode) const;
+    bool applyRevealFocus(const HistoryFocus &focus, bool finalize) const;
     bool eventFilter(QObject *watched, QEvent *event) override;
     void setActiveContext(AppGlobal::PanelType panel, EditorInteraction::Target target);
     void setActiveEditTarget(EditorInteraction::Target target);

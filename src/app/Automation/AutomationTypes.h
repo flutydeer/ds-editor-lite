@@ -19,6 +19,7 @@ namespace Automation {
     class StrongUuid {
     public:
         StrongUuid() = default;
+
         explicit StrongUuid(QUuid value) : m_value(std::move(value)) {
         }
 
@@ -56,6 +57,7 @@ namespace Automation {
     class StrongObjectId {
     public:
         StrongObjectId() = default;
+
         explicit StrongObjectId(const int value) : m_value(value) {
         }
 
@@ -127,6 +129,13 @@ namespace Automation {
         InvocationSource source = InvocationSource::TrustedGui;
     };
 
+    struct GuiDocumentCommandContext {
+        DocumentVersion expected;
+        WindowId windowId;
+        bool validateOnly = false;
+        InvocationSource source = InvocationSource::TrustedGui;
+    };
+
     struct ApplicationCommandContext {
         bool validateOnly = false;
         InvocationSource source = InvocationSource::TrustedGui;
@@ -148,6 +157,13 @@ namespace Automation {
         int value = -1;
 
         friend bool operator==(const ObjectRef &, const ObjectRef &) = default;
+    };
+
+    struct CreatedObjectRef {
+        QString clientRef;
+        ObjectRef object;
+
+        friend bool operator==(const CreatedObjectRef &, const CreatedObjectRef &) = default;
     };
 
     enum class AutomationErrorCode {
@@ -191,10 +207,9 @@ namespace Automation {
         [[nodiscard]] static AutomationError taskNotFound(TaskId taskId);
         [[nodiscard]] static AutomationError documentBusy(DocumentId documentId);
         [[nodiscard]] static AutomationError documentChanged(DocumentId requested,
-                                                               DocumentId current);
+                                                             DocumentId current);
         [[nodiscard]] static AutomationError revisionConflict(DocumentId documentId,
-                                                               Revision expected,
-                                                               Revision actual);
+                                                              Revision expected, Revision actual);
 
         friend bool operator==(const AutomationError &, const AutomationError &) = default;
     };
@@ -210,6 +225,7 @@ namespace Automation {
         DocumentVersion previous;
         DocumentVersion current;
         QList<ObjectRef> affectedObjects;
+        QList<CreatedObjectRef> createdObjects;
         QStringList warnings;
         bool changed = false;
         bool validatedOnly = false;

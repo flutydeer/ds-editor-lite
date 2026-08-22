@@ -4,6 +4,7 @@
 #define playbackController PlaybackController::instance()
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/LoopSettings.h>
 #include <lite/Core/Singleton.h>
 #include "Global/PlaybackGlobal.h"
 
@@ -34,7 +35,7 @@ public:
     [[nodiscard]] double lastPosition() const;
     void setPlaybackStartGuard(std::function<bool()> guard);
 
-    signals:
+signals:
     void positionChanged(double tick);
     void visualPositionChanged(double tick);
     void lastPositionChanged(double tick);
@@ -47,6 +48,10 @@ public slots:
 
     void setPosition(double tick);
     void setLastPosition(double tick);
+    void setLoopSettings(const LoopSettings &settings);
+    bool beginLoopSettingsEdit();
+    void previewLoopSettings(const LoopSettings &settings);
+    void commitLoopSettingsEdit(const LoopSettings &settings);
 
     void sampleRateChanged(double sr);
     void onModelChanged();
@@ -59,6 +64,7 @@ private:
     void applyStop();
     void applyPosition(double tick);
     void applyLastPosition(double tick);
+    void setLoopPreviewHandler(std::function<void(const LoopSettings &)> handler);
     void requestVisualPositionUpdate();
     void updateVisualPositionTimerInterval();
 
