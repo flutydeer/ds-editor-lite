@@ -1,0 +1,21 @@
+Evidence ID: E-R10-FULL-CTEST-SEGFAULT
+Round: 10
+Scope: first full CTest run after the phase-one contract additions
+
+Build summary:
+- Debug all-target build: passed.
+- Registered deterministic tests: 42.
+
+CTest summary:
+- Tests completed: 42/42.
+- Passed: 40.
+- Failed: 2.
+- Total wall time: 7.43 s.
+- TestEditorViewController printed its own all-passed summary, then terminated with a segmentation fault.
+- TestUndoRedoController printed its own all-passed summary, then terminated with a segmentation fault.
+- All other tests passed.
+- The requested second and third consecutive runs were not started after the first-run failure.
+
+Outcome: FAIL.
+Classification at capture time: process-teardown failure; root cause pending isolation.
+Privacy: this evidence contains no machine-local or user-data path.

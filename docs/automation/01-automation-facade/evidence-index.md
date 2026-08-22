@@ -51,3 +51,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R09-IDEMPOTENCY-FIX` | 09 | 异步幂等终态修复与稳定复测摘要 | `9ee15f6697a2751b89d1d081ef13adfb2372e589bbcef3ffdcf49eccbed49239` |
+
+## 追加证据 07
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R10-FULL-CTEST-SEGFAULT` | 10 | 首次 Debug 全量 CTest 退出阶段崩溃摘要 | `9cfe222e1ae5c872326d50b57044aa53e33bfa1cb931c73f83343a036075c588` |
