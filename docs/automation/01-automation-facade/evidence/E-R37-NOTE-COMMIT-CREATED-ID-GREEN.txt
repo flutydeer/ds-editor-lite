@@ -1,0 +1,11 @@
+round=37
+scope=piano-roll note creation ownership and created-id regression
+application_build=pass; 27 steps; link and Qt deploy succeeded
+architecture_guard=pass; raw Note ownership, semantic Note allocation, and unconditional edit-session commit rejected
+adapter_contract=3/3 runs passed; 10 assertions per run; 0 failures
+editing_domain=3/3 runs passed; 42 scenarios and 257 assertions per run; 0 failures
+insert_contract=value DTO input; exactly one revision; returned created NoteId resolves in clip
+split_contract=value DTO input; shortened original and returned child NoteId both resolve in clip
+failure_contract=invalid insert, missing clip, invalid split, and missing note return no id with unchanged model and revision
+gui_contract=RHI and Legacy share the same helper; selection uses only the returned created NoteId; failed creation ends the edit session as Discard
+privacy=logical aliases only; no local absolute paths

@@ -1,0 +1,11 @@
+round=36
+scope=TestAutomationArchitecture note-commit ownership guard
+build=pass
+execution=fail
+exit_code=1
+failure_count=1
+failure=Piano-roll semantic mutation transferred raw Note ownership in ClipController public API
+static_trace=Both note insertion and note splitting deleted the temporary Note before the shared GUI helper read its id
+affected_entrypoints=RHI draw; RHI split; legacy draw; legacy split; note context-menu split
+classification=product defect exposed by a new architecture regression guard
+privacy=logical aliases only; no local absolute paths

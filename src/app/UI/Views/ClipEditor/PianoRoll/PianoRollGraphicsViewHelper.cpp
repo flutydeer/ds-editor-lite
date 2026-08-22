@@ -25,29 +25,32 @@ QString PianoRollGraphicsViewHelper::defaultLyricForNewNote(const SingingClip *c
     return appOptions->general()->defaultLyricForLanguage(language);
 }
 
-void PianoRollGraphicsViewHelper::drawNote(const int rStart, const int length, const int keyIndex) {
+bool PianoRollGraphicsViewHelper::drawNote(const int rStart, const int length, const int keyIndex) {
     qDebug() << "Note drawn rStart:" << rStart << "len:" << length << "key:" << keyIndex;
     const auto singingClip = dynamic_cast<SingingClip *>(clipController->clip());
-    Q_ASSERT(singingClip);
-    const auto note = new Note;
-    note->setLocalStart(rStart);
-    note->setLength(length);
-    note->setKeyIndex(keyIndex);
-    // keep language auto (empty), resolved at inference
-    note->setLyric(defaultLyricForNewNote(singingClip));
-    note->setPronunciation(Pronunciation("", ""));
-    clipController->onInsertNote(note);
-    clipController->selectNotes(QList({note->id()}), true);
+    if (!singingClip)
+        return false;
+    Automation::NoteDraftDto note;
+    note.localStart = rStart;
+    note.length = length;
+    note.keyIndex = keyIndex;
+    note.lyric = defaultLyricForNewNote(singingClip);
+    note.pronunciation = Pronunciation("", "");
+    const auto createdId = clipController->onInsertNote(std::move(note));
+    if (!createdId)
+        return false;
+    clipController->selectNotes({createdId->value()}, true);
+    return true;
 }
 
-void PianoRollGraphicsViewHelper::splitNote(const int noteId, const int tick) {
+bool PianoRollGraphicsViewHelper::splitNote(const int noteId, const int tick) {
     const auto singingClip = dynamic_cast<SingingClip *>(clipController->clip());
     if (!singingClip)
-        return;
+        return false;
 
     const auto note = singingClip->findNoteById(noteId);
     if (!note)
-        return;
+        return false;
 
     const auto quantizedTickLength = TimelineSnapUtils::quantizeStep(
         appStatus->pianoRollQuantize, !appStatus->pianoRollQuantizeEnabled);
@@ -58,7 +61,7 @@ void PianoRollGraphicsViewHelper::splitNote(const int noteId, const int tick) {
     const auto noteLocalEnd = noteLocalStart + note->length();
 
     if (splitPos <= noteLocalStart || splitPos >= noteLocalEnd)
-        return;
+        return false;
 
     editSessionManager->beginTransaction(AppStatus::EditObjectType::Note, singingClip->id(), {},
                                          {noteId}, {}, {}, true);
@@ -67,20 +70,24 @@ void PianoRollGraphicsViewHelper::splitNote(const int noteId, const int tick) {
     const auto firstPartLength = splitPos - noteLocalStart;
     const auto secondPartLength = noteLocalEnd - splitPos;
 
-    const auto newNote = new Note(singingClip);
-    newNote->setLocalStart(splitPos);
-    newNote->setLength(secondPartLength);
-    newNote->setKeyIndex(note->keyIndex());
-    newNote->setCentShift(note->centShift());
-    newNote->setLanguage(note->language());
-    newNote->setLyric("-");
-    newNote->setPronunciation(note->pronunciation());
+    Automation::NoteDraftDto newNote;
+    newNote.localStart = splitPos;
+    newNote.length = secondPartLength;
+    newNote.keyIndex = note->keyIndex();
+    newNote.centShift = note->centShift();
+    newNote.language = note->language();
+    newNote.lyric = QStringLiteral("-");
+    newNote.pronunciation = note->pronunciation();
 
-    clipController->onSplitNote(note->id(), newNote, firstPartLength);
-    clipController->selectNotes(QList({newNote->id()}), true);
+    const auto createdId = clipController->onSplitNote(Automation::NoteId(note->id()),
+                                                       std::move(newNote), firstPartLength);
+    if (createdId)
+        clipController->selectNotes({createdId->value()}, true);
 
-    editSessionManager->endActiveTransaction(EditSessionEndReason::Commit);
+    editSessionManager->endActiveTransaction(createdId ? EditSessionEndReason::Commit
+                                                       : EditSessionEndReason::Discard);
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
+    return createdId.has_value();
 }
 
 void PianoRollGraphicsViewHelper::editPitch(const QList<DrawCurve *> &curves) {

@@ -4,6 +4,7 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "ClipController_p.h"
+#include "PianoRollNoteCommit.h"
 
 #include "EditorViewController.h"
 #include "TrackController.h"
@@ -155,8 +156,8 @@ void ClipController::pasteNotesWithParams(const NotesParamsInfo &info, int tick)
     }
 
     auto clipProperties = Clip::ClipCommonProperties(*singingClip);
-    const auto pastePlan = NotePasteUtils::plan(
-        clipProperties, tick, snappedTick, {.start = minStart, .end = maxEnd});
+    const auto pastePlan =
+        NotePasteUtils::plan(clipProperties, tick, snappedTick, {.start = minStart, .end = maxEnd});
 
     QList<Automation::NoteDraftDto> newNotes;
     for (const auto srcNote : srcNotes) {
@@ -213,35 +214,28 @@ void ClipController::onRemoveNotes(const QList<int> &notesId) {
     ids.reserve(notesId.size());
     for (const auto id : notesId)
         ids.append(Automation::NoteId(id));
-    runtime->notes().removeNotes(commandContext(*runtime),
-                                 Automation::ClipId(d->m_clip->id()), ids);
+    runtime->notes().removeNotes(commandContext(*runtime), Automation::ClipId(d->m_clip->id()),
+                                 ids);
 }
 
-void ClipController::onInsertNote(Note *note) {
+std::optional<Automation::NoteId> ClipController::onInsertNote(Automation::NoteDraftDto note) {
     Q_D(ClipController);
-    if (!note)
-        return;
-    const auto draft = Automation::noteDraftDto(*note);
-    delete note;
     auto *runtime = automationRuntime();
     if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
-        return;
-    runtime->notes().insertNotes(commandContext(*runtime),
-                                 Automation::ClipId(d->m_clip->id()), {draft});
-    emit hasSelectedNotesChanged(hasSelectedNotes());
+        return std::nullopt;
+    return PianoRollNoteCommit::insert(*runtime, Automation::ClipId(d->m_clip->id()),
+                                       std::move(note));
 }
 
-void ClipController::onSplitNote(const int noteId, Note *newNote, const int newLength) const {
+std::optional<Automation::NoteId> ClipController::onSplitNote(const Automation::NoteId noteId,
+                                                              Automation::NoteDraftDto newNote,
+                                                              const int newLength) const {
     Q_D(const ClipController);
-    if (!newNote)
-        return;
-    const auto draft = Automation::noteDraftDto(*newNote);
-    delete newNote;
     auto *runtime = automationRuntime();
     if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
-        return;
-    runtime->notes().splitNote(commandContext(*runtime), Automation::ClipId(d->m_clip->id()),
-                               Automation::NoteId(noteId), draft, newLength);
+        return std::nullopt;
+    return PianoRollNoteCommit::split(*runtime, Automation::ClipId(d->m_clip->id()), noteId,
+                                      std::move(newNote), newLength);
 }
 
 void ClipController::onMoveNotes(const QList<int> &notesId, const int deltaTick,
@@ -253,8 +247,8 @@ void ClipController::onMoveNotes(const QList<int> &notesId, const int deltaTick,
     QList<Automation::NoteId> ids;
     for (const auto id : notesId)
         ids.append(Automation::NoteId(id));
-    runtime->notes().moveNotes(commandContext(*runtime), Automation::ClipId(d->m_clip->id()),
-                               ids, deltaTick, deltaKey);
+    runtime->notes().moveNotes(commandContext(*runtime), Automation::ClipId(d->m_clip->id()), ids,
+                               deltaTick, deltaKey);
 }
 
 void ClipController::onResizeNotesLeft(const QList<int> &notesId, const int deltaTick,
@@ -266,9 +260,8 @@ void ClipController::onResizeNotesLeft(const QList<int> &notesId, const int delt
     QList<Automation::NoteId> ids;
     for (const auto id : notesId)
         ids.append(Automation::NoteId(id));
-    runtime->notes().resizeNotesLeft(commandContext(*runtime),
-                                     Automation::ClipId(d->m_clip->id()), ids, deltaTick,
-                                     minimumLength);
+    runtime->notes().resizeNotesLeft(commandContext(*runtime), Automation::ClipId(d->m_clip->id()),
+                                     ids, deltaTick, minimumLength);
 }
 
 void ClipController::onResizeNotesRight(const QList<int> &notesId, const int deltaTick,
@@ -280,9 +273,8 @@ void ClipController::onResizeNotesRight(const QList<int> &notesId, const int del
     QList<Automation::NoteId> ids;
     for (const auto id : notesId)
         ids.append(Automation::NoteId(id));
-    runtime->notes().resizeNotesRight(commandContext(*runtime),
-                                      Automation::ClipId(d->m_clip->id()), ids, deltaTick,
-                                      minimumLength);
+    runtime->notes().resizeNotesRight(commandContext(*runtime), Automation::ClipId(d->m_clip->id()),
+                                      ids, deltaTick, minimumLength);
 }
 
 void ClipController::onAdjustPhonemeOffset(const int noteId, const QList<int> &offsets) const {
@@ -290,9 +282,9 @@ void ClipController::onAdjustPhonemeOffset(const int noteId, const QList<int> &o
     auto *runtime = automationRuntime();
     if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
         return;
-    runtime->notes().setPhonemeOffsets(
-        commandContext(*runtime), Automation::ClipId(d->m_clip->id()),
-        Automation::NoteId(noteId), offsets);
+    runtime->notes().setPhonemeOffsets(commandContext(*runtime),
+                                       Automation::ClipId(d->m_clip->id()),
+                                       Automation::NoteId(noteId), offsets);
 }
 
 //
@@ -347,8 +339,7 @@ void ClipController::onParamEdited(const ParamInfo::Name name, const QList<Curve
             drafts.append(Automation::curveDraftDto(*curve));
     }
     runtime->parameters().replaceParameter(
-        commandContext(*runtime), Automation::ClipId(d->m_clip->id()), name, Param::Edited,
-        drafts);
+        commandContext(*runtime), Automation::ClipId(d->m_clip->id()), name, Param::Edited, drafts);
 }
 
 void ClipController::onQuantizeNotes(const int quantize, const bool quantizeStart,
@@ -370,9 +361,8 @@ void ClipController::onQuantizeNotes(const int quantize, const bool quantizeStar
         for (const auto &note : allNotes)
             noteIds.append(Automation::NoteId(note->id()));
     }
-    runtime->notes().quantizeNotes(commandContext(*runtime),
-                                   Automation::ClipId(singingClip->id()), noteIds, quantize,
-                                   quantizeStart, quantizeLength);
+    runtime->notes().quantizeNotes(commandContext(*runtime), Automation::ClipId(singingClip->id()),
+                                   noteIds, quantize, quantizeStart, quantizeLength);
 }
 
 void ClipController::onNoteLanguagesEdited(const QList<int> &noteIds, const QString &language) {
@@ -547,8 +537,7 @@ void ClipController::onFillLyric(QWidget *parent) {
             arg.phonemes = {};
         // arg.language = noteRes[i - skipCount].language;
         const auto &noteResult = noteRes[i - skipCount];
-        arg.pronunciation =
-            Pronunciation(noteResult.syllable, noteResult.syllableRevised);
+        arg.pronunciation = Pronunciation(noteResult.syllable, noteResult.syllableRevised);
         arg.pronCandidates = noteResult.candidates;
         auto edit = wordEditDto(*selectedNotes[i]);
         edit.lyric = arg.lyric;

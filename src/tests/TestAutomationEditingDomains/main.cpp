@@ -671,7 +671,11 @@ namespace {
                                                                 fixture.clipId, {candidate});
                 suite.expect(insert && insert.get().createdObjects.size() == 1 &&
                                  insert.get().createdObjects.first().clientRef ==
-                                     QStringLiteral("note-c"),
+                                     QStringLiteral("note-c") &&
+                                 insert.get().createdObjects.first().object.kind ==
+                                     Automation::ObjectKind::Note &&
+                                 insert.get().createdObjects.first().object ==
+                                     insert.get().affectedObjects.first(),
                              QStringLiteral("note insert must return client binding"));
 
                 const auto overlapDraft = noteDraft(200, 300, 62, QStringLiteral("overlap"),
@@ -840,7 +844,11 @@ namespace {
                 suite.expect(split && split.get().createdObjects.size() == 1 && original &&
                                  original->data.length == 180 &&
                                  split.get().createdObjects.first().clientRef ==
-                                     QStringLiteral("split-child"),
+                                     QStringLiteral("split-child") &&
+                                 split.get().createdObjects.first().object.kind ==
+                                     Automation::ObjectKind::Note &&
+                                 split.get().createdObjects.first().object ==
+                                     split.get().affectedObjects.last(),
                              QStringLiteral("split must shorten original and bind child"));
                 const auto childId =
                     split ? NoteId(split.get().createdObjects.first().object.value) : NoteId();

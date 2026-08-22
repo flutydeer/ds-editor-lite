@@ -42,6 +42,7 @@ handler。下文只在测试实际进入 Facade/dispatcher/task 路径并断言�
 | `Runtime` | `TestAutomationRuntimeDomains` | application/playback/editor/settings/recent files/packages/presets/宿主失败 |
 | `Async` | `TestAutomationAsyncFileDomains` | inference/audio clips/import/file/export/extract/task list 与服务不可用 |
 | `Arch` | `TestAutomationArchitecture` | 集中 ID、无 in-process 版本后缀、Facade/History/revision/generation 源码边界 |
+| `NoteGUI` | `TestPianoRollNoteCommit` | GUI 音符插入/拆分的真实 created ID、revision 与失败无副作用契约 |
 
 `TestEditorViewController` 与 `TestUndoRedoController` 是控制器层补充回归，分别补充
 GUI host 转发和 History focus 两阶段导航；它们不改变下表的 operation 分母，也不以
@@ -119,7 +120,7 @@ Catalog 存在性代替 Facade 行为。
 | Operation | Profile / 重点 | 直接目标与场景 | 等级 |
 |---|---|---|:---:|
 | `notes.get` | `Q-D`；类型/归属、有序值快照 | `Edit: typed-ordered-snapshot`；`Core` client_ref 不持久化 | P |
-| `notes.insert` | `C-D+REF`；空/非法、预检、重叠、绑定、undo | `Edit: empty-invalid-preview-overlap`；`Core` 重复 ref 原子失败 | P |
+| `notes.insert` | `C-D+REF`；空/非法、预检、重叠、绑定、undo | `Edit: empty-invalid-preview-overlap`；`Core` 重复 ref 原子失败；`NoteGUI` 真实 ID/失败无副作用 | P |
 | `notes.move` | `C-D`；边界、重复、no-op、重叠、undo | `Edit: bounds-duplicates-noop-undo`；`Core` 零位移/批移动 | P |
 | `notes.quantize` | `C-D`；网格、几何、no-op、错误优先级 | `Edit: commit-noop-process-isolation` 与 `dispatch/error-priority-matrix` | P |
 | `notes.remove` | `C-D`；重复/空集合、预检、undo | `Edit: duplicates-preview-undo` | P |
@@ -127,7 +128,7 @@ Catalog 存在性代替 Facade 行为。
 | `notes.resize_right` | `C-D`；最短长度、预检、空集合 | `Edit: clamp-preview-commit` | P |
 | `notes.set_phoneme_offsets` | `C-D`；数量、单调、预检、no-op、清空 | `Edit: shape-order-preview-noop` | P |
 | `notes.set_word_properties` | `C-D`；重复、Unicode、级联清理、原子 no-op | `Edit: unicode-cascade-atomic-noop` | P |
-| `notes.split` | `C-D+REF`；边界、预检、不分配、绑定、undo | `Edit: invalid-preview-create-undo` | P |
+| `notes.split` | `C-D+REF`；边界、预检、不分配、绑定、undo | `Edit: invalid-preview-create-undo`；`NoteGUI` child ID/失败无副作用 | P |
 
 ### parameters / speaker_mix（10）
 

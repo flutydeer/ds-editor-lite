@@ -9,9 +9,8 @@
 
 #include <type_traits>
 
-static_assert(std::is_same_v<
-              std::remove_cv_t<decltype(Automation::OperationIds::notes::insert)>,
-              QLatin1StringView>);
+static_assert(std::is_same_v<std::remove_cv_t<decltype(Automation::OperationIds::notes::insert)>,
+                             QLatin1StringView>);
 
 namespace {
     struct SourceFile {
@@ -75,6 +74,20 @@ int main(int argc, char *argv[]) {
         QStringLiteral(R"(\bmodel\s*->\s*replaceProject\s*\()"));
     const QRegularExpression versionedAutomationContract(
         QStringLiteral(R"("automation\.[A-Za-z0-9_]+\.v[0-9]+")"));
+    const QRegularExpression versionedOperationSuffix(QStringLiteral(R"(\.v[0-9]+$)"));
+    const QRegularExpression semanticNotePointer(
+        QStringLiteral(R"(\b(?:onInsertNote|onSplitNote)\s*\([^;{}]*\bNote\s*\*)"));
+    const QRegularExpression semanticNoteAllocation(QStringLiteral(R"(\bnew\s+Note\b)"));
+    const QRegularExpression unconditionalNoteEditCommit(QStringLiteral(
+        R"(\b(?:finishNoteEditSession|endActiveTransaction)\s*\(\s*EditSessionEndReason::Commit\s*\))"));
+
+    for (const auto &id : Automation::OperationIds::all()) {
+        if (!versionedOperationSuffix.match(id).hasMatch())
+            continue;
+        QTextStream(stderr) << "FAILED: In-process operation ID has a version suffix: " << id
+                            << Qt::endl;
+        ok = false;
+    }
 
     for (const auto &file : files) {
         if (file.relativePath.startsWith(QStringLiteral("src/app/Automation/"))) {
@@ -89,15 +102,37 @@ int main(int argc, char *argv[]) {
                 if (offset < 0)
                     continue;
                 const auto line = file.contents.first(offset).count(u'\n') + 1;
-                QTextStream(stderr)
-                    << "FAILED: Product operation ID bypassed OperationIds at "
-                    << file.relativePath << ':' << line << Qt::endl;
+                QTextStream(stderr) << "FAILED: Product operation ID bypassed OperationIds at "
+                                    << file.relativePath << ':' << line << Qt::endl;
                 ok = false;
             }
         }
 
         ok &= rejectMatch(file, versionedAutomationContract,
                           QStringLiteral("Versioned in-process contract ID is not allowed"));
+
+        if (file.relativePath == QStringLiteral("src/app/Controller/ClipController.h")) {
+            ok &= rejectMatch(
+                file, semanticNotePointer,
+                QStringLiteral("Piano-roll semantic mutation transferred raw Note ownership"));
+        }
+
+        if (file.relativePath == QStringLiteral("src/app/UI/Views/ClipEditor/PianoRoll/"
+                                                "PianoRollGraphicsViewHelper.cpp")) {
+            ok &= rejectMatch(file, semanticNoteAllocation,
+                              QStringLiteral("Piano-roll helper allocated a semantic Note"));
+        }
+
+        if (file.relativePath == QStringLiteral("src/app/UI/Views/ClipEditor/PianoRoll/"
+                                                "PianoRollGraphicsViewHelper.cpp") ||
+            file.relativePath == QStringLiteral("src/app/UI/Views/ClipEditor/PianoRoll/"
+                                                "DrawNoteHandler.cpp") ||
+            file.relativePath == QStringLiteral("src/app/UI/Views/ClipEditor/PianoRoll/"
+                                                "PianoRollRhiWidget.cpp")) {
+            ok &= rejectMatch(
+                file, unconditionalNoteEditCommit,
+                QStringLiteral("Note creation committed its edit session unconditionally"));
+        }
 
         if (file.relativePath != QStringLiteral("src/app/Automation/CommandCommitter.cpp")) {
             ok &= rejectMatch(file, historyRecord,
@@ -127,7 +162,8 @@ int main(int argc, char *argv[]) {
                               QStringLiteral("Document revision bypassed CommandCommitter"));
         }
 
-        if (file.relativePath != QStringLiteral("src/app/Automation/DocumentAutomationFacade.cpp")) {
+        if (file.relativePath !=
+            QStringLiteral("src/app/Automation/DocumentAutomationFacade.cpp")) {
             ok &= rejectMatch(file, generationReplacement,
                               QStringLiteral("Document generation bypassed Document Facade"));
             ok &= rejectMatch(file, modelReplacement,

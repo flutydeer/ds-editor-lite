@@ -916,3 +916,58 @@ UTF-8，而非依赖构建期间可变化的 ANSI console code page。
 
 阻塞（测试基础设施，不计产品通过率）。需由用户处理系统权限提示后，以新的全局轮次从
 `GUI-G00` 未执行子断言继续；不得覆盖或删除本轮。
+
+## 回归轮次 36：音符提交所有权架构守卫首次失败
+
+### 范围
+
+静态复核 RHI、Legacy 和右键菜单共用的音符绘制/拆分提交链；新增架构守卫，禁止
+`ClipController` 的语义提交 API 通过裸 `Note *` 转移所有权，并在修复前单独构建、执行该
+测试目标。
+
+### 结果
+
+- 测试目标构建通过，架构守卫按预期以退出码 1 失败，唯一失败为 raw `Note *` 所有权转移。
+- 插入和拆分路径都会在 Controller 中删除临时对象，随后共享 GUI helper 再读取该对象 ID；
+  这是确定的 use-after-free，并且临时 ID 也不是 Facade 实际创建的新对象 ID。
+- RHI 绘制/拆分、Legacy 绘制/拆分和音符右键菜单拆分均进入该共享路径，故缺陷不是单一渲染
+  后端的孤立问题。
+
+### 证据
+
+- 脱敏失败摘要：证据 `E-R36-NOTE-COMMIT-OWNERSHIP-RED`。
+
+### 判定
+
+失败（产品缺陷）。需改为值 DTO 输入，只接受 Facade `createdObjects` 返回的新 NoteId；提交
+失败时不得选择临时或猜测 ID，编辑事务必须按失败结果回滚。
+
+## 回归轮次 37：音符提交真实创建 ID 修复与定向稳定性
+
+### 范围
+
+把音符插入/拆分改成唯一的值 DTO → Facade 提交路径；Controller 返回按 `client_ref` 绑定的
+真实 NoteId，共享 GUI helper 只选择该 ID。新增可注入 CoreRuntime 的提交适配器测试，并重跑
+架构守卫、编辑域以及应用构建。
+
+### 结果
+
+- 应用增量构建 27 个步骤通过，链接及 Qt 部署成功；RHI、Legacy 和右键菜单入口均编译到同一
+  shared helper。
+- 新提交适配器连续 3 轮均为 10 个断言、0 失败：插入返回可查询的新 ID；拆分返回可查询且
+  不同于原音符的 child ID；每次成功只增加一个 revision。
+- 非法插入、缺失 Clip、非法拆分和缺失原音符均返回空 ID，Model、音符数量和 revision 不变。
+- 编辑域连续 3 轮均为 42 场景、257 断言、0 失败；insert/split 又验证了
+  `createdObjects.kind == Note` 且 binding 与 affected object 一致。
+- 架构守卫通过，并额外禁止 raw `Note *` 语义所有权、GUI helper 分配 Model Note，以及音符
+  创建失败时无条件 Commit 编辑事务。
+- 成功路径只用 Facade 返回的 ID 更新选择；失败路径保持原选择，并以 Discard 结束编辑事务。
+
+### 证据
+
+- 脱敏构建与三轮稳定性摘要：证据 `E-R37-NOTE-COMMIT-CREATED-ID-GREEN`。
+
+### 判定
+
+通过（定向回归）。轮次 36 的 use-after-free/临时 ID 缺陷已关闭；仍需在本轮源码上执行全目标
+构建、全量 CTest，并在 Computer Use 中同时验证绘制、拆分、选择与推理触发。

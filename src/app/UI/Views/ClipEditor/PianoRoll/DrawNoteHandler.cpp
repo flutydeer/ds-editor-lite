@@ -103,13 +103,14 @@ void DrawNoteHandler::commit() {
     if (!m_drawing)
         return;
     d->removeNoteViewFromScene(m_currentDrawingNote);
-    PianoRollGraphicsViewHelper::drawNote(m_currentDrawingNote->rStart(),
-                                          m_currentDrawingNote->length(),
-                                          m_currentDrawingNote->keyIndex());
+    const auto committed = PianoRollGraphicsViewHelper::drawNote(m_currentDrawingNote->rStart(),
+                                                                 m_currentDrawingNote->length(),
+                                                                 m_currentDrawingNote->keyIndex());
     // model 写入后清空预览，轨道侧一次刷新到最终状态
     appStatus->pianoRollNoteEditPreview = {};
     m_drawing = false;
-    editSessionManager->endActiveTransaction(EditSessionEndReason::Commit);
+    editSessionManager->endActiveTransaction(committed ? EditSessionEndReason::Commit
+                                                       : EditSessionEndReason::Discard);
     appStatus->currentEditObject = AppStatus::EditObjectType::None;
     d->restoreHandler();
 }
