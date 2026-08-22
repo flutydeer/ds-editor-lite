@@ -1,7 +1,7 @@
 #include "Automation/AutomationDispatcher.h"
 #include "Automation/CoreRuntime.h"
+#include "Automation/OperationIds.h"
 #include "Automation/ProjectAutomationDtos.h"
-#include "OperationManifest.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -52,8 +52,6 @@ namespace {
             .category = QStringLiteral("test"),
             .kind = Automation::OperationKind::Command,
             .syncMode = Automation::SyncMode::Synchronous,
-            .inputContract = QStringLiteral("test.CommandInput.v1"),
-            .outputContract = QStringLiteral("automation.MutationResult.v1"),
             .documentPolicy = Automation::DocumentPolicy::Write,
             .revisionPolicy = Automation::RevisionPolicy::Increment,
             .historyPolicy = Automation::HistoryPolicy::Record,
@@ -71,8 +69,6 @@ namespace {
             .category = QStringLiteral("test"),
             .kind = Automation::OperationKind::Query,
             .syncMode = Automation::SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.DocumentRef.v1"),
-            .outputContract = QStringLiteral("test.Revision.v1"),
             .documentPolicy = Automation::DocumentPolicy::Read,
             .revisionPolicy = Automation::RevisionPolicy::None,
             .historyPolicy = Automation::HistoryPolicy::None,
@@ -648,8 +644,10 @@ int main(int argc, char *argv[]) {
     ok &= expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                      capabilities.get().maxConcurrentWindows == 1,
                  "capabilities must declare the single document/window boundary");
-    ok &= expect(capabilities && capabilities.get().operationIds == automationOperationManifest(),
-                 "Catalog and the exact operation test manifest must match");
+    ok &= expect(Automation::OperationIds::all().size() == 122,
+                 "centralized operation registry must retain the approved phase-one surface");
+    ok &= expect(capabilities && capabilities.get().operationIds == Automation::OperationIds::all(),
+                 "Catalog and the centralized operation registry must match");
 
     const auto formats = runtime.files().listFormats();
     ok &= expect(formats && formats.get().size() == 1 && formats.get().first().canExport,
@@ -1554,7 +1552,7 @@ int main(int argc, char *argv[]) {
 
     int cancelCount = 0;
     const auto task = runtime.automationTasks().createTask(
-        QStringLiteral("extract.pitch.start"), runtime.documentVersion(),
+        Automation::OperationIds::extract::pitch::start, runtime.documentVersion(),
         Automation::ObjectRef{Automation::ObjectKind::Clip, clipId.value()},
         [&cancelCount] { ++cancelCount; });
     ok &= expect(runtime.automationTasks().markRunning(task.taskId),
@@ -1588,7 +1586,7 @@ int main(int argc, char *argv[]) {
                  "cancel-after-terminal must return the stable terminal result");
 
     const auto committingTask = runtime.automationTasks().createTask(
-        QStringLiteral("extract.pitch.start"), runtime.documentVersion());
+        Automation::OperationIds::extract::pitch::start, runtime.documentVersion());
     runtime.automationTasks().markRunning(committingTask.taskId);
     const auto beganCommit = runtime.automationTasks().beginCommitting(committingTask.taskId);
     const auto lateCancel =

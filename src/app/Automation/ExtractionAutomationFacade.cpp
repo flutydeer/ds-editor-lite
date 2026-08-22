@@ -1,4 +1,5 @@
 #include "ExtractionAutomationFacade.h"
+#include "OperationIds.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -12,9 +13,6 @@
 
 namespace Automation {
     namespace {
-        constexpr auto pitchOperation = "extract.pitch.start";
-        constexpr auto midiOperation = "extract.midi.start";
-
         AutomationError unavailable(const QString &message) {
             AutomationError error;
             error.code = AutomationErrorCode::ModuleNotReady;
@@ -98,7 +96,7 @@ namespace Automation {
                                                const ClipId audioClipId, const ClipId singingClipId,
                                                ExtractionObserver observer) {
         return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
-            QString::fromLatin1(pitchOperation), context,
+            OperationIds::extract::pitch::start, context,
             pitchFingerprint(audioClipId, singingClipId),
             [this, audioClipId, singingClipId, source = context.source,
              observer = std::move(observer)](DocumentSession &session,
@@ -153,7 +151,7 @@ namespace Automation {
 
                 auto job = prepared.get().job;
                 const auto task =
-                    m_tasks.createTask(QString::fromLatin1(pitchOperation), session.version(),
+                    m_tasks.createTask(OperationIds::extract::pitch::start, session.version(),
                                        ObjectRef{ObjectKind::Clip, singingClipId.value()},
                                        [weak = std::weak_ptr<IExtractionJob>(job)] {
                                            if (const auto locked = weak.lock())
@@ -180,7 +178,7 @@ namespace Automation {
     AutomationResult<TaskAcceptedResult> ExtractionAutomationFacade::startMidi(
         const CommandContext &context, const ClipId audioClipId, ExtractionObserver observer) {
         return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
-            QString::fromLatin1(midiOperation), context, midiFingerprint(audioClipId),
+            OperationIds::extract::midi::start, context, midiFingerprint(audioClipId),
             [this, audioClipId, source = context.source, observer = std::move(observer)](
                 DocumentSession &session, const bool validateOnly) mutable {
                 auto resolvedAudio = m_objects.audioClip(session, audioClipId);
@@ -216,7 +214,7 @@ namespace Automation {
 
                 auto job = prepared.get().job;
                 const auto task =
-                    m_tasks.createTask(QString::fromLatin1(midiOperation), session.version(),
+                    m_tasks.createTask(OperationIds::extract::midi::start, session.version(),
                                        ObjectRef{ObjectKind::Clip, audioClipId.value()},
                                        [weak = std::weak_ptr<IExtractionJob>(job)] {
                                            if (const auto locked = weak.lock())
@@ -306,7 +304,7 @@ namespace Automation {
             return;
         }
         if (result.state == ExtractionBackendState::Failed) {
-            m_tasks.fail(taskId, backendError(taskId, QString::fromLatin1(pitchOperation),
+            m_tasks.fail(taskId, backendError(taskId, OperationIds::extract::pitch::start,
                                               result.errorCode, std::move(result.errorMessage)));
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
@@ -315,7 +313,7 @@ namespace Automation {
         auto curves = pitchCurves(input, result.segments);
         if (!curves) {
             m_tasks.fail(taskId,
-                         taskError(curves.getError(), taskId, QString::fromLatin1(pitchOperation)));
+                         taskError(curves.getError(), taskId, OperationIds::extract::pitch::start));
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
         }
@@ -328,7 +326,7 @@ namespace Automation {
             context, input.singingClipId, ParamInfo::Pitch, Param::Edited, curves.get());
         if (!validation) {
             m_tasks.fail(taskId, taskError(validation.getError(), taskId,
-                                           QString::fromLatin1(pitchOperation)));
+                                           OperationIds::extract::pitch::start));
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
         }
@@ -341,7 +339,7 @@ namespace Automation {
         if (!committing || !committing.get()) {
             if (!committing) {
                 m_tasks.fail(taskId, taskError(committing.getError(), taskId,
-                                               QString::fromLatin1(pitchOperation)));
+                                               OperationIds::extract::pitch::start));
             }
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
@@ -353,7 +351,7 @@ namespace Automation {
             m_tasks.succeed(taskId, committed.get());
         else
             m_tasks.fail(taskId, taskError(committed.getError(), taskId,
-                                           QString::fromLatin1(pitchOperation)));
+                                           OperationIds::extract::pitch::start));
         notifyFinished(taskId, baseDocument.documentId, observer);
     }
 
@@ -369,7 +367,7 @@ namespace Automation {
             return;
         }
         if (result.state == ExtractionBackendState::Failed) {
-            m_tasks.fail(taskId, backendError(taskId, QString::fromLatin1(midiOperation),
+            m_tasks.fail(taskId, backendError(taskId, OperationIds::extract::midi::start,
                                               result.errorCode, std::move(result.errorMessage)));
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
@@ -400,7 +398,7 @@ namespace Automation {
         const auto project = m_project.getProject(baseDocument.documentId);
         if (!project) {
             m_tasks.fail(taskId,
-                         taskError(project.getError(), taskId, QString::fromLatin1(midiOperation)));
+                         taskError(project.getError(), taskId, OperationIds::extract::midi::start));
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
         }
@@ -413,7 +411,7 @@ namespace Automation {
         const auto validation = m_project.insertTrack(context, index, track);
         if (!validation) {
             m_tasks.fail(taskId, taskError(validation.getError(), taskId,
-                                           QString::fromLatin1(midiOperation)));
+                                           OperationIds::extract::midi::start));
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
         }
@@ -426,7 +424,7 @@ namespace Automation {
         if (!committing || !committing.get()) {
             if (!committing) {
                 m_tasks.fail(taskId, taskError(committing.getError(), taskId,
-                                               QString::fromLatin1(midiOperation)));
+                                               OperationIds::extract::midi::start));
             }
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
@@ -437,7 +435,7 @@ namespace Automation {
             m_tasks.succeed(taskId, committed.get());
         else
             m_tasks.fail(taskId, taskError(committed.getError(), taskId,
-                                           QString::fromLatin1(midiOperation)));
+                                           OperationIds::extract::midi::start));
         notifyFinished(taskId, baseDocument.documentId, observer);
     }
 
@@ -463,14 +461,12 @@ namespace Automation {
     }
 
     void ExtractionAutomationFacade::registerOperations() {
-        const auto add = [this](const OperationId &id, const QString &inputContract) {
+        const auto add = [this](const OperationId &id) {
             const auto result = m_catalog.add({
                 .id = id,
                 .category = QStringLiteral("extract"),
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Asynchronous,
-                .inputContract = inputContract,
-                .outputContract = QStringLiteral("automation.TaskAccepted.v1"),
                 .documentPolicy = DocumentPolicy::Write,
                 .revisionPolicy = RevisionPolicy::Increment,
                 .historyPolicy = HistoryPolicy::Record,
@@ -482,10 +478,8 @@ namespace Automation {
             });
             Q_ASSERT(result);
         };
-        add(QString::fromLatin1(pitchOperation),
-            QStringLiteral("automation.PitchExtractionCommand.v1"));
-        add(QString::fromLatin1(midiOperation),
-            QStringLiteral("automation.MidiExtractionCommand.v1"));
+        add(OperationIds::extract::pitch::start);
+        add(OperationIds::extract::midi::start);
     }
 
 } // namespace Automation

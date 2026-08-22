@@ -7,6 +7,8 @@ lite_add_test(${PROJECT_NAME}
 
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 
+target_include_directories(${PROJECT_NAME} PRIVATE ../../app)
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Core
 )

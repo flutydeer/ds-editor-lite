@@ -6,13 +6,13 @@
 当前全部 CTest；待用户完成 GUI 基本功能冒烟并明确批准后，才由 Codex 使用
 Computer Use 启动全量 GUI 回归并形成正式报告。
 
-测试分母是 Catalog Manifest 的 122 个 operation。预计确定性场景总量为：
+测试分母是集中注册且进入 Catalog 的 122 个 operation。预计确定性场景总量为：
 
 ```text
 122 × 6～9 + 80～150 = 812～1,248
 ```
 
-并非每个 operation 机械复制同一组用例；只计算适用维度，Manifest、用例清单和结果
+并非每个 operation 机械复制同一组用例；只计算适用维度，operation 清单、用例和结果
 必须能相互追踪。多个断言验证同一输入路径时计为一个场景，避免用断言数量夸大覆盖。
 
 ## 2. 测试环境与证据
@@ -22,7 +22,7 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 - git commit、分支、工作树状态、submodule 状态；
 - Windows、MSVC、Qt、CMake、Ninja、vcpkg triplet 和关键依赖版本；
 - Debug/Release 配置及完整命令；
-- Catalog descriptor 和 Manifest 快照；
+- Catalog descriptor 和集中 operation 注册表快照；
 - 每个测试目标的场景数、断言数、轮次、耗时和结果；
 - 真实测试文件、codec、声库、推理模型和音频设备资格；
 - 首次失败、复现步骤、根因、修复 commit、回归结果；
@@ -42,7 +42,7 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 3. 未知/旧 DocumentId、未知 WindowId、模块或宿主不可用；
 4. 空集合、边界数值、Unicode、长文本和可选字段；
 5. 查询不改变 Model、History、revision、幂等缓存、文件和通知计数；
-6. Catalog descriptor 的 kind、host、document、file、安全和版本策略一致。
+6. Catalog descriptor 的 kind、host、document、revision、file 和安全策略一致。
 
 ### 3.2 Command
 
@@ -143,7 +143,7 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 - Track/Clip/Note/Speaker Mix 跨域 ActionSequence 的通知次序；
 - 复制/粘贴、导入、undo/redo 后 edited parameters、语言、声线和音素保真；
 - 文件名大小写、Unicode、只读目录、已存在文件、临时文件清理和磁盘失败；
-- Catalog/Manifest 不一致、重复 operation ID、缺失 contract ID；
+- Catalog/集中注册表不一致、重复 operation ID、产品代码硬编码 operation ID；
 - 源码架构守卫的正向通过和注入违规样本的自检。
 
 ## 7. GUI 冒烟与真实环境资格
@@ -190,6 +190,6 @@ Computer Use 回归不以内部 DTO 断言代替 GUI 可见结果，也不把手
 8. 修复失败后先重跑最小复现，再跑所属域，最后重跑三轮全量；
 9. 输出正式测试报告、Catalog 快照、GUI 证据索引和残余风险。
 
-通过标准：适用的确定性场景 100% 通过，三轮无 flaky，Catalog 与 Manifest 完全一致，
+通过标准：适用的确定性场景 100% 通过，三轮无 flaky，Catalog 与集中注册表完全一致，
 源码架构守卫通过，应用和测试完整构建通过，用户 GUI 冒烟通过。任何 skipped/环境未
 具备项目都必须逐项解释，不能计入通过率。

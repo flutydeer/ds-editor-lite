@@ -1,4 +1,5 @@
 #include "AudioExportAutomationFacade.h"
+#include "OperationIds.h"
 
 #include <QDataStream>
 #include <QDir>
@@ -31,7 +32,7 @@ namespace Automation {
 
         AutomationError taskError(AutomationError error, const TaskId &taskId) {
             if (error.operationId.isEmpty())
-                error.operationId = QStringLiteral("exports.audio.start");
+                error.operationId = OperationIds::exports::audio::start;
             if (!error.taskId)
                 error.taskId = taskId;
             return error;
@@ -252,7 +253,7 @@ namespace Automation {
     AudioExportAutomationFacade::preview(const DocumentId &documentId,
                                          const AudioExportConfigDto &config) {
         return m_dispatcher.dispatchDocumentQuery<AudioExportPreviewDto>(
-            QStringLiteral("exports.audio.preview"), documentId,
+            OperationIds::exports::audio::preview, documentId,
             [this, config](DocumentSession &session) {
                 const auto valid = validateConfig(config);
                 if (!valid)
@@ -272,7 +273,7 @@ namespace Automation {
                                        const AudioExportPolicyDto &policy,
                                        AudioExportObserver observer) {
         return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
-            QStringLiteral("exports.audio.start"), context, fingerprint(config, policy),
+            OperationIds::exports::audio::start, context, fingerprint(config, policy),
             [this, config, policy,
              observer = std::move(observer)](DocumentSession &session,
                                              const bool validateOnly) mutable {
@@ -296,7 +297,7 @@ namespace Automation {
 
                 auto state = std::make_shared<PendingJobState>();
                 const auto task = m_tasks.createTask(
-                    QStringLiteral("exports.audio.start"), session.version(), std::nullopt,
+                    OperationIds::exports::audio::start, session.version(), std::nullopt,
                     [weak = std::weak_ptr<PendingJobState>(state)] {
                         if (const auto locked = weak.lock())
                             locked->requestCancel();
@@ -324,7 +325,7 @@ namespace Automation {
     AutomationResult<ApplicationMutationResult>
     AudioExportAutomationFacade::cleanup(const CommandContext &context, const TaskId &taskId) {
         return m_dispatcher.dispatchDocumentCommandResult<ApplicationMutationResult>(
-            QStringLiteral("exports.audio.cleanup"), context, taskId.toString().toUtf8(),
+            OperationIds::exports::audio::cleanup, context, taskId.toString().toUtf8(),
             [this, taskId](DocumentSession &session, const bool validateOnly) {
                 const auto task = m_tasks.get(session.documentId(), taskId);
                 if (!task)
@@ -499,12 +500,10 @@ namespace Automation {
             Q_ASSERT(result);
         };
         add({
-            .id = QStringLiteral("exports.audio.preview"),
+            .id = OperationIds::exports::audio::preview,
             .category = QStringLiteral("exports"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.AudioExportPreviewQuery.v1"),
-            .outputContract = QStringLiteral("automation.AudioExportPreview.v1"),
             .documentPolicy = DocumentPolicy::Read,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
@@ -515,12 +514,10 @@ namespace Automation {
             .idempotency = IdempotencyPolicy::Unsupported,
         });
         add({
-            .id = QStringLiteral("exports.audio.start"),
+            .id = OperationIds::exports::audio::start,
             .category = QStringLiteral("exports"),
             .kind = OperationKind::Command,
             .syncMode = SyncMode::Asynchronous,
-            .inputContract = QStringLiteral("automation.AudioExportCommand.v1"),
-            .outputContract = QStringLiteral("automation.TaskAccepted.v1"),
             .documentPolicy = DocumentPolicy::Read,
             .revisionPolicy = RevisionPolicy::Check,
             .historyPolicy = HistoryPolicy::None,
@@ -531,12 +528,10 @@ namespace Automation {
             .idempotency = IdempotencyPolicy::DocumentGeneration,
         });
         add({
-            .id = QStringLiteral("exports.audio.cleanup"),
+            .id = OperationIds::exports::audio::cleanup,
             .category = QStringLiteral("exports"),
             .kind = OperationKind::Command,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.AudioExportCleanupCommand.v1"),
-            .outputContract = QStringLiteral("automation.ApplicationMutationResult.v1"),
             .documentPolicy = DocumentPolicy::Read,
             .revisionPolicy = RevisionPolicy::Check,
             .historyPolicy = HistoryPolicy::None,

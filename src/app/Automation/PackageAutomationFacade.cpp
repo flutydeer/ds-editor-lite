@@ -1,4 +1,5 @@
 #include "PackageAutomationFacade.h"
+#include "OperationIds.h"
 
 namespace Automation {
     namespace {
@@ -19,7 +20,7 @@ namespace Automation {
 
     AutomationResult<QList<PackageDto>> PackageAutomationFacade::getInstalledPackages() {
         return m_dispatcher.dispatchApplicationQuery<QList<PackageDto>>(
-            QStringLiteral("packages.list"), [this] {
+            OperationIds::packages::list, [this] {
                 if (!m_services.installedPackages)
                     return AutomationResult<QList<PackageDto>>(unavailable());
                 return AutomationResult<QList<PackageDto>>(m_services.installedPackages());
@@ -29,7 +30,7 @@ namespace Automation {
     AutomationResult<PackageValidationReportDto>
     PackageAutomationFacade::validatePackage(const QString &path) {
         return m_dispatcher.dispatchApplicationQuery<PackageValidationReportDto>(
-            QStringLiteral("packages.validate"), [this, path] {
+            OperationIds::packages::validate, [this, path] {
                 if (path.trimmed().isEmpty()) {
                     return AutomationResult<PackageValidationReportDto>(
                         AutomationError::invalidArgument(QStringLiteral("path"),
@@ -44,7 +45,7 @@ namespace Automation {
     AutomationResult<MutationResult>
     PackageAutomationFacade::resolveDocumentVoices(const CommandContext &context) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("packages.resolve_document_voices"), context, {},
+            OperationIds::packages::resolve_document_voices, context, {},
             [this](DocumentSession &session, const bool validateOnly) {
                 if (!m_services.resolveDocumentVoices)
                     return AutomationResult<MutationResult>(unavailable());
@@ -66,12 +67,10 @@ namespace Automation {
             Q_ASSERT(result);
         };
         add({
-            .id = QStringLiteral("packages.list"),
+            .id = OperationIds::packages::list,
             .category = QStringLiteral("packages"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.Empty.v1"),
-            .outputContract = QStringLiteral("automation.PackageList.v1"),
             .documentPolicy = DocumentPolicy::None,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
@@ -82,12 +81,10 @@ namespace Automation {
             .idempotency = IdempotencyPolicy::Unsupported,
         });
         add({
-            .id = QStringLiteral("packages.resolve_document_voices"),
+            .id = OperationIds::packages::resolve_document_voices,
             .category = QStringLiteral("packages"),
             .kind = OperationKind::Command,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.DocumentCommand.v1"),
-            .outputContract = QStringLiteral("automation.MutationResult.v1"),
             .documentPolicy = DocumentPolicy::Write,
             .revisionPolicy = RevisionPolicy::Check,
             .historyPolicy = HistoryPolicy::None,
@@ -98,12 +95,10 @@ namespace Automation {
             .idempotency = IdempotencyPolicy::Unsupported,
         });
         add({
-            .id = QStringLiteral("packages.validate"),
+            .id = OperationIds::packages::validate,
             .category = QStringLiteral("packages"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.PathQuery.v1"),
-            .outputContract = QStringLiteral("automation.PackageValidationReport.v1"),
             .documentPolicy = DocumentPolicy::None,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,

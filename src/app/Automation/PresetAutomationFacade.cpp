@@ -1,4 +1,5 @@
 #include "PresetAutomationFacade.h"
+#include "OperationIds.h"
 
 #include <QUuid>
 
@@ -65,7 +66,7 @@ namespace Automation {
     AutomationResult<QList<SpeakerMixPresetDto>>
     PresetAutomationFacade::getSpeakerMixPresets() {
         return m_dispatcher.dispatchApplicationQuery<QList<SpeakerMixPresetDto>>(
-            QStringLiteral("speaker_mix_presets.list"), [this] {
+            OperationIds::speaker_mix_presets::list, [this] {
                 if (!m_services.speakerMixPresets)
                     return AutomationResult<QList<SpeakerMixPresetDto>>(unavailable());
                 return AutomationResult<QList<SpeakerMixPresetDto>>(m_services.speakerMixPresets());
@@ -75,7 +76,7 @@ namespace Automation {
     AutomationResult<SpeakerMixPresetDto> PresetAutomationFacade::saveSpeakerMixPreset(
         const ApplicationCommandContext &context, SpeakerMixPresetDto preset) {
         return m_dispatcher.dispatchApplicationCommand<SpeakerMixPresetDto>(
-            QStringLiteral("speaker_mix_presets.save"), context,
+            OperationIds::speaker_mix_presets::save, context,
             [this, preset = std::move(preset)](const bool validateOnly) mutable {
                 if (!m_services.speakerMixPresets || !m_services.applySpeakerMixPresets)
                     return AutomationResult<SpeakerMixPresetDto>(unavailable());
@@ -129,7 +130,7 @@ namespace Automation {
                                                     QStringLiteral("Preset ID is empty"));
         }
         return m_dispatcher.dispatchApplicationCommand<ApplicationMutationResult>(
-            QStringLiteral("speaker_mix_presets.delete"), context,
+            OperationIds::speaker_mix_presets::delete_preset, context,
             [this, presetId](const bool validateOnly) {
                 if (!m_services.speakerMixPresets || !m_services.applySpeakerMixPresets)
                     return AutomationResult<ApplicationMutationResult>(unavailable());
@@ -153,12 +154,10 @@ namespace Automation {
             Q_ASSERT(result);
         };
         add({
-            .id = QStringLiteral("speaker_mix_presets.list"),
+            .id = OperationIds::speaker_mix_presets::list,
             .category = QStringLiteral("speaker_mix_presets"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.Empty.v1"),
-            .outputContract = QStringLiteral("automation.SpeakerMixPresetList.v1"),
             .documentPolicy = DocumentPolicy::None,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
@@ -168,15 +167,12 @@ namespace Automation {
             .exposure = ExposurePolicy::InternalOnly,
             .idempotency = IdempotencyPolicy::Unsupported,
         });
-        const auto addCommand = [&add](const QString &id, const QString &inputContract,
-                                       const QString &outputContract) {
+        const auto addCommand = [&add](const OperationId &id) {
             add({
                 .id = id,
                 .category = QStringLiteral("speaker_mix_presets"),
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = inputContract,
-                .outputContract = outputContract,
                 .documentPolicy = DocumentPolicy::None,
                 .revisionPolicy = RevisionPolicy::None,
                 .historyPolicy = HistoryPolicy::None,
@@ -187,12 +183,8 @@ namespace Automation {
                 .idempotency = IdempotencyPolicy::Unsupported,
             });
         };
-        addCommand(QStringLiteral("speaker_mix_presets.save"),
-                   QStringLiteral("automation.SpeakerMixPresetCommand.v1"),
-                   QStringLiteral("automation.SpeakerMixPreset.v1"));
-        addCommand(QStringLiteral("speaker_mix_presets.delete"),
-                   QStringLiteral("automation.PresetRefCommand.v1"),
-                   QStringLiteral("automation.ApplicationMutationResult.v1"));
+        addCommand(OperationIds::speaker_mix_presets::save);
+        addCommand(OperationIds::speaker_mix_presets::delete_preset);
     }
 
 } // namespace Automation

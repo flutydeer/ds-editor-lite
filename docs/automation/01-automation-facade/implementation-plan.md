@@ -69,16 +69,21 @@ busy、不可取消、I/O 和内部错误，并携带 operation、字段、对�
 
 ### 2.3 Operation Catalog
 
-Catalog 只登记同时具备真实现有行为、类型化 handler 和测试 Manifest 条目的能力。
+Catalog 只登记同时具备真实现有行为、类型化 handler 和测试覆盖条目的能力。
 Descriptor 至少包含：
 
 - stable operation ID、分类、Query/Command；
-- 同步/异步方式和 C++ input/output contract ID；
+- 同步/异步方式；
 - document、revision、History、file 和 host policy；
-- safety、introduced version、`InternalOnly/AutomationCandidate`。
+- safety、`InternalOnly/AutomationCandidate`。
 
 一期默认 `InternalOnly`，不实现 Schema AST、schema digest、权限 profile 或
 `QString + QVariantMap` 式泛化业务调用。
+
+所有产品 operation ID 只在 `OperationIds.h` 定义一次，Facade、任务和测试均引用该
+符号表。C++ 函数签名及 DTO 已提供编译期契约；一期不为同一进程内的契约维护 `.v1`
+字符串或 introduced version。需要协议兼容的 schema/version 机制延后到 MCP/headless
+传输层设计时统一引入。
 
 ## 3. 一致性语义
 
@@ -161,7 +166,7 @@ Committing、原子提交一次。session 替换后旧任务不得写入新工�
 通过后才输出详细测试大纲并请用户执行 GUI 冒烟。由 Codex 使用 Computer Use 执行的
 全量 GUI 回归必须等待用户明确批准，不在本阶段提前启动。
 
-测试 Manifest 与 Catalog、handler 的 operation ID 集合必须完全相等。实际 Catalog
+集中 operation 注册表与 Catalog、handler 的 operation ID 集合必须完全相等。实际 Catalog
 数量记为 `N`，预计确定性场景数为：
 
 ```text

@@ -1,4 +1,5 @@
 #include "TaskAutomationFacade.h"
+#include "OperationIds.h"
 
 namespace Automation {
     namespace {
@@ -23,7 +24,7 @@ namespace Automation {
     AutomationResult<AutomationTaskSnapshot>
     TaskAutomationFacade::getTask(const DocumentId &documentId, const TaskId &taskId) {
         return m_dispatcher.dispatchDocumentQuery<AutomationTaskSnapshot>(
-            QStringLiteral("operations.get"), documentId, [this, taskId](DocumentSession &session) {
+            OperationIds::operations::get, documentId, [this, taskId](DocumentSession &session) {
                 return m_tasks.get(session.documentId(), taskId);
             });
     }
@@ -31,7 +32,7 @@ namespace Automation {
     AutomationResult<QList<AutomationTaskSnapshot>>
     TaskAutomationFacade::listTasks(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<QList<AutomationTaskSnapshot>>(
-            QStringLiteral("operations.list"), documentId, [this](DocumentSession &session) {
+            OperationIds::operations::list, documentId, [this](DocumentSession &session) {
                 return AutomationResult<QList<AutomationTaskSnapshot>>(
                     m_tasks.list(session.documentId()));
             });
@@ -40,7 +41,7 @@ namespace Automation {
     AutomationResult<AutomationTaskSnapshot>
     TaskAutomationFacade::cancelTask(const CommandContext &context, const TaskId &taskId) {
         return m_dispatcher.dispatchDocumentCommandResult<AutomationTaskSnapshot>(
-            QStringLiteral("operations.cancel"), context, taskFingerprint(taskId),
+            OperationIds::operations::cancel, context, taskFingerprint(taskId),
             [this, taskId](DocumentSession &session, const bool validateOnly) {
                 if (!validateOnly)
                     return m_tasks.requestCancel(session.documentId(), taskId);
@@ -69,14 +70,12 @@ namespace Automation {
             const auto result = m_catalog.add(std::move(descriptor));
             Q_ASSERT(result);
         };
-        const auto addQuery = [&add](const QString &id, const QString &outputContract) {
+        const auto addQuery = [&add](const OperationId &id) {
             add({
                 .id = id,
                 .category = QStringLiteral("operations"),
                 .kind = OperationKind::Query,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = QStringLiteral("automation.TaskRef.v1"),
-                .outputContract = outputContract,
                 .documentPolicy = DocumentPolicy::Read,
                 .revisionPolicy = RevisionPolicy::None,
                 .historyPolicy = HistoryPolicy::None,
@@ -87,17 +86,13 @@ namespace Automation {
                 .idempotency = IdempotencyPolicy::Unsupported,
             });
         };
-        addQuery(QStringLiteral("operations.get"),
-                 QStringLiteral("automation.TaskSnapshot.v1"));
-        addQuery(QStringLiteral("operations.list"),
-                 QStringLiteral("automation.TaskSnapshotList.v1"));
+        addQuery(OperationIds::operations::get);
+        addQuery(OperationIds::operations::list);
         add({
-            .id = QStringLiteral("operations.cancel"),
+            .id = OperationIds::operations::cancel,
             .category = QStringLiteral("operations"),
             .kind = OperationKind::Command,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.CancelTaskCommand.v1"),
-            .outputContract = QStringLiteral("automation.TaskSnapshot.v1"),
             .documentPolicy = DocumentPolicy::Read,
             .revisionPolicy = RevisionPolicy::Check,
             .historyPolicy = HistoryPolicy::None,

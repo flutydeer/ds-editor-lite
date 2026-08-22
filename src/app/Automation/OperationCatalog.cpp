@@ -9,14 +9,6 @@ namespace Automation {
             return AutomationError::invalidArgument(QStringLiteral("id"),
                                                     QStringLiteral("Operation ID is required"));
         }
-        if (descriptor.inputContract.trimmed().isEmpty()) {
-            return AutomationError::invalidArgument(
-                QStringLiteral("inputContract"), QStringLiteral("Input contract ID is required"));
-        }
-        if (descriptor.outputContract.trimmed().isEmpty()) {
-            return AutomationError::invalidArgument(
-                QStringLiteral("outputContract"), QStringLiteral("Output contract ID is required"));
-        }
         if (find(descriptor.id)) {
             return AutomationError::invalidArgument(
                 QStringLiteral("id"), QStringLiteral("Operation ID is already registered"));

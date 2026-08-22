@@ -1,4 +1,5 @@
 #include "SettingsAutomationFacade.h"
+#include "OperationIds.h"
 
 #include <QDir>
 
@@ -252,7 +253,7 @@ namespace Automation {
 
     AutomationResult<SettingsSnapshotDto> SettingsAutomationFacade::getSettings() {
         return m_dispatcher.dispatchApplicationQuery<SettingsSnapshotDto>(
-            QStringLiteral("settings.get"), [this] {
+            OperationIds::settings::get, [this] {
                 if (!m_services.snapshot)
                     return AutomationResult<SettingsSnapshotDto>(unavailable());
                 return AutomationResult<SettingsSnapshotDto>(m_services.snapshot());
@@ -283,63 +284,63 @@ namespace Automation {
 
     AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateGeneral(
         const ApplicationCommandContext &context, const GeneralSettingsDto &settings) {
-        return update(QStringLiteral("settings.update_general"), context, settings,
+        return update(OperationIds::settings::update_general, context, settings,
                       [](const SettingsSnapshotDto &snapshot) { return snapshot.general; },
                       validateGeneral, m_services.applyGeneral);
     }
 
     AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateAppearance(
         const ApplicationCommandContext &context, const AppearanceSettingsDto &settings) {
-        return update(QStringLiteral("settings.update_appearance"), context, settings,
+        return update(OperationIds::settings::update_appearance, context, settings,
                       [](const SettingsSnapshotDto &snapshot) { return snapshot.appearance; },
                       validateAppearance, m_services.applyAppearance);
     }
 
     AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateInference(
         const ApplicationCommandContext &context, const InferenceSettingsDto &settings) {
-        return update(QStringLiteral("settings.update_inference"), context, settings,
+        return update(OperationIds::settings::update_inference, context, settings,
                       [](const SettingsSnapshotDto &snapshot) { return snapshot.inference; },
                       validateInference, m_services.applyInference);
     }
 
     AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateDeveloper(
         const ApplicationCommandContext &context, const DeveloperSettingsDto &settings) {
-        return update(QStringLiteral("settings.update_developer"), context, settings,
+        return update(OperationIds::settings::update_developer, context, settings,
                       [](const SettingsSnapshotDto &snapshot) { return snapshot.developer; },
                       validateDeveloper, m_services.applyDeveloper);
     }
 
     AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateG2pLanguage(
         const ApplicationCommandContext &context, const G2pLanguageSettingsDto &settings) {
-        return update(QStringLiteral("settings.update_g2p_language"), context, settings,
+        return update(OperationIds::settings::update_g2p_language, context, settings,
                       [](const SettingsSnapshotDto &snapshot) { return snapshot.g2pLanguage; },
                       validateG2p, m_services.applyG2pLanguage);
     }
 
     AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateFillLyric(
         const ApplicationCommandContext &context, const FillLyricSettingsDto &settings) {
-        return update(QStringLiteral("settings.update_fill_lyric"), context, settings,
+        return update(OperationIds::settings::update_fill_lyric, context, settings,
                       [](const SettingsSnapshotDto &snapshot) { return snapshot.fillLyric; },
                       validateFillLyric, m_services.applyFillLyric);
     }
 
     AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateWindow(
         const ApplicationCommandContext &context, const WindowSettingsDto &settings) {
-        return update(QStringLiteral("settings.update_window"), context, settings,
+        return update(OperationIds::settings::update_window, context, settings,
                       [](const SettingsSnapshotDto &snapshot) { return snapshot.window; },
                       validateWindow, m_services.applyWindow);
     }
 
     AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateAudio(
         const ApplicationCommandContext &context, const AudioSettingsDto &settings) {
-        return update(QStringLiteral("settings.update_audio"), context, settings,
+        return update(OperationIds::settings::update_audio, context, settings,
                       [](const SettingsSnapshotDto &snapshot) { return snapshot.audio; },
                       validateAudio, m_services.applyAudio);
     }
 
     AutomationResult<QStringList> SettingsAutomationFacade::getRecentProjectFiles() {
         return m_dispatcher.dispatchApplicationQuery<QStringList>(
-            QStringLiteral("recent_files.list"), [this] {
+            OperationIds::recent_files::list, [this] {
                 if (!m_services.snapshot)
                     return AutomationResult<QStringList>(unavailable());
                 return AutomationResult<QStringList>(m_services.snapshot().general.recentProjectFiles);
@@ -358,7 +359,7 @@ namespace Automation {
         QStringList files{QDir::cleanPath(path.trimmed())};
         files.append(general.recentProjectFiles);
         general.recentProjectFiles = normalizedPaths(files, kMaximumRecentFiles);
-        return update(QStringLiteral("recent_files.add"), context, general,
+        return update(OperationIds::recent_files::add, context, general,
                       [](const SettingsSnapshotDto &snapshot) { return snapshot.general; },
                       validateGeneral, m_services.applyGeneral);
     }
@@ -375,7 +376,7 @@ namespace Automation {
         const auto normalized = QDir::cleanPath(path.trimmed());
         general.recentProjectFiles.removeIf(
             [&normalized](const QString &candidate) { return pathsEqual(candidate, normalized); });
-        return update(QStringLiteral("recent_files.remove"), context, general,
+        return update(OperationIds::recent_files::remove, context, general,
                       [](const SettingsSnapshotDto &snapshot) { return snapshot.general; },
                       validateGeneral, m_services.applyGeneral);
     }
@@ -386,14 +387,14 @@ namespace Automation {
             return unavailable();
         auto general = m_services.snapshot().general;
         general.recentProjectFiles.clear();
-        return update(QStringLiteral("recent_files.clear"), context, general,
+        return update(OperationIds::recent_files::clear, context, general,
                       [](const SettingsSnapshotDto &snapshot) { return snapshot.general; },
                       validateGeneral, m_services.applyGeneral);
     }
 
     AutomationResult<QStringList> SettingsAutomationFacade::getPackageSearchPaths() {
         return m_dispatcher.dispatchApplicationQuery<QStringList>(
-            QStringLiteral("packages.get_search_paths"), [this] {
+            OperationIds::packages::get_search_paths, [this] {
                 if (!m_services.snapshot)
                     return AutomationResult<QStringList>(unavailable());
                 return AutomationResult<QStringList>(m_services.snapshot().general.packageSearchPaths);
@@ -406,7 +407,7 @@ namespace Automation {
             return unavailable();
         auto general = m_services.snapshot().general;
         general.packageSearchPaths = normalizedPaths(paths);
-        return update(QStringLiteral("packages.set_search_paths"), context, general,
+        return update(OperationIds::packages::set_search_paths, context, general,
                       [](const SettingsSnapshotDto &snapshot) { return snapshot.general; },
                       validateGeneral, m_services.applyGeneral);
     }
@@ -416,15 +417,12 @@ namespace Automation {
             const auto result = m_catalog.add(std::move(descriptor));
             Q_ASSERT(result);
         };
-        const auto addQuery = [&add](const QString &id, const QString &category,
-                                     const QString &outputContract) {
+        const auto addQuery = [&add](const OperationId &id, const QString &category) {
             add({
                 .id = id,
                 .category = category,
                 .kind = OperationKind::Query,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = QStringLiteral("automation.Empty.v1"),
-                .outputContract = outputContract,
                 .documentPolicy = DocumentPolicy::None,
                 .revisionPolicy = RevisionPolicy::None,
                 .historyPolicy = HistoryPolicy::None,
@@ -435,15 +433,12 @@ namespace Automation {
                 .idempotency = IdempotencyPolicy::Unsupported,
             });
         };
-        const auto addCommand = [&add](const QString &id, const QString &category,
-                                       const QString &inputContract) {
+        const auto addCommand = [&add](const OperationId &id, const QString &category) {
             add({
                 .id = id,
                 .category = category,
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = inputContract,
-                .outputContract = QStringLiteral("automation.ApplicationMutationResult.v1"),
                 .documentPolicy = DocumentPolicy::None,
                 .revisionPolicy = RevisionPolicy::None,
                 .historyPolicy = HistoryPolicy::None,
@@ -454,36 +449,21 @@ namespace Automation {
                 .idempotency = IdempotencyPolicy::Unsupported,
             });
         };
-        addQuery(QStringLiteral("settings.get"), QStringLiteral("settings"),
-                 QStringLiteral("automation.SettingsSnapshot.v1"));
-        addQuery(QStringLiteral("recent_files.list"), QStringLiteral("recent_files"),
-                 QStringLiteral("automation.PathList.v1"));
-        addQuery(QStringLiteral("packages.get_search_paths"), QStringLiteral("packages"),
-                 QStringLiteral("automation.PathList.v1"));
-        addCommand(QStringLiteral("settings.update_general"), QStringLiteral("settings"),
-                   QStringLiteral("automation.GeneralSettingsCommand.v1"));
-        addCommand(QStringLiteral("settings.update_appearance"), QStringLiteral("settings"),
-                   QStringLiteral("automation.AppearanceSettingsCommand.v1"));
-        addCommand(QStringLiteral("settings.update_inference"), QStringLiteral("settings"),
-                   QStringLiteral("automation.InferenceSettingsCommand.v1"));
-        addCommand(QStringLiteral("settings.update_developer"), QStringLiteral("settings"),
-                   QStringLiteral("automation.DeveloperSettingsCommand.v1"));
-        addCommand(QStringLiteral("settings.update_g2p_language"), QStringLiteral("settings"),
-                   QStringLiteral("automation.G2pLanguageSettingsCommand.v1"));
-        addCommand(QStringLiteral("settings.update_fill_lyric"), QStringLiteral("settings"),
-                   QStringLiteral("automation.FillLyricSettingsCommand.v1"));
-        addCommand(QStringLiteral("settings.update_window"), QStringLiteral("settings"),
-                   QStringLiteral("automation.WindowSettingsCommand.v1"));
-        addCommand(QStringLiteral("settings.update_audio"), QStringLiteral("settings"),
-                   QStringLiteral("automation.AudioSettingsCommand.v1"));
-        addCommand(QStringLiteral("recent_files.add"), QStringLiteral("recent_files"),
-                   QStringLiteral("automation.PathCommand.v1"));
-        addCommand(QStringLiteral("recent_files.remove"), QStringLiteral("recent_files"),
-                   QStringLiteral("automation.PathCommand.v1"));
-        addCommand(QStringLiteral("recent_files.clear"), QStringLiteral("recent_files"),
-                   QStringLiteral("automation.EmptyCommand.v1"));
-        addCommand(QStringLiteral("packages.set_search_paths"), QStringLiteral("packages"),
-                   QStringLiteral("automation.PathListCommand.v1"));
+        addQuery(OperationIds::settings::get, QStringLiteral("settings"));
+        addQuery(OperationIds::recent_files::list, QStringLiteral("recent_files"));
+        addQuery(OperationIds::packages::get_search_paths, QStringLiteral("packages"));
+        addCommand(OperationIds::settings::update_general, QStringLiteral("settings"));
+        addCommand(OperationIds::settings::update_appearance, QStringLiteral("settings"));
+        addCommand(OperationIds::settings::update_inference, QStringLiteral("settings"));
+        addCommand(OperationIds::settings::update_developer, QStringLiteral("settings"));
+        addCommand(OperationIds::settings::update_g2p_language, QStringLiteral("settings"));
+        addCommand(OperationIds::settings::update_fill_lyric, QStringLiteral("settings"));
+        addCommand(OperationIds::settings::update_window, QStringLiteral("settings"));
+        addCommand(OperationIds::settings::update_audio, QStringLiteral("settings"));
+        addCommand(OperationIds::recent_files::add, QStringLiteral("recent_files"));
+        addCommand(OperationIds::recent_files::remove, QStringLiteral("recent_files"));
+        addCommand(OperationIds::recent_files::clear, QStringLiteral("recent_files"));
+        addCommand(OperationIds::packages::set_search_paths, QStringLiteral("packages"));
     }
 
 } // namespace Automation

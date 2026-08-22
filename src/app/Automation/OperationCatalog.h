@@ -72,8 +72,6 @@ namespace Automation {
         QString category;
         OperationKind kind = OperationKind::Query;
         SyncMode syncMode = SyncMode::Synchronous;
-        QString inputContract;
-        QString outputContract;
         DocumentPolicy documentPolicy = DocumentPolicy::None;
         RevisionPolicy revisionPolicy = RevisionPolicy::None;
         HistoryPolicy historyPolicy = HistoryPolicy::None;
@@ -82,7 +80,6 @@ namespace Automation {
         SafetyClass safety = SafetyClass::ReadOnly;
         ExposurePolicy exposure = ExposurePolicy::InternalOnly;
         IdempotencyPolicy idempotency = IdempotencyPolicy::Unsupported;
-        quint32 introducedVersion = 1;
     };
 
     class OperationCatalog final {

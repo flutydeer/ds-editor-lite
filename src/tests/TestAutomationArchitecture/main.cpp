@@ -1,9 +1,17 @@
+#include "Automation/OperationIds.h"
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
 #include <QRegularExpression>
 #include <QTextStream>
+
+#include <type_traits>
+
+static_assert(std::is_same_v<
+              std::remove_cv_t<decltype(Automation::OperationIds::notes::insert)>,
+              QLatin1StringView>);
 
 namespace {
     struct SourceFile {
@@ -65,12 +73,31 @@ int main(int argc, char *argv[]) {
         QStringLiteral(R"(\bsession\s*\.\s*replaceGeneration\s*\()"));
     const QRegularExpression modelReplacement(
         QStringLiteral(R"(\bmodel\s*->\s*replaceProject\s*\()"));
+    const QRegularExpression versionedAutomationContract(
+        QStringLiteral(R"("automation\.[A-Za-z0-9_]+\.v[0-9]+")"));
 
     for (const auto &file : files) {
         if (file.relativePath.startsWith(QStringLiteral("src/app/Automation/"))) {
             ok &= rejectMatch(file, globalRuntimeAccess,
                               QStringLiteral("Automation code accessed a global current runtime"));
         }
+
+        if (file.relativePath != QStringLiteral("src/app/Automation/OperationIds.h")) {
+            for (const auto &id : Automation::OperationIds::all()) {
+                const auto literal = QStringLiteral("\"") + id + QStringLiteral("\"");
+                const auto offset = file.contents.indexOf(literal);
+                if (offset < 0)
+                    continue;
+                const auto line = file.contents.first(offset).count(u'\n') + 1;
+                QTextStream(stderr)
+                    << "FAILED: Product operation ID bypassed OperationIds at "
+                    << file.relativePath << ':' << line << Qt::endl;
+                ok = false;
+            }
+        }
+
+        ok &= rejectMatch(file, versionedAutomationContract,
+                          QStringLiteral("Versioned in-process contract ID is not allowed"));
 
         if (file.relativePath != QStringLiteral("src/app/Automation/CommandCommitter.cpp")) {
             ok &= rejectMatch(file, historyRecord,

@@ -1,4 +1,5 @@
 #include "DocumentAutomationFacade.h"
+#include "OperationIds.h"
 
 #include "Controller/Actions/AppModel/ImportProjectActions.h"
 
@@ -55,7 +56,7 @@ namespace Automation {
     AutomationResult<DocumentSnapshotDto>
         DocumentAutomationFacade::getDocument(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<DocumentSnapshotDto>(
-            QStringLiteral("documents.get"), documentId, [](DocumentSession &session) {
+            OperationIds::documents::get, documentId, [](DocumentSession &session) {
                 auto *history = session.history();
                 return AutomationResult<DocumentSnapshotDto>({
                     .document = session.version(),
@@ -71,14 +72,14 @@ namespace Automation {
     AutomationResult<MutationResult>
         DocumentAutomationFacade::commitNewDocument(const CommandContext &context,
                                                     const DocumentDraftDto &document) {
-        return replaceDocument(QStringLiteral("documents.commit_new"), context, document, {}, {},
+        return replaceDocument(OperationIds::documents::commit_new, context, document, {}, {},
                                true);
     }
 
     AutomationResult<MutationResult> DocumentAutomationFacade::commitOpenedDocument(
         const CommandContext &context, const DocumentDraftDto &document, const QString &path,
         const QString &projectName, const bool savedBaseline) {
-        return replaceDocument(QStringLiteral("documents.commit_open"), context, document, path,
+        return replaceDocument(OperationIds::documents::commit_open, context, document, path,
                                projectName, savedBaseline);
     }
 
@@ -132,7 +133,7 @@ namespace Automation {
         const CommandContext &context, const DocumentDraftDto &document, const bool importTempo,
         const bool importTimeSignature) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("documents.commit_import"), context,
+            OperationIds::documents::commit_import, context,
             importFingerprint(document, importTempo, importTimeSignature),
             [this, document, importTempo, importTimeSignature](DocumentSession &session,
                                                                const bool validateOnly) {
@@ -171,7 +172,7 @@ namespace Automation {
     AutomationResult<MutationResult>
         DocumentAutomationFacade::saveDocument(const CommandContext &context, const QString &path) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("documents.save"), context, path.toUtf8(),
+            OperationIds::documents::save, context, path.toUtf8(),
             [this, path](DocumentSession &session, const bool validateOnly) {
                 if (path.trimmed().isEmpty()) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
@@ -210,12 +211,10 @@ namespace Automation {
             Q_ASSERT(result);
         };
         add({
-            .id = QStringLiteral("documents.get"),
+            .id = OperationIds::documents::get,
             .category = QStringLiteral("documents"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.DocumentRef.v1"),
-            .outputContract = QStringLiteral("automation.DocumentSnapshot.v1"),
             .documentPolicy = DocumentPolicy::Read,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
@@ -231,8 +230,6 @@ namespace Automation {
                 .category = QStringLiteral("documents"),
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = QStringLiteral("automation.PreparedDocumentCommand.v1"),
-                .outputContract = QStringLiteral("automation.MutationResult.v1"),
                 .documentPolicy = DocumentPolicy::Replace,
                 .revisionPolicy = RevisionPolicy::Reset,
                 .historyPolicy = HistoryPolicy::None,
@@ -243,15 +240,13 @@ namespace Automation {
                 .idempotency = IdempotencyPolicy::Unsupported,
             });
         };
-        addReplace(QStringLiteral("documents.commit_new"));
-        addReplace(QStringLiteral("documents.commit_open"));
+        addReplace(OperationIds::documents::commit_new);
+        addReplace(OperationIds::documents::commit_open);
         add({
-            .id = QStringLiteral("documents.commit_import"),
+            .id = OperationIds::documents::commit_import,
             .category = QStringLiteral("documents"),
             .kind = OperationKind::Command,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.PreparedImportCommand.v1"),
-            .outputContract = QStringLiteral("automation.MutationResult.v1"),
             .documentPolicy = DocumentPolicy::Write,
             .revisionPolicy = RevisionPolicy::Increment,
             .historyPolicy = HistoryPolicy::Record,
@@ -262,12 +257,10 @@ namespace Automation {
             .idempotency = IdempotencyPolicy::DocumentGeneration,
         });
         add({
-            .id = QStringLiteral("documents.save"),
+            .id = OperationIds::documents::save,
             .category = QStringLiteral("documents"),
             .kind = OperationKind::Command,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.SaveDocumentCommand.v1"),
-            .outputContract = QStringLiteral("automation.MutationResult.v1"),
             .documentPolicy = DocumentPolicy::Write,
             .revisionPolicy = RevisionPolicy::Check,
             .historyPolicy = HistoryPolicy::None,

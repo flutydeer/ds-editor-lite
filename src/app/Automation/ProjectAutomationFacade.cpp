@@ -1,4 +1,5 @@
 #include "ProjectAutomationFacade.h"
+#include "OperationIds.h"
 
 #include "Controller/Actions/AppModel/Clip/ClipActions.h"
 #include "Controller/Actions/AppModel/Import/BatchImportActions.h"
@@ -153,7 +154,7 @@ namespace Automation {
     AutomationResult<ProjectSnapshotDto>
         ProjectAutomationFacade::getProject(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<ProjectSnapshotDto>(
-            QStringLiteral("project.get"), documentId, [](DocumentSession &session) {
+            OperationIds::project::get, documentId, [](DocumentSession &session) {
                 auto *model = session.model();
                 if (!model)
                     return AutomationResult<ProjectSnapshotDto>(invalidModelError());
@@ -178,7 +179,7 @@ namespace Automation {
         ProjectAutomationFacade::insertTrack(const CommandContext &context, const qsizetype index,
                                              const TrackDraftDto &trackDraft) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("tracks.insert"), context,
+            OperationIds::tracks::insert, context,
             withIntegerPrefix(index, fingerprint(trackDraft)),
             [this, index, trackDraft](DocumentSession &session, const bool validateOnly) {
                 auto *model = session.model();
@@ -220,7 +221,7 @@ namespace Automation {
         for (const auto id : trackIds)
             rawIds.append(id.value());
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("tracks.remove"), context, integerListFingerprint(rawIds),
+            OperationIds::tracks::remove, context, integerListFingerprint(rawIds),
             [this, trackIds = std::move(trackIds), hasDuplicate](DocumentSession &session,
                                                                  const bool validateOnly) {
                 if (hasDuplicate) {
@@ -251,7 +252,7 @@ namespace Automation {
         ProjectAutomationFacade::moveTrack(const CommandContext &context, const TrackId trackId,
                                            const qsizetype targetIndex) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("tracks.move"), context,
+            OperationIds::tracks::move, context,
             withIntegerPrefix(trackId.value(), QByteArray::number(targetIndex)),
             [this, trackId, targetIndex](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.track(session, trackId);
@@ -283,7 +284,7 @@ namespace Automation {
         ProjectAutomationFacade::setTrackProperties(const CommandContext &context,
                                                     const TrackPropertiesDto &properties) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("tracks.set_properties"), context, fingerprint(properties),
+            OperationIds::tracks::set_properties, context, fingerprint(properties),
             [this, properties](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.track(session, properties.id);
                 if (!resolved)
@@ -322,7 +323,7 @@ namespace Automation {
         ProjectAutomationFacade::setTrackColor(const CommandContext &context, const TrackId trackId,
                                                const int colorIndex) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("tracks.set_color"), context,
+            OperationIds::tracks::set_color, context,
             withIntegerPrefix(trackId.value(), QByteArray::number(colorIndex)),
             [this, trackId, colorIndex](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.track(session, trackId);
@@ -349,7 +350,7 @@ namespace Automation {
     AutomationResult<MutationResult> ProjectAutomationFacade::setTrackDefaultLanguage(
         const CommandContext &context, const TrackId trackId, const QString &language) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("tracks.set_default_language"), context,
+            OperationIds::tracks::set_default_language, context,
             withIntegerPrefix(trackId.value(), language.toUtf8()),
             [this, trackId, language](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.track(session, trackId);
@@ -377,7 +378,7 @@ namespace Automation {
         ProjectAutomationFacade::insertClips(const CommandContext &context,
                                              const QList<ClipInsertDto> &clips) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("clips.insert"), context, fingerprint(clips),
+            OperationIds::clips::insert, context, fingerprint(clips),
             [this, clips](DocumentSession &session, const bool validateOnly) {
                 QList<Track *> tracks;
                 tracks.reserve(clips.size());
@@ -427,7 +428,7 @@ namespace Automation {
         ProjectAutomationFacade::commitBatchImport(const CommandContext &context,
                                                    const BatchImportDraftDto &batch) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("imports.commit_batch"), context, fingerprint(batch),
+            OperationIds::imports::commit_batch, context, fingerprint(batch),
             [this, batch](DocumentSession &session, const bool validateOnly) {
                 auto *model = session.model();
                 if (!model)
@@ -538,7 +539,7 @@ namespace Automation {
         for (const auto id : clipIds)
             rawIds.append(id.value());
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("clips.remove"), context, integerListFingerprint(rawIds),
+            OperationIds::clips::remove, context, integerListFingerprint(rawIds),
             [this, clipIds = std::move(clipIds), hasDuplicate](DocumentSession &session,
                                                                const bool validateOnly) {
                 if (hasDuplicate) {
@@ -575,7 +576,7 @@ namespace Automation {
         if (targetTrackId)
             requestFingerprint = withIntegerPrefix(targetTrackId->value(), requestFingerprint);
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("clips.set_properties"), context, requestFingerprint,
+            OperationIds::clips::set_properties, context, requestFingerprint,
             [this, properties, targetTrackId](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.clip(session, properties.id);
                 if (!resolved)
@@ -628,7 +629,7 @@ namespace Automation {
         const CommandContext &context, const ClipId clipId, const QString &path,
         const AudioPathInfo &pathInfo, const QJsonObject &formatData) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("audio_clips.relocate"), context,
+            OperationIds::audio_clips::relocate, context,
             relocateFingerprint(clipId, path, pathInfo, formatData),
             [this, clipId, path, pathInfo, formatData](DocumentSession &session,
                                                        const bool validateOnly) {
@@ -663,7 +664,7 @@ namespace Automation {
         ProjectAutomationFacade::confirmAudioClipPath(const CommandContext &context,
                                                       const ClipId clipId) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("audio_clips.confirm_path"), context,
+            OperationIds::audio_clips::confirm_path, context,
             withIntegerPrefix(clipId.value(), QByteArrayLiteral("confirm")),
             [this, clipId](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.audioClip(session, clipId);
@@ -687,7 +688,7 @@ namespace Automation {
         const CommandContext &context, const ClipId clipId, const QString &expectedPath,
         const AudioInfoModel &audioInfo) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("audio_clips.apply_decode_cache"), context,
+            OperationIds::audio_clips::apply_decode_cache, context,
             audioCacheFingerprint(clipId, expectedPath, audioInfo),
             [this, clipId, expectedPath, audioInfo](DocumentSession &session,
                                                     const bool validateOnly) {
@@ -711,7 +712,7 @@ namespace Automation {
         const CommandContext &context, const ClipId clipId, const QString &expectedPath,
         const AudioClip::PathStatus status) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("audio_clips.set_path_status"), context,
+            OperationIds::audio_clips::set_path_status, context,
             audioStateFingerprint(clipId, expectedPath, {}, static_cast<int>(status)),
             [this, clipId, expectedPath, status](DocumentSession &session,
                                                  const bool validateOnly) {
@@ -733,7 +734,7 @@ namespace Automation {
         const CommandContext &context, const ClipId clipId, const QString &expectedPath,
         const QString &resolvedPath, const AudioClip::PathStatus status) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("audio_clips.apply_resolved_path"), context,
+            OperationIds::audio_clips::apply_resolved_path, context,
             audioStateFingerprint(clipId, expectedPath, resolvedPath, static_cast<int>(status)),
             [this, clipId, expectedPath, resolvedPath, status](DocumentSession &session,
                                                                const bool validateOnly) {
@@ -762,7 +763,7 @@ namespace Automation {
                                                   const ClipId clipId, const QString &expectedPath,
                                                   const QString &sha512) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("audio_clips.set_hash"), context,
+            OperationIds::audio_clips::set_hash, context,
             audioStateFingerprint(clipId, expectedPath, sha512),
             [this, clipId, expectedPath, sha512](DocumentSession &session,
                                                  const bool validateOnly) {
@@ -790,7 +791,7 @@ namespace Automation {
     AutomationResult<MutationResult> ProjectAutomationFacade::setSingingClipDefaultLanguage(
         const CommandContext &context, const ClipId clipId, const QString &language) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("clips.set_default_language"), context,
+            OperationIds::clips::set_default_language, context,
             withIntegerPrefix(clipId.value(), language.toUtf8()),
             [this, clipId, language](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
@@ -820,12 +821,10 @@ namespace Automation {
             Q_ASSERT(result);
         };
         add({
-            .id = QStringLiteral("project.get"),
+            .id = OperationIds::project::get,
             .category = QStringLiteral("project"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.DocumentRef.v1"),
-            .outputContract = QStringLiteral("automation.ProjectSnapshot.v1"),
             .documentPolicy = DocumentPolicy::Read,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
@@ -836,7 +835,7 @@ namespace Automation {
             .idempotency = IdempotencyPolicy::Unsupported,
         });
 
-        const auto addMutation = [&add](const QString &id, const QString &inputContract,
+        const auto addMutation = [&add](const OperationId &id,
                                         const HistoryPolicy historyPolicy = HistoryPolicy::Record,
                                         const FileAccessPolicy fileAccess = FileAccessPolicy::None,
                                         const RevisionPolicy revisionPolicy =
@@ -846,8 +845,6 @@ namespace Automation {
                 .category = id.section('.', 0, 0),
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = inputContract,
-                .outputContract = QStringLiteral("automation.MutationResult.v1"),
                 .documentPolicy = DocumentPolicy::Write,
                 .revisionPolicy = revisionPolicy,
                 .historyPolicy = historyPolicy,
@@ -858,47 +855,28 @@ namespace Automation {
                 .idempotency = IdempotencyPolicy::DocumentGeneration,
             });
         };
-        addMutation(QStringLiteral("audio_clips.confirm_path"),
-                    QStringLiteral("automation.ConfirmAudioPathCommand.v1"), HistoryPolicy::None);
-        addMutation(QStringLiteral("audio_clips.apply_decode_cache"),
-                    QStringLiteral("automation.ApplyAudioDecodeCacheCommand.v1"),
-                    HistoryPolicy::None, FileAccessPolicy::None, RevisionPolicy::None);
-        addMutation(QStringLiteral("audio_clips.apply_resolved_path"),
-                    QStringLiteral("automation.ApplyResolvedAudioPathCommand.v1"),
-                    HistoryPolicy::None, FileAccessPolicy::Read, RevisionPolicy::None);
-        addMutation(QStringLiteral("audio_clips.relocate"),
-                    QStringLiteral("automation.RelocateAudioClipCommand.v1"), HistoryPolicy::Record,
-                    FileAccessPolicy::Read);
-        addMutation(QStringLiteral("audio_clips.set_hash"),
-                    QStringLiteral("automation.SetAudioClipHashCommand.v1"), HistoryPolicy::None,
+        addMutation(OperationIds::audio_clips::confirm_path, HistoryPolicy::None);
+        addMutation(OperationIds::audio_clips::apply_decode_cache, HistoryPolicy::None,
+                    FileAccessPolicy::None, RevisionPolicy::None);
+        addMutation(OperationIds::audio_clips::apply_resolved_path, HistoryPolicy::None,
                     FileAccessPolicy::Read, RevisionPolicy::None);
-        addMutation(QStringLiteral("audio_clips.set_path_status"),
-                    QStringLiteral("automation.SetAudioClipPathStatusCommand.v1"),
-                    HistoryPolicy::None, FileAccessPolicy::None, RevisionPolicy::None);
-        addMutation(QStringLiteral("clips.insert"),
-                    QStringLiteral("automation.InsertClipsCommand.v1"));
-        addMutation(QStringLiteral("imports.commit_batch"),
-                    QStringLiteral("automation.PreparedBatchImportCommand.v1"));
-        addMutation(QStringLiteral("clips.remove"),
-                    QStringLiteral("automation.RemoveClipsCommand.v1"));
-        addMutation(QStringLiteral("clips.set_default_language"),
-                    QStringLiteral("automation.SetClipDefaultLanguageCommand.v1"),
-                    HistoryPolicy::None);
-        addMutation(QStringLiteral("clips.set_properties"),
-                    QStringLiteral("automation.SetClipPropertiesCommand.v1"));
-        addMutation(QStringLiteral("tracks.insert"),
-                    QStringLiteral("automation.InsertTrackCommand.v1"));
-        addMutation(QStringLiteral("tracks.move"),
-                    QStringLiteral("automation.MoveTrackCommand.v1"));
-        addMutation(QStringLiteral("tracks.remove"),
-                    QStringLiteral("automation.RemoveTracksCommand.v1"));
-        addMutation(QStringLiteral("tracks.set_color"),
-                    QStringLiteral("automation.SetTrackColorCommand.v1"), HistoryPolicy::None);
-        addMutation(QStringLiteral("tracks.set_default_language"),
-                    QStringLiteral("automation.SetTrackDefaultLanguageCommand.v1"),
-                    HistoryPolicy::None);
-        addMutation(QStringLiteral("tracks.set_properties"),
-                    QStringLiteral("automation.SetTrackPropertiesCommand.v1"));
+        addMutation(OperationIds::audio_clips::relocate, HistoryPolicy::Record,
+                    FileAccessPolicy::Read);
+        addMutation(OperationIds::audio_clips::set_hash, HistoryPolicy::None,
+                    FileAccessPolicy::Read, RevisionPolicy::None);
+        addMutation(OperationIds::audio_clips::set_path_status, HistoryPolicy::None,
+                    FileAccessPolicy::None, RevisionPolicy::None);
+        addMutation(OperationIds::clips::insert);
+        addMutation(OperationIds::imports::commit_batch);
+        addMutation(OperationIds::clips::remove);
+        addMutation(OperationIds::clips::set_default_language, HistoryPolicy::None);
+        addMutation(OperationIds::clips::set_properties);
+        addMutation(OperationIds::tracks::insert);
+        addMutation(OperationIds::tracks::move);
+        addMutation(OperationIds::tracks::remove);
+        addMutation(OperationIds::tracks::set_color, HistoryPolicy::None);
+        addMutation(OperationIds::tracks::set_default_language, HistoryPolicy::None);
+        addMutation(OperationIds::tracks::set_properties);
     }
 
 } // namespace Automation

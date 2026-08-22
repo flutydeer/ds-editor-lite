@@ -7,6 +7,7 @@
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Automation/OperationIds.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include "Modules/Audio/AudioContext.h"
@@ -158,7 +159,7 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip) {
     decodeTask->io = AudioContext::instance()->formatManager()->getFormatLoad(
         decodeTask->path, userData, entryClassName);
     const auto automationTask = runtime->automationTasks().createTask(
-        QStringLiteral("audio_clips.apply_decode_cache"), decodeTask->documentVersion,
+        Automation::OperationIds::audio_clips::apply_decode_cache, decodeTask->documentVersion,
         Automation::ObjectRef{Automation::ObjectKind::Clip, decodeTask->clipId},
         [decodeTask] { decodeTask->terminate(); });
     decodeTask->automationTaskId = automationTask.taskId;
@@ -187,7 +188,7 @@ void AudioDecodingController::createAndStartResolveTask(AudioClip *clip) {
     resolveTask->projectDir =
         QFileInfo(documentWorkflowController->projectPath()).absolutePath();
     const auto automationTask = runtime->automationTasks().createTask(
-        QStringLiteral("audio_clips.apply_resolved_path"), resolveTask->documentVersion,
+        Automation::OperationIds::audio_clips::apply_resolved_path, resolveTask->documentVersion,
         Automation::ObjectRef{Automation::ObjectKind::Clip, resolveTask->clipId},
         [resolveTask] { resolveTask->terminate(); });
     resolveTask->automationTaskId = automationTask.taskId;
@@ -347,7 +348,7 @@ void AudioDecodingController::resolveMissingClipsNear(const QString &filePath) {
             resolveTask->expectedSha512 = audioClip->pathInfo().sha512;
             resolveTask->projectDir = candidateDir;
             const auto automationTask = runtime->automationTasks().createTask(
-                QStringLiteral("audio_clips.apply_resolved_path"),
+                Automation::OperationIds::audio_clips::apply_resolved_path,
                 resolveTask->documentVersion,
                 Automation::ObjectRef{Automation::ObjectKind::Clip, resolveTask->clipId},
                 [resolveTask] { resolveTask->terminate(); });

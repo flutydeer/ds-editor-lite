@@ -3,7 +3,7 @@
 ## 1. 口径
 
 本矩阵冻结一期已经接入的真实能力。Catalog 共 122 个 operation；每个条目都具备
-类型化 C++ handler，并出现在 `TestAutomationCore/OperationManifest.h`。当前列出的
+类型化 C++ handler，并由 `Automation/OperationIds.h` 集中定义。当前列出的
 测试是实现阶段保护测试；用户批准测试大纲后，才按每个 operation 的适用维度展开
 全量确定性测试。
 
@@ -37,9 +37,9 @@
 | 包 | 包管理器、`ProjectPackageResolver` | `PackageAutomationFacade` | list/validate/resolve、模块不可用和文档版本 |
 
 `TestAutomationArchitecture` 另以源码扫描守卫上述边界；`TestAutomationCore` 负责
-Dispatcher、Session、幂等、任务、Catalog Manifest 和各 Facade 的实现级契约。
+Dispatcher、Session、幂等、任务、集中 operation 注册表和各 Facade 的实现级契约。
 
-## 3. Catalog Manifest（122）
+## 3. Catalog operation 清单（122）
 
 ### application（3）
 
@@ -253,4 +253,4 @@ speaker_mix_presets.save
 - 被动绘制读取、hover、动画、拖动过程中的临时 preview。
 
 这些项不以 skipped operation 混入一期通过率。未来补齐真实能力时，必须同时增加
-类型化 handler、Catalog descriptor、Manifest 条目和测试矩阵。
+类型化 handler、集中 operation 注册、Catalog descriptor 和测试矩阵。

@@ -1,4 +1,5 @@
 #include "TimelineAutomationFacade.h"
+#include "OperationIds.h"
 
 #include "Controller/Actions/AppModel/MasterControl/MasterControlActions.h"
 #include "Controller/Actions/AppModel/Tempo/TempoActions.h"
@@ -58,7 +59,7 @@ namespace Automation {
     AutomationResult<TimelineSnapshotDto>
     TimelineAutomationFacade::getTimeline(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<TimelineSnapshotDto>(
-            QStringLiteral("timeline.get"), documentId, [](DocumentSession &session) {
+            OperationIds::timeline::get, documentId, [](DocumentSession &session) {
                 const auto &timeline = session.model()->timeline();
                 TimelineSnapshotDto result;
                 result.document = session.version();
@@ -73,7 +74,7 @@ namespace Automation {
                                        const int tick,
                                        const double tempo) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("tempos.set"), context, tempoFingerprint(tick, tempo),
+            OperationIds::tempos::set, context, tempoFingerprint(tick, tempo),
             [this, tick, tempo](DocumentSession &session, const bool validateOnly) {
                 if (tick < 0 || !std::isfinite(tempo) || tempo <= 0.0) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
@@ -100,7 +101,7 @@ namespace Automation {
     AutomationResult<MutationResult>
     TimelineAutomationFacade::deleteTempo(const CommandContext &context, const int tick) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("tempos.delete"), context, tempoFingerprint(tick, 0.0),
+            OperationIds::tempos::delete_tempo, context, tempoFingerprint(tick, 0.0),
             [this, tick](DocumentSession &session, const bool validateOnly) {
                 if (tick <= 0) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
@@ -127,7 +128,7 @@ namespace Automation {
         const CommandContext &context, const int barIndex, const int numerator,
         const int denominator) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("time_signatures.set"), context,
+            OperationIds::time_signatures::set, context,
             timeSignatureFingerprint(barIndex, numerator, denominator),
             [this, barIndex, numerator, denominator](DocumentSession &session,
                                                      const bool validateOnly) {
@@ -161,7 +162,7 @@ namespace Automation {
     TimelineAutomationFacade::deleteTimeSignature(const CommandContext &context,
                                                   const int barIndex) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("time_signatures.delete"), context,
+            OperationIds::time_signatures::delete_signature, context,
             timeSignatureFingerprint(barIndex, 0, 0),
             [this, barIndex](DocumentSession &session, const bool validateOnly) {
                 if (barIndex <= 0) {
@@ -190,7 +191,7 @@ namespace Automation {
     AutomationResult<MutationResult> TimelineAutomationFacade::setMasterControl(
         const CommandContext &context, const TrackControl &control) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("master.set_control"), context, masterControlFingerprint(control),
+            OperationIds::master::set_control, context, masterControlFingerprint(control),
             [this, control](DocumentSession &session, const bool validateOnly) {
                 if (!std::isfinite(control.gain()) || !std::isfinite(control.pan())) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
@@ -217,12 +218,10 @@ namespace Automation {
         };
 
         add({
-            .id = QStringLiteral("timeline.get"),
+            .id = OperationIds::timeline::get,
             .category = QStringLiteral("timeline"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.DocumentRef.v1"),
-            .outputContract = QStringLiteral("automation.TimelineSnapshot.v1"),
             .documentPolicy = DocumentPolicy::Read,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
@@ -233,14 +232,12 @@ namespace Automation {
             .idempotency = IdempotencyPolicy::Unsupported,
         });
 
-        const auto addMutation = [&add](const QString &id, const QString &inputContract) {
+        const auto addMutation = [&add](const OperationId &id) {
             add({
                 .id = id,
                 .category = id.section('.', 0, 0),
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = inputContract,
-                .outputContract = QStringLiteral("automation.MutationResult.v1"),
                 .documentPolicy = DocumentPolicy::Write,
                 .revisionPolicy = RevisionPolicy::Increment,
                 .historyPolicy = HistoryPolicy::Record,
@@ -251,16 +248,11 @@ namespace Automation {
                 .idempotency = IdempotencyPolicy::DocumentGeneration,
             });
         };
-        addMutation(QStringLiteral("master.set_control"),
-                    QStringLiteral("automation.MasterControlCommand.v1"));
-        addMutation(QStringLiteral("tempos.delete"),
-                    QStringLiteral("automation.DeleteTempoCommand.v1"));
-        addMutation(QStringLiteral("tempos.set"),
-                    QStringLiteral("automation.SetTempoCommand.v1"));
-        addMutation(QStringLiteral("time_signatures.delete"),
-                    QStringLiteral("automation.DeleteTimeSignatureCommand.v1"));
-        addMutation(QStringLiteral("time_signatures.set"),
-                    QStringLiteral("automation.SetTimeSignatureCommand.v1"));
+        addMutation(OperationIds::master::set_control);
+        addMutation(OperationIds::tempos::delete_tempo);
+        addMutation(OperationIds::tempos::set);
+        addMutation(OperationIds::time_signatures::delete_signature);
+        addMutation(OperationIds::time_signatures::set);
     }
 
 } // namespace Automation

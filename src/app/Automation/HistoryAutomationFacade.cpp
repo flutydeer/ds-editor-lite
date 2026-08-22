@@ -1,4 +1,5 @@
 #include "HistoryAutomationFacade.h"
+#include "OperationIds.h"
 
 #include <lite/History/HistoryManager.h>
 
@@ -14,7 +15,7 @@ namespace Automation {
     AutomationResult<HistoryStateDto>
     HistoryAutomationFacade::getState(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<HistoryStateDto>(
-            QStringLiteral("history.get_state"), documentId, [](DocumentSession &session) {
+            OperationIds::history::get_state, documentId, [](DocumentSession &session) {
                 auto *history = session.history();
                 if (!history) {
                     AutomationError error;
@@ -37,7 +38,7 @@ namespace Automation {
     AutomationResult<MutationResult>
     HistoryAutomationFacade::undo(const CommandContext &context) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("history.undo"), context, QByteArrayLiteral("undo"),
+            OperationIds::history::undo, context, QByteArrayLiteral("undo"),
             [this](DocumentSession &session, const bool validateOnly) {
                 if (validateOnly && session.history())
                     return AutomationResult<MutationResult>(
@@ -49,7 +50,7 @@ namespace Automation {
     AutomationResult<MutationResult>
     HistoryAutomationFacade::redo(const CommandContext &context) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("history.redo"), context, QByteArrayLiteral("redo"),
+            OperationIds::history::redo, context, QByteArrayLiteral("redo"),
             [this](DocumentSession &session, const bool validateOnly) {
                 if (validateOnly && session.history())
                     return AutomationResult<MutationResult>(
@@ -65,12 +66,10 @@ namespace Automation {
         };
 
         add({
-            .id = QStringLiteral("history.get_state"),
+            .id = OperationIds::history::get_state,
             .category = QStringLiteral("history"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.DocumentRef.v1"),
-            .outputContract = QStringLiteral("automation.HistoryState.v1"),
             .documentPolicy = DocumentPolicy::Read,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
@@ -80,14 +79,12 @@ namespace Automation {
             .exposure = ExposurePolicy::InternalOnly,
             .idempotency = IdempotencyPolicy::Unsupported,
         });
-        for (const auto id : {QStringLiteral("history.redo"), QStringLiteral("history.undo")}) {
+        for (const auto id : {OperationIds::history::redo, OperationIds::history::undo}) {
             add({
                 .id = id,
                 .category = QStringLiteral("history"),
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = QStringLiteral("automation.DocumentCommand.v1"),
-                .outputContract = QStringLiteral("automation.MutationResult.v1"),
                 .documentPolicy = DocumentPolicy::Write,
                 .revisionPolicy = RevisionPolicy::Increment,
                 .historyPolicy = HistoryPolicy::UndoRedo,

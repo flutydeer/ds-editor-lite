@@ -1,4 +1,5 @@
 #include "EditorAutomationFacade.h"
+#include "OperationIds.h"
 
 #include "Global/AppGlobal.h"
 
@@ -80,7 +81,7 @@ namespace Automation {
         EditorAutomationFacade::getEditorState(const DocumentId &documentId,
                                                const WindowId &windowId) {
         return m_dispatcher.dispatchGuiDocumentQuery<EditorStateDto>(
-            QStringLiteral("editor.get_state"), documentId, windowId,
+            OperationIds::editor::get_state, documentId, windowId,
             [this, windowId](DocumentSession &session) {
                 EditorStateDto result;
                 result.document = session.version();
@@ -119,7 +120,7 @@ namespace Automation {
             return AutomationError::invalidArgument(
                 QStringLiteral("state"), QStringLiteral("Editor view state is invalid"));
         }
-        return mutateView(QStringLiteral("editor.restore_view"), context,
+        return mutateView(OperationIds::editor::restore_view, context,
                           [state](EditorViewState &target) { target = state; },
                           [this, state] {
                               return m_services.restoreView && m_services.restoreView(state);
@@ -133,7 +134,7 @@ namespace Automation {
                 QStringLiteral("center"), QStringLiteral("Track panel center is invalid"));
         }
         return mutateView(
-            QStringLiteral("editor.center_track_panel"), context,
+            OperationIds::editor::center_track_panel, context,
             [tick, trackIndex](EditorViewState &target) {
                 target.trackPanel.centerTick = tick;
                 target.trackPanel.centerTrackIndex = trackIndex;
@@ -152,7 +153,7 @@ namespace Automation {
                 QStringLiteral("scale"), QStringLiteral("Track panel scale is invalid"));
         }
         return mutateView(
-            QStringLiteral("editor.set_track_panel_scale"), context,
+            OperationIds::editor::set_track_panel_scale, context,
             [horizontal, vertical](EditorViewState &target) {
                 target.trackPanel.horizontalScale = horizontal;
                 target.trackPanel.verticalScale = vertical;
@@ -170,7 +171,7 @@ namespace Automation {
                 QStringLiteral("visibility"), QStringLiteral("At least one panel must remain visible"));
         }
         return mutateView(
-            QStringLiteral("editor.set_panel_visibility"), context,
+            OperationIds::editor::set_panel_visibility, context,
             [trackVisible, bottomVisible](EditorViewState &target) {
                 target.layout.trackPanelVisible = trackVisible;
                 target.layout.bottomPanelVisible = bottomVisible;
@@ -188,7 +189,7 @@ namespace Automation {
                                                     QStringLiteral("Page ID is empty"));
         }
         return mutateView(
-            QStringLiteral("editor.show_bottom_panel_page"), context,
+            OperationIds::editor::show_bottom_panel_page, context,
             [pageId](EditorViewState &target) { target.layout.bottomPanelPageId = pageId; },
             [this, pageId] {
                 return m_services.showBottomPanelPage && m_services.showBottomPanelPage(pageId);
@@ -203,7 +204,7 @@ namespace Automation {
                 QStringLiteral("center"), QStringLiteral("Piano roll center is invalid"));
         }
         return mutateView(
-            QStringLiteral("editor.center_piano_roll"), context,
+            OperationIds::editor::center_piano_roll, context,
             [tick, keyIndex](EditorViewState &target) {
                 target.pianoRoll.centerTick = tick;
                 target.pianoRoll.centerKeyIndex = keyIndex;
@@ -221,7 +222,7 @@ namespace Automation {
                 QStringLiteral("scale"), QStringLiteral("Piano roll scale is invalid"));
         }
         return mutateView(
-            QStringLiteral("editor.set_piano_roll_scale"), context,
+            OperationIds::editor::set_piano_roll_scale, context,
             [horizontal, vertical](EditorViewState &target) {
                 target.pianoRoll.horizontalScale = horizontal;
                 target.pianoRoll.verticalScale = vertical;
@@ -239,7 +240,7 @@ namespace Automation {
                 QStringLiteral("mode"), QStringLiteral("Piano roll edit mode is invalid"));
         }
         return mutateView(
-            QStringLiteral("editor.set_piano_roll_edit_mode"), context,
+            OperationIds::editor::set_piano_roll_edit_mode, context,
             [mode](EditorViewState &target) { target.pianoRoll.editMode = mode; },
             [this, mode] {
                 return m_services.setPianoRollEditMode && m_services.setPianoRollEditMode(mode);
@@ -250,7 +251,7 @@ namespace Automation {
         EditorAutomationFacade::setActiveClip(const GuiDocumentCommandContext &context,
                                               const std::optional<ClipId> clipId) {
         return m_dispatcher.dispatchGuiDocumentCommand<GuiMutationResult>(
-            QStringLiteral("editor.set_active_clip"), context,
+            OperationIds::editor::set_active_clip, context,
             [this, context, clipId](DocumentSession &session, const bool validateOnly) {
                 const int value = clipId ? clipId->value() : -1;
                 if (clipId) {
@@ -273,7 +274,7 @@ namespace Automation {
         EditorAutomationFacade::setSelectedTrack(const GuiDocumentCommandContext &context,
                                                  const std::optional<TrackId> trackId) {
         return m_dispatcher.dispatchGuiDocumentCommand<GuiMutationResult>(
-            QStringLiteral("editor.set_selection"), context,
+            OperationIds::editor::set_selection, context,
             [this, context, trackId](DocumentSession &session, const bool validateOnly) {
                 int trackIndex = -1;
                 if (trackId) {
@@ -297,7 +298,7 @@ namespace Automation {
         EditorAutomationFacade::setSelectedClips(const GuiDocumentCommandContext &context,
                                                  const QList<ClipId> &clipIds) {
         return m_dispatcher.dispatchGuiDocumentCommand<GuiMutationResult>(
-            QStringLiteral("editor.set_selection"), context,
+            OperationIds::editor::set_selection, context,
             [this, context, clipIds](DocumentSession &session, const bool validateOnly) {
                 for (const auto clipId : clipIds) {
                     const auto resolved = m_objectResolver.clip(session, clipId);
@@ -320,7 +321,7 @@ namespace Automation {
                                                  const ClipId clipId,
                                                  const QList<NoteId> &noteIds) {
         return m_dispatcher.dispatchGuiDocumentCommand<GuiMutationResult>(
-            QStringLiteral("editor.set_selection"), context,
+            OperationIds::editor::set_selection, context,
             [this, context, clipId, noteIds](DocumentSession &session, const bool validateOnly) {
                 const auto clip = m_objectResolver.singingClip(session, clipId);
                 if (!clip)
@@ -352,7 +353,7 @@ namespace Automation {
                 QStringLiteral("Quantize must divide the number of ticks in a whole note"));
         }
         return m_dispatcher.dispatchGuiCommand<GuiMutationResult>(
-            QStringLiteral("editor.set_quantize"), context,
+            OperationIds::editor::set_quantize, context,
             [this, context, quantize, enabled](const bool validateOnly) {
                 if (!m_services.captureStableState || !m_services.setPianoRollQuantize)
                     return AutomationResult<GuiMutationResult>(editorStateUnavailable());
@@ -374,7 +375,7 @@ namespace Automation {
                                                     QStringLiteral("Auto page target is invalid"));
         }
         return m_dispatcher.dispatchGuiCommand<GuiMutationResult>(
-            QStringLiteral("editor.set_auto_page_turn"), context,
+            OperationIds::editor::set_auto_page_turn, context,
             [this, context, target, enabled](const bool validateOnly) {
                 if (!m_services.captureStableState || !m_services.setAutoPageTurn)
                     return AutomationResult<GuiMutationResult>(editorStateUnavailable());
@@ -394,7 +395,7 @@ namespace Automation {
         EditorAutomationFacade::reveal(const GuiDocumentCommandContext &context,
                                        const EditorRevealDto &target, const bool finalize) {
         return m_dispatcher.dispatchGuiDocumentCommand<GuiMutationResult>(
-            QStringLiteral("editor.reveal"), context,
+            OperationIds::editor::reveal, context,
             [this, context, target, finalize](DocumentSession &session, const bool validateOnly) {
                 if (!std::isfinite(target.tickStart) || !std::isfinite(target.tickEnd) ||
                     !std::isfinite(target.valueStart) || !std::isfinite(target.valueEnd) ||
@@ -504,7 +505,7 @@ namespace Automation {
     AutomationResult<EditorCapabilitiesDto>
     EditorAutomationFacade::getEditorCapabilities() {
         return m_dispatcher.dispatchApplicationQuery<EditorCapabilitiesDto>(
-            QStringLiteral("editor.get_capabilities"), [this] {
+            OperationIds::editor::get_capabilities, [this] {
                 EditorCapabilitiesDto result;
                 result.operationIds = m_catalog.operationIds();
                 return AutomationResult<EditorCapabilitiesDto>(std::move(result));
@@ -513,12 +514,10 @@ namespace Automation {
 
     void EditorAutomationFacade::registerOperations() {
         m_catalog.add({
-            .id = QStringLiteral("editor.get_capabilities"),
+            .id = OperationIds::editor::get_capabilities,
             .category = QStringLiteral("editor"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.Empty.v1"),
-            .outputContract = QStringLiteral("automation.EditorCapabilities.v1"),
             .documentPolicy = DocumentPolicy::None,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
@@ -529,12 +528,10 @@ namespace Automation {
             .idempotency = IdempotencyPolicy::Unsupported,
         });
         m_catalog.add({
-            .id = QStringLiteral("editor.get_state"),
+            .id = OperationIds::editor::get_state,
             .category = QStringLiteral("editor"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.DocumentWindowRef.v1"),
-            .outputContract = QStringLiteral("automation.EditorState.v1"),
             .documentPolicy = DocumentPolicy::Read,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
@@ -544,14 +541,12 @@ namespace Automation {
             .exposure = ExposurePolicy::InternalOnly,
             .idempotency = IdempotencyPolicy::Unsupported,
         });
-        const auto addGuiCommand = [this](const QString &id, const QString &contract) {
+        const auto addGuiCommand = [this](const OperationId &id) {
             const auto result = m_catalog.add({
                 .id = id,
                 .category = QStringLiteral("editor"),
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = contract,
-                .outputContract = QStringLiteral("automation.GuiMutationResult.v1"),
                 .documentPolicy = DocumentPolicy::None,
                 .revisionPolicy = RevisionPolicy::None,
                 .historyPolicy = HistoryPolicy::None,
@@ -563,14 +558,12 @@ namespace Automation {
             });
             Q_ASSERT(result);
         };
-        const auto addGuiDocumentCommand = [this](const QString &id, const QString &contract) {
+        const auto addGuiDocumentCommand = [this](const OperationId &id) {
             const auto result = m_catalog.add({
                 .id = id,
                 .category = QStringLiteral("editor"),
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = contract,
-                .outputContract = QStringLiteral("automation.GuiMutationResult.v1"),
                 .documentPolicy = DocumentPolicy::Read,
                 .revisionPolicy = RevisionPolicy::Check,
                 .historyPolicy = HistoryPolicy::None,
@@ -582,32 +575,19 @@ namespace Automation {
             });
             Q_ASSERT(result);
         };
-        addGuiCommand(QStringLiteral("editor.center_piano_roll"),
-                      QStringLiteral("automation.EditorCenterCommand.v1"));
-        addGuiCommand(QStringLiteral("editor.center_track_panel"),
-                      QStringLiteral("automation.EditorCenterCommand.v1"));
-        addGuiCommand(QStringLiteral("editor.restore_view"),
-                      QStringLiteral("automation.EditorViewStateCommand.v1"));
-        addGuiCommand(QStringLiteral("editor.set_panel_visibility"),
-                      QStringLiteral("automation.EditorPanelVisibilityCommand.v1"));
-        addGuiCommand(QStringLiteral("editor.set_piano_roll_edit_mode"),
-                      QStringLiteral("automation.EditorEditModeCommand.v1"));
-        addGuiCommand(QStringLiteral("editor.set_piano_roll_scale"),
-                      QStringLiteral("automation.EditorScaleCommand.v1"));
-        addGuiCommand(QStringLiteral("editor.set_track_panel_scale"),
-                      QStringLiteral("automation.EditorScaleCommand.v1"));
-        addGuiCommand(QStringLiteral("editor.show_bottom_panel_page"),
-                      QStringLiteral("automation.EditorPageCommand.v1"));
-        addGuiCommand(QStringLiteral("editor.set_auto_page_turn"),
-                      QStringLiteral("automation.EditorAutoPageTurnCommand.v1"));
-        addGuiCommand(QStringLiteral("editor.set_quantize"),
-                      QStringLiteral("automation.EditorQuantizeCommand.v1"));
-        addGuiDocumentCommand(QStringLiteral("editor.reveal"),
-                              QStringLiteral("automation.EditorRevealCommand.v1"));
-        addGuiDocumentCommand(QStringLiteral("editor.set_active_clip"),
-                              QStringLiteral("automation.EditorActiveClipCommand.v1"));
-        addGuiDocumentCommand(QStringLiteral("editor.set_selection"),
-                              QStringLiteral("automation.EditorSelectionCommand.v1"));
+        addGuiCommand(OperationIds::editor::center_piano_roll);
+        addGuiCommand(OperationIds::editor::center_track_panel);
+        addGuiCommand(OperationIds::editor::restore_view);
+        addGuiCommand(OperationIds::editor::set_panel_visibility);
+        addGuiCommand(OperationIds::editor::set_piano_roll_edit_mode);
+        addGuiCommand(OperationIds::editor::set_piano_roll_scale);
+        addGuiCommand(OperationIds::editor::set_track_panel_scale);
+        addGuiCommand(OperationIds::editor::show_bottom_panel_page);
+        addGuiCommand(OperationIds::editor::set_auto_page_turn);
+        addGuiCommand(OperationIds::editor::set_quantize);
+        addGuiDocumentCommand(OperationIds::editor::reveal);
+        addGuiDocumentCommand(OperationIds::editor::set_active_clip);
+        addGuiDocumentCommand(OperationIds::editor::set_selection);
     }
 
 } // namespace Automation

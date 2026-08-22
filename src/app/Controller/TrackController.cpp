@@ -3,6 +3,7 @@
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Automation/OperationIds.h"
 #include "EditorViewController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -444,7 +445,7 @@ void TrackController::scheduleHashUpdate(const AudioClip *clip) {
     hashTask->documentVersion = runtime->documentVersion();
     hashTask->path = clip->path();
     const auto automationTask = runtime->automationTasks().createTask(
-        QStringLiteral("audio_clips.set_hash"), hashTask->documentVersion,
+        Automation::OperationIds::audio_clips::set_hash, hashTask->documentVersion,
         Automation::ObjectRef{Automation::ObjectKind::Clip, hashTask->clipId},
         [hashTask] { hashTask->terminate(); });
     hashTask->automationTaskId = automationTask.taskId;

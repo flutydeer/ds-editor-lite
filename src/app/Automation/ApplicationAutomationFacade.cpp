@@ -1,4 +1,5 @@
 #include "ApplicationAutomationFacade.h"
+#include "OperationIds.h"
 
 #include <utility>
 
@@ -21,7 +22,7 @@ namespace Automation {
 
     AutomationResult<ApplicationInfoDto> ApplicationAutomationFacade::getInfo() {
         return m_dispatcher.dispatchApplicationQuery<ApplicationInfoDto>(
-            QStringLiteral("application.get_info"), [this] {
+            OperationIds::application::get_info, [this] {
                 if (!m_services.info)
                     return AutomationResult<ApplicationInfoDto>(unavailable());
                 return AutomationResult<ApplicationInfoDto>(m_services.info());
@@ -37,8 +38,8 @@ namespace Automation {
                 QStringLiteral("mode"), QStringLiteral("Application termination mode is invalid"));
         }
         const auto operationId = mode == ApplicationTerminationMode::Exit
-                                     ? QStringLiteral("application.request_exit")
-                                     : QStringLiteral("application.request_restart");
+                                     ? OperationIds::application::request_exit
+                                     : OperationIds::application::request_restart;
         return m_dispatcher.dispatchGuiCommand<GuiMutationResult>(
             operationId, context, [this, context, mode](const bool validateOnly) {
                 if (!m_services.requestTermination)
@@ -59,12 +60,10 @@ namespace Automation {
             Q_ASSERT(result);
         };
         add({
-            .id = QStringLiteral("application.get_info"),
+            .id = OperationIds::application::get_info,
             .category = QStringLiteral("application"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.Empty.v1"),
-            .outputContract = QStringLiteral("automation.ApplicationInfo.v1"),
             .documentPolicy = DocumentPolicy::None,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
@@ -80,8 +79,6 @@ namespace Automation {
                 .category = QStringLiteral("application"),
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = QStringLiteral("automation.ApplicationTerminationCommand.v1"),
-                .outputContract = QStringLiteral("automation.GuiMutationResult.v1"),
                 .documentPolicy = DocumentPolicy::None,
                 .revisionPolicy = RevisionPolicy::None,
                 .historyPolicy = HistoryPolicy::None,
@@ -92,8 +89,8 @@ namespace Automation {
                 .idempotency = IdempotencyPolicy::Unsupported,
             });
         };
-        addTermination(QStringLiteral("application.request_exit"));
-        addTermination(QStringLiteral("application.request_restart"));
+        addTermination(OperationIds::application::request_exit);
+        addTermination(OperationIds::application::request_restart);
     }
 
 } // namespace Automation

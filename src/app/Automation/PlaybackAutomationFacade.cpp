@@ -1,4 +1,5 @@
 #include "PlaybackAutomationFacade.h"
+#include "OperationIds.h"
 
 #include <lite/History/ActionSequence.h>
 
@@ -71,7 +72,7 @@ namespace Automation {
     AutomationResult<PlaybackSnapshotDto>
     PlaybackAutomationFacade::getPlayback(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<PlaybackSnapshotDto>(
-            QStringLiteral("playback.get"), documentId, [this](DocumentSession &session) {
+            OperationIds::playback::get, documentId, [this](DocumentSession &session) {
                 if (!m_services.snapshot)
                     return AutomationResult<PlaybackSnapshotDto>(
                         unavailable(QStringLiteral("Playback host is unavailable")));
@@ -88,17 +89,17 @@ namespace Automation {
 
     AutomationResult<MutationResult>
     PlaybackAutomationFacade::play(const CommandContext &context) {
-        return setState(QStringLiteral("playback.play"), context, PlaybackState::Playing);
+        return setState(OperationIds::playback::play, context, PlaybackState::Playing);
     }
 
     AutomationResult<MutationResult>
     PlaybackAutomationFacade::pause(const CommandContext &context) {
-        return setState(QStringLiteral("playback.pause"), context, PlaybackState::Paused);
+        return setState(OperationIds::playback::pause, context, PlaybackState::Paused);
     }
 
     AutomationResult<MutationResult>
     PlaybackAutomationFacade::stop(const CommandContext &context) {
-        return setState(QStringLiteral("playback.stop"), context, PlaybackState::Stopped);
+        return setState(OperationIds::playback::stop, context, PlaybackState::Stopped);
     }
 
     AutomationResult<MutationResult> PlaybackAutomationFacade::setState(
@@ -145,7 +146,7 @@ namespace Automation {
     AutomationResult<MutationResult>
     PlaybackAutomationFacade::setPosition(const CommandContext &context, const double tick) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("playback.set_position"), context, QByteArray::number(tick, 'g', 17),
+            OperationIds::playback::set_position, context, QByteArray::number(tick, 'g', 17),
             [this, tick](DocumentSession &session, const bool validateOnly) {
                 if (!std::isfinite(tick) || tick < 0.0) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
@@ -165,7 +166,7 @@ namespace Automation {
     AutomationResult<MutationResult>
     PlaybackAutomationFacade::setLastPosition(const CommandContext &context, const double tick) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("playback.set_last_position"), context,
+            OperationIds::playback::set_last_position, context,
             QByteArray::number(tick, 'g', 17),
             [this, tick](DocumentSession &session, const bool validateOnly) {
                 if (!std::isfinite(tick) || tick < 0.0) {
@@ -190,7 +191,7 @@ namespace Automation {
                                  QByteArray::number(settings.start) + ':' +
                                  QByteArray::number(settings.length);
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("playback.set_loop"), context, fingerprint,
+            OperationIds::playback::set_loop, context, fingerprint,
             [this, settings](DocumentSession &session, const bool validateOnly) {
                 if (settings.start < 0 || settings.length < 0 ||
                     (settings.enabled && settings.length == 0)) {
@@ -205,7 +206,7 @@ namespace Automation {
         PlaybackAutomationFacade::setLoopEnabled(const CommandContext &context,
                                                  const bool enabled) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("playback.set_loop_enabled"), context, QByteArray::number(enabled),
+            OperationIds::playback::set_loop_enabled, context, QByteArray::number(enabled),
             [this, enabled](DocumentSession &session, const bool validateOnly) {
                 if (!m_services.snapshot || !m_services.setLoop)
                     return AutomationResult<MutationResult>(
@@ -224,7 +225,7 @@ namespace Automation {
     AutomationResult<MutationResult>
         PlaybackAutomationFacade::clearLoop(const CommandContext &context) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("playback.clear_loop"), context, {},
+            OperationIds::playback::clear_loop, context, {},
             [this](DocumentSession &session, const bool validateOnly) {
                 if (!m_services.snapshot || !m_services.setLoop)
                     return AutomationResult<MutationResult>(
@@ -256,12 +257,10 @@ namespace Automation {
             Q_ASSERT(result);
         };
         add({
-            .id = QStringLiteral("playback.get"),
+            .id = OperationIds::playback::get,
             .category = QStringLiteral("playback"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.DocumentRef.v1"),
-            .outputContract = QStringLiteral("automation.PlaybackSnapshot.v1"),
             .documentPolicy = DocumentPolicy::Read,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
@@ -271,15 +270,12 @@ namespace Automation {
             .exposure = ExposurePolicy::InternalOnly,
             .idempotency = IdempotencyPolicy::Unsupported,
         });
-        const auto addCommand = [&add](const QString &id, const QString &contract,
-                                       const bool persistent = false) {
+        const auto addCommand = [&add](const OperationId &id, const bool persistent = false) {
             add({
                 .id = id,
                 .category = QStringLiteral("playback"),
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = contract,
-                .outputContract = QStringLiteral("automation.MutationResult.v1"),
                 .documentPolicy = persistent ? DocumentPolicy::Write : DocumentPolicy::Read,
                 .revisionPolicy = persistent ? RevisionPolicy::Increment : RevisionPolicy::Check,
                 .historyPolicy = persistent ? HistoryPolicy::Record : HistoryPolicy::None,
@@ -291,22 +287,14 @@ namespace Automation {
                                           : IdempotencyPolicy::Unsupported,
             });
         };
-        addCommand(QStringLiteral("playback.pause"),
-                   QStringLiteral("automation.PlaybackStateCommand.v1"));
-        addCommand(QStringLiteral("playback.clear_loop"),
-                   QStringLiteral("automation.EmptyCommand.v1"), true);
-        addCommand(QStringLiteral("playback.play"),
-                   QStringLiteral("automation.PlaybackStateCommand.v1"));
-        addCommand(QStringLiteral("playback.set_loop"),
-                   QStringLiteral("automation.PlaybackLoopCommand.v1"), true);
-        addCommand(QStringLiteral("playback.set_loop_enabled"),
-                   QStringLiteral("automation.PlaybackLoopEnabledCommand.v1"), true);
-        addCommand(QStringLiteral("playback.set_last_position"),
-                   QStringLiteral("automation.PlaybackPositionCommand.v1"));
-        addCommand(QStringLiteral("playback.set_position"),
-                   QStringLiteral("automation.PlaybackPositionCommand.v1"));
-        addCommand(QStringLiteral("playback.stop"),
-                   QStringLiteral("automation.PlaybackStateCommand.v1"));
+        addCommand(OperationIds::playback::pause);
+        addCommand(OperationIds::playback::clear_loop, true);
+        addCommand(OperationIds::playback::play);
+        addCommand(OperationIds::playback::set_loop, true);
+        addCommand(OperationIds::playback::set_loop_enabled, true);
+        addCommand(OperationIds::playback::set_last_position);
+        addCommand(OperationIds::playback::set_position);
+        addCommand(OperationIds::playback::stop);
     }
 
 } // namespace Automation

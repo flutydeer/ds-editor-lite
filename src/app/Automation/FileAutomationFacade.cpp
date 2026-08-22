@@ -1,4 +1,5 @@
 #include "FileAutomationFacade.h"
+#include "OperationIds.h"
 
 #include <QDataStream>
 #include <QDir>
@@ -73,7 +74,7 @@ namespace Automation {
 
     AutomationResult<QList<ProjectFormatDto>> FileAutomationFacade::listFormats() {
         return m_dispatcher.dispatchApplicationQuery<QList<ProjectFormatDto>>(
-            QStringLiteral("formats.list"), [this] {
+            OperationIds::formats::list, [this] {
                 if (!m_services.listProjectFormats)
                     return AutomationResult<QList<ProjectFormatDto>>(unavailable());
                 return AutomationResult<QList<ProjectFormatDto>>(m_services.listProjectFormats());
@@ -84,7 +85,7 @@ namespace Automation {
     FileAutomationFacade::exportMidi(const CommandContext &context, const QString &path,
                                     const bool allowOverwrite) {
         return m_dispatcher.dispatchDocumentCommandResult<FileWriteResultDto>(
-            QStringLiteral("exports.midi.start"), context,
+            OperationIds::exports::midi::start, context,
             exportFingerprint(path, allowOverwrite),
             [this, path, allowOverwrite](DocumentSession &session, const bool validateOnly) {
                 const auto validatedPath = validateMidiPath(path, allowOverwrite);
@@ -117,12 +118,10 @@ namespace Automation {
 
     void FileAutomationFacade::registerOperations() {
         auto result = m_catalog.add({
-            .id = QStringLiteral("formats.list"),
+            .id = OperationIds::formats::list,
             .category = QStringLiteral("files"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.Empty.v1"),
-            .outputContract = QStringLiteral("automation.ProjectFormatList.v1"),
             .documentPolicy = DocumentPolicy::None,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
@@ -134,12 +133,10 @@ namespace Automation {
         });
         Q_ASSERT(result);
         result = m_catalog.add({
-            .id = QStringLiteral("exports.midi.start"),
+            .id = OperationIds::exports::midi::start,
             .category = QStringLiteral("exports"),
             .kind = OperationKind::Command,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.MidiExportCommand.v1"),
-            .outputContract = QStringLiteral("automation.FileWriteResult.v1"),
             .documentPolicy = DocumentPolicy::Read,
             .revisionPolicy = RevisionPolicy::Check,
             .historyPolicy = HistoryPolicy::None,

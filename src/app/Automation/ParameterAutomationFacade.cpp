@@ -1,4 +1,5 @@
 #include "ParameterAutomationFacade.h"
+#include "OperationIds.h"
 
 #include "Controller/Actions/AppModel/Param/ParamsActions.h"
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
@@ -117,7 +118,7 @@ namespace Automation {
         const DocumentId &documentId, const ClipId clipId, const ParamInfo::Name name,
         const Param::Type type) {
         return m_dispatcher.dispatchDocumentQuery<ParameterSnapshotDto>(
-            QStringLiteral("parameters.get"), documentId,
+            OperationIds::parameters::get, documentId,
             [this, clipId, name, type](DocumentSession &session) {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
@@ -141,7 +142,7 @@ namespace Automation {
         const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
         const Param::Type type, const QList<CurveDraftDto> &curves) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("parameters.replace"), context,
+            OperationIds::parameters::replace, context,
             parameterFingerprint(clipId, name, type, curves),
             [this, clipId, name, type, curves](DocumentSession &session,
                                              const bool validateOnly) {
@@ -188,7 +189,7 @@ namespace Automation {
         const CommandContext &context, const ClipId clipId,
         const SpeakerMixModel::SpeakerMixData &data) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("speaker_mix.clip.replace"), context,
+            OperationIds::speaker_mix::clip::replace, context,
             voiceFingerprint(clipId.value(), {}, {}, data),
             [this, clipId, data](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
@@ -215,7 +216,7 @@ namespace Automation {
     AutomationResult<MutationResult> ParameterAutomationFacade::useTrackVoiceContext(
         const CommandContext &context, const ClipId clipId) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("speaker_mix.clip.use_track"), context,
+            OperationIds::speaker_mix::clip::use_track, context,
             voiceFingerprint(clipId.value(), {}, {}, {}),
             [this, clipId](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
@@ -238,7 +239,7 @@ namespace Automation {
     AutomationResult<MutationResult> ParameterAutomationFacade::selectClipSingleSpeaker(
         const CommandContext &context, const ClipId clipId, const SingerInfo &singerInfo,
         const SpeakerInfo &speakerInfo) {
-        return setClipVoiceContext(QStringLiteral("speaker_mix.clip.select_single"),
+        return setClipVoiceContext(OperationIds::speaker_mix::clip::select_single,
                                    ClipVoiceAction::SelectSingle, context, clipId, singerInfo,
                                    speakerInfo, {});
     }
@@ -246,7 +247,7 @@ namespace Automation {
     AutomationResult<MutationResult> ParameterAutomationFacade::enableClipDynamicSpeakerMix(
         const CommandContext &context, const ClipId clipId, const SingerInfo &singerInfo,
         const SpeakerInfo &speakerInfo, const SpeakerMixModel::SpeakerMixData &data) {
-        return setClipVoiceContext(QStringLiteral("speaker_mix.clip.enable_dynamic"),
+        return setClipVoiceContext(OperationIds::speaker_mix::clip::enable_dynamic,
                                    ClipVoiceAction::EnableDynamic, context, clipId, singerInfo,
                                    speakerInfo, data);
     }
@@ -254,7 +255,7 @@ namespace Automation {
     AutomationResult<MutationResult> ParameterAutomationFacade::applyClipSpeakerMix(
         const CommandContext &context, const ClipId clipId, const SingerInfo &singerInfo,
         const SpeakerInfo &speakerInfo, const SpeakerMixModel::SpeakerMixData &data) {
-        return setClipVoiceContext(QStringLiteral("speaker_mix.clip.apply"),
+        return setClipVoiceContext(OperationIds::speaker_mix::clip::apply,
                                    ClipVoiceAction::ApplyPreset, context, clipId, singerInfo,
                                    speakerInfo, data);
     }
@@ -301,7 +302,7 @@ namespace Automation {
         const CommandContext &context, const TrackId trackId, const SingerInfo &singerInfo,
         const SpeakerInfo &speakerInfo) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("speaker_mix.track.select_single"), context,
+            OperationIds::speaker_mix::track::select_single, context,
             voiceFingerprint(trackId.value(), singerInfo, speakerInfo, {}),
             [this, trackId, singerInfo, speakerInfo](DocumentSession &session,
                                                    const bool validateOnly) {
@@ -327,7 +328,7 @@ namespace Automation {
         const CommandContext &context, const TrackId trackId, const SingerInfo &singerInfo,
         const SpeakerInfo &speakerInfo, const SpeakerMixModel::SpeakerMixData &data) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("speaker_mix.track.apply"), context,
+            OperationIds::speaker_mix::track::apply, context,
             voiceFingerprint(trackId.value(), singerInfo, speakerInfo, data),
             [this, trackId, singerInfo, speakerInfo,
              data](DocumentSession &session, const bool validateOnly) {
@@ -355,7 +356,7 @@ namespace Automation {
         const CommandContext &context, const TrackId trackId,
         const SpeakerMixModel::SpeakerMixData &data) {
         return m_dispatcher.dispatchDocumentCommand(
-            QStringLiteral("speaker_mix.track.replace"), context,
+            OperationIds::speaker_mix::track::replace, context,
             voiceFingerprint(trackId.value(), {}, {}, data),
             [this, trackId, data](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.track(session, trackId);
@@ -385,12 +386,10 @@ namespace Automation {
             Q_ASSERT(result);
         };
         add({
-            .id = QStringLiteral("parameters.get"),
+            .id = OperationIds::parameters::get,
             .category = QStringLiteral("parameters"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,
-            .inputContract = QStringLiteral("automation.ParameterQuery.v1"),
-            .outputContract = QStringLiteral("automation.ParameterSnapshot.v1"),
             .documentPolicy = DocumentPolicy::Read,
             .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
@@ -400,14 +399,12 @@ namespace Automation {
             .exposure = ExposurePolicy::InternalOnly,
             .idempotency = IdempotencyPolicy::Unsupported,
         });
-        const auto addMutation = [&add](const QString &id, const QString &contract) {
+        const auto addMutation = [&add](const OperationId &id) {
             add({
                 .id = id,
                 .category = id.section('.', 0, 0),
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = contract,
-                .outputContract = QStringLiteral("automation.MutationResult.v1"),
                 .documentPolicy = DocumentPolicy::Write,
                 .revisionPolicy = RevisionPolicy::Increment,
                 .historyPolicy = HistoryPolicy::Record,
@@ -418,24 +415,15 @@ namespace Automation {
                 .idempotency = IdempotencyPolicy::DocumentGeneration,
             });
         };
-        addMutation(QStringLiteral("parameters.replace"),
-                    QStringLiteral("automation.ReplaceParameterCommand.v1"));
-        addMutation(QStringLiteral("speaker_mix.clip.apply"),
-                    QStringLiteral("automation.SetClipSpeakerMixCommand.v1"));
-        addMutation(QStringLiteral("speaker_mix.clip.enable_dynamic"),
-                    QStringLiteral("automation.SetClipSpeakerMixCommand.v1"));
-        addMutation(QStringLiteral("speaker_mix.clip.replace"),
-                    QStringLiteral("automation.ReplaceClipSpeakerMixCommand.v1"));
-        addMutation(QStringLiteral("speaker_mix.clip.select_single"),
-                    QStringLiteral("automation.SelectClipSpeakerCommand.v1"));
-        addMutation(QStringLiteral("speaker_mix.clip.use_track"),
-                    QStringLiteral("automation.UseTrackVoiceContextCommand.v1"));
-        addMutation(QStringLiteral("speaker_mix.track.apply"),
-                    QStringLiteral("automation.SetTrackSpeakerMixCommand.v1"));
-        addMutation(QStringLiteral("speaker_mix.track.replace"),
-                    QStringLiteral("automation.ReplaceTrackSpeakerMixCommand.v1"));
-        addMutation(QStringLiteral("speaker_mix.track.select_single"),
-                    QStringLiteral("automation.SelectTrackSpeakerCommand.v1"));
+        addMutation(OperationIds::parameters::replace);
+        addMutation(OperationIds::speaker_mix::clip::apply);
+        addMutation(OperationIds::speaker_mix::clip::enable_dynamic);
+        addMutation(OperationIds::speaker_mix::clip::replace);
+        addMutation(OperationIds::speaker_mix::clip::select_single);
+        addMutation(OperationIds::speaker_mix::clip::use_track);
+        addMutation(OperationIds::speaker_mix::track::apply);
+        addMutation(OperationIds::speaker_mix::track::replace);
+        addMutation(OperationIds::speaker_mix::track::select_single);
     }
 
 } // namespace Automation

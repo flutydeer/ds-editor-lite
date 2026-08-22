@@ -1,4 +1,5 @@
 #include "InferenceAutomationFacade.h"
+#include "OperationIds.h"
 
 namespace Automation {
     namespace {
@@ -82,29 +83,29 @@ namespace Automation {
     OperationId InferenceAutomationFacade::operationId(const InferenceMutationKind kind) {
         switch (kind) {
             case InferenceMutationKind::ApplyPronunciations:
-                return QStringLiteral("inference.apply_pronunciations");
+                return OperationIds::inference::apply_pronunciations;
             case InferenceMutationKind::ApplyPhonemeNames:
-                return QStringLiteral("inference.apply_phoneme_names");
+                return OperationIds::inference::apply_phoneme_names;
             case InferenceMutationKind::ApplyDuration:
-                return QStringLiteral("inference.apply_duration");
+                return OperationIds::inference::apply_duration;
             case InferenceMutationKind::ApplyPitch:
-                return QStringLiteral("inference.apply_pitch");
+                return OperationIds::inference::apply_pitch;
             case InferenceMutationKind::ApplyVariance:
-                return QStringLiteral("inference.apply_variance");
+                return OperationIds::inference::apply_variance;
             case InferenceMutationKind::ApplyAcoustic:
-                return QStringLiteral("inference.apply_acoustic");
+                return OperationIds::inference::apply_acoustic;
             case InferenceMutationKind::ResetStage:
-                return QStringLiteral("inference.reset_stage");
+                return OperationIds::inference::reset_stage;
             case InferenceMutationKind::InvalidateClip:
-                return QStringLiteral("inference.invalidate_clip");
+                return OperationIds::inference::invalidate_clip;
             case InferenceMutationKind::ResegmentClip:
-                return QStringLiteral("inference.resegment_clip");
+                return OperationIds::inference::resegment_clip;
             case InferenceMutationKind::RefreshSpeakerMix:
-                return QStringLiteral("inference.refresh_speaker_mix");
+                return OperationIds::inference::refresh_speaker_mix;
             case InferenceMutationKind::RefreshParamInput:
-                return QStringLiteral("inference.refresh_param_input");
+                return OperationIds::inference::refresh_param_input;
             case InferenceMutationKind::RebuildOriginalParams:
-                return QStringLiteral("inference.rebuild_original_params");
+                return OperationIds::inference::rebuild_original_params;
         }
         Q_UNREACHABLE_RETURN({});
     }
@@ -116,8 +117,6 @@ namespace Automation {
                 .category = QStringLiteral("inference"),
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Synchronous,
-                .inputContract = QStringLiteral("automation.InferenceMutationCommand.v1"),
-                .outputContract = QStringLiteral("automation.InferenceMutationResult.v1"),
                 .documentPolicy = DocumentPolicy::Write,
                 .revisionPolicy = canAdvanceRevision(kind) ? RevisionPolicy::Increment
                                                           : RevisionPolicy::Check,
