@@ -29,8 +29,6 @@
 #include <utility>
 
 namespace {
-    constexpr int maxRecentProjectFiles = 10;
-
     void addGuardedTransition(QState *source, QObject *sender, const char *signal,
                               QAbstractState *target, std::function<bool()> guard) {
         const auto transition = new ConditionalTransition(sender, signal, std::move(guard));
@@ -161,33 +159,30 @@ QString DocumentWorkflowController::lastProjectFolder() const {
 }
 
 QStringList DocumentWorkflowController::recentProjectFiles() const {
-    return appOptions->general()->recentProjectFiles;
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return {};
+    const auto result = runtime->settings().getRecentProjectFiles();
+    return result ? result.get() : QStringList{};
 }
 
 void DocumentWorkflowController::clearRecentProjectFiles() {
-    if (appOptions->general()->recentProjectFiles.isEmpty())
+    auto *runtime = automationRuntime();
+    if (!runtime)
         return;
-    appOptions->general()->recentProjectFiles.clear();
-    appOptions->saveAndNotify(AppOptionsGlobal::General);
-    emit recentProjectFilesChanged({});
+    const auto result = runtime->settings().clearRecentProjectFiles({});
+    if (result && result.get().changed)
+        emit recentProjectFilesChanged({});
 }
 
 void DocumentWorkflowController::removeRecentProjectFile(const QString &filePath) {
-    auto files = appOptions->general()->recentProjectFiles;
-    const auto normalizedPath = DocumentWorkflowPathUtils::normalizedProjectPath(filePath);
-    const auto oldSize = files.size();
-    files.erase(std::remove_if(files.begin(), files.end(),
-                               [&](const QString &path) {
-                                   return DocumentWorkflowPathUtils::projectPathsEqual(
-                                       DocumentWorkflowPathUtils::normalizedProjectPath(path),
-                                       normalizedPath);
-                               }),
-                files.end());
-    if (files.size() == oldSize)
+    auto *runtime = automationRuntime();
+    if (!runtime)
         return;
-    appOptions->general()->recentProjectFiles = files;
-    appOptions->saveAndNotify(AppOptionsGlobal::General);
-    emit recentProjectFilesChanged(files);
+    const auto normalizedPath = DocumentWorkflowPathUtils::normalizedProjectPath(filePath);
+    const auto result = runtime->settings().removeRecentProjectFile({}, normalizedPath);
+    if (result && result.get().changed)
+        emit recentProjectFilesChanged(recentProjectFiles());
 }
 
 void DocumentWorkflowController::initializeStateMachine() {
@@ -687,21 +682,13 @@ void DocumentWorkflowController::activateFirstClip(const QList<Track *> &preferr
 void DocumentWorkflowController::addRecentProjectFile(const QString &path) {
     if (QFileInfo(path).suffix().compare("dspx", Qt::CaseInsensitive) != 0)
         return;
-    auto files = appOptions->general()->recentProjectFiles;
     const auto normalizedPath = DocumentWorkflowPathUtils::normalizedProjectPath(path);
-    files.erase(std::remove_if(files.begin(), files.end(),
-                               [&](const QString &file) {
-                                   return DocumentWorkflowPathUtils::projectPathsEqual(
-                                       DocumentWorkflowPathUtils::normalizedProjectPath(file),
-                                       normalizedPath);
-                               }),
-                files.end());
-    files.prepend(normalizedPath);
-    while (files.size() > maxRecentProjectFiles)
-        files.removeLast();
-    appOptions->general()->recentProjectFiles = files;
-    appOptions->saveAndNotify(AppOptionsGlobal::General);
-    emit recentProjectFilesChanged(files);
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    const auto result = runtime->settings().addRecentProjectFile({}, normalizedPath);
+    if (result && result.get().changed)
+        emit recentProjectFilesChanged(recentProjectFiles());
 }
 
 QString DocumentWorkflowController::suggestedSavePath() const {

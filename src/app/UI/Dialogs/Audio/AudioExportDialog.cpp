@@ -1,4 +1,6 @@
 #include "AudioExportDialog.h"
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Modules/Audio/AudioSettings.h"
@@ -417,16 +419,22 @@ namespace Audio::Internal {
         emit m_fileTypeComboBox->currentIndexChanged(0);
         emit m_sourceComboBox->currentIndexChanged(0);
         emit m_mixingOptionComboBox->currentIndexChanged(0);
-        auto currentPresetKey = AudioSettings::audioExporterCurrentPreset();
-        if (currentPresetKey.isString()) {
+        Automation::AudioSettingsDto audioSettings;
+        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+            const auto snapshot = runtime->settings().getSettings();
+            if (snapshot)
+                audioSettings = snapshot.get().audio;
+        }
+        if (audioSettings.currentAudioExporterPresetIsName) {
             for (int i = 0; i < m_presetComboBox->count(); i++) {
-                if (m_presetComboBox->itemData(i).toString() == currentPresetKey.toString()) {
+                if (m_presetComboBox->itemData(i).toString() ==
+                    audioSettings.currentAudioExporterPreset) {
                     m_presetComboBox->setCurrentIndex(i);
                     break;
                 }
             }
         } else {
-            m_presetComboBox->setCurrentIndex(currentPresetKey.toInt());
+            m_presetComboBox->setCurrentIndex(audioSettings.legacyAudioExporterPresetIndex);
         }
         emit m_presetComboBox->currentIndexChanged(m_presetComboBox->currentIndex());
         if (hasTemporaryPreset()) {
@@ -815,9 +823,16 @@ namespace Audio::Internal {
             m_audioExporter->cleanUp();
         }
         const auto currentData = m_presetComboBox->currentData();
-        AudioSettings::setAudioExporterCurrentPreset(
-            currentData.isNull() ? QJsonValue(m_presetComboBox->currentIndex())
-                                 : QJsonValue(currentData.toString()));
+        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+            const auto snapshot = runtime->settings().getSettings();
+            if (snapshot) {
+                auto settings = snapshot.get().audio;
+                settings.currentAudioExporterPresetIsName = !currentData.isNull();
+                settings.currentAudioExporterPreset = currentData.toString();
+                settings.legacyAudioExporterPresetIndex = m_presetComboBox->currentIndex();
+                runtime->settings().updateAudio({}, settings);
+            }
+        }
         saveTemporaryPreset();
         if (ret == QDialog::Accepted && !m_keepOpenCheckBox->isChecked())
             accept();

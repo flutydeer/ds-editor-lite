@@ -1,5 +1,7 @@
 #include "AudioExporter.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "AudioContext.h"
 #include "AudioExporter_p.h"
 #include "Controller/AppController.h"
@@ -26,6 +28,43 @@
 
 namespace Audio {
     using namespace Internal;
+
+    namespace {
+        Automation::AudioExportConfigDto toAutomationDto(const AudioExporterConfig &config) {
+            return {
+                .fileName = config.fileName(),
+                .fileDirectory = config.fileDirectory(),
+                .fileType = static_cast<int>(config.fileType()),
+                .mono = config.formatMono(),
+                .formatOption = config.formatOption(),
+                .formatQuality = config.formatQuality(),
+                .sampleRate = config.formatSampleRate(),
+                .mixingOption = static_cast<int>(config.mixingOption()),
+                .muteSoloEnabled = config.isMuteSoloEnabled(),
+                .sourceOption = static_cast<int>(config.sourceOption()),
+                .sources = config.source(),
+                .timeRange = static_cast<int>(config.timeRange()),
+            };
+        }
+
+        AudioExporterConfig fromAutomationDto(const Automation::AudioExportConfigDto &config) {
+            AudioExporterConfig result;
+            result.setFileName(config.fileName);
+            result.setFileDirectory(config.fileDirectory);
+            result.setFileType(static_cast<AudioExporterConfig::FileType>(config.fileType));
+            result.setFormatMono(config.mono);
+            result.setFormatOption(config.formatOption);
+            result.setFormatQuality(config.formatQuality);
+            result.setFormatSampleRate(config.sampleRate);
+            result.setMixingOption(
+                static_cast<AudioExporterConfig::MixingOption>(config.mixingOption));
+            result.setMuteSoloEnabled(config.muteSoloEnabled);
+            result.setSourceOption(static_cast<AudioExporterConfig::SourceOption>(config.sourceOption));
+            result.setSource(config.sources);
+            result.setTimeRange(static_cast<AudioExporterConfig::TimeRange>(config.timeRange));
+            return result;
+        }
+    }
 
     AudioExporterConfig::AudioExporterConfig() : d(new AudioExporterConfigData) {
     }
@@ -388,7 +427,16 @@ namespace Audio {
     }
 
     QStringList AudioExporter::presets() {
-        return AudioSettings::audioExporterPresets().toObject().keys();
+        auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+        if (!runtime)
+            return {};
+        const auto snapshot = runtime->settings().getSettings();
+        if (!snapshot)
+            return {};
+        QStringList result;
+        for (const auto &preset : snapshot.get().audio.audioExporterPresets)
+            result.append(preset.name);
+        return result;
     }
 
     QList<QPair<QString, AudioExporterConfig>> AudioExporter::predefinedPresets() {
@@ -487,23 +535,59 @@ namespace Audio {
     }
 
     AudioExporterConfig AudioExporter::preset(const QString &name) {
-        return AudioExporterConfig::fromVariantMap(
-            AudioSettings::audioExporterPresets()[name].toObject().toVariantMap());
+        auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+        if (!runtime)
+            return {};
+        const auto snapshot = runtime->settings().getSettings();
+        if (!snapshot)
+            return {};
+        for (const auto &preset : snapshot.get().audio.audioExporterPresets) {
+            if (preset.name == name)
+                return fromAutomationDto(preset.config);
+        }
+        return {};
     }
 
     void AudioExporter::addPreset(const QString &name, const AudioExporterConfig &config) {
-        auto presetsObj = AudioSettings::audioExporterPresets().toObject();
-        presetsObj.insert(name, QJsonObject::fromVariantMap(config.toVariantMap()));
-        AudioSettings::setAudioExporterPresets(presetsObj);
+        auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+        if (!runtime)
+            return;
+        const auto snapshot = runtime->settings().getSettings();
+        if (!snapshot)
+            return;
+        auto settings = snapshot.get().audio;
+        bool replaced = false;
+        for (auto &preset : settings.audioExporterPresets) {
+            if (preset.name == name) {
+                preset.config = toAutomationDto(config);
+                replaced = true;
+                break;
+            }
+        }
+        if (!replaced) {
+            settings.audioExporterPresets.append({
+                .name = name,
+                .config = toAutomationDto(config),
+            });
+        }
+        runtime->settings().updateAudio({}, settings);
     }
 
     bool AudioExporter::removePreset(const QString &name) {
-        auto presetsObj = AudioSettings::audioExporterPresets().toObject();
-        if (!presetsObj.contains(name))
+        auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+        if (!runtime)
             return false;
-        presetsObj.remove(name);
-        AudioSettings::setAudioExporterPresets(presetsObj);
-        return true;
+        const auto snapshot = runtime->settings().getSettings();
+        if (!snapshot)
+            return false;
+        auto settings = snapshot.get().audio;
+        const auto previousSize = settings.audioExporterPresets.size();
+        settings.audioExporterPresets.removeIf(
+            [&name](const Automation::AudioExportPresetDto &preset) { return preset.name == name; });
+        if (settings.audioExporterPresets.size() == previousSize)
+            return false;
+        const auto result = runtime->settings().updateAudio({}, settings);
+        return static_cast<bool>(result);
     }
 
     static QList<AudioExporterListener *> m_listeners;

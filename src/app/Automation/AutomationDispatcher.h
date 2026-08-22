@@ -44,6 +44,29 @@ namespace Automation {
         }
 
         template <typename T, typename Handler>
+        AutomationResult<T> dispatchApplicationCommand(const OperationId &operationId,
+                                                       const ApplicationCommandContext &context,
+                                                       Handler &&handler) {
+            return runSerialized([&]() -> AutomationResult<T> {
+                const auto descriptor = requireDescriptor(operationId, OperationKind::Command);
+                if (!descriptor)
+                    return descriptor.getError();
+                if (descriptor.get()->documentPolicy != DocumentPolicy::None ||
+                    descriptor.get()->hostAvailability != HostAvailability::Core) {
+                    return decorateError(
+                        AutomationError::invalidArgument(
+                            QStringLiteral("operation_id"),
+                            QStringLiteral("Operation is not an application command")),
+                        operationId);
+                }
+                auto result = std::forward<Handler>(handler)(context.validateOnly);
+                if (!result)
+                    return decorateError(result.getError(), operationId);
+                return result;
+            });
+        }
+
+        template <typename T, typename Handler>
         AutomationResult<T> dispatchDocumentQuery(const OperationId &operationId,
                                                   const DocumentId &documentId,
                                                   Handler &&handler) {

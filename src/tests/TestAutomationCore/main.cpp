@@ -252,8 +252,107 @@ int main(int argc, char *argv[]) {
         editorViewState.pianoRoll.editMode = mode;
         return true;
     };
+    Automation::SettingsSnapshotDto applicationSettings;
+    applicationSettings.general.uiLanguage = QStringLiteral("system");
+    applicationSettings.general.defaultSingingLanguage = QStringLiteral("cmn");
+    applicationSettings.general.defaultLyrics.insert(QStringLiteral("cmn"),
+                                                      QStringLiteral("啦"));
+    applicationSettings.appearance.themeId = QStringLiteral("system");
+    applicationSettings.inference.executionProvider = QStringLiteral("CPU");
+    applicationSettings.inference.cacheDirectory = QStringLiteral("cache");
+    for (int index = 0; index < 4; ++index) {
+        applicationSettings.audio.pseudoSingerSynthesizers.append({
+            .generator = index,
+            .amplitude = -12.0,
+            .attackMilliseconds = 50,
+            .decayMilliseconds = 1000,
+            .decayRatio = 0.5,
+            .releaseMilliseconds = 50,
+        });
+    }
+    int settingsWriteCount = 0;
+    Automation::SettingsRuntimeServices settingsServices;
+    settingsServices.snapshot = [&applicationSettings] { return applicationSettings; };
+    settingsServices.applyGeneral = [&applicationSettings,
+                                     &settingsWriteCount](const auto &value) {
+        applicationSettings.general = value;
+        ++settingsWriteCount;
+        return true;
+    };
+    settingsServices.applyAppearance = [&applicationSettings,
+                                        &settingsWriteCount](const auto &value) {
+        applicationSettings.appearance = value;
+        ++settingsWriteCount;
+        return true;
+    };
+    settingsServices.applyInference = [&applicationSettings,
+                                       &settingsWriteCount](const auto &value) {
+        applicationSettings.inference = value;
+        ++settingsWriteCount;
+        return true;
+    };
+    settingsServices.applyDeveloper = [&applicationSettings,
+                                       &settingsWriteCount](const auto &value) {
+        applicationSettings.developer = value;
+        ++settingsWriteCount;
+        return true;
+    };
+    settingsServices.applyG2pLanguage = [&applicationSettings,
+                                        &settingsWriteCount](const auto &value) {
+        applicationSettings.g2pLanguage = value;
+        ++settingsWriteCount;
+        return true;
+    };
+    settingsServices.applyFillLyric = [&applicationSettings,
+                                       &settingsWriteCount](const auto &value) {
+        applicationSettings.fillLyric = value;
+        ++settingsWriteCount;
+        return true;
+    };
+    settingsServices.applyWindow = [&applicationSettings,
+                                    &settingsWriteCount](const auto &value) {
+        applicationSettings.window = value;
+        ++settingsWriteCount;
+        return true;
+    };
+    settingsServices.applyAudio = [&applicationSettings,
+                                   &settingsWriteCount](const auto &value) {
+        applicationSettings.audio = value;
+        ++settingsWriteCount;
+        return true;
+    };
+    QList<Automation::SpeakerMixPresetDto> speakerMixPresets;
+    int presetWriteCount = 0;
+    Automation::PresetRuntimeServices presetServices;
+    presetServices.speakerMixPresets = [&speakerMixPresets] { return speakerMixPresets; };
+    presetServices.applySpeakerMixPresets = [&speakerMixPresets,
+                                             &presetWriteCount](const auto &value) {
+        speakerMixPresets = value;
+        ++presetWriteCount;
+        return true;
+    };
+    Automation::PackageRuntimeServices packageServices;
+    packageServices.installedPackages = [] {
+        return QList<Automation::PackageDto>{{
+            .id = QStringLiteral("voice.package"),
+            .version = QVersionNumber(1, 0),
+            .path = QStringLiteral("packages/voice.package"),
+        }};
+    };
+    packageServices.validatePackage = [](const QString &) {
+        return Automation::AutomationResult<Automation::PackageValidationReportDto>(
+            Automation::PackageValidationReportDto{});
+    };
+    int packageResolveApplyCount = 0;
+    packageServices.resolveDocumentVoices = [&packageResolveApplyCount](AppModel *, const bool apply) {
+        if (apply)
+            ++packageResolveApplyCount;
+        return 1;
+    };
     Automation::CoreRuntime runtime(&model, history, std::move(documentServices),
-                                    std::move(playbackServices), std::move(editorServices));
+                                    std::move(playbackServices), std::move(editorServices),
+                                    std::move(settingsServices), std::move(presetServices),
+                                    std::move(packageServices));
     const auto state = runtime.facade().getEditorState(runtime.windowId());
     const auto capabilities = runtime.facade().getEditorCapabilities();
     ok &= expect(state && state.get().document == runtime.documentVersion(),
@@ -261,7 +360,7 @@ int main(int argc, char *argv[]) {
     ok &= expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                      capabilities.get().maxConcurrentWindows == 1,
                  "capabilities must declare the single document/window boundary");
-    ok &= expect(capabilities && capabilities.get().operationIds.size() == 71 &&
+    ok &= expect(capabilities && capabilities.get().operationIds.size() == 92 &&
                      capabilities.get().operationIds.contains(QStringLiteral("history.undo")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tempos.set")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tracks.insert")) &&
@@ -270,6 +369,11 @@ int main(int argc, char *argv[]) {
                      capabilities.get().operationIds.contains(QStringLiteral("imports.commit_batch")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("operations.cancel")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("playback.play")) &&
+                     capabilities.get().operationIds.contains(
+                         QStringLiteral("settings.update_audio")) &&
+                     capabilities.get().operationIds.contains(
+                         QStringLiteral("speaker_mix_presets.save")) &&
+                     capabilities.get().operationIds.contains(QStringLiteral("packages.validate")) &&
                      capabilities.get().operationIds.contains(
                          QStringLiteral("editor.set_piano_roll_edit_mode")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("documents.save")),
@@ -319,6 +423,75 @@ int main(int argc, char *argv[]) {
                      unknownEditorWindow.getError().code ==
                          Automation::AutomationErrorCode::HostCapabilityUnavailable,
                  "GUI editor commands must reject an unknown window ID");
+
+    auto generalSettings = applicationSettings.general;
+    generalSettings.gameDirectory = QStringLiteral("game");
+    Automation::ApplicationCommandContext settingsPreviewContext{
+        .validateOnly = true,
+        .source = Automation::InvocationSource::Test,
+    };
+    const auto settingsPreview =
+        runtime.settings().updateGeneral(settingsPreviewContext, generalSettings);
+    const auto settingsUpdate = runtime.settings().updateGeneral({}, generalSettings);
+    const auto settingsNoOp = runtime.settings().updateGeneral({}, generalSettings);
+    ok &= expect(settingsPreview && settingsPreview.get().validatedOnly &&
+                     settingsPreview.get().changed && settingsUpdate && settingsUpdate.get().changed &&
+                     settingsNoOp && !settingsNoOp.get().changed && settingsWriteCount == 1,
+                 "application settings must support validation and no-op persistence");
+    auto invalidAppearance = applicationSettings.appearance;
+    invalidAppearance.animationTimeScale = 0.0;
+    const auto rejectedAppearance = runtime.settings().updateAppearance({}, invalidAppearance);
+    ok &= expect(!rejectedAppearance &&
+                     rejectedAppearance.getError().code ==
+                         Automation::AutomationErrorCode::InvalidArgument,
+                 "application settings must reject invalid category values");
+    const auto recentAdd = runtime.settings().addRecentProjectFile({}, QStringLiteral("a.dspx"));
+    const auto recentDuplicate =
+        runtime.settings().addRecentProjectFile({}, QStringLiteral("a.dspx"));
+    const auto recentList = runtime.settings().getRecentProjectFiles();
+    ok &= expect(recentAdd && recentAdd.get().changed && recentDuplicate &&
+                     !recentDuplicate.get().changed && recentList && recentList.get().size() == 1,
+                 "recent files must normalize duplicates and persist through settings");
+    const auto packagePaths = runtime.settings().setPackageSearchPaths(
+        {}, {QStringLiteral("models"), QStringLiteral("models")});
+    ok &= expect(packagePaths && packagePaths.get().changed &&
+                     applicationSettings.general.packageSearchPaths.size() == 1,
+                 "package search paths must normalize duplicate entries");
+
+    Automation::SpeakerMixPresetDto preset{
+        .name = QStringLiteral("Lead"),
+        .packageId = QStringLiteral("package"),
+        .singerId = QStringLiteral("singer"),
+        .sources = {{.speakerId = QStringLiteral("speaker")}},
+        .fixedWeights = {1.0},
+    };
+    const auto presetPreview =
+        runtime.presets().saveSpeakerMixPreset(settingsPreviewContext, preset);
+    const auto presetSave = runtime.presets().saveSpeakerMixPreset({}, preset);
+    const auto presetDelete = presetSave
+                                  ? runtime.presets().deleteSpeakerMixPreset({}, presetSave.get().id)
+                                  : Automation::AutomationResult<Automation::ApplicationMutationResult>(
+                                        Automation::AutomationError{});
+    ok &= expect(presetPreview && presetPreview.get().id.isEmpty() && presetWriteCount == 2 &&
+                     presetSave && !presetSave.get().id.isEmpty() && presetDelete &&
+                     presetDelete.get().changed && speakerMixPresets.isEmpty(),
+                 "speaker mix presets must validate without allocating IDs and persist atomically");
+    const auto installedPackages = runtime.packages().getInstalledPackages();
+    const auto packageValidation = runtime.packages().validatePackage(QStringLiteral("package"));
+    const auto invalidPackageValidation = runtime.packages().validatePackage(QString());
+    const auto packageResolveVersion = runtime.documentVersion();
+    const auto packageResolvePreview =
+        runtime.packages().resolveDocumentVoices(commandContext(runtime, true));
+    const auto packageResolve =
+        runtime.packages().resolveDocumentVoices(commandContext(runtime));
+    ok &= expect(installedPackages && installedPackages.get().size() == 1 && packageValidation &&
+                     !packageValidation.get().hasErrors && !invalidPackageValidation &&
+                     invalidPackageValidation.getError().code ==
+                         Automation::AutomationErrorCode::InvalidArgument && packageResolvePreview &&
+                     packageResolvePreview.get().validatedOnly && packageResolve &&
+                     packageResolve.get().changed && packageResolveApplyCount == 1 &&
+                     runtime.documentVersion() == packageResolveVersion,
+                 "package operations must expose typed reports and guarded cache resolution");
 
     Automation::CommandContext setTempoContext;
     setTempoContext.expected = runtime.documentVersion();

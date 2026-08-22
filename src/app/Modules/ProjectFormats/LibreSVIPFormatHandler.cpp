@@ -1,5 +1,7 @@
 #include "LibreSVIPFormatHandler.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "Controller/DocumentWorkflow/LibreSVIPLoadSession.h"
 #include "Global/AppOptionsGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
@@ -60,6 +62,12 @@ QString LibreSVIPFormatHandler::executablePath() {
 }
 
 void LibreSVIPFormatHandler::setExecutablePath(const QString &path) {
-    appOptions->general()->libreSVIPPath = path;
-    appOptions->saveAndNotify(AppOptionsGlobal::Option::General);
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+        const auto snapshot = runtime->settings().getSettings();
+        if (snapshot) {
+            auto settings = snapshot.get().general;
+            settings.libreSvipPath = path;
+            runtime->settings().updateGeneral({}, settings);
+        }
+    }
 }

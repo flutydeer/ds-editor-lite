@@ -1,5 +1,7 @@
 #include "InferController.h"
 #include "InferEngine.h"
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "InferController_p.h"
 
@@ -677,8 +679,9 @@ void InferControllerPrivate::handleLanguageModuleStatusChanged(
     } else if (status == AppStatus::ModuleStatus::Error) {
         clearAllPendingApplies("pending-cleared-module-error");
         m_getPronTasks.disposePendingTasks();
-        appOptions->g2pLanguage()->langOrder.clear();
-        appOptions->saveAndNotify(AppOptionsGlobal::G2pLanguage);
+        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+            runtime->settings().updateG2pLanguage({}, {});
+        }
         qCritical() << "Failed to start the language module; tasks have been canceled.";
     }
 }

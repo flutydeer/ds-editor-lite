@@ -1,5 +1,7 @@
 #include "TaggerConfigTab.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include <QLabel>
 #include <QListWidgetItem>
 #include <QMessageBox>
@@ -296,26 +298,42 @@ namespace FillLyric
             }
         }
 
-        auto *opt = appOptions->fillLyric();
-
-        opt->builtinTaggerEnabled.clear();
-        opt->customTaggerRules.clear();
-        QStringList order;
+        auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+        if (!runtime)
+            return;
+        const auto snapshot = runtime->settings().getSettings();
+        if (!snapshot)
+            return;
+        auto settings = snapshot.get().fillLyric;
+        settings.builtinTaggerEnabled.clear();
+        settings.customTaggerRules.clear();
+        settings.taggerOrder.clear();
 
         for (const auto &rule : m_rules) {
-            order.append(rule.name);
+            settings.taggerOrder.append(rule.name);
             if (rule.builtin) {
-                opt->builtinTaggerEnabled[rule.name] = rule.enabled;
+                settings.builtinTaggerEnabled[rule.name] = rule.enabled;
             } else {
-                auto cr = rule.customRule;
-                cr.enabled = rule.enabled;
-                opt->customTaggerRules.append(cr);
+                Automation::TaggerRuleDto converted{
+                    .language = rule.customRule.language,
+                    .enabled = rule.enabled,
+                };
+                for (const auto &entry : rule.customRule.entries) {
+                    converted.entries.append({
+                        .type = entry.type,
+                        .value = entry.value,
+                        .tag = entry.tag,
+                        .discard = entry.discard,
+                    });
+                }
+                settings.customTaggerRules.append(std::move(converted));
             }
         }
-        opt->taggerOrder = order;
+        const auto updated = runtime->settings().updateFillLyric({}, settings);
+        if (!updated)
+            return;
 
-        appOptions->saveAndNotify(AppOptionsGlobal::FillLyric);
-
+        const auto *opt = appOptions->fillLyric();
         TextTagger::setBuiltinEnabled(opt->builtinTaggerEnabled);
         TextTagger::setCustomRules(opt->customTaggerRules);
         TextTagger::setRuleOrder(opt->taggerOrder);

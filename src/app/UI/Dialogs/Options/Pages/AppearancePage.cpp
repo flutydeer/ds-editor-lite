@@ -1,5 +1,7 @@
 #include "AppearancePage.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include <QLocale>
 #include <QMessageBox>
 #include <QSignalBlocker>
@@ -25,14 +27,20 @@ AppearancePage::AppearancePage(QWidget *parent) : IOptionPage(parent) {
 }
 
 void AppearancePage::modifyOption() {
-    const auto option = appOptions->appearance();
-    option->useNativeFrame = m_swUseNativeFrame->value();
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    const auto snapshot = runtime->settings().getSettings();
+    if (!snapshot)
+        return;
+    auto settings = snapshot.get().appearance;
+    settings.useNativeFrame = m_swUseNativeFrame->value();
 #if defined(WITH_DIRECT_MANIPULATION)
-    option->enableDirectManipulation = m_swEnableDirectManipulation->value();
+    settings.enableDirectManipulation = m_swEnableDirectManipulation->value();
 #endif
-    option->animationEnabled = m_swAnimationEnabled->value();
-    option->animationTimeScale = QLocale().toDouble(m_leAnimationTimeScale->text());
-    appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
+    settings.animationEnabled = m_swAnimationEnabled->value();
+    settings.animationTimeScale = QLocale().toDouble(m_leAnimationTimeScale->text());
+    runtime->settings().updateAppearance({}, settings);
 }
 
 void AppearancePage::changeTheme(const int index) {
@@ -41,7 +49,14 @@ void AppearancePage::changeTheme(const int index) {
         return;
 
     const auto themeManager = ThemeManager::instance();
-    const auto previousThemePreferenceId = appOptions->appearance()->themeId;
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    const auto snapshot = runtime->settings().getSettings();
+    if (!snapshot)
+        return;
+    auto settings = snapshot.get().appearance;
+    const auto previousThemePreferenceId = settings.themeId;
     if (themePreferenceId != previousThemePreferenceId &&
         !themeManager->applyThemePreference(themePreferenceId)) {
         const QSignalBlocker blocker(m_cbxTheme);
@@ -50,15 +65,21 @@ void AppearancePage::changeTheme(const int index) {
         return;
     }
 
-    appOptions->appearance()->themeId = themePreferenceId;
-    appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
+    settings.themeId = themePreferenceId;
+    runtime->settings().updateAppearance({}, settings);
 }
 
 void AppearancePage::changeInterfaceFont(const int index) {
     // Index 0 is the "Default" item (empty family restores platform default).
     const auto family = index <= 0 ? QString() : m_cbxInterfaceFont->itemData(index).toString();
-    appOptions->appearance()->uiFontFamily = family;
-    appOptions->saveAndNotify(AppOptionsGlobal::Appearance);
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+        const auto snapshot = runtime->settings().getSettings();
+        if (snapshot) {
+            auto settings = snapshot.get().appearance;
+            settings.uiFontFamily = family;
+            runtime->settings().updateAppearance({}, settings);
+        }
+    }
 }
 
 QWidget *AppearancePage::createContentWidget() {

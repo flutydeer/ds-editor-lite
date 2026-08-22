@@ -1,5 +1,7 @@
 #include "DeveloperPage.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
 #include <lite/GUI/Controls/CardView.h>
@@ -14,16 +16,25 @@ DeveloperPage::DeveloperPage(QWidget *parent) : IOptionPage(parent) {
 }
 
 void DeveloperPage::modifyOption() {
-    const auto option = appOptions->developer();
-    option->enableDiagnostics = m_swEnableDiagnostics->value();
-    option->showLogWindow = m_swShowLogWindow->value();
-    option->showTimelineDebugInfo = m_swShowTimelineDebugInfo->value();
-    option->showClipDebugInfo = m_swShowClipDebugInfo->value();
-    option->enablePanelDetach = m_swEnablePanelDetach->value();
-    option->enableEmbeddedOptionsDialog = m_swEnableEmbeddedOptionsDialog->value();
-    option->editorRenderBackend = static_cast<DeveloperOption::EditorRenderBackend>(
-        m_cbxEditorRenderBackend->currentData().toInt());
-    appOptions->saveAndNotify(AppOptionsGlobal::DeveloperOptions);
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    const auto snapshot = runtime->settings().getSettings();
+    if (!snapshot)
+        return;
+    auto settings = snapshot.get().developer;
+    settings.enableDiagnostics = m_swEnableDiagnostics->value();
+    settings.showLogWindow = m_swShowLogWindow->value();
+    settings.showTimelineDebugInfo = m_swShowTimelineDebugInfo->value();
+    settings.showClipDebugInfo = m_swShowClipDebugInfo->value();
+    settings.enablePanelDetach = m_swEnablePanelDetach->value();
+    settings.enableEmbeddedOptionsDialog = m_swEnableEmbeddedOptionsDialog->value();
+    settings.editorRenderBackend = m_cbxEditorRenderBackend->currentData().toInt() ==
+                                           static_cast<int>(
+                                               DeveloperOption::EditorRenderBackend::RhiExperimental)
+                                       ? Automation::EditorRenderBackend::RhiExperimental
+                                       : Automation::EditorRenderBackend::Legacy;
+    runtime->settings().updateDeveloper({}, settings);
 }
 
 QWidget *DeveloperPage::createContentWidget() {

@@ -6,9 +6,12 @@
 #include "EditorAutomationFacade.h"
 #include "HistoryAutomationFacade.h"
 #include "NoteAutomationFacade.h"
+#include "PackageAutomationFacade.h"
 #include "ParameterAutomationFacade.h"
 #include "PlaybackAutomationFacade.h"
+#include "PresetAutomationFacade.h"
 #include "ProjectAutomationFacade.h"
+#include "SettingsAutomationFacade.h"
 #include "TimelineAutomationFacade.h"
 #include "TaskAutomationFacade.h"
 
@@ -23,7 +26,10 @@ namespace Automation {
                     HistoryManager *historyManager,
                     DocumentRuntimeServices documentServices = {},
                     PlaybackRuntimeServices playbackServices = {},
-                    EditorRuntimeServices editorServices = {});
+                    EditorRuntimeServices editorServices = {},
+                    SettingsRuntimeServices settingsServices = {},
+                    PresetRuntimeServices presetServices = {},
+                    PackageRuntimeServices packageServices = {});
 
         [[nodiscard]] DocumentVersion documentVersion() const;
         [[nodiscard]] const WindowId &windowId() const;
@@ -36,9 +42,12 @@ namespace Automation {
         DocumentAutomationFacade &documents();
         HistoryAutomationFacade &history();
         NoteAutomationFacade &notes();
+        PackageAutomationFacade &packages();
         ParameterAutomationFacade &parameters();
         PlaybackAutomationFacade &playback();
+        PresetAutomationFacade &presets();
         ProjectAutomationFacade &project();
+        SettingsAutomationFacade &settings();
         TaskAutomationFacade &tasks();
         AutomationTaskManager &automationTasks();
         TimelineAutomationFacade &timeline();
@@ -60,9 +69,12 @@ namespace Automation {
         EditorAutomationFacade m_facade;
         HistoryAutomationFacade m_historyFacade;
         NoteAutomationFacade m_noteFacade;
+        PackageAutomationFacade m_packageFacade;
         ParameterAutomationFacade m_parameterFacade;
         PlaybackAutomationFacade m_playbackFacade;
+        PresetAutomationFacade m_presetFacade;
         ProjectAutomationFacade m_projectFacade;
+        SettingsAutomationFacade m_settingsFacade;
         TaskAutomationFacade m_taskFacade;
         TimelineAutomationFacade m_timelineFacade;
     };

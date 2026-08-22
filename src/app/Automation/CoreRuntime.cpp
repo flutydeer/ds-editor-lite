@@ -5,7 +5,10 @@ namespace Automation {
     CoreRuntime::CoreRuntime(AppModel *model, HistoryManager *historyManager,
                              DocumentRuntimeServices documentServices,
                              PlaybackRuntimeServices playbackServices,
-                             EditorRuntimeServices editorServices)
+                             EditorRuntimeServices editorServices,
+                             SettingsRuntimeServices settingsServices,
+                             PresetRuntimeServices presetServices,
+                             PackageRuntimeServices packageServices)
         : m_session(model, historyManager), m_documentResolver(m_session),
           m_dispatcher(m_documentResolver, m_windowContext, m_catalog),
           m_documentFacade(m_catalog, m_dispatcher, m_committer, m_taskManager,
@@ -14,9 +17,12 @@ namespace Automation {
                    std::move(editorServices)),
           m_historyFacade(m_catalog, m_dispatcher, m_committer),
           m_noteFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
+          m_packageFacade(m_catalog, m_dispatcher, std::move(packageServices)),
           m_parameterFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
           m_playbackFacade(m_catalog, m_dispatcher, std::move(playbackServices)),
+          m_presetFacade(m_catalog, m_dispatcher, std::move(presetServices)),
           m_projectFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
+          m_settingsFacade(m_catalog, m_dispatcher, std::move(settingsServices)),
           m_taskFacade(m_catalog, m_dispatcher, m_taskManager),
           m_timelineFacade(m_catalog, m_dispatcher, m_committer) {
     }
@@ -61,6 +67,10 @@ namespace Automation {
         return m_noteFacade;
     }
 
+    PackageAutomationFacade &CoreRuntime::packages() {
+        return m_packageFacade;
+    }
+
     ParameterAutomationFacade &CoreRuntime::parameters() {
         return m_parameterFacade;
     }
@@ -69,8 +79,16 @@ namespace Automation {
         return m_playbackFacade;
     }
 
+    PresetAutomationFacade &CoreRuntime::presets() {
+        return m_presetFacade;
+    }
+
     ProjectAutomationFacade &CoreRuntime::project() {
         return m_projectFacade;
+    }
+
+    SettingsAutomationFacade &CoreRuntime::settings() {
+        return m_settingsFacade;
     }
 
     TaskAutomationFacade &CoreRuntime::tasks() {

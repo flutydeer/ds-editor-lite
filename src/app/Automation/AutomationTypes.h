@@ -125,6 +125,11 @@ namespace Automation {
         InvocationSource source = InvocationSource::TrustedGui;
     };
 
+    struct ApplicationCommandContext {
+        bool validateOnly = false;
+        InvocationSource source = InvocationSource::TrustedGui;
+    };
+
     enum class ObjectKind {
         Unknown,
         Track,
@@ -209,6 +214,14 @@ namespace Automation {
         bool validatedOnly = false;
 
         friend bool operator==(const GuiMutationResult &, const GuiMutationResult &) = default;
+    };
+
+    struct ApplicationMutationResult {
+        bool changed = false;
+        bool validatedOnly = false;
+
+        friend bool operator==(const ApplicationMutationResult &,
+                               const ApplicationMutationResult &) = default;
     };
 
 } // namespace Automation

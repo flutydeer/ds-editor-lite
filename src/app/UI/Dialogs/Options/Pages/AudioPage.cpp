@@ -402,7 +402,6 @@ void AudioPage::modifyOption() {
         AudioSystem::outputSystem()->outputContext()->controlMixer()->pan());
     AudioSettings::setFileBufferingReadAheadSize(m_fileBufferingReadAheadSizeSpinBox->value());
     AudioSettings::setPlayheadBehavior(m_playHeadBehaviorComboBox->currentData().toInt());
-    appOptions->saveAndNotify(AppOptionsGlobal::Audio);
 }
 
 void AudioPage::changeEvent(QEvent *event) {

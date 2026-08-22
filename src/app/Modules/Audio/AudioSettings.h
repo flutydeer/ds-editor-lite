@@ -11,7 +11,8 @@
   [[nodiscard]] static valueType readName(int index);                                              \
   static void writeName(int index, const valueType &);
 
-#include <QJsonValue>
+#include <QString>
+#include <QtGlobal>
 
 class AudioSettings {
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(adoptedBufferSize, setAdoptedBufferSize, qint64)
@@ -45,11 +46,7 @@ class AudioSettings {
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(vstEditorPort, setVstEditorPort, int)
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(vstPluginEditorUsesCustomTheme, setVstPluginEditorUsesCustomTheme, bool)
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(vstPluginPort, setVstPluginPort, int)
-    AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(vstTheme, setVstTheme, QJsonValue)
-
-    AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(audioExporterPresets, setAudioExporterPresets, QJsonValue)
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(audioExporterClippingCheckEnabled, setAudioExporterClippingCheckEnabled, bool)
-    AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(audioExporterCurrentPreset, setAudioExporterCurrentPreset, QJsonValue)
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(audioExporterIgnoredWarningFlag, setAudioExporterIgnoredWarningFlag, int)
     AUDIO_AUDIO_SETTINGS_OPTION_DECLARATION(audioExporterUseTemporaryFile, setAudioExporterUseTemporaryFile, bool)
 
