@@ -1,0 +1,15 @@
+Evidence ID: E-R30-UTF8-DEPS-PROBE
+Round: 30
+Scope: UTF-8 CMake generation and application-object dependency probe
+
+CMake configure: passed
+Ninja localized prefix encoding: UTF-8
+Targeted application build steps: 7
+Targeted build result: passed
+Representative application-object dependencies: 112
+Direct source header present: yes
+Unconsumed include records: no
+
+The standard script now configures and builds under UTF-8. CMake generated the localized
+Ninja dependency prefix in UTF-8, matching MSVC output without relying on a mutable ANSI
+console code page.
