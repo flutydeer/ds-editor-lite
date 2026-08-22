@@ -119,6 +119,18 @@ NEW_ICONS = [
 
     # 录音
     "record_24_filled.svg",
+
+    # 设置页侧栏图标 (AppOptionsDialog tab list) — 16px 主菜单 / 20px 侧栏
+    "settings_20_regular.svg",
+    "speaker_2_16_regular.svg",
+    "speaker_2_20_regular.svg",
+    "midi_16_regular.svg",
+    "midi_20_regular.svg",
+    "color_20_regular.svg",
+    "sparkle_16_regular.svg",
+    "sparkle_20_regular.svg",
+    "code_16_regular.svg",
+    "code_20_regular.svg",
 ]
 
 # ============================================================

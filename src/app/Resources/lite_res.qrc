@@ -97,6 +97,18 @@
         <file>svg/icons/window_apps_16_filled.svg</file>
         <file>svg/icons/color_16_filled.svg</file>
         <file>svg/icons/color_16_regular.svg</file>
+
+        <!-- ======== AppOptionsDialog Sidebar (16px main menu / 20px sidebar) ======== -->
+        <file>svg/icons/settings_20_regular.svg</file>
+        <file>svg/icons/speaker_2_16_regular.svg</file>
+        <file>svg/icons/speaker_2_20_regular.svg</file>
+        <file>svg/icons/midi_16_regular.svg</file>
+        <file>svg/icons/midi_20_regular.svg</file>
+        <file>svg/icons/sparkle_16_regular.svg</file>
+        <file>svg/icons/sparkle_20_regular.svg</file>
+        <file>svg/icons/code_16_regular.svg</file>
+        <file>svg/icons/code_20_regular.svg</file>
+        <file>svg/icons/color_20_regular.svg</file>
         <file>svg/icons/globe_16_regular.svg</file>
         <file>svg/icons/puzzle_piece_16_filled.svg</file>
         <file>svg/icons/layer_20_filled.svg</file>
