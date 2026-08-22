@@ -9,13 +9,15 @@ namespace Automation {
                              SettingsRuntimeServices settingsServices,
                              PresetRuntimeServices presetServices,
                              PackageRuntimeServices packageServices,
-                             InferenceRuntimeServices inferenceServices)
+                             InferenceRuntimeServices inferenceServices,
+                             FileRuntimeServices fileServices)
         : m_session(model, historyManager), m_documentResolver(m_session),
           m_dispatcher(m_documentResolver, m_windowContext, m_catalog),
           m_documentFacade(m_catalog, m_dispatcher, m_committer, m_taskManager,
                            std::move(documentServices)),
           m_facade(m_session, m_windowContext, m_catalog, m_dispatcher,
                    std::move(editorServices)),
+          m_fileFacade(m_catalog, m_dispatcher, std::move(fileServices)),
           m_historyFacade(m_catalog, m_dispatcher, m_committer),
           m_inferenceFacade(m_catalog, m_dispatcher, m_committer,
                             std::move(inferenceServices)),
@@ -60,6 +62,10 @@ namespace Automation {
 
     DocumentAutomationFacade &CoreRuntime::documents() {
         return m_documentFacade;
+    }
+
+    FileAutomationFacade &CoreRuntime::files() {
+        return m_fileFacade;
     }
 
     HistoryAutomationFacade &CoreRuntime::history() {

@@ -19,11 +19,9 @@
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferEngine.h"
-#include <lite/ProjectConverters/MidiConverter.h>
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/DecodeAudioTask.h"
 #include <lite/GUI/Theme/ThemeManager.h>
-#include <lite/Support/Log.h>
 
 AppController::AppController(QObject *parent)
     : QObject(parent), d_ptr(new AppControllerPrivate(this)) {
@@ -38,10 +36,14 @@ AppController::~AppController() {
 LITE_SINGLETON_IMPLEMENT_INSTANCE(AppController)
 
 bool AppController::exportMidiFile(const QString &filePath) {
-    MidiConverter converter;
-    QString errMsg;
-    Log::i("Midi exporter", errMsg);
-    return converter.save(filePath, appModel, errMsg);
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return false;
+    const auto result = runtime->files().exportMidi(
+        {.expected = runtime->documentVersion(),
+         .source = Automation::InvocationSource::TrustedGui},
+        filePath, true);
+    return static_cast<bool>(result);
 }
 
 void AppController::onSetTempo(const double tempo) {

@@ -4,6 +4,7 @@
 #include "DocumentSessionResolver.h"
 #include "DocumentAutomationFacade.h"
 #include "EditorAutomationFacade.h"
+#include "FileAutomationFacade.h"
 #include "HistoryAutomationFacade.h"
 #include "InferenceAutomationFacade.h"
 #include "NoteAutomationFacade.h"
@@ -31,7 +32,8 @@ namespace Automation {
                     SettingsRuntimeServices settingsServices = {},
                     PresetRuntimeServices presetServices = {},
                     PackageRuntimeServices packageServices = {},
-                    InferenceRuntimeServices inferenceServices = {});
+                    InferenceRuntimeServices inferenceServices = {},
+                    FileRuntimeServices fileServices = {});
 
         [[nodiscard]] DocumentVersion documentVersion() const;
         [[nodiscard]] const WindowId &windowId() const;
@@ -42,6 +44,7 @@ namespace Automation {
         const OperationCatalog &catalog() const;
         AutomationDispatcher &dispatcher();
         DocumentAutomationFacade &documents();
+        FileAutomationFacade &files();
         HistoryAutomationFacade &history();
         InferenceAutomationFacade &inference();
         NoteAutomationFacade &notes();
@@ -70,6 +73,7 @@ namespace Automation {
         AutomationTaskManager m_taskManager;
         DocumentAutomationFacade m_documentFacade;
         EditorAutomationFacade m_facade;
+        FileAutomationFacade m_fileFacade;
         HistoryAutomationFacade m_historyFacade;
         InferenceAutomationFacade m_inferenceFacade;
         NoteAutomationFacade m_noteFacade;

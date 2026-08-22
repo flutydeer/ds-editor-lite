@@ -162,6 +162,10 @@ namespace Automation {
         ModuleNotReady,
         Busy,
         OperationNotCancelable,
+        PathRequired,
+        FileNotFound,
+        FormatUnsupported,
+        OverwriteDenied,
         IoError,
         InternalError,
     };

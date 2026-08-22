@@ -23,6 +23,7 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Automation/CommandCommitter.cpp
         ../../app/Automation/DocumentObjectResolver.cpp
         ../../app/Automation/EditorAutomationFacade.cpp
+        ../../app/Automation/FileAutomationFacade.cpp
         ../../app/Automation/HistoryAutomationFacade.cpp
         ../../app/Automation/InferenceAutomationFacade.cpp
     ../../app/Automation/NoteAutomationFacade.cpp

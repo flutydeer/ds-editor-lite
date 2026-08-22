@@ -26,6 +26,14 @@ namespace Automation {
                 return QStringLiteral("busy");
             case AutomationErrorCode::OperationNotCancelable:
                 return QStringLiteral("operation_not_cancelable");
+            case AutomationErrorCode::PathRequired:
+                return QStringLiteral("path_required");
+            case AutomationErrorCode::FileNotFound:
+                return QStringLiteral("file_not_found");
+            case AutomationErrorCode::FormatUnsupported:
+                return QStringLiteral("format_unsupported");
+            case AutomationErrorCode::OverwriteDenied:
+                return QStringLiteral("overwrite_denied");
             case AutomationErrorCode::IoError:
                 return QStringLiteral("io_error");
             case AutomationErrorCode::InternalError:

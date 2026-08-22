@@ -9,6 +9,8 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QCoreApplication>
+#include <QFile>
+#include <QTemporaryDir>
 #include <QTextStream>
 
 #include <algorithm>
@@ -110,6 +112,16 @@ int main(int argc, char *argv[]) {
     ok &= expect(catalog.add(commandDescriptor()).isPresent(), "command descriptor must register");
     ok &= expect(!catalog.add(commandDescriptor()).isPresent(),
                  "duplicate operation ID must be rejected");
+    ok &= expect(Automation::errorCodeName(Automation::AutomationErrorCode::PathRequired) ==
+                         QStringLiteral("path_required") &&
+                     Automation::errorCodeName(Automation::AutomationErrorCode::FileNotFound) ==
+                         QStringLiteral("file_not_found") &&
+                     Automation::errorCodeName(
+                         Automation::AutomationErrorCode::FormatUnsupported) ==
+                         QStringLiteral("format_unsupported") &&
+                     Automation::errorCodeName(Automation::AutomationErrorCode::OverwriteDenied) ==
+                         QStringLiteral("overwrite_denied"),
+                 "file error codes must keep stable external names");
 
     Automation::AutomationDispatcher dispatcher(resolver, window, catalog);
     auto secondQuery = dispatcher.dispatchDocumentQuery<Automation::Revision>(
@@ -365,10 +377,32 @@ int main(int argc, char *argv[]) {
         return Automation::AutomationResult<Automation::PreparedInferenceMutation>(
             std::move(prepared));
     };
+    int midiExportCount = 0;
+    Automation::FileRuntimeServices fileServices;
+    fileServices.listProjectFormats = [] {
+        return QList<Automation::ProjectFormatDto>{
+            {.id = QStringLiteral("midi"),
+             .displayName = QStringLiteral("MIDI"),
+             .extensions = {QStringLiteral("mid"), QStringLiteral("midi")},
+             .canOpen = true,
+             .canImport = true,
+             .canExport = true},
+        };
+    };
+    fileServices.exportMidi = [&midiExportCount](AppModel *, const QString &path,
+                                                QString &errorMessage) {
+        ++midiExportCount;
+        if (path.endsWith(QStringLiteral("fail.mid"))) {
+            errorMessage = QStringLiteral("simulated export failure");
+            return false;
+        }
+        return true;
+    };
     Automation::CoreRuntime runtime(&model, history, std::move(documentServices),
                                     std::move(playbackServices), std::move(editorServices),
                                     std::move(settingsServices), std::move(presetServices),
-                                    std::move(packageServices), std::move(inferenceServices));
+                                    std::move(packageServices), std::move(inferenceServices),
+                                    std::move(fileServices));
     const auto state = runtime.facade().getEditorState(runtime.windowId());
     const auto capabilities = runtime.facade().getEditorCapabilities();
     ok &= expect(state && state.get().document == runtime.documentVersion(),
@@ -376,7 +410,7 @@ int main(int argc, char *argv[]) {
     ok &= expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                      capabilities.get().maxConcurrentWindows == 1,
                  "capabilities must declare the single document/window boundary");
-    ok &= expect(capabilities && capabilities.get().operationIds.size() == 104 &&
+    ok &= expect(capabilities && capabilities.get().operationIds.size() == 106 &&
                      capabilities.get().operationIds.contains(QStringLiteral("history.undo")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tempos.set")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tracks.insert")) &&
@@ -392,10 +426,73 @@ int main(int argc, char *argv[]) {
                      capabilities.get().operationIds.contains(QStringLiteral("packages.validate")) &&
                      capabilities.get().operationIds.contains(
                          QStringLiteral("inference.apply_phoneme_names")) &&
+                     capabilities.get().operationIds.contains(QStringLiteral("formats.list")) &&
+                     capabilities.get().operationIds.contains(
+                         QStringLiteral("exports.midi.start")) &&
                      capabilities.get().operationIds.contains(
                          QStringLiteral("editor.set_piano_roll_edit_mode")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("documents.save")),
                  "capabilities must be derived from every registered operation");
+
+    const auto formats = runtime.files().listFormats();
+    ok &= expect(formats && formats.get().size() == 1 && formats.get().first().canExport,
+                 "format discovery must return typed handler capabilities");
+    QTemporaryDir exportDirectory;
+    auto midiContext = commandContext(runtime);
+    midiContext.idempotencyKey = QStringLiteral("a6a762a9-ed3c-4bbf-b2a4-921f332cd303");
+    const auto midiPath = exportDirectory.filePath(QStringLiteral("automation.mid"));
+    auto midiPreviewContext = midiContext;
+    midiPreviewContext.validateOnly = true;
+    const auto midiPreview = runtime.files().exportMidi(midiPreviewContext, midiPath, false);
+    const auto midiExport = runtime.files().exportMidi(midiContext, midiPath, false);
+    const auto midiReplay = runtime.files().exportMidi(midiContext, midiPath, false);
+    ok &= expect(exportDirectory.isValid() && midiPreview && midiPreview.get().validatedOnly &&
+                     !midiPreview.get().wroteFile &&
+                     midiExport && midiReplay && midiExport.get() == midiReplay.get() &&
+                     midiExportCount == 1,
+                 "MIDI export must preview without writing and replay idempotently");
+    const auto midiConflict = runtime.files().exportMidi(
+        midiContext, exportDirectory.filePath(QStringLiteral("another.mid")), false);
+    const auto missingMidiPath = runtime.files().exportMidi(commandContext(runtime), {}, false);
+    const auto relativeMidiPath = runtime.files().exportMidi(
+        commandContext(runtime), QStringLiteral("relative.mid"), false);
+    const auto unsupportedMidiPath = runtime.files().exportMidi(
+        commandContext(runtime), exportDirectory.filePath(QStringLiteral("automation.wav")), false);
+    const auto absentMidiDirectory = runtime.files().exportMidi(
+        commandContext(runtime),
+        exportDirectory.filePath(QStringLiteral("absent/automation.mid")), false);
+    ok &= expect(!midiConflict &&
+                     midiConflict.getError().code ==
+                         Automation::AutomationErrorCode::IdempotencyConflict &&
+                     !missingMidiPath &&
+                     missingMidiPath.getError().code ==
+                         Automation::AutomationErrorCode::PathRequired &&
+                     !relativeMidiPath &&
+                     relativeMidiPath.getError().code ==
+                         Automation::AutomationErrorCode::InvalidArgument &&
+                     !unsupportedMidiPath &&
+                     unsupportedMidiPath.getError().code ==
+                         Automation::AutomationErrorCode::FormatUnsupported &&
+                     !absentMidiDirectory &&
+                     absentMidiDirectory.getError().code ==
+                         Automation::AutomationErrorCode::FileNotFound,
+                 "MIDI export must expose stable idempotency and path validation errors");
+    const auto existingMidiPath =
+        exportDirectory.filePath(QStringLiteral("existing.mid"));
+    QFile existingMidi(existingMidiPath);
+    const auto createdExistingMidi = existingMidi.open(QIODevice::WriteOnly);
+    existingMidi.close();
+    const auto overwriteDenied = runtime.files().exportMidi(
+        commandContext(runtime), existingMidiPath, false);
+    const auto failedMidiExport = runtime.files().exportMidi(
+        commandContext(runtime), exportDirectory.filePath(QStringLiteral("fail.mid")), false);
+    ok &= expect(createdExistingMidi && !overwriteDenied &&
+                     overwriteDenied.getError().code ==
+                         Automation::AutomationErrorCode::OverwriteDenied &&
+                     !failedMidiExport &&
+                     failedMidiExport.getError().code == Automation::AutomationErrorCode::IoError &&
+                     midiExportCount == 2,
+                 "MIDI export must enforce overwrite policy and preserve backend failures");
 
     Automation::InferenceMutationRequest acousticRequest;
     acousticRequest.kind = Automation::InferenceMutationKind::ApplyAcoustic;
