@@ -43,6 +43,8 @@ PhonemeView::PhonemeView(QWidget *parent) : QWidget(parent) {
             &PhonemeView::setPosition);
     connect(playbackController, &PlaybackController::lastPositionChanged, this,
             &PhonemeView::setLastPosition);
+    connect(playbackController, &PlaybackController::playbackStatusChanged, this,
+            [this] { update(); });
 
     m_lastPosition = playbackController->lastPosition();
 }
@@ -287,14 +289,16 @@ void PhonemeView::paintEvent(QPaintEvent *event) {
         }
     }
 
-    // Draw last playback position (dashed)
-    painter.setRenderHint(QPainter::Antialiasing);
-    pen.setStyle(Qt::DashLine);
-    pen.setWidthF(1.0);
-    pen.setColor(m_lastPositionLineColor);
-    painter.setPen(pen);
-    auto lastX = tickToX(m_lastPosition);
-    painter.drawLine(QLineF(lastX, 0, lastX, rect().height()));
+    if (playbackController->playbackStatus() != PlaybackGlobal::Stopped) {
+        // Draw last playback position (dashed)
+        painter.setRenderHint(QPainter::Antialiasing);
+        pen.setStyle(Qt::DashLine);
+        pen.setWidthF(1.0);
+        pen.setColor(m_lastPositionLineColor);
+        painter.setPen(pen);
+        auto lastX = tickToX(m_lastPosition);
+        painter.drawLine(QLineF(lastX, 0, lastX, rect().height()));
+    }
 
     // Draw playback indicator
     painter.setRenderHint(QPainter::Antialiasing);
