@@ -46,3 +46,34 @@
 ### 判定
 
 通过。允许进入已批准的全量 Computer Use 回归。
+
+## 回归轮次 01：Modifier 输入桥首次资格验证
+
+### 范围
+
+在隔离工作树、隔离 AppData/LocalAppData 和独立进程中验证测试专用 Modifier 输入桥。
+测试步骤为 F9 锁存 Control，刷新窗口状态后，以鼠标左键点击当前已选片段，预期点击事件
+携带 Control 且锁存在手势结束时清除。
+
+### 结果
+
+- 测试桥 Debug 全目标构建：599/599 通过。
+- 隔离实例启动：通过；DirectML、G2P 与应用初始化均成功，未出现阻塞弹窗。
+- Control 锁存：按键被桥接收，日志记录 `armed "Control"`。
+- Modifier+鼠标注入：未执行到有效锁存窗口内。锁存在鼠标动作前因 10 秒超时被清除，
+  因此本轮不能证明鼠标事件携带 Control。
+- 正式产品代码与用户配置未被修改；测试实例使用独立配置和缓存目录。
+
+### 证据
+
+- 临时工作树：`D:/OpenVPI/ds-editor-lite-gui-regression`。
+- 隔离运行目录：
+  `C:/Users/yqzhishen/AppData/Local/Temp/ds-editor-lite-gui-regression-jJ7Zjz`。
+- 进程日志：`C:/Users/yqzhishen/.fastctx/jobs/j-dlgjrr/output.log`。
+- 关键时间：04:11:53.141 锁存 Control；04:12:03.134 因 timeout 清除；鼠标动作发生
+  于 04:12:06 之后。
+
+### 判定
+
+失败（测试基础设施时序不足，非产品功能失败）。隔离桥锁存时限需适配 Computer Use 的
+观察—动作往返，再以新轮次复测；本轮记录永久保留。
