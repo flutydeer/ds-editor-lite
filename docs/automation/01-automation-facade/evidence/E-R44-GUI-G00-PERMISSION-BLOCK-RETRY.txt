@@ -1,0 +1,11 @@
+round=44
+scope=GUI-G00 retry on rebuilt application
+computer_use=available
+window_match=exactly one DS Editor Lite window; independent untitled project visible behind overlay
+blocking_overlay=Windows security-center network permission prompt for an unrelated Python process
+security_rule=permission prompts may not be accepted, rejected, bypassed, or manipulated by automation
+input_sent=none
+product_assertions_executed=none
+GUI_G00_cache_bridge_note_assertions=not executed
+classification=test infrastructure blocked; not a product pass or failure
+privacy=logical aliases only; no local absolute paths
