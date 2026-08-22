@@ -2822,6 +2822,42 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <source>Only infer pieces within the lookahead window ahead of the playhead. Effective when Auto Start Infer is off</source>
         <translation>仅推理播放头前方前瞻窗口内的片段。关闭 Auto Start Infer 时生效</translation>
     </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="370"/>
+        <source>Singer Session Retention</source>
+        <translation>歌手会话保持</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="348"/>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="361"/>
+        <source>Unlimited</source>
+        <translation>无限制</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="357"/>
+        <source>%L1 seconds</source>
+        <translation>%L1 秒</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="372"/>
+        <source>Capacity</source>
+        <translation>容量</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="373"/>
+        <source>Maximum number of selected singers kept ready</source>
+        <translation>最多保留的已选中歌手数量</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="376"/>
+        <source>Idle Timeout</source>
+        <translation>空闲超时</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="377"/>
+        <source>Release an unused selected singer after this duration</source>
+        <translation>歌手空闲达到指定时长后释放</translation>
+    </message>
 </context>
 <context>
     <name>InitInferEngineTask</name>
