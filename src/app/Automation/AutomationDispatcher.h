@@ -38,7 +38,7 @@ namespace Automation {
                             QStringLiteral("Operation is not an application query")),
                         operationId);
                 }
-                return std::forward<Handler>(handler)();
+                return decorateHandlerResult<T>(std::forward<Handler>(handler)(), operationId);
             });
         }
 
@@ -80,7 +80,8 @@ namespace Automation {
                     return decorateError(
                         AutomationError::documentBusy(resolved.get().get().documentId()),
                         operationId);
-                return std::forward<Handler>(handler)(resolved.get().get());
+                return decorateHandlerResult<T>(
+                    std::forward<Handler>(handler)(resolved.get().get()), operationId);
             });
         }
 
@@ -101,7 +102,7 @@ namespace Automation {
                 const auto validated = m_windowContext.validateWindow(windowId);
                 if (!validated)
                     return decorateError(validated.getError(), operationId);
-                return std::forward<Handler>(handler)();
+                return decorateHandlerResult<T>(std::forward<Handler>(handler)(), operationId);
             });
         }
 
@@ -133,7 +134,7 @@ namespace Automation {
                 const auto validated = m_windowContext.validateWindow(windowId);
                 if (!validated)
                     return decorateError(validated.getError(), operationId);
-                return std::forward<Handler>(handler)(session);
+                return decorateHandlerResult<T>(std::forward<Handler>(handler)(session), operationId);
             });
         }
 
@@ -289,6 +290,14 @@ namespace Automation {
         }
 
     private:
+        template <typename T>
+        static AutomationResult<T> decorateHandlerResult(AutomationResult<T> result,
+                                                         const OperationId &operationId) {
+            if (!result)
+                return decorateError(result.getError(), operationId);
+            return result;
+        }
+
         template <typename Callable>
         auto runSerialized(Callable &&callable) -> std::invoke_result_t<Callable> {
             using Result = std::invoke_result_t<Callable>;
