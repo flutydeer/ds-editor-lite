@@ -5,6 +5,8 @@ include_directories(${LITE_BUILD_INCLUDE_DIR})
 
 add_subdirectory(AutomationTestSupport)
 add_subdirectory(TestAutomationCore)
+add_subdirectory(TestAutomationCatalogContract)
+add_subdirectory(TestAutomationDocumentLifecycle)
 add_subdirectory(TestAutomationArchitecture)
 #add_subdirectory(TestAnchoredCurve)
 add_subdirectory(TestElasticAnimation)
