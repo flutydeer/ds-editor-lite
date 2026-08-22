@@ -189,3 +189,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R32-FULL-CTEST-FIRST` | 32 | 清洁二进制首次完整 CTest 摘要 | `f0cf1ef0916bd21a53fbe1a3984fb81d49907fac4ac9bca19e4097a777ae2e01` |
+
+## 追加证据 30
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R33-FULL-CTEST-SECOND` | 33 | 清洁二进制第二次完整 CTest 摘要 | `1d86c74d216ba02749ac1aad8b40ca4152753882d5da06c8ab930628e85ddd9c` |
