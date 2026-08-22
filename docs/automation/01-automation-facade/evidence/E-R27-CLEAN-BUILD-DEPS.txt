@@ -1,0 +1,15 @@
+Evidence ID: E-R27-CLEAN-BUILD-DEPS
+Round: 27
+Scope: clean all-target build and MSVC dependency audit
+
+Cleaned generated files: 895
+Clean build steps: 961
+Build result: passed
+Representative object dependencies after standard build: 0
+Representative object dependencies after ANSI-code-page rebuild: 141
+Required dispatcher header present after controlled rebuild: yes
+
+The localized MSVC include prefix was encoded differently in the Ninja rule and compiler
+stream when the test terminal used UTF-8. Ninja therefore compiled successfully but discarded
+header dependencies. Rebuilding the same source with the current UI culture's ANSI code page
+restored the complete dependency set.
