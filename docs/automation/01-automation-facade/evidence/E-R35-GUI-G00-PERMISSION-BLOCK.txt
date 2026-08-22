@@ -1,0 +1,18 @@
+Evidence ID: E-R35-GUI-G00-PERMISSION-BLOCK
+Round: 35
+Scenario group: GUI-G00
+Result: blocked by test infrastructure
+
+Target selection:
+- exactly one editor window returned
+- title identified a new untitled project
+- independent empty workspace was visible
+
+Blocker:
+- a Windows security firewall-permission prompt for the Computer Use runtime covered the workspace
+- the security prompt was not returned as a targetable application window
+- Computer Use transport itself was healthy
+
+No input was sent to the security prompt. Cache qualification, note creation, and modifier-bridge
+gestures were not executed. No product assertion was counted as passed or failed beyond unique-window
+selection and the visible empty-workspace observation.

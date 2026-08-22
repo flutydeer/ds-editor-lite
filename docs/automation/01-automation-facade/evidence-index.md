@@ -201,3 +201,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R34-FULL-CTEST-THIRD` | 34 | 清洁二进制第三次完整 CTest 摘要 | `9b534587ebaf77c9aa0912dda0bb4c036935773d5817fc4cff152ae010586cbd` |
+
+## 追加证据 32
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R35-GUI-G00-PERMISSION-BLOCK` | 35 | GUI-G00 系统权限提示阻塞摘要 | `d2ee0b4cc54116eab016927a060fafeae2668dafd20ce2f4a5c8dbe9e02a9e75` |
