@@ -121,6 +121,7 @@ namespace Automation {
 
     struct GuiCommandContext {
         WindowId windowId;
+        bool validateOnly = false;
         InvocationSource source = InvocationSource::TrustedGui;
     };
 
@@ -200,6 +201,14 @@ namespace Automation {
         bool validatedOnly = false;
 
         friend bool operator==(const MutationResult &, const MutationResult &) = default;
+    };
+
+    struct GuiMutationResult {
+        WindowId windowId;
+        bool changed = false;
+        bool validatedOnly = false;
+
+        friend bool operator==(const GuiMutationResult &, const GuiMutationResult &) = default;
     };
 
 } // namespace Automation

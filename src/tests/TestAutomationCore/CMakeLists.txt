@@ -26,6 +26,7 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Automation/HistoryAutomationFacade.cpp
         ../../app/Automation/NoteAutomationFacade.cpp
         ../../app/Automation/ParameterAutomationFacade.cpp
+        ../../app/Automation/PlaybackAutomationFacade.cpp
         ../../app/Automation/ProjectAutomationDtos.cpp
         ../../app/Automation/ProjectAutomationFacade.cpp
         ../../app/Automation/TaskAutomationFacade.cpp

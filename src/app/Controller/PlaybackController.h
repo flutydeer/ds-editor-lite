@@ -14,6 +14,7 @@
 using namespace PlaybackGlobal;
 
 class PlaybackControllerPrivate;
+class AppContext;
 
 class PlaybackController final : public QObject {
     Q_OBJECT
@@ -51,6 +52,13 @@ public slots:
     void onModelChanged();
 
 private:
+    friend class AppContext;
+
+    bool applyPlay();
+    void applyPause();
+    void applyStop();
+    void applyPosition(double tick);
+    void applyLastPosition(double tick);
     void requestVisualPositionUpdate();
     void updateVisualPositionTimerInterval();
 

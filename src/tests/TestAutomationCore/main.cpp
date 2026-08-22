@@ -184,7 +184,76 @@ int main(int argc, char *argv[]) {
         ++saveCount;
         return true;
     };
-    Automation::CoreRuntime runtime(&model, history, std::move(documentServices));
+    Automation::PlaybackHostSnapshot playbackHost;
+    bool playbackCanStart = true;
+    Automation::PlaybackRuntimeServices playbackServices;
+    playbackServices.snapshot = [&playbackHost] { return playbackHost; };
+    playbackServices.canStart = [&playbackCanStart] { return playbackCanStart; };
+    playbackServices.play = [&playbackHost] {
+        playbackHost.state = Automation::PlaybackState::Playing;
+        return true;
+    };
+    playbackServices.pause = [&playbackHost] {
+        playbackHost.state = Automation::PlaybackState::Paused;
+    };
+    playbackServices.stop = [&playbackHost] {
+        playbackHost.state = Automation::PlaybackState::Stopped;
+    };
+    playbackServices.setPosition = [&playbackHost](const double tick) {
+        playbackHost.position = tick;
+    };
+    playbackServices.setLastPosition = [&playbackHost](const double tick) {
+        playbackHost.lastPosition = tick;
+    };
+    EditorViewState editorViewState;
+    Automation::EditorRuntimeServices editorServices;
+    editorServices.captureView = [&editorViewState] {
+        return std::optional<EditorViewState>(editorViewState);
+    };
+    editorServices.restoreView = [&editorViewState](const EditorViewState &state) {
+        editorViewState = state;
+        return true;
+    };
+    editorServices.centerTrackPanel = [&editorViewState](const double tick,
+                                                        const double trackIndex) {
+        editorViewState.trackPanel.centerTick = tick;
+        editorViewState.trackPanel.centerTrackIndex = trackIndex;
+        return true;
+    };
+    editorServices.setTrackPanelScale = [&editorViewState](const double horizontal,
+                                                          const double vertical) {
+        editorViewState.trackPanel.horizontalScale = horizontal;
+        editorViewState.trackPanel.verticalScale = vertical;
+        return true;
+    };
+    editorServices.setPanelVisibility = [&editorViewState](const bool trackVisible,
+                                                          const bool bottomVisible) {
+        editorViewState.layout.trackPanelVisible = trackVisible;
+        editorViewState.layout.bottomPanelVisible = bottomVisible;
+        return true;
+    };
+    editorServices.showBottomPanelPage = [&editorViewState](const QString &pageId) {
+        editorViewState.layout.bottomPanelPageId = pageId;
+        return true;
+    };
+    editorServices.centerPianoRoll = [&editorViewState](const double tick,
+                                                       const double keyIndex) {
+        editorViewState.pianoRoll.centerTick = tick;
+        editorViewState.pianoRoll.centerKeyIndex = keyIndex;
+        return true;
+    };
+    editorServices.setPianoRollScale = [&editorViewState](const double horizontal,
+                                                         const double vertical) {
+        editorViewState.pianoRoll.horizontalScale = horizontal;
+        editorViewState.pianoRoll.verticalScale = vertical;
+        return true;
+    };
+    editorServices.setPianoRollEditMode = [&editorViewState](const auto mode) {
+        editorViewState.pianoRoll.editMode = mode;
+        return true;
+    };
+    Automation::CoreRuntime runtime(&model, history, std::move(documentServices),
+                                    std::move(playbackServices), std::move(editorServices));
     const auto state = runtime.facade().getEditorState(runtime.windowId());
     const auto capabilities = runtime.facade().getEditorCapabilities();
     ok &= expect(state && state.get().document == runtime.documentVersion(),
@@ -192,7 +261,7 @@ int main(int argc, char *argv[]) {
     ok &= expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                      capabilities.get().maxConcurrentWindows == 1,
                  "capabilities must declare the single document/window boundary");
-    ok &= expect(capabilities && capabilities.get().operationIds.size() == 57 &&
+    ok &= expect(capabilities && capabilities.get().operationIds.size() == 71 &&
                      capabilities.get().operationIds.contains(QStringLiteral("history.undo")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tempos.set")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tracks.insert")) &&
@@ -200,8 +269,56 @@ int main(int argc, char *argv[]) {
                      capabilities.get().operationIds.contains(QStringLiteral("parameters.replace")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("imports.commit_batch")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("operations.cancel")) &&
+                     capabilities.get().operationIds.contains(QStringLiteral("playback.play")) &&
+                     capabilities.get().operationIds.contains(
+                         QStringLiteral("editor.set_piano_roll_edit_mode")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("documents.save")),
                  "capabilities must be derived from every registered operation");
+
+    const auto playbackVersion = runtime.documentVersion();
+    const auto playbackPreview =
+        runtime.playback().setPosition(commandContext(runtime, true), 960.0);
+    const auto playbackPosition =
+        runtime.playback().setPosition(commandContext(runtime), 960.0);
+    const auto playbackPlay = runtime.playback().play(commandContext(runtime));
+    const auto playbackSnapshot =
+        runtime.playback().getPlayback(runtime.documentVersion().documentId);
+    ok &= expect(playbackPreview && playbackPreview.get().validatedOnly && playbackPosition &&
+                     playbackPlay && playbackSnapshot &&
+                     playbackSnapshot.get().state == Automation::PlaybackState::Playing &&
+                     playbackSnapshot.get().position == 960.0 &&
+                     runtime.documentVersion() == playbackVersion,
+                 "playback commands must use explicit document routing without changing revision");
+    playbackCanStart = false;
+    runtime.playback().stop(commandContext(runtime));
+    const auto blockedPlayback = runtime.playback().play(commandContext(runtime));
+    ok &= expect(!blockedPlayback &&
+                     blockedPlayback.getError().code == Automation::AutomationErrorCode::Busy,
+                 "playback start must report an in-progress editor gesture");
+    playbackCanStart = true;
+
+    Automation::GuiCommandContext guiContext{
+        .windowId = runtime.windowId(),
+        .source = Automation::InvocationSource::Test,
+    };
+    auto guiPreviewContext = guiContext;
+    guiPreviewContext.validateOnly = true;
+    const auto editorPreview = runtime.facade().centerPianoRoll(guiPreviewContext, 1440.0, 72.0);
+    const auto editorCenter = runtime.facade().centerPianoRoll(guiContext, 1440.0, 72.0);
+    const auto editorMode = runtime.facade().setPianoRollEditMode(
+        guiContext, EditorViewGlobal::DrawNote);
+    ok &= expect(editorPreview && editorPreview.get().validatedOnly && editorCenter && editorMode &&
+                     editorViewState.pianoRoll.centerTick == 1440.0 &&
+                     editorViewState.pianoRoll.centerKeyIndex == 72.0 &&
+                     editorViewState.pianoRoll.editMode == EditorViewGlobal::DrawNote,
+                 "GUI editor commands must validate and route through the single window context");
+    guiContext.windowId = Automation::WindowId::create();
+    const auto unknownEditorWindow =
+        runtime.facade().setPanelVisibility(guiContext, true, false);
+    ok &= expect(!unknownEditorWindow &&
+                     unknownEditorWindow.getError().code ==
+                         Automation::AutomationErrorCode::HostCapabilityUnavailable,
+                 "GUI editor commands must reject an unknown window ID");
 
     Automation::CommandContext setTempoContext;
     setTempoContext.expected = runtime.documentVersion();

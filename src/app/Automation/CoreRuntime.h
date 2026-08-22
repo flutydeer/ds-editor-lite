@@ -7,6 +7,7 @@
 #include "HistoryAutomationFacade.h"
 #include "NoteAutomationFacade.h"
 #include "ParameterAutomationFacade.h"
+#include "PlaybackAutomationFacade.h"
 #include "ProjectAutomationFacade.h"
 #include "TimelineAutomationFacade.h"
 #include "TaskAutomationFacade.h"
@@ -20,7 +21,9 @@ namespace Automation {
     public:
         CoreRuntime(AppModel *model,
                     HistoryManager *historyManager,
-                    DocumentRuntimeServices documentServices = {});
+                    DocumentRuntimeServices documentServices = {},
+                    PlaybackRuntimeServices playbackServices = {},
+                    EditorRuntimeServices editorServices = {});
 
         [[nodiscard]] DocumentVersion documentVersion() const;
         [[nodiscard]] const WindowId &windowId() const;
@@ -34,6 +37,7 @@ namespace Automation {
         HistoryAutomationFacade &history();
         NoteAutomationFacade &notes();
         ParameterAutomationFacade &parameters();
+        PlaybackAutomationFacade &playback();
         ProjectAutomationFacade &project();
         TaskAutomationFacade &tasks();
         AutomationTaskManager &automationTasks();
@@ -57,6 +61,7 @@ namespace Automation {
         HistoryAutomationFacade m_historyFacade;
         NoteAutomationFacade m_noteFacade;
         ParameterAutomationFacade m_parameterFacade;
+        PlaybackAutomationFacade m_playbackFacade;
         ProjectAutomationFacade m_projectFacade;
         TaskAutomationFacade m_taskFacade;
         TimelineAutomationFacade m_timelineFacade;

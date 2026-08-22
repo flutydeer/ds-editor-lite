@@ -1,6 +1,8 @@
 #include "PlaybackController.h"
 #include "PlaybackController_p.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/GUI/Controls/Toast.h>
@@ -60,14 +62,22 @@ void PlaybackController::setPlaybackStartGuard(std::function<bool()> guard) {
 }
 
 void PlaybackController::play() {
-    Q_D(PlaybackController);
-    if (appStatus->currentEditObject != AppStatus::EditObjectType::None) {
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    const auto result = runtime->playback().play(
+        {.expected = runtime->documentVersion(),
+         .source = Automation::InvocationSource::TrustedGui});
+    if (!result && result.getError().code == Automation::AutomationErrorCode::Busy) {
         qWarning() << "Cannot start playing because mouse button not released";
         Toast::show(tr("Please release mouse button before playing"));
-        return;
     }
+}
+
+bool PlaybackController::applyPlay() {
+    Q_D(PlaybackController);
     if (d->m_playbackStartGuard && !d->m_playbackStartGuard())
-        return;
+        return false;
     d->m_playbackStatus = Playing;
     d->m_visualPositionAnchor = d->m_position;
     d->m_visualPositionClock.restart();
@@ -75,9 +85,18 @@ void PlaybackController::play() {
     updateVisualPositionTimerInterval();
     d->m_visualPositionTimer.start();
     emit visualPositionChanged(d->m_position);
+    return true;
 }
 
 void PlaybackController::pause() {
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+        runtime->playback().pause(
+            {.expected = runtime->documentVersion(),
+             .source = Automation::InvocationSource::TrustedGui});
+    }
+}
+
+void PlaybackController::applyPause() {
     Q_D(PlaybackController);
     d->m_playbackStatus = Paused;
     d->m_visualPositionTimer.stop();
@@ -86,6 +105,14 @@ void PlaybackController::pause() {
 }
 
 void PlaybackController::stop() {
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+        runtime->playback().stop(
+            {.expected = runtime->documentVersion(),
+             .source = Automation::InvocationSource::TrustedGui});
+    }
+}
+
+void PlaybackController::applyStop() {
     Q_D(PlaybackController);
     d->m_playbackStatus = Stopped;
     d->m_visualPositionTimer.stop();
@@ -94,6 +121,15 @@ void PlaybackController::stop() {
 }
 
 void PlaybackController::setPosition(const double tick) {
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+        runtime->playback().setPosition(
+            {.expected = runtime->documentVersion(),
+             .source = Automation::InvocationSource::TrustedGui},
+            tick);
+    }
+}
+
+void PlaybackController::applyPosition(const double tick) {
     Q_D(PlaybackController);
     d->m_position = tick;
     d->m_visualPositionAnchor = tick;
@@ -104,6 +140,15 @@ void PlaybackController::setPosition(const double tick) {
 }
 
 void PlaybackController::setLastPosition(const double tick) {
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+        runtime->playback().setLastPosition(
+            {.expected = runtime->documentVersion(),
+             .source = Automation::InvocationSource::TrustedGui},
+            tick);
+    }
+}
+
+void PlaybackController::applyLastPosition(const double tick) {
     Q_D(PlaybackController);
     d->m_lastPlayPosition = tick;
     emit lastPositionChanged(tick);

@@ -3,15 +3,19 @@
 namespace Automation {
 
     CoreRuntime::CoreRuntime(AppModel *model, HistoryManager *historyManager,
-                             DocumentRuntimeServices documentServices)
+                             DocumentRuntimeServices documentServices,
+                             PlaybackRuntimeServices playbackServices,
+                             EditorRuntimeServices editorServices)
         : m_session(model, historyManager), m_documentResolver(m_session),
           m_dispatcher(m_documentResolver, m_windowContext, m_catalog),
           m_documentFacade(m_catalog, m_dispatcher, m_committer, m_taskManager,
                            std::move(documentServices)),
-          m_facade(m_session, m_windowContext, m_catalog, m_dispatcher),
+          m_facade(m_session, m_windowContext, m_catalog, m_dispatcher,
+                   std::move(editorServices)),
           m_historyFacade(m_catalog, m_dispatcher, m_committer),
           m_noteFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
           m_parameterFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
+          m_playbackFacade(m_catalog, m_dispatcher, std::move(playbackServices)),
           m_projectFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
           m_taskFacade(m_catalog, m_dispatcher, m_taskManager),
           m_timelineFacade(m_catalog, m_dispatcher, m_committer) {
@@ -59,6 +63,10 @@ namespace Automation {
 
     ParameterAutomationFacade &CoreRuntime::parameters() {
         return m_parameterFacade;
+    }
+
+    PlaybackAutomationFacade &CoreRuntime::playback() {
+        return m_playbackFacade;
     }
 
     ProjectAutomationFacade &CoreRuntime::project() {

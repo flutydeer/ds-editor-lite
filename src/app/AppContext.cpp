@@ -96,8 +96,87 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         DspxProjectConverterUi converter;
         return converter.save(path, model, error);
     };
+    Automation::PlaybackRuntimeServices playbackServices;
+    playbackServices.snapshot = [this] {
+        Automation::PlaybackHostSnapshot result;
+        if (!m_playbackController)
+            return result;
+        switch (m_playbackController->playbackStatus()) {
+            case PlaybackGlobal::Playing:
+                result.state = Automation::PlaybackState::Playing;
+                break;
+            case PlaybackGlobal::Paused:
+                result.state = Automation::PlaybackState::Paused;
+                break;
+            case PlaybackGlobal::Stopped:
+                result.state = Automation::PlaybackState::Stopped;
+                break;
+        }
+        result.position = m_playbackController->position();
+        result.lastPosition = m_playbackController->lastPosition();
+        return result;
+    };
+    playbackServices.canStart = [this] {
+        return m_appStatus->currentEditObject.get() == AppStatus::EditObjectType::None;
+    };
+    playbackServices.play = [this] {
+        return m_playbackController && m_playbackController->applyPlay();
+    };
+    playbackServices.pause = [this] {
+        if (m_playbackController)
+            m_playbackController->applyPause();
+    };
+    playbackServices.stop = [this] {
+        if (m_playbackController)
+            m_playbackController->applyStop();
+    };
+    playbackServices.setPosition = [this](const double tick) {
+        if (m_playbackController)
+            m_playbackController->applyPosition(tick);
+    };
+    playbackServices.setLastPosition = [this](const double tick) {
+        if (m_playbackController)
+            m_playbackController->applyLastPosition(tick);
+    };
+    Automation::EditorRuntimeServices editorServices;
+    editorServices.captureView = [this] {
+        return m_editorViewController ? m_editorViewController->captureState()
+                                      : std::optional<EditorViewState>();
+    };
+    editorServices.restoreView = [this](const EditorViewState &state) {
+        return m_editorViewController && m_editorViewController->applyRestoreState(state);
+    };
+    editorServices.centerTrackPanel = [this](const double tick, const double trackIndex) {
+        return m_editorViewController &&
+               m_editorViewController->applyCenterTrackPanelAt(tick, trackIndex);
+    };
+    editorServices.setTrackPanelScale = [this](const double horizontal, const double vertical) {
+        return m_editorViewController &&
+               m_editorViewController->applyTrackPanelScale(horizontal, vertical);
+    };
+    editorServices.setPanelVisibility = [this](const bool trackVisible, const bool bottomVisible) {
+        return m_editorViewController &&
+               m_editorViewController->applyPanelVisibility(trackVisible, bottomVisible);
+    };
+    editorServices.showBottomPanelPage = [this](const QString &pageId) {
+        return m_editorViewController && m_editorViewController->applyBottomPanelPage(pageId);
+    };
+    editorServices.centerPianoRoll = [this](const double tick, const double keyIndex) {
+        return m_editorViewController &&
+               m_editorViewController->applyCenterPianoRollAt(tick, keyIndex);
+    };
+    editorServices.setPianoRollScale = [this](const double horizontal, const double vertical) {
+        return m_editorViewController &&
+               m_editorViewController->applyPianoRollScale(horizontal, vertical);
+    };
+    editorServices.setPianoRollEditMode =
+        [this](const EditorViewGlobal::PianoRollEditMode mode) {
+            return m_editorViewController &&
+                   m_editorViewController->applyPianoRollEditMode(mode);
+        };
     m_coreRuntime = std::make_unique<Automation::CoreRuntime>(
-        m_appModel, m_historyManager, std::move(documentServices));
+        m_appModel, m_historyManager, std::move(documentServices), std::move(playbackServices),
+        std::move(editorServices));
 
     // L3: Runtime host must outlive the inference facade.
     m_synthrtEngine = SingletonRegistry::create<SynthrtEngine>();

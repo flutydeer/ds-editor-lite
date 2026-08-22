@@ -86,6 +86,32 @@ namespace Automation {
             });
         }
 
+        template <typename T, typename Handler>
+        AutomationResult<T> dispatchGuiCommand(const OperationId &operationId,
+                                               const GuiCommandContext &context,
+                                               Handler &&handler) {
+            return runSerialized([&]() -> AutomationResult<T> {
+                const auto descriptor = requireDescriptor(operationId, OperationKind::Command);
+                if (!descriptor)
+                    return descriptor.getError();
+                if (descriptor.get()->hostAvailability != HostAvailability::GuiOnly ||
+                    descriptor.get()->documentPolicy != DocumentPolicy::None) {
+                    return decorateError(
+                        AutomationError::invalidArgument(
+                            QStringLiteral("operation_id"),
+                            QStringLiteral("Operation is not a GUI-only command")),
+                        operationId);
+                }
+                const auto validated = m_windowContext.validateWindow(context.windowId);
+                if (!validated)
+                    return decorateError(validated.getError(), operationId);
+                auto result = std::forward<Handler>(handler)(context.validateOnly);
+                if (!result)
+                    return decorateError(result.getError(), operationId);
+                return result;
+            });
+        }
+
         AutomationResult<MutationResult>
         dispatchDocumentCommand(const OperationId &operationId,
                                 const CommandContext &context,

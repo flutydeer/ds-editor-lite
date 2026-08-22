@@ -15,6 +15,7 @@
 
 class IEditorView;
 class IPanel;
+class AppContext;
 
 class EditorViewController final : public QObject {
     Q_OBJECT
@@ -71,6 +72,16 @@ signals:
     void editCommandRequested(EditorInteraction::Target target, EditorInteraction::Command command);
 
 private:
+    friend class AppContext;
+
+    bool applyRestoreState(const EditorViewState &state) const;
+    bool applyCenterTrackPanelAt(double tick, double trackIndex) const;
+    bool applyTrackPanelScale(double horizontalScale, double verticalScale) const;
+    bool applyPanelVisibility(bool trackPanelVisible, bool bottomPanelVisible) const;
+    bool applyBottomPanelPage(const QString &pageId) const;
+    bool applyCenterPianoRollAt(double tick, double keyIndex) const;
+    bool applyPianoRollScale(double horizontalScale, double verticalScale) const;
+    bool applyPianoRollEditMode(EditorViewGlobal::PianoRollEditMode mode) const;
     bool eventFilter(QObject *watched, QEvent *event) override;
     void setActiveContext(AppGlobal::PanelType panel, EditorInteraction::Target target);
     void setActiveEditTarget(EditorInteraction::Target target);
