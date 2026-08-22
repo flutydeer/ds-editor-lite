@@ -33,7 +33,7 @@ void UpdateDurationState::onEntry(QEvent *event) {
     for (const auto id : m_pipeline.applyContext().noteIds)
         request.noteIds.append(Automation::NoteId(id));
     request.durationResult = m_pipeline.durationResult();
-    const auto result = InferenceAutomationBridge::execute(
+    const auto result = InferenceAutomationBridge::executeAfterGate(
         m_pipeline.applyContext().documentVersion, request);
     if (!result) {
         m_pipeline.notifyDropped(InferenceAutomationBridge::dropReason(result.getError()));

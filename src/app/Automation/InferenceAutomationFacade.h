@@ -16,6 +16,10 @@ class AppModel;
 
 namespace Automation {
 
+    AutomationResult<DocumentVersion>
+    rebaseValidatedInferenceTaskVersion(const DocumentVersion &taskVersion,
+                                        const DocumentVersion &currentVersion);
+
     enum class InferenceMutationKind {
         ApplyPronunciations,
         ApplyPhonemeNames,

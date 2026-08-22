@@ -140,6 +140,11 @@ Queued → Running → CancelRequested → Committing → Succeeded/Failed/Cance
 最终写回依次检查取消、重新 resolve document、检查 revision、进入不可取消的
 Committing、原子提交一次。session 替换后旧任务不得写入新工程。
 
+推理任务额外使用 clip revision、piece 输入签名、音符归属和声线快照做目标级校验。
+目标级门禁通过后，允许把同一 DocumentId 下的全局 expected revision 重基到提交瞬间，
+以免互不冲突的并行分段写回彼此判为过期；DocumentId 不匹配时禁止重基。持久化推理
+结果仍按实际提交逐次增加 document revision，可重建缓存仍不增加。
+
 ## 4. 实施顺序和提交策略
 
 基线为同步后的 `origin/main`。所有改动在 `codex/automation-facade-phase-1` 分支完成。

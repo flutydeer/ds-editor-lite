@@ -32,7 +32,7 @@ void UpdateAcousticState::onEntry(QEvent *event) {
     request.clipId = Automation::ClipId(m_pipeline.applyContext().clipId);
     request.pieceId = Automation::PieceId(m_pipeline.applyContext().pieceId);
     request.acousticPath = m_pipeline.acousticResult();
-    const auto result = InferenceAutomationBridge::execute(
+    const auto result = InferenceAutomationBridge::executeAfterGate(
         m_pipeline.applyContext().documentVersion, request);
     if (!result) {
         m_pipeline.notifyDropped(InferenceAutomationBridge::dropReason(result.getError()));

@@ -1671,13 +1671,35 @@ int main(int argc, char *argv[]) {
         runtime.inference().applyMutation(commandContext(runtime, true), inferenceRequest);
     const auto inferenceApply =
         runtime.inference().applyMutation(commandContext(runtime), inferenceRequest);
+    const auto siblingCommitVersion = Automation::rebaseValidatedInferenceTaskVersion(
+        inferenceVersion, runtime.documentVersion());
+    const auto siblingInferenceApply = [&]()
+        -> Automation::AutomationResult<Automation::InferenceMutationResultDto> {
+        if (!siblingCommitVersion)
+            return siblingCommitVersion.getError();
+        Automation::CommandContext siblingContext{
+            .expected = siblingCommitVersion.get(),
+            .source = Automation::InvocationSource::Test,
+        };
+        return runtime.inference().applyMutation(siblingContext, inferenceRequest);
+    }();
+    const auto replacedTaskVersion = Automation::DocumentVersion{
+        Automation::DocumentId::create(), inferenceVersion.revision};
+    const auto rejectedGenerationRebase = Automation::rebaseValidatedInferenceTaskVersion(
+        replacedTaskVersion, runtime.documentVersion());
     ok &= expect(inferencePreview && inferencePreview.get().mutation.validatedOnly &&
                      inferencePreview.get().mutation.changed && inferenceApply &&
-                     inferenceApply.get().mutation.changed && inferenceApplyCount == 2 &&
+                     inferenceApply.get().mutation.changed && siblingCommitVersion &&
+                     siblingInferenceApply && siblingInferenceApply.get().mutation.changed &&
+                     !rejectedGenerationRebase &&
+                     rejectedGenerationRebase.getError().code ==
+                         Automation::AutomationErrorCode::DocumentChanged &&
+                     inferenceApplyCount == 3 &&
                      inferencePreview.get().mutation.current.revision ==
                          inferenceVersion.revision + 1 &&
-                     runtime.documentVersion().revision == inferenceVersion.revision + 1,
-                 "persisted inference writeback must preview and advance revision once");
+                     runtime.documentVersion().revision == inferenceVersion.revision + 2,
+                 "validated sibling inference writebacks must rebase revision without crossing "
+                 "document generations");
 
     history->reset();
 

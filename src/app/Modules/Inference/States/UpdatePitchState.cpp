@@ -33,7 +33,7 @@ void UpdatePitchState::onEntry(QEvent *event) {
     request.pieceId = Automation::PieceId(m_pipeline.applyContext().pieceId);
     request.pitchResult = m_pipeline.pitchResult();
     request.pitchSmoothKernelSize = m_pipeline.applyContext().pitchSmoothKernelSize;
-    const auto result = InferenceAutomationBridge::execute(
+    const auto result = InferenceAutomationBridge::executeAfterGate(
         m_pipeline.applyContext().documentVersion, request);
     if (!result) {
         m_pipeline.notifyDropped(InferenceAutomationBridge::dropReason(result.getError()));

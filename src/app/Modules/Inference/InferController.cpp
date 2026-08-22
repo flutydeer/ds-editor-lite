@@ -843,7 +843,7 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &tas
     InferenceTaskResolution resolution;
     switch (InferenceApplyGate::resolve(context, resolution, options)) {
         case InferenceApplyGate::Decision::Apply: {
-            const auto applied = InferenceAutomationBridge::execute(
+            const auto applied = InferenceAutomationBridge::executeAfterGate(
                 context.documentVersion, pronunciationMutation(context, task.result));
             if (!applied) {
                 InferenceApplyGate::logDrop(context, "clip-task",
@@ -892,7 +892,7 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
     InferenceTaskResolution resolution;
     switch (InferenceApplyGate::resolve(context, resolution, options)) {
         case InferenceApplyGate::Decision::Apply: {
-            const auto applied = InferenceAutomationBridge::execute(
+            const auto applied = InferenceAutomationBridge::executeAfterGate(
                 context.documentVersion, phonemeNameMutation(context, task.result));
             if (!applied) {
                 InferenceApplyGate::logDrop(context, "clip-task",
@@ -930,7 +930,7 @@ InferControllerPrivate::PendingApplyResult InferControllerPrivate::tryApplyPronu
     InferenceTaskResolution resolution;
     switch (InferenceApplyGate::resolve(context, resolution, options)) {
         case InferenceApplyGate::Decision::Apply: {
-            const auto applied = InferenceAutomationBridge::execute(
+            const auto applied = InferenceAutomationBridge::executeAfterGate(
                 context.documentVersion, pronunciationMutation(context, pronunciations));
             if (!applied) {
                 InferenceApplyGate::logDrop(context, phase,
@@ -981,7 +981,7 @@ InferControllerPrivate::PendingApplyResult
     InferenceTaskResolution resolution;
     switch (InferenceApplyGate::resolve(context, resolution, options)) {
         case InferenceApplyGate::Decision::Apply: {
-            const auto applied = InferenceAutomationBridge::execute(
+            const auto applied = InferenceAutomationBridge::executeAfterGate(
                 context.documentVersion, phonemeNameMutation(context, phonemeNames));
             if (!applied) {
                 InferenceApplyGate::logDrop(context, phase,

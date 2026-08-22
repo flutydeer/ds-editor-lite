@@ -7,8 +7,8 @@ namespace InferenceAutomationBridge {
 
     [[nodiscard]] Automation::DocumentVersion currentDocumentVersion();
     Automation::AutomationResult<Automation::InferenceMutationResultDto>
-    execute(const Automation::DocumentVersion &expected,
-            const Automation::InferenceMutationRequest &request);
+    executeAfterGate(const Automation::DocumentVersion &taskVersion,
+                     const Automation::InferenceMutationRequest &request);
     Automation::AutomationResult<Automation::InferenceMutationResultDto>
     executeCurrent(const Automation::InferenceMutationRequest &request);
     [[nodiscard]] QString dropReason(const Automation::AutomationError &error);

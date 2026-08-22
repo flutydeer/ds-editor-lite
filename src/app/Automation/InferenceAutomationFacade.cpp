@@ -2,6 +2,16 @@
 #include "OperationIds.h"
 
 namespace Automation {
+    AutomationResult<DocumentVersion>
+    rebaseValidatedInferenceTaskVersion(const DocumentVersion &taskVersion,
+                                        const DocumentVersion &currentVersion) {
+        if (taskVersion.documentId != currentVersion.documentId) {
+            return AutomationError::documentChanged(taskVersion.documentId,
+                                                    currentVersion.documentId);
+        }
+        return currentVersion;
+    }
+
     namespace {
         AutomationError unavailable() {
             AutomationError error;

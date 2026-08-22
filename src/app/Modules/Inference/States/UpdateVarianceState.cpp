@@ -39,7 +39,7 @@ void UpdateVarianceState::onEntry(QEvent *event) {
     request.varianceResult.voicing = variance.voicing;
     request.varianceResult.energy = variance.energy;
     request.varianceResult.mouthOpening = variance.mouthOpening;
-    const auto result = InferenceAutomationBridge::execute(
+    const auto result = InferenceAutomationBridge::executeAfterGate(
         m_pipeline.applyContext().documentVersion, request);
     if (!result) {
         m_pipeline.notifyDropped(InferenceAutomationBridge::dropReason(result.getError()));

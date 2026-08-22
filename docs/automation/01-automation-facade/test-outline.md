@@ -122,7 +122,7 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 | parameters/speaker_mix | 10 | 多曲线、step、空/边界点、继承/动态混合、归一化、运行期 ID |
 | timeline/master | 6 | tick/bar 0 锚点、排序、重复点、拍号合法性、Master no-op |
 | history | 3 | 空栈、undo/redo、savepoint、focus、revision、分支截断 |
-| inference | 12 | 每个 stage、对象删除、revision 竞争、cache-only 与持久化边界 |
+| inference | 12 | 每个 stage、对象删除、目标级门禁、并行分段 revision 重基、cache-only 与持久化边界 |
 | extract | 2 | pitch/MIDI 后端、取消、TaskId、原子写回、旧 generation |
 | exports/formats | 5 | 格式能力、模板、冲突路径、覆盖策略、cleanup、任务失败 |
 | operations | 3 | get/list/cancel、过滤、稳定终态、未知/旧 TaskId |
@@ -142,6 +142,9 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 - save 与设置变更、loop 变更、History savepoint 的边界；
 - Track/Clip/Note/Speaker Mix 跨域 ActionSequence 的通知次序，以及同步 Model signal
   启动异步推理时捕获提交后 revision；
+- 大型多轨工程中同一 base revision 的兄弟分段写回可依次提交且不重启/闪烁，其他
+  DocumentId、目标 clip revision 或输入签名变化仍稳定丢弃；短音符立即撤销后不残留
+  空推理分段或红色失败状态；
 - 复制/粘贴、导入、undo/redo 后 edited parameters、语言、声线和音素保真；
 - 文件名大小写、Unicode、只读目录、已存在文件、临时文件清理和磁盘失败；
 - Catalog/集中注册表不一致、重复 operation ID、产品代码硬编码 operation ID；
