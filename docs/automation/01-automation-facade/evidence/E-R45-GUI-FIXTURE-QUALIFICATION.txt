@@ -1,0 +1,33 @@
+FIXTURE_QUALIFICATION | revision=final-r1 | privacy=alias-only | qualified_physical_files=57 | status=PASS_WITH_EXTERNAL_GATES
+PACKAGE_MANIFEST_ALGO | relative POSIX paths sorted by UTF-8 bytes; line=relative_path<TAB>bytes<TAB>file_sha256<LF>; manifest_sha256=SHA-256(all lines)
+BASE_PROJECT | bytes=1375137 | sha256=bd2860d10101d74635e6748274e8014b83b9119c346866d9cefc6e3c4118159 | DSPX 1.0.0; tracks=5; singing_tracks=4; singing_clips=4; visible_notes=[434,377,20,52]; audio_clips=1; parameter_points=188; tempos=[103.02@0,120@9600]; signatures=[4/4@index0,3/4@index8]; loop=enabled,start1920,length7680; relative_audio=true; sha512=match; stored_absolute_candidate=false | PASS
+BASE_AUDIO | bytes=9338068 | sha256=329194d85fca595046827eaa578380bdf3be4b3b253c2b8658fdc1b9ad34bc74 | MP3; 44100Hz; stereo; duration=229.982041s; nonempty=true | PASS
+INFER_PROJECT | bytes=2747478 | sha256=40ac4af13ad2cf6067a2a7872d26719e3a2d5d3dfcddd9efee9a2e549e522244 | DSPX 1.0.0; tracks=5; singing_tracks=4; singing_clips=8; clip_names=[英语A,英语B,日语A,日语B,和声1A,和声1B,和声2A,和声2B]; visible_notes=[217,217,188,189,10,10,26,26]; relative_audio=true; sha512=match; stored_absolute_candidate=false | PASS
+IMPORT_PROJECT | bytes=318636 | sha256=717ca89cb6de7d131f2695e1918b8414c6f30defb72fbdbbf33594c64614b023 | DSPX 1.0.0; tracks=2; singing_clips=1; visible_notes=[148]; audio_clips=1; parameter_points=90; tempos=[81@0]; signatures=[4/4@index0]; loop=disabled; relative_audio=true; sha512=match; stored_absolute_candidate=false | PASS
+IMPORT_AUDIO | bytes=5945058 | sha256=357de11514abe36233c9ba243567ceb8d27e2aab91a6728b55e1e9274ef989f8 | MP3; 44100Hz; stereo; duration=247.536292s; nonempty=true | PASS
+MIDI_ONE | bytes=131379 | sha256=a77c1c96f5a9246959a743b25a9500ae6a2d3cde629bcc2f125ad4097a8a0c51 | SMF format=1; tracks=3; tpq=480; note_tracks=2; note_counts=[434,377]; unicode_name_events=2; unicode_lyric_events=2; tempo=[87@tick0]; signature=[6/4@tick0]; chunks_complete=true | PASS
+MIDI_TWO | bytes=50334 | sha256=952875b4237a47457bca6a7e8813e8a490aa1197e1d96efcdb676b208e8d4acc | SMF format=1; tracks=2; tpq=480; note_tracks=1; note_counts=[148]; tempo=[81@tick0]; signature=[4/4@tick0]; chunks_complete=true; visibly_distinct_from=MIDI_ONE | PASS
+MIDI_BAD | bytes=96 | sha256=de39097ef985e2cc41e3d9020d11a3771f08c1efeedcb3a98311651be5fa2370 | valid_header=true; declared_track_chunk_truncated=true; parser_rejects=true | PASS_EXPECTED_INVALID
+AUDIO_SHORT | bytes=264678 | sha256=c7e92fd59638d86237401f0ba45592736ffb5d7cc70735f55f489facaaec7b6a | WAV pcm_s16le; 44100Hz; mono; duration=3.000000s; mean=-24.9dB; peak=-11.4dB; non_silent=true | PASS
+AUDIO_LONG | bytes=20427594 | sha256=fbbb8c599b9577a07890d93c7fa6f664c116900724864e093aab04ba810326b0 | WAV pcm_s16le; 44100Hz; mono; duration=231.604853s; mean=-25.6dB; peak=-7.3dB; non_silent=true; stable_cancel_window=not_proven_by_static_audit | CONTENT_PASS
+PROJECT_BAD | bytes=4096 | sha256=4f18066ee9ed1268e3a07ddf1a99b65659026007675640800ec4e00ce02ad3f9 | truncated_JSON=true; parser_rejects=true | PASS_EXPECTED_INVALID
+UNSUPPORTED | bytes=164 | sha256=332a10535f7fa4c2036cba7015f50c3eacda39aed77b641b00f9905e6e598fbc | plain_text=true; unsupported_extension=true | PASS_EXPECTED_UNSUPPORTED
+MISSING_AUDIO_PROJECT | bytes=1374857 | sha256=1dfd9d93027a7c5dbcb382b0273fe744ae8c6f0968db14d5716f8ef3286a0f25 | DSPX valid=true; sha512_length=0; stored_original_exists=false; sibling_candidate_exists=false | PASS
+LEGACY_NOHASH_PROJECT | bytes=1374917 | sha256=ce3395a4f67a62d2fcd28ea65365a6a4834dcd5b9b82551c5ceceb47038a16a7 | DSPX valid=true; sha512_length=0; stored_original_exists=false; sibling_name_candidate_exists=true | PASS
+LEGACY_NAME_CANDIDATE | bytes=264678 | sha256=c7e92fd59638d86237401f0ba45592736ffb5d7cc70735f55f489facaaec7b6a | WAV pcm_s16le; duration=3.000000s; mean=-24.9dB; peak=-11.4dB; non_silent=true | PASS
+LIBRESVIP_PROJECT | bytes=621710 | sha256=49a66dfa656745cb73979e2e73d11b2e62fb4268ef24ed187ff5589dae06e1c5 | USTX 0.9; resolution=480; tracks=5; voice_parts=5; note_counts=[450,404,24,60,0]; wave_parts=1; relative_audio_exists=true; tempo=[103.02@0]; signature=[4/4@0] | PASS
+PACKAGE_GOOD | files=40 | bytes=593918139 | manifest_sha256=d8fc84fa58b55dbbbe90d903e79c1007ad7c175df0b0383a7752c00bb5d33b07 | id=liliko; version=1.6.0.0; speakers=2; languages=4; inference_configs=5; onnx=8; embeddings=8; all_references_nonempty=true | PASS
+PACKAGE_BAD | files=1 | bytes=20 | manifest_sha256=7fe213f18cd04558276273cc93b230b8bc2bfef9583e938f12c7fc6bd27d9f8a | descriptor_truncated=true; parser_rejects=true | PASS_EXPECTED_INVALID
+AUX_RETENTION | files=6 | included_in_fixture_denominator=false | old_official_and_all_construction_sources_preserved=true
+CAP-ISOLATION | fixture_dependency=none | qualification=prior_controlled_round | status=READY
+CAP-BRIDGE | fixture_dependency=none | qualification=prior_controlled_round | status=READY
+CAP-INFER | fixture_dependency=INFER_PROJECT+VOICE_INFER_BASELINE | baseline_package=available_outside_fixture_tree | status=READY_FOR_GUI
+CAP-INFER-DELAY | fixture_dependency=INFER_PROJECT | qualification=prior_controlled_round | status=READY
+CAP-AUDIO | fixture_dependency=AUDIO_SHORT | endpoint_and_device_observation_required | status=EXTERNAL_EVIDENCE_REQUIRED
+CAP-TEXT-IME | fixture_dependency=none | installed_IME_observation_required | status=EXTERNAL_EVIDENCE_REQUIRED
+CAP-TOUCH | fixture_dependency=none | physical_touch_input_required | status=EXTERNAL_EVIDENCE_REQUIRED
+CAP-DIRECT-MANIPULATION | fixture_dependency=none | build_flag_and_touch_input_required | status=EXTERNAL_EVIDENCE_REQUIRED
+CAP-RHI | fixture_dependency=none | backend_launch_and_control_rebind_required | status=EXTERNAL_EVIDENCE_REQUIRED
+CAP-LIBRESVIP | fixture_dependency=LIBRESVIP_PROJECT+LIBRESVIP_CLI | controlled_conversions=2/2; executable_version_and_digest_recorded_separately | status=READY_FOR_GUI
+CAP-EXTRACT | fixture_dependency=AUDIO_SHORT | model_tool_availability_and real_completion_required | status=EXTERNAL_EVIDENCE_REQUIRED
+CAP-LONG-ASYNC | fixture_dependency=AUDIO_LONG | long_non_silent_content=true; stable_cancel_window_not_proven | status=GUI_OR_CONTROLLED_DELAY_REQUIRED

@@ -261,3 +261,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R44-GUI-G00-PERMISSION-BLOCK-RETRY` | 44 | GUI-G00 重建后权限提示阻塞复查 | `24f41789483acc116ba2e6ac8dbfd6db955bbdb7de4f3d063cf5560122368672` |
+
+## 追加证据 42
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R45-GUI-FIXTURE-QUALIFICATION` | 45 | GUI 回归固件结构、内容与能力门禁资格摘要 | `cae152acb37cad13baadebed1a26e9429cd6c575f278172f04bbe777a5e6cc00` |
