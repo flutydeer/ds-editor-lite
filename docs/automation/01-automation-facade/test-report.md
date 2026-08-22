@@ -368,3 +368,55 @@ Automation Core、Catalog、幂等、异步竞态、文档生命周期五个确�
 
 通过（测试基础设施隔离与定向复测）。轮次 10 的退出崩溃已关闭，但仍需在新增全域测试接入
 后重新执行全量 CTest，不能以两项定向通过替代完整门禁。
+
+## 回归轮次 12：运行时与宿主域契约首次执行
+
+### 范围
+
+新增并单独构建、执行运行时域测试，覆盖 application、playback、editor/window、八个设置域、
+Recent、包路径/包验证与解析、Speaker Mix 预设和宿主能力不可用分支。
+
+### 结果
+
+- 测试目标构建：通过。
+- 85 个稳定场景、210 条断言中 200 条通过、10 条失败。
+- 10 条失败均得到预期错误码，但 `operationId` 为空；涉及 application info、playback、
+  settings、Recent、package paths/list/validate 和 preset list 等 Query 错误路径。
+- 根因是 application/document Query 的 Dispatcher 模板直接返回 handler error，未像 Command
+  模板一样统一补饰当前 operation descriptor。
+
+### 证据
+
+- 脱敏构建、场景与失败摘要：证据 `E-R12-RUNTIME-DOMAINS-FAIL`。
+
+### 判定
+
+失败（产品契约缺陷）。Query 成功路径不受影响，但所有错误必须携带中心化 `operationId`；
+需在统一 Dispatcher 边界修复后以新轮次重跑。
+
+## 回归轮次 13：编辑域契约首次执行
+
+### 范围
+
+新增并单独构建、执行编辑域测试，覆盖 project、track/Master、clip、note/lyrics/phoneme、
+parameter、Speaker Mix、tempo/time signature、History，以及 35 个文档命令的错误优先级。
+
+### 结果
+
+- 测试目标构建：通过。
+- 42 个稳定场景、251 条断言；36 个场景通过，9 条断言失败。
+- 首次失败分为：轨道移动 3 条、音符插入/移动重叠拒绝 2 条、音素偏移 2 条、Draw 曲线
+  step 1 条、音符量化子进程超时 1 条。
+- 复核后确认两条“重叠必须拒绝”为测试假设错误：底层容器明确支持重叠，应改测重叠提交、
+  保留及 undo；不得据此修改生产逻辑。
+- 轨道移动的 target index/no-op/undo、音素偏移数量与单调性、Draw step，以及量化时向正在
+  遍历的列表再次追加元素，仍为高置信生产缺陷候选。
+
+### 证据
+
+- 脱敏构建、场景与失败摘要：证据 `E-R13-EDITING-DOMAINS-FAIL`。
+
+### 判定
+
+失败（测试规格错误与产品缺陷混合）。先修正两条重叠场景，再以独立新轮次确认剩余缺陷；
+本轮不删除、不回写为通过。

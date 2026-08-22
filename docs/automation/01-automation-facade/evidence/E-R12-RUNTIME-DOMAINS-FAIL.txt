@@ -1,0 +1,22 @@
+Evidence ID: E-R12-RUNTIME-DOMAINS-FAIL
+Round: 12
+Scope: first deterministic run of the runtime and host Automation domains
+
+Build summary:
+- TestAutomationRuntimeDomains: passed.
+
+Execution summary:
+- Stable scenarios: 85.
+- Assertions: 210.
+- Passed assertions: 200.
+- Failed assertions: 10.
+- Every failure had the expected error code but an empty operationId.
+- Affected query paths included application info, playback state, settings snapshot, recent files,
+  package search paths, package listing and validation, and speaker-mix preset listing.
+
+Diagnosis:
+- Application and document Query dispatcher templates return a handler error without applying the
+  operation descriptor, unlike the corresponding Command templates.
+
+Outcome: FAIL (production contract defect).
+Privacy: this evidence contains no machine-local or user-data path.
