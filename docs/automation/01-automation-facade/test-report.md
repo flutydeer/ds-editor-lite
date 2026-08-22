@@ -38,10 +38,8 @@
 ### 证据
 
 - 修复提交：`72dc5e86 fix(inference): allow validated sibling writebacks`。
-- 修复前日志：
-  `C:/Users/yqzhishen/AppData/Local/Temp/ds-editor-lite-gui-smoke-RwzOg2/stdout.log`。
-- 修复后日志：
-  `C:/Users/yqzhishen/AppData/Local/Temp/ds-editor-lite-gui-smoke-wdSlY6/stdout.log`。
+- 修复前日志：证据 `E-R00-BEFORE`。
+- 修复后日志：证据 `E-R00-AFTER`。
 
 ### 判定
 
@@ -66,10 +64,9 @@
 
 ### 证据
 
-- 临时工作树：`D:/OpenVPI/ds-editor-lite-gui-regression`。
-- 隔离运行目录：
-  `C:/Users/yqzhishen/AppData/Local/Temp/ds-editor-lite-gui-regression-jJ7Zjz`。
-- 进程日志：`C:/Users/yqzhishen/.fastctx/jobs/j-dlgjrr/output.log`。
+- 临时工作树与正式工作树隔离，具体本机路径不记入报告。
+- 构建日志：证据 `E-R01-BUILD`；进程日志：证据 `E-R01-RUNTIME`。
+- 配置、缓存和运行目录均为本轮独立目录，具体本机路径不记入报告。
 - 关键时间：04:11:53.141 锁存 Control；04:12:03.134 因 timeout 清除；鼠标动作发生
   于 04:12:06 之后。
 
@@ -99,9 +96,8 @@
 ### 证据
 
 - 临时桥提交：`8639056e test(gui): add isolated modifier input bridge`。
-- 进程日志：`C:/Users/yqzhishen/.fastctx/jobs/j-rbsopp/output.log`。
-- 隔离运行目录：
-  `C:/Users/yqzhishen/AppData/Local/Temp/ds-editor-lite-gui-regression-jJ7Zjz`。
+- 进程日志：证据 `E-R02-RUNTIME`。
+- 配置、缓存和运行目录均为本轮独立目录，具体本机路径不记入报告。
 - 关键日志：04:14:23 Control 鼠标手势；04:14:56 Shift 鼠标手势；04:15:23 Alt
   滚轮完成；04:16:15 Control+Shift 鼠标手势；04:16:49 F12 显式清除。
 
@@ -109,3 +105,10 @@
 
 通过。该桥具备补足 Computer Use Modifier+鼠标/滚轮能力缺口的资格，可用于后续回归；
 桥辅助场景将在对应轮次中明确标识。
+
+## 隐私脱敏说明 01
+
+用户在回归轮次 02 后要求测试报告不得泄漏本机路径。为满足该要求，既有轮次中的七处
+绝对路径被原位替换为匿名证据编号或隔离性说明；测试轮次、步骤、时间、结果、失败和
+判定均未删除或改写。该变更是只追加规则的唯一隐私例外。此后报告只记录证据编号、
+SHA-256、提交号和不含本机路径的统计；证据映射见 `evidence-index.md`。
