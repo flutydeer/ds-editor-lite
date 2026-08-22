@@ -8,13 +8,13 @@
 #include <lite/GUI/Controls/Button.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "Controller/EditorViewController.h"
-#include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Controller/PlaybackController.h"
-#include <lite/History/HistoryManager.h>
 #include "Model/Utils/ParamUtils.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
 
@@ -27,6 +27,13 @@
 #include <QVBoxLayout>
 
 using namespace SpeakerMixModel;
+
+namespace {
+    Automation::CommandContext commandContext(const Automation::CoreRuntime &runtime) {
+        return {.expected = runtime.documentVersion(),
+                .source = Automation::InvocationSource::TrustedGui};
+    }
+}
 
 ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
     editorViewController->registerInteractionArea(this, AppGlobal::ClipEditor,
@@ -239,10 +246,9 @@ void ParamEditorView::onSpeakerMixEdited(const SpeakerMixData &data) const {
     if (normalized == m_clip->speakerMixData())
         return;
 
-    const auto actions = new SpeakerMixActions;
-    actions->replaceSpeakerMix(normalized, m_clip);
-    actions->execute();
-    historyManager->record(actions);
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
+        runtime->parameters().replaceClipSpeakerMix(
+            commandContext(*runtime), Automation::ClipId(m_clip->id()), normalized);
 }
 
 void ParamEditorView::onEmptyStateAction() {
@@ -265,10 +271,10 @@ void ParamEditorView::onEnableDynamicMix() {
     if (data.mode != SingerSourceMode::DynamicMix)
         return;
 
-    const auto actions = new SpeakerMixActions;
-    actions->enableClipDynamicSpeakerMix(m_clip->singerInfo(), m_clip->speakerInfo(), data, m_clip);
-    actions->execute();
-    historyManager->record(actions);
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
+        runtime->parameters().enableClipDynamicSpeakerMix(
+            commandContext(*runtime), Automation::ClipId(m_clip->id()), m_clip->singerInfo(),
+            m_clip->speakerInfo(), data);
 }
 
 void ParamEditorView::onBypassDynamicMix() const {

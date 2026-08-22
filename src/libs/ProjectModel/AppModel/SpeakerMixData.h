@@ -41,6 +41,8 @@ namespace SpeakerMixModel {
     };
 
     SpeakerMixData normalizeSpeakerMixData(const SpeakerMixData &data);
+    SpeakerMixData preservePresetSourceAsDirty(const SpeakerMixData &oldData,
+                                               SpeakerMixData newData);
     bool isSpeakerMixDataSingle(const SpeakerMixData &data);
     bool hasDynamicMixAutomation(const SpeakerMixData &data);
     bool isDynamicMixActive(const SpeakerMixData &data);

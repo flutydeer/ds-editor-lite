@@ -1,13 +1,13 @@
 #include "TrackControlView.h"
 #include "Model/AppStatus/AppStatus.h"
 
-#include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "Controller/TrackController.h"
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Modules/Audio/AudioContext.h"
-#include <lite/History/HistoryManager.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/InlineEditLabel.h>
 #include <lite/GUI/Controls/LevelMeter.h>
@@ -46,6 +46,11 @@ namespace {
 
     QIcon menuIcon(const QString &path) {
         return IconUtils::menuIcon(path);
+    }
+
+    Automation::CommandContext commandContext(const Automation::CoreRuntime &runtime) {
+        return {.expected = runtime.documentVersion(),
+                .source = Automation::InvocationSource::TrustedGui};
     }
 }
 
@@ -129,10 +134,11 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
             return;
         }
 
-        const auto actions = new SpeakerMixActions;
-        actions->selectTrackSingleSpeaker(singerInfo, speakerInfo, m_track);
-        actions->execute();
-        historyManager->record(actions);
+        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+            runtime->parameters().selectTrackSingleSpeaker(
+                commandContext(*runtime), Automation::TrackId(m_track->id()), singerInfo,
+                speakerInfo);
+        }
         refreshSingerComboPresentation();
     });
     connect(cbSinger, &TwoLevelComboBox::itemsPopulated, this,
@@ -143,7 +149,7 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     connect(cbLanguage, &LanguageComboBox::currentLanguageChanged, this,
             [this](const QString &language) {
                 if (m_track && m_track->defaultLanguage() != language)
-                    m_track->setDefaultLanguage(language);
+                    trackController->changeTrackDefaultLanguage(m_track->id(), language);
             });
 
     singerLanguageLayout = new QHBoxLayout;
@@ -321,10 +327,10 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
                 }
             });
     connect(colorSwatch, &TrackColorSwatchWidget::colorIndexSelected, this,
-            [this, &menu, &colorConfirmed](int idx) {
+            [this, &menu, &colorConfirmed, originalColorIndex](int idx) {
                 if (m_track) {
-                    m_track->setColorIndex(idx);
-                    emit m_track->propertyChanged();
+                    m_track->setColorIndex(originalColorIndex);
+                    trackController->changeTrackColor(m_track->id(), idx);
                 }
                 colorConfirmed = true;
                 menu.close();
@@ -383,7 +389,7 @@ void TrackControlView::refreshLanguageComboPresentation() const {
     const auto language = cbLanguage->setLanguages(
         singerInfo.languages(), m_track->defaultLanguage(), singerInfo.defaultLanguage());
     if (language != m_track->defaultLanguage())
-        m_track->setDefaultLanguage(language);
+        trackController->changeTrackDefaultLanguage(m_track->id(), language);
 }
 
 void TrackControlView::populatePresetMenus() const {
@@ -441,10 +447,11 @@ void TrackControlView::onPresetApplied(const QString &presetId) const {
         return;
     }
 
-    const auto actions = new SpeakerMixActions;
-    actions->applyTrackSpeakerMixPreset(singerInfo, data.sources.first().speaker, data, m_track);
-    actions->execute();
-    historyManager->record(actions);
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+        runtime->parameters().applyTrackSpeakerMix(
+            commandContext(*runtime), Automation::TrackId(m_track->id()), singerInfo,
+            data.sources.first().speaker, data);
+    }
     refreshSingerComboPresentation();
 }
 
@@ -462,11 +469,11 @@ void TrackControlView::onManagePresetsAction(const SingerInfo &singerInfo) const
     if (dialog.exec() == QDialog::Accepted && m_track) {
         const auto data = dialog.speakerMixData();
         if (!SpeakerMixModel::isSpeakerMixDataSingle(data)) {
-            const auto actions = new SpeakerMixActions;
-            actions->applyTrackSpeakerMixPreset(singerInfo, data.sources.first().speaker, data,
-                                                m_track);
-            actions->execute();
-            historyManager->record(actions);
+            if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+                runtime->parameters().applyTrackSpeakerMix(
+                    commandContext(*runtime), Automation::TrackId(m_track->id()), singerInfo,
+                    data.sources.first().speaker, data);
+            }
         }
     }
     refreshSingerComboPresentation();

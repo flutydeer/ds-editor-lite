@@ -164,6 +164,16 @@ namespace SpeakerMixModel {
         return {};
     }
 
+    SpeakerMixData preservePresetSourceAsDirty(const SpeakerMixData &oldData,
+                                               SpeakerMixData newData) {
+        if (!newData.sourcePresetId.isEmpty() || oldData.sourcePresetId.isEmpty())
+            return normalizeSpeakerMixData(newData);
+        newData.sourcePresetId = oldData.sourcePresetId;
+        newData.sourcePresetName = oldData.sourcePresetName;
+        newData.sourcePresetDirty = true;
+        return normalizeSpeakerMixData(newData);
+    }
+
     bool isSpeakerMixDataSingle(const SpeakerMixData &data) {
         return normalizeSpeakerMixData(data).mode == SingerSourceMode::Single;
     }

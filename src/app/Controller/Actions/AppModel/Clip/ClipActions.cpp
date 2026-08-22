@@ -93,7 +93,6 @@ void ClipActions::removeClips(const QList<Clip *> &clips, const QList<Track *> &
     setFocusTransition({focus, focus});
 }
 
-/* Keep the action construction above readable; all property variants share the same focus. */
 void ClipActions::editSingingClipProperties(const QList<Clip::ClipCommonProperties> &oldArgs,
                                             const QList<Clip::ClipCommonProperties> &newArgs,
                                             const QList<SingingClip *> &clips,

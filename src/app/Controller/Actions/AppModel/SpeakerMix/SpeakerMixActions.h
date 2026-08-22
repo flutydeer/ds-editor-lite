@@ -13,6 +13,9 @@ using SpeakerMixModel::SpeakerMixData;
 class SpeakerMixActions : public ActionSequence {
 public:
     void replaceSpeakerMix(const SpeakerMixData &data, SingingClip *clip);
+    void useTrackVoiceContext(SingingClip *clip);
+    void selectClipSingleSpeaker(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
+                                 SingingClip *clip);
     void enableClipDynamicSpeakerMix(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
                                      const SpeakerMixData &data, SingingClip *clip);
     void applyClipSpeakerMixPreset(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,

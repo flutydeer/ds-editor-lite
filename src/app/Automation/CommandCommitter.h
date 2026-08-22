@@ -4,6 +4,7 @@
 #include "DocumentSession.h"
 
 #include <memory>
+#include <functional>
 
 class ActionSequence;
 
@@ -15,6 +16,10 @@ namespace Automation {
         commit(DocumentSession &session,
                std::unique_ptr<ActionSequence> actions,
                QList<ObjectRef> affectedObjects = {});
+        MutationResult commitStateChange(DocumentSession &session,
+                                         bool changed,
+                                         const std::function<void()> &apply,
+                                         QList<ObjectRef> affectedObjects = {});
 
         [[nodiscard]] MutationResult preview(const DocumentSession &session,
                                              bool wouldChange,

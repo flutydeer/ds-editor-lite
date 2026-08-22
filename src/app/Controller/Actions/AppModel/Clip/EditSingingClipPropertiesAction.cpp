@@ -29,6 +29,8 @@ void EditSingingClipPropertiesAction::execute() {
     m_clip->setClipStart(newArgs.clipStart);
     m_clip->setLength(newArgs.length);
     m_clip->setClipLen(newArgs.clipLen);
+    m_clip->setGain(newArgs.gain);
+    m_clip->setMute(newArgs.mute);
     m_track->insertClip(m_clip);
     m_resetRecords = previousWordStates.isEmpty()
                          ? QList<SingingClipPhonemeNormalizer::ResetRecord>{}
@@ -48,6 +50,8 @@ void EditSingingClipPropertiesAction::undo() {
     m_clip->setClipStart(m_oldArgs.clipStart);
     m_clip->setLength(m_oldArgs.length);
     m_clip->setClipLen(m_oldArgs.clipLen);
+    m_clip->setGain(m_oldArgs.gain);
+    m_clip->setMute(m_oldArgs.mute);
     m_track->insertClip(m_clip);
     SingingClipPhonemeNormalizer::restoreEditedOffsets(m_resetRecords);
     m_clip->notifyPropertyChanged();

@@ -4,6 +4,9 @@
 #include "DocumentSessionResolver.h"
 #include "EditorAutomationFacade.h"
 #include "HistoryAutomationFacade.h"
+#include "NoteAutomationFacade.h"
+#include "ParameterAutomationFacade.h"
+#include "ProjectAutomationFacade.h"
 #include "TimelineAutomationFacade.h"
 
 class AppModel;
@@ -24,6 +27,9 @@ namespace Automation {
         const OperationCatalog &catalog() const;
         AutomationDispatcher &dispatcher();
         HistoryAutomationFacade &history();
+        NoteAutomationFacade &notes();
+        ParameterAutomationFacade &parameters();
+        ProjectAutomationFacade &project();
         TimelineAutomationFacade &timeline();
 
         DocumentVersion replaceDocumentGeneration(QString path, QString projectName);
@@ -35,8 +41,12 @@ namespace Automation {
         OperationCatalog m_catalog;
         AutomationDispatcher m_dispatcher;
         CommandCommitter m_committer;
+        DocumentObjectResolver m_objectResolver;
         EditorAutomationFacade m_facade;
         HistoryAutomationFacade m_historyFacade;
+        NoteAutomationFacade m_noteFacade;
+        ParameterAutomationFacade m_parameterFacade;
+        ProjectAutomationFacade m_projectFacade;
         TimelineAutomationFacade m_timelineFacade;
     };
 

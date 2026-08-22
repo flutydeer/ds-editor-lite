@@ -36,6 +36,22 @@ namespace Automation {
         return result;
     }
 
+    MutationResult CommandCommitter::commitStateChange(DocumentSession &session,
+                                                       const bool changed,
+                                                       const std::function<void()> &apply,
+                                                       QList<ObjectRef> affectedObjects) {
+        MutationResult result;
+        result.previous = session.version();
+        result.current = result.previous;
+        result.affectedObjects = std::move(affectedObjects);
+        if (!changed)
+            return result;
+        apply();
+        result.current = session.advanceRevision();
+        result.changed = true;
+        return result;
+    }
+
     MutationResult CommandCommitter::preview(const DocumentSession &session,
                                              const bool wouldChange,
                                              QList<ObjectRef> affectedObjects) const {

@@ -1,9 +1,9 @@
 #include "TrackController.h"
 #include <TalcsFormat/AbstractAudioFormatIO.h>
 
-#include "Actions/AppModel/Clip/ClipActions.h"
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "EditorViewController.h"
-#include "Controller/Actions/AppModel/Track/TrackActions.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -12,7 +12,6 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
-#include <lite/History/HistoryManager.h>
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/ComputeAudioHashTask.h"
 #include "Tasks/DecodeAudioTask.h"
@@ -31,6 +30,34 @@
 #include <QJsonDocument>
 #include <QMimeData>
 
+namespace {
+    Automation::CoreRuntime *automationRuntime() {
+        return AppContext::instance<Automation::CoreRuntime>();
+    }
+
+    Automation::CommandContext commandContext(const Automation::CoreRuntime &runtime) {
+        return {.expected = runtime.documentVersion(),
+                .source = Automation::InvocationSource::TrustedGui};
+    }
+
+    Automation::ClipPropertiesDto clipPropertiesDto(
+        const Clip::ClipCommonProperties &properties) {
+        return {
+            .id = Automation::ClipId(properties.id),
+            .name = properties.name,
+            .start = properties.start,
+            .length = properties.length,
+            .clipStart = properties.clipStart,
+            .clipLen = properties.clipLen,
+            .gain = properties.gain,
+            .mute = properties.mute,
+            .trimStartMs = properties.trimStartMs,
+            .playLengthMs = properties.playLengthMs,
+            .materialLengthMs = properties.materialLengthMs,
+        };
+    }
+}
+
 TrackController::TrackController(QObject *parent) : QObject(parent) {
 }
 
@@ -47,74 +74,51 @@ void TrackController::onNewTrack() {
 }
 
 void TrackController::onInsertNewTrack(const qsizetype index) {
-    // bool soloExists = false;
-    // auto tracks = appModel->tracks();
-    // for (auto dsTrack : tracks) {
-    //     auto curControl = dsTrack->control();
-    //     if (curControl.solo()) {
-    //         soloExists = true;
-    //         break;
-    //     }
-    // }
-
-    const auto newTrack = new Track;
-    newTrack->setName(tr("New Track"));
-    newTrack->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
-    // if (soloExists) {
-    //     auto control = newTrack->control();
-    //     control.setMute(true);
-    //     newTrack->setControl(control);
-    // }
-
-    // TODO: set default singer and speaker here
-    // newTrack->setSingerIdentifier({
-    //    .singerId = appOptions->general()->defaultSingerId,
-    //    .packageId = appOptions->general()->defaultPackageId,
-    //    .packageVersion = appOptions->general()->defaultPackageVersion,
-    //});
-    const auto a = new TrackActions;
-    a->insertTrack(newTrack, index, appModel);
-    a->execute();
-    historyManager->record(a);
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    Automation::TrackDraftDto draft;
+    draft.name = tr("New Track");
+    draft.defaultLanguage = appOptions->general()->defaultSingingLanguage;
+    runtime->project().insertTrack(commandContext(*runtime), index, draft);
 }
 
 void TrackController::onAppendTrack(Track *track) {
-    const auto a = new TrackActions;
-    a->insertTrack(track, appModel->tracks().count(), appModel);
-    a->execute();
-    historyManager->record(a);
+    if (!track)
+        return;
+    const auto draft = Automation::trackDraftDto(*track);
+    delete track;
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    runtime->project().insertTrack(commandContext(*runtime), appModel->tracks().count(), draft);
 }
 
 void TrackController::onRemoveTrack(const int id) {
-    const auto trackToRemove = appModel->findTrackById(id);
-    QList<Track *> tracks;
-    tracks.append(trackToRemove);
-    const auto a = new TrackActions;
-    a->removeTracks(tracks, appModel);
-    a->execute();
-    historyManager->record(a);
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    runtime->project().removeTracks(commandContext(*runtime), {Automation::TrackId(id)});
 }
 
 void TrackController::onMoveTrack(const qsizetype fromIndex, const qsizetype toIndex) {
-    if (fromIndex == toIndex)
+    auto *runtime = automationRuntime();
+    if (!runtime || fromIndex < 0 || fromIndex >= appModel->tracks().size())
         return;
-
-    const auto a = new TrackActions;
-    a->moveTrack(fromIndex, toIndex, appModel);
-    a->execute();
-    historyManager->record(a);
+    const auto trackId = Automation::TrackId(appModel->tracks().at(fromIndex)->id());
+    runtime->project().moveTrack(commandContext(*runtime), trackId, toIndex);
 }
 
 void TrackController::addAudioClipToNewTrack(const QString &filePath) {
-    const auto audioClip = new AudioClip;
-    audioClip->setPath(filePath);
-    const auto newTrack = new Track;
-    newTrack->insertClip(audioClip);
-    const auto a = new TrackActions;
-    const auto index = appModel->tracks().size();
-    a->insertTrack(newTrack, index, appModel);
-    a->execute();
-    historyManager->record(a);
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    Automation::TrackDraftDto track;
+    Automation::ClipDraftDto clip;
+    clip.type = Automation::ClipDraftDto::Type::Audio;
+    clip.audioPath = filePath;
+    track.clips.append(std::move(clip));
+    runtime->project().insertTrack(commandContext(*runtime), appModel->tracks().size(), track);
 }
 
 void TrackController::setActiveClip(const int clipId) {
@@ -126,12 +130,28 @@ void TrackController::setActiveClip(const int clipId) {
 
 void TrackController::changeTrackProperty(const Track::TrackProperties &args) {
     qDebug() << "TrackController::changeTrackProperty" << args.gain << args.pan;
-    const auto track = appModel->findTrackById(args.id);
-    const auto a = new TrackActions;
-    const Track::TrackProperties oldArgs(*track);
-    a->editTrackProperties(oldArgs, args, track);
-    a->execute();
-    historyManager->record(a);
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    runtime->project().setTrackProperties(
+        commandContext(*runtime),
+        {Automation::TrackId(args.id), args.name, args.gain, args.pan, args.mute, args.solo});
+}
+
+void TrackController::changeTrackColor(const int trackId, const int colorIndex) {
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    runtime->project().setTrackColor(commandContext(*runtime), Automation::TrackId(trackId),
+                                     colorIndex);
+}
+
+void TrackController::changeTrackDefaultLanguage(const int trackId, const QString &language) {
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    runtime->project().setTrackDefaultLanguage(commandContext(*runtime),
+                                               Automation::TrackId(trackId), language);
 }
 
 void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io,
@@ -139,6 +159,8 @@ void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFo
     // The decode task takes ownership of `io` (the dialog already probed the
     // format); both dialog and drag-drop paths go through the same preparer.
     auto *decodeTask = AudioFilePreparer::createPrepareTask(path, io, workspace);
+    if (const auto *runtime = automationRuntime())
+        decodeTask->documentVersion = runtime->documentVersion();
     decodeTask->trackId = id;
     decodeTask->tick = tick;
     const auto dlg = new TaskDialog(decodeTask, true, true, m_parentWidget);
@@ -152,35 +174,33 @@ void TrackController::onAddAudioClip(const QString &path, talcs::AbstractAudioFo
 void TrackController::onRelocateAudioClip(const int clipId, const QString &path,
                                           talcs::AbstractAudioFormatIO *io,
                                           const QJsonObject &workspace) {
-    int trackIndex = -1;
-    const auto clip = appModel->findClipById(clipId, trackIndex);
-    if (!clip || clip->clipType() != IClip::Audio) {
-        delete io;
-        return;
-    }
-    // io was only used by the file dialog for format probing; path and format info reach the model via the action,
-    // re-decoding is done by AudioDecodingController in response to pathChanged
     delete io;
-
-    const auto audioClip = static_cast<AudioClip *>(clip);
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
     const AudioPathInfo newInfo{DiffscopeAudioWorkspace::relativeDirFor(
                                     path, documentWorkflowController->projectPath()),
                                 {}};
-    const auto a = new ClipActions;
-    a->relocateAudioClip(audioClip, path, newInfo, workspace);
-    a->execute();
-    historyManager->record(a);
-    scheduleHashUpdate(audioClip);
+    const auto result = runtime->project().relocateAudioClip(
+        commandContext(*runtime), Automation::ClipId(clipId), path, newInfo, workspace);
+    if (result) {
+        const auto *clip = appModel->findClipById(clipId);
+        if (clip && clip->clipType() == IClip::Audio)
+            scheduleHashUpdate(static_cast<const AudioClip *>(clip));
+    }
 }
 
 void TrackController::confirmAudioClipPath(const int clipId) {
-    int trackIndex = -1;
-    const auto clip = appModel->findClipById(clipId, trackIndex);
-    if (!clip || clip->clipType() != IClip::Audio)
+    auto *runtime = automationRuntime();
+    if (!runtime)
         return;
-    const auto audioClip = static_cast<AudioClip *>(clip);
-    audioClip->setPathStatus(AudioClip::PathStatus::Normal);
-    scheduleHashUpdate(audioClip);
+    const auto result = runtime->project().confirmAudioClipPath(
+        commandContext(*runtime), Automation::ClipId(clipId));
+    if (result) {
+        const auto *clip = appModel->findClipById(clipId);
+        if (clip && clip->clipType() == IClip::Audio)
+            scheduleHashUpdate(static_cast<const AudioClip *>(clip));
+    }
 }
 
 void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &args) {
@@ -190,106 +210,54 @@ void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &ar
 void TrackController::onClipPropertyChanged(const Clip::ClipCommonProperties &args,
                                             const int newTrackIndex) {
     qDebug() << "TrackController::onClipPropertyChanged";
-    int currentTrackIndex = -1;
-    const auto clip = appModel->findClipById(args.id, currentTrackIndex);
-    const auto oldTrack = appModel->tracks().at(currentTrackIndex);
-
-    const Clip::ClipCommonProperties oldArgs(*clip);
-
-    if (newTrackIndex >= 0 && newTrackIndex != currentTrackIndex) {
-        const auto newTrack = appModel->tracks().at(newTrackIndex);
-        const auto a = new ClipActions;
-        a->moveClipToTrack(oldArgs, args, clip, oldTrack, newTrack);
-        a->execute();
-        historyManager->record(a);
-        if (appStatus->activeClipId == args.id)
-            editorViewController->refreshActiveClipTrackPresentation();
+    auto *runtime = automationRuntime();
+    if (!runtime)
         return;
-    }
-
-    if (clip->clipType() == Clip::Audio) {
-        const auto audioClip = dynamic_cast<AudioClip *>(clip);
-
-        QList<Clip::ClipCommonProperties> oldArgsList;
-        oldArgsList.append(oldArgs);
-        QList<Clip::ClipCommonProperties> newArgsList;
-        newArgsList.append(args);
-        QList<AudioClip *> clips;
-        clips.append(audioClip);
-        QList<Track *> tracks;
-        tracks.append(oldTrack);
-
-        const auto a = new ClipActions;
-        a->editAudioClipProperties(oldArgsList, newArgsList, clips, tracks);
-        a->execute();
-        historyManager->record(a);
-    } else if (clip->clipType() == Clip::Singing) {
-        const auto singingClip = dynamic_cast<SingingClip *>(clip);
-
-        QList<Clip::ClipCommonProperties> oldArgsList;
-        oldArgsList.append(oldArgs);
-        QList<Clip::ClipCommonProperties> newArgsList;
-        newArgsList.append(args);
-        QList<SingingClip *> clips;
-        clips.append(singingClip);
-        QList<Track *> tracks;
-        tracks.append(oldTrack);
-
-        const auto a = new ClipActions;
-        a->editSingingClipProperties(oldArgsList, newArgsList, clips, tracks);
-        a->execute();
-        historyManager->record(a);
-    }
+    std::optional<Automation::TrackId> targetTrackId;
+    if (newTrackIndex >= 0 && newTrackIndex < appModel->tracks().size())
+        targetTrackId = Automation::TrackId(appModel->tracks().at(newTrackIndex)->id());
+    const auto result = runtime->project().setClipProperties(
+        commandContext(*runtime), clipPropertiesDto(args), targetTrackId);
+    if (result && result.get().changed && targetTrackId && appStatus->activeClipId == args.id)
+        editorViewController->refreshActiveClipTrackPresentation();
 }
 
 void TrackController::onRemoveClips(const QList<int> &clipsId) {
-    if (clipsId.empty())
+    auto *runtime = automationRuntime();
+    if (!runtime)
         return;
-
-    const auto a = new ClipActions;
-    QList<Clip *> clips;
-    QList<Track *> tracks;
-    for (const auto &id : clipsId) {
-        auto activeClipId = appStatus->activeClipId;
-        if (id == activeClipId)
-            setActiveClip(-1);
-
-        Track *track;
-        const auto clip = appModel->findClipById(id, track);
-        clips.append(clip);
-        tracks.append(track);
-    }
-    a->removeClips(clips, tracks);
-    a->execute();
-    historyManager->record(a);
+    QList<Automation::ClipId> ids;
+    ids.reserve(clipsId.size());
+    for (const auto id : clipsId)
+        ids.append(Automation::ClipId(id));
+    const auto result = runtime->project().removeClips(commandContext(*runtime), ids);
+    if (result && result.get().changed && clipsId.contains(appStatus->activeClipId.get()))
+        setActiveClip(-1);
 }
 
 SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int tick) {
-    const auto singingClip = new SingingClip;
+    auto *runtime = automationRuntime();
+    if (!runtime || trackIndex < 0 || trackIndex >= appModel->tracks().size())
+        return nullptr;
     constexpr int bars = 4;
-    // Four measures from the insertion point, following the local signature.
     const auto &timeline = appModel->timeline();
     const int startBar = timeline.tickToTime(qMax(0, tick)).measure;
     const int length = timeline.barToTick(startBar + bars) - timeline.barToTick(startBar);
-    singingClip->setName(tr("New Singing Clip"));
-    singingClip->setStart(tick);
-    singingClip->setClipStart(0);
-    singingClip->setLength(length);
-    singingClip->setClipLen(length);
-
     const auto track = appModel->tracks().at(trackIndex);
-    singingClip->setDefaultLanguage(track->defaultLanguage());
-    singingClip->setTrackVoiceContext(track->singerInfo(), track->speakerInfo(),
-                                      track->speakerMixData());
-    const auto a = new ClipActions;
-    QList<Clip *> clips;
-    clips.append(singingClip);
-    a->insertClips(clips, track);
-    a->execute();
-    historyManager->record(a);
-
-    setActiveClip(singingClip->id());
-    return singingClip;
+    Automation::ClipDraftDto draft;
+    draft.type = Automation::ClipDraftDto::Type::Singing;
+    draft.properties.name = tr("New Singing Clip");
+    draft.properties.start = tick;
+    draft.properties.length = length;
+    draft.properties.clipLen = length;
+    draft.defaultLanguage = track->defaultLanguage();
+    const auto result = runtime->project().insertClips(
+        commandContext(*runtime), {{Automation::TrackId(track->id()), std::move(draft)}});
+    if (!result || !result.get().changed || result.get().affectedObjects.isEmpty())
+        return nullptr;
+    const auto clipId = result.get().affectedObjects.first().value;
+    setActiveClip(clipId);
+    return static_cast<SingingClip *>(appModel->findClipById(clipId));
 }
 
 void TrackController::copySelectedClips() {
@@ -333,7 +301,8 @@ void TrackController::cutSelectedClips() {
 
 void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex) {
     const auto &srcClips = info.clips;
-    if (srcClips.isEmpty())
+    auto *runtime = automationRuntime();
+    if (!runtime || srcClips.isEmpty())
         return;
 
     if (trackIndex < 0 || trackIndex >= appModel->tracks().count())
@@ -344,88 +313,23 @@ void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex
         minStart = qMin(minStart, clip->start());
     const auto offset = tick - minStart;
 
-    QList<Clip *> newClips;
-    QList<Track *> targetTracks;
+    QList<Automation::ClipInsertDto> inserts;
 
     for (int i = 0; i < srcClips.count(); i++) {
         const auto srcClip = srcClips.at(i);
+        if (!srcClip)
+            continue;
         int targetTrackIndex = trackIndex + info.trackIndexOffsets.value(i, 0);
         targetTrackIndex = qBound(0, targetTrackIndex, appModel->tracks().count() - 1);
-
-        Clip *newClip = nullptr;
-        if (srcClip->clipType() == IClip::Singing) {
-            const auto srcSinging = static_cast<SingingClip *>(srcClip);
-            auto singingClip = new SingingClip;
-            singingClip->setDefaultLanguage(srcSinging->defaultLanguage());
-
-            const auto srcNotes = srcSinging->notes().toList();
-            for (const auto srcNote : srcNotes) {
-                auto note = new Note;
-                note->setLocalStart(srcNote->localStart());
-                note->setLength(srcNote->length());
-                note->setKeyIndex(srcNote->keyIndex());
-                note->setCentShift(srcNote->centShift());
-                note->setLyric(srcNote->lyric());
-                note->setLanguage(srcNote->language());
-                note->setPronunciation(srcNote->pronunciation());
-                note->setPronCandidates(srcNote->pronCandidates());
-                note->setLineFeed(srcNote->lineFeed());
-                Phonemes ph;
-                ph.nameSeq.edited = srcNote->phonemeNameSeq().edited;
-                note->setPhonemes(ph);
-                singingClip->insertNote(note);
-            }
-            const auto targetTrack = appModel->tracks().at(targetTrackIndex);
-            singingClip->setTrackVoiceContext(targetTrack->singerInfo(),
-                                              targetTrack->speakerInfo(),
-                                              targetTrack->speakerMixData());
-            if (!srcSinging->usesTrackVoiceContext()) {
-                singingClip->setOwnSingerAndSpeaker(srcSinging->ownSingerInfo(),
-                                                    srcSinging->ownSpeakerInfo());
-                singingClip->setOwnSpeakerMixData(srcSinging->ownSpeakerMixData());
-            }
-            newClip = singingClip;
-
-        } else if (srcClip->clipType() == IClip::Audio) {
-            const auto srcAudio = static_cast<AudioClip *>(srcClip);
-            auto audioClip = new AudioClip;
-            audioClip->setPath(srcAudio->path());
-            audioClip->setPathInfo(srcAudio->pathInfo());
-            newClip = audioClip;
-        }
-
-        if (newClip) {
-            newClip->setName(srcClip->name());
-            newClip->setStart(srcClip->start() + offset);
-            newClip->setLength(srcClip->length());
-            newClip->setClipStart(srcClip->clipStart());
-            newClip->setClipLen(srcClip->clipLen());
-            newClip->setGain(srcClip->gain());
-            newClip->setMute(srcClip->mute());
-            newClip->workspace() = srcClip->workspace();
-            if (newClip->clipType() == IClip::Audio) {
-                const auto audioNew = static_cast<AudioClip *>(newClip);
-                const auto audioSrc = static_cast<AudioClip *>(srcClip);
-                if (audioSrc->hasRealTimeAnchor())
-                    audioNew->setRealTimeAnchor(audioSrc->trimStartMs(), audioSrc->playLengthMs(),
-                                                audioSrc->materialLengthMs());
-                else
-                    audioNew->syncTruthFromTicks(appModel->timeline());
-                // Re-derive the caches at the paste position
-                audioNew->updateTicksFromTruth(appModel->timeline());
-            }
-            newClips.append(newClip);
-            targetTracks.append(appModel->tracks().at(targetTrackIndex));
-        }
+        auto draft = Automation::clipDraftDto(*srcClip);
+        draft.properties.start += offset;
+        const auto target = appModel->tracks().at(targetTrackIndex);
+        inserts.append({Automation::TrackId(target->id()), std::move(draft)});
     }
 
-    if (newClips.isEmpty())
+    if (inserts.isEmpty())
         return;
-
-    const auto a = new ClipActions;
-    a->insertClips(newClips, targetTracks);
-    a->execute();
-    historyManager->record(a);
+    runtime->project().insertClips(commandContext(*runtime), inserts);
 }
 
 void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
@@ -466,32 +370,35 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
     const double posMs = timeline.tickToMs(tick);
     const int length = qMax(1, qRound(timeline.msToTick(posMs + durationMs)) - tick);
 
-    const auto audioClip = new AudioClip;
-    audioClip->setName(QFileInfo(path).baseName());
-    audioClip->setStart(tick);
-    audioClip->setClipStart(0);
-    audioClip->setLength(length);
-    audioClip->setClipLen(length);
-    audioClip->setPath(path);
-    audioClip->setAudioInfo(result);
-    audioClip->setRealTimeAnchor(0, durationMs, durationMs);
-    audioClip->workspace().insert("diffscope.audio.formatData", task->workspace);
-    audioClip->setPathInfo({DiffscopeAudioWorkspace::relativeDirFor(
-                                path, documentWorkflowController->projectPath()),
-                            {}});
-    const auto track = appModel->findTrackById(trackId);
-    if (!track) {
-        qDebug() << "handleDecodeAudioTaskFinished: track not found";
-        delete task;
-        return;
+    Automation::ClipDraftDto draft;
+    draft.type = Automation::ClipDraftDto::Type::Audio;
+    draft.properties.name = QFileInfo(path).baseName();
+    draft.properties.start = tick;
+    draft.properties.length = length;
+    draft.properties.clipLen = length;
+    draft.properties.trimStartMs = 0;
+    draft.properties.playLengthMs = durationMs;
+    draft.properties.materialLengthMs = durationMs;
+    draft.audioPath = path;
+    draft.audioInfo = result;
+    draft.audioPathInfo = {DiffscopeAudioWorkspace::relativeDirFor(
+                               path, documentWorkflowController->projectPath()),
+                           {}};
+    draft.hasRealTimeAnchor = true;
+    draft.workspace.insert("diffscope.audio.formatData", task->workspace);
+    auto *runtime = automationRuntime();
+    if (runtime) {
+        Automation::CommandContext context{.expected = task->documentVersion,
+                                           .source = Automation::InvocationSource::TrustedGui};
+        const auto commit = runtime->project().insertClips(
+            context, {{Automation::TrackId(trackId), std::move(draft)}});
+        if (commit && commit.get().changed && !commit.get().affectedObjects.isEmpty()) {
+            const auto clipId = commit.get().affectedObjects.first().value;
+            const auto *clip = appModel->findClipById(clipId);
+            if (clip && clip->clipType() == IClip::Audio)
+                scheduleHashUpdate(static_cast<const AudioClip *>(clip));
+        }
     }
-    const auto a = new ClipActions;
-    QList<Clip *> clips;
-    clips.append(audioClip);
-    a->insertClips(clips, track);
-    a->execute();
-    historyManager->record(a);
-    scheduleHashUpdate(audioClip);
     delete task;
 }
 

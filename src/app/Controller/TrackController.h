@@ -43,6 +43,8 @@ public slots:
     static void addAudioClipToNewTrack(const QString &filePath);
     static void setActiveClip(int clipId);
     static void changeTrackProperty(const Track::TrackProperties &args);
+    static void changeTrackColor(int trackId, int colorIndex);
+    static void changeTrackDefaultLanguage(int trackId, const QString &language);
     void onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io, const QJsonObject &workspace, int id, int tick);
     void onRelocateAudioClip(int clipId, const QString &path, talcs::AbstractAudioFormatIO *io,
                              const QJsonObject &workspace);

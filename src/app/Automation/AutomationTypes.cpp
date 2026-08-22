@@ -42,6 +42,22 @@ namespace Automation {
         return error;
     }
 
+    AutomationError AutomationError::notFound(const ObjectRef object, QString message) {
+        AutomationError error;
+        error.code = AutomationErrorCode::NotFound;
+        error.object = object;
+        error.message = std::move(message);
+        return error;
+    }
+
+    AutomationError AutomationError::wrongObjectType(const ObjectRef object, QString message) {
+        AutomationError error;
+        error.code = AutomationErrorCode::WrongObjectType;
+        error.object = object;
+        error.message = std::move(message);
+        return error;
+    }
+
     AutomationError AutomationError::documentChanged(const DocumentId requested,
                                                        const DocumentId current) {
         AutomationError error;

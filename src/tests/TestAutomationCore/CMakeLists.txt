@@ -1,5 +1,13 @@
 project(TestAutomationCore)
 
+file(GLOB_RECURSE _automation_edit_action_sources CONFIGURE_DEPENDS
+    "../../app/Controller/Actions/AppModel/Track/*.cpp"
+    "../../app/Controller/Actions/AppModel/Clip/*.cpp"
+    "../../app/Controller/Actions/AppModel/Note/*.cpp"
+    "../../app/Controller/Actions/AppModel/Param/*.cpp"
+    "../../app/Controller/Actions/AppModel/SpeakerMix/*.cpp"
+)
+
 lite_add_test(${PROJECT_NAME}
     SOURCES
         main.cpp
@@ -11,8 +19,13 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Automation/SingleWindowContext.cpp
         ../../app/Automation/AutomationDispatcher.cpp
         ../../app/Automation/CommandCommitter.cpp
+        ../../app/Automation/DocumentObjectResolver.cpp
         ../../app/Automation/EditorAutomationFacade.cpp
         ../../app/Automation/HistoryAutomationFacade.cpp
+        ../../app/Automation/NoteAutomationFacade.cpp
+        ../../app/Automation/ParameterAutomationFacade.cpp
+        ../../app/Automation/ProjectAutomationDtos.cpp
+        ../../app/Automation/ProjectAutomationFacade.cpp
         ../../app/Automation/TimelineAutomationFacade.cpp
         ../../app/Automation/CoreRuntime.cpp
         ../../app/Controller/Actions/AppModel/MasterControl/EditMasterControlAction.cpp
@@ -22,6 +35,7 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Controller/Actions/AppModel/TimeSignature/EditTimeSignaturesAction.cpp
         ../../app/Controller/Actions/AppModel/TimeSignature/TimeSignatureActions.cpp
         ../../app/Model/AppModel/SingingClipPhonemeNormalizer.cpp
+        ${_automation_edit_action_sources}
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ../../app)

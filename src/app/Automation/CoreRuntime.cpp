@@ -7,6 +7,9 @@ namespace Automation {
           m_dispatcher(m_documentResolver, m_windowContext, m_catalog),
           m_facade(m_session, m_windowContext, m_catalog, m_dispatcher),
           m_historyFacade(m_catalog, m_dispatcher, m_committer),
+          m_noteFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
+          m_parameterFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
+          m_projectFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
           m_timelineFacade(m_catalog, m_dispatcher, m_committer) {
     }
 
@@ -40,6 +43,18 @@ namespace Automation {
 
     HistoryAutomationFacade &CoreRuntime::history() {
         return m_historyFacade;
+    }
+
+    NoteAutomationFacade &CoreRuntime::notes() {
+        return m_noteFacade;
+    }
+
+    ParameterAutomationFacade &CoreRuntime::parameters() {
+        return m_parameterFacade;
+    }
+
+    ProjectAutomationFacade &CoreRuntime::project() {
+        return m_projectFacade;
     }
 
     TimelineAutomationFacade &CoreRuntime::timeline() {

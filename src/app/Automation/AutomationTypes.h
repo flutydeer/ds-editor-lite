@@ -170,6 +170,8 @@ namespace Automation {
         std::optional<Revision> actualRevision;
 
         [[nodiscard]] static AutomationError invalidArgument(QString fieldPath, QString message);
+        [[nodiscard]] static AutomationError notFound(ObjectRef object, QString message);
+        [[nodiscard]] static AutomationError wrongObjectType(ObjectRef object, QString message);
         [[nodiscard]] static AutomationError documentChanged(DocumentId requested,
                                                                DocumentId current);
         [[nodiscard]] static AutomationError revisionConflict(DocumentId documentId,
