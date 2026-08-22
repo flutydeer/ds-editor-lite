@@ -140,7 +140,8 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 - cancel 与 revision 前进、对象删除、进入 Committing 同时发生；
 - selection/reveal 与轨道、片段、音符删除及 undo/redo 交错；
 - save 与设置变更、loop 变更、History savepoint 的边界；
-- Track/Clip/Note/Speaker Mix 跨域 ActionSequence 的通知次序；
+- Track/Clip/Note/Speaker Mix 跨域 ActionSequence 的通知次序，以及同步 Model signal
+  启动异步推理时捕获提交后 revision；
 - 复制/粘贴、导入、undo/redo 后 edited parameters、语言、声线和音素保真；
 - 文件名大小写、Unicode、只读目录、已存在文件、临时文件清理和磁盘失败；
 - Catalog/集中注册表不一致、重复 operation ID、产品代码硬编码 operation ID；
