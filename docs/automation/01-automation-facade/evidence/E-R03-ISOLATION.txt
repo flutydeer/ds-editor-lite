@@ -1,0 +1,17 @@
+Evidence: E-R03-ISOLATION
+Round: 03
+Source: sanitized runtime statistics
+
+The requested multi-track DSPX fixture opened successfully and created 40 inference pieces.
+The run was disqualified as a cache-miss regression because Qt resolved the existing user cache.
+
+cached_duration=40
+cached_pitch=40
+cached_variance=40
+cached_acoustic=40
+pipelines_created=40
+pipelines_destroyed=40
+document_revision_mismatch=0
+target_snapshot_rebases=324
+failed_inference_tasks=0
+raw_log_sha256=47d9781426b873ce4733e83cadd336d6a5510b553c2d11dc8d7a162183d4c312
