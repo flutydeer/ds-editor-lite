@@ -1,0 +1,11 @@
+round=38
+scope=public ITrack view color setter facade-boundary hardening
+application_build=pass; 5 steps; link and Qt deploy succeeded
+architecture_guard=pass
+editing_domain=42 scenarios; 257 assertions; 0 failures
+track_control_view=public setColorIndex routes to TrackController changeTrackColor
+mix_channel_view=public setColorIndex routes to TrackController changeTrackColor
+temporary_preview=existing color hover/cancel preview remains scoped and reversible
+final_commit=TrackController to ProjectAutomationFacade to CommandCommitter
+guard=public view color setter may not call the bound Track model setter directly
+privacy=logical aliases only; no local absolute paths

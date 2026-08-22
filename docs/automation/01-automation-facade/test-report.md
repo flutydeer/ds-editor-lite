@@ -971,3 +971,27 @@ UTF-8，而非依赖构建期间可变化的 ANSI console code page。
 
 通过（定向回归）。轮次 36 的 use-after-free/临时 ID 缺陷已关闭；仍需在本轮源码上执行全目标
 构建、全量 CTest，并在 Computer Use 中同时验证绘制、拆分、选择与推理触发。
+
+## 回归轮次 38：公开轨道颜色 setter 旁路收紧
+
+### 范围
+
+复核轨道头和混音通道实现的 `ITrack::setColorIndex`。这两个公开入口当前没有生产调用，但原实现
+一旦被泛型 ITrack 调用，会直接写 live Track 而绕过 History/revision；将其统一路由到已有
+`TrackController::changeTrackColor`，并增加源码守卫。
+
+### 结果
+
+- 轨道头与混音通道的公开颜色 setter 均改走 TrackController → Project Facade → Committer；没有
+  新增平行颜色实现。
+- 既有颜色菜单 hover/cancel 仍是作用域内、可恢复的临时预览；确认动作仍只提交一次。
+- 应用增量构建 5 个步骤通过，链接和 Qt 部署成功；架构守卫通过。
+- 编辑域 42 场景、257 断言全部通过，轨道颜色真实提交、no-op、History 和 revision 契约未回归。
+
+### 证据
+
+- 脱敏构建与边界摘要：证据 `E-R38-VIEW-COLOR-SETTER-GUARD`。
+
+### 判定
+
+通过。两个潜在公开旁路已关闭；下一步在不再修改生产源码的条件下执行全目标构建与完整 CTest。

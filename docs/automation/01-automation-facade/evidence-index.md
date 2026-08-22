@@ -219,3 +219,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R37-NOTE-COMMIT-CREATED-ID-GREEN` | 37 | 音符提交真实创建 ID 修复与三轮定向回归摘要 | `fa67c9ea932126b4124e9b2552068aea3a8962e4f24ca48c78dcc1457f6e229c` |
+
+## 追加证据 35
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R38-VIEW-COLOR-SETTER-GUARD` | 38 | 公开轨道颜色 setter Facade 边界收紧摘要 | `f67be77b882500909b66826d37cb895b5db56c6a3d46a9a7300c100f355327b9` |

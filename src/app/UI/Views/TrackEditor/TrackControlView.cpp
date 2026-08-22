@@ -135,9 +135,9 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
         }
 
         if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
-            runtime->parameters().selectTrackSingleSpeaker(
-                commandContext(*runtime), Automation::TrackId(m_track->id()), singerInfo,
-                speakerInfo);
+            runtime->parameters().selectTrackSingleSpeaker(commandContext(*runtime),
+                                                           Automation::TrackId(m_track->id()),
+                                                           singerInfo, speakerInfo);
         }
         refreshSingerComboPresentation();
     });
@@ -448,9 +448,9 @@ void TrackControlView::onPresetApplied(const QString &presetId) const {
     }
 
     if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
-        runtime->parameters().applyTrackSpeakerMix(
-            commandContext(*runtime), Automation::TrackId(m_track->id()), singerInfo,
-            data.sources.first().speaker, data);
+        runtime->parameters().applyTrackSpeakerMix(commandContext(*runtime),
+                                                   Automation::TrackId(m_track->id()), singerInfo,
+                                                   data.sources.first().speaker, data);
     }
     refreshSingerComboPresentation();
 }
@@ -517,7 +517,7 @@ int TrackControlView::colorIndex() const {
 
 void TrackControlView::setColorIndex(int colorIndex) {
     if (m_track)
-        m_track->setColorIndex(colorIndex);
+        trackController->changeTrackColor(m_track->id(), colorIndex);
     updateTrackColor();
 }
 

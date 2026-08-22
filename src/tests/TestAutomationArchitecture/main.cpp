@@ -80,6 +80,8 @@ int main(int argc, char *argv[]) {
     const QRegularExpression semanticNoteAllocation(QStringLiteral(R"(\bnew\s+Note\b)"));
     const QRegularExpression unconditionalNoteEditCommit(QStringLiteral(
         R"(\b(?:finishNoteEditSession|endActiveTransaction)\s*\(\s*EditSessionEndReason::Commit\s*\))"));
+    const QRegularExpression directViewTrackColorWrite(QStringLiteral(
+        R"(void\s+(?:TrackControlView|ChannelView)::setColorIndex\s*\([^)]*\)\s*\{[^{}]*\b(?:m_track|m_context)\s*->\s*setColorIndex\s*\()"));
 
     for (const auto &id : Automation::OperationIds::all()) {
         if (!versionedOperationSuffix.match(id).hasMatch())
@@ -110,6 +112,9 @@ int main(int argc, char *argv[]) {
 
         ok &= rejectMatch(file, versionedAutomationContract,
                           QStringLiteral("Versioned in-process contract ID is not allowed"));
+
+        ok &= rejectMatch(file, directViewTrackColorWrite,
+                          QStringLiteral("Public view color setter bypassed TrackController"));
 
         if (file.relativePath == QStringLiteral("src/app/Controller/ClipController.h")) {
             ok &= rejectMatch(
