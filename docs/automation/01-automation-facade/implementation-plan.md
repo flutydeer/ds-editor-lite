@@ -99,9 +99,10 @@ Descriptor 至少包含：
 record 一次、revision 最多增加一次。合法 no-op 返回 `changed=false`，不写
 History、不增 revision、不发业务变更通知。
 
-通用 batch 为 all-or-nothing、单 History、单 revision，并支持请求内
-`client_ref`。批量文件导入保留 `keep_successes` 行为：全部预处理后把成功集合一次
-原子提交并返回逐项结果。
+通用 batch 为 all-or-nothing、单 History、单 revision，并支持请求内唯一的
+`client_ref`；创建成功时由 `MutationResult` 返回有序的 `client_ref → object_id`
+绑定，绑定只属于响应、不写入工程。批量文件导入保留 `keep_successes` 行为：全部预处理
+后把成功集合一次原子提交并返回逐项结果。
 
 `validate_only` 执行完整验证并返回 `would_change`、warnings 和可预测影响，但不
 分配对象 ID、不写幂等记录、不产生副作用。
@@ -145,7 +146,7 @@ Committing、原子提交一次。session 替换后旧任务不得写入新工�
 5. 迁移文档、导入/保存、解码、导出、提取、包任务和自动推理写回。
 6. 迁移播放、Recent、设置、包路径、预设、歌词规则和稳定 GUI 状态。
 7. 删除业务绕过路径并增加源码架构守卫。
-8. 完成实现级保护测试和构建，随后提交详细测试大纲。
+8. 完成实现级保护测试、完整构建和全量 CTest，随后提交详细测试大纲。
 
 复杂、分层或可独立验证的工作包分别提交，提交格式为
 `type(scope): summary`。每个提交保持可构建并运行对应保护测试，不提交构建产物。
@@ -156,8 +157,9 @@ Committing、原子提交一次。session 替换后旧任务不得写入新工�
 
 ## 5. 测试门禁
 
-实现阶段运行保护性契约测试、受影响回归和构建门禁。实现完成后输出详细测试
-大纲，等待 GUI 冒烟和大纲批准，再执行全量测试。
+实现阶段运行保护性契约测试、受影响回归、完整构建和当前全部 CTest；只有这些门禁
+通过后才输出详细测试大纲并请用户执行 GUI 冒烟。由 Codex 使用 Computer Use 执行的
+全量 GUI 回归必须等待用户明确批准，不在本阶段提前启动。
 
 测试 Manifest 与 Catalog、handler 的 operation ID 集合必须完全相等。实际 Catalog
 数量记为 `N`，预计确定性场景数为：
@@ -174,3 +176,8 @@ N × 6～9 + 80～150 个跨域、竞态和迁移缺陷场景
 单列 DSPX/MIDI、音频 codec、声库、短推理和设备初始化。最终报告记录构建环境、
 Catalog 快照、命令、场景/断言数、逐域结果、耗时、失败修复轨迹、环境限制和残余
 风险。
+
+实施产物：
+
+- [迁移矩阵](migration-matrix.md)
+- [全量测试大纲](test-outline.md)
