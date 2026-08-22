@@ -77,3 +77,35 @@
 
 失败（测试基础设施时序不足，非产品功能失败）。隔离桥锁存时限需适配 Computer Use 的
 观察—动作往返，再以新轮次复测；本轮记录永久保留。
+
+## 回归轮次 02：Modifier 输入桥修正后资格验证
+
+### 范围
+
+将隔离桥锁存时限从 10 秒调整为 60 秒后，重新验证 Control、Shift、Alt、组合修饰键、
+鼠标点击、滚轮以及显式清除。所有操作均作用于独立测试实例。
+
+### 结果
+
+- 增量 Debug 构建：通过；桥实现重新编译并成功链接 `DsEditorLite.exe`。
+- Control+左键：通过；转发事件为 `ControlModifier`，手势结束后自动清除。
+- Shift+左键：通过；转发事件为 `ShiftModifier`，手势结束后自动清除。
+- Alt+滚轮：通过；轨道高度发生可见变化，350 ms 后以 `wheel-complete` 自动清除。
+- Control+Shift+左键：通过；转发事件同时包含 `ShiftModifier|ControlModifier`。
+- F12 显式清除：通过；日志记录 `explicit-clear`，未遗留锁存状态。
+- 窗口与进程检查：无 Qt 插件错误、断言、Debug Error 或其他阻塞模态窗口。
+- 临时桥仅提交到 `codex/automation-facade-gui-regression`，正式产品分支不包含桥代码。
+
+### 证据
+
+- 临时桥提交：`8639056e test(gui): add isolated modifier input bridge`。
+- 进程日志：`C:/Users/yqzhishen/.fastctx/jobs/j-rbsopp/output.log`。
+- 隔离运行目录：
+  `C:/Users/yqzhishen/AppData/Local/Temp/ds-editor-lite-gui-regression-jJ7Zjz`。
+- 关键日志：04:14:23 Control 鼠标手势；04:14:56 Shift 鼠标手势；04:15:23 Alt
+  滚轮完成；04:16:15 Control+Shift 鼠标手势；04:16:49 F12 显式清除。
+
+### 判定
+
+通过。该桥具备补足 Computer Use Modifier+鼠标/滚轮能力缺口的资格，可用于后续回归；
+桥辅助场景将在对应轮次中明确标识。
