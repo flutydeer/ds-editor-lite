@@ -502,16 +502,13 @@ void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
                            << invalidated.getError().message;
                 return;
             }
-            if (canStartClipInference(*clip))
-                createAndRunGetPronTask(*clip);
+            ensureClipInferenceStarted(*clip);
         }
         return;
     }
 
     // Trigger inference if language module is already ready and clip has a valid singer
-    if (canStartClipInference(*clip)) {
-        createAndRunGetPronTask(*clip);
-    }
+    ensureClipInferenceStarted(*clip);
 }
 
 void InferControllerPrivate::handleSingingClipRemoved(SingingClip *clip) {
@@ -575,8 +572,7 @@ void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType
                                << invalidated.getError().message;
                 return;
             }
-            if (canStartClipInference(*clip))
-                createAndRunGetPronTask(*clip);
+            ensureClipInferenceStarted(*clip);
             break;
         case SingingClip::Insert:
         case SingingClip::EditedWordPropertyChange:
@@ -586,8 +582,7 @@ void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType
                 piece->dirty = true;
             }
             // TODO 重跑获取发音->音素，跑之前先判断发音序列？
-            if (canStartClipInference(*clip))
-                createAndRunGetPronTask(*clip);
+            ensureClipInferenceStarted(*clip);
             break;
         case SingingClip::EditedPronunciationOnly:
             // User edited pronunciation after G2P has already run.
@@ -595,8 +590,7 @@ void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType
             for (const auto &piece : clip->findPiecesByNotes(notes)) {
                 piece->dirty = true;
             }
-            if (canStartClipInference(*clip))
-                createAndRunGetPhoneTask(*clip);
+            ensureClipInferenceStarted(*clip, ClipInferenceStartStage::Phoneme);
             break;
         default:
             break;
@@ -785,14 +779,21 @@ bool InferControllerPrivate::canStartClipInference(const SingingClip &clip) cons
            !clip.singerIdentifier().isEmpty();
 }
 
-void InferControllerPrivate::ensureClipInferenceStarted(SingingClip &clip) {
+void InferControllerPrivate::ensureClipInferenceStarted(SingingClip &clip,
+                                                         const ClipInferenceStartStage stage) {
     const QPointer<SingingClip> guardedClip(&clip);
-    QTimer::singleShot(0, this, [this, guardedClip] {
+    // Model signals run inside ActionSequence::execute(); defer until the committer advances revision.
+    QTimer::singleShot(0, this, [this, guardedClip, stage] {
         if (!guardedClip || appModel->findClipById(guardedClip->id()) != guardedClip)
             return;
 
-        if (canStartClipInference(*guardedClip))
+        if (!canStartClipInference(*guardedClip))
+            return;
+
+        if (stage == ClipInferenceStartStage::Pronunciation)
             createAndRunGetPronTask(*guardedClip);
+        else
+            createAndRunGetPhoneTask(*guardedClip);
     });
 }
 
