@@ -222,6 +222,8 @@ void InferencePage::modifyOption() {
     option->depth = m_dsDepthSlider->spinbox->value();
     option->runVocoderOnCpu = m_swRunVocoderOnCpu->value();
     option->autoStartInfer = m_autoStartInfer->value();
+    option->singerSessionCacheCapacity = m_cbSingerSessionCacheCapacity->currentData().toInt();
+    option->singerSessionIdleTimeoutSeconds = m_cbSingerSessionIdleTimeout->currentData().toInt();
     appOptions->saveAndNotify(AppOptionsGlobal::Inference);
 }
 
@@ -337,6 +339,39 @@ QWidget *InferencePage::createContentWidget() {
     renderCard->addItem(tr("Pitch Smooth Kernel Size"),
                         tr("Smooth the pitch curve with a sinusoidal kernel"),
                         {m_smoothSlider->seekbar, m_smoothSlider->spinbox});
+
+    m_cbSingerSessionCacheCapacity = new ComboBox();
+    for (int capacity = InferenceOption::kSingerSessionCacheCapacityMin;
+         capacity <= InferenceOption::kSingerSessionCacheCapacityMax; ++capacity) {
+        m_cbSingerSessionCacheCapacity->addItem(QLocale().toString(capacity), capacity);
+    }
+    m_cbSingerSessionCacheCapacity->addItem(tr("Unlimited"),
+                                            InferenceOption::kSingerSessionCacheCapacityUnlimited);
+    m_cbSingerSessionCacheCapacity->setCurrentIndex(
+        m_cbSingerSessionCacheCapacity->findData(option->singerSessionCacheCapacity));
+    connect(m_cbSingerSessionCacheCapacity, &ComboBox::currentIndexChanged, this,
+            &InferencePage::modifyOption);
+
+    m_cbSingerSessionIdleTimeout = new ComboBox();
+    for (int seconds = InferenceOption::kSingerSessionIdleTimeoutMinSeconds;
+         seconds <= InferenceOption::kSingerSessionIdleTimeoutMaxSeconds;
+         seconds += InferenceOption::kSingerSessionIdleTimeoutStepSeconds) {
+        m_cbSingerSessionIdleTimeout->addItem(tr("%L1 seconds").arg(seconds), seconds);
+    }
+    m_cbSingerSessionIdleTimeout->addItem(
+        tr("Unlimited"), InferenceOption::kSingerSessionIdleTimeoutUnlimitedSeconds);
+    m_cbSingerSessionIdleTimeout->setCurrentIndex(
+        m_cbSingerSessionIdleTimeout->findData(option->singerSessionIdleTimeoutSeconds));
+    connect(m_cbSingerSessionIdleTimeout, &ComboBox::currentIndexChanged, this,
+            &InferencePage::modifyOption);
+
+    const auto singerSessionCacheCard = new OptionListCard(tr("Singer Session Retention"));
+    singerSessionCacheCard->addItem(tr("Capacity"),
+                                    tr("Maximum number of selected singers kept ready"),
+                                    m_cbSingerSessionCacheCapacity);
+    singerSessionCacheCard->addItem(tr("Idle Timeout"),
+                                    tr("Release an unused selected singer after this duration"),
+                                    m_cbSingerSessionIdleTimeout);
 
     // Cache
     m_btnOpenCacheFolder = new Button(tr("Open Folder..."), this);
@@ -550,6 +585,7 @@ QWidget *InferencePage::createContentWidget() {
     const auto mainLayout = new QVBoxLayout();
     mainLayout->addWidget(m_deviceCard, 0, Qt::AlignTop);
     mainLayout->addWidget(renderCard, 0, Qt::AlignTop);
+    mainLayout->addWidget(singerSessionCacheCard, 0, Qt::AlignTop);
     mainLayout->addWidget(cacheCard, 0, Qt::AlignTop);
     mainLayout->addWidget(debugCard, 1, Qt::AlignTop);
     mainLayout->setContentsMargins({});

@@ -67,6 +67,68 @@ namespace {
         return success;
     }
 
+    bool testSingerSessionCacheSettings(const QString &cacheDirectory) {
+        InferenceOption option;
+        option.load(config(cacheDirectory, QStringLiteral("CPU")));
+        bool success =
+            expect(option.singerSessionCacheCapacity ==
+                       InferenceOption::kSingerSessionCacheCapacityDefault,
+                   QStringLiteral("session cache capacity should use its default when absent"));
+        success &=
+            expect(option.singerSessionIdleTimeoutSeconds ==
+                       InferenceOption::kSingerSessionIdleTimeoutDefaultSeconds,
+                   QStringLiteral("session idle timeout should use its default when absent"));
+
+        auto configured = config(cacheDirectory, QStringLiteral("CPU"));
+        configured.insert(QStringLiteral("singerSessionCacheCapacity"), 7);
+        configured.insert(QStringLiteral("singerSessionIdleTimeoutSeconds"), 120);
+        option.load(configured);
+        success &= expect(option.singerSessionCacheCapacity == 7 &&
+                              option.singerSessionIdleTimeoutSeconds == 120,
+                          QStringLiteral("valid session cache settings should be loaded"));
+        const auto saved = option.value();
+        success &= expect(
+            saved.value(QStringLiteral("singerSessionCacheCapacity")).toInt() == 7 &&
+                saved.value(QStringLiteral("singerSessionIdleTimeoutSeconds")).toInt() == 120,
+            QStringLiteral("session cache settings should be persisted"));
+
+        configured.insert(QStringLiteral("singerSessionCacheCapacity"), 0);
+        configured.insert(QStringLiteral("singerSessionIdleTimeoutSeconds"), 0);
+        option.load(configured);
+        success &= expect(option.singerSessionCacheCapacity ==
+                                  InferenceOption::kSingerSessionCacheCapacityUnlimited &&
+                              option.singerSessionIdleTimeoutSeconds ==
+                                  InferenceOption::kSingerSessionIdleTimeoutUnlimitedSeconds,
+                          QStringLiteral("unlimited session cache settings should be preserved"));
+
+        configured.insert(QStringLiteral("singerSessionCacheCapacity"), 0);
+        configured.insert(QStringLiteral("singerSessionIdleTimeoutSeconds"), -1);
+        option.load(configured);
+        success &= expect(option.singerSessionCacheCapacity ==
+                                  InferenceOption::kSingerSessionCacheCapacityUnlimited &&
+                              option.singerSessionIdleTimeoutSeconds ==
+                                  InferenceOption::kSingerSessionIdleTimeoutMinSeconds,
+                          QStringLiteral("invalid session cache settings should be normalized"));
+
+        configured.insert(QStringLiteral("singerSessionCacheCapacity"), -1);
+        configured.insert(QStringLiteral("singerSessionIdleTimeoutSeconds"), 90);
+        option.load(configured);
+        success &= expect(
+            option.singerSessionCacheCapacity == InferenceOption::kSingerSessionCacheCapacityMin &&
+                option.singerSessionIdleTimeoutSeconds == 120,
+            QStringLiteral("session cache settings should snap to available choices"));
+
+        configured.insert(QStringLiteral("singerSessionCacheCapacity"), 1000);
+        configured.insert(QStringLiteral("singerSessionIdleTimeoutSeconds"), 10000);
+        option.load(configured);
+        success &= expect(
+            option.singerSessionCacheCapacity == InferenceOption::kSingerSessionCacheCapacityMax &&
+                option.singerSessionIdleTimeoutSeconds ==
+                    InferenceOption::kSingerSessionIdleTimeoutMaxSeconds,
+            QStringLiteral("session cache settings should be clamped to their maximums"));
+        return success;
+    }
+
 } // namespace
 
 int main(int argc, char *argv[]) {
@@ -80,5 +142,6 @@ int main(int argc, char *argv[]) {
     bool success = true;
     success &= testSupportedProviders(cacheDirectory.path());
     success &= testCudaProvider(cacheDirectory.path());
+    success &= testSingerSessionCacheSettings(cacheDirectory.path());
     return success ? 0 : 1;
 }

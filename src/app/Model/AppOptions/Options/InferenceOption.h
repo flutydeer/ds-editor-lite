@@ -26,6 +26,44 @@ public:
 #endif
     }
 
+    static constexpr int kSingerSessionCacheCapacityUnlimited = 0;
+    static constexpr int kSingerSessionCacheCapacityMin = 1;
+    static constexpr int kSingerSessionCacheCapacityMax = 8;
+    static constexpr int kSingerSessionCacheCapacityDefault = 4;
+    static constexpr int kSingerSessionIdleTimeoutUnlimitedSeconds = 0;
+    static constexpr int kSingerSessionIdleTimeoutMinSeconds = 60;
+    static constexpr int kSingerSessionIdleTimeoutMaxSeconds = 300;
+    static constexpr int kSingerSessionIdleTimeoutStepSeconds = 60;
+    static constexpr int kSingerSessionIdleTimeoutDefaultSeconds = 60;
+
+    [[nodiscard]] static constexpr int normalizeSingerSessionCacheCapacity(int value) noexcept {
+        if (value == kSingerSessionCacheCapacityUnlimited) {
+            return value;
+        }
+        if (value < kSingerSessionCacheCapacityMin) {
+            return kSingerSessionCacheCapacityMin;
+        }
+        return value > kSingerSessionCacheCapacityMax ? kSingerSessionCacheCapacityMax : value;
+    }
+
+    [[nodiscard]] static constexpr int
+        normalizeSingerSessionIdleTimeoutSeconds(int value) noexcept {
+        if (value == kSingerSessionIdleTimeoutUnlimitedSeconds) {
+            return value;
+        }
+        if (value <= kSingerSessionIdleTimeoutMinSeconds) {
+            return kSingerSessionIdleTimeoutMinSeconds;
+        }
+        if (value >= kSingerSessionIdleTimeoutMaxSeconds) {
+            return kSingerSessionIdleTimeoutMaxSeconds;
+        }
+
+        const int lower =
+            value / kSingerSessionIdleTimeoutStepSeconds * kSingerSessionIdleTimeoutStepSeconds;
+        const int upper = lower + kSingerSessionIdleTimeoutStepSeconds;
+        return value - lower < upper - value ? lower : upper;
+    }
+
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;
 
@@ -42,6 +80,8 @@ public:
     LITE_OPTION_ITEM(QString, cacheDirectory,
                      QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() +
                          "/Cache")
+    LITE_OPTION_ITEM(int, singerSessionCacheCapacity, kSingerSessionCacheCapacityDefault)
+    LITE_OPTION_ITEM(int, singerSessionIdleTimeoutSeconds, kSingerSessionIdleTimeoutDefaultSeconds)
 
     LITE_OPTION_ITEM(int, pitch_smooth_kernel_size, 0)
 };

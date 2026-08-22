@@ -143,6 +143,7 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
         return false;
     }
 
+    InferDirectMLSerializationGuard dmlGuard;
     const auto handle = inferEngine->acquireSingerSession(identifier);
     if (!handle) {
         qCritical() << "inferVariance: failed to acquire singer session for" << identifier;
@@ -193,7 +194,6 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
         abort();
         return false;
     }
-    InferRunSerializationGuard runGuard;
     auto exp = inferenceVariance->start(input);
     if (!exp) {
         qCritical().noquote().nospace() << "inferVariance: Failed to start variance inference for "

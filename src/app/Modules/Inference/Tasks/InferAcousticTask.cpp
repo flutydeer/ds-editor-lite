@@ -167,6 +167,7 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
     input->depth = model.depth;
     input->steps = model.steps;
 
+    InferDirectMLSerializationGuard dmlGuard;
     const auto handle = inferEngine->acquireSingerSession(identifier);
     if (!handle) {
         qCritical() << "inferAcoustic: failed to acquire singer session for" << identifier;
@@ -231,7 +232,6 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             abort();
             return false;
         }
-        InferRunSerializationGuard runGuard;
         auto exp = inferenceAcoustic->start(input);
         if (!exp) {
             qCritical().noquote().nospace()
@@ -315,7 +315,6 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             abort();
             return false;
         }
-        InferRunSerializationGuard runGuard;
         auto exp = inferenceVocoder->start(vocoderInput);
         if (!exp) {
             qCritical().noquote().nospace()

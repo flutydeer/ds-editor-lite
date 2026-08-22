@@ -31,6 +31,11 @@ void InferenceOption::load(const QJsonObject &object) {
     load_depth(object);
     load_runVocoderOnCpu(object);
     load_autoStartInfer(object);
+    load_singerSessionCacheCapacity(object);
+    singerSessionCacheCapacity = normalizeSingerSessionCacheCapacity(singerSessionCacheCapacity);
+    load_singerSessionIdleTimeoutSeconds(object);
+    singerSessionIdleTimeoutSeconds =
+        normalizeSingerSessionIdleTimeoutSeconds(singerSessionIdleTimeoutSeconds);
     load_pitch_smooth_kernel_size(object);
 }
 
@@ -43,5 +48,7 @@ void InferenceOption::save(QJsonObject &object) {
               serialize_runVocoderOnCpu(),
               serialize_autoStartInfer(),
               serialize_cacheDirectory(),
+              serialize_singerSessionCacheCapacity(),
+              serialize_singerSessionIdleTimeoutSeconds(),
               serialize_pitch_smooth_kernel_size()};
 }

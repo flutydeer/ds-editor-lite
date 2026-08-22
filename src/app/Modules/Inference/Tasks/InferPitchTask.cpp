@@ -139,6 +139,7 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
     input->parameters = convertInputParams(model.params);
     input->steps = model.steps;
 
+    InferDirectMLSerializationGuard dmlGuard;
     const auto handle = inferEngine->acquireSingerSession(identifier);
     if (!handle) {
         qCritical() << "inferPitch: failed to acquire singer session for" << identifier;
@@ -189,7 +190,6 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
         abort();
         return false;
     }
-    InferRunSerializationGuard runGuard;
     auto exp = inferencePitch->start(input);
     if (!exp) {
         qCritical().noquote().nospace() << "inferPitch: Failed to start pitch inference for "

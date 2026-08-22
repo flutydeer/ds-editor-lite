@@ -24,6 +24,7 @@
 #include <QString>
 
 #include <algorithm>
+#include <chrono>
 
 #include "Tasks/InferTaskCommon.h"
 #include "Utils/CudaGpuUtils.h"
@@ -65,12 +66,21 @@ static bool packageIsSelected(const ds::session::LoadedVoicebankInfo &package,
                        });
 }
 
+static constexpr int kSingerSessionScanIntervalMilliseconds = 10'000;
+
 InferEngine::InferEngine(QObject *parent) : QObject(parent) {
     srt::core::Logger::setLogCallback(log_report_callback);
+    m_singerSessionReleasePool.setMaxThreadCount(1);
 
     // Prevent crash on app exit
     connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this,
             &InferEngine::dispose);
+
+    m_singerSessionEvictionTimer.setInterval(kSingerSessionScanIntervalMilliseconds);
+    m_singerSessionEvictionTimer.setTimerType(Qt::CoarseTimer);
+    connect(&m_singerSessionEvictionTimer, &QTimer::timeout, this,
+            &InferEngine::evictSingerSessions);
+    m_singerSessionEvictionTimer.start();
 }
 
 InferEngine::~InferEngine() {
@@ -257,25 +267,87 @@ std::shared_ptr<ds::session::ModelSetHandle>
 
 void InferEngine::retainSingerSessions(const QSet<SingerIdentifier> &identifiers) {
     QReadLocker lock(&m_engineRwLock);
-    m_singerSessions.retainOnly(identifiers);
+    std::lock_guard selectionLock(m_singerSessionSelectionMutex);
+    auto result = m_singerSessions.retainOnly(identifiers);
+    if (!m_initialized || m_disposed) {
+        if (result.released > 0) {
+            qInfo() << "Singer session retention dropped" << result.released
+                    << "deselected resident entries";
+        }
+        releaseSingerSessionsAsync(std::move(result.handles));
+        return;
+    }
+    releaseDeselectedSingerSessionsAsync(std::move(result.handles));
+}
+
+void InferEngine::releaseSingerSessionsAsync(SingerSessionHandleList handles) {
+    if (handles.empty()) {
+        return;
+    }
+    m_singerSessionReleasePool.start([handles = std::move(handles)]() mutable {
+        InferDirectMLSerializationGuard dmlGuard;
+        handles.clear();
+    });
+}
+
+void InferEngine::releaseDeselectedSingerSessionsAsync(SingerSessionHandleList handles) {
+    const auto releasedSessions = handles.size();
+    m_singerSessionReleasePool.start([this, handles = std::move(handles),
+                                      releasedSessions]() mutable {
+        InferDirectMLSerializationGuard dmlGuard;
+        handles.clear();
+
+        auto &session = SynthrtEngine::instance().session();
+        std::size_t unloadedPackages = 0;
+        std::size_t packagesInUse = 0;
+        for (const auto &package : session.loadedVoicebanks()) {
+            std::lock_guard selectionLock(m_singerSessionSelectionMutex);
+            if (packageIsSelected(package, m_singerSessions.retainedIdentifiers())) {
+                continue;
+            }
+
+            auto result = session.unloadVoicebank(package.packageId, package.version);
+            if (result) {
+                ++unloadedPackages;
+            } else if (result.error().code() == srt::core::ErrorCode::PackageInUse) {
+                ++packagesInUse;
+            } else if (result.error().code() != srt::core::ErrorCode::RuntimePackageNotLoaded) {
+                qWarning().noquote().nospace()
+                    << "retainSingerSessions: failed to unload package "
+                    << QString::fromStdString(package.packageId) << ": "
+                    << QString::fromUtf8(result.error().messageWithLocation());
+            }
+        }
+        if (releasedSessions > 0 || unloadedPackages > 0) {
+            qInfo().noquote().nospace()
+                << "Singer session retention updated: dropped=" << releasedSessions
+                << ", packagesUnloaded=" << unloadedPackages << ", packagesInUse=" << packagesInUse;
+        } else if (packagesInUse > 0) {
+            qDebug().noquote().nospace()
+                << "Singer session package unload deferred: packagesInUse=" << packagesInUse;
+        }
+    });
+}
+
+void InferEngine::evictSingerSessions() {
+    QReadLocker lock(&m_engineRwLock);
     if (!m_initialized || m_disposed) {
         return;
     }
 
-    auto &session = SynthrtEngine::instance().session();
-    for (const auto &package : session.loadedVoicebanks()) {
-        if (packageIsSelected(package, identifiers)) {
-            continue;
-        }
-
-        auto result = session.unloadVoicebank(package.packageId, package.version);
-        if (!result && result.error().code() != srt::core::ErrorCode::PackageInUse &&
-            result.error().code() != srt::core::ErrorCode::RuntimePackageNotLoaded) {
-            qWarning().noquote().nospace()
-                << "retainSingerSessions: failed to unload package "
-                << QString::fromStdString(package.packageId) << ": "
-                << QString::fromUtf8(result.error().messageWithLocation());
-        }
+    const auto option = appOptions->inference();
+    const auto capacity = static_cast<std::size_t>(
+        InferenceOption::normalizeSingerSessionCacheCapacity(option->singerSessionCacheCapacity));
+    const auto idleTimeout =
+        std::chrono::seconds(InferenceOption::normalizeSingerSessionIdleTimeoutSeconds(
+            option->singerSessionIdleTimeoutSeconds));
+    auto result = m_singerSessions.evict(capacity, idleTimeout);
+    if (result.idle > 0 || result.capacity > 0) {
+        qInfo().noquote().nospace()
+            << "Singer session retention scan: idleReleased=" << result.idle
+            << ", lruReleased=" << result.capacity << ", capacity=" << capacity
+            << ", idleTimeoutSeconds=" << idleTimeout.count();
+        releaseSingerSessionsAsync(std::move(result.handles));
     }
 }
 
@@ -284,10 +356,17 @@ void InferEngine::dispose() {
     if (m_disposed) {
         return;
     }
+    m_singerSessionEvictionTimer.stop();
     m_disposed = true;
     m_initialized = false;
     qDebug() << "dispose InferEngine inference sessions";
-    m_singerSessions.clear();
+    SingerSessionHandleList handles;
+    {
+        std::lock_guard selectionLock(m_singerSessionSelectionMutex);
+        handles = m_singerSessions.clear();
+    }
+    releaseSingerSessionsAsync(std::move(handles));
+    m_singerSessionReleasePool.waitForDone();
     SynthrtEngine::instance().shutdown();
 }
 

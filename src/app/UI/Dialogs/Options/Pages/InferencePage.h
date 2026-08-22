@@ -51,6 +51,8 @@ private:
     SwitchButton *m_autoStartInfer;
     SeekBarSpinboxGroup *m_playbackWindowSlider;
     SeekBarSpinboxGroup *m_smoothSlider;
+    ComboBox *m_cbSingerSessionCacheCapacity;
+    ComboBox *m_cbSingerSessionIdleTimeout;
     QTreeView *m_treeView;
     Button *m_btnOpenCacheFolder;
     QLabel *m_lblCacheStats;
