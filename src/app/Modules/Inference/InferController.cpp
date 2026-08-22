@@ -6,6 +6,7 @@
 #include "InferController_p.h"
 
 #include "InferControllerHelper.h"
+#include "InferenceAutomationBridge.h"
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include "Model/AppOptions/AppOptions.h"
@@ -119,12 +120,43 @@ namespace {
     template <typename T>
     InferenceTaskContext buildClipTaskContext(const QString &taskType, const T &task) {
         InferenceTaskContext context;
+        context.documentVersion = task.documentVersion();
         context.taskType = taskType;
         context.taskId = task.id();
         context.clipId = task.clipId();
         context.clipRevision = task.clipRevision();
         context.noteIds = task.noteIds();
         return context;
+    }
+
+    Automation::InferenceMutationRequest pronunciationMutation(
+        const InferenceTaskContext &context,
+        const QList<PronunciationFetchResult> &pronunciations) {
+        Automation::InferenceMutationRequest request;
+        request.kind = Automation::InferenceMutationKind::ApplyPronunciations;
+        request.clipId = Automation::ClipId(context.clipId);
+        for (qsizetype i = 0; i < pronunciations.count(); ++i) {
+            request.pronunciations.append({
+                .noteId = Automation::NoteId(context.noteIds.at(i)),
+                .pronunciation = pronunciations.at(i).pronunciation,
+                .candidates = pronunciations.at(i).candidates,
+            });
+        }
+        return request;
+    }
+
+    Automation::InferenceMutationRequest phonemeNameMutation(
+        const InferenceTaskContext &context, const QList<PhonemeNameResult> &phonemeNames) {
+        Automation::InferenceMutationRequest request;
+        request.kind = Automation::InferenceMutationKind::ApplyPhonemeNames;
+        request.clipId = Automation::ClipId(context.clipId);
+        for (qsizetype i = 0; i < phonemeNames.count(); ++i) {
+            request.phonemeNames.append({
+                .noteId = Automation::NoteId(context.noteIds.at(i)),
+                .phonemeNames = phonemeNames.at(i).phonemeNames,
+            });
+        }
+        return request;
     }
 } // namespace
 
@@ -392,10 +424,16 @@ void InferControllerPrivate::handleTempoChanged() {
                 singingClip->pieces().isEmpty())
                 continue;
 
-            // AppModel has already bumped this clip's revision. Re-segment
-            // without a second bump; piecesChanged synchronously removes
-            // pipelines for discarded pieces.
-            const auto result = singingClip->reSegment(timeline, false);
+            Automation::InferenceMutationRequest resegmentRequest;
+            resegmentRequest.kind = Automation::InferenceMutationKind::ResegmentClip;
+            resegmentRequest.clipId = Automation::ClipId(singingClip->id());
+            resegmentRequest.bumpClipInferenceRevision = false;
+            const auto resegment = InferenceAutomationBridge::executeCurrent(resegmentRequest);
+            if (!resegment) {
+                qWarning() << "Failed to resegment clip after tempo change:"
+                           << resegment.getError().message;
+                continue;
+            }
 
             // Only surviving pieces that overlap an effective BPM change need
             // their state machines restarted. Unrelated pieces keep their
@@ -409,18 +447,26 @@ void InferControllerPrivate::handleTempoChanged() {
                     const int end = singingClip->start() + piece.localEndTick(timeline);
                     return intersectsTempoRanges(ranges, start, end);
                 });
-            for (const auto pipeline : pipelines) {
-                auto &piece = pipeline->piece();
-                piece.speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
-                    singingClip->speakerMixData(), singingClip->speakerId(),
-                    singingClip->start() + piece.localStartTick(timeline),
-                    singingClip->start() + piece.localEndTick(timeline), timeline);
-                piece.speaker = piece.speakerMix.fallbackSpeaker;
-                pipeline->onTimelineChanged();
+            Automation::InferenceMutationRequest refreshRequest;
+            refreshRequest.kind = Automation::InferenceMutationKind::RefreshSpeakerMix;
+            refreshRequest.clipId = Automation::ClipId(singingClip->id());
+            for (const auto *pipeline : pipelines)
+                refreshRequest.pieceIds.append(Automation::PieceId(pipeline->pieceId()));
+            if (!pipelines.isEmpty()) {
+                const auto refreshed = InferenceAutomationBridge::executeCurrent(refreshRequest);
+                if (!refreshed) {
+                    qWarning() << "Failed to refresh inference speaker mix after tempo change:"
+                               << refreshed.getError().message;
+                    continue;
+                }
             }
+            for (const auto pipeline : pipelines)
+                pipeline->onTimelineChanged();
 
-            for (const auto piece : result.addedPieces)
-                createPipeline(*piece);
+            for (const auto pieceId : resegment.get().sideEffects.addedPieces) {
+                if (auto *piece = singingClip->findPieceById(pieceId.value()))
+                    createPipeline(*piece);
+            }
         }
     }
 }
@@ -447,7 +493,15 @@ void InferControllerPrivate::handleSingingClipInserted(SingingClip *clip) {
         // still valid. Follow Track clips can inherit a different singer/speaker on the target
         // track and must be re-inferred.
         if (!clipPiecesMatchCurrentSingerAndSpeaker(*clip)) {
-            clip->removeAllPieces();
+            Automation::InferenceMutationRequest request;
+            request.kind = Automation::InferenceMutationKind::InvalidateClip;
+            request.clipId = Automation::ClipId(clip->id());
+            const auto invalidated = InferenceAutomationBridge::executeCurrent(request);
+            if (!invalidated) {
+                qWarning() << "Failed to invalidate moved singing clip:"
+                           << invalidated.getError().message;
+                return;
+            }
             if (canStartClipInference(*clip))
                 createAndRunGetPronTask(*clip);
         }
@@ -494,7 +548,13 @@ void InferControllerPrivate::handlePiecesChanged(const PieceList &newPieces,
             delete pipeline;
         }
     }
-    Helper::updateAllOriginalParam(*clip);
+    Automation::InferenceMutationRequest request;
+    request.kind = Automation::InferenceMutationKind::RebuildOriginalParams;
+    request.clipId = Automation::ClipId(clip->id());
+    const auto rebuilt = InferenceAutomationBridge::executeCurrent(request);
+    if (!rebuilt)
+        qWarning() << "Failed to rebuild original inference parameters:"
+                   << rebuilt.getError().message;
 }
 
 void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType type,
@@ -506,7 +566,13 @@ void InferControllerPrivate::handleNoteChanged(const SingingClip::NoteChangeType
 
             // If all notes are removed, clear all pieces directly
             if (clip->notes().count() <= 0) {
-                clip->removeAllPieces();
+                Automation::InferenceMutationRequest request;
+                request.kind = Automation::InferenceMutationKind::InvalidateClip;
+                request.clipId = Automation::ClipId(clip->id());
+                const auto invalidated = InferenceAutomationBridge::executeCurrent(request);
+                if (!invalidated)
+                    qWarning() << "Failed to invalidate empty singing clip:"
+                               << invalidated.getError().message;
                 return;
             }
             if (canStartClipInference(*clip))
@@ -541,7 +607,21 @@ void InferControllerPrivate::handleParamChanged(const ParamInfo::Name name, cons
                                                 SingingClip *clip) {
     if (type != Param::Edited)
         return;
-    auto dirtyPieces = Helper::getParamDirtyPiecesAndUpdateInput(name, *clip);
+    Automation::InferenceMutationRequest request;
+    request.kind = Automation::InferenceMutationKind::RefreshParamInput;
+    request.clipId = Automation::ClipId(clip->id());
+    request.parameterName = name;
+    const auto refreshed = InferenceAutomationBridge::executeCurrent(request);
+    if (!refreshed) {
+        qWarning() << "Failed to refresh inference parameter input:"
+                   << refreshed.getError().message;
+        return;
+    }
+    QList<InferPiece *> dirtyPieces;
+    for (const auto pieceId : refreshed.get().sideEffects.changedPieces) {
+        if (auto *piece = clip->findPieceById(pieceId.value()))
+            dirtyPieces.append(piece);
+    }
     switch (name) {
         case ParamInfo::Expressiveness:
             for (const auto &piece : dirtyPieces) {
@@ -610,7 +690,15 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
     const bool singerChanged = change.before.singer != change.after.singer;
     const bool speakerChanged = change.before.speaker != change.after.speaker;
     if (singerChanged || speakerChanged) {
-        clip->removeAllPieces();
+        Automation::InferenceMutationRequest request;
+        request.kind = Automation::InferenceMutationKind::InvalidateClip;
+        request.clipId = Automation::ClipId(clip->id());
+        const auto invalidated = InferenceAutomationBridge::executeCurrent(request);
+        if (!invalidated) {
+            qWarning() << "Failed to invalidate inference after voice change:"
+                       << invalidated.getError().message;
+            return;
+        }
         ensureClipInferenceStarted(*clip);
         return;
     }
@@ -623,17 +711,17 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
         return;
     }
 
-    const auto &timeline = appModel->timeline();
-    for (const auto piece : clip->pieces()) {
-        const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
-            clip->speakerMixData(), clip->speakerId(),
-            clip->start() + piece->localStartTick(timeline),
-            clip->start() + piece->localEndTick(timeline), timeline);
-        piece->speakerMix = speakerMix;
-        piece->speaker = speakerMix.fallbackSpeaker;
-        Helper::resetPitch(*piece);
-        piece->acousticInferStatus = Pending;
+    Automation::InferenceMutationRequest refreshRequest;
+    refreshRequest.kind = Automation::InferenceMutationKind::RefreshSpeakerMix;
+    refreshRequest.clipId = Automation::ClipId(clip->id());
+    const auto refreshed = InferenceAutomationBridge::executeCurrent(refreshRequest);
+    if (!refreshed) {
+        qWarning() << "Failed to refresh inference speaker mix:"
+                   << refreshed.getError().message;
+        return;
+    }
 
+    for (const auto piece : clip->pieces()) {
         auto pred = L_PRED(t, t->pieceId() == piece->id());
         m_inferPitchTasks.cancelIf(pred);
         m_inferVarianceTasks.cancelIf(pred);
@@ -753,11 +841,20 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &tas
 
     InferenceTaskResolution resolution;
     switch (InferenceApplyGate::resolve(context, resolution, options)) {
-        case InferenceApplyGate::Decision::Apply:
-            Helper::updatePronunciation(resolution.notes, task.result, *resolution.clip);
+        case InferenceApplyGate::Decision::Apply: {
+            const auto applied = InferenceAutomationBridge::execute(
+                context.documentVersion, pronunciationMutation(context, task.result));
+            if (!applied) {
+                InferenceApplyGate::logDrop(context, "clip-task",
+                                            InferenceAutomationBridge::dropReason(
+                                                applied.getError()));
+                scheduleRetryAllSingingClips();
+                break;
+            }
             if (!resolution.clip->singerInfo().isEmpty())
                 createAndRunGetPhoneTask(*resolution.clip);
             break;
+        }
         case InferenceApplyGate::Decision::Defer:
             storePendingPronunciationApply(context, task.result);
             break;
@@ -793,14 +890,22 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
 
     InferenceTaskResolution resolution;
     switch (InferenceApplyGate::resolve(context, resolution, options)) {
-        case InferenceApplyGate::Decision::Apply:
-            Helper::updatePhoneName(resolution.notes, task.result, *resolution.clip);
-            if (!resolution.clip->singerInfo().isEmpty()) {
-                auto result = resolution.clip->reSegment(appModel->timeline());
-                for (const auto piece : result.addedPieces)
+        case InferenceApplyGate::Decision::Apply: {
+            const auto applied = InferenceAutomationBridge::execute(
+                context.documentVersion, phonemeNameMutation(context, task.result));
+            if (!applied) {
+                InferenceApplyGate::logDrop(context, "clip-task",
+                                            InferenceAutomationBridge::dropReason(
+                                                applied.getError()));
+                scheduleRetryAllSingingClips();
+                break;
+            }
+            for (const auto pieceId : applied.get().sideEffects.addedPieces) {
+                if (auto *piece = resolution.clip->findPieceById(pieceId.value()))
                     createPipeline(*piece);
             }
             break;
+        }
         case InferenceApplyGate::Decision::Defer:
             storePendingPhonemeNameApply(context, task.result);
             break;
@@ -823,8 +928,16 @@ InferControllerPrivate::PendingApplyResult InferControllerPrivate::tryApplyPronu
 
     InferenceTaskResolution resolution;
     switch (InferenceApplyGate::resolve(context, resolution, options)) {
-        case InferenceApplyGate::Decision::Apply:
-            Helper::updatePronunciation(resolution.notes, pronunciations, *resolution.clip);
+        case InferenceApplyGate::Decision::Apply: {
+            const auto applied = InferenceAutomationBridge::execute(
+                context.documentVersion, pronunciationMutation(context, pronunciations));
+            if (!applied) {
+                InferenceApplyGate::logDrop(context, phase,
+                                            InferenceAutomationBridge::dropReason(
+                                                applied.getError()));
+                scheduleRetryAllSingingClips();
+                return PendingApplyResult::Dropped;
+            }
             InferenceApplyGate::logDecision(context, phase, InferenceApplyGate::Decision::Apply,
                                             phase == "pending-flush" ? "edit-session-flush-apply"
                                                                      : "clip-task-apply",
@@ -832,6 +945,7 @@ InferControllerPrivate::PendingApplyResult InferControllerPrivate::tryApplyPronu
             if (!resolution.clip->singerInfo().isEmpty())
                 createAndRunGetPhoneTask(*resolution.clip);
             return PendingApplyResult::Applied;
+        }
         case InferenceApplyGate::Decision::Drop:
             if (phase == "pending-flush") {
                 const auto reason =
@@ -865,18 +979,26 @@ InferControllerPrivate::PendingApplyResult
 
     InferenceTaskResolution resolution;
     switch (InferenceApplyGate::resolve(context, resolution, options)) {
-        case InferenceApplyGate::Decision::Apply:
-            Helper::updatePhoneName(resolution.notes, phonemeNames, *resolution.clip);
+        case InferenceApplyGate::Decision::Apply: {
+            const auto applied = InferenceAutomationBridge::execute(
+                context.documentVersion, phonemeNameMutation(context, phonemeNames));
+            if (!applied) {
+                InferenceApplyGate::logDrop(context, phase,
+                                            InferenceAutomationBridge::dropReason(
+                                                applied.getError()));
+                scheduleRetryAllSingingClips();
+                return PendingApplyResult::Dropped;
+            }
             InferenceApplyGate::logDecision(context, phase, InferenceApplyGate::Decision::Apply,
                                             phase == "pending-flush" ? "edit-session-flush-apply"
                                                                      : "clip-task-apply",
                                             resolution.clip->inferenceRevision());
-            if (!resolution.clip->singerInfo().isEmpty()) {
-                const auto result = resolution.clip->reSegment(appModel->timeline());
-                for (const auto piece : result.addedPieces)
+            for (const auto pieceId : applied.get().sideEffects.addedPieces) {
+                if (auto *piece = resolution.clip->findPieceById(pieceId.value()))
                     createPipeline(*piece);
             }
             return PendingApplyResult::Applied;
+        }
         case InferenceApplyGate::Decision::Drop:
             if (phase == "pending-flush") {
                 const auto reason =
@@ -983,7 +1105,8 @@ void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
     m_getPronTasks.cancelIf(pred);
     m_getPhoneTasks.cancelIf(pred);
 
-    auto task = new GetPronunciationTask(clip.id(), clip.inferenceRevision(),
+    auto task = new GetPronunciationTask(InferenceAutomationBridge::currentDocumentVersion(),
+                                         clip.id(), clip.inferenceRevision(),
                                          buildNoteInferenceSnapshots(clip), clip.singerInfo());
     connect(task, &Task::finished, this, [task, this] { handleGetPronTaskFinished(*task); });
     m_getPronTasks.add(task);
@@ -1002,7 +1125,8 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
     }
     m_getPhoneTasks.cancelIf([clipId](const auto t) { return t->clipId() == clipId; });
 
-    auto task = new GetPhonemeNameTask(clip.id(), clip.inferenceRevision(),
+    auto task = new GetPhonemeNameTask(InferenceAutomationBridge::currentDocumentVersion(),
+                                       clip.id(), clip.inferenceRevision(),
                                        buildNoteInferenceSnapshots(clip), clip.singerInfo());
     connect(task, &Task::finished, this, [task, this] { handleGetPhoneTaskFinished(*task); });
     m_getPhoneTasks.add(task);
@@ -1044,10 +1168,9 @@ void InferControllerPrivate::handlePipelineDropped(InferPipeline *pipeline, cons
         m_inferPipelines.removeOne(guardedPipeline.data());
         guardedPipeline->deleteLater();
 
-        // A signature mismatch means the old task was correctly rejected, but the piece may still
-        // need inference with its new inputs. Restart from duration instead of keeping a dead final
-        // pipeline around.
-        if (reason != "input-signature-mismatch")
+        // A stale task can be rejected while the piece still needs inference with a fresh snapshot.
+        if (reason != "input-signature-mismatch" &&
+            reason != "document-revision-mismatch")
             return;
 
         const auto clip = dynamic_cast<SingingClip *>(appModel->findClipById(clipId));

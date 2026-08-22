@@ -57,7 +57,10 @@ void BaseInferState::onRunningInferenceStateEntered() {
     piece.acousticInferStatus = Running;
     piece.state = QString("%1.Running").arg(getStateNamePrefix());
 
-    resetState();
+    if (!resetState()) {
+        QTimer::singleShot(0, this, [this] { emit failed(); });
+        return;
+    }
 
     ++m_preparationEpoch;
     buildTaskInput();

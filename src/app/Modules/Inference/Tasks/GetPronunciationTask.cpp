@@ -53,10 +53,12 @@ namespace {
     }
 }
 
-GetPronunciationTask::GetPronunciationTask(const int clipId, const quint64 clipRevision,
+GetPronunciationTask::GetPronunciationTask(Automation::DocumentVersion documentVersion,
+                                           const int clipId, const quint64 clipRevision,
                                            const QList<NoteInferenceSnapshot> &notes,
                                            const SingerInfo &singerInfo)
-    : m_clipId(clipId), m_clipRevision(clipRevision), m_singerInfo(singerInfo), m_notes(notes) {
+    : m_clipId(clipId), m_documentVersion(std::move(documentVersion)),
+      m_clipRevision(clipRevision), m_singerInfo(singerInfo), m_notes(notes) {
     for (int i = 0; i < notes.count(); i++) {
         m_previewText.append(notes.at(i).lyric);
         if (i == 20) {
@@ -71,6 +73,10 @@ GetPronunciationTask::GetPronunciationTask(const int clipId, const quint64 clipR
     setStatus(status);
     qInfo() << "GetPronunciationTask created"
             << "clipId:" << clipId << "taskId:" << id() << "taskRevision:" << m_clipRevision;
+}
+
+Automation::DocumentVersion GetPronunciationTask::documentVersion() const {
+    return m_documentVersion;
 }
 
 int GetPronunciationTask::clipId() const {

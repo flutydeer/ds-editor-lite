@@ -2,10 +2,8 @@
 
 #include <QTimer>
 
-#include "Modules/Inference/InferControllerHelper.h"
+#include "Modules/Inference/InferenceAutomationBridge.h"
 #include "Modules/Inference/InferPipeline.h"
-
-namespace Helper = InferControllerHelper;
 
 UpdatePitchState::UpdatePitchState(InferPipeline &pipeline, QState *parent)
     : QState(parent), m_pipeline(pipeline) {
@@ -28,10 +26,20 @@ void UpdatePitchState::onEntry(QEvent *event) {
             return;
     }
 
-    auto &piece = *gate.resolution.piece;
-    piece.state = QString("Pitch.Update");
-    Helper::updatePitch(m_pipeline.pitchResult(), piece,
-                        m_pipeline.applyContext().pitchSmoothKernelSize);
+    gate.resolution.piece->state = QString("Pitch.Update");
+    Automation::InferenceMutationRequest request;
+    request.kind = Automation::InferenceMutationKind::ApplyPitch;
+    request.clipId = Automation::ClipId(m_pipeline.applyContext().clipId);
+    request.pieceId = Automation::PieceId(m_pipeline.applyContext().pieceId);
+    request.pitchResult = m_pipeline.pitchResult();
+    request.pitchSmoothKernelSize = m_pipeline.applyContext().pitchSmoothKernelSize;
+    const auto result = InferenceAutomationBridge::execute(
+        m_pipeline.applyContext().documentVersion, request);
+    if (!result) {
+        m_pipeline.notifyDropped(InferenceAutomationBridge::dropReason(result.getError()));
+        QTimer::singleShot(0, this, [this] { emit pieceNotFound(); });
+        return;
+    }
     QTimer::singleShot(0, this, [this] { emit updateSuccess(); });
 }
 

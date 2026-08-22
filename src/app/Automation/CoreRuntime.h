@@ -5,6 +5,7 @@
 #include "DocumentAutomationFacade.h"
 #include "EditorAutomationFacade.h"
 #include "HistoryAutomationFacade.h"
+#include "InferenceAutomationFacade.h"
 #include "NoteAutomationFacade.h"
 #include "PackageAutomationFacade.h"
 #include "ParameterAutomationFacade.h"
@@ -29,7 +30,8 @@ namespace Automation {
                     EditorRuntimeServices editorServices = {},
                     SettingsRuntimeServices settingsServices = {},
                     PresetRuntimeServices presetServices = {},
-                    PackageRuntimeServices packageServices = {});
+                    PackageRuntimeServices packageServices = {},
+                    InferenceRuntimeServices inferenceServices = {});
 
         [[nodiscard]] DocumentVersion documentVersion() const;
         [[nodiscard]] const WindowId &windowId() const;
@@ -41,6 +43,7 @@ namespace Automation {
         AutomationDispatcher &dispatcher();
         DocumentAutomationFacade &documents();
         HistoryAutomationFacade &history();
+        InferenceAutomationFacade &inference();
         NoteAutomationFacade &notes();
         PackageAutomationFacade &packages();
         ParameterAutomationFacade &parameters();
@@ -68,6 +71,7 @@ namespace Automation {
         DocumentAutomationFacade m_documentFacade;
         EditorAutomationFacade m_facade;
         HistoryAutomationFacade m_historyFacade;
+        InferenceAutomationFacade m_inferenceFacade;
         NoteAutomationFacade m_noteFacade;
         PackageAutomationFacade m_packageFacade;
         ParameterAutomationFacade m_parameterFacade;

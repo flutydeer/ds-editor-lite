@@ -1,6 +1,7 @@
 #include "InferDurationState.h"
 
 #include "Modules/Inference/InferControllerHelper.h"
+#include "Modules/Inference/InferenceAutomationBridge.h"
 #include "Modules/Inference/InferPipeline.h"
 #include "Modules/Inference/InferController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -14,9 +15,17 @@ InferDurationState::InferDurationState(InferPipeline &pipeline, QState *parent)
     : BaseInferState(pipeline, parent) {
 }
 
-void InferDurationState::resetState() {
+bool InferDurationState::resetState() {
     auto &piece = m_pipeline.piece();
-    Helper::resetPhoneOffset(piece.notes, piece);
+    Automation::InferenceMutationRequest request;
+    request.kind = Automation::InferenceMutationKind::ResetStage;
+    request.clipId = Automation::ClipId(piece.clipId());
+    request.pieceId = Automation::PieceId(piece.id());
+    request.stage = Automation::InferenceStage::Duration;
+    const auto result = InferenceAutomationBridge::executeCurrent(request);
+    if (!result)
+        qWarning() << "Failed to reset duration inference state:" << result.getError().message;
+    return static_cast<bool>(result);
 }
 
 void InferDurationState::buildTaskInput() {

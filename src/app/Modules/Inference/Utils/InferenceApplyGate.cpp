@@ -7,6 +7,7 @@
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Modules/Inference/InferControllerHelper.h"
+#include "Modules/Inference/InferenceAutomationBridge.h"
 #include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
 
 #include <QDebug>
@@ -176,6 +177,14 @@ namespace InferenceApplyGate {
             resolution.dropReason = reason;
             return Decision::Defer;
         };
+
+        if (!context.documentVersion.documentId.isNull()) {
+            const auto currentDocument = InferenceAutomationBridge::currentDocumentVersion();
+            if (context.documentVersion.documentId != currentDocument.documentId)
+                return drop("document-changed", currentDocument.revision);
+            if (context.documentVersion.revision != currentDocument.revision)
+                return drop("document-revision-mismatch", currentDocument.revision);
+        }
 
         if (context.clipId < 0)
             return drop("context-missing");

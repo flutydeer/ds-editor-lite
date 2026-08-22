@@ -83,6 +83,7 @@ namespace Automation {
     struct TrackIdTag;
     struct ClipIdTag;
     struct NoteIdTag;
+    struct PieceIdTag;
     struct CurveIdTag;
     struct AnchorIdTag;
     struct SpeakerMixKeyframeIdTag;
@@ -93,6 +94,7 @@ namespace Automation {
     using TrackId = StrongObjectId<TrackIdTag>;
     using ClipId = StrongObjectId<ClipIdTag>;
     using NoteId = StrongObjectId<NoteIdTag>;
+    using PieceId = StrongObjectId<PieceIdTag>;
     using CurveId = StrongObjectId<CurveIdTag>;
     using AnchorId = StrongObjectId<AnchorIdTag>;
     using SpeakerMixKeyframeId = StrongObjectId<SpeakerMixKeyframeIdTag>;
@@ -135,6 +137,7 @@ namespace Automation {
         Track,
         Clip,
         Note,
+        InferPiece,
         Curve,
         Anchor,
         SpeakerMixKeyframe,

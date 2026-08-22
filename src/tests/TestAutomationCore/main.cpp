@@ -349,10 +349,26 @@ int main(int argc, char *argv[]) {
             ++packageResolveApplyCount;
         return 1;
     };
+    int inferenceApplyCount = 0;
+    Automation::InferenceRuntimeServices inferenceServices;
+    inferenceServices.prepareMutation = [&inferenceApplyCount](
+                                            AppModel *,
+                                            const Automation::InferenceMutationRequest &request) {
+        Automation::PreparedInferenceMutation prepared;
+        prepared.changed = true;
+        prepared.advancesRevision =
+            request.kind != Automation::InferenceMutationKind::ApplyAcoustic;
+        prepared.affectedObjects.append({Automation::ObjectKind::Clip, 1});
+        prepared.apply = [&inferenceApplyCount](Automation::InferenceMutationSideEffects &) {
+            ++inferenceApplyCount;
+        };
+        return Automation::AutomationResult<Automation::PreparedInferenceMutation>(
+            std::move(prepared));
+    };
     Automation::CoreRuntime runtime(&model, history, std::move(documentServices),
                                     std::move(playbackServices), std::move(editorServices),
                                     std::move(settingsServices), std::move(presetServices),
-                                    std::move(packageServices));
+                                    std::move(packageServices), std::move(inferenceServices));
     const auto state = runtime.facade().getEditorState(runtime.windowId());
     const auto capabilities = runtime.facade().getEditorCapabilities();
     ok &= expect(state && state.get().document == runtime.documentVersion(),
@@ -360,7 +376,7 @@ int main(int argc, char *argv[]) {
     ok &= expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                      capabilities.get().maxConcurrentWindows == 1,
                  "capabilities must declare the single document/window boundary");
-    ok &= expect(capabilities && capabilities.get().operationIds.size() == 92 &&
+    ok &= expect(capabilities && capabilities.get().operationIds.size() == 104 &&
                      capabilities.get().operationIds.contains(QStringLiteral("history.undo")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tempos.set")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tracks.insert")) &&
@@ -375,9 +391,23 @@ int main(int argc, char *argv[]) {
                          QStringLiteral("speaker_mix_presets.save")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("packages.validate")) &&
                      capabilities.get().operationIds.contains(
+                         QStringLiteral("inference.apply_phoneme_names")) &&
+                     capabilities.get().operationIds.contains(
                          QStringLiteral("editor.set_piano_roll_edit_mode")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("documents.save")),
                  "capabilities must be derived from every registered operation");
+
+    Automation::InferenceMutationRequest acousticRequest;
+    acousticRequest.kind = Automation::InferenceMutationKind::ApplyAcoustic;
+    acousticRequest.clipId = Automation::ClipId(1);
+    acousticRequest.pieceId = Automation::PieceId(2);
+    acousticRequest.acousticPath = QStringLiteral("cache.wav");
+    const auto acousticVersion = runtime.documentVersion();
+    const auto acousticApply =
+        runtime.inference().applyMutation(commandContext(runtime), acousticRequest);
+    ok &= expect(acousticApply && acousticApply.get().mutation.changed &&
+                     inferenceApplyCount == 1 && runtime.documentVersion() == acousticVersion,
+                 "rebuildable inference cache writeback must keep document revision unchanged");
 
     const auto playbackVersion = runtime.documentVersion();
     const auto playbackPreview =
@@ -875,6 +905,24 @@ int main(int argc, char *argv[]) {
                      !staleDocument && staleDocument.getError().code ==
                                            Automation::AutomationErrorCode::DocumentChanged,
                  "document replacement must atomically rotate identity and invalidate old tasks");
+
+    Automation::InferenceMutationRequest inferenceRequest;
+    inferenceRequest.kind = Automation::InferenceMutationKind::ResetStage;
+    inferenceRequest.clipId = Automation::ClipId(1);
+    inferenceRequest.pieceId = Automation::PieceId(2);
+    inferenceRequest.stage = Automation::InferenceStage::Pitch;
+    const auto inferenceVersion = runtime.documentVersion();
+    const auto inferencePreview = runtime.inference().applyMutation(
+        commandContext(runtime, true), inferenceRequest);
+    const auto inferenceApply =
+        runtime.inference().applyMutation(commandContext(runtime), inferenceRequest);
+    ok &= expect(inferencePreview && inferencePreview.get().mutation.validatedOnly &&
+                     inferencePreview.get().mutation.changed && inferenceApply &&
+                     inferenceApply.get().mutation.changed && inferenceApplyCount == 2 &&
+                     inferencePreview.get().mutation.current.revision ==
+                         inferenceVersion.revision + 1 &&
+                     runtime.documentVersion().revision == inferenceVersion.revision + 1,
+                 "persisted inference writeback must preview and advance revision once");
 
     history->reset();
 

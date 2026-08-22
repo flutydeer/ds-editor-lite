@@ -20,6 +20,10 @@ namespace Automation {
                                          bool changed,
                                          const std::function<void()> &apply,
                                          QList<ObjectRef> affectedObjects = {});
+        MutationResult commitDerivedStateChange(DocumentSession &session,
+                                                bool changed,
+                                                const std::function<void()> &apply,
+                                                QList<ObjectRef> affectedObjects = {});
 
         [[nodiscard]] MutationResult preview(const DocumentSession &session,
                                              bool wouldChange,

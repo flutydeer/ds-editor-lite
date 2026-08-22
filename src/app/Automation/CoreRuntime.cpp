@@ -8,7 +8,8 @@ namespace Automation {
                              EditorRuntimeServices editorServices,
                              SettingsRuntimeServices settingsServices,
                              PresetRuntimeServices presetServices,
-                             PackageRuntimeServices packageServices)
+                             PackageRuntimeServices packageServices,
+                             InferenceRuntimeServices inferenceServices)
         : m_session(model, historyManager), m_documentResolver(m_session),
           m_dispatcher(m_documentResolver, m_windowContext, m_catalog),
           m_documentFacade(m_catalog, m_dispatcher, m_committer, m_taskManager,
@@ -16,6 +17,8 @@ namespace Automation {
           m_facade(m_session, m_windowContext, m_catalog, m_dispatcher,
                    std::move(editorServices)),
           m_historyFacade(m_catalog, m_dispatcher, m_committer),
+          m_inferenceFacade(m_catalog, m_dispatcher, m_committer,
+                            std::move(inferenceServices)),
           m_noteFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
           m_packageFacade(m_catalog, m_dispatcher, std::move(packageServices)),
           m_parameterFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
@@ -61,6 +64,10 @@ namespace Automation {
 
     HistoryAutomationFacade &CoreRuntime::history() {
         return m_historyFacade;
+    }
+
+    InferenceAutomationFacade &CoreRuntime::inference() {
+        return m_inferenceFacade;
     }
 
     NoteAutomationFacade &CoreRuntime::notes() {

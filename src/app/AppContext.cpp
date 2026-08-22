@@ -2,6 +2,7 @@
 
 #include "Automation/CoreRuntime.h"
 #include "Automation/AppOptionsAutomationAdapter.h"
+#include "Automation/InferenceAutomationAdapter.h"
 #include "Automation/PackageAutomationAdapter.h"
 
 #include <lite/Core/SingletonRegistry.h>
@@ -180,7 +181,8 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         m_appModel, m_historyManager, std::move(documentServices), std::move(playbackServices),
         std::move(editorServices), Automation::createAppOptionsAutomationServices(m_appOptions),
         Automation::createAppOptionsPresetAutomationServices(m_appOptions),
-        Automation::createPackageAutomationServices(m_packageManager));
+        Automation::createPackageAutomationServices(m_packageManager),
+        Automation::createInferenceAutomationServices());
 
     // L3: Runtime host must outlive the inference facade.
     m_synthrtEngine = SingletonRegistry::create<SynthrtEngine>();
