@@ -73,10 +73,13 @@ function Invoke-CMakeCommand {
         [string] $VcVars,
         [string] $RepoRoot,
         [string] $QtPath,
+        [int] $CompilerOutputCodePage,
         [string] $Command
     )
 
     $cmd = @(
+        # Ninja matches localized MSVC /showIncludes prefixes byte-for-byte.
+        "chcp $CompilerOutputCodePage >nul",
         "call `"$VcVars`" x64",
         "set `"QT_DIR=$QtPath`"",
         "set `"Qt6_DIR=$QtPath`"",
@@ -101,6 +104,7 @@ if (!(Test-Path $vcvars)) {
 }
 
 $resolvedQtDir = Resolve-QtDir $QtDir
+$compilerOutputCodePage = [Globalization.CultureInfo]::CurrentUICulture.TextInfo.ANSICodePage
 
 $configureCommand = "cmake --preset $Preset"
 $buildCommand = "cmake --build --preset $Preset"
@@ -110,12 +114,12 @@ if ($Target) {
 
 switch ($Mode) {
     "Configure" {
-        Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir $configureCommand
+        Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir $compilerOutputCodePage $configureCommand
     }
     "Build" {
-        Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir $buildCommand
+        Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir $compilerOutputCodePage $buildCommand
     }
     "ConfigureAndBuild" {
-        Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir "$configureCommand && $buildCommand"
+        Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir $compilerOutputCodePage "$configureCommand && $buildCommand"
     }
 }
