@@ -55,6 +55,10 @@ namespace Automation {
                 auto resolved = m_documentResolver.resolveDocument(documentId);
                 if (!resolved)
                     return decorateError(resolved.getError(), operationId);
+                if (resolved.get().get().lifecycleState() != DocumentLifecycleState::Active)
+                    return decorateError(
+                        AutomationError::documentBusy(resolved.get().get().documentId()),
+                        operationId);
                 return std::forward<Handler>(handler)(resolved.get().get());
             });
         }
@@ -87,6 +91,71 @@ namespace Automation {
                                 const CommandContext &context,
                                 const QByteArray &requestFingerprint,
                                 const DocumentCommandHandler &handler);
+
+        template <typename T, typename Handler>
+        AutomationResult<T> dispatchDocumentCommandResult(
+            const OperationId &operationId,
+            const CommandContext &context,
+            const QByteArray &requestFingerprint,
+            Handler &&handler) {
+            return runSerialized([&]() -> AutomationResult<T> {
+                const auto descriptor = requireDescriptor(operationId, OperationKind::Command);
+                if (!descriptor)
+                    return descriptor.getError();
+                if (descriptor.get()->documentPolicy == DocumentPolicy::None) {
+                    return decorateError(
+                        AutomationError::invalidArgument(
+                            QStringLiteral("operation_id"),
+                            QStringLiteral("Operation is not a document command")),
+                        operationId);
+                }
+
+                auto resolved = m_documentResolver.resolveDocument(context.expected.documentId);
+                if (!resolved)
+                    return decorateError(resolved.getError(), operationId);
+                auto &session = resolved.get().get();
+                if (session.lifecycleState() != DocumentLifecycleState::Active)
+                    return decorateError(AutomationError::documentBusy(session.documentId()),
+                                         operationId);
+
+                const auto fingerprint = effectiveFingerprint(context, requestFingerprint);
+                if (!context.validateOnly && !context.idempotencyKey.isEmpty()) {
+                    if (descriptor.get()->idempotency != IdempotencyPolicy::DocumentGeneration) {
+                        return decorateError(
+                            AutomationError::invalidArgument(
+                                QStringLiteral("idempotency_key"),
+                                QStringLiteral("Operation does not support document idempotency")),
+                            operationId);
+                    }
+                    auto replay = session.idempotencyStore().replay<T>(
+                        operationId, context.idempotencyKey, fingerprint);
+                    if (!replay)
+                        return decorateError(replay.getError(), operationId);
+                    if (replay.get())
+                        return *replay.get();
+                }
+
+                if (session.revision() != context.expected.revision) {
+                    return decorateError(
+                        AutomationError::revisionConflict(session.documentId(),
+                                                          context.expected.revision,
+                                                          session.revision()),
+                        operationId);
+                }
+
+                auto result = std::forward<Handler>(handler)(session, context.validateOnly);
+                if (!result)
+                    return decorateError(result.getError(), operationId);
+
+                if (!context.validateOnly && !context.idempotencyKey.isEmpty()) {
+                    auto stored = session.idempotencyStore().store(
+                        operationId, context.idempotencyKey, fingerprint, result.get());
+                    if (!stored)
+                        return decorateError(stored.getError(), operationId);
+                }
+                return result;
+            });
+        }
 
     private:
         template <typename Callable>

@@ -13,60 +13,8 @@ namespace Automation {
     AutomationResult<MutationResult> AutomationDispatcher::dispatchDocumentCommand(
         const OperationId &operationId, const CommandContext &context,
         const QByteArray &requestFingerprint, const DocumentCommandHandler &handler) {
-        return runSerialized([&]() -> AutomationResult<MutationResult> {
-            const auto descriptor = requireDescriptor(operationId, OperationKind::Command);
-            if (!descriptor)
-                return descriptor.getError();
-            if (descriptor.get()->documentPolicy == DocumentPolicy::None) {
-                return decorateError(
-                    AutomationError::invalidArgument(
-                        QStringLiteral("operation_id"),
-                        QStringLiteral("Operation is not a document command")),
-                    operationId);
-            }
-
-            auto resolved = m_documentResolver.resolveDocument(context.expected.documentId);
-            if (!resolved)
-                return decorateError(resolved.getError(), operationId);
-            auto &session = resolved.get().get();
-
-            const auto fingerprint = effectiveFingerprint(context, requestFingerprint);
-            if (!context.validateOnly && !context.idempotencyKey.isEmpty()) {
-                if (descriptor.get()->idempotency != IdempotencyPolicy::DocumentGeneration) {
-                    return decorateError(
-                        AutomationError::invalidArgument(
-                            QStringLiteral("idempotency_key"),
-                            QStringLiteral("Operation does not support document idempotency")),
-                        operationId);
-                }
-                auto replay = session.idempotencyStore().replay<MutationResult>(
-                    operationId, context.idempotencyKey, fingerprint);
-                if (!replay)
-                    return decorateError(replay.getError(), operationId);
-                if (replay.get())
-                    return *replay.get();
-            }
-
-            if (session.revision() != context.expected.revision) {
-                return decorateError(
-                    AutomationError::revisionConflict(session.documentId(),
-                                                      context.expected.revision,
-                                                      session.revision()),
-                    operationId);
-            }
-
-            auto result = handler(session, context.validateOnly);
-            if (!result)
-                return decorateError(result.getError(), operationId);
-
-            if (!context.validateOnly && !context.idempotencyKey.isEmpty()) {
-                auto stored = session.idempotencyStore().store(
-                    operationId, context.idempotencyKey, fingerprint, result.get());
-                if (!stored)
-                    return decorateError(stored.getError(), operationId);
-            }
-            return result;
-        });
+        return dispatchDocumentCommandResult<MutationResult>(operationId, context,
+                                                             requestFingerprint, handler);
     }
 
     AutomationResult<const OperationDescriptor *>

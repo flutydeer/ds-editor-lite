@@ -12,10 +12,12 @@ lite_add_test(${PROJECT_NAME}
     SOURCES
         main.cpp
         ../../app/Automation/AutomationTypes.cpp
+        ../../app/Automation/AutomationTaskManager.cpp
         ../../app/Automation/OperationCatalog.cpp
         ../../app/Automation/IdempotencyStore.cpp
         ../../app/Automation/DocumentSession.cpp
         ../../app/Automation/DocumentSessionResolver.cpp
+        ../../app/Automation/DocumentAutomationFacade.cpp
         ../../app/Automation/SingleWindowContext.cpp
         ../../app/Automation/AutomationDispatcher.cpp
         ../../app/Automation/CommandCommitter.cpp
@@ -26,10 +28,13 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Automation/ParameterAutomationFacade.cpp
         ../../app/Automation/ProjectAutomationDtos.cpp
         ../../app/Automation/ProjectAutomationFacade.cpp
+        ../../app/Automation/TaskAutomationFacade.cpp
         ../../app/Automation/TimelineAutomationFacade.cpp
         ../../app/Automation/CoreRuntime.cpp
         ../../app/Controller/Actions/AppModel/MasterControl/EditMasterControlAction.cpp
         ../../app/Controller/Actions/AppModel/MasterControl/MasterControlActions.cpp
+        ../../app/Controller/Actions/AppModel/ImportProjectActions.cpp
+        ../../app/Controller/Actions/AppModel/Import/BatchImportActions.cpp
         ../../app/Controller/Actions/AppModel/Tempo/EditTemposAction.cpp
         ../../app/Controller/Actions/AppModel/Tempo/TempoActions.cpp
         ../../app/Controller/Actions/AppModel/TimeSignature/EditTimeSignaturesAction.cpp

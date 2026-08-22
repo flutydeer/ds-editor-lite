@@ -174,7 +174,17 @@ int main(int argc, char *argv[]) {
     AppModel model;
     auto *history = HistoryManager::instance();
     history->reset();
-    Automation::CoreRuntime runtime(&model, history);
+    int saveCount = 0;
+    LoopSettings appliedLoopSettings;
+    Automation::DocumentRuntimeServices documentServices;
+    documentServices.applyLoopSettings = [&appliedLoopSettings](const LoopSettings &settings) {
+        appliedLoopSettings = settings;
+    };
+    documentServices.saveProject = [&saveCount](const QString &, AppModel *, QString &) {
+        ++saveCount;
+        return true;
+    };
+    Automation::CoreRuntime runtime(&model, history, std::move(documentServices));
     const auto state = runtime.facade().getEditorState(runtime.windowId());
     const auto capabilities = runtime.facade().getEditorCapabilities();
     ok &= expect(state && state.get().document == runtime.documentVersion(),
@@ -182,12 +192,15 @@ int main(int argc, char *argv[]) {
     ok &= expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                      capabilities.get().maxConcurrentWindows == 1,
                  "capabilities must declare the single document/window boundary");
-    ok &= expect(capabilities && capabilities.get().operationIds.size() == 44 &&
+    ok &= expect(capabilities && capabilities.get().operationIds.size() == 57 &&
                      capabilities.get().operationIds.contains(QStringLiteral("history.undo")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tempos.set")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tracks.insert")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("notes.insert")) &&
-                     capabilities.get().operationIds.contains(QStringLiteral("parameters.replace")),
+                     capabilities.get().operationIds.contains(QStringLiteral("parameters.replace")) &&
+                     capabilities.get().operationIds.contains(QStringLiteral("imports.commit_batch")) &&
+                     capabilities.get().operationIds.contains(QStringLiteral("operations.cancel")) &&
+                     capabilities.get().operationIds.contains(QStringLiteral("documents.save")),
                  "capabilities must be derived from every registered operation");
 
     Automation::CommandContext setTempoContext;
@@ -421,6 +434,157 @@ int main(int argc, char *argv[]) {
                      languageNoOp && !languageNoOp.get().changed &&
                      runtime.documentVersion() == languageVersion,
                  "non-history document state must still advance revision exactly once");
+
+    Automation::BatchImportDraftDto batchImport;
+    batchImport.timeline = model.timeline();
+    Automation::BatchImportItemDraftDto batchItem;
+    batchItem.newTrack.name = QStringLiteral("Imported Audio");
+    batchItem.newTrack.defaultLanguage = QStringLiteral("unknown");
+    Automation::ClipDraftDto audioDraft;
+    audioDraft.type = Automation::ClipDraftDto::Type::Audio;
+    audioDraft.properties.name = QStringLiteral("audio.wav");
+    audioDraft.properties.length = 480;
+    audioDraft.properties.clipLen = 480;
+    audioDraft.audioPath = QStringLiteral("D:/audio.wav");
+    batchItem.clips.append(audioDraft);
+    batchImport.items.append(batchItem);
+    const auto tracksBeforeBatch = model.tracks().size();
+    const auto batchPreview =
+        runtime.project().commitBatchImport(commandContext(runtime, true), batchImport);
+    const auto beforeBatch = runtime.documentVersion();
+    const auto batchResult =
+        runtime.project().commitBatchImport(commandContext(runtime), batchImport);
+    const auto audioId =
+        batchResult && batchResult.get().affectedObjects.size() == 2
+            ? Automation::ClipId(batchResult.get().affectedObjects.at(1).value)
+            : Automation::ClipId();
+    auto *audioClip = dynamic_cast<AudioClip *>(model.findClipById(audioId.value()));
+    ok &= expect(batchPreview && batchPreview.get().validatedOnly && batchResult &&
+                     batchResult.get().current.revision == beforeBatch.revision + 1 &&
+                     model.tracks().size() == tracksBeforeBatch + 1 && audioClip,
+                 "prepared batch import must validate without allocation and commit once");
+
+    if (audioClip) {
+        const auto cacheRevision = runtime.documentVersion();
+        AudioInfoModel audioInfo;
+        audioInfo.sampleRate = 48000;
+        audioInfo.channels = 1;
+        audioInfo.frames = 48000;
+        audioInfo.peakCache.append({-10, 10});
+        const auto decodeCache = runtime.project().applyAudioDecodeCache(
+            commandContext(runtime), audioId, audioClip->path(), audioInfo);
+        const auto setStatus = runtime.project().setAudioClipPathStatus(
+            commandContext(runtime), audioId, audioClip->path(), AudioClip::PathStatus::Missing);
+        const auto setHash = runtime.project().setAudioClipHash(
+            commandContext(runtime), audioId, audioClip->path(), QStringLiteral("abc123"));
+        const auto resolvePath = runtime.project().applyResolvedAudioPath(
+            commandContext(runtime), audioId, audioClip->path(), QStringLiteral("D:/resolved.wav"),
+            AudioClip::PathStatus::Normal);
+        ok &= expect(decodeCache && setStatus && setHash && resolvePath &&
+                         runtime.documentVersion() == cacheRevision &&
+                         audioClip->audioInfo().sampleRate == 48000 &&
+                         audioClip->pathInfo().sha512 == QStringLiteral("abc123") &&
+                         audioClip->path() == QStringLiteral("D:/resolved.wav"),
+                     "derived audio writeback must validate snapshots without advancing revision");
+    }
+
+    const auto undoBatch = runtime.history().undo(commandContext(runtime));
+    ok &= expect(undoBatch && undoBatch.get().changed && model.findClipById(audioId.value()) == nullptr &&
+                     model.tracks().size() == tracksBeforeBatch,
+                 "batch import must undo as one history entry");
+
+    auto saveContext = commandContext(runtime);
+    saveContext.idempotencyKey = QStringLiteral("7e1f1564-5335-43b8-a464-50db58c1ef2c");
+    const auto beforeSave = runtime.documentVersion();
+    const auto save = runtime.documents().saveDocument(
+        saveContext, QStringLiteral("D:/automation-contract-test.dspx"));
+    const auto saveReplay = runtime.documents().saveDocument(
+        saveContext, QStringLiteral("D:/automation-contract-test.dspx"));
+    const auto savedDocument = runtime.documents().getDocument(runtime.documentVersion().documentId);
+    ok &= expect(save && saveReplay && save.get() == saveReplay.get() && save.get().changed &&
+                     runtime.documentVersion() == beforeSave && saveCount == 1 && savedDocument &&
+                     savedDocument.get().path == QStringLiteral("D:/automation-contract-test.dspx") &&
+                     savedDocument.get().saved,
+                 "save must preserve revision, update identity, set savepoint, and replay idempotently");
+
+    int cancelCount = 0;
+    const auto task = runtime.automationTasks().createTask(
+        QStringLiteral("parameters.extract_pitch"), runtime.documentVersion(),
+        Automation::ObjectRef{Automation::ObjectKind::Clip, clipId.value()},
+        [&cancelCount] { ++cancelCount; });
+    ok &= expect(runtime.automationTasks().markRunning(task.taskId),
+                 "queued automation task must enter running state once");
+
+    const auto cancelPreview =
+        runtime.tasks().cancelTask(commandContext(runtime, true), task.taskId);
+    const auto runningTask = runtime.tasks().getTask(runtime.documentVersion().documentId,
+                                                     task.taskId);
+    ok &= expect(cancelPreview && cancelPreview.get().validatedOnly &&
+                     cancelPreview.get().state == Automation::AutomationTaskState::CancelRequested &&
+                     runningTask && runningTask.get().state == Automation::AutomationTaskState::Running &&
+                     cancelCount == 0,
+                 "task cancel validate-only must predict without invoking cancellation");
+
+    const auto canceledRequest = runtime.tasks().cancelTask(commandContext(runtime), task.taskId);
+    const auto repeatedCancel = runtime.tasks().cancelTask(commandContext(runtime), task.taskId);
+    ok &= expect(canceledRequest && repeatedCancel &&
+                     canceledRequest.get().state ==
+                         Automation::AutomationTaskState::CancelRequested &&
+                     repeatedCancel.get().state ==
+                         Automation::AutomationTaskState::CancelRequested &&
+                     cancelCount == 1,
+                 "task cancellation must be idempotent and invoke its callback once");
+    ok &= expect(runtime.automationTasks().cancel(task.taskId),
+                 "task worker must be able to acknowledge cancellation");
+    const auto terminalCancel = runtime.tasks().cancelTask(commandContext(runtime), task.taskId);
+    ok &= expect(terminalCancel &&
+                     terminalCancel.get().state == Automation::AutomationTaskState::Canceled &&
+                     cancelCount == 1,
+                 "cancel-after-terminal must return the stable terminal result");
+
+    const auto committingTask = runtime.automationTasks().createTask(
+        QStringLiteral("parameters.extract_pitch"), runtime.documentVersion());
+    runtime.automationTasks().markRunning(committingTask.taskId);
+    const auto beganCommit = runtime.automationTasks().beginCommitting(committingTask.taskId);
+    const auto lateCancel =
+        runtime.tasks().cancelTask(commandContext(runtime), committingTask.taskId);
+    ok &= expect(beganCommit && beganCommit.get() && !lateCancel &&
+                     lateCancel.getError().code ==
+                         Automation::AutomationErrorCode::OperationNotCancelable,
+                 "automation task must reject cancellation after its commit point");
+
+    AppModel replacementModel;
+    replacementModel.newProject();
+    const auto replacementData = replacementModel.takeProjectData();
+    const LoopSettings replacementLoop(true, 480, 960);
+    const auto replacementDraft =
+        Automation::documentDraftDto(replacementData, replacementLoop);
+    const auto oldTaskDocument = runtime.documentVersion().documentId;
+    const auto replacementPreview = runtime.documents().commitOpenedDocument(
+        commandContext(runtime, true), replacementDraft, QStringLiteral("D:/replacement.dspx"),
+        QStringLiteral("replacement.dspx"), true);
+    ok &= expect(replacementPreview && replacementPreview.get().validatedOnly &&
+                     replacementPreview.get().current.documentId.isNull() &&
+                     runtime.documentVersion().documentId == oldTaskDocument &&
+                     runtime.automationTasks().size() == 2,
+                 "document replace validate-only must not allocate an ID or alter the active session");
+
+    const auto replacement = runtime.documents().commitOpenedDocument(
+        commandContext(runtime), replacementDraft, QStringLiteral("D:/replacement.dspx"),
+        QStringLiteral("replacement.dspx"), true);
+    const auto replacedDocument = runtime.documents().getDocument(runtime.documentVersion().documentId);
+    const auto staleDocument = runtime.documents().getDocument(oldTaskDocument);
+    ok &= expect(replacement && replacement.get().changed &&
+                     replacement.get().previous.documentId == oldTaskDocument &&
+                     replacement.get().current == runtime.documentVersion() &&
+                     runtime.automationTasks().size() == 0 &&
+                     runtime.documentVersion().documentId != oldTaskDocument &&
+                     runtime.documentVersion().revision == 0 &&
+                     appliedLoopSettings == replacementLoop && replacedDocument &&
+                     replacedDocument.get().path == QStringLiteral("D:/replacement.dspx") &&
+                     !staleDocument && staleDocument.getError().code ==
+                                           Automation::AutomationErrorCode::DocumentChanged,
+                 "document replacement must atomically rotate identity and invalidate old tasks");
 
     history->reset();
 

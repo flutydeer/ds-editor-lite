@@ -405,24 +405,68 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
 void TrackController::scheduleHashUpdate(const AudioClip *clip) {
     if (!clip || clip->path().isEmpty())
         return;
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
     const auto hashTask = new ComputeAudioHashTask;
     hashTask->clipId = clip->id();
+    hashTask->documentVersion = runtime->documentVersion();
     hashTask->path = clip->path();
+    const auto automationTask = runtime->automationTasks().createTask(
+        QStringLiteral("audio_clips.set_hash"), hashTask->documentVersion,
+        Automation::ObjectRef{Automation::ObjectKind::Clip, hashTask->clipId},
+        [hashTask] { hashTask->terminate(); });
+    hashTask->automationTaskId = automationTask.taskId;
+    runtime->automationTasks().markRunning(automationTask.taskId);
     connect(hashTask, &Task::finished, trackController, [hashTask] {
         taskManager->removeTask(hashTask);
-        if (hashTask->success && !hashTask->terminated()) {
-            // The clip may have been removed or relinked; verify the clipId + path snapshot before writing back
-            int trackIndex = -1;
-            const auto clip = appModel->findClipById(hashTask->clipId, trackIndex);
-            if (clip && clip->clipType() == IClip::Audio) {
-                const auto audioClip = static_cast<AudioClip *>(clip);
-                if (audioClip->path() == hashTask->path) {
-                    auto info = audioClip->pathInfo();
-                    info.sha512 = hashTask->resultSha512;
-                    audioClip->setPathInfo(info);
-                }
-            }
+        auto *runtime = automationRuntime();
+        if (!runtime) {
+            delete hashTask;
+            return;
         }
+        if (!hashTask->success || hashTask->terminated()) {
+            if (hashTask->terminated())
+                runtime->automationTasks().cancel(hashTask->automationTaskId);
+            else
+                runtime->automationTasks().fail(
+                    hashTask->automationTaskId,
+                    Automation::AutomationError{
+                        .code = Automation::AutomationErrorCode::IoError,
+                        .message = QStringLiteral("Failed to compute audio hash"),
+                    });
+            delete hashTask;
+            return;
+        }
+        Automation::CommandContext context{
+            .expected = hashTask->documentVersion,
+            .validateOnly = true,
+            .source = Automation::InvocationSource::TrustedGui,
+        };
+        const auto validation = runtime->project().setAudioClipHash(
+            context, Automation::ClipId(hashTask->clipId), hashTask->path,
+            hashTask->resultSha512);
+        if (!validation) {
+            runtime->automationTasks().fail(hashTask->automationTaskId, validation.getError());
+            delete hashTask;
+            return;
+        }
+        const auto committing =
+            runtime->automationTasks().beginCommitting(hashTask->automationTaskId);
+        if (!committing || !committing.get()) {
+            if (committing)
+                runtime->automationTasks().cancel(hashTask->automationTaskId);
+            delete hashTask;
+            return;
+        }
+        context.validateOnly = false;
+        const auto result = runtime->project().setAudioClipHash(
+            context, Automation::ClipId(hashTask->clipId), hashTask->path,
+            hashTask->resultSha512);
+        if (result)
+            runtime->automationTasks().succeed(hashTask->automationTaskId, result.get());
+        else
+            runtime->automationTasks().fail(hashTask->automationTaskId, result.getError());
         delete hashTask;
     });
     taskManager->addTask(hashTask);

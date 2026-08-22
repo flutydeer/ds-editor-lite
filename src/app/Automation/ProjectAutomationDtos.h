@@ -5,16 +5,20 @@
 
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/LoopSettings.h>
 #include <lite/ProjectModel/AppModel/Params.h>
 #include <lite/ProjectModel/AppModel/Phonemes.h>
+#include <lite/ProjectModel/AppModel/ProjectModelData.h>
 #include <lite/ProjectModel/AppModel/Pronunciation.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
+#include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/Voice/SingerInfo.h>
 #include <lite/ProjectModel/Voice/SpeakerInfo.h>
 
 #include <QMap>
 
 #include <memory>
+#include <optional>
 
 class Clip;
 class Note;
@@ -130,12 +134,32 @@ namespace Automation {
         ClipDraftDto clip;
     };
 
+    struct DocumentDraftDto {
+        Timeline timeline;
+        TrackControl masterControl;
+        QList<TrackDraftDto> tracks;
+        LoopSettings loopSettings;
+    };
+
+    struct BatchImportItemDraftDto {
+        std::optional<TrackId> existingTrackId;
+        TrackDraftDto newTrack;
+        QList<ClipDraftDto> clips;
+    };
+
+    struct BatchImportDraftDto {
+        Timeline timeline;
+        QList<BatchImportItemDraftDto> items;
+    };
+
     [[nodiscard]] TrackPropertiesDto trackPropertiesDto(const Track &track);
     [[nodiscard]] ClipPropertiesDto clipPropertiesDto(const Clip &clip);
     [[nodiscard]] NoteDraftDto noteDraftDto(const Note &note);
     [[nodiscard]] CurveDraftDto curveDraftDto(const Curve &curve);
     [[nodiscard]] ClipDraftDto clipDraftDto(const Clip &clip);
     [[nodiscard]] TrackDraftDto trackDraftDto(const Track &track);
+    [[nodiscard]] DocumentDraftDto documentDraftDto(const ProjectModelData &data,
+                                                    const LoopSettings &loopSettings = {});
 
     [[nodiscard]] std::unique_ptr<Note> buildNote(const NoteDraftDto &draft,
                                                  SingingClip *clip);
@@ -145,11 +169,18 @@ namespace Automation {
                                                  const Timeline &timeline);
     [[nodiscard]] std::unique_ptr<Track> buildTrack(const TrackDraftDto &draft,
                                                    const Timeline &timeline);
+    [[nodiscard]] ProjectModelData buildProjectModelData(const DocumentDraftDto &draft);
 
     [[nodiscard]] QByteArray fingerprint(const TrackPropertiesDto &properties);
     [[nodiscard]] QByteArray fingerprint(const ClipPropertiesDto &properties);
     [[nodiscard]] QByteArray fingerprint(const TrackDraftDto &draft);
     [[nodiscard]] QByteArray fingerprint(const QList<ClipInsertDto> &clips);
+    [[nodiscard]] QByteArray fingerprint(const DocumentDraftDto &draft);
+    [[nodiscard]] QByteArray fingerprint(const BatchImportDraftDto &draft);
+
+    [[nodiscard]] AutomationResult<AutomationUnit> validate(const ClipDraftDto &draft);
+    [[nodiscard]] AutomationResult<AutomationUnit> validate(const TrackDraftDto &draft);
+    [[nodiscard]] AutomationResult<AutomationUnit> validate(const DocumentDraftDto &draft);
 
 } // namespace Automation
 

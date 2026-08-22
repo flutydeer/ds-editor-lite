@@ -1,5 +1,8 @@
 #include "AudioContext.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
+
 #include "TrackInferenceHandler.h"
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
@@ -519,8 +522,13 @@ void AudioContext::handleClipPropertyChanged(AudioClip *audioClip) const {
 
     if (audioClip->path() != audioClipContext->path()) {
         if (!audioClipContext->setPathLoad(audioClip->path(), userData, entryClassName)) {
-            // File missing or unopenable; mark offline and let the missing-media flow handle it
-            audioClip->setPathStatus(AudioClip::PathStatus::Missing);
+            if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+                runtime->project().setAudioClipPathStatus(
+                    {.expected = runtime->documentVersion(),
+                     .source = Automation::InvocationSource::TrustedGui},
+                    Automation::ClipId(audioClip->id()), audioClip->path(),
+                    AudioClip::PathStatus::Missing);
+            }
         }
     }
 }

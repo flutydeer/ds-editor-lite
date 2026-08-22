@@ -23,6 +23,7 @@ public:
     int clipId = -1;
     int tick = 0;
     Automation::DocumentVersion documentVersion;
+    Automation::TaskId automationTaskId;
     QString path;
     bool success = false;
     QString errorMessage;

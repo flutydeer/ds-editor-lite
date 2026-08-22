@@ -1,6 +1,8 @@
 #ifndef EXTRACTTASK_H
 #define EXTRACTTASK_H
 
+#include "Automation/AutomationTypes.h"
+
 #include <lite/MusicBase/Timeline.h>
 #include <lite/Tasking/Task.h>
 
@@ -23,9 +25,13 @@ public:
         QString audioPath;
         Timeline timeline;
         int singingClipStartTick = 0;
+        int audioClipStartTick = 0;
+        int audioClipLengthTick = 0;
         double audioMaterialOriginMs = 0;
         double audioVisibleStartMs = 0;
         double audioVisibleEndMs = 0;
+        Automation::DocumentVersion document;
+        Automation::TaskId automationTaskId;
     };
 
     explicit ExtractTask(Input input) : m_input(std::move(input)) {
@@ -33,6 +39,10 @@ public:
 
     const Input &input() const {
         return m_input;
+    }
+
+    void setAutomationTaskId(Automation::TaskId taskId) {
+        m_input.automationTaskId = std::move(taskId);
     }
 
     ErrorCode errorCode() const {

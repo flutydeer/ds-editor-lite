@@ -55,6 +55,8 @@ namespace Automation {
 
         AutomationResult<MutationResult> insertClips(const CommandContext &context,
                                                      const QList<ClipInsertDto> &clips);
+        AutomationResult<MutationResult> commitBatchImport(
+            const CommandContext &context, const BatchImportDraftDto &batch);
         AutomationResult<MutationResult> removeClips(const CommandContext &context,
                                                      QList<ClipId> clipIds);
         AutomationResult<MutationResult> setClipProperties(
@@ -69,6 +71,18 @@ namespace Automation {
             const QJsonObject &formatData);
         AutomationResult<MutationResult> confirmAudioClipPath(const CommandContext &context,
                                                               ClipId clipId);
+        AutomationResult<MutationResult> applyAudioDecodeCache(
+            const CommandContext &context, ClipId clipId, const QString &expectedPath,
+            const AudioInfoModel &audioInfo);
+        AutomationResult<MutationResult> setAudioClipPathStatus(
+            const CommandContext &context, ClipId clipId, const QString &expectedPath,
+            AudioClip::PathStatus status);
+        AutomationResult<MutationResult> applyResolvedAudioPath(
+            const CommandContext &context, ClipId clipId, const QString &expectedPath,
+            const QString &resolvedPath, AudioClip::PathStatus status);
+        AutomationResult<MutationResult> setAudioClipHash(
+            const CommandContext &context, ClipId clipId, const QString &expectedPath,
+            const QString &sha512);
         AutomationResult<MutationResult> setSingingClipDefaultLanguage(
             const CommandContext &context, ClipId clipId, const QString &language);
 

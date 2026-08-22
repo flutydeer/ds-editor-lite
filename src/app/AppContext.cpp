@@ -18,6 +18,7 @@
 #include "Modules/Inference/EditSessionManager.h"
 #include "Modules/Extractors/PitchExtractController.h"
 #include "Modules/Extractors/MidiExtractController.h"
+#include "Modules/ProjectConverters/DspxProjectConverterUi.h"
 #include "Controller/AppController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/AudioDecodingController.h"
@@ -87,7 +88,16 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     TaskManager::instance(); // force early construction on the main thread
     m_historyManager = SingletonRegistry::create<HistoryManager>();
     m_packageManager = SingletonRegistry::create<PackageManager>();
-    m_coreRuntime = std::make_unique<Automation::CoreRuntime>(m_appModel, m_historyManager);
+    Automation::DocumentRuntimeServices documentServices;
+    documentServices.applyLoopSettings = [status = m_appStatus](const LoopSettings &settings) {
+        status->loopSettings.set(settings);
+    };
+    documentServices.saveProject = [](const QString &path, AppModel *model, QString &error) {
+        DspxProjectConverterUi converter;
+        return converter.save(path, model, error);
+    };
+    m_coreRuntime = std::make_unique<Automation::CoreRuntime>(
+        m_appModel, m_historyManager, std::move(documentServices));
 
     // L3: Runtime host must outlive the inference facade.
     m_synthrtEngine = SingletonRegistry::create<SynthrtEngine>();

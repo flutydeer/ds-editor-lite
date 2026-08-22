@@ -58,6 +58,22 @@ namespace Automation {
         return error;
     }
 
+    AutomationError AutomationError::taskNotFound(TaskId taskId) {
+        AutomationError error;
+        error.code = AutomationErrorCode::NotFound;
+        error.taskId = std::move(taskId);
+        error.message = QStringLiteral("Automation task was not found");
+        return error;
+    }
+
+    AutomationError AutomationError::documentBusy(DocumentId documentId) {
+        AutomationError error;
+        error.code = AutomationErrorCode::Busy;
+        error.documentId = std::move(documentId);
+        error.message = QStringLiteral("Document is changing and cannot accept this operation");
+        return error;
+    }
+
     AutomationError AutomationError::documentChanged(const DocumentId requested,
                                                        const DocumentId current) {
         AutomationError error;

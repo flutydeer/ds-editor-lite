@@ -11,6 +11,7 @@
 #include <QJsonDocument>
 
 #include <array>
+#include <cmath>
 
 namespace Automation {
     namespace {
@@ -316,6 +317,20 @@ namespace Automation {
         return result;
     }
 
+    DocumentDraftDto documentDraftDto(const ProjectModelData &data,
+                                      const LoopSettings &loopSettings) {
+        DocumentDraftDto result;
+        result.timeline = data.timeline;
+        result.masterControl = data.masterControl;
+        result.loopSettings = loopSettings;
+        result.tracks.reserve(static_cast<qsizetype>(data.tracks.size()));
+        for (const auto &track : data.tracks) {
+            if (track)
+                result.tracks.append(trackDraftDto(*track));
+        }
+        return result;
+    }
+
     std::unique_ptr<Clip> buildClip(const ClipDraftDto &draft, const Track *targetTrack,
                                     const Timeline &timeline) {
         std::unique_ptr<Clip> result;
@@ -390,6 +405,16 @@ namespace Automation {
         return result;
     }
 
+    ProjectModelData buildProjectModelData(const DocumentDraftDto &draft) {
+        ProjectModelData result;
+        result.timeline = draft.timeline;
+        result.masterControl = draft.masterControl;
+        result.tracks.reserve(static_cast<size_t>(draft.tracks.size()));
+        for (const auto &trackDraft : draft.tracks)
+            result.tracks.push_back(buildTrack(trackDraft, draft.timeline));
+        return result;
+    }
+
     QByteArray fingerprint(const TrackPropertiesDto &properties) {
         QByteArray result;
         QDataStream stream(&result, QIODevice::WriteOnly);
@@ -435,6 +460,155 @@ namespace Automation {
             addClipDraft(hash, item.clip);
         }
         return hash.result();
+    }
+
+    QByteArray fingerprint(const DocumentDraftDto &draft) {
+        QCryptographicHash hash(QCryptographicHash::Sha256);
+        addInteger(hash, draft.timeline.tempos().size());
+        for (const auto &tempo : draft.timeline.tempos()) {
+            addInteger(hash, tempo.pos);
+            addDouble(hash, tempo.value);
+        }
+        addInteger(hash, draft.timeline.timeSignatures().size());
+        for (const auto &signature : draft.timeline.timeSignatures()) {
+            addInteger(hash, signature.barIndex);
+            addInteger(hash, signature.numerator);
+            addInteger(hash, signature.denominator);
+        }
+        addDouble(hash, draft.masterControl.gain());
+        addDouble(hash, draft.masterControl.pan());
+        addInteger(hash, draft.masterControl.mute());
+        addInteger(hash, draft.masterControl.solo());
+        addInteger(hash, draft.tracks.size());
+        for (const auto &track : draft.tracks)
+            hash.addData(fingerprint(track));
+        hash.addData(QJsonDocument(draft.loopSettings.serialize()).toJson(QJsonDocument::Compact));
+        return hash.result();
+    }
+
+    QByteArray fingerprint(const BatchImportDraftDto &draft) {
+        QCryptographicHash hash(QCryptographicHash::Sha256);
+        addInteger(hash, draft.timeline.tempos().size());
+        for (const auto &tempo : draft.timeline.tempos()) {
+            addInteger(hash, tempo.pos);
+            addDouble(hash, tempo.value);
+        }
+        addInteger(hash, draft.timeline.timeSignatures().size());
+        for (const auto &signature : draft.timeline.timeSignatures()) {
+            addInteger(hash, signature.barIndex);
+            addInteger(hash, signature.numerator);
+            addInteger(hash, signature.denominator);
+        }
+        addInteger(hash, draft.items.size());
+        for (const auto &item : draft.items) {
+            addInteger(hash, item.existingTrackId.has_value());
+            addInteger(hash, item.existingTrackId ? item.existingTrackId->value() : -1);
+            hash.addData(fingerprint(item.newTrack));
+            addInteger(hash, item.clips.size());
+            for (const auto &clip : item.clips)
+                addClipDraft(hash, clip);
+        }
+        return hash.result();
+    }
+
+    AutomationResult<AutomationUnit> validate(const ClipDraftDto &draft) {
+        const auto &properties = draft.properties;
+        if (properties.start + properties.clipStart < 0 || properties.length < 0 ||
+            properties.clipStart < 0 || properties.clipLen < 0 ||
+            properties.clipStart + properties.clipLen > properties.length ||
+            !std::isfinite(properties.gain) || !std::isfinite(properties.trimStartMs) ||
+            !std::isfinite(properties.playLengthMs) ||
+            !std::isfinite(properties.materialLengthMs)) {
+            return AutomationError::invalidArgument(
+                QStringLiteral("clip.properties"),
+                QStringLiteral("Clip geometry, timing, or gain is invalid"));
+        }
+        if (draft.type == ClipDraftDto::Type::Audio) {
+            if (draft.audioPath.isEmpty()) {
+                return AutomationError::invalidArgument(QStringLiteral("clip.audio_path"),
+                                                        QStringLiteral("Audio path is empty"));
+            }
+            if (draft.hasRealTimeAnchor &&
+                (properties.trimStartMs < 0 || properties.playLengthMs < 0 ||
+                 properties.materialLengthMs < 0 ||
+                 properties.trimStartMs + properties.playLengthMs >
+                     properties.materialLengthMs)) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("clip.audio_timing"),
+                    QStringLiteral("Audio real-time anchor is invalid"));
+            }
+            return AutomationUnit{};
+        }
+        for (const auto &note : draft.notes) {
+            if (note.localStart < 0 || note.length <= 0 || note.keyIndex < 0 ||
+                note.keyIndex > 127) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("clip.notes"),
+                    QStringLiteral("Note geometry or key is invalid"));
+            }
+        }
+        for (const auto &parameter : draft.params) {
+            if (parameter.name < ParamInfo::Pitch || parameter.name > ParamInfo::ToneShift ||
+                (parameter.type != Param::Edited && parameter.type != Param::Envelope)) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("clip.parameters"),
+                    QStringLiteral("Parameter name or type is unsupported"));
+            }
+            for (const auto &curve : parameter.curves) {
+                if (curve.type == CurveDraftDto::Type::Draw && curve.step <= 0) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("clip.parameters.curves.step"),
+                        QStringLiteral("Curve step must be positive"));
+                }
+            }
+        }
+        return AutomationUnit{};
+    }
+
+    AutomationResult<AutomationUnit> validate(const TrackDraftDto &draft) {
+        if (!std::isfinite(draft.gain) || !std::isfinite(draft.pan) || draft.colorIndex < 0) {
+            return AutomationError::invalidArgument(QStringLiteral("track"),
+                                                    QStringLiteral("Track properties are invalid"));
+        }
+        for (const auto &clip : draft.clips) {
+            auto result = validate(clip);
+            if (!result)
+                return result;
+        }
+        return AutomationUnit{};
+    }
+
+    AutomationResult<AutomationUnit> validate(const DocumentDraftDto &draft) {
+        if (draft.timeline.tempos().isEmpty() || draft.timeline.timeSignatures().isEmpty()) {
+            return AutomationError::invalidArgument(QStringLiteral("document.timeline"),
+                                                    QStringLiteral("Timeline is incomplete"));
+        }
+        for (const auto &tempo : draft.timeline.tempos()) {
+            if (tempo.pos < 0 || !std::isfinite(tempo.value) || tempo.value <= 0) {
+                return AutomationError::invalidArgument(QStringLiteral("document.tempos"),
+                                                        QStringLiteral("Tempo is invalid"));
+            }
+        }
+        for (const auto &signature : draft.timeline.timeSignatures()) {
+            if (signature.barIndex < 0 || signature.numerator <= 0 ||
+                signature.denominator <= 0) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("document.time_signatures"),
+                    QStringLiteral("Time signature is invalid"));
+            }
+        }
+        if (!std::isfinite(draft.masterControl.gain()) ||
+            !std::isfinite(draft.masterControl.pan())) {
+            return AutomationError::invalidArgument(
+                QStringLiteral("document.master_control"),
+                QStringLiteral("Master control is invalid"));
+        }
+        for (const auto &track : draft.tracks) {
+            auto result = validate(track);
+            if (!result)
+                return result;
+        }
+        return AutomationUnit{};
     }
 
 } // namespace Automation

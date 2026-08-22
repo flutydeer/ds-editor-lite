@@ -1,6 +1,8 @@
 #ifndef RESOLVEAUDIOPATHTASK_H
 #define RESOLVEAUDIOPATHTASK_H
 
+#include "Automation/AutomationTypes.h"
+
 #include <lite/Tasking/Task.h>
 
 // When the absolute path of an audio file is broken, relocates the file in the background, in candidate order:
@@ -13,6 +15,8 @@ public:
     enum class Result { HitRelative, HitSibling, HitUnconfirmed, Miss };
 
     int clipId = -1;
+    Automation::DocumentVersion documentVersion;
+    Automation::TaskId automationTaskId;
     QString originalPath;
     QString relativeDir;
     QString fileName;

@@ -5,6 +5,8 @@
 
 #include <TalcsFormat/FormatManager.h>
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include "Modules/Audio/AudioContext.h"
@@ -14,6 +16,21 @@
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/Toast.h>
 #include "UI/Dialogs/Base/Dialog.h"
+
+namespace {
+Automation::CoreRuntime *automationRuntime() {
+    return AppContext::instance<Automation::CoreRuntime>();
+}
+
+Automation::CommandContext commandContext(const Automation::DocumentVersion &document,
+                                           const bool validateOnly = false) {
+    return {
+        .expected = document,
+        .validateOnly = validateOnly,
+        .source = Automation::InvocationSource::TrustedGui,
+    };
+}
+}
 
 AudioDecodingController::AudioDecodingController(QObject *parent) : QObject(parent) {
 }
@@ -59,7 +76,12 @@ void AudioDecodingController::startDecodingAndResolving() {
                 continue;
             const auto audioClip = static_cast<AudioClip *>(clip);
             if (QFileInfo::exists(audioClip->path())) {
-                audioClip->setPathStatus(AudioClip::PathStatus::Normal);
+                if (auto *runtime = automationRuntime()) {
+                    runtime->project().setAudioClipPathStatus(
+                        commandContext(runtime->documentVersion()),
+                        Automation::ClipId(audioClip->id()), audioClip->path(),
+                        AudioClip::PathStatus::Normal);
+                }
                 createAndStartTask(audioClip);
             } else {
                 // Absolute path is broken; relocate in background via relativeDir / project sibling
@@ -102,18 +124,29 @@ void AudioDecodingController::connectClip(AudioClip *clip) {
     // Re-decode the waveform after relink/replace (including undo)
     connect(clip, &AudioClip::pathChanged, this, [clip, this] {
         terminateTaskByClipId(clip->id());
+        auto *runtime = automationRuntime();
+        if (!runtime)
+            return;
         if (QFileInfo::exists(clip->path())) {
-            clip->setPathStatus(AudioClip::PathStatus::Normal);
+            runtime->project().setAudioClipPathStatus(
+                commandContext(runtime->documentVersion()), Automation::ClipId(clip->id()),
+                clip->path(), AudioClip::PathStatus::Normal);
             createAndStartTask(clip);
         } else {
-            clip->setPathStatus(AudioClip::PathStatus::Missing);
+            runtime->project().setAudioClipPathStatus(
+                commandContext(runtime->documentVersion()), Automation::ClipId(clip->id()),
+                clip->path(), AudioClip::PathStatus::Missing);
         }
     });
 }
 
 void AudioDecodingController::createAndStartTask(AudioClip *clip) {
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
     auto decodeTask = new DecodeAudioTask;
     decodeTask->clipId = clip->id();
+    decodeTask->documentVersion = runtime->documentVersion();
     decodeTask->path = clip->path();
     decodeTask->workspace = clip->workspace().value("diffscope.audio.formatData");
 
@@ -124,6 +157,12 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip) {
     const auto entryClassName = decodeTask->workspace.value("entryClassName").toString();
     decodeTask->io = AudioContext::instance()->formatManager()->getFormatLoad(
         decodeTask->path, userData, entryClassName);
+    const auto automationTask = runtime->automationTasks().createTask(
+        QStringLiteral("audio_clips.apply_decode_cache"), decodeTask->documentVersion,
+        Automation::ObjectRef{Automation::ObjectKind::Clip, decodeTask->clipId},
+        [decodeTask] { decodeTask->terminate(); });
+    decodeTask->automationTaskId = automationTask.taskId;
+    runtime->automationTasks().markRunning(automationTask.taskId);
 
     m_tasks.append(decodeTask);
     connect(decodeTask, &Task::finished, this,
@@ -135,14 +174,24 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip) {
 }
 
 void AudioDecodingController::createAndStartResolveTask(AudioClip *clip) {
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
     const auto resolveTask = new ResolveAudioPathTask;
     resolveTask->clipId = clip->id();
+    resolveTask->documentVersion = runtime->documentVersion();
     resolveTask->originalPath = clip->path();
     resolveTask->relativeDir = clip->pathInfo().relativeDir;
     resolveTask->fileName = QFileInfo(clip->path()).fileName();
     resolveTask->expectedSha512 = clip->pathInfo().sha512;
     resolveTask->projectDir =
         QFileInfo(documentWorkflowController->projectPath()).absolutePath();
+    const auto automationTask = runtime->automationTasks().createTask(
+        QStringLiteral("audio_clips.apply_resolved_path"), resolveTask->documentVersion,
+        Automation::ObjectRef{Automation::ObjectKind::Clip, resolveTask->clipId},
+        [resolveTask] { resolveTask->terminate(); });
+    resolveTask->automationTaskId = automationTask.taskId;
+    runtime->automationTasks().markRunning(automationTask.taskId);
 
     m_resolveTasks.append(resolveTask);
     connect(resolveTask, &Task::finished, this,
@@ -155,46 +204,105 @@ void AudioDecodingController::handleResolveTaskFinished(ResolveAudioPathTask *ta
     const auto terminated = task->terminated();
     taskManager->removeTask(task);
     m_resolveTasks.removeOne(task);
-    m_pendingResolveCount--;
+    auto *runtime = automationRuntime();
+    const bool currentGeneration =
+        runtime && runtime->documentVersion().documentId == task->documentVersion.documentId;
+    if (currentGeneration && m_pendingResolveCount > 0)
+        m_pendingResolveCount--;
 
     if (terminated) {
+        if (runtime)
+            runtime->automationTasks().cancel(task->automationTaskId);
         delete task;
-        finishResolveIfSessionDone();
+        if (currentGeneration)
+            finishResolveIfSessionDone();
+        return;
+    }
+    if (!runtime) {
+        delete task;
         return;
     }
 
-    int trackIndex;
-    const auto clip = appModel->findClipById(task->clipId, trackIndex);
-    if (!clip || clip->clipType() != Clip::Audio) {
-        delete task;
-        finishResolveIfSessionDone();
-        return;
-    }
-
-    const auto audioClip = static_cast<AudioClip *>(clip);
+    Automation::CommandContext context = commandContext(task->documentVersion, true);
+    Automation::AutomationResult<Automation::MutationResult> validation(
+        Automation::AutomationError{
+            .code = Automation::AutomationErrorCode::InternalError,
+            .message = QStringLiteral("Audio path resolution did not produce a result"),
+        });
     switch (task->result) {
         case ResolveAudioPathTask::Result::HitRelative:
         case ResolveAudioPathTask::Result::HitSibling:
-            // Hash verified; adopt the new path silently (no undo, no dirty flag, persisted on next save)
-            audioClip->setPath(task->resolvedPath);
-            audioClip->setPathStatus(AudioClip::PathStatus::Normal);
-            m_autoRelocatedCount++;
-            createAndStartTask(audioClip);
+            validation = runtime->project().applyResolvedAudioPath(
+                context, Automation::ClipId(task->clipId), task->originalPath,
+                task->resolvedPath, AudioClip::PathStatus::Normal);
             break;
         case ResolveAudioPathTask::Result::HitUnconfirmed:
-            // No sha512 to verify against; matched by file name, load it but mark as unconfirmed
-            audioClip->setPath(task->resolvedPath);
-            audioClip->setPathStatus(AudioClip::PathStatus::Unconfirmed);
-            m_unconfirmedClipIds.append(audioClip->id());
-            createAndStartTask(audioClip);
+            validation = runtime->project().applyResolvedAudioPath(
+                context, Automation::ClipId(task->clipId), task->originalPath,
+                task->resolvedPath, AudioClip::PathStatus::Unconfirmed);
             break;
         case ResolveAudioPathTask::Result::Miss:
-            audioClip->setPathStatus(AudioClip::PathStatus::Missing);
-            m_missingClipIds.append(audioClip->id());
+            validation = runtime->project().setAudioClipPathStatus(
+                context, Automation::ClipId(task->clipId), task->originalPath,
+                AudioClip::PathStatus::Missing);
             break;
     }
+    if (!validation) {
+        runtime->automationTasks().fail(task->automationTaskId, validation.getError());
+        delete task;
+        if (currentGeneration)
+            finishResolveIfSessionDone();
+        return;
+    }
+    const auto committing = runtime->automationTasks().beginCommitting(task->automationTaskId);
+    if (!committing || !committing.get()) {
+        if (committing)
+            runtime->automationTasks().cancel(task->automationTaskId);
+        delete task;
+        if (currentGeneration)
+            finishResolveIfSessionDone();
+        return;
+    }
+    context.validateOnly = false;
+    Automation::AutomationResult<Automation::MutationResult> result(
+        Automation::AutomationError{
+            .code = Automation::AutomationErrorCode::InternalError,
+            .message = QStringLiteral("Audio path resolution did not produce a result"),
+        });
+    switch (task->result) {
+        case ResolveAudioPathTask::Result::HitRelative:
+        case ResolveAudioPathTask::Result::HitSibling:
+            result = runtime->project().applyResolvedAudioPath(
+                context, Automation::ClipId(task->clipId), task->originalPath,
+                task->resolvedPath, AudioClip::PathStatus::Normal);
+            break;
+        case ResolveAudioPathTask::Result::HitUnconfirmed:
+            result = runtime->project().applyResolvedAudioPath(
+                context, Automation::ClipId(task->clipId), task->originalPath,
+                task->resolvedPath, AudioClip::PathStatus::Unconfirmed);
+            break;
+        case ResolveAudioPathTask::Result::Miss:
+            result = runtime->project().setAudioClipPathStatus(
+                context, Automation::ClipId(task->clipId), task->originalPath,
+                AudioClip::PathStatus::Missing);
+            break;
+    }
+    if (result) {
+        runtime->automationTasks().succeed(task->automationTaskId, result.get());
+        if (currentGeneration) {
+            if (task->result == ResolveAudioPathTask::Result::HitUnconfirmed)
+                m_unconfirmedClipIds.append(task->clipId);
+            else if (task->result == ResolveAudioPathTask::Result::Miss)
+                m_missingClipIds.append(task->clipId);
+            else
+                m_autoRelocatedCount++;
+        }
+    } else {
+        runtime->automationTasks().fail(task->automationTaskId, result.getError());
+    }
     delete task;
-    finishResolveIfSessionDone();
+    if (currentGeneration)
+        finishResolveIfSessionDone();
 }
 
 void AudioDecodingController::finishResolveIfSessionDone() {
@@ -215,7 +323,8 @@ void AudioDecodingController::finishResolveIfSessionDone() {
 
 void AudioDecodingController::resolveMissingClipsNear(const QString &filePath) {
     const auto candidateDir = QFileInfo(filePath).absolutePath();
-    if (candidateDir.isEmpty())
+    auto *runtime = automationRuntime();
+    if (candidateDir.isEmpty() || !runtime)
         return;
 
     for (const auto track : appModel->tracks()) {
@@ -231,27 +340,74 @@ void AudioDecodingController::resolveMissingClipsNear(const QString &filePath) {
 
             const auto resolveTask = new ResolveAudioPathTask;
             resolveTask->clipId = audioClip->id();
+            resolveTask->documentVersion = runtime->documentVersion();
             resolveTask->originalPath = audioClip->path();
             resolveTask->relativeDir = {};
             resolveTask->fileName = QFileInfo(audioClip->path()).fileName();
             resolveTask->expectedSha512 = audioClip->pathInfo().sha512;
             resolveTask->projectDir = candidateDir;
+            const auto automationTask = runtime->automationTasks().createTask(
+                QStringLiteral("audio_clips.apply_resolved_path"),
+                resolveTask->documentVersion,
+                Automation::ObjectRef{Automation::ObjectKind::Clip, resolveTask->clipId},
+                [resolveTask] { resolveTask->terminate(); });
+            resolveTask->automationTaskId = automationTask.taskId;
+            runtime->automationTasks().markRunning(automationTask.taskId);
 
             m_resolveTasks.append(resolveTask);
             connect(resolveTask, &Task::finished, this, [resolveTask, this] {
                 taskManager->removeTask(resolveTask);
                 m_resolveTasks.removeOne(resolveTask);
-                if (!resolveTask->terminated() &&
-                    resolveTask->result == ResolveAudioPathTask::Result::HitSibling) {
-                    int trackIndex;
-                    const auto c = appModel->findClipById(resolveTask->clipId, trackIndex);
-                    if (c && c->clipType() == Clip::Audio) {
-                        const auto audio = static_cast<AudioClip *>(c);
-                        if (audio->pathStatus() == AudioClip::PathStatus::Missing) {
-                            audio->setPath(resolveTask->resolvedPath);
-                            emit clipRelocated(audio->id(), resolveTask->resolvedPath);
-                        }
-                    }
+                auto *runtime = automationRuntime();
+                if (!runtime) {
+                    delete resolveTask;
+                    return;
+                }
+                if (resolveTask->terminated()) {
+                    runtime->automationTasks().cancel(resolveTask->automationTaskId);
+                    delete resolveTask;
+                    return;
+                }
+                if (resolveTask->result != ResolveAudioPathTask::Result::HitSibling) {
+                    runtime->automationTasks().fail(
+                        resolveTask->automationTaskId,
+                        Automation::AutomationError{
+                            .code = Automation::AutomationErrorCode::NotFound,
+                            .message = QStringLiteral("No matching audio file was found"),
+                        });
+                    delete resolveTask;
+                    return;
+                }
+                auto context = commandContext(resolveTask->documentVersion, true);
+                const auto validation = runtime->project().applyResolvedAudioPath(
+                    context, Automation::ClipId(resolveTask->clipId),
+                    resolveTask->originalPath, resolveTask->resolvedPath,
+                    AudioClip::PathStatus::Normal);
+                if (!validation) {
+                    runtime->automationTasks().fail(resolveTask->automationTaskId,
+                                                    validation.getError());
+                    delete resolveTask;
+                    return;
+                }
+                const auto committing =
+                    runtime->automationTasks().beginCommitting(resolveTask->automationTaskId);
+                if (!committing || !committing.get()) {
+                    if (committing)
+                        runtime->automationTasks().cancel(resolveTask->automationTaskId);
+                    delete resolveTask;
+                    return;
+                }
+                context.validateOnly = false;
+                const auto result = runtime->project().applyResolvedAudioPath(
+                    context, Automation::ClipId(resolveTask->clipId),
+                    resolveTask->originalPath, resolveTask->resolvedPath,
+                    AudioClip::PathStatus::Normal);
+                if (result) {
+                    runtime->automationTasks().succeed(resolveTask->automationTaskId, result.get());
+                    emit clipRelocated(resolveTask->clipId, resolveTask->resolvedPath);
+                } else {
+                    runtime->automationTasks().fail(resolveTask->automationTaskId,
+                                                    result.getError());
                 }
                 delete resolveTask;
             });
@@ -265,21 +421,38 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
     const auto terminate = task->terminated();
     taskManager->removeTask(task);
     m_tasks.removeOne(task);
+    auto *runtime = automationRuntime();
 
     if (terminate) {
+        if (runtime)
+            runtime->automationTasks().cancel(task->automationTaskId);
+        delete task;
+        return;
+    }
+    if (!runtime) {
         delete task;
         return;
     }
     if (!task->success) {
-        int trackIdx;
         if (!QFileInfo::exists(task->path)) {
-            // A missing file goes offline and is handled by the missing-media flow; no error dialog
-            if (const auto clip = appModel->findClipById(task->clipId, trackIdx);
-                clip && clip->clipType() == Clip::Audio)
-                static_cast<AudioClip *>(clip)->setPathStatus(AudioClip::PathStatus::Missing);
+            runtime->project().setAudioClipPathStatus(
+                commandContext(task->documentVersion), Automation::ClipId(task->clipId),
+                task->path, AudioClip::PathStatus::Missing);
+            runtime->automationTasks().fail(
+                task->automationTaskId,
+                Automation::AutomationError{
+                    .code = Automation::AutomationErrorCode::IoError,
+                    .message = QStringLiteral("Audio file is missing"),
+                });
             delete task;
             return;
         }
+        runtime->automationTasks().fail(
+            task->automationTaskId,
+            Automation::AutomationError{
+                .code = Automation::AutomationErrorCode::IoError,
+                .message = task->errorMessage,
+            });
         const auto dlg = new Dialog;
         dlg->setWindowTitle(tr("Error"));
         dlg->setTitle(tr("Failed to open audio file:"));
@@ -295,16 +468,28 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
         return;
     }
 
-    int trackIndex;
-    const auto clip = appModel->findClipById(task->clipId, trackIndex);
-    if (!clip) {
+    auto context = commandContext(task->documentVersion, true);
+    const auto validation = runtime->project().applyAudioDecodeCache(
+        context, Automation::ClipId(task->clipId), task->path, task->result());
+    if (!validation) {
+        runtime->automationTasks().fail(task->automationTaskId, validation.getError());
         delete task;
         return;
     }
-
-    const auto audioClip = static_cast<AudioClip *>(clip);
-    audioClip->setAudioInfo(task->result());
-    audioClip->notifyPropertyChanged();
+    const auto committing = runtime->automationTasks().beginCommitting(task->automationTaskId);
+    if (!committing || !committing.get()) {
+        if (committing)
+            runtime->automationTasks().cancel(task->automationTaskId);
+        delete task;
+        return;
+    }
+    context.validateOnly = false;
+    const auto result = runtime->project().applyAudioDecodeCache(
+        context, Automation::ClipId(task->clipId), task->path, task->result());
+    if (result)
+        runtime->automationTasks().succeed(task->automationTaskId, result.get());
+    else
+        runtime->automationTasks().fail(task->automationTaskId, result.getError());
     delete task;
 }
 

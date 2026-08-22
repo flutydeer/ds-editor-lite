@@ -1,6 +1,7 @@
 #include "ProjectAutomationFacade.h"
 
 #include "Controller/Actions/AppModel/Clip/ClipActions.h"
+#include "Controller/Actions/AppModel/Import/BatchImportActions.h"
 #include "Controller/Actions/AppModel/Track/TrackActions.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -41,6 +42,53 @@ namespace Automation {
             QDataStream stream(&result, QIODevice::WriteOnly);
             stream << clipId.value() << path << pathInfo.relativeDir << pathInfo.sha512 << formatData;
             return result;
+        }
+
+        QByteArray audioCacheFingerprint(const ClipId clipId, const QString &path,
+                                         const AudioInfoModel &audioInfo) {
+            QByteArray result;
+            QDataStream stream(&result, QIODevice::WriteOnly);
+            stream << clipId.value() << path << audioInfo.sampleRate << audioInfo.channels
+                   << audioInfo.frames << audioInfo.chunkSize << audioInfo.mipmapScale
+                   << audioInfo.peakCache.size();
+            for (const auto &[minimum, maximum] : audioInfo.peakCache)
+                stream << minimum << maximum;
+            stream << audioInfo.peakCacheMipmap.size();
+            for (const auto &[minimum, maximum] : audioInfo.peakCacheMipmap)
+                stream << minimum << maximum;
+            return result;
+        }
+
+        bool audioInfoEqual(const AudioInfoModel &left, const AudioInfoModel &right) {
+            return left.chunkSize == right.chunkSize && left.mipmapScale == right.mipmapScale &&
+                   left.sampleRate == right.sampleRate && left.channels == right.channels &&
+                   left.frames == right.frames && left.peakCache == right.peakCache &&
+                   left.peakCacheMipmap == right.peakCacheMipmap;
+        }
+
+        QByteArray audioStateFingerprint(const ClipId clipId, const QString &expectedPath,
+                                         const QString &value, const int state = -1) {
+            QByteArray result;
+            QDataStream stream(&result, QIODevice::WriteOnly);
+            stream << clipId.value() << expectedPath << value << state;
+            return result;
+        }
+
+        MutationResult cacheMutationResult(DocumentSession &session, const bool changed,
+                                           const bool validateOnly) {
+            MutationResult result;
+            result.previous = session.version();
+            result.current = result.previous;
+            result.changed = changed;
+            result.validatedOnly = validateOnly;
+            return result;
+        }
+
+        AutomationError staleAudioPath(const ClipId clipId) {
+            auto error = AutomationError::invalidArgument(
+                QStringLiteral("expected_path"), QStringLiteral("Audio clip path changed"));
+            error.object = ObjectRef{ObjectKind::Clip, clipId.value()};
+            return error;
         }
 
         bool validClipProperties(const ClipPropertiesDto &properties) {
@@ -141,10 +189,9 @@ namespace Automation {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("index"), QStringLiteral("Track index is out of range")));
                 }
-                if (!std::isfinite(trackDraft.gain) || !std::isfinite(trackDraft.pan)) {
-                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                        QStringLiteral("track.control"), QStringLiteral("Track control is invalid")));
-                }
+                auto validation = validate(trackDraft);
+                if (!validation)
+                    return AutomationResult<MutationResult>(validation.getError());
                 if (validateOnly)
                     return AutomationResult<MutationResult>(m_committer.preview(session, true));
 
@@ -325,11 +372,9 @@ namespace Automation {
                     auto track = m_objects.track(session, item.trackId);
                     if (!track)
                         return AutomationResult<MutationResult>(track.getError());
-                    if (!validClipProperties(item.clip.properties)) {
-                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                            QStringLiteral("clips.properties"),
-                            QStringLiteral("Clip geometry or gain is invalid")));
-                    }
+                    auto validation = validate(item.clip);
+                    if (!validation)
+                        return AutomationResult<MutationResult>(validation.getError());
                     tracks.append(track.get());
                 }
                 if (validateOnly)
@@ -353,6 +398,100 @@ namespace Automation {
                 actions->insertClips(rawClips, tracks);
                 auto result = m_committer.commit(session, std::move(actions), affected);
                 if (result) {
+                    for (auto &clip : ownedClips)
+                        clip.release();
+                }
+                return result;
+            });
+    }
+
+    AutomationResult<MutationResult> ProjectAutomationFacade::commitBatchImport(
+        const CommandContext &context, const BatchImportDraftDto &batch) {
+        return m_dispatcher.dispatchDocumentCommand(
+            QStringLiteral("imports.commit_batch"), context, fingerprint(batch),
+            [this, batch](DocumentSession &session, const bool validateOnly) {
+                auto *model = session.model();
+                if (!model)
+                    return AutomationResult<MutationResult>(invalidModelError());
+                if (batch.timeline.tempos().isEmpty() ||
+                    batch.timeline.timeSignatures().isEmpty()) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("timeline"), QStringLiteral("Import timeline is incomplete")));
+                }
+
+                QList<Track *> existingTracks;
+                existingTracks.reserve(batch.items.size());
+                for (const auto &item : batch.items) {
+                    if (item.clips.isEmpty()) {
+                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                            QStringLiteral("items.clips"),
+                            QStringLiteral("An import item must contain at least one clip")));
+                    }
+                    if (item.existingTrackId) {
+                        auto track = m_objects.track(session, *item.existingTrackId);
+                        if (!track)
+                            return AutomationResult<MutationResult>(track.getError());
+                        existingTracks.append(track.get());
+                    } else {
+                        auto trackValidation = validate(item.newTrack);
+                        if (!trackValidation)
+                            return AutomationResult<MutationResult>(trackValidation.getError());
+                        existingTracks.append(nullptr);
+                    }
+                    for (const auto &clip : item.clips) {
+                        auto clipValidation = validate(clip);
+                        if (!clipValidation)
+                            return AutomationResult<MutationResult>(clipValidation.getError());
+                    }
+                }
+
+                const bool timelineChanged =
+                    model->timeline().tempos() != batch.timeline.tempos() ||
+                    model->timeline().timeSignatures() != batch.timeline.timeSignatures();
+                const bool changed = timelineChanged || !batch.items.isEmpty();
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(m_committer.preview(session, changed));
+                if (!changed)
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+
+                QList<BatchImportActions::Item> actionsItems;
+                QList<ObjectRef> affected;
+                std::vector<std::unique_ptr<Track>> ownedTracks;
+                std::vector<std::unique_ptr<Clip>> ownedClips;
+                for (int index = 0; index < batch.items.size(); ++index) {
+                    const auto &item = batch.items.at(index);
+                    if (item.existingTrackId) {
+                        auto *targetTrack = existingTracks.at(index);
+                        for (const auto &clipDraft : item.clips) {
+                            auto clip = buildClip(clipDraft, targetTrack, batch.timeline);
+                            affected.append({ObjectKind::Clip, clip->id()});
+                            actionsItems.append({clip.get(), targetTrack, nullptr});
+                            ownedClips.push_back(std::move(clip));
+                        }
+                        continue;
+                    }
+
+                    auto trackDraft = item.newTrack;
+                    trackDraft.clips.clear();
+                    auto track = buildTrack(trackDraft, batch.timeline);
+                    affected.append({ObjectKind::Track, track->id()});
+                    for (const auto &clipDraft : item.clips) {
+                        auto clip = buildClip(clipDraft, track.get(), batch.timeline);
+                        affected.append({ObjectKind::Clip, clip->id()});
+                        track->insertClip(clip.release());
+                    }
+                    actionsItems.append({nullptr, nullptr, track.get()});
+                    ownedTracks.push_back(std::move(track));
+                }
+
+                auto actions = std::unique_ptr<BatchImportActions>(BatchImportActions::build(
+                    model->timeline().tempos(), batch.timeline.tempos(),
+                    model->timeline().timeSignatures(), batch.timeline.timeSignatures(),
+                    actionsItems, model));
+                auto result = m_committer.commit(session, std::move(actions), affected);
+                if (result) {
+                    for (auto &track : ownedTracks)
+                        track.release();
                     for (auto &clip : ownedClips)
                         clip.release();
                 }
@@ -510,6 +649,109 @@ namespace Automation {
             });
     }
 
+    AutomationResult<MutationResult> ProjectAutomationFacade::applyAudioDecodeCache(
+        const CommandContext &context, const ClipId clipId, const QString &expectedPath,
+        const AudioInfoModel &audioInfo) {
+        return m_dispatcher.dispatchDocumentCommand(
+            QStringLiteral("audio_clips.apply_decode_cache"), context,
+            audioCacheFingerprint(clipId, expectedPath, audioInfo),
+            [this, clipId, expectedPath, audioInfo](DocumentSession &session,
+                                                   const bool validateOnly) {
+                auto resolved = m_objects.audioClip(session, clipId);
+                if (!resolved)
+                    return AutomationResult<MutationResult>(resolved.getError());
+                auto *clip = static_cast<AudioClip *>(resolved.get().clip);
+                if (clip->path() != expectedPath)
+                    return AutomationResult<MutationResult>(staleAudioPath(clipId));
+                const bool changed = !audioInfoEqual(clip->audioInfo(), audioInfo);
+                if (!validateOnly && changed) {
+                    clip->setAudioInfo(audioInfo);
+                    clip->notifyPropertyChanged();
+                }
+                return AutomationResult<MutationResult>(
+                    cacheMutationResult(session, changed, validateOnly));
+            });
+    }
+
+    AutomationResult<MutationResult> ProjectAutomationFacade::setAudioClipPathStatus(
+        const CommandContext &context, const ClipId clipId, const QString &expectedPath,
+        const AudioClip::PathStatus status) {
+        return m_dispatcher.dispatchDocumentCommand(
+            QStringLiteral("audio_clips.set_path_status"), context,
+            audioStateFingerprint(clipId, expectedPath, {}, static_cast<int>(status)),
+            [this, clipId, expectedPath, status](DocumentSession &session,
+                                                const bool validateOnly) {
+                auto resolved = m_objects.audioClip(session, clipId);
+                if (!resolved)
+                    return AutomationResult<MutationResult>(resolved.getError());
+                auto *clip = static_cast<AudioClip *>(resolved.get().clip);
+                if (clip->path() != expectedPath)
+                    return AutomationResult<MutationResult>(staleAudioPath(clipId));
+                const bool changed = clip->pathStatus() != status;
+                if (!validateOnly && changed)
+                    clip->setPathStatus(status);
+                return AutomationResult<MutationResult>(
+                    cacheMutationResult(session, changed, validateOnly));
+            });
+    }
+
+    AutomationResult<MutationResult> ProjectAutomationFacade::applyResolvedAudioPath(
+        const CommandContext &context, const ClipId clipId, const QString &expectedPath,
+        const QString &resolvedPath, const AudioClip::PathStatus status) {
+        return m_dispatcher.dispatchDocumentCommand(
+            QStringLiteral("audio_clips.apply_resolved_path"), context,
+            audioStateFingerprint(clipId, expectedPath, resolvedPath, static_cast<int>(status)),
+            [this, clipId, expectedPath, resolvedPath,
+             status](DocumentSession &session, const bool validateOnly) {
+                auto resolved = m_objects.audioClip(session, clipId);
+                if (!resolved)
+                    return AutomationResult<MutationResult>(resolved.getError());
+                auto *clip = static_cast<AudioClip *>(resolved.get().clip);
+                if (clip->path() != expectedPath)
+                    return AutomationResult<MutationResult>(staleAudioPath(clipId));
+                if (resolvedPath.isEmpty()) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("resolved_path"), QStringLiteral("Resolved path is empty")));
+                }
+                const bool changed = clip->path() != resolvedPath || clip->pathStatus() != status;
+                if (!validateOnly && changed) {
+                    clip->setPath(resolvedPath);
+                    clip->setPathStatus(status);
+                }
+                return AutomationResult<MutationResult>(
+                    cacheMutationResult(session, changed, validateOnly));
+            });
+    }
+
+    AutomationResult<MutationResult> ProjectAutomationFacade::setAudioClipHash(
+        const CommandContext &context, const ClipId clipId, const QString &expectedPath,
+        const QString &sha512) {
+        return m_dispatcher.dispatchDocumentCommand(
+            QStringLiteral("audio_clips.set_hash"), context,
+            audioStateFingerprint(clipId, expectedPath, sha512),
+            [this, clipId, expectedPath, sha512](DocumentSession &session,
+                                                const bool validateOnly) {
+                auto resolved = m_objects.audioClip(session, clipId);
+                if (!resolved)
+                    return AutomationResult<MutationResult>(resolved.getError());
+                auto *clip = static_cast<AudioClip *>(resolved.get().clip);
+                if (clip->path() != expectedPath)
+                    return AutomationResult<MutationResult>(staleAudioPath(clipId));
+                if (sha512.isEmpty()) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("sha512"), QStringLiteral("Audio hash is empty")));
+                }
+                const bool changed = clip->pathInfo().sha512 != sha512;
+                if (!validateOnly && changed) {
+                    auto info = clip->pathInfo();
+                    info.sha512 = sha512;
+                    clip->setPathInfo(info);
+                }
+                return AutomationResult<MutationResult>(
+                    cacheMutationResult(session, changed, validateOnly));
+            });
+    }
+
     AutomationResult<MutationResult> ProjectAutomationFacade::setSingingClipDefaultLanguage(
         const CommandContext &context, const ClipId clipId, const QString &language) {
         return m_dispatcher.dispatchDocumentCommand(
@@ -559,7 +801,9 @@ namespace Automation {
 
         const auto addMutation = [&add](const QString &id, const QString &inputContract,
                                         const HistoryPolicy historyPolicy = HistoryPolicy::Record,
-                                        const FileAccessPolicy fileAccess = FileAccessPolicy::None) {
+                                        const FileAccessPolicy fileAccess = FileAccessPolicy::None,
+                                        const RevisionPolicy revisionPolicy =
+                                            RevisionPolicy::Increment) {
             add({
                 .id = id,
                 .category = id.section('.', 0, 0),
@@ -568,7 +812,7 @@ namespace Automation {
                 .inputContract = inputContract,
                 .outputContract = QStringLiteral("automation.MutationResult.v1"),
                 .documentPolicy = DocumentPolicy::Write,
-                .revisionPolicy = RevisionPolicy::Increment,
+                .revisionPolicy = revisionPolicy,
                 .historyPolicy = historyPolicy,
                 .fileAccess = fileAccess,
                 .hostAvailability = HostAvailability::Core,
@@ -580,11 +824,25 @@ namespace Automation {
         addMutation(QStringLiteral("audio_clips.confirm_path"),
                     QStringLiteral("automation.ConfirmAudioPathCommand.v1"),
                     HistoryPolicy::None);
+        addMutation(QStringLiteral("audio_clips.apply_decode_cache"),
+                    QStringLiteral("automation.ApplyAudioDecodeCacheCommand.v1"),
+                    HistoryPolicy::None, FileAccessPolicy::None, RevisionPolicy::None);
+        addMutation(QStringLiteral("audio_clips.apply_resolved_path"),
+                    QStringLiteral("automation.ApplyResolvedAudioPathCommand.v1"),
+                    HistoryPolicy::None, FileAccessPolicy::Read, RevisionPolicy::None);
         addMutation(QStringLiteral("audio_clips.relocate"),
                     QStringLiteral("automation.RelocateAudioClipCommand.v1"),
                     HistoryPolicy::Record, FileAccessPolicy::Read);
+        addMutation(QStringLiteral("audio_clips.set_hash"),
+                    QStringLiteral("automation.SetAudioClipHashCommand.v1"),
+                    HistoryPolicy::None, FileAccessPolicy::Read, RevisionPolicy::None);
+        addMutation(QStringLiteral("audio_clips.set_path_status"),
+                    QStringLiteral("automation.SetAudioClipPathStatusCommand.v1"),
+                    HistoryPolicy::None, FileAccessPolicy::None, RevisionPolicy::None);
         addMutation(QStringLiteral("clips.insert"),
                     QStringLiteral("automation.InsertClipsCommand.v1"));
+        addMutation(QStringLiteral("imports.commit_batch"),
+                    QStringLiteral("automation.PreparedBatchImportCommand.v1"));
         addMutation(QStringLiteral("clips.remove"),
                     QStringLiteral("automation.RemoveClipsCommand.v1"));
         addMutation(QStringLiteral("clips.set_default_language"),

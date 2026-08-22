@@ -165,6 +165,7 @@ namespace Automation {
         OperationId operationId;
         QString fieldPath;
         std::optional<ObjectRef> object;
+        std::optional<TaskId> taskId;
         std::optional<DocumentId> documentId;
         std::optional<Revision> expectedRevision;
         std::optional<Revision> actualRevision;
@@ -172,11 +173,15 @@ namespace Automation {
         [[nodiscard]] static AutomationError invalidArgument(QString fieldPath, QString message);
         [[nodiscard]] static AutomationError notFound(ObjectRef object, QString message);
         [[nodiscard]] static AutomationError wrongObjectType(ObjectRef object, QString message);
+        [[nodiscard]] static AutomationError taskNotFound(TaskId taskId);
+        [[nodiscard]] static AutomationError documentBusy(DocumentId documentId);
         [[nodiscard]] static AutomationError documentChanged(DocumentId requested,
                                                                DocumentId current);
         [[nodiscard]] static AutomationError revisionConflict(DocumentId documentId,
                                                                Revision expected,
                                                                Revision actual);
+
+        friend bool operator==(const AutomationError &, const AutomationError &) = default;
     };
 
     template <typename T>
