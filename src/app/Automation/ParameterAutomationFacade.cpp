@@ -153,6 +153,19 @@ namespace Automation {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("parameter"), QStringLiteral("Parameter is unsupported")));
                 }
+                for (const auto &curve : curves) {
+                    if (curve.type != CurveDraftDto::Type::Draw &&
+                        curve.type != CurveDraftDto::Type::Anchor) {
+                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                            QStringLiteral("curves.type"),
+                            QStringLiteral("Curve type is unsupported")));
+                    }
+                    if (curve.type == CurveDraftDto::Type::Draw && curve.step <= 0) {
+                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                            QStringLiteral("curves.step"),
+                            QStringLiteral("Curve step must be positive")));
+                    }
+                }
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
                 QList<CurveDraftDto> existing;
                 for (const auto *curve : clip->params.getParamByName(name)->curves(type)) {

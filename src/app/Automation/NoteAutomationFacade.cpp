@@ -477,6 +477,14 @@ namespace Automation {
                 auto resolved = m_objects.note(session, clipId, noteId);
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
+                const auto phonemeCount = resolved.get().note->phonemeNameSeq().result().count();
+                if (!offsets.isEmpty() &&
+                    (offsets.count() != phonemeCount ||
+                     !std::is_sorted(offsets.cbegin(), offsets.cend()))) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("offsets"),
+                        QStringLiteral("Phoneme offsets must match the phoneme count and be sorted")));
+                }
                 const bool changed = resolved.get().note->phonemeOffsetSeq().edited != offsets;
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Note, noteId.value()}
@@ -537,7 +545,6 @@ namespace Automation {
                     }
                     if (quantizeLength)
                         length = qMax(grid, TimelineSnapUtils::snapNearest(length, grid));
-                    notes.append(note);
                     geometry.append({start, length});
                     changed |= start != note->localStart() || length != note->length();
                 }

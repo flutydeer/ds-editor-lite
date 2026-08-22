@@ -94,8 +94,11 @@ namespace Automation {
         }
 
         bool validClipProperties(const ClipPropertiesDto &properties) {
-            return properties.start + properties.clipStart >= 0 && properties.length >= 0 &&
-                   properties.clipStart >= 0 && properties.clipLen >= 0 &&
+            return static_cast<qint64>(properties.start) + properties.clipStart >= 0 &&
+                   properties.length >= 0 && properties.clipStart >= 0 &&
+                   properties.clipLen >= 0 &&
+                   static_cast<qint64>(properties.clipStart) + properties.clipLen <=
+                       properties.length &&
                    std::isfinite(properties.gain) && std::isfinite(properties.trimStartMs) &&
                    std::isfinite(properties.playLengthMs) &&
                    std::isfinite(properties.materialLengthMs);
@@ -260,7 +263,7 @@ namespace Automation {
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *model = session.model();
                 const auto currentIndex = model->tracks().indexOf(resolved.get());
-                if (targetIndex < 0 || targetIndex >= model->tracks().size()) {
+                if (targetIndex < 0 || targetIndex > model->tracks().size()) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("target_index"),
                         QStringLiteral("Target track index is out of range")));
@@ -268,7 +271,8 @@ namespace Automation {
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Track, trackId.value()}
                 };
-                const bool changed = currentIndex != targetIndex;
+                const bool changed =
+                    targetIndex != currentIndex && targetIndex != currentIndex + 1;
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, changed, affected));
