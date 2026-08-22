@@ -100,7 +100,7 @@ namespace {
             const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
                 clip.speakerMixData(), clip.speakerId(),
                 clip.start() + piece->localStartTick(timeline),
-                clip.start() + piece->localEndTick(timeline), timeline);
+                clip.start() + piece->localEndTick(timeline), clip.start(), timeline);
             if (piece->identifier != identifier || piece->speakerMix != speakerMix)
                 return false;
         }
@@ -412,7 +412,8 @@ void InferControllerPrivate::handleTempoChanged() {
                 piece.speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
                     singingClip->speakerMixData(), singingClip->speakerId(),
                     singingClip->start() + piece.localStartTick(timeline),
-                    singingClip->start() + piece.localEndTick(timeline), timeline);
+                    singingClip->start() + piece.localEndTick(timeline), singingClip->start(),
+                    timeline);
                 piece.speaker = piece.speakerMix.fallbackSpeaker;
                 pipeline->onTimelineChanged();
             }
@@ -626,7 +627,7 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
         const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
             clip->speakerMixData(), clip->speakerId(),
             clip->start() + piece->localStartTick(timeline),
-            clip->start() + piece->localEndTick(timeline), timeline);
+            clip->start() + piece->localEndTick(timeline), clip->start(), timeline);
         piece->speakerMix = speakerMix;
         piece->speaker = speakerMix.fallbackSpeaker;
         Helper::resetPitch(*piece);
