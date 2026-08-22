@@ -11,6 +11,7 @@ file(GLOB_RECURSE _automation_edit_action_sources CONFIGURE_DEPENDS
 lite_add_test(${PROJECT_NAME}
     SOURCES
         main.cpp
+        ../../app/Automation/AudioExportAutomationFacade.cpp
         ../../app/Automation/AutomationTypes.cpp
         ../../app/Automation/AutomationTaskManager.cpp
         ../../app/Automation/OperationCatalog.cpp

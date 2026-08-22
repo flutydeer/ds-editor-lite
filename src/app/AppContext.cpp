@@ -2,6 +2,7 @@
 
 #include "Automation/CoreRuntime.h"
 #include "Automation/AppOptionsAutomationAdapter.h"
+#include "Automation/AudioExportAutomationAdapter.h"
 #include "Automation/FileAutomationAdapter.h"
 #include "Automation/InferenceAutomationAdapter.h"
 #include "Automation/PackageAutomationAdapter.h"
@@ -184,7 +185,8 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         Automation::createAppOptionsPresetAutomationServices(m_appOptions),
         Automation::createPackageAutomationServices(m_packageManager),
         Automation::createInferenceAutomationServices(),
-        Automation::createFileAutomationServices());
+        Automation::createFileAutomationServices(),
+        Automation::createAudioExportAutomationServices());
 
     // L3: Runtime host must outlive the inference facade.
     m_synthrtEngine = SingletonRegistry::create<SynthrtEngine>();

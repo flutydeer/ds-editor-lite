@@ -1,6 +1,7 @@
 #ifndef CORERUNTIME_H
 #define CORERUNTIME_H
 
+#include "AudioExportAutomationFacade.h"
 #include "DocumentSessionResolver.h"
 #include "DocumentAutomationFacade.h"
 #include "EditorAutomationFacade.h"
@@ -33,7 +34,8 @@ namespace Automation {
                     PresetRuntimeServices presetServices = {},
                     PackageRuntimeServices packageServices = {},
                     InferenceRuntimeServices inferenceServices = {},
-                    FileRuntimeServices fileServices = {});
+                    FileRuntimeServices fileServices = {},
+                    AudioExportRuntimeServices audioExportServices = {});
 
         [[nodiscard]] DocumentVersion documentVersion() const;
         [[nodiscard]] const WindowId &windowId() const;
@@ -43,6 +45,7 @@ namespace Automation {
         OperationCatalog &catalog();
         const OperationCatalog &catalog() const;
         AutomationDispatcher &dispatcher();
+        AudioExportAutomationFacade &audioExports();
         DocumentAutomationFacade &documents();
         FileAutomationFacade &files();
         HistoryAutomationFacade &history();
@@ -71,6 +74,7 @@ namespace Automation {
         CommandCommitter m_committer;
         DocumentObjectResolver m_objectResolver;
         AutomationTaskManager m_taskManager;
+        AudioExportAutomationFacade m_audioExportFacade;
         DocumentAutomationFacade m_documentFacade;
         EditorAutomationFacade m_facade;
         FileAutomationFacade m_fileFacade;

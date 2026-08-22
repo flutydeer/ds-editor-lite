@@ -203,6 +203,8 @@ namespace Audio::Internal {
             tr("Selected tracks"),
             tr("Custom"),
         });
+        m_sourceComboBox->setItemData(AudioExporterConfig::SO_Selected, 0,
+                                      Qt::UserRole - 1);
         mixingLayout->addRow(tr("&Source"), m_sourceComboBox);
         m_sourceListWidget = new QListWidget;
         m_sourceListWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -238,6 +240,7 @@ namespace Audio::Internal {
         m_rangeSelectAllRadio->setChecked(true);
         rangeOptionLayout->addWidget(m_rangeSelectAllRadio);
         m_rangeLoopIntervalRadio = new QRadioButton(tr("Loop s&ection"));
+        m_rangeLoopIntervalRadio->setEnabled(false);
         rangeOptionLayout->addWidget(m_rangeLoopIntervalRadio);
         rangeOptionLayout->addStretch();
         timeRangeLayout->addLayout(rangeOptionLayout);
@@ -599,8 +602,11 @@ namespace Audio::Internal {
         m_formatSampleRateComboBox->setCurrentText(locale.toString(config.formatSampleRate()));
         m_mixingOptionComboBox->setCurrentIndex(config.mixingOption());
         m_enableMuteSoloCheckBox->setChecked(config.isMuteSoloEnabled());
-        m_sourceComboBox->setCurrentIndex(config.sourceOption());
-        m_rangeSelectAllRadio->setChecked(config.timeRange() == AudioExporterConfig::TR_All);
+        m_sourceComboBox->setCurrentIndex(
+            config.sourceOption() == AudioExporterConfig::SO_Selected
+                ? AudioExporterConfig::SO_Custom
+                : config.sourceOption());
+        m_rangeSelectAllRadio->setChecked(true);
         skipUpdateFlag = false;
         updateConfig();
     }

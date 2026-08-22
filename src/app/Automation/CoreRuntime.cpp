@@ -1,6 +1,19 @@
 #include "CoreRuntime.h"
 
 namespace Automation {
+    namespace {
+        DocumentRuntimeServices bindAudioExportLifecycle(
+            DocumentRuntimeServices services, AudioExportAutomationFacade *audioExports) {
+            auto existing = std::move(services.beforeReplaceGeneration);
+            services.beforeReplaceGeneration =
+                [existing = std::move(existing), audioExports](const DocumentId &documentId) {
+                    if (existing)
+                        existing(documentId);
+                    audioExports->discardDocumentGeneration(documentId);
+                };
+            return services;
+        }
+    }
 
     CoreRuntime::CoreRuntime(AppModel *model, HistoryManager *historyManager,
                              DocumentRuntimeServices documentServices,
@@ -10,11 +23,15 @@ namespace Automation {
                              PresetRuntimeServices presetServices,
                              PackageRuntimeServices packageServices,
                              InferenceRuntimeServices inferenceServices,
-                             FileRuntimeServices fileServices)
+                             FileRuntimeServices fileServices,
+                             AudioExportRuntimeServices audioExportServices)
         : m_session(model, historyManager), m_documentResolver(m_session),
           m_dispatcher(m_documentResolver, m_windowContext, m_catalog),
+          m_audioExportFacade(m_catalog, m_dispatcher, m_documentResolver, m_taskManager,
+                              std::move(audioExportServices)),
           m_documentFacade(m_catalog, m_dispatcher, m_committer, m_taskManager,
-                           std::move(documentServices)),
+                           bindAudioExportLifecycle(std::move(documentServices),
+                                                    &m_audioExportFacade)),
           m_facade(m_session, m_windowContext, m_catalog, m_dispatcher,
                    std::move(editorServices)),
           m_fileFacade(m_catalog, m_dispatcher, std::move(fileServices)),
@@ -58,6 +75,10 @@ namespace Automation {
 
     AutomationDispatcher &CoreRuntime::dispatcher() {
         return m_dispatcher;
+    }
+
+    AudioExportAutomationFacade &CoreRuntime::audioExports() {
+        return m_audioExportFacade;
     }
 
     DocumentAutomationFacade &CoreRuntime::documents() {
@@ -117,6 +138,7 @@ namespace Automation {
     }
 
     DocumentVersion CoreRuntime::replaceDocumentGeneration(QString path, QString projectName) {
+        m_audioExportFacade.discardDocumentGeneration(m_session.documentId());
         m_taskManager.discardDocumentGeneration(m_session.documentId());
         return m_session.replaceGeneration(std::move(path), std::move(projectName));
     }

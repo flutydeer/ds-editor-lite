@@ -167,6 +167,7 @@ namespace Automation {
         FormatUnsupported,
         OverwriteDenied,
         IoError,
+        Unsupported,
         InternalError,
     };
 

@@ -9,6 +9,7 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
 #include <QTemporaryDir>
 #include <QTextStream>
@@ -96,6 +97,58 @@ namespace {
                 .validateOnly = validateOnly,
                 .source = Automation::InvocationSource::Test};
     }
+
+    struct FakeAudioExportState {
+        int executeCount = 0;
+        int cleanupCount = 0;
+        bool canceled = false;
+        Automation::AudioExportBackendState result =
+            Automation::AudioExportBackendState::Succeeded;
+    };
+
+    class FakeAudioExportJob final : public Automation::IAudioExportJob {
+    public:
+        FakeAudioExportJob(Automation::AudioExportConfigDto config,
+                           std::shared_ptr<FakeAudioExportState> state)
+            : m_config(std::move(config)), m_state(std::move(state)) {
+        }
+
+        Automation::AudioExportPreviewDto preview() const override {
+            return {
+                .baseDirectory = m_config.fileDirectory,
+                .filePaths = {QDir(m_config.fileDirectory).absoluteFilePath(m_config.fileName)},
+                .warningFlags = m_config.fileType >= 2
+                                    ? Automation::AudioExportLossyFormat
+                                    : 0,
+            };
+        }
+
+        Automation::AudioExportBackendResult
+        execute(const Automation::AudioExportObserver &observer) override {
+            ++m_state->executeCount;
+            if (observer.progress)
+                observer.progress(0.5, -1);
+            if (m_state->canceled)
+                return {.state = Automation::AudioExportBackendState::Canceled};
+            return {.state = m_state->result,
+                    .errorMessage = m_state->result ==
+                                            Automation::AudioExportBackendState::Failed
+                                        ? QStringLiteral("simulated audio export failure")
+                                        : QString()};
+        }
+
+        void cancel() override {
+            m_state->canceled = true;
+        }
+
+        void cleanup() override {
+            ++m_state->cleanupCount;
+        }
+
+    private:
+        Automation::AudioExportConfigDto m_config;
+        std::shared_ptr<FakeAudioExportState> m_state;
+    };
 }
 
 int main(int argc, char *argv[]) {
@@ -120,7 +173,9 @@ int main(int argc, char *argv[]) {
                          Automation::AutomationErrorCode::FormatUnsupported) ==
                          QStringLiteral("format_unsupported") &&
                      Automation::errorCodeName(Automation::AutomationErrorCode::OverwriteDenied) ==
-                         QStringLiteral("overwrite_denied"),
+                         QStringLiteral("overwrite_denied") &&
+                     Automation::errorCodeName(Automation::AutomationErrorCode::Unsupported) ==
+                         QStringLiteral("unsupported"),
                  "file error codes must keep stable external names");
 
     Automation::AutomationDispatcher dispatcher(resolver, window, catalog);
@@ -398,11 +453,24 @@ int main(int argc, char *argv[]) {
         }
         return true;
     };
+    auto audioExportState = std::make_shared<FakeAudioExportState>();
+    std::function<void()> scheduledAudioExport;
+    Automation::AudioExportRuntimeServices audioExportServices;
+    audioExportServices.createJob =
+        [&audioExportState](AppModel *, const QString &,
+                            const Automation::AudioExportConfigDto &config) {
+            return Automation::AutomationResult<
+                std::shared_ptr<Automation::IAudioExportJob>>(
+                std::make_shared<FakeAudioExportJob>(config, audioExportState));
+        };
+    audioExportServices.schedule = [&scheduledAudioExport](std::function<void()> execute) {
+        scheduledAudioExport = std::move(execute);
+    };
     Automation::CoreRuntime runtime(&model, history, std::move(documentServices),
                                     std::move(playbackServices), std::move(editorServices),
                                     std::move(settingsServices), std::move(presetServices),
                                     std::move(packageServices), std::move(inferenceServices),
-                                    std::move(fileServices));
+                                    std::move(fileServices), std::move(audioExportServices));
     const auto state = runtime.facade().getEditorState(runtime.windowId());
     const auto capabilities = runtime.facade().getEditorCapabilities();
     ok &= expect(state && state.get().document == runtime.documentVersion(),
@@ -410,7 +478,7 @@ int main(int argc, char *argv[]) {
     ok &= expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                      capabilities.get().maxConcurrentWindows == 1,
                  "capabilities must declare the single document/window boundary");
-    ok &= expect(capabilities && capabilities.get().operationIds.size() == 106 &&
+    ok &= expect(capabilities && capabilities.get().operationIds.size() == 109 &&
                      capabilities.get().operationIds.contains(QStringLiteral("history.undo")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tempos.set")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("tracks.insert")) &&
@@ -429,6 +497,8 @@ int main(int argc, char *argv[]) {
                      capabilities.get().operationIds.contains(QStringLiteral("formats.list")) &&
                      capabilities.get().operationIds.contains(
                          QStringLiteral("exports.midi.start")) &&
+                     capabilities.get().operationIds.contains(
+                         QStringLiteral("exports.audio.start")) &&
                      capabilities.get().operationIds.contains(
                          QStringLiteral("editor.set_piano_roll_edit_mode")) &&
                      capabilities.get().operationIds.contains(QStringLiteral("documents.save")),
@@ -493,6 +563,109 @@ int main(int argc, char *argv[]) {
                      failedMidiExport.getError().code == Automation::AutomationErrorCode::IoError &&
                      midiExportCount == 2,
                  "MIDI export must enforce overwrite policy and preserve backend failures");
+
+    Automation::AudioExportConfigDto audioExportConfig;
+    audioExportConfig.fileName = QStringLiteral("automation.wav");
+    audioExportConfig.fileDirectory = exportDirectory.path();
+    const auto audioPreview = runtime.audioExports().preview(
+        runtime.documentVersion().documentId, audioExportConfig);
+    auto audioValidateContext = commandContext(runtime, true);
+    audioValidateContext.idempotencyKey =
+        QStringLiteral("12d0198d-57d7-4454-84c8-19fdce34e457");
+    const auto audioValidation = runtime.audioExports().start(
+        audioValidateContext, audioExportConfig, {});
+    auto audioContext = commandContext(runtime);
+    audioContext.idempotencyKey = audioValidateContext.idempotencyKey;
+    const auto audioAccepted = runtime.audioExports().start(audioContext, audioExportConfig, {});
+    const auto audioReplayed = runtime.audioExports().start(audioContext, audioExportConfig, {});
+    ok &= expect(audioPreview && audioPreview.get().filePaths.size() == 1 &&
+                     audioValidation && audioValidation.get().validatedOnly &&
+                     audioValidation.get().taskId.isNull() && audioAccepted && audioReplayed &&
+                     audioAccepted.get() == audioReplayed.get() && scheduledAudioExport,
+                 "audio export must preview, validate without a task, and replay one accepted task");
+    const auto audioVersion = runtime.documentVersion();
+    scheduledAudioExport();
+    scheduledAudioExport = {};
+    const auto completedAudioTask =
+        runtime.tasks().getTask(runtime.documentVersion().documentId,
+                                audioAccepted.get().taskId);
+    const auto cleanedAudioTask = runtime.audioExports().cleanup(
+        commandContext(runtime), audioAccepted.get().taskId);
+    const auto repeatedAudioCleanup = runtime.audioExports().cleanup(
+        commandContext(runtime), audioAccepted.get().taskId);
+    ok &= expect(completedAudioTask &&
+                     completedAudioTask.get().state ==
+                         Automation::AutomationTaskState::Succeeded &&
+                     completedAudioTask.get().progress.value == 50 &&
+                     audioExportState->executeCount == 1 &&
+                     runtime.documentVersion() == audioVersion && cleanedAudioTask &&
+                     cleanedAudioTask.get().changed && repeatedAudioCleanup &&
+                     !repeatedAudioCleanup.get().changed && audioExportState->cleanupCount == 1,
+                 "audio export must retain task progress, preserve revision, and clean up once");
+
+    auto unsupportedAudioConfig = audioExportConfig;
+    unsupportedAudioConfig.sourceOption = 1;
+    const auto unsupportedAudio = runtime.audioExports().preview(
+        runtime.documentVersion().documentId, unsupportedAudioConfig);
+    auto mismatchedAudioConfig = audioExportConfig;
+    mismatchedAudioConfig.fileName = QStringLiteral("automation.mp3");
+    const auto mismatchedAudio = runtime.audioExports().preview(
+        runtime.documentVersion().documentId, mismatchedAudioConfig);
+    auto escapingAudioConfig = audioExportConfig;
+    escapingAudioConfig.fileName = QStringLiteral("../escaping.wav");
+    const auto escapingAudio = runtime.audioExports().start(
+        commandContext(runtime), escapingAudioConfig, {});
+    auto lossyAudioConfig = audioExportConfig;
+    lossyAudioConfig.fileName = QStringLiteral("automation.ogg");
+    lossyAudioConfig.fileType = 2;
+    const auto rejectedLossyAudio = runtime.audioExports().start(
+        commandContext(runtime), lossyAudioConfig, {});
+    ok &= expect(!unsupportedAudio &&
+                     unsupportedAudio.getError().code ==
+                         Automation::AutomationErrorCode::Unsupported &&
+                     !mismatchedAudio &&
+                     mismatchedAudio.getError().code ==
+                         Automation::AutomationErrorCode::FormatUnsupported &&
+                     !escapingAudio &&
+                     escapingAudio.getError().code ==
+                         Automation::AutomationErrorCode::InvalidArgument &&
+                     !rejectedLossyAudio &&
+                     rejectedLossyAudio.getError().code ==
+                         Automation::AutomationErrorCode::InvalidArgument,
+                 "audio export must reject deferred modes, unsafe paths, and implicit warnings");
+
+    auto canceledAudioConfig = audioExportConfig;
+    canceledAudioConfig.fileName = QStringLiteral("canceled.wav");
+    const auto canceledAudioAccepted = runtime.audioExports().start(
+        commandContext(runtime), canceledAudioConfig, {});
+    const auto audioCancel = runtime.tasks().cancelTask(
+        commandContext(runtime), canceledAudioAccepted.get().taskId);
+    scheduledAudioExport();
+    scheduledAudioExport = {};
+    const auto canceledAudioTask = runtime.tasks().getTask(
+        runtime.documentVersion().documentId, canceledAudioAccepted.get().taskId);
+    ok &= expect(audioCancel && canceledAudioTask &&
+                     canceledAudioTask.get().state ==
+                         Automation::AutomationTaskState::Canceled &&
+                     audioExportState->executeCount == 1,
+                 "queued audio export cancellation must prevent backend execution");
+
+    audioExportState->result = Automation::AudioExportBackendState::Failed;
+    auto failedAudioConfig = audioExportConfig;
+    failedAudioConfig.fileName = QStringLiteral("failed.wav");
+    const auto failedAudioAccepted = runtime.audioExports().start(
+        commandContext(runtime), failedAudioConfig, {});
+    scheduledAudioExport();
+    scheduledAudioExport = {};
+    const auto failedAudioTask = runtime.tasks().getTask(
+        runtime.documentVersion().documentId, failedAudioAccepted.get().taskId);
+    ok &= expect(failedAudioTask &&
+                     failedAudioTask.get().state == Automation::AutomationTaskState::Failed &&
+                     failedAudioTask.get().error &&
+                     failedAudioTask.get().error->code == Automation::AutomationErrorCode::IoError &&
+                     audioExportState->executeCount == 2,
+                 "audio export backend failures must remain queryable as stable task errors");
+    audioExportState->result = Automation::AudioExportBackendState::Succeeded;
 
     Automation::InferenceMutationRequest acousticRequest;
     acousticRequest.kind = Automation::InferenceMutationKind::ApplyAcoustic;
@@ -970,6 +1143,13 @@ int main(int argc, char *argv[]) {
                          Automation::AutomationErrorCode::OperationNotCancelable,
                  "automation task must reject cancellation after its commit point");
 
+    auto replacedAudioConfig = audioExportConfig;
+    replacedAudioConfig.fileName = QStringLiteral("replaced.wav");
+    const auto replacedAudioAccepted = runtime.audioExports().start(
+        commandContext(runtime), replacedAudioConfig, {});
+    auto replacedAudioExecution = std::move(scheduledAudioExport);
+    scheduledAudioExport = {};
+
     AppModel replacementModel;
     replacementModel.newProject();
     const auto replacementData = replacementModel.takeProjectData();
@@ -977,26 +1157,30 @@ int main(int argc, char *argv[]) {
     const auto replacementDraft =
         Automation::documentDraftDto(replacementData, replacementLoop);
     const auto oldTaskDocument = runtime.documentVersion().documentId;
+    const auto tasksBeforeReplacement = runtime.automationTasks().size();
     const auto replacementPreview = runtime.documents().commitOpenedDocument(
         commandContext(runtime, true), replacementDraft, QStringLiteral("D:/replacement.dspx"),
         QStringLiteral("replacement.dspx"), true);
     ok &= expect(replacementPreview && replacementPreview.get().validatedOnly &&
                      replacementPreview.get().current.documentId.isNull() &&
                      runtime.documentVersion().documentId == oldTaskDocument &&
-                     runtime.automationTasks().size() == 2,
+                     runtime.automationTasks().size() == tasksBeforeReplacement,
                  "document replace validate-only must not allocate an ID or alter the active session");
 
     const auto replacement = runtime.documents().commitOpenedDocument(
         commandContext(runtime), replacementDraft, QStringLiteral("D:/replacement.dspx"),
         QStringLiteral("replacement.dspx"), true);
+    if (replacedAudioExecution)
+        replacedAudioExecution();
     const auto replacedDocument = runtime.documents().getDocument(runtime.documentVersion().documentId);
     const auto staleDocument = runtime.documents().getDocument(oldTaskDocument);
-    ok &= expect(replacement && replacement.get().changed &&
+    ok &= expect(replacedAudioAccepted && replacement && replacement.get().changed &&
                      replacement.get().previous.documentId == oldTaskDocument &&
                      replacement.get().current == runtime.documentVersion() &&
                      runtime.automationTasks().size() == 0 &&
                      runtime.documentVersion().documentId != oldTaskDocument &&
                      runtime.documentVersion().revision == 0 &&
+                     audioExportState->executeCount == 2 &&
                      appliedLoopSettings == replacementLoop && replacedDocument &&
                      replacedDocument.get().path == QStringLiteral("D:/replacement.dspx") &&
                      !staleDocument && staleDocument.getError().code ==

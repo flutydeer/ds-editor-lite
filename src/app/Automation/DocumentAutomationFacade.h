@@ -15,6 +15,7 @@ namespace Automation {
     struct DocumentRuntimeServices {
         std::function<void(const LoopSettings &)> applyLoopSettings;
         std::function<bool(const QString &, AppModel *, QString &)> saveProject;
+        std::function<void(const DocumentId &)> beforeReplaceGeneration;
     };
 
     struct DocumentSnapshotDto {

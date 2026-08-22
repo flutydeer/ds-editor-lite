@@ -111,6 +111,8 @@ namespace Automation {
                 MutationResult result;
                 result.previous = session.version();
                 session.setLifecycleState(DocumentLifecycleState::Replacing);
+                if (m_services.beforeReplaceGeneration)
+                    m_services.beforeReplaceGeneration(result.previous.documentId);
                 m_tasks.discardDocumentGeneration(result.previous.documentId);
                 history->reset(HistoryManager::ResetState::Saved);
                 model->replaceProject(std::move(prepared));
