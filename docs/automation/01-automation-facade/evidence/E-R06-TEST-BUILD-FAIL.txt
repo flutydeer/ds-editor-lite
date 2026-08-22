@@ -1,0 +1,11 @@
+# E-R06 新增契约目标首次构建失败脱敏证据
+
+- Debug configure：通过。
+- Debug 应用目标增量构建：通过。
+- 新增契约目标联合构建：失败，Ninja 在首个编译错误后停止。
+- 失败目标：`TestAutomationDocumentLifecycle`。
+- 根因：测试源使用 `QIODevice::WriteOnly`，但缺少 `QIODevice` 完整类型头文件；编译器报告
+  4 条关联错误。
+- `TestAutomationIdempotency` 与 `TestAutomationTaskRaces` 已开始编译，但本轮未完成联合链接。
+- 本轮未执行 CTest，不形成产品行为结论。
+- 原始构建日志仅保留于测试主机隔离区域，本证据不包含本机路径。
