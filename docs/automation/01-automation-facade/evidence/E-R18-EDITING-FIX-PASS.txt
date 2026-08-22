@@ -1,0 +1,22 @@
+Evidence ID: E-R18-EDITING-FIX-PASS
+Round: 18
+Scope: editing-domain validation and commit fixes
+
+Build: passed
+Runs: 3
+Catalog operations exercised: 40
+Scenarios per run: 42
+Assertions per run: 257
+Passing scenarios per run: 42
+Failures per run: 0
+Flaky observations: 0
+
+Verified fixes:
+1. tracks.move accepts list-end insertion and treats adjacent insertion positions as no-ops.
+2. clips.set_properties rejects material ranges beyond clip length without overflow.
+3. notes.set_phoneme_offsets rejects mismatched and unsorted nonempty offsets; clear remains valid.
+4. parameters.replace rejects non-positive Draw steps.
+5. notes.quantize terminates and commits the requested geometry exactly once.
+
+The complete suite, including error priority, overlap, revision, history, and undo checks, ran
+on every repetition.
