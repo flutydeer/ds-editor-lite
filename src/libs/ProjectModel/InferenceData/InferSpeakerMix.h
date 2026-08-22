@@ -40,11 +40,13 @@ namespace InferSpeakerMixModel {
                                              const QString &fallbackSpeaker);
     InferSpeakerMix dynamicSpeakerMixFromData(const SpeakerMixModel::SpeakerMixData &data,
                                               const QString &fallbackSpeaker, int startTick,
-                                              int endTick, const Timeline &timeline,
+                                              int endTick, int keyframeOriginTick,
+                                              const Timeline &timeline,
                                               double intervalSeconds = 0.01);
     InferSpeakerMix effectiveSpeakerMixFromData(const SpeakerMixModel::SpeakerMixData &data,
                                                 const QString &fallbackSpeaker, int startTick,
-                                                int endTick, const Timeline &timeline,
+                                                int endTick, int keyframeOriginTick,
+                                                const Timeline &timeline,
                                                 double intervalSeconds = 0.01);
     InferSpeakerMix fitToFrames(const InferSpeakerMix &mix, int frames,
                                 double intervalSeconds = 0.01);
