@@ -161,6 +161,7 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
     std::string speakerName = model.speaker.toStdString();
     const auto input = srt::core::NO<Dur::DurationStartInput>::create();
 
+    InferDirectMLSerializationGuard dmlGuard;
     const auto handle = inferEngine->acquireSingerSession(identifier);
     if (!handle) {
         qCritical() << "inferDuration: failed to acquire singer session for" << identifier;
@@ -206,7 +207,6 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
         abort();
         return false;
     }
-    InferRunSerializationGuard runGuard;
     auto exp = inferenceDuration->start(input);
     if (!exp) {
         qCritical().noquote().nospace() << "inferDuration: Failed to start duration inference for "

@@ -14,11 +14,9 @@ IdGenerator *IdGenerator::instance() {
     return &obj;
 }
 
-// AppOptions stubs: InferTaskCommon.cpp defines InferRunSerializationGuard, whose
-// constructor reads appOptions->inference()->executionProvider. Only the InferXxxTask
-// translation units construct that guard and this test links none of them, so these
-// definitions exist to satisfy the linker and are never called. Defining AppOptions for
-// real would pull in every Option class plus AppContext.
+// AppOptions stubs for transitive inference dependencies. These tests do not access
+// application options; linking the real definitions would pull in every Option class
+// plus AppContext.
 AppOptions *AppOptions::instance() {
     return nullptr;
 }

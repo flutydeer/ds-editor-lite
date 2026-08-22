@@ -4,6 +4,7 @@
 #define inferEngine InferEngine::instance()
 
 #include <memory>
+#include <mutex>
 
 #include <lite/Core/Singleton.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
@@ -11,6 +12,8 @@
 #include <QReadWriteLock>
 #include <QObject>
 #include <QSet>
+#include <QThreadPool>
+#include <QTimer>
 
 #include <synthrt/Core/Core/Runtime.h>
 #include <diffsinger/Session/ModelSetHandle.h>
@@ -63,6 +66,8 @@ public:
     void startInitialization();
 
 private:
+    using SingerSessionHandleList = SingerSessionCache<ds::session::ModelSetHandle>::HandleList;
+
     friend class InitInferEngineTask;
     friend class InferDurationTask;
     friend class InferPitchTask;
@@ -70,6 +75,9 @@ private:
     friend class InferAcousticTask;
     bool initialize(QString &error);
     void dispose();
+    void evictSingerSessions();
+    void releaseSingerSessionsAsync(SingerSessionHandleList handles);
+    void releaseDeselectedSingerSessionsAsync(SingerSessionHandleList handles);
 
     mutable QReadWriteLock m_engineRwLock;
     std::once_flag m_initFlag{};
@@ -77,7 +85,10 @@ private:
     bool m_disposed = false;
     InferEnginePaths m_paths;
 
+    std::mutex m_singerSessionSelectionMutex;
     mutable SingerSessionCache<ds::session::ModelSetHandle> m_singerSessions;
+    QTimer m_singerSessionEvictionTimer;
+    QThreadPool m_singerSessionReleasePool;
 };
 
 
