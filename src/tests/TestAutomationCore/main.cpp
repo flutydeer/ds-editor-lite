@@ -1,9 +1,13 @@
 #include "Automation/AutomationDispatcher.h"
 #include "Automation/CoreRuntime.h"
 
+#include <lite/History/HistoryManager.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
+
 #include <QCoreApplication>
 #include <QTextStream>
 
+#include <algorithm>
 #include <functional>
 
 namespace {
@@ -71,6 +75,13 @@ namespace {
             .exposure = Automation::ExposurePolicy::InternalOnly,
             .idempotency = Automation::IdempotencyPolicy::Unsupported,
         };
+    }
+
+    bool hasTempoAt(const AppModel &model, const int tick, const double value) {
+        const auto &tempos = model.timeline().tempos();
+        return std::any_of(tempos.cbegin(), tempos.cend(), [tick, value](const Tempo &tempo) {
+            return tempo.pos == tick && tempo.value == value;
+        });
     }
 }
 
@@ -149,7 +160,10 @@ int main(int argc, char *argv[]) {
                          Automation::AutomationErrorCode::HostCapabilityUnavailable,
                  "single-window host must reject another window ID");
 
-    Automation::CoreRuntime runtime(nullptr, nullptr);
+    AppModel model;
+    auto *history = HistoryManager::instance();
+    history->reset();
+    Automation::CoreRuntime runtime(&model, history);
     const auto state = runtime.facade().getEditorState(runtime.windowId());
     const auto capabilities = runtime.facade().getEditorCapabilities();
     ok &= expect(state && state.get().document == runtime.documentVersion(),
@@ -157,11 +171,66 @@ int main(int argc, char *argv[]) {
     ok &= expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                      capabilities.get().maxConcurrentWindows == 1,
                  "capabilities must declare the single document/window boundary");
-    ok &= expect(capabilities &&
-                     capabilities.get().operationIds ==
-                         QStringList({QStringLiteral("editor.get_capabilities"),
-                                      QStringLiteral("editor.get_state")}),
-                 "capabilities must be derived from the registered catalog");
+    ok &= expect(capabilities && capabilities.get().operationIds.size() == 11 &&
+                     capabilities.get().operationIds.contains(QStringLiteral("history.undo")) &&
+                     capabilities.get().operationIds.contains(QStringLiteral("tempos.set")),
+                 "capabilities must be derived from every registered operation");
+
+    Automation::CommandContext setTempoContext;
+    setTempoContext.expected = runtime.documentVersion();
+    const auto setTempo = runtime.timeline().setTempo(setTempoContext, 960, 150.0);
+    ok &= expect(setTempo && setTempo.get().changed &&
+                     setTempo.get().current.revision == 1 && hasTempoAt(model, 960, 150.0),
+                 "timeline mutation must commit one action and one revision");
+
+    Automation::CommandContext noOpContext;
+    noOpContext.expected = runtime.documentVersion();
+    const auto noOp = runtime.timeline().setTempo(noOpContext, 960, 150.0);
+    ok &= expect(noOp && !noOp.get().changed && runtime.documentVersion().revision == 1,
+                 "legal no-op must not record history or advance revision");
+
+    Automation::CommandContext validateContext;
+    validateContext.expected = runtime.documentVersion();
+    validateContext.validateOnly = true;
+    const auto preview = runtime.timeline().setTempo(validateContext, 960, 160.0);
+    ok &= expect(preview && preview.get().validatedOnly && preview.get().changed &&
+                     preview.get().current.revision == 2 &&
+                     runtime.documentVersion().revision == 1 && hasTempoAt(model, 960, 150.0),
+                 "validate-only must predict the result without changing model or revision");
+
+    Automation::CommandContext staleContext;
+    staleContext.expected = {runtime.documentVersion().documentId, 0};
+    const auto staleMutation = runtime.timeline().setTempo(staleContext, 960, 160.0);
+    ok &= expect(!staleMutation &&
+                     staleMutation.getError().code ==
+                         Automation::AutomationErrorCode::RevisionConflict,
+                 "revision validation must precede domain mutation");
+
+    const auto historyState = runtime.history().getState(runtime.documentVersion().documentId);
+    ok &= expect(historyState && historyState.get().canUndo && !historyState.get().canRedo,
+                 "history query must reflect the committed timeline action");
+
+    Automation::CommandContext undoContext;
+    undoContext.expected = runtime.documentVersion();
+    const auto undo = runtime.history().undo(undoContext);
+    ok &= expect(undo && undo.get().changed && undo.get().current.revision == 2 &&
+                     !hasTempoAt(model, 960, 150.0),
+                 "undo must use the same revision-owning commit path");
+
+    Automation::CommandContext redoContext;
+    redoContext.expected = runtime.documentVersion();
+    const auto redo = runtime.history().redo(redoContext);
+    ok &= expect(redo && redo.get().changed && redo.get().current.revision == 3 &&
+                     hasTempoAt(model, 960, 150.0),
+                 "redo must use the same revision-owning commit path");
+
+    Automation::CommandContext emptyRedoContext;
+    emptyRedoContext.expected = runtime.documentVersion();
+    const auto emptyRedo = runtime.history().redo(emptyRedoContext);
+    ok &= expect(emptyRedo && !emptyRedo.get().changed && runtime.documentVersion().revision == 3,
+                 "empty redo must be a successful no-op");
+
+    history->reset();
 
     return ok ? 0 : 1;
 }

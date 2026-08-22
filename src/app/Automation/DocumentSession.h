@@ -23,7 +23,7 @@ namespace Automation {
         [[nodiscard]] const DocumentId &documentId() const;
         [[nodiscard]] Revision revision() const;
         [[nodiscard]] AppModel *model() const;
-        [[nodiscard]] HistoryManager *historyManager() const;
+        [[nodiscard]] HistoryManager *history() const;
         [[nodiscard]] const QString &path() const;
         [[nodiscard]] const QString &projectName() const;
         [[nodiscard]] DocumentLifecycleState lifecycleState() const;

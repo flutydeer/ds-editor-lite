@@ -22,7 +22,7 @@ namespace Automation {
         return m_model;
     }
 
-    HistoryManager *DocumentSession::historyManager() const {
+    HistoryManager *DocumentSession::history() const {
         return m_historyManager;
     }
 

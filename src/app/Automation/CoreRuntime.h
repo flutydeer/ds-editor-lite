@@ -3,6 +3,8 @@
 
 #include "DocumentSessionResolver.h"
 #include "EditorAutomationFacade.h"
+#include "HistoryAutomationFacade.h"
+#include "TimelineAutomationFacade.h"
 
 class AppModel;
 class HistoryManager;
@@ -21,6 +23,8 @@ namespace Automation {
         OperationCatalog &catalog();
         const OperationCatalog &catalog() const;
         AutomationDispatcher &dispatcher();
+        HistoryAutomationFacade &history();
+        TimelineAutomationFacade &timeline();
 
         DocumentVersion replaceDocumentGeneration(QString path, QString projectName);
 
@@ -30,7 +34,10 @@ namespace Automation {
         SingleWindowContext m_windowContext;
         OperationCatalog m_catalog;
         AutomationDispatcher m_dispatcher;
+        CommandCommitter m_committer;
         EditorAutomationFacade m_facade;
+        HistoryAutomationFacade m_historyFacade;
+        TimelineAutomationFacade m_timelineFacade;
     };
 
 } // namespace Automation

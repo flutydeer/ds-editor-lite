@@ -5,7 +5,9 @@ namespace Automation {
     CoreRuntime::CoreRuntime(AppModel *model, HistoryManager *historyManager)
         : m_session(model, historyManager), m_documentResolver(m_session),
           m_dispatcher(m_documentResolver, m_windowContext, m_catalog),
-          m_facade(m_session, m_windowContext, m_catalog, m_dispatcher) {
+          m_facade(m_session, m_windowContext, m_catalog, m_dispatcher),
+          m_historyFacade(m_catalog, m_dispatcher, m_committer),
+          m_timelineFacade(m_catalog, m_dispatcher, m_committer) {
     }
 
     DocumentVersion CoreRuntime::documentVersion() const {
@@ -34,6 +36,14 @@ namespace Automation {
 
     AutomationDispatcher &CoreRuntime::dispatcher() {
         return m_dispatcher;
+    }
+
+    HistoryAutomationFacade &CoreRuntime::history() {
+        return m_historyFacade;
+    }
+
+    TimelineAutomationFacade &CoreRuntime::timeline() {
+        return m_timelineFacade;
     }
 
     DocumentVersion CoreRuntime::replaceDocumentGeneration(QString path, QString projectName) {

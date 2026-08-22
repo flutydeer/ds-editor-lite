@@ -40,6 +40,7 @@ private:
     void request(Direction direction);
     void execute(Direction direction, const ActionSequence *sequence,
                  const HistoryFocus &resultFocus);
+    void commit(Direction direction);
     void clearPending();
 
     std::optional<Pending> m_pending;
