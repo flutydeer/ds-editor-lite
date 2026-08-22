@@ -1,0 +1,18 @@
+Evidence ID: E-R11-CLEAN-REBUILD
+Round: 11
+Scope: clean-build isolation of the round-10 teardown failures
+
+Debugger isolation:
+- Both failing processes reached their own all-passed summary.
+- The captured exception occurred while destroying a SettingsRuntimeServices function object from
+  CoreRuntime, and the target bytes carried the Debug uninitialized-memory fill pattern.
+
+Clean rebuild:
+- Generated build outputs removed by the CMake clean target: 886 files.
+- Debug all-target rebuild: 949 build steps, passed.
+- TestEditorViewController direct rerun: passed, exit code 0.
+- TestUndoRedoController direct rerun: passed, exit code 0.
+
+Outcome: PASS for isolation and targeted rerun.
+Classification: stale incremental object/ABI mixture; no source change was required.
+Privacy: this evidence contains no machine-local or user-data path.
