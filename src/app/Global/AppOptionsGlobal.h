@@ -10,6 +10,7 @@ namespace AppOptionsGlobal {
         Appearance,
         Inference,
         DeveloperOptions,
+        Dssp,
 
         // Hidden options
         G2pLanguage,
