@@ -1,0 +1,9 @@
+round=39
+scope=final Debug all-target build after production source freeze
+configured_targets=application plus 46 registered CTest executables and support libraries
+result=pass
+ninja_status=no work to do; every configured target was already current from successful targeted builds
+source_head=c71d884f
+unexpected_rebuild=none
+link_failure=none
+privacy=logical aliases only; no local absolute paths

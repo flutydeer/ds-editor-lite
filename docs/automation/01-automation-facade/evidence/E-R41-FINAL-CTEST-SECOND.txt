@@ -1,0 +1,12 @@
+round=41
+scope=second consecutive full CTest after final source freeze
+tests_discovered=46
+tests_passed=46
+tests_failed=0
+pass_rate=100%
+real_time_seconds=2.71
+timeout_seconds_per_test=120
+new_target=TestPianoRollNoteCommit passed in 0.03 seconds
+slowest_target=TestAutomationArchitecture at 0.42 seconds
+crash_timeout_plugin_error=0
+privacy=logical aliases only; no local absolute paths
