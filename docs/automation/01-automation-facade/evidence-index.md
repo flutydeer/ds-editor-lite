@@ -387,3 +387,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R114-R117-FINAL-AUTOMATED-GATE` | 114–117 | 最终 Debug 全目标构建与三轮完整 CTest | `be2706277a496f153b282ce124d179a67d2c5a5e6624ac4e032d47ade29e21b3` |
+
+## 追加证据 63
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R118-R121-GUI-AUDIO-RECOVERY` | 118–121 | 隔离 GUI 最终重建、双副本打开与相对音频 Computer Use 恢复验证 | `7bbf34837cc412a2d25196b33a8fc05cfa5ad5d1ea49403bdc449c66a029ad24` |
