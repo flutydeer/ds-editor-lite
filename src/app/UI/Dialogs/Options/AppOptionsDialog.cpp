@@ -14,6 +14,7 @@
 #include <lite/GUI/Theme/ThemeManager.h>
 
 #include "Pages/AppearancePage.h"
+#include "Pages/AutomationPage.h"
 #include "Pages/AudioPage.h"
 #include "Pages/DeveloperPage.h"
 #include "Pages/GeneralPage.h"
@@ -156,6 +157,13 @@ IOptionPage *AppOptionsDialog::ensurePage(const int index) {
         case AppOptionsGlobal::Inference:
             page = new InferencePage;
             break;
+        case AppOptionsGlobal::Automation: {
+            auto *automationPage = new AutomationPage;
+            automationPage->setCustomPermissionOperationIds(
+                m_automationCustomPermissionOperationIds);
+            page = automationPage;
+            break;
+        }
         case AppOptionsGlobal::DeveloperOptions:
             page = new DeveloperPage;
             break;
@@ -171,6 +179,15 @@ IOptionPage *AppOptionsDialog::ensurePage(const int index) {
 void AppOptionsDialog::selectOption(const AppOptionsGlobal::Option option) {
     const auto pageIndex = option >= 1 ? option - 1 : 0; // Skip enum "All"
     m_tabList->setCurrentRow(pageIndex);
+}
+
+void AppOptionsDialog::setAutomationCustomPermissionOperationIds(QStringList operationIds) {
+    m_automationCustomPermissionOperationIds = std::move(operationIds);
+    const auto pageIndex = static_cast<int>(AppOptionsGlobal::Automation) - 1;
+    if (pageIndex < 0 || pageIndex >= m_pages.size())
+        return;
+    if (auto *page = qobject_cast<AutomationPage *>(m_pages.at(pageIndex)))
+        page->setCustomPermissionOperationIds(m_automationCustomPermissionOperationIds);
 }
 
 void AppOptionsDialog::changeEvent(QEvent *event) {
@@ -198,11 +215,13 @@ void AppOptionsDialog::retranslateUi() {
         ":/svg/icons/midi_20_regular.svg",      // MIDI
         ":/svg/icons/color_20_regular.svg",     // Appearance
         ":/svg/icons/sparkle_20_regular.svg",   // Inference
+        ":/svg/icons/arrow_swap_20_regular.svg", // Automation
         ":/svg/icons/code_20_regular.svg",      // Developer Options
     };
 
-    const QStringList pageNames = {tr("General"),    tr("Audio"),     tr("MIDI"),
-                                   tr("Appearance"), tr("Inference"), tr("Developer Options")};
+    const QStringList pageNames = {tr("General"),    tr("Audio"),      tr("MIDI"),
+                                   tr("Appearance"), tr("Inference"),  tr("Automation"),
+                                   tr("Developer Options")};
     const QSignalBlocker blocker(m_tabList);
     const auto currentRow = m_tabList->currentRow();
     if (m_tabList->count() != pageNames.size()) {

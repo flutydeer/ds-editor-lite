@@ -2,6 +2,7 @@
 #define APPOPTIONSDIALOG_H
 
 #include <QWidget>
+#include <QStringList>
 
 #include "Global/AppOptionsGlobal.h"
 
@@ -24,6 +25,8 @@ public:
     // semantics: General -> page 1, ...).
     void selectOption(AppOptionsGlobal::Option option);
 
+    void setAutomationCustomPermissionOperationIds(QStringList operationIds);
+
     // Shows the options as a standalone modal dialog (Dialog base + title bar)
     // and enters its modal event loop. Returns the dialog's result.
     static int showStandaloneDialog(AppOptionsGlobal::Option option,
@@ -45,6 +48,7 @@ private:
     bool m_standalone = false;
 
     QList<IOptionPage *> m_pages;
+    QStringList m_automationCustomPermissionOperationIds;
 };
 
 #endif // APPOPTIONSDIALOG_H
