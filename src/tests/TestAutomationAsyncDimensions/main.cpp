@@ -275,8 +275,16 @@ namespace {
             RuntimeHarness harness;
             const auto base = harness.runtime().documentVersion();
             const auto tracksBefore = harness.model().tracks().size();
-            const auto accepted =
-                harness.runtime().extractions().startMidi(harness.context(), harness.audioClipId());
+            int finishedCount = 0;
+            int destroyCountAtFinished = -1;
+            Automation::ExtractionObserver observer;
+            observer.finished = [&](const Automation::AutomationTaskSnapshot &) {
+                ++finishedCount;
+                if (!harness.midiStates.isEmpty())
+                    destroyCountAtFinished = harness.midiStates.last()->destroyCount;
+            };
+            const auto accepted = harness.runtime().extractions().startMidi(
+                harness.context(), harness.audioClipId(), std::move(observer));
             EXPECT(matrix, bool(accepted), QStringLiteral("task must be accepted"));
             if (!accepted)
                 return;
@@ -287,18 +295,19 @@ namespace {
             const auto released = harness.extractionScheduler.runNext();
             const auto terminal =
                 harness.runtime().tasks().getTask(base.documentId, accepted.get().taskId);
-            EXPECT(matrix,
-                   firstCancel && repeatedCancel && released && terminal &&
-                       firstCancel.get().state ==
-                           Automation::AutomationTaskState::CancelRequested &&
-                       repeatedCancel.get().state ==
-                           Automation::AutomationTaskState::CancelRequested &&
-                       terminal.get().state == Automation::AutomationTaskState::Canceled &&
-                       harness.midiStates.first()->cancelCount == 1 &&
-                       harness.midiStates.first()->startCount == 0 &&
-                       harness.runtime().documentVersion() == base &&
-                       harness.model().tracks().size() == tracksBefore,
-                   QStringLiteral("queued cancel must be idempotent and prevent backend start"));
+            EXPECT(
+                matrix,
+                firstCancel && repeatedCancel && released && terminal &&
+                    firstCancel.get().state == Automation::AutomationTaskState::CancelRequested &&
+                    repeatedCancel.get().state ==
+                        Automation::AutomationTaskState::CancelRequested &&
+                    terminal.get().state == Automation::AutomationTaskState::Canceled &&
+                    harness.midiStates.first()->cancelCount == 1 &&
+                    harness.midiStates.first()->startCount == 0 && finishedCount == 1 &&
+                    destroyCountAtFinished == 0 && harness.midiStates.first()->destroyCount == 1 &&
+                    harness.runtime().documentVersion() == base &&
+                    harness.model().tracks().size() == tracksBefore,
+                QStringLiteral("queued cancel must be idempotent and prevent backend start"));
         });
 
         matrix.run(operationId, "AFD-EXT-MIDI-004-RUNNING-CANCEL-DUPLICATE", [&] {
@@ -308,8 +317,16 @@ namespace {
             RuntimeHarness harness;
             const auto base = harness.runtime().documentVersion();
             const auto tracksBefore = harness.model().tracks().size();
-            const auto accepted =
-                harness.runtime().extractions().startMidi(harness.context(), harness.audioClipId());
+            int finishedCount = 0;
+            int destroyCountAtFinished = -1;
+            Automation::ExtractionObserver observer;
+            observer.finished = [&](const Automation::AutomationTaskSnapshot &) {
+                ++finishedCount;
+                if (!harness.midiStates.isEmpty())
+                    destroyCountAtFinished = harness.midiStates.last()->destroyCount;
+            };
+            const auto accepted = harness.runtime().extractions().startMidi(
+                harness.context(), harness.audioClipId(), std::move(observer));
             EXPECT(matrix, accepted && harness.extractionScheduler.runNext(),
                    QStringLiteral("task must reach Running"));
             if (!accepted || harness.midiStates.isEmpty())
@@ -325,13 +342,15 @@ namespace {
             state->complete(successfulMidi(67));
             const auto terminal =
                 harness.runtime().tasks().getTask(base.documentId, accepted.get().taskId);
-            EXPECT(matrix,
-                   running && running.get().state == Automation::AutomationTaskState::Running &&
-                       canceled && repeated && terminal &&
-                       terminal.get().state == Automation::AutomationTaskState::Canceled &&
-                       state->cancelCount == 1 && harness.runtime().documentVersion() == base &&
-                       harness.model().tracks().size() == tracksBefore,
-                   QStringLiteral("running cancel must beat duplicate successful callbacks"));
+            EXPECT(
+                matrix,
+                running && running.get().state == Automation::AutomationTaskState::Running &&
+                    canceled && repeated && terminal &&
+                    terminal.get().state == Automation::AutomationTaskState::Canceled &&
+                    state->cancelCount == 1 && state->destroyCount == 1 && finishedCount == 1 &&
+                    destroyCountAtFinished == 0 && harness.runtime().documentVersion() == base &&
+                    harness.model().tracks().size() == tracksBefore,
+                QStringLiteral("running cancel must beat duplicate callbacks and release its job"));
         });
 
         matrix.run(operationId, "AFD-EXT-MIDI-005-SUCCESS-ONCE", [&] {
@@ -341,8 +360,16 @@ namespace {
             RuntimeHarness harness;
             const auto base = harness.runtime().documentVersion();
             const auto tracksBefore = harness.model().tracks().size();
-            const auto accepted =
-                harness.runtime().extractions().startMidi(harness.context(), harness.audioClipId());
+            int finishedCount = 0;
+            int destroyCountAtFinished = -1;
+            Automation::ExtractionObserver observer;
+            observer.finished = [&](const Automation::AutomationTaskSnapshot &) {
+                ++finishedCount;
+                if (!harness.midiStates.isEmpty())
+                    destroyCountAtFinished = harness.midiStates.last()->destroyCount;
+            };
+            const auto accepted = harness.runtime().extractions().startMidi(
+                harness.context(), harness.audioClipId(), std::move(observer));
             EXPECT(matrix, accepted && harness.extractionScheduler.runNext(),
                    QStringLiteral("task must reach Running"));
             if (!accepted || harness.midiStates.isEmpty())
@@ -356,15 +383,16 @@ namespace {
                 harness.runtime().tasks().getTask(base.documentId, accepted.get().taskId);
             const auto lateCancel =
                 harness.runtime().tasks().cancelTask(harness.context(), accepted.get().taskId);
-            EXPECT(
-                matrix,
-                firstTerminal && stableTerminal && lateCancel &&
-                    firstTerminal.get().state == Automation::AutomationTaskState::Succeeded &&
-                    stableTerminal.get() == firstTerminal.get() &&
-                    lateCancel.get() == firstTerminal.get() &&
-                    harness.runtime().documentVersion().revision == base.revision + 1 &&
-                    harness.model().tracks().size() == tracksBefore + 1,
-                QStringLiteral("success, duplicate completion, and late cancel must commit once"));
+            EXPECT(matrix,
+                   firstTerminal && stableTerminal && lateCancel &&
+                       firstTerminal.get().state == Automation::AutomationTaskState::Succeeded &&
+                       stableTerminal.get() == firstTerminal.get() &&
+                       lateCancel.get() == firstTerminal.get() && finishedCount == 1 &&
+                       destroyCountAtFinished == 0 && state->destroyCount == 1 &&
+                       harness.runtime().documentVersion().revision == base.revision + 1 &&
+                       harness.model().tracks().size() == tracksBefore + 1,
+                   QStringLiteral(
+                       "success and duplicate completion must commit once and release the job"));
         });
 
         matrix.run(operationId, "AFD-EXT-MIDI-006-BACKEND-FAILURE-RETRY", [&] {
@@ -379,7 +407,8 @@ namespace {
                    QStringLiteral("failing task must run"));
             if (!first || harness.midiStates.isEmpty())
                 return;
-            harness.midiStates.last()->complete({
+            const auto state = harness.midiStates.last();
+            state->complete({
                 .state = Automation::ExtractionBackendState::Failed,
                 .errorCode = Automation::AutomationErrorCode::InferenceError,
                 .errorMessage = QStringLiteral("controlled MIDI failure"),
@@ -393,9 +422,10 @@ namespace {
                        failed.get().error &&
                        failed.get().error->code ==
                            Automation::AutomationErrorCode::InferenceError &&
-                       retried && retried.get().taskId != first.get().taskId &&
+                       state->destroyCount == 1 && retried &&
+                       retried.get().taskId != first.get().taskId &&
                        harness.extractionScheduler.pendingCount() == 1,
-                   QStringLiteral("backend failure must be stable and release the key"));
+                   QStringLiteral("backend failure must release both its job and idempotency key"));
         });
 
         matrix.run(operationId, "AFD-EXT-MIDI-007-REVISION-WINS", [&] {
@@ -544,8 +574,17 @@ namespace {
             matrix.cover("terminal");
             RuntimeHarness harness;
             const auto base = harness.runtime().documentVersion();
+            int finishedCount = 0;
+            int destroyCountAtFinished = -1;
+            Automation::ExtractionObserver observer;
+            observer.finished = [&](const Automation::AutomationTaskSnapshot &) {
+                ++finishedCount;
+                if (!harness.pitchStates.isEmpty())
+                    destroyCountAtFinished = harness.pitchStates.last()->destroyCount;
+            };
             const auto accepted = harness.runtime().extractions().startPitch(
-                harness.context(), harness.audioClipId(), harness.singingClipId());
+                harness.context(), harness.audioClipId(), harness.singingClipId(),
+                std::move(observer));
             EXPECT(matrix, bool(accepted), QStringLiteral("pitch task must be accepted"));
             if (!accepted)
                 return;
@@ -560,7 +599,9 @@ namespace {
                    firstCancel && repeatedCancel && released && terminal &&
                        terminal.get().state == Automation::AutomationTaskState::Canceled &&
                        harness.pitchStates.first()->cancelCount == 1 &&
-                       harness.pitchStates.first()->startCount == 0 &&
+                       harness.pitchStates.first()->startCount == 0 && finishedCount == 1 &&
+                       destroyCountAtFinished == 0 &&
+                       harness.pitchStates.first()->destroyCount == 1 &&
                        harness.runtime().documentVersion() == base,
                    QStringLiteral("queued pitch cancel must be idempotent and prevent start"));
         });
@@ -571,8 +612,17 @@ namespace {
             matrix.cover("terminal");
             RuntimeHarness harness;
             const auto base = harness.runtime().documentVersion();
+            int finishedCount = 0;
+            int destroyCountAtFinished = -1;
+            Automation::ExtractionObserver observer;
+            observer.finished = [&](const Automation::AutomationTaskSnapshot &) {
+                ++finishedCount;
+                if (!harness.pitchStates.isEmpty())
+                    destroyCountAtFinished = harness.pitchStates.last()->destroyCount;
+            };
             const auto accepted = harness.runtime().extractions().startPitch(
-                harness.context(), harness.audioClipId(), harness.singingClipId());
+                harness.context(), harness.audioClipId(), harness.singingClipId(),
+                std::move(observer));
             EXPECT(matrix, accepted && harness.extractionScheduler.runNext(),
                    QStringLiteral("pitch task must reach Running"));
             if (!accepted || harness.pitchStates.isEmpty())
@@ -589,8 +639,9 @@ namespace {
             EXPECT(matrix,
                    canceled && repeated && terminal &&
                        terminal.get().state == Automation::AutomationTaskState::Canceled &&
-                       state->cancelCount == 1 && harness.runtime().documentVersion() == base,
-                   QStringLiteral("running pitch cancel must beat duplicate success callbacks"));
+                       state->cancelCount == 1 && state->destroyCount == 1 && finishedCount == 1 &&
+                       destroyCountAtFinished == 0 && harness.runtime().documentVersion() == base,
+                   QStringLiteral("running pitch cancel must beat duplicates and release its job"));
         });
 
         matrix.run(operationId, "AFD-EXT-PITCH-005-SUCCESS-ONCE", [&] {
@@ -599,8 +650,17 @@ namespace {
             matrix.cover("terminal");
             RuntimeHarness harness;
             const auto base = harness.runtime().documentVersion();
+            int finishedCount = 0;
+            int destroyCountAtFinished = -1;
+            Automation::ExtractionObserver observer;
+            observer.finished = [&](const Automation::AutomationTaskSnapshot &) {
+                ++finishedCount;
+                if (!harness.pitchStates.isEmpty())
+                    destroyCountAtFinished = harness.pitchStates.last()->destroyCount;
+            };
             const auto accepted = harness.runtime().extractions().startPitch(
-                harness.context(), harness.audioClipId(), harness.singingClipId());
+                harness.context(), harness.audioClipId(), harness.singingClipId(),
+                std::move(observer));
             EXPECT(matrix, accepted && harness.extractionScheduler.runNext(),
                    QStringLiteral("pitch task must reach Running"));
             if (!accepted || harness.pitchStates.isEmpty())
@@ -618,10 +678,11 @@ namespace {
                    firstTerminal && stableTerminal && lateCancel &&
                        firstTerminal.get().state == Automation::AutomationTaskState::Succeeded &&
                        stableTerminal.get() == firstTerminal.get() &&
-                       lateCancel.get() == firstTerminal.get() &&
+                       lateCancel.get() == firstTerminal.get() && finishedCount == 1 &&
+                       destroyCountAtFinished == 0 && state->destroyCount == 1 &&
                        harness.runtime().documentVersion().revision == base.revision + 1,
-                   QStringLiteral(
-                       "pitch completion, duplicate callback, and late cancel must commit once"));
+                   QStringLiteral("pitch completion and duplicate callbacks must commit once and "
+                                  "release the job"));
         });
 
         matrix.run(operationId, "AFD-EXT-PITCH-006-BACKEND-FAILURE-RETRY", [&] {
@@ -636,7 +697,8 @@ namespace {
                    QStringLiteral("failing pitch task must run"));
             if (!first || harness.pitchStates.isEmpty())
                 return;
-            harness.pitchStates.last()->complete({
+            const auto state = harness.pitchStates.last();
+            state->complete({
                 .state = Automation::ExtractionBackendState::Failed,
                 .errorCode = Automation::AutomationErrorCode::InferenceError,
                 .errorMessage = QStringLiteral("controlled pitch failure"),
@@ -650,9 +712,10 @@ namespace {
                        failed.get().error &&
                        failed.get().error->code ==
                            Automation::AutomationErrorCode::InferenceError &&
-                       retried && retried.get().taskId != first.get().taskId &&
+                       state->destroyCount == 1 && retried &&
+                       retried.get().taskId != first.get().taskId &&
                        harness.extractionScheduler.pendingCount() == 1,
-                   QStringLiteral("pitch failure must be queryable and release the key"));
+                   QStringLiteral("pitch failure must release both its job and idempotency key"));
         });
 
         matrix.run(operationId, "AFD-EXT-PITCH-007-REVISION-WINS", [&] {

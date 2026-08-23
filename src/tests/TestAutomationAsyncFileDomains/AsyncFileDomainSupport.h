@@ -158,6 +158,7 @@ namespace AutomationAsyncFileTests {
     struct FakePitchState {
         int startCount = 0;
         int cancelCount = 0;
+        int destroyCount = 0;
         Automation::PitchExtractionInput input;
         Automation::ExtractionJobCallbacks callbacks;
         std::function<void(Automation::PitchExtractionBackendResult)> completed;
@@ -171,6 +172,10 @@ namespace AutomationAsyncFileTests {
     class FakePitchJob final : public Automation::IPitchExtractionJob {
     public:
         explicit FakePitchJob(std::shared_ptr<FakePitchState> state) : m_state(std::move(state)) {
+        }
+
+        ~FakePitchJob() override {
+            ++m_state->destroyCount;
         }
 
         void start(
@@ -197,6 +202,7 @@ namespace AutomationAsyncFileTests {
     struct FakeMidiState {
         int startCount = 0;
         int cancelCount = 0;
+        int destroyCount = 0;
         Automation::MidiExtractionInput input;
         Automation::ExtractionJobCallbacks callbacks;
         std::function<void(Automation::MidiExtractionBackendResult)> completed;
@@ -210,6 +216,10 @@ namespace AutomationAsyncFileTests {
     class FakeMidiJob final : public Automation::IMidiExtractionJob {
     public:
         explicit FakeMidiJob(std::shared_ptr<FakeMidiState> state) : m_state(std::move(state)) {
+        }
+
+        ~FakeMidiJob() override {
+            ++m_state->destroyCount;
         }
 
         void

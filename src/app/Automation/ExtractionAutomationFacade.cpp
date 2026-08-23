@@ -465,12 +465,15 @@ namespace Automation {
 
     void ExtractionAutomationFacade::notifyFinished(const TaskId &taskId,
                                                     const DocumentId &documentId,
-                                                    const ExtractionObserver &observer) const {
-        if (!observer.finished)
+                                                    const ExtractionObserver &observer) {
+        if (!m_jobs.contains(taskId))
             return;
-        const auto task = m_tasks.get(documentId, taskId);
-        if (task)
-            observer.finished(task.get());
+        if (observer.finished) {
+            const auto task = m_tasks.get(documentId, taskId);
+            if (task)
+                observer.finished(task.get());
+        }
+        m_jobs.remove(taskId);
     }
 
     void ExtractionAutomationFacade::discardDocumentGeneration(const DocumentId &documentId) {

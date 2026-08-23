@@ -140,6 +140,10 @@ int main(int argc, char *argv[]) {
         QStringLiteral(R"(MidiFilePreparer::prepare\s*\(\s*\{\s*path\s*\}\s*\))"));
     const QRegularExpression midiBatchForwardsPreparationFailure(
         QStringLiteral(R"(MidiFilePreparer::failureMessage\s*\(\s*item\s*\))"));
+    const QRegularExpression settingsRollbackNotification(QStringLiteral(
+        R"(restore\s*\(\s*options\s*,\s*previous\s*\)\s*;\s*options->notifyOptionsChanged\s*\(\s*category\s*\))"));
+    const QRegularExpression presetRollbackNotification(QStringLiteral(
+        R"(speakerMixPresets\s*=\s*previous\s*;\s*options->notifyOptionsChanged\s*\(\s*AppOptionsGlobal::General\s*\))"));
 
     for (const auto &id : Automation::OperationIds::all()) {
         if (!versionedOperationSuffix.match(id).hasMatch())
@@ -277,6 +281,16 @@ int main(int argc, char *argv[]) {
             ok &= requireMatch(
                 file, midiBatchForwardsPreparationFailure,
                 QStringLiteral("MIDI batch preparation failure stopped reaching the summary"));
+        }
+
+        if (file.relativePath ==
+            QStringLiteral("src/app/Automation/AppOptionsAutomationAdapter.cpp")) {
+            ok &= requireMatch(
+                file, settingsRollbackNotification,
+                QStringLiteral("Failed settings rollback stopped restoring runtime listeners"));
+            ok &= requireMatch(
+                file, presetRollbackNotification,
+                QStringLiteral("Failed preset rollback stopped restoring runtime listeners"));
         }
 
         if (file.relativePath == QStringLiteral("src/app/UI/Views/ClipEditor/PianoRoll/"

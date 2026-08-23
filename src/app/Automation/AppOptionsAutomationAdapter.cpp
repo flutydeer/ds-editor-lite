@@ -459,6 +459,7 @@ namespace Automation {
             if (options->saveAndNotify(AppOptionsGlobal::General))
                 return true;
             options->general()->speakerMixPresets = previous;
+            options->notifyOptionsChanged(AppOptionsGlobal::General);
             return false;
         }
 
@@ -470,6 +471,7 @@ namespace Automation {
             if (options->saveAndNotify(category))
                 return true;
             restore(options, previous);
+            options->notifyOptionsChanged(category);
             return false;
         }
     }

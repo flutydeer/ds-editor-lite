@@ -152,7 +152,7 @@ namespace Automation {
                               const MidiExtractionInput &input, MidiExtractionBackendResult result,
                               const ExtractionObserver &observer);
         void notifyFinished(const TaskId &taskId, const DocumentId &documentId,
-                            const ExtractionObserver &observer) const;
+                            const ExtractionObserver &observer);
         void registerOperations();
 
         OperationCatalog &m_catalog;
