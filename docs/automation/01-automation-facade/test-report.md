@@ -3066,3 +3066,91 @@ Splitter、Tagger 和 Test 页校验、创建、运行、持久化、删除与�
 失败（产品缺陷）。提交 `95b83a62` 已修复自定义 Tagger 规则的身份、顺序与可编辑性持久化，
 但编辑后立即拖拽会因 `onOrderChanged` 未先保存详情而清空 Entries，并改变 Test 输出。修复后
 必须以新的全局轮次复测，不覆盖本轮。
+
+## 回归轮次 132：CTest 直接入口首次尝试
+
+### 范围
+
+首次从 Git Bash 直接调用 `ctest`，准备执行修复后的完整 Debug 测试集。
+
+### 结果
+
+- Shell 返回 `command not found`。
+- 启动测试数为 0；没有任何产品测试被发现或执行。
+- 纠正方案为从 CMakeCache 读取 `CMAKE_COMMAND`，再使用其同一工具目录中的 `ctest.exe`，
+  避免依赖 Git Bash 的 PATH。
+
+### 证据
+
+- 私有脱敏 CTest 入口恢复与三轮完整执行摘要：
+  `E-R132-R135-CTEST-ENTRY-RECOVERY-GATE` 的 R132 小节。
+
+### 判定
+
+阻塞/未执行（测试基础设施入口，不计产品失败）。本轮永久保留；使用配置缓存解析出的 CTest
+工具后，以新轮次重新开始完整门禁。
+
+## 回归轮次 133：解析 CTest 工具后的首次完整执行
+
+### 范围
+
+提交 `34a50c23` 完成完整 Debug ConfigureAndBuild 后，使用从 CMakeCache 解析出的
+`ctest.exe` 首次执行全部 51 个已注册测试。
+
+### 结果
+
+- 完整 Debug ConfigureAndBuild 成功。
+- 51/51 通过，0 失败，总实际用时 10.73 秒。
+- `TestAutomationArchitecture` 与 `TestFillLyricTaggerOrder` 均通过。
+
+### 证据
+
+- 私有脱敏 CTest 入口恢复、构建与三轮完整执行摘要：
+  `E-R132-R135-CTEST-ENTRY-RECOVERY-GATE` 的 R133 小节。
+
+### 判定
+
+通过。纠正入口后的首轮 51 项完整 CTest 无失败；继续第二轮完整复跑。
+
+## 回归轮次 134：相同构建第二次完整 CTest
+
+### 范围
+
+在提交 `34a50c23` 的相同 Debug 构建上第二次执行全部 51 个已注册测试。
+
+### 结果
+
+- 51/51 通过，0 失败，总实际用时 8.23 秒。
+- `TestAutomationArchitecture` 与 `TestFillLyricTaggerOrder` 再次通过。
+
+### 证据
+
+- 私有脱敏 CTest 入口恢复、构建与三轮完整执行摘要：
+  `E-R132-R135-CTEST-ENTRY-RECOVERY-GATE` 的 R134 小节。
+
+### 判定
+
+通过。第二轮 51 项完整 CTest 无失败；继续第三轮完整复跑。
+
+## 回归轮次 135：相同构建第三次完整 CTest
+
+### 范围
+
+在提交 `34a50c23` 的相同 Debug 构建上第三次执行全部 51 个已注册测试，并汇总三轮稳定性。
+
+### 结果
+
+- 51/51 通过，0 失败，总实际用时 8.15 秒。
+- 三轮累计 153 个测试实例，153/153 通过、0 失败。
+- `TestAutomationArchitecture` 与 `TestFillLyricTaggerOrder` 均连续三轮通过。
+- 五个原始构建、入口失败和 CTest job 输出只保留在私有隔离日志区，不提交本机日志。
+
+### 证据
+
+- 私有脱敏 CTest 入口恢复、构建、三轮结果与累计统计：
+  `E-R132-R135-CTEST-ENTRY-RECOVERY-GATE` 的 R135 与 Three-run aggregate 小节。
+
+### 判定
+
+通过。轮次 132 的 Shell 入口阻塞已由配置缓存工具解析关闭；提交 `34a50c23` 的完整 Debug
+ConfigureAndBuild 与三轮 51 项完整 CTest 门禁完成，累计 153/153。

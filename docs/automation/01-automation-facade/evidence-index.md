@@ -441,3 +441,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R131-GUI-G07-TAGGER-ENTRY-ORDER-FAIL` | 131 | GUI-G07 首次复测中 Tagger 拖拽前未保存详情导致 Entries 丢失 | `c8b23c4d21cfa219e658b84df887315c3cb4a19c807aa36b6097125f679481e0` |
+
+## 追加证据 72
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R132-R135-CTEST-ENTRY-RECOVERY-GATE` | 132–135 | CTest Shell 入口阻塞、配置缓存工具恢复及三轮 51 项完整门禁 | `6eff66a1987c8e3d6c7ca2eb72fc96d570b329e55f582822c9923648b1868d21` |
