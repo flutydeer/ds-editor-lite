@@ -79,6 +79,7 @@ Qt 实测（Qt 6.11.2）`QLocale("zh_CN")`：
 
 - Qt 语言切换广播 `QEvent::LanguageChange` → 各 `QWidget::changeEvent`（`TrackControlView` / `ClipEditorToolBarView` / `LanguageComboBox` 已有 retranslate 链路，重建 combo 时经 `displayName` 取新语言）
 - `UiLanguageManager::languageChanged` 信号 → 非 QWidget 场景（`SpeakerMixEditorView` 参数编辑器声线名、`ParamEditorView` 工具栏），以及 RHI 剪辑标题（`TracksRhiWidget::event` 里 `scheduleSnapshot()` 重建快照）
+- **legacy 后端剪辑卡片标题**：`TrackEditorView::changeEvent` 的 `LanguageChange` 分支遍历 `m_viewModel.tracks[*].clips`，对所有 `SingingClipView` 重新调 `setSingerName(displayName(candidates))` + `setSpeakerName`（`updateSingingClipDisplay`），即时跟随 UI 语言；RHI 后端由自身快照机制接管
 - 顺序约定：`installTranslator` 造成的 `LanguageChange` 事件先于 `languageChanged` 信号触发 → 依赖"编辑器已重建名字，再刷工具栏"的 refresh 挂在**信号**上（`ParamEditorView` 构造函数 connect languageChanged → `refreshSpeakerMixToolBar`）
 - 数据模型不缓存显示名 → 无重扫需求，天然满足"已缓存对象重新取词"
 
@@ -109,5 +110,4 @@ Qt 实测（Qt 6.11.2）`QLocale("zh_CN")`：
 
 ## 已知限制
 
-- legacy graphics 后端的剪辑卡片标题（`SingingClipView` 只存 QString，无歌手数据源）在运行时切语言不即时刷新，下次内容/声线变化时更新；RHI 实验后端已即时刷新
 - 被修正的包若将来重新安装/升级会覆盖修复，发布方需在打包链路里采用 BCP 47 键
