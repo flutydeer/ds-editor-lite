@@ -2,6 +2,7 @@
 #include "SpeakerMixBar.h"
 #include "SpeakerMixList.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
+#include "Utils/UiLanguageManager.h"
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ComboBox.h>
@@ -31,12 +32,15 @@ SpeakerMixDialog::SpeakerMixDialog(const SingerInfo &singerInfo, const SpeakerMi
     QMap<QString, QString> speakerDisplayNames;
     for (const auto &speaker : m_singerInfo.speakers()) {
         speakerTypes.append(speaker.id());
-        speakerDisplayNames.insert(speaker.id(),
-                                   speaker.name().isEmpty() ? speaker.id() : speaker.name());
+        speakerDisplayNames.insert(
+            speaker.id(), speaker.name().isEmpty()
+                              ? speaker.id()
+                              : speaker.displayName(UiLanguageManager::currentBcp47Candidates()));
     }
 
     m_mixList =
-        new SpeakerMixList(m_singerInfo.name(), speakerTypes, m_singerInfo.speakers(), this);
+        new SpeakerMixList(m_singerInfo.displayName(UiLanguageManager::currentBcp47Candidates()),
+                           speakerTypes, m_singerInfo.speakers(), this);
     m_mixList->setSpeakerDisplayNames(speakerDisplayNames);
 
     const auto tagContainer = new QWidget(this);

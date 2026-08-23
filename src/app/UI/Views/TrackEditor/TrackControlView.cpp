@@ -314,17 +314,13 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
     colorMenu->addAction(colorAction);
     bool colorConfirmed = false;
     connect(colorSwatch, &TrackColorSwatchWidget::colorIndexHovered, this, [this](int idx) {
-        if (m_track) {
+        if (m_track)
             m_track->setColorIndex(idx);
-            emit m_track->propertyChanged();
-        }
     });
     connect(colorSwatch, &TrackColorSwatchWidget::previewCancelled, this,
             [this, originalColorIndex] {
-                if (m_track) {
+                if (m_track)
                     m_track->setColorIndex(originalColorIndex);
-                    emit m_track->propertyChanged();
-                }
             });
     connect(colorSwatch, &TrackColorSwatchWidget::colorIndexSelected, this,
             [this, &menu, &colorConfirmed, originalColorIndex](int idx) {
@@ -340,7 +336,6 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
 
     if (!colorConfirmed && m_track && m_track->colorIndex() != originalColorIndex) {
         m_track->setColorIndex(originalColorIndex);
-        emit m_track->propertyChanged();
     }
     event->accept();
 }

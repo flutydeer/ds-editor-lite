@@ -790,15 +790,15 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
     connect(actionGeneralOptions, &QAction::triggered, this,
             [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::General); });
     actionAudioSettings = new QAction(tr("&Audio..."), this);
-    setMenuIcon(actionAudioSettings, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
+    setMenuIcon(actionAudioSettings, QStringLiteral(":/svg/icons/speaker_2_16_regular.svg"));
     connect(actionAudioSettings, &QAction::triggered, this,
             [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Audio); });
     actionMidiSettings = new QAction(tr("&MIDI..."), this);
-    setMenuIcon(actionMidiSettings, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
+    setMenuIcon(actionMidiSettings, QStringLiteral(":/svg/icons/midi_16_regular.svg"));
     connect(actionMidiSettings, &QAction::triggered, this,
             [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Midi); });
     actionAppearanceOptions = new QAction(tr("A&ppearance..."), this);
-    setMenuIcon(actionAppearanceOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
+    setMenuIcon(actionAppearanceOptions, QStringLiteral(":/svg/icons/color_16_regular.svg"));
     connect(actionAppearanceOptions, &QAction::triggered, this,
             [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Appearance); });
     // const auto actionLanguageOptions = new QAction(tr("&Language..."), this);
@@ -807,11 +807,11 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
     //     dialog.exec();
     // });
     actionInferenceOptions = new QAction(tr("&Inference..."), this);
-    setMenuIcon(actionInferenceOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
+    setMenuIcon(actionInferenceOptions, QStringLiteral(":/svg/icons/sparkle_16_regular.svg"));
     connect(actionInferenceOptions, &QAction::triggered, this,
             [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Inference); });
     actionDeveloperOptions = new QAction(tr("&Developer Options..."), this);
-    setMenuIcon(actionDeveloperOptions, QStringLiteral(":/svg/icons/settings_16_regular.svg"));
+    setMenuIcon(actionDeveloperOptions, QStringLiteral(":/svg/icons/code_16_regular.svg"));
     connect(actionDeveloperOptions, &QAction::triggered, this,
             [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::DeveloperOptions); });
 

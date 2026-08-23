@@ -18,15 +18,16 @@ SpeakerInfoData::SpeakerInfoData(QString id, QString name, QString toneMin, QStr
 
 SpeakerInfoData::SpeakerInfoData(const SpeakerInfoData &other)
     : QSharedData(other), id(other.id), name(other.name), toneMin(other.toneMin),
-      toneMax(other.toneMax), toneRange(other.toneRange), mixable(other.mixable) {
+      toneMax(other.toneMax), toneRange(other.toneRange), mixable(other.mixable),
+      localizedNames(other.localizedNames) {
 }
 
 SpeakerInfoData::~SpeakerInfoData() = default;
 
 bool SpeakerInfoData::operator==(const SpeakerInfoData &other) const {
     return id == other.id && name == other.name && toneMin == other.toneMin &&
-           toneMax == other.toneMax && toneRange == other.toneRange &&
-           mixable == other.mixable;
+           toneMax == other.toneMax && toneRange == other.toneRange && mixable == other.mixable &&
+           localizedNames == other.localizedNames;
 }
 
 bool SpeakerInfoData::operator!=(const SpeakerInfoData &other) const {
@@ -83,6 +84,14 @@ QString SpeakerInfo::name() const {
     return d->name;
 }
 
+QString SpeakerInfo::displayName(const QString &bcp47Locale) const {
+    return lite::Support::lookupLocalizedText(d->localizedNames, d->name, bcp47Locale);
+}
+
+QString SpeakerInfo::displayName(const QStringList &bcp47Locales) const {
+    return lite::Support::lookupLocalizedText(d->localizedNames, d->name, bcp47Locales);
+}
+
 QString SpeakerInfo::toneMin() const {
     return d->toneMin;
 }
@@ -115,6 +124,10 @@ void SpeakerInfo::setName(const QString &name) {
     d->name = name;
 }
 
+void SpeakerInfo::setLocalizedNames(const QMap<QString, QString> &names) {
+    d->localizedNames = names;
+}
+
 void SpeakerInfo::setToneMin(const QString &toneMin) {
     d->toneMin = toneMin;
 }
@@ -136,9 +149,9 @@ void SpeakerInfo::swap(SpeakerInfo &other) noexcept {
 }
 
 QString SpeakerInfo::toString() const {
-    QString toneRangeStr = d->toneRange
-        ? QStringLiteral("[%1,%2]").arg(d->toneRange->first).arg(d->toneRange->second)
-        : QStringLiteral("(none)");
+    QString toneRangeStr =
+        d->toneRange ? QStringLiteral("[%1,%2]").arg(d->toneRange->first).arg(d->toneRange->second)
+                     : QStringLiteral("(none)");
     return QString("SpeakerInfo(id=%1, name=%2, toneMin=%3, toneMax=%4, toneRange=%5, mixable=%6)")
         .arg(d->id, d->name, d->toneMin, d->toneMax, toneRangeStr)
         .arg(d->mixable);

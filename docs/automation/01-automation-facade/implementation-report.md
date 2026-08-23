@@ -136,7 +136,8 @@ GUI、内部异步任务和未来协议适配器可以复用同一套验证、�
 
 - 音符绘制/拆分改用 Facade 返回的真实 created ID，消除临时 Note 被删除后的悬空访问和错误选择；
   提交失败时编辑会话按 Discard 结束。
-- 轨道颜色公开 setter 改为通过 Facade 提交；界面临时 hover 预览仍保持非持久化。
+- 轨道颜色公开 setter 改为通过 Facade 进行单 History/revision 提交并支持 Undo/Redo；界面临时
+  hover 预览仍保持非持久化。
 - 可选场景项不存在时不再调用无效 removeItem，消除绘制后的场景警告。
 - 自动翻页设置会同步传播到 Track 与 Piano Roll 视图。
 - Fill Lyric 保留语言与 Tagger 身份，规则重排不再丢失当前编辑，保存/重开顺序一致。

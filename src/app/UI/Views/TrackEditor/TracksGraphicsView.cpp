@@ -19,6 +19,7 @@
 #include "Modules/Inference/EditSessionManager.h"
 #include <lite/GUI/Controls/AccentButton.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
+#include "Utils/UiLanguageManager.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
@@ -188,9 +189,7 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
     int clipLen;
     const int delta = qRound(dx);
     const auto &timeline = appModel->timeline();
-    const auto snapStepFor = [this](const int value) {
-        return snapStep(m_tempQuantizeOff, value);
-    };
+    const auto snapStepFor = [this](const int value) { return snapStep(m_tempQuantizeOff, value); };
     const auto snap = [&timeline, &snapStepFor](const int value) {
         return TimelineSnapUtils::snapNearest(value, snapStepFor(value), timeline);
     };
@@ -202,8 +201,7 @@ void TracksGraphicsView::updateClipDragAt(const QPoint &viewportPos,
             const double cursorTick = (curPos.x() - m_scene->leftMarginPx()) / scaleX() /
                                       TracksEditorGlobal::pixelsPerQuarterNote *
                                       AppGlobal::ticksPerQuarterNote;
-            const int desiredLeft =
-                m_audioDragState->visibleStartForCursor(cursorTick, timeline);
+            const int desiredLeft = m_audioDragState->visibleStartForCursor(cursorTick, timeline);
             // Never allow the visible left edge to go past tick 0 (a negative
             // clip pos is rejected by opendspx).
             left = snap(std::max(0, desiredLeft));
@@ -583,7 +581,8 @@ void TracksGraphicsView::showTrackPastePreview(const TrackPastePreviewData &data
             for (const auto &note : clip.notes)
                 notes.append({note.start, note.length, note.key});
             view->loadPreviewNotes(notes);
-            view->setSingerName(track->singerInfo().name());
+            view->setSingerName(
+                track->singerInfo().displayName(UiLanguageManager::currentBcp47Candidates()));
             view->setSpeakerName(SpeakerMixDisplayUtils::speakerDisplayName(
                 track->singerInfo(), track->speakerInfo(), track->speakerMixData()));
             view->setDefaultLanguage(clip.defaultLanguage);
@@ -660,9 +659,8 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
                                     TracksEditorGlobal::pixelsPerQuarterNote *
                                     AppGlobal::ticksPerQuarterNote;
             m_audioDragState = AudioClipDragState::begin(
-                audioClip->trimStartMs(), audioClip->playLengthMs(),
-                audioClip->materialLengthMs(), m_mouseDownStart + m_mouseDownClipStart, grabTick,
-                timeline);
+                audioClip->trimStartMs(), audioClip->playLengthMs(), audioClip->materialLengthMs(),
+                m_mouseDownStart + m_mouseDownClipStart, grabTick, timeline);
         }
     }
 

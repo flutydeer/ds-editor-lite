@@ -6,6 +6,7 @@
 #include "UI/Utils/SpeakerMixUtils.h"
 #include <lite/GUI/Controls/Menu.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "Utils/UiLanguageManager.h"
 
 #include <QApplication>
 #include <QCursor>
@@ -52,6 +53,10 @@ SpeakerMixEditorView::SpeakerMixEditorView() {
 
     connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
             [this] { refreshThemeColors(); });
+    if (const auto *langMgr = UiLanguageManager::instance()) {
+        connect(langMgr, &UiLanguageManager::languageChanged, this,
+                [this] { syncWorkingFromCommitted(); });
+    }
 }
 
 SpeakerMixEditorView::~SpeakerMixEditorView() {
@@ -867,8 +872,7 @@ void SpeakerMixEditorView::updateSplitToolTipContent(const int keyframeIndex) {
 
     QStringList titleParts;
     for (int i = 0; i < m_speakers.size(); ++i)
-        titleParts.append(
-            QString("%1: %L2%").arg(m_speakers[i].name).arg(displayValues.value(i)));
+        titleParts.append(QString("%1: %L2%").arg(m_speakers[i].name).arg(displayValues.value(i)));
 
     auto *tooltip = ensureToolTip();
     tooltip->setTitle(titleParts.join("\n"));
@@ -944,7 +948,7 @@ void SpeakerMixEditorView::syncWorkingFromCommitted() {
 
     for (int i = 0; i < m_committedData.sources.size(); ++i) {
         const auto &speaker = m_committedData.sources[i].speaker;
-        QString name = speaker.name();
+        QString name = speaker.displayName(UiLanguageManager::currentBcp47Candidates());
         if (name.isEmpty())
             name = speaker.id();
         const auto colors =

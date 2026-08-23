@@ -483,7 +483,7 @@ namespace {
                     [](Fixture &fixture, const CommandContext &context, int) {
                         return fixture.runtime().project().setTrackColor(context, fixture.trackA,
                                                                          2);
-                    }, .recordsHistory = false,
+                    }, .recordsHistory = true,
              },
             {
              .operationId = Automation::OperationIds::tracks::set_default_language,

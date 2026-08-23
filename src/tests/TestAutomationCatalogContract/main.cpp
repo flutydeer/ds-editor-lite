@@ -371,7 +371,7 @@ namespace {
                             Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(tracks::set_color, "AFC-CATALOG-120", "tracks", Command, Synchronous,
-                            Write, Increment, None, None, Core, Reversible, InternalOnly,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(tracks::set_default_language, "AFC-CATALOG-121", "tracks", Command,
                             Synchronous, Write, Increment, None, None, Core, Reversible, InternalOnly,

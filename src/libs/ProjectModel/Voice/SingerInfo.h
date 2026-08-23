@@ -3,6 +3,8 @@
 
 #include <QString>
 #include <QList>
+#include <QStringList>
+#include <QMap>
 #include <QSharedData>
 #include <QSharedDataPointer>
 #include <QVariant>
@@ -11,6 +13,7 @@
 #include <lite/ProjectModel/Voice/SpeakerInfo.h>
 #include <lite/ProjectModel/Voice/LanguageInfo.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
+#include <lite/Support/LocalizedTextUtils.h>
 
 class SingerInfoData;
 
@@ -35,20 +38,20 @@ enum class ResolutionState {
 /// consistency fields use int (0=Ideal, 1=Degraded, 2=Inconsistent) to avoid
 /// cross-DLL enum export coupling with synthrt ConsistencyLevel.
 struct SingerCapabilitySummary {
-    QList<QString> mixableSpeakers;          ///< singer-domain speaker names allowed to mix
-    int speakerConsistency = 0;              ///< 0=Ideal, 1=Degraded, 2=Inconsistent
+    QList<QString> mixableSpeakers; ///< singer-domain speaker names allowed to mix
+    int speakerConsistency = 0;     ///< 0=Ideal, 1=Degraded, 2=Inconsistent
     QStringList speakerWarnings;
 
     std::optional<QStringList> acousticParameters; ///< nullopt when support cannot be determined
     std::optional<bool> pitchUsesExpressiveness;
     std::optional<bool> vocoderPitchControllable;
 
-    QList<QString> effectivePhonemes;        ///< non-vocoder stage intersection
+    QList<QString> effectivePhonemes; ///< non-vocoder stage intersection
     int phonemeConsistency = 0;
     QStringList phonemeWarnings;
     bool phonemeDegraded = false;
 
-    QList<QString> effectiveLanguages;       ///< non-vocoder stage intersection
+    QList<QString> effectiveLanguages; ///< non-vocoder stage intersection
     int languageConsistency = 0;
     QStringList languageWarnings;
 
@@ -71,6 +74,8 @@ public:
 
     SingerIdentifier identifier() const;
     QString name() const;
+    [[nodiscard]] QString displayName(const QString &bcp47Locale) const;
+    [[nodiscard]] QString displayName(const QStringList &bcp47Locales) const;
     QString singerId() const;
     QString packageId() const;
     QVersionNumber packageVersion() const;
@@ -90,6 +95,7 @@ public:
 
     void setIdentifier(const SingerIdentifier &identifier);
     void setName(const QString &name);
+    void setLocalizedNames(const QMap<QString, QString> &names);
     void setSpeakers(const QList<SpeakerInfo> &speakers);
     void setLanguages(const QList<LanguageInfo> &languages);
     void setDefaultLanguage(const QString &defaultLanguage);
@@ -124,6 +130,7 @@ public:
 
     SingerIdentifier identifier;
     QString name;
+    QMap<QString, QString> localizedNames;
     QList<SpeakerInfo> speakers;
     QList<LanguageInfo> languages;
     QString defaultLanguage;

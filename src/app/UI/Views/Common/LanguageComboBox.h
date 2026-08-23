@@ -2,6 +2,7 @@
 #define LANGUAGECOMBOBOX_H
 
 #include <lite/GUI/Controls/ComboBox.h>
+#include <lite/ProjectModel/Voice/LanguageInfo.h>
 
 class LanguageInfo;
 class QEvent;
@@ -31,6 +32,8 @@ protected:
 private:
     void refreshDisplayNames();
     void adjustWidthToContent();
+
+    QList<LanguageInfo> m_languages;
 };
 
 #endif // LANGUAGECOMBOBOX_H

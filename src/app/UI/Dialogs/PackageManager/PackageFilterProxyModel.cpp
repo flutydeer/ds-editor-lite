@@ -1,8 +1,9 @@
 #include "PackageFilterProxyModel.h"
 
 #include "UI/Dialogs/PackageManager/PackageListModel.h"
+#include "Utils/UiLanguageManager.h"
 
-PackageFilterProxyModel::PackageFilterProxyModel(QObject *parent): QSortFilterProxyModel(parent) {
+PackageFilterProxyModel::PackageFilterProxyModel(QObject *parent) : QSortFilterProxyModel(parent) {
 }
 
 void PackageFilterProxyModel::setFilterString(const QString &pattern) {
@@ -10,19 +11,19 @@ void PackageFilterProxyModel::setFilterString(const QString &pattern) {
     invalidateFilter();
 }
 
-bool PackageFilterProxyModel::filterAcceptsRow(
-    int sourceRow, const QModelIndex &sourceParent) const {
+bool PackageFilterProxyModel::filterAcceptsRow(int sourceRow,
+                                               const QModelIndex &sourceParent) const {
     const auto *model = dynamic_cast<PackageListModel *>(sourceModel());
     const auto &package = model->getPackage(model->index(sourceRow, 0, sourceParent));
 
     const auto packageId = package.id();
-    const auto packageVendor = package.vendor();
+    const auto packageVendor = package.displayVendor(UiLanguageManager::currentBcp47Candidates());
 
-    bool idMatch = m_filterPattern.isEmpty() ||
-                  packageId.contains(m_filterPattern, Qt::CaseInsensitive);
+    bool idMatch =
+        m_filterPattern.isEmpty() || packageId.contains(m_filterPattern, Qt::CaseInsensitive);
 
-    bool vendorMatch = m_filterPattern.isEmpty() ||
-                      packageVendor.contains(m_filterPattern, Qt::CaseInsensitive);
+    bool vendorMatch =
+        m_filterPattern.isEmpty() || packageVendor.contains(m_filterPattern, Qt::CaseInsensitive);
 
     return idMatch || vendorMatch;
 }

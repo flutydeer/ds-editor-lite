@@ -655,7 +655,7 @@ namespace {
             .syncMode = Automation::SyncMode::Synchronous,
             .documentPolicy = Automation::DocumentPolicy::Write,
             .revisionPolicy = Automation::RevisionPolicy::Increment,
-            .historyPolicy = Automation::HistoryPolicy::None,
+            .historyPolicy = Automation::HistoryPolicy::Record,
             .fileAccess = Automation::FileAccessPolicy::None,
             .hostAvailability = Automation::HostAvailability::Core,
             .safety = Automation::SafetyClass::Reversible,

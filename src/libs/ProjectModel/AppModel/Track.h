@@ -64,12 +64,15 @@ public:
         explicit TrackProperties() = default;
         explicit TrackProperties(const ITrack &track);
 
+        bool operator==(const TrackProperties &other) const;
+
         int id = -1;
         QString name;
         double gain = 1.0;
         double pan = 0;
         bool mute = false;
         bool solo = false;
+        int colorIndex = 0;
     };
 
     QJsonObject serialize() const override;

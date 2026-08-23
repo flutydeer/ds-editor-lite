@@ -106,7 +106,7 @@ Catalog 存在性代替 Facade 行为。
 | `tracks.insert` | `C-D+REF`；边界、预检、不分配、单提交 | `Edit: validation-and-create`；`Core` client_ref 绑定 | P |
 | `tracks.move` | `C-D`；边界、no-op、undo | `Edit: preview-noop-commit-undo` | P |
 | `tracks.remove` | `C-D`；重复/空集合、预检、子对象、undo | `Edit: duplicates-preview-undo` | P |
-| `tracks.set_color` | `C-D`；非 History revision、no-op、错误优先级 | `Edit: non-history-state`；`Doc: AFC-DOC-LIFECYCLE-009/010` | P |
+| `tracks.set_color` | `C-D`；单 History/revision、no-op、错误优先级、undo/redo | `Edit: history-state-and-noop`；`EditDim` 提交/undo/redo；`Doc: AFC-DOC-LIFECYCLE-009/010` | P |
 | `tracks.set_default_language` | `C-D`；Unicode、空值、no-op、非 History | `Edit: unicode-and-noop` | P |
 | `tracks.set_properties` | `C-D`；NaN、Unicode、多字段原子、no-op | `Edit: atomic-properties` | P |
 | `clips.insert` | `C-D+REF`；空/非法、预检、绑定 | `Edit: empty-invalid-preview-create`；`Core` 歌声/音频/复制保真 | P |

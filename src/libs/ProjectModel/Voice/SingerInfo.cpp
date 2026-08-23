@@ -11,8 +11,7 @@ bool SingerCapabilitySummary::operator==(const SingerCapabilitySummary &other) c
            vocoderPitchControllable == other.vocoderPitchControllable &&
            effectivePhonemes == other.effectivePhonemes &&
            phonemeConsistency == other.phonemeConsistency &&
-           phonemeWarnings == other.phonemeWarnings &&
-           phonemeDegraded == other.phonemeDegraded &&
+           phonemeWarnings == other.phonemeWarnings && phonemeDegraded == other.phonemeDegraded &&
            effectiveLanguages == other.effectiveLanguages &&
            languageConsistency == other.languageConsistency &&
            languageWarnings == other.languageWarnings;
@@ -46,8 +45,8 @@ SingerInfoData::SingerInfoData(SingerIdentifier identifier, QString name,
 SingerInfoData::SingerInfoData(const SingerInfoData &other)
     : QSharedData(other), identifier(other.identifier), name(other.name), speakers(other.speakers),
       languages(other.languages), defaultLanguage(other.defaultLanguage),
-      defaultDict(other.defaultDict), resolutionState(other.resolutionState),
-      capability(other.capability) {
+      defaultDict(other.defaultDict), localizedNames(other.localizedNames),
+      resolutionState(other.resolutionState), capability(other.capability) {
 }
 
 SingerInfoData::~SingerInfoData() = default;
@@ -55,8 +54,8 @@ SingerInfoData::~SingerInfoData() = default;
 bool SingerInfoData::operator==(const SingerInfoData &other) const {
     return identifier == other.identifier && name == other.name && speakers == other.speakers &&
            languages == other.languages && defaultLanguage == other.defaultLanguage &&
-           defaultDict == other.defaultDict && resolutionState == other.resolutionState &&
-           capability == other.capability;
+           defaultDict == other.defaultDict && localizedNames == other.localizedNames &&
+           resolutionState == other.resolutionState && capability == other.capability;
 }
 
 bool SingerInfoData::operator!=(const SingerInfoData &other) const {
@@ -98,6 +97,14 @@ SingerIdentifier SingerInfo::identifier() const {
 
 QString SingerInfo::name() const {
     return d->name;
+}
+
+QString SingerInfo::displayName(const QString &bcp47Locale) const {
+    return lite::Support::lookupLocalizedText(d->localizedNames, d->name, bcp47Locale);
+}
+
+QString SingerInfo::displayName(const QStringList &bcp47Locales) const {
+    return lite::Support::lookupLocalizedText(d->localizedNames, d->name, bcp47Locales);
 }
 
 QString SingerInfo::singerId() const {
@@ -158,6 +165,10 @@ void SingerInfo::setIdentifier(const SingerIdentifier &identifier) {
 
 void SingerInfo::setName(const QString &name) {
     d->name = name;
+}
+
+void SingerInfo::setLocalizedNames(const QMap<QString, QString> &names) {
+    d->localizedNames = names;
 }
 
 void SingerInfo::setSpeakers(const QList<SpeakerInfo> &speakers) {
@@ -222,20 +233,21 @@ QString SingerInfo::toString() const {
 
     static const char *stateStr[] = {"Resolved", "Pending", "Missing"};
     const auto stateIdx = static_cast<int>(d->resolutionState);
-    const auto stateName =
-        (stateIdx >= 0 && stateIdx <= 2) ? QString::fromLatin1(stateStr[stateIdx]) : QStringLiteral("Unknown");
+    const auto stateName = (stateIdx >= 0 && stateIdx <= 2)
+                               ? QString::fromLatin1(stateStr[stateIdx])
+                               : QStringLiteral("Unknown");
 
     QString capStr = QStringLiteral("(none)");
     if (d->capability) {
-        capStr = QStringLiteral(
-                     "mixableSpeakers=[%1], speakerConsistency=%2, acousticParameters=[%3], "
-                     "effectivePhonemesCount=%4, phonemeConsistency=%5, phonemeDegraded=%6")
-                     .arg(d->capability->mixableSpeakers.join(", "))
-                     .arg(SingerCapabilitySummary::consistencyText(d->capability->speakerConsistency))
-                     .arg(d->capability->acousticParameters.value_or(QStringList()).join(", "))
-                     .arg(d->capability->effectivePhonemes.size())
-                     .arg(SingerCapabilitySummary::consistencyText(d->capability->phonemeConsistency))
-                     .arg(d->capability->phonemeDegraded);
+        capStr =
+            QStringLiteral("mixableSpeakers=[%1], speakerConsistency=%2, acousticParameters=[%3], "
+                           "effectivePhonemesCount=%4, phonemeConsistency=%5, phonemeDegraded=%6")
+                .arg(d->capability->mixableSpeakers.join(", "))
+                .arg(SingerCapabilitySummary::consistencyText(d->capability->speakerConsistency))
+                .arg(d->capability->acousticParameters.value_or(QStringList()).join(", "))
+                .arg(d->capability->effectivePhonemes.size())
+                .arg(SingerCapabilitySummary::consistencyText(d->capability->phonemeConsistency))
+                .arg(d->capability->phonemeDegraded);
     }
 
     return QString("SingerInfo(name=%1, identifier=%2, speakers=[%3], "

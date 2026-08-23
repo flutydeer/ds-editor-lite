@@ -3,6 +3,8 @@
 
 #include <QVersionNumber>
 #include <QString>
+#include <QStringList>
+#include <QMap>
 #include <QDir>
 #include <QList>
 #include <QSharedData>
@@ -11,6 +13,7 @@
 #include <utility>
 
 #include <lite/ProjectModel/Voice/SingerInfo.h>
+#include <lite/Support/LocalizedTextUtils.h>
 
 class PackageInfoData;
 
@@ -28,8 +31,14 @@ public:
     QString id() const;
     QVersionNumber version() const;
     QString vendor() const;
+    [[nodiscard]] QString displayVendor(const QString &bcp47Locale) const;
+    [[nodiscard]] QString displayVendor(const QStringList &bcp47Locales) const;
     QString description() const;
+    [[nodiscard]] QString displayDescription(const QString &bcp47Locale) const;
+    [[nodiscard]] QString displayDescription(const QStringList &bcp47Locales) const;
     QString license() const;
+    [[nodiscard]] QString displayLicense(const QString &bcp47Locale) const;
+    [[nodiscard]] QString displayLicense(const QStringList &bcp47Locales) const;
     QString readme() const;
     QString url() const;
     QString path() const;
@@ -38,8 +47,11 @@ public:
     void setId(const QString &id);
     void setVersion(const QVersionNumber &version);
     void setVendor(const QString &vendor);
+    void setLocalizedVendor(const QMap<QString, QString> &names);
     void setDescription(const QString &description);
+    void setLocalizedDescription(const QMap<QString, QString> &names);
     void setLicense(const QString &license);
+    void setLocalizedLicense(const QMap<QString, QString> &names);
     void setPath(const QString &path);
     void setSingers(const QList<SingerInfo> &singers);
 
@@ -64,16 +76,18 @@ class PackageInfoData : public QSharedData {
 public:
     explicit PackageInfoData(QString id = {}, QVersionNumber version = {}, QString vendor = {},
                              QString description = {}, QString license = {}, QString readme = {},
-                             QString url = {}, QString path = {},
-                             QList<SingerInfo> singers = {});
+                             QString url = {}, QString path = {}, QList<SingerInfo> singers = {});
     PackageInfoData(const PackageInfoData &other);
     ~PackageInfoData();
 
     QString id;
     QVersionNumber version;
     QString vendor;
+    QMap<QString, QString> localizedVendor;
     QString description;
+    QMap<QString, QString> localizedDescription;
     QString license;
+    QMap<QString, QString> localizedLicense;
     QString readme;
     QString url;
     QString path;

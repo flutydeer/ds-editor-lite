@@ -15,6 +15,7 @@
 #include <stdcorelib/path.h>
 #include <stdcorelib/system.h>
 
+#include <synthrt/Core/Support/DisplayText.h>
 #include <synthrt/Core/Support/JSON.h>
 #include <diffsinger/Bank/PackageManifest.h>
 #include <diffsinger/Bank/SingerManifest.h>
@@ -40,6 +41,16 @@ namespace {
                 return &inference;
         }
         return nullptr;
+    }
+
+    /// Copies all translations of a synthrt DisplayText into a Qt map
+    /// (BCP 47 tag -> text) so the host can re-resolve the display text per
+    /// UI language without rescanning the voicebank.
+    QMap<QString, QString> toLocalizedTextMap(const srt::core::DisplayText &text) {
+        QMap<QString, QString> map;
+        for (const auto &locale : text.locales())
+            map.insert(QString::fromStdString(locale), QString::fromStdString(text.text(locale)));
+        return map;
     }
 
     QStringList toQStringList(const std::vector<std::string> &values) {
@@ -107,8 +118,8 @@ namespace {
         acousticParameters(const ds::bank::PackageManifest &owningManifest,
                            const std::vector<ds::bank::PackageManifest> &manifests,
                            const ds::bank::SingerCapabilityReport &report) {
-        const auto candidates = reportedStageCandidates(
-            owningManifest, manifests, report, "ai.svs.AcousticInference");
+        const auto candidates =
+            reportedStageCandidates(owningManifest, manifests, report, "ai.svs.AcousticInference");
         std::optional<QStringList> result;
         for (const auto *candidate : candidates) {
             const auto parameters = toQStringList(candidate->parameters);
@@ -159,12 +170,11 @@ namespace {
         return result;
     }
 
-    std::optional<bool>
-        reportedStageFlag(const ds::bank::PackageManifest &owningManifest,
-                          const std::vector<ds::bank::PackageManifest> &manifests,
-                          const ds::bank::SingerCapabilityReport &report,
-                          const std::string &className, const std::string &name,
-                          const bool defaultValue) {
+    std::optional<bool> reportedStageFlag(const ds::bank::PackageManifest &owningManifest,
+                                          const std::vector<ds::bank::PackageManifest> &manifests,
+                                          const ds::bank::SingerCapabilityReport &report,
+                                          const std::string &className, const std::string &name,
+                                          const bool defaultValue) {
         return consistentConfigurationFlag(
             reportedStageCandidates(owningManifest, manifests, report, className), name,
             defaultValue);
@@ -219,7 +229,8 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
     }
 
     auto completed =
-        [this, &searchPathsQt]() -> Expected<GetInstalledPackagesResult, GetInstalledPackagesError> {
+        [this,
+         &searchPathsQt]() -> Expected<GetInstalledPackagesResult, GetInstalledPackagesError> {
         QElapsedTimer timer;
         timer.start();
         GetInstalledPackagesResult result;
@@ -231,10 +242,9 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             const bool exists = fs::exists(path, error);
             const bool isDirectory = exists && fs::is_directory(path, error);
             if (error || !isDirectory) {
-                const auto message = error
-                                         ? tr("Unable to access directory: %1")
-                                               .arg(QString::fromStdString(error.message()))
-                                         : tr("Path is not a valid directory");
+                const auto message = error ? tr("Unable to access directory: %1")
+                                                 .arg(QString::fromStdString(error.message()))
+                                           : tr("Path is not a valid directory");
                 result.failedPackages.emplace_back(pathQt, message);
                 continue;
             }
@@ -292,11 +302,17 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 continue;
             }
 
+            const auto vendorText = manifest->author();
+            const auto descriptionText = manifest->description();
+            const auto licenseText = manifest->license();
             PackageInfo packageInfo(packageId, packageVersion,
-                                    QString::fromStdString(manifest->author()),
-                                    QString::fromStdString(manifest->description()),
-                                    QString::fromStdString(manifest->license()), {}, {},
+                                    QString::fromStdString(vendorText.text()),
+                                    QString::fromStdString(descriptionText.text()),
+                                    QString::fromStdString(licenseText.text()), {}, {},
                                     StringUtils::path_to_qstr(status.rootPath));
+            packageInfo.setLocalizedVendor(toLocalizedTextMap(vendorText));
+            packageInfo.setLocalizedDescription(toLocalizedTextMap(descriptionText));
+            packageInfo.setLocalizedLicense(toLocalizedTextMap(licenseText));
 
             // Find singers belonging to this package version.
             for (const auto &singerSnapshot : snapshot->singers) {
@@ -315,7 +331,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                     singerManifest = &singer;
                     for (const auto &lang : singer.languages()) {
                         LanguageInfo langInfo(QString::fromStdString(lang.languageId()),
-                                              QString::fromStdString(lang.name()),
+                                              QString::fromStdString(lang.name().text()),
                                               QString::fromStdString(lang.g2pId()),
                                               StringUtils::path_to_qstr(lang.dict()),
                                               QString::fromStdString(lang.s2pMode()),
@@ -333,12 +349,14 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                             g2pPaths << StringUtils::path_to_qstr(p);
                         }
                         langInfo.setG2pPackagePaths(g2pPaths);
+                        langInfo.setLocalizedNames(toLocalizedTextMap(lang.name()));
                         languageInfos.append(std::move(langInfo));
                     }
                     for (const auto &spk : singer.speakers()) {
                         SpeakerInfo liteSpk(QString::fromStdString(spk.speakerId()),
-                                            QString::fromStdString(spk.name()));
+                                            QString::fromStdString(spk.name().text()));
                         // B-13 lite 侧: toneRange 映射 + 兼容旧 toneMin/toneMax QString
+                        liteSpk.setLocalizedNames(toLocalizedTextMap(spk.name()));
                         if (spk.toneRange()) {
                             const auto lo = spk.toneRange()->first;
                             const auto hi = spk.toneRange()->second;
@@ -380,9 +398,9 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                         summary.speakerWarnings.append(QString::fromStdString(w));
                     summary.acousticParameters =
                         acousticParameters(*manifest, snapshot->manifests, report);
-                    summary.pitchUsesExpressiveness = reportedStageFlag(
-                        *manifest, snapshot->manifests, report, "ai.svs.PitchInference",
-                        "useExpressiveness", true);
+                    summary.pitchUsesExpressiveness =
+                        reportedStageFlag(*manifest, snapshot->manifests, report,
+                                          "ai.svs.PitchInference", "useExpressiveness", true);
                     if (singerManifest) {
                         summary.vocoderPitchControllable = importedStageFlag(
                             *manifest, snapshot->manifests, *singerManifest,
@@ -414,9 +432,10 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 SingerInfo singerInfo(
                     SingerIdentifier{QString::fromStdString(singerSnapshot.ref.singerId), packageId,
                                      packageVersion},
-                    QString::fromStdString(singerSnapshot.name), std::move(speakerInfos),
+                    QString::fromStdString(singerSnapshot.name.text()), std::move(speakerInfos),
                     std::move(languageInfos),
                     QString::fromStdString(singerSnapshot.defaultLanguage));
+                singerInfo.setLocalizedNames(toLocalizedTextMap(singerSnapshot.name));
                 singerInfo.setCapability(std::move(capSummary));
                 switch (singerSnapshot.resolutionState) {
                     case ds::bank::ResolutionState::Resolved:

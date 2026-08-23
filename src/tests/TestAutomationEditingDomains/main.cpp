@@ -361,7 +361,8 @@ namespace {
             });
 
         suite.run(
-            Automation::OperationIds::tracks::set_color, QStringLiteral("non-history-state"), [&] {
+            Automation::OperationIds::tracks::set_color, QStringLiteral("history-state-and-noop"),
+            [&] {
                 testRuntime.history()->reset();
                 const auto base = runtime.documentVersion();
                 const auto invalid =
@@ -375,8 +376,8 @@ namespace {
                 const auto snapshot = trackSnapshot(runtime, third);
                 suite.expect(changed && changed.get().current.revision == base.revision + 1 &&
                                  snapshot && snapshot->data.colorIndex == 7 && state &&
-                                 !state.get().canUndo,
-                             QStringLiteral("color must advance revision without History"));
+                                 state.get().canUndo,
+                             QStringLiteral("color must advance revision with one History entry"));
                 const auto noOp =
                     runtime.project().setTrackColor(commandContext(runtime), third, 7);
                 suite.expect(noOp && !noOp.get().changed &&

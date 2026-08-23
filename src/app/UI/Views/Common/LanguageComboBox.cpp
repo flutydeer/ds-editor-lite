@@ -1,6 +1,7 @@
 #include "LanguageComboBox.h"
 
 #include "Global/AppGlobal.h"
+#include "Utils/UiLanguageManager.h"
 #include <lite/ProjectModel/Voice/LanguageInfo.h>
 
 #include <QEvent>
@@ -27,8 +28,8 @@ namespace {
     }
 }
 
-LanguageComboBox::LanguageComboBox(const QString &langKey,
-                                   const WheelEventPolicy wheelEventPolicy, QWidget *parent)
+LanguageComboBox::LanguageComboBox(const QString &langKey, const WheelEventPolicy wheelEventPolicy,
+                                   QWidget *parent)
     : ComboBox(wheelEventPolicy, parent) {
     setLanguageCodes(AppGlobal::languageNames, langKey);
     connect(this, &QComboBox::currentIndexChanged, this, [this](int index) {
@@ -50,6 +51,7 @@ QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
                                        const QString &preferredLanguage) {
     QSignalBlocker blocker(this);
     clear();
+    m_languages = languages;
 
     QSet<QString> addedIds;
     for (const auto &language : languages) {
@@ -57,7 +59,8 @@ QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
         if (id.isEmpty() || addedIds.contains(id))
             continue;
         addedIds.insert(id);
-        addItem(displayName(id, language.name()), id);
+        addItem(displayName(id, language.displayName(UiLanguageManager::currentBcp47Candidates())),
+                id);
         setItemData(count() - 1, language.name(), Qt::UserRole + 1);
     }
 
@@ -94,7 +97,9 @@ QString LanguageComboBox::setLanguageCodes(const QStringList &languageCodes,
         !addedIds.contains(currentLanguage)) {
         languages.emplace_back(currentLanguage, currentLanguage);
     }
-    return setLanguages(languages, currentLanguage);
+    const auto selected = setLanguages(languages, currentLanguage);
+    m_languages.clear(); // the built-in list has no package-localized names
+    return selected;
 }
 
 void LanguageComboBox::changeEvent(QEvent *event) {
@@ -106,8 +111,15 @@ void LanguageComboBox::changeEvent(QEvent *event) {
 void LanguageComboBox::refreshDisplayNames() {
     QSignalBlocker blocker(this);
     for (int index = 0; index < count(); ++index) {
-        setItemText(index, displayName(itemData(index).toString(),
-                                       itemData(index, Qt::UserRole + 1).toString()));
+        const auto id = itemData(index).toString();
+        auto packageName = itemData(index, Qt::UserRole + 1).toString();
+        for (const auto &language : m_languages) {
+            if (language.id() == id) {
+                packageName = language.displayName(UiLanguageManager::currentBcp47Candidates());
+                break;
+            }
+        }
+        setItemText(index, displayName(id, packageName));
     }
     adjustWidthToContent();
 }

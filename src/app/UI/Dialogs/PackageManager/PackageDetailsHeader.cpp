@@ -1,6 +1,7 @@
 #include "PackageDetailsHeader.h"
 
 #include <lite/PackageManager/Models/PackageInfo.h>
+#include "Utils/UiLanguageManager.h"
 #include <lite/GUI/Controls/Button.h>
 
 #include <QDesktopServices>
@@ -100,7 +101,7 @@ void PackageDetailsHeader::moveToNullPackageState() const {
 
 void PackageDetailsHeader::moveToPackageState(const PackageInfo &package) const {
     lbPackageId->setText(package.id());
-    lbVendor->setText(package.vendor());
+    lbVendor->setText(package.displayVendor(UiLanguageManager::currentBcp47Candidates()));
     lbVersion->setText("v" + package.version().toString());
 
     if (package.url().isEmpty()) {

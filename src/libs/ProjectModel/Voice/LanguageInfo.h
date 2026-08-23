@@ -3,9 +3,12 @@
 
 #include <QString>
 #include <QStringList>
+#include <QMap>
 #include <QSharedData>
 #include <QSharedDataPointer>
 #include <QMetaType>
+
+#include <lite/Support/LocalizedTextUtils.h>
 
 class LanguageInfoData;
 
@@ -26,6 +29,8 @@ public:
 
     QString id() const;
     QString name() const;
+    [[nodiscard]] QString displayName(const QString &bcp47Locale) const;
+    [[nodiscard]] QString displayName(const QStringList &bcp47Locales) const;
     QString g2p() const;
     QString dict() const;
     QString s2pMode() const;
@@ -33,13 +38,15 @@ public:
     QString s2pFile() const;
     QString onsetFile() const;
 
-    // g2pPackageVersion：用 bool hasG2pPackageVersion + QString 组合实现 std::optional<QString> 语义
+    // g2pPackageVersion：用 bool hasG2pPackageVersion + QString 组合实现 std::optional<QString>
+    // 语义
     bool hasG2pPackageVersion() const;
     QString g2pPackageVersion() const;
     QStringList g2pPackagePaths() const;
 
     void setId(const QString &id);
     void setName(const QString &name);
+    void setLocalizedNames(const QMap<QString, QString> &names);
     void setG2p(const QString &g2p);
     void setDict(const QString &dict);
     void setS2pMode(const QString &s2pMode);
@@ -67,8 +74,8 @@ class LanguageInfoData : public QSharedData {
 public:
     LanguageInfoData();
     explicit LanguageInfoData(QString id, QString name = {}, QString g2p = {}, QString dict = {},
-                              QString s2pMode = {}, QString onsetMode = {},
-                              QString s2pFile = {}, QString onsetFile = {});
+                              QString s2pMode = {}, QString onsetMode = {}, QString s2pFile = {},
+                              QString onsetFile = {});
     LanguageInfoData(const LanguageInfoData &other);
     ~LanguageInfoData();
 
@@ -79,6 +86,7 @@ public:
 
     QString id;
     QString name;
+    QMap<QString, QString> localizedNames;
     QString g2p;
     QString dict;
     QString s2pMode;

@@ -168,10 +168,16 @@ Track::TrackProperties::TrackProperties(const ITrack &track) {
     const auto control = track.control();
     id = track.id();
     name = track.name();
+    colorIndex = track.colorIndex();
     gain = control.gain();
     pan = control.pan();
     mute = control.mute();
     solo = control.solo();
+}
+
+bool Track::TrackProperties::operator==(const TrackProperties &other) const {
+    return id == other.id && name == other.name && colorIndex == other.colorIndex &&
+           gain == other.gain && pan == other.pan && mute == other.mute && solo == other.solo;
 }
 
 QJsonObject Track::serialize() const {

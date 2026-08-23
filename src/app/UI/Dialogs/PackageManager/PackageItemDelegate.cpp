@@ -2,6 +2,7 @@
 
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/PackageManager/Models/PackageInfo.h>
+#include "Utils/UiLanguageManager.h"
 
 #include <QPainter>
 
@@ -12,7 +13,8 @@ QColor PackageItemDelegate::titleColor(const QStyleOptionViewItem &option,
                                        const bool selected) const {
     if (selected) {
         // Match the combobox popup's selected-item foreground (accent.default)
-        const auto accent = ThemeManager::instance()->semanticColor(QStringLiteral("accent.default"));
+        const auto accent =
+            ThemeManager::instance()->semanticColor(QStringLiteral("accent.default"));
         if (accent.isValid())
             return accent;
         return option.palette.color(QPalette::HighlightedText);
@@ -27,12 +29,14 @@ QColor PackageItemDelegate::descColor(const QStyleOptionViewItem &option,
                                       const bool selected) const {
     if (selected) {
         // Match the combobox popup's selected-item foreground (accent.default)
-        const auto accent = ThemeManager::instance()->semanticColor(QStringLiteral("accent.default"));
+        const auto accent =
+            ThemeManager::instance()->semanticColor(QStringLiteral("accent.default"));
         if (accent.isValid())
             return accent;
         return option.palette.color(QPalette::HighlightedText);
     }
-    const auto secondary = ThemeManager::instance()->semanticColor(QStringLiteral("text.secondary"));
+    const auto secondary =
+        ThemeManager::instance()->semanticColor(QStringLiteral("text.secondary"));
     if (secondary.isValid())
         return secondary;
     return option.palette.color(QPalette::PlaceholderText);
@@ -50,12 +54,12 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     // Load data
     const auto &package = index.data(Qt::UserRole).value<PackageInfo>();
     const auto id = package.id();
-    const auto vendor = package.vendor();
+    const auto vendor = package.displayVendor(UiLanguageManager::currentBcp47Candidates());
     const auto version = "v" + package.version().toString();
 
     // Calculate layout
-    QRectF contentRect = option.rect.adjusted(m_paddingLeft, m_paddingTop, -m_paddingRight,
-                                              -m_paddingBottom);
+    QRectF contentRect =
+        option.rect.adjusted(m_paddingLeft, m_paddingTop, -m_paddingRight, -m_paddingBottom);
     painter->setRenderHint(QPainter::Antialiasing);
 
     // Calculate title text rect

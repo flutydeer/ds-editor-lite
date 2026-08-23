@@ -29,6 +29,7 @@
 #include "UI/Controls/LevelMeterManager.h"
 #include "AppContext.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
+#include "Utils/UiLanguageManager.h"
 #include "UI/Views/Common/TimelineView.h"
 
 #include <QFileDialog>
@@ -46,7 +47,8 @@
 namespace {
 
     void updateSingingClipDisplay(SingingClip *clip, SingingClipView *view) {
-        view->setSingerName(clip->singerInfo().name());
+        view->setSingerName(
+            clip->singerInfo().displayName(UiLanguageManager::currentBcp47Candidates()));
         view->setSpeakerName(SpeakerMixDisplayUtils::speakerDisplayName(
             clip->singerInfo(), clip->speakerInfo(), clip->speakerMixData()));
     }
@@ -439,6 +441,19 @@ void TrackEditorView::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange) {
         m_tempoLaneHeader->setTitle(tr("Tempo"));
         m_timeSignatureLaneHeader->setTitle(tr("Time Signature"));
+        // Refresh legacy clip-card titles (singer/speaker display names) so
+        // they follow the new UI language immediately. The RHI backend takes
+        // care of itself via TracksRhiWidget::event -> scheduleSnapshot.
+        for (const auto *trackVm : m_viewModel.tracks) {
+            for (auto it = trackVm->clips.cbegin(); it != trackVm->clips.cend(); ++it) {
+                auto *clip = it.key();
+                if (clip->clipType() != Clip::Singing)
+                    continue;
+                auto *singingView = dynamic_cast<SingingClipView *>(it.value());
+                if (singingView)
+                    updateSingingClipDisplay(static_cast<SingingClip *>(clip), singingView);
+            }
+        }
     }
 }
 

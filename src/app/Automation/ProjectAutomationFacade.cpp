@@ -372,9 +372,14 @@ namespace Automation {
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, changed, affected));
-                return AutomationResult<MutationResult>(m_committer.commitStateChange(
-                    session, changed, [track, colorIndex] { track->setColorIndex(colorIndex); },
-                    affected));
+                if (!changed)
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                const Track::TrackProperties oldProperties(*track);
+                auto newProperties = oldProperties;
+                newProperties.colorIndex = colorIndex;
+                auto actions = std::make_unique<TrackActions>();
+                actions->editTrackProperties(oldProperties, newProperties, track);
+                return m_committer.commit(session, std::move(actions), affected);
             });
     }
 
@@ -928,7 +933,7 @@ namespace Automation {
         addMutation(OperationIds::tracks::insert);
         addMutation(OperationIds::tracks::move);
         addMutation(OperationIds::tracks::remove);
-        addMutation(OperationIds::tracks::set_color, HistoryPolicy::None);
+        addMutation(OperationIds::tracks::set_color);
         addMutation(OperationIds::tracks::set_default_language, HistoryPolicy::None);
         addMutation(OperationIds::tracks::set_properties);
     }

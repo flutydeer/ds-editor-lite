@@ -2,7 +2,7 @@
 ClipEditorToolBarView QPushButton {
     padding: 0px;
     border: none;
-    background-color: ${surface.raised};
+    background-color: ${surface.sunken};
     border-radius: 0px;
 }
 
@@ -68,7 +68,7 @@ ClipEditorToolBarView QPushButton#btnMute:checked:pressed {
 }
 
 InlineEditLabel#leClipName {
-    background: ${surface.raised};
+    background: ${surface.sunken};
     border: none;
     height: 28px;
     border-radius: 0px;
@@ -81,7 +81,7 @@ InlineEditLabel#leClipName[groupPos="only"] {
 }
 
 QLineEdit#inlineEditLineEdit[editRole="ClipName"] {
-    background: ${surface.input};
+    background: ${surface.sunken};
     border: none;
     border-bottom: 1px solid ${border.focus};
     border-radius: 0px;
@@ -95,14 +95,14 @@ QLineEdit#inlineEditLineEdit[editRole="ClipName"][groupPos="only"] {
 }
 
 QLineEdit#inlineEditLineEdit[editRole="Lyric"] {
-    background: ${surface.input};
+    background: ${surface.sunken};
     border: 1px solid ${border.focus};
     border-radius: 2px;
     padding: 0px 2px;
 }
 
 QLineEdit#inlineEditLineEdit[editRole="Pronunciation"] {
-    background: ${surface.input};
+    background: ${surface.sunken};
     border: 1px solid ${border.focus};
     border-radius: 2px;
     padding: 0px 2px;
@@ -111,7 +111,7 @@ QLineEdit#inlineEditLineEdit[editRole="Pronunciation"] {
 TwoLevelComboBox#cbClipSinger,
 ComboBox#cbClipLanguage,
 ComboBox#cbPianoRollQuantize {
-    background: ${surface.raised};
+    background: ${surface.sunken};
     border: none;
     height: 28px;
     border-radius: 0px;
@@ -168,7 +168,7 @@ PianoRollGraphicsView, PianoRollRhiWidget {
     qproperty-pronunciationTextColor: ${piano.roll.pronunciation};
     qproperty-clipRangeOverlayColor: ${piano.roll.overlay};
     qproperty-paramOriginalCurveColor: ${curve.original};
-    qproperty-paramEditedCurveColor: ${curve.edited};
+    qproperty-paramEditedCurveColor: ${pitch.curveEdited};
     qproperty-barLineColor: ${editor.grid.bar};
     qproperty-beatLineColor: ${editor.grid.beat};
     qproperty-commonLineColor: ${editor.grid.subdivision};
@@ -207,6 +207,7 @@ ParamEditorGraphicsView {
     qproperty-paramGraduateColor: ${curve.guide};
     qproperty-paramOriginalCurveColor: ${curve.original};
     qproperty-paramEditedCurveColor: ${curve.edited};
+    qproperty-paramUseTrackColorForEditedCurve: true;
     qproperty-paramBackgroundLayerColor: ${editor.canvasAlternate};
     qproperty-anchorColor: ${curve.anchor};
     qproperty-anchorSelectedColor: ${curve.anchorSelected};
