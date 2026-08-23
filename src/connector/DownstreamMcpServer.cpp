@@ -1,0 +1,295 @@
+#include "DownstreamMcpServer.h"
+
+#include <lite/AutomationWire/CanonicalJson.h>
+#include <lite/AutomationWire/JsonSchema.h>
+#include <lite/ProductMetadata.h>
+
+#include <QJsonDocument>
+#include <QJsonParseError>
+
+namespace DsConnector {
+    namespace {
+        constexpr qsizetype MaxStdioMessageBytes = 16 * 1024 * 1024;
+
+        AutomationWire::Mcp::ImplementationInfo serverInfo() {
+            return {
+                .name = QStringLiteral("DS Connector Lite"),
+                .version = QString::fromLatin1(LiteProductMetadata::Version),
+                .description = QStringLiteral("DS Editor Lite MCP stdio connector"),
+                .websiteUrl = QString::fromLatin1(LiteProductMetadata::ProductUrl),
+            };
+        }
+
+        bool hasOnlyKeys(const QJsonObject &object, const QStringList &allowed) {
+            for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
+                if (!allowed.contains(it.key()))
+                    return false;
+            }
+            return true;
+        }
+    }
+
+    DownstreamMcpServer::DownstreamMcpServer(ConnectorRuntime *runtime, QObject *parent)
+        : QObject(parent), m_runtime(runtime) {
+    }
+
+    void DownstreamMcpServer::processLine(const QByteArray &line) {
+        const auto payload = line.trimmed();
+        if (payload.isEmpty())
+            return;
+        if (payload.size() > MaxStdioMessageBytes) {
+            sendError({}, AutomationWire::Mcp::InvalidRequest,
+                      QStringLiteral("MCP stdio message is too large"));
+            return;
+        }
+        QJsonParseError parseError;
+        const auto document = QJsonDocument::fromJson(payload, &parseError);
+        if (parseError.error != QJsonParseError::NoError) {
+            sendError({}, AutomationWire::Mcp::ParseError, QStringLiteral("Invalid JSON"));
+            return;
+        }
+        const auto validation = AutomationWire::Mcp::validateRequest(
+            document.isObject() ? QJsonValue(document.object()) : QJsonValue());
+        if (!validation.valid()) {
+            const auto object = document.isObject() ? document.object() : QJsonObject{};
+            const auto recognizableNotification =
+                !object.contains(QStringLiteral("id")) &&
+                object.value(QStringLiteral("jsonrpc")) ==
+                    QString::fromLatin1(AutomationWire::Mcp::JsonRpcVersion) &&
+                object.value(QStringLiteral("method")).isString();
+            if (recognizableNotification)
+                return;
+            const auto id = document.isObject() ? document.object().value(QStringLiteral("id"))
+                                                : QJsonValue(QJsonValue::Undefined);
+            sendError(id, validation.error.code, validation.error.message,
+                      validation.error.data);
+            return;
+        }
+        const auto &request = *validation.request;
+        if (request.method == QStringLiteral("notifications/cancelled")) {
+            const auto requestId = request.params.value(QStringLiteral("requestId"));
+            const auto validParams =
+                hasOnlyKeys(request.params,
+                            {QStringLiteral("_meta"), QStringLiteral("requestId"),
+                             QStringLiteral("reason")}) &&
+                AutomationWire::Mcp::isValidRequestId(requestId) &&
+                (!request.params.contains(QStringLiteral("reason")) ||
+                 request.params.value(QStringLiteral("reason")).isString());
+            if (!request.notification) {
+                sendError(request.id, AutomationWire::Mcp::InvalidRequest,
+                          QStringLiteral("notifications/cancelled must be a notification"));
+                return;
+            }
+            if (validParams)
+                handleCancellation(request);
+            return;
+        }
+        if (request.method == QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod)) {
+            if (request.notification)
+                return;
+            if (!hasOnlyKeys(request.params, {QStringLiteral("_meta")})) {
+                sendError(request.id, AutomationWire::Mcp::InvalidParams,
+                          QStringLiteral("Invalid server/discover params"));
+                return;
+            }
+            sendJson(AutomationWire::Mcp::makeResultResponse(
+                request.id, AutomationWire::Mcp::makeDiscoverResult(serverInfo()), serverInfo()));
+            return;
+        }
+        if (request.method == QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod)) {
+            handleToolsList(request);
+            return;
+        }
+        if (request.method == QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod)) {
+            handleToolsCall(request);
+            return;
+        }
+        if (!request.notification) {
+            sendError(request.id, AutomationWire::Mcp::MethodNotFound,
+                      QStringLiteral("MCP method not found"));
+        }
+    }
+
+    void DownstreamMcpServer::sendJson(const QJsonObject &message) {
+        auto encoded = QJsonDocument(message).toJson(QJsonDocument::Compact);
+        encoded.append('\n');
+        emit responseLine(encoded);
+    }
+
+    void DownstreamMcpServer::sendError(const QJsonValue &id, const int code,
+                                        const QString &message, const QJsonValue &data) {
+        sendJson(AutomationWire::Mcp::makeErrorResponse(
+            id, AutomationWire::Mcp::ProtocolError{code, message, data}));
+    }
+
+    void DownstreamMcpServer::handleCancellation(
+        const AutomationWire::Mcp::RequestEnvelope &request) {
+        const auto cancelledId = request.params.value(QStringLiteral("requestId"));
+        const auto key = idKey(cancelledId);
+        const auto token = m_pending.take(key);
+        if (token) {
+            m_cancelled.insert(key);
+            m_runtime->cancel(token);
+        }
+    }
+
+    void DownstreamMcpServer::handleToolsList(
+        const AutomationWire::Mcp::RequestEnvelope &request) {
+        if (request.notification)
+            return;
+        if (!hasOnlyKeys(request.params,
+                         {QStringLiteral("_meta"), QStringLiteral("cursor")}) ||
+            (request.params.contains(QStringLiteral("cursor")) &&
+             !request.params.value(QStringLiteral("cursor")).isString())) {
+            sendError(request.id, AutomationWire::Mcp::InvalidParams,
+                      QStringLiteral("Invalid tools/list params"));
+            return;
+        }
+        const auto tools = m_runtime->downstreamTools();
+        QString digestError;
+        const auto snapshotDigest = AutomationWire::sha256Digest(tools, &digestError);
+        if (!digestError.isEmpty()) {
+            sendError(request.id, AutomationWire::Mcp::InternalError,
+                      QStringLiteral("Unable to create tools/list cursor snapshot"));
+            return;
+        }
+        const auto cursorText = request.params.value(QStringLiteral("cursor")).toString();
+        qint64 offset = 0;
+        if (!cursorText.isEmpty()) {
+            const auto parsed = m_toolsCursorCodec.parse(
+                cursorText, QStringLiteral("connector-downstream-tools-list/v1"), snapshotDigest);
+            if (!parsed.valid()) {
+                sendError(request.id, AutomationWire::Mcp::InvalidParams,
+                          QStringLiteral("Invalid tools/list cursor"));
+                return;
+            }
+            offset = *parsed.offset;
+        }
+        constexpr auto PageSize = 100;
+        if (offset < 0 || offset > tools.size()) {
+            sendError(request.id, AutomationWire::Mcp::InvalidParams,
+                      QStringLiteral("Invalid tools/list cursor"));
+            return;
+        }
+        QJsonArray page;
+        for (auto index = offset; index < tools.size() && index < offset + PageSize; ++index)
+            page.append(tools.at(index));
+        QString next;
+        if (offset + page.size() < tools.size()) {
+            next = m_toolsCursorCodec.issue(
+                QStringLiteral("connector-downstream-tools-list/v1"), snapshotDigest,
+                offset + page.size());
+            if (next.isEmpty()) {
+                sendError(request.id, AutomationWire::Mcp::InternalError,
+                          QStringLiteral("Unable to create tools/list cursor"));
+                return;
+            }
+        }
+        sendJson(AutomationWire::Mcp::makeResultResponse(
+            request.id, AutomationWire::Mcp::makeToolsListResult(page, next, 0,
+                                                                 QStringLiteral("private"),
+                                                                 serverInfo()),
+            serverInfo()));
+    }
+
+    void DownstreamMcpServer::handleToolsCall(
+        const AutomationWire::Mcp::RequestEnvelope &request) {
+        if (request.notification)
+            return;
+        if (!hasOnlyKeys(request.params,
+                         {QStringLiteral("_meta"), QStringLiteral("name"),
+                          QStringLiteral("arguments")})) {
+            sendError(request.id, AutomationWire::Mcp::InvalidParams,
+                      QStringLiteral("Invalid tools/call params"));
+            return;
+        }
+        const auto name = request.name;
+        QJsonObject schema;
+        QJsonObject outputSchema;
+        bool validateOutput = true;
+        if (const auto bridge = ConnectorRuntime::findBridgeTool(name)) {
+            schema = bridge->value(QStringLiteral("inputSchema")).toObject();
+            outputSchema = bridge->value(QStringLiteral("outputSchema")).toObject();
+            validateOutput = name != QStringLiteral("editor.tools.invoke");
+        } else if (const auto *tool = AutomationWire::findPublicTool(name)) {
+            if (!m_runtime->exposurePolicy().allowsKnownTool(*tool)) {
+                const auto result = AutomationWire::Mcp::makeToolCallResult(
+                    QJsonObject{{QStringLiteral("code"),
+                                 QStringLiteral("connector_tool_filtered")},
+                                {QStringLiteral("message"),
+                                 QStringLiteral("connector_tool_filtered")}},
+                    true);
+                sendJson(AutomationWire::Mcp::makeResultResponse(request.id, result, serverInfo()));
+                return;
+            }
+            schema = tool->inputSchema;
+            outputSchema = tool->outputSchema;
+        } else {
+            sendError(request.id, AutomationWire::Mcp::InvalidParams,
+                      QStringLiteral("Unknown connector tool"));
+            return;
+        }
+
+        const auto arguments = request.params.value(QStringLiteral("arguments")).toObject();
+        const auto validation = AutomationWire::validateJsonValue(arguments, schema);
+        if (!validation.valid()) {
+            QJsonArray issues;
+            for (const auto &issue : validation.issues) {
+                issues.append(QJsonObject{{QStringLiteral("instancePath"), issue.instancePath},
+                                          {QStringLiteral("schemaPath"), issue.schemaPath},
+                                          {QStringLiteral("message"), issue.message}});
+            }
+            sendError(request.id, AutomationWire::Mcp::InvalidParams,
+                      QStringLiteral("Tool arguments do not match inputSchema"),
+                      QJsonObject{{QStringLiteral("issues"), issues}});
+            return;
+        }
+
+        const auto key = idKey(request.id);
+        if (m_inFlight.contains(key)) {
+            sendError(request.id, AutomationWire::Mcp::InvalidRequest,
+                      QStringLiteral("Duplicate in-flight JSON-RPC request id"));
+            return;
+        }
+        m_inFlight.insert(key);
+        const auto token = m_runtime->callTool(
+            name, arguments,
+            [this, id = request.id, key, outputSchema, validateOutput](ToolCallOutcome outcome) {
+                m_pending.remove(key);
+                m_inFlight.remove(key);
+                if (m_cancelled.remove(key))
+                    return;
+                if (outcome.protocolError) {
+                    sendJson(AutomationWire::Mcp::makeErrorResponse(id, *outcome.protocolError));
+                    return;
+                }
+                if (validateOutput &&
+                    !outcome.result.value(QStringLiteral("isError")).toBool()) {
+                    const auto outputValidation = AutomationWire::validateJsonValue(
+                        outcome.result.value(QStringLiteral("structuredContent")), outputSchema);
+                    if (!outputValidation.valid()) {
+                        outcome.result = AutomationWire::Mcp::makeToolCallResult(
+                            QJsonObject{
+                                {QStringLiteral("code"),
+                                 QStringLiteral("invalid_upstream_output")},
+                                {QStringLiteral("message"),
+                                 QStringLiteral("Tool result does not match outputSchema")},
+                            },
+                            true);
+                    }
+                }
+                sendJson(AutomationWire::Mcp::makeResultResponse(id, outcome.result, serverInfo()));
+            });
+        if (token && m_inFlight.contains(key))
+            m_pending.insert(key, token);
+    }
+
+    QString DownstreamMcpServer::idKey(const QJsonValue &id) {
+        if (id.isString())
+            return QStringLiteral("s:") + id.toString();
+        if (id.isDouble())
+            return QStringLiteral("n:") + QString::number(id.toDouble(), 'g', 17);
+        return {};
+    }
+
+}

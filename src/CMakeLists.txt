@@ -21,6 +21,7 @@ qm_find_qt(Svg)
 # After Qt is found: project libraries may link Qt (e.g. lite::Support -> Qt::Core).
 add_subdirectory(libs)
 
+add_subdirectory(connector)
 add_subdirectory(app)
 
 if(LITE_BUILD_TESTS)

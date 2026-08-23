@@ -5,6 +5,7 @@
   "copyright": "@LITE_PRODUCT_COPYRIGHT@",
   "productUrl": "@LITE_PRODUCT_URL@",
   "executableBaseName": "@LITE_EXECUTABLE_BASENAME@",
+  "connectorExecutableBaseName": "@LITE_CONNECTOR_EXECUTABLE_BASENAME@",
   "windowsAppId": "@LITE_WINDOWS_APP_ID@",
   "macosBundleId": "@LITE_MACOS_BUNDLE_ID@"
 }
