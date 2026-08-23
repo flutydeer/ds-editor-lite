@@ -327,3 +327,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R55-SCENE-WARNING-COMPUTER-USE-GREEN` | 55 | 空 scene item 告警修复的 Computer Use 双保险摘要 | `53e16aed2d972dcb0764dce37d2a2d4331e3f8aa8b463ee30bd4cbaa260d955d` |
+
+## 追加证据 53
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R56-GUI-G01-RELATIVE-AUDIO-FAIL` | 56 | GUI-G01 双副本文档打开与相对音频失败摘要 | `34c4ec630322ea35fb3b9515bedcee9467fb5cb2a56987ef8ce763bd5e081824` |
