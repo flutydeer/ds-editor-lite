@@ -247,8 +247,9 @@ namespace Automation {
             return left.value() < right.value();
         });
         const bool duplicates = hasDuplicateIds(noteIds);
+        const auto requestFingerprint = noteIdsFingerprint(clipId, noteIds);
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::remove, context, noteIdsFingerprint(clipId, noteIds),
+            OperationIds::notes::remove, context, requestFingerprint,
             [this, clipId, noteIds = std::move(noteIds), duplicates](DocumentSession &session,
                                                                      const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
@@ -286,9 +287,9 @@ namespace Automation {
             return left.value() < right.value();
         });
         const bool duplicates = hasDuplicateIds(noteIds);
+        const auto requestFingerprint = noteIdsFingerprint(clipId, noteIds, {deltaTick, deltaKey});
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::move, context,
-            noteIdsFingerprint(clipId, noteIds, {deltaTick, deltaKey}),
+            OperationIds::notes::move, context, requestFingerprint,
             [this, clipId, noteIds = std::move(noteIds), deltaTick, duplicates,
              deltaKey](DocumentSession &session, const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
@@ -341,9 +342,10 @@ namespace Automation {
             return left.value() < right.value();
         });
         const bool duplicates = hasDuplicateIds(noteIds);
+        const auto requestFingerprint =
+            noteIdsFingerprint(clipId, noteIds, {deltaTick, minimumLength});
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::resize_left, context,
-            noteIdsFingerprint(clipId, noteIds, {deltaTick, minimumLength}),
+            OperationIds::notes::resize_left, context, requestFingerprint,
             [this, clipId, noteIds = std::move(noteIds), deltaTick, duplicates,
              minimumLength](DocumentSession &session, const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
@@ -391,9 +393,10 @@ namespace Automation {
             return left.value() < right.value();
         });
         const bool duplicates = hasDuplicateIds(noteIds);
+        const auto requestFingerprint =
+            noteIdsFingerprint(clipId, noteIds, {deltaTick, minimumLength});
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::resize_right, context,
-            noteIdsFingerprint(clipId, noteIds, {deltaTick, minimumLength}),
+            OperationIds::notes::resize_right, context, requestFingerprint,
             [this, clipId, noteIds = std::move(noteIds), deltaTick, duplicates,
              minimumLength](DocumentSession &session, const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
@@ -508,9 +511,10 @@ namespace Automation {
             return left.value() < right.value();
         });
         const bool duplicates = hasDuplicateIds(noteIds);
+        const auto requestFingerprint =
+            noteIdsFingerprint(clipId, noteIds, {quantize, quantizeStart, quantizeLength});
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::quantize, context,
-            noteIdsFingerprint(clipId, noteIds, {quantize, quantizeStart, quantizeLength}),
+            OperationIds::notes::quantize, context, requestFingerprint,
             [this, clipId, noteIds = std::move(noteIds), quantize, quantizeStart, duplicates,
              quantizeLength](DocumentSession &session, const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
@@ -528,11 +532,11 @@ namespace Automation {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("note_ids"), QStringLiteral("Note IDs must be unique")));
                 }
-                const auto grid = TimelineSnapUtils::quantizeToTicks(quantize);
-                if (grid <= 0) {
+                if (quantize <= 0 || TimelineSnapUtils::ticksPerWholeNote() % quantize != 0) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("quantize"), QStringLiteral("Quantize value is invalid")));
                 }
+                const auto grid = TimelineSnapUtils::quantizeToTicks(quantize);
                 QList<QPair<int, int>> geometry;
                 bool changed = false;
                 for (auto *note : notes) {
@@ -567,9 +571,9 @@ namespace Automation {
                   [](const NoteWordEditDto &left, const NoteWordEditDto &right) {
                       return left.noteId.value() < right.noteId.value();
                   });
+        const auto requestFingerprint = wordEditsFingerprint(clipId, edits);
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::set_word_properties, context,
-            wordEditsFingerprint(clipId, edits),
+            OperationIds::notes::set_word_properties, context, requestFingerprint,
             [this, clipId, edits = std::move(edits)](DocumentSession &session,
                                                      const bool validateOnly) {
                 QList<NoteId> ids;
