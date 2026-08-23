@@ -1,0 +1,9 @@
+round=54
+scope=merge optional scene-item fix into isolated GUI branch and rebuild application
+merge=clean
+input_bridge_compile_option=enabled
+application_recompiled=yes
+application_link=passed
+qt_deploy=passed
+controlled_inference_delay=disabled
+privacy=logical aliases only; no local absolute paths

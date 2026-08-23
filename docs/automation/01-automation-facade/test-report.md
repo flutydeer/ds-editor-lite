@@ -1342,3 +1342,48 @@ platform plugin 目录，并对单轮设置 120 秒外部超时。
 
 通过。告警修复后的全目标构建、定向三轮和全量 CTest 三轮均完成；可合入隔离 GUI 分支并继续
 Computer Use `GUI-G01`。
+
+## 回归轮次 54：隔离 GUI 分支合入告警修复并重建
+
+### 范围
+
+把可选 scene item 清理修复、保护测试和 R48～R53 追加记录合入隔离 GUI 分支；保持 Modifier
+输入桥编译开关开启、受控推理延迟关闭，重新构建应用。
+
+### 结果
+
+- 合入无冲突，输入桥编译选项仍为 enabled。
+- 应用重新编译受影响的 `TimeGraphicsScene`，链接和 Qt 部署成功。
+- 未启动受控推理延迟，也未改变其他生产或测试配置。
+
+### 证据
+
+- 脱敏合入与重建摘要：证据 `E-R54-GUI-BRANCH-SCENE-FIX-REBUILD`。
+
+### 判定
+
+通过。进入 Computer Use 单音符双保险，确认实际 GUI 路径不再产生旧 warning。
+
+## 回归轮次 55：空 scene item 告警修复的 Computer Use 双保险
+
+### 范围
+
+启动重建后的隔离 GUI 实例，精确绑定唯一空工程窗口；显式清除 Modifier，切换音符铅笔并绘制
+一个与 R48 相同类型的短音符，随后按动作时间边界交叉检查运行日志。
+
+### 结果
+
+- 一枚 C4 附近、约半拍、默认歌词“啦”的音符稳定出现，轨道唱段内同步出现一条缩略标记；
+  2 秒后位置和尺寸保持不变。
+- 无红色失败条、空红残影、闪烁、弹窗或其他可见异常。
+- 对应日志只有一次 edit session 和一次成功 note draw；旧
+  `QGraphicsScene::removeItem: cannot remove 0-item` warning 为 0 条。
+- 证据采集后终止精确的隔离测试进程，仅丢弃本轮创建的单个未保存测试音符；未写入文件。
+
+### 证据
+
+- 脱敏 Computer Use 与日志交叉摘要：证据 `E-R55-SCENE-WARNING-COMPUTER-USE-GREEN`。
+
+### 判定
+
+通过。自动化保护、全量 CTest 和真实 GUI 提交三层结果一致；可启动干净实例进入 `GUI-G01`。

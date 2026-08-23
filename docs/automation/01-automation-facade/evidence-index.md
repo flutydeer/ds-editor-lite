@@ -315,3 +315,15 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R53-POST-GUI-FIX-CTEST-THIRD` | 53 | GUI 告警修复后第三次完整 CTest 与三轮汇总 | `81630aab56284f1a012debe034ec00d22b5a1abd852ba13a8321c1f1b08a78f1` |
+
+## 追加证据 51
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R54-GUI-BRANCH-SCENE-FIX-REBUILD` | 54 | 隔离 GUI 分支合入 scene 告警修复并重建摘要 | `64f1d2f8505e313d22c91007e7783b9e753a6212a98828ceee36b334b696a966` |
+
+## 追加证据 52
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R55-SCENE-WARNING-COMPUTER-USE-GREEN` | 55 | 空 scene item 告警修复的 Computer Use 双保险摘要 | `53e16aed2d972dcb0764dce37d2a2d4331e3f8aa8b463ee30bd4cbaa260d955d` |
