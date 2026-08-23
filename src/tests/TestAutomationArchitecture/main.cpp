@@ -132,6 +132,10 @@ int main(int argc, char *argv[]) {
         R"(arg\.language\s*=\s*noteResult\.language\s*;[\s\S]{0,300}edit\.language\s*=\s*arg\.language\s*;)"));
     const QRegularExpression taggerDetailSavedBeforeReorder(QStringLiteral(
         R"(void\s+TaggerConfigTab::onOrderChanged\s*\(\s*\)\s*\{\s*saveCurrentDetail\s*\(\s*\)\s*;[\s\S]{0,160}m_listPanel->listWidget\s*\(\s*\))"));
+    const QRegularExpression trackAutoPageTurnBinding(QStringLiteral(
+        R"(&AppStatus::trackAutoPageTurnEnabledChanged[\s\S]{0,300}setAuto(?:PageTurn|TurnPage)\s*\(\s*enabled\s*\))"));
+    const QRegularExpression pianoRollAutoPageTurnBinding(QStringLiteral(
+        R"(&AppStatus::pianoRollAutoPageTurnEnabledChanged[\s\S]{0,300}setAuto(?:PageTurn|TurnPage)\s*\(\s*enabled\s*\))"));
 
     for (const auto &id : Automation::OperationIds::all()) {
         if (!versionedOperationSuffix.match(id).hasMatch())
@@ -244,6 +248,21 @@ int main(int argc, char *argv[]) {
             ok &= requireMatch(
                 file, taggerDetailSavedBeforeReorder,
                 QStringLiteral("Tagger reorder discarded the active custom-rule editor state"));
+        }
+
+        if (file.relativePath ==
+            QStringLiteral("src/app/UI/Views/TrackEditor/TrackEditorView.cpp")) {
+            ok &= requireMatch(
+                file, trackAutoPageTurnBinding,
+                QStringLiteral("Track auto-page state stopped reaching the active editor backend"));
+        }
+
+        if (file.relativePath ==
+            QStringLiteral("src/app/UI/Views/ClipEditor/PianoRoll/PianoRollView.cpp")) {
+            ok &= requireMatch(
+                file, pianoRollAutoPageTurnBinding,
+                QStringLiteral(
+                    "Piano-roll auto-page state stopped reaching the active editor backend"));
         }
 
         if (file.relativePath == QStringLiteral("src/app/UI/Views/ClipEditor/PianoRoll/"
