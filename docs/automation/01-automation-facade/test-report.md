@@ -9,7 +9,7 @@
 原由 Computer Use 能力、原生确认规则、任务时长和听音端点限制而保留的 M01～M07，已由用户
 完成人工补测并确认通过，结果见第 6 节。
 
-最终测试树基于提交 `54414b6f`；本报告整理只改变文档，不改变已测试的生产代码或测试代码。
+最终测试树基于提交 `2dc60c51`；本报告整理只改变文档，不改变已测试的生产代码或测试代码。
 
 ## 2. 最终构建与自动化结果
 
@@ -17,11 +17,11 @@
 |---|---|
 | Debug configure/generate | 通过 |
 | Debug 全目标构建 | 通过，`DsEditorLite` 完成链接和 Qt 部署 |
-| 注册 CTest | 52 |
-| 完整 CTest 第 1 轮 | 52/52 通过，0 失败，0 超时，8.36 秒 |
-| 完整 CTest 第 2 轮 | 52/52 通过，0 失败，0 超时，8.26 秒 |
-| 完整 CTest 第 3 轮 | 52/52 通过，0 失败，0 超时，8.40 秒 |
-| 三轮合计 | 156/156 通过，无 flaky |
+| 注册 CTest | 53 |
+| 完整 CTest 第 1 轮 | 53/53 通过，0 失败，0 超时，8.54 秒 |
+| 完整 CTest 第 2 轮 | 53/53 通过，0 失败，0 超时，8.48 秒 |
+| 完整 CTest 第 3 轮 | 53/53 通过，0 失败，0 超时，8.39 秒 |
+| 三轮合计 | 159/159 通过，无 flaky |
 | Qt/进程异常 | 无 platform/offscreen plugin 错误、Debug Error、ASSERT、fatal、超时或弹窗阻塞 |
 
 Vulkan headers 缺失是既有可选能力提示，不影响本期目标、应用链接或测试执行。
@@ -41,7 +41,7 @@ Vulkan headers 缺失是既有可选能力提示，不影响本期目标、应�
 
 此外，Catalog、架构、Core、Document Lifecycle、Idempotency、Editing Domains、Runtime Domains、
 Async File Domains、Piano Roll Note Commit、Fill Lyric、设置、控制器和既有应用回归目标均包含在
-52 个 CTest 中并全部通过。
+53 个 CTest 中并全部通过。
 
 ### 2.2 契约覆盖结论
 
