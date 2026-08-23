@@ -3279,3 +3279,102 @@ R135 连续三轮 51/51 CTest，本修复同时具备自动化与 Computer Use �
 
 通过（带一项明确的 Computer Use 能力限制）。全部可执行 GUI-G08 子场景与保存重开补证通过；
 未把无法在原子 drag 中插入 Escape 的子维度伪记为通过。
+
+## 回归轮次 138：GUI-G09 轨道/Clip 单声线、固定 Speaker Mix 与继承
+
+### 范围
+
+使用 Computer Use 在三音符基线的独立副本上执行 GUI-G09，覆盖轨道与 Clip 的单声线选择、
+固定双声线混合、Clip 跟随轨道、脱离、恢复跟随、Undo/Redo、保存重开；保存后再以结构化
+DSPX 检查运行期标识与持久化字段。
+
+### 轨道声线与固定混合
+
+- 轨道选择 `Liliko_Default` 后显示 `Liliko / Liliko_Default`；Clip 同步显示
+  `跟随轨道 (Liliko / Liliko_Default)`。
+- Speaker Mix 参数页对单声线稳定显示“动态混合不可用”，没有伪造动态混合入口。
+- Speaker Mix 对话框显示 `Liliko_Default`、`Liliko_Original` 两个真实来源及可见的
+  50%/50% 固定混合；确认后轨道显示 `Liliko / Custom Mix`，Clip 继续跟随。
+- Undo 恢复单声线与“动态混合不可用”，Redo 恢复固定混合及 Clip 继承。
+
+### Clip 脱离、固定混合与恢复跟随
+
+- Clip 选择 `Liliko_Original` 后脱离轨道，Clip 显示自有单声线而轨道仍保持 Custom Mix；
+  Undo/Redo 均恢复正确的前后状态。
+- Clip 应用双来源固定混合后显示 `Liliko / Custom Mix`，并出现“启用动态混合”入口；
+  Undo 恢复自有单声线，Redo 恢复 Clip 固定混合。
+- 选择“跟随轨道”后 Clip 重新显示 `跟随轨道 (Liliko / Custom Mix)`；该动作的 Undo/Redo
+  也分别恢复 Clip 自有固定混合和最终继承状态。
+
+### 保存重开与结构化补证
+
+- 保存后未保存标记消失，通过 GUI 重开同一隔离副本后，轨道 Custom Mix 与 Clip 跟随状态
+  均恢复，没有确认框、错误弹窗或 Debug Error。
+- 保存文件为 9133 字节，SHA-256 为
+  `6c813baceed829dd465563c84ef85102d038a155110edeba9f4ab7cdd37e6e83`。
+- 结构化检查确认歌手标识为 `liliko@1.6/liliko`，轨道主声线为 `Liliko_Default`；固定混合
+  来源严格为 `[Liliko_Default, Liliko_Original]`、模式为 `fixed`、权重字段为 `[0.5]`、
+  `dynamicBypassed=false`。
+- Clip 持久化 `useTrackSingerInfo=true`，没有写入自有 singer/speakerMix，符合“跟随轨道”
+  的最终状态。
+
+### 诊断观察
+
+- 本轮首次展开 Liliko 二级菜单时，屏幕上出现四组相同的两条声线及四个“管理混合预设”。
+- 重复项没有阻断 G09 的选择、提交、History 或持久化断言，因此本轮语义主路径判为通过；
+  但没有把重复展示视为正常行为，已在下一轮立即单独定位并复核。
+
+### 恢复与清理
+
+- 应用正常退出，退出码为 0；删除 G09 临时副本与工作目录，并从隔离 Recent 移除对应条目。
+- 移除本轮临时追加的重复包搜索根；清除 8 个隔离推理缓存文件，复核剩余为 0。
+- 原始日志、截图与结构化检查明细只保留在私有证据区；提交内容不包含本机路径。
+
+### 证据
+
+- 私有脱敏 GUI 操作、Undo/Redo、保存重开、结构化 DSPX 与诊断观察摘要：
+  `E-R138-GUI-G09-SPEAKER-MIX`。
+
+### 判定
+
+通过（附带已进入下一轮诊断的重复菜单观察）。轨道与 Clip 的单声线、固定 Speaker Mix、
+继承/脱离、History 和持久化主契约均通过。
+
+## 回归轮次 139：GUI-G09 重复 Speaker 菜单定位与单根复核
+
+### 范围
+
+针对 R138 的重复菜单观察，执行一次临时只读计数探针、提交历史边界检查及单搜索根 Computer
+Use 复核；临时诊断输出在复核前已全部移除并重新构建应用。
+
+### 根因与历史边界
+
+- 测试配置同时包含两处完全相同的 `liliko@1.6`。语音库快照因此含两个相同 package status
+  和两个相同 singer snapshot。
+- 既有 PackageManager 转换按每个 status 扫描全部同标识 singer，形成两个 PackageInfo、
+  每个又含两个相同 SingerInfo；菜单最终呈现 `2 × 2 = 4` 份。
+- 该转换循环来自提交 `af7ac5a5`，Speaker Mix 分组/注入菜单循环来自提交 `9f062c20`；两者
+  均已验证是一期基线 `233f2108` 的祖先，不是 Automation Facade 重构引入。
+
+### 单根 Computer Use 复核
+
+- 去掉本轮额外添加且与基线重叠的搜索根后，保存的 G09 工程仍正常打开并解析同一歌手。
+- Liliko 二级菜单严格只显示一条 `Liliko_Default`、一条 `Liliko_Original`、一个分隔线和
+  一个“管理混合预设”，重复项完全消失。
+- 轨道仍显示 Custom Mix，Clip 仍显示跟随轨道；应用正常退出，退出码为 0。
+
+### 处置
+
+- 本轮不修改生产代码：已证实 R138 重复项由测试环境添加重叠声库根触发，而不是一期回归。
+- “多个根包含完全相同 package ID/version 时 PackageManager 会做交叉展开”仍是既有健壮性
+  边缘，不在本轮伪记为已修复；正式 G09 后续输入保持单一合格来源。
+- 临时诊断输出已还原，两个代码 worktree 均无遗留修改。
+
+### 证据
+
+- 私有脱敏基数探针、提交祖先关系与单根 GUI 截图摘要：
+  `E-R139-GUI-G09-DUPLICATE-MENU-DIAGNOSIS`。
+
+### 判定
+
+通过。重复菜单不是本期重构回归；修正测试环境后单根菜单与 G09 持久化状态均正常。

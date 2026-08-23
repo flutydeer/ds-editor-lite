@@ -459,3 +459,15 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R137-GUI-G08-PARAMETER-CURVES` | 137 | GUI-G08 Draw、Erase、Anchor、Bake、不支持参数及保存重开 | `504d0a2bc68794b86db134eef84bcee64657553209e1ad312a088d798382bf4a` |
+
+## 追加证据 75
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R138-GUI-G09-SPEAKER-MIX` | 138 | GUI-G09 轨道/Clip 单声线、固定 Speaker Mix、继承、History 与保存重开 | `4c5bb29ff60aff76b9fc2a869dd8d900701d62eae53085caa0e9b379e492c9c6` |
+
+## 追加证据 76
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R139-GUI-G09-DUPLICATE-MENU-DIAGNOSIS` | 139 | G09 重复菜单基数定位、一期历史边界与单根 Computer Use 复核 | `ed02ccab50df74a4772ef96bba77c5feb4611e8a3a662b66ecd297afb0a4d255` |
