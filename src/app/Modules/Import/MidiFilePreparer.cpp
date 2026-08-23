@@ -35,6 +35,16 @@ QList<PreparedImportItem> MidiFilePreparer::prepare(const QStringList &paths) {
     return result;
 }
 
+QString MidiFilePreparer::failureMessage(const PreparedImportItem &item) {
+    if (item.kind != PreparedImportItem::Kind::Failed)
+        return {};
+    if (item.path.isEmpty())
+        return item.errorMessage;
+    if (item.errorMessage.isEmpty())
+        return item.path;
+    return item.path + QStringLiteral(" - ") + item.errorMessage;
+}
+
 QByteArray MidiFilePreparer::detectCommonCodec(const QList<PreparedImportItem> &prepared) {
     QByteArray lyrics;
     for (const auto &item : prepared) {

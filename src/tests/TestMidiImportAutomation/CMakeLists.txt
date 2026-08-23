@@ -3,6 +3,7 @@ project(TestMidiImportAutomation)
 lite_add_test(${PROJECT_NAME}
     SOURCES
         main.cpp
+        ../../app/Modules/Import/MidiFilePreparer.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ../../app)

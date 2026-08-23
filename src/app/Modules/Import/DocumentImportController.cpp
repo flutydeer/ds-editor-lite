@@ -140,29 +140,10 @@ void DocumentImportController::prepareNext() {
         return;
     }
 
-    // MIDI files parse synchronously (fast); failures become Failed items.
-    auto parseData = MidiFileParser::parse(path);
-    PreparedImportItem item;
-    item.path = path;
-    if (!parseData.valid) {
-        item.kind = PreparedImportItem::Kind::Failed;
-        item.errorMessage = parseData.errorMessage;
-    } else {
-        bool hasNotes = false;
-        for (const auto &info : parseData.trackInfos) {
-            if (info.noteCount > 0) {
-                hasNotes = true;
-                break;
-            }
-        }
-        if (!hasNotes) {
-            item.kind = PreparedImportItem::Kind::Failed;
-            item.errorMessage = tr("No notes in MIDI file");
-        } else {
-            item.kind = PreparedImportItem::Kind::Midi;
-            item.midi = std::move(parseData);
-        }
-    }
+    auto prepared = MidiFilePreparer::prepare({path});
+    auto item = std::move(prepared.first());
+    if (const auto failure = MidiFilePreparer::failureMessage(item); !failure.isEmpty())
+        m_failedMessages.append(failure);
     m_prepared.append(std::move(item));
     prepareNext();
 }

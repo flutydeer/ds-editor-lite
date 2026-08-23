@@ -1,5 +1,6 @@
 #include "Automation/CoreRuntime.h"
 #include "Automation/ProjectAutomationDtos.h"
+#include "Modules/Import/MidiFilePreparer.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectConverters/MidiConverter.h>
@@ -8,6 +9,9 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QCoreApplication>
+#include <QFile>
+#include <QFileInfo>
+#include <QTemporaryDir>
 #include <QTextStream>
 
 namespace {
@@ -109,6 +113,58 @@ namespace {
             .validateOnly = validateOnly,
             .source = Automation::InvocationSource::Test,
         };
+    }
+
+    [[nodiscard]] bool writeFixture(const QString &path, const QByteArray &data) {
+        QFile file(path);
+        return file.open(QIODevice::WriteOnly) && file.write(data) == data.size();
+    }
+
+    void testBatchPreparationFailures(Suite &suite) {
+        suite.run(QStringLiteral("batch-preparation-retains-per-file-failures"), [&] {
+            QTemporaryDir directory;
+            const auto invalidPath = directory.filePath(QStringLiteral("invalid.mid"));
+            const auto emptyPath = directory.filePath(QStringLiteral("empty.mid"));
+            const auto validPath = directory.filePath(QStringLiteral("valid.mid"));
+
+            const QByteArray emptyMidi =
+                QByteArray::fromHex("4d546864000000060000000101e04d54726b0000000400ff2f00");
+            const QByteArray validMidi = QByteArray::fromHex(
+                "4d546864000000060000000101e04d54726b0000000d00903c408360803c4000ff2f00");
+            suite.expect(directory.isValid() &&
+                             writeFixture(invalidPath, QByteArrayLiteral("not a MIDI file")) &&
+                             writeFixture(emptyPath, emptyMidi) &&
+                             writeFixture(validPath, validMidi),
+                         QStringLiteral("runtime MIDI fixtures must be created"));
+
+            const auto prepared = MidiFilePreparer::prepare({invalidPath, emptyPath, validPath});
+            suite.expect(prepared.size() == 3,
+                         QStringLiteral("batch preparation must preserve input cardinality"));
+            if (prepared.size() != 3)
+                return;
+
+            suite.expect(prepared.at(0).kind == PreparedImportItem::Kind::Failed &&
+                             !prepared.at(0).errorMessage.isEmpty(),
+                         QStringLiteral("an invalid MIDI file must retain its parser failure"));
+            suite.expect(prepared.at(1).kind == PreparedImportItem::Kind::Failed &&
+                             prepared.at(1).errorMessage == QStringLiteral("No notes in MIDI file"),
+                         QStringLiteral("a note-free MIDI file must retain its domain failure"));
+            suite.expect(prepared.at(2).kind == PreparedImportItem::Kind::Midi,
+                         QStringLiteral("a valid MIDI file must remain importable"));
+
+            const auto invalidSummary = MidiFilePreparer::failureMessage(prepared.at(0));
+            const auto emptySummary = MidiFilePreparer::failureMessage(prepared.at(1));
+            suite.expect(invalidSummary.contains(QFileInfo(invalidPath).fileName()) &&
+                             invalidSummary.contains(prepared.at(0).errorMessage),
+                         QStringLiteral("invalid MIDI summary must identify the item and reason"));
+            suite.expect(
+                emptySummary.contains(QFileInfo(emptyPath).fileName()) &&
+                    emptySummary.contains(prepared.at(1).errorMessage),
+                QStringLiteral("note-free MIDI summary must identify the item and reason"));
+            suite.expect(
+                MidiFilePreparer::failureMessage(prepared.at(2)).isEmpty(),
+                QStringLiteral("successful MIDI items must not enter the failure summary"));
+        });
     }
 
     void testSelectionAndGeometry(Suite &suite) {
@@ -228,6 +284,7 @@ namespace {
 int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
     Suite suite;
+    testBatchPreparationFailures(suite);
     testSelectionAndGeometry(suite);
     testFacadeCommitUndoRedo(suite);
     return suite.finish();

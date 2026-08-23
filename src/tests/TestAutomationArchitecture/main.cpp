@@ -136,6 +136,10 @@ int main(int argc, char *argv[]) {
         R"(&AppStatus::trackAutoPageTurnEnabledChanged[\s\S]{0,300}setAuto(?:PageTurn|TurnPage)\s*\(\s*enabled\s*\))"));
     const QRegularExpression pianoRollAutoPageTurnBinding(QStringLiteral(
         R"(&AppStatus::pianoRollAutoPageTurnEnabledChanged[\s\S]{0,300}setAuto(?:PageTurn|TurnPage)\s*\(\s*enabled\s*\))"));
+    const QRegularExpression midiBatchUsesSharedPreparation(
+        QStringLiteral(R"(MidiFilePreparer::prepare\s*\(\s*\{\s*path\s*\}\s*\))"));
+    const QRegularExpression midiBatchForwardsPreparationFailure(
+        QStringLiteral(R"(MidiFilePreparer::failureMessage\s*\(\s*item\s*\))"));
 
     for (const auto &id : Automation::OperationIds::all()) {
         if (!versionedOperationSuffix.match(id).hasMatch())
@@ -263,6 +267,16 @@ int main(int argc, char *argv[]) {
                 file, pianoRollAutoPageTurnBinding,
                 QStringLiteral(
                     "Piano-roll auto-page state stopped reaching the active editor backend"));
+        }
+
+        if (file.relativePath ==
+            QStringLiteral("src/app/Modules/Import/DocumentImportController.cpp")) {
+            ok &= requireMatch(
+                file, midiBatchUsesSharedPreparation,
+                QStringLiteral("MIDI batch import duplicated the shared preparation pipeline"));
+            ok &= requireMatch(
+                file, midiBatchForwardsPreparationFailure,
+                QStringLiteral("MIDI batch preparation failure stopped reaching the summary"));
         }
 
         if (file.relativePath == QStringLiteral("src/app/UI/Views/ClipEditor/PianoRoll/"
