@@ -1,0 +1,46 @@
+Evidence ID: E-R122-GUI-G02-DOCUMENT-RECENT
+Round: 122
+Scope: GUI-G02 document lifecycle and recent-project behavior through Computer Use
+
+Build identity:
+- GUI branch merged commit alias: a50e75be.
+- Executable SHA-256: 745cb7b2394f8379e8b7d56abea91057a61f6fc163b2179e77784162baaa535f.
+
+Document lifecycle:
+- A new document gained a second track and a singing clip on that track, then was saved as DOC_A.
+- A third track was added and the document was saved as DOC_B.
+- A fourth track was added and persisted with Ctrl+S.
+- Window title and dirty-state transitions were correct at every save boundary.
+- DOC_A and DOC_B opened from both the title overlay and the File menu; each restored its saved
+  track and clip structure.
+
+Recent-project capacity and removal:
+- After opening RECENT_01 through RECENT_09, the title overlay retained exactly five recent items.
+- The current item's more/remove control was disabled.
+- The non-current RECENT_08 remove control was enabled and removed only the list entry.
+- Opening DOC_A again produced exactly ten entries in File > Recent.
+
+Missing entry and clear behavior:
+- RECENT_01 was recoverably moved away from its original location before its list entry was used.
+- Selecting it displayed a file-not-found notice, kept DOC_A unchanged and then automatically
+  removed the stale Recent entry.
+- Clear Recent left both the title overlay and File > Recent showing no recent projects; the clear
+  action was disabled in the empty state.
+- Ctrl+N then entered an empty new document successfully.
+
+File artifact checks:
+- DOC_A: 2177 bytes; abbreviated SHA-256 16e7b2...6042.
+- DOC_B: 2547 bytes; abbreviated SHA-256 a48327...0045.
+- DOC_A and DOC_B differ, and DOC_B has the later modification time.
+- RECENT_08 remains present and non-empty: 2177 bytes; SHA-256 matches DOC_A.
+- RECENT_01 is absent from its original location.
+- RECOVERED_RECENT_01 remains present and non-empty: 2177 bytes; SHA-256 matches DOC_A.
+
+Diagnostics:
+- Product error count: 0.
+- Debug Error count: 0.
+- Unexpected modal count: 0.
+
+Outcome: PASS.
+Privacy: only aliases, hashes and size/order facts are retained; machine-local paths, user names,
+run-root identifiers and modification-time epochs are omitted.
