@@ -220,17 +220,38 @@ namespace Automation {
     struct AudioExportAutomationFacade::PendingJobState {
         QMutex mutex;
         bool cancellationRequested = false;
+        bool cleanupRequested = false;
+        bool cleanupClaimed = false;
         std::shared_ptr<IAudioExportJob> job;
 
-        void requestCancel() {
+        void requestCancel(const bool cleanupAfterCancel = false) {
             std::shared_ptr<IAudioExportJob> current;
             {
                 const QMutexLocker locker(&mutex);
+                const auto firstRequest = !cancellationRequested;
                 cancellationRequested = true;
-                current = job;
+                cleanupRequested |= cleanupAfterCancel;
+                if (firstRequest)
+                    current = job;
             }
             if (current)
                 current->cancel();
+        }
+
+        std::shared_ptr<IAudioExportJob> claimCleanup() {
+            const QMutexLocker locker(&mutex);
+            if (cleanupClaimed || !job)
+                return {};
+            cleanupClaimed = true;
+            return job;
+        }
+
+        std::shared_ptr<IAudioExportJob> claimRequestedCleanup() {
+            const QMutexLocker locker(&mutex);
+            if (!cleanupRequested || cleanupClaimed || !job)
+                return {};
+            cleanupClaimed = true;
+            return job;
         }
     };
 
@@ -353,11 +374,7 @@ namespace Automation {
                     });
                 }
                 if (!validateOnly) {
-                    std::shared_ptr<IAudioExportJob> job;
-                    {
-                        const QMutexLocker locker(&(*found)->state->mutex);
-                        job = (*found)->state->job;
-                    }
+                    const auto job = (*found)->state->claimCleanup();
                     if (job)
                         job->cleanup();
                     m_jobs.remove(taskId);
@@ -399,13 +416,24 @@ namespace Automation {
             state->job = created.get();
             cancelBeforeRun = state->cancellationRequested;
         }
+        const auto cleanup = [state] {
+            if (const auto job = state->claimCleanup())
+                job->cleanup();
+        };
+        const auto cleanupIfRequested = [state] {
+            if (const auto job = state->claimRequestedCleanup())
+                job->cleanup();
+        };
         if (cancelBeforeRun || m_tasks.isCancellationRequested(taskId)) {
             created.get()->cancel();
             m_tasks.cancel(taskId);
+            cleanupIfRequested();
             return;
         }
-        if (!m_tasks.markRunning(taskId))
+        if (!m_tasks.markRunning(taskId)) {
+            cleanupIfRequested();
             return;
+        }
 
         QStringList warnings;
         AudioExportObserver taskObserver;
@@ -439,6 +467,7 @@ namespace Automation {
         if (result.state == AudioExportBackendState::Canceled ||
             m_tasks.isCancellationRequested(taskId)) {
             m_tasks.cancel(taskId);
+            cleanupIfRequested();
             return;
         }
         if (result.state == AudioExportBackendState::Failed) {
@@ -448,25 +477,27 @@ namespace Automation {
             error.message = result.errorMessage.isEmpty() ? QStringLiteral("Audio export failed")
                                                           : result.errorMessage;
             m_tasks.fail(taskId, std::move(error));
+            cleanupIfRequested();
             return;
         }
 
         resolved = resolveVersion(baseDocument);
         if (!resolved) {
-            created.get()->cleanup();
+            cleanup();
             m_tasks.fail(taskId, taskError(resolved.getError(), taskId));
             return;
         }
         const auto committing = m_tasks.beginCommitting(taskId);
         if (!committing || !committing.get()) {
-            created.get()->cleanup();
+            cleanup();
             return;
         }
         MutationResult mutation;
         mutation.previous = baseDocument;
         mutation.current = baseDocument;
         mutation.warnings = std::move(warnings);
-        m_tasks.succeed(taskId, std::move(mutation));
+        if (!m_tasks.succeed(taskId, std::move(mutation)))
+            cleanupIfRequested();
     }
 
     AutomationResult<std::reference_wrapper<DocumentSession>>
@@ -490,15 +521,12 @@ namespace Automation {
                 ++it;
                 continue;
             }
-            (*it)->state->requestCancel();
-            std::shared_ptr<IAudioExportJob> job;
-            {
-                const QMutexLocker locker(&(*it)->state->mutex);
-                job = (*it)->state->job;
-            }
+            (*it)->state->requestCancel(true);
             const auto task = m_tasks.get(documentId, it.key());
-            if (job && task && terminal(task.get().state))
-                job->cleanup();
+            if (task && terminal(task.get().state)) {
+                if (const auto job = (*it)->state->claimCleanup())
+                    job->cleanup();
+            }
             it = m_jobs.erase(it);
         }
     }

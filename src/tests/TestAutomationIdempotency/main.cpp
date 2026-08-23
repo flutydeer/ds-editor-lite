@@ -248,6 +248,70 @@ namespace {
                       QStringLiteral("audio state conflicts must not commit another clip"));
     }
 
+    bool curveCollectionsChangeConflict() {
+        AutomationTestSupport::TestRuntime fixture;
+        auto &runtime = fixture.runtime();
+
+        Automation::TrackDraftDto track;
+        track.clientRef = QStringLiteral("idempotency-curve-track");
+        track.name = QStringLiteral("Curve Track");
+        track.gain = 1.0;
+        const auto insertedTrack = runtime.project().insertTrack(commandContext(runtime), 0, track);
+        if (!expect(insertedTrack && insertedTrack.get().affectedObjects.size() == 1,
+                    QStringLiteral("curve idempotency fixture track must be inserted"))) {
+            return false;
+        }
+        const Automation::TrackId trackId(insertedTrack.get().affectedObjects.first().value);
+
+        Automation::CurveDraftDto curve;
+        curve.type = Automation::CurveDraftDto::Type::Draw;
+        curve.step = 5;
+        curve.values = {1, 2, 0};
+        Automation::ParamCurvesDraftDto parameter;
+        parameter.name = ParamInfo::Pitch;
+        parameter.type = Param::Edited;
+        parameter.curves = {curve};
+        Automation::ClipDraftDto singing;
+        singing.clientRef = QStringLiteral("idempotency-curve-clip");
+        singing.type = Automation::ClipDraftDto::Type::Singing;
+        singing.properties.name = QStringLiteral("Curve Clip");
+        singing.properties.length = 480;
+        singing.properties.clipLen = 480;
+        singing.properties.gain = 1.0;
+        singing.defaultLanguage = QStringLiteral("en");
+        singing.params = {parameter};
+        const QList<Automation::ClipInsertDto> request{
+            {.trackId = trackId, .clip = singing}
+        };
+        const auto context =
+            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000018"));
+        const auto first = runtime.project().insertClips(context, request);
+        if (!expect(first && first.get().changed,
+                    QStringLiteral("the first curve request must commit"))) {
+            return false;
+        }
+
+        auto redistributed = request;
+        auto &redistributedCurve = redistributed.first().clip.params.first().curves.first();
+        redistributedCurve.values.clear();
+        redistributedCurve.nodes.append({
+            .position = 1,
+            .value = 2,
+            .interpolation = static_cast<AnchorNode::InterpMode>(0),
+        });
+        const auto conflict = runtime.project().insertClips(context, redistributed);
+        return expect(!conflict &&
+                          conflict.getError().code ==
+                              Automation::AutomationErrorCode::IdempotencyConflict &&
+                          conflict.getError().fieldPath == QStringLiteral("idempotency_key") &&
+                          conflict.getError().operationId ==
+                              Automation::OperationIds::clips::insert,
+                      QStringLiteral("curve value and node collection boundaries must produce "
+                                     "distinct idempotency fingerprints")) &&
+               expect(runtime.documentVersion().revision == context.expected.revision + 1,
+                      QStringLiteral("curve collection conflicts must not commit another clip"));
+    }
+
     bool previewsAndValidationFailuresDoNotClaimKeys() {
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
@@ -841,6 +905,7 @@ int main(int argc, char *argv[]) {
     ok &= concurrentReplayExecutesOnce(64);
     ok &= successfulKeyConflictsAreStable();
     ok &= audioClipStateChangesConflict();
+    ok &= curveCollectionsChangeConflict();
     ok &= previewsAndValidationFailuresDoNotClaimKeys();
     ok &= commitFailureDoesNotClaimKey();
     ok &= documentsHaveIndependentKeySpaces();

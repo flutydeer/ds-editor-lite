@@ -232,8 +232,10 @@ namespace Automation {
                     addInteger(hash, static_cast<int>(curve.type));
                     addInteger(hash, curve.localStart);
                     addInteger(hash, curve.step);
+                    addInteger(hash, curve.values.size());
                     for (const auto value : curve.values)
                         addInteger(hash, value);
+                    addInteger(hash, curve.nodes.size());
                     for (const auto &node : curve.nodes) {
                         addInteger(hash, node.position);
                         addInteger(hash, node.value);

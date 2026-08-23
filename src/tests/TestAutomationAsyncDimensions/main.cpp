@@ -847,8 +847,9 @@ namespace {
             EXPECT(matrix,
                    terminal && terminal.get().state == Automation::AutomationTaskState::Canceled &&
                        harness.audioExportState()->executeCount == 1 &&
+                       harness.audioExportState()->cleanupCount == 0 &&
                        harness.runtime().documentVersion() == base,
-                   QStringLiteral("backend cancellation must produce a stable canceled task"));
+                   QStringLiteral("ordinary backend cancellation must preserve cleanup ownership"));
         });
 
         matrix.run(operationId, "AFD-EXP-AUDIO-005-FAILURE-RETRY", [&] {
@@ -904,36 +905,88 @@ namespace {
 
         matrix.run(operationId, "AFD-EXP-AUDIO-007-GENERATION-BEFORE-RUN", [&] {
             matrix.cover("Queued");
+            matrix.cover("Running");
             matrix.cover("CancelRequested");
             matrix.cover("terminal");
-            RuntimeHarness harness;
-            const auto oldVersion = harness.runtime().documentVersion();
-            const auto accepted = harness.runtime().audioExports().start(
-                harness.context(), audioConfig(harness, QStringLiteral("generation.wav")), {});
-            const auto replacement = harness.runtime().documents().commitNewDocument(
-                harness.context(), RuntimeHarness::emptyDocument());
-            const auto newVersion = harness.runtime().documentVersion();
-            const auto released = harness.audioScheduler.runNext();
-            const auto oldLookup =
-                accepted ? harness.runtime().tasks().getTask(oldVersion.documentId,
-                                                             accepted.get().taskId)
-                         : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
-                               Automation::AutomationError{});
-            const auto newLookup =
-                accepted ? harness.runtime().tasks().getTask(newVersion.documentId,
-                                                             accepted.get().taskId)
-                         : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
-                               Automation::AutomationError{});
-            EXPECT(matrix,
-                   accepted && replacement && released &&
-                       newVersion.documentId != oldVersion.documentId && newVersion.revision == 0 &&
-                       harness.runtime().automationTasks().size() == 0 &&
-                       harness.audioExportState()->executeCount == 0 && !oldLookup &&
-                       oldLookup.getError().code ==
-                           Automation::AutomationErrorCode::DocumentChanged &&
-                       !newLookup &&
-                       newLookup.getError().code == Automation::AutomationErrorCode::NotFound,
-                   QStringLiteral("generation replacement must make queued work inert"));
+            {
+                RuntimeHarness harness;
+                const auto oldVersion = harness.runtime().documentVersion();
+                const auto accepted = harness.runtime().audioExports().start(
+                    harness.context(), audioConfig(harness, QStringLiteral("generation.wav")), {});
+                const auto replacement = harness.runtime().documents().commitNewDocument(
+                    harness.context(), RuntimeHarness::emptyDocument());
+                const auto newVersion = harness.runtime().documentVersion();
+                const auto released = harness.audioScheduler.runNext();
+                const auto oldLookup =
+                    accepted ? harness.runtime().tasks().getTask(oldVersion.documentId,
+                                                                 accepted.get().taskId)
+                             : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                                   Automation::AutomationError{});
+                const auto newLookup =
+                    accepted ? harness.runtime().tasks().getTask(newVersion.documentId,
+                                                                 accepted.get().taskId)
+                             : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                                   Automation::AutomationError{});
+                EXPECT(matrix,
+                       accepted && replacement && released &&
+                           newVersion.documentId != oldVersion.documentId &&
+                           newVersion.revision == 0 &&
+                           harness.runtime().automationTasks().size() == 0 &&
+                           harness.audioExportState()->executeCount == 0 && !oldLookup &&
+                           oldLookup.getError().code ==
+                               Automation::AutomationErrorCode::DocumentChanged &&
+                           !newLookup &&
+                           newLookup.getError().code == Automation::AutomationErrorCode::NotFound,
+                       QStringLiteral("generation replacement must make queued work inert"));
+            }
+
+            {
+                RuntimeHarness harness;
+                const auto oldVersion = harness.runtime().documentVersion();
+                std::optional<Automation::AutomationResult<Automation::MutationResult>> replacement;
+                harness.audioExportState()->backendState =
+                    Automation::AudioExportBackendState::Canceled;
+                harness.audioExportState()->executeHook = [&] {
+                    replacement.emplace(harness.runtime().documents().commitNewDocument(
+                        harness.context(), RuntimeHarness::emptyDocument()));
+                };
+                const auto accepted = harness.runtime().audioExports().start(
+                    harness.context(),
+                    audioConfig(harness, QStringLiteral("generation-running.wav")), {});
+                const auto released = harness.audioScheduler.runNext();
+                const auto newVersion = harness.runtime().documentVersion();
+                const auto oldLookup =
+                    accepted ? harness.runtime().tasks().getTask(oldVersion.documentId,
+                                                                 accepted.get().taskId)
+                             : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                                   Automation::AutomationError{});
+                const auto newLookup =
+                    accepted ? harness.runtime().tasks().getTask(newVersion.documentId,
+                                                                 accepted.get().taskId)
+                             : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                                   Automation::AutomationError{});
+                EXPECT(matrix,
+                       accepted && released && replacement && *replacement &&
+                           newVersion.documentId != oldVersion.documentId &&
+                           harness.runtime().automationTasks().size() == 0,
+                       QStringLiteral("generation replacement must discard the running task"));
+                EXPECT(matrix, harness.audioExportState()->executeCount == 1,
+                       QStringLiteral("generation replacement must let the running export observe "
+                                      "its cancellation"));
+                EXPECT(
+                    matrix, harness.audioExportState()->cancelCount == 1,
+                    QStringLiteral("generation replacement must cancel the backend exactly once"));
+                EXPECT(
+                    matrix, harness.audioExportState()->cleanupCount == 1,
+                    QStringLiteral("generation replacement must clean the backend exactly once"));
+                EXPECT(matrix,
+                       !oldLookup &&
+                           oldLookup.getError().code ==
+                               Automation::AutomationErrorCode::DocumentChanged &&
+                           !newLookup &&
+                           newLookup.getError().code == Automation::AutomationErrorCode::NotFound,
+                       QStringLiteral("replacement generations must not expose the old TaskId"));
+            }
         });
 
         matrix.run(operationId, "AFD-EXP-AUDIO-008-SUCCESS-NO-DOCUMENT-MUTATION", [&] {

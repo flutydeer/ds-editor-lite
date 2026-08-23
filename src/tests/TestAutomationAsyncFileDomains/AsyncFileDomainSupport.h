@@ -104,6 +104,7 @@ namespace AutomationAsyncFileTests {
         Automation::AudioExportBackendState backendState =
             Automation::AudioExportBackendState::Succeeded;
         QString backendError = QStringLiteral("controlled audio export failure");
+        std::function<void()> executeHook;
     };
 
     class FakeAudioExportJob final : public Automation::IAudioExportJob {
@@ -131,6 +132,8 @@ namespace AutomationAsyncFileTests {
                 observer.progress(0.75, 0);
             if (observer.warning)
                 observer.warning(QStringLiteral("controlled warning"), 0);
+            if (m_state->executeHook)
+                m_state->executeHook();
             return {
                 .state = m_state->backendState,
                 .errorMessage = m_state->backendState == Automation::AudioExportBackendState::Failed
