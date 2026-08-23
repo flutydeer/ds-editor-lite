@@ -189,6 +189,8 @@ namespace {
             suite.expect(
                 destination.tracks().size() == initialTrackCount + 1 && history->canUndo(),
                 QStringLiteral("MIDI import must append one selected track and one History item"));
+            suite.expect(!history->isOnSavePoint(),
+                         QStringLiteral("committed MIDI import must leave the savepoint"));
             suite.expect(destination.timeline().tempos() == draft.timeline.tempos() &&
                              destination.timeline().timeSignatures() ==
                                  draft.timeline.timeSignatures(),
@@ -207,14 +209,15 @@ namespace {
             const auto undo = runtime.history().undo(context(runtime));
             suite.expect(undo && undo.get().changed &&
                              destination.tracks().size() == initialTrackCount &&
-                             destination.timeline() == initialTimeline && history->canRedo(),
+                             destination.timeline() == initialTimeline && history->canRedo() &&
+                             history->isOnSavePoint(),
                          QStringLiteral("one undo must remove the track and restore the timeline"));
 
             const auto redo = runtime.history().redo(context(runtime));
             suite.expect(redo && redo.get().changed &&
                              destination.tracks().size() == initialTrackCount + 1 &&
                              destination.timeline().tempos() == draft.timeline.tempos() &&
-                             !history->canRedo(),
+                             !history->canRedo() && !history->isOnSavePoint(),
                          QStringLiteral("one redo must restore the complete import"));
         });
 
