@@ -176,7 +176,8 @@ namespace InferSpeakerMixModel {
 
     InferSpeakerMix dynamicSpeakerMixFromData(const SpeakerMixModel::SpeakerMixData &data,
                                               const QString &fallbackSpeaker, const int startTick,
-                                              const int endTick, const Timeline &timeline,
+                                              const int endTick, const int keyframeOriginTick,
+                                              const Timeline &timeline,
                                               const double intervalSeconds) {
         const auto normalized = SpeakerMixModel::normalizeSpeakerMixData(data);
         if (!SpeakerMixModel::isDynamicMixActive(normalized) || endTick <= startTick ||
@@ -207,7 +208,8 @@ namespace InferSpeakerMixModel {
             const int sampleTick =
                 qRound(timeline.secToTick(startSeconds + intervalSeconds * frame));
             const auto fullWeights = SpeakerMixModel::fullWeightsFromExplicitWeights(
-                interpolateExplicitWeights(normalized.dynamicKeyframes, sampleTick));
+                interpolateExplicitWeights(normalized.dynamicKeyframes,
+                                           sampleTick - keyframeOriginTick));
             if (fullWeights.size() != sources.size())
                 return fixedSpeakerMixFromData(normalized, fallbackSpeaker);
             for (int i = 0; i < sources.size(); ++i)
@@ -222,11 +224,12 @@ namespace InferSpeakerMixModel {
 
     InferSpeakerMix effectiveSpeakerMixFromData(const SpeakerMixModel::SpeakerMixData &data,
                                                 const QString &fallbackSpeaker, const int startTick,
-                                                const int endTick, const Timeline &timeline,
+                                                const int endTick, const int keyframeOriginTick,
+                                                const Timeline &timeline,
                                                 const double intervalSeconds) {
         if (SpeakerMixModel::isDynamicMixActive(data)) {
-            return dynamicSpeakerMixFromData(data, fallbackSpeaker, startTick, endTick, timeline,
-                                             intervalSeconds);
+            return dynamicSpeakerMixFromData(data, fallbackSpeaker, startTick, endTick,
+                                             keyframeOriginTick, timeline, intervalSeconds);
         }
         return fixedSpeakerMixFromData(data, fallbackSpeaker);
     }
