@@ -9,7 +9,7 @@
 原由 Computer Use 能力、原生确认规则、任务时长和听音端点限制而保留的 M01～M07，已由用户
 完成人工补测并确认通过，结果见第 6 节。
 
-最终测试树基于提交 `2dc60c51`；本报告整理只改变文档，不改变已测试的生产代码或测试代码。
+最终测试树基于提交 `d7a88649`；本报告整理只改变文档，不改变已测试的生产代码或测试代码。
 
 ## 2. 最终构建与自动化结果
 
@@ -18,9 +18,9 @@
 | Debug configure/generate | 通过 |
 | Debug 全目标构建 | 通过，`DsEditorLite` 完成链接和 Qt 部署 |
 | 注册 CTest | 53 |
-| 完整 CTest 第 1 轮 | 53/53 通过，0 失败，0 超时，8.54 秒 |
-| 完整 CTest 第 2 轮 | 53/53 通过，0 失败，0 超时，8.48 秒 |
-| 完整 CTest 第 3 轮 | 53/53 通过，0 失败，0 超时，8.39 秒 |
+| 完整 CTest 第 1 轮 | 53/53 通过，0 失败，0 超时，8.80 秒 |
+| 完整 CTest 第 2 轮 | 53/53 通过，0 失败，0 超时，8.72 秒 |
+| 完整 CTest 第 3 轮 | 53/53 通过，0 失败，0 超时，8.53 秒 |
 | 三轮合计 | 159/159 通过，无 flaky |
 | Qt/进程异常 | 无 platform/offscreen plugin 错误、Debug Error、ASSERT、fatal、超时或弹窗阻塞 |
 
@@ -49,6 +49,7 @@ Async File Domains、Piano Roll Note Commit、Fill Lyric、设置、控制器和
 - 122 个 operation 全部具有直接 handler 行为断言；不存在只测 Catalog、未进入 handler 的条目。
 - 产品 operation ID 均引用集中常量，无 `.v1` 后缀和分散字符串字面量。
 - 文档命令覆盖 DocumentId → revision → object/type → domain 的错误优先级。
+- 文档 DTO 重建保留 Original、Edited 与 Envelope 参数曲线；通用轨道属性编辑保留未参与编辑的颜色。
 - 适用命令覆盖正常提交、合法 no-op、validate-only、History/revision、Undo/Redo、宿主/I/O 失败
   回滚和幂等重放/冲突。
 - 幂等协议通过 16/64 路并发一次执行、失败释放、TaskId 重放和 generation 隔离。
