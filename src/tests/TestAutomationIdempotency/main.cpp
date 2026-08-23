@@ -312,6 +312,302 @@ namespace {
                       QStringLiteral("curve collection conflicts must not commit another clip"));
     }
 
+    bool voiceContextMetadataChangesConflict() {
+        SpeakerInfo speaker(QStringLiteral("speaker-a"), QStringLiteral("Speaker A"),
+                            QStringLiteral("C3"), QStringLiteral("C5"));
+        speaker.setLocalizedNames({
+            {QStringLiteral("zh-CN"), QStringLiteral("声线 A")}
+        });
+        speaker.setToneRange(std::make_pair(48, 72));
+        speaker.setMixable(true);
+
+        LanguageInfo language(QStringLiteral("zh"), QStringLiteral("Chinese"),
+                              QStringLiteral("g2p-a"), QStringLiteral("dict-a"),
+                              QStringLiteral("s2p-a"), QStringLiteral("onset-a"),
+                              QStringLiteral("s2p-a.txt"), QStringLiteral("onset-a.txt"));
+        language.setLocalizedNames({
+            {QStringLiteral("zh-CN"), QStringLiteral("中文")}
+        });
+        language.setG2pPackageVersion(QStringLiteral("1.2.3"));
+        language.setG2pPackagePaths({QStringLiteral("g2p/a"), QStringLiteral("dict/a")});
+
+        SingerInfo singer(
+            {QStringLiteral("singer-a"), QStringLiteral("package-a"), QVersionNumber(1, 2, 3)},
+            QStringLiteral("Singer A"), {speaker}, {language}, QStringLiteral("zh"),
+            QStringLiteral("default-dict"));
+        singer.setLocalizedNames({
+            {QStringLiteral("zh-CN"), QStringLiteral("歌手 A")}
+        });
+        singer.setResolutionState(ResolutionState::Resolved);
+        SingerCapabilitySummary capability;
+        capability.mixableSpeakers = {QStringLiteral("speaker-a")};
+        capability.speakerConsistency = 1;
+        capability.speakerWarnings = {QStringLiteral("speaker-warning")};
+        capability.acousticParameters = QStringList{QStringLiteral("energy")};
+        capability.pitchUsesExpressiveness = true;
+        capability.vocoderPitchControllable = false;
+        capability.effectivePhonemes = {QStringLiteral("a")};
+        capability.phonemeConsistency = 1;
+        capability.phonemeWarnings = {QStringLiteral("phoneme-warning")};
+        capability.phonemeDegraded = true;
+        capability.effectiveLanguages = {QStringLiteral("zh")};
+        capability.languageConsistency = 1;
+        capability.languageWarnings = {QStringLiteral("language-warning")};
+        singer.setCapability(capability);
+
+        QList<QPair<QString, SpeakerInfo>> speakerVariants;
+        const auto addSpeakerVariant = [&](const QString &label, const auto &change) {
+            auto variant = speaker;
+            change(variant);
+            speakerVariants.append(qMakePair(label, variant));
+        };
+        addSpeakerVariant(QStringLiteral("name"),
+                          [](SpeakerInfo &value) { value.setName(QStringLiteral("Speaker B")); });
+        addSpeakerVariant(QStringLiteral("localized names"), [](SpeakerInfo &value) {
+            value.setLocalizedNames({
+                {QStringLiteral("ja-JP"), QStringLiteral("話者 A")}
+            });
+        });
+        addSpeakerVariant(QStringLiteral("legacy tone minimum"),
+                          [](SpeakerInfo &value) { value.setToneMin(QStringLiteral("D3")); });
+        addSpeakerVariant(QStringLiteral("legacy tone maximum"),
+                          [](SpeakerInfo &value) { value.setToneMax(QStringLiteral("D5")); });
+        addSpeakerVariant(QStringLiteral("numeric tone range"),
+                          [](SpeakerInfo &value) { value.setToneRange(std::make_pair(50, 74)); });
+        addSpeakerVariant(QStringLiteral("mixability"),
+                          [](SpeakerInfo &value) { value.setMixable(false); });
+
+        QList<QPair<QString, LanguageInfo>> languageVariants;
+        const auto addLanguageVariant = [&](const QString &label, const auto &change) {
+            auto variant = language;
+            change(variant);
+            languageVariants.append(qMakePair(label, variant));
+        };
+        addLanguageVariant(QStringLiteral("language name"),
+                           [](LanguageInfo &value) { value.setName(QStringLiteral("Mandarin")); });
+        addLanguageVariant(QStringLiteral("language localized names"), [](LanguageInfo &value) {
+            value.setLocalizedNames({
+                {QStringLiteral("ja-JP"), QStringLiteral("中国語")}
+            });
+        });
+        addLanguageVariant(QStringLiteral("G2P mapping"),
+                           [](LanguageInfo &value) { value.setG2p(QStringLiteral("g2p-b")); });
+        addLanguageVariant(QStringLiteral("dictionary"),
+                           [](LanguageInfo &value) { value.setDict(QStringLiteral("dict-b")); });
+        addLanguageVariant(QStringLiteral("S2P mode"),
+                           [](LanguageInfo &value) { value.setS2pMode(QStringLiteral("s2p-b")); });
+        addLanguageVariant(QStringLiteral("onset mode"), [](LanguageInfo &value) {
+            value.setOnsetMode(QStringLiteral("onset-b"));
+        });
+        addLanguageVariant(QStringLiteral("S2P file"), [](LanguageInfo &value) {
+            value.setS2pFile(QStringLiteral("s2p-b.txt"));
+        });
+        addLanguageVariant(QStringLiteral("onset file"), [](LanguageInfo &value) {
+            value.setOnsetFile(QStringLiteral("onset-b.txt"));
+        });
+        addLanguageVariant(QStringLiteral("G2P version"), [](LanguageInfo &value) {
+            value.setG2pPackageVersion(QStringLiteral("2.0.0"));
+        });
+        addLanguageVariant(QStringLiteral("G2P version presence"),
+                           [](LanguageInfo &value) { value.clearG2pPackageVersion(); });
+        addLanguageVariant(QStringLiteral("G2P package paths"), [](LanguageInfo &value) {
+            value.setG2pPackagePaths({QStringLiteral("g2p/b")});
+        });
+
+        QList<QPair<QString, SingerInfo>> singerVariants;
+        const auto addSingerVariant = [&](const QString &label, const auto &change) {
+            auto variant = singer;
+            change(variant);
+            singerVariants.append(qMakePair(label, variant));
+        };
+        addSingerVariant(QStringLiteral("singer name"),
+                         [](SingerInfo &value) { value.setName(QStringLiteral("Singer B")); });
+        addSingerVariant(QStringLiteral("singer localized names"), [](SingerInfo &value) {
+            value.setLocalizedNames({
+                {QStringLiteral("ja-JP"), QStringLiteral("歌手 A")}
+            });
+        });
+        addSingerVariant(QStringLiteral("default language"),
+                         [](SingerInfo &value) { value.setDefaultLanguage(QStringLiteral("ja")); });
+        addSingerVariant(QStringLiteral("default dictionary"), [](SingerInfo &value) {
+            value.setDefaultDict(QStringLiteral("default-dict-b"));
+        });
+        addSingerVariant(QStringLiteral("resolution state"), [](SingerInfo &value) {
+            value.setResolutionState(ResolutionState::Missing);
+        });
+        for (const auto &[label, variant] : speakerVariants) {
+            addSingerVariant(QStringLiteral("nested speaker %1").arg(label),
+                             [&](SingerInfo &value) { value.setSpeakers({variant}); });
+        }
+        for (const auto &[label, variant] : languageVariants) {
+            addSingerVariant(QStringLiteral("nested language %1").arg(label),
+                             [&](SingerInfo &value) { value.setLanguages({variant}); });
+        }
+        addSingerVariant(QStringLiteral("capability presence"),
+                         [](SingerInfo &value) { value.setCapability(std::nullopt); });
+        const auto addCapabilityVariant = [&](const QString &label, const auto &change) {
+            auto variant = capability;
+            change(variant);
+            addSingerVariant(QStringLiteral("capability %1").arg(label),
+                             [&](SingerInfo &value) { value.setCapability(variant); });
+        };
+        addCapabilityVariant(QStringLiteral("mixable speakers"), [](auto &value) {
+            value.mixableSpeakers.append(QStringLiteral("speaker-b"));
+        });
+        addCapabilityVariant(QStringLiteral("speaker consistency"),
+                             [](auto &value) { value.speakerConsistency = 2; });
+        addCapabilityVariant(QStringLiteral("speaker warnings"), [](auto &value) {
+            value.speakerWarnings.append(QStringLiteral("speaker-warning-b"));
+        });
+        addCapabilityVariant(QStringLiteral("acoustic parameters"), [](auto &value) {
+            value.acousticParameters = QStringList{QStringLiteral("tension")};
+        });
+        addCapabilityVariant(QStringLiteral("pitch expressiveness"),
+                             [](auto &value) { value.pitchUsesExpressiveness = false; });
+        addCapabilityVariant(QStringLiteral("vocoder pitch"),
+                             [](auto &value) { value.vocoderPitchControllable = true; });
+        addCapabilityVariant(QStringLiteral("effective phonemes"), [](auto &value) {
+            value.effectivePhonemes.append(QStringLiteral("b"));
+        });
+        addCapabilityVariant(QStringLiteral("phoneme consistency"),
+                             [](auto &value) { value.phonemeConsistency = 2; });
+        addCapabilityVariant(QStringLiteral("phoneme warnings"), [](auto &value) {
+            value.phonemeWarnings.append(QStringLiteral("phoneme-warning-b"));
+        });
+        addCapabilityVariant(QStringLiteral("phoneme degraded"),
+                             [](auto &value) { value.phonemeDegraded = false; });
+        addCapabilityVariant(QStringLiteral("effective languages"), [](auto &value) {
+            value.effectiveLanguages.append(QStringLiteral("ja"));
+        });
+        addCapabilityVariant(QStringLiteral("language consistency"),
+                             [](auto &value) { value.languageConsistency = 2; });
+        addCapabilityVariant(QStringLiteral("language warnings"), [](auto &value) {
+            value.languageWarnings.append(QStringLiteral("language-warning-b"));
+        });
+
+        bool ok = true;
+        const auto singerFingerprint = Automation::fingerprint(singer);
+        for (const auto &[label, variant] : singerVariants) {
+            ok &= expect(Automation::fingerprint(variant) != singerFingerprint,
+                         QStringLiteral("singer %1 must affect the fingerprint").arg(label));
+        }
+        const auto speakerFingerprint = Automation::fingerprint(speaker);
+        for (const auto &[label, variant] : speakerVariants) {
+            ok &= expect(Automation::fingerprint(variant) != speakerFingerprint,
+                         QStringLiteral("speaker %1 must affect the fingerprint").arg(label));
+        }
+
+        SpeakerMixModel::SpeakerMixData mix;
+        mix.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
+        mix.sources = {{speaker},
+                       {SpeakerInfo(QStringLiteral("speaker-b"), QStringLiteral("Speaker B"))}};
+        mix.fixedWeights = {0.4};
+        auto mixVariant = mix;
+        mixVariant.sources.first().speaker = speakerVariants.first().second;
+        ok &= expect(Automation::fingerprint(mixVariant) != Automation::fingerprint(mix),
+                     QStringLiteral("full speaker metadata inside mix sources must be hashed"));
+
+        Automation::TrackDraftDto track;
+        track.clientRef = QStringLiteral("voice-track");
+        track.name = QStringLiteral("Voice Track");
+        track.gain = 1.0;
+        track.singerInfo = singer;
+        track.speakerInfo = speaker;
+        auto trackVariant = track;
+        trackVariant.singerInfo = singerVariants.first().second;
+        ok &= expect(Automation::fingerprint(trackVariant) != Automation::fingerprint(track),
+                     QStringLiteral("track drafts must hash complete voice context"));
+
+        Automation::ClipDraftDto clip;
+        clip.clientRef = QStringLiteral("voice-clip");
+        clip.type = Automation::ClipDraftDto::Type::Singing;
+        clip.properties.name = QStringLiteral("Voice Clip");
+        clip.properties.length = 480;
+        clip.properties.clipLen = 480;
+        clip.properties.gain = 1.0;
+        clip.usesTrackVoiceContext = false;
+        clip.ownSingerInfo = singer;
+        clip.ownSpeakerInfo = speaker;
+        QList<Automation::ClipInsertDto> clips{
+            {Automation::TrackId(1), clip}
+        };
+        auto clipsVariant = clips;
+        clipsVariant.first().clip.ownSpeakerInfo = speakerVariants.first().second;
+        ok &= expect(Automation::fingerprint(clipsVariant) != Automation::fingerprint(clips),
+                     QStringLiteral("clip drafts must hash complete voice context"));
+
+        Automation::DocumentDraftDto document;
+        document.tracks = {track};
+        auto documentVariant = document;
+        documentVariant.tracks.first().singerInfo = singerVariants.first().second;
+        ok &= expect(Automation::fingerprint(documentVariant) != Automation::fingerprint(document),
+                     QStringLiteral("document drafts must retain nested voice fingerprints"));
+
+        Automation::BatchImportDraftDto batch;
+        batch.items = {
+            {std::nullopt, track, {clip}}
+        };
+        auto batchVariant = batch;
+        batchVariant.items.first().clips.first().ownSpeakerMixData = mixVariant;
+        ok &= expect(Automation::fingerprint(batchVariant) != Automation::fingerprint(batch),
+                     QStringLiteral("import drafts must retain nested voice fingerprints"));
+
+        AutomationTestSupport::TestRuntime fixture;
+        auto &runtime = fixture.runtime();
+        const auto insertContext =
+            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000019"));
+        const auto inserted = runtime.project().insertTrack(insertContext, 0, track);
+        const auto trackConflict = runtime.project().insertTrack(insertContext, 0, trackVariant);
+        const auto isConflict = [](const MutationResult &result) {
+            return !result &&
+                   result.getError().code == Automation::AutomationErrorCode::IdempotencyConflict &&
+                   result.getError().fieldPath == QStringLiteral("idempotency_key");
+        };
+        ok &= expect(inserted && isConflict(trackConflict),
+                     QStringLiteral("metadata-only track retries must conflict"));
+
+        Automation::TrackDraftDto emptyTrack;
+        emptyTrack.clientRef = QStringLiteral("voice-target-track");
+        emptyTrack.name = QStringLiteral("Voice Target");
+        emptyTrack.gain = 1.0;
+        const auto target = runtime.project().insertTrack(commandContext(runtime), 1, emptyTrack);
+        if (!expect(target && target.get().affectedObjects.size() == 1,
+                    QStringLiteral("voice fingerprint target track must be inserted"))) {
+            return false;
+        }
+        const Automation::TrackId targetTrackId(target.get().affectedObjects.first().value);
+        clips.first().trackId = targetTrackId;
+        clipsVariant.first().trackId = targetTrackId;
+        const auto clipContext =
+            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000020"));
+        const auto insertedClip = runtime.project().insertClips(clipContext, clips);
+        const auto clipConflict = runtime.project().insertClips(clipContext, clipsVariant);
+        ok &= expect(insertedClip && isConflict(clipConflict),
+                     QStringLiteral("metadata-only clip retries must conflict"));
+
+        Automation::TrackDraftDto parameterTrack;
+        parameterTrack.clientRef = QStringLiteral("voice-parameter-track");
+        parameterTrack.name = QStringLiteral("Voice Parameter Target");
+        parameterTrack.gain = 1.0;
+        const auto parameterTarget =
+            runtime.project().insertTrack(commandContext(runtime), 2, parameterTrack);
+        if (!expect(parameterTarget && parameterTarget.get().affectedObjects.size() == 1,
+                    QStringLiteral("voice parameter target track must be inserted"))) {
+            return false;
+        }
+        const Automation::TrackId parameterTrackId(
+            parameterTarget.get().affectedObjects.first().value);
+        const auto parameterContext =
+            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000021"));
+        const auto selected = runtime.parameters().selectTrackSingleSpeaker(
+            parameterContext, parameterTrackId, singer, speaker);
+        const auto parameterConflict = runtime.parameters().selectTrackSingleSpeaker(
+            parameterContext, parameterTrackId, singerVariants.first().second, speaker);
+        ok &= expect(selected && isConflict(parameterConflict),
+                     QStringLiteral("metadata-only Speaker Mix retries must conflict"));
+        return ok;
+    }
+
     bool previewsAndValidationFailuresDoNotClaimKeys() {
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
@@ -906,6 +1202,7 @@ int main(int argc, char *argv[]) {
     ok &= successfulKeyConflictsAreStable();
     ok &= audioClipStateChangesConflict();
     ok &= curveCollectionsChangeConflict();
+    ok &= voiceContextMetadataChangesConflict();
     ok &= previewsAndValidationFailuresDoNotClaimKeys();
     ok &= commitFailureDoesNotClaimKey();
     ok &= documentsHaveIndependentKeySpaces();

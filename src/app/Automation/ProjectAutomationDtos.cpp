@@ -141,13 +141,111 @@ namespace Automation {
             }
         }
 
+        void addStringMap(QCryptographicHash &hash, const QMap<QString, QString> &values) {
+            addInteger(hash, values.size());
+            for (auto it = values.cbegin(); it != values.cend(); ++it) {
+                addString(hash, it.key());
+                addString(hash, it.value());
+            }
+        }
+
+        void addStringList(QCryptographicHash &hash, const QStringList &values) {
+            addInteger(hash, values.size());
+            for (const auto &value : values)
+                addString(hash, value);
+        }
+
+        void addSpeakerInfo(QCryptographicHash &hash, const SpeakerInfo &speaker) {
+            addString(hash, speaker.id());
+            addString(hash, speaker.name());
+            addStringMap(hash, speaker.localizedNames());
+            addString(hash, speaker.toneMin());
+            addString(hash, speaker.toneMax());
+            const auto toneRange = speaker.toneRange();
+            addInteger(hash, toneRange.has_value());
+            if (toneRange) {
+                addInteger(hash, toneRange->first);
+                addInteger(hash, toneRange->second);
+            }
+            addInteger(hash, speaker.mixable());
+        }
+
+        void addLanguageInfo(QCryptographicHash &hash, const LanguageInfo &language) {
+            addString(hash, language.id());
+            addString(hash, language.name());
+            addStringMap(hash, language.localizedNames());
+            addString(hash, language.g2p());
+            addString(hash, language.dict());
+            addString(hash, language.s2pMode());
+            addString(hash, language.onsetMode());
+            addString(hash, language.s2pFile());
+            addString(hash, language.onsetFile());
+            addInteger(hash, language.hasG2pPackageVersion());
+            addString(hash, language.g2pPackageVersion());
+            addStringList(hash, language.g2pPackagePaths());
+        }
+
+        void addOptionalStringList(QCryptographicHash &hash,
+                                   const std::optional<QStringList> &values) {
+            addInteger(hash, values.has_value());
+            if (values)
+                addStringList(hash, *values);
+        }
+
+        void addOptionalBool(QCryptographicHash &hash, const std::optional<bool> value) {
+            addInteger(hash, value.has_value());
+            if (value)
+                addInteger(hash, *value);
+        }
+
+        void addSingerCapability(QCryptographicHash &hash,
+                                 const std::optional<SingerCapabilitySummary> &capability) {
+            addInteger(hash, capability.has_value());
+            if (!capability)
+                return;
+            addStringList(hash, capability->mixableSpeakers);
+            addInteger(hash, capability->speakerConsistency);
+            addStringList(hash, capability->speakerWarnings);
+            addOptionalStringList(hash, capability->acousticParameters);
+            addOptionalBool(hash, capability->pitchUsesExpressiveness);
+            addOptionalBool(hash, capability->vocoderPitchControllable);
+            addStringList(hash, capability->effectivePhonemes);
+            addInteger(hash, capability->phonemeConsistency);
+            addStringList(hash, capability->phonemeWarnings);
+            addInteger(hash, capability->phonemeDegraded);
+            addStringList(hash, capability->effectiveLanguages);
+            addInteger(hash, capability->languageConsistency);
+            addStringList(hash, capability->languageWarnings);
+        }
+
+        void addSingerInfo(QCryptographicHash &hash, const SingerInfo &singer) {
+            const auto identifier = singer.identifier();
+            addString(hash, identifier.singerId);
+            addString(hash, identifier.packageId);
+            addString(hash, identifier.packageVersion.toString());
+            addString(hash, singer.name());
+            addStringMap(hash, singer.localizedNames());
+            const auto speakers = singer.speakers();
+            addInteger(hash, speakers.size());
+            for (const auto &speaker : speakers)
+                addSpeakerInfo(hash, speaker);
+            const auto languages = singer.languages();
+            addInteger(hash, languages.size());
+            for (const auto &language : languages)
+                addLanguageInfo(hash, language);
+            addString(hash, singer.defaultLanguage());
+            addString(hash, singer.defaultDict());
+            addInteger(hash, static_cast<int>(singer.resolutionState()));
+            addSingerCapability(hash, singer.capability());
+        }
+
         void addSpeakerMix(QCryptographicHash &hash, const SpeakerMixModel::SpeakerMixData &input) {
             const auto data = SpeakerMixModel::normalizeSpeakerMixData(input);
             addInteger(hash, static_cast<int>(data.mode));
             addInteger(hash, data.dynamicBypassed);
             addInteger(hash, data.sources.size());
             for (const auto &source : data.sources)
-                addString(hash, source.speaker.id());
+                addSpeakerInfo(hash, source.speaker);
             addInteger(hash, data.fixedWeights.size());
             for (const auto weight : data.fixedWeights)
                 addDouble(hash, weight);
@@ -184,11 +282,8 @@ namespace Automation {
             addDouble(hash, draft.properties.materialLengthMs);
             addInteger(hash, draft.usesTrackVoiceContext);
             addJsonMap(hash, draft.workspace);
-            const auto singer = draft.ownSingerInfo.identifier();
-            addString(hash, singer.singerId);
-            addString(hash, singer.packageId);
-            addString(hash, singer.packageVersion.toString());
-            addString(hash, draft.ownSpeakerInfo.id());
+            addSingerInfo(hash, draft.ownSingerInfo);
+            addSpeakerInfo(hash, draft.ownSpeakerInfo);
             addSpeakerMix(hash, draft.ownSpeakerMixData);
             addInteger(hash, draft.audioInfo.chunkSize);
             addInteger(hash, draft.audioInfo.mipmapScale);
@@ -505,6 +600,24 @@ namespace Automation {
         return result;
     }
 
+    QByteArray fingerprint(const SingerInfo &singerInfo) {
+        QCryptographicHash hash(QCryptographicHash::Sha256);
+        addSingerInfo(hash, singerInfo);
+        return hash.result();
+    }
+
+    QByteArray fingerprint(const SpeakerInfo &speakerInfo) {
+        QCryptographicHash hash(QCryptographicHash::Sha256);
+        addSpeakerInfo(hash, speakerInfo);
+        return hash.result();
+    }
+
+    QByteArray fingerprint(const SpeakerMixModel::SpeakerMixData &speakerMixData) {
+        QCryptographicHash hash(QCryptographicHash::Sha256);
+        addSpeakerMix(hash, speakerMixData);
+        return hash.result();
+    }
+
     QByteArray fingerprint(const TrackDraftDto &draft) {
         QCryptographicHash hash(QCryptographicHash::Sha256);
         addString(hash, draft.clientRef);
@@ -515,11 +628,8 @@ namespace Automation {
         addInteger(hash, draft.mute);
         addInteger(hash, draft.solo);
         addString(hash, draft.defaultLanguage);
-        const auto singer = draft.singerInfo.identifier();
-        addString(hash, singer.singerId);
-        addString(hash, singer.packageId);
-        addString(hash, singer.packageVersion.toString());
-        addString(hash, draft.speakerInfo.id());
+        addSingerInfo(hash, draft.singerInfo);
+        addSpeakerInfo(hash, draft.speakerInfo);
         addSpeakerMix(hash, draft.speakerMixData);
         addInteger(hash, draft.clips.size());
         for (const auto &clip : draft.clips)

@@ -74,6 +74,7 @@ public:
 
     SingerIdentifier identifier() const;
     QString name() const;
+    QMap<QString, QString> localizedNames() const;
     [[nodiscard]] QString displayName(const QString &bcp47Locale) const;
     [[nodiscard]] QString displayName(const QStringList &bcp47Locales) const;
     QString singerId() const;

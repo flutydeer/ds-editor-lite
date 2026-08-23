@@ -15,20 +15,8 @@
 
 namespace Automation {
     namespace {
-        void hashString(QCryptographicHash &hash, const QString &value) {
-            const auto bytes = value.toUtf8();
-            hash.addData(QByteArray::number(bytes.size()));
-            hash.addData(":", 1);
-            hash.addData(bytes);
-        }
-
         void hashInteger(QCryptographicHash &hash, const qint64 value) {
             hash.addData(QByteArray::number(value));
-            hash.addData(";", 1);
-        }
-
-        void hashDouble(QCryptographicHash &hash, const double value) {
-            hash.addData(QByteArray::number(value, 'g', 17));
             hash.addData(";", 1);
         }
 
@@ -50,29 +38,6 @@ namespace Automation {
             }
         }
 
-        void hashSpeakerMix(QCryptographicHash &hash,
-                            const SpeakerMixModel::SpeakerMixData &input) {
-            const auto data = SpeakerMixModel::normalizeSpeakerMixData(input);
-            hashInteger(hash, static_cast<int>(data.mode));
-            hashInteger(hash, data.dynamicBypassed);
-            hashInteger(hash, data.sources.size());
-            for (const auto &source : data.sources)
-                hashString(hash, source.speaker.id());
-            hashInteger(hash, data.fixedWeights.size());
-            for (const auto weight : data.fixedWeights)
-                hashDouble(hash, weight);
-            hashInteger(hash, data.dynamicKeyframes.size());
-            for (const auto &keyframe : data.dynamicKeyframes) {
-                hashInteger(hash, keyframe.tick);
-                hashInteger(hash, keyframe.weights.size());
-                for (const auto weight : keyframe.weights)
-                    hashDouble(hash, weight);
-            }
-            hashString(hash, data.sourcePresetId);
-            hashString(hash, data.sourcePresetName);
-            hashInteger(hash, data.sourcePresetDirty);
-        }
-
         QByteArray parameterFingerprint(const ClipId clipId, const ParamInfo::Name name,
                                         const Param::Type type,
                                         const QList<CurveDraftDto> &curves) {
@@ -89,12 +54,9 @@ namespace Automation {
                                     const SpeakerMixModel::SpeakerMixData &data) {
             QCryptographicHash hash(QCryptographicHash::Sha256);
             hashInteger(hash, objectId);
-            const auto singer = singerInfo.identifier();
-            hashString(hash, singer.singerId);
-            hashString(hash, singer.packageId);
-            hashString(hash, singer.packageVersion.toString());
-            hashString(hash, speakerInfo.id());
-            hashSpeakerMix(hash, data);
+            hash.addData(fingerprint(singerInfo));
+            hash.addData(fingerprint(speakerInfo));
+            hash.addData(fingerprint(data));
             return hash.result();
         }
 

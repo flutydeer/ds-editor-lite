@@ -197,6 +197,9 @@ namespace Automation {
 
     [[nodiscard]] QByteArray fingerprint(const TrackPropertiesDto &properties);
     [[nodiscard]] QByteArray fingerprint(const ClipPropertiesDto &properties);
+    [[nodiscard]] QByteArray fingerprint(const SingerInfo &singerInfo);
+    [[nodiscard]] QByteArray fingerprint(const SpeakerInfo &speakerInfo);
+    [[nodiscard]] QByteArray fingerprint(const SpeakerMixModel::SpeakerMixData &speakerMixData);
     [[nodiscard]] QByteArray fingerprint(const TrackDraftDto &draft);
     [[nodiscard]] QByteArray fingerprint(const QList<ClipInsertDto> &clips);
     [[nodiscard]] QByteArray fingerprint(const DocumentDraftDto &draft);

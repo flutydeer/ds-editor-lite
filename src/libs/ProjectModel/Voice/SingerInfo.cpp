@@ -99,6 +99,10 @@ QString SingerInfo::name() const {
     return d->name;
 }
 
+QMap<QString, QString> SingerInfo::localizedNames() const {
+    return d->localizedNames;
+}
+
 QString SingerInfo::displayName(const QString &bcp47Locale) const {
     return lite::Support::lookupLocalizedText(d->localizedNames, d->name, bcp47Locale);
 }
