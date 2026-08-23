@@ -9,7 +9,7 @@
 原由 Computer Use 能力、原生确认规则、任务时长和听音端点限制而保留的 M01～M07，已由用户
 完成人工补测并确认通过，结果见第 6 节。
 
-最终测试树基于提交 `3beb9729`；本报告整理只改变文档，不改变已测试的生产代码或测试代码。
+最终测试树基于提交 `fb226f96`；本报告整理只改变文档，不改变已测试的生产代码或测试代码。
 
 ## 2. 最终构建与自动化结果
 
@@ -18,9 +18,9 @@
 | Debug configure/generate | 通过 |
 | Debug 全目标构建 | 通过，`DsEditorLite` 完成链接和 Qt 部署 |
 | 注册 CTest | 53 |
-| 完整 CTest 第 1 轮 | 53/53 通过，0 失败，0 超时，8.44 秒 |
-| 完整 CTest 第 2 轮 | 53/53 通过，0 失败，0 超时，8.28 秒 |
-| 完整 CTest 第 3 轮 | 53/53 通过，0 失败，0 超时，8.21 秒 |
+| 完整 CTest 第 1 轮 | 53/53 通过，0 失败，0 超时，8.36 秒 |
+| 完整 CTest 第 2 轮 | 53/53 通过，0 失败，0 超时，8.24 秒 |
+| 完整 CTest 第 3 轮 | 53/53 通过，0 失败，0 超时，8.12 秒 |
 | 三轮合计 | 159/159 通过，无 flaky |
 | Qt/进程异常 | 无 platform/offscreen plugin 错误、Debug Error、ASSERT、fatal、超时或弹窗阻塞 |
 
@@ -58,6 +58,10 @@ Async File Domains、Piano Roll Note Commit、Fill Lyric、设置、控制器和
 - 异步协议覆盖 Queued、Running、CancelRequested、Committing、terminal、取消/提交点竞争、重复
   完成、对象删除、revision 前进和 New/Open generation 换代；换代中的音频导出只取消和清理
   一次，不遗留临时或部分导出文件，普通取消仍保留显式 cleanup 所有权。
+- Pitch/MIDI 提取任务在排队取消、运行中取消、成功和失败终态均只通知一次，并在通知完成后释放
+  后端任务资源；重复完成回调不会重复通知、提交或延长资源生命周期。
+- 设置与 Speaker Mix 预设持久化失败时，内存值和运行时监听者同步恢复到提交前状态，不保留被拒绝
+  的临时配置。
 - 单 Session Resolver 通过双 fake 证明按请求 DocumentId 路由；生产运行时仍只装配一个 Session。
 
 ## 3. GUI 与真实环境最终结果
