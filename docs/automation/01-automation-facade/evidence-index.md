@@ -531,3 +531,15 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R157-R161-GUI-G19-PACKAGES-VOICES` | 157–161 | GUI-G19 包路径、同身份碰撞诊断、Package Manager、声音解析与基线恢复 | `9f093cf7873d5fea94b356c195ae1f13d122f6da4e0df93e4471e01fddbafd57` |
+
+## 追加证据 87
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R162-R165-GUI-G20-MIDI-IMPORT-FAILURE` | 162–165 | GUI-G20 MIDI 取消、确认失败、原子回滚与转换器契约首轮失败 | `539d6e3b8b1766600adb1bb2563f2e5f502bbaedf7f1a4a42b0ff51ad17d4913` |
+
+## 追加证据 88
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R166-R177-GUI-G20-MIDI-LIBRESVIP-RECOVERY` | 166–177 | MIDI 几何、保存点、混合批次修复及 LibreSVIP Open/Import 与精确恢复 | `b28e2fa11ef256c5c1b6d7f3d19018777e6ccd8599dd815c2641474daf75d91d` |
