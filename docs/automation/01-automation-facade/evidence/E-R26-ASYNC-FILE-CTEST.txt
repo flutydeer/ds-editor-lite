@@ -1,9 +1,0 @@
-Evidence ID: E-R26-ASYNC-FILE-CTEST
-Round: 26
-Scope: async and file-domain CTest registration
-
-CTest selection: TestAutomationAsyncFileDomains
-Tests passed: 1 of 1
-Test time: 0.11 s
-Total CTest time: 0.13 s
-Failures: 0

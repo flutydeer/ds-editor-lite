@@ -191,3 +191,5 @@ Catalog 快照、命令、场景/断言数、逐域结果、耗时、失败修�
 
 - [迁移矩阵](migration-matrix.md)
 - [全量测试大纲](test-outline.md)
+- [实现报告](implementation-report.md)
+- [最终测试报告](test-report.md)
