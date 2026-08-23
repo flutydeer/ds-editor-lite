@@ -357,3 +357,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R85-COMPUTER-USE-TRANSPORT-BLOCKED` | 85 | Computer Use 新会话传输阻塞摘要 | `d11a22539d126fe95ae4f5266300b1a9d4671404cd558bd8a920ac025ae7e2b7` |
+
+## 追加证据 58
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R86-COMPUTER-USE-TRANSPORT-BLOCKED` | 86 | Computer Use 主会话重复传输阻塞摘要 | `7e08a0afa16f9661bf331a3d5bcaffa8df5f86585c54b590ed0a01921bb10be5` |
