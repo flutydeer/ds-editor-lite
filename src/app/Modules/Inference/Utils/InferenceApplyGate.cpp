@@ -7,6 +7,7 @@
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Modules/Inference/InferControllerHelper.h"
+#include "Modules/Inference/InferenceAutomationBridge.h"
 #include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
 
 #include <QDebug>
@@ -177,6 +178,15 @@ namespace InferenceApplyGate {
             return Decision::Defer;
         };
 
+        bool documentRevisionDrifted = false;
+        Automation::DocumentVersion currentDocument;
+        if (!context.documentVersion.documentId.isNull()) {
+            currentDocument = InferenceAutomationBridge::currentDocumentVersion();
+            if (context.documentVersion.documentId != currentDocument.documentId)
+                return drop("document-changed", currentDocument.revision);
+            documentRevisionDrifted = context.documentVersion.revision != currentDocument.revision;
+        }
+
         if (context.clipId < 0)
             return drop("context-missing");
 
@@ -263,6 +273,13 @@ namespace InferenceApplyGate {
             const auto session = editSessionManager->activeSession();
             if (editSessionConflicts(session, context, resolution))
                 return defer("edit-session-conflict", currentRevision);
+        }
+        if (documentRevisionDrifted) {
+            // Target-level revision and semantic signatures above have validated this result.
+            // Sibling inference commits may advance the global revision without invalidating it.
+            logDecision(context, options.phase, Decision::Apply,
+                        "document-revision-drift-target-snapshot-match",
+                        currentDocument.revision);
         }
         return Decision::Apply;
     }

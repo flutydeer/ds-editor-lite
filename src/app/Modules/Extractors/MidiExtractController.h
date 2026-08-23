@@ -7,7 +7,6 @@
 #include <lite/Core/Singleton.h>
 
 
-class ExtractMidiTask;
 class SingingClip;
 class AudioClip;
 
@@ -24,9 +23,6 @@ public:
 
 public:
     void runExtractMidi(const AudioClip *audioClip);
-
-private slots:
-    static void onExtractMidiTaskFinished(ExtractMidiTask *task);
 };
 
 #endif // MIDIEXTRACTOR_H

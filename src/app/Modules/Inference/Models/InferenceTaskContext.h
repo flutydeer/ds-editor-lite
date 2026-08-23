@@ -3,6 +3,8 @@
 
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 
+#include "Automation/AutomationTypes.h"
+
 #include <QList>
 #include <QString>
 #include <QtGlobal>
@@ -12,6 +14,7 @@ class Note;
 class SingingClip;
 
 struct InferenceTaskContext {
+    Automation::DocumentVersion documentVersion;
     QString taskType;
     int taskId = -1;
     int clipId = -1;

@@ -129,6 +129,31 @@ namespace {
         return success;
     }
 
+    bool testPlaybackLookaheadPersistence(const QString &cacheDirectory) {
+        InferenceOption option;
+        option.load(config(cacheDirectory, QStringLiteral("CPU")));
+        bool success = expect(option.playbackLookaheadSeconds == 20.0,
+                              QStringLiteral("playback lookahead should default to 20 seconds"));
+
+        auto configured = config(cacheDirectory, QStringLiteral("CPU"));
+        configured.insert(QStringLiteral("playbackLookaheadSeconds"), 12.0);
+        option.load(configured);
+        success &= expect(option.playbackLookaheadSeconds == 12.0,
+                          QStringLiteral("playback lookahead should be loaded"));
+
+        const auto saved = option.value();
+        success &= expect(
+            saved.value(QStringLiteral("playbackLookaheadSeconds")).toDouble() == 12.0,
+            QStringLiteral("playback lookahead should be persisted"));
+
+        InferenceOption reloaded;
+        reloaded.load(saved);
+        success &= expect(
+            reloaded.playbackLookaheadSeconds == 12.0,
+            QStringLiteral("playback lookahead should survive a save-load round trip"));
+        return success;
+    }
+
 } // namespace
 
 int main(int argc, char *argv[]) {
@@ -143,5 +168,6 @@ int main(int argc, char *argv[]) {
     success &= testSupportedProviders(cacheDirectory.path());
     success &= testCudaProvider(cacheDirectory.path());
     success &= testSingerSessionCacheSettings(cacheDirectory.path());
+    success &= testPlaybackLookaheadPersistence(cacheDirectory.path());
     return success ? 0 : 1;
 }

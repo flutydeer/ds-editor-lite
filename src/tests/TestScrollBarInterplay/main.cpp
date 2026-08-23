@@ -30,6 +30,7 @@
 // collapsing the handle to its 20px minimum and leaving it at mid-track.
 namespace {
     int g_failures = 0;
+    int g_capturedWarningCount = 0;
 
     class WheelProbe final : public QWidget {
     public:
@@ -104,6 +105,15 @@ int main(int argc, char *argv[]) {
     expect(sceneAwareItem.scaleInitializedInScene && sceneAwareItem.visibleRectInitializedInScene,
            "scene-dependent item geometry must initialize after scene attachment");
     timeScene.removeCommonItem(&sceneAwareItem);
+    const auto previousMessageHandler = qInstallMessageHandler(
+        [](const QtMsgType type, const QMessageLogContext &, const QString &) {
+            if (type == QtWarningMsg)
+                ++g_capturedWarningCount;
+        });
+    timeScene.removeCommonItem(nullptr);
+    qInstallMessageHandler(previousMessageHandler);
+    expect(g_capturedWarningCount == 0,
+           "removing an absent optional graphics item must not emit a Qt warning");
 
     QGraphicsView view;
     view.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);

@@ -17,6 +17,10 @@ public:
     // block the other files.
     static QList<PreparedImportItem> prepare(const QStringList &paths);
 
+    // Formats a Failed item for a batch summary. Non-failed items return an
+    // empty string so callers can append the result conditionally.
+    static QString failureMessage(const PreparedImportItem &item);
+
     // Detects the shared encoding from the aggregated lyrics of all
     // successfully parsed MIDI items (falls back to the default codec).
     static QByteArray detectCommonCodec(const QList<PreparedImportItem> &prepared);

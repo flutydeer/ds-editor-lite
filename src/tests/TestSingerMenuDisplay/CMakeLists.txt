@@ -4,6 +4,7 @@ lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
         ../../app/UI/Controls/TwoLevelComboBox.cpp
+        ../../app/Utils/UiLanguageManager.cpp
         ../../libs/PackageManager/Models/PackageInfo.cpp
 )
 

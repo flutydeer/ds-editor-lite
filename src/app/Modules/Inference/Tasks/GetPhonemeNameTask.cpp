@@ -15,11 +15,12 @@
 
 Q_LOGGING_CATEGORY(logInferPhoneme, "infer.phoneme_name")
 
-GetPhonemeNameTask::GetPhonemeNameTask(const int clipId, const quint64 clipRevision,
+GetPhonemeNameTask::GetPhonemeNameTask(Automation::DocumentVersion documentVersion,
+                                       const int clipId, const quint64 clipRevision,
                                        const QList<NoteInferenceSnapshot> &notes,
                                        const SingerInfo &singerInfo)
-    : m_clipSingerInfo(singerInfo), m_clipId(clipId), m_clipRevision(clipRevision),
-      m_inputs(notes) {
+    : m_clipSingerInfo(singerInfo), m_clipId(clipId),
+      m_documentVersion(std::move(documentVersion)), m_clipRevision(clipRevision), m_inputs(notes) {
     for (int i = 0; i < notes.count(); i++) {
         const auto &note = notes.at(i);
         m_previewText.append(note.lyric);
@@ -36,6 +37,10 @@ GetPhonemeNameTask::GetPhonemeNameTask(const int clipId, const quint64 clipRevis
     qInfo() << "Task created"
             << " clipId:" << m_clipId << "taskId:" << id() << "taskRevision:" << m_clipRevision
             << "noteCount:" << m_inputs.count();
+}
+
+Automation::DocumentVersion GetPhonemeNameTask::documentVersion() const {
+    return m_documentVersion;
 }
 
 int GetPhonemeNameTask::clipId() const {

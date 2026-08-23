@@ -15,6 +15,7 @@
 
 class InferInputBase {
 public:
+    Automation::DocumentVersion documentVersion;
     int clipId = -1;
     int pieceId = -1;
     quint64 clipRevision = 0;
@@ -52,6 +53,7 @@ public:
 
     [[nodiscard]] InferenceTaskContext toInferenceTaskContext(const QString &taskType) const {
         InferenceTaskContext context;
+        context.documentVersion = documentVersion;
         context.taskType = taskType;
         context.clipId = clipId;
         context.pieceId = pieceId;

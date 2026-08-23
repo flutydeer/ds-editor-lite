@@ -7,6 +7,7 @@
 #include <lite/GUI/Controls/InlineEditLabel.h>
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/PanSlider.h>
+#include "Controller/TrackController.h"
 #include "UI/Utils/AppColorPalette.h"
 #include <lite/GUI/Theme/ThemeManager.h>
 
@@ -72,7 +73,8 @@ int ChannelView::colorIndex() const {
 
 void ChannelView::setColorIndex(int colorIndex) {
     if (m_context)
-        m_context->setColorIndex(colorIndex);
+        trackController->changeTrackColor(m_context->id(), colorIndex);
+    updateChannelColor();
 }
 
 PanSlider *const &ChannelView::panSlider() const {

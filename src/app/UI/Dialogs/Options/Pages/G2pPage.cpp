@@ -1,5 +1,7 @@
 #include "G2pPage.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include <QLabel>
 #include <QVBoxLayout>
 
@@ -18,7 +20,10 @@ void G2pPage::update() const {
 }
 
 void G2pPage::modifyOption() {
-    appOptions->saveAndNotify(AppOptionsGlobal::G2pLanguage);
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+        runtime->settings().updateG2pLanguage(
+            {}, {.languageOrder = appOptions->g2pLanguage()->langOrder});
+    }
 }
 
 QWidget *G2pPage::createContentWidget() {

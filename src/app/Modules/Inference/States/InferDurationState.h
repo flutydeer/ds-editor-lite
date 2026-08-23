@@ -12,7 +12,7 @@ public:
     ~InferDurationState() override = default;
 
 private:
-    void resetState() override;
+    bool resetState() override;
     void buildTaskInput() override;
     IInferTask *createTask() override;
     void addTaskToController(IInferTask *task) override;

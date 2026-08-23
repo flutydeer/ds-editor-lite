@@ -18,7 +18,6 @@ public:
 
     IMainWindow *m_mainWindow = nullptr;
     static void initializeModules();
-    static bool isPowerOf2(int num);
 
 private:
     AppController *q_ptr = nullptr;

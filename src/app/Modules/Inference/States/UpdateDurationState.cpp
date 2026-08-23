@@ -2,10 +2,8 @@
 
 #include <QTimer>
 
-#include "Modules/Inference/InferControllerHelper.h"
+#include "Modules/Inference/InferenceAutomationBridge.h"
 #include "Modules/Inference/InferPipeline.h"
-
-namespace Helper = InferControllerHelper;
 
 UpdateDurationState::UpdateDurationState(InferPipeline &pipeline, QState *parent)
     : QState(parent), m_pipeline(pipeline) {
@@ -28,13 +26,20 @@ void UpdateDurationState::onEntry(QEvent *event) {
             return;
     }
 
-    InferControllerHelper::updatePhoneOffset(gate.resolution.notes, m_pipeline.durationResult(),
-                                             *gate.resolution.clip);
-
-    // TODO: 可能需要将更新相对参数的方法提取出来
-    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Expressiveness, *gate.resolution.clip);
-    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Gender, *gate.resolution.clip);
-    Helper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Velocity, *gate.resolution.clip);
+    Automation::InferenceMutationRequest request;
+    request.kind = Automation::InferenceMutationKind::ApplyDuration;
+    request.clipId = Automation::ClipId(m_pipeline.applyContext().clipId);
+    request.pieceId = Automation::PieceId(m_pipeline.applyContext().pieceId);
+    for (const auto id : m_pipeline.applyContext().noteIds)
+        request.noteIds.append(Automation::NoteId(id));
+    request.durationResult = m_pipeline.durationResult();
+    const auto result = InferenceAutomationBridge::executeAfterGate(
+        m_pipeline.applyContext().documentVersion, request);
+    if (!result) {
+        m_pipeline.notifyDropped(InferenceAutomationBridge::dropReason(result.getError()));
+        QTimer::singleShot(0, this, [this] { emit pieceNotFound(); });
+        return;
+    }
     QTimer::singleShot(0, this, [this] { emit updateSuccess(); });
 }
 

@@ -162,6 +162,13 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
         m_rhiView->setAutoPageTurn(appStatus->trackAutoPageTurnEnabled);
     else
         m_graphicsView->setAutoTurnPage(appStatus->trackAutoPageTurnEnabled);
+    connect(appStatus, &AppStatus::trackAutoPageTurnEnabledChanged, this,
+            [this](const bool enabled) {
+                if (m_rhiView)
+                    m_rhiView->setAutoPageTurn(enabled);
+                else if (m_graphicsView)
+                    m_graphicsView->setAutoTurnPage(enabled);
+            });
     if (m_rhiView)
         connectRhiBackend();
     else
@@ -548,7 +555,7 @@ bool TrackEditorView::revealFocus(const HistoryFocus &focus, const bool animated
                                              : itemBounds.united(item->sceneBoundingRect());
         }
     }
-    appStatus->selectedClips = selectedIds;
+    trackController->setSelectedClips(selectedIds);
     if (!selectedIds.isEmpty())
         trackController->setActiveClip(selectedIds.first());
 
@@ -687,7 +694,7 @@ void TrackEditorView::onViewScaleChanged(const qreal sx, const qreal sy) const {
 
 void TrackEditorView::setSelectedTrackIndex(const int trackIndex) const {
     if (appStatus->selectedTrackIndex != trackIndex)
-        appStatus->selectedTrackIndex = trackIndex;
+        trackController->setSelectedTrackIndex(trackIndex);
     else
         syncSelectedTrackToList(trackIndex);
 }

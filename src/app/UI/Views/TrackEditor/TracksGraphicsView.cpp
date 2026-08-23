@@ -612,13 +612,13 @@ void TracksGraphicsView::showTrackPastePreview(const TrackPastePreviewData &data
 
 void TracksGraphicsView::syncClipSelectionToAppStatus() const {
     const auto ids = selectedClipsId();
-    appStatus->selectedClips = ids;
+    trackController->setSelectedClips(ids);
     if (!ids.isEmpty()) {
         Track *track;
         appModel->findClipById(ids.first(), track);
         const auto trackIndex = appModel->tracks().indexOf(track);
         if (trackIndex >= 0)
-            appStatus->selectedTrackIndex = trackIndex;
+            trackController->setSelectedTrackIndex(trackIndex);
     }
 }
 

@@ -1355,8 +1355,8 @@ public:
         if (editMode == SplitNote) {
             updateSplitPreview(event->position());
             if (note && splitPreviewNoteId == note->id())
-                PianoRollGraphicsViewHelper::splitNote(note->id(),
-                                                       splitPreviewTick + clip->start());
+                (void) PianoRollGraphicsViewHelper::splitNote(note->id(),
+                                                              splitPreviewTick + clip->start());
             clearSplitPreview();
             return;
         }
@@ -1482,9 +1482,11 @@ public:
             return;
         }
         if (interaction == Interaction::Draw) {
-            PianoRollGraphicsViewHelper::drawNote(drawStart, drawEnd - drawStart, drawKey);
+            const auto committed =
+                PianoRollGraphicsViewHelper::drawNote(drawStart, drawEnd - drawStart, drawKey);
             appStatus->pianoRollNoteEditPreview = {};
-            finishNoteEditSession(EditSessionEndReason::Commit);
+            finishNoteEditSession(committed ? EditSessionEndReason::Commit
+                                            : EditSessionEndReason::Discard);
         } else if (interaction != Interaction::None && interaction != Interaction::RectSelect &&
                    interactionNoteId >= 0) {
             if (interactionMoved && interaction == Interaction::Move) {

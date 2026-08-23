@@ -1,14 +1,15 @@
 #include "ClipEditorToolBarView.h"
 #include "ClipEditorToolBarView_p.h"
 
-#include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
+#include "Controller/EditorViewController.h"
 #include "Controller/TrackController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Model/AppStatus/AppStatus.h"
-#include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/SingerIdentifier.h>
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/GUI/Controls/Button.h>
@@ -39,6 +40,11 @@ namespace {
 
     int quantizeIndex(int quantize) {
         return QuantizeOptions::indexOf(quantize);
+    }
+
+    Automation::CommandContext commandContext(const Automation::CoreRuntime &runtime) {
+        return {.expected = runtime.documentVersion(),
+                .source = Automation::InvocationSource::TrustedGui};
     }
 
 } // namespace
@@ -120,11 +126,10 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_cbPianoRollQuantize->setToolTip(tr("Piano Roll Quantize"));
     connect(d->m_cbPianoRollQuantize, &QComboBox::currentIndexChanged, this, [](int index) {
         if (index <= 0) {
-            appStatus->pianoRollQuantizeEnabled = false;
+            editorViewController->setPianoRollQuantize(appStatus->pianoRollQuantize, false);
             return;
         }
-        appStatus->pianoRollQuantizeEnabled = true;
-        appStatus->pianoRollQuantize = QuantizeOptions::values().at(index - 1);
+        editorViewController->setPianoRollQuantize(QuantizeOptions::values().at(index - 1), true);
     });
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, d->m_cbPianoRollQuantize,
             [combo = d->m_cbPianoRollQuantize](int quantize) {
@@ -171,7 +176,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_btnAutoPageTurn = d->buildToolButton(
         "btnAutoPageTurn", ":svg/icons/arrow_right_16_regular.svg", tr("Auto Page Turn"));
     connect(d->m_btnAutoPageTurn, &QPushButton::toggled, this,
-            [](const bool checked) { appStatus->pianoRollAutoPageTurnEnabled = checked; });
+            [](const bool checked) { editorViewController->setPianoRollAutoPageTurn(checked); });
     connect(appStatus, &AppStatus::pianoRollAutoPageTurnEnabledChanged, this,
             [btn = d->m_btnAutoPageTurn](const bool enabled) { btn->setChecked(enabled); });
     connect(appStatus, &AppStatus::pianoRollAutoPageTurnAvailabilityChanged, this,
@@ -395,9 +400,11 @@ void ClipEditorToolBarViewPrivate::onClipLanguageChanged(const QString &language
 }
 
 void ClipEditorToolBarViewPrivate::onLanguageEdited(const QString &language) const {
-    if (m_singingClip) {
-        m_singingClip->setDefaultLanguage(language);
-    }
+    if (!m_singingClip || m_singingClip->defaultLanguage() == language)
+        return;
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
+        runtime->project().setSingingClipDefaultLanguage(
+            commandContext(*runtime), Automation::ClipId(m_singingClip->id()), language);
 }
 
 void ClipEditorToolBarViewPrivate::moveToNullClipState() const {
@@ -523,11 +530,16 @@ void ClipEditorToolBarViewPrivate::onSingerEdited() const {
         return;
 
     if (m_cbSinger->isInheritSelected()) {
-        m_singingClip->useTrackSingerAndSpeaker();
+        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
+            runtime->parameters().useTrackVoiceContext(
+                commandContext(*runtime), Automation::ClipId(m_singingClip->id()));
     } else {
         const auto singerInfo = m_cbSinger->currentSinger();
         const auto speakerInfo = m_cbSinger->currentSpeaker();
-        m_singingClip->setOwnSingerAndSpeaker(singerInfo, speakerInfo);
+        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
+            runtime->parameters().selectClipSingleSpeaker(
+                commandContext(*runtime), Automation::ClipId(m_singingClip->id()), singerInfo,
+                speakerInfo);
     }
     refreshSingerComboPresentation();
 }
@@ -560,8 +572,11 @@ void ClipEditorToolBarViewPrivate::refreshLanguageComboPresentation() const {
     // latch singer default language only when singer is resolved; do not write back without a
     // singer
     if (singerInfo.resolutionState() == ResolutionState::Resolved &&
-        language != m_singingClip->defaultLanguage())
-        m_singingClip->setDefaultLanguage(language);
+        language != m_singingClip->defaultLanguage()) {
+        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
+            runtime->project().setSingingClipDefaultLanguage(
+                commandContext(*runtime), Automation::ClipId(m_singingClip->id()), language);
+    }
 }
 
 void ClipEditorToolBarViewPrivate::populatePresetMenus() const {
@@ -621,10 +636,10 @@ void ClipEditorToolBarViewPrivate::onPresetApplied(const QString &presetId) cons
     }
 
     const auto speakerInfo = data.sources.first().speaker;
-    const auto actions = new SpeakerMixActions;
-    actions->applyClipSpeakerMixPreset(singerInfo, speakerInfo, data, m_singingClip);
-    actions->execute();
-    historyManager->record(actions);
+    if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
+        runtime->parameters().applyClipSpeakerMix(
+            commandContext(*runtime), Automation::ClipId(m_singingClip->id()), singerInfo,
+            speakerInfo, data);
 
     refreshSingerComboPresentation();
 }
@@ -646,11 +661,10 @@ void ClipEditorToolBarViewPrivate::onManagePresetsAction(const SingerInfo &singe
     if (dialog.exec() == QDialog::Accepted && m_singingClip) {
         const auto data = dialog.speakerMixData();
         if (!SpeakerMixModel::isSpeakerMixDataSingle(data)) {
-            const auto actions = new SpeakerMixActions;
-            actions->applyClipSpeakerMixPreset(singerInfo, data.sources.first().speaker, data,
-                                               m_singingClip);
-            actions->execute();
-            historyManager->record(actions);
+            if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
+                runtime->parameters().applyClipSpeakerMix(
+                    commandContext(*runtime), Automation::ClipId(m_singingClip->id()), singerInfo,
+                    data.sources.first().speaker, data);
         }
     }
     refreshSingerComboPresentation();

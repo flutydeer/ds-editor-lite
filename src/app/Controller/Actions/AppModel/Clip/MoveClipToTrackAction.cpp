@@ -12,6 +12,8 @@ namespace {
         clip->setClipStart(args.clipStart);
         clip->setLength(args.length);
         clip->setClipLen(args.clipLen);
+        clip->setGain(args.gain);
+        clip->setMute(args.mute);
         if (clip->clipType() == IClip::Audio) {
             static_cast<AudioClip *>(clip)->applyRealTimeAnchorFromProperties(
                 args, appModel->timeline());

@@ -3,11 +3,17 @@
 #include "AppContext.h"
 #include "Interface/IEditorView.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "TestRuntime.h"
 #include <lite/History/ActionSequence.h>
 #include <lite/History/HistoryManager.h>
 
 #include <QCoreApplication>
 #include <QTextStream>
+
+namespace {
+    Automation::CoreRuntime *g_runtime = nullptr;
+    IEditorView *g_editorHost = nullptr;
+}
 
 template <>
 EditorViewController *AppContext::instance<EditorViewController>() {
@@ -27,6 +33,11 @@ HistoryManager *AppContext::instance<HistoryManager>() {
 template <>
 AppStatus *AppContext::instance<AppStatus>() {
     return nullptr;
+}
+
+template <>
+Automation::CoreRuntime *AppContext::instance<Automation::CoreRuntime>() {
+    return g_runtime;
 }
 
 namespace {
@@ -288,6 +299,10 @@ namespace {
 int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
     FakeEditorView view;
+    g_editorHost = &view;
+    AutomationTestSupport::TestRuntime testRuntime(
+        AutomationTestSupport::editorServices(&g_editorHost));
+    g_runtime = &testRuntime.runtime();
     editorViewController->setView(&view);
 
     testVisibleExecutesImmediately(view);
@@ -299,6 +314,8 @@ int main(int argc, char *argv[]) {
     testFallbacksAndEditGuard(view);
 
     editorViewController->setView(nullptr);
+    g_editorHost = nullptr;
+    g_runtime = nullptr;
     historyManager->reset();
     if (g_failures == 0) {
         QTextStream(stdout) << "All UndoRedoController tests passed" << Qt::endl;

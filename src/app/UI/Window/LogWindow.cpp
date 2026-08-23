@@ -1,5 +1,7 @@
 #include "LogWindow.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include <lite/Support/LogBus.h>
 #include "Model/AppOptions/AppOptions.h"
 #include <lite/GUI/Theme/ThemeManager.h>
@@ -316,10 +318,13 @@ void LogWindow::closeEvent(QCloseEvent *event) {
     // option off. During app shutdown Qt closes child windows programmatically
     // (non-spontaneous); the option must survive that so the window reopens on restart.
     if (event->spontaneous()) {
-        const auto option = appOptions->developer();
-        if (option->showLogWindow) {
-            option->showLogWindow = false;
-            appOptions->saveAndNotify(AppOptionsGlobal::DeveloperOptions);
+        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+            const auto snapshot = runtime->settings().getSettings();
+            if (snapshot && snapshot.get().developer.showLogWindow) {
+                auto settings = snapshot.get().developer;
+                settings.showLogWindow = false;
+                runtime->settings().updateDeveloper({}, settings);
+            }
         }
     }
     Window::closeEvent(event);

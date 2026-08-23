@@ -3,7 +3,6 @@
 #include "ExtractorUtils.h"
 
 #include "AppContext.h"
-#include "Model/AppOptions/AppOptions.h"
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <lite/Support/StringUtils.h>
 #include <lite/Support/Linq.h>
@@ -16,7 +15,6 @@
 #include <QMutexLocker>
 #include <QScopeGuard>
 #include <utility>
-#include "Global/AppGlobal.h"
 
 ExtractPitchTask::ExtractPitchTask(Input input) : ExtractTask(std::move(input)) {
     TaskStatus status;
@@ -51,12 +49,11 @@ void ExtractPitchTask::runTask() {
         return;
     }
 
-    const auto rmvpePath = appOptions->general()->rmvpePath;
-    const auto modelPath = StringUtils::qstr_to_path(rmvpePath);
+    const auto modelPath = StringUtils::qstr_to_path(m_input.modelPath);
 
     if (modelPath.empty() || !exists(modelPath) || is_directory(modelPath)) {
         m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage = tr("Invalid RMVPE model path: ") + rmvpePath;
+        m_errorMessage = tr("Invalid RMVPE model path: ") + m_input.modelPath;
         qCritical().noquote() << errorMessage();
         return;
     }

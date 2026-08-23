@@ -31,6 +31,7 @@ void InferenceOption::load(const QJsonObject &object) {
     load_depth(object);
     load_runVocoderOnCpu(object);
     load_autoStartInfer(object);
+    load_playbackLookaheadSeconds(object);
     load_singerSessionCacheCapacity(object);
     singerSessionCacheCapacity = normalizeSingerSessionCacheCapacity(singerSessionCacheCapacity);
     load_singerSessionIdleTimeoutSeconds(object);
@@ -47,6 +48,7 @@ void InferenceOption::save(QJsonObject &object) {
               serialize_depth(),
               serialize_runVocoderOnCpu(),
               serialize_autoStartInfer(),
+              serialize_playbackLookaheadSeconds(),
               serialize_cacheDirectory(),
               serialize_singerSessionCacheCapacity(),
               serialize_singerSessionIdleTimeoutSeconds(),

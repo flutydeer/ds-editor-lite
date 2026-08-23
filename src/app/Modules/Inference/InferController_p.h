@@ -61,9 +61,13 @@ public:
     void handleGetPronTaskFinished(GetPronunciationTask &task);
     void handleGetPhoneTaskFinished(GetPhonemeNameTask &task);
 
+    enum class ClipInferenceStartStage { Pronunciation, Phoneme };
+
     bool allRequiredModulesReady() const;
     bool canStartClipInference(const SingingClip &clip) const;
-    void ensureClipInferenceStarted(SingingClip &clip);
+    void ensureClipInferenceStarted(
+        SingingClip &clip,
+        ClipInferenceStartStage stage = ClipInferenceStartStage::Pronunciation);
     void scheduleRetryAllSingingClips();
     void retryAllSingingClips();
 

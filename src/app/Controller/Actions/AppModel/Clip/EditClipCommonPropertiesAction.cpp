@@ -16,6 +16,8 @@ namespace {
         clip->setClipStart(safeArgs.clipStart);
         clip->setLength(safeArgs.length);
         clip->setClipLen(safeArgs.clipLen);
+        clip->setGain(safeArgs.gain);
+        clip->setMute(safeArgs.mute);
         if (clip->clipType() == IClip::Audio) {
             // The tick snapshot may predate a tempo change; the ms truth
             // carried in the args re-derives the caches under the current map

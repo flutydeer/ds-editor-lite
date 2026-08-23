@@ -66,7 +66,7 @@ void HistoryManager::reset(const ResetState state) {
     d->m_undoStack.clear();
     d->m_redoStack.clear();
     d->m_savePoint = nullptr;
-    d->m_isSavePointSet = false;
+    d->m_isSavePointSet = state == ResetState::Saved;
     d->m_unsavedBaseline = state == ResetState::Unsaved;
     emit undoRedoChanged(canUndo(), "", canRedo(), "");
 }

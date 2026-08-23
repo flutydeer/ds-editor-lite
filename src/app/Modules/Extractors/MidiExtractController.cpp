@@ -1,18 +1,28 @@
 #include "MidiExtractController.h"
 
-#include "ExtractMidiTask.h"
-#include "Controller/TrackController.h"
-#include "Controller/Actions/AppModel/Track/TrackActions.h"
-#include <lite/ProjectModel/AppModel/AudioClip.h>
-#include <lite/ProjectModel/AppModel/Note.h>
-#include "Model/AppOptions/AppOptions.h"
-#include <lite/Tasking/TaskManager.h>
-#include <lite/GUI/Controls/AccentButton.h>
-#include <lite/GUI/Controls/Toast.h>
-#include "UI/Dialogs/Base/TaskDialog.h"
-#include <lite/Support/Linq.h>
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
+#include "UI/Dialogs/Base/Dialog.h"
 
-#include <QFileInfo>
+#include <lite/GUI/Controls/AccentButton.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+
+namespace {
+    Automation::CoreRuntime *automationRuntime() {
+        return AppContext::instance<Automation::CoreRuntime>();
+    }
+
+    void showExtractionError(const QString &message) {
+        Dialog dialog;
+        dialog.setTitle(MidiExtractController::tr("Task Failed"));
+        dialog.setMessage(message);
+        dialog.setModal(true);
+        const auto close = new AccentButton(MidiExtractController::tr("Close"));
+        QObject::connect(close, &Button::clicked, &dialog, &Dialog::accept);
+        dialog.setPositiveButton(close);
+        dialog.exec();
+    }
+}
 
 MidiExtractController::MidiExtractController(QObject *parent) : ModelChangeHandler(parent) {
 }
@@ -22,67 +32,27 @@ MidiExtractController::~MidiExtractController() = default;
 LITE_SINGLETON_IMPLEMENT_INSTANCE(MidiExtractController)
 
 void MidiExtractController::runExtractMidi(const AudioClip *audioClip) {
+    auto *runtime = automationRuntime();
+    if (!runtime || !audioClip)
+        return;
+
     const auto path = audioClip->path();
-    const auto task = new ExtractMidiTask({-1, audioClip->id(), path, appModel->timeline()});
-    const auto dlg = new TaskDialog(task, true, true);
-    dlg->show();
-    connect(task, &Task::finished, this, [=] { onExtractMidiTaskFinished(task); });
-    taskManager->addAndStartTask(task);
-}
-
-void MidiExtractController::onExtractMidiTaskFinished(ExtractMidiTask *task) {
-    taskManager->removeTask(task);
-    if (!task->success()) {
-        Dialog dialog;
-        dialog.setTitle(tr("Task Failed"));
-        dialog.setMessage(tr("Failed to extract Midi from audio:\n %1\n\n%2")
-                              .arg(task->input().audioPath)
-                              .arg(task->errorMessage()));
-        dialog.setModal(true);
-
-        const auto btnClose = new AccentButton(tr("Close"));
-        connect(btnClose, &Button::clicked, &dialog, &Dialog::accept);
-        dialog.setPositiveButton(btnClose);
-        dialog.exec();
-        delete task;
-        return;
+    Automation::ExtractionObserver observer;
+    observer.finished = [path](const Automation::AutomationTaskSnapshot &task) {
+        if (task.state != Automation::AutomationTaskState::Failed || !task.error)
+            return;
+        showExtractionError(
+            MidiExtractController::tr("Failed to extract MIDI from audio:\n %1\n\n%2")
+                .arg(path, task.error->message));
+    };
+    Automation::CommandContext context{
+        .expected = runtime->documentVersion(),
+        .source = Automation::InvocationSource::TrustedGui,
+    };
+    const auto accepted = runtime->extractions().startMidi(
+        context, Automation::ClipId(audioClip->id()), std::move(observer));
+    if (!accepted) {
+        showExtractionError(MidiExtractController::tr("Failed to start MIDI extraction:\n\n%1")
+                                .arg(accepted.getError().message));
     }
-
-    const auto audioClip =
-        dynamic_cast<AudioClip *>(appModel->findClipById(task->input().audioClipId));
-    if (!audioClip) {
-        delete task;
-        return;
-    }
-
-    const auto language = appOptions->general()->defaultSingingLanguage;
-
-    // TODO: Fix start
-    QList<Note *> notes;
-    const auto defaultLyric = appOptions->general()->defaultLyricForLanguage(language);
-    const auto audioClipStart = audioClip->start();
-    const auto singClipStart = audioClip->start();
-    for (const auto &[key, start, duration] : task->result) {
-        const auto localStart = start + audioClipStart - singClipStart;
-        if (localStart < 0)
-            continue;
-        const auto note = new Note;
-        note->setLocalStart(localStart);
-        note->setLength(duration);
-        note->setKeyIndex(key);
-        note->setLyric(defaultLyric);
-        note->setLanguage(language);
-        notes.append(note);
-    }
-
-    auto singingClip = new SingingClip{notes};
-    singingClip->setStart(audioClip->start());
-    singingClip->setLength(audioClip->length());
-    singingClip->setClipLen(audioClip->length());
-    singingClip->setDefaultLanguage(appOptions->general()->defaultSingingLanguage);
-    const auto track = new Track(QFileInfo(task->input().audioPath).baseName(), {singingClip});
-    track->setDefaultLanguage(language);
-    trackController->onAppendTrack(track);
-
-    delete task;
 }

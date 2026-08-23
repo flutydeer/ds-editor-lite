@@ -3,6 +3,8 @@
 
 #include "IOptionPage.h"
 
+#include <QMap>
+
 class Button;
 class ComboBox;
 class LineEdit;
@@ -28,6 +30,7 @@ private:
     LanguageComboBox *m_cbDefaultSingingLanguage;
     LineEdit *m_leDefaultLyric;
     QString m_previousLanguage;
+    QMap<QString, QString> m_defaultLyrics;
 
     PathEditor *m_packageSearchPaths;
 

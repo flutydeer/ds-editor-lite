@@ -19,14 +19,11 @@ public:
     bool save(const QString &path, AppModel *model, QString &errMsg) override;
 
 protected:
-    // Publish the loaded project's loop region. The base ignores it; the app
-    // overrides this to push it into AppStatus, keeping the converter free of
-    // app-runtime state.
+    // Publishes the loaded project's loop region to the host after a complete load.
     virtual void applyLoadedLoopSettings(const LoopSettings &loopSettings) {
         Q_UNUSED(loopSettings);
     }
-    // The loop region to persist on save. The base has none; the app overrides
-    // this to read the active loop region from AppStatus.
+    // Supplies the host-owned loop snapshot to persist on save.
     virtual LoopSettings loopSettingsToSave() const {
         return {};
     }

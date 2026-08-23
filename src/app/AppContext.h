@@ -31,6 +31,10 @@ class AppController;
 class DocumentWorkflowController;
 class LevelMeterManager;
 
+namespace Automation {
+    class CoreRuntime;
+}
+
 struct AudioSystemContext;
 
 class AppContext {
@@ -55,6 +59,7 @@ public:
     // L1: Independent modules
     HistoryManager *m_historyManager = nullptr;
     PackageManager *m_packageManager = nullptr;
+    std::unique_ptr<Automation::CoreRuntime> m_coreRuntime;
 
     // L2: Language modules
     LangSetting::ILangSetManager *m_iLangSetManager = nullptr;

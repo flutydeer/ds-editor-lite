@@ -28,6 +28,7 @@ public:
     [[nodiscard]] QString configPath() const;
 
     bool saveAndNotify(AppOptionsGlobal::Option option);
+    void notifyOptionsChanged(AppOptionsGlobal::Option option);
 
     GeneralOption *general();
     AudioOption *audio();
@@ -53,8 +54,6 @@ private:
 
     QString fileName = "appConfig.json";
     QString m_configPath;
-
-    void notifyOptionsChanged(AppOptionsGlobal::Option option);
 };
 
 #endif // APPOPTIONS_H

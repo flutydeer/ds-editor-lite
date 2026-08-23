@@ -1,6 +1,8 @@
 #ifndef DECODEAUDIOTASK_H
 #define DECODEAUDIOTASK_H
 
+#include "Automation/ProjectAutomationDtos.h"
+
 #include <QJsonObject>
 
 #include <lite/ProjectModel/AppModel/AudioInfoModel.h>
@@ -20,6 +22,9 @@ public:
     int trackId = -1;
     int clipId = -1;
     int tick = 0;
+    Automation::DocumentVersion documentVersion;
+    Automation::TaskId automationTaskId;
+    Automation::AudioAssetSnapshotDto assetSnapshot;
     QString path;
     bool success = false;
     QString errorMessage;

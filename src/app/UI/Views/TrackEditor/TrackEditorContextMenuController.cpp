@@ -219,7 +219,7 @@ void TrackEditorContextMenuController::selectAll() const {
         for (const auto *clip : track->clips())
             ids.append(clip->id());
     }
-    appStatus->selectedClips = ids;
+    trackController->setSelectedClips(ids);
     if (!ids.isEmpty())
         trackController->setActiveClip(ids.first());
 }

@@ -1,4 +1,5 @@
 #include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "Bootstrap/AppEnvironment.h"
 #include "Bootstrap/CrashHandler.h"
 #include "Bootstrap/ExternalOpenRequestQueue.h"
@@ -107,8 +108,9 @@ int main(int argc, char *argv[]) {
         CrashHandler crashHandler;
         result = a.exec();
         coordinator.stopAcceptingRequests();
-        appOptions->window()->setMainWindowGeometry(windowPlacement.saveGeometry());
-        if (!appOptions->saveAndNotify(AppOptionsGlobal::Window))
+        const auto saveWindow = appContext.m_coreRuntime->settings().updateWindow(
+            {}, {.mainWindowGeometry = windowPlacement.saveGeometry()});
+        if (!saveWindow)
             qWarning("Failed to save main-window placement");
     }
     coordinator.shutdown();

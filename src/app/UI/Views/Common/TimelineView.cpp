@@ -254,6 +254,11 @@ void TimelineView::mousePressEvent(QMouseEvent *event) {
         if (loopSettings.enabled && m_canEditLoop) {
             m_loopDragMode = hitTestLoop(event->pos());
             if (m_loopDragMode != None) {
+                if (!playbackController->beginLoopSettingsEdit()) {
+                    m_loopDragMode = None;
+                    event->ignore();
+                    return;
+                }
                 m_loopDragStartTick = loopSettings.start;
                 m_loopDragStartPos = static_cast<int>(xToTick(event->pos().x()));
                 // Change cursor to closed hand when dragging
@@ -304,7 +309,7 @@ void TimelineView::mouseMoveEvent(QMouseEvent *event) {
                                                                   quantizeInterval, timeline()));
             loopSettings.start = newStart;
         }
-        appStatus->loopSettings.set(loopSettings);
+        playbackController->previewLoopSettings(loopSettings);
         event->accept();
         return;
     }
@@ -319,6 +324,8 @@ void TimelineView::mouseMoveEvent(QMouseEvent *event) {
 
 void TimelineView::mouseReleaseEvent(QMouseEvent *event) {
     if (m_loopDragMode != None) {
+        const auto loopSettings = appStatus->loopSettings.get();
+        playbackController->commitLoopSettingsEdit(loopSettings);
         m_loopDragMode = None;
         updateCursor(event->pos());
         event->accept();

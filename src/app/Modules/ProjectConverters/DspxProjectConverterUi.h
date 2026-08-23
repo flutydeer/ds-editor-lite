@@ -3,12 +3,17 @@
 
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 
-// App-side DspxProjectConverter: bridges the loop region to AppStatus so the
-// converter domain logic itself stays free of app-runtime state.
+// App-side converter carrying the GUI loop snapshot used by DSPX save/load.
 class DspxProjectConverterUi final : public DspxProjectConverter {
+public:
+    explicit DspxProjectConverterUi(LoopSettings loopSettings = {});
+
 protected:
     void applyLoadedLoopSettings(const LoopSettings &loopSettings) override;
     LoopSettings loopSettingsToSave() const override;
+
+private:
+    LoopSettings m_loopSettings;
 };
 
 #endif // DSPXPROJECTCONVERTERUI_H

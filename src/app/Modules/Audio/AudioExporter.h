@@ -10,6 +10,16 @@ namespace Core {
     class IProjectWindow;
 }
 
+class AppModel;
+
+namespace talcs {
+    class DspxProjectContext;
+}
+
+namespace Automation {
+    class AudioExportJobAdapter;
+}
+
 namespace Audio {
 
 
@@ -105,6 +115,7 @@ namespace Audio {
         Q_OBJECT
         Q_DECLARE_PRIVATE(AudioExporter)
         friend class Internal::AudioExportDialog;
+        friend class Automation::AudioExportJobAdapter;
     public:
 
         explicit AudioExporter(Core::IProjectWindow *window, QObject *parent = nullptr);
@@ -153,6 +164,17 @@ namespace Audio {
         void warningAdded(const QString &message, int sourceIndex);
 
     private:
+        void configureAutomationBackend(AppModel *model,
+                                        QString projectPath,
+                                        talcs::DspxProjectContext *projectContext);
+        void setConfigInternal(const AudioExporterConfig &config);
+        [[nodiscard]] Warning warningInternal() const;
+        [[nodiscard]] QStringList dryRunInternal() const;
+        [[nodiscard]] QString projectDirectoryInternal() const;
+        Result execInternal();
+        void cleanUpInternal();
+        void cancelInternal(bool isFail, const QString &message);
+
         QScopedPointer<AudioExporterPrivate> d_ptr;
     };
 

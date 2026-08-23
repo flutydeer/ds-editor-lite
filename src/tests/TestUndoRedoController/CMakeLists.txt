@@ -16,6 +16,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
+        AutomationTestSupport
         lite::Core
         lite::History
     Qt${QT_VERSION_MAJOR}::Core

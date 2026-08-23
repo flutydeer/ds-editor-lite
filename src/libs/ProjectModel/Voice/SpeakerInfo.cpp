@@ -84,6 +84,10 @@ QString SpeakerInfo::name() const {
     return d->name;
 }
 
+QMap<QString, QString> SpeakerInfo::localizedNames() const {
+    return d->localizedNames;
+}
+
 QString SpeakerInfo::displayName(const QString &bcp47Locale) const {
     return lite::Support::lookupLocalizedText(d->localizedNames, d->name, bcp47Locale);
 }

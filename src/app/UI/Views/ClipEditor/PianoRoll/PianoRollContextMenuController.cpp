@@ -199,7 +199,7 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
         split->setIcon(
             IconUtils::menuIcon(QStringLiteral(":/svg/icons/arrow_split_16_filled.svg")));
         connect(split, &QAction::triggered, this, [context] {
-            PianoRollGraphicsViewHelper::splitNote(context.noteId, context.globalTick);
+            (void) PianoRollGraphicsViewHelper::splitNote(context.noteId, context.globalTick);
         });
         menu.addSeparator();
 

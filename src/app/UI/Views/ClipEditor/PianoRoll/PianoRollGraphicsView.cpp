@@ -27,7 +27,6 @@
 #include "SplitNoteHandler.h"
 #include "Controller/ClipController.h"
 #include "Controller/PlaybackController.h"
-#include "Controller/Actions/AppModel/Note/NoteActions.h"
 #include "Global/AppGlobal.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>

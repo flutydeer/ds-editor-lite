@@ -3,7 +3,9 @@
 #include "DocumentWorkflowPathUtils.h"
 #include "IDocumentWorkflowUi.h"
 #include "IProjectLoadSession.h"
-#include "Controller/Actions/AppModel/ImportProjectActions.h"
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
+#include "Automation/ProjectAutomationDtos.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/TrackController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -12,7 +14,6 @@
 #include <lite/History/HistoryManager.h>
 #include "Modules/ProjectFormats/IProjectFormatHandler.h"
 #include "Modules/ProjectFormats/ProjectFormatRegistry.h"
-#include "Modules/ProjectConverters/DspxProjectConverterUi.h"
 #include "UI/Dialogs/Base/ProgressDialog.h"
 #include "Utils/ConditionalTransition.h"
 
@@ -28,13 +29,22 @@
 #include <utility>
 
 namespace {
-    constexpr int maxRecentProjectFiles = 10;
-
     void addGuardedTransition(QState *source, QObject *sender, const char *signal,
                               QAbstractState *target, std::function<bool()> guard) {
         const auto transition = new ConditionalTransition(sender, signal, std::move(guard));
         transition->setTargetState(target);
         source->addTransition(transition);
+    }
+
+    Automation::CoreRuntime *automationRuntime() {
+        return AppContext::instance<Automation::CoreRuntime>();
+    }
+
+    Automation::CommandContext commandContext(const Automation::DocumentVersion &document) {
+        return {
+            .expected = document,
+            .source = Automation::InvocationSource::TrustedGui,
+        };
     }
 }
 
@@ -56,13 +66,18 @@ void DocumentWorkflowController::setUi(IDocumentWorkflowUi *ui) {
 }
 
 void DocumentWorkflowController::initializeNewDocument() {
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
     AppModel newModel;
     newModel.newProject();
-    historyManager->reset(HistoryManager::ResetState::Saved);
-    appModel->replaceProject(newModel.takeProjectData());
-    appStatus->loopSettings.set(LoopSettings());
-    updateProjectIdentity({});
-    historyManager->reset(HistoryManager::ResetState::Saved);
+    const auto data = newModel.takeProjectData();
+    const auto draft = Automation::documentDraftDto(data, LoopSettings());
+    const auto result = runtime->documents().commitNewDocument(
+        commandContext(runtime->documentVersion()), draft);
+    if (!result)
+        return;
+    emit documentIdentityChanged();
     activateFirstClip();
 }
 
@@ -100,6 +115,10 @@ void DocumentWorkflowController::requestTermination(const TerminationMode mode) 
 
     m_pending = {};
     m_pending.requestId = ++m_nextRequestId;
+    if (auto *runtime = automationRuntime()) {
+        m_pending.baseDocument = runtime->documentVersion();
+        runtime->setDocumentBusy(m_pending.baseDocument.documentId, true);
+    }
     m_pending.termination = mode;
     m_busy = true;
     emit busyChanged(true);
@@ -118,11 +137,21 @@ bool DocumentWorkflowController::busy() const {
 }
 
 QString DocumentWorkflowController::projectPath() const {
-    return m_projectPath;
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return {};
+    const auto document = runtime->documents().getDocument(runtime->documentVersion().documentId);
+    return document ? document.get().path : QString();
 }
 
 QString DocumentWorkflowController::projectName() const {
-    return m_projectPath.isEmpty() && m_projectName.isEmpty() ? tr("New Project") : m_projectName;
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return tr("New Project");
+    const auto document = runtime->documents().getDocument(runtime->documentVersion().documentId);
+    if (!document || (document.get().path.isEmpty() && document.get().projectName.isEmpty()))
+        return tr("New Project");
+    return document.get().projectName;
 }
 
 QString DocumentWorkflowController::lastProjectFolder() const {
@@ -130,33 +159,30 @@ QString DocumentWorkflowController::lastProjectFolder() const {
 }
 
 QStringList DocumentWorkflowController::recentProjectFiles() const {
-    return appOptions->general()->recentProjectFiles;
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return {};
+    const auto result = runtime->settings().getRecentProjectFiles();
+    return result ? result.get() : QStringList{};
 }
 
 void DocumentWorkflowController::clearRecentProjectFiles() {
-    if (appOptions->general()->recentProjectFiles.isEmpty())
+    auto *runtime = automationRuntime();
+    if (!runtime)
         return;
-    appOptions->general()->recentProjectFiles.clear();
-    appOptions->saveAndNotify(AppOptionsGlobal::General);
-    emit recentProjectFilesChanged({});
+    const auto result = runtime->settings().clearRecentProjectFiles({});
+    if (result && result.get().changed)
+        emit recentProjectFilesChanged({});
 }
 
 void DocumentWorkflowController::removeRecentProjectFile(const QString &filePath) {
-    auto files = appOptions->general()->recentProjectFiles;
-    const auto normalizedPath = DocumentWorkflowPathUtils::normalizedProjectPath(filePath);
-    const auto oldSize = files.size();
-    files.erase(std::remove_if(files.begin(), files.end(),
-                               [&](const QString &path) {
-                                   return DocumentWorkflowPathUtils::projectPathsEqual(
-                                       DocumentWorkflowPathUtils::normalizedProjectPath(path),
-                                       normalizedPath);
-                               }),
-                files.end());
-    if (files.size() == oldSize)
+    auto *runtime = automationRuntime();
+    if (!runtime)
         return;
-    appOptions->general()->recentProjectFiles = files;
-    appOptions->saveAndNotify(AppOptionsGlobal::General);
-    emit recentProjectFilesChanged(files);
+    const auto normalizedPath = DocumentWorkflowPathUtils::normalizedProjectPath(filePath);
+    const auto result = runtime->settings().removeRecentProjectFile({}, normalizedPath);
+    if (result && result.get().changed)
+        emit recentProjectFilesChanged(recentProjectFiles());
 }
 
 void DocumentWorkflowController::initializeStateMachine() {
@@ -279,6 +305,10 @@ void DocumentWorkflowController::begin(const DocumentOperation operation, const 
     }
     m_pending = {};
     m_pending.requestId = ++m_nextRequestId;
+    if (auto *runtime = automationRuntime()) {
+        m_pending.baseDocument = runtime->documentVersion();
+        runtime->setDocumentBusy(m_pending.baseDocument.documentId, true);
+    }
     m_pending.operation = operation;
     m_pending.filePath = filePath;
     m_busy = true;
@@ -328,10 +358,10 @@ void DocumentWorkflowController::validatePendingRequest() {
         m_validationResult = ValidationResult::Finish;
     } else if (m_pending.operation == DocumentOperation::Save) {
         m_resumeAfterSave = false;
-        if (m_projectPath.isEmpty())
+        if (projectPath().isEmpty())
             m_validationResult = ValidationResult::AwaitSavePath;
         else {
-            m_savePath = m_projectPath;
+            m_savePath = projectPath();
             m_validationResult = ValidationResult::Save;
         }
     } else if (m_pending.operation == DocumentOperation::SaveAs) {
@@ -354,10 +384,10 @@ void DocumentWorkflowController::askSaveDecision() {
     }
     switch (m_ui->askDocumentSaveDecision()) {
         case SaveDecision::Save:
-            if (m_projectPath.isEmpty())
+            if (projectPath().isEmpty())
                 m_saveDecisionResult = SaveDecisionResult::SaveWithoutPath;
             else {
-                m_savePath = m_projectPath;
+                m_savePath = projectPath();
                 m_saveDecisionResult = SaveDecisionResult::SaveWithPath;
             }
             break;
@@ -384,11 +414,16 @@ void DocumentWorkflowController::askSavePath() {
 }
 
 void DocumentWorkflowController::performSave() {
-    QString errorMessage;
-    DspxProjectConverterUi converter;
-    if (converter.save(m_savePath, appModel, errorMessage)) {
-        historyManager->setSavePoint();
-        updateProjectIdentity(m_savePath);
+    auto *runtime = automationRuntime();
+    const auto result = runtime ? runtime->documents().saveDocument(
+                                      commandContext(m_pending.baseDocument), m_savePath)
+                                : Automation::AutomationResult<Automation::MutationResult>(
+                                      Automation::AutomationError{
+                                          .code = Automation::AutomationErrorCode::InternalError,
+                                          .message = QStringLiteral("Automation runtime is unavailable"),
+                                      });
+    if (result) {
+        emit documentIdentityChanged();
         m_lastProjectFolder = QFileInfo(m_savePath).dir().path();
         addRecentProjectFile(m_savePath);
         if (m_resumeAfterSave) {
@@ -398,7 +433,7 @@ void DocumentWorkflowController::performSave() {
             m_saveResult = SaveResult::SucceededAndFinish;
         }
     } else {
-        m_error = {tr("Failed to save project"), errorMessage};
+        m_error = {tr("Failed to save project"), result.getError().message};
         if (m_resumeAfterSave && m_ui)
             m_ui->showDocumentWorkflowError(m_error);
         if (m_resumeAfterSave)
@@ -455,19 +490,23 @@ void DocumentWorkflowController::commitPreparedProject() {
         m_progressDialog->setProgressIndeterminate(true);
     }
 
+    bool committed = false;
     if (auto payload = std::get_if<ReplaceProjectPayload>(&m_prepared)) {
-        commitReplace(std::move(*payload));
+        committed = commitReplace(std::move(*payload));
     } else if (auto payload = std::get_if<AppendProjectPayload>(&m_prepared)) {
-        commitAppend(std::move(*payload));
+        committed = commitAppend(std::move(*payload));
     } else {
         m_error = {tr("Failed to apply project"), tr("The prepared project is empty.")};
-        emit operationFailed();
-        return;
     }
-    emit commitFinished();
+    if (committed)
+        emit commitFinished();
+    else
+        emit operationFailed();
 }
 
 void DocumentWorkflowController::enterIdle() {
+    if (auto *runtime = automationRuntime())
+        runtime->setDocumentBusy(m_pending.baseDocument.documentId, false);
     closeProgressDialog();
     cleanSession();
     m_pending = {};
@@ -542,8 +581,10 @@ void DocumentWorkflowController::handleSessionCanceled(IProjectLoadSession *sess
     if (session != m_session || session->requestId() != m_pending.requestId)
         return;
     if (m_terminationAfterCancellation) {
+        const auto baseDocument = m_pending.baseDocument;
         m_pending = {};
         m_pending.requestId = ++m_nextRequestId;
+        m_pending.baseDocument = baseDocument;
         m_pending.termination = *m_terminationAfterCancellation;
         m_terminationAfterCancellation.reset();
         m_skipSaveGuard = false;
@@ -561,45 +602,69 @@ void DocumentWorkflowController::prepareNewProject() {
     m_prepared = std::move(payload);
 }
 
-void DocumentWorkflowController::commitReplace(ReplaceProjectPayload &&payload) {
+bool DocumentWorkflowController::commitReplace(ReplaceProjectPayload &&payload) {
+    auto *runtime = automationRuntime();
+    if (!runtime) {
+        m_error = {tr("Failed to apply project"), tr("Automation runtime is unavailable.")};
+        return false;
+    }
     const bool isNew = m_pending.operation == DocumentOperation::New;
     const bool saved = isNew || payload.sourceKind == ProjectSourceKind::Native;
-    historyManager->reset(HistoryManager::ResetState::Saved);
-    appModel->replaceProject(std::move(payload.model));
-    appStatus->loopSettings.set(payload.loopSettings);
-
-    if (payload.sourceKind == ProjectSourceKind::Native) {
-        updateProjectIdentity(payload.sourcePath);
-        addRecentProjectFile(payload.sourcePath);
-    } else {
-        updateProjectIdentity({}, payload.displayName);
+    const auto draft = Automation::documentDraftDto(payload.model, payload.loopSettings);
+    Automation::AutomationResult<Automation::MutationResult> result =
+        isNew ? runtime->documents().commitNewDocument(commandContext(m_pending.baseDocument), draft)
+              : runtime->documents().commitOpenedDocument(
+                    commandContext(m_pending.baseDocument), draft,
+                    payload.sourceKind == ProjectSourceKind::Native ? payload.sourcePath : QString(),
+                    payload.sourceKind == ProjectSourceKind::Native
+                        ? QFileInfo(payload.sourcePath).fileName()
+                        : payload.displayName,
+                    saved);
+    if (!result) {
+        m_error = {tr("Failed to apply project"), result.getError().message};
+        return false;
     }
+
+    emit documentIdentityChanged();
+    if (payload.sourceKind == ProjectSourceKind::Native)
+        addRecentProjectFile(payload.sourcePath);
     if (!payload.sourcePath.isEmpty())
         m_lastProjectFolder = QFileInfo(payload.sourcePath).dir().path();
-    historyManager->reset(saved ? HistoryManager::ResetState::Saved
-                                : HistoryManager::ResetState::Unsaved);
     activateFirstClip();
+    return true;
 }
 
-void DocumentWorkflowController::commitAppend(AppendProjectPayload &&payload) {
-    QList<Track *> importedTracks;
-    importedTracks.reserve(static_cast<qsizetype>(payload.model.tracks.size()));
-    for (const auto &track : payload.model.tracks) {
-        // Payload tracks were already colored against the throwaway staging
-        // model; AppModel::insertTrack only auto-assigns the palette color
-        // when colorIndex() == 0. Reset so the append continues the live
-        // palette sequence instead of repeating the staging colors.
-        track->setColorIndex(0);
-        importedTracks.append(track.get());
+bool DocumentWorkflowController::commitAppend(AppendProjectPayload &&payload) {
+    auto *runtime = automationRuntime();
+    if (!runtime) {
+        m_error = {tr("Failed to apply project"), tr("Automation runtime is unavailable.")};
+        return false;
     }
-
-    const auto actions = new ImportProjectActions(std::move(payload.model), payload.importTempo,
-                                                  payload.importTimeSignature, appModel);
-    actions->execute();
-    historyManager->record(actions);
+    auto draft = Automation::documentDraftDto(payload.model);
+    for (auto &track : draft.tracks)
+        track.colorIndex = 0;
+    const auto result = runtime->documents().commitImportedDocument(
+        commandContext(m_pending.baseDocument), draft, payload.importTempo,
+        payload.importTimeSignature);
+    if (!result) {
+        m_error = {tr("Failed to apply project"), result.getError().message};
+        return false;
+    }
+    QList<Track *> importedTracks;
+    for (const auto &affected : result.get().affectedObjects) {
+        if (affected.kind != Automation::ObjectKind::Track)
+            continue;
+        for (auto *track : appModel->tracks()) {
+            if (track->id() == affected.value) {
+                importedTracks.append(track);
+                break;
+            }
+        }
+    }
     if (!payload.sourcePath.isEmpty())
         m_lastProjectFolder = QFileInfo(payload.sourcePath).dir().path();
     activateFirstClip(importedTracks);
+    return true;
 }
 
 void DocumentWorkflowController::activateFirstClip(const QList<Track *> &preferredTracks) {
@@ -614,36 +679,20 @@ void DocumentWorkflowController::activateFirstClip(const QList<Track *> &preferr
     }
 }
 
-void DocumentWorkflowController::updateProjectIdentity(const QString &path, const QString &name) {
-    m_projectPath = path;
-    m_projectName = !name.isEmpty()            ? name
-                    : !m_projectPath.isEmpty() ? QFileInfo(m_projectPath).fileName()
-                                               : QString();
-    emit documentIdentityChanged();
-}
-
 void DocumentWorkflowController::addRecentProjectFile(const QString &path) {
     if (QFileInfo(path).suffix().compare("dspx", Qt::CaseInsensitive) != 0)
         return;
-    auto files = appOptions->general()->recentProjectFiles;
     const auto normalizedPath = DocumentWorkflowPathUtils::normalizedProjectPath(path);
-    files.erase(std::remove_if(files.begin(), files.end(),
-                               [&](const QString &file) {
-                                   return DocumentWorkflowPathUtils::projectPathsEqual(
-                                       DocumentWorkflowPathUtils::normalizedProjectPath(file),
-                                       normalizedPath);
-                               }),
-                files.end());
-    files.prepend(normalizedPath);
-    while (files.size() > maxRecentProjectFiles)
-        files.removeLast();
-    appOptions->general()->recentProjectFiles = files;
-    appOptions->saveAndNotify(AppOptionsGlobal::General);
-    emit recentProjectFilesChanged(files);
+    auto *runtime = automationRuntime();
+    if (!runtime)
+        return;
+    const auto result = runtime->settings().addRecentProjectFile({}, normalizedPath);
+    if (result && result.get().changed)
+        emit recentProjectFilesChanged(recentProjectFiles());
 }
 
 QString DocumentWorkflowController::suggestedSavePath() const {
-    return DocumentWorkflowPathUtils::suggestedSavePath(m_projectPath, m_lastProjectFolder,
+    return DocumentWorkflowPathUtils::suggestedSavePath(projectPath(), m_lastProjectFolder,
                                                         projectName());
 }
 
