@@ -4470,3 +4470,64 @@ Computer Use 的拖动终点被限制在源窗口边界，无法把文件管理�
 
 通过。重启、未保存退出取消、保存后的干净退出、配置精确还原和隔离缓存清理均闭环；本轮明确
 保留的人工待补仅为两项跨窗口拖放和原生确认覆盖，长任务取消与逐 Clip 听感为环境不具备。
+
+## 回归轮次 191：最终 Debug 配置与全目标构建
+
+### 结果
+
+- 按项目 CMake Build 规范使用 `debug` preset 重新执行 configure、generate 和完整 build。
+- configure 3.7 秒、generate 1.1 秒，全部目标增量构建成功；`DsEditorLite` 完成链接与 Qt 部署。
+- Vulkan headers 缺失仍只是项目既有的可选能力提示；没有编译、链接或部署错误。
+
+### 判定
+
+通过。最终 CTest 使用本轮重新配置和构建的产物，不复用未验证的旧二进制。
+
+## 回归轮次 192：最终全量 CTest 第一轮
+
+### 结果
+
+- 串行执行全部 52 个注册测试：52 通过、0 失败、0 超时。
+- 总耗时 8.36 秒；完整原始输出 SHA-256 为
+  `a0d0cd22e931b4b06afa808e1b1bcd2fa62a9364f9db578617a725b970f73d61`。
+
+### 判定
+
+通过。无 offscreen/platform plugin 异常、Debug Error、断言或弹窗阻塞。
+
+## 回归轮次 193：最终全量 CTest 第二轮
+
+### 结果
+
+- 相同构建、相同顺序再次执行全部 52 个注册测试：52 通过、0 失败、0 超时。
+- 总耗时 8.26 秒；完整原始输出 SHA-256 为
+  `f05727c6ae6d58d6cc843099275a59470f1e16f703854d10c58dfbe467c43905`。
+
+### 判定
+
+通过。未发现轮次间状态泄漏或顺序相关失败。
+
+## 回归轮次 194：最终全量 CTest 第三轮与稳定性收口
+
+### 结果
+
+- 第三次串行执行全部 52 个注册测试：52 通过、0 失败、0 超时，总耗时 8.40 秒；完整原始
+  输出 SHA-256 为
+  `05b29c5ccbf1e8ded09aa0fa227174fcf2a6453bf959e8e204ab47d001ceab53`。
+- 三轮合计 156/156 个 CTest 执行通过，测试集合、顺序和失败数完全一致，无 flaky。
+- 高价值矩阵在每一轮均通过：Editing Dimensions 273 场景/825 断言、Runtime Dimensions
+  357 场景/543 断言、Async Dimensions 233 场景/254 断言、Task Races 15 场景/
+  1,729 断言、Audio Asset Resolution 17 场景/102 断言、MIDI Import Automation
+  6 场景/24 断言，均为 0 失败。
+- 最终 `LastTest.log` 未匹配 Qt platform plugin、offscreen 初始化、Debug Error、ASSERT、
+  fatal、timeout 或弹窗阻塞错误。
+
+### 证据
+
+- 私有脱敏最终 configure/build、三轮完整 CTest、原始日志哈希和高价值套件摘要：
+  `E-R191-R194-FINAL-BUILD-CTEST`。
+
+### 判定
+
+通过。最终 Debug 全目标构建和连续三轮全量 CTest 门禁关闭；当前剩余项只有报告中明确标识的
+人工待补或环境不具备子场景，不存在被隐藏的自动化失败。
