@@ -483,3 +483,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R141-GUI-G11-SPEAKER-MIX-PRESETS` | 141 | GUI-G11 Speaker Mix 预设创建、同名覆盖、跨控件复用、删除与重启持久化 | `e2b0b2aea893e3690dd07ca2bb2c61019e8ca54273e1ab6067aeee90045bc070` |
+
+## 追加证据 79
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R142-GUI-G12-TIMELINE-MASTER` | 142 | GUI-G12 tempo、拍号、零点锚、Master、History 与保存重开 | `3d9e233101206324b714eea1220e1d6c24cdb18a66477782a8848e1163b7d929` |

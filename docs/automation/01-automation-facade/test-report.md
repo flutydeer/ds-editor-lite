@@ -3480,3 +3480,55 @@ Computer Use 覆盖 `speaker_mix_presets.list/save/delete` 的创建、同名覆
 
 通过。Speaker Mix 预设的创建、同名覆盖、跨控件复用、取消/确认删除和重启持久化均符合
 测试大纲；本轮单根声库菜单无重复项。
+
+## 回归轮次 142：GUI-G12 tempo、拍号、锚点与 Master 回归
+
+### 范围
+
+在全新隔离工程中，通过 Computer Use 覆盖 `tempos.set/delete`、
+`time_signatures.set/delete`、`timeline.get` 和 `master.set_control` 的输入验证、时间线点
+增删改、零点锚保护、governing 值、History 及保存重开。
+
+### Computer Use 结果
+
+- 标题栏 tempo 依次输入 `-1` 和 `0`，显示值与 lane 均保持 120；拍号输入 `3/3`，显示值
+  与 lane 均保持 4/4，非法输入未形成文档提交。
+- 合法零点锚提交为 tempo 123.456、拍号 7/8；在后续 lane 空白处双击新增 tempo 150.25
+  和拍号 6/8，再分别编辑为 160.5 和 5/4。
+- 右击两个零点锚时，“删除曲速”与“移除拍号”均为禁用状态；右击两个后续点时相同动作
+  可用，执行后对应点立即消失。
+- 播放头在两个变更点之前时，标题栏显示 123.456 与 7/8；越过 tempo 点但未越过拍号点时
+  显示 160.5 与 7/8；越过两点后显示 160.5 与 5/4。
+- Mix 页以文本提交 Master pan `R25` 与 gain `-3.5`，两条推子同步移动；连续 Undo 后依次为
+  `R25/0.0`、`C/0.0`，连续 Redo 后恢复 `R25/-3.5`。
+- 删除两个后续时间线点后，Undo 完整恢复、Redo 再次删除、最后 Undo 再次恢复，证明增删改均
+  进入统一 History。
+- 保存、完整退出、重启并从 Recent 重开后，两组时间线点、governing 值及 Master
+  `R25/-3.5` 均保持。
+
+### 结构化双保险
+
+- 保存快照为 1341 字节，SHA-256 为
+  `84bb1972f0ccbf926021e6df90370c7ed715fd7f3eb59316e66834694ed29d25`。
+- DSPX tempos 严格为 `[{pos:0,value:123.456},{pos:6720,value:160.5}]`；拍号严格为
+  `[{barIndex:0,numerator:7,denominator:8},{barIndex:5,numerator:5,denominator:4}]`。
+- Master control 严格为 `gain=-3.5`、`pan=0.25`、`mute=false`；tempo tick 与拍号 bar index
+  各自严格递增。
+- 两个应用实例均正常退出，退出码为 0；未匹配 Debug Error、断言、fatal、exception、
+  failure、访问异常或 `QGraphicsScene::removeItem` 诊断。
+
+### 恢复与清理
+
+- 发送 F12 清除输入桥状态后退出；从 Recent 移除隔离工程并删除 G12 工作目录。
+- 本轮未生成推理缓存，复核隔离缓存目录为空。
+- 原始日志、截图和 DSPX 只保留于私有执行阶段；提交内容不包含本机路径。
+
+### 证据
+
+- 私有脱敏 Computer Use、History、DSPX 结构化断言、重开与运行日志摘要：
+  `E-R142-GUI-G12-TIMELINE-MASTER`。
+
+### 判定
+
+通过。tempo、拍号和 Master 的输入约束、增删改、零点锚保护、governing 值、History 与
+保存重开均符合测试大纲。
