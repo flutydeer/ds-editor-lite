@@ -339,3 +339,15 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` | 57–78 | 相对音频修复诊断、定向迭代、全目标构建与完整 CTest 证据包 | `4b20e56fec25132723b8774572e26516585f489e52ee7ba65f6a6afe11c66ed9` |
+
+## 追加证据 55
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R79-COMPUTER-USE-TRANSPORT-BLOCKED` | 79 | 相对音频纠错 Computer Use 传输阻塞摘要 | `aca26f08d244840b95911b57ce85e64f2f52b01b4ae2f9f018764333a8f20f95` |
+
+## 追加证据 56
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R80-R84-GUI-BRANCH-AUTOMATED-GATE` | 80–84 | 隔离 GUI 分支音频修复全目标构建、调度诊断与三轮完整 CTest 证据包 | `e0c17b9b49987685bedd5627edb6770c22e4280209c45ddd03a49ef6dcc74773` |

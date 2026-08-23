@@ -1844,3 +1844,127 @@ Core、Architecture、Async 组合，检查重复运行稳定性。
 
 通过。相对音频修复已完成根因诊断、失败留档、定向加固、`full all target` 构建与最终三轮
 完整 CTest 自动化门禁；`GUI-G01` 的外部观察仍须以新轮次单独复测。
+
+## 回归轮次 79：相对音频纠错 Computer Use 传输阻塞
+
+### 范围
+
+在执行任何产品动作前建立 Computer Use 连接，准备复测 `GUI-G01` 的相对音频纠错；由子任务
+和主会话分别按恢复规则执行只读连接检查。
+
+### 结果
+
+- 子任务首次 `list_apps` 即报告 `Transport closed`；按恢复规则执行 reset 后，传输仍为 closed。
+- 主会话独立执行 init/list、等待后的轻量重试、reset、重新 init/list；各步均报告
+  `Transport closed`，且 reset 本身也未到达传输端。
+- `DsEditorLite` 进程为 0；未启动应用、未绑定窗口、未向 Windows 发送输入，产品动作与产品
+  断言均未执行。
+
+### 证据
+
+- 脱敏传输恢复与产品边界摘要：证据 `E-R79-COMPUTER-USE-TRANSPORT-BLOCKED`。
+
+### 判定
+
+阻塞（Computer Use 传输基础设施，不计产品失败）。本轮永久保留；传输恢复后以新轮次执行
+相对音频纠错的 GUI 外部观察，不用后续结果覆盖本轮。
+
+## 回归轮次 80：隔离 GUI 分支合入音频修复并全目标构建
+
+### 范围
+
+把正式相对音频修复合入隔离 GUI 分支，在该分支的 Debug build 上执行 `full all target` 构建，
+确认应用和音频解析保护目标共同进入构建图。
+
+### 结果
+
+- `full all target` 共完成 374 个构建步骤并通过，编译错误和链接错误均为 0。
+- `TestAudioAssetResolution` 已包含在成功构建的测试目标中。
+
+### 证据
+
+- 合入后全目标构建摘要：证据 `E-R80-R84-GUI-BRANCH-AUTOMATED-GATE` 的 R80 小节。
+
+### 判定
+
+通过（隔离 GUI 分支构建门禁）。继续在同一 Debug build 上执行完整 CTest。
+
+## 回归轮次 81：首次完整 CTest 调度环境错误
+
+### 范围
+
+首次从 Git Bash 直接调用 CTest，准备发现并执行轮次 80 构建的全部测试目标。
+
+### 结果
+
+- shell 报告 `ctest: command not found`，退出码为 127。
+- 失败发生在测试发现前，启动的测试数为 0；没有执行任何产品或测试断言。
+- 本轮失败永久保留，不以随后成功结果隐藏。
+- 随后从该 Debug build 的 `CMakeCache` 解析已配置的 CTest 可执行文件，没有硬编码工具
+  安装位置。
+
+### 证据
+
+- 调度失败与解析恢复摘要：证据 `E-R80-R84-GUI-BRANCH-AUTOMATED-GATE` 的 R81 小节。
+
+### 判定
+
+失败（测试调度环境错误，非产品失败）。使用配置缓存解析出的工具，以新轮次重新开始完整
+CTest 门禁。
+
+## 回归轮次 82：解析 CTest 工具后的首次完整执行
+
+### 范围
+
+使用从 `CMakeCache` 解析的 CTest 可执行文件，在轮次 80 的 source alias 与 Debug build 上
+首次执行全部 47 个已注册测试。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 4.34 秒。
+
+### 证据
+
+- 工具解析后的首次完整结果：证据 `E-R80-R84-GUI-BRANCH-AUTOMATED-GATE` 的 R82 小节。
+
+### 判定
+
+通过。继续相同源码和二进制的第二轮完整复跑。
+
+## 回归轮次 83：隔离 GUI 分支第二次完整 CTest
+
+### 范围
+
+不改变 source alias、Debug build 或测试环境，第二次执行相同 47 个 CTest。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.79 秒。
+
+### 证据
+
+- 第二次完整结果：证据 `E-R80-R84-GUI-BRANCH-AUTOMATED-GATE` 的 R83 小节。
+
+### 判定
+
+通过。继续第三轮完整复跑以关闭隔离 GUI 分支自动化稳定性门禁。
+
+## 回归轮次 84：隔离 GUI 分支第三次完整 CTest
+
+### 范围
+
+在相同 source alias 与 Debug build 上第三次执行全部 47 个 CTest，并汇总三轮进程终态。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.78 秒。
+- 三轮合计执行 141 个测试实例；失败、崩溃、超时、Qt plugin 错误和 Debug Error 均为 0。
+
+### 证据
+
+- 第三次完整结果与三轮汇总：证据 `E-R80-R84-GUI-BRANCH-AUTOMATED-GATE` 的 R84 小节。
+
+### 判定
+
+通过。正式相对音频修复合入隔离 GUI 分支后的 `full all target` 构建与三轮完整 CTest 门禁
+完成；轮次 81 的调度环境失败继续永久保留。
