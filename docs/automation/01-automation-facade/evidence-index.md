@@ -435,3 +435,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R128-R130-TAGGER-ORDER-CTEST-GATE` | 128–130 | 提交 95b83a62 的 Debug 全目标构建前置与三轮 51 项完整 CTest | `a75a1ceb553e05b5414da3fe454ca7f971a5bd8fa19e32fb0a4943299706af1c` |
+
+## 追加证据 71
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R131-GUI-G07-TAGGER-ENTRY-ORDER-FAIL` | 131 | GUI-G07 首次复测中 Tagger 拖拽前未保存详情导致 Entries 丢失 | `c8b23c4d21cfa219e658b84df887315c3cb4a19c807aa36b6097125f679481e0` |

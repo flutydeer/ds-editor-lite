@@ -3025,3 +3025,44 @@ Splitter、Tagger 和 Test 页校验、创建、运行、持久化、删除与�
 
 通过。提交 `95b83a62` 的 Debug 全目标构建及三轮 51 项完整 CTest 门禁完成，累计 153/153；
 本轮自动化结果不覆盖 R127 的 GUI 失败记录，Computer Use 复测仍须使用后续全局轮次。
+
+## 回归轮次 131：GUI-G07 Tagger 修复后首次复测
+
+### 范围
+
+在提交 `95b83a62` 的干净隔离基线上首次复测 GUI-G07 Tagger 自定义规则的身份、排序、详情
+保存和 Test 输出。
+
+### 结果
+
+- 新建已注册语言 `cmn` 的自定义 regex Entry，Tag 为 `g07_fixed`，Value 为 `AFCFIX`，
+  Discard 为 `false`。
+- 编辑完成后未先使详情编辑器失焦，立即将自定义 `cmn` 规则拖到内置 `cmn` 规则之前并
+  Apply；Test 输入 `AFCFIX`，实际输出为 `lang=eng, tag=latin`，没有命中新建自定义规则。
+- 返回 Tagger 页后，自定义 `cmn` 的身份、位于内置 `cmn` 之前的顺序和可编辑性均正确持久；
+  但其 Entries 已变为空集合。
+- 相比 R127，自定义规则被误还原为内置锁定规则的问题已不再出现；本轮暴露的是拖拽排序前
+  未保存当前详情所导致的独立数据丢失。
+
+### 静态定位
+
+- `onOrderChanged` 在处理顺序变化前没有先调用 `saveCurrentDetail`。
+- 因此，编辑后立即拖拽且尚未发生失焦保存时，排序提交会丢弃当前详情；空 Entries 使 Test
+  回退到内建 English/Latin 规则，产生 `lang=eng, tag=latin`。
+
+### 恢复与清理
+
+- 本轮未修改歌词或工程内容。
+- 确认产品失败后立即停止后续 GUI-G07 操作并关闭隔离实例；私有隔离现场仅保留供诊断，
+  不进入仓库。
+
+### 证据
+
+- 私有脱敏 Tagger 详情丢失与静态定位摘要：
+  `E-R131-GUI-G07-TAGGER-ENTRY-ORDER-FAIL`。
+
+### 判定
+
+失败（产品缺陷）。提交 `95b83a62` 已修复自定义 Tagger 规则的身份、顺序与可编辑性持久化，
+但编辑后立即拖拽会因 `onOrderChanged` 未先保存详情而清空 Entries，并改变 Test 输出。修复后
+必须以新的全局轮次复测，不覆盖本轮。
