@@ -1485,7 +1485,7 @@ namespace {
                           {.speakerId = QStringLiteral("speaker-b"),
                      .speakerName = QStringLiteral("Speaker B")},
                           },
-            .fixedWeights = {0.75, 0.25},
+            .fixedWeights = {0.75                                     },
         };
     }
 
@@ -1526,7 +1526,7 @@ namespace {
         log.scenario(QStringLiteral("PRESETS-C-UPDATE"));
         auto update = saved.get();
         update.name = QStringLiteral("主唱更新");
-        update.fixedWeights = {0.6, 0.4};
+        update.fixedWeights = {0.6};
         const auto updated = runtime.presets().saveSpeakerMixPreset(applicationContext(), update);
         log.expect(updated && updated.get().id == saved.get().id &&
                        updated.get().createdAt == saved.get().createdAt &&
@@ -1537,7 +1537,6 @@ namespace {
 
         log.scenario(QStringLiteral("PRESETS-C-DUPLICATE-NAME"));
         auto duplicate = validPreset(QStringLiteral("主唱更新"));
-        duplicate.id = QStringLiteral("different-id");
         const auto duplicateResult =
             runtime.presets().saveSpeakerMixPreset(applicationContext(), duplicate);
         log.expectError(duplicateResult, Automation::AutomationErrorCode::InvalidArgument,

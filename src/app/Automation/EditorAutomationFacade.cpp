@@ -28,7 +28,8 @@ namespace Automation {
                    !state.layout.bottomPanelPageId.trimmed().isEmpty() &&
                    std::isfinite(state.pianoRoll.centerTick) && state.pianoRoll.centerTick >= 0.0 &&
                    std::isfinite(state.pianoRoll.centerKeyIndex) &&
-                   state.pianoRoll.centerKeyIndex >= 0.0 && state.pianoRoll.centerKeyIndex <= 127.0 &&
+                   state.pianoRoll.centerKeyIndex >= 0.0 &&
+                   state.pianoRoll.centerKeyIndex <= 127.0 &&
                    std::isfinite(state.pianoRoll.horizontalScale) &&
                    state.pianoRoll.horizontalScale > 0.0 &&
                    std::isfinite(state.pianoRoll.verticalScale) &&
@@ -114,25 +115,26 @@ namespace Automation {
     }
 
     AutomationResult<GuiMutationResult>
-    EditorAutomationFacade::restoreView(const GuiCommandContext &context,
-                                        const EditorViewState &state) {
-        if (!isValidViewState(state)) {
-            return AutomationError::invalidArgument(
+        EditorAutomationFacade::restoreView(const GuiCommandContext &context,
+                                            const EditorViewState &state) {
+        std::optional<AutomationError> validationError;
+        if (!isValidViewState(state))
+            validationError = AutomationError::invalidArgument(
                 QStringLiteral("state"), QStringLiteral("Editor view state is invalid"));
-        }
-        return mutateView(OperationIds::editor::restore_view, context,
-                          [state](EditorViewState &target) { target = state; },
-                          [this, state] {
-                              return m_services.restoreView && m_services.restoreView(state);
-                          });
+        return mutateView(
+            OperationIds::editor::restore_view, context,
+            [state](EditorViewState &target) { target = state; },
+            [this, state] { return m_services.restoreView && m_services.restoreView(state); },
+            std::move(validationError));
     }
 
-    AutomationResult<GuiMutationResult> EditorAutomationFacade::centerTrackPanel(
-        const GuiCommandContext &context, const double tick, const double trackIndex) {
-        if (!std::isfinite(tick) || tick < 0.0 || !std::isfinite(trackIndex) || trackIndex < 0.0) {
-            return AutomationError::invalidArgument(
+    AutomationResult<GuiMutationResult>
+        EditorAutomationFacade::centerTrackPanel(const GuiCommandContext &context,
+                                                 const double tick, const double trackIndex) {
+        std::optional<AutomationError> validationError;
+        if (!std::isfinite(tick) || tick < 0.0 || !std::isfinite(trackIndex) || trackIndex < 0.0)
+            validationError = AutomationError::invalidArgument(
                 QStringLiteral("center"), QStringLiteral("Track panel center is invalid"));
-        }
         return mutateView(
             OperationIds::editor::center_track_panel, context,
             [tick, trackIndex](EditorViewState &target) {
@@ -140,16 +142,18 @@ namespace Automation {
                 target.trackPanel.centerTrackIndex = trackIndex;
             },
             [this, tick, trackIndex] {
-                return m_services.centerTrackPanel &&
-                       m_services.centerTrackPanel(tick, trackIndex);
-            });
+                return m_services.centerTrackPanel && m_services.centerTrackPanel(tick, trackIndex);
+            },
+            std::move(validationError));
     }
 
-    AutomationResult<GuiMutationResult> EditorAutomationFacade::setTrackPanelScale(
-        const GuiCommandContext &context, const double horizontal, const double vertical) {
+    AutomationResult<GuiMutationResult>
+        EditorAutomationFacade::setTrackPanelScale(const GuiCommandContext &context,
+                                                   const double horizontal, const double vertical) {
+        std::optional<AutomationError> validationError;
         if (!std::isfinite(horizontal) || horizontal <= 0.0 || !std::isfinite(vertical) ||
             vertical <= 0.0) {
-            return AutomationError::invalidArgument(
+            validationError = AutomationError::invalidArgument(
                 QStringLiteral("scale"), QStringLiteral("Track panel scale is invalid"));
         }
         return mutateView(
@@ -161,15 +165,17 @@ namespace Automation {
             [this, horizontal, vertical] {
                 return m_services.setTrackPanelScale &&
                        m_services.setTrackPanelScale(horizontal, vertical);
-            });
+            },
+            std::move(validationError));
     }
 
     AutomationResult<GuiMutationResult> EditorAutomationFacade::setPanelVisibility(
         const GuiCommandContext &context, const bool trackVisible, const bool bottomVisible) {
-        if (!trackVisible && !bottomVisible) {
-            return AutomationError::invalidArgument(
-                QStringLiteral("visibility"), QStringLiteral("At least one panel must remain visible"));
-        }
+        std::optional<AutomationError> validationError;
+        if (!trackVisible && !bottomVisible)
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("visibility"),
+                QStringLiteral("At least one panel must remain visible"));
         return mutateView(
             OperationIds::editor::set_panel_visibility, context,
             [trackVisible, bottomVisible](EditorViewState &target) {
@@ -179,28 +185,33 @@ namespace Automation {
             [this, trackVisible, bottomVisible] {
                 return m_services.setPanelVisibility &&
                        m_services.setPanelVisibility(trackVisible, bottomVisible);
-            });
+            },
+            std::move(validationError));
     }
 
-    AutomationResult<GuiMutationResult> EditorAutomationFacade::showBottomPanelPage(
-        const GuiCommandContext &context, const QString &pageId) {
-        if (pageId.trimmed().isEmpty()) {
-            return AutomationError::invalidArgument(QStringLiteral("page_id"),
-                                                    QStringLiteral("Page ID is empty"));
-        }
+    AutomationResult<GuiMutationResult>
+        EditorAutomationFacade::showBottomPanelPage(const GuiCommandContext &context,
+                                                    const QString &pageId) {
+        std::optional<AutomationError> validationError;
+        if (pageId.trimmed().isEmpty())
+            validationError = AutomationError::invalidArgument(QStringLiteral("page_id"),
+                                                               QStringLiteral("Page ID is empty"));
         return mutateView(
             OperationIds::editor::show_bottom_panel_page, context,
             [pageId](EditorViewState &target) { target.layout.bottomPanelPageId = pageId; },
             [this, pageId] {
                 return m_services.showBottomPanelPage && m_services.showBottomPanelPage(pageId);
-            });
+            },
+            std::move(validationError));
     }
 
-    AutomationResult<GuiMutationResult> EditorAutomationFacade::centerPianoRoll(
-        const GuiCommandContext &context, const double tick, const double keyIndex) {
+    AutomationResult<GuiMutationResult>
+        EditorAutomationFacade::centerPianoRoll(const GuiCommandContext &context, const double tick,
+                                                const double keyIndex) {
+        std::optional<AutomationError> validationError;
         if (!std::isfinite(tick) || tick < 0.0 || !std::isfinite(keyIndex) || keyIndex < 0.0 ||
             keyIndex > 127.0) {
-            return AutomationError::invalidArgument(
+            validationError = AutomationError::invalidArgument(
                 QStringLiteral("center"), QStringLiteral("Piano roll center is invalid"));
         }
         return mutateView(
@@ -211,14 +222,17 @@ namespace Automation {
             },
             [this, tick, keyIndex] {
                 return m_services.centerPianoRoll && m_services.centerPianoRoll(tick, keyIndex);
-            });
+            },
+            std::move(validationError));
     }
 
-    AutomationResult<GuiMutationResult> EditorAutomationFacade::setPianoRollScale(
-        const GuiCommandContext &context, const double horizontal, const double vertical) {
+    AutomationResult<GuiMutationResult>
+        EditorAutomationFacade::setPianoRollScale(const GuiCommandContext &context,
+                                                  const double horizontal, const double vertical) {
+        std::optional<AutomationError> validationError;
         if (!std::isfinite(horizontal) || horizontal <= 0.0 || !std::isfinite(vertical) ||
             vertical <= 0.0) {
-            return AutomationError::invalidArgument(
+            validationError = AutomationError::invalidArgument(
                 QStringLiteral("scale"), QStringLiteral("Piano roll scale is invalid"));
         }
         return mutateView(
@@ -230,21 +244,23 @@ namespace Automation {
             [this, horizontal, vertical] {
                 return m_services.setPianoRollScale &&
                        m_services.setPianoRollScale(horizontal, vertical);
-            });
+            },
+            std::move(validationError));
     }
 
     AutomationResult<GuiMutationResult> EditorAutomationFacade::setPianoRollEditMode(
         const GuiCommandContext &context, const EditorViewGlobal::PianoRollEditMode mode) {
-        if (mode < EditorViewGlobal::Select || mode > EditorViewGlobal::BakePitch) {
-            return AutomationError::invalidArgument(
+        std::optional<AutomationError> validationError;
+        if (mode < EditorViewGlobal::Select || mode > EditorViewGlobal::BakePitch)
+            validationError = AutomationError::invalidArgument(
                 QStringLiteral("mode"), QStringLiteral("Piano roll edit mode is invalid"));
-        }
         return mutateView(
             OperationIds::editor::set_piano_roll_edit_mode, context,
             [mode](EditorViewState &target) { target.pianoRoll.editMode = mode; },
             [this, mode] {
                 return m_services.setPianoRollEditMode && m_services.setPianoRollEditMode(mode);
-            });
+            },
+            std::move(validationError));
     }
 
     AutomationResult<GuiMutationResult>
@@ -347,14 +363,15 @@ namespace Automation {
     AutomationResult<GuiMutationResult>
         EditorAutomationFacade::setPianoRollQuantize(const GuiCommandContext &context,
                                                      const int quantize, const bool enabled) {
-        if (quantize <= 0 || AppGlobal::ticksPerWholeNote % quantize != 0) {
-            return AutomationError::invalidArgument(
-                QStringLiteral("quantize"),
-                QStringLiteral("Quantize must divide the number of ticks in a whole note"));
-        }
         return m_dispatcher.dispatchGuiCommand<GuiMutationResult>(
             OperationIds::editor::set_quantize, context,
             [this, context, quantize, enabled](const bool validateOnly) {
+                if (quantize <= 0 || AppGlobal::ticksPerWholeNote % quantize != 0) {
+                    return AutomationResult<GuiMutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("quantize"),
+                        QStringLiteral(
+                            "Quantize must divide the number of ticks in a whole note")));
+                }
                 if (!m_services.captureStableState || !m_services.setPianoRollQuantize)
                     return AutomationResult<GuiMutationResult>(editorStateUnavailable());
                 const auto current = m_services.captureStableState();
@@ -369,14 +386,14 @@ namespace Automation {
 
     AutomationResult<GuiMutationResult> EditorAutomationFacade::setAutoPageTurn(
         const GuiCommandContext &context, const EditorAutoPageTarget target, const bool enabled) {
-        if (target != EditorAutoPageTarget::TrackPanel &&
-            target != EditorAutoPageTarget::PianoRoll) {
-            return AutomationError::invalidArgument(QStringLiteral("target"),
-                                                    QStringLiteral("Auto page target is invalid"));
-        }
         return m_dispatcher.dispatchGuiCommand<GuiMutationResult>(
             OperationIds::editor::set_auto_page_turn, context,
             [this, context, target, enabled](const bool validateOnly) {
+                if (target != EditorAutoPageTarget::TrackPanel &&
+                    target != EditorAutoPageTarget::PianoRoll) {
+                    return AutomationResult<GuiMutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("target"), QStringLiteral("Auto page target is invalid")));
+                }
                 if (!m_services.captureStableState || !m_services.setAutoPageTurn)
                     return AutomationResult<GuiMutationResult>(editorStateUnavailable());
                 const auto current = m_services.captureStableState();
@@ -468,10 +485,13 @@ namespace Automation {
 
     AutomationResult<GuiMutationResult> EditorAutomationFacade::mutateView(
         const OperationId &operationId, const GuiCommandContext &context, ViewMutation mutation,
-        ViewApply apply) {
+        ViewApply apply, std::optional<AutomationError> validationError) {
         return m_dispatcher.dispatchGuiCommand<GuiMutationResult>(
-            operationId, context, [this, context, mutation = std::move(mutation),
-                                   apply = std::move(apply)](const bool validateOnly) {
+            operationId, context,
+            [this, context, mutation = std::move(mutation), apply = std::move(apply),
+             validationError = std::move(validationError)](const bool validateOnly) {
+                if (validationError)
+                    return AutomationResult<GuiMutationResult>(*validationError);
                 if (!m_services.captureView) {
                     AutomationError error;
                     error.code = AutomationErrorCode::HostCapabilityUnavailable;
@@ -502,8 +522,7 @@ namespace Automation {
             });
     }
 
-    AutomationResult<EditorCapabilitiesDto>
-    EditorAutomationFacade::getEditorCapabilities() {
+    AutomationResult<EditorCapabilitiesDto> EditorAutomationFacade::getEditorCapabilities() {
         return m_dispatcher.dispatchApplicationQuery<EditorCapabilitiesDto>(
             OperationIds::editor::get_capabilities, [this] {
                 EditorCapabilitiesDto result;

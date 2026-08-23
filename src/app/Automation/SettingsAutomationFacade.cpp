@@ -64,7 +64,8 @@ namespace Automation {
                     QStringLiteral("default_singing_language"),
                     QStringLiteral("Default singing language is empty"));
             }
-            for (auto it = settings.defaultLyrics.cbegin(); it != settings.defaultLyrics.cend(); ++it) {
+            for (auto it = settings.defaultLyrics.cbegin(); it != settings.defaultLyrics.cend();
+                 ++it) {
                 if (it.key().trimmed().isEmpty()) {
                     return AutomationError::invalidArgument(
                         QStringLiteral("default_lyrics"),
@@ -74,8 +75,7 @@ namespace Automation {
             return AutomationUnit{};
         }
 
-        AutomationResult<AutomationUnit> validateAppearance(
-            const AppearanceSettingsDto &settings) {
+        AutomationResult<AutomationUnit> validateAppearance(const AppearanceSettingsDto &settings) {
             if (!std::isfinite(settings.animationTimeScale) || settings.animationTimeScale <= 0.0) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("animation_time_scale"),
@@ -88,8 +88,7 @@ namespace Automation {
             return AutomationUnit{};
         }
 
-        AutomationResult<AutomationUnit> validateInference(
-            const InferenceSettingsDto &settings) {
+        AutomationResult<AutomationUnit> validateInference(const InferenceSettingsDto &settings) {
             if (settings.executionProvider != QStringLiteral("CPU") &&
                 settings.executionProvider != QStringLiteral("DirectML") &&
                 settings.executionProvider != QStringLiteral("CUDA")) {
@@ -120,8 +119,7 @@ namespace Automation {
             return AutomationUnit{};
         }
 
-        AutomationResult<AutomationUnit> validateDeveloper(
-            const DeveloperSettingsDto &settings) {
+        AutomationResult<AutomationUnit> validateDeveloper(const DeveloperSettingsDto &settings) {
             if (settings.editorRenderBackend != EditorRenderBackend::Legacy &&
                 settings.editorRenderBackend != EditorRenderBackend::RhiExperimental) {
                 return AutomationError::invalidArgument(
@@ -145,8 +143,7 @@ namespace Automation {
             return AutomationUnit{};
         }
 
-        AutomationResult<AutomationUnit> validateFillLyric(
-            const FillLyricSettingsDto &settings) {
+        AutomationResult<AutomationUnit> validateFillLyric(const FillLyricSettingsDto &settings) {
             if (settings.splitMode < 0 || !std::isfinite(settings.textEditFontSize) ||
                 settings.textEditFontSize <= 0.0 || !std::isfinite(settings.viewFontSize) ||
                 settings.viewFontSize <= 0.0) {
@@ -217,10 +214,10 @@ namespace Automation {
                     QStringLiteral("Exactly four pseudo singer synthesizers are required"));
             }
             for (const auto &synthesizer : settings.pseudoSingerSynthesizers) {
-                if (!std::isfinite(synthesizer.amplitude) ||
-                    synthesizer.attackMilliseconds < 0 || synthesizer.decayMilliseconds < 0 ||
-                    !std::isfinite(synthesizer.decayRatio) || synthesizer.decayRatio < 0.0 ||
-                    synthesizer.decayRatio > 1.0 || synthesizer.releaseMilliseconds < 0) {
+                if (!std::isfinite(synthesizer.amplitude) || synthesizer.attackMilliseconds < 0 ||
+                    synthesizer.decayMilliseconds < 0 || !std::isfinite(synthesizer.decayRatio) ||
+                    synthesizer.decayRatio < 0.0 || synthesizer.decayRatio > 1.0 ||
+                    synthesizer.releaseMilliseconds < 0) {
                     return AutomationError::invalidArgument(
                         QStringLiteral("pseudo_singer_synthesizers"),
                         QStringLiteral("Pseudo singer synthesizer settings are invalid"));
@@ -262,10 +259,11 @@ namespace Automation {
 
     template <typename T, typename Getter, typename Validator, typename Apply>
     AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::update(
-        const OperationId &operationId, const ApplicationCommandContext &context,
-        const T &settings, Getter getter, Validator validator, Apply apply) {
+        const OperationId &operationId, const ApplicationCommandContext &context, const T &settings,
+        Getter getter, Validator validator, Apply apply) {
         return m_dispatcher.dispatchApplicationCommand<ApplicationMutationResult>(
-            operationId, context, [this, &settings, getter, validator, apply](const bool validateOnly) {
+            operationId, context,
+            [this, &settings, getter, validator, apply](const bool validateOnly) {
                 if (!m_services.snapshot || !apply)
                     return AutomationResult<ApplicationMutationResult>(unavailable());
                 const auto validation = validator(settings);
@@ -282,60 +280,103 @@ namespace Automation {
             });
     }
 
-    AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateGeneral(
-        const ApplicationCommandContext &context, const GeneralSettingsDto &settings) {
-        return update(OperationIds::settings::update_general, context, settings,
-                      [](const SettingsSnapshotDto &snapshot) { return snapshot.general; },
-                      validateGeneral, m_services.applyGeneral);
+    AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateGeneralState(
+        const OperationId &operationId, const ApplicationCommandContext &context,
+        GeneralMutation mutation, std::optional<AutomationError> validationError) {
+        return m_dispatcher.dispatchApplicationCommand<ApplicationMutationResult>(
+            operationId, context,
+            [this, mutation = std::move(mutation),
+             validationError = std::move(validationError)](const bool validateOnly) {
+                if (validationError)
+                    return AutomationResult<ApplicationMutationResult>(*validationError);
+                if (!m_services.snapshot || !m_services.applyGeneral)
+                    return AutomationResult<ApplicationMutationResult>(unavailable());
+                const auto current = m_services.snapshot().general;
+                auto target = current;
+                mutation(target);
+                const auto validation = validateGeneral(target);
+                if (!validation)
+                    return AutomationResult<ApplicationMutationResult>(validation.getError());
+                const bool changed = current != target;
+                if (!validateOnly && changed && !m_services.applyGeneral(target))
+                    return AutomationResult<ApplicationMutationResult>(persistenceError());
+                return AutomationResult<ApplicationMutationResult>({
+                    .changed = changed,
+                    .validatedOnly = validateOnly,
+                });
+            });
     }
 
-    AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateAppearance(
-        const ApplicationCommandContext &context, const AppearanceSettingsDto &settings) {
-        return update(OperationIds::settings::update_appearance, context, settings,
-                      [](const SettingsSnapshotDto &snapshot) { return snapshot.appearance; },
-                      validateAppearance, m_services.applyAppearance);
+    AutomationResult<ApplicationMutationResult>
+        SettingsAutomationFacade::updateGeneral(const ApplicationCommandContext &context,
+                                                const GeneralSettingsDto &settings) {
+        return update(
+            OperationIds::settings::update_general, context, settings,
+            [](const SettingsSnapshotDto &snapshot) { return snapshot.general; }, validateGeneral,
+            m_services.applyGeneral);
     }
 
-    AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateInference(
-        const ApplicationCommandContext &context, const InferenceSettingsDto &settings) {
-        return update(OperationIds::settings::update_inference, context, settings,
-                      [](const SettingsSnapshotDto &snapshot) { return snapshot.inference; },
-                      validateInference, m_services.applyInference);
+    AutomationResult<ApplicationMutationResult>
+        SettingsAutomationFacade::updateAppearance(const ApplicationCommandContext &context,
+                                                   const AppearanceSettingsDto &settings) {
+        return update(
+            OperationIds::settings::update_appearance, context, settings,
+            [](const SettingsSnapshotDto &snapshot) { return snapshot.appearance; },
+            validateAppearance, m_services.applyAppearance);
     }
 
-    AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateDeveloper(
-        const ApplicationCommandContext &context, const DeveloperSettingsDto &settings) {
-        return update(OperationIds::settings::update_developer, context, settings,
-                      [](const SettingsSnapshotDto &snapshot) { return snapshot.developer; },
-                      validateDeveloper, m_services.applyDeveloper);
+    AutomationResult<ApplicationMutationResult>
+        SettingsAutomationFacade::updateInference(const ApplicationCommandContext &context,
+                                                  const InferenceSettingsDto &settings) {
+        return update(
+            OperationIds::settings::update_inference, context, settings,
+            [](const SettingsSnapshotDto &snapshot) { return snapshot.inference; },
+            validateInference, m_services.applyInference);
     }
 
-    AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateG2pLanguage(
-        const ApplicationCommandContext &context, const G2pLanguageSettingsDto &settings) {
-        return update(OperationIds::settings::update_g2p_language, context, settings,
-                      [](const SettingsSnapshotDto &snapshot) { return snapshot.g2pLanguage; },
-                      validateG2p, m_services.applyG2pLanguage);
+    AutomationResult<ApplicationMutationResult>
+        SettingsAutomationFacade::updateDeveloper(const ApplicationCommandContext &context,
+                                                  const DeveloperSettingsDto &settings) {
+        return update(
+            OperationIds::settings::update_developer, context, settings,
+            [](const SettingsSnapshotDto &snapshot) { return snapshot.developer; },
+            validateDeveloper, m_services.applyDeveloper);
     }
 
-    AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateFillLyric(
-        const ApplicationCommandContext &context, const FillLyricSettingsDto &settings) {
-        return update(OperationIds::settings::update_fill_lyric, context, settings,
-                      [](const SettingsSnapshotDto &snapshot) { return snapshot.fillLyric; },
-                      validateFillLyric, m_services.applyFillLyric);
+    AutomationResult<ApplicationMutationResult>
+        SettingsAutomationFacade::updateG2pLanguage(const ApplicationCommandContext &context,
+                                                    const G2pLanguageSettingsDto &settings) {
+        return update(
+            OperationIds::settings::update_g2p_language, context, settings,
+            [](const SettingsSnapshotDto &snapshot) { return snapshot.g2pLanguage; }, validateG2p,
+            m_services.applyG2pLanguage);
     }
 
-    AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateWindow(
-        const ApplicationCommandContext &context, const WindowSettingsDto &settings) {
-        return update(OperationIds::settings::update_window, context, settings,
-                      [](const SettingsSnapshotDto &snapshot) { return snapshot.window; },
-                      validateWindow, m_services.applyWindow);
+    AutomationResult<ApplicationMutationResult>
+        SettingsAutomationFacade::updateFillLyric(const ApplicationCommandContext &context,
+                                                  const FillLyricSettingsDto &settings) {
+        return update(
+            OperationIds::settings::update_fill_lyric, context, settings,
+            [](const SettingsSnapshotDto &snapshot) { return snapshot.fillLyric; },
+            validateFillLyric, m_services.applyFillLyric);
     }
 
-    AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::updateAudio(
-        const ApplicationCommandContext &context, const AudioSettingsDto &settings) {
-        return update(OperationIds::settings::update_audio, context, settings,
-                      [](const SettingsSnapshotDto &snapshot) { return snapshot.audio; },
-                      validateAudio, m_services.applyAudio);
+    AutomationResult<ApplicationMutationResult>
+        SettingsAutomationFacade::updateWindow(const ApplicationCommandContext &context,
+                                               const WindowSettingsDto &settings) {
+        return update(
+            OperationIds::settings::update_window, context, settings,
+            [](const SettingsSnapshotDto &snapshot) { return snapshot.window; }, validateWindow,
+            m_services.applyWindow);
+    }
+
+    AutomationResult<ApplicationMutationResult>
+        SettingsAutomationFacade::updateAudio(const ApplicationCommandContext &context,
+                                              const AudioSettingsDto &settings) {
+        return update(
+            OperationIds::settings::update_audio, context, settings,
+            [](const SettingsSnapshotDto &snapshot) { return snapshot.audio; }, validateAudio,
+            m_services.applyAudio);
     }
 
     AutomationResult<QStringList> SettingsAutomationFacade::getRecentProjectFiles() {
@@ -343,53 +384,51 @@ namespace Automation {
             OperationIds::recent_files::list, [this] {
                 if (!m_services.snapshot)
                     return AutomationResult<QStringList>(unavailable());
-                return AutomationResult<QStringList>(m_services.snapshot().general.recentProjectFiles);
+                return AutomationResult<QStringList>(
+                    m_services.snapshot().general.recentProjectFiles);
             });
     }
 
-    AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::addRecentProjectFile(
-        const ApplicationCommandContext &context, const QString &path) {
-        if (path.trimmed().isEmpty()) {
-            return AutomationError::invalidArgument(QStringLiteral("path"),
-                                                    QStringLiteral("Recent file path is empty"));
-        }
-        if (!m_services.snapshot)
-            return unavailable();
-        auto general = m_services.snapshot().general;
-        QStringList files{QDir::cleanPath(path.trimmed())};
-        files.append(general.recentProjectFiles);
-        general.recentProjectFiles = normalizedPaths(files, kMaximumRecentFiles);
-        return update(OperationIds::recent_files::add, context, general,
-                      [](const SettingsSnapshotDto &snapshot) { return snapshot.general; },
-                      validateGeneral, m_services.applyGeneral);
+    AutomationResult<ApplicationMutationResult>
+        SettingsAutomationFacade::addRecentProjectFile(const ApplicationCommandContext &context,
+                                                       const QString &path) {
+        std::optional<AutomationError> validationError;
+        if (path.trimmed().isEmpty())
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("path"), QStringLiteral("Recent file path is empty"));
+        return updateGeneralState(
+            OperationIds::recent_files::add, context,
+            [path](GeneralSettingsDto &general) {
+                QStringList files{QDir::cleanPath(path.trimmed())};
+                files.append(general.recentProjectFiles);
+                general.recentProjectFiles = normalizedPaths(files, kMaximumRecentFiles);
+            },
+            std::move(validationError));
     }
 
-    AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::removeRecentProjectFile(
-        const ApplicationCommandContext &context, const QString &path) {
-        if (path.trimmed().isEmpty()) {
-            return AutomationError::invalidArgument(QStringLiteral("path"),
-                                                    QStringLiteral("Recent file path is empty"));
-        }
-        if (!m_services.snapshot)
-            return unavailable();
-        auto general = m_services.snapshot().general;
-        const auto normalized = QDir::cleanPath(path.trimmed());
-        general.recentProjectFiles.removeIf(
-            [&normalized](const QString &candidate) { return pathsEqual(candidate, normalized); });
-        return update(OperationIds::recent_files::remove, context, general,
-                      [](const SettingsSnapshotDto &snapshot) { return snapshot.general; },
-                      validateGeneral, m_services.applyGeneral);
+    AutomationResult<ApplicationMutationResult>
+        SettingsAutomationFacade::removeRecentProjectFile(const ApplicationCommandContext &context,
+                                                          const QString &path) {
+        std::optional<AutomationError> validationError;
+        if (path.trimmed().isEmpty())
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("path"), QStringLiteral("Recent file path is empty"));
+        return updateGeneralState(
+            OperationIds::recent_files::remove, context,
+            [path](GeneralSettingsDto &general) {
+                const auto normalized = QDir::cleanPath(path.trimmed());
+                general.recentProjectFiles.removeIf([&normalized](const QString &candidate) {
+                    return pathsEqual(candidate, normalized);
+                });
+            },
+            std::move(validationError));
     }
 
     AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::clearRecentProjectFiles(
         const ApplicationCommandContext &context) {
-        if (!m_services.snapshot)
-            return unavailable();
-        auto general = m_services.snapshot().general;
-        general.recentProjectFiles.clear();
-        return update(OperationIds::recent_files::clear, context, general,
-                      [](const SettingsSnapshotDto &snapshot) { return snapshot.general; },
-                      validateGeneral, m_services.applyGeneral);
+        return updateGeneralState(
+            OperationIds::recent_files::clear, context,
+            [](GeneralSettingsDto &general) { general.recentProjectFiles.clear(); });
     }
 
     AutomationResult<QStringList> SettingsAutomationFacade::getPackageSearchPaths() {
@@ -397,19 +436,18 @@ namespace Automation {
             OperationIds::packages::get_search_paths, [this] {
                 if (!m_services.snapshot)
                     return AutomationResult<QStringList>(unavailable());
-                return AutomationResult<QStringList>(m_services.snapshot().general.packageSearchPaths);
+                return AutomationResult<QStringList>(
+                    m_services.snapshot().general.packageSearchPaths);
             });
     }
 
-    AutomationResult<ApplicationMutationResult> SettingsAutomationFacade::setPackageSearchPaths(
-        const ApplicationCommandContext &context, QStringList paths) {
-        if (!m_services.snapshot)
-            return unavailable();
-        auto general = m_services.snapshot().general;
-        general.packageSearchPaths = normalizedPaths(paths);
-        return update(OperationIds::packages::set_search_paths, context, general,
-                      [](const SettingsSnapshotDto &snapshot) { return snapshot.general; },
-                      validateGeneral, m_services.applyGeneral);
+    AutomationResult<ApplicationMutationResult>
+        SettingsAutomationFacade::setPackageSearchPaths(const ApplicationCommandContext &context,
+                                                        QStringList paths) {
+        return updateGeneralState(OperationIds::packages::set_search_paths, context,
+                                  [paths = std::move(paths)](GeneralSettingsDto &general) {
+                                      general.packageSearchPaths = normalizedPaths(paths);
+                                  });
     }
 
     void SettingsAutomationFacade::registerOperations() {

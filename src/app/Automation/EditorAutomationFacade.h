@@ -112,24 +112,21 @@ namespace Automation {
         AutomationResult<GuiMutationResult> restoreView(const GuiCommandContext &context,
                                                         const EditorViewState &state);
         AutomationResult<GuiMutationResult> centerTrackPanel(const GuiCommandContext &context,
-                                                            double tick,
-                                                            double trackIndex);
+                                                             double tick, double trackIndex);
         AutomationResult<GuiMutationResult> setTrackPanelScale(const GuiCommandContext &context,
-                                                              double horizontal,
-                                                              double vertical);
+                                                               double horizontal, double vertical);
         AutomationResult<GuiMutationResult> setPanelVisibility(const GuiCommandContext &context,
-                                                              bool trackVisible,
-                                                              bool bottomVisible);
-        AutomationResult<GuiMutationResult> showBottomPanelPage(
-            const GuiCommandContext &context, const QString &pageId);
+                                                               bool trackVisible,
+                                                               bool bottomVisible);
+        AutomationResult<GuiMutationResult> showBottomPanelPage(const GuiCommandContext &context,
+                                                                const QString &pageId);
         AutomationResult<GuiMutationResult> centerPianoRoll(const GuiCommandContext &context,
-                                                           double tick,
-                                                           double keyIndex);
+                                                            double tick, double keyIndex);
         AutomationResult<GuiMutationResult> setPianoRollScale(const GuiCommandContext &context,
-                                                             double horizontal,
-                                                             double vertical);
-        AutomationResult<GuiMutationResult> setPianoRollEditMode(
-            const GuiCommandContext &context, EditorViewGlobal::PianoRollEditMode mode);
+                                                              double horizontal, double vertical);
+        AutomationResult<GuiMutationResult>
+            setPianoRollEditMode(const GuiCommandContext &context,
+                                 EditorViewGlobal::PianoRollEditMode mode);
         AutomationResult<GuiMutationResult> setActiveClip(const GuiDocumentCommandContext &context,
                                                           std::optional<ClipId> clipId);
         AutomationResult<GuiMutationResult>
@@ -153,10 +150,10 @@ namespace Automation {
     private:
         using ViewMutation = std::function<void(EditorViewState &)>;
         using ViewApply = std::function<bool()>;
-        AutomationResult<GuiMutationResult> mutateView(const OperationId &operationId,
-                                                       const GuiCommandContext &context,
-                                                       ViewMutation mutation,
-                                                       ViewApply apply);
+        AutomationResult<GuiMutationResult>
+            mutateView(const OperationId &operationId, const GuiCommandContext &context,
+                       ViewMutation mutation, ViewApply apply,
+                       std::optional<AutomationError> validationError = std::nullopt);
         void registerOperations();
 
         OperationCatalog &m_catalog;

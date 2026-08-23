@@ -8,6 +8,7 @@
 #include <QMap>
 
 #include <functional>
+#include <optional>
 
 namespace Automation {
 
@@ -230,45 +231,57 @@ namespace Automation {
 
     class SettingsAutomationFacade final {
     public:
-        SettingsAutomationFacade(OperationCatalog &catalog,
-                                 AutomationDispatcher &dispatcher,
+        SettingsAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
                                  SettingsRuntimeServices services = {});
 
         AutomationResult<SettingsSnapshotDto> getSettings();
         AutomationResult<ApplicationMutationResult>
-        updateGeneral(const ApplicationCommandContext &context, const GeneralSettingsDto &settings);
-        AutomationResult<ApplicationMutationResult> updateAppearance(
-            const ApplicationCommandContext &context, const AppearanceSettingsDto &settings);
-        AutomationResult<ApplicationMutationResult> updateInference(
-            const ApplicationCommandContext &context, const InferenceSettingsDto &settings);
-        AutomationResult<ApplicationMutationResult> updateDeveloper(
-            const ApplicationCommandContext &context, const DeveloperSettingsDto &settings);
-        AutomationResult<ApplicationMutationResult> updateG2pLanguage(
-            const ApplicationCommandContext &context, const G2pLanguageSettingsDto &settings);
-        AutomationResult<ApplicationMutationResult> updateFillLyric(
-            const ApplicationCommandContext &context, const FillLyricSettingsDto &settings);
+            updateGeneral(const ApplicationCommandContext &context,
+                          const GeneralSettingsDto &settings);
         AutomationResult<ApplicationMutationResult>
-        updateWindow(const ApplicationCommandContext &context, const WindowSettingsDto &settings);
+            updateAppearance(const ApplicationCommandContext &context,
+                             const AppearanceSettingsDto &settings);
         AutomationResult<ApplicationMutationResult>
-        updateAudio(const ApplicationCommandContext &context, const AudioSettingsDto &settings);
+            updateInference(const ApplicationCommandContext &context,
+                            const InferenceSettingsDto &settings);
+        AutomationResult<ApplicationMutationResult>
+            updateDeveloper(const ApplicationCommandContext &context,
+                            const DeveloperSettingsDto &settings);
+        AutomationResult<ApplicationMutationResult>
+            updateG2pLanguage(const ApplicationCommandContext &context,
+                              const G2pLanguageSettingsDto &settings);
+        AutomationResult<ApplicationMutationResult>
+            updateFillLyric(const ApplicationCommandContext &context,
+                            const FillLyricSettingsDto &settings);
+        AutomationResult<ApplicationMutationResult>
+            updateWindow(const ApplicationCommandContext &context,
+                         const WindowSettingsDto &settings);
+        AutomationResult<ApplicationMutationResult>
+            updateAudio(const ApplicationCommandContext &context, const AudioSettingsDto &settings);
 
         AutomationResult<QStringList> getRecentProjectFiles();
         AutomationResult<ApplicationMutationResult>
-        addRecentProjectFile(const ApplicationCommandContext &context, const QString &path);
+            addRecentProjectFile(const ApplicationCommandContext &context, const QString &path);
         AutomationResult<ApplicationMutationResult>
-        removeRecentProjectFile(const ApplicationCommandContext &context, const QString &path);
+            removeRecentProjectFile(const ApplicationCommandContext &context, const QString &path);
         AutomationResult<ApplicationMutationResult>
-        clearRecentProjectFiles(const ApplicationCommandContext &context);
+            clearRecentProjectFiles(const ApplicationCommandContext &context);
 
         AutomationResult<QStringList> getPackageSearchPaths();
         AutomationResult<ApplicationMutationResult>
-        setPackageSearchPaths(const ApplicationCommandContext &context, QStringList paths);
+            setPackageSearchPaths(const ApplicationCommandContext &context, QStringList paths);
 
     private:
+        using GeneralMutation = std::function<void(GeneralSettingsDto &)>;
+
         template <typename T, typename Getter, typename Validator, typename Apply>
         AutomationResult<ApplicationMutationResult>
-        update(const OperationId &operationId, const ApplicationCommandContext &context,
-               const T &settings, Getter getter, Validator validator, Apply apply);
+            update(const OperationId &operationId, const ApplicationCommandContext &context,
+                   const T &settings, Getter getter, Validator validator, Apply apply);
+        AutomationResult<ApplicationMutationResult>
+            updateGeneralState(const OperationId &operationId,
+                               const ApplicationCommandContext &context, GeneralMutation mutation,
+                               std::optional<AutomationError> validationError = std::nullopt);
 
         void registerOperations();
 

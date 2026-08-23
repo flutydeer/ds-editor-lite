@@ -950,7 +950,8 @@ int main(int argc, char *argv[]) {
         .name = QStringLiteral("Lead"),
         .packageId = QStringLiteral("package"),
         .singerId = QStringLiteral("singer"),
-        .sources = {{.speakerId = QStringLiteral("speaker")}},
+        .sources = {{.speakerId = QStringLiteral("speaker")},
+                    {.speakerId = QStringLiteral("speaker-b")}},
         .fixedWeights = {1.0},
     };
     const auto presetPreview =
