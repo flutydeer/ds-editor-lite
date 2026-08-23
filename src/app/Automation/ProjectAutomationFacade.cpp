@@ -337,8 +337,7 @@ namespace Automation {
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
 
-                Track::TrackProperties newProperties;
-                newProperties.id = properties.id.value();
+                auto newProperties = oldProperties;
                 newProperties.name = properties.name;
                 newProperties.gain = properties.gain;
                 newProperties.pan = properties.pan;

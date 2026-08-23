@@ -348,11 +348,13 @@ namespace {
                 const auto changed =
                     runtime.project().setTrackProperties(commandContext(runtime), edit);
                 const auto snapshot = trackSnapshot(runtime, second);
-                suite.expect(changed && changed.get().current.revision == base.revision + 1 &&
-                                 snapshot && snapshot->data.name == edit.name &&
-                                 snapshot->data.gain == edit.gain &&
-                                 snapshot->data.pan == edit.pan && snapshot->data.mute,
-                             QStringLiteral("all track properties must commit atomically"));
+                suite.expect(
+                    changed && changed.get().current.revision == base.revision + 1 && snapshot &&
+                        snapshot->data.name == edit.name && snapshot->data.gain == edit.gain &&
+                        snapshot->data.pan == edit.pan && snapshot->data.mute &&
+                        snapshot->data.colorIndex == 1,
+                    QStringLiteral(
+                        "track property edits must commit atomically without resetting color"));
                 const auto noOp =
                     runtime.project().setTrackProperties(commandContext(runtime), edit);
                 suite.expect(noOp && !noOp.get().changed &&

@@ -1239,6 +1239,13 @@ int main(int argc, char *argv[]) {
         commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited, {curveDraft});
     ok &= expect(replaceParameter && replaceParameter.get().changed,
                  "parameter replacement must commit through the parameter facade");
+    auto originalCurveDraft = curveDraft;
+    originalCurveDraft.localStart = 100;
+    originalCurveDraft.values = {6100, 6125, 6150};
+    const auto replaceOriginalParameter = runtime.parameters().replaceParameter(
+        commandContext(runtime), clipId, ParamInfo::Pitch, Param::Original, {originalCurveDraft});
+    ok &= expect(replaceOriginalParameter && replaceOriginalParameter.get().changed,
+                 "original parameter replacement must commit through the parameter facade");
     const auto parameter = runtime.parameters().getParameter(
         runtime.documentVersion().documentId, clipId, ParamInfo::Pitch, Param::Edited);
     ok &= expect(parameter && parameter.get().curves.size() == 1 &&
@@ -1270,10 +1277,21 @@ int main(int argc, char *argv[]) {
                   Automation::AutomationError::notFound(
                       {Automation::ObjectKind::Clip, copiedClipId.value()},
                       QStringLiteral("Copied clip was not found")));
-    ok &= expect(insertCopiedClip && copiedClip && copiedClip->notes().count() == 1 &&
-                     copiedParameter && copiedParameter.get().curves.size() == 1 &&
-                     copiedParameter.get().curves.first().values == curveDraft.values,
-                 "clip value DTO copying must preserve notes and edited parameters");
+    const auto copiedOriginalParameter =
+        copiedClip
+            ? runtime.parameters().getParameter(runtime.documentVersion().documentId, copiedClipId,
+                                                ParamInfo::Pitch, Param::Original)
+            : Automation::AutomationResult<Automation::ParameterSnapshotDto>(
+                  Automation::AutomationError::notFound(
+                      {Automation::ObjectKind::Clip, copiedClipId.value()},
+                      QStringLiteral("Copied clip was not found")));
+    ok &=
+        expect(insertCopiedClip && copiedClip && copiedClip->notes().count() == 1 &&
+                   copiedParameter && copiedParameter.get().curves.size() == 1 &&
+                   copiedParameter.get().curves.first().values == curveDraft.values &&
+                   copiedOriginalParameter && copiedOriginalParameter.get().curves.size() == 1 &&
+                   copiedOriginalParameter.get().curves.first().values == originalCurveDraft.values,
+               "clip value DTO copying must preserve notes and original and edited parameters");
 
     const auto undoCopiedClip = runtime.history().undo(commandContext(runtime));
     ok &= expect(undoCopiedClip && undoCopiedClip.get().changed &&

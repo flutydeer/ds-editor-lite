@@ -342,7 +342,7 @@ namespace Automation {
             const auto *param = singing.params.getParamByName(name);
             if (!param)
                 continue;
-            for (const auto type : {Param::Edited, Param::Envelope}) {
+            for (const auto type : {Param::Original, Param::Edited, Param::Envelope}) {
                 ParamCurvesDraftDto paramDraft{.name = name, .type = type};
                 for (const auto *curve : param->curves(type)) {
                     if (curve && (curve->type() == Curve::Draw || curve->type() == Curve::Anchor))
@@ -613,7 +613,8 @@ namespace Automation {
         }
         for (const auto &parameter : draft.params) {
             if (parameter.name < ParamInfo::Pitch || parameter.name > ParamInfo::ToneShift ||
-                (parameter.type != Param::Edited && parameter.type != Param::Envelope)) {
+                (parameter.type != Param::Original && parameter.type != Param::Edited &&
+                 parameter.type != Param::Envelope)) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("clip.parameters"),
                     QStringLiteral("Parameter name or type is unsupported"));
