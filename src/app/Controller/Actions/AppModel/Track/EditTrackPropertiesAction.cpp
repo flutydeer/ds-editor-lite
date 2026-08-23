@@ -18,6 +18,7 @@ void EditTrackPropertiesAction::execute() {
     control.setMute(m_newArgs.mute);
     control.setSolo(m_newArgs.solo);
     m_track->setControl(control);
+    m_track->setColorIndex(m_newArgs.colorIndex);
 }
 
 void EditTrackPropertiesAction::undo() {
@@ -28,4 +29,5 @@ void EditTrackPropertiesAction::undo() {
     control.setMute(m_oldArgs.mute);
     control.setSolo(m_oldArgs.solo);
     m_track->setControl(control);
+    m_track->setColorIndex(m_oldArgs.colorIndex);
 }

@@ -127,8 +127,10 @@ void TrackController::setActiveClip(const int clipId) {
 void TrackController::changeTrackProperty(const Track::TrackProperties &args) {
     qDebug() << "TrackController::changeTrackProperty" << args.gain << args.pan;
     const auto track = appModel->findTrackById(args.id);
-    const auto a = new TrackActions;
     const Track::TrackProperties oldArgs(*track);
+    if (oldArgs == args)
+        return;
+    const auto a = new TrackActions;
     a->editTrackProperties(oldArgs, args, track);
     a->execute();
     historyManager->record(a);

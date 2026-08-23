@@ -308,23 +308,25 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
     colorMenu->addAction(colorAction);
     bool colorConfirmed = false;
     connect(colorSwatch, &TrackColorSwatchWidget::colorIndexHovered, this, [this](int idx) {
-        if (m_track) {
+        if (m_track)
             m_track->setColorIndex(idx);
-            emit m_track->propertyChanged();
-        }
     });
     connect(colorSwatch, &TrackColorSwatchWidget::previewCancelled, this,
             [this, originalColorIndex] {
-                if (m_track) {
+                if (m_track)
                     m_track->setColorIndex(originalColorIndex);
-                    emit m_track->propertyChanged();
-                }
             });
     connect(colorSwatch, &TrackColorSwatchWidget::colorIndexSelected, this,
-            [this, &menu, &colorConfirmed](int idx) {
+            [this, &menu, &colorConfirmed, originalColorIndex](int idx) {
                 if (m_track) {
-                    m_track->setColorIndex(idx);
-                    emit m_track->propertyChanged();
+                    // The hover preview already mutated the model; reset it to the
+                    // original color first so the action records the correct old value.
+                    m_track->setColorIndex(originalColorIndex);
+                    if (idx != originalColorIndex) {
+                        Track::TrackProperties newArgs(*m_track);
+                        newArgs.colorIndex = idx;
+                        trackController->changeTrackProperty(newArgs);
+                    }
                 }
                 colorConfirmed = true;
                 menu.close();
@@ -334,7 +336,6 @@ void TrackControlView::contextMenuEvent(QContextMenuEvent *event) {
 
     if (!colorConfirmed && m_track && m_track->colorIndex() != originalColorIndex) {
         m_track->setColorIndex(originalColorIndex);
-        emit m_track->propertyChanged();
     }
     event->accept();
 }
