@@ -519,3 +519,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R150-GUI-G17-APPEARANCE-DEVELOPER-BACKENDS` | 150 | GUI-G17 外观、开发者选项、重启宿主诊断、窗口模式、RHI/Legacy 与几何恢复 | `f658db4031fcfe98893fd0fa79a0fd749598766c8651eeb0b4eec8410703b2a7` |
+
+## 追加证据 85
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R151-R156-GUI-G18-AUDIO-INFERENCE-RECOVERY` | 151–156 | GUI-G18 Audio/Inference、前瞻持久化缺陷、修复往返、清理与三轮完整 CTest | `277c477a5679295edd695254abf4367cd2a3cb08439219b7db98dfca796777d0` |

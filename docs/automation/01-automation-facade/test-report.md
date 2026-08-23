@@ -3829,3 +3829,125 @@ Fill Lyric 预览/字体/Skip Slur 以及全部基线恢复均符合测试大纲
 
 通过。GUI-G17 在当前宿主具备的全部适用断言均通过；真实触摸/精确式触控板手势因硬件不具备
 单列为环境限制，不影响产品判定。
+
+## 回归轮次 151：GUI-G18 Audio/Inference 设置首轮与前瞻持久化失败
+
+### Computer Use 结果
+
+- Audio 基线为 WASAPI、默认设备、1024、48000 Hz、gain 0、pan 0、任意设备变更时通知、
+  停止后返回起点和文件缓冲 0。切换到 DirectSound 后设备、buffer 和采样率列表重新构建；
+  512、44100 Hz、gain -36、pan -49、文件缓冲 4096 以及三种热插拔策略均能通过公开控件
+  提交，关闭并重开 Options 后保持。
+- `Test` 动作完成且没有可见错误或持续播放；Computer Use 不能主观听取测试音，因此不把
+  “实际可听响度”记为机器断言。当前没有独立安全测试端点或可受控物理热插拔端点，这两个
+  子场景精确记为 `NOT_EQUIPPED`，没有扩大为整页跳过。
+- Inference 依次验证 CPU、DirectML 明确 RTX GPU 和 DirectML Default。CPU 下使用 10 步、
+  depth 0.75、CPU 声码器、关闭 Auto Start、lookahead 12、kernel 3/5、容量 2 和空闲 120 秒；
+  三个独立短工程均可见音素、音高、合成波形和播放推进。GPU 列表显示 Default 与一块
+  23.57 GiB 的 RTX 设备，明确设备和 Default 各完成一次零缓存短句推理。
+- Restart Later/Restart Now、CPU 声码器开关及 GPU 选择均成对执行。由后台作业容器启动时，
+  Restarter 子进程会随作业树被回收；改为脱离容器启动后窗口 ID 连续轮换，确认此前的
+  “未重启”是测试宿主生命周期限制，不是编辑器缺陷。
+- Cache Refresh 与文件系统统计相符；测试过程中依次观察到 0、32、36、46 个缓存文件，
+  最终一次为 1,220,514 字节。
+
+### 失败与静态定位
+
+- lookahead 12 在关闭并重开 Options 后保持，但完整应用重启后回到 20；同轮其他非基线
+  Inference 设置均保持。
+- 配置快照中没有 `playbackLookaheadSeconds` 键。静态检查确认该字段已进入 Facade DTO、
+  Adapter 和页面提交，但 `InferenceOption::load/save` 同时遗漏读取和序列化。
+
+### 判定
+
+失败（产品缺陷）。Audio 和真实 CPU/GPU 推理资格通过；Playback Lookahead Window 只在内存
+会话内有效，应用重启必然丢失。后续轮次必须保留本轮失败并追加修复与复测结果。
+
+## 回归轮次 152：Inference 前瞻持久化修复门禁
+
+### 修复
+
+- 提交 `7e93e178` 在 `InferenceOption` 的加载和保存列表中补入
+  `playbackLookaheadSeconds`，没有增加平行设置路径。
+- `TestInferenceOption` 新增默认值、配置加载、序列化和值的完整 save-load 往返断言。
+
+### 保护性验证
+
+- `TestInferenceOptionDml` 与 `TestInferenceOptionCuda` 均构建成功并以退出码 0 完成。
+- 主工作树和隔离 GUI 工作树的 `DsEditorLite` 均构建成功；GUI 复测二进制 SHA-256 为
+  `5716757be6e959687602042c647eb02ae916fac8b9feb263d6d40c2f8a859863`。
+
+### 判定
+
+通过。静态缺口由单一既有 Option 持久化路径修复，并具备专用往返回归断言；进入真实应用
+退出/重启复测。
+
+## 回归轮次 153：GUI-G18 修复后退出重启与精确恢复
+
+### Computer Use 与配置双保险
+
+- 在修复版首个实例把 lookahead 从 20 设为 12 后，配置立即出现值为 12 的对应键；完整退出
+  后启动第二个实例，窗口 ID 已改变，Inference 页面仍显示 12。
+- 随后通过相同 GUI 路径恢复 20 并退出。两个实例退出码均为 0，完整日志未匹配 Debug Error、
+  断言、fatal、exception、failure、访问异常、revision conflict 或 idempotency conflict。
+- 隔离配置最终由轮次前备份精确恢复，SHA-256 为
+  `1a9647574615728b608bab692979245d58f528d38e4fd346f861ae4bc2770de2`。
+- 删除 46 个、1,220,514 字节的可再生成隔离推理缓存并重建空目录，剩余文件数为 0；三个
+  短工程只以匿名哈希进入私有证据，随后按隔离清理规则移除。原始工程未打开或修改。
+
+### 范围说明
+
+- G18 的设置持久化、安全切换、CPU/明确 GPU/Default GPU 真实短句、kernel 和缓存对照均已
+  完成。精确到“播放头前瞻窗口边界”的分段调度仍在后续推理交叉轮次验证，不以本轮短句像素
+  观察冒充内部调度边界证明。
+- Liliko 菜单追加复核结论与轮次 148～149 一致：单搜索根时只有一个父菜单和两条真实声线；
+  旧重复来自隔离配置重复登记同一声库根，不是 Automation Facade 重构引入。
+
+### 证据
+
+- 私有脱敏 Audio、CPU/GPU 推理、重启宿主、持久化缺陷、修复往返、缓存和恢复摘要：
+  `E-R151-R156-GUI-G18-AUDIO-INFERENCE-RECOVERY`。
+
+### 判定
+
+通过。GUI-G18 当前已装备的 Audio/Inference 设置与真实推理资格均符合预期；本轮发现的
+lookahead 持久化缺陷已完成自动化与 Computer Use 双保险修复验证，配置和缓存均恢复基线。
+
+## 回归轮次 154：G18 修复后首次完整 CTest
+
+### 结果
+
+- 51/51 通过，0 失败，总实际用时 8.39 秒。
+- `TestInferenceOptionDml`、`TestInferenceOptionCuda` 和 `TestAutomationArchitecture` 均通过。
+
+### 判定
+
+通过。修复后的首次完整 CTest 无回归；继续第二轮完整复跑。
+
+## 回归轮次 155：G18 修复后第二次完整 CTest
+
+### 结果
+
+- 51/51 通过，0 失败，总实际用时 8.40 秒。
+- 两个 Inference Option 变体和 Architecture 测试再次通过。
+
+### 判定
+
+通过。第二轮完整 CTest 无回归；继续第三轮完整复跑。
+
+## 回归轮次 156：G18 修复后第三次完整 CTest
+
+### 结果
+
+- 51/51 通过，0 失败，总实际用时 8.40 秒。
+- 三轮累计 153/153 个测试实例通过、0 失败；重点目标连续三轮稳定。
+
+### 证据
+
+- 私有脱敏 G18 与三轮完整 CTest 汇总：
+  `E-R151-R156-GUI-G18-AUDIO-INFERENCE-RECOVERY`。
+
+### 判定
+
+通过。提交 `7e93e178` 的专用测试、双工作树主程序构建、真实 GUI 往返及三轮完整 CTest
+全部通过；累计 153/153，无 flaky。
