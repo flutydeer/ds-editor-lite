@@ -38,6 +38,10 @@ namespace Automation {
                 return QStringLiteral("io_error");
             case AutomationErrorCode::InferenceError:
                 return QStringLiteral("inference_error");
+            case AutomationErrorCode::PermissionDenied:
+                return QStringLiteral("permission_denied");
+            case AutomationErrorCode::TooManyRequests:
+                return QStringLiteral("too_many_requests");
             case AutomationErrorCode::Unsupported:
                 return QStringLiteral("unsupported");
             case AutomationErrorCode::InternalError:

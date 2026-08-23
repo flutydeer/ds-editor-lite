@@ -7,12 +7,14 @@ namespace Automation {
     AutomationTaskSnapshot AutomationTaskManager::createTask(OperationId operationId,
                                                              DocumentVersion baseDocument,
                                                              std::optional<ObjectRef> target,
-                                                             CancelCallback cancelCallback) {
+                                                             CancelCallback cancelCallback,
+                                                             QString createdByClientId) {
         AutomationTaskSnapshot snapshot;
         snapshot.taskId = TaskId::create();
         snapshot.operationId = std::move(operationId);
         snapshot.baseDocument = std::move(baseDocument);
         snapshot.target = std::move(target);
+        snapshot.createdByClientId = std::move(createdByClientId);
 
         const QMutexLocker locker(&m_mutex);
         m_records.insert(snapshot.taskId, {snapshot, std::move(cancelCallback)});

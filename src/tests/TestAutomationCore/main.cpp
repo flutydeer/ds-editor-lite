@@ -248,6 +248,10 @@ int main(int argc, char *argv[]) {
                        QStringLiteral("overwrite_denied") &&
                    Automation::errorCodeName(Automation::AutomationErrorCode::InferenceError) ==
                        QStringLiteral("inference_error") &&
+                   Automation::errorCodeName(Automation::AutomationErrorCode::PermissionDenied) ==
+                       QStringLiteral("permission_denied") &&
+                   Automation::errorCodeName(Automation::AutomationErrorCode::TooManyRequests) ==
+                       QStringLiteral("too_many_requests") &&
                    Automation::errorCodeName(Automation::AutomationErrorCode::Unsupported) ==
                        QStringLiteral("unsupported"),
                "file error codes must keep stable external names");
@@ -1593,7 +1597,7 @@ int main(int argc, char *argv[]) {
     const auto task = runtime.automationTasks().createTask(
         Automation::OperationIds::extract::pitch::start, runtime.documentVersion(),
         Automation::ObjectRef{Automation::ObjectKind::Clip, clipId.value()},
-        [&cancelCount] { ++cancelCount; });
+        [&cancelCount] { ++cancelCount; }, QStringLiteral("mcp-test-client"));
     ok &= expect(runtime.automationTasks().markRunning(task.taskId),
                  "queued automation task must enter running state once");
 
@@ -1605,6 +1609,7 @@ int main(int argc, char *argv[]) {
         cancelPreview && cancelPreview.get().validatedOnly &&
             cancelPreview.get().state == Automation::AutomationTaskState::CancelRequested &&
             runningTask && runningTask.get().state == Automation::AutomationTaskState::Running &&
+            runningTask.get().createdByClientId == QStringLiteral("mcp-test-client") &&
             cancelCount == 0,
         "task cancel validate-only must predict without invoking cancellation");
 

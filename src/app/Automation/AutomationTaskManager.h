@@ -41,6 +41,7 @@ namespace Automation {
         QString message;
         std::optional<MutationResult> mutation;
         std::optional<AutomationError> error;
+        QString createdByClientId;
         bool cancelable = true;
         bool validatedOnly = false;
 
@@ -63,7 +64,8 @@ namespace Automation {
 
         AutomationTaskSnapshot createTask(OperationId operationId, DocumentVersion baseDocument,
                                           std::optional<ObjectRef> target = std::nullopt,
-                                          CancelCallback cancel = {});
+                                          CancelCallback cancel = {},
+                                          QString createdByClientId = {});
 
         AutomationResult<AutomationTaskSnapshot> get(const DocumentId &documentId,
                                                      const TaskId &taskId) const;

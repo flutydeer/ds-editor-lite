@@ -113,6 +113,7 @@ namespace Automation {
     enum class InvocationSource {
         TrustedGui,
         InternalAutomation,
+        PublicMcp,
         Test,
     };
 
@@ -121,12 +122,14 @@ namespace Automation {
         bool validateOnly = false;
         QString idempotencyKey;
         InvocationSource source = InvocationSource::TrustedGui;
+        QString clientId;
     };
 
     struct GuiCommandContext {
         WindowId windowId;
         bool validateOnly = false;
         InvocationSource source = InvocationSource::TrustedGui;
+        QString clientId;
     };
 
     struct GuiDocumentCommandContext {
@@ -134,11 +137,13 @@ namespace Automation {
         WindowId windowId;
         bool validateOnly = false;
         InvocationSource source = InvocationSource::TrustedGui;
+        QString clientId;
     };
 
     struct ApplicationCommandContext {
         bool validateOnly = false;
         InvocationSource source = InvocationSource::TrustedGui;
+        QString clientId;
     };
 
     enum class ObjectKind {
@@ -184,6 +189,8 @@ namespace Automation {
         OverwriteDenied,
         IoError,
         InferenceError,
+        PermissionDenied,
+        TooManyRequests,
         Unsupported,
         InternalError,
     };
