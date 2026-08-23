@@ -130,6 +130,8 @@ int main(int argc, char *argv[]) {
     const QRegularExpression audioSourceGeneration(QStringLiteral(R"(\bsourceGeneration\b)"));
     const QRegularExpression fillLyricLanguageCommit(QStringLiteral(
         R"(arg\.language\s*=\s*noteResult\.language\s*;[\s\S]{0,300}edit\.language\s*=\s*arg\.language\s*;)"));
+    const QRegularExpression taggerDetailSavedBeforeReorder(QStringLiteral(
+        R"(void\s+TaggerConfigTab::onOrderChanged\s*\(\s*\)\s*\{\s*saveCurrentDetail\s*\(\s*\)\s*;[\s\S]{0,160}m_listPanel->listWidget\s*\(\s*\))"));
 
     for (const auto &id : Automation::OperationIds::all()) {
         if (!versionedOperationSuffix.match(id).hasMatch())
@@ -235,6 +237,13 @@ int main(int argc, char *argv[]) {
             ok &= requireMatch(
                 file, fillLyricLanguageCommit,
                 QStringLiteral("Fill Lyrics stopped committing the resolved note language"));
+        }
+
+        if (file.relativePath ==
+            QStringLiteral("src/app/Modules/FillLyric/Widgets/TaggerConfigTab.cpp")) {
+            ok &= requireMatch(
+                file, taggerDetailSavedBeforeReorder,
+                QStringLiteral("Tagger reorder discarded the active custom-rule editor state"));
         }
 
         if (file.relativePath == QStringLiteral("src/app/UI/Views/ClipEditor/PianoRoll/"

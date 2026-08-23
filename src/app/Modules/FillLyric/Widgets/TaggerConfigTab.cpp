@@ -207,6 +207,8 @@ namespace FillLyric
     }
 
     void TaggerConfigTab::onOrderChanged() {
+        saveCurrentDetail();
+
         auto *list = m_listPanel->listWidget();
         QList<RuleItem> reordered;
         reordered.reserve(m_rules.size());
