@@ -13,8 +13,8 @@ namespace InferenceAutomationBridge {
         }
 
         Automation::AutomationResult<Automation::InferenceMutationResultDto>
-        execute(const Automation::DocumentVersion &expected,
-                const Automation::InferenceMutationRequest &request) {
+            execute(const Automation::DocumentVersion &expected,
+                    const Automation::InferenceMutationRequest &request) {
             auto *runtime = AppContext::instance<Automation::CoreRuntime>();
             if (!runtime)
                 return unavailable();
@@ -31,17 +31,17 @@ namespace InferenceAutomationBridge {
     }
 
     Automation::AutomationResult<Automation::InferenceMutationResultDto>
-    executeAfterGate(const Automation::DocumentVersion &taskVersion,
-                     const Automation::InferenceMutationRequest &request) {
-        const auto commitVersion = Automation::rebaseValidatedInferenceTaskVersion(
-            taskVersion, currentDocumentVersion());
+        executeAfterGate(const Automation::DocumentVersion &taskVersion,
+                         const Automation::InferenceMutationRequest &request) {
+        const auto commitVersion =
+            Automation::rebaseTaskVersionWithinGeneration(taskVersion, currentDocumentVersion());
         if (!commitVersion)
             return commitVersion.getError();
         return execute(commitVersion.get(), request);
     }
 
     Automation::AutomationResult<Automation::InferenceMutationResultDto>
-    executeCurrent(const Automation::InferenceMutationRequest &request) {
+        executeCurrent(const Automation::InferenceMutationRequest &request) {
         return execute(currentDocumentVersion(), request);
     }
 

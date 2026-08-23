@@ -41,6 +41,9 @@ namespace Automation {
                     ApplicationRuntimeServices applicationServices = {});
 
         [[nodiscard]] DocumentVersion documentVersion() const;
+        [[nodiscard]] bool documentBusy(const DocumentId &documentId) const;
+        [[nodiscard]] AutomationResult<CommandContext>
+            derivedWritebackContext(const DocumentVersion &taskVersion, bool validateOnly) const;
         [[nodiscard]] const WindowId &windowId() const;
 
         EditorAutomationFacade &facade();

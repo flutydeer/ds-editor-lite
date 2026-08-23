@@ -1,7 +1,7 @@
 #ifndef COMPUTEAUDIOHASHTASK_H
 #define COMPUTEAUDIOHASHTASK_H
 
-#include "Automation/AutomationTypes.h"
+#include "Automation/ProjectAutomationDtos.h"
 
 #include <lite/Tasking/Task.h>
 
@@ -12,6 +12,7 @@ public:
     int clipId = -1;
     Automation::DocumentVersion documentVersion;
     Automation::TaskId automationTaskId;
+    Automation::AudioAssetSnapshotDto assetSnapshot;
     QString path;
     QString resultSha512;
     bool success = false;

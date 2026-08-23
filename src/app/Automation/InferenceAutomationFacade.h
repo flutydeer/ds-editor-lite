@@ -16,10 +16,6 @@ class AppModel;
 
 namespace Automation {
 
-    AutomationResult<DocumentVersion>
-    rebaseValidatedInferenceTaskVersion(const DocumentVersion &taskVersion,
-                                        const DocumentVersion &currentVersion);
-
     enum class InferenceMutationKind {
         ApplyPronunciations,
         ApplyPhonemeNames,
@@ -98,19 +94,19 @@ namespace Automation {
     };
 
     struct InferenceRuntimeServices {
-        std::function<AutomationResult<PreparedInferenceMutation>(
-            AppModel *, const InferenceMutationRequest &)> prepareMutation;
+        std::function<AutomationResult<PreparedInferenceMutation>(AppModel *,
+                                                                  const InferenceMutationRequest &)>
+            prepareMutation;
     };
 
     class InferenceAutomationFacade final {
     public:
-        InferenceAutomationFacade(OperationCatalog &catalog,
-                                  AutomationDispatcher &dispatcher,
+        InferenceAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
                                   CommandCommitter &committer,
                                   InferenceRuntimeServices services = {});
 
         AutomationResult<InferenceMutationResultDto>
-        applyMutation(const CommandContext &context, const InferenceMutationRequest &request);
+            applyMutation(const CommandContext &context, const InferenceMutationRequest &request);
 
         [[nodiscard]] static OperationId operationId(InferenceMutationKind kind);
 

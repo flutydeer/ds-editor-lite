@@ -1,7 +1,9 @@
 #include "AsyncFileDomainSupport.h"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
+#include <QTemporaryDir>
 
 #include <limits>
 
@@ -196,7 +198,7 @@ namespace {
             const auto sharedBase = runtime.documentVersion();
             const auto first =
                 runtime.inference().applyMutation(RuntimeHarness::contextFor(sharedBase), request);
-            const auto rebased = Automation::rebaseValidatedInferenceTaskVersion(
+            const auto rebased = Automation::rebaseTaskVersionWithinGeneration(
                 sharedBase, runtime.documentVersion());
             auto siblingRequest = request;
             siblingRequest.kind = Automation::InferenceMutationKind::ApplyVariance;
@@ -212,7 +214,7 @@ namespace {
 
             const auto staleGeneration =
                 Automation::DocumentVersion{Automation::DocumentId::create(), sharedBase.revision};
-            const auto rejectedRebase = Automation::rebaseValidatedInferenceTaskVersion(
+            const auto rejectedRebase = Automation::rebaseTaskVersionWithinGeneration(
                 staleGeneration, runtime.documentVersion());
             suite.expect(isError(rejectedRebase, Automation::AutomationErrorCode::DocumentChanged),
                          QStringLiteral("sibling rebasing must never cross a document generation"));
@@ -262,22 +264,26 @@ namespace {
                 info.frames = 96000;
                 info.peakCache.append({-20, 20});
                 const auto base = runtime.documentVersion();
+                const auto asset = Automation::audioAssetSnapshotDto(*audio);
                 const auto preview = runtime.project().applyAudioDecodeCache(
-                    harness.context(true), harness.audioClipId(), audio->path(), info);
+                    harness.context(true), harness.audioClipId(), asset, info);
                 suite.expect(preview && preview.get().validatedOnly && preview.get().changed &&
                                  runtime.documentVersion() == base &&
                                  audio->audioInfo().sampleRate != 48000,
                              QStringLiteral("decode preview must not install cache data"));
                 const auto commit = runtime.project().applyAudioDecodeCache(
-                    harness.context(), harness.audioClipId(), audio->path(), info);
+                    harness.context(), harness.audioClipId(), asset, info);
                 const auto noOp = runtime.project().applyAudioDecodeCache(
-                    harness.context(), harness.audioClipId(), audio->path(), info);
+                    harness.context(), harness.audioClipId(), asset, info);
+                auto staleAsset = asset;
+                staleAsset.path = QStringLiteral("stale.wav");
                 const auto stale = runtime.project().applyAudioDecodeCache(
-                    harness.context(), harness.audioClipId(), QStringLiteral("stale.wav"), info);
+                    harness.context(), harness.audioClipId(), staleAsset, info);
                 suite.expect(
                     commit && commit.get().changed && noOp && !noOp.get().changed &&
                         runtime.documentVersion() == base &&
                         audio->audioInfo().sampleRate == 48000 &&
+                        audio->pathStatus() == AudioClip::PathStatus::Normal &&
                         isError(stale, Automation::AutomationErrorCode::InvalidArgument,
                                 Automation::OperationIds::audio_clips::apply_decode_cache),
                     QStringLiteral("decode cache must be derived, no-op aware, and path guarded"));
@@ -286,22 +292,25 @@ namespace {
         suite.run(Automation::OperationIds::audio_clips::set_path_status,
                   QStringLiteral("derived-status-and-validation"), [&] {
                       const auto base = runtime.documentVersion();
+                      const auto asset = Automation::audioAssetSnapshotDto(*audio);
                       const auto preview = runtime.project().setAudioClipPathStatus(
-                          harness.context(true), harness.audioClipId(), audio->path(),
-                          AudioClip::PathStatus::Normal);
+                          harness.context(true), harness.audioClipId(), asset,
+                          AudioClip::PathStatus::Unconfirmed);
                       const auto commit = runtime.project().setAudioClipPathStatus(
-                          harness.context(), harness.audioClipId(), audio->path(),
-                          AudioClip::PathStatus::Normal);
+                          harness.context(), harness.audioClipId(), asset,
+                          AudioClip::PathStatus::Unconfirmed);
                       const auto noOp = runtime.project().setAudioClipPathStatus(
-                          harness.context(), harness.audioClipId(), audio->path(),
-                          AudioClip::PathStatus::Normal);
+                          harness.context(), harness.audioClipId(), asset,
+                          AudioClip::PathStatus::Unconfirmed);
+                      auto staleAsset = asset;
+                      staleAsset.path = QStringLiteral("stale.wav");
                       const auto stale = runtime.project().setAudioClipPathStatus(
-                          harness.context(), harness.audioClipId(), QStringLiteral("stale.wav"),
+                          harness.context(), harness.audioClipId(), staleAsset,
                           AudioClip::PathStatus::Missing);
                       suite.expect(
                           preview && preview.get().validatedOnly && commit &&
                               commit.get().changed && noOp && !noOp.get().changed &&
-                              audio->pathStatus() == AudioClip::PathStatus::Normal &&
+                              audio->pathStatus() == AudioClip::PathStatus::Unconfirmed &&
                               runtime.documentVersion() == base &&
                               isError(stale, Automation::AutomationErrorCode::InvalidArgument,
                                       Automation::OperationIds::audio_clips::set_path_status),
@@ -313,17 +322,18 @@ namespace {
             Automation::OperationIds::audio_clips::set_hash,
             QStringLiteral("derived-hash-and-empty-input"), [&] {
                 const auto base = runtime.documentVersion();
+                const auto asset = Automation::audioAssetSnapshotDto(*audio);
                 const auto preview =
                     runtime.project().setAudioClipHash(harness.context(true), harness.audioClipId(),
-                                                       audio->path(), QStringLiteral("sha512-a"));
-                const auto commit =
-                    runtime.project().setAudioClipHash(harness.context(), harness.audioClipId(),
-                                                       audio->path(), QStringLiteral("sha512-a"));
+                                                       asset, QStringLiteral("sha512-a"));
+                const auto commit = runtime.project().setAudioClipHash(
+                    harness.context(), harness.audioClipId(), asset, QStringLiteral("sha512-a"));
+                const auto updatedAsset = Automation::audioAssetSnapshotDto(*audio);
                 const auto noOp =
                     runtime.project().setAudioClipHash(harness.context(), harness.audioClipId(),
-                                                       audio->path(), QStringLiteral("sha512-a"));
+                                                       updatedAsset, QStringLiteral("sha512-a"));
                 const auto empty = runtime.project().setAudioClipHash(
-                    harness.context(), harness.audioClipId(), audio->path(), {});
+                    harness.context(), harness.audioClipId(), updatedAsset, {});
                 suite.expect(
                     preview && preview.get().validatedOnly && commit && commit.get().changed &&
                         noOp && !noOp.get().changed &&
@@ -336,25 +346,37 @@ namespace {
 
         suite.run(Automation::OperationIds::audio_clips::apply_resolved_path,
                   QStringLiteral("derived-path-resolution-and-empty-target"), [&] {
-                      const auto oldPath = audio->path();
+                      QTemporaryDir resolvedFiles;
+                      const auto resolvedPath =
+                          QDir(resolvedFiles.path()).filePath(QStringLiteral("resolved.wav"));
+                      QFile resolvedFile(resolvedPath);
+                      const bool fixtureReady =
+                          resolvedFiles.isValid() &&
+                          resolvedFile.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+                          resolvedFile.write("resolved-audio") == 14;
+                      suite.expect(fixtureReady,
+                                   QStringLiteral("resolved audio fixture must be available"));
+                      if (!fixtureReady)
+                          return;
                       const auto base = runtime.documentVersion();
+                      const auto asset = Automation::audioAssetSnapshotDto(*audio);
                       const auto preview = runtime.project().applyResolvedAudioPath(
-                          harness.context(true), harness.audioClipId(), oldPath,
-                          QStringLiteral("resolved.wav"), AudioClip::PathStatus::Normal);
+                          harness.context(true), harness.audioClipId(), asset, resolvedPath,
+                          AudioClip::PathStatus::Normal);
                       const auto commit = runtime.project().applyResolvedAudioPath(
-                          harness.context(), harness.audioClipId(), oldPath,
-                          QStringLiteral("resolved.wav"), AudioClip::PathStatus::Normal);
+                          harness.context(), harness.audioClipId(), asset, resolvedPath,
+                          AudioClip::PathStatus::Normal);
+                      const auto resolvedAsset = Automation::audioAssetSnapshotDto(*audio);
                       const auto noOp = runtime.project().applyResolvedAudioPath(
-                          harness.context(), harness.audioClipId(), audio->path(), audio->path(),
+                          harness.context(), harness.audioClipId(), resolvedAsset, audio->path(),
                           AudioClip::PathStatus::Normal);
                       const auto empty = runtime.project().applyResolvedAudioPath(
-                          harness.context(), harness.audioClipId(), audio->path(), {},
+                          harness.context(), harness.audioClipId(), resolvedAsset, {},
                           AudioClip::PathStatus::Normal);
                       suite.expect(
                           preview && preview.get().validatedOnly && commit &&
                               commit.get().changed && noOp && !noOp.get().changed &&
-                              audio->path() == QStringLiteral("resolved.wav") &&
-                              runtime.documentVersion() == base &&
+                              audio->path() == resolvedPath && runtime.documentVersion() == base &&
                               isError(empty, Automation::AutomationErrorCode::InvalidArgument,
                                       Automation::OperationIds::audio_clips::apply_resolved_path),
                           QStringLiteral("resolved path must be snapshot-guarded derived state"));
@@ -399,8 +421,8 @@ namespace {
             Automation::OperationIds::audio_clips::confirm_path,
             QStringLiteral("state-commit-preview-no-op-and-wrong-type"), [&] {
                 const auto derived = runtime.project().setAudioClipPathStatus(
-                    harness.context(), harness.audioClipId(), audio->path(),
-                    AudioClip::PathStatus::Missing);
+                    harness.context(), harness.audioClipId(),
+                    Automation::audioAssetSnapshotDto(*audio), AudioClip::PathStatus::Missing);
                 const auto base = runtime.documentVersion();
                 const auto preview = runtime.project().confirmAudioClipPath(harness.context(true),
                                                                             harness.audioClipId());

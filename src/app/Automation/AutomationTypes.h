@@ -217,6 +217,11 @@ namespace Automation {
     template <typename T>
     using AutomationResult = Expected<T, AutomationError>;
 
+    // Rebased task results still require an immutable target snapshot check at the write boundary.
+    [[nodiscard]] AutomationResult<DocumentVersion>
+        rebaseTaskVersionWithinGeneration(const DocumentVersion &taskVersion,
+                                          const DocumentVersion &currentVersion);
+
     struct AutomationUnit {
         friend bool operator==(const AutomationUnit &, const AutomationUnit &) = default;
     };

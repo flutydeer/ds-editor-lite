@@ -10,6 +10,8 @@
 
 #include <QMessageBox>
 #include <QFile>
+#include <QFileInfo>
+#include <QPointer>
 #include <QBoxLayout>
 #include <QFormLayout>
 #include <QComboBox>
@@ -141,11 +143,11 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
                         break;
                 }
             });
-    connect(appModel, &AppModel::trackMoved, this, [this](const qsizetype from,
-                                                          const qsizetype to) {
-        DEVICE_LOCKER;
-        handleTrackMoved(static_cast<int>(from), static_cast<int>(to));
-    });
+    connect(appModel, &AppModel::trackMoved, this,
+            [this](const qsizetype from, const qsizetype to) {
+                DEVICE_LOCKER;
+                handleTrackMoved(static_cast<int>(from), static_cast<int>(to));
+            });
 
     connect(appModel, &AppModel::timelineChanged, this, [this] {
         DEVICE_LOCKER;
@@ -338,8 +340,7 @@ void AudioContext::tickLevelMeters() {
         if (!m_trackLevelMeterValue.contains(track))
             return;
         auto &pair = m_trackLevelMeterValue[track];
-        if (notPlaying && (pair.first->targetValue() > -96 ||
-                           pair.second->targetValue() > -96)) {
+        if (notPlaying && (pair.first->targetValue() > -96 || pair.second->targetValue() > -96)) {
             pair.first->setTargetValue(-96);
             pair.second->setTargetValue(-96);
         }
@@ -367,15 +368,15 @@ void AudioContext::tickLevelMeters() {
 
     if (notPlaying) {
         bool allAtFloor = true;
-        for (auto it = m_trackLevelMeterValue.constBegin();
-             it != m_trackLevelMeterValue.constEnd(); ++it) {
+        for (auto it = m_trackLevelMeterValue.constBegin(); it != m_trackLevelMeterValue.constEnd();
+             ++it) {
             if (it->first->currentValue() > -96 || it->second->currentValue() > -96) {
                 allAtFloor = false;
                 break;
             }
         }
-        if (allAtFloor &&
-            m_masterLevelMeterValueL && m_masterLevelMeterValueL->currentValue() <= -96) {
+        if (allAtFloor && m_masterLevelMeterValueL &&
+            m_masterLevelMeterValueL->currentValue() <= -96) {
             m_levelMeterActive = false;
             return;
         }
@@ -497,6 +498,24 @@ void AudioContext::handleClipInserted(Track *track, const int id, AudioClip *aud
         DEVICE_LOCKER;
         handleClipPropertyChanged(audioClip);
     });
+    connect(audioClip, &AudioClip::sourceChanged, this, [audioClip, this] {
+        DEVICE_LOCKER;
+        handleClipPropertyChanged(audioClip, true);
+    });
+    const QPointer<AudioClip> guardedAudioClip(audioClip);
+    connect(
+        audioClip, &AudioClip::pathStatusChanged, this,
+        [guardedAudioClip, this] {
+            if (!guardedAudioClip)
+                return;
+            DEVICE_LOCKER;
+            const auto context = getContextFromAudioClip(guardedAudioClip.data());
+            if (!context)
+                return;
+            context->controlMixer()->setSilentFlags(
+                shouldSilenceAudioClip(guardedAudioClip.data()) ? -1 : 0);
+        },
+        Qt::QueuedConnection);
 }
 
 void AudioContext::handleClipRemoved(Track *track, const int id, AudioClip *audioClip) {
@@ -504,15 +523,18 @@ void AudioContext::handleClipRemoved(Track *track, const int id, AudioClip *audi
     const auto trackContext = getContextFromTrack(track);
     trackContext->removeAudioClip(id);
     m_audioClipModelDict.remove(audioClip);
+    m_unloadableAudioClips.remove(audioClip);
 }
 
-void AudioContext::handleClipPropertyChanged(AudioClip *audioClip) const {
+void AudioContext::handleClipPropertyChanged(AudioClip *audioClip, const bool forceSourceReload) {
     const auto audioClipContext = getContextFromAudioClip(audioClip);
+    if (!audioClipContext)
+        return;
 
     feedCompensatedPosition(audioClip, audioClipContext);
 
     audioClipContext->controlMixer()->setGain(talcs::Decibels::decibelsToGain(audioClip->gain()));
-    audioClipContext->controlMixer()->setSilentFlags(audioClip->mute() ? -1 : 0);
+    audioClipContext->controlMixer()->setSilentFlags(shouldSilenceAudioClip(audioClip) ? -1 : 0);
 
     const auto workspace = audioClip->workspace().value("diffscope.audio.formatData");
     QVariant userData;
@@ -520,17 +542,38 @@ void AudioContext::handleClipPropertyChanged(AudioClip *audioClip) const {
     o >> userData;
     const auto entryClassName = workspace.value("entryClassName").toString();
 
-    if (audioClip->path() != audioClipContext->path()) {
+    const bool shouldReloadSource =
+        forceSourceReload || (!m_unloadableAudioClips.contains(audioClip) &&
+                              audioClip->path() != audioClipContext->path());
+    if (shouldReloadSource) {
+        const QFileInfo audioFile(audioClip->path());
+        if (!audioFile.isAbsolute() || !audioFile.isFile()) {
+            m_unloadableAudioClips.insert(audioClip);
+            audioClipContext->controlMixer()->setSilentFlags(-1);
+            return;
+        }
         if (!audioClipContext->setPathLoad(audioClip->path(), userData, entryClassName)) {
+            m_unloadableAudioClips.insert(audioClip);
+            audioClipContext->controlMixer()->setSilentFlags(-1);
             if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
                 runtime->project().setAudioClipPathStatus(
                     {.expected = runtime->documentVersion(),
                      .source = Automation::InvocationSource::TrustedGui},
-                    Automation::ClipId(audioClip->id()), audioClip->path(),
-                    AudioClip::PathStatus::Missing);
+                    Automation::ClipId(audioClip->id()),
+                    Automation::audioAssetSnapshotDto(*audioClip), AudioClip::PathStatus::Missing);
             }
+        } else {
+            m_unloadableAudioClips.remove(audioClip);
+            audioClipContext->controlMixer()->setSilentFlags(shouldSilenceAudioClip(audioClip) ? -1
+                                                                                               : 0);
         }
     }
+}
+
+bool AudioContext::shouldSilenceAudioClip(const AudioClip *audioClip) const {
+    return !audioClip || audioClip->mute() ||
+           audioClip->pathStatus() == AudioClip::PathStatus::Missing ||
+           m_unloadableAudioClips.contains(audioClip);
 }
 
 void AudioContext::feedCompensatedPosition(const AudioClip *audioClip,

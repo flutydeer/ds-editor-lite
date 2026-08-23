@@ -625,6 +625,16 @@ int main(int argc, char *argv[]) {
                                     std::move(packageServices), std::move(inferenceServices),
                                     std::move(fileServices), std::move(audioExportServices),
                                     std::move(extractionServices), std::move(applicationServices));
+    const auto runtimeDocumentId = runtime.documentVersion().documentId;
+    const auto unrelatedDocumentId = Automation::DocumentId::create();
+    ok &= expect(!runtime.documentBusy(runtimeDocumentId) &&
+                     !runtime.setDocumentBusy(unrelatedDocumentId, true) &&
+                     runtime.setDocumentBusy(runtimeDocumentId, true) &&
+                     runtime.documentBusy(runtimeDocumentId) &&
+                     !runtime.documentBusy(unrelatedDocumentId) &&
+                     runtime.setDocumentBusy(runtimeDocumentId, false) &&
+                     !runtime.documentBusy(runtimeDocumentId),
+                 "document busy state must remain scoped to the active generation");
     const auto state =
         runtime.facade().getEditorState(runtime.documentVersion().documentId, runtime.windowId());
     const auto capabilities = runtime.facade().getEditorCapabilities();
@@ -1329,26 +1339,36 @@ int main(int argc, char *argv[]) {
         "prepared batch import must bind client refs and commit once");
 
     if (audioClip) {
+        QTemporaryDir resolvedFiles;
+        const auto resolvedPath =
+            QDir(resolvedFiles.path()).filePath(QStringLiteral("resolved.wav"));
+        QFile resolvedFile(resolvedPath);
+        const bool resolvedFixtureReady =
+            resolvedFiles.isValid() &&
+            resolvedFile.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+            resolvedFile.write("resolved-audio") == 14;
+        ok &= expect(resolvedFixtureReady, "resolved audio fixture must be created");
         const auto cacheRevision = runtime.documentVersion();
         AudioInfoModel audioInfo;
         audioInfo.sampleRate = 48000;
         audioInfo.channels = 1;
         audioInfo.frames = 48000;
         audioInfo.peakCache.append({-10, 10});
+        const auto source = Automation::audioAssetSnapshotDto(*audioClip);
         const auto decodeCache = runtime.project().applyAudioDecodeCache(
-            commandContext(runtime), audioId, audioClip->path(), audioInfo);
+            commandContext(runtime), audioId, source, audioInfo);
         const auto setStatus = runtime.project().setAudioClipPathStatus(
-            commandContext(runtime), audioId, audioClip->path(), AudioClip::PathStatus::Missing);
-        const auto setHash = runtime.project().setAudioClipHash(
-            commandContext(runtime), audioId, audioClip->path(), QStringLiteral("abc123"));
+            commandContext(runtime), audioId, source, AudioClip::PathStatus::Missing);
+        const auto setHash = runtime.project().setAudioClipHash(commandContext(runtime), audioId,
+                                                                source, QStringLiteral("abc123"));
         const auto resolvePath = runtime.project().applyResolvedAudioPath(
-            commandContext(runtime), audioId, audioClip->path(), QStringLiteral("D:/resolved.wav"),
-            AudioClip::PathStatus::Normal);
+            commandContext(runtime), audioId, Automation::audioAssetSnapshotDto(*audioClip),
+            resolvedPath, AudioClip::PathStatus::Normal);
         ok &= expect(decodeCache && setStatus && setHash && resolvePath &&
                          runtime.documentVersion() == cacheRevision &&
                          audioClip->audioInfo().sampleRate == 48000 &&
                          audioClip->pathInfo().sha512 == QStringLiteral("abc123") &&
-                         audioClip->path() == QStringLiteral("D:/resolved.wav"),
+                         audioClip->path() == resolvedPath,
                      "derived audio writeback must validate snapshots without advancing revision");
     }
 
@@ -1671,10 +1691,10 @@ int main(int argc, char *argv[]) {
         runtime.inference().applyMutation(commandContext(runtime, true), inferenceRequest);
     const auto inferenceApply =
         runtime.inference().applyMutation(commandContext(runtime), inferenceRequest);
-    const auto siblingCommitVersion = Automation::rebaseValidatedInferenceTaskVersion(
-        inferenceVersion, runtime.documentVersion());
-    const auto siblingInferenceApply = [&]()
-        -> Automation::AutomationResult<Automation::InferenceMutationResultDto> {
+    const auto siblingCommitVersion =
+        Automation::rebaseTaskVersionWithinGeneration(inferenceVersion, runtime.documentVersion());
+    const auto siblingInferenceApply =
+        [&]() -> Automation::AutomationResult<Automation::InferenceMutationResultDto> {
         if (!siblingCommitVersion)
             return siblingCommitVersion.getError();
         Automation::CommandContext siblingContext{
@@ -1683,9 +1703,9 @@ int main(int argc, char *argv[]) {
         };
         return runtime.inference().applyMutation(siblingContext, inferenceRequest);
     }();
-    const auto replacedTaskVersion = Automation::DocumentVersion{
-        Automation::DocumentId::create(), inferenceVersion.revision};
-    const auto rejectedGenerationRebase = Automation::rebaseValidatedInferenceTaskVersion(
+    const auto replacedTaskVersion =
+        Automation::DocumentVersion{Automation::DocumentId::create(), inferenceVersion.revision};
+    const auto rejectedGenerationRebase = Automation::rebaseTaskVersionWithinGeneration(
         replacedTaskVersion, runtime.documentVersion());
     ok &= expect(inferencePreview && inferencePreview.get().mutation.validatedOnly &&
                      inferencePreview.get().mutation.changed && inferenceApply &&

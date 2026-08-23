@@ -87,7 +87,7 @@ namespace Automation {
     }
 
     AutomationError AutomationError::documentChanged(const DocumentId requested,
-                                                       const DocumentId current) {
+                                                     const DocumentId current) {
         AutomationError error;
         error.code = AutomationErrorCode::DocumentChanged;
         error.documentId = requested;
@@ -97,17 +97,25 @@ namespace Automation {
     }
 
     AutomationError AutomationError::revisionConflict(const DocumentId documentId,
-                                                       const Revision expected,
-                                                       const Revision actual) {
+                                                      const Revision expected,
+                                                      const Revision actual) {
         AutomationError error;
         error.code = AutomationErrorCode::RevisionConflict;
         error.documentId = documentId;
         error.expectedRevision = expected;
         error.actualRevision = actual;
-        error.message = QStringLiteral("Expected revision %1, actual revision is %2")
-                            .arg(expected)
-                            .arg(actual);
+        error.message =
+            QStringLiteral("Expected revision %1, actual revision is %2").arg(expected).arg(actual);
         return error;
+    }
+
+    AutomationResult<DocumentVersion>
+        rebaseTaskVersionWithinGeneration(const DocumentVersion &taskVersion,
+                                          const DocumentVersion &currentVersion) {
+        if (taskVersion.documentId != currentVersion.documentId)
+            return AutomationError::documentChanged(taskVersion.documentId,
+                                                    currentVersion.documentId);
+        return currentVersion;
     }
 
 } // namespace Automation

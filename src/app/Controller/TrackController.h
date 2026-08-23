@@ -14,6 +14,7 @@
 
 class SingingClip;
 class AudioClip;
+class ComputeAudioHashTask;
 class QWidget;
 
 namespace talcs {
@@ -47,12 +48,13 @@ public slots:
     static void changeTrackProperty(const Track::TrackProperties &args);
     static void changeTrackColor(int trackId, int colorIndex);
     static void changeTrackDefaultLanguage(int trackId, const QString &language);
-    void onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io, const QJsonObject &workspace, int id, int tick);
+    void onAddAudioClip(const QString &path, talcs::AbstractAudioFormatIO *io,
+                        const QJsonObject &workspace, int id, int tick);
     void onRelocateAudioClip(int clipId, const QString &path, talcs::AbstractAudioFormatIO *io,
                              const QJsonObject &workspace);
-    // User confirms a "matched by name but no hash to verify" result: normalize status and compute sha512.
-    // Not undoable: it only promotes the transient path status and backfills the digest,
-    // no project content changes (the path was already adopted at load)
+    // User confirms a "matched by name but no hash to verify" result: normalize status and compute
+    // sha512. Not undoable: it only promotes the transient path status and backfills the digest, no
+    // project content changes (the path was already adopted at load)
     static void confirmAudioClipPath(int clipId);
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args);
     static void onClipPropertyChanged(const Clip::ClipCommonProperties &args, int newTrackIndex);
@@ -70,6 +72,7 @@ public slots:
 
 private:
     void handleDecodeAudioTaskFinished(DecodeAudioTask *task);
+    void handleComputeAudioHashTaskFinished(ComputeAudioHashTask *task);
 
     // TODO: refactor
     QWidget *m_parentWidget = nullptr;

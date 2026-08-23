@@ -6,6 +6,7 @@
 #include "Automation/OperationIds.h"
 #include "EditorViewController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
+#include "Controller/Tasks/DocumentTaskCompletion.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/AudioInfoModel.h>
@@ -48,8 +49,7 @@ namespace {
                 .source = Automation::InvocationSource::TrustedGui};
     }
 
-    Automation::ClipPropertiesDto clipPropertiesDto(
-        const Clip::ClipCommonProperties &properties) {
+    Automation::ClipPropertiesDto clipPropertiesDto(const Clip::ClipCommonProperties &properties) {
         return {
             .id = Automation::ClipId(properties.id),
             .name = properties.name,
@@ -210,9 +210,9 @@ void TrackController::onRelocateAudioClip(const int clipId, const QString &path,
     auto *runtime = automationRuntime();
     if (!runtime)
         return;
-    const AudioPathInfo newInfo{DiffscopeAudioWorkspace::relativeDirFor(
-                                    path, documentWorkflowController->projectPath()),
-                                {}};
+    const AudioPathInfo newInfo{
+        DiffscopeAudioWorkspace::relativeDirFor(path, documentWorkflowController->projectPath()),
+        {}};
     const auto result = runtime->project().relocateAudioClip(
         commandContext(*runtime), Automation::ClipId(clipId), path, newInfo, workspace);
     if (result) {
@@ -226,8 +226,8 @@ void TrackController::confirmAudioClipPath(const int clipId) {
     auto *runtime = automationRuntime();
     if (!runtime)
         return;
-    const auto result = runtime->project().confirmAudioClipPath(
-        commandContext(*runtime), Automation::ClipId(clipId));
+    const auto result = runtime->project().confirmAudioClipPath(commandContext(*runtime),
+                                                                Automation::ClipId(clipId));
     if (result) {
         const auto *clip = appModel->findClipById(clipId);
         if (clip && clip->clipType() == IClip::Audio)
@@ -284,7 +284,9 @@ SingingClip *TrackController::onNewSingingClip(const int trackIndex, const int t
     draft.properties.clipLen = length;
     draft.defaultLanguage = track->defaultLanguage();
     const auto result = runtime->project().insertClips(
-        commandContext(*runtime), {{Automation::TrackId(track->id()), std::move(draft)}});
+        commandContext(*runtime), {
+                                      {Automation::TrackId(track->id()), std::move(draft)}
+    });
     if (!result || !result.get().changed || result.get().affectedObjects.isEmpty())
         return nullptr;
     const auto clipId = result.get().affectedObjects.first().value;
@@ -365,6 +367,11 @@ void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex
 }
 
 void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
+    if (DocumentTaskCompletion::deferCompletionWhileDocumentBusy(
+            automationRuntime(), documentWorkflowController, task, this,
+            [this](DecodeAudioTask *deferredTask) { handleDecodeAudioTaskFinished(deferredTask); }))
+        return;
+
     const auto terminate = task->terminated();
     taskManager->removeTask(task);
     if (terminate) {
@@ -413,9 +420,9 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
     draft.properties.materialLengthMs = durationMs;
     draft.audioPath = path;
     draft.audioInfo = result;
-    draft.audioPathInfo = {DiffscopeAudioWorkspace::relativeDirFor(
-                               path, documentWorkflowController->projectPath()),
-                           {}};
+    draft.audioPathInfo = {
+        DiffscopeAudioWorkspace::relativeDirFor(path, documentWorkflowController->projectPath()),
+        {}};
     draft.hasRealTimeAnchor = true;
     draft.workspace.insert("diffscope.audio.formatData", task->workspace);
     auto *runtime = automationRuntime();
@@ -423,7 +430,9 @@ void TrackController::handleDecodeAudioTaskFinished(DecodeAudioTask *task) {
         Automation::CommandContext context{.expected = task->documentVersion,
                                            .source = Automation::InvocationSource::TrustedGui};
         const auto commit = runtime->project().insertClips(
-            context, {{Automation::TrackId(trackId), std::move(draft)}});
+            context, {
+                         {Automation::TrackId(trackId), std::move(draft)}
+        });
         if (commit && commit.get().changed && !commit.get().affectedObjects.isEmpty()) {
             const auto clipId = commit.get().affectedObjects.first().value;
             const auto *clip = appModel->findClipById(clipId);
@@ -443,64 +452,75 @@ void TrackController::scheduleHashUpdate(const AudioClip *clip) {
     const auto hashTask = new ComputeAudioHashTask;
     hashTask->clipId = clip->id();
     hashTask->documentVersion = runtime->documentVersion();
-    hashTask->path = clip->path();
+    hashTask->assetSnapshot = Automation::audioAssetSnapshotDto(*clip);
+    hashTask->path = hashTask->assetSnapshot.path;
     const auto automationTask = runtime->automationTasks().createTask(
         Automation::OperationIds::audio_clips::set_hash, hashTask->documentVersion,
         Automation::ObjectRef{Automation::ObjectKind::Clip, hashTask->clipId},
         [hashTask] { hashTask->terminate(); });
     hashTask->automationTaskId = automationTask.taskId;
     runtime->automationTasks().markRunning(automationTask.taskId);
-    connect(hashTask, &Task::finished, trackController, [hashTask] {
-        taskManager->removeTask(hashTask);
-        auto *runtime = automationRuntime();
-        if (!runtime) {
-            delete hashTask;
-            return;
-        }
-        if (!hashTask->success || hashTask->terminated()) {
-            if (hashTask->terminated())
-                runtime->automationTasks().cancel(hashTask->automationTaskId);
-            else
-                runtime->automationTasks().fail(
-                    hashTask->automationTaskId,
-                    Automation::AutomationError{
-                        .code = Automation::AutomationErrorCode::IoError,
-                        .message = QStringLiteral("Failed to compute audio hash"),
-                    });
-            delete hashTask;
-            return;
-        }
-        Automation::CommandContext context{
-            .expected = hashTask->documentVersion,
-            .validateOnly = true,
-            .source = Automation::InvocationSource::TrustedGui,
-        };
-        const auto validation = runtime->project().setAudioClipHash(
-            context, Automation::ClipId(hashTask->clipId), hashTask->path,
-            hashTask->resultSha512);
-        if (!validation) {
-            runtime->automationTasks().fail(hashTask->automationTaskId, validation.getError());
-            delete hashTask;
-            return;
-        }
-        const auto committing =
-            runtime->automationTasks().beginCommitting(hashTask->automationTaskId);
-        if (!committing || !committing.get()) {
-            if (committing)
-                runtime->automationTasks().cancel(hashTask->automationTaskId);
-            delete hashTask;
-            return;
-        }
-        context.validateOnly = false;
-        const auto result = runtime->project().setAudioClipHash(
-            context, Automation::ClipId(hashTask->clipId), hashTask->path,
-            hashTask->resultSha512);
-        if (result)
-            runtime->automationTasks().succeed(hashTask->automationTaskId, result.get());
-        else
-            runtime->automationTasks().fail(hashTask->automationTaskId, result.getError());
-        delete hashTask;
-    });
+    connect(hashTask, &Task::finished, trackController,
+            [hashTask] { trackController->handleComputeAudioHashTaskFinished(hashTask); });
     taskManager->addTask(hashTask);
     taskManager->startTask(hashTask);
+}
+
+void TrackController::handleComputeAudioHashTaskFinished(ComputeAudioHashTask *task) {
+    if (DocumentTaskCompletion::deferCompletionWhileDocumentBusy(
+            automationRuntime(), documentWorkflowController, task, this,
+            [this](ComputeAudioHashTask *deferredTask) {
+                handleComputeAudioHashTaskFinished(deferredTask);
+            }))
+        return;
+
+    taskManager->removeTask(task);
+    auto *runtime = automationRuntime();
+    if (!runtime) {
+        delete task;
+        return;
+    }
+    if (!task->success || task->terminated()) {
+        if (task->terminated())
+            runtime->automationTasks().cancel(task->automationTaskId);
+        else
+            runtime->automationTasks().fail(
+                task->automationTaskId,
+                Automation::AutomationError{
+                    .code = Automation::AutomationErrorCode::IoError,
+                    .message = QStringLiteral("Failed to compute audio hash"),
+                    .operationId = Automation::OperationIds::audio_clips::set_hash,
+                });
+        delete task;
+        return;
+    }
+    auto contextResult = runtime->derivedWritebackContext(task->documentVersion, true);
+    if (!contextResult) {
+        runtime->automationTasks().fail(task->automationTaskId, contextResult.getError());
+        delete task;
+        return;
+    }
+    auto context = contextResult.get();
+    const auto validation = runtime->project().setAudioClipHash(
+        context, Automation::ClipId(task->clipId), task->assetSnapshot, task->resultSha512);
+    if (!validation) {
+        runtime->automationTasks().fail(task->automationTaskId, validation.getError());
+        delete task;
+        return;
+    }
+    const auto committing = runtime->automationTasks().beginCommitting(task->automationTaskId);
+    if (!committing || !committing.get()) {
+        if (committing)
+            runtime->automationTasks().cancel(task->automationTaskId);
+        delete task;
+        return;
+    }
+    context.validateOnly = false;
+    const auto result = runtime->project().setAudioClipHash(
+        context, Automation::ClipId(task->clipId), task->assetSnapshot, task->resultSha512);
+    if (result)
+        runtime->automationTasks().succeed(task->automationTaskId, result.get());
+    else
+        runtime->automationTasks().fail(task->automationTaskId, result.getError());
+    delete task;
 }

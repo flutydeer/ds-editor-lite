@@ -4,12 +4,15 @@
 #include <lite/ProjectModel/AppModel/AudioInfoModel.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 
+#include <QtGlobal>
+
 class Timeline;
 
 // Portability locating info of an audio file, stored in workspace["diffscope"]["audio"] of the dspx
 // absoluteDir and fileName are derived from AudioClip::path() and not duplicated here
 struct AudioPathInfo {
-    QString relativeDir; // path relative to the project file directory; non-empty only when the audio is inside it
+    QString relativeDir; // path relative to the project file directory; non-empty only when the
+                         // audio is inside it
     QString sha512;      // content digest (lowercase hex); empty means not computed yet
 };
 
@@ -35,6 +38,8 @@ public:
     ClipType clipType() const override;
     QString path() const;
     void setPath(const QString &path);
+    void notifySourceChanged();
+    [[nodiscard]] quint64 sourceGeneration() const;
 
     AudioPathInfo pathInfo() const;
     void setPathInfo(const AudioPathInfo &pathInfo);
@@ -63,6 +68,7 @@ public:
     // fixed. Returns true when any tick field changed. The caller owns list
     // reindexing (Track::removeClip / insertClip) and change notification.
     bool updateTicksFromTruth(const Timeline &timeline);
+
     // The pure derivation behind updateTicksFromTruth: the tick caches of a
     // realtime window placed with its visible start at the given tick. Shared
     // with the track editor so drag previews match the commit exactly.
@@ -72,6 +78,7 @@ public:
         int clipLen = 0;
         int length = 0;
     };
+
     static TickCaches deriveTickCaches(double trimStartMs, double playLengthMs,
                                        double materialLengthMs, int visibleStartTick,
                                        const Timeline &timeline);
@@ -90,10 +97,12 @@ public:
 
 signals:
     void pathChanged();
+    void sourceChanged();
     void pathStatusChanged(PathStatus status);
 
 private:
     QString m_path;
+    quint64 m_sourceGeneration = 0;
     AudioPathInfo m_pathInfo;
     PathStatus m_pathStatus = PathStatus::Normal;
     AudioInfoModel m_info;

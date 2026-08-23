@@ -24,9 +24,21 @@ QString AudioClip::path() const {
 void AudioClip::setPath(const QString &path) {
     const bool changed = m_path != path;
     m_path = path;
-    if (changed)
+    if (changed) {
+        ++m_sourceGeneration;
         emit pathChanged();
+        emit sourceChanged();
+    }
     emit propertyChanged();
+}
+
+void AudioClip::notifySourceChanged() {
+    ++m_sourceGeneration;
+    emit sourceChanged();
+}
+
+quint64 AudioClip::sourceGeneration() const {
+    return m_sourceGeneration;
 }
 
 AudioPathInfo AudioClip::pathInfo() const {
@@ -101,8 +113,8 @@ bool AudioClip::updateTicksFromTruth(const Timeline &timeline) {
         return false;
     const auto caches = deriveTickCaches(m_trimStartMs, m_playLengthMs, m_materialLengthMs,
                                          m_start + m_clipStart, timeline);
-    if (caches.start == m_start && caches.clipStart == m_clipStart &&
-        caches.clipLen == m_clipLen && caches.length == m_length)
+    if (caches.start == m_start && caches.clipStart == m_clipStart && caches.clipLen == m_clipLen &&
+        caches.length == m_length)
         return false;
     m_start = caches.start;
     m_clipStart = caches.clipStart;

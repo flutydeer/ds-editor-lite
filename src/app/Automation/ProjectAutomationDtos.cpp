@@ -262,6 +262,15 @@ namespace Automation {
         return result;
     }
 
+    AudioAssetSnapshotDto audioAssetSnapshotDto(const AudioClip &clip) {
+        return {
+            .path = clip.path(),
+            .pathInfo = clip.pathInfo(),
+            .formatData = clip.workspace().value("diffscope.audio.formatData"),
+            .sourceGeneration = clip.sourceGeneration(),
+        };
+    }
+
     NoteDraftDto noteDraftDto(const Note &note) {
         NoteDraftDto result;
         result.localStart = note.localStart();

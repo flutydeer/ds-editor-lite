@@ -1,7 +1,7 @@
 #ifndef DECODEAUDIOTASK_H
 #define DECODEAUDIOTASK_H
 
-#include "Automation/AutomationTypes.h"
+#include "Automation/ProjectAutomationDtos.h"
 
 #include <QJsonObject>
 
@@ -24,6 +24,7 @@ public:
     int tick = 0;
     Automation::DocumentVersion documentVersion;
     Automation::TaskId automationTaskId;
+    Automation::AudioAssetSnapshotDto assetSnapshot;
     QString path;
     bool success = false;
     QString errorMessage;

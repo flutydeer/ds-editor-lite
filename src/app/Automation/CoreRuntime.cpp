@@ -54,6 +54,23 @@ namespace Automation {
         return m_session.version();
     }
 
+    bool CoreRuntime::documentBusy(const DocumentId &documentId) const {
+        return documentId == m_session.documentId() && m_session.isBusy();
+    }
+
+    AutomationResult<CommandContext>
+        CoreRuntime::derivedWritebackContext(const DocumentVersion &taskVersion,
+                                             const bool validateOnly) const {
+        const auto rebased = rebaseTaskVersionWithinGeneration(taskVersion, documentVersion());
+        if (!rebased)
+            return rebased.getError();
+        return CommandContext{
+            .expected = rebased.get(),
+            .validateOnly = validateOnly,
+            .source = InvocationSource::InternalAutomation,
+        };
+    }
+
     const WindowId &CoreRuntime::windowId() const {
         return m_windowContext.windowId();
     }

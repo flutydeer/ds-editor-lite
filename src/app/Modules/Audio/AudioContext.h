@@ -4,6 +4,7 @@
 #define audioContext AudioContext::instance()
 
 #include <QElapsedTimer>
+#include <QSet>
 #include <QTimer>
 
 #include <TalcsCore/PositionableMixerAudioSource.h>
@@ -60,6 +61,7 @@ private:
 
     QHash<Track *, talcs::DspxTrackContext *> m_trackModelDict;
     QHash<AudioClip *, talcs::DspxAudioClipContext *> m_audioClipModelDict;
+    QSet<const AudioClip *> m_unloadableAudioClips;
 
     QHash<Track *, TrackSynthesizer *> m_trackSynthDict;
     QHash<Track *, TrackInferenceHandler *> m_trackInferDict;
@@ -92,7 +94,8 @@ private:
     void handleClipInserted(Track *track, int id, AudioClip *audioClip);
     void handleClipRemoved(Track *track, int id, AudioClip *audioClip);
 
-    void handleClipPropertyChanged(AudioClip *audioClip) const;
+    void handleClipPropertyChanged(AudioClip *audioClip, bool forceSourceReload = false);
+    [[nodiscard]] bool shouldSilenceAudioClip(const AudioClip *audioClip) const;
     static void feedCompensatedPosition(const AudioClip *audioClip,
                                         talcs::DspxAudioClipContext *audioClipContext);
 

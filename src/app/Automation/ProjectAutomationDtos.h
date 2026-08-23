@@ -117,6 +117,22 @@ namespace Automation {
         bool hasRealTimeAnchor = false;
     };
 
+    struct AudioAssetSnapshotDto {
+        QString path;
+        AudioPathInfo pathInfo;
+        QJsonObject formatData;
+        quint64 sourceGeneration = 0;
+
+        friend bool operator==(const AudioAssetSnapshotDto &left,
+                               const AudioAssetSnapshotDto &right) {
+            return left.path == right.path &&
+                   left.pathInfo.relativeDir == right.pathInfo.relativeDir &&
+                   left.pathInfo.sha512 == right.pathInfo.sha512 &&
+                   left.formatData == right.formatData &&
+                   left.sourceGeneration == right.sourceGeneration;
+        }
+    };
+
     struct TrackDraftDto {
         QString clientRef;
         QString name;
@@ -157,6 +173,7 @@ namespace Automation {
 
     [[nodiscard]] TrackPropertiesDto trackPropertiesDto(const Track &track);
     [[nodiscard]] ClipPropertiesDto clipPropertiesDto(const Clip &clip);
+    [[nodiscard]] AudioAssetSnapshotDto audioAssetSnapshotDto(const AudioClip &clip);
     [[nodiscard]] NoteDraftDto noteDraftDto(const Note &note);
     [[nodiscard]] CurveDraftDto curveDraftDto(const Curve &curve);
     [[nodiscard]] ClipDraftDto clipDraftDto(const Clip &clip);

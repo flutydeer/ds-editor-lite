@@ -2,16 +2,6 @@
 #include "OperationIds.h"
 
 namespace Automation {
-    AutomationResult<DocumentVersion>
-    rebaseValidatedInferenceTaskVersion(const DocumentVersion &taskVersion,
-                                        const DocumentVersion &currentVersion) {
-        if (taskVersion.documentId != currentVersion.documentId) {
-            return AutomationError::documentChanged(taskVersion.documentId,
-                                                    currentVersion.documentId);
-        }
-        return currentVersion;
-    }
-
     namespace {
         AutomationError unavailable() {
             AutomationError error;
@@ -50,11 +40,13 @@ namespace Automation {
         registerOperations();
     }
 
-    AutomationResult<InferenceMutationResultDto> InferenceAutomationFacade::applyMutation(
-        const CommandContext &context, const InferenceMutationRequest &request) {
+    AutomationResult<InferenceMutationResultDto>
+        InferenceAutomationFacade::applyMutation(const CommandContext &context,
+                                                 const InferenceMutationRequest &request) {
         const auto operation = operationId(request.kind);
         return m_dispatcher.dispatchDocumentCommandResult<InferenceMutationResultDto>(
-            operation, context, {}, [this, request](DocumentSession &session, const bool validateOnly) {
+            operation, context, {},
+            [this, request](DocumentSession &session, const bool validateOnly) {
                 if (!m_services.prepareMutation)
                     return AutomationResult<InferenceMutationResultDto>(unavailable());
                 auto prepared = m_services.prepareMutation(session.model(), request);
@@ -64,8 +56,8 @@ namespace Automation {
                 InferenceMutationResultDto result;
                 if (validateOnly) {
                     if (prepared.get().advancesRevision) {
-                        result.mutation = m_committer.preview(
-                            session, prepared.get().changed, prepared.get().affectedObjects);
+                        result.mutation = m_committer.preview(session, prepared.get().changed,
+                                                              prepared.get().affectedObjects);
                     } else {
                         result.mutation = m_committer.unchanged(session);
                         result.mutation.changed = prepared.get().changed;
@@ -128,8 +120,8 @@ namespace Automation {
                 .kind = OperationKind::Command,
                 .syncMode = SyncMode::Synchronous,
                 .documentPolicy = DocumentPolicy::Write,
-                .revisionPolicy = canAdvanceRevision(kind) ? RevisionPolicy::Increment
-                                                          : RevisionPolicy::Check,
+                .revisionPolicy =
+                    canAdvanceRevision(kind) ? RevisionPolicy::Increment : RevisionPolicy::Check,
                 .historyPolicy = HistoryPolicy::None,
                 .fileAccess = FileAccessPolicy::None,
                 .hostAvailability = HostAvailability::Core,

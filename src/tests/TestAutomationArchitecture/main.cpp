@@ -49,6 +49,29 @@ namespace {
                             << Qt::endl;
         return false;
     }
+
+    bool requireMatch(const SourceFile &file, const QRegularExpression &pattern,
+                      const QString &rule) {
+        if (pattern.match(file.contents).hasMatch())
+            return true;
+        QTextStream(stderr) << "FAILED: " << rule << " at " << file.relativePath << Qt::endl;
+        return false;
+    }
+
+    bool requireMatchCount(const SourceFile &file, const QRegularExpression &pattern,
+                           const qsizetype expectedCount, const QString &rule) {
+        qsizetype count = 0;
+        auto matches = pattern.globalMatch(file.contents);
+        while (matches.hasNext()) {
+            matches.next();
+            ++count;
+        }
+        if (count == expectedCount)
+            return true;
+        QTextStream(stderr) << "FAILED: " << rule << " at " << file.relativePath << " (expected "
+                            << expectedCount << ", found " << count << ')' << Qt::endl;
+        return false;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -82,6 +105,29 @@ int main(int argc, char *argv[]) {
         R"(\b(?:finishNoteEditSession|endActiveTransaction)\s*\(\s*EditSessionEndReason::Commit\s*\))"));
     const QRegularExpression directViewTrackColorWrite(QStringLiteral(
         R"(void\s+(?:TrackControlView|ChannelView)::setColorIndex\s*\([^)]*\)\s*\{[^{}]*\b(?:m_track|m_context)\s*->\s*setColorIndex\s*\()"));
+    const QRegularExpression audioSourceChangedConnection(
+        QStringLiteral(R"(&AudioClip::sourceChanged)"));
+    const QRegularExpression audioSourceNotification(
+        QStringLiteral(R"(\bnotifySourceChanged\s*\()"));
+    const QRegularExpression audioLoadFailureRetryGate(
+        QStringLiteral(R"(!m_unloadableAudioClips\.contains\s*\(\s*audioClip\s*\)\s*&&)"));
+    const QRegularExpression insertedTrackAudioLifecycle(QStringLiteral(
+        R"(if\s*\(\s*type\s*==\s*AppModel::Insert\s*\)\s*\{[\s\S]{0,800}connectClip\s*\(\s*audioClip\s*\)[\s\S]{0,300}startDecodingOrResolving\s*\(\s*audioClip\s*,\s*false\s*\))"));
+    const QRegularExpression removedTrackAudioLifecycle(QStringLiteral(
+        R"(else\s+if\s*\(\s*type\s*==\s*AppModel::Remove\s*\)\s*\{[\s\S]{0,800}disconnect\s*\(\s*static_cast<AudioClip\s*\*>\s*\(\s*clip\s*\)[\s\S]{0,300}terminateTasksByTrackId\s*\(\s*track->id\s*\(\s*\)\s*\))"));
+    const QRegularExpression prematureAudioPathNormalization(QStringLiteral(
+        R"(void\s+AudioDecodingController::startDecodingOrResolving\s*\([^)]*\)\s*\{[\s\S]{0,900}\bsetAudioClipPathStatus\s*\()"));
+    const QRegularExpression resolutionProjectRootGate(
+        QStringLiteral(R"(DocumentWorkflowPathUtils::projectPathsEqual\s*\()"));
+    const QRegularExpression deferredAudioCompletionBeforeRemoval(QStringLiteral(
+        R"(void\s+AudioDecodingController::handle(?:ResolveTask|CascadeResolveTask|Task)Finished\s*\([^)]*\)\s*\{[\s\S]{0,700}deferCompletionWhileDocumentBusy\s*\([\s\S]{0,700}taskManager->removeTask\s*\()"));
+    const QRegularExpression deferredImportedAudioCompletionBeforeRemoval(QStringLiteral(
+        R"(void\s+TrackController::handle(?:DecodeAudioTask|ComputeAudioHashTask)Finished\s*\([^)]*\)\s*\{[\s\S]{0,700}deferCompletionWhileDocumentBusy\s*\([\s\S]{0,700}taskManager->removeTask\s*\()"));
+    const QRegularExpression decodeSuccessNormalizesStatus(QStringLiteral(
+        R"(ProjectAutomationFacade::applyAudioDecodeCache[\s\S]{0,1800}setPathStatus\s*\(\s*AudioClip::PathStatus::Normal\s*\))"));
+    const QRegularExpression resolvedAudioStatusBeforeSourceNotification(QStringLiteral(
+        R"(ProjectAutomationFacade::applyResolvedAudioPath[\s\S]{0,2600}setPathStatus\s*\(\s*status\s*\)\s*;[\s\S]{0,120}setPath\s*\(\s*resolvedPath\s*\))"));
+    const QRegularExpression audioSourceGeneration(QStringLiteral(R"(\bsourceGeneration\b)"));
 
     for (const auto &id : Automation::OperationIds::all()) {
         if (!versionedOperationSuffix.match(id).hasMatch())
@@ -115,6 +161,67 @@ int main(int argc, char *argv[]) {
 
         ok &= rejectMatch(file, directViewTrackColorWrite,
                           QStringLiteral("Public view color setter bypassed TrackController"));
+
+        if (file.relativePath == QStringLiteral("src/app/Controller/AudioDecodingController.cpp") ||
+            file.relativePath == QStringLiteral("src/app/Modules/Audio/AudioContext.cpp")) {
+            ok &= requireMatch(
+                file, audioSourceChangedConnection,
+                QStringLiteral("Audio source consumers stopped observing metadata-only relinks"));
+        }
+
+        if (file.relativePath == QStringLiteral("src/app/Modules/Audio/AudioContext.cpp")) {
+            ok &= requireMatch(
+                file, audioLoadFailureRetryGate,
+                QStringLiteral("Failed audio source could be retried by unrelated properties"));
+        }
+
+        if (file.relativePath == QStringLiteral("src/app/Controller/AudioDecodingController.cpp")) {
+            ok &= requireMatch(
+                file, insertedTrackAudioLifecycle,
+                QStringLiteral("Inserted track audio clips stopped entering the task lifecycle"));
+            ok &= requireMatch(
+                file, removedTrackAudioLifecycle,
+                QStringLiteral("Removed track audio clips retained task or signal ownership"));
+            ok &= rejectMatch(file, prematureAudioPathNormalization,
+                              QStringLiteral("Audio path status normalized before decode success"));
+            ok &= requireMatch(
+                file, resolutionProjectRootGate,
+                QStringLiteral("Audio resolution ignored a changed project directory"));
+            ok &= requireMatchCount(
+                file, deferredAudioCompletionBeforeRemoval, 3,
+                QStringLiteral("Finished audio task bypassed document-busy deferral"));
+        }
+
+        if (file.relativePath == QStringLiteral("src/app/Controller/TrackController.cpp")) {
+            ok &= requireMatchCount(
+                file, deferredImportedAudioCompletionBeforeRemoval, 2,
+                QStringLiteral("Finished imported-audio task bypassed document-busy deferral"));
+        }
+
+        if (file.relativePath == QStringLiteral("src/app/Automation/ProjectAutomationFacade.cpp")) {
+            ok &= requireMatch(
+                file, decodeSuccessNormalizesStatus,
+                QStringLiteral("Successful audio decode stopped normalizing path status"));
+            ok &= requireMatch(
+                file, resolvedAudioStatusBeforeSourceNotification,
+                QStringLiteral("Resolved audio status was published after source notification"));
+        }
+
+        if (file.relativePath == QStringLiteral("src/app/Automation/ProjectAutomationDtos.h") ||
+            file.relativePath == QStringLiteral("src/libs/ProjectModel/AppModel/AudioClip.cpp")) {
+            ok &= requireMatch(
+                file, audioSourceGeneration,
+                QStringLiteral("Audio async snapshots lost same-path source generation"));
+        }
+
+        if (file.relativePath ==
+                QStringLiteral(
+                    "src/app/Controller/Actions/AppModel/Clip/EditAudioClipPathAction.cpp") ||
+            file.relativePath == QStringLiteral("src/app/Automation/ProjectAutomationFacade.cpp")) {
+            ok &= requireMatch(
+                file, audioSourceNotification,
+                QStringLiteral("Same-path audio source update stopped notifying consumers"));
+        }
 
         if (file.relativePath == QStringLiteral("src/app/Controller/ClipController.h")) {
             ok &= rejectMatch(
