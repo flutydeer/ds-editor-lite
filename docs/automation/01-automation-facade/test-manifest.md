@@ -213,9 +213,9 @@ generation 与服务不可用场景。
 
 | Operation | Profile / 重点 | 直接目标与场景 | 等级 |
 |---|---|---|:---:|
-| `operations.cancel` | `C-D+TASK`；预检、重复、终态、提交点、未知/旧 ID | `Core` cancel 预检/重复/终态/Committing；`Races: task manager state boundaries`、`cancel versus commit-point barrier stress`、generation replacement | P |
-| `operations.get` | `Q-D+TASK`；各状态、progress/error/mutation、未知/旧 ID | `Core` queued/running/succeeded/failed/canceled 快照；`Races` 状态边界、old TaskId/generation；`Async` 导出/提取终态查询 | P |
-| `operations.list` | `Q-D+TASK`；generation 范围、终态快照、错误 | `Async: queued-terminal-and-wrong-document`；`Races` 单记录稳定终态 | P |
+| `tasks.cancel` | `C-D+TASK`；预检、重复、终态、提交点、未知/旧 ID | `Core` cancel 预检/重复/终态/Committing；`Races: task manager state boundaries`、`cancel versus commit-point barrier stress`、generation replacement | P |
+| `tasks.get` | `Q-D+TASK`；各状态、progress/error/mutation、未知/旧 ID | `Core` queued/running/succeeded/failed/canceled 快照；`Races` 状态边界、old TaskId/generation；`Async` 导出/提取终态查询 | P |
+| `tasks.list` | `Q-D+TASK`；generation 范围、终态快照、错误 | `Async: queued-terminal-and-wrong-document`；`Races` 单记录稳定终态 | P |
 
 ### playback（9）
 

@@ -165,12 +165,12 @@ exports.midi.start
 formats.list
 ```
 
-### operations（3）
+### tasks（3）
 
 ```text
-operations.cancel
-operations.get
-operations.list
+tasks.cancel
+tasks.get
+tasks.list
 ```
 
 ### playback（9）

@@ -125,7 +125,7 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 | inference | 12 | 每个 stage、对象删除、目标级门禁、并行分段 revision 重基、cache-only 与持久化边界 |
 | extract | 2 | pitch/MIDI 后端、取消、TaskId、原子写回、旧 generation |
 | exports/formats | 5 | 格式能力、模板、冲突路径、覆盖策略、cleanup、任务失败 |
-| operations | 3 | get/list/cancel、过滤、稳定终态、未知/旧 TaskId |
+| tasks | 3 | get/list/cancel、过滤、稳定终态、未知/旧 TaskId |
 | playback | 9 | 状态/位置不增 revision；loop 区间、启用/清除；拖动只预览且松手单 History/revision |
 | editor | 15 | 唯一 WindowId、selection 隔离、reveal fallback、量化、auto-page、view restore |
 | settings/recent/search paths | 15 | 每个设置域、no-op、持久化次数、路径规范化、Unicode、清空 |

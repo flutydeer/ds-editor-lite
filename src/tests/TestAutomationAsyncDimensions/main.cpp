@@ -799,9 +799,9 @@ namespace {
                 replacement && newVersion.documentId != oldVersion.documentId &&
                     state->cancelCount == 1 && harness.runtime().automationTasks().size() == 0 &&
                     isError(oldLookup, Automation::AutomationErrorCode::DocumentChanged,
-                            Automation::OperationIds::operations::get) &&
+                            Automation::OperationIds::tasks::get) &&
                     isError(newLookup, Automation::AutomationErrorCode::NotFound,
-                            Automation::OperationIds::operations::get),
+                            Automation::OperationIds::tasks::get),
                 QStringLiteral("generation replacement must make duplicate pitch callbacks inert"));
         });
     }
@@ -1107,9 +1107,9 @@ namespace {
     }
 
     void testOperationQueries(Matrix &matrix) {
-        const auto getId = Automation::OperationIds::operations::get;
-        const auto listId = Automation::OperationIds::operations::list;
-        const auto cancelId = Automation::OperationIds::operations::cancel;
+        const auto getId = Automation::OperationIds::tasks::get;
+        const auto listId = Automation::OperationIds::tasks::list;
+        const auto cancelId = Automation::OperationIds::tasks::cancel;
 
         matrix.run(getId, "AFD-OPS-GET-001-QUEUED", [&] {
             matrix.cover("Queued");
@@ -3162,9 +3162,9 @@ namespace {
             Automation::OperationIds::exports::audio::start,
             Automation::OperationIds::exports::midi::start,
             Automation::OperationIds::formats::list,
-            Automation::OperationIds::operations::cancel,
-            Automation::OperationIds::operations::get,
-            Automation::OperationIds::operations::list,
+            Automation::OperationIds::tasks::cancel,
+            Automation::OperationIds::tasks::get,
+            Automation::OperationIds::tasks::list,
         };
         for (const auto &testCase : inferenceDimensionCases())
             operations.append(testCase.operationId);
@@ -3196,9 +3196,9 @@ int main(int argc, char *argv[]) {
     matrix.requireAtLeast(Automation::OperationIds::extract::midi::start, 9);
     matrix.requireAtLeast(Automation::OperationIds::extract::pitch::start, 9);
     matrix.requireAtLeast(Automation::OperationIds::exports::audio::start, 9);
-    matrix.requireAtLeast(Automation::OperationIds::operations::get, 6);
-    matrix.requireAtLeast(Automation::OperationIds::operations::list, 6);
-    matrix.requireAtLeast(Automation::OperationIds::operations::cancel, 6);
+    matrix.requireAtLeast(Automation::OperationIds::tasks::get, 6);
+    matrix.requireAtLeast(Automation::OperationIds::tasks::list, 6);
+    matrix.requireAtLeast(Automation::OperationIds::tasks::cancel, 6);
     for (const auto &testCase : inferenceDimensionCases())
         matrix.requireAtLeast(testCase.operationId, 6);
     for (const auto &testCase : audioDimensionCases())
@@ -3226,7 +3226,7 @@ int main(int argc, char *argv[]) {
         Automation::OperationIds::extract::midi::start,
         Automation::OperationIds::extract::pitch::start,
         Automation::OperationIds::exports::audio::start,
-        Automation::OperationIds::operations::cancel,
+        Automation::OperationIds::tasks::cancel,
     };
     for (const auto &operationId : asyncOperations) {
         matrix.requireAsyncDimension(operationId, "Queued");

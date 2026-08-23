@@ -24,7 +24,7 @@ namespace Automation {
     AutomationResult<AutomationTaskSnapshot>
     TaskAutomationFacade::getTask(const DocumentId &documentId, const TaskId &taskId) {
         return m_dispatcher.dispatchDocumentQuery<AutomationTaskSnapshot>(
-            OperationIds::operations::get, documentId, [this, taskId](DocumentSession &session) {
+            OperationIds::tasks::get, documentId, [this, taskId](DocumentSession &session) {
                 return m_tasks.get(session.documentId(), taskId);
             });
     }
@@ -32,7 +32,7 @@ namespace Automation {
     AutomationResult<QList<AutomationTaskSnapshot>>
     TaskAutomationFacade::listTasks(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<QList<AutomationTaskSnapshot>>(
-            OperationIds::operations::list, documentId, [this](DocumentSession &session) {
+            OperationIds::tasks::list, documentId, [this](DocumentSession &session) {
                 return AutomationResult<QList<AutomationTaskSnapshot>>(
                     m_tasks.list(session.documentId()));
             });
@@ -41,7 +41,7 @@ namespace Automation {
     AutomationResult<AutomationTaskSnapshot>
     TaskAutomationFacade::cancelTask(const CommandContext &context, const TaskId &taskId) {
         return m_dispatcher.dispatchDocumentCommandResult<AutomationTaskSnapshot>(
-            OperationIds::operations::cancel, context, taskFingerprint(taskId),
+            OperationIds::tasks::cancel, context, taskFingerprint(taskId),
             [this, taskId](DocumentSession &session, const bool validateOnly) {
                 if (!validateOnly)
                     return m_tasks.requestCancel(session.documentId(), taskId);
@@ -73,7 +73,7 @@ namespace Automation {
         const auto addQuery = [&add](const OperationId &id) {
             add({
                 .id = id,
-                .category = QStringLiteral("operations"),
+                .category = QStringLiteral("tasks"),
                 .kind = OperationKind::Query,
                 .syncMode = SyncMode::Synchronous,
                 .documentPolicy = DocumentPolicy::Read,
@@ -86,11 +86,11 @@ namespace Automation {
                 .idempotency = IdempotencyPolicy::Unsupported,
             });
         };
-        addQuery(OperationIds::operations::get);
-        addQuery(OperationIds::operations::list);
+        addQuery(OperationIds::tasks::get);
+        addQuery(OperationIds::tasks::list);
         add({
-            .id = OperationIds::operations::cancel,
-            .category = QStringLiteral("operations"),
+            .id = OperationIds::tasks::cancel,
+            .category = QStringLiteral("tasks"),
             .kind = OperationKind::Command,
             .syncMode = SyncMode::Synchronous,
             .documentPolicy = DocumentPolicy::Read,

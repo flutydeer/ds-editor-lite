@@ -808,7 +808,7 @@ namespace {
             });
 
         suite.run(
-            Automation::OperationIds::operations::list,
+            Automation::OperationIds::tasks::list,
             QStringLiteral("queued-terminal-and-wrong-document"), [&] {
                 const auto listed = runtime.tasks().listTasks(runtime.documentVersion().documentId);
                 const auto wrong = runtime.tasks().listTasks(Automation::DocumentId::create());
@@ -823,7 +823,7 @@ namespace {
                 }
                 suite.expect(listed && containsSucceeded &&
                                  isError(wrong, Automation::AutomationErrorCode::DocumentChanged,
-                                         Automation::OperationIds::operations::list),
+                                         Automation::OperationIds::tasks::list),
                              QStringLiteral("task listing must be generation-scoped value data"));
             });
 
@@ -986,7 +986,7 @@ namespace {
             Automation::OperationIds::exports::audio::cleanup,
             Automation::OperationIds::extract::pitch::start,
             Automation::OperationIds::extract::midi::start,
-            Automation::OperationIds::operations::list,
+            Automation::OperationIds::tasks::list,
         });
         return operations;
     }

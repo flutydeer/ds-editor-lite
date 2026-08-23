@@ -582,7 +582,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 ### GUI-G22：零缓存多唱轨/多 clip 真实推理、受控延迟撤销与提取
 
 - **追踪**：12 个 `inference.*`、`extract.pitch.start`、`extract.midi.start`、
-  `operations.get/list/cancel` 的真实环境资格。
+  `tasks.get/list/cancel` 的真实环境资格。
 - **前置**：`GUI-G00` 通过；为本子运行重新建立空 `TEST_CACHE`，Inference 页 Refresh 显示
   No cache files，文件系统也为零。记录 `CAP-INFER`、`CAP-AUDIO`、`CAP-INFER-DELAY`、
   `CAP-EXTRACT` 和 `CAP-LONG-ASYNC` 的独立资格；打开只读副本 `infer-multi.dspx`，确认至少两条歌声轨且
@@ -666,7 +666,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 | `settings.update_window` | 跨正常退出可见几何恢复 | 提交发生在事件循环退出后，需 `GUI-G24` 加日志补证 |
 | 音频片段 cache/hash/path-status | Unconfirmed/Resolved、Confirm、波形与重开结果 | `set_hash` 终态、SHA-512 与文档版本复检用脱敏日志/保存结构补证 |
 | 12 个 `inference.*` | 最终曲线、音素、波形及无闪回 | stage、revision 重基、目标复检用脱敏日志 |
-| `operations.get/list/cancel` | 任务框、取消与最终可见结果 | TaskId、状态机和终态保留用任务契约测试 |
+| `tasks.get/list/cancel` | 任务框、取消与最终可见结果 | TaskId、状态机和终态保留用任务契约测试 |
 | Package Manager `Install...` | 按钮存在 | 当前没有连接安装动作，不映射一期 package operation |
 | `exports.audio.*` | 无 | 受 GUI smoke skill 边界约束，禁止打开音频导出对话框 |
 

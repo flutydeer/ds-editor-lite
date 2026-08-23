@@ -75,9 +75,6 @@ namespace Automation::OperationIds {
     X(notes, set_phoneme_offsets, "notes.set_phoneme_offsets")                                   \
     X(notes, set_word_properties, "notes.set_word_properties")                                   \
     X(notes, split, "notes.split")                                                               \
-    X(operations, cancel, "operations.cancel")                                                   \
-    X(operations, get, "operations.get")                                                         \
-    X(operations, list, "operations.list")                                                       \
     X(packages, get_search_paths, "packages.get_search_paths")                                   \
     X(packages, list, "packages.list")                                                           \
     X(packages, resolve_document_voices, "packages.resolve_document_voices")                     \
@@ -119,6 +116,9 @@ namespace Automation::OperationIds {
     X(speaker_mix_presets, delete_preset, "speaker_mix_presets.delete")                          \
     X(speaker_mix_presets, list, "speaker_mix_presets.list")                                     \
     X(speaker_mix_presets, save, "speaker_mix_presets.save")                                    \
+    X(tasks, cancel, "tasks.cancel")                                                             \
+    X(tasks, get, "tasks.get")                                                                   \
+    X(tasks, list, "tasks.list")                                                                 \
     X(tempos, delete_tempo, "tempos.delete")                                                     \
     X(tempos, set, "tempos.set")                                                                 \
     X(time_signatures, delete_signature, "time_signatures.delete")                               \

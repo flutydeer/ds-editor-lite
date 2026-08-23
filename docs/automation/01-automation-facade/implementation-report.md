@@ -85,7 +85,7 @@ GUI、内部异步任务和未来协议适配器可以复用同一套验证、�
 | inference | 12 | 发音、音素、时长、音高、方差、声学、分段、参数和 Speaker Mix 写回 |
 | extraction | 2 | RMVPE 音高提取、GAME MIDI 提取 |
 | exports/formats | 5 | 格式能力、MIDI 导出、音频导出 preview/start/cleanup 内部入口 |
-| operations | 3 | Task get/list/cancel 与稳定终态 |
+| tasks | 3 | Task get/list/cancel 与稳定终态 |
 | playback | 9 | 播放、暂停、停止、位置、last position、loop 设置/启用/清除 |
 | editor | 15 | 能力/状态、selection、reveal、视图恢复、面板、缩放、编辑模式、量化和自动翻页 |
 | settings/recent/search paths | 15 | 九个设置域、Recent CRUD、包搜索路径 |
