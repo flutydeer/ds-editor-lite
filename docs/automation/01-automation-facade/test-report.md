@@ -3210,3 +3210,72 @@ R127 的同语言自定义/内置 Tagger 身份问题、R131 的拖拽前详情�
 通过。R127 的自定义/内置同语言身份与顺序持久化缺陷、R131 的拖拽前 Entry 丢失缺陷均已
 关闭；严格一字一音符的歌词填充、无缓存真实推理、播放、保存和重开恢复全部通过。结合 R133–
 R135 连续三轮 51/51 CTest，本修复同时具备自动化与 Computer Use 双重证据。
+
+## 回归轮次 137：GUI-G08 参数曲线、锚点、Bake 与不支持参数
+
+### 范围
+
+使用 Computer Use 在三音符基线的独立工作副本上执行 GUI-G08，覆盖
+`parameters.get/replace` 的可见 GUI 路径：Draw、Erase、Anchor、Bake、前后台交换、
+不支持参数提示、Undo/Redo 和保存重开；保存后再用结构化 DSPX 检查补证。
+
+### 前置条件
+
+- 独立 G08 副本与三音符基线逐字节一致，SHA-256 为
+  `31437fc40fdb40e506f10114db99fee27f11767afe2c057d7d6df346264ce851`。
+- 目标唱段已绑定有效歌手；`breathiness` 有一条可见 Original 曲线且没有既有 Edited 曲线。
+- 首次打开前缓存为空；运行期实际执行 variance、acoustic model 与 vocoder 并进入
+  PlaybackReady。
+
+### Draw、Erase 与 Anchor
+
+- Draw 单次连续拖动只在目标区间形成可见斜线；Undo 恢复此前平坦 edited 基线，Redo 恢复
+  同一曲线。
+- Erase 在中间区间形成干净断口，邻接两侧不变；Undo 闭合断口，Redo 再次恢复断口。
+- Anchor 模式建立两点曲线并移动第二点；右键菜单初始显示 Hermite，切到 Linear 后线段变直，
+  再切回 Hermite 后恢复插值形态。
+- 删除首节点会因只剩一个节点而移除整条两点曲线；Undo、Redo、再次 Undo 分别验证恢复、删除
+  与最终恢复。
+
+### 前后台参数、支持状态与 Bake
+
+- 交换前后台后，`tension` 成为前景并显示“当前选择的歌手不支持此参数”，编辑区在
+  `Edit Anyway` 前被阻止。
+- `Edit Anyway` 后可进入编辑区，不支持参数的 Original 层不可见且 Bake 保持禁用；该确认动作
+  本身没有写入 `tension`。
+- 交换回受支持的 `breathiness` 后 Original 层和 Bake 重新可用；在限定区间 Bake 后出现与
+  Original 一致的可编辑曲线，Undo 删除、Redo 恢复。
+
+### 保存重开与结构化补证
+
+- 保存后未保存标记消失；通过 GUI 重开后，Bake 区间、手绘区间、擦除断口与锚点线均恢复。
+- 重新进入 Anchor 模式并选择首节点，确认两节点曲线在重开后仍可交互。
+- 保存文件为 16808 字节，SHA-256 为
+  `be1ce2ff25a1e4e5d5bedfda06b33a2b8dffbf57adeaf1cc0f697437d14b8f41`。
+- 结构化检查确认 `breathiness` 为一条 Original、三条 Edited：两条 free 曲线分别为
+  400/264 个值，另有一条两节点 anchor 曲线，插值依次为 Hermite/None；`tension` Edited
+  仍为空。
+- 参数提交引起 revision 前进期间，运行期诊断显示推理结果按目标快照通过 apply gate，最终
+  回到 PlaybackReady；未出现错误弹窗、Debug 模态、红色失败残留或不稳定渲染。
+
+### 明确限制
+
+- Computer Use 只提供原子 drag，不能把 pointer-down 与 release 分离后在中间发送 Escape；
+  因此“未完成拖动按 Escape”的预览取消子维度未直接执行，也不记为通过。
+- 已提交手势的 Undo/Redo、保存重开和结构化文件状态均已独立验证。
+
+### 恢复与清理
+
+- 应用正常退出，退出码为 0；删除 G08 临时副本及空工作目录，并移除对应 Recent 条目。
+- 清除本轮产生的 10 个隔离缓存文件，复核缓存剩余条目为 0。
+- 前后台选择恢复到原始 `breathiness/tension` 组合；原始日志和截图只留在私有证据区。
+
+### 证据
+
+- 私有脱敏 GUI 操作、结构化 DSPX、推理 apply gate 与清理摘要：
+  `E-R137-GUI-G08-PARAMETER-CURVES`。
+
+### 判定
+
+通过（带一项明确的 Computer Use 能力限制）。全部可执行 GUI-G08 子场景与保存重开补证通过；
+未把无法在原子 drag 中插入 Escape 的子维度伪记为通过。

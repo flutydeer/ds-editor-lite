@@ -453,3 +453,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R136-GUI-G07-FILL-LYRIC-RECOVERY` | 136 | GUI-G07 Tagger 排序、严格一字一音符、真实推理、播放、保存与重开恢复 | `094798a582b87fb2fff79ee62fc29bac18320067d399bf7b5acb504bdafc31e0` |
+
+## 追加证据 74
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R137-GUI-G08-PARAMETER-CURVES` | 137 | GUI-G08 Draw、Erase、Anchor、Bake、不支持参数及保存重开 | `504d0a2bc68794b86db134eef84bcee64657553209e1ad312a088d798382bf4a` |
