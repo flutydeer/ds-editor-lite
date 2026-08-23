@@ -613,7 +613,7 @@ namespace Automation {
                 const auto mix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
                     clip->speakerMixData(), clip->speakerId(),
                     clip->start() + piece->localStartTick(timeline),
-                    clip->start() + piece->localEndTick(timeline), timeline);
+                    clip->start() + piece->localEndTick(timeline), clip->start(), timeline);
                 changed = changed || piece->speakerMix != mix ||
                           piece->speaker != mix.fallbackSpeaker || pitchCascadeNeedsReset(*piece) ||
                           piece->acousticInferStatus != Pending;

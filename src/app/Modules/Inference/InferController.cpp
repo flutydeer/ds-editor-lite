@@ -103,7 +103,7 @@ namespace {
             const auto speakerMix = InferSpeakerMixModel::effectiveSpeakerMixFromData(
                 clip.speakerMixData(), clip.speakerId(),
                 clip.start() + piece->localStartTick(timeline),
-                clip.start() + piece->localEndTick(timeline), timeline);
+                clip.start() + piece->localEndTick(timeline), clip.start(), timeline);
             if (piece->identifier != identifier || piece->speakerMix != speakerMix)
                 return false;
         }

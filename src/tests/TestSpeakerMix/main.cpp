@@ -282,7 +282,8 @@ namespace {
 
         const auto timeline = timeline120Bpm();
         const auto dynamic = dynamicMixData();
-        const auto mix = dynamicSpeakerMixFromData(dynamic, "fallback", 0, 960, timeline, 0.5);
+        const auto mix =
+            dynamicSpeakerMixFromData(dynamic, "fallback", 0, 960, 0, timeline, 0.5);
 
         ok &= expect(mix.sources.size() == 2, "dynamic inference keeps two sources");
         ok &= expect(mix.sources.at(0).speaker == "spk-a" && mix.sources.at(1).speaker == "spk-b",
@@ -296,20 +297,26 @@ namespace {
                      "dynamic inference fallback chooses highest average source");
 
         const auto fixedFallback = fixedSpeakerMixFromData(dynamic, "fallback");
-        ok &= expect(dynamicSpeakerMixFromData(dynamic, "fallback", 960, 0, timeline, 0.5) ==
+        ok &= expect(dynamicSpeakerMixFromData(dynamic, "fallback", 960, 0, 0, timeline, 0.5) ==
                          fixedFallback,
                      "dynamic inference with invalid range falls back to fixed");
-        ok &= expect(dynamicSpeakerMixFromData(dynamic, "fallback", 0, 960, timeline, 0.0) ==
+        ok &= expect(dynamicSpeakerMixFromData(dynamic, "fallback", 0, 960, 0, timeline, 0.0) ==
                          fixedFallback,
                      "dynamic inference with invalid interval falls back to fixed");
 
-        ok &= expect(effectiveSpeakerMixFromData(dynamic, "fallback", 0, 960, timeline, 0.5) == mix,
+        ok &= expect(effectiveSpeakerMixFromData(dynamic, "fallback", 0, 960, 0, timeline, 0.5) ==
+                         mix,
                      "effective inference uses dynamic mix when active");
+
+        const auto shiftedMix =
+            effectiveSpeakerMixFromData(dynamic, "fallback", 1920, 2880, 1920, timeline, 0.5);
+        ok &= expect(shiftedMix == mix,
+                     "dynamic inference samples clip-local keyframes for shifted clips");
 
         auto bypassed = dynamicMixData();
         bypassed.dynamicBypassed = true;
         bypassed.fixedWeights = {0.1};
-        ok &= expect(effectiveSpeakerMixFromData(bypassed, "fallback", 0, 960, timeline, 0.5) ==
+        ok &= expect(effectiveSpeakerMixFromData(bypassed, "fallback", 0, 960, 0, timeline, 0.5) ==
                          fixedSpeakerMixFromData(bypassed, "fallback"),
                      "effective inference uses fixed mix when dynamic is bypassed");
 
