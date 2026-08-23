@@ -9,7 +9,7 @@
 原由 Computer Use 能力、原生确认规则、任务时长和听音端点限制而保留的 M01～M07，已由用户
 完成人工补测并确认通过，结果见第 6 节。
 
-最终测试树基于提交 `da6754f5`；本报告整理只改变文档，不改变已测试的生产代码或测试代码。
+最终测试树基于提交 `3beb9729`；本报告整理只改变文档，不改变已测试的生产代码或测试代码。
 
 ## 2. 最终构建与自动化结果
 
@@ -18,9 +18,9 @@
 | Debug configure/generate | 通过 |
 | Debug 全目标构建 | 通过，`DsEditorLite` 完成链接和 Qt 部署 |
 | 注册 CTest | 53 |
-| 完整 CTest 第 1 轮 | 53/53 通过，0 失败，0 超时，8.17 秒 |
-| 完整 CTest 第 2 轮 | 53/53 通过，0 失败，0 超时，8.18 秒 |
-| 完整 CTest 第 3 轮 | 53/53 通过，0 失败，0 超时，8.09 秒 |
+| 完整 CTest 第 1 轮 | 53/53 通过，0 失败，0 超时，8.44 秒 |
+| 完整 CTest 第 2 轮 | 53/53 通过，0 失败，0 超时，8.28 秒 |
+| 完整 CTest 第 3 轮 | 53/53 通过，0 失败，0 超时，8.21 秒 |
 | 三轮合计 | 159/159 通过，无 flaky |
 | Qt/进程异常 | 无 platform/offscreen plugin 错误、Debug Error、ASSERT、fatal、超时或弹窗阻塞 |
 
@@ -34,7 +34,7 @@ Vulkan headers 缺失是既有可选能力提示，不影响本期目标、应�
 |---|---:|---:|---|
 | Editing Dimensions | 40 operation / 273 场景 | 825 | 全部通过 |
 | Runtime Dimensions | 48 operation / 357 场景 | 543 | 全部通过 |
-| Async Dimensions | 34 operation / 233 场景 | 254 | 全部通过 |
+| Async Dimensions | 34 operation / 233 场景 | 259 | 全部通过 |
 | Task Races | 15 场景 | 1,729 | 全部通过 |
 | Audio Asset Resolution | 17 场景 | 102 | 全部通过 |
 | MIDI Import Automation | 6 场景 | 24 | 全部通过 |
@@ -53,9 +53,11 @@ Async File Domains、Piano Roll Note Commit、Fill Lyric、设置、控制器和
 - 适用命令覆盖正常提交、合法 no-op、validate-only、History/revision、Undo/Redo、宿主/I/O 失败
   回滚和幂等重放/冲突。
 - 幂等协议通过 16/64 路并发一次执行、失败释放、TaskId 重放和 generation 隔离。
-- 音频 Clip 幂等指纹覆盖路径状态、实时锚点和完整派生缓存结构；任一生效字段变化均稳定冲突。
+- Clip 幂等指纹覆盖参数曲线集合边界、音频路径状态、实时锚点和完整派生缓存结构；任一生效字段
+  或结构变化均稳定冲突。
 - 异步协议覆盖 Queued、Running、CancelRequested、Committing、terminal、取消/提交点竞争、重复
-  完成、对象删除、revision 前进和 New/Open generation 换代。
+  完成、对象删除、revision 前进和 New/Open generation 换代；换代中的音频导出只取消和清理
+  一次，不遗留临时或部分导出文件，普通取消仍保留显式 cleanup 所有权。
 - 单 Session Resolver 通过双 fake 证明按请求 DocumentId 路由；生产运行时仍只装配一个 Session。
 
 ## 3. GUI 与真实环境最终结果
@@ -181,4 +183,4 @@ M01～M07 全部为 **PASS**。
 - 音频导出 GUI；该入口受既定 GUI smoke 边界排除，未以 MIDI 导出结果替代。
 
 历史逐轮记录、证据索引、脱敏证据和完整隔离回归产物已归档到仓库外；本报告只保留最终结论、
-可复核计数、明确边界和人工待补项。
+可复核计数、明确边界和人工补测结论。
