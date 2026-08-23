@@ -3,6 +3,7 @@
 
 #include "SingleInstanceProtocol.h"
 
+#include <QMutex>
 #include <QObject>
 
 #include <functional>
@@ -26,17 +27,23 @@ public:
     StartResult start();
     bool forwardRequest(const SingleInstanceRequest &request, QString &error);
     void setRequestHandler(std::function<void(const SingleInstanceRequest &)> handler);
+    void updateAutomationState(const SingleInstanceAutomationStatus &status);
+    void updateAutomationState(SingleInstanceAutomationState state, bool mcpEnabled,
+                               QString mcpEndpoint = {}, QString error = {});
+    void broadcastAutomationState();
     void stopAcceptingRequests();
     void shutdown();
 
     [[nodiscard]] QString errorString() const;
     [[nodiscard]] QString serverName() const;
+    [[nodiscard]] SingleInstanceAutomationStatus automationState() const;
 
 private:
     friend class SingleInstanceIpcWorker;
 
     void receiveRequest(const SingleInstanceRequest &request);
     void allowPrimaryToTakeForeground(qint64 processId) const;
+    void applyAutomationState(const SingleInstanceAutomationStatus &status, bool broadcast);
 
     QString m_dataDirectory;
     QString m_serverName;
@@ -46,6 +53,8 @@ private:
     SingleInstanceIpcWorker *m_worker = nullptr;
     std::function<void(const SingleInstanceRequest &)> m_requestHandler;
     QList<SingleInstanceRequest> m_pendingRequests;
+    mutable QMutex m_automationStateMutex;
+    SingleInstanceAutomationStatus m_automationStatus;
 };
 
 #endif // SINGLEINSTANCECOORDINATOR_H
