@@ -99,6 +99,8 @@ GUI、开发构建和进程级测试共享一个全局 editor Primary。所有�
 - 优先使用控制端口 0；端口冲突场景显式保留测试端口并在场景后释放；
 - 等待进程退出、socket EOF、QLocal 服务消失和端口释放后才启动下一场景；
 - connector 可多实例并行，但涉及同一 editor 的多 connector 场景由一个串行 fixture 统一管理；
+- 非 GUI 资格测试显式设置 `QT_QPA_PLATFORM=offscreen` 并固定 Qt plugin path；真实 GUI 轮次
+  单独执行，持续监控意外模态弹窗和进程心跳，禁止无人值守等待用户输入；
 - 崩溃/timeout 时先保存 dump、日志、PID/端口/QLocal 状态，再精确结束测试拥有的进程。
 
 进入 Computer Use GUI 阶段前结束全部自动测试 editor；GUI 阶段完成后也必须确认 Primary
