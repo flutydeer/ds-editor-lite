@@ -77,6 +77,25 @@ QLocale UiLanguageManager::effectiveLocale() const {
     return QLocale(m_effectiveLanguageId);
 }
 
+QString UiLanguageManager::effectiveBcp47Name() const {
+    // QLocale::bcp47Name() returns the SHORTEST tag ("zh"), which RFC 4647
+    // lookup can only match against a bare "zh" key and misses "zh-Hans" /
+    // "zh-CN". Prefer the first, most complete uiLanguages() candidate.
+    return effectiveBcp47Candidates().isEmpty() ? QString() : effectiveBcp47Candidates().first();
+}
+
+QStringList UiLanguageManager::effectiveBcp47Candidates() const {
+    return effectiveLocale().uiLanguages();
+}
+
+QString UiLanguageManager::currentBcp47Name() {
+    return s_instance ? s_instance->effectiveBcp47Name() : QString();
+}
+
+QStringList UiLanguageManager::currentBcp47Candidates() {
+    return s_instance ? s_instance->effectiveBcp47Candidates() : QStringList();
+}
+
 void UiLanguageManager::removeTranslators() {
     if (!qApp)
         return;

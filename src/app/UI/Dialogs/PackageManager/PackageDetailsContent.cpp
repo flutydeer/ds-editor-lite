@@ -1,5 +1,7 @@
 #include "PackageDetailsContent.h"
 
+#include "Utils/UiLanguageManager.h"
+
 #include <lite/PackageManager/Models/PackageInfo.h>
 #include "UI/Dialogs/PackageManager/Cards/DescriptionCard.h"
 
@@ -33,7 +35,8 @@ void PackageDetailsContent::moveToNullPackageState() const {
 }
 
 void PackageDetailsContent::moveToPackageState(const PackageInfo &package) const {
-    descriptionCard->onDataContextChanged(package.description());
+    descriptionCard->onDataContextChanged(
+        package.displayDescription(UiLanguageManager::currentBcp47Candidates()));
     if (package.readme().isEmpty()) {
         readMeCard->onDataContextChanged({});
     } else {

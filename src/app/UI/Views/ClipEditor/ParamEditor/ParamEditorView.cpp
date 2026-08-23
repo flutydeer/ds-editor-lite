@@ -7,6 +7,7 @@
 #include "SpeakerMixEditorView.h"
 #include <lite/GUI/Controls/Button.h>
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "Utils/UiLanguageManager.h"
 
 #include "Controller/EditorViewController.h"
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
@@ -53,6 +54,12 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
 
     connect(m_graphicsView->speakerMixView(), &SpeakerMixEditorView::speakerColorsChanged, this,
             &ParamEditorView::refreshSpeakerMixToolBar);
+    // Refresh the speaker mix toolbar after the LanguageChange event so the
+    // editor view has already rebuilt its display names for the new language.
+    if (const auto *langMgr = UiLanguageManager::instance()) {
+        connect(langMgr, &UiLanguageManager::languageChanged, this,
+                &ParamEditorView::refreshSpeakerMixToolBar);
+    }
 
     const auto layout = new QHBoxLayout;
     layout->addWidget(m_infoArea);
@@ -107,8 +114,7 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
             &ParamEditorView::onResumeDynamicMix);
     connect(m_toolBar, &ParamEditorToolBarView::stopDynamicMix, this,
             &ParamEditorView::onStopDynamicMix);
-    connect(m_emptyStateActionButton, &Button::clicked, this,
-            &ParamEditorView::onEmptyStateAction);
+    connect(m_emptyStateActionButton, &Button::clicked, this, &ParamEditorView::onEmptyStateAction);
     connect(
         editorViewController, &EditorViewController::editCommandRequested, this,
         [this](const EditorInteraction::Target target, const EditorInteraction::Command command) {
@@ -163,17 +169,14 @@ ParamEditorGraphicsView *ParamEditorView::graphicsView() const {
 
 void ParamEditorView::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
-    if (event->type() == QEvent::LanguageChange) {
-        refreshSpeakerMixToolBar();
+    if (event->type() == QEvent::LanguageChange)
         refreshParameterSupportState();
-    }
 }
 
 void ParamEditorView::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
     editorViewController->syncEditTargetVisibility(
-        EditorInteraction::Target::Parameters, event->size().height() > 0,
-        AppGlobal::ClipEditor);
+        EditorInteraction::Target::Parameters, event->size().height() > 0, AppGlobal::ClipEditor);
 }
 
 void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) {

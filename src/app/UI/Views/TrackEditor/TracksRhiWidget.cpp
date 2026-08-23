@@ -5,6 +5,7 @@
 #include "SingingClipPreviewLayout.h"
 #include "Controller/EditorViewController.h"
 #include "UI/Views/Common/EditorSelectionUtils.h"
+#include "Utils/UiLanguageManager.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/TrackController.h"
 #include "Global/AppGlobal.h"
@@ -324,10 +325,9 @@ bool TracksRhiWidget::revealFocus(const HistoryFocus &focus, const bool animated
         return false;
     const auto left = m_viewport.tickToSceneX(focus.tickStart);
     const auto right = m_viewport.tickToSceneX(focus.tickEnd);
-    return m_viewport.ensureVisible(
-        QRectF(left, m_viewport.unitToSceneY(trackIndex), std::max(1.0, right - left),
-               trackHeight * scaleY()),
-        24.0, 24.0, animated);
+    return m_viewport.ensureVisible(QRectF(left, m_viewport.unitToSceneY(trackIndex),
+                                           std::max(1.0, right - left), trackHeight * scaleY()),
+                                    24.0, 24.0, animated);
 }
 
 QRectF TracksRhiWidget::logicalVisibleRect() const {
@@ -435,6 +435,8 @@ void TracksRhiWidget::resizeEvent(QResizeEvent *event) {
 bool TracksRhiWidget::event(QEvent *event) {
     if (event->type() == QEvent::WindowDeactivate)
         discardDrag();
+    if (event->type() == QEvent::LanguageChange)
+        scheduleSnapshot(); // rebuild clip snapshots with the new display language
     if (event->type() == QEvent::NativeGesture &&
         m_wheelController->handleNativeGesture(static_cast<QNativeGestureEvent *>(event))) {
         return true;
@@ -576,8 +578,7 @@ void TracksRhiWidget::onDragAutoScrollFrame(const double dtMs) {
     const QPointF pointerPosition(mapFromGlobal(QCursor::pos()));
     const QRectF viewportRect(QPointF(), size());
     const auto step = m_edgeAutoScroller.computeDragStep(pointerPosition, viewportRect, dtMs);
-    if (step.x() > 0 &&
-        (m_dragMode == DragMode::Move || m_dragMode == DragMode::ResizeRight)) {
+    if (step.x() > 0 && (m_dragMode == DragMode::Move || m_dragMode == DragMode::ResizeRight)) {
         const auto maximumOffset =
             std::max(0.0, m_viewport.tickToSceneX(effectiveSceneLength()) - width());
         if (m_viewport.horizontalOffset() >= maximumOffset - 1.0) {
@@ -991,9 +992,9 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
         EditorRhiGeometry::appendTopRoundedRect(frame.solidVertices, titleRect, radius, titleColor);
     }
     if (clip.selected || clip.active) {
-        EditorRhiGeometry::appendRoundedRectStroke(
-            frame.solidVertices, paintRect, radius,
-            EditorItemGeometry::clipBorderWidth * dpr, border, 0.5);
+        EditorRhiGeometry::appendRoundedRectStroke(frame.solidVertices, paintRect, radius,
+                                                   EditorItemGeometry::clipBorderWidth * dpr,
+                                                   border, 0.5);
     }
 
     QFont font = this->font();
@@ -1001,19 +1002,17 @@ void TracksRhiWidget::appendClip(EditorRhiFrameData &frame, const ClipSnapshot &
     const auto rawLeft = clip.modelPhysicalRect.left();
     const auto rawRight = clip.modelPhysicalRect.right();
     const auto visibleLeft = m_viewport.horizontalOffset() * dpr;
-    const auto titleLeft =
-        visibleLeft < rawLeft
-            ? paintRect.left()
-            : visibleLeft + EditorItemGeometry::clipHorizontalPadding * dpr;
-    const auto titleWidth = rawRight - std::max(rawLeft, visibleLeft) -
-                            EditorItemGeometry::clipBorderWidth * 2.0 * dpr;
+    const auto titleLeft = visibleLeft < rawLeft
+                               ? paintRect.left()
+                               : visibleLeft + EditorItemGeometry::clipHorizontalPadding * dpr;
+    const auto titleWidth =
+        rawRight - std::max(rawLeft, visibleLeft) - EditorItemGeometry::clipBorderWidth * 2.0 * dpr;
     constexpr double iconWidth = 4.0;
     if (metrics.horizontalAdvance(clip.title) * dpr + iconWidth * dpr <= titleWidth &&
         metrics.height() * dpr <= titleHeight) {
-        const auto textTop = hasPreview
-                                 ? paintRect.top()
-                                 : paintRect.top() +
-                                       (paintRect.height() - metrics.height() * dpr) * 0.5;
+        const auto textTop =
+            hasPreview ? paintRect.top()
+                       : paintRect.top() + (paintRect.height() - metrics.height() * dpr) * 0.5;
         const QRectF textClip(titleLeft + iconWidth * dpr, paintRect.top(),
                               titleWidth - iconWidth * dpr,
                               hasPreview ? titleHeight : paintRect.height());
@@ -1243,7 +1242,8 @@ TracksRhiWidget::ClipSnapshot TracksRhiWidget::buildClipSnapshot(const Clip *cli
     if (const auto audio = qobject_cast<const AudioClip *>(clip))
         result.audioMissing = audio->pathStatus() == AudioClip::PathStatus::Missing;
     if (const auto singing = qobject_cast<const SingingClip *>(clip)) {
-        const auto singerName = singing->singerInfo().name();
+        const auto singerName =
+            singing->singerInfo().displayName(UiLanguageManager::currentBcp47Candidates());
         const auto speakerName = SpeakerMixDisplayUtils::speakerDisplayName(
             singing->singerInfo(), singing->speakerInfo(), singing->speakerMixData());
         result.title +=
@@ -1333,7 +1333,8 @@ void TracksRhiWidget::showTrackPastePreview(const TrackPastePreviewData &data,
             EditorItemGeometry::clipPaintRect(snapshot.modelPhysicalRect, dpr);
 
         if (clip.type == IClip::Singing) {
-            const auto singerName = targetTrack->singerInfo().name();
+            const auto singerName =
+                targetTrack->singerInfo().displayName(UiLanguageManager::currentBcp47Candidates());
             const auto speakerName = SpeakerMixDisplayUtils::speakerDisplayName(
                 targetTrack->singerInfo(), targetTrack->speakerInfo(),
                 targetTrack->speakerMixData());
@@ -1472,8 +1473,8 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
         const auto minimumLength = snapStepFor(requestedLeft);
         const auto left = snap(requestedLeft);
         if (m_audioDragState) {
-            updateAccepted = m_audioDragState->resizeLeftTo(
-                left, originalRight, minimumLength, properties, appModel->timeline());
+            updateAccepted = m_audioDragState->resizeLeftTo(left, originalRight, minimumLength,
+                                                            properties, appModel->timeline());
         } else {
             updateAccepted = ClipResizeUtils::updateLeftEdge(properties, left, minimumLength);
         }
@@ -1482,20 +1483,18 @@ void TracksRhiWidget::updateDrag(const QPointF &position, const Qt::KeyboardModi
         const auto minimumLength = snapStepFor(requestedRight);
         const auto right = snap(requestedRight);
         if (m_audioDragState) {
-            updateAccepted = m_audioDragState->resizeRightTo(
-                right, originalLeft, minimumLength, properties, appModel->timeline());
+            updateAccepted = m_audioDragState->resizeRightTo(right, originalLeft, minimumLength,
+                                                             properties, appModel->timeline());
         } else if (const auto *clip = appModel->findClipById(m_dragPreview->clipId)) {
             const auto *singing = qobject_cast<const SingingClip *>(clip);
             auto contentLength = properties.length;
             if (singing) {
                 contentLength = ClipResizeUtils::furthestContentEnd(
-                    singing->notes().begin(), singing->notes().end(),
-                    AppGlobal::ticksPerWholeNote,
+                    singing->notes().begin(), singing->notes().end(), AppGlobal::ticksPerWholeNote,
                     [](const Note *note) { return note->localStart() + note->length(); });
             }
             updateAccepted = ClipResizeUtils::updateRightEdge(
-                properties, right - originalLeft, minimumLength, singing != nullptr,
-                contentLength);
+                properties, right - originalLeft, minimumLength, singing != nullptr, contentLength);
         } else
             updateAccepted = false;
     }

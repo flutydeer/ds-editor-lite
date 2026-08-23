@@ -4,6 +4,7 @@
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include <lite/ProjectModel/Voice/SingerInfo.h>
+#include "Utils/UiLanguageManager.h"
 
 #include <QCoreApplication>
 #include <QString>
@@ -12,6 +13,12 @@ namespace SpeakerMixDisplayUtils {
 
     inline QString translate(const char *sourceText) {
         return QCoreApplication::translate("SpeakerMixDisplay", sourceText);
+    }
+
+    /// Current UI language as a BCP 47 tag (e.g. "zh-CN"); empty when the
+    /// language manager is not yet constructed.
+    inline QStringList currentBcp47Candidates() {
+        return UiLanguageManager::currentBcp47Candidates();
     }
 
     inline QString mixDisplayName(const SingerInfo &singerInfo,
@@ -40,7 +47,7 @@ namespace SpeakerMixDisplayUtils {
                                       const SpeakerMixModel::SpeakerMixData &data) {
         if (const auto mixName = mixDisplayName(singerInfo, data); !mixName.isEmpty())
             return mixName;
-        return speakerInfo.name();
+        return speakerInfo.displayName(currentBcp47Candidates());
     }
 
     inline QString comboDisplayText(const SingerInfo &singerInfo,
@@ -50,7 +57,7 @@ namespace SpeakerMixDisplayUtils {
             return {};
         if (singerInfo.name().isEmpty())
             return mixName;
-        return singerInfo.name() + " / " + mixName;
+        return singerInfo.displayName(currentBcp47Candidates()) + " / " + mixName;
     }
 
 } // namespace SpeakerMixDisplayUtils

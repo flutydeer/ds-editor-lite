@@ -8,15 +8,16 @@ LanguageInfoData::LanguageInfoData(QString id, QString name, QString g2p, QStrin
                                    QString s2pMode, QString onsetMode, QString s2pFile,
                                    QString onsetFile)
     : id(std::move(id)), name(std::move(name)), g2p(std::move(g2p)), dict(std::move(dict)),
-      s2pMode(std::move(s2pMode)), onsetMode(std::move(onsetMode)),
-      s2pFile(std::move(s2pFile)), onsetFile(std::move(onsetFile)) {
+      s2pMode(std::move(s2pMode)), onsetMode(std::move(onsetMode)), s2pFile(std::move(s2pFile)),
+      onsetFile(std::move(onsetFile)) {
 }
 
 LanguageInfoData::LanguageInfoData(const LanguageInfoData &other)
     : QSharedData(other), id(other.id), name(other.name), g2p(other.g2p), dict(other.dict),
       s2pMode(other.s2pMode), onsetMode(other.onsetMode), s2pFile(other.s2pFile),
-      onsetFile(other.onsetFile), hasG2pPackageVersion(other.hasG2pPackageVersion),
-      g2pPackageVersion(other.g2pPackageVersion), g2pPackagePaths(other.g2pPackagePaths) {
+      onsetFile(other.onsetFile), localizedNames(other.localizedNames),
+      hasG2pPackageVersion(other.hasG2pPackageVersion), g2pPackageVersion(other.g2pPackageVersion),
+      g2pPackagePaths(other.g2pPackagePaths) {
 }
 
 LanguageInfoData::~LanguageInfoData() = default;
@@ -24,10 +25,9 @@ LanguageInfoData::~LanguageInfoData() = default;
 bool LanguageInfoData::operator==(const LanguageInfoData &other) const {
     return id == other.id && name == other.name && g2p == other.g2p && dict == other.dict &&
            s2pMode == other.s2pMode && onsetMode == other.onsetMode &&
-           s2pFile == other.s2pFile && onsetFile == other.onsetFile &&
-           hasG2pPackageVersion == other.hasG2pPackageVersion &&
-           g2pPackageVersion == other.g2pPackageVersion &&
-           g2pPackagePaths == other.g2pPackagePaths;
+           localizedNames == other.localizedNames && s2pFile == other.s2pFile &&
+           onsetFile == other.onsetFile && hasG2pPackageVersion == other.hasG2pPackageVersion &&
+           g2pPackageVersion == other.g2pPackageVersion && g2pPackagePaths == other.g2pPackagePaths;
 }
 
 bool LanguageInfoData::operator!=(const LanguageInfoData &other) const {
@@ -35,17 +35,15 @@ bool LanguageInfoData::operator!=(const LanguageInfoData &other) const {
 }
 
 bool LanguageInfoData::isEmpty() const {
-    return id.isEmpty() && name.isEmpty() && g2p.isEmpty() && dict.isEmpty() &&
-           s2pMode.isEmpty() && onsetMode.isEmpty() && s2pFile.isEmpty() &&
-           onsetFile.isEmpty();
+    return id.isEmpty() && name.isEmpty() && g2p.isEmpty() && dict.isEmpty() && s2pMode.isEmpty() &&
+           onsetMode.isEmpty() && s2pFile.isEmpty() && onsetFile.isEmpty();
 }
 
 LanguageInfo::LanguageInfo() : d(new LanguageInfoData()) {
 }
 
-LanguageInfo::LanguageInfo(QString id, QString name, QString g2p, QString dict,
-                           QString s2pMode, QString onsetMode, QString s2pFile,
-                           QString onsetFile)
+LanguageInfo::LanguageInfo(QString id, QString name, QString g2p, QString dict, QString s2pMode,
+                           QString onsetMode, QString s2pFile, QString onsetFile)
     : d(new LanguageInfoData(std::move(id), std::move(name), std::move(g2p), std::move(dict),
                              std::move(s2pMode), std::move(onsetMode), std::move(s2pFile),
                              std::move(onsetFile))) {
@@ -81,6 +79,14 @@ QString LanguageInfo::name() const {
     return d->name;
 }
 
+QString LanguageInfo::displayName(const QString &bcp47Locale) const {
+    return lite::Support::lookupLocalizedText(d->localizedNames, d->name, bcp47Locale);
+}
+
+QString LanguageInfo::displayName(const QStringList &bcp47Locales) const {
+    return lite::Support::lookupLocalizedText(d->localizedNames, d->name, bcp47Locales);
+}
+
 QString LanguageInfo::g2p() const {
     return d->g2p;
 }
@@ -111,6 +117,10 @@ void LanguageInfo::setId(const QString &id) {
 
 void LanguageInfo::setName(const QString &name) {
     d->name = name;
+}
+
+void LanguageInfo::setLocalizedNames(const QMap<QString, QString> &names) {
+    d->localizedNames = names;
 }
 
 void LanguageInfo::setG2p(const QString &g2p) {

@@ -3,19 +3,19 @@
 #include <utility>
 
 PackageInfoData::PackageInfoData(QString id, QVersionNumber version, QString vendor,
-                                 QString description, QString license, QString readme,
-                                 QString url, QString path, QList<SingerInfo> singers)
+                                 QString description, QString license, QString readme, QString url,
+                                 QString path, QList<SingerInfo> singers)
     : id(std::move(id)), version(std::move(version)), vendor(std::move(vendor)),
-      description(std::move(description)), license(std::move(license)),
-      readme(std::move(readme)), url(std::move(url)), path(std::move(path)),
-      singers(std::move(singers)) {
+      description(std::move(description)), license(std::move(license)), readme(std::move(readme)),
+      url(std::move(url)), path(std::move(path)), singers(std::move(singers)) {
 }
 
 PackageInfoData::PackageInfoData(const PackageInfoData &other)
     : QSharedData(other), id(other.id), version(other.version), vendor(other.vendor),
       description(other.description), license(other.license),
-      readme(other.readme), url(other.url), path(other.path),
-      singers(other.singers) {
+      localizedVendor(other.localizedVendor), localizedDescription(other.localizedDescription),
+      localizedLicense(other.localizedLicense), readme(other.readme), url(other.url),
+      path(other.path), singers(other.singers) {
 }
 
 PackageInfoData::~PackageInfoData() = default;
@@ -23,8 +23,10 @@ PackageInfoData::~PackageInfoData() = default;
 bool PackageInfoData::operator==(const PackageInfoData &other) const {
     return id == other.id && version == other.version && vendor == other.vendor &&
            description == other.description && license == other.license &&
-           readme == other.readme && url == other.url && path == other.path &&
-           singers == other.singers;
+           localizedVendor == other.localizedVendor &&
+           localizedDescription == other.localizedDescription &&
+           localizedLicense == other.localizedLicense && readme == other.readme &&
+           url == other.url && path == other.path && singers == other.singers;
 }
 
 bool PackageInfoData::operator!=(const PackageInfoData &other) const {
@@ -74,12 +76,37 @@ QString PackageInfo::vendor() const {
     return d->vendor;
 }
 
+QString PackageInfo::displayVendor(const QString &bcp47Locale) const {
+    return lite::Support::lookupLocalizedText(d->localizedVendor, d->vendor, bcp47Locale);
+}
+
+QString PackageInfo::displayVendor(const QStringList &bcp47Locales) const {
+    return lite::Support::lookupLocalizedText(d->localizedVendor, d->vendor, bcp47Locales);
+}
+
 QString PackageInfo::description() const {
     return d->description;
 }
 
+QString PackageInfo::displayDescription(const QString &bcp47Locale) const {
+    return lite::Support::lookupLocalizedText(d->localizedDescription, d->description, bcp47Locale);
+}
+
+QString PackageInfo::displayDescription(const QStringList &bcp47Locales) const {
+    return lite::Support::lookupLocalizedText(d->localizedDescription, d->description,
+                                              bcp47Locales);
+}
+
 QString PackageInfo::license() const {
     return d->license;
+}
+
+QString PackageInfo::displayLicense(const QString &bcp47Locale) const {
+    return lite::Support::lookupLocalizedText(d->localizedLicense, d->license, bcp47Locale);
+}
+
+QString PackageInfo::displayLicense(const QStringList &bcp47Locales) const {
+    return lite::Support::lookupLocalizedText(d->localizedLicense, d->license, bcp47Locales);
 }
 
 QString PackageInfo::readme() const {
@@ -110,12 +137,24 @@ void PackageInfo::setVendor(const QString &vendor) {
     d->vendor = vendor;
 }
 
+void PackageInfo::setLocalizedVendor(const QMap<QString, QString> &names) {
+    d->localizedVendor = names;
+}
+
 void PackageInfo::setDescription(const QString &description) {
     d->description = description;
 }
 
+void PackageInfo::setLocalizedDescription(const QMap<QString, QString> &names) {
+    d->localizedDescription = names;
+}
+
 void PackageInfo::setLicense(const QString &license) {
     d->license = license;
+}
+
+void PackageInfo::setLocalizedLicense(const QMap<QString, QString> &names) {
+    d->localizedLicense = names;
 }
 
 void PackageInfo::setPath(const QString &path) {

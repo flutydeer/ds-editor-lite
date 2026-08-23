@@ -1,5 +1,7 @@
 #include "TwoLevelComboBox.h"
 
+#include "Utils/UiLanguageManager.h"
+
 #include <lite/GUI/Utils/IconUtils.h>
 
 #include <QDebug>
@@ -165,7 +167,7 @@ void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
     for (const auto &package : std::as_const(packages)) {
         const auto singers = package.singers();
         for (const auto &singer : singers) {
-            QString singerText = singer.name();
+            QString singerText = singer.displayName(UiLanguageManager::currentBcp47Candidates());
             if (singer.speakers().size() == 1) {
                 const auto spk = singer.speakers().first();
                 addItem(singerText, singer, spk);
@@ -177,7 +179,8 @@ void TwoLevelComboBox::setItems(const QList<PackageInfo> &packages) {
             }
             const auto groupMenu = createGroupMenu(singerText, singer.identifier());
             for (const auto &spk : singer.speakers())
-                addItemInternal(spk.name(), singer, spk, groupMenu);
+                addItemInternal(spk.displayName(UiLanguageManager::currentBcp47Candidates()),
+                                singer, spk, groupMenu);
         }
     }
 
@@ -213,8 +216,10 @@ QString TwoLevelComboBox::currentText() const {
             return tr("Follow Track") + " (" + m_displayTextOverride + ")";
         return m_displayTextOverride;
     }
-    const QString singerName = m_currentItem.singer.name();
-    const QString speakerName = m_currentItem.speaker.name();
+    const QString singerName =
+        m_currentItem.singer.displayName(UiLanguageManager::currentBcp47Candidates());
+    const QString speakerName =
+        m_currentItem.speaker.displayName(UiLanguageManager::currentBcp47Candidates());
     QString effectiveText;
     if (singerName.isEmpty()) {
         effectiveText = m_currentItem.text;

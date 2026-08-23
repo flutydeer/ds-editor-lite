@@ -29,6 +29,7 @@
 #include "UI/Controls/LevelMeterManager.h"
 #include "AppContext.h"
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
+#include "Utils/UiLanguageManager.h"
 #include "UI/Views/Common/TimelineView.h"
 
 #include <QFileDialog>
@@ -46,7 +47,8 @@
 namespace {
 
     void updateSingingClipDisplay(SingingClip *clip, SingingClipView *view) {
-        view->setSingerName(clip->singerInfo().name());
+        view->setSingerName(
+            clip->singerInfo().displayName(UiLanguageManager::currentBcp47Candidates()));
         view->setSpeakerName(SpeakerMixDisplayUtils::speakerDisplayName(
             clip->singerInfo(), clip->speakerInfo(), clip->speakerMixData()));
     }

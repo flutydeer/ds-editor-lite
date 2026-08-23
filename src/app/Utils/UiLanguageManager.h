@@ -3,6 +3,7 @@
 
 #include <QLocale>
 #include <QObject>
+#include <QStringList>
 #include <QTranslator>
 
 class UiLanguageManager final : public QObject {
@@ -25,6 +26,10 @@ public:
     [[nodiscard]] QString preference() const;
     [[nodiscard]] QString effectiveLanguageId() const;
     [[nodiscard]] QLocale effectiveLocale() const;
+    [[nodiscard]] QString effectiveBcp47Name() const;
+    [[nodiscard]] QStringList effectiveBcp47Candidates() const;
+    static QString currentBcp47Name();
+    static QStringList currentBcp47Candidates();
 
 signals:
     void languageChanged(const QString &effectiveLanguageId);

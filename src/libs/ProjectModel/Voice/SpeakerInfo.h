@@ -2,12 +2,16 @@
 #define SPEAKERINFO_H
 
 #include <QString>
+#include <QStringList>
+#include <QMap>
 #include <QSharedData>
 #include <QSharedDataPointer>
 #include <QMetaType>
 
 #include <optional>
 #include <utility>
+
+#include <lite/Support/LocalizedTextUtils.h>
 
 class SpeakerInfoData;
 
@@ -28,6 +32,8 @@ public:
 
     QString id() const;
     QString name() const;
+    [[nodiscard]] QString displayName(const QString &bcp47Locale) const;
+    [[nodiscard]] QString displayName(const QStringList &bcp47Locales) const;
     QString toneMin() const;
     QString toneMax() const;
 
@@ -47,6 +53,7 @@ public:
 
     void setId(const QString &id);
     void setName(const QString &name);
+    void setLocalizedNames(const QMap<QString, QString> &names);
     void setToneMin(const QString &toneMin);
     void setToneMax(const QString &toneMax);
 
@@ -78,6 +85,7 @@ public:
 
     QString id;
     QString name;
+    QMap<QString, QString> localizedNames;
     QString toneMin;
     QString toneMax;
     std::optional<std::pair<int, int>> toneRange;
