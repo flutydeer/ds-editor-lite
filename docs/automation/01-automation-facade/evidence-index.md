@@ -513,3 +513,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R149-GUI-G16-GENERAL-FILL-LYRIC` | 149 | GUI-G16 界面语言、默认语言/歌词、工具路径、Fill Lyric 基本设置与精确恢复 | `aab4209a0f0b45fa10bce371274f4491a0cec42b0a715bcd1a15ec3bf047cc59` |
+
+## 追加证据 84
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R150-GUI-G17-APPEARANCE-DEVELOPER-BACKENDS` | 150 | GUI-G17 外观、开发者选项、重启宿主诊断、窗口模式、RHI/Legacy 与几何恢复 | `f658db4031fcfe98893fd0fa79a0fd749598766c8651eeb0b4eec8410703b2a7` |
