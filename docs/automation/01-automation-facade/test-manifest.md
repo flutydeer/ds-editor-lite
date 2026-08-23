@@ -16,20 +16,20 @@ handler。下文只在测试实际进入 Facade/dispatcher/task 路径并断言�
 
 | 等级 | 含义 | 当前数量 |
 |---|---|---:|
-| `P` | 有直接 operation 结果断言，但仍缺至少一个适用维度 | 122 |
+| `P` | 有直接 operation handler 结果断言；维度完整性由对应矩阵门禁判定 | 122 |
 | `E` | 只有该 operation 的直接错误/拒绝路径 | 0 |
 | `I` | handler 被调用，但没有该 operation 的结果断言 | 0 |
 | `B` | 只有 Catalog/架构/名册等基础契约，没有行为场景 | 0 |
 
-因此当前静态分类为 **122P / 0E / 0I / 0B**。这表示所有 operation 都至少有一个
-直接行为场景；不表示任何 operation 已满足 `test-outline.md` 的全部适用维度，也不
-陈述这些测试的最终执行结果。
+因此当前静态分类为 **122P / 0E / 0I / 0B**。三套逐 operation 矩阵把 122 项精确分为
+编辑 40 项、异步/文件 34 项、运行时 48 项，每项静态要求 6～9 个适用场景；本清单仍不
+陈述这些测试的最终执行结果，执行轮次与通过率只见 `test-report.md`。
 
 ## 2. 测试目标与场景维度
 
 ### 2.1 已注册 Automation 目标
 
-`src/tests/CMakeLists.txt` 当前注册以下九个 Automation 测试目标：
+`src/tests/CMakeLists.txt` 当前注册以下十四个 Automation 直接/保护目标：
 
 | 简称 | 测试目标 | 静态职责 |
 |---|---|---|
@@ -39,8 +39,12 @@ handler。下文只在测试实际进入 Facade/dispatcher/task 路径并断言�
 | `Races` | `TestAutomationTaskRaces` | Task 状态机、取消/提交点、重复完成、revision/对象/generation 竞态 |
 | `Doc` | `TestAutomationDocumentLifecycle` | new/open/import/save、回滚、savepoint、generation 清理与错误优先级 |
 | `Edit` | `TestAutomationEditingDomains` | project/tracks/clips/notes/parameters/speaker mix/timeline/history |
+| `EditDim` | `TestAutomationEditingDimensions` | 编辑域 40 项精确集合、逐项 6～7 场景与 Query/Command 适用维度门禁 |
 | `Runtime` | `TestAutomationRuntimeDomains` | application/playback/editor/settings/recent files/packages/presets/宿主失败 |
+| `RuntimeDim` | `TestAutomationRuntimeDimensions` | 运行时 48 项精确集合、逐项 6～9 场景与八类适用维度 mask |
 | `Async` | `TestAutomationAsyncFileDomains` | inference/audio clips/import/file/export/extract/task list 与服务不可用 |
+| `AsyncDim` | `TestAutomationAsyncDimensions` | 异步/文件 34 项精确集合、逐项 6～9 场景及适用任务五阶段门禁 |
+| `AudioAsset` | `TestAudioAssetResolution` | 相对路径、派生写回、source generation、解析→解码协议和任务终态 |
 | `Arch` | `TestAutomationArchitecture` | 集中 ID、无 in-process 版本后缀、Facade/History/revision/generation 源码边界 |
 | `NoteGUI` | `TestPianoRollNoteCommit` | GUI 音符插入/拆分的真实 created ID、revision 与失败无副作用契约 |
 
@@ -70,7 +74,9 @@ Catalog 存在性代替 Facade 行为。
 | `+TASK` | TaskId、过滤、稳定终态、未知/旧 TaskId 与不可取消提交点 |
 | `+CACHE` | 可重建写回、输入快照、对象/版本复检以及不应增加 History/revision 的路径 |
 
-`Catalog` 与 `Arch` 的基础保护对每行都适用，逐项表只列直接行为目标和场景。
+`Catalog` 与 `Arch` 的基础保护对每行都适用。逐项表保留原有直接行为目标和可读场景名；
+此外每行还必然进入对应的 `EditDim`、`AsyncDim` 或 `RuntimeDim`，三者以 expected/actual
+集合相等和逐项场景下限防止遗漏。
 
 ## 3. 逐 operation 映射
 
@@ -285,27 +291,25 @@ generation 与服务不可用场景。
 
 | 契约 | 已有静态自动化映射 | 当前边界 |
 |---|---|---|
-| document → revision → object/domain 错误优先级 | `Doc: AFC-DOC-LIFECYCLE-009/010` 完整证明 `tracks.set_color`；`Edit: dispatch/error-priority-matrix` 覆盖 35 个同步编辑命令的 document/revision 优先级；`Async` 对 `inference.apply_pitch` 覆盖 document/revision/clip/piece/note；`Runtime` 覆盖 playback loop、editor active clip 和 package voice resolve 的对应顺序 | 未对 122 项逐项跑完整四层矩阵 |
-| no-op / History / revision | `Edit` 覆盖主要编辑、timeline、History；`Doc` 覆盖空 import/savepoint；`Runtime` 覆盖 playback/settings/recent/preset；`Async` 覆盖 inference、audio cache/import/export | 各 operation 的所有等价输入、redo 分支和 savepoint 组合仍未穷举 |
-| `validate_only` | 创建类验证不分配对象，替换类不轮换 generation，异步类不分配 TaskId，GUI/settings/file 命令不调用 host 或写文件 | 并非每个 Command 都有独立预检场景；部分由同域代表覆盖 |
-| 幂等 | `Idem` 覆盖串行、16/64 路同步并发、参数/operation 冲突、预检/校验/提交失败释放、文档/generation 隔离和异步接受/终态；`Core/Doc/Async` 覆盖 save、MIDI、audio export 的真实 Facade 路径 | `DocumentGeneration` 策略的每个 operation 尚未逐项做真实 handler 重放/并发 |
-| 取消、提交点与竞态 | `Races` 覆盖 256 次 cancel/commit barrier、128 次重复完成、排队/运行取消、revision/删除/new/open 交错；`Core/Async` 覆盖实际 extract/audio export 生命周期 | 强竞态主要集中在 `extract.pitch.start` 和通用 Task 协议，尚未对全部异步 operation 做同构矩阵 |
+| document → revision → object/domain 错误优先级 | `Doc` 覆盖替换/生命周期；`EditDim` 对 35 个文档编辑命令逐项覆盖 document→revision，并对适用对象/领域错误断言；`AsyncDim` 覆盖异步/文件命令的 document、revision、对象与 generation；`RuntimeDim` 覆盖 playback、editor 和 package 适用顺序 | 应用级、GUI-only 或 RevisionPolicy::None operation 不强行套用不存在的层级；对象组合仍按等价类取代表 |
+| no-op / History / revision | `EditDim` 的 35 个命令逐项覆盖提交、合法 no-op、History/revision 及适用 undo/redo；`RuntimeDim` 覆盖应用/GUI 状态与持久化次数；`AsyncDim` 覆盖派生写回、文档替换、文件/任务副作用 | 不穷举所有等价输入、任意长度 undo/redo 链和 savepoint 排列组合 |
+| `validate_only` | 三套 Dim 对每个适用 Command 均有预检或等价无副作用场景；创建不分配对象、替换不轮换 generation、异步不分配 TaskId、GUI/settings/file 不调用写宿主 | descriptor 不支持或没有可变提交的 Query/Task 查询不套用预检 |
+| 幂等 | `EditDim` 对 35 个文档编辑命令逐项做真实重放/同键异参；`AsyncDim` 覆盖适用文件/任务 handler；`Idem` 再覆盖 16/64 路并发、失败释放和 generation 键空间 | 并发风暴由共享协议与代表 handler 证明，不对每个 operation 重复 64 路压力排列 |
+| 取消、提交点与竞态 | `Races` 覆盖 256 次 cancel/commit barrier、128 次重复完成；`AsyncDim` 对 MIDI/Pitch 提取、音频导出启动和 cancel 逐项强制 Queued/Running/CancelRequested/Committing/terminal | 同步派生写回不伪造 Task 状态；真实外部 backend 的所有时序排列留给资格层 |
 | generation | `Doc` 覆盖 new/open 的原子轮换与 History/idempotency/task 清理；`Idem` 覆盖键空间重建；`Races` 覆盖旧 TaskId 和 late callback；`Async` 覆盖 inference late writeback | 多文档/多窗口不是一期能力，当前只验证单 Session/Window 契约 |
-| host unavailable | `Runtime` 覆盖 application/playback/editor/settings/packages/presets；`Async` 覆盖 inference/document save/file/audio export/extraction 服务缺失 | 并非同一 host 下的每个 operation 都有独立缺失回调场景 |
-| Catalog、集中 ID 与源码边界 | `Catalog` 精确对照 122 个 descriptor；`Arch` 禁止产品 operation 字符串散落、带版本号的 operation 后缀、History/revision/generation 绕行 | Catalog 只保存 descriptor；它本身不证明每个公开 Facade 方法都可成功调用 |
+| host unavailable | `RuntimeDim` 与 `AsyncDim` 对每个声明宿主依赖的 operation 逐项覆盖缺失/拒绝或等价 backend 失败；旧 `Runtime/Async` 保留跨域回归 | 不把无宿主依赖的纯 Core operation 人工标成 host error |
+| Catalog、集中 ID 与源码边界 | `Catalog` 精确对照 122 个 descriptor；三套 Dim 的 expected 集合并集与 Catalog 相等且互不遗漏；`Arch` 禁止产品 operation 字符串散落、带版本号后缀及状态绕行 | Catalog/架构守卫证明表面与边界，handler 结果由 Dim 目标独立证明 |
 
 ## 5. 仍有的自动化缺口
 
-1. 122 项均已有直接行为断言，但全部仍为 `P`：没有 operation 完成
-   `test-outline.md` 中全部适用的正常、边界、错误、无副作用、确定性与真实资格维度。
-2. `Catalog` 的 122 个稳定场景 ID 是 descriptor 关联，不是 122 个 handler 用例 ID；目前
-   `Core` 仍是大型顺序测试，`Runtime/Doc` 的部分场景也按跨 operation 契约分组。
-3. 错误优先级、host unavailable、`validate_only` 和幂等都有跨域证明，但尚未对每个适用
-   operation 数据驱动展开；特别是带 `DocumentGeneration` 幂等策略的同步编辑命令。
-4. 异步强竞态已覆盖 Task 协议和 pitch extraction 代表路径，但 MIDI extraction 与 audio
-   export 尚未各自完成取消/提交点/revision/对象删除/generation/重复 callback 的全排列。
-5. 真实 codec、声库、模型、音频设备、持久化后重启和可见 GUI 结果属于资格/回归层；本清单
-   不记录或推断这些环境执行结果。
+1. 三套 Dim 已关闭 122 项确定性基线和适用维度下限，但不声称穷举连续值域、任意对象图、
+   任意长 History 链或所有跨 operation 交错；这些继续由性质测试、缺陷回归和代表竞态覆盖。
+2. 强并发使用共享 Task/幂等协议加代表真实 handler 证明；没有把每个同步 cache writeback
+   人工包装成异步状态，也没有对每项重复 64 路压力以制造无意义的场景数量。
+3. 多真实 DocumentSession、WindowRegistry、跨文档和多窗口并发明确不属于一期，测试 fake
+   resolver 只证明显式 ID 路由，不宣称产品已支持多文档。
+4. 真实 codec、声库、模型、音频设备、持久化后重启和可见 GUI 结果属于资格/Computer Use
+   回归层；本清单不记录或推断这些环境执行结果，实际结论只追加到 `test-report.md`。
 
 ## 6. 机器维护不变量
 
