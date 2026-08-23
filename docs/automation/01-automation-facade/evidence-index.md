@@ -471,3 +471,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R139-GUI-G09-DUPLICATE-MENU-DIAGNOSIS` | 139 | G09 重复菜单基数定位、一期历史边界与单根 Computer Use 复核 | `ed02ccab50df74a4772ef96bba77c5feb4611e8a3a662b66ecd297afb0a4d255` |
+
+## 追加证据 77
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R140-GUI-G10-DYNAMIC-SPEAKER-MIX` | 140 | GUI-G10 动态 Speaker Mix、Alt 输入桥、History 与 DSPX 结构化权重 | `d22e5046636c3ab47935b093a7cb3677947ea78d1de7db7be90cdbf068073282` |

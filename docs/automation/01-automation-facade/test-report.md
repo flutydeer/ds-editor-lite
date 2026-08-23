@@ -3378,3 +3378,58 @@ Use 复核；临时诊断输出在复核前已全部移除并重新构建应用�
 ### 判定
 
 通过。重复菜单不是本期重构回归；修正测试环境后单根菜单与 G09 持久化状态均正常。
+
+## 回归轮次 140：GUI-G10 动态 Speaker Mix 全交互回归
+
+### 范围
+
+在隔离工程副本和单一合格 Liliko 声库来源下，以轨道双声线固定混合、Clip 跟随轨道为
+基线，通过 Computer Use 覆盖 `speaker_mix.clip.enable_dynamic`、
+`speaker_mix.clip.replace`、`speaker_mix.clip.apply` 及相关选择、History、持久化和输入桥接。
+
+### Computer Use 结果
+
+- “复制并启用动态混合”成功把 Clip 从跟随轨道切换为自有 Dynamic Mix，并创建 tick 0
+  首关键帧；编辑区显示两种声线的堆叠面积。
+- 双击空白区域新增关键帧，水平拖动可改变其时间且顺序稳定；普通垂直边界拖动把屏幕权重
+  从 50/50 改为 28/72。
+- 按 F11 后执行同类拖动，屏幕权重改为 73/27；应用日志严格记录 Alt armed、
+  `AltModifier` 转发和 `mouse-gesture-complete` 清理，证明临时输入桥实际生效。
+- 新增多个关键帧后框选其中两个并按 Delete，两者一次删除；单独选中 tick 0 后按 Delete，
+  起始关键帧仍在，保护规则通过。
+- “下一关键帧”把播放位置从 `001:01:000` 移到 `002:03:005`，“上一关键帧”再准确返回
+  `001:01:000`。
+- “旁通”令 Clip 显示 `Dynamic Mix (Bypassed)` 并出现“取消旁通”；取消后恢复 Dynamic Mix。
+- “停止动态”对话框先取消时曲线完整保留，再确认时清除全部动态关键帧并返回固定 Custom
+  Mix；Undo 恢复动态曲线，Redo 再次恢复固定混合。
+- 对单独新增关键帧再做一轮 Undo/Redo，关键帧分别消失和恢复，证明关键帧提交走统一
+  History，而非仅刷新视图。
+
+### 结构化双保险
+
+- 临时保存的动态快照为 9180 字节，SHA-256 为
+  `2561336a90e552addfbb5e38ee5295dff0f383c702cd6184aff2d71a6eebd398`。
+- DSPX 中两种来源严格为 `Liliko_Default`、`Liliko_Original`；动态混合关键帧为
+  `pos=0, ratio=[0.5]` 与 `pos=2635, ratio=[0.7]`。
+- 将 DSPX 的省略末项展开后，完整权重分别为 `[0.5, 0.5]` 和 `[0.7, 0.3]`，每帧和为
+  1.0，位置严格递增；快照时 `useTrackSingerInfo=false`、`dynamicBypassed=false`。
+- 全程未匹配到 Debug Error、断言、fatal、exception、显式错误、失败或
+  `QGraphicsScene::removeItem` 诊断；声线混合变更后的推理均最终进入 PlaybackReadyState。
+
+### 恢复与清理
+
+- 停止动态模式并将 Clip 恢复为跟随轨道，发送 F12 清除输入桥状态后正常退出；退出码为 0，
+  后台任务在退出前完成回收。
+- 删除动态快照和 G10 隔离工作目录，从 Recent 移除该副本，并清除 40 个隔离推理缓存文件；
+  复核 Recent 命中数和缓存文件数均为 0。
+- 原始日志、截图与结构化明细只保留在私有证据区；提交内容不包含本机路径。
+
+### 证据
+
+- 私有脱敏 Computer Use、输入桥、DSPX 结构化断言及运行日志摘要：
+  `E-R140-GUI-G10-DYNAMIC-SPEAKER-MIX`。
+
+### 判定
+
+通过。动态 Speaker Mix 的启用、编辑、选择删除、起始帧保护、导航、旁通、停止、
+Undo/Redo、持久化权重归一化及清理均符合测试大纲。
