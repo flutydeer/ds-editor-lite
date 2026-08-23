@@ -28,7 +28,14 @@ void TimeGraphicsScene::addCommonItem(IScalableItem *item) {
 }
 
 void TimeGraphicsScene::removeCommonItem(IScalableItem *item) {
-    removeItem(dynamic_cast<QGraphicsItem *>(item));
+    if (!item)
+        return;
+    auto *graphicsItem = dynamic_cast<QGraphicsItem *>(item);
+    if (!graphicsItem) {
+        qCritical() << "TimeGraphicsScene::removeCommonItem: item is not QGraphicsItem";
+        return;
+    }
+    removeItem(graphicsItem);
     m_items.removeOne(item);
 }
 
