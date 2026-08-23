@@ -1,0 +1,53 @@
+Evidence ID: E-R126-GUI-G06-NOTE-EDITING
+Round: 126
+Scope: GUI-G06 note selection, movement, resize, split, quantize and delete history
+Fixture alias: G06_COPY
+Build alias: GUI_BUILD
+Log alias: GUI_LOG
+
+Baseline and selection:
+- G06_COPY began from a controlled three-note baseline.
+- Normal click produced a single selection.
+- Control produced an additive selection, Shift produced a range selection, and Control+Shift
+  produced an additive range selection.
+- Visible note highlighting matched each expected selection set after release.
+- For the bridged selection gestures, GUI_LOG recorded the corresponding forwarded modifiers and
+  mouse-gesture-complete clearing, agreeing with the visible selection states.
+
+Movement and resize:
+- A note-body move into empty space remained stable after release.
+- Moving a note into a partial overlap produced one stable visible result; Undo restored the
+  pre-overlap baseline.
+- Left-edge and right-edge resize each changed only the dragged edge while the opposite edge stayed
+  fixed.
+- An Alt non-snapped note move shifted the note approximately +15 screen pixels along x and remained
+  stable after release.
+- GUI_LOG recorded `Notes moved dt 75 dk 0` and forwarding with AltModifier for that gesture, followed
+  by mouse-gesture-complete clearing. The visible +15-pixel displacement and matching log entry are
+  independent evidence for the same move.
+
+Split, quantize and delete history:
+- The Scissors tool split one note into two adjacent visible notes.
+- Edit > Quantize opened the dialog; 1/16 was selected with both start and length enabled.
+- After confirmation, the selected note boundaries visibly aligned to the chosen grid.
+- Delete removed the selected notes, Undo restored them, and Redo removed the same notes again.
+
+Cleanup:
+- The complete three-note baseline was restored after the edit sequence.
+- Reloading G06_COPY discarded all temporary test edits and returned to the controlled copy state.
+
+Diagnostics:
+- Red failure residue count: 0.
+- Debug Error count: 0.
+- ASSERT count: 0.
+
+Limitations:
+- Exact ticks and the internal index state for allowed overlaps are not directly observable through
+  Computer Use.
+- Numeric fidelity of edited parameters across move, resize and split, plus one-History-entry and
+  one-revision semantics, still require contract tests and save-and-reopen comparison.
+
+Outcome: PASS.
+Privacy: this evidence uses only G06_COPY, GUI_BUILD and GUI_LOG aliases plus observed assertions;
+machine identities, user names and local locations are omitted.
+

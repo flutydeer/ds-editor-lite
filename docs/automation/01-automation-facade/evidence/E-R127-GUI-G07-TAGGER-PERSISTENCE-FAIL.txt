@@ -1,0 +1,58 @@
+Evidence ID: E-R127-GUI-G07-TAGGER-PERSISTENCE-FAIL
+Round: 127
+Scope: GUI-G07 lyric inference plus Splitter, Tagger and Test rule workflows
+
+Test-input correction:
+- The initial three-note input produced invalid lyrics because the test driver did not provide a
+  strict one-character-per-note sequence.
+- The input was corrected to exactly 你, 好 and 呀 on the three notes.
+- Pronunciations were corrected to mi, hao and ya respectively.
+- This was a test-input error, not a product failure.
+
+Lyric and inference result: PASS.
+- After correction, the expected phoneme, pitch and waveform displays recovered.
+- The isolated project copy was saved and reopened.
+- Lyrics 你/好/呀, pronunciations mi/hao/ya, phonemes, pitch and waveform remained stable after
+  reopening, providing visible persistence evidence.
+
+Splitter result: PASS.
+- Built-in locked rules were read-only and could not be deleted.
+- Empty-name and invalid-regex validation prevented invalid application.
+- A valid custom Splitter rule was created, exercised through Test, persisted after reopening and
+  then deleted successfully.
+- Navigation between the rule editor and Test page worked as expected.
+
+Tagger current-session result: PASS.
+- A custom Tagger rule using registered language cmn was created because the GUI accepts only
+  registered languages.
+- Regex and array entries, Tag and Discard were configured and applied.
+- The rule ran successfully in the current session, and the visible Test results reflected the
+  configured regex, array, tag and discard behavior.
+- Empty-language and invalid-regex validation rejected invalid input.
+
+Tagger reopen result: FAIL.
+- After reopening, two same-name cmn entries were both restored as built-in locked rules.
+- The custom entry could no longer be identified as custom and could not be deleted.
+- A custom rule sharing a registered language with a built-in rule therefore cannot retain a stable
+  editable identity across persistence.
+- Priority between custom and built-in rules for the same language also cannot be represented
+  reliably after reopening.
+
+Additional coverage and cleanup:
+- Built-in Splitter and Tagger locking, enable/disable behavior and ordering were verified.
+- Built-in enable states and ordering were restored to their baselines.
+- The custom Splitter rule was removed successfully.
+- Full Tagger cleanup was impossible because the reopened custom rule became indistinguishable from
+  a built-in locked rule; the isolated configuration is retained for diagnosis.
+
+Limitations:
+- Exact phoneme offsets and precedence between inferred and manually edited values are not proven by
+  GUI pixels and still require DTO-level evidence.
+- GUI observations prove the visible rule inputs, validation, ordering and Test output, but do not
+  expose the serialized identity field that caused the reopen failure.
+
+Outcome: FAIL. Lyric/inference and Splitter passed; Tagger current-session execution passed; Tagger
+custom-rule identity, deletion and same-language priority failed after reopening.
+Privacy: this evidence contains only content-level assertions and registered language identifiers;
+machine-local paths, user names and machine identities are omitted.
+

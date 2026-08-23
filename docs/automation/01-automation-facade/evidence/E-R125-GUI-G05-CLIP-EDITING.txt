@@ -1,0 +1,51 @@
+Evidence ID: E-R125-GUI-G05-CLIP-EDITING
+Round: 125
+Scope: GUI-G05 singing-clip creation, properties, movement, resize, clipboard and activation
+Fixture alias: G05_COPY
+Build alias: GUI_BUILD
+Log alias: GUI_LOG
+
+Existing Computer Use coverage:
+- A singing clip was created and renamed to 跨轨片段-β.
+- Its default language was jpn, and singer inheritance remained visible.
+- Body dragging covered horizontal and cross-track movement; the clip remained on the intended
+  target track after release.
+- Left-edge and right-edge resize each produced a stable visible boundary.
+- Multi-selection, Copy, Paste, Cut, Delete and clip activation were covered through public UI
+  actions; the corresponding selection, clip count and active Clip Editor state were visible.
+
+Alt non-snapped supplement:
+- The supplement began from a controlled clean G05_COPY state.
+- F12 cleared any prior latch, F11 armed Alt, and the first clip body was dragged approximately
+  15-16 screen pixels to the right.
+- The clip's visible left boundary moved from approximately x=337 to x=353 and remained there after
+  release, providing the visual assertion for the non-snapped placement.
+
+Bridge and edit-session log evidence:
+- GUI_LOG contained `GUI_TEST_INPUT_BRIDGE armed "Alt"`.
+- The same gesture entered EditSession domain 1.
+- GUI_LOG recorded the mouse gesture forwarded with AltModifier.
+- GUI_LOG recorded clearing with mouse-gesture-complete.
+- The visible off-grid displacement and the matching bridge/edit-session records are independent
+  visual and log evidence for the same committed gesture.
+
+Cleanup:
+- Undo restored the visible clip baseline.
+- Gesture completion cleared Alt; the initial F12 also proved no prior modifier was retained.
+- All temporary edits belong only to G05_COPY and are discarded by reloading the clean copy.
+
+Diagnostics:
+- Debug Error count: 0.
+- ASSERT count: 0.
+
+Limitations:
+- Exact clip ticks and strongly typed object IDs are not directly observable through Computer Use.
+- Runtime IDs of copied clips and deep-copy fidelity of all parameters still require DTO or
+  save-and-reopen evidence.
+- Temporary drag graphics were not treated as committed results; assertions were made only after
+  release and stable repaint.
+
+Outcome: PASS.
+Privacy: this evidence uses only G05_COPY, GUI_BUILD and GUI_LOG aliases plus observed assertions;
+machine identities, user names and local locations are omitted.
+
