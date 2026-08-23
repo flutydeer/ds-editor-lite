@@ -293,9 +293,9 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             }
 
             PackageInfo packageInfo(packageId, packageVersion,
-                                    QString::fromStdString(manifest->author()),
-                                    QString::fromStdString(manifest->description()),
-                                    QString::fromStdString(manifest->license()), {}, {},
+                                    QString::fromStdString(manifest->author().text()),
+                                    QString::fromStdString(manifest->description().text()),
+                                    QString::fromStdString(manifest->license().text()), {}, {},
                                     StringUtils::path_to_qstr(status.rootPath));
 
             // Find singers belonging to this package version.
@@ -315,7 +315,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                     singerManifest = &singer;
                     for (const auto &lang : singer.languages()) {
                         LanguageInfo langInfo(QString::fromStdString(lang.languageId()),
-                                              QString::fromStdString(lang.name()),
+                                              QString::fromStdString(lang.name().text()),
                                               QString::fromStdString(lang.g2pId()),
                                               StringUtils::path_to_qstr(lang.dict()),
                                               QString::fromStdString(lang.s2pMode()),
@@ -337,7 +337,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                     }
                     for (const auto &spk : singer.speakers()) {
                         SpeakerInfo liteSpk(QString::fromStdString(spk.speakerId()),
-                                            QString::fromStdString(spk.name()));
+                                            QString::fromStdString(spk.name().text()));
                         // B-13 lite 侧: toneRange 映射 + 兼容旧 toneMin/toneMax QString
                         if (spk.toneRange()) {
                             const auto lo = spk.toneRange()->first;
@@ -414,7 +414,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 SingerInfo singerInfo(
                     SingerIdentifier{QString::fromStdString(singerSnapshot.ref.singerId), packageId,
                                      packageVersion},
-                    QString::fromStdString(singerSnapshot.name), std::move(speakerInfos),
+                    QString::fromStdString(singerSnapshot.name.text()), std::move(speakerInfos),
                     std::move(languageInfos),
                     QString::fromStdString(singerSnapshot.defaultLanguage));
                 singerInfo.setCapability(std::move(capSummary));
