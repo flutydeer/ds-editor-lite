@@ -429,3 +429,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R127-GUI-G07-TAGGER-PERSISTENCE-FAIL` | 127 | GUI-G07 歌词推理与 Splitter 通过、Tagger 自定义规则持久化失败 | `0adc3e1d57ee300c5f53e00b0364ab6a850b49be0b3fdea2d871e8c7c752dc16` |
+
+## 追加证据 70
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R128-R130-TAGGER-ORDER-CTEST-GATE` | 128–130 | 提交 95b83a62 的 Debug 全目标构建前置与三轮 51 项完整 CTest | `a75a1ceb553e05b5414da3fe454ca7f971a5bd8fa19e32fb0a4943299706af1c` |

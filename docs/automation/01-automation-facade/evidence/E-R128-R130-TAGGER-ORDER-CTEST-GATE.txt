@@ -1,0 +1,46 @@
+Evidence ID: E-R128-R130-TAGGER-ORDER-CTEST-GATE
+Rounds: 128-130
+Scope: three complete Debug CTest executions after the all-target build
+
+Build prerequisite:
+- Source commit: 95b83a62.
+- Debug all-target build: PASS.
+- The successful build is the shared prerequisite for all three rounds and does not consume a
+  separate report round.
+
+R128 complete CTest:
+- Tests: 51/51 passed.
+- Failures: 0.
+- Total real time: 11.48 seconds.
+- TestFillLyricTaggerOrder: PASS.
+- TestAutomationArchitecture: PASS.
+
+R129 complete CTest:
+- Tests: 51/51 passed.
+- Failures: 0.
+- Total real time: 8.14 seconds.
+- TestFillLyricTaggerOrder: PASS.
+- TestAutomationArchitecture: PASS.
+
+R130 complete CTest:
+- Tests: 51/51 passed.
+- Failures: 0.
+- Total real time: 8.27 seconds.
+- TestFillLyricTaggerOrder: PASS.
+- TestAutomationArchitecture: PASS.
+
+Aggregate:
+- Executed test instances: 153.
+- Passed test instances: 153.
+- Failed test instances: 0.
+- TestFillLyricTaggerOrder passed in all three executions.
+- TestAutomationArchitecture passed in all three executions.
+
+Raw-log handling:
+- Raw execution logs remain only in a private isolated execution area and are not committed.
+- This evidence contains only the sanitized build identity, test counts, durations and named-target
+  outcomes.
+
+Outcome: PASS. The Debug all-target build and three-run complete CTest gate passed.
+Privacy: machine-local paths, user names and machine identities are omitted.
+
