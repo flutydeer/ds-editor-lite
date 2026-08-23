@@ -447,3 +447,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R132-R135-CTEST-ENTRY-RECOVERY-GATE` | 132–135 | CTest Shell 入口阻塞、配置缓存工具恢复及三轮 51 项完整门禁 | `6eff66a1987c8e3d6c7ca2eb72fc96d570b329e55f582822c9923648b1868d21` |
+
+## 追加证据 73
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R136-GUI-G07-FILL-LYRIC-RECOVERY` | 136 | GUI-G07 Tagger 排序、严格一字一音符、真实推理、播放、保存与重开恢复 | `094798a582b87fb2fff79ee62fc29bac18320067d399bf7b5acb504bdafc31e0` |
