@@ -2727,3 +2727,49 @@ CTest 门禁。
 
 通过。GUI-G02 的文档保存分支、Recent 双入口、容量边界、删除语义、失效恢复与清空状态均
 符合预期。
+
+## 回归轮次 123：GUI-G03 文档保护与失败保留
+
+### 范围
+
+通过 Computer Use 验证 dirty 文档在 New、Open 和退出流程中的取消、保存与不保存分支，
+并验证畸形工程、不支持格式打开失败时保留旧文档。长异步 Busy 分支按能力装备状态单独判定。
+
+### 结果
+
+- 从干净的 2 轨 `DOC_A` 增加一轨后，文档成为 dirty 的 3 轨状态。第一次执行 New 并
+  Cancel，dirty 标记、标题、3 轨结构和内容全部保持；第二次执行 New 并选择不保存后，
+  进入真正空白的新工程。
+- 重新打开 `DOC_A` 并加轨成为 dirty 后，Open 选择 `DOC_B`；第一次在保存警告中 Cancel，
+  `DOC_A` 的 dirty 标记、3 轨结构和内容保持。重复 Open 并选择 Save 后，`DOC_A` 成功保存为
+  3 轨，随后打开 `DOC_B`；标题为干净状态，结构为 4 轨。
+- 打开 `MALFORMED_PROJECT` 时显示“打开工程失败 / Failed to parse project file. errors:
+  Error type: 1”，原 `DOC_B` 的标题和内容保持。
+- 打开 `UNSUPPORTED_TEXT` 时显示“不支持的文件 / 无法识别的文件格式：txt”，原 `DOC_B`
+  同样保持。
+- `DOC_B` 加轨成为 dirty 后点击退出，应用显示“要保存更改吗？”。Cancel 后窗口、dirty
+  标记和内容均保持。
+- 随后 Ctrl+Z 使模型回到保存基线，Undo disabled、Redo enabled，但标题仍为 dirty。该现象
+  作为非阻塞诊断记录并留待后续跟踪，不影响本轮文档保护结论；重新打开 `DOC_B` 并选择
+  不保存后完成恢复，最终标题干净，Undo/Redo 均 disabled。
+- `CAP-LONG-ASYNC` 未装备；现有 `AUDIO_LONG` 的真实解码约 0.07 秒，不能稳定命中 Busy，
+  因而条件 Busy 子项判定为 NOT EQUIPPED，不伪造通过或失败结果。
+- 匿名文件证明：`DOC_A_SAVED` 为 2362 B、SHA-256
+  `230f91a305b1fa4d0a9590eed6a2f7e97ed40028167525c0f7dd51499ae95750`、3 轨；
+  `DOC_B_BASELINE` 为 2547 B、SHA-256
+  `a48327d961f654b2821569311e588906da175e6e1e0a889253fa04578e490045`、4 轨，且与本轮前一致，
+  未被临时编辑污染。`MALFORMED_PROJECT` 为 4096 B、SHA-256
+  `4f18066ee9ed1268e3a07ddf1a99b65659026007675640800ec4e00ce02ad3f9`；
+  `UNSUPPORTED_TEXT` 为 164 B、SHA-256
+  `332a10535f7fa4c2036cba7015f50c3eacda39aed77b641b00f9905e6e598fbc`。
+- 两次元素索引失效后改用最新截图坐标继续执行，属于测试驱动适配；本轮无产品错误、
+  Debug Error、非预期模态或 Computer Use 基础设施阻塞。
+
+### 证据
+
+- 脱敏文档保护、失败保留与能力判定摘要：`E-R123-GUI-G03-DOCUMENT-PROTECTION`。
+
+### 判定
+
+GUI-G03 核心通过；条件能力 `CAP-LONG-ASYNC` 为 NOT EQUIPPED。Undo 回到保存模型后标题仍
+dirty 的非阻塞诊断已保留，后续单独跟踪。

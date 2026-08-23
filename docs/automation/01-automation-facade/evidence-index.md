@@ -399,3 +399,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R122-GUI-G02-DOCUMENT-RECENT` | 122 | GUI-G02 文档生命周期与 Recent 双入口、容量、移除、失效恢复及清空验证 | `e723d31a24a222a9d4f0bac8c37f2416a09a42854d7e070ac9ca94c7682c0da9` |
+
+## 追加证据 65
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R123-GUI-G03-DOCUMENT-PROTECTION` | 123 | GUI-G03 dirty 文档保护、打开失败保留、条件 Busy 能力与非阻塞诊断 | `69ca1ca10ba296f6acdd1355d5843840d701b6a2aa2dec8f9cf10c9c758a29fd` |
