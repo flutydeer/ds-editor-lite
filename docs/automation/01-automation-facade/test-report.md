@@ -1421,3 +1421,426 @@ Computer Use `GUI-G01`。
 
 失败（产品阻断）。暂停 `GUI-G02`，先修复 DSPX 相对音频资源的工程目录解析，增加自动化保护，
 完成定向测试、全量 CTest 和隔离 GUI 重建后重新执行 `GUI-G01`；本轮永久保留。
+
+## 回归轮次 57：相对音频根因与初始保护
+
+### 范围
+
+复现 `GUI-G01` 相对音频失败，追踪 relative resolver、文档 revision、derived writeback 与
+`AudioContext` 媒体探测的先后关系，并为修复加入首批自动化保护。
+
+### 结果
+
+- relative resolver 捕获旧 revision；随后推理推进文档 revision，导致 derived writeback 被保护门
+  拒绝。
+- `AudioContext` 在工程 source 基准可用前过早执行媒体探测，构成相对音频失败的另一时序根因。
+- 初版 `TestAudioAssetResolution` 完成 13 个场景、73 条断言，全部通过。
+
+### 证据
+
+- 根因、初始保护与定向结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R57 小节。
+
+### 判定
+
+通过（根因与初始定向保护）。仍需与异步文件域、Core 和 Architecture 组合复测。
+
+## 回归轮次 58：定向组合发现旧测试预期不一致
+
+### 范围
+
+把初版相对音频修复与 Audio、异步文件域组合执行，检查成功 decode 后的媒体状态语义。
+
+### 结果
+
+- Audio 目标通过。
+- `TestAutomationAsyncFileDomains` 出现 1 个旧预期失败：新语义在成功 decode 后把 `Missing`
+  规范为 `Normal`，旧测试仍期待 `Missing`。
+- 复核确认测试规格已过期，产品修复方向正确；本轮失败永久保留，不以随后成功结果隐藏。
+
+### 证据
+
+- 定向组合与旧预期失败：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R58 小节。
+
+### 判定
+
+失败（测试预期过期，非产品修复回退）。修正预期后必须以新轮次完整重跑组合目标。
+
+## 回归轮次 59：修正预期后的定向组合回归
+
+### 范围
+
+按成功 decode 后状态规范修正旧测试预期，重新执行 Audio、Async、Core 与 Architecture。
+
+### 结果
+
+- Audio 为 13 个场景、73 条断言，全部通过。
+- Async 为 34 个场景、141 条断言，全部通过。
+- Core 与 Architecture 均通过，组合结果为 0 失败。
+
+### 证据
+
+- 修正预期后的完整定向结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R59 小节。
+
+### 判定
+
+通过。轮次 58 的旧测试规格问题已关闭，继续覆盖 source generation 与 `Unconfirmed`。
+
+## 回归轮次 60：source generation 与 Unconfirmed 增量加固
+
+### 范围
+
+扩展相对音频保护，覆盖 source generation 和 `Unconfirmed` 状态，并在补充断言前后分别执行
+完整 Audio 定向目标。
+
+### 结果
+
+- 第一次增量执行为 14 个场景、77 条断言，全部通过。
+- 补充断言后的第二次增量执行为 14 个场景、78 条断言，全部通过。
+- 两次结果均独立记录，未用第二次结果覆盖第一次。
+
+### 证据
+
+- 两次增量执行明细：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R60 小节。
+
+### 判定
+
+通过。扩展状态保护成立，进入第一版 `full all target` 构建。
+
+## 回归轮次 61：第一版修复全目标构建
+
+### 范围
+
+在第一版相对音频修复与自动化保护上执行 Debug build 的 `full all target` 构建。
+
+### 结果
+
+- `full all target` 构建通过，未出现编译或链接错误。
+
+### 证据
+
+- 全目标构建结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R61 小节。
+
+### 判定
+
+通过。允许在同一 Debug build 上开始第一版完整 CTest 三轮验证。
+
+## 回归轮次 62：第一版首次完整 CTest
+
+### 范围
+
+在轮次 61 的 Debug build 上首次执行全部 47 个已注册 CTest。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.72 秒。
+- 本批完成后仍继续加固，因此本轮不是最终门禁。
+
+### 证据
+
+- 首次完整结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R62 小节。
+
+### 判定
+
+通过（第一版单轮验证）。继续第二轮，不把本轮扩大为最终稳定性结论。
+
+## 回归轮次 63：第一版第二次完整 CTest
+
+### 范围
+
+不改变第一版 source alias 与 Debug build，第二次执行相同 47 个 CTest。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.72 秒。
+- 本批完成后仍继续加固，因此本轮不是最终门禁。
+
+### 证据
+
+- 第二次完整结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R63 小节。
+
+### 判定
+
+通过（第一版重复验证）。继续第三轮，不替代后续加固版门禁。
+
+## 回归轮次 64：第一版第三次完整 CTest
+
+### 范围
+
+在相同第一版 source alias 与 Debug build 上第三次执行全部 47 个 CTest。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.65 秒。
+- 第一版三轮均通过，但该批之后仍继续加固，不作为最终门禁。
+
+### 证据
+
+- 第三次完整结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R64 小节。
+
+### 判定
+
+通过（第一版三轮完成）。继续 Busy、status 与 source 顺序加固。
+
+## 回归轮次 65：Busy、status 与 source 顺序加固定向回归
+
+### 范围
+
+加固 Busy、status 与 source 的更新顺序；连续执行 Audio，并连续执行
+Core、Architecture、Async 组合，检查重复运行稳定性。
+
+### 结果
+
+- Audio 连续 3 次均为 17 个场景、102 条断言、0 失败。
+- Core、Architecture、Async 组合连续 3 次全部通过；Async 每次均为 34 个场景、141 条断言、
+  0 失败。
+- 所有定向执行均未出现失败。
+
+### 证据
+
+- 顺序加固与连续定向结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R65 小节。
+
+### 判定
+
+通过。顺序加固的定向稳定性成立，进入加固版 `full all target` 构建。
+
+## 回归轮次 66：加固版全目标构建
+
+### 范围
+
+在 Busy、status 与 source 顺序加固后的 Debug build 上执行 `full all target` 构建。
+
+### 结果
+
+- `full all target` 构建通过，未出现编译或链接错误。
+
+### 证据
+
+- 加固版全目标构建结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R66 小节。
+
+### 判定
+
+通过。进入加固版三轮完整 CTest。
+
+## 回归轮次 67：加固版首次完整 CTest
+
+### 范围
+
+在轮次 66 的 Debug build 上首次执行全部 47 个已注册 CTest。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.97 秒。
+
+### 证据
+
+- 加固版首次完整结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R67 小节。
+
+### 判定
+
+通过。继续第二轮完整复跑。
+
+## 回归轮次 68：加固版第二次完整 CTest
+
+### 范围
+
+不改变加固版 source alias 与 Debug build，第二次执行相同 47 个 CTest。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.80 秒。
+
+### 证据
+
+- 加固版第二次完整结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R68 小节。
+
+### 判定
+
+通过。继续第三轮完整复跑。
+
+## 回归轮次 69：加固版第三次完整 CTest
+
+### 范围
+
+在相同加固版 source alias 与 Debug build 上第三次执行全部 47 个 CTest。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.72 秒。
+
+### 证据
+
+- 加固版第三次完整结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R69 小节。
+
+### 判定
+
+通过。加固版三轮完整 CTest 完成；继续补强 TrackController 导入顺序。
+
+## 回归轮次 70：TrackController 导入与 Busy 延期加固
+
+### 范围
+
+补充 `TrackController` 导入预处理与 hash 完成后的 Busy 延期处理，执行定向构建，并连续三轮
+复测 Audio、Async、Core 与 Architecture。
+
+### 结果
+
+- 定向构建通过。
+- 连续 3 轮中，Audio 每次均为 17 个场景、102 条断言；Async 每次均为 34 个场景、
+  141 条断言；Core 与 Architecture 也均通过，全部 0 失败。
+- 架构守卫要求 5 类音频完成 handler 先延期、后 remove，防止提前移除破坏 Busy 时序。
+
+### 证据
+
+- TrackController 加固、守卫与三轮定向结果：证据
+  `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R70 小节。
+
+### 判定
+
+通过。导入预处理和 Busy 延期顺序已受定向行为与架构守卫共同保护。
+
+## 回归轮次 71：TrackController 加固后全目标构建
+
+### 范围
+
+在 TrackController 加固后的 Debug build 上执行 `full all target` 构建。
+
+### 结果
+
+- `full all target` 构建通过，未出现编译或链接错误。
+
+### 证据
+
+- TrackController 加固后全目标构建：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R71 小节。
+
+### 判定
+
+通过。进入该加固版的三轮完整 CTest。
+
+## 回归轮次 72：TrackController 加固后首次完整 CTest
+
+### 范围
+
+在轮次 71 的 Debug build 上首次执行全部 47 个已注册 CTest。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.74 秒。
+
+### 证据
+
+- 首次完整结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R72 小节。
+
+### 判定
+
+通过。继续第二轮完整复跑。
+
+## 回归轮次 73：TrackController 加固后第二次完整 CTest
+
+### 范围
+
+不改变 source alias 与 Debug build，第二次执行相同 47 个 CTest。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.79 秒。
+
+### 证据
+
+- 第二次完整结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R73 小节。
+
+### 判定
+
+通过。继续第三轮完整复跑。
+
+## 回归轮次 74：TrackController 加固后第三次完整 CTest
+
+### 范围
+
+在相同 source alias 与 Debug build 上第三次执行全部 47 个 CTest。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.77 秒。
+
+### 证据
+
+- 第三次完整结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R74 小节。
+
+### 判定
+
+通过。TrackController 加固后三轮完整 CTest 完成；统一格式化后再做完整重编译。
+
+## 回归轮次 75：统一格式化后的完整重编译
+
+### 范围
+
+统一格式化全部修改后，先完整重编译 Debug 应用，再执行 Debug build 的 `full all target` 编译。
+
+### 结果
+
+- Debug 应用完整重编译 132 步通过。
+- 随后的 `full all target` 编译 64 步通过，0 错误。
+
+### 证据
+
+- 格式化后两阶段构建结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R75 小节。
+
+### 判定
+
+通过。最终格式源码和完整 Debug build 已就绪，进入最终三轮完整 CTest。
+
+## 回归轮次 76：最终源码首次完整 CTest
+
+### 范围
+
+在轮次 75 的最终 source alias 与 Debug build 上首次执行全部 47 个已注册 CTest。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.97 秒。
+
+### 证据
+
+- 最终源码首次完整结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R76 小节。
+
+### 判定
+
+通过。继续相同源码和二进制的第二轮完整复跑。
+
+## 回归轮次 77：最终源码第二次完整 CTest
+
+### 范围
+
+不改变最终 source alias、Debug build 或测试环境，第二次执行相同 47 个 CTest。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.77 秒。
+
+### 证据
+
+- 最终源码第二次完整结果：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R77 小节。
+
+### 判定
+
+通过。继续第三轮完整复跑以关闭最终自动化稳定性门禁。
+
+## 回归轮次 78：最终源码第三次完整 CTest
+
+### 范围
+
+在相同最终 source alias 与 Debug build 上第三次执行全部 47 个 CTest，并汇总三轮进程终态。
+
+### 结果
+
+- 47/47 通过，0 失败，总实际用时 2.76 秒。
+- 三轮合计执行 141 个测试实例；失败、崩溃、超时、Qt plugin 错误和 Debug Error 均为 0。
+
+### 证据
+
+- 最终源码第三次结果与三轮汇总：证据 `E-R57-R78-AUDIO-RECOVERY-AUTOMATED` 的 R78 小节。
+
+### 判定
+
+通过。相对音频修复已完成根因诊断、失败留档、定向加固、`full all target` 构建与最终三轮
+完整 CTest 自动化门禁；`GUI-G01` 的外部观察仍须以新轮次单独复测。
