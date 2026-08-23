@@ -177,6 +177,8 @@ namespace Automation {
             addString(hash, draft.audioPath);
             addString(hash, draft.audioPathInfo.relativeDir);
             addString(hash, draft.audioPathInfo.sha512);
+            addInteger(hash, static_cast<int>(draft.audioPathStatus));
+            addInteger(hash, draft.hasRealTimeAnchor);
             addDouble(hash, draft.properties.trimStartMs);
             addDouble(hash, draft.properties.playLengthMs);
             addDouble(hash, draft.properties.materialLengthMs);
@@ -188,11 +190,18 @@ namespace Automation {
             addString(hash, singer.packageVersion.toString());
             addString(hash, draft.ownSpeakerInfo.id());
             addSpeakerMix(hash, draft.ownSpeakerMixData);
+            addInteger(hash, draft.audioInfo.chunkSize);
+            addInteger(hash, draft.audioInfo.mipmapScale);
             addInteger(hash, draft.audioInfo.sampleRate);
             addInteger(hash, draft.audioInfo.channels);
             addInteger(hash, draft.audioInfo.frames);
             addInteger(hash, draft.audioInfo.peakCache.size());
             for (const auto &[minimum, maximum] : draft.audioInfo.peakCache) {
+                addInteger(hash, minimum);
+                addInteger(hash, maximum);
+            }
+            addInteger(hash, draft.audioInfo.peakCacheMipmap.size());
+            for (const auto &[minimum, maximum] : draft.audioInfo.peakCacheMipmap) {
                 addInteger(hash, minimum);
                 addInteger(hash, maximum);
             }

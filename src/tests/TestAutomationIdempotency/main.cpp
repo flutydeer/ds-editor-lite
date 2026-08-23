@@ -178,6 +178,76 @@ namespace {
                       QStringLiteral("idempotency conflicts must not invoke the handler"));
     }
 
+    bool audioClipStateChangesConflict() {
+        AutomationTestSupport::TestRuntime fixture;
+        auto &runtime = fixture.runtime();
+
+        Automation::TrackDraftDto track;
+        track.clientRef = QStringLiteral("idempotency-audio-track");
+        track.name = QStringLiteral("Audio Track");
+        track.gain = 1.0;
+        const auto insertedTrack = runtime.project().insertTrack(commandContext(runtime), 0, track);
+        if (!expect(insertedTrack && insertedTrack.get().affectedObjects.size() == 1,
+                    QStringLiteral("audio idempotency fixture track must be inserted"))) {
+            return false;
+        }
+        const Automation::TrackId trackId(insertedTrack.get().affectedObjects.first().value);
+
+        Automation::ClipDraftDto audio;
+        audio.clientRef = QStringLiteral("idempotency-audio-clip");
+        audio.type = Automation::ClipDraftDto::Type::Audio;
+        audio.properties.name = QStringLiteral("audio.wav");
+        audio.properties.length = 480;
+        audio.properties.clipLen = 480;
+        audio.properties.gain = 1.0;
+        audio.properties.trimStartMs = 0.0;
+        audio.properties.playLengthMs = 500.0;
+        audio.properties.materialLengthMs = 1000.0;
+        audio.audioPath = QStringLiteral("audio.wav");
+        const QList<Automation::ClipInsertDto> request{
+            {.trackId = trackId, .clip = audio}
+        };
+        const auto context =
+            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000017"));
+        const auto first = runtime.project().insertClips(context, request);
+        if (!expect(first && first.get().changed,
+                    QStringLiteral("the first audio clip request must commit"))) {
+            return false;
+        }
+
+        QList<QList<Automation::ClipInsertDto>> variants;
+        auto statusVariant = request;
+        statusVariant.first().clip.audioPathStatus = AudioClip::PathStatus::Missing;
+        variants.append(statusVariant);
+        auto anchorVariant = request;
+        anchorVariant.first().clip.hasRealTimeAnchor = true;
+        variants.append(anchorVariant);
+        auto chunkVariant = request;
+        chunkVariant.first().clip.audioInfo.chunkSize = 1024;
+        variants.append(chunkVariant);
+        auto mipmapScaleVariant = request;
+        mipmapScaleVariant.first().clip.audioInfo.mipmapScale = 4;
+        variants.append(mipmapScaleVariant);
+        auto mipmapVariant = request;
+        mipmapVariant.first().clip.audioInfo.peakCacheMipmap.append({-12, 34});
+        variants.append(mipmapVariant);
+
+        bool conflicts = true;
+        for (const auto &variant : variants) {
+            const auto result = runtime.project().insertClips(context, variant);
+            conflicts &=
+                !result &&
+                result.getError().code == Automation::AutomationErrorCode::IdempotencyConflict &&
+                result.getError().fieldPath == QStringLiteral("idempotency_key") &&
+                result.getError().operationId == Automation::OperationIds::clips::insert;
+        }
+        return expect(conflicts,
+                      QStringLiteral("every constructed audio state field must conflict under a "
+                                     "reused idempotency key")) &&
+               expect(runtime.documentVersion().revision == context.expected.revision + 1,
+                      QStringLiteral("audio state conflicts must not commit another clip"));
+    }
+
     bool previewsAndValidationFailuresDoNotClaimKeys() {
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
@@ -770,6 +840,7 @@ int main(int argc, char *argv[]) {
     ok &= concurrentReplayExecutesOnce(16);
     ok &= concurrentReplayExecutesOnce(64);
     ok &= successfulKeyConflictsAreStable();
+    ok &= audioClipStateChangesConflict();
     ok &= previewsAndValidationFailuresDoNotClaimKeys();
     ok &= commitFailureDoesNotClaimKey();
     ok &= documentsHaveIndependentKeySpaces();
