@@ -507,3 +507,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R147-R148-GUI-G15-PLAYBACK-LOOP` | 147–148 | GUI-G15 工具恢复、播放、定位、loop、播放头行为及 Liliko 菜单复核 | `53603ba8eed3f9e3cccbf46504ea38b895fb6ab4d789108a602361ffb645eb80` |
+
+## 追加证据 83
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R149-GUI-G16-GENERAL-FILL-LYRIC` | 149 | GUI-G16 界面语言、默认语言/歌词、工具路径、Fill Lyric 基本设置与精确恢复 | `aab4209a0f0b45fa10bce371274f4491a0cec42b0a715bcd1a15ec3bf047cc59` |
