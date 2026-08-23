@@ -1,0 +1,14 @@
+round=53
+scope=third consecutive full CTest after optional scene-item fix
+registered_tests=46
+passed=46
+failed=0
+pass_rate=100%
+total_time_seconds=3.38
+TestScrollBarInterplay=passed in 0.37 seconds
+three_round_test_instances=138
+three_round_failures=0
+crashes=0
+timeouts=0
+qt_plugin_errors=0
+privacy=logical aliases only; no local absolute paths

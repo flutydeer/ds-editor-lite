@@ -285,3 +285,33 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R48-GUI-G00-ISOLATION-BRIDGE-PASS` | 48 | GUI-G00 隔离、空缓存、三音符与 Modifier 桥资格摘要 | `e0756f8dd180d541a4493a854289ea6be3a5c638478b0be2823f16486a416db3` |
+
+## 追加证据 46
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R49-OFFSCREEN-RUNNER-PATH-BLOCK` | 49 | 定向测试 offscreen 路径错误、超时和清理摘要 | `35caec248a72afdcb028de494ed3ba3a87d4112c56fdd3b1f57fc05476d01deb` |
+
+## 追加证据 47
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R50-OPTIONAL-SCENE-ITEM-FIX` | 50 | 可选 scene item 清理告警修复与三轮定向摘要 | `f22346e3f14ea2b9761ae043af9a8638c8116b8902685916596868ac6587fb38` |
+
+## 追加证据 48
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R51-POST-GUI-FIX-CTEST-FIRST` | 51 | GUI 告警修复后首次完整 CTest 摘要 | `3ce8bdd6fe3cfa9ef51d9f11d38dd13d529601c98ada92436014d86579bfaf2f` |
+
+## 追加证据 49
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R52-POST-GUI-FIX-CTEST-SECOND` | 52 | GUI 告警修复后第二次完整 CTest 摘要 | `3d343644c3363ae047a726a7629ba8f0716648bad956bec25024cdb127b3c864` |
+
+## 追加证据 50
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R53-POST-GUI-FIX-CTEST-THIRD` | 53 | GUI 告警修复后第三次完整 CTest 与三轮汇总 | `81630aab56284f1a012debe034ec00d22b5a1abd852ba13a8321c1f1b08a78f1` |

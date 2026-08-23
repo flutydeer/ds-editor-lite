@@ -1235,3 +1235,110 @@ Computer Use 传输恢复后，重新启动隔离 GUI 构建，精确绑定唯�
 
 通过（GUI-G00 主体资格）。Modifier 输入桥可用于后续 Computer Use 双保险；开始 G01 前先修复
 空 pronunciation view 的清理告警，执行定向测试和全量 CTest，并以新的隔离实例恢复空工程。
+
+## 回归轮次 49：定向测试 offscreen 路径配置失败
+
+### 范围
+
+修复 GUI-G00 发现的空 scene item 告警后，尝试直接运行受影响的测试程序；手工设置 offscreen
+platform plugin 目录，并对单轮设置 120 秒外部超时。
+
+### 结果
+
+- 首轮仅输出轮次标题后挂起，120 秒到达时由超时机制终止精确的测试进程树。
+- 复核发现所填的是构建输出中的部署目录别名，但该目录不存在；不是 CTest 为目标配置的真实
+  Qt offscreen plugin 目录，因此本轮没有执行有效产品断言。
+- 终止后 Computer Use 只读窗口枚举未发现 Debug Error、Qt 错误框或测试窗口；残留测试进程为
+  0。后续改用真实 Qt offscreen plugin 目录重跑。
+
+### 证据
+
+- 脱敏挂起与清理摘要：证据 `E-R49-OFFSCREEN-RUNNER-PATH-BLOCK`。
+
+### 判定
+
+阻塞（测试运行器配置，不计产品通过率）。保留本轮，不用后续成功结果覆盖。
+
+## 回归轮次 50：可选 scene item 清理告警修复与定向验证
+
+### 范围
+
+定位 `TimeGraphicsScene::removeCommonItem` 对空 pronunciation view 的处理；增加空对象快速返回和
+非图形对象保护，并在既有 `TestScrollBarInterplay` 中捕获 Qt 消息，断言空对象清理不产生 warning。
+
+### 结果
+
+- 受影响测试目标构建通过；使用真实 offscreen plugin 目录直接运行连续 3 次，均通过且没有
+  空对象删除 warning。
+- 正常图形对象仍从 scene 和 scalable item 列表移除；空可选对象无副作用；非图形对象报告明确
+  诊断并保持 scene 不变。
+- 标准 Debug 默认全目标构建通过，应用重新编译、链接和 Qt 部署成功。
+
+### 证据
+
+- 脱敏修复、目标构建和三轮定向摘要：证据 `E-R50-OPTIONAL-SCENE-ITEM-FIX`。
+
+### 判定
+
+通过（定向回归）。GUI-G00 的三条非致命 warning 已从共享清理路径消除；继续三轮完整 CTest。
+
+## 回归轮次 51：GUI 告警修复后首次完整 CTest
+
+### 范围
+
+在修复后的同一 Debug 构建上执行全部 46 个已注册 CTest，使用 CMake 生成的 test target 与每个
+目标已登记的 Qt platform 环境。
+
+### 结果
+
+- 46/46 通过，0 失败，通过率 100%，总实际用时 3.30 秒。
+- `TestScrollBarInterplay` 作为第 31 项实际执行并通过，用时 0.35 秒。
+- 无崩溃、超时、Qt platform plugin 错误或 Debug Error 阻塞。
+
+### 证据
+
+- 脱敏全量摘要：证据 `E-R51-POST-GUI-FIX-CTEST-FIRST`。
+
+### 判定
+
+通过。继续同一二进制的第二轮完整复跑。
+
+## 回归轮次 52：GUI 告警修复后第二次完整 CTest
+
+### 范围
+
+不修改源码、构建产物或测试环境，连续第二次执行相同 46 个 CTest。
+
+### 结果
+
+- 46/46 通过，0 失败，通过率 100%，总实际用时 2.87 秒。
+- `TestScrollBarInterplay` 再次通过，用时 0.35 秒；无崩溃、超时、插件错误或弹窗。
+
+### 证据
+
+- 脱敏全量摘要：证据 `E-R52-POST-GUI-FIX-CTEST-SECOND`。
+
+### 判定
+
+通过。继续第三轮完整复跑关闭稳定性门禁。
+
+## 回归轮次 53：GUI 告警修复后第三次完整 CTest
+
+### 范围
+
+第三次连续执行相同 46 个 CTest，复核受影响目标和全局状态在重复运行后的稳定性。
+
+### 结果
+
+- 46/46 通过，0 失败，通过率 100%，总实际用时 3.38 秒。
+- `TestScrollBarInterplay` 第三次通过，用时 0.37 秒。
+- 三轮合计 138 个测试实例，失败、崩溃、超时、Qt plugin 错误和 Debug Error 均为 0。
+
+### 证据
+
+- 脱敏全量与三轮汇总：证据 `E-R53-POST-GUI-FIX-CTEST-THIRD`。
+
+### 判定
+
+通过。告警修复后的全目标构建、定向三轮和全量 CTest 三轮均完成；可合入隔离 GUI 分支并继续
+Computer Use `GUI-G01`。
