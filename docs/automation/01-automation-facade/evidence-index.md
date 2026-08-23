@@ -351,3 +351,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R80-R84-GUI-BRANCH-AUTOMATED-GATE` | 80–84 | 隔离 GUI 分支音频修复全目标构建、调度诊断与三轮完整 CTest 证据包 | `e0c17b9b49987685bedd5627edb6770c22e4280209c45ddd03a49ef6dcc74773` |
+
+## 追加证据 57
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R85-COMPUTER-USE-TRANSPORT-BLOCKED` | 85 | Computer Use 新会话传输阻塞摘要 | `d11a22539d126fe95ae4f5266300b1a9d4671404cd558bd8a920ac025ae7e2b7` |
