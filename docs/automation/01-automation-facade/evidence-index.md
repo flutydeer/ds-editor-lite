@@ -477,3 +477,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R140-GUI-G10-DYNAMIC-SPEAKER-MIX` | 140 | GUI-G10 动态 Speaker Mix、Alt 输入桥、History 与 DSPX 结构化权重 | `d22e5046636c3ab47935b093a7cb3677947ea78d1de7db7be90cdbf068073282` |
+
+## 追加证据 78
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R141-GUI-G11-SPEAKER-MIX-PRESETS` | 141 | GUI-G11 Speaker Mix 预设创建、同名覆盖、跨控件复用、删除与重启持久化 | `e2b0b2aea893e3690dd07ca2bb2c61019e8ca54273e1ab6067aeee90045bc070` |
