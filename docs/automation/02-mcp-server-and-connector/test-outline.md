@@ -25,7 +25,7 @@ Facade 的一期 122-operation 回归继续保留；二期新增的唯一公共�
 - 一条当前 profile/Custom 发现与执行权限场景；
 - 一条 editor MCP 有效调用或明确的能力不可用场景；
 - 一条 connector 类型化调用场景；
-- 该 Query/Command/async/file/valueSources 类型适用的全部基础维度。
+- 该 Query/Command/async/file/`value_sources` 类型适用的全部基础维度。
 
 六个 connector 固定工具使用 `P2-CONN-001～006`。QLocal、transport、安全、兼容、运行时
 启停和 GUI 使用独立场景号。预计确定性场景量为：
@@ -88,9 +88,9 @@ editor，也不得为了测试自动结束来源不明的现有 editor。
 - 公共业务 Schema 不含无约束 `options/patch/scope` 或裸受控字符串；只有 Manifest
   `extensions` 和泛化 invoke arguments 符合开放对象例外。
 
-### 5.2 `valueSources` 与稳定 ID
+### 5.2 `value_sources` 与稳定 ID
 
-- 每个受控字段具有生成 enum/range、可达 `valueSources` 或此前查询返回的稳定 ID；
+- 每个受控字段具有生成 enum/range、可达 `value_sources` 或此前查询返回的稳定 ID；
 - source operation 的最低 profile 不高于消费者、相同 host 可用，依赖上下文被声明并校验；
 - `automation.get_options` 仅接受目标输入 Schema 的合法子集；缺依赖、非法字段和类型错误稳定
   失败；固定 enum 不重复返回；
@@ -103,16 +103,16 @@ editor，也不得为了测试自动结束来源不明的现有 editor。
 
 ### 5.3 Manifest 与版本
 
-- `toolsetVersion` 从 1 开始、无符号、严格递增且不复用；同一 Manifest 的全部工具
+- `toolset_version` 从 1 开始、无符号、严格递增且不复用；同一 Manifest 的全部工具
   `version` 等于全局版本；
-- `minimumCompatibleVersion` 默认 1、单调不降、不大于当前版本；破坏性变更 fixture 正确提升；
+- `minimum_compatible_version` 默认 1、单调不降、不大于当前版本；破坏性变更 fixture 正确提升；
 - `automation.get_manifest` 最小包络在新旧 fixture 间均可解析，新增兼容元数据只进入
   `extensions`；根级未知字段被拒绝；
 - Schema 和 descriptor 规范化不受对象键顺序、空白、locale、绝对构建路径或运行机器影响；
   digest 相同内容稳定、任一公共语义变化产生新 digest；
 - pagination 的 cursor、limit、排序、末页、过期/伪造 cursor 和重复读取稳定；
 - profile/Custom/host 过滤后的 operations 与 `tools/list` 一致；兼容状态和可用状态分开；
-- `automation.get_manifest.minimumCompatibleVersion == 1` 的不变量被静态保护。
+- `automation.get_manifest.minimum_compatible_version == 1` 的不变量被静态保护。
 
 ## 6. 87 项公共工具的通用维度
 
@@ -283,7 +283,7 @@ editor，也不得为了测试自动结束来源不明的现有 editor。
 ### 11.4 版本与 Schema 兼容
 
 - connector/editor 全局版本相同与不同、双方新旧方向、同名/单侧工具；
-- 双向 `minimumCompatibleVersion` 门槛：版本通过/Schema 失败、Schema 通过/版本失败、两者
+- 双向 `minimum_compatible_version` 门槛：版本通过/Schema 失败、Schema 通过/版本失败、两者
   通过、两者失败；
 - digest 相同 fast path；digest 不同的输入协变/输出逆向包含关系 fixture；
 - 不支持关键字、无法证明、递归/组合歧义按不兼容，不猜测；

@@ -33,7 +33,7 @@ Binding Registry、Manifest、editor `tools/list`、connector 内置业务描述
 | P2-TOOL-001 | `application.get_info` | Meta | Q/S | A | 裁剪为产品名、版本、平台；不得公开退出/重启 |
 | P2-TOOL-002 | `automation.get_status` | Meta | Q/S | B | 组合实例、profile、Manifest、当前 document/window ID 与 revision |
 | P2-TOOL-003 | `automation.get_manifest` | Meta | Q/S | N | 全局版本/digest、逐工具 descriptor、Schema、可用性与分页 |
-| P2-TOOL-004 | `automation.get_options` | Meta（继承目标） | Q/S | N | 严格 target-input 子集、`valueSources`、不得探测隐藏目标 |
+| P2-TOOL-004 | `automation.get_options` | Meta（继承目标） | Q/S | N | 严格 target-input 子集、`value_sources`、不得探测隐藏目标 |
 | P2-TOOL-005 | `documents.get` | L1 | Q/S | A | 显式 `document_id`，返回路径、名称、busy、dirty/savepoint |
 | P2-TOOL-006 | `project.get` | L1 | Q/S | A | 有序轨道/片段稳定快照和强类型对象 ID |
 | P2-TOOL-007 | `notes.get` | L1 | Q/S | A | 指定 singing clip，返回有序音符与稳定 ID |
@@ -55,7 +55,7 @@ Binding Registry、Manifest、editor `tools/list`、connector 内置业务描述
 | P2-TOOL-016 | `tracks.move` | C/S | A | 单轨目标索引，边界与 no-op |
 | P2-TOOL-017 | `tracks.set_properties` | C/S | A | 名称/增益/声像/静音/独奏的封闭稀疏属性 DTO |
 | P2-TOOL-018 | `tracks.set_color` | C/S | A | 颜色范围由共享调色板常量生成 |
-| P2-TOOL-019 | `tracks.set_default_language` | C/S | A/B | `valueSources` 指向当前 VoiceCapabilities |
+| P2-TOOL-019 | `tracks.set_default_language` | C/S | A/B | `value_sources` 指向当前 VoiceCapabilities |
 | P2-TOOL-020 | `clips.insert` | C/S | A | 公共 Schema 仅允许 singing clip；音频走 L2 import |
 | P2-TOOL-021 | `clips.remove` | C/S | A | 批量显式 ID、级联对象与撤销原子性 |
 | P2-TOOL-022 | `clips.set_properties` | C/S | A | 名称/几何/增益/静音，可显式移至目标轨道 |
@@ -191,4 +191,3 @@ Binding Registry、Manifest、editor `tools/list`、connector 内置业务描述
 
 实现阶段必须有集合测试证明这些名称不出现在 Public Manifest、editor `tools/list`、connector
 类型化工具或泛化 list/search/describe/invoke 结果中。
-

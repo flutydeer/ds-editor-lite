@@ -112,7 +112,7 @@ operations.cancel → tasks.cancel
 公共契约采用机器可读声明表或等价代码生成输入，editor 与 connector 共享同一生成产物。
 每个绑定至少包含 stable operation ID、标题/说明、category、Query/Command、同步模式、
 输入/输出 DTO、profile、document/revision/History/file/host/concurrency/conflict/safety policy、
-`valueSources` 和版本元数据。
+`value_sources` 和版本元数据。
 
 固定枚举、范围和步长只维护一份声明，并生成：
 
@@ -130,7 +130,7 @@ Wire 字段统一为 `snake_case`。输入和输出对象默认
 ### 5.2 动态值与首次调用
 
 - 固定值直接由目标 Schema 枚举，不经重复查询返回。
-- 动态值由 `valueSources` 指向同 profile 或更低 profile、同 host 可用的查询。
+- 动态值由 `value_sources` 指向同 profile 或更低 profile、同 host 可用的查询。
 - `automation.get_options` 只接受目标输入 Schema 的受控子集，并继承目标权限、Custom、
   host 和 connector exposure；不得借此探测被隐藏工具。
 - `automation.get_status` 零参数返回 editor 实例、host mode、profile、Manifest 摘要、当前
@@ -149,30 +149,30 @@ Registry 必须能由同一登记表派生：
 - profile/Custom 发现过滤及执行期权限检查目标；
 - connector 内置的已知类型化 wrapper 描述。
 
-注册时校验 ID 唯一、Schema 可规范化、`valueSources` 可达、descriptor 字段完整、公开工具
+注册时校验 ID 唯一、Schema 可规范化、`value_sources` 可达、descriptor 字段完整、公开工具
 不指向 InternalOnly handler。输出设置 `structuredContent`，并同时提供序列化 JSON 的
 TextContent 兼容表示；输出 Schema 存在时，server 在返回前必须验证。
 
 ### 5.4 Public Automation Manifest 与版本
 
-Manifest 根级包含 `toolsetVersion`、规范化内容的 SHA-256 digest、当前 profile/host、
+Manifest 根级包含 `toolset_version`、规范化内容的 SHA-256 digest、当前 profile/host、
 operations、分页游标和预留 `extensions`；根级拒绝其他未知字段。每个 operation 至少包含
 设计稿第 10.2 节列出的全部 descriptor 字段及输入/输出 Schema digest。
 
-- `toolsetVersion` 从 1 开始，只增不减、不得复用；公共契约或公开策略变化时整体递增。
-- 同一 Manifest 中所有工具的 `version == toolsetVersion`。
-- `minimumCompatibleVersion` 默认 1，只能单调增加且不得大于当前 `version`；发生破坏性
+- `toolset_version` 从 1 开始，只增不减、不得复用；公共契约或公开策略变化时整体递增。
+- 同一 Manifest 中所有工具的 `version == toolset_version`。
+- `minimum_compatible_version` 默认 1，只能单调增加且不得大于当前 `version`；发生破坏性
   变化时提升到本次全局版本。
 - `automation.get_manifest` 的最小响应包络和其
-  `minimumCompatibleVersion == 1` 长期保持可解析。
+  `minimum_compatible_version == 1` 长期保持可解析。
 - digest 用于缓存与漂移检测，不替代版本门槛；Schema 规范化必须稳定，不受对象键顺序、
   空白或生成机器影响。
 
 类型化单工具兼容要求双方同名且同时满足：
 
 ```text
-C >= editor.minimumCompatibleVersion
-AND E >= connector.minimumCompatibleVersion
+C >= editor.minimum_compatible_version
+AND E >= connector.minimum_compatible_version
 AND connector-input ⊆ editor-accepted-input
 AND editor-output ⊆ connector-accepted-output
 ```
@@ -337,7 +337,7 @@ mcp_disabled`，已进入 TaskManager 的后台任务默认继续。启用中修
 根目录或当前会话显式授权。处理 Windows 大小写、分隔符、`..`、相对路径、UNC、符号链接/
 junction、非存在输出目标的最近存在父目录、保留名和根目录边界，禁止前缀字符串误判。
 检查后的路径 DTO 传给 Facade，后端不得重新采用未经 Guard 的原始字符串。打开、导入、
-音频重定位、包校验与导出分别声明 `fileAccess`。
+音频重定位、包校验与导出分别声明 `file_access`。
 
 `automation.get_file_access` 只读返回 canonical roots/session grants；MCP、connector 泛化调用
 和 L2 工具不能修改 Guard 配置。

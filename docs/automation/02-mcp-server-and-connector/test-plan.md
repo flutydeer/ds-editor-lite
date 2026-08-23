@@ -156,7 +156,7 @@ seed 并转换成最小确定性回归。
 
 1. Debug configure，保存 CMake cache 中 Qt/vcpkg/test/connector 关键项。
 2. 完整 build editor、connector、生成目标和全部 tests。
-3. 运行 Wire codec/Schema、Manifest/version/digest、valueSources、Public Binding 集合测试。
+3. 运行 Wire codec/Schema、Manifest/version/digest、`value_sources`、Public Binding 集合测试。
 4. 运行 profile/Custom、Access Policy、File Guard、Admission Control 与兼容算法单元测试。
 5. 运行一期 Automation Catalog、Core、Dimensions、Idempotency、Task Races、Document、
    Architecture 等保护测试。
