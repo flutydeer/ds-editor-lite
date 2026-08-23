@@ -1156,3 +1156,28 @@ LibreSVIP 输入和声库包做最终只读结构审计；所有证据只使用 
 
 通过（固件内容资格）。CAP-AUDIO、TEXT-IME、TOUCH、DIRECT-MANIPULATION、RHI、EXTRACT 和
 LONG-ASYNC 的外部观察仍按矩阵执行，不能以本轮静态资格替代 GUI 结果。
+
+## 回归轮次 46：GUI-G00 的 Computer Use 传输恢复尝试
+
+### 范围
+
+用户人工处理系统权限提示后，启动新的隔离 GUI 测试实例并确认应用与 Modifier 输入桥正常；
+在执行任何桌面输入前，重新建立 Computer Use 连接并只读枚举可绑定窗口。
+
+### 结果
+
+- 测试应用正常完成启动，运行时日志确认输入桥已启用，实例保持运行。
+- Computer Use 在第一次只读 `list_apps`/`list_windows` 返回窗口前即报告 `Transport closed`。
+- 首个客户端按强制恢复序列执行 reset、等待、重新初始化和一次重试，仍为同一错误；主任务又
+  独立执行等待、轻量重试、reset 和初始化复检，结果一致。
+- 没有绑定窗口或向 Windows 发送任何输入；Cache、三音符和 F9/F10/F11/F12 资格断言均未
+  执行，不能计入产品通过率。
+
+### 证据
+
+- 脱敏传输恢复摘要：证据 `E-R46-GUI-G00-COMPUTER-USE-TRANSPORT-BLOCK`。
+
+### 判定
+
+阻塞（Computer Use 传输基础设施，不计产品通过率）。保留测试实例和隔离现场；传输恢复后从
+新的全局轮次继续 `GUI-G00`，本轮记录永久保留。

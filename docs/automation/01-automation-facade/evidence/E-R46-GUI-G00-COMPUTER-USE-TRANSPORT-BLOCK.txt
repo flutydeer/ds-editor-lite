@@ -1,0 +1,16 @@
+round=46
+scope=GUI-G00 after manual permission-prompt resolution
+test_instance=rebuilt isolated GUI instance launched successfully
+runtime_log=application startup completed; GUI test input bridge enabled
+computer_use_stage=before list_apps or list_windows returned any window
+first_client=Transport closed on read-only enumeration
+first_recovery=reset failed with Transport closed; wait, reinitialize, and retry also failed
+independent_recheck=main task repeated the required wait, retry, reset, initialize sequence
+independent_recheck_result=Transport closed on every lightweight call
+input_sent=none
+window_bound=none
+product_assertions_executed=none
+GUI_G00_cache_bridge_note_assertions=not executed
+test_process=left running for a later retry
+classification=test infrastructure blocked; not a product pass or failure
+privacy=logical aliases only; no local absolute paths

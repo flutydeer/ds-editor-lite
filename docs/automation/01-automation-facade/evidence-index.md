@@ -267,3 +267,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R45-GUI-FIXTURE-QUALIFICATION` | 45 | GUI 回归固件结构、内容与能力门禁资格摘要 | `cae152acb37cad13baadebed1a26e9429cd6c575f278172f04bbe777a5e6cc00` |
+
+## 追加证据 43
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R46-GUI-G00-COMPUTER-USE-TRANSPORT-BLOCK` | 46 | GUI-G00 Computer Use 传输恢复阻塞摘要 | `3021295c9c5db17eee6eaf385cc0139a5ecf9418c65f479f21b633474cfb1e97` |
