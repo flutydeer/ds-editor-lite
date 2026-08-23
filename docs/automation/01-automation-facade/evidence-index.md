@@ -525,3 +525,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R151-R156-GUI-G18-AUDIO-INFERENCE-RECOVERY` | 151–156 | GUI-G18 Audio/Inference、前瞻持久化缺陷、修复往返、清理与三轮完整 CTest | `277c477a5679295edd695254abf4367cd2a3cb08439219b7db98dfca796777d0` |
+
+## 追加证据 86
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R157-R161-GUI-G19-PACKAGES-VOICES` | 157–161 | GUI-G19 包路径、同身份碰撞诊断、Package Manager、声音解析与基线恢复 | `9f093cf7873d5fea94b356c195ae1f13d122f6da4e0df93e4471e01fddbafd57` |
