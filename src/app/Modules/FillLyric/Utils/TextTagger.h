@@ -49,7 +49,7 @@ namespace FillLyric
         static void setBuiltinEnabled(const QMap<QString, bool> &enabledMap);
         // Set user custom tagger rules (replaces previous custom rules)
         static void setCustomRules(const QList<CustomTaggerRule> &rules);
-        // Set the execution order of all rules (by language name)
+        // Stable order keys keep built-in and custom rules distinct when they share a language.
         static void setRuleOrder(const QStringList &order);
         // Return list of built-in tagger language names
         static QStringList builtinLanguages();

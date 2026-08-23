@@ -1,6 +1,7 @@
 #include "Modules/FillLyric/Utils/TextTagger.h"
 
 #include "Model/AppOptions/Options/FillLyricOption.h"
+#include "Modules/FillLyric/Utils/TaggerRuleOrder.h"
 
 #include <stdcorelib/path.h>
 
@@ -369,24 +370,19 @@ namespace FillLyric
         if (order.isEmpty())
             return;
 
+        QList<TaggerRuleIdentity> identities;
+        identities.reserve(static_cast<qsizetype>(g_taggers.size()));
+        for (const auto &config : g_taggers) {
+            identities.append({
+                .language = QString::fromStdString(config.language),
+                .builtin = config.builtin,
+            });
+        }
+
         std::vector<TaggerConfig> reordered;
         reordered.reserve(g_taggers.size());
-
-        for (const auto &name : order) {
-            const auto nameStd = name.toStdString();
-            for (auto &cfg : g_taggers) {
-                if (cfg.language == nameStd && !cfg.rules.empty()) {
-                    reordered.push_back(std::move(cfg));
-                    break;
-                }
-            }
-        }
-
-        // Append any rules not in the order list
-        for (auto &cfg : g_taggers) {
-            if (!cfg.rules.empty())
-                reordered.push_back(std::move(cfg));
-        }
+        for (const int index : TaggerRuleOrder::resolve(order, identities))
+            reordered.push_back(std::move(g_taggers[static_cast<size_t>(index)]));
 
         g_taggers = std::move(reordered);
     }

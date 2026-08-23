@@ -535,12 +535,13 @@ void ClipController::onFillLyric(QWidget *parent) {
         arg.lyric = noteRes[i - skipCount].lyric;
         if (Note::isSlurLyric(arg.lyric) || Note::isSyllabificationLyric(arg.lyric))
             arg.phonemes = {};
-        // arg.language = noteRes[i - skipCount].language;
         const auto &noteResult = noteRes[i - skipCount];
+        arg.language = noteResult.language;
         arg.pronunciation = Pronunciation(noteResult.syllable, noteResult.syllableRevised);
         arg.pronCandidates = noteResult.candidates;
         auto edit = wordEditDto(*selectedNotes[i]);
         edit.lyric = arg.lyric;
+        edit.language = arg.language;
         edit.pronunciation = arg.pronunciation;
         edit.pronunciationCandidates = arg.pronCandidates;
         edit.phonemes = arg.phonemes;

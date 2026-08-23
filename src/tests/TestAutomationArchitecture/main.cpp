@@ -128,6 +128,8 @@ int main(int argc, char *argv[]) {
     const QRegularExpression resolvedAudioStatusBeforeSourceNotification(QStringLiteral(
         R"(ProjectAutomationFacade::applyResolvedAudioPath[\s\S]{0,2600}setPathStatus\s*\(\s*status\s*\)\s*;[\s\S]{0,120}setPath\s*\(\s*resolvedPath\s*\))"));
     const QRegularExpression audioSourceGeneration(QStringLiteral(R"(\bsourceGeneration\b)"));
+    const QRegularExpression fillLyricLanguageCommit(QStringLiteral(
+        R"(arg\.language\s*=\s*noteResult\.language\s*;[\s\S]{0,300}edit\.language\s*=\s*arg\.language\s*;)"));
 
     for (const auto &id : Automation::OperationIds::all()) {
         if (!versionedOperationSuffix.match(id).hasMatch())
@@ -227,6 +229,12 @@ int main(int argc, char *argv[]) {
             ok &= rejectMatch(
                 file, semanticNotePointer,
                 QStringLiteral("Piano-roll semantic mutation transferred raw Note ownership"));
+        }
+
+        if (file.relativePath == QStringLiteral("src/app/Controller/ClipController.cpp")) {
+            ok &= requireMatch(
+                file, fillLyricLanguageCommit,
+                QStringLiteral("Fill Lyrics stopped committing the resolved note language"));
         }
 
         if (file.relativePath == QStringLiteral("src/app/UI/Views/ClipEditor/PianoRoll/"
