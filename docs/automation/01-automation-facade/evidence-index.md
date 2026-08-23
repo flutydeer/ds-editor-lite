@@ -279,3 +279,9 @@
 | 证据编号 | 轮次 | 类型 | SHA-256 |
 |---|---:|---|---|
 | `E-R47-GUI-G00-COMPUTER-USE-TRANSPORT-RETRY` | 47 | GUI-G00 Computer Use 传输再次重试摘要 | `711bfc6fe65b1e9283f7e452a70b773b429201c54f1b1bd63ef53618c311aa34` |
+
+## 追加证据 45
+
+| 证据编号 | 轮次 | 类型 | SHA-256 |
+|---|---:|---|---|
+| `E-R48-GUI-G00-ISOLATION-BRIDGE-PASS` | 48 | GUI-G00 隔离、空缓存、三音符与 Modifier 桥资格摘要 | `e0756f8dd180d541a4493a854289ea6be3a5c638478b0be2823f16486a416db3` |

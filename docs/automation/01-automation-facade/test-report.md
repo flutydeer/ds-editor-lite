@@ -1203,3 +1203,35 @@ LONG-ASYNC 的外部观察仍按矩阵执行，不能以本轮静态资格替代
 
 阻塞（Computer Use 传输基础设施，不计产品通过率）。本轮作为独立重试永久追加；后续仅在
 宿主传输状态发生变化后开启新轮次。
+
+## 回归轮次 48：GUI-G00 隔离、空缓存与 Modifier 桥资格
+
+### 范围
+
+Computer Use 传输恢复后，重新启动隔离 GUI 构建，精确绑定唯一编辑器窗口；验证 test mode、
+空推理缓存、三个短音符，以及 F9/F10/F11/F9+F10/F12 测试桥的可见交互和运行日志。
+
+### 结果
+
+- 唯一窗口为独立 untitled 工程；无权限提示、Debug Error 或意外模态框，运行时确认输入桥
+  enabled。
+- Inference 页实际执行 Cache Refresh 后仍显示“无缓存文件”，清理按钮禁用；文件系统交叉
+  检查为 0 个缓存文件、0 字节。
+- 在无歌手工程中创建三个稳定短音符，起点为 480、960、1440 tick，长度均为 240 tick；音符
+  矩形和轨道缩略标记一致，持续观察未见红色失败条、残影、闪烁或弹窗。
+- F9+点击只选择首音符；F10+点击形成三个音符的连续范围；F11+轨道区滚轮把轨高约从 70
+  增至 178 像素，反向滚轮恢复；F9+F10+点击形成追加范围。每次日志均记录正确 modifier、
+  forwarded 及 `mouse-gesture-complete`/`wheel-complete` 清除。
+- Control 锁存时按 F12 记录 `explicit-clear`；随后普通点击只选择目标单音符，证明没有 modifier
+  遗留。轮末再次清除，轨高恢复。
+- 每次绘制还产生一条 `QGraphicsScene::removeItem: cannot remove 0-item` warning；共三条，
+  未伴随任何可见错误。本轮保留为非致命诊断观察，不将其伪装为完全无告警。
+
+### 证据
+
+- 脱敏 GUI、桥日志与缓存交叉摘要：证据 `E-R48-GUI-G00-ISOLATION-BRIDGE-PASS`。
+
+### 判定
+
+通过（GUI-G00 主体资格）。Modifier 输入桥可用于后续 Computer Use 双保险；开始 G01 前先修复
+空 pronunciation view 的清理告警，执行定向测试和全量 CTest，并以新的隔离实例恢复空工程。
