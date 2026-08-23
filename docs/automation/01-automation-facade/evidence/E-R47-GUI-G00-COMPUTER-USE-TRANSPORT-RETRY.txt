@@ -1,0 +1,13 @@
+round=47
+scope=user-requested Computer Use retry for GUI-G00
+test_instance=existing isolated GUI instance remains running
+attempt_1=initialize and read-only list_windows returned Transport closed
+attempt_2=wait two seconds and retry returned Transport closed
+attempt_3=JavaScript session reset returned Transport closed
+attempt_4=reinitialize and final lightweight retry returned Transport closed
+input_sent=none
+window_bound=none
+product_assertions_executed=none
+GUI_G00_cache_bridge_note_assertions=not executed
+classification=test infrastructure blocked; not a product pass or failure
+privacy=logical aliases only; no local absolute paths
