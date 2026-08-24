@@ -224,12 +224,14 @@ namespace Automation {
             Stopping,
             GlobalBusy,
             PeerBusy,
+            ClientBusy,
             RateLimited,
         };
 
         struct PendingRequest {
             quint64 id = 0;
             QString peerKey;
+            QString clientKey;
             QPromise<QHttpServerResponse> promise;
         };
 
@@ -247,8 +249,10 @@ namespace Automation {
             m_accepting = true;
             m_globalInFlight = 0;
             m_peerInFlight.clear();
+            m_clientInFlight.clear();
             m_globalBucket = {};
             m_peerBuckets.clear();
+            m_clientBuckets.clear();
             m_pending.clear();
         }
 
@@ -296,6 +300,27 @@ namespace Automation {
             return m_pending.contains(id);
         }
 
+        Rejection attachClient(const quint64 id, const QString &clientKey) {
+            const auto now = monotonicMilliseconds();
+            const QMutexLocker locker(&m_mutex);
+            const auto pending = m_pending.find(id);
+            if (!m_accepting || pending == m_pending.end())
+                return Rejection::Stopping;
+            if (!pending.value()->clientKey.isEmpty())
+                return Rejection::None;
+            if (m_clientInFlight.value(clientKey) >= m_limits.maximumClientInFlight)
+                return Rejection::ClientBusy;
+
+            auto &bucket = m_clientBuckets[clientKey];
+            refill(bucket, m_limits.clientTokenCapacity, m_limits.clientTokensPerSecond, now);
+            if (bucket.tokens < 1.0)
+                return Rejection::RateLimited;
+            bucket.tokens -= 1.0;
+            pending.value()->clientKey = clientKey;
+            ++m_clientInFlight[clientKey];
+            return Rejection::None;
+        }
+
         bool complete(const quint64 id, QHttpServerResponse response) {
             std::shared_ptr<PendingRequest> pending;
             {
@@ -311,6 +336,14 @@ namespace Automation {
                     m_peerInFlight.remove(pending->peerKey);
                 else
                     m_peerInFlight[pending->peerKey] = remaining;
+                if (!pending->clientKey.isEmpty()) {
+                    const auto clientRemaining =
+                        std::max(0, m_clientInFlight.value(pending->clientKey) - 1);
+                    if (clientRemaining == 0)
+                        m_clientInFlight.remove(pending->clientKey);
+                    else
+                        m_clientInFlight[pending->clientKey] = clientRemaining;
+                }
             }
             pending->promise.addResult(std::move(response));
             pending->promise.finish();
@@ -326,6 +359,7 @@ namespace Automation {
                 m_pending.clear();
                 m_globalInFlight = 0;
                 m_peerInFlight.clear();
+                m_clientInFlight.clear();
             }
             for (const auto &request : pending) {
                 request->promise.addResult(transportError(QStringLiteral("mcp_stopping"),
@@ -360,8 +394,10 @@ namespace Automation {
         bool m_accepting = false;
         int m_globalInFlight = 0;
         QHash<QString, int> m_peerInFlight;
+        QHash<QString, int> m_clientInFlight;
         Bucket m_globalBucket;
         QHash<QString, Bucket> m_peerBuckets;
+        QHash<QString, Bucket> m_clientBuckets;
         QHash<quint64, std::shared_ptr<PendingRequest>> m_pending;
         quint64 m_nextRequestId = 1;
     };
@@ -475,6 +511,7 @@ namespace Automation {
                             QStringLiteral("Global MCP concurrency limit was reached"),
                             StatusCode::ServiceUnavailable));
                     case McpHttpTransportState::Rejection::PeerBusy:
+                    case McpHttpTransportState::Rejection::ClientBusy:
                     case McpHttpTransportState::Rejection::RateLimited:
                         return readyResponse(
                             transportError(QStringLiteral("too_many_requests"),
@@ -586,7 +623,22 @@ namespace Automation {
             if (!metadataValidation.valid()) {
                 return fail(jsonResponse(
                     Mcp::makeErrorResponse(validatedRequest.id, *metadataValidation.error),
-                    protocolErrorStatus(*metadataValidation.error)));
+                                         protocolErrorStatus(*metadataValidation.error)));
+            }
+            const auto clientId = clientIdFor(validatedRequest, request);
+            const auto clientAdmission = m_transportState->attachClient(pendingId, clientId);
+            if (clientAdmission != McpHttpTransportState::Rejection::None) {
+                if (clientAdmission == McpHttpTransportState::Rejection::Stopping) {
+                    return fail(transportError(QStringLiteral("mcp_stopping"),
+                                               QStringLiteral("MCP server is stopping"),
+                                               StatusCode::ServiceUnavailable));
+                }
+                return fail(transportError(
+                    QStringLiteral("too_many_requests"),
+                    clientAdmission == McpHttpTransportState::Rejection::ClientBusy
+                        ? QStringLiteral("MCP client concurrency limit was reached")
+                        : QStringLiteral("MCP client request limit was reached"),
+                    StatusCode::TooManyRequests));
             }
             if (validatedRequest.notification)
                 return fail(QHttpServerResponse(StatusCode::Accepted));
@@ -608,7 +660,7 @@ namespace Automation {
             const auto invoked = QMetaObject::invokeMethod(
                 m_handlerContext,
                 [state = m_transportState, pendingId, handler = m_handler,
-                 validated = validatedRequest, clientId = clientIdFor(validatedRequest, request),
+                 validated = validatedRequest, clientId,
                  limits = m_limits]() mutable {
                     if (!state->isPending(pendingId))
                         return;
@@ -678,10 +730,13 @@ namespace Automation {
         m_limits.maximumJsonNodes = std::max<qsizetype>(128, m_limits.maximumJsonNodes);
         m_limits.maximumGlobalInFlight = std::max(1, m_limits.maximumGlobalInFlight);
         m_limits.maximumPeerInFlight = std::max(1, m_limits.maximumPeerInFlight);
+        m_limits.maximumClientInFlight = std::max(1, m_limits.maximumClientInFlight);
         m_limits.globalTokenCapacity = std::max(1.0, m_limits.globalTokenCapacity);
         m_limits.globalTokensPerSecond = std::max(0.0, m_limits.globalTokensPerSecond);
         m_limits.peerTokenCapacity = std::max(1.0, m_limits.peerTokenCapacity);
         m_limits.peerTokensPerSecond = std::max(0.0, m_limits.peerTokensPerSecond);
+        m_limits.clientTokenCapacity = std::max(1.0, m_limits.clientTokenCapacity);
+        m_limits.clientTokensPerSecond = std::max(0.0, m_limits.clientTokensPerSecond);
         m_limits.requestDeadlineMs = std::max(10, m_limits.requestDeadlineMs);
         m_transportState = std::make_shared<McpHttpTransportState>(m_limits);
     }

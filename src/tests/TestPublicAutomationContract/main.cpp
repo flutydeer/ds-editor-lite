@@ -125,6 +125,28 @@ namespace {
             countOpenObjects(it.value(), count);
     }
 
+    void verifyInputArraysBounded(const QJsonValue &value, const QString &operationId,
+                                  const QString &path = QStringLiteral("#")) {
+        if (value.isArray()) {
+            const auto values = value.toArray();
+            for (qsizetype index = 0; index < values.size(); ++index) {
+                verifyInputArraysBounded(values.at(index), operationId,
+                                         path + u'/' + QString::number(index));
+            }
+            return;
+        }
+        if (!value.isObject())
+            return;
+        const auto object = value.toObject();
+        if (object.value(QStringLiteral("type")) == QStringLiteral("array")) {
+            expect(object.contains(QStringLiteral("maxItems")),
+                   operationId + QStringLiteral(" input array must be bounded at ") + path);
+        }
+        for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
+            verifyInputArraysBounded(it.value(), operationId, path + u'/' + it.key());
+        }
+    }
+
     QJsonObject documentVersion() {
         return {
             {QStringLiteral("document_id"),
@@ -256,6 +278,16 @@ namespace {
                    limit.value(QStringLiteral("maximum")).toInt() ==
                        AutomationWire::MaximumPageSize,
                QStringLiteral("pagination schema must use the public numeric domain"));
+
+        const auto *audioBatch =
+            AutomationWire::findPublicTool(QStringLiteral("audio_clips.import_batch"));
+        const auto items = audioBatch->inputSchema.value(QStringLiteral("properties"))
+                               .toObject()
+                               .value(QStringLiteral("items"))
+                               .toObject();
+        expect(items.value(QStringLiteral("maxItems")).toInt() ==
+                   AutomationWire::MaximumAudioImportBatchItems,
+               QStringLiteral("audio import batches must have a bounded item count"));
     }
 
     void verifyGetOptions() {
@@ -443,10 +475,22 @@ namespace {
         expect(pitchOptions.value(QStringLiteral("required"))
                        .toArray()
                        .contains(QStringLiteral("target_clip_id")) &&
+                   pitch->inputSchema.value(QStringLiteral("required"))
+                       .toArray()
+                       .contains(QStringLiteral("options")) &&
                    !pitchOptionProperties.contains(QStringLiteral("minimum_frequency")) &&
                    !pitchOptionProperties.contains(QStringLiteral("maximum_frequency")),
                QStringLiteral(
                    "pitch extraction must require its target and omit unsupported frequency ranges"));
+
+        const auto *master =
+            AutomationWire::findPublicTool(QStringLiteral("master.set_control"));
+        const auto masterControl = master->inputSchema.value(QStringLiteral("properties"))
+                                       .toObject()
+                                       .value(QStringLiteral("control"))
+                                       .toObject();
+        expect(masterControl.value(QStringLiteral("required")).toArray().size() == 4,
+               QStringLiteral("master control replacement must require all four control fields"));
 
         const auto *midi =
             AutomationWire::findPublicTool(QStringLiteral("extract.midi.start"));
@@ -600,6 +644,7 @@ int main(int argc, char **argv) {
                contract.operationId + QStringLiteral(" output schema must be supported"));
         verifyRequiredDeletion(contract, contract.inputSchema, QStringLiteral("input"));
         verifyRequiredDeletion(contract, contract.outputSchema, QStringLiteral("output"));
+        verifyInputArraysBounded(contract.inputSchema, contract.operationId);
         countOpenObjects(contract.inputSchema, openObjects);
         countOpenObjects(contract.outputSchema, openObjects);
     }

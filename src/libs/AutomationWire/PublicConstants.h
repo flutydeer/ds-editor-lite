@@ -19,6 +19,9 @@ namespace AutomationWire {
     inline constexpr int MaximumAudioSampleRate = 384000;
     inline constexpr int MinimumPageSize = 1;
     inline constexpr int MaximumPageSize = 1000;
+    inline constexpr int MaximumCommandCollectionItems = 1024;
+    inline constexpr int MaximumCurveSampleItems = 65536;
+    inline constexpr int MaximumAudioImportBatchItems = 64;
 
 }
 

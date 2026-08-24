@@ -21,11 +21,14 @@ namespace Automation {
         int maximumJsonDepth = 64;
         qsizetype maximumJsonNodes = 100000;
         int maximumGlobalInFlight = 32;
-        int maximumPeerInFlight = 4;
+        int maximumPeerInFlight = 32;
+        int maximumClientInFlight = 4;
         double globalTokenCapacity = 100.0;
         double globalTokensPerSecond = 50.0;
-        double peerTokenCapacity = 20.0;
-        double peerTokensPerSecond = 10.0;
+        double peerTokenCapacity = 100.0;
+        double peerTokensPerSecond = 50.0;
+        double clientTokenCapacity = 20.0;
+        double clientTokensPerSecond = 10.0;
         int requestDeadlineMs = 30000;
     };
 

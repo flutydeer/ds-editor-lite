@@ -76,15 +76,15 @@ namespace AutomationWire {
         QJsonObject getOptionsInputSchema(const QList<ToolContract> &tools);
 
         QJsonObject trackControlSchema() {
-            auto result = JsonSchema::object(
+            return JsonSchema::object(
                 {
                     {QStringLiteral("gain"), JsonSchema::number()},
                     {QStringLiteral("pan"), JsonSchema::number(MinimumPan, MaximumPan)},
                     {QStringLiteral("mute"), JsonSchema::boolean()},
                     {QStringLiteral("solo"), JsonSchema::boolean()},
-                });
-            result.insert(QStringLiteral("minProperties"), 1);
-            return result;
+                },
+                {QStringLiteral("gain"), QStringLiteral("pan"), QStringLiteral("mute"),
+                 QStringLiteral("solo")});
         }
 
         QJsonObject clipPropertiesSchema(const bool requireId) {
@@ -132,8 +132,9 @@ namespace AutomationWire {
                     {QStringLiteral("language"), nonEmptyStringSchema()},
                     {QStringLiteral("pronunciation"), pronunciation},
                     {QStringLiteral("pronunciation_candidates"),
-                     JsonSchema::array(JsonSchema::string())},
-                    {QStringLiteral("phonemes"), JsonSchema::array(phoneme)},
+                     JsonSchema::array(JsonSchema::string(), {}, MaximumCommandCollectionItems)},
+                    {QStringLiteral("phonemes"),
+                     JsonSchema::array(phoneme, {}, MaximumCommandCollectionItems)},
                     {QStringLiteral("line_feed"), JsonSchema::boolean()},
                 },
                 {QStringLiteral("local_start"), QStringLiteral("length"),
@@ -156,8 +157,9 @@ namespace AutomationWire {
                     {QStringLiteral("language"), nonEmptyStringSchema()},
                     {QStringLiteral("pronunciation"), JsonSchema::string()},
                     {QStringLiteral("pronunciation_candidates"),
-                     JsonSchema::array(JsonSchema::string())},
-                    {QStringLiteral("phonemes"), JsonSchema::array(phoneme)},
+                     JsonSchema::array(JsonSchema::string(), {}, MaximumCommandCollectionItems)},
+                    {QStringLiteral("phonemes"),
+                     JsonSchema::array(phoneme, {}, MaximumCommandCollectionItems)},
                 },
                 {QStringLiteral("note_id")});
             result.insert(QStringLiteral("minProperties"), 2);
@@ -171,7 +173,8 @@ namespace AutomationWire {
                      domainConstant(PublicValueDomain::CurveType, QStringLiteral("draw"))},
                     {QStringLiteral("local_start"), JsonSchema::integer()},
                     {QStringLiteral("step"), JsonSchema::integer(1.0)},
-                    {QStringLiteral("values"), JsonSchema::array(JsonSchema::integer(), 1)},
+                    {QStringLiteral("values"),
+                     JsonSchema::array(JsonSchema::integer(), 1, MaximumCurveSampleItems)},
                 },
                 {QStringLiteral("type"), QStringLiteral("local_start"), QStringLiteral("step"),
                  QStringLiteral("values")});
@@ -187,7 +190,8 @@ namespace AutomationWire {
                 {
                     {QStringLiteral("type"),
                      domainConstant(PublicValueDomain::CurveType, QStringLiteral("anchor"))},
-                    {QStringLiteral("nodes"), JsonSchema::array(anchorNode, 1)},
+                    {QStringLiteral("nodes"),
+                     JsonSchema::array(anchorNode, 1, MaximumCommandCollectionItems)},
                 },
                 {QStringLiteral("type"), QStringLiteral("nodes")});
             return JsonSchema::oneOf(QJsonArray{draw, anchor});
@@ -199,7 +203,8 @@ namespace AutomationWire {
                     {QStringLiteral("position"), JsonSchema::integer()},
                     {QStringLiteral("weights"),
                      JsonSchema::array(
-                         JsonSchema::number(MinimumMixWeight, MaximumMixWeight), 1)},
+                         JsonSchema::number(MinimumMixWeight, MaximumMixWeight), 1,
+                         MaximumCommandCollectionItems)},
                 },
                 {QStringLiteral("position"), QStringLiteral("weights")});
             return JsonSchema::object(
@@ -207,11 +212,14 @@ namespace AutomationWire {
                     {QStringLiteral("mode"),
                      stringDomainSchema(PublicValueDomain::SpeakerMixMode)},
                     {QStringLiteral("singer"), voiceRefSchema()},
-                    {QStringLiteral("speakers"), JsonSchema::array(voiceRefSchema(), 1)},
+                    {QStringLiteral("speakers"),
+                     JsonSchema::array(voiceRefSchema(), 1, MaximumCommandCollectionItems)},
                     {QStringLiteral("fixed_weights"),
                      JsonSchema::array(
-                         JsonSchema::number(MinimumMixWeight, MaximumMixWeight), 1)},
-                    {QStringLiteral("dynamic_keyframes"), JsonSchema::array(keyframe, 1)},
+                         JsonSchema::number(MinimumMixWeight, MaximumMixWeight), 1,
+                         MaximumCommandCollectionItems)},
+                    {QStringLiteral("dynamic_keyframes"),
+                     JsonSchema::array(keyframe, 1, MaximumCommandCollectionItems)},
                 },
                 {QStringLiteral("mode"), QStringLiteral("singer"),
                  QStringLiteral("speakers")});
@@ -222,7 +230,8 @@ namespace AutomationWire {
                 {
                     {QStringLiteral("name"), parameterNameSchema()},
                     {QStringLiteral("type"), parameterLayerSchema()},
-                    {QStringLiteral("curves"), JsonSchema::array(curveDraftSchema())},
+                    {QStringLiteral("curves"),
+                     JsonSchema::array(curveDraftSchema(), {}, MaximumCommandCollectionItems)},
                 },
                 {QStringLiteral("name"), QStringLiteral("type"), QStringLiteral("curves")});
             return JsonSchema::object(
@@ -232,8 +241,10 @@ namespace AutomationWire {
                      domainConstant(PublicValueDomain::ClipType, QStringLiteral("singing"))},
                     {QStringLiteral("properties"), clipPropertiesSchema(false)},
                     {QStringLiteral("default_language"), nonEmptyStringSchema()},
-                    {QStringLiteral("notes"), JsonSchema::array(noteDraftSchema())},
-                    {QStringLiteral("parameters"), JsonSchema::array(parameter)},
+                    {QStringLiteral("notes"),
+                     JsonSchema::array(noteDraftSchema(), {}, MaximumCommandCollectionItems)},
+                    {QStringLiteral("parameters"),
+                     JsonSchema::array(parameter, {}, MaximumCommandCollectionItems)},
                     {QStringLiteral("speaker_mix"), speakerMixSchema()},
                 },
                 {QStringLiteral("type"), QStringLiteral("properties"),
@@ -286,7 +297,8 @@ namespace AutomationWire {
                      stringDomainSchema(PublicValueDomain::AudioMixingMode)},
                     {QStringLiteral("source"),
                      stringDomainSchema(PublicValueDomain::AudioSourceMode)},
-                    {QStringLiteral("source_ids"), JsonSchema::array(identifierSchema())},
+                    {QStringLiteral("source_ids"),
+                     JsonSchema::array(identifierSchema(), {}, MaximumCommandCollectionItems)},
                     {QStringLiteral("range"),
                      JsonSchema::object(
                          {
@@ -312,7 +324,8 @@ namespace AutomationWire {
                     {QStringLiteral("kind"),
                      domainConstant(PublicValueDomain::InferenceScopeKind,
                                     QStringLiteral("track"))},
-                    {QStringLiteral("track_ids"), JsonSchema::array(identifierSchema(), 1)},
+                    {QStringLiteral("track_ids"),
+                     JsonSchema::array(identifierSchema(), 1, MaximumCommandCollectionItems)},
                 },
                 {QStringLiteral("kind"), QStringLiteral("track_ids")});
             const auto clip = JsonSchema::object(
@@ -320,7 +333,8 @@ namespace AutomationWire {
                     {QStringLiteral("kind"),
                      domainConstant(PublicValueDomain::InferenceScopeKind,
                                     QStringLiteral("clip"))},
-                    {QStringLiteral("clip_ids"), JsonSchema::array(identifierSchema(), 1)},
+                    {QStringLiteral("clip_ids"),
+                     JsonSchema::array(identifierSchema(), 1, MaximumCommandCollectionItems)},
                 },
                 {QStringLiteral("kind"), QStringLiteral("clip_ids")});
             return JsonSchema::oneOf(QJsonArray{document, track, clip});
@@ -359,7 +373,7 @@ namespace AutomationWire {
                 return uuidSchema();
             if (name == QStringLiteral("track_ids") || name == QStringLiteral("clip_ids") ||
                 name == QStringLiteral("note_ids")) {
-                return JsonSchema::array(identifierSchema(), 1);
+                return JsonSchema::array(identifierSchema(), 1, MaximumCommandCollectionItems);
             }
             if (name == QStringLiteral("clip_id") || name == QStringLiteral("track_id") ||
                 name == QStringLiteral("note_id") || name == QStringLiteral("anchor_id") ||
@@ -410,8 +424,10 @@ namespace AutomationWire {
             }
             if (name == QStringLiteral("singer") || name == QStringLiteral("speaker"))
                 return voiceRefSchema();
-            if (name == QStringLiteral("values") || name == QStringLiteral("offsets"))
-                return JsonSchema::array(JsonSchema::integer());
+            if (name == QStringLiteral("values"))
+                return JsonSchema::array(JsonSchema::integer(), {}, MaximumCurveSampleItems);
+            if (name == QStringLiteral("offsets"))
+                return JsonSchema::array(JsonSchema::integer(), {}, MaximumCommandCollectionItems);
             if (name == QStringLiteral("track"))
                 return trackDraftSchema();
             if (name == QStringLiteral("new_note"))
@@ -429,7 +445,7 @@ namespace AutomationWire {
             if (name == QStringLiteral("scope"))
                 return inferenceScopeSchema();
             if (name == QStringLiteral("curves"))
-                return JsonSchema::array(curveDraftSchema(), 1);
+                return JsonSchema::array(curveDraftSchema(), 1, MaximumCommandCollectionItems);
             if (name == QStringLiteral("clips")) {
                 return JsonSchema::array(
                     JsonSchema::object(
@@ -438,17 +454,19 @@ namespace AutomationWire {
                             {QStringLiteral("clip"), clipDraftSchema()},
                         },
                         {QStringLiteral("track_id"), QStringLiteral("clip")}),
-                    1);
+                    1, MaximumCommandCollectionItems);
             }
             if (name == QStringLiteral("notes"))
-                return JsonSchema::array(noteDraftSchema(), 1);
+                return JsonSchema::array(noteDraftSchema(), 1, MaximumCommandCollectionItems);
             if (name == QStringLiteral("edits"))
-                return JsonSchema::array(noteWordEditSchema(), 1);
+                return JsonSchema::array(noteWordEditSchema(), 1, MaximumCommandCollectionItems);
             if (name == QStringLiteral("items"))
-                return JsonSchema::array(audioImportItemSchema(), 1);
+                return JsonSchema::array(audioImportItemSchema(), 1,
+                                         MaximumAudioImportBatchItems);
             if (name == QStringLiteral("stages"))
                 return JsonSchema::array(
-                    stringDomainSchema(PublicValueDomain::InferenceStage), 1);
+                    stringDomainSchema(PublicValueDomain::InferenceStage), 1,
+                    publicValueDomainValues(PublicValueDomain::InferenceStage).size());
             if (name == QStringLiteral("options")) {
                 if (id.startsWith(QStringLiteral("exports.audio.")))
                     return audioExportOptionsSchema();
@@ -670,7 +688,8 @@ namespace AutomationWire {
                 {QStringLiteral("exports.audio.start"),
                  {QStringLiteral("path"), QStringLiteral("options")}},
                 {QStringLiteral("extract.get_capabilities"), {QStringLiteral("clip_id")}},
-                {QStringLiteral("extract.pitch.start"), {QStringLiteral("clip_id")}},
+                {QStringLiteral("extract.pitch.start"),
+                 {QStringLiteral("clip_id"), QStringLiteral("options")}},
                 {QStringLiteral("extract.midi.start"), {QStringLiteral("clip_id")}},
                 {QStringLiteral("inference.start"), {QStringLiteral("scope")}},
                 {QStringLiteral("inference.reset_stage"),

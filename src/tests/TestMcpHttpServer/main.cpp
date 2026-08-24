@@ -645,6 +645,35 @@ int main(int argc, char *argv[]) {
            QStringLiteral("body metadata must not bypass the immutable peer token bucket"));
     peerRateServer.stop();
 
+    Automation::McpHttpLimits clientRateLimits;
+    clientRateLimits.globalTokenCapacity = 100;
+    clientRateLimits.globalTokensPerSecond = 100;
+    clientRateLimits.peerTokenCapacity = 100;
+    clientRateLimits.peerTokensPerSecond = 100;
+    clientRateLimits.clientTokenCapacity = 2;
+    clientRateLimits.clientTokensPerSecond = 0;
+    Automation::McpHttpServer clientRateServer(basicHandler, clientRateLimits);
+    QString clientRateError;
+    expect(clientRateServer.start(0, clientRateError),
+           QStringLiteral("client-rate test server must start: %1").arg(clientRateError));
+    const QUrl clientRateEndpoint(clientRateServer.endpoint());
+    const auto clientRateFirst =
+        send(manager, baseRequest(clientRateEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
+             QJsonDocument(discover).toJson(QJsonDocument::Compact));
+    const auto clientRateSecond =
+        send(manager, baseRequest(clientRateEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
+             QJsonDocument(discover).toJson(QJsonDocument::Compact));
+    const auto clientRateThird =
+        send(manager, baseRequest(clientRateEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
+             QJsonDocument(discover).toJson(QJsonDocument::Compact));
+    const auto otherClient =
+        send(manager, baseRequest(clientRateEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
+             QJsonDocument(changedIdentity).toJson(QJsonDocument::Compact));
+    expect(clientRateFirst.status == 200 && clientRateSecond.status == 200 &&
+               clientRateThird.status == 429 && otherClient.status == 200,
+           QStringLiteral("one logical MCP client must not consume another client's quota"));
+    clientRateServer.stop();
+
     QThread handlerThread;
     QObject handlerContext;
     handlerContext.moveToThread(&handlerThread);
