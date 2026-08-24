@@ -3,6 +3,8 @@
 #include "UI/Views/Common/EditorSelectionUtils.h"
 
 #include <lite/MusicBase/Timeline.h>
+#include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QApplication>
 #include <QFontMetricsF>
@@ -47,6 +49,30 @@ namespace {
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
+
+    {
+        SingingClip clip;
+        auto makeNote = [](const int start, const int key) {
+            auto *note = new Note;
+            note->setLocalStart(start);
+            note->setLength(120);
+            note->setKeyIndex(key);
+            return note;
+        };
+        auto *first = makeNote(0, 60);
+        auto *sameStartHighFirst = makeNote(240, 72);
+        auto *sameStartHighSecond = makeNote(240, 72);
+        auto *sameStartLow = makeNote(240, 60);
+        auto *later = makeNote(480, 60);
+        auto *splitContinuation = makeNote(120, 60);
+        clip.insertNotes({later, sameStartHighSecond, sameStartLow, first, splitContinuation,
+                          sameStartHighFirst});
+
+        expect(clip.notes().toList() ==
+                   (QList<Note *>{first, splitContinuation, sameStartHighFirst,
+                                  sameStartHighSecond, sameStartLow, later}),
+               "model notes must use start, descending pitch, and id as their canonical order");
+    }
 
     constexpr int startTick = 480;
     constexpr int quantize = 120;

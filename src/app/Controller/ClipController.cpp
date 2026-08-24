@@ -27,6 +27,7 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPair>
+#include <QSet>
 
 #include <algorithm>
 #include <limits>
@@ -627,8 +628,16 @@ NotesParamsInfo ClipControllerPrivate::buildNoteParamsInfo() const {
 
 QList<Note *> ClipControllerPrivate::selectedNotesFromId(const QList<int> &notesId,
                                                          const SingingClip *clip) {
+    QSet<int> selectedIds;
+    selectedIds.reserve(notesId.size());
+    for (const auto id : notesId)
+        selectedIds.insert(id);
+
     QList<Note *> notes;
-    for (const auto &id : notesId)
-        notes.append(clip->findNoteById(id));
+    notes.reserve(selectedIds.size());
+    for (auto *note : clip->notes()) {
+        if (selectedIds.contains(note->id()))
+            notes.append(note);
+    }
     return notes;
 }

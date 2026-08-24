@@ -83,7 +83,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     d->m_lyricToolTip = std::make_unique<NoteLyricToolTipController>(viewport());
 
     d->m_selectionModel =
-        new PianoRollSelectionModel(this, d->noteViews, d->noteViewIndex, d->m_notes, this);
+        new PianoRollSelectionModel(this, d->noteViews, d->noteViewIndex, this);
     d->m_interactionController = new NoteInteractionController(d->m_selectionModel, this, this);
 
     d->m_gridItem = new PianoRollBackground;
@@ -899,12 +899,7 @@ void PianoRollGraphicsView::reset() {
 
 QList<int> PianoRollGraphicsView::selectedNotesId() const {
     Q_D(const PianoRollGraphicsView);
-    QList<int> list;
-    for (const auto noteView : d->noteViews) {
-        if (noteView->isSelected())
-            list.append(noteView->id());
-    }
-    return list;
+    return d->m_selectionModel->selectedNoteIds();
 }
 
 void PianoRollGraphicsView::clearNoteSelections(const NoteView *except) {
@@ -1367,6 +1362,7 @@ void PianoRollGraphicsViewPrivate::moveToNullClipState() {
         disconnect(m_clip, nullptr, this, nullptr);
     }
     m_clip = nullptr;
+    m_selectionModel->setDataContext(nullptr);
     m_initialViewportPositionPending = false;
 }
 
@@ -1384,6 +1380,7 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     }
 
     m_clip = clip;
+    m_selectionModel->setDataContext(clip);
     m_offset = clip->start();
     q->setOffset(m_offset);
     q->setSceneVisibility(true);
