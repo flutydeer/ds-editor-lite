@@ -12,6 +12,7 @@
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <QSet>
+#include <QTimer>
 #include <QUuid>
 
 #include <algorithm>
@@ -20,6 +21,9 @@ namespace DsConnector {
     namespace {
         constexpr auto MaxHandshakePages = 1024;
         constexpr auto MaxHandshakeItems = 100000;
+        constexpr auto MaxHandshakeRetryAttempts = 4;
+        constexpr auto InitialHandshakeRetryDelayMs = 100;
+        constexpr auto MaximumHandshakeRetryDelayMs = 1600;
         constexpr qint64 MaximumSafeJsonInteger = 9007199254740991LL;
 
         struct HeaderBinding {
@@ -681,6 +685,23 @@ namespace DsConnector {
             const auto value = result.result.value(QStringLiteral("structuredContent"));
             return value.isObject() ? value.toObject() : QJsonObject{};
         }
+
+        QString handshakeError(const UpstreamResult &result, const QString &fallback) {
+            if (!result.connectorError.isEmpty())
+                return result.connectorError;
+            if (result.protocolError)
+                return result.protocolError->message;
+            return fallback;
+        }
+
+        bool retryableHandshakeError(const QString &error) {
+            return error == QStringLiteral("too_many_requests") ||
+                   error == QStringLiteral("busy") ||
+                   error == QStringLiteral("mcp_stopping") ||
+                   error == QStringLiteral("request_timeout") ||
+                   error == QStringLiteral("upstream_timeout") ||
+                   error == QStringLiteral("upstream_transport_error");
+        }
     }
 
     ConnectorRuntime::ConnectorRuntime(ConnectorOptions options, QString bootstrapServiceName,
@@ -690,9 +711,15 @@ namespace DsConnector {
           m_version(QString::fromLatin1(LiteProductMetadata::Version)),
           m_bootstrap(new BootstrapWatcher(m_instanceId, m_version,
                                            std::move(bootstrapServiceName), this)),
-          m_upstream(new UpstreamMcpClient(m_instanceId, m_version, this)) {
+          m_upstream(new UpstreamMcpClient(m_instanceId, m_version, this)),
+          m_handshakeRetryTimer(new QTimer(this)) {
+        m_handshakeRetryTimer->setSingleShot(true);
         connect(m_bootstrap, &BootstrapWatcher::observationChanged, this,
                 &ConnectorRuntime::bootstrapChanged);
+        connect(m_handshakeRetryTimer, &QTimer::timeout, this, [this] {
+            if (m_handshakeInProgress && m_handshakeTarget)
+                startHandshakeAttempt();
+        });
     }
 
     void ConnectorRuntime::start() {
@@ -700,13 +727,11 @@ namespace DsConnector {
     }
 
     void ConnectorRuntime::stop() {
-        ++m_handshakeEpoch;
         m_bootstrap->stop();
         clearEditorState(QStringLiteral("connector_stopping"));
     }
 
     void ConnectorRuntime::reconnect() {
-        ++m_handshakeEpoch;
         clearEditorState(QStringLiteral("reconnecting"));
         m_bootstrap->reconnect();
     }
@@ -1032,6 +1057,12 @@ namespace DsConnector {
 
     void ConnectorRuntime::clearEditorState(const QString &error) {
         ++m_handshakeEpoch;
+        m_handshakeRetryTimer->stop();
+        m_handshakeTarget.reset();
+        m_handshakeInProgress = false;
+        m_handshakeFollowUp = false;
+        m_handshakeRefreshPending = false;
+        m_handshakeRetryAttempt = 0;
         m_upstream->clearEndpoint(error);
         m_actualTools = {};
         m_manifest = {};
@@ -1041,6 +1072,35 @@ namespace DsConnector {
     }
 
     void ConnectorRuntime::beginHandshake(const SingleInstanceAutomationSnapshot &snapshot) {
+        const auto sameTarget = m_handshakeTarget &&
+                                m_handshakeTarget->primaryProcessId == snapshot.primaryProcessId &&
+                                m_handshakeTarget->result.editorInstanceId ==
+                                    snapshot.result.editorInstanceId &&
+                                m_handshakeTarget->result.mcpEndpoint == snapshot.result.mcpEndpoint;
+        if (!sameTarget) {
+            ++m_handshakeEpoch;
+            m_handshakeRetryTimer->stop();
+            m_handshakeInProgress = false;
+            m_handshakeFollowUp = false;
+            m_handshakeRefreshPending = false;
+            m_handshakeRetryAttempt = 0;
+            m_upstream->clearEndpoint(QStringLiteral("editor_endpoint_changed"));
+        }
+        m_handshakeTarget = snapshot;
+        if (m_handshakeInProgress) {
+            if (!m_handshakeFollowUp)
+                m_handshakeRefreshPending = true;
+            return;
+        }
+        m_handshakeRetryAttempt = 0;
+        m_handshakeInProgress = true;
+        m_handshakeFollowUp = false;
+        startHandshakeAttempt();
+    }
+
+    void ConnectorRuntime::startHandshakeAttempt() {
+        if (!m_handshakeInProgress || !m_handshakeTarget)
+            return;
         const auto epoch = ++m_handshakeEpoch;
         m_mcpConnected = false;
         m_mcpError.clear();
@@ -1050,20 +1110,20 @@ namespace DsConnector {
         m_manifestCompatibility = QStringLiteral("refreshing");
         m_upstream->clearEndpoint(QStringLiteral("refreshing"));
         QString endpointError;
-        if (!m_upstream->setEndpoint(snapshot.result.mcpEndpoint, &endpointError)) {
-            m_mcpError = QStringLiteral("invalid_discovered_endpoint: %1").arg(endpointError);
-            emit statusChanged();
+        if (!m_upstream->setEndpoint(m_handshakeTarget->result.mcpEndpoint, &endpointError)) {
+            failHandshake(
+                epoch, QStringLiteral("invalid_discovered_endpoint: %1").arg(endpointError));
             return;
         }
+        emit statusChanged();
         m_upstream->send(QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod), {},
                          [this, epoch](const UpstreamResult result) {
                              if (epoch != m_handshakeEpoch)
                                  return;
                              if (!result.succeeded()) {
-                                 m_mcpError = result.connectorError.isEmpty()
-                                                  ? result.protocolError->message
-                                                  : result.connectorError;
-                                 emit statusChanged();
+                                 failHandshake(epoch,
+                                               handshakeError(result, QStringLiteral(
+                                                                          "upstream_discovery_failed")));
                                  return;
                              }
                              const auto supportedVersions =
@@ -1081,9 +1141,8 @@ namespace DsConnector {
                                  !capabilities.toObject()
                                       .value(QStringLiteral("tools"))
                                       .isObject()) {
-                                 m_mcpError = QStringLiteral("invalid_upstream_discovery");
-                                 m_manifestCompatibility = QStringLiteral("not_loaded");
-                                 emit statusChanged();
+                                 failHandshake(epoch,
+                                               QStringLiteral("invalid_upstream_discovery"));
                                  return;
                              }
                              m_mcpConnected = true;
@@ -1092,15 +1151,53 @@ namespace DsConnector {
                          m_options.upstreamTimeoutMs);
     }
 
+    void ConnectorRuntime::failHandshake(const quint64 epoch, const QString &error,
+                                         const QString &manifestCompatibility,
+                                         const bool preserveMcpConnection) {
+        if (epoch != m_handshakeEpoch)
+            return;
+        if (!preserveMcpConnection)
+            m_mcpConnected = false;
+        m_mcpError = error;
+        m_manifestCompatibility = manifestCompatibility;
+        emit statusChanged();
+        if (retryableHandshakeError(error) &&
+            m_handshakeRetryAttempt < MaxHandshakeRetryAttempts) {
+            const auto delay = std::min(
+                MaximumHandshakeRetryDelayMs,
+                InitialHandshakeRetryDelayMs * (1 << m_handshakeRetryAttempt));
+            ++m_handshakeRetryAttempt;
+            m_handshakeRetryTimer->start(delay);
+            return;
+        }
+        completeHandshakeCycle(epoch, false);
+    }
+
+    void ConnectorRuntime::completeHandshakeCycle(const quint64 epoch, const bool succeeded) {
+        if (epoch != m_handshakeEpoch)
+            return;
+        m_handshakeRetryTimer->stop();
+        m_handshakeInProgress = false;
+        if (succeeded)
+            m_handshakeRetryAttempt = 0;
+        const auto refresh = m_handshakeRefreshPending && !m_handshakeFollowUp;
+        m_handshakeRefreshPending = false;
+        m_handshakeFollowUp = false;
+        if (!refresh || !m_handshakeTarget)
+            return;
+        m_handshakeInProgress = true;
+        m_handshakeFollowUp = true;
+        startHandshakeAttempt();
+    }
+
     void ConnectorRuntime::requestToolsPage(const quint64 epoch, const QString &cursor,
                                             QJsonArray accumulated,
                                             QSet<QString> seenCursors, const int pageCount) {
         if (epoch != m_handshakeEpoch)
             return;
         if (pageCount >= MaxHandshakePages) {
-            m_mcpError = QStringLiteral("upstream_tools_pagination_limit");
-            m_manifestCompatibility = QStringLiteral("not_loaded");
-            emit statusChanged();
+            failHandshake(epoch, QStringLiteral("upstream_tools_pagination_limit"),
+                          QStringLiteral("not_loaded"), true);
             return;
         }
         QJsonObject params;
@@ -1114,18 +1211,16 @@ namespace DsConnector {
                 if (epoch != m_handshakeEpoch)
                     return;
                 if (!listResult.succeeded()) {
-                    m_mcpError = listResult.connectorError.isEmpty()
-                                     ? listResult.protocolError->message
-                                     : listResult.connectorError;
-                    m_manifestCompatibility = QStringLiteral("not_loaded");
-                    emit statusChanged();
+                    failHandshake(epoch,
+                                  handshakeError(listResult,
+                                                 QStringLiteral("upstream_tools_list_failed")),
+                                  QStringLiteral("not_loaded"), true);
                     return;
                 }
                 const auto toolsValue = listResult.result.value(QStringLiteral("tools"));
                 if (!toolsValue.isArray()) {
-                    m_mcpError = QStringLiteral("invalid_upstream_tools_page");
-                    m_manifestCompatibility = QStringLiteral("not_loaded");
-                    emit statusChanged();
+                    failHandshake(epoch, QStringLiteral("invalid_upstream_tools_page"),
+                                  QStringLiteral("not_loaded"), true);
                     return;
                 }
                 QSet<QString> names;
@@ -1135,9 +1230,9 @@ namespace DsConnector {
                     const auto name = tool.toObject().value(QStringLiteral("name")).toString();
                     if (!validToolDescriptor(tool, m_schemaValidationCache) || name.isEmpty() ||
                         names.contains(name)) {
-                        m_mcpError = QStringLiteral("invalid_upstream_tool_descriptor");
-                        m_manifestCompatibility = QStringLiteral("not_loaded");
-                        emit statusChanged();
+                        failHandshake(epoch,
+                                      QStringLiteral("invalid_upstream_tool_descriptor"),
+                                      QStringLiteral("not_loaded"), true);
                         return;
                     }
                     names.insert(name);
@@ -1154,26 +1249,23 @@ namespace DsConnector {
                     accumulated.append(tool);
                 }
                 if (accumulated.size() > MaxHandshakeItems) {
-                    m_mcpError = QStringLiteral("upstream_tools_pagination_limit");
-                    m_manifestCompatibility = QStringLiteral("not_loaded");
-                    emit statusChanged();
+                    failHandshake(epoch, QStringLiteral("upstream_tools_pagination_limit"),
+                                  QStringLiteral("not_loaded"), true);
                     return;
                 }
                 auto nextValue = listResult.result.value(QStringLiteral("nextCursor"));
                 if (nextValue.isUndefined())
                     nextValue = listResult.result.value(QStringLiteral("next_cursor"));
                 if (!nextValue.isUndefined() && !nextValue.isNull() && !nextValue.isString()) {
-                    m_mcpError = QStringLiteral("invalid_upstream_tools_cursor");
-                    m_manifestCompatibility = QStringLiteral("not_loaded");
-                    emit statusChanged();
+                    failHandshake(epoch, QStringLiteral("invalid_upstream_tools_cursor"),
+                                  QStringLiteral("not_loaded"), true);
                     return;
                 }
                 const auto next = nextValue.toString();
                 if (!next.isEmpty()) {
                     if (seenCursors.contains(next)) {
-                        m_mcpError = QStringLiteral("upstream_tools_cursor_cycle");
-                        m_manifestCompatibility = QStringLiteral("not_loaded");
-                        emit statusChanged();
+                        failHandshake(epoch, QStringLiteral("upstream_tools_cursor_cycle"),
+                                      QStringLiteral("not_loaded"), true);
                         return;
                     }
                     seenCursors.insert(next);
@@ -1202,7 +1294,8 @@ namespace DsConnector {
         if (epoch != m_handshakeEpoch)
             return;
         if (pageCount >= MaxHandshakePages) {
-            finishHandshake(epoch);
+            failHandshake(epoch, QStringLiteral("upstream_manifest_pagination_limit"),
+                          QStringLiteral("manifest_unavailable"), true);
             return;
         }
         QJsonObject arguments;
@@ -1344,11 +1437,10 @@ namespace DsConnector {
             manifestResult.result.value(QStringLiteral("isError")).toBool() ||
             manifest.isEmpty()) {
             m_manifest = {};
-            m_manifestCompatibility = QStringLiteral("manifest_unavailable");
-            m_mcpError = manifestResult.connectorError.isEmpty()
-                             ? QStringLiteral("manifest_unavailable")
-                             : manifestResult.connectorError;
-            emit statusChanged();
+            failHandshake(epoch,
+                          handshakeError(manifestResult,
+                                         QStringLiteral("manifest_unavailable")),
+                          QStringLiteral("manifest_unavailable"), true);
             return;
         }
         m_manifest = manifest;
@@ -1378,6 +1470,7 @@ namespace DsConnector {
         }
         m_mcpError.clear();
         emit statusChanged();
+        completeHandshakeCycle(epoch, true);
     }
 
     QString ConnectorRuntime::editorUnavailableCode() const {
@@ -1574,12 +1667,15 @@ namespace DsConnector {
                     return;
                 }
                 if (!result.connectorError.isEmpty()) {
-                    const auto code =
-                        result.connectorError == QStringLiteral("request_cancelled")
-                            ? QStringLiteral("request_cancelled")
-                            : command ? QStringLiteral("outcome_unknown")
-                                      : result.connectorError;
-                    callback(connectorError(code, result.connectorError));
+                    const auto code = command && result.outcomeUnknown
+                                          ? QStringLiteral("outcome_unknown")
+                                          : result.connectorError;
+                    const auto message = command && result.outcomeUnknown
+                                             ? result.connectorError
+                                             : result.connectorErrorMessage.isEmpty()
+                                                   ? result.connectorError
+                                                   : result.connectorErrorMessage;
+                    callback(connectorError(code, message));
                     return;
                 }
                 callback({result.result});

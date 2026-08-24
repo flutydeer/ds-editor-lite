@@ -8,11 +8,93 @@
 #include <QNetworkProxy>
 #include <QTimer>
 
+#include <algorithm>
 #include <utility>
 
 namespace DsConnector {
     namespace {
         constexpr qsizetype MaxResponseBytes = 16 * 1024 * 1024;
+        constexpr qsizetype MaxTransportErrorMessageCharacters = 1024;
+
+        struct TrustedTransportError {
+            QString code;
+            QString message;
+            bool outcomeUnknown = false;
+        };
+
+        bool validTransportErrorMessage(const QString &message) {
+            if (message.isEmpty() || message.size() > MaxTransportErrorMessageCharacters)
+                return false;
+            return std::none_of(message.cbegin(), message.cend(), [](const QChar character) {
+                const auto codePoint = character.unicode();
+                return codePoint < 0x20 || codePoint == 0x7f;
+            });
+        }
+
+        std::optional<TrustedTransportError>
+            trustedTransportError(const QJsonObject &response, const int httpStatus,
+                                  const QByteArray &contentType) {
+            const auto mediaType = contentType.split(';').value(0).trimmed().toLower();
+            if (mediaType != QByteArrayLiteral("application/json") || response.size() != 1 ||
+                !response.value(QStringLiteral("error")).isObject()) {
+                return std::nullopt;
+            }
+            const auto error = response.value(QStringLiteral("error")).toObject();
+            if (error.size() != 2 || !error.value(QStringLiteral("code")).isString() ||
+                !error.value(QStringLiteral("message")).isString()) {
+                return std::nullopt;
+            }
+            const auto code = error.value(QStringLiteral("code")).toString();
+            const auto message = error.value(QStringLiteral("message")).toString();
+            if (!validTransportErrorMessage(message))
+                return std::nullopt;
+
+            bool valid = false;
+            bool outcomeUnknown = false;
+            switch (httpStatus) {
+                case 403:
+                    valid = code == QStringLiteral("forbidden") ||
+                            code == QStringLiteral("invalid_host") ||
+                            code == QStringLiteral("origin_forbidden");
+                    break;
+                case 405:
+                    valid = code == QStringLiteral("method_not_allowed");
+                    break;
+                case 406:
+                    valid = code == QStringLiteral("not_acceptable");
+                    break;
+                case 413:
+                    valid = code == QStringLiteral("request_too_large");
+                    break;
+                case 415:
+                    valid = code == QStringLiteral("unsupported_media_type");
+                    break;
+                case 429:
+                    valid = code == QStringLiteral("too_many_requests");
+                    break;
+                case 503:
+                    valid = code == QStringLiteral("busy") ||
+                            code == QStringLiteral("mcp_stopping");
+                    break;
+                case 504:
+                    valid = code == QStringLiteral("request_timeout");
+                    outcomeUnknown = valid;
+                    break;
+                default:
+                    break;
+            }
+            if (!valid)
+                return std::nullopt;
+            return TrustedTransportError{code, message, outcomeUnknown};
+        }
+
+        bool validProtocolResponseStatus(const AutomationWire::Mcp::ResponseEnvelope &response,
+                                         const int httpStatus) {
+            if (!response.error)
+                return httpStatus >= 200 && httpStatus < 300;
+            return httpStatus == 200 || httpStatus == 400 || httpStatus == 404 ||
+                   httpStatus == 500;
+        }
 
         AutomationWire::Mcp::RequestContext requestContext(const QString &instanceId,
                                                            const QString &version) {
@@ -111,12 +193,14 @@ namespace DsConnector {
         reply->setReadBufferSize(MaxResponseBytes + 1);
         auto *timer = new QTimer(reply);
         timer->setSingleShot(true);
-        m_pending.insert(token, PendingRequest{reply, timer, upstreamId, std::move(callback), {}, {}});
+        m_pending.insert(
+            token, PendingRequest{reply, timer, upstreamId, std::move(callback), {}, false, {}});
         connect(timer, &QTimer::timeout, this, [this, token] {
             const auto it = m_pending.find(token);
             if (it == m_pending.end())
                 return;
             it->forcedError = QStringLiteral("upstream_timeout");
+            it->forcedOutcomeUnknown = true;
             it->reply->abort();
         });
         connect(reply, &QNetworkReply::readyRead, this, [this, token] {
@@ -126,6 +210,7 @@ namespace DsConnector {
             const auto available = it->reply->bytesAvailable();
             if (available > MaxResponseBytes - it->responseBody.size()) {
                 it->forcedError = QStringLiteral("upstream_response_too_large");
+                it->forcedOutcomeUnknown = true;
                 it->reply->abort();
                 return;
             }
@@ -141,6 +226,7 @@ namespace DsConnector {
         if (it == m_pending.end())
             return false;
         it->forcedError = reason;
+        it->forcedOutcomeUnknown = reason != QStringLiteral("request_cancelled");
         it->reply->abort();
         return true;
     }
@@ -163,6 +249,7 @@ namespace DsConnector {
             const auto available = it->reply->bytesAvailable();
             if (available > MaxResponseBytes - it->responseBody.size()) {
                 it->forcedError = QStringLiteral("upstream_response_too_large");
+                it->forcedOutcomeUnknown = true;
             } else {
                 it->responseBody.append(it->reply->read(available));
             }
@@ -176,6 +263,7 @@ namespace DsConnector {
             pending.reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         if (!pending.forcedError.isEmpty()) {
             outcome.connectorError = pending.forcedError;
+            outcome.outcomeUnknown = pending.forcedOutcomeUnknown;
         } else if ((outcome.httpStatus >= 300 && outcome.httpStatus < 400) ||
                    pending.reply->attribute(QNetworkRequest::RedirectionTargetAttribute).isValid()) {
             outcome.connectorError = QStringLiteral("upstream_redirect_rejected");
@@ -183,22 +271,35 @@ namespace DsConnector {
             const auto &body = pending.responseBody;
             if (pending.reply->error() != QNetworkReply::NoError && body.isEmpty()) {
                 outcome.connectorError = QStringLiteral("upstream_transport_error");
+                outcome.outcomeUnknown = true;
             } else {
                 QString decodeError;
-                const auto object = decodeResponseBody(
-                    body, pending.reply->header(QNetworkRequest::ContentTypeHeader).toByteArray(),
-                    decodeError);
+                const auto contentType =
+                    pending.reply->header(QNetworkRequest::ContentTypeHeader).toByteArray();
+                const auto object = decodeResponseBody(body, contentType, decodeError);
                 if (!object) {
                     outcome.connectorError = decodeError;
+                    outcome.outcomeUnknown = true;
                 } else {
                     const auto validation =
                         AutomationWire::Mcp::validateResponse(*object, pending.upstreamId);
-                    if (!validation.valid()) {
-                        outcome.connectorError = QStringLiteral("invalid_upstream_response");
-                    } else if (validation.response->error) {
-                        outcome.protocolError = validation.response->error;
+                    if (validation.valid() &&
+                        validProtocolResponseStatus(*validation.response, outcome.httpStatus)) {
+                        if (validation.response->error)
+                            outcome.protocolError = validation.response->error;
+                        else
+                            outcome.result = validation.response->result;
                     } else {
-                        outcome.result = validation.response->result;
+                        const auto transport =
+                            trustedTransportError(*object, outcome.httpStatus, contentType);
+                        if (!transport) {
+                            outcome.connectorError = QStringLiteral("invalid_upstream_response");
+                            outcome.outcomeUnknown = true;
+                        } else {
+                            outcome.connectorError = transport->code;
+                            outcome.connectorErrorMessage = transport->message;
+                            outcome.outcomeUnknown = transport->outcomeUnknown;
+                        }
                     }
                 }
             }

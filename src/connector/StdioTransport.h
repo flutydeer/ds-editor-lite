@@ -2,12 +2,15 @@
 #define DSCONNECTOR_STDIOTRANSPORT_H
 
 #include <QByteArray>
-#include <QFile>
 #include <QObject>
+
+#include <memory>
 
 class QThread;
 
 namespace DsConnector {
+
+    struct StdioTransportState;
 
     class StdioTransport final : public QObject {
         Q_OBJECT
@@ -27,8 +30,18 @@ namespace DsConnector {
         void transportError(const QString &error);
 
     private:
+        void drainInput();
+        void writerDrained();
+        void writerFailed(const QString &error);
+        void fail(const QString &error);
+        void stopThreads();
+
+        std::shared_ptr<StdioTransportState> m_state;
         QThread *m_reader = nullptr;
-        QFile m_output;
+        QThread *m_writer = nullptr;
+        QString m_inputTerminalError;
+        bool m_started = false;
+        bool m_terminalDelivered = false;
     };
 
 }

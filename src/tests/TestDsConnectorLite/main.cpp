@@ -19,6 +19,7 @@
 #include <QTcpSocket>
 #include <QTextStream>
 #include <QThread>
+#include <QTimer>
 #include <QUuid>
 
 #include <functional>
@@ -163,6 +164,7 @@ namespace {
             BusinessError,
             InvalidOutput,
             ProtocolError,
+            TransportError,
             Redirect,
             Sse,
             Oversized,
@@ -212,12 +214,19 @@ namespace {
         bool exposeForwardCompatibleTools = false;
         QString applicationAvailability;
         ApplicationResponseMode applicationResponseMode = ApplicationResponseMode::Success;
+        int applicationTransportStatus = 429;
+        QString applicationTransportCode = QStringLiteral("too_many_requests");
+        QString applicationTransportMessage = QStringLiteral("fake request limit reached");
+        bool applicationTransportExtraField = false;
         int extraToolCount = 0;
         int pageSize = 0;
         int manifestToolsetVersion = static_cast<int>(AutomationWire::PublicToolsetVersion);
         int applicationVersion = static_cast<int>(AutomationWire::PublicToolsetVersion);
         int applicationMinimumCompatibleVersion =
             static_cast<int>(AutomationWire::PublicMinimumCompatibleVersion);
+        int discoverResponseDelayMs = 0;
+        int discoverRateLimitFailuresRemaining = 0;
+        int discoverCount = 0;
         int toolsListCount = 0;
         int manifestCallCount = 0;
         QList<QJsonValue> requestIds;
@@ -556,7 +565,21 @@ namespace {
             };
             QJsonObject result;
             if (request.method == QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod)) {
+                ++discoverCount;
+                if (discoverRateLimitFailuresRemaining > 0) {
+                    --discoverRateLimitFailuresRemaining;
+                    respondTransportError(socket, 429, QStringLiteral("too_many_requests"),
+                                          QStringLiteral("fake handshake request limit reached"));
+                    return;
+                }
                 result = AutomationWire::Mcp::makeDiscoverResult(info);
+                if (discoverResponseDelayMs > 0) {
+                    const auto response =
+                        AutomationWire::Mcp::makeResultResponse(request.id, result, info);
+                    QTimer::singleShot(discoverResponseDelayMs, socket,
+                                       [this, socket, response] { respond(socket, response); });
+                    return;
+                }
             } else if (request.method ==
                        QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod)) {
                 ++toolsListCount;
@@ -619,6 +642,12 @@ namespace {
                                         request.id,
                                         {AutomationWire::Mcp::InvalidParams,
                                          QStringLiteral("fake protocol error")}));
+                    return;
+                }
+                if (mode == ApplicationResponseMode::TransportError) {
+                    respondTransportError(socket, applicationTransportStatus,
+                                          applicationTransportCode, applicationTransportMessage,
+                                          applicationTransportExtraField);
                     return;
                 }
                 if (mode == ApplicationResponseMode::Oversized) {
@@ -728,6 +757,39 @@ namespace {
             message.append(QByteArray::number(body.size()));
             message.append("\r\n\r\n");
             message.append(body);
+            socket->write(message);
+            socket->disconnectFromHost();
+        }
+
+        void respondTransportError(QTcpSocket *socket, const int status, const QString &code,
+                                   const QString &errorMessage, const bool extraField = false) {
+            QJsonObject envelope{
+                {QStringLiteral("error"),
+                 QJsonObject{{QStringLiteral("code"), code},
+                             {QStringLiteral("message"), errorMessage}}},
+            };
+            if (extraField)
+                envelope.insert(QStringLiteral("unexpected"), true);
+            const auto body = QJsonDocument(envelope).toJson(QJsonDocument::Compact);
+            QByteArray reason = "Error";
+            if (status == 429)
+                reason = "Too Many Requests";
+            else if (status == 503)
+                reason = "Service Unavailable";
+            else if (status == 504)
+                reason = "Gateway Timeout";
+            QByteArray message = "HTTP/1.1 ";
+            message.append(QByteArray::number(status));
+            message.append(' ');
+            message.append(reason);
+            message.append("\r\nContent-Type: application/json\r\n"
+                           "Connection: close\r\nContent-Length: ");
+            message.append(QByteArray::number(body.size()));
+            message.append("\r\n\r\n");
+            message.append(body);
+            m_rawLog.append("=== transport response ===\n");
+            m_rawLog.append(message);
+            m_rawLog.append('\n');
             socket->write(message);
             socket->disconnectFromHost();
         }
@@ -1035,6 +1097,141 @@ namespace {
                      }, 5000),
                      "the first watch snapshot must carry the exact request correlation id");
         runtime.stop();
+        return ok;
+    }
+
+    bool verifyHandshakeCoordination() {
+        bool ok = true;
+        const auto options = DsConnector::ConnectorOptions{
+            .exposure = {
+                .profile = AutomationWire::ExposureProfile::L0,
+                .includes = {QStringLiteral("id:application.get_info"),
+                             QStringLiteral("id:automation.get_manifest"),
+                             QStringLiteral("id:notes.get")},
+            },
+            .upstreamTimeoutMs = 2000,
+        };
+        const auto readyStatus = [](const QString &editorId, const QString &endpoint) {
+            return SingleInstanceAutomationStatus{
+                .state = SingleInstanceAutomationState::McpReady,
+                .editorInstanceId = editorId,
+                .executablePath = QCoreApplication::applicationFilePath(),
+                .applicationVersion = QStringLiteral("test"),
+                .buildId = QStringLiteral("fake-build"),
+                .hostMode = QStringLiteral("gui"),
+                .mcpEnabled = true,
+                .mcpEndpoint = endpoint,
+            };
+        };
+        const auto readyRuntime = [](const DsConnector::ConnectorRuntime &runtime,
+                                     const int targetCount) {
+            const auto status = runtime.status();
+            return status.value(QStringLiteral("mcp"))
+                           .toObject()
+                           .value(QStringLiteral("connected"))
+                           .toBool() &&
+                   status.value(QStringLiteral("manifest"))
+                           .toObject()
+                           .value(QStringLiteral("compatibility"))
+                           .toString() == QStringLiteral("compatible_subset") &&
+                   status.value(QStringLiteral("exposure"))
+                           .toObject()
+                           .value(QStringLiteral("generic_target_count"))
+                           .toInt() == targetCount;
+        };
+
+        {
+            FakeHttpEditor http;
+            ok &= expect(http.listen(), "handshake-coalescing fake editor must listen");
+            if (!ok)
+                return false;
+            http.discoverResponseDelayMs = 300;
+            const auto serviceName = QStringLiteral("DsConnectorLite-Handshake-Coalescing-%1")
+                                         .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+            FakeBootstrap bootstrap(serviceName);
+            ok &= expect(bootstrap.listen(), "handshake-coalescing bootstrap must listen");
+            if (!ok)
+                return false;
+            const auto ready = readyStatus(QStringLiteral("coalescing-editor"), http.endpoint());
+            bootstrap.publish(ready);
+            DsConnector::ConnectorRuntime runtime(options, serviceName);
+            runtime.start();
+            ok &= expect(waitUntil([&] {
+                             return bootstrap.watcherCount() == 1 && http.discoverCount == 1;
+                         }, 5000),
+                         "the initial delayed handshake must be in flight before the ready burst");
+            for (auto index = 0; index < 64; ++index)
+                bootstrap.publish(ready);
+            ok &= expect(waitUntil([&] {
+                             return http.discoverCount >= 2 && readyRuntime(runtime, 2);
+                         }, 10000),
+                         "duplicate ready snapshots must converge after one trailing refresh");
+            const auto unexpectedExtraHandshake =
+                waitUntil([&] { return http.discoverCount > 2; }, 700);
+            ok &= expect(!unexpectedExtraHandshake && http.discoverCount == 2 &&
+                             http.toolsListCount == 2 && http.manifestCallCount == 2 &&
+                             http.requestIds.size() == 6 && http.requestIds.size() < 20,
+                         "a same-target ready burst must stay below the default client request budget");
+
+            http.discoverResponseDelayMs = 0;
+            http.exposeNotes = true;
+            const auto refreshCount = http.discoverCount;
+            bootstrap.publish(ready);
+            ok &= expect(waitUntil([&] {
+                             return http.discoverCount == refreshCount + 1 &&
+                                    readyRuntime(runtime, 3);
+                         }, 10000),
+                         "a later same-endpoint ready snapshot must still refresh new tools");
+            runtime.stop();
+        }
+
+        {
+            FakeHttpEditor http;
+            ok &= expect(http.listen(), "handshake-retry fake editor must listen");
+            if (!ok)
+                return false;
+            http.discoverRateLimitFailuresRemaining = 1;
+            const auto serviceName = QStringLiteral("DsConnectorLite-Handshake-Retry-%1")
+                                         .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+            FakeBootstrap bootstrap(serviceName);
+            ok &= expect(bootstrap.listen(), "handshake-retry bootstrap must listen");
+            if (!ok)
+                return false;
+            const auto ready = readyStatus(QStringLiteral("retry-editor"), http.endpoint());
+            bootstrap.publish(ready);
+            DsConnector::ConnectorRuntime runtime(options, serviceName);
+            runtime.start();
+            ok &= expect(waitUntil([&] {
+                             return http.discoverCount == 2 && readyRuntime(runtime, 2);
+                         }, 10000),
+                         "a first HTTP 429 handshake response must recover automatically");
+
+            http.discoverRateLimitFailuresRemaining = 5;
+            bootstrap.publish(ready);
+            ok &= expect(waitUntil([&] {
+                             const auto status = runtime.status();
+                             return http.discoverCount == 7 &&
+                                    status.value(QStringLiteral("mcp"))
+                                            .toObject()
+                                            .value(QStringLiteral("error"))
+                                            .toString() == QStringLiteral("too_many_requests") &&
+                                    status.value(QStringLiteral("manifest"))
+                                            .toObject()
+                                            .value(QStringLiteral("compatibility"))
+                                            .toString() == QStringLiteral("not_loaded");
+                         }, 10000),
+                         "transient handshake retries must stop after the bounded backoff budget");
+            ok &= expect(!waitUntil([&] { return http.discoverCount > 7; }, 1000),
+                         "an exhausted handshake must not retry forever without a new event");
+
+            http.discoverRateLimitFailuresRemaining = 1;
+            bootstrap.publish(ready);
+            ok &= expect(waitUntil([&] {
+                             return http.discoverCount == 9 && readyRuntime(runtime, 2);
+                         }, 10000),
+                         "a later external ready event must receive a fresh bounded retry budget");
+            runtime.stop();
+        }
         return ok;
     }
 
@@ -2028,27 +2225,87 @@ namespace {
                                         .toString() == QStringLiteral("compatible_subset");
                      }, 10000),
                      "the fake command must become available after handshake");
+        const auto invokeCommand = [&] {
+            QPair<QString, QString> result;
+            runtime.callTool(
+                QStringLiteral("editor.tools.invoke"),
+                QJsonObject{{QStringLiteral("name"), QStringLiteral("fake.command")},
+                            {QStringLiteral("arguments"), QJsonObject{}}},
+                [&](const DsConnector::ToolCallOutcome &outcome) {
+                    const auto structured =
+                        outcome.result.value(QStringLiteral("structuredContent")).toObject();
+                    result.first = structured.value(QStringLiteral("code")).toString();
+                    result.second = structured.value(QStringLiteral("message")).toString();
+                });
+            waitUntil([&] { return !result.first.isEmpty(); }, 5000);
+            return result;
+        };
+
+        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::TransportError;
+        http.applicationTransportStatus = 429;
+        http.applicationTransportCode = QStringLiteral("too_many_requests");
+        http.applicationTransportMessage = QStringLiteral("fake request limit reached");
+        const auto rateLimited = invokeCommand();
+        ok &= expect(rateLimited.first == QStringLiteral("too_many_requests") &&
+                         rateLimited.second == QStringLiteral("fake request limit reached"),
+                     "a trusted HTTP 429 envelope must remain too_many_requests for commands");
+
+        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::TransportError;
+        http.applicationTransportStatus = 503;
+        http.applicationTransportCode = QStringLiteral("busy");
+        http.applicationTransportMessage = QStringLiteral("fake global concurrency limit reached");
+        const auto busy = invokeCommand();
+        ok &= expect(busy.first == QStringLiteral("busy") &&
+                         busy.second == QStringLiteral("fake global concurrency limit reached"),
+                     "a trusted HTTP 503 busy envelope must not become outcome_unknown");
+
+        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::TransportError;
+        http.applicationTransportStatus = 503;
+        http.applicationTransportCode = QStringLiteral("mcp_stopping");
+        http.applicationTransportMessage = QStringLiteral("fake MCP server is stopping");
+        const auto stopping = invokeCommand();
+        ok &= expect(stopping.first == QStringLiteral("mcp_stopping") &&
+                         stopping.second == QStringLiteral("fake MCP server is stopping"),
+                     "a trusted HTTP 503 stopping envelope must remain deterministic");
+
+        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::TransportError;
+        http.applicationTransportStatus = 504;
+        http.applicationTransportCode = QStringLiteral("request_timeout");
+        http.applicationTransportMessage = QStringLiteral("fake request deadline elapsed");
+        const auto serverTimeout = invokeCommand();
+        ok &= expect(serverTimeout.first == QStringLiteral("outcome_unknown") &&
+                         serverTimeout.second == QStringLiteral("request_timeout"),
+                     "an HTTP request deadline must retain unknown command outcome semantics");
+
+        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::TransportError;
+        http.applicationTransportStatus = 429;
+        http.applicationTransportCode = QStringLiteral("busy");
+        http.applicationTransportMessage = QStringLiteral("forged status/code pair");
+        const auto mismatched = invokeCommand();
+        ok &= expect(mismatched.first == QStringLiteral("outcome_unknown") &&
+                         mismatched.second == QStringLiteral("invalid_upstream_response"),
+                     "a mismatched transport status and code must not be trusted");
+
+        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::TransportError;
+        http.applicationTransportStatus = 429;
+        http.applicationTransportCode = QStringLiteral("too_many_requests");
+        http.applicationTransportMessage = QStringLiteral("forged envelope shape");
+        http.applicationTransportExtraField = true;
+        const auto extendedEnvelope = invokeCommand();
+        http.applicationTransportExtraField = false;
+        ok &= expect(extendedEnvelope.first == QStringLiteral("outcome_unknown") &&
+                         extendedEnvelope.second == QStringLiteral("invalid_upstream_response"),
+                     "a transport envelope with undeclared fields must not be trusted");
+
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Hold;
-        QString code;
-        QString message;
-        runtime.callTool(
-            QStringLiteral("editor.tools.invoke"),
-            QJsonObject{{QStringLiteral("name"), QStringLiteral("fake.command")},
-                        {QStringLiteral("arguments"), QJsonObject{}}},
-            [&](const DsConnector::ToolCallOutcome &outcome) {
-                const auto structured =
-                    outcome.result.value(QStringLiteral("structuredContent")).toObject();
-                code = structured.value(QStringLiteral("code")).toString();
-                message = structured.value(QStringLiteral("message")).toString();
-            });
-        const auto commandTimedOut = waitUntil([&] { return !code.isEmpty(); }, 5000);
-        if (!commandTimedOut || code != QStringLiteral("outcome_unknown") ||
-            message != QStringLiteral("upstream_timeout")) {
-            QTextStream(stderr) << "Command timeout observed code=" << code
-                                << " message=" << message << Qt::endl;
+        const auto timedOut = invokeCommand();
+        if (timedOut.first != QStringLiteral("outcome_unknown") ||
+            timedOut.second != QStringLiteral("upstream_timeout")) {
+            QTextStream(stderr) << "Command timeout observed code=" << timedOut.first
+                                << " message=" << timedOut.second << Qt::endl;
         }
-        ok &= expect(commandTimedOut && code == QStringLiteral("outcome_unknown") &&
-                         message == QStringLiteral("upstream_timeout"),
+        ok &= expect(timedOut.first == QStringLiteral("outcome_unknown") &&
+                         timedOut.second == QStringLiteral("upstream_timeout"),
                      "command timeout must report outcome_unknown while preserving the cause");
         waitUntil([&] { return http.connectionCount() == 0; }, 3000);
         runtime.stop();
@@ -2281,6 +2538,73 @@ namespace {
                          notification.readAllStandardError().isEmpty(),
                      "a recognizable JSON-RPC notification must produce zero stdout bytes");
 
+        QProcess rapidInput;
+        rapidInput.setProgram(executable);
+        rapidInput.setArguments(
+            {QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        rapidInput.start();
+        ok &= expect(rapidInput.waitForStarted(5000),
+                     "rapid-input connector must start");
+        const auto notificationFrame =
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod), {},
+                              context))
+                .toJson(QJsonDocument::Compact) +
+            '\n';
+        QByteArray notificationFlood;
+        notificationFlood.reserve(notificationFrame.size() * 20000);
+        for (auto index = 0; index < 20000; ++index)
+            notificationFlood.append(notificationFrame);
+        rapidInput.write(notificationFlood);
+        rapidInput.closeWriteChannel();
+        ok &= expect(rapidInput.waitForFinished(20000) && rapidInput.exitCode() == 0 &&
+                         rapidInput.readAllStandardOutput().isEmpty() &&
+                         rapidInput.readAllStandardError().isEmpty(),
+                     "bounded stdin delivery must drain a rapid notification flood without output");
+
+        QProcess blockedOutput;
+        QProcess blockingSink;
+        blockedOutput.setProgram(executable);
+        blockedOutput.setArguments(
+            {QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        blockingSink.setProgram(QStringLiteral("powershell.exe"));
+        blockingSink.setArguments({QStringLiteral("-NoProfile"), QStringLiteral("-Command"),
+                                   QStringLiteral("Start-Sleep -Seconds 30")});
+        blockedOutput.setStandardOutputProcess(&blockingSink);
+        blockedOutput.start();
+        blockingSink.start();
+        ok &= expect(blockedOutput.waitForStarted(5000) && blockingSink.waitForStarted(5000),
+                     "blocked-output connector and non-reading sink must start");
+        QByteArray requestFlood;
+        requestFlood.reserve((discover.size() + 1) * 4096);
+        for (auto index = 0; index < 4096; ++index) {
+            requestFlood.append(discover);
+            requestFlood.append('\n');
+        }
+        QElapsedTimer blockedTimer;
+        blockedTimer.start();
+        blockedOutput.write(requestFlood);
+        blockedOutput.closeWriteChannel();
+        const auto blockedFinished = blockedOutput.waitForFinished(15000);
+        const auto blockedError = blockedOutput.readAllStandardError();
+        if (!blockedFinished || blockedTimer.elapsed() >= 10000 ||
+            blockedOutput.exitStatus() != QProcess::NormalExit || blockedOutput.exitCode() != 3 ||
+            !blockedError.contains("stdout_backpressure_limit_exceeded")) {
+            QTextStream(stderr) << "Blocked stdout observed finished=" << blockedFinished
+                                << " elapsed_ms=" << blockedTimer.elapsed()
+                                << " exit_status=" << blockedOutput.exitStatus()
+                                << " exit_code=" << blockedOutput.exitCode()
+                                << " stderr=" << blockedError << Qt::endl;
+        }
+        ok &= expect(blockedFinished && blockedTimer.elapsed() < 10000 &&
+                         blockedOutput.exitStatus() == QProcess::NormalExit &&
+                         blockedOutput.exitCode() == 3 &&
+                         blockedError.contains("stdout_backpressure_limit_exceeded"),
+                     "a non-reading stdout peer must trip the bounded writer queue without "
+                     "blocking the main event loop");
+        blockingSink.kill();
+        blockingSink.waitForFinished(5000);
+
         QProcess boundary;
         boundary.setProgram(executable);
         boundary.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
@@ -2347,6 +2671,8 @@ int main(int argc, char *argv[]) {
         ok &= verifyUnavailableEditorStates();
     if (only(QStringLiteral("bootstrap")))
         ok &= verifyBootstrapCorrelation();
+    if (only(QStringLiteral("handshake")))
+        ok &= verifyHandshakeCoordination();
     if (only(QStringLiteral("integration")))
         ok &= verifyFakeEditorIntegration();
     if (only(QStringLiteral("forward")))

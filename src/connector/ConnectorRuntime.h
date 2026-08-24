@@ -17,6 +17,8 @@
 #include <functional>
 #include <optional>
 
+class QTimer;
+
 namespace DsConnector {
 
     struct ToolCallOutcome {
@@ -56,6 +58,11 @@ namespace DsConnector {
         void bootstrapChanged();
         void clearEditorState(const QString &error);
         void beginHandshake(const SingleInstanceAutomationSnapshot &snapshot);
+        void startHandshakeAttempt();
+        void failHandshake(quint64 epoch, const QString &error,
+                           const QString &manifestCompatibility = QStringLiteral("not_loaded"),
+                           bool preserveMcpConnection = false);
+        void completeHandshakeCycle(quint64 epoch, bool succeeded);
         void requestToolsPage(quint64 epoch, const QString &cursor, QJsonArray accumulated,
                               QSet<QString> seenCursors, int pageCount);
         void finishHandshake(quint64 epoch, const UpstreamResult &manifestResult = {});
@@ -82,6 +89,7 @@ namespace DsConnector {
         QString m_version;
         BootstrapWatcher *m_bootstrap = nullptr;
         UpstreamMcpClient *m_upstream = nullptr;
+        QTimer *m_handshakeRetryTimer = nullptr;
         QJsonArray m_actualTools;
         QJsonObject m_manifest;
         QHash<QByteArray, bool> m_schemaValidationCache;
@@ -91,6 +99,11 @@ namespace DsConnector {
         quint64 m_handshakeEpoch = 0;
         quint64 m_handledSnapshotSequence = 0;
         QString m_editorInstanceId;
+        std::optional<SingleInstanceAutomationSnapshot> m_handshakeTarget;
+        bool m_handshakeInProgress = false;
+        bool m_handshakeFollowUp = false;
+        bool m_handshakeRefreshPending = false;
+        int m_handshakeRetryAttempt = 0;
         AutomationWire::OpaqueCursorCodec m_editorToolsCursorCodec;
     };
 

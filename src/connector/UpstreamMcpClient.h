@@ -21,7 +21,9 @@ namespace DsConnector {
         QJsonObject result;
         std::optional<AutomationWire::Mcp::ProtocolError> protocolError;
         QString connectorError;
+        QString connectorErrorMessage;
         int httpStatus = 0;
+        bool outcomeUnknown = false;
 
         bool succeeded() const {
             return connectorError.isEmpty() && !protocolError.has_value();
@@ -56,6 +58,7 @@ namespace DsConnector {
             QJsonValue upstreamId;
             Callback callback;
             QString forcedError;
+            bool forcedOutcomeUnknown = false;
             QByteArray responseBody;
         };
 
