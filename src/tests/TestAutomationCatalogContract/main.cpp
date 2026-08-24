@@ -341,7 +341,7 @@ namespace {
                             Command, Synchronous, None, None, None, Write, Core, Reversible,
                             InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(tasks::cancel, "AFC-CATALOG-068", "tasks", Command,
-                            Synchronous, Read, Check, None, None, Core, Reversible, InternalOnly,
+                            Synchronous, Read, None, None, None, Core, Reversible, InternalOnly,
                             Unsupported),
         EXPECTED_DESCRIPTOR(tasks::get, "AFC-CATALOG-069", "tasks", Query, Synchronous,
                             Read, None, None, None, Core, ReadOnly, InternalOnly, Unsupported),

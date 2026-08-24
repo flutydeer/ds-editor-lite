@@ -2,6 +2,7 @@
 #include "Automation/ProjectAutomationDtos.h"
 #include "TestRuntime.h"
 
+#include <lite/AutomationWire/PublicConstants.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
@@ -470,15 +471,15 @@ namespace {
              .valid =
                     [](Fixture &fixture, const CommandContext &context, const int variant) {
                         return fixture.runtime().project().setTrackColor(context, fixture.trackA,
-                                                                         variant == 0 ? 17 : 18);
+                                                                         variant == 0 ? 3 : 4);
                     }, .missingObject =
                     [](Fixture &fixture, const CommandContext &context, int) {
                         return fixture.runtime().project().setTrackColor(context, TrackId(999999),
                                                                          -1);
                     }, .invalidDomain =
                     [](Fixture &fixture, const CommandContext &context, int) {
-                        return fixture.runtime().project().setTrackColor(context, fixture.trackA,
-                                                                         -1);
+                        return fixture.runtime().project().setTrackColor(
+                            context, fixture.trackA, AutomationWire::TrackPaletteColorCount);
                     }, .noOp =
                     [](Fixture &fixture, const CommandContext &context, int) {
                         return fixture.runtime().project().setTrackColor(context, fixture.trackA,

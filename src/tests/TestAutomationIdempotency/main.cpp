@@ -1015,9 +1015,10 @@ namespace {
                expect(ran && completed && *completed &&
                           completed->get().state == Automation::AutomationTaskState::Succeeded &&
                           terminalReplay && terminalReplay.get() == first.get() &&
-                          harness.scheduler().size() == 0 && harness.control().createCount == 2 &&
+                          harness.scheduler().size() == 0 && harness.control().createCount == 1 &&
                           harness.control().executeCount == 1,
-                      QStringLiteral("successful async replay must retain the original TaskId"));
+                      QStringLiteral("successful async replay must retain the original TaskId and "
+                                     "reuse the accepted snapshot"));
     }
 
     bool asyncPreAcceptanceFailuresDoNotClaimKeys() {
