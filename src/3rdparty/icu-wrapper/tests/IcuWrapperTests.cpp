@@ -11,6 +11,7 @@ private slots:
     void preservesOriginalValue();
     void matchesLanguageFallback();
     void matchesScriptFallback();
+    void rejectsSiblingScriptRegionCrossMatch();
     void rejectsUnrelatedLanguage();
     void skipsInvalidAvailableTags();
 };
@@ -49,6 +50,24 @@ void IcuWrapperTests::matchesScriptFallback()
     QCOMPARE(IcuWrapper::bestMatch(QStringLiteral("zh-Hans-CN"),
                                    {QStringLiteral("zh"), QStringLiteral("zh-Hans")}),
              QStringLiteral("zh-Hans"));
+}
+
+void IcuWrapperTests::rejectsSiblingScriptRegionCrossMatch()
+{
+    // Regression: zh-TW and zh-Hant maximize to the same likely-subtag form
+    // (zh_Hant_TW), so the LocaleMatcher-based uloc_acceptLanguage in ICU
+    // >= 67 cross-matches them (verified at ICU source level for 67.1,
+    // 68.2, 70.1 and 74.2). Script/region siblings must never cross-match
+    // on any platform.
+    QVERIFY(IcuWrapper::bestMatch(QStringLiteral("zh-TW"),
+                                  {QStringLiteral("zh-Hant")}).isEmpty());
+    QVERIFY(IcuWrapper::bestMatch(QStringLiteral("zh-Hant"),
+                                  {QStringLiteral("zh-TW")}).isEmpty());
+    // Positive control: an exact sibling key still wins when it exists.
+    QCOMPARE(IcuWrapper::bestMatch(QStringLiteral("zh-TW"),
+                                   {QStringLiteral("zh-Hant"),
+                                    QStringLiteral("zh-TW")}),
+             QStringLiteral("zh-TW"));
 }
 
 void IcuWrapperTests::rejectsUnrelatedLanguage()

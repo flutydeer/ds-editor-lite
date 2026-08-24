@@ -3,7 +3,6 @@
 #ifdef Q_OS_WIN
 #  include <icu.h>
 #else
-#  include <unicode/uenum.h>
 #  include <unicode/uloc.h>
 #  include <unicode/utypes.h>
 #endif
@@ -53,23 +52,16 @@ QString platformBestMatch(const QString &requested,
     if (localeIds.empty())
         return {};
 
-    std::vector<const char *> localePointers;
-    localePointers.reserve(localeIds.size());
-    for (const QByteArray &id : localeIds)
-        localePointers.push_back(id.constData());
-
-    UErrorCode status = U_ZERO_ERROR;
-    UEnumeration *enumeration = uenum_openCharStringsEnumeration(
-        localePointers.data(), localePointers.size(), &status);
-    if (U_FAILURE(status) || enumeration == nullptr)
-        return {};
-
-    // Build the accept list as the explicit fallback chain of the requested
-    // locale (zh_Hans_CN -> zh_Hans -> zh). The Windows SDK umbrella ICU
-    // (runtime 64.2) does not fall back across script+region combinations
-    // inside uloc_acceptLanguage, so the parents are enumerated manually.
-    // Each chain item matches exactly, which keeps behavior uniform across
-    // platforms and ICU versions.
+    // Build the explicit fallback chain of the requested locale
+    // (zh_Hans_CN -> zh_Hans -> zh) and match by exact canonical-ID
+    // comparison against this chain. uloc_acceptLanguage is NOT usable as
+    // the matcher: since ICU 67 it delegates to the distance-based
+    // LocaleMatcher, whose likely-subtag maximization makes script/region
+    // siblings coincide (zh_TW and zh_Hant both maximize to zh_Hant_TW),
+    // so they cross-match on Linux (and it never fell back across
+    // script+region combos on the Windows SDK umbrella ICU 64.2 either).
+    // A manual chain + exact comparison keeps behavior deterministic and
+    // uniform across platforms and ICU versions.
     std::vector<QByteArray> acceptChain;
     acceptChain.push_back(requestedId);
     {
@@ -92,24 +84,14 @@ QString platformBestMatch(const QString &requested,
             acceptChain.push_back(current);
         }
     }
-    std::vector<const char *> acceptPointers;
-    acceptPointers.reserve(acceptChain.size());
-    for (const QByteArray &item : acceptChain)
-        acceptPointers.push_back(item.constData());
 
-    std::array<char, ULOC_FULLNAME_CAPACITY> result{};
-    UAcceptResult acceptResult = ULOC_ACCEPT_FAILED;
-    uloc_acceptLanguage(result.data(), result.size(), &acceptResult,
-                        acceptPointers.data(), static_cast<int32_t>(acceptPointers.size()),
-                        enumeration, &status);
-    uenum_close(enumeration);
-    if (U_FAILURE(status) || acceptResult == ULOC_ACCEPT_FAILED)
-        return {};
-
-    const QByteArray matchedId(result.data());
-    for (size_t i = 0; i < localeIds.size(); ++i) {
-        if (localeIds[i] == matchedId)
-            return available.at(originalIndexes[i]);
+    // Pick the most specific chain entry that exactly matches an available
+    // canonical ID; ties keep the original available order.
+    for (const QByteArray &chainItem : acceptChain) {
+        for (size_t i = 0; i < localeIds.size(); ++i) {
+            if (localeIds[i] == chainItem)
+                return available.at(originalIndexes[i]);
+        }
     }
     return {};
 }

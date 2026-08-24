@@ -1,6 +1,8 @@
 # 声库多语言显示名与本地化取词机制 — 设计文档
 
 > 状态：✅ 实施完成（2026-08-25 透传化迭代：`text(key)` 契约 + ICU 匹配内核对拍通过，ctest 38/38）
+> 修订：2026-08-26 PR#164 审阅修复——ICU ≥67 的 `uloc_acceptLanguage` 改走 LocaleMatcher 距离匹配，
+> 兄弟 locale（zh_TW↔zh_Hant）会互相命中；匹配内核改为「显式父链 + 规范 ID 精确比对」（见 §4）。
 > 上游契约：synthrt `localization/passthrough-keys`（透传化提交 `217862d`，见
 > `synthrt/docs/api-changes-2026-08-25.md`）+ ds-spec 2.4 多语言文本规则。
 > 历史：首版实现（2026-08-23，自研 Lookup）已被本节 §1/§4 的记录取代。
@@ -72,7 +74,7 @@ Qt 实测（Qt 6.11.2）`QLocale("zh_CN")`：
 
 首版决策的前提是「synthrt 内嵌自研 RFC 4647 Lookup，宿主必须与它对拍」。ds-spec 2.4 改为透传模型后此前提失效——匹配本就归前端，「与 synthrt 契约冲突」的论点不复存在。重新评估：
 
-- **正确载体**：`uloc_acceptLanguage`（不是 `ucol_*` collation）正是语言标签匹配 API；icu-wrapper 以其为内核，并显式展开父链（`uloc_getParent`），规避了 Windows SDK umbrella ICU（64.2）对 script+region 组合不做内部回退的实测坑（`IcuWrapper_icu.cpp` 回归用例锁定）
+- **匹配内核**：仅用 `uloc_forLanguageTag`（归一化）+ `uloc_getParent`（父链展开）做**规范 ID 精确比对**，不使用 `uloc_acceptLanguage` 当匹配器（2026-08-26 修订）。后者两头都不满足需求：Windows SDK umbrella ICU（64.2）对 script+region 组合不做内部回退；而自 ICU 67 起它改委托 `LocaleMatcher` 距离匹配，likely-subtag 最大化会让 zh_TW↔zh_Hant 兄弟 locale 互相命中（ICU 67.1/68.2/70.1/74.2 源码对拍确认；`IcuWrapperTests::rejectsSiblingScriptRegionCrossMatch` 锁定；`TestLocalizedText` 含同义断言）。注：ICU ≤66 的手写实现恰好就是「父链 + 精确 strcmp」，本修复等于把该语义统一固化到全平台全版本。父链式匹配语义逐候选确定、跨平台/跨 ICU 版本一致。
 - **运行时面**：Windows IBM 系统组件（Win10 1903+ 自带 `icuuc.dll`），零新增依赖；包体零变化（静态库）
 - **跨平台**：三后端各用平台原生能力（Win：SDK umbrella ICU；macOS：Foundation `NSBundle`；Linux：`ICU::uc`），统一 `IcuWrapper::bestMatch` API + 共享单测
 - **fetch 契约闭环**：bestMatch 返回**原样拼写**的命中键，宿主再经 synthrt `text(key)` 精确直取——归一化只发生在匹配阶段，不污染数据面
