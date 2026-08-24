@@ -79,6 +79,7 @@ namespace {
 
     std::optional<QJsonObject> exchange(QProcess &process, const QJsonObject &request,
                                         const int timeoutMilliseconds, QString &error) {
+        error.clear();
         auto bytes = QJsonDocument(request).toJson(QJsonDocument::Compact);
         bytes.append('\n');
         if (process.write(bytes) != bytes.size() ||
@@ -117,6 +118,124 @@ namespace {
         return response.value(QStringLiteral("result"))
             .toObject()
             .value(QStringLiteral("structuredContent"));
+    }
+
+    QJsonValue normalizedJson(const QJsonValue &value) {
+        if (value.isArray()) {
+            QJsonArray result;
+            for (const auto &entry : value.toArray())
+                result.append(normalizedJson(entry));
+            return result;
+        }
+        if (value.isObject()) {
+            const auto object = value.toObject();
+            auto keys = object.keys();
+            std::sort(keys.begin(), keys.end());
+            QJsonObject result;
+            for (const auto &key : std::as_const(keys))
+                result.insert(key, normalizedJson(object.value(key)));
+            return result;
+        }
+        return value;
+    }
+
+    QString compactJson(const QJsonObject &object) {
+        return QString::fromUtf8(QJsonDocument(object).toJson(QJsonDocument::Compact));
+    }
+
+    std::optional<QJsonObject> connectorToolContent(QProcess &process, const qint64 requestId,
+                                                    const QString &name,
+                                                    const QJsonObject &arguments,
+                                                    const int timeoutMilliseconds,
+                                                    QString &error) {
+        const auto response =
+            exchange(process, makeToolRequest(requestId, name, arguments), timeoutMilliseconds,
+                     error);
+        if (!response)
+            return std::nullopt;
+        if (response->contains(QStringLiteral("error"))) {
+            error = QStringLiteral("Connector JSON-RPC error: %1").arg(compactJson(*response));
+            return std::nullopt;
+        }
+        const auto result = response->value(QStringLiteral("result"));
+        if (!result.isObject()) {
+            error = QStringLiteral("Connector tool response has no result object: %1")
+                        .arg(compactJson(*response));
+            return std::nullopt;
+        }
+        const auto resultObject = result.toObject();
+        if (resultObject.value(QStringLiteral("isError")).toBool()) {
+            error = QStringLiteral("Connector tool returned an application error: %1")
+                        .arg(compactJson(*response));
+            return std::nullopt;
+        }
+        const auto content = resultObject.value(QStringLiteral("structuredContent"));
+        if (!content.isObject()) {
+            error = QStringLiteral("Connector tool response has no structuredContent object: %1")
+                        .arg(compactJson(*response));
+            return std::nullopt;
+        }
+        return content.toObject();
+    }
+
+    std::optional<QJsonObject> directToolContent(DsConnector::UpstreamMcpClient &client,
+                                                 const QString &name,
+                                                 const QJsonObject &arguments,
+                                                 const int timeoutMilliseconds,
+                                                 QString &error) {
+        error.clear();
+        std::optional<DsConnector::UpstreamResult> response;
+        client.send(
+            QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+            QJsonObject{
+                {QStringLiteral("name"), name},
+                {QStringLiteral("arguments"), arguments},
+            },
+            [&response](DsConnector::UpstreamResult result) { response = std::move(result); },
+            timeoutMilliseconds);
+        if (!waitUntil([&response] { return response.has_value(); }, timeoutMilliseconds + 1000)) {
+            error = QStringLiteral("Direct editor tool call timed out");
+            return std::nullopt;
+        }
+        if (!response->connectorError.isEmpty()) {
+            error = QStringLiteral("Direct editor transport error: %1 (%2)")
+                        .arg(response->connectorError, response->connectorErrorMessage);
+            return std::nullopt;
+        }
+        if (response->protocolError) {
+            error = QStringLiteral("Direct editor JSON-RPC error %1: %2")
+                        .arg(response->protocolError->code)
+                        .arg(response->protocolError->message);
+            return std::nullopt;
+        }
+        if (response->result.value(QStringLiteral("isError")).toBool()) {
+            error = QStringLiteral("Direct editor tool returned an application error: %1")
+                        .arg(compactJson(response->result));
+            return std::nullopt;
+        }
+        const auto content = response->result.value(QStringLiteral("structuredContent"));
+        if (!content.isObject()) {
+            error = QStringLiteral("Direct editor tool response has no structuredContent object: %1")
+                        .arg(compactJson(response->result));
+            return std::nullopt;
+        }
+        return content.toObject();
+    }
+
+    bool equivalentContent(const QString &name, const QJsonObject &throughConnector,
+                           const QJsonObject &direct, QString &error) {
+        const auto normalizedConnector = normalizedJson(throughConnector);
+        const auto normalizedDirect = normalizedJson(direct);
+        if (normalizedConnector == normalizedDirect)
+            return true;
+        error = QStringLiteral(
+                    "%1 differs between connector and direct editor calls; connector=%2; direct=%3")
+                    .arg(name,
+                         QString::fromUtf8(QJsonDocument(normalizedConnector.toObject())
+                                               .toJson(QJsonDocument::Compact)),
+                         QString::fromUtf8(QJsonDocument(normalizedDirect.toObject())
+                                               .toJson(QJsonDocument::Compact)));
+        return false;
     }
 
     QString schemaIssue(const QJsonValue &schema) {
@@ -201,6 +320,59 @@ namespace {
         return QStringLiteral("page descriptors valid; count=%1; nextCursor=%2")
             .arg(tools.size())
             .arg(response->result.value(QStringLiteral("nextCursor")).toString());
+    }
+
+    QString upstreamManifestDiagnostic(const QString &endpoint) {
+        DsConnector::UpstreamMcpClient client(
+            QStringLiteral("process-test-manifest-diagnostic"), QStringLiteral("1"));
+        QString endpointError;
+        if (!client.setEndpoint(endpoint, &endpointError))
+            return QStringLiteral("invalid endpoint: ") + endpointError;
+
+        QElapsedTimer elapsed;
+        elapsed.start();
+        std::optional<DsConnector::UpstreamResult> response;
+        client.send(
+            QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+            QJsonObject{
+                {QStringLiteral("name"), QStringLiteral("automation.get_manifest")},
+                {QStringLiteral("arguments"),
+                 QJsonObject{{QStringLiteral("limit"), 100}}},
+            },
+            [&response](DsConnector::UpstreamResult result) { response = std::move(result); },
+            30000);
+        if (!waitUntil([&response] { return response.has_value(); }, 31000)) {
+            return QStringLiteral("callback timeout; elapsed_ms=%1").arg(elapsed.elapsed());
+        }
+
+        const auto prefix = QStringLiteral("elapsed_ms=%1; http=%2")
+                                .arg(elapsed.elapsed())
+                                .arg(response->httpStatus);
+        if (!response->connectorError.isEmpty()) {
+            return QStringLiteral("%1; connector_error=%2; connector_message=%3; "
+                                  "outcome_unknown=%4")
+                .arg(prefix, response->connectorError, response->connectorErrorMessage,
+                     response->outcomeUnknown ? QStringLiteral("true") : QStringLiteral("false"));
+        }
+        if (response->protocolError) {
+            return QStringLiteral("%1; protocol_error=%2; protocol_message=%3")
+                .arg(prefix)
+                .arg(response->protocolError->code)
+                .arg(response->protocolError->message);
+        }
+
+        const auto toolError = response->result.value(QStringLiteral("isError")).toBool();
+        const auto content =
+            response->result.value(QStringLiteral("structuredContent")).toObject();
+        if (toolError) {
+            return QStringLiteral("%1; tool_error=true; code=%2; message=%3")
+                .arg(prefix, content.value(QStringLiteral("code")).toString(),
+                     content.value(QStringLiteral("message")).toString());
+        }
+        return QStringLiteral("%1; tool_error=false; operations=%2; next_cursor=%3")
+            .arg(prefix)
+            .arg(content.value(QStringLiteral("operations")).toArray().size())
+            .arg(content.value(QStringLiteral("next_cursor")).toString());
     }
 
     void stopProcess(QProcess &process) {
@@ -336,11 +508,14 @@ namespace {
         }
         if (!connectorReady) {
             return fail(QStringLiteral("Connector did not complete the upstream editor handshake; "
-                                       "status=%1; upstream_tools=%2; connector_stderr=%3; "
-                                       "editor_stderr=%4")
+                                       "bootstrap_snapshot_sequence=%1; status=%2; "
+                                       "upstream_tools=%3; upstream_manifest=%4; "
+                                       "connector_stderr=%5; editor_stderr=%6")
+                            .arg(watcher.observation().snapshotSequence)
                             .arg(QString::fromUtf8(QJsonDocument(lastConnectorStatus)
-                                                       .toJson(QJsonDocument::Compact)),
-                                 upstreamToolsDiagnostic(editorEndpoint),
+                                                       .toJson(QJsonDocument::Compact)))
+                            .arg(upstreamToolsDiagnostic(editorEndpoint),
+                                 upstreamManifestDiagnostic(editorEndpoint),
                                  QString::fromUtf8(connector.readAllStandardError()),
                                  QString::fromUtf8(editor.readAllStandardError())));
         }
@@ -413,8 +588,191 @@ namespace {
                                                .toJson(QJsonDocument::Compact))));
         }
 
-        QTextStream(stdout) << "Validated real editor + connector MCP process integration"
-                            << Qt::endl;
+        const auto failWithProcessDiagnostics = [&](const QString &message) {
+            return fail(QStringLiteral(
+                            "%1; appdata=%2; endpoint=%3; connector_state=%4; editor_state=%5; "
+                            "connector_stderr=%6; editor_stderr=%7")
+                            .arg(message, appDataRoot, editorEndpoint)
+                            .arg(static_cast<int>(connector.state()))
+                            .arg(static_cast<int>(editor.state()))
+                            .arg(QString::fromUtf8(connector.readAllStandardError()),
+                                 QString::fromUtf8(editor.readAllStandardError())));
+        };
+
+        DsConnector::UpstreamMcpClient directClient(QStringLiteral("process-test-direct"),
+                                                    QStringLiteral("1"));
+        QString directEndpointError;
+        if (!directClient.setEndpoint(editorEndpoint, &directEndpointError)) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Could not configure direct editor MCP client: %1")
+                    .arg(directEndpointError));
+        }
+
+        QString toolError;
+        const auto directInitialStatus = directToolContent(
+            directClient, QStringLiteral("automation.get_status"), {}, 10000, toolError);
+        if (!directInitialStatus ||
+            !equivalentContent(QStringLiteral("automation.get_status"), lastEditorStatus,
+                               directInitialStatus.value_or(QJsonObject{}), toolError)) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Initial direct/connector status equivalence failed: %1")
+                    .arg(toolError));
+        }
+
+        const auto documents = lastEditorStatus.value(QStringLiteral("documents")).toArray();
+        QJsonObject activeDocument;
+        for (const auto &document : documents) {
+            if (document.toObject().value(QStringLiteral("active")).toBool()) {
+                activeDocument = document.toObject();
+                break;
+            }
+        }
+        if (activeDocument.isEmpty() && !documents.isEmpty())
+            activeDocument = documents.first().toObject();
+        const auto documentId = activeDocument.value(QStringLiteral("document_id")).toString();
+        const auto initialRevision =
+            activeDocument.value(QStringLiteral("revision")).toInteger(-1);
+        if (documentId.isEmpty() || initialRevision < 0) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("automation.get_status did not provide a usable document version: %1")
+                    .arg(compactJson(lastEditorStatus)));
+        }
+
+        const auto trackClientRef = QStringLiteral("process-integration-track");
+        const auto trackName = QStringLiteral("MCP Process Integration Track");
+        const QJsonObject insertArguments{
+            {QStringLiteral("document_id"), documentId},
+            {QStringLiteral("expected_revision"), initialRevision},
+            {QStringLiteral("index"), 0},
+            {QStringLiteral("track"),
+             QJsonObject{
+                 {QStringLiteral("client_ref"), trackClientRef},
+                 {QStringLiteral("name"), trackName},
+                 {QStringLiteral("color_index"), 0},
+                 {QStringLiteral("gain"), 0.0},
+                 {QStringLiteral("pan"), 0.0},
+                 {QStringLiteral("mute"), false},
+                 {QStringLiteral("solo"), false},
+                 {QStringLiteral("default_language"), QStringLiteral("zh")},
+             }},
+        };
+        const auto mutation = connectorToolContent(connector, 1000, QStringLiteral("tracks.insert"),
+                                                   insertArguments, 10000, toolError);
+        if (!mutation) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Connector tracks.insert failed: %1").arg(toolError));
+        }
+        const auto previous = mutation->value(QStringLiteral("previous")).toObject();
+        const auto current = mutation->value(QStringLiteral("current")).toObject();
+        const auto currentRevision = current.value(QStringLiteral("revision")).toInteger(-1);
+        qint64 createdTrackId = -1;
+        for (const auto &createdValue :
+             mutation->value(QStringLiteral("created_objects")).toArray()) {
+            const auto created = createdValue.toObject();
+            const auto object = created.value(QStringLiteral("object")).toObject();
+            if (created.value(QStringLiteral("client_ref")).toString() == trackClientRef &&
+                object.value(QStringLiteral("kind")).toString() == QStringLiteral("track")) {
+                createdTrackId = object.value(QStringLiteral("id")).toInteger(-1);
+                break;
+            }
+        }
+        if (previous.value(QStringLiteral("document_id")).toString() != documentId ||
+            previous.value(QStringLiteral("revision")).toInteger(-1) != initialRevision ||
+            current.value(QStringLiteral("document_id")).toString() != documentId ||
+            currentRevision != initialRevision + 1 ||
+            !mutation->value(QStringLiteral("changed")).toBool() ||
+            mutation->value(QStringLiteral("validated_only")).toBool() || createdTrackId < 0) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("tracks.insert returned an invalid mutation/revision result: %1")
+                    .arg(compactJson(*mutation)));
+        }
+
+        const QJsonObject documentArguments{{QStringLiteral("document_id"), documentId}};
+        const auto connectorProject = connectorToolContent(
+            connector, 1001, QStringLiteral("project.get"), documentArguments, 10000, toolError);
+        if (!connectorProject) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Connector project.get failed: %1").arg(toolError));
+        }
+        bool insertedTrackVisible = false;
+        const auto projectSnapshot =
+            connectorProject->value(QStringLiteral("snapshot")).toObject();
+        for (const auto &trackValue :
+             projectSnapshot.value(QStringLiteral("tracks")).toArray()) {
+            const auto track = trackValue.toObject();
+            insertedTrackVisible |=
+                track.value(QStringLiteral("track_id")).toInteger(-1) == createdTrackId &&
+                track.value(QStringLiteral("properties"))
+                        .toObject()
+                        .value(QStringLiteral("name"))
+                        .toString() == trackName;
+        }
+        if (connectorProject->value(QStringLiteral("document"))
+                .toObject()
+                .value(QStringLiteral("revision"))
+                .toInteger(-1) != currentRevision ||
+            !insertedTrackVisible) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("project.get did not expose the inserted track at the new revision: %1")
+                    .arg(compactJson(*connectorProject)));
+        }
+        const auto directProject = directToolContent(
+            directClient, QStringLiteral("project.get"), documentArguments, 10000, toolError);
+        if (!directProject ||
+            !equivalentContent(QStringLiteral("project.get"), *connectorProject,
+                               directProject.value_or(QJsonObject{}), toolError)) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Direct/connector project.get equivalence failed: %1")
+                    .arg(toolError));
+        }
+
+        const auto connectorFormats = connectorToolContent(
+            connector, 1002, QStringLiteral("formats.list"), {}, 10000, toolError);
+        if (!connectorFormats ||
+            !connectorFormats->value(QStringLiteral("formats")).isArray()) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Connector formats.list failed or returned an invalid payload: %1")
+                    .arg(toolError));
+        }
+        const auto directFormats = directToolContent(
+            directClient, QStringLiteral("formats.list"), {}, 10000, toolError);
+        if (!directFormats ||
+            !equivalentContent(QStringLiteral("formats.list"), *connectorFormats,
+                               directFormats.value_or(QJsonObject{}), toolError)) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Direct/connector formats.list equivalence failed: %1")
+                    .arg(toolError));
+        }
+
+        const QJsonObject taskArguments{
+            {QStringLiteral("document_id"), documentId},
+            {QStringLiteral("limit"), 100},
+        };
+        const auto connectorTasks = connectorToolContent(
+            connector, 1003, QStringLiteral("tasks.list"), taskArguments, 10000, toolError);
+        if (!connectorTasks || !connectorTasks->value(QStringLiteral("tasks")).isArray() ||
+            connectorTasks->value(QStringLiteral("document"))
+                    .toObject()
+                    .value(QStringLiteral("revision"))
+                    .toInteger(-1) != currentRevision) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Connector tasks.list failed or returned an invalid payload: %1")
+                    .arg(toolError));
+        }
+        const auto directTasks = directToolContent(
+            directClient, QStringLiteral("tasks.list"), taskArguments, 10000, toolError);
+        if (!directTasks ||
+            !equivalentContent(QStringLiteral("tasks.list"), *connectorTasks,
+                               directTasks.value_or(QJsonObject{}), toolError)) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Direct/connector tasks.list equivalence failed: %1")
+                    .arg(toolError));
+        }
+
+        QTextStream(stdout)
+            << "Validated real editor + connector MCP process integration, L1 mutation, L2 "
+               "queries, and normalized direct-editor equivalence"
+            << Qt::endl;
         return true;
     }
 }
