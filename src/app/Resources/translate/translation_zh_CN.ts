@@ -1227,6 +1227,30 @@ Right drag: Erase</source>
     </message>
 </context>
 <context>
+    <name>ClipController</name>
+    <message>
+        <location filename="../../Controller/ClipController.cpp" line="320"/>
+        <source>%1 (tick %2)</source>
+        <translation>%1（tick %2）</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/ClipController.cpp" line="325"/>
+        <source>Reset phoneme durations</source>
+        <translation>还原音素时长</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/ClipController.cpp" line="327"/>
+        <source>Resetting the selected phoneme durations also resets %1 adjacent word(s) to avoid phoneme overlap:
+%2
+
+Continue?</source>
+        <translation>重置所选音素时长时，为避免音素重叠，将一并重置 %1 个相邻词：
+%2
+
+是否继续？</translation>
+    </message>
+</context>
+<context>
     <name>DecodeAudioTask</name>
     <message>
         <location filename="../../Controller/Tasks/DecodeAudioTask.cpp" line="11"/>
@@ -4128,7 +4152,12 @@ type: %L1</source>
         <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="162"/>
         <source>Edite phoneme offset</source>
         <translation>编辑音素偏移</translation>
+    </message>    <message>
+        <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="161"/>
+        <source>Reset phoneme offsets</source>
+        <translation>还原音素时长</translation>
     </message>
+
     <message>
         <location filename="../../Controller/Actions/AppModel/Note/NoteActions.cpp" line="169"/>
         <source>Split note</source>
@@ -4683,7 +4712,12 @@ type: %L1</source>
         <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="179"/>
         <source>Edit Phonemes...</source>
         <translation>编辑音素...</translation>
+    </message>    <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="183"/>
+        <source>Reset Phoneme Durations</source>
+        <translation>还原音素时长</translation>
     </message>
+
     <message>
         <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="185"/>
         <source>Cu&amp;t</source>

@@ -8,6 +8,7 @@
 #include "InsertNoteAction.h"
 #include "QuantizeNotesAction.h"
 #include "RemoveNoteAction.h"
+#include "ResetPhonemeOffsetsAction.h"
 #include "SplitNoteAction.h"
 #include "Controller/Actions/AppModel/Clip/EditSingingClipPropertiesAction.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -162,6 +163,13 @@ void NoteActions::editNotePhonemeOffset(Note *note, const QList<int> &offsets, S
     setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Edite phoneme offset"));
     addAction(new EditPhonemeOffsetAction(note, offsets, clip));
     const auto focus = noteFocus({note}, clip);
+    setFocusTransition({focus, focus});
+}
+
+void NoteActions::resetPhonemeOffsets(const QList<Note *> &notes, SingingClip *clip) {
+    setTranslatableName("NoteActions", QT_TRANSLATE_NOOP("NoteActions", "Reset phoneme offsets"));
+    addAction(new ResetPhonemeOffsetsAction(notes, clip));
+    const auto focus = noteFocus(notes, clip);
     setFocusTransition({focus, focus});
 }
 

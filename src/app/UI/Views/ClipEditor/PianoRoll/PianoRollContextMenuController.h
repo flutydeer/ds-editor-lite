@@ -75,6 +75,8 @@ private:
     bool appendPronunciationCandidateActions(Menu &menu, SingingClip *clip, int noteId) const;
     void showPronunciationOnlyMenu(const PianoRollMenuContext &context, SingingClip *clip) const;
     void openPhonemeEditor(SingingClip *clip, int noteId) const;
+    static bool canResetPhonemeDurations(const SingingClip *clip,
+                                         const QList<int> &selectedNoteIds);
 
     QWidget *m_owner = nullptr;
 };

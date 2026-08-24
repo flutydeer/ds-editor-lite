@@ -4,6 +4,7 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "ClipController_p.h"
+#include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 #include "PianoRollNoteCommit.h"
 
 #include "EditorViewController.h"
@@ -23,6 +24,7 @@
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QJsonDocument>
+#include <QMessageBox>
 #include <QMimeData>
 #include <QPair>
 
@@ -285,6 +287,57 @@ void ClipController::onAdjustPhonemeOffset(const int noteId, const QList<int> &o
     runtime->notes().setPhonemeOffsets(commandContext(*runtime),
                                        Automation::ClipId(d->m_clip->id()),
                                        Automation::NoteId(noteId), offsets);
+}
+
+void ClipController::onResetPhonemeOffsets(QWidget *parent) const {
+    Q_D(const ClipController);
+    auto *runtime = automationRuntime();
+    if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
+        return;
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    const auto selectedNotes =
+        ClipControllerPrivate::selectedNotesFromId(appStatus->selectedNotes, singingClip);
+    if (selectedNotes.isEmpty())
+        return;
+
+    // Compute the full cascade reset closure up front (pure function of current
+    // edited offsets + baseline, so the order of reset does not matter).
+    const auto closure =
+        SingingClipPhonemeNormalizer::collectCascadeResetRoots(*singingClip, selectedNotes);
+
+    // Spillover: words reset beyond the user's selection, so ask before executing.
+    QSet<const Note *> selectedSet;
+    for (const auto note : selectedNotes) {
+        if (note)
+            selectedSet.insert(note);
+    }
+    int spilloverCount = 0;
+    QStringList spilloverNames;
+    for (const auto root : closure) {
+        if (!root || selectedSet.contains(root))
+            continue;
+        spilloverCount++;
+        spilloverNames.append(tr("%1 (tick %2)")
+                                  .arg(root->lyric().trimmed().isEmpty() ? QStringLiteral("?")
+                                                                         : root->lyric().trimmed(),
+                                       QString::number(root->globalStart())));
+    }
+    if (spilloverCount > 0) {
+        const auto answer = QMessageBox::question(
+            parent, tr("Reset phoneme durations"),
+            tr("Resetting the selected phoneme durations also resets %1 adjacent "
+               "word(s) to avoid phoneme overlap:\n%2\n\nContinue?")
+                .arg(QString::number(spilloverCount), spilloverNames.join('\n')),
+            QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Yes);
+        if (answer != QMessageBox::Yes)
+            return;
+    }
+
+    QList<Automation::NoteId> ids;
+    for (const auto root : closure)
+        ids.append(Automation::NoteId(root->id()));
+    runtime->notes().resetPhonemeOffsets(commandContext(*runtime),
+                                         Automation::ClipId(singingClip->id()), ids);
 }
 
 //

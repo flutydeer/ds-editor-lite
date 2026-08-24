@@ -64,6 +64,9 @@ namespace Automation {
                                                            ClipId clipId,
                                                            NoteId noteId,
                                                            const QList<int> &offsets);
+        AutomationResult<MutationResult> resetPhonemeOffsets(const CommandContext &context,
+                                                             ClipId clipId,
+                                                             QList<NoteId> noteIds);
         AutomationResult<MutationResult> quantizeNotes(const CommandContext &context,
                                                        ClipId clipId,
                                                        QList<NoteId> noteIds,

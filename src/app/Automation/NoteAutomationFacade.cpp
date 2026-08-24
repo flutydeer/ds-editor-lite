@@ -471,6 +471,52 @@ namespace Automation {
     }
 
     AutomationResult<MutationResult>
+        NoteAutomationFacade::resetPhonemeOffsets(const CommandContext &context,
+                                                  const ClipId clipId, QList<NoteId> noteIds) {
+        std::sort(noteIds.begin(), noteIds.end(), [](const NoteId left, const NoteId right) {
+            return left.value() < right.value();
+        });
+        const bool duplicates = hasDuplicateIds(noteIds);
+        const auto requestFingerprint = noteIdsFingerprint(clipId, noteIds);
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::notes::reset_phoneme_offsets, context, requestFingerprint,
+            [this, clipId, noteIds = std::move(noteIds), duplicates](DocumentSession &session,
+                                                                      const bool validateOnly) {
+                auto clipResult = m_objects.singingClip(session, clipId);
+                if (!clipResult)
+                    return AutomationResult<MutationResult>(clipResult.getError());
+                QList<Note *> notes;
+                for (const auto id : noteIds) {
+                    auto resolved = m_objects.note(session, clipId, id);
+                    if (!resolved)
+                        return AutomationResult<MutationResult>(resolved.getError());
+                    notes.append(resolved.get().note);
+                }
+                if (duplicates) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("note_ids"), QStringLiteral("Note IDs must be unique")));
+                }
+                bool changed = false;
+                for (const auto *note : notes) {
+                    if (note->phonemeOffsetSeq().isEdited()) {
+                        changed = true;
+                        break;
+                    }
+                }
+                const auto affected = noteRefs(noteIds);
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(
+                        m_committer.preview(session, changed, affected));
+                if (!changed)
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                auto actions = std::make_unique<NoteActions>();
+                actions->resetPhonemeOffsets(
+                    notes, static_cast<SingingClip *>(clipResult.get().clip));
+                return m_committer.commit(session, std::move(actions), affected);
+            });
+    }
+
+    AutomationResult<MutationResult>
         NoteAutomationFacade::setPhonemeOffsets(const CommandContext &context, const ClipId clipId,
                                                 const NoteId noteId, const QList<int> &offsets) {
         return m_dispatcher.dispatchDocumentCommand(
@@ -668,6 +714,7 @@ namespace Automation {
         addMutation(OperationIds::notes::resize_left);
         addMutation(OperationIds::notes::resize_right);
         addMutation(OperationIds::notes::set_phoneme_offsets);
+        addMutation(OperationIds::notes::reset_phoneme_offsets);
         addMutation(OperationIds::notes::set_word_properties);
         addMutation(OperationIds::notes::split);
     }

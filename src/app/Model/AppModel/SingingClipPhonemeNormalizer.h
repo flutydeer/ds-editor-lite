@@ -38,6 +38,16 @@ public:
 
     using WordStates = QHash<Note *, WordState>;
 
+    // Computes the cascade reset closure: the selected word roots plus every
+    // edited right-neighbor root whose first phoneme overlaps the restored
+    // (original) last phoneme of the word before it. Each node participates at
+    // most once, so the closure always converges. Ordered by time.
+    static QList<Note *> collectCascadeResetRoots(SingingClip &clip,
+                                                  const QList<Note *> &selectedRoots,
+                                                  const Timeline &timeline);
+    static QList<Note *> collectCascadeResetRoots(SingingClip &clip,
+                                                  const QList<Note *> &selectedRoots);
+
     static WordStates captureWordStates(const SingingClip &clip);
     static WordStates captureWordStates(const SingingClip &clip, const Timeline &timeline);
     static QList<Note *> collectInvalidEditedOffsetNotes(SingingClip &clip);

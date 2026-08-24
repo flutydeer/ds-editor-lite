@@ -73,6 +73,7 @@ namespace Automation::OperationIds {
     X(notes, resize_left, "notes.resize_left")                                                   \
     X(notes, resize_right, "notes.resize_right")                                                 \
     X(notes, set_phoneme_offsets, "notes.set_phoneme_offsets")                                   \
+    X(notes, reset_phoneme_offsets, "notes.reset_phoneme_offsets")                               \
     X(notes, set_word_properties, "notes.set_word_properties")                                   \
     X(notes, split, "notes.split")                                                               \
     X(operations, cancel, "operations.cancel")                                                   \
