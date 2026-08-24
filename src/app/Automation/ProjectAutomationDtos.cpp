@@ -13,6 +13,7 @@
 
 #include <array>
 #include <cmath>
+#include <limits>
 
 namespace Automation {
     namespace {
@@ -697,7 +698,9 @@ namespace Automation {
 
     AutomationResult<AutomationUnit> validate(const ClipDraftDto &draft) {
         const auto &properties = draft.properties;
-        if (static_cast<qint64>(properties.start) + properties.clipStart < 0 ||
+        const auto visibleStart = static_cast<qint64>(properties.start) + properties.clipStart;
+        const auto visibleEnd = visibleStart + properties.clipLen;
+        if (visibleStart < 0 || visibleEnd > std::numeric_limits<int>::max() ||
             properties.length < 0 || properties.clipStart < 0 || properties.clipLen < 0 ||
             !std::isfinite(properties.gain) || !std::isfinite(properties.trimStartMs) ||
             !std::isfinite(properties.playLengthMs) ||

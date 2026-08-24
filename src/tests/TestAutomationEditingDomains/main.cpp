@@ -428,6 +428,16 @@ namespace {
                 suite.expect(isError(invalid, AutomationErrorCode::InvalidArgument,
                                      QStringLiteral("clip.properties")),
                              QStringLiteral("invalid clip geometry must be rejected"));
+                auto overflowDraft = singingClipDraft(QStringLiteral("Overflow"));
+                overflowDraft.properties.clipStart = std::numeric_limits<int>::max();
+                overflowDraft.properties.clipLen = 1;
+                const auto overflow = runtime.project().insertClips(
+                    commandContext(runtime), {
+                                                 {.trackId = second, .clip = overflowDraft}
+                });
+                suite.expect(isError(overflow, AutomationErrorCode::InvalidArgument,
+                                     QStringLiteral("clip.properties")),
+                             QStringLiteral("visible clip end must fit the model tick type"));
                 const auto draft =
                     singingClipDraft(QStringLiteral("歌声 Clip"), QStringLiteral("clip-main"));
                 const auto preview = runtime.project().insertClips(
@@ -472,6 +482,16 @@ namespace {
                 suite.expect(isError(rejected, AutomationErrorCode::InvalidArgument,
                                      QStringLiteral("properties")),
                              QStringLiteral("invalid clip properties must not partially move"));
+                auto overflow = edit;
+                overflow.start = 0;
+                overflow.clipStart = std::numeric_limits<int>::max();
+                overflow.clipLen = 1;
+                const auto rejectedOverflow = runtime.project().setClipProperties(
+                    commandContext(runtime, true), overflow, third);
+                suite.expect(
+                    isError(rejectedOverflow, AutomationErrorCode::InvalidArgument,
+                            QStringLiteral("properties")),
+                    QStringLiteral("clip edit must reject an unrepresentable visible end"));
                 const auto base = runtime.documentVersion();
                 const auto preview =
                     runtime.project().setClipProperties(commandContext(runtime, true), edit, third);
