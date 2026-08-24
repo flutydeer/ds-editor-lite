@@ -715,8 +715,16 @@ namespace Automation {
         QTcpServer *m_tcpServer = nullptr;
     };
 
+    McpHttpServer::McpHttpServer(RequestHandler handler, QObject *parent)
+        : McpHttpServer(nullptr, std::move(handler), McpHttpLimits{}, parent) {
+    }
+
     McpHttpServer::McpHttpServer(RequestHandler handler, McpHttpLimits limits, QObject *parent)
         : McpHttpServer(nullptr, std::move(handler), std::move(limits), parent) {
+    }
+
+    McpHttpServer::McpHttpServer(QObject *handlerContext, RequestHandler handler, QObject *parent)
+        : McpHttpServer(handlerContext, std::move(handler), McpHttpLimits{}, parent) {
     }
 
     McpHttpServer::McpHttpServer(QObject *handlerContext, RequestHandler handler,

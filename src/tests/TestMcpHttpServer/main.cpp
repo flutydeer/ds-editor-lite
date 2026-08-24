@@ -590,6 +590,23 @@ int main(int argc, char *argv[]) {
     const auto list =
         requestObject(QString::fromLatin1(Mcp::ToolsListMethod), QStringLiteral("list"));
 
+    Automation::McpHttpServer defaultLimitsServer(
+        [basicHandler](const Mcp::RequestEnvelope &request, const QString &clientId) {
+            QThread::msleep(50);
+            return basicHandler(request, clientId);
+        });
+    QString defaultLimitsError;
+    expect(defaultLimitsServer.start(0, defaultLimitsError),
+           QStringLiteral("default-limits server must start: %1").arg(defaultLimitsError));
+    const auto defaultDeadline = send(
+        manager,
+        baseRequest(QUrl(defaultLimitsServer.endpoint()),
+                    QString::fromLatin1(Mcp::DiscoverMethod)),
+        QJsonDocument(discover).toJson(QJsonDocument::Compact));
+    expect(!defaultDeadline.timedOut && defaultDeadline.status == 200,
+           QStringLiteral("the no-limits constructor must apply server-side default deadlines"));
+    defaultLimitsServer.stop();
+
     Automation::McpHttpLimits globalRateLimits;
     globalRateLimits.globalTokenCapacity = 2;
     globalRateLimits.globalTokensPerSecond = 0;
