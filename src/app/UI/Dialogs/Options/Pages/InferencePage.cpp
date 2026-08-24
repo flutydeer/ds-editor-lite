@@ -22,7 +22,10 @@
 #include <lite/Support/StringUtils.h>
 
 #include <synthrt/Core/Core/Runtime.h>
+#include <synthrt/Core/Support/DisplayText.h>
 #include <synthrt/SVS/SingerContrib.h>
+
+#include <IcuWrapper/IcuWrapper.h>
 
 #include <QDir>
 #include <QFileInfo>
@@ -35,6 +38,29 @@
 #include <QMCore/qmsystem.h>
 
 #include <algorithm>
+
+namespace {
+    /// Resolves a synthrt DisplayText for the UI using frontend-side ICU
+    /// matching (ds-spec 2.4): the runtime keeps keys opaque and
+    /// case-sensitive, candidates are matched with IcuWrapper, and the hit
+    /// key (original spelling) is fetched by exact lookup. Falls back to the
+    /// default text.
+    QString displayText(const srt::core::DisplayText &text, const QStringList &candidates) {
+        QStringList keys;
+        const auto locales = text.locales();
+        keys.reserve(static_cast<QStringList::size_type>(locales.size()));
+        for (const auto &key : locales)
+            keys.append(QString::fromStdString(key));
+        for (const auto &tag : candidates) {
+            const auto hit = IcuWrapper::bestMatch(tag, keys);
+            if (!hit.isEmpty()) {
+                if (const auto *value = text.text(hit.toStdString()))
+                    return QString::fromStdString(*value);
+            }
+        }
+        return QString::fromStdString(text.text());
+    }
+} // namespace
 
 enum CustomRole {
     GpuInfoRole = Qt::UserRole,
@@ -420,9 +446,9 @@ QWidget *InferencePage::createContentWidget() {
                                         : std::vector<srt::svs::SingerSpec *>{};
 
         const auto languageManager = UiLanguageManager::instance();
-        const auto locale =
-            languageManager ? languageManager->effectiveLocale() : QLocale::system();
-        const auto localeName = locale.name().toStdString();
+        const auto bcp47Candidates = languageManager
+            ? languageManager->effectiveBcp47Candidates()
+            : QLocale::system().uiLanguages();
 
         const auto engineInitialized = inferEngine->initialized();
         const auto driverPath = fillEmpty(inferEngine->inferenceDriverPath());
@@ -497,7 +523,7 @@ QWidget *InferencePage::createContentWidget() {
             const auto singerId = QString::fromUtf8(singer->id());
             // API levels are stable protocol identifiers, not localized quantities.
             const auto singerLevel = QString::number(singer->apiLevel());
-            const auto singerName = QString::fromUtf8(singer->name().text(localeName));
+            const auto singerName = displayText(singer->name(), bcp47Candidates);
             const auto singerArch = QString::fromUtf8(singer->className());
             const auto singerPath = StringUtils::path_to_qstr(singer->path());
             const auto singerImports = singer->imports();
@@ -529,7 +555,7 @@ QWidget *InferencePage::createContentWidget() {
                 if (!inference) {
                     continue;
                 }
-                const auto inferenceName = QString::fromUtf8(inference->name().text(localeName));
+                const auto inferenceName = displayText(inference->name(), bcp47Candidates);
                 const auto inferenceClassName = QString::fromUtf8(inference->className());
                 // API levels are stable protocol identifiers, not localized quantities.
                 const auto inferenceLevel = QString::number(inference->apiLevel());

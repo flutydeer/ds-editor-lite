@@ -7,26 +7,28 @@
 
 namespace lite::Support {
 
-    /// Resolves the text for a BCP 47 locale tag using RFC 4647 Lookup:
-    /// try the full tag first, then repeatedly strip the rightmost subtag
-    /// (separator '-'), matching case-insensitively, and finally fall back to
-    /// the default text. Keys that are not BCP 47 tags (e.g. POSIX-style
-    /// "zh_CN") are kept in the table but never matched, mirroring
-    /// srt::core::DisplayText::text(locale) so the host resolves localized
-    /// names the same way synthrt does.
+    /// Resolves the text for a requested language tag by matching it against
+    /// the keys of \p localized with ICU (IcuWrapper::bestMatch): tags are
+    /// normalized (case, POSIX-style '_' separators, ...) before matching, and
+    /// the matched key keeps its original spelling so the value is fetched by
+    /// exact map key. Returns \p defaultText when nothing matches.
+    ///
+    /// Matching policy is a frontend concern by design (ds-spec 2.4):
+    /// srt::core::DisplayText itself only stores keys opaquely and serves
+    /// exact, case-sensitive lookups.
     [[nodiscard]] QString lookupLocalizedText(const QMap<QString, QString> &localized,
                                               const QString &defaultText,
                                               const QString &bcp47Locale);
 
-    /// RFC 4647 Lookup over a list of preferred BCP 47 tags (e.g. Qt's
-    /// QLocale::uiLanguages(): "zh-Hans-CN", "zh-CN", "zh-Hans", "zh"). Each
-    /// candidate is resolved by the single-tag lookup above and the first hit
-    /// wins; otherwise the default text is returned.
+    /// Resolves against a list of preferred tags in priority order (e.g. Qt's
+    /// QLocale::uiLanguages(): "zh-Hans-CN", "zh-CN", "zh-Hans", "zh"). The
+    /// first candidate with an ICU hit wins; otherwise the default text is
+    /// returned.
     [[nodiscard]] QString lookupLocalizedText(const QMap<QString, QString> &localized,
                                               const QString &defaultText,
                                               const QStringList &bcp47LocaleCandidates);
 
-    /// True when \p localized contains no non-default BCP 47 translations.
+    /// True when \p localized contains any non-default localized text.
     [[nodiscard]] bool hasLocalizedTexts(const QMap<QString, QString> &localized);
 
 } // namespace lite::Support
