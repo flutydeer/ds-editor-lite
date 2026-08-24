@@ -1521,6 +1521,42 @@ namespace {
             });
 
         suite.run(
+            Automation::OperationIds::tempos::set,
+            QStringLiteral("legacy-audio-tempo-undo-restores-raw-range"), [&] {
+                const auto trackId = insertedTrack(runtime, QStringLiteral("Audio Tempo"));
+                const auto insert = runtime.project().insertClips(
+                    commandContext(runtime),
+                    {
+                        {.trackId = trackId,
+                         .clip = audioClipDraft(QStringLiteral("Legacy Tempo Audio"))}
+                });
+                const auto clipId = insert && !insert.get().affectedObjects.isEmpty()
+                                        ? ClipId(insert.get().affectedObjects.first().value)
+                                        : ClipId{};
+                testRuntime.history()->reset();
+                const auto before = clipSnapshot(runtime, clipId);
+                const auto changed = runtime.timeline().setTempo(commandContext(runtime), 0, 90.0);
+                const auto changedSnapshot = clipSnapshot(runtime, clipId);
+                const auto undo = runtime.history().undo(commandContext(runtime));
+                const auto restored = clipSnapshot(runtime, clipId);
+                const auto redo = runtime.history().redo(commandContext(runtime));
+                const auto redone = clipSnapshot(runtime, clipId);
+                const auto undoAgain = runtime.history().undo(commandContext(runtime));
+                const auto restoredAgain = clipSnapshot(runtime, clipId);
+                suite.expect(
+                    trackId.isValid() && insert && before && changed && changedSnapshot &&
+                        changedSnapshot->data.properties.length >=
+                            changedSnapshot->data.properties.clipStart +
+                                changedSnapshot->data.properties.clipLen &&
+                        undo && restored &&
+                        sameClipTiming(restored->data.properties, before->data.properties) &&
+                        redo && redone && undoAgain && restoredAgain &&
+                        sameClipTiming(restoredAgain->data.properties, before->data.properties),
+                    QStringLiteral(
+                        "tempo undo must restore raw legacy audio ticks across redo cycles"));
+            });
+
+        suite.run(
             Automation::OperationIds::time_signatures::set,
             QStringLiteral("invalid-preview-sorted-replace-noop"), [&] {
                 const auto base = runtime.documentVersion();
