@@ -36,12 +36,14 @@ Qt、CMake、Ninja、vcpkg triplet、关键依赖版本、测试 seed 和系统�
 
 ## 3. 私有证据归档
 
-正式证据保存在仓库外的 Phase2 私有归档：
+正式证据保存在仓库外、由测试运行者拥有的 Phase2 私有归档根。仓库文档只使用匿名占位符，
+不固化用户目录、下载目录或带日期的真实归档名称：
 
 ```text
-%USERPROFILE%\Downloads\
-  DS-Editor-Lite-MCP-Server-and-Connector-Phase2-Test-Archive-20260824\
+<private-evidence-root>/
 ```
+
+真实绝对位置和运行批次标识只写入私有环境快照；报告与证据索引从该根开始使用相对路径。
 
 建议结构：
 
@@ -117,6 +119,10 @@ ctest --test-dir build/Debug -N
 ctest --test-dir build/Debug --show-only=json-v1
 ```
 
+本文所称“注册 CTest 分母”是最终冻结树由 `ctest -N` 与 JSON 清单共同枚举的 test case 数；
+它不等于测试可执行 target 数，也不等于单个 target 内的场景数或断言数。最终报告分别记录这
+几类计数，禁止用较小的 target 分母替代注册 case 分母。
+
 完整 build 不只构建 `DsEditorLite`，还必须包含 `DsConnectorLite`、Wire Contract 生成目标和
 所有 tests。若保留 preset 的指定 target 形式，则显式增加 connector；正式报告记录最终目标
 列表。
@@ -148,7 +154,7 @@ seed 并转换成最小确定性回归。
 ### 退出门禁
 
 122 内部 ID、87 公共 ID、六个 connector 工具各自集合精确；旧名、重复 ID、手写平行枚举、
-未注册 handler、L3/Headless/F 占位注册任一出现即停止后续测试。
+未注册 handler、L3/Headless/未来条件工具占位注册任一出现即停止后续测试。
 
 ## 8. 阶段 B：配置、完整构建与单元契约
 
