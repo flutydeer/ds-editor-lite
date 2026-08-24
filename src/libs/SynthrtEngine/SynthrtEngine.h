@@ -89,8 +89,14 @@ public:
     // g2pPackagePaths — official G2P package paths
     // ep              — ONNX execution provider ("CPU" / "DirectML" / "CUDA" / "CoreML")
     // deviceIndex     — GPU device index (ignored for CPU)
+    // deferLanguageModels — if true, skip Stage 2 (loading all G2P ONNX
+    //   sessions) during startup. The first actual G2P conversion then loads
+    //   models lazily via LanguageService::initializeModels() (idempotent,
+    //   guarded by Manager's internal mutex), triggered from
+    //   VoicebankSession::ensureLanguageReady() on first use.
     bool initialize(const QStringList &voicebankPaths, const QStringList &g2pPackagePaths,
-                    const QString &ep = QStringLiteral("CPU"), int deviceIndex = 0);
+                    const QString &ep = QStringLiteral("CPU"), int deviceIndex = 0,
+                    bool deferLanguageModels = false);
 
     bool initialized() const;
     /// True after initialize() has been attempted (regardless of success).
@@ -169,6 +175,15 @@ public:
     srt::core::Expected<std::shared_ptr<srt::s2p::LanguageResource>>
         resolveS2pResource(const SingerIdentifier &identifier, const QString &languageId) const;
 
+    // Ensure G2P language models are loaded (idempotent, thread-safe via
+    // synthrt's Manager init lock). When called after initialize() ran with
+    // deferLanguageModels=true, this kicks off the deferred Stage 2 load so
+    // the first G2P conversion does not stall the calling thread. Intended to
+    // be invoked from a background thread (e.g. QThreadPool::globalInstance())
+    // right after startup so the FillLyric dialog and inference tasks find
+    // models ready.
+    bool warmUpLanguageModels();
+
     // === Runtime access ===
     srt::core::Runtime &runtime();
     const srt::core::Runtime &runtime() const;
@@ -196,7 +211,8 @@ private:
     // Shared_ptr so SessionResources can borrow the LanguageService without
     // extending its lifetime (SynthrtEngine owns both m_langSvc and m_session;
     // the session does not outlive the engine).
-    std::shared_ptr<srt::g2p::LanguageService> m_langSvc = std::make_shared<srt::g2p::LanguageService>();
+    std::shared_ptr<srt::g2p::LanguageService> m_langSvc =
+        std::make_shared<srt::g2p::LanguageService>();
     srt::core::Runtime m_runtime;
     // VoicebankSession: the synthrt v2 chokepoint for voicebank scanning,
     // ensureModelSet / convertG2p / convertS2p / ensureLanguageReady.
