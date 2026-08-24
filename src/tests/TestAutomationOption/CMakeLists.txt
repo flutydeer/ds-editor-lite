@@ -6,6 +6,7 @@ lite_add_test(${PROJECT_NAME}
     SOURCES
         main.cpp
         ../../app/Model/AppOptions/Options/AutomationOption.cpp
+        ../../app/Automation/Mcp/McpClientConfiguration.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

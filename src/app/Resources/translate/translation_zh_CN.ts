@@ -244,6 +244,11 @@
         <translation>错误</translation>
     </message>
     <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="168"/>
+        <source>Enable the MCP server to generate a configuration with its assigned endpoint.</source>
+        <translation>启用 MCP 服务器后，将使用其分配的端点生成配置。</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="147"/>
         <source>Not initialized</source>
         <translation>尚未初始化</translation>
@@ -325,6 +330,46 @@
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="267"/>
         <source>Last Error</source>
         <translation>最近错误</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="313"/>
+        <source>Connection Configurations</source>
+        <translation>连接配置</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="331"/>
+        <source>Copy Configuration</source>
+        <translation>复制配置</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="345"/>
+        <source>STDIO configuration copied</source>
+        <translation>STDIO 配置已复制</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="348"/>
+        <source>STDIO Connector</source>
+        <translation>STDIO 连接器</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="349"/>
+        <source>Starts DS Connector Lite and discovers this editor automatically. The copied JSON uses the current access profile.</source>
+        <translation>启动 DS Connector Lite 并自动发现本编辑器。复制的 JSON 使用当前访问级别。</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="355"/>
+        <source>Streamable HTTP configuration copied</source>
+        <translation>Streamable HTTP 配置已复制</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="358"/>
+        <source>Streamable HTTP</source>
+        <translation>Streamable HTTP</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="359"/>
+        <source>Connects directly to the editor&apos;s current MCP endpoint. A fixed configured port can be copied before the server starts; an automatically assigned port appears after it starts listening.</source>
+        <translation>直接连接编辑器当前的 MCP 端点。固定配置的端口可在服务器启动前复制；自动分配的端口会在开始监听后显示。</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="270"/>

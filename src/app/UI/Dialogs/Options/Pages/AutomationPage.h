@@ -8,9 +8,11 @@
 #include <QStringList>
 
 class ComboBox;
+class Button;
 class QEvent;
 class OptionsCardItem;
 class PathEditor;
+class QPlainTextEdit;
 class SwitchButton;
 namespace SVS {
     class ExpressionSpinBox;
@@ -36,6 +38,7 @@ private:
     [[nodiscard]] QString categoryDisplayName(const QString &category) const;
     [[nodiscard]] QString runtimeStateDescription(const QString &state) const;
     void refreshCategoryPermissionSwitches();
+    void refreshConnectionConfigurations();
     void refreshRuntimeStatus();
 
     SwitchButton *m_mcpEnabled = nullptr;
@@ -52,6 +55,9 @@ private:
     OptionsCardItem *m_runtimeErrorItem = nullptr;
     OptionsCardItem *m_readRootsItem = nullptr;
     OptionsCardItem *m_writeRootsItem = nullptr;
+    QPlainTextEdit *m_stdioConfiguration = nullptr;
+    QPlainTextEdit *m_streamableHttpConfiguration = nullptr;
+    Button *m_streamableHttpCopyButton = nullptr;
     StartupArguments::EffectiveAutomationConfig m_effectiveConfig;
 };
 

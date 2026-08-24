@@ -7,5 +7,7 @@ namespace LiteProductMetadata {
     inline constexpr char Publisher[] = "@LITE_PRODUCT_PUBLISHER@";
     inline constexpr char Copyright[] = "@LITE_PRODUCT_COPYRIGHT@";
     inline constexpr char ProductUrl[] = "@LITE_PRODUCT_URL@";
+    inline constexpr char ConnectorExecutableBasename[] =
+        "@LITE_CONNECTOR_EXECUTABLE_BASENAME@";
 
 } // namespace LiteProductMetadata

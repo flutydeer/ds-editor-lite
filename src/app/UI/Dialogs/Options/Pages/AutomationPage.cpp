@@ -1,9 +1,11 @@
 #include "AutomationPage.h"
 
+#include "Automation/Mcp/McpClientConfiguration.h"
 #include "Automation/Mcp/EditorMcpRuntimeStatus.h"
 #include "Global/AppOptionsGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
 
+#include <lite/GUI/Controls/Button.h>
 #include <lite/AutomationWire/PublicToolContract.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/OptionListCard.h>
@@ -11,10 +13,15 @@
 #include <lite/GUI/Controls/PathEditor.h>
 #include <lite/GUI/Controls/SvsExpressionSpinBox.h>
 #include <lite/GUI/Controls/SwitchButton.h>
+#include <lite/GUI/Controls/Toast.h>
 
+#include <QClipboard>
 #include <QCoreApplication>
 #include <QEvent>
 #include <QFileInfo>
+#include <QFontDatabase>
+#include <QGuiApplication>
+#include <QPlainTextEdit>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -135,6 +142,46 @@ void AutomationPage::refreshCategoryPermissionSwitches() {
     }
 }
 
+void AutomationPage::refreshConnectionConfigurations() {
+    if (m_stdioConfiguration && m_profile) {
+        const auto profile =
+            static_cast<AutomationOption::Profile>(m_profile->currentData().toInt());
+        QStringList enabledCustomOperations;
+        if (profile == AutomationOption::Profile::Custom) {
+            const auto *option = appOptions->automation();
+            for (const auto &operationId : std::as_const(m_customPermissionOperationIds)) {
+                if (option->customPermissionEnabled(operationId))
+                    enabledCustomOperations.append(operationId);
+            }
+        }
+        const auto command = Automation::McpClientConfiguration::connectorExecutablePath(
+            QCoreApplication::applicationDirPath());
+        const auto arguments = Automation::McpClientConfiguration::connectorArguments(
+            profile, enabledCustomOperations);
+        m_stdioConfiguration->setPlainText(
+            Automation::McpClientConfiguration::stdioJson(command, arguments));
+    }
+
+    if (!m_streamableHttpConfiguration)
+        return;
+    const auto *application = QCoreApplication::instance();
+    auto endpoint = application
+                        ? application->property(Automation::McpRuntimeStatus::EndpointProperty)
+                              .toString()
+                        : QString{};
+    if (endpoint.isEmpty() && m_controlPort && m_controlPort->value() > 0) {
+        endpoint = QStringLiteral("http://127.0.0.1:%1/mcp").arg(m_controlPort->value());
+    }
+
+    const auto available = !endpoint.isEmpty();
+    m_streamableHttpConfiguration->setPlainText(
+        available ? Automation::McpClientConfiguration::streamableHttpJson(endpoint)
+                  : tr("Enable the MCP server to generate a configuration with its assigned "
+                       "endpoint."));
+    if (m_streamableHttpCopyButton)
+        m_streamableHttpCopyButton->setEnabled(available);
+}
+
 void AutomationPage::refreshRuntimeStatus() {
     const auto *application = QCoreApplication::instance();
     if (!application)
@@ -151,6 +198,7 @@ void AutomationPage::refreshRuntimeStatus() {
     }
     if (m_runtimeErrorItem)
         m_runtimeErrorItem->setDescription(error.isEmpty() ? tr("No error") : error);
+    refreshConnectionConfigurations();
 }
 
 void AutomationPage::modifyOption() {
@@ -214,10 +262,14 @@ void AutomationPage::modifyOption() {
         option->setCustomPermissionEnabled(it.key(), it.value()->value());
     }
     appOptions->saveAndNotify(AppOptionsGlobal::Automation);
+    refreshConnectionConfigurations();
 }
 
 QWidget *AutomationPage::createContentWidget() {
     const auto widget = new QWidget;
+    m_stdioConfiguration = nullptr;
+    m_streamableHttpConfiguration = nullptr;
+    m_streamableHttpCopyButton = nullptr;
     auto *option = appOptions->automation();
     const auto parsedArguments = StartupArguments::parseApplicationArguments();
     m_effectiveConfig = StartupArguments::effectiveAutomationConfig(
@@ -262,6 +314,56 @@ QWidget *AutomationPage::createContentWidget() {
     m_runtimeEndpointItem = serverCard->addItem(tr("Current Endpoint"), QString{});
     m_runtimeErrorItem = serverCard->addItem(tr("Last Error"), QString{});
     refreshRuntimeStatus();
+
+    const auto connectionCard = new OptionListCard(tr("Connection Configurations"));
+    const auto createConfigurationControl =
+        [this](QPlainTextEdit *&configuration, Button *&copyButton,
+               const QString &copiedMessage, const QString &objectName) {
+            auto *container = new QWidget;
+            auto *layout = new QVBoxLayout(container);
+            layout->setContentsMargins({});
+            layout->setSpacing(6);
+
+            configuration = new QPlainTextEdit(container);
+            configuration->setObjectName(objectName);
+            configuration->setReadOnly(true);
+            configuration->setLineWrapMode(QPlainTextEdit::NoWrap);
+            configuration->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+            configuration->setMinimumSize(420, 132);
+            layout->addWidget(configuration);
+
+            copyButton = new Button(tr("Copy Configuration"), container);
+            copyButton->setObjectName(objectName + QStringLiteral("CopyButton"));
+            connect(copyButton, &Button::clicked, this,
+                    [configuration, copiedMessage] {
+                        QGuiApplication::clipboard()->setText(configuration->toPlainText());
+                        Toast::show(copiedMessage);
+                    });
+            layout->addWidget(copyButton, 0, Qt::AlignRight);
+            return container;
+        };
+
+    Button *stdioCopyButton = nullptr;
+    const auto stdioControl = createConfigurationControl(
+        m_stdioConfiguration, stdioCopyButton, tr("STDIO configuration copied"),
+        QStringLiteral("automationStdioConfiguration"));
+    connectionCard->addItem(
+        tr("STDIO Connector"),
+        tr("Starts DS Connector Lite and discovers this editor automatically. The copied JSON "
+           "uses the current access profile."),
+        stdioControl);
+
+    const auto streamableHttpControl = createConfigurationControl(
+        m_streamableHttpConfiguration, m_streamableHttpCopyButton,
+        tr("Streamable HTTP configuration copied"),
+        QStringLiteral("automationStreamableHttpConfiguration"));
+    connectionCard->addItem(
+        tr("Streamable HTTP"),
+        tr("Connects directly to the editor's current MCP endpoint. A fixed configured port can "
+           "be copied before the server starts; an automatically assigned port appears after it "
+           "starts listening."),
+        streamableHttpControl);
+    refreshConnectionConfigurations();
 
     const auto accessCard = new OptionListCard(tr("Access Profile"));
     accessCard->addItem(
@@ -340,6 +442,7 @@ QWidget *AutomationPage::createContentWidget() {
 
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(serverCard, 0, Qt::AlignTop);
+    mainLayout->addWidget(connectionCard, 0, Qt::AlignTop);
     mainLayout->addWidget(accessCard, 0, Qt::AlignTop);
     mainLayout->addWidget(categoryCard, 0, Qt::AlignTop);
     mainLayout->addWidget(customCard, 0, Qt::AlignTop);

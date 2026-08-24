@@ -1,8 +1,11 @@
 #include "Model/AppOptions/Options/AutomationOption.h"
+#include "Automation/Mcp/McpClientConfiguration.h"
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 
 namespace {
@@ -111,6 +114,59 @@ namespace {
         return success;
     }
 
+    bool testMcpClientConfigurations() {
+        using namespace Automation::McpClientConfiguration;
+
+        bool success = true;
+        success &= expect(connectorArguments(AutomationOption::Profile::L2) ==
+                              QStringList{QStringLiteral("--exposure-profile"),
+                                          QStringLiteral("l2")},
+                          QStringLiteral("L2 connector arguments should match the editor profile"));
+        success &= expect(
+            connectorArguments(AutomationOption::Profile::Custom,
+                               {QStringLiteral("notes.get"), QStringLiteral("documents.save"),
+                                QStringLiteral("notes.get")}) ==
+                QStringList{QStringLiteral("--exposure-profile"), QStringLiteral("l0"),
+                            QStringLiteral("--include-tool"),
+                            QStringLiteral("id:documents.save"),
+                            QStringLiteral("--include-tool"), QStringLiteral("id:notes.get")},
+            QStringLiteral("Custom connector arguments should be sorted and deduplicated"));
+
+        const auto command = connectorExecutablePath(QStringLiteral("C:/Program Files/DS Editor Lite"));
+        auto connectorSuffix = QStringLiteral("/DsConnectorLite");
+#ifdef Q_OS_WIN
+        connectorSuffix += QStringLiteral(".exe");
+#endif
+        success &= expect(QDir::fromNativeSeparators(command).endsWith(connectorSuffix),
+                          QStringLiteral("connector path should use product metadata"));
+
+        const auto stdio = QJsonDocument::fromJson(
+            stdioJson(command, connectorArguments(AutomationOption::Profile::L1)).toUtf8());
+        const auto stdioServer = stdio.object()
+                                     .value(QStringLiteral("mcpServers"))
+                                     .toObject()
+                                     .value(QStringLiteral("ds-editor-lite"))
+                                     .toObject();
+        success &= expect(stdioServer.value(QStringLiteral("type")).toString() ==
+                                  QStringLiteral("stdio") &&
+                              stdioServer.value(QStringLiteral("command")).toString() == command &&
+                              stdioServer.value(QStringLiteral("args")).toArray().size() == 2,
+                          QStringLiteral("STDIO JSON should contain command and arguments"));
+
+        const auto endpoint = QStringLiteral("http://127.0.0.1:18231/mcp");
+        const auto http = QJsonDocument::fromJson(streamableHttpJson(endpoint).toUtf8());
+        const auto httpServer = http.object()
+                                    .value(QStringLiteral("mcpServers"))
+                                    .toObject()
+                                    .value(QStringLiteral("ds-editor-lite"))
+                                    .toObject();
+        success &= expect(httpServer.value(QStringLiteral("type")).toString() ==
+                                  QStringLiteral("streamable-http") &&
+                              httpServer.value(QStringLiteral("url")).toString() == endpoint,
+                          QStringLiteral("Streamable HTTP JSON should contain the current endpoint"));
+        return success;
+    }
+
 } // namespace
 
 int main(int argc, char *argv[]) {
@@ -120,5 +176,6 @@ int main(int argc, char *argv[]) {
     success &= testRoundTrip();
     success &= testInvalidValuesUseSafeDefaults();
     success &= testProfileConversion();
+    success &= testMcpClientConfigurations();
     return success ? 0 : 1;
 }
