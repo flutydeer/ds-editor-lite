@@ -33,6 +33,8 @@ protected:
 private:
     [[nodiscard]] QString sourceDescription(StartupArguments::ConfigSource source,
                                             const QString &optionName) const;
+    [[nodiscard]] QString categoryDisplayName(const QString &category) const;
+    [[nodiscard]] QString runtimeStateDescription(const QString &state) const;
     void refreshCategoryPermissionSwitches();
     void refreshRuntimeStatus();
 

@@ -47,6 +47,72 @@ QString AutomationPage::sourceDescription(const StartupArguments::ConfigSource s
     return tr("Saved in the application configuration");
 }
 
+QString AutomationPage::categoryDisplayName(const QString &category) const {
+    if (category == QStringLiteral("application"))
+        return tr("Application");
+    if (category == QStringLiteral("automation"))
+        return tr("Automation");
+    if (category == QStringLiteral("documents"))
+        return tr("Documents");
+    if (category == QStringLiteral("project"))
+        return tr("Project");
+    if (category == QStringLiteral("notes"))
+        return tr("Notes");
+    if (category == QStringLiteral("parameters"))
+        return tr("Parameters");
+    if (category == QStringLiteral("timeline"))
+        return tr("Timeline");
+    if (category == QStringLiteral("history"))
+        return tr("History");
+    if (category == QStringLiteral("voices"))
+        return tr("Voices");
+    if (category == QStringLiteral("tracks"))
+        return tr("Tracks");
+    if (category == QStringLiteral("clips"))
+        return tr("Clips");
+    if (category == QStringLiteral("speaker_mix"))
+        return tr("Speaker Mix");
+    if (category == QStringLiteral("tempos"))
+        return tr("Tempos");
+    if (category == QStringLiteral("time_signatures"))
+        return tr("Time Signatures");
+    if (category == QStringLiteral("master"))
+        return tr("Master");
+    if (category == QStringLiteral("formats"))
+        return tr("Formats");
+    if (category == QStringLiteral("audio_clips"))
+        return tr("Audio Clips");
+    if (category == QStringLiteral("exports"))
+        return tr("Exports");
+    if (category == QStringLiteral("extract"))
+        return tr("Extraction");
+    if (category == QStringLiteral("inference"))
+        return tr("Inference");
+    if (category == QStringLiteral("tasks"))
+        return tr("Tasks");
+    if (category == QStringLiteral("playback"))
+        return tr("Playback");
+    return category;
+}
+
+QString AutomationPage::runtimeStateDescription(const QString &state) const {
+    if (state == QStringLiteral("starting"))
+        return tr("Starting");
+    if (state == QStringLiteral("mcp_disabled"))
+        return tr("MCP disabled");
+    if (state == QStringLiteral("mcp_starting"))
+        return tr("MCP starting");
+    if (state == QStringLiteral("mcp_ready"))
+        return tr("MCP ready");
+    if (state == QStringLiteral("mcp_stopping"))
+        return tr("MCP stopping");
+    if (state == QStringLiteral("editor_stopping"))
+        return tr("Editor stopping");
+    if (state == QStringLiteral("error"))
+        return tr("Error");
+    return state;
+}
+
 bool AutomationPage::eventFilter(QObject *watched, QEvent *event) {
     if (watched == QCoreApplication::instance() && event->type() == QEvent::DynamicPropertyChange)
         refreshRuntimeStatus();
@@ -78,7 +144,8 @@ void AutomationPage::refreshRuntimeStatus() {
         application->property(Automation::McpRuntimeStatus::EndpointProperty).toString();
     const auto error = application->property(Automation::McpRuntimeStatus::ErrorProperty).toString();
     if (m_runtimeStateItem)
-        m_runtimeStateItem->setDescription(state.isEmpty() ? tr("Not initialized") : state);
+        m_runtimeStateItem->setDescription(state.isEmpty() ? tr("Not initialized")
+                                                           : runtimeStateDescription(state));
     if (m_runtimeEndpointItem) {
         m_runtimeEndpointItem->setDescription(endpoint.isEmpty() ? tr("Not listening") : endpoint);
     }
@@ -129,15 +196,17 @@ void AutomationPage::modifyOption() {
     if (m_readRootsItem) {
         m_readRootsItem->setDescription(
             invalidReadRoots.isEmpty()
-                ? tr("Existing directories are stored as canonical paths")
-                : tr("Not saved because a directory is missing or invalid: %1")
+                ? tr("Limits MCP file reads, such as opening and importing, to the listed folders. "
+                     "Existing folders are saved as canonical paths.")
+                : tr("Not saved because a folder is missing or invalid: %1")
                       .arg(invalidReadRoots.join(QStringLiteral(", "))));
     }
     if (m_writeRootsItem) {
         m_writeRootsItem->setDescription(
             invalidWriteRoots.isEmpty()
-                ? tr("Existing directories are stored as canonical paths")
-                : tr("Not saved because a directory is missing or invalid: %1")
+                ? tr("Limits MCP file writes, such as saving and exporting, to the listed folders. "
+                     "Existing folders are saved as canonical paths.")
+                : tr("Not saved because a folder is missing or invalid: %1")
                       .arg(invalidWriteRoots.join(QStringLiteral(", "))));
     }
     for (auto it = m_customPermissionSwitches.constBegin();
@@ -234,7 +303,7 @@ QWidget *AutomationPage::createContentWidget() {
                     }
                     modifyOption();
                 });
-        categoryCard->addItem(it.key(), categorySwitch);
+        categoryCard->addItem(categoryDisplayName(it.key()), categorySwitch);
     }
     const auto customCard = new OptionListCard(tr("Custom Permissions"));
     if (m_customPermissionOperationIds.isEmpty()) {
@@ -256,16 +325,22 @@ QWidget *AutomationPage::createContentWidget() {
     m_readRoots = new PathEditor;
     m_readRoots->setPaths(option->readRoots);
     connect(m_readRoots, &PathEditor::pathsChanged, this, &AutomationPage::modifyOption);
-    const auto readRootsCard = new OptionListCard(tr("Allowed Read Roots"));
+    const auto readRootsCard = new OptionListCard(tr("Allowed Read Folders"));
     m_readRootsItem = readRootsCard->addItem(
-        tr("Directories"), tr("Existing directories are stored as canonical paths"), m_readRoots);
+        tr("Folders"),
+        tr("Limits MCP file reads, such as opening and importing, to the listed folders. "
+           "Existing folders are saved as canonical paths."),
+        m_readRoots);
 
     m_writeRoots = new PathEditor;
     m_writeRoots->setPaths(option->writeRoots);
     connect(m_writeRoots, &PathEditor::pathsChanged, this, &AutomationPage::modifyOption);
-    const auto writeRootsCard = new OptionListCard(tr("Allowed Write Roots"));
+    const auto writeRootsCard = new OptionListCard(tr("Allowed Write Folders"));
     m_writeRootsItem = writeRootsCard->addItem(
-        tr("Directories"), tr("Existing directories are stored as canonical paths"), m_writeRoots);
+        tr("Folders"),
+        tr("Limits MCP file writes, such as saving and exporting, to the listed folders. "
+           "Existing folders are saved as canonical paths."),
+        m_writeRoots);
 
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(serverCard, 0, Qt::AlignTop);

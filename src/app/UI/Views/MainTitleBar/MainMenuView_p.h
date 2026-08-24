@@ -69,6 +69,7 @@ public:
     QAction *actionMidiSettings = nullptr;
     QAction *actionAppearanceOptions = nullptr;
     QAction *actionInferenceOptions = nullptr;
+    QAction *actionAutomationOptions = nullptr;
     QAction *actionDeveloperOptions = nullptr;
     QAction *actionCheckForUpdates = nullptr;
     QAction *actionAbout = nullptr;
