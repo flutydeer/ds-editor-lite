@@ -92,10 +92,10 @@ public:
                                        const ClipCommonProperties &oldArgs);
     static bool timingPropertiesEqual(const ClipCommonProperties &left,
                                       const ClipCommonProperties &right);
-    // Apply properties' truth (or adopt its ticks when no ms is carried) and
-    // re-derive the tick caches; for undoable actions
+    // Apply properties' truth (or adopt its ticks when no ms is carried). Forward edits
+    // re-derive tick caches; undo may preserve a legacy tick snapshot verbatim.
     void applyRealTimeAnchorFromProperties(const ClipCommonProperties &args,
-                                           const Timeline &timeline);
+                                           const Timeline &timeline, bool updateTickCaches = true);
 
 signals:
     void pathChanged();

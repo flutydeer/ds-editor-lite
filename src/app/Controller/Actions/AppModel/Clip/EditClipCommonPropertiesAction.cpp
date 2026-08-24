@@ -7,8 +7,8 @@
 #include <algorithm>
 
 namespace {
-    void applyArgs(Clip *clip, const Clip::ClipCommonProperties &args,
-                   const bool updateAudioTiming) {
+    void applyArgs(Clip *clip, const Clip::ClipCommonProperties &args, const bool updateAudioTiming,
+                   const bool preserveAudioTickCaches) {
         // opendspx requires clip.pos = start + clipStart to stay non-negative.
         auto safeArgs = Clip::ClipCommonProperties(args);
         safeArgs.start = std::max(safeArgs.start, -safeArgs.clipStart);
@@ -22,8 +22,8 @@ namespace {
         if (clip->clipType() == IClip::Audio && updateAudioTiming) {
             // The tick snapshot may predate a tempo change; the ms truth
             // carried in the args re-derives the caches under the current map
-            static_cast<AudioClip *>(clip)->applyRealTimeAnchorFromProperties(safeArgs,
-                                                                              appModel->timeline());
+            static_cast<AudioClip *>(clip)->applyRealTimeAnchorFromProperties(
+                safeArgs, appModel->timeline(), !preserveAudioTickCaches);
         }
     }
 }
@@ -60,14 +60,14 @@ EditClipCommonPropertiesAction *
 
 void EditClipCommonPropertiesAction::execute() {
     m_track->removeClip(m_clip);
-    applyArgs(m_clip, m_newArgs, m_audioTimingChanged);
+    applyArgs(m_clip, m_newArgs, m_audioTimingChanged, false);
     m_track->insertClip(m_clip);
     m_clip->notifyPropertyChanged();
 }
 
 void EditClipCommonPropertiesAction::undo() {
     m_track->removeClip(m_clip);
-    applyArgs(m_clip, m_oldArgs, m_audioTimingChanged);
+    applyArgs(m_clip, m_oldArgs, m_audioTimingChanged, true);
     m_track->insertClip(m_clip);
     m_clip->notifyPropertyChanged();
 }
