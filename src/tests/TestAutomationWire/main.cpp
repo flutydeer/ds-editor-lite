@@ -1,3 +1,5 @@
+#include "../PublicAutomationToolsetExpectations.h"
+
 #include <lite/AutomationWire/AutomationProfile.h>
 #include <lite/AutomationWire/CanonicalJson.h>
 #include <lite/AutomationWire/ExposurePolicy.h>
@@ -67,97 +69,6 @@ namespace {
         return std::all_of(branches.begin(), branches.end(), [](const QJsonValue &branch) {
             return branch.toObject().value(QStringLiteral("additionalProperties")) == false;
         });
-    }
-
-    QStringList expectedPublicToolIds() {
-        return QStringLiteral("application.get_info\n"
-                              "automation.get_status\n"
-                              "automation.get_manifest\n"
-                              "automation.get_options\n"
-                              "documents.get\n"
-                              "project.get\n"
-                              "notes.get\n"
-                              "parameters.get\n"
-                              "parameters.get_capabilities\n"
-                              "timeline.get\n"
-                              "history.get_state\n"
-                              "voices.list\n"
-                              "voices.describe\n"
-                              "tracks.insert\n"
-                              "tracks.remove\n"
-                              "tracks.move\n"
-                              "tracks.set_properties\n"
-                              "tracks.set_color\n"
-                              "tracks.set_default_language\n"
-                              "clips.insert\n"
-                              "clips.remove\n"
-                              "clips.set_properties\n"
-                              "clips.set_default_language\n"
-                              "notes.insert\n"
-                              "notes.remove\n"
-                              "notes.move\n"
-                              "notes.resize_left\n"
-                              "notes.resize_right\n"
-                              "notes.split\n"
-                              "notes.quantize\n"
-                              "notes.set_word_properties\n"
-                              "notes.set_phoneme_offsets\n"
-                              "parameters.replace\n"
-                              "parameters.draw\n"
-                              "parameters.erase\n"
-                              "parameters.insert_anchor\n"
-                              "parameters.move_anchor\n"
-                              "parameters.remove_anchor\n"
-                              "parameters.set_anchor_interpolation\n"
-                              "parameters.bake\n"
-                              "speaker_mix.track.select_single\n"
-                              "speaker_mix.track.apply\n"
-                              "speaker_mix.track.replace\n"
-                              "speaker_mix.clip.use_track\n"
-                              "speaker_mix.clip.select_single\n"
-                              "speaker_mix.clip.enable_dynamic\n"
-                              "speaker_mix.clip.apply\n"
-                              "speaker_mix.clip.replace\n"
-                              "tempos.set\n"
-                              "tempos.delete\n"
-                              "time_signatures.set\n"
-                              "time_signatures.delete\n"
-                              "master.set_control\n"
-                              "history.undo\n"
-                              "history.redo\n"
-                              "automation.get_file_access\n"
-                              "documents.new\n"
-                              "documents.open\n"
-                              "documents.import\n"
-                              "documents.save\n"
-                              "formats.list\n"
-                              "audio_clips.import\n"
-                              "audio_clips.import_batch\n"
-                              "audio_clips.relocate\n"
-                              "audio_clips.confirm_path\n"
-                              "exports.midi.start\n"
-                              "exports.audio.get_capabilities\n"
-                              "exports.audio.preview\n"
-                              "exports.audio.start\n"
-                              "extract.get_capabilities\n"
-                              "extract.pitch.start\n"
-                              "extract.midi.start\n"
-                              "inference.get_capabilities\n"
-                              "inference.start\n"
-                              "inference.reset_stage\n"
-                              "tasks.list\n"
-                              "tasks.get\n"
-                              "tasks.cancel\n"
-                              "playback.get\n"
-                              "playback.play\n"
-                              "playback.pause\n"
-                              "playback.stop\n"
-                              "playback.set_position\n"
-                              "playback.set_last_position\n"
-                              "playback.set_loop\n"
-                              "playback.set_loop_enabled\n"
-                              "playback.clear_loop")
-            .split(u'\n');
     }
 
     bool testCanonicalJson() {
@@ -443,16 +354,16 @@ namespace {
     bool testPublicContract() {
         bool ok = true;
         const auto &tools = publicToolContracts();
-        const auto expectedIds = expectedPublicToolIds();
+        const auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
         ok &=
-            expect(tools.size() == 87, QStringLiteral("public declaration must contain 87 tools"));
+            expect(tools.size() == 127,
+                   QStringLiteral("public declaration must contain 127 editor tools"));
         ok &=
             expect(publicToolIds() == expectedIds,
                    QStringLiteral("public declaration must exactly match the frozen tool matrix"));
 
         QSet<QString> ids;
         QSet<QString> trackingIds;
-        qsizetype l3ToolCount = 0;
         qsizetype dynamicSourceCount = 0;
         qsizetype openSchemaCount = 0;
         const QStringList descriptorFields{
@@ -491,11 +402,8 @@ namespace {
         for (const auto &tool : tools) {
             ids.insert(tool.operationId);
             trackingIds.insert(tool.trackingId);
-            if (tool.minimumProfile == AutomationProfile::L3)
-                ++l3ToolCount;
-            ok &= expect(tool.minimumProfile != AutomationProfile::L3 &&
-                             tool.minimumProfile != AutomationProfile::Custom,
-                         QStringLiteral("phase two must not register L3 or Custom tools"));
+            ok &= expect(tool.minimumProfile != AutomationProfile::Custom,
+                         QStringLiteral("public tools must use a preset minimum profile"));
             const auto inputCheck = checkJsonSchema(tool.inputSchema);
             const auto outputCheck = checkJsonSchema(tool.outputSchema);
             const auto firstIssue = !inputCheck.valid()    ? inputCheck.issues.first()
@@ -542,9 +450,12 @@ namespace {
                                  .arg(tool.operationId, field));
             }
             ok &= expect(
-                descriptor.value(QStringLiteral("version")).toInteger() == 1 &&
+                tool.version == 1 && tool.introducedVersion == 1 &&
+                    tool.minimumCompatibleVersion == 1 &&
+                    descriptor.value(QStringLiteral("version")).toInteger() == 1 &&
+                    descriptor.value(QStringLiteral("introduced_version")).toInteger() == 1 &&
                     descriptor.value(QStringLiteral("minimum_compatible_version")).toInteger() == 1,
-                QStringLiteral("public descriptor versions must start at one"));
+                QStringLiteral("all three per-tool version fields must start at one"));
             for (const auto &entry : tool.valueSources) {
                 ++dynamicSourceCount;
                 const auto sourceDescriptor = entry.toObject();
@@ -564,10 +475,9 @@ namespace {
         }
         ok &= expect(ids.size() == tools.size() && trackingIds.size() == tools.size(),
                      QStringLiteral("public operation and tracking IDs must be unique"));
-        ok &= expect(l3ToolCount == 0,
-                     QStringLiteral("phase two declaration must contain zero L3 tools"));
-        ok &= expect(openSchemaCount == 1,
-                     QStringLiteral("only Manifest extensions may use an open schema"));
+        ok &= expect(openSchemaCount == 2,
+                     QStringLiteral("only controlled partial arguments and Manifest extensions may "
+                                    "use open nested schemas"));
         ok &= expect(documentLifecycleValues() == QStringList{QStringLiteral("active"),
                                                               QStringLiteral("replacing"),
                                                               QStringLiteral("closing")} &&
@@ -585,10 +495,10 @@ namespace {
                 !findPublicTool(QStringLiteral("inference.start"))->valueSources.isEmpty(),
             QStringLiteral("controlled dynamic fields must publish discoverable value sources"));
         ok &= expect(toolsForProfile(AutomationProfile::Meta).size() == 4 &&
-                         toolsForProfile(AutomationProfile::L1).size() == 55 &&
-                         toolsForProfile(AutomationProfile::L2).size() == 87 &&
-                         toolsForProfile(AutomationProfile::L3).size() == 87,
-                     QStringLiteral("Meta/L1/L2/L3 preset counts must be 4/55/87/87"));
+                         toolsForProfile(AutomationProfile::L1).size() == 89 &&
+                         toolsForProfile(AutomationProfile::L2).size() == 127 &&
+                         toolsForProfile(AutomationProfile::L3).size() == 127,
+                     QStringLiteral("public preset counts must be 4/89/127/127"));
         ok &= expect(
             toolsForProfile(AutomationProfile::Custom, {QStringLiteral("notes.insert")}).size() ==
                 5,
@@ -597,7 +507,7 @@ namespace {
         const auto manifest = buildPublicManifest(AutomationProfile::L1);
         const auto page =
             buildPublicManifest(AutomationProfile::L1, {}, QStringLiteral("gui"), 0, 7);
-        ok &= expect(manifest.toolsetVersion == 1 && manifest.operations.size() == 55 &&
+        ok &= expect(manifest.toolsetVersion == 1 && manifest.operations.size() == 89 &&
                          !manifest.digest.isEmpty() && page.operations.size() == 7 &&
                          page.digest == manifest.digest && !page.nextCursor.isEmpty(),
                      QStringLiteral("public Manifest must be versioned, digested and pageable"));
@@ -639,7 +549,7 @@ namespace {
         const auto replaceProperties = propertiesFor(QStringLiteral("parameters.replace"));
         const auto drawProperties = propertiesFor(QStringLiteral("parameters.draw"));
         const auto insertAnchorProperties =
-            propertiesFor(QStringLiteral("parameters.insert_anchor"));
+            propertiesFor(QStringLiteral("parameters.insert_anchors"));
         const auto bakeProperties = propertiesFor(QStringLiteral("parameters.bake"));
         ok &= expect(!replaceProperties.contains(QStringLiteral("curve_id")) &&
                          !replaceProperties.contains(QStringLiteral("local_start")) &&
@@ -658,10 +568,15 @@ namespace {
                                     "optional fields"));
 
         const auto audioImportProperties = propertiesFor(QStringLiteral("audio_clips.import"));
-        ok &= expect(audioImportProperties.contains(QStringLiteral("properties")) &&
-                         audioImportProperties.contains(QStringLiteral("client_ref")),
-                     QStringLiteral("single and batch audio import drafts must preserve optional "
-                                    "properties and client_ref"));
+        ok &= expect(audioImportProperties.contains(QStringLiteral("track_id")) &&
+                         audioImportProperties.contains(QStringLiteral("start")) &&
+                         audioImportProperties.contains(QStringLiteral("path")) &&
+                         audioImportProperties.contains(QStringLiteral("name")) &&
+                         audioImportProperties.contains(QStringLiteral("gain")) &&
+                         audioImportProperties.contains(QStringLiteral("mute")) &&
+                         !audioImportProperties.contains(QStringLiteral("properties")) &&
+                         !audioImportProperties.contains(QStringLiteral("client_ref")),
+                     QStringLiteral("single audio import must expose a flat, typed clip draft"));
 
         const auto inferenceScope =
             propertiesFor(QStringLiteral("inference.start")).value(QStringLiteral("scope"));
@@ -687,18 +602,26 @@ namespace {
                            "collection"));
 
         const auto midiOverwrite = propertiesFor(QStringLiteral("exports.midi.start"))
-                                       .value(QStringLiteral("allow_overwrite"))
+                                       .value(QStringLiteral("overwrite_policy"))
                                        .toObject();
         const auto audioOverwrite = propertiesFor(QStringLiteral("exports.audio.start"))
-                                        .value(QStringLiteral("allow_overwrite"))
+                                        .value(QStringLiteral("overwrite_policy"))
                                         .toObject();
-        ok &=
-            expect(midiOverwrite.value(QStringLiteral("type")) == QStringLiteral("boolean") &&
-                       midiOverwrite.value(QStringLiteral("default")) == false &&
-                       audioOverwrite.value(QStringLiteral("type")) == QStringLiteral("boolean") &&
-                       audioOverwrite.value(QStringLiteral("default")) == false,
-                   QStringLiteral("file exports must expose one explicit overwrite policy with a "
-                                  "safe default"));
+        const auto requiredFor = [](const QString &id) {
+            QSet<QString> required;
+            for (const auto &field :
+                 findPublicTool(id)->inputSchema.value(QStringLiteral("required")).toArray()) {
+                required.insert(field.toString());
+            }
+            return required;
+        };
+        ok &= expect(midiOverwrite.value(QStringLiteral("type")) == QStringLiteral("string") &&
+                         audioOverwrite.value(QStringLiteral("type")) == QStringLiteral("string") &&
+                         requiredFor(QStringLiteral("exports.midi.start"))
+                             .contains(QStringLiteral("overwrite_policy")) &&
+                         requiredFor(QStringLiteral("exports.audio.start"))
+                             .contains(QStringLiteral("overwrite_policy")),
+                     QStringLiteral("file exports must require one typed overwrite policy"));
 
         const auto exportDescriptor =
             findPublicTool(QStringLiteral("exports.audio.start"))->toManifestJson();
@@ -725,13 +648,12 @@ namespace {
         const auto midiExportProperties = propertiesFor(QStringLiteral("exports.midi.start"));
         const auto audioExportProperties = propertiesFor(QStringLiteral("exports.audio.start"));
         for (const auto &properties : {midiExportProperties, audioExportProperties}) {
-            ok &=
-                expect(properties.contains(QStringLiteral("document_id")) &&
-                           properties.contains(QStringLiteral("expected_revision")) &&
-                           properties.contains(QStringLiteral("validate_only")) &&
-                           properties.contains(QStringLiteral("idempotency_key")),
-                       QStringLiteral("asynchronous document exports must retain the full document "
-                                      "command context"));
+            ok &= expect(properties.contains(QStringLiteral("document_id")) &&
+                             !properties.contains(QStringLiteral("expected_revision")) &&
+                             !properties.contains(QStringLiteral("validate_only")) &&
+                             !properties.contains(QStringLiteral("idempotency_key")),
+                         QStringLiteral("exports must use document-query context without editing "
+                                        "revision or History fields"));
         }
 
         int asynchronousCount = 0;
@@ -748,31 +670,25 @@ namespace {
                 {QStringLiteral("document"),       documentVersion                                       },
                 {QStringLiteral("validated_only"), false                                                 },
             };
-            const QJsonObject validated{
+            const QJsonObject missingTask{
                 {QStringLiteral("document"),       documentVersion},
-                {QStringLiteral("validated_only"), true           },
+                {QStringLiteral("validated_only"), false          },
             };
-            const QJsonObject validatedWithoutDocument{
-                {QStringLiteral("document"),       QJsonValue(QJsonValue::Null)},
-                {QStringLiteral("validated_only"), true                        },
-            };
-            const QJsonObject invalidValidated{
-                {QStringLiteral("task_id"),        QStringLiteral("00000000-0000-4000-8000-000000000002")},
-                {QStringLiteral("document"),       documentVersion                                       },
-                {QStringLiteral("validated_only"), true                                                  },
+            const QJsonObject missingDocument{
+                {QStringLiteral("task_id"),
+                 QStringLiteral("00000000-0000-4000-8000-000000000002")},
+                {QStringLiteral("validated_only"), false},
             };
             ok &=
                 expect(validateJsonValue(accepted, tool.outputSchema).valid() &&
-                           validateJsonValue(validated, tool.outputSchema).valid() &&
-                           validateJsonValue(validatedWithoutDocument, tool.outputSchema).valid() &&
-                           !validateJsonValue(invalidValidated, tool.outputSchema).valid(),
-                       QStringLiteral("async task result schema must discriminate accepted and "
-                                      "validate-only results for %1")
+                           !validateJsonValue(missingTask, tool.outputSchema).valid() &&
+                           !validateJsonValue(missingDocument, tool.outputSchema).valid(),
+                       QStringLiteral("TaskAccepted must require task_id and document for %1")
                            .arg(tool.operationId));
         }
         ok &=
-            expect(asynchronousCount == 9,
-                   QStringLiteral("all nine asynchronous public tools must share the discriminated "
+            expect(asynchronousCount == 12,
+                   QStringLiteral("all twelve asynchronous public tools must share the discriminated "
                                   "TaskAccepted schema"));
 
         const auto parameterSourcePaths = [](const QString &id) {
@@ -783,16 +699,16 @@ namespace {
         };
         ok &= expect(
             parameterSourcePaths(QStringLiteral("parameters.replace")) ==
-                    QSet<QString>{QStringLiteral("/name"), QStringLiteral("/type"),
+                    QSet<QString>{QStringLiteral("/name"), QStringLiteral("/layer"),
                                   QStringLiteral("/curves/*/type"),
                                   QStringLiteral("/curves/*/nodes/*/interpolation"),
                                   QStringLiteral("/curves/*/values/*"),
                                   QStringLiteral("/curves/*/nodes/*/value")} &&
                 parameterSourcePaths(QStringLiteral("parameters.draw")) ==
-                    QSet<QString>{QStringLiteral("/name"), QStringLiteral("/type"),
+                    QSet<QString>{QStringLiteral("/name"), QStringLiteral("/layer"),
                                   QStringLiteral("/values/*")} &&
                 parameterSourcePaths(QStringLiteral("parameters.set_anchor_interpolation")) ==
-                    QSet<QString>{QStringLiteral("/name"), QStringLiteral("/type"),
+                    QSet<QString>{QStringLiteral("/name"), QStringLiteral("/layer"),
                                   QStringLiteral("/interpolation")} &&
                 parameterSourcePaths(QStringLiteral("parameters.bake")) ==
                     QSet<QString>{QStringLiteral("/name")},
@@ -812,10 +728,10 @@ namespace {
     bool testExposurePolicy() {
         bool ok = true;
         ok &= expect(selectExposure({ExposureProfile::L0}).exposedIds.size() == 0 &&
-                         selectExposure({ExposureProfile::L1}).exposedIds.size() == 55 &&
-                         selectExposure({ExposureProfile::L2}).exposedIds.size() == 87 &&
-                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 87,
-                     QStringLiteral("connector exposure preset counts must be 0/55/87/87"));
+                         selectExposure({ExposureProfile::L1}).exposedIds.size() == 89 &&
+                         selectExposure({ExposureProfile::L2}).exposedIds.size() == 127 &&
+                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 127,
+                     QStringLiteral("connector exposure preset counts must be 0/89/127/127"));
 
         const ExposureConfig filtered{
             .profile = ExposureProfile::L0,
@@ -825,7 +741,7 @@ namespace {
         const auto selection = selectExposure(filtered);
         ok &= expect(
             selection.valid() && selection.exposedIds.contains(QStringLiteral("notes.get")) &&
-                !selection.exposedIds.contains(QStringLiteral("notes.set_word_properties")) &&
+                !selection.exposedIds.contains(QStringLiteral("notes.set_lyric")) &&
                 selection.pendingSelectors.contains(QStringLiteral("id:missing.future")),
             QStringLiteral("include/exclude/pending selectors must compose deterministically"));
         ok &= expect(
@@ -840,10 +756,10 @@ namespace {
         targets.append(
             {QStringLiteral("future.gui_tool"), QStringLiteral("future"), AutomationProfile::L3});
         ok &= expect(
-            selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 87 &&
+            selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 127 &&
                 selectExposure({ExposureProfile::L3}, targets)
                     .exposedIds.contains(QStringLiteral("future.gui_tool")),
-            QStringLiteral("L3 exposure infrastructure must work without registering L3 tools"));
+            QStringLiteral("higher exposure presets must include higher-profile targets"));
         return ok;
     }
 

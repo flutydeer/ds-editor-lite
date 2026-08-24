@@ -3,6 +3,7 @@
 #include "Automation/Public/AutomationAccessPolicy.h"
 #include "Automation/Public/AutomationFileGuard.h"
 #include "Automation/Public/PublicAutomationRegistry.h"
+#include "../PublicAutomationToolsetExpectations.h"
 #include "TestRuntime.h"
 
 #include <lite/AutomationWire/McpProtocol.h>
@@ -15,6 +16,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
+#include <QSet>
 #include <QTemporaryDir>
 #include <QTextStream>
 
@@ -399,11 +401,11 @@ int main(int argc, char *argv[]) {
     Automation::PublicAutomationRegistry registry(runtime, access, fileGuard, admission,
                                                   std::move(services));
 
-    auto expectedIds = AutomationWire::publicToolIds();
+    auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
     auto bindingIds = registry.bindingIds();
     std::sort(expectedIds.begin(), expectedIds.end());
-    expect(expectedIds.size() == 87 && bindingIds == expectedIds && registry.isComplete(),
-           QStringLiteral("all 87 public contracts must have exact bindings"));
+    expect(expectedIds.size() == 127 && bindingIds == expectedIds && registry.isComplete(),
+           QStringLiteral("all 127 editor contracts must have exact bindings"));
     const auto status = registry.invoke(QStringLiteral("automation.get_status"), {},
                                         {.clientId = QStringLiteral("status")});
     expect(status && status.get().value(QStringLiteral("documents")).toArray().size() == 1 &&
@@ -783,7 +785,7 @@ int main(int argc, char *argv[]) {
     auto boundaryInput = commandArguments(runtime.documentVersion());
     boundaryInput.insert(QStringLiteral("clip_id"), clipId.value());
     boundaryInput.insert(QStringLiteral("name"), QStringLiteral("pitch"));
-    boundaryInput.insert(QStringLiteral("type"), QStringLiteral("edited"));
+    boundaryInput.insert(QStringLiteral("layer"), QStringLiteral("edited"));
     boundaryInput.insert(QStringLiteral("local_start"), 0);
     boundaryInput.insert(QStringLiteral("step"), 5);
     boundaryInput.insert(QStringLiteral("values"), QJsonArray{minimum, maximum});
@@ -796,7 +798,7 @@ int main(int argc, char *argv[]) {
     auto offStepInput = commandArguments(runtime.documentVersion());
     offStepInput.insert(QStringLiteral("clip_id"), clipId.value());
     offStepInput.insert(QStringLiteral("name"), QStringLiteral("pitch"));
-    offStepInput.insert(QStringLiteral("type"), QStringLiteral("edited"));
+    offStepInput.insert(QStringLiteral("layer"), QStringLiteral("edited"));
     offStepInput.insert(QStringLiteral("local_start"), 10);
     offStepInput.insert(QStringLiteral("step"), 5);
     offStepInput.insert(QStringLiteral("values"), QJsonArray{minimum + 0.5});
@@ -812,7 +814,7 @@ int main(int argc, char *argv[]) {
     auto rangeInput = commandArguments(beforeRangeFailure);
     rangeInput.insert(QStringLiteral("clip_id"), clipId.value());
     rangeInput.insert(QStringLiteral("name"), QStringLiteral("pitch"));
-    rangeInput.insert(QStringLiteral("type"), QStringLiteral("edited"));
+    rangeInput.insert(QStringLiteral("layer"), QStringLiteral("edited"));
     rangeInput.insert(QStringLiteral("local_start"), 0);
     rangeInput.insert(QStringLiteral("step"), 5);
     rangeInput.insert(QStringLiteral("values"), QJsonArray{maximum + 1, maximum + 1});
@@ -828,11 +830,13 @@ int main(int argc, char *argv[]) {
         auto input = commandArguments(runtime.documentVersion());
         input.insert(QStringLiteral("clip_id"), clipId.value());
         input.insert(QStringLiteral("name"), QStringLiteral("pitch"));
-        input.insert(QStringLiteral("type"), QStringLiteral("edited"));
-        input.insert(QStringLiteral("position"), position);
-        input.insert(QStringLiteral("value"), minimum);
-        input.insert(QStringLiteral("interpolation"), QStringLiteral("linear"));
-        return registry.invoke(QStringLiteral("parameters.insert_anchor"), input,
+        input.insert(QStringLiteral("layer"), QStringLiteral("edited"));
+        input.insert(QStringLiteral("anchors"),
+                     QJsonArray{QJsonObject{{QStringLiteral("position"), position},
+                                            {QStringLiteral("value"), minimum},
+                                            {QStringLiteral("interpolation"),
+                                             QStringLiteral("linear")}}});
+        return registry.invoke(QStringLiteral("parameters.insert_anchors"), input,
                                {.clientId = QStringLiteral("anchor-setup")});
     };
     expect(bool(insertAnchor(100)) && bool(insertAnchor(200)),
@@ -843,7 +847,7 @@ int main(int argc, char *argv[]) {
             {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
             {QStringLiteral("clip_id"), clipId.value()},
             {QStringLiteral("name"), QStringLiteral("pitch")},
-            {QStringLiteral("type"), QStringLiteral("edited")},
+            {QStringLiteral("layer"), QStringLiteral("edited")},
         },
         {.clientId = QStringLiteral("anchor-snapshot")});
     int movingAnchorId = -1;
@@ -866,15 +870,17 @@ int main(int argc, char *argv[]) {
     auto moveOverlapInput = commandArguments(runtime.documentVersion());
     moveOverlapInput.insert(QStringLiteral("clip_id"), clipId.value());
     moveOverlapInput.insert(QStringLiteral("name"), QStringLiteral("pitch"));
-    moveOverlapInput.insert(QStringLiteral("type"), QStringLiteral("edited"));
-    moveOverlapInput.insert(QStringLiteral("anchor_id"), movingAnchorId);
-    moveOverlapInput.insert(QStringLiteral("position"), 200);
-    moveOverlapInput.insert(QStringLiteral("value"), minimum);
+    moveOverlapInput.insert(QStringLiteral("layer"), QStringLiteral("edited"));
+    moveOverlapInput.insert(
+        QStringLiteral("moves"),
+        QJsonArray{QJsonObject{{QStringLiteral("anchor_id"), movingAnchorId},
+                               {QStringLiteral("position"), 200},
+                               {QStringLiteral("value"), minimum}}});
     const auto beforeOverlap = runtime.documentVersion();
     const auto historyBeforeOverlap =
         runtime.history().getState(beforeOverlap.documentId);
     const auto moveOverlap = registry.invoke(
-        QStringLiteral("parameters.move_anchor"), moveOverlapInput,
+        QStringLiteral("parameters.move_anchors"), moveOverlapInput,
         {.clientId = QStringLiteral("anchor-overlap")});
     const auto historyAfterOverlap =
         runtime.history().getState(runtime.documentVersion().documentId);
@@ -1013,12 +1019,16 @@ int main(int argc, char *argv[]) {
     list.id = 2;
     list.method = QString::fromLatin1(Mcp::ToolsListMethod);
     const auto listResponse = dispatcher.dispatch(list, QStringLiteral("adapter"));
-    expect(listResponse.value(QStringLiteral("result"))
-                   .toObject()
-                   .value(QStringLiteral("tools"))
-                   .toArray()
-                   .size() == 87,
-           QStringLiteral("tools/list must expose the enabled 87-tool page"));
+    const auto listedTools = listResponse.value(QStringLiteral("result"))
+                                 .toObject()
+                                 .value(QStringLiteral("tools"))
+                                 .toArray();
+    QSet<QString> listedIds;
+    for (const auto &tool : listedTools)
+        listedIds.insert(tool.toObject().value(QStringLiteral("name")).toString());
+    expect(listedTools.size() == 127 &&
+               listedIds == PublicAutomationToolsetExpectations::editorToolIdSet(),
+           QStringLiteral("tools/list must expose the exact 127-tool editor surface"));
     auto forgedList = list;
     forgedList.params.insert(QStringLiteral("cursor"), QStringLiteral("1"));
     const auto forgedListResponse = dispatcher.dispatch(forgedList, QStringLiteral("client-a"));
@@ -1137,12 +1147,33 @@ int main(int argc, char *argv[]) {
     explicitExisting.close();
     auto saveAsExisting = commandArguments(runtime.documentVersion());
     saveAsExisting.insert(QStringLiteral("path"), explicitExisting.fileName());
+    QString rejectExistingPolicy;
+    const auto *saveAsContract = AutomationWire::findPublicTool(QStringLiteral("documents.save_as"));
+    if (saveAsContract) {
+        const auto policies = saveAsContract->inputSchema.value(QStringLiteral("properties"))
+                                  .toObject()
+                                  .value(QStringLiteral("overwrite_policy"))
+                                  .toObject()
+                                  .value(QStringLiteral("enum"))
+                                  .toArray();
+        for (const auto &policyValue : policies) {
+            const auto policy = policyValue.toString();
+            if (!policy.contains(QStringLiteral("overwrite"), Qt::CaseInsensitive) &&
+                !policy.contains(QStringLiteral("replace"), Qt::CaseInsensitive)) {
+                rejectExistingPolicy = policy;
+                break;
+            }
+        }
+    }
+    expect(!rejectExistingPolicy.isEmpty(),
+           QStringLiteral("Save As must expose an unattended reject-existing policy"));
+    saveAsExisting.insert(QStringLiteral("overwrite_policy"), rejectExistingPolicy);
     const auto saveAsDenied = registry.invoke(
-        QStringLiteral("documents.save"), saveAsExisting,
+        QStringLiteral("documents.save_as"), saveAsExisting,
         {.clientId = QStringLiteral("save-as-overwrite-default")});
     expect(!saveAsDenied &&
                saveAsDenied.getError().code == Automation::AutomationErrorCode::OverwriteDenied,
-           QStringLiteral("an explicit existing Save As target must require allow_overwrite"));
+           QStringLiteral("Save As reject policy must refuse an existing target"));
 
     QTemporaryDir outsideDirectory;
     QFile outsideProject(outsideDirectory.filePath(QStringLiteral("outside.dspx")));

@@ -2,6 +2,7 @@
 #include "ConnectorRuntime.h"
 #include "DownstreamMcpServer.h"
 #include "ExposurePolicy.h"
+#include "../PublicAutomationToolsetExpectations.h"
 
 #include <lite/AutomationWire/McpProtocol.h>
 #include <lite/AutomationWire/JsonSchema.h>
@@ -15,6 +16,7 @@
 #include <QFile>
 #include <QProcess>
 #include <QQueue>
+#include <QSet>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTextStream>
@@ -35,6 +37,33 @@ namespace {
             return true;
         QTextStream(stderr) << "FAILED: " << message << Qt::endl;
         return false;
+    }
+
+    QSet<QString> toolNames(const QJsonArray &tools) {
+        QSet<QString> result;
+        for (const auto &entry : tools)
+            result.insert(entry.toObject().value(QStringLiteral("name")).toString());
+        return result;
+    }
+
+    std::optional<QJsonObject> versionMetadata(const QJsonObject &object) {
+        const auto introduced = object.contains(QStringLiteral("introduced_version"))
+                                    ? object.value(QStringLiteral("introduced_version"))
+                                    : object.value(QStringLiteral("introducedVersion"));
+        const auto minimum = object.contains(QStringLiteral("minimum_compatible_version"))
+                                 ? object.value(QStringLiteral("minimum_compatible_version"))
+                                 : object.value(QStringLiteral("minimumCompatibleVersion"));
+        if (object.value(QStringLiteral("version")).isDouble() && introduced.isDouble() &&
+            minimum.isDouble()) {
+            return object;
+        }
+        for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
+            if (!it.value().isObject())
+                continue;
+            if (const auto nested = versionMetadata(it.value().toObject()))
+                return nested;
+        }
+        return std::nullopt;
     }
 
     bool waitUntil(const std::function<bool()> &condition, const int timeoutMs = 3000) {
@@ -229,8 +258,7 @@ namespace {
         int pageSize = 0;
         int manifestToolsetVersion = static_cast<int>(AutomationWire::PublicToolsetVersion);
         int applicationVersion = static_cast<int>(AutomationWire::PublicToolsetVersion);
-        int applicationMinimumCompatibleVersion =
-            static_cast<int>(AutomationWire::PublicMinimumCompatibleVersion);
+        int applicationMinimumCompatibleVersion = 1;
         int discoverResponseDelayMs = 0;
         int discoverRateLimitFailuresRemaining = 0;
         int discoverCount = 0;
@@ -921,10 +949,10 @@ namespace {
             .exposure = {.profile = AutomationWire::ExposureProfile::L3},
         });
         ok &= expect(l0.typedContracts().isEmpty(), "l0 must expose no typed editor tools");
-        ok &= expect(l1.typedContracts().size() == 55, "l1 must expose the frozen 55 tools");
-        ok &= expect(l2.typedContracts().size() == 87, "l2 must expose all 87 tools");
-        ok &= expect(l3.typedContracts().size() == 87,
-                     "l3 shell must equal l2 until l3 tools are implemented");
+        ok &= expect(l1.typedContracts().size() == 89, "l1 must expose the exact 89 tools");
+        ok &= expect(l2.typedContracts().size() == 127, "l2 must expose all 127 editor tools");
+        ok &= expect(l3.typedContracts().size() == 127,
+                     "the highest preset must include the 127 editor tools");
         return ok;
     }
 
@@ -940,16 +968,39 @@ namespace {
                          [&responses](const QByteArray &line) { responses.enqueue(line); });
 
         const auto bridgeTools = DsConnector::ConnectorRuntime::bridgeToolDefinitions();
-        bool ok = expect(bridgeTools.size() == 6,
-                         "connector must publish exactly six fixed bridge definitions");
+        bool ok = expect(
+            bridgeTools.size() == 6 &&
+                toolNames(bridgeTools) ==
+                    QSet<QString>(
+                        PublicAutomationToolsetExpectations::connectorToolIds().cbegin(),
+                        PublicAutomationToolsetExpectations::connectorToolIds().cend()),
+            "connector must publish the exact six fixed bridge definitions");
         for (const auto &entry : bridgeTools) {
             const auto tool = entry.toObject();
+            const auto versions = versionMetadata(tool.value(QStringLiteral("_meta")).toObject());
+            const auto introduced =
+                versions && versions->contains(QStringLiteral("introduced_version"))
+                    ? versions->value(QStringLiteral("introduced_version"))
+                    : versions ? versions->value(QStringLiteral("introducedVersion")) : QJsonValue{};
+            const auto minimum =
+                versions && versions->contains(QStringLiteral("minimum_compatible_version"))
+                    ? versions->value(QStringLiteral("minimum_compatible_version"))
+                    : versions ? versions->value(QStringLiteral("minimumCompatibleVersion"))
+                               : QJsonValue{};
             ok &= expect(
                 AutomationWire::checkJsonSchema(tool.value(QStringLiteral("inputSchema")))
                         .valid() &&
                     AutomationWire::checkJsonSchema(tool.value(QStringLiteral("outputSchema")))
                         .valid(),
                 "every bridge tool must publish valid input and output schemas");
+            ok &= expect(versions && versions->value(QStringLiteral("version")).toInteger() == 1 &&
+                             introduced.toInteger() == 1 && minimum.toInteger() == 1,
+                         "every connector tool must publish version, introduced, and minimum as "
+                         "one in namespaced _meta");
+            const auto annotations = tool.value(QStringLiteral("annotations")).toObject();
+            ok &= expect(!annotations.contains(QStringLiteral("toolsetVersion")) &&
+                             !annotations.contains(QStringLiteral("minimumCompatibleVersion")),
+                         "DS tool metadata must not occupy standard MCP safety annotations");
         }
         const auto statusTool =
             DsConnector::ConnectorRuntime::findBridgeTool(QStringLiteral("connector.get_status"));
@@ -1066,7 +1117,14 @@ namespace {
                                         .object()
                                         .value(QStringLiteral("result"))
                                         .toObject();
-                ok &= expect(result.value(QStringLiteral("tools")).toArray().size() == 6 &&
+                const auto tools = result.value(QStringLiteral("tools")).toArray();
+                ok &= expect(tools.size() == 6 &&
+                                 toolNames(tools) ==
+                                     QSet<QString>(
+                                         PublicAutomationToolsetExpectations::connectorToolIds()
+                                             .cbegin(),
+                                         PublicAutomationToolsetExpectations::connectorToolIds()
+                                             .cend()) &&
                                  !result.contains(QStringLiteral("resultType")) &&
                                  !result.contains(QStringLiteral("ttlMs")),
                              "legacy tools/list must expose the same fixed surface using the 2025 "
@@ -1143,7 +1201,12 @@ namespace {
                                               .object()
                                               .value(QStringLiteral("result"))
                                               .toObject();
-            ok &= expect(listResult.value(QStringLiteral("tools")).toArray().size() == 6 &&
+            const auto tools = listResult.value(QStringLiteral("tools")).toArray();
+            ok &= expect(tools.size() == 6 &&
+                             toolNames(tools) ==
+                                 QSet<QString>(
+                                     PublicAutomationToolsetExpectations::connectorToolIds().cbegin(),
+                                     PublicAutomationToolsetExpectations::connectorToolIds().cend()) &&
                              !listResult.contains(QStringLiteral("resultType")),
                          "MCP 2025-06-18 tools/list must expose the legacy-compatible surface");
         }
@@ -1173,7 +1236,12 @@ namespace {
             const auto response = QJsonDocument::fromJson(responses.dequeue()).object();
             const auto result = response.value(QStringLiteral("result")).toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 6 && !result.contains(QStringLiteral("nextCursor")),
+            ok &= expect(tools.size() == 6 &&
+                             toolNames(tools) ==
+                                 QSet<QString>(
+                                     PublicAutomationToolsetExpectations::connectorToolIds().cbegin(),
+                                     PublicAutomationToolsetExpectations::connectorToolIds().cend()) &&
+                             !result.contains(QStringLiteral("nextCursor")),
                          "l0 downstream list must retain six fixed tools without a cursor");
         }
 
@@ -1261,9 +1329,12 @@ namespace {
                                     .object()
                                     .value(QStringLiteral("result"))
                                     .toObject();
-            ok &= expect(result.value(QStringLiteral("tools")).toArray().size() == 93 &&
+            const auto tools = result.value(QStringLiteral("tools")).toArray();
+            ok &= expect(tools.size() == 133 &&
+                             toolNames(tools) ==
+                                 PublicAutomationToolsetExpectations::completeToolIdSet() &&
                              !result.contains(QStringLiteral("nextCursor")),
-                         "the frozen L2 surface must fit one downstream tools/list page");
+                         "the exact 133-tool surface must fit one downstream tools/list page");
         } else {
             ok &= expect(false, "the frozen L2 downstream list must respond");
         }

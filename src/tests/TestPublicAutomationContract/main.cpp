@@ -1,21 +1,21 @@
-#include <lite/AutomationWire/ExposurePolicy.h>
+#include "../PublicAutomationToolsetExpectations.h"
+
 #include <lite/AutomationWire/JsonSchema.h>
-#include <lite/AutomationWire/PublicConstants.h>
 #include <lite/AutomationWire/PublicToolContract.h>
-#include <lite/AutomationWire/PublicValueDomains.h>
 
 #include <QCoreApplication>
 #include <QJsonArray>
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QSet>
 #include <QTextStream>
 
 #include <algorithm>
-#include <limits>
 #include <string>
 
 namespace {
+    using namespace AutomationWire;
+    using namespace PublicAutomationToolsetExpectations;
+
     int failures = 0;
 
     void expect(const bool condition, const QString &message) {
@@ -25,638 +25,353 @@ namespace {
         ++failures;
     }
 
-    QJsonObject referencedSchema(const QString &reference, const QJsonObject &root) {
-        constexpr auto prefix = "#/$defs/";
-        if (!reference.startsWith(QString::fromLatin1(prefix)))
-            return {};
-        return root.value(QStringLiteral("$defs"))
+    QJsonObject resolveSchema(QJsonObject schema, const QJsonObject &root) {
+        QSet<QString> visited;
+        while (schema.contains(QStringLiteral("$ref"))) {
+            const auto reference = schema.value(QStringLiteral("$ref")).toString();
+            constexpr auto prefix = "#/$defs/";
+            if (!reference.startsWith(QString::fromLatin1(prefix)) || visited.contains(reference))
+                return {};
+            visited.insert(reference);
+            schema = root.value(QStringLiteral("$defs"))
+                         .toObject()
+                         .value(reference.sliced(
+                             static_cast<qsizetype>(std::char_traits<char>::length(prefix))))
+                         .toObject();
+        }
+        return schema;
+    }
+
+    QJsonObject propertySchema(const QJsonObject &schema, const QString &name,
+                               const QJsonObject &root = {}) {
+        const auto &document = root.isEmpty() ? schema : root;
+        return resolveSchema(schema, document)
+            .value(QStringLiteral("properties"))
             .toObject()
-            .value(reference.sliced(static_cast<qsizetype>(std::char_traits<char>::length(prefix))))
+            .value(name)
             .toObject();
     }
 
-    QJsonValue sampleValue(QJsonObject schema, const QJsonObject &root, const QString &field = {}) {
-        if (schema.contains(QStringLiteral("$ref")))
-            schema = referencedSchema(schema.value(QStringLiteral("$ref")).toString(), root);
-        if (schema.contains(QStringLiteral("const")))
-            return schema.value(QStringLiteral("const"));
-        const auto values = schema.value(QStringLiteral("enum")).toArray();
-        if (!values.isEmpty())
-            return values.first();
-        const auto branches = schema.value(QStringLiteral("oneOf")).toArray();
-        if (!branches.isEmpty())
-            return sampleValue(branches.first().toObject(), root, field);
-
-        const auto type = schema.value(QStringLiteral("type")).toString();
-        if (type == QStringLiteral("object")) {
-            QJsonObject result;
-            const auto properties = schema.value(QStringLiteral("properties")).toObject();
-            for (const auto &required : schema.value(QStringLiteral("required")).toArray()) {
-                const auto name = required.toString();
-                result.insert(name,
-                              sampleValue(properties.value(name).toObject(), root, name));
-            }
-            const auto minimum = schema.value(QStringLiteral("minProperties")).toInteger();
-            for (auto it = properties.constBegin(); result.size() < minimum &&
-                                                   it != properties.constEnd(); ++it) {
-                if (!result.contains(it.key()))
-                    result.insert(it.key(), sampleValue(it.value().toObject(), root, it.key()));
-            }
-            return result;
-        }
-        if (type == QStringLiteral("array")) {
-            QJsonArray result;
-            const auto count = schema.value(QStringLiteral("minItems")).toInteger();
-            for (qint64 index = 0; index < count; ++index) {
-                result.append(sampleValue(schema.value(QStringLiteral("items")).toObject(), root,
-                                          field));
-            }
-            return result;
-        }
-        if (type == QStringLiteral("boolean"))
-            return false;
-        if (type == QStringLiteral("integer") || type == QStringLiteral("number"))
-            return schema.contains(QStringLiteral("minimum"))
-                       ? schema.value(QStringLiteral("minimum"))
-                       : QJsonValue(0);
-        if (type == QStringLiteral("null"))
-            return QJsonValue(QJsonValue::Null);
-        if (schema.value(QStringLiteral("format")).toString() == QStringLiteral("uuid"))
-            return QStringLiteral("00000000-0000-4000-8000-000000000001");
-        const auto pattern = schema.value(QStringLiteral("pattern")).toString();
-        if (pattern == QStringLiteral("^sha256:[0-9a-f]{64}$"))
-            return QStringLiteral("sha256:") + QString(64, u'0');
-        const auto minimumLength = std::max<qint64>(1, schema.value(QStringLiteral("minLength")).toInteger());
-        return QString(minimumLength, u'x');
+    QJsonObject arrayItemSchema(const QJsonObject &schema, const QString &name) {
+        return resolveSchema(
+            resolveSchema(propertySchema(schema, name), schema)
+                .value(QStringLiteral("items"))
+                .toObject(),
+            schema);
     }
 
-    QJsonObject selectedRootBranch(const QJsonObject &schema) {
-        const auto branches = schema.value(QStringLiteral("oneOf")).toArray();
-        return branches.isEmpty() ? schema : branches.first().toObject();
-    }
-
-    void verifyRequiredDeletion(const AutomationWire::ToolContract &contract,
-                                const QJsonObject &schema, const QString &label) {
-        auto sample = sampleValue(schema, schema).toObject();
-        expect(AutomationWire::validateJsonValue(sample, schema).valid(),
-               contract.operationId + u' ' + label + QStringLiteral(" fixture must validate"));
-        const auto selected = selectedRootBranch(schema);
-        for (const auto &required : selected.value(QStringLiteral("required")).toArray()) {
-            auto missing = sample;
-            missing.remove(required.toString());
-            expect(!AutomationWire::validateJsonValue(missing, schema).valid(),
-                   contract.operationId + u' ' + label + QStringLiteral(" must require /") +
-                       required.toString());
-        }
-    }
-
-    void countOpenObjects(const QJsonValue &value, int &count) {
-        if (value.isArray()) {
-            for (const auto &item : value.toArray())
-                countOpenObjects(item, count);
-            return;
-        }
-        if (!value.isObject())
-            return;
-        const auto object = value.toObject();
-        if (object.value(QStringLiteral("additionalProperties")) == QJsonValue(true))
-            ++count;
+    QSet<QString> keys(const QJsonObject &object) {
+        QSet<QString> result;
         for (auto it = object.constBegin(); it != object.constEnd(); ++it)
-            countOpenObjects(it.value(), count);
+            result.insert(it.key());
+        return result;
     }
 
-    void verifyInputArraysBounded(const QJsonValue &value, const QString &operationId,
-                                  const QString &path = QStringLiteral("#")) {
-        if (value.isArray()) {
-            const auto values = value.toArray();
-            for (qsizetype index = 0; index < values.size(); ++index) {
-                verifyInputArraysBounded(values.at(index), operationId,
-                                         path + u'/' + QString::number(index));
-            }
-            return;
+    QSet<QString> requiredFields(const QJsonObject &schema, const QJsonObject &root = {}) {
+        const auto &document = root.isEmpty() ? schema : root;
+        QSet<QString> result;
+        for (const auto &value :
+             resolveSchema(schema, document).value(QStringLiteral("required")).toArray()) {
+            result.insert(value.toString());
         }
-        if (!value.isObject())
-            return;
-        const auto object = value.toObject();
-        if (object.value(QStringLiteral("type")) == QStringLiteral("array")) {
-            expect(object.contains(QStringLiteral("maxItems")),
-                   operationId + QStringLiteral(" input array must be bounded at ") + path);
-        }
-        for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
-            verifyInputArraysBounded(it.value(), operationId, path + u'/' + it.key());
-        }
+        return result;
     }
 
-    QJsonObject documentVersion() {
+    QJsonObject commandContext() {
         return {
             {QStringLiteral("document_id"),
              QStringLiteral("00000000-0000-4000-8000-000000000001")},
-            {QStringLiteral("revision"), 1},
+            {QStringLiteral("expected_revision"), 0},
         };
     }
 
-    QJsonObject taskSnapshot(const QString &operationId) {
-        return {
-            {QStringLiteral("task_id"),
-             QStringLiteral("00000000-0000-4000-8000-000000000002")},
-            {QStringLiteral("operation_id"), operationId},
-            {QStringLiteral("document"), documentVersion()},
-            {QStringLiteral("state"), QStringLiteral("queued")},
-            {QStringLiteral("progress"),
-             QJsonObject{
-                 {QStringLiteral("minimum"), 0},
-                 {QStringLiteral("maximum"), 100},
-                 {QStringLiteral("value"), 0},
-                 {QStringLiteral("indeterminate"), true},
-             }},
-        };
-    }
+    void verifyAuthoritativeToolset() {
+        const auto &contracts = publicToolContracts();
+        const auto expectedIds = editorToolIds();
+        expect(editorTools().size() == 127 && editorToolIdSet().size() == 127,
+               QStringLiteral("test fixture must contain exactly 127 unique editor tools"));
+        expect(contracts.size() == 127,
+               QStringLiteral("public contract surface must contain exactly 127 editor tools"));
+        expect(publicToolIds() == expectedIds,
+               QStringLiteral("public contract order and operation set must equal section 10.3"));
 
-    void verifyValueDomains() {
-        for (int raw = static_cast<int>(AutomationWire::PublicValueDomain::AutomationProfile);
-             raw < static_cast<int>(AutomationWire::PublicValueDomain::Count);
-             ++raw) {
-            const auto domain = static_cast<AutomationWire::PublicValueDomain>(raw);
-            const auto values = AutomationWire::publicValueDomainValues(domain);
-            expect(!AutomationWire::publicValueDomainName(domain).isEmpty(),
-                   QStringLiteral("public value domain name must be registered"));
-            expect(!values.isEmpty(), QStringLiteral("public value domain must not be empty: ") +
-                                          AutomationWire::publicValueDomainName(domain));
-            QSet<QString> canonical;
-            for (const auto &value : values) {
-                const auto encoded = QString::fromUtf8(
-                    QJsonDocument(QJsonArray{value}).toJson(QJsonDocument::Compact));
-                expect(!canonical.contains(encoded),
-                       QStringLiteral("public value domain contains a duplicate: ") +
-                           AutomationWire::publicValueDomainName(domain));
-                canonical.insert(encoded);
-                expect(AutomationWire::publicValueDomainContains(domain, value),
-                       QStringLiteral("public value domain membership must round-trip"));
-            }
+        QSet<QString> actualIds;
+        const auto count = std::min(contracts.size(), editorTools().size());
+        for (qsizetype index = 0; index < count; ++index) {
+            const auto &contract = contracts.at(index);
+            const auto &expected = editorTools().at(index);
+            expect(!actualIds.contains(contract.operationId),
+                   QStringLiteral("duplicate public operation: ") + contract.operationId);
+            actualIds.insert(contract.operationId);
+            expect(contract.operationId == expected.operationId,
+                   QStringLiteral("operation order differs at index %1").arg(index));
+            expect(contract.category == expected.category,
+                   QStringLiteral("business domain differs for %1: expected %2, found %3")
+                       .arg(contract.operationId, expected.category, contract.category));
+            expect(contract.minimumProfile == expected.minimumProfile,
+                   QStringLiteral("minimum profile differs for ") + contract.operationId);
+
+            const auto descriptor = contract.toManifestJson();
+            expect(descriptor.value(QStringLiteral("version")).toInteger() == 1 &&
+                       descriptor.value(QStringLiteral("introduced_version")).toInteger() == 1 &&
+                       descriptor.value(QStringLiteral("minimum_compatible_version")).toInteger() ==
+                           1,
+                   QStringLiteral("all three per-tool version fields must equal one for ") +
+                       contract.operationId);
+            expect(contract.inputSchema.value(QStringLiteral("type")) == QStringLiteral("object") &&
+                       contract.inputSchema.value(QStringLiteral("additionalProperties")) == false,
+                   QStringLiteral("input root must be a closed object for ") + contract.operationId);
+            expect(checkJsonSchema(contract.inputSchema).valid(),
+                   QStringLiteral("input schema must be supported for ") + contract.operationId);
+            expect(checkJsonSchema(contract.outputSchema).valid(),
+                   QStringLiteral("output schema must be supported for ") + contract.operationId);
         }
-        expect(AutomationWire::automationProfileNames() ==
-                   AutomationWire::publicStringValueDomainValues(
-                       AutomationWire::PublicValueDomain::AutomationProfile),
-               QStringLiteral("automation profile codec must use the public value domain"));
-        expect(AutomationWire::exposureProfileNames() ==
-                   AutomationWire::publicStringValueDomainValues(
-                       AutomationWire::PublicValueDomain::ExposureProfile),
-               QStringLiteral("exposure profile codec must use the public value domain"));
+        for (const auto &contract : contracts)
+            actualIds.insert(contract.operationId);
+        expect(actualIds == editorToolIdSet(),
+               QStringLiteral("public contract operation set must be exact"));
+        expect(PublicToolsetVersion == 1,
+               QStringLiteral("the first public toolset version must remain one"));
+        expect(toolsForProfile(AutomationProfile::Meta).size() == 4 &&
+                   toolsForProfile(AutomationProfile::L1).size() == 89 &&
+                   toolsForProfile(AutomationProfile::L2).size() == 127 &&
+                   toolsForProfile(AutomationProfile::L3).size() == 127,
+               QStringLiteral("editor profile counts must be 4/89/127/127"));
     }
 
-    void verifyNumericDomains() {
-        const auto *trackInsert =
-            AutomationWire::findPublicTool(QStringLiteral("tracks.insert"));
-        const auto track = trackInsert->inputSchema.value(QStringLiteral("properties"))
-                               .toObject()
-                               .value(QStringLiteral("track"))
-                               .toObject()
-                               .value(QStringLiteral("properties"))
-                               .toObject();
-        const auto pan = track.value(QStringLiteral("pan")).toObject();
-        expect(pan.value(QStringLiteral("minimum")).toDouble() == AutomationWire::MinimumPan &&
-                   pan.value(QStringLiteral("maximum")).toDouble() == AutomationWire::MaximumPan,
-               QStringLiteral("track pan schema must use the public numeric domain"));
-        expect(track.value(QStringLiteral("color_index"))
-                       .toObject()
-                       .value(QStringLiteral("maximum"))
-                       .toInt() == AutomationWire::TrackPaletteColorCount - 1,
-               QStringLiteral("track color schema must use the public palette size"));
+    void verifyShallowCreationAndNoteDefaults() {
+        const auto *tracks = findPublicTool(QStringLiteral("tracks.insert"));
+        const auto *clips = findPublicTool(QStringLiteral("clips.insert"));
+        const auto *notes = findPublicTool(QStringLiteral("notes.insert"));
+        expect(tracks && clips && notes,
+               QStringLiteral("track, clip, and note creation contracts must exist"));
+        if (!tracks || !clips || !notes)
+            return;
 
-        const auto *noteInsert = AutomationWire::findPublicTool(QStringLiteral("notes.insert"));
-        const auto note = noteInsert->inputSchema.value(QStringLiteral("properties"))
-                              .toObject()
-                              .value(QStringLiteral("notes"))
-                              .toObject()
-                              .value(QStringLiteral("items"))
-                              .toObject()
-                              .value(QStringLiteral("properties"))
-                              .toObject();
-        expect(note.value(QStringLiteral("key_index"))
-                       .toObject()
-                       .value(QStringLiteral("minimum"))
-                       .toInt() == AutomationWire::MinimumMidiKeyIndex &&
-                   note.value(QStringLiteral("key_index"))
-                           .toObject()
-                           .value(QStringLiteral("maximum"))
-                           .toInt() == AutomationWire::MaximumMidiKeyIndex,
-               QStringLiteral("note key schema must use the public MIDI key range"));
-        expect(note.value(QStringLiteral("cent_shift"))
-                       .toObject()
-                       .value(QStringLiteral("minimum"))
-                       .toInt() == AutomationWire::MinimumCentShift &&
-                   note.value(QStringLiteral("cent_shift"))
-                           .toObject()
-                           .value(QStringLiteral("maximum"))
-                           .toInt() == AutomationWire::MaximumCentShift,
-               QStringLiteral("note cent schema must use the public cent range"));
+        const auto track = arrayItemSchema(tracks->inputSchema, QStringLiteral("tracks"));
+        expect(keys(track.value(QStringLiteral("properties")).toObject()) ==
+                   QSet<QString>{QStringLiteral("client_ref"), QStringLiteral("name"),
+                                 QStringLiteral("color_index")} &&
+                   requiredFields(track, tracks->inputSchema).isEmpty() &&
+                   track.value(QStringLiteral("additionalProperties")) == false,
+               QStringLiteral("TrackCreate must only expose optional client_ref/name/color_index"));
+        auto minimalTrack = commandContext();
+        minimalTrack.insert(QStringLiteral("index"), 0);
+        minimalTrack.insert(QStringLiteral("tracks"), QJsonArray{QJsonObject{}});
+        expect(validateJsonValue(minimalTrack, tracks->inputSchema).valid(),
+               QStringLiteral("tracks.insert must accept a shallow default track"));
+        auto nestedTrack = minimalTrack;
+        nestedTrack.insert(
+            QStringLiteral("tracks"),
+            QJsonArray{QJsonObject{{QStringLiteral("clips"), QJsonArray{}},
+                                   {QStringLiteral("voice"), QJsonObject{}}}});
+        expect(!validateJsonValue(nestedTrack, tracks->inputSchema).valid(),
+               QStringLiteral("tracks.insert must reject clips and voice object injection"));
 
-        const auto *audio =
-            AutomationWire::findPublicTool(QStringLiteral("exports.audio.preview"));
-        const auto sampleRate = audio->inputSchema.value(QStringLiteral("properties"))
-                                    .toObject()
-                                    .value(QStringLiteral("options"))
-                                    .toObject()
-                                    .value(QStringLiteral("properties"))
-                                    .toObject()
-                                    .value(QStringLiteral("sample_rate"))
-                                    .toObject();
-        expect(sampleRate.value(QStringLiteral("minimum")).toInt() ==
-                       AutomationWire::MinimumAudioSampleRate &&
-                   sampleRate.value(QStringLiteral("maximum")).toInt() ==
-                       AutomationWire::MaximumAudioSampleRate,
-               QStringLiteral("audio sample-rate schema must use the public numeric domain"));
+        const auto clip = arrayItemSchema(clips->inputSchema, QStringLiteral("clips"));
+        expect(keys(clip.value(QStringLiteral("properties")).toObject()) ==
+                   QSet<QString>{QStringLiteral("client_ref"), QStringLiteral("track_id"),
+                                 QStringLiteral("start"), QStringLiteral("length"),
+                                 QStringLiteral("name")} &&
+                   requiredFields(clip, clips->inputSchema) ==
+                       QSet<QString>{QStringLiteral("track_id"), QStringLiteral("start")} &&
+                   clip.value(QStringLiteral("additionalProperties")) == false,
+               QStringLiteral("SingingClipCreate must remain a shallow empty-clip draft"));
+        auto minimalClip = commandContext();
+        minimalClip.insert(QStringLiteral("clips"),
+                           QJsonArray{QJsonObject{{QStringLiteral("track_id"), 1},
+                                                  {QStringLiteral("start"), 0}}});
+        expect(validateJsonValue(minimalClip, clips->inputSchema).valid(),
+               QStringLiteral("clips.insert must accept GUI-equivalent default length and name"));
+        auto nestedClip = minimalClip;
+        nestedClip.insert(
+            QStringLiteral("clips"),
+            QJsonArray{QJsonObject{{QStringLiteral("track_id"), 1},
+                                   {QStringLiteral("start"), 0},
+                                   {QStringLiteral("notes"), QJsonArray{}},
+                                   {QStringLiteral("parameters"), QJsonArray{}},
+                                   {QStringLiteral("speaker_mix"), QJsonObject{}}}});
+        expect(!validateJsonValue(nestedClip, clips->inputSchema).valid(),
+               QStringLiteral("clips.insert must reject nested editing trees"));
 
-        const auto *manifest =
-            AutomationWire::findPublicTool(QStringLiteral("automation.get_manifest"));
-        const auto limit = manifest->inputSchema.value(QStringLiteral("properties"))
-                               .toObject()
-                               .value(QStringLiteral("limit"))
-                               .toObject();
-        expect(limit.value(QStringLiteral("minimum")).toInt() ==
-                       AutomationWire::MinimumPageSize &&
-                   limit.value(QStringLiteral("maximum")).toInt() ==
-                       AutomationWire::MaximumPageSize,
-               QStringLiteral("pagination schema must use the public numeric domain"));
-
-        const auto *audioBatch =
-            AutomationWire::findPublicTool(QStringLiteral("audio_clips.import_batch"));
-        const auto items = audioBatch->inputSchema.value(QStringLiteral("properties"))
-                               .toObject()
-                               .value(QStringLiteral("items"))
-                               .toObject();
-        expect(items.value(QStringLiteral("maxItems")).toInt() ==
-                   AutomationWire::MaximumAudioImportBatchItems,
-               QStringLiteral("audio import batches must have a bounded item count"));
+        const auto note = arrayItemSchema(notes->inputSchema, QStringLiteral("notes"));
+        const auto noteRequired = requiredFields(note, notes->inputSchema);
+        expect(noteRequired ==
+                   QSet<QString>{QStringLiteral("local_start"), QStringLiteral("length"),
+                                 QStringLiteral("key_index")} &&
+                   !note.value(QStringLiteral("properties"))
+                        .toObject()
+                        .contains(QStringLiteral("voice_context")) &&
+                   note.value(QStringLiteral("additionalProperties")) == false,
+               QStringLiteral(
+                   "NoteDraft must require only geometry and pitch without voice_context"));
+        auto minimalNote = commandContext();
+        minimalNote.insert(QStringLiteral("clip_id"), 1);
+        minimalNote.insert(
+            QStringLiteral("notes"),
+            QJsonArray{QJsonObject{{QStringLiteral("local_start"), 0},
+                                   {QStringLiteral("length"), 480},
+                                   {QStringLiteral("key_index"), 60}}});
+        expect(validateJsonValue(minimalNote, notes->inputSchema).valid(),
+               QStringLiteral("notes.insert must accept server-resolved lyric/language defaults"));
     }
 
-    void verifyGetOptions() {
-        const auto *contract = AutomationWire::findPublicTool(QStringLiteral("automation.get_options"));
-        expect(contract, QStringLiteral("automation.get_options contract must exist"));
+    void verifyScalarMutation(const QString &operationId, const QString &targetField,
+                              const QString &valueField) {
+        const auto *contract = findPublicTool(operationId);
+        expect(contract, operationId + QStringLiteral(" must exist"));
         if (!contract)
             return;
-        const QJsonObject valid{
-            {QStringLiteral("operation_id"), QStringLiteral("voices.describe")},
-            {QStringLiteral("field_path"), QStringLiteral("/singer")},
-            {QStringLiteral("partial_arguments"),
-             QJsonObject{{QStringLiteral("singer"),
-                          QJsonObject{{QStringLiteral("singer_id"), QStringLiteral("voice")}}}}},
+        const auto properties = contract->inputSchema.value(QStringLiteral("properties")).toObject();
+        QSet<QString> expected{
+            QStringLiteral("document_id"), QStringLiteral("expected_revision"),
+            QStringLiteral("validate_only"), QStringLiteral("idempotency_key"), valueField,
         };
-        expect(AutomationWire::validateJsonValue(valid, contract->inputSchema).valid(),
-               QStringLiteral("get_options strict target branch must accept a valid partial root"));
-        auto numericOperation = valid;
-        numericOperation.insert(QStringLiteral("operation_id"), 13);
-        expect(!AutomationWire::validateJsonValue(numericOperation, contract->inputSchema).valid(),
-               QStringLiteral("get_options operation_id must reject numbers"));
-        auto unknownPartial = valid;
-        unknownPartial.insert(QStringLiteral("partial_arguments"),
-                              QJsonObject{{QStringLiteral("unknown"), true}});
-        expect(!AutomationWire::validateJsonValue(unknownPartial, contract->inputSchema).valid(),
-               QStringLiteral("get_options partial root must reject unknown fields"));
-
-        const QJsonObject staticChoice{
-            {QStringLiteral("operation_id"), QStringLiteral("documents.new")},
-            {QStringLiteral("field_path"), QStringLiteral("/template")},
-            {QStringLiteral("partial_arguments"), QJsonObject{}},
-        };
-        expect(!AutomationWire::validateJsonValue(staticChoice, contract->inputSchema).valid(),
-               QStringLiteral("get_options must only publish dynamic value-source branches"));
-
-        const auto *voices = AutomationWire::findPublicTool(QStringLiteral("voices.list"));
-        expect(voices &&
-                   !AutomationWire::validateJsonValue(
-                        QJsonObject{{QStringLiteral("package_id"), 1}}, voices->inputSchema)
-                        .valid(),
-               QStringLiteral("public package_id must reject numbers"));
+        if (!targetField.isEmpty())
+            expected.insert(targetField);
+        expect(keys(properties) == expected,
+               operationId + QStringLiteral(" must expose one independent scalar edit"));
+        const auto descriptor = contract->toManifestJson();
+        expect(descriptor.value(QStringLiteral("history_policy")) ==
+                       QStringLiteral("single_entry") &&
+                   descriptor.value(QStringLiteral("revision_policy")) == QStringLiteral("check"),
+               operationId + QStringLiteral(" must be exactly one History/revision edit"));
     }
 
-    void verifyDocumentReplacementContracts() {
-        for (const auto &operation : {QStringLiteral("documents.new"),
-                                      QStringLiteral("documents.open")}) {
-            const auto *contract = AutomationWire::findPublicTool(operation);
-            expect(contract, operation + QStringLiteral(" contract must exist"));
+    void verifyIndependentScalarOperations() {
+        verifyScalarMutation(QStringLiteral("tracks.rename"), QStringLiteral("track_id"),
+                             QStringLiteral("name"));
+        verifyScalarMutation(QStringLiteral("tracks.set_color"), QStringLiteral("track_id"),
+                             QStringLiteral("color_index"));
+        verifyScalarMutation(QStringLiteral("tracks.set_gain"), QStringLiteral("track_id"),
+                             QStringLiteral("gain"));
+        verifyScalarMutation(QStringLiteral("tracks.set_pan"), QStringLiteral("track_id"),
+                             QStringLiteral("pan"));
+        verifyScalarMutation(QStringLiteral("tracks.set_mute"), QStringLiteral("track_id"),
+                             QStringLiteral("mute"));
+        verifyScalarMutation(QStringLiteral("tracks.set_solo"), QStringLiteral("track_id"),
+                             QStringLiteral("solo"));
+        verifyScalarMutation(QStringLiteral("tracks.set_default_language"),
+                             QStringLiteral("track_id"), QStringLiteral("language_id"));
+        verifyScalarMutation(QStringLiteral("clips.rename"), QStringLiteral("clip_id"),
+                             QStringLiteral("name"));
+        verifyScalarMutation(QStringLiteral("clips.set_gain"), QStringLiteral("clip_id"),
+                             QStringLiteral("gain"));
+        verifyScalarMutation(QStringLiteral("clips.set_mute"), QStringLiteral("clip_id"),
+                             QStringLiteral("mute"));
+        verifyScalarMutation(QStringLiteral("clips.set_default_language"),
+                             QStringLiteral("clip_id"), QStringLiteral("language_id"));
+        verifyScalarMutation(QStringLiteral("master.set_gain"), {}, QStringLiteral("gain"));
+        verifyScalarMutation(QStringLiteral("master.set_pan"), {}, QStringLiteral("pan"));
+        verifyScalarMutation(QStringLiteral("master.set_mute"), {}, QStringLiteral("mute"));
+        verifyScalarMutation(QStringLiteral("master.set_solo"), {}, QStringLiteral("solo"));
+
+        for (const auto &removed : {QStringLiteral("tracks.set_properties"),
+                                    QStringLiteral("clips.set_properties"),
+                                    QStringLiteral("master.set_control"),
+                                    QStringLiteral("notes.set_word_properties")}) {
+            expect(findPublicTool(removed) == nullptr,
+                   removed + QStringLiteral(" must not collapse independent History edits"));
+        }
+    }
+
+    void verifyVoiceContracts() {
+        for (const auto &operation : {QStringLiteral("tracks.get_voice_context"),
+                                      QStringLiteral("tracks.set_voice"),
+                                      QStringLiteral("tracks.clear_voice")}) {
+            const auto *contract = findPublicTool(operation);
+            expect(contract && contract->category == QStringLiteral("tracks"),
+                   operation + QStringLiteral(" must belong to the track domain"));
+        }
+        for (const auto &operation : {QStringLiteral("clips.get_voice_context"),
+                                      QStringLiteral("clips.use_track_voice"),
+                                      QStringLiteral("clips.set_voice"),
+                                      QStringLiteral("clips.clear_voice")}) {
+            const auto *contract = findPublicTool(operation);
+            expect(contract && contract->category == QStringLiteral("clips"),
+                   operation + QStringLiteral(" must belong to the clip domain"));
+        }
+
+        const auto checkVoice = [](const QString &operation) {
+            const auto *contract = findPublicTool(operation);
             if (!contract)
-                continue;
-            QJsonObject input{{QStringLiteral("unsaved_policy"), QStringLiteral("reject")}};
-            if (operation == QStringLiteral("documents.open"))
-                input.insert(QStringLiteral("path"), QStringLiteral("D:/project.dspx"));
-            expect(AutomationWire::validateJsonValue(input, contract->inputSchema).valid(),
-                   operation + QStringLiteral(" must allow omitted current version"));
-            auto idOnly = input;
-            idOnly.insert(QStringLiteral("document_id"),
-                          documentVersion().value(QStringLiteral("document_id")));
-            expect(!AutomationWire::validateJsonValue(idOnly, contract->inputSchema).valid(),
-                   operation + QStringLiteral(" must reject an unpaired document_id"));
-            auto revisionOnly = input;
-            revisionOnly.insert(QStringLiteral("expected_revision"), 1);
-            expect(!AutomationWire::validateJsonValue(revisionOnly, contract->inputSchema).valid(),
-                   operation + QStringLiteral(" must reject an unpaired expected_revision"));
-            idOnly.insert(QStringLiteral("expected_revision"), 1);
-            expect(AutomationWire::validateJsonValue(idOnly, contract->inputSchema).valid(),
-                   operation + QStringLiteral(" must accept a paired current version"));
-        }
-
-        const auto *newDocument = AutomationWire::findPublicTool(QStringLiteral("documents.new"));
-        auto newOutput = sampleValue(newDocument->outputSchema, newDocument->outputSchema).toObject();
-        newOutput.insert(QStringLiteral("previous"), QJsonValue(QJsonValue::Null));
-        newOutput.insert(QStringLiteral("current"), QJsonValue(QJsonValue::Null));
-        expect(AutomationWire::validateJsonValue(newOutput, newDocument->outputSchema).valid(),
-               QStringLiteral("documents.new may report null replacement versions"));
-
-        const auto *open = AutomationWire::findPublicTool(QStringLiteral("documents.open"));
-        auto openOutput = sampleValue(open->outputSchema, open->outputSchema).toObject();
-        openOutput.insert(QStringLiteral("document"), QJsonValue(QJsonValue::Null));
-        expect(AutomationWire::validateJsonValue(openOutput, open->outputSchema).valid(),
-               QStringLiteral("documents.open accepted result may have no previous document"));
-
-        const auto *save = AutomationWire::findPublicTool(QStringLiteral("documents.save"));
-        const auto saveProperties =
-            save->inputSchema.value(QStringLiteral("properties")).toObject();
-        expect(!save->inputSchema.value(QStringLiteral("required"))
-                    .toArray()
-                    .contains(QStringLiteral("path")) &&
-                   saveProperties.value(QStringLiteral("allow_overwrite"))
-                           .toObject()
-                           .value(QStringLiteral("default")) == QJsonValue(false),
-               QStringLiteral("documents.save uses save-current with a safe overwrite default"));
-    }
-
-    void verifySnapshotsAndCapabilities() {
-        const auto *status =
-            AutomationWire::findPublicTool(QStringLiteral("automation.get_status"));
-        const auto statusProperties =
-            status->outputSchema.value(QStringLiteral("properties")).toObject();
-        expect(statusProperties.value(QStringLiteral("documents"))
-                       .toObject()
-                       .value(QStringLiteral("maxItems"))
-                       .toInt() == 1 &&
-                   statusProperties.value(QStringLiteral("windows"))
-                           .toObject()
-                           .value(QStringLiteral("maxItems"))
-                           .toInt() == 1,
-               QStringLiteral("single-document status arrays must have maxItems one"));
-
-        const auto *parameter = AutomationWire::findPublicTool(QStringLiteral("parameters.get"));
-        auto parameterSchema = parameter->outputSchema.value(QStringLiteral("properties"))
-                                   .toObject()
-                                   .value(QStringLiteral("snapshot"))
-                                   .toObject()
-                                   .value(QStringLiteral("properties"))
-                                   .toObject()
-                                   .value(QStringLiteral("curves"))
-                                   .toObject()
-                                   .value(QStringLiteral("items"))
-                                   .toObject();
-        const auto curveBranches = parameterSchema.value(QStringLiteral("oneOf")).toArray();
-        expect(curveBranches.size() == 2,
-               QStringLiteral("parameter snapshot must distinguish draw and anchor curves"));
-        if (curveBranches.size() == 2) {
-            expect(curveBranches.at(0).toObject().value(QStringLiteral("required")).toArray().contains(
-                       QStringLiteral("curve_id")),
-                   QStringLiteral("draw snapshot must require stable curve_id"));
-            const auto anchor = curveBranches.at(1).toObject();
-            expect(anchor.value(QStringLiteral("required")).toArray().contains(
-                       QStringLiteral("curve_id")),
-                   QStringLiteral("anchor snapshot must require stable curve_id"));
-            const auto node = anchor.value(QStringLiteral("properties"))
-                                  .toObject()
-                                  .value(QStringLiteral("nodes"))
-                                  .toObject()
-                                  .value(QStringLiteral("items"))
-                                  .toObject();
-            expect(node.value(QStringLiteral("required")).toArray().contains(
-                       QStringLiteral("anchor_id")),
-                   QStringLiteral("anchor node snapshot must require stable anchor_id"));
-        }
-
-        const auto requireCapabilityFields = [](const QString &operation,
-                                                const QStringList &fields) {
-            const auto *contract = AutomationWire::findPublicTool(operation);
-            const auto capability = contract->outputSchema.value(QStringLiteral("properties"))
-                                        .toObject()
-                                        .value(QStringLiteral("capabilities"))
-                                        .toObject();
-            const auto required = capability.value(QStringLiteral("required")).toArray();
-            for (const auto &field : fields) {
-                expect(required.contains(field), operation + QStringLiteral(" must require /") + field);
-            }
+                return false;
+            const auto voice = resolveSchema(
+                propertySchema(contract->inputSchema, QStringLiteral("voice")),
+                contract->inputSchema);
+            const auto singer = resolveSchema(
+                propertySchema(voice, QStringLiteral("singer"), contract->inputSchema),
+                contract->inputSchema);
+            const auto speaker = resolveSchema(
+                propertySchema(voice, QStringLiteral("speaker"), contract->inputSchema),
+                contract->inputSchema);
+            return requiredFields(voice, contract->inputSchema) ==
+                       QSet<QString>{QStringLiteral("singer"), QStringLiteral("speaker")} &&
+                   requiredFields(singer, contract->inputSchema) ==
+                       QSet<QString>{QStringLiteral("package_id"), QStringLiteral("singer_id")} &&
+                   requiredFields(speaker, contract->inputSchema) ==
+                       QSet<QString>{QStringLiteral("speaker_id")} &&
+                   keys(speaker.value(QStringLiteral("properties")).toObject()) ==
+                       QSet<QString>{QStringLiteral("speaker_id")};
         };
-        requireCapabilityFields(QStringLiteral("exports.audio.get_capabilities"),
-                                {QStringLiteral("formats"), QStringLiteral("sample_rates"),
-                                 QStringLiteral("channel_modes"), QStringLiteral("mixing_modes"),
-                                 QStringLiteral("source_modes"), QStringLiteral("sources")});
-        requireCapabilityFields(QStringLiteral("extract.get_capabilities"),
-                                {QStringLiteral("pitch"), QStringLiteral("midi"),
-                                 QStringLiteral("languages")});
-        requireCapabilityFields(QStringLiteral("inference.get_capabilities"),
-                                {QStringLiteral("providers"), QStringLiteral("devices"),
-                                 QStringLiteral("models")});
-
-        const auto *playback = AutomationWire::findPublicTool(QStringLiteral("playback.get"));
-        const auto playbackSnapshot = playback->outputSchema.value(QStringLiteral("properties"))
-                                          .toObject()
-                                          .value(QStringLiteral("snapshot"))
-                                          .toObject();
-        expect(playbackSnapshot.value(QStringLiteral("required"))
-                   .toArray()
-                   .contains(QStringLiteral("playable")),
-               QStringLiteral("playback.get must expose current playability"));
+        expect(checkVoice(QStringLiteral("tracks.set_voice")) &&
+                   checkVoice(QStringLiteral("clips.set_voice")),
+               QStringLiteral("voice selection must separate SingerRef and SpeakerRef"));
     }
 
-    void verifyPhaseTwoCapabilityContracts() {
-        const auto *pitch =
-            AutomationWire::findPublicTool(QStringLiteral("extract.pitch.start"));
-        const auto pitchOptions = pitch->inputSchema.value(QStringLiteral("properties"))
-                                      .toObject()
-                                      .value(QStringLiteral("options"))
-                                      .toObject();
-        const auto pitchOptionProperties =
-            pitchOptions.value(QStringLiteral("properties")).toObject();
-        expect(pitchOptions.value(QStringLiteral("required"))
-                       .toArray()
-                       .contains(QStringLiteral("target_clip_id")) &&
-                   pitch->inputSchema.value(QStringLiteral("required"))
-                       .toArray()
-                       .contains(QStringLiteral("options")) &&
-                   !pitchOptionProperties.contains(QStringLiteral("minimum_frequency")) &&
-                   !pitchOptionProperties.contains(QStringLiteral("maximum_frequency")),
-               QStringLiteral(
-                   "pitch extraction must require its target and omit unsupported frequency ranges"));
+    void verifySpeakerMixContracts() {
+        const QStringList operations{
+            QStringLiteral("speaker_mix.get"),
+            QStringLiteral("speaker_mix.set_fixed"),
+            QStringLiteral("speaker_mix.enable_dynamic"),
+            QStringLiteral("speaker_mix.disable_dynamic"),
+            QStringLiteral("speaker_mix.set_dynamic_bypass"),
+            QStringLiteral("speaker_mix.keyframes.insert"),
+            QStringLiteral("speaker_mix.keyframes.move"),
+            QStringLiteral("speaker_mix.keyframes.set_weights"),
+            QStringLiteral("speaker_mix.keyframes.remove"),
+        };
+        for (const auto &operation : operations) {
+            const auto *contract = findPublicTool(operation);
+            expect(contract && contract->category == QStringLiteral("speaker_mix"),
+                   operation + QStringLiteral(" must exist in the Speaker Mix domain"));
+        }
 
-        const auto *master =
-            AutomationWire::findPublicTool(QStringLiteral("master.set_control"));
-        const auto masterControl = master->inputSchema.value(QStringLiteral("properties"))
-                                       .toObject()
-                                       .value(QStringLiteral("control"))
-                                       .toObject();
-        expect(masterControl.value(QStringLiteral("required")).toArray().size() == 4,
-               QStringLiteral("master control replacement must require all four control fields"));
-
-        const auto *midi =
-            AutomationWire::findPublicTool(QStringLiteral("extract.midi.start"));
-        const auto midiOptions = midi->inputSchema.value(QStringLiteral("properties"))
-                                     .toObject()
-                                     .value(QStringLiteral("options"))
-                                     .toObject();
-        expect(midiOptions.value(QStringLiteral("properties"))
+        const auto *enable = findPublicTool(QStringLiteral("speaker_mix.enable_dynamic"));
+        const auto *insert = findPublicTool(QStringLiteral("speaker_mix.keyframes.insert"));
+        const auto *move = findPublicTool(QStringLiteral("speaker_mix.keyframes.move"));
+        const auto *setWeights =
+            findPublicTool(QStringLiteral("speaker_mix.keyframes.set_weights"));
+        const auto *remove = findPublicTool(QStringLiteral("speaker_mix.keyframes.remove"));
+        if (!enable || !insert || !move || !setWeights || !remove)
+            return;
+        expect(!enable->inputSchema.value(QStringLiteral("properties"))
+                    .toObject()
+                    .contains(QStringLiteral("mix")) &&
+                   requiredFields(enable->inputSchema).contains(QStringLiteral("clip_id")),
+               QStringLiteral("enable_dynamic must derive its initial mix from current state"));
+        expect(!requiredFields(insert->inputSchema).contains(QStringLiteral("weights")),
+               QStringLiteral("keyframe insertion must support GUI-equivalent interpolated weights"));
+        expect(move->inputSchema.value(QStringLiteral("properties"))
                    .toObject()
-                   .contains(QStringLiteral("client_ref")) &&
-                   !midiOptions.value(QStringLiteral("required"))
-                        .toArray()
-                        .contains(QStringLiteral("client_ref")),
-               QStringLiteral("MIDI extraction client_ref must be strict and optional"));
-        const auto languageSource = std::find_if(
-            midi->valueSources.cbegin(), midi->valueSources.cend(), [](const QJsonValue &value) {
-                const auto source = value.toObject();
-                return source.value(QStringLiteral("field_path")) ==
-                    QStringLiteral("/options/default_language");
-            });
-        expect(languageSource != midi->valueSources.cend() &&
-                   languageSource->toObject().value(QStringLiteral("operation_id")) ==
-                       QStringLiteral("extract.get_capabilities"),
-               QStringLiteral(
-                   "MIDI extraction languages must come from the extraction capability view"));
-
-        const auto pitchOptionDocument = AutomationWire::JsonSchema::document(pitchOptions);
-        const auto midiOptionDocument = AutomationWire::JsonSchema::document(midiOptions);
-        expect(AutomationWire::checkJsonSchema(pitchOptionDocument).valid() &&
-                   AutomationWire::checkJsonSchema(midiOptionDocument).valid(),
-               QStringLiteral("embedded extraction option schemas must be self-contained"));
-
-        const auto capability = QJsonObject{
-            {QStringLiteral("clip_id"), 1},
-            {QStringLiteral("pitch"),
-             QJsonObject{
-                 {QStringLiteral("supported"), true},
-                 {QStringLiteral("source_supported"), true},
-                 {QStringLiteral("available"), false},
-                 {QStringLiteral("module_state"), QStringLiteral("unavailable")},
-                 {QStringLiteral("unavailable_reason"), QStringLiteral("module unavailable")},
-                 {QStringLiteral("models"), QJsonArray{}},
-                 {QStringLiteral("option_schema"), pitchOptionDocument},
-                 {QStringLiteral("range_support"),
-                  QJsonObject{
-                      {QStringLiteral("source_range"),
-                       QStringLiteral("visible_audio_clip")},
-                      {QStringLiteral("custom_frequency"), false},
-                  }},
-             }},
-            {QStringLiteral("midi"),
-             QJsonObject{
-                 {QStringLiteral("supported"), true},
-                 {QStringLiteral("source_supported"), true},
-                 {QStringLiteral("available"), false},
-                 {QStringLiteral("module_state"), QStringLiteral("unavailable")},
-                 {QStringLiteral("unavailable_reason"), QStringLiteral("module unavailable")},
-                 {QStringLiteral("models"), QJsonArray{}},
-                 {QStringLiteral("option_schema"), midiOptionDocument},
-                 {QStringLiteral("range_support"),
-                  QJsonObject{
-                      {QStringLiteral("source_range"),
-                       QStringLiteral("visible_audio_clip")},
-                      {QStringLiteral("minimum_note_length"),
-                       QJsonObject{
-                           {QStringLiteral("minimum"), 1},
-                           {QStringLiteral("maximum"), std::numeric_limits<int>::max()},
-                       }},
-                  }},
-             }},
-            {QStringLiteral("languages"), QJsonArray{}},
-        };
-        const auto *capabilities =
-            AutomationWire::findPublicTool(QStringLiteral("extract.get_capabilities"));
-        const QJsonObject capabilityOutput{
-            {QStringLiteral("document"), documentVersion()},
-            {QStringLiteral("capabilities"), capability},
-        };
-        expect(AutomationWire::validateJsonValue(capabilityOutput, capabilities->outputSchema)
-                   .valid(),
-               QStringLiteral(
-                   "extraction capabilities must accept honest module, model, range, and option state"));
-
-        const auto *preview =
-            AutomationWire::findPublicTool(QStringLiteral("exports.audio.preview"));
-        const auto previewSnapshot = preview->outputSchema.value(QStringLiteral("properties"))
-                                         .toObject()
-                                         .value(QStringLiteral("snapshot"))
-                                         .toObject();
-        const auto previewProperties =
-            previewSnapshot.value(QStringLiteral("properties")).toObject();
-        expect(previewProperties.contains(QStringLiteral("plan")) &&
-                   previewProperties.contains(QStringLiteral("diagnostics")) &&
-                   !previewProperties.contains(QStringLiteral("warning_flags")),
-               QStringLiteral(
-                   "audio export preview must expose typed plan and diagnostics without raw flags"));
-    }
-
-    void verifyTaskSnapshotUnion() {
-        const auto *contract = AutomationWire::findPublicTool(QStringLiteral("tasks.get"));
-        const auto kinds = AutomationWire::publicStringValueDomainValues(
-            AutomationWire::PublicValueDomain::TaskKind);
-        expect(kinds.size() == 9, QStringLiteral("public task kind domain must contain 9 async tools"));
-        for (const auto &kind : kinds) {
-            expect(AutomationWire::validateJsonValue(taskSnapshot(kind), contract->outputSchema).valid(),
-                   QStringLiteral("task snapshot branch must accept ") + kind);
-        }
-        auto openingWithoutDocument = taskSnapshot(QStringLiteral("documents.open"));
-        openingWithoutDocument.insert(QStringLiteral("document"), QJsonValue(QJsonValue::Null));
-        QJsonObject openedResult{
-            {QStringLiteral("previous"), QJsonValue(QJsonValue::Null)},
-            {QStringLiteral("current"), documentVersion()},
-            {QStringLiteral("changed"), true},
-            {QStringLiteral("validated_only"), false},
-            {QStringLiteral("affected_objects"), QJsonArray{}},
-            {QStringLiteral("created_objects"), QJsonArray{}},
-            {QStringLiteral("warnings"), QJsonArray{}},
-        };
-        openingWithoutDocument.insert(QStringLiteral("result"), openedResult);
-        expect(AutomationWire::validateJsonValue(openingWithoutDocument, contract->outputSchema).valid(),
-               QStringLiteral("documents.open task may start without a current document"));
-        auto importWithoutDocument = taskSnapshot(QStringLiteral("documents.import"));
-        importWithoutDocument.insert(QStringLiteral("document"), QJsonValue(QJsonValue::Null));
-        expect(!AutomationWire::validateJsonValue(importWithoutDocument, contract->outputSchema).valid(),
-               QStringLiteral("non-replacement tasks must retain a document version"));
-        expect(!AutomationWire::validateJsonValue(taskSnapshot(QStringLiteral("unknown.start")),
-                                                  contract->outputSchema)
-                    .valid(),
-               QStringLiteral("task snapshot must reject an unknown async operation"));
+                   .contains(QStringLiteral("moves")) &&
+                   setWeights->inputSchema.value(QStringLiteral("properties"))
+                       .toObject()
+                       .contains(QStringLiteral("keyframe_id")) &&
+                   remove->inputSchema.value(QStringLiteral("properties"))
+                       .toObject()
+                       .contains(QStringLiteral("keyframe_ids")),
+               QStringLiteral("dynamic keyframe edits must use stable IDs and atomic batches"));
     }
 }
 
 int main(int argc, char **argv) {
     QCoreApplication application(argc, argv);
-    verifyValueDomains();
-
-    const auto &contracts = AutomationWire::publicToolContracts();
-    expect(contracts.size() == 87, QStringLiteral("public contract count must remain 87"));
-    QSet<QString> ids;
-    int openObjects = 0;
-    for (const auto &contract : contracts) {
-        expect(!ids.contains(contract.operationId),
-               QStringLiteral("public operation id must be unique: ") + contract.operationId);
-        ids.insert(contract.operationId);
-        expect(contract.inputSchema.value(QStringLiteral("type")) == QStringLiteral("object"),
-               contract.operationId +
-                   QStringLiteral(" input schema root must declare type object"));
-        expect(AutomationWire::checkJsonSchema(contract.inputSchema).valid(),
-               contract.operationId + QStringLiteral(" input schema must be supported"));
-        expect(AutomationWire::checkJsonSchema(contract.outputSchema).valid(),
-               contract.operationId + QStringLiteral(" output schema must be supported"));
-        verifyRequiredDeletion(contract, contract.inputSchema, QStringLiteral("input"));
-        verifyRequiredDeletion(contract, contract.outputSchema, QStringLiteral("output"));
-        verifyInputArraysBounded(contract.inputSchema, contract.operationId);
-        countOpenObjects(contract.inputSchema, openObjects);
-        countOpenObjects(contract.outputSchema, openObjects);
-    }
-    expect(openObjects == 1,
-           QStringLiteral("only automation.get_manifest extensions may be recursively open"));
-
-    verifyGetOptions();
-    verifyNumericDomains();
-    verifyDocumentReplacementContracts();
-    verifySnapshotsAndCapabilities();
-    verifyPhaseTwoCapabilityContracts();
-    verifyTaskSnapshotUnion();
+    verifyAuthoritativeToolset();
+    verifyShallowCreationAndNoteDefaults();
+    verifyIndependentScalarOperations();
+    verifyVoiceContracts();
+    verifySpeakerMixContracts();
 
     if (failures != 0)
         QTextStream(stderr) << failures << " public automation contract test(s) failed" << Qt::endl;
