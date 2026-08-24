@@ -12,6 +12,7 @@
 
 #include <lite/GUI/Utils/IconUtils.h>
 #include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/AutomationWire/PublicToolContract.h>
 
 #include "Pages/AppearancePage.h"
 #include "Pages/AutomationPage.h"
@@ -54,6 +55,10 @@ namespace {
 
 AppOptionsDialog::AppOptionsDialog(QWidget *parent, const bool standalone)
     : QWidget(parent), m_standalone(standalone) {
+    for (const auto &contract : AutomationWire::publicToolContracts()) {
+        if (contract.minimumProfile != AutomationWire::AutomationProfile::Meta)
+            m_automationCustomPermissionOperationIds.append(contract.operationId);
+    }
     setObjectName(QStringLiteral("AppOptionsDialog"));
     setFocusPolicy(Qt::ClickFocus);
 

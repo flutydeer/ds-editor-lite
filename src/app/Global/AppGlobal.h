@@ -5,6 +5,7 @@
 #include <QString>
 
 #include <lite/MusicBase/MusicTime.h>
+#include <lite/AutomationWire/PublicConstants.h>
 
 namespace AppGlobal {
     // Global Constants
@@ -16,7 +17,7 @@ namespace AppGlobal {
 
     // Number of colors in the application-wide color palette.
     // Used by AppColorPalette, track colors, speaker mix colors, etc.
-    inline constexpr int paletteColorCount = 12;
+    inline constexpr int paletteColorCount = AutomationWire::TrackPaletteColorCount;
 
     enum AudioLoadStatus { Init, Loading, Loaded, Error };
 

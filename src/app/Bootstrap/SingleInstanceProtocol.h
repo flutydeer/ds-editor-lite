@@ -66,6 +66,7 @@ namespace SingleInstanceProtocol {
     constexpr qsizetype maxConnectionCount = maxWatcherCount + 16;
     constexpr qsizetype maxPendingWriteFrames = 64;
     constexpr qsizetype maxPendingWriteBytes = maxPayloadSize * 2;
+    constexpr int initialReadTimeoutMs = 1000;
 
     QByteArray encodeRequest(const SingleInstanceRequest &request);
     bool decodeRequest(const QByteArray &payload, SingleInstanceRequest &request, QString &error);

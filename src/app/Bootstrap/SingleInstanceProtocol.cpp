@@ -19,7 +19,8 @@ namespace {
         return {};
     }
 
-    bool parseEnvelope(const QByteArray &payload, QJsonObject &object, QString &error) {
+    bool parseEnvelope(const QByteArray &payload, QJsonObject &object, QString &error,
+                       QString *requestId = nullptr) {
         QJsonParseError parseError;
         const auto document = QJsonDocument::fromJson(payload, &parseError);
         if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
@@ -27,6 +28,8 @@ namespace {
             return false;
         }
         object = document.object();
+        if (requestId)
+            *requestId = object.value(QStringLiteral("requestId")).toString();
         if (object.value(QStringLiteral("protocolVersion")).toInt(-1) !=
             SingleInstanceProtocol::protocolVersion) {
             error = QStringLiteral("Unsupported single-instance protocol version");
@@ -69,10 +72,9 @@ QByteArray SingleInstanceProtocol::encodeRequest(const SingleInstanceRequest &re
 bool SingleInstanceProtocol::decodeRequest(const QByteArray &payload,
                                            SingleInstanceRequest &request, QString &error) {
     QJsonObject object;
-    if (!parseEnvelope(payload, object, error))
+    if (!parseEnvelope(payload, object, error, &request.requestId))
         return false;
 
-    request.requestId = object.value(QStringLiteral("requestId")).toString();
     if (request.requestId.isEmpty()) {
         error = QStringLiteral("Missing request ID");
         return false;

@@ -1,23 +1,30 @@
 #include "AutomationPage.h"
 
+#include "Automation/Mcp/EditorMcpRuntimeStatus.h"
 #include "Global/AppOptionsGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
 
+#include <lite/AutomationWire/PublicToolContract.h>
 #include <lite/GUI/Controls/ComboBox.h>
-#include <lite/GUI/Controls/CardView.h>
 #include <lite/GUI/Controls/OptionListCard.h>
-#include <lite/GUI/Controls/OptionsCard.h>
+#include <lite/GUI/Controls/OptionsCardItem.h>
 #include <lite/GUI/Controls/PathEditor.h>
 #include <lite/GUI/Controls/SvsExpressionSpinBox.h>
 #include <lite/GUI/Controls/SwitchButton.h>
 
-#include <QHBoxLayout>
+#include <QCoreApplication>
+#include <QEvent>
+#include <QFileInfo>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <utility>
 
 AutomationPage::AutomationPage(QWidget *parent) : IOptionPage(parent) {
+    if (auto *application = QCoreApplication::instance())
+        application->installEventFilter(this);
     initializePage();
 }
 
@@ -40,6 +47,45 @@ QString AutomationPage::sourceDescription(const StartupArguments::ConfigSource s
     return tr("Saved in the application configuration");
 }
 
+bool AutomationPage::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == QCoreApplication::instance() && event->type() == QEvent::DynamicPropertyChange)
+        refreshRuntimeStatus();
+    return IOptionPage::eventFilter(watched, event);
+}
+
+void AutomationPage::refreshCategoryPermissionSwitches() {
+    for (auto it = m_customCategorySwitches.constBegin();
+         it != m_customCategorySwitches.constEnd(); ++it) {
+        const auto operationIds = m_customCategoryOperationIds.value(it.key());
+        const auto allEnabled = !operationIds.isEmpty() &&
+                                std::all_of(operationIds.cbegin(), operationIds.cend(),
+                                            [this](const QString &operationId) {
+                                                const auto operation =
+                                                    m_customPermissionSwitches.value(operationId);
+                                                return operation && operation->value();
+                                            });
+        const QSignalBlocker blocker(it.value());
+        it.value()->setValue(allEnabled);
+    }
+}
+
+void AutomationPage::refreshRuntimeStatus() {
+    const auto *application = QCoreApplication::instance();
+    if (!application)
+        return;
+    const auto state = application->property(Automation::McpRuntimeStatus::StateProperty).toString();
+    const auto endpoint =
+        application->property(Automation::McpRuntimeStatus::EndpointProperty).toString();
+    const auto error = application->property(Automation::McpRuntimeStatus::ErrorProperty).toString();
+    if (m_runtimeStateItem)
+        m_runtimeStateItem->setDescription(state.isEmpty() ? tr("Not initialized") : state);
+    if (m_runtimeEndpointItem) {
+        m_runtimeEndpointItem->setDescription(endpoint.isEmpty() ? tr("Not listening") : endpoint);
+    }
+    if (m_runtimeErrorItem)
+        m_runtimeErrorItem->setDescription(error.isEmpty() ? tr("No error") : error);
+}
+
 void AutomationPage::modifyOption() {
     auto *option = appOptions->automation();
     if (m_effectiveConfig.mcpEnabledSource == StartupArguments::ConfigSource::Persisted)
@@ -51,8 +97,49 @@ void AutomationPage::modifyOption() {
             static_cast<AutomationOption::Profile>(m_profile->currentData().toInt());
     }
 
-    option->readRoots = m_readRoots->paths();
-    option->writeRoots = m_writeRoots->paths();
+    const auto canonicalRoots = [](const QStringList &paths, QStringList &invalid) {
+        QStringList result;
+        for (const auto &path : paths) {
+            const QFileInfo info(path.trimmed());
+            const auto canonical = info.isDir() ? info.canonicalFilePath() : QString{};
+            if (canonical.isEmpty()) {
+                if (!path.trimmed().isEmpty())
+                    invalid.append(path.trimmed());
+                continue;
+            }
+            result.append(canonical);
+        }
+        result.removeDuplicates();
+        return result;
+    };
+    QStringList invalidReadRoots;
+    QStringList invalidWriteRoots;
+    const auto readRoots = canonicalRoots(m_readRoots->paths(), invalidReadRoots);
+    const auto writeRoots = canonicalRoots(m_writeRoots->paths(), invalidWriteRoots);
+    if (invalidReadRoots.isEmpty()) {
+        option->readRoots = readRoots;
+        const QSignalBlocker readBlocker(m_readRoots);
+        m_readRoots->setPaths(option->readRoots);
+    }
+    if (invalidWriteRoots.isEmpty()) {
+        option->writeRoots = writeRoots;
+        const QSignalBlocker writeBlocker(m_writeRoots);
+        m_writeRoots->setPaths(option->writeRoots);
+    }
+    if (m_readRootsItem) {
+        m_readRootsItem->setDescription(
+            invalidReadRoots.isEmpty()
+                ? tr("Existing directories are stored as canonical paths")
+                : tr("Not saved because a directory is missing or invalid: %1")
+                      .arg(invalidReadRoots.join(QStringLiteral(", "))));
+    }
+    if (m_writeRootsItem) {
+        m_writeRootsItem->setDescription(
+            invalidWriteRoots.isEmpty()
+                ? tr("Existing directories are stored as canonical paths")
+                : tr("Not saved because a directory is missing or invalid: %1")
+                      .arg(invalidWriteRoots.join(QStringLiteral(", "))));
+    }
     for (auto it = m_customPermissionSwitches.constBegin();
          it != m_customPermissionSwitches.constEnd(); ++it) {
         option->setCustomPermissionEnabled(it.key(), it.value()->value());
@@ -102,6 +189,14 @@ QWidget *AutomationPage::createContentWidget() {
         tr("Control Port"),
         sourceDescription(m_effectiveConfig.controlPortSource, QStringLiteral("--control-port")),
         m_controlPort);
+    serverCard->addItem(
+        tr("Local Process Access"),
+        tr("No bearer token is used. Other processes running as this user may attempt to connect; "
+           "keep the server disabled when automation is not needed."));
+    m_runtimeStateItem = serverCard->addItem(tr("Runtime Status"), QString{});
+    m_runtimeEndpointItem = serverCard->addItem(tr("Current Endpoint"), QString{});
+    m_runtimeErrorItem = serverCard->addItem(tr("Last Error"), QString{});
+    refreshRuntimeStatus();
 
     const auto accessCard = new OptionListCard(tr("Access Profile"));
     accessCard->addItem(
@@ -110,6 +205,37 @@ QWidget *AutomationPage::createContentWidget() {
         m_profile);
 
     m_customPermissionSwitches.clear();
+    m_customCategorySwitches.clear();
+    m_customCategoryOperationIds.clear();
+    for (const auto &operationId : std::as_const(m_customPermissionOperationIds)) {
+        if (const auto *contract = AutomationWire::findPublicTool(operationId);
+            contract && !contract->category.isEmpty()) {
+            m_customCategoryOperationIds[contract->category].append(operationId);
+        }
+    }
+    const auto categoryCard = new OptionListCard(tr("Custom Permission Categories"));
+    for (auto it = m_customCategoryOperationIds.constBegin();
+         it != m_customCategoryOperationIds.constEnd(); ++it) {
+        const auto operationIds = it.value();
+        const auto allEnabled = std::all_of(
+            operationIds.cbegin(), operationIds.cend(),
+            [option](const QString &operationId) {
+                return option->customPermissionEnabled(operationId);
+            });
+        auto *categorySwitch = new SwitchButton(allEnabled);
+        m_customCategorySwitches.insert(it.key(), categorySwitch);
+        connect(categorySwitch, &SwitchButton::toggled, this,
+                [this, operationIds](const bool enabled) {
+                    for (const auto &operationId : operationIds) {
+                        if (auto *operation = m_customPermissionSwitches.value(operationId)) {
+                            const QSignalBlocker blocker(operation);
+                            operation->setValue(enabled);
+                        }
+                    }
+                    modifyOption();
+                });
+        categoryCard->addItem(it.key(), categorySwitch);
+    }
     const auto customCard = new OptionListCard(tr("Custom Permissions"));
     if (m_customPermissionOperationIds.isEmpty()) {
         customCard->addItem(tr("No public operations available"),
@@ -119,7 +245,10 @@ QWidget *AutomationPage::createContentWidget() {
             auto *permissionSwitch =
                 new SwitchButton(option->customPermissionEnabled(operationId));
             m_customPermissionSwitches.insert(operationId, permissionSwitch);
-            connect(permissionSwitch, &SwitchButton::toggled, this, &AutomationPage::modifyOption);
+            connect(permissionSwitch, &SwitchButton::toggled, this, [this] {
+                refreshCategoryPermissionSwitches();
+                modifyOption();
+            });
             customCard->addItem(operationId, permissionSwitch);
         }
     }
@@ -127,26 +256,21 @@ QWidget *AutomationPage::createContentWidget() {
     m_readRoots = new PathEditor;
     m_readRoots->setPaths(option->readRoots);
     connect(m_readRoots, &PathEditor::pathsChanged, this, &AutomationPage::modifyOption);
-    const auto readRootsCard = new OptionsCard;
-    const auto readRootsLayout = new QHBoxLayout;
-    readRootsLayout->setContentsMargins(10, 10, 10, 10);
-    readRootsLayout->addWidget(m_readRoots);
-    readRootsCard->card()->setLayout(readRootsLayout);
-    readRootsCard->setTitle(tr("Allowed Read Roots"));
+    const auto readRootsCard = new OptionListCard(tr("Allowed Read Roots"));
+    m_readRootsItem = readRootsCard->addItem(
+        tr("Directories"), tr("Existing directories are stored as canonical paths"), m_readRoots);
 
     m_writeRoots = new PathEditor;
     m_writeRoots->setPaths(option->writeRoots);
     connect(m_writeRoots, &PathEditor::pathsChanged, this, &AutomationPage::modifyOption);
-    const auto writeRootsCard = new OptionsCard;
-    const auto writeRootsLayout = new QHBoxLayout;
-    writeRootsLayout->setContentsMargins(10, 10, 10, 10);
-    writeRootsLayout->addWidget(m_writeRoots);
-    writeRootsCard->card()->setLayout(writeRootsLayout);
-    writeRootsCard->setTitle(tr("Allowed Write Roots"));
+    const auto writeRootsCard = new OptionListCard(tr("Allowed Write Roots"));
+    m_writeRootsItem = writeRootsCard->addItem(
+        tr("Directories"), tr("Existing directories are stored as canonical paths"), m_writeRoots);
 
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(serverCard, 0, Qt::AlignTop);
     mainLayout->addWidget(accessCard, 0, Qt::AlignTop);
+    mainLayout->addWidget(categoryCard, 0, Qt::AlignTop);
     mainLayout->addWidget(customCard, 0, Qt::AlignTop);
     mainLayout->addWidget(readRootsCard, 0, Qt::AlignTop);
     mainLayout->addWidget(writeRootsCard, 0, Qt::AlignTop);

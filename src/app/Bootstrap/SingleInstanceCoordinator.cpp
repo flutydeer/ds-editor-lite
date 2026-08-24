@@ -12,6 +12,7 @@
 #include <QQueue>
 #include <QSet>
 #include <QThread>
+#include <QTimer>
 #include <QUuid>
 
 #ifdef Q_OS_WIN
@@ -112,6 +113,7 @@ private:
         QQueue<QByteArray> writeQueue;
         qsizetype pendingWriteBytes = 0;
         qint64 activeWriteBytes = 0;
+        QTimer *initialReadTimer = nullptr;
         bool initialized = false;
         bool closeWhenDrained = false;
     };
@@ -125,7 +127,12 @@ private:
                 continue;
             }
 
-            m_connections.insert(socket, {});
+            auto *initialReadTimer = new QTimer(socket);
+            initialReadTimer->setSingleShot(true);
+            initialReadTimer->setInterval(SingleInstanceProtocol::initialReadTimeoutMs);
+            ConnectionState state;
+            state.initialReadTimer = initialReadTimer;
+            m_connections.insert(socket, std::move(state));
             connect(socket, &QLocalSocket::readyRead, socket,
                     [this, socket] { readRequests(socket); });
             connect(socket, &QLocalSocket::bytesWritten, socket,
@@ -135,6 +142,12 @@ private:
                 m_connections.remove(socket);
                 socket->deleteLater();
             });
+            connect(initialReadTimer, &QTimer::timeout, socket, [this, socket] {
+                const auto it = m_connections.constFind(socket);
+                if (it != m_connections.constEnd() && !it->initialized)
+                    dropConnection(socket);
+            });
+            initialReadTimer->start();
         }
     }
 
@@ -157,6 +170,8 @@ private:
                 return;
             }
             it->initialized = true;
+            if (it->initialReadTimer)
+                it->initialReadTimer->stop();
             handleRequest(socket, payload);
             it = m_connections.find(socket);
             if (it == m_connections.end() || it->readBuffer.isEmpty())

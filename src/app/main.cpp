@@ -1,5 +1,7 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Automation/Mcp/EditorMcpController.h"
+#include "Automation/Public/PublicAutomationHostAdapter.h"
 #include "Bootstrap/AppEnvironment.h"
 #include "Bootstrap/CrashHandler.h"
 #include "Bootstrap/ExternalOpenRequestQueue.h"
@@ -22,6 +24,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QMessageBox>
+#include <QTextStream>
 #include <QUuid>
 
 #include <cstdlib>
@@ -33,7 +36,27 @@ int main(int argc, char *argv[]) {
     AppEnvironment::preInit();
     QApplication a(argc, argv);
     AppEnvironment::postInit();
-    const auto startupPaths = StartupArguments::projectFilePaths();
+    const auto parsedArguments = StartupArguments::parseApplicationArguments();
+    if (!parsedArguments.isValid()) {
+        QTextStream(stderr) << "Invalid startup argument " << parsedArguments.error->option << ": "
+                            << parsedArguments.error->message << Qt::endl;
+        return EXIT_FAILURE;
+    }
+    const auto &startupPaths = parsedArguments.projectFilePaths;
+    const auto nonInteractiveBootstrapErrors =
+        !parsedArguments.automation.isEmpty() ||
+        QApplication::platformName().compare(QStringLiteral("offscreen"), Qt::CaseInsensitive) ==
+            0 ||
+        qEnvironmentVariable("QT_QPA_PLATFORM")
+                .compare(QStringLiteral("offscreen"), Qt::CaseInsensitive) == 0;
+    const auto reportBootstrapError = [&](const QString &error) {
+        if (nonInteractiveBootstrapErrors) {
+            QTextStream(stderr) << "DS Editor Lite bootstrap error: " << error << Qt::endl;
+            return;
+        }
+        QMessageBox::critical(nullptr, QString::fromLatin1(LiteProductMetadata::ProductName),
+                              error);
+    };
     SingleInstanceRequest startupRequest{
         QUuid::createUuid().toString(QUuid::WithoutBraces),
         startupPaths.isEmpty() ? SingleInstanceCommand::Activate
@@ -48,14 +71,11 @@ int main(int argc, char *argv[]) {
             QString error;
             if (coordinator.forwardRequest(startupRequest, error))
                 return EXIT_SUCCESS;
-            QMessageBox::critical(
-                nullptr, QString::fromLatin1(LiteProductMetadata::ProductName), error);
+            reportBootstrapError(error);
             return EXIT_FAILURE;
         }
         case SingleInstanceCoordinator::StartResult::Error:
-            QMessageBox::critical(
-                nullptr, QString::fromLatin1(LiteProductMetadata::ProductName),
-                coordinator.errorString());
+            reportBootstrapError(coordinator.errorString());
             return EXIT_FAILURE;
         case SingleInstanceCoordinator::StartResult::Primary:
             break;
@@ -90,6 +110,11 @@ int main(int argc, char *argv[]) {
         packageManager->initialize(appOptions->general()->packageSearchPaths);
 
         MainWindow w;
+        Automation::EditorMcpController mcpController(
+            *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator,
+            parsedArguments.automation,
+            Automation::createPublicAutomationHostServices(*appContext.m_coreRuntime,
+                                                           appContext.m_appModel));
         WindowPlacement windowPlacement(w);
         windowPlacement.restoreOrPlace(appOptions->window()->mainWindowGeometry());
         ExternalOpenRequestQueue requestQueue(documentWorkflowController, &w);
