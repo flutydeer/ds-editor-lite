@@ -81,3 +81,7 @@ SpeakerMixBar {
     qproperty-dividerColor: ${speakerMix.divider};
     qproperty-dividerDraggingColor: ${speakerMix.dividerDragging};
 }
+
+SpeakerMixList QWidget#speakerMixDropIndicator {
+    background: ${speakerMix.dividerDragging};
+}
