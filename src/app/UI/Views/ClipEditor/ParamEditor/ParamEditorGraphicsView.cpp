@@ -312,8 +312,10 @@ void ParamEditorGraphicsView::setForeground(const ParamInfo::Name name,
 void ParamEditorGraphicsView::setBackground(const ParamInfo::Name name,
                                             const ParamProperties &properties) {
     m_backgroundParam = name;
+    const bool none = name == ParamInfo::Unknown;
+    m_background->setVisible(!none);
     m_background->setParamProperties(properties);
-    if (!m_clip) {
+    if (!m_clip || none) {
         m_background->clearParams();
         return;
     }

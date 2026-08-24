@@ -4454,6 +4454,12 @@ type: %L1</source>
         <source>Background</source>
         <translation>背景</translation>
     </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="53"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="177"/>
+        <source>(None)</source>
+        <translation>(无)</translation>
+    </message>
 </context>
 <context>
     <name>ParamEditorView</name>

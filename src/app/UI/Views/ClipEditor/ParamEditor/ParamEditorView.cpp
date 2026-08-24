@@ -210,7 +210,9 @@ void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) {
 
 void ParamEditorView::onBackgroundChanged(const ParamInfo::Name name) {
     m_backgroundParam = name;
-    qDebug() << "background changed" << paramUtils->nameFromType(name);
+    qDebug() << "background changed"
+             << (name == ParamInfo::Unknown ? QStringLiteral("(None)")
+                                            : paramUtils->nameFromType(name));
     m_graphicsView->setBackground(name, *paramUtils->getPropertiesByName(name));
     refreshParameterSupportState();
 }
