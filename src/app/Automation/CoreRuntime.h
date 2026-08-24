@@ -83,6 +83,7 @@ namespace Automation {
         ApplicationAutomationFacade m_applicationFacade;
         ParameterAutomationFacade m_parameterFacade;
         ProjectAutomationFacade m_projectFacade;
+        NoteAutomationFacade m_noteFacade;
         AudioExportAutomationFacade m_audioExportFacade;
         ExtractionAutomationFacade m_extractionFacade;
         DocumentAutomationFacade m_documentFacade;
@@ -90,7 +91,6 @@ namespace Automation {
         FileAutomationFacade m_fileFacade;
         HistoryAutomationFacade m_historyFacade;
         InferenceAutomationFacade m_inferenceFacade;
-        NoteAutomationFacade m_noteFacade;
         PackageAutomationFacade m_packageFacade;
         PlaybackAutomationFacade m_playbackFacade;
         PresetAutomationFacade m_presetFacade;

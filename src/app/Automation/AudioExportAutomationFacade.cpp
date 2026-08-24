@@ -22,14 +22,6 @@ namespace Automation {
             return error;
         }
 
-        AutomationError unsupported(const QString &field, const QString &message) {
-            AutomationError error;
-            error.code = AutomationErrorCode::Unsupported;
-            error.fieldPath = field;
-            error.message = message;
-            return error;
-        }
-
         AutomationError taskError(AutomationError error, const TaskId &taskId) {
             if (error.operationId.isEmpty())
                 error.operationId = OperationIds::exports::audio::start;
@@ -91,9 +83,9 @@ namespace Automation {
                     QStringLiteral("Audio export source option is invalid"));
             }
             if (config.sourceOption == selectedSourceOption) {
-                return unsupported(
+                return AutomationError::invalidArgument(
                     QStringLiteral("config.source_option"),
-                    QStringLiteral("Selected-track audio export is not implemented"));
+                    QStringLiteral("Selected-track audio export is unavailable"));
             }
             if (config.timeRange < 0 || config.timeRange > 1) {
                 return AutomationError::invalidArgument(
@@ -101,8 +93,9 @@ namespace Automation {
                     QStringLiteral("Audio export time range is invalid"));
             }
             if (config.timeRange == loopSectionRange) {
-                return unsupported(QStringLiteral("config.time_range"),
-                                   QStringLiteral("Loop-section audio export is not implemented"));
+                return AutomationError::invalidArgument(
+                    QStringLiteral("config.time_range"),
+                    QStringLiteral("Loop-section audio export is unavailable"));
             }
             QSet<int> uniqueSources;
             for (const auto source : config.sources) {
@@ -276,13 +269,12 @@ namespace Automation {
 
     AudioExportCapabilitiesDto AudioExportAutomationFacade::capabilities() {
         return {
-            .formats = {QStringLiteral("wav"), QStringLiteral("flac"),
-                        QStringLiteral("ogg"), QStringLiteral("mp3")},
+            .formats = {QStringLiteral("wav"), QStringLiteral("flac"), QStringLiteral("ogg"),
+                        QStringLiteral("mp3")},
             .sampleRates = {44100, 48000},
             .channelModes = {QStringLiteral("mono"), QStringLiteral("stereo")},
             .mixingModes = {QStringLiteral("mixed"), QStringLiteral("separated"),
-                            QStringLiteral("separated_through_master")},
-            // Selected-track export is deliberately omitted until the typed backend supports it.
+                        QStringLiteral("separated_through_master")},
             .sourceModes = {QStringLiteral("all"), QStringLiteral("custom")},
         };
     }
@@ -321,15 +313,13 @@ namespace Automation {
     AutomationResult<TaskAcceptedResult> AudioExportAutomationFacade::start(
         const CommandContext &context, const AudioExportConfigDto &config,
         const AudioExportPolicyDto &policy, AudioExportObserver observer,
-        AudioExportOutputAuthorizer authorizeOutputs,
-        AudioExportAccessRevalidator reauthorize) {
+        AudioExportOutputAuthorizer authorizeOutputs, AudioExportAccessRevalidator reauthorize) {
         const auto requestFingerprint = fingerprint(config, policy);
         return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
             OperationIds::exports::audio::start, context, requestFingerprint,
             [this, context, requestFingerprint, config, policy, observer = std::move(observer),
-             authorizeOutputs = std::move(authorizeOutputs),
-             reauthorize = std::move(reauthorize)](DocumentSession &session,
-                                                   const bool validateOnly) mutable {
+             authorizeOutputs = std::move(authorizeOutputs), reauthorize = std::move(reauthorize)](
+                DocumentSession &session, const bool validateOnly) mutable {
                 const auto valid = validateConfig(config);
                 if (!valid)
                     return AutomationResult<TaskAcceptedResult>(valid.getError());

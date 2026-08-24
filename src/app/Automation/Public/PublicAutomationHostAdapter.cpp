@@ -53,8 +53,7 @@ namespace Automation {
         }
 
         AutomationResult<PublicPreparedAudioPath> prepareAudioPath(const QString &path) {
-            std::unique_ptr<DecodeAudioTask> decodeTask(
-                AudioFilePreparer::createPrepareTask(path));
+            std::unique_ptr<DecodeAudioTask> decodeTask(AudioFilePreparer::createPrepareTask(path));
             if (!decodeTask || !decodeTask->io) {
                 return audioPathPreparationError(
                     QStringLiteral("No audio decoder is available for the selected file"));
@@ -102,9 +101,8 @@ namespace Automation {
                                     const bool importTimeSignature, CommandContext command,
                                     QObject *parent)
                 : QObject(parent), m_runtime(runtime), m_path(std::move(path)),
-                  m_mergeMode(std::move(mergeMode)), m_purpose(purpose),
-                  m_importTempo(importTempo), m_importTimeSignature(importTimeSignature),
-                  m_command(std::move(command)) {
+                  m_mergeMode(std::move(mergeMode)), m_purpose(purpose), m_importTempo(importTempo),
+                  m_importTimeSignature(importTimeSignature), m_command(std::move(command)) {
             }
 
             AutomationResult<TaskAcceptedResult> prepare() {
@@ -120,14 +118,14 @@ namespace Automation {
                     return error;
                 }
                 const auto descriptor = handler->descriptor();
-                const bool supported = m_purpose == ProjectLoadPurpose::Open
-                                           ? descriptor.canOpen
-                                           : descriptor.canImport;
+                const bool supported = m_purpose == ProjectLoadPurpose::Open ? descriptor.canOpen
+                                                                             : descriptor.canImport;
                 if (!supported) {
                     AutomationError error;
                     error.code = AutomationErrorCode::FormatUnsupported;
                     error.fieldPath = QStringLiteral("path");
-                    error.message = QStringLiteral("The project format does not support this operation");
+                    error.message =
+                        QStringLiteral("The project format does not support this operation");
                     return error;
                 }
                 if (m_command.validateOnly)
@@ -156,7 +154,8 @@ namespace Automation {
                 };
                 m_session = handler->createSession(request, nullptr, this);
                 if (!m_session) {
-                    auto error = unavailable(QStringLiteral("The project format could not create a load session"));
+                    auto error = unavailable(
+                        QStringLiteral("The project format could not create a load session"));
                     error.taskId = m_taskId;
                     m_runtime.automationTasks().fail(m_taskId, error);
                     return error;
@@ -174,7 +173,8 @@ namespace Automation {
                     deleteLater();
                 });
                 if (!m_runtime.automationTasks().markRunning(m_taskId)) {
-                    auto error = unavailable(QStringLiteral("The project load task could not start"));
+                    auto error =
+                        unavailable(QStringLiteral("The project load task could not start"));
                     error.taskId = m_taskId;
                     return error;
                 }
@@ -199,14 +199,14 @@ namespace Automation {
                     deleteLater();
                     return;
                 }
-                AutomationResult<MutationResult> result = unavailable(
-                    QStringLiteral("The project loader returned no project"));
+                AutomationResult<MutationResult> result =
+                    unavailable(QStringLiteral("The project loader returned no project"));
                 if (auto *replace = std::get_if<ReplaceProjectPayload>(&prepared)) {
                     const auto draft = documentDraftDto(replace->model, replace->loopSettings);
                     result = m_runtime.documents().commitOpenedDocument(
                         m_command, draft,
                         replace->sourceKind == ProjectSourceKind::Native ? replace->sourcePath
-                                                                        : QString(),
+                                                                         : QString(),
                         replace->sourceKind == ProjectSourceKind::Native
                             ? QFileInfo(replace->sourcePath).fileName()
                             : replace->displayName,
@@ -240,13 +240,254 @@ namespace Automation {
             QPointer<IProjectLoadSession> m_session;
         };
 
-        AutomationResult<TaskAcceptedResult> startProjectLoad(
-            CoreRuntime &runtime, const QString &path, const QString &mergeMode,
-            const ProjectLoadPurpose purpose, const bool importTempo,
-            const bool importTimeSignature, CommandContext command) {
+        AutomationResult<TaskAcceptedResult>
+            startProjectLoad(CoreRuntime &runtime, const QString &path, const QString &mergeMode,
+                             const ProjectLoadPurpose purpose, const bool importTempo,
+                             const bool importTimeSignature, CommandContext command) {
             auto *state = new HeadlessProjectLoadTask(
                 runtime, path, mergeMode, purpose, importTempo, importTimeSignature,
                 std::move(command), QCoreApplication::instance());
+            auto result = state->prepare();
+            if (!result || result.get().validatedOnly)
+                state->deleteLater();
+            return result;
+        }
+
+        class HeadlessProjectBatchLoadTask final : public QObject {
+        public:
+            HeadlessProjectBatchLoadTask(CoreRuntime &runtime, AppModel *model,
+                                         PublicDocumentBatchImportRequest request, QObject *parent)
+                : QObject(parent), m_runtime(runtime), m_model(model),
+                  m_request(std::move(request)) {
+            }
+
+            AutomationResult<TaskAcceptedResult> prepare() {
+                auto base = validateBase(m_runtime, m_request.command);
+                if (!base)
+                    return base.getError();
+                if (!m_model)
+                    return unavailable(QStringLiteral("The project model is unavailable"));
+
+                for (const auto &item : std::as_const(m_request.items)) {
+                    const auto validation = validateItem(item);
+                    if (!validation && m_request.failurePolicy == PublicBatchFailurePolicy::Atomic)
+                        return validation.getError();
+                }
+                if (m_request.command.validateOnly)
+                    return TaskAcceptedResult{{}, base.get(), true};
+
+                m_batch.timeline = m_model->timeline();
+                const QPointer<HeadlessProjectBatchLoadTask> weak(this);
+                const auto task = m_runtime.automationTasks().createTask(
+                    OperationIds::documents::import_batch, base.get(), std::nullopt,
+                    [weak] {
+                        if (weak)
+                            weak->cancel();
+                    },
+                    m_request.command.clientId);
+                m_taskId = task.taskId;
+                m_request.command.taskId = m_taskId;
+                if (!m_runtime.automationTasks().markRunning(m_taskId)) {
+                    auto failure = unavailable(
+                        QStringLiteral("The project batch import task could not start"));
+                    failure.taskId = m_taskId;
+                    return failure;
+                }
+                QTimer::singleShot(0, this, [this] { startNext(); });
+                return TaskAcceptedResult{m_taskId, base.get(), false};
+            }
+
+        private:
+            AutomationResult<IProjectFormatHandler *>
+                validateItem(const PublicDocumentBatchImportItem &item) const {
+                if (item.validationError)
+                    return *item.validationError;
+                auto *handler = projectFormatRegistry->resolveByPath(item.canonicalPath);
+                if (!handler) {
+                    AutomationError failure;
+                    failure.code = AutomationErrorCode::FormatUnsupported;
+                    failure.fieldPath = QStringLiteral("items.path");
+                    failure.message =
+                        QStringLiteral("No project format handler accepts an import item");
+                    return failure;
+                }
+                const auto descriptor = handler->descriptor();
+                if (!descriptor.canImport ||
+                    (!item.formatId.isEmpty() && descriptor.id != item.formatId)) {
+                    AutomationError failure;
+                    failure.code = AutomationErrorCode::FormatUnsupported;
+                    failure.fieldPath = QStringLiteral("items.format_id");
+                    failure.message =
+                        QStringLiteral("The selected project format cannot import this item");
+                    return failure;
+                }
+                return handler;
+            }
+
+            void cancel() {
+                if (m_session)
+                    m_session->cancel();
+            }
+
+            void startNext() {
+                if (m_finished)
+                    return;
+                if (m_runtime.automationTasks().isCancellationRequested(m_taskId)) {
+                    finishCanceled();
+                    return;
+                }
+                if (m_index >= m_request.items.size()) {
+                    commit();
+                    return;
+                }
+
+                const auto &item = m_request.items.at(m_index);
+                auto handler = validateItem(item);
+                if (!handler) {
+                    handleFailure(handler.getError());
+                    return;
+                }
+                const auto options = item.options;
+                ProjectLoadRequest loadRequest{
+                    .filePath = item.canonicalPath,
+                    .purpose = ProjectLoadPurpose::Import,
+                    .requestId = static_cast<quint64>(m_index + 1),
+                    .interactive = false,
+                    .importTempo = options.value(QStringLiteral("import_tempo")).toBool(true),
+                    .importTimeSignature =
+                        options.value(QStringLiteral("import_time_signatures")).toBool(true),
+                };
+                m_session = handler.get()->createSession(loadRequest, nullptr, this);
+                if (!m_session) {
+                    handleFailure(unavailable(
+                        QStringLiteral("A project format could not create an import session")));
+                    return;
+                }
+                connect(m_session, &IProjectLoadSession::ready, this,
+                        [this] { collect(m_session->takeResult()); });
+                connect(m_session, &IProjectLoadSession::failed, this,
+                        [this](const ProjectOperationError &source) {
+                            handleFailure(projectLoadError(source, m_taskId));
+                        });
+                connect(m_session, &IProjectLoadSession::canceled, this,
+                        [this] { finishCanceled(); });
+                m_session->start();
+            }
+
+            void collect(PreparedProject prepared) {
+                if (m_finished)
+                    return;
+                auto *append = std::get_if<AppendProjectPayload>(&prepared);
+                if (!append) {
+                    handleFailure(unavailable(QStringLiteral(
+                        "A batch import item returned a non-import project payload")));
+                    return;
+                }
+
+                const auto options = m_request.items.at(m_index).options;
+                const auto importTempo =
+                    options.value(QStringLiteral("import_tempo")).toBool(true) &&
+                    append->importTempo;
+                const auto importTimeSignatures =
+                    options.value(QStringLiteral("import_time_signatures")).toBool(true) &&
+                    append->importTimeSignature;
+                const auto draft = documentDraftDto(append->model);
+                if (importTempo && !m_importedTempo) {
+                    m_batch.timeline.setTempos(draft.timeline.tempos());
+                    m_importedTempo = true;
+                }
+                if (importTimeSignatures && !m_importedTimeSignatures) {
+                    m_batch.timeline.setTimeSignatures(draft.timeline.timeSignatures());
+                    m_importedTimeSignatures = true;
+                }
+                for (auto track : draft.tracks) {
+                    BatchImportItemDraftDto item;
+                    item.clips = track.clips;
+                    track.clips.clear();
+                    item.newTrack = std::move(track);
+                    if (!item.clips.isEmpty())
+                        m_batch.items.append(std::move(item));
+                }
+                if (draft.tracks.isEmpty()) {
+                    m_warnings.append(QStringLiteral("An import item contained no tracks"));
+                }
+                advance();
+            }
+
+            void handleFailure(AutomationError failure) {
+                if (m_finished)
+                    return;
+                if (m_request.failurePolicy == PublicBatchFailurePolicy::Atomic) {
+                    failure.taskId = m_taskId;
+                    m_runtime.automationTasks().fail(m_taskId, std::move(failure));
+                    finish();
+                    return;
+                }
+                m_warnings.append(failure.message);
+                advance();
+            }
+
+            void advance() {
+                if (m_session) {
+                    m_session->deleteLater();
+                    m_session = nullptr;
+                }
+                ++m_index;
+                QTimer::singleShot(0, this, [this] { startNext(); });
+            }
+
+            void commit() {
+                const auto committing = m_runtime.automationTasks().beginCommitting(m_taskId);
+                if (!committing || !committing.get()) {
+                    if (!committing)
+                        m_runtime.automationTasks().fail(m_taskId, committing.getError());
+                    finish();
+                    return;
+                }
+                auto result = m_runtime.project().commitBatchImport(m_request.command, m_batch);
+                if (result) {
+                    auto mutation = result.get();
+                    mutation.warnings.append(m_warnings);
+                    m_runtime.automationTasks().succeed(m_taskId, std::move(mutation));
+                } else {
+                    auto failure = result.getError();
+                    failure.taskId = m_taskId;
+                    m_runtime.automationTasks().fail(m_taskId, std::move(failure));
+                }
+                finish();
+            }
+
+            void finishCanceled() {
+                if (!m_finished)
+                    m_runtime.automationTasks().cancel(m_taskId);
+                finish();
+            }
+
+            void finish() {
+                if (m_finished)
+                    return;
+                m_finished = true;
+                deleteLater();
+            }
+
+            CoreRuntime &m_runtime;
+            AppModel *m_model = nullptr;
+            PublicDocumentBatchImportRequest m_request;
+            BatchImportDraftDto m_batch;
+            QStringList m_warnings;
+            TaskId m_taskId;
+            qsizetype m_index = 0;
+            bool m_importedTempo = false;
+            bool m_importedTimeSignatures = false;
+            bool m_finished = false;
+            QPointer<IProjectLoadSession> m_session;
+        };
+
+        AutomationResult<TaskAcceptedResult>
+            startProjectBatchLoad(CoreRuntime &runtime, AppModel *model,
+                                  PublicDocumentBatchImportRequest request) {
+            auto *state = new HeadlessProjectBatchLoadTask(runtime, model, std::move(request),
+                                                           QCoreApplication::instance());
             auto result = state->prepare();
             if (!result || result.get().validatedOnly)
                 state->deleteLater();
@@ -285,8 +526,9 @@ namespace Automation {
                                     QList<ClipInsertDto> clips,
                                     const PublicBatchFailurePolicy failurePolicy,
                                     QString operationId, QObject *parent)
-                : QObject(parent), m_runtime(runtime), m_model(model), m_command(std::move(command)),
-                  m_failurePolicy(failurePolicy), m_operationId(std::move(operationId)) {
+                : QObject(parent), m_runtime(runtime), m_model(model),
+                  m_command(std::move(command)), m_failurePolicy(failurePolicy),
+                  m_operationId(std::move(operationId)) {
                 m_entries.reserve(clips.size());
                 for (auto &clip : clips)
                     m_entries.append({std::move(clip)});
@@ -298,7 +540,8 @@ namespace Automation {
                     return base.getError();
                 if (!m_model || m_entries.isEmpty()) {
                     return AutomationError::invalidArgument(
-                        QStringLiteral("items"), QStringLiteral("No audio import items were supplied"));
+                        QStringLiteral("items"),
+                        QStringLiteral("No audio import items were supplied"));
                 }
 
                 for (auto &entry : m_entries) {
@@ -307,14 +550,15 @@ namespace Automation {
                         const auto path = entry.request.clip.audioPath;
                         delete entry.task;
                         entry.task = nullptr;
-                        entry.error = QStringLiteral("No audio decoder is available for %1").arg(path);
+                        entry.error =
+                            QStringLiteral("No audio decoder is available for %1").arg(path);
                     }
                 }
 
                 if (m_command.validateOnly) {
-                    const auto invalid = std::find_if(
-                        m_entries.cbegin(), m_entries.cend(),
-                        [](const Entry &entry) { return !entry.error.isEmpty(); });
+                    const auto invalid =
+                        std::find_if(m_entries.cbegin(), m_entries.cend(),
+                                     [](const Entry &entry) { return !entry.error.isEmpty(); });
                     for (auto &entry : m_entries) {
                         delete entry.task;
                         entry.task = nullptr;
@@ -358,9 +602,9 @@ namespace Automation {
                         continue;
                     ++m_remaining;
                     auto *decodeTask = entry.task;
-                    connect(decodeTask, &Task::finished, this,
-                            [this, decodeTask] { handleFinished(decodeTask); },
-                            Qt::QueuedConnection);
+                    connect(
+                        decodeTask, &Task::finished, this,
+                        [this, decodeTask] { handleFinished(decodeTask); }, Qt::QueuedConnection);
                     QThreadPool::globalInstance()->start(decodeTask);
                 }
                 if (m_remaining == 0)
@@ -396,10 +640,9 @@ namespace Automation {
             }
 
             void handleFinished(DecodeAudioTask *task) {
-                const auto found = std::find_if(m_entries.begin(), m_entries.end(),
-                                                [task](const Entry &entry) {
-                                                    return entry.task == task;
-                                                });
+                const auto found =
+                    std::find_if(m_entries.begin(), m_entries.end(),
+                                 [task](const Entry &entry) { return entry.task == task; });
                 if (found == m_entries.end())
                     return;
                 if (task->terminated()) {
@@ -435,9 +678,8 @@ namespace Automation {
                     properties.clipLen = std::max(1, properties.length - properties.clipStart);
                 const auto visibleStart = start + properties.clipStart;
                 properties.trimStartMs = timeline.tickToMs(visibleStart) - startMs;
-                properties.playLengthMs =
-                    timeline.tickToMs(visibleStart + properties.clipLen) -
-                    timeline.tickToMs(visibleStart);
+                properties.playLengthMs = timeline.tickToMs(visibleStart + properties.clipLen) -
+                                          timeline.tickToMs(visibleStart);
                 properties.materialLengthMs = prepared.durationMs;
                 clip.audioPath = prepared.path;
                 clip.audioInfo = prepared.audioInfo;
@@ -542,13 +784,14 @@ namespace Automation {
             qsizetype m_remaining = 0;
         };
 
-        AutomationResult<TaskAcceptedResult> startAudioImport(
-            CoreRuntime &runtime, AppModel *model, CommandContext command,
-            QList<ClipInsertDto> clips, const PublicBatchFailurePolicy failurePolicy,
-            const QString &operationId) {
-            auto *state = new HeadlessAudioImportTask(
-                runtime, model, std::move(command), std::move(clips), failurePolicy, operationId,
-                QCoreApplication::instance());
+        AutomationResult<TaskAcceptedResult>
+            startAudioImport(CoreRuntime &runtime, AppModel *model, CommandContext command,
+                             QList<ClipInsertDto> clips,
+                             const PublicBatchFailurePolicy failurePolicy,
+                             const QString &operationId) {
+            auto *state = new HeadlessAudioImportTask(runtime, model, std::move(command),
+                                                      std::move(clips), failurePolicy, operationId,
+                                                      QCoreApplication::instance());
             auto result = state->prepare();
             if (!result || result.get().validatedOnly)
                 state->deleteLater();
@@ -568,23 +811,23 @@ namespace Automation {
             if (project) {
                 for (const auto &track : project.get().tracks) {
                     sources.append(QJsonObject{
-                        {QStringLiteral("id"), track.id.value()},
+                        {QStringLiteral("id"),        track.id.value()       },
                         {QStringLiteral("name"),
                          track.data.name.isEmpty()
                              ? QStringLiteral("Track %1").arg(track.id.value())
-                             : track.data.name},
-                        {QStringLiteral("kind"), QStringLiteral("track")},
-                        {QStringLiteral("available"), true},
+                             : track.data.name                               },
+                        {QStringLiteral("kind"),      QStringLiteral("track")},
+                        {QStringLiteral("available"), true                   },
                     });
                 }
             }
             return {
-                {QStringLiteral("formats"), toJson(supported.formats)},
-                {QStringLiteral("sample_rates"), toJson(supported.sampleRates)},
+                {QStringLiteral("formats"),       toJson(supported.formats)     },
+                {QStringLiteral("sample_rates"),  toJson(supported.sampleRates) },
                 {QStringLiteral("channel_modes"), toJson(supported.channelModes)},
-                {QStringLiteral("mixing_modes"), toJson(supported.mixingModes)},
-                {QStringLiteral("source_modes"), toJson(supported.sourceModes)},
-                {QStringLiteral("sources"), sources},
+                {QStringLiteral("mixing_modes"),  toJson(supported.mixingModes) },
+                {QStringLiteral("source_modes"),  toJson(supported.sourceModes) },
+                {QStringLiteral("sources"),       sources                       },
             };
         }
 
@@ -599,7 +842,8 @@ namespace Automation {
                     for (const auto &clip : track.clips) {
                         if (clip.id == clipId) {
                             sourceSupported = clip.data.type == ClipDraftDto::Type::Audio;
-                            sourceReady = sourceSupported && QFileInfo(clip.data.audioPath).isFile();
+                            sourceReady =
+                                sourceSupported && QFileInfo(clip.data.audioPath).isFile();
                             for (const auto &language : track.data.singerInfo.languages())
                                 languages.append(language.id());
                             break;
@@ -621,8 +865,7 @@ namespace Automation {
             const auto optionSchema = [](const QString &operationId) {
                 const auto *contract = AutomationWire::findPublicTool(operationId);
                 const auto options = contract
-                                         ? contract->inputSchema
-                                               .value(QStringLiteral("properties"))
+                                         ? contract->inputSchema.value(QStringLiteral("properties"))
                                                .toObject()
                                                .value(QStringLiteral("options"))
                                                .toObject()
@@ -634,13 +877,13 @@ namespace Automation {
                                   const QString &moduleReason) {
                 const bool available = configured && moduleReady;
                 return QJsonObject{
-                    {QStringLiteral("model_id"), id},
-                    {QStringLiteral("display_name"), name},
-                    {QStringLiteral("configured"), configured},
-                    {QStringLiteral("available"), available},
-                    {QStringLiteral("unavailable_reason"),
-                     available ? QString()
-                               : configured ? moduleReason : configurationReason},
+                    {QStringLiteral("model_id"),           id                                                                                          },
+                    {QStringLiteral("display_name"),       name                                                                                        },
+                    {QStringLiteral("configured"),         configured                                                                                  },
+                    {QStringLiteral("available"),          available                                                                                   },
+                    {QStringLiteral("unavailable_reason"), available    ? QString()
+                                                           : configured ? moduleReason
+                                                                        : configurationReason},
                 };
             };
             const auto capabilityReason = [](const bool sourceSupported, const bool sourceReady,
@@ -658,7 +901,7 @@ namespace Automation {
                 return QString();
             };
             return {
-                {QStringLiteral("clip_id"), clipId.value()},
+                {QStringLiteral("clip_id"),   clipId.value()},
                 {QStringLiteral("pitch"),
                  QJsonObject{
                      {QStringLiteral("supported"), true},
@@ -666,27 +909,25 @@ namespace Automation {
                      {QStringLiteral("available"),
                       sourceReady && pitchModuleReady && pitchConfigured},
                      {QStringLiteral("module_state"),
-                      pitchModuleReady ? QStringLiteral("ready")
-                                       : QStringLiteral("unavailable")},
+                      pitchModuleReady ? QStringLiteral("ready") : QStringLiteral("unavailable")},
                      {QStringLiteral("unavailable_reason"),
                       capabilityReason(sourceSupported, sourceReady, pitchModuleReady,
                                        pitchConfigured,
                                        QStringLiteral("Pitch extraction module is unavailable"),
                                        QStringLiteral("RMVPE model is not configured"))},
                      {QStringLiteral("models"),
-                      QJsonArray{model(
-                          QStringLiteral("rmvpe"), QStringLiteral("RMVPE"), pitchConfigured,
-                          pitchModuleReady, QStringLiteral("RMVPE model is not configured"),
-                          QStringLiteral("Pitch extraction module is unavailable"))}},
+                      QJsonArray{model(QStringLiteral("rmvpe"), QStringLiteral("RMVPE"),
+                                       pitchConfigured, pitchModuleReady,
+                                       QStringLiteral("RMVPE model is not configured"),
+                                       QStringLiteral("Pitch extraction module is unavailable"))}},
                      {QStringLiteral("option_schema"),
                       optionSchema(OperationIds::extract::pitch::start)},
                      {QStringLiteral("range_support"),
                       QJsonObject{
-                          {QStringLiteral("source_range"),
-                           QStringLiteral("visible_audio_clip")},
+                          {QStringLiteral("source_range"), QStringLiteral("visible_audio_clip")},
                           {QStringLiteral("custom_frequency"), false},
                       }},
-                 }},
+                 }                                          },
                 {QStringLiteral("midi"),
                  QJsonObject{
                      {QStringLiteral("supported"), true},
@@ -694,34 +935,30 @@ namespace Automation {
                      {QStringLiteral("available"),
                       sourceReady && midiModuleReady && midiConfigured},
                      {QStringLiteral("module_state"),
-                      midiModuleReady ? QStringLiteral("ready")
-                                      : QStringLiteral("unavailable")},
+                      midiModuleReady ? QStringLiteral("ready") : QStringLiteral("unavailable")},
                      {QStringLiteral("unavailable_reason"),
                       capabilityReason(sourceSupported, sourceReady, midiModuleReady,
                                        midiConfigured,
                                        QStringLiteral("MIDI extraction module is unavailable"),
                                        QStringLiteral("GAME model directory is not configured"))},
                      {QStringLiteral("models"),
-                      QJsonArray{model(
-                          QStringLiteral("game"), QStringLiteral("GAME"), midiConfigured,
-                          midiModuleReady,
-                          QStringLiteral("GAME model directory is not configured"),
-                          QStringLiteral("MIDI extraction module is unavailable"))}},
+                      QJsonArray{model(QStringLiteral("game"), QStringLiteral("GAME"),
+                                       midiConfigured, midiModuleReady,
+                                       QStringLiteral("GAME model directory is not configured"),
+                                       QStringLiteral("MIDI extraction module is unavailable"))}},
                      {QStringLiteral("option_schema"),
                       optionSchema(OperationIds::extract::midi::start)},
                      {QStringLiteral("range_support"),
                       QJsonObject{
-                          {QStringLiteral("source_range"),
-                           QStringLiteral("visible_audio_clip")},
+                          {QStringLiteral("source_range"), QStringLiteral("visible_audio_clip")},
                           {QStringLiteral("minimum_note_length"),
                            QJsonObject{
                                {QStringLiteral("minimum"), 1},
-                               {QStringLiteral("maximum"),
-                                std::numeric_limits<int>::max()},
+                               {QStringLiteral("maximum"), std::numeric_limits<int>::max()},
                            }},
                       }},
-                 }},
-                {QStringLiteral("languages"), languages},
+                 }                                          },
+                {QStringLiteral("languages"), languages     },
             };
         }
 
@@ -766,8 +1003,8 @@ namespace Automation {
                                                         PublicInferenceResetRequest request) {
             const auto stage = inferenceStage(request.stage);
             if (!stage) {
-                return AutomationError::invalidArgument(QStringLiteral("stage"),
-                                                        QStringLiteral("Inference stage is invalid"));
+                return AutomationError::invalidArgument(
+                    QStringLiteral("stage"), QStringLiteral("Inference stage is invalid"));
             }
             InferenceMutationRequest mutation;
             mutation.kind = InferenceMutationKind::ResetStage;
@@ -876,15 +1113,13 @@ namespace Automation {
             if (!settings)
                 return settings.getError();
             const auto &active = settings.get().inference;
-            const auto provider =
-                m_request.options.value(QStringLiteral("provider_id")).toString();
+            const auto provider = m_request.options.value(QStringLiteral("provider_id")).toString();
             if (!provider.isEmpty() && provider != active.executionProvider) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("options.provider_id"),
                     QStringLiteral("The requested inference provider is not active"));
             }
-            const auto device =
-                m_request.options.value(QStringLiteral("device_id")).toString();
+            const auto device = m_request.options.value(QStringLiteral("device_id")).toString();
             if (!device.isEmpty() && device != active.selectedGpuId) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("options.device_id"),
@@ -937,9 +1172,8 @@ namespace Automation {
                 fail(inferenceError(QStringLiteral("The inference task could not start")));
                 return;
             }
-            auto reset = resetInference(
-                m_runtime, m_model,
-                {m_request.command, m_request.scope, m_earliestStage});
+            auto reset = resetInference(m_runtime, m_model,
+                                        {m_request.command, m_request.scope, m_earliestStage});
             if (!reset) {
                 fail(reset.getError());
                 return;
@@ -1028,10 +1262,10 @@ namespace Automation {
             deleteLater();
         }
 
-        AutomationResult<TaskAcceptedResult> startInference(
-            CoreRuntime &runtime, AppModel *model, PublicInferenceStartRequest request) {
-            auto *state = new HeadlessInferenceTask(
-                runtime, model, std::move(request), QCoreApplication::instance());
+        AutomationResult<TaskAcceptedResult> startInference(CoreRuntime &runtime, AppModel *model,
+                                                            PublicInferenceStartRequest request) {
+            auto *state = new HeadlessInferenceTask(runtime, model, std::move(request),
+                                                    QCoreApplication::instance());
             auto result = state->prepare();
             if (!result || result.get().validatedOnly)
                 state->deleteLater();
@@ -1062,14 +1296,21 @@ namespace Automation {
                                     ProjectLoadPurpose::Import, request.importTempo,
                                     request.importTimeSignature, request.command);
         };
+        services.importDocuments = [&runtime,
+                                    model](const PublicDocumentBatchImportRequest &request) {
+            return startProjectBatchLoad(runtime, model, request);
+        };
         services.importAudioClip = [&runtime, model](const PublicAudioClipImportRequest &request) {
             return startAudioImport(
                 runtime, model, request.command,
-                {{request.trackId,
-                  audioClipDraft(request.canonicalPath, request.properties, request.clientRef)}},
+                {
+                    {request.trackId,
+                     audioClipDraft(request.canonicalPath, request.properties, request.clientRef)}
+            },
                 PublicBatchFailurePolicy::Atomic, QStringLiteral("audio_clips.import"));
         };
-        services.importAudioClips = [&runtime, model](const PublicAudioClipBatchImportRequest &request) {
+        services.importAudioClips = [&runtime,
+                                     model](const PublicAudioClipBatchImportRequest &request) {
             QList<ClipInsertDto> clips;
             clips.reserve(request.items.size());
             for (const auto &item : request.items) {
@@ -1106,20 +1347,20 @@ namespace Automation {
             if (settings) {
                 const auto &inference = settings.get().inference;
                 providers.append(QJsonObject{
-                    {QStringLiteral("id"), inference.executionProvider},
-                    {QStringLiteral("display_name"), inference.executionProvider},
-                    {QStringLiteral("available"), !inference.executionProvider.isEmpty()},
+                    {QStringLiteral("id"),                 inference.executionProvider           },
+                    {QStringLiteral("display_name"),       inference.executionProvider           },
+                    {QStringLiteral("available"),          !inference.executionProvider.isEmpty()},
                     {QStringLiteral("unavailable_reason"),
                      inference.executionProvider.isEmpty()
                          ? QStringLiteral("No inference provider is configured")
-                         : QString()},
+                         : QString()                                                             },
                 });
                 if (!inference.selectedGpuId.isEmpty()) {
                     devices.append(QJsonObject{
-                        {QStringLiteral("id"), inference.selectedGpuId},
-                        {QStringLiteral("display_name"), inference.selectedGpuId},
-                        {QStringLiteral("available"), true},
-                        {QStringLiteral("unavailable_reason"), QString()},
+                        {QStringLiteral("id"),                 inference.selectedGpuId},
+                        {QStringLiteral("display_name"),       inference.selectedGpuId},
+                        {QStringLiteral("available"),          true                   },
+                        {QStringLiteral("unavailable_reason"), QString()              },
                     });
                 }
             }
@@ -1135,23 +1376,24 @@ namespace Automation {
                     continue;
                 modelIds.insert(id);
                 models.append(QJsonObject{
-                    {QStringLiteral("model_id"), id},
-                    {QStringLiteral("display_name"), identifier.singerId},
-                    {QStringLiteral("available"), engineReady},
+                    {QStringLiteral("model_id"),           id                               },
+                    {QStringLiteral("display_name"),       identifier.singerId              },
+                    {QStringLiteral("available"),          engineReady                      },
                     {QStringLiteral("unavailable_reason"),
                      engineReady ? QString()
                                  : QStringLiteral("The inference engine is not initialized")},
                 });
             }
             return AutomationResult<QJsonValue>(QJsonObject{
-                {QStringLiteral("scope"), scope},
-                {QStringLiteral("stages"), stages},
+                {QStringLiteral("scope"),     scope    },
+                {QStringLiteral("stages"),    stages   },
                 {QStringLiteral("providers"), providers},
-                {QStringLiteral("devices"), devices},
-                {QStringLiteral("models"), models},
+                {QStringLiteral("devices"),   devices  },
+                {QStringLiteral("models"),    models   },
             });
         };
-        services.resetInferenceStage = [&runtime, model](const PublicInferenceResetRequest &request) {
+        services.resetInferenceStage = [&runtime,
+                                        model](const PublicInferenceResetRequest &request) {
             return resetInference(runtime, model, request);
         };
         services.startInference = [&runtime, model](const PublicInferenceStartRequest &request) {

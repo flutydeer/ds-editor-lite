@@ -279,6 +279,7 @@ namespace {
             QJsonArray keyframes;
             for (const auto &keyframe : normalized.dynamicKeyframes) {
                 QJsonObject keyframeObj;
+                keyframeObj["id"] = keyframe.id;
                 keyframeObj["tick"] = keyframe.tick;
                 keyframeObj["weights"] = encodeWeights(keyframe.weights);
                 keyframes.append(keyframeObj);
@@ -400,6 +401,8 @@ namespace {
             for (const auto &keyframeValue : keyframesArray) {
                 const auto keyframeObj = keyframeValue.toObject();
                 SpeakerMixKeyframe keyframe;
+                if (const auto id = keyframeObj["id"].toInt(-1); id >= 0)
+                    keyframe.id = id;
                 keyframe.tick = keyframeObj["tick"].toInt();
                 const auto remapped = remapWeights(decodeWeights(keyframeObj["weights"].toArray()));
                 // 若 weights 长度不匹配则跳过该 keyframe（normalize 会处理空 keyframes）
@@ -1381,14 +1384,12 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         }
         if (!file.flush()) {
             file.cancelWriting();
-            msg += QCoreApplication::translate("DspxProjectConverter",
-                                               "Failed to flush file: %1")
+            msg += QCoreApplication::translate("DspxProjectConverter", "Failed to flush file: %1")
                        .arg(filePath);
             return false;
         }
         if (!file.commit()) {
-            msg += QCoreApplication::translate("DspxProjectConverter",
-                                               "Failed to commit file: %1")
+            msg += QCoreApplication::translate("DspxProjectConverter", "Failed to commit file: %1")
                        .arg(filePath);
             return false;
         }

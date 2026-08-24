@@ -111,7 +111,7 @@ namespace SpeakerMixModel {
     }
 
     bool SpeakerMixKeyframe::operator==(const SpeakerMixKeyframe &other) const {
-        return tick == other.tick && weights == other.weights;
+        return tick == other.tick && weights == other.weights && id == other.id;
     }
 
     bool SpeakerMixKeyframe::operator!=(const SpeakerMixKeyframe &other) const {
@@ -120,8 +120,8 @@ namespace SpeakerMixModel {
 
     bool SpeakerMixData::operator==(const SpeakerMixData &other) const {
         return mode == other.mode && dynamicBypassed == other.dynamicBypassed &&
-               sources == other.sources &&
-               fixedWeights == other.fixedWeights && dynamicKeyframes == other.dynamicKeyframes &&
+               sources == other.sources && fixedWeights == other.fixedWeights &&
+               dynamicKeyframes == other.dynamicKeyframes &&
                sourcePresetId == other.sourcePresetId &&
                sourcePresetName == other.sourcePresetName &&
                sourcePresetDirty == other.sourcePresetDirty;

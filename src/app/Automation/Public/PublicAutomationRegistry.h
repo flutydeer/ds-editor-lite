@@ -50,6 +50,20 @@ namespace Automation {
         QString mergeMode;
     };
 
+    struct PublicDocumentBatchImportItem {
+        QString canonicalPath;
+        QString formatId;
+        QJsonObject options;
+        QString planDigest;
+        std::optional<AutomationError> validationError;
+    };
+
+    struct PublicDocumentBatchImportRequest {
+        CommandContext command;
+        QList<PublicDocumentBatchImportItem> items;
+        PublicBatchFailurePolicy failurePolicy = PublicBatchFailurePolicy::Atomic;
+    };
+
     struct PublicAudioClipProperties {
         std::optional<QString> name;
         std::optional<int> start;
@@ -109,9 +123,13 @@ namespace Automation {
             openDocument;
         std::function<AutomationResult<TaskAcceptedResult>(const PublicDocumentImportRequest &)>
             importDocument;
+        std::function<AutomationResult<TaskAcceptedResult>(
+            const PublicDocumentBatchImportRequest &)>
+            importDocuments;
         std::function<AutomationResult<TaskAcceptedResult>(const PublicAudioClipImportRequest &)>
             importAudioClip;
-        std::function<AutomationResult<TaskAcceptedResult>(const PublicAudioClipBatchImportRequest &)>
+        std::function<AutomationResult<TaskAcceptedResult>(
+            const PublicAudioClipBatchImportRequest &)>
             importAudioClips;
         std::function<AutomationResult<PublicPreparedAudioPath>(const QString &canonicalPath)>
             prepareAudioPath;
@@ -148,13 +166,15 @@ namespace Automation {
 
         void registerBindings();
         void addBinding(const QString &trackingId, Handler handler);
-        [[nodiscard]] const AutomationWire::ToolContract *contractForTracking(
-            const QString &trackingId) const;
-        AutomationResult<QJsonArray> resolveValueOptions(
-            const AutomationWire::ToolContract &target, const QString &fieldPath,
-            const QJsonObject &partialArguments);
-        AutomationResult<AutomationUnit> validateDynamicArguments(
-            const AutomationWire::ToolContract &target, const QJsonObject &arguments);
+        void addOperationBinding(const QString &operationId, Handler handler);
+        [[nodiscard]] const AutomationWire::ToolContract *
+            contractForTracking(const QString &trackingId) const;
+        AutomationResult<QJsonArray> resolveValueOptions(const AutomationWire::ToolContract &target,
+                                                         const QString &fieldPath,
+                                                         const QJsonObject &partialArguments);
+        AutomationResult<AutomationUnit>
+            validateDynamicArguments(const AutomationWire::ToolContract &target,
+                                     const QJsonObject &arguments);
 
         CoreRuntime &m_runtime;
         AutomationAccessPolicy &m_accessPolicy;
@@ -164,6 +184,7 @@ namespace Automation {
         QHash<QString, Handler> m_handlers;
         AutomationWire::OpaqueCursorCodec m_manifestCursorCodec;
         AutomationWire::OpaqueCursorCodec m_taskCursorCodec;
+        AutomationWire::OpaqueCursorCodec m_collectionCursorCodec;
     };
 
 } // namespace Automation

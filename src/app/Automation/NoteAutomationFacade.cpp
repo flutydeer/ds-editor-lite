@@ -14,6 +14,7 @@
 #include <QDataStream>
 #include <QIODevice>
 #include <QJsonDocument>
+#include <QRegularExpression>
 #include <QSet>
 
 #include <algorithm>
@@ -155,6 +156,43 @@ namespace Automation {
                    left.phonemes.serialize() == right.phonemes.serialize();
         }
 
+        class SetOriginalPronunciationAction final : public IAction {
+        public:
+            SetOriginalPronunciationAction(Note *note, SingingClip *clip, QString pronunciation)
+                : m_note(note), m_clip(clip), m_oldPronunciation(note->pronunciation()),
+                  m_oldPhonemes(note->phonemes()), m_newPronunciation(std::move(pronunciation)) {
+                auto next = m_oldPronunciation;
+                next.original = m_newPronunciation;
+                m_resetPhonemes = next.result() != m_oldPronunciation.result();
+            }
+
+            void execute() override {
+                m_note->setPronunciation(Note::Original, m_newPronunciation);
+                if (m_resetPhonemes)
+                    m_note->setPhonemes(Phonemes{});
+                notify();
+            }
+
+            void undo() override {
+                m_note->setPronunciation(Note::Original, m_oldPronunciation.original);
+                if (m_resetPhonemes)
+                    m_note->setPhonemes(m_oldPhonemes);
+                notify();
+            }
+
+        private:
+            void notify() const {
+                m_clip->notifyNoteChanged(SingingClip::EditedPronunciationOnly, {m_note});
+            }
+
+            Note *m_note;
+            SingingClip *m_clip;
+            Pronunciation m_oldPronunciation;
+            Phonemes m_oldPhonemes;
+            QString m_newPronunciation;
+            bool m_resetPhonemes = false;
+        };
+
         Note::WordProperties normalizedWordProperties(const Note::WordProperties &previous,
                                                       const NoteWordEditDto &edit) {
             Note::WordProperties next;
@@ -223,6 +261,65 @@ namespace Automation {
             });
     }
 
+    AutomationResult<QList<NoteSearchMatchDto>>
+        NoteAutomationFacade::searchNotes(const DocumentId &documentId, const ClipId clipId,
+                                          const QString &query, const QString &mode,
+                                          const bool caseSensitive, const bool regularExpression) {
+        return m_dispatcher.dispatchDocumentQuery<QList<NoteSearchMatchDto>>(
+            OperationIds::notes::search, documentId,
+            [this, clipId, query, mode, caseSensitive,
+             regularExpression](DocumentSession &session) {
+                auto resolved = m_objects.singingClip(session, clipId);
+                if (!resolved)
+                    return AutomationResult<QList<NoteSearchMatchDto>>(resolved.getError());
+                if (mode != QStringLiteral("starts_with") && mode != QStringLiteral("exact") &&
+                    mode != QStringLiteral("contains")) {
+                    return AutomationResult<QList<NoteSearchMatchDto>>(
+                        AutomationError::invalidArgument(QStringLiteral("mode"),
+                                                         QStringLiteral("Search mode is invalid")));
+                }
+                const auto sensitivity = caseSensitive ? Qt::CaseSensitive : Qt::CaseInsensitive;
+                QRegularExpression expression;
+                if (regularExpression) {
+                    auto options = QRegularExpression::NoPatternOption;
+                    if (!caseSensitive)
+                        options |= QRegularExpression::CaseInsensitiveOption;
+                    expression.setPatternOptions(options);
+                    expression.setPattern(query);
+                    if (!expression.isValid()) {
+                        return AutomationResult<QList<NoteSearchMatchDto>>(
+                            AutomationError::invalidArgument(
+                                QStringLiteral("query"),
+                                QStringLiteral("Regular expression is invalid")));
+                    }
+                }
+                QList<NoteSearchMatchDto> result;
+                const auto *clip = static_cast<const SingingClip *>(resolved.get().clip);
+                for (const auto *note : clip->notes()) {
+                    bool matches = false;
+                    if (regularExpression) {
+                        const auto match = expression.match(note->lyric());
+                        matches =
+                            match.hasMatch() &&
+                            (mode != QStringLiteral("exact") ||
+                             match.capturedLength() == note->lyric().size()) &&
+                            (mode != QStringLiteral("starts_with") || match.capturedStart() == 0);
+                    } else if (mode == QStringLiteral("exact")) {
+                        matches = note->lyric().compare(query, sensitivity) == 0;
+                    } else if (mode == QStringLiteral("starts_with")) {
+                        matches = note->lyric().startsWith(query, sensitivity);
+                    } else {
+                        matches = note->lyric().contains(query, sensitivity);
+                    }
+                    if (matches) {
+                        result.append({NoteId(note->id()), note->localStart(), note->length(),
+                                       note->lyric()});
+                    }
+                }
+                return AutomationResult<QList<NoteSearchMatchDto>>(std::move(result));
+            });
+    }
+
     AutomationResult<MutationResult>
         NoteAutomationFacade::insertNotes(const CommandContext &context, const ClipId clipId,
                                           const QList<NoteDraftDto> &notes) {
@@ -266,6 +363,72 @@ namespace Automation {
                                                  std::move(createdObjects));
                 if (result) {
                     for (auto &note : ownedNotes)
+                        note.release();
+                }
+                return result;
+            });
+    }
+
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::duplicateNotes(const CommandContext &context,
+                                             const ClipId sourceClipId, QList<NoteId> noteIds,
+                                             const ClipId targetClipId, const int targetStart) {
+        const auto requestFingerprint =
+            noteIdsFingerprint(sourceClipId, noteIds, {targetClipId.value(), targetStart});
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::notes::duplicate, context, requestFingerprint,
+            [this, sourceClipId, noteIds = std::move(noteIds), targetClipId,
+             targetStart](DocumentSession &session, const bool validateOnly) {
+                auto source = m_objects.singingClip(session, sourceClipId);
+                if (!source)
+                    return AutomationResult<MutationResult>(source.getError());
+                auto target = m_objects.singingClip(session, targetClipId);
+                if (!target)
+                    return AutomationResult<MutationResult>(target.getError());
+                if (targetStart < 0 || hasDuplicateIds(noteIds)) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("target_start"),
+                        QStringLiteral("Duplicate note input is invalid")));
+                }
+                QList<Note *> sourceNotes;
+                int minimumStart = std::numeric_limits<int>::max();
+                for (const auto id : noteIds) {
+                    auto note = m_objects.note(session, sourceClipId, id);
+                    if (!note)
+                        return AutomationResult<MutationResult>(note.getError());
+                    sourceNotes.append(note.get().note);
+                    minimumStart = std::min(minimumStart, note.get().note->localStart());
+                }
+                std::sort(sourceNotes.begin(), sourceNotes.end(),
+                          [](const Note *left, const Note *right) {
+                              return left->localStart() < right->localStart();
+                          });
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(
+                        m_committer.preview(session, !sourceNotes.isEmpty()));
+                if (sourceNotes.isEmpty())
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+
+                auto *targetClip = static_cast<SingingClip *>(target.get().clip);
+                const auto delta = targetStart - minimumStart;
+                std::vector<std::unique_ptr<Note>> owned;
+                QList<Note *> rawNotes;
+                QList<ObjectRef> affected;
+                QList<CreatedObjectRef> createdObjects;
+                for (const auto *sourceNote : sourceNotes) {
+                    auto draft = noteDraftDto(*sourceNote);
+                    draft.localStart += delta;
+                    auto note = buildNote(draft, targetClip, &createdObjects);
+                    rawNotes.append(note.get());
+                    affected.append({ObjectKind::Note, note->id()});
+                    owned.push_back(std::move(note));
+                }
+                auto actions = std::make_unique<NoteActions>();
+                actions->insertNotes(rawNotes, targetClip, target.get().track);
+                auto result = m_committer.commit(session, std::move(actions), affected,
+                                                 std::move(createdObjects));
+                if (result) {
+                    for (auto &note : owned)
                         note.release();
                 }
                 return result;
@@ -503,6 +666,53 @@ namespace Automation {
     }
 
     AutomationResult<MutationResult>
+        NoteAutomationFacade::splitNoteAt(const CommandContext &context, const ClipId clipId,
+                                          const NoteId noteId, const int localPosition) {
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::notes::split_at, context,
+            noteIdsFingerprint(clipId, {noteId}, {localPosition}),
+            [this, clipId, noteId, localPosition](DocumentSession &session,
+                                                  const bool validateOnly) {
+                auto resolved = m_objects.note(session, clipId, noteId);
+                if (!resolved)
+                    return AutomationResult<MutationResult>(resolved.getError());
+                const auto originalStart = resolved.get().note->localStart();
+                const auto originalEnd = originalStart + resolved.get().note->length();
+                if (localPosition <= originalStart || localPosition >= originalEnd) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("local_position"),
+                        QStringLiteral("Split position must be inside the note")));
+                }
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(m_committer.preview(session, true));
+                NoteDraftDto draft;
+                draft.localStart = localPosition;
+                draft.length = originalEnd - localPosition;
+                draft.keyIndex = resolved.get().note->keyIndex();
+                draft.centShift = resolved.get().note->centShift();
+                draft.language = resolved.get().note->language();
+                draft.lyric = QStringLiteral("-");
+                draft.pronunciation = resolved.get().note->pronunciation();
+                QList<CreatedObjectRef> createdObjects;
+                auto note = buildNote(draft, resolved.get().clip, &createdObjects);
+                const auto createdId = note->id();
+                auto actions = std::make_unique<NoteActions>();
+                actions->splitNote(resolved.get().note, note.get(), localPosition - originalStart,
+                                   resolved.get().clip);
+                auto result = m_committer.commit(
+                    session, std::move(actions),
+                    {
+                        {ObjectKind::Note, noteId.value()},
+                        {ObjectKind::Note, createdId     }
+                },
+                    std::move(createdObjects));
+                if (result)
+                    note.release();
+                return result;
+            });
+    }
+
+    AutomationResult<MutationResult>
         NoteAutomationFacade::setPhonemeOffsets(const CommandContext &context, const ClipId clipId,
                                                 const NoteId noteId, const QList<int> &offsets) {
         return m_dispatcher.dispatchDocumentCommand(
@@ -513,12 +723,12 @@ namespace Automation {
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
                 const auto phonemeCount = resolved.get().note->phonemeNameSeq().result().count();
-                if (!offsets.isEmpty() &&
-                    (offsets.count() != phonemeCount ||
-                     !std::is_sorted(offsets.cbegin(), offsets.cend()))) {
+                if (!offsets.isEmpty() && (offsets.count() != phonemeCount ||
+                                           !std::is_sorted(offsets.cbegin(), offsets.cend()))) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("offsets"),
-                        QStringLiteral("Phoneme offsets must match the phoneme count and be sorted")));
+                        QStringLiteral(
+                            "Phoneme offsets must match the phoneme count and be sorted")));
                 }
                 const bool changed = resolved.get().note->phonemeOffsetSeq().edited != offsets;
                 const auto affected = QList<ObjectRef>{
@@ -658,16 +868,140 @@ namespace Automation {
             });
     }
 
+    AutomationResult<MutationResult> NoteAutomationFacade::patchWordProperties(
+        const CommandContext &context, const ClipId clipId, QList<NoteWordPatchDto> edits) {
+        return patchWordProperties(OperationIds::notes::set_word_properties, context, clipId,
+                                   std::move(edits));
+    }
+
+    AutomationResult<MutationResult> NoteAutomationFacade::setLyric(const CommandContext &context,
+                                                                    const ClipId clipId,
+                                                                    const NoteId noteId,
+                                                                    const QString &lyric) {
+        return patchWordProperties(OperationIds::notes::set_lyric, context, clipId,
+                                   {
+                                       {.noteId = noteId, .lyric = lyric}
+        });
+    }
+
     AutomationResult<MutationResult>
-        NoteAutomationFacade::patchWordProperties(const CommandContext &context, const ClipId clipId,
-                                                  QList<NoteWordPatchDto> edits) {
+        NoteAutomationFacade::setLanguages(const CommandContext &context, const ClipId clipId,
+                                           QList<NoteId> noteIds, const QString &language) {
+        QList<NoteWordPatchDto> edits;
+        edits.reserve(noteIds.size());
+        for (const auto id : noteIds)
+            edits.append({.noteId = id, .language = language});
+        return patchWordProperties(OperationIds::notes::set_language, context, clipId,
+                                   std::move(edits));
+    }
+
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::setPronunciation(const CommandContext &context, const ClipId clipId,
+                                               const NoteId noteId, const bool originalSource,
+                                               const QString &pronunciation) {
+        if (!originalSource) {
+            auto notes = getNotes(context.expected.documentId, clipId);
+            if (!notes)
+                return notes.getError();
+            const auto found =
+                std::find_if(notes.get().cbegin(), notes.get().cend(),
+                             [noteId](const auto &note) { return note.id == noteId; });
+            if (found == notes.get().cend())
+                return AutomationError::notFound({ObjectKind::Note, noteId.value()},
+                                                 QStringLiteral("Note was not found"));
+            auto value = found->data.pronunciation;
+            value.edited = pronunciation;
+            return patchWordProperties(OperationIds::notes::set_pronunciation, context, clipId,
+                                       {
+                                           {.noteId = noteId, .pronunciation = std::move(value)}
+            });
+        }
+
+        QCryptographicHash hash(QCryptographicHash::Sha256);
+        hashInteger(hash, clipId.value());
+        hashInteger(hash, noteId.value());
+        hashInteger(hash, originalSource);
+        hashString(hash, pronunciation);
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::notes::set_pronunciation, context, hash.result(),
+            [this, clipId, noteId, pronunciation](DocumentSession &session,
+                                                  const bool validateOnly) {
+                auto resolved = m_objects.note(session, clipId, noteId);
+                if (!resolved)
+                    return AutomationResult<MutationResult>(resolved.getError());
+                const bool changed = resolved.get().note->pronunciation().original != pronunciation;
+                const auto affected = QList<ObjectRef>{
+                    {ObjectKind::Note, noteId.value()}
+                };
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(
+                        m_committer.preview(session, changed, affected));
+                if (!changed)
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                auto action = std::make_unique<SetOriginalPronunciationAction>(
+                    resolved.get().note, resolved.get().clip, pronunciation);
+                return m_committer.commit(session, std::move(action), affected);
+            });
+    }
+
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::resetPronunciation(const CommandContext &context, const ClipId clipId,
+                                                 const NoteId noteId) {
+        auto notes = getNotes(context.expected.documentId, clipId);
+        if (!notes)
+            return notes.getError();
+        const auto found = std::find_if(notes.get().cbegin(), notes.get().cend(),
+                                        [noteId](const auto &note) { return note.id == noteId; });
+        if (found == notes.get().cend())
+            return AutomationError::notFound({ObjectKind::Note, noteId.value()},
+                                             QStringLiteral("Note was not found"));
+        auto pronunciation = found->data.pronunciation;
+        pronunciation.edited.clear();
+        return patchWordProperties(OperationIds::notes::reset_pronunciation, context, clipId,
+                                   {
+                                       {.noteId = noteId, .pronunciation = pronunciation}
+        });
+    }
+
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::setPhonemes(const CommandContext &context, const ClipId clipId,
+                                          const NoteId noteId, const Phonemes &phonemes) {
+        return patchWordProperties(OperationIds::notes::set_phonemes, context, clipId,
+                                   {
+                                       {.noteId = noteId, .phonemes = phonemes}
+        });
+    }
+
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::resetPhonemes(const CommandContext &context, const ClipId clipId,
+                                            const NoteId noteId) {
+        auto notes = getNotes(context.expected.documentId, clipId);
+        if (!notes)
+            return notes.getError();
+        const auto found = std::find_if(notes.get().cbegin(), notes.get().cend(),
+                                        [noteId](const auto &note) { return note.id == noteId; });
+        if (found == notes.get().cend())
+            return AutomationError::notFound({ObjectKind::Note, noteId.value()},
+                                             QStringLiteral("Note was not found"));
+        auto phonemes = found->data.phonemes;
+        phonemes.nameSeq.edited.clear();
+        phonemes.offsetSeq.clear();
+        return patchWordProperties(OperationIds::notes::reset_phonemes, context, clipId,
+                                   {
+                                       {.noteId = noteId, .phonemes = phonemes}
+        });
+    }
+
+    AutomationResult<MutationResult> NoteAutomationFacade::patchWordProperties(
+        const OperationId &operationId, const CommandContext &context, const ClipId clipId,
+        QList<NoteWordPatchDto> edits) {
         std::sort(edits.begin(), edits.end(),
                   [](const NoteWordPatchDto &left, const NoteWordPatchDto &right) {
                       return left.noteId.value() < right.noteId.value();
                   });
         const auto requestFingerprint = wordPatchesFingerprint(clipId, edits);
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::set_word_properties, context, requestFingerprint,
+            operationId, context, requestFingerprint,
             [this, clipId, edits = std::move(edits)](DocumentSession &session,
                                                      const bool validateOnly) {
                 QList<NoteId> ids;
@@ -704,15 +1038,14 @@ namespace Automation {
                     if (edit.phonemes)
                         next.phonemes = *edit.phonemes;
 
-                    const bool wordInputChanged = previous.lyric != next.lyric ||
-                                                  previous.language != next.language;
+                    const bool wordInputChanged =
+                        previous.lyric != next.lyric || previous.language != next.language;
                     if (wordInputChanged && !edit.pronunciation)
                         next.pronunciation.edited.clear();
                     if (wordInputChanged && !edit.pronunciationCandidates)
                         next.pronCandidates.clear();
-                    if (!edit.phonemes &&
-                        (wordInputChanged || previous.pronunciation.result() !=
-                                                 next.pronunciation.result())) {
+                    if (!edit.phonemes && (wordInputChanged || previous.pronunciation.result() !=
+                                                                   next.pronunciation.result())) {
                         next.phonemes = {};
                     }
                     if (wordPropertiesEqual(previous, next))
@@ -720,8 +1053,7 @@ namespace Automation {
                     changedNotes.append(note);
                     properties.append(next);
                     options.append(
-                        {edit.pronunciation.has_value(),
-                         edit.pronunciationCandidates.has_value()});
+                        {edit.pronunciation.has_value(), edit.pronunciationCandidates.has_value()});
                     changedIds.append(edit.noteId);
                 }
                 const auto affected = noteRefs(changedIds);
@@ -758,6 +1090,20 @@ namespace Automation {
             .exposure = ExposurePolicy::InternalOnly,
             .idempotency = IdempotencyPolicy::Unsupported,
         });
+        add({
+            .id = OperationIds::notes::search,
+            .category = QStringLiteral("notes"),
+            .kind = OperationKind::Query,
+            .syncMode = SyncMode::Synchronous,
+            .documentPolicy = DocumentPolicy::Read,
+            .revisionPolicy = RevisionPolicy::None,
+            .historyPolicy = HistoryPolicy::None,
+            .fileAccess = FileAccessPolicy::None,
+            .hostAvailability = HostAvailability::Core,
+            .safety = SafetyClass::ReadOnly,
+            .exposure = ExposurePolicy::InternalOnly,
+            .idempotency = IdempotencyPolicy::Unsupported,
+        });
         const auto addMutation = [&add](const OperationId &id) {
             add({
                 .id = id,
@@ -775,14 +1121,22 @@ namespace Automation {
             });
         };
         addMutation(OperationIds::notes::insert);
+        addMutation(OperationIds::notes::duplicate);
         addMutation(OperationIds::notes::move);
         addMutation(OperationIds::notes::quantize);
         addMutation(OperationIds::notes::remove);
         addMutation(OperationIds::notes::resize_left);
         addMutation(OperationIds::notes::resize_right);
+        addMutation(OperationIds::notes::reset_phonemes);
+        addMutation(OperationIds::notes::reset_pronunciation);
+        addMutation(OperationIds::notes::set_language);
+        addMutation(OperationIds::notes::set_lyric);
+        addMutation(OperationIds::notes::set_phonemes);
         addMutation(OperationIds::notes::set_phoneme_offsets);
+        addMutation(OperationIds::notes::set_pronunciation);
         addMutation(OperationIds::notes::set_word_properties);
         addMutation(OperationIds::notes::split);
+        addMutation(OperationIds::notes::split_at);
     }
 
 } // namespace Automation

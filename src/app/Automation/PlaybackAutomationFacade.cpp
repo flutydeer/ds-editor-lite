@@ -69,37 +69,49 @@ namespace Automation {
         registerOperations();
     }
 
+    PlaybackHostSnapshot PlaybackAutomationFacade::observedSnapshot() const {
+        const auto snapshot = m_services.snapshot();
+        const auto changed = !m_lastSnapshot || m_lastSnapshot->state != snapshot.state ||
+                             m_lastSnapshot->position != snapshot.position ||
+                             m_lastSnapshot->lastPosition != snapshot.lastPosition ||
+                             m_lastSnapshot->loop != snapshot.loop;
+        if (changed) {
+            ++m_stateVersion;
+            m_lastSnapshot = snapshot;
+        }
+        return snapshot;
+    }
+
     AutomationResult<PlaybackSnapshotDto>
-    PlaybackAutomationFacade::getPlayback(const DocumentId &documentId) {
+        PlaybackAutomationFacade::getPlayback(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<PlaybackSnapshotDto>(
             OperationIds::playback::get, documentId, [this](DocumentSession &session) {
                 if (!m_services.snapshot)
                     return AutomationResult<PlaybackSnapshotDto>(
                         unavailable(QStringLiteral("Playback host is unavailable")));
-                const auto host = m_services.snapshot();
+                const auto host = observedSnapshot();
                 PlaybackSnapshotDto result;
                 result.state = host.state;
                 result.position = host.position;
                 result.lastPosition = host.lastPosition;
                 result.loop = host.loop;
                 result.document = session.version();
+                result.stateVersion = m_stateVersion;
                 result.playable = m_services.canStart && m_services.canStart();
                 return AutomationResult<PlaybackSnapshotDto>(std::move(result));
             });
     }
 
-    AutomationResult<MutationResult>
-    PlaybackAutomationFacade::play(const CommandContext &context) {
+    AutomationResult<MutationResult> PlaybackAutomationFacade::play(const CommandContext &context) {
         return setState(OperationIds::playback::play, context, PlaybackState::Playing);
     }
 
     AutomationResult<MutationResult>
-    PlaybackAutomationFacade::pause(const CommandContext &context) {
+        PlaybackAutomationFacade::pause(const CommandContext &context) {
         return setState(OperationIds::playback::pause, context, PlaybackState::Paused);
     }
 
-    AutomationResult<MutationResult>
-    PlaybackAutomationFacade::stop(const CommandContext &context) {
+    AutomationResult<MutationResult> PlaybackAutomationFacade::stop(const CommandContext &context) {
         return setState(OperationIds::playback::stop, context, PlaybackState::Stopped);
     }
 
@@ -145,7 +157,7 @@ namespace Automation {
     }
 
     AutomationResult<MutationResult>
-    PlaybackAutomationFacade::setPosition(const CommandContext &context, const double tick) {
+        PlaybackAutomationFacade::setPosition(const CommandContext &context, const double tick) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::playback::set_position, context, QByteArray::number(tick, 'g', 17),
             [this, tick](DocumentSession &session, const bool validateOnly) {
@@ -164,15 +176,42 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult>
-    PlaybackAutomationFacade::setLastPosition(const CommandContext &context, const double tick) {
+    AutomationResult<MutationResult> PlaybackAutomationFacade::seek(const CommandContext &context,
+                                                                    const double tick) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::playback::set_last_position, context,
-            QByteArray::number(tick, 'g', 17),
+            OperationIds::playback::seek, context, QByteArray::number(tick, 'g', 17),
             [this, tick](DocumentSession &session, const bool validateOnly) {
                 if (!std::isfinite(tick) || tick < 0.0) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                        QStringLiteral("tick"), QStringLiteral("Last playback position is invalid")));
+                        QStringLiteral("position"),
+                        QStringLiteral("Playback position is invalid")));
+                }
+                if (!m_services.snapshot || !m_services.setPosition ||
+                    !m_services.setLastPosition) {
+                    return AutomationResult<MutationResult>(
+                        unavailable(QStringLiteral("Playback host is unavailable")));
+                }
+                const auto current = observedSnapshot();
+                const bool changed = current.position != tick || current.lastPosition != tick;
+                if (!validateOnly && changed) {
+                    m_services.setPosition(tick);
+                    m_services.setLastPosition(tick);
+                }
+                return AutomationResult<MutationResult>(
+                    hostMutation(session, changed, validateOnly));
+            });
+    }
+
+    AutomationResult<MutationResult>
+        PlaybackAutomationFacade::setLastPosition(const CommandContext &context,
+                                                  const double tick) {
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::playback::set_last_position, context, QByteArray::number(tick, 'g', 17),
+            [this, tick](DocumentSession &session, const bool validateOnly) {
+                if (!std::isfinite(tick) || tick < 0.0) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("tick"),
+                        QStringLiteral("Last playback position is invalid")));
                 }
                 if (!m_services.snapshot || !m_services.setLastPosition)
                     return AutomationResult<MutationResult>(
@@ -295,6 +334,7 @@ namespace Automation {
         addCommand(OperationIds::playback::set_loop_enabled, true);
         addCommand(OperationIds::playback::set_last_position);
         addCommand(OperationIds::playback::set_position);
+        addCommand(OperationIds::playback::seek);
         addCommand(OperationIds::playback::stop);
     }
 

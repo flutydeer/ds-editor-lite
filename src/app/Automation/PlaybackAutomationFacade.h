@@ -7,6 +7,7 @@
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
 
 #include <functional>
+#include <optional>
 
 namespace Automation {
 
@@ -25,6 +26,7 @@ namespace Automation {
 
     struct PlaybackSnapshotDto : PlaybackHostSnapshot {
         DocumentVersion document;
+        Revision stateVersion = 0;
         bool playable = false;
     };
 
@@ -49,8 +51,8 @@ namespace Automation {
         AutomationResult<MutationResult> play(const CommandContext &context);
         AutomationResult<MutationResult> pause(const CommandContext &context);
         AutomationResult<MutationResult> stop(const CommandContext &context);
-        AutomationResult<MutationResult> setPosition(const CommandContext &context,
-                                                     double tick);
+        AutomationResult<MutationResult> setPosition(const CommandContext &context, double tick);
+        AutomationResult<MutationResult> seek(const CommandContext &context, double tick);
         AutomationResult<MutationResult> setLastPosition(const CommandContext &context,
                                                          double tick);
         AutomationResult<MutationResult> setLoop(const CommandContext &context,
@@ -65,12 +67,15 @@ namespace Automation {
                                                   PlaybackState state);
         AutomationResult<MutationResult>
             commitLoop(DocumentSession &session, const LoopSettings &settings, bool validateOnly);
+        PlaybackHostSnapshot observedSnapshot() const;
         void registerOperations();
 
         OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
         PlaybackRuntimeServices m_services;
+        mutable std::optional<PlaybackHostSnapshot> m_lastSnapshot;
+        mutable Revision m_stateVersion = 0;
     };
 
 } // namespace Automation

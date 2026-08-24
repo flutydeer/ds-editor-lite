@@ -4,6 +4,7 @@
 #include "AutomationDispatcher.h"
 #include "AutomationTaskManager.h"
 #include "DocumentObjectResolver.h"
+#include "NoteAutomationFacade.h"
 #include "ParameterAutomationFacade.h"
 #include "ProjectAutomationFacade.h"
 
@@ -41,6 +42,10 @@ namespace Automation {
         QString defaultLyric;
         QString clientRef;
         std::optional<int> minimumNoteLength;
+        QString destinationMode;
+        std::optional<TrackId> targetTrackId;
+        std::optional<ClipId> targetClipId;
+        int targetStart = 0;
         std::function<AutomationResult<AutomationUnit>(const QString &)> authorizeSource;
     };
 
@@ -71,6 +76,10 @@ namespace Automation {
         QString defaultLyric;
         QString clientRef;
         std::optional<int> minimumNoteLength;
+        QString destinationMode;
+        std::optional<TrackId> targetTrackId;
+        std::optional<ClipId> targetClipId;
+        int targetStart = 0;
         bool showProgressDialog = false;
         std::function<AutomationResult<AutomationUnit>(const QString &)> authorizeSource;
     };
@@ -143,7 +152,7 @@ namespace Automation {
         ExtractionAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
                                    AutomationTaskManager &tasks, DocumentObjectResolver &objects,
                                    ParameterAutomationFacade &parameters,
-                                   ProjectAutomationFacade &project,
+                                   ProjectAutomationFacade &project, NoteAutomationFacade &notes,
                                    ExtractionRuntimeServices services = {});
 
         AutomationResult<TaskAcceptedResult> startPitch(const CommandContext &context,
@@ -192,6 +201,7 @@ namespace Automation {
         DocumentObjectResolver &m_objects;
         ParameterAutomationFacade &m_parameters;
         ProjectAutomationFacade &m_project;
+        NoteAutomationFacade &m_notes;
         ExtractionRuntimeServices m_services;
         QHash<TaskId, JobRecord> m_jobs;
     };

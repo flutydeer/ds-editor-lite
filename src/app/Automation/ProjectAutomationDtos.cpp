@@ -47,8 +47,8 @@ namespace Automation {
 
         Curve *createCurve(const CurveDraftDto &draft) {
             if (draft.type == CurveDraftDto::Type::Anchor) {
-                auto *curve = draft.id.isValid() ? new AnchorCurve(draft.id.value())
-                                                 : new AnchorCurve;
+                auto *curve =
+                    draft.id.isValid() ? new AnchorCurve(draft.id.value()) : new AnchorCurve;
                 curve->setLocalStart(draft.localStart);
                 for (const auto &nodeDraft : draft.nodes) {
                     auto *node = nodeDraft.id.isValid()
@@ -258,6 +258,7 @@ namespace Automation {
                 addDouble(hash, weight);
             addInteger(hash, data.dynamicKeyframes.size());
             for (const auto &keyframe : data.dynamicKeyframes) {
+                addInteger(hash, keyframe.id);
                 addInteger(hash, keyframe.tick);
                 addInteger(hash, keyframe.weights.size());
                 for (const auto weight : keyframe.weights)
