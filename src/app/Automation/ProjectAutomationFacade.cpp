@@ -9,6 +9,8 @@
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/AutomationWire/PublicConstants.h>
+#include <lite/ProjectModel/Utils/DiffscopeAudioWorkspace.h>
 
 #include <QDataStream>
 #include <QFileInfo>
@@ -34,6 +36,57 @@ namespace Automation {
             QByteArray result;
             QDataStream stream(&result, QIODevice::WriteOnly);
             stream << values;
+            return result;
+        }
+
+        QByteArray trackPatchFingerprint(const TrackPropertiesPatchDto &patch) {
+            QByteArray result;
+            QDataStream stream(&result, QIODevice::WriteOnly);
+            stream << patch.id.value() << patch.name.has_value();
+            if (patch.name)
+                stream << *patch.name;
+            stream << patch.gain.has_value();
+            if (patch.gain)
+                stream << *patch.gain;
+            stream << patch.pan.has_value();
+            if (patch.pan)
+                stream << *patch.pan;
+            stream << patch.mute.has_value();
+            if (patch.mute)
+                stream << *patch.mute;
+            stream << patch.solo.has_value();
+            if (patch.solo)
+                stream << *patch.solo;
+            return result;
+        }
+
+        QByteArray clipPatchFingerprint(const ClipPropertiesPatchDto &patch) {
+            QByteArray result;
+            QDataStream stream(&result, QIODevice::WriteOnly);
+            stream << patch.id.value() << patch.name.has_value();
+            if (patch.name)
+                stream << *patch.name;
+            stream << patch.start.has_value();
+            if (patch.start)
+                stream << *patch.start;
+            stream << patch.length.has_value();
+            if (patch.length)
+                stream << *patch.length;
+            stream << patch.clipStart.has_value();
+            if (patch.clipStart)
+                stream << *patch.clipStart;
+            stream << patch.clipLen.has_value();
+            if (patch.clipLen)
+                stream << *patch.clipLen;
+            stream << patch.gain.has_value();
+            if (patch.gain)
+                stream << *patch.gain;
+            stream << patch.mute.has_value();
+            if (patch.mute)
+                stream << *patch.mute;
+            stream << patch.targetTrackId.has_value();
+            if (patch.targetTrackId)
+                stream << patch.targetTrackId->value();
             return result;
         }
 
@@ -349,6 +402,46 @@ namespace Automation {
             });
     }
 
+    AutomationResult<MutationResult> ProjectAutomationFacade::patchTrackProperties(
+        const CommandContext &context, const TrackPropertiesPatchDto &patch) {
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::tracks::set_properties, context, trackPatchFingerprint(patch),
+            [this, patch](DocumentSession &session, const bool validateOnly) {
+                auto resolved = m_objects.track(session, patch.id);
+                if (!resolved)
+                    return AutomationResult<MutationResult>(resolved.getError());
+                auto *track = resolved.get();
+                const Track::TrackProperties previous(*track);
+                auto next = previous;
+                if (patch.name)
+                    next.name = *patch.name;
+                if (patch.gain)
+                    next.gain = *patch.gain;
+                if (patch.pan)
+                    next.pan = *patch.pan;
+                if (patch.mute)
+                    next.mute = *patch.mute;
+                if (patch.solo)
+                    next.solo = *patch.solo;
+                if (!std::isfinite(next.gain) || !std::isfinite(next.pan) || next.pan < -1.0 ||
+                    next.pan > 1.0) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("properties"),
+                        QStringLiteral("Track control is invalid")));
+                }
+                const bool changed = previous != next;
+                const auto affected = QList<ObjectRef>{{ObjectKind::Track, patch.id.value()}};
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(
+                        m_committer.preview(session, changed, affected));
+                if (!changed)
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                auto actions = std::make_unique<TrackActions>();
+                actions->editTrackProperties(previous, next, track);
+                return m_committer.commit(session, std::move(actions), affected);
+            });
+    }
+
     AutomationResult<MutationResult>
         ProjectAutomationFacade::setTrackColor(const CommandContext &context, const TrackId trackId,
                                                const int colorIndex) {
@@ -359,7 +452,8 @@ namespace Automation {
                 auto resolved = m_objects.track(session, trackId);
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
-                if (colorIndex < 0) {
+                if (colorIndex < 0 ||
+                    colorIndex >= AutomationWire::TrackPaletteColorCount) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("color_index"), QStringLiteral("Color index is invalid")));
                 }
@@ -660,6 +754,72 @@ namespace Automation {
             });
     }
 
+    AutomationResult<MutationResult> ProjectAutomationFacade::patchClipProperties(
+        const CommandContext &context, const ClipPropertiesPatchDto &patch) {
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::clips::set_properties, context, clipPatchFingerprint(patch),
+            [this, patch](DocumentSession &session, const bool validateOnly) {
+                auto resolved = m_objects.clip(session, patch.id);
+                if (!resolved)
+                    return AutomationResult<MutationResult>(resolved.getError());
+                auto *clip = resolved.get().clip;
+                const Clip::ClipCommonProperties previous(*clip);
+                auto next = previous;
+                if (patch.name)
+                    next.name = *patch.name;
+                if (patch.start)
+                    next.start = *patch.start;
+                if (patch.length)
+                    next.length = *patch.length;
+                if (patch.clipStart)
+                    next.clipStart = *patch.clipStart;
+                if (patch.clipLen)
+                    next.clipLen = *patch.clipLen;
+                if (patch.gain)
+                    next.gain = *patch.gain;
+                if (patch.mute)
+                    next.mute = *patch.mute;
+                const ClipPropertiesDto validated{
+                    patch.id, next.name, next.start, next.length, next.clipStart, next.clipLen,
+                    next.gain, next.mute, next.trimStartMs, next.playLengthMs,
+                    next.materialLengthMs};
+                if (!validClipProperties(validated)) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("properties"),
+                        QStringLiteral("Clip geometry or gain is invalid")));
+                }
+                auto *targetTrack = resolved.get().track;
+                if (patch.targetTrackId) {
+                    auto target = m_objects.track(session, *patch.targetTrackId);
+                    if (!target)
+                        return AutomationResult<MutationResult>(target.getError());
+                    targetTrack = target.get();
+                }
+                const bool trackChanged = targetTrack != resolved.get().track;
+                const bool changed = trackChanged || !clipPropertiesEqual(previous, validated);
+                const auto affected = QList<ObjectRef>{{ObjectKind::Clip, patch.id.value()}};
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(
+                        m_committer.preview(session, changed, affected));
+                if (!changed)
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                auto actions = std::make_unique<ClipActions>();
+                if (trackChanged) {
+                    actions->moveClipToTrack(previous, next, clip, resolved.get().track,
+                                             targetTrack);
+                } else if (clip->clipType() == Clip::Audio) {
+                    actions->editAudioClipProperties({previous}, {next},
+                                                     {static_cast<AudioClip *>(clip)},
+                                                     {resolved.get().track});
+                } else {
+                    actions->editSingingClipProperties({previous}, {next},
+                                                       {static_cast<SingingClip *>(clip)},
+                                                       {resolved.get().track});
+                }
+                return m_committer.commit(session, std::move(actions), affected);
+            });
+    }
+
     AutomationResult<MutationResult> ProjectAutomationFacade::relocateAudioClip(
         const CommandContext &context, const ClipId clipId, const QString &path,
         const AudioPathInfo &pathInfo, const QJsonObject &formatData) {
@@ -676,9 +836,14 @@ namespace Automation {
                         QStringLiteral("path"), QStringLiteral("Audio path is empty")));
                 }
                 auto *clip = static_cast<AudioClip *>(resolved.get().clip);
+                auto effectivePathInfo = pathInfo;
+                if (effectivePathInfo.relativeDir.isEmpty()) {
+                    effectivePathInfo.relativeDir =
+                        DiffscopeAudioWorkspace::relativeDirFor(path, session.path());
+                }
                 const bool changed = clip->path() != path ||
-                                     clip->pathInfo().relativeDir != pathInfo.relativeDir ||
-                                     clip->pathInfo().sha512 != pathInfo.sha512 ||
+                                     clip->pathInfo().relativeDir != effectivePathInfo.relativeDir ||
+                                     clip->pathInfo().sha512 != effectivePathInfo.sha512 ||
                                      clip->workspace().value(kAudioFormatDataKey) != formatData ||
                                      clip->pathStatus() != AudioClip::PathStatus::Normal;
                 const auto affected = QList<ObjectRef>{
@@ -690,7 +855,7 @@ namespace Automation {
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
                 auto actions = std::make_unique<ClipActions>();
-                actions->relocateAudioClip(clip, path, pathInfo, formatData);
+                actions->relocateAudioClip(clip, path, effectivePathInfo, formatData);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
@@ -716,6 +881,47 @@ namespace Automation {
                 return AutomationResult<MutationResult>(m_committer.commitStateChange(
                     session, changed,
                     [clip] { clip->setPathStatus(AudioClip::PathStatus::Normal); }, affected));
+            });
+    }
+
+    AutomationResult<MutationResult>
+        ProjectAutomationFacade::confirmAudioClipPath(const CommandContext &context,
+                                                      const ClipId clipId,
+                                                      const QString &path,
+                                                      const AudioPathInfo &pathInfo,
+                                                      const QJsonObject &formatData) {
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::audio_clips::confirm_path, context,
+            relocateFingerprint(clipId, path, pathInfo, formatData),
+            [this, clipId, path, pathInfo, formatData](DocumentSession &session,
+                                                       const bool validateOnly) {
+                auto resolved = m_objects.audioClip(session, clipId);
+                if (!resolved)
+                    return AutomationResult<MutationResult>(resolved.getError());
+                if (path.isEmpty()) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("path"), QStringLiteral("Audio path is empty")));
+                }
+                auto *clip = static_cast<AudioClip *>(resolved.get().clip);
+                auto effectivePathInfo = pathInfo;
+                if (effectivePathInfo.relativeDir.isEmpty()) {
+                    effectivePathInfo.relativeDir =
+                        DiffscopeAudioWorkspace::relativeDirFor(path, session.path());
+                }
+                const bool changed = clip->path() != path ||
+                                     clip->pathInfo().relativeDir != effectivePathInfo.relativeDir ||
+                                     clip->pathInfo().sha512 != effectivePathInfo.sha512 ||
+                                     clip->workspace().value(kAudioFormatDataKey) != formatData ||
+                                     clip->pathStatus() != AudioClip::PathStatus::Normal;
+                const auto affected = QList<ObjectRef>{{ObjectKind::Clip, clipId.value()}};
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(
+                        m_committer.preview(session, changed, affected));
+                if (!changed)
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                auto actions = std::make_unique<ClipActions>();
+                actions->relocateAudioClip(clip, path, effectivePathInfo, formatData);
+                return m_committer.commit(session, std::move(actions), affected);
             });
     }
 

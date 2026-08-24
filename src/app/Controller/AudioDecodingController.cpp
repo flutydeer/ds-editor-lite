@@ -18,9 +18,7 @@
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/ResolveAudioPathTask.h"
-#include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/Toast.h>
-#include "UI/Dialogs/Base/Dialog.h"
 
 namespace {
     Automation::CoreRuntime *automationRuntime() {
@@ -576,16 +574,7 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
                 .message = task->errorMessage,
                 .operationId = Automation::OperationIds::audio_clips::apply_decode_cache,
             });
-        const auto dlg = new Dialog;
-        dlg->setWindowTitle(tr("Error"));
-        dlg->setTitle(tr("Failed to open audio file:"));
-        dlg->setMessage(task->path);
-        dlg->setModal(true);
-
-        const auto btnClose = new AccentButton(tr("Close"));
-        connect(btnClose, &Button::clicked, dlg, &Dialog::accept);
-        dlg->setPositiveButton(btnClose);
-        dlg->show();
+        Toast::show(tr("Failed to open audio file: %1").arg(task->path));
 
         delete task;
         return;

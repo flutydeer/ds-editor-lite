@@ -13,6 +13,10 @@ public:
     AnchorNode(const int pos, const int value) : m_pos(pos), m_value(value) {
     }
 
+    AnchorNode(const int pos, const int value, const int id)
+        : UniqueObject(id), m_pos(pos), m_value(value) {
+    }
+
     int pos() const;
     void setPos(int pos);
     int value() const;
@@ -35,6 +39,8 @@ class DrawCurve;
 class AnchorCurve final : public Curve {
 public:
     AnchorCurve() = default;
+    explicit AnchorCurve(const int id) : Curve(id) {
+    }
     AnchorCurve(const AnchorCurve &other);
     ~AnchorCurve();
 

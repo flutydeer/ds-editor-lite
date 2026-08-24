@@ -97,6 +97,7 @@ namespace Automation {
                         .packageId = singer.packageId(),
                         .packageVersion = singer.packageVersion(),
                         .name = singer.name(),
+                        .info = singer,
                     });
                 }
                 result.append(std::move(converted));

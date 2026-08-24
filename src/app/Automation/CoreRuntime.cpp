@@ -5,6 +5,8 @@ namespace Automation {
         DocumentRuntimeServices bindGenerationLifecycle(DocumentRuntimeServices services,
                                                         AudioExportAutomationFacade *audioExports,
                                                         ExtractionAutomationFacade *extractions) {
+            Q_ASSERT(audioExports);
+            Q_ASSERT(extractions);
             auto existing = std::move(services.beforeReplaceGeneration);
             services.beforeReplaceGeneration = [existing = std::move(existing), audioExports,
                                                 extractions](const DocumentId &documentId) {

@@ -83,6 +83,7 @@ namespace Automation {
                 result.lastPosition = host.lastPosition;
                 result.loop = host.loop;
                 result.document = session.version();
+                result.playable = m_services.canStart && m_services.canStart();
                 return AutomationResult<PlaybackSnapshotDto>(std::move(result));
             });
     }

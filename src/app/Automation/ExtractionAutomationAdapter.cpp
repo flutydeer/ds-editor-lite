@@ -260,6 +260,11 @@ namespace Automation {
             auto valid = validateAudioPath(input.audioPath);
             if (!valid)
                 return valid.getError();
+            if (!input.modelId.isEmpty() && input.modelId != QStringLiteral("rmvpe")) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("options.model_id"),
+                    QStringLiteral("The requested pitch extraction model is unavailable"));
+            }
             input.modelPath = options->general()->rmvpePath;
             valid = validateModelPath(input.modelPath, false, QStringLiteral("rmvpe_model_path"),
                                       QStringLiteral("RMVPE model"));
@@ -280,13 +285,20 @@ namespace Automation {
             auto valid = validateAudioPath(input.audioPath);
             if (!valid)
                 return valid.getError();
+            if (!input.modelId.isEmpty() && input.modelId != QStringLiteral("game")) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("options.model_id"),
+                    QStringLiteral("The requested MIDI extraction model is unavailable"));
+            }
             input.modelPath = options->general()->gameDir;
             valid = validateModelPath(input.modelPath, true, QStringLiteral("game_model_path"),
                                       QStringLiteral("GAME model directory"));
             if (!valid)
                 return valid.getError();
-            input.defaultLanguage = options->general()->defaultSingingLanguage;
-            input.defaultLyric = options->general()->defaultLyricForLanguage(input.defaultLanguage);
+            if (input.defaultLanguage.isEmpty())
+                input.defaultLanguage = options->general()->defaultSingingLanguage;
+            if (input.defaultLyric.isEmpty())
+                input.defaultLyric = options->general()->defaultLyricForLanguage(input.defaultLanguage);
             auto job = std::make_shared<MidiExtractionJobAdapter>(input, taskRuntime);
             return PreparedMidiExtraction{std::move(input), std::move(job)};
         };

@@ -123,6 +123,7 @@ namespace Automation {
         QString idempotencyKey;
         InvocationSource source = InvocationSource::TrustedGui;
         QString clientId;
+        TaskId taskId;
     };
 
     struct GuiCommandContext {

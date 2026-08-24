@@ -2,6 +2,7 @@
 #define FILEAUTOMATIONFACADE_H
 
 #include "AutomationDispatcher.h"
+#include "ProjectAutomationDtos.h"
 
 #include <functional>
 
@@ -18,6 +19,7 @@ namespace Automation {
         bool canExport = false;
         bool available = true;
         QString unavailableReason;
+        QJsonObject optionSchema;
 
         friend bool operator==(const ProjectFormatDto &, const ProjectFormatDto &) = default;
     };
@@ -30,9 +32,27 @@ namespace Automation {
         friend bool operator==(const FileWriteResultDto &, const FileWriteResultDto &) = default;
     };
 
+    struct MidiExportOptionsDto {
+        bool includeTempo = true;
+        bool includeTimeSignatures = true;
+
+        friend bool operator==(const MidiExportOptionsDto &,
+                               const MidiExportOptionsDto &) = default;
+    };
+
+    struct PreparedMidiExportDto {
+        DocumentVersion document;
+        QString path;
+        bool allowOverwrite = false;
+        MidiExportOptionsDto options;
+        DocumentDraftDto modelSnapshot;
+        bool validatedOnly = false;
+    };
+
     struct FileRuntimeServices {
         std::function<QList<ProjectFormatDto>()> listProjectFormats;
-        std::function<bool(AppModel *, const QString &, QString &)> exportMidi;
+        std::function<bool(AppModel *, const QString &, const MidiExportOptionsDto &, QString &)>
+            exportMidi;
     };
 
     class FileAutomationFacade final {
@@ -45,6 +65,15 @@ namespace Automation {
         AutomationResult<FileWriteResultDto> exportMidi(const CommandContext &context,
                                                         const QString &path,
                                                         bool allowOverwrite);
+        AutomationResult<FileWriteResultDto> exportMidi(const CommandContext &context,
+                                                        const QString &path,
+                                                        bool allowOverwrite,
+                                                        MidiExportOptionsDto options);
+        AutomationResult<PreparedMidiExportDto> prepareMidiExport(
+            const CommandContext &context, const QString &path, bool allowOverwrite,
+            MidiExportOptionsDto options = {});
+        AutomationResult<FileWriteResultDto>
+            writePreparedMidiExport(const PreparedMidiExportDto &prepared) const;
 
     private:
         void registerOperations();

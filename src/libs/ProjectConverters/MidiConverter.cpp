@@ -15,6 +15,7 @@
 
 #include <QFile>
 #include <QCoreApplication>
+#include <QSaveFile>
 
 #include <algorithm>
 #include <sstream>
@@ -373,13 +374,24 @@ MidiGenerationResult MidiTrackGenerator::generateTracks(MidiParseData &data,
 }
 
 bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) {
+    return save(path, model, errMsg, {});
+}
+
+bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg,
+                         const SaveOptions &options) {
     opendspx::Model dspx;
     opendspx::MidiConverter midiConverter;
 
-    for (const auto &tempo : model->timeline().tempos())
-        dspx.content.timeline.tempos.push_back({tempo.pos, tempo.value});
-    for (const auto &ts : model->timeline().timeSignatures())
-        dspx.content.timeline.timeSignatures.push_back({ts.barIndex, ts.numerator, ts.denominator});
+    if (options.includeTempo) {
+        for (const auto &tempo : model->timeline().tempos())
+            dspx.content.timeline.tempos.push_back({tempo.pos, tempo.value});
+    }
+    if (options.includeTimeSignatures) {
+        for (const auto &ts : model->timeline().timeSignatures()) {
+            dspx.content.timeline.timeSignatures.push_back(
+                {ts.barIndex, ts.numerator, ts.denominator});
+        }
+    }
 
     encodeTracks(model, dspx);
 
@@ -389,7 +401,8 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
 
     auto saveMidiToFile = [](const QByteArray &midi, const QString &filePath,
                              QString &msg) -> bool {
-        QFile file(filePath);
+        QSaveFile file(filePath);
+        file.setDirectWriteFallback(false);
         if (!file.open(QIODevice::WriteOnly)) {
             msg +=
                 QCoreApplication::translate("MidiConverter", "Failed to open file for writing: %1")
@@ -397,13 +410,22 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
             return false;
         }
 
-        const qint64 written = file.write(midi);
-        file.close();
-
-        if (written != midi.size()) {
+        if (file.write(midi) != midi.size()) {
+            file.cancelWriting();
             msg +=
                 QCoreApplication::translate("MidiConverter", "Failed to write all data to file: %1")
                     .arg(filePath);
+            return false;
+        }
+        if (!file.flush()) {
+            file.cancelWriting();
+            msg += QCoreApplication::translate("MidiConverter", "Failed to flush file: %1")
+                       .arg(filePath);
+            return false;
+        }
+        if (!file.commit()) {
+            msg += QCoreApplication::translate("MidiConverter", "Failed to commit file: %1")
+                       .arg(filePath);
             return false;
         }
 

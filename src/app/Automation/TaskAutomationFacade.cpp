@@ -94,7 +94,7 @@ namespace Automation {
             .kind = OperationKind::Command,
             .syncMode = SyncMode::Synchronous,
             .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::Check,
+            .revisionPolicy = RevisionPolicy::None,
             .historyPolicy = HistoryPolicy::None,
             .fileAccess = FileAccessPolicy::None,
             .hostAvailability = HostAvailability::Core,

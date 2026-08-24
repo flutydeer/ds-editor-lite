@@ -253,6 +253,11 @@ namespace Automation {
             cleanupClaimed = true;
             return job;
         }
+
+        std::shared_ptr<IAudioExportJob> currentJob() {
+            const QMutexLocker locker(&mutex);
+            return job;
+        }
     };
 
     struct AudioExportAutomationFacade::JobRecord {
@@ -267,6 +272,19 @@ namespace Automation {
         : m_catalog(catalog), m_dispatcher(dispatcher), m_documentResolver(documentResolver),
           m_tasks(tasks), m_services(std::move(services)) {
         registerOperations();
+    }
+
+    AudioExportCapabilitiesDto AudioExportAutomationFacade::capabilities() {
+        return {
+            .formats = {QStringLiteral("wav"), QStringLiteral("flac"),
+                        QStringLiteral("ogg"), QStringLiteral("mp3")},
+            .sampleRates = {44100, 48000},
+            .channelModes = {QStringLiteral("mono"), QStringLiteral("stereo")},
+            .mixingModes = {QStringLiteral("mixed"), QStringLiteral("separated"),
+                            QStringLiteral("separated_through_master")},
+            // Selected-track export is deliberately omitted until the typed backend supports it.
+            .sourceModes = {QStringLiteral("all"), QStringLiteral("custom")},
+        };
     }
 
     AutomationResult<AudioExportPreviewDto>
@@ -290,11 +308,28 @@ namespace Automation {
     AutomationResult<TaskAcceptedResult> AudioExportAutomationFacade::start(
         const CommandContext &context, const AudioExportConfigDto &config,
         const AudioExportPolicyDto &policy, AudioExportObserver observer) {
+        return start(context, config, policy, std::move(observer), {}, {});
+    }
+
+    AutomationResult<TaskAcceptedResult> AudioExportAutomationFacade::start(
+        const CommandContext &context, const AudioExportConfigDto &config,
+        const AudioExportPolicyDto &policy, AudioExportObserver observer,
+        AudioExportAccessRevalidator reauthorize) {
+        return start(context, config, policy, std::move(observer), {}, std::move(reauthorize));
+    }
+
+    AutomationResult<TaskAcceptedResult> AudioExportAutomationFacade::start(
+        const CommandContext &context, const AudioExportConfigDto &config,
+        const AudioExportPolicyDto &policy, AudioExportObserver observer,
+        AudioExportOutputAuthorizer authorizeOutputs,
+        AudioExportAccessRevalidator reauthorize) {
         const auto requestFingerprint = fingerprint(config, policy);
         return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
             OperationIds::exports::audio::start, context, requestFingerprint,
-            [this, context, requestFingerprint, config, policy, observer = std::move(observer)](
-                DocumentSession &session, const bool validateOnly) mutable {
+            [this, context, requestFingerprint, config, policy, observer = std::move(observer),
+             authorizeOutputs = std::move(authorizeOutputs),
+             reauthorize = std::move(reauthorize)](DocumentSession &session,
+                                                   const bool validateOnly) mutable {
                 const auto valid = validateConfig(config);
                 if (!valid)
                     return AutomationResult<TaskAcceptedResult>(valid.getError());
@@ -303,9 +338,15 @@ namespace Automation {
                 auto validationJob = m_services.createJob(session.model(), session.path(), config);
                 if (!validationJob)
                     return AutomationResult<TaskAcceptedResult>(validationJob.getError());
-                const auto validPreview = validatePreview(validationJob.get()->preview(), policy);
+                const auto preview = validationJob.get()->preview();
+                const auto validPreview = validatePreview(preview, policy);
                 if (!validPreview)
                     return AutomationResult<TaskAcceptedResult>(validPreview.getError());
+                if (authorizeOutputs) {
+                    auto authorized = authorizeOutputs(preview);
+                    if (!authorized)
+                        return AutomationResult<TaskAcceptedResult>(authorized.getError());
+                }
                 if (validateOnly) {
                     return AutomationResult<TaskAcceptedResult>({
                         .document = session.version(),
@@ -314,16 +355,24 @@ namespace Automation {
                 }
 
                 auto state = std::make_shared<PendingJobState>();
+                {
+                    const QMutexLocker locker(&state->mutex);
+                    state->job = validationJob.get();
+                }
                 const auto task = m_tasks.createTask(
                     OperationIds::exports::audio::start, session.version(), std::nullopt,
                     [weak = std::weak_ptr<PendingJobState>(state)] {
                         if (const auto locked = weak.lock())
                             locked->requestCancel();
-                    });
+                    },
+                    context.clientId);
                 auto record = std::make_shared<JobRecord>();
                 record->baseDocument = session.version();
                 record->state = state;
-                m_jobs.insert(task.taskId, record);
+                {
+                    const QMutexLocker locker(&m_jobsMutex);
+                    m_jobs.insert(task.taskId, record);
+                }
 
                 const TaskAcceptedResult accepted{
                     .taskId = task.taskId,
@@ -341,8 +390,10 @@ namespace Automation {
                 }
 
                 auto execute = [this, taskId = task.taskId, base = session.version(), config,
-                                observer = std::move(observer), state]() mutable {
-                    executeTask(taskId, base, std::move(config), std::move(observer), state);
+                                observer = std::move(observer),
+                                reauthorize = std::move(reauthorize), state]() mutable {
+                    executeTask(taskId, base, std::move(config), std::move(observer),
+                                std::move(reauthorize), state);
                 };
                 if (m_services.schedule)
                     m_services.schedule(execute);
@@ -367,17 +418,21 @@ namespace Automation {
                     error.message = QStringLiteral("Audio export is still running");
                     return AutomationResult<ApplicationMutationResult>(std::move(error));
                 }
-                const auto found = m_jobs.constFind(taskId);
-                if (found == m_jobs.cend()) {
+                std::shared_ptr<JobRecord> record;
+                {
+                    const QMutexLocker locker(&m_jobsMutex);
+                    record = m_jobs.value(taskId);
+                }
+                if (!record) {
                     return AutomationResult<ApplicationMutationResult>({
                         .validatedOnly = validateOnly,
                     });
                 }
                 if (!validateOnly) {
-                    const auto job = (*found)->state->claimCleanup();
+                    const auto job = record->state->claimCleanup();
                     if (job)
                         job->cleanup();
-                    m_jobs.remove(taskId);
+                    removeJobRecord(taskId);
                 }
                 return AutomationResult<ApplicationMutationResult>({
                     .changed = true,
@@ -390,49 +445,47 @@ namespace Automation {
                                                   const DocumentVersion baseDocument,
                                                   AudioExportConfigDto config,
                                                   AudioExportObserver observer,
+                                                  AudioExportAccessRevalidator reauthorize,
                                                   const std::shared_ptr<PendingJobState> &state) {
-        if (m_tasks.isCancellationRequested(taskId)) {
-            m_tasks.cancel(taskId);
-            return;
-        }
-        auto resolved = resolveVersion(baseDocument);
-        if (!resolved) {
-            m_tasks.fail(taskId, taskError(resolved.getError(), taskId));
-            return;
-        }
-        if (!m_services.createJob) {
-            m_tasks.fail(taskId, taskError(unavailable(), taskId));
-            return;
-        }
-        auto created =
-            m_services.createJob(resolved.get().get().model(), resolved.get().get().path(), config);
-        if (!created) {
-            m_tasks.fail(taskId, taskError(created.getError(), taskId));
-            return;
-        }
-        bool cancelBeforeRun = false;
-        {
-            const QMutexLocker locker(&state->mutex);
-            state->job = created.get();
-            cancelBeforeRun = state->cancellationRequested;
-        }
+        Q_UNUSED(config)
+        const auto created = state->currentJob();
         const auto cleanup = [state] {
             if (const auto job = state->claimCleanup())
                 job->cleanup();
         };
-        const auto cleanupIfRequested = [state] {
-            if (const auto job = state->claimRequestedCleanup())
-                job->cleanup();
-        };
-        if (cancelBeforeRun || m_tasks.isCancellationRequested(taskId)) {
-            created.get()->cancel();
+        if (m_tasks.isCancellationRequested(taskId)) {
+            if (created)
+                created->cancel();
             m_tasks.cancel(taskId);
-            cleanupIfRequested();
+            cleanup();
+            removeJobRecord(taskId);
+            return;
+        }
+        if (!created) {
+            m_tasks.fail(taskId, taskError(unavailable(), taskId));
+            removeJobRecord(taskId);
+            return;
+        }
+        if (m_tasks.isCancellationRequested(taskId)) {
+            created->cancel();
+            m_tasks.cancel(taskId);
+            cleanup();
+            removeJobRecord(taskId);
             return;
         }
         if (!m_tasks.markRunning(taskId)) {
-            cleanupIfRequested();
+            cleanup();
+            removeJobRecord(taskId);
             return;
+        }
+        if (reauthorize) {
+            auto authorized = reauthorize();
+            if (!authorized) {
+                m_tasks.fail(taskId, taskError(authorized.getError(), taskId));
+                cleanup();
+                removeJobRecord(taskId);
+                return;
+            }
         }
 
         QStringList warnings;
@@ -463,11 +516,21 @@ namespace Automation {
                 callback(message, sourceIndex);
         };
 
-        const auto result = created.get()->execute(taskObserver);
+        const auto result = created->execute(taskObserver);
+        if (reauthorize) {
+            auto authorized = reauthorize();
+            if (!authorized) {
+                m_tasks.fail(taskId, taskError(authorized.getError(), taskId));
+                cleanup();
+                removeJobRecord(taskId);
+                return;
+            }
+        }
         if (result.state == AudioExportBackendState::Canceled ||
             m_tasks.isCancellationRequested(taskId)) {
             m_tasks.cancel(taskId);
-            cleanupIfRequested();
+            cleanup();
+            removeJobRecord(taskId);
             return;
         }
         if (result.state == AudioExportBackendState::Failed) {
@@ -477,19 +540,14 @@ namespace Automation {
             error.message = result.errorMessage.isEmpty() ? QStringLiteral("Audio export failed")
                                                           : result.errorMessage;
             m_tasks.fail(taskId, std::move(error));
-            cleanupIfRequested();
-            return;
-        }
-
-        resolved = resolveVersion(baseDocument);
-        if (!resolved) {
             cleanup();
-            m_tasks.fail(taskId, taskError(resolved.getError(), taskId));
+            removeJobRecord(taskId);
             return;
         }
         const auto committing = m_tasks.beginCommitting(taskId);
         if (!committing || !committing.get()) {
             cleanup();
+            removeJobRecord(taskId);
             return;
         }
         MutationResult mutation;
@@ -497,7 +555,13 @@ namespace Automation {
         mutation.current = baseDocument;
         mutation.warnings = std::move(warnings);
         if (!m_tasks.succeed(taskId, std::move(mutation)))
-            cleanupIfRequested();
+            cleanup();
+        removeJobRecord(taskId);
+    }
+
+    void AudioExportAutomationFacade::removeJobRecord(const TaskId &taskId) {
+        const QMutexLocker locker(&m_jobsMutex);
+        m_jobs.remove(taskId);
     }
 
     AutomationResult<std::reference_wrapper<DocumentSession>>
@@ -516,18 +580,27 @@ namespace Automation {
     }
 
     void AudioExportAutomationFacade::discardDocumentGeneration(const DocumentId &documentId) {
-        for (auto it = m_jobs.begin(); it != m_jobs.end();) {
-            if ((*it)->baseDocument.documentId != documentId) {
-                ++it;
-                continue;
+        QList<std::shared_ptr<JobRecord>> removed;
+        {
+            const QMutexLocker locker(&m_jobsMutex);
+            for (auto it = m_jobs.begin(); it != m_jobs.end();) {
+                const auto record = it.value();
+                if (!record || !record->state) {
+                    it = m_jobs.erase(it);
+                    continue;
+                }
+                if (record->baseDocument.documentId != documentId) {
+                    ++it;
+                    continue;
+                }
+                removed.append(record);
+                it = m_jobs.erase(it);
             }
-            (*it)->state->requestCancel(true);
-            const auto task = m_tasks.get(documentId, it.key());
-            if (task && terminal(task.get().state)) {
-                if (const auto job = (*it)->state->claimCleanup())
-                    job->cleanup();
-            }
-            it = m_jobs.erase(it);
+        }
+        for (const auto &record : std::as_const(removed)) {
+            record->state->requestCancel(true);
+            if (const auto job = record->state->claimCleanup())
+                job->cleanup();
         }
     }
 

@@ -36,6 +36,7 @@ namespace Automation {
                                  DocumentRuntimeServices services = {});
 
         AutomationResult<DocumentSnapshotDto> getDocument(const DocumentId &documentId);
+        static DocumentDraftDto newDocumentDraft(bool defaultTemplate);
         AutomationResult<MutationResult> commitNewDocument(const CommandContext &context,
                                                            const DocumentDraftDto &document);
         AutomationResult<MutationResult> commitOpenedDocument(
@@ -50,7 +51,8 @@ namespace Automation {
             bool importTempo,
             bool importTimeSignature);
         AutomationResult<MutationResult> saveDocument(const CommandContext &context,
-                                                      const QString &path);
+                                                      const QString &path,
+                                                      bool allowOverwrite = true);
 
     private:
         AutomationResult<MutationResult> replaceDocument(

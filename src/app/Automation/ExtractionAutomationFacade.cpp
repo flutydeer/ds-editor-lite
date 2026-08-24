@@ -40,17 +40,26 @@ namespace Automation {
             return error;
         }
 
-        QByteArray pitchFingerprint(const ClipId audioClipId, const ClipId singingClipId) {
+        QByteArray pitchFingerprint(const ClipId audioClipId, const ClipId singingClipId,
+                                    const PitchExtractionOptionsDto &options) {
             QByteArray result;
             QDataStream stream(&result, QIODevice::WriteOnly);
-            stream << audioClipId.value() << singingClipId.value();
+            stream << audioClipId.value() << singingClipId.value() << options.modelId
+                   << options.minimumFrequency.has_value()
+                   << options.minimumFrequency.value_or(0.0)
+                   << options.maximumFrequency.has_value()
+                   << options.maximumFrequency.value_or(0.0);
             return result;
         }
 
-        QByteArray midiFingerprint(const ClipId audioClipId) {
+        QByteArray midiFingerprint(const ClipId audioClipId,
+                                   const MidiExtractionOptionsDto &options) {
             QByteArray result;
             QDataStream stream(&result, QIODevice::WriteOnly);
-            stream << audioClipId.value();
+            stream << audioClipId.value() << options.modelId << options.defaultLanguage
+                   << options.defaultLyric << options.clientRef
+                   << options.minimumNoteLength.has_value()
+                   << options.minimumNoteLength.value_or(0);
             return result;
         }
 
@@ -93,13 +102,22 @@ namespace Automation {
 
     AutomationResult<TaskAcceptedResult>
         ExtractionAutomationFacade::startPitch(const CommandContext &context,
-                                               const ClipId audioClipId, const ClipId singingClipId,
+                                               const ClipId audioClipId,
+                                               const ClipId singingClipId,
                                                ExtractionObserver observer) {
-        const auto requestFingerprint = pitchFingerprint(audioClipId, singingClipId);
+        return startPitch(context, audioClipId, singingClipId, {}, std::move(observer));
+    }
+
+    AutomationResult<TaskAcceptedResult>
+        ExtractionAutomationFacade::startPitch(const CommandContext &context,
+                                               const ClipId audioClipId, const ClipId singingClipId,
+                                               PitchExtractionOptionsDto options,
+                                               ExtractionObserver observer) {
+        const auto requestFingerprint = pitchFingerprint(audioClipId, singingClipId, options);
         return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
             OperationIds::extract::pitch::start, context, requestFingerprint,
             [this, context, requestFingerprint, audioClipId, singingClipId, source = context.source,
-             observer = std::move(observer)](DocumentSession &session,
+             options = std::move(options), observer = std::move(observer)](DocumentSession &session,
                                              const bool validateOnly) mutable {
                 auto resolvedAudio = m_objects.audioClip(session, audioClipId);
                 if (!resolvedAudio)
@@ -134,6 +152,18 @@ namespace Automation {
                 input.audioVisibleStartMs = visibleStartMs;
                 input.audioVisibleEndMs = visibleStartMs + visibleLengthMs;
                 input.showProgressDialog = source == InvocationSource::TrustedGui;
+                input.modelId = options.modelId;
+                input.authorizeSource = options.authorizeSource;
+                if (options.minimumFrequency || options.maximumFrequency) {
+                    return AutomationResult<TaskAcceptedResult>(AutomationError::invalidArgument(
+                        QStringLiteral("options"),
+                        QStringLiteral("The active pitch extraction backend does not support a custom frequency range")));
+                }
+                if (input.authorizeSource) {
+                    auto authorized = input.authorizeSource(input.audioPath);
+                    if (!authorized)
+                        return AutomationResult<TaskAcceptedResult>(authorized.getError());
+                }
 
                 auto prepared = m_services.preparePitch(std::move(input));
                 if (!prepared)
@@ -156,7 +186,8 @@ namespace Automation {
                                        [weak = std::weak_ptr<IExtractionJob>(job)] {
                                            if (const auto locked = weak.lock())
                                                locked->cancel();
-                                       });
+                                       },
+                                       context.clientId);
                 m_jobs.insert(task.taskId, {session.version(), job});
                 const TaskAcceptedResult accepted{
                     .taskId = task.taskId,
@@ -188,11 +219,17 @@ namespace Automation {
 
     AutomationResult<TaskAcceptedResult> ExtractionAutomationFacade::startMidi(
         const CommandContext &context, const ClipId audioClipId, ExtractionObserver observer) {
-        const auto requestFingerprint = midiFingerprint(audioClipId);
+        return startMidi(context, audioClipId, {}, std::move(observer));
+    }
+
+    AutomationResult<TaskAcceptedResult> ExtractionAutomationFacade::startMidi(
+        const CommandContext &context, const ClipId audioClipId, MidiExtractionOptionsDto options,
+        ExtractionObserver observer) {
+        const auto requestFingerprint = midiFingerprint(audioClipId, options);
         return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
             OperationIds::extract::midi::start, context, requestFingerprint,
             [this, context, requestFingerprint, audioClipId, source = context.source,
-             observer = std::move(observer)](DocumentSession &session,
+             options = std::move(options), observer = std::move(observer)](DocumentSession &session,
                                              const bool validateOnly) mutable {
                 auto resolvedAudio = m_objects.audioClip(session, audioClipId);
                 if (!resolvedAudio)
@@ -209,7 +246,18 @@ namespace Automation {
                 input.timeline = session.model()->timeline();
                 input.audioClipStartTick = audio->start();
                 input.audioClipLengthTick = audio->length();
+                input.modelId = options.modelId;
+                input.defaultLanguage = options.defaultLanguage;
+                input.defaultLyric = options.defaultLyric;
+                input.clientRef = options.clientRef;
+                input.minimumNoteLength = options.minimumNoteLength;
                 input.showProgressDialog = source == InvocationSource::TrustedGui;
+                input.authorizeSource = options.authorizeSource;
+                if (input.authorizeSource) {
+                    auto authorized = input.authorizeSource(input.audioPath);
+                    if (!authorized)
+                        return AutomationResult<TaskAcceptedResult>(authorized.getError());
+                }
 
                 auto prepared = m_services.prepareMidi(std::move(input));
                 if (!prepared)
@@ -232,7 +280,8 @@ namespace Automation {
                                        [weak = std::weak_ptr<IExtractionJob>(job)] {
                                            if (const auto locked = weak.lock())
                                                locked->cancel();
-                                       });
+                                       },
+                                       context.clientId);
                 m_jobs.insert(task.taskId, {session.version(), job});
                 const TaskAcceptedResult accepted{
                     .taskId = task.taskId,
@@ -274,6 +323,15 @@ namespace Automation {
         }
         if (!m_tasks.markRunning(taskId))
             return;
+        if (input.authorizeSource) {
+            auto authorized = input.authorizeSource(input.audioPath);
+            if (!authorized) {
+                m_tasks.fail(taskId, taskError(authorized.getError(), taskId,
+                                               OperationIds::extract::pitch::start));
+                notifyFinished(taskId, baseDocument.documentId, observer);
+                return;
+            }
+        }
         ExtractionJobCallbacks callbacks;
         callbacks.progress = [this, taskId](AutomationTaskProgress progress,
                                             const QString &message) {
@@ -301,6 +359,15 @@ namespace Automation {
         }
         if (!m_tasks.markRunning(taskId))
             return;
+        if (input.authorizeSource) {
+            auto authorized = input.authorizeSource(input.audioPath);
+            if (!authorized) {
+                m_tasks.fail(taskId, taskError(authorized.getError(), taskId,
+                                               OperationIds::extract::midi::start));
+                notifyFinished(taskId, baseDocument.documentId, observer);
+                return;
+            }
+        }
         ExtractionJobCallbacks callbacks;
         callbacks.progress = [this, taskId](AutomationTaskProgress progress,
                                             const QString &message) {
@@ -398,18 +465,27 @@ namespace Automation {
         }
 
         TrackDraftDto track;
+        if (!input.clientRef.isEmpty())
+            track.clientRef = input.clientRef + QStringLiteral("/track");
         track.name = QFileInfo(input.audioPath).baseName();
         track.defaultLanguage = input.defaultLanguage;
         ClipDraftDto clip;
+        clip.clientRef = input.clientRef;
         clip.type = ClipDraftDto::Type::Singing;
         clip.properties.start = input.audioClipStartTick;
         clip.properties.length = input.audioClipLengthTick;
         clip.properties.clipLen = input.audioClipLengthTick;
         clip.defaultLanguage = input.defaultLanguage;
+        int createdNoteIndex = 0;
         for (const auto &note : result.notes) {
-            if (note.localStart < 0)
+            if (note.localStart < 0 ||
+                (input.minimumNoteLength && note.length < *input.minimumNoteLength))
                 continue;
             clip.notes.append({
+                .clientRef = input.clientRef.isEmpty()
+                                 ? QString()
+                                 : input.clientRef + QStringLiteral("/notes/%1")
+                                                         .arg(createdNoteIndex++),
                 .localStart = note.localStart,
                 .length = note.length,
                 .keyIndex = note.keyIndex,

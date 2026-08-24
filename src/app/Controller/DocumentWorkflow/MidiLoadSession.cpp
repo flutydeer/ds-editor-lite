@@ -7,6 +7,7 @@
 #include "Modules/ProjectFormats/IProjectConfigPage.h"
 #include "Modules/ProjectFormats/IProjectFormatHandler.h"
 #include "Modules/ProjectFormats/ProjectImportConfigDialog.h"
+#include <lite/ProjectConverters/MidiTextCodecConverter.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
 #include "UI/Dialogs/Base/Dialog.h"
@@ -18,9 +19,11 @@
 
 MidiLoadSession::MidiLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
                                  const ProjectLoadPurpose purpose, const quint64 requestId,
-                                 QObject *parent)
+                                 const bool interactive, const bool importTempo,
+                                 const bool importTimeSignature, QObject *parent)
     : ProjectLoadSessionBase(std::move(filePath), requestId, parent),
-      m_formatHandler(formatHandler), m_purpose(purpose) {
+      m_formatHandler(formatHandler), m_purpose(purpose), m_interactive(interactive),
+      m_importTempo(importTempo), m_importTimeSignature(importTimeSignature) {
 }
 
 void MidiLoadSession::onStart() {
@@ -28,6 +31,26 @@ void MidiLoadSession::onStart() {
 }
 
 void MidiLoadSession::startConfiguration() {
+    if (!m_interactive) {
+        MidiUserInput input;
+        QByteArray lyrics;
+        for (const auto &info : m_parseData.trackInfos) {
+            for (const auto &lyric : info.lyrics)
+                lyrics.append(lyric);
+        }
+        input.encoding.codec = MidiTextCodecConverter::detectEncoding(lyrics);
+        if (input.encoding.codec.isEmpty())
+            input.encoding.codec = MidiTextCodecConverter::defaultCodec();
+        for (int index = 0; index < m_parseData.trackInfos.size(); ++index) {
+            if (m_parseData.trackInfos.at(index).selectedByDefault)
+                input.tracks.selectedTrackIndices.append(index);
+        }
+        input.channels.separateChannels = true;
+        input.timeline.importTempo = m_importTempo;
+        input.timeline.importTimeSignature = m_importTimeSignature;
+        materialize(input);
+        return;
+    }
     auto *dialog = new ProjectImportConfigDialog(Dialog::globalParent());
     dialog->setWindowTitle(tr("Configure MIDI Import"));
     auto *page = m_formatHandler->createConfigPage(dialog);

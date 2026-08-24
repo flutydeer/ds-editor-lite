@@ -61,6 +61,7 @@ namespace Automation {
     public:
         using CancelCallback = std::function<void()>;
         using UnsuccessfulCallback = std::function<void(const AutomationTaskSnapshot &)>;
+        using TerminalCallback = std::function<void(const AutomationTaskSnapshot &)>;
 
         AutomationTaskSnapshot createTask(OperationId operationId, DocumentVersion baseDocument,
                                           std::optional<ObjectRef> target = std::nullopt,
@@ -75,6 +76,7 @@ namespace Automation {
                                                                const TaskId &taskId);
         AutomationResult<bool> beginCommitting(const TaskId &taskId);
         bool setUnsuccessfulCallback(const TaskId &taskId, UnsuccessfulCallback callback);
+        bool setTerminalCallback(const TaskId &taskId, TerminalCallback callback);
         bool markRunning(const TaskId &taskId);
         bool updateProgress(const TaskId &taskId, AutomationTaskProgress progress,
                             QString message = {});
@@ -84,6 +86,9 @@ namespace Automation {
         [[nodiscard]] bool isCancellationRequested(const TaskId &taskId) const;
 
         void discardDocumentGeneration(const DocumentId &documentId);
+        void replaceDocumentGeneration(const DocumentId &oldDocumentId,
+                                       const DocumentVersion &newDocument,
+                                       const TaskId &preservedTaskId = {});
         [[nodiscard]] qsizetype size() const;
 
     private:
@@ -91,6 +96,7 @@ namespace Automation {
             AutomationTaskSnapshot snapshot;
             CancelCallback cancel;
             UnsuccessfulCallback unsuccessful;
+            TerminalCallback terminal;
         };
 
         static bool isTerminal(AutomationTaskState state);

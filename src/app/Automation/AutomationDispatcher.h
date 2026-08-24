@@ -187,7 +187,8 @@ namespace Automation {
                 if (session.lifecycleState() != DocumentLifecycleState::Active)
                     return decorateError(AutomationError::documentBusy(session.documentId()),
                                          operationId);
-                if (session.revision() != context.expected.revision) {
+                if (descriptor.get()->revisionPolicy != RevisionPolicy::None &&
+                    session.revision() != context.expected.revision) {
                     return decorateError(
                         AutomationError::revisionConflict(
                             session.documentId(), context.expected.revision, session.revision()),
@@ -268,7 +269,8 @@ namespace Automation {
                         return *replay.get();
                 }
 
-                if (session.revision() != context.expected.revision) {
+                if (descriptor.get()->revisionPolicy != RevisionPolicy::None &&
+                    session.revision() != context.expected.revision) {
                     return decorateError(
                         AutomationError::revisionConflict(
                             session.documentId(), context.expected.revision, session.revision()),

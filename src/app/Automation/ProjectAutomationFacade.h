@@ -27,6 +27,27 @@ namespace Automation {
         QList<TrackSnapshotDto> tracks;
     };
 
+    struct TrackPropertiesPatchDto {
+        TrackId id;
+        std::optional<QString> name;
+        std::optional<double> gain;
+        std::optional<double> pan;
+        std::optional<bool> mute;
+        std::optional<bool> solo;
+    };
+
+    struct ClipPropertiesPatchDto {
+        ClipId id;
+        std::optional<QString> name;
+        std::optional<int> start;
+        std::optional<int> length;
+        std::optional<int> clipStart;
+        std::optional<int> clipLen;
+        std::optional<double> gain;
+        std::optional<bool> mute;
+        std::optional<TrackId> targetTrackId;
+    };
+
     class ProjectAutomationFacade final {
     public:
         ProjectAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
@@ -42,6 +63,8 @@ namespace Automation {
                                                    qsizetype targetIndex);
         AutomationResult<MutationResult> setTrackProperties(const CommandContext &context,
                                                             const TrackPropertiesDto &properties);
+        AutomationResult<MutationResult> patchTrackProperties(
+            const CommandContext &context, const TrackPropertiesPatchDto &patch);
         AutomationResult<MutationResult> setTrackColor(const CommandContext &context,
                                                        TrackId trackId, int colorIndex);
         AutomationResult<MutationResult> setTrackDefaultLanguage(const CommandContext &context,
@@ -57,12 +80,19 @@ namespace Automation {
         AutomationResult<MutationResult>
             setClipProperties(const CommandContext &context, const ClipPropertiesDto &properties,
                               std::optional<TrackId> targetTrackId = std::nullopt);
+        AutomationResult<MutationResult> patchClipProperties(
+            const CommandContext &context, const ClipPropertiesPatchDto &patch);
         AutomationResult<MutationResult> relocateAudioClip(const CommandContext &context,
                                                            ClipId clipId, const QString &path,
                                                            const AudioPathInfo &pathInfo,
                                                            const QJsonObject &formatData);
         AutomationResult<MutationResult> confirmAudioClipPath(const CommandContext &context,
                                                               ClipId clipId);
+        AutomationResult<MutationResult> confirmAudioClipPath(const CommandContext &context,
+                                                              ClipId clipId,
+                                                              const QString &path,
+                                                              const AudioPathInfo &pathInfo,
+                                                              const QJsonObject &formatData);
         AutomationResult<MutationResult>
             applyAudioDecodeCache(const CommandContext &context, ClipId clipId,
                                   const AudioAssetSnapshotDto &expectedAsset,

@@ -25,6 +25,7 @@ namespace Automation {
 
     struct PlaybackSnapshotDto : PlaybackHostSnapshot {
         DocumentVersion document;
+        bool playable = false;
     };
 
     struct PlaybackRuntimeServices {

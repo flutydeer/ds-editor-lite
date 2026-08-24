@@ -8,6 +8,8 @@
 
 #include <lite/ProjectModel/AppModel/EffectiveVoiceContext.h>
 
+#include <functional>
+
 namespace Automation {
 
     struct ParameterSnapshotDto {
@@ -16,6 +18,22 @@ namespace Automation {
         ParamInfo::Name name = ParamInfo::Unknown;
         Param::Type type = Param::Unknown;
         QList<CurveDraftDto> curves;
+    };
+
+    struct ParameterCapabilityDto {
+        ParamInfo::Name name = ParamInfo::Unknown;
+        QList<Param::Type> types;
+        bool supportsDraw = false;
+        bool supportsAnchor = false;
+        QList<AnchorNode::InterpMode> interpolations;
+        bool editable = false;
+        ParamInfo::ValueSpec valueSpec;
+    };
+
+    struct ParameterCapabilitiesDto {
+        DocumentVersion document;
+        ClipId clipId;
+        QList<ParameterCapabilityDto> parameters;
     };
 
     class ParameterAutomationFacade final {
@@ -29,12 +47,38 @@ namespace Automation {
                                                             ClipId clipId,
                                                             ParamInfo::Name name,
                                                             Param::Type type);
+        AutomationResult<ParameterCapabilitiesDto> getCapabilities(const DocumentId &documentId,
+                                                                    ClipId clipId);
         AutomationResult<MutationResult> replaceParameter(
             const CommandContext &context,
             ClipId clipId,
             ParamInfo::Name name,
             Param::Type type,
             const QList<CurveDraftDto> &curves);
+        AutomationResult<MutationResult> drawParameter(
+            const CommandContext &context, ClipId clipId, ParamInfo::Name name, Param::Type type,
+            int localStart, int step, QList<int> values, bool overlay);
+        AutomationResult<MutationResult> eraseParameter(const CommandContext &context,
+                                                       ClipId clipId, ParamInfo::Name name,
+                                                       Param::Type type, int localStart,
+                                                       int localEnd);
+        AutomationResult<MutationResult> insertAnchor(
+            const CommandContext &context, ClipId clipId, ParamInfo::Name name, Param::Type type,
+            std::optional<CurveId> curveId, int position, int value,
+            AnchorNode::InterpMode interpolation);
+        AutomationResult<MutationResult> moveAnchor(const CommandContext &context, ClipId clipId,
+                                                   ParamInfo::Name name, Param::Type type,
+                                                   AnchorId anchorId, int position, int value);
+        AutomationResult<MutationResult> removeAnchor(const CommandContext &context, ClipId clipId,
+                                                     ParamInfo::Name name, Param::Type type,
+                                                     AnchorId anchorId);
+        AutomationResult<MutationResult> setAnchorInterpolation(
+            const CommandContext &context, ClipId clipId, ParamInfo::Name name, Param::Type type,
+            AnchorId anchorId, AnchorNode::InterpMode interpolation);
+        AutomationResult<MutationResult> bakeParameter(const CommandContext &context, ClipId clipId,
+                                                      ParamInfo::Name name,
+                                                      std::optional<int> localStart = std::nullopt,
+                                                      std::optional<int> localEnd = std::nullopt);
 
         AutomationResult<MutationResult> replaceClipSpeakerMix(
             const CommandContext &context,
@@ -90,6 +134,12 @@ namespace Automation {
             const SingerInfo &singerInfo,
             const SpeakerInfo &speakerInfo,
             const SpeakerMixModel::SpeakerMixData &data);
+        using CurveMutation =
+            std::function<AutomationResult<bool>(QList<CurveDraftDto> &curves)>;
+        AutomationResult<MutationResult> mutateParameter(
+            const CommandContext &context, const QByteArray &operationTag,
+            const QByteArray &requestFingerprint, ClipId clipId, ParamInfo::Name name,
+            Param::Type type, CurveMutation mutation);
         void registerOperations();
 
         OperationCatalog &m_catalog;

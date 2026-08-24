@@ -25,6 +25,15 @@ namespace Automation {
         bool replacePronunciationCandidates = false;
     };
 
+    struct NoteWordPatchDto {
+        NoteId noteId;
+        std::optional<QString> lyric;
+        std::optional<QString> language;
+        std::optional<Pronunciation> pronunciation;
+        std::optional<QStringList> pronunciationCandidates;
+        std::optional<Phonemes> phonemes;
+    };
+
     class NoteAutomationFacade final {
     public:
         NoteAutomationFacade(OperationCatalog &catalog,
@@ -72,6 +81,8 @@ namespace Automation {
                                                        bool quantizeLength);
         AutomationResult<MutationResult> setWordProperties(
             const CommandContext &context, ClipId clipId, QList<NoteWordEditDto> edits);
+        AutomationResult<MutationResult> patchWordProperties(
+            const CommandContext &context, ClipId clipId, QList<NoteWordPatchDto> edits);
 
     private:
         void registerOperations();

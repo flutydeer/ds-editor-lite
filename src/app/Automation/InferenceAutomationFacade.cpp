@@ -112,6 +112,15 @@ namespace Automation {
         Q_UNREACHABLE_RETURN({});
     }
 
+    QStringList InferenceAutomationFacade::supportedStages() {
+        return {
+            QStringLiteral("duration"),
+            QStringLiteral("pitch"),
+            QStringLiteral("variance"),
+            QStringLiteral("acoustic"),
+        };
+    }
+
     void InferenceAutomationFacade::registerOperations() {
         const auto add = [this](const InferenceMutationKind kind) {
             const auto result = m_catalog.add({

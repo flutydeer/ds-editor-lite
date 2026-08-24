@@ -680,7 +680,7 @@ namespace Audio {
         const auto accepted = runtime->audioExports().start(
             {.expected = runtime->documentVersion(),
              .source = Automation::InvocationSource::TrustedGui},
-            Automation::toAutomationDto(config()), policy, std::move(observer));
+            Automation::toAutomationDto(config()), policy, std::move(observer), {}, {});
         if (!accepted) {
             setErrorString(accepted.getError().message);
             return R_Fail;

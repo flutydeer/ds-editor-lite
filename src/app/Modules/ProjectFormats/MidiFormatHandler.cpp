@@ -21,7 +21,9 @@ bool MidiFormatHandler::probe(const QByteArray &header) const {
 IProjectLoadSession *MidiFormatHandler::createSession(const ProjectLoadRequest &request,
                                                       IDocumentWorkflowUi * /*ui*/,
                                                       QObject *parent) {
-    return new MidiLoadSession(this, request.filePath, request.purpose, request.requestId, parent);
+    return new MidiLoadSession(this, request.filePath, request.purpose, request.requestId,
+                               request.interactive, request.importTempo,
+                               request.importTimeSignature, parent);
 }
 
 IProjectConfigPage *MidiFormatHandler::createConfigPage(QWidget *parent) {

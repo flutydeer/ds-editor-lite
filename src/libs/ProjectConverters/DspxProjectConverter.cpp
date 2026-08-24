@@ -24,6 +24,7 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QJsonArray>
+#include <QSaveFile>
 
 #include <algorithm>
 
@@ -1360,7 +1361,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             return false;
         }
 
-        QFile file(filePath);
+        QSaveFile file(filePath);
+        file.setDirectWriteFallback(false);
         if (!file.open(QIODevice::WriteOnly)) {
             msg += QCoreApplication::translate("DspxProjectConverter",
                                                "Failed to open file for writing: %1")
@@ -1370,12 +1372,23 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
 
         auto jsonData = QByteArray::fromStdString(ss.str());
 
-        const qint64 written = file.write(jsonData);
-        file.close();
-
-        if (written != jsonData.size()) {
+        if (file.write(jsonData) != jsonData.size()) {
+            file.cancelWriting();
             msg += QCoreApplication::translate("DspxProjectConverter",
                                                "Failed to write all data to file: %1")
+                       .arg(filePath);
+            return false;
+        }
+        if (!file.flush()) {
+            file.cancelWriting();
+            msg += QCoreApplication::translate("DspxProjectConverter",
+                                               "Failed to flush file: %1")
+                       .arg(filePath);
+            return false;
+        }
+        if (!file.commit()) {
+            msg += QCoreApplication::translate("DspxProjectConverter",
+                                               "Failed to commit file: %1")
                        .arg(filePath);
             return false;
         }

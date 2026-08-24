@@ -131,6 +131,19 @@ namespace Automation {
         return AuthorizedPath{normalized.get(), purpose};
     }
 
+    AutomationResult<AuthorizedPath>
+        AutomationFileGuard::reauthorize(const AuthorizedPath &authorizedPath) const {
+        auto current = authorize(authorizedPath.canonicalPath, authorizedPath.purpose);
+        if (!current)
+            return current.getError();
+        if (current.get().canonicalPath.compare(authorizedPath.canonicalPath,
+                                                pathCaseSensitivity()) != 0) {
+            return pathError(AutomationErrorCode::PermissionDenied,
+                             QStringLiteral("Path changed after it was authorized"));
+        }
+        return current;
+    }
+
     FileAccessSnapshot AutomationFileGuard::snapshot() const {
         const QReadLocker locker(&m_lock);
         return {

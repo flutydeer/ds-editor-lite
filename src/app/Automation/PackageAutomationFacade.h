@@ -3,6 +3,8 @@
 
 #include "AutomationDispatcher.h"
 
+#include <lite/ProjectModel/Voice/SingerInfo.h>
+
 #include <QVersionNumber>
 
 #include <functional>
@@ -16,6 +18,7 @@ namespace Automation {
         QString packageId;
         QVersionNumber packageVersion;
         QString name;
+        SingerInfo info;
 
         friend bool operator==(const PackageSingerDto &, const PackageSingerDto &) = default;
     };

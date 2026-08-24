@@ -13,6 +13,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 
 namespace Automation {
 
@@ -27,10 +28,27 @@ namespace Automation {
         int length = 0;
     };
 
+    struct PitchExtractionOptionsDto {
+        QString modelId;
+        std::optional<double> minimumFrequency;
+        std::optional<double> maximumFrequency;
+        std::function<AutomationResult<AutomationUnit>(const QString &)> authorizeSource;
+    };
+
+    struct MidiExtractionOptionsDto {
+        QString modelId;
+        QString defaultLanguage;
+        QString defaultLyric;
+        QString clientRef;
+        std::optional<int> minimumNoteLength;
+        std::function<AutomationResult<AutomationUnit>(const QString &)> authorizeSource;
+    };
+
     struct PitchExtractionInput {
         ClipId audioClipId;
         ClipId singingClipId;
         QString audioPath;
+        QString modelId;
         QString modelPath;
         Timeline timeline;
         int singingClipStartTick = 0;
@@ -38,18 +56,23 @@ namespace Automation {
         double audioVisibleStartMs = 0.0;
         double audioVisibleEndMs = 0.0;
         bool showProgressDialog = false;
+        std::function<AutomationResult<AutomationUnit>(const QString &)> authorizeSource;
     };
 
     struct MidiExtractionInput {
         ClipId audioClipId;
         QString audioPath;
+        QString modelId;
         QString modelPath;
         Timeline timeline;
         int audioClipStartTick = 0;
         int audioClipLengthTick = 0;
         QString defaultLanguage;
         QString defaultLyric;
+        QString clientRef;
+        std::optional<int> minimumNoteLength;
         bool showProgressDialog = false;
+        std::function<AutomationResult<AutomationUnit>(const QString &)> authorizeSource;
     };
 
     enum class ExtractionBackendState {
@@ -126,8 +149,16 @@ namespace Automation {
         AutomationResult<TaskAcceptedResult> startPitch(const CommandContext &context,
                                                         ClipId audioClipId, ClipId singingClipId,
                                                         ExtractionObserver observer = {});
+        AutomationResult<TaskAcceptedResult> startPitch(const CommandContext &context,
+                                                        ClipId audioClipId, ClipId singingClipId,
+                                                        PitchExtractionOptionsDto options,
+                                                        ExtractionObserver observer = {});
         AutomationResult<TaskAcceptedResult> startMidi(const CommandContext &context,
                                                        ClipId audioClipId,
+                                                       ExtractionObserver observer = {});
+        AutomationResult<TaskAcceptedResult> startMidi(const CommandContext &context,
+                                                       ClipId audioClipId,
+                                                       MidiExtractionOptionsDto options,
                                                        ExtractionObserver observer = {});
 
         void discardDocumentGeneration(const DocumentId &documentId);

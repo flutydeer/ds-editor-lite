@@ -1,6 +1,8 @@
 #include "FileAutomationFacade.h"
 #include "OperationIds.h"
 
+#include <lite/ProjectModel/AppModel/AppModel.h>
+
 #include <QDataStream>
 #include <QDir>
 #include <QFileInfo>
@@ -57,10 +59,24 @@ namespace Automation {
             return QDir::cleanPath(fileInfo.absoluteFilePath());
         }
 
-        QByteArray exportFingerprint(const QString &path, const bool allowOverwrite) {
+        QByteArray exportFingerprint(const QString &path, const bool allowOverwrite,
+                                     const MidiExportOptionsDto &options) {
             QByteArray result;
             QDataStream stream(&result, QIODevice::WriteOnly);
-            stream << path << allowOverwrite;
+            stream << path << allowOverwrite << options.includeTempo
+                   << options.includeTimeSignatures;
+            return result;
+        }
+
+        DocumentDraftDto snapshotDocument(const AppModel &model) {
+            DocumentDraftDto result;
+            result.timeline = model.timeline();
+            result.masterControl = model.masterControl();
+            result.tracks.reserve(model.tracks().size());
+            for (const auto *track : model.tracks()) {
+                if (track)
+                    result.tracks.append(trackDraftDto(*track));
+            }
             return result;
         }
     }
@@ -84,10 +100,17 @@ namespace Automation {
     AutomationResult<FileWriteResultDto>
     FileAutomationFacade::exportMidi(const CommandContext &context, const QString &path,
                                     const bool allowOverwrite) {
+        return exportMidi(context, path, allowOverwrite, {});
+    }
+
+    AutomationResult<FileWriteResultDto>
+    FileAutomationFacade::exportMidi(const CommandContext &context, const QString &path,
+                                    const bool allowOverwrite, MidiExportOptionsDto options) {
         return m_dispatcher.dispatchDocumentCommandResult<FileWriteResultDto>(
             OperationIds::exports::midi::start, context,
-            exportFingerprint(path, allowOverwrite),
-            [this, path, allowOverwrite](DocumentSession &session, const bool validateOnly) {
+            exportFingerprint(path, allowOverwrite, options),
+            [this, path, allowOverwrite,
+             options = std::move(options)](DocumentSession &session, const bool validateOnly) {
                 const auto validatedPath = validateMidiPath(path, allowOverwrite);
                 if (!validatedPath)
                     return AutomationResult<FileWriteResultDto>(validatedPath.getError());
@@ -101,7 +124,8 @@ namespace Automation {
                 }
 
                 QString errorMessage;
-                if (!m_services.exportMidi(session.model(), validatedPath.get(), errorMessage)) {
+                if (!m_services.exportMidi(session.model(), validatedPath.get(), options,
+                                           errorMessage)) {
                     AutomationError error;
                     error.code = AutomationErrorCode::IoError;
                     error.message = errorMessage.isEmpty()
@@ -114,6 +138,61 @@ namespace Automation {
                     .wroteFile = true,
                 });
             });
+    }
+
+    AutomationResult<PreparedMidiExportDto> FileAutomationFacade::prepareMidiExport(
+        const CommandContext &context, const QString &path, const bool allowOverwrite,
+        MidiExportOptionsDto options) {
+        return m_dispatcher.dispatchDocumentCommandResult<PreparedMidiExportDto>(
+            OperationIds::exports::midi::start, context,
+            exportFingerprint(path, allowOverwrite, options),
+            [this, path, allowOverwrite,
+             options = std::move(options)](DocumentSession &session, const bool validateOnly) {
+                const auto validatedPath = validateMidiPath(path, allowOverwrite);
+                if (!validatedPath)
+                    return AutomationResult<PreparedMidiExportDto>(validatedPath.getError());
+                if (!m_services.exportMidi)
+                    return AutomationResult<PreparedMidiExportDto>(unavailable());
+                return AutomationResult<PreparedMidiExportDto>({
+                    .document = session.version(),
+                    .path = validatedPath.get(),
+                    .allowOverwrite = allowOverwrite,
+                    .options = options,
+                    .modelSnapshot = validateOnly ? DocumentDraftDto{}
+                                                   : snapshotDocument(*session.model()),
+                    .validatedOnly = validateOnly,
+                });
+            });
+    }
+
+    AutomationResult<FileWriteResultDto> FileAutomationFacade::writePreparedMidiExport(
+        const PreparedMidiExportDto &prepared) const {
+        if (prepared.validatedOnly) {
+            return FileWriteResultDto{
+                .path = prepared.path,
+                .validatedOnly = true,
+            };
+        }
+        const auto validatedPath = validateMidiPath(prepared.path, prepared.allowOverwrite);
+        if (!validatedPath)
+            return validatedPath.getError();
+        if (!m_services.exportMidi)
+            return unavailable();
+
+        AppModel snapshot;
+        snapshot.replaceProject(buildProjectModelData(prepared.modelSnapshot));
+        QString errorMessage;
+        if (!m_services.exportMidi(&snapshot, validatedPath.get(), prepared.options, errorMessage)) {
+            AutomationError error;
+            error.code = AutomationErrorCode::IoError;
+            error.message = errorMessage.isEmpty() ? QStringLiteral("MIDI export failed")
+                                                   : std::move(errorMessage);
+            return error;
+        }
+        return FileWriteResultDto{
+            .path = validatedPath.get(),
+            .wroteFile = true,
+        };
     }
 
     void FileAutomationFacade::registerOperations() {

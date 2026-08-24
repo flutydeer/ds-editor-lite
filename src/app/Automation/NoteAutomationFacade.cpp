@@ -109,6 +109,38 @@ namespace Automation {
             return hash.result();
         }
 
+        QByteArray wordPatchesFingerprint(const ClipId clipId,
+                                          const QList<NoteWordPatchDto> &edits) {
+            QCryptographicHash hash(QCryptographicHash::Sha256);
+            hashInteger(hash, clipId.value());
+            hashInteger(hash, edits.size());
+            for (const auto &edit : edits) {
+                hashInteger(hash, edit.noteId.value());
+                hashInteger(hash, edit.lyric.has_value());
+                if (edit.lyric)
+                    hashString(hash, *edit.lyric);
+                hashInteger(hash, edit.language.has_value());
+                if (edit.language)
+                    hashString(hash, *edit.language);
+                hashInteger(hash, edit.pronunciation.has_value());
+                if (edit.pronunciation) {
+                    hashString(hash, edit.pronunciation->original);
+                    hashString(hash, edit.pronunciation->edited);
+                }
+                hashInteger(hash, edit.pronunciationCandidates.has_value());
+                if (edit.pronunciationCandidates) {
+                    for (const auto &candidate : *edit.pronunciationCandidates)
+                        hashString(hash, candidate);
+                }
+                hashInteger(hash, edit.phonemes.has_value());
+                if (edit.phonemes) {
+                    hash.addData(
+                        QJsonDocument(edit.phonemes->serialize()).toJson(QJsonDocument::Compact));
+                }
+            }
+            return hash.result();
+        }
+
         bool validNoteDraft(const NoteDraftDto &note) {
             return note.localStart >= 0 && note.length > 0 && note.keyIndex >= 0 &&
                    note.keyIndex <= 127;
@@ -616,6 +648,87 @@ namespace Automation {
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, !changedNotes.isEmpty(), affected));
+                if (changedNotes.isEmpty())
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                auto actions = std::make_unique<NoteActions>();
+                actions->editNotesWordProperties(changedNotes, properties,
+                                                 static_cast<SingingClip *>(clipResult.get().clip),
+                                                 options);
+                return m_committer.commit(session, std::move(actions), affected);
+            });
+    }
+
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::patchWordProperties(const CommandContext &context, const ClipId clipId,
+                                                  QList<NoteWordPatchDto> edits) {
+        std::sort(edits.begin(), edits.end(),
+                  [](const NoteWordPatchDto &left, const NoteWordPatchDto &right) {
+                      return left.noteId.value() < right.noteId.value();
+                  });
+        const auto requestFingerprint = wordPatchesFingerprint(clipId, edits);
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::notes::set_word_properties, context, requestFingerprint,
+            [this, clipId, edits = std::move(edits)](DocumentSession &session,
+                                                     const bool validateOnly) {
+                QList<NoteId> ids;
+                ids.reserve(edits.size());
+                for (const auto &edit : edits)
+                    ids.append(edit.noteId);
+                if (hasDuplicateIds(ids)) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("edits"), QStringLiteral("Note IDs must be unique")));
+                }
+                auto clipResult = m_objects.singingClip(session, clipId);
+                if (!clipResult)
+                    return AutomationResult<MutationResult>(clipResult.getError());
+
+                QList<Note *> changedNotes;
+                QList<Note::WordProperties> properties;
+                QList<WordPropertyEditOptions> options;
+                QList<NoteId> changedIds;
+                for (const auto &edit : edits) {
+                    auto resolved = m_objects.note(session, clipId, edit.noteId);
+                    if (!resolved)
+                        return AutomationResult<MutationResult>(resolved.getError());
+                    auto *note = resolved.get().note;
+                    const auto previous = Note::WordProperties::fromNote(*note);
+                    auto next = previous;
+                    if (edit.lyric)
+                        next.lyric = edit.lyric->trimmed();
+                    if (edit.language)
+                        next.language = *edit.language;
+                    if (edit.pronunciation)
+                        next.pronunciation = *edit.pronunciation;
+                    if (edit.pronunciationCandidates)
+                        next.pronCandidates = *edit.pronunciationCandidates;
+                    if (edit.phonemes)
+                        next.phonemes = *edit.phonemes;
+
+                    const bool wordInputChanged = previous.lyric != next.lyric ||
+                                                  previous.language != next.language;
+                    if (wordInputChanged && !edit.pronunciation)
+                        next.pronunciation.edited.clear();
+                    if (wordInputChanged && !edit.pronunciationCandidates)
+                        next.pronCandidates.clear();
+                    if (!edit.phonemes &&
+                        (wordInputChanged || previous.pronunciation.result() !=
+                                                 next.pronunciation.result())) {
+                        next.phonemes = {};
+                    }
+                    if (wordPropertiesEqual(previous, next))
+                        continue;
+                    changedNotes.append(note);
+                    properties.append(next);
+                    options.append(
+                        {edit.pronunciation.has_value(),
+                         edit.pronunciationCandidates.has_value()});
+                    changedIds.append(edit.noteId);
+                }
+                const auto affected = noteRefs(changedIds);
+                if (validateOnly) {
+                    return AutomationResult<MutationResult>(
+                        m_committer.preview(session, !changedNotes.isEmpty(), affected));
+                }
                 if (changedNotes.isEmpty())
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
                 auto actions = std::make_unique<NoteActions>();

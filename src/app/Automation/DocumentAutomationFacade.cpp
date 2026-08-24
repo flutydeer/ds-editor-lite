@@ -69,6 +69,13 @@ namespace Automation {
             });
     }
 
+    DocumentDraftDto DocumentAutomationFacade::newDocumentDraft(const bool defaultTemplate) {
+        AppModel model;
+        if (defaultTemplate)
+            model.newProject();
+        return documentDraftDto(model.takeProjectData(), {});
+    }
+
     AutomationResult<MutationResult>
         DocumentAutomationFacade::commitNewDocument(const CommandContext &context,
                                                     const DocumentDraftDto &document) {
@@ -89,8 +96,8 @@ namespace Automation {
         const bool savedBaseline) {
         return m_dispatcher.dispatchDocumentCommand(
             operationId, context, replaceFingerprint(document, path, projectName, savedBaseline),
-            [this, document, path, projectName, savedBaseline](DocumentSession &session,
-                                                               const bool validateOnly) {
+            [this, document, path, projectName, savedBaseline,
+             taskId = context.taskId](DocumentSession &session, const bool validateOnly) {
                 auto validation = validate(document);
                 if (!validation)
                     return AutomationResult<MutationResult>(validation.getError());
@@ -115,7 +122,6 @@ namespace Automation {
                 session.setLifecycleState(DocumentLifecycleState::Replacing);
                 if (m_services.beforeReplaceGeneration)
                     m_services.beforeReplaceGeneration(result.previous.documentId);
-                m_tasks.discardDocumentGeneration(result.previous.documentId);
                 history->reset(HistoryManager::ResetState::Saved);
                 model->replaceProject(std::move(prepared));
                 if (m_services.applyLoopSettings)
@@ -123,6 +129,8 @@ namespace Automation {
                 history->reset(savedBaseline ? HistoryManager::ResetState::Saved
                                              : HistoryManager::ResetState::Unsaved);
                 result.current = session.replaceGeneration(path, projectName);
+                m_tasks.replaceDocumentGeneration(result.previous.documentId, result.current,
+                                                  taskId);
                 result.changed = true;
                 result.createdObjects = std::move(createdObjects);
                 return AutomationResult<MutationResult>(std::move(result));
@@ -170,10 +178,13 @@ namespace Automation {
     }
 
     AutomationResult<MutationResult>
-        DocumentAutomationFacade::saveDocument(const CommandContext &context, const QString &path) {
+        DocumentAutomationFacade::saveDocument(const CommandContext &context, const QString &path,
+                                               const bool allowOverwrite) {
+        auto requestFingerprint = path.toUtf8();
+        requestFingerprint.append(allowOverwrite ? "\1" : "\0", 1);
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::documents::save, context, path.toUtf8(),
-            [this, path](DocumentSession &session, const bool validateOnly) {
+            OperationIds::documents::save, context, requestFingerprint,
+            [this, path, allowOverwrite](DocumentSession &session, const bool validateOnly) {
                 if (path.trimmed().isEmpty()) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("path"), QStringLiteral("Save path is empty")));
@@ -181,6 +192,13 @@ namespace Automation {
                 if (!m_services.saveProject) {
                     return AutomationResult<MutationResult>(
                         missingRuntime(QStringLiteral("Project saving is unavailable")));
+                }
+                if (!allowOverwrite && QFileInfo::exists(path)) {
+                    AutomationError error;
+                    error.code = AutomationErrorCode::OverwriteDenied;
+                    error.fieldPath = QStringLiteral("allow_overwrite");
+                    error.message = QStringLiteral("The destination file already exists");
+                    return AutomationResult<MutationResult>(std::move(error));
                 }
                 MutationResult result;
                 result.previous = session.version();

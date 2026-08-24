@@ -109,6 +109,7 @@ namespace Automation {
             applyMutation(const CommandContext &context, const InferenceMutationRequest &request);
 
         [[nodiscard]] static OperationId operationId(InferenceMutationKind kind);
+        [[nodiscard]] static QStringList supportedStages();
 
     private:
         void registerOperations();

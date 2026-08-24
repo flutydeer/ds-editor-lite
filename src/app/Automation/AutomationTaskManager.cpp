@@ -4,6 +4,28 @@
 
 namespace Automation {
 
+    namespace {
+
+        struct RemovedTaskCallbacks {
+            AutomationTaskSnapshot snapshot;
+            AutomationTaskManager::CancelCallback cancel;
+            AutomationTaskManager::UnsuccessfulCallback unsuccessful;
+            AutomationTaskManager::TerminalCallback terminal;
+        };
+
+        void notifyRemovedTasks(const QList<RemovedTaskCallbacks> &removedTasks) {
+            for (const auto &removed : removedTasks) {
+                if (removed.cancel)
+                    removed.cancel();
+                if (removed.unsuccessful)
+                    removed.unsuccessful(removed.snapshot);
+                if (removed.terminal)
+                    removed.terminal(removed.snapshot);
+            }
+        }
+
+    } // namespace
+
     AutomationTaskSnapshot AutomationTaskManager::createTask(OperationId operationId,
                                                              DocumentVersion baseDocument,
                                                              std::optional<ObjectRef> target,
@@ -28,6 +50,24 @@ namespace Automation {
         if (it == m_records.end() || isTerminal(it->snapshot.state))
             return false;
         it->unsuccessful = std::move(callback);
+        return true;
+    }
+
+    bool AutomationTaskManager::setTerminalCallback(const TaskId &taskId,
+                                                     TerminalCallback callback) {
+        std::optional<AutomationTaskSnapshot> completed;
+        {
+            const QMutexLocker locker(&m_mutex);
+            auto it = m_records.find(taskId);
+            if (it == m_records.end())
+                return false;
+            if (isTerminal(it->snapshot.state))
+                completed = it->snapshot;
+            else
+                it->terminal = std::move(callback);
+        }
+        if (completed && callback)
+            callback(*completed);
         return true;
     }
 
@@ -78,6 +118,7 @@ namespace Automation {
 
     AutomationResult<bool> AutomationTaskManager::beginCommitting(const TaskId &taskId) {
         UnsuccessfulCallback unsuccessful;
+        TerminalCallback terminal;
         std::optional<AutomationTaskSnapshot> snapshot;
         {
             const QMutexLocker locker(&m_mutex);
@@ -88,6 +129,7 @@ namespace Automation {
                 it->snapshot.state = AutomationTaskState::Canceled;
                 it->snapshot.cancelable = false;
                 unsuccessful = std::move(it->unsuccessful);
+                terminal = std::move(it->terminal);
                 snapshot = it->snapshot;
             } else {
                 if (it->snapshot.state != AutomationTaskState::Queued &&
@@ -101,6 +143,8 @@ namespace Automation {
         }
         if (unsuccessful)
             unsuccessful(*snapshot);
+        if (terminal)
+            terminal(*snapshot);
         return false;
     }
 
@@ -126,20 +170,29 @@ namespace Automation {
     }
 
     bool AutomationTaskManager::succeed(const TaskId &taskId, MutationResult mutation) {
-        const QMutexLocker locker(&m_mutex);
-        auto it = m_records.find(taskId);
-        if (it == m_records.end() || it->snapshot.state != AutomationTaskState::Committing)
-            return false;
-        it->snapshot.state = AutomationTaskState::Succeeded;
-        it->snapshot.cancelable = false;
-        it->snapshot.mutation = std::move(mutation);
-        it->snapshot.error.reset();
-        it->unsuccessful = {};
+        TerminalCallback terminal;
+        AutomationTaskSnapshot snapshot;
+        {
+            const QMutexLocker locker(&m_mutex);
+            auto it = m_records.find(taskId);
+            if (it == m_records.end() || it->snapshot.state != AutomationTaskState::Committing)
+                return false;
+            it->snapshot.state = AutomationTaskState::Succeeded;
+            it->snapshot.cancelable = false;
+            it->snapshot.mutation = std::move(mutation);
+            it->snapshot.error.reset();
+            it->unsuccessful = {};
+            terminal = std::move(it->terminal);
+            snapshot = it->snapshot;
+        }
+        if (terminal)
+            terminal(snapshot);
         return true;
     }
 
     bool AutomationTaskManager::fail(const TaskId &taskId, AutomationError error) {
         UnsuccessfulCallback unsuccessful;
+        TerminalCallback terminal;
         AutomationTaskSnapshot snapshot;
         {
             const QMutexLocker locker(&m_mutex);
@@ -150,15 +203,19 @@ namespace Automation {
             it->snapshot.cancelable = false;
             it->snapshot.error = std::move(error);
             unsuccessful = std::move(it->unsuccessful);
+            terminal = std::move(it->terminal);
             snapshot = it->snapshot;
         }
         if (unsuccessful)
             unsuccessful(snapshot);
+        if (terminal)
+            terminal(snapshot);
         return true;
     }
 
     bool AutomationTaskManager::cancel(const TaskId &taskId) {
         UnsuccessfulCallback unsuccessful;
+        TerminalCallback terminal;
         AutomationTaskSnapshot snapshot;
         {
             const QMutexLocker locker(&m_mutex);
@@ -170,10 +227,13 @@ namespace Automation {
             it->snapshot.state = AutomationTaskState::Canceled;
             it->snapshot.cancelable = false;
             unsuccessful = std::move(it->unsuccessful);
+            terminal = std::move(it->terminal);
             snapshot = it->snapshot;
         }
         if (unsuccessful)
             unsuccessful(snapshot);
+        if (terminal)
+            terminal(snapshot);
         return true;
     }
 
@@ -184,7 +244,7 @@ namespace Automation {
     }
 
     void AutomationTaskManager::discardDocumentGeneration(const DocumentId &documentId) {
-        QList<CancelCallback> callbacks;
+        QList<RemovedTaskCallbacks> removedTasks;
         {
             const QMutexLocker locker(&m_mutex);
             for (auto it = m_records.begin(); it != m_records.end();) {
@@ -192,15 +252,52 @@ namespace Automation {
                     ++it;
                     continue;
                 }
-                if (!isTerminal(it->snapshot.state) &&
-                    it->snapshot.state != AutomationTaskState::Committing && it->cancel) {
-                    callbacks.append(it->cancel);
+                if (!isTerminal(it->snapshot.state)) {
+                    const auto shouldCancel =
+                        it->snapshot.state != AutomationTaskState::Committing;
+                    it->snapshot.state = AutomationTaskState::Canceled;
+                    it->snapshot.cancelable = false;
+                    it->snapshot.error.reset();
+                    removedTasks.append({it->snapshot,
+                                         shouldCancel ? std::move(it->cancel) : CancelCallback{},
+                                         std::move(it->unsuccessful), std::move(it->terminal)});
                 }
                 it = m_records.erase(it);
             }
         }
-        for (const auto &callback : callbacks)
-            callback();
+        notifyRemovedTasks(removedTasks);
+    }
+
+    void AutomationTaskManager::replaceDocumentGeneration(const DocumentId &oldDocumentId,
+                                                          const DocumentVersion &newDocument,
+                                                          const TaskId &preservedTaskId) {
+        QList<RemovedTaskCallbacks> removedTasks;
+        {
+            const QMutexLocker locker(&m_mutex);
+            for (auto it = m_records.begin(); it != m_records.end();) {
+                if (it->snapshot.baseDocument.documentId != oldDocumentId) {
+                    ++it;
+                    continue;
+                }
+                if (!preservedTaskId.isNull() && it.key() == preservedTaskId) {
+                    it->snapshot.baseDocument = newDocument;
+                    ++it;
+                    continue;
+                }
+                if (!isTerminal(it->snapshot.state)) {
+                    const auto shouldCancel =
+                        it->snapshot.state != AutomationTaskState::Committing;
+                    it->snapshot.state = AutomationTaskState::Canceled;
+                    it->snapshot.cancelable = false;
+                    it->snapshot.error.reset();
+                    removedTasks.append({it->snapshot,
+                                         shouldCancel ? std::move(it->cancel) : CancelCallback{},
+                                         std::move(it->unsuccessful), std::move(it->terminal)});
+                }
+                it = m_records.erase(it);
+            }
+        }
+        notifyRemovedTasks(removedTasks);
     }
 
     qsizetype AutomationTaskManager::size() const {

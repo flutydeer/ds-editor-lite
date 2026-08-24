@@ -20,7 +20,9 @@ class MidiLoadSession final : public ProjectLoadSessionBase {
 
 public:
     MidiLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
-                    ProjectLoadPurpose purpose, quint64 requestId, QObject *parent = nullptr);
+                    ProjectLoadPurpose purpose, quint64 requestId, bool interactive = true,
+                    bool importTempo = true, bool importTimeSignature = true,
+                    QObject *parent = nullptr);
 
 private:
     void onStart() override;
@@ -39,6 +41,9 @@ private:
     IProjectConfigPage *m_configPage = nullptr;
     MidiConverterUi m_converterUi;
     MidiParseData m_parseData;
+    bool m_interactive = true;
+    bool m_importTempo = true;
+    bool m_importTimeSignature = true;
 };
 
 #endif // DS_EDITOR_LITE_MIDILOADSESSION_H

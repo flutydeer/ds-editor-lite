@@ -192,6 +192,16 @@ InferController::~InferController() = default;
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(InferController)
 
+void InferController::restartPieceInference(InferPiece &piece) {
+    Q_D(InferController);
+    d->createPipeline(piece);
+}
+
+void InferController::cancelPieceInference(const int pieceId) {
+    Q_D(InferController);
+    d->cancelPieceRelatedTasks(pieceId);
+}
+
 void InferController::addInferDurationTask(InferDurationTask &task) {
     Q_D(InferController);
     d->m_inferDurTasks.add(&task);

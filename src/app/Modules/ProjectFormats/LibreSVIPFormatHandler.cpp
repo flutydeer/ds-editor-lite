@@ -47,7 +47,8 @@ IProjectLoadSession *LibreSVIPFormatHandler::createSession(const ProjectLoadRequ
                                                            IDocumentWorkflowUi * /*ui*/,
                                                            QObject *parent) {
     return new LibreSVIPLoadSession(this, request.filePath, request.purpose, request.requestId,
-                                    parent);
+                                    request.interactive, request.importTempo,
+                                    request.importTimeSignature, parent);
 }
 
 IProjectConfigPage *LibreSVIPFormatHandler::createConfigPage(QWidget *parent) {

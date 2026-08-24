@@ -12,8 +12,9 @@
 #include <utility>
 
 DspxLoadSession::DspxLoadSession(QString filePath, const quint64 requestId, IDocumentWorkflowUi *ui,
-                                 QObject *parent)
-    : ProjectLoadSessionBase(std::move(filePath), requestId, parent), m_ui(ui) {
+                                 const bool allowWithoutPackageMetadata, QObject *parent)
+    : ProjectLoadSessionBase(std::move(filePath), requestId, parent), m_ui(ui),
+      m_allowWithoutPackageMetadata(allowWithoutPackageMetadata) {
 }
 
 void DspxLoadSession::onStart() {
@@ -22,7 +23,8 @@ void DspxLoadSession::onStart() {
             startParseTask();
             break;
         case AppStatus::ModuleStatus::Error:
-            if (m_ui && m_ui->confirmOpenWithoutPackageMetadata())
+            if (m_allowWithoutPackageMetadata ||
+                (m_ui && m_ui->confirmOpenWithoutPackageMetadata()))
                 startParseTask();
             else
                 emitCanceled();
@@ -64,7 +66,8 @@ void DspxLoadSession::handlePackageStatus() {
     if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready) {
         startParseTask();
     } else if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Error) {
-        if (m_ui && m_ui->confirmOpenWithoutPackageMetadata())
+        if (m_allowWithoutPackageMetadata ||
+            (m_ui && m_ui->confirmOpenWithoutPackageMetadata()))
             startParseTask();
         else {
             emitCanceled();
