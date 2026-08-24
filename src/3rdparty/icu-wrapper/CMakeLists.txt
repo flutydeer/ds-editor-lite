@@ -49,7 +49,11 @@ if(BUILD_SHARED_LIBS)
     )
 endif()
 
-if(BUILD_TESTING)
+# Respect the parent project's test gate when built inside ds-editor-lite:
+# include(CTest) leaves BUILD_TESTING=ON by default even when the host sets
+# LITE_BUILD_TESTS=OFF. Standalone builds keep the standard BUILD_TESTING
+# default (ON).
+if(BUILD_TESTING AND (NOT DEFINED LITE_BUILD_TESTS OR LITE_BUILD_TESTS))
     find_package(Qt6 6.2 REQUIRED COMPONENTS Test)
     add_executable(IcuWrapperTests tests/IcuWrapperTests.cpp)
     set_target_properties(IcuWrapperTests PROPERTIES AUTOMOC ON)
