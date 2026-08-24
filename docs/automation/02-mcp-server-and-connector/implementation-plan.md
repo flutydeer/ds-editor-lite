@@ -26,8 +26,8 @@ MCP Server、公共 Wire Contract、三级 profile/Custom 权限基础、单实�
 - 补齐 87 个 Meta/L1/L2 公共工具所需的公开 DTO、细粒度领域命令、编排入口和能力查询。
 - 建立 L1/L2/L3/Custom profile 基础、Custom 独立持久化、调用来源与客户端归因、
   Access Policy、File Guard 和 Admission Control。
-- 在 GUI editor 内通过 `QHttpServer` 提供 MCP 2026-07-28 Streamable HTTP `/mcp`，
-  仅绑定数值地址 `127.0.0.1`。
+- 在 GUI editor 内通过 `QHttpServer` 提供 MCP 2025-06-18、2025-11-25 与 2026-07-28
+  三版本、双生命周期 Streamable HTTP `/mcp`，仅绑定数值地址 `127.0.0.1`。
 - 扩展现有全局单实例 `QLocalServer`，提供 `automation.discover` 和
   `automation.watch`，同时保持 `activate`、`openProjects` 兼容。
 - 新增 DS Connector Lite：下游为 MCP stdio Server，上游为 editor Streamable HTTP
@@ -201,7 +201,7 @@ customPermissions[stableOperationId] = enabled | disabled
 目标缓存和执行期 Invocation Router。隐藏不是授权；每次调用在实际 dispatch 前重新检查。
 Automation 自身的启用、端口、profile、Custom 和文件根目录不提供任何自动化写接口。
 
-## 7. Editor MCP 2026-07-28 Transport
+## 7. Editor MCP 三版本、双生命周期 Transport
 
 Editor 只提供：
 
@@ -209,15 +209,21 @@ Editor 只提供：
 POST http://127.0.0.1:<port>/mcp
 ```
 
-严格采用 MCP 2026-07-28：每个 JSON-RPC 消息使用独立 POST；请求体是单个 request 或
-notification，不接受 Batch Array 或客户端 response。实现 per-request `_meta`，校验
-`MCP-Protocol-Version`、`Mcp-Method`、适用时的 `Mcp-Name` 与 body 完全一致；不实现旧版
-`initialize`/协议 session 兼容层，不签发或回显 `Mcp-Session-Id`，不提供 GET stream、DELETE
-session 或 `Last-Event-ID` 恢复。GET/DELETE `/mcp` 返回 405。
+每个 JSON-RPC 消息使用独立 POST；请求体是单个 request 或 notification，不接受 Batch Array
+或客户端 response。2026-07-28 使用无状态 `server/discover` 与 per-request `_meta`，并校验
+`MCP-Protocol-Version`、`Mcp-Method`、适用时的 `Mcp-Name` 与 body 完全一致。2025-06-18 与
+2025-11-25 使用 `initialize → notifications/initialized` 生命周期；initialize 可不带协议版本
+头并精确回显协商版本，后续请求使用该 `MCP-Protocol-Version`，且不要求 2026 路由头。
 
-首版处理强制发现入口 `server/discover`、`tools/list`、`tools/call` 和协议要求的最小错误
-响应。`server/discover` 返回支持版本、tools capability、server identity 与缓存元数据；
-`tools/list` 稳定排序、分页，
+Editor 不签发 `Mcp-Session-Id`，不提供 GET stream、DELETE session 或 `Last-Event-ID` 恢复；
+GET/DELETE `/mcp` 返回 405。两个 2025 版本的 list/call 结果移除 `resultType`、`ttlMs`、
+`cacheScope` 与 2026 server metadata，`structuredContent` 保持旧生命周期要求的对象根；
+2026-07-28 保留完整结果元数据并允许任意 JSON 输出值。未知协议版本的错误同时列出三个
+受支持版本。
+
+2026-07-28 处理 `server/discover`，三版本共同处理 `ping`、`tools/list`、`tools/call` 和协议要求
+的最小错误响应。`server/discover` 返回支持版本、tools capability、server identity 与缓存
+元数据；`tools/list` 稳定排序、分页，
 并返回严格的 input/output Schema。由于首版不建设 MCP 订阅，tools capability 不声明
 `listChanged`；客户端通过轮询重新发现。
 
@@ -251,9 +257,13 @@ DS Connector Lite 是独立可执行组件，不做单实例限制。它不查�
 
 ### 9.1 MCP 到 MCP 的语义转接
 
-下游 stdio Server 与上游 Streamable HTTP Client 是两条独立的 MCP 2026-07-28 连接语义。
-connector 为每个请求重分配上游 ID并维护映射，分别校验两侧协议元数据，映射结构化结果、
-错误、请求级取消、超时和断线。它不逐字节透传，也不复制 Facade 规则。
+下游 stdio Server 与上游 Streamable HTTP Client 是两条独立的 MCP 连接语义，两侧都支持
+2025-06-18、2025-11-25 与 2026-07-28。Connector 优先尝试 2026 `server/discover`；遇到明确
+的不支持、旧式响应或缺少现代发现能力时，按 2025-11-25 发起 `initialize/initialized`，并可
+采用服务端协商返回的 2025-06-18；后续调用固定使用协商版本。connector 为每个请求重分配
+上游 ID 并维护映射，分别校验两侧协议元数据，按
+目标版本映射结构化结果、错误、请求级取消、超时和断线。它不逐字节透传，也不复制 Facade
+规则。
 
 stdout 只能输出 MCP stdio 帧，启动诊断和日志全部写 stderr 或独立文件。editor 未运行、
 starting、MCP disabled/starting 或上游未连接时，downstream 仍可初始化并保持固定工具集，

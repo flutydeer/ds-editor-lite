@@ -177,27 +177,35 @@ editor，也不得为了测试自动结束来源不明的现有 editor。
 - connector exposure 只缩减说明面，include L2 目标不能越过 editor L1/Custom；
 - Automation enabled/profile/Custom/file roots 不存在 MCP、泛化或 connector 写入口。
 
-## 8. MCP 2026-07-28 协议与 HTTP
+## 8. MCP 2025-06-18 / 2025-11-25 / 2026-07-28 三版本与 HTTP
 
 ### 8.1 Transport 合规
 
 - 仅 `POST /mcp`；GET/DELETE 返回 405，不存在 standalone SSE 或 session DELETE；
 - 每 POST 只接受单个 JSON-RPC request/notification，Batch Array 和客户端 response 拒绝；
 - notification 接受时返回 202 空 body；请求返回单 JSON 或请求级 SSE；
-- `MCP-Protocol-Version: 2026-07-28` 与 body
-  `_meta.io.modelcontextprotocol/protocolVersion` 必须相等；缺失、不支持和不匹配返回规范错误；
-- `_meta` 的 protocolVersion/clientCapabilities 必填，clientInfo 省略或合法提供均可；
-  `Mcp-Method`、适用的 `Mcp-Name` 必填且与 body 大小写敏感一致；header name 大小写不敏感；
+- 2026-07-28 的 `MCP-Protocol-Version` 与 body
+  `_meta.io.modelcontextprotocol/protocolVersion` 必须相等；`_meta` 的
+  protocolVersion/clientCapabilities 和 `Mcp-Method`、适用的 `Mcp-Name` 必填，clientInfo
+  省略或合法提供均可；
+- 2025-06-18 与 2025-11-25 分别完整执行 `initialize → notifications/initialized`；
+  initialize 无协议头并精确回显请求或协商版本，后续带协商版本头，普通 request 不含 2026
+  per-request 元数据或路由头；initialized notification 返回 202 空 body；
+- 2026 initialize、2025 `server/discover`、缺失/不支持/不匹配版本均按对应协议稳定拒绝；
+  header name 大小写不敏感，镜像值与 body 大小写敏感一致；
 - header Base64 sentinel 编解码、Unicode/控制符/前后空格、伪造 header/body 差异和
   `HeaderMismatch -32020`；
-- 不签发、不依赖、不回显 `Mcp-Session-Id`；忽略旧 session/Last-Event-ID 不产生状态；
+- 三版本都不签发、不依赖、不回显 `Mcp-Session-Id`；session/Last-Event-ID 不产生隐藏状态；
 - Content-Type/Accept、JSON 编码、重复 header、错误 method、未知 RPC、非法 id 和超大消息；
 - 请求级 SSE 关闭会取消尚未提交的短请求且不再写响应；TaskAccepted 后由 `tasks.cancel` 管理。
 
 ### 8.2 Tools 语义
 
-- `server/discover` 无需旧式 initialize 即可返回支持版本、tools capability、serverInfo、
-  `ttlMs` 与 `cacheScope`；未知版本按 `UnsupportedProtocolVersion -32022` 返回支持列表；
+- 2026 `server/discover` 无需 initialize 即可返回三个支持版本、tools capability、serverInfo、
+  `ttlMs` 与 `cacheScope`；未知版本按 `UnsupportedProtocolVersion -32022` 返回精确支持列表；
+- 两个 2025 initialize 均返回协商版本、tools capability、serverInfo 与 instructions；2025 list/call
+  不出现 `resultType`、`ttlMs`、`cacheScope` 或 2026 server metadata；非对象
+  `structuredContent` 降级为 TextContent；
 - tools capability、`tools/list` 稳定顺序/分页/cache 元数据和不声明首版 `listChanged`；
 - 87 项工具的 name、title、description、inputSchema、outputSchema、annotations 与 Manifest
   descriptor 一致；
@@ -250,8 +258,9 @@ editor，也不得为了测试自动结束来源不明的现有 editor。
 - stdout 字节流只包含合法 MCP stdio 帧；banner、Qt 日志、warning、崩溃诊断全部在 stderr/
   日志文件；高并发日志不污染 framing；
 - 部分行、多消息、非法 JSON、超大帧、EOF、破管和 stdout backpressure；
-- downstream/upstream 分别校验 2026-07-28 元数据并重新分配 request ID；并发乱序响应映射
-  回正确 downstream ID；
+- downstream/upstream 分别覆盖 2026 per-request 元数据与两个 2025 initialize 生命周期；上游
+  优先 2026 并在明确不兼容时以 2025-11-25 发起 initialize，接受服务端协商为 2025-06-18，
+  保留 session 并固定后续版本；两侧重新分配 request ID，并发乱序响应映射回正确 downstream ID；
 - downstream stdio 取消映射为中止对应上游 HTTP 请求，不能取消其他请求；
 - 连接/响应 timeout、editor stop、endpoint change 和 instance change 的稳定错误；
 - connector 不逐字节透传、不修改业务结果、不重写 revision、不自动重放 Command；

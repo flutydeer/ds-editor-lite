@@ -11,15 +11,16 @@ Editor MCP、connector 和 GUI 继续复用一期的类型化 Facade、Dispatche
 业务提交实现。公共工具分母以[公共工具矩阵](public-tool-matrix.md)为准；一期 122 个内部
 Catalog operation 仍是进程内能力全集，不等同于 MCP 工具数。
 
-本报告记录实现事实；最终冻结树已经完成完整构建、进程联调、安装 staging、GUI/真实环境
-资格和连续全量回归，并在本期边界内达到可交付状态。逐轮结果、失败保留和放行结论见
-[最终测试报告](test-report.md)。
+本报告记录实现事实；二期基础冻结树已经完成完整构建、进程联调、安装 staging、GUI/真实
+环境资格和连续全量回归。其后的 MCP 三版本兼容增量按快速交付要求只执行定向构建、组件
+CTest、真实进程联调和 Agent Host 验证，未重跑全部 65 项回归。逐轮结果、失败保留和当前
+结论见[最终测试报告](test-report.md)。
 
 ## 2. 已交付的公共架构
 
 | 能力 | 最终实现结果 |
 |---|---|
-| 公共 Wire 库 | 建立 `AutomationWire`，集中维护 MCP 2026-07-28、Profile、公共工具契约、公共枚举和值域、JSON Schema、规范化摘要、游标、exposure 与 Schema 兼容算法 |
+| 公共 Wire 库 | 建立 `AutomationWire`，集中维护 MCP 2025-06-18 / 2025-11-25 / 2026-07-28 三版本、双生命周期协议，及 Profile、公共工具契约、公共枚举和值域、JSON Schema、规范化摘要、游标、exposure 与 Schema 兼容算法 |
 | Public Registry | 建立 `PublicAutomationRegistry`，为 87 项工具登记严格 Schema、类型化 codec、动态值来源、Facade/host binding、输出校验和执行期安全门禁 |
 | Editor Adapter | 建立 `PublicAutomationHostAdapter`，把文档打开/导入、音频片段、导出、提取和推理等公共编排接回一期真实运行时 |
 | MCP Runtime | 建立 `EditorMcpController`、`McpRequestDispatcher` 和 `McpHttpServer`，负责设置生效、运行时启停、协议分发和 loopback HTTP 生命周期 |
@@ -95,17 +96,21 @@ Manifest、`tools/list` 或 connector 泛化入口。
 
 ## 4. MCP、Bootstrap 与 Connector
 
-### 4.1 Editor MCP 2026-07-28
+### 4.1 Editor MCP 三版本、双生命周期
 
 - Editor 只在数值地址 `127.0.0.1` 上提供 `POST /mcp`；端口可固定或由系统分配。
-- 实现 `server/discover`、`tools/list` 和 `tools/call`，每次 POST 只接收单个 JSON-RPC request
-  或 notification；notification 接受后不生成业务响应。
-- 协议版本、客户端能力、客户端信息及 `Mcp-Method`/`Mcp-Name` 元数据按 MCP 2026-07-28
-  校验；header 与 body 不一致时在进入业务 handler 前拒绝。
+- 同时支持 MCP 2025-06-18、2025-11-25 与 2026-07-28。2026 使用 `server/discover` 与
+  per-request metadata；两个 2025 版本使用 `initialize → notifications/initialized`，三版本共同支持 `ping`、
+  `tools/list` 和 `tools/call`。每次 POST 只接收单个 JSON-RPC request 或 notification；
+  notification 接受后不生成业务响应。
+- 2026 的协议版本、客户端能力、客户端信息及 `Mcp-Method`/`Mcp-Name` 元数据逐请求校验；
+  2025 initialize 可省略版本头并精确回显请求或协商版本，后续使用协商版本头且不要求 2026 路由头。header 与 body
+  不一致时在进入业务 handler 前拒绝。
 - 工具结果同时提供结构化内容和文本兼容表示，返回前按 output Schema 自检；协议错误、业务
   AutomationError 和 HTTP transport 错误保持分层。
-- 不建立旧式 initialize/session 兼容层，不签发 `Mcp-Session-Id`，也不提供 GET stream 或
-  DELETE session。
+- 结果按请求版本塑形：2025 移除 `resultType`、cache 字段和 2026 server metadata，并把非对象
+  结构化值保留为 TextContent；2026 保留完整结果元数据和任意 JSON structuredContent。
+- 不签发 `Mcp-Session-Id`，也不提供 GET stream 或 DELETE session。
 - HTTP 层校验本机地址、Host、Origin、method、Content-Type、Accept、请求体、JSON 深度/
   节点、响应体与请求期限，并分别限制全局、peer 和逻辑客户端的并发及令牌桶速率。
 - HTTP limits 的安全默认值由 server 实现单元内的无参数 overload 构造；显式 limits overload
@@ -130,6 +135,10 @@ Manifest、`tools/list` 或 connector 泛化入口。
   错误报告 editor 不可用；editor 后续 ready 时通过 watch 自动握手。
 - 下游 stdio 与上游 Streamable HTTP 分别维护 MCP 请求语义。上游请求重新分配 ID，并将并发
   乱序响应、取消、timeout、断线和 editor 实例更换映射回原下游请求。
+- 两侧均支持 2025-06-18、2025-11-25 与 2026-07-28。上游先探测 2026
+  `server/discover`，在明确协议不兼容或现代发现响应无效时以 2025-11-25 发起
+  initialize/initialized，并可在不丢失 HTTP session 的前提下采用服务端协商返回的
+  2025-06-18；随后所有 list/call 固定使用协商版本，状态接口报告实际版本。
 - `l0/l1/l2/l3` preset 与 `id:`、`category:`、`prefix:` selector 形成固定 exposure；最终集合
   遵循 include 后 exclude，且同一结果同时约束类型化工具和泛化 list/search/describe/invoke。
 - Manifest 支持分页握手、工具逐项兼容判断和实际可用性缓存。Editor 实例变化时清除旧 Manifest
@@ -138,6 +147,11 @@ Manifest、`tools/list` 或 connector 泛化入口。
   取消旧周期。暂态握手失败使用有界指数退避，成功、target 变化和手动重连都会重置预算。
 - Upstream client 区分可信 HTTP transport 错误、MCP 协议响应和不可确认结果；只有无法判断
   Command 是否已执行的情形才转换为 `outcome_unknown`。
+- Connector 在握手完成时一次计算并缓存工具兼容计数，离线、刷新和实例切换时显式重置；
+  `connector.get_status` 只读取缓存事实，不在每次本地状态查询时重新执行 87 项双向 Schema
+  兼容分析。
+- 输入与输出 Schema 完全相同的工具直接按精确相等结果判定兼容；只有 Schema 发生漂移时才
+  进入完整的输入、输出方向性子集证明，不以跳过不等 Schema 的验证换取性能。
 - stdio 输入使用帧数与累计字节双上限及合并唤醒；stdout 由专用 writer thread 处理，并使用
   有界输出队列和确定性背压错误，避免主事件循环因下游停止读取而阻塞。
 - stdout 只承载 MCP 帧；运行诊断与错误输出不进入协议字节流。
@@ -242,18 +256,22 @@ Manifest、`tools/list` 或 connector 泛化入口。
   设置、启动参数、MCP HTTP、Single Instance、Connector 和进程联调测试目标。
 - 公共集合测试以 87 项矩阵、六个 connector 桥接工具、122 项内部 Catalog 审计和延期集合负向
   守卫为机器不变量。
-- 协议测试覆盖 MCP metadata、header/body 一致性、HTTP 安全、分页、Schema、结构化结果、限流、
-  timeout 和 runtime stop；connector 测试覆盖离线工具面、exposure、兼容、重连、错误映射、
-  stdio framing 与背压。
+- 协议测试覆盖两个 2025 initialize 生命周期、2026 per-request metadata、三版本结果塑形、
+  header/body 一致性、HTTP 安全、分页、Schema、结构化结果、限流、timeout 和 runtime stop；
+  connector 测试覆盖三版本下游、上游自动回退与 2025-06-18 协商降级、离线工具面、
+  exposure、兼容、重连、错误映射、stdio framing 与背压。
 - 一期 Catalog、文档生命周期、幂等、异步 Task、编辑域和运行时域保护继续作为二期回归基线。
 - 最终冻结树完成 Debug 全目标构建；真实 Editor/Connector 进程联调 R17、R18 连续通过。
 - `package-dml-release` 完成 editor 与 connector 构建和 staging 安装；安装目录同时具有两款
   可执行文件以及 Connector 所需 Qt Core/Network 与运行库，安装版 CLI smoke 通过。
 - GUI/真实资格在隔离副本上完成打开、播放、编辑、保存，以及 Connector mutation 后 GUI Undo；
   只读源 19/19 保持完整，无无人值守弹窗或测试进程残留。
-- 修正一个与 `RevisionPolicy::None` 新契约冲突的旧测试断言后，最终冻结树连续三轮完整 CTest
-  均为 65/65。正式执行细节仍以[全量测试大纲](test-outline.md)、
+- 修正一个与 `RevisionPolicy::None` 新契约冲突的旧测试断言后，基础冻结树连续三轮完整 CTest
+  均为 65/65；其后的三版本兼容增量只按快速交付要求执行定向 CTest，不把历史全量结果冒充
+  为当前增量的全量回归。正式执行细节仍以[全量测试大纲](test-outline.md)、
   [测试执行计划](test-plan.md)和[最终测试报告](test-report.md)为准。
+- 三版本增量最终四目标 CTest 为 4/4，真实进程联调连续压力复跑 5/5；Release Connector 已由
+  Codex 默认以 2025-06-18 初始化，并成功调用离线可用的 `connector.get_status`。
 
 ## 9. 明确的三期边界
 

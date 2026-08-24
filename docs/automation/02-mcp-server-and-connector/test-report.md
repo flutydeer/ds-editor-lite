@@ -2,15 +2,18 @@
 
 ## 1. 结论
 
-本报告按[测试执行计划](test-plan.md)和[全量测试大纲](test-outline.md)记录二期当前测试事实。
-公共 Wire、Editor MCP、Bootstrap、Connector 以及一期受影响回归已完成组件验证；最终候选
-又完成 R17、R18 连续真实进程联调、Release package staging、GUI/真实环境资格和冻结树完整
-Debug 构建。修正冻结 R01 暴露的一项旧测试契约后，R02～R04 连续三轮完整 CTest 均为
-65/65，通过期间源码和构建基线保持不变。
+本报告按[测试执行计划](test-plan.md)和[全量测试大纲](test-outline.md)记录二期测试事实。二期
+基础冻结树已完成公共 Wire、Editor MCP、Bootstrap、Connector、一期受影响回归、真实进程
+联调、Release package staging、GUI/真实环境资格和连续三轮 65/65 完整 CTest。
 
-当前结论为：**PASS / RELEASE-READY。二期在本期明确范围内满足放行门禁；结论覆盖 MCP
-Server、DS Connector Lite 和 L1/L2 公共能力，不把延期的 L3 业务工具或三期 Headless 能力
-计入本期分母。**
+基础冻结树之后又增加 MCP 2025-06-18、2025-11-25 与 2026-07-28 三版本兼容增量。按本轮
+快速交付要求，该增量只执行定向构建、四目标 CTest、真实进程连续复跑、Release Connector
+构建和 Codex Agent Host 实测，没有重跑全部 65 项。
+
+当前结论为：**基础冻结树 PASS / RELEASE-READY；三版本兼容增量 FOCUSED PASS /
+USABLE-CANDIDATE。增量已证明当前 Connector 可由 Codex 以 2025-06-18 握手并调用，但在完整
+65 项回归补跑前不把历史放行结论自动外推到当前工作树。** 两项结论均只覆盖 MCP Server、
+DS Connector Lite 和 L1/L2 公共能力，不把延期范围计入分母。
 
 本报告按 append-only 原则保留 R01～R16 以及冻结 R01 的失败事实；后续成功轮只用于证明修复
 后的最终候选，不删除、降格或改写既有失败。
@@ -53,17 +56,18 @@ Server、DS Connector Lite 和 L1/L2 公共能力，不把延期的 L3 业务工
 
 | 测试域 | 已完成内容 | 当前结果 | Evidence ID |
 |---|---|---|---|
-| Wire 与游标 | MCP 2026-07-28 codec、metadata、Schema、分页游标与边界语料 | PASS | `P2-E-0008`～`P2-E-0009` |
-| Editor HTTP MCP | discover、tools/list、tools/call、协议错误、HTTP 安全、限流、timeout 与 stop | PASS | `P2-E-0011`、`P2-E-0127`、`P2-E-0134` |
+| Wire 与游标 | MCP 2025-06-18 / 2025-11-25 / 2026-07-28 codec、metadata、Schema、分页游标与边界语料 | PASS | `P2-E-0008`～`P2-E-0009`、`P2-E-0180` |
+| Editor HTTP MCP | 两个 2025 initialize 生命周期、2026 discover、tools/list、tools/call、协议错误、HTTP 安全、限流、timeout 与 stop | PASS | `P2-E-0011`、`P2-E-0127`、`P2-E-0134`、`P2-E-0180` |
 | 设置与 CLI | Automation 安全默认、持久值、生效值和 CLI override 单元路径 | PASS | `P2-E-0012` |
 | File Guard 与公共绑定 | canonical 授权、读写目的、公共 Registry、音频路径重新授权 | PASS | `P2-E-0025`～`P2-E-0027` |
 | 一期受影响回归 | Catalog、Idempotency、Editing Dimensions、Async Dimensions、Architecture | PASS（修复后定向轮） | `P2-E-0046` |
 | Connector transport | 可信 HTTP transport envelope、稳定错误码、`outcome_unknown` 边界 | PASS | `P2-E-0051`～`P2-E-0052` |
 | Connector stdio | framing、乱序映射、取消、EOF、背压、stdout 零污染 | PASS | `P2-E-0034`、`P2-E-0042` |
-| Connector 握手 | 重复 ready 合并、同 endpoint 刷新、有界退避与重试预算重置 | PASS（fake 组件轮） | `P2-E-0094`、`P2-E-0097` |
+| Connector 握手 | 三版本下游、2026 优先探测、2025-11-25 回退、2025-06-18 协商、重复 ready 合并和有界退避 | PASS | `P2-E-0094`、`P2-E-0097`、`P2-E-0180` |
 | Connector 完整组件套件 | exposure、兼容、分页、状态、transport、stdio 与握手合并回归 | PASS | `P2-E-0096` |
 | 旧版真实进程联调 | Editor、Bootstrap、HTTP MCP 与 Connector stdio 闭环 | R11～R14 PASS | `P2-E-0080`～`P2-E-0083` |
 | Release package staging | `package-dml-release` 双目标构建、安装、依赖与 CLI smoke | PASS | `P2-E-0101`～`P2-E-0103`、`P2-E-0109`、`P2-E-0112`、`P2-E-0114` |
+| Codex Agent Host | 默认 2025-06-18 握手、工具发现和离线 `connector.get_status` 实际调用 | PASS | `P2-E-0182` |
 
 组件轮还验证了以下关键不变量：
 
@@ -132,6 +136,29 @@ R16 的 build PASS 与 runtime FAIL 分开保留。D02/D03 先以失败时序和
 Manifest 计算性能，再用 `68162c7e` 消除跨编译单元默认聚合 ABI 风险；R17、R18 的连续通过
 以及后续 GUI、安装和全量门禁共同关闭该阻断。
 
+### 4.4 MCP 三版本兼容增量
+
+| 轮次 | 结果 | 结论 | Evidence ID |
+|---|---|---|---|
+| C00 | FAIL，3/4 | 首个 2025-06-18 `connector.get_status` 等待超过原 5 s；未扩大 timeout | `P2-E-0175` |
+| D04 | PASS / DIAGNOSTIC | Debug 下 87 项双向 Schema 校验约 1.02～1.06 s；稳态 status 本体约 0.8～6.0 ms，stdout 写帧约 11～119 us | `P2-E-0170` |
+| S01 | PASS，5/5 | 保持 5 s status timeout，真实进程联调连续五轮通过，共 121.89 s | `P2-E-0171` |
+| C03 | PASS，4/4 | Wire、Connector、Editor HTTP 和真实进程聚焦 CTest 全部通过，共 68.06 s | `P2-E-0169` |
+| C04/C05 | FAIL，3/4 | Connector 13 场景全套在负载下触及 60 s CTest 总 watchdog；单场景 watchdog 未失败 | `P2-E-0176`～`P2-E-0177` |
+| O01/C06/C07 | PASS | 同 Schema 快速路径后 Connector 单套 40.18 s；总 wrapper 调为 90 s 后最终聚焦 CTest 4/4、71.64 s | `P2-E-0178`～`P2-E-0180` |
+| B01～B03 | FAIL → PASS | Codex 自动重启同路径 Connector 一度锁住 Release 输出；临时禁用该项、精确清理同路径进程后最终构建通过并恢复启用 | `P2-E-0172`～`P2-E-0173`、`P2-E-0181` |
+| H01/H02 | PASS | Codex 未设置协议覆盖，实际以 2025-06-18 初始化并成功调用 `connector.get_status`；最终 Release 再次通过 | `P2-E-0174`、`P2-E-0182` |
+
+D04 证明 87 项完整兼容计算不是 10 s 量级，也不能单独解释 C00 的偶发 5 s 无响应。正式
+实现首先在握手完成时计算并缓存兼容计数，使状态查询不再重复执行整组分析；随后为输入和
+输出 Schema 完全相同的常见路径增加精确相等快速通过，只有发生漂移时才进入完整双向子集
+证明。legacy status 的单次 timeout 始终保持 5 s，缓存后的五轮真实进程压力复跑未复现 C00。
+
+C04/C05 是整个 13 场景测试可执行文件触及 60 s CTest wrapper watchdog，不是单次 status
+超时。各场景已有 5～15 s 独立 watchdog，且 O01 单套实际在 40.18 s 通过，因此只把总 wrapper
+调整为 90 s；产品请求 deadline、status 5 s 门限和单场景 watchdog 均未放宽。原始失败继续
+保留，本报告不把未捕获到的调度或管道抖动臆断为已定位根因。
+
 ## 5. GUI、Computer Use 与真实环境资格
 
 ### 5.1 GUI 与真实副本资格
@@ -147,9 +174,10 @@ Manifest 计算性能，再用 `68162c7e` 消除跨编译单元默认聚合 ABI 
 所有写操作只发生在测试拥有的隔离副本；仓库报告不记录原始 fixture 的路径、名称或内容指纹。
 Automation 设置、profile、端口生命周期、多 Connector 和协议状态由组件与进程联调覆盖；本节
 只把实际完成的真实 GUI/fixture 资格写成 PASS，不把未观察的可选环境能力推断为通过。
-当前环境没有形成独立的第三方 Agent Host 资格，因此该项记为 **UNAVAILABLE / 非阻断边界**，
-不记 PASS，也不进入 65 项确定性 CTest 分母；真实 Connector stdio 进程和 direct-editor 等价
-链路仍由进程联调与 GUI 交叉验证覆盖。
+基础冻结轮当时没有形成独立第三方 Agent Host 资格；三版本兼容增量已补充 Codex 实测：
+Codex 默认以 2025-06-18 初始化 Release Connector，发现工具并在 editor 未运行时成功调用
+离线可用的 `connector.get_status`。该资格不进入 65 项确定性 CTest 分母；连接 editor 后的
+业务工具与 direct-editor 等价链路仍由真实进程联调覆盖。
 
 ### 5.2 Release 安装资格
 
@@ -188,6 +216,10 @@ Automation 设置、profile、端口生命周期、多 Connector 和协议状态
 R02～R04 轮间没有源码修改或选择性重跑，也没有失败、timeout、无人值守弹窗或 Qt platform
 plugin 错误。最终残留检查未发现测试拥有的 Editor/Connector 进程或相关运行时资源。
 
+上述 65/65 三轮是二期基础冻结树的历史放行证据，不包含其后的 MCP 三版本兼容增量。当前
+增量遵照快速交付要求只执行第 4.4 节的聚焦验证；不得用 4/4 聚焦 CTest 替代当前工作树的
+65 项完整分母，也不得把历史 195/195 改写成当前增量的测试结果。
+
 ## 7. 最终放行清单
 
 - [x] 二期测试计划、大纲、公共工具矩阵和实现报告已建立。
@@ -201,8 +233,12 @@ plugin 错误。最终残留检查未发现测试拥有的 Editor/Connector 进�
 - [x] 只读源 19/19 保持完整，无无人值守弹窗、Primary、QLocal、端口或产品进程残留。
 - [x] 同一冻结树的完整 CTest 串行连续三轮 65/65，无失败、timeout 或 flaky。
 - [x] 私有证据索引、清理检查和仓库敏感信息扫描通过。
+- [x] 三版本兼容增量完成四目标 CTest 4/4、真实进程连续复跑 5/5 和 Release Connector 构建。
+- [x] Codex 默认 2025-06-18 握手及 `connector.get_status` 实际调用通过。
+- [ ] 三版本兼容增量尚未重跑完整 65 项 CTest；这是本轮明确的快速交付边界。
 
-**最终判定：PASS / RELEASE-READY（限本期边界；L3 业务工具与三期 Headless 不在范围内）。**
+**最终判定：基础冻结树 PASS / RELEASE-READY；三版本兼容增量 FOCUSED PASS /
+USABLE-CANDIDATE。完整 65 项回归补跑前，不把当前增量标记为 RELEASE-READY。**
 
 ## 8. 证据与隐私说明
 

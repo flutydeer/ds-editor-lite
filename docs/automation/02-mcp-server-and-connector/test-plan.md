@@ -179,13 +179,17 @@ configure/build 零失败；生成工作树无意外脏文件；一期保护和�
 ### 执行内容
 
 1. 使用 loopback 动态端口启动测试 server，验证只绑定 `127.0.0.1`。
-2. 完成 MCP 2026-07-28 POST、per-request metadata、header/body、tools/list/call、分页、
-   structuredContent/outputSchema、错误和请求级取消全矩阵。
-3. 验证 GET/DELETE/session/Last-Event-ID/Batch/Resources/Prompts 等延期路径拒绝。
-4. 完成 Host/Origin/DNS rebinding、Content-Type、body/depth/response 上限与 timeout 测试。
-5. 对 87 项执行 descriptor/profile/schema 路径；从每个域选代表工具执行真实 Facade 等价语料，
+2. 完成 MCP 2026-07-28 POST、per-request metadata、header/body 与 `server/discover` 全矩阵。
+3. 分别完成 MCP 2025-06-18 与 2025-11-25 `initialize/initialized`、后续版本头、ping、
+   tools/list/call 以及版本化结果形状全矩阵，并验证 Connector 上游自动回退、11-25→06-18
+   协商和 session 保持。
+4. 三版本共同覆盖分页、structuredContent/outputSchema、错误和请求级取消；验证 2025 对非对象
+   结构化输出的 TextContent 降级。
+5. 验证 GET/DELETE/session/Last-Event-ID/Batch/Resources/Prompts 等延期路径拒绝。
+6. 完成 Host/Origin/DNS rebinding、Content-Type、body/depth/response 上限与 timeout 测试。
+7. 对 87 项执行 descriptor/profile/schema 路径；从每个域选代表工具执行真实 Facade 等价语料，
    全部 87 项至少执行适用的有效/拒绝路径。
-6. 运行多 HTTP 客户端、revision 冲突、公平限流和 runtime disable/shutdown 在途测试。
+8. 运行多 HTTP 客户端、revision 冲突、公平限流和 runtime disable/shutdown 在途测试。
 
 ### 证据
 
@@ -210,7 +214,7 @@ listener、无未授权 handler 调用、无残留端口或 session 状态。
 
 ### 退出门禁
 
-旧协议不回退；watcher 无泄漏；ready 只在真实 endpoint 可用后发布；connector 从未成为
+既有单实例协议不回退；watcher 无泄漏；ready 只在真实 endpoint 可用后发布；connector 从未成为
 Primary；每个测试后全局锁和 QLocal 名称释放。
 
 ## 11. 阶段 E：Connector stdio、Exposure 与兼容测试
@@ -219,10 +223,12 @@ Primary；每个测试后全局锁和 QLocal 名称释放。
 
 1. editor 离线启动 connector，验证 stdio MCP 正常、六个桥接工具和固定业务工具面。
 2. 字节级检查 stdout 只含 MCP 帧；stderr/log 承载启动、重连和错误诊断。
-3. 请求 ID 重映射、并发乱序、downstream cancel→upstream abort、timeout/EOF/破管。
+3. 2025-06-18、2025-11-25 与 2026-07-28 downstream 握手/发现、结果形状、请求 ID 重映射、并发乱序、
+   downstream cancel→upstream abort、timeout/EOF/破管。
 4. l0/l1/l2/l3、include/exclude、selector 语法、pending 和 exclude 优先级。
 5. 类型化与泛化 list/search/describe/invoke 使用同一 exposure；尝试所有绕过路径。
-6. 使用版本/Schema fixture 验证双方新旧、compatible subset、单侧工具和不确定 schema。
+6. 使用版本/Schema fixture 验证 2026 优先、2025 自动回退、11-25→06-18 协商、双方新旧、compatible subset、
+   单侧工具和不确定 schema。
 7. editor offline/starting/disabled/ready/stopping/error、reconnect、instance change 与
    `outcome_unknown`。
 8. `connector.get_status` 逐字段与实际进程、QLocal、HTTP、Manifest、exposure 事实对照。
