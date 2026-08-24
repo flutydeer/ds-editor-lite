@@ -602,8 +602,15 @@ namespace {
                     commandContext(runtime), {
                                                  {.trackId = second, .clip = copiedDraft}
                 });
-                suite.expect(copied && copied.get().createdObjects.size() == 1,
-                             QStringLiteral("a legacy audio snapshot must be reusable by paste"));
+                const auto copiedSnapshot =
+                    copied && !copied.get().affectedObjects.isEmpty()
+                        ? clipSnapshot(runtime, ClipId(copied.get().affectedObjects.first().value))
+                        : std::nullopt;
+                suite.expect(
+                    copied && copied.get().createdObjects.size() == 1 && copiedSnapshot &&
+                        sameClipTiming(copiedSnapshot->data.properties, copiedDraft.properties),
+                    QStringLiteral(
+                        "a pasted legacy audio snapshot must preserve its exact timing geometry"));
             });
 
         suite.run(
