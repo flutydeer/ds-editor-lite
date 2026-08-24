@@ -645,6 +645,38 @@ namespace {
                             conflictingDraft.properties.playLengthMs,
                     QStringLiteral(
                         "an inconsistent anchored draft must reconcile ticks to realtime truth"));
+
+                auto oversizedDraft = conflictingDraft;
+                oversizedDraft.clientRef = QStringLiteral("oversized-audio-material");
+                oversizedDraft.properties.start = 1920;
+                oversizedDraft.properties.length = 9600;
+                oversizedDraft.properties.clipLen = 480;
+                oversizedDraft.properties.playLengthMs = 500.0;
+                oversizedDraft.properties.materialLengthMs = 500.0;
+                const auto oversized = runtime.project().insertClips(
+                    commandContext(runtime), {
+                                                 {.trackId = second, .clip = oversizedDraft}
+                });
+                const auto oversizedSnapshot =
+                    oversized && !oversized.get().affectedObjects.isEmpty()
+                        ? clipSnapshot(runtime,
+                                       ClipId(oversized.get().affectedObjects.first().value))
+                        : std::nullopt;
+                suite.expect(
+                    oversized && oversizedSnapshot &&
+                        oversizedSnapshot->data.properties.start ==
+                            oversizedDraft.properties.start &&
+                        oversizedSnapshot->data.properties.clipStart ==
+                            oversizedDraft.properties.clipStart &&
+                        oversizedSnapshot->data.properties.clipLen ==
+                            oversizedDraft.properties.clipLen &&
+                        oversizedSnapshot->data.properties.length !=
+                            oversizedDraft.properties.length &&
+                        oversizedSnapshot->data.properties.length ==
+                            oversizedSnapshot->data.properties.clipStart +
+                                oversizedSnapshot->data.properties.clipLen,
+                    QStringLiteral(
+                        "an oversized anchored length must reconcile to its material duration"));
             });
 
         suite.run(

@@ -546,7 +546,10 @@ namespace Automation {
             auto *audio = static_cast<AudioClip *>(result.get());
             if (audio->hasRealTimeAnchor()) {
                 audio->updateTicksFromTruth(timeline);
-                if (audio->start() == draft.properties.start &&
+                const auto submittedLocalEnd =
+                    static_cast<qint64>(draft.properties.clipStart) + draft.properties.clipLen;
+                if (draft.properties.length < submittedLocalEnd &&
+                    audio->start() == draft.properties.start &&
                     audio->clipStart() == draft.properties.clipStart &&
                     audio->clipLen() == draft.properties.clipLen) {
                     audio->setLength(draft.properties.length);
