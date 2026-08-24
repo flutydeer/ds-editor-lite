@@ -169,7 +169,10 @@ namespace {
                 for (const auto &track : project.get().tracks) {
                     sources.append(QJsonObject{
                         {QStringLiteral("id"),        track.id.value()       },
-                        {QStringLiteral("name"),      track.data.name        },
+                        {QStringLiteral("name"),
+                         track.data.name.isEmpty()
+                             ? QStringLiteral("Track %1").arg(track.id.value())
+                             : track.data.name                               },
                         {QStringLiteral("kind"),      QStringLiteral("track")},
                         {QStringLiteral("available"), true                   },
                     });
@@ -196,7 +199,7 @@ namespace {
                         .toObject());
             };
             return Automation::AutomationResult<QJsonValue>(QJsonObject{
-                {QStringLiteral("clip_id"),   clipId.value()                  },
+                {QStringLiteral("source_audio_clip_id"), clipId.value()                  },
                 {QStringLiteral("pitch"),
                  QJsonObject{
                      {QStringLiteral("supported"), true},
@@ -212,7 +215,7 @@ namespace {
                           {QStringLiteral("source_range"), QStringLiteral("visible_audio_clip")},
                           {QStringLiteral("custom_frequency"), false},
                       }},
-                 }                                                            },
+                 }                                                                       },
                 {QStringLiteral("midi"),
                  QJsonObject{
                      {QStringLiteral("supported"), true},
@@ -232,8 +235,8 @@ namespace {
                                {QStringLiteral("maximum"), std::numeric_limits<int>::max()},
                            }},
                       }},
-                 }                                                            },
-                {QStringLiteral("languages"), QJsonArray{QStringLiteral("zh")}},
+                 }                                                                       },
+                {QStringLiteral("languages"),            QJsonArray{QStringLiteral("zh")}},
             });
         };
         services.inferenceCapabilities = [](const Automation::DocumentId &,
@@ -379,13 +382,25 @@ namespace {
             QStringLiteral("history.undo"), commandArguments(runtime.documentVersion()),
             {.clientId = QStringLiteral("scalar-undo-") + operationId});
         const auto restoredSnapshot = snapshot();
-        expect(changed && changed.get().value(QStringLiteral("changed")).toBool() &&
-                   afterChange.revision == before.revision + 1 &&
-                   runtime.documentVersion().revision == before.revision + 2 &&
-                   afterSnapshot.value(outputField) == value && undo &&
-                   undo.get().value(QStringLiteral("changed")).toBool() &&
-                   restoredSnapshot.value(outputField) == beforeSnapshot.value(outputField),
-               label + QStringLiteral(" must be one independently undoable History edit"));
+        const auto valid = changed && changed.get().value(QStringLiteral("changed")).toBool() &&
+                           afterChange.revision == before.revision + 1 &&
+                           runtime.documentVersion().revision == before.revision + 2 &&
+                           afterSnapshot.value(outputField) == value && undo &&
+                           undo.get().value(QStringLiteral("changed")).toBool() &&
+                           restoredSnapshot.value(outputField) == beforeSnapshot.value(outputField);
+        if (!valid) {
+            QTextStream(stderr)
+                << "DETAIL " << operationId << ": changed=" << bool(changed)
+                << (changed ? QString() : QStringLiteral(", error=") + changed.getError().message)
+                << ", revisions=" << before.revision << '/' << afterChange.revision << '/'
+                << runtime.documentVersion().revision
+                << ", observed=" << afterSnapshot.value(outputField).toVariant().toString()
+                << ", expected=" << value.toVariant().toString() << ", undo=" << bool(undo)
+                << ", restored=" << restoredSnapshot.value(outputField).toVariant().toString()
+                << ", original=" << beforeSnapshot.value(outputField).toVariant().toString()
+                << Qt::endl;
+        }
+        expect(valid, label + QStringLiteral(" must be one independently undoable History edit"));
     }
 
     QList<int> trackOrder(Automation::CoreRuntime &runtime) {
@@ -439,9 +454,13 @@ namespace {
         insertTracksInput.insert(QStringLiteral("index"), projectBeforeTracks.get().tracks.size());
         insertTracksInput.insert(
             QStringLiteral("tracks"),
-            QJsonArray{QJsonObject{},
-                       QJsonObject{{QStringLiteral("name"), QStringLiteral("Batch Track A")}},
-                       QJsonObject{{QStringLiteral("name"), QStringLiteral("Batch Track B")}}});
+            QJsonArray{
+                QJsonObject{{QStringLiteral("client_ref"), QStringLiteral("batch-track-empty")}},
+                QJsonObject{{QStringLiteral("client_ref"), QStringLiteral("batch-track-a")},
+                            {QStringLiteral("name"), QStringLiteral("Batch Track A")}},
+                QJsonObject{{QStringLiteral("client_ref"), QStringLiteral("batch-track-b")},
+                            {QStringLiteral("name"), QStringLiteral("Batch Track B")}}
+        });
         const auto trackInsertBase = runtime.documentVersion();
         const auto insertedTracks =
             registry.invoke(QStringLiteral("tracks.insert"), insertTracksInput,
@@ -516,7 +535,7 @@ namespace {
                          QStringLiteral("name"), QStringLiteral("Renamed Track"),
                          QStringLiteral("name"), trackPublic, QStringLiteral("track rename"));
         verifyScalarEdit(registry, runtime, QStringLiteral("tracks.set_color"), trackTarget,
-                         QStringLiteral("color_index"), 2, QStringLiteral("color_index"),
+                         QStringLiteral("color_index"), 7, QStringLiteral("color_index"),
                          trackPublic, QStringLiteral("track color"));
         verifyScalarEdit(registry, runtime, QStringLiteral("tracks.set_gain"), trackTarget,
                          QStringLiteral("gain"), 0.35, QStringLiteral("gain"), trackPublic,
@@ -530,11 +549,6 @@ namespace {
         verifyScalarEdit(registry, runtime, QStringLiteral("tracks.set_solo"), trackTarget,
                          QStringLiteral("solo"), true, QStringLiteral("solo"), trackPublic,
                          QStringLiteral("track solo"));
-        verifyScalarEdit(registry, runtime, QStringLiteral("tracks.set_default_language"),
-                         trackTarget, QStringLiteral("language_id"), QStringLiteral("en"),
-                         QStringLiteral("default_language_id"), trackPublic,
-                         QStringLiteral("track default language"));
-
         auto nestedClipInput = commandArguments(runtime.documentVersion());
         nestedClipInput.insert(
             QStringLiteral("clips"),
@@ -558,13 +572,16 @@ namespace {
         insertClipsInput.insert(
             QStringLiteral("clips"),
             QJsonArray{
-                QJsonObject{{QStringLiteral("track_id"), fixture.trackId.value()},
+                QJsonObject{{QStringLiteral("client_ref"), QStringLiteral("scalar-clip")},
+                            {QStringLiteral("track_id"), fixture.trackId.value()},
                             {QStringLiteral("start"), 0}},
-                QJsonObject{{QStringLiteral("track_id"), fixture.trackId.value()},
+                QJsonObject{{QStringLiteral("client_ref"), QStringLiteral("note-clip")},
+                            {QStringLiteral("track_id"), fixture.trackId.value()},
                             {QStringLiteral("start"), 2400},
                             {QStringLiteral("length"), 1920},
                             {QStringLiteral("name"), QStringLiteral("Notes")}},
-                QJsonObject{{QStringLiteral("track_id"), fixture.trackId.value()},
+                QJsonObject{{QStringLiteral("client_ref"), QStringLiteral("mix-clip")},
+                            {QStringLiteral("track_id"), fixture.trackId.value()},
                             {QStringLiteral("start"), 4800},
                             {QStringLiteral("length"), 1920},
                             {QStringLiteral("name"), QStringLiteral("Mix")}},
@@ -608,11 +625,6 @@ namespace {
         verifyScalarEdit(registry, runtime, QStringLiteral("clips.set_mute"), clipTarget,
                          QStringLiteral("mute"), true, QStringLiteral("mute"), clipPublic,
                          QStringLiteral("clip mute"));
-        verifyScalarEdit(registry, runtime, QStringLiteral("clips.set_default_language"),
-                         clipTarget, QStringLiteral("language_id"), QStringLiteral("en"),
-                         QStringLiteral("default_language_id"), clipPublic,
-                         QStringLiteral("clip default language"));
-
         const QJsonObject noTarget;
         const auto masterPublic = [&] { return publicMasterSnapshot(registry, runtime); };
         verifyScalarEdit(registry, runtime, QStringLiteral("master.set_gain"), noTarget,
@@ -630,14 +642,17 @@ namespace {
 
         auto insertNotesInput = commandArguments(runtime.documentVersion());
         insertNotesInput.insert(QStringLiteral("clip_id"), fixture.noteClipId.value());
-        insertNotesInput.insert(QStringLiteral("notes"),
-                                QJsonArray{
-                                    QJsonObject{{QStringLiteral("local_start"), 0},
-                                                {QStringLiteral("length"), 480},
-                                                {QStringLiteral("key_index"), 60}},
-                                    QJsonObject{{QStringLiteral("local_start"), 720},
-                                                {QStringLiteral("length"), 480},
-                                                {QStringLiteral("key_index"), 64}}
+        insertNotesInput.insert(
+            QStringLiteral("notes"),
+            QJsonArray{
+                QJsonObject{{QStringLiteral("client_ref"), QStringLiteral("note-a")},
+                            {QStringLiteral("local_start"), 0},
+                            {QStringLiteral("length"), 480},
+                            {QStringLiteral("key_index"), 60}},
+                QJsonObject{{QStringLiteral("client_ref"), QStringLiteral("note-b")},
+                            {QStringLiteral("local_start"), 720},
+                            {QStringLiteral("length"), 480},
+                            {QStringLiteral("key_index"), 64}}
         });
         const auto noteInsertBase = runtime.documentVersion();
         const auto insertedNotes =
@@ -983,6 +998,15 @@ namespace {
                    speakerId(trackVoice.value(QStringLiteral("own_voice"))) == speakerA.id() &&
                    speakerId(trackVoice.value(QStringLiteral("effective_voice"))) == speakerA.id(),
                QStringLiteral("track voice selection must be immediately queryable"));
+        verifyScalarEdit(
+            registry, runtime, QStringLiteral("tracks.set_default_language"),
+            QJsonObject{
+                {QStringLiteral("track_id"), fixture.trackId.value()}
+        },
+            QStringLiteral("language_id"), QStringLiteral("zh"),
+            QStringLiteral("default_language_id"),
+            [&] { return publicTrackSnapshot(registry, runtime, fixture.trackId); },
+            QStringLiteral("track default language"));
 
         invokeChangedOnce(registry, runtime, QStringLiteral("clips.set_voice"),
                           QJsonObject{
@@ -998,6 +1022,15 @@ namespace {
                    speakerId(ownedClip.value(QStringLiteral("own_voice"))) == speakerB.id() &&
                    speakerId(ownedClip.value(QStringLiteral("effective_voice"))) == speakerB.id(),
                QStringLiteral("clip voice selection must establish an owned voice context"));
+        verifyScalarEdit(
+            registry, runtime, QStringLiteral("clips.set_default_language"),
+            QJsonObject{
+                {QStringLiteral("clip_id"), fixture.mixClipId.value()}
+        },
+            QStringLiteral("language_id"), QStringLiteral("zh"),
+            QStringLiteral("default_language_id"),
+            [&] { return publicClipSnapshot(registry, runtime, fixture.mixClipId); },
+            QStringLiteral("clip default language"));
 
         invokeChangedOnce(registry, runtime, QStringLiteral("clips.use_track_voice"),
                           QJsonObject{
@@ -1327,6 +1360,8 @@ int main(int argc, char *argv[]) {
                                     QStringLiteral("Registry Singer"),
                                     {registrySpeakerA, registrySpeakerB},
                                     {LanguageInfo(QStringLiteral("en"), QStringLiteral("English"),
+                                                  QStringLiteral("registry-g2p")),
+                                     LanguageInfo(QStringLiteral("zh"), QStringLiteral("Chinese"),
                                                   QStringLiteral("registry-g2p"))},
                                     QStringLiteral("en"));
     Automation::PackageDto registryPackage;
@@ -1466,7 +1501,7 @@ int main(int argc, char *argv[]) {
             {QStringLiteral("partial_arguments"),
              QJsonObject{
                  {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
-                 {QStringLiteral("clip_id"), 1},
+                 {QStringLiteral("source_audio_clip_id"), 1},
              }                                                                               },
     },
         {.clientId = QStringLiteral("extraction-language-options")});
@@ -1688,16 +1723,14 @@ int main(int argc, char *argv[]) {
     const auto audioPreview = registry.invoke(
         QStringLiteral("exports.audio.preview"),
         QJsonObject{
-            {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
-            {QStringLiteral("options"),     audioExportOptions                             },
+            {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()  },
+            {QStringLiteral("path"),        directory.filePath(QStringLiteral("preview.wav"))},
+            {QStringLiteral("options"),     audioExportOptions                               },
     },
         {.clientId = QStringLiteral("audio-preview")});
-    const auto audioPreviewSnapshot =
-        audioPreview ? audioPreview.get().value(QStringLiteral("snapshot")).toObject()
-                     : QJsonObject{};
-    const auto audioPreviewPlan = audioPreviewSnapshot.value(QStringLiteral("plan")).toObject();
-    const auto audioDiagnostics =
-        audioPreviewSnapshot.value(QStringLiteral("diagnostics")).toArray();
+    const auto audioPreviewPlan =
+        audioPreview ? audioPreview.get().value(QStringLiteral("plan")).toObject() : QJsonObject{};
+    const auto audioDiagnostics = audioPreviewPlan.value(QStringLiteral("diagnostics")).toArray();
     expect(audioPreview && capturedAudioConfig->fileName == QStringLiteral("preview.wav") &&
                capturedAudioConfig->sources == QList<int>{0} &&
                audioPreviewPlan.value(QStringLiteral("targets")).toArray().size() == 1 &&
@@ -1706,14 +1739,16 @@ int main(int argc, char *argv[]) {
                    QStringLiteral("duplicate_paths") &&
                audioDiagnostics.last().toObject().value(QStringLiteral("code")) ==
                    QStringLiteral("lossy_format") &&
-               !audioPreviewSnapshot.contains(QStringLiteral("warning_flags")),
+               !audioPreviewPlan.contains(QStringLiteral("warning_flags")),
            QStringLiteral("audio preview must expose a typed plan and diagnostics while mapping "
                           "TrackId to backend index"));
-    auto audioStart = commandArguments(runtime.documentVersion());
+    QJsonObject audioStart{
+        {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()}
+    };
     audioStart.insert(QStringLiteral("path"),
                       directory.filePath(QStringLiteral("registry-export.wav")));
     audioStart.insert(QStringLiteral("options"), audioExportOptions);
-    audioStart.insert(QStringLiteral("validate_only"), true);
+    audioStart.insert(QStringLiteral("overwrite_policy"), QStringLiteral("reject"));
     const auto audioStartPreview =
         registry.invoke(QStringLiteral("exports.audio.start"), audioStart,
                         {.clientId = QStringLiteral("audio-start-preview")});
@@ -1890,7 +1925,7 @@ int main(int argc, char *argv[]) {
     expect(
         !moveOverlap &&
             moveOverlap.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
-            moveOverlap.getError().fieldPath == QStringLiteral("position") &&
+            moveOverlap.getError().fieldPath == QStringLiteral("moves.position") &&
             runtime.documentVersion() == beforeOverlap && historyBeforeOverlap &&
             historyAfterOverlap &&
             historyBeforeOverlap.get().undoName == historyAfterOverlap.get().undoName &&
@@ -1904,9 +1939,13 @@ int main(int argc, char *argv[]) {
                                        registrySpeakerA, registrySpeakerB);
     }
 
-    auto openInput = commandArguments(runtime.documentVersion());
-    openInput.insert(QStringLiteral("path"), readable.fileName());
-    openInput.insert(QStringLiteral("unsaved_policy"), QStringLiteral("discard"));
+    QJsonObject openInput{
+        {QStringLiteral("current_document_id"), runtime.documentVersion().documentId.toString()},
+        {QStringLiteral("expected_revision"),
+         static_cast<qint64>(runtime.documentVersion().revision)                               },
+        {QStringLiteral("path"),                readable.fileName()                            },
+        {QStringLiteral("unsaved_policy"),      QStringLiteral("discard")                      },
+    };
     const auto opened = registry.invoke(QStringLiteral("documents.open"), openInput,
                                         {.clientId = QStringLiteral("background")});
     const auto taskId = opened ? Automation::TaskId::fromString(
@@ -2021,21 +2060,33 @@ int main(int argc, char *argv[]) {
     Mcp::RequestEnvelope discover;
     discover.id = 1;
     discover.method = QString::fromLatin1(Mcp::DiscoverMethod);
+    discover.protocolVersion = QString::fromLatin1(Mcp::ProtocolVersion);
     const auto discoverResponse = dispatcher.dispatch(discover, QStringLiteral("adapter"));
     expect(!discoverResponse.contains(QStringLiteral("error")),
            QStringLiteral("server/discover adapter request must succeed"));
     Mcp::RequestEnvelope list;
     list.id = 2;
     list.method = QString::fromLatin1(Mcp::ToolsListMethod);
+    list.protocolVersion = QString::fromLatin1(Mcp::ProtocolVersion);
     const auto listResponse = dispatcher.dispatch(list, QStringLiteral("adapter"));
-    const auto listedTools = listResponse.value(QStringLiteral("result"))
-                                 .toObject()
-                                 .value(QStringLiteral("tools"))
-                                 .toArray();
+    const auto firstListResult = listResponse.value(QStringLiteral("result")).toObject();
+    auto listedTools = firstListResult.value(QStringLiteral("tools")).toArray();
+    const auto listCursor = firstListResult.value(QStringLiteral("nextCursor")).toString();
+    auto nextList = list;
+    nextList.id = 3;
+    nextList.params.insert(QStringLiteral("cursor"), listCursor);
+    const auto nextListResponse = dispatcher.dispatch(nextList, QStringLiteral("adapter"));
+    for (const auto &tool : nextListResponse.value(QStringLiteral("result"))
+                                .toObject()
+                                .value(QStringLiteral("tools"))
+                                .toArray()) {
+        listedTools.append(tool);
+    }
     QSet<QString> listedIds;
     for (const auto &tool : listedTools)
         listedIds.insert(tool.toObject().value(QStringLiteral("name")).toString());
-    expect(listedTools.size() == 127 &&
+    expect(!listCursor.isEmpty() && !nextListResponse.contains(QStringLiteral("error")) &&
+               listedTools.size() == 127 &&
                listedIds == PublicAutomationToolsetExpectations::editorToolIdSet(),
            QStringLiteral("tools/list must expose the exact 127-tool editor surface"));
     auto forgedList = list;
@@ -2047,8 +2098,9 @@ int main(int argc, char *argv[]) {
                    .toInt() == Mcp::InvalidParams,
            QStringLiteral("tools/list must reject forged numeric cursors"));
     Mcp::RequestEnvelope call;
-    call.id = 3;
+    call.id = 4;
     call.method = QString::fromLatin1(Mcp::ToolsCallMethod);
+    call.protocolVersion = QString::fromLatin1(Mcp::ProtocolVersion);
     call.name = QStringLiteral("automation.get_file_access");
     call.params = QJsonObject{
         {QStringLiteral("name"),      call.name    },

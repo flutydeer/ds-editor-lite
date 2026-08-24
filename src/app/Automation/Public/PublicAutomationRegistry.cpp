@@ -379,8 +379,26 @@ namespace Automation {
         CommandContext replacementCommandContext(CoreRuntime &runtime, const QJsonObject &arguments,
                                                  const PublicInvocationContext &invocation) {
             auto context = commandContext(arguments, invocation);
-            if (!arguments.contains(QStringLiteral("document_id")))
-                context.expected = runtime.documentVersion();
+            context.expected = runtime.documentVersion();
+            if (arguments.contains(QStringLiteral("current_document_id"))) {
+                context.expected.documentId = DocumentId::fromString(
+                    arguments.value(QStringLiteral("current_document_id")).toString());
+            }
+            if (arguments.contains(QStringLiteral("expected_revision"))) {
+                context.expected.revision = static_cast<Revision>(
+                    arguments.value(QStringLiteral("expected_revision")).toInteger());
+            }
+            return context;
+        }
+
+        AutomationResult<CommandContext>
+            documentQueryCommandContext(CoreRuntime &runtime, const QJsonObject &arguments,
+                                        const PublicInvocationContext &invocation) {
+            auto document = runtime.documents().getDocument(documentId(arguments));
+            if (!document)
+                return document.getError();
+            auto context = commandContext(arguments, invocation);
+            context.expected = document.get().document;
             return context;
         }
 
@@ -1732,7 +1750,8 @@ namespace Automation {
                 return unavailable(QStringLiteral("Extraction capability service is unavailable"));
             const auto document = DocumentId::fromString(
                 partialArguments.value(QStringLiteral("document_id")).toString());
-            const auto clipId = ClipId(partialArguments.value(QStringLiteral("clip_id")).toInt(-1));
+            const auto clipId =
+                ClipId(partialArguments.value(QStringLiteral("source_audio_clip_id")).toInt(-1));
             auto capabilities = m_hostServices.extractionCapabilities(document, clipId);
             if (!capabilities)
                 return capabilities.getError();
@@ -1928,7 +1947,8 @@ namespace Automation {
                 return result;
             }
             effectiveArguments.insert(QStringLiteral("path"), document.get().path);
-            effectiveArguments.insert(QStringLiteral("allow_overwrite"), true);
+            effectiveArguments.insert(QStringLiteral("overwrite_policy"),
+                                      QStringLiteral("overwrite"));
         }
         auto dynamicValidation = validateDynamicArguments(*contract, effectiveArguments);
         if (!dynamicValidation) {
@@ -3054,15 +3074,11 @@ namespace Automation {
         addBinding(
             QStringLiteral("P2-TOOL-114"),
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
-                const auto context = commandContext(arguments, invocation);
-                auto current = m_runtime.documents().getDocument(context.expected.documentId);
-                if (!current)
-                    return AutomationResult<QJsonObject>(current.getError());
-                if (current.get().document.revision != context.expected.revision) {
-                    return AutomationResult<QJsonObject>(AutomationError::revisionConflict(
-                        context.expected.documentId, context.expected.revision,
-                        current.get().document.revision));
-                }
+                auto resolvedContext =
+                    documentQueryCommandContext(m_runtime, arguments, invocation);
+                if (!resolvedContext)
+                    return AutomationResult<QJsonObject>(resolvedContext.getError());
+                const auto context = resolvedContext.get();
                 const auto path = arguments.value(QStringLiteral("path")).toString();
                 const auto allowOverwrite =
                     arguments.value(QStringLiteral("overwrite_policy")).toString() ==
@@ -3208,11 +3224,14 @@ namespace Automation {
                                             arguments.value(QStringLiteral("path")).toString()));
                 if (!config)
                     return AutomationResult<QJsonObject>(config.getError());
+                auto context = documentQueryCommandContext(m_runtime, arguments, invocation);
+                if (!context)
+                    return AutomationResult<QJsonObject>(context.getError());
                 const AuthorizedPath authorizedPath{
                     arguments.value(QStringLiteral("path")).toString(), FileAccessPurpose::Write};
                 auto derivedPaths = std::make_shared<QList<AuthorizedPath>>();
                 return taskAcceptedResult(m_runtime.audioExports().start(
-                    commandContext(arguments, invocation), config.get(), policy, {},
+                    context.get(), config.get(), policy, {},
                     [guard = &m_fileGuard, derivedPaths](
                         const AudioExportPreviewDto &preview) -> AutomationResult<AutomationUnit> {
                         QList<AuthorizedPath> authorizedPaths;
@@ -3408,17 +3427,19 @@ namespace Automation {
                 return AutomationResult<QJsonObject>(result.getError());
             return AutomationResult<QJsonObject>(encodeTaskSnapshot(result.get()));
         });
-        addBinding(QStringLiteral("P2-TOOL-127"),
-                   [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
-                       auto context = commandContext(arguments, invocation);
-                       context.expected.documentId = documentId(arguments);
-                       auto result = m_runtime.tasks().cancelTask(
-                           context, TaskId::fromString(
-                                        arguments.value(QStringLiteral("task_id")).toString()));
-                       if (!result)
-                           return AutomationResult<QJsonObject>(result.getError());
-                       return AutomationResult<QJsonObject>(encodeTaskSnapshot(result.get()));
-                   });
+        addBinding(
+            QStringLiteral("P2-TOOL-127"),
+            [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
+                auto context = documentQueryCommandContext(m_runtime, arguments, invocation);
+                if (!context)
+                    return AutomationResult<QJsonObject>(context.getError());
+                auto result = m_runtime.tasks().cancelTask(
+                    context.get(),
+                    TaskId::fromString(arguments.value(QStringLiteral("task_id")).toString()));
+                if (!result)
+                    return AutomationResult<QJsonObject>(result.getError());
+                return AutomationResult<QJsonObject>(encodeTaskSnapshot(result.get()));
+            });
         addBinding(QStringLiteral("P2-TOOL-104"), [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             auto result = m_runtime.playback().getPlayback(documentId(arguments));

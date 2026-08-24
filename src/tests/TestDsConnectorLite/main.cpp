@@ -794,7 +794,9 @@ namespace {
                                        QStringLiteral("DS Editor Lite")},
                                       {QStringLiteral("version"), QStringLiteral("test")},
                                       {QStringLiteral("platform"),
-                                       QStringLiteral("windows")}},
+                                       QStringLiteral("windows")},
+                                      {QStringLiteral("build_id"),
+                                       QStringLiteral("fake-build")}},
                     mode == ApplicationResponseMode::BusinessError);
                 const auto response = AutomationWire::Mcp::makeResultResponse(
                     request.id, result, info, request.protocolVersion);

@@ -901,7 +901,7 @@ namespace Automation {
                 return QString();
             };
             return {
-                {QStringLiteral("clip_id"),   clipId.value()},
+                {QStringLiteral("source_audio_clip_id"), clipId.value()},
                 {QStringLiteral("pitch"),
                  QJsonObject{
                      {QStringLiteral("supported"), true},
@@ -927,7 +927,7 @@ namespace Automation {
                           {QStringLiteral("source_range"), QStringLiteral("visible_audio_clip")},
                           {QStringLiteral("custom_frequency"), false},
                       }},
-                 }                                          },
+                 }                                                     },
                 {QStringLiteral("midi"),
                  QJsonObject{
                      {QStringLiteral("supported"), true},
@@ -957,8 +957,8 @@ namespace Automation {
                                {QStringLiteral("maximum"), std::numeric_limits<int>::max()},
                            }},
                       }},
-                 }                                          },
-                {QStringLiteral("languages"), languages     },
+                 }                                                     },
+                {QStringLiteral("languages"),            languages     },
             };
         }
 

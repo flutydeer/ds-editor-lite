@@ -660,20 +660,14 @@ namespace {
         const auto trackClientRef = QStringLiteral("process-integration-track");
         const auto trackName = QStringLiteral("MCP Process Integration Track");
         const QJsonObject insertArguments{
-            {QStringLiteral("document_id"),       documentId     },
-            {QStringLiteral("expected_revision"), initialRevision},
-            {QStringLiteral("index"),             0              },
-            {QStringLiteral("track"),
-             QJsonObject{
-                 {QStringLiteral("client_ref"), trackClientRef},
-                 {QStringLiteral("name"), trackName},
-                 {QStringLiteral("color_index"), 0},
-                 {QStringLiteral("gain"), 0.0},
-                 {QStringLiteral("pan"), 0.0},
-                 {QStringLiteral("mute"), false},
-                 {QStringLiteral("solo"), false},
-                 {QStringLiteral("default_language"), QStringLiteral("zh")},
-             }                                                   },
+            {QStringLiteral("document_id"),       documentId                   },
+            {QStringLiteral("expected_revision"), initialRevision              },
+            {QStringLiteral("index"),             0                            },
+            {QStringLiteral("tracks"),            QJsonArray{QJsonObject{
+                                           {QStringLiteral("client_ref"), trackClientRef},
+                                           {QStringLiteral("name"), trackName},
+                                           {QStringLiteral("color_index"), 0},
+                                       }}},
         };
         const auto mutation = connectorToolContent(connector, 1000, QStringLiteral("tracks.insert"),
                                                    insertArguments, 10000, toolError);
