@@ -20,22 +20,21 @@ namespace DsConnector {
         }
     }
 
-    ExposurePolicy::ExposurePolicy(ConnectorOptions options) : m_options(std::move(options)) {
+    ExposurePolicy::ExposurePolicy(ConnectorOptions options)
+        : m_options(std::move(options)),
+          m_knownSelection(AutomationWire::selectExposure(m_options.exposure)) {
+        for (const auto &tool : AutomationWire::publicToolContracts()) {
+            if (AutomationWire::isExposed(m_knownSelection, tool.operationId))
+                m_typedContracts.append(tool);
+        }
     }
 
-    QList<AutomationWire::ToolContract> ExposurePolicy::typedContracts() const {
-        const auto selection = AutomationWire::selectExposure(m_options.exposure);
-        QList<AutomationWire::ToolContract> result;
-        for (const auto &tool : AutomationWire::publicToolContracts()) {
-            if (AutomationWire::isExposed(selection, tool.operationId))
-                result.append(tool);
-        }
-        return result;
+    const QList<AutomationWire::ToolContract> &ExposurePolicy::typedContracts() const {
+        return m_typedContracts;
     }
 
     bool ExposurePolicy::allowsKnownTool(const AutomationWire::ToolContract &tool) const {
-        const auto selection = AutomationWire::selectExposure(m_options.exposure);
-        return AutomationWire::isExposed(selection, tool.operationId);
+        return AutomationWire::isExposed(m_knownSelection, tool.operationId);
     }
 
     bool ExposurePolicy::allowsTarget(const QString &operationId, const QString &category,

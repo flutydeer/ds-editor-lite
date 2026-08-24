@@ -16,7 +16,7 @@ namespace DsConnector {
     public:
         explicit ExposurePolicy(ConnectorOptions options);
 
-        QList<AutomationWire::ToolContract> typedContracts() const;
+        const QList<AutomationWire::ToolContract> &typedContracts() const;
         bool allowsKnownTool(const AutomationWire::ToolContract &tool) const;
         bool allowsTarget(const QString &operationId, const QString &category,
                           const QString &minimumProfile) const;
@@ -32,6 +32,8 @@ namespace DsConnector {
         AutomationWire::ExposureSelection selectionFor(const QJsonArray &tools) const;
 
         ConnectorOptions m_options;
+        AutomationWire::ExposureSelection m_knownSelection;
+        QList<AutomationWire::ToolContract> m_typedContracts;
     };
 
 }

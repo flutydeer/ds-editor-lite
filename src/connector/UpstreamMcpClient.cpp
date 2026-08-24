@@ -272,12 +272,7 @@ namespace DsConnector {
                                     .sessionIdUsed = !sessionId.isEmpty(),
                                 });
         connect(timer, &QTimer::timeout, this, [this, token] {
-            const auto it = m_pending.find(token);
-            if (it == m_pending.end())
-                return;
-            it->forcedError = QStringLiteral("upstream_timeout");
-            it->forcedOutcomeUnknown = true;
-            it->reply->abort();
+            cancelInternal(token, QStringLiteral("upstream_timeout"), true, true);
         });
         connect(reply, &QNetworkReply::readyRead, this, [this, token] {
             const auto it = m_pending.find(token);
@@ -298,19 +293,45 @@ namespace DsConnector {
     }
 
     bool UpstreamMcpClient::cancel(const qint64 requestToken, const QString &reason) {
+        return cancelInternal(requestToken, reason, true, false);
+    }
+
+    bool UpstreamMcpClient::cancelInternal(const qint64 requestToken, const QString &reason,
+                                           const bool notifyPeer, const bool outcomeUnknown) {
         const auto it = m_pending.find(requestToken);
         if (it == m_pending.end())
             return false;
-        it->forcedError = reason;
-        it->forcedOutcomeUnknown = reason != QStringLiteral("request_cancelled");
-        it->reply->abort();
+
+        const auto upstreamId = it->upstreamId;
+        const auto protocolVersion = it->protocolVersion;
+        const auto method = it->method;
+        const auto notification = it->notification;
+        if (notifyPeer && !notification &&
+            AutomationWire::Mcp::isLegacyProtocolVersion(protocolVersion) &&
+            protocolVersion == m_protocolVersion &&
+            method != QString::fromLatin1(AutomationWire::Mcp::InitializeMethod)) {
+            QJsonObject params{
+                {QStringLiteral("requestId"), upstreamId}
+            };
+            if (!reason.isEmpty())
+                params.insert(QStringLiteral("reason"), reason);
+            sendNotification(QString::fromLatin1(AutomationWire::Mcp::CancelledNotification),
+                             std::move(params), {}, 5000);
+        }
+
+        const auto current = m_pending.find(requestToken);
+        if (current == m_pending.end())
+            return false;
+        current->forcedError = reason;
+        current->forcedOutcomeUnknown = outcomeUnknown;
+        current->reply->abort();
         return true;
     }
 
     void UpstreamMcpClient::abortAll(const QString &reason) {
         const auto tokens = m_pending.keys();
         for (const auto token : tokens)
-            cancel(token, reason);
+            cancelInternal(token, reason, false, true);
     }
 
     qsizetype UpstreamMcpClient::pendingCount() const {

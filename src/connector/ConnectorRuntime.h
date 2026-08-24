@@ -45,7 +45,8 @@ namespace DsConnector {
         const ExposurePolicy &exposurePolicy() const;
         qint64 callTool(const QString &name, const QJsonObject &arguments,
                         ToolCallCallback callback);
-        bool cancel(qint64 requestToken);
+        bool cancel(qint64 requestToken,
+                    const QString &reason = QStringLiteral("request_cancelled"));
 
         static const QStringList &bridgeToolNames();
         static QJsonArray bridgeToolDefinitions();
@@ -73,7 +74,9 @@ namespace DsConnector {
                                  QSet<QString> seenCursors, int pageCount);
         QString editorUnavailableCode() const;
         QString actualAvailabilityCode(const QJsonObject &tool) const;
-        QJsonArray filteredActualTools() const;
+        void rebuildToolCaches();
+        void clearToolCaches();
+        const QJsonArray &filteredActualTools() const;
         QJsonObject actualTool(const QString &name) const;
         QJsonObject manifestOperation(const QString &name) const;
         QString compatibilityFor(const AutomationWire::ToolContract &tool) const;
@@ -94,6 +97,11 @@ namespace DsConnector {
         QTimer *m_handshakeRetryTimer = nullptr;
         QJsonArray m_actualTools;
         QJsonObject m_manifest;
+        QHash<QString, QJsonObject> m_actualToolIndex;
+        QHash<QString, QJsonObject> m_manifestOperationIndex;
+        QJsonArray m_filteredActualToolsCache;
+        QStringList m_pendingSelectorsCache;
+        QString m_filteredActualToolsDigest;
         QHash<QByteArray, bool> m_schemaValidationCache;
         QString m_manifestCompatibility = QStringLiteral("not_loaded");
         int m_compatibleCount = 0;

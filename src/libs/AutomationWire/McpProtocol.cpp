@@ -188,6 +188,10 @@ namespace AutomationWire::Mcp {
                 QString::fromLatin1(CompatibilityProtocolVersion)};
     }
 
+    QStringList modernProtocolVersions() {
+        return {QString::fromLatin1(ProtocolVersion)};
+    }
+
     QJsonObject makeRequest(const QString &method, QJsonObject params,
                             const RequestContext &context, const QJsonValue &id) {
         if (!isLegacyProtocolVersion(context.protocolVersion)) {

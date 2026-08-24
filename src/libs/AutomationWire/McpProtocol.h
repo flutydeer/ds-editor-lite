@@ -28,6 +28,7 @@ namespace AutomationWire::Mcp {
 
     inline constexpr auto InitializeMethod = "initialize";
     inline constexpr auto InitializedNotification = "notifications/initialized";
+    inline constexpr auto CancelledNotification = "notifications/cancelled";
     inline constexpr auto PingMethod = "ping";
     inline constexpr auto DiscoverMethod = "server/discover";
     inline constexpr auto ToolsListMethod = "tools/list";
@@ -126,6 +127,7 @@ namespace AutomationWire::Mcp {
     bool isLegacyProtocolVersion(const QString &version);
     bool isModernProtocolVersion(const QString &version);
     QStringList supportedProtocolVersions();
+    QStringList modernProtocolVersions();
 
     QJsonObject makeRequest(const QString &method, QJsonObject params,
                             const RequestContext &context,
@@ -157,10 +159,9 @@ namespace AutomationWire::Mcp {
     QJsonObject makeInitializeResult(const QString &protocolVersion,
                                      const ImplementationInfo &serverInfo,
                                      const QString &instructions = {});
-    QJsonObject
-        makeDiscoverResult(const ImplementationInfo &serverInfo, qint64 ttlMs = 0,
-                           const QString &cacheScope = QStringLiteral("private"),
-                           const QStringList &supportedVersions = supportedProtocolVersions());
+    QJsonObject makeDiscoverResult(const ImplementationInfo &serverInfo, qint64 ttlMs = 0,
+                                   const QString &cacheScope = QStringLiteral("private"),
+                                   const QStringList &supportedVersions = modernProtocolVersions());
     QJsonObject
         makeToolsListResult(const QJsonArray &tools, const QString &nextCursor = {},
                             qint64 ttlMs = 0, const QString &cacheScope = QStringLiteral("private"),

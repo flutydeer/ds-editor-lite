@@ -16,6 +16,7 @@
 #include <QUuid>
 
 #include <algorithm>
+#include <utility>
 
 namespace DsConnector {
     namespace {
@@ -648,6 +649,29 @@ namespace DsConnector {
             return object.contains(camel) ? object.value(camel) : object.value(snake);
         }
 
+        QJsonObject namespacedToolMetadata(const QJsonObject &tool) {
+            return tool.value(QStringLiteral("_meta"))
+                .toObject()
+                .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                .toObject();
+        }
+
+        QJsonValue toolMetadataValue(const QJsonObject &tool, const QString &camel,
+                                     const QString &snake) {
+            auto value = jsonValue(tool, camel, snake);
+            if (!value.isUndefined())
+                return value;
+            const auto metadata = namespacedToolMetadata(tool);
+            value = metadata.value(snake);
+            return value.isUndefined() ? metadata.value(camel) : value;
+        }
+
+        qint64 toolMetadataInteger(const QJsonObject &tool, const QString &camel,
+                                   const QString &snake, const qint64 fallback) {
+            const auto value = toolMetadataValue(tool, camel, snake);
+            return value.isDouble() ? value.toInteger(fallback) : fallback;
+        }
+
         QJsonObject toolDescriptor(const QJsonObject &tool) {
             QJsonObject result{
                 {QStringLiteral("name"), ExposurePolicy::operationId(tool)},
@@ -666,9 +690,37 @@ namespace DsConnector {
             if (tool.contains(QStringLiteral("annotations")))
                 result.insert(QStringLiteral("annotations"),
                               tool.value(QStringLiteral("annotations")));
-            for (const auto &key : {QStringLiteral("icons"), QStringLiteral("_meta")}) {
-                if (tool.contains(key))
-                    result.insert(key, tool.value(key));
+            if (tool.contains(QStringLiteral("icons")))
+                result.insert(QStringLiteral("icons"), tool.value(QStringLiteral("icons")));
+
+            auto meta = tool.value(QStringLiteral("_meta")).toObject();
+            auto metadata = namespacedToolMetadata(tool);
+            const auto synthesize = [&tool, &metadata](const QString &target, const QString &camel,
+                                                       const QString &snake) {
+                const auto value = jsonValue(tool, camel, snake);
+                if (!value.isUndefined())
+                    metadata.insert(target, value);
+            };
+            synthesize(QStringLiteral("version"), QStringLiteral("version"),
+                       QStringLiteral("version"));
+            synthesize(QStringLiteral("introduced_version"), QStringLiteral("introducedVersion"),
+                       QStringLiteral("introduced_version"));
+            synthesize(QStringLiteral("minimum_compatible_version"),
+                       QStringLiteral("minimumCompatibleVersion"),
+                       QStringLiteral("minimum_compatible_version"));
+            synthesize(QStringLiteral("category"), QStringLiteral("category"),
+                       QStringLiteral("category"));
+            synthesize(QStringLiteral("minimum_profile"), QStringLiteral("minimumProfile"),
+                       QStringLiteral("minimum_profile"));
+            synthesize(QStringLiteral("sync_mode"), QStringLiteral("syncMode"),
+                       QStringLiteral("sync_mode"));
+            synthesize(QStringLiteral("value_sources"), QStringLiteral("valueSources"),
+                       QStringLiteral("value_sources"));
+            if (!metadata.isEmpty()) {
+                meta.insert(QStringLiteral("io.openvpi.ds-editor-lite/tool"), metadata);
+                result.insert(QStringLiteral("_meta"), meta);
+            } else if (tool.value(QStringLiteral("_meta")).isObject()) {
+                result.insert(QStringLiteral("_meta"), meta);
             }
             const auto availability = tool.value(QStringLiteral("availability"));
             if (availability.isString())
@@ -733,6 +785,8 @@ namespace DsConnector {
               new BootstrapWatcher(m_instanceId, m_version, std::move(bootstrapServiceName), this)),
           m_upstream(new UpstreamMcpClient(m_instanceId, m_version, this)),
           m_handshakeRetryTimer(new QTimer(this)) {
+        (void) connectorManifest();
+        clearToolCaches();
         m_unavailableCount = m_exposure.typedContracts().size();
         m_handshakeRetryTimer->setSingleShot(true);
         connect(m_bootstrap, &BootstrapWatcher::observationChanged, this,
@@ -784,7 +838,7 @@ namespace DsConnector {
         for (const auto &selector : m_options.exposure.excludes)
             excludes.append(selector);
         QJsonArray pending;
-        for (const auto &selector : m_exposure.pendingSelectors(m_actualTools))
+        for (const auto &selector : m_pendingSelectorsCache)
             pending.append(selector);
         return {
             {QStringLiteral("connector"),
@@ -827,13 +881,14 @@ namespace DsConnector {
                          {QStringLiteral("incompatible_count"), m_incompatibleCount},
                          {QStringLiteral("unavailable_count"), m_unavailableCount}}            },
             {QStringLiteral("exposure"),
-             QJsonObject{{QStringLiteral("profile"),
-                          AutomationWire::exposureProfileName(m_options.exposure.profile)},
-                         {QStringLiteral("includes"), includes},
-                         {QStringLiteral("excludes"), excludes},
-                         {QStringLiteral("typed_tool_count"), m_exposure.typedContracts().size()},
-                         {QStringLiteral("generic_target_count"), filteredActualTools().size()},
-                         {QStringLiteral("pending_selectors"), pending}}                       },
+             QJsonObject{
+                 {QStringLiteral("profile"),
+                  AutomationWire::exposureProfileName(m_options.exposure.profile)},
+                 {QStringLiteral("includes"), includes},
+                 {QStringLiteral("excludes"), excludes},
+                 {QStringLiteral("typed_tool_count"), m_exposure.typedContracts().size()},
+                 {QStringLiteral("generic_target_count"), m_filteredActualToolsCache.size()},
+                 {QStringLiteral("pending_selectors"), pending}}                               },
         };
     }
 
@@ -944,8 +999,8 @@ namespace DsConnector {
         return forwardEditorTool(name, arguments, std::move(callback));
     }
 
-    bool ConnectorRuntime::cancel(const qint64 requestToken) {
-        return m_upstream->cancel(requestToken);
+    bool ConnectorRuntime::cancel(const qint64 requestToken, const QString &reason) {
+        return m_upstream->cancel(requestToken, reason);
     }
 
     const QStringList &ConnectorRuntime::bridgeToolNames() {
@@ -1074,6 +1129,7 @@ namespace DsConnector {
         m_upstream->clearEndpoint(error);
         m_actualTools = {};
         m_manifest = {};
+        clearToolCaches();
         m_manifestCompatibility = QStringLiteral("not_loaded");
         m_compatibleCount = 0;
         m_incompatibleCount = 0;
@@ -1118,6 +1174,7 @@ namespace DsConnector {
         m_mcpError.clear();
         m_actualTools = {};
         m_manifest = {};
+        clearToolCaches();
         m_schemaValidationCache.clear();
         m_manifestCompatibility = QStringLiteral("refreshing");
         m_compatibleCount = 0;
@@ -1359,6 +1416,7 @@ namespace DsConnector {
                     return;
                 }
                 m_actualTools = std::move(accumulated);
+                rebuildToolCaches();
                 requestManifest(epoch);
             },
             m_options.upstreamTimeoutMs);
@@ -1514,12 +1572,14 @@ namespace DsConnector {
         if (!manifestResult.succeeded() ||
             manifestResult.result.value(QStringLiteral("isError")).toBool() || manifest.isEmpty()) {
             m_manifest = {};
+            rebuildToolCaches();
             failHandshake(epoch,
                           handshakeError(manifestResult, QStringLiteral("manifest_unavailable")),
                           QStringLiteral("manifest_unavailable"), true);
             return;
         }
         m_manifest = manifest;
+        rebuildToolCaches();
 
         int consideredCount = 0;
         m_compatibleCount = 0;
@@ -1594,51 +1654,70 @@ namespace DsConnector {
         return {};
     }
 
-    QJsonArray ConnectorRuntime::filteredActualTools() const {
+    void ConnectorRuntime::clearToolCaches() {
+        m_actualToolIndex.clear();
+        m_manifestOperationIndex.clear();
+        m_filteredActualToolsCache = {};
+        m_pendingSelectorsCache.clear();
+        QString digestError;
+        m_filteredActualToolsDigest =
+            AutomationWire::sha256Digest(m_filteredActualToolsCache, &digestError);
+        if (!digestError.isEmpty())
+            m_filteredActualToolsDigest.clear();
+    }
+
+    void ConnectorRuntime::rebuildToolCaches() {
+        clearToolCaches();
+        for (const auto &entry : m_manifest.value(QStringLiteral("operations")).toArray()) {
+            const auto operation = entry.toObject();
+            const auto id = ExposurePolicy::operationId(operation);
+            if (!id.isEmpty())
+                m_manifestOperationIndex.insert(id, operation);
+        }
+
         QJsonArray enriched;
         for (const auto &entry : m_actualTools) {
             if (!entry.isObject())
                 continue;
             auto tool = entry.toObject();
             const auto id = ExposurePolicy::operationId(tool);
-            const auto manifest = manifestOperation(id);
+            const auto manifest = m_manifestOperationIndex.value(id);
             for (auto it = manifest.constBegin(); it != manifest.constEnd(); ++it) {
                 if (!tool.contains(it.key()))
                     tool.insert(it.key(), it.value());
             }
-            if (actualAvailabilityCode(tool).isEmpty())
-                enriched.append(tool);
+            if (!id.isEmpty())
+                m_actualToolIndex.insert(id, tool);
+            enriched.append(tool);
         }
-        const auto allowed = m_exposure.filterActualTools(enriched);
-        QJsonArray result;
+        m_pendingSelectorsCache = m_exposure.pendingSelectors(enriched);
+
+        QJsonArray available;
+        for (const auto &entry : std::as_const(enriched)) {
+            const auto tool = entry.toObject();
+            if (actualAvailabilityCode(tool).isEmpty())
+                available.append(tool);
+        }
+        const auto allowed = m_exposure.filterActualTools(available);
         for (const auto &entry : allowed)
-            result.append(toolDescriptor(entry.toObject()));
-        return result;
+            m_filteredActualToolsCache.append(toolDescriptor(entry.toObject()));
+        QString digestError;
+        m_filteredActualToolsDigest =
+            AutomationWire::sha256Digest(m_filteredActualToolsCache, &digestError);
+        if (!digestError.isEmpty())
+            m_filteredActualToolsDigest.clear();
+    }
+
+    const QJsonArray &ConnectorRuntime::filteredActualTools() const {
+        return m_filteredActualToolsCache;
     }
 
     QJsonObject ConnectorRuntime::actualTool(const QString &name) const {
-        for (const auto &entry : m_actualTools) {
-            const auto tool = entry.toObject();
-            if (ExposurePolicy::operationId(tool) == name) {
-                auto result = tool;
-                const auto manifest = manifestOperation(name);
-                for (auto it = manifest.constBegin(); it != manifest.constEnd(); ++it) {
-                    if (!result.contains(it.key()))
-                        result.insert(it.key(), it.value());
-                }
-                return result;
-            }
-        }
-        return {};
+        return m_actualToolIndex.value(name);
     }
 
     QJsonObject ConnectorRuntime::manifestOperation(const QString &name) const {
-        for (const auto &entry : m_manifest.value(QStringLiteral("operations")).toArray()) {
-            const auto operation = entry.toObject();
-            if (ExposurePolicy::operationId(operation) == name)
-                return operation;
-        }
-        return {};
+        return m_manifestOperationIndex.value(name);
     }
 
     QString ConnectorRuntime::compatibilityFor(const AutomationWire::ToolContract &tool) const {
@@ -1672,16 +1751,16 @@ namespace DsConnector {
             return QStringLiteral("host_unavailable");
         }
 
-        const auto editorVersion =
-            jsonInteger(editorTool, QStringLiteral("version"), QStringLiteral("version"),
-                        jsonInteger(m_manifest, QStringLiteral("toolsetVersion"),
-                                    QStringLiteral("toolset_version"),
-                                    static_cast<qint64>(AutomationWire::PublicToolsetVersion)));
+        const auto editorVersion = toolMetadataInteger(
+            editorTool, QStringLiteral("version"), QStringLiteral("version"),
+            jsonInteger(m_manifest, QStringLiteral("toolsetVersion"),
+                        QStringLiteral("toolset_version"),
+                        static_cast<qint64>(AutomationWire::PublicToolsetVersion)));
         const auto editorMinimum =
-            jsonInteger(editorTool, QStringLiteral("minimumCompatibleVersion"),
-                        QStringLiteral("minimum_compatible_version"), 1);
+            toolMetadataInteger(editorTool, QStringLiteral("minimumCompatibleVersion"),
+                                QStringLiteral("minimum_compatible_version"), 1);
         const auto versionCompatible =
-            static_cast<qint64>(AutomationWire::PublicToolsetVersion) >= editorMinimum &&
+            static_cast<qint64>(tool.version) >= editorMinimum &&
             editorVersion >= static_cast<qint64>(tool.minimumCompatibleVersion);
         if (!versionCompatible)
             return QStringLiteral("contract_incompatible");
@@ -1768,10 +1847,9 @@ namespace DsConnector {
     }
 
     ToolCallOutcome ConnectorRuntime::listActualTools(const QJsonObject &arguments) const {
-        const auto tools = filteredActualTools();
-        QString digestError;
-        const auto snapshotDigest = AutomationWire::sha256Digest(tools, &digestError);
-        if (!digestError.isEmpty())
+        const auto &tools = filteredActualTools();
+        const auto &snapshotDigest = m_filteredActualToolsDigest;
+        if (snapshotDigest.isEmpty())
             return connectorError(QStringLiteral("cursor_unavailable"));
 
         const auto cursorText = arguments.value(QStringLiteral("cursor")).toString();
@@ -1858,13 +1936,15 @@ namespace DsConnector {
         const QJsonObject structured{
             {QStringLiteral("tool"), toolDescriptor(tool)},
             {QStringLiteral("version"),
-             jsonInteger(tool, QStringLiteral("version"), QStringLiteral("version"), 0)},
+             std::max<qint64>(1, toolMetadataInteger(tool, QStringLiteral("version"),
+             QStringLiteral("version"), 1))},
             {QStringLiteral("introduced_version"),
-             jsonInteger(tool, QStringLiteral("introducedVersion"),
-             QStringLiteral("introduced_version"), 1)},
+             std::max<qint64>(1, toolMetadataInteger(tool, QStringLiteral("introducedVersion"),
+             QStringLiteral("introduced_version"), 1))},
             {QStringLiteral("minimum_compatible_version"),
-             jsonInteger(tool, QStringLiteral("minimumCompatibleVersion"),
-             QStringLiteral("minimum_compatible_version"), 1)},
+             std::max<qint64>(
+                 1, toolMetadataInteger(tool, QStringLiteral("minimumCompatibleVersion"),
+             QStringLiteral("minimum_compatible_version"), 1))},
             {QStringLiteral("input_schema"),
              jsonValue(tool, QStringLiteral("inputSchema"), QStringLiteral("input_schema"))},
             {QStringLiteral("output_schema"),

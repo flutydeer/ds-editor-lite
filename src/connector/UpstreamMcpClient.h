@@ -78,6 +78,8 @@ namespace DsConnector {
         qint64 post(const QString &method, QJsonObject params, QJsonValue upstreamId,
                     bool notification, Callback callback, int timeoutMs,
                     const QHash<QByteArray, QByteArray> &parameterHeaders);
+        bool cancelInternal(qint64 requestToken, const QString &reason, bool notifyPeer,
+                            bool outcomeUnknown);
         void finish(qint64 token);
         static std::optional<QJsonObject> decodeResponseBody(const QByteArray &body,
                                                              const QByteArray &contentType,

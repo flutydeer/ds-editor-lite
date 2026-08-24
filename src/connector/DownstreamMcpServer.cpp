@@ -123,7 +123,7 @@ namespace DsConnector {
             }
             return;
         }
-        if (request.method == QStringLiteral("notifications/cancelled")) {
+        if (request.method == QString::fromLatin1(AutomationWire::Mcp::CancelledNotification)) {
             const auto requestId = request.params.value(QStringLiteral("requestId"));
             const auto validParams =
                 hasOnlyKeys(request.params, {QStringLiteral("_meta"), QStringLiteral("requestId"),
@@ -189,7 +189,8 @@ namespace DsConnector {
         const auto token = m_pending.take(key);
         if (token) {
             m_cancelled.insert(key);
-            m_runtime->cancel(token);
+            m_runtime->cancel(token, request.params.value(QStringLiteral("reason"))
+                                         .toString(QStringLiteral("request_cancelled")));
         }
     }
 
@@ -223,7 +224,7 @@ namespace DsConnector {
             }
             offset = *parsed.offset;
         }
-        constexpr auto PageSize = 100;
+        constexpr auto PageSize = 256;
         if (offset < 0 || offset > tools.size()) {
             sendError(request.id, AutomationWire::Mcp::InvalidParams,
                       QStringLiteral("Invalid tools/list cursor"));
