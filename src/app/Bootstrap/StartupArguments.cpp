@@ -29,7 +29,7 @@ namespace StartupArguments {
     } // namespace
 
     bool AutomationOverrides::isEmpty() const {
-        return !mcpEnabled && !controlPortMode && !controlPort && !profile;
+        return !mcpEnabled && !controlPort && !profile;
     }
 
     bool ParsedArguments::isValid() const {
@@ -89,40 +89,26 @@ namespace StartupArguments {
                                 QStringLiteral("--control-port"),
                                 QStringLiteral("Option --control-port requires a value."));
                 }
-                AutomationOption::ControlPortMode parsedMode;
-                quint16 parsedPort;
-                if (*value == QStringLiteral("random")) {
-                    parsedMode = AutomationOption::ControlPortMode::Random;
-                    parsedPort = result.automation.controlPortMode == parsedMode &&
-                                         result.automation.controlPort
-                                     ? *result.automation.controlPort
-                                     : AutomationOption::generateRandomControlPort();
-                } else {
-                    static const QRegularExpression decimalInteger(QStringLiteral("^[0-9]+$"));
-                    bool converted = false;
-                    const auto port = value->toUInt(&converted, 10);
-                    if (!converted || !decimalInteger.match(*value).hasMatch() || port < 1 ||
-                        port > 65535) {
-                        return fail(
-                            std::move(result), ParseErrorCode::InvalidValue,
-                            QStringLiteral("--control-port"),
-                            QStringLiteral("Invalid value for --control-port: \"%1\"; expected "
-                                           "random or an integer from 1 to 65535.")
-                                .arg(*value));
-                    }
-                    parsedMode = AutomationOption::ControlPortMode::Fixed;
-                    parsedPort = static_cast<quint16>(port);
+                static const QRegularExpression decimalInteger(QStringLiteral("^[0-9]+$"));
+                bool converted = false;
+                const auto port = value->toUInt(&converted, 10);
+                if (!converted || !decimalInteger.match(*value).hasMatch() || port < 1 ||
+                    port > 65535) {
+                    return fail(
+                        std::move(result), ParseErrorCode::InvalidValue,
+                        QStringLiteral("--control-port"),
+                        QStringLiteral("Invalid value for --control-port: \"%1\"; expected an "
+                                       "integer from 1 to 65535.")
+                            .arg(*value));
                 }
-                if ((result.automation.controlPortMode &&
-                     *result.automation.controlPortMode != parsedMode) ||
-                    (result.automation.controlPort &&
-                     *result.automation.controlPort != parsedPort)) {
+                const auto parsedPort = static_cast<quint16>(port);
+                if (result.automation.controlPort &&
+                    *result.automation.controlPort != parsedPort) {
                     return fail(
                         std::move(result), ParseErrorCode::ConflictingOptions,
                         QStringLiteral("--control-port"),
                         QStringLiteral("Conflicting values were provided for --control-port."));
                 }
-                result.automation.controlPortMode = parsedMode;
                 result.automation.controlPort = parsedPort;
                 continue;
             }
@@ -174,7 +160,6 @@ namespace StartupArguments {
                                                          const AutomationOverrides &overrides) {
         EffectiveAutomationConfig result;
         result.mcpEnabled = persisted.mcpEnabled;
-        result.controlPortMode = persisted.controlPortMode;
         result.controlPort = persisted.controlPort;
         result.profile = persisted.selectedProfile;
 
@@ -182,10 +167,8 @@ namespace StartupArguments {
             result.mcpEnabled = *overrides.mcpEnabled;
             result.mcpEnabledSource = ConfigSource::CommandLine;
         }
-        if (overrides.controlPortMode) {
-            result.controlPortMode = *overrides.controlPortMode;
-            if (overrides.controlPort)
-                result.controlPort = *overrides.controlPort;
+        if (overrides.controlPort) {
+            result.controlPort = *overrides.controlPort;
             result.controlPortSource = ConfigSource::CommandLine;
         }
         if (overrides.profile) {

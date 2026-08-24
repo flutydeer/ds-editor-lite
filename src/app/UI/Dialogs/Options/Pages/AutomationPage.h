@@ -39,11 +39,9 @@ private:
     [[nodiscard]] QString runtimeStateDescription(const QString &state) const;
     void refreshCategoryPermissionSwitches();
     void refreshConnectionConfigurations();
-    void refreshControlPortControls();
     void refreshRuntimeStatus();
 
     SwitchButton *m_mcpEnabled = nullptr;
-    ComboBox *m_controlPortMode = nullptr;
     Button *m_refreshControlPort = nullptr;
     SVS::ExpressionSpinBox *m_controlPort = nullptr;
     ComboBox *m_profile = nullptr;

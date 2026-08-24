@@ -23,9 +23,7 @@ namespace {
         bool success = expect(parsed.isValid(), QStringLiteral("valid arguments should parse"));
         success &= expect(parsed.automation.mcpEnabled == true,
                           QStringLiteral("--mcp should enable the runtime override"));
-        success &= expect(parsed.automation.controlPortMode ==
-                                  AutomationOption::ControlPortMode::Fixed &&
-                              parsed.automation.controlPort == 65535,
+        success &= expect(parsed.automation.controlPort == 65535,
                           QStringLiteral("control port should parse at its upper bound"));
         success &= expect(parsed.automation.profile == AutomationOption::Profile::Custom,
                           QStringLiteral("Custom profile should parse"));
@@ -39,15 +37,17 @@ namespace {
     bool testPortAndProfileBounds() {
         bool success = true;
         auto parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--control-port"), QStringLiteral("random"),
+            {QStringLiteral("--control-port"), QStringLiteral("1"),
              QStringLiteral("--automation-profile=l3")});
-        success &= expect(parsed.isValid() &&
-                              parsed.automation.controlPortMode ==
-                                  AutomationOption::ControlPortMode::Random &&
-                              parsed.automation.controlPort >=
-                                  AutomationOption::kRandomControlPortMinimum &&
+        success &= expect(parsed.isValid() && parsed.automation.controlPort == 1 &&
                               parsed.automation.profile == AutomationOption::Profile::L3,
-                          QStringLiteral("random port mode and L3 should be accepted"));
+                          QStringLiteral("the minimum port and L3 should be accepted"));
+
+        parsed = StartupArguments::parseArguments(
+            {QStringLiteral("--control-port"), QStringLiteral("random")});
+        success &= expect(!parsed.isValid() &&
+                              parsed.error->code == StartupArguments::ParseErrorCode::InvalidValue,
+                          QStringLiteral("the removed Random mode should fail clearly"));
 
         parsed = StartupArguments::parseArguments(
             {QStringLiteral("--control-port"), QStringLiteral("0")});
@@ -104,10 +104,10 @@ namespace {
             QStringLiteral("different repeated ports should conflict"));
 
         parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--control-port=random"),
-             QStringLiteral("--control-port=random")});
-        success &= expect(parsed.isValid(),
-                          QStringLiteral("repeating Random mode should keep one concrete port"));
+            {QStringLiteral("--control-port=18231"),
+             QStringLiteral("--control-port=18231")});
+        success &= expect(parsed.isValid() && parsed.automation.controlPort == 18231,
+                          QStringLiteral("repeating the same concrete port should be accepted"));
 
         parsed = StartupArguments::parseArguments(
             {QStringLiteral("--automation-profile=l1"),
@@ -140,23 +140,18 @@ namespace {
     bool testEffectiveConfigDoesNotMutatePersistence() {
         AutomationOption persisted;
         persisted.mcpEnabled = false;
-        persisted.controlPortMode = AutomationOption::ControlPortMode::Fixed;
         persisted.controlPort = 1234;
         persisted.selectedProfile = AutomationOption::Profile::L1;
         persisted.setCustomPermissionEnabled(QStringLiteral("notes.get"), true);
 
         StartupArguments::AutomationOverrides overrides;
         overrides.mcpEnabled = true;
-        overrides.controlPortMode = AutomationOption::ControlPortMode::Random;
-        overrides.controlPort = AutomationOption::generateRandomControlPort();
+        overrides.controlPort = 4321;
         overrides.profile = AutomationOption::Profile::Custom;
         const auto effective =
             StartupArguments::effectiveAutomationConfig(persisted, overrides);
 
-        bool success = expect(effective.mcpEnabled &&
-                                  effective.controlPortMode ==
-                                      AutomationOption::ControlPortMode::Random &&
-                                  overrides.controlPort &&
+        bool success = expect(effective.mcpEnabled && overrides.controlPort &&
                                   effective.controlPort == *overrides.controlPort &&
                                   effective.profile == AutomationOption::Profile::Custom,
                               QStringLiteral("CLI values should win in the effective config"));
@@ -165,10 +160,7 @@ namespace {
                 effective.controlPortSource == StartupArguments::ConfigSource::CommandLine &&
                 effective.profileSource == StartupArguments::ConfigSource::CommandLine,
             QStringLiteral("effective config should expose command-line sources"));
-        success &= expect(!persisted.mcpEnabled &&
-                              persisted.controlPortMode ==
-                                  AutomationOption::ControlPortMode::Fixed &&
-                              persisted.controlPort == 1234 &&
+        success &= expect(!persisted.mcpEnabled && persisted.controlPort == 1234 &&
                               persisted.selectedProfile == AutomationOption::Profile::L1 &&
                               persisted.customPermissionEnabled(QStringLiteral("notes.get")),
                           QStringLiteral("resolving CLI overrides must not modify saved settings"));

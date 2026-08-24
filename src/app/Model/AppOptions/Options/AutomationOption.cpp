@@ -8,7 +8,6 @@
 namespace {
 
     constexpr auto kMcpEnabledKey = "mcpEnabled";
-    constexpr auto kControlPortModeKey = "controlPortMode";
     constexpr auto kControlPortKey = "controlPort";
     constexpr auto kSelectedProfileKey = "selectedProfile";
     constexpr auto kCustomPermissionsKey = "customPermissions";
@@ -34,7 +33,6 @@ namespace {
 
 void AutomationOption::load(const QJsonObject &object) {
     mcpEnabled = false;
-    controlPortMode = ControlPortMode::Random;
     controlPort = generateRandomControlPort(controlPort);
     selectedProfile = Profile::L1;
     customPermissions.clear();
@@ -45,23 +43,12 @@ void AutomationOption::load(const QJsonObject &object) {
     if (enabledValue.isBool())
         mcpEnabled = enabledValue.toBool();
 
-    const auto modeValue = object.value(QLatin1String(kControlPortModeKey));
-    const auto parsedMode = controlPortModeFromString(modeValue.toString());
-    if (parsedMode)
-        controlPortMode = *parsedMode;
-
     const auto portValue = object.value(QLatin1String(kControlPortKey));
     if (portValue.isDouble()) {
         const auto numericPort = portValue.toDouble();
         if (std::floor(numericPort) == numericPort && numericPort >= 1 && numericPort <= 65535)
             controlPort = static_cast<quint16>(numericPort);
     }
-    if (modeValue.isUndefined() && portValue.isDouble()) {
-        const auto legacyPort = portValue.toDouble();
-        if (std::floor(legacyPort) == legacyPort && legacyPort >= 1 && legacyPort <= 65535)
-            controlPortMode = ControlPortMode::Fixed;
-    }
-
     if (const auto profile =
             profileFromString(object.value(QLatin1String(kSelectedProfileKey)).toString())) {
         selectedProfile = *profile;
@@ -87,7 +74,6 @@ void AutomationOption::save(QJsonObject &object) {
 
     object = {
         {QLatin1String(kMcpEnabledKey),        mcpEnabled                             },
-        {QLatin1String(kControlPortModeKey),   controlPortModeToString(controlPortMode)},
         {QLatin1String(kControlPortKey),       static_cast<int>(controlPort)           },
         {QLatin1String(kSelectedProfileKey),   profileToString(selectedProfile)        },
         {QLatin1String(kCustomPermissionsKey), permissions                            },
@@ -128,19 +114,6 @@ std::optional<AutomationOption::Profile> AutomationOption::profileFromString(con
         return Profile::L3;
     if (value == QStringLiteral("custom"))
         return Profile::Custom;
-    return std::nullopt;
-}
-
-QString AutomationOption::controlPortModeToString(const ControlPortMode mode) {
-    return mode == ControlPortMode::Fixed ? QStringLiteral("fixed") : QStringLiteral("random");
-}
-
-std::optional<AutomationOption::ControlPortMode>
-    AutomationOption::controlPortModeFromString(const QString &value) {
-    if (value == QStringLiteral("fixed"))
-        return ControlPortMode::Fixed;
-    if (value == QStringLiteral("random"))
-        return ControlPortMode::Random;
     return std::nullopt;
 }
 

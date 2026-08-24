@@ -20,11 +20,9 @@ namespace {
     bool testDefaults() {
         AutomationOption option;
         bool success = expect(!option.mcpEnabled, QStringLiteral("MCP should default to disabled"));
-        success &= expect(option.controlPortMode == AutomationOption::ControlPortMode::Random,
-                          QStringLiteral("control port mode should default to Random"));
         success &= expect(option.controlPort >= AutomationOption::kRandomControlPortMinimum &&
                               option.controlPort <= AutomationOption::kRandomControlPortMaximum,
-                          QStringLiteral("Random mode should have a concrete private port"));
+                          QStringLiteral("the initial configuration should have a concrete private port"));
         success &= expect(option.selectedProfile == AutomationOption::Profile::L1,
                           QStringLiteral("profile should default to L1"));
         success &= expect(!option.customPermissionEnabled(QStringLiteral("notes.get")),
@@ -37,7 +35,6 @@ namespace {
     bool testRoundTrip() {
         AutomationOption option;
         option.mcpEnabled = true;
-        option.controlPortMode = AutomationOption::ControlPortMode::Fixed;
         option.controlPort = 65535;
         option.selectedProfile = AutomationOption::Profile::Custom;
         option.setCustomPermissionEnabled(QStringLiteral("notes.get"), true);
@@ -48,8 +45,6 @@ namespace {
         AutomationOption reloaded;
         reloaded.load(option.value());
         bool success = expect(reloaded.mcpEnabled, QStringLiteral("MCP setting should round-trip"));
-        success &= expect(reloaded.controlPortMode == AutomationOption::ControlPortMode::Fixed,
-                          QStringLiteral("control port mode should round-trip"));
         success &= expect(reloaded.controlPort == 65535,
                           QStringLiteral("maximum control port should round-trip"));
         success &= expect(reloaded.selectedProfile == AutomationOption::Profile::Custom,
@@ -90,10 +85,9 @@ namespace {
 
         bool success = expect(!option.mcpEnabled,
                               QStringLiteral("invalid MCP value should use disabled default"));
-        success &= expect(option.controlPortMode == AutomationOption::ControlPortMode::Random &&
-                              option.controlPort >= AutomationOption::kRandomControlPortMinimum &&
+        success &= expect(option.controlPort >= AutomationOption::kRandomControlPortMinimum &&
                               option.controlPort <= AutomationOption::kRandomControlPortMaximum,
-                          QStringLiteral("invalid port settings should use a concrete Random port"));
+                          QStringLiteral("invalid port settings should generate a concrete port"));
         success &= expect(option.selectedProfile == AutomationOption::Profile::L1,
                           QStringLiteral("invalid profile should use L1"));
         success &= expect(option.customPermissions.size() == 1 &&
@@ -124,25 +118,34 @@ namespace {
         return success;
     }
 
-    bool testLegacyControlPortMigration() {
-        AutomationOption random;
-        random.load(QJsonObject{{QStringLiteral("controlPort"), 0}});
+    bool testStableGeneratedControlPort() {
+        AutomationOption generated;
+        generated.load(QJsonObject{{QStringLiteral("controlPort"), 0},
+                                   {QStringLiteral("controlPortMode"),
+                                    QStringLiteral("random")}});
         bool success = expect(
-            random.controlPortMode == AutomationOption::ControlPortMode::Random &&
-                random.controlPort >= AutomationOption::kRandomControlPortMinimum,
-            QStringLiteral("legacy port 0 should migrate to an explicit Random selection"));
+            generated.controlPort >= AutomationOption::kRandomControlPortMinimum &&
+                generated.controlPort <= AutomationOption::kRandomControlPortMaximum,
+            QStringLiteral("missing or legacy zero ports should generate a concrete port"));
 
-        AutomationOption fixed;
-        fixed.load(QJsonObject{{QStringLiteral("controlPort"), 18231}});
-        success &= expect(fixed.controlPortMode == AutomationOption::ControlPortMode::Fixed &&
-                              fixed.controlPort == 18231,
-                          QStringLiteral("legacy non-zero ports should migrate to Fixed"));
+        const auto saved = generated.value();
+        success &= expect(!saved.contains(QStringLiteral("controlPortMode")),
+                          QStringLiteral("the removed port mode must not be persisted"));
+        AutomationOption reloaded;
+        reloaded.load(saved);
+        success &= expect(reloaded.controlPort == generated.controlPort,
+                          QStringLiteral("the generated port should stay stable after persistence"));
 
-        const auto refreshed = AutomationOption::generateRandomControlPort(random.controlPort);
-        success &= expect(refreshed != random.controlPort &&
+        AutomationOption existing;
+        existing.load(QJsonObject{{QStringLiteral("controlPort"), 18231}});
+        success &= expect(existing.controlPort == 18231,
+                          QStringLiteral("an existing non-zero port should remain unchanged"));
+
+        const auto refreshed = AutomationOption::generateRandomControlPort(generated.controlPort);
+        success &= expect(refreshed != generated.controlPort &&
                               refreshed >= AutomationOption::kRandomControlPortMinimum &&
                               refreshed <= AutomationOption::kRandomControlPortMaximum,
-                          QStringLiteral("refresh should produce a different concrete Random port"));
+                          QStringLiteral("refresh should produce a different concrete port"));
         return success;
     }
 
@@ -199,7 +202,7 @@ int main(int argc, char *argv[]) {
     success &= testDefaults();
     success &= testRoundTrip();
     success &= testInvalidValuesUseSafeDefaults();
-    success &= testLegacyControlPortMigration();
+    success &= testStableGeneratedControlPort();
     success &= testProfileConversion();
     success &= testMcpClientConfigurations();
     return success ? 0 : 1;

@@ -295,21 +295,22 @@ editorInstanceId 改变时清空 Manifest、Schema、document/window/task 句柄
 
 ## 10. Automation 设置页、CLI 与运行时启停
 
-Automation 设置独立保存：MCP enabled、控制端口模式与具体端口、selected profile、Custom
-权限、canonical 读/写根目录和必要的安全上限。安全默认值为 MCP 关闭、L1、随机端口模式和
-空的额外文件根目录。随机模式仍保存并展示一个非零具体端口，可显式刷新；端口冲突不得连接
-或复用其他实例。
+Automation 设置独立保存：MCP enabled、具体控制端口、selected profile、Custom 权限、
+canonical 读/写根目录和必要的安全上限。安全默认值为 MCP 关闭、L1、首次创建配置时生成的
+非零私有端口和空的额外文件根目录。该端口后续保持不变，用户可直接编辑或显式刷新；端口
+冲突不得连接或复用其他实例。
 
 Editor CLI：
 
 ```text
 --mcp | --no-mcp
---control-port <random|1..65535>
+--control-port <1..65535>
 --automation-profile l1|l2|l3|custom
 ```
 
 CLI 优先于持久设置且不回写。冲突、缺值和非法 profile/端口在窗口启动前给出稳定诊断并
-非零退出。设置页显示生效值、持久值和 CLI 覆盖来源；被覆盖项不可绕过 CLI。
+非零退出。设置页显示生效值、持久值和 CLI 覆盖来源；端口输入与刷新始终可用于更新后续
+启动的持久值，但不能绕过本次启动的 CLI override。
 
 运行时启用按 `mcp_starting → listen/register/ready → mcp_ready`；失败进入 `error` 且不发布
 伪 endpoint。禁用按 `mcp_stopping → 停止新请求 → 短提交有限宽限 → 关闭 transport →

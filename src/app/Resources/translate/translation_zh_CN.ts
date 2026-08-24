@@ -312,16 +312,6 @@
         <translation>控制端口</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="290"/>
-        <source>Fixed</source>
-        <translation>固定</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="292"/>
-        <source>Random</source>
-        <translation>随机</translation>
-    </message>
-    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="297"/>
         <source>Refresh</source>
         <translation>刷新</translation>
@@ -378,8 +368,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="359"/>
-        <source>Connects directly to the editor&apos;s configured MCP endpoint. Random mode keeps a concrete port that can be replaced with Refresh.</source>
-        <translation>直接连接编辑器配置的 MCP 端点。随机模式也会保留一个具体端口，可通过“刷新”更换。</translation>
+        <source>Connects directly to the editor&apos;s configured MCP endpoint. The generated port stays unchanged until you edit it or press Refresh.</source>
+        <translation>直接连接编辑器配置的 MCP 端点。生成的端口会保持不变，直到您手动编辑或点击“刷新”。</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="270"/>
@@ -4911,23 +4901,23 @@ type: %L1</source>
     <name>PathEditor</name>
     <message>
         <source>&amp;Add</source>
-        <translation type="vanished">添加(&amp;A)</translation>
+        <translation>添加(&amp;A)</translation>
     </message>
     <message>
         <source>&amp;Delete</source>
-        <translation type="vanished">删除(&amp;D)</translation>
+        <translation>删除(&amp;D)</translation>
     </message>
     <message>
         <source>Move &amp;Up</source>
-        <translation type="vanished">上移(&amp;U)</translation>
+        <translation>上移(&amp;U)</translation>
     </message>
     <message>
         <source>Move D&amp;own</source>
-        <translation type="vanished">下移(&amp;o)</translation>
+        <translation>下移(&amp;o)</translation>
     </message>
     <message>
         <source>Browse directory</source>
-        <translation type="vanished">浏览目录</translation>
+        <translation>浏览目录</translation>
     </message>
 </context>
 <context>

@@ -98,8 +98,8 @@ GUI、开发构建和进程级测试共享一个全局 editor Primary。所有�
 - 每次启动前检查 DsEditorLite、全局锁、QLocal 服务和预期端口；发现来源不明的 editor 时
   停止本阶段并记录，不自动结束用户进程；
 - 测试夹具保存自己创建的精确 PID/process handle，退出时只清理这些进程；
-- 优先使用 `--control-port random` 取得并记录具体非零测试端口；端口冲突场景显式保留测试
-  端口并在场景后释放；
+- 进程夹具优先使用隔离配置首次生成并持久化的具体非零端口；需要显式控制时传入专用测试
+  端口，端口冲突场景保留该端口并在场景后释放；
 - 等待进程退出、socket EOF、QLocal 服务消失和端口释放后才启动下一场景；
 - connector 可多实例并行，但涉及同一 editor 的多 connector 场景由一个串行 fixture 统一管理；
 - 非 GUI 资格测试显式设置 `QT_QPA_PLATFORM=offscreen` 并固定 Qt plugin path；真实 GUI 轮次

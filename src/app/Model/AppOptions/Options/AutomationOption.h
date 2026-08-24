@@ -17,11 +17,6 @@ public:
         Custom,
     };
 
-    enum class ControlPortMode {
-        Fixed,
-        Random,
-    };
-
     static constexpr quint16 kRandomControlPortMinimum = 49152;
     static constexpr quint16 kRandomControlPortMaximum = 65535;
 
@@ -37,13 +32,9 @@ public:
 
     [[nodiscard]] static QString profileToString(Profile profile);
     [[nodiscard]] static std::optional<Profile> profileFromString(const QString &value);
-    [[nodiscard]] static QString controlPortModeToString(ControlPortMode mode);
-    [[nodiscard]] static std::optional<ControlPortMode>
-        controlPortModeFromString(const QString &value);
     [[nodiscard]] static quint16 generateRandomControlPort(quint16 previousPort = 0);
 
     bool mcpEnabled = false;
-    ControlPortMode controlPortMode = ControlPortMode::Random;
     quint16 controlPort;
     Profile selectedProfile = Profile::L1;
     QMap<QString, bool> customPermissions;

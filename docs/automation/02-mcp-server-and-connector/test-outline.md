@@ -295,10 +295,11 @@ editor，也不得为了测试自动结束来源不明的现有 editor。
 
 ## 12. 设置页、CLI 与运行时生命周期
 
-- 首次运行/迁移旧设置的 disabled、L1、随机非零端口、空 roots 和空 Custom 安全默认；
-- MCP enabled、固定/随机端口模式、具体端口、profile、Custom、读写 roots 的持久化
-  round-trip、坏配置回退和原子写入；
-- `--mcp`/`--no-mcp`、`--control-port random|有效端口`、
+- 首次运行/迁移旧设置的 disabled、L1、随机生成并立即持久化的非零端口、空 roots 和空
+  Custom 安全默认；
+- MCP enabled、稳定具体端口、profile、Custom、读写 roots 的持久化 round-trip、坏配置
+  回退和原子写入；
+- `--mcp`/`--no-mcp`、`--control-port 有效端口`、
   `--automation-profile l1|l2|l3|custom` 的合法组合；
 - 同时给出互斥开关、缺值、越界端口、未知 profile、重复冲突值时启动前失败；
 - CLI > persistent settings > safety default，覆盖不回写；设置页显示持久值、生效值和覆盖来源，
@@ -307,8 +308,8 @@ editor，也不得为了测试自动结束来源不明的现有 editor。
 - 禁用：stopping、拒绝新请求、短命令宽限、关闭 transport、disabled；后台 Task 继续；
 - 启用中换端口的有序 stop/start、旧 endpoint 失效、新 endpoint 自动重连和失败恢复；
 - profile/Custom 变化对 editor list/执行立即生效，connector 固定 downstream 工具集不变；
-- 固定模式启用端口输入并禁用刷新，随机模式反向；两种模式均展示非零端口并始终可复制
-  不带 `mcpServers` 外壳的 stdio/Streamable HTTP 服务对象；
+- 端口输入与刷新按钮始终可用；刷新会生成并保存新的具体端口，普通重启不得自行换端口；
+  始终可复制不带 `mcpServers` 外壳的 stdio/Streamable HTTP 服务对象；
 - 关闭窗口/退出时 watcher、HTTP、TaskManager 的确定关闭顺序，无 use-after-free 或悬挂端口。
 
 ## 13. 端到端、多 connector 与 GUI

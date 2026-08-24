@@ -26,7 +26,6 @@ namespace StartupArguments {
 
     struct AutomationOverrides {
         std::optional<bool> mcpEnabled;
-        std::optional<AutomationOption::ControlPortMode> controlPortMode;
         std::optional<quint16> controlPort;
         std::optional<AutomationOption::Profile> profile;
 
@@ -48,8 +47,6 @@ namespace StartupArguments {
 
     struct EffectiveAutomationConfig {
         bool mcpEnabled = false;
-        AutomationOption::ControlPortMode controlPortMode =
-            AutomationOption::ControlPortMode::Random;
         quint16 controlPort = AutomationOption::kRandomControlPortMinimum;
         AutomationOption::Profile profile = AutomationOption::Profile::L1;
         ConfigSource mcpEnabledSource = ConfigSource::Persisted;
