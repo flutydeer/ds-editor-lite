@@ -60,11 +60,10 @@ DialogTitleBar::DialogTitleBar(QWidget *parent)
     initializeAnimation();
 
     // Re-tint the close icon when the theme changes (non-Windows only)
-    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
-            [this](const QString &) {
-                if (!SystemUtils::isWindows())
-                    rebuildCloseButtonIcon();
-            });
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this, [this](const QString &) {
+        if (!SystemUtils::isWindows())
+            rebuildCloseButtonIcon();
+    });
 
     if (m_window)
         m_window->installEventFilter(this);
@@ -86,8 +85,8 @@ void DialogTitleBar::rebuildCloseButtonIcon() {
     palette.selected = palette.normal;
 
     m_btnClose->setIconSize(icoSize);
-    m_btnClose->setIcon(
-        IconUtils::createTintedSvgIcon(":svg/title-bar/close_16_filled_white.svg", icoSize, palette));
+    m_btnClose->setIcon(IconUtils::createTintedSvgIcon(":svg/title-bar/close_16_filled_white.svg",
+                                                       icoSize, palette));
 }
 
 Button *DialogTitleBar::closeButton() const {

@@ -295,8 +295,7 @@ ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
         } else if (type == "audio") {
             auto audioClip = new AudioClip;
             audioClip->setPath(obj["path"].toString());
-            audioClip->setPathInfo(
-                {obj["relativeDir"].toString(), obj["sha512"].toString()});
+            audioClip->setPathInfo({obj["relativeDir"].toString(), obj["sha512"].toString()});
             clip = audioClip;
         }
 

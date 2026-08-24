@@ -10,44 +10,44 @@ class QTransform;
 
 namespace WaveformRenderUtils {
 
-enum Mode {
-    LineMode,
-    FilledMode,
-};
+    enum Mode {
+        LineMode,
+        FilledMode,
+    };
 
-enum class Geometry { None, FilledPeaks, VerticalPeaks, Curve };
+    enum class Geometry { None, FilledPeaks, VerticalPeaks, Curve };
 
-enum class AmplitudeScale { Linear, Logarithmic };
+    enum class AmplitudeScale { Linear, Logarithmic };
 
-struct PeakPoint {
-    double x;
-    double yMin;
-    double yMax;
-};
+    struct PeakPoint {
+        double x;
+        double yMin;
+        double yMax;
+    };
 
-struct SampledWaveform {
-    Geometry geometry = Geometry::None;
-    QVector<PeakPoint> peaks;
-    QVector<QPointF> curve;
-    QVector<QPointF> sampleDots;
-    double sampleDotRadius = 0.0;
-};
+    struct SampledWaveform {
+        Geometry geometry = Geometry::None;
+        QVector<PeakPoint> peaks;
+        QVector<QPointF> curve;
+        QVector<QPointF> sampleDots;
+        double sampleDotRadius = 0.0;
+    };
 
-[[nodiscard]] double mapAmplitude(double value, AmplitudeScale scale);
+    [[nodiscard]] double mapAmplitude(double value, AmplitudeScale scale);
 
-/// Render a waveform from a vector of per-pixel peak points.
-/// Supports two modes:
-///   - LineMode:   vertical lines (fast, original behaviour)
-///   - FilledMode: filled polygon + zero-dynamic horizontal lines (nicer, slower)
-/// The caller is responsible for setting up the painter's pen/brush/antialiasing
-/// before calling this function — this function manages its own rendering state.
-void renderWaveform(QPainter *painter, const QColor &color, Mode mode,
-                    const QVector<PeakPoint> &peaks);
+    /// Render a waveform from a vector of per-pixel peak points.
+    /// Supports two modes:
+    ///   - LineMode:   vertical lines (fast, original behaviour)
+    ///   - FilledMode: filled polygon + zero-dynamic horizontal lines (nicer, slower)
+    /// The caller is responsible for setting up the painter's pen/brush/antialiasing
+    /// before calling this function — this function manages its own rendering state.
+    void renderWaveform(QPainter *painter, const QColor &color, Mode mode,
+                        const QVector<PeakPoint> &peaks);
 
-void renderWaveform(QPainter *painter, const QColor &color, Mode mode,
-                    const SampledWaveform &waveform);
-void renderWaveform(QPainter *painter, const QColor &color, Mode mode,
-                    const SampledWaveform &waveform, const QTransform &transform);
+    void renderWaveform(QPainter *painter, const QColor &color, Mode mode,
+                        const SampledWaveform &waveform);
+    void renderWaveform(QPainter *painter, const QColor &color, Mode mode,
+                        const SampledWaveform &waveform, const QTransform &transform);
 
 } // namespace WaveformRenderUtils
 

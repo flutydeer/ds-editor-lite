@@ -18,18 +18,15 @@ namespace Automation {
 
     class TimelineAutomationFacade final {
     public:
-        TimelineAutomationFacade(OperationCatalog &catalog,
-                                 AutomationDispatcher &dispatcher,
+        TimelineAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
                                  CommandCommitter &committer);
 
         AutomationResult<TimelineSnapshotDto> getTimeline(const DocumentId &documentId);
-        AutomationResult<MutationResult> setTempo(const CommandContext &context,
-                                                  int tick,
+        AutomationResult<MutationResult> setTempo(const CommandContext &context, int tick,
                                                   double tempo);
         AutomationResult<MutationResult> deleteTempo(const CommandContext &context, int tick);
         AutomationResult<MutationResult> setTimeSignature(const CommandContext &context,
-                                                          int barIndex,
-                                                          int numerator,
+                                                          int barIndex, int numerator,
                                                           int denominator);
         AutomationResult<MutationResult> deleteTimeSignature(const CommandContext &context,
                                                              int barIndex);

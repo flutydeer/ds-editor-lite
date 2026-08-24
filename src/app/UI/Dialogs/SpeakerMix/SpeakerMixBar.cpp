@@ -41,8 +41,8 @@ void SpeakerMixBar::setLabels(const QVector<QString> &labels) {
 }
 
 void SpeakerMixBar::setSegmentColors(const QVector<QColor> &colors) {
-    m_segmentColors = colors.isEmpty() ? QVector<QColor>{AppColorPalette::instance()->baseColor(0)}
-                                       : colors;
+    m_segmentColors =
+        colors.isEmpty() ? QVector<QColor>{AppColorPalette::instance()->baseColor(0)} : colors;
     update();
 }
 

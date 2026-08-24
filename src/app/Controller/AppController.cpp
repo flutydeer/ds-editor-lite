@@ -39,10 +39,10 @@ bool AppController::exportMidiFile(const QString &filePath) {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
         return false;
-    const auto result = runtime->files().exportMidi(
-        {.expected = runtime->documentVersion(),
-         .source = Automation::InvocationSource::TrustedGui},
-        filePath, true);
+    const auto result =
+        runtime->files().exportMidi({.expected = runtime->documentVersion(),
+                                     .source = Automation::InvocationSource::TrustedGui},
+                                    filePath, true);
     return static_cast<bool>(result);
 }
 

@@ -481,7 +481,7 @@ namespace Automation {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::notes::reset_phoneme_offsets, context, requestFingerprint,
             [this, clipId, noteIds = std::move(noteIds), duplicates](DocumentSession &session,
-                                                                      const bool validateOnly) {
+                                                                     const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
                 if (!clipResult)
                     return AutomationResult<MutationResult>(clipResult.getError());
@@ -510,8 +510,8 @@ namespace Automation {
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
                 auto actions = std::make_unique<NoteActions>();
-                actions->resetPhonemeOffsets(
-                    notes, static_cast<SingingClip *>(clipResult.get().clip));
+                actions->resetPhonemeOffsets(notes,
+                                             static_cast<SingingClip *>(clipResult.get().clip));
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
@@ -527,12 +527,12 @@ namespace Automation {
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
                 const auto phonemeCount = resolved.get().note->phonemeNameSeq().result().count();
-                if (!offsets.isEmpty() &&
-                    (offsets.count() != phonemeCount ||
-                     !std::is_sorted(offsets.cbegin(), offsets.cend()))) {
+                if (!offsets.isEmpty() && (offsets.count() != phonemeCount ||
+                                           !std::is_sorted(offsets.cbegin(), offsets.cend()))) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("offsets"),
-                        QStringLiteral("Phoneme offsets must match the phoneme count and be sorted")));
+                        QStringLiteral(
+                            "Phoneme offsets must match the phoneme count and be sorted")));
                 }
                 const bool changed = resolved.get().note->phonemeOffsetSeq().edited != offsets;
                 const auto affected = QList<ObjectRef>{

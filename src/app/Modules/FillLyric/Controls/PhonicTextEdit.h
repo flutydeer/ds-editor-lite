@@ -3,8 +3,7 @@
 
 #include <QPlainTextEdit>
 
-namespace FillLyric
-{
+namespace FillLyric {
     class PhonicTextEdit final : public QPlainTextEdit {
         Q_OBJECT
     public:

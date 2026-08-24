@@ -48,8 +48,7 @@ namespace Automation {
         AutomationResult<MutationResult> play(const CommandContext &context);
         AutomationResult<MutationResult> pause(const CommandContext &context);
         AutomationResult<MutationResult> stop(const CommandContext &context);
-        AutomationResult<MutationResult> setPosition(const CommandContext &context,
-                                                     double tick);
+        AutomationResult<MutationResult> setPosition(const CommandContext &context, double tick);
         AutomationResult<MutationResult> setLastPosition(const CommandContext &context,
                                                          double tick);
         AutomationResult<MutationResult> setLoop(const CommandContext &context,

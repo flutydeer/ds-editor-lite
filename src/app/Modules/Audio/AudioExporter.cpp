@@ -214,8 +214,8 @@ namespace Audio {
     }
 
     QString AudioExporterPrivate::projectName() const {
-        const auto path = automationBackend ? projectPath
-                                            : documentWorkflowController->projectPath();
+        const auto path =
+            automationBackend ? projectPath : documentWorkflowController->projectPath();
         const auto name = QFileInfo(path).baseName();
         return name.isEmpty()
                    ? QCoreApplication::translate("Audio::AudioExporterPrivate", "Untitled")
@@ -223,10 +223,9 @@ namespace Audio {
     }
 
     auto AudioExporterPrivate::projectDirectory() const -> QString {
-        const auto path = automationBackend ? projectPath
-                                            : documentWorkflowController->projectPath();
-        if (const auto dir = QFileInfo(path).dir();
-            dir.isRelative()) {
+        const auto path =
+            automationBackend ? projectPath : documentWorkflowController->projectPath();
+        if (const auto dir = QFileInfo(path).dir(); dir.isRelative()) {
             const auto documents =
                 QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
             return documents.isEmpty() ? QDir::homePath() : documents.first();
@@ -558,7 +557,9 @@ namespace Audio {
         auto settings = snapshot.get().audio;
         const auto previousSize = settings.audioExporterPresets.size();
         settings.audioExporterPresets.removeIf(
-            [&name](const Automation::AudioExportPresetDto &preset) { return preset.name == name; });
+            [&name](const Automation::AudioExportPresetDto &preset) {
+                return preset.name == name;
+            });
         if (settings.audioExporterPresets.size() == previousSize)
             return false;
         const auto result = runtime->settings().updateAudio({}, settings);
@@ -579,16 +580,16 @@ namespace Audio {
         auto *runtime = AppContext::instance<Automation::CoreRuntime>();
         if (!runtime)
             return;
-        const auto preview = runtime->audioExports().preview(
-            runtime->documentVersion().documentId, Automation::toAutomationDto(config));
+        const auto preview = runtime->audioExports().preview(runtime->documentVersion().documentId,
+                                                             Automation::toAutomationDto(config));
         if (!preview)
             return;
         d->warning = static_cast<Warning>(preview.get().warningFlags);
         d->fileList = preview.get().filePaths;
     }
 
-    void AudioExporter::configureAutomationBackend(
-        AppModel *model, QString projectPath, talcs::DspxProjectContext *projectContext) {
+    void AudioExporter::configureAutomationBackend(AppModel *model, QString projectPath,
+                                                   talcs::DspxProjectContext *projectContext) {
         Q_D(AudioExporter);
         d->model = model;
         d->projectPath = std::move(projectPath);
@@ -688,8 +689,8 @@ namespace Audio {
         d->lastTaskId = accepted.get().taskId;
 
         while (true) {
-            const auto task = runtime->tasks().getTask(accepted.get().document.documentId,
-                                                       accepted.get().taskId);
+            const auto task =
+                runtime->tasks().getTask(accepted.get().document.documentId, accepted.get().taskId);
             if (!task) {
                 setErrorString(task.getError().message);
                 return R_Fail;
@@ -698,9 +699,8 @@ namespace Audio {
                 case Automation::AutomationTaskState::Succeeded:
                     return R_Ok;
                 case Automation::AutomationTaskState::Failed:
-                    setErrorString(task.get().error
-                                       ? task.get().error->message
-                                       : tr("Audio export failed"));
+                    setErrorString(task.get().error ? task.get().error->message
+                                                    : tr("Audio export failed"));
                     return R_Fail;
                 case Automation::AutomationTaskState::Canceled:
                     return R_Abort;
@@ -880,10 +880,10 @@ namespace Audio {
         auto *runtime = AppContext::instance<Automation::CoreRuntime>();
         if (!runtime || d->lastTaskId.isNull())
             return;
-        const auto result = runtime->audioExports().cleanup(
-            {.expected = runtime->documentVersion(),
-             .source = Automation::InvocationSource::TrustedGui},
-            d->lastTaskId);
+        const auto result =
+            runtime->audioExports().cleanup({.expected = runtime->documentVersion(),
+                                             .source = Automation::InvocationSource::TrustedGui},
+                                            d->lastTaskId);
         if (result)
             d->lastTaskId = {};
     }
@@ -902,10 +902,9 @@ namespace Audio {
             return;
         if (isFail && !message.isEmpty())
             setErrorString(message);
-        runtime->tasks().cancelTask(
-            {.expected = runtime->documentVersion(),
-             .source = Automation::InvocationSource::TrustedGui},
-            d->lastTaskId);
+        runtime->tasks().cancelTask({.expected = runtime->documentVersion(),
+                                     .source = Automation::InvocationSource::TrustedGui},
+                                    d->lastTaskId);
     }
 
     void AudioExporter::cancelInternal(const bool isFail, const QString &message) {

@@ -5,8 +5,7 @@
 
 class QPushButton;
 
-namespace FillLyric
-{
+namespace FillLyric {
     class RuleListWidget;
 
     class RuleListPanel final : public QWidget {

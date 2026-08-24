@@ -49,7 +49,8 @@ namespace Audio {
         QList<int> selectedSources() const;
 
         bool calculateTemplate(QString &templateString) const;
-        bool calculateTemplate(QString &templateString, const QString &trackName, int trackIndex) const;
+        bool calculateTemplate(QString &templateString, const QString &trackName,
+                               int trackIndex) const;
 
         int calculateFormat() const;
 

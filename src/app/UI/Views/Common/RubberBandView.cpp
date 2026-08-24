@@ -55,7 +55,7 @@ void RubberBandView::setFillColor(const QColor &color) {
 }
 
 void RubberBandView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
-                                   QWidget *widget) {
+                           QWidget *widget) {
     painter->setRenderHint(QPainter::Antialiasing);
     const auto borderColor = m_borderColor;
     const auto backgroundColor = m_fillColor;

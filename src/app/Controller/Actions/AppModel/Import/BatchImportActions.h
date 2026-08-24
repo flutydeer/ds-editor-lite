@@ -25,8 +25,7 @@ public:
         Track *newTrack = nullptr;
     };
 
-    static BatchImportActions *build(const QList<Tempo> &oldTempos,
-                                     const QList<Tempo> &newTempos,
+    static BatchImportActions *build(const QList<Tempo> &oldTempos, const QList<Tempo> &newTempos,
                                      const QList<TimeSignature> &oldSignatures,
                                      const QList<TimeSignature> &newSignatures,
                                      const QList<Item> &items, AppModel *model);

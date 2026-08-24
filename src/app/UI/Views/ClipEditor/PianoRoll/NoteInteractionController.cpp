@@ -58,8 +58,8 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
 
     const auto rPos = noteItem->mapFromScene(scenePos);
     const auto rx = rPos.x();
-    const auto edge = EditorResizeUtils::horizontalEdgeAt(
-        rx, noteItem->rect().width(), AppGlobal::resizeTolerance);
+    const auto edge = EditorResizeUtils::horizontalEdgeAt(rx, noteItem->rect().width(),
+                                                          AppGlobal::resizeTolerance);
     if (edge == EditorResizeUtils::HorizontalEdge::Left) {
         m_mouseMoveBehavior = ResizeLeft;
     } else if (edge == EditorResizeUtils::HorizontalEdge::Right) {
@@ -89,7 +89,7 @@ void NoteInteractionController::handleNotesMoved(const int deltaTick, const int 
 }
 
 void NoteInteractionController::handleNoteLeftResized(const int noteId, const int deltaTick,
-                                                       const int minimumLength) {
+                                                      const int minimumLength) {
     qDebug() << "Note left resized id:" << noteId << "dt:" << deltaTick;
     QList<int> notes;
     notes.append(noteId);
@@ -97,7 +97,7 @@ void NoteInteractionController::handleNoteLeftResized(const int noteId, const in
 }
 
 void NoteInteractionController::handleNoteRightResized(const int noteId, const int deltaTick,
-                                                        const int minimumLength) {
+                                                       const int minimumLength) {
     qDebug() << "Note right resized id:" << noteId << "dt:" << deltaTick;
     QList<int> notes;
     notes.append(noteId);

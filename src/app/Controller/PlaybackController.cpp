@@ -66,9 +66,9 @@ void PlaybackController::play() {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
         return;
-    const auto result = runtime->playback().play(
-        {.expected = runtime->documentVersion(),
-         .source = Automation::InvocationSource::TrustedGui});
+    const auto result =
+        runtime->playback().play({.expected = runtime->documentVersion(),
+                                  .source = Automation::InvocationSource::TrustedGui});
     if (!result && result.getError().code == Automation::AutomationErrorCode::Busy) {
         qWarning() << "Cannot start playing because mouse button not released";
         Toast::show(tr("Please release mouse button before playing"));
@@ -91,9 +91,8 @@ bool PlaybackController::applyPlay() {
 
 void PlaybackController::pause() {
     if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
-        runtime->playback().pause(
-            {.expected = runtime->documentVersion(),
-             .source = Automation::InvocationSource::TrustedGui});
+        runtime->playback().pause({.expected = runtime->documentVersion(),
+                                   .source = Automation::InvocationSource::TrustedGui});
     }
 }
 
@@ -107,9 +106,8 @@ void PlaybackController::applyPause() {
 
 void PlaybackController::stop() {
     if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
-        runtime->playback().stop(
-            {.expected = runtime->documentVersion(),
-             .source = Automation::InvocationSource::TrustedGui});
+        runtime->playback().stop({.expected = runtime->documentVersion(),
+                                  .source = Automation::InvocationSource::TrustedGui});
     }
 }
 
@@ -123,10 +121,9 @@ void PlaybackController::applyStop() {
 
 void PlaybackController::setPosition(const double tick) {
     if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
-        runtime->playback().setPosition(
-            {.expected = runtime->documentVersion(),
-             .source = Automation::InvocationSource::TrustedGui},
-            tick);
+        runtime->playback().setPosition({.expected = runtime->documentVersion(),
+                                         .source = Automation::InvocationSource::TrustedGui},
+                                        tick);
     }
 }
 
@@ -142,10 +139,9 @@ void PlaybackController::applyPosition(const double tick) {
 
 void PlaybackController::setLastPosition(const double tick) {
     if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
-        runtime->playback().setLastPosition(
-            {.expected = runtime->documentVersion(),
-             .source = Automation::InvocationSource::TrustedGui},
-            tick);
+        runtime->playback().setLastPosition({.expected = runtime->documentVersion(),
+                                             .source = Automation::InvocationSource::TrustedGui},
+                                            tick);
     }
 }
 

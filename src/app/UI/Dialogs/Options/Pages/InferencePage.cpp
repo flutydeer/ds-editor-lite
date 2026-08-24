@@ -232,8 +232,7 @@ void InferencePage::modifyOption() {
     settings.playbackLookaheadSeconds = m_playbackWindowSlider->spinbox->value();
     settings.pitchSmoothKernelSize = m_smoothSlider->spinbox->value();
     settings.singerSessionCacheCapacity = m_cbSingerSessionCacheCapacity->currentData().toInt();
-    settings.singerSessionIdleTimeoutSeconds =
-        m_cbSingerSessionIdleTimeout->currentData().toInt();
+    settings.singerSessionIdleTimeoutSeconds = m_cbSingerSessionIdleTimeout->currentData().toInt();
     runtime->settings().updateInference({}, settings);
 }
 

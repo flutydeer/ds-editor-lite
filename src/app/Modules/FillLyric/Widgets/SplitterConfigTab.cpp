@@ -19,8 +19,7 @@
 #include "RuleListWidget.h"
 #include "SplitterDetailPanel.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     // ── Helper: validate RE2 regex ──────────────────────────────────────────
 
     static bool validateRegex(const QString &pattern, QString &errorMsg) {
@@ -58,9 +57,8 @@ namespace FillLyric
 
         // Info + Apply row
         auto *bottomLayout = new QHBoxLayout;
-        auto *infoLabel = new QLabel(tr(
-            "Splitter rules only affect Auto split mode. "
-            "Regexes are applied in list order from top to bottom."));
+        auto *infoLabel = new QLabel(tr("Splitter rules only affect Auto split mode. "
+                                        "Regexes are applied in list order from top to bottom."));
         infoLabel->setObjectName("ruleInfoLabel");
         infoLabel->setWordWrap(true);
         bottomLayout->addWidget(infoLabel, 1);
@@ -76,9 +74,12 @@ namespace FillLyric
 
         // Connections
         connect(m_listPanel, &RuleListPanel::addRequested, this, &SplitterConfigTab::onAddRule);
-        connect(m_listPanel, &RuleListPanel::removeRequested, this, &SplitterConfigTab::onRemoveRule);
-        connect(m_listPanel->listWidget(), &RuleListWidget::orderChanged, this, &SplitterConfigTab::onOrderChanged);
-        connect(m_listPanel->listWidget(), &QListWidget::currentRowChanged, this, &SplitterConfigTab::onSelectionChanged);
+        connect(m_listPanel, &RuleListPanel::removeRequested, this,
+                &SplitterConfigTab::onRemoveRule);
+        connect(m_listPanel->listWidget(), &RuleListWidget::orderChanged, this,
+                &SplitterConfigTab::onOrderChanged);
+        connect(m_listPanel->listWidget(), &QListWidget::currentRowChanged, this,
+                &SplitterConfigTab::onSelectionChanged);
         connect(m_applyBtn, &QPushButton::clicked, this, &SplitterConfigTab::applyConfig);
         connect(testJumpBtn, &QPushButton::clicked, this, &SplitterConfigTab::jumpToTestRequested);
     }
@@ -303,9 +304,9 @@ namespace FillLyric
             for (const auto &regex : cr.regexes) {
                 QString err;
                 if (!validateRegex(regex, err)) {
-                    QMessageBox::warning(this, tr("Invalid Regex"),
-                                         tr("Rule \"%1\": regex error in \"%2\": %3")
-                                             .arg(cr.name, regex, err));
+                    QMessageBox::warning(
+                        this, tr("Invalid Regex"),
+                        tr("Rule \"%1\": regex error in \"%2\": %3").arg(cr.name, regex, err));
                     m_listPanel->listWidget()->setCurrentRow(i);
                     return;
                 }

@@ -28,8 +28,8 @@ namespace {
     PackageInfo fromAutomationDto(const Automation::PackageDto &package) {
         QList<SingerInfo> singers;
         for (const auto &singer : package.singers) {
-            singers.append(SingerInfo(
-                {singer.singerId, singer.packageId, singer.packageVersion}, singer.name));
+            singers.append(SingerInfo({singer.singerId, singer.packageId, singer.packageVersion},
+                                      singer.name));
         }
         return PackageInfo(package.id, package.version, package.vendor, package.description,
                            package.license, package.readme, package.url, package.path, singers);
@@ -126,7 +126,7 @@ void PackageManagerDialog::onVerifyPackageRequested(const PackageInfo &package) 
     QMessageBox messageBox(report.hasErrors ? QMessageBox::Critical : QMessageBox::Warning,
                            tr("Verify Package"),
                            report.hasErrors ? tr("Package verification failed.")
-                                              : tr("Package verification completed with warnings."),
+                                            : tr("Package verification completed with warnings."),
                            QMessageBox::Ok, this);
     messageBox.setDetailedText(lines.join(QStringLiteral("\n\n")));
     messageBox.exec();

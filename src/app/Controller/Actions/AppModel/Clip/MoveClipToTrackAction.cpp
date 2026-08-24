@@ -15,8 +15,8 @@ namespace {
         clip->setGain(args.gain);
         clip->setMute(args.mute);
         if (clip->clipType() == IClip::Audio) {
-            static_cast<AudioClip *>(clip)->applyRealTimeAnchorFromProperties(
-                args, appModel->timeline());
+            static_cast<AudioClip *>(clip)->applyRealTimeAnchorFromProperties(args,
+                                                                              appModel->timeline());
         }
     }
 }
@@ -53,8 +53,8 @@ MoveClipToTrackAction *MoveClipToTrackAction::build(const Clip::ClipCommonProper
 void MoveClipToTrackAction::execute() {
     SingingClipPhonemeNormalizer::WordStates previousWordStates;
     if (m_clip->clipType() == IClip::Singing)
-        previousWordStates = SingingClipPhonemeNormalizer::captureWordStates(
-            *static_cast<SingingClip *>(m_clip));
+        previousWordStates =
+            SingingClipPhonemeNormalizer::captureWordStates(*static_cast<SingingClip *>(m_clip));
     m_oldTrack->removeClip(m_clip);
     applyArgs(m_clip, m_newArgs);
     m_newTrack->insertClip(m_clip);

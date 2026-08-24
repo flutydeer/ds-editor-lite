@@ -6,17 +6,34 @@
 class PhonemeNameItemModel {
 public:
     PhonemeNameItemModel() = default;
+
     PhonemeNameItemModel(const QString &language, const QString &name, bool isOnset)
-        : m_language(language), m_name(name), m_isOnset(isOnset) {}
+        : m_language(language), m_name(name), m_isOnset(isOnset) {
+    }
 
-    QString language() const { return m_language; }
-    void setLanguage(const QString &language) { m_language = language; }
+    QString language() const {
+        return m_language;
+    }
 
-    QString name() const { return m_name; }
-    void setName(const QString &name) { m_name = name; }
+    void setLanguage(const QString &language) {
+        m_language = language;
+    }
 
-    bool isOnset() const { return m_isOnset; }
-    void setIsOnset(bool isOnset) { m_isOnset = isOnset; }
+    QString name() const {
+        return m_name;
+    }
+
+    void setName(const QString &name) {
+        m_name = name;
+    }
+
+    bool isOnset() const {
+        return m_isOnset;
+    }
+
+    void setIsOnset(bool isOnset) {
+        m_isOnset = isOnset;
+    }
 
 private:
     QString m_language;
@@ -26,4 +43,4 @@ private:
 
 
 
-#endif //DS_EDITOR_LITE_PHONEMENAMEITEMMODEL_H
+#endif // DS_EDITOR_LITE_PHONEMENAMEITEMMODEL_H

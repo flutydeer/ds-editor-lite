@@ -36,8 +36,8 @@ double EdgeAutoScroller::axisSpeed(const double pos, const double start, const d
     };
 
     double speed = 0;
-    const double depthLow = start + lowHotZone - pos;    // > 0 inside the low-edge zone
-    const double depthHigh = pos - (end - highHotZone);  // > 0 inside the high-edge zone
+    const double depthLow = start + lowHotZone - pos;   // > 0 inside the low-edge zone
+    const double depthHigh = pos - (end - highHotZone); // > 0 inside the high-edge zone
     if (depthLow > 0)
         speed -= curve(strengthAt(depthLow, lowHotZone));
     if (depthHigh > 0)
@@ -59,7 +59,7 @@ static double effectiveHotZone(const double pressPos, const double edgePos, cons
                                const bool lowEdge) {
     const double dist = pressDistance(pressPos, edgePos, lowEdge);
     if (dist >= hotZone)
-        return hotZone; // pressed outside the zone: keep the configured zone
+        return hotZone;     // pressed outside the zone: keep the configured zone
     return qMax(dist, 1.0); // pressed inside: narrow the zone to the press distance
 }
 
@@ -68,8 +68,8 @@ QPointF EdgeAutoScroller::velocity(const QPointF &pointerPos, const QRectF &view
                                    const EdgeAutoScrollConfig &config) {
     QPointF v;
     if (axes.testFlag(Qt::Horizontal))
-        v.setX(axisSpeed(pointerPos.x(), viewportRect.left(), viewportRect.right(),
-                         config.hotZoneH, config.hotZoneH, config.maxSpeedH, config.baseSpeed));
+        v.setX(axisSpeed(pointerPos.x(), viewportRect.left(), viewportRect.right(), config.hotZoneH,
+                         config.hotZoneH, config.maxSpeedH, config.baseSpeed));
     if (axes.testFlag(Qt::Vertical))
         v.setY(axisSpeed(pointerPos.y(), viewportRect.top(), viewportRect.bottom(), config.hotZoneV,
                          config.hotZoneV, config.maxSpeedV, config.baseSpeed));
@@ -81,17 +81,17 @@ QPointF EdgeAutoScroller::velocity(const QPointF &pointerPos, const QPointF &pre
                                    const EdgeAutoScrollConfig &config) {
     QPointF v;
     if (axes.testFlag(Qt::Horizontal))
-        v.setX(axisSpeed(pointerPos.x(), viewportRect.left(), viewportRect.right(),
-                         effectiveHotZone(pressPos.x(), viewportRect.left(), config.hotZoneH, true),
-                         effectiveHotZone(pressPos.x(), viewportRect.right(), config.hotZoneH,
-                                          false),
-                         config.maxSpeedH, config.baseSpeed));
+        v.setX(
+            axisSpeed(pointerPos.x(), viewportRect.left(), viewportRect.right(),
+                      effectiveHotZone(pressPos.x(), viewportRect.left(), config.hotZoneH, true),
+                      effectiveHotZone(pressPos.x(), viewportRect.right(), config.hotZoneH, false),
+                      config.maxSpeedH, config.baseSpeed));
     if (axes.testFlag(Qt::Vertical))
-        v.setY(axisSpeed(pointerPos.y(), viewportRect.top(), viewportRect.bottom(),
-                         effectiveHotZone(pressPos.y(), viewportRect.top(), config.hotZoneV, true),
-                         effectiveHotZone(pressPos.y(), viewportRect.bottom(), config.hotZoneV,
-                                          false),
-                         config.maxSpeedV, config.baseSpeed));
+        v.setY(
+            axisSpeed(pointerPos.y(), viewportRect.top(), viewportRect.bottom(),
+                      effectiveHotZone(pressPos.y(), viewportRect.top(), config.hotZoneV, true),
+                      effectiveHotZone(pressPos.y(), viewportRect.bottom(), config.hotZoneV, false),
+                      config.maxSpeedV, config.baseSpeed));
     return v;
 }
 

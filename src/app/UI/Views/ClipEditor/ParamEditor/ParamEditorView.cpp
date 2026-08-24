@@ -250,8 +250,8 @@ void ParamEditorView::onSpeakerMixEdited(const SpeakerMixData &data) const {
         return;
 
     if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
-        runtime->parameters().replaceClipSpeakerMix(
-            commandContext(*runtime), Automation::ClipId(m_clip->id()), normalized);
+        runtime->parameters().replaceClipSpeakerMix(commandContext(*runtime),
+                                                    Automation::ClipId(m_clip->id()), normalized);
 }
 
 void ParamEditorView::onEmptyStateAction() {

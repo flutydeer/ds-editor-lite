@@ -20,8 +20,7 @@
 
 #include <re2/re2.h>
 
-namespace FillLyric
-{
+namespace FillLyric {
     struct TaggerEntry {
         std::string type;
         std::vector<std::string> value;
@@ -37,7 +36,8 @@ namespace FillLyric
 
     class RegexTaggerRule : public ITaggerRule {
     public:
-        RegexTaggerRule(const std::string &language, const TaggerEntry &entry) : m_language(language), m_entry(entry) {
+        RegexTaggerRule(const std::string &language, const TaggerEntry &entry)
+            : m_language(language), m_entry(entry) {
             RE2::Options options;
             options.set_encoding(RE2::Options::EncodingUTF8);
             options.set_log_errors(false);
@@ -126,33 +126,40 @@ namespace FillLyric
 
     static std::vector<TaggerConfig> g_taggers;
     static bool g_taggerInitialized = false;
-    static std::filesystem::path g_dictRootDir; // R7/TD-9: used by setCustomRules() to resolve dict file names
-    static std::once_flag g_taggerInitOnce;     // R11/TD-7: guards lazy init thread safety
+    static std::filesystem::path
+        g_dictRootDir; // R7/TD-9: used by setCustomRules() to resolve dict file names
+    static std::once_flag g_taggerInitOnce; // R11/TD-7: guards lazy init thread safety
 
     static void ensureTaggerInitialized() {
         std::call_once(g_taggerInitOnce, [] {
-            if (g_taggerInitialized) // Allow init() to be called directly (e.g. in tests); skip re-initialization
+            if (g_taggerInitialized) // Allow init() to be called directly (e.g. in tests); skip
+                                     // re-initialization
                 return;
-            const auto basePath = std::filesystem::path(QCoreApplication::applicationDirPath().toStdString()) / "configs";
+            const auto basePath =
+                std::filesystem::path(QCoreApplication::applicationDirPath().toStdString()) /
+                "configs";
             TextTagger::init(basePath / "tagger", basePath / "tagger");
         });
     }
 
-    static std::string findDictFile(const std::filesystem::path &dictRootDir, const std::string &filename) {
+    static std::string findDictFile(const std::filesystem::path &dictRootDir,
+                                    const std::string &filename) {
         std::error_code ec;
         if (!std::filesystem::exists(dictRootDir, ec))
             return {};
         for (const auto &entry : std::filesystem::recursive_directory_iterator(dictRootDir, ec)) {
             if (ec)
                 break;
-            if (entry.is_regular_file() && stdc::path::to_utf8(entry.path().filename()) == filename) {
+            if (entry.is_regular_file() &&
+                stdc::path::to_utf8(entry.path().filename()) == filename) {
                 return stdc::path::to_utf8(entry.path());
             }
         }
         return {};
     }
 
-    bool TextTagger::init(const std::filesystem::path &configDir, const std::filesystem::path &dictRootDir) {
+    bool TextTagger::init(const std::filesystem::path &configDir,
+                          const std::filesystem::path &dictRootDir) {
         g_taggers.clear();
         g_taggerInitialized = true;
         g_dictRootDir = dictRootDir; // R7/TD-9: record dict root dir for setCustomRules()
@@ -225,7 +232,8 @@ namespace FillLyric
                 } else if (te.type == "array") {
                     cfg.rules.push_back(std::make_unique<ArrayTaggerRule>(cfg.language, te));
                 } else if (te.type == "dict") {
-                    // R7/TD-9: instantiate DictTaggerRule, resolve each dict filename in value from dictRootDir
+                    // R7/TD-9: instantiate DictTaggerRule, resolve each dict filename in value from
+                    // dictRootDir
                     std::vector<std::string> resolvedPaths;
                     resolvedPaths.reserve(te.value.size());
                     for (const auto &filename : te.value) {
@@ -234,7 +242,8 @@ namespace FillLyric
                             resolvedPaths.push_back(path);
                     }
                     if (!resolvedPaths.empty())
-                        cfg.rules.push_back(std::make_unique<DictTaggerRule>(cfg.language, te, resolvedPaths));
+                        cfg.rules.push_back(
+                            std::make_unique<DictTaggerRule>(cfg.language, te, resolvedPaths));
                 }
 
                 // Store entry info for ruleInfoList()
@@ -254,7 +263,7 @@ namespace FillLyric
     }
 
     std::vector<TaggerResult> TextTagger::tag(const std::vector<std::string> &input, bool discard,
-                                               const std::vector<std::string> &priorityLanguages) {
+                                              const std::vector<std::string> &priorityLanguages) {
         if (input.empty())
             return {};
 
@@ -291,9 +300,9 @@ namespace FillLyric
         }
 
         if (discard) {
-            result.erase(
-                std::remove_if(result.begin(), result.end(), [](const TaggerResult &r) { return r.discard; }),
-                result.end());
+            result.erase(std::remove_if(result.begin(), result.end(),
+                                        [](const TaggerResult &r) { return r.discard; }),
+                         result.end());
         }
 
         return result;
@@ -313,10 +322,9 @@ namespace FillLyric
         ensureTaggerInitialized();
 
         // Remove existing custom tagger configs
-        g_taggers.erase(
-            std::remove_if(g_taggers.begin(), g_taggers.end(),
-                           [](const TaggerConfig &c) { return !c.builtin; }),
-            g_taggers.end());
+        g_taggers.erase(std::remove_if(g_taggers.begin(), g_taggers.end(),
+                                       [](const TaggerConfig &c) { return !c.builtin; }),
+                        g_taggers.end());
 
         for (const auto &rule : rules) {
             TaggerConfig cfg;
@@ -337,7 +345,8 @@ namespace FillLyric
                 } else if (te.type == "array") {
                     cfg.rules.push_back(std::make_unique<ArrayTaggerRule>(cfg.language, te));
                 } else if (te.type == "dict") {
-                    // R7/TD-9: custom dict rules reuse g_dictRootDir recorded by init() to resolve dict files
+                    // R7/TD-9: custom dict rules reuse g_dictRootDir recorded by init() to resolve
+                    // dict files
                     std::vector<std::string> resolvedPaths;
                     resolvedPaths.reserve(te.value.size());
                     for (const auto &filename : te.value) {
@@ -346,7 +355,8 @@ namespace FillLyric
                             resolvedPaths.push_back(path);
                     }
                     if (!resolvedPaths.empty())
-                        cfg.rules.push_back(std::make_unique<DictTaggerRule>(cfg.language, te, resolvedPaths));
+                        cfg.rules.push_back(
+                            std::make_unique<DictTaggerRule>(cfg.language, te, resolvedPaths));
                 }
             }
 

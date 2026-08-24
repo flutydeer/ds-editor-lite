@@ -32,8 +32,7 @@ namespace Automation {
             return result;
         }
 
-        QByteArray timeSignatureFingerprint(const int barIndex,
-                                            const int numerator,
+        QByteArray timeSignatureFingerprint(const int barIndex, const int numerator,
                                             const int denominator) {
             QByteArray result;
             QDataStream stream(&result, QIODevice::WriteOnly);
@@ -57,7 +56,7 @@ namespace Automation {
     }
 
     AutomationResult<TimelineSnapshotDto>
-    TimelineAutomationFacade::getTimeline(const DocumentId &documentId) {
+        TimelineAutomationFacade::getTimeline(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<TimelineSnapshotDto>(
             OperationIds::timeline::get, documentId, [](DocumentSession &session) {
                 const auto &timeline = session.model()->timeline();
@@ -70,9 +69,8 @@ namespace Automation {
     }
 
     AutomationResult<MutationResult>
-    TimelineAutomationFacade::setTempo(const CommandContext &context,
-                                       const int tick,
-                                       const double tempo) {
+        TimelineAutomationFacade::setTempo(const CommandContext &context, const int tick,
+                                           const double tempo) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::tempos::set, context, tempoFingerprint(tick, tempo),
             [this, tick, tempo](DocumentSession &session, const bool validateOnly) {
@@ -83,9 +81,9 @@ namespace Automation {
 
                 auto *model = session.model();
                 const auto &tempos = model->timeline().tempos();
-                const auto existing = std::find_if(
-                    tempos.cbegin(), tempos.cend(),
-                    [tick](const Tempo &candidate) { return candidate.pos == tick; });
+                const auto existing =
+                    std::find_if(tempos.cbegin(), tempos.cend(),
+                                 [tick](const Tempo &candidate) { return candidate.pos == tick; });
                 const bool changed = existing == tempos.cend() || existing->value != tempo;
                 if (validateOnly)
                     return AutomationResult<MutationResult>(m_committer.preview(session, changed));
@@ -99,20 +97,21 @@ namespace Automation {
     }
 
     AutomationResult<MutationResult>
-    TimelineAutomationFacade::deleteTempo(const CommandContext &context, const int tick) {
+        TimelineAutomationFacade::deleteTempo(const CommandContext &context, const int tick) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::tempos::delete_tempo, context, tempoFingerprint(tick, 0.0),
             [this, tick](DocumentSession &session, const bool validateOnly) {
                 if (tick <= 0) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                        QStringLiteral("tick"), QStringLiteral("The tempo anchor cannot be deleted")));
+                        QStringLiteral("tick"),
+                        QStringLiteral("The tempo anchor cannot be deleted")));
                 }
 
                 auto *model = session.model();
                 const auto &tempos = model->timeline().tempos();
-                const bool changed = std::any_of(
-                    tempos.cbegin(), tempos.cend(),
-                    [tick](const Tempo &candidate) { return candidate.pos == tick; });
+                const bool changed =
+                    std::any_of(tempos.cbegin(), tempos.cend(),
+                                [tick](const Tempo &candidate) { return candidate.pos == tick; });
                 if (validateOnly)
                     return AutomationResult<MutationResult>(m_committer.preview(session, changed));
                 if (!changed)
@@ -124,9 +123,10 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult> TimelineAutomationFacade::setTimeSignature(
-        const CommandContext &context, const int barIndex, const int numerator,
-        const int denominator) {
+    AutomationResult<MutationResult>
+        TimelineAutomationFacade::setTimeSignature(const CommandContext &context,
+                                                   const int barIndex, const int numerator,
+                                                   const int denominator) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::time_signatures::set, context,
             timeSignatureFingerprint(barIndex, numerator, denominator),
@@ -141,9 +141,8 @@ namespace Automation {
                 auto *model = session.model();
                 const auto &signatures = model->timeline().timeSignatures();
                 const auto existing = std::find_if(
-                    signatures.cbegin(), signatures.cend(), [barIndex](const TimeSignature &value) {
-                        return value.barIndex == barIndex;
-                    });
+                    signatures.cbegin(), signatures.cend(),
+                    [barIndex](const TimeSignature &value) { return value.barIndex == barIndex; });
                 const bool changed = existing == signatures.cend() ||
                                      existing->numerator != numerator ||
                                      existing->denominator != denominator;
@@ -159,8 +158,8 @@ namespace Automation {
     }
 
     AutomationResult<MutationResult>
-    TimelineAutomationFacade::deleteTimeSignature(const CommandContext &context,
-                                                  const int barIndex) {
+        TimelineAutomationFacade::deleteTimeSignature(const CommandContext &context,
+                                                      const int barIndex) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::time_signatures::delete_signature, context,
             timeSignatureFingerprint(barIndex, 0, 0),
@@ -174,9 +173,8 @@ namespace Automation {
                 auto *model = session.model();
                 const auto &signatures = model->timeline().timeSignatures();
                 const bool changed = std::any_of(
-                    signatures.cbegin(), signatures.cend(), [barIndex](const TimeSignature &value) {
-                        return value.barIndex == barIndex;
-                    });
+                    signatures.cbegin(), signatures.cend(),
+                    [barIndex](const TimeSignature &value) { return value.barIndex == barIndex; });
                 if (validateOnly)
                     return AutomationResult<MutationResult>(m_committer.preview(session, changed));
                 if (!changed)
@@ -188,8 +186,9 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult> TimelineAutomationFacade::setMasterControl(
-        const CommandContext &context, const TrackControl &control) {
+    AutomationResult<MutationResult>
+        TimelineAutomationFacade::setMasterControl(const CommandContext &context,
+                                                   const TrackControl &control) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::master::set_control, context, masterControlFingerprint(control),
             [this, control](DocumentSession &session, const bool validateOnly) {

@@ -23,8 +23,8 @@ public:
                     SVS::ExpressionDoubleSpinBox *amplitudeSpinBox, SVS::SeekBar *attackSlider,
                     SVS::ExpressionSpinBox *attackSpinBox, SVS::SeekBar *decaySlider,
                     SVS::ExpressionSpinBox *decaySpinBox, SVS::SeekBar *decayRatioSlider,
-                    SVS::ExpressionDoubleSpinBox *decayRatioSpinBox,
-                    SVS::SeekBar *releaseSlider, SVS::ExpressionSpinBox *releaseSpinBox, QWidget *previewButton);
+                    SVS::ExpressionDoubleSpinBox *decayRatioSpinBox, SVS::SeekBar *releaseSlider,
+                    SVS::ExpressionSpinBox *releaseSpinBox, QWidget *previewButton);
 
     void detectInterval(qint64 intervalLength) override;
     talcs::NoteSynthesizerDetectorMessage nextMessage() override;
@@ -52,7 +52,6 @@ public:
 
 signals:
     void testFinished();
-
 };
 
 

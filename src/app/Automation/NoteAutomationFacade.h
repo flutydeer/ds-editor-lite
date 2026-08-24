@@ -27,54 +27,38 @@ namespace Automation {
 
     class NoteAutomationFacade final {
     public:
-        NoteAutomationFacade(OperationCatalog &catalog,
-                             AutomationDispatcher &dispatcher,
-                             CommandCommitter &committer,
-                             DocumentObjectResolver &objects);
+        NoteAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
+                             CommandCommitter &committer, DocumentObjectResolver &objects);
 
         AutomationResult<QList<NoteSnapshotDto>> getNotes(const DocumentId &documentId,
                                                           ClipId clipId);
-        AutomationResult<MutationResult> insertNotes(const CommandContext &context,
-                                                     ClipId clipId,
+        AutomationResult<MutationResult> insertNotes(const CommandContext &context, ClipId clipId,
                                                      const QList<NoteDraftDto> &notes);
-        AutomationResult<MutationResult> removeNotes(const CommandContext &context,
-                                                     ClipId clipId,
+        AutomationResult<MutationResult> removeNotes(const CommandContext &context, ClipId clipId,
                                                      QList<NoteId> noteIds);
-        AutomationResult<MutationResult> moveNotes(const CommandContext &context,
-                                                   ClipId clipId,
-                                                   QList<NoteId> noteIds,
-                                                   int deltaTick,
+        AutomationResult<MutationResult> moveNotes(const CommandContext &context, ClipId clipId,
+                                                   QList<NoteId> noteIds, int deltaTick,
                                                    int deltaKey);
         AutomationResult<MutationResult> resizeNotesLeft(const CommandContext &context,
-                                                         ClipId clipId,
-                                                         QList<NoteId> noteIds,
-                                                         int deltaTick,
-                                                         int minimumLength);
+                                                         ClipId clipId, QList<NoteId> noteIds,
+                                                         int deltaTick, int minimumLength);
         AutomationResult<MutationResult> resizeNotesRight(const CommandContext &context,
-                                                          ClipId clipId,
-                                                          QList<NoteId> noteIds,
-                                                          int deltaTick,
-                                                          int minimumLength);
-        AutomationResult<MutationResult> splitNote(const CommandContext &context,
-                                                   ClipId clipId,
-                                                   NoteId noteId,
-                                                   const NoteDraftDto &newNote,
+                                                          ClipId clipId, QList<NoteId> noteIds,
+                                                          int deltaTick, int minimumLength);
+        AutomationResult<MutationResult> splitNote(const CommandContext &context, ClipId clipId,
+                                                   NoteId noteId, const NoteDraftDto &newNote,
                                                    int newLength);
         AutomationResult<MutationResult> setPhonemeOffsets(const CommandContext &context,
-                                                           ClipId clipId,
-                                                           NoteId noteId,
+                                                           ClipId clipId, NoteId noteId,
                                                            const QList<int> &offsets);
         AutomationResult<MutationResult> resetPhonemeOffsets(const CommandContext &context,
-                                                             ClipId clipId,
-                                                             QList<NoteId> noteIds);
-        AutomationResult<MutationResult> quantizeNotes(const CommandContext &context,
-                                                       ClipId clipId,
-                                                       QList<NoteId> noteIds,
-                                                       int quantize,
-                                                       bool quantizeStart,
-                                                       bool quantizeLength);
-        AutomationResult<MutationResult> setWordProperties(
-            const CommandContext &context, ClipId clipId, QList<NoteWordEditDto> edits);
+                                                             ClipId clipId, QList<NoteId> noteIds);
+        AutomationResult<MutationResult> quantizeNotes(const CommandContext &context, ClipId clipId,
+                                                       QList<NoteId> noteIds, int quantize,
+                                                       bool quantizeStart, bool quantizeLength);
+        AutomationResult<MutationResult> setWordProperties(const CommandContext &context,
+                                                           ClipId clipId,
+                                                           QList<NoteWordEditDto> edits);
 
     private:
         void registerOperations();

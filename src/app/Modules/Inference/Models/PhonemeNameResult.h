@@ -10,4 +10,4 @@ public:
     QList<PhonemeName> phonemeNames;
 };
 
-#endif //PHONEMENAMERESULT_H
+#endif // PHONEMENAMERESULT_H

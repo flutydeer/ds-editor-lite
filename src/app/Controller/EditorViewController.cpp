@@ -60,18 +60,18 @@ std::optional<EditorViewState> EditorViewController::captureState() const {
 
 bool EditorViewController::restoreState(const EditorViewState &state) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime && runtime->facade().restoreView(
-                          {.windowId = runtime->windowId(),
-                           .source = Automation::InvocationSource::TrustedGui},
-                          state);
+    return runtime &&
+           runtime->facade().restoreView({.windowId = runtime->windowId(),
+                                          .source = Automation::InvocationSource::TrustedGui},
+                                         state);
 }
 
 bool EditorViewController::centerTrackPanelAt(double tick, double trackIndex) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime && runtime->facade().centerTrackPanel(
-                          {.windowId = runtime->windowId(),
-                           .source = Automation::InvocationSource::TrustedGui},
-                          tick, trackIndex);
+    return runtime &&
+           runtime->facade().centerTrackPanel({.windowId = runtime->windowId(),
+                                               .source = Automation::InvocationSource::TrustedGui},
+                                              tick, trackIndex);
 }
 
 bool EditorViewController::setTrackPanelScale(double horizontalScale, double verticalScale) const {
@@ -101,18 +101,18 @@ bool EditorViewController::showBottomPanelPage(const QString &pageId) const {
 
 bool EditorViewController::centerPianoRollAt(double tick, double keyIndex) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime && runtime->facade().centerPianoRoll(
-                          {.windowId = runtime->windowId(),
-                           .source = Automation::InvocationSource::TrustedGui},
-                          tick, keyIndex);
+    return runtime &&
+           runtime->facade().centerPianoRoll({.windowId = runtime->windowId(),
+                                              .source = Automation::InvocationSource::TrustedGui},
+                                             tick, keyIndex);
 }
 
 bool EditorViewController::setPianoRollScale(double horizontalScale, double verticalScale) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime && runtime->facade().setPianoRollScale(
-                          {.windowId = runtime->windowId(),
-                           .source = Automation::InvocationSource::TrustedGui},
-                          horizontalScale, verticalScale);
+    return runtime &&
+           runtime->facade().setPianoRollScale({.windowId = runtime->windowId(),
+                                                .source = Automation::InvocationSource::TrustedGui},
+                                               horizontalScale, verticalScale);
 }
 
 bool EditorViewController::setPianoRollEditMode(EditorViewGlobal::PianoRollEditMode mode) const {
@@ -170,8 +170,7 @@ bool EditorViewController::applyBottomPanelPage(const QString &pageId) const {
     return m_view && m_view->showBottomPanelPage(pageId);
 }
 
-bool EditorViewController::applyCenterPianoRollAt(const double tick,
-                                                 const double keyIndex) const {
+bool EditorViewController::applyCenterPianoRollAt(const double tick, const double keyIndex) const {
     return m_view && m_view->centerPianoRollAt(tick, keyIndex);
 }
 
@@ -333,9 +332,8 @@ bool EditorViewController::eventFilter(QObject *watched, QEvent *event) {
 
 void EditorViewController::setActiveContext(const AppGlobal::PanelType panel,
                                             const EditorInteraction::Target target) {
-    if (panel == AppGlobal::ClipEditor &&
-        (target == EditorInteraction::Target::PianoRoll ||
-         target == EditorInteraction::Target::Parameters)) {
+    if (panel == AppGlobal::ClipEditor && (target == EditorInteraction::Target::PianoRoll ||
+                                           target == EditorInteraction::Target::Parameters)) {
         m_lastClipEditTarget = target;
     }
     if (m_activePanel != panel) {

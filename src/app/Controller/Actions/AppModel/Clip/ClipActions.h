@@ -27,8 +27,8 @@ public:
     void relocateAudioClip(AudioClip *clip, const QString &newPath,
                            const AudioPathInfo &newPathInfo, const QJsonObject &newFormatData);
     void moveClipToTrack(const Clip::ClipCommonProperties &oldArgs,
-                         const Clip::ClipCommonProperties &newArgs,
-                         Clip *clip, Track *oldTrack, Track *newTrack);
+                         const Clip::ClipCommonProperties &newArgs, Clip *clip, Track *oldTrack,
+                         Track *newTrack);
 };
 
 

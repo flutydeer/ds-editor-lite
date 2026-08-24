@@ -37,14 +37,12 @@ namespace Automation {
 
     class FileAutomationFacade final {
     public:
-        FileAutomationFacade(OperationCatalog &catalog,
-                             AutomationDispatcher &dispatcher,
+        FileAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
                              FileRuntimeServices services = {});
 
         AutomationResult<QList<ProjectFormatDto>> listFormats();
         AutomationResult<FileWriteResultDto> exportMidi(const CommandContext &context,
-                                                        const QString &path,
-                                                        bool allowOverwrite);
+                                                        const QString &path, bool allowOverwrite);
 
     private:
         void registerOperations();

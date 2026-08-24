@@ -45,8 +45,7 @@ void InferAcousticState::cancelTaskInController(int taskId) {
 }
 
 bool InferAcousticState::finishTaskInController(IInferTask *task) {
-    return inferController->finishCurrentInferAcousticTask(
-        static_cast<InferAcousticTask *>(task));
+    return inferController->finishCurrentInferAcousticTask(static_cast<InferAcousticTask *>(task));
 }
 
 void InferAcousticState::setTaskResultToPipeline(IInferTask *task) {

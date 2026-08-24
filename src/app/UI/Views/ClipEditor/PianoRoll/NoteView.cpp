@@ -176,8 +176,8 @@ void NoteView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
 
     const auto rect = boundingRect();
     const auto paddedRect = EditorItemGeometry::notePaintRect(rect);
-    const auto cornerRadius = EditorItemGeometry::adaptiveCornerRadius(
-        paddedRect, EditorItemGeometry::noteCornerRadius);
+    const auto cornerRadius =
+        EditorItemGeometry::adaptiveCornerRadius(paddedRect, EditorItemGeometry::noteCornerRadius);
 
     auto drawRectOnly = [&] {
         if (m_pronView)

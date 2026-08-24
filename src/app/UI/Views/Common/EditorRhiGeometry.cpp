@@ -450,15 +450,12 @@ void EditorRhiGeometry::appendRoundedRectStroke(QVector<EditorRhiSolidVertex> &v
     const auto halfWidth = width * 0.5;
     const auto fadeWidth = std::max(0.5, feather);
     const auto outerFade =
-        roundedRectContour(physicalRect.adjusted(-halfWidth - fadeWidth,
-                                                 -halfWidth - fadeWidth,
+        roundedRectContour(physicalRect.adjusted(-halfWidth - fadeWidth, -halfWidth - fadeWidth,
                                                  halfWidth + fadeWidth, halfWidth + fadeWidth),
                            radius + halfWidth + fadeWidth);
-    const auto outer = roundedRectContour(physicalRect.adjusted(-halfWidth, -halfWidth, halfWidth,
-                                                               halfWidth),
-                                          radius + halfWidth);
-    const auto innerRect =
-        physicalRect.adjusted(halfWidth, halfWidth, -halfWidth, -halfWidth);
+    const auto outer = roundedRectContour(
+        physicalRect.adjusted(-halfWidth, -halfWidth, halfWidth, halfWidth), radius + halfWidth);
+    const auto innerRect = physicalRect.adjusted(halfWidth, halfWidth, -halfWidth, -halfWidth);
     if (innerRect.isEmpty()) {
         appendRoundedRect(vertices, physicalRect, radius, color);
         return;
@@ -666,6 +663,7 @@ void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &v
         }
 
         constexpr auto capSegmentCount = 10;
+
         struct HairlineSection {
             QPointF outerLeft;
             QPointF center;
@@ -813,8 +811,9 @@ void EditorRhiGeometry::appendAntialiasedStroke(QVector<EditorRhiSolidVertex> &v
 
     const auto sectionCount = closed ? sections.size() : sections.size() - 1;
     constexpr auto roundCapSegmentCount = 12;
-    const auto capVertexCount =
-        closed ? 0 : capStyle == Qt::RoundCap ? 2 * roundCapSegmentCount * 9 : 12;
+    const auto capVertexCount = closed                     ? 0
+                                : capStyle == Qt::RoundCap ? 2 * roundCapSegmentCount * 9
+                                                           : 12;
     vertices.reserve(vertices.size() + sectionCount * 18 + capVertexCount);
     for (qsizetype i = 0; i < sectionCount; ++i) {
         const auto &a = sections[i];

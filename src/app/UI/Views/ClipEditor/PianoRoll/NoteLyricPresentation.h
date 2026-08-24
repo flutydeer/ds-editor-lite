@@ -64,10 +64,10 @@ namespace NoteLyricPresentation {
             return layout.elided;
 
         const QFontMetricsF metrics(font);
-        const QRectF textBounds(
-            layout.textRect.left(),
-            layout.textRect.top() + (layout.textRect.height() - metrics.height()) * 0.5,
-            metrics.horizontalAdvance(lyric), metrics.height());
+        const QRectF textBounds(layout.textRect.left(),
+                                layout.textRect.top() +
+                                    (layout.textRect.height() - metrics.height()) * 0.5,
+                                metrics.horizontalAdvance(lyric), metrics.height());
         return !visibleRect.contains(textBounds);
     }
 }

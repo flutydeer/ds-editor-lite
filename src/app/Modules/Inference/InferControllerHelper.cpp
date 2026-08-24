@@ -183,7 +183,7 @@ namespace InferControllerHelper {
     }
 
     QList<ParamInputUpdate> buildParamInputUpdates(const ParamInfo::Name name, SingingClip &clip,
-                                                  const Timeline &timeline) {
+                                                   const Timeline &timeline) {
         QList<ParamInputUpdate> result;
         for (auto &piece : clip.pieces()) {
             // 重新合并参数曲线，并与之前的缓存比较
@@ -199,10 +199,9 @@ namespace InferControllerHelper {
                 }
             } else {
                 const auto baseValue = paramUtils->getPropertiesByName(name)->defaultValue;
-                if (auto resultCurve =
-                        AppModelUtils::getResultCurve({piece->localStartTick(timeline),
-                                                       piece->localEndTick(timeline)},
-                                                      baseValue, editedCurves);
+                if (auto resultCurve = AppModelUtils::getResultCurve(
+                        {piece->localStartTick(timeline), piece->localEndTick(timeline)}, baseValue,
+                        editedCurves);
                     resultCurve != input) {
                     result.append({piece, std::move(resultCurve)});
                 }

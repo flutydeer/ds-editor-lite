@@ -82,11 +82,10 @@ namespace Automation {
     }
 
     AutomationResult<FileWriteResultDto>
-    FileAutomationFacade::exportMidi(const CommandContext &context, const QString &path,
-                                    const bool allowOverwrite) {
+        FileAutomationFacade::exportMidi(const CommandContext &context, const QString &path,
+                                         const bool allowOverwrite) {
         return m_dispatcher.dispatchDocumentCommandResult<FileWriteResultDto>(
-            OperationIds::exports::midi::start, context,
-            exportFingerprint(path, allowOverwrite),
+            OperationIds::exports::midi::start, context, exportFingerprint(path, allowOverwrite),
             [this, path, allowOverwrite](DocumentSession &session, const bool validateOnly) {
                 const auto validatedPath = validateMidiPath(path, allowOverwrite);
                 if (!validatedPath)
@@ -104,9 +103,8 @@ namespace Automation {
                 if (!m_services.exportMidi(session.model(), validatedPath.get(), errorMessage)) {
                     AutomationError error;
                     error.code = AutomationErrorCode::IoError;
-                    error.message = errorMessage.isEmpty()
-                                        ? QStringLiteral("MIDI export failed")
-                                        : std::move(errorMessage);
+                    error.message = errorMessage.isEmpty() ? QStringLiteral("MIDI export failed")
+                                                           : std::move(errorMessage);
                     return AutomationResult<FileWriteResultDto>(std::move(error));
                 }
                 return AutomationResult<FileWriteResultDto>({

@@ -6,8 +6,7 @@
 
 #include "RuleListWidget.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     RuleListPanel::RuleListPanel(QWidget *parent) : QWidget(parent) {
         auto *layout = new QVBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);

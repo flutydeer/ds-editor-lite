@@ -116,11 +116,10 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
     initializeAnimation();
 
     // Re-tint system button icons when the theme changes (non-Windows only)
-    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
-            [this](const QString &) {
-                if (!SystemUtils::isWindows())
-                    rebuildSystemButtonIcons();
-            });
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this, [this](const QString &) {
+        if (!SystemUtils::isWindows())
+            rebuildSystemButtonIcons();
+    });
 }
 
 void MainTitleBar::rebuildSystemButtonIcons() {
@@ -143,14 +142,15 @@ void MainTitleBar::rebuildSystemButtonIcons() {
                                                      icoSize, palette));
 
     const bool maximized = m_window && m_window->isMaximized();
-    const auto maximizePath = maximized ? QStringLiteral(":svg/title-bar/restore_16_filled_white.svg")
-                                        : QStringLiteral(":svg/title-bar/maximize_16_filled_white.svg");
+    const auto maximizePath = maximized
+                                  ? QStringLiteral(":svg/title-bar/restore_16_filled_white.svg")
+                                  : QStringLiteral(":svg/title-bar/maximize_16_filled_white.svg");
     m_btnMax->setIconSize(icoSize);
     m_btnMax->setIcon(IconUtils::createTintedSvgIcon(maximizePath, icoSize, palette));
 
     m_btnClose->setIconSize(icoSize);
-    m_btnClose->setIcon(
-        IconUtils::createTintedSvgIcon(":svg/title-bar/close_16_filled_white.svg", icoSize, palette));
+    m_btnClose->setIcon(IconUtils::createTintedSvgIcon(":svg/title-bar/close_16_filled_white.svg",
+                                                       icoSize, palette));
 }
 
 MainMenuView *MainTitleBar::menuView() const {

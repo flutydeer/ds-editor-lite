@@ -18,8 +18,8 @@ namespace Automation {
     }
 
     AutomationResult<const OperationDescriptor *>
-    AutomationDispatcher::requireDescriptor(const OperationId &operationId,
-                                             const OperationKind expectedKind) const {
+        AutomationDispatcher::requireDescriptor(const OperationId &operationId,
+                                                const OperationKind expectedKind) const {
         const auto descriptor = m_catalog.find(operationId);
         if (!descriptor) {
             AutomationError error;
@@ -39,7 +39,7 @@ namespace Automation {
     }
 
     AutomationError AutomationDispatcher::decorateError(AutomationError error,
-                                                         const OperationId &operationId) {
+                                                        const OperationId &operationId) {
         if (error.operationId.isEmpty())
             error.operationId = operationId;
         return error;

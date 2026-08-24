@@ -134,7 +134,8 @@ namespace Automation {
                 const auto validated = m_windowContext.validateWindow(windowId);
                 if (!validated)
                     return decorateError(validated.getError(), operationId);
-                return decorateHandlerResult<T>(std::forward<Handler>(handler)(session), operationId);
+                return decorateHandlerResult<T>(std::forward<Handler>(handler)(session),
+                                                operationId);
             });
         }
 

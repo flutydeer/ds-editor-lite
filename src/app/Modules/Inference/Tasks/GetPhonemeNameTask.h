@@ -11,8 +11,7 @@ class GetPhonemeNameTask final : public Task {
     Q_OBJECT
 public:
     explicit GetPhonemeNameTask(Automation::DocumentVersion documentVersion, int clipId,
-                                quint64 clipRevision,
-                                const QList<NoteInferenceSnapshot> &notes,
+                                quint64 clipRevision, const QList<NoteInferenceSnapshot> &notes,
                                 const SingerInfo &singerInfo);
     Automation::DocumentVersion documentVersion() const;
     int clipId() const;

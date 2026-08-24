@@ -35,8 +35,7 @@ namespace {
     }
 }
 
-ActiveInference::Handle::Handle(ActiveInference &owner, Model model,
-                                std::uint64_t generation)
+ActiveInference::Handle::Handle(ActiveInference &owner, Model model, std::uint64_t generation)
     : m_owner(&owner), m_model(std::move(model)), m_generation(generation) {
 }
 
@@ -157,8 +156,8 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
         // Fallback to single speaker (backward compatible).
         std::string mapped;
         if (!mapSpeakerName(speakerName, speakerMapping, mapped)) {
-            error = QCoreApplication::translate(
-                "InferTaskCommon", "Speaker mapping not found for speaker %1")
+            error = QCoreApplication::translate("InferTaskCommon",
+                                                "Speaker mapping not found for speaker %1")
                         .arg(QString::fromStdString(speakerName));
             return {};
         }
@@ -166,14 +165,15 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
     } else {
         for (const auto &source : std::as_const(speakerMix.sources)) {
             if (!source.isValid()) {
-                error = QCoreApplication::translate("InferTaskCommon", "Invalid speaker mix source");
+                error =
+                    QCoreApplication::translate("InferTaskCommon", "Invalid speaker mix source");
                 return {};
             }
             std::string mapped;
             const auto srcName = source.speaker.toStdString();
             if (!mapSpeakerName(srcName, speakerMapping, mapped)) {
-                error = QCoreApplication::translate(
-                    "InferTaskCommon", "Speaker mapping not found for speaker %1")
+                error = QCoreApplication::translate("InferTaskCommon",
+                                                    "Speaker mapping not found for speaker %1")
                             .arg(source.speaker);
                 return {};
             }
@@ -207,12 +207,12 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
             for (const auto &[name, p] : staticMix) {
                 speakers.emplace_back(Co::InputPhonemeInfo::Speaker{name, p});
             }
-            inputPhones.emplace_back(Co::InputPhonemeInfo{
-                /* token */ phone.token.toStdString(),
-                /* language */ phone.languageDictId.toStdString(),
-                /* tone */ phone.tone,
-                /* start */ phone.start,
-                /* speakers */ std::move(speakers)});
+            inputPhones.emplace_back(
+                Co::InputPhonemeInfo{/* token */ phone.token.toStdString(),
+                                     /* language */ phone.languageDictId.toStdString(),
+                                     /* tone */ phone.tone,
+                                     /* start */ phone.start,
+                                     /* speakers */ std::move(speakers)});
         }
         inputWords.emplace_back(Co::InputWordInfo{std::move(inputPhones), std::move(inputNotes)});
     }
@@ -231,8 +231,8 @@ auto convertInputParams(const QList<InferParam> &params) -> std::vector<Co::Inpu
         inputParam.interval = param.interval;
         inputParam.values = {param.values.begin(), param.values.end()};
         if (param.retake.end > param.retake.start) {
-            inputParam.retake = Co::InputParameterInfo::RetakeRange{
-                param.retake.start, param.retake.end};
+            inputParam.retake =
+                Co::InputParameterInfo::RetakeRange{param.retake.start, param.retake.end};
         }
         inputParams.emplace_back(std::move(inputParam));
     }
@@ -262,7 +262,9 @@ auto convertInputSpeakers(const InferSpeakerMix &speakerMix,
         std::string mappedSpeakerName;
         const auto speakerName = source.speaker.toStdString();
         if (!mapSpeakerName(speakerName, speakerMapping, mappedSpeakerName)) {
-            error = QCoreApplication::translate("InferTaskCommon", "Speaker mapping not found for speaker %1").arg(source.speaker);
+            error = QCoreApplication::translate("InferTaskCommon",
+                                                "Speaker mapping not found for speaker %1")
+                        .arg(source.speaker);
             return {};
         }
 

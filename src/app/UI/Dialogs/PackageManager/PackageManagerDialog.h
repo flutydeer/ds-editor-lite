@@ -29,10 +29,7 @@ private slots:
     void onVerifyPackageRequested(const PackageInfo &package);
 
 private:
-    enum DetailsPanelState {
-        PackageUnselected,
-        PackageSelected
-    };
+    enum DetailsPanelState { PackageUnselected, PackageSelected };
 
     void initUi();
     void onInferenceModuleReady();
@@ -61,4 +58,4 @@ private:
 };
 
 
-#endif //PACKAGEMANAGERDIALOG_H
+#endif // PACKAGEMANAGERDIALOG_H

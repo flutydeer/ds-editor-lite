@@ -17,8 +17,7 @@ namespace Automation {
 
     class HistoryAutomationFacade final {
     public:
-        HistoryAutomationFacade(OperationCatalog &catalog,
-                                AutomationDispatcher &dispatcher,
+        HistoryAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
                                 CommandCommitter &committer);
 
         AutomationResult<HistoryStateDto> getState(const DocumentId &documentId);

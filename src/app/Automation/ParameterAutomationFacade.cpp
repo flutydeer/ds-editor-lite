@@ -62,8 +62,7 @@ namespace Automation {
 
         bool supportedParameter(const ParamInfo::Name name, const Param::Type type) {
             return name >= ParamInfo::Pitch && name <= ParamInfo::ToneShift &&
-                   (type == Param::Original || type == Param::Edited ||
-                    type == Param::Envelope);
+                   (type == Param::Original || type == Param::Edited || type == Param::Envelope);
         }
     }
 
@@ -71,14 +70,14 @@ namespace Automation {
                                                          AutomationDispatcher &dispatcher,
                                                          CommandCommitter &committer,
                                                          DocumentObjectResolver &objects)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_committer(committer),
-          m_objects(objects) {
+        : m_catalog(catalog), m_dispatcher(dispatcher), m_committer(committer), m_objects(objects) {
         registerOperations();
     }
 
-    AutomationResult<ParameterSnapshotDto> ParameterAutomationFacade::getParameter(
-        const DocumentId &documentId, const ClipId clipId, const ParamInfo::Name name,
-        const Param::Type type) {
+    AutomationResult<ParameterSnapshotDto>
+        ParameterAutomationFacade::getParameter(const DocumentId &documentId, const ClipId clipId,
+                                                const ParamInfo::Name name,
+                                                const Param::Type type) {
         return m_dispatcher.dispatchDocumentQuery<ParameterSnapshotDto>(
             OperationIds::parameters::get, documentId,
             [this, clipId, name, type](DocumentSession &session) {
@@ -106,8 +105,7 @@ namespace Automation {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::parameters::replace, context,
             parameterFingerprint(clipId, name, type, curves),
-            [this, clipId, name, type, curves](DocumentSession &session,
-                                             const bool validateOnly) {
+            [this, clipId, name, type, curves](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
@@ -139,7 +137,9 @@ namespace Automation {
                 hashCurves(oldHash, existing);
                 hashCurves(newHash, curves);
                 const bool changed = oldHash.result() != newHash.result();
-                const auto affected = QList<ObjectRef>{{ObjectKind::Clip, clipId.value()}};
+                const auto affected = QList<ObjectRef>{
+                    {ObjectKind::Clip, clipId.value()}
+                };
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, changed, affected));
@@ -176,7 +176,9 @@ namespace Automation {
                     previous.singer, previous.speaker,
                     SpeakerMixModel::preservePresetSourceAsDirty(previous.speakerMix, data), false};
                 const bool changed = previous != next;
-                const auto affected = QList<ObjectRef>{{ObjectKind::Clip, clipId.value()}};
+                const auto affected = QList<ObjectRef>{
+                    {ObjectKind::Clip, clipId.value()}
+                };
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, changed, affected));
@@ -188,8 +190,9 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult> ParameterAutomationFacade::useTrackVoiceContext(
-        const CommandContext &context, const ClipId clipId) {
+    AutomationResult<MutationResult>
+        ParameterAutomationFacade::useTrackVoiceContext(const CommandContext &context,
+                                                        const ClipId clipId) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::speaker_mix::clip::use_track, context,
             voiceFingerprint(clipId.value(), {}, {}, {}),
@@ -199,7 +202,9 @@ namespace Automation {
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
                 const bool changed = !clip->usesTrackVoiceContext();
-                const auto affected = QList<ObjectRef>{{ObjectKind::Clip, clipId.value()}};
+                const auto affected = QList<ObjectRef>{
+                    {ObjectKind::Clip, clipId.value()}
+                };
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, changed, affected));
@@ -241,17 +246,18 @@ namespace Automation {
         const SpeakerMixModel::SpeakerMixData &data) {
         return m_dispatcher.dispatchDocumentCommand(
             operationId, context, voiceFingerprint(clipId.value(), singerInfo, speakerInfo, data),
-            [this, clipId, singerInfo, speakerInfo, data,
-             action](DocumentSession &session, const bool validateOnly) {
+            [this, clipId, singerInfo, speakerInfo, data, action](DocumentSession &session,
+                                                                  const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
-                const EffectiveVoiceContext next{singerInfo, speakerInfo,
-                                                 SpeakerMixModel::normalizeSpeakerMixData(data),
-                                                 false};
+                const EffectiveVoiceContext next{
+                    singerInfo, speakerInfo, SpeakerMixModel::normalizeSpeakerMixData(data), false};
                 const bool changed = clip->effectiveVoiceContext() != next;
-                const auto affected = QList<ObjectRef>{{ObjectKind::Clip, clipId.value()}};
+                const auto affected = QList<ObjectRef>{
+                    {ObjectKind::Clip, clipId.value()}
+                };
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, changed, affected));
@@ -280,14 +286,16 @@ namespace Automation {
             OperationIds::speaker_mix::track::select_single, context,
             voiceFingerprint(trackId.value(), singerInfo, speakerInfo, {}),
             [this, trackId, singerInfo, speakerInfo](DocumentSession &session,
-                                                   const bool validateOnly) {
+                                                     const bool validateOnly) {
                 auto resolved = m_objects.track(session, trackId);
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *track = resolved.get();
                 const EffectiveVoiceContext next{singerInfo, speakerInfo, {}, false};
                 const bool changed = track->voiceContext() != next;
-                const auto affected = QList<ObjectRef>{{ObjectKind::Track, trackId.value()}};
+                const auto affected = QList<ObjectRef>{
+                    {ObjectKind::Track, trackId.value()}
+                };
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, changed, affected));
@@ -305,17 +313,18 @@ namespace Automation {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::speaker_mix::track::apply, context,
             voiceFingerprint(trackId.value(), singerInfo, speakerInfo, data),
-            [this, trackId, singerInfo, speakerInfo,
-             data](DocumentSession &session, const bool validateOnly) {
+            [this, trackId, singerInfo, speakerInfo, data](DocumentSession &session,
+                                                           const bool validateOnly) {
                 auto resolved = m_objects.track(session, trackId);
                 if (!resolved)
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *track = resolved.get();
-                const EffectiveVoiceContext next{singerInfo, speakerInfo,
-                                                 SpeakerMixModel::normalizeSpeakerMixData(data),
-                                                 false};
+                const EffectiveVoiceContext next{
+                    singerInfo, speakerInfo, SpeakerMixModel::normalizeSpeakerMixData(data), false};
                 const bool changed = track->voiceContext() != next;
-                const auto affected = QList<ObjectRef>{{ObjectKind::Track, trackId.value()}};
+                const auto affected = QList<ObjectRef>{
+                    {ObjectKind::Track, trackId.value()}
+                };
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, changed, affected));
@@ -343,7 +352,9 @@ namespace Automation {
                     previous.singer, previous.speaker,
                     SpeakerMixModel::preservePresetSourceAsDirty(previous.speakerMix, data), false};
                 const bool changed = previous != next;
-                const auto affected = QList<ObjectRef>{{ObjectKind::Track, trackId.value()}};
+                const auto affected = QList<ObjectRef>{
+                    {ObjectKind::Track, trackId.value()}
+                };
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, changed, affected));

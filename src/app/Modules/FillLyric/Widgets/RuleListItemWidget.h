@@ -6,8 +6,7 @@
 class QCheckBox;
 class QLabel;
 
-namespace FillLyric
-{
+namespace FillLyric {
     class RuleListItemWidget final : public QWidget {
         Q_OBJECT
 

@@ -18,7 +18,7 @@ public:
 
     [[nodiscard]] NotesParamsInfo buildNoteParamsInfo() const;
     [[nodiscard]] static QList<Note *> selectedNotesFromId(const QList<int> &notesId,
-                                                           const SingingClip *clip) ;
+                                                           const SingingClip *clip);
 
 private:
     ClipController *q_ptr;

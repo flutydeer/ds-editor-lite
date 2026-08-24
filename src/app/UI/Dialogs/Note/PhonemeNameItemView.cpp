@@ -21,7 +21,8 @@ PhonemeNameItemView::PhonemeNameItemView(QWidget *parent) : QWidget(parent) {
     m_btnDelete->setText(tr("Delete"));
     m_btnDelete->setFixedSize(60, 24);
 
-    connect(m_btnInsertAbove, &QPushButton::clicked, this, &PhonemeNameItemView::insertAboveClicked);
+    connect(m_btnInsertAbove, &QPushButton::clicked, this,
+            &PhonemeNameItemView::insertAboveClicked);
     connect(m_btnDelete, &QPushButton::clicked, this, &PhonemeNameItemView::deleteClicked);
 
     auto layout = new QHBoxLayout;

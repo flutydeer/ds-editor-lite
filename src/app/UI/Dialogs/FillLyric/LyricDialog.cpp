@@ -169,9 +169,9 @@ void LyricDialog::onCurrentTabChanged(const int index) {
 
 int LyricDialog::lyricCompactWidthFor(const int expandedWidth) const {
     const auto bodyMargins = body()->contentsMargins();
-    const int layoutSpacing = qMax(
-        0, m_lyricWidget->style()->pixelMetric(QStyle::PM_LayoutHorizontalSpacing, nullptr,
-                                               m_lyricWidget));
+    const int layoutSpacing =
+        qMax(0, m_lyricWidget->style()->pixelMetric(QStyle::PM_LayoutHorizontalSpacing, nullptr,
+                                                    m_lyricWidget));
     const int contentWidth =
         expandedWidth - bodyMargins.left() - bodyMargins.right() - layoutSpacing;
     const int totalStretch = kLyricBaseStretch + kLyricPreviewStretch;

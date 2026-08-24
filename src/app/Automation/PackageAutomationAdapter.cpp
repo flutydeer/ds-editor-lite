@@ -58,9 +58,9 @@ namespace Automation {
                     }
                     if (singingClip->usesTrackVoiceContext())
                         continue;
-                    const auto ownSinger =
-                        resolveSinger(manager, singingClip->ownSingerInfo());
-                    const auto ownSpeaker = resolveSpeaker(ownSinger, singingClip->ownSpeakerInfo());
+                    const auto ownSinger = resolveSinger(manager, singingClip->ownSingerInfo());
+                    const auto ownSpeaker =
+                        resolveSpeaker(ownSinger, singingClip->ownSpeakerInfo());
                     if (ownSinger != singingClip->ownSingerInfo() ||
                         ownSpeaker != singingClip->ownSpeakerInfo()) {
                         ++resolvedPairs;

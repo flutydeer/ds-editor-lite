@@ -70,7 +70,7 @@ namespace Automation {
     }
 
     AutomationResult<PlaybackSnapshotDto>
-    PlaybackAutomationFacade::getPlayback(const DocumentId &documentId) {
+        PlaybackAutomationFacade::getPlayback(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<PlaybackSnapshotDto>(
             OperationIds::playback::get, documentId, [this](DocumentSession &session) {
                 if (!m_services.snapshot)
@@ -87,18 +87,16 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult>
-    PlaybackAutomationFacade::play(const CommandContext &context) {
+    AutomationResult<MutationResult> PlaybackAutomationFacade::play(const CommandContext &context) {
         return setState(OperationIds::playback::play, context, PlaybackState::Playing);
     }
 
     AutomationResult<MutationResult>
-    PlaybackAutomationFacade::pause(const CommandContext &context) {
+        PlaybackAutomationFacade::pause(const CommandContext &context) {
         return setState(OperationIds::playback::pause, context, PlaybackState::Paused);
     }
 
-    AutomationResult<MutationResult>
-    PlaybackAutomationFacade::stop(const CommandContext &context) {
+    AutomationResult<MutationResult> PlaybackAutomationFacade::stop(const CommandContext &context) {
         return setState(OperationIds::playback::stop, context, PlaybackState::Stopped);
     }
 
@@ -144,7 +142,7 @@ namespace Automation {
     }
 
     AutomationResult<MutationResult>
-    PlaybackAutomationFacade::setPosition(const CommandContext &context, const double tick) {
+        PlaybackAutomationFacade::setPosition(const CommandContext &context, const double tick) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::playback::set_position, context, QByteArray::number(tick, 'g', 17),
             [this, tick](DocumentSession &session, const bool validateOnly) {
@@ -164,14 +162,15 @@ namespace Automation {
     }
 
     AutomationResult<MutationResult>
-    PlaybackAutomationFacade::setLastPosition(const CommandContext &context, const double tick) {
+        PlaybackAutomationFacade::setLastPosition(const CommandContext &context,
+                                                  const double tick) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::playback::set_last_position, context,
-            QByteArray::number(tick, 'g', 17),
+            OperationIds::playback::set_last_position, context, QByteArray::number(tick, 'g', 17),
             [this, tick](DocumentSession &session, const bool validateOnly) {
                 if (!std::isfinite(tick) || tick < 0.0) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                        QStringLiteral("tick"), QStringLiteral("Last playback position is invalid")));
+                        QStringLiteral("tick"),
+                        QStringLiteral("Last playback position is invalid")));
                 }
                 if (!m_services.snapshot || !m_services.setLastPosition)
                     return AutomationResult<MutationResult>(

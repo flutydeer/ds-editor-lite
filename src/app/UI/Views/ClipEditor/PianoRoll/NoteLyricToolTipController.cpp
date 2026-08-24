@@ -11,8 +11,8 @@ NoteLyricToolTipController::NoteLyricToolTipController(QWidget *parent)
 
 NoteLyricToolTipController::~NoteLyricToolTipController() = default;
 
-void NoteLyricToolTipController::showFor(
-    const int noteId, const QString &lyric, const QRect &screenAnchor) {
+void NoteLyricToolTipController::showFor(const int noteId, const QString &lyric,
+                                         const QRect &screenAnchor) {
     if (lyric.isEmpty() || screenAnchor.isEmpty()) {
         hide();
         return;

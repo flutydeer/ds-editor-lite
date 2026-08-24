@@ -21,8 +21,8 @@ namespace EditorScrollUtils {
                                       const double contentStart, const double contentEnd,
                                       const double margin) {
         if (!std::isfinite(currentOffset) || !std::isfinite(viewportLength) ||
-            !std::isfinite(contentStart) || !std::isfinite(contentEnd) ||
-            !std::isfinite(margin) || viewportLength <= 0.0) {
+            !std::isfinite(contentStart) || !std::isfinite(contentEnd) || !std::isfinite(margin) ||
+            viewportLength <= 0.0) {
             return currentOffset;
         }
         const auto safeMargin = std::max(0.0, margin);

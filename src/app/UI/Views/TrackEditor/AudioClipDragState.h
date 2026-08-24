@@ -8,8 +8,8 @@ class Timeline;
 class AudioClipDragState final {
 public:
     static AudioClipDragState begin(double trimStartMs, double playLengthMs,
-                                    double materialLengthMs, int visibleStartTick,
-                                    double grabTick, const Timeline &timeline);
+                                    double materialLengthMs, int visibleStartTick, double grabTick,
+                                    const Timeline &timeline);
 
     [[nodiscard]] int visibleStartForCursor(double cursorTick, const Timeline &timeline) const;
     void moveTo(int visibleStartTick, Clip::ClipCommonProperties &properties,

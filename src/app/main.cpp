@@ -48,14 +48,13 @@ int main(int argc, char *argv[]) {
             QString error;
             if (coordinator.forwardRequest(startupRequest, error))
                 return EXIT_SUCCESS;
-            QMessageBox::critical(
-                nullptr, QString::fromLatin1(LiteProductMetadata::ProductName), error);
+            QMessageBox::critical(nullptr, QString::fromLatin1(LiteProductMetadata::ProductName),
+                                  error);
             return EXIT_FAILURE;
         }
         case SingleInstanceCoordinator::StartResult::Error:
-            QMessageBox::critical(
-                nullptr, QString::fromLatin1(LiteProductMetadata::ProductName),
-                coordinator.errorString());
+            QMessageBox::critical(nullptr, QString::fromLatin1(LiteProductMetadata::ProductName),
+                                  coordinator.errorString());
             return EXIT_FAILURE;
         case SingleInstanceCoordinator::StartResult::Primary:
             break;

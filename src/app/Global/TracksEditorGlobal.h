@@ -7,8 +7,8 @@ namespace TracksEditorGlobal {
     constexpr int trackListWidth = 320;
     constexpr double narrowModeScaleY = 1;
     constexpr int trackViewHeaderHeight = 36;
-    constexpr int infoLaneHeight = 28;         // Height of info lanes below the ruler
-    constexpr int loopRegionHeight = 8;        // Height of loop region area
+    constexpr int infoLaneHeight = 28;  // Height of info lanes below the ruler
+    constexpr int loopRegionHeight = 8; // Height of loop region area
     // Left margin (screen px) before tick 0, kept inside the scene so the
     // playhead triangle/bar do not clip at the left viewport edge. Scene
     // coordinates are already zoom-scaled (px = tick * scaleX * ppq / tpq),
@@ -18,4 +18,4 @@ namespace TracksEditorGlobal {
     constexpr int trackViewLeftMargin = 10;
 };
 
-#endif //TRACKSEDITORGLOBAL_H
+#endif // TRACKSEDITORGLOBAL_H

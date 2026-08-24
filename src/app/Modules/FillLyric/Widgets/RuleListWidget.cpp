@@ -2,8 +2,7 @@
 
 #include <QDropEvent>
 
-namespace FillLyric
-{
+namespace FillLyric {
     RuleListWidget::RuleListWidget(QWidget *parent) : QListWidget(parent) {
         setDragDropMode(QAbstractItemView::InternalMove);
         setDefaultDropAction(Qt::MoveAction);

@@ -117,9 +117,10 @@ namespace Automation {
             target->showClipDebugInfo = value.showClipDebugInfo;
             target->enablePanelDetach = value.enablePanelDetach;
             target->enableEmbeddedOptionsDialog = value.enableEmbeddedOptionsDialog;
-            target->editorRenderBackend = value.editorRenderBackend == EditorRenderBackend::RhiExperimental
-                                              ? DeveloperOption::EditorRenderBackend::RhiExperimental
-                                              : DeveloperOption::EditorRenderBackend::Legacy;
+            target->editorRenderBackend =
+                value.editorRenderBackend == EditorRenderBackend::RhiExperimental
+                    ? DeveloperOption::EditorRenderBackend::RhiExperimental
+                    : DeveloperOption::EditorRenderBackend::Legacy;
         }
 
         G2pLanguageSettingsDto captureG2pLanguage(AppOptions *options) {
@@ -237,8 +238,7 @@ namespace Automation {
                 .pseudoSingerReadEnergy = AudioSettings::pseudoSingerReadEnergy(),
                 .pseudoSingerReadPitch = AudioSettings::pseudoSingerReadPitch(),
                 .vstEditorPort = AudioSettings::vstEditorPort(),
-                .vstPluginEditorUsesCustomTheme =
-                    AudioSettings::vstPluginEditorUsesCustomTheme(),
+                .vstPluginEditorUsesCustomTheme = AudioSettings::vstPluginEditorUsesCustomTheme(),
                 .vstPluginPort = AudioSettings::vstPluginPort(),
                 .audioExporterClippingCheckEnabled =
                     AudioSettings::audioExporterClippingCheckEnabled(),
@@ -262,21 +262,24 @@ namespace Automation {
                 const auto config = it.value().toObject().toVariantMap();
                 result.audioExporterPresets.append({
                     .name = it.key(),
-                    .config = {
-                        .fileName = config.value(QStringLiteral("fileName")).toString(),
-                        .fileDirectory = config.value(QStringLiteral("fileDirectory")).toString(),
-                        .fileType = config.value(QStringLiteral("fileType")).toInt(),
-                        .mono = config.value(QStringLiteral("formatMono")).toBool(),
-                        .formatOption = config.value(QStringLiteral("formatOption")).toInt(),
-                        .formatQuality = config.value(QStringLiteral("formatQuality")).toInt(),
-                        .sampleRate = config.value(QStringLiteral("formatSampleRate")).toDouble(),
-                        .mixingOption = config.value(QStringLiteral("mixingOption")).toInt(),
-                        .muteSoloEnabled =
-                            config.value(QStringLiteral("isMuteSoloEnabled")).toBool(),
-                        .sourceOption = config.value(QStringLiteral("sourceOption")).toInt(),
-                        .sources = config.value(QStringLiteral("source")).value<QList<int>>(),
-                        .timeRange = config.value(QStringLiteral("timeRange")).toInt(),
-                    },
+                    .config =
+                        {
+                                 .fileName = config.value(QStringLiteral("fileName")).toString(),
+                                 .fileDirectory =
+                                config.value(QStringLiteral("fileDirectory")).toString(),
+                                 .fileType = config.value(QStringLiteral("fileType")).toInt(),
+                                 .mono = config.value(QStringLiteral("formatMono")).toBool(),
+                                 .formatOption = config.value(QStringLiteral("formatOption")).toInt(),
+                                 .formatQuality = config.value(QStringLiteral("formatQuality")).toInt(),
+                                 .sampleRate =
+                                config.value(QStringLiteral("formatSampleRate")).toDouble(),
+                                 .mixingOption = config.value(QStringLiteral("mixingOption")).toInt(),
+                                 .muteSoloEnabled =
+                                config.value(QStringLiteral("isMuteSoloEnabled")).toBool(),
+                                 .sourceOption = config.value(QStringLiteral("sourceOption")).toInt(),
+                                 .sources = config.value(QStringLiteral("source")).value<QList<int>>(),
+                                 .timeRange = config.value(QStringLiteral("timeRange")).toInt(),
+                                 },
                 });
             }
             const auto currentPreset =
@@ -317,8 +320,10 @@ namespace Automation {
             for (int index = 0; index < value.pseudoSingerSynthesizers.size(); ++index) {
                 const auto prefix = QString::number(index);
                 const auto &synthesizer = value.pseudoSingerSynthesizers.at(index);
-                object[prefix + QStringLiteral("pseudoSingerSynthGenerator")] = synthesizer.generator;
-                object[prefix + QStringLiteral("pseudoSingerSynthAmplitude")] = synthesizer.amplitude;
+                object[prefix + QStringLiteral("pseudoSingerSynthGenerator")] =
+                    synthesizer.generator;
+                object[prefix + QStringLiteral("pseudoSingerSynthAmplitude")] =
+                    synthesizer.amplitude;
                 object[prefix + QStringLiteral("pseudoSingerSynthAttackMsec")] =
                     synthesizer.attackMilliseconds;
                 object[prefix + QStringLiteral("pseudoSingerSynthDecayMsec")] =
@@ -341,22 +346,21 @@ namespace Automation {
             QJsonObject presets;
             for (const auto &preset : value.audioExporterPresets) {
                 const auto &config = preset.config;
-                presets.insert(
-                    preset.name,
-                    QJsonObject::fromVariantMap({
-                        {QStringLiteral("fileName"), config.fileName},
-                        {QStringLiteral("fileDirectory"), config.fileDirectory},
-                        {QStringLiteral("fileType"), config.fileType},
-                        {QStringLiteral("formatMono"), config.mono},
-                        {QStringLiteral("formatOption"), config.formatOption},
-                        {QStringLiteral("formatQuality"), config.formatQuality},
-                        {QStringLiteral("formatSampleRate"), config.sampleRate},
-                        {QStringLiteral("mixingOption"), config.mixingOption},
-                        {QStringLiteral("isMuteSoloEnabled"), config.muteSoloEnabled},
-                        {QStringLiteral("sourceOption"), config.sourceOption},
-                        {QStringLiteral("source"), QVariant::fromValue(config.sources)},
-                        {QStringLiteral("timeRange"), config.timeRange},
-                    }));
+                presets.insert(preset.name,
+                               QJsonObject::fromVariantMap({
+                                   {QStringLiteral("fileName"),          config.fileName                    },
+                                   {QStringLiteral("fileDirectory"),     config.fileDirectory               },
+                                   {QStringLiteral("fileType"),          config.fileType                    },
+                                   {QStringLiteral("formatMono"),        config.mono                        },
+                                   {QStringLiteral("formatOption"),      config.formatOption                },
+                                   {QStringLiteral("formatQuality"),     config.formatQuality               },
+                                   {QStringLiteral("formatSampleRate"),  config.sampleRate                  },
+                                   {QStringLiteral("mixingOption"),      config.mixingOption                },
+                                   {QStringLiteral("isMuteSoloEnabled"), config.muteSoloEnabled             },
+                                   {QStringLiteral("sourceOption"),      config.sourceOption                },
+                                   {QStringLiteral("source"),            QVariant::fromValue(config.sources)},
+                                   {QStringLiteral("timeRange"),         config.timeRange                   },
+                }));
             }
             object[QStringLiteral("audioExporterPresets")] = presets;
             object[QStringLiteral("audioExporterCurrentPreset")] =
@@ -384,8 +388,8 @@ namespace Automation {
 
         QList<SpeakerMixPresetDto> captureSpeakerMixPresets(AppOptions *options) {
             const auto root = options->general()->speakerMixPresets.toObject();
-            if (root.value(QStringLiteral("schemaVersion")).toInt(
-                    kSpeakerMixPresetSchemaVersion) != kSpeakerMixPresetSchemaVersion) {
+            if (root.value(QStringLiteral("schemaVersion")).toInt(kSpeakerMixPresetSchemaVersion) !=
+                kSpeakerMixPresetSchemaVersion) {
                 return {};
             }
             QList<SpeakerMixPresetDto> result;
@@ -430,7 +434,7 @@ namespace Automation {
                 QJsonArray sources;
                 for (const auto &source : preset.sources) {
                     sources.append(QJsonObject{
-                        {QStringLiteral("id"), source.speakerId},
+                        {QStringLiteral("id"),   source.speakerId  },
                         {QStringLiteral("name"), source.speakerName},
                     });
                 }
@@ -438,23 +442,23 @@ namespace Automation {
                 for (const double weight : preset.fixedWeights)
                     weights.append(weight);
                 presetArray.append(QJsonObject{
-                    {QStringLiteral("id"), preset.id},
-                    {QStringLiteral("name"), preset.name},
-                    {QStringLiteral("packageId"), preset.packageId},
-                    {QStringLiteral("singerId"), preset.singerId},
+                    {QStringLiteral("id"),             preset.id                       },
+                    {QStringLiteral("name"),           preset.name                     },
+                    {QStringLiteral("packageId"),      preset.packageId                },
+                    {QStringLiteral("singerId"),       preset.singerId                 },
                     {QStringLiteral("packageVersion"), preset.packageVersion.toString()},
-                    {QStringLiteral("sources"), sources},
-                    {QStringLiteral("fixedWeights"), weights},
+                    {QStringLiteral("sources"),        sources                         },
+                    {QStringLiteral("fixedWeights"),   weights                         },
                     {QStringLiteral("createdAt"),
-                     preset.createdAt.toUTC().toString(Qt::ISODateWithMs)},
+                     preset.createdAt.toUTC().toString(Qt::ISODateWithMs)              },
                     {QStringLiteral("updatedAt"),
-                     preset.updatedAt.toUTC().toString(Qt::ISODateWithMs)},
+                     preset.updatedAt.toUTC().toString(Qt::ISODateWithMs)              },
                 });
             }
             const auto previous = options->general()->speakerMixPresets;
             options->general()->speakerMixPresets = QJsonObject{
                 {QStringLiteral("schemaVersion"), kSpeakerMixPresetSchemaVersion},
-                {QStringLiteral("presets"), presetArray},
+                {QStringLiteral("presets"),       presetArray                   },
             };
             if (options->saveAndNotify(AppOptionsGlobal::General))
                 return true;
@@ -464,8 +468,9 @@ namespace Automation {
         }
 
         template <typename T, typename Capture, typename Restore>
-        bool applyAndSave(AppOptions *options, const T &value, const AppOptionsGlobal::Option category,
-                          Capture capture, Restore restore) {
+        bool applyAndSave(AppOptions *options, const T &value,
+                          const AppOptionsGlobal::Option category, Capture capture,
+                          Restore restore) {
             const auto previous = capture(options);
             restore(options, value);
             if (options->saveAndNotify(category))
@@ -494,8 +499,8 @@ namespace Automation {
                                 restoreInference);
         };
         services.applyDeveloper = [options](const DeveloperSettingsDto &value) {
-            return applyAndSave(options, value, AppOptionsGlobal::DeveloperOptions, captureDeveloper,
-                                restoreDeveloper);
+            return applyAndSave(options, value, AppOptionsGlobal::DeveloperOptions,
+                                captureDeveloper, restoreDeveloper);
         };
         services.applyG2pLanguage = [options](const G2pLanguageSettingsDto &value) {
             return applyAndSave(options, value, AppOptionsGlobal::G2pLanguage, captureG2pLanguage,
@@ -510,8 +515,8 @@ namespace Automation {
                                 restoreWindow);
         };
         services.applyAudio = [options](const AudioSettingsDto &value) {
-            return applyAndSave(options, value, AppOptionsGlobal::Audio,
-                                captureAudio, restoreAudio);
+            return applyAndSave(options, value, AppOptionsGlobal::Audio, captureAudio,
+                                restoreAudio);
         };
         return services;
     }

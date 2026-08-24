@@ -129,9 +129,9 @@ namespace {
         return context;
     }
 
-    Automation::InferenceMutationRequest pronunciationMutation(
-        const InferenceTaskContext &context,
-        const QList<PronunciationFetchResult> &pronunciations) {
+    Automation::InferenceMutationRequest
+        pronunciationMutation(const InferenceTaskContext &context,
+                              const QList<PronunciationFetchResult> &pronunciations) {
         Automation::InferenceMutationRequest request;
         request.kind = Automation::InferenceMutationKind::ApplyPronunciations;
         request.clipId = Automation::ClipId(context.clipId);
@@ -145,8 +145,9 @@ namespace {
         return request;
     }
 
-    Automation::InferenceMutationRequest phonemeNameMutation(
-        const InferenceTaskContext &context, const QList<PhonemeNameResult> &phonemeNames) {
+    Automation::InferenceMutationRequest
+        phonemeNameMutation(const InferenceTaskContext &context,
+                            const QList<PhonemeNameResult> &phonemeNames) {
         Automation::InferenceMutationRequest request;
         request.kind = Automation::InferenceMutationKind::ApplyPhonemeNames;
         request.clipId = Automation::ClipId(context.clipId);
@@ -473,8 +474,7 @@ void InferControllerPrivate::handleTempoChanged() {
 
 void InferControllerPrivate::handleTrackInserted(Track *track) {
     ModelChangeHandler::handleTrackInserted(track);
-    connect(track, &Track::voiceContextChanged, this,
-            [this] { syncSingerSessions(); });
+    connect(track, &Track::voiceContextChanged, this, [this] { syncSingerSessions(); });
     syncSingerSessions();
 }
 
@@ -710,8 +710,7 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
     refreshRequest.clipId = Automation::ClipId(clip->id());
     const auto refreshed = InferenceAutomationBridge::executeCurrent(refreshRequest);
     if (!refreshed) {
-        qWarning() << "Failed to refresh inference speaker mix:"
-                   << refreshed.getError().message;
+        qWarning() << "Failed to refresh inference speaker mix:" << refreshed.getError().message;
         return;
     }
 
@@ -780,9 +779,10 @@ bool InferControllerPrivate::canStartClipInference(const SingingClip &clip) cons
 }
 
 void InferControllerPrivate::ensureClipInferenceStarted(SingingClip &clip,
-                                                         const ClipInferenceStartStage stage) {
+                                                        const ClipInferenceStartStage stage) {
     const QPointer<SingingClip> guardedClip(&clip);
-    // Model signals run inside ActionSequence::execute(); defer until the committer advances revision.
+    // Model signals run inside ActionSequence::execute(); defer until the committer advances
+    // revision.
     QTimer::singleShot(0, this, [this, guardedClip, stage] {
         if (!guardedClip || appModel->findClipById(guardedClip->id()) != guardedClip)
             return;
@@ -846,9 +846,9 @@ void InferControllerPrivate::handleGetPronTaskFinished(GetPronunciationTask &tas
             const auto applied = InferenceAutomationBridge::executeAfterGate(
                 context.documentVersion, pronunciationMutation(context, task.result));
             if (!applied) {
-                InferenceApplyGate::logDrop(context, "clip-task",
-                                            InferenceAutomationBridge::dropReason(
-                                                applied.getError()));
+                InferenceApplyGate::logDrop(
+                    context, "clip-task",
+                    InferenceAutomationBridge::dropReason(applied.getError()));
                 scheduleRetryAllSingingClips();
                 break;
             }
@@ -895,9 +895,9 @@ void InferControllerPrivate::handleGetPhoneTaskFinished(GetPhonemeNameTask &task
             const auto applied = InferenceAutomationBridge::executeAfterGate(
                 context.documentVersion, phonemeNameMutation(context, task.result));
             if (!applied) {
-                InferenceApplyGate::logDrop(context, "clip-task",
-                                            InferenceAutomationBridge::dropReason(
-                                                applied.getError()));
+                InferenceApplyGate::logDrop(
+                    context, "clip-task",
+                    InferenceAutomationBridge::dropReason(applied.getError()));
                 scheduleRetryAllSingingClips();
                 break;
             }
@@ -933,9 +933,8 @@ InferControllerPrivate::PendingApplyResult InferControllerPrivate::tryApplyPronu
             const auto applied = InferenceAutomationBridge::executeAfterGate(
                 context.documentVersion, pronunciationMutation(context, pronunciations));
             if (!applied) {
-                InferenceApplyGate::logDrop(context, phase,
-                                            InferenceAutomationBridge::dropReason(
-                                                applied.getError()));
+                InferenceApplyGate::logDrop(
+                    context, phase, InferenceAutomationBridge::dropReason(applied.getError()));
                 scheduleRetryAllSingingClips();
                 return PendingApplyResult::Dropped;
             }
@@ -984,9 +983,8 @@ InferControllerPrivate::PendingApplyResult
             const auto applied = InferenceAutomationBridge::executeAfterGate(
                 context.documentVersion, phonemeNameMutation(context, phonemeNames));
             if (!applied) {
-                InferenceApplyGate::logDrop(context, phase,
-                                            InferenceAutomationBridge::dropReason(
-                                                applied.getError()));
+                InferenceApplyGate::logDrop(
+                    context, phase, InferenceAutomationBridge::dropReason(applied.getError()));
                 scheduleRetryAllSingingClips();
                 return PendingApplyResult::Dropped;
             }
@@ -1170,8 +1168,7 @@ void InferControllerPrivate::handlePipelineDropped(InferPipeline *pipeline, cons
         guardedPipeline->deleteLater();
 
         // A stale task can be rejected while the piece still needs inference with a fresh snapshot.
-        if (reason != "input-signature-mismatch" &&
-            reason != "document-revision-mismatch")
+        if (reason != "input-signature-mismatch" && reason != "document-revision-mismatch")
             return;
 
         const auto clip = dynamic_cast<SingingClip *>(appModel->findClipById(clipId));

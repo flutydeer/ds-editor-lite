@@ -287,9 +287,8 @@ void MainWindow::changeEvent(QEvent *event) {
         updateWindowTitle();
     else if (event->type() == QEvent::ActivationChange && isActiveWindow() &&
              m_bottomPanelDetached) {
-        editorViewController->activatePanelContext(m_trackEditorView->isVisible()
-                                                       ? AppGlobal::TracksEditor
-                                                       : AppGlobal::Generic);
+        editorViewController->activatePanelContext(
+            m_trackEditorView->isVisible() ? AppGlobal::TracksEditor : AppGlobal::Generic);
     }
 }
 

@@ -37,8 +37,8 @@ namespace EditorShortcutUtils {
 
         class ApplicationShortcutOverrideFilter final : public QObject {
         public:
-            ApplicationShortcutOverrideFilter(
-                QShortcut *shortcut, std::function<bool(const QWidget *)> isWindowAllowed)
+            ApplicationShortcutOverrideFilter(QShortcut *shortcut,
+                                              std::function<bool(const QWidget *)> isWindowAllowed)
                 : QObject(shortcut), m_shortcut(shortcut),
                   m_isWindowAllowed(std::move(isWindowAllowed)) {
                 qApp->installEventFilter(this);
@@ -56,8 +56,8 @@ namespace EditorShortcutUtils {
                     return false;
 
                 if (!m_isWindowAllowed(QApplication::activeWindow()) ||
-                    isTextInput(QApplication::focusWidget()) ||
-                    QApplication::activePopupWidget() || QApplication::activeModalWidget() ||
+                    isTextInput(QApplication::focusWidget()) || QApplication::activePopupWidget() ||
+                    QApplication::activeModalWidget() ||
                     qobject_cast<QDialog *>(QApplication::activeWindow())) {
                     event->accept();
                     return true;

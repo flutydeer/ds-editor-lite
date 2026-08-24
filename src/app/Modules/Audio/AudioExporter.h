@@ -49,6 +49,7 @@ namespace Audio {
             FT_OggVorbis,
             FT_Mp3,
         };
+
         FileType fileType() const;
         void setFileType(FileType);
 
@@ -72,6 +73,7 @@ namespace Audio {
             MO_Separated,
             MO_SeparatedThruMaster,
         };
+
         MixingOption mixingOption() const;
         void setMixingOption(MixingOption);
 
@@ -83,6 +85,7 @@ namespace Audio {
             SO_Selected,
             SO_Custom,
         };
+
         SourceOption sourceOption() const;
         void setSourceOption(SourceOption);
 
@@ -93,6 +96,7 @@ namespace Audio {
             TR_All,
             TR_LoopSection,
         };
+
         TimeRange timeRange() const;
         void setTimeRange(TimeRange);
 
@@ -116,8 +120,8 @@ namespace Audio {
         Q_DECLARE_PRIVATE(AudioExporter)
         friend class Internal::AudioExportDialog;
         friend class Automation::AudioExportJobAdapter;
-    public:
 
+    public:
         explicit AudioExporter(Core::IProjectWindow *window, QObject *parent = nullptr);
         ~AudioExporter() override;
 
@@ -143,7 +147,7 @@ namespace Audio {
         };
         Q_DECLARE_FLAGS(Warning, WarningFlag)
         Warning warning() const;
-        [[nodiscard]]static QStringList warningText(Warning warning);
+        [[nodiscard]] static QStringList warningText(Warning warning);
 
         QStringList dryRun() const;
 
@@ -152,6 +156,7 @@ namespace Audio {
             R_Fail,
             R_Abort,
         };
+
         Result exec();
         void cleanUp();
 
@@ -164,8 +169,7 @@ namespace Audio {
         void warningAdded(const QString &message, int sourceIndex);
 
     private:
-        void configureAutomationBackend(AppModel *model,
-                                        QString projectPath,
+        void configureAutomationBackend(AppModel *model, QString projectPath,
                                         talcs::DspxProjectContext *projectContext);
         void setConfigInternal(const AudioExporterConfig &config);
         [[nodiscard]] Warning warningInternal() const;

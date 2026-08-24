@@ -3,8 +3,7 @@
 #include "AppColorPalette.h"
 
 namespace SpeakerMixColorResolver {
-    int colorIndexForSpeaker(const QString &speakerId,
-                             const QList<SpeakerInfo> &referenceSpeakers,
+    int colorIndexForSpeaker(const QString &speakerId, const QList<SpeakerInfo> &referenceSpeakers,
                              const int fallbackIndex) {
         for (int i = 0; i < referenceSpeakers.size(); ++i) {
             if (referenceSpeakers[i].id() == speakerId)

@@ -53,10 +53,10 @@ public:
     static QList<Note *> collectInvalidEditedOffsetNotes(SingingClip &clip);
     static QList<ResetRecord> normalizeEditedOffsets(SingingClip &clip);
     static QList<ResetRecord> normalizeEditedOffsets(SingingClip &clip,
-                                                      const WordStates &previousWordStates);
+                                                     const WordStates &previousWordStates);
     static QList<ResetRecord> normalizeEditedOffsets(SingingClip &clip,
-                                                      const WordStates &previousWordStates,
-                                                      const Timeline &timeline);
+                                                     const WordStates &previousWordStates,
+                                                     const Timeline &timeline);
     static QList<Note *> notesFromResetRecords(const QList<ResetRecord> &records);
     static void restoreEditedOffsets(const QList<ResetRecord> &records);
     static void normalizeEditedOffsets(AppModel &model);

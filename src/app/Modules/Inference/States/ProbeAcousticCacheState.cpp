@@ -91,8 +91,7 @@ void ProbeAcousticCacheState::handleTaskFinished(InferAcousticCacheProbeTask &ta
     if (hasCacheHit)
         m_pipeline.setAcousticResult(task.result());
     const bool immediateInference = appOptions->inference()->autoStartInfer ||
-                                    playbackController->playbackStatus() ==
-                                        PlaybackStatus::Playing;
+                                    playbackController->playbackStatus() == PlaybackStatus::Playing;
     finishCurrentTask();
 
     QTimer::singleShot(0, this, [this, hasCacheHit, immediateInference] {

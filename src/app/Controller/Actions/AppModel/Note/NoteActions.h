@@ -43,9 +43,8 @@ public:
     void splitNote(Note *originalNote, Note *newNote, int newLength, SingingClip *clip);
 
     // Quantize: set absolute start/length values (per-note, not a uniform delta)
-    void quantizeNotes(const QList<Note *> &notes,
-                       const QList<QPair<int, int>> &newStartLengths, SingingClip *clip,
-                       Track *track);
+    void quantizeNotes(const QList<Note *> &notes, const QList<QPair<int, int>> &newStartLengths,
+                       SingingClip *clip, Track *track);
 
 private:
     void addClipExtensionToFit(int contentEnd, SingingClip *clip, Track *track);

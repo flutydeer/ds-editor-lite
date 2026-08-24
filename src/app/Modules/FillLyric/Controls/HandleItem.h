@@ -5,8 +5,7 @@
 #include <QGraphicsItem>
 #include <QGraphicsView>
 
-namespace FillLyric
-{
+namespace FillLyric {
     class HandleItem final : public QObject, public QGraphicsItem {
         Q_OBJECT
         Q_INTERFACES(QGraphicsItem)
@@ -40,7 +39,8 @@ namespace FillLyric
         QRectF boundingRect() const override;
         QPainterPath shape() const override;
 
-        void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+        void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                   QWidget *widget) override;
 
     private:
         enum State {
@@ -49,7 +49,8 @@ namespace FillLyric
             Selected = 2,
         };
 
-        QVector<QBrush> m_backgroundBrush = {QColor(83, 83, 85), QColor(137, 137, 139), QColor(112, 156, 255)};
+        QVector<QBrush> m_backgroundBrush = {QColor(83, 83, 85), QColor(137, 137, 139),
+                                             QColor(112, 156, 255)};
 
         qreal m_width = 13;
         qreal m_height = 0;

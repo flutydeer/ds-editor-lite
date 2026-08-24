@@ -16,11 +16,9 @@ ImportProjectActions::ImportProjectActions(ProjectModelData &&data, const bool i
     if (importTempo && currentTimeline.tempos() != data.timeline.tempos()) {
         // Audio clips are re-anchored inside AppModel::setTimeline; a full
         // sequence replacement covers the single-point case as well
-        addAction(
-            EditTemposAction::build(currentTimeline.tempos(), data.timeline.tempos(), model));
+        addAction(EditTemposAction::build(currentTimeline.tempos(), data.timeline.tempos(), model));
     }
-    if (importTimeSignature &&
-        currentTimeline.timeSignatures() != data.timeline.timeSignatures()) {
+    if (importTimeSignature && currentTimeline.timeSignatures() != data.timeline.timeSignatures()) {
         addAction(EditTimeSignaturesAction::build(currentTimeline.timeSignatures(),
                                                   data.timeline.timeSignatures(), model));
     }

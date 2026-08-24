@@ -40,15 +40,16 @@ namespace Automation {
 
     class PresetAutomationFacade final {
     public:
-        PresetAutomationFacade(OperationCatalog &catalog,
-                              AutomationDispatcher &dispatcher,
-                              PresetRuntimeServices services = {});
+        PresetAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
+                               PresetRuntimeServices services = {});
 
         AutomationResult<QList<SpeakerMixPresetDto>> getSpeakerMixPresets();
         AutomationResult<SpeakerMixPresetDto>
-        saveSpeakerMixPreset(const ApplicationCommandContext &context, SpeakerMixPresetDto preset);
+            saveSpeakerMixPreset(const ApplicationCommandContext &context,
+                                 SpeakerMixPresetDto preset);
         AutomationResult<ApplicationMutationResult>
-        deleteSpeakerMixPreset(const ApplicationCommandContext &context, const QString &presetId);
+            deleteSpeakerMixPreset(const ApplicationCommandContext &context,
+                                   const QString &presetId);
 
     private:
         void registerOperations();

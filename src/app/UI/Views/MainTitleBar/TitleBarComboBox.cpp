@@ -55,9 +55,8 @@ FilePopupWidget *TitleBarComboBox::popupWidget() const {
 
 QSize TitleBarComboBox::sizeHint() const {
     const auto text = m_title.isEmpty() ? QStringLiteral(" ") : m_title;
-    const int width = fontMetrics().horizontalAdvance(text) + kTextLeftPadding +
-                      kTextArrowSpacing + kArrowIconSize +
-                      (kArrowAreaWidth - kArrowIconSize) / 2;
+    const int width = fontMetrics().horizontalAdvance(text) + kTextLeftPadding + kTextArrowSpacing +
+                      kArrowIconSize + (kArrowAreaWidth - kArrowIconSize) / 2;
     return {qBound(kMinComboWidth, width, kMaxComboWidth), kComboHeight};
 }
 
@@ -107,10 +106,9 @@ void TitleBarComboBox::paintEvent(QPaintEvent *event) {
     const QPoint iconPos(arrowRect.x() + (arrowRect.width() - iconSize.width()) / 2,
                          arrowRect.y() + (arrowRect.height() - iconSize.height()) / 2);
     const auto arrowIcon = IconUtils::createTintedSvgIcon(
-        QStringLiteral(":/svg/icons/chevron_down_16_regular.svg"), iconSize, textColor,
-        textColor);
-    painter.drawPixmap(iconPos, arrowIcon.pixmap(iconSize, isEnabled() ? QIcon::Normal
-                                                                         : QIcon::Disabled));
+        QStringLiteral(":/svg/icons/chevron_down_16_regular.svg"), iconSize, textColor, textColor);
+    painter.drawPixmap(iconPos,
+                       arrowIcon.pixmap(iconSize, isEnabled() ? QIcon::Normal : QIcon::Disabled));
 }
 
 void TitleBarComboBox::mousePressEvent(QMouseEvent *event) {
