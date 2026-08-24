@@ -75,7 +75,43 @@ namespace Automation {
 
     QJsonObject McpRequestDispatcher::dispatch(const Mcp::RequestEnvelope &request,
                                                const QString &clientId) const {
+        if (request.method == QString::fromLatin1(Mcp::InitializeMethod)) {
+            QString unexpected;
+            if (!containsOnly(request.params,
+                              {QStringLiteral("_meta"), QStringLiteral("protocolVersion"),
+                               QStringLiteral("capabilities"), QStringLiteral("clientInfo")},
+                              unexpected)) {
+                return Mcp::makeErrorResponse(
+                    request.id, invalidParams(QStringLiteral("Unexpected initialize parameter"),
+                                              QJsonObject{
+                                                  {QStringLiteral("field"), unexpected}
+                }));
+            }
+            return Mcp::makeResultResponse(
+                request.id,
+                Mcp::makeInitializeResult(
+                    request.protocolVersion, m_serverInfo,
+                    QStringLiteral("DS Editor Lite exposes the same typed automation tools through "
+                                   "MCP 2025-06-18, MCP 2025-11-25, and MCP 2026-07-28.")),
+                {}, request.protocolVersion);
+        }
+        if (request.method == QString::fromLatin1(Mcp::PingMethod)) {
+            QString unexpected;
+            if (!containsOnly(request.params, {QStringLiteral("_meta")}, unexpected)) {
+                return Mcp::makeErrorResponse(
+                    request.id, invalidParams(QStringLiteral("Unexpected ping parameter"),
+                                              QJsonObject{
+                                                  {QStringLiteral("field"), unexpected}
+                }));
+            }
+            return Mcp::makeResultResponse(request.id, {}, m_serverInfo, request.protocolVersion);
+        }
         if (request.method == QString::fromLatin1(Mcp::DiscoverMethod)) {
+            if (!Mcp::isModernProtocolVersion(request.protocolVersion)) {
+                return Mcp::makeErrorResponse(
+                    request.id, {Mcp::MethodNotFound,
+                                 QStringLiteral("server/discover requires MCP 2026-07-28")});
+            }
             QString unexpected;
             if (!containsOnly(request.params, {QStringLiteral("_meta")}, unexpected)) {
                 return Mcp::makeErrorResponse(
@@ -86,7 +122,7 @@ namespace Automation {
                 }));
             }
             return Mcp::makeResultResponse(request.id, Mcp::makeDiscoverResult(m_serverInfo),
-                                           m_serverInfo);
+                                           m_serverInfo, request.protocolVersion);
         }
         if (request.method == QString::fromLatin1(Mcp::ToolsListMethod))
             return dispatchToolsList(request);
@@ -156,8 +192,9 @@ namespace Automation {
         }
         return Mcp::makeResultResponse(
             request.id,
-            Mcp::makeToolsListResult(page, nextCursor, 0, QStringLiteral("private"), m_serverInfo),
-            m_serverInfo);
+            Mcp::makeToolsListResult(page, nextCursor, 0, QStringLiteral("private"), m_serverInfo,
+                                     request.protocolVersion),
+            m_serverInfo, request.protocolVersion);
     }
 
     QJsonObject McpRequestDispatcher::dispatchToolsCall(const Mcp::RequestEnvelope &request,
@@ -210,12 +247,14 @@ namespace Automation {
             const auto structured = encodeError(result.getError());
             return Mcp::makeResultResponse(
                 request.id,
-                Mcp::makeToolCallResult(structured, true, result.getError().message, m_serverInfo),
-                m_serverInfo);
+                Mcp::makeToolCallResult(structured, true, result.getError().message, m_serverInfo,
+                                        request.protocolVersion),
+                m_serverInfo, request.protocolVersion);
         }
         return Mcp::makeResultResponse(
-            request.id, Mcp::makeToolCallResult(result.get(), false, {}, m_serverInfo),
-            m_serverInfo);
+            request.id,
+            Mcp::makeToolCallResult(result.get(), false, {}, m_serverInfo, request.protocolVersion),
+            m_serverInfo, request.protocolVersion);
     }
 
 } // namespace Automation

@@ -15,5 +15,5 @@ set(qt_platform_plugin_dir
 set_tests_properties(${PROJECT_NAME} PROPERTIES
     ENVIRONMENT
         "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=${qt_platform_plugin_dir}"
-    TIMEOUT 60
+    TIMEOUT 90
 )

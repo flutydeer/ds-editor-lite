@@ -37,6 +37,9 @@ namespace DsConnector {
         QHash<QString, qint64> m_pending;
         QSet<QString> m_inFlight;
         QSet<QString> m_cancelled;
+        QString m_stdioProtocolVersion;
+        bool m_legacyInitializeResponded = false;
+        bool m_legacyInitialized = false;
         AutomationWire::OpaqueCursorCodec m_toolsCursorCodec;
     };
 

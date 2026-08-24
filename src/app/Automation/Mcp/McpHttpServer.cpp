@@ -586,11 +586,21 @@ namespace Automation {
                 const auto bodyMethod = requestObject.value(QStringLiteral("method")).toString();
                 const auto transportMethod =
                     methodHeader ? QString::fromLatin1(*methodHeader) : QString{};
+                const auto bodyMeta = requestObject.value(QStringLiteral("params"))
+                                          .toObject()
+                                          .value(QStringLiteral("_meta"))
+                                          .toObject();
+                const auto modernTransport =
+                    bodyMethod == QString::fromLatin1(Mcp::DiscoverMethod) ||
+                    (protocolHeader && *protocolHeader == QByteArray(Mcp::ProtocolVersion)) ||
+                    bodyMeta.value(QString::fromLatin1(Mcp::ProtocolVersionMetaKey)).toString() ==
+                        QString::fromLatin1(Mcp::ProtocolVersion);
                 const auto missingRequiredHeader =
-                    !protocolHeader || !methodHeader ||
-                    ((bodyMethod == QString::fromLatin1(Mcp::ToolsCallMethod) ||
-                      transportMethod == QString::fromLatin1(Mcp::ToolsCallMethod)) &&
-                     !hasUniqueNonEmptyHeader(headers, QByteArrayLiteral("Mcp-Name")));
+                    modernTransport &&
+                    (!protocolHeader || !methodHeader ||
+                     ((bodyMethod == QString::fromLatin1(Mcp::ToolsCallMethod) ||
+                       transportMethod == QString::fromLatin1(Mcp::ToolsCallMethod)) &&
+                      !hasUniqueNonEmptyHeader(headers, QByteArrayLiteral("Mcp-Name"))));
                 if (missingRequiredHeader) {
                     return fail(jsonResponse(
                         Mcp::makeErrorResponse(
@@ -610,7 +620,8 @@ namespace Automation {
             }
 
             const auto metadata = transportMetadata(request);
-            const auto validation = Mcp::parseRequest(message);
+            const auto validation = Mcp::parseRequest(
+                message, metadata.protocolVersion ? *metadata.protocolVersion : QString{});
             if (!validation.valid()) {
                 const auto id = document.isObject() ? document.object().value(QStringLiteral("id"))
                                                     : QJsonValue(QJsonValue::Null);
@@ -618,12 +629,36 @@ namespace Automation {
                                          protocolErrorStatus(validation.error)));
             }
             const auto &validatedRequest = *validation.request;
+            const auto protocolHeaderValues =
+                request.headers().values(QByteArrayLiteral("MCP-Protocol-Version"));
+            const auto protocolHeaderWellFormed =
+                protocolHeaderValues.size() == 1 && !protocolHeaderValues.constFirst().isEmpty();
+            const auto initializeRequest =
+                validatedRequest.method == QString::fromLatin1(Mcp::InitializeMethod);
+            if ((!protocolHeaderValues.isEmpty() && !protocolHeaderWellFormed) ||
+                (!initializeRequest && !protocolHeaderWellFormed)) {
+                const Mcp::ProtocolError error{
+                    Mcp::HeaderMismatch,
+                    QStringLiteral("MCP-Protocol-Version header is missing or malformed")};
+                return fail(jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
+                                         protocolErrorStatus(error)));
+            }
             const auto metadataValidation =
                 Mcp::validateTransportMetadata(metadata, validatedRequest);
             if (!metadataValidation.valid()) {
                 return fail(jsonResponse(
                     Mcp::makeErrorResponse(validatedRequest.id, *metadataValidation.error),
-                                         protocolErrorStatus(*metadataValidation.error)));
+                    protocolErrorStatus(*metadataValidation.error)));
+            }
+            if (!validatedRequest.notification &&
+                validatedRequest.method == QString::fromLatin1(Mcp::InitializeMethod) &&
+                !Mcp::isLegacyProtocolVersion(validatedRequest.protocolVersion)) {
+                const Mcp::ProtocolError error{
+                    Mcp::InvalidRequest,
+                    QStringLiteral(
+                        "initialize is only available for MCP 2025-06-18 and 2025-11-25")};
+                return fail(jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
+                                         protocolErrorStatus(error)));
             }
             const auto clientId = clientIdFor(validatedRequest, request);
             const auto clientAdmission = m_transportState->attachClient(pendingId, clientId);
@@ -633,12 +668,12 @@ namespace Automation {
                                                QStringLiteral("MCP server is stopping"),
                                                StatusCode::ServiceUnavailable));
                 }
-                return fail(transportError(
-                    QStringLiteral("too_many_requests"),
-                    clientAdmission == McpHttpTransportState::Rejection::ClientBusy
-                        ? QStringLiteral("MCP client concurrency limit was reached")
-                        : QStringLiteral("MCP client request limit was reached"),
-                    StatusCode::TooManyRequests));
+                return fail(
+                    transportError(QStringLiteral("too_many_requests"),
+                                   clientAdmission == McpHttpTransportState::Rejection::ClientBusy
+                                       ? QStringLiteral("MCP client concurrency limit was reached")
+                                       : QStringLiteral("MCP client request limit was reached"),
+                                   StatusCode::TooManyRequests));
             }
             if (validatedRequest.notification)
                 return fail(QHttpServerResponse(StatusCode::Accepted));
@@ -660,8 +695,7 @@ namespace Automation {
             const auto invoked = QMetaObject::invokeMethod(
                 m_handlerContext,
                 [state = m_transportState, pendingId, handler = m_handler,
-                 validated = validatedRequest, clientId,
-                 limits = m_limits]() mutable {
+                 validated = validatedRequest, clientId, limits = m_limits]() mutable {
                     if (!state->isPending(pendingId))
                         return;
                     QJsonObject responseObject;
@@ -673,8 +707,8 @@ namespace Automation {
                     } catch (...) {
                         responseObject = {};
                     }
-                    const auto responseValidation =
-                        Mcp::validateResponse(responseObject, validated.id);
+                    const auto responseValidation = Mcp::validateResponse(
+                        responseObject, validated.id, validated.protocolVersion);
                     if (!responseValidation.valid()) {
                         const Mcp::ProtocolError error{
                             Mcp::InternalError,

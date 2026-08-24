@@ -27,6 +27,7 @@ namespace DsConnector {
             }
             return true;
         }
+
     }
 
     DownstreamMcpServer::DownstreamMcpServer(ConnectorRuntime *runtime, QObject *parent)
@@ -49,7 +50,8 @@ namespace DsConnector {
             return;
         }
         const auto validation = AutomationWire::Mcp::validateRequest(
-            document.isObject() ? QJsonValue(document.object()) : QJsonValue());
+            document.isObject() ? QJsonValue(document.object()) : QJsonValue(),
+            AutomationWire::Mcp::supportedProtocolVersions(), m_stdioProtocolVersion);
         if (!validation.valid()) {
             const auto object = document.isObject() ? document.object() : QJsonObject{};
             const auto recognizableNotification =
@@ -61,17 +63,71 @@ namespace DsConnector {
                 return;
             const auto id = document.isObject() ? document.object().value(QStringLiteral("id"))
                                                 : QJsonValue(QJsonValue::Undefined);
-            sendError(id, validation.error.code, validation.error.message,
-                      validation.error.data);
+            sendError(id, validation.error.code, validation.error.message, validation.error.data);
             return;
         }
         const auto &request = *validation.request;
+        if (request.notification && !m_stdioProtocolVersion.isEmpty() &&
+            request.protocolVersion != m_stdioProtocolVersion) {
+            return;
+        }
+        if (!request.notification &&
+            AutomationWire::Mcp::isModernProtocolVersion(request.protocolVersion)) {
+            m_stdioProtocolVersion = request.protocolVersion;
+            m_legacyInitializeResponded = false;
+            m_legacyInitialized = false;
+        }
+        if (request.method == QString::fromLatin1(AutomationWire::Mcp::InitializeMethod)) {
+            if (!hasOnlyKeys(request.params,
+                             {QStringLiteral("_meta"), QStringLiteral("protocolVersion"),
+                              QStringLiteral("capabilities"), QStringLiteral("clientInfo")})) {
+                sendError(request.id, AutomationWire::Mcp::InvalidParams,
+                          QStringLiteral("Invalid initialize params"));
+                return;
+            }
+            m_stdioProtocolVersion = request.protocolVersion;
+            m_legacyInitializeResponded = true;
+            m_legacyInitialized = false;
+            sendJson(AutomationWire::Mcp::makeResultResponse(
+                request.id,
+                AutomationWire::Mcp::makeInitializeResult(
+                    m_stdioProtocolVersion, serverInfo(),
+                    QStringLiteral("Use the typed DS Editor Lite tools when their schemas match "
+                                   "the requested operation. Connector status and discovery tools "
+                                   "remain available while the editor is offline.")),
+                {}, m_stdioProtocolVersion));
+            return;
+        }
+        if (request.method == QString::fromLatin1(AutomationWire::Mcp::InitializedNotification)) {
+            if (!request.notification) {
+                sendError(request.id, AutomationWire::Mcp::InvalidRequest,
+                          QStringLiteral("notifications/initialized must be a notification"));
+                return;
+            }
+            if (m_legacyInitializeResponded)
+                m_legacyInitialized = true;
+            return;
+        }
+        if (request.method == QString::fromLatin1(AutomationWire::Mcp::PingMethod)) {
+            if (!request.notification) {
+                sendJson(AutomationWire::Mcp::makeResultResponse(request.id, {}, serverInfo(),
+                                                                 request.protocolVersion));
+            }
+            return;
+        }
+        if (AutomationWire::Mcp::isLegacyProtocolVersion(request.protocolVersion) &&
+            !m_legacyInitialized) {
+            if (!request.notification) {
+                sendError(request.id, AutomationWire::Mcp::ServerNotInitialized,
+                          QStringLiteral("MCP server is not initialized"));
+            }
+            return;
+        }
         if (request.method == QStringLiteral("notifications/cancelled")) {
             const auto requestId = request.params.value(QStringLiteral("requestId"));
             const auto validParams =
-                hasOnlyKeys(request.params,
-                            {QStringLiteral("_meta"), QStringLiteral("requestId"),
-                             QStringLiteral("reason")}) &&
+                hasOnlyKeys(request.params, {QStringLiteral("_meta"), QStringLiteral("requestId"),
+                                             QStringLiteral("reason")}) &&
                 AutomationWire::Mcp::isValidRequestId(requestId) &&
                 (!request.params.contains(QStringLiteral("reason")) ||
                  request.params.value(QStringLiteral("reason")).isString());
@@ -87,13 +143,17 @@ namespace DsConnector {
         if (request.method == QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod)) {
             if (request.notification)
                 return;
+            m_stdioProtocolVersion = QString::fromLatin1(AutomationWire::Mcp::ProtocolVersion);
+            m_legacyInitializeResponded = false;
+            m_legacyInitialized = false;
             if (!hasOnlyKeys(request.params, {QStringLiteral("_meta")})) {
                 sendError(request.id, AutomationWire::Mcp::InvalidParams,
                           QStringLiteral("Invalid server/discover params"));
                 return;
             }
             sendJson(AutomationWire::Mcp::makeResultResponse(
-                request.id, AutomationWire::Mcp::makeDiscoverResult(serverInfo()), serverInfo()));
+                request.id, AutomationWire::Mcp::makeDiscoverResult(serverInfo()), serverInfo(),
+                request.protocolVersion));
             return;
         }
         if (request.method == QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod)) {
@@ -133,12 +193,10 @@ namespace DsConnector {
         }
     }
 
-    void DownstreamMcpServer::handleToolsList(
-        const AutomationWire::Mcp::RequestEnvelope &request) {
+    void DownstreamMcpServer::handleToolsList(const AutomationWire::Mcp::RequestEnvelope &request) {
         if (request.notification)
             return;
-        if (!hasOnlyKeys(request.params,
-                         {QStringLiteral("_meta"), QStringLiteral("cursor")}) ||
+        if (!hasOnlyKeys(request.params, {QStringLiteral("_meta"), QStringLiteral("cursor")}) ||
             (request.params.contains(QStringLiteral("cursor")) &&
              !request.params.value(QStringLiteral("cursor")).isString())) {
             sendError(request.id, AutomationWire::Mcp::InvalidParams,
@@ -176,9 +234,8 @@ namespace DsConnector {
             page.append(tools.at(index));
         QString next;
         if (offset + page.size() < tools.size()) {
-            next = m_toolsCursorCodec.issue(
-                QStringLiteral("connector-downstream-tools-list/v1"), snapshotDigest,
-                offset + page.size());
+            next = m_toolsCursorCodec.issue(QStringLiteral("connector-downstream-tools-list/v1"),
+                                            snapshotDigest, offset + page.size());
             if (next.isEmpty()) {
                 sendError(request.id, AutomationWire::Mcp::InternalError,
                           QStringLiteral("Unable to create tools/list cursor"));
@@ -186,19 +243,17 @@ namespace DsConnector {
             }
         }
         sendJson(AutomationWire::Mcp::makeResultResponse(
-            request.id, AutomationWire::Mcp::makeToolsListResult(page, next, 0,
-                                                                 QStringLiteral("private"),
-                                                                 serverInfo()),
-            serverInfo()));
+            request.id,
+            AutomationWire::Mcp::makeToolsListResult(page, next, 0, QStringLiteral("private"),
+                                                     serverInfo(), request.protocolVersion),
+            serverInfo(), request.protocolVersion));
     }
 
-    void DownstreamMcpServer::handleToolsCall(
-        const AutomationWire::Mcp::RequestEnvelope &request) {
+    void DownstreamMcpServer::handleToolsCall(const AutomationWire::Mcp::RequestEnvelope &request) {
         if (request.notification)
             return;
-        if (!hasOnlyKeys(request.params,
-                         {QStringLiteral("_meta"), QStringLiteral("name"),
-                          QStringLiteral("arguments")})) {
+        if (!hasOnlyKeys(request.params, {QStringLiteral("_meta"), QStringLiteral("name"),
+                                          QStringLiteral("arguments")})) {
             sendError(request.id, AutomationWire::Mcp::InvalidParams,
                       QStringLiteral("Invalid tools/call params"));
             return;
@@ -214,12 +269,13 @@ namespace DsConnector {
         } else if (const auto *tool = AutomationWire::findPublicTool(name)) {
             if (!m_runtime->exposurePolicy().allowsKnownTool(*tool)) {
                 const auto result = AutomationWire::Mcp::makeToolCallResult(
-                    QJsonObject{{QStringLiteral("code"),
-                                 QStringLiteral("connector_tool_filtered")},
-                                {QStringLiteral("message"),
-                                 QStringLiteral("connector_tool_filtered")}},
-                    true);
-                sendJson(AutomationWire::Mcp::makeResultResponse(request.id, result, serverInfo()));
+                    QJsonObject{
+                        {QStringLiteral("code"),    QStringLiteral("connector_tool_filtered")},
+                        {QStringLiteral("message"), QStringLiteral("connector_tool_filtered")}
+                },
+                    true, {}, {}, request.protocolVersion);
+                sendJson(AutomationWire::Mcp::makeResultResponse(request.id, result, serverInfo(),
+                                                                 request.protocolVersion));
                 return;
             }
             schema = tool->inputSchema;
@@ -235,13 +291,17 @@ namespace DsConnector {
         if (!validation.valid()) {
             QJsonArray issues;
             for (const auto &issue : validation.issues) {
-                issues.append(QJsonObject{{QStringLiteral("instancePath"), issue.instancePath},
-                                          {QStringLiteral("schemaPath"), issue.schemaPath},
-                                          {QStringLiteral("message"), issue.message}});
+                issues.append(QJsonObject{
+                    {QStringLiteral("instancePath"), issue.instancePath},
+                    {QStringLiteral("schemaPath"),   issue.schemaPath  },
+                    {QStringLiteral("message"),      issue.message     }
+                });
             }
             sendError(request.id, AutomationWire::Mcp::InvalidParams,
                       QStringLiteral("Tool arguments do not match inputSchema"),
-                      QJsonObject{{QStringLiteral("issues"), issues}});
+                      QJsonObject{
+                          {QStringLiteral("issues"), issues}
+            });
             return;
         }
 
@@ -254,7 +314,8 @@ namespace DsConnector {
         m_inFlight.insert(key);
         const auto token = m_runtime->callTool(
             name, arguments,
-            [this, id = request.id, key, outputSchema, validateOutput](ToolCallOutcome outcome) {
+            [this, id = request.id, key, outputSchema, validateOutput,
+             protocolVersion = request.protocolVersion](ToolCallOutcome outcome) {
                 m_pending.remove(key);
                 m_inFlight.remove(key);
                 if (m_cancelled.remove(key))
@@ -263,22 +324,21 @@ namespace DsConnector {
                     sendJson(AutomationWire::Mcp::makeErrorResponse(id, *outcome.protocolError));
                     return;
                 }
-                if (validateOutput &&
-                    !outcome.result.value(QStringLiteral("isError")).toBool()) {
+                if (validateOutput && !outcome.result.value(QStringLiteral("isError")).toBool()) {
                     const auto outputValidation = AutomationWire::validateJsonValue(
                         outcome.result.value(QStringLiteral("structuredContent")), outputSchema);
                     if (!outputValidation.valid()) {
                         outcome.result = AutomationWire::Mcp::makeToolCallResult(
                             QJsonObject{
-                                {QStringLiteral("code"),
-                                 QStringLiteral("invalid_upstream_output")},
+                                {QStringLiteral("code"),    QStringLiteral("invalid_upstream_output")},
                                 {QStringLiteral("message"),
-                                 QStringLiteral("Tool result does not match outputSchema")},
-                            },
-                            true);
+                                 QStringLiteral("Tool result does not match outputSchema")           },
+                        },
+                            true, {}, {}, protocolVersion);
                     }
                 }
-                sendJson(AutomationWire::Mcp::makeResultResponse(id, outcome.result, serverInfo()));
+                sendJson(AutomationWire::Mcp::makeResultResponse(id, outcome.result, serverInfo(),
+                                                                 protocolVersion));
             });
         if (token && m_inFlight.contains(key))
             m_pending.insert(key, token);

@@ -31,9 +31,9 @@ namespace DsConnector {
             });
         }
 
-        std::optional<TrustedTransportError>
-            trustedTransportError(const QJsonObject &response, const int httpStatus,
-                                  const QByteArray &contentType) {
+        std::optional<TrustedTransportError> trustedTransportError(const QJsonObject &response,
+                                                                   const int httpStatus,
+                                                                   const QByteArray &contentType) {
             const auto mediaType = contentType.split(';').value(0).trimmed().toLower();
             if (mediaType != QByteArrayLiteral("application/json") || response.size() != 1 ||
                 !response.value(QStringLiteral("error")).isObject()) {
@@ -73,8 +73,8 @@ namespace DsConnector {
                     valid = code == QStringLiteral("too_many_requests");
                     break;
                 case 503:
-                    valid = code == QStringLiteral("busy") ||
-                            code == QStringLiteral("mcp_stopping");
+                    valid =
+                        code == QStringLiteral("busy") || code == QStringLiteral("mcp_stopping");
                     break;
                 case 504:
                     valid = code == QStringLiteral("request_timeout");
@@ -92,22 +92,43 @@ namespace DsConnector {
                                          const int httpStatus) {
             if (!response.error)
                 return httpStatus >= 200 && httpStatus < 300;
-            return httpStatus == 200 || httpStatus == 400 || httpStatus == 404 ||
-                   httpStatus == 500;
+            return httpStatus == 200 || httpStatus == 400 || httpStatus == 404 || httpStatus == 500;
         }
 
         AutomationWire::Mcp::RequestContext requestContext(const QString &instanceId,
-                                                           const QString &version) {
+                                                           const QString &version,
+                                                           const QString &protocolVersion) {
             return {
-                .protocolVersion = QString::fromLatin1(AutomationWire::Mcp::ProtocolVersion),
+                .protocolVersion = protocolVersion,
                 .clientCapabilities = QJsonObject{{QStringLiteral("tools"), QJsonObject{}}},
-                .clientInfo = AutomationWire::Mcp::ImplementationInfo{
-                    .name = QStringLiteral("DS Connector Lite"),
-                    .version = version,
-                    .description = QStringLiteral("Local DS Editor Lite MCP stdio connector (%1)")
-                                       .arg(instanceId),
-                },
+                .clientInfo =
+                    AutomationWire::Mcp::ImplementationInfo{
+                                                  .name = QStringLiteral("DS Connector Lite"),
+                                                  .version = version,
+                                                  .description =
+                            QStringLiteral("Local DS Editor Lite MCP stdio connector (%1)")
+                                .arg(instanceId),
+                                                  },
             };
+        }
+
+        std::optional<QByteArray> sessionIdHeader(QNetworkReply *reply, bool &valid) {
+            valid = true;
+            std::optional<QByteArray> result;
+            for (const auto &[name, value] : reply->rawHeaderPairs()) {
+                if (name.compare(QByteArrayLiteral("MCP-Session-Id"), Qt::CaseInsensitive) != 0)
+                    continue;
+                if (result || value.isEmpty() ||
+                    std::any_of(value.cbegin(), value.cend(), [](const char character) {
+                        const auto code = static_cast<unsigned char>(character);
+                        return code < 0x21 || code > 0x7e;
+                    })) {
+                    valid = false;
+                    return std::nullopt;
+                }
+                result = value;
+            }
+            return result;
         }
     }
 
@@ -127,11 +148,11 @@ namespace DsConnector {
         if (error)
             error->clear();
         const QUrl candidate(endpoint, QUrl::StrictMode);
-        const auto valid =
-            candidate.isValid() && candidate.scheme() == QStringLiteral("http") &&
-            candidate.host() == QStringLiteral("127.0.0.1") && candidate.port() > 0 &&
-            candidate.path() == QStringLiteral("/mcp") && candidate.userInfo().isEmpty() &&
-            candidate.query().isEmpty() && candidate.fragment().isEmpty();
+        const auto valid = candidate.isValid() && candidate.scheme() == QStringLiteral("http") &&
+                           candidate.host() == QStringLiteral("127.0.0.1") &&
+                           candidate.port() > 0 && candidate.path() == QStringLiteral("/mcp") &&
+                           candidate.userInfo().isEmpty() && candidate.query().isEmpty() &&
+                           candidate.fragment().isEmpty();
         if (!valid) {
             if (error)
                 *error =
@@ -141,6 +162,7 @@ namespace DsConnector {
         if (m_endpoint != candidate) {
             abortAll(QStringLiteral("editor_endpoint_changed"));
             m_endpoint = candidate;
+            m_sessionId.clear();
         }
         return true;
     }
@@ -149,13 +171,49 @@ namespace DsConnector {
         return m_endpoint;
     }
 
+    bool UpstreamMcpClient::setProtocolVersion(const QString &protocolVersion) {
+        if (!AutomationWire::Mcp::supportedProtocolVersions().contains(protocolVersion))
+            return false;
+        if (m_protocolVersion != protocolVersion)
+            m_sessionId.clear();
+        m_protocolVersion = protocolVersion;
+        return true;
+    }
+
+    bool UpstreamMcpClient::adoptNegotiatedProtocolVersion(const QString &protocolVersion) {
+        if (!AutomationWire::Mcp::supportedProtocolVersions().contains(protocolVersion))
+            return false;
+        m_protocolVersion = protocolVersion;
+        return true;
+    }
+
+    QString UpstreamMcpClient::protocolVersion() const {
+        return m_protocolVersion;
+    }
+
     void UpstreamMcpClient::clearEndpoint(const QString &reason) {
         abortAll(reason);
         m_endpoint = {};
+        m_sessionId.clear();
     }
 
     qint64 UpstreamMcpClient::send(const QString &method, QJsonObject params, Callback callback,
                                    const int timeoutMs,
+                                   const QHash<QByteArray, QByteArray> &parameterHeaders) {
+        return post(method, std::move(params), QJsonValue(QJsonValue::Undefined), false,
+                    std::move(callback), timeoutMs, parameterHeaders);
+    }
+
+    qint64
+        UpstreamMcpClient::sendNotification(const QString &method, QJsonObject params,
+                                            Callback callback, const int timeoutMs,
+                                            const QHash<QByteArray, QByteArray> &parameterHeaders) {
+        return post(method, std::move(params), QJsonValue(QJsonValue::Undefined), true,
+                    std::move(callback), timeoutMs, parameterHeaders);
+    }
+
+    qint64 UpstreamMcpClient::post(const QString &method, QJsonObject params, QJsonValue upstreamId,
+                                   const bool notification, Callback callback, const int timeoutMs,
                                    const QHash<QByteArray, QByteArray> &parameterHeaders) {
         if (m_endpoint.isEmpty()) {
             if (callback)
@@ -164,26 +222,36 @@ namespace DsConnector {
         }
 
         const auto token = m_nextToken++;
-        const auto upstreamId = QStringLiteral("%1:%2").arg(m_connectorInstanceId).arg(token);
+        if (!notification)
+            upstreamId = QStringLiteral("%1:%2").arg(m_connectorInstanceId).arg(token);
+        const auto protocolVersion = m_protocolVersion;
+        const auto legacy = AutomationWire::Mcp::isLegacyProtocolVersion(protocolVersion);
+        if (legacy && method == QString::fromLatin1(AutomationWire::Mcp::InitializeMethod))
+            m_sessionId.clear();
+        const auto sessionId = legacy ? m_sessionId : QByteArray{};
         const auto message = AutomationWire::Mcp::makeRequest(
-            method, std::move(params), requestContext(m_connectorInstanceId, m_connectorVersion),
-            upstreamId);
+            method, std::move(params),
+            requestContext(m_connectorInstanceId, m_connectorVersion, protocolVersion), upstreamId);
 
         QNetworkRequest request(m_endpoint);
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                              QNetworkRequest::ManualRedirectPolicy);
         request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
         request.setRawHeader("Accept", "application/json, text/event-stream");
-        request.setRawHeader("MCP-Protocol-Version", AutomationWire::Mcp::ProtocolVersion);
-        request.setRawHeader("Mcp-Method", method.toUtf8());
-        if (method == QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod)) {
-            request.setRawHeader(
-                "Mcp-Name",
-                AutomationWire::Mcp::encodeHeaderValue(message.value(QStringLiteral("params"))
-                                                           .toObject()
-                                                           .value(QStringLiteral("name"))
-                                                           .toString())
-                    .toUtf8());
+        const auto modern = AutomationWire::Mcp::isModernProtocolVersion(protocolVersion);
+        if (modern || method != QString::fromLatin1(AutomationWire::Mcp::InitializeMethod))
+            request.setRawHeader("MCP-Protocol-Version", protocolVersion.toLatin1());
+        if (!sessionId.isEmpty())
+            request.setRawHeader("MCP-Session-Id", sessionId);
+        if (modern)
+            request.setRawHeader("Mcp-Method", method.toUtf8());
+        if (modern && method == QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod)) {
+            request.setRawHeader("Mcp-Name", AutomationWire::Mcp::encodeHeaderValue(
+                                                 message.value(QStringLiteral("params"))
+                                                     .toObject()
+                                                     .value(QStringLiteral("name"))
+                                                     .toString())
+                                                 .toUtf8());
         }
         for (auto it = parameterHeaders.constBegin(); it != parameterHeaders.constEnd(); ++it)
             request.setRawHeader(it.key(), it.value());
@@ -193,8 +261,16 @@ namespace DsConnector {
         reply->setReadBufferSize(MaxResponseBytes + 1);
         auto *timer = new QTimer(reply);
         timer->setSingleShot(true);
-        m_pending.insert(
-            token, PendingRequest{reply, timer, upstreamId, std::move(callback), {}, false, {}});
+        m_pending.insert(token, PendingRequest{
+                                    .reply = reply,
+                                    .timer = timer,
+                                    .upstreamId = upstreamId,
+                                    .protocolVersion = protocolVersion,
+                                    .method = method,
+                                    .callback = std::move(callback),
+                                    .notification = notification,
+                                    .sessionIdUsed = !sessionId.isEmpty(),
+                                });
         connect(timer, &QTimer::timeout, this, [this, token] {
             const auto it = m_pending.find(token);
             if (it == m_pending.end())
@@ -261,12 +337,21 @@ namespace DsConnector {
         UpstreamResult outcome;
         outcome.httpStatus =
             pending.reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        if (!pending.forcedError.isEmpty()) {
+        const auto expiredSession = pending.sessionIdUsed && outcome.httpStatus == 404;
+        if (expiredSession) {
+            m_sessionId.clear();
+            outcome.connectorError = QStringLiteral("upstream_session_expired");
+        } else if (!pending.forcedError.isEmpty()) {
             outcome.connectorError = pending.forcedError;
             outcome.outcomeUnknown = pending.forcedOutcomeUnknown;
         } else if ((outcome.httpStatus >= 300 && outcome.httpStatus < 400) ||
-                   pending.reply->attribute(QNetworkRequest::RedirectionTargetAttribute).isValid()) {
+                   pending.reply->attribute(QNetworkRequest::RedirectionTargetAttribute)
+                       .isValid()) {
             outcome.connectorError = QStringLiteral("upstream_redirect_rejected");
+        } else if (pending.notification && outcome.httpStatus >= 200 && outcome.httpStatus < 300 &&
+                   pending.responseBody.isEmpty()) {
+            // MCP notifications have no JSON-RPC response body. Streamable HTTP acknowledges them
+            // with an empty successful response, normally HTTP 202.
         } else {
             const auto &body = pending.responseBody;
             if (pending.reply->error() != QNetworkReply::NoError && body.isEmpty()) {
@@ -281,14 +366,29 @@ namespace DsConnector {
                     outcome.connectorError = decodeError;
                     outcome.outcomeUnknown = true;
                 } else {
-                    const auto validation =
-                        AutomationWire::Mcp::validateResponse(*object, pending.upstreamId);
+                    const auto validation = AutomationWire::Mcp::validateResponse(
+                        *object, pending.upstreamId, pending.protocolVersion);
                     if (validation.valid() &&
                         validProtocolResponseStatus(*validation.response, outcome.httpStatus)) {
-                        if (validation.response->error)
+                        if (validation.response->error) {
                             outcome.protocolError = validation.response->error;
-                        else
+                        } else if (pending.method ==
+                                       QString::fromLatin1(AutomationWire::Mcp::InitializeMethod) &&
+                                   AutomationWire::Mcp::isLegacyProtocolVersion(
+                                       pending.protocolVersion)) {
+                            bool validSessionId = false;
+                            const auto sessionId = sessionIdHeader(pending.reply, validSessionId);
+                            if (!validSessionId) {
+                                outcome.connectorError =
+                                    QStringLiteral("invalid_upstream_session_id");
+                                outcome.outcomeUnknown = true;
+                            } else {
+                                m_sessionId = sessionId.value_or(QByteArray{});
+                                outcome.result = validation.response->result;
+                            }
+                        } else {
                             outcome.result = validation.response->result;
+                        }
                     } else {
                         const auto transport =
                             trustedTransportError(*object, outcome.httpStatus, contentType);
@@ -305,12 +405,15 @@ namespace DsConnector {
             }
         }
         pending.reply->deleteLater();
+        if (expiredSession)
+            emit sessionExpired();
         if (pending.callback)
             pending.callback(std::move(outcome));
     }
 
-    std::optional<QJsonObject> UpstreamMcpClient::decodeResponseBody(
-        const QByteArray &body, const QByteArray &contentType, QString &error) {
+    std::optional<QJsonObject> UpstreamMcpClient::decodeResponseBody(const QByteArray &body,
+                                                                     const QByteArray &contentType,
+                                                                     QString &error) {
         const auto mediaType = contentType.split(';').value(0).trimmed().toLower();
         QByteArray payload;
         if (mediaType == QByteArrayLiteral("text/event-stream")) {
@@ -331,8 +434,7 @@ namespace DsConnector {
                 }
                 dataLines.clear();
                 QJsonParseError eventParseError;
-                const auto eventDocument =
-                    QJsonDocument::fromJson(eventPayload, &eventParseError);
+                const auto eventDocument = QJsonDocument::fromJson(eventPayload, &eventParseError);
                 if (eventParseError.error != QJsonParseError::NoError ||
                     !eventDocument.isObject()) {
                     error = QStringLiteral("invalid_upstream_sse_response");

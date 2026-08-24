@@ -32,13 +32,12 @@ namespace DsConnector {
             QString type;
         };
 
-        bool collectHeaderBindings(const QJsonObject &inputSchema,
-                                   QList<HeaderBinding> &bindings, QString &error) {
+        bool collectHeaderBindings(const QJsonObject &inputSchema, QList<HeaderBinding> &bindings,
+                                   QString &error) {
             bindings.clear();
             error.clear();
             QSet<QString> names;
-            static const QRegularExpression token(
-                QStringLiteral("^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"));
+            static const QRegularExpression token(QStringLiteral("^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"));
             std::function<bool(const QJsonValue &, bool, const QStringList &)> visit;
             visit = [&](const QJsonValue &value, const bool staticallyReachable,
                         const QStringList &path) {
@@ -57,8 +56,7 @@ namespace DsConnector {
                     const auto type = schema.value(QStringLiteral("type")).toString();
                     if (!staticallyReachable || path.isEmpty() || !header.isString() ||
                         !token.match(header.toString()).hasMatch() ||
-                        (type != QStringLiteral("string") &&
-                         type != QStringLiteral("integer") &&
+                        (type != QStringLiteral("string") && type != QStringLiteral("integer") &&
                          type != QStringLiteral("boolean")) ||
                         names.contains(header.toString().toCaseFolded())) {
                         error = QStringLiteral("invalid x-mcp-header annotation");
@@ -144,29 +142,29 @@ namespace DsConnector {
         QJsonObject emptyObjectSchema() {
             return {
                 {QStringLiteral("$schema"),
-                 QStringLiteral("https://json-schema.org/draft/2020-12/schema")},
-                {QStringLiteral("type"), QStringLiteral("object")},
-                {QStringLiteral("properties"), QJsonObject{}},
-                {QStringLiteral("additionalProperties"), false},
+                 QStringLiteral("https://json-schema.org/draft/2020-12/schema")  },
+                {QStringLiteral("type"),                 QStringLiteral("object")},
+                {QStringLiteral("properties"),           QJsonObject{}           },
+                {QStringLiteral("additionalProperties"), false                   },
             };
         }
 
         QJsonObject openObjectSchema() {
             return {
                 {QStringLiteral("$schema"),
-                 QStringLiteral("https://json-schema.org/draft/2020-12/schema")},
-                {QStringLiteral("type"), QStringLiteral("object")},
-                {QStringLiteral("additionalProperties"), true},
+                 QStringLiteral("https://json-schema.org/draft/2020-12/schema")  },
+                {QStringLiteral("type"),                 QStringLiteral("object")},
+                {QStringLiteral("additionalProperties"), true                    },
             };
         }
 
         QJsonObject strictObjectSchema(QJsonObject properties, QJsonArray required = {}) {
             QJsonObject result{
                 {QStringLiteral("$schema"),
-                 QStringLiteral("https://json-schema.org/draft/2020-12/schema")},
-                {QStringLiteral("type"), QStringLiteral("object")},
-                {QStringLiteral("properties"), std::move(properties)},
-                {QStringLiteral("additionalProperties"), false},
+                 QStringLiteral("https://json-schema.org/draft/2020-12/schema")  },
+                {QStringLiteral("type"),                 QStringLiteral("object")},
+                {QStringLiteral("properties"),           std::move(properties)   },
+                {QStringLiteral("additionalProperties"), false                   },
             };
             if (!required.isEmpty())
                 result.insert(QStringLiteral("required"), required);
@@ -174,7 +172,9 @@ namespace DsConnector {
         }
 
         QJsonObject stringSchema() {
-            return {{QStringLiteral("type"), QStringLiteral("string")}};
+            return {
+                {QStringLiteral("type"), QStringLiteral("string")}
+            };
         }
 
         QJsonObject enumStringSchema(const QStringList &values) {
@@ -183,33 +183,35 @@ namespace DsConnector {
                 entries.append(value);
             return {
                 {QStringLiteral("type"), QStringLiteral("string")},
-                {QStringLiteral("enum"), entries},
+                {QStringLiteral("enum"), entries                 },
             };
         }
 
         QJsonObject digestSchema() {
             return {
-                {QStringLiteral("type"), QStringLiteral("string")},
+                {QStringLiteral("type"),    QStringLiteral("string")                    },
                 {QStringLiteral("pattern"), QStringLiteral("^(?:|sha256:[0-9a-f]{64})$")},
             };
         }
 
         QJsonObject integerSchema(const int minimum = 0) {
             return {
-                {QStringLiteral("type"), QStringLiteral("integer")},
-                {QStringLiteral("minimum"), minimum},
+                {QStringLiteral("type"),    QStringLiteral("integer")},
+                {QStringLiteral("minimum"), minimum                  },
             };
         }
 
         QJsonObject stringArraySchema() {
             return {
-                {QStringLiteral("type"), QStringLiteral("array")},
-                {QStringLiteral("items"), stringSchema()},
+                {QStringLiteral("type"),  QStringLiteral("array")},
+                {QStringLiteral("items"), stringSchema()         },
             };
         }
 
         QJsonObject schemaReference(const QString &name) {
-            return {{QStringLiteral("$ref"), QStringLiteral("#/$defs/%1").arg(name)}};
+            return {
+                {QStringLiteral("$ref"), QStringLiteral("#/$defs/%1").arg(name)}
+            };
         }
 
         QJsonObject jsonValueMetaSchema() {
@@ -238,83 +240,83 @@ namespace DsConnector {
                  QJsonArray{QStringLiteral("null"), QStringLiteral("boolean"),
                             QStringLiteral("object"), QStringLiteral("array"),
                             QStringLiteral("number"), QStringLiteral("integer"),
-                            QStringLiteral("string")}},
+                            QStringLiteral("string")}            },
             };
             const QJsonObject typeNames{
-                {QStringLiteral("type"), QStringLiteral("array")},
-                {QStringLiteral("items"), typeName},
-                {QStringLiteral("minItems"), 1},
-                {QStringLiteral("uniqueItems"), true},
+                {QStringLiteral("type"),        QStringLiteral("array")},
+                {QStringLiteral("items"),       typeName               },
+                {QStringLiteral("minItems"),    1                      },
+                {QStringLiteral("uniqueItems"), true                   },
             };
             const QJsonObject schemaMap{
-                {QStringLiteral("type"), QStringLiteral("object")},
-                {QStringLiteral("additionalProperties"), schema},
+                {QStringLiteral("type"),                 QStringLiteral("object")},
+                {QStringLiteral("additionalProperties"), schema                  },
             };
             const QJsonObject schemaArray{
-                {QStringLiteral("type"), QStringLiteral("array")},
-                {QStringLiteral("items"), schema},
-                {QStringLiteral("minItems"), 1},
+                {QStringLiteral("type"),     QStringLiteral("array")},
+                {QStringLiteral("items"),    schema                 },
+                {QStringLiteral("minItems"), 1                      },
             };
             const auto schemaObject = strictObjectSchema(QJsonObject{
-                {QStringLiteral("$schema"), stringSchema()},
-                {QStringLiteral("$id"), stringSchema()},
-                {QStringLiteral("$anchor"), stringSchema()},
-                {QStringLiteral("$defs"), schemaMap},
-                {QStringLiteral("$ref"), stringSchema()},
-                {QStringLiteral("$comment"), stringSchema()},
-                {QStringLiteral("title"), stringSchema()},
-                {QStringLiteral("description"), stringSchema()},
-                {QStringLiteral("default"), value},
+                {QStringLiteral("$schema"),              stringSchema()                 },
+                {QStringLiteral("$id"),                  stringSchema()                 },
+                {QStringLiteral("$anchor"),              stringSchema()                 },
+                {QStringLiteral("$defs"),                schemaMap                      },
+                {QStringLiteral("$ref"),                 stringSchema()                 },
+                {QStringLiteral("$comment"),             stringSchema()                 },
+                {QStringLiteral("title"),                stringSchema()                 },
+                {QStringLiteral("description"),          stringSchema()                 },
+                {QStringLiteral("default"),              value                          },
                 {QStringLiteral("examples"),
                  QJsonObject{{QStringLiteral("type"), QStringLiteral("array")},
-                             {QStringLiteral("items"), value}}},
+                             {QStringLiteral("items"), value}}                          },
                 {QStringLiteral("deprecated"),
-                 QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")}}},
+                 QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")}}       },
                 {QStringLiteral("readOnly"),
-                 QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")}}},
+                 QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")}}       },
                 {QStringLiteral("writeOnly"),
-                 QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")}}},
+                 QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")}}       },
                 {QStringLiteral("type"),
                  QJsonObject{{QStringLiteral("oneOf"), QJsonArray{typeName, typeNames}}}},
-                {QStringLiteral("properties"), schemaMap},
-                {QStringLiteral("required"), stringArraySchema()},
-                {QStringLiteral("additionalProperties"), schema},
-                {QStringLiteral("items"), schema},
-                {QStringLiteral("prefixItems"), schemaArray},
-                {QStringLiteral("contains"), schema},
+                {QStringLiteral("properties"),           schemaMap                      },
+                {QStringLiteral("required"),             stringArraySchema()            },
+                {QStringLiteral("additionalProperties"), schema                         },
+                {QStringLiteral("items"),                schema                         },
+                {QStringLiteral("prefixItems"),          schemaArray                    },
+                {QStringLiteral("contains"),             schema                         },
                 {QStringLiteral("enum"),
                  QJsonObject{{QStringLiteral("type"), QStringLiteral("array")},
                              {QStringLiteral("items"), value},
-                             {QStringLiteral("minItems"), 1}}},
-                {QStringLiteral("const"), value},
+                             {QStringLiteral("minItems"), 1}}                           },
+                {QStringLiteral("const"),                value                          },
                 {QStringLiteral("minimum"),
-                 QJsonObject{{QStringLiteral("type"), QStringLiteral("number")}}},
+                 QJsonObject{{QStringLiteral("type"), QStringLiteral("number")}}        },
                 {QStringLiteral("maximum"),
-                 QJsonObject{{QStringLiteral("type"), QStringLiteral("number")}}},
+                 QJsonObject{{QStringLiteral("type"), QStringLiteral("number")}}        },
                 {QStringLiteral("exclusiveMinimum"),
-                 QJsonObject{{QStringLiteral("type"), QStringLiteral("number")}}},
+                 QJsonObject{{QStringLiteral("type"), QStringLiteral("number")}}        },
                 {QStringLiteral("exclusiveMaximum"),
-                 QJsonObject{{QStringLiteral("type"), QStringLiteral("number")}}},
+                 QJsonObject{{QStringLiteral("type"), QStringLiteral("number")}}        },
                 {QStringLiteral("multipleOf"),
-                 QJsonObject{{QStringLiteral("type"), QStringLiteral("number")}}},
-                {QStringLiteral("minItems"), integerSchema()},
-                {QStringLiteral("maxItems"), integerSchema()},
+                 QJsonObject{{QStringLiteral("type"), QStringLiteral("number")}}        },
+                {QStringLiteral("minItems"),             integerSchema()                },
+                {QStringLiteral("maxItems"),             integerSchema()                },
                 {QStringLiteral("uniqueItems"),
-                 QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")}}},
-                {QStringLiteral("minLength"), integerSchema()},
-                {QStringLiteral("maxLength"), integerSchema()},
-                {QStringLiteral("pattern"), stringSchema()},
-                {QStringLiteral("format"), stringSchema()},
-                {QStringLiteral("minProperties"), integerSchema()},
-                {QStringLiteral("maxProperties"), integerSchema()},
-                {QStringLiteral("oneOf"), schemaArray},
-                {QStringLiteral("anyOf"), schemaArray},
-                {QStringLiteral("allOf"), schemaArray},
-                {QStringLiteral("not"), schema},
-                {QStringLiteral("if"), schema},
-                {QStringLiteral("then"), schema},
-                {QStringLiteral("else"), schema},
-                {QStringLiteral("x-mcp-header"), stringSchema()},
+                 QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")}}       },
+                {QStringLiteral("minLength"),            integerSchema()                },
+                {QStringLiteral("maxLength"),            integerSchema()                },
+                {QStringLiteral("pattern"),              stringSchema()                 },
+                {QStringLiteral("format"),               stringSchema()                 },
+                {QStringLiteral("minProperties"),        integerSchema()                },
+                {QStringLiteral("maxProperties"),        integerSchema()                },
+                {QStringLiteral("oneOf"),                schemaArray                    },
+                {QStringLiteral("anyOf"),                schemaArray                    },
+                {QStringLiteral("allOf"),                schemaArray                    },
+                {QStringLiteral("not"),                  schema                         },
+                {QStringLiteral("if"),                   schema                         },
+                {QStringLiteral("then"),                 schema                         },
+                {QStringLiteral("else"),                 schema                         },
+                {QStringLiteral("x-mcp-header"),         stringSchema()                 },
             });
             return {
                 {QStringLiteral("oneOf"),
@@ -326,10 +328,11 @@ namespace DsConnector {
         }
 
         void attachSchemaDefinitions(QJsonObject &schema) {
-            schema.insert(
-                QStringLiteral("$defs"),
-                QJsonObject{{QStringLiteral("json_value"), jsonValueMetaSchema()},
-                            {QStringLiteral("schema"), jsonSchemaMetaSchema()}});
+            schema.insert(QStringLiteral("$defs"),
+                          QJsonObject{
+                              {QStringLiteral("json_value"), jsonValueMetaSchema() },
+                              {QStringLiteral("schema"),     jsonSchemaMetaSchema()}
+            });
         }
 
         QJsonObject toolDescriptorSchema() {
@@ -337,32 +340,30 @@ namespace DsConnector {
                 {QStringLiteral("type"), QStringLiteral("boolean")},
             };
             auto annotations = strictObjectSchema(QJsonObject{
-                {QStringLiteral("title"), stringSchema()},
-                {QStringLiteral("readOnlyHint"), boolean},
-                {QStringLiteral("destructiveHint"), boolean},
-                {QStringLiteral("idempotentHint"), boolean},
-                {QStringLiteral("openWorldHint"), boolean},
-                {QStringLiteral("toolsetVersion"), integerSchema(1)},
+                {QStringLiteral("title"),                    stringSchema()  },
+                {QStringLiteral("readOnlyHint"),             boolean         },
+                {QStringLiteral("destructiveHint"),          boolean         },
+                {QStringLiteral("idempotentHint"),           boolean         },
+                {QStringLiteral("openWorldHint"),            boolean         },
+                {QStringLiteral("toolsetVersion"),           integerSchema(1)},
                 {QStringLiteral("minimumCompatibleVersion"), integerSchema(1)},
-                {QStringLiteral("category"), stringSchema()},
+                {QStringLiteral("category"),                 stringSchema()  },
             });
             annotations.insert(QStringLiteral("additionalProperties"), true);
             auto result = strictObjectSchema(
                 QJsonObject{
-                    {QStringLiteral("name"), stringSchema()},
-                    {QStringLiteral("title"), stringSchema()},
-                    {QStringLiteral("description"), stringSchema()},
-                    {QStringLiteral("inputSchema"),
-                     schemaReference(QStringLiteral("schema"))},
-                    {QStringLiteral("outputSchema"),
-                     schemaReference(QStringLiteral("schema"))},
-                    {QStringLiteral("annotations"), annotations},
+                    {QStringLiteral("name"),         stringSchema()                           },
+                    {QStringLiteral("title"),        stringSchema()                           },
+                    {QStringLiteral("description"),  stringSchema()                           },
+                    {QStringLiteral("inputSchema"),  schemaReference(QStringLiteral("schema"))},
+                    {QStringLiteral("outputSchema"), schemaReference(QStringLiteral("schema"))},
+                    {QStringLiteral("annotations"),  annotations                              },
                     {QStringLiteral("icons"),
                      QJsonObject{{QStringLiteral("type"), QStringLiteral("array")},
-                                 {QStringLiteral("items"), openObjectSchema()}}},
-                    {QStringLiteral("_meta"), openObjectSchema()},
-                    {QStringLiteral("availability"), stringSchema()},
-                },
+                                 {QStringLiteral("items"), openObjectSchema()}}               },
+                    {QStringLiteral("_meta"),        openObjectSchema()                       },
+                    {QStringLiteral("availability"), stringSchema()                           },
+            },
                 QJsonArray{QStringLiteral("name"), QStringLiteral("inputSchema")});
             result.insert(QStringLiteral("additionalProperties"), true);
             return result;
@@ -426,8 +427,8 @@ namespace DsConnector {
             const auto operation = value.toObject();
             const QStringList requiredStrings{
                 QStringLiteral("operation_id"), QStringLiteral("title"),
-                QStringLiteral("description"), QStringLiteral("category"),
-                QStringLiteral("kind"), QStringLiteral("minimum_profile"),
+                QStringLiteral("description"),  QStringLiteral("category"),
+                QStringLiteral("kind"),         QStringLiteral("minimum_profile"),
                 QStringLiteral("sync_mode"),
             };
             for (const auto &key : requiredStrings) {
@@ -447,33 +448,32 @@ namespace DsConnector {
 
         QJsonObject statusSchema() {
             const auto connector = strictObjectSchema(
-                QJsonObject{{QStringLiteral("instance_id"), stringSchema()},
-                            {QStringLiteral("version"), stringSchema()},
-                            {QStringLiteral("executable_path"), stringSchema()},
-                            {QStringLiteral("build_id"), stringSchema()}},
+                QJsonObject{
+                    {QStringLiteral("instance_id"),     stringSchema()},
+                    {QStringLiteral("version"),         stringSchema()},
+                    {QStringLiteral("executable_path"), stringSchema()},
+                    {QStringLiteral("build_id"),        stringSchema()}
+            },
                 QJsonArray{QStringLiteral("instance_id"), QStringLiteral("version"),
                            QStringLiteral("executable_path"), QStringLiteral("build_id")});
             const auto editor = strictObjectSchema(
                 QJsonObject{
                     {QStringLiteral("state"),
-                     enumStringSchema({QStringLiteral("not_running"),
-                                       QStringLiteral("starting"),
-                                       QStringLiteral("mcp_disabled"),
-                                       QStringLiteral("mcp_starting"),
-                                       QStringLiteral("mcp_ready"),
-                                       QStringLiteral("mcp_stopping"),
-                                       QStringLiteral("editor_stopping"),
-                                       QStringLiteral("error")})},
-                    {QStringLiteral("editor_instance_id"), stringSchema()},
-                    {QStringLiteral("process_id"), integerSchema()},
-                    {QStringLiteral("executable_path"), stringSchema()},
-                    {QStringLiteral("application_version"), stringSchema()},
-                    {QStringLiteral("build_id"), stringSchema()},
+                     enumStringSchema(
+                         {QStringLiteral("not_running"), QStringLiteral("starting"),
+                          QStringLiteral("mcp_disabled"), QStringLiteral("mcp_starting"),
+                          QStringLiteral("mcp_ready"), QStringLiteral("mcp_stopping"),
+                          QStringLiteral("editor_stopping"), QStringLiteral("error")})  },
+                    {QStringLiteral("editor_instance_id"),  stringSchema()              },
+                    {QStringLiteral("process_id"),          integerSchema()             },
+                    {QStringLiteral("executable_path"),     stringSchema()              },
+                    {QStringLiteral("application_version"), stringSchema()              },
+                    {QStringLiteral("build_id"),            stringSchema()              },
                     {QStringLiteral("host_mode"),
-                     enumStringSchema({QString(), QStringLiteral("gui"),
-                                       QStringLiteral("headless")})},
-                    {QStringLiteral("error"), stringSchema()},
-                },
+                     enumStringSchema(
+                         {QString(), QStringLiteral("gui"), QStringLiteral("headless")})},
+                    {QStringLiteral("error"),               stringSchema()              },
+            },
                 QJsonArray{QStringLiteral("state"), QStringLiteral("editor_instance_id"),
                            QStringLiteral("process_id"), QStringLiteral("executable_path"),
                            QStringLiteral("application_version"), QStringLiteral("build_id"),
@@ -484,73 +484,72 @@ namespace DsConnector {
                      QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")}}},
                     {QStringLiteral("protocol_supported"),
                      QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")}}},
-                    {QStringLiteral("protocol_version"), integerSchema()},
-                    {QStringLiteral("error"), stringSchema()},
-                },
-                QJsonArray{QStringLiteral("connected"),
-                           QStringLiteral("protocol_supported"),
+                    {QStringLiteral("protocol_version"),   integerSchema()           },
+                    {QStringLiteral("error"),              stringSchema()            },
+            },
+                QJsonArray{QStringLiteral("connected"), QStringLiteral("protocol_supported"),
                            QStringLiteral("protocol_version"), QStringLiteral("error")});
             const auto mcp = strictObjectSchema(
                 QJsonObject{
                     {QStringLiteral("connected"),
-                     QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")}}},
-                    {QStringLiteral("endpoint"), stringSchema()},
+                     QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")}}             },
+                    {QStringLiteral("endpoint"),              stringSchema()                      },
                     {QStringLiteral("protocol_version"),
-                     enumStringSchema({QString(), QString::fromLatin1(
-                                                       AutomationWire::Mcp::ProtocolVersion)})},
-                    {QStringLiteral("error"), stringSchema()},
-                    {QStringLiteral("pending_request_count"), integerSchema()},
-                },
+                     enumStringSchema(
+                         {QString(), QString::fromLatin1(AutomationWire::Mcp::ProtocolVersion),
+                          QString::fromLatin1(AutomationWire::Mcp::LegacyProtocolVersion),
+                          QString::fromLatin1(AutomationWire::Mcp::CompatibilityProtocolVersion)})},
+                    {QStringLiteral("error"),                 stringSchema()                      },
+                    {QStringLiteral("pending_request_count"), integerSchema()                     },
+            },
                 QJsonArray{QStringLiteral("connected"), QStringLiteral("endpoint"),
                            QStringLiteral("protocol_version"), QStringLiteral("error"),
                            QStringLiteral("pending_request_count")});
             const auto manifest = strictObjectSchema(
                 QJsonObject{
                     {QStringLiteral("compatibility"),
-                     enumStringSchema({QStringLiteral("not_loaded"),
-                                       QStringLiteral("refreshing"),
+                     enumStringSchema({QStringLiteral("not_loaded"), QStringLiteral("refreshing"),
                                        QStringLiteral("manifest_unavailable"),
                                        QStringLiteral("compatible"),
                                        QStringLiteral("compatible_subset"),
-                                       QStringLiteral("contract_incompatible")})},
+                                       QStringLiteral("contract_incompatible")})  },
                     {QStringLiteral("connector_toolset_version"), integerSchema(1)},
-                    {QStringLiteral("editor_toolset_version"), integerSchema()},
-                    {QStringLiteral("connector_digest"), digestSchema()},
-                    {QStringLiteral("editor_digest"), digestSchema()},
-                    {QStringLiteral("compatible_count"), integerSchema()},
-                    {QStringLiteral("incompatible_count"), integerSchema()},
-                    {QStringLiteral("unavailable_count"), integerSchema()},
-                },
-                QJsonArray{QStringLiteral("compatibility"),
-                           QStringLiteral("connector_toolset_version"),
-                           QStringLiteral("editor_toolset_version"),
-                           QStringLiteral("connector_digest"),
-                           QStringLiteral("editor_digest"),
-                           QStringLiteral("compatible_count"),
-                           QStringLiteral("incompatible_count"),
-                           QStringLiteral("unavailable_count")});
+                    {QStringLiteral("editor_toolset_version"),    integerSchema() },
+                    {QStringLiteral("connector_digest"),          digestSchema()  },
+                    {QStringLiteral("editor_digest"),             digestSchema()  },
+                    {QStringLiteral("compatible_count"),          integerSchema() },
+                    {QStringLiteral("incompatible_count"),        integerSchema() },
+                    {QStringLiteral("unavailable_count"),         integerSchema() },
+            },
+                QJsonArray{
+                    QStringLiteral("compatibility"), QStringLiteral("connector_toolset_version"),
+                    QStringLiteral("editor_toolset_version"), QStringLiteral("connector_digest"),
+                    QStringLiteral("editor_digest"), QStringLiteral("compatible_count"),
+                    QStringLiteral("incompatible_count"), QStringLiteral("unavailable_count")});
             const auto exposure = strictObjectSchema(
                 QJsonObject{
                     {QStringLiteral("profile"),
                      enumStringSchema({QStringLiteral("l0"), QStringLiteral("l1"),
                                        QStringLiteral("l2"), QStringLiteral("l3")})},
-                    {QStringLiteral("includes"), stringArraySchema()},
-                    {QStringLiteral("excludes"), stringArraySchema()},
-                    {QStringLiteral("typed_tool_count"), integerSchema()},
-                    {QStringLiteral("generic_target_count"), integerSchema()},
-                    {QStringLiteral("pending_selectors"), stringArraySchema()},
-                },
+                    {QStringLiteral("includes"),             stringArraySchema()   },
+                    {QStringLiteral("excludes"),             stringArraySchema()   },
+                    {QStringLiteral("typed_tool_count"),     integerSchema()       },
+                    {QStringLiteral("generic_target_count"), integerSchema()       },
+                    {QStringLiteral("pending_selectors"),    stringArraySchema()   },
+            },
                 QJsonArray{QStringLiteral("profile"), QStringLiteral("includes"),
                            QStringLiteral("excludes"), QStringLiteral("typed_tool_count"),
                            QStringLiteral("generic_target_count"),
                            QStringLiteral("pending_selectors")});
             return strictObjectSchema(
-                QJsonObject{{QStringLiteral("connector"), connector},
-                            {QStringLiteral("editor"), editor},
-                            {QStringLiteral("bootstrap"), bootstrap},
-                            {QStringLiteral("mcp"), mcp},
-                            {QStringLiteral("manifest"), manifest},
-                            {QStringLiteral("exposure"), exposure}},
+                QJsonObject{
+                    {QStringLiteral("connector"), connector},
+                    {QStringLiteral("editor"),    editor   },
+                    {QStringLiteral("bootstrap"), bootstrap},
+                    {QStringLiteral("mcp"),       mcp      },
+                    {QStringLiteral("manifest"),  manifest },
+                    {QStringLiteral("exposure"),  exposure }
+            },
                 QJsonArray{QStringLiteral("connector"), QStringLiteral("editor"),
                            QStringLiteral("bootstrap"), QStringLiteral("mcp"),
                            QStringLiteral("manifest"), QStringLiteral("exposure")});
@@ -558,18 +557,17 @@ namespace DsConnector {
 
         QJsonObject toolCollectionSchema(const bool paged) {
             QJsonObject properties{
-                {QStringLiteral("toolset_version"), integerSchema()},
+                {QStringLiteral("toolset_version"), integerSchema()            },
                 {QStringLiteral("tools"),
                  QJsonObject{{QStringLiteral("type"), QStringLiteral("array")},
                              {QStringLiteral("items"), toolDescriptorSchema()}}},
-                {QStringLiteral("manifest_digest"), stringSchema()},
+                {QStringLiteral("manifest_digest"), stringSchema()             },
             };
             if (paged)
                 properties.insert(QStringLiteral("next_cursor"), stringSchema());
             auto result = strictObjectSchema(
-                properties,
-                QJsonArray{QStringLiteral("toolset_version"), QStringLiteral("tools"),
-                           QStringLiteral("manifest_digest")});
+                properties, QJsonArray{QStringLiteral("toolset_version"), QStringLiteral("tools"),
+                                       QStringLiteral("manifest_digest")});
             attachSchemaDefinitions(result);
             return result;
         }
@@ -577,37 +575,33 @@ namespace DsConnector {
         QJsonObject describeSchema() {
             auto result = strictObjectSchema(
                 QJsonObject{
-                    {QStringLiteral("tool"), toolDescriptorSchema()},
-                    {QStringLiteral("version"), integerSchema()},
-                    {QStringLiteral("minimum_compatible_version"), integerSchema(1)},
-                    {QStringLiteral("input_schema"),
-                     schemaReference(QStringLiteral("schema"))},
-                    {QStringLiteral("output_schema"),
-                     schemaReference(QStringLiteral("schema"))},
-                    {QStringLiteral("manifest_digest"), stringSchema()},
-                    {QStringLiteral("typed_compatibility"), stringSchema()},
-                    {QStringLiteral("availability"), stringSchema()},
-                    {QStringLiteral("minimum_profile"), stringSchema()},
-                    {QStringLiteral("category"), stringSchema()},
-                },
+                    {QStringLiteral("tool"),                       toolDescriptorSchema()                   },
+                    {QStringLiteral("version"),                    integerSchema()                          },
+                    {QStringLiteral("minimum_compatible_version"), integerSchema(1)                         },
+                    {QStringLiteral("input_schema"),               schemaReference(QStringLiteral("schema"))},
+                    {QStringLiteral("output_schema"),              schemaReference(QStringLiteral("schema"))},
+                    {QStringLiteral("manifest_digest"),            stringSchema()                           },
+                    {QStringLiteral("typed_compatibility"),        stringSchema()                           },
+                    {QStringLiteral("availability"),               stringSchema()                           },
+                    {QStringLiteral("minimum_profile"),            stringSchema()                           },
+                    {QStringLiteral("category"),                   stringSchema()                           },
+            },
                 QJsonArray{QStringLiteral("tool"), QStringLiteral("version"),
                            QStringLiteral("minimum_compatible_version"),
                            QStringLiteral("input_schema"), QStringLiteral("manifest_digest"),
-                           QStringLiteral("typed_compatibility"),
-                           QStringLiteral("availability"),
+                           QStringLiteral("typed_compatibility"), QStringLiteral("availability"),
                            QStringLiteral("minimum_profile"), QStringLiteral("category")});
             attachSchemaDefinitions(result);
             return result;
         }
 
         QJsonObject bridgeTool(const QString &name, const QString &description,
-                               const QJsonObject &inputSchema,
-                               const QJsonObject &outputSchema) {
+                               const QJsonObject &inputSchema, const QJsonObject &outputSchema) {
             return {
-                {QStringLiteral("name"), name},
-                {QStringLiteral("title"), name},
-                {QStringLiteral("description"), description},
-                {QStringLiteral("inputSchema"), inputSchema},
+                {QStringLiteral("name"),         name        },
+                {QStringLiteral("title"),        name        },
+                {QStringLiteral("description"),  description },
+                {QStringLiteral("inputSchema"),  inputSchema },
                 {QStringLiteral("outputSchema"), outputSchema},
                 {QStringLiteral("annotations"),
                  QJsonObject{
@@ -619,7 +613,7 @@ namespace DsConnector {
                      {QStringLiteral("minimumCompatibleVersion"),
                       static_cast<qint64>(AutomationWire::PublicMinimumCompatibleVersion)},
                      {QStringLiteral("category"), QStringLiteral("connector")},
-                 }},
+                 }                                           },
             };
         }
 
@@ -631,8 +625,8 @@ namespace DsConnector {
             return value;
         }
 
-        qint64 jsonInteger(const QJsonObject &object, const QString &camel,
-                           const QString &snake, const qint64 fallback) {
+        qint64 jsonInteger(const QJsonObject &object, const QString &camel, const QString &snake,
+                           const qint64 fallback) {
             const auto value = object.contains(camel) ? object.value(camel) : object.value(snake);
             return value.isDouble() ? value.toInteger(fallback) : fallback;
         }
@@ -650,16 +644,15 @@ namespace DsConnector {
             QJsonObject result{
                 {QStringLiteral("name"), ExposurePolicy::operationId(tool)},
                 {QStringLiteral("inputSchema"),
-                 jsonValue(tool, QStringLiteral("inputSchema"),
-                           QStringLiteral("input_schema"))},
+                 jsonValue(tool, QStringLiteral("inputSchema"), QStringLiteral("input_schema"))},
             };
             for (const auto &key : {QStringLiteral("title"), QStringLiteral("description")}) {
                 const auto value = tool.value(key);
                 if (value.isString())
                     result.insert(key, value);
             }
-            const auto outputSchema = jsonValue(
-                tool, QStringLiteral("outputSchema"), QStringLiteral("output_schema"));
+            const auto outputSchema =
+                jsonValue(tool, QStringLiteral("outputSchema"), QStringLiteral("output_schema"));
             if (outputSchema.isObject())
                 result.insert(QStringLiteral("outputSchema"), outputSchema);
             if (!annotations.isEmpty() || tool.contains(QStringLiteral("annotations")))
@@ -676,7 +669,7 @@ namespace DsConnector {
 
         QJsonObject callArguments(const QString &name, const QJsonObject &arguments) {
             return {
-                {QStringLiteral("name"), name},
+                {QStringLiteral("name"),      name     },
                 {QStringLiteral("arguments"), arguments},
             };
         }
@@ -696,11 +689,29 @@ namespace DsConnector {
 
         bool retryableHandshakeError(const QString &error) {
             return error == QStringLiteral("too_many_requests") ||
-                   error == QStringLiteral("busy") ||
-                   error == QStringLiteral("mcp_stopping") ||
+                   error == QStringLiteral("busy") || error == QStringLiteral("mcp_stopping") ||
                    error == QStringLiteral("request_timeout") ||
                    error == QStringLiteral("upstream_timeout") ||
                    error == QStringLiteral("upstream_transport_error");
+        }
+
+        bool shouldTryLegacyHandshake(const UpstreamResult &result) {
+            if (result.protocolError) {
+                switch (result.protocolError->code) {
+                    case AutomationWire::Mcp::MethodNotFound:
+                    case AutomationWire::Mcp::ServerNotInitialized:
+                    case AutomationWire::Mcp::HeaderMismatch:
+                    case AutomationWire::Mcp::MissingRequiredClientCapability:
+                    case AutomationWire::Mcp::UnsupportedProtocolVersion:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+            return result.connectorError != QStringLiteral("too_many_requests") &&
+                   result.connectorError != QStringLiteral("busy") &&
+                   result.connectorError != QStringLiteral("mcp_stopping") &&
+                   result.connectorError != QStringLiteral("request_timeout");
         }
     }
 
@@ -709,13 +720,15 @@ namespace DsConnector {
         : QObject(parent), m_options(std::move(options)), m_exposure(m_options),
           m_instanceId(QUuid::createUuid().toString(QUuid::WithoutBraces)),
           m_version(QString::fromLatin1(LiteProductMetadata::Version)),
-          m_bootstrap(new BootstrapWatcher(m_instanceId, m_version,
-                                           std::move(bootstrapServiceName), this)),
+          m_bootstrap(
+              new BootstrapWatcher(m_instanceId, m_version, std::move(bootstrapServiceName), this)),
           m_upstream(new UpstreamMcpClient(m_instanceId, m_version, this)),
           m_handshakeRetryTimer(new QTimer(this)) {
+        m_unavailableCount = m_exposure.typedContracts().size();
         m_handshakeRetryTimer->setSingleShot(true);
         connect(m_bootstrap, &BootstrapWatcher::observationChanged, this,
                 &ConnectorRuntime::bootstrapChanged);
+        connect(m_upstream, &UpstreamMcpClient::sessionExpired, this, &ConnectorRuntime::reconnect);
         connect(m_handshakeRetryTimer, &QTimer::timeout, this, [this] {
             if (m_handshakeInProgress && m_handshakeTarget)
                 startHandshakeAttempt();
@@ -743,15 +756,15 @@ namespace DsConnector {
     QJsonObject ConnectorRuntime::status() const {
         const auto &observation = m_bootstrap->observation();
         const auto hasSnapshot = observation.connected && observation.snapshot.has_value();
-        const auto editorStatus = hasSnapshot ? observation.snapshot->result
-                                              : SingleInstanceAutomationStatus{};
+        const auto editorStatus =
+            hasSnapshot ? observation.snapshot->result : SingleInstanceAutomationStatus{};
         const auto editorState =
             hasSnapshot ? SingleInstanceProtocol::automationStateName(editorStatus.state)
                         : QStringLiteral("not_running");
 
         const auto &connectorContract = connectorManifest();
-        const auto editorVersion = jsonInteger(
-            m_manifest, QStringLiteral("toolsetVersion"), QStringLiteral("toolset_version"), 0);
+        const auto editorVersion = jsonInteger(m_manifest, QStringLiteral("toolsetVersion"),
+                                               QStringLiteral("toolset_version"), 0);
         const auto editorDigest =
             jsonString(m_manifest, QStringLiteral("digest"), QStringLiteral("manifest_digest"));
 
@@ -764,26 +777,13 @@ namespace DsConnector {
         QJsonArray pending;
         for (const auto &selector : m_exposure.pendingSelectors(m_actualTools))
             pending.append(selector);
-        int compatibleCount = 0;
-        int incompatibleCount = 0;
-        int unavailableCount = 0;
-        for (const auto &tool : m_exposure.typedContracts()) {
-            const auto compatibility = compatibilityFor(tool);
-            if (compatibility == QStringLiteral("compatible"))
-                ++compatibleCount;
-            else if (compatibility == QStringLiteral("contract_incompatible"))
-                ++incompatibleCount;
-            else
-                ++unavailableCount;
-        }
-
         return {
             {QStringLiteral("connector"),
-             QJsonObject{{QStringLiteral("instance_id"), m_instanceId},
-                         {QStringLiteral("version"), m_version},
-                         {QStringLiteral("executable_path"),
-                          QCoreApplication::applicationFilePath()},
-                         {QStringLiteral("build_id"), connectorBuildId()}}},
+             QJsonObject{
+                 {QStringLiteral("instance_id"), m_instanceId},
+                 {QStringLiteral("version"), m_version},
+                 {QStringLiteral("executable_path"), QCoreApplication::applicationFilePath()},
+                 {QStringLiteral("build_id"), connectorBuildId()}}                             },
             {QStringLiteral("editor"),
              QJsonObject{{QStringLiteral("state"), editorState},
                          {QStringLiteral("editor_instance_id"), editorStatus.editorInstanceId},
@@ -793,20 +793,18 @@ namespace DsConnector {
                          {QStringLiteral("application_version"), editorStatus.applicationVersion},
                          {QStringLiteral("build_id"), editorStatus.buildId},
                          {QStringLiteral("host_mode"), editorStatus.hostMode},
-                         {QStringLiteral("error"), editorStatus.error}}},
+                         {QStringLiteral("error"), editorStatus.error}}                        },
             {QStringLiteral("bootstrap"),
-             QJsonObject{{QStringLiteral("connected"), observation.connected},
-                         {QStringLiteral("protocol_supported"), observation.protocolSupported},
-                         {QStringLiteral("protocol_version"),
-                          SingleInstanceProtocol::protocolVersion},
-                         {QStringLiteral("error"), observation.error}}},
+             QJsonObject{
+                 {QStringLiteral("connected"), observation.connected},
+                 {QStringLiteral("protocol_supported"), observation.protocolSupported},
+                 {QStringLiteral("protocol_version"), SingleInstanceProtocol::protocolVersion},
+                 {QStringLiteral("error"), observation.error}}                                 },
             {QStringLiteral("mcp"),
              QJsonObject{{QStringLiteral("connected"), m_mcpConnected},
                          {QStringLiteral("endpoint"), m_upstream->endpoint().toString()},
                          {QStringLiteral("protocol_version"),
-                          m_mcpConnected
-                              ? QString::fromLatin1(AutomationWire::Mcp::ProtocolVersion)
-                              : QString()},
+                          m_mcpConnected ? m_mcpProtocolVersion : QString()},
                          {QStringLiteral("error"), m_mcpError},
                          {QStringLiteral("pending_request_count"), m_upstream->pendingCount()}}},
             {QStringLiteral("manifest"),
@@ -816,9 +814,9 @@ namespace DsConnector {
                          {QStringLiteral("editor_toolset_version"), editorVersion},
                          {QStringLiteral("connector_digest"), connectorContract.digest},
                          {QStringLiteral("editor_digest"), editorDigest},
-                         {QStringLiteral("compatible_count"), compatibleCount},
-                         {QStringLiteral("incompatible_count"), incompatibleCount},
-                         {QStringLiteral("unavailable_count"), unavailableCount}}},
+                         {QStringLiteral("compatible_count"), m_compatibleCount},
+                         {QStringLiteral("incompatible_count"), m_incompatibleCount},
+                         {QStringLiteral("unavailable_count"), m_unavailableCount}}            },
             {QStringLiteral("exposure"),
              QJsonObject{{QStringLiteral("profile"),
                           AutomationWire::exposureProfileName(m_options.exposure.profile)},
@@ -826,7 +824,7 @@ namespace DsConnector {
                          {QStringLiteral("excludes"), excludes},
                          {QStringLiteral("typed_tool_count"), m_exposure.typedContracts().size()},
                          {QStringLiteral("generic_target_count"), filteredActualTools().size()},
-                         {QStringLiteral("pending_selectors"), pending}}},
+                         {QStringLiteral("pending_selectors"), pending}}                       },
         };
     }
 
@@ -882,21 +880,20 @@ namespace DsConnector {
                 callback(connectorError(availability));
                 return 0;
             }
-            const auto targetArguments =
-                arguments.value(QStringLiteral("arguments")).toObject();
-            const auto inputSchema = jsonValue(target, QStringLiteral("inputSchema"),
-                                               QStringLiteral("input_schema"));
+            const auto targetArguments = arguments.value(QStringLiteral("arguments")).toObject();
+            const auto inputSchema =
+                jsonValue(target, QStringLiteral("inputSchema"), QStringLiteral("input_schema"));
             if (!inputSchema.isObject() ||
                 !AutomationWire::validateJsonValue(targetArguments, inputSchema).valid()) {
                 callback(connectorError(QStringLiteral("invalid_editor_tool_arguments")));
                 return 0;
             }
-            const auto outputSchema = jsonValue(target, QStringLiteral("outputSchema"),
-                                                QStringLiteral("output_schema"));
+            const auto outputSchema =
+                jsonValue(target, QStringLiteral("outputSchema"), QStringLiteral("output_schema"));
             return forwardEditorTool(
                 targetName, targetArguments,
-                [this, outputSchema, callback = std::move(callback)](
-                    ToolCallOutcome outcome) mutable {
+                [this, outputSchema,
+                 callback = std::move(callback)](ToolCallOutcome outcome) mutable {
                     if (!outcome.protocolError &&
                         !outcome.result.value(QStringLiteral("isError")).toBool() &&
                         outputSchema.isObject() &&
@@ -944,8 +941,8 @@ namespace DsConnector {
 
     const QStringList &ConnectorRuntime::bridgeToolNames() {
         static const QStringList names{
-            QStringLiteral("connector.get_status"), QStringLiteral("connector.reconnect"),
-            QStringLiteral("editor.tools.list"),    QStringLiteral("editor.tools.search"),
+            QStringLiteral("connector.get_status"),  QStringLiteral("connector.reconnect"),
+            QStringLiteral("editor.tools.list"),     QStringLiteral("editor.tools.search"),
             QStringLiteral("editor.tools.describe"), QStringLiteral("editor.tools.invoke"),
         };
         return names;
@@ -960,35 +957,35 @@ namespace DsConnector {
             bridgeTool(QStringLiteral("connector.reconnect"),
                        QStringLiteral("Restart bootstrap discovery and the editor MCP handshake."),
                        emptyObjectSchema(), statusSchema()),
-            bridgeTool(
-                QStringLiteral("editor.tools.list"),
-                QStringLiteral("List current editor targets allowed by connector exposure."),
-                strictObjectSchema(
-                    QJsonObject{
-                        {QStringLiteral("cursor"),
-                         QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}},
-                        {QStringLiteral("limit"),
-                         QJsonObject{{QStringLiteral("type"), QStringLiteral("integer")},
-                                     {QStringLiteral("minimum"), 1},
-                                     {QStringLiteral("maximum"), 200}}},
-                    }),
-                toolCollectionSchema(true)),
+            bridgeTool(QStringLiteral("editor.tools.list"),
+                       QStringLiteral("List current editor targets allowed by connector exposure."),
+                       strictObjectSchema(QJsonObject{
+                                                      {QStringLiteral("cursor"),
+                            QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}},
+                                                      {QStringLiteral("limit"),
+                            QJsonObject{{QStringLiteral("type"), QStringLiteral("integer")},
+                                        {QStringLiteral("minimum"), 1},
+                                        {QStringLiteral("maximum"), 200}}},
+                                                      }
+                       ),
+                       toolCollectionSchema(true)),
             bridgeTool(
                 QStringLiteral("editor.tools.search"),
                 QStringLiteral("Search current editor targets by name, description, and category."),
                 strictObjectSchema(
                     QJsonObject{
-                        {QStringLiteral("query"),
+                                                      {QStringLiteral("query"),
                          QJsonObject{{QStringLiteral("type"), QStringLiteral("string")},
                                      {QStringLiteral("minLength"), 1}}},
-                        {QStringLiteral("category"),
+                                                      {QStringLiteral("category"),
                          QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}},
-                        {QStringLiteral("limit"),
+                                                      {QStringLiteral("limit"),
                          QJsonObject{{QStringLiteral("type"), QStringLiteral("integer")},
                                      {QStringLiteral("minimum"), 1},
                                      {QStringLiteral("maximum"), 200}}},
-                    },
-                    QJsonArray{QStringLiteral("query")}),
+                                                      },
+                    QJsonArray{QStringLiteral("query")}
+                       ),
                 toolCollectionSchema(false)),
             bridgeTool(
                 QStringLiteral("editor.tools.describe"),
@@ -997,22 +994,25 @@ namespace DsConnector {
                     QJsonObject{{QStringLiteral("name"),
                                  QJsonObject{{QStringLiteral("type"), QStringLiteral("string")},
                                              {QStringLiteral("minLength"), 1}}}},
-                    QJsonArray{QStringLiteral("name")}),
+                    QJsonArray{QStringLiteral("name")}
+                       ),
                 describeSchema()),
             bridgeTool(
                 QStringLiteral("editor.tools.invoke"),
                 QStringLiteral("Invoke one current editor target through its actual schema."),
                 strictObjectSchema(
                     QJsonObject{
-                        {QStringLiteral("name"),
+                                                      {QStringLiteral("name"),
                          QJsonObject{{QStringLiteral("type"), QStringLiteral("string")},
                                      {QStringLiteral("minLength"), 1}}},
-                        {QStringLiteral("arguments"),
+                                                      {QStringLiteral("arguments"),
                          QJsonObject{{QStringLiteral("type"), QStringLiteral("object")},
                                      {QStringLiteral("additionalProperties"), true}}},
-                    },
-                    QJsonArray{QStringLiteral("name"), QStringLiteral("arguments")}),
-                QJsonObject{}),
+                                                      },
+                    QJsonArray{QStringLiteral("name"), QStringLiteral("arguments")}
+                       ),
+                QJsonObject{}
+                       ),
         };
         return definitions;
     }
@@ -1028,9 +1028,8 @@ namespace DsConnector {
     void ConnectorRuntime::bootstrapChanged() {
         const auto &observation = m_bootstrap->observation();
         if (!observation.connected) {
-            clearEditorState(observation.error.isEmpty()
-                                 ? QStringLiteral("bootstrap_disconnected")
-                                 : observation.error);
+            clearEditorState(observation.error.isEmpty() ? QStringLiteral("bootstrap_disconnected")
+                                                         : observation.error);
             emit statusChanged();
             return;
         }
@@ -1067,16 +1066,20 @@ namespace DsConnector {
         m_actualTools = {};
         m_manifest = {};
         m_manifestCompatibility = QStringLiteral("not_loaded");
+        m_compatibleCount = 0;
+        m_incompatibleCount = 0;
+        m_unavailableCount = m_exposure.typedContracts().size();
         m_mcpConnected = false;
+        m_mcpProtocolVersion.clear();
         m_mcpError = error;
+        m_upstream->setProtocolVersion(QString::fromLatin1(AutomationWire::Mcp::ProtocolVersion));
     }
 
     void ConnectorRuntime::beginHandshake(const SingleInstanceAutomationSnapshot &snapshot) {
-        const auto sameTarget = m_handshakeTarget &&
-                                m_handshakeTarget->primaryProcessId == snapshot.primaryProcessId &&
-                                m_handshakeTarget->result.editorInstanceId ==
-                                    snapshot.result.editorInstanceId &&
-                                m_handshakeTarget->result.mcpEndpoint == snapshot.result.mcpEndpoint;
+        const auto sameTarget =
+            m_handshakeTarget && m_handshakeTarget->primaryProcessId == snapshot.primaryProcessId &&
+            m_handshakeTarget->result.editorInstanceId == snapshot.result.editorInstanceId &&
+            m_handshakeTarget->result.mcpEndpoint == snapshot.result.mcpEndpoint;
         if (!sameTarget) {
             ++m_handshakeEpoch;
             m_handshakeRetryTimer->stop();
@@ -1108,47 +1111,122 @@ namespace DsConnector {
         m_manifest = {};
         m_schemaValidationCache.clear();
         m_manifestCompatibility = QStringLiteral("refreshing");
+        m_compatibleCount = 0;
+        m_incompatibleCount = 0;
+        m_unavailableCount = m_exposure.typedContracts().size();
+        m_mcpProtocolVersion.clear();
         m_upstream->clearEndpoint(QStringLiteral("refreshing"));
         QString endpointError;
         if (!m_upstream->setEndpoint(m_handshakeTarget->result.mcpEndpoint, &endpointError)) {
-            failHandshake(
-                epoch, QStringLiteral("invalid_discovered_endpoint: %1").arg(endpointError));
+            failHandshake(epoch,
+                          QStringLiteral("invalid_discovered_endpoint: %1").arg(endpointError));
             return;
         }
         emit statusChanged();
-        m_upstream->send(QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod), {},
-                         [this, epoch](const UpstreamResult result) {
-                             if (epoch != m_handshakeEpoch)
-                                 return;
-                             if (!result.succeeded()) {
-                                 failHandshake(epoch,
-                                               handshakeError(result, QStringLiteral(
-                                                                          "upstream_discovery_failed")));
-                                 return;
-                             }
-                             const auto supportedVersions =
-                                 result.result.value(QStringLiteral("supportedVersions"));
-                             const auto capabilities =
-                                 result.result.value(QStringLiteral("capabilities"));
-                             bool protocolSupported = supportedVersions.isArray();
-                             for (const auto &version : supportedVersions.toArray()) {
-                                 protocolSupported &= version.isString();
-                             }
-                             protocolSupported &=
-                                 supportedVersions.toArray().contains(QString::fromLatin1(
-                                     AutomationWire::Mcp::ProtocolVersion));
-                             if (!protocolSupported || !capabilities.isObject() ||
-                                 !capabilities.toObject()
-                                      .value(QStringLiteral("tools"))
-                                      .isObject()) {
-                                 failHandshake(epoch,
-                                               QStringLiteral("invalid_upstream_discovery"));
-                                 return;
-                             }
-                             m_mcpConnected = true;
-                             requestToolsPage(epoch, {}, {}, {}, 0);
-                         },
-                         m_options.upstreamTimeoutMs);
+        startModernHandshake(epoch);
+    }
+
+    void ConnectorRuntime::startModernHandshake(const quint64 epoch) {
+        if (epoch != m_handshakeEpoch || !m_upstream->setProtocolVersion(QString::fromLatin1(
+                                             AutomationWire::Mcp::ProtocolVersion))) {
+            return;
+        }
+        m_upstream->send(
+            QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod), {},
+            [this, epoch](const UpstreamResult result) {
+                if (epoch != m_handshakeEpoch)
+                    return;
+                if (!result.succeeded()) {
+                    if (shouldTryLegacyHandshake(result)) {
+                        startLegacyHandshake(epoch);
+                        return;
+                    }
+                    failHandshake(
+                        epoch, handshakeError(result, QStringLiteral("upstream_discovery_failed")));
+                    return;
+                }
+                const auto supportedVersions =
+                    result.result.value(QStringLiteral("supportedVersions"));
+                const auto capabilities = result.result.value(QStringLiteral("capabilities"));
+                bool protocolSupported = supportedVersions.isArray();
+                for (const auto &version : supportedVersions.toArray()) {
+                    protocolSupported &= version.isString();
+                }
+                protocolSupported &= supportedVersions.toArray().contains(
+                    QString::fromLatin1(AutomationWire::Mcp::ProtocolVersion));
+                if (!protocolSupported || !capabilities.isObject() ||
+                    !capabilities.toObject().value(QStringLiteral("tools")).isObject()) {
+                    failHandshake(epoch, QStringLiteral("invalid_upstream_discovery"));
+                    return;
+                }
+                m_mcpProtocolVersion = QString::fromLatin1(AutomationWire::Mcp::ProtocolVersion);
+                m_mcpConnected = true;
+                requestToolsPage(epoch, {}, {}, {}, 0);
+            },
+            m_options.upstreamTimeoutMs);
+    }
+
+    void ConnectorRuntime::startLegacyHandshake(const quint64 epoch) {
+        if (epoch != m_handshakeEpoch || !m_upstream->setProtocolVersion(QString::fromLatin1(
+                                             AutomationWire::Mcp::LegacyProtocolVersion))) {
+            return;
+        }
+        const QJsonObject params{
+            {QStringLiteral("protocolVersion"),
+             QString::fromLatin1(AutomationWire::Mcp::LegacyProtocolVersion)},
+            {QStringLiteral("capabilities"),    QJsonObject{}               },
+            {QStringLiteral("clientInfo"),
+             AutomationWire::Mcp::ImplementationInfo{
+                 .name = QStringLiteral("DS Connector Lite"),
+                 .version = m_version,
+                 .description = QStringLiteral("Local DS Editor Lite MCP stdio connector (%1)")
+                                    .arg(m_instanceId),
+             }
+                 .toJson()                                                  },
+        };
+        m_upstream->send(
+            QString::fromLatin1(AutomationWire::Mcp::InitializeMethod), params,
+            [this, epoch](const UpstreamResult result) {
+                if (epoch != m_handshakeEpoch)
+                    return;
+                if (!result.succeeded()) {
+                    failHandshake(epoch, handshakeError(
+                                             result, QStringLiteral("upstream_initialize_failed")));
+                    return;
+                }
+                const auto serverInfo = AutomationWire::Mcp::ImplementationInfo::fromJson(
+                    result.result.value(QStringLiteral("serverInfo")));
+                const auto capabilities = result.result.value(QStringLiteral("capabilities"));
+                const auto negotiatedVersion =
+                    result.result.value(QStringLiteral("protocolVersion")).toString();
+                if (!AutomationWire::Mcp::isLegacyProtocolVersion(negotiatedVersion) ||
+                    !m_upstream->adoptNegotiatedProtocolVersion(negotiatedVersion) ||
+                    !capabilities.isObject() ||
+                    !capabilities.toObject().value(QStringLiteral("tools")).isObject() ||
+                    !serverInfo) {
+                    failHandshake(epoch, QStringLiteral("invalid_upstream_initialize"));
+                    return;
+                }
+                m_upstream->sendNotification(
+                    QString::fromLatin1(AutomationWire::Mcp::InitializedNotification), {},
+                    [this, epoch, negotiatedVersion](const UpstreamResult initialized) {
+                        if (epoch != m_handshakeEpoch)
+                            return;
+                        if (!initialized.succeeded()) {
+                            failHandshake(
+                                epoch,
+                                handshakeError(
+                                    initialized,
+                                    QStringLiteral("upstream_initialized_notification_failed")));
+                            return;
+                        }
+                        m_mcpProtocolVersion = negotiatedVersion;
+                        m_mcpConnected = true;
+                        requestToolsPage(epoch, {}, {}, {}, 0);
+                    },
+                    m_options.upstreamTimeoutMs);
+            },
+            m_options.upstreamTimeoutMs);
     }
 
     void ConnectorRuntime::failHandshake(const quint64 epoch, const QString &error,
@@ -1161,11 +1239,10 @@ namespace DsConnector {
         m_mcpError = error;
         m_manifestCompatibility = manifestCompatibility;
         emit statusChanged();
-        if (retryableHandshakeError(error) &&
-            m_handshakeRetryAttempt < MaxHandshakeRetryAttempts) {
-            const auto delay = std::min(
-                MaximumHandshakeRetryDelayMs,
-                InitialHandshakeRetryDelayMs * (1 << m_handshakeRetryAttempt));
+        if (retryableHandshakeError(error) && m_handshakeRetryAttempt < MaxHandshakeRetryAttempts) {
+            const auto delay =
+                std::min(MaximumHandshakeRetryDelayMs,
+                         InitialHandshakeRetryDelayMs * (1 << m_handshakeRetryAttempt));
             ++m_handshakeRetryAttempt;
             m_handshakeRetryTimer->start(delay);
             return;
@@ -1191,8 +1268,8 @@ namespace DsConnector {
     }
 
     void ConnectorRuntime::requestToolsPage(const quint64 epoch, const QString &cursor,
-                                            QJsonArray accumulated,
-                                            QSet<QString> seenCursors, const int pageCount) {
+                                            QJsonArray accumulated, QSet<QString> seenCursors,
+                                            const int pageCount) {
         if (epoch != m_handshakeEpoch)
             return;
         if (pageCount >= MaxHandshakePages) {
@@ -1206,15 +1283,15 @@ namespace DsConnector {
         m_upstream->send(
             QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod), params,
             [this, epoch, accumulated = std::move(accumulated),
-             seenCursors = std::move(seenCursors), pageCount](
-                const UpstreamResult listResult) mutable {
+             seenCursors = std::move(seenCursors),
+             pageCount](const UpstreamResult listResult) mutable {
                 if (epoch != m_handshakeEpoch)
                     return;
                 if (!listResult.succeeded()) {
-                    failHandshake(epoch,
-                                  handshakeError(listResult,
-                                                 QStringLiteral("upstream_tools_list_failed")),
-                                  QStringLiteral("not_loaded"), true);
+                    failHandshake(
+                        epoch,
+                        handshakeError(listResult, QStringLiteral("upstream_tools_list_failed")),
+                        QStringLiteral("not_loaded"), true);
                     return;
                 }
                 const auto toolsValue = listResult.result.value(QStringLiteral("tools"));
@@ -1230,8 +1307,7 @@ namespace DsConnector {
                     const auto name = tool.toObject().value(QStringLiteral("name")).toString();
                     if (!validToolDescriptor(tool, m_schemaValidationCache) || name.isEmpty() ||
                         names.contains(name)) {
-                        failHandshake(epoch,
-                                      QStringLiteral("invalid_upstream_tool_descriptor"),
+                        failHandshake(epoch, QStringLiteral("invalid_upstream_tool_descriptor"),
                                       QStringLiteral("not_loaded"), true);
                         return;
                     }
@@ -1269,8 +1345,8 @@ namespace DsConnector {
                         return;
                     }
                     seenCursors.insert(next);
-                    requestToolsPage(epoch, next, std::move(accumulated),
-                                     std::move(seenCursors), pageCount + 1);
+                    requestToolsPage(epoch, next, std::move(accumulated), std::move(seenCursors),
+                                     pageCount + 1);
                     return;
                 }
                 m_actualTools = std::move(accumulated);
@@ -1288,8 +1364,7 @@ namespace DsConnector {
     }
 
     void ConnectorRuntime::requestManifestPage(const quint64 epoch, const QString &cursor,
-                                               QJsonObject accumulated,
-                                               QSet<QString> seenCursors,
+                                               QJsonObject accumulated, QSet<QString> seenCursors,
                                                const int pageCount) {
         if (epoch != m_handshakeEpoch)
             return;
@@ -1303,23 +1378,21 @@ namespace DsConnector {
             arguments.insert(QStringLiteral("cursor"), cursor);
         QHash<QByteArray, QByteArray> parameterHeaderValues;
         QString parameterHeaderError;
-        const auto manifestSchema = jsonValue(
-            actualTool(QStringLiteral("automation.get_manifest")),
-            QStringLiteral("inputSchema"), QStringLiteral("input_schema"));
+        const auto manifestSchema =
+            jsonValue(actualTool(QStringLiteral("automation.get_manifest")),
+                      QStringLiteral("inputSchema"), QStringLiteral("input_schema"));
         if (!manifestSchema.isObject() ||
             !parameterHeaders(manifestSchema.toObject(), arguments, parameterHeaderValues,
                               parameterHeaderError)) {
-            finishHandshake(epoch,
-                            UpstreamResult{.connectorError =
-                                               QStringLiteral("invalid_tool_header_mapping")});
+            finishHandshake(epoch, UpstreamResult{.connectorError = QStringLiteral(
+                                                      "invalid_tool_header_mapping")});
             return;
         }
         m_upstream->send(
             QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
             callArguments(QStringLiteral("automation.get_manifest"), arguments),
             [this, epoch, accumulated = std::move(accumulated),
-             seenCursors = std::move(seenCursors), pageCount](
-                const UpstreamResult result) mutable {
+             seenCursors = std::move(seenCursors), pageCount](const UpstreamResult result) mutable {
                 if (epoch != m_handshakeEpoch)
                     return;
                 const auto page = structuredContent(result);
@@ -1328,24 +1401,22 @@ namespace DsConnector {
                     finishHandshake(epoch, UpstreamResult{.connectorError = error});
                 };
                 if (!result.succeeded() ||
-                    result.result.value(QStringLiteral("isError")).toBool() ||
-                    page.isEmpty() || !operationsValue.isArray()) {
+                    result.result.value(QStringLiteral("isError")).toBool() || page.isEmpty() ||
+                    !operationsValue.isArray()) {
                     finishHandshake(epoch, result);
                     return;
                 }
-                const auto version = jsonInteger(
-                    page, QStringLiteral("toolsetVersion"),
-                    QStringLiteral("toolset_version"), 0);
-                const auto digest = jsonString(page, QStringLiteral("digest"),
-                                               QStringLiteral("manifest_digest"));
+                const auto version = jsonInteger(page, QStringLiteral("toolsetVersion"),
+                                                 QStringLiteral("toolset_version"), 0);
+                const auto digest =
+                    jsonString(page, QStringLiteral("digest"), QStringLiteral("manifest_digest"));
                 const auto profile = page.value(QStringLiteral("profile")).toString();
-                const auto hostMode = jsonString(page, QStringLiteral("hostMode"),
-                                                 QStringLiteral("host_mode"));
+                const auto hostMode =
+                    jsonString(page, QStringLiteral("hostMode"), QStringLiteral("host_mode"));
                 if (version < 1 || digest.size() != 71 ||
                     !digest.startsWith(QStringLiteral("sha256:")) ||
                     !AutomationWire::automationProfileFromName(profile) ||
-                    (hostMode != QStringLiteral("gui") &&
-                     hostMode != QStringLiteral("headless")) ||
+                    (hostMode != QStringLiteral("gui") && hostMode != QStringLiteral("headless")) ||
                     !page.value(QStringLiteral("extensions")).isObject()) {
                     failManifest(QStringLiteral("invalid_upstream_manifest_root"));
                     return;
@@ -1355,17 +1426,15 @@ namespace DsConnector {
                     accumulated = page;
                     accumulated.insert(QStringLiteral("operations"), QJsonArray{});
                 } else {
-                    const auto expectedVersion = jsonInteger(
-                        accumulated, QStringLiteral("toolsetVersion"),
-                        QStringLiteral("toolset_version"), -1);
-                    const auto pageVersion = jsonInteger(
-                        page, QStringLiteral("toolsetVersion"),
-                        QStringLiteral("toolset_version"), -2);
-                    const auto expectedDigest = jsonString(
-                        accumulated, QStringLiteral("digest"),
-                        QStringLiteral("manifest_digest"));
-                    const auto pageDigest = jsonString(
-                        page, QStringLiteral("digest"), QStringLiteral("manifest_digest"));
+                    const auto expectedVersion =
+                        jsonInteger(accumulated, QStringLiteral("toolsetVersion"),
+                                    QStringLiteral("toolset_version"), -1);
+                    const auto pageVersion = jsonInteger(page, QStringLiteral("toolsetVersion"),
+                                                         QStringLiteral("toolset_version"), -2);
+                    const auto expectedDigest = jsonString(accumulated, QStringLiteral("digest"),
+                                                           QStringLiteral("manifest_digest"));
+                    const auto pageDigest = jsonString(page, QStringLiteral("digest"),
+                                                       QStringLiteral("manifest_digest"));
                     if (expectedVersion != pageVersion || expectedDigest != pageDigest ||
                         accumulated.value(QStringLiteral("profile")) !=
                             page.value(QStringLiteral("profile")) ||
@@ -1415,8 +1484,8 @@ namespace DsConnector {
                         return;
                     }
                     seenCursors.insert(next);
-                    requestManifestPage(epoch, next, std::move(accumulated),
-                                        std::move(seenCursors), pageCount + 1);
+                    requestManifestPage(epoch, next, std::move(accumulated), std::move(seenCursors),
+                                        pageCount + 1);
                     return;
                 }
                 accumulated.remove(QStringLiteral("next_cursor"));
@@ -1434,36 +1503,41 @@ namespace DsConnector {
             return;
         const auto manifest = structuredContent(manifestResult);
         if (!manifestResult.succeeded() ||
-            manifestResult.result.value(QStringLiteral("isError")).toBool() ||
-            manifest.isEmpty()) {
+            manifestResult.result.value(QStringLiteral("isError")).toBool() || manifest.isEmpty()) {
             m_manifest = {};
             failHandshake(epoch,
-                          handshakeError(manifestResult,
-                                         QStringLiteral("manifest_unavailable")),
+                          handshakeError(manifestResult, QStringLiteral("manifest_unavailable")),
                           QStringLiteral("manifest_unavailable"), true);
             return;
         }
         m_manifest = manifest;
 
-        int compatibleCount = 0;
         int consideredCount = 0;
+        m_compatibleCount = 0;
+        m_incompatibleCount = 0;
+        m_unavailableCount = 0;
         for (const auto &tool : m_exposure.typedContracts()) {
             ++consideredCount;
-            if (compatibilityFor(tool) == QStringLiteral("compatible"))
-                ++compatibleCount;
+            const auto compatibility = compatibilityFor(tool);
+            if (compatibility == QStringLiteral("compatible"))
+                ++m_compatibleCount;
+            else if (compatibility == QStringLiteral("contract_incompatible"))
+                ++m_incompatibleCount;
+            else
+                ++m_unavailableCount;
         }
-        const auto editorVersion = jsonInteger(
-            m_manifest, QStringLiteral("toolsetVersion"), QStringLiteral("toolset_version"), 0);
+        const auto editorVersion = jsonInteger(m_manifest, QStringLiteral("toolsetVersion"),
+                                               QStringLiteral("toolset_version"), 0);
         const auto editorDigest =
             jsonString(m_manifest, QStringLiteral("digest"), QStringLiteral("manifest_digest"));
         const auto &connectorContract = connectorManifest();
         if (consideredCount == 0) {
             m_manifestCompatibility = QStringLiteral("compatible_subset");
-        } else if (compatibleCount == consideredCount &&
-            editorVersion == static_cast<qint64>(AutomationWire::PublicToolsetVersion) &&
-            !editorDigest.isEmpty() && editorDigest == connectorContract.digest) {
+        } else if (m_compatibleCount == consideredCount &&
+                   editorVersion == static_cast<qint64>(AutomationWire::PublicToolsetVersion) &&
+                   !editorDigest.isEmpty() && editorDigest == connectorContract.digest) {
             m_manifestCompatibility = QStringLiteral("compatible");
-        } else if (compatibleCount > 0) {
+        } else if (m_compatibleCount > 0) {
             m_manifestCompatibility = QStringLiteral("compatible_subset");
         } else {
             m_manifestCompatibility = QStringLiteral("contract_incompatible");
@@ -1502,8 +1576,7 @@ namespace DsConnector {
             availability != QStringLiteral("compatible")) {
             return availability;
         }
-        const auto hostAvailability =
-            tool.value(QStringLiteral("host_availability")).toString();
+        const auto hostAvailability = tool.value(QStringLiteral("host_availability")).toString();
         const auto &observation = m_bootstrap->observation();
         if (!hostAvailability.isEmpty() && hostAvailability != QStringLiteral("both") &&
             observation.snapshot && hostAvailability != observation.snapshot->result.hostMode) {
@@ -1559,8 +1632,7 @@ namespace DsConnector {
         return {};
     }
 
-    QString ConnectorRuntime::compatibilityFor(
-        const AutomationWire::ToolContract &tool) const {
+    QString ConnectorRuntime::compatibilityFor(const AutomationWire::ToolContract &tool) const {
         const auto editorTool = actualTool(tool.operationId);
         if (editorTool.isEmpty()) {
             const auto unavailable = editorUnavailableCode();
@@ -1591,26 +1663,30 @@ namespace DsConnector {
             return QStringLiteral("host_unavailable");
         }
 
-        const auto editorVersion = jsonInteger(
-            editorTool, QStringLiteral("version"), QStringLiteral("version"),
-            jsonInteger(m_manifest, QStringLiteral("toolsetVersion"),
-                        QStringLiteral("toolset_version"),
-                        static_cast<qint64>(AutomationWire::PublicToolsetVersion)));
-        const auto editorMinimum = jsonInteger(
-            editorTool, QStringLiteral("minimumCompatibleVersion"),
-            QStringLiteral("minimum_compatible_version"), 1);
+        const auto editorVersion =
+            jsonInteger(editorTool, QStringLiteral("version"), QStringLiteral("version"),
+                        jsonInteger(m_manifest, QStringLiteral("toolsetVersion"),
+                                    QStringLiteral("toolset_version"),
+                                    static_cast<qint64>(AutomationWire::PublicToolsetVersion)));
+        const auto editorMinimum =
+            jsonInteger(editorTool, QStringLiteral("minimumCompatibleVersion"),
+                        QStringLiteral("minimum_compatible_version"), 1);
         const auto versionCompatible =
             static_cast<qint64>(AutomationWire::PublicToolsetVersion) >= editorMinimum &&
             editorVersion >= static_cast<qint64>(AutomationWire::PublicMinimumCompatibleVersion);
         if (!versionCompatible)
             return QStringLiteral("contract_incompatible");
 
-        const auto editorInput = jsonValue(editorTool, QStringLiteral("inputSchema"),
-                                           QStringLiteral("input_schema"));
-        const auto editorOutput = jsonValue(editorTool, QStringLiteral("outputSchema"),
-                                            QStringLiteral("output_schema"));
+        const auto editorInput =
+            jsonValue(editorTool, QStringLiteral("inputSchema"), QStringLiteral("input_schema"));
+        const auto editorOutput =
+            jsonValue(editorTool, QStringLiteral("outputSchema"), QStringLiteral("output_schema"));
         if (!editorInput.isObject() || !editorOutput.isObject())
             return QStringLiteral("contract_incompatible");
+        if (editorInput.toObject() == tool.inputSchema &&
+            editorOutput.toObject() == tool.outputSchema) {
+            return QStringLiteral("compatible");
+        }
         const auto schemas = AutomationWire::checkToolSchemaCompatibility(
             tool.inputSchema, editorInput, editorOutput, tool.outputSchema);
         return schemas.compatible() ? QStringLiteral("compatible")
@@ -1628,14 +1704,14 @@ namespace DsConnector {
 
     ToolCallOutcome ConnectorRuntime::connectorError(const QString &code,
                                                      const QString &message) const {
-        QJsonObject structured{{QStringLiteral("code"), code}};
-        structured.insert(QStringLiteral("message"),
-                          message.isEmpty() ? code : message);
+        QJsonObject structured{
+            {QStringLiteral("code"), code}
+        };
+        structured.insert(QStringLiteral("message"), message.isEmpty() ? code : message);
         return {AutomationWire::Mcp::makeToolCallResult(structured, true)};
     }
 
-    qint64 ConnectorRuntime::forwardEditorTool(const QString &name,
-                                               const QJsonObject &arguments,
+    qint64 ConnectorRuntime::forwardEditorTool(const QString &name, const QJsonObject &arguments,
                                                ToolCallCallback callback) {
         const auto unavailable = editorUnavailableCode();
         if (!unavailable.isEmpty()) {
@@ -1644,9 +1720,9 @@ namespace DsConnector {
         }
         const auto *known = AutomationWire::findPublicTool(name);
         const auto manifest = manifestOperation(name);
-        const auto command = known ? known->kind == AutomationWire::OperationKind::Command
-                                   : manifest.value(QStringLiteral("kind")).toString() ==
-                                         QStringLiteral("command");
+        const auto command =
+            known ? known->kind == AutomationWire::OperationKind::Command
+                  : manifest.value(QStringLiteral("kind")).toString() == QStringLiteral("command");
         QHash<QByteArray, QByteArray> parameterHeaderValues;
         QString parameterHeaderError;
         const auto inputSchema = jsonValue(actualTool(name), QStringLiteral("inputSchema"),
@@ -1670,11 +1746,10 @@ namespace DsConnector {
                     const auto code = command && result.outcomeUnknown
                                           ? QStringLiteral("outcome_unknown")
                                           : result.connectorError;
-                    const auto message = command && result.outcomeUnknown
+                    const auto message = command && result.outcomeUnknown ? result.connectorError
+                                         : result.connectorErrorMessage.isEmpty()
                                              ? result.connectorError
-                                             : result.connectorErrorMessage.isEmpty()
-                                                   ? result.connectorError
-                                                   : result.connectorErrorMessage;
+                                             : result.connectorErrorMessage;
                     callback(connectorError(code, message));
                     return;
                 }
@@ -1708,16 +1783,15 @@ namespace DsConnector {
         QJsonObject structured{
             {QStringLiteral("toolset_version"),
              jsonInteger(m_manifest, QStringLiteral("toolsetVersion"),
-                         QStringLiteral("toolset_version"), 0)},
+             QStringLiteral("toolset_version"), 0)},
             {QStringLiteral("tools"), page},
             {QStringLiteral("manifest_digest"),
-             jsonString(m_manifest, QStringLiteral("digest"),
-                        QStringLiteral("manifest_digest"))},
+             jsonString(m_manifest, QStringLiteral("digest"), QStringLiteral("manifest_digest"))},
         };
         if (offset + page.size() < tools.size()) {
-            const auto nextCursor = m_editorToolsCursorCodec.issue(
-                QStringLiteral("connector-editor-tools-list/v1"), snapshotDigest,
-                offset + page.size());
+            const auto nextCursor =
+                m_editorToolsCursorCodec.issue(QStringLiteral("connector-editor-tools-list/v1"),
+                                               snapshotDigest, offset + page.size());
             if (nextCursor.isEmpty())
                 return connectorError(QStringLiteral("cursor_unavailable"));
             structured.insert(QStringLiteral("next_cursor"), nextCursor);
@@ -1735,11 +1809,11 @@ namespace DsConnector {
             const auto category = ExposurePolicy::category(tool);
             if (!categoryFilter.isEmpty() && category != categoryFilter)
                 continue;
-            const auto haystack = QStringLiteral("%1\n%2\n%3\n%4")
-                                      .arg(ExposurePolicy::operationId(tool),
-                                           tool.value(QStringLiteral("title")).toString(),
-                                           tool.value(QStringLiteral("description")).toString(),
-                                           category);
+            const auto haystack =
+                QStringLiteral("%1\n%2\n%3\n%4")
+                    .arg(ExposurePolicy::operationId(tool),
+                         tool.value(QStringLiteral("title")).toString(),
+                         tool.value(QStringLiteral("description")).toString(), category);
             if (!haystack.contains(query, Qt::CaseInsensitive))
                 continue;
             matches.append(tool);
@@ -1749,11 +1823,10 @@ namespace DsConnector {
         const QJsonObject structured{
             {QStringLiteral("toolset_version"),
              jsonInteger(m_manifest, QStringLiteral("toolsetVersion"),
-                         QStringLiteral("toolset_version"), 0)},
+             QStringLiteral("toolset_version"), 0)},
             {QStringLiteral("tools"), matches},
             {QStringLiteral("manifest_digest"),
-             jsonString(m_manifest, QStringLiteral("digest"),
-                        QStringLiteral("manifest_digest"))},
+             jsonString(m_manifest, QStringLiteral("digest"), QStringLiteral("manifest_digest"))},
         };
         return {AutomationWire::Mcp::makeToolCallResult(structured)};
     }
@@ -1779,14 +1852,13 @@ namespace DsConnector {
              jsonInteger(tool, QStringLiteral("version"), QStringLiteral("version"), 0)},
             {QStringLiteral("minimum_compatible_version"),
              jsonInteger(tool, QStringLiteral("minimumCompatibleVersion"),
-                         QStringLiteral("minimum_compatible_version"), 1)},
+             QStringLiteral("minimum_compatible_version"), 1)},
             {QStringLiteral("input_schema"),
              jsonValue(tool, QStringLiteral("inputSchema"), QStringLiteral("input_schema"))},
             {QStringLiteral("output_schema"),
              jsonValue(tool, QStringLiteral("outputSchema"), QStringLiteral("output_schema"))},
             {QStringLiteral("manifest_digest"),
-             jsonString(m_manifest, QStringLiteral("digest"),
-                        QStringLiteral("manifest_digest"))},
+             jsonString(m_manifest, QStringLiteral("digest"), QStringLiteral("manifest_digest"))},
             {QStringLiteral("typed_compatibility"),
              known ? compatibilityFor(*known) : QStringLiteral("generic_only")},
             {QStringLiteral("availability"), availability},

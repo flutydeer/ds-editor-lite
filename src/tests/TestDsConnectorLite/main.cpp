@@ -47,8 +47,7 @@ namespace {
         return condition();
     }
 
-    std::optional<QJsonObject> takeResponseById(QQueue<QByteArray> &responses,
-                                                const QJsonValue &id,
+    std::optional<QJsonObject> takeResponseById(QQueue<QByteArray> &responses, const QJsonValue &id,
                                                 const int timeoutMs = 3000) {
         const auto findIndex = [&] {
             for (qsizetype index = 0; index < responses.size(); ++index) {
@@ -66,10 +65,11 @@ namespace {
     AutomationWire::Mcp::RequestContext clientContext() {
         return {
             .clientCapabilities = QJsonObject{{QStringLiteral("tools"), QJsonObject{}}},
-            .clientInfo = AutomationWire::Mcp::ImplementationInfo{
-                .name = QStringLiteral("connector-test"),
-                .version = QStringLiteral("1"),
-            },
+            .clientInfo =
+                AutomationWire::Mcp::ImplementationInfo{
+                                              .name = QStringLiteral("connector-test"),
+                                              .version = QStringLiteral("1"),
+                                              },
         };
     }
 
@@ -109,7 +109,9 @@ namespace {
         void publish(SingleInstanceAutomationStatus status) {
             m_status = std::move(status);
             const SingleInstanceAutomationSnapshot snapshot{
-                {}, QCoreApplication::applicationPid(), m_status,
+                {},
+                QCoreApplication::applicationPid(),
+                m_status,
             };
             const auto frame = SingleInstanceProtocol::frame(
                 SingleInstanceProtocol::encodeAutomationSnapshot(snapshot));
@@ -136,13 +138,14 @@ namespace {
                     socket->abort();
                     return;
                 }
-                validWatchRequest = !request.connector.instanceId.isEmpty() &&
-                                    !request.connector.version.isEmpty();
+                validWatchRequest =
+                    !request.connector.instanceId.isEmpty() && !request.connector.version.isEmpty();
                 if (!m_watchers.contains(socket))
                     m_watchers.append(socket);
                 const SingleInstanceAutomationSnapshot snapshot{
                     emptyFirstRequestId ? QString() : request.requestId,
-                    QCoreApplication::applicationPid(), m_status,
+                    QCoreApplication::applicationPid(),
+                    m_status,
                 };
                 socket->write(SingleInstanceProtocol::frame(
                     SingleInstanceProtocol::encodeAutomationSnapshot(snapshot)));
@@ -212,6 +215,10 @@ namespace {
         bool exposeInvalidAnnotatedTool = false;
         bool exposeCommandTool = false;
         bool exposeForwardCompatibleTools = false;
+        bool legacyOnly = false;
+        QByteArray legacySessionId;
+        QString negotiatedLegacyProtocolVersion =
+            QString::fromLatin1(AutomationWire::Mcp::LegacyProtocolVersion);
         QString applicationAvailability;
         ApplicationResponseMode applicationResponseMode = ApplicationResponseMode::Success;
         int applicationTransportStatus = 429;
@@ -227,6 +234,8 @@ namespace {
         int discoverResponseDelayMs = 0;
         int discoverRateLimitFailuresRemaining = 0;
         int discoverCount = 0;
+        int initializeCount = 0;
+        int initializedNotificationCount = 0;
         int toolsListCount = 0;
         int manifestCallCount = 0;
         QList<QJsonValue> requestIds;
@@ -237,15 +246,14 @@ namespace {
         QJsonObject annotatedInputSchema(const bool valid = true) const {
             return {
                 {QStringLiteral("$schema"),
-                 QStringLiteral("https://json-schema.org/draft/2020-12/schema")},
-                {QStringLiteral("type"), QStringLiteral("object")},
+                 QStringLiteral("https://json-schema.org/draft/2020-12/schema")  },
+                {QStringLiteral("type"),                 QStringLiteral("object")},
                 {QStringLiteral("properties"),
                  QJsonObject{
                      {QStringLiteral("route"),
                       QJsonObject{{QStringLiteral("type"), QStringLiteral("string")},
                                   {QStringLiteral("x-mcp-header"),
-                                   valid ? QStringLiteral("Route")
-                                         : QStringLiteral("Bad Name")}}},
+                                   valid ? QStringLiteral("Route") : QStringLiteral("Bad Name")}}},
                      {QStringLiteral("retry"),
                       QJsonObject{{QStringLiteral("type"), QStringLiteral("integer")},
                                   {QStringLiteral("x-mcp-header"), QStringLiteral("Retry")}}},
@@ -256,37 +264,35 @@ namespace {
                       QJsonObject{
                           {QStringLiteral("type"), QStringLiteral("object")},
                           {QStringLiteral("properties"),
-                           QJsonObject{{QStringLiteral("region"),
-                                        QJsonObject{
-                                            {QStringLiteral("type"),
-                                             QStringLiteral("string")},
-                                            {QStringLiteral("x-mcp-header"),
-                                             QStringLiteral("Region")}}}}},
-                          {QStringLiteral("required"),
-                           QJsonArray{QStringLiteral("region")}},
+                           QJsonObject{
+                               {QStringLiteral("region"),
+                                QJsonObject{
+                                    {QStringLiteral("type"), QStringLiteral("string")},
+                                    {QStringLiteral("x-mcp-header"), QStringLiteral("Region")}}}}},
+                          {QStringLiteral("required"), QJsonArray{QStringLiteral("region")}},
                           {QStringLiteral("additionalProperties"), false},
                       }},
-                 }},
+                 }                                                               },
                 {QStringLiteral("required"),
                  QJsonArray{QStringLiteral("route"), QStringLiteral("retry"),
-                            QStringLiteral("enabled"), QStringLiteral("nested")}},
-                {QStringLiteral("additionalProperties"), false},
+                            QStringLiteral("enabled"), QStringLiteral("nested")} },
+                {QStringLiteral("additionalProperties"), false                   },
             };
         }
 
         QJsonObject flexibleInputSchema() const {
             return {
-                {QStringLiteral("type"), QStringLiteral("object")},
+                {QStringLiteral("type"),                 QStringLiteral("object")           },
                 {QStringLiteral("properties"),
-                 QJsonObject{{QStringLiteral("shape"),
-                              QJsonObject{{QStringLiteral("type"), QStringLiteral("string")},
-                                          {QStringLiteral("enum"),
-                                           QJsonArray{QStringLiteral("string"),
-                                                      QStringLiteral("array"),
-                                                      QStringLiteral("null"),
-                                                      QStringLiteral("invalid")}}}}}},
-                {QStringLiteral("required"), QJsonArray{QStringLiteral("shape")}},
-                {QStringLiteral("additionalProperties"), false},
+                 QJsonObject{
+                     {QStringLiteral("shape"),
+                      QJsonObject{
+                          {QStringLiteral("type"), QStringLiteral("string")},
+                          {QStringLiteral("enum"),
+                           QJsonArray{QStringLiteral("string"), QStringLiteral("array"),
+                                      QStringLiteral("null"), QStringLiteral("invalid")}}}}}},
+                {QStringLiteral("required"),             QJsonArray{QStringLiteral("shape")}},
+                {QStringLiteral("additionalProperties"), false                              },
             };
         }
 
@@ -295,10 +301,10 @@ namespace {
                 {QStringLiteral("oneOf"),
                  QJsonArray{
                      QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}},
-                     QJsonObject{{QStringLiteral("type"), QStringLiteral("array")},
-                                 {QStringLiteral("items"),
-                                  QJsonObject{{QStringLiteral("type"),
-                                               QStringLiteral("integer")}}}},
+                     QJsonObject{
+                         {QStringLiteral("type"), QStringLiteral("array")},
+                         {QStringLiteral("items"),
+                          QJsonObject{{QStringLiteral("type"), QStringLiteral("integer")}}}},
                      QJsonObject{{QStringLiteral("type"), QStringLiteral("null")}},
                  }},
             };
@@ -329,27 +335,25 @@ namespace {
                 applicationTool.insert(
                     QStringLiteral("outputSchema"),
                     QJsonObject{
-                        {QStringLiteral("type"), QStringLiteral("object")},
+                        {QStringLiteral("type"),                 QStringLiteral("object")                  },
                         {QStringLiteral("properties"),
-                         QJsonObject{{QStringLiteral("incompatible"),
-                                      QJsonObject{{QStringLiteral("type"),
-                                                   QStringLiteral("boolean")}}}}},
-                        {QStringLiteral("required"),
-                         QJsonArray{QStringLiteral("incompatible")}},
-                        {QStringLiteral("additionalProperties"), false},
-                    });
+                         QJsonObject{
+                             {QStringLiteral("incompatible"),
+                              QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")}}}}           },
+                        {QStringLiteral("required"),             QJsonArray{QStringLiteral("incompatible")}},
+                        {QStringLiteral("additionalProperties"), false                                     },
+                });
             }
             tools.append(applicationTool);
-            tools.append(
-                AutomationWire::findPublicTool(QStringLiteral("automation.get_manifest"))
-                    ->toMcpToolJson());
+            tools.append(AutomationWire::findPublicTool(QStringLiteral("automation.get_manifest"))
+                             ->toMcpToolJson());
             if (exposeNotes) {
-                tools.append(AutomationWire::findPublicTool(QStringLiteral("notes.get"))
-                                 ->toMcpToolJson());
+                tools.append(
+                    AutomationWire::findPublicTool(QStringLiteral("notes.get"))->toMcpToolJson());
             }
             if (exposeFilteredTool) {
-                tools.append(AutomationWire::findPublicTool(QStringLiteral("project.get"))
-                                 ->toMcpToolJson());
+                tools.append(
+                    AutomationWire::findPublicTool(QStringLiteral("project.get"))->toMcpToolJson());
             }
             if (exposeInvalidAnnotatedTool) {
                 auto invalid = applicationTool;
@@ -366,30 +370,31 @@ namespace {
             }
             if (exposeForwardCompatibleTools) {
                 tools.append(QJsonObject{
-                    {QStringLiteral("name"), QStringLiteral("fake.flexible_output")},
-                    {QStringLiteral("inputSchema"), flexibleInputSchema()},
-                    {QStringLiteral("outputSchema"), flexibleOutputSchema()},
+                    {QStringLiteral("name"),         QStringLiteral("fake.flexible_output")   },
+                    {QStringLiteral("inputSchema"),  flexibleInputSchema()                    },
+                    {QStringLiteral("outputSchema"), flexibleOutputSchema()                   },
                     {QStringLiteral("icons"),
                      QJsonArray{QJsonObject{
-                         {QStringLiteral("src"), QStringLiteral("https://example.invalid/tool.svg")},
+                         {QStringLiteral("src"),
+                          QStringLiteral("https://example.invalid/tool.svg")},
                          {QStringLiteral("mimeType"), QStringLiteral("image/svg+xml")},
-                     }}},
+                     }}                                                                       },
                     {QStringLiteral("_meta"),
                      QJsonObject{{QStringLiteral("com.openvpi.ds-editor-lite/fixture"), true}}},
                 });
                 tools.append(QJsonObject{
-                    {QStringLiteral("name"), QStringLiteral("fake.minimal")},
+                    {QStringLiteral("name"),        QStringLiteral("fake.minimal")},
                     {QStringLiteral("inputSchema"),
                      QJsonObject{{QStringLiteral("type"), QStringLiteral("object")},
-                                 {QStringLiteral("additionalProperties"), false}}},
+                                 {QStringLiteral("additionalProperties"), false}} },
                     {QStringLiteral("icons"),
                      QJsonArray{QJsonObject{
                          {QStringLiteral("src"),
                           QStringLiteral("https://example.invalid/minimal.svg")},
-                     }}},
+                     }}                                                           },
                     {QStringLiteral("_meta"),
                      QJsonObject{{QStringLiteral("com.openvpi.ds-editor-lite/fixture"),
-                                  QStringLiteral("minimal")}}},
+                                  QStringLiteral("minimal")}}                     },
                 });
             }
             for (auto index = 0; index < extraToolCount; ++index) {
@@ -421,8 +426,7 @@ namespace {
             if (cacheKey == m_manifestCacheKey)
                 return m_cachedManifest;
             auto manifest =
-                AutomationWire::buildPublicManifest(AutomationWire::AutomationProfile::L1)
-                    .toJson();
+                AutomationWire::buildPublicManifest(AutomationWire::AutomationProfile::L1).toJson();
             manifest.insert(QStringLiteral("toolset_version"), manifestToolsetVersion);
             auto operations = manifest.value(QStringLiteral("operations")).toArray();
             QJsonObject applicationOperation;
@@ -437,15 +441,15 @@ namespace {
                         operation.insert(
                             QStringLiteral("output_schema"),
                             QJsonObject{
-                                {QStringLiteral("type"), QStringLiteral("object")},
+                                {QStringLiteral("type"),                 QStringLiteral("object")},
                                 {QStringLiteral("properties"),
                                  QJsonObject{{QStringLiteral("incompatible"),
                                               QJsonObject{{QStringLiteral("type"),
-                                                           QStringLiteral("boolean")}}}}},
+                                                           QStringLiteral("boolean")}}}}         },
                                 {QStringLiteral("required"),
-                                 QJsonArray{QStringLiteral("incompatible")}},
-                                {QStringLiteral("additionalProperties"), false},
-                            });
+                                 QJsonArray{QStringLiteral("incompatible")}                      },
+                                {QStringLiteral("additionalProperties"), false                   },
+                        });
                     }
                     if (annotatedApplicationHeaders)
                         operation.insert(QStringLiteral("input_schema"), annotatedInputSchema());
@@ -533,24 +537,52 @@ namespace {
             buffer.remove(0, headerEnd + 4 + contentLength);
 
             const auto requestObject = QJsonDocument::fromJson(body).object();
-            const auto validation = AutomationWire::Mcp::validateRequest(requestObject);
+            const auto impliedProtocolVersion =
+                QString::fromLatin1(headers.value("mcp-protocol-version"));
+            const auto validation = AutomationWire::Mcp::validateRequest(
+                requestObject, AutomationWire::Mcp::supportedProtocolVersions(),
+                impliedProtocolVersion);
             if (!validation.valid()) {
                 respond(socket, AutomationWire::Mcp::makeErrorResponse(
                                     requestObject.value(QStringLiteral("id")), validation.error));
                 return;
             }
             const auto &request = *validation.request;
-            requestIds.append(request.id);
-            headersValid &= headers.value("mcp-protocol-version") ==
-                                QByteArray(AutomationWire::Mcp::ProtocolVersion) &&
-                            headers.value("mcp-method") == request.method.toUtf8() &&
-                            headers.value("accept").contains("application/json") &&
+            const auto modern =
+                AutomationWire::Mcp::isModernProtocolVersion(request.protocolVersion);
+            headersValid &= headers.value("accept").contains("application/json") &&
                             headers.value("accept").contains("text/event-stream");
-            if (request.method == QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod)) {
+            if (modern) {
+                headersValid &= headers.value("mcp-protocol-version") ==
+                                    QByteArray(AutomationWire::Mcp::ProtocolVersion) &&
+                                headers.value("mcp-method") == request.method.toUtf8();
+            } else {
+                const auto initialize =
+                    request.method == QString::fromLatin1(AutomationWire::Mcp::InitializeMethod);
+                headersValid &= (initialize ? headers.value("mcp-protocol-version").isEmpty()
+                                            : headers.value("mcp-protocol-version") ==
+                                                  request.protocolVersion.toLatin1()) &&
+                                headers.value("mcp-method").isEmpty() &&
+                                headers.value("mcp-name").isEmpty();
+                if (!legacySessionId.isEmpty()) {
+                    headersValid &= initialize ? headers.value("mcp-session-id").isEmpty()
+                                               : headers.value("mcp-session-id") == legacySessionId;
+                }
+            }
+            if (modern &&
+                request.method == QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod)) {
                 QString nameHeaderError;
                 const auto nameHeader = AutomationWire::Mcp::decodeHeaderValue(
                     QString::fromUtf8(headers.value("mcp-name")), &nameHeaderError);
                 headersValid &= nameHeader && *nameHeader == request.name;
+                calledTools.append(request.name);
+                lastParameterHeaders.clear();
+                for (auto it = headers.constBegin(); it != headers.constEnd(); ++it) {
+                    if (it.key().startsWith("mcp-param-"))
+                        lastParameterHeaders.insert(it.key(), it.value());
+                }
+            } else if (request.method ==
+                       QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod)) {
                 calledTools.append(request.name);
                 lastParameterHeaders.clear();
                 for (auto it = headers.constBegin(); it != headers.constEnd(); ++it) {
@@ -563,9 +595,41 @@ namespace {
                 .name = QStringLiteral("fake-editor"),
                 .version = QStringLiteral("1"),
             };
+            if (request.method == QString::fromLatin1(AutomationWire::Mcp::InitializeMethod)) {
+                ++initializeCount;
+                requestIds.append(request.id);
+                respond(socket,
+                        AutomationWire::Mcp::makeResultResponse(
+                            request.id,
+                            AutomationWire::Mcp::makeInitializeResult(
+                                negotiatedLegacyProtocolVersion, info),
+                            {}, negotiatedLegacyProtocolVersion),
+                        legacySessionId.isEmpty()
+                            ? QByteArray{}
+                            : QByteArrayLiteral("MCP-Session-Id: ") + legacySessionId + "\r\n");
+                return;
+            }
+            if (request.method ==
+                QString::fromLatin1(AutomationWire::Mcp::InitializedNotification)) {
+                ++initializedNotificationCount;
+                respondAccepted(socket);
+                return;
+            }
+            if (request.notification) {
+                respondAccepted(socket);
+                return;
+            }
+            requestIds.append(request.id);
             QJsonObject result;
             if (request.method == QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod)) {
                 ++discoverCount;
+                if (legacyOnly) {
+                    respond(socket,
+                            AutomationWire::Mcp::makeErrorResponse(
+                                request.id, {AutomationWire::Mcp::ServerNotInitialized,
+                                             QStringLiteral("MCP server is not initialized")}));
+                    return;
+                }
                 if (discoverRateLimitFailuresRemaining > 0) {
                     --discoverRateLimitFailuresRemaining;
                     respondTransportError(socket, 429, QStringLiteral("too_many_requests"),
@@ -574,8 +638,8 @@ namespace {
                 }
                 result = AutomationWire::Mcp::makeDiscoverResult(info);
                 if (discoverResponseDelayMs > 0) {
-                    const auto response =
-                        AutomationWire::Mcp::makeResultResponse(request.id, result, info);
+                    const auto response = AutomationWire::Mcp::makeResultResponse(
+                        request.id, result, info, request.protocolVersion);
                     QTimer::singleShot(discoverResponseDelayMs, socket,
                                        [this, socket, response] { respond(socket, response); });
                     return;
@@ -588,13 +652,12 @@ namespace {
                 const auto offset = cursorText.isEmpty() ? 0 : cursorText.toInt(&cursorValid);
                 QString nextCursor;
                 const auto tools = page(allTools(), cursorValid ? offset : 0, nextCursor);
-                result = AutomationWire::Mcp::makeToolsListResult(tools, nextCursor, 0,
-                                                                  QStringLiteral("private"), info);
+                result = AutomationWire::Mcp::makeToolsListResult(
+                    tools, nextCursor, 0, QStringLiteral("private"), info, request.protocolVersion);
             } else if (request.name == QStringLiteral("automation.get_manifest")) {
                 ++manifestCallCount;
                 auto manifest = fullManifest();
-                const auto arguments =
-                    request.params.value(QStringLiteral("arguments")).toObject();
+                const auto arguments = request.params.value(QStringLiteral("arguments")).toObject();
                 bool cursorValid = true;
                 const auto cursorText = arguments.value(QStringLiteral("cursor")).toString();
                 const auto offset = cursorText.isEmpty() ? 0 : cursorText.toInt(&cursorValid);
@@ -606,7 +669,8 @@ namespace {
                     manifest.remove(QStringLiteral("next_cursor"));
                 else
                     manifest.insert(QStringLiteral("next_cursor"), nextCursor);
-                result = AutomationWire::Mcp::makeToolCallResult(manifest);
+                result = AutomationWire::Mcp::makeToolCallResult(manifest, false, {}, {},
+                                                                 request.protocolVersion);
             } else if (request.name == QStringLiteral("fake.flexible_output")) {
                 const auto shape = request.params.value(QStringLiteral("arguments"))
                                        .toObject()
@@ -620,16 +684,21 @@ namespace {
                 else if (shape == QStringLiteral("null"))
                     structuredContent = QJsonValue(QJsonValue::Null);
                 else
-                    structuredContent = QJsonObject{{QStringLiteral("unexpected"), true}};
+                    structuredContent = QJsonObject{
+                        {QStringLiteral("unexpected"), true}
+                    };
                 respond(socket, AutomationWire::Mcp::makeResultResponse(
                                     request.id,
-                                    AutomationWire::Mcp::makeToolCallResult(structuredContent),
-                                    info));
+                                    AutomationWire::Mcp::makeToolCallResult(
+                                        structuredContent, false, {}, {}, request.protocolVersion),
+                                    info, request.protocolVersion));
                 return;
             } else if (request.name == QStringLiteral("fake.minimal")) {
                 respond(socket, AutomationWire::Mcp::makeResultResponse(
                                     request.id,
-                                    AutomationWire::Mcp::makeToolCallResult(QJsonObject{}), info));
+                                    AutomationWire::Mcp::makeToolCallResult(
+                                        QJsonObject{}, false, {}, {}, request.protocolVersion),
+                                    info, request.protocolVersion));
                 return;
             } else if (request.name == QStringLiteral("application.get_info") ||
                        request.name == QStringLiteral("fake.command")) {
@@ -639,9 +708,8 @@ namespace {
                 applicationResponseMode = ApplicationResponseMode::Success;
                 if (mode == ApplicationResponseMode::ProtocolError) {
                     respond(socket, AutomationWire::Mcp::makeErrorResponse(
-                                        request.id,
-                                        {AutomationWire::Mcp::InvalidParams,
-                                         QStringLiteral("fake protocol error")}));
+                                        request.id, {AutomationWire::Mcp::InvalidParams,
+                                                     QStringLiteral("fake protocol error")}));
                     return;
                 }
                 if (mode == ApplicationResponseMode::TransportError) {
@@ -673,8 +741,8 @@ namespace {
                                       {QStringLiteral("platform"),
                                        QStringLiteral("windows")}},
                     mode == ApplicationResponseMode::BusinessError);
-                const auto response =
-                    AutomationWire::Mcp::makeResultResponse(request.id, result, info);
+                const auto response = AutomationWire::Mcp::makeResultResponse(
+                    request.id, result, info, request.protocolVersion);
                 if (mode == ApplicationResponseMode::Sse)
                     respondSse(socket, response);
                 else
@@ -682,22 +750,35 @@ namespace {
                 return;
             } else {
                 respond(socket, AutomationWire::Mcp::makeErrorResponse(
-                                    request.id,
-                                    {AutomationWire::Mcp::InvalidParams,
-                                     QStringLiteral("unknown fake tool")}));
+                                    request.id, {AutomationWire::Mcp::InvalidParams,
+                                                 QStringLiteral("unknown fake tool")}));
                 return;
             }
-            respond(socket, AutomationWire::Mcp::makeResultResponse(request.id, result, info));
+            respond(socket, AutomationWire::Mcp::makeResultResponse(request.id, result, info,
+                                                                    request.protocolVersion));
         }
 
-        void respond(QTcpSocket *socket, const QJsonObject &response) {
+        void respond(QTcpSocket *socket, const QJsonObject &response,
+                     const QByteArray &extraHeaders = {}) {
             const auto body = QJsonDocument(response).toJson(QJsonDocument::Compact);
             QByteArray message = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
-                                 "Connection: close\r\nContent-Length: ";
+                                 "Connection: close\r\n";
+            message.append(extraHeaders);
+            message.append("Content-Length: ");
             message.append(QByteArray::number(body.size()));
             message.append("\r\n\r\n");
             message.append(body);
             m_rawLog.append("=== response ===\n");
+            m_rawLog.append(message);
+            m_rawLog.append('\n');
+            socket->write(message);
+            socket->disconnectFromHost();
+        }
+
+        void respondAccepted(QTcpSocket *socket) {
+            const QByteArray message = "HTTP/1.1 202 Accepted\r\nConnection: close\r\n"
+                                       "Content-Length: 0\r\n\r\n";
+            m_rawLog.append("=== accepted ===\n");
             m_rawLog.append(message);
             m_rawLog.append('\n');
             socket->write(message);
@@ -764,9 +845,8 @@ namespace {
         void respondTransportError(QTcpSocket *socket, const int status, const QString &code,
                                    const QString &errorMessage, const bool extraField = false) {
             QJsonObject envelope{
-                {QStringLiteral("error"),
-                 QJsonObject{{QStringLiteral("code"), code},
-                             {QStringLiteral("message"), errorMessage}}},
+                {QStringLiteral("error"), QJsonObject{{QStringLiteral("code"), code},
+                                                      {QStringLiteral("message"), errorMessage}}},
             };
             if (extraField)
                 envelope.insert(QStringLiteral("unexpected"), true);
@@ -807,13 +887,13 @@ namespace {
         DsConnector::ConnectorOptions options;
         QString error;
         bool ok = true;
-        ok &= expect(DsConnector::parseConnectorOptions(
-                         {QStringLiteral("--exposure-profile"), QStringLiteral("l0"),
-                          QStringLiteral("--include-tool=id:notes.insert"),
-                          QStringLiteral("--include-tool"), QStringLiteral("notes.insert"),
-                          QStringLiteral("--exclude-tool=category:notes")},
-                         options, error),
-                     "valid connector options must parse");
+        ok &= expect(
+            DsConnector::parseConnectorOptions(
+                {QStringLiteral("--exposure-profile"), QStringLiteral("l0"),
+                 QStringLiteral("--include-tool=id:notes.insert"), QStringLiteral("--include-tool"),
+                 QStringLiteral("notes.insert"), QStringLiteral("--exclude-tool=category:notes")},
+                options, error),
+            "valid connector options must parse");
         ok &= expect(options.exposure.profile == AutomationWire::ExposureProfile::L0 &&
                          options.exposure.includes.size() == 1 &&
                          options.exposure.excludes.size() == 1,
@@ -824,7 +904,8 @@ namespace {
 
         ok &= expect(!DsConnector::parseConnectorOptions(
                          {QStringLiteral("--include-tool"), QStringLiteral("regex:notes.*")},
-                         options, error) && !error.isEmpty(),
+                         options, error) &&
+                         !error.isEmpty(),
                      "unsupported selector syntax must fail startup parsing");
 
         DsConnector::ExposurePolicy l0(DsConnector::ConnectorOptions{
@@ -848,9 +929,11 @@ namespace {
     }
 
     bool verifyOfflineDownstream() {
-        DsConnector::ConnectorRuntime runtime(DsConnector::ConnectorOptions{
-            .exposure = {.profile = AutomationWire::ExposureProfile::L0},
-        }, QStringLiteral("DsConnectorLite-No-Such-Editor"));
+        DsConnector::ConnectorRuntime runtime(
+            DsConnector::ConnectorOptions{
+                .exposure = {.profile = AutomationWire::ExposureProfile::L0},
+            },
+            QStringLiteral("DsConnectorLite-No-Such-Editor"));
         DsConnector::DownstreamMcpServer server(&runtime);
         QQueue<QByteArray> responses;
         QObject::connect(&server, &DsConnector::DownstreamMcpServer::responseLine, &server,
@@ -861,20 +944,18 @@ namespace {
                          "connector must publish exactly six fixed bridge definitions");
         for (const auto &entry : bridgeTools) {
             const auto tool = entry.toObject();
-            ok &= expect(AutomationWire::checkJsonSchema(
-                             tool.value(QStringLiteral("inputSchema")))
-                             .valid() &&
-                             AutomationWire::checkJsonSchema(
-                                 tool.value(QStringLiteral("outputSchema")))
-                                 .valid(),
-                         "every bridge tool must publish valid input and output schemas");
+            ok &= expect(
+                AutomationWire::checkJsonSchema(tool.value(QStringLiteral("inputSchema")))
+                        .valid() &&
+                    AutomationWire::checkJsonSchema(tool.value(QStringLiteral("outputSchema")))
+                        .valid(),
+                "every bridge tool must publish valid input and output schemas");
         }
         const auto statusTool =
             DsConnector::ConnectorRuntime::findBridgeTool(QStringLiteral("connector.get_status"));
         ok &= expect(statusTool &&
                          AutomationWire::validateJsonValue(
-                             runtime.status(),
-                             statusTool->value(QStringLiteral("outputSchema")))
+                             runtime.status(), statusTool->value(QStringLiteral("outputSchema")))
                              .valid(),
                      "offline connector status must satisfy its fixed output schema");
         const auto offlineStatus = runtime.status();
@@ -891,88 +972,270 @@ namespace {
 
         const AutomationWire::Mcp::RequestContext context{
             .clientCapabilities = QJsonObject{{QStringLiteral("tools"), QJsonObject{}}},
-            .clientInfo = AutomationWire::Mcp::ImplementationInfo{
-                .name = QStringLiteral("connector-test"),
-                .version = QStringLiteral("1"),
-            },
+            .clientInfo =
+                AutomationWire::Mcp::ImplementationInfo{
+                                              .name = QStringLiteral("connector-test"),
+                                              .version = QStringLiteral("1"),
+                                              },
         };
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod), {},
-                               context, QStringLiteral("discover")))
-                               .toJson(QJsonDocument::Compact));
-        ok &= expect(responses.size() == 1,
-                     "server/discover must respond while editor is offline");
+        {
+            DsConnector::DownstreamMcpServer legacyServer(&runtime);
+            QObject::connect(&legacyServer, &DsConnector::DownstreamMcpServer::responseLine,
+                             &legacyServer,
+                             [&responses](const QByteArray &line) { responses.enqueue(line); });
+            const AutomationWire::Mcp::RequestContext legacyContext{
+                .protocolVersion = QString::fromLatin1(AutomationWire::Mcp::LegacyProtocolVersion),
+                .clientCapabilities = QJsonObject{                                                },
+                .clientInfo =
+                    AutomationWire::Mcp::ImplementationInfo{
+                                                  .name = QStringLiteral("codex-compatible-client"),
+                                                  .version = QStringLiteral("1"),
+                                                  },
+            };
+            legacyServer.processLine(
+                QJsonDocument(AutomationWire::Mcp::makeInitializeRequest(
+                                  legacyContext, QStringLiteral("legacy-initialize")))
+                    .toJson(QJsonDocument::Compact));
+            ok &=
+                expect(responses.size() == 1, "MCP 2025-11-25 initialize must receive a response");
+            if (!responses.isEmpty()) {
+                const auto result = QJsonDocument::fromJson(responses.dequeue())
+                                        .object()
+                                        .value(QStringLiteral("result"))
+                                        .toObject();
+                ok &= expect(
+                    result.value(QStringLiteral("protocolVersion")).toString() ==
+                            QString::fromLatin1(AutomationWire::Mcp::LegacyProtocolVersion) &&
+                        result.value(QStringLiteral("capabilities"))
+                            .toObject()
+                            .value(QStringLiteral("tools"))
+                            .isObject() &&
+                        !result.contains(QStringLiteral("resultType")),
+                    "legacy initialize must negotiate tools without modern result fields");
+            }
+            legacyServer.processLine(
+                QJsonDocument(AutomationWire::Mcp::makeRequest(
+                                  QString::fromLatin1(AutomationWire::Mcp::PingMethod), {},
+                                  legacyContext, QStringLiteral("legacy-ping")))
+                    .toJson(QJsonDocument::Compact));
+            ok &= expect(!responses.isEmpty() && QJsonDocument::fromJson(responses.dequeue())
+                                                     .object()
+                                                     .value(QStringLiteral("result"))
+                                                     .isObject(),
+                         "legacy ping must work between initialize and initialized");
+            legacyServer.processLine(
+                QJsonDocument(AutomationWire::Mcp::makeRequest(
+                                  QString::fromLatin1(AutomationWire::Mcp::InitializedNotification),
+                                  {}, legacyContext, QStringLiteral("invalid-initialized-request")))
+                    .toJson(QJsonDocument::Compact));
+            ok &= expect(!responses.isEmpty() &&
+                             QJsonDocument::fromJson(responses.dequeue())
+                                     .object()
+                                     .value(QStringLiteral("error"))
+                                     .toObject()
+                                     .value(QStringLiteral("code"))
+                                     .toInt() == AutomationWire::Mcp::InvalidRequest,
+                         "notifications/initialized with an id must be rejected as a request");
+            legacyServer.processLine(
+                QJsonDocument(AutomationWire::Mcp::makeRequest(
+                                  QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod), {},
+                                  legacyContext, QStringLiteral("legacy-before-initialized")))
+                    .toJson(QJsonDocument::Compact));
+            ok &= expect(!responses.isEmpty() &&
+                             QJsonDocument::fromJson(responses.dequeue())
+                                     .object()
+                                     .value(QStringLiteral("error"))
+                                     .toObject()
+                                     .value(QStringLiteral("code"))
+                                     .toInt() == AutomationWire::Mcp::ServerNotInitialized,
+                         "legacy tools must remain unavailable until notifications/initialized");
+            legacyServer.processLine(
+                QJsonDocument(AutomationWire::Mcp::makeRequest(
+                                  QString::fromLatin1(AutomationWire::Mcp::InitializedNotification),
+                                  {}, legacyContext))
+                    .toJson(QJsonDocument::Compact));
+            ok &= expect(responses.isEmpty(),
+                         "legacy initialized notification must remain response-free");
+            legacyServer.processLine(
+                QJsonDocument(AutomationWire::Mcp::makeRequest(
+                                  QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod), {},
+                                  legacyContext, QStringLiteral("legacy-list")))
+                    .toJson(QJsonDocument::Compact));
+            if (!responses.isEmpty()) {
+                const auto result = QJsonDocument::fromJson(responses.dequeue())
+                                        .object()
+                                        .value(QStringLiteral("result"))
+                                        .toObject();
+                ok &= expect(result.value(QStringLiteral("tools")).toArray().size() == 6 &&
+                                 !result.contains(QStringLiteral("resultType")) &&
+                                 !result.contains(QStringLiteral("ttlMs")),
+                             "legacy tools/list must expose the same fixed surface using the 2025 "
+                             "result shape");
+            } else {
+                ok &= expect(false, "legacy tools/list must respond while the editor is offline");
+            }
+            legacyServer.processLine(
+                QJsonDocument(
+                    AutomationWire::Mcp::makeRequest(
+                        QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                        QJsonObject{
+                            {QStringLiteral("name"),      QStringLiteral("connector.get_status")},
+                            {QStringLiteral("arguments"), QJsonObject{}                         },
+            },
+                        legacyContext, QStringLiteral("legacy-call")))
+                    .toJson(QJsonDocument::Compact));
+            if (!responses.isEmpty()) {
+                const auto result = QJsonDocument::fromJson(responses.dequeue())
+                                        .object()
+                                        .value(QStringLiteral("result"))
+                                        .toObject();
+                ok &= expect(result.value(QStringLiteral("content")).isArray() &&
+                                 result.value(QStringLiteral("structuredContent")).isObject() &&
+                                 !result.contains(QStringLiteral("resultType")),
+                             "legacy tools/call must retain structured and text results");
+            } else {
+                ok &= expect(false, "legacy tools/call must return the offline status result");
+            }
+        }
+        {
+            DsConnector::DownstreamMcpServer compatibilityServer(&runtime);
+            QObject::connect(&compatibilityServer, &DsConnector::DownstreamMcpServer::responseLine,
+                             &compatibilityServer,
+                             [&responses](const QByteArray &line) { responses.enqueue(line); });
+            const AutomationWire::Mcp::RequestContext compatibilityContext{
+                .protocolVersion =
+                    QString::fromLatin1(AutomationWire::Mcp::CompatibilityProtocolVersion),
+                .clientCapabilities = QJsonObject{                                                        },
+                .clientInfo =
+                    AutomationWire::Mcp::ImplementationInfo{
+                                                  .name = QStringLiteral("codex-2025-06-compatible-client"),
+                                                  .version = QStringLiteral("1"),
+                                                  },
+            };
+            compatibilityServer.processLine(
+                QJsonDocument(AutomationWire::Mcp::makeInitializeRequest(
+                                  compatibilityContext, QStringLiteral("compatibility-initialize")))
+                    .toJson(QJsonDocument::Compact));
+            const auto initializeResult = responses.isEmpty()
+                                              ? QJsonObject{}
+                                              : QJsonDocument::fromJson(responses.dequeue())
+                                                    .object()
+                                                    .value(QStringLiteral("result"))
+                                                    .toObject();
+            ok &= expect(
+                initializeResult.value(QStringLiteral("protocolVersion")) ==
+                        QString::fromLatin1(AutomationWire::Mcp::CompatibilityProtocolVersion) &&
+                    !initializeResult.contains(QStringLiteral("resultType")),
+                "MCP 2025-06-18 initialize must echo the compatibility version");
+            compatibilityServer.processLine(
+                QJsonDocument(AutomationWire::Mcp::makeRequest(
+                                  QString::fromLatin1(AutomationWire::Mcp::InitializedNotification),
+                                  {}, compatibilityContext))
+                    .toJson(QJsonDocument::Compact));
+            compatibilityServer.processLine(
+                QJsonDocument(AutomationWire::Mcp::makeRequest(
+                                  QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod), {},
+                                  compatibilityContext, QStringLiteral("compatibility-list")))
+                    .toJson(QJsonDocument::Compact));
+            const auto listResult = responses.isEmpty()
+                                        ? QJsonObject{}
+                                        : QJsonDocument::fromJson(responses.dequeue())
+                                              .object()
+                                              .value(QStringLiteral("result"))
+                                              .toObject();
+            ok &= expect(listResult.value(QStringLiteral("tools")).toArray().size() == 6 &&
+                             !listResult.contains(QStringLiteral("resultType")),
+                         "MCP 2025-06-18 tools/list must expose the legacy-compatible surface");
+        }
+        server.processLine(
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod), {}, context,
+                              QStringLiteral("discover")))
+                .toJson(QJsonDocument::Compact));
+        ok &= expect(responses.size() == 1, "server/discover must respond while editor is offline");
         if (!responses.isEmpty()) {
             const auto response = QJsonDocument::fromJson(responses.dequeue()).object();
-            ok &= expect(response.value(QStringLiteral("id")).toString() ==
-                             QStringLiteral("discover") &&
-                             response.value(QStringLiteral("result")).toObject().value(
-                                 QStringLiteral("resultType")) == QStringLiteral("complete"),
-                         "downstream discover response must use modern MCP envelope");
+            ok &= expect(
+                response.value(QStringLiteral("id")).toString() == QStringLiteral("discover") &&
+                    response.value(QStringLiteral("result"))
+                            .toObject()
+                            .value(QStringLiteral("resultType")) == QStringLiteral("complete"),
+                "downstream discover response must use modern MCP envelope");
         }
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod), {},
-                               context, QStringLiteral("list")))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod), {},
+                              context, QStringLiteral("list")))
+                .toJson(QJsonDocument::Compact));
         ok &= expect(responses.size() == 1, "tools/list must respond while editor is offline");
         if (!responses.isEmpty()) {
             const auto response = QJsonDocument::fromJson(responses.dequeue()).object();
             const auto result = response.value(QStringLiteral("result")).toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 6 &&
-                             !result.contains(QStringLiteral("nextCursor")),
+            ok &= expect(tools.size() == 6 && !result.contains(QStringLiteral("nextCursor")),
                          "l0 downstream list must retain six fixed tools without a cursor");
         }
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod),
-                               QJsonObject{{QStringLiteral("cursor"), QStringLiteral("1")}}, context,
-                               QStringLiteral("forged-list-cursor")))
-                               .toJson(QJsonDocument::Compact));
-        ok &= expect(responses.size() == 1 &&
-                         QJsonDocument::fromJson(responses.dequeue())
-                                 .object()
-                                 .value(QStringLiteral("error"))
-                                 .toObject()
-                                 .value(QStringLiteral("code"))
-                                 .toInt() == AutomationWire::Mcp::InvalidParams,
-                     "downstream tools/list must reject unsigned and forged cursors");
+        server.processLine(
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod),
+                              QJsonObject{
+                                  {QStringLiteral("cursor"), QStringLiteral("1")}
+        },
+                              context, QStringLiteral("forged-list-cursor")))
+                .toJson(QJsonDocument::Compact));
+        ok &=
+            expect(responses.size() == 1 && QJsonDocument::fromJson(responses.dequeue())
+                                                    .object()
+                                                    .value(QStringLiteral("error"))
+                                                    .toObject()
+                                                    .value(QStringLiteral("code"))
+                                                    .toInt() == AutomationWire::Mcp::InvalidParams,
+                   "downstream tools/list must reject unsigned and forged cursors");
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod),
-                               QJsonObject{{QStringLiteral("limit"), 1}}, context,
-                               QStringLiteral("invalid-list")))
-                               .toJson(QJsonDocument::Compact));
-        ok &= expect(responses.size() == 1 &&
-                         QJsonDocument::fromJson(responses.dequeue())
-                                 .object()
-                                 .value(QStringLiteral("error"))
-                                 .toObject()
-                                 .value(QStringLiteral("code"))
-                                 .toInt() == AutomationWire::Mcp::InvalidParams,
-                     "tools/list must reject non-standard limit and additional params");
+        server.processLine(
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod),
+                              QJsonObject{
+                                  {QStringLiteral("limit"), 1}
+        },
+                              context, QStringLiteral("invalid-list")))
+                .toJson(QJsonDocument::Compact));
+        ok &=
+            expect(responses.size() == 1 && QJsonDocument::fromJson(responses.dequeue())
+                                                    .object()
+                                                    .value(QStringLiteral("error"))
+                                                    .toObject()
+                                                    .value(QStringLiteral("code"))
+                                                    .toInt() == AutomationWire::Mcp::InvalidParams,
+                   "tools/list must reject non-standard limit and additional params");
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod), {},
-                               context))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(
+                AutomationWire::Mcp::makeRequest(
+                    QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod), {}, context))
+                .toJson(QJsonDocument::Compact));
         ok &= expect(responses.isEmpty(),
                      "JSON-RPC core notifications must never produce a response");
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QStringLiteral("notifications/cancelled"),
-                               QJsonObject{{QStringLiteral("request_id"),
-                                            QStringLiteral("legacy-id")}},
-                               context))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QStringLiteral("notifications/cancelled"),
+                              QJsonObject{
+                                  {QStringLiteral("request_id"), QStringLiteral("legacy-id")}
+        },
+                              context))
+                .toJson(QJsonDocument::Compact));
         ok &= expect(responses.isEmpty(),
                      "invalid and legacy cancellation notifications must remain silent");
 
         const auto statusCall = AutomationWire::Mcp::makeRequest(
             QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-            QJsonObject{{QStringLiteral("name"), QStringLiteral("connector.get_status")},
-                        {QStringLiteral("arguments"), QJsonObject{}}},
+            QJsonObject{
+                {QStringLiteral("name"),      QStringLiteral("connector.get_status")},
+                {QStringLiteral("arguments"), QJsonObject{}                         }
+        },
             context, QStringLiteral("reusable-sync-id"));
         server.processLine(QJsonDocument(statusCall).toJson(QJsonDocument::Compact));
         server.processLine(QJsonDocument(statusCall).toJson(QJsonDocument::Compact));
@@ -980,16 +1243,19 @@ namespace {
                      "synchronous callbacks must not leave a stale in-flight request id");
         responses.clear();
 
-        DsConnector::ConnectorRuntime l2Runtime(DsConnector::ConnectorOptions{
-            .exposure = {.profile = AutomationWire::ExposureProfile::L2},
-        }, QStringLiteral("DsConnectorLite-No-Such-Editor-L2"));
+        DsConnector::ConnectorRuntime l2Runtime(
+            DsConnector::ConnectorOptions{
+                .exposure = {.profile = AutomationWire::ExposureProfile::L2},
+            },
+            QStringLiteral("DsConnectorLite-No-Such-Editor-L2"));
         DsConnector::DownstreamMcpServer l2Server(&l2Runtime);
         QObject::connect(&l2Server, &DsConnector::DownstreamMcpServer::responseLine, &l2Server,
                          [&responses](const QByteArray &line) { responses.enqueue(line); });
-        l2Server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                                 QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod), {},
-                                 context, QStringLiteral("l2-list")))
-                                 .toJson(QJsonDocument::Compact));
+        l2Server.processLine(
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod), {},
+                              context, QStringLiteral("l2-list")))
+                .toJson(QJsonDocument::Compact));
         if (!responses.isEmpty()) {
             const auto result = QJsonDocument::fromJson(responses.dequeue())
                                     .object()
@@ -1012,9 +1278,11 @@ namespace {
         if (!ok)
             return false;
 
-        DsConnector::ConnectorRuntime runtime(DsConnector::ConnectorOptions{
-            .exposure = {.profile = AutomationWire::ExposureProfile::L1},
-        }, serviceName);
+        DsConnector::ConnectorRuntime runtime(
+            DsConnector::ConnectorOptions{
+                .exposure = {.profile = AutomationWire::ExposureProfile::L1},
+            },
+            serviceName);
         const auto callCode = [&runtime] {
             QString code;
             runtime.callTool(QStringLiteral("application.get_info"), {},
@@ -1032,11 +1300,11 @@ namespace {
         runtime.start();
 
         const QList<QPair<SingleInstanceAutomationState, QString>> states{
-            {SingleInstanceAutomationState::Starting, QStringLiteral("editor_starting")},
-            {SingleInstanceAutomationState::McpDisabled, QStringLiteral("mcp_disabled")},
-            {SingleInstanceAutomationState::McpStarting, QStringLiteral("mcp_starting")},
-            {SingleInstanceAutomationState::McpStopping, QStringLiteral("mcp_stopping")},
-            {SingleInstanceAutomationState::Error, QStringLiteral("editor_error")},
+            {SingleInstanceAutomationState::Starting,    QStringLiteral("editor_starting")},
+            {SingleInstanceAutomationState::McpDisabled, QStringLiteral("mcp_disabled")   },
+            {SingleInstanceAutomationState::McpStarting, QStringLiteral("mcp_starting")   },
+            {SingleInstanceAutomationState::McpStopping, QStringLiteral("mcp_stopping")   },
+            {SingleInstanceAutomationState::Error,       QStringLiteral("editor_error")   },
         };
         for (const auto &[state, expectedCode] : states) {
             SingleInstanceAutomationStatus status{
@@ -1087,14 +1355,16 @@ namespace {
         });
         DsConnector::ConnectorRuntime runtime({}, serviceName);
         runtime.start();
-        ok &= expect(waitUntil([&] {
-                         return runtime.status()
-                             .value(QStringLiteral("bootstrap"))
-                             .toObject()
-                             .value(QStringLiteral("error"))
-                             .toString()
-                             .contains(QStringLiteral("bootstrap_request_id_mismatch"));
-                     }, 5000),
+        ok &= expect(waitUntil(
+                         [&] {
+                             return runtime.status()
+                                 .value(QStringLiteral("bootstrap"))
+                                 .toObject()
+                                 .value(QStringLiteral("error"))
+                                 .toString()
+                                 .contains(QStringLiteral("bootstrap_request_id_mismatch"));
+                         },
+                         5000),
                      "the first watch snapshot must carry the exact request correlation id");
         runtime.stop();
         return ok;
@@ -1103,12 +1373,13 @@ namespace {
     bool verifyHandshakeCoordination() {
         bool ok = true;
         const auto options = DsConnector::ConnectorOptions{
-            .exposure = {
-                .profile = AutomationWire::ExposureProfile::L0,
-                .includes = {QStringLiteral("id:application.get_info"),
-                             QStringLiteral("id:automation.get_manifest"),
-                             QStringLiteral("id:notes.get")},
-            },
+            .exposure =
+                {
+                           .profile = AutomationWire::ExposureProfile::L0,
+                           .includes = {QStringLiteral("id:application.get_info"),
+                                 QStringLiteral("id:automation.get_manifest"),
+                                 QStringLiteral("id:notes.get")},
+                           },
             .upstreamTimeoutMs = 2000,
         };
         const auto readyStatus = [](const QString &editorId, const QString &endpoint) {
@@ -1127,9 +1398,9 @@ namespace {
                                      const int targetCount) {
             const auto status = runtime.status();
             return status.value(QStringLiteral("mcp"))
-                           .toObject()
-                           .value(QStringLiteral("connected"))
-                           .toBool() &&
+                       .toObject()
+                       .value(QStringLiteral("connected"))
+                       .toBool() &&
                    status.value(QStringLiteral("manifest"))
                            .toObject()
                            .value(QStringLiteral("compatibility"))
@@ -1156,31 +1427,34 @@ namespace {
             bootstrap.publish(ready);
             DsConnector::ConnectorRuntime runtime(options, serviceName);
             runtime.start();
-            ok &= expect(waitUntil([&] {
-                             return bootstrap.watcherCount() == 1 && http.discoverCount == 1;
-                         }, 5000),
-                         "the initial delayed handshake must be in flight before the ready burst");
+            ok &= expect(
+                waitUntil([&] { return bootstrap.watcherCount() == 1 && http.discoverCount == 1; },
+                          5000),
+                "the initial delayed handshake must be in flight before the ready burst");
             for (auto index = 0; index < 64; ++index)
                 bootstrap.publish(ready);
-            ok &= expect(waitUntil([&] {
-                             return http.discoverCount >= 2 && readyRuntime(runtime, 2);
-                         }, 10000),
-                         "duplicate ready snapshots must converge after one trailing refresh");
+            ok &= expect(
+                waitUntil([&] { return http.discoverCount >= 2 && readyRuntime(runtime, 2); },
+                          10000),
+                "duplicate ready snapshots must converge after one trailing refresh");
             const auto unexpectedExtraHandshake =
                 waitUntil([&] { return http.discoverCount > 2; }, 700);
-            ok &= expect(!unexpectedExtraHandshake && http.discoverCount == 2 &&
-                             http.toolsListCount == 2 && http.manifestCallCount == 2 &&
-                             http.requestIds.size() == 6 && http.requestIds.size() < 20,
-                         "a same-target ready burst must stay below the default client request budget");
+            ok &= expect(
+                !unexpectedExtraHandshake && http.discoverCount == 2 && http.toolsListCount == 2 &&
+                    http.manifestCallCount == 2 && http.requestIds.size() == 6 &&
+                    http.requestIds.size() < 20,
+                "a same-target ready burst must stay below the default client request budget");
 
             http.discoverResponseDelayMs = 0;
             http.exposeNotes = true;
             const auto refreshCount = http.discoverCount;
             bootstrap.publish(ready);
-            ok &= expect(waitUntil([&] {
-                             return http.discoverCount == refreshCount + 1 &&
-                                    readyRuntime(runtime, 3);
-                         }, 10000),
+            ok &= expect(waitUntil(
+                             [&] {
+                                 return http.discoverCount == refreshCount + 1 &&
+                                        readyRuntime(runtime, 3);
+                             },
+                             10000),
                          "a later same-endpoint ready snapshot must still refresh new tools");
             runtime.stop();
         }
@@ -1201,35 +1475,90 @@ namespace {
             bootstrap.publish(ready);
             DsConnector::ConnectorRuntime runtime(options, serviceName);
             runtime.start();
-            ok &= expect(waitUntil([&] {
-                             return http.discoverCount == 2 && readyRuntime(runtime, 2);
-                         }, 10000),
-                         "a first HTTP 429 handshake response must recover automatically");
+            ok &= expect(
+                waitUntil([&] { return http.discoverCount == 2 && readyRuntime(runtime, 2); },
+                          10000),
+                "a first HTTP 429 handshake response must recover automatically");
 
             http.discoverRateLimitFailuresRemaining = 5;
             bootstrap.publish(ready);
-            ok &= expect(waitUntil([&] {
-                             const auto status = runtime.status();
-                             return http.discoverCount == 7 &&
-                                    status.value(QStringLiteral("mcp"))
-                                            .toObject()
-                                            .value(QStringLiteral("error"))
-                                            .toString() == QStringLiteral("too_many_requests") &&
-                                    status.value(QStringLiteral("manifest"))
-                                            .toObject()
-                                            .value(QStringLiteral("compatibility"))
-                                            .toString() == QStringLiteral("not_loaded");
-                         }, 10000),
-                         "transient handshake retries must stop after the bounded backoff budget");
+            ok &=
+                expect(waitUntil(
+                           [&] {
+                               const auto status = runtime.status();
+                               return http.discoverCount == 7 &&
+                                      status.value(QStringLiteral("mcp"))
+                                              .toObject()
+                                              .value(QStringLiteral("error"))
+                                              .toString() == QStringLiteral("too_many_requests") &&
+                                      status.value(QStringLiteral("manifest"))
+                                              .toObject()
+                                              .value(QStringLiteral("compatibility"))
+                                              .toString() == QStringLiteral("not_loaded");
+                           },
+                           10000),
+                       "transient handshake retries must stop after the bounded backoff budget");
             ok &= expect(!waitUntil([&] { return http.discoverCount > 7; }, 1000),
                          "an exhausted handshake must not retry forever without a new event");
 
             http.discoverRateLimitFailuresRemaining = 1;
             bootstrap.publish(ready);
-            ok &= expect(waitUntil([&] {
-                             return http.discoverCount == 9 && readyRuntime(runtime, 2);
-                         }, 10000),
-                         "a later external ready event must receive a fresh bounded retry budget");
+            ok &= expect(
+                waitUntil([&] { return http.discoverCount == 9 && readyRuntime(runtime, 2); },
+                          10000),
+                "a later external ready event must receive a fresh bounded retry budget");
+            runtime.stop();
+        }
+
+        {
+            FakeHttpEditor http;
+            http.legacyOnly = true;
+            http.legacySessionId = QByteArrayLiteral("fixture-session-id");
+            http.negotiatedLegacyProtocolVersion =
+                QString::fromLatin1(AutomationWire::Mcp::CompatibilityProtocolVersion);
+            ok &= expect(http.listen(), "legacy-only fake editor must listen");
+            if (!ok)
+                return false;
+            const auto serviceName = QStringLiteral("DsConnectorLite-Legacy-Handshake-%1")
+                                         .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+            FakeBootstrap bootstrap(serviceName);
+            ok &= expect(bootstrap.listen(), "legacy-only bootstrap must listen");
+            if (!ok)
+                return false;
+            bootstrap.publish(readyStatus(QStringLiteral("legacy-editor"), http.endpoint()));
+            DsConnector::ConnectorRuntime runtime(options, serviceName);
+            runtime.start();
+            ok &= expect(waitUntil(
+                             [&] {
+                                 const auto status = runtime.status();
+                                 return readyRuntime(runtime, 2) &&
+                                        status.value(QStringLiteral("mcp"))
+                                                .toObject()
+                                                .value(QStringLiteral("protocol_version")) ==
+                                            QString::fromLatin1(
+                                                AutomationWire::Mcp::CompatibilityProtocolVersion);
+                             },
+                             10000),
+                         "a 2025-06-18 editor must connect after the preferred 2026 probe fails");
+            ok &= expect(http.discoverCount == 1 && http.initializeCount == 1 &&
+                             http.initializedNotificationCount == 1 && http.toolsListCount == 1 &&
+                             http.manifestCallCount == 1 && http.headersValid,
+                         "legacy fallback must preserve the session while adopting negotiated "
+                         "2025-06-18 transport metadata");
+
+            bool callFinished = false;
+            DsConnector::ToolCallOutcome callOutcome;
+            runtime.callTool(QStringLiteral("application.get_info"), {},
+                             [&](DsConnector::ToolCallOutcome outcome) {
+                                 callOutcome = std::move(outcome);
+                                 callFinished = true;
+                             });
+            ok &= expect(
+                waitUntil([&] { return callFinished; }, 5000) && !callOutcome.protocolError &&
+                    callOutcome.result.value(QStringLiteral("structuredContent"))
+                            .toObject()
+                            .value(QStringLiteral("name")) == QStringLiteral("DS Editor Lite"),
+                "typed calls must continue through the negotiated 2025 upstream");
             runtime.stop();
         }
         return ok;
@@ -1262,36 +1591,40 @@ namespace {
         bootstrap.publish(ready);
 
         DsConnector::ConnectorOptions options{
-            .exposure = {
-                .profile = AutomationWire::ExposureProfile::L0,
-                .includes = {
-                    QStringLiteral("id:application.get_info"),
-                    QStringLiteral("id:automation.get_manifest"),
-                    QStringLiteral("id:notes.get"),
-                },
-            },
+            .exposure =
+                {
+                           .profile = AutomationWire::ExposureProfile::L0,
+                           .includes =
+                        {
+                            QStringLiteral("id:application.get_info"),
+                            QStringLiteral("id:automation.get_manifest"),
+                            QStringLiteral("id:notes.get"),
+                        }, },
             .upstreamTimeoutMs = 2000,
         };
         DsConnector::ConnectorRuntime runtime(options, serviceName);
         runtime.start();
-        const auto handshakeReady = waitUntil([&] {
-                         const auto status = runtime.status();
-                         return status.value(QStringLiteral("mcp")).toObject().value(
-                                    QStringLiteral("connected"))
-                                    .toBool() &&
-                                status.value(QStringLiteral("exposure"))
-                                        .toObject()
-                                        .value(QStringLiteral("generic_target_count"))
-                                        .toInt() == 2 &&
-                                status.value(QStringLiteral("manifest"))
-                                        .toObject()
-                                        .value(QStringLiteral("compatibility"))
-                                        .toString() != QStringLiteral("not_loaded") &&
-                                status.value(QStringLiteral("manifest"))
-                                        .toObject()
-                                        .value(QStringLiteral("compatibility"))
-                                        .toString() != QStringLiteral("refreshing");
-                     }, 10000);
+        const auto handshakeReady = waitUntil(
+            [&] {
+                const auto status = runtime.status();
+                return status.value(QStringLiteral("mcp"))
+                           .toObject()
+                           .value(QStringLiteral("connected"))
+                           .toBool() &&
+                       status.value(QStringLiteral("exposure"))
+                               .toObject()
+                               .value(QStringLiteral("generic_target_count"))
+                               .toInt() == 2 &&
+                       status.value(QStringLiteral("manifest"))
+                               .toObject()
+                               .value(QStringLiteral("compatibility"))
+                               .toString() != QStringLiteral("not_loaded") &&
+                       status.value(QStringLiteral("manifest"))
+                               .toObject()
+                               .value(QStringLiteral("compatibility"))
+                               .toString() != QStringLiteral("refreshing");
+            },
+            10000);
         if (!handshakeReady)
             QTextStream(stderr) << QJsonDocument(runtime.status()).toJson(QJsonDocument::Compact)
                                 << Qt::endl;
@@ -1319,13 +1652,15 @@ namespace {
         QObject::connect(&server, &DsConnector::DownstreamMcpServer::responseLine, &server,
                          [&responses](const QByteArray &line) { responses.enqueue(line); });
         const auto context = clientContext();
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                               QJsonObject{{QStringLiteral("name"),
-                                            QStringLiteral("application.get_info")},
-                                           {QStringLiteral("arguments"), QJsonObject{}}},
-                               context, QStringLiteral("downstream-call-id")))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                              QJsonObject{
+                                  {QStringLiteral("name"),      QStringLiteral("application.get_info")},
+                                  {QStringLiteral("arguments"), QJsonObject{}                         }
+        },
+                              context, QStringLiteral("downstream-call-id")))
+                .toJson(QJsonDocument::Compact));
         ok &= expect(waitUntil([&] { return !responses.isEmpty(); }),
                      "typed downstream call must complete through fake editor HTTP");
         if (!responses.isEmpty()) {
@@ -1335,7 +1670,7 @@ namespace {
                                         .value(QStringLiteral("structuredContent"))
                                         .toObject();
             ok &= expect(response.value(QStringLiteral("id")).toString() ==
-                             QStringLiteral("downstream-call-id") &&
+                                 QStringLiteral("downstream-call-id") &&
                              structured.value(QStringLiteral("name")).toString() ==
                                  QStringLiteral("DS Editor Lite"),
                          "connector must restore the downstream ID and preserve structured result");
@@ -1346,19 +1681,20 @@ namespace {
                                   }),
                      "connector must allocate independent upstream request IDs");
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                               QJsonObject{
-                                   {QStringLiteral("name"), QStringLiteral("editor.tools.invoke")},
-                                   {QStringLiteral("arguments"),
-                                    QJsonObject{
-                                        {QStringLiteral("name"),
-                                         QStringLiteral("application.get_info")},
-                                        {QStringLiteral("arguments"), QJsonObject{}},
-                                    }},
-                               },
-                               context, QStringLiteral("generic-call-id")))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(
+                AutomationWire::Mcp::makeRequest(
+                    QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                    QJsonObject{
+                        {QStringLiteral("name"),      QStringLiteral("editor.tools.invoke")},
+                        {QStringLiteral("arguments"),
+                         QJsonObject{
+                             {QStringLiteral("name"), QStringLiteral("application.get_info")},
+                             {QStringLiteral("arguments"), QJsonObject{}},
+                         }                                                                 },
+        },
+                    context, QStringLiteral("generic-call-id")))
+                .toJson(QJsonDocument::Compact));
         ok &= expect(waitUntil([&] { return !responses.isEmpty(); }),
                      "generic invoke must use the same permitted editor target");
         if (!responses.isEmpty()) {
@@ -1370,14 +1706,15 @@ namespace {
                          "generic invoke must succeed for an exposure-permitted target");
         }
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                               QJsonObject{
-                                   {QStringLiteral("name"), QStringLiteral("editor.tools.list")},
-                                   {QStringLiteral("arguments"), QJsonObject{}},
-                               },
-                               context, QStringLiteral("generic-list")))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                              QJsonObject{
+                                  {QStringLiteral("name"),      QStringLiteral("editor.tools.list")},
+                                  {QStringLiteral("arguments"), QJsonObject{}                      },
+        },
+                              context, QStringLiteral("generic-list")))
+                .toJson(QJsonDocument::Compact));
         ok &= expect(!responses.isEmpty(), "generic list must complete synchronously");
         if (!responses.isEmpty()) {
             const auto tools = QJsonDocument::fromJson(responses.dequeue())
@@ -1397,17 +1734,17 @@ namespace {
                          "generic list must use the same connector exposure as typed tools");
         }
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                               QJsonObject{
-                                   {QStringLiteral("name"),
-                                    QStringLiteral("editor.tools.search")},
-                                   {QStringLiteral("arguments"),
-                                    QJsonObject{{QStringLiteral("query"),
-                                                 QStringLiteral("project.get")}}},
-                               },
-                               context, QStringLiteral("filtered-search")))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(
+                AutomationWire::Mcp::makeRequest(
+                    QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                    QJsonObject{
+                        {QStringLiteral("name"),      QStringLiteral("editor.tools.search")   },
+                        {QStringLiteral("arguments"),
+                         QJsonObject{{QStringLiteral("query"), QStringLiteral("project.get")}}},
+        },
+                    context, QStringLiteral("filtered-search")))
+                .toJson(QJsonDocument::Compact));
         if (!responses.isEmpty()) {
             const auto tools = QJsonDocument::fromJson(responses.dequeue())
                                    .object()
@@ -1423,17 +1760,17 @@ namespace {
             ok &= expect(false, "filtered generic search must return a result");
         }
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                               QJsonObject{
-                                   {QStringLiteral("name"),
-                                    QStringLiteral("editor.tools.describe")},
-                                   {QStringLiteral("arguments"),
-                                    QJsonObject{{QStringLiteral("name"),
-                                                 QStringLiteral("project.get")}}},
-                               },
-                               context, QStringLiteral("filtered-describe")))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(
+                AutomationWire::Mcp::makeRequest(
+                    QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                    QJsonObject{
+                        {QStringLiteral("name"),      QStringLiteral("editor.tools.describe")},
+                        {QStringLiteral("arguments"),
+                         QJsonObject{{QStringLiteral("name"), QStringLiteral("project.get")}}},
+        },
+                    context, QStringLiteral("filtered-describe")))
+                .toJson(QJsonDocument::Compact));
         if (!responses.isEmpty()) {
             const auto code = QJsonDocument::fromJson(responses.dequeue())
                                   .object()
@@ -1449,18 +1786,19 @@ namespace {
             ok &= expect(false, "filtered generic describe must return a result");
         }
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                               QJsonObject{
-                                   {QStringLiteral("name"), QStringLiteral("editor.tools.invoke")},
-                                   {QStringLiteral("arguments"),
-                                    QJsonObject{
-                                        {QStringLiteral("name"), QStringLiteral("project.get")},
-                                        {QStringLiteral("arguments"), QJsonObject{}},
-                                    }},
-                               },
-                               context, QStringLiteral("filtered-invoke")))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                              QJsonObject{
+                                  {QStringLiteral("name"),      QStringLiteral("editor.tools.invoke")},
+                                  {QStringLiteral("arguments"),
+                                   QJsonObject{
+                                       {QStringLiteral("name"), QStringLiteral("project.get")},
+                                       {QStringLiteral("arguments"), QJsonObject{}},
+                                   }                                                                 },
+        },
+                              context, QStringLiteral("filtered-invoke")))
+                .toJson(QJsonDocument::Compact));
         if (!responses.isEmpty()) {
             const auto code = QJsonDocument::fromJson(responses.dequeue())
                                   .object()
@@ -1480,60 +1818,68 @@ namespace {
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Hold;
         const auto heldRequest = AutomationWire::Mcp::makeRequest(
             QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-            QJsonObject{{QStringLiteral("name"), QStringLiteral("application.get_info")},
-                        {QStringLiteral("arguments"), QJsonObject{}}},
+            QJsonObject{
+                {QStringLiteral("name"),      QStringLiteral("application.get_info")},
+                {QStringLiteral("arguments"), QJsonObject{}                         }
+        },
             context, QStringLiteral("cancel-me"));
         server.processLine(QJsonDocument(heldRequest).toJson(QJsonDocument::Compact));
         server.processLine(QJsonDocument(heldRequest).toJson(QJsonDocument::Compact));
-        ok &= expect(!responses.isEmpty() &&
-                         QJsonDocument::fromJson(responses.dequeue())
-                                 .object()
-                                 .value(QStringLiteral("error"))
-                                 .toObject()
-                                 .value(QStringLiteral("code"))
-                                 .toInt() == AutomationWire::Mcp::InvalidRequest,
-                     "duplicate in-flight downstream request IDs must be rejected");
+        ok &=
+            expect(!responses.isEmpty() && QJsonDocument::fromJson(responses.dequeue())
+                                                   .object()
+                                                   .value(QStringLiteral("error"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("code"))
+                                                   .toInt() == AutomationWire::Mcp::InvalidRequest,
+                   "duplicate in-flight downstream request IDs must be rejected");
         ok &= expect(waitUntil([&] {
                          return http.calledTools.count(QStringLiteral("application.get_info")) >= 3;
                      }),
                      "cancellation test request must reach the fake editor");
-        server.processLine(QJsonDocument(QJsonObject{
-                               {QStringLiteral("jsonrpc"), QStringLiteral("2.0")},
-                               {QStringLiteral("method"),
-                                QStringLiteral("notifications/cancelled")},
-                               {QStringLiteral("params"),
-                                QJsonObject{{QStringLiteral("requestId"),
-                                             QStringLiteral("cancel-me")}}},
-                           })
-                               .toJson(QJsonDocument::Compact));
-        ok &= expect(waitUntil([&] {
-                         return runtime.status()
-                                    .value(QStringLiteral("mcp"))
-                                    .toObject()
-                                    .value(QStringLiteral("pending_request_count"))
-                                    .toInt() == 0;
-                     }) &&
-                         responses.isEmpty(),
-                     "standard cancellation without _meta must abort upstream and emit no response");
+        server.processLine(
+            QJsonDocument(
+                QJsonObject{
+                    {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                       },
+                    {QStringLiteral("method"),  QStringLiteral("notifications/cancelled")   },
+                    {QStringLiteral("params"),
+                     QJsonObject{{QStringLiteral("requestId"), QStringLiteral("cancel-me")}}},
+        })
+                .toJson(QJsonDocument::Compact));
+        ok &=
+            expect(waitUntil([&] {
+                       return runtime.status()
+                                  .value(QStringLiteral("mcp"))
+                                  .toObject()
+                                  .value(QStringLiteral("pending_request_count"))
+                                  .toInt() == 0;
+                   }) &&
+                       responses.isEmpty(),
+                   "standard cancellation without _meta must abort upstream and emit no response");
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Success;
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QStringLiteral("notifications/cancelled"),
-                               QJsonObject{{QStringLiteral("requestId"),
-                                            QStringLiteral("cancel-me")}},
-                               context))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QStringLiteral("notifications/cancelled"),
+                              QJsonObject{
+                                  {QStringLiteral("requestId"), QStringLiteral("cancel-me")}
+        },
+                              context))
+                .toJson(QJsonDocument::Compact));
         ok &= expect(responses.isEmpty(),
                      "cancelling an already completed request must not emit another response");
 
         const auto sendApplication = [&](const QString &id) {
-            server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                                   QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                                   QJsonObject{{QStringLiteral("name"),
-                                                QStringLiteral("application.get_info")},
-                                               {QStringLiteral("arguments"), QJsonObject{}}},
-                                   context, id))
-                                   .toJson(QJsonDocument::Compact));
+            server.processLine(
+                QJsonDocument(
+                    AutomationWire::Mcp::makeRequest(
+                        QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                        QJsonObject{
+                            {QStringLiteral("name"),      QStringLiteral("application.get_info")},
+                            {QStringLiteral("arguments"), QJsonObject{}                         }
+            },
+                        context, id))
+                    .toJson(QJsonDocument::Compact));
         };
 
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Sse;
@@ -1573,8 +1919,7 @@ namespace {
                      "upstream JSON-RPC errors must complete");
         if (!responses.isEmpty()) {
             const auto response = QJsonDocument::fromJson(responses.dequeue()).object();
-            ok &= expect(response.value(QStringLiteral("id")) ==
-                             QStringLiteral("protocol-error") &&
+            ok &= expect(response.value(QStringLiteral("id")) == QStringLiteral("protocol-error") &&
                              response.value(QStringLiteral("error"))
                                      .toObject()
                                      .value(QStringLiteral("code"))
@@ -1591,25 +1936,25 @@ namespace {
         if (invalidOutput) {
             const auto result = invalidOutput->value(QStringLiteral("result")).toObject();
             const auto structured = result.value(QStringLiteral("structuredContent")).toObject();
-            ok &= expect(result.value(QStringLiteral("isError")).toBool() &&
-                             structured.value(QStringLiteral("code")) ==
-                                 QStringLiteral("invalid_upstream_output") &&
-                             !QJsonDocument(*invalidOutput)
-                                  .toJson(QJsonDocument::Compact)
-                                  .contains("must-not-pass"),
-                         "invalid upstream output must become a complete non-leaking CallToolResult");
+            ok &=
+                expect(result.value(QStringLiteral("isError")).toBool() &&
+                           structured.value(QStringLiteral("code")) ==
+                               QStringLiteral("invalid_upstream_output") &&
+                           !QJsonDocument(*invalidOutput)
+                                .toJson(QJsonDocument::Compact)
+                                .contains("must-not-pass"),
+                       "invalid upstream output must become a complete non-leaking CallToolResult");
         }
 
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Redirect;
         sendApplication(QStringLiteral("redirect-call"));
         const auto redirect = takeResponseById(responses, QStringLiteral("redirect-call"), 5000);
-        ok &= expect(redirect.has_value() &&
-                         redirect->value(QStringLiteral("result"))
-                                 .toObject()
-                                 .value(QStringLiteral("structuredContent"))
-                                 .toObject()
-                                 .value(QStringLiteral("code")) ==
-                             QStringLiteral("upstream_redirect_rejected"),
+        ok &= expect(redirect.has_value() && redirect->value(QStringLiteral("result"))
+                                                     .toObject()
+                                                     .value(QStringLiteral("structuredContent"))
+                                                     .toObject()
+                                                     .value(QStringLiteral("code")) ==
+                                                 QStringLiteral("upstream_redirect_rejected"),
                      "HTTP redirects must be rejected even when their body resembles JSON-RPC");
 
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Hold;
@@ -1624,7 +1969,7 @@ namespace {
                                         .value(QStringLiteral("structuredContent"))
                                         .toObject();
             ok &= expect(structured.value(QStringLiteral("code")) ==
-                             QStringLiteral("upstream_timeout") &&
+                                 QStringLiteral("upstream_timeout") &&
                              structured.value(QStringLiteral("message")) ==
                                  QStringLiteral("upstream_timeout"),
                          "query timeout must preserve the stable upstream_timeout code");
@@ -1652,14 +1997,16 @@ namespace {
         const auto policyRefreshCount = http.toolsListCount;
         http.applicationAvailability = QStringLiteral("profile_disabled");
         bootstrap.publish(ready);
-        ok &= expect(waitUntil([&] {
-                         return http.toolsListCount > policyRefreshCount &&
-                                runtime.status()
-                                        .value(QStringLiteral("manifest"))
-                                        .toObject()
-                                        .value(QStringLiteral("compatibility"))
-                                        .toString() != QStringLiteral("refreshing");
-                     }, 10000),
+        ok &= expect(waitUntil(
+                         [&] {
+                             return http.toolsListCount > policyRefreshCount &&
+                                    runtime.status()
+                                            .value(QStringLiteral("manifest"))
+                                            .toObject()
+                                            .value(QStringLiteral("compatibility"))
+                                            .toString() != QStringLiteral("refreshing");
+                         },
+                         10000),
                      "same-endpoint editor policy refresh must finish");
         const auto callsBeforePolicyReject = http.calledTools.size();
         QJsonArray policyList;
@@ -1671,15 +2018,17 @@ namespace {
                                               .toArray();
                          });
         QString forgedCursorCode;
-        runtime.callTool(
-            QStringLiteral("editor.tools.list"),
-            QJsonObject{{QStringLiteral("cursor"), QStringLiteral("1")}},
-            [&forgedCursorCode](const DsConnector::ToolCallOutcome &outcome) {
-                forgedCursorCode = outcome.result.value(QStringLiteral("structuredContent"))
-                                       .toObject()
-                                       .value(QStringLiteral("code"))
-                                       .toString();
-            });
+        runtime.callTool(QStringLiteral("editor.tools.list"),
+                         QJsonObject{
+                             {QStringLiteral("cursor"), QStringLiteral("1")}
+        },
+                         [&forgedCursorCode](const DsConnector::ToolCallOutcome &outcome) {
+                             forgedCursorCode =
+                                 outcome.result.value(QStringLiteral("structuredContent"))
+                                     .toObject()
+                                     .value(QStringLiteral("code"))
+                                     .toString();
+                         });
         ok &= expect(forgedCursorCode == QStringLiteral("invalid_cursor"),
                      "generic list must reject forged numeric cursors");
         const auto policyListContainsApplication = std::any_of(
@@ -1689,40 +2038,45 @@ namespace {
             });
         QString policyDescribeCode;
         QJsonArray policySearch;
-        runtime.callTool(
-            QStringLiteral("editor.tools.search"),
-            QJsonObject{{QStringLiteral("query"), QStringLiteral("application.get_info")}},
-            [&policySearch](const DsConnector::ToolCallOutcome &outcome) {
-                policySearch = outcome.result.value(QStringLiteral("structuredContent"))
-                                   .toObject()
-                                   .value(QStringLiteral("tools"))
-                                   .toArray();
-            });
-        runtime.callTool(
-            QStringLiteral("editor.tools.describe"),
-            QJsonObject{{QStringLiteral("name"), QStringLiteral("application.get_info")}},
-            [&policyDescribeCode](const DsConnector::ToolCallOutcome &outcome) {
-                policyDescribeCode = outcome.result.value(QStringLiteral("structuredContent"))
-                                         .toObject()
-                                         .value(QStringLiteral("code"))
-                                         .toString();
-            });
+        runtime.callTool(QStringLiteral("editor.tools.search"),
+                         QJsonObject{
+                             {QStringLiteral("query"), QStringLiteral("application.get_info")}
+        },
+                         [&policySearch](const DsConnector::ToolCallOutcome &outcome) {
+                             policySearch =
+                                 outcome.result.value(QStringLiteral("structuredContent"))
+                                     .toObject()
+                                     .value(QStringLiteral("tools"))
+                                     .toArray();
+                         });
+        runtime.callTool(QStringLiteral("editor.tools.describe"),
+                         QJsonObject{
+                             {QStringLiteral("name"), QStringLiteral("application.get_info")}
+        },
+                         [&policyDescribeCode](const DsConnector::ToolCallOutcome &outcome) {
+                             policyDescribeCode =
+                                 outcome.result.value(QStringLiteral("structuredContent"))
+                                     .toObject()
+                                     .value(QStringLiteral("code"))
+                                     .toString();
+                         });
         ok &= expect(!policyListContainsApplication && policySearch.isEmpty() &&
                          policyDescribeCode == QStringLiteral("profile_disabled"),
                      "generic list, search, and describe must enforce editor availability policy");
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                               QJsonObject{
-                                   {QStringLiteral("name"), QStringLiteral("editor.tools.invoke")},
-                                   {QStringLiteral("arguments"),
-                                    QJsonObject{
-                                        {QStringLiteral("name"),
-                                         QStringLiteral("application.get_info")},
-                                        {QStringLiteral("arguments"), QJsonObject{}},
-                                    }},
-                               },
-                               context, QStringLiteral("policy-filtered-invoke")))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(
+                AutomationWire::Mcp::makeRequest(
+                    QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                    QJsonObject{
+                        {QStringLiteral("name"),      QStringLiteral("editor.tools.invoke")},
+                        {QStringLiteral("arguments"),
+                         QJsonObject{
+                             {QStringLiteral("name"), QStringLiteral("application.get_info")},
+                             {QStringLiteral("arguments"), QJsonObject{}},
+                         }                                                                 },
+        },
+                    context, QStringLiteral("policy-filtered-invoke")))
+                .toJson(QJsonDocument::Compact));
         if (!responses.isEmpty()) {
             const auto code = QJsonDocument::fromJson(responses.dequeue())
                                   .object()
@@ -1742,30 +2096,34 @@ namespace {
         http.exposeNotes = true;
         http.incompatibleApplicationSchema = true;
         bootstrap.publish(ready);
-        ok &= expect(waitUntil([&] {
-                         return runtime.status()
-                                    .value(QStringLiteral("exposure"))
-                                    .toObject()
-                                    .value(QStringLiteral("generic_target_count"))
-                                    .toInt() == 3 &&
-                                http.toolsListCount >= 2 &&
-                                runtime.status()
-                                        .value(QStringLiteral("manifest"))
-                                        .toObject()
-                                        .value(QStringLiteral("compatibility"))
-                                        .toString() != QStringLiteral("refreshing");
-                     }, 10000),
+        ok &= expect(waitUntil(
+                         [&] {
+                             return runtime.status()
+                                            .value(QStringLiteral("exposure"))
+                                            .toObject()
+                                            .value(QStringLiteral("generic_target_count"))
+                                            .toInt() == 3 &&
+                                    http.toolsListCount >= 2 &&
+                                    runtime.status()
+                                            .value(QStringLiteral("manifest"))
+                                            .toObject()
+                                            .value(QStringLiteral("compatibility"))
+                                            .toString() != QStringLiteral("refreshing");
+                         },
+                         10000),
                      "a new ready watch snapshot must refresh same-endpoint editor tools");
         ok &= expect(runtime.downstreamTools().size() == fixedToolCount,
                      "same-endpoint refresh must not mutate the fixed typed downstream set");
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                               QJsonObject{{QStringLiteral("name"),
-                                            QStringLiteral("application.get_info")},
-                                           {QStringLiteral("arguments"), QJsonObject{}}},
-                               context, QStringLiteral("incompatible-typed")))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                              QJsonObject{
+                                  {QStringLiteral("name"),      QStringLiteral("application.get_info")},
+                                  {QStringLiteral("arguments"), QJsonObject{}                         }
+        },
+                              context, QStringLiteral("incompatible-typed")))
+                .toJson(QJsonDocument::Compact));
         const auto incompatibleTyped =
             takeResponseById(responses, QStringLiteral("incompatible-typed"));
         ok &= expect(incompatibleTyped.has_value(),
@@ -1780,19 +2138,20 @@ namespace {
                          "typed schema mismatch must report contract_incompatible");
         }
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                               QJsonObject{
-                                   {QStringLiteral("name"), QStringLiteral("editor.tools.invoke")},
-                                   {QStringLiteral("arguments"),
-                                    QJsonObject{
-                                        {QStringLiteral("name"),
-                                         QStringLiteral("application.get_info")},
-                                        {QStringLiteral("arguments"), QJsonObject{}},
-                                    }},
-                               },
-                               context, QStringLiteral("incompatible-generic")))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(
+                AutomationWire::Mcp::makeRequest(
+                    QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                    QJsonObject{
+                        {QStringLiteral("name"),      QStringLiteral("editor.tools.invoke")},
+                        {QStringLiteral("arguments"),
+                         QJsonObject{
+                             {QStringLiteral("name"), QStringLiteral("application.get_info")},
+                             {QStringLiteral("arguments"), QJsonObject{}},
+                         }                                                                 },
+        },
+                    context, QStringLiteral("incompatible-generic")))
+                .toJson(QJsonDocument::Compact));
         ok &= expect(waitUntil([&] { return !responses.isEmpty(); }),
                      "generic invoke must remain available after typed schema mismatch");
         if (!responses.isEmpty()) {
@@ -1851,48 +2210,55 @@ namespace {
             .mcpEndpoint = http.endpoint(),
         });
 
-        DsConnector::ConnectorRuntime runtime(DsConnector::ConnectorOptions{
-            .exposure = {
-                .profile = AutomationWire::ExposureProfile::L0,
-                .includes = {QStringLiteral("id:fake.flexible_output"),
-                             QStringLiteral("id:fake.minimal")},
-            },
-            .upstreamTimeoutMs = 2000,
-        }, serviceName);
+        DsConnector::ConnectorRuntime runtime(
+            DsConnector::ConnectorOptions{
+                .exposure =
+                    {
+                               .profile = AutomationWire::ExposureProfile::L0,
+                               .includes = {QStringLiteral("id:fake.flexible_output"),
+                                     QStringLiteral("id:fake.minimal")},
+                               },
+                .upstreamTimeoutMs = 2000,
+        },
+            serviceName);
         runtime.start();
-        const auto ready = waitUntil([&] {
-            const auto status = runtime.status();
-            return status.value(QStringLiteral("mcp"))
+        const auto ready = waitUntil(
+            [&] {
+                const auto status = runtime.status();
+                return status.value(QStringLiteral("mcp"))
                            .toObject()
                            .value(QStringLiteral("connected"))
                            .toBool() &&
-                   status.value(QStringLiteral("exposure"))
-                           .toObject()
-                           .value(QStringLiteral("generic_target_count"))
-                           .toInt() == 2 &&
-                   status.value(QStringLiteral("manifest"))
-                           .toObject()
-                           .value(QStringLiteral("compatibility"))
-                           .toString() != QStringLiteral("refreshing");
-        }, 10000);
+                       status.value(QStringLiteral("exposure"))
+                               .toObject()
+                               .value(QStringLiteral("generic_target_count"))
+                               .toInt() == 2 &&
+                       status.value(QStringLiteral("manifest"))
+                               .toObject()
+                               .value(QStringLiteral("compatibility"))
+                               .toString() != QStringLiteral("refreshing");
+            },
+            10000);
         if (!ready)
             QTextStream(stderr) << QJsonDocument(runtime.status()).toJson(QJsonDocument::Compact)
                                 << Qt::endl;
-        ok &= expect(ready,
-                     "optional and additive upstream tool descriptor fields must not fail handshake");
+        ok &= expect(
+            ready, "optional and additive upstream tool descriptor fields must not fail handshake");
 
         DsConnector::DownstreamMcpServer server(&runtime);
         QQueue<QByteArray> responses;
         QObject::connect(&server, &DsConnector::DownstreamMcpServer::responseLine, &server,
                          [&responses](const QByteArray &line) { responses.enqueue(line); });
         const auto context = clientContext();
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                               QJsonObject{{QStringLiteral("name"),
-                                            QStringLiteral("editor.tools.list")},
-                                           {QStringLiteral("arguments"), QJsonObject{}}},
-                               context, QStringLiteral("forward-list")))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                              QJsonObject{
+                                  {QStringLiteral("name"),      QStringLiteral("editor.tools.list")},
+                                  {QStringLiteral("arguments"), QJsonObject{}                      }
+        },
+                              context, QStringLiteral("forward-list")))
+                .toJson(QJsonDocument::Compact));
         const auto listResponse = takeResponseById(responses, QStringLiteral("forward-list"));
         QJsonObject minimalDescriptor;
         if (listResponse) {
@@ -1920,17 +2286,17 @@ namespace {
             ok &= expect(false, "forward-compatible generic list must return a result");
         }
 
-        server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                               QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                               QJsonObject{
-                                   {QStringLiteral("name"),
-                                    QStringLiteral("editor.tools.describe")},
-                                   {QStringLiteral("arguments"),
-                                    QJsonObject{{QStringLiteral("name"),
-                                                 QStringLiteral("fake.minimal")}}},
-                               },
-                               context, QStringLiteral("forward-describe")))
-                               .toJson(QJsonDocument::Compact));
+        server.processLine(
+            QJsonDocument(
+                AutomationWire::Mcp::makeRequest(
+                    QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                    QJsonObject{
+                        {QStringLiteral("name"),      QStringLiteral("editor.tools.describe") },
+                        {QStringLiteral("arguments"),
+                         QJsonObject{{QStringLiteral("name"), QStringLiteral("fake.minimal")}}},
+        },
+                    context, QStringLiteral("forward-describe")))
+                .toJson(QJsonDocument::Compact));
         const auto describeResponse =
             takeResponseById(responses, QStringLiteral("forward-describe"));
         if (describeResponse) {
@@ -1948,21 +2314,21 @@ namespace {
         }
 
         const auto invoke = [&](const QString &shape, const QString &id) {
-            server.processLine(QJsonDocument(AutomationWire::Mcp::makeRequest(
-                                   QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                                   QJsonObject{
-                                       {QStringLiteral("name"),
-                                        QStringLiteral("editor.tools.invoke")},
-                                       {QStringLiteral("arguments"),
-                                        QJsonObject{
-                                            {QStringLiteral("name"),
-                                             QStringLiteral("fake.flexible_output")},
-                                            {QStringLiteral("arguments"),
-                                             QJsonObject{{QStringLiteral("shape"), shape}}},
-                                        }},
-                                   },
-                                   context, id))
-                                   .toJson(QJsonDocument::Compact));
+            server.processLine(
+                QJsonDocument(
+                    AutomationWire::Mcp::makeRequest(
+                        QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                        QJsonObject{
+                            {QStringLiteral("name"),      QStringLiteral("editor.tools.invoke")},
+                            {QStringLiteral("arguments"),
+                             QJsonObject{
+                                 {QStringLiteral("name"), QStringLiteral("fake.flexible_output")},
+                                 {QStringLiteral("arguments"),
+                                  QJsonObject{{QStringLiteral("shape"), shape}}},
+                             }                                                                 },
+            },
+                        context, id))
+                    .toJson(QJsonDocument::Compact));
             return takeResponseById(responses, id, 5000);
         };
         const auto scalar = invoke(QStringLiteral("string"), QStringLiteral("forward-string"));
@@ -1975,22 +2341,21 @@ namespace {
                                   .value(QStringLiteral("structuredContent"))
                             : QJsonValue(QJsonValue::Undefined);
         };
-        ok &= expect(scalar &&
-                         !scalar->value(QStringLiteral("result"))
-                              .toObject()
-                              .value(QStringLiteral("isError"))
-                              .toBool() &&
-                         structured(scalar).isString() && array && structured(array).isArray() &&
-                         null && structured(null).isNull(),
-                     "generic invoke must preserve valid scalar, array, and null structuredContent");
+        ok &=
+            expect(scalar &&
+                       !scalar->value(QStringLiteral("result"))
+                            .toObject()
+                            .value(QStringLiteral("isError"))
+                            .toBool() &&
+                       structured(scalar).isString() && array && structured(array).isArray() &&
+                       null && structured(null).isNull(),
+                   "generic invoke must preserve valid scalar, array, and null structuredContent");
         ok &= expect(invalid &&
                          invalid->value(QStringLiteral("result"))
-                                 .toObject()
-                                 .value(QStringLiteral("isError"))
-                                 .toBool() &&
-                         structured(invalid)
-                                 .toObject()
-                                 .value(QStringLiteral("code")) ==
+                             .toObject()
+                             .value(QStringLiteral("isError"))
+                             .toBool() &&
+                         structured(invalid).toObject().value(QStringLiteral("code")) ==
                              QStringLiteral("invalid_upstream_output"),
                      "generic invoke must validate object results against the target outputSchema");
         runtime.stop();
@@ -2024,13 +2389,16 @@ namespace {
         };
         bootstrap.publish(ready);
 
-        DsConnector::ConnectorRuntime runtime(DsConnector::ConnectorOptions{
-            .exposure = {
-                .profile = AutomationWire::ExposureProfile::L0,
-                .includes = {QStringLiteral("id:application.get_info")},
-            },
-            .upstreamTimeoutMs = 2000,
-        }, serviceName);
+        DsConnector::ConnectorRuntime runtime(
+            DsConnector::ConnectorOptions{
+                .exposure =
+                    {
+                               .profile = AutomationWire::ExposureProfile::L0,
+                               .includes = {QStringLiteral("id:application.get_info")},
+                               },
+                .upstreamTimeoutMs = 2000,
+        },
+            serviceName);
         runtime.start();
         const auto compatibility = [&] {
             return runtime.status()
@@ -2039,18 +2407,20 @@ namespace {
                 .value(QStringLiteral("compatibility"))
                 .toString();
         };
-        ok &= expect(waitUntil([&] {
-                         return compatibility() == QStringLiteral("compatible_subset");
-                     }, 10000),
-                     "a newer backward-compatible editor contract must be a compatible subset");
+        ok &=
+            expect(waitUntil([&] { return compatibility() == QStringLiteral("compatible_subset"); },
+                             10000),
+                   "a newer backward-compatible editor contract must be a compatible subset");
 
         auto refreshCount = http.toolsListCount;
         http.applicationMinimumCompatibleVersion = 2;
         bootstrap.publish(ready);
-        ok &= expect(waitUntil([&] {
-                         return http.toolsListCount > refreshCount &&
-                                compatibility() == QStringLiteral("contract_incompatible");
-                     }, 10000),
+        ok &= expect(waitUntil(
+                         [&] {
+                             return http.toolsListCount > refreshCount &&
+                                    compatibility() == QStringLiteral("contract_incompatible");
+                         },
+                         10000),
                      "a newer editor requiring version 2 must be contract_incompatible");
         QString incompatibleCode;
         runtime.callTool(QStringLiteral("application.get_info"), {},
@@ -2069,10 +2439,12 @@ namespace {
         http.applicationMinimumCompatibleVersion = 1;
         http.manifestToolsetVersion = 1;
         bootstrap.publish(ready);
-        ok &= expect(waitUntil([&] {
-                         return http.toolsListCount > refreshCount &&
-                                compatibility() == QStringLiteral("compatible_subset");
-                     }, 10000),
+        ok &= expect(waitUntil(
+                         [&] {
+                             return http.toolsListCount > refreshCount &&
+                                    compatibility() == QStringLiteral("compatible_subset");
+                         },
+                         10000),
                      "the oldest supported editor contract must remain a compatible subset");
         runtime.stop();
         return ok;
@@ -2104,45 +2476,51 @@ namespace {
         };
         bootstrap.publish(ready);
 
-        DsConnector::ConnectorRuntime runtime(DsConnector::ConnectorOptions{
-            .exposure = {
-                .profile = AutomationWire::ExposureProfile::L0,
-                .includes = {QStringLiteral("id:application.get_info"),
-                             QStringLiteral("id:fake.invalid_header")},
-            },
-            .upstreamTimeoutMs = 2000,
-        }, serviceName);
+        DsConnector::ConnectorRuntime runtime(
+            DsConnector::ConnectorOptions{
+                .exposure =
+                    {
+                               .profile = AutomationWire::ExposureProfile::L0,
+                               .includes = {QStringLiteral("id:application.get_info"),
+                                     QStringLiteral("id:fake.invalid_header")},
+                               },
+                .upstreamTimeoutMs = 2000,
+        },
+            serviceName);
         runtime.start();
-        ok &= expect(waitUntil([&] {
-                         const auto status = runtime.status();
-                         return status.value(QStringLiteral("manifest"))
-                                    .toObject()
-                                    .value(QStringLiteral("compatibility"))
-                                    .toString() != QStringLiteral("refreshing") &&
-                                status.value(QStringLiteral("exposure"))
-                                        .toObject()
-                                        .value(QStringLiteral("generic_target_count"))
-                                        .toInt() == 1;
-                     }, 10000),
+        ok &= expect(waitUntil(
+                         [&] {
+                             const auto status = runtime.status();
+                             return status.value(QStringLiteral("manifest"))
+                                            .toObject()
+                                            .value(QStringLiteral("compatibility"))
+                                            .toString() != QStringLiteral("refreshing") &&
+                                    status.value(QStringLiteral("exposure"))
+                                            .toObject()
+                                            .value(QStringLiteral("generic_target_count"))
+                                            .toInt() == 1;
+                         },
+                         10000),
                      "invalid x-mcp-header tools must be excluded while valid tools remain");
 
         const auto arguments = QJsonObject{
-            {QStringLiteral("route"), QStringLiteral("华东 路由")},
-            {QStringLiteral("retry"), 7},
-            {QStringLiteral("enabled"), true},
+            {QStringLiteral("route"),   QStringLiteral("华东 路由")         },
+            {QStringLiteral("retry"),   7                                   },
+            {QStringLiteral("enabled"), true                                },
             {QStringLiteral("nested"),
              QJsonObject{{QStringLiteral("region"), QStringLiteral("west")}}},
         };
         bool completed = false;
         QJsonObject result;
-        runtime.callTool(
-            QStringLiteral("editor.tools.invoke"),
-            QJsonObject{{QStringLiteral("name"), QStringLiteral("application.get_info")},
-                        {QStringLiteral("arguments"), arguments}},
-            [&](const DsConnector::ToolCallOutcome &outcome) {
-                completed = true;
-                result = outcome.result;
-            });
+        runtime.callTool(QStringLiteral("editor.tools.invoke"),
+                         QJsonObject{
+                             {QStringLiteral("name"),      QStringLiteral("application.get_info")},
+                             {QStringLiteral("arguments"), arguments                             }
+        },
+                         [&](const DsConnector::ToolCallOutcome &outcome) {
+                             completed = true;
+                             result = outcome.result;
+                         });
         ok &= expect(waitUntil([&] { return completed; }, 5000) &&
                          !result.value(QStringLiteral("isError")).toBool(),
                      "an annotated generic invocation must complete through HTTP");
@@ -2165,17 +2543,18 @@ namespace {
 
         const auto callsBeforeInvalid = http.calledTools.size();
         QString invalidCode;
-        runtime.callTool(
-            QStringLiteral("editor.tools.invoke"),
-            QJsonObject{{QStringLiteral("name"), QStringLiteral("application.get_info")},
-                        {QStringLiteral("arguments"),
-                         QJsonObject{{QStringLiteral("route"), QStringLiteral("missing")}}}},
-            [&](const DsConnector::ToolCallOutcome &outcome) {
-                invalidCode = outcome.result.value(QStringLiteral("structuredContent"))
-                                  .toObject()
-                                  .value(QStringLiteral("code"))
-                                  .toString();
-            });
+        runtime.callTool(QStringLiteral("editor.tools.invoke"),
+                         QJsonObject{
+                             {QStringLiteral("name"),      QStringLiteral("application.get_info")},
+                             {QStringLiteral("arguments"),
+                              QJsonObject{{QStringLiteral("route"), QStringLiteral("missing")}}  }
+        },
+                         [&](const DsConnector::ToolCallOutcome &outcome) {
+                             invalidCode = outcome.result.value(QStringLiteral("structuredContent"))
+                                               .toObject()
+                                               .value(QStringLiteral("code"))
+                                               .toString();
+                         });
         ok &= expect(invalidCode == QStringLiteral("invalid_editor_tool_arguments") &&
                          http.calledTools.size() == callsBeforeInvalid,
                      "generic invoke must validate the actual input schema before forwarding");
@@ -2205,32 +2584,39 @@ namespace {
             .mcpEnabled = true,
             .mcpEndpoint = http.endpoint(),
         });
-        DsConnector::ConnectorRuntime runtime(DsConnector::ConnectorOptions{
-            .exposure = {
-                .profile = AutomationWire::ExposureProfile::L0,
-                .includes = {QStringLiteral("id:fake.command")},
-            },
-            .upstreamTimeoutMs = 2000,
-        }, serviceName);
+        DsConnector::ConnectorRuntime runtime(
+            DsConnector::ConnectorOptions{
+                .exposure =
+                    {
+                               .profile = AutomationWire::ExposureProfile::L0,
+                               .includes = {QStringLiteral("id:fake.command")},
+                               },
+                .upstreamTimeoutMs = 2000,
+        },
+            serviceName);
         runtime.start();
-        ok &= expect(waitUntil([&] {
-                         const auto status = runtime.status();
-                         return status.value(QStringLiteral("exposure"))
-                                        .toObject()
-                                        .value(QStringLiteral("generic_target_count"))
-                                        .toInt() == 1 &&
-                                status.value(QStringLiteral("manifest"))
-                                        .toObject()
-                                        .value(QStringLiteral("compatibility"))
-                                        .toString() == QStringLiteral("compatible_subset");
-                     }, 10000),
+        ok &= expect(waitUntil(
+                         [&] {
+                             const auto status = runtime.status();
+                             return status.value(QStringLiteral("exposure"))
+                                            .toObject()
+                                            .value(QStringLiteral("generic_target_count"))
+                                            .toInt() == 1 &&
+                                    status.value(QStringLiteral("manifest"))
+                                            .toObject()
+                                            .value(QStringLiteral("compatibility"))
+                                            .toString() == QStringLiteral("compatible_subset");
+                         },
+                         10000),
                      "the fake command must become available after handshake");
         const auto invokeCommand = [&] {
             QPair<QString, QString> result;
             runtime.callTool(
                 QStringLiteral("editor.tools.invoke"),
-                QJsonObject{{QStringLiteral("name"), QStringLiteral("fake.command")},
-                            {QStringLiteral("arguments"), QJsonObject{}}},
+                QJsonObject{
+                    {QStringLiteral("name"),      QStringLiteral("fake.command")},
+                    {QStringLiteral("arguments"), QJsonObject{}                 }
+            },
                 [&](const DsConnector::ToolCallOutcome &outcome) {
                     const auto structured =
                         outcome.result.value(QStringLiteral("structuredContent")).toObject();
@@ -2338,26 +2724,31 @@ namespace {
         };
         bootstrap.publish(ready);
 
-        DsConnector::ConnectorRuntime runtime(DsConnector::ConnectorOptions{
-            .exposure = {
-                .profile = AutomationWire::ExposureProfile::L0,
-                .includes = {QStringLiteral("prefix:fake.")},
-            },
-            .upstreamTimeoutMs = 2000,
-        }, serviceName);
+        DsConnector::ConnectorRuntime runtime(
+            DsConnector::ConnectorOptions{
+                .exposure =
+                    {
+                               .profile = AutomationWire::ExposureProfile::L0,
+                               .includes = {QStringLiteral("prefix:fake.")},
+                               },
+                .upstreamTimeoutMs = 2000,
+        },
+            serviceName);
         runtime.start();
-        const auto paginationReady = waitUntil([&] {
-                         const auto status = runtime.status();
-                         return status.value(QStringLiteral("exposure"))
-                                        .toObject()
-                                        .value(QStringLiteral("generic_target_count"))
-                                        .toInt() == 125 &&
-                                status.value(QStringLiteral("manifest"))
-                                        .toObject()
-                                        .value(QStringLiteral("compatibility"))
-                                        .toString() != QStringLiteral("refreshing") &&
-                                http.toolsListCount >= 8 && http.manifestCallCount >= 10;
-                     }, 15000);
+        const auto paginationReady = waitUntil(
+            [&] {
+                const auto status = runtime.status();
+                return status.value(QStringLiteral("exposure"))
+                               .toObject()
+                               .value(QStringLiteral("generic_target_count"))
+                               .toInt() == 125 &&
+                       status.value(QStringLiteral("manifest"))
+                               .toObject()
+                               .value(QStringLiteral("compatibility"))
+                               .toString() != QStringLiteral("refreshing") &&
+                       http.toolsListCount >= 8 && http.manifestCallCount >= 10;
+            },
+            15000);
         if (!paginationReady) {
             QTextStream(stderr) << "Pagination status: "
                                 << QJsonDocument(runtime.status()).toJson(QJsonDocument::Compact)
@@ -2372,16 +2763,17 @@ namespace {
         QJsonObject described;
         runtime.callTool(
             QStringLiteral("editor.tools.describe"),
-            QJsonObject{{QStringLiteral("name"), QStringLiteral("fake.tool.124")}},
+            QJsonObject{
+                {QStringLiteral("name"), QStringLiteral("fake.tool.124")}
+        },
             [&described](const DsConnector::ToolCallOutcome &outcome) {
                 described = outcome.result.value(QStringLiteral("structuredContent")).toObject();
             });
-        ok &= expect(described.value(QStringLiteral("tool"))
-                             .toObject()
-                             .value(QStringLiteral("name")) ==
-                         QStringLiteral("fake.tool.124") &&
-                         described.value(QStringLiteral("input_schema")).isObject(),
-                     "the final pages must be available to generic describe");
+        ok &= expect(
+            described.value(QStringLiteral("tool")).toObject().value(QStringLiteral("name")) ==
+                    QStringLiteral("fake.tool.124") &&
+                described.value(QStringLiteral("input_schema")).isObject(),
+            "the final pages must be available to generic describe");
         runtime.stop();
         return ok;
     }
@@ -2409,10 +2801,11 @@ namespace {
         };
         bootstrap.publish(ready);
         const DsConnector::ConnectorOptions options{
-            .exposure = {
-                .profile = AutomationWire::ExposureProfile::L0,
-                .includes = {QStringLiteral("id:application.get_info")},
-            },
+            .exposure =
+                {
+                           .profile = AutomationWire::ExposureProfile::L0,
+                           .includes = {QStringLiteral("id:application.get_info")},
+                           },
             .upstreamTimeoutMs = 2000,
         };
         DsConnector::ConnectorRuntime first(options, serviceName);
@@ -2430,19 +2823,23 @@ namespace {
                            .value(QStringLiteral("compatibility"))
                            .toString() != QStringLiteral("refreshing");
         };
-        ok &= expect(waitUntil([&] {
-                         return readyRuntime(first) && readyRuntime(second) &&
-                                bootstrap.watcherCount() == 2;
-                     }, 15000),
+        ok &= expect(waitUntil(
+                         [&] {
+                             return readyRuntime(first) && readyRuntime(second) &&
+                                    bootstrap.watcherCount() == 2;
+                         },
+                         15000),
                      "two connectors must discover and watch the same editor independently");
         ok &= expect(first.instanceId() != second.instanceId(),
                      "concurrent connectors must use distinct connector identities");
         const auto fixedCount = first.downstreamTools().size();
         first.reconnect();
-        ok &= expect(waitUntil([&] {
-                         return readyRuntime(first) && readyRuntime(second) &&
-                                bootstrap.watcherCount() == 2;
-                     }, 15000),
+        ok &= expect(waitUntil(
+                         [&] {
+                             return readyRuntime(first) && readyRuntime(second) &&
+                                    bootstrap.watcherCount() == 2;
+                         },
+                         15000),
                      "one connector reconnect must not disturb the other connector");
         ok &= expect(first.downstreamTools().size() == fixedCount &&
                          second.downstreamTools().size() == fixedCount,
@@ -2450,23 +2847,26 @@ namespace {
 
         const auto refreshCount = http.toolsListCount;
         bootstrap.publish(ready);
-        ok &= expect(waitUntil([&] {
-                         return http.toolsListCount >= refreshCount + 2 && readyRuntime(first) &&
-                                readyRuntime(second);
-                     }, 15000),
+        ok &= expect(waitUntil(
+                         [&] {
+                             return http.toolsListCount >= refreshCount + 2 &&
+                                    readyRuntime(first) && readyRuntime(second);
+                         },
+                         15000),
                      "one ready snapshot must independently refresh both connectors");
         first.stop();
-        ok &= expect(waitUntil([&] { return bootstrap.watcherCount() == 1; }) &&
-                         readyRuntime(second),
-                     "stopping one connector must leave the other watch and MCP session alive");
+        ok &=
+            expect(waitUntil([&] { return bootstrap.watcherCount() == 1; }) && readyRuntime(second),
+                   "stopping one connector must leave the other watch and MCP session alive");
         second.stop();
         return ok;
     }
 
     bool verifyStdioFraming() {
-        const auto executable = QCoreApplication::applicationDirPath() +
-                                QStringLiteral("/DsConnectorLite.exe");
-        bool ok = expect(QFile::exists(executable), "connector executable must exist for stdio E2E");
+        const auto executable =
+            QCoreApplication::applicationDirPath() + QStringLiteral("/DsConnectorLite.exe");
+        bool ok =
+            expect(QFile::exists(executable), "connector executable must exist for stdio E2E");
         if (!ok)
             return false;
 
@@ -2476,16 +2876,16 @@ namespace {
         process.start();
         ok &= expect(process.waitForStarted(5000), "stdio connector process must start");
         const auto context = clientContext();
-        const auto discover = QJsonDocument(AutomationWire::Mcp::makeRequest(
-                                                QString::fromLatin1(
-                                                    AutomationWire::Mcp::DiscoverMethod),
-                                                {}, context, QStringLiteral("stdio-discover")))
-                                  .toJson(QJsonDocument::Compact);
-        const auto list = QJsonDocument(AutomationWire::Mcp::makeRequest(
-                                            QString::fromLatin1(
-                                                AutomationWire::Mcp::ToolsListMethod),
-                                            {}, context, QStringLiteral("stdio-list")))
-                              .toJson(QJsonDocument::Compact);
+        const auto discover =
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod), {}, context,
+                              QStringLiteral("stdio-discover")))
+                .toJson(QJsonDocument::Compact);
+        const auto list =
+            QJsonDocument(AutomationWire::Mcp::makeRequest(
+                              QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod), {},
+                              context, QStringLiteral("stdio-list")))
+                .toJson(QJsonDocument::Compact);
         process.write(discover + "\r\n" + list + "\r\n");
         process.closeWriteChannel();
         ok &= expect(process.waitForFinished(15000),
@@ -2507,8 +2907,7 @@ namespace {
 
         QProcess unterminated;
         unterminated.setProgram(executable);
-        unterminated.setArguments(
-            {QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        unterminated.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
         unterminated.start();
         ok &= expect(unterminated.waitForStarted(5000),
                      "unterminated-final-frame connector must start");
@@ -2522,14 +2921,13 @@ namespace {
 
         QProcess notification;
         notification.setProgram(executable);
-        notification.setArguments(
-            {QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        notification.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
         notification.start();
-        ok &= expect(notification.waitForStarted(5000),
-                     "stdio notification connector must start");
+        ok &= expect(notification.waitForStarted(5000), "stdio notification connector must start");
         notification.write(
-            QJsonDocument(AutomationWire::Mcp::makeRequest(
-                              QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod), {}, context))
+            QJsonDocument(
+                AutomationWire::Mcp::makeRequest(
+                    QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod), {}, context))
                 .toJson(QJsonDocument::Compact) +
             '\n');
         notification.closeWriteChannel();
@@ -2540,15 +2938,13 @@ namespace {
 
         QProcess rapidInput;
         rapidInput.setProgram(executable);
-        rapidInput.setArguments(
-            {QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        rapidInput.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
         rapidInput.start();
-        ok &= expect(rapidInput.waitForStarted(5000),
-                     "rapid-input connector must start");
+        ok &= expect(rapidInput.waitForStarted(5000), "rapid-input connector must start");
         const auto notificationFrame =
-            QJsonDocument(AutomationWire::Mcp::makeRequest(
-                              QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod), {},
-                              context))
+            QJsonDocument(
+                AutomationWire::Mcp::makeRequest(
+                    QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod), {}, context))
                 .toJson(QJsonDocument::Compact) +
             '\n';
         QByteArray notificationFlood;
@@ -2565,8 +2961,7 @@ namespace {
         QProcess blockedOutput;
         QProcess blockingSink;
         blockedOutput.setProgram(executable);
-        blockedOutput.setArguments(
-            {QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        blockedOutput.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
         blockingSink.setProgram(QStringLiteral("powershell.exe"));
         blockingSink.setArguments({QStringLiteral("-NoProfile"), QStringLiteral("-Command"),
                                    QStringLiteral("Start-Sleep -Seconds 30")});
@@ -2615,19 +3010,17 @@ namespace {
         ok &= expect(boundary.waitForFinished(15000),
                      "the exact 16 MiB frame boundary must finish under watchdog");
         const auto boundaryOutput = boundary.readAllStandardOutput();
-        const auto boundaryResponse =
-            QJsonDocument::fromJson(boundaryOutput.trimmed()).object();
+        const auto boundaryResponse = QJsonDocument::fromJson(boundaryOutput.trimmed()).object();
         ok &= expect(boundaryResponse.value(QStringLiteral("error"))
-                             .toObject()
-                             .value(QStringLiteral("code"))
-                             .toInt() == AutomationWire::Mcp::ParseError &&
+                                 .toObject()
+                                 .value(QStringLiteral("code"))
+                                 .toInt() == AutomationWire::Mcp::ParseError &&
                          boundary.readAllStandardError().isEmpty() && boundary.exitCode() == 0,
                      "an exact-limit frame must be parsed instead of rejected as too large");
 
         QProcess oversizedLine;
         oversizedLine.setProgram(executable);
-        oversizedLine.setArguments(
-            {QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        oversizedLine.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
         oversizedLine.start();
         ok &= expect(oversizedLine.waitForStarted(5000),
                      "oversized newline-frame connector must start");
@@ -2648,10 +3041,11 @@ namespace {
         oversized.closeWriteChannel();
         ok &= expect(oversized.waitForFinished(15000),
                      "oversized no-newline frame must terminate under watchdog");
-        ok &= expect(oversized.readAllStandardOutput().isEmpty() &&
-                         oversized.readAllStandardError().contains("frame_too_large") &&
-                         oversized.exitCode() == 3,
-                     "an overlong partial frame must never be parsed and must report frame_too_large");
+        ok &= expect(
+            oversized.readAllStandardOutput().isEmpty() &&
+                oversized.readAllStandardError().contains("frame_too_large") &&
+                oversized.exitCode() == 3,
+            "an overlong partial frame must never be parsed and must report frame_too_large");
         return ok;
     }
 }

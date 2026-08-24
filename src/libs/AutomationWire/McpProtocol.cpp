@@ -68,6 +68,25 @@ namespace AutomationWire::Mcp {
             meta.insert(QString::fromLatin1(ServerInfoMetaKey), serverInfo->toJson());
             result.insert(QStringLiteral("_meta"), meta);
         }
+
+        void removeModernResultMetadata(QJsonObject &result) {
+            result.remove(QStringLiteral("resultType"));
+            result.remove(QStringLiteral("ttlMs"));
+            result.remove(QStringLiteral("cacheScope"));
+            if (result.value(QStringLiteral("content")).isArray() &&
+                result.contains(QStringLiteral("structuredContent")) &&
+                !result.value(QStringLiteral("structuredContent")).isObject()) {
+                result.remove(QStringLiteral("structuredContent"));
+            }
+            if (!result.value(QStringLiteral("_meta")).isObject())
+                return;
+            auto meta = result.value(QStringLiteral("_meta")).toObject();
+            meta.remove(QString::fromLatin1(ServerInfoMetaKey));
+            if (meta.isEmpty())
+                result.remove(QStringLiteral("_meta"));
+            else
+                result.insert(QStringLiteral("_meta"), meta);
+        }
     }
 
     bool ImplementationInfo::valid() const {
@@ -148,21 +167,39 @@ namespace AutomationWire::Mcp {
     }
 
     bool isSupportedCoreMethod(const QString &method) {
-        return method == QString::fromLatin1(DiscoverMethod) ||
+        return method == QString::fromLatin1(InitializeMethod) ||
+               method == QString::fromLatin1(PingMethod) ||
+               method == QString::fromLatin1(DiscoverMethod) ||
                method == QString::fromLatin1(ToolsListMethod) ||
                method == QString::fromLatin1(ToolsCallMethod);
     }
 
+    bool isLegacyProtocolVersion(const QString &version) {
+        return version == QString::fromLatin1(LegacyProtocolVersion) ||
+               version == QString::fromLatin1(CompatibilityProtocolVersion);
+    }
+
+    bool isModernProtocolVersion(const QString &version) {
+        return version == QString::fromLatin1(ProtocolVersion);
+    }
+
+    QStringList supportedProtocolVersions() {
+        return {QString::fromLatin1(ProtocolVersion), QString::fromLatin1(LegacyProtocolVersion),
+                QString::fromLatin1(CompatibilityProtocolVersion)};
+    }
+
     QJsonObject makeRequest(const QString &method, QJsonObject params,
                             const RequestContext &context, const QJsonValue &id) {
-        QJsonObject meta{
-            {QString::fromLatin1(ProtocolVersionMetaKey),    context.protocolVersion   },
-            {QString::fromLatin1(ClientCapabilitiesMetaKey), context.clientCapabilities},
-        };
-        if (context.clientInfo && context.clientInfo->valid()) {
-            meta.insert(QString::fromLatin1(ClientInfoMetaKey), context.clientInfo->toJson());
+        if (!isLegacyProtocolVersion(context.protocolVersion)) {
+            QJsonObject meta{
+                {QString::fromLatin1(ProtocolVersionMetaKey),    context.protocolVersion   },
+                {QString::fromLatin1(ClientCapabilitiesMetaKey), context.clientCapabilities},
+            };
+            if (context.clientInfo && context.clientInfo->valid()) {
+                meta.insert(QString::fromLatin1(ClientInfoMetaKey), context.clientInfo->toJson());
+            }
+            params.insert(QStringLiteral("_meta"), meta);
         }
-        params.insert(QStringLiteral("_meta"), meta);
 
         QJsonObject result{
             {QStringLiteral("jsonrpc"), QString::fromLatin1(JsonRpcVersion)},
@@ -174,7 +211,25 @@ namespace AutomationWire::Mcp {
         return result;
     }
 
-    RequestValidationResult parseRequest(const QJsonValue &message) {
+    QJsonObject makeInitializeRequest(const RequestContext &context, const QJsonValue &id) {
+        QJsonObject params{
+            {QStringLiteral("protocolVersion"), context.protocolVersion   },
+            {QStringLiteral("capabilities"),    context.clientCapabilities},
+        };
+        if (context.clientInfo && context.clientInfo->valid())
+            params.insert(QStringLiteral("clientInfo"), context.clientInfo->toJson());
+        QJsonObject result{
+            {QStringLiteral("jsonrpc"), QString::fromLatin1(JsonRpcVersion)  },
+            {QStringLiteral("method"),  QString::fromLatin1(InitializeMethod)},
+            {QStringLiteral("params"),  params                               },
+        };
+        if (!id.isUndefined())
+            result.insert(QStringLiteral("id"), id);
+        return result;
+    }
+
+    RequestValidationResult parseRequest(const QJsonValue &message,
+                                         const QString &impliedProtocolVersion) {
         RequestValidationResult result;
         if (!AutomationWire::checkJsonResourceLimits(message).valid()) {
             result.error = validationError(
@@ -203,30 +258,77 @@ namespace AutomationWire::Mcp {
                 validationError(InvalidRequest, QStringLiteral("Invalid JSON-RPC request id"));
             return result;
         }
-        if (!object.value(QStringLiteral("params")).isObject()) {
+        if (object.contains(QStringLiteral("params")) &&
+            !object.value(QStringLiteral("params")).isObject()) {
             result.error =
-                validationError(InvalidParams, QStringLiteral("Request params are required"));
+                validationError(InvalidParams, QStringLiteral("Request params must be an object"));
             return result;
         }
         const auto params = object.value(QStringLiteral("params")).toObject();
         const auto notification = !object.contains(QStringLiteral("id"));
-        if ((!notification && !params.value(QStringLiteral("_meta")).isObject()) ||
-            (notification && params.contains(QStringLiteral("_meta")) &&
-             !params.value(QStringLiteral("_meta")).isObject())) {
+        const auto method = object.value(QStringLiteral("method")).toString();
+
+        if (method == QString::fromLatin1(InitializeMethod)) {
+            const auto protocolVersion = params.value(QStringLiteral("protocolVersion"));
+            const auto capabilities = params.value(QStringLiteral("capabilities"));
+            if (notification || !object.value(QStringLiteral("params")).isObject() ||
+                !protocolVersion.isString() || protocolVersion.toString().isEmpty() ||
+                protocolVersion.toString().size() > MaximumProtocolVersionCodeUnits ||
+                !capabilities.isObject() ||
+                !params.value(QStringLiteral("clientInfo")).isObject()) {
+                result.error = validationError(
+                    InvalidParams, QStringLiteral("Invalid initialize request parameters"));
+                return result;
+            }
+            QString infoError;
+            const auto clientInfo = ImplementationInfo::fromJson(
+                params.value(QStringLiteral("clientInfo")), &infoError);
+            if (!clientInfo) {
+                result.error = validationError(InvalidParams, infoError);
+                return result;
+            }
+            result.request = RequestEnvelope{
+                .id = object.value(QStringLiteral("id")),
+                .notification = false,
+                .method = method,
+                .params = params,
+                .protocolVersion = protocolVersion.toString(),
+                .clientCapabilities = capabilities.toObject(),
+                .clientInfo = clientInfo,
+            };
+            return result;
+        }
+
+        if (params.contains(QStringLiteral("_meta")) &&
+            !params.value(QStringLiteral("_meta")).isObject()) {
             result.error =
-                validationError(InvalidParams, QStringLiteral("Request _meta is required"));
+                validationError(InvalidParams, QStringLiteral("Request _meta must be an object"));
             return result;
         }
         const auto meta = params.value(QStringLiteral("_meta")).toObject();
-        const auto protocolVersion = meta.value(QString::fromLatin1(ProtocolVersionMetaKey));
-        const auto capabilities = meta.value(QString::fromLatin1(ClientCapabilitiesMetaKey));
-        if (!notification &&
-            (!protocolVersion.isString() || protocolVersion.toString().isEmpty() ||
-             protocolVersion.toString().size() > MaximumProtocolVersionCodeUnits ||
-             !capabilities.isObject())) {
-            result.error = validationError(
-                InvalidParams,
-                QStringLiteral("protocolVersion and clientCapabilities are required in _meta"));
+        const auto versionValue = meta.value(QString::fromLatin1(ProtocolVersionMetaKey));
+        const auto capabilitiesValue = meta.value(QString::fromLatin1(ClientCapabilitiesMetaKey));
+        const auto hasModernMetadata =
+            !versionValue.isUndefined() || !capabilitiesValue.isUndefined();
+        QString protocolVersion = impliedProtocolVersion;
+        QJsonObject capabilities;
+        if (hasModernMetadata) {
+            if (!versionValue.isString() || versionValue.toString().isEmpty() ||
+                versionValue.toString().size() > MaximumProtocolVersionCodeUnits ||
+                !capabilitiesValue.isObject()) {
+                result.error = validationError(
+                    InvalidParams,
+                    QStringLiteral("protocolVersion and clientCapabilities are required in _meta"));
+                return result;
+            }
+            protocolVersion = versionValue.toString();
+            capabilities = capabilitiesValue.toObject();
+        } else if (protocolVersion.isEmpty()) {
+            protocolVersion = QString::fromLatin1(LegacyProtocolVersion);
+        }
+        if (!notification && isModernProtocolVersion(protocolVersion) && !hasModernMetadata) {
+            result.error =
+                validationError(InvalidParams, QStringLiteral("Request _meta is required"));
             return result;
         }
         std::optional<ImplementationInfo> clientInfo;
@@ -240,7 +342,6 @@ namespace AutomationWire::Mcp {
             }
         }
 
-        const auto method = object.value(QStringLiteral("method")).toString();
         QString name;
         if (method == QString::fromLatin1(ToolsCallMethod)) {
             if (!params.value(QStringLiteral("name")).isString() ||
@@ -265,8 +366,8 @@ namespace AutomationWire::Mcp {
             .method = method,
             .params = params,
             .meta = meta,
-            .protocolVersion = protocolVersion.toString(),
-            .clientCapabilities = capabilities.toObject(),
+            .protocolVersion = protocolVersion,
+            .clientCapabilities = capabilities,
             .clientInfo = clientInfo,
             .name = name,
         };
@@ -274,10 +375,21 @@ namespace AutomationWire::Mcp {
     }
 
     RequestValidationResult validateRequest(const QJsonValue &message,
-                                            const QStringList &supportedVersions) {
-        auto result = parseRequest(message);
-        if (!result.valid() || result.request->notification ||
-            supportedVersions.contains(result.request->protocolVersion))
+                                            const QStringList &supportedVersions,
+                                            const QString &impliedProtocolVersion) {
+        auto result = parseRequest(message, impliedProtocolVersion);
+        if (!result.valid())
+            return result;
+
+        if (result.request->method == QString::fromLatin1(InitializeMethod) &&
+            !isLegacyProtocolVersion(result.request->protocolVersion)) {
+            result.request.reset();
+            result.error = validationError(
+                InvalidRequest,
+                QStringLiteral("initialize is only available for MCP 2025-06-18 and 2025-11-25"));
+            return result;
+        }
+        if (supportedVersions.contains(result.request->protocolVersion))
             return result;
 
         const auto requested = result.request->protocolVersion;
@@ -287,7 +399,8 @@ namespace AutomationWire::Mcp {
     }
 
     ResponseValidationResult validateResponse(const QJsonValue &message,
-                                              const QJsonValue &expectedId) {
+                                              const QJsonValue &expectedId,
+                                              const QString &protocolVersion) {
         ResponseValidationResult validation;
         if (!AutomationWire::checkJsonResourceLimits(message).valid()) {
             validation.error = validationError(
@@ -332,8 +445,11 @@ namespace AutomationWire::Mcp {
                 return validation;
             }
             response.result = object.value(QStringLiteral("result")).toObject();
-            if (response.result.value(QStringLiteral("resultType")).toString() !=
-                QStringLiteral("complete")) {
+            const auto resultType = response.result.value(QStringLiteral("resultType"));
+            if ((isModernProtocolVersion(protocolVersion) &&
+                 resultType.toString() != QStringLiteral("complete")) ||
+                (!resultType.isUndefined() &&
+                 resultType.toString() != QStringLiteral("complete"))) {
                 validation.error = validationError(
                     InvalidRequest, QStringLiteral("MCP resultType must be complete"));
                 return validation;
@@ -413,21 +529,38 @@ namespace AutomationWire::Mcp {
                 validationError(HeaderMismatch, message),
             };
         };
-        if (!metadata.protocolVersion || !metadata.method)
-            return mismatch(QStringLiteral("Required MCP request metadata is missing"));
-        if (*metadata.protocolVersion != request.protocolVersion)
-            return mismatch(QStringLiteral("MCP protocol header and body do not match"));
-        if (*metadata.method != request.method)
-            return mismatch(QStringLiteral("MCP method header and body do not match"));
-        if (request.method == QString::fromLatin1(ToolsCallMethod)) {
-            if (!metadata.name)
-                return mismatch(QStringLiteral("Mcp-Name is required for tools/call"));
-            QString decodeError;
-            const auto decodedName = decodeHeaderValue(*metadata.name, &decodeError);
-            if (!decodedName || *decodedName != request.name) {
-                return mismatch(decodeError.isEmpty()
-                                    ? QStringLiteral("MCP name header and body do not match")
-                                    : decodeError);
+        if (isModernProtocolVersion(request.protocolVersion)) {
+            if (!metadata.protocolVersion || !metadata.method)
+                return mismatch(QStringLiteral("Required MCP request metadata is missing"));
+            if (*metadata.protocolVersion != request.protocolVersion)
+                return mismatch(QStringLiteral("MCP protocol header and body do not match"));
+            if (*metadata.method != request.method)
+                return mismatch(QStringLiteral("MCP method header and body do not match"));
+            if (request.method == QString::fromLatin1(ToolsCallMethod)) {
+                if (!metadata.name)
+                    return mismatch(QStringLiteral("Mcp-Name is required for tools/call"));
+                QString decodeError;
+                const auto decodedName = decodeHeaderValue(*metadata.name, &decodeError);
+                if (!decodedName || *decodedName != request.name) {
+                    return mismatch(decodeError.isEmpty()
+                                        ? QStringLiteral("MCP name header and body do not match")
+                                        : decodeError);
+                }
+            }
+        } else {
+            if (metadata.protocolVersion && *metadata.protocolVersion != request.protocolVersion)
+                return mismatch(QStringLiteral("MCP protocol header and body do not match"));
+            if (metadata.method && *metadata.method != request.method)
+                return mismatch(QStringLiteral("MCP method header and body do not match"));
+            if (metadata.name) {
+                QString decodeError;
+                const auto decodedName = decodeHeaderValue(*metadata.name, &decodeError);
+                if (request.method != QString::fromLatin1(ToolsCallMethod) || !decodedName ||
+                    *decodedName != request.name) {
+                    return mismatch(decodeError.isEmpty()
+                                        ? QStringLiteral("MCP name header and body do not match")
+                                        : decodeError);
+                }
             }
         }
         if (!supportedVersions.contains(request.protocolVersion)) {
@@ -438,9 +571,14 @@ namespace AutomationWire::Mcp {
     }
 
     QJsonObject makeResultResponse(const QJsonValue &id, QJsonObject result,
-                                   const std::optional<ImplementationInfo> &serverInfo) {
-        result.insert(QStringLiteral("resultType"), QStringLiteral("complete"));
-        insertServerInfo(result, serverInfo);
+                                   const std::optional<ImplementationInfo> &serverInfo,
+                                   const QString &protocolVersion) {
+        if (isModernProtocolVersion(protocolVersion)) {
+            result.insert(QStringLiteral("resultType"), QStringLiteral("complete"));
+            insertServerInfo(result, serverInfo);
+        } else {
+            removeModernResultMetadata(result);
+        }
         return {
             {QStringLiteral("jsonrpc"), QString::fromLatin1(JsonRpcVersion)},
             {QStringLiteral("id"),      id                                 },
@@ -455,6 +593,21 @@ namespace AutomationWire::Mcp {
             {QStringLiteral("error"),   error.toJson()                                          },
         };
         return response;
+    }
+
+    QJsonObject makeInitializeResult(const QString &protocolVersion,
+                                     const ImplementationInfo &serverInfo,
+                                     const QString &instructions) {
+        QJsonObject result{
+            {QStringLiteral("protocolVersion"), protocolVersion                                 },
+            {QStringLiteral("capabilities"),
+             QJsonObject{
+                 {QStringLiteral("tools"), QJsonObject{{QStringLiteral("listChanged"), false}}}}},
+            {QStringLiteral("serverInfo"),      serverInfo.toJson()                             },
+        };
+        if (!instructions.isEmpty())
+            result.insert(QStringLiteral("instructions"), instructions);
+        return result;
     }
 
     QJsonObject makeDiscoverResult(const ImplementationInfo &serverInfo, const qint64 ttlMs,
@@ -478,24 +631,28 @@ namespace AutomationWire::Mcp {
 
     QJsonObject makeToolsListResult(const QJsonArray &tools, const QString &nextCursor,
                                     const qint64 ttlMs, const QString &cacheScope,
-                                    const std::optional<ImplementationInfo> &serverInfo) {
+                                    const std::optional<ImplementationInfo> &serverInfo,
+                                    const QString &protocolVersion) {
         QJsonObject result{
-            {QStringLiteral("resultType"), QStringLiteral("complete")},
-            {QStringLiteral("tools"), tools},
-            {QStringLiteral("ttlMs"), std::max<qint64>(0, ttlMs)},
-            {QStringLiteral("cacheScope"), cacheScope == QStringLiteral("public")
-                                               ? QStringLiteral("public")
-                                               : QStringLiteral("private")},
+            {QStringLiteral("tools"), tools}
         };
         if (!nextCursor.isEmpty())
             result.insert(QStringLiteral("nextCursor"), nextCursor);
-        insertServerInfo(result, serverInfo);
+        if (isModernProtocolVersion(protocolVersion)) {
+            result.insert(QStringLiteral("resultType"), QStringLiteral("complete"));
+            result.insert(QStringLiteral("ttlMs"), std::max<qint64>(0, ttlMs));
+            result.insert(QStringLiteral("cacheScope"), cacheScope == QStringLiteral("public")
+                                                            ? QStringLiteral("public")
+                                                            : QStringLiteral("private"));
+            insertServerInfo(result, serverInfo);
+        }
         return result;
     }
 
     QJsonObject makeToolCallResult(const QJsonValue &structuredContent, const bool isError,
                                    const QString &text,
-                                   const std::optional<ImplementationInfo> &serverInfo) {
+                                   const std::optional<ImplementationInfo> &serverInfo,
+                                   const QString &protocolVersion) {
         auto renderedText = text;
         if (renderedText.isEmpty()) {
             QString canonicalError;
@@ -504,14 +661,17 @@ namespace AutomationWire::Mcp {
                 renderedText = QStringLiteral("null");
         }
         QJsonObject result{
-            {QStringLiteral("resultType"),        QStringLiteral("complete")},
             {QStringLiteral("content"),
              QJsonArray{QJsonObject{{QStringLiteral("type"), QStringLiteral("text")},
                                     {QStringLiteral("text"), renderedText}}}},
-            {QStringLiteral("structuredContent"), structuredContent         },
-            {QStringLiteral("isError"),           isError                   },
+            {QStringLiteral("isError"), isError                             },
         };
-        insertServerInfo(result, serverInfo);
+        if (!isLegacyProtocolVersion(protocolVersion) || structuredContent.isObject())
+            result.insert(QStringLiteral("structuredContent"), structuredContent);
+        if (isModernProtocolVersion(protocolVersion)) {
+            result.insert(QStringLiteral("resultType"), QStringLiteral("complete"));
+            insertServerInfo(result, serverInfo);
+        }
         return result;
     }
 

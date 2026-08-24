@@ -865,9 +865,40 @@ namespace {
         ok &= expect(parsed.valid() && parsed.request->name == QStringLiteral("notes.insert") &&
                          parsed.request->clientInfo.has_value(),
                      QStringLiteral("modern MCP request metadata must parse without initialize"));
-        ok &= expect(!isSupportedCoreMethod(QStringLiteral("initialize")) &&
+        ok &= expect(isSupportedCoreMethod(QString::fromLatin1(InitializeMethod)) &&
                          isSupportedCoreMethod(QString::fromLatin1(DiscoverMethod)),
-                     QStringLiteral("the modern core must not expose initialize"));
+                     QStringLiteral("the shared core must expose both MCP lifecycle families"));
+
+        const RequestContext legacyContext{
+            .protocolVersion = QString::fromLatin1(LegacyProtocolVersion),
+            .clientCapabilities = QJsonObject{},
+            .clientInfo = ImplementationInfo{QStringLiteral("legacy-client"), QStringLiteral("1")},
+        };
+        const auto initialize = makeInitializeRequest(legacyContext, QStringLiteral("init-1"));
+        const auto legacyInitialize = validateRequest(initialize);
+        const auto legacyList = validateRequest(makeRequest(
+            QString::fromLatin1(ToolsListMethod), {}, legacyContext, QStringLiteral("list-1")));
+        ok &= expect(legacyInitialize.valid() && legacyList.valid() &&
+                         legacyInitialize.request->protocolVersion ==
+                             QString::fromLatin1(LegacyProtocolVersion) &&
+                         legacyList.request->meta.isEmpty(),
+                     QStringLiteral("MCP 2025-11-25 initialize and metadata-free requests must "
+                                    "validate alongside 2026-07-28"));
+        auto compatibilityContext = legacyContext;
+        compatibilityContext.protocolVersion = QString::fromLatin1(CompatibilityProtocolVersion);
+        const auto compatibilityInitialize = validateRequest(
+            makeInitializeRequest(compatibilityContext, QStringLiteral("init-2025-06")));
+        const auto compatibilityList =
+            validateRequest(makeRequest(QString::fromLatin1(ToolsListMethod), {},
+                                        compatibilityContext, QStringLiteral("list-2025-06")));
+        ok &= expect(compatibilityInitialize.valid() && compatibilityList.valid() &&
+                         compatibilityInitialize.request->protocolVersion ==
+                             QString::fromLatin1(CompatibilityProtocolVersion) &&
+                         isLegacyProtocolVersion(compatibilityList.request->protocolVersion),
+                     QStringLiteral("MCP 2025-06-18 must share the legacy initialize lifecycle"));
+        ok &= expect(
+            !validateRequest(makeInitializeRequest(context, QStringLiteral("modern-init"))).valid(),
+            QStringLiteral("MCP 2026-07-28 must reject the removed initialize handshake"));
 
         auto noClientInfoContext = context;
         noClientInfoContext.clientInfo.reset();
@@ -876,14 +907,15 @@ namespace {
                          .valid(),
                      QStringLiteral("clientInfo must be optional"));
         const auto cancellation = validateRequest(QJsonObject{
-            {QStringLiteral("jsonrpc"), QStringLiteral("2.0")},
-            {QStringLiteral("method"), QStringLiteral("notifications/cancelled")},
+            {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                       },
+            {QStringLiteral("method"),  QStringLiteral("notifications/cancelled")   },
             {QStringLiteral("params"),
              QJsonObject{{QStringLiteral("requestId"), QStringLiteral("request-1")}}},
         });
         ok &= expect(cancellation.valid() && cancellation.request->notification &&
                          cancellation.request->meta.isEmpty() &&
-                         cancellation.request->protocolVersion.isEmpty(),
+                         cancellation.request->protocolVersion ==
+                             QString::fromLatin1(LegacyProtocolVersion),
                      QStringLiteral("notification metadata must remain optional"));
         auto invalidRequest = request;
         auto invalidParams = invalidRequest.value(QStringLiteral("params")).toObject();
@@ -912,6 +944,12 @@ namespace {
         unknownVersionContext.protocolVersion = QStringLiteral("2099-01-01");
         const auto unknownVersionRequest =
             makeRequest(QString::fromLatin1(DiscoverMethod), {}, unknownVersionContext, 2);
+        const auto unknownVersionNotification = validateRequest(
+            makeRequest(QStringLiteral("notifications/cancelled"),
+                        QJsonObject{
+                            {QStringLiteral("requestId"), QStringLiteral("request-1")}
+        },
+                        unknownVersionContext));
         const auto structurallyParsed = parseRequest(unknownVersionRequest);
         const auto versionValidation = validateRequest(unknownVersionRequest);
         const auto mismatchedVersionMetadata = validateTransportMetadata(
@@ -925,11 +963,16 @@ namespace {
         const auto standaloneVersionData = versionValidation.error.data.toObject();
         const auto transportVersionData = matchingUnknownVersionMetadata.error->data.toObject();
         ok &= expect(structurallyParsed.valid() && !versionValidation.valid() &&
+                         !unknownVersionNotification.valid() &&
+                         unknownVersionNotification.error.code ==
+                             ErrorCode::UnsupportedProtocolVersion &&
                          versionValidation.error.code == ErrorCode::UnsupportedProtocolVersion &&
                          standaloneVersionData.value(QStringLiteral("requested")) ==
                              unknownVersionContext.protocolVersion &&
                          standaloneVersionData.value(QStringLiteral("supported")).toArray() ==
-                             QJsonArray{QString::fromLatin1(ProtocolVersion)} &&
+                             QJsonArray{QString::fromLatin1(ProtocolVersion),
+                                        QString::fromLatin1(LegacyProtocolVersion),
+                                        QString::fromLatin1(CompatibilityProtocolVersion)} &&
                          !standaloneVersionData.contains(QStringLiteral("supportedVersions")) &&
                          !mismatchedVersionMetadata.valid() &&
                          mismatchedVersionMetadata.error->code == ErrorCode::HeaderMismatch &&
@@ -937,8 +980,8 @@ namespace {
                          matchingUnknownVersionMetadata.error->code ==
                              ErrorCode::UnsupportedProtocolVersion &&
                          transportVersionData == standaloneVersionData,
-                     QStringLiteral("transport version mismatch must precede supported-version "
-                                    "validation without weakening standalone request validation"));
+                     QStringLiteral("unsupported protocol versions must be rejected for requests "
+                                    "and notifications without weakening transport validation"));
 
         const auto unicode = QStringLiteral("Hello, 世界");
         QString headerError;
@@ -968,6 +1011,33 @@ namespace {
         const auto response = makeResultResponse(QStringLiteral("request-1"), call, serverInfo);
         ok &= expect(validateResponse(response, QStringLiteral("request-1")).valid(),
                      QStringLiteral("generated MCP result response must validate"));
+        const auto legacyCall = makeToolCallResult(
+            QJsonObject{
+                {QStringLiteral("ok"), true}
+        },
+            false, {}, serverInfo, QString::fromLatin1(LegacyProtocolVersion));
+        const auto legacyResponse =
+            makeResultResponse(QStringLiteral("legacy-request"), legacyCall, serverInfo,
+                               QString::fromLatin1(LegacyProtocolVersion));
+        ok &= expect(!legacyResponse.value(QStringLiteral("result"))
+                             .toObject()
+                             .contains(QStringLiteral("resultType")) &&
+                         validateResponse(legacyResponse, QStringLiteral("legacy-request"),
+                                          QString::fromLatin1(LegacyProtocolVersion))
+                             .valid(),
+                     QStringLiteral("MCP 2025-11-25 results must validate without resultType"));
+        const auto adaptedLegacyScalar = makeResultResponse(
+            QStringLiteral("legacy-scalar"), makeToolCallResult(QStringLiteral("scalar")),
+            serverInfo, QString::fromLatin1(LegacyProtocolVersion));
+        ok &= expect(!adaptedLegacyScalar.value(QStringLiteral("result"))
+                             .toObject()
+                             .contains(QStringLiteral("structuredContent")) &&
+                         adaptedLegacyScalar.value(QStringLiteral("result"))
+                             .toObject()
+                             .value(QStringLiteral("content"))
+                             .isArray(),
+                     QStringLiteral("legacy adaptation must retain text while omitting non-object "
+                                    "structured content"));
         auto missingResultId = response;
         missingResultId.remove(QStringLiteral("id"));
         auto nullResultId = response;

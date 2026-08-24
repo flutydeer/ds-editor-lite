@@ -59,6 +59,8 @@ namespace DsConnector {
         void clearEditorState(const QString &error);
         void beginHandshake(const SingleInstanceAutomationSnapshot &snapshot);
         void startHandshakeAttempt();
+        void startModernHandshake(quint64 epoch);
+        void startLegacyHandshake(quint64 epoch);
         void failHandshake(quint64 epoch, const QString &error,
                            const QString &manifestCompatibility = QStringLiteral("not_loaded"),
                            bool preserveMcpConnection = false);
@@ -94,7 +96,11 @@ namespace DsConnector {
         QJsonObject m_manifest;
         QHash<QByteArray, bool> m_schemaValidationCache;
         QString m_manifestCompatibility = QStringLiteral("not_loaded");
+        int m_compatibleCount = 0;
+        int m_incompatibleCount = 0;
+        int m_unavailableCount = 0;
         QString m_mcpError;
+        QString m_mcpProtocolVersion;
         bool m_mcpConnected = false;
         quint64 m_handshakeEpoch = 0;
         quint64 m_handledSnapshotSequence = 0;

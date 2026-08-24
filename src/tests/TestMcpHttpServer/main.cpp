@@ -146,6 +146,17 @@ namespace {
         return request;
     }
 
+    QNetworkRequest legacyRequest(const QUrl &url, const bool includeProtocolHeader = true,
+                                  const char *protocolVersion = Mcp::LegacyProtocolVersion) {
+        QNetworkRequest request(url);
+        request.setRawHeader("Content-Type", "application/json; charset=utf-8");
+        request.setRawHeader("Accept", "application/json, text/event-stream");
+        if (includeProtocolHeader) {
+            request.setRawHeader("MCP-Protocol-Version", QByteArray(protocolVersion));
+        }
+        return request;
+    }
+
     QJsonObject requestObject(const QString &method, const QJsonValue &id,
                               QJsonObject params = {}) {
         Mcp::RequestContext context;
@@ -199,33 +210,45 @@ int main(int argc, char *argv[]) {
                 observedClientId = clientId;
                 observedMethod = request.method;
             }
+            if (request.method == QString::fromLatin1(Mcp::InitializeMethod)) {
+                return Mcp::makeResultResponse(
+                    request.id, Mcp::makeInitializeResult(request.protocolVersion, serverInfo), {},
+                    request.protocolVersion);
+            }
+            if (request.method == QString::fromLatin1(Mcp::PingMethod)) {
+                return Mcp::makeResultResponse(request.id, {}, serverInfo, request.protocolVersion);
+            }
             if (request.method == QString::fromLatin1(Mcp::DiscoverMethod)) {
                 return Mcp::makeResultResponse(request.id, Mcp::makeDiscoverResult(serverInfo),
-                                               serverInfo);
+                                               serverInfo, request.protocolVersion);
             }
             if (request.method == QString::fromLatin1(Mcp::ToolsListMethod)) {
                 return Mcp::makeResultResponse(
                     request.id,
-                    Mcp::makeToolsListResult({}, {}, 0, QStringLiteral("private"), serverInfo),
-                    serverInfo);
+                    Mcp::makeToolsListResult({}, {}, 0, QStringLiteral("private"), serverInfo,
+                                             request.protocolVersion),
+                    serverInfo, request.protocolVersion);
             }
             if (request.name == QStringLiteral("invalid.response"))
                 return QJsonObject{};
             if (request.name == QStringLiteral("large.response")) {
                 return Mcp::makeResultResponse(
                     request.id,
-                    Mcp::makeToolCallResult(QJsonObject{
-                        {QStringLiteral("payload"), QString(5000, u'x')}
-                }),
-                    serverInfo);
+                    Mcp::makeToolCallResult(
+                        QJsonObject{
+                            {QStringLiteral("payload"), QString(5000, u'x')}
+                },
+                        false, {}, {}, request.protocolVersion),
+                    serverInfo, request.protocolVersion);
             }
             return Mcp::makeResultResponse(request.id,
                                            Mcp::makeToolCallResult(
                                                QJsonObject{
                                                    {QStringLiteral("ok"), true}
             },
-                                               false, QStringLiteral("ok"), serverInfo),
-                                           serverInfo);
+                                               false, QStringLiteral("ok"), serverInfo,
+                                               request.protocolVersion),
+                                           serverInfo, request.protocolVersion);
         },
         limits);
 
@@ -277,14 +300,132 @@ int main(int argc, char *argv[]) {
             QStringLiteral("a server-derived client identity and method must reach the handler"));
     }
 
+    const Mcp::RequestContext legacyContext{
+        .protocolVersion = QString::fromLatin1(Mcp::LegacyProtocolVersion),
+        .clientCapabilities = QJsonObject{                                           },
+        .clientInfo =
+            Mcp::ImplementationInfo{
+                                          .name = QStringLiteral("legacy-http-client"),
+                                          .version = QStringLiteral("1.0"),
+                                          },
+    };
+    auto modernInitializeContext = legacyContext;
+    modernInitializeContext.protocolVersion = QString::fromLatin1(Mcp::ProtocolVersion);
+    const auto rejectedModernInitialize =
+        send(manager, baseRequest(endpoint, QString::fromLatin1(Mcp::InitializeMethod)),
+             QJsonDocument(
+                 Mcp::makeInitializeRequest(modernInitializeContext, QStringLiteral("init-2026")))
+                 .toJson(QJsonDocument::Compact));
+    expect(rejectedModernInitialize.status == 400 &&
+               jsonRpcErrorCode(rejectedModernInitialize) == Mcp::InvalidRequest,
+           QStringLiteral("MCP 2026-07-28 initialize must be rejected before dispatch"));
+
+    const auto initialize = Mcp::makeInitializeRequest(legacyContext, QStringLiteral("init-2025"));
+    const auto initializeResult = send(manager, legacyRequest(endpoint, false),
+                                       QJsonDocument(initialize).toJson(QJsonDocument::Compact));
+    const auto initializePayload =
+        bodyObject(initializeResult).value(QStringLiteral("result")).toObject();
+    expect(initializeResult.status == 200 &&
+               initializePayload.value(QStringLiteral("protocolVersion")) ==
+                   QString::fromLatin1(Mcp::LegacyProtocolVersion) &&
+               initializePayload.value(QStringLiteral("capabilities"))
+                   .toObject()
+                   .value(QStringLiteral("tools"))
+                   .isObject() &&
+               !initializePayload.contains(QStringLiteral("resultType")) &&
+               initializeResult.sessionId.isEmpty(),
+           QStringLiteral("MCP 2025-11-25 initialize must work without modern transport headers"));
+
+    const auto initialized =
+        Mcp::makeRequest(QString::fromLatin1(Mcp::InitializedNotification), {}, legacyContext);
+    const auto initializedResult = send(manager, legacyRequest(endpoint),
+                                        QJsonDocument(initialized).toJson(QJsonDocument::Compact));
+    expect(initializedResult.status == 202 && initializedResult.body.isEmpty(),
+           QStringLiteral("MCP 2025-11-25 initialized notification must return empty HTTP 202"));
+
+    const auto legacyListWithoutVersion =
+        Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsListMethod), {}, legacyContext,
+                         QStringLiteral("list-2025-without-version"));
+    const auto legacyListWithoutVersionResult =
+        send(manager, legacyRequest(endpoint, false),
+             QJsonDocument(legacyListWithoutVersion).toJson(QJsonDocument::Compact));
+    expect(legacyListWithoutVersionResult.status == 400 &&
+               jsonRpcErrorCode(legacyListWithoutVersionResult) == Mcp::HeaderMismatch,
+           QStringLiteral("MCP 2025-11-25 requires a protocol header after initialize"));
+
+    const auto legacyPing = Mcp::makeRequest(QString::fromLatin1(Mcp::PingMethod), {},
+                                             legacyContext, QStringLiteral("ping-2025"));
+    const auto legacyPingResult = send(manager, legacyRequest(endpoint),
+                                       QJsonDocument(legacyPing).toJson(QJsonDocument::Compact));
+    expect(legacyPingResult.status == 200 &&
+               bodyObject(legacyPingResult).value(QStringLiteral("result")).toObject().isEmpty(),
+           QStringLiteral("MCP 2025-11-25 ping must use the legacy result envelope"));
+
+    const auto legacyList = Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsListMethod), {},
+                                             legacyContext, QStringLiteral("list-2025"));
+    const auto legacyListResult = send(manager, legacyRequest(endpoint),
+                                       QJsonDocument(legacyList).toJson(QJsonDocument::Compact));
+    const auto legacyListPayload =
+        bodyObject(legacyListResult).value(QStringLiteral("result")).toObject();
+    expect(legacyListResult.status == 200 &&
+               legacyListPayload.value(QStringLiteral("tools")).isArray() &&
+               !legacyListPayload.contains(QStringLiteral("resultType")) &&
+               !legacyListPayload.contains(QStringLiteral("ttlMs")),
+           QStringLiteral("MCP 2025-11-25 tools/list must not require 2026 routing headers"));
+
+    const auto legacyCall =
+        Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsCallMethod),
+                         QJsonObject{
+                             {QStringLiteral("name"),      QStringLiteral("legacy.tool")},
+                             {QStringLiteral("arguments"), QJsonObject{}                }
+    },
+                         legacyContext, QStringLiteral("call-2025"));
+    const auto legacyCallResult = send(manager, legacyRequest(endpoint),
+                                       QJsonDocument(legacyCall).toJson(QJsonDocument::Compact));
+    const auto legacyCallPayload =
+        bodyObject(legacyCallResult).value(QStringLiteral("result")).toObject();
+    expect(legacyCallResult.status == 200 &&
+               legacyCallPayload.value(QStringLiteral("content")).isArray() &&
+               legacyCallPayload.value(QStringLiteral("structuredContent")).isObject() &&
+               !legacyCallPayload.contains(QStringLiteral("resultType")),
+           QStringLiteral("MCP 2025-11-25 tools/call must retain text and structured results"));
+
+    auto compatibilityContext = legacyContext;
+    compatibilityContext.protocolVersion = QString::fromLatin1(Mcp::CompatibilityProtocolVersion);
+    const auto compatibilityInitialize =
+        Mcp::makeInitializeRequest(compatibilityContext, QStringLiteral("init-2025-06"));
+    const auto compatibilityInitializeResult =
+        send(manager, legacyRequest(endpoint, false, Mcp::CompatibilityProtocolVersion),
+             QJsonDocument(compatibilityInitialize).toJson(QJsonDocument::Compact));
+    const auto compatibilityInitializePayload =
+        bodyObject(compatibilityInitializeResult).value(QStringLiteral("result")).toObject();
+    expect(compatibilityInitializeResult.status == 200 &&
+               compatibilityInitializePayload.value(QStringLiteral("protocolVersion")) ==
+                   QString::fromLatin1(Mcp::CompatibilityProtocolVersion) &&
+               !compatibilityInitializePayload.contains(QStringLiteral("resultType")),
+           QStringLiteral("MCP 2025-06-18 initialize must echo the requested supported version"));
+    const auto compatibilityList =
+        Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsListMethod), {}, compatibilityContext,
+                         QStringLiteral("list-2025-06"));
+    const auto compatibilityListResult =
+        send(manager, legacyRequest(endpoint, true, Mcp::CompatibilityProtocolVersion),
+             QJsonDocument(compatibilityList).toJson(QJsonDocument::Compact));
+    const auto compatibilityListPayload =
+        bodyObject(compatibilityListResult).value(QStringLiteral("result")).toObject();
+    expect(compatibilityListResult.status == 200 &&
+               compatibilityListPayload.value(QStringLiteral("tools")).isArray() &&
+               !compatibilityListPayload.contains(QStringLiteral("resultType")),
+           QStringLiteral("MCP 2025-06-18 tools/list must use the legacy result envelope"));
+
     {
         const QMutexLocker locker(&observationMutex);
         observedMethod = QStringLiteral("unchanged");
     }
     const auto cancelledNotification =
-        requestObject(QStringLiteral("notifications/cancelled"),
-                      QJsonValue(QJsonValue::Undefined),
-                      QJsonObject{{QStringLiteral("requestId"), 1}});
+        requestObject(QStringLiteral("notifications/cancelled"), QJsonValue(QJsonValue::Undefined),
+                      QJsonObject{
+                          {QStringLiteral("requestId"), 1}
+    });
     const auto notificationResult =
         send(manager, baseRequest(endpoint, QStringLiteral("notifications/cancelled")),
              QJsonDocument(cancelledNotification).toJson(QJsonDocument::Compact));
@@ -430,7 +571,10 @@ int main(int argc, char *argv[]) {
     expect(unsupportedVersion.status == 400 &&
                jsonRpcErrorCode(unsupportedVersion) == Mcp::UnsupportedProtocolVersion &&
                unsupportedData.value(QStringLiteral("requested")) == QStringLiteral("2099-01-01") &&
-               supportedVersions == QJsonArray{QString::fromLatin1(Mcp::ProtocolVersion)} &&
+               supportedVersions ==
+                   QJsonArray{QString::fromLatin1(Mcp::ProtocolVersion),
+                              QString::fromLatin1(Mcp::LegacyProtocolVersion),
+                              QString::fromLatin1(Mcp::CompatibilityProtocolVersion)} &&
                !unsupportedData.contains(QStringLiteral("supportedVersions")),
            QStringLiteral("-32022 data must contain exact supported and requested fields"));
 
@@ -600,8 +744,7 @@ int main(int argc, char *argv[]) {
            QStringLiteral("default-limits server must start: %1").arg(defaultLimitsError));
     const auto defaultDeadline = send(
         manager,
-        baseRequest(QUrl(defaultLimitsServer.endpoint()),
-                    QString::fromLatin1(Mcp::DiscoverMethod)),
+        baseRequest(QUrl(defaultLimitsServer.endpoint()), QString::fromLatin1(Mcp::DiscoverMethod)),
         QJsonDocument(discover).toJson(QJsonDocument::Compact));
     expect(!defaultDeadline.timedOut && defaultDeadline.status == 200,
            QStringLiteral("the no-limits constructor must apply server-side default deadlines"));

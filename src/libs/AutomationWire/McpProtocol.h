@@ -11,6 +11,8 @@
 
 namespace AutomationWire::Mcp {
 
+    inline constexpr auto CompatibilityProtocolVersion = "2025-06-18";
+    inline constexpr auto LegacyProtocolVersion = "2025-11-25";
     inline constexpr auto ProtocolVersion = "2026-07-28";
     inline constexpr auto JsonRpcVersion = "2.0";
     inline constexpr qsizetype MaximumRequestIdCodeUnits = 1024;
@@ -24,6 +26,9 @@ namespace AutomationWire::Mcp {
     inline constexpr auto ClientInfoMetaKey = "io.modelcontextprotocol/clientInfo";
     inline constexpr auto ServerInfoMetaKey = "io.modelcontextprotocol/serverInfo";
 
+    inline constexpr auto InitializeMethod = "initialize";
+    inline constexpr auto InitializedNotification = "notifications/initialized";
+    inline constexpr auto PingMethod = "ping";
     inline constexpr auto DiscoverMethod = "server/discover";
     inline constexpr auto ToolsListMethod = "tools/list";
     inline constexpr auto ToolsCallMethod = "tools/call";
@@ -34,6 +39,7 @@ namespace AutomationWire::Mcp {
         MethodNotFound = -32601,
         InvalidParams = -32602,
         InternalError = -32603,
+        ServerNotInitialized = -32002,
         HeaderMismatch = -32020,
         MissingRequiredClientCapability = -32021,
         UnsupportedProtocolVersion = -32022,
@@ -117,39 +123,54 @@ namespace AutomationWire::Mcp {
 
     bool isValidRequestId(const QJsonValue &id);
     bool isSupportedCoreMethod(const QString &method);
+    bool isLegacyProtocolVersion(const QString &version);
+    bool isModernProtocolVersion(const QString &version);
+    QStringList supportedProtocolVersions();
 
     QJsonObject makeRequest(const QString &method, QJsonObject params,
                             const RequestContext &context,
                             const QJsonValue &id = QJsonValue(QJsonValue::Undefined));
-    RequestValidationResult parseRequest(const QJsonValue &message);
-    RequestValidationResult validateRequest(const QJsonValue &message,
-                                            const QStringList &supportedVersions = {
-                                                QString::fromLatin1(ProtocolVersion)});
+    QJsonObject makeInitializeRequest(const RequestContext &context,
+                                      const QJsonValue &id = QJsonValue(QJsonValue::Undefined));
+    RequestValidationResult parseRequest(const QJsonValue &message,
+                                         const QString &impliedProtocolVersion = {});
+    RequestValidationResult
+        validateRequest(const QJsonValue &message,
+                        const QStringList &supportedVersions = supportedProtocolVersions(),
+                        const QString &impliedProtocolVersion = {});
     ResponseValidationResult
         validateResponse(const QJsonValue &message,
-                         const QJsonValue &expectedId = QJsonValue(QJsonValue::Undefined));
+                         const QJsonValue &expectedId = QJsonValue(QJsonValue::Undefined),
+                         const QString &protocolVersion = QString::fromLatin1(ProtocolVersion));
 
     QString encodeHeaderValue(const QString &value);
     std::optional<QString> decodeHeaderValue(const QString &value, QString *errorMessage = nullptr);
-    MetadataValidationResult validateTransportMetadata(const TransportMetadata &metadata,
-                                                       const RequestEnvelope &request,
-                                                       const QStringList &supportedVersions = {
-                                                           QString::fromLatin1(ProtocolVersion)});
+    MetadataValidationResult validateTransportMetadata(
+        const TransportMetadata &metadata, const RequestEnvelope &request,
+        const QStringList &supportedVersions = supportedProtocolVersions());
 
-    QJsonObject makeResultResponse(const QJsonValue &id, QJsonObject result,
-                                   const std::optional<ImplementationInfo> &serverInfo = {});
+    QJsonObject
+        makeResultResponse(const QJsonValue &id, QJsonObject result,
+                           const std::optional<ImplementationInfo> &serverInfo = {},
+                           const QString &protocolVersion = QString::fromLatin1(ProtocolVersion));
     QJsonObject makeErrorResponse(const QJsonValue &id, const ProtocolError &error);
-    QJsonObject makeDiscoverResult(const ImplementationInfo &serverInfo, qint64 ttlMs = 0,
-                                   const QString &cacheScope = QStringLiteral("private"),
-                                   const QStringList &supportedVersions = {
-                                       QString::fromLatin1(ProtocolVersion)});
-    QJsonObject makeToolsListResult(const QJsonArray &tools, const QString &nextCursor = {},
-                                    qint64 ttlMs = 0,
-                                    const QString &cacheScope = QStringLiteral("private"),
-                                    const std::optional<ImplementationInfo> &serverInfo = {});
-    QJsonObject makeToolCallResult(const QJsonValue &structuredContent, bool isError = false,
-                                   const QString &text = {},
-                                   const std::optional<ImplementationInfo> &serverInfo = {});
+    QJsonObject makeInitializeResult(const QString &protocolVersion,
+                                     const ImplementationInfo &serverInfo,
+                                     const QString &instructions = {});
+    QJsonObject
+        makeDiscoverResult(const ImplementationInfo &serverInfo, qint64 ttlMs = 0,
+                           const QString &cacheScope = QStringLiteral("private"),
+                           const QStringList &supportedVersions = supportedProtocolVersions());
+    QJsonObject
+        makeToolsListResult(const QJsonArray &tools, const QString &nextCursor = {},
+                            qint64 ttlMs = 0, const QString &cacheScope = QStringLiteral("private"),
+                            const std::optional<ImplementationInfo> &serverInfo = {},
+                            const QString &protocolVersion = QString::fromLatin1(ProtocolVersion));
+    QJsonObject
+        makeToolCallResult(const QJsonValue &structuredContent, bool isError = false,
+                           const QString &text = {},
+                           const std::optional<ImplementationInfo> &serverInfo = {},
+                           const QString &protocolVersion = QString::fromLatin1(ProtocolVersion));
 
 }
 
