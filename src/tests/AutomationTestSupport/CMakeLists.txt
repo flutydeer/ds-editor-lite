@@ -45,6 +45,7 @@ add_library(AutomationTestSupport STATIC
     ../../app/Controller/Actions/AppModel/TimeSignature/EditTimeSignaturesAction.cpp
     ../../app/Controller/Actions/AppModel/TimeSignature/TimeSignatureActions.cpp
     ../../app/Model/AppModel/SingingClipPhonemeNormalizer.cpp
+    ../../app/UI/Views/TrackEditor/AudioClipDragState.cpp
     ${_automation_edit_action_sources}
 )
 

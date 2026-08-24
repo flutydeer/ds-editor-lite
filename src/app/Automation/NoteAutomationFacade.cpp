@@ -193,6 +193,13 @@ namespace Automation {
             bool m_resetPhonemes = false;
         };
 
+        class SetOriginalPronunciationActions final : public ActionSequence {
+        public:
+            SetOriginalPronunciationActions(Note *note, SingingClip *clip, QString pronunciation) {
+                addAction(new SetOriginalPronunciationAction(note, clip, std::move(pronunciation)));
+            }
+        };
+
         Note::WordProperties normalizedWordProperties(const Note::WordProperties &previous,
                                                       const NoteWordEditDto &edit) {
             Note::WordProperties next;
@@ -281,7 +288,8 @@ namespace Automation {
                 const auto sensitivity = caseSensitive ? Qt::CaseSensitive : Qt::CaseInsensitive;
                 QRegularExpression expression;
                 if (regularExpression) {
-                    auto options = QRegularExpression::NoPatternOption;
+                    QRegularExpression::PatternOptions options =
+                        QRegularExpression::NoPatternOption;
                     if (!caseSensitive)
                         options |= QRegularExpression::CaseInsensitiveOption;
                     expression.setPatternOptions(options);
@@ -938,9 +946,9 @@ namespace Automation {
                         m_committer.preview(session, changed, affected));
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
-                auto action = std::make_unique<SetOriginalPronunciationAction>(
+                auto actions = std::make_unique<SetOriginalPronunciationActions>(
                     resolved.get().note, resolved.get().clip, pronunciation);
-                return m_committer.commit(session, std::move(action), affected);
+                return m_committer.commit(session, std::move(actions), affected);
             });
     }
 
