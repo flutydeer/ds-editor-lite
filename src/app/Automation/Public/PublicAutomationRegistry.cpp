@@ -2,6 +2,7 @@
 #include "PublicAutomationCodecs.h"
 
 #include "../CoreRuntime.h"
+#include "../OperationIds.h"
 
 #include <lite/AutomationWire/JsonSchema.h>
 #include <lite/AutomationWire/CanonicalJson.h>
@@ -1335,7 +1336,7 @@ namespace Automation {
                 return result;
             }
             const auto capability =
-                object.value(target.operationId == QStringLiteral("extract.pitch.start")
+                object.value(target.operationId == OperationIds::extract::pitch::start
                                  ? QStringLiteral("pitch")
                                  : QStringLiteral("midi"))
                     .toObject();
@@ -1400,7 +1401,7 @@ namespace Automation {
             const auto actualValues = concretePointerValues(arguments, fieldPath);
             if (actualValues.isEmpty())
                 continue;
-            if (target.operationId == QStringLiteral("tracks.insert") &&
+            if (target.operationId == OperationIds::tracks::insert &&
                 fieldPath == QStringLiteral("/track/default_language") &&
                 valuesAtPointer(arguments, QStringLiteral("/track/voice")).isEmpty()) {
                 // A new track may intentionally have no voice. Its language is retained until a
@@ -1497,7 +1498,7 @@ namespace Automation {
             return result;
         }
         auto effectiveArguments = arguments;
-        const auto saveCurrent = operationId == QStringLiteral("documents.save") &&
+        const auto saveCurrent = operationId == OperationIds::documents::save &&
                                  !effectiveArguments.contains(QStringLiteral("path"));
         if (saveCurrent) {
             auto document = m_runtime.documents().getDocument(documentId(effectiveArguments));

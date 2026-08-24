@@ -1,4 +1,5 @@
 #include "FileAutomationAdapter.h"
+#include "OperationIds.h"
 
 #include "Modules/ProjectFormats/IProjectFormatHandler.h"
 #include "Modules/ProjectFormats/LibreSVIPFormatHandler.h"
@@ -63,8 +64,8 @@ namespace Automation {
             }
             if (descriptor.canExport && descriptor.id == QStringLiteral("midi")) {
                 branches.append(optionBranch(
-                    QStringLiteral("exports.midi.start"),
-                    publicNestedOptions(QStringLiteral("exports.midi.start"))));
+                    OperationIds::exports::midi::start,
+                    publicNestedOptions(OperationIds::exports::midi::start)));
             }
             if (branches.isEmpty())
                 return AutomationWire::JsonSchema::document(AutomationWire::JsonSchema::object());

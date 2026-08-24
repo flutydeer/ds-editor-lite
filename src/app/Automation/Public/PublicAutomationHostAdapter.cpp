@@ -1,6 +1,5 @@
 #include "PublicAutomationHostAdapter.h"
 
-#include "AppContext.h"
 #include "../CoreRuntime.h"
 #include "../OperationIds.h"
 #include "Controller/DocumentWorkflow/IProjectLoadSession.h"
@@ -589,8 +588,8 @@ namespace Automation {
             };
         }
 
-        QJsonObject extractionCapabilities(CoreRuntime &runtime, const DocumentId &documentId,
-                                           const ClipId clipId) {
+        QJsonObject extractionCapabilities(CoreRuntime &runtime, SynthrtEngine *engine,
+                                           const DocumentId &documentId, const ClipId clipId) {
             bool sourceSupported = false;
             bool sourceReady = false;
             QJsonArray languages;
@@ -617,7 +616,6 @@ namespace Automation {
                 !languages.contains(settings.get().general.defaultSingingLanguage)) {
                 languages.append(settings.get().general.defaultSingingLanguage);
             }
-            const auto *engine = AppContext::instance<SynthrtEngine>();
             const bool pitchModuleReady = engine && engine->pitchExtractionReady();
             const bool midiModuleReady = engine && engine->midiExtractionReady();
             const auto optionSchema = [](const QString &operationId) {
@@ -681,7 +679,7 @@ namespace Automation {
                           pitchModuleReady, QStringLiteral("RMVPE model is not configured"),
                           QStringLiteral("Pitch extraction module is unavailable"))}},
                      {QStringLiteral("option_schema"),
-                      optionSchema(QStringLiteral("extract.pitch.start"))},
+                      optionSchema(OperationIds::extract::pitch::start)},
                      {QStringLiteral("range_support"),
                       QJsonObject{
                           {QStringLiteral("source_range"),
@@ -710,7 +708,7 @@ namespace Automation {
                           QStringLiteral("GAME model directory is not configured"),
                           QStringLiteral("MIDI extraction module is unavailable"))}},
                      {QStringLiteral("option_schema"),
-                      optionSchema(QStringLiteral("extract.midi.start"))},
+                      optionSchema(OperationIds::extract::midi::start)},
                      {QStringLiteral("range_support"),
                       QJsonObject{
                           {QStringLiteral("source_range"),
@@ -1042,7 +1040,8 @@ namespace Automation {
     }
 
     PublicAutomationHostServices createPublicAutomationHostServices(CoreRuntime &runtime,
-                                                                    AppModel *model) {
+                                                                    AppModel *model,
+                                                                    SynthrtEngine *synthrtEngine) {
         PublicAutomationHostServices services;
         services.openDocument = [&runtime](const PublicDocumentOpenRequest &request) {
             if (request.unsavedPolicy == PublicUnsavedPolicy::Reject) {
@@ -1087,10 +1086,10 @@ namespace Automation {
         services.audioExportCapabilities = [&runtime](const DocumentId &documentId) {
             return AutomationResult<QJsonValue>(audioExportCapabilities(runtime, documentId));
         };
-        services.extractionCapabilities = [&runtime](const DocumentId &documentId,
-                                                     const ClipId clipId) {
+        services.extractionCapabilities = [&runtime, synthrtEngine](const DocumentId &documentId,
+                                                                    const ClipId clipId) {
             return AutomationResult<QJsonValue>(
-                extractionCapabilities(runtime, documentId, clipId));
+                extractionCapabilities(runtime, synthrtEngine, documentId, clipId));
         };
         services.inferenceCapabilities = [&runtime, model](const DocumentId &documentId,
                                                            const QJsonObject &scope) {

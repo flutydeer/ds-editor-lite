@@ -859,9 +859,10 @@ namespace {
             EXPECT(matrix,
                    terminal && terminal.get().state == Automation::AutomationTaskState::Succeeded &&
                        terminalReplay && terminalReplay.get() == first.get() &&
-                       harness.audioExportState()->createCount == 2 &&
+                       harness.audioExportState()->createCount == 1 &&
                        harness.audioExportState()->executeCount == 1,
-                   QStringLiteral("terminal replay must keep the accepted TaskId"));
+                   QStringLiteral(
+                       "terminal replay must keep the TaskId and reuse the authorized export snapshot"));
         });
 
         matrix.run(operationId, "AFD-EXP-AUDIO-003-QUEUED-CANCEL", [&] {
@@ -888,8 +889,10 @@ namespace {
                        repeated.get().state == Automation::AutomationTaskState::CancelRequested &&
                        terminal.get().state == Automation::AutomationTaskState::Canceled &&
                        harness.audioExportState()->executeCount == 0 &&
+                       harness.audioExportState()->cleanupCount == 1 &&
                        harness.runtime().documentVersion() == base,
-                   QStringLiteral("queued cancellation must prevent export execution"));
+                   QStringLiteral(
+                       "queued cancellation must prevent execution and clean its snapshot"));
         });
 
         matrix.run(operationId, "AFD-EXP-AUDIO-004-BACKEND-CANCELED", [&] {
@@ -910,9 +913,9 @@ namespace {
             EXPECT(matrix,
                    terminal && terminal.get().state == Automation::AutomationTaskState::Canceled &&
                        harness.audioExportState()->executeCount == 1 &&
-                       harness.audioExportState()->cleanupCount == 0 &&
+                       harness.audioExportState()->cleanupCount == 1 &&
                        harness.runtime().documentVersion() == base,
-                   QStringLiteral("ordinary backend cancellation must preserve cleanup ownership"));
+                   QStringLiteral("backend cancellation must clean its snapshot exactly once"));
         });
 
         matrix.run(operationId, "AFD-EXP-AUDIO-005-FAILURE-RETRY", [&] {
@@ -938,11 +941,13 @@ namespace {
                        failed.get().error &&
                        failed.get().error->code == Automation::AutomationErrorCode::IoError &&
                        retried && retried.get().taskId != first.get().taskId &&
+                       harness.audioExportState()->cleanupCount == 1 &&
                        harness.audioScheduler.pendingCount() == 1,
-                   QStringLiteral("I/O failure must be queryable and release the key"));
+                   QStringLiteral(
+                       "I/O failure must be queryable, clean its snapshot, and release the key"));
         });
 
-        matrix.run(operationId, "AFD-EXP-AUDIO-006-REVISION-BEFORE-RUN", [&] {
+        matrix.run(operationId, "AFD-EXP-AUDIO-006-SNAPSHOT-SURVIVES-REVISION", [&] {
             matrix.cover("Queued");
             matrix.cover("terminal");
             RuntimeHarness harness;
@@ -957,13 +962,13 @@ namespace {
                                Automation::AutomationError{});
             EXPECT(matrix,
                    accepted && edit && released && terminal &&
-                       terminal.get().state == Automation::AutomationTaskState::Failed &&
-                       terminal.get().error &&
-                       terminal.get().error->code ==
-                           Automation::AutomationErrorCode::RevisionConflict &&
-                       harness.audioExportState()->executeCount == 0 &&
+                       terminal.get().state == Automation::AutomationTaskState::Succeeded &&
+                       !terminal.get().error && harness.audioExportState()->createCount == 1 &&
+                       harness.audioExportState()->executeCount == 1 &&
+                       harness.audioExportState()->cleanupCount == 0 &&
                        harness.runtime().documentVersion().revision == base.revision + 1,
-                   QStringLiteral("revision drift must fail before file execution"));
+                   QStringLiteral(
+                       "an authorized export snapshot must remain independent of later edits"));
         });
 
         matrix.run(operationId, "AFD-EXP-AUDIO-007-GENERATION-BEFORE-RUN", [&] {
@@ -1373,10 +1378,10 @@ namespace {
             EXPECT(matrix,
                    isError(documentError, Automation::AutomationErrorCode::DocumentChanged,
                            cancelId) &&
-                       isError(revisionError, Automation::AutomationErrorCode::RevisionConflict,
-                               cancelId) &&
+                       isError(revisionError, Automation::AutomationErrorCode::NotFound, cancelId) &&
                        isError(taskError, Automation::AutomationErrorCode::NotFound, cancelId),
-                   QStringLiteral("cancel errors must be document, revision, then TaskId"));
+                   QStringLiteral(
+                       "cancel must route by document but ignore revision before resolving TaskId"));
         });
     }
 
@@ -1851,10 +1856,12 @@ namespace {
                                        Automation::AutomationErrorCode::DocumentChanged,
                                        testCase.operationId) &&
                                isError(revisionError,
-                                       Automation::AutomationErrorCode::RevisionConflict,
+                                       testCase.advancesRevision
+                                           ? Automation::AutomationErrorCode::RevisionConflict
+                                           : Automation::AutomationErrorCode::NotFound,
                                        testCase.operationId),
                            QStringLiteral(
-                               "audio handler must reject document then revision before object"));
+                               "audio handler must apply its declared revision policy before object lookup"));
                 });
 
             matrix.run(testCase.operationId,
@@ -2279,7 +2286,7 @@ namespace {
     void testAudioCleanupDimensions(Matrix &matrix) {
         const auto operationId = Automation::OperationIds::exports::audio::cleanup;
 
-        matrix.run(operationId, "AFD-EXP-CLEANUP-001-VALIDATE-PRESERVES-JOB", [&] {
+        matrix.run(operationId, "AFD-EXP-CLEANUP-001-VALIDATE-RELEASED-JOB", [&] {
             RuntimeHarness harness;
             const auto taskId =
                 finishAudioExport(harness, QStringLiteral("dimension-clean-validate.wav"));
@@ -2288,9 +2295,10 @@ namespace {
             const auto commit = harness.runtime().audioExports().cleanup(harness.context(), taskId);
             EXPECT(matrix,
                    !taskId.isNull() && preview && preview.get().validatedOnly &&
-                       preview.get().changed && harness.audioExportState()->cleanupCount == 1 &&
-                       commit && commit.get().changed,
-                   QStringLiteral("cleanup validation must leave the real job available"));
+                       !preview.get().changed && harness.audioExportState()->cleanupCount == 0 &&
+                       commit && !commit.get().changed,
+                   QStringLiteral(
+                       "successful export must release its record before cleanup validation"));
         });
 
         matrix.run(operationId, "AFD-EXP-CLEANUP-002-COMMIT-NO-DOCUMENT-MUTATION", [&] {
@@ -2302,11 +2310,12 @@ namespace {
             const auto result = harness.runtime().audioExports().cleanup(harness.context(), taskId);
             const auto historyAfter = harness.runtime().history().getState(base.documentId);
             EXPECT(matrix,
-                   !taskId.isNull() && result && result.get().changed &&
-                       harness.audioExportState()->cleanupCount == 1 &&
+                   !taskId.isNull() && result && !result.get().changed &&
+                       harness.audioExportState()->cleanupCount == 0 &&
                        harness.runtime().documentVersion() == base && historyBefore &&
                        historyAfter && sameHistory(historyBefore.get(), historyAfter.get()),
-                   QStringLiteral("cleanup must release backend state without document mutation"));
+                   QStringLiteral(
+                       "cleanup after success must be a no-op without document mutation"));
         });
 
         matrix.run(operationId, "AFD-EXP-CLEANUP-003-REPEATED-NO-OP", [&] {
@@ -2317,9 +2326,9 @@ namespace {
             const auto repeated =
                 harness.runtime().audioExports().cleanup(harness.context(), taskId);
             EXPECT(matrix,
-                   !taskId.isNull() && first && first.get().changed && repeated &&
-                       !repeated.get().changed && harness.audioExportState()->cleanupCount == 1,
-                   QStringLiteral("cleanup must be idempotent after backend state is released"));
+                   !taskId.isNull() && first && !first.get().changed && repeated &&
+                       !repeated.get().changed && harness.audioExportState()->cleanupCount == 0,
+                   QStringLiteral("cleanup must remain idempotent after automatic record release"));
         });
 
         matrix.run(operationId, "AFD-EXP-CLEANUP-004-NONTERMINAL-BUSY", [&] {
