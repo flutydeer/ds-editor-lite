@@ -356,6 +356,7 @@ namespace AutomationAsyncFileTests {
         bool midiExportSucceeds = true;
         int midiExportCount = 0;
         QString lastMidiExportPath;
+        Automation::MidiExportOptionsDto lastMidiExportOptions;
         QList<Automation::ProjectFormatDto> formats{
             {
              .id = QStringLiteral("dspx"),
@@ -487,9 +488,12 @@ namespace AutomationAsyncFileTests {
                 return {};
             Automation::FileRuntimeServices services;
             services.listProjectFormats = [this] { return formats; };
-            services.exportMidi = [this](AppModel *, const QString &path, QString &errorMessage) {
+            services.exportMidi = [this](AppModel *, const QString &path,
+                                         const Automation::MidiExportOptionsDto &options,
+                                         QString &errorMessage) {
                 ++midiExportCount;
                 lastMidiExportPath = path;
+                lastMidiExportOptions = options;
                 if (!midiExportSucceeds)
                     errorMessage = QStringLiteral("controlled MIDI export failure");
                 return midiExportSucceeds;

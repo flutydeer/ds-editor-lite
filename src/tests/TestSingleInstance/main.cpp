@@ -15,6 +15,7 @@
 #include <QUuid>
 #include <lite/ProductMetadata.h>
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -149,6 +150,17 @@ namespace {
         ok &= expect(decoded.command == SingleInstanceCommand::OpenProjects,
                      "request command must survive serialization");
         ok &= expect(decoded.paths == request.paths, "project paths must survive serialization");
+
+        auto unsupportedObject = QJsonDocument::fromJson(encoded).object();
+        unsupportedObject.insert(QStringLiteral("protocolVersion"),
+                                 SingleInstanceProtocol::protocolVersion + 1);
+        SingleInstanceRequest unsupportedRequest;
+        error.clear();
+        ok &= expect(!SingleInstanceProtocol::decodeRequest(
+                         QJsonDocument(unsupportedObject).toJson(QJsonDocument::Compact),
+                         unsupportedRequest, error) &&
+                         unsupportedRequest.requestId == request.requestId,
+                     "unsupported protocol versions must retain the request ID for rejection");
 
         const auto framed = SingleInstanceProtocol::frame(encoded);
         QByteArray buffer = framed.left(3);
@@ -455,6 +467,83 @@ namespace {
         return ok;
     }
 
+    bool verifyInitialReadTimeout() {
+        QTemporaryDir directory;
+        bool ok = expect(directory.isValid(),
+                         "temporary initial-read-timeout directory must be available");
+        if (!directory.isValid())
+            return false;
+
+        const auto serverName = uniqueServerName();
+        SingleInstanceCoordinator primary(directory.path(), serverName);
+        ok &= expect(primary.start() == SingleInstanceCoordinator::StartResult::Primary,
+                     "initial-read-timeout coordinator must become primary");
+
+        const auto unsupported = automationRequest(SingleInstanceCommand::AutomationDiscover);
+        auto unsupportedObject =
+            QJsonDocument::fromJson(SingleInstanceProtocol::encodeRequest(unsupported)).object();
+        unsupportedObject.insert(QStringLiteral("protocolVersion"),
+                                 SingleInstanceProtocol::protocolVersion + 1);
+        FramedClient unsupportedClient;
+        const auto unsupportedFrame = SingleInstanceProtocol::frame(
+            QJsonDocument(unsupportedObject).toJson(QJsonDocument::Compact));
+        QByteArray responsePayload;
+        QString error;
+        SingleInstanceResponse response;
+        ok &= expect(unsupportedClient.connectTo(serverName) &&
+                         unsupportedClient.socket.write(unsupportedFrame) ==
+                             unsupportedFrame.size() &&
+                         unsupportedClient.socket.waitForBytesWritten(1000) &&
+                         unsupportedClient.receive(responsePayload, error) &&
+                         SingleInstanceProtocol::decodeResponse(responsePayload, response, error) &&
+                         !response.accepted && response.requestId == unsupported.requestId,
+                     "unsupported bootstrap versions must echo the original request ID");
+
+        std::vector<std::unique_ptr<QLocalSocket>> stalledClients;
+        stalledClients.reserve(
+            static_cast<std::size_t>(SingleInstanceProtocol::maxConnectionCount));
+        for (qsizetype index = 0; index < SingleInstanceProtocol::maxConnectionCount; ++index) {
+            auto socket = std::make_unique<QLocalSocket>();
+            socket->connectToServer(serverName, QIODevice::ReadWrite);
+            const auto connected = socket->waitForConnected(1000);
+            ok &= expect(connected, "stalled bootstrap clients must fill every connection slot");
+            if (!connected)
+                break;
+            if (index % 2 != 0) {
+                QByteArray partialFrame(4, '\0');
+                partialFrame[3] = static_cast<char>(16);
+                partialFrame.append('{');
+                socket->write(partialFrame);
+                socket->waitForBytesWritten(1000);
+            }
+            stalledClients.push_back(std::move(socket));
+            QCoreApplication::processEvents();
+        }
+
+        const auto allDisconnected = waitUntil(
+            [&] {
+                return std::all_of(stalledClients.cbegin(), stalledClients.cend(),
+                                   [](const auto &socket) {
+                                       return socket->state() == QLocalSocket::UnconnectedState;
+                                   });
+            },
+            SingleInstanceProtocol::initialReadTimeoutMs + 2000);
+        ok &= expect(allDisconnected,
+                     "idle and partial bootstrap frames must be dropped after a fixed timeout");
+
+        FramedClient replacement;
+        const auto replacementRequest =
+            automationRequest(SingleInstanceCommand::AutomationDiscover);
+        SingleInstanceAutomationSnapshot snapshot;
+        ok &= expect(replacement.connectTo(serverName) && replacement.send(replacementRequest) &&
+                         replacement.receiveSnapshot(snapshot) &&
+                         snapshot.requestId == replacementRequest.requestId,
+                     "timed-out bootstrap clients must release capacity for valid requests");
+
+        primary.shutdown();
+        return ok;
+    }
+
     bool verifyCoordinator() {
         QTemporaryDir directory;
         bool ok = expect(directory.isValid(), "temporary instance directory must be available");
@@ -522,5 +611,6 @@ int main(int argc, char *argv[]) {
     ok &= verifyCoordinator();
     ok &= verifyAutomationBootstrap();
     ok &= verifyWatcherLimit();
+    ok &= verifyInitialReadTimeout();
     return ok ? 0 : 1;
 }

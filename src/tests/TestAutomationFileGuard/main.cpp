@@ -77,6 +77,19 @@ int main(int argc, char *argv[]) {
                                QStringLiteral("/write/nested/render.wav"), Qt::CaseInsensitive),
            QStringLiteral("nonexistent output must canonicalize from its nearest existing parent"));
 
+    const auto directOutput = QDir(writeRoot).filePath(QStringLiteral("render.wav"));
+    const auto authorizedDirectWrite =
+        guard.authorize(directOutput, Automation::FileAccessPurpose::Write);
+    expect(authorizedDirectWrite && guard.reauthorize(authorizedDirectWrite.get()),
+           QStringLiteral("an unchanged authorized target must pass reauthorization"));
+    expect(guard.setConfiguredRoots({readRoot}, {siblingRoot}).isPresent(),
+           QStringLiteral("replacement access roots must be accepted"));
+    const auto revokedWrite = guard.reauthorize(authorizedDirectWrite.get());
+    expect(hasError(revokedWrite, Automation::AutomationErrorCode::PermissionDenied),
+           QStringLiteral("reauthorization must observe access policy changes"));
+    expect(guard.setConfiguredRoots({readRoot}, {writeRoot}).isPresent(),
+           QStringLiteral("original access roots must be restorable"));
+
     const auto deniedWrite = guard.authorize(
         QDir(readRoot).filePath(QStringLiteral("render.wav")),
         Automation::FileAccessPurpose::Write);

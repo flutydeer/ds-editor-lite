@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <optional>
 
 namespace {
     bool expect(const bool condition, const char *message) {
@@ -97,7 +98,6 @@ namespace {
     struct FakeAudioExportState {
         int executeCount = 0;
         int cleanupCount = 0;
-        bool canceled = false;
         Automation::AudioExportBackendState result = Automation::AudioExportBackendState::Succeeded;
     };
 
@@ -121,7 +121,7 @@ namespace {
             ++m_state->executeCount;
             if (observer.progress)
                 observer.progress(0.5, -1);
-            if (m_state->canceled)
+            if (m_canceled)
                 return {.state = Automation::AudioExportBackendState::Canceled};
             return {.state = m_state->result,
                     .errorMessage = m_state->result == Automation::AudioExportBackendState::Failed
@@ -130,7 +130,7 @@ namespace {
         }
 
         void cancel() override {
-            m_state->canceled = true;
+            m_canceled = true;
         }
 
         void cleanup() override {
@@ -140,6 +140,7 @@ namespace {
     private:
         Automation::AudioExportConfigDto m_config;
         std::shared_ptr<FakeAudioExportState> m_state;
+        bool m_canceled = false;
     };
 
     struct FakePitchExtractionState {
@@ -561,6 +562,7 @@ int main(int argc, char *argv[]) {
         };
     };
     fileServices.exportMidi = [&midiExportCount](AppModel *, const QString &path,
+                                                 const Automation::MidiExportOptionsDto &,
                                                  QString &errorMessage) {
         ++midiExportCount;
         if (path.endsWith(QStringLiteral("fail.mid"))) {
@@ -751,9 +753,10 @@ int main(int argc, char *argv[]) {
                      completedAudioTask.get().progress.value == 50 &&
                      audioExportState->executeCount == 1 &&
                      runtime.documentVersion() == audioVersion && cleanedAudioTask &&
-                     cleanedAudioTask.get().changed && repeatedAudioCleanup &&
-                     !repeatedAudioCleanup.get().changed && audioExportState->cleanupCount == 1,
-                 "audio export must retain task progress, preserve revision, and clean up once");
+                     !cleanedAudioTask.get().changed && repeatedAudioCleanup &&
+                     !repeatedAudioCleanup.get().changed && audioExportState->cleanupCount == 0,
+                 "successful audio export must retain task progress, preserve revision, and "
+                 "release its job record automatically");
 
     auto unsupportedAudioConfig = audioExportConfig;
     unsupportedAudioConfig.sourceOption = 1;
@@ -795,8 +798,9 @@ int main(int argc, char *argv[]) {
                                                            canceledAudioAccepted.get().taskId);
     ok &= expect(audioCancel && canceledAudioTask &&
                      canceledAudioTask.get().state == Automation::AutomationTaskState::Canceled &&
-                     audioExportState->executeCount == 1,
-                 "queued audio export cancellation must prevent backend execution");
+                     audioExportState->executeCount == 1 && audioExportState->cleanupCount == 1,
+                 "queued audio export cancellation must prevent backend execution and force "
+                 "cleanup exactly once");
 
     audioExportState->result = Automation::AudioExportBackendState::Failed;
     auto failedAudioConfig = audioExportConfig;
@@ -811,8 +815,8 @@ int main(int argc, char *argv[]) {
         failedAudioTask && failedAudioTask.get().state == Automation::AutomationTaskState::Failed &&
             failedAudioTask.get().error &&
             failedAudioTask.get().error->code == Automation::AutomationErrorCode::IoError &&
-            audioExportState->executeCount == 2,
-        "audio export backend failures must remain queryable as stable task errors");
+            audioExportState->executeCount == 2 && audioExportState->cleanupCount == 2,
+        "audio export backend failures must remain queryable and force cleanup exactly once");
     audioExportState->result = Automation::AudioExportBackendState::Succeeded;
 
     Automation::InferenceMutationRequest acousticRequest;
@@ -1474,8 +1478,10 @@ int main(int argc, char *argv[]) {
 
     const auto tracksBeforeMidiExtraction = model.tracks().size();
     const auto midiBase = runtime.documentVersion();
-    const auto midiAccepted =
-        runtime.extractions().startMidi(commandContext(runtime), extractionAudioId);
+    Automation::MidiExtractionOptionsDto midiOptions;
+    midiOptions.clientRef = QStringLiteral("extract-midi");
+    const auto midiAccepted = runtime.extractions().startMidi(
+        commandContext(runtime), extractionAudioId, std::move(midiOptions));
     const auto midiState = midiExtractionStates.last();
     if (!scheduledExtractions.isEmpty())
         scheduledExtractions.takeFirst()();
@@ -1494,14 +1500,34 @@ int main(int argc, char *argv[]) {
     auto *midiClip = midiTrack && midiTrack->clips().count() > 0
                          ? dynamic_cast<SingingClip *>(midiTrack->clips().toList().first())
                          : nullptr;
+    const auto createdObject = [&](const QString &clientRef) -> std::optional<Automation::ObjectRef> {
+        if (!midiTask || !midiTask.get().mutation)
+            return std::nullopt;
+        const auto &created = midiTask.get().mutation->createdObjects;
+        const auto found = std::find_if(created.cbegin(), created.cend(),
+                                        [&](const auto &item) {
+                                            return item.clientRef == clientRef;
+                                        });
+        return found == created.cend() ? std::nullopt
+                                      : std::optional<Automation::ObjectRef>(found->object);
+    };
+    const auto createdTrack = createdObject(QStringLiteral("extract-midi/track"));
+    const auto createdClip = createdObject(QStringLiteral("extract-midi"));
+    const auto createdNote = createdObject(QStringLiteral("extract-midi/notes/0"));
     ok &= expect(midiAccepted && midiState->startCount == 1 && midiTask &&
                      midiTask.get().state == Automation::AutomationTaskState::Succeeded &&
                      midiTask.get().mutation &&
                      midiTask.get().mutation->current.revision == midiBase.revision + 1 &&
                      model.tracks().size() == tracksBeforeMidiExtraction + 1 && midiClip &&
                      midiClip->notes().count() == 2 &&
-                     midiClip->notes().toList().first()->lyric() == QStringLiteral("啦"),
-                 "MIDI extraction must commit one typed track with captured language defaults");
+                     midiClip->notes().toList().first()->lyric() == QStringLiteral("啦") &&
+                     createdTrack && createdTrack->kind == Automation::ObjectKind::Track &&
+                     createdTrack->value == midiTrack->id() && createdClip &&
+                     createdClip->kind == Automation::ObjectKind::Clip &&
+                     createdClip->value == midiClip->id() && createdNote &&
+                     createdNote->kind == Automation::ObjectKind::Note &&
+                     createdNote->value == midiClip->notes().toList().first()->id(),
+                 "MIDI extraction must commit one typed track and map client_ref to real IDs");
 
     const auto queuedPitch =
         runtime.extractions().startPitch(commandContext(runtime), extractionAudioId, clipId);

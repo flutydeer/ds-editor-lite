@@ -300,8 +300,21 @@ namespace {
         Automation::DocumentSession session(nullptr, nullptr);
         Automation::AutomationTaskManager tasks;
         const auto oldVersion = session.version();
-        const auto task =
-            tasks.createTask(Automation::OperationIds::extract::pitch::start, oldVersion);
+        int cancelCallbacks = 0;
+        int unsuccessfulCallbacks = 0;
+        int terminalCallbacks = 0;
+        std::optional<Automation::AutomationTaskSnapshot> removedSnapshot;
+        const auto task = tasks.createTask(
+            Automation::OperationIds::extract::pitch::start, oldVersion, std::nullopt,
+            [&] { ++cancelCallbacks; });
+        tasks.setUnsuccessfulCallback(task.taskId, [&](const auto &snapshot) {
+            ++unsuccessfulCallbacks;
+            removedSnapshot = snapshot;
+        });
+        tasks.setTerminalCallback(task.taskId, [&](const auto &snapshot) {
+            ++terminalCallbacks;
+            removedSnapshot = snapshot;
+        });
         const auto newVersion = session.replaceGeneration({}, {});
         EXPECT(checks, newVersion.documentId != oldVersion.documentId && newVersion.revision == 0,
                "replaceGeneration must rotate DocumentId and reset revision");
@@ -316,6 +329,26 @@ namespace {
                !discardedLookup &&
                    discardedLookup.getError().code == Automation::AutomationErrorCode::NotFound,
                "discarding a generation must remove its old TaskId records");
+        EXPECT(checks,
+               cancelCallbacks == 1 && unsuccessfulCallbacks == 1 && terminalCallbacks == 1 &&
+                   removedSnapshot &&
+                   removedSnapshot->state == Automation::AutomationTaskState::Canceled &&
+                   !removedSnapshot->cancelable,
+               "discarding a generation must terminalize removed work outside the task store");
+
+        const auto replacementTask = tasks.createTask(
+            QStringLiteral("documents.open"), newVersion, std::nullopt,
+            [&] { ++cancelCallbacks; });
+        tasks.setUnsuccessfulCallback(replacementTask.taskId,
+                                      [&](const auto &) { ++unsuccessfulCallbacks; });
+        tasks.setTerminalCallback(replacementTask.taskId,
+                                  [&](const auto &) { ++terminalCallbacks; });
+        const auto finalVersion = session.replaceGeneration({}, {});
+        tasks.replaceDocumentGeneration(newVersion.documentId, finalVersion);
+        EXPECT(checks,
+               cancelCallbacks == 2 && unsuccessfulCallbacks == 2 && terminalCallbacks == 2 &&
+                   tasks.size() == 0,
+               "replacing a generation must terminalize every non-preserved task exactly once");
     }
 
     // Extraction callbacks do not expose a production hook between their validation and commit

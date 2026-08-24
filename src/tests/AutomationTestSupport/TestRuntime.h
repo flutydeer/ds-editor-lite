@@ -49,9 +49,16 @@ namespace AutomationTestSupport {
 
     class TestRuntime final {
     public:
-        explicit TestRuntime(Automation::EditorRuntimeServices editorServices = {})
+        explicit TestRuntime(Automation::EditorRuntimeServices editorServices = {},
+                             Automation::DocumentRuntimeServices documentServices = {},
+                             Automation::FileRuntimeServices fileServices = {},
+                             Automation::AudioExportRuntimeServices audioExportServices = {},
+                             Automation::PackageRuntimeServices packageServices = {})
             : m_history(resetHistory()),
-              m_runtime(&m_model, m_history, {}, {}, std::move(editorServices)) {
+              m_runtime(&m_model, m_history, std::move(documentServices), {},
+                        std::move(editorServices), {}, {}, std::move(packageServices), {},
+                        std::move(fileServices),
+                        std::move(audioExportServices)) {
         }
 
         ~TestRuntime() {
@@ -64,6 +71,10 @@ namespace AutomationTestSupport {
 
         HistoryManager *history() const {
             return m_history;
+        }
+
+        AppModel &model() {
+            return m_model;
         }
 
     private:
