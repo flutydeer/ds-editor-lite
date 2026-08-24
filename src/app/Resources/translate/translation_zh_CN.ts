@@ -36,11 +36,11 @@
     <name>AppModel</name>
     <message>
         <source>New Singing Clip</source>
-        <translation type="vanished">新歌声剪辑</translation>
+        <translation>新歌声剪辑</translation>
     </message>
     <message>
         <source>New Track</source>
-        <translation type="vanished">新轨道</translation>
+        <translation>新轨道</translation>
     </message>
 </context>
 <context>
