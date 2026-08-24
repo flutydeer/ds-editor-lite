@@ -258,10 +258,6 @@ QWidget *AutomationPage::createContentWidget() {
         tr("Control Port"),
         sourceDescription(m_effectiveConfig.controlPortSource, QStringLiteral("--control-port")),
         m_controlPort);
-    serverCard->addItem(
-        tr("Local Process Access"),
-        tr("No bearer token is used. Other processes running as this user may attempt to connect; "
-           "keep the server disabled when automation is not needed."));
     m_runtimeStateItem = serverCard->addItem(tr("Runtime Status"), QString{});
     m_runtimeEndpointItem = serverCard->addItem(tr("Current Endpoint"), QString{});
     m_runtimeErrorItem = serverCard->addItem(tr("Last Error"), QString{});

@@ -812,7 +812,7 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
             [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Inference); });
     actionAutomationOptions = new QAction(tr("&Automation..."), this);
     setMenuIcon(actionAutomationOptions,
-                QStringLiteral(":/svg/icons/arrow_swap_16_regular.svg"));
+                QStringLiteral(":/svg/icons/arrow_swap_20_regular.svg"));
     connect(actionAutomationOptions, &QAction::triggered, this,
             [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Automation); });
     actionDeveloperOptions = new QAction(tr("&Developer Options..."), this);

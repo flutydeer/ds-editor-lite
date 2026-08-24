@@ -312,16 +312,6 @@
         <translation>控制端口</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="262"/>
-        <source>Local Process Access</source>
-        <translation>本机进程访问</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="263"/>
-        <source>No bearer token is used. Other processes running as this user may attempt to connect; keep the server disabled when automation is not needed.</source>
-        <translation>未使用访问令牌。同一用户运行的其他进程可能尝试连接；不需要自动化时请关闭服务器。</translation>
-    </message>
-    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="265"/>
         <source>Runtime Status</source>
         <translation>运行状态</translation>
