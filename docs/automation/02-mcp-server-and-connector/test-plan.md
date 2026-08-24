@@ -2,59 +2,46 @@
 
 ## 1. 执行目标
 
-本计划用于实现完成后的正式测试执行、缺陷修复回归和证据归档。测试范围以
-[实施计划](implementation-plan.md)、[公共工具矩阵](public-tool-matrix.md) 和
-[全量测试大纲](test-outline.md) 为准，依次完成：
+本计划用于二期候选的正式测试、缺陷修复回归和证据归档。执行顺序为：
 
-1. 一期契约改名与 122-operation 回归；
-2. Wire Contract、87 项公共绑定、profile/Custom、安全与 editor MCP；
-3. QLocal Instance Bootstrap；
-4. DS Connector Lite stdio、exposure 与兼容性；
-5. editor/connector 进程级联调、多 connector 和 GUI；
-6. 全部 CTest 连续三轮；
-7. 失败修复、完整回归、实现报告和最终测试报告。
+1. 冻结源码、工具清单、测试清单和环境摘要。
+2. 配置并完整构建 Editor、Connector 与全部测试目标。
+3. 验证 Wire、127 个 Editor 工具、6 个 Connector 工具、Profile/Custom、安全和兼容。
+4. 验证 Editor 三版本 MCP、QLocal Bootstrap 与 Connector stdio。
+5. 完成真实进程联调、多 Connector 与 GUI。
+6. 在同一候选上串行执行三轮完整 CTest。
+7. 完成失败修复闭环、实现报告和测试报告。
 
-任何阶段的失败都不得用 skipped、降低分母、放宽 schema/policy 或只重跑成功子集掩盖。
+冻结分母为 Editor 127、Connector 6、总计 133。CTest 数量、顶层场景数和断言数由本轮配置与执行产物分别记录，彼此不替代。
 
-## 2. 环境与前置条件
+## 2. 环境与记录项
 
-正式执行环境：
+目标环境：
 
 - Windows 11 x64；
-- Visual Studio 2026 x64 DevShell、MSVC v145、Windows 11 SDK；
-- Qt 6.11.1+ MSVC 2022 64-bit、Qt State Machines 与 Qt HTTP Server；
-- CMake/Ninja、项目 vcpkg manifest 与 `x64-windows` triplet；
-- Debug preset，`LITE_BUILD_TESTS=ON`；
-- 可选的 DSPX/MIDI/audio fixture、声库、推理模型、音频设备和 Agent Host。
+- Visual Studio x64 DevShell、MSVC 与 Windows SDK；
+- Qt 6 MSVC x64，包含项目要求的模块；
+- CMake preset、Ninja、vcpkg `x64-windows`；
+- Debug 配置，`LITE_BUILD_TESTS=ON`；
+- GUI 桌面会话与 Computer Use；
+- 可用时接入真实格式、声音、推理、播放和 Agent Host 资格环境。
 
-configure、build 按项目 CMake Configure/Build 规范，在同一个 VS x64 DevShell 和 Qt
-环境中执行。正式记录至少包含：commit、branch、工作树、submodule、Windows/MSVC/SDK、
-Qt、CMake、Ninja、vcpkg triplet、关键依赖版本、测试 seed 和系统时区。
+本轮环境摘要至少记录：commit、branch、工作树状态、submodule、编译器/SDK、Qt、CMake、Ninja、vcpkg triplet、关键依赖、时区、测试 seed 和 GUI 会话类型。仓库报告只保存公开摘要；完整工具链输出进入私有归档。
 
-不得把完整环境变量表、访问令牌、用户目录清单或无关隐私写入日志。只记录需要复现实验的
-白名单变量，路径进入仓库报告前匿名化。
+## 3. Phase2 私有证据归档
 
-## 3. 私有证据归档
-
-正式证据保存在仓库外、由测试运行者拥有的 Phase2 私有归档根。仓库文档只使用匿名占位符，
-不固化用户目录、下载目录或带日期的真实归档名称：
-
-```text
-<private-evidence-root>/
-```
-
-真实绝对位置和运行批次标识只写入私有环境快照；报告与证据索引从该根开始使用相对路径。
+原始证据保存在仓库外的 Phase2 私有归档根。真实位置只写入归档自己的环境快照，仓库文档使用相对 Evidence ID。
 
 建议结构：
 
 ```text
 00-baseline/
 01-configure-build/
-02-contract-policy/
+02-contract-and-domains/
 03-editor-mcp/
 04-bootstrap/
 05-connector/
-06-integration/
+06-process-integration/
 07-gui-and-qualification/
 08-ctest-rounds/
 09-failures-and-fixes/
@@ -62,236 +49,213 @@ Qt、CMake、Ninja、vcpkg triplet、关键依赖版本、测试 seed 和系统�
 work/
 ```
 
-每个阶段保存：原始命令、stdout/stderr、退出码、开始/结束时间、测试 XML/JSON、服务日志、
-结构化请求/响应（隐私清理后）、截图/录屏、进程与端口快照、临时文件清单和清理结果。
-`10-final/evidence-index.*` 把场景号映射到相对证据路径；证据一律使用 archive 内相对路径，
-避免归档移动后失效。
+每阶段保存：
 
-归档不提交 git。仓库中的 `implementation-report.md` 和 `test-report.md` 只写可公开、可复现的
-摘要和匿名证据 ID；本机绝对路径、原始素材清单、内容 hash、可执行路径细节和未清理日志
-只保留在私有归档。
+- 实际命令、开始/结束时间、退出码、stdout/stderr；
+- CTest JSON/XML、测试目标与 case 清单；
+- 结构化 MCP/QLocal 请求响应、协议版本和状态时序；
+- 进程、端口、listener、QLocal 与资源快照；
+- GUI 截图/录屏与可见结果；
+- failure ledger、修复 commit、回归链；
+- 临时产物所有权和 cleanup manifest。
+
+Evidence 索引使用归档内相对路径。敏感字段、用户文本、绝对路径和大块内容在进入可公开报告前匿名化。
 
 ## 4. Fixture 与写入隔离
 
-仓库正式文档只称 **“用户提供只读 fixture 根”**，不得记录其真实路径、目录结构或文件名。
-执行时遵守：
+仓库正式文档只使用“用户提供只读 fixture 根”这一称谓。执行约束：
 
-- fixture 根只读；测试、editor、connector 和辅助脚本不得原地修改、重命名或生成旁车文件；
-- 为每个测试素材分配匿名 ID，例如 `FX-DSPX-001`、`FX-MIDI-001`、`FX-AUDIO-001`、
-  `FX-VOICE-001`；仓库报告只引用匿名 ID 和资格类型；
-- 任何可能写入的 open/save/import/export/relocate/inference/cache 场景，先把必要输入复制到
-  archive `work/<fixture-id>/<run-id>/input/`，输出写入同级 `output/`；
-- 实际 fixture 路径、原始文件名、清单、大小和 SHA-256 只写入 archive 的私有 manifest；
-- File Guard 测试的 allowlist 指向隔离工作区，不指向原始 fixture 根；只读检查确需访问原始
-  fixture 时使用单独 read grant；
-- Agent 新建的工程、导出物、日志、临时端口文件和可重建缓存均标记所有者与创建时间；测试
-  完成且证据固化后可清理，绝不删除原始 fixture 或用户既有文件；
-- 可重建缓存允许在测试前后清空；清理前后记录范围、结果和残留，不使用宽目录递归删除。
+- fixture 根保持只读；Editor、Connector、测试和辅助脚本均不原地写入。
+- 每项素材分配匿名 fixture ID；绝对路径、原始文件名、目录清单、大小和内容 hash 仅进入私有归档 manifest。
+- open/save/import/export/relocate/extract/inference/cache 等可能写入的场景，先复制必要输入到测试拥有的隔离工作区。
+- File Guard 的写 allowlist 指向隔离工作区；只读检查使用独立 read grant。
+- Agent 新增工程、导出物、日志、配置、端口记录和可重建缓存均标注所有者与创建时间。
+- 证据固化后可清理 Agent 新增产物与可重建缓存；原始 fixture、用户既有文件和来源未知进程保持原状。
+- 清理使用精确路径和所有权清单，避免宽目录递归操作。
 
-## 5. 全局单实例与进程安全
+仓库报告只引用匿名 fixture ID 与资格类型，不记录素材名称或路径。
 
-GUI、开发构建和进程级测试共享一个全局 editor Primary。所有会启动 editor 的测试必须
-串行：
+## 5. 单实例与串行进程约束
 
-- CTest 为相关测试设置 `RUN_SERIAL TRUE` 和统一 `RESOURCE_LOCK editor_primary`；
-- 完整 CTest 三轮使用 `-j 1`，避免第三方/旧测试间接争用全局实例；
-- 每次启动前检查 DsEditorLite、全局锁、QLocal 服务和预期端口；发现来源不明的 editor 时
-  停止本阶段并记录，不自动结束用户进程；
-- 测试夹具保存自己创建的精确 PID/process handle，退出时只清理这些进程；
-- 进程夹具优先使用隔离配置首次生成并持久化的具体非零端口；需要显式控制时传入专用测试
-  端口，端口冲突场景保留该端口并在场景后释放；
-- 等待进程退出、socket EOF、QLocal 服务消失和端口释放后才启动下一场景；
-- connector 可多实例并行，但涉及同一 editor 的多 connector 场景由一个串行 fixture 统一管理；
-- 非 GUI 资格测试显式设置 `QT_QPA_PLATFORM=offscreen` 并固定 Qt plugin path；真实 GUI 轮次
-  单独执行，持续监控意外模态弹窗和进程心跳，禁止无人值守等待用户输入；
-- 崩溃/timeout 时先保存 dump、日志、PID/端口/QLocal 状态，再精确结束测试拥有的进程。
+GUI、进程测试与开发构建共享一个全局 Editor Primary。所有启动 Editor 或使用全局 QLocal 服务的阶段串行执行：
 
-进入 Computer Use GUI 阶段前结束全部自动测试 editor；GUI 阶段完成后也必须确认 Primary
-完全释放，再执行最终 CTest 三轮。
+- 相关 CTest 设置 `RUN_SERIAL TRUE` 和统一 resource lock。
+- 三轮完整 CTest 使用 `-j 1`。
+- 每次启动前检查 Editor/Connector、全局锁、QLocal 服务和预期端口。
+- 发现来源未知的 Editor 时停止该阶段并记录，不主动结束用户进程。
+- 测试 fixture 只管理自己创建的 PID/process handle、端口、socket 和临时根。
+- 一个场景结束后等待进程退出、pipe EOF、QLocal 服务消失和端口释放，再进入下一场景。
+- 多 Connector 场景由一个串行 fixture 统一管理所有子进程和 cleanup。
+- 自动组件轮可使用 offscreen platform；真实 GUI 轮单独运行，并持续监控模态窗口和进程心跳。
+- crash/timeout 先保存 dump、日志和运行时快照，再精确结束测试拥有的进程。
+
+进入 GUI 阶段前结束全部自动测试进程；GUI 阶段结束后再次确认 Primary、QLocal 和端口释放。
 
 ## 6. 命令基线
 
-以下为计划中的核心命令；正式归档保存项目 skill/wrapper 展开后的实际完整命令和退出码。
+配置与构建通过项目标准 DevShell/preset 入口执行。核心命令模板：
 
 ```powershell
 cmake --preset debug
-cmake --build build/Debug
+cmake --build build/Debug --target all
 ctest --test-dir build/Debug -N
 ctest --test-dir build/Debug --show-only=json-v1
-```
-
-本文所称“注册 CTest 分母”是最终冻结树由 `ctest -N` 与 JSON 清单共同枚举的 test case 数；
-它不等于测试可执行 target 数，也不等于单个 target 内的场景数或断言数。最终报告分别记录这
-几类计数，禁止用较小的 target 分母替代注册 case 分母。
-
-完整 build 不只构建 `DsEditorLite`，还必须包含 `DsConnectorLite`、Wire Contract 生成目标和
-所有 tests。若保留 preset 的指定 target 形式，则显式增加 connector；正式报告记录最终目标
-列表。
-
-实现后预期使用以下测试域或等价命名；最终以 `ctest -N` 清单为准：
-
-```powershell
-ctest --test-dir build/Debug --output-on-failure -j 1 `
-  -R "Automation|Mcp|Connector|SingleInstance"
-
+ctest --test-dir build/Debug --output-on-failure -j 1 -R "Automation|Mcp|Connector|SingleInstance"
 ctest --test-dir build/Debug --output-on-failure -j 1
 ```
 
-不得使用 `--repeat until-pass` 得出通过结论。压力测试使用固定 seed 列表；随机失败必须保留
-seed 并转换成最小确定性回归。
+正式归档保存 wrapper 展开后的实际命令、工作目录和退出码。`debug` build preset 的默认目标是两个产品可执行文件，因此正式测试构建在 preset 配置目录上显式构建 `all`，覆盖 `DsEditorLite`、`DsConnectorLite`、AutomationWire 及全部 tests。若 preset 的实际 build 目录不同，以 configure 产物为准，并在报告中记录匿名化后的相对目录。
 
-## 7. 阶段 A：基线冻结与静态审计
+禁止使用 `--repeat until-pass` 形成结论。压力测试使用固定 seed；随机失败保存 seed 并收敛为确定性回归。
 
-### 执行内容
+## 7. 阶段 A：基线与静态审计
 
-1. 记录 git/submodule/工具链和现有进程状态；运行 `git diff --check`。
-2. 保存一期 122-operation Catalog 和测试清单快照。
-3. 验证 `operations.list/get/cancel → tasks.list/get/cancel` 集中改名、总数不变、旧名无残留。
-4. 机器解析 `public-tool-matrix.md`、Wire Binding、Manifest fixture 和 connector 内置业务表，
-   核对 87 个唯一 operation 及 `P2-TOOL-001～087` 连续无缺口。
-5. 核对六个 connector 固定工具、InternalOnly 审计和延期范围负向集合。
-6. 运行 Schema/codegen reproducibility，两次干净生成的内容和 digest 必须相同。
+### 执行
 
-### 退出门禁
+1. 记录 git/submodule/工具链和现有进程状态。
+2. 执行 `git diff --check` 与敏感信息扫描。
+3. 解析 `PublicToolDefinitions`、测试期望和公共矩阵，核对 `P2-TOOL-001～127`。
+4. 核对六个 Connector 桥接工具及 127 + 6 = 133。
+5. 核对 19 个 Editor 域数量、`bus` category 和三项历史记录域。
+6. 核对 toolset v1 与每工具 current/introduced/minimum-compatible 均为 1。
+7. 核对 `tasks.list/get/cancel` 与一期受影响集合。
+8. 获取 `ctest -N` 与 JSON 清单，区分 target 数、CTest case 数和源码顶层场景数。
 
-122 内部 ID、87 公共 ID、六个 connector 工具各自集合精确；旧名、重复 ID、手写平行枚举、
-未注册 handler、L3/Headless/未来条件工具占位注册任一出现即停止后续测试。
+### 门禁
 
-## 8. 阶段 B：配置、完整构建与单元契约
+ID、追踪号、域、Profile、类型、版本或集合出现缺口、重复或漂移时先修复契约源和期望，再进入构建。
 
-### 执行内容
+## 8. 阶段 B：配置、完整构建与纯单元测试
 
-1. Debug configure，保存 CMake cache 中 Qt/vcpkg/test/connector 关键项。
-2. 完整 build editor、connector、生成目标和全部 tests。
-3. 运行 Wire codec/Schema、Manifest/version/digest、`value_sources`、Public Binding 集合测试。
-4. 运行 profile/Custom、Access Policy、File Guard、Admission Control 与兼容算法单元测试。
-5. 运行一期 Automation Catalog、Core、Dimensions、Idempotency、Task Races、Document、
-   Architecture 等保护测试。
-6. 对定向 schema compatibility、Windows path 和 rate-limit fake clock 语料运行固定 seed 压力。
+### 执行
 
-### 退出门禁
+1. Debug configure，确认 `LITE_BUILD_TESTS=ON`、Qt 与 vcpkg 配置。
+2. 完整构建所有产品和测试目标。
+3. 运行 JSON Schema、codec、Manifest、digest、游标、Profile 与版本单元测试。
+4. 运行 Access Policy、Custom、File Guard、Admission、exposure 与 Schema compatibility 单元测试。
+5. 运行一期 Catalog、Core、History、revision、idempotency、Task、document 与 architecture 回归。
+6. 使用固定 seed 运行路径、兼容和令牌桶边界语料。
 
-configure/build 零失败；生成工作树无意外脏文件；一期保护和二期纯单元测试全部通过。失败先
-进入第 15 节修复流程，不带已知失败进入真实 server 测试。
+### 门禁
 
-## 9. 阶段 C：Editor MCP 组件与协议测试
+Configure/build 零错误；生成物可复现；受影响回归和二期纯单元测试完成。任一失败进入第 16 节流程。
 
-### 执行内容
+## 9. 阶段 C：127 项域契约与 Registry
 
-1. 使用 loopback 动态端口启动测试 server，验证只绑定 `127.0.0.1`。
-2. 完成 MCP 2026-07-28 POST、per-request metadata、header/body 与 `server/discover` 全矩阵。
-3. 分别完成 MCP 2025-06-18 与 2025-11-25 `initialize/initialized`、后续版本头、ping、
-   tools/list/call 以及版本化结果形状全矩阵，并验证 Connector 上游自动回退、11-25→06-18
-   协商和 session 保持。
-4. 三版本共同覆盖分页、structuredContent/outputSchema、错误和请求级取消；验证 2025 对非对象
-   结构化输出的 TextContent 降级。
-5. 验证 GET/DELETE/session/Last-Event-ID/Batch/Resources/Prompts 等延期路径拒绝。
-6. 完成 Host/Origin/DNS rebinding、Content-Type、body/depth/response 上限与 timeout 测试。
-7. 对 87 项执行 descriptor/profile/schema 路径；从每个域选代表工具执行真实 Facade 等价语料，
-   全部 87 项至少执行适用的有效/拒绝路径。
-8. 运行多 HTTP 客户端、revision 冲突、公平限流和 runtime disable/shutdown 在途测试。
+### 执行
+
+1. 精确比较 127 项 ID、顺序、域、Profile、Query/Command、sync mode、Schema 和版本。
+2. 精确比较 Profile 累积数量 Meta 4、L1 89、L2 127、L3 127。
+3. 对全部 127 项生成 schema-valid 输入并验证 Registry binding 可达。
+4. 对每项执行 schema-invalid、权限关闭或 host unavailable 的适用拒绝路径。
+5. 按 19 个域执行代表性真实成功、no-op、validate-only、revision conflict 和失败原子性。
+6. 对 15 个拆分标量写操作验证单 History entry 与单 revision。
+7. 验证动态值来源、output Schema 自检、异步任务和文件重新授权。
 
 ### 证据
 
-保存监听地址、HTTP 请求/响应语料、MCP 协议 case 表、87 项追踪结果、配额时序和内存/句柄
-基线。请求日志先清除用户文本、绝对路径和大块二进制。
+保存逐工具追踪表，列出 Contract、Registry、授权、Editor MCP 与 Connector 的证据 ID；能力型工具记录测试 host 的 available/unavailable 事实。
 
-### 退出门禁
+### 门禁
 
-87 项无漏项；协议/业务错误分层、profile 发现与执行、Guard/Admission 均一致；无非本机
-listener、无未授权 handler 调用、无残留端口或 session 状态。
+127 项无漏项；Registry 与 Contract 集合精确；业务失败不推进 History/revision；每个域至少完成一个真实成功与 Undo/Redo 闭环。
 
-## 10. 阶段 D：QLocal Bootstrap 测试
+## 10. 阶段 D：Editor MCP 三版本与 HTTP
 
-### 执行内容
+### 执行
 
-1. 旧 `activate/openProjects` 回归和旧 editor 不支持自动化时的兼容诊断。
-2. discover 一次性快照、watch 初始快照和所有状态广播。
-3. 分片/合并/非法/超大帧、timeout、写缓冲、慢 watcher 背压和数量上限。
-4. 多 watcher、异常断开清理、editor restart/instance ID/endpoint 变化。
-5. 证明 editor/connector 使用相同全局身份；connector 离线时不取得锁或创建 server。
-6. Primary 竞争、PID 复用和全局实例释放测试串行执行。
+1. 在动态端口启动测试 Server，确认 listener 仅为 `127.0.0.1`。
+2. 执行 `2025-06-18` initialize/initialized、ping、tools/list、tools/call。
+3. 执行 `2025-11-25` initialize/initialized、ping、tools/list、tools/call。
+4. 执行 `2026-07-28` server/discover、逐请求 metadata、ping、tools/list、tools/call。
+5. 验证版本协商、支持列表、header/body 镜像、请求版本对应的结果形状。
+6. 验证 127 项 descriptor、分页、Schema、structured/text 内容和业务错误。
+7. 验证 Host、Origin、method、Content-Type、Accept、body/depth/node/response 上限和 deadline。
+8. 验证 global/peer/client 并发与速率、timeout、disable、换端口和 shutdown 配额释放。
 
-### 退出门禁
+### 门禁
 
-既有单实例协议不回退；watcher 无泄漏；ready 只在真实 endpoint 可用后发布；connector 从未成为
-Primary；每个测试后全局锁和 QLocal 名称释放。
+三个协议生命周期和结果塑形都形成证据；HTTP 安全与限流在 handler 前生效；Server 停止后无残留 listener 或在途计数。
 
-## 11. 阶段 E：Connector stdio、Exposure 与兼容测试
+## 11. 阶段 E：QLocal Bootstrap
 
-### 执行内容
+### 执行
 
-1. editor 离线启动 connector，验证 stdio MCP 正常、六个桥接工具和固定业务工具面。
-2. 字节级检查 stdout 只含 MCP 帧；stderr/log 承载启动、重连和错误诊断。
-3. 2025-06-18、2025-11-25 与 2026-07-28 downstream 握手/发现、结果形状、请求 ID 重映射、并发乱序、
-   downstream cancel→upstream abort、timeout/EOF/破管。
-4. l0/l1/l2/l3、include/exclude、selector 语法、pending 和 exclude 优先级。
-5. 类型化与泛化 list/search/describe/invoke 使用同一 exposure；尝试所有绕过路径。
-6. 使用版本/Schema fixture 验证 2026 优先、2025 自动回退、11-25→06-18 协商、双方新旧、compatible subset、
-   单侧工具和不确定 schema。
-7. editor offline/starting/disabled/ready/stopping/error、reconnect、instance change 与
-   `outcome_unknown`。
-8. `connector.get_status` 逐字段与实际进程、QLocal、HTTP、Manifest、exposure 事实对照。
+1. 回归既有单实例命令和身份/服务名 golden test。
+2. 验证 discover 一次性快照与 watch 初始/后续完整快照。
+3. 验证状态机、endpoint ready 时机、Editor instance ID 和错误传播。
+4. 验证分片/合并/非法/超限帧、timeout、写缓冲、慢 watcher 背压和数量上限。
+5. 验证多 watcher、异常断开、Editor restart、PID/endpoint 变化和资源清理。
+6. 验证 Connector 始终作为 Bootstrap 客户端，Editor Primary 所有权保持唯一。
 
-### 退出门禁
+### 门禁
 
-stdio 零污染；downstream 固定工具面不随上游动态变化；exposure 无绕过；版本与 Schema 门槛
-必须同时通过；connector 不启动/退出 editor、不接受任意 URL、不自动重放 Command。
+状态与 listener 事实一致；watcher 队列有界；慢读与异常连接不会影响其他 watcher；场景后全局服务释放。
 
-## 12. 阶段 F：Editor/Connector 进程级联调
+## 12. 阶段 F：Connector stdio、exposure 与 compatibility
 
-### 执行内容
+### 执行
 
-1. connector 先启动，依次观察 not-running、disabled、starting、ready 并自动连接。
-2. editor 先启动 ready，connector 首次 watch 后完成 MCP/Manifest 握手。
-3. 在 direct editor MCP 与 connector stdio 上复用代表 Meta/L1/L2 语料并比较归一化结果。
-4. 用隔离 fixture 完成 project/notes/parameters、open/save/import/export、Task、playback 链路。
-5. 两至八个 connector 并发查询/编辑/Task；验证 revision 冲突、公平配额和互不影响。
-6. runtime profile/Custom/file roots/端口/MCP enable 变化；connector fixed list 不变、实际状态
-   与泛化目标更新。
-7. editor stop/restart、instance ID 与 endpoint 变化、旧句柄失效、未知结果不重放。
-8. 任一 connector 正常退出、崩溃、慢读或限流时其他 connector/editor 继续工作。
+1. Editor 离线启动 Connector，验证 downstream 握手与六个固定桥接工具。
+2. 验证 stdout 仅含 MCP 帧，stderr 承载诊断。
+3. 分别执行三个协议版本的 downstream 生命周期和结果塑形。
+4. 验证 upstream 2026 发现、2025-11-25 初始化及协商到 2025-06-18。
+5. 验证 ID 重映射、并发乱序、notification、取消、timeout、EOF、broken pipe 与 backpressure。
+6. 验证 `l0/l1/l2/l3`、include/exclude、三类 selector、pending 与 exclude 优先级。
+7. 验证同一 exposure 约束类型化工具与 list/search/describe/invoke。
+8. 验证版本门槛、digest fast path、输入/输出方向性 Schema 兼容和状态分类。
+9. 验证 L2 downstream 集合为 127 个 Editor 工具加 6 个桥接工具，共 133 项。
+10. 验证 ready burst 合并、尾随刷新、退避、manual reconnect、instance/endpoint 变化。
 
-### 退出门禁
+### 门禁
 
-四层语义等价、自动接入闭环完成、多 connector 无串线/饿死/共享状态泄漏；全部测试进程、
-watch socket、端口和工作输出按所有权清理。
+stdio 零污染；工具面、exposure 与兼容结果确定；旧握手结果不会污染新 epoch；Connector 不自动重放 Command。
 
-## 13. 阶段 G：GUI、Computer Use 与真实资格
+## 13. 阶段 G：真实进程与多 Connector 联调
 
-### 执行前门禁
+### 执行
 
-阶段 A～F 全部通过；没有自动测试进程；确认真实 GUI editor 能取得唯一 Primary；GUI 使用的
-输入已从用户提供只读 fixture 根复制到隔离工作区。
+1. Connector 先启动，再启动 Editor 并启用 MCP，观察自动接入。
+2. Editor 先 ready，再启动 Connector，验证首次 watch 到完整握手。
+3. 在 direct HTTP 与 Connector stdio 上复用 Meta/L1/L2 代表语料。
+4. 在隔离工作区完成 project、tracks、bus、clips、notes、parameters、history、文件、Task 与 playback 链路。
+5. 运行两至八个 Connector，并发 Query、Command、Task 和 reconnect。
+6. 验证 revision conflict、公平配额、独立缓存与请求映射。
+7. 运行时切换 Profile/Custom/roots/port/enabled，验证两侧状态与调用结果。
+8. Editor stop/restart 与 Connector crash/exit/slow-reader 场景后检查自动恢复与资源清理。
 
-### Computer Use 执行
+### 门禁
 
-1. 首次打开 Automation 设置页，记录默认值、说明、Custom 和 roots UI。
-2. 先启动 connector，再在 GUI 开启 MCP；验证 state/endpoint 和自动上游连接。
-3. 切换 L1/L2/L3/Custom，比较 GUI、editor tools/list、connector status 和实际调用。
-4. 修改端口、制造端口冲突、恢复动态端口、禁用/再次启用；验证完整状态序列。
-5. 设置合法/非法读写根，在隔离副本上执行文件允许/拒绝场景。
-6. 通过 connector 创建/编辑轨道、片段、音符、参数、声线和时间线；检查 GUI 可见结果、
-   History 和保存/重开。
-7. 验证播放、导入/导出、可用声库下短推理、Task 轮询/取消和 MCP 禁用后任务行为。
-8. 同时运行多个 connector，结束一个后确认其他连接和 GUI 正常。
-9. 带 CLI override 重启测试拥有的 editor，验证设置页只读提示、优先级与不回写。
-10. 执行一期 GUI 冒烟全表，确认 MCP/Bootstrap/设置改造未造成产品功能回退。
+Editor direct 与 Connector 转接在结果、错误、History、revision 和 Task 上等价；多 Connector 无串线或饿死；所有测试拥有的资源清理完成。
 
-### 真实 Agent Host
+## 14. 阶段 H：GUI、Computer Use 与真实资格
 
-使用临时、测试专用 stdio MCP 配置启动一个可用 Agent Host；不写入用户长期配置。执行
-`connector.get_status`、实际工具 list/describe、一个 L1 查询/编辑和一个获准 L2 任务，并
-保存 Agent 侧与 connector/editor 两侧证据。完成后删除测试配置和 Agent 新增产物。
+### Computer Use
 
-### 环境未具备处理
+1. 打开 Automation 设置页，核对 enabled、端口、Profile、Custom、roots、status 和 endpoint。
+2. Connector 先启动，在 GUI 启用 MCP，观察自动连接与状态更新。
+3. 切换 Profile/Custom，比较 GUI、Editor list、Connector status 和实际调用。
+4. 修改端口、制造冲突、恢复端口、disable/enable，核对完整状态序列。
+5. 使用隔离工作区验证 File Guard 允许与拒绝。
+6. 通过 Connector 编辑轨道、总线、片段、音符、参数、Speaker Mix 和时间线，观察 GUI。
+7. 使用 GUI Undo/Redo，验证每个细粒度 Command 的 History 粒度。
+8. 验证文档、保存、导入、导出、任务、播放和可用推理资格。
+9. 同时运行多个 Connector，结束其中一个后验证其余链路。
+10. 使用 CLI override 启动测试拥有的 Editor，核对来源显示与持久配置保持。
 
-缺少声库、模型、codec、设备或 Agent Host 时，私有归档记录探测证据，仓库报告只按匿名
-资格项写“环境未具备”。不得以 mock 通过替代真实资格，也不得影响确定性分母结论。
+### Agent Host 与环境资格
 
-## 14. 阶段 H：完整 CTest 三轮
+使用临时测试配置启动一个真实 Agent Host，经 stdio 调用 status、list、describe、Query、Command 和 Task。配置只在隔离工作区存活，结束后进入 cleanup manifest。
 
-GUI/资格阶段完成并确认全局实例释放后，从同一构建、同一 commit 连续执行三轮：
+格式、声音、模型、codec 和音频设备资格逐项探测；环境条件与确定性测试分母分开记录。每项结论只依据本轮实际证据。
+
+### 门禁
+
+无模态阻塞、UI 假死或用户文件写入；GUI 可见状态与 MCP 事实一致；所有测试新增产物进入清理清单。
+
+## 15. 阶段 I：完整 CTest 三轮
+
+GUI 阶段结束并确认全局资源释放后，在同一 commit、同一构建产物上连续执行三轮：
 
 ```powershell
 ctest --test-dir build/Debug --output-on-failure -j 1
@@ -299,64 +263,58 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 ctest --test-dir build/Debug --output-on-failure -j 1
 ```
 
-每轮分别保存完整 log、CTest XML/JSON、开始/结束时间、总测试数、总耗时和失败清单。轮间不
-修改源码、不选择性清理能掩盖生命周期缺陷的状态；只执行测试契约要求的确定性隔离与缓存
-初始化。任一轮失败或 timeout 均判三轮门禁失败，进入修复流程后从第一轮重新计数。
+每轮保存：实际命令、CTest 清单、开始/结束时间、退出码、总数、逐 case 结果、耗时、失败/timeout、XML/JSON 与环境差异。轮间保持源码和构建候选不变。
 
-三轮结束后运行：
+任一轮失败、timeout、crash 或残留均使三轮门禁重新开始。修复后先执行第 16 节回归链，再从第一轮重新计数。
 
-- `git diff --check`、工作树/未跟踪文件审计；
-- DsEditorLite/DsConnectorLite 进程、全局锁、QLocal 服务、测试端口与临时目录残留检查；
-- 87 工具/六桥接工具/CTest 清单最终快照；
-- 私有 archive 完整性和证据索引检查。
+三轮后执行：
 
-## 15. 缺陷修复与回归门禁
+- `git diff --check` 与工作树审计；
+- Editor/Connector、Primary、QLocal、端口、pipe 和临时目录残留检查；
+- 127/6/133 工具与 CTest 清单最终快照；
+- Evidence 索引、failure ledger 和 cleanup manifest 完整性检查。
 
-每个失败建立私有 failure ID，保存首次证据、最小复现、seed/fixture ID、根因、修复 commit 和
-回归结果。修复顺序固定为：
+## 16. 缺陷修复与回归门禁
 
-1. 在未修改前复现并缩小；无法稳定复现时保留完整时序和压力 seed；
-2. 修复唯一业务/协议实现，不在测试中绕过或降低断言；
-3. 运行最小回归用例；
-4. 运行所属组件全域；
-5. 运行一期受影响 Facade/GUI 回归；
-6. 运行 editor direct + connector stdio 等价联调；
-7. 如影响 UI/运行时状态，重做对应 Computer Use 场景；
-8. 从零重新执行完整 CTest 三轮。
+每个失败建立匿名 failure ID，保留首次失败证据。修复流程：
 
-协议、安全、File Guard、数据损坏、崩溃、stdout 污染、错误 document 写回和越权均为阻断级，
-发现后暂停同域扩展测试，先保存证据并修复。阶段性修复按用户要求独立提交，提交信息使用
-`fix(scope): summary`，但私有测试记录和本机路径不进入提交。
+1. 在改动前复现并缩小；偶发问题保留时序、seed、进程和资源快照。
+2. 定位协议、业务、线程、文件、配置或测试契约根因。
+3. 修改唯一实现路径，保持 Schema、安全与断言强度。
+4. 执行最小复现。
+5. 执行所属组件完整测试域。
+6. 执行一期受影响 Facade/History/GUI 回归。
+7. 执行 Editor direct + Connector stdio 等价联调。
+8. 涉及 UI 或生命周期时重做对应 Computer Use 场景。
+9. 重新构建受影响目标并从头执行完整 CTest 三轮。
 
-## 16. 报告与最终清理
+协议、安全、越权文件访问、数据损坏、crash、stdout 污染、错误文档写回和 History/revision 破坏为阻断级。阶段性修复使用独立 `fix(scope): summary` 提交，私有证据保持在归档中。
 
-### 仓库报告
+## 17. 报告与最终清理
 
-实现完成后补充：
+### 实现报告
 
-- `implementation-report.md`：最终架构、87 项完成状态、主要 commit、与计划差异、已知限制；
-- `test-report.md`：环境摘要、命令、场景/断言/轮次、逐域结果、三轮 CTest、GUI/资格、失败
-  修复轨迹、环境未具备和残余风险。
+`implementation-report.md` 记录：
 
-报告不复制原始日志，不写本机绝对路径、真实 fixture 名、hash、用户信息或私有目录结构。
-证据以 `P2-TOOL-*`、`P2-CONN-*`、test case/failure ID 和 archive 内匿名 evidence ID 引用。
+- 127 + 6 工具与 19 个域；
+- Wire/Registry/Manifest/Profile/Custom；
+- 三版本 Editor MCP 与 QLocal；
+- Connector stdio/exposure/compatibility；
+- File Guard、Admission、设置、CLI 与生命周期；
+- 当前代码事实、实现差异与长期保护测试。
 
-### 私有归档
+### 测试报告
 
-`10-final/` 保存环境全文、实际命令、测试清单、公开工具快照、三轮摘要、failure ledger、
-fixture 私有 manifest、证据索引和 cleanup manifest。先校验归档可读、索引无断链，再清理
-agent 生成的 scratch、测试配置、临时端口文件和可重建缓存。
+`test-report.md` 由本轮执行回填：
 
-最终不得清理：原始只读 fixture、用户既有工程/设置、未确认所有权的进程或文件。发现无法
-归属的残留时只报告，不删除。
+- 候选身份与环境摘要；
+- 实际命令、退出码和 Evidence ID；
+- 工具/域/协议/安全/兼容/Profile/Custom/Bootstrap/Connector/Editor/联调/GUI 结果；
+- 失败与修复轨迹；
+- 三轮完整 CTest；
+- 资格项、残余风险和 cleanup；
+- 最终判定。
 
-## 17. 最终放行标准
+### 最终清理
 
-- 计划四份前置文档与最终实现/测试报告齐全；
-- Debug 完整构建成功，editor、connector 和所有 tests 均在目标列表；
-- 122 内部 Catalog、87 公共工具、六 connector 工具的集合与追踪不变量全部成立；
-- 适用确定性测试、editor/connector 联调和 GUI 冒烟全部通过；
-- 全部 CTest 同一 commit 串行连续三轮通过，无 flaky；
-- 阻断缺陷全部修复并完成完整回归；环境未具备与残余风险逐项可解释；
-- 无残留测试进程、全局锁、QLocal 服务、端口、协议污染或越权文件；
-- 私有 Phase2 archive 完整，仓库报告不包含本机素材信息或私有绝对路径。
+先验证证据索引可读，再按所有权清单清理 Agent 新增 scratch、临时配置、工作副本、端口记录和可重建缓存。仓库报告仅保留匿名 Evidence ID、公开结果和可复现命令模板。

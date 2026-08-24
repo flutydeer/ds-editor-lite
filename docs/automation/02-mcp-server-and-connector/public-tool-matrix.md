@@ -1,193 +1,299 @@
 # 二期公共 MCP 工具矩阵
 
-## 1. 口径与机器不变量
+## 1. 冻结口径
 
-本矩阵冻结二期 editor Public Automation Manifest 的公共业务工具分母。总计 **87** 项：
+二期工具面按业务域组织。Editor 提供 **127** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **133** 个。Editor 工具由 `P2-TOOL-001` 至 `P2-TOOL-127` 连续追踪；Connector 工具由 `P2-CONN-001` 至 `P2-CONN-006` 连续追踪。
 
-```text
-Meta/发现 4 + L1 只读 9 + L1 编辑 42 + L2 32 = 87
-```
-
-`automation.get_options` 本身属于稳定元工具，但它的目标、参数和返回内容继承目标工具的
-profile、Custom、host 和 connector exposure。L1 preset 实际可见 55 项；L2 preset 累积可见
-全部 87 项。Custom 始终保留四个元工具，其他工具按稳定 operation ID 独立开关。
-
-本表不包含 DS Connector Lite 自己的六个固定桥接工具，也不包含一期 InternalOnly、L3、
-Headless/JSON-RPC 或未来多窗口条件工具。每一行的 `P2-TOOL-NNN` 是稳定测试追踪号；实现后
-Binding Registry、Manifest、editor `tools/list`、connector 内置业务描述和本文 ID 集合必须
-完全相等且无重复。
+公共工具集维持 v1：`toolsetVersion = 1`，133 个工具各自的 current version、introduced version、minimum compatible version 均为 1。版本是全表不变量，因此工具清单不设置横向版本列。
 
 标记说明：
 
-- `Q/S`：同步 Query；`C/S`：同步 Command；`C/A`：返回 `TaskAccepted` 的异步 Command。
-- `A`：一期同名类型化 handler 可直接绑定；`A*`：先做确定的契约改名；`A/B`：一期底座
-  已有，仍需公共 DTO、能力/路径或动态值绑定；`B`：组合一期底座的新公共入口；`C`：新增
-  细粒度领域 Facade；`N`：纯二期协议/安全能力。
-- 所有本期 public host 都是运行中的 GUI editor；descriptor 保留未来非 GUI host 表达能力，
-  但本期不做 Headless 资格声明。
+- `Q/S`：同步 Query。
+- `C/S`：同步 Command。
+- `C/A`：接受后返回任务句柄的异步 Command。
+- Profile 列表示工具契约声明的最低开放层级；Meta 始终参与握手、发现和诊断。
 
-## 2. Meta 与 L1 只读发现（13）
+## 2. Editor 域汇总
 
-| 追踪号 | 公共工具 | Profile | 类型 | 底座 | 绑定与本期要点 |
-|---|---|---|---|---|---|
-| P2-TOOL-001 | `application.get_info` | Meta | Q/S | A | 裁剪为产品名、版本、平台；不得公开退出/重启 |
-| P2-TOOL-002 | `automation.get_status` | Meta | Q/S | B | 组合实例、profile、Manifest、当前 document/window ID 与 revision |
-| P2-TOOL-003 | `automation.get_manifest` | Meta | Q/S | N | 全局版本/digest、逐工具 descriptor、Schema、可用性与分页 |
-| P2-TOOL-004 | `automation.get_options` | Meta（继承目标） | Q/S | N | 严格 target-input 子集、`value_sources`、不得探测隐藏目标 |
-| P2-TOOL-005 | `documents.get` | L1 | Q/S | A | 显式 `document_id`，返回路径、名称、busy、dirty/savepoint |
-| P2-TOOL-006 | `project.get` | L1 | Q/S | A | 有序轨道/片段稳定快照和强类型对象 ID |
-| P2-TOOL-007 | `notes.get` | L1 | Q/S | A | 指定 singing clip，返回有序音符与稳定 ID |
-| P2-TOOL-008 | `parameters.get` | L1 | Q/S | A/B | 公共快照补稳定 `curve_id`、`anchor_id` 与封闭参数类型 |
-| P2-TOOL-009 | `parameters.get_capabilities` | L1 | Q/S | B | 参数名、层、范围、步长、曲线/插值及编辑性能力视图 |
-| P2-TOOL-010 | `timeline.get` | L1 | Q/S | A | tempo、拍号锚点和 document version |
-| P2-TOOL-011 | `history.get_state` | L1 | Q/S | A | undo/redo 名称、savepoint 和栈状态，无副作用 |
-| P2-TOOL-012 | `voices.list` | L1 | Q/S | B | 歌手/说话人稳定 `VoiceRef`；不暴露安装路径 |
-| P2-TOOL-013 | `voices.describe` | L1 | Q/S | B | singer→speaker→语言、默认值、G2P 与混合能力 |
+| 域 | 数量 | 追踪范围 | 核心职责 |
+|---|---:|---|---|
+| 应用 | 1 | P2-TOOL-001 | 产品与构建身份 |
+| 自动化与安全 | 4 | P2-TOOL-002～005 | 状态、Manifest、动态选项、文件授权事实 |
+| 文档与工程 | 8 | P2-TOOL-006～013 | 文档生命周期、保存、导入与工程快照 |
+| 格式 | 2 | P2-TOOL-014～015 | 格式能力与导入前检查 |
+| 轨道 | 15 | P2-TOOL-016～030 | 轨道查询、细粒度编辑、语言与声音 |
+| 总线 | 5 | P2-TOOL-031～035 | Master 总线查询与细粒度控制 |
+| 片段 | 16 | P2-TOOL-036～051 | 片段查询、几何、属性与声音继承 |
+| 音频片段 | 5 | P2-TOOL-052～056 | 音频查询、导入和路径解析 |
+| 声音 | 2 | P2-TOOL-057～058 | 歌手、说话人、语言和能力 |
+| Speaker Mix | 9 | P2-TOOL-059～067 | 固定/动态混合与关键帧 |
+| 音符 | 18 | P2-TOOL-068～085 | 音符、歌词、语言、发音和音素 |
+| 参数 | 10 | P2-TOOL-086～095 | 曲线能力、采样和锚点编辑 |
+| 时间线 | 5 | P2-TOOL-096～100 | Tempo 与拍号 |
+| 历史记录 | 3 | P2-TOOL-101～103 | History 状态、Undo、Redo |
+| 播放 | 8 | P2-TOOL-104～111 | 播放状态、定位与循环 |
+| 导出 | 6 | P2-TOOL-112～117 | MIDI/音频能力、预览与任务 |
+| 提取 | 3 | P2-TOOL-118～120 | 音高/MIDI 提取能力与任务 |
+| 推理 | 4 | P2-TOOL-121～124 | 能力、状态、启动与阶段重置 |
+| 任务 | 3 | P2-TOOL-125～127 | 任务列表、详情与取消 |
+| **Editor 合计** | **127** | **P2-TOOL-001～127** | **36 Q/S + 79 C/S + 12 C/A** |
 
-## 3. L1 当前文档基础编辑（42）
+## 3. Editor 公共工具
 
-### 3.1 轨道与片段（10）
+### 3.1 应用（1）
 
-| 追踪号 | 公共工具 | 类型 | 底座 | 绑定与本期要点 |
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|---|
-| P2-TOOL-014 | `tracks.insert` | C/S | A | 显式索引、`TrackDraft`、`client_ref`，单 History/revision |
-| P2-TOOL-015 | `tracks.remove` | C/S | A | 批量 ID、完整预检、all-or-nothing |
-| P2-TOOL-016 | `tracks.move` | C/S | A | 单轨目标索引，边界与 no-op |
-| P2-TOOL-017 | `tracks.set_properties` | C/S | A | 名称/增益/声像/静音/独奏的封闭稀疏属性 DTO |
-| P2-TOOL-018 | `tracks.set_color` | C/S | A | 颜色范围由共享调色板常量生成 |
-| P2-TOOL-019 | `tracks.set_default_language` | C/S | A/B | `value_sources` 指向当前 VoiceCapabilities |
-| P2-TOOL-020 | `clips.insert` | C/S | A | 公共 Schema 仅允许 singing clip；音频走 L2 import |
-| P2-TOOL-021 | `clips.remove` | C/S | A | 批量显式 ID、级联对象与撤销原子性 |
-| P2-TOOL-022 | `clips.set_properties` | C/S | A | 名称/几何/增益/静音，可显式移至目标轨道 |
-| P2-TOOL-023 | `clips.set_default_language` | C/S | A/B | 仅 singing clip，语言来自片段实际声音能力 |
+| P2-TOOL-001 | `application.get_info` | Meta | Q/S | 返回产品名、版本、平台与构建身份 |
 
-### 3.2 音符、歌词与音素（9）
+### 3.2 自动化与安全（4）
 
-| 追踪号 | 公共工具 | 类型 | 底座 | 绑定与本期要点 |
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|---|
-| P2-TOOL-024 | `notes.insert` | C/S | A | 批量 `NoteDraft`、重叠规则、`client_ref` 真实 ID 映射 |
-| P2-TOOL-025 | `notes.remove` | C/S | A | clip 归属、重复 ID 与原子删除 |
-| P2-TOOL-026 | `notes.move` | C/S | A | 批量时间/音高 delta、边界、no-op 与重叠 |
-| P2-TOOL-027 | `notes.resize_left` | C/S | A | 批量左边界与最短长度 |
-| P2-TOOL-028 | `notes.resize_right` | C/S | A | 批量右边界与最短长度 |
-| P2-TOOL-029 | `notes.split` | C/S | A | 单命令拆分、子音符 draft/ID、单次撤销 |
-| P2-TOOL-030 | `notes.quantize` | C/S | A | 量化值由共享枚举生成，起点/长度开关显式 |
-| P2-TOOL-031 | `notes.set_word_properties` | C/S | A/B | 批量歌词/语言/发音/音素；语言绑定动态来源 |
-| P2-TOOL-032 | `notes.set_phoneme_offsets` | C/S | A | 单音符边界数量、单调性与清空语义 |
+| P2-TOOL-002 | `automation.get_status` | Meta | Q/S | Editor 实例、host、profile、Manifest、当前 document/window 摘要 |
+| P2-TOOL-003 | `automation.get_manifest` | Meta | Q/S | descriptor、Schema、版本摘要、digest 与分页 |
+| P2-TOOL-004 | `automation.get_options` | Meta | Q/S | 按目标字段与上下文解析动态候选，继承目标权限 |
+| P2-TOOL-005 | `automation.get_file_access` | L2 | Q/S | 返回 canonical 读写根与会话授权事实 |
 
-### 3.3 参数曲线（8）
+### 3.3 文档与工程（8）
 
-| 追踪号 | 公共工具 | 类型 | 底座 | 绑定与本期要点 |
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|---|
-| P2-TOOL-033 | `parameters.replace` | C/S | A/B | 显式替换一个参数层；范围和曲线类型由 capability 约束 |
-| P2-TOOL-034 | `parameters.draw` | C/S | C | 局部采样绘制/覆盖，封闭 `CurveMergeMode` |
-| P2-TOOL-035 | `parameters.erase` | C/S | C | 局部区间擦除并按领域规则归一化边界 |
-| P2-TOOL-036 | `parameters.insert_anchor` | C/S | C | 可指定 `curve_id`，生成稳定 `anchor_id`，插值枚举 |
-| P2-TOOL-037 | `parameters.move_anchor` | C/S | C | 按稳定 `anchor_id` 原子移动位置和值 |
-| P2-TOOL-038 | `parameters.remove_anchor` | C/S | C | 按稳定 ID 删除并保持曲线有效 |
-| P2-TOOL-039 | `parameters.set_anchor_interpolation` | C/S | C | 仅修改一个锚点插值，不全量替换曲线 |
-| P2-TOOL-040 | `parameters.bake` | C/S | C | 将可重建原始曲线/选定区间烘焙为可编辑曲线 |
+| P2-TOOL-006 | `documents.get` | L1 | Q/S | 文档状态、路径、dirty/savepoint 与 revision |
+| P2-TOOL-007 | `project.get` | L1 | Q/S | 有序轨道/片段工程快照与稳定对象 ID |
+| P2-TOOL-008 | `documents.new` | L2 | C/S | 未保存策略、模板与原子文档换代 |
+| P2-TOOL-009 | `documents.open` | L2 | C/A | 受控读路径、格式选项与异步换代 |
+| P2-TOOL-010 | `documents.save` | L2 | C/S | 当前路径保存、覆盖策略与 savepoint |
+| P2-TOOL-011 | `documents.save_as` | L2 | C/S | 受控写路径、扩展名与覆盖策略 |
+| P2-TOOL-012 | `documents.import` | L2 | C/A | 单文件导入计划、格式选项与任务写回 |
+| P2-TOOL-013 | `documents.import_batch` | L2 | C/A | 批量导入、失败策略与任务写回 |
 
-### 3.4 声线与 Speaker Mix（8）
+### 3.4 格式（2）
 
-| 追踪号 | 公共工具 | 类型 | 底座 | 绑定与本期要点 |
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|---|
-| P2-TOOL-041 | `speaker_mix.track.select_single` | C/S | A | singer/speaker 稳定引用与单说话人归一化 |
-| P2-TOOL-042 | `speaker_mix.track.apply` | C/S | A | 应用完整轨道声音上下文和混合 |
-| P2-TOOL-043 | `speaker_mix.track.replace` | C/S | A | 仅替换混合数据并保留既有 voice 语义 |
-| P2-TOOL-044 | `speaker_mix.clip.use_track` | C/S | A | 恢复轨道继承，合法 no-op |
-| P2-TOOL-045 | `speaker_mix.clip.select_single` | C/S | A | 片段自有 singer/speaker 上下文 |
-| P2-TOOL-046 | `speaker_mix.clip.enable_dynamic` | C/S | A | 动态混合模式、keyframe 排序与归一化 |
-| P2-TOOL-047 | `speaker_mix.clip.apply` | C/S | A | 应用完整片段声音上下文和混合 |
-| P2-TOOL-048 | `speaker_mix.clip.replace` | C/S | A | 仅替换片段混合数据，保留自有 voice |
+| P2-TOOL-014 | `formats.list` | L2 | Q/S | 格式、扩展名、用途、可用性与 option Schema |
+| P2-TOOL-015 | `formats.inspect` | L2 | Q/S | 文件格式、来源、诊断与稳定 plan digest |
 
-### 3.5 时间线、Master 与 History（7）
+### 3.5 轨道（15）
 
-| 追踪号 | 公共工具 | 类型 | 底座 | 绑定与本期要点 |
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|---|
-| P2-TOOL-049 | `tempos.set` | C/S | A | 新增/替换 tempo，排序及 tick 0 锚点 |
-| P2-TOOL-050 | `tempos.delete` | C/S | A | 禁止删除 tick 0，缺失点 no-op |
-| P2-TOOL-051 | `time_signatures.set` | C/S | A | bar、分子/分母范围、排序及 bar 0 锚点 |
-| P2-TOOL-052 | `time_signatures.delete` | C/S | A | 禁止删除 bar 0，缺失点 no-op |
-| P2-TOOL-053 | `master.set_control` | C/S | A | gain/pan/mute/solo，非有限值拒绝 |
-| P2-TOOL-054 | `history.undo` | C/S | A | 显式 document/revision，空栈语义与单 revision |
-| P2-TOOL-055 | `history.redo` | C/S | A | 显式 document/revision，分支与 savepoint 语义 |
+| P2-TOOL-016 | `tracks.list` | L1 | Q/S | 有序轨道列表与分页 |
+| P2-TOOL-017 | `tracks.get` | L1 | Q/S | 单轨属性与对象统计 |
+| P2-TOOL-018 | `tracks.insert` | L1 | C/S | 浅层 draft、显式索引与 client reference |
+| P2-TOOL-019 | `tracks.remove` | L1 | C/S | 批量 ID、完整预检与单 History entry |
+| P2-TOOL-020 | `tracks.move` | L1 | C/S | 显式目标索引与稳定顺序 |
+| P2-TOOL-021 | `tracks.rename` | L1 | C/S | 名称单字段命令 |
+| P2-TOOL-022 | `tracks.set_color` | L1 | C/S | 调色板索引边界 |
+| P2-TOOL-023 | `tracks.set_gain` | L1 | C/S | 增益单字段命令 |
+| P2-TOOL-024 | `tracks.set_pan` | L1 | C/S | 声像范围与单字段命令 |
+| P2-TOOL-025 | `tracks.set_mute` | L1 | C/S | 静音单字段命令 |
+| P2-TOOL-026 | `tracks.set_solo` | L1 | C/S | 独奏单字段命令 |
+| P2-TOOL-027 | `tracks.set_default_language` | L1 | C/S | 默认语言与实际声音能力校验 |
+| P2-TOOL-028 | `tracks.get_voice_context` | L1 | Q/S | 自有/有效声音、继承和语言上下文 |
+| P2-TOOL-029 | `tracks.set_voice` | L1 | C/S | 稳定 singer/speaker 引用 |
+| P2-TOOL-030 | `tracks.clear_voice` | L1 | C/S | 清除轨道声音上下文 |
 
-## 4. L2 文件、播放与完整创作（32）
+### 3.6 总线（5）
 
-### 4.1 文件权限、文档与格式（6）
+总线域在 descriptor 中使用 category `bus`，公开 operation ID 保持 `master.*`。
 
-| 追踪号 | 公共工具 | 类型 | 底座 | 文件/任务与本期要点 |
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|---|
-| P2-TOOL-056 | `automation.get_file_access` | Q/S | N | 只读返回 canonical read/write roots 与 session grants |
-| P2-TOOL-057 | `documents.new` | C/S | B | 公共编排 `commit_new`；显式 reject/discard 未保存策略 |
-| P2-TOOL-058 | `documents.open` | C/A | B | 受限读路径；解析、包解析、原子换代与失败保留旧 session |
-| P2-TOOL-059 | `documents.import` | C/A | B | 受限读路径；格式路由、tempo/拍号和 merge enum |
-| P2-TOOL-060 | `documents.save` | C/S | A/B | 受限写路径、无路径规则、overwrite 与 savepoint |
-| P2-TOOL-061 | `formats.list` | Q/S | A/B | 打开/导入/导出格式、可用性和各格式 option Schema |
+| P2-TOOL-031 | `master.get` | L1 | Q/S | Master gain/pan/mute/solo 与表头能力 |
+| P2-TOOL-032 | `master.set_gain` | L1 | C/S | Master 增益单字段命令 |
+| P2-TOOL-033 | `master.set_pan` | L1 | C/S | Master 声像单字段命令 |
+| P2-TOOL-034 | `master.set_mute` | L1 | C/S | Master 静音单字段命令 |
+| P2-TOOL-035 | `master.set_solo` | L1 | C/S | Master 独奏单字段命令 |
 
-### 4.2 音频片段与导出（8）
+### 3.7 片段（16）
 
-| 追踪号 | 公共工具 | 类型 | 底座 | 文件/任务与本期要点 |
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|---|
-| P2-TOOL-062 | `audio_clips.import` | C/A | B | 受限读路径；解码、创建 clip、`client_ref` 与 revision 复检 |
-| P2-TOOL-063 | `audio_clips.import_batch` | C/A | B | 多路径；`atomic`/`best_effort` 明确失败策略与单次提交 |
-| P2-TOOL-064 | `audio_clips.relocate` | C/S | A/B | canonical 受限读路径，History、类型与 no-op |
-| P2-TOOL-065 | `audio_clips.confirm_path` | C/S | A/B | canonical 受限读路径，候选路径和文档版本 |
-| P2-TOOL-066 | `exports.midi.start` | C/A | A/B | 受限写路径、类型化 options、overwrite、TaskAccepted |
-| P2-TOOL-067 | `exports.audio.get_capabilities` | Q/S | B | 格式、采样率、声道/混音、导出源与依赖关系 |
-| P2-TOOL-068 | `exports.audio.preview` | Q/S | A/B | 类型化计划/diagnostics，无文件写入和任务分配 |
-| P2-TOOL-069 | `exports.audio.start` | C/A | A/B | 受限写路径、类型化 options、渲染任务、错误与清理 |
+| P2-TOOL-036 | `clips.list` | L1 | Q/S | 按轨道、类型、范围筛选并分页 |
+| P2-TOOL-037 | `clips.get` | L1 | Q/S | 单片段属性与稳定 ID |
+| P2-TOOL-038 | `clips.insert` | L1 | C/S | 浅层片段 draft、显式轨道与位置 |
+| P2-TOOL-039 | `clips.duplicate` | L1 | C/S | 稳定源 ID、目标位置与 client reference |
+| P2-TOOL-040 | `clips.remove` | L1 | C/S | 批量 ID 与单 History entry |
+| P2-TOOL-041 | `clips.move` | L1 | C/S | 逐项目标轨道与起点 |
+| P2-TOOL-042 | `clips.resize_left` | L1 | C/S | 左边界与内容偏移语义 |
+| P2-TOOL-043 | `clips.resize_right` | L1 | C/S | 右边界与最短长度 |
+| P2-TOOL-044 | `clips.rename` | L1 | C/S | 名称单字段命令 |
+| P2-TOOL-045 | `clips.set_gain` | L1 | C/S | 增益单字段命令 |
+| P2-TOOL-046 | `clips.set_mute` | L1 | C/S | 静音单字段命令 |
+| P2-TOOL-047 | `clips.set_default_language` | L1 | C/S | 片段语言与有效声音能力校验 |
+| P2-TOOL-048 | `clips.get_voice_context` | L1 | Q/S | 继承、自有与有效声音上下文 |
+| P2-TOOL-049 | `clips.use_track_voice` | L1 | C/S | 恢复轨道声音继承 |
+| P2-TOOL-050 | `clips.set_voice` | L1 | C/S | 设置片段自有声音 |
+| P2-TOOL-051 | `clips.clear_voice` | L1 | C/S | 清除片段自有声音 |
 
-### 4.3 提取、推理与任务（9）
+### 3.8 音频片段（5）
 
-| 追踪号 | 公共工具 | 类型 | 底座 | 文件/任务与本期要点 |
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|---|
-| P2-TOOL-070 | `extract.get_capabilities` | Q/S | B | clip 提取器、模型、范围、模块准备状态与 option Schema |
-| P2-TOOL-071 | `extract.pitch.start` | C/A | A/B | 类型化 options、TaskId、取消和 revision/generation 写回门禁 |
-| P2-TOOL-072 | `extract.midi.start` | C/A | A/B | 类型化 options、音符原子写回、`client_ref`/TaskId |
-| P2-TOOL-073 | `inference.get_capabilities` | Q/S | B | scope、stage、provider/GPU/模型/声音和模块准备状态 |
-| P2-TOOL-074 | `inference.start` | C/A | B | 公共 orchestrator 调用内部 apply/refresh 流水线，不公开写回步骤 |
-| P2-TOOL-075 | `inference.reset_stage` | C/S | B | 稳定 scope/stage 语义，组合内部 invalidate/rebuild 能力 |
-| P2-TOOL-076 | `tasks.list` | Q/S | A* | 由 `operations.list` 改名；当前 generation、分页、状态/kind 过滤 |
-| P2-TOOL-077 | `tasks.get` | Q/S | A* | 由 `operations.get` 改名；结构化进度、结果、错误与创建者诊断 |
-| P2-TOOL-078 | `tasks.cancel` | C/S | A* | 由 `operations.cancel` 改名；取消中/终态/提交点稳定语义 |
+| P2-TOOL-052 | `audio_clips.get` | L2 | Q/S | 路径状态、候选、hash 与音频元数据 |
+| P2-TOOL-053 | `audio_clips.import` | L2 | C/A | 单文件读授权、解码与片段任务 |
+| P2-TOOL-054 | `audio_clips.import_batch` | L2 | C/A | 多文件授权、批量上限与失败策略 |
+| P2-TOOL-055 | `audio_clips.relocate` | L2 | C/A | 新路径准备、重新授权与异步写回 |
+| P2-TOOL-056 | `audio_clips.confirm_path` | L2 | C/A | 候选确认、重新授权与异步写回 |
 
-### 4.4 播放与循环（9）
+### 3.9 声音（2）
 
-| 追踪号 | 公共工具 | 类型 | 底座 | 并发与本期要点 |
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|---|
-| P2-TOOL-079 | `playback.get` | Q/S | A | 状态、位置、loop 与可播放性快照 |
-| P2-TOOL-080 | `playback.play` | C/S | A | playback scope 串行、设备/模块/busy 错误 |
-| P2-TOOL-081 | `playback.pause` | C/S | A | 状态转换、重复调用 no-op |
-| P2-TOOL-082 | `playback.stop` | C/S | A | 停止与恢复位置语义、重复调用 no-op |
-| P2-TOOL-083 | `playback.set_position` | C/S | A | 有限非负 tick、状态版本与无文档 revision 副作用 |
-| P2-TOOL-084 | `playback.set_last_position` | C/S | A | 停止恢复位置、边界与 no-op |
-| P2-TOOL-085 | `playback.set_loop` | C/S | A | 显式区间、History/revision 与错误优先级 |
-| P2-TOOL-086 | `playback.set_loop_enabled` | C/S | A | 已有/空 loop 区间、History/revision 与 no-op |
-| P2-TOOL-087 | `playback.clear_loop` | C/S | A | 清除 loop、单 History/revision、空 loop no-op |
+| P2-TOOL-057 | `voices.list` | L1 | Q/S | 歌手列表、筛选与分页 |
+| P2-TOOL-058 | `voices.describe` | L1 | Q/S | 说话人、语言、G2P、默认值与混合能力 |
 
-## 5. Connector 固定桥接工具（不计入 87）
+### 3.10 Speaker Mix（9）
 
-| 工具 | 固定职责 |
-|---|---|
-| `connector.get_status` | 无参返回 connector/editor/bootstrap/MCP/Manifest/exposure 事实 |
-| `connector.reconnect` | 主动重新 discover/watch、连接和 Manifest 握手 |
-| `editor.tools.list` | 分页列出通过 exposure 的 editor 实际目标 |
-| `editor.tools.search` | 按名称、说明和 category 搜索实际目标 |
-| `editor.tools.describe` | 返回一个实际目标的 Schema、版本、权限和可用性 |
-| `editor.tools.invoke` | 按 editor 当前真实 Schema 泛化调用通过 exposure 的目标 |
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|---|
+| P2-TOOL-059 | `speaker_mix.get` | L1 | Q/S | 轨道/片段目标的混合与关键帧快照 |
+| P2-TOOL-060 | `speaker_mix.set_fixed` | L1 | C/S | 固定权重混合与归一化 |
+| P2-TOOL-061 | `speaker_mix.enable_dynamic` | L1 | C/S | 启用动态混合 |
+| P2-TOOL-062 | `speaker_mix.disable_dynamic` | L1 | C/S | 关闭动态混合并保持确定状态 |
+| P2-TOOL-063 | `speaker_mix.set_dynamic_bypass` | L1 | C/S | 动态混合 bypass 单字段命令 |
+| P2-TOOL-064 | `speaker_mix.keyframes.insert` | L1 | C/S | 位置、权重与稳定关键帧 ID |
+| P2-TOOL-065 | `speaker_mix.keyframes.move` | L1 | C/S | 批量稳定 ID 移动 |
+| P2-TOOL-066 | `speaker_mix.keyframes.set_weights` | L1 | C/S | 单关键帧权重替换与归一化 |
+| P2-TOOL-067 | `speaker_mix.keyframes.remove` | L1 | C/S | 批量稳定 ID 删除 |
 
-六个桥接工具在 connector 生命周期内始终发布。它们不能观察或调用 InternalOnly、未注册 L3
-或未来条件工具，也不能绕过 connector exposure 与 editor Access Policy。
+### 3.11 音符（18）
 
-## 6. 明确不注册的集合
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|---|
+| P2-TOOL-068 | `notes.get` | L1 | Q/S | 有序音符快照与分页 |
+| P2-TOOL-069 | `notes.search` | L1 | Q/S | 歌词查询、匹配模式与大小写/正则选项 |
+| P2-TOOL-070 | `notes.insert` | L1 | C/S | 完整 leaf draft、批量原子提交与 client reference |
+| P2-TOOL-071 | `notes.duplicate` | L1 | C/S | 稳定源 ID、目标片段与目标起点 |
+| P2-TOOL-072 | `notes.remove` | L1 | C/S | 片段归属与批量原子删除 |
+| P2-TOOL-073 | `notes.move` | L1 | C/S | 批量时间/音高增量 |
+| P2-TOOL-074 | `notes.resize_left` | L1 | C/S | 批量左边界调整 |
+| P2-TOOL-075 | `notes.resize_right` | L1 | C/S | 批量右边界调整 |
+| P2-TOOL-076 | `notes.split_at` | L1 | C/S | 显式局部位置与稳定拆分结果 |
+| P2-TOOL-077 | `notes.quantize` | L1 | C/S | 封闭量化值与起点/长度开关 |
+| P2-TOOL-078 | `notes.set_lyric` | L1 | C/S | 单音符歌词命令 |
+| P2-TOOL-079 | `notes.set_language` | L1 | C/S | 批量语言与声音能力校验 |
+| P2-TOOL-080 | `notes.set_pronunciation` | L1 | C/S | 发音值与来源 |
+| P2-TOOL-081 | `notes.reset_pronunciation` | L1 | C/S | 恢复自动发音 |
+| P2-TOOL-082 | `notes.set_phonemes` | L1 | C/S | 音素名称序列替换 |
+| P2-TOOL-083 | `notes.set_phoneme_offsets` | L1 | C/S | 音素边界序列校验 |
+| P2-TOOL-084 | `notes.reset_phonemes` | L1 | C/S | 恢复自动音素与边界 |
+| P2-TOOL-085 | `notes.fill_lyrics` | L1 | C/S | 批量歌词填充与分词/语言选项 |
 
-- L3 GUI、设置、设备、Recent、包、路径和预设工具；只保留 profile/descriptor/CLI 基础。
-- `documents.list`、`windows.list`、`documents.close` 等未来多窗口/多文档条件工具。
-- `application.request_exit/restart` 和公共编排器使用的全部内部 commit/apply/cache/cleanup
-  operation。
-- `--headless`、`/automation/v1` 对应的任何工具或路由。
+### 3.12 参数（10）
 
-实现阶段必须有集合测试证明这些名称不出现在 Public Manifest、editor `tools/list`、connector
-类型化工具或泛化 list/search/describe/invoke 结果中。
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|---|
+| P2-TOOL-086 | `parameters.get_capabilities` | L1 | Q/S | 参数层、范围、步长、曲线与插值能力 |
+| P2-TOOL-087 | `parameters.get` | L1 | Q/S | draw/anchor 曲线与稳定 curve/anchor ID |
+| P2-TOOL-088 | `parameters.replace` | L1 | C/S | 指定参数层的完整曲线替换 |
+| P2-TOOL-089 | `parameters.draw` | L1 | C/S | 局部采样绘制与 merge mode |
+| P2-TOOL-090 | `parameters.erase` | L1 | C/S | 局部区间擦除 |
+| P2-TOOL-091 | `parameters.bake` | L1 | C/S | 原始曲线烘焙与可选区间 |
+| P2-TOOL-092 | `parameters.insert_anchors` | L1 | C/S | 批量锚点插入与稳定 ID |
+| P2-TOOL-093 | `parameters.move_anchors` | L1 | C/S | 批量稳定 ID 移动位置和值 |
+| P2-TOOL-094 | `parameters.remove_anchors` | L1 | C/S | 批量稳定 ID 删除 |
+| P2-TOOL-095 | `parameters.set_anchor_interpolation` | L1 | C/S | 批量锚点插值更新 |
+
+### 3.13 时间线（5）
+
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|---|
+| P2-TOOL-096 | `timeline.get` | L1 | Q/S | Tempo 与拍号的有序快照 |
+| P2-TOOL-097 | `tempos.set` | L1 | C/S | 新增/替换 Tempo 与零点锚规则 |
+| P2-TOOL-098 | `tempos.delete` | L1 | C/S | Tempo 删除与零点锚规则 |
+| P2-TOOL-099 | `time_signatures.set` | L1 | C/S | 新增/替换拍号与 bar 0 规则 |
+| P2-TOOL-100 | `time_signatures.delete` | L1 | C/S | 拍号删除与 bar 0 规则 |
+
+### 3.14 历史记录（3）
+
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|---|
+| P2-TOOL-101 | `history.get_state` | L1 | Q/S | Undo/Redo 名称、能力与 savepoint |
+| P2-TOOL-102 | `history.undo` | L1 | C/S | 显式 History 导航与 revision |
+| P2-TOOL-103 | `history.redo` | L1 | C/S | 显式 History 导航与 revision |
+
+### 3.15 播放（8）
+
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|---|
+| P2-TOOL-104 | `playback.get` | L2 | Q/S | 播放状态、位置、循环与 state version |
+| P2-TOOL-105 | `playback.play` | L2 | C/S | 播放状态转换与能力检查 |
+| P2-TOOL-106 | `playback.pause` | L2 | C/S | 暂停状态转换 |
+| P2-TOOL-107 | `playback.stop` | L2 | C/S | 停止与恢复位置语义 |
+| P2-TOOL-108 | `playback.seek` | L2 | C/S | 有限非负位置与 state version |
+| P2-TOOL-109 | `playback.set_loop` | L2 | C/S | 显式循环区间 |
+| P2-TOOL-110 | `playback.set_loop_enabled` | L2 | C/S | 循环启用状态 |
+| P2-TOOL-111 | `playback.clear_loop` | L2 | C/S | 清除循环状态 |
+
+### 3.16 导出（6）
+
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|---|
+| P2-TOOL-112 | `exports.midi.get_capabilities` | L2 | Q/S | MIDI 来源、格式与 option Schema |
+| P2-TOOL-113 | `exports.midi.preview` | L2 | Q/S | 目标计划、诊断与 plan digest |
+| P2-TOOL-114 | `exports.midi.start` | L2 | C/A | 受控写路径、覆盖策略与任务 |
+| P2-TOOL-115 | `exports.audio.get_capabilities` | L2 | Q/S | 格式、采样率、声道、混音和来源 |
+| P2-TOOL-116 | `exports.audio.preview` | L2 | Q/S | 目标计划与阻断诊断 |
+| P2-TOOL-117 | `exports.audio.start` | L2 | C/A | 受控写路径、渲染任务与失败清理 |
+
+### 3.17 提取（3）
+
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|---|
+| P2-TOOL-118 | `extract.get_capabilities` | L2 | Q/S | 音频来源、模型、语言、范围与 option Schema |
+| P2-TOOL-119 | `extract.pitch.start` | L2 | C/A | 音高提取任务与目标片段写回 |
+| P2-TOOL-120 | `extract.midi.start` | L2 | C/A | MIDI 提取任务与目标位置写回 |
+
+### 3.18 推理（4）
+
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|---|
+| P2-TOOL-121 | `inference.get_capabilities` | L2 | Q/S | scope、stage、provider、device 与 model |
+| P2-TOOL-122 | `inference.get_status` | L2 | Q/S | 各阶段状态、原因与关联任务 |
+| P2-TOOL-123 | `inference.start` | L2 | C/A | 作用域、阶段、执行选项与任务 |
+| P2-TOOL-124 | `inference.reset_stage` | L2 | C/S | 作用域内阶段重置 |
+
+### 3.19 任务（3）
+
+| 追踪号 | 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|---|
+| P2-TOOL-125 | `tasks.list` | L2 | Q/S | 当前 document generation、筛选与分页 |
+| P2-TOOL-126 | `tasks.get` | L2 | Q/S | 状态、进度、结果、错误与创建者归因 |
+| P2-TOOL-127 | `tasks.cancel` | L2 | C/S | 排队、运行、提交点与终态取消语义 |
+
+## 4. DS Connector Lite 桥接工具（6）
+
+| 追踪号 | 工具 | 固定职责 |
+|---|---|---|
+| P2-CONN-001 | `connector.get_status` | 返回 Connector、Bootstrap、Editor、MCP、Manifest、兼容和 exposure 事实 |
+| P2-CONN-002 | `connector.reconnect` | 主动刷新 QLocal 观察、上游握手与 Manifest |
+| P2-CONN-003 | `editor.tools.list` | 分页列出通过 exposure 的 Editor 实际工具 |
+| P2-CONN-004 | `editor.tools.search` | 按 ID、标题、说明和域搜索实际工具 |
+| P2-CONN-005 | `editor.tools.describe` | 返回目标 Schema、版本、权限、兼容与可用性 |
+| P2-CONN-006 | `editor.tools.invoke` | 按 Editor 当前真实 Schema 调用获准目标 |
+
+六个桥接工具在 Connector 进程生命周期内保持固定。Exposure 的同一判定同时约束已知类型化工具，以及 `list/search/describe/invoke` 可观察、可调用的实际 Editor 目标。
+
+## 5. 集合与契约门禁
+
+实现和测试必须证明以下集合恒等式：
+
+```text
+Editor PublicToolDefinitions
+= Editor Public Registry bindings
+= Editor tools/list IDs
+= Public Automation Manifest operation IDs
+= Connector 构建时已知 Editor 类型化工具 IDs
+= P2-TOOL-001～127
+
+Connector bridge definitions
+= Connector downstream 固定桥接工具 IDs
+= P2-CONN-001～006
+
+127 + 6 = 133
+```
+
+每个 Editor 工具必须具备唯一 operation ID、域、最低 profile、Query/Command、同步模式、严格 input/output Schema、`value_sources`、History/file/host/concurrency/conflict/safety descriptor 和执行 binding。每次调用在实际 dispatch 前重新执行 profile/Custom、Schema、动态值、File Guard 与 Admission 检查。
