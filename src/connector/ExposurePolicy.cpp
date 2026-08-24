@@ -6,6 +6,13 @@
 
 namespace DsConnector {
     namespace {
+        QJsonObject toolMetadata(const QJsonObject &tool) {
+            return tool.value(QStringLiteral("_meta"))
+                .toObject()
+                .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                .toObject();
+        }
+
         AutomationWire::AutomationProfile profileFromTool(const QJsonObject &tool) {
             const auto name = ExposurePolicy::minimumProfile(tool);
             const auto profile = AutomationWire::automationProfileFromName(name);
@@ -34,8 +41,8 @@ namespace DsConnector {
     bool ExposurePolicy::allowsTarget(const QString &operationId, const QString &category,
                                       const QString &minimumProfile) const {
         QJsonObject tool{
-            {QStringLiteral("operation_id"), operationId},
-            {QStringLiteral("category"), category},
+            {QStringLiteral("operation_id"),    operationId   },
+            {QStringLiteral("category"),        category      },
             {QStringLiteral("minimum_profile"), minimumProfile},
         };
         const auto selection = selectionFor(QJsonArray{tool});
@@ -68,6 +75,8 @@ namespace DsConnector {
 
     QString ExposurePolicy::category(const QJsonObject &tool) {
         auto value = tool.value(QStringLiteral("category")).toString();
+        if (value.isEmpty())
+            value = toolMetadata(tool).value(QStringLiteral("category")).toString();
         if (value.isEmpty()) {
             value = tool.value(QStringLiteral("annotations"))
                         .toObject()
@@ -81,6 +90,8 @@ namespace DsConnector {
         auto value = tool.value(QStringLiteral("minimum_profile")).toString();
         if (value.isEmpty())
             value = tool.value(QStringLiteral("minimumProfile")).toString();
+        if (value.isEmpty())
+            value = toolMetadata(tool).value(QStringLiteral("minimum_profile")).toString();
         if (value.isEmpty()) {
             value = tool.value(QStringLiteral("annotations"))
                         .toObject()
@@ -109,8 +120,7 @@ namespace DsConnector {
         return result;
     }
 
-    AutomationWire::ExposureSelection
-        ExposurePolicy::selectionFor(const QJsonArray &tools) const {
+    AutomationWire::ExposureSelection ExposurePolicy::selectionFor(const QJsonArray &tools) const {
         return AutomationWire::selectExposure(m_options.exposure, targetsFor(tools));
     }
 

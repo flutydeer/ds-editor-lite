@@ -1,149 +1,146 @@
-// tracking id, operation id, category, minimum profile, operation kind, sync mode
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-001", "application.get_info", "application", Meta, Query,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-002", "automation.get_status", "automation", Meta, Query,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-003", "automation.get_manifest", "automation", Meta, Query,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-004", "automation.get_options", "automation", Meta, Query,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-005", "documents.get", "documents", L1, Query, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-006", "project.get", "project", L1, Query, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-007", "notes.get", "notes", L1, Query, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-008", "parameters.get", "parameters", L1, Query,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-009", "parameters.get_capabilities", "parameters", L1,
-                            Query, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-010", "timeline.get", "timeline", L1, Query, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-011", "history.get_state", "history", L1, Query, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-012", "voices.list", "voices", L1, Query, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-013", "voices.describe", "voices", L1, Query, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-014", "tracks.insert", "tracks", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-015", "tracks.remove", "tracks", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-016", "tracks.move", "tracks", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-017", "tracks.set_properties", "tracks", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-018", "tracks.set_color", "tracks", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-019", "tracks.set_default_language", "tracks", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-020", "clips.insert", "clips", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-021", "clips.remove", "clips", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-022", "clips.set_properties", "clips", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-023", "clips.set_default_language", "clips", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-024", "notes.insert", "notes", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-025", "notes.remove", "notes", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-026", "notes.move", "notes", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-027", "notes.resize_left", "notes", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-028", "notes.resize_right", "notes", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-029", "notes.split", "notes", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-030", "notes.quantize", "notes", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-031", "notes.set_word_properties", "notes", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-032", "notes.set_phoneme_offsets", "notes", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-033", "parameters.replace", "parameters", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-034", "parameters.draw", "parameters", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-035", "parameters.erase", "parameters", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-036", "parameters.insert_anchor", "parameters", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-037", "parameters.move_anchor", "parameters", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-038", "parameters.remove_anchor", "parameters", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-039", "parameters.set_anchor_interpolation", "parameters",
-                            L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-040", "parameters.bake", "parameters", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-041", "speaker_mix.track.select_single", "speaker_mix", L1,
-                            Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-042", "speaker_mix.track.apply", "speaker_mix", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-043", "speaker_mix.track.replace", "speaker_mix", L1,
-                            Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-044", "speaker_mix.clip.use_track", "speaker_mix", L1,
-                            Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-045", "speaker_mix.clip.select_single", "speaker_mix", L1,
-                            Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-046", "speaker_mix.clip.enable_dynamic", "speaker_mix", L1,
-                            Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-047", "speaker_mix.clip.apply", "speaker_mix", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-048", "speaker_mix.clip.replace", "speaker_mix", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-049", "tempos.set", "tempos", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-050", "tempos.delete", "tempos", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-051", "time_signatures.set", "time_signatures", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-052", "time_signatures.delete", "time_signatures", L1,
-                            Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-053", "master.set_control", "master", L1, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-054", "history.undo", "history", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-055", "history.redo", "history", L1, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-056", "automation.get_file_access", "automation", L2, Query,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-057", "documents.new", "documents", L2, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-058", "documents.open", "documents", L2, Command,
-                            Asynchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-059", "documents.import", "documents", L2, Command,
-                            Asynchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-060", "documents.save", "documents", L2, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-061", "formats.list", "formats", L2, Query, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-062", "audio_clips.import", "audio_clips", L2, Command,
-                            Asynchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-063", "audio_clips.import_batch", "audio_clips", L2,
-                            Command, Asynchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-064", "audio_clips.relocate", "audio_clips", L2, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-065", "audio_clips.confirm_path", "audio_clips", L2,
-                            Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-066", "exports.midi.start", "exports", L2, Command,
-                            Asynchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-067", "exports.audio.get_capabilities", "exports", L2, Query,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-068", "exports.audio.preview", "exports", L2, Query,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-069", "exports.audio.start", "exports", L2, Command,
-                            Asynchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-070", "extract.get_capabilities", "extract", L2, Query,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-071", "extract.pitch.start", "extract", L2, Command,
-                            Asynchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-072", "extract.midi.start", "extract", L2, Command,
-                            Asynchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-073", "inference.get_capabilities", "inference", L2, Query,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-074", "inference.start", "inference", L2, Command,
-                            Asynchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-075", "inference.reset_stage", "inference", L2, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-076", "tasks.list", "tasks", L2, Query, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-077", "tasks.get", "tasks", L2, Query, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-078", "tasks.cancel", "tasks", L2, Command, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-079", "playback.get", "playback", L2, Query, Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-080", "playback.play", "playback", L2, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-081", "playback.pause", "playback", L2, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-082", "playback.stop", "playback", L2, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-083", "playback.set_position", "playback", L2, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-084", "playback.set_last_position", "playback", L2, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-085", "playback.set_loop", "playback", L2, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-086", "playback.set_loop_enabled", "playback", L2, Command,
-                            Synchronous)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-087", "playback.clear_loop", "playback", L2, Command,
-                            Synchronous)
+// tracking id, operation id, category, minimum profile, operation kind, sync mode,
+// version, introduced version, minimum compatible version
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-001", "application.get_info", "application", Meta, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-002", "automation.get_status", "automation", Meta, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-003", "automation.get_manifest", "automation", Meta, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-004", "automation.get_options", "automation", Meta, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-005", "automation.get_file_access", "automation", L2, Query, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-006", "documents.get", "documents", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-007", "project.get", "documents", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-008", "documents.new", "documents", L2, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-009", "documents.open", "documents", L2, Command, Asynchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-010", "documents.save", "documents", L2, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-011", "documents.save_as", "documents", L2, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-012", "documents.import", "documents", L2, Command, Asynchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-013", "documents.import_batch", "documents", L2, Command, Asynchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-014", "formats.list", "formats", L2, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-015", "formats.inspect", "formats", L2, Query, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-016", "tracks.list", "tracks", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-017", "tracks.get", "tracks", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-018", "tracks.insert", "tracks", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-019", "tracks.remove", "tracks", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-020", "tracks.move", "tracks", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-021", "tracks.rename", "tracks", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-022", "tracks.set_color", "tracks", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-023", "tracks.set_gain", "tracks", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-024", "tracks.set_pan", "tracks", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-025", "tracks.set_mute", "tracks", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-026", "tracks.set_solo", "tracks", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-027", "tracks.set_default_language", "tracks", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-028", "tracks.get_voice_context", "tracks", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-029", "tracks.set_voice", "tracks", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-030", "tracks.clear_voice", "tracks", L1, Command, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-031", "master.get", "bus", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-032", "master.set_gain", "bus", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-033", "master.set_pan", "bus", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-034", "master.set_mute", "bus", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-035", "master.set_solo", "bus", L1, Command, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-036", "clips.list", "clips", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-037", "clips.get", "clips", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-038", "clips.insert", "clips", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-039", "clips.duplicate", "clips", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-040", "clips.remove", "clips", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-041", "clips.move", "clips", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-042", "clips.resize_left", "clips", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-043", "clips.resize_right", "clips", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-044", "clips.rename", "clips", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-045", "clips.set_gain", "clips", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-046", "clips.set_mute", "clips", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-047", "clips.set_default_language", "clips", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-048", "clips.get_voice_context", "clips", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-049", "clips.use_track_voice", "clips", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-050", "clips.set_voice", "clips", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-051", "clips.clear_voice", "clips", L1, Command, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-052", "audio_clips.get", "audio_clips", L2, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-053", "audio_clips.import", "audio_clips", L2, Command, Asynchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-054", "audio_clips.import_batch", "audio_clips", L2, Command, Asynchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-055", "audio_clips.relocate", "audio_clips", L2, Command, Asynchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-056", "audio_clips.confirm_path", "audio_clips", L2, Command, Asynchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-057", "voices.list", "voices", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-058", "voices.describe", "voices", L1, Query, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-059", "speaker_mix.get", "speaker_mix", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-060", "speaker_mix.set_fixed", "speaker_mix", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-061", "speaker_mix.enable_dynamic", "speaker_mix", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-062", "speaker_mix.disable_dynamic", "speaker_mix", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-063", "speaker_mix.set_dynamic_bypass", "speaker_mix", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-064", "speaker_mix.keyframes.insert", "speaker_mix", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-065", "speaker_mix.keyframes.move", "speaker_mix", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-066", "speaker_mix.keyframes.set_weights", "speaker_mix", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-067", "speaker_mix.keyframes.remove", "speaker_mix", L1, Command, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-068", "notes.get", "notes", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-069", "notes.search", "notes", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-070", "notes.insert", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-071", "notes.duplicate", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-072", "notes.remove", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-073", "notes.move", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-074", "notes.resize_left", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-075", "notes.resize_right", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-076", "notes.split_at", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-077", "notes.quantize", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-078", "notes.set_lyric", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-079", "notes.set_language", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-080", "notes.set_pronunciation", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-081", "notes.reset_pronunciation", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-082", "notes.set_phonemes", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-083", "notes.set_phoneme_offsets", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-084", "notes.reset_phonemes", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-085", "notes.fill_lyrics", "notes", L1, Command, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-086", "parameters.get_capabilities", "parameters", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-087", "parameters.get", "parameters", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-088", "parameters.replace", "parameters", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-089", "parameters.draw", "parameters", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-090", "parameters.erase", "parameters", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-091", "parameters.bake", "parameters", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-092", "parameters.insert_anchors", "parameters", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-093", "parameters.move_anchors", "parameters", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-094", "parameters.remove_anchors", "parameters", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-095", "parameters.set_anchor_interpolation", "parameters", L1, Command, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-096", "timeline.get", "timeline", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-097", "tempos.set", "timeline", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-098", "tempos.delete", "timeline", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-099", "time_signatures.set", "timeline", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-100", "time_signatures.delete", "timeline", L1, Command, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-101", "history.get_state", "history", L1, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-102", "history.undo", "history", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-103", "history.redo", "history", L1, Command, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-104", "playback.get", "playback", L2, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-105", "playback.play", "playback", L2, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-106", "playback.pause", "playback", L2, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-107", "playback.stop", "playback", L2, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-108", "playback.seek", "playback", L2, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-109", "playback.set_loop", "playback", L2, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-110", "playback.set_loop_enabled", "playback", L2, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-111", "playback.clear_loop", "playback", L2, Command, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-112", "exports.midi.get_capabilities", "exports", L2, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-113", "exports.midi.preview", "exports", L2, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-114", "exports.midi.start", "exports", L2, Command, Asynchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-115", "exports.audio.get_capabilities", "exports", L2, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-116", "exports.audio.preview", "exports", L2, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-117", "exports.audio.start", "exports", L2, Command, Asynchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-118", "extract.get_capabilities", "extract", L2, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-119", "extract.pitch.start", "extract", L2, Command, Asynchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-120", "extract.midi.start", "extract", L2, Command, Asynchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-121", "inference.get_capabilities", "inference", L2, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-122", "inference.get_status", "inference", L2, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-123", "inference.start", "inference", L2, Command, Asynchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-124", "inference.reset_stage", "inference", L2, Command, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-125", "tasks.list", "tasks", L2, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-126", "tasks.get", "tasks", L2, Query, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-127", "tasks.cancel", "tasks", L2, Command, Synchronous, 1, 1, 1)

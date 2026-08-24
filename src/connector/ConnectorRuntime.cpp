@@ -340,14 +340,11 @@ namespace DsConnector {
                 {QStringLiteral("type"), QStringLiteral("boolean")},
             };
             auto annotations = strictObjectSchema(QJsonObject{
-                {QStringLiteral("title"),                    stringSchema()  },
-                {QStringLiteral("readOnlyHint"),             boolean         },
-                {QStringLiteral("destructiveHint"),          boolean         },
-                {QStringLiteral("idempotentHint"),           boolean         },
-                {QStringLiteral("openWorldHint"),            boolean         },
-                {QStringLiteral("toolsetVersion"),           integerSchema(1)},
-                {QStringLiteral("minimumCompatibleVersion"), integerSchema(1)},
-                {QStringLiteral("category"),                 stringSchema()  },
+                {QStringLiteral("title"),           stringSchema()},
+                {QStringLiteral("readOnlyHint"),    boolean       },
+                {QStringLiteral("destructiveHint"), boolean       },
+                {QStringLiteral("idempotentHint"),  boolean       },
+                {QStringLiteral("openWorldHint"),   boolean       },
             });
             annotations.insert(QStringLiteral("additionalProperties"), true);
             auto result = strictObjectSchema(
@@ -435,8 +432,12 @@ namespace DsConnector {
                 if (!operation.value(key).isString() || operation.value(key).toString().isEmpty())
                     return false;
             }
-            if (operation.value(QStringLiteral("version")).toInteger(0) < 1 ||
-                operation.value(QStringLiteral("minimum_compatible_version")).toInteger(0) < 1 ||
+            const auto version = operation.value(QStringLiteral("version")).toInteger(0);
+            const auto introduced =
+                operation.value(QStringLiteral("introduced_version")).toInteger(0);
+            const auto minimum =
+                operation.value(QStringLiteral("minimum_compatible_version")).toInteger(0);
+            if (version < 1 || introduced < 1 || introduced > minimum || minimum > version ||
                 !operation.value(QStringLiteral("value_sources")).isArray()) {
                 return false;
             }
@@ -576,7 +577,8 @@ namespace DsConnector {
             auto result = strictObjectSchema(
                 QJsonObject{
                     {QStringLiteral("tool"),                       toolDescriptorSchema()                   },
-                    {QStringLiteral("version"),                    integerSchema()                          },
+                    {QStringLiteral("version"),                    integerSchema(1)                         },
+                    {QStringLiteral("introduced_version"),         integerSchema(1)                         },
                     {QStringLiteral("minimum_compatible_version"), integerSchema(1)                         },
                     {QStringLiteral("input_schema"),               schemaReference(QStringLiteral("schema"))},
                     {QStringLiteral("output_schema"),              schemaReference(QStringLiteral("schema"))},
@@ -587,6 +589,7 @@ namespace DsConnector {
                     {QStringLiteral("category"),                   stringSchema()                           },
             },
                 QJsonArray{QStringLiteral("tool"), QStringLiteral("version"),
+                           QStringLiteral("introduced_version"),
                            QStringLiteral("minimum_compatible_version"),
                            QStringLiteral("input_schema"), QStringLiteral("manifest_digest"),
                            QStringLiteral("typed_compatibility"), QStringLiteral("availability"),
@@ -597,6 +600,9 @@ namespace DsConnector {
 
         QJsonObject bridgeTool(const QString &name, const QString &description,
                                const QJsonObject &inputSchema, const QJsonObject &outputSchema) {
+            const auto readOnly = name != QStringLiteral("connector.reconnect") &&
+                                  name != QStringLiteral("editor.tools.invoke");
+            const auto destructive = name == QStringLiteral("editor.tools.invoke");
             return {
                 {QStringLiteral("name"),         name        },
                 {QStringLiteral("title"),        name        },
@@ -605,14 +611,20 @@ namespace DsConnector {
                 {QStringLiteral("outputSchema"), outputSchema},
                 {QStringLiteral("annotations"),
                  QJsonObject{
-                     {QStringLiteral("readOnlyHint"),
-                      name != QStringLiteral("connector.reconnect") &&
-                          name != QStringLiteral("editor.tools.invoke")},
-                     {QStringLiteral("toolsetVersion"),
-                      static_cast<qint64>(AutomationWire::PublicToolsetVersion)},
-                     {QStringLiteral("minimumCompatibleVersion"),
-                      static_cast<qint64>(AutomationWire::PublicMinimumCompatibleVersion)},
-                     {QStringLiteral("category"), QStringLiteral("connector")},
+                     {QStringLiteral("readOnlyHint"), readOnly},
+                     {QStringLiteral("destructiveHint"), destructive},
+                     {QStringLiteral("idempotentHint"), readOnly},
+                     {QStringLiteral("openWorldHint"), false},
+                 }                                           },
+                {QStringLiteral("_meta"),
+                 QJsonObject{
+                     {QStringLiteral("io.openvpi.ds-editor-lite/tool"),
+                      QJsonObject{
+                          {QStringLiteral("version"), 1},
+                          {QStringLiteral("introduced_version"), 1},
+                          {QStringLiteral("minimum_compatible_version"), 1},
+                          {QStringLiteral("category"), QStringLiteral("connector")},
+                      }},
                  }                                           },
             };
         }
@@ -637,10 +649,6 @@ namespace DsConnector {
         }
 
         QJsonObject toolDescriptor(const QJsonObject &tool) {
-            auto annotations = tool.value(QStringLiteral("annotations")).toObject();
-            const auto category = ExposurePolicy::category(tool);
-            if (!category.isEmpty())
-                annotations.insert(QStringLiteral("category"), category);
             QJsonObject result{
                 {QStringLiteral("name"), ExposurePolicy::operationId(tool)},
                 {QStringLiteral("inputSchema"),
@@ -655,8 +663,9 @@ namespace DsConnector {
                 jsonValue(tool, QStringLiteral("outputSchema"), QStringLiteral("output_schema"));
             if (outputSchema.isObject())
                 result.insert(QStringLiteral("outputSchema"), outputSchema);
-            if (!annotations.isEmpty() || tool.contains(QStringLiteral("annotations")))
-                result.insert(QStringLiteral("annotations"), annotations);
+            if (tool.contains(QStringLiteral("annotations")))
+                result.insert(QStringLiteral("annotations"),
+                              tool.value(QStringLiteral("annotations")));
             for (const auto &key : {QStringLiteral("icons"), QStringLiteral("_meta")}) {
                 if (tool.contains(key))
                     result.insert(key, tool.value(key));
@@ -1673,7 +1682,7 @@ namespace DsConnector {
                         QStringLiteral("minimum_compatible_version"), 1);
         const auto versionCompatible =
             static_cast<qint64>(AutomationWire::PublicToolsetVersion) >= editorMinimum &&
-            editorVersion >= static_cast<qint64>(AutomationWire::PublicMinimumCompatibleVersion);
+            editorVersion >= static_cast<qint64>(tool.minimumCompatibleVersion);
         if (!versionCompatible)
             return QStringLiteral("contract_incompatible");
 
@@ -1850,6 +1859,9 @@ namespace DsConnector {
             {QStringLiteral("tool"), toolDescriptor(tool)},
             {QStringLiteral("version"),
              jsonInteger(tool, QStringLiteral("version"), QStringLiteral("version"), 0)},
+            {QStringLiteral("introduced_version"),
+             jsonInteger(tool, QStringLiteral("introducedVersion"),
+             QStringLiteral("introduced_version"), 1)},
             {QStringLiteral("minimum_compatible_version"),
              jsonInteger(tool, QStringLiteral("minimumCompatibleVersion"),
              QStringLiteral("minimum_compatible_version"), 1)},

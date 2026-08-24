@@ -15,7 +15,6 @@
 namespace AutomationWire {
 
     inline constexpr quint64 PublicToolsetVersion = 1;
-    inline constexpr quint64 PublicMinimumCompatibleVersion = 1;
 
     enum class OperationKind {
         Query,
@@ -33,6 +32,9 @@ namespace AutomationWire {
     struct ToolContract {
         QString trackingId;
         QString operationId;
+        quint64 version = 1;
+        quint64 introducedVersion = 1;
+        quint64 minimumCompatibleVersion = 1;
         QString title;
         QString description;
         QString category;
@@ -52,7 +54,7 @@ namespace AutomationWire {
     const ToolContract *findPublicTool(const QString &operationId);
     QStringList publicToolIds();
     QList<ToolContract> toolsForProfile(AutomationProfile profile,
-                                       const QSet<QString> &customEnabled = {});
+                                        const QSet<QString> &customEnabled = {});
 
     struct PublicManifest {
         quint64 toolsetVersion = PublicToolsetVersion;
