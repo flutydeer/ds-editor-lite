@@ -13,6 +13,7 @@
 
 #include <array>
 #include <cmath>
+#include <limits>
 
 namespace Automation {
     namespace {
@@ -543,10 +544,19 @@ namespace Automation {
         result->workspace() = draft.workspace;
         if (result->clipType() == Clip::Audio) {
             auto *audio = static_cast<AudioClip *>(result.get());
-            if (audio->hasRealTimeAnchor())
+            if (audio->hasRealTimeAnchor()) {
                 audio->updateTicksFromTruth(timeline);
-            else
+                const auto submittedLocalEnd =
+                    static_cast<qint64>(draft.properties.clipStart) + draft.properties.clipLen;
+                if (draft.properties.length < submittedLocalEnd &&
+                    audio->start() == draft.properties.start &&
+                    audio->clipStart() == draft.properties.clipStart &&
+                    audio->clipLen() == draft.properties.clipLen) {
+                    audio->setLength(draft.properties.length);
+                }
+            } else {
                 audio->syncTruthFromTicks(timeline);
+            }
         }
         return result;
     }
@@ -697,11 +707,13 @@ namespace Automation {
 
     AutomationResult<AutomationUnit> validate(const ClipDraftDto &draft) {
         const auto &properties = draft.properties;
-        if (properties.start + properties.clipStart < 0 || properties.length < 0 ||
-            properties.clipStart < 0 || properties.clipLen < 0 ||
-            properties.clipStart + properties.clipLen > properties.length ||
-            !std::isfinite(properties.gain) || !std::isfinite(properties.trimStartMs) ||
-            !std::isfinite(properties.playLengthMs) ||
+        const auto localEnd = static_cast<qint64>(properties.clipStart) + properties.clipLen;
+        const auto visibleStart = static_cast<qint64>(properties.start) + properties.clipStart;
+        const auto visibleEnd = visibleStart + properties.clipLen;
+        if (localEnd > std::numeric_limits<int>::max() || visibleStart < 0 ||
+            visibleEnd > std::numeric_limits<int>::max() || properties.length < 0 ||
+            properties.clipStart < 0 || properties.clipLen < 0 || !std::isfinite(properties.gain) ||
+            !std::isfinite(properties.trimStartMs) || !std::isfinite(properties.playLengthMs) ||
             !std::isfinite(properties.materialLengthMs)) {
             return AutomationError::invalidArgument(
                 QStringLiteral("clip.properties"),

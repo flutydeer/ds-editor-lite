@@ -654,7 +654,7 @@ int main(int argc, char *argv[]) {
     ok &= expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                      capabilities.get().maxConcurrentWindows == 1,
                  "capabilities must declare the single document/window boundary");
-    ok &= expect(Automation::OperationIds::all().size() == 122,
+    ok &= expect(Automation::OperationIds::all().size() == 123,
                  "centralized operation registry must retain the approved phase-one surface");
     ok &= expect(capabilities && capabilities.get().operationIds == Automation::OperationIds::all(),
                  "Catalog and the centralized operation registry must match");

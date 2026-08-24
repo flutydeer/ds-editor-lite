@@ -7,7 +7,8 @@
 #include <algorithm>
 
 namespace {
-    void applyArgs(Clip *clip, const Clip::ClipCommonProperties &args) {
+    void applyArgs(Clip *clip, const Clip::ClipCommonProperties &args, const bool updateAudioTiming,
+                   const bool preserveAudioTickCaches) {
         // opendspx requires clip.pos = start + clipStart to stay non-negative.
         auto safeArgs = Clip::ClipCommonProperties(args);
         safeArgs.start = std::max(safeArgs.start, -safeArgs.clipStart);
@@ -18,11 +19,11 @@ namespace {
         clip->setClipLen(safeArgs.clipLen);
         clip->setGain(safeArgs.gain);
         clip->setMute(safeArgs.mute);
-        if (clip->clipType() == IClip::Audio) {
+        if (clip->clipType() == IClip::Audio && updateAudioTiming) {
             // The tick snapshot may predate a tempo change; the ms truth
             // carried in the args re-derives the caches under the current map
-            static_cast<AudioClip *>(clip)->applyRealTimeAnchorFromProperties(safeArgs,
-                                                                              appModel->timeline());
+            static_cast<AudioClip *>(clip)->applyRealTimeAnchorFromProperties(
+                safeArgs, appModel->timeline(), !preserveAudioTickCaches);
         }
     }
 }
@@ -52,20 +53,21 @@ EditClipCommonPropertiesAction *
             AudioClip::deriveTruthForProperties(a->m_newArgs, timeline);
             AudioClip::preserveUnchangedTruth(a->m_newArgs, a->m_oldArgs);
         }
+        a->m_audioTimingChanged = !AudioClip::timingPropertiesEqual(a->m_oldArgs, a->m_newArgs);
     }
     return a;
 }
 
 void EditClipCommonPropertiesAction::execute() {
     m_track->removeClip(m_clip);
-    applyArgs(m_clip, m_newArgs);
+    applyArgs(m_clip, m_newArgs, m_audioTimingChanged, false);
     m_track->insertClip(m_clip);
     m_clip->notifyPropertyChanged();
 }
 
 void EditClipCommonPropertiesAction::undo() {
     m_track->removeClip(m_clip);
-    applyArgs(m_clip, m_oldArgs);
+    applyArgs(m_clip, m_oldArgs, m_audioTimingChanged, true);
     m_track->insertClip(m_clip);
     m_clip->notifyPropertyChanged();
 }

@@ -22,6 +22,7 @@ private:
     Clip *m_clip = nullptr;
     Track *m_oldTrack = nullptr;
     Track *m_newTrack = nullptr;
+    bool m_audioTimingChanged = false;
 };
 
 #endif // MOVECLIPTOTRACKACTION_H

@@ -212,6 +212,9 @@ namespace {
         EXPECTED_DESCRIPTOR(notes::remove, "AFC-CATALOG-062", "notes", Command, Synchronous, Write,
                             Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
+        EXPECTED_DESCRIPTOR(notes::reset_phoneme_offsets, "AFC-CATALOG-123", "notes", Command,
+                            Synchronous, Write, Increment, Record, None, Core, Reversible,
+                            InternalOnly, DocumentGeneration),
         EXPECTED_DESCRIPTOR(notes::resize_left, "AFC-CATALOG-063", "notes", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
@@ -428,8 +431,8 @@ int main(int argc, char *argv[]) {
     const auto &catalog = testRuntime.runtime().catalog();
 
     bool ok = true;
-    ok &= expect(kExpectedOperations.size() == 122,
-                 QStringLiteral("the explicit descriptor table must contain 122 operations"));
+    ok &= expect(kExpectedOperations.size() == 123,
+                 QStringLiteral("the explicit descriptor table must contain 123 operations"));
     ok &= expect(catalog.entries().size() == kExpectedOperations.size(),
                  QStringLiteral("the real Catalog size differs from the explicit table"));
 

@@ -326,8 +326,12 @@ namespace {
                     "commit-import must retain identity and create one History/revision change");
 
         const LoopSettings openedLoop(true, 480, 1440);
-        const auto openedDocument = makeDocumentDraft(QStringLiteral("Opened Lifecycle Track"),
-                                                      QStringLiteral("open-lifecycle"), openedLoop);
+        auto openedDocument = makeDocumentDraft(QStringLiteral("Opened Lifecycle Track"),
+                                                QStringLiteral("open-lifecycle"), openedLoop);
+        auto &legacyProperties = openedDocument.tracks.first().clips.first().properties;
+        legacyProperties.length = 960;
+        legacyProperties.clipStart = 240;
+        legacyProperties.clipLen = 1440;
         const QString openedPath = QStringLiteral("fixtures/opened-lifecycle.dspx");
         const auto committedOpen = runtime.documents().commitOpenedDocument(
             commandContext(runtime), openedDocument, openedPath,
@@ -335,6 +339,7 @@ namespace {
         const auto afterOpen = runtime.documentVersion();
         const auto openSnapshot = runtime.documents().getDocument(afterOpen.documentId);
         const auto openHistory = runtime.history().getState(afterOpen.documentId);
+        const auto openedProject = runtime.project().getProject(afterOpen.documentId);
         const auto staleSnapshot = runtime.documents().getDocument(afterImport.documentId);
 
         test.expect(committedOpen && committedOpen.get().changed &&
@@ -343,16 +348,24 @@ namespace {
                         afterOpen.documentId != afterImport.documentId && afterOpen.revision == 0,
                     "AFC-DOC-LIFECYCLE-004",
                     "commit-open must rotate the document generation and reset revision");
-        test.expect(openSnapshot && openSnapshot.get().path == openedPath &&
-                        openSnapshot.get().projectName == QStringLiteral("opened-lifecycle.dspx") &&
-                        openSnapshot.get().saved && openHistory && !openHistory.get().canUndo &&
-                        !openHistory.get().canRedo && openHistory.get().onSavePoint &&
-                        fixture.host.loopSettings == openedLoop && !staleSnapshot &&
-                        staleSnapshot.getError().code ==
-                            Automation::AutomationErrorCode::DocumentChanged,
-                    "AFC-DOC-LIFECYCLE-004",
-                    "commit-open must publish its identity/savepoint and reject the old "
-                    "generation");
+        test.expect(
+            openSnapshot && openSnapshot.get().path == openedPath &&
+                openSnapshot.get().projectName == QStringLiteral("opened-lifecycle.dspx") &&
+                openSnapshot.get().saved && openHistory && !openHistory.get().canUndo &&
+                !openHistory.get().canRedo && openHistory.get().onSavePoint && openedProject &&
+                openedProject.get().tracks.size() == 1 &&
+                openedProject.get().tracks.first().clips.size() == 1 &&
+                openedProject.get().tracks.first().clips.first().data.properties.length ==
+                    legacyProperties.length &&
+                openedProject.get().tracks.first().clips.first().data.properties.clipStart ==
+                    legacyProperties.clipStart &&
+                openedProject.get().tracks.first().clips.first().data.properties.clipLen ==
+                    legacyProperties.clipLen &&
+                fixture.host.loopSettings == openedLoop && !staleSnapshot &&
+                staleSnapshot.getError().code == Automation::AutomationErrorCode::DocumentChanged,
+            "AFC-DOC-LIFECYCLE-004",
+            "commit-open must preserve legacy clip geometry, publish its savepoint, and "
+            "reject the old generation");
     }
 
     void testFailureAndCancellationRollback(TestRun &test) {
