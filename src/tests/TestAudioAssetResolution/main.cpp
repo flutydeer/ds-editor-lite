@@ -618,9 +618,10 @@ namespace {
         const auto strict = runtime.project().applyAudioDecodeCache(
             staleRevisionContext, fixture.audioClipId(), taskAsset, staleInfo);
         EXPECT(checks,
-               !strict &&
-                   strict.getError().code == Automation::AutomationErrorCode::RevisionConflict,
-               "the dispatcher must keep strict revision validation for direct facade calls");
+               isStaleAssetError(strict,
+                                 Automation::OperationIds::audio_clips::apply_decode_cache),
+               "a derived writeback must honor its revision-free contract while rejecting the "
+               "stale asset snapshot");
 
         const auto rebasedContext = runtime.derivedWritebackContext(taskVersion, false);
         const auto staleCache =
